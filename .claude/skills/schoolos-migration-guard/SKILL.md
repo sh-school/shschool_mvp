@@ -1,108 +1,54 @@
 ---
 name: schoolos-migration-guard
 description: |
-  حارس أمان ترحيلات Django في SchoolOS (Django 5.2 + PostgreSQL 16). يفحص أي migration
-  قبل تطبيقه على قاعدة بيانات فيها بيانات حقيقية: الأقفال الحاجزة (ACCESS EXCLUSIVE)،
-  فقد البيانات، كسر التوافق الرجعي مع الكود القديم أثناء النشر المتدحرج، الأعمدة NOT NULL
-  بلا default، RunPython بلا reverse، والفهارس/القيود على جداول كبيرة بلا CONCURRENTLY.
-  استخدمها دائماً وتلقائياً عند: إنشاء migration جديد، مراجعة migration قبل الدمج أو النشر،
-  ظهور "makemigrations"/"migrate"، تعديل أي models.py، أو السؤال "هل هذا الترحيل آمن؟".
-  Trigger on: migration, makemigrations, migrate, schema change, ALTER TABLE, "هل الترحيل آمن".
+  Use for any Django schema or data migration in SchoolOS: writing or reviewing */migrations/, changing a field in models.py, Add/Remove/Rename/AlterField, NOT NULL, default vs db_default, indexes and unique constraints on live tables, RunPython/RunSQL backfills (encrypted PII), the expand/contract rule and the migration-linter CI gate, or two sessions colliding on a migration number. Trigger on: migration, makemigrations, sqlmigrate, lintmigrations, schema change, db_default, "is this migration safe", "migration-linter failed", "Conflicting migrations".
+  استخدمها عند: كتابة هجرةٍ أو مراجعتها قبل الدفع، أو تعديل حقلٍ في models.py، أو سقوط «مدقّق الهجرات — Expand/Contract» في CI، أو RunPython يملأ بياناتٍ مشفّرة، أو تعارضِ ترقيم هجرتين — ولو لم تُذكر كلمة migration: كلُّ تعديلٍ في models.py يولّد هجرة.
+  ليست لـ: بطء الاستعلامات (nplus1-hunter)، ولا تصنيفِ حقلٍ شخصيّ (pdppl-pii-audit)، ولا هجراتِ الخارطة roadmap/migrations (جلسةُ الخارطة)، ولا الدفعِ والنشر (schoolos-flow)، ولا أوامرِ غيت.
 ---
 
-# حارس ترحيلات SchoolOS
+# حارس هجرات SchoolOS
 
-> الهدف: **صفر توقّف وصفر فقد بيانات** عند النشر على قاعدة إنتاج فيها آلاف السجلات.
-> هذه المنصة حكومية قطرية — الترحيل الخاطئ = تعطّل مدرسة + مخاطرة PDPPL على سجلات مشفّرة.
+الغرض: أن تمرّ كلُّ هجرةٍ على قاعدةٍ حيّةٍ بلا توقّفٍ ولا فقدٍ ولا كسرٍ للنسخة المنشورة، وأن تعبر بوّابةَ CI من أوّل مرّة.
+السببُ الحيّ: 2026-09-11 حذفت هجرةٌ عموداً (`spread_days_scope`) فسقطت ثماني صفحاتٍ في كلّ شجرةٍ أخرى ساعات (المصدر: `CLAUDE.md`، قسم «الهجرات: توسيعٌ ثمّ تقليص»).
 
-المسار الوحيد للعمل: `D:\shschool_mvp` مباشرة. لا تعدّل في worktrees.
+## متى تُستعمل ومتى لا
+- نعم: أيُّ ملفٍّ جديدٍ أو معدَّلٍ تحت `*/migrations/`، وأيُّ تعديلٍ في نموذج، ومراجعةُ طلبٍ فيه هجرة.
+- لا: هجراتُ `roadmap/migrations/` — لجلسة «خارطة التجويد» وحدها، وغيرُها يُبلغها برمز البند ورقم الطلب (المصدر: `CLAUDE.md`، قسم الخارطة الحيّة). ولا قرارُ «هل يُشفَّر الحقل» (pdppl-pii-audit).
 
----
+## الإجراء
+1. **حدِّد الخطوة قبل الكتابة:** توسيعٌ (أضِف وانقل القراءة) أم تقليصٌ (احذف ما لم يعد يُقرأ) — لا الاثنان في إصدارٍ واحد. التفصيل: `references/00-policy-and-ci.md`.
+2. **ولّد الهجرة في شجرتك** ثمّ قارن رقمَها بآخر هجرةٍ للتطبيق على `origin/main` (`git fetch` ثمّ `git ls-tree --name-only origin/main <app>/migrations/`) — هجرتان من جلستين على الأصل نفسِه تُسقطان migrate. انظر `references/03-parallel-sessions.md`.
+3. **شغّل الحارس داخل حاوية جلستك** (بادئةُ `$DC` معرَّفةٌ في `references/03-parallel-sessions.md`):
+   `$DC python .claude/skills/schoolos-migration-guard/scripts/check_migration.py --file <app>/migrations/<file>.py --sql`
+   يحلّل الملفَّ، ويولّد SQL بـ`sqlmigrate` ويصنّفه، ثمّ يمرّره على محلّل `django-migration-linter` نفسِه الذي تستدعيه البوّابة — فسطرُ «[مدقّق CI] خطأ» يعني أنّ CI سيسقط. رمزُ الخروج 1 عند أيّ 🔴.
+4. **عالج كلَّ 🔴 بالبديل المذكور** في `references/01-operations-catalog.md`، وراجع كلَّ 🟠 بحجم الجدول.
+5. **طبّقها على قاعدة جلستك واختبر:** `$DC python manage.py migrate` ثمّ `$DC python manage.py makemigrations --check --dry-run` (بوّابةٌ في CI أيضاً) ثمّ الاختبارات بأمر `CLAUDE.md`.
+6. **في وصف الطلب:** أيُّ خطوةٍ هذه (توسيع/تقليص)، وما يعكسها، وأنّ الحارس خرج 0. ثمّ الدفعُ والتحويل وفق schoolos-flow.
 
-## 1. الخطوة الأولى دائماً — شغّل الفاحص
+## القواعد وأسبابها
+- **الهدّامُ خطوةٌ ثانيةٌ في إصدارٍ لاحق.** حذفُ عمودٍ أو جدولٍ أو إعادةُ تسميتهما أو NOT NULL بلا افتراض يُسقط الشيفرةَ التي ما زالت تعمل: الهجراتُ تجري في مرحلة `preDeploy` والنسخةُ القديمة وعاملُ Celery يخدمان (المصدر: `scripts/railway-predeploy.sh`، `.railway/railway.ts`)، وكلُّ شجرةٍ أخرى على شيفرتها. البوّابةُ تسقطه ولو كان صحيحاً منطقيّاً، والاستثناءُ قرارٌ في مراجعة الطلب (المصدر: `CLAUDE.md`).
+- **عمودٌ NOT NULL جديد = `default=` و`db_default=` معاً.** بـ`default=` وحده يضيف Django العمودَ بافتراضٍ ثمّ يُسقطه (`DROP DEFAULT`) فتسقط كتابةُ النسخة القديمة، والبوّابةُ تُسقطه (NOT_NULL) — مُثبَتٌ بـ`sqlmigrate` و`lintmigrations` في مختبرٍ على PostgreSQL 18. السابقة: `operations/migrations/0053_excuse_review.py`.
+- **الفهرسُ على جدولٍ قائمٍ كبير = `AddIndexConcurrently` و`atomic = False`**؛ والقيدُ الفريدُ وتغييرُ نوع العمود على جدولٍ قائم تُسقطهما البوّابة (ADD_UNIQUE، ALTER_COLUMN). السابقة: `operations/migrations/0055_attendance_exit_partial_index.py`.
+- **RunPython يرى نموذجاً تاريخيّاً:** بلا `save()` ولا خصائص ولا مديراتٍ مخصّصة (`.live()`…) — مُثبَتٌ في المختبر. فما يملؤه `save()` (ثلاثيّةُ `national_id`/`phone`: خامٌ و`_encrypted` و`_hmac`) يُحسب صراحةً بـ`encrypt_field`/`hmac_field`. السابقة: `core/migrations/0020_populate_national_id_hmac_encrypted.py`. التفصيل: `references/02-data-migrations.md`.
+- **كلُّ RunPython/RunSQL له عكس** (دالّةٌ أو `noop` صريحٌ بسببه). البوّابةُ تحذّر فقط؛ المهارةُ أشدّ لأنّ فشلَ النشر بلا عكسٍ إصلاحٌ يدويٌّ على الإنتاج.
+- **لا تعدّل هجرةً طُبّقت على أيّ قاعدة** (جلستك أو المعاينة): Django لا يعيد تطبيقَ ما سُجّل، فتبقى القاعدةُ على المسوّدة صامتةً (المصدر: ذاكرة `feedback_local_roadmap_db_drift.md`). أنشئ هجرةً جديدة، أو ارجع بها (`migrate <app> <السابقة>`) ثمّ عدّل.
+- **ما يزيد عن 300ms لا يُحشر في هجرة:** تعبئةُ جدولٍ كبير أمرُ إدارةٍ أو مهمّةٌ خلفيّة بعد النشر (المصدر: «القرارات الهندسيّة» في `~/.claude/CLAUDE.md`).
 
-```bash
-python .claude/skills/schoolos-migration-guard/scripts/check_migration.py --app <app_label>
-# أو لكل الترحيلات غير المطبّقة:
-python .claude/skills/schoolos-migration-guard/scripts/check_migration.py --pending
-# لفحص ملف محدد:
-python .claude/skills/schoolos-migration-guard/scripts/check_migration.py --file operations/migrations/0017_xxx.py
-```
+## فخاخٌ حقيقيّة
+- خطأ: `AddField(..., field=models.TextField(default=""))` لعمودٍ إلزاميّ. الصواب: `models.TextField(default="", db_default="")`.
+- خطأ: `RemoveField` في الطلب نفسِه الذي أوقف قراءةَ الحقل. الصواب: طلبٌ يوقف القراءةَ والكتابة ويُنشر، ثمّ طلبٌ لاحقٌ بالحذف (السابقة: حذفُ `StaffEvaluation` بعد #417، `shschool/settings/testing.py`).
+- خطأ: `RunPython(forward)` وحده. الصواب: `RunPython(forward, backward)` أو `RunPython(forward, migrations.RunPython.noop)` مع تعليقٍ يشرح لماذا لا عكس.
+- خطأ: في RunPython: `User.objects.filter(...).update(phone=new)`. الصواب: دفعاتٌ تحسب `phone_encrypted` و`phone_hmac` بالدالّتين ثمّ `bulk_update` بالأعمدة الثلاثة.
+- خطأ: `AddIndex` على `studentattendance`. الصواب: `AddIndexConcurrently` في هجرةٍ وحدَها بـ`atomic = False`.
+- خطأ: `default=uuid.uuid4` مع `unique=True` في `AddField`. الصواب: `null=True` أوّلاً، ثمّ تعبئةٌ لكلّ صفّ، ثمّ القيد — الدالّةُ تُحسب مرّةً واحدةً لكلّ الصفوف القائمة (مُثبَتٌ بـ`sqlmigrate`).
+- خطأ: تعديلُ `0056_x.py` بعد تطبيقها على قاعدة جلستك «لأنّها لم تُدفع بعد». الصواب: ارجع بها أوّلاً، أو هجرةٌ جديدة.
+- خطأ: «المسارُ الوحيد `D:\shschool_mvp` ولا تعدّل في worktrees» — أُلغيت 2026-09-08. الصواب: اعمل في شجرتك على قاعدتها (`CLAUDE.md`، القاعدة رقم 1).
 
-الفاحص يفعل:
-1. `makemigrations --check --dry-run` — يكشف الـ models المعدّلة بلا migration.
-2. تحليل AST ثابت لكل عملية داخل `operations = [...]` وتصنيف خطورتها.
-3. عند توفّر قاعدة اختبار: `sqlmigrate` لاستخراج الـ SQL الفعلي وكشف الأقفال الحاجزة.
-
-اقرأ تقرير الفاحص، ثم راجع البنود أدناه يدوياً لأنّ التحليل الثابت لا يرى حجم الجدول.
-
----
-
-## 2. سلّم الخطورة — ماذا يعني كل تصنيف
-
-### 🔴 حرج — يوقف قاعدة الإنتاج أو يفقد بيانات
-
-| النمط | لماذا خطر | البديل الآمن |
-|------|-----------|--------------|
-| `AddField(null=False)` بلا `default` على جدول غير فارغ | PostgreSQL يعيد كتابة الجدول + قفل ACCESS EXCLUSIVE | أضِف العمود `null=True` أولاً → عبّئ بيانات في migration منفصل → migration ثالث يجعله `NOT NULL` |
-| `RemoveField` / `DeleteModel` | فقد بيانات لا رجعة فيه + يكسر الكود القديم أثناء النشر المتدحرج | **مرحلتان**: (1) أوقف استخدام الحقل في الكود وانشر، (2) احذفه في إصدار لاحق |
-| `RenameField` / `RenameModel` | الكود القديم يقرأ الاسم القديم أثناء النشر → 500 على مستخدمين أحياء | أضِف الحقل الجديد + انسخ + أوقف القديم تدريجياً (لا تعِد التسمية مباشرة) |
-| `AlterField` يغيّر النوع (مثلاً `CharField→UUIDField`) | إعادة كتابة الجدول + قفل طويل + قد يفشل التحويل | عمود جديد + backfill بـ Celery + تبديل |
-| `RunPython` بلا `reverse_code` | لا يمكن التراجع (`migrate <app> <prev>`) عند فشل النشر | مرّر `reverse_code`؛ إن تعذّر استخدم `migrations.RunPython.noop` صراحةً وبرّر ذلك |
-| خلط تعديل schema **و** تعبئة بيانات في نفس الملف | الـ RunPython يقفل صفوفاً أثناء تعديل البنية → تعارض أقفال | افصل: ملف للـ schema، ملف للبيانات |
-
-### 🟠 تحذير — يقفل الجدول مؤقتاً على PostgreSQL
-
-| النمط | العلاج على PostgreSQL 16 |
-|------|--------------------------|
-| `AddIndex` على جدول كبير | استخدم `AddIndexConcurrently` (من `django.contrib.postgres.operations`) + `atomic = False` في الـ Migration |
-| `AddConstraint` (UNIQUE/CHECK/FK) | أنشئه `NOT VALID` ثم `VALIDATE CONSTRAINT` في migration لاحق (عبر `SeparateDatabaseAndState` أو SQL يدوي) |
-| `unique=True` على حقل موجود | يبني فهرساً فريداً بقفل — نفس علاج الفهرس المتزامن |
-| `AlterField` يضيف `db_index=True` | فهرس بقفل — استخدم الإنشاء المتزامن |
-
-### 🟢 آمن — عمليات metadata فقط (لا تلمس الصفوف)
-
-`AddField(null=True)` بلا default، تغيير `verbose_name`/`help_text`/`choices`، `AlterModelOptions`، `AlterOrderWithRespectTo` الفارغ، إضافة model جديد فارغ.
-
----
-
-## 3. قواعد SchoolOS الخاصة (لا تكسرها)
-
-- **الحقول المشفّرة**: أي حقل يستخدم `core.fields.EncryptedTextField` أو يُشفّر عبر `encrypt_field` (انظر `core/models/crypto.py`) — **ممنوع** عمل data migration يقرأ/يكتب قيمته الخام بـ raw SQL؛ استخدم الـ ORM حتى يمرّ عبر `from_db_value`/`get_prep_value`. تعبئة بـ SQL مباشر تخزّن نصاً صريحاً وتكسر PDPPL.
-- **`national_id` / `phone`**: لها ثلاثية (خام + `_encrypted` + `_hmac`). أي migration يمسّها يجب أن يعيد حساب الـ HMAC عبر `hmac_field` وإلا ينكسر تسجيل الدخول (USERNAME_FIELD = national_id).
-- **جداول immutable**: `AuditLog` في `core/models/audit.py` له manager يمنع UPDATE/DELETE. لا تكتب migration يعدّل صفوفه.
-- **`SchoolScopedModel` / `SoftDeleteModel`**: عند إضافة FK جديد إلى model موجود، انتبه أنّ `all_objects` يشمل المحذوف soft-deleted — أي backfill يجب أن يقرر صراحةً `objects` أم `all_objects`.
-- **UUID PK**: كل الـ PK من نوع UUID (`TimeStampedModel`). لا تفترض PK رقمياً في أي RunPython.
-
----
-
-## 4. النشر المتدحرج (Rolling Deploy) — القاعدة الذهبية
-
-الكود القديم والجديد يعملان **معاً** لثوانٍ أثناء `docker compose up`/إعادة تشغيل gunicorn. لذلك كل migration يجب أن يكون **متوافقاً في الاتجاهين**: الكود القديم يجب ألا ينكسر بالمخطّط الجديد، والعكس. هذا يفرض نمط "التوسّع ثم الانكماش" (expand/contract):
-
-1. **Expand**: أضِف الجديد (عمود/جدول) `null=True`، انشر الكود الذي يكتب في القديم والجديد.
-2. **Migrate data**: عبّئ الجديد من القديم عبر أمر إدارة أو مهمة Celery (لا داخل migration إن كان الجدول ضخماً — العملية >300ms تذهب لـ background job حسب معايير المشروع).
-3. **Contract**: بعد التأكد، اجعل الحقل `NOT NULL`/احذف القديم في إصدار **لاحق**.
-
----
-
-## 5. قائمة تحقّق قبل الموافقة على أي migration
-
-- [ ] الفاحص الآلي مرّ بلا 🔴.
-- [ ] `sqlmigrate` لا يُظهر `ACCESS EXCLUSIVE` على جدول كبير (attendance, grades, audit_log, sessions).
-- [ ] كل `RunPython` له `reverse_code` (أو `noop` مبرّر).
-- [ ] لا خلط schema + data في ملف واحد.
-- [ ] الحقول المشفّرة تُعبّأ عبر ORM لا SQL.
-- [ ] متوافق رجعياً مع الكود المنشور حالياً (expand/contract).
-- [ ] جُرّب على نسخة من بيانات الإنتاج، وقيس زمن التنفيذ.
-- [ ] خطة تراجع مكتوبة: `python manage.py migrate <app> <prev_number>`.
-
-## 6. بعد الترحيل
-
-```bash
-python manage.py migrate --plan        # عاين قبل التنفيذ
-python manage.py migrate
-python manage.py makemigrations --check # تأكد لا توجد فروق متبقية
-```
-
-عند تعديل static (CSS/JS) ضمن نفس الـ PR: `python manage.py collectstatic --noinput` ثم ارفع رقم الإصدار في `base.html`/`login.html` (cache-busting).
+## المراجع
+| الملف | متى تقرأه |
+|---|---|
+| `references/00-policy-and-ci.md` | قبل أيّ هجرةٍ هدّامة، أو حين تسقط وظيفةُ المدقّق في CI وتريد معرفةَ ما تفحصه بالضبط |
+| `references/01-operations-catalog.md` | لكلّ عمليّةٍ في ملفّك: خطرُها، وSQL الذي تولّده، وحكمُ البوّابة، والبديل |
+| `references/02-data-migrations.md` | حين تكتب RunPython/RunSQL، ولا سيّما على حقولٍ مشفّرة أو `AuditLog` أو جدولٍ كبير |
+| `references/03-parallel-sessions.md` | لتشغيل الأوامر في حاوية جلستك، أو عند تعارض ترقيم، أو قاعدةٍ متأخّرةٍ عن main |
+| `references/99-test-cases.md` | عند تعديل الوصف أو الجسم — حالاتُ التفعيل واختباراتُ المخرج |

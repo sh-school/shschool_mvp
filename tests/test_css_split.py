@@ -22,6 +22,7 @@ ALLOWED_LAYERS = {
     "31": {"modules"},
     "32": {"modules"},
     "33": {"modules"},
+    "34": {"modules"},
     "40": {"themes"},
     "50": {"tailwind", "utilities"},
 }

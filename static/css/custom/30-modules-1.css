@@ -636,7 +636,8 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 .required-star { color: var(--status-danger-fg); }
 
 /* نص خطر */
-.text-danger { color: var(--status-danger-fg); }
+.text-danger,
+.report-search-status.is-error { color: var(--status-danger-fg); }
 
 /* نموذج داخل السطر */
 .form-inline { display: inline; }
@@ -665,14 +666,6 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   position: relative; z-index: var(--z-base);
   border: 1px solid var(--login-card-border);
   overflow: hidden;
-  animation: loginCardIn .45s ease-out both;
-}
-/* انزلاقٌ بلا تلاشٍ عمداً: البطاقةُ بـ`opacity: 0` في أوّل إطارٍ لا يُبلِّغ عنها
-   المتصفّحُ FCP ولا LCP أصلاً (قِيس: لا شيءَ بعد 1.4 ثانية، وبلا الـopacity يُبلَّغان
-   عند ≈410ms) — فتخسر صفحةُ الدخول، أوّلُ ما يراه كلُّ مستخدم، قياسَ أدائها. */
-@keyframes loginCardIn {
-  from { transform: translateY(18px) scale(.97); }
-  to   { transform: translateY(0) scale(1); }
 }
 .login-card-header {
   background: linear-gradient(160deg, var(--maroon) 0%, var(--maroon-dark) 100%);
@@ -865,7 +858,6 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 }
 /* سطرُ الحال في نتائج البحث — يكتبه `searchStudent()` في templates/reports/index.html. */
 .report-search-status { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
-.report-search-status.is-error { color: var(--status-danger-fg); }
 
 /* ── templates/reports/report_viewer.html — الوثيقةُ في إطارٍ داخل الصفحة ── */
 .report-viewer { max-width: 1200px; margin-inline: auto; }

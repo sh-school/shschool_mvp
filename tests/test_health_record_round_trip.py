@@ -54,7 +54,7 @@ def student(db, school):
 def record(db, student, fernet):
     return HealthRecord.objects.create(
         student=student,
-        blood_type="O+",
+        blood_type_encrypted="O+",
         allergies=ALLERGIES,
         chronic_diseases=CHRONIC,
         medications=MEDS,
@@ -106,10 +106,10 @@ def test_the_medical_text_survives_the_agreed_journey(db, record):
         MEDS,
     )
 
-    record.blood_type = "A-"
+    record.blood_type_encrypted = "A-"
     record.save()
     record.refresh_from_db()
-    assert record.blood_type == "A-"
+    assert record.blood_type_encrypted == "A-"
     assert (record.allergies, record.chronic_diseases, record.medications) == (
         ALLERGIES,
         CHRONIC,
@@ -216,3 +216,43 @@ def test_the_view_passes_no_parallel_decrypted_keys():
 
     for field in MEDICAL:
         assert f'"{field}"' not in context
+
+
+# ── [W-029] فصيلة الدم: مشفَّرةٌ في القاعدة، والملءُ لا يفقد قيمة ─────────
+
+
+def test_blood_type_is_encrypted_at_rest(db, record, fernet):
+    """القاعدةُ تحمل رمزَ Fernet لا «O+»، والقراءةُ تعيد النصَّ المنطقيّ."""
+    raw = _stored(record.pk, "blood_type_encrypted")
+    assert raw and raw != "O+"
+    assert fernet.decrypt(raw.encode()).decode() == "O+"
+    assert _layers(raw, fernet) == 1
+    record.refresh_from_db()
+    assert record.blood_type_encrypted == "O+"
+    assert _stored(record.pk, "blood_type") == "", "العمودُ القديم لا يُكتب"
+
+
+def test_backfill_moves_values_encrypts_and_wipes_legacy(db, student, fernet):
+    """الهجرةُ 0008: صفٌّ قديمٌ عارٍ ← مشفَّرٌ، والقديمُ يُفرَّغ، ومُعاوِد، وقابلٌ للعكس."""
+    import importlib
+
+    from django.apps import apps as real_apps
+
+    mig = importlib.import_module("clinic.migrations.0008_backfill_blood_type_encrypted")
+    rec = HealthRecord.objects.create(student=student)
+    with connection.cursor() as cur:  # صفٌّ بصيغة ما قبل الإصلاح: عارٍ في العمود القديم
+        cur.execute("UPDATE core_healthrecord SET blood_type = 'AB-' WHERE id = %s", [str(rec.pk)])
+
+    mig.forwards(real_apps, None)
+    rec.refresh_from_db()
+    assert rec.blood_type_encrypted == "AB-"
+    assert _stored(rec.pk, "blood_type") == ""
+    assert _layers(_stored(rec.pk, "blood_type_encrypted"), fernet) == 1
+
+    mig.forwards(real_apps, None)  # إعادةُ التشغيل لا تغيّر شيئاً ولا تضيف طبقة
+    rec.refresh_from_db()
+    assert rec.blood_type_encrypted == "AB-"
+    assert _layers(_stored(rec.pk, "blood_type_encrypted"), fernet) == 1
+
+    mig.backwards(real_apps, None)
+    assert _stored(rec.pk, "blood_type") == "AB-"

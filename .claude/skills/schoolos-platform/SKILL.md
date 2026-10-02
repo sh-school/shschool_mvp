@@ -1,234 +1,50 @@
 ---
 name: schoolos-platform
 description: |
-  خريطة مشروع SchoolOS — منصة مدرسية قطرية حكومية (Django 5 + PostgreSQL + HTMX). تحتوي: خريطة الملفات الحقيقية، أسماء Models/Views/Services الفعلية، نظام التقييم القطري (الباقات P1-P4، فصل1=40 + فصل2=60 = 100)، الأدوار (20 دور × 5 مستويات)، قواعد العمل الحقيقية، والفخاخ التي يجب تجنبها. استخدمها تلقائياً عند أي عمل على SchoolOS.
+  Use for any code-level question or change in the SchoolOS Django codebase: where is X, which app/model/service/URL owns a feature, users/roles/memberships, school scoping and RLS, the Qatari grading engine (packages P1..P4+AW, 40/60, pass mark 50, grade 12), attendance and absence thresholds, the 2026 conduct catalog, notifications, exports, layering rules. Trigger even unnamed: "أين أجد…"، "وين الموديل حق…"، "كيف أجيب طلاب الشعبة"، "درجة النجاح كم"، "دور المنسق"، "request.school"، "أضيف تقرير/جدول جديد"، or any edit in models/services/views.
+  استخدمها عند أيّ عملٍ على شيفرة المنصّة: خريطةُ التطبيقات والنماذج والخدمات، والأدوار والعضويّات، وعزلُ المدرسة، ونظامُ التقييم، والحضورُ والسلوكُ والإشعاراتُ والتصدير، وفخاخُها الموثَّقة.
+  Not for: session workflow, preview 8500, push/merge (schoolos-flow / schoolos-git-safety); ministry PDFs and policy answers (schoolos-source-of-truth); CSS, templates, RTL (web-design-mastery); migrations (schoolos-migration-guard); PII (pdppl-pii-audit); N+1 (nplus1-hunter).
 ---
 
-# SchoolOS — خريطة المشروع الحقيقية
+# SchoolOS — خريطةُ الشيفرة
 
-> هذه ليست موسوعة. هذه خريطة تقول لك **أين يوجد الشيء** و**ما الفخاخ**.
-> لا تحتوي كود نظري — كل اسم هنا موجود فعلاً في المشروع.
+خريطةٌ تقول أين يوجد الشيء في المنصّة، وما قواعدُ مجاله، وما الفخُّ الذي وقع فيه من سبقك. كلُّ اسمٍ هنا تحقّقتُ من وجوده على `main@81bc4937` (2026-09-28)؛ والشيفرةُ أصحُّ من هذه الخريطة إن اختلفتا.
 
----
+## متى تُستعمل ومتى لا
+- **نعم:** قبل كتابة model أو service أو view أو تقريرٍ أو تصدير؛ عند سؤال «أين/من يملك/كيف أستعلم»؛ عند لمس الدرجات أو الأدوار أو الغياب أو السلوك.
+- **لا:** خطواتُ الفلو والمنافذ والدفع (schoolos-flow، schoolos-git-safety)؛ نصُّ اللائحة الوزاريّة نفسُه (schoolos-source-of-truth)؛ الواجهةُ والأنماط (web-design-mastery).
 
-## 1. الهيكل — أين يوجد ماذا
+## الإجراء
+1. حدّد المجال ثمّ اقرأ مرجعَه من الجدول أدناه — لا تقرأها كلَّها.
+2. تحقّق من الاسم قبل استعماله: `git grep -n "class <Name>" origin/main -- '*.py'` — الخريطةُ لقطةٌ والمنصّةُ تتغيّر يوميّاً.
+3. الأرقامُ القانونيّة (أوزان، عتبات، حدود) تُقرأ من ثابتها في الشيفرة (`core/domain/grades.py`، `operations/absence_policy.py`، `behavior/conduct_2026.py`) لا من ذاكرتك ولا من هذه الخريطة.
+4. ضع الكود في طبقته (المرجع 04)، ثمّ شغّل الحرّاس المتأثّرة قبل الدفع (schoolos-quality-guards).
 
-```
-core/models/user.py        → CustomUser (المستخدم الموحّد — طالب ومعلم ومدير)
-core/models/academic.py    → AcademicYear, ClassGroup, StudentEnrollment, ParentStudentLink
-core/models/access.py      → Role (20 دور), Membership (ربط مستخدم بمدرسة ودور)
-core/models/base.py        → TimeStampedModel, SoftDeleteModel, SchoolScopedModel
-core/models/audit.py       → AuditLog, ConsentRecord, BreachReport, ErasureRequest
+## القواعد وأسبابها
+- **لا Student ولا Teacher model** — الكلُّ `CustomUser`، والدورُ عضويّةٌ `Membership` بمدرسةٍ ودور. السبب: شخصٌ واحدٌ قد يكون معلّماً ووليَّ أمرٍ في المدرسة نفسها. المصدر: `core/models/user.py`، `core/models/access.py`.
+- **المدرسةُ من `request.school`** لا من `request.user.get_school()` في العروض؛ السبب: تُحسب مرّةً لكلّ طلبٍ في `SchoolContextMiddleware`، وسقّاطةُ الطبقات تعدّ `get_school()` في ملفّات العروض. المصدر: `core/middleware.py`، `docs/governance/regression_guards.md`.
+- **مجموعاتُ الأدوار في `core/permissions.py` وحدَه**؛ السبب: مجموعةٌ في ملفّ واجهةٍ تغيّر الصلاحيّةَ دون أن يراها المراجع. المصدر: `tests/test_permission_groups_are_central.py`.
+- **حكمُ النجاح والرسوب واحد** (`core.domain.grades.judge_student`)، والعدُّ بـ`core.verdict_read.passing_statuses()` لا `status="pass"`؛ السبب: عشرُ حالاتٍ لا اثنتان، ولا حكمَ موازٍ. المصدر: `core/verdict_read.py`.
+- **لا تاريخَ حرفيّاً في المنطق** — العامُ من `core/academic_calendar.py`؛ السبب: نافذةٌ مكتوبةٌ أخلت حسابَ الغياب صامتاً عند بدء عامٍ جديد. المصدر: `tests/test_no_literal_dates_in_logic.py`.
+- **كلُّ تصديرٍ PDF/Excel عبر سجلّ `core/exports`** (مهمّةٌ خلفيّةٌ افتراضاً)؛ السبب: 22 من 35 تصديراً فوق 300ms تزاحم daphne. المصدر: ADR-0007، `tests/test_export_guards.py`.
 
-operations/models/          → حزمة: schedule (Subject, ScheduleSlot, TimeSlotConfig, SubjectClassAssignment…)، attendance (Session, StudentAttendance, AbsenceAlert…)، substitution (TeacherAbsence, SubstituteAssignment…)
-assessments/models.py      → SubjectClassSetup, AssessmentPackage, Assessment, StudentAssessmentGrade, StudentSubjectResult, AnnualSubjectResult
-behavior/models.py         → ViolationCategory (40 مخالفة — لائحة الشحانية), BehaviorInfraction, BehaviorPointRecovery
-quality/models.py          → OperationalDomain, OperationalTarget, OperationalIndicator, OperationalProcedure, ProcedureEvidence
-notifications/models.py    → NotificationLog, NotificationSettings, PushSubscription, InAppNotification, UserNotificationPreference
-clinic/models.py           → HealthRecord (مشفّر Fernet), ClinicVisit
-library/models.py          → LibraryBook, BookBorrowing, LibraryActivity
-exam_control/models.py     → ExamSession, ExamRoom, ExamSupervisor, ExamSchedule, ExamIncident, ExamEnvelope, ExamGradeSheet
-transport/models.py        → SchoolBus, BusRoute
+## فخاخ
+- خطأ: `Student.objects.filter(...)` · الصواب: `StudentEnrollment.objects.filter(class_group=cg, is_active=True)` لطلبة شعبة، و`CustomUser.objects.in_school(school)` لمنتسبي مدرسة.
+- خطأ: `StudentEnrollment.objects.filter(student=s, is_active=True).first()` · الصواب: `StudentEnrollment.objects.current_of(s, school)` — مئاتُ الطلبة لهم قيدان نشطان، و`first()` بلا ترتيبٍ عشوائيّ. المصدر: `core/models/academic.py`.
+- خطأ: `filter(memberships__role__name="teacher")` لمن يدرّس · الصواب: `CustomUser.objects.teachers(school)` — المنسّقُ يحمل نصاباً (`TEACHING_ROLES = {"teacher","coordinator"}`). المصدر: `core/models/access.py`، `core/querysets.py`.
+- خطأ: `user.role == "parent"` لمعرفة أهو وليُّ أمر · الصواب: `user.has_parent_membership` — `role` هو الدورُ الحاكم والكادرُ يتقدّم. المصدر: `core/models/user.py`.
+- خطأ: ترتيبُ الشُّعب بـ`grade` نصّاً («G10» قبل «G7») · الصواب: `core.models.academic.grade_number(grade)`.
+- خطأ: حدُّ نجاحٍ 60 أو أوزانٌ من `AssessmentPackage.weight` في الحساب · الصواب: `PASS_MARK = 50` و`exact_package_weight()` من القرار 14/2018. المصدر: `core/domain/grades.py`.
+- خطأ: «معظمُ النماذج ترث `SchoolScopedModel`» · الصواب: أربعةٌ فقط ترثه؛ الباقي يعلن `school` بنفسه، وكلُّ جدولٍ جديدٍ يجب أن يُصنَّف في `core/tenancy.py` وإلّا سقط `tests/test_tenant_surface_coverage.py`.
+- خطأ: `apply_async(queue="celery")` · الصواب: بلا اسمِ طابورٍ حرفيّ — طابورُ الجلسة باسم قاعدتها (`SESSION_NAMESPACE`). المصدر: `tests/test_export_core.py`، `shschool/settings/development.py`.
 
-reports/services.py        → ReportDataService, ExcelService (توليد Excel + PDF)
-analytics/services.py      → KPI وإحصائيات
-notifications/services.py  → إرسال Email/SMS/Push
-notifications/hub.py       → مركز الإشعارات
-```
+## المراجع
 
----
-
-## 2. الفخ الأول — لا يوجد Student model
-
-**الطلاب والمعلمون والمدراء كلهم `CustomUser`.**
-
-```python
-# ✅ صحيح — هكذا تجد الطلاب:
-students = CustomUser.objects.filter(
-    memberships__role__name='student',
-    memberships__school=school,
-    memberships__is_active=True
-)
-
-# ❌ خطأ — لا يوجد:
-Student.objects.filter(...)  # هذا Model غير موجود!
-Teacher.objects.filter(...)  # هذا أيضاً غير موجود!
-```
-
-**التسجيل:** `StudentEnrollment` يربط `CustomUser` بـ `ClassGroup`.
-**ولي الأمر:** `ParentStudentLink` يربط parent (CustomUser) بـ student (CustomUser).
-**التحقق من الدور:** `user.role` → اسم الدور، `user.has_role('teacher')` → bool.
-
----
-
-## 3. نظام التقييم — الأرقام الحقيقية
-
-### التوزيع الذي يريده المالك (المستهدف):
-```
-الفصل الأول (40%):
-  باقة 1 — منتصف ف1:  15%
-  أعمال ف1:            5%
-  باقة 2 — نهاية ف1:  20%
-
-الفصل الثاني (60%):
-  باقة 3 — منتصف ف2:  15%
-  أعمال ف2:            5%
-  باقة 4 — نهاية ف2:  40%
-
-= 100%    حد النجاح: 60%
-```
-
-### ما في الكود حالياً (يحتاج تحديث):
-```
-الفصل الأول (40 درجة):
-  P1 (أعمال مستمرة): 50% × 40 = 20
-  P4 (اختبار نهائي): 50% × 40 = 20
-
-الفصل الثاني (60 درجة):
-  P1 (أعمال): 16.67% × 60 ≈ 10
-  P3 (نصفي): 33.33% × 60 ≈ 20
-  P4 (نهائي): 50% × 60 = 30
-
-حد النجاح في الكود: 50 (المالك يريد: 60)
-```
-
-**⚠️ فخ:** الكود والمطلوب مختلفان. عند تعديل نظام التقييم، التزم بأرقام المالك (15/5/20/15/5/40) وحد نجاح 60%.
-
-### Models الحقيقية:
-```
-SubjectClassSetup  → ربط مادة + فصل + معلم
-AssessmentPackage  → الباقة (P1-P4) مع weight و semester_max_grade
-Assessment         → تقييم فعلي (exam/quiz/homework/project/oral/practical/participation)
-                     status: draft → published → graded → closed
-StudentAssessmentGrade → درجة طالب في تقييم واحد (grade, is_absent, is_excused)
-StudentSubjectResult   → نتيجة طالب في مادة لفصل (p1_score...p4_score, total, semester_max)
-AnnualSubjectResult    → نتيجة سنوية (s1_total + s2_total = annual_total)
-                         status: pass | fail | incomplete | second_round
-                         letter_grade property: A+...F
-```
-
----
-
-## 4. الأدوار — 20 دور في 5 مستويات
-
-```
-Tier 1 (قيادة):     principal
-Tier 2 (نواب):      vice_admin, vice_academic
-Tier 3 (مشرفون):    coordinator, admin_supervisor
-Tier 4 (موظفون):    teacher, social_worker, psychologist, academic_advisor,
-                     ese_teacher, nurse, librarian, it_technician,
-                     bus_supervisor, admin, secretary
-Tier 5 (مستفيدون):  student, parent
-Tier 0 (نظام):      platform_developer
-```
-
-**⚠️ فخ:** الدور ليس field في CustomUser — هو عبر `Membership.role` (FK → Role).
-```python
-user.role           # → اسم الدور (string) من active_membership
-user.has_role('teacher')  # → True/False
-user.is_leadership()      # → Tier 1+2
-user.is_teacher()         # → teacher أو coordinator أو ese_teacher
-```
-
----
-
-## 5. Multi-Tenancy — كل شيء مربوط بـ School
-
-معظم الـ models ترث `SchoolScopedModel` → لها field اسمه `school` (FK → School).
-الـ middleware `SchoolPermissionMiddleware` + `RLSMiddleware` يضمنان العزل.
-
-**⚠️ فخ:** لا تنسَ `school=request.user.school` في كل query.
-
----
-
-## 6. السلوك — 40 مخالفة × 4 درجات (لائحة الشحانية)
-
-```
-ViolationCategory → degree (1-4), code ("1-01"..."4-13"), tags (فارغة — لم يطلبها المدير)
-BehaviorInfraction → student, violation_category, level (1-4), escalation_step (0-4)
-                     حقول خاصة بالدرجة 3: social_media_platform, digital_evidence_notes
-                     حقول خاصة بالدرجة 4: security_referral_date, security_agency
-BehaviorPointRecovery → التعزيز الإيجابي (استعادة نقاط)
-```
-
----
-
-## 7. الحضور
-
-```
-Session → حصة يومية (class_group + teacher + subject + date + times)
-StudentAttendance → student + session + status (present/absent/late/excused)
-                    excuse_type: medical/family/official/other
-AbsenceAlert → تنبيه الغياب المتكرر (absence_count, status: pending/notified/resolved)
-```
-
----
-
-## 8. الإشعارات — 5 قنوات
-
-```
-القنوات: Email + SMS (Twilio) + Browser Push (VAPID) + In-App + WhatsApp
-UserNotificationPreference → تفضيلات لكل مستخدم + quiet hours
-InAppNotification → الإشعارات الداخلية مع priority (low/medium/high/urgent)
-NotificationSettings → إعدادات المدرسة (Twilio keys مشفرة بـ Fernet)
-```
-
----
-
-## 9. التقارير — كيف تُبنى
-
-```python
-# reports/services.py
-ReportDataService.get_student_report(student, school, year)   # تقرير طالب
-ReportDataService.get_class_results(class_group, school, year) # نتائج صف
-ReportDataService.get_attendance_report(...)                    # حضور
-ReportDataService.get_behavior_report(...)                     # سلوك
-
-ExcelService  # يولّد Excel مع:
-              # - ألوان: maroon #8A1538 (header), #FDF2F5 (alt rows)
-              # - RTL + frozen headers + auto-filter + sheet protection
-              # - conditional formatting: أحمر < 50, أخضر للنجاح
-              # - A4 portrait print setup
-```
-
----
-
-## 10. شجرة القرار — عند بناء ميزة
-
-```
-أين أضع الكود؟
-├── Model جديد → في app المناسبة (assessments/ behavior/ operations/...)
-├── Business logic → services.py (ليس في views أو models)
-├── API endpoint → api/views.py + api/serializers.py + api/urls.py
-├── صفحة HTML → views.py في الـ app + templates/{app}/
-└── خلفية (async) → tasks.py (Celery)
-
-أي مستخدم؟
-├── لا يوجد Student model → CustomUser + role='student'
-├── لا يوجد Teacher model → CustomUser + role='teacher'
-└── الدور عبر Membership (FK Role) — ليس field مباشر
-
-فلترة البيانات؟
-├── دائماً school=request.user.school
-├── المعلم: SubjectClassSetup.teacher=user أو TeacherAssignment
-├── ولي الأمر: ParentStudentLink.parent=user → student
-└── الطالب: مباشرة user
-
-نظام التقييم؟
-├── الأوزان المطلوبة: 15/5/20/15/5/40 (ليس ما في الكود حالياً)
-├── حد النجاح المطلوب: 60% (الكود يقول 50)
-├── AssessmentPackage.weight يحدد وزن كل باقة
-└── AnnualSubjectResult.letter_grade → التقدير الحرفي
-```
-
----
-
-## 11. الأمان — ما يجب مراعاته
-
-- **PDPPL (قانون حماية البيانات القطري 13/2016):** ConsentRecord + ErasureRequest + BreachReport
-- **التشفير:** national_id مشفّر بـ Fernet، البحث عبر HMAC
-- **2FA:** TOTP (totp_secret مشفّر)
-- **RLS:** PostgreSQL Row Level Security + middleware
-- **Soft Delete:** SoftDeleteModel → is_deleted + deleted_at (لا حذف فعلي لبيانات الطلاب)
-- **CSP:** Content Security Policy middleware
-- **Audit:** AuditLog + PermissionAuditLog
+| الملف | متى تقرأه |
+|---|---|
+| `references/00-apps-map.md` | أين يوجد تطبيقٌ أو نموذجٌ أو خدمةٌ أو مسارُ URL؛ الإصداراتُ؛ جداول `core_*` الموروثة |
+| `references/01-users-roles-tenancy.md` | مستخدمون، أدوار (36)، عضويّات، صلاحيّات، قدرات، نطاقُ الجناح، RLS، الدخول |
+| `references/02-assessment.md` | الباقاتُ والأوزانُ والصفّ 12 وجبرُ الكسور وحدُّ النجاح والحالاتُ ومحرّكُ الحكم |
+| `references/03-attendance-behavior-notifications.md` | الحصصُ والحضورُ وعتباتُ الغياب والأعذار؛ دليلُ السلوك 2026؛ مركزُ الإشعارات وقنواتُه |
+| `references/04-architecture-rules.md` | أين أضع الكود، حدودُ العروض، `core` لا يستورد نازلاً، التصدير، التشفير، المحو، الحرّاس |
+| `references/99-test-cases.md` | اختبارُ تفعيل المهارة وجودةِ مخرجها |

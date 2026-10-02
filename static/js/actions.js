@@ -50,7 +50,7 @@
   var CALLABLE = [
     "goToSchedule",
     "closeModal",
-    "toggleImportForm",
+    "resetImportForm",
     "toggleForm",
     "toggleUpload",
     "onFileSelected",
@@ -110,9 +110,6 @@
 
   /* ── أفعالٌ مُسمّاة بلا وسيط ────────────────────────────────────── */
   var ACTIONS = {
-    print: function () {
-      window.print();
-    },
     reload: function () {
       window.location.reload();
     },

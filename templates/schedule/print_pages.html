@@ -89,7 +89,7 @@
 
 {% include "schedule/pdf/week_grid_css.html" %}
 
-  /* ذيلُ كلّ صفحة: الوزارةُ والمدرسةُ وتاريخُ الطباعة ووقتُها، ورؤيةُ الوزارة (قرار 2026-09-06). */
+  /* ذيلُ كلّ صفحة: المحتوى من المكوّن المركزيّ `components/pdf_footer.html` (قرارُ المالك 2026-09-28 — نفسُه في استمارة الزيارة الصفّيّة)؛ هذا الصندوقُ ارتفاعُه وإطارُه فقط. */
   .page-footer {
     height: {{ geo.css.footer_h }};
     margin-top: {{ geo.css.gap }};
@@ -102,7 +102,7 @@
     text-align: center;
     line-height: 1.45;
   }
-  .page-footer .stamp { direction: ltr; unicode-bidi: embed; }
+  .pdf-footer-date { direction: ltr; unicode-bidi: embed; }
   .empty-note { text-align: center; color: {% brand_color "TEXT_MUTED" %}; padding: 20mm 0; font-size: 13px; }
 
   @media print {
@@ -136,11 +136,7 @@
 
   {% if kind == 'classes' %}{% include "schedule/pdf/week_grid.html" with week=row.week who="teacher" %}{% else %}{% include "schedule/pdf/week_grid.html" with week=row.week who="class" %}{% endif %}
 
-  <div class="page-footer">
-    وزارة التربية والتعليم والتعليم العالي — دولة قطر &nbsp;|&nbsp; {{ school.name }} &nbsp;|&nbsp;
-    تاريخ الطباعة: <span class="stamp">&#8294;{% now "Y/m/d H:i" %}&#8297;</span><br>
-    {% include "components/ministry_vision.html" %}
-  </div>
+  <div class="page-footer">{% include "components/pdf_footer.html" with school=school show_date=True %}</div>
 </section>
 {% empty %}
 <section class="sheet"><p class="empty-note">لا جداول في هذا النطاق.</p></section>

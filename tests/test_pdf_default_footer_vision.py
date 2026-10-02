@@ -5,8 +5,15 @@
 تحمل الرؤيةَ بالفعل عبر الجزئيّة المضمَّنة، فهذا الملفُّ يغطّي المسار الآخر وحدَه.
 
 **الرؤيةُ سطرٌ واحدٌ دائماً لا سطران** (قرارُ المالك 2026-09-27، قاعدةٌ عامّةٌ لكلّ مخرَج) — تندمج مع عدّاد الصفحة في السطر نفسِه
-(`عدّاد — رؤية`) بخطٍّ أصغر، لا بفاصل سطرٍ/`white-space: pre-line`. بلا لمس «SchoolOS v6» ولا التاريخ (طلبُ المايسترو).
+(`عدّاد — رؤية`) بخطٍّ أصغر، لا بفاصل سطرٍ/`white-space: pre-line`.
+
+**«SchoolOS v6» صارت «SchoolOS» بلا رقم إصدار** (قرارُ المالك 2026-09-25 عبر `roadmap/migrations/0030_sync_items_2026_09_25i.py`،
+ونُفِّذ فعليّاً بقرار D-70م، 2026-09-29 — ينسخ توقّفاً مؤقّتاً كان بأمر المايسترو 09-27 ريثما يُحسم النطاق). السببُ: رقمُ الإصدار
+يقدُم فيُضلِّل — كانت الصفحاتُ تطبع «v6» والإنتاجُ الفعليّ حينها v5.5. والتاريخ يبقى كما هو.
 """
+
+import pathlib
+import re
 
 import pytest
 from django.template.loader import render_to_string
@@ -18,6 +25,7 @@ weasyprint = pytest.importorskip("weasyprint")
 from weasyprint.formatting_structure import boxes  # noqa: E402
 
 VISION = "مُتَعَلِّمٌ رِيَادِيٌّ لِتَنْمِيَةٍ مُسْتَدَامَةٍ"
+PDF_UTILS_SOURCE = pathlib.Path("core/pdf_utils.py")
 BASE_HTML = (
     "<html><head><meta charset='utf-8'><style></style></head><body><p>محتوى</p></body></html>"
 )
@@ -60,11 +68,26 @@ def test_the_footer_carries_the_vision_merged_into_the_page_counters_single_line
     ), "عدّادُ الصفحة والرؤيةُ في النصّ نفسِه — لا مربّعين منفصلين"
 
 
-def test_samm_and_the_date_are_untouched():
-    """لا لمسَ لـ«SchoolOS v6» ولا للتاريخ — أمرُ المايسترو الصريح؛ يبقيان كما كانا."""
+def test_the_brand_has_no_version_number_and_the_date_is_untouched():
+    """«SchoolOS» بلا رقم إصدارٍ (قرارُ 2026-09-25، نُفِّذ بـD-70م 2026-09-29) — والتاريخ يبقى كما كان.
+
+    ورقمُ إصدارٍ ثابتٌ في التذييل سقّاطةٌ لا تعود: كان «v6» بينما الإنتاجُ الفعليّ v5.5 — تضليلٌ لا معلومة، فلا معنى لإعادته
+    بأيّ رقم.
+    """
+    import re
+
     words = [t for _y, t in _footer_words()]
-    assert "SchoolOS v6" in words
+    assert "SchoolOS" in words
+    assert not any(re.search(r"\bv\d", t) for t in words), "لا رقمَ إصدارٍ في التذييل — يضلِّل ولا يُحدَّث"
     assert any(t.count("/") == 2 for t in words), "تاريخُ اليوم (يوم/شهر/سنة) ما زال في مكانه"
+
+
+def test_no_pdf_footer_path_carries_a_version_number():
+    """سقّاطةٌ نصّيّة: لا رقمَ إصدارٍ ثابتٍ («SchoolOS vN») في أيّ مسارٍ بديل — يشمل تذييل Playwright الاحتياطيّ الذي
+    لا يُرسم فيه WeasyPrint فلا يقيسه `_footer_words`. مصدرُ الحقيقة الملفُّ نفسُه لا الرسمُ وحده."""
+    source = PDF_UTILS_SOURCE.read_text(encoding="utf-8")
+    hits = re.findall(r"SchoolOS\s*v\d", source)
+    assert not hits, f"رقمُ إصدارٍ عاد إلى تذييل PDF: {hits}"
 
 
 def test_a_page_that_owns_its_header_is_left_alone():

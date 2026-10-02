@@ -62,6 +62,13 @@
    "reason": "سطرٌ واحدٌ لرؤية الوزارة في التذييل (قرار المالك 2026-09-27)، عرضٌ مديونٌ أصلاً قبل هذا الفرع",
    "to": 101,
    "where": "student_affairs/views.py::tardiness_export_excel"
+  },
+  {
+   "from": 1,
+   "metric": "import",
+   "reason": "W-028: استيرادُ سجلّ القيد يكتب أطلسياً سطرَ الطالب (core) وسجلَّه الصحّيّ (clinic.HealthRecord) من صفٍّ واحد",
+   "to": 2,
+   "where": "core → clinic"
   }
  ],
  "core_import_sites": {
@@ -76,7 +83,8 @@
    "core/dashboard_selectors.py"
   ],
   "clinic": [
-   "core/dashboard_selectors.py"
+   "core/dashboard_selectors.py",
+   "core/ministry_import.py"
   ],
   "library": [
    "core/dashboard_selectors.py"
@@ -118,7 +126,7 @@
   "academic_management": 2,
   "assessments": 3,
   "behavior": 1,
-  "clinic": 1,
+  "clinic": 2,
   "library": 1,
   "notifications": 1,
   "operations": 15,
@@ -181,13 +189,13 @@
    "orm": 16
   },
   "academic_management/assignment_views.py::set_parallel": {
-   "orm": 18
+   "orm": 14
   },
   "academic_management/assignment_views.py::subject_options": {
    "orm": 8
   },
   "academic_management/assignment_views.py::toggle_double": {
-   "orm": 11
+   "orm": 10
   },
   "academic_management/assignment_views.py::toggle_preparation": {
    "orm": 14
@@ -296,7 +304,7 @@
    "orm": 17
   },
   "behavior/views.py::quick_log": {
-   "lines": 97,
+   "lines": 95,
    "orm": 30
   },
   "behavior/views.py::report_infraction": {
@@ -419,7 +427,7 @@
    "orm": 20
   },
   "operations/views_schedule.py::smart_generate": {
-   "orm": 13
+   "orm": 10
   },
   "operations/views_schedule.py::smart_generate_status": {
    "orm": 14

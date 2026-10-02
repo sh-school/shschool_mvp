@@ -307,20 +307,102 @@ def test_without_a_token_alerts_are_not_shown_as_zero(monkeypatch, settings):
     panel = _panel("supply")
     assert panel["status"] == contract.OK
     assert {"label": "تنبيهاتٌ حرجة / عالية", "value": "غيرُ مفعَّلة (بلا رمز)"} in panel["metrics"]
+    assert {"label": "الشيفرة حرجة / عالية · الأسرار", "value": "غيرُ مفعَّلة (بلا رمز)"} in panel[
+        "metrics"
+    ]
+
+
+def _fetch_with(dependabot=None, code=None, secrets=None):
+    """جلبٌ مزيَّف: كلُّ مسار تنبيهاتٍ بخلاصته (None = تعذّر، كرمزٍ بلا صلاحيّته)، والفحصُ ناجحٌ قبل يوم."""
+
+    def fetch(path, reduce):
+        for prefix, value in (
+            ("dependabot", dependabot),
+            ("code-scanning", code),
+            ("secret-scanning", secrets),
+        ):
+            if path.startswith(prefix):
+                return value
+        return {"at": NOW - DAY, "ok": True}
+
+    return fetch
+
+
+CLEAN = {"critical": 0, "high": 0, "medium": 0, "low": 0}
 
 
 def test_with_a_token_a_critical_alert_makes_the_panel_red(monkeypatch, settings):
     settings.QCC_GITHUB_TOKEN = "test-token-not-real"
-
-    def fetch(path, reduce):
-        if path.startswith("dependabot"):
-            return {"critical": 2, "high": 1, "medium": 0, "low": 0}
-        return {"at": NOW - DAY, "ok": True}
-
-    monkeypatch.setattr(github, "fetch", fetch)
+    monkeypatch.setattr(
+        github, "fetch", _fetch_with(dependabot={**CLEAN, "critical": 2, "high": 1})
+    )
     supply.collect(NOW)
     panel = _panel("supply")
     assert panel["status"] == contract.BAD and panel["headline"] == "2 تنبيهاً حرجاً في الاعتماديّات"
+    # فحصُ الشيفرة والأسرار تعذّر جلبُهما: «غيرُ متاح» لا صفر، ولا يُحسبان سليمَين
+    assert {
+        "label": "الشيفرة حرجة / عالية · الأسرار",
+        "value": "غيرُ متاح · أسرار غيرُ متاح",
+    } in panel["metrics"]
+
+
+def test_code_scanning_counts_security_severity_only():
+    code = supply.reduce_code(
+        [
+            {
+                "rule": {"security_severity_level": "critical", "description": "وصف"},
+                "most_recent_instance": {"location": {"path": "a.py"}},
+            },
+            {"rule": {"security_severity_level": "high"}},
+            {"rule": {"severity": "warning"}},  # قاعدةُ جودةٍ لا ثغرة
+            "تالف",
+        ]
+    )
+    assert code == {"critical": 1, "high": 1, "medium": 0, "low": 0}
+    assert supply.reduce_code({"message": "Not Found"}) is None
+    assert supply.reduce_secrets([{"secret_type": "x", "secret": "لا يُخزَّن"}, {}]) == {"open": 2}
+
+
+def test_an_open_secret_is_red_and_leads_the_headline(monkeypatch, settings):
+    settings.QCC_GITHUB_TOKEN = "test-token-not-real"
+    monkeypatch.setattr(
+        github,
+        "fetch",
+        _fetch_with(
+            dependabot={**CLEAN, "critical": 1}, code={**CLEAN, "high": 3}, secrets={"open": 1}
+        ),
+    )
+    supply.collect(NOW)
+    panel = _panel("supply")
+    assert panel["status"] == contract.BAD and panel["headline"] == "1 سرّاً مكشوفاً في المستودع"
+    assert {"label": "الشيفرة حرجة / عالية · الأسرار", "value": "0 / 3 · أسرار 1"} in panel[
+        "metrics"
+    ]
+
+
+def test_code_scanning_high_warns_and_clean_is_ok(monkeypatch, settings):
+    settings.QCC_GITHUB_TOKEN = "test-token-not-real"
+    monkeypatch.setattr(
+        github,
+        "fetch",
+        _fetch_with(dependabot=CLEAN, code={**CLEAN, "high": 1}, secrets={"open": 0}),
+    )
+    supply.collect(NOW)
+    assert _panel("supply")["status"] == contract.WARN
+    monkeypatch.setattr(
+        github,
+        "fetch",
+        _fetch_with(dependabot=CLEAN, code={**CLEAN, "medium": 2}, secrets={"open": 0}),
+    )
+    supply.collect(NOW)
+    panel = _panel("supply")
+    assert panel["status"] == contract.OK and panel["headline"] == "الفحصُ الأمنيُّ نظيف"
+    code = supply.reduce_code([{"rule": {"security_severity_level": "critical"}}])
+    monkeypatch.setattr(
+        github, "fetch", _fetch_with(dependabot=CLEAN, code=code, secrets={"open": 0})
+    )
+    supply.collect(NOW)
+    assert _panel("supply")["headline"] == "1 تنبيهاً حرجاً في فحص الشيفرة"
 
 
 def test_the_token_is_sent_as_a_header_only_when_set_and_never_cached(monkeypatch, settings):

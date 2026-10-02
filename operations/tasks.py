@@ -364,9 +364,19 @@ def generate_smart_schedule_task(self, generation_id):
 
     def _fail(message):
         # شرطاً على «يجري»: صفٌّ أوقفه المستخدمُ أو حذفه لا يُكتب فوقه، ولا يُسقط المهمّة.
-        ScheduleGeneration.objects.filter(pk=generation.pk, status="running").update(
-            status="failed", error_message=message[:2000], finished_at=timezone.now()
-        )
+        # W-20260929-022: هذه الكتابةُ ذاتها قد تفشل (انقطاعُ اتّصال القاعدة أثناء الاستثناء
+        # الأصليّ نفسِه) فيبقى الصفُّ «يجري» إلى الأبد بلا أثر — فتُسجَّل هنا على الأقلّ،
+        # وحارسُ reap_stuck_schedule_generations يلتقطها لاحقاً بسقفٍ زمنيّ لا بحالة الكتابة.
+        try:
+            ScheduleGeneration.objects.filter(pk=generation.pk, status="running").update(
+                status="failed", error_message=message[:2000], finished_at=timezone.now()
+            )
+        except Exception:  # noqa: BLE001 — فشلُ تسجيل الفشل لا يُسقط الإشعارَ ولا يُكتم
+            logger.exception(
+                "generate_smart_schedule: تعذّر تسجيلُ الفشل نفسِه للتوليد %s — "
+                "سيبقى «يجري» حتى يلتقطه reap_stuck_schedule_generations",
+                generation.pk,
+            )
         _notify_generation_done(generation, ok=False, summary=message)
 
     try:
@@ -450,6 +460,58 @@ def _notify_generation_done(generation, *, ok, summary):
         )
     except Exception as exc:  # noqa: BLE001 — الإشعارُ خدمةٌ لا شرطٌ للنجاح
         logger.warning("تعذّر إشعارُ صاحب التوليد: %s", exc)
+
+
+# ═════════════════════════════════════════════════════════════════════
+# حارسُ التوليدات العالقة — W-20260929-022 (P0)
+# ═════════════════════════════════════════════════════════════════════
+
+
+@shared_task(name="operations.reap_stuck_schedule_generations")
+def reap_stuck_schedule_generations_task():
+    """يُعلن فاشلاً كلَّ توليدٍ عَلِق في «قيد التوليد»/«في الانتظار» أطول من سقفه.
+
+    `generate_smart_schedule_task` تكتب الفشلَ بنفسها عادةً — لكنّ الاستثناءَ
+    الأصليَّ قد يكون انقطاعَ اتّصال القاعدة نفسِه، فتفشل كتابةُ الفشل بالسبب
+    ذاته (`_fail` تحاول وتُسجّل، ولا تكتب) ويبقى الصفُّ «يجري» إلى الأبد بلا
+    `error_message` ولا `finished_at` — هذا بالضبط ما رفعه المالك 2026-09-29
+    (توليدُ الإنتاج عالقٌ أثناء حادثة Railway). ولا نبضةَ حياةٍ في النموذج
+    تميّز عاملاً لا يزال يعمل بصمتٍ عن صفٍّ ماتت مهمّتُه فعلاً، فالحكمُ بسقفٍ
+    زمنيّ من `generated_at` وحدَه — على نمط `purge_expired_export_jobs_task`.
+
+    المهلةُ: `soft_time_limit` الحقيقيّ للمهمّة (900 ثانية) + خمس دقائق هامشاً
+    لوقت الانتظار في الطابور قبل أن يلتقطها عاملٌ. تعمل كلَّ خمس دقائق
+    (`shschool/celery.py`).
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from operations.models import ScheduleGeneration
+
+    cutoff = timezone.now() - timedelta(seconds=900 + 300)
+    stuck = ScheduleGeneration.objects.filter(
+        status__in=ScheduleGeneration.PENDING_STATUSES, generated_at__lt=cutoff
+    )
+    count = 0
+    for generation in stuck.select_related("school", "generated_by"):
+        # شرطاً على حالته وقتَ القراءة: توليدٌ انتهى بين الاستعلام وهنا لا يُكتب فوقه.
+        updated = ScheduleGeneration.objects.filter(
+            pk=generation.pk, status=generation.status
+        ).update(
+            status="failed",
+            error_message="توقّف العاملُ أو انقطع اتّصالُه — أعد المحاولة.",
+            finished_at=timezone.now(),
+        )
+        if not updated:
+            continue
+        count += 1
+        _notify_generation_done(
+            generation, ok=False, summary="توقّف العاملُ أو انقطع اتّصالُه — أعد المحاولة."
+        )
+    if count:
+        logger.warning("reap_stuck_schedule_generations: أُعلن فشلُ %s توليداً عالقاً", count)
+    return {"reaped": count}
 
 
 # ═════════════════════════════════════════════════════════════════════

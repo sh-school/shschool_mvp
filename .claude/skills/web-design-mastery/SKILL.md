@@ -1,255 +1,62 @@
 ---
 name: web-design-mastery
 description: |
-  معايير التصميم والـ CSS الخاصة بمشروع SchoolOS. تحتوي: Design Tokens الفعلية من custom.css (ألوان قطرية maroon/gold، spacing، typography Tajawal)، Dark Mode الحقيقي (html.dark)، هيكل @layer الموجود، أنماط المكونات المستخدمة (nav/card/table/toast/dialog)، HTMX patterns الفعلية، معايير RTL العربي، ومعايير PDF/Excel من reports/services.py. استخدمها عند: تعديل CSS/HTML/templates، بناء مكونات، dark mode، PDF/Excel، أي عمل على الواجهة.
+  Use for SchoolOS web UI work: CSS in the eight layer files (static/css/custom/, ADR-0003), design tokens (colour roles, -fg text tokens, spacing/radius scales, rem font sizes), dark mode (html.dark in 40-themes), the seven page layouts (D-16), ui.py components (page_header, section_card, kpi, callout, empty_state, field, filter_bar), RTL logical properties, responsive/mobile, HTMX and CSP-safe JS (data-action, nonce), accessibility, and the live CSS/JS/Web-Vitals budgets. Trigger on: CSS, template, component, card, table, dark mode, RTL, responsive, mobile, HTMX, a11y, contrast, layout, "the page looks wrong", "overflows on phone".
+  استخدمها عند: تعديل أيّ قالبٍ أو CSS أو JS في الواجهة، أو بناء صفحةٍ أو بطاقةٍ أو مكوّن، أو إصلاح الوضع الليليّ أو الجوال أو التباين، أو السؤال «أين أكتب هذا النمط؟» — ولو بدا التعديلُ سطراً واحداً.
+  ليست لـ: ملفّات PDF وExcel المطبوعة (schoolos-report-ar)، ولا تشخيصِ حارسٍ فشل في CI (schoolos-quality-guards)، ولا هويّةِ علامةٍ خارج المنصّة (sma-design)، ولا بطءِ الاستعلامات.
 ---
 
-# Web Design — معايير SchoolOS الفعلية
+# معاييرُ الواجهة في SchoolOS
 
-> هذه المعايير مبنية على الكود الحقيقي في `static/css/custom/` و `templates/base.html`.
-> (`custom.css` صار ثمانيةَ ملفّاتٍ على حدود الطبقات — ADR-0003؛ كلُّ ذكرٍ له أدناه يعني تلك الملفّات.)
-> لا تحتوي مبادئ عامة — فقط ما هو خاص بهذا المشروع.
+الغرض: أن تُبنى كلُّ صفحةٍ ومكوّنٍ بمصادر الحقيقة المركزيّة — رموزٌ لا قيم، ومكوّناتُ `ui.py` لا بنيةٌ باليد، ونمطُ تخطيطٍ مسمّى لا شبكةٌ محلّيّة — فتبقى الحرّاسُ خضراءَ والهويّةُ واحدة.
+المرجعُ الأعلى `CLAUDE.md` (الأقسامُ عن الأنماط والبطاقات والتنبيهات والانتقال والقائمة والتخطيط)؛ هذه المهارةُ تفصّله ولا تخالفه. تحقّقٌ على `main` في 2026-09-28.
 
----
+## متى تُستعمل ومتى لا
+- نعم: قالبٌ تحت `templates/`، ملفٌّ تحت `static/css/custom/` أو `static/js/`، وسمٌ في `core/templatetags/ui.py`، لونٌ أو خطٌّ أو تباعد، صفحةٌ جديدة.
+- لا: قالبُ PDF (له إطارٌ مطبوعٌ مستقلّ)، ولا قرارُ دمجٍ أو نشر (`schoolos-flow`).
 
-## 1. Design Tokens الحقيقية — custom.css
+## الإجراء
+1. **اختر نمطَ الصفحة قبل أن تكتبها**: `{% block main_class %}{% page_layout "list" %}{% endblock %}` — أحدُ `dashboard|hub|list|detail|form|sheet|report` (أو `custom` بسطرٍ في جدول الاستثناءات). صفحةٌ جديدةٌ بلا نمطٍ تُسقط `tests/test_page_layouts.py`. ← `references/20-layouts-components.md`
+2. **ابنِ من المكوّنات القائمة**: `page_header`، `section_card`، `kpi`/`kpi_strip`، `callout` (خمسة أنواع)، `empty_state`، `field`، `filter_bar`، `action_tile`، `entity_card`، و`{% icon "…" %}`. صنفٌ جديدٌ آخرُ الحلول.
+3. **الأنماطُ في ملفّ طبقتها**: مكوّنٌ ← `20-components`، شاشةٌ ← `30..33-modules` (آخرُها 33)، ليليٌّ ← `40-themes`، مساعدٌ ← `50-utilities`؛ ولا قاعدةَ خارج `@layer`. ← `references/10-css-architecture.md`
+4. **القيمُ رموز**: لونٌ بدوره (`--text-*`، `--status-*-fg`، `--on-fill`…)، تباعدٌ `var(--sp-*)`، تقوّسٌ `var(--radius-*)`، خطٌّ بـ`rem`. ← `references/00-tokens-theming.md`
+5. **قِس على أربعة أجهزةٍ نهاراً وليلاً**: 1366×768 و1920×1080 ولوحيّ (~768×1024) و375×812 — وما لم يُقَس يُقال «لم يُقَس». ← `references/50-responsive-mobile.md`
+6. **شغّل الحرّاس** قبل الدفع (من شجرة عملك بأوامر `CLAUDE.md`): `tests/test_css_*.py`، `test_px_tokens`، `test_rtl_logical_properties`، `test_dark_parity`، `test_contrast_ratios`، `test_design_ratchet`، `test_a11y_ratchet`، `test_page_layouts`. وقراءةُ الفاشل منها في مهارة `schoolos-quality-guards`.
 
-### الألوان (Qatar National Colors)
-```css
---maroon: #8A1538;         /* اللون الرئيسي — Al Adaam */
---maroon-dark: #6b0f2a;    /* hover */
---maroon-light: #b8294e;   /* نص على خلفية فاتحة */
---maroon-bg: #fdf2f5;      /* خلفية خفيفة */
---gold: #D4A843;           /* تمييز */
---skyline: #0D4261;        /* أزرق داكن */
---palm: #129B82;           /* أخضر */
---sea: #4194B3;            /* أزرق فاتح */
+## القواعد وأسبابها
+- **لا لونَ حرفيّاً في CSS ولا في القالب** — الرموزُ تنقلب ليلاً والحرفُ لا ينقلب (`test_css_colours_are_tokens`، وسقّاطةُ الهويّة `hex_colour` = 0). في القالب `{% brand_color "MAROON" %}`، ومرآتُه `core/brand.py`.
+- **نصٌّ فوق حشوٍ ثابتٍ `var(--on-fill)` لا `#fff`**؛ ونصٌّ على سطحٍ `--text-*` أو `--status-*-fg`. السبب: الأبيضُ يساوي السطحَ نهاراً مصادفةً ويُطفئ الترويسةَ ليلاً.
+- **الذهبيُّ تمييزٌ لا نصّ** (`--gold-mark` للأيقونة على العنّابيّ) — تباينُه على الفاتح 2.2 (`test_identity_roles`).
+- **الليلُ برموزٍ تنقلب** في `html.dark { --… }` داخل `40-themes.css`، والوضعُ اختيارُ المستخدم وحدَه (زرّ + `localStorage`) لا تفضيلُ النظام. وخلفيّةٌ فاتحةٌ ليلاً ممنوعة — الأبيضُ للنصوص والحدود فقط.
+- **الاتّجاهُ منطقيّ**: `inset-inline-*`، `margin-inline-*`، `text-align: start` — لا `left:`/`right:` (`test_rtl_logical_properties`).
+- **لا `?v=N` ولا `collectstatic` في التطوير**: الإنتاجُ يبصم الاسمَ بمحتواه والتطويرُ يخدم بـ`max-age=0` — حدِّث الصفحة وحسب (`CLAUDE.md`).
+- **لا `onclick` ولا `<script>` بلا `nonce`**: CSP بـ`nonce` تُسقط المعالجاتِ المضمَّنة؛ السلوكُ بـ`data-action`/`data-call` (`static/js/actions.js`). وسكربتُ الصفحة داخل IIFE لأنّ `page-nav.js` يعيد تشغيله.
+- **لا `@container`** (ADR-0005 D3، مؤكَّدٌ بالقياس في ADR-0006)، **ولا Tailwind جديد** (`test_tailwind_freeze`)، **ولا زرَّ طباعة صفحة** (`test_no_web_page_print_button`)، **ولا شريطٌ فرعيٌّ لقسم** (قرارُ 2026-09-20).
+- **الميزانيّاتُ من ملفّاتها الحيّة**: CSS مصغَّرٌ ≤ 269KB (`tests/test_css_budget.py`)، وخامٌ ≤ 470KB وJS ≤ 400KB و≤ 10 أوراقٍ حاجبة وLCP ≤ 2500 وINP ≤ 300 وCLS ≤ 0.1 (`tests/web_vitals.py:BUDGET`). التعليقُ العربيّ في CSS يُحسب في الخامّ (بايتان للحرف).
 
---status-danger: #dc2626;
---status-warning: #d97706;
---status-success: #16a34a;
---status-info: #2563eb;
+## فخاخٌ حقيقيّة
+- خطأ: `{% if request.htmx %}…{% else %}{% extends "base.html" %}{% endif %}` — `extends` يجب أن يكون أوّلَ وسمٍ فلا يُشرَط. الصواب: الـview تختار: `core.htmx_utils.htmx_or_full(request, partial, full, ctx)`.
+- خطأ: `.data-table` و`.card-header` و`.card-qatar` في صفحةٍ جديدة. الصواب: الأوّلان غيرُ معرَّفين، والثالثُ «بنيةٌ باليد» تعدّها سقّاطةُ الهويّة؛ استعمل `section_card` و`table-wrap`.
+- خطأ: «النصُّ الخافت `#6b7280` بتباين 4.63». الصواب: `--text-muted` صار `#5f6775` (5.70 على السطح)؛ اكتب الرمزَ لا القيمة.
+- خطأ: «Amiri للجداول على الويب». الصواب: الويب Tajawal (و`Tajawal Tashkeel` للمشكول)؛ Amiri للـPDF وحدَه.
+- خطأ: `templates/base.html`. الصواب: القالبُ الأساس `templates/base/base.html`.
+- خطأ: «mobile-first بـ`min-width` فقط». الصواب: المنصّةُ تكتب `@media (max-width: 640px)` للجوال و`min-width: 641px`/`1025px` للأوسع — اتبع الملفَّ الذي تعمل فيه، وضع قاعدةَ `@media` **بعد** القاعدة الأساسيّة (الأخيرةُ تغلب).
+- خطأ: `margin: 12px` أو `font-size: 14px`. الصواب: `var(--sp-3)` و`var(--text-sm)`/`0.875rem` — القيمةُ الحرفيّةُ التي تطابق درجةً ممنوعة (`test_px_tokens`).
+- خطأ: بطاقةٌ تمتدّ بطول النافذة وفيها فراغ. الصواب: `fill-grid is-fit` للمحتوى المحدود؛ وقائمةٌ ضيّقةٌ طويلةٌ تُقسَّم أعمدةً بـ`chunk_for_grid` في الـview + `.auto-grid`.
+- خطأ: ميزانيّة «Dashboard < 800KB» و«INP < 200ms». الصواب: تلك من كتاب؛ أرقامُ المشروع أعلاه من ملفّاتها.
 
---text-primary: #111827;
---text-secondary: #4b5563;
---text-muted: #6b7280;     /* WCAG AA: 4.63:1 */
-```
-
-### Typography
-```css
-/* Tajawal — محلي WOFF2 + TTF (400, 500, 700) */
-/* Amiri — للجداول فقط (subset ~120KB) */
-
---text-xs: 0.75rem;    /* 12px — labels */
---text-sm: 0.875rem;   /* 14px */
---text-base: 1rem;     /* 16px — body */
---text-lg: 1.125rem;   /* 18px */
---text-xl: 1.25rem;    /* 20px */
---text-2xl: 1.5rem;    /* 24px */
---text-3xl: 2rem;      /* 32px */
-```
-
-### Spacing + Z-index
-```css
---sp-1 → --sp-16    /* 4px → 64px (multiples of 4) */
---z-base: 1, --z-dropdown: 500, --z-navbar: 1000, --z-modal: 9000, --z-toast: 9500
-```
-
----
-
-## 2. CSS Layers — الترتيب الفعلي
-
-```css
-@layer tailwind, reset, base, tokens, layout, components, modules, utilities, themes;
-```
-
-**⚠️ قاعدة:** كل CSS جديد يذهب في `custom.css` داخل الـ layer المناسب. لا inline styles. لا `<style>` blocks في templates. لا `!important` جديدة.
-
-**ولا قاعدةَ خارج الطبقات** — غيرُ المطبَّق يغلب المطبَّقَ مهما علا وزنُه،
-فيحكم بالصدفة لا بالترتيب. و`tests/test_css_layers.py` يمنع ذلك.
-
-**و`themes` آخرُها**: كلُّ قواعد `html.dark` فيها، فتغلب ما قبلها كما ينبغي.
-وقاعدةُ «ترويسةُ الجدول نصُّها أبيض» في آخرها هي الأخرى — وزنُها ووزنُ
-`html.dark table thead th` واحدٌ (0,1,4)، فلولا موضعُها لبهت النصّ.
-
----
-
-## 3. Dark Mode — كيف يعمل فعلاً
-
-```html
-<!-- في <head> — script يمنع FOUC -->
-<script>
-  var t = localStorage.getItem('theme');
-  var isDark = t==='dark' || (t!=='light' && matchMedia('(prefers-color-scheme:dark)').matches);
-  if(isDark) document.documentElement.classList.add('dark');
-</script>
-```
-
-**التطبيق:** `html.dark .class { ... }` في custom.css.
-
-**⚠️ فخاخ Dark Mode:**
-- خلفيات: تتحول لـ dark (مثل `#0f172a`, `#1f2937`) — **ممنوع أبيض/فاتح كخلفية**
-- نصوص: تتحول لـ فاتح (`#f1f5f9`) — **أبيض/فاتح مسموح للنصوص والإطارات فقط**
-- Nav: يصبح `var(--maroon-dark)` بدل `var(--maroon)`
-- Cards: `background: #1f2937; color: #f1f5f9`
-
----
-
-## 4. المكونات الموجودة فعلاً
-
-### Navigation (`.site-nav`)
-- Sticky top، maroon background، flex layout
-- `.nb` — nav button (6px padding, white text, hover bg)
-- `.nav-bell` — جرس إشعارات مع badge أحمر
-- `.nav-user-btn` — avatar + dropdown
-- `.nav-hamburger` — جوال فقط
-- Mobile: bottom nav bar (`.mobile-bottom-nav`)
-
-### Cards (`.card-qatar`)
-- White bg، subtle shadow، border + hover
-- `.card-header` مع icon slot
-
-### Tables
-- `thead` — maroon bg + white text
-- `tbody tr:nth-child(even)` — alternating (surface-alt)
-- `tbody tr:hover` — maroon-bg
-
-### Flash Messages (`.msg-bar`)
-- 4 أنواع: success (أخضر), error (أحمر), warning (برتقالي), info (أزرق)
-- Icon + text + close button
-
-### Dropdowns (`.sd-menu`)
-- Fixed position, min-width: 210px, fade-in animation
-
-### Progress (`.progress-qatar`)
-- Gradient: maroon-dark → maroon-light
-
-### Command Palette
-- Trigger: Ctrl+K / Cmd+K
-- Dialog role + combobox + listbox
-- Arrow keys navigation
-
----
-
-## 5. HTMX — كيف يُستخدم في المشروع
-
-### المكتبة
-- HTMX 1.9.12 محلي (`static/js/htmx.min.js`) — لا CDN
-- Loading bar: `#htmx-loading-bar` (في base.html)
-- SR live region: يُنبّه screen readers بتحديثات HTMX
-
-### الأنماط المستخدمة فعلاً
-```html
-<!-- HTMX partial: view يرجّع partial إذا HX-Request, full page إذا لا -->
-{% if request.htmx %}
-  {# partial template only #}
-{% else %}
-  {% extends "base.html" %}
-{% endif %}
-
-<!-- Inline edit pattern (كما في assessments) -->
-<td hx-get="/grades/edit/{{ grade.pk }}/"
-    hx-target="this"
-    hx-swap="innerHTML">{{ grade.score }}</td>
-
-<!-- Search with debounce -->
-<input hx-get="/search/"
-       hx-target="#results"
-       hx-trigger="input changed delay:300ms"
-       hx-indicator="#spinner">
-```
-
-### Error Handling (app.js)
-```javascript
-// htmx:responseError → global handler
-// 403 → "ليس لديك صلاحية"
-// 404 → "الصفحة غير موجودة"
-// 500 → "خطأ في السيرفر"
-// showToast() من HX-Trigger header
-```
-
----
-
-## 6. RTL العربي — القواعد الثابتة
-
-| القاعدة | الملف |
-|---------|-------|
-| `<html lang="ar" dir="rtl">` | base.html |
-| Tajawal (400/500/700) + Amiri للجداول | custom.css @font-face |
-| font-display: swap | custom.css |
-| `letter-spacing: 0` للعربي | دائماً — الحروف متصلة |
-| `line-height: 1.7-1.8` | custom.css |
-| Nav hamburger على اليمين | base.html |
-| أسهم معكوسة (← بدل →) | templates |
-
----
-
-## 7. كسرُ ذاكرة المتصفّح — لا تفعل شيئاً
-
-أُزيل `?v=N` من أربعةَ عشرَ موضعاً في ستّة قوالب. فالإنتاجُ يبصم الاسمَ
-بمحتواه عبر `CompressedManifestStaticFilesStorage`، والتطويرُ يخدم
-`static/` بـ`max-age=0` عبر WhiteNoise (`USE_FINDERS` في `development.py`).
-
-**بعد تعديل CSS/JS في التطوير:** حدِّث الصفحةَ وحسب — لا رقمَ تُرفع ولا
-`collectstatic` تُجرى. التفصيلُ في `CLAUDE.md`.
-
----
-
-## 8. التقارير (PDF/Excel) — من reports/services.py
-
-### Excel (ExcelService)
-- **ألوان Header:** maroon `#8A1538` + white text
-- **Alt rows:** `#FDF2F5` (maroon-bg)
-- **RTL:** `rightToLeft = True`
-- **Header:** 4 صفوف (وزارة، مدرسة، عنوان التقرير، أعمدة)
-- **شعار:** badge-72.png أو icon-192.png
-- **Features:** frozen headers + auto-filter + sheet protection + conditional formatting (أحمر < 50, أخضر للنجاح)
-- **طباعة:** A4 portrait + repeat headers
-
-### PDF
-- WeasyPrint (django-weasyprint)
-- نفس ألوان Excel
-- `thead { display: table-header-group; }` لتكرار الهيدر
-
----
-
-## 9. Accessibility (WCAG AA)
-
-ما هو مُطبّق فعلاً:
-- Skip navigation link (base.html)
-- `aria-label` على الأزرار بدون نص
-- `aria-live="polite"` لـ HTMX updates (SR live region)
-- `aria-expanded` على dropdowns
-- `role="dialog"` + `aria-modal` على modals
-- تباين النص: `--text-muted` مُصلّح لـ 4.63:1
-
----
-
-## 10. شجرة القرار — عند تعديل الواجهة
-
-```
-أين أكتب CSS؟
-→ static/css/custom.css في الـ @layer المناسب — لا مكان آخر
-
-أي لون أستخدم؟
-→ var(--maroon) للبراند, var(--status-*) للحالات — لا hex مباشر
-→ نصٌّ فوق حشوٍ ثابت (ترويسة عنّابيّة، شارة، زرّ علامة)؟ var(--on-fill) — لا #fff
-  (الأبيضُ يساوي --surface نهاراً بالمصادفة؛ واستبدالُه به يُطفئ الترويسةَ ليلاً)
-→ نصٌّ عاديٌّ على سطح؟ var(--text-*) أو var(--status-*-fg) — ينقلبان
-
-أحتاج مكون جديد؟
-├── موجود؟ → استخدم الموجود (.card-qatar, .msg-bar, .data-table)
-└── جديد؟ → أضفه في @layer components في custom.css
-
-Dark mode؟
-→ أضف html.dark .my-class { ... } — لا تنسَ: خلفيات داكنة + نصوص فاتحة
-
-HTMX partial؟
-→ if request.htmx → partial, else → extends base.html
-
-بعد أي تعديل CSS/JS؟
-→ حدِّث الصفحة. لا ?v= ولا collectstatic في التطوير.
-
-حجم الصفحة؟
-→ Dashboard < 800KB, جداول < 1.2MB, جوال < 500KB
-```
+## المراجع
+| الملف | متى تقرأه |
+|---|---|
+| `references/00-tokens-theming.md` | قبل اختيار أيّ لونٍ أو خطٍّ أو تباعدٍ أو ظلّ، أو عند عملٍ ليليّ |
+| `references/10-css-architecture.md` | قبل كتابة CSS: الملفّاتُ والطبقاتُ والحرّاسُ والميزانيّات |
+| `references/20-layouts-components.md` | عند بناء صفحةٍ أو بطاقةٍ أو تنبيهٍ أو أيقونةٍ أو قائمة |
+| `references/30-htmx-js.md` | عند HTMX أو JS أو تنقّلٍ أو تصديرٍ من الواجهة |
+| `references/40-accessibility.md` | عند نموذجٍ أو حوارٍ أو جدولٍ أو تباينٍ أو تركيز |
+| `references/50-responsive-mobile.md` | عند الجوال واللوحيّ و«بلا تمرير» والمنطقة الآمنة |
+| `references/60-typography.md` | عند الخطّ والأحجام والمسافات السطريّة والنصّ المختلط |
+| `references/70-performance.md` | عند صورٍ أو خطوطٍ أو سكربتاتٍ أو عامل خدمة أو ميزانيّة |
+| `references/80-print-and-export.md` | حين يتعلّق الطلبُ بالطباعة أو التصدير من الواجهة |
+| `references/90-book-principles.md` | لمبادئ الكتب العشرة بعد مواءمتها مع المشروع |
+| `references/95-checklist.md` | قائمةُ مراجعةٍ قبل الدفع |
+| `references/99-test-cases.md` | لاختبار تفعيل المهارة وجودة جوابها |

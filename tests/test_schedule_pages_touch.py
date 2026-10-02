@@ -6,11 +6,10 @@
 
 والحلُّ (قرارُ 2026-09-18، نفسُ فصل جدول المعلم المفرد): العرضُ الأساسيُّ جدولٌ
 عاديٌّ في الصفحة نفسها — لا إطار، فلا مشكلةَ توافقٍ تُستثنى شاشةٌ من أجلها. وبقي
-الإطارُ للطباعة والتنزيل وحدَهما، مخفيّاً دائماً على كلّ شاشة، يُحمَّل عند أوّل
-طلب طباعةٍ لا فوراً.
+الإطارُ للطباعة والتنزيل وحدَهما إلى 2026-09-28: حُذف مع الطباعة المباشرة (قرارُ
+المالك)، والتنزيلُ رابطُ تصديرٍ مباشرٌ بلا إطار.
 """
 
-import re
 from datetime import time
 from pathlib import Path
 
@@ -31,15 +30,9 @@ def _template():
     return TEMPLATE.read_text(encoding="utf-8")
 
 
-def test_the_frame_has_no_src_until_the_script_decides():
-    iframe = re.search(r"<iframe[^>]*>", _template()).group(0)
-    assert " src=" not in iframe, "إطارٌ بـsrc يُحمَّل فوراً على كلّ شاشة"
-    assert "data-src=" in iframe
-
-
-def test_the_frame_is_hidden_on_every_screen_not_touch_alone():
-    """لا استثناءَ لشاشةٍ بعينها — الإطارُ مخفيٌّ دائماً، والجدولُ هو المعروض."""
-    assert "schedule-print-frame-hidden" in _template()
+def test_no_frame_on_any_screen_touch_or_not():
+    """لا طباعةَ مباشرةً (قرارُ المالك 2026-09-28)، فلا إطارَ يُحتاج إخفاؤه أصلاً — التصديرُ رابطٌ مباشر."""
+    assert "<iframe" not in _template()
     assert "matchMedia" not in _template(), "لا حاجةَ لتمييز اللمس بعد أن صار الجدولُ نفسَه المعروض"
 
 

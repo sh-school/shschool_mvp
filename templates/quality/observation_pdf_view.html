@@ -19,7 +19,7 @@
     {% if can_send %}
     <button type="button" class="btn-primary btn-sm"
             data-toggle="#send-box">
-      إرسال نسخة
+      مشاركةُ نسخةٍ للاطّلاع
     </button>
     {% endif %}
     <a data-app-file href="{% url 'observation_pdf' obs.id %}" download class="btn-secondary btn-sm">تحميل</a>
@@ -34,7 +34,7 @@
   <form id="send-box" hidden method="post" action="{% url 'observation_send' obs.id %}"
         class="obs-send-box">
     {% csrf_token %}
-    <p class="obs-send-box__title"><b>إرسال نسخة إلى:</b></p>
+    <p class="obs-send-box__title"><b>مشاركةُ نسخةٍ للاطّلاع إلى:</b></p>
     <div class="obs-send-box__grid">
       {% for key, label, person in recipients %}
       <label class="obs-send-box__option{% if not person %} is-unavailable{% endif %}">
@@ -48,9 +48,9 @@
       </label>
       {% endfor %}
     </div>
-    {% callout "warning" %}يصل المستلمَ إشعارٌ فيه اسمُ المعلّم ونسبتُه الإجماليّة، ولا يُسحب بعد الإرسال.{% endcallout %}
+    {% callout "warning" %}يصل المستلمَ إشعارٌ فيه اسمُ المعلّم ونسبتُه الإجماليّة للاطّلاع فقط — ولا علاقةَ لهذا بإرسال الزيارة رسميّاً للمعلّم، ولا يُسحب بعد الإرسال.{% endcallout %}
     <div class="obs-send-box__actions">
-      <button type="submit" class="btn-primary btn-sm">إرسال</button>
+      <button type="submit" class="btn-primary btn-sm">مشاركة</button>
       <button type="button" class="btn-secondary btn-sm"
               data-hide="#send-box">إلغاء</button>
     </div>

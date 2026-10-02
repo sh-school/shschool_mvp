@@ -211,7 +211,10 @@ def test_the_orientation_is_carried_into_the_page_rule(client, school, principal
     assert "size: A4 landscape" in default, "الافتراضُ أفقيّ — واتّجاهٌ مجهولٌ يعود إليه"
 
 
-def test_the_platform_page_frames_the_paper_with_the_same_selection(client, school, principal_user):
+def test_the_platform_page_exports_the_paper_with_the_same_selection(
+    client, school, principal_user
+):
+    """لا إطارَ ولا طباعةَ مباشرةً بعد 2026-09-28 (قرارُ المالك) — رابطُ التصدير يحمل الاختيارَ نفسَه."""
     client.force_login(principal_user)
 
     body = client.get(
@@ -219,4 +222,5 @@ def test_the_platform_page_frames_the_paper_with_the_same_selection(client, scho
     ).content.decode()
 
     assert "kind=classes" in body and "orient=landscape" in body
-    assert reverse("schedule_pages_paper") in body and reverse("schedule_pages_pdf") in body
+    assert reverse("schedule_pages_pdf") in body
+    assert "<iframe" not in body and reverse("schedule_pages_paper") not in body

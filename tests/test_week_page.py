@@ -243,7 +243,7 @@ class TestPrintAndExportStayOnThePlan:
 
         assert "تبديل — كانت لـمعلّمٌ أوّل" in body
 
-    def test_the_pages_own_print_and_export_links_carry_the_chosen_week(self, world, client):
+    def test_the_pages_own_export_links_carry_the_chosen_week(self, world, client):
         body = _teacher_page(client, world, world["t1"], week="2026-10-18").content.decode()
 
         assert "source=actual" in body and "week=2026-10-18" in body
@@ -284,7 +284,8 @@ class TestPrintAndExportStayOnThePlan:
         for form in body.split("<form")[1:]:
             assert 'name="week" value="2026-10-18"' in form.split("</form>", 1)[0]
 
-    def test_the_general_schedule_frame_follows_the_week(self, world, client):
+    def test_the_general_schedule_export_links_follow_the_week(self, world, client):
+        """لا إطارَ بعد 2026-09-28 (طباعةٌ مباشرة أُلغيت) — زرّا التصدير مباشرةً يتبعان الأسبوع."""
         client.force_login(world["principal"])
 
         body = client.get(
@@ -293,5 +294,5 @@ class TestPrintAndExportStayOnThePlan:
             HTTP_HOST="localhost",
         ).content.decode()
 
-        frame = body.split('id="schedule-print-frame"', 1)[1].split(">", 1)[0]
-        assert "source=actual" in frame and "week=2026-10-18" in frame
+        pdf_link = body.split('data-export-job="pdf"', 1)[1].split(">", 1)[0]
+        assert "source=actual" in pdf_link and "week=2026-10-18" in pdf_link

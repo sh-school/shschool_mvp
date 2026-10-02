@@ -1,0 +1,64 @@
+# أنماطُ الصفحات والمكوّنات
+
+متى تقرأ هذا الملف: عند بناء صفحةٍ جديدة أو إعادة ترتيب واحدة، أو عند كتابة بطاقةٍ أو شريطِ أرقامٍ أو تنبيهٍ أو حالةٍ فارغةٍ أو حقلٍ أو أيقونةٍ أو قائمة.
+
+المصادر: `docs/design/page_layouts.md` (D-16، 2026-09-23)، `core/templatetags/ui.py` (القواعد التسع في رأسه)، `core/templatetags/icons.py` و`core/icons.py`، `CLAUDE.md` (البطاقات، التنبيهات، الانتقال، القائمة، استثمار العرض)، دليلُ الهويّة الحيّ `/styleguide/components/` و`/styleguide/icons/` و`/styleguide/layouts/` (`/styleguide/` تحويلٌ إلى الأوّل).
+
+## ثلاثُ طبقات
+الغلاف (`templates/base/base.html`: ترويسةٌ وقائمةٌ وفتاتٌ وذيلٌ و`#main-content`) لا تلمسه الصفحة ← النمطُ صنفٌ على `#main-content` ← المكوّناتُ وسومُ `ui.py`. «النمطُ لا يعرف المحتوى، والمكوّنُ لا يعرف مكانه».
+
+## الأنماطُ السبعة — `{% block main_class %}{% page_layout "…" %}{% endblock %}`
+| النمط | متى | بلا تمرير؟ | مثال |
+|---|---|---|---|
+| `dashboard` | نظرةٌ على الحال لصاحب دور | نعم (`page-noscroll`) | `dashboard/main.html` |
+| `hub` | اختيارُ وظيفةٍ من وحدة | لا | `reports/index.html` |
+| `list` | قائمةٌ تُبحث وتُصفّى | نعم | `student_affairs/student_list` |
+| `detail` | سجلٌّ واحدٌ بكلّ ما يخصّه | لا | `student_affairs/student_profile` |
+| `form` | إدخالٌ أو تعديل (والمعالج) | لا | `staff_affairs/leave_form` |
+| `sheet` | شبكةٌ تُحرَّر في مكانها | نعم | الجدولُ الأسبوعيّ العامّ |
+| `report` | وثيقةٌ تُقرأ وتُصدَّر | لا | `reports/report_viewer` |
+- `custom` مخرجٌ بسطرٍ في جدول الاستثناءات آخرَ المواصفات؛ ونمطٌ مجهولٌ `TemplateSyntaxError`؛ وأصنافٌ إضافيّة تُمرَّر: `{% page_layout "list" "page-wide" %}`.
+- صفحةٌ جديدةٌ بلا نمطٍ تُسقط سقّاطةَ `tests/page_layout_ratchet.py` (138 صفحةً قديمةً مسجَّلة). و`CLAUDE.md` ما زال يقول «حتى يُبنى LAY-03» — الوسمُ مبنيٌّ ومستعمَلٌ في 24 قالباً.
+- قواعدُ المواصفات الأهمّ: اللوحةُ شرائطُ فأعمدةٌ مكدّسة ثابتةُ المواقع؛ البطاقةُ بارتفاع محتواها والفارغةُ تنكمش سطراً إلّا الرسم؛ و«بلا تمرير» مشروطٌ بسعة النافذة — `window.fitNoscroll` (مضمَّنٌ بعد `</main>` في `base.html`) يُمرِّر الصفحةَ كلَّها إن ضاقت منطقةُ التمرير عن 15rem أو قُصّ زرُّ الإجراء الرئيس. فلا `@media` ارتفاعٍ لصفحةٍ ولا قرارٌ ثانٍ عند `load`.
+
+## البطاقاتُ والشبكات
+- `fill-grid` تملأ ارتفاعَ النافذة في `page-noscroll`؛ **`fill-grid is-fit`** لبطاقاتٍ محدودة المحتوى (نماذج، سجلّاتٌ مرقّمة) فتتحاذى من الأعلى بارتفاعها — ولا تمريرَ داخل بطاقةٍ محدودة: السجلُّ يُقسَّم صفحات (`wings/views.py::student_events`).
+- قائمةٌ **ضيّقةُ الصفّ غيرُ محدودة** ← أعمدةٌ متجاورة: `core.dashboard_presentation.chunk_for_grid(items, n)` في الـview ثمّ `<div class="auto-grid">` (أدنى عمودٍ 300px)، وصفٌّ فيه عنصران مرنان يلتفّ (`.auto-grid .plain-list__row { flex-wrap: wrap }`). مثالٌ حيّ: `templates/wings/partials/watchlist.html`.
+- قائمةٌ **عريضةُ الصفّ** (سجلٌّ متعدّد الأعمدة) عمودٌ واحدٌ في `table-wrap` بتمريرٍ أفقيّ؛ وقائمةٌ **محدودةٌ أصلاً** (`[:5]`) لا تُقسَّم.
+- لا `max-w-*` ولا `.container` على صفحة: `#main-content { max-width: none }` بهامش `--edge-inline`.
+- أدواتُ الشبكة القائمة: `ui-grid-2`، `auto-grid`، `fill-grid`، `.form-page` — لا شبكةَ محلّيّة.
+
+## وسومُ `ui.py` (`{% load ui %}`)
+| الوسم | الاستعمال | قاعدتُه |
+|---|---|---|
+| `{% page_header title subtitle= icon= %}…{% endpage_header %}` | عنوانُ الصفحة وإجراءاتُها | إطارٌ واحدٌ بدل ثلاثة |
+| `{% kpi_strip %}{% kpi label value sub= tone= href= %}…{% endkpi_strip %}` | أرقامُ الصفحة | سطرٌ واحدٌ، ستٌّ على الأكثر، والرقمُ يُقال مرّة؛ `tone` من `KPI_TONES` |
+| `{% section_card title meta= icon= empty= %}…{% endsection_card %}` | قسمٌ بشريطٍ عنّابيٍّ واحد | يستقبل أيقونةَ التلميح في شريطه |
+| `{% entity_card title who= count= %}{% entity_chips %}…{% entity_status tone= %}…` | كيانٌ في ثلاثة أسطر | سطرٌ رابع `TemplateSyntaxError` |
+| `{% empty_state "…" sub= icon= %}` | حالةٌ فارغةٌ واحدة | تنكمش سطراً |
+| `{% field name label type= choices= value= … %}` | حقلٌ بـ`<label for>` واسمٍ محسوب | لا حقلَ بلا تسمية؛ `inputmode` يُشتقّ من `step` |
+| `{% filter_bar label %}…{% endfilter_bar %}` | `<form method="get" role="search">` | الحقولُ `field` |
+| `{% action_tile title desc= icon= href= primary= %}` | بلاطةُ انتقالٍ داخل `<nav class="ui-actions">` | `primary` واحدةٌ فقط |
+| `{% callout "kind" show= %}…{% endcallout %}` | التنبيه (أدناه) | الأنواعُ الخمسة |
+
+## التنبيهاتُ الخمسة (القاعدةُ التاسعة — الشيفرةُ أحدثُ من `CLAUDE.md`)
+- `hint` و`info` **و`warning`**: أيقونةٌ تُظهر نصَّها بالمرور والتركيز والضغط، وتُنقل إلى شريط `section_card` أو بجانب عنوان `page_header` (`TIP_KINDS` في `ui.py`).
+- `error` (`role=alert`) و`success`: أسطرٌ ظاهرة.
+- حالةٌ لا يجوز أن تُخبَّأ («لا دوامَ اليوم») تُطلب ظاهرةً بـ`show=True` في أيّ نوع.
+- سطرٌ صغيرٌ لا يُطوى: `class="ui-note"`؛ وتلميحُ الحقل تحته `ui-field-hint`. وحُذفت `form-note`/`bell-note`/`wing-warn`/`form-hint` — الحارسُ يرفض عودتَها.
+- `CLAUDE.md` يقول إنّ التحذيرَ سطرٌ ظاهرٌ دائماً؛ `ui.py` نقله إلى الأيقونات (قرارُ المالك 2026-09-20 في رأس الملفّ) — تناقضٌ مرفوعٌ في CHANGES.
+
+## الأيقونات
+- `{% load icons %}{% icon "absence" %}`، `size="sm|lg|xl|2xl"`، و`label="…"` حين تقف الأيقونةُ وحدها في زرّ (وإلّا `aria-hidden`).
+- المعنى من قاموس `core/icons.py` والرسمُ من `static/icons/sprite.svg` (ناتجٌ لا يُحرَّر)؛ معنًى جديدٌ يُضاف في القاموس، ولا `<use href="#…">` محلّيّ ولا `#icon-…` قديم (`tests/test_icon_dictionary.py`). المعاينة: `/styleguide/icons/`، وخريطةُ الترحيل `docs/design/icons/migration_map.json`.
+
+## القائمة والتنقّل
+- القوائمُ الرئيسيّة تُفتح **بالمرور** على الحاسوب (150ms فتحاً، 300ms إغلاقاً، Esc يغلق) وبالنقر على اللمس (`static/js/base.js`)؛ القسمُ الحاليّ بخطٍّ ذهبيٍّ سفليّ (`.nb-current`). **لا شريطَ فرعيّاً** لقسم.
+- التنقّلُ يبدّل `#main-content` وفتاتَ الخبز بلا تحميلٍ كامل (`static/js/page-nav.js`)، والحركةُ من CSS (`page-in`، `.is-leaving`، `--transition-page`)؛ ولوحةُ `/admin/` لا يُبدَّل DOM فيها.
+
+## أنماطٌ مضادّة
+- صفحةٌ بلا `page_layout`، أو شبكةٌ محلّيّةٌ (`display:grid` خاصّ) بدل أدوات الشبكة.
+- `card-qatar`/`card-header`/`exec-header`/`kpi-mini` مكتوبةً باليد، أو بطاقةُ رقمٍ سابعة.
+- بطاقةٌ محدودةٌ فيها `overflow:auto`، أو قائمةٌ ضيّقةٌ طويلةٌ بعمودٍ واحد.
+- `<div class="form-note">` أو تحذيرٌ مهمٌّ مخبّأٌ في أيقونةٍ دون `show=True`.
+- SVG مضمَّنٌ يدويّاً أو مكتبةُ أيقوناتٍ من CDN.

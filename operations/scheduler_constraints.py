@@ -21,7 +21,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from .scheduler_bell import (  # noqa: F401  (تُصدَّر من هنا لمن استوردها منه)
-    JOINABLE_GAP_MINUTES,
+    DOUBLE_PERIOD_GAP_MINUTES,
+    HC5_JOINABLE_GAP_MINUTES,
     cells_joined,
     joinable_pairs,
     joinable_pairs_cached,
@@ -584,9 +585,6 @@ def check_max_consecutive(
     """
     if _wants_adjacency(grid, task, day, period):
         return True
-    #: `allow_adjacent` تُرفع للمتعذّرات وحدَها في الجولة الأخيرة: زوجٌ يُسمح
-    #: به هنا خيرٌ من حصّةٍ تُترك بلا مكان — والثلاثيّةُ ممنوعةٌ في الحالين.
-    #:
     #: أمّا سقفُ معلّمٍ بعينه فلا يُرفع بحال: قرارٌ في حقّه أثقلُ من سقفٍ عامٍّ
     #: وُضع ليُقارَب. فمن مُنع من التجاور مُنع ولو بقيت حصّةٌ بلا مكان.
     #: قرارٌ في حقّ الشخص يسبق كلَّ رخصةٍ عامّةٍ أو موضعيّة.
@@ -597,8 +595,13 @@ def check_max_consecutive(
         )
 
     #: ولا رخصةَ موضعيّةَ لأحد: كانت العربيّةُ السداسيّةُ تُمنح زوجاً واحداً
-    #: «عن طيبِ خاطر»، وألغتها الإدارةُ 2026-09-06 — التجاورُ ضرورةٌ لا تفضيل،
-    #: فلا يُفتح إلّا في جولة الاسترخاء لحصّةٍ لا موضعَ لها.
+    #: «عن طيبِ خاطر»، وألغتها الإدارةُ 2026-09-06 — التجاورُ ضرورةٌ لا تفضيل.
+    #:
+    #: D-61م (2026-09-29): `allow_adjacent` كانت تُرفع للمتعذّرات في جولة
+    #: الاسترخاء الأخيرة (زوجٌ يُسمح به خيرٌ من حصّةٍ بلا مكان)، فصارت لا تصل
+    #: True من مسار الاستدعاء الفعليّ أبداً — `HC5` في `constraint_registry.py`
+    #: رتبتُه `never` لا `relaxed`، فـ`eased("HC5")` ترجع False دائماً. المعاملُ
+    #: باقٍ في التوقيع (استدعاءٌ مباشرٌ محتمل) لكنّ الرخصةَ نفسَها أُلغيت.
     limit = MAX_CONSECUTIVE + 1 if allow_adjacent else MAX_CONSECUTIVE
     return all(
         _run_length(grid, member.teacher_id, day, period, task.band_id) < limit

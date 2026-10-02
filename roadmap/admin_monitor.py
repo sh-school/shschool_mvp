@@ -229,9 +229,9 @@ GIT_KPIS = (
 )
 #: فقدانُ عملٍ فريدٍ لا يُسترجع، فبُعدُه عن الهدف أحمرُ لا أصفر؛ وغيرُه نظافةٌ.
 GIT_RISK_KPIS = frozenset({"RK2"})
-#: القياسُ أسبوعيّ: بعد ثمانيةِ أيّامٍ القراءةُ متأخّرة (أصفر)، وبعد خمسةَ عشرَ لا يُعتدّ بها (أحمر).
-GIT_KPI_WARN_DAYS = 8
-GIT_KPI_BAD_DAYS = 15
+#: القياسُ **يدويٌّ عند الطلب لا دوريّ** (قرارُ «0701 · تحديث الخارطة» 2026-09-29 بعد D-60م: الأتمتةُ في كود المنصّة والخادمُ لا يرى
+#: الفروعَ المحلّيّة؛ ومهمّةُ REP-10 المجدولةُ في Claude أُوقفت 09-27). فعمرُ القراءة يُعرض معلومةً ولا يُصفِّر البطاقةَ ولا يُحمِّرها —
+#: وإلّا صارت حمراءَ دائماً بلا عطل. والحيُّ البعيدُ «فروعٌ بلا طلب» في لوحة الطلبات بمركز قيادة الجودة (`command_center/collectors/pulls.py`).
 
 
 def _on_target(current: float, target: float | None, direction: str) -> bool:
@@ -277,14 +277,7 @@ def git_health(today=None) -> Card:
         parts.append("قراءةٌ بلا تاريخ")
         level = level if level == BAD else WARN
     if dates:
-        age = (today - min(dates)).days
-        parts.append(f"أقدمُ قراءةٍ قبل {age} يوماً")
-        if age > GIT_KPI_BAD_DAYS:
-            level = BAD
-            parts[-1] += " (لا يُعتدّ بها)"
-        elif age > GIT_KPI_WARN_DAYS:
-            level = level if level == BAD else WARN
-            parts[-1] += " (متأخّرة)"
+        parts.append(f"أقدمُ قراءةٍ قبل {(today - min(dates)).days} يوماً (يدويّةٌ عند الطلب)")
     return Card(
         "صحّة Git", f"{on_target} من {len(GIT_KPIS)} على الهدف", " · ".join(parts), level, link
     )

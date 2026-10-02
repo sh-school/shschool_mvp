@@ -266,10 +266,10 @@
 
   {# ── العيادة — وللمقيَّد تاريخُ الزيارة و«أُعيد إلى المنزل» وحدَهما ── #}
   <div id="tab-clinic" class="tab-content">
-    {% section_card "العيادة" icon="clinic" empty="لا زيارات عيادة" %}{% if health_record.blood_type or clinic_visits %}
-      {% if health_record.blood_type %}
+    {% section_card "العيادة" icon="clinic" empty="لا زيارات عيادة" %}{% if health_record.blood_type_encrypted or clinic_visits %}
+      {% if health_record.blood_type_encrypted %}
       <dl class="detail-dl">
-        <dt>فصيلة الدم</dt><dd><strong>{{ health_record.blood_type }}</strong></dd>
+        <dt>فصيلة الدم</dt><dd><strong>{{ health_record.blood_type_encrypted }}</strong></dd>
       </dl>
       {% endif %}
       {% if clinic_visits %}

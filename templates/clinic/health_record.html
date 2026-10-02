@@ -26,7 +26,7 @@
         <form method="post" action="">
           {% csrf_token %}
           <div class="form-stack">
-            {% field "blood_type" "فصيلة الدم" type="select" choices=health_record.BLOOD_TYPES value=health_record.blood_type blank="غير محدد" %}
+            {% field "blood_type" "فصيلة الدم" type="select" choices=health_record.BLOOD_TYPES value=health_record.blood_type_encrypted blank="غير محدد" %}
             {% field "allergies" "الحساسية" type="textarea" rows=2 value=health_record.allergies placeholder="لا يوجد" %}
             {% field "chronic_diseases" "الأمراض المزمنة" type="textarea" rows=2 value=health_record.chronic_diseases placeholder="لا يوجد" %}
             {% field "medications" "الأدوية المستمرة" type="textarea" rows=2 value=health_record.medications placeholder="لا يوجد" %}

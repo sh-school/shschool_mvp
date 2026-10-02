@@ -37,8 +37,19 @@ class HealthRecord(models.Model):
         related_name="health_record",
         verbose_name="الطالب",
     )
+    # [W-029] القديمُ `blood_type` عمودٌ نصٌّ صريحٌ (مرحلة التوسيع): لا يُقرأ ولا
+    # يُكتب من الشيفرة بعد الآن، وتنقل الهجرةُ 0008 قيمَه إلى الحقل المشفَّر
+    # وتفرّغه. حذفُه طلبٌ لاحقٌ منفصل (التقليص) بعد استقرار الإصدار.
     blood_type = models.CharField(
-        max_length=3, choices=BLOOD_TYPES, blank=True, verbose_name="فصيلة الدم"
+        max_length=3, choices=BLOOD_TYPES, blank=True, verbose_name="فصيلة الدم (قديم)"
+    )
+    # القراءةُ والكتابةُ من هذا الحقل وحده. لا فلترةَ عليه (التشفير غير حتمي).
+    blood_type_encrypted = EncryptedTextField(
+        blank=True,
+        default="",
+        db_default="",
+        choices=BLOOD_TYPES,
+        verbose_name="فصيلة الدم",
     )
     # [PII-11] الحقولُ الطبّيّةُ الثلاثة كانت `TextField` تُشفَّر يدوياً عبر
     # `save_encrypted()`، بينما جهةُ الطوارئ تحتها `EncryptedTextField`. ومن
@@ -53,6 +64,19 @@ class HealthRecord(models.Model):
     # [PII-04] بيانات جهة اتصال الطوارئ (طرف ثالث بجوار سجل صحي لقاصر) — مشفّرة at-rest
     emergency_contact_name = EncryptedTextField(blank=True, verbose_name="اسم جهة الطوارئ")
     emergency_contact_phone = EncryptedTextField(blank=True, verbose_name="هاتف جهة الطوارئ")
+    # [W-028] سجلّ القيد الوزاريّ — ثلاثةُ أعمدةٍ صحّيّةٍ من ملف مركز البيانات
+    # الوطنيّ، مشفَّرةٌ at-rest كبقيّة هذا النموذج (م.8 PDPPL). و`db_default`
+    # لازمةٌ كحقل `blood_type_encrypted` أعلاه: الجدولُ فيه صفوفٌ بالفعل، فإضافةُ
+    # عمودٍ بلا افتراضٍ على مستوى القاعدة تُسقط الهجرةَ (حارسُ migration-linter).
+    health_center_name = EncryptedTextField(
+        blank=True, default="", db_default="", verbose_name="اسم المركز الصحي الرئيسي"
+    )
+    health_card_number = EncryptedTextField(
+        blank=True, default="", db_default="", verbose_name="رقم الرعاية الصحية الرئيسي"
+    )
+    hamad_hospital_number = EncryptedTextField(
+        blank=True, default="", db_default="", verbose_name="رقم مستشفى حمد"
+    )
     updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:

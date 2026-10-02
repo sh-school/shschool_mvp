@@ -10,12 +10,11 @@
 
 {% block content %}
 {% comment %}
-عرضٌ مستقلٌّ عن الطباعة (قرارُ 2026-09-18، نفسُ فصل جدول المعلم المفرد):
-بطاقةٌ عاديّةٌ لكلّ معلّمٍ أو شعبةٍ بجدولها — لا ورقةٌ بالملّيمتر في إطارٍ.
-والطباعةُ والتنزيلُ من ورقتهما الحقيقيّة عبر إطارٍ مخفيٍّ لا يُعرض، يُحمَّل
-عند أوّل طلب طباعةٍ لا فوراً — فعشراتُ الصفحات لا تُحسب مرّتين بلا حاجة.
+عرضٌ مستقلٌّ عن التصدير (قرارُ 2026-09-18، نفسُ فصل جدول المعلم المفرد؛ ولا طباعةَ مباشرةً —
+قرارُ المالك 2026-09-28): بطاقةٌ عاديّةٌ لكلّ معلّمٍ أو شعبةٍ بجدولها — لا ورقةٌ بالملّيمتر في إطارٍ.
+والتنزيلُ من ورقتهما الحقيقيّة (زرُّ تصدير PDF أعلاه).
 {% endcomment %}
-{% page_header title icon="print" %}{% endpage_header %}
+{% page_header title icon="document" %}{% endpage_header %}
 {# بطاقةٌ عاريةٌ بشريط أدواتٍ فقط — لا ترويسةَ عنّابيّةَ لها فليست `section_card`. #}
 <div class="schedule-pages-card">
   <div class="schedule-head">
@@ -37,7 +36,6 @@
         </select>
       </form>
 
-      <button type="button" id="pages-print-btn" class="btn-primary btn-sm">طباعة</button>
       <a data-app-file href="{% url 'schedule_pages_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير PDF</a>
       <span class="text-sm text-secondary">{{ pages|length }} صفحة</span>
       {% if pages %}<button type="button" id="pages-fold-all" class="btn-secondary btn-sm" aria-controls="pages-list" aria-expanded="{{ start_open|yesno:'true,false' }}">{% if start_open %}طيّ الكلّ{% else %}فتح الكلّ{% endif %}</button>{% endif %}
@@ -87,14 +85,8 @@
     {% if not pages %}{% include "components/empty_state.html" with icon="empty" title="لا جداول في هذا النطاق" %}{% endif %}
   </div>
 
-  {% comment %}إطارٌ مخفيٌّ للطباعة والتنزيل وحدَهما — ورقتُه الحقيقيّةُ بملّيمترها وترويستها كما كانت دائماً.{% endcomment %}
-  <iframe id="pages-frame" title="{{ title }}"
-          data-src="{% url 'schedule_pages_paper' %}?embed=1&amp;{{ selection_query }}"
-          class="schedule-print-frame-hidden" aria-hidden="true" tabindex="-1"></iframe>
-
 <script nonce="{{ request.csp_nonce }}">
   (function () {
-    var frame = document.getElementById('pages-frame');
     // مفتاحٌ واحدٌ يطوي البطاقاتِ كلَّها أو يفتحها؛ وحالتُه تتبع البطاقات نفسَها (فتحُ واحدةٍ باليد يغيّر تسميتَه).
     var list = document.getElementById('pages-list');
     var foldAll = document.getElementById('pages-fold-all');
@@ -113,14 +105,6 @@
       list.addEventListener('toggle', sync, true);
       sync();
     }
-    // الطباعةُ للإطار لا للصفحة — ويُحمَّل عند أوّل طلبٍ لا فوراً، وتنتظر
-    // تحميلَه أوّلَ مرّةٍ كي لا تُطبَع صفحةٌ بيضاء قبل أن تصل الورقةُ.
-    function print() { frame.contentWindow.focus(); frame.contentWindow.print(); }
-    document.getElementById('pages-print-btn').addEventListener('click', function () {
-      if (frame.getAttribute('src')) { print(); return; }
-      frame.addEventListener('load', print, { once: true });
-      frame.src = frame.dataset.src;
-    });
   })();
 </script>
 {% endblock %}
