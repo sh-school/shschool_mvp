@@ -137,3 +137,39 @@ def cast_vote(
             len(backing),
         )
         return message, level
+
+
+def decide_committee(infraction: BehaviorInfraction, user, post) -> tuple[str, str]:
+    """قرارُ اللجنة من حقول النموذج: جماعيٌّ (صوت) أو فرديٌّ (تنفيذٌ فوريّ)، ويردّ (رسالة، مستوى).
+
+    مكانُه الخدمة لا العرض: قراءةُ الحقول وضبطُ حدودها (أيّام الإيقاف 1..365) وتوزيعُ الجماعيّ
+    على الفرديّ منطقُ أعمال، والعرضُ يستدعيه ويعرض نتيجته فقط.
+    """
+    decision = post.get("decision")
+    action = post.get("action_taken", "").strip()
+    suspension_type = "external" if post.get("suspension_type") == "external" else "internal"
+    try:
+        suspension_days = min(365, max(1, int(post.get("suspension_days") or 1)))
+    except ValueError:
+        suspension_days = 1
+    if decision in COLLECTIVE_DECISIONS:
+        # التصعيد والإيقاف قرارٌ جماعيّ بأغلبيّة الأعضاء (D-116م) — صوتٌ لا تنفيذٌ فوريّ.
+        return cast_vote(
+            infraction,
+            user,
+            decision,
+            action=action,
+            suspension_type=suspension_type,
+            suspension_days=suspension_days,
+        )
+    # نظام النقاط ملغى — restore_pts=0 دائماً
+    return BehaviorService.apply_committee_decision(
+        infraction=infraction,
+        decision=decision,
+        action=action,
+        restore_pts=0,
+        reason="",
+        approved_by=user,
+        suspension_type=suspension_type,
+        suspension_days=suspension_days,
+    )

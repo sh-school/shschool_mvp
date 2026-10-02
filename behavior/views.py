@@ -48,7 +48,7 @@ def _behavior_report_redirect(
             "period": period,
         }
     )
-    target = f"{reverse('behavior:behavior_report', kwargs={'student_id': student_id})}" f"?{query}"
+    target = f"{reverse('behavior:behavior_report', kwargs={'student_id': student_id})}?{query}"
 
     if url_has_allowed_host_and_scheme(
         target,
@@ -63,7 +63,7 @@ def _behavior_report_redirect(
     )
 
 
-from behavior.committee_quorum import COLLECTIVE_DECISIONS, cast_vote
+from behavior.committee_quorum import decide_committee
 from behavior.forms import InfractionForm
 from behavior.models import BehaviorInfraction, ViolationCategory
 from core.capabilities import capability_required, has_capability
@@ -334,10 +334,8 @@ def report_infraction(request):
                         # فيُعيد التسجيل ويُنشئ ثانية. وكان الارتدادُ المحذوف
                         # هو ما يبتلع ذلك بالمصادفة.
                         transaction.on_commit(
-                            lambda infraction=infraction,
-                            school=school,
-                            reporter=request.user: _notify_behavior_after_commit(
-                                infraction, school, reporter
+                            lambda infraction=infraction, school=school, reporter=request.user: (
+                                _notify_behavior_after_commit(infraction, school, reporter)
                             ),
                             robust=True,
                         )
@@ -469,9 +467,9 @@ def quick_log(request):
             )
 
             transaction.on_commit(
-                lambda infraction=infraction,
-                school=school,
-                reporter=request.user: _notify_behavior_after_commit(infraction, school, reporter),
+                lambda infraction=infraction, school=school, reporter=request.user: (
+                    _notify_behavior_after_commit(infraction, school, reporter)
+                ),
                 robust=True,
             )
 
@@ -573,37 +571,7 @@ def committee_decision(request, infraction_id):
         BehaviorInfraction, id=infraction_id, level__in=[3, 4], school=school
     )
     if request.method == "POST":
-        decision = request.POST.get("decision")
-        action = request.POST.get("action_taken", "").strip()
-        suspension_type = (
-            "external" if request.POST.get("suspension_type") == "external" else "internal"
-        )
-        try:
-            suspension_days = min(365, max(1, int(request.POST.get("suspension_days") or 1)))
-        except ValueError:
-            suspension_days = 1
-        if decision in COLLECTIVE_DECISIONS:
-            # التصعيد والإيقاف قرارٌ جماعيّ بأغلبيّة الأعضاء (D-116م) — صوتٌ لا تنفيذٌ فوريّ.
-            msg, level = cast_vote(
-                infraction,
-                request.user,
-                decision,
-                action=action,
-                suspension_type=suspension_type,
-                suspension_days=suspension_days,
-            )
-        else:
-            # نظام النقاط ملغى — restore_pts=0 دائماً
-            msg, level = BehaviorService.apply_committee_decision(
-                infraction=infraction,
-                decision=decision,
-                action=action,
-                restore_pts=0,
-                reason="",
-                approved_by=request.user,
-                suspension_type=suspension_type,
-                suspension_days=suspension_days,
-            )
+        msg, level = decide_committee(infraction, request.user, request.POST)
         getattr(messages, level)(request, msg)
         return redirect("behavior:committee")
 
