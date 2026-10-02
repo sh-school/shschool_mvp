@@ -42,9 +42,18 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
     )
     from behavior.models import AutoInfractionNotice, BehaviorInfraction
     from clinic.models import ClinicVisit, HealthRecord
+    from exam_control.models import ExamIncident
     from library.models import BookBorrowing
-    from operations.models import AbsenceAlert, AbsenceExcuse, StudentAttendance
-    from student_affairs.models import StudentActivity
+    from notifications.models import NotificationLog
+    from operations.models import (
+        AbsenceAlert,
+        AbsenceExcuse,
+        ClassExit,
+        GuardianContact,
+        StudentAttendance,
+    )
+    from student_affairs.models import StudentActivity, StudentTransfer
+    from student_info.models import StudentNote
 
     _STUDENT_FK_MODELS.extend(
         [
@@ -62,6 +71,14 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
             (AbsenceExcuse, "student", False),  # عذرُ غياب (يحوي مستنداً)
             (BookBorrowing, "user", False),
             (StudentActivity, "student", False),  # نشاط طلابي (يحوي مرفق PII)
+            # [W-20261001-014] كانت مغفَلةً فتبقى بعد المحو (SET_NULL أو CASCADE لا يعمل
+            # لأنّ المستخدم يُجهَّل ولا يُحذف). tests/test_erasure_coverage.py يحرس القائمة.
+            (StudentNote, "student", False),  # ملاحظاتٌ نفسيّةٌ وصحّيّةٌ عن قاصر (م.16)
+            (StudentTransfer, "student", False),  # سجلُّ الانتقال بين المدارس
+            (GuardianContact, "student", False),  # اتّصالات وليّ الأمر بالهاتف
+            (ClassExit, "student", False),  # خروجُ الطالب من الحصّة
+            (ExamIncident, "student", False),  # محضرُ حادثةٍ في اللجنة
+            (NotificationLog, "student", False),  # سجلُّ إشعارٍ يحمل المستلمَ ونصَّه
         ]
     )
     return _STUDENT_FK_MODELS
