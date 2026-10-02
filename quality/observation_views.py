@@ -110,7 +110,9 @@ def _obs_perms(user, obs):
     is_observer = obs.observer_id == user.id
     is_teacher = obs.teacher_id == user.id
     status = obs.status
-    can_edit = (is_observer or user.is_superuser) and status != "acknowledged"
+    # التعديلُ للزائر صاحبِ الزيارة وحدَه (بلاغ المالك W-20261002-015): لا قيادةٌ ولا مستخدمٌ فائقٌ ولا معلّم —
+    # فالتقييمُ شهادةُ كاتبِه، ومن يملك الاطّلاعَ لا يملك تغييرَ ما كُتب. والقيادةُ تسحب وتُعيد الفتح فيعدّل صاحبُها.
+    can_edit = is_observer and status != "acknowledged"
     if status == "draft":
         can_delete = is_observer or user.is_superuser
     elif status == "submitted":
