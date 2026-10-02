@@ -574,8 +574,13 @@ def committee_decision(request, infraction_id):
     if request.method == "POST":
         decision = request.POST.get("decision")
         action = request.POST.get("action_taken", "").strip()
-        suspension_type = request.POST.get("suspension_type", "internal")
-        suspension_days = int(request.POST.get("suspension_days", 1) or 1)
+        suspension_type = (
+            "external" if request.POST.get("suspension_type") == "external" else "internal"
+        )
+        try:
+            suspension_days = min(365, max(1, int(request.POST.get("suspension_days") or 1)))
+        except ValueError:
+            suspension_days = 1
         if decision in COLLECTIVE_DECISIONS:
             # التصعيد والإيقاف قرارٌ جماعيّ بأغلبيّة الأعضاء (D-116م) — صوتٌ لا تنفيذٌ فوريّ.
             msg, level = cast_vote(

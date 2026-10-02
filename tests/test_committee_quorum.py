@@ -55,7 +55,7 @@ def test_one_member_cannot_escalate(client_as, committee, infraction):
     assert resp.status_code == 302
     infraction.refresh_from_db()
     assert infraction.level == 3, "عضوٌ واحدٌ من خمسة لا يصعّد"
-    assert BehaviorCommitteeVote.objects.filter(infraction=infraction, applied=False).count() == 1
+    assert BehaviorCommitteeVote.objects.filter(infraction=infraction, status="open").count() == 1
 
 
 def test_one_member_cannot_suspend(client_as, committee, infraction):
@@ -79,7 +79,9 @@ def test_majority_escalates_once_it_completes(client_as, committee, infraction):
     infraction.refresh_from_db()
     assert infraction.level == 4
     votes = BehaviorCommitteeVote.objects.filter(infraction=infraction)
-    assert votes.count() == 3 and all(v.applied for v in votes), "الأصواتُ تبقى سجلَّ تدقيق"
+    assert votes.count() == 3 and all(
+        v.status == "applied" for v in votes
+    ), "الأصواتُ تبقى سجلَّ تدقيق"
 
 
 def test_majority_suspends_with_the_closing_members_terms(client_as, committee, infraction):
@@ -157,3 +159,72 @@ def test_a_one_member_committee_decides_alone(client_as, principal_user, infract
 
     infraction.refresh_from_db()
     assert infraction.level == 4
+
+
+def test_applied_and_dropped_votes_stay_as_an_audit_trail(client_as, committee, infraction):
+    client_as(committee[0]).post(_url(infraction), {"decision": "suspend"})
+    for member in committee[1:4]:
+        client_as(member).post(_url(infraction), {"decision": "escalate"})
+
+    infraction.refresh_from_db()
+    assert infraction.level == 4
+    by_status = {
+        status: BehaviorCommitteeVote.objects.filter(infraction=infraction, status=status).count()
+        for status in ("open", "applied", "dropped")
+    }
+    assert by_status == {"open": 0, "applied": 3, "dropped": 1}
+
+
+def test_changing_a_vote_to_complete_the_quorum_uses_the_voters_own_terms(
+    client_as, committee, infraction
+):
+    """مراجعة 0105: التعديلُ لا يُنفّذ بمعاملات صوتٍ آخرَ أُنشئ لاحقاً."""
+    client_as(committee[0]).post(_url(infraction), {"decision": "escalate"})
+    client_as(committee[1]).post(
+        _url(infraction), {"decision": "suspend", "action_taken": "إيقافُ الثاني"}
+    )
+    client_as(committee[2]).post(
+        _url(infraction), {"decision": "suspend", "action_taken": "إيقافُ الثالث"}
+    )
+    client_as(committee[0]).post(
+        _url(infraction), {"decision": "suspend", "action_taken": "إيقافُ الأوّل بعد تغيير صوته"}
+    )
+
+    infraction.refresh_from_db()
+    assert "إيقافُ الأوّل بعد تغيير صوته" in infraction.action_taken
+    assert "إيقافُ الثالث" not in infraction.action_taken
+
+
+def test_mixed_suspension_terms_take_the_lighter_of_what_the_majority_agreed(
+    client_as, committee, infraction
+):
+    terms = [(5, "external"), (2, "internal"), (3, "external")]
+    for member, (days, kind) in zip(committee, terms, strict=False):
+        client_as(member).post(
+            _url(infraction),
+            {"decision": "suspend", "suspension_days": days, "suspension_type": kind},
+        )
+
+    infraction.refresh_from_db()
+    assert infraction.suspension_days == 2
+    assert infraction.suspension_type == "internal"
+
+
+def test_a_resolved_infraction_takes_no_more_votes(client_as, committee, infraction):
+    infraction.is_resolved = True
+    infraction.save()
+
+    client_as(committee[0]).post(_url(infraction), {"decision": "escalate"})
+
+    assert not BehaviorCommitteeVote.objects.filter(infraction=infraction).exists()
+
+
+def test_garbage_suspension_input_does_not_crash(client_as, committee, infraction):
+    resp = client_as(committee[0]).post(
+        _url(infraction),
+        {"decision": "suspend", "suspension_days": "abc", "suspension_type": "x" * 50},
+    )
+
+    assert resp.status_code == 302
+    vote = BehaviorCommitteeVote.objects.get(infraction=infraction)
+    assert (vote.suspension_days, vote.suspension_type) == (1, "internal")

@@ -63,10 +63,13 @@ def cast_vote(
         if voter.pk not in members:
             return "غير مسموح: لستَ من أعضاء اللجنة المؤهَّلين لهذا القرار الجماعي.", "error"
 
+        if locked.is_resolved:
+            return "المخالفةُ مغلقةٌ — لا تصويتَ عليها.", "error"
+
         BehaviorCommitteeVote.objects.update_or_create(
             infraction=locked,
             voter=voter,
-            applied=False,
+            status=BehaviorCommitteeVote.OPEN,
             defaults={
                 "decision": decision,
                 "action_taken": action,
@@ -78,8 +81,11 @@ def cast_vote(
         needed = majority_needed(len(members))
         backing = list(
             BehaviorCommitteeVote.objects.filter(
-                infraction=locked, applied=False, decision=decision, voter_id__in=members
-            ).order_by("created_at")
+                infraction=locked,
+                status=BehaviorCommitteeVote.OPEN,
+                decision=decision,
+                voter_id__in=members,
+            ).order_by("updated_at")
         )
         if len(backing) < needed:
             logger.info(
@@ -95,16 +101,25 @@ def cast_vote(
                 "info",
             )
 
-        closing = backing[-1]
+        # معاملاتُ القرار: الأخفُّ مما اتّفقت عليه الأغلبيّة (أقلّ أيّام، والداخليُّ على الخارجيّ)،
+        # ونصُّ الإجراء من العضو الذي أكمل النصاب الآن — لا من «آخر صفٍّ أُنشئ».
         message, level = BehaviorService.apply_committee_decision(
             infraction=locked,
             decision=decision,
-            action=closing.action_taken,
+            action=action,
             approved_by=voter,
-            suspension_type=closing.suspension_type or "internal",
-            suspension_days=closing.suspension_days,
+            suspension_type=(
+                "external" if all(v.suspension_type == "external" for v in backing) else "internal"
+            ),
+            suspension_days=min(v.suspension_days for v in backing),
         )
-        BehaviorCommitteeVote.objects.filter(infraction=locked, applied=False).update(applied=True)
+        open_votes = BehaviorCommitteeVote.objects.filter(
+            infraction=locked, status=BehaviorCommitteeVote.OPEN
+        )
+        open_votes.filter(pk__in=[v.pk for v in backing]).update(
+            status=BehaviorCommitteeVote.APPLIED
+        )
+        open_votes.update(status=BehaviorCommitteeVote.DROPPED)
         logger.info(
             "committee decision applied infraction=%s decision=%s votes=%s",
             locked.pk,
