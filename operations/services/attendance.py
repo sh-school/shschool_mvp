@@ -40,13 +40,42 @@ class AttendanceService:
         قيدُ الطالب بتاريخها، من بدء الحصّة إلى نهاية الدوام بتوقيت الدوحة، وليس المطوّر) — W-20261002-026.
         وتُستدعى من هنا لا من العرض لأنّ القراءةَ تُنقل إلى طبقة الخدمات.
         """
-        from operations.attendance_policy import can_enter
+        from operations.attendance_policy import DEVELOPER_ROLE, can_enter
         from operations.day_attendance import is_recorder, recorded_by_supervisor
 
+        if user.has_role(DEVELOPER_ROLE):
+            return False  # D-128م: المطوّرُ لا يُدخل ولو كان superuser، فلا يمرّ بـ`is_recorder`
         if is_recorder(user):
             return True
         return not recorded_by_supervisor(session, student) and bool(
             can_enter(user, session, student)
+        )
+
+    @staticmethod
+    def _audit_teacher_mark(marked_by, session, student, before, after, created) -> None:
+        """سطرُ تدقيقٍ بالقيمتين لكتابة غير أهل الرصد (معلّمُ ESE) — D-126م: رصدٌ نهائيٌّ **بتدقيقٍ كامل**.
+
+        أهلُ الرصد لهم مساراتُهم وتدقيقُهم (كشفُ الحصص). والمعرّفاتُ لا الأسماء (PDPPL).
+        """
+        from core.models import AuditLog
+        from operations.day_attendance import is_recorder
+
+        if marked_by is None or is_recorder(marked_by) or before == after:
+            return
+        AuditLog.log(
+            user=marked_by,
+            action="create" if created else "update",
+            model_name="other",
+            object_id=session.pk,
+            object_repr="رصدُ المعلّم — رصدٌ نهائيٌّ في شعبةٍ بلا جناح",
+            changes={
+                "role": marked_by.get_role(),
+                "session": str(session.pk),
+                "student": str(student.pk),
+                "before": before,
+                "after": after,
+            },
+            school=session.school,
         )
 
     @staticmethod
@@ -59,6 +88,11 @@ class AttendanceService:
         excuse_notes: str = "",
         marked_by: CustomUser | None = None,
     ) -> tuple:
+        before = (
+            StudentAttendance.objects.filter(session=session, student=student)
+            .values_list("status", flat=True)
+            .first()
+        )
         att, created = StudentAttendance.objects.update_or_create(
             session=session,
             student=student,
@@ -70,6 +104,7 @@ class AttendanceService:
                 "marked_by": marked_by,
             },
         )
+        AttendanceService._audit_teacher_mark(marked_by, session, student, before, status, created)
         # Check absence threshold
         if status == "absent":
             AttendanceService.check_absence_threshold(student, session.school)

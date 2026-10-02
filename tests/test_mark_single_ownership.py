@@ -177,3 +177,46 @@ def test_recorders_still_mark_any_wingless_session(client_as, school, session, s
         recorder = _staff(school, role, role, nid)
         response = _mark(client_as, recorder, session, student, status="present")
         assert response.status_code == 200, role
+
+
+def test_the_developer_may_not_mark_even_as_a_superuser(
+    client_as, at_730, school, session, student
+):
+    """D-128م: المطوّرُ لا يُدخل ولو كان superuser — لا يمرّ بـ`is_recorder` (حكمُ 0105 أ)."""
+    developer = _staff(school, "platform_developer", "المطوّر", "29300004030")
+    developer.is_superuser = True
+    developer.save(update_fields=["is_superuser"])
+    response = _mark(client_as, developer, session, student)
+    assert response.status_code == 403
+    assert not StudentAttendance.objects.exists()
+
+
+def test_the_teachers_changes_are_audited_with_before_and_after(
+    client_as, at_730, session, owner, student
+):
+    """D-126م: رصدُ ESE نهائيٌّ **بتدقيقٍ كامل** — كلُّ تغييرٍ سطرٌ بالقيمتين، وبالمعرّفات لا الأسماء (حكمُ 0105 ب)."""
+    from core.models import AuditLog
+
+    _mark(client_as, owner, session, student, "absent")
+    _mark(client_as, owner, session, student, "present")
+    lines = list(
+        AuditLog.objects.filter(model_name="other", object_repr__startswith="رصدُ المعلّم").order_by(
+            "timestamp"
+        )
+    )
+    assert [line.action for line in lines] == ["create", "update"]
+    assert (lines[0].changes["before"], lines[0].changes["after"]) == (None, "absent")
+    assert (lines[1].changes["before"], lines[1].changes["after"]) == ("absent", "present")
+    assert all(line.user_id == owner.id for line in lines)
+    assert all(student.full_name not in str(line.changes) for line in lines)
+
+
+def test_a_recorders_marking_is_not_double_audited_by_this_path(
+    client_as, school, session, student
+):
+    """أهلُ الرصد لهم مساراتُهم وتدقيقُهم (كشفُ الحصص)؛ هذا السطرُ لمن لا يملك غيره."""
+    from core.models import AuditLog
+
+    recorder = _staff(school, "vice_admin", "النائب", "29300004031")
+    _mark(client_as, recorder, session, student, "present")
+    assert not AuditLog.objects.filter(object_repr__startswith="رصدُ المعلّم").exists()
