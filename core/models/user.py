@@ -407,13 +407,40 @@ class Profile(models.Model):
         CustomUser, on_delete=models.CASCADE, related_name="profile", verbose_name="المستخدم"
     )
     gender = models.CharField(max_length=1, choices=GENDER, blank=True, verbose_name="الجنس")
+    #: [W-20261001-016] القديمُ الصريح — يبقى حتى إصدار «التقليص» (توسيعٌ ثمّ تقليص)
+    #: كي تظلّ النسخةُ القديمةُ من الكود صالحةً أثناء النشر. لا تقرأ منه: استعمل
+    #: `date_of_birth`. وسيُحذف بهجرةٍ لاحقةٍ بعد استقرار هذا الإصدار.
     birth_date = models.DateField(null=True, blank=True, verbose_name="تاريخ الميلاد")
+    #: تاريخُ الميلاد مشفَّراً (ISO) — ميلادُ قاصرٍ يُعرِّف به مع الاسم (م.16).
+    birth_date_encrypted = EncryptedTextField(
+        blank=True, default="", db_default="", verbose_name="تاريخ الميلاد (مشفّر)"
+    )
     notes = models.TextField(blank=True, verbose_name="ملاحظات")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
         verbose_name = "ملف شخصي"
         verbose_name_plural = "الملفات الشخصية"
+
+    @property
+    def date_of_birth(self):
+        """تاريخُ الميلاد للقراءة: المشفَّرُ أوّلاً، ثمّ القديمُ لصفٍّ لم يُملأ بعد."""
+        from datetime import date
+
+        if self.birth_date_encrypted:
+            try:
+                return date.fromisoformat(self.birth_date_encrypted)
+            except ValueError:
+                pass  # قيمةٌ تالفة: لا نُسقط الصفحة، نسقط إلى القديم
+        return self.birth_date
+
+    def save(self, *args, **kwargs):
+        """كتابةٌ مزدوجة: كلُّ من يضبط `birth_date` يُحدِّث المشفَّرَ تلقائياً."""
+        self.birth_date_encrypted = self.birth_date.isoformat() if self.birth_date else ""
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "birth_date" in update_fields:
+            kwargs["update_fields"] = {*update_fields, "birth_date_encrypted"}
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Profile: {self.user.full_name}"
