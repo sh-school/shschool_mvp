@@ -16,7 +16,7 @@
     <summary>التفاصيل</summary>
     <p class="ui-note" data-key="{{ panel.key }}.headline" title="{{ panel.headline|default:'لم يُجمَع بعدُ' }}">{% if panel.headline %}{{ panel.headline }}{% else %}لم يُجمَع بعدُ{% endif %}</p>
     <ul class="plain-list">
-      {% for slot in panel.slots %}<li class="plain-list__row" data-row="{{ panel.key }}.m{{ slot.i }}"{% if not slot.m %} hidden{% endif %}><span data-key="{{ panel.key }}.m{{ slot.i }}l">{{ slot.m.label }}</span><strong data-key="{{ panel.key }}.m{{ slot.i }}v">{{ slot.m.value }}</strong></li>{% endfor %}
+      {% for slot in panel.slots %}<li class="plain-list__row" data-row="{{ panel.key }}.m{{ slot.i }}"{% if not slot.m %} hidden{% endif %}><span data-key="{{ panel.key }}.m{{ slot.i }}l">{{ slot.m.label }}</span><strong data-key="{{ panel.key }}.m{{ slot.i }}v">{{ slot.m.value }}</strong></li>{% empty %}<li class="plain-list__row"><span>لا مؤشّراتٍ بعدُ</span></li>{% endfor %}
     </ul>
     <p class="ui-note" data-key="{{ panel.key }}.detail">{{ panel.detail }}</p>
     <p class="ui-note" data-key="{{ panel.key }}.age"></p>
