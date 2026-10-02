@@ -39,7 +39,7 @@ from .models import (
     TeacherExemption,
     TeacherPreference,
 )
-from .schedule_breaches import draft_breaches
+from .schedule_breaches import budget_cut_notice, draft_breaches, unplaced_count
 from .schedule_selectors import pages_payload
 from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
 from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
@@ -768,6 +768,10 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
         g.lab_tone = tone_for(g.lab_relative, LAB_RELATIVE_TONES, empty="")
         # ما بقي مكسوراً بموضعه — والإقرارُ به شرطُ اعتماد المسودّة (SCH-05).
         g.breaches = draft_breaches(g.config_snapshot)
+        g.budget_cut = budget_cut_notice(g.config_snapshot)
+        g.unplaced_count = unplaced_count(g.config_snapshot)
+        # الإقرارُ شرطٌ لمخالفاتٍ أو لمتعذّراتٍ (OR-01) — والعددُ الذي يُعرض على الزرّ مجموعُهما.
+        g.gate_total = (g.breaches["count"] if g.breaches else 0) + g.unplaced_count
     measured = [g for g in generations if g.lab_rows]
     rows: dict[str, dict] = {}
     for column, g in enumerate(measured):
