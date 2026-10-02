@@ -112,17 +112,40 @@ def needs_approval(session: Session) -> bool:
     return not is_special_education(session.class_group)
 
 
-def approval_holder(session: Session) -> CustomUser | None:
-    """من يحمل جناحَ شعبة الحصّة **يومَ الحصّة**: بديلُ التغطية الساريةِ بتاريخها وإلّا الأصيل.
-
-    و`None` إن لم يكن للشعبة جناحٌ أو كان الجناحُ غيرَ نشطٍ أو بلا مشرفٍ ولا تغطية. و`Wing.is_held_by`
-    الخامّ لا يصلح هنا: يجيب أيحمل المستخدمُ أيَّ جناحٍ لا جناحَ هذه الشعبة.
-    """
+def _raw_holder(session: Session) -> CustomUser | None:
     wing = session.class_group.wing
     if wing is None or not wing.is_active:
         return None
     holder: CustomUser | None = wing.current_supervisor(on_date=session.date)  # type: ignore[no-untyped-call]
     return holder
+
+
+def holder_gap(session: Session) -> str | None:
+    """لِمَ لا حاملَ فعليّاً لجناح هذه الحصّة؟ — `None` إن وُجد حاملٌ يصلح، وإلّا السببُ (حكمُ 0105 P1/P2):
+
+    - `no_holder`: لا جناحَ أو جناحٌ غيرُ نشطٍ أو بلا مشرفٍ ولا تغطية.
+    - `holder_is_teacher`: حاملُ الجناح هو معلّمُ الحصّة نفسُه — لا يعتمد رصدَ حصّته (`own_session`)، فلو بقي حاملاً
+      لجمد الاعتمادُ ولم تعتمد القيادة.
+    - `holder_inactive`: حاملٌ بلا عضويّةٍ نشطةٍ في مدرسة الحصّة (غادر أو أُوقفت عضويّتُه) — اسمٌ لا يستطيع القرار.
+    """
+    holder = _raw_holder(session)
+    if holder is None:
+        return "no_holder"
+    if holder.id == session.teacher_id:
+        return "holder_is_teacher"
+    if not _roles_in_school(holder, session.school_id):
+        return "holder_inactive"
+    return None
+
+
+def approval_holder(session: Session) -> CustomUser | None:
+    """من يحمل جناحَ شعبة الحصّة **يومَ الحصّة** حاملاً **فعليّاً**: بديلُ التغطية الساريةِ بتاريخها وإلّا الأصيل.
+
+    و`None` إن لم يكن للشعبة جناحٌ أو كان غيرَ نشطٍ أو بلا مشرفٍ ولا تغطية، أو كان الحاملُ لا يصلح (معلّمَ الحصّة
+    نفسَه أو بلا عضويّةٍ نشطة — `holder_gap`) فيُعامَل الجناحُ كأنّه بلا حاملٍ وتعتمد القيادةُ. و`Wing.is_held_by`
+    الخامّ لا يصلح هنا: يجيب أيحمل المستخدمُ أيَّ جناحٍ لا جناحَ هذه الشعبة.
+    """
+    return _raw_holder(session) if holder_gap(session) is None else None
 
 
 def approval_evidence(session: Session) -> dict[str, str | None]:

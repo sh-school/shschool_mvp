@@ -143,11 +143,19 @@ class Migration(migrations.Migration):
                             ("wing_holder", "حاملُ جناح الشعبة"),
                             ("leadership_no_holder", "القيادةُ — لا حاملَ للجناح"),
                             (
+                                "leadership_holder_is_teacher",
+                                "القيادةُ — حاملُ الجناح هو معلّمُ الحصّة",
+                            ),
+                            (
+                                "leadership_holder_inactive",
+                                "القيادةُ — حاملُ الجناح بلا عضويّةٍ نشطة",
+                            ),
+                            (
                                 "special_ed_self",
                                 "التربيةُ الخاصّة — اعتمادٌ ذاتيٌّ بالتصميم",
                             ),
                         ],
-                        max_length=24,
+                        max_length=40,
                         verbose_name="أساسُ الصلاحيّة",
                     ),
                 ),

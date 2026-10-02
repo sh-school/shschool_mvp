@@ -27,9 +27,9 @@ from core.models import AuditLog
 
 from .attendance_policy import (
     approval_evidence,
-    approval_holder,
     can_approve,
     can_enter,
+    holder_gap,
     needs_approval,
 )
 from .models import Session, StudentAttendance
@@ -48,6 +48,13 @@ SOURCE = "teacher"
 OVERWRITABLE_SOURCES = {"teacher", "teacher_late"}
 
 ENTERABLE_STATUSES = {code for code, _ in AttendanceEntry.STATUS}
+
+#: أساسُ قرار القيادة بحسب سببِ غياب الحامل الفعليّ (`attendance_policy.holder_gap`).
+_LEADERSHIP_BASIS = {
+    "no_holder": "leadership_no_holder",
+    "holder_is_teacher": "leadership_holder_is_teacher",
+    "holder_inactive": "leadership_holder_inactive",
+}
 
 
 class EntryError(Exception):
@@ -77,6 +84,8 @@ class PendingRow:
     entry: AttendanceEntry
     age_hours: float
     holder_missing: bool
+    #: سببُ غياب الحامل الفعليّ (`no_holder` | `holder_is_teacher` | `holder_inactive`) أو `None`.
+    holder_gap: str | None = None
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -134,14 +143,18 @@ def unapproved_report(
         .select_related("session__class_group__wing", "student", "entered_by")
         .order_by("entered_at")
     )
-    return [
-        PendingRow(
-            entry=entry,
-            age_hours=(moment - entry.entered_at).total_seconds() / 3600,
-            holder_missing=approval_holder(entry.session) is None,
+    rows = []
+    for entry in entries:
+        gap = holder_gap(entry.session)
+        rows.append(
+            PendingRow(
+                entry=entry,
+                age_hours=(moment - entry.entered_at).total_seconds() / 3600,
+                holder_missing=gap is not None,
+                holder_gap=gap,
+            )
         )
-        for entry in entries
-    ]
+    return rows
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -425,12 +438,12 @@ def decide_entry(
     if not approve and not reason:
         raise EntryError("reason_required", "الرفضُ يلزمه سبب.")
 
-    holder = approval_holder(session)
+    gap = holder_gap(session)
     decision = _decide(
         locked,
         user,
         approve=approve,
-        basis="wing_holder" if holder is not None else "leadership_no_holder",
+        basis="wing_holder" if gap is None else _LEADERSHIP_BASIS[gap],
         evidence=approval_evidence(session),
         reason=reason,
         now=now,

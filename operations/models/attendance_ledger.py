@@ -160,6 +160,8 @@ class AttendanceDecision(AppendOnlyModel):
     BASES = [
         ("wing_holder", "حاملُ جناح الشعبة"),
         ("leadership_no_holder", "القيادةُ — لا حاملَ للجناح"),
+        ("leadership_holder_is_teacher", "القيادةُ — حاملُ الجناح هو معلّمُ الحصّة"),
+        ("leadership_holder_inactive", "القيادةُ — حاملُ الجناح بلا عضويّةٍ نشطة"),
         ("special_ed_self", "التربيةُ الخاصّة — اعتمادٌ ذاتيٌّ بالتصميم"),
     ]
 
@@ -184,7 +186,7 @@ class AttendanceDecision(AppendOnlyModel):
         verbose_name="قرّره",
     )
     decided_at = models.DateTimeField(default=timezone.now, verbose_name="وقتُ القرار")
-    basis = models.CharField(max_length=24, choices=BASES, verbose_name="أساسُ الصلاحيّة")
+    basis = models.CharField(max_length=40, choices=BASES, verbose_name="أساسُ الصلاحيّة")
     #: دليلُ الصلاحيّة وقتَ القرار (الجناحُ والتغطيةُ والحامل) — يُحفظ فلا يُعاد حسابُه بعد تغيّر التغطية.
     evidence = models.JSONField(default=dict, blank=True, verbose_name="الدليل")
     reason = models.TextField(blank=True, verbose_name="السبب")
