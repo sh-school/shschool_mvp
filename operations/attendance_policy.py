@@ -29,7 +29,7 @@ from django.utils import timezone
 from core.models import StudentEnrollment
 
 from .bells import day_type_for
-from .models import Session, TimeSlotConfig
+from .models import AttendanceEntry, Session, TimeSlotConfig
 
 if TYPE_CHECKING:
     from core.models import ClassGroup, CustomUser, School, TimeBand
@@ -199,7 +199,7 @@ def _teacher_write_verdict(
         return _deny("not_teacher")
     if session.status == "cancelled":
         return _deny("cancelled")
-    if not _is_enrolled(student, session):
+    if not (_is_enrolled(student, session) or _has_entry_in_session(student, session)):
         return _deny("not_enrolled")
 
     moment = now or timezone.now()
@@ -238,6 +238,15 @@ def _is_enrolled(student: CustomUser, session: Session) -> bool:
             enrolled_at__lte=session.date,
         ).exists()
     )
+
+
+def _has_entry_in_session(student: CustomUser, session: Session) -> bool:
+    """أُدخل لهذا الطالب رصدٌ في هذه الحصّة نفسِها وهو في شعبتها (حكمُ 0105 P3).
+
+    فمن نُقل بعد الحصّة وقبل أن يصحّح المعلّمُ يُصحَّح له في النافذة: الرصدُ حدثٌ وقع في الحصّة لا حالةُ قيدٍ اليوم.
+    ولا يفتح البابَ لأوّل إدخالٍ (يلزمه القيدُ النشط) ولا لحصّةٍ أخرى.
+    """
+    return bool(AttendanceEntry.objects.filter(session=session, student=student).exists())
 
 
 def can_approve(

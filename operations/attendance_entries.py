@@ -49,6 +49,17 @@ OVERWRITABLE_SOURCES = {"teacher", "teacher_late"}
 
 ENTERABLE_STATUSES = {code for code, _ in AttendanceEntry.STATUS}
 
+#: سقفُ نصّ السبب (رفضٍ أو تصحيح): نصٌّ حرٌّ يُكتب في التدقيق وقد يحمل ما لا يُراد حفظُه بلا حدّ (حكمُ 0105 P3).
+MAX_REASON_LENGTH = 300
+
+
+def _checked_reason(reason: str) -> str:
+    reason = (reason or "").strip()
+    if len(reason) > MAX_REASON_LENGTH:
+        raise EntryError("reason_too_long", f"السببُ أطولُ من {MAX_REASON_LENGTH} حرفاً.")
+    return reason
+
+
 #: أساسُ قرار القيادة بحسب سببِ غياب الحامل الفعليّ (`attendance_policy.holder_gap`).
 _LEADERSHIP_BASIS = {
     "no_holder": "leadership_no_holder",
@@ -198,7 +209,7 @@ def _supersession(
     if head is None:
         return None, "", None
     state = state_of(head)
-    reason = (reason or "").strip()
+    reason = _checked_reason(reason)
     if state == "pending":
         if (
             head.status == status
@@ -434,7 +445,7 @@ def decide_entry(
     if not verdict:
         raise EntryRefusedError(verdict.reason)
 
-    reason = (reason or "").strip()
+    reason = _checked_reason(reason)
     if not approve and not reason:
         raise EntryError("reason_required", "الرفضُ يلزمه سبب.")
 
