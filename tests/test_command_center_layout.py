@@ -241,3 +241,9 @@ def test_the_script_paints_the_central_bar_and_badge_not_local_elements():
     assert "--progress-w" in source and "progress-qatar-fill" in source
     assert "status-success" in source and "status-gray" in source
     assert "strip.counts" not in source
+
+
+def test_the_bar_fill_is_a_block_so_its_width_is_not_ignored():
+    """الحادثة (المالك 2026-10-02، «؟؟؟»): التعبئةُ `<span>` مضمَّنةٌ فيُهمل عرضُها المتغيّر `--progress-w` وتختفي الأشرطةُ فارغةً. تحرسها القاعدةُ كما في `.beh-bar__track`."""
+    css = (ROOT / "static" / "css" / "custom" / "33-modules-4.css").read_text(encoding="utf-8")
+    assert re.search(r"\.qc-panel__bar > \.progress-qatar-fill \{ display: block; \}", css)
