@@ -32,6 +32,24 @@ NEWLINE = chr(10)
 
 class AttendanceService:
     @staticmethod
+    def may_write(user: CustomUser, session: Session, student: CustomUser) -> bool:
+        """أيكتب هذا المستخدمُ حالةَ هذا الطالب في هذه الحصّة الآن؟ (بعد أن سمح `can_record` بالشعبة).
+
+        أهلُ الرصد (`is_recorder`) كما كانوا. وغيرُهم لا يكتب فوق ما رصده المشرفُ، ولا يكتب إلّا **معلّمُ الحصّة
+        الفعليّ داخل نافذتها** (`attendance_policy.can_enter`: عضويّةٌ في المدرسة، `Session.teacher`، غيرُ ملغاة،
+        قيدُ الطالب بتاريخها، من بدء الحصّة إلى نهاية الدوام بتوقيت الدوحة، وليس المطوّر) — W-20261002-026.
+        وتُستدعى من هنا لا من العرض لأنّ القراءةَ تُنقل إلى طبقة الخدمات.
+        """
+        from operations.attendance_policy import can_enter
+        from operations.day_attendance import is_recorder, recorded_by_supervisor
+
+        if is_recorder(user):
+            return True
+        return not recorded_by_supervisor(session, student) and bool(
+            can_enter(user, session, student)
+        )
+
+    @staticmethod
     @transaction.atomic
     def mark_attendance(
         session: Session,
