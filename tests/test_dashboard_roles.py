@@ -81,7 +81,7 @@ ROLE_CASES = [
     ("social_worker", "لوحة الأخصائي"),
     ("speech_therapist", "جدول جلسات اليوم"),
     ("activities_coordinator", "لوحة منسّق الأنشطة"),
-    ("secretary", "اللوحة الإدارية"),
+    ("secretary", "لوحة السكرتير"),
     ("transport_officer", "لوحة النقل المدرسي"),
     ("nurse", "زيارات العيادة"),
     ("librarian", "متأخّرةُ الإعادة"),
