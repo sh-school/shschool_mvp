@@ -465,6 +465,8 @@ class ObservationCriterionAdmin(admin.ModelAdmin):
 class ObservationScoreInline(admin.TabularInline):
     model = ObservationScore
     extra = 0
+    # لا حذفَ نهائيّاً حتى للمطوّر (قرارُ المالك W-20261002-015): التقييمُ يبقى للتدقيق.
+    can_delete = False
     fields = ("criterion", "rating", "recommendation")
     autocomplete_fields = ("criterion",)
     ordering = ("criterion__order",)
@@ -550,6 +552,10 @@ class ObservationScoreAdmin(admin.ModelAdmin):
     search_fields = ("criterion__text", "recommendation", "observation__teacher__full_name")
     autocomplete_fields = ("observation", "criterion")
     ordering = ("observation", "criterion__order")
+
+    def has_delete_permission(self, request, obj=None):
+        """لا حذفَ نهائيّاً حتى للمطوّر — التقييمُ شهادةٌ تبقى للتدقيق (قرارُ المالك W-20261002-015)."""
+        return False
 
     def get_queryset(self, request):
         return (
