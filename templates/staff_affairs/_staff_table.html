@@ -6,6 +6,12 @@
 كاملةً: الرقمَ الوظيفيَّ الذي صار معرّفَ الدخول، والبريدَ والسكنَ والجنسيّة،
 والرخصةَ برقمها لا بتاريخها وحدَه، ومتى التحق ومتى غادر وبأيّ قرار.
 
+ثمّ صار اثنَي عشرَ عموداً فالتفّ الاسمُ على سطرين في 39 صفّاً من 50 (قيس على 1366)
+وطغى عمودُ «المغادرة» على نسبِ الأعمدة. فهي الآن **تسعةٌ** (عشرةٌ للمغادرين): ما يتّصل
+يُجمع في خليّةٍ بسطرين (الرقمان، الجوّال والبريد، السكن والجنسيّة)، والاسمُ سطرٌ واحدٌ
+دائماً (W-20261002-044). والعرضُ بصنفٍ لكلّ عمودٍ (`c-*`) لا بموضعه، فلا يُزاح عمودٌ
+بإضافة آخر.
+
 والفرزُ **من الخادم** لا من المتصفّح: الصفحةُ خمسون من مئةٍ وثمانٍ وعشرين،
 وفرزُها في المتصفّح يُوهم القارئَ أنّه رأى الأوّلَ وهو أوّلُ صفحةٍ واحدة.
 والتبديلُ `outerHTML`: هذه الجزئيّةُ تحمل غلافَها بمعرّفه وتستبدل نفسَها به.
@@ -15,49 +21,52 @@
 
 <div class="sa-panel sa-register" id="staff-table-container">
   {% if staff %}
-  {# العددُ والصفحاتُ خارج صندوق التمرير فتبقى ثابتةً في أسفل البطاقة (كسجلّ الطلاب). #}
+  {# الترقيمُ خارج صندوق التمرير فيبقى ثابتاً في أسفل البطاقة (كسجلّ الطلاب). والعددُ في الترقيم وحدَه. #}
   <div class="table-wrap-scroll">
-  <table class="staff-register" data-no-sort>
+  <table class="staff-register" data-no-sort{% if status == "left" %} data-left{% endif %}>
     <thead>
       <tr>
-        {% sort_th sort "name" "الاسم" target="#staff-table-container" %}
-        {% sort_th sort "employee" "الرقم الوظيفي" "col-center" target="#staff-table-container" %}
-        {% sort_th sort "national" "الرقم الشخصي" "col-center" target="#staff-table-container" %}
+        {% sort_th sort "name" "الاسم" "c-name" target="#staff-table-container" %}
+        {% sort_th_stack sort "employee" "الرقم الوظيفي" "national" "الرقم الشخصي" "c-ids col-center" target="#staff-table-container" %}
         {% comment %}المسمّى وحدَه: دورُ المنصّة مفتاحُ صلاحيّاتٍ من قائمةٍ
         مغلقة، والمسمّى نصٌّ وزاريٌّ فيه المادّة — وعمودان يقولان الشيءَ
         نفسَه بلفظين حشوٌ.{% endcomment %}
-        {% sort_th sort "title" "المسمّى الوظيفي" "col-center" target="#staff-table-container" %}
-        {% sort_th sort "department" "القسم" "col-center" target="#staff-table-container" %}
+        {% sort_th sort "title" "المسمّى الوظيفي" "c-title col-center" target="#staff-table-container" %}
+        {% sort_th sort "department" "القسم" "c-dept col-center" target="#staff-table-container" %}
         {% comment %}الجوّال بلا فرز: مخزَّنٌ مشفَّراً (البند 13) فلا يُفرَز في القاعدة، وفرزُ الأرقام
         لا قيمةَ له عمليّةً. والبحثُ به باقٍ.{% endcomment %}
-        <th class="col-center">الجوال</th>
-        {% sort_th sort "email" "البريد" target="#staff-table-container" %}
-        {% sort_th sort "residence" "السكن" "col-center" target="#staff-table-container" %}
-        {% sort_th sort "nationality" "الجنسية" "col-center" target="#staff-table-container" %}
-        {% sort_th sort "license" "الرخصة المهنية" "col-center" target="#staff-table-container" %}
-        {% sort_th sort "joined" "الالتحاق" "col-center" target="#staff-table-container" %}
-        {% if status == "left" %}<th class="col-center">المغادرة</th>{% endif %}
-        <th class="col-center">الدخول</th>
+        {% sort_th_stack sort "" "الجوال" "email" "البريد" "c-contact" target="#staff-table-container" %}
+        {% sort_th_stack sort "residence" "السكن" "nationality" "الجنسية" "c-place col-center" target="#staff-table-container" %}
+        {% sort_th sort "license" "الرخصة المهنية" "c-license col-center" target="#staff-table-container" %}
+        {% sort_th sort "joined" "الالتحاق" "c-joined col-center" target="#staff-table-container" %}
+        {% if status == "left" %}<th class="c-left col-center">المغادرة</th>{% endif %}
+        <th class="c-login col-center">الدخول</th>
       </tr>
     </thead>
     <tbody>
       {% for s in staff %}
       <tr>
-        <td>
-          <a href="{% url 'staff_affairs:staff_profile' s.id %}" class="staff-name">{{ s.full_name }}</a>
+        <td class="c-name">
+          <a href="{% url 'staff_affairs:staff_profile' s.id %}" class="staff-name" title="{{ s.full_name }}">{{ s.full_name }}</a>
         </td>
-        <td class="col-num col-center">{{ s.employee_number|default:"—" }}</td>
-        <td class="col-num col-center">{{ s.national_id|mask_id|default:"—" }}</td>
-        <td class="col-center"><span class="status-badge status-info">{{ s.role_display }}</span></td>
-        <td class="col-center text-xs">{{ s.department }}</td>
-        <td class="col-num col-center text-xs">{{ s.phone|default:"—" }}</td>
-        <td class="text-xs sa-start" dir="ltr">{{ s.email|default:"—" }}</td>
-        <td class="col-center text-xs">{{ s.residence_area|default:"—" }}</td>
-        <td class="col-center text-xs">{{ s.nationality|default:"—" }}</td>
-        <td class="col-center">
+        <td class="c-ids col-center">
+          <span class="sa-line col-num">{{ s.employee_number|default:"—" }}</span>
+          <span class="sa-line sa-sub col-num">{{ s.national_id|mask_id|default:"—" }}</span>
+        </td>
+        <td class="c-title col-center"><span class="status-badge status-info">{{ s.role_display }}</span></td>
+        <td class="c-dept col-center text-xs">{{ s.department|default:"—" }}</td>
+        <td class="c-contact">
+          <span class="sa-line col-num text-xs">{{ s.phone|default:"—" }}</span>
+          <span class="sa-line sa-sub text-xs" dir="ltr">{{ s.email|default:"—" }}</span>
+        </td>
+        <td class="c-place col-center">
+          <span class="sa-line text-xs">{{ s.residence_area|default:"—" }}</span>
+          <span class="sa-line sa-sub text-xs">{{ s.nationality|default:"—" }}</span>
+        </td>
+        <td class="c-license col-center">
           {% if s.license_expiry %}
             {# الرقمُ فوق والتاريخُ تحته: الرقمُ هويّةُ الرخصة، والتاريخُ حكمُها. #}
-            {% if s.license_number %}<div class="col-num text-xs text-muted">{{ s.license_number }}</div>{% endif %}
+            {% if s.license_number %}<span class="sa-line sa-sub col-num">{{ s.license_number }}</span>{% endif %}
             <span class="status-badge {% if s.license_expiry < today %}status-danger{% else %}status-success{% endif %}">
               {{ s.license_expiry|date:"d/m/Y" }}
             </span>
@@ -65,16 +74,16 @@
             <span class="text-xs text-muted">—</span>
           {% endif %}
         </td>
-        {# التاريخُ وحدَه — ومرجعُ التعيين في الملفّ: أكثرُه اسمُ ملفِّ استيرادٍ لا قرار. `col-num`: لا يُكسَر رقمٌ على سطرين (يُقرأ رقمين). #}
-        <td class="col-num col-center text-xs">{{ s.joined|date:"d/m/Y"|default:"—" }}</td>
+        {# التاريخُ وحدَه — ومرجعُ التعيين في الملفّ: أكثرُه اسمُ ملفِّ استيرادٍ لا قرار. `col-num`: لا يُكسَر رقم #}
+        <td class="c-joined col-num col-center text-xs">{{ s.joined|date:"d/m/Y"|default:"—" }}</td>
         {% if status == "left" %}
-        <td class="col-num col-center text-xs">{{ s.left|date:"d/m/Y"|default:"—" }}</td>
+        <td class="c-left col-num col-center text-xs">{{ s.left|date:"d/m/Y"|default:"—" }}</td>
         {% endif %}
         {% comment %}
         «الدخول» لا «كلمة المرور»: الحسابُ الجديدُ يُنشأ بلا كلمةٍ صالحة، فيبقى
         في السجلّ ولا يدخل — وهذا ما يجب أن يراه من يُصدر كلماتِ المرور.
         {% endcomment %}
-        <td class="col-center">
+        <td class="c-login col-center">
           {% if s.can_sign_in %}
             <span class="status-badge status-success">يدخل</span>
           {% else %}
@@ -86,7 +95,34 @@
     </tbody>
   </table>
   </div>
-  <div class="table-empty sa-register__foot">{{ total }} منتسباً — صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</div>
+  {% comment %}
+  الجوال (≤640px): بطاقةٌ لكلّ منتسب بدل جدولٍ بتمريرٍ أفقيّ (أصلُ شكوى المالك، W-20261002-044) —
+  فالمنتسبُ يُفتح ملفُّه لا يُقارَن صفٌّ بصفّ. الأرقامُ والسكنُ والجنسيّةُ والرخصةُ في الملفّ.
+  والبطاقاتُ مخفيّةٌ خارج الجوال (CSS) والجدولُ مخفيٌّ على الجوال؛ والصفوفُ هي نفسُها.
+  {% endcomment %}
+  <ul class="staff-cards" aria-label="سجل الكادر">
+    {% for s in staff %}
+    <li class="staff-card">
+      <a href="{% url 'staff_affairs:staff_profile' s.id %}" class="staff-card__name" title="{{ s.full_name }}">{{ s.full_name }}</a>
+      <div class="staff-card__meta">
+        <span class="status-badge status-info">{{ s.role_display }}</span>
+        {% if s.department %}<span class="sa-sub">{{ s.department }}</span>{% endif %}
+      </div>
+      <div class="staff-card__contact">
+        {% if s.phone %}<a href="tel:{{ s.phone }}" class="staff-card__link col-num">{{ s.phone }}</a>{% endif %}
+        {% if s.email %}<a href="mailto:{{ s.email }}" class="staff-card__link" dir="ltr">{{ s.email }}</a>{% endif %}
+      </div>
+      <div class="staff-card__foot">
+        {% if s.can_sign_in %}
+          <span class="status-badge status-success">يدخل</span>
+        {% else %}
+          <span class="status-badge status-warning">بلا كلمة مرور</span>
+        {% endif %}
+        <a href="{% url 'staff_affairs:staff_profile' s.id %}" class="btn-secondary btn-sm">الملفّ</a>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
   {% include "components/pagination.html" with page_obj=page_obj target="#staff-table-container" swap="outerHTML" %}
   {% else %}
   <div class="table-wrap-scroll">

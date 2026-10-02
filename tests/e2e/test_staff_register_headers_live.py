@@ -72,13 +72,48 @@ def test_staff_register_headers_fit_their_longest_word_at_every_width(
                 page.set_viewport_size({"width": width, "height": 900})
                 page.wait_for_timeout(80)
                 result = page.evaluate(MEASURE)
-                assert result["columns"] >= 12, result
+                assert result["columns"] >= 9, result  # تسعةٌ بعد دمج الأعمدة (W-20261002-044)
                 if result["narrow"]:
                     failures.append(
                         f"{width}px: {len(result['narrow'])} عنواناً أضيقُ من أطول كلمةٍ — {result['narrow']}"
                     )
                 if result["overflow"] > 0:
                     failures.append(f"{width}px: تفيض الصفحةُ أفقيّاً {result['overflow']}px (D2)")
+        finally:
+            context.close()
+    finally:
+        browser.close()
+    assert not failures, "\n".join(failures)
+
+
+#: اسمُ المنتسب سطرٌ واحدٌ دائماً (W-20261002-044): كلُّ اسمٍ ارتفاعُه سطرٌ لا سطران.
+NAME_LINES = """
+() => [...document.querySelectorAll('.staff-register a.staff-name')].filter((a) => {
+  const line = parseFloat(getComputedStyle(a).lineHeight) || 20;
+  return a.getBoundingClientRect().height > line * 1.6;
+}).map((a) => a.textContent.trim())
+"""
+
+
+def test_staff_names_stay_on_one_line_at_laptop_widths(
+    request, playwright, live_server, principal_user
+):
+    browser = playwright.chromium.launch()
+    try:
+        state = _signed_in_state(browser, live_server.url, principal_user)
+        context = browser.new_context(storage_state=state, locale="ar")
+        try:
+            page = context.new_page()
+            failures = []
+            for width in (1280, 1366):
+                page.set_viewport_size({"width": width, "height": 768})
+                page.goto(f"{live_server.url}{_url('staff_affairs:staff_list')}", wait_until="load")
+                page.evaluate("document.fonts.ready.then(() => 1)")
+                wrapped = page.evaluate(NAME_LINES)
+                if wrapped:
+                    failures.append(
+                        f"{width}px: {len(wrapped)} اسماً التفّت على سطرين — {wrapped[:5]}"
+                    )
         finally:
             context.close()
     finally:

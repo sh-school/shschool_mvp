@@ -19,9 +19,8 @@ from django.utils.html import format_html
 register = template.Library()
 
 
-@register.simple_tag(takes_context=True)
-def sort_th(context, state, key, label, css="", target=""):
-    """ترويسةٌ قابلةٌ للفرز: تعكس الاتّجاهَ عند إعادة النقر، وتبدأ تصاعديّاً."""
+def _sort_link(context, state, key, label, target):
+    """رابطُ فرزٍ واحد: (الرابطُ HTML، هل العمودُ نشطٌ، الاتّجاهُ إن نشط)."""
     request = context.get("request")
     params = request.GET.copy() if request else {}
     active = bool(state) and state.key == key
@@ -39,11 +38,6 @@ def sort_th(context, state, key, label, css="", target=""):
     else:  # pragma: no cover - قالبٌ بلا request
         query = f"sort={key}&dir={nxt}"
 
-    aria = "none"
-    arrow = ""
-    if active:
-        aria = "descending" if state.descending else "ascending"
-
     # التبديلُ الجزئيّ: الجدولُ وحدَه يُستبدَل، فلا يقفز القارئُ إلى رأس الصفحة
     # ولا تضيع الترويسةُ التي نقر عليها من أمام عينيه.
     htmx = ""
@@ -54,18 +48,58 @@ def sort_th(context, state, key, label, css="", target=""):
             target,
         )
 
-    return format_html(
-        '<th scope="col" class="is-sortable {}" aria-sort="{}">'
+    link = format_html(
         '<a class="th-sort" href="?{}" aria-label="رتّب حسب {}"{}>'
         '<span class="th-sort-label">{}</span>'
-        '<span class="th-sort-arrow" aria-hidden="true">{}</span></a></th>',
-        css,
-        aria,
+        '<span class="th-sort-arrow" aria-hidden="true"></span></a>',
         query,
         label,
         htmx,
         label,
-        arrow,
+    )
+    return link, active
+
+
+def _aria(state, active):
+    if not active:
+        return "none"
+    return "descending" if state.descending else "ascending"
+
+
+@register.simple_tag(takes_context=True)
+def sort_th(context, state, key, label, css="", target=""):
+    """ترويسةٌ قابلةٌ للفرز: تعكس الاتّجاهَ عند إعادة النقر، وتبدأ تصاعديّاً."""
+    link, active = _sort_link(context, state, key, label, target)
+    return format_html(
+        '<th scope="col" class="is-sortable {}" aria-sort="{}">{}</th>',
+        css,
+        _aria(state, active),
+        link,
+    )
+
+
+@register.simple_tag(takes_context=True)
+def sort_th_stack(context, state, key1, label1, key2, label2, css="", target=""):
+    """ترويسةٌ لعمودٍ يحمل قيمتَين فوق بعض (سطران في الخليّة): كلُّ سطرٍ رابطُ فرزٍ بمفتاحه.
+
+    السطرُ الأوّل `(key1، label1)` والثاني `(key2، label2)`؛ ومفتاحٌ فارغٌ يجعل العنوانَ نصّاً بلا فرز
+    (الجوّالُ مخزَّنٌ مشفَّراً فلا يُفرَز). والعمودُ نشطٌ (`aria-sort`) إن نُشط أحدُ مفتاحَيه.
+    """
+    parts = []
+    active_any = False
+    for key, label in ((key1, label1), (key2, label2)):
+        if key:
+            link, active = _sort_link(context, state, key, label, target)
+            active_any = active_any or active
+            parts.append(link)
+        else:
+            parts.append(format_html('<span class="th-sort th-plain">{}</span>', label))
+    return format_html(
+        '<th scope="col" class="is-sortable is-stacked {}" aria-sort="{}">{}{}</th>',
+        css,
+        _aria(state, active_any),
+        parts[0],
+        parts[1],
     )
 
 

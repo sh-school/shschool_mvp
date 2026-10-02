@@ -253,8 +253,10 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   /* أهدافُ اللمس — WCAG 2.5.8 (24px أدنى)؛ وعلى اللمس 44px في كتلة coarse أسفلَه */
   .bc-back { width: 32px; height: 32px; }
 
-  /* سجلُّ الموظفين: 12 عموداً في 338px يلفّ الاسمَ حرفاً حرفاً؛ فحدٌّ أدنى أوسعُ من كتلة 1024 أعلاه. */
-  .staff-register { min-inline-size: 64rem; }
+  /* سجلُّ الموظفين على الهاتف: بطاقةٌ لكلّ منتسب لا جدولٌ بتمريرٍ أفقيّ (W-20261002-044). كان جدولاً بحدٍّ
+     أدنى 64rem في 338px: العمودُ الثابتُ 65% من المرئيّ فلا يبقى للمتحرّك إلا 118px، وهو أصلُ شكوى المالك. */
+  .table-wrap-scroll:has(> .staff-register) { display: none; }
+  .staff-cards { display: block; }
 }
 
 /* M-01: 44px على المؤشّر الخشن (D1)؛ الصندوقُ نفسُه يكبر لأنّ mobile_audit يقيسه. */
