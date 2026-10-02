@@ -109,6 +109,15 @@ class DailyReport:
         return [r for r in self.rows if r.ministry_flag]
 
     @property
+    def ministry_absent_count(self) -> int:
+        """عددُ الغياب اليوميّ الكامل المرفوع للوزارة — رقمٌ لا نسبة (ADR-0009).
+
+        المصدرُ الوحيدُ لهذا المؤشّر؛ لا يُشتقّ أبداً من `attendance_rate()`
+        (تلك تواجدُ حصصٍ عامّ، لا غيابٌ يوميٌّ وزاريّ).
+        """
+        return len(self.ministry_rows)
+
+    @property
     def numbers(self) -> list[int]:
         return list(range(1, self.max_periods + 1))
 
