@@ -28,6 +28,7 @@ from django.db.models import QuerySet
 
 from core.models import ClassGroup, StudentEnrollment
 from core.permissions import WING_DAY_RECORD
+from core.unrestricted_role import has_unrestricted_role
 
 from .models import StudentAttendance
 
@@ -38,10 +39,12 @@ SOURCE = "supervisor"
 def is_recorder(user) -> bool:
     """أهلُ الكتابة المباشرة في `StudentAttendance`: `WING_DAY_RECORD` في مركز الصلاحيّات.
 
-    والمعلّمُ ليس منهم: يُدخل مبدئيّاً في `AttendanceEntry` فيعتمده حاملُ الجناح (`attendance_entries`). ولا المطوّرُ ولا
-    المستخدمُ الخارقُ بصفته (D-128م): يُقرأ **الدورُ بالاسم** — فـ`is_superuser` وحدَه لا يكفي ولا يُمرّر المطوّرَ.
+    والمعلّمُ ليس منهم: يُدخل مبدئيّاً في `AttendanceEntry` فيعتمده حاملُ الجناح (`attendance_entries`). والمطوّرُ
+    لا يرصد ولو كان superuser (D-128م، `has_unrestricted_role` من #781)؛ وغيرُه من الخارقين يمرّ كالقاعدة العامّة.
     """
-    return bool(user.get_role() in WING_DAY_RECORD)
+    if has_unrestricted_role(user):
+        return False
+    return bool(user.is_superuser or user.get_role() in WING_DAY_RECORD)
 
 
 def can_record(user, session) -> bool:

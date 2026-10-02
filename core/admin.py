@@ -124,7 +124,10 @@ class MembershipInline(admin.TabularInline):
 class ProfileInline(admin.StackedInline):
     model = Profile
     extra = 0
-    fields = ("gender", "birth_date", "notes")
+    # [W-016/M2] الميلادُ للقراءة فقط: الحقلُ الصريحُ لا يُعرض ولا يُحرَّر من الأدمن؛
+    # التحريرُ من نموذج الطالب (student_affairs) الذي يمرّ بـProfile.save().
+    fields = ("gender", "date_of_birth", "notes")
+    readonly_fields = ("date_of_birth",)
 
 
 @admin.register(CustomUser)

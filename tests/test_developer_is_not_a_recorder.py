@@ -42,16 +42,10 @@ def test_a_developer_is_not_a_recorder_even_as_a_superuser(school):
     assert is_recorder(developer) is False
 
 
-def test_a_bare_superuser_without_a_recording_role_is_not_a_recorder(school):
+def test_a_non_developer_superuser_keeps_the_platforms_general_superuser_behaviour(school):
+    """القاعدةُ العامّةُ في المنصّة (#781): المستخدمُ الخارقُ غيرُ المطوّر يمرّ — والاستثناءُ المسمّى هو المطوّرُ وحدَه."""
     root = UserFactory(full_name="superuser", national_id="29000008003", is_superuser=True)
-    assert is_recorder(root) is False
-
-
-def test_a_teacher_who_is_also_a_superuser_is_not_a_recorder(school):
-    teacher = _staff(school, "teacher", "معلّمٌ خارق", "29000008004")
-    teacher.is_superuser = True
-    teacher.save(update_fields=["is_superuser"])
-    assert is_recorder(teacher) is False
+    assert is_recorder(root) is True
 
 
 @pytest.mark.parametrize("role", ["admin_supervisor", "vice_admin", "vice_academic", "principal"])

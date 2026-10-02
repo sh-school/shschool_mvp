@@ -121,6 +121,7 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `operations_guardiancontact` | إخطاراتُ أولياء الأمور بالغياب ونتيجتُها — جزءٌ من سجلّ الحضور (م 3.4.1.5) |
 | `core_behaviorinfraction` | المخالفاتُ السلوكيّة |
 | `core_behaviorpointrecovery` | استعادةُ النقاط |
+| `behavior_behaviorcommitteevote` | أصواتُ أعضاء لجنة الضبط في التصعيد والإيقاف — سجلُّ تدقيقٍ تبعٌ للمخالفة، يبقى ببقائها |
 | `core_healthrecord` | الملفُّ الصحّيّ (مشفَّر) |
 | `core_clinicvisit` | زياراتُ العيادة |
 | `student_affairs_studentactivity` | الأنشطةُ الطلّابيّة |

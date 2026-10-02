@@ -142,10 +142,26 @@
   ويوماً — والاعتمادُ معه هنا لا في سطر السجلّ، فمن يعتمد يرى ما يُقرّ به. وكان
   المختبرُ يلخّصه في «98.2% مطابقة» فاعتُمد جدولٌ باثنتي عشرةَ مخالفةً لم يرها أحد.
   {% endcomment %}
-  {% for g in generations %}{% if g.status == "draft" and g.breaches.count %}
+  {% comment %}
+  قُطع إصلاحُ التوليد بنفاد الميزانية: المتعذّراتُ قد تكون من قطعٍ لا من استحالة — فمن يعتمد يعرف (0105، W-20261002-033).
+  {% endcomment %}
+  {% for g in generations %}{% if g.status == "draft" and g.budget_cut %}
+  <div class="gen-panel" id="gen-budget-cut-{{ g.id }}">
+    {% callout "warning" %}مسودّةُ {{ g.generated_at|date:"d/m H:i" }}: قُطع البحثُ بنفاد الميزانية{% if g.budget_cut.attempt %}
+      (في المحاولة {{ g.budget_cut.attempt }}{% if g.budget_cut.after_seconds %} بعد {{ g.budget_cut.after_seconds }} ثانية{% endif %}){% endif %}
+      — فقد تكون الحصصُ المتعذّرةُ قابلةً للحلّ بميزانيةٍ أطول.{% endcallout %}
+  </div>
+  {% endif %}{% endfor %}
+  {% for g in generations %}{% if g.status == "draft" and g.gate_total %}
   <div class="gen-panel" id="gen-breaches-{{ g.id }}">
+    {% if g.breaches.count %}
     {% callout "warning" %}مسودّةُ {{ g.generated_at|date:"d/m H:i" }} تخالف قيوداً صلبةً لم يسدّدها التوليد
       (عددُها <strong>{{ g.breaches.count }}</strong>) — ولا تُعتمد إلّا بإقرارٍ صريحٍ بها.{% endcallout %}
+    {% endif %}
+    {% if g.unplaced_count %}
+    {% callout "warning" %}مسودّةُ {{ g.generated_at|date:"d/m H:i" }} فيها <strong>{{ g.unplaced_count }}</strong>
+      مهمّةً متعذّرةً لم تجد موضعاً — ولا تُعتمد إلّا بإقرارٍ صريحٍ بها.{% endcallout %}
+    {% endif %}
     {% for grp in g.breaches.groups %}
     <details class="feas-details">
       <summary>{{ grp.code }} · {{ grp.title }} ({{ grp.count }})</summary>
@@ -162,10 +178,10 @@
     {% endfor %}
     {% if can_approve %}
     <form method="post" action="{% url 'approve_schedule' g.id %}" class="form-actions"
-          data-confirm="اعتماد هذه المسودّة بمخالفاتها؟ ستحلّ محلّ الجدول القائم ويُشعَر المعلّمون.">
+          data-confirm="اعتماد هذه المسودّة بما فيها من مخالفاتٍ أو حصصٍ متعذّرة{% if g.budget_cut %} (قُطع بحثُها بنفاد الميزانية){% endif %}؟ ستحلّ محلّ الجدول القائم ويُشعَر المعلّمون.">
       {% csrf_token %}
       {% with gid=g.id|stringformat:"s" %}
-      {% field "acknowledge_breaches" "أُقرّ بالمخالفات المذكورة وأعتمد الجدول" type="checkbox" required=True id="ack-"|add:gid %}
+      {% field "acknowledge_breaches" "أُقرّ بالمخالفات والمتعذّرات المذكورة وأعتمد الجدول" type="checkbox" required=True id="ack-"|add:gid %}
       {% endwith %}
       <button type="submit" class="btn-primary btn-xs">اعتماد مع الإقرار</button>
     </form>
@@ -235,8 +251,9 @@
             {% if g.status == "draft" %}
             <a href="{% url 'weekly_schedule' %}?year={{ year }}&amp;generation={{ g.id }}" class="btn-secondary btn-xs">معاينة</a>
             {% include "schedule/partials/discard_generation.html" %}
-            {% if g.breaches.count %}
-            <a href="#gen-breaches-{{ g.id }}" class="btn-secondary btn-xs">المخالفات ({{ g.breaches.count }})</a>
+            {% if g.budget_cut %}<span class="text-xs text-muted" title="قُطع البحثُ بنفاد الميزانية — قد تكون المتعذّراتُ قابلةً للحلّ بميزانيةٍ أطول">قُطع البحث</span>{% endif %}
+            {% if g.gate_total %}
+            <a href="#gen-breaches-{{ g.id }}" class="btn-secondary btn-xs">المخالفات والمتعذّرات ({{ g.gate_total }})</a>
             {% elif can_approve %}
             <form method="post" action="{% url 'approve_schedule' g.id %}" data-confirm="اعتماد هذه المسودّة؟ ستحلّ محلّ الجدول القائم ويُشعَر المعلّمون." class="gen-inline-form">
               {% csrf_token %}

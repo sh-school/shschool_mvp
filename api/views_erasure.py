@@ -17,7 +17,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from api.permissions import IsSchoolAdmin
+from api.permissions import IsSchoolAdmin, NotPlatformDeveloper
 from core.models import CustomUser, ErasureRequest, ParentStudentLink
 from governance.erasure_service import ErasureFailedError, ErasureService, ErasureStateError
 
@@ -61,7 +61,7 @@ class ErasureRequestSerializer(serializers.ModelSerializer):
 
 @extend_schema(summary="تقديم طلب محو بيانات طالب", tags=["PDPPL"])
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, NotPlatformDeveloper])
 def create_erasure_request(request):
     """
     ولي الأمر أو المدير يقدّم طلب محو بيانات طالب.
@@ -133,7 +133,7 @@ def erasure_request_detail(request, request_id):
 
 @extend_schema(summary="الموافقة على طلب محو وتنفيذه", tags=["PDPPL"])
 @api_view(["POST"])
-@permission_classes([IsSchoolAdmin])
+@permission_classes([IsSchoolAdmin, NotPlatformDeveloper])
 def approve_erasure(request, request_id):
     """المدير يوافق على الطلب ويُنفَّذ فوراً."""
     obj = get_object_or_404(ErasureRequest, id=request_id)
@@ -159,7 +159,7 @@ def approve_erasure(request, request_id):
 
 @extend_schema(summary="رفض طلب محو", tags=["PDPPL"])
 @api_view(["POST"])
-@permission_classes([IsSchoolAdmin])
+@permission_classes([IsSchoolAdmin, NotPlatformDeveloper])
 def reject_erasure(request, request_id):
     """المدير يرفض الطلب مع ذكر السبب."""
     obj = get_object_or_404(ErasureRequest, id=request_id)

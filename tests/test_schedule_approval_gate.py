@@ -207,3 +207,121 @@ def test_the_service_itself_refuses_so_no_other_path_bypasses_the_gate(school):
     assert ScheduleService.approve_generation(gen, notify=False, acknowledged=True)
     gen.refresh_from_db()
     assert gen.status == "approved"
+
+
+# ── قُطع التوليدُ بنفاد الميزانية (0105، W-20261002-033) ────────────────────
+
+
+@pytest.mark.django_db
+def test_the_page_tells_who_approves_that_the_search_was_cut_short(
+    client_as, principal, school, assignment
+):
+    snapshot = {"budget_cut": True, "budget_cut_attempt": 1, "budget_cut_after_s": 8}
+    gen = _draft(school, snapshot)
+
+    body = client_as(principal).get(reverse("smart_schedule") + f"?year={YEAR}").content.decode()
+
+    assert f"gen-budget-cut-{gen.id}" in body
+    assert "قُطع البحثُ بنفاد الميزانية" in body
+    assert "المحاولة 1" in body and "بعد 8 ثانية" in body
+
+
+@pytest.mark.django_db
+def test_a_draft_not_cut_short_shows_no_cut_notice(client_as, principal, school, assignment):
+    _draft(school, {"budget_cut": False})
+
+    body = client_as(principal).get(reverse("smart_schedule") + f"?year={YEAR}").content.decode()
+
+    assert "gen-budget-cut-" not in body
+
+
+@pytest.mark.django_db
+def test_a_cut_draft_with_breaches_is_still_refused_without_acknowledgement(
+    client_as, principal, school, assignment
+):
+    """القطعُ لا يفتح بابَ اعتمادٍ بلا إقرار: المخالفاتُ الصلبةُ في اللقطة تبقى شرطَ الاعتماد."""
+    gen = _draft(school, {**_snapshot(_item("HC6")), "budget_cut": True})
+
+    response = _approve(client_as(principal), gen)
+
+    gen.refresh_from_db()
+    assert gen.status == "draft", "لم يُعتمد بلا إقرار"
+    assert response.status_code == 200
+
+
+# ── المتعذّراتُ شرطُ إقرارٍ كالمخالفات (OR-01، قرارُ المالك؛ W-20261002-033) ─────────
+
+
+def _refusal(snapshot, ack=False):
+    return approval_refusal(SimpleNamespace(config_snapshot=snapshot), ack)
+
+
+def test_an_unplaced_task_alone_is_refused_until_acknowledged():
+    reason = _refusal({"unplaced": 3})
+
+    assert "3 مهمّةً متعذّرةً لم تجد موضعاً" in reason and "مخالفاتٌ" not in reason
+    assert _refusal({"unplaced": 3}, ack=True) == ""
+
+
+def test_breaches_and_unplaced_are_named_together():
+    reason = _refusal({**_snapshot(_item("HC6")), "unplaced": 2})
+
+    assert "مخالفاتٌ لقيودٍ صلبة (عددُها 1)" in reason and "2 مهمّةً متعذّرةً" in reason
+
+
+def test_the_refusal_text_for_breaches_alone_is_unchanged():
+    assert _refusal(_snapshot(_item("HC6"))) == (
+        "لم يُعتمد الجدول: في المسودّة مخالفاتٌ لقيودٍ صلبة (عددُها 1). "
+        "راجعها في سجلّ التوليد، ثمّ أقرَّ بها صراحةً عند الاعتماد."
+    )
+
+
+def test_the_refusal_says_the_search_was_cut_short_when_tasks_are_unplaced():
+    assert "قُطع البحثُ بنفاد الميزانية" in _refusal({"unplaced": 1, "budget_cut": True})
+    assert "قُطع البحثُ" not in _refusal({"unplaced": 1})
+    assert _refusal({"budget_cut": True}) == "", "قطعٌ بلا متعذّراتٍ ولا مخالفات: لا حاجة لإقرار"
+
+
+@pytest.mark.parametrize("recorded", [0, None, -2, True, "3", 1.5])
+def test_a_snapshot_without_a_real_unplaced_count_is_never_refused(recorded):
+    """لقطةٌ أقدمُ لا تحمله، وقيمٌ غير صالحة (صفرٌ، سالبٌ، منطقيٌّ، نصٌّ): لا رفضَ."""
+    assert _refusal({"unplaced": recorded}) == ""
+
+
+@pytest.mark.django_db
+def test_the_service_refuses_an_unplaced_draft_without_acknowledgement(school):
+    from operations.services import ScheduleService
+
+    gen = _draft(school, {"unplaced": 2})
+
+    with pytest.raises(BreachesNotAcknowledgedError):
+        ScheduleService.approve_generation(gen, notify=False)
+
+    gen.refresh_from_db()
+    assert gen.status == "draft"
+    assert ScheduleService.approve_generation(gen, notify=False, acknowledged=True)
+
+
+@pytest.mark.django_db
+def test_the_page_shows_the_gate_and_the_checkbox_for_an_unplaced_draft(
+    client_as, principal, school, assignment
+):
+    gen = _draft(school, {"unplaced": 4, "budget_cut": True, "budget_cut_attempt": 1})
+
+    body = client_as(principal).get(reverse("smart_schedule") + f"?year={YEAR}").content.decode()
+
+    assert f"gen-breaches-{gen.id}" in body
+    assert "<strong>4</strong>" in body and "مهمّةً متعذّرةً لم تجد موضعاً" in body
+    assert 'name="acknowledge_breaches"' in body, "الإقرارُ حقلٌ في نموذج الاعتماد"
+    assert "قُطع بحثُها بنفاد الميزانية" in body, "نافذةُ التأكيد تذكر القطع"
+    assert "قُطع البحث" in body, "وسجلُّ التوليد يعلّم المسودّة"
+
+
+@pytest.mark.django_db
+def test_a_clean_draft_keeps_the_plain_approve_button(client_as, principal, school, assignment):
+    _draft(school, {"unplaced": 0})
+
+    body = client_as(principal).get(reverse("smart_schedule") + f"?year={YEAR}").content.decode()
+
+    assert 'name="acknowledge_breaches"' not in body
+    assert ">اعتماد</button>" in body

@@ -26,6 +26,7 @@ from core.permissions import (
     OBSERVATION_VIEW_ALL,
 )
 from core.sorting import apply_sort
+from core.unrestricted_role import has_unrestricted_role
 
 from .observation_models import (
     FOLLOW_UP_MODE,
@@ -75,7 +76,11 @@ ARCHIVE_DESC_FIRST = ("date", "score", "archived")
 
 # ══════════════════════════ مساعدات ══════════════════════════════════
 def _is_leadership(user):
-    return user.is_superuser or user.get_role() in OBSERVATION_VIEW_ALL
+    # رؤيةُ كلّ الزيارات للمطوّر (D-118م). أمّا التعديلُ فللزائر وحده حتى للمطوّر (D-122م) —
+    # فلا يدخل `has_unrestricted_role` في `_can_send` ولا في can_edit/can_delete ولا في الإنشاء.
+    return (
+        user.is_superuser or has_unrestricted_role(user) or user.get_role() in OBSERVATION_VIEW_ALL
+    )
 
 
 def _can_send(user):
@@ -106,17 +111,20 @@ def _collect_post(request, school):
 def _obs_perms(user, obs):
     """صلاحيات الإجراءات على زيارة بعينها — مصدر واحد للقوالب والتحقّق الخادمي."""
     role = user.get_role()
-    lead = user.is_superuser or role in OBSERVATION_VIEW_ALL
+    # D-122م: تعديلُ الزيارة للزائر وحده ولو كان مطوّراً — حتى لو كان حسابُه superuser (الغالبُ في الإنتاج)،
+    # فصفةُ superuser لا تفتح له ما استثناه المالكُ بالدور.
+    su = user.is_superuser and not has_unrestricted_role(user)
+    lead = su or role in OBSERVATION_VIEW_ALL
     is_observer = obs.observer_id == user.id
     is_teacher = obs.teacher_id == user.id
     status = obs.status
-    can_edit = (is_observer or user.is_superuser) and status != "acknowledged"
+    can_edit = (is_observer or su) and status != "acknowledged"
     if status == "draft":
-        can_delete = is_observer or user.is_superuser
+        can_delete = is_observer or su
     elif status == "submitted":
         can_delete = lead
     else:  # acknowledged
-        can_delete = user.is_superuser or role == "principal"
+        can_delete = su or role == "principal"
     return {
         "is_teacher": is_teacher,
         "is_observer": is_observer,
