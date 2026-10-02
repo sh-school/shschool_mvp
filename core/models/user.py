@@ -278,7 +278,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         m = self.active_membership
         return m.role.name if m else None
 
-    def get_role(self):
+    def get_role(self) -> str:
         return self.role or ""
 
     def has_role(self, role_name):
