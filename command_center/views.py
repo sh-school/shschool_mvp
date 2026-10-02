@@ -11,7 +11,7 @@ from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
-from command_center import contract, services, webstats
+from command_center import contract, services, status_page, webstats
 from core.developer_access import developer_only
 
 #: تفضيلُ العرض: لوحاتٌ يخفيها المطوّرُ (مفاتيحُ مفصولةٌ بفواصل). كوكيٌّ لا قاعدةٌ: تفضيلُ متصفّحٍ لا بيانٌ، فلا هجرةَ ولا وميضَ عند التحميل
@@ -46,6 +46,15 @@ def index(request: HttpRequest) -> HttpResponse:
             "total": len(snapshot["panels"]),
         },
     )
+
+
+@developer_only
+@require_GET
+@never_cache
+def status(request: HttpRequest) -> HttpResponse:
+    """حالةُ اليوم للمالك (W-20261002-022): الطابورُ والأحمرُ والتعارضاتُ والنشر من اللقطة — قراءةُ cache فقط."""
+    services.ensure_fresh()
+    return render(request, "command_center/status.html", {"ctx": status_page.build()})
 
 
 @developer_only
