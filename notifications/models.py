@@ -357,6 +357,7 @@ class InAppNotification(models.Model):
         ("swap_approved", "موافقة على تبديل"),
         ("compensatory", "حصة تعويضية"),
         ("general", "إشعار عام"),
+        ("developer_message", "رسالة من المطوّر"),
     ]
     PRIORITY = [
         ("low", "منخفض"),
