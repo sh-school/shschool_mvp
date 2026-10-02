@@ -47,7 +47,7 @@ def permissions_context(request):
             "is_developer": False,
         }
 
-    from core.developer_access import is_platform_developer
+    from core.developer_access import can_use_developer_tools
     from core.module_registry import get_accessible_modules_from_registry
     from core.permissions import get_accessible_modules
 
@@ -57,7 +57,7 @@ def permissions_context(request):
         "is_leadership": request.user.is_leadership(),
         "is_admin_role": request.user.is_leadership(),
         "is_staff_member": request.user.is_staff_member(),
-        "is_developer": is_platform_developer(request.user),
+        "is_developer": can_use_developer_tools(request.user),
     }
 
 

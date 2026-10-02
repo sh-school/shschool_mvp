@@ -70,6 +70,7 @@ from core.capabilities import capability_required, has_capability
 from core.domain.tones import SHARE_KPI, tone_for
 from core.models import CustomUser
 from core.navigation import can_open
+from core.unrestricted_role import has_unrestricted_role
 from wings.scope import student_scope_for
 
 # ── نطاقُ الطلبة ─────────────────────────────────────────────
@@ -718,7 +719,11 @@ def behavior_statistics(request):
     else:
         # القيادة ولجنة الضبط والأخصائيون → كل طلاب المدرسة
         _full_access = BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL | BEHAVIOR_COMMITTEE
-        if role not in _full_access and not request.user.is_superuser:
+        if (
+            role not in _full_access
+            and not request.user.is_superuser
+            and not has_unrestricted_role(request.user)
+        ):
             return HttpResponseForbidden("للمدير ونائبيه واللجنة فقط.")
         stats = BehaviorService.get_statistics(school)
         stats["is_scoped"] = False

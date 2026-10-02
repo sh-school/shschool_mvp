@@ -28,13 +28,24 @@ def is_platform_developer(user: Any) -> bool:
     return bool(user.is_superuser or user.groups.filter(name__iexact=DEVELOPERS_GROUP).exists())
 
 
+def can_use_developer_tools(user: Any) -> bool:
+    """من يرى «أدوات المطوّر» ويفتحها: `is_platform_developer` أو الدورُ الحاكم platform_developer.
+
+    (قرارُ المالك D-118م: لا حظرَ على المطوّر في أيّ صفحة.) وتبقى `is_platform_developer` ضيّقةً
+    (superuser أو المجموعة) لما يتجاوز الصفحةَ من صلاحيّاتٍ كمنح القدرات عبر المدارس.
+    """
+    from core.unrestricted_role import has_unrestricted_role
+
+    return is_platform_developer(user) or has_unrestricted_role(user)
+
+
 def developer_only(view: _View) -> _View:
     """يسمح لمطوّر المنصّة وحدَه: مجهولٌ يُحوَّل إلى الدخول، وغيرُ المطوّر 403."""
 
     @wraps(view)
     @login_required
     def wrapped(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        if not is_platform_developer(request.user):
+        if not can_use_developer_tools(request.user):
             raise PermissionDenied
         return view(request, *args, **kwargs)
 
