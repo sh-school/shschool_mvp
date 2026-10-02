@@ -16,7 +16,7 @@
 <div class="exec-dash"{% if panels|length == 2 %} style="--floor-a: {{ panels.0.width_weight|stringformat:'s' }}; --floor-b: {{ panels.1.width_weight|stringformat:'s' }}"{% endif %}>
 
   {% page_header "أجنحة المدرسة" subtitle=subtitle icon="wings" %}
-    <span class="exec-date">
+    <span class="exec-date"{% if is_school_day %} data-visual-mask{% endif %}>
       {{ day_label }}{% if is_school_day %} · الساعة {{ now|date:"H:i" }}{% endif %}
     </span>
     {% if perms_can_cover %}
@@ -82,7 +82,7 @@
           {% endfor %}
         </div>
 
-        <div class="wing-line wing-line--now">
+        <div class="wing-line wing-line--now" data-visual-mask>
           {% if card.off_floor %}
             <span class="ui-callout ui-callout--error" title="جرسٌ من طابقٍ آخر: {% for band in card.off_floor %}{{ band.name }}{% if not forloop.last %} · {% endif %}{% endfor %}">
               {% icon "status_warning" %}
