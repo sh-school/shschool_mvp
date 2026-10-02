@@ -4,6 +4,7 @@
 
 - **التصعيد `escalate` والإيقاف `suspend`**: أغلبيّةُ الأعضاء المؤهَّلين على القرار نفسِه.
 - **إغلاق المخالفة `resolve`**: عضوٌ واحدٌ مؤهَّلٌ كما كان — لا يمسّ حقَّ أحدٍ.
+- **المُبلِّغ عن المخالفة لا يصوّت عليها** (تضاربُ مصلحة)، ويُحسب النصابُ من بقيّة المؤهَّلين.
 - **لا تفويض**: يصوّت العضوُ بنفسه، والغائبُ لا يُحتسب، والأغلبيّةُ تبقى من المؤهَّلين.
 - **المؤهَّلون** = عضويّاتُ المدرسة النشطة بأدوار `COMMITTEE_ROLES` (المدير والنائبان والأخصائيّ
   الاجتماعيّ وspecialist). `is_superuser` لا يُحتسب صوتُه ما لم يكن عضواً — فلا يُكمل نصاباً وحدَه.
@@ -27,15 +28,22 @@ logger = logging.getLogger(__name__)
 COLLECTIVE_DECISIONS = frozenset({"escalate", "suspend"})
 
 
-def eligible_member_ids(school) -> set:
-    """أعضاءُ اللجنة المؤهَّلون في المدرسة (مفاتيحُ المستخدمين)."""
-    return set(
+def eligible_member_ids(school, infraction: BehaviorInfraction | None = None) -> set:
+    """أعضاءُ اللجنة المؤهَّلون في المدرسة (مفاتيحُ المستخدمين).
+
+    ومع `infraction`: يُستبعد منهم المُبلِّغُ عنها (تضاربُ مصلحة — قرارُ المالك تكملةً لـD-116م)،
+    فيُحسب النصابُ من بقيّة الأعضاء المؤهَّلين.
+    """
+    members = set(
         Membership.objects.filter(
             school=school,
             is_active=True,
             role__name__in=BehaviorPermissions.COMMITTEE_ROLES,
         ).values_list("user_id", flat=True)
     )
+    if infraction is not None:
+        members.discard(infraction.reported_by_id)
+    return members
 
 
 def majority_needed(member_count: int) -> int:
@@ -59,7 +67,9 @@ def cast_vote(
     with transaction.atomic():
         # قفلُ المخالفة يمنع تنفيذَ القرار مرّتين حين يصوّت عضوان معاً.
         locked = BehaviorInfraction.objects.select_for_update().get(pk=infraction.pk)
-        members = eligible_member_ids(locked.school)
+        members = eligible_member_ids(locked.school, locked)
+        if voter.pk == locked.reported_by_id:
+            return "غير مسموح: المُبلِّغُ عن المخالفة لا يصوّت عليها (تضاربُ مصلحة).", "error"
         if voter.pk not in members:
             return "غير مسموح: لستَ من أعضاء اللجنة المؤهَّلين لهذا القرار الجماعي.", "error"
 

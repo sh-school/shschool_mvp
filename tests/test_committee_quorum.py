@@ -228,3 +228,23 @@ def test_garbage_suspension_input_does_not_crash(client_as, committee, infractio
     assert resp.status_code == 302
     vote = BehaviorCommitteeVote.objects.get(infraction=infraction)
     assert (vote.suspension_days, vote.suspension_type) == (1, "internal")
+
+
+def test_the_reporter_cannot_vote_and_the_quorum_is_counted_from_the_rest(
+    client_as, committee, infraction
+):
+    """تضاربُ المصلحة: المُبلِّغُ لا يصوّت، والنصابُ من بقيّة المؤهَّلين (4 ⇒ ثلاثة)."""
+    infraction.reported_by = committee[0]
+    infraction.save()
+
+    client_as(committee[0]).post(_url(infraction), {"decision": "escalate"})
+    assert not BehaviorCommitteeVote.objects.filter(infraction=infraction).exists()
+
+    for member in committee[1:3]:
+        client_as(member).post(_url(infraction), {"decision": "escalate"})
+    infraction.refresh_from_db()
+    assert infraction.level == 3, "اثنان من أربعة لا يكفيان"
+
+    client_as(committee[3]).post(_url(infraction), {"decision": "escalate"})
+    infraction.refresh_from_db()
+    assert infraction.level == 4
