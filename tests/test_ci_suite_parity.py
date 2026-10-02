@@ -115,8 +115,9 @@ def test_the_quality_gate_runs_the_suite_on_every_push_to_main():
     triggers = doc.get("on") or doc.get(True)  # يقرأ YAML 1.1 المفتاحَ `on` قيمةً منطقيّة
 
     assert "main" in triggers["push"]["branches"]
-    assert runs_the_whole_suite(_joined(doc["jobs"]["test-coverage"]))
-    assert "if" not in doc["jobs"]["test-coverage"], "شرطٌ على الوظيفة قد يستثني الدفعَ إلى main"
+    # المجموعةُ مقسومةٌ على shards (W-20261002-034): مصفوفةُ pytest-shards هي من تشغّلها، لا test-coverage (مُجمِّعٌ).
+    assert runs_the_whole_suite(_joined(doc["jobs"]["pytest-shards"]))
+    assert "if" not in doc["jobs"]["pytest-shards"], "شرطٌ على الوظيفة قد يستثني الدفعَ إلى main"
 
 
 def test_the_parallel_runner_is_installed_where_it_is_used():

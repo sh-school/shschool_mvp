@@ -160,6 +160,11 @@ def test_no_second_threshold_anywhere():
         text = path.read_text(encoding="utf-8")
         for n, line in enumerate(text.splitlines(), 1):
             # قراءةُ العتبة (`['fail_under']` عبر tomllib) مسموحة؛ كتابتُها (`fail_under =`) لا.
+            # `--cov-fail-under=0` في quality-gate.yml وحدَه ليس عتبةً بل تعطيلٌ للحكم على shard يرى جزءاً من
+            # المجموعة (W-20261002-034): pytest-cov يحسب المجموع ويحكم بعتبة pyproject حتى بلا تقرير فيُسقط كلَّ
+            # shard لأنّ تغطيتَه جزئيّة؛ والحكمُ الوحيدُ للمُجمِّع بـ`coverage report`. أيُّ قيمةٍ غيرُ 0 مخالفة.
+            if path.name == "quality-gate.yml":
+                line = re.sub(r"--cov-fail-under=0\b", "", line)
             if "--cov-fail-under" in line or (
                 re.search(r"\bfail_under\s*=", line) and path != PYPROJECT
             ):
