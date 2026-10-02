@@ -54,7 +54,14 @@ MOVED = {
         "coordinator",
         "admin",
     },
-    "STAFF_AFFAIRS_MANAGE": {"principal", "vice_admin", "vice_academic", "platform_developer"},
+    "STAFF_AFFAIRS_MANAGE": {
+        "principal",
+        "vice_admin",
+        "vice_academic",
+        "platform_developer",
+        # السكرتير — W-20261001-026، قرارُ المالك المباشر 2026-10-01.
+        "secretary",
+    },
     "PARENT_PORTAL": {"parent", "principal", "vice_admin", "vice_academic", "admin"},
     "PARENT_PORTAL_ADMIN": {"principal", "admin"},
     "QUALITY_ACCESS": set(permissions.QUALITY_MANAGE)
