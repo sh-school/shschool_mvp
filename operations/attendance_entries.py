@@ -451,6 +451,58 @@ def decide_entry(
     return decision, True
 
 
+@transaction.atomic
+def settle_before_supervisor_write(
+    session: Session,
+    student: CustomUser,
+    supervisor: CustomUser,
+    *,
+    new_status: str,
+    now: dt.datetime | None = None,
+) -> None:
+    """يُسوّي أثرَ رصدِ المعلّم قبل أن يكتب المشرفُ فوقه (A11، حكمُ 0105): لا استبدالَ صامتاً.
+
+    - إدخالٌ مبدئيٌّ معلَّق: يبقى كما كتبه المعلّمُ (سجلٌّ ملحقٌ فقط) ويُلحَق به قرارٌ مسبَّبٌ بفاعله
+      (`basis=supervisor_record`) فلا يبقى معلَّقاً إلى أن يصطدم اعتمادُه بـ`non_teacher_row`.
+    - رصدٌ مصدرُه المعلّم (`teacher` المعتمَد أو نقرةُ `teacher_late`): سطرُ تدقيقٍ بقبلٍ وبعد.
+    تُستدعى قبل كتابة المشرف في الدالّة نفسِها وضمن معاملتها.
+    """
+    row = (
+        StudentAttendance.objects.select_for_update()
+        .filter(session=session, student=student)
+        .first()
+    )
+    if row is not None and row.source in OVERWRITABLE_SOURCES:
+        _audit(
+            supervisor,
+            session,
+            "update",
+            row.pk,
+            "تثبيتُ مشرفٍ يستبدل رصدَ معلّم",
+            {
+                "student": str(student.pk),
+                "before": {
+                    "status": row.status,
+                    "source": row.source,
+                    "late_minutes": row.late_minutes,
+                },
+                "after": {"status": new_status, "source": "supervisor"},
+            },
+        )
+    head = head_of(session, student, lock=True)
+    if head is None or AttendanceDecision.objects.filter(entry=head).exists():
+        return
+    _decide(
+        head,
+        supervisor,
+        approve=False,
+        basis="supervisor_record",
+        evidence=approval_evidence(session),
+        reason=f"كُتب رصدُ مشرفٍ على هذا الطالب في الحصّة ({new_status}) فسقط الإدخالُ المبدئيّ",
+        now=now,
+    )
+
+
 # ══════════════════════════════════════════════════════════════════
 # المحو (PDPPL م.18) — المسارُ الوحيد الذي يحذف من السجلّ
 # ══════════════════════════════════════════════════════════════════

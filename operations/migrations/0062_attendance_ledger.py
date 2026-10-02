@@ -150,6 +150,7 @@ class Migration(migrations.Migration):
                                 "leadership_holder_inactive",
                                 "القيادةُ — حاملُ الجناح بلا عضويّةٍ نشطة",
                             ),
+                            ("supervisor_record", "كُتب رصدُ مشرفٍ فوق الإدخال"),
                             (
                                 "special_ed_self",
                                 "التربيةُ الخاصّة — اعتمادٌ ذاتيٌّ بالتصميم",
