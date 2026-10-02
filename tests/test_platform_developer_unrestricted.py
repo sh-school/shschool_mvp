@@ -125,3 +125,25 @@ def test_the_developer_sees_every_classroom_observation_but_cannot_edit(develope
     from quality.observation_services import ObservationService
 
     assert ObservationService.visible_to(developer, school).query is not None
+
+
+def test_reinstating_a_departed_developer_membership_is_also_superuser_only(
+    school, principal_user, developer, django_user_model
+):
+    """مراجعة 0105: إعادةُ عضويّةٍ مُنهاة إسنادٌ من جديد — فلا تفلت من حارس appoint."""
+    from staff_affairs.appointments import AppointmentError, reinstate
+
+    membership = developer.memberships.get()
+    from django.utils import timezone
+
+    membership.record_departure(
+        on=timezone.localdate(), reason="resignation", reference="قرار 9", note=""
+    )
+
+    with pytest.raises(AppointmentError):
+        reinstate(membership=membership, by=principal_user)
+
+    admin = django_user_model.objects.create(
+        national_id="28700000666", full_name="سوبريوزر", is_superuser=True
+    )
+    assert reinstate(membership=membership, by=admin).is_active

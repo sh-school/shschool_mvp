@@ -35,6 +35,16 @@ def _require(condition, field, message):
         raise AppointmentError({field: message})
 
 
+def _require_developer_grant(role_name, by, field):
+    """مطوّرُ المنصّة يمرّ بوّابات الصفحات كلَّها (D-118م) — فإسنادُه أو إعادتُه ترقيةٌ كاملة لا تُمنح
+    من واجهة شؤون الكادر (مراجعة 0105، W-20261002-012): لا يفعلها إلا حسابٌ بصفة superuser."""
+    _require(
+        role_name != "platform_developer" or getattr(by, "is_superuser", False),
+        field,
+        "دورُ مطوّر المنصّة لا يُسنده ولا يُعيده إلا حسابٌ بصفة superuser.",
+    )
+
+
 @transaction.atomic
 def appoint(
     *,
@@ -71,11 +81,7 @@ def appoint(
     _require(role_name in ALL_STAFF_ROLES, "role_name", "هذا الدورُ ليس من أدوار الكادر.")
     # مطوّرُ المنصّة يمرّ بوّابات الصفحات كلَّها (D-118م) — فإسنادُه ترقيةٌ كاملة لا تُمنح من واجهة
     # شؤون الكادر (مراجعة 0105، W-20261002-012): لا يُسنده إلا حسابٌ بصفة superuser.
-    _require(
-        role_name != "platform_developer" or getattr(by, "is_superuser", False),
-        "role_name",
-        "دورُ مطوّر المنصّة لا يُسنده إلا حسابٌ بصفة superuser.",
-    )
+    _require_developer_grant(role_name, by, "role_name")
     _require(
         department is None or role_name in DEPARTMENT_ROLES,
         "department",
@@ -128,6 +134,8 @@ def reinstate(*, membership, by=None, note=""):
     """
     if membership.left_at is None and membership.is_active:
         raise AppointmentError({"__all__": "هذه العضويّةُ قائمةٌ — لا مغادرةَ تُلغى."})
+    # إعادةُ عضويّة مطوّرٍ مُنهاة إسنادٌ له من جديد — الحارسُ نفسُه (مراجعة 0105).
+    _require_developer_grant(membership.role.name, by, "__all__")
 
     clash = (
         Membership.objects.filter(
