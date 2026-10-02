@@ -147,3 +147,35 @@ def test_reinstating_a_departed_developer_membership_is_also_superuser_only(
         national_id="28700000666", full_name="سوبريوزر", is_superuser=True
     )
     assert reinstate(membership=membership, by=admin).is_active
+
+
+# ── واجهاتُ API أيضاً (قرارُ المالك، أكّده المستخدم) ──
+
+
+@pytest.mark.parametrize(
+    "permission",
+    [
+        "IsSchoolAdmin",
+        "IsLeadership",
+        "IsTeacherOrAdmin",
+        "IsStaffMember",
+        "IsParentOrAdmin",
+        "IsSameDepartment",
+    ],
+)
+def test_the_developer_passes_the_api_permission_classes(rf, developer, permission):
+    from api import permissions
+
+    request = rf.get("/api/")
+    request.user = developer
+
+    assert getattr(permissions, permission)().has_permission(request, view=None)
+
+
+def test_a_teacher_still_fails_the_leadership_api_permission(rf, teacher_user):
+    from api.permissions import IsLeadership
+
+    request = rf.get("/api/")
+    request.user = teacher_user
+
+    assert not IsLeadership().has_permission(request, view=None)
