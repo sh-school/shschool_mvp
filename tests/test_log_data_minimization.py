@@ -13,8 +13,6 @@ import pathlib
 
 import pytest
 
-import operations
-import staff_affairs
 from notifications import hub
 
 PACKAGE = pathlib.Path(hub.__file__).parent
@@ -94,42 +92,38 @@ def _source_files():
     return _package_files(PACKAGE)
 
 
-#: [W-20261001-015] وحداتٌ حسّاسةٌ أخرى: اسمُ الموظّف مقروناً بإجازاته وأرصدته
-#: يصل سجلّات الإنتاج صريحاً لأنّ القناع لا يلتقط الأسماء العربيّة.
-#: المسارُ نسبيٌّ للشجرة (لا لمكان تثبيت الحزمة) فيصحّ في كلّ بيئة.
-_EXTRA_PACKAGES = (
-    pathlib.Path(staff_affairs.__file__).parent,
-    pathlib.Path(operations.__file__).parent,
-)
+#: [W-20261001-015] كلُّ الحزم لا حزمٌ مسمّاة: الإصلاحُ الأوّل ترك clinic وbehavior
+#: وexam_control وanalytics تكتب اسمَ الطالب (وأخطرُها زيارةُ عيادةٍ باسمٍ وواقعةٍ
+#: صحّيّة) لأنّ الحارس كان يمسح ثلاثَ حزمٍ فقط. الجذرُ = جذرُ المشروع.
+_ROOT = pathlib.Path(__file__).resolve().parent.parent
+_SKIPPED_DIRS = {"tests", "migrations", "scripts", "node_modules", "worktrees", "staticfiles"}
+
+#: استثناءاتٌ معلَّلة: (المسار نسبةً للجذر) ← السبب. فارغةٌ اليوم عمداً — أيُّ إضافةٍ
+#: تُراجَع مع مسؤول حماية البيانات، ولا يُسكَت الحارسُ بتعطيله.
+ALLOWED_FILES: dict[str, str] = {}
 
 
 def _extra_source_files():
-    return [path for pkg in _EXTRA_PACKAGES for path in _package_files(pkg)]
-
-
-@pytest.mark.parametrize("path", _source_files(), ids=lambda p: p.name)
-def test_no_semantic_pii_in_notification_logs(path):
-    """لا اسم ولا عنوان ولا نصّ ولا وجهة اتصال في أي نداء تسجيل."""
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    offenders = []
-
-    for call in _log_calls(tree):
-        leaked = _leaked_symbols(call)
-        if leaked:
-            offenders.append((call.lineno, sorted(leaked)))
-
-    assert offenders == [], (
-        f"{path.name}: نداء تسجيل يحمل بياناً بشرياً دلالياً — " f"استبدله بمُعرِّف مبهم: {offenders}"
-    )
+    files = []
+    for path in sorted(_ROOT.rglob("*.py")):
+        rel = path.relative_to(_ROOT)
+        if _SKIPPED_DIRS & set(rel.parts) or any(
+            part.startswith(".") or part in {"venv", "env", "site-packages"} for part in rel.parts
+        ):
+            continue
+        if rel.as_posix() in ALLOWED_FILES:
+            continue
+        files.append(path)
+    return files
 
 
 @pytest.mark.parametrize(
     "path",
     _extra_source_files(),
-    ids=lambda p: f"{p.parent.name}/{p.name}",
+    ids=lambda p: p.relative_to(_ROOT).as_posix(),
 )
 def test_no_semantic_pii_in_staff_and_operations_logs(path):
-    """لا `full_name` ولا بريد ولا هاتف في نداء تسجيلٍ في staff_affairs وoperations.
+    """لا `full_name` ولا بريد ولا هاتف في نداء تسجيلٍ في أيّ وحدةٍ من المنصّة.
 
     المعرّف (`pk`) وحده: يكفي المشغّلَ ليتتبّع الحدثَ ولا يُفشي هويّةً.
     """
@@ -147,9 +141,10 @@ def test_no_semantic_pii_in_staff_and_operations_logs(path):
 
 def test_extra_packages_are_actually_scanned():
     """ضبطٌ موجب: القائمةُ ليست فارغةً ولا تُسقط الحزمَ الفرعيّة (attendance، services)."""
-    names = {p.name for p in _extra_source_files()}
+    rels = {p.relative_to(_ROOT).as_posix() for p in _extra_source_files()}
 
-    assert {"services.py", "swap.py", "tasks.py"} <= names, names
+    assert {"clinic/services.py", "behavior/services.py", "operations/tasks.py"} <= rels, rels
+    assert not any(r.startswith("tests/") or "/migrations/" in r for r in rels)
 
 
 def test_the_scanner_sees_a_planted_leak():

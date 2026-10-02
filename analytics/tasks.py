@@ -128,7 +128,7 @@ def send_monthly_kpi_report(self, school_id=None):
 
                 logger.info(
                     "تقرير KPIs أُرسل إلى %s " "للمدرسة %s",
-                    director.user.email,
+                    director.user.pk,
                     school.name,
                 )
 
