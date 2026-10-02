@@ -43,6 +43,10 @@ ALLOWED_WRITERS: dict[tuple[str, str], str] = {
         "bulk_mark_all_present",
     ): "«الكلُّ حاضر» من mark_all_present لمعلّم شعبةٍ بلا جناح أو مُسجِّل؛ لا يصله معلّمُ شعبة جناح",
     (
+        "operations/attendance_entries.py",
+        "_apply_to_effective",
+    ): "اعتمادُ إدخالِ معلّمٍ يكتب الرصدَ المعتمَد (قفلُ صفّ، لا فوق مصدرٍ بشريٍّ آخر، AuditLog) — لا يصله إلّا decide_entry/submit_entry (ESE)",
+    (
         "operations/period_register.py",
         "tap_late",
     ): "نقرةُ تأخّرِ المعلّم (source=teacher_late) تنتظر تثبيتَ المشرف — استثناءٌ مسمّىً بحكم 0105",
