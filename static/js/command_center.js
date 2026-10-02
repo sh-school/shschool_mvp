@@ -21,18 +21,12 @@
   var STATUSES = ["ok", "warn", "bad", "unknown"];
   var ORDER = ["bad", "warn", "unknown", "ok"];   // الأخطرُ أوّلاً — لاختيار أسوأ حالات المجموعة
   var METRIC_SLOTS = 4;
-  // تفضيلُ اللوحات المخفيّة: كوكي مفاتيحُه مفصولةٌ بفواصل؛ الخادمُ يقرؤه فيرسم المخفيَّ مخفيّاً (بلا وميض) ويتحقّق من المفاتيح.
-  var HIDDEN_COOKIE = "qcc_hidden";
-  var HIDDEN_MAX_AGE = 365 * 24 * 3600;
 
   var url = root.getAttribute("data-qc-url");
   var note = root.querySelector("[data-qc-note]");
   var noteText = root.querySelector("[data-qc-note-text]");
   var clock = root.querySelector('[data-key="generated"]');
   var button = root.querySelector("[data-qc-refresh]");
-  var toggles = Array.prototype.slice.call(root.querySelectorAll("[data-qc-toggle]"));
-  var counter = root.querySelector("[data-qc-count]");
-  var none = root.querySelector("[data-qc-none]");
   var panels = Array.prototype.slice.call(root.querySelectorAll("[data-panel]"));
   var failures = 0;
   var timer = null;
@@ -160,43 +154,6 @@
       clock.textContent = "آخر تحديث " + new Date(snapshot.generated_at * 1000).toLocaleTimeString("ar");
     }
   }
-
-  function saveHidden(keys) {
-    var secure = window.location.protocol === "https:" ? "; Secure" : "";
-    document.cookie = HIDDEN_COOKIE + "=" + keys.join(",") + "; Path=/command-center/; Max-Age=" +
-      (keys.length ? HIDDEN_MAX_AGE : 0) + "; SameSite=Lax" + secure;
-  }
-
-  // يطبّق اختيارَ المربّعات: يُظهر ويُخفي بطاقاتِ اللوحات، ويحدّث العدّادَ ورسالةَ «كلُّها مخفيّة»، ويحفظ التفضيل.
-  function applyChoices(save) {
-    var hidden = [];
-    toggles.forEach(function (box) {
-      var key = box.getAttribute("data-qc-toggle");
-      var card = root.querySelector('[data-card="' + key + '"]');
-      if (card) { card.hidden = !box.checked; }
-      if (!box.checked) { hidden.push(key); }
-    });
-    // مجموعةٌ كلُّ لوحاتها مخفيّةٌ تُخفى كاملةً (رأسُها أيضاً)
-    Array.prototype.forEach.call(root.querySelectorAll("[data-group]"), function (group) {
-      var cards = Array.prototype.slice.call(group.querySelectorAll("[data-card]"));
-      group.hidden = cards.length > 0 && cards.every(function (card) { return card.hidden; });
-    });
-    var shown = toggles.length - hidden.length;
-    if (counter) { counter.textContent = shown + " من " + toggles.length; }
-    if (none) { none.hidden = shown > 0; }
-    if (save) { saveHidden(hidden); }
-  }
-
-  toggles.forEach(function (box) {
-    box.addEventListener("change", function () { applyChoices(true); });
-  });
-  Array.prototype.forEach.call(root.querySelectorAll("[data-qc-all]"), function (control) {
-    control.addEventListener("click", function () {
-      var show = control.getAttribute("data-qc-all") === "show";
-      toggles.forEach(function (box) { box.checked = show; });
-      applyChoices(true);
-    });
-  });
 
   function schedule() {
     window.clearTimeout(timer);

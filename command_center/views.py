@@ -14,16 +14,6 @@ from django.views.decorators.http import require_GET
 from command_center import contract, layout, services, webstats
 from core.developer_access import developer_only
 
-#: تفضيلُ العرض: لوحاتٌ يخفيها المطوّرُ (مفاتيحُ مفصولةٌ بفواصل). كوكيٌّ لا قاعدةٌ: تفضيلُ متصفّحٍ لا بيانٌ، فلا هجرةَ ولا وميضَ عند التحميل
-#: (الخادمُ يرسم المخفيَّ مخفيّاً من الطلب الأوّل). والإخفاءُ للعرض وحدَه — التنبيهُ عند الأحمر لا يتأثّر (`alerts.py`).
-HIDDEN_COOKIE = "qcc_hidden"
-
-
-def hidden_keys(request: HttpRequest) -> set[str]:
-    """اللوحاتُ المخفيّةُ من الكوكي — يُقبل منها المعروفُ فقط، فلا يُسقط كوكيٌّ عبثيٌّ الصفحة ولا يُطبع نصُّه."""
-    known = {panel.key for panel in contract.PANELS}
-    return {key for key in request.COOKIES.get(HIDDEN_COOKIE, "").split(",") if key in known}
-
 
 @developer_only
 @require_GET
@@ -33,12 +23,7 @@ def index(request: HttpRequest) -> HttpResponse:
     services.ensure_fresh()
     webstats.sample_safe()
     snapshot = contract.snapshot()
-    hidden = hidden_keys(request)
-    for panel in snapshot["panels"]:
-        panel["hidden"] = panel["key"] in hidden
     grouped = layout.groups(snapshot["panels"])
-    for group in grouped:
-        group["hidden"] = all(tile["hidden"] for tile in group["tiles"])
     return render(
         request,
         "command_center/index.html",
@@ -48,8 +33,6 @@ def index(request: HttpRequest) -> HttpResponse:
             "cards": layout.cards(grouped),
             "strip": layout.strip(snapshot["panels"]),
             "schema": contract.SCHEMA_VERSION,
-            "shown": len(snapshot["panels"]) - len(hidden),
-            "total": len(snapshot["panels"]),
         },
     )
 

@@ -25,11 +25,8 @@ def _clean_cache():
     cache.clear()
 
 
-def _page(client_as, developer_user, **cookies):
-    client = client_as(developer_user)
-    for name, value in cookies.items():
-        client.cookies[name] = value
-    return client.get(reverse("command_center:index")).content.decode()
+def _page(client_as, developer_user):
+    return client_as(developer_user).get(reverse("command_center:index")).content.decode()
 
 
 def test_every_registered_panel_is_in_exactly_one_group():
@@ -115,14 +112,15 @@ def test_the_two_cards_sit_side_by_side_and_are_the_last_child_so_they_fill_with
     client_as, developer_user
 ):
     html = _page(client_as, developer_user)
-    assert html.count('class="ui-grid-2"') == 1  # شبكةُ بطاقتين: تتجاوران حيث يتّسع
+    assert (
+        html.count('class="ui-grid-2 qc-cards"') == 1
+    )  # شبكةُ بطاقتين: تتجاوران حيث يتّسع، و`qc-cards` يُطابقهما طولاً
     assert [title for title, _ in layout.CARDS] == ["التشغيلُ والأمان", "التسليمُ والجودةُ والخطّة"]
     for title, _ in layout.CARDS:
         assert title in html
-    grid = html.index('class="ui-grid-2"')
+    grid = html.index('class="ui-grid-2 qc-cards"')
     # البطاقتان آخرُ أبناء الغلاف فتملآن الباقيَ بلا تمرير (50-utilities: .ui-grid-2:last-child)
-    assert html.index("data-qc-none") < grid
-    assert html.index("data-qc-toggle") < grid  # والمنتقي قبلهما
+    assert html.index("data-qc-note") < grid
 
 
 def test_cards_hold_every_group_once_in_a_fixed_order():
@@ -156,11 +154,32 @@ def test_the_strip_says_no_red_when_none_and_never_mentions_decisions(client_as,
     assert "الإيداعاتُ غيرُ المنشورة: غيرُ معلومة" in html  # لم تُجمَع لوحتُها: يُسمّى مجهولاً لا صفراً
 
 
-def test_a_group_whose_panels_are_all_hidden_is_hidden_entirely(client_as, developer_user):
-    keys = ",".join(next(g for g in layout.GROUPS if g[0] == "plan")[2])
-    html = _page(client_as, developer_user, qcc_hidden=keys)
-    assert re.search(r'<section class="qc-group" data-group="plan"[^>]*hidden', html)
-    assert not re.search(r'<section class="qc-group" data-group="prod"[^>]*hidden', html)
+def test_the_panel_picker_and_its_cookie_are_gone_entirely(client_as, developer_user):
+    """طلبُ المالك 2026-10-02: التخلّصُ من زرّ «المؤشّراتُ المعروضة» ومن كوده — لا زرَّ ولا نافذةَ ولا كوكي ولا مسارَ خادمٍ ولا سكربت."""
+    html = _page(client_as, developer_user)
+    for gone in (
+        "المؤشّراتُ المعروضة",
+        "data-qc-toggle",
+        "data-qc-all",
+        "data-qc-count",
+        "qc-panels",
+        "qcc_hidden",
+        "data-modal-open",
+    ):
+        assert gone not in html, gone
+    assert not (ROOT / "templates" / "command_center" / "_picker.html").exists()
+    assert not (ROOT / "tests" / "test_command_center_picker.py").exists()
+    script = (ROOT / "static" / "js" / "command_center.js").read_text(encoding="utf-8")
+    views = (ROOT / "command_center" / "views.py").read_text(encoding="utf-8")
+    for gone in ("qcc_hidden", "HIDDEN_COOKIE", "saveHidden", "applyChoices", "document.cookie"):
+        assert gone not in script and gone not in views, gone
+    assert "hidden_keys" not in views
+
+
+def test_the_two_cards_are_stretched_to_the_same_size_even_in_the_no_scroll_mode():
+    """`.ui-grid-2:last-child > .ui-section` تبدأ بارتفاع محتواها في وضع بلا تمرير؛ هذه القاعدةُ تمدّدهما معاً (آخرُ طبقةٍ فتغلب)."""
+    css = (ROOT / "static" / "css" / "custom" / "50-utilities.css").read_text(encoding="utf-8")
+    assert re.search(r"\.qc-cards:last-child > \.ui-section \{ align-self: stretch;", css)
 
 
 def test_the_script_labels_match_the_server_labels_and_it_has_no_dial():

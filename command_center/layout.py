@@ -126,9 +126,7 @@ def cards(grouped: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for title, keys in CARDS:
         members = [by_key[k] for k in keys if k in by_key]
         if members:
-            result.append(
-                {"title": title, "groups": members, "hidden": all(g.get("hidden") for g in members)}
-            )
+            result.append({"title": title, "groups": members})
     return result
 
 
