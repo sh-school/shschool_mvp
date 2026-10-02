@@ -253,3 +253,27 @@ def test_a_request_already_processing_is_refused(school, admin_client, kid):
     request_id = _file_request(client, kid)
     ErasureRequest.objects.filter(pk=request_id).update(status="processing")
     assert _approve(client, request_id).status_code == 400
+
+
+def test_a_file_that_fails_to_delete_is_logged_by_key_not_content(
+    school, admin_client, kid, monkeypatch, django_capture_on_commit_callbacks
+):
+    """P3 (0105 أ): بعد التثبيت لا إعادةَ محاولةٍ ممكنة — فيُسجَّل مفتاحُ الملفّ اليتيم (لا محتواه) ليُزال، والعدّادُ «مجدوَل»."""
+    from django.db.models.fields.files import FieldFile
+
+    client, _admin = admin_client
+    name = _stored_attachment(school, kid)
+    request_id = _file_request(client, kid)
+
+    def broken(self, save=True):
+        raise OSError("التخزين متوقّف")
+
+    monkeypatch.setattr(FieldFile, "delete", broken)
+    with django_capture_on_commit_callbacks(execute=True):
+        response = _approve(client, request_id)
+
+    assert response.status_code == 200
+    assert response.data["summary"]["files_scheduled_for_purge"] == 1
+    line = AuditLog.objects.filter(object_repr__contains="ملفٌّ يتيمٌ بعد محو").get()
+    assert line.changes["key"] == name
+    assert "PII" not in str(line.changes)

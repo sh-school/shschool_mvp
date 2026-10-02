@@ -90,13 +90,28 @@ def _lazy_file_field_models() -> list[tuple[Any, str, str]]:
     return _FILE_FIELD_MODELS
 
 
-def _purge_files(files: list[tuple[str, Any]]) -> None:
-    """يحذف ملفّاتِ التخزين بعد نجاح معاملة المحو كلِّها (on_commit) — فشلُ ملفٍّ لا يوقف الباقي."""
+def _purge_files(files: list[tuple[str, Any]], school: Any, actor: Any) -> None:
+    """يحذف ملفّاتِ التخزين بعد نجاح معاملة المحو كلِّها (on_commit) — فشلُ ملفٍّ لا يوقف الباقي.
+
+    وبعد التثبيت مُحيت الصفوفُ المشيرةُ إلى الملفّ فلا إعادةَ محاولةٍ ممكنة: فيُكتب في AuditLog **مفتاحُ الملفّ** (لا محتواه ولا
+    اسمُ الطالب) تحت «ملفٌّ يتيمٌ بعد محو» ليُزال يدويّاً أو بمهمّة (حكمُ 0105 P3-أ).
+    """
     for file_field, f in files:
         try:
             f.delete(save=False)  # يفوّض storage backend (DatabaseStorage/S3)
         except Exception:
             logger.warning("تعذّر حذف ملف %s أثناء المحو", file_field, exc_info=True)
+            try:
+                AuditLog.log(
+                    user=actor,
+                    action="delete",
+                    model_name="other",
+                    object_repr="محوُ طالبٍ — ملفٌّ يتيمٌ بعد محو (يُزال يدويّاً)",
+                    changes={"file_field": file_field, "key": getattr(f, "name", "")},
+                    school=school,
+                )
+            except Exception:
+                logger.exception("تعذّر تدوين ملفٍّ يتيمٍ بعد محو")
 
 
 class ErasureFailedError(Exception):
@@ -260,8 +275,10 @@ class ErasureService:
                 if f:
                     files_to_purge.append((file_field, f))
         if files_to_purge:
-            summary["files_purged"] = len(files_to_purge)
-            transaction.on_commit(lambda: _purge_files(files_to_purge))
+            # «مجدوَل» لا «محذوف»: الحذفُ الفعليُّ بعد التثبيت وقد يفشل ملفٌّ (يُدوَّن يتيماً). و`files_purged` باقٍ لتوافق الواجهة.
+            summary["files_purged"] = summary["files_scheduled_for_purge"] = len(files_to_purge)
+            school, actor = erasure_request.school, erasure_request.reviewed_by
+            transaction.on_commit(lambda: _purge_files(files_to_purge, school, actor))
 
         # 3. Delete child FK records (CASCADE would do this, but explicit is better for counting)
         for Model, fk_field, _ in _lazy_student_fk_models():
