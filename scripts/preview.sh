@@ -10,20 +10,23 @@
 #      فيرى المالكُ عملَ الجلسات مجتمعاً قبل دمجه ودفعه (قرارُ المالك 2026-09-26). `integrate off` يعيدها
 #      إلى main وحدَه.
 #    • التثبيتُ المؤقّت (pin): شجرةُ جلسةٍ بإعدادات التطوير لمعاينة عملٍ لم يصر طلبَ دمجٍ
-#      بعدُ (أو لم يُودَع)، ثمّ يعود إلى main وحدَه بعد مدّةٍ (120 دقيقةً افتراضاً) أو بـ`release`.
+#      بعدُ (أو لم يُودَع)، ثمّ يعود إلى main وحدَه بعد مدّةٍ (30 دقيقةً حدّاً أقصى، وما زاد يُقصّ) أو بـ`release`. ومن طلب
+#      التثبيتَ ومعاينةٌ أخرى قائمةٌ يدخل **طابورَ انتظار** (ظاهرٌ في `status`) ويُثبَّت آليّاً عند الفكّ (W-20261002-029).
 #
 #  الأوامر (bash scripts/preview.sh <أمر>):
 #    up [--lan]            أوّلَ مرّة: الشجرةُ والقاعدةُ ثمّ الإقلاع (متساوي الأثر). `--lan` يفتحه لشبكة
 #                          الجهاز (لمعاينة الجوال)، وبلا `--lan` يعود إلى الحلقة المحلّيّة فقط.
-#    sync [--now]          دورةٌ واحدة: إن تقدّم main أو ما أودعته الجلساتُ وسكن طُبّق. `--now` بلا انتظار السكون.
+#    sync [--now]          دورةٌ واحدة: إن تقدّم main أو ما أودعته الجلساتُ وانقضت 10 دقائق على آخر تطبيقٍ طُبّق
+#                          (إجباريّاً ولو لم تهدأ الإيداعات؛ وأوّلُ تغييرٍ بعد خمولٍ يُطبَّق فوراً). `--now` بلا انتظار.
 #    watch                 حلقةٌ تستدعي sync كلّ دقيقة (تبقى في تبويب طرفيّةٍ أو مهمّةٍ مجدولة).
-#    pin <شجرة> [دقائق]    حوّل الخادمَ إلى شجرة جلسة (اسمُ مجلّدها، انظر list). لا يُنتزع تثبيتُ غيرك
-#                          ما دامت مدّتُه قائمة إلّا بـ`--force` (بإذن المالك).
+#    pin <شجرة> [دقائق]    حوّل الخادمَ إلى شجرة جلسة (اسمُ مجلّدها، انظر list)، بحدٍّ أقصى 30 دقيقةً (ما زاد يُقصّ).
+#                          لا يُنتزع تثبيتُ غيرك ما دامت مدّتُه قائمة: تدخل الطابورَ وتُثبَّت آليّاً عند الفكّ، وإلّا بـ`--force` (بإذن المالك).
 #    release               ارجع إلى main (والتكامل) الآن.
 #    integrate [plan|on|off|exclude <شجرة>|include <شجرة>]
 #                          ما يدخل التكاملَ الآن (plan، وهو الافتراضيّ)، وتشغيلُه وإطفاؤه، واستثناءُ شجرةٍ منه.
 #    list                  الأشجارُ التي يمكن تثبيتُها.
-#    status                ما يخدمه الخادمُ، ومقارنتُه بـmain وبالإنتاج (commit من /health/).
+#    status                ما يخدمه الخادمُ، ومقارنتُه بـmain وبالإنتاج (commit من /health/)، وطابورُ انتظار التثبيت.
+#    gaps                  فجوةُ الظهور: لكلّ إيداعٍ ظهر على المعاينة المدّةُ بين إيداعه وظهوره (الأقصى وp90 والوسيط) من سجلّ التطبيقات.
 #    down                  أوقف الخادمَ والعامل (لا يحذف شيئاً).
 #
 #  قبل أن تصل هذه الشيفرةُ إلى main (إعداداتُ preview.py ليست فيه فلا يُقلع عليه) تُجرَّب على إيداعها:
@@ -31,8 +34,10 @@
 #  وبعد دمجها: `up` بلا PREVIEW_REF من شجرة main-preview نفسِها. (والتكاملُ لا يعمل مع PREVIEW_REF: مرجعٌ صريحٌ = تجربة.)
 #
 #  لِمَ فحصٌ دوريّ لا خطّاف؟ طابورُ الدمج يدمج على GitHub بلا حدثٍ محلّيّ، والفحصُ يلتقط أيضاً
-#  دمجاً يدويّاً وأيَّ تراجعٍ للإنتاج. ولِمَ السكون (3 دقائق)؟ الدمجُ يأتي دفعات (81 إيداعاً في
-#  يومٍ)، فتحديثٌ لكلّ إيداعٍ هدرٌ؛ وله سقفُ انتظارٍ (15 دقيقة) كي لا يجوع التحديثُ. وإن سقط
+#  دمجاً يدويّاً وأيَّ تراجعٍ للإنتاج. ولِمَ إيقاعٌ كلَّ 10 دقائق لا سكونٌ؟ (قرارُ المالك 2026-10-02) كان السكونُ (3 دقائق، وسقفُ 15)
+#  يؤخّر ظهورَ الإيداع حتى يهدأ main — والدمجُ يأتي دفعاتٍ (81 إيداعاً في يومٍ) فقد لا يهدأ فيطول الانتظار؛ والآن حدٌّ أعلى معلومٌ:
+#  تطبيقٌ كلَّ APPLY_EVERY ثانيةً إن وُجد جديد (وتحديثٌ لكلّ إيداعٍ يبقى هدراً فلا يُطبَّق أسرعَ من ذلك). والسكونُ القديم مفتاحٌ اختياريّ
+#  (PREVIEW_QUIET_SECONDS>0) فمن ضبطه يبقى سلوكُه. وإن سقط
 #  تطبيقُ إيداعٍ (هجرةٌ مثلاً) عاد إلى آخر نسخةٍ سليمةٍ كي لا تسقط المعاينة، ولا يعيد المحاولةَ
 #  على الإيداع نفسِه — وسقوطُه على بياناتٍ مزروعةٍ إنذارٌ مبكّرٌ بأنّ هجرةَ الإنتاج ستسقط.
 #
@@ -59,9 +64,11 @@ WORKTREES="$ROOT/.claude/worktrees"
 PREVIEW_DIR="${PREVIEW_DIR:-$WORKTREES/main-preview}"
 PROJECT="schoolos-main-preview"
 PORT="${PREVIEW_PORT:-8500}"
-QUIET="${PREVIEW_QUIET_SECONDS:-180}"             # سكونُ main قبل التطبيق
-MAX_WAIT="${PREVIEW_MAX_WAIT_SECONDS:-900}"       # سقفُ الانتظار
-PIN_MINUTES="${PREVIEW_PIN_MINUTES:-120}"
+QUIET="${PREVIEW_QUIET_SECONDS:-0}"               # سكونُ main قبل التطبيق (0 = معطَّل؛ كان 180)
+APPLY_EVERY="${PREVIEW_APPLY_EVERY_SECONDS:-600}" # تطبيقٌ إجباريٌّ كلَّ كذا ثانيةً إن وُجد جديد (0 = معطَّل) — قرارُ المالك 2026-10-02
+MAX_WAIT="${PREVIEW_MAX_WAIT_SECONDS:-900}"       # سقفُ الانتظار الأقصى (احتياطٌ أخيرٌ فوق الإيقاع)
+PIN_MAX="${PREVIEW_PIN_MAX_MINUTES:-30}"          # حدٌّ أقصى للتثبيت بالدقائق (ما زاد يُقصّ)
+PIN_MINUTES="${PREVIEW_PIN_MINUTES:-30}"
 INTERVAL="${PREVIEW_INTERVAL_SECONDS:-60}"
 PROD_URL="${PRODUCTION_URL:-https://shschoolmvp-production.up.railway.app}"
 COMPOSE_FILE="$SELF_ROOT/docker-compose.preview.yml"
@@ -98,6 +105,7 @@ state_dir() {
 sget() { local f; f="$(state_dir)/$1"; if [ -f "$f" ]; then cat "$f"; fi; }
 sset() { [ "$DRY" = 1 ] && return 0; mkdir -p "$(state_dir)"; printf '%s' "$2" > "$(state_dir)/$1"; }
 sdel() { [ "$DRY" = 1 ] && return 0; rm -f "$(state_dir)/$1"; }
+sappend() { [ "$DRY" = 1 ] && return 0; mkdir -p "$(state_dir)"; printf '%s\n' "$2" >> "$(state_dir)/$1"; }
 
 # قفلٌ بسيط: عمليّتان معاً (حلقةُ watch وأمرٌ يدويّ) تُفسدان إعادةَ الإنشاء. قفلٌ قديمٌ (عمليّةٌ
 # ماتت) يُكسر بعد 20 دقيقة.
@@ -497,6 +505,116 @@ deploy_main() {
   say "✔ $label على http://localhost:$PORT — يعلن /health/: commit=$(served_commit)"
 }
 
+# ── الإيقاع: متى يُطبَّق الجديدُ (W-20261002-029) ─────────────────────────
+# عمرُ آخر تطبيقٍ بالثواني؛ وبلا تطبيقٍ مسجَّلٍ رقمٌ كبيرٌ فيحلّ الموعدُ فوراً.
+apply_age() {   # apply_age <الآن>
+  local at; at="$(sget synced_at)"
+  if [ -n "$at" ]; then printf '%s' $(( $1 - at )); else printf '%s' 999999999; fi
+}
+
+# يقرّر أيُطبَّق الآن؛ المدخلاتُ بالثواني: القسر، وعمرُ تغيّر المعروض، والانتظارُ منذ أوّل تغيّر، وعمرُ آخر تطبيق.
+apply_due() {   # apply_due <force> <age> <waited> <since_apply>
+  local force="$1" age="$2" waited="$3" since_apply="$4"
+  [ "$force" = 1 ] && return 0
+  if [ "$APPLY_EVERY" -gt 0 ] && [ "$since_apply" -ge "$APPLY_EVERY" ]; then return 0; fi
+  if [ "$QUIET" -gt 0 ] && [ "$age" -ge "$QUIET" ]; then return 0; fi
+  [ "$waited" -ge "$MAX_WAIT" ] && return 0
+  return 1
+}
+
+# سجلُّ التطبيقات: سطرٌ «<وقت> <إيداع>» لكلّ تطبيقٍ ناجح — مصدرُ مقياس فجوة الظهور (`gaps`). يبدأ من أوّل تطبيقٍ بعد التحديث؛ لا قياسَ رجعيّ.
+apply_log() { sappend apply.log "$(now) $(printf '%s' "$1" | cut -c1-12)"; }
+
+# فجوةُ الظهور: لكلّ تطبيقٍ ثانٍ فصاعداً، المدّةُ بين زمن كلّ إيداعٍ جديدٍ (غيرِ دمجِ التكامل) وزمن ظهوره. تطبع: n والأقصى وp90 والوسيط بالثواني.
+gap_stats() {   # gap_stats <سجلّ> <أيّام>
+  local log="$1" days="$2" prev="" cutoff ts sha ct list=""
+  cutoff=$(( $(now) - days * 86400 ))
+  while read -r ts sha; do
+    [ -n "$sha" ] || continue
+    if [ -n "$prev" ] && [ "$ts" -ge "$cutoff" ] \
+       && git -C "$PREVIEW_DIR" cat-file -e "$sha^{commit}" 2>/dev/null \
+       && git -C "$PREVIEW_DIR" cat-file -e "$prev^{commit}" 2>/dev/null; then
+      while read -r ct; do
+        [ -n "$ct" ] || continue
+        list+="$(( ts > ct ? ts - ct : 0 ))"$'\n'
+      done < <(git -C "$PREVIEW_DIR" log --no-merges --format=%ct "$prev..$sha")
+    fi
+    prev="$sha"
+  done < "$log"
+  printf '%s' "$list" | sort -n | awk '
+    { v[NR] = $1 }
+    END {
+      if (NR == 0) { print "n=0"; exit }
+      p90 = v[int((NR * 9 + 9) / 10)]; mid = v[int((NR + 1) / 2)]
+      printf "n=%d max=%d p90=%d p50=%d\n", NR, v[NR], p90, mid
+    }'
+}
+
+cmd_gaps() {
+  [ -e "$PREVIEW_DIR/.git" ] || die "لا شجرةَ معاينةٍ بعدُ"
+  local days="${PREVIEW_GAPS_DAYS:-7}" log stats n max p90 p50
+  log="$(state_dir)/apply.log"
+  say "فجوةُ الظهور (إيداعٌ ← ظهورُه على المعاينة)، آخرَ $days أيّام:"
+  if [ ! -s "$log" ]; then
+    say "  لا سجلَّ تطبيقاتٍ بعدُ — يبدأ التسجيلُ من أوّل تطبيقٍ بعد هذا التحديث، ولا قياسَ رجعيّاً لما قبله."
+  else
+    stats="$(gap_stats "$log" "$days")"
+    n="${stats#n=}"; n="${n%% *}"
+    if [ "$n" = 0 ]; then
+      say "  لا إيداعاتٍ مقيسةً بعدُ (تلزم تطبيقاتٌ متتاليةٌ في المدّة)."
+    else
+      max="${stats#*max=}"; max="${max%% *}"; p90="${stats#*p90=}"; p90="${p90%% *}"; p50="${stats#*p50=}"
+      say "  الأقصى $(( max / 60 )) دقيقة، وp90 $(( p90 / 60 ))، والوسيط $(( p50 / 60 )) — من $n إيداعاً."
+    fi
+  fi
+  say "  قبل الإيقاع (حدٌّ نظريٌّ من الإعداد القديم لا قياس): سكونُ 180 ثانيةً وسقفُ 900 ⇒ حتى 15 دقيقةً + دورة (60 ثانية)."
+  say "  الآن (حدٌّ نظريٌّ): تطبيقٌ كلَّ $APPLY_EVERY ثانيةً + دورة ⇒ نحو $(( (APPLY_EVERY + INTERVAL) / 60 )) دقيقة."
+}
+
+# ── طابورُ انتظار التثبيت ─────────────────────────────────────────────────
+# صفوفٌ «<مسارُ الشجرة>\t<دقائق>\t<وقتُ الطلب>» في ملفّ الحالة `pin_queue`؛ الأوّلُ يُثبَّت أوّلاً عند فكّ التثبيت.
+queue_add() {   # queue_add <مسارُ الشجرة> <دقائق> — يُرجع ترتيبَها (1 = التالية)
+  local tree="$1" mins="$2" cur new="" t m ts n=0
+  cur="$(sget pin_queue)"
+  while IFS=$'\t' read -r t m ts; do
+    if [ -n "$t" ] && [ "$t" != "$tree" ]; then new+="$t"$'\t'"$m"$'\t'"$ts"$'\n'; fi
+  done <<<"$cur"
+  new+="$tree"$'\t'"$mins"$'\t'"$(now)"$'\n'
+  sset pin_queue "$new"
+  n="$(printf '%s' "$new" | grep -c . || true)"
+  printf '%s' "$n"
+}
+
+# يُخرج الأوّلَ الصالحَ (شجرةٌ ما زالت موجودة) في QTREE وQMINS ويحذفه من الطابور؛ وما لم يعد صالحاً يُسقط بصمت.
+queue_pop() {
+  QTREE=""; QMINS=""
+  local cur rest="" t m ts
+  cur="$(sget pin_queue)"
+  while IFS=$'\t' read -r t m ts; do
+    [ -n "$t" ] || continue
+    [ -f "$t/manage.py" ] || continue
+    if [ -z "$QTREE" ]; then QTREE="$t"; QMINS="$m"; else rest+="$t"$'\t'"$m"$'\t'"$ts"$'\n'; fi
+  done <<<"$cur"
+  sset pin_queue "$rest"
+}
+
+# بعد فكّ التثبيت: يُثبَّت أوّلُ المنتظِرين آليّاً (القفلُ مأخوذٌ عند المستدعي).
+promote_queue() {
+  queue_pop
+  [ -n "$QTREE" ] || return 0
+  say "▸ دورُ المنتظِر في الطابور: $(basename "$QTREE") ($QMINS دقيقة)"
+  deploy_pin "$QTREE" "$QMINS" || warn "تعذّر تثبيتُ $(basename "$QTREE") من الطابور"
+}
+
+# يقصّ مدّةَ التثبيت إلى الحدّ الأقصى؛ وغيرُ الرقميّ أو الصفرُ يعود إلى الافتراضيّ.
+clamp_pin_minutes() {   # clamp_pin_minutes <دقائق>
+  local m="${1:-}"
+  case "$m" in '' | *[!0-9]*) m="$PIN_MINUTES" ;; esac
+  [ "$m" -ge 1 ] || m="$PIN_MINUTES"
+  if [ "$m" -gt "$PIN_MAX" ]; then m="$PIN_MAX"; fi
+  printf '%s' "$m"
+}
+
 # يطبّق إيداعاً على شجرة المعاينة؛ وإن سقط عاد إلى آخر نسخةٍ سليمةٍ ولا يكرّر المحاولةَ عليه.
 apply_main() {   # apply_main <sha> — بعد resolve_target (LABEL وINTEG_KIND وINTEG_REPORT للهدف)
   local target="$1" good before label="$LABEL" kind="$INTEG_KIND" fails msg
@@ -508,7 +626,7 @@ apply_main() {   # apply_main <sha> — بعد resolve_target (LABEL وINTEG_KIN
     warn "Dockerfile تغيّر في main (مكتباتُ النظام) — الصورةُ الأصل قد تحتاج: docker compose build web (في الجذر)"
   fi
   prepare_db "$target"
-  if deploy_main; then sdel failed_sha; sdel integ_failures; return 0; fi
+  if deploy_main; then sdel failed_sha; sdel integ_failures; apply_log "$target"; return 0; fi
   sset failed_sha "$target"
   msg="$label لم يُقلع"
   if [ "$kind" = integrated ]; then   # إخفاقان متتاليان: فرعٌ معطوبٌ يُسقط كلَّ تحديث — يُطفأ التكاملُ حتى يراجعه المالك
@@ -587,6 +705,7 @@ cmd_sync() {
     fi
     say "▸ انتهى التثبيتُ أو طُلب التحديث — عودةٌ إلى main"
     release_locked
+    promote_queue
     return
   fi
 
@@ -613,18 +732,19 @@ cmd_sync() {
     return 0
   fi
 
-  # المعروضُ تغيّر (main، أو ما أودعته الجلسات): يُنتظر سكونُه (الدمجُ دفعات)، بسقفٍ كي لا يجوع التحديث.
+  # المعروضُ تغيّر (main، أو ما أودعته الجلسات): يُطبَّق بإيقاعٍ إجباريٍّ كلَّ APPLY_EVERY ثانيةً (وأوّلُ تغييرٍ بعد خمولٍ فوراً)، لا بانتظار السكون.
   if [ "$(sget pending_sha)" != "$new" ]; then
     sset pending_sha "$new"; sset pending_since "$ts"
     [ -n "$(sget wait_since)" ] || sset wait_since "$ts"
   fi
   since="$(sget pending_since)"; first="$(sget wait_since)"
   age=$(( ts - ${since:-$ts} )); waited=$(( ts - ${first:-$ts} ))
-  if [ "$force" = 1 ] || [ "$age" -ge "$QUIET" ] || [ "$waited" -ge "$MAX_WAIT" ]; then
+  local since_apply; since_apply="$(apply_age "$ts")"
+  if apply_due "$force" "$age" "$waited" "$since_apply"; then
     say "▸ $LABEL — يُطبَّق"
     apply_main "$new"
   else
-    idle "المعروضُ تغيّر إلى $LABEL — يُنتظر سكونُه ($age/$QUIET ثانية، والسقف $waited/$MAX_WAIT)"
+    idle "المعروضُ تغيّر إلى $LABEL — يُطبَّق خلال $(( APPLY_EVERY - since_apply )) ثانية (إيقاعٌ كلَّ $APPLY_EVERY ثانيةً)"
   fi
 }
 
@@ -646,6 +766,10 @@ cmd_pin() {
     esac
   done
   [ -n "$target" ] || die "الاستعمال: preview.sh pin <اسمُ مجلّد الشجرة> [دقائق] [--force] — الأسماءُ في: preview.sh list"
+  if [ "$mins" -gt "$PIN_MAX" ] 2>/dev/null; then
+    say "! الحدُّ الأقصى للتثبيت $PIN_MAX دقيقة — قُصّت المدّةُ من $mins"
+  fi
+  mins="$(clamp_pin_minutes "$mins")"
   case "$target" in */* | *\\*) tree="$target" ;; *) tree="$WORKTREES/$target" ;; esac
   [ -f "$tree/manage.py" ] || die "لا شجرةَ عملٍ بهذا الاسم: $target"
   [ "$(basename "$tree")" != "main-preview" ] || die "هذه شجرةُ المعاينة نفسُها — استعمل release"
@@ -657,7 +781,9 @@ cmd_pin() {
   if [ "$force" = 0 ] && [ "$(sget mode)" = "pin" ] && [ "$(sget pin_tree)" != "$tree" ]; then
     local until_ts left; until_ts="$(sget pin_until)"; left=$(( ${until_ts:-0} - $(now) ))
     if [ "$left" -gt 0 ]; then
-      die "مثبَّتةٌ الآن على $(basename "$(sget pin_tree)") لمدّة $(( left / 60 + 1 )) دقيقة — لا أنتزعها. انتظر، أو release بإذن المالك، أو أضف --force"
+      local pos; pos="$(queue_add "$tree" "$mins")"
+      say "▸ مثبَّتةٌ الآن على $(basename "$(sget pin_tree)") لمدّة $(( left / 60 + 1 )) دقيقة — لا أنتزعها. سُجّلت $(basename "$tree") ($mins دقيقة) في طابور الانتظار بالترتيب $pos، وتُثبَّت آليّاً عند فكّ التثبيت (يظهر في: preview.sh status). و--force بإذن المالك وحدَه."
+      return 0
     fi
   fi
   deploy_pin "$tree" "$mins"
@@ -667,6 +793,7 @@ cmd_release() {
   [ -e "$PREVIEW_DIR/.git" ] || die "لا شجرةَ معاينةٍ بعدُ"
   acquire_lock || die "عمليّةٌ أخرى تعمل الآن على المعاينة"
   release_locked
+  promote_queue
 }
 
 cmd_list() {
@@ -731,6 +858,19 @@ cmd_status() {
   fi
 
   say "الوضع:        ${mode:-—}$pin_note"
+  local queued t m qts qn=0
+  queued="$(sget pin_queue)"
+  if [ -n "$queued" ]; then
+    say "الانتظار:      تُثبَّت آليّاً بالترتيب عند فكّ التثبيت الحاليّ"
+    while IFS=$'\t' read -r t m qts; do
+      [ -n "$t" ] || continue
+      qn=$(( qn + 1 ))
+      say "    $qn. $(basename "$t") — $m دقيقة (منذ $(( ($(now) - qts) / 60 )) دقيقة)"
+    done <<<"$queued"
+  fi
+  if [ "$mode" != pin ] && [ -n "$(sget synced_at)" ]; then
+    say "الإيقاع:       تطبيقٌ كلَّ $(( APPLY_EVERY / 60 )) دقيقة إن وُجد جديد — آخرُ تطبيق قبل $(( ($(now) - $(sget synced_at)) / 60 )) دقيقة (الفجوةُ المقيسة: preview.sh gaps)"
+  fi
   say "الخادم:       $running — http://localhost:$PORT — يعلن commit=${serving:-?}"
   if [ "$mode" != pin ]; then
     label="$(sget served_label)"; report="$(sget served_report)"
@@ -743,7 +883,7 @@ cmd_status() {
       resolve_target
       plan_report="$INTEG_REPORT"
       if ! same_content "$TARGET" "$served"; then
-        say "المنتظَر:      $LABEL — يُطبَّق بعد سكونٍ ${QUIET} ثانية"
+        say "المنتظَر:      $LABEL — يُطبَّق عند موعد الإيقاع التالي (كلَّ $(( APPLY_EVERY / 60 )) دقيقة)"
         printf '%s' "$INTEG_REPORT" | { grep '^+' || true; } | sed 's/^/    /'
       fi
     fi
@@ -796,6 +936,7 @@ main() {
     integrate) cmd_integrate "$@" ;;
     list)      cmd_list ;;
     status)    cmd_status ;;
+    gaps)      cmd_gaps ;;
     down)      cmd_down ;;
     *)         usage ;;
   esac
