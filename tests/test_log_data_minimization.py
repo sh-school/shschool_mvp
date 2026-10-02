@@ -13,6 +13,8 @@ import pathlib
 
 import pytest
 
+import operations
+import staff_affairs
 from notifications import hub
 
 PACKAGE = pathlib.Path(hub.__file__).parent
@@ -80,12 +82,29 @@ def _leaked_symbols(call):
     return leaked
 
 
-def _source_files():
+def _package_files(package_dir):
     return [
         path
-        for path in sorted(PACKAGE.rglob("*.py"))
+        for path in sorted(package_dir.rglob("*.py"))
         if "migrations" not in path.parts and path.name != "__init__.py"
     ]
+
+
+def _source_files():
+    return _package_files(PACKAGE)
+
+
+#: [W-20261001-015] وحداتٌ حسّاسةٌ أخرى: اسمُ الموظّف مقروناً بإجازاته وأرصدته
+#: يصل سجلّات الإنتاج صريحاً لأنّ القناع لا يلتقط الأسماء العربيّة.
+#: المسارُ نسبيٌّ للشجرة (لا لمكان تثبيت الحزمة) فيصحّ في كلّ بيئة.
+_EXTRA_PACKAGES = (
+    pathlib.Path(staff_affairs.__file__).parent,
+    pathlib.Path(operations.__file__).parent,
+)
+
+
+def _extra_source_files():
+    return [path for pkg in _EXTRA_PACKAGES for path in _package_files(pkg)]
 
 
 @pytest.mark.parametrize("path", _source_files(), ids=lambda p: p.name)
@@ -102,6 +121,35 @@ def test_no_semantic_pii_in_notification_logs(path):
     assert offenders == [], (
         f"{path.name}: نداء تسجيل يحمل بياناً بشرياً دلالياً — " f"استبدله بمُعرِّف مبهم: {offenders}"
     )
+
+
+@pytest.mark.parametrize(
+    "path",
+    _extra_source_files(),
+    ids=lambda p: f"{p.parent.name}/{p.name}",
+)
+def test_no_semantic_pii_in_staff_and_operations_logs(path):
+    """لا `full_name` ولا بريد ولا هاتف في نداء تسجيلٍ في staff_affairs وoperations.
+
+    المعرّف (`pk`) وحده: يكفي المشغّلَ ليتتبّع الحدثَ ولا يُفشي هويّةً.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    offenders = [
+        (call.lineno, sorted(leaked))
+        for call in _log_calls(tree)
+        if (leaked := _leaked_symbols(call))
+    ]
+
+    assert (
+        offenders == []
+    ), f"{path.name}: نداء تسجيل يحمل بياناً شخصياً — استبدله بـ`pk`: {offenders}"
+
+
+def test_extra_packages_are_actually_scanned():
+    """ضبطٌ موجب: القائمةُ ليست فارغةً ولا تُسقط الحزمَ الفرعيّة (attendance، services)."""
+    names = {p.name for p in _extra_source_files()}
+
+    assert {"services.py", "swap.py", "tasks.py"} <= names, names
 
 
 def test_the_scanner_sees_a_planted_leak():
