@@ -176,3 +176,15 @@ def test_quality_gate_keeps_pull_request_and_merge_group_full():
         assert (
             str(jobs[job]["if"]).strip() == "github.event_name != 'push'"
         ), f"{job}: لا يُتخطّى إلا على push"
+
+
+def test_run_with_no_exempt_never_excuses_a_skip():
+    needs = json.dumps({**_ok("a"), "e2e": {"result": "skipped"}})
+    assert gate.run(needs, "push", "t", None) == 0
+    assert gate.run(needs, "push", "t", None, exempt={}) == 1
+
+
+def test_security_summary_runs_without_exemptions():
+    steps = _load("security-scan.yml")["summary"]["steps"]
+    run = next(step["run"] for step in steps if "ci_needs_gate.py" in step.get("run", ""))
+    assert "--no-exempt" in run, "Security Summary لا تُعفى فيه مهمّةٌ على أيّ حدث"

@@ -52,7 +52,14 @@ def judge(
     return rows, failures
 
 
-def run(needs_json: str | None, event: str | None, title: str, summary_path: str | None) -> int:
+def run(
+    needs_json: str | None,
+    event: str | None,
+    title: str,
+    summary_path: str | None,
+    exempt: dict[tuple[str, str], str] | None = None,
+) -> int:
+    exempt = EXEMPT if exempt is None else exempt
     if not needs_json or not needs_json.strip():
         print("::error::NEEDS_JSON مفقودٌ أو فارغ — لا حكمَ بلا بيانات")
         return 1
@@ -68,12 +75,12 @@ def run(needs_json: str | None, event: str | None, title: str, summary_path: str
         print("::error::needs فارغةٌ أو بلا بنية — لا حكمَ بلا مهامّ")
         return 1
 
-    rows, failures = judge(needs, event)
+    rows, failures = judge(needs, event, exempt)
     lines = [f"## {title}", "| المهمّة | النتيجة | الحكم |", "|---|---|---|"]
     lines += [f"| {job} | {result} | {verdict} |" for job, result, verdict in rows]
     lines += [
         f"| (إعفاء {job}) | skipped | {reason} |"
-        for (ev, job), reason in sorted(EXEMPT.items())
+        for (ev, job), reason in sorted(exempt.items())
         if ev == event and any(r[0] == job and r[2] == "EXEMPT" for r in rows)
     ]
     text = "\n".join(lines)
@@ -90,12 +97,16 @@ def run(needs_json: str | None, event: str | None, title: str, summary_path: str
 
 
 def main() -> int:
-    title = sys.argv[1] if len(sys.argv) > 1 else "بوّابة"
+    args = [a for a in sys.argv[1:] if a != "--no-exempt"]
+    title = args[0] if args else "بوّابة"
+    # `--no-exempt`: بوّابةٌ لا تعفي مهمّةً على أيّ حدث (Security Summary) — لا يسري عليها جدولُ EXEMPT.
+    exempt = {} if "--no-exempt" in sys.argv[1:] else None
     return run(
         os.environ.get("NEEDS_JSON"),
         os.environ.get("GITHUB_EVENT_NAME"),
         title,
         os.environ.get("GITHUB_STEP_SUMMARY"),
+        exempt,
     )
 
 

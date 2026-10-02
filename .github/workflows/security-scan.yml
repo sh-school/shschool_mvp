@@ -256,4 +256,4 @@ jobs:
       - name: حكمُ الفحوص الأمنيّة
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
-        run: python3 scripts/ci_needs_gate.py "Security Scan Results"
+        run: python3 scripts/ci_needs_gate.py "Security Scan Results" --no-exempt
