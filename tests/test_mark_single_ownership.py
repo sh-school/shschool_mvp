@@ -56,19 +56,19 @@ def klass(school):
 
 @pytest.fixture
 def student(klass):
-    user = UserFactory(full_name="طالب التربية الخاصّة", national_id="29300004001")
+    user = UserFactory(full_name="طالب التربية الخاصّة", national_id="29000004001")
     StudentEnrollmentFactory(student=user, class_group=klass, enrolled_at=ENROLLED)
     return user
 
 
 @pytest.fixture
 def owner(school):
-    return _staff(school, "ese_teacher", "معلّم الحصّة", "29300004010")
+    return _staff(school, "ese_teacher", "معلّم الحصّة", "29000004010")
 
 
 @pytest.fixture
 def colleague(school):
-    return _staff(school, "ese_teacher", "زميلٌ آخر", "29300004011")
+    return _staff(school, "ese_teacher", "زميلٌ آخر", "29000004011")
 
 
 @pytest.fixture
@@ -116,7 +116,7 @@ def test_another_teacher_may_not_mark_a_colleagues_session(
 def test_a_coordinator_who_is_not_the_session_teacher_may_not_mark(
     client_as, at_730, school, session, student
 ):
-    coordinator = _staff(school, "coordinator", "منسّق", "29300004012")
+    coordinator = _staff(school, "coordinator", "منسّق", "29000004012")
     response = _mark(client_as, coordinator, session, student)
     assert response.status_code == 403
     assert not StudentAttendance.objects.exists()
@@ -170,9 +170,9 @@ def test_recorders_still_mark_any_wingless_session(client_as, school, session, s
     ومشرفُ الجناح مقيَّدٌ بجناحه فيرى شعبةً بلا جناحٍ 404 كما كان (قرارُ 2026-09-15) — لا شأنَ لهذا الإصلاح به.
     """
     for role, nid in (
-        ("vice_admin", "29300004021"),
-        ("vice_academic", "29300004022"),
-        ("principal", "29300004023"),
+        ("vice_admin", "29000004021"),
+        ("vice_academic", "29000004022"),
+        ("principal", "29000004023"),
     ):
         recorder = _staff(school, role, role, nid)
         response = _mark(client_as, recorder, session, student, status="present")
@@ -183,7 +183,7 @@ def test_the_developer_may_not_mark_even_as_a_superuser(
     client_as, at_730, school, session, student
 ):
     """D-128م: المطوّرُ لا يُدخل ولو كان superuser — لا يمرّ بـ`is_recorder` (حكمُ 0105 أ)."""
-    developer = _staff(school, "platform_developer", "المطوّر", "29300004030")
+    developer = _staff(school, "platform_developer", "المطوّر", "29000004030")
     developer.is_superuser = True
     developer.save(update_fields=["is_superuser"])
     response = _mark(client_as, developer, session, student)
@@ -217,6 +217,6 @@ def test_a_recorders_marking_is_not_double_audited_by_this_path(
     """أهلُ الرصد لهم مساراتُهم وتدقيقُهم (كشفُ الحصص)؛ هذا السطرُ لمن لا يملك غيره."""
     from core.models import AuditLog
 
-    recorder = _staff(school, "vice_admin", "النائب", "29300004031")
+    recorder = _staff(school, "vice_admin", "النائب", "29000004031")
     _mark(client_as, recorder, session, student, "present")
     assert not AuditLog.objects.filter(object_repr__startswith="رصدُ المعلّم").exists()
