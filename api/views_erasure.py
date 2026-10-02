@@ -63,6 +63,8 @@ def _school_scope(request):
     """حصرُ الطلب بمدرسة المستخدم (W-20261002-040) — والمطوّر يرى الكلّ."""
     if request.user.is_superuser:
         return {}
+    # get_school() لا request.school: مصادقةُ DRF بالتوكن تجري بعد SchoolContextMiddleware
+    # فتكون المدرسةُ هناك None (فيفشل الحصرُ مغلقاً). فالاستدعاءُ الثالثُ مقصود.
     return {"school": request.user.get_school()}
 
 
@@ -95,7 +97,7 @@ def create_erasure_request(request):
     # ويسري على وليّ الأمر أيضاً (ParentStudentLink بلا مرشّح مدرسة). وعضويّةُ طالبٍ
     # غيرِ نشطةٍ (تخرّج/انتقال) تكفي: حقُّ المحو لا يسقط بخروجه.
     if not request.user.is_superuser:
-        if not student.memberships.filter(school=school).exists():
+        if not ErasureService.student_in_school(student, school):
             return Response({"detail": "غير موجود."}, status=status.HTTP_404_NOT_FOUND)
 
     # Check for existing pending request

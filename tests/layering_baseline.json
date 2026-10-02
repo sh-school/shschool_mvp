@@ -142,7 +142,7 @@
   "academic_management/views.py": 6,
   "analytics/views.py": 12,
   "api/views.py": 16,
-  "api/views_erasure.py": 2,
+  "api/views_erasure.py": 3,
   "clinic/views.py": 6,
   "core/views_audit.py": 1,
   "core/views_dashboard.py": 1,
