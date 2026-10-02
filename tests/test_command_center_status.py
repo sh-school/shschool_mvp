@@ -198,3 +198,41 @@ def test_a_red_panel_is_listed_by_name(client_as, developer_user):
     contract.store("ci", {"status": "bad", "headline": "x", "gauge": 10})
     html = client_as(developer_user).get(reverse("command_center:status")).content.decode()
     assert "أحمر:" in html and "فحوصُ CI" in html
+
+
+# ── الروابط: القائمةُ والصفحاتُ المرتبطة (ملاحظة المالك: أين رابطُها في المنيو؟) ──────────────────────────────
+
+
+def _developer_principal(principal_user):
+    from django.contrib.auth.models import Group
+
+    principal_user.groups.add(Group.objects.get_or_create(name="developers")[0])
+    return principal_user
+
+
+def test_the_developer_sees_the_status_link_in_the_menu_next_to_the_center(
+    client_as, principal_user
+):
+    url = reverse("command_center:status")
+    html = client_as(_developer_principal(principal_user)).get("/dashboard/").content.decode()
+    assert f'href="{url}"' in html
+    assert (
+        html.index(reverse("command_center:index"))
+        < html.index(f'href="{url}"')
+        < html.index(reverse("improvement_roadmap"))
+    ), "بعد «مركز قيادة الجودة» وقبل «خارطة التجويد» في أدوات المطوّر"
+    assert 'aria-label="حالة اليوم' in html
+
+
+def test_a_non_developer_never_sees_the_status_link(client_as, teacher_user, principal_user):
+    url = reverse("command_center:status")
+    assert url not in client_as(teacher_user).get("/dashboard/").content.decode()
+    assert url not in client_as(principal_user).get("/dashboard/").content.decode()
+
+
+def test_the_center_page_and_the_status_page_link_to_each_other(client_as, developer_user):
+    client = client_as(developer_user)
+    center = client.get(reverse("command_center:index")).content.decode()
+    status = client.get(reverse("command_center:status")).content.decode()
+    assert f'href="{reverse("command_center:status")}"' in center
+    assert f'href="{reverse("command_center:index")}"' in status
