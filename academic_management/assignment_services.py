@@ -56,6 +56,8 @@ COORDINATOR_BELOW_MIN = "coordinator_below_min"
 NEW_TEACHER_TRANSITION_GRADE = "new_teacher_transition_grade"
 RESOURCE_NEAR_CAP = "resource_near_cap"
 PARALLEL_WITHOUT_PARTNER = "parallel_without_partner"
+PARALLEL_SAME_TEACHER = "parallel_same_teacher"
+BAND_LOAD_IMPOSSIBLE = "band_load_impossible"
 TEACHER_OUTSIDE_SCHOOL = "teacher_outside_school"
 PREPARER_DOES_NOT_TEACH = "preparer_does_not_teach"
 COURSE_ALREADY_PREPARED = "course_already_prepared"
@@ -291,6 +293,33 @@ def _parallel_findings(
     ]
 
 
+def _parallel_same_teacher_findings(school, academic_year, class_group, teacher, tag, current):
+    """AS-2: معلّمٌ واحدٌ لعضوَين في المجموعة المتوازية نفسِها يقع في خانةٍ واحدةٍ مرّتين.
+
+    `_to_tasks` يدمج أعضاءَ المجموعة في مهمّةٍ واحدة فلا يراه HC1 — فيُرفض هنا.
+    """
+    if not tag or teacher is None:
+        return []
+    from operations.models import SubjectClassAssignment
+
+    rivals = SubjectClassAssignment.objects.live(school, year=academic_year).filter(
+        class_group=class_group, parallel_group=tag, teacher=teacher
+    )
+    if current is not None:
+        rivals = rivals.exclude(pk=current.pk)
+    other = rivals.select_related("subject").first()
+    if other is None:
+        return []
+    return [
+        _f(
+            BLOCK,
+            PARALLEL_SAME_TEACHER,
+            f"{teacher.full_name} مُسنَدٌ أصلاً إلى {other.subject.name_ar} في مجموعة التوازي «{tag}»"
+            f" بـ{class_group} — فالمجموعةُ المتوازيةُ تلزمها معلّمون مختلفون.",
+        )
+    ]
+
+
 def _coordinator_findings(teacher, school, subject, projected_teaching):
     """نصابُ المنسّق دون حدّه الأدنى — والحدُّ أعلى في المواد العمليّة."""
     if not _is_coordinator(teacher, school):
@@ -347,6 +376,18 @@ def _teacher_findings(
             )
         )
 
+    #: العجزُ بالعدّ وحدَه قائمٌ وتحكمه صرامةُ المدرسة (OVER_CAPACITY): لا يُكرَّر هنا
+    #: فيُبطل ذلك القرار. وهذا الفحصُ يضيف ما لا يراه العدُّ — سقفُ الجرس بالأوقات
+    #: الفعليّة وتفضيلُ المعلّم الشخصيّ (AS-1/AS-4/AS-5) — فيرفض ما كان يمرّ صامتاً.
+    if projected_teaching <= capacity:
+        from operations import schedule_feasibility
+
+        impossible = schedule_feasibility.entry_load_violation(
+            school, academic_year, teacher, class_group, projected_teaching
+        )
+        if impossible:
+            findings.append(_f(BLOCK, BAND_LOAD_IMPOSSIBLE, impossible))
+
     findings.extend(_coordinator_findings(teacher, school, subject, projected_teaching))
 
     if class_group.grade in TRANSITION_GRADES and _joined_this_year(teacher, school, academic_year):
@@ -402,6 +443,11 @@ def check_assignment(
     if teacher is None:
         return _apply_strictness(findings, school)
 
+    findings.extend(
+        _parallel_same_teacher_findings(
+            school, academic_year, class_group, teacher, parallel_group, current
+        )
+    )
     findings.extend(
         _teacher_findings(
             school=school,
