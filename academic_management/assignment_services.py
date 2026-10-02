@@ -37,6 +37,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from academic_management import assignment_feasibility_hook as feasibility
 from academic_management import curriculum_services as curriculum
 from academic_management import load as loads
 from academic_management.models import CoursePreparation, WorkloadGovernance
@@ -56,6 +57,8 @@ COORDINATOR_BELOW_MIN = "coordinator_below_min"
 NEW_TEACHER_TRANSITION_GRADE = "new_teacher_transition_grade"
 RESOURCE_NEAR_CAP = "resource_near_cap"
 PARALLEL_WITHOUT_PARTNER = "parallel_without_partner"
+PARALLEL_SAME_TEACHER = "parallel_same_teacher"
+BAND_LOAD_IMPOSSIBLE = "band_load_impossible"
 TEACHER_OUTSIDE_SCHOOL = "teacher_outside_school"
 PREPARER_DOES_NOT_TEACH = "preparer_does_not_teach"
 COURSE_ALREADY_PREPARED = "course_already_prepared"
@@ -347,6 +350,12 @@ def _teacher_findings(
             )
         )
 
+    impossible = feasibility.band_load_message(
+        school, academic_year, teacher, class_group, projected_teaching, capacity
+    )
+    if impossible:
+        findings.append(_f(BLOCK, BAND_LOAD_IMPOSSIBLE, impossible))
+
     findings.extend(_coordinator_findings(teacher, school, subject, projected_teaching))
 
     if class_group.grade in TRANSITION_GRADES and _joined_this_year(teacher, school, academic_year):
@@ -402,6 +411,11 @@ def check_assignment(
     if teacher is None:
         return _apply_strictness(findings, school)
 
+    clash = feasibility.parallel_same_teacher_message(
+        school, academic_year, class_group, teacher, parallel_group, current
+    )
+    if clash:
+        findings.append(_f(BLOCK, PARALLEL_SAME_TEACHER, clash))
     findings.extend(
         _teacher_findings(
             school=school,
