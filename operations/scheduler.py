@@ -58,21 +58,28 @@ PATIENCE = 3
 
 
 class Deadline:
-    """ساعةُ البحث: تُمرَّر إلى الإصلاح فيقف عند نفاد الميزانية، وتذكر أنّها قطعت لتُسجَّل في اللقطة.
+    """ساعةُ البحث: تُمرَّر إلى الإصلاح فيقف عند نفاد الميزانية، وتذكر أنّها قطعت ومتى (لتُسجَّل في اللقطة).
 
     كانت الميزانيةُ تُسأل **بين المحاولات** وحدَها، والمحاولةُ نفسُها (الإزاحةُ الموجَّهة بعمق 3 لكلّ متعذّرة،
     ثلاثَ مرّاتٍ) بلا ساعةٍ — فشعبةٌ فوق سعتها تُنفق ≈290 ثانيةً على ميزانيةِ 4 ثوانٍ (W-20261002-033).
-    والفحصُ عند كلّ متعذّرة: تجاوزُه بقدر إزاحةٍ واحدةٍ لا أكثر.
+    والفحصُ عند كلّ متعذّرة: تجاوزُه بقدر إزاحةٍ واحدةٍ لا أكثر. وبساعةٍ رتيبةٍ (`monotonic`) فلا يُربكها تعديلُ
+    ساعة النظام. وبعد أوّل قطعٍ تبقى منتهيةً: المحاولاتُ اللاحقةُ تُنهي إصلاحَها فوراً (مقصود).
     """
 
-    def __init__(self, at: float, clock=time.time):
-        self.at = at
-        self.hit = False
+    def __init__(self, seconds: float, clock=time.monotonic):
         self._clock = clock
+        self._started = clock()
+        self.at = self._started + seconds
+        self.attempt = 0  # المحاولةُ الجاريةُ — تضعها حلقةُ التوليد
+        self.hit = False
+        self.hit_attempt: int | None = None
+        self.hit_after: float | None = None
 
     def expired(self) -> bool:
-        if self._clock() >= self.at:
+        if not self.hit and self._clock() >= self.at:
             self.hit = True
+            self.hit_attempt = self.attempt
+            self.hit_after = round(self._clock() - self._started, 1)
         return self.hit
 
 
@@ -1021,7 +1028,15 @@ def _repair_pass(
                 still.extend(remaining[position:])
                 break
             if budget <= 0 or not _try_eject(
-                grid, task, blocked, preferences, depth, school, allow_adjacent, allow_dense
+                grid,
+                task,
+                blocked,
+                preferences,
+                depth,
+                school,
+                allow_adjacent,
+                allow_dense,
+                deadline,
             ):
                 still.append(task)
             else:
@@ -1033,7 +1048,15 @@ def _repair_pass(
 
 
 def _try_eject(
-    grid, task, blocked, preferences, depth=1, school=None, allow_adjacent=False, allow_dense=False
+    grid,
+    task,
+    blocked,
+    preferences,
+    depth=1,
+    school=None,
+    allow_adjacent=False,
+    allow_dense=False,
+    deadline=None,
 ):
     """يُخرج ساكنَ الخانةِ لينزل فيها المتعذّر — ثمّ يُعيد الساكنَ إلى بديل.
 
@@ -1042,6 +1065,10 @@ def _try_eject(
     ممّا يُصلح، وقد كفى العمقان: اثنتان بقيتا من ثمانٍ وخمسين.
     """
     for day, period in _candidate_starts(grid, task, blocked, school):
+        # الساعةُ داخل السلسلة نفسِها لا بين المتعذّرات وحدَها: إزاحةٌ واحدةٌ بعمق 4 قاست 39 ثانيةً (W-20261002-033).
+        # والفحصُ هنا قبل `grid.begin()` فلا حركةَ مفتوحة: يفشل هذا المستوى فيتراجع المُنادي ذرّيّاً كأيّ فشل.
+        if deadline is not None and deadline.expired():
+            return False
         evicted = _blockers(grid, task, day, period, blocked)
         #: إزاحةُ أكثرَ من ساكنَين تُقلّب الجدولَ أكثرَ ممّا تُصلح.
         if evicted is None or not evicted or len(evicted) > 2:
@@ -1071,6 +1098,7 @@ def _try_eject(
                 school,
                 allow_adjacent,
                 allow_dense,
+                deadline,
             ):
                 grid.commit()
                 return True
@@ -1111,7 +1139,15 @@ def _home_of(grid, task):
 
 
 def _rehome_all(
-    grid, tasks, blocked, preferences, depth=1, school=None, allow_adjacent=False, allow_dense=False
+    grid,
+    tasks,
+    blocked,
+    preferences,
+    depth=1,
+    school=None,
+    allow_adjacent=False,
+    allow_dense=False,
+    deadline=None,
 ):
     """يُعيد المُزاحين إلى خاناتٍ صحيحة، أو يُعلن الفشلَ ليتراجع المُنادي.
 
@@ -1131,7 +1167,15 @@ def _rehome_all(
             continue
         # لا خانةَ فارغةً له — فليُزِح هو الآخرُ إن بقي في العمق سعة.
         if depth > 1 and _try_eject(
-            grid, task, blocked, preferences, depth - 1, school, allow_adjacent, allow_dense
+            grid,
+            task,
+            blocked,
+            preferences,
+            depth - 1,
+            school,
+            allow_adjacent,
+            allow_dense,
+            deadline,
         ):
             continue
         return False
@@ -1590,7 +1634,7 @@ def generate_schedule(
 
     budget = float(getattr(_settings, "SCHEDULE_TIME_BUDGET_SECONDS", 60))
     # سقفُ البحث الصلب ضعفُ الميزانية (كما في `_search_exhausted` لما بقي متعذّرٌ): الإصلاحُ يقف عنده داخل المحاولة.
-    search_deadline = Deadline(start_time + 2 * budget)
+    search_deadline = Deadline(2 * budget)
     lab_ctx = load_context(school, academic_year)
     attempt_log: list[dict] = []
     since_improvement = 0
@@ -1600,6 +1644,7 @@ def generate_schedule(
             return _stopped_result()
         attempt += 1
         attempt_started = time.time()
+        search_deadline.attempt = attempt + 1
         rng = random.Random(attempt)
         grid = ScheduleGrid(
             band_times=band_times,
@@ -1641,6 +1686,9 @@ def generate_schedule(
                 "relaxed": relaxed,
                 "score": lab_score,
                 "ms": int((time.time() - attempt_started) * 1000),
+                # الساعةُ رتيبةُ الانقضاء: ما انقضى بعد هذه المحاولة فقد انقضى فيها أو قبلها، فتكون مقطوعةَ
+                # الإصلاح (والرخصُ لم تُجرَّب إن سبق القطعُ بدايتَها). وتامّةٌ قبل الموعد ⇒ `cut=False`.
+                "cut": search_deadline.hit,
             }
         )
         # «تامّ» هنا: لا متعذّرَ ولا يومَ فارغاً ولا رخصةَ كثافة — فما دون ذلك يستحقّ
@@ -1652,6 +1700,7 @@ def generate_schedule(
             break
 
     _, grid, leftovers, repaired, relaxed, densed, chosen = best
+    chosen_cut = bool(attempt_log[chosen]["cut"])
     if search_deadline.hit:
         logger.warning(
             "قُطع إصلاحُ التوليد بنفاد الميزانية (%.0f ثانية) بعد %d محاولة — متعذّرات: %d",
@@ -1751,8 +1800,16 @@ def generate_schedule(
                         "attempts": attempt + 1,
                         "chosen_attempt": chosen,
                         "budget_seconds": budget,
-                        #: قُطع الإصلاحُ بنفاد الميزانية — فالمتعذّراتُ قد تكون من قطعٍ لا من استحالة.
-                        "budget_cut": search_deadline.hit,
+                        #: قُطع إصلاحُ **المحاولة المختارة** بنفاد الميزانية — فمتعذّراتُها قد تكون من قطعٍ لا من استحالة.
+                        #: (لا العلمُ العامّ: محاولةٌ تامّةٌ قبل الموعد اختيرت ثمّ قُطعت التي بعدها ⇒ `False`.)
+                        "budget_cut": chosen_cut,
+                        #: ولو قُطعت المحاولةُ المختارة فالرخصتان (التلاصق، الكثافة) **لم تُجرَّبا** — و`relaxed`/`densed`
+                        #: صفرٌ حينها لا لأنّ الرخصةَ لم تنفع بل لأنّها لم تُجرَّب.
+                        "licences_tried": not chosen_cut,
+                        #: وبيانُ القطع العامّ للبحث: أيُّ محاولةٍ أوّلاً وبعد كم ثانية (للتشخيص — قد لا تكون المختارة).
+                        "search_budget_exhausted": search_deadline.hit,
+                        "budget_cut_attempt": search_deadline.hit_attempt,
+                        "budget_cut_after_s": search_deadline.hit_after,
                         "attempt_log": attempt_log,
                         "improvement": improvement,
                         #: ما بقي مكسوراً بعد السداد — بموضعه، لبوّابة الاعتماد (SCH-04).
