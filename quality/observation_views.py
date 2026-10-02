@@ -750,7 +750,9 @@ def observation_pdf_view(request, obs_id):
         {
             "obs": obs,
             "page_title": f"استمارة {kind}: {obs.teacher.full_name}",
-            "can_send": _can_send(request.user),
+            # لا نسخةَ من مسوّدة (W-20261001-004) — فلا يُعرض الزرُّ على خيارٍ
+            # سيُرفَض أصلاً في `send_copy` (البوّابةُ الحقيقيّة هناك لا هنا).
+            "can_send": _can_send(request.user) and obs.status != "draft",
             "recipients": ObservationService.recipient_options(obs),
         },
     )
@@ -769,7 +771,11 @@ def observation_send(request, obs_id):
         messages.warning(request, "اختر مستلماً واحداً على الأقلّ.")
         return redirect("observation_pdf_view", obs_id=obs.pk)
 
-    sent = ObservationService.send_copy(obs, request.user, keys)
+    try:
+        sent = ObservationService.send_copy(obs, request.user, keys)
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect("observation_pdf_view", obs_id=obs.pk)
     if sent:
         AuditLog.log(
             user=request.user,

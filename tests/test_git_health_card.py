@@ -1,8 +1,8 @@
 """بطاقةُ «صحّة Git» في رئيسيّة الإدارة (REP-10 ب): آخرُ قراءةٍ لـRK1..RK3 من الخارطة وعمرُها — أرقامٌ وتواريخُ وحدَها.
 
 القياسُ الفعليّ على جهاز المطوّر (`scripts/prune_local_branches.sh --json`) ولا سبيلَ إليه من التطبيق: صورةُ الحاوية بلا git والإنتاجُ بلا `.git`.
-فالبطاقةُ لا تدّعي قياساً حيّاً: تعرض آخرَ قراءةٍ مسجَّلةٍ في الخارطة وعمرَها، وتصفرّ حين تتأخّر وتحمرّ حين لا يُعتدّ بها — فلا يُطمأنّ
-بقراءةٍ قديمةٍ ولا بغيابها.
+فالبطاقةُ لا تدّعي قياساً حيّاً: تعرض آخرَ قراءةٍ مسجَّلةٍ في الخارطة وعمرَها. والقياسُ يدويٌّ عند الطلب (قرارُ 0701، 2026-09-29، بعد D-60م)
+فالعمرُ معلومةٌ لا إنذار؛ وغيابُ القراءة أو تاريخِها يصفرّ، وبُعدُ RK2 عن هدفه يحمرّ.
 """
 
 import datetime
@@ -86,15 +86,14 @@ def test_unique_work_with_a_single_copy_above_target_is_red_not_yellow():
     assert "عملٌ فريدٌ بنسخةٍ وحيدة 1 (الهدف 0)" in card.detail
 
 
-def test_a_reading_older_than_eight_days_is_late_and_older_than_fifteen_is_not_trusted():
-    _healthy(TODAY - datetime.timedelta(days=9))
-    late = admin_monitor.git_health(TODAY)
+def test_an_old_manual_reading_is_information_not_an_alarm():
+    """القياسُ يدويٌّ عند الطلب: قراءةٌ عمرُها أربعون يوماً على الهدف تبقى خضراء، ويُذكر عمرُها."""
+    _healthy(TODAY - datetime.timedelta(days=40))
 
-    _healthy(TODAY - datetime.timedelta(days=16))
-    stale = admin_monitor.git_health(TODAY)
+    card = admin_monitor.git_health(TODAY)
 
-    assert late.level == WARN and "متأخّرة" in late.detail
-    assert stale.level == BAD and "لا يُعتدّ بها" in stale.detail
+    assert card.level == OK
+    assert "أقدمُ قراءةٍ قبل 40 يوماً (يدويّةٌ عند الطلب)" in card.detail
 
 
 def test_the_age_is_the_oldest_reading_not_the_newest():
@@ -103,8 +102,16 @@ def test_the_age_is_the_oldest_reading_not_the_newest():
 
     card = admin_monitor.git_health(TODAY)
 
-    assert card.level == BAD
+    assert card.level == OK
     assert "أقدمُ قراءةٍ قبل 20 يوماً" in card.detail
+
+
+def test_an_old_reading_off_target_keeps_its_level():
+    """العمرُ لا يُخفي انحرافاً: RK2 بعيدٌ عن هدفه يبقى أحمرَ مهما قدُمت قراءتُه."""
+    _healthy(TODAY - datetime.timedelta(days=30))
+    _reading("RK2", 2, 0, TODAY - datetime.timedelta(days=30))
+
+    assert admin_monitor.git_health(TODAY).level == BAD
 
 
 def test_an_undated_reading_is_not_green():
