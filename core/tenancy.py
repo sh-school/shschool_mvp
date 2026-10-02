@@ -112,6 +112,7 @@ GLOBAL_INFRASTRUCTURE = {
     "developer_feedback_legalonboardingconsent": "consent given by a person to the platform, not to a school",
     "developer_feedback_messageedithistory": "developer channel, deliberately cross-school",
     "developer_feedback_messagestatuslog": "developer channel, deliberately cross-school",
+    "developer_feedback_outboundmessage": "developer channel, deliberately cross-school",
     "django_admin_log": "Django admin audit trail, keyed on user and content type",
     "django_content_type": "model registry",
     "django_session": "session store, keyed on session id",
