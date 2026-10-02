@@ -179,3 +179,24 @@ def test_a_teacher_still_fails_the_leadership_api_permission(rf, teacher_user):
     request.user = teacher_user
 
     assert not IsLeadership().has_permission(request, view=None)
+
+
+def test_the_developer_cannot_read_a_child_through_the_parent_api_without_a_link(
+    client_as, developer, school
+):
+    """مراجعة 0105 (٢): تجاوزُ بوّابة IsParentOrAdmin لا يفتح ملكيّةَ الطالب — الفحصُ الداخليّ باقٍ.
+
+    طالبٌ من مدرسةٍ أخرى بلا ParentStudentLink: يُردّ المطوّرُ عن نقطتَي الأبناء بـ403 لا بقراءة.
+    """
+    from tests.conftest import MembershipFactory, RoleFactory, SchoolFactory, UserFactory
+
+    other_school = SchoolFactory()
+    foreign = UserFactory(full_name="طالب مدرسة أخرى")
+    MembershipFactory(
+        user=foreign, school=other_school, role=RoleFactory(school=other_school, name="student")
+    )
+    client = client_as(developer)
+
+    for name in ("api_v1:parent-child-attendance", "api_v1:parent-child-grades"):
+        resp = client.get(reverse(name, kwargs={"student_id": foreign.pk}))
+        assert resp.status_code in (403, 404), name
