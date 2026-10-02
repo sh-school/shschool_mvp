@@ -1,0 +1,31 @@
+{% comment %}
+خليّةُ إدخال المعلّم الفعليّ لطالبٍ في شُعب الأجنحة (W-020): حالةُ ما أدخله، ثمّ نموذجُ الإدخال أو التصحيح داخل النافذة.
+المبدئيُّ «بانتظار الاعتماد» ليس حضوراً ولا غياباً حتى يقرّر حاملُ الجناح — فيُعرض وسماً لا حالةً.
+ولا يُعرض سببُ الرفض ولا سببُ التصحيح هنا (نصٌّ حرٌّ لأصحاب الاعتماد وحدَهم).
+{% endcomment %}
+{% if line.entry %}
+  {% if line.entry_state == "pending" %}
+    <span class="badge badge--neutral" title="لم يُحتسب حضوراً ولا غياباً حتى يقرّر حاملُ الجناح">بانتظار الاعتماد: {{ line.entry.get_status_display }}</span>
+  {% elif line.entry_state == "approved" %}
+    <span class="badge badge--success">معتمَد: {{ line.entry.get_status_display }}</span>
+  {% elif line.entry_state == "rejected" %}
+    <span class="badge badge--danger" title="راجع حاملَ الجناح ثمّ أعِد الإدخال">لم يُعتمد إدخالُك</span>
+  {% endif %}
+{% endif %}
+{% if can_enter %}
+<form hx-post="{% url 'attendance_entry' session.id %}" hx-target="#entry-{{ line.student.id }}" hx-swap="innerHTML" class="asg-inline">
+  {% csrf_token %}
+  <input type="hidden" name="student_id" value="{{ line.student.id }}">
+  <label class="sr-only" for="entry-status-{{ line.student.id }}">حالةُ {{ line.student.full_name }}</label>
+  <select name="status" id="entry-status-{{ line.student.id }}" class="form-select">
+    <option value="present" {% if line.entry.status == "present" %}selected{% endif %}>حاضر</option>
+    <option value="absent" {% if line.entry.status == "absent" %}selected{% endif %}>غائب</option>
+    <option value="late" {% if line.entry.status == "late" %}selected{% endif %}>متأخّر</option>
+  </select>
+  <input type="number" name="minutes" min="1" max="600" class="form-control" placeholder="دقائق" aria-label="دقائقُ التأخّر" value="{{ line.entry.tardiness_minutes|default_if_none:'' }}">
+  {% if line.entry_state == "approved" %}
+  <input type="text" name="reason" maxlength="300" required class="form-control" placeholder="سببُ التصحيح" aria-label="سببُ تصحيح رصدٍ معتمَد">
+  {% endif %}
+  <button type="submit" class="btn-secondary btn-sm">{% if line.entry %}تصحيح{% else %}إدخال{% endif %}</button>
+</form>
+{% endif %}

@@ -772,7 +772,7 @@ class TestTheTeacherDoesNotRecord:
         body = response.content.decode()
 
         assert response.status_code == 200
-        assert "لمشرف الجناح" in body
+        assert "يعتمده حاملُ جناح الشعبة" in body
         assert reverse("mark_single", args=[periods[0].id]) not in body
 
     def test_the_teachers_schedule_does_not_invite_him_to_record(

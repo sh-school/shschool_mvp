@@ -1,10 +1,16 @@
 from django.urls import path
 
 from . import views
+from .views_attendance_entries import approval_decide, approvals, entry_submit, unapproved
 from .views_schedule_drafts import discard_schedule, stop_schedule_generation
 
 urlpatterns = [
     path("schedule/", views.schedule, name="teacher_schedule"),
+    # -- رصدُ المعلّم المبدئيّ واعتمادُه (W-020) --
+    path("attendance/approvals/", approvals, name="attendance_approvals"),
+    path("attendance/approvals/<uuid:entry_id>/decide/", approval_decide, name="attendance_decide"),
+    path("attendance/unapproved/", unapproved, name="attendance_unapproved"),
+    path("attendance/<uuid:session_id>/entry/", entry_submit, name="attendance_entry"),
     path("attendance/<uuid:session_id>/", views.attendance_view, name="attendance"),
     path("attendance/<uuid:session_id>/mark-single/", views.mark_single, name="mark_single"),
     path("attendance/<uuid:session_id>/mark-all/", views.mark_all_present, name="mark_all_present"),

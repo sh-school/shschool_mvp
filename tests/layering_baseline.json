@@ -399,7 +399,6 @@
    "orm": 8
   },
   "operations/views_attendance.py::attendance_view": {
-   "lines": 82,
    "orm": 8
   },
   "operations/views_attendance.py::mark_all_present": {

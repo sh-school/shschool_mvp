@@ -1,0 +1,44 @@
+{% extends "base/base.html" %}
+{% load ui icons %}
+{% comment %}
+تقريرُ «غيرُ معتمَد بعد X ساعة» (W-020): حصصٌ فيها رصدٌ مبدئيٌّ من المعلّم لم يقرّر فيه أحدٌ — بالعدد لا بأسماء الطلاب ولا حالاتهم.
+ما لا حاملَ فعليّاً له (لا مشرفَ للجناح، أو الحاملُ هو معلّمُ الحصّة، أو بلا عضويّةٍ نشطة) يُوسَم لتتصرّف فيه القيادة.
+{% endcomment %}
+{% block title %}رصدٌ غيرُ معتمَد{% endblock %}
+
+{% block breadcrumbs %}
+{% url 'attendance_approvals' as approvals_url %}
+{% include "components/breadcrumbs.html" with parent_url=approvals_url parent_label="اعتمادُ رصد المعلّمين" current="غيرُ معتمَد بعد مدّة" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "رصدٌ غيرُ معتمَد" subtitle="إدخالاتٌ مبدئيّةٌ من المعلّمين لم يقرّر فيها أحدٌ بعد" icon="time" %}{% endpage_header %}
+
+  <form method="get" class="xr-form">
+    <label class="form-label" for="hours">أقدمُ من (ساعة)
+      <input type="number" id="hours" name="hours" min="1" max="336" value="{{ hours|floatformat:0 }}" class="form-control">
+    </label>
+    <button type="submit" class="btn-secondary btn-sm">عرض</button>
+  </form>
+
+  {% section_card "حصصٌ بلا قرار" meta=rows|length icon="checklist" empty="لا رصدَ معلّقاً فوق هذا الحدّ." %}
+    {% if rows %}
+    <ul class="plain-list">
+      {% for row in rows %}
+      <li class="plain-list__row">
+        <span class="plain-list__main">
+          <span class="plain-list__title">{{ row.session.class_group }} · {{ row.session.date|date:"j/n" }} {{ row.session.start_time|time:"H:i" }}</span>
+          <span class="plain-list__sub">المعلّم: {{ row.session.teacher.full_name|default:"—" }} · {{ row.count }} إدخال · الأقدمُ منذ {{ row.oldest_hours|floatformat:0 }} ساعة</span>
+        </span>
+        {% if row.holder_gap == "no_holder" %}<span class="status-badge status-warning">لا مشرفَ للجناح — للقيادة</span>
+        {% elif row.holder_gap == "holder_is_teacher" %}<span class="status-badge status-warning">الحاملُ هو المعلّم — للقيادة</span>
+        {% elif row.holder_gap == "holder_inactive" %}<span class="status-badge status-warning">الحاملُ بلا عضويّةٍ نشطة — للقيادة</span>
+        {% else %}<span class="status-badge status-info">عند حاملِ الجناح</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  {% endsection_card %}
+</div>
+{% endblock %}

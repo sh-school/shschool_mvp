@@ -60,7 +60,6 @@ from django.db import transaction
 from django.utils import timezone
 
 from operations.absence_policy import PERIOD_RECORDING_GRACE_MINUTES
-from operations.attendance_entries import settle_before_supervisor_write
 from operations.day_attendance import SOURCE, enrolled_of
 from operations.models import PeriodConfirmation, Session, StudentAttendance
 from operations.tardiness import is_period_tardy, minutes_after_start
@@ -551,6 +550,7 @@ def confirm_period(
     """
     from operations.class_exit import close_unreturned
     from operations.models import ClassExit
+    from operations.services.attendance_teacher import settle_before_supervisor_write
 
     now = now or timezone.now()
     periods = periods_of(class_group, day)

@@ -18,6 +18,7 @@ from core.models import StudentEnrollment
 from .day_attendance import can_record, is_recorder
 from .models import Session, StudentAttendance
 from .services import AttendanceService, ScheduleService, SubstituteService
+from .services.attendance_teacher import TeacherAttendanceService
 
 logger = logging.getLogger(__name__)
 
@@ -195,40 +196,14 @@ def attendance_view(request, session_id):
     ]
     for row in students_data:
         row["tone"] = attendance_tone(row["status"])
-    summary = AttendanceService.get_session_summary(session)
-    from .class_exit import exits_of_session
-
-    exits = exits_of_session(session)
     if not can_record(request.user, session):
-        # اطّلاعٌ لا رصد: يرى المعلّمُ ما رصده مشرفُ الجناح، ولا زرَّ يكتب —
-        # إلّا نقرةَ «دخل متأخّراً» لصاحب الحصّة (قرارُ 2026-09-13).
-        return render(
-            request,
-            "teacher/attendance_readonly.html",
-            {
-                "session": session,
-                "can_tap_late": request.user == session.teacher,
-                "exits": exits,
-                "out_now": sum(1 for cur, _ in exits.values() if cur is not None),
-                "students_data": [
-                    {
-                        **row,
-                        "status": row["status"] if row["attendance"] else "unmarked",
-                        "tap_minutes": (
-                            row["attendance"].late_minutes
-                            if row["attendance"] and row["attendance"].source == "teacher_late"
-                            else None
-                        ),
-                        "exit": exits.get(row["student"].id, (None, []))[0],
-                        "exit_count": len(exits.get(row["student"].id, (None, []))[1]),
-                    }
-                    for row in students_data
-                ],
-                "summary": summary,
-                "recorded": bool(existing),
-                **_session_heading(session),
-            },
-        )
+        # شُعبُ الأجنحة: المعلّمُ الفعليّ يُدخل رصداً مبدئيّاً يعتمده حاملُ الجناح (W-020)، وله نقرتا الدخول والخروج.
+        context = {
+            **TeacherAttendanceService.page_context(request.user, session),
+            **_session_heading(session),
+        }
+        return render(request, "teacher/attendance_readonly.html", context)
+    summary = AttendanceService.get_session_summary(session)
     view_mode = request.GET.get("view", "list")
     template = "teacher/attendance_grid.html" if view_mode == "grid" else "teacher/attendance.html"
 
