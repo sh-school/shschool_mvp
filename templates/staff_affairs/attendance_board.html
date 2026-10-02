@@ -14,6 +14,7 @@
 {% block content %}
 <div class="exec-dash">
   {% page_header "رصد حضور الموظفين" subtitle="بعد 7:00 متأخّر، وبعد 9:00 غائب ما لم يغطِّه إذنٌ معتمد أو عذرٌ مقبول، والانصراف قبل 14:00 يُعدّ — سياسة الحضور ت/د 2027/01، البنود 1.1 و2.1 و2.4" icon="attendance_register" %}
+    {% if request.user|can_open:"staff_affairs:attendance_import" %}<a href="{% url 'staff_affairs:attendance_import' %}" class="btn-secondary btn-sm">{% icon "upload" %} استيراد كشف البصمة</a>{% endif %}
     {% if request.user|can_open:"staff_affairs:attendance_report" %}<a href="{% url 'staff_affairs:attendance_report' %}" class="btn-secondary btn-sm">{% icon "reports" %} تقرير الشهر</a>{% endif %}
     {% if request.user|can_open:"staff_affairs:permit_queue" %}<a href="{% url 'staff_affairs:permit_queue' %}" class="btn-secondary btn-sm">{% icon "checklist" %} طلبات الأذونات</a>{% endif %}
   {% endpage_header %}

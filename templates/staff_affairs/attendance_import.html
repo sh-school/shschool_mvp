@@ -1,0 +1,114 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% load navigation %}
+{% block title %}استيراد كشف البصمة{% endblock %}
+{% block main_class %}{% page_layout "form" %}{% endblock %}
+{% block breadcrumbs %}
+{% url 'staff_affairs:attendance_board' as board_url %}{% include "components/breadcrumbs.html" with parent_url=board_url parent_label="رصد حضور الموظفين" current="استيراد كشف البصمة" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "استيراد كشف البصمة" subtitle="يُرفع كشفُ الجهاز اليوميّ (CSV) فتُعرض معاينةٌ بما سيُرصد وما سيُتخطّى ولماذا — ولا يُكتب شيءٌ قبل أن تعتمد. الرصدُ المستورَدُ يخضع لقواعد الحضور نفسِها (7:00 و9:00 و14:00 والأذونات والإعفاء)" icon="attendance_register" %}
+    <a href="{% url 'staff_affairs:attendance_board' %}" class="btn-secondary btn-sm">{% icon "attendance_register" %} الرصد اليدويّ</a>
+  {% endpage_header %}
+
+  {% if error %}{% callout "error" %}{{ error }}{% endcallout %}{% endif %}
+
+  {% if result %}
+    {% section_card "تعذّر رصدُ بعض الموظّفين" meta=failed|length icon="checklist" flush=True %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>الموظّف</th><th>السبب</th></tr></thead>
+          <tbody>
+            {% for name, message in failed %}<tr><td>{{ name }}</td><td>{{ message }}</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endsection_card %}
+    {% callout "info" %}رُصد {{ result.written }} موظّفاً، وتُخطّي {{ result.skipped_same }} مرصودون بالمثل. يُرصد من تعذّر رصدُه يدويّاً من <a href="{% url 'staff_affairs:attendance_board' %}">لوحة الرصد</a>.{% endcallout %}
+  {% elif plan %}
+    {% with c=plan.counts %}
+    {% kpi_strip label="ملخّص المعاينة" %}
+      {% kpi "سيُرصد" plan.writable tone="green" title="رصدٌ جديدٌ أو استكمالُ وقت انصرافٍ على رصدٍ قائم" %}
+      {% kpi "مرصودٌ بالمثل" c.same tone="sky" title="رُصد بالأوقات نفسِها من قبل — يُتخطّى" %}
+      {% kpi "بصمةُ دخولٍ ناقصة" c.missing_in tone="amber" title="كودُ الجهاز 103 — لا يُخمَّن حضورٌ لم يُسجَّل؛ يُرصد يدويّاً" %}
+      {% kpi "يخالف رصداً سابقاً" c.conflict tone="orange" title="رصدٌ يدويٌّ بأوقاتٍ أخرى — لا يُكتب فوقه إلّا بقرارك" %}
+      {% kpi "غيرُ مطابَق" c.unmatched tone="red" title="رقمٌ وظيفيٌّ لا موظّفَ به في هذه المدرسة" %}
+      {% kpi "متخطّى لسببٍ آخر" c.exempt|add:c.self|add:c.invalid tone="purple" title="معفًى من الرصد، أو بصمتُك أنت، أو سطرٌ غيرُ صالح" %}
+    {% endkpi_strip %}
+    {% endwith %}
+
+    {% if plan.issues %}
+      {% callout "warning" %}لم يُقرأ {{ plan.issues|length }} سطرٌ من الملفّ: {% for i in plan.issues|slice:":5" %}سطر {{ i.line }} ({{ i.message }}){% if not forloop.last %}، {% endif %}{% endfor %}{% if plan.issues|length > 5 %} …{% endif %}{% endcallout %}
+    {% endif %}
+
+    {% if plan.writable or plan.conflicts %}
+      {% section_card "الاعتماد" icon="confirm" %}
+        <form method="post" action="{% url 'staff_affairs:attendance_import_commit' %}">{% csrf_token %}
+          <input type="hidden" name="token" value="{{ token }}">
+          {% if plan.conflicts %}
+            {% field "overwrite_conflicts" "اكتب فوق الرصد السابق للمخالفين" type="checkbox" value="1" %}
+            {% callout "info" %}الأصلُ ألّا يُكتب فوق رصدٍ سابقٍ يخالف الجهاز — فقد يكون تصحيحاً مقصوداً.{% endcallout %}
+          {% endif %}
+          <div class="form-actions">
+            <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} اعتماد واستيراد {{ plan.writable }}</button>
+          </div>
+        </form>
+      {% endsection_card %}
+    {% else %}
+      {% callout "info" %}لا شيءَ جديداً يُرصد من هذا الملفّ.{% endcallout %}
+    {% endif %}
+
+    {% section_card "تفصيلُ الكشف" meta=plan.items|length icon="checklist" flush=True %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>الموظّف</th>
+              <th class="col-center">الرقم الوظيفي</th>
+              <th class="col-center">اليوم</th>
+              <th class="col-center">الحضور</th>
+              <th class="col-center">الانصراف</th>
+              <th>الحالة المحسوبة</th>
+              <th>الإجراء</th>
+              <th>ملاحظة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in plan.items %}
+            <tr>
+              <td>{{ item.staff.full_name|default:"—" }}</td>
+              <td class="col-center" dir="ltr">{{ item.row.employee_number }}</td>
+              <td class="col-center">{{ item.row.day|date:"d/m" }}</td>
+              <td class="col-center">{{ item.row.check_in|time:"H:i"|default:"—" }}</td>
+              <td class="col-center">{{ item.check_out|time:"H:i"|default:"—" }}</td>
+              <td>{% if item.status %}{{ item.status_label }}{% if item.late_minutes %} · {{ item.late_minutes }} د{% endif %}{% else %}—{% endif %}</td>
+              <td><span class="status-badge {% if item.action == 'new' or item.action == 'update' %}status-success{% elif item.action == 'same' %}status-gray{% elif item.action == 'conflict' or item.action == 'missing_in' %}status-warning{% elif item.action == 'unmatched' or item.action == 'invalid' %}status-danger{% else %}status-info{% endif %}">{{ item.label }}</span></td>
+              <td>{{ item.note }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endsection_card %}
+  {% endif %}
+
+  {% if not plan and not result %}
+    {% section_card "رفعُ الكشف" icon="upload" %}
+      {% callout "info" %}صدِّر كشفَ «حضور وانصراف المدرسة» من جهاز البصمة بصيغة CSV وارفعه كما هو. يُقرأ الملفُّ في الذاكرة ولا يُخزَّن، ويحمل أسماءَ وأرقامَ موظّفين فلا يُرسَل خارج المنصّة.{% endcallout %}
+      {% if form.errors %}{% callout "error" %}{{ form.file.errors|join:" · " }}{% endcallout %}{% endif %}
+      <form method="post" enctype="multipart/form-data" action="{% url 'staff_affairs:attendance_import' %}">{% csrf_token %}
+        <div class="form-row">
+          <div class="ui-field">
+            <label for="f-file" class="ui-field__label">ملفّ الكشف (CSV) <span class="req-star" aria-hidden="true">*</span></label>
+            <input id="f-file" type="file" name="file" accept=".csv,text/csv" class="form-control" required>
+          </div>
+          <div class="form-actions"><button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} معاينة</button></div>
+        </div>
+      </form>
+    {% endsection_card %}
+  {% endif %}
+</div>
+{% endblock %}

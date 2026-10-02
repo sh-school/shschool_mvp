@@ -399,6 +399,7 @@ class StaffAttendanceService:
         absence_type: str = "",
         accepted_excuse: str | None = "",
         request: HttpRequest | None = None,
+        source: str = "",
     ) -> StaffAttendance:
         """رصدُ حالة موظّفٍ في يوم — بنقرة، ووقتُ الحضور شاهدُها.
 
@@ -413,6 +414,7 @@ class StaffAttendanceService:
           والفارغُ غيابٌ لم يُغطَّ بعد (م-35).
         * ``check_out`` وقتُ الانصراف، وما بينه وبين 14:00 بلا إذنٍ يُعدّ (م-1) — إلّا في
           يوم الغياب (م-9).
+        * ``source`` وسمُ مصدر الرصد في أثر التدقيق (مثلاً ``biometric_import``)؛ والفارغُ رصدٌ يدويّ.
 
         والكتابةُ تحت قفل صفّ الموظّف — القفلِ نفسِه الذي يأخذه ``PermitService.act`` —
         فلا يكتب رصدٌ فوق ما أعادت ``reconcile`` حسابَه، ولا يتسابق راصدان.
@@ -454,6 +456,8 @@ class StaffAttendanceService:
         deciding = accepting or withdrawing
         stage_day = _StageDay(school, now)
         basis = stage_day.assignment_basis(actor) if deciding else {}
+        if source:
+            basis = {**basis, "source": source}
         if (
             deciding
             and actor.pk not in PermitService._principal_side(stage_day, staff.pk)

@@ -254,3 +254,15 @@ class AttendanceMarkForm(forms.Form):
     check_out = forms.TimeField(required=False)
     absence_type = forms.ChoiceField(choices=[("", ""), *ABSENCE_TYPES], required=False)
     accepted_excuse = forms.CharField(max_length=300, required=False)
+
+
+class BiometricUploadForm(forms.Form):
+    """رفعُ كشف البصمة اليوميّ — CSV من جهاز الحضور، يُقرأ في الذاكرة ولا يُخزَّن."""
+
+    file = forms.FileField(label="كشف البصمة (CSV)")
+
+    def clean_file(self) -> Any:
+        upload = self.cleaned_data["file"]
+        if not (upload.name or "").lower().endswith(".csv"):
+            raise forms.ValidationError("يُقبل ملفّ CSV فقط — صدِّر الكشفَ من الجهاز بهذه الصيغة.")
+        return upload
