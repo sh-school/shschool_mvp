@@ -1647,11 +1647,11 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .qc-group h3 { margin-block: var(--sp-2) var(--sp-0-5); font-size: var(--text-sm); color: var(--maroon-fg); }
 .qc-panel { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-0-5) var(--sp-2); padding-block: var(--sp-1); border-block-end: 1px solid var(--border-soft); font-size: var(--text-sm); }
 .qc-panel__title { flex: 1 1 9rem; min-inline-size: 0; }
-.qc-panel__bar { flex: 1 1 5rem; }
+.qc-panel__bar { flex: 1 1 5rem; background: var(--border); }   /* مسارُ البار سلفر فاتح (طلبُ المالك 2026-10-02) برمز الحدود المركزيّ؛ للصفحة وحدَها */
 .qc-panel__bar > .progress-qatar-fill { display: block; }   /* span مضمّن: بلا هذا يُهمَل width وinline-size فيختفي التعبئة (كما في .beh-bar__track) */
 .qc-panel__figure { flex: 2 1 10rem; min-inline-size: 0; font-size: var(--text-xs); }
 .qc-panel__more { flex: 1 0 100%; font-size: var(--text-xs); }
-.qc-panel .plain-list__row { padding-block: var(--sp-0-5); }
+.qc-panel .plain-list__row { padding-block: var(--sp-0-5); justify-content: flex-start; gap: var(--sp-3); }   /* التسميةُ والقيمةُ متجاورتان لا في طرفَي البطاقة (طلبُ المالك 2026-10-02) */
 
 /* نافذةُ التسجيل السريع: أربعُ درجاتٍ أزرارٌ كبيرة، والمختارةُ بلون الهويّة. */
 .beh-quick .ui-field-hint { display: inline; margin: 0; }

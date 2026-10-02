@@ -247,3 +247,14 @@ def test_the_bar_fill_is_a_block_so_its_width_is_not_ignored():
     """الحادثة (المالك 2026-10-02، «؟؟؟»): التعبئةُ `<span>` مضمَّنةٌ فيُهمل عرضُها المتغيّر `--progress-w` وتختفي الأشرطةُ فارغةً. تحرسها القاعدةُ كما في `.beh-bar__track`."""
     css = (ROOT / "static" / "css" / "custom" / "33-modules-4.css").read_text(encoding="utf-8")
     assert re.search(r"\.qc-panel__bar > \.progress-qatar-fill \{ display: block; \}", css)
+
+
+def test_the_bar_track_is_light_silver_from_a_central_token():
+    """طلبُ المالك 2026-10-02: خلفيةُ البار سلفر فاتح — برمز `--border` المركزيّ لا لونٍ حرفيّ، ولهذه الصفحة وحدَها (لا يمسّ المكوّنَ المشترك)."""
+    css = (ROOT / "static" / "css" / "custom" / "33-modules-4.css").read_text(encoding="utf-8")
+    assert re.search(r"\.qc-panel__bar \{[^}]*background: var\(--border\);", css)
+    shared = (ROOT / "static" / "css" / "custom" / "20-components.css").read_text(encoding="utf-8")
+    assert (
+        "background: var(--maroon-bg);"
+        in shared[shared.index(".progress-qatar {") : shared.index(".progress-qatar-fill {")]
+    )
