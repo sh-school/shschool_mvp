@@ -16,6 +16,7 @@ from core.models import (
     AuditLog,
     ConsentRecord,
     ErasureRequest,
+    Membership,
     ParentStudentLink,
     Profile,
     StudentEnrollment,
@@ -89,8 +90,46 @@ def _lazy_file_field_models() -> list[tuple[Any, str, str]]:
     return _FILE_FIELD_MODELS
 
 
+class ErasureFailedError(Exception):
+    """تعثّر المحو برسالةٍ مفهومةٍ للمدير — الطلبُ عاد «approved» وتجوز إعادةُ التنفيذ."""
+
+    def __init__(self, message: str, code: str):
+        super().__init__(message)
+        self.code = code
+
+
 class ErasureService:
     """Anonymize all PII for a student — PDPPL م.18."""
+
+    @staticmethod
+    def execute_safely(erasure_request: ErasureRequest, actor: Any) -> dict[str, Any]:
+        """ينفّذ المحوَ دون أن يترك الطلبَ عالقاً «processing» إن تعثّر محوُ سجلّ رصد المعلّم (حكمُ 0105 M5).
+
+        معاملةُ `execute` تتراجع كلُّها عند الخطأ (الطالبُ لم يُمسّ)، لكنّ الطلبَ كان محفوظاً «processing» قبلها فيبقى بلا
+        مخرجٍ (إعادةُ الموافقة تُردّ لأنّ الحالةَ ليست pending). فهنا: يعود «approved»، ويُكتب AuditLog بالفشل
+        ورمزِه، ويُرفع `ErasureFailedError` برسالةٍ تذكر المدرسةَ (لا معرّفاً) — فيُعيد المديرُ التنفيذَ بعد معالجة السبب.
+        """
+        from operations.attendance_entries import EntryError
+
+        try:
+            return ErasureService.execute(erasure_request)
+        except EntryError as exc:
+            erasure_request.status = "approved"
+            erasure_request.save(update_fields=["status"])
+            AuditLog.log(
+                user=actor,
+                action="update",
+                model_name="other",
+                object_id=erasure_request.pk,
+                object_repr="محوُ طالبٍ — تعثّر محوٍ في سجلّ رصد المعلّم",
+                changes={"code": exc.code, "request": str(erasure_request.pk)},
+                school=erasure_request.school,
+            )
+            raise ErasureFailedError(
+                f"تعذّر محو سجلّ رصد المعلّم لهذا الطالب ({exc}) — لم يُمسّ شيء. الطلبُ باقٍ «تمّت الموافقة» "
+                "ويمكن إعادة التنفيذ بعد معالجة السبب.",
+                exc.code,
+            ) from exc
 
     @staticmethod
     @transaction.atomic
@@ -154,6 +193,12 @@ class ErasureService:
             summary["models"]["AttendanceEntry"] = ledger["entries"]
         if ledger["decisions"]:
             summary["models"]["AttendanceDecision"] = ledger["decisions"]
+        # حدٌّ معلَن (0105): دورُ هذه المدرسة لا يرى صفوفَ مدرسةٍ سابقةٍ سُجّل فيها الطالب — فلا يُقال «اكتمل» بلا تنبيه.
+        if Membership.objects.filter(user=student).exclude(school=erasure_request.school).exists():
+            summary["attendance_ledger_note"] = (
+                "سجلُّ رصد المعلّم مُحيَ لمدرسة الطلب الحاليّة فقط؛ وللطالب عضويّاتٌ في مدارسَ أخرى قد تبقى فيها "
+                "إدخالاتٌ وقراراتٌ — يلزم محوُها بدور تلك المدارس."
+            )
 
         # 3. Delete child FK records (CASCADE would do this, but explicit is better for counting)
         for Model, fk_field, _ in _lazy_student_fk_models():

@@ -451,7 +451,7 @@ def erase_attendance_ledger(student, *, actor=None, school=None) -> dict[str, in
     if tenant is not None and school is not None and str(tenant) != str(school.pk):
         raise EntryError(
             "erasure_wrong_tenant",
-            "دورُ القاعدة الحاليّ لمدرسةٍ غيرِ مدرسة طلب المحو — يُنفَّذ بدور مدرستها.",
+            f"دورُ القاعدة الحاليّ لمدرسةٍ غيرِ مدرسة «{school.name}» التي قُدّم فيها طلبُ المحو — يُنفَّذ بدور مدرستها",
         )
     with connection.cursor() as cursor:
         cursor.execute("SELECT set_config(%s, 'on', true)", [ERASURE_FLAG])
