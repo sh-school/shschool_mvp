@@ -1,6 +1,6 @@
 """استيرادُ كشف البصمة اليوميّ (لوحة السكرتير) — معاينةٌ ثمّ اعتمادٌ صريح.
 
-العرضُ يقرأ الملفَّ ويستدعي ``attendance/biometric.py`` ويرسم؛ ولا قاعدةَ حضورٍ هنا.
+العرضُ يقرأ الملفَّ ويستدعي ``attendance/biometric_services.py`` ويرسم؛ ولا قاعدةَ حضورٍ هنا.
 مرحلتان لا واحدة لأنّ الحضورَ ينتهي خصماً من الراتب (البند 5): الكتابةُ لا تقع إلّا
 بنقرة اعتمادٍ بعد أن يرى السكرتيرُ ما سيُكتب وما سيُتخطّى ولماذا.
 
@@ -26,7 +26,8 @@ from django.views.decorators.http import require_POST
 from core.capabilities import capability_required
 from core.middleware import SchoolRequest
 
-from .attendance import StaffAttendanceService, biometric, staff_members
+from .attendance import StaffAttendanceService, staff_members
+from .attendance import biometric_services as biometric
 from .forms import BiometricUploadForm
 
 SESSION_KEY = "biometric_import"

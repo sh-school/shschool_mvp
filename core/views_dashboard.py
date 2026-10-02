@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from core.capabilities import capability_required, has_capability
 from core.dashboard_presentation import present
-from core.dashboard_registry import role_dashboard_provider
+from core.dashboard_registry import role_dashboard_context, role_dashboard_provider
 from core.dashboard_selectors import (
     ADMIN_OPS_ROLES,
     DIRECTOR_ROLES,
@@ -40,7 +40,6 @@ def dashboard(request):
     user = request.user
     school = user.get_school()
     role = user.get_role()
-
     if not school:
         return HttpResponseForbidden("<h2 dir='rtl'>لم يتم تعيينك في أي مدرسة</h2>")
 
@@ -74,9 +73,10 @@ def dashboard(request):
         ctx.update(get_therapist_ctx(user, school, today))
     elif role == "activities_coordinator":
         ctx.update(get_activities_ctx(user, school, today))
-    elif provider := role_dashboard_provider(role):
-        # دورٌ لوحتُه عند وحدةٍ تملك بياناتِه (السكرتير): النواةُ لا تستورد نازلاً — راجع الملفّ.
-        ctx.update(provider(user, school, today))
+    elif role_dashboard_provider(
+        role
+    ):  # دورٌ لوحتُه عند وحدةٍ تملك بياناتِه (core/dashboard_registry.py)
+        ctx.update(role_dashboard_context(role, ctx, user, school, today))
     elif role in ADMIN_OPS_ROLES:
         ctx.update(get_admin_ops_ctx(user, school, today, role))
     elif role in TRANSPORT_ROLES:

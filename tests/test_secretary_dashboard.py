@@ -135,3 +135,38 @@ class TestImportStatus:
         monkeypatch.setattr(secretary_dashboard, "SCHOOL_WEEKDAYS", frozenset())
         html = _page(client_as, secretary).content.decode()
         assert "ليس يومَ دوامٍ" in html and "لم يُستورد" not in html
+
+
+class TestRegistryGuards:
+    """مراجعةُ 0105 (P3): لا فوزَ صامتاً لتسجيلٍ مكرَّر، ولا كتابةَ فوق مفاتيح النواة، وحارسٌ لمجموعة الأدوار المسجَّلة."""
+
+    def test_registered_roles_are_exactly_the_secretary(self):
+        from core.dashboard_registry import registered_roles
+
+        assert registered_roles() == {"secretary"}
+
+    def test_duplicate_registration_by_another_provider_is_refused(self):
+        from django.core.exceptions import ImproperlyConfigured
+
+        from core.dashboard_registry import register_role_dashboard
+
+        with pytest.raises(ImproperlyConfigured):
+            register_role_dashboard("secretary", lambda user, school, today: {})
+
+    def test_registering_the_same_provider_again_is_harmless(self):
+        from core.dashboard_registry import register_role_dashboard
+
+        register_role_dashboard("secretary", secretary_dashboard.secretary_context)
+
+    def test_provider_cannot_overwrite_core_context_keys(self, client_as, secretary, monkeypatch):
+        from django.core.exceptions import ImproperlyConfigured
+
+        from core import dashboard_registry
+
+        monkeypatch.setitem(
+            dashboard_registry._PROVIDERS,
+            "secretary",
+            lambda user, school, today: {"view_type": "secretary", "school": None},
+        )
+        with pytest.raises(ImproperlyConfigured):
+            _page(client_as, secretary)

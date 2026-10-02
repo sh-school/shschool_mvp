@@ -6,7 +6,7 @@ from django import forms
 
 from core.validators import FileTypeValidator
 
-from .attendance.biometric import MAX_BYTES as MAX_BIOMETRIC_BYTES
+from .attendance.biometric_services import MAX_BYTES as MAX_BIOMETRIC_BYTES
 from .models import (
     ABSENCE_TYPES,
     EXCEPTION_TYPES,

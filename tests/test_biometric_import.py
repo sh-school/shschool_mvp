@@ -18,7 +18,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.models import AuditLog
-from staff_affairs.attendance import StaffAttendanceService, biometric
+from staff_affairs.attendance import StaffAttendanceService
+from staff_affairs.attendance import biometric_services as biometric
 from staff_affairs.models import StaffAttendance, StaffAttendanceExemption
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
