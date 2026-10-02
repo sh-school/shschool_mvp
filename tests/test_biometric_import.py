@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 from datetime import date, datetime, time
 
 import pytest
@@ -373,3 +374,51 @@ class TestImportWindow:
         _person(school, 6001)
         result = biometric.commit(school, secretary, _rows(_line(6001, day="14/01/2026")))
         assert result.written == 0 and not StaffAttendance.objects.exists()
+
+
+class TestAttendanceBoardSearch:
+    """لوحةُ الرصد (نمط سجلّ): حقلُ بحثٍ وترشيحٌ بالحالة وتنقّلٌ بين الأيّام — الترشيحُ نفسُه في المتصفّح."""
+
+    def _page(self, client_as, user, **params):
+        return client_as(user).get(reverse("staff_affairs:attendance_board"), params)
+
+    def test_page_declares_the_list_layout(self, client_as, secretary):
+        html = self._page(client_as, secretary).content.decode()
+        assert "layout-list" in html and "page-noscroll" in html
+
+    def test_search_and_state_fields_and_script_are_offered(self, client_as, secretary):
+        html = self._page(client_as, secretary).content.decode()
+        for needle in (
+            'id="board-q"',
+            'id="board-status"',
+            "attendance-board.js",
+            'id="att-board-list"',
+        ):
+            assert needle in html
+
+    def test_search_and_state_come_back_from_the_url(self, client_as, secretary):
+        html = self._page(client_as, secretary, q="سعد", status="late").content.decode()
+        assert 'value="سعد"' in html
+        assert re.search(r'<option value="late"[^>]*selected', html)
+
+    def test_unknown_state_is_ignored(self, client_as, secretary):
+        html = self._page(client_as, secretary, status="<script>").content.decode()
+        assert "<script>" not in html.split('id="board-status"')[1].split("</select>")[0]
+
+    def test_previous_and_next_day_links(self, client_as, secretary):
+        html = self._page(client_as, secretary, date="2026-02-02").content.decode()
+        assert "?date=2026-02-01" in html and "?date=2026-02-03" in html
+
+    def test_today_has_no_next_day_link(self, client_as, secretary):
+        today = timezone.localdate()
+        html = self._page(client_as, secretary, date=today.isoformat()).content.decode()
+        assert 'rel="next"' not in html and 'rel="prev"' in html
+
+    def test_rows_carry_the_state_the_filter_reads(self, client_as, school, secretary):
+        staff = _person(school, 7001)
+        StaffAttendanceService.mark(
+            school=school, staff=staff, day=DAY, status="present", actor=secretary,
+            check_in=time(6, 40),
+        )  # fmt: skip
+        html = self._page(client_as, secretary, date=DAY.isoformat()).content.decode()
+        assert 'data-state="present"' in html and 'data-state="unmarked"' in html
