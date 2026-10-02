@@ -96,13 +96,44 @@ def test_the_page_renders_groups_in_order_with_header_and_counter(client_as, dev
     assert re.search(r'data-key="group\.prod\.state">[^<]*من 5 سليمة', html)
 
 
-def test_the_dial_is_gone_and_tiles_show_state_as_text_and_symbol(client_as, developer_user):
+def test_the_dial_is_gone_and_each_row_shows_state_as_text_and_symbol(client_as, developer_user):
     html = _page(client_as, developer_user)
     assert "data-dial" not in html and "qc-dial" not in html and "data-gauge" not in html
     assert "؟ غير معلوم" in html  # الحالةُ نصّاً ورمزاً لا لوناً وحدَه
-    assert html.count('class="kpi-value"') + html.count("qc-panel__headline kpi-value") >= len(
-        contract.PANELS
-    )
+
+
+def test_every_panel_has_exactly_one_bar_with_its_reading(client_as, developer_user):
+    """طلبُ المالك: بارٌ لكلّ مؤشّر. القيمةُ من قراءة اللوحة، وبلا قراءةٍ 0 مع نصٍّ بديل."""
+    contract.store("ci", {"status": "ok", "headline": "x", "gauge": 82})
+    html = _page(client_as, developer_user)
+    assert html.count("<progress") == len(contract.PANELS)
+    assert re.search(r'<progress[^>]*value="82"[^>]*data-bar', html)
+    assert 'aria-valuetext="لم تُجمَع بعدُ"' in html  # لوحةٌ لم تُجمَع: لا بارَ مملوءاً يوهم سليماً
+
+
+def test_the_two_cards_sit_side_by_side_and_are_the_last_child_so_they_fill_without_scroll(
+    client_as, developer_user
+):
+    html = _page(client_as, developer_user)
+    assert html.count('class="ui-grid-2"') == 1  # شبكةُ بطاقتين: تتجاوران حيث يتّسع
+    assert [title for title, _ in layout.CARDS] == ["التشغيلُ والأمان", "التسليمُ والجودةُ والخطّة"]
+    for title, _ in layout.CARDS:
+        assert title in html
+    grid = html.index('class="ui-grid-2"')
+    # البطاقتان آخرُ أبناء الغلاف فتملآن الباقيَ بلا تمرير (50-utilities: .ui-grid-2:last-child)
+    assert html.index("data-qc-none") < grid
+    assert html.index("data-qc-toggle") < grid  # والمنتقي قبلهما
+
+
+def test_cards_hold_every_group_once_in_a_fixed_order():
+    placed = [key for _, keys in layout.CARDS for key in keys]
+    assert sorted(placed) == sorted(key for key, _, _ in layout.GROUPS)
+    grouped = layout.groups(contract.read_panels())
+    cards = layout.cards(grouped)
+    assert [[g["key"] for g in c["groups"]] for c in cards] == [
+        ["prod", "security"],
+        ["shipping", "quality", "plan"],
+    ]
 
 
 def test_each_panel_has_a_unique_key_per_metric_slot(client_as, developer_user):
@@ -128,8 +159,8 @@ def test_the_strip_says_no_red_when_none_and_never_mentions_decisions(client_as,
 def test_a_group_whose_panels_are_all_hidden_is_hidden_entirely(client_as, developer_user):
     keys = ",".join(next(g for g in layout.GROUPS if g[0] == "plan")[2])
     html = _page(client_as, developer_user, qcc_hidden=keys)
-    assert re.search(r'<section data-group="plan"[^>]*hidden', html)
-    assert not re.search(r'<section data-group="prod"[^>]*hidden', html)
+    assert re.search(r'<section class="qc-group" data-group="plan"[^>]*hidden', html)
+    assert not re.search(r'<section class="qc-group" data-group="prod"[^>]*hidden', html)
 
 
 def test_the_script_labels_match_the_server_labels_and_it_has_no_dial():
@@ -138,3 +169,4 @@ def test_the_script_labels_match_the_server_labels_and_it_has_no_dial():
     pairs = dict(re.findall(r'(\w+): "([^"]+)"', match.group(1)))
     assert pairs == layout.STATE_LABELS
     assert "paintDial" not in source and "data-dial" not in source
+    assert "paintBar" in source and "[data-bar]" in source

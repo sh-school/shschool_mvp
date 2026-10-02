@@ -68,6 +68,15 @@
     note.hidden = !text;
   }
 
+  // بارُ قراءة اللوحة (0–100، 100 أسلم): `.value` على عنصر <progress> لا بناءَ DOM؛ وبلا قراءةٍ يعود إلى 0 مع نصٍّ بديلٍ «لم تُجمَع بعدُ».
+  function paintBar(panel, gauge) {
+    var bar = panel.querySelector("[data-bar]");
+    if (!bar) { return; }
+    var value = gauge === null || gauge === undefined || gauge === "" || isNaN(Number(gauge)) ? null : Math.max(0, Math.min(100, Math.round(Number(gauge))));
+    bar.value = value === null ? 0 : value;
+    if (value === null) { bar.setAttribute("aria-valuetext", "لم تُجمَع بعدُ"); } else { bar.removeAttribute("aria-valuetext"); }
+  }
+
   function paintMetrics(panel, key, metrics) {
     var list = Array.isArray(metrics) ? metrics : [];
     var featured = Number(panel.getAttribute("data-featured")) || 0;
@@ -92,6 +101,7 @@
     setText(panel, key + ".headline", String(data.headline || "") || "لم يُجمَع بعدُ", true);
     setText(panel, key + ".detail", String(data.detail || ""));
     setText(panel, key + ".age", ageText(data.age_seconds));
+    paintBar(panel, data.gauge);
     paintMetrics(panel, key, data.metrics);
     // يُعلن قارئُ الشاشة الانتقالَ إلى الأحمر وحدَه، لا كلَّ استطلاعٍ (تنبيهٌ عند الأحمر فقط)
     if (status === "bad" && previous && previous !== "bad") {

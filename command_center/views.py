@@ -45,6 +45,7 @@ def index(request: HttpRequest) -> HttpResponse:
         {
             "snapshot": snapshot,
             "groups": grouped,
+            "cards": layout.cards(grouped),
             "strip": layout.strip(snapshot["panels"]),
             "schema": contract.SCHEMA_VERSION,
             "shown": len(snapshot["panels"]) - len(hidden),

@@ -57,6 +57,12 @@ TARGETS: dict[str, str] = {
     "guards": f"هامشٌ ≥ {guards.BAD_MARGIN} بايتاً",
 }
 
+#: البطاقتان المتجاورتان (طلبُ المالك 2026-10-02): (عنوان، مجموعاتُها بالترتيب). موقعُ كلّ مجموعةٍ ثابتٌ من الإعداد لا من خوارزميّة رصّ.
+CARDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("التشغيلُ والأمان", ("prod", "security")),
+    ("التسليمُ والجودةُ والخطّة", ("shipping", "quality", "plan")),
+)
+
 STATE_LABELS = {"ok": "✔ سليم", "warn": "▲ انتبه", "bad": "✖ خطر", "unknown": "؟ غير معلوم"}
 _ORDER = (contract.BAD, contract.WARN, contract.UNKNOWN, contract.OK)
 
@@ -110,6 +116,19 @@ def groups(panels: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "total": len(tiles),
             }
         )
+    return result
+
+
+def cards(grouped: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """البطاقتان بمجموعاتهما (ما ليس له لوحاتٌ يُتجاوز)، وكلُّ مجموعةٍ تتبع بطاقةً واحدة."""
+    by_key = {g["key"]: g for g in grouped}
+    result = []
+    for title, keys in CARDS:
+        members = [by_key[k] for k in keys if k in by_key]
+        if members:
+            result.append(
+                {"title": title, "groups": members, "hidden": all(g.get("hidden") for g in members)}
+            )
     return result
 
 

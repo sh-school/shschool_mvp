@@ -1,24 +1,24 @@
-{% load ui %}
 {% comment %}
-  بلاطةُ مؤشّر (W-20261002-027): الرقمُ الحقيقيُّ للّوحة كبيراً وبجانبه هدفُه حيث عرّفت الشيفرةُ عتبةً، والحالةُ نصّاً ورمزاً لا لوناً وحدَه، وعمرُ القراءة.
-  حلّت محلَّ القرص الدائريّ (قراءةٌ 0–100 مركَّبةٌ اعتباطيّة). `command_center.js` يبدّل النصوصَ بـtextContent على data-key فلا بناءَ DOM:
-  الرقمُ الكبير يحمل مفتاحَ مؤشّره (`<لوحة>.m<ن>v`) فيبقى عقدُ اللقطة v1 كما هو، وتُرسم فتحاتُ المؤشّرات الأخرى بفهارسها الأصليّة (والمفقودةُ مخفيّة).
-  لوحةٌ بلا رقمٍ مُعرَّفٍ في layout.FEATURED تعرض جملتَها (headline) كبيرةً.
+  صفُّ مؤشّرٍ مضغوط في سطرٍ واحد (W-20261002-027؛ طلبُ المالك 2026-10-02: «بارٌ لكلّ مؤشّر، وكلُّها في صفحةٍ واحدةٍ بلا سكرول، في بطاقتين متجاورتين»):
+  العنوانُ، ثمّ بارُ قراءة اللوحة `<progress>` بلونِ حالتها، ثمّ رقمُها الحقيقيُّ وهدفُه حيث عرّفت الشيفرةُ عتبة، ثمّ الحالةُ نصّاً ورمزاً (لا لونٌ فقط).
+  والتفاصيلُ (بقيّةُ المؤشّرات وعمرُ القراءة) في `<details>` أصليٍّ مطويٍّ فلا تزيد ارتفاعَ الصفحة. `command_center.js` يبدّل النصوصَ بـtextContent وقيمةَ
+  البار بـ`.value` على data-key فلا بناءَ DOM؛ والرقمُ الكبير يحمل مفتاحَ مؤشّره (`<لوحة>.m<ن>v`) فيبقى عقدُ اللقطة v1 كما هو. والسطرُ يلتفّ وحدَه حين يضيق.
 {% endcomment %}
-{% section_card panel.title %}
-  <div class="qc-panel is-{{ panel.status }}" data-panel="{{ panel.key }}" data-refresh="{{ panel.refresh }}"{% if panel.featured_index %} data-featured="{{ panel.featured_index }}"{% endif %}>
-    <strong class="qc-panel__state" data-key="{{ panel.key }}.state">{{ panel.state_label }}</strong>
-    {% if panel.featured_index %}
-    <p class="kpi-value" data-key="{{ panel.key }}.m{{ panel.featured_index }}v">{{ panel.featured.value }}</p>
-    <p class="ui-note" data-key="{{ panel.key }}.m{{ panel.featured_index }}l">{{ panel.featured.label }}</p>
-    {% endif %}
-    {% if panel.target %}<p class="ui-note">الهدف: <strong>{{ panel.target }}</strong></p>{% endif %}
-    {# title يحمل النصَّ الكاملَ الذي يقصّه line-clamp (1.4.12)؛ command_center.js يُزامنه عند كلّ تحديث. #}
-    <p class="qc-panel__headline{% if not panel.featured_index %} kpi-value{% endif %}" data-key="{{ panel.key }}.headline" title="{{ panel.headline|default:'لم يُجمَع بعدُ' }}">{% if panel.headline %}{{ panel.headline }}{% else %}لم يُجمَع بعدُ{% endif %}</p>
+<div class="qc-panel is-{{ panel.status }}" data-panel="{{ panel.key }}" data-refresh="{{ panel.refresh }}"{% if panel.featured_index %} data-featured="{{ panel.featured_index }}"{% endif %}>
+  <strong class="qc-panel__title" data-key="{{ panel.key }}.title" title="{{ panel.headline|default:'لم يُجمَع بعدُ' }}">{{ panel.title }}</strong>
+  <progress class="qc-panel__bar" max="100" value="{{ panel.gauge|default_if_none:0 }}" data-bar aria-label="قراءةُ لوحة {{ panel.title }}"{% if panel.gauge is None %} aria-valuetext="لم تُجمَع بعدُ"{% endif %}></progress>
+  <span class="qc-panel__figure">
+    {% if panel.featured_index %}<strong data-key="{{ panel.key }}.m{{ panel.featured_index }}v">{{ panel.featured.value }}</strong> <span data-key="{{ panel.key }}.m{{ panel.featured_index }}l">{{ panel.featured.label }}</span>{% endif %}
+    {% if panel.target %}<span class="qc-panel__target">· الهدف: {{ panel.target }}</span>{% endif %}
+  </span>
+  <span class="qc-panel__state" data-key="{{ panel.key }}.state">{{ panel.state_label }}</span>
+  <details class="qc-panel__more">
+    <summary>التفاصيل</summary>
+    <p class="ui-note" data-key="{{ panel.key }}.headline" title="{{ panel.headline|default:'لم يُجمَع بعدُ' }}">{% if panel.headline %}{{ panel.headline }}{% else %}لم يُجمَع بعدُ{% endif %}</p>
     <ul class="plain-list">
       {% for slot in panel.slots %}<li class="plain-list__row" data-row="{{ panel.key }}.m{{ slot.i }}"{% if not slot.m %} hidden{% endif %}><span data-key="{{ panel.key }}.m{{ slot.i }}l">{{ slot.m.label }}</span><strong data-key="{{ panel.key }}.m{{ slot.i }}v">{{ slot.m.value }}</strong></li>{% endfor %}
     </ul>
     <p class="ui-note" data-key="{{ panel.key }}.detail">{{ panel.detail }}</p>
     <p class="ui-note" data-key="{{ panel.key }}.age"></p>
-  </div>
-{% endsection_card %}
+  </details>
+</div>
