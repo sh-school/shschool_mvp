@@ -18,7 +18,7 @@ from django.utils import timezone
 
 from core.models import StudentEnrollment
 
-from .attendance_entries import PendingRow, unapproved_report
+from .attendance_entries import EVIDENCE_TYPES, PendingRow, unapproved_report
 from .attendance_policy import approval_holder, can_approve, can_enter, holder_gap
 from .models import AttendanceEntry, StudentAttendance
 
@@ -30,6 +30,9 @@ if TYPE_CHECKING:
 #: نافذةُ الطابور بالأيّام: إدخالٌ أقدمُ منها يخرج من طابور الاعتماد ويبقى في تقرير «غيرُ معتمَد».
 QUEUE_DAYS = 14
 
+#: نافذةُ عرض «تصحيحٌ دون معاينة» للنائب بالأيّام.
+CORRECTIONS_DAYS = 30
+
 
 @dataclass(frozen=True)
 class StudentLine:
@@ -39,6 +42,7 @@ class StudentLine:
     effective_status: str | None
     effective_source: str | None
     effective_minutes: int | None
+    correction: dict[str, Any] | None
     entry: AttendanceEntry | None
     entry_state: str
     decision_reason: str
@@ -85,6 +89,7 @@ def student_lines(session: Session) -> list[StudentLine]:
                 effective_status=row.status if row else None,
                 effective_source=row.source if row else None,
                 effective_minutes=row.late_minutes if row else None,
+                correction=row.unobserved_correction if row else None,
                 entry=entry,
                 entry_state=state,
                 decision_reason=reason,
@@ -107,6 +112,7 @@ def student_line(session: Session, student: CustomUser) -> StudentLine:
         effective_status=row.status if row else None,
         effective_source=row.source if row else None,
         effective_minutes=row.late_minutes if row else None,
+        correction=row.unobserved_correction if row else None,
         entry=entry,
         entry_state=state,
         decision_reason=reason,
@@ -202,6 +208,34 @@ def approval_queue(
             )
         )
     return items
+
+
+@dataclass(frozen=True)
+class CorrectionItem:
+    """تصحيحٌ دون معاينة لقراءة النائب: من صحّح ولأيّ سبب وبأيّ دليل — السببُ الحرُّ لأهل الاعتماد وحدَهم."""
+
+    row: StudentAttendance
+    tag: dict[str, Any]
+
+    @property
+    def evidence_label(self) -> str:
+        return EVIDENCE_TYPES.get(str(self.tag.get("type")), "—")
+
+
+def recent_corrections(
+    school: School, *, now: dt.datetime | None = None, days: int = CORRECTIONS_DAYS
+) -> list[CorrectionItem]:
+    """تصحيحاتُ المشرف الموسومةُ لحصصِ آخر `days` يوماً، الأحدثُ أوّلاً — قراءةٌ لمدرسةٍ واحدة."""
+    moment = now or timezone.now()
+    since = timezone.localtime(moment).date() - dt.timedelta(days=days)
+    rows = (
+        StudentAttendance.objects.filter(
+            school=school, unobserved_correction__isnull=False, session__date__gte=since
+        )
+        .select_related("session__class_group", "student", "marked_by")
+        .order_by("-updated_at")
+    )
+    return [CorrectionItem(row=row, tag=row.unobserved_correction or {}) for row in rows]
 
 
 @dataclass(frozen=True)

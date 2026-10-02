@@ -40,5 +40,21 @@
     </ul>
     {% endif %}
   {% endsection_card %}
+
+  {% section_card "تصحيحٌ دون معاينة" meta=corrections|length icon="checklist" empty="لا تصحيحاتٍ دون معاينةٍ في آخر 30 يوماً." %}
+    {% if corrections %}
+    <ul class="plain-list">
+      {% for item in corrections %}
+      <li class="plain-list__row">
+        <span class="plain-list__main">
+          <span class="plain-list__title">{{ item.row.student.full_name }} · {{ item.row.session.class_group }} · {{ item.row.session.date|date:"j/n" }}</span>
+          <span class="plain-list__sub">صحّحه {{ item.row.marked_by.full_name|default:"—" }} · الدليل: {{ item.evidence_label }} · {{ item.tag.reason }}</span>
+        </span>
+        <span class="status-badge status-warning">{{ item.tag.before.status|default:"لا رصد" }} ← {{ item.row.status }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  {% endsection_card %}
 </div>
 {% endblock %}

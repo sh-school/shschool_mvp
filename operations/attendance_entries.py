@@ -28,6 +28,7 @@ from core.models import AuditLog
 from .attendance_policy import (
     approval_evidence,
     can_approve,
+    can_correct,
     can_enter,
     holder_gap,
     needs_approval,
@@ -512,6 +513,94 @@ def settle_before_supervisor_write(
         reason=f"كُتب رصدُ مشرفٍ على هذا الطالب في الحصّة ({new_status}) فسقط الإدخالُ المبدئيّ",
         now=now,
     )
+
+
+#: أنواعُ الدليل لتصحيحٍ دون معاينة — لا تصحيحَ بلا نوعٍ منها وسبب.
+EVIDENCE_TYPES = {
+    "parent_contact": "اتّصالُ وليّ الأمر",
+    "gate_log": "سجلُّ البوّابة",
+    "clinic_record": "سجلُّ العيادة",
+    "staff_statement": "إفادةُ موظّفٍ آخر",
+    "document": "مستندٌ",
+}
+
+#: مصادرُ يصحّحها المشرفُ — وما سواها (عيادةٌ وبوّابةٌ ونظامٌ) رصدٌ آخرُ لا يُكتب فوقه.
+CORRECTABLE_SOURCES = OVERWRITABLE_SOURCES | {"supervisor"}
+
+
+@transaction.atomic
+def correct_without_observation(
+    user: CustomUser,
+    session: Session,
+    student: CustomUser,
+    status: str,
+    *,
+    reason: str,
+    evidence_type: str,
+    now: dt.datetime | None = None,
+) -> StudentAttendance:
+    """يصحّح المشرفُ (أو القيادةُ حين لا حاملَ) رصداً لم يشاهده — بسببٍ ونوعِ دليلٍ ووسمٍ وتدقيق.
+
+    يُسقط الإدخالَ المبدئيَّ المعلَّقَ بقرارٍ مسبَّب (`settle_before_supervisor_write`) ثمّ يكتب الرصدَ المعتمَدَ مصدرُه المشرفُ
+    موسوماً `unobserved_correction` ويدوّن قبلَه. ولا يكتب فوق رصدٍ مصدرُه العيادةُ أو البوّابة.
+    """
+    if status not in ENTERABLE_STATUSES:
+        raise EntryError("bad_status", "حالةٌ غيرُ مسموحة.")
+    verdict = can_correct(user, session)
+    if not verdict:
+        raise EntryRefusedError(verdict.reason)
+    reason = _checked_reason(reason)
+    if not reason:
+        raise EntryError("reason_required", "تصحيحٌ دون معاينةٍ يلزمه سببٌ.")
+    if evidence_type not in EVIDENCE_TYPES:
+        raise EntryError("bad_evidence", "نوعُ الدليل غيرُ معروف.")
+
+    row = (
+        StudentAttendance.objects.select_for_update()
+        .filter(session=session, student=student)
+        .first()
+    )
+    if row is not None and row.source not in CORRECTABLE_SOURCES:
+        raise EntryConflictError(
+            "non_correctable_row",
+            "الرصدُ القائمُ مصدرُه العيادةُ أو البوّابةُ أو النظام — لا كتابةَ فوقه.",
+        )
+    settle_before_supervisor_write(session, student, user, new_status=status, now=now)
+    before = {"status": row.status if row else None, "source": row.source if row else None}
+    moment = now or timezone.now()
+    tag = {
+        "type": evidence_type,
+        "reason": reason,
+        "by": str(user.pk),
+        "at": moment.isoformat(),
+        "before": before,
+    }
+    if row is None:
+        row = StudentAttendance(session=session, student=student, school_id=session.school_id)
+    row.status = status
+    row.source = "supervisor"
+    row.marked_by = user
+    row.late_minutes = row.late_minutes if status == "late" else None
+    row.unobserved_correction = tag
+    if status != "absent":
+        row.excuse = None
+        row.excuse_type = ""
+    row.save()
+    _audit(
+        user,
+        session,
+        "update",
+        row.pk,
+        "تصحيحٌ دون معاينة",
+        {
+            "student": str(student.pk),
+            "before": before,
+            "after": {"status": status, "source": "supervisor"},
+            "evidence_type": evidence_type,
+            "reason": reason,
+        },
+    )
+    return row
 
 
 # ══════════════════════════════════════════════════════════════════

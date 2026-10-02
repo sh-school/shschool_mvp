@@ -55,7 +55,7 @@
           {% include "teacher/partials/late_tap.html" with student=item.student tapped=False %}
         {% endif %}
       </span>
-      {% if can_enter or item.line.entry %}
+      {% if can_enter or item.line.entry or item.line.correction %}
       <span class="tch-entry" id="entry-{{ item.student.id }}">
         {% include "teacher/partials/entry_cell.html" with line=item.line %}
       </span>

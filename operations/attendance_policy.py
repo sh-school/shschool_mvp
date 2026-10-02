@@ -240,6 +240,14 @@ def _is_enrolled(student: CustomUser, session: Session) -> bool:
     )
 
 
+def can_correct(user: CustomUser, session: Session) -> Verdict:
+    """هل يصحّح هذا المستخدمُ رصداً لم يشاهده (A: تصحيحُ المشرف)؟ — لمن له الاعتمادُ على هذه الحصّة وحدَه.
+
+    حاملُ الجناح الفعليّ يومَ الحصّة، أو القيادةُ حين لا حاملَ فعليّاً؛ لا معلّمُ الحصّة ولا المطوّر.
+    """
+    return can_approve(user, session)
+
+
 def _has_entry_in_session(student: CustomUser, session: Session) -> bool:
     """أُدخل لهذا الطالب رصدٌ في هذه الحصّة نفسِها وهو في شعبتها (حكمُ 0105 P3).
 

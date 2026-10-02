@@ -14,16 +14,22 @@ from django.shortcuts import get_object_or_404
 
 from core.models import CustomUser
 from operations.attendance_entries import (
+    EntryRefusedError,
+    correct_without_observation,
     decide_entry,
     settle_before_supervisor_write,
     submit_entry,
 )
+from operations.attendance_policy import can_correct
 from operations.attendance_selectors import (
+    CorrectionItem,
     QueueItem,
     StudentLine,
     UnapprovedSession,
     approval_queue,
+    recent_corrections,
     student_line,
+    student_lines,
     teacher_page_context,
     unapproved_by_session,
 )
@@ -105,9 +111,48 @@ class TeacherAttendanceService:
         return approval_queue(user, school)
 
     @staticmethod
-    def report(school: School, raw_hours: str | None) -> tuple[list[UnapprovedSession], float]:
+    def report(
+        school: School, raw_hours: str | None
+    ) -> tuple[list[UnapprovedSession], float, list[CorrectionItem]]:
+        """غيرُ المعتمَد بعد X ساعة، ومعه تصحيحاتُ المشرف الموسومةُ «دون معاينة» لقراءة النائب."""
         hours = parse_hours(raw_hours)
-        return unapproved_by_session(school, hours=hours), hours
+        return unapproved_by_session(school, hours=hours), hours, recent_corrections(school)
+
+    @staticmethod
+    def correction_page(
+        user: CustomUser, school: School, session_id: UUID
+    ) -> tuple[Session, list[StudentLine]]:
+        """شاشةُ تصحيح المشرف: لمن له الاعتمادُ على هذه الحصّة وإلّا رُفض بسبب السياسة."""
+        session = get_object_or_404(
+            Session.objects.select_related("class_group__wing"), id=session_id, school=school
+        )
+        verdict = can_correct(user, session)
+        if not verdict:
+            raise EntryRefusedError(verdict.reason)
+        return session, student_lines(session)
+
+    @staticmethod
+    def correct(
+        user: CustomUser,
+        school: School,
+        session_id: UUID,
+        student_id: Any,
+        *,
+        status: str,
+        evidence_type: str,
+        reason: str,
+    ) -> tuple[Session, StudentLine]:
+        """تصحيحٌ دون معاينة لطالبٍ في حصّةٍ بنطاق المدرسة (404 خارجَه)."""
+        session = get_object_or_404(
+            Session.objects.select_related("class_group__wing"), id=session_id, school=school
+        )
+        student = get_object_or_404(
+            CustomUser, id=student_id, enrollments__class_group=session.class_group
+        )
+        correct_without_observation(
+            user, session, student, status, reason=reason, evidence_type=evidence_type
+        )
+        return session, student_line(session, student)
 
     @staticmethod
     def page_context(user: CustomUser, session: Session) -> dict[str, Any]:

@@ -31,6 +31,9 @@
           {% if item.as_leadership %}<span class="status-badge status-info" title="لا حاملَ فعليّاً لجناح الشعبة يومَ الحصّة — فالقرارُ للقيادة">بصفة القيادة</span>{% endif %}
           {% if item.entry.supersedes_id %}<span class="status-badge status-info">تصحيح</span>{% endif %}
         </div>
+        <div class="af-day__actions">
+          <a href="{% url 'attendance_correct' item.entry.session_id %}" class="btn-secondary btn-sm">تصحيحٌ دون معاينة لهذه الحصّة</a>
+        </div>
         {# نموذجان لا نموذجٌ بزرّين: Enter في خانة سبب الرفض لا يعتمد. #}
         <div class="xr-decide">
           <form hx-post="{% url 'attendance_decide' item.entry.id %}" hx-target="#item-{{ item.entry.id }}" hx-swap="outerHTML" class="xr-form">

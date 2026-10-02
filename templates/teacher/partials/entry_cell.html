@@ -3,6 +3,9 @@
 المبدئيُّ «بانتظار الاعتماد» ليس حضوراً ولا غياباً حتى يقرّر حاملُ الجناح — فيُعرض وسماً لا حالةً.
 ولا يُعرض سببُ الرفض ولا سببُ التصحيح هنا (نصٌّ حرٌّ لأصحاب الاعتماد وحدَهم).
 {% endcomment %}
+{% if line.correction %}
+  <span class="badge badge--warning" title="صحّح المشرفُ هذا الرصدَ دون معاينةٍ بدليلٍ مسمّى">تصحيحٌ دون معاينة</span>
+{% endif %}
 {% if line.entry %}
   {% if line.entry_state == "pending" %}
     <span class="badge badge--neutral" title="لم يُحتسب حضوراً ولا غياباً حتى يقرّر حاملُ الجناح">بانتظار الاعتماد: {{ line.entry.get_status_display }}</span>

@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 
 from core.capabilities import capability_required
 
-from .attendance_entries import EntryConflictError, EntryError, EntryRefusedError
+from .attendance_entries import EVIDENCE_TYPES, EntryConflictError, EntryError, EntryRefusedError
 from .services.attendance_teacher import TeacherAttendanceService
 
 #: رموزُ منعِ السياسة بنصٍّ للمستخدم — رمزٌ لا نصَّ له يُعرض عامّاً بلا تسريب.
@@ -100,5 +100,48 @@ def approval_decide(request, entry_id):
 @capability_required("wings.record_day")
 def unapproved(request):
     """تقريرُ «غيرُ معتمَد بعد X ساعة» — بالعدد لا بأسماء الطلاب، ويُظهر ما لا حاملَ فعليّاً له."""
-    rows, hours = TeacherAttendanceService.report(request.school, request.GET.get("hours"))
-    return render(request, "attendance/unapproved.html", {"rows": rows, "hours": hours})
+    rows, hours, corrections = TeacherAttendanceService.report(
+        request.school, request.GET.get("hours")
+    )
+    context = {"rows": rows, "hours": hours, "corrections": corrections}
+    return render(request, "attendance/unapproved.html", context)
+
+
+@login_required
+@capability_required("wings.record_day")
+def correct_page(request, session_id):
+    """شاشةُ «تصحيحٌ دون معاينة»: طلبةُ الحصّة ونماذجُ التصحيح، لمن له الاعتمادُ على الحصّة وحدَه."""
+    try:
+        session, lines = TeacherAttendanceService.correction_page(
+            request.user, request.school, session_id
+        )
+    except EntryRefusedError as exc:
+        return _refusal(exc)
+    context = {"session": session, "lines": lines, "evidence_types": EVIDENCE_TYPES}
+    return render(request, "attendance/correct.html", context)
+
+
+@login_required
+@capability_required("wings.record_day")
+@require_POST
+def correct_submit(request, session_id):
+    """HTMX: تصحيحُ المشرف لرصدٍ لم يشاهده — سببٌ ونوعُ دليلٍ إلزاميّان."""
+    post = request.POST
+    try:
+        session, line = TeacherAttendanceService.correct(
+            request.user,
+            request.school,
+            session_id,
+            post.get("student_id"),
+            status=post.get("status", ""),
+            evidence_type=post.get("evidence_type", ""),
+            reason=post.get("reason", ""),
+        )
+    except EntryRefusedError as exc:
+        return _refusal(exc)
+    except EntryConflictError as exc:
+        return HttpResponse(str(exc), status=409)
+    except EntryError as exc:
+        return HttpResponse(str(exc), status=400)
+    context = {"session": session, "line": line, "evidence_types": EVIDENCE_TYPES}
+    return render(request, "attendance/partials/correct_row.html", context)

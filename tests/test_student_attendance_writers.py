@@ -47,6 +47,10 @@ ALLOWED_WRITERS: dict[tuple[str, str], str] = {
         "_apply_to_effective",
     ): "اعتمادُ إدخالِ معلّمٍ يكتب الرصدَ المعتمَد (قفلُ صفّ، لا فوق مصدرٍ بشريٍّ آخر، AuditLog) — لا يصله إلّا decide_entry/submit_entry (ESE)",
     (
+        "operations/attendance_entries.py",
+        "correct_without_observation",
+    ): "تصحيحُ المشرف لما لم يشاهده: لمن له الاعتمادُ (can_correct) بسببٍ ونوعِ دليلٍ ووسمٍ وتدقيق، لا فوق عيادةٍ أو بوّابة — لا يصله المعلّم",
+    (
         "operations/period_register.py",
         "tap_late",
     ): "نقرةُ تأخّرِ المعلّم (source=teacher_late) تنتظر تثبيتَ المشرف — استثناءٌ مسمّىً بحكم 0105",

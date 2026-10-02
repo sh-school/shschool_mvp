@@ -267,6 +267,9 @@ class StudentAttendance(models.Model):
     )
     marked_at = models.DateTimeField(auto_now_add=True, verbose_name="وقت الرصد")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
+    #: وسمُ «تصحيحٌ دون معاينة» (W-020): صحّح المشرفُ ما لم يشاهده بسببٍ ونوعِ دليلٍ — يراه المعلّمُ والنائب. آخرُ تصحيحٍ فقط؛
+    #: والسجلُّ الكاملُ في AuditLog بقبلٍ وبعد. `{type, reason, by, at, before}`، و`null` لرصدٍ لم يُصحَّح هكذا.
+    unobserved_correction = models.JSONField(null=True, blank=True, verbose_name="تصحيحٌ دون معاينة")
 
     class Meta:
         verbose_name = "حضور طالب"
