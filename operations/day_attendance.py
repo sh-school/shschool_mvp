@@ -38,9 +38,10 @@ SOURCE = "supervisor"
 def is_recorder(user) -> bool:
     """أهلُ الكتابة المباشرة في `StudentAttendance`: `WING_DAY_RECORD` في مركز الصلاحيّات.
 
-    والمعلّمُ ليس منهم: يُدخل مبدئيّاً في `AttendanceEntry` فيعتمده حاملُ الجناح (`attendance_entries`).
+    والمعلّمُ ليس منهم: يُدخل مبدئيّاً في `AttendanceEntry` فيعتمده حاملُ الجناح (`attendance_entries`). ولا المطوّرُ ولا
+    المستخدمُ الخارقُ بصفته (D-128م): يُقرأ **الدورُ بالاسم** — فـ`is_superuser` وحدَه لا يكفي ولا يُمرّر المطوّرَ.
     """
-    return user.is_superuser or user.get_role() in WING_DAY_RECORD
+    return bool(user.get_role() in WING_DAY_RECORD)
 
 
 def can_record(user, session) -> bool:

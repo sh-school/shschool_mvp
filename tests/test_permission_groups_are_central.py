@@ -73,7 +73,6 @@ MOVED = {
         "vice_admin",
         "vice_academic",
         "principal",
-        "platform_developer",
     },
 }
 

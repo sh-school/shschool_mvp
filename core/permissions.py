@@ -461,10 +461,9 @@ BEHAVIOR_STATS_TEACHING = frozenset({"teacher", "coordinator", "ese_teacher"})
 #: وعاملُ الخدمات وصدّراها (مراجعةُ 2026-09-13، ن٢). ومن يُراد له نطاقٌ أضيق — المنسّقُ
 #: لقسمه، والمعلّمُ لشُعبه — يحتاج تقريراً مقيَّداً بنطاقه، لا فتحَ هذا.
 ACADEMIC_REPORTS_VIEW = frozenset(ASSESSMENT_VIEW_ALL)
-#: رصدُ حضور اليوم في الجناح: مشرفُ الجناح (أصيلاً أو بديلاً) والقيادةُ ومطوّرُ المنصّة.
-WING_DAY_RECORD = frozenset(
-    {"admin_supervisor", "vice_admin", "vice_academic", "principal", "platform_developer"}
-)
+#: رصدُ حضور اليوم في الجناح: مشرفُ الجناح (أصيلاً أو بديلاً) والقيادةُ. **لا مطوّرُ المنصّة** (D-128م، 2026-10-02):
+#: «المطوّرُ لا يُدخل ولا يعتمد، ولو كان superuser» — وكان فيها فيكتب رصدَ المشرف كأنّه مشرف.
+WING_DAY_RECORD = frozenset({"admin_supervisor", "vice_admin", "vice_academic", "principal"})
 
 #: قبولُ عذرِ غيابٍ بعد مهلة اليومين (الدليل 2026 م 3.4.1.5) — النائبُ الإداريّ لا المشرف.
 EXCUSE_AFTER_DEADLINE = frozenset({"vice_admin", "principal", "platform_developer"})
