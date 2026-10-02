@@ -92,3 +92,52 @@ class TestOwnSchoolStillWorks:
         r = own_admin.post(f"/api/v1/erasure/requests/{pending_request.id}/approve/", {})
 
         assert r.status_code == 200
+
+
+@pytest.mark.django_db
+def test_parent_cannot_request_for_child_in_another_school(student_user):
+    """وليُّ أمرٍ في مدرسةٍ أخرى مرتبطٌ بالطالب: لا يتخطّى فحصَ العضويّة."""
+    from django.utils import timezone
+
+    from core.models import ParentStudentLink
+
+    other = SchoolFactory()
+    role = RoleFactory(school=other, name="parent")
+    parent = UserFactory(full_name="ولي في مدرسة أخرى")
+    parent.consent_given_at = timezone.now()
+    parent.save(update_fields=["consent_given_at"])
+    MembershipFactory(user=parent, school=other, role=role)
+    ParentStudentLink.objects.create(parent=parent, student=student_user, school=other)
+    client = APIClient()
+    client.force_login(parent)
+
+    r = client.post(
+        "/api/v1/erasure/request/",
+        {"student_id": str(student_user.id), "reason": "طلبٌ من مدرسةٍ غير مدرسة الطالب"},
+        format="json",
+    )
+
+    assert r.status_code == 404
+    assert not ErasureRequest.objects.filter(student=student_user).exists()
+
+
+@pytest.mark.django_db
+def test_service_refuses_student_outside_request_school(student_user):
+    """دفاعٌ في العمق: حتى لو وُلد الطلبُ بمدرسةٍ خاطئةٍ لا يُنفَّذ."""
+    from governance.erasure_service import ErasureService
+
+    admin = UserFactory(full_name="مدير", is_superuser=True)
+    req = ErasureRequest.objects.create(
+        school=SchoolFactory(),
+        student=student_user,
+        requested_by=admin,
+        reason="طلبٌ بمدرسةٍ خاطئة",
+        status="approved",
+        reviewed_by=admin,
+    )
+
+    with pytest.raises(ValueError):
+        ErasureService.execute(req)
+
+    student_user.refresh_from_db()
+    assert student_user.is_active is True

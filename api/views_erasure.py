@@ -81,13 +81,6 @@ def create_erasure_request(request):
     school = request.user.get_school()
     is_admin = request.user.is_admin() or request.user.is_superuser
 
-    # [W-20261002-040] المحوُ لا رجعةَ فيه: مديرُ مدرسةٍ لا يطلبه لطالبٍ من غير
-    # مدرسته. 404 لا 403 فلا يُعرَف وجودُ الطالب. المطوّر (superuser) خارج الحصر.
-    if not request.user.is_superuser and is_admin:
-        in_school = student.memberships.filter(school=school, is_active=True).exists()
-        if not in_school:
-            return Response({"detail": "غير موجود."}, status=status.HTTP_404_NOT_FOUND)
-
     # Authorization: parent can only request for their own children
     if not is_admin:
         is_parent = ParentStudentLink.objects.filter(parent=request.user, student=student).exists()
@@ -96,6 +89,14 @@ def create_erasure_request(request):
                 {"detail": "يمكنك فقط طلب محو بيانات أبنائك."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+    # [W-20261002-040] المحوُ لا رجعةَ فيه: مديرُ مدرسةٍ لا يطلبه لطالبٍ من غير
+    # مدرسته. 404 لا 403 فلا يُعرَف وجودُ الطالب. المطوّر (superuser) خارج الحصر.
+    # ويسري على وليّ الأمر أيضاً (ParentStudentLink بلا مرشّح مدرسة). وعضويّةُ طالبٍ
+    # غيرِ نشطةٍ (تخرّج/انتقال) تكفي: حقُّ المحو لا يسقط بخروجه.
+    if not request.user.is_superuser:
+        if not student.memberships.filter(school=school).exists():
+            return Response({"detail": "غير موجود."}, status=status.HTTP_404_NOT_FOUND)
 
     # Check for existing pending request
     existing = ErasureRequest.objects.filter(

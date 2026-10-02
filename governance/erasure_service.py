@@ -120,6 +120,11 @@ class ErasureService:
         if not student:
             raise ValueError("Student record not found for this erasure request.")
 
+        # دفاعٌ في العمق (W-20261002-040): لا محوَ لطالبٍ ليس من مدرسة الطلب مهما كان
+        # الطريق إلى هنا — فالفعلُ لا رجعةَ فيه.
+        if not student.memberships.filter(school=erasure_request.school).exists():
+            raise ValueError("الطالب ليس من مدرسة طلب المحو.")
+
         anon_id = f"ERASED-{str(erasure_request.id)[:8].upper()}"
         summary: dict[str, Any] = {"anon_id": anon_id, "models": {}}
 
