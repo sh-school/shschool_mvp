@@ -112,7 +112,7 @@ class ErasureService:
     @staticmethod
     def student_in_school(student: Any, school: Any) -> bool:
         """هل للطالب عضويّةٌ في المدرسة؟ (نشطةً أو لا: حقُّ المحو لا يسقط بتخرّجه)."""
-        return student.memberships.filter(school=school).exists()
+        return bool(student.memberships.filter(school=school).exists())
 
     @staticmethod
     @transaction.atomic
