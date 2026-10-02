@@ -138,6 +138,16 @@ def test_deploy_window_gates_the_required_summary():
     summary = doc["jobs"]["gate-summary"]
     assert summary["name"] == "ملخص بوابة الجودة"
     assert "deploy-window" in summary["needs"]
-    fail_step = next(s for s in summary["steps"] if "if" in s)
-    assert "needs.deploy-window.result" in fail_step["if"]
+    # الحكمُ مشتركٌ (W-20261002-031): كلُّ needs يساوي success، ونافذةُ النشر لا تُعفى على أيّ حدث،
+    # والخطوةُ بلا شرطٍ فلا تُتخطّى.
+    gate_step = next(s for s in summary["steps"] if "ci_needs_gate.py" in s.get("run", ""))
+    assert "toJSON(needs)" in gate_step["env"]["NEEDS_JSON"]
+    assert "if" not in gate_step
+    spec = importlib.util.spec_from_file_location(
+        "ci_needs_gate", ROOT / "scripts/ci_needs_gate.py"
+    )
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    assert "deploy-window" not in {job for (_, job) in gate.EXEMPT}
+    assert gate.judge({"deploy-window": {"result": "failure"}}, "merge_group")[1]
     assert "merge_group" in doc[True]  # يُشغَّل في طابور الدمج

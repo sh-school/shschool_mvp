@@ -399,6 +399,7 @@ class StaffAttendanceService:
         absence_type: str = "",
         accepted_excuse: str | None = "",
         request: HttpRequest | None = None,
+        source: str = "",
     ) -> StaffAttendance:
         """رصدُ حالة موظّفٍ في يوم — بنقرة، ووقتُ الحضور شاهدُها.
 
@@ -413,6 +414,7 @@ class StaffAttendanceService:
           والفارغُ غيابٌ لم يُغطَّ بعد (م-35).
         * ``check_out`` وقتُ الانصراف، وما بينه وبين 14:00 بلا إذنٍ يُعدّ (م-1) — إلّا في
           يوم الغياب (م-9).
+        * ``source`` وسمُ مصدر الرصد في أثر التدقيق (مثلاً ``biometric_import``)؛ والفارغُ رصدٌ يدويّ.
 
         والكتابةُ تحت قفل صفّ الموظّف — القفلِ نفسِه الذي يأخذه ``PermitService.act`` —
         فلا يكتب رصدٌ فوق ما أعادت ``reconcile`` حسابَه، ولا يتسابق راصدان.
@@ -454,6 +456,8 @@ class StaffAttendanceService:
         deciding = accepting or withdrawing
         stage_day = _StageDay(school, now)
         basis = stage_day.assignment_basis(actor) if deciding else {}
+        if source:
+            basis = {**basis, "source": source}
         if (
             deciding
             and actor.pk not in PermitService._principal_side(stage_day, staff.pk)
@@ -569,13 +573,28 @@ class StaffAttendanceService:
             )
             staff = [s for s in staff if LINE_MANAGER.get(by_user.get(s.pk, "")) in roles]
         records = {r.staff_id: r for r in StaffAttendance.objects.filter(school=school, date=day)}
-        rows = [{"staff": s, "record": records.get(s.pk)} for s in staff]
+        academic = StaffAttendanceService._academic_ids(school, staff)
+        rows = [
+            {"staff": s, "record": records.get(s.pk), "academic": s.pk in academic} for s in staff
+        ]
         counts = dict.fromkeys(STATUSES, 0)
         for s in staff:
             if s.pk in records:
                 counts[records[s.pk].status] += 1
         counts["unmarked"] = len(staff) - sum(counts.values())
         return {"rows": rows, "counts": counts}
+
+    @staticmethod
+    def _academic_ids(school: School, staff: list[CustomUser]) -> set[Any]:
+        """من يتبع النائبَ الأكاديميّ (م-21: المعلّمون والمنسّقون ومحضرو المختبر ومصادر التعلّم) — والباقي إداريّ."""
+        by_user = Membership.objects.current().filter(
+            school=school, is_active=True, user_id__in=[s.pk for s in staff]
+        )
+        return {
+            user_id
+            for user_id, role in by_user.values_list("user_id", "role__name")
+            if LINE_MANAGER.get(role) == "vice_academic"
+        }
 
     @staticmethod
     def board_row(school: School, staff_id: Any, day: date) -> dict[str, Any]:

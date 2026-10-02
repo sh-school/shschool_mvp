@@ -177,7 +177,7 @@
       <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="error-btn">تسجيل الخروج</button></form>
       {% else %}
       <a href="{{ primary_url|default:'/dashboard/' }}" class="error-btn">{{ primary_label|default:'العودة للرئيسية' }}</a>
-      <a href="javascript:history.back()" class="error-btn-outline">الرجوع للخلف</a>
+      <a href="{{ primary_url|default:'/dashboard/' }}" class="error-btn-outline" data-error-back>الرجوع للخلف</a>
       {% endif %}
     </div>
     {% if brand_footer %}<div class="error-brand">{% include "components/site_brand.html" %}</div>{% else %}
@@ -185,5 +185,24 @@
     {% endif %}
     {% if login_header %}</div>{% endif %}{# /eh-body #}
   </div>
+  {% comment %}
+  زرّ «الرجوع للخلف»: كان رابطاً ببروتوكول جافاسكربت المباشر فتحجبه CSP (لا unsafe-inline)
+  فلا يعمل شيئاً (بلاغ المالك W-20261002-013 على /analytics/). الآن رابطٌ حقيقيٌّ إلى الرئيسيّة
+  يعمل بلا JS، ويُرقّى بسكربتٍ بنونس إلى الرجوع الفعليّ إن وُجد مرجعٌ من المنصّة نفسها
+  (document.referrer من الأصل ذاته)؛ وبلا مرجعٍ (فتحٌ مباشر/تبويبٌ جديد) يبقى الرابط إلى الرئيسيّة.
+  {% endcomment %}
+  <script nonce="{{ request.csp_nonce }}">
+    (function () {
+      var btn = document.querySelector('[data-error-back]');
+      if (!btn) return;
+      btn.addEventListener('click', function (e) {
+        var ref = document.referrer;
+        if (ref && ref.indexOf(location.origin + '/') === 0 && history.length > 1) {
+          e.preventDefault();
+          history.back();
+        }
+      });
+    })();
+  </script>
 </body>
 </html>

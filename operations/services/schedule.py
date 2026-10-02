@@ -208,9 +208,9 @@ class ScheduleService(
         exemption.save()
         logger.info(
             "تفريغ جديد: معلم=%s نوع=%s يوم=%d بواسطة=%s",
-            teacher.full_name,
+            teacher.pk,
             exemption_type,
             day_of_week,
-            created_by.full_name if created_by else "—",
+            created_by.pk if created_by else "—",
         )
         return exemption

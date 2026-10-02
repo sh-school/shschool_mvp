@@ -867,7 +867,7 @@ class BehaviorService:
             "مخالفة سلوكية جديدة: %s (درجة %d) للطالب %s بواسطة %s",
             infraction.pk,
             level,
-            student.full_name,
-            reporter.full_name,
+            student.pk,
+            reporter.pk,
         )
         return infraction
