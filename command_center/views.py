@@ -11,7 +11,7 @@ from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
-from command_center import contract, services, webstats
+from command_center import contract, layout, services, webstats
 from core.developer_access import developer_only
 
 #: تفضيلُ العرض: لوحاتٌ يخفيها المطوّرُ (مفاتيحُ مفصولةٌ بفواصل). كوكيٌّ لا قاعدةٌ: تفضيلُ متصفّحٍ لا بيانٌ، فلا هجرةَ ولا وميضَ عند التحميل
@@ -36,11 +36,16 @@ def index(request: HttpRequest) -> HttpResponse:
     hidden = hidden_keys(request)
     for panel in snapshot["panels"]:
         panel["hidden"] = panel["key"] in hidden
+    grouped = layout.groups(snapshot["panels"])
+    for group in grouped:
+        group["hidden"] = all(tile["hidden"] for tile in group["tiles"])
     return render(
         request,
         "command_center/index.html",
         {
             "snapshot": snapshot,
+            "groups": grouped,
+            "strip": layout.strip(snapshot["panels"]),
             "schema": contract.SCHEMA_VERSION,
             "shown": len(snapshot["panels"]) - len(hidden),
             "total": len(snapshot["panels"]),

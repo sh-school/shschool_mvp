@@ -17,7 +17,7 @@
         {% for panel in snapshot.panels %}
         <li class="plain-list__row">
           <label><input type="checkbox" data-qc-toggle="{{ panel.key }}"{% if not panel.hidden %} checked{% endif %}> {{ panel.title }}</label>
-          <span class="ui-note" data-key="{{ panel.key }}.pstate">{% if panel.status == "ok" %}سليم{% elif panel.status == "warn" %}انتبه{% elif panel.status == "bad" %}خطر{% else %}غير معلوم{% endif %}</span>
+          <span class="ui-note" data-key="{{ panel.key }}.pstate">{% if panel.status == "ok" %}✔ سليم{% elif panel.status == "warn" %}▲ انتبه{% elif panel.status == "bad" %}✖ خطر{% else %}؟ غير معلوم{% endif %}</span>
         </li>
         {% endfor %}
       </ul>

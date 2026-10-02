@@ -26,9 +26,24 @@
   {# تنبيهُ الجلسة/العقد: مخفيٌّ حتى يكشفه السكربتُ (انتهت الجلسة أو تغيّر إصدارُ العقد) #}
   <div role="status" data-qc-note hidden>{% callout "error" %}<span data-qc-note-text></span>{% endcallout %}</div>
 
-  <div class="auto-grid is-tiles">
-    {% for panel in snapshot.panels %}<div data-card="{{ panel.key }}"{% if panel.hidden %} hidden{% endif %}>{% include "command_center/_panel.html" %}</div>{% endfor %}
-  </div>
+  {# شريطُ «ما ينتظرك الآن»: ما يراه الخادمُ من مصادره وحدَها (لوحاتُ هذه الصفحة) — لا قراراتٍ مفتوحةً ولا ما في الدفتر المحلّيّ ولا رقماً مخمَّناً #}
+  {% url 'command_center:status' as status_url %}
+  {% callout "info" show=True %}
+    <strong>ما ينتظرك الآن:</strong>
+    <span data-key="strip.reds">{% if strip.reds %}✖ خطر: {{ strip.reds|join:"، " }}{% else %}✔ لا لوحةَ في حالة خطر{% endif %}</span> ·
+    <span data-key="strip.counts">▲ انتبه: {{ strip.warns }} · ؟ غير معلوم: {{ strip.unknown }}</span> ·
+    <span data-key="strip.unpublished">الإيداعاتُ غيرُ المنشورة: {% if strip.unpublished is None %}غيرُ معلومة{% else %}{{ strip.unpublished }}{% endif %}</span>
+    {% if status_url %} · <a href="{{ status_url }}">حالةُ اليوم</a>{% endif %}
+  {% endcallout %}
+
+  {% for group in groups %}
+  <section data-group="{{ group.key }}" aria-labelledby="qc-g-{{ group.key }}"{% if group.hidden %} hidden{% endif %}>
+    <h2 id="qc-g-{{ group.key }}">{{ group.title }} <span class="ui-note" data-key="group.{{ group.key }}.state">{{ group.worst_label }} · {{ group.ok }} من {{ group.total }} سليمة</span></h2>
+    <div class="auto-grid is-tiles">
+      {% for panel in group.tiles %}<div data-card="{{ panel.key }}"{% if panel.hidden %} hidden{% endif %}>{% include "command_center/_panel.html" %}</div>{% endfor %}
+    </div>
+  </section>
+  {% endfor %}
   <div data-qc-none{% if shown %} hidden{% endif %}>{% callout "info" %}كلُّ المؤشّرات مخفيّة — أظهِر ما تريد من زرّ «المؤشّراتُ المعروضة».{% endcallout %}</div>
 
   {% include "command_center/_picker.html" %}
