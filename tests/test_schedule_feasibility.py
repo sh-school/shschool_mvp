@@ -259,6 +259,8 @@ def test_the_report_is_storable(school, teacher):
         "capacity.teacher",
         "capacity.resource",
         "assignment.unassigned",
+        "assignment.daily_band",
+        "assignment.parallel_same_teacher",
     }
 
 
@@ -347,6 +349,107 @@ def test_a_feasible_generation_needs_no_reason(client_as, vice, school, teacher,
     assert not AuditLog.objects.filter(
         changes__event="schedule_generate_despite_infeasibility"
     ).exists()
+
+
+# ── AS-1/AS-4/AS-5: النصابُ مقابلَ سقف الجرس الفعليّ ─────────────────
+
+
+def test_a_personal_cap_tighter_than_the_bell_blocks_the_load(school, teacher):
+    """تفضيلٌ شخصيٌّ أضيقُ من الجرس هو الحاكم (AS-4) — والمنصّةُ تسمّيه."""
+    from operations.models import TeacherPreference
+
+    TeacherPreference.objects.create(
+        school=school, teacher=teacher, academic_year=YEAR, max_daily_periods=2
+    )
+    subject = a_subject(school, "الرياضيات", "MAT")
+    assign(school, subject, a_class(school), teacher, 15)  # 5 أيّام × 2 = 10 أقصى
+
+    found = finding(sf.check(school, YEAR), "assignment.daily_band")
+
+    assert found.status == "fail"
+    assert found.rows[0].capacity == 10
+    assert "تفضيلُه الشخصيّ" in found.rows[0].note
+
+
+def test_margin_free_edge_warns_without_blocking(school, teacher):
+    """على الحدّ بلا هامشٍ يُحذَّر لا يُرفَض — والتوليدُ لا يُمنع بتحذير."""
+    from operations.models import TeacherPreference
+
+    TeacherPreference.objects.create(
+        school=school, teacher=teacher, academic_year=YEAR, max_daily_periods=4
+    )
+    subject = a_subject(school, "الرياضيات", "MAT")
+    assign(school, subject, a_class(school), teacher, 20)  # 5 × 4 = 20، هامشٌ صفر
+
+    report = sf.check(school, YEAR)
+    found = finding(report, "assignment.daily_band")
+
+    assert found.status == "warn"
+    assert report.feasible, "التحذيرُ لا يحجب — لا هامشَ لا استحالة"
+
+
+def test_a_teacher_with_margin_passes_the_daily_band_check(school, teacher):
+    subject = a_subject(school, "الرياضيات", "MAT")
+    assign(school, subject, a_class(school), teacher, 10)
+
+    assert finding(sf.check(school, YEAR), "assignment.daily_band").status == "ok"
+
+
+# ── AS-2: تمايزُ معلّمي المجموعة المتوازية ────────────────────────────
+
+
+def test_the_same_teacher_on_both_sides_of_a_parallel_group_is_a_silent_breach(school, teacher):
+    """معلّمٌ واحدٌ لعضوَي مجموعةٍ متوازية — خرقٌ لا يراه HC1 (AS-2)."""
+    section = a_class(school)
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        subject=a_subject(school, "الفنون", "ART"),
+        class_group=section,
+        teacher=teacher,
+        weekly_periods=2,
+        parallel_group="فنون-تكنولوجيا",
+    )
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        subject=a_subject(school, "التكنولوجيا", "TECH"),
+        class_group=section,
+        teacher=teacher,
+        weekly_periods=2,
+        parallel_group="فنون-تكنولوجيا",
+    )
+
+    found = finding(sf.check(school, YEAR), "assignment.parallel_same_teacher")
+
+    assert found.status == "fail"
+    assert found.rows[0].demand == 2 and found.rows[0].capacity == 1
+    assert "معلّمُ الرياضيات" in found.rows[0].note
+
+
+def test_different_teachers_on_a_parallel_group_pass(school, teacher):
+    other = a_user(school, "معلّمةُ الفنون", "teacher")
+    section = a_class(school)
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        subject=a_subject(school, "الفنون", "ART"),
+        class_group=section,
+        teacher=teacher,
+        weekly_periods=2,
+        parallel_group="فنون-تكنولوجيا",
+    )
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        subject=a_subject(school, "التكنولوجيا", "TECH"),
+        class_group=section,
+        teacher=other,
+        weekly_periods=2,
+        parallel_group="فنون-تكنولوجيا",
+    )
+
+    assert finding(sf.check(school, YEAR), "assignment.parallel_same_teacher").status == "ok"
 
 
 def test_the_generate_button_hides_when_infeasible_and_the_override_form_appears(
