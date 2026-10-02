@@ -291,7 +291,14 @@ def _apply_to_effective(entry: AttendanceEntry, actor) -> None:
         "late_minutes": entry.tardiness_minutes if entry.status == "late" else None,
     }
     if row is None:
-        StudentAttendance.objects.create(session=session, student=student, **values)
+        try:
+            with transaction.atomic():
+                StudentAttendance.objects.create(session=session, student=student, **values)
+        except IntegrityError as exc:
+            # لم نجد صفّاً عند القفل فكتب مشرفٌ صفّاً في اللحظة نفسِها فاصطدم القيدُ الفريد — تعارضٌ لا 500.
+            raise EntryConflictError(
+                "non_teacher_row", "رصدٌ آخرُ كُتب على هذا الطالب للتوّ — لا كتابةَ فوقه."
+            ) from exc
         _audit(
             actor,
             session,
@@ -413,11 +420,39 @@ def decide_entry(
 # ══════════════════════════════════════════════════════════════════
 
 
+def _role_tenant():
+    """مدرسةُ دور القاعدة الحاليّ (`app_rls_school()`، هويّةُ المستأجِر من الدور لا من سياقٍ يضبطه التطبيق) أو `None`.
+
+    `None` لمالك الجداول/المتميّز (لا مستأجِرَ له فلا يُقيَّد بـRLS) ولقاعدةٍ بلا الدالّة.
+    """
+    if connection.vendor != "postgresql":
+        return None
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT to_regprocedure('public.app_rls_school()') IS NOT NULL")
+        if not cursor.fetchone()[0]:
+            return None
+        cursor.execute("SELECT public.app_rls_school()")
+        row = cursor.fetchone()
+    return row[0] if row else None
+
+
 @transaction.atomic
 def erase_attendance_ledger(student, *, actor=None, school=None) -> dict[str, int]:
     """يمحو إدخالاتِ طالبٍ وقراراتِها — حقُّ المحو. يضبط علَمَ المحو المحلّيّ في المعاملة (يسمح بالحذف وحدَه
     لا بالتعديل) ويكتب `AuditLog` بالأعداد. **يُستدعى من `ErasureService` وحدَه.**
+
+    **لا يفشل صامتاً تحت RLS** (حكمُ 0105): هويّةُ المستأجِر من دور القاعدة، فدورُ مدرسةٍ غيرِ مدرسة الطلب يرى صفراً
+    ويرجع عدّادٌ 0 و«تمّ المحو» والصفوفُ باقية. فيُرفض ابتداءً (`erasure_wrong_tenant`) إن لم يطابق مستأجرُ الدور
+    مدرسةَ الطلب، ويُتحقَّق بعد الحذف ألّا يبقى شيءٌ (`erasure_incomplete`) — وكلاهما يُلغي المعاملةَ كلَّها.
+    **حدٌّ معلَن:** صفوفُ مدرسةٍ أخرى سُجّل فيها الطالبُ قبل نقله لا يراها هذا الدور أصلاً، فلا يمحوها ولا يعدّها؛
+    محوُها يُنفَّذ بدور تلك المدرسة.
     """
+    tenant = _role_tenant()
+    if tenant is not None and school is not None and str(tenant) != str(school.pk):
+        raise EntryError(
+            "erasure_wrong_tenant",
+            "دورُ القاعدة الحاليّ لمدرسةٍ غيرِ مدرسة طلب المحو — يُنفَّذ بدور مدرستها.",
+        )
     with connection.cursor() as cursor:
         cursor.execute("SELECT set_config(%s, 'on', true)", [ERASURE_FLAG])
     try:
@@ -428,6 +463,11 @@ def erase_attendance_ledger(student, *, actor=None, school=None) -> dict[str, in
         # (طلبٌ أو اختبار) بقي العلَمُ مفتوحاً لما بعدها. فيُغلق صراحةً عند الخروج.
         with connection.cursor() as cursor:
             cursor.execute("SELECT set_config(%s, '', true)", [ERASURE_FLAG])
+    if (
+        AttendanceEntry.objects.filter(student=student).exists()
+        or AttendanceDecision.objects.filter(entry__student=student).exists()
+    ):
+        raise EntryError("erasure_incomplete", "بقيت صفوفٌ بعد المحو — أُلغيت المعاملة.")
     counts = {"decisions": decisions, "entries": entries}
     if decisions or entries:
         AuditLog.log(
