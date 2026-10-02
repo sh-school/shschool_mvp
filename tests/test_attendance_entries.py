@@ -145,7 +145,7 @@ def test_a1_the_wing_holder_approves_and_the_effective_row_appears(session, teac
 def test_a2_the_holder_of_another_wing_cannot_decide(school, year, session, teacher, kid):
     from core.models import Wing
 
-    other_holder = _staff(school, "admin_supervisor", "مشرف آخر", "29300002001")
+    other_holder = _staff(school, "admin_supervisor", "مشرف آخر", "29000002001")
     Wing.objects.create(
         school=school, code="w2", name="جناح 2", academic_year=year, supervisor=other_holder
     )
@@ -167,7 +167,7 @@ def test_a6_nobody_approves_what_he_entered_or_his_own_session(session, teacher,
 def test_a7_leadership_decides_only_when_no_holder_and_records_why(
     school, wing, session, teacher, kid
 ):
-    leader = _staff(school, "vice_admin", "النائب", "29300002002")
+    leader = _staff(school, "vice_admin", "النائب", "29000002002")
     entry = _submit(teacher, session, kid, "absent")
     with pytest.raises(EntryRefusedError):
         decide_entry(leader, entry, approve=True)
@@ -182,7 +182,7 @@ def test_the_decision_keeps_its_evidence_and_does_not_recompute(
     school, wing, session, teacher, holder, kid
 ):
     """إن تغيّرت التغطيةُ بعد القرار بقي الدليلُ كما كان وقتَه."""
-    substitute = _staff(school, "admin_supervisor", "البديل", "29300002003")
+    substitute = _staff(school, "admin_supervisor", "البديل", "29000002003")
     cover = _cover(wing, substitute, SUNDAY, None, by=holder)
     entry = _submit(teacher, session, kid, "absent")
     decision, _ = decide_entry(substitute, entry, approve=True)
@@ -401,7 +401,7 @@ def test_s2_the_original_teacher_cannot_enter_after_the_handover(
 def test_x1b_special_education_is_final_with_a_self_decision_marked_as_such(
     school, special_klass, teacher, bells
 ):
-    student = UserFactory(full_name="طالب التربية الخاصّة", national_id="29300002010")
+    student = UserFactory(full_name="طالب التربية الخاصّة", national_id="29000002010")
     StudentEnrollmentFactory(student=student, class_group=special_klass, enrolled_at=ENROLLED)
     sess = Session.objects.create(
         school=school,
@@ -428,7 +428,7 @@ def test_m2_a_wingless_ordinary_section_stays_pending(school, year, teacher, bel
     stray = ClassGroupFactory(
         school=school, grade="G8", section="3", level_type="prep", academic_year=year, wing=None
     )
-    student = UserFactory(full_name="طالبٌ عاديّ", national_id="29300002011")
+    student = UserFactory(full_name="طالبٌ عاديّ", national_id="29000002011")
     StudentEnrollmentFactory(student=student, class_group=stray, enrolled_at=ENROLLED)
     sess = Session.objects.create(
         school=school,
@@ -612,7 +612,7 @@ def test_m3_erasing_a_student_removes_his_ledger_and_logs_the_counts(
     assert AttendanceEntry.objects.filter(student=kid).count() == 2
     assert fix.supersedes_id == entry.pk
 
-    admin = UserFactory(full_name="مدير المحو", national_id="29300003010", is_superuser=True)
+    admin = UserFactory(full_name="مدير المحو", national_id="29000003010", is_superuser=True)
     request = ErasureRequest.objects.create(
         school=school,
         student=kid,

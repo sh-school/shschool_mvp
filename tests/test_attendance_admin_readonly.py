@@ -20,7 +20,7 @@ MODELS = (StudentAttendance, AttendanceEntry, AttendanceDecision)
 @pytest.fixture
 def root_request():
     request = RequestFactory().get("/admin/")
-    request.user = UserFactory(full_name="superuser", national_id="29300003001", is_superuser=True)
+    request.user = UserFactory(full_name="superuser", national_id="29000003001", is_superuser=True)
     return request
 
 

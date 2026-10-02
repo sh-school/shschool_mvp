@@ -95,24 +95,24 @@ def special_klass(school, year):
 
 @pytest.fixture
 def kid(school, klass):
-    student = UserFactory(full_name="طالب الشعبة", national_id="29300001001")
+    student = UserFactory(full_name="طالب الشعبة", national_id="29000001001")
     StudentEnrollmentFactory(student=student, class_group=klass, enrolled_at=ENROLLED)
     return student
 
 
 @pytest.fixture
 def teacher(school):
-    return _staff(school, "teacher", "معلّم الحصّة", "29300001010")
+    return _staff(school, "teacher", "معلّم الحصّة", "29000001010")
 
 
 @pytest.fixture
 def other_teacher(school):
-    return _staff(school, "teacher", "معلّم آخر", "29300001011")
+    return _staff(school, "teacher", "معلّم آخر", "29000001011")
 
 
 @pytest.fixture
 def holder(school):
-    return _staff(school, "admin_supervisor", "حاملُ الجناح", "29300001020")
+    return _staff(school, "admin_supervisor", "حاملُ الجناح", "29000001020")
 
 
 @pytest.fixture
