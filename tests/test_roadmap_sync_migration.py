@@ -9250,6 +9250,7 @@ def test_0061_appends_notes_once_without_touching_status_or_progress():
     ]
     assert "#842 نُشر 461e6db" in by["N-050"].note and "لم يُقَس" in by["N-050"].note
     assert "9,965" in by["N-069"].note and "11,394" in by["N-069"].note
+    assert "11,443" in by["N-069"].note and "على 3ebbc2ef" in by["N-069"].note
     assert "لم يُتحقَّق منه" in by["N-069"].note and "1,429" in by["N-069"].note
     assert "#840" in by["N-087"].note and "مدموجٌ ولم يُنشر" in by["N-087"].note
 
