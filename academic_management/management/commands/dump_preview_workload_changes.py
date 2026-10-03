@@ -51,6 +51,9 @@ class Command(BaseCommand):
         if options["school"]:
             assignments = assignments.filter(school__code=options["school"])
             plans = plans.filter(school__code=options["school"])
+        # حساباتُ المعاينة الوهميّةُ تبقى على 8500 (D-167م): صفوفُ معلّمٍ موسومٍ لا تُدمق أبداً.
+        assignments = recon.exclude_preview_teachers(assignments)
+        plans = recon.exclude_preview_teachers(plans)
 
         payload = {
             "since": since.isoformat(),

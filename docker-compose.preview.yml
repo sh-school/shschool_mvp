@@ -45,6 +45,10 @@ x-preview-env: &preview_env
   EXCEL_PROTECTION_PASSWORD: preview-local-only  # pragma: allowlist secret
   PYTHONUNBUFFERED: "1"
   APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+  # حساباتُ المعاينة الدائمة (W-20261003-023، D-167م): الأمرُ `preview_accounts` لا يبذر إلّا إن طابق اسمُ القاعدةِ هذا الاسمَ وكان الربطُ
+  # على 127.0.0.1 — وإلّا لا يبذر ويُعطَّل ما بُذر. وكلمتُها `PREVIEW_ACCOUNTS_PASSWORD` من `.env` غير المتتبَّع (لا تُكتب هنا).
+  PREVIEW_DB_NAME: ${PREVIEW_DB}
+  PREVIEW_BIND: ${PREVIEW_BIND:-127.0.0.1}
 
 services:
   web:
@@ -69,6 +73,9 @@ services:
           echo "بانتظار قاعدة البيانات على $$DB_HOST:$$DB_PORT…"; sleep 2
         done
         python manage.py migrate --noinput
+        # حساباتُ المعاينة الدائمة بعد كلّ إعادة بناءٍ للقاعدة (بدور المالك قبل التحوّل إلى دور التطبيق). فشلُها لا يوقف الإقلاع:
+        # الأمرُ يرفض بنفسه خارجَ إعداد المعاينة/قاعدتها/الربط المحلّيّ، والطبقةُ الثانيةُ `--check` تُعطّل ما بُذر إن تغيّر الربط.
+        python manage.py preview_accounts --sync || echo "تحذير: لم تُبذر حساباتُ المعاينة (انظر الرسالة أعلاه) — الإقلاعُ مستمرّ"
         if [ "$$PREVIEW_MODE" = "prod" ]; then
           python manage.py collectstatic --noinput --clear
         fi
