@@ -22,6 +22,7 @@ from django.db.models import QuerySet
 
 from core.models import ClassGroup, StudentEnrollment
 from core.permissions import WING_DAY_RECORD
+from core.unrestricted_role import has_unrestricted_role
 
 from .models import StudentAttendance
 
@@ -31,6 +32,8 @@ SOURCE = "supervisor"
 
 def is_recorder(user) -> bool:
     """أهلُ الرصد: `WING_DAY_RECORD` في مركز الصلاحيّات — والمعلّمُ ليس منهم."""
+    if has_unrestricted_role(user):
+        return False  # D-128م: المطوّر لا يُدخل رصدَ غياب الطلبة ولو كان superuser
     return user.is_superuser or user.get_role() in WING_DAY_RECORD
 
 

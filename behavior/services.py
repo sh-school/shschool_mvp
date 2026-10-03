@@ -25,6 +25,7 @@ from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school, default_academic_year
 from core.domain.tones import tone_for
+from core.unrestricted_role import has_unrestricted_role
 
 logger = logging.getLogger(__name__)
 
@@ -99,16 +100,28 @@ class BehaviorPermissions:
 
     @staticmethod
     def is_committee(user: CustomUser) -> bool:
-        return user.get_role() in BehaviorPermissions.COMMITTEE_ROLES or user.is_superuser
+        return (
+            user.get_role() in BehaviorPermissions.COMMITTEE_ROLES
+            or user.is_superuser
+            or has_unrestricted_role(user)
+        )
 
     @staticmethod
     def can_summon(user: CustomUser) -> bool:
-        return user.get_role() in BehaviorPermissions.SUMMON_ROLES or user.is_superuser
+        return (
+            user.get_role() in BehaviorPermissions.SUMMON_ROLES
+            or user.is_superuser
+            or has_unrestricted_role(user)
+        )
 
     @staticmethod
     def can_view_stats(user: CustomUser) -> bool:
         """يُعيد True إذا كان المستخدم مسموحاً له برؤية صفحة الإحصائيات."""
-        return user.get_role() in BehaviorPermissions.STATS_ROLES or user.is_superuser
+        return (
+            user.get_role() in BehaviorPermissions.STATS_ROLES
+            or user.is_superuser
+            or has_unrestricted_role(user)
+        )
 
 
 class BehaviorService:

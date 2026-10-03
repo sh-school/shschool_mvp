@@ -21,6 +21,7 @@ from core.academic_calendar import academic_year_for, default_academic_year
 from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser
 from core.safe_redirect import safe_redirect
+from core.unrestricted_role import has_unrestricted_role
 
 from . import evaluation_selectors as selectors
 from .appraisal_forms import forms_by_role
@@ -52,9 +53,10 @@ def _default_year(request=None):
 
 def _require_evaluator(request):
     """فقط المدير والنائبان يقيّمون"""
-    return request.user.is_admin() or request.user.get_role() in (
-        "vice_admin",
-        "vice_academic",
+    return (
+        request.user.is_admin()
+        or has_unrestricted_role(request.user)
+        or request.user.get_role() in ("vice_admin", "vice_academic")
     )
 
 

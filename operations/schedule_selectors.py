@@ -23,6 +23,7 @@ from django.utils.formats import date_format
 from core.academic_calendar import academic_year_for_school
 from core.models import CustomUser, Membership
 from core.permissions import SCHEDULE_BROWSE
+from core.unrestricted_role import has_unrestricted_role
 
 from .models import ScheduleGeneration, ScheduleSlot
 from .schedule_paper import (
@@ -113,7 +114,9 @@ def schedule_print_selection(school, user, get_params, default_source="plan"):
     # المعلّم يطبع جدوله هو. وكان الاختيار يُقرأ من الرابط بلا نظرٍ إلى
     # طالبه، و`get_object_or_404(CustomUser, id=…)` بلا قيد مدرسة — أي
     # جدولُ معلّمٍ في مدرسةٍ أخرى.
-    may_browse = user.is_admin() or user.get_role() in SCHEDULE_BROWSE
+    may_browse = (
+        user.is_admin() or has_unrestricted_role(user) or user.get_role() in SCHEDULE_BROWSE
+    )
 
     if not may_browse:
         view_type = "teacher"
