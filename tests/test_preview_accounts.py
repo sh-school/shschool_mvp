@@ -19,7 +19,6 @@ from pathlib import Path
 import pytest
 from django.contrib.auth import authenticate
 from django.core.management import CommandError, call_command
-from django.db import connection
 from django.test import override_settings
 from django.urls import reverse
 
@@ -51,10 +50,15 @@ def password():
     return secrets.token_urlsafe(10)
 
 
+PREVIEW_DB = "schoolos_main_preview_test"
+
+
 @pytest.fixture
 def preview_env(monkeypatch, password):
-    """بيئةُ معاينةٍ سليمة: اسمُ القاعدة، والربطُ المحلّيّ، والكلمةُ من البيئة."""
-    monkeypatch.setenv("PREVIEW_DB_NAME", connection.settings_dict["NAME"])
+    """بيئةُ معاينةٍ سليمة: اسمُ قاعدةٍ يحوي «preview»، والوضعُ، والربطُ المحلّيّ، والكلمةُ من البيئة."""
+    monkeypatch.setattr(pa, "current_db_name", lambda: PREVIEW_DB)
+    monkeypatch.setenv("PREVIEW_DB_NAME", PREVIEW_DB)
+    monkeypatch.setenv("PREVIEW_MODE", "prod")
     monkeypatch.setenv("PREVIEW_BIND", "127.0.0.1")
     monkeypatch.setenv(pa_command.PASSWORD_ENV, password)
     return password
@@ -102,7 +106,7 @@ def test_a_role_outside_the_list_never_gets_an_account(school, preview_env):
 
 
 def test_the_command_refuses_outside_the_preview_settings_and_touches_nothing(school, preview_env):
-    with pytest.raises(CommandError, match="shschool.settings.preview"):
+    with pytest.raises(CommandError, match="ليست بيئةَ معاينة"):
         _sync()  # إعدادُ الاختبار لا المعاينة
     assert not _fakes().exists()
 
@@ -549,3 +553,88 @@ def test_the_legacy_removal_audit_keeps_the_removed_accounts_id(school, preview_
         _sync()
     line = AuditLog.objects.get(object_repr__contains="إزالة")
     assert str(line.object_id) == str(legacy_id)
+
+
+# ══════════════════════════════════════════════════════════════════
+# ٨) توسيعُ «بيئة المعاينة» لوضع dev المثبَّت — بتشديدات 0105 الأربعة
+#    تخفيفٌ مسبَّبٌ لحارس: المعاينةُ المثبَّتةُ على شجرة جلسةٍ تعمل بإعداد التطوير وهي استعمالُ المالك الرئيسيّ.
+# ══════════════════════════════════════════════════════════════════
+
+DEVELOPMENT = override_settings(SETTINGS_MODULE=pa.DEVELOPMENT_SETTINGS_MODULE)
+
+
+def test_a_development_without_the_preview_db_name_is_not_a_preview(monkeypatch, school, password):
+    monkeypatch.setattr(pa, "current_db_name", lambda: PREVIEW_DB)
+    monkeypatch.setenv("PREVIEW_MODE", "dev")
+    monkeypatch.delenv("PREVIEW_DB_NAME", raising=False)
+    user = _fake_user(password)
+    with DEVELOPMENT:
+        assert not pa.in_preview_environment()
+        assert authenticate(identifier=user.national_id, password=password) is None
+        with pytest.raises(CommandError):
+            _sync()
+    assert _fakes().count() == 1  # لا بذرَ
+
+
+def test_b_development_with_matching_variables_and_a_preview_named_db_is_a_preview(
+    preview_env, monkeypatch, school
+):
+    monkeypatch.setenv("PREVIEW_MODE", "dev")
+    with DEVELOPMENT:
+        assert pa.in_preview_environment()
+        _sync()
+    assert _fakes().filter(is_active=True).count() == 9
+
+
+def test_b2_the_tagged_account_logs_in_under_the_pinned_development_preview(
+    client, preview_env, monkeypatch, school
+):
+    monkeypatch.setenv("PREVIEW_MODE", "dev")
+    with DEVELOPMENT:
+        _sync()
+        response = client.post(
+            reverse("login"), {"identifier": pa.ROLES["teacher"], "password": preview_env}
+        )
+    assert response.status_code == 302 and response["Location"] == "/dashboard/"
+
+
+def test_c_a_db_name_without_preview_is_refused_even_with_matching_variables(
+    monkeypatch, school, preview_env
+):
+    monkeypatch.setattr(pa, "current_db_name", lambda: "railway")
+    monkeypatch.setenv("PREVIEW_DB_NAME", "railway")
+    monkeypatch.setenv("PREVIEW_MODE", "dev")
+    with DEVELOPMENT:
+        assert not pa.in_preview_environment()
+        with pytest.raises(CommandError, match="preview"):
+            _sync()
+    assert not _fakes().exists()
+
+
+@pytest.mark.parametrize("module", ["shschool.settings.production", "shschool.settings.staging"])
+def test_d_production_and_staging_always_block_even_with_every_preview_variable(
+    module, monkeypatch, school, preview_env, password
+):
+    monkeypatch.setenv("PREVIEW_MODE", "prod")
+    user = _fake_user(password)
+    with override_settings(SETTINGS_MODULE=module):
+        assert not pa.in_preview_environment()
+        assert authenticate(identifier=user.national_id, password=password) is None
+        with pytest.raises(CommandError):
+            _sync()
+
+
+@pytest.mark.parametrize("mode", ["", "staging", "PROD", "preview"])
+def test_a_preview_mode_other_than_prod_or_dev_seeds_nothing(
+    mode, monkeypatch, school, preview_env
+):
+    monkeypatch.setenv("PREVIEW_MODE", mode)
+    with PREVIEW, pytest.raises(CommandError, match="PREVIEW_MODE"):
+        _sync()
+    assert not _fakes().exists()
+
+
+def test_the_testing_settings_are_never_a_preview(monkeypatch, preview_env, school, password):
+    user = _fake_user(password)
+    assert not pa.in_preview_environment()
+    assert authenticate(identifier=user.national_id, password=password) is None

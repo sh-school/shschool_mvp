@@ -4,9 +4,11 @@
     python manage.py preview_accounts --check    # يعطّل الحساباتِ إن لم يكن الربطُ على 127.0.0.1، ويُبلغ بالخلل
 
 **لا يعمل إلّا في المعاينة** — وإلّا رفض بـ`CommandError` ولم يمسّ القاعدةَ أصلاً (قد تكون الإنتاج):
-- الإعدادُ `shschool.settings.preview` (لا production ولا development ولا testing)؛
-- قاعدةٌ اسمُها قاعدةُ المعاينة: `PREVIEW_DB_NAME` (يضبطها `docker-compose.preview.yml` وحدَه) تساوي اسمَ القاعدة الفعليّ، وليست `shschool_db`
-  ولا فيها prod؛
+- بيئةُ معاينة (`core.preview_accounts.in_preview_environment`): الإعدادُ `shschool.settings.preview`، أو `shschool.settings.development` —
+  المعاينةُ المثبَّتةُ على شجرة جلسةٍ، وهي استعمالُ المالك الرئيسيّ (تخفيفٌ مسبَّبٌ لحارس بحكم 0105) — **بشرط** `PREVIEW_MODE ∈ {prod, dev}` ولا غيرُ
+  ذلك، وقاعدةٍ مطابقةٍ؛ وإعداداتُ الإنتاج/staging مرفوضةٌ دائماً مهما ضُبطت المتغيّراتُ؛
+- قاعدةٌ اسمُها قاعدةُ المعاينة بفحصٍ **إيجابيّ**: `PREVIEW_DB_NAME` (يضبطها `docker-compose.preview.yml` وحدَه) تساوي اسمَ القاعدة الفعليّ **وهو يحوي
+  «preview»** (قاعدةُ Railway الافتراضيّةُ «railway» تمرّ من فحصٍ سلبيٍّ)، وليست `shschool_db` ولا فيها prod؛
 - كلمةٌ من `PREVIEW_ACCOUNTS_PASSWORD` في `.env` غير المتتبَّع (لا في compose ولا كودٍ ولا اختبار)، ولا كلمةَ افتراضيّة؛
 - `PREVIEW_BIND = 127.0.0.1`: غيرُه (مثلاً `--lan`) **لا يبذر، ويُعطَّل ما بُذر** (`is_active=False`)، ويُرفع خطأٌ.
 
@@ -21,8 +23,9 @@ import os
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db import connection, transaction
+from django.db import transaction
 
+from core import preview_accounts as preview_module
 from core.models import AuditLog, CustomUser, Membership, Role, School
 from core.preview_accounts import (
     EMAIL_PREFIX,
@@ -30,6 +33,8 @@ from core.preview_accounts import (
     FULL_NAME_PREFIX,
     ID_PREFIX,
     NAME_PREFIX,
+    PREVIEW_DB_MARKER,
+    PREVIEW_MODES,
     ROLES,
     in_preview_environment,
     legacy_accounts_q,
@@ -42,16 +47,22 @@ PRODUCTION_DB = "shschool_db"
 
 
 def environment_problems() -> list[str]:
-    """أسبابُ رفض البذر قبل لمس القاعدة (الإعدادُ والقاعدةُ). فارغةٌ = مأذون."""
+    """أسبابُ رفض البذر قبل لمس القاعدة (الإعدادُ والقاعدةُ والوضع). فارغةٌ = مأذون."""
     problems = []
     if not in_preview_environment():
-        problems.append("الإعدادُ ليس shschool.settings.preview")
-    name = connection.settings_dict.get("NAME") or ""
+        problems.append(
+            "ليست بيئةَ معاينة (الإعدادُ preview، أو development بـPREVIEW_MODE ∈ {prod, dev} وقاعدةِ معاينةٍ مطابقة؛ والإنتاجُ مرفوضٌ دائماً)"
+        )
+    if os.environ.get("PREVIEW_MODE", "") not in PREVIEW_MODES:
+        problems.append("PREVIEW_MODE ليس prod ولا dev")
+    name = preview_module.current_db_name()
     expected = os.environ.get("PREVIEW_DB_NAME", "")
     if not expected:
         problems.append("PREVIEW_DB_NAME غيرُ مضبوطٍ (يضبطه docker-compose.preview.yml وحدَه)")
     elif name != expected:
         problems.append("اسمُ القاعدة لا يساوي PREVIEW_DB_NAME")
+    if PREVIEW_DB_MARKER not in name.lower():
+        problems.append("اسمُ القاعدة لا يحوي «preview»")
     if name == PRODUCTION_DB or "prod" in name.lower():
         problems.append("القاعدةُ تبدو قاعدةَ إنتاج")
     return problems

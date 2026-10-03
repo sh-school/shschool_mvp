@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 from typing import Any
 
@@ -25,6 +26,16 @@ from django.db.models import Q
 logger = logging.getLogger("core.preview_accounts")
 
 PREVIEW_SETTINGS_MODULE = "shschool.settings.preview"
+#: المعاينةُ المثبَّتةُ على شجرة جلسةٍ تعمل بإعداد التطوير (PREVIEW_MODE=dev في compose المعاينة) — وهي استعمالُ المالك الرئيسيّ.
+DEVELOPMENT_SETTINGS_MODULE = "shschool.settings.development"
+#: إعداداتُ الإنتاج **صريحةً** لا اشتقاقاً: الحسابُ الموسومُ يُحجب فيها دائماً مهما ضُبطت متغيّراتُ المعاينة (حكمُ 0105 ١).
+PRODUCTION_SETTINGS_MODULES = frozenset(
+    {"shschool.settings.production", "shschool.settings.staging"}
+)
+#: قيمُ PREVIEW_MODE المقبولة (يضبطها docker-compose.preview.yml وحدَه) — ولا قيمةَ أخرى ولا فراغ (حكمُ 0105 ٣).
+PREVIEW_MODES = frozenset({"prod", "dev"})
+#: اسمُ قاعدة المعاينة **يحوي** هذا (فحصٌ إيجابيّ) — فقاعدةُ Railway الافتراضيّةُ «railway» تمرّ من أيّ فحصٍ سلبيّ (حكمُ 0105 ٢).
+PREVIEW_DB_MARKER = "preview"
 
 #: الوسمُ المركَّب — لا يكفي أحدُ شقَّيه (حكمُ 0105 ب-٢).
 NAME_PREFIX = "[وهميّ"
@@ -52,9 +63,39 @@ ROLES: dict[str, str] = {
 FORBIDDEN_ROLES = frozenset({"platform_developer"})
 
 
+def current_db_name() -> str:
+    """اسمُ القاعدة الفعليّ للاتّصال الحاليّ."""
+    from django.db import connection
+
+    return str(connection.settings_dict.get("NAME") or "")
+
+
+def preview_db_matches() -> bool:
+    """قاعدةُ معاينةٍ بالفحص الإيجابيّ: `PREVIEW_DB_NAME` (يضبطه compose المعاينة وحدَه) يساوي الاسمَ الفعليّ **ويحوي «preview»**."""
+    expected = os.environ.get("PREVIEW_DB_NAME", "")
+    name = current_db_name()
+    return bool(expected) and name == expected and PREVIEW_DB_MARKER in name.lower()
+
+
 def in_preview_environment() -> bool:
-    """أهذا إعدادُ المعاينة؟ — بالإعداد الفعليّ للعمليّة لا بمتغيّرٍ يُضبط في مكانٍ آخر."""
-    return str(getattr(settings, "SETTINGS_MODULE", "")) == PREVIEW_SETTINGS_MODULE
+    """أهذه بيئةُ معاينة؟ — لا تُحجب فيها حساباتُ المعاينة.
+
+    1. إعدادُ إنتاجٍ/staging (قائمةٌ صريحة) ⇒ **لا، دائماً** — مهما ضُبطت متغيّراتُ المعاينة (خطأُ تهيئةٍ في Railway لا يفعّلها).
+    2. `shschool.settings.preview` ⇒ نعم.
+    3. `shschool.settings.development` (المعاينةُ المثبَّتةُ على شجرة جلسة) ⇒ نعم **فقط** إن كان `PREVIEW_MODE ∈ {prod, dev}` وقاعدةٌ
+       اسمُها قاعدةُ المعاينة (`preview_db_matches`).
+    4. غيرُ ذلك (testing وغيره) ⇒ لا.
+    """
+    module = str(getattr(settings, "SETTINGS_MODULE", ""))
+    if module in PRODUCTION_SETTINGS_MODULES:
+        return False
+    if module == PREVIEW_SETTINGS_MODULE:
+        return True
+    return (
+        module == DEVELOPMENT_SETTINGS_MODULE
+        and os.environ.get("PREVIEW_MODE", "") in PREVIEW_MODES
+        and preview_db_matches()
+    )
 
 
 def is_preview_account(user: Any) -> bool:
