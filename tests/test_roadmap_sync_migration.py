@@ -9156,7 +9156,7 @@ def test_0060_creates_n088_closed_by_publish_without_overwriting():
     assert _sync60.add_new_items(RoadmapItem) == []
     item = RoadmapItem.objects.get(code="N-088")
     assert (item.status, item.progress, item.pr) == ("done", 100, "#841")
-    assert "حدّان معلنان" in item.note and "لم يُقَس" in item.note
+    assert "حدّان يبقيان بإفادة جلسة التنفيذ" in item.note and "لم يُتحقَّق من نصّ 0105" in item.note
     assert len(item.date_basis) <= 120
 
 
