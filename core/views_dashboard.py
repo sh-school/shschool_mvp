@@ -26,10 +26,12 @@ from core.dashboard_selectors import (
     get_transport_ctx,
     supervisor_record_ctx,
 )
+from core.landing import landing_or_denied
 from core.models.academic import Wing
 
 
 @login_required
+@landing_or_denied
 @capability_required("dashboard.open")
 def dashboard(request):
     """لوحة التحكم الرئيسية — موزّع يعيد التوجيه أو يبني السياق حسب الدور.
