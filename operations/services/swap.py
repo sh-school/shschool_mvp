@@ -284,8 +284,8 @@ class SwapService:
         logger.info(
             "SwapService: created swap %s (%s <-> %s)",
             swap.pk,
-            teacher_a.full_name,
-            teacher_b.full_name,
+            teacher_a.pk,
+            teacher_b.pk,
         )
         return swap
 
@@ -556,7 +556,7 @@ class SwapService:
                     body=f"قام {cancelled_by.full_name} بإلغاء الطلب",
                     event_type="swap_cancelled",
                 )
-        logger.info("SwapService: cancelled swap %s by %s", swap.pk, cancelled_by.full_name)
+        logger.info("SwapService: cancelled swap %s by %s", swap.pk, cancelled_by.pk)
         return swap
 
     # ── انتهاء صلاحية الطلبات المعلّقة (القانون 7) ────────────────

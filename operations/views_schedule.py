@@ -27,6 +27,7 @@ from core.models import CustomUser, Membership
 from core.models.academic import grade_order
 from core.models.access import EXEMPTABLE_ROLES
 from core.safe_redirect import safe_redirect
+from core.unrestricted_role import has_unrestricted_role
 
 from .models import (
     ScheduleBaseline,
@@ -39,7 +40,12 @@ from .models import (
     TeacherExemption,
     TeacherPreference,
 )
-from .schedule_breaches import draft_breaches
+from .schedule_breaches import (
+    budget_cut_notice,
+    draft_breaches,
+    quality_display,
+    unplaced_count,
+)
 from .schedule_selectors import pages_payload
 from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
 from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
@@ -52,6 +58,18 @@ logger = logging.getLogger(__name__)
 #: للمهمّة (خمس عشرة دقيقة) بهامشِ انتظارٍ في الطابور — فما تجاوزه لم يعد
 #: ينتظر عاملاً، بل يحجب الزرَّ عمّن يريد إعادةَ المحاولة.
 _GENERATION_STALE_AFTER = timedelta(minutes=20)
+
+
+def _may_decide_schedule(user) -> bool:
+    """من يحفظ جدولاً مولَّداً أو يعتمده: المدير والنائبُ الأكاديميّ، والمطوّرُ (D-118م) وsuperuser.
+
+    دالّةٌ واحدة للزرّين بدل شرطٍ مكرَّر في عرضين (حدُّ تعقيد Radon ≤ 30 على `schedule_quality_lab`).
+    """
+    return (
+        user.is_superuser
+        or has_unrestricted_role(user)
+        or user.get_role() in ("principal", "vice_academic")
+    )
 
 
 def _reap_stale_generations(school, year):
@@ -646,8 +664,7 @@ def schedule_quality_lab(request):
             "stress_top": by_key.get("fairness.stress", {}).get("detail", {}),
             "resources": by_key.get("resources.utilization", {}).get("detail", {}),
             "missed_prefs": by_key.get("fairness.preference_satisfaction", {}).get("detail", {}),
-            "can_save": request.user.is_superuser
-            or request.user.get_role() in ("principal", "vice_academic"),
+            "can_save": _may_decide_schedule(request.user),
         },
     )
 
@@ -740,8 +757,7 @@ def smart_schedule_view(request):
             "pending_generation": pending_generation,
             # زرُّ الاعتماد لمن يملكه: كان يظهر لكلّ من يرى الصفحةَ، و`admin`
             # يضغطه فيُصدَم بـ403.
-            "can_approve": request.user.is_superuser
-            or request.user.get_role() in ("principal", "vice_academic"),
+            "can_approve": _may_decide_schedule(request.user),
             "year": year,
             "baseline": baseline,
             "total_weekly": total_weekly,
@@ -768,6 +784,13 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
         g.lab_tone = tone_for(g.lab_relative, LAB_RELATIVE_TONES, empty="")
         # ما بقي مكسوراً بموضعه — والإقرارُ به شرطُ اعتماد المسودّة (SCH-05).
         g.breaches = draft_breaches(g.config_snapshot)
+        g.budget_cut = budget_cut_notice(g.config_snapshot)
+        g.unplaced_count = unplaced_count(g.config_snapshot)
+        # الإقرارُ شرطٌ لمخالفاتٍ أو لمتعذّراتٍ (OR-01) — والعددُ الذي يُعرض على الزرّ مجموعُهما.
+        g.gate_total = (g.breaches["count"] if g.breaches else 0) + g.unplaced_count
+        g.quality = quality_display(
+            g.lab_relative, g.unplaced_count, g.breaches["count"] if g.breaches else 0
+        )
     measured = [g for g in generations if g.lab_rows]
     rows: dict[str, dict] = {}
     for column, g in enumerate(measured):

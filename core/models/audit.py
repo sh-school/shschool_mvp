@@ -2,7 +2,7 @@ from datetime import timedelta
 from typing import Any
 
 from django.core.exceptions import PermissionDenied
-from django.db import models
+from django.db import connection, models, transaction
 from django.utils import timezone
 
 from .school import School, _uuid
@@ -29,6 +29,29 @@ class _ImmutableQuerySet(models.QuerySet):
 class _ImmutableManager(models.Manager):
     def get_queryset(self):
         return _ImmutableQuerySet(self.model, using=self._db)
+
+    def redact_network_identity(self, user: Any) -> int:
+        """يُفرِّغ `ip_address` و`user_agent` لصفوف مستخدمٍ مُحيَ — الاستثناءُ الوحيدُ الثاني.
+
+        قرارُ المالك بصفته DPO (2026-10-03، W-20261003-013): `NULL` كاملٌ لا HMAC، ويشمل
+        محاولاتِ الدخول الفاشلة على حسابه؛ وتبقى الواقعةُ (من فعل ماذا ومتى). يُستدعى من
+        خدمة المحو وحدَها (يحرس ذلك اختبارٌ معماريّ)، ويقابله استثناءٌ مماثلٌ ضيّقٌ في
+        زناد القاعدة (الهجرة 0078). و`update` العاديُّ يبقى مرفوضاً.
+        """
+        rows: "models.QuerySet[Any]" = _ImmutableQuerySet(self.model, using=self._db).filter(
+            models.Q(user=user)
+            | models.Q(action__in=("login_failed", "mfa_failed"), object_id=str(user.pk))
+        )
+        # مرشّحُ الفراغ: إعادةُ الاستدعاء لا تكتب شيئاً ولا تُرجع صفوفاً مُفرَّغةً من قبل.
+        pending = rows.exclude(ip_address__isnull=True, user_agent="")
+        # علَمٌ محلّيٌّ للمعاملة يفتح الحالةَ الثانيةَ في الزناد ويُغلق في finally: بلاه يُرفض أيُّ
+        # UPDATE لهذين العمودَين حتى بSQL مباشر (دورُ التطبيق لا يمحو أثرَه بلا هذا المسار).
+        with transaction.atomic(using=self._db), connection.cursor() as cur:
+            cur.execute("SELECT set_config('app.auditlog_network_erasure', 'on', true)")
+            try:
+                return models.QuerySet.update(pending, ip_address=None, user_agent="")
+            finally:
+                cur.execute("SELECT set_config('app.auditlog_network_erasure', '', true)")
 
 
 class AuditLog(models.Model):

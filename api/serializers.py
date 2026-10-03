@@ -29,6 +29,7 @@ from core.models import (
     School,
     StudentEnrollment,
 )
+from core.unrestricted_role import has_unrestricted_role
 from library.models import BookBorrowing, LibraryBook
 from notifications.models import InAppNotification, UserNotificationPreference
 from operations.models import Session, StudentAttendance, Subject
@@ -66,6 +67,7 @@ class UserBriefSerializer(serializers.ModelSerializer):
             and getattr(user, "is_authenticated", False)
             and (
                 getattr(user, "is_superuser", False)
+                or has_unrestricted_role(user)
                 or (hasattr(user, "is_admin") and user.is_admin())
                 or (hasattr(user, "get_role") and user.get_role() in LEADERSHIP)
             )

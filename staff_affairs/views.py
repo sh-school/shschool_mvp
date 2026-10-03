@@ -22,7 +22,7 @@ from core.models.user import CustomUser
 from core.privacy import mask_national_id
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 
-from . import appointments, profile_services
+from . import appointments, profile_services, services
 from .forms import (
     StaffAppointmentForm,
     StaffDepartureForm,
@@ -30,7 +30,7 @@ from .forms import (
     StaffPersonForm,
 )
 from .models import LeaveRequest
-from .selectors import phone_holder_ids
+from .selectors import phone_holder_ids, staff_memberships
 from .services import LeaveService, StaffService
 
 
@@ -189,9 +189,9 @@ def staff_list(request):
     # السجلُّ صفٌّ لكلّ إنسانٍ لا لكلّ عضويّة: من كان معلّماً ومنسّقاً له
     # عضويّتان، فكان يُعدّ رجلين ويظهر مرّتين. والتصفّحُ على المستخدمين
     # كي يبقى العددُ في الترويسة هو عددَ من في القائمة.
-    memberships = Membership.objects.filter(school=school, is_active=(status != "left")).exclude(
-        role__name__in=("student", "parent")
-    )
+    # «المغادرون» من لا عضويّةَ كادرٍ نشطةً له وله عضويّةٌ منتهية — لا كلُّ من له صفٌّ منتهٍ:
+    # من غادر ثمّ أُعيد تعيينُه (أو عُطّلت عضويّةٌ قديمةٌ له) له صفٌّ منتهٍ وآخرُ نشط، وهو على رأس عمله.
+    memberships = staff_memberships(school, departed=status == "left")
     if role_filter:
         memberships = memberships.filter(role__name=role_filter)
     if dept_filter:
@@ -426,6 +426,12 @@ def staff_depart(request, user_id):
         messages.error(request, "لا عضويّةَ كادرٍ نشطةً لهذا الشخص في المدرسة.")
         return redirect("staff_affairs:staff_list")
 
+    try:
+        rows = services.departing_memberships(rows, request.POST.get("membership", ""))
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0])
+        return redirect("staff_affairs:staff_profile", user_id=user_id)
+
     form = StaffDepartureForm(request.POST)
     if not form.is_valid():
         for errors in form.errors.values():
@@ -566,7 +572,7 @@ def staff_profile(request, user_id):
             "role_display": role_display,
             "profile_subtitle": profile_subtitle,
             "today": timezone.localdate(),
-            "departure_form": StaffDepartureForm(initial={"on": timezone.localdate()}),
+            "departure_form": StaffDepartureForm.for_person(user, school),
             "person_form": person_form,
             "employment_form": employment_form,
             # الجدولُ لمن يُدرّس: ملاحظُ الطلبة والمحاسبُ لا حصصَ لهم.

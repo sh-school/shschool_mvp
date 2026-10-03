@@ -1,0 +1,60 @@
+{% extends "base/base.html" %}
+{% load ui icons %}
+{% comment %}
+طابورُ اعتماد رصد المعلّمين (W-020): ما أدخله المعلّمون الفعليّون مبدئيّاً وينتظر قرارَك — حاملَ جناحِ الشعبة يومَ الحصّة،
+أو القيادةَ حين لا حاملَ فعليّاً للجناح. الاعتمادُ يكتب الرصدَ المعتمَد، والرفضُ يلزمه سببٌ ولا يكتب شيئاً.
+بطاقةٌ لكلّ إدخال لا جدول: زرّا القرار كانا يقعان خارجَ شاشة الجوّال.
+{% endcomment %}
+{% block title %}اعتمادُ رصد المعلّمين{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/wings/" parent_label="أجنحة المدرسة" current="اعتمادُ رصد المعلّمين" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "اعتمادُ رصد المعلّمين" subtitle="إدخالاتٌ مبدئيّةٌ من معلّمي الحصص تنتظر قرارك" icon="checklist" %}
+    <a href="{% url 'attendance_unapproved' %}" class="btn-secondary btn-sm">{% icon "time" %} غيرُ المعتمَد بعد مدّة</a>
+  {% endpage_header %}
+
+  {% section_card "بانتظار قرارك" meta=items|length icon="checklist" empty="لا إدخالَ ينتظر قرارك." %}
+    {% if items %}
+    {% callout "warning" %}قبل قرارك لا يُحتسب الإدخالُ حضوراً ولا غياباً. والرفضُ يُبقي الطالبَ بلا رصدٍ معتمَدٍ ويبقى الإدخالُ والقرارُ سجلّاً لا يُحذف.{% endcallout %}
+    <ul class="af-days">
+      {% for item in items %}
+      <li class="af-day" id="item-{{ item.entry.id }}">
+        <div class="af-day__head">
+          <span class="af-day__date">{{ item.entry.student.full_name }}</span>
+          <span class="status-badge status-warning">{{ item.entry.get_status_display }}{% if item.entry.tardiness_minutes %} {{ item.entry.tardiness_minutes }} د{% endif %}</span>
+          <span class="af-day__meta">{{ item.entry.session.class_group }} · {{ item.entry.session.date|date:"j/n" }} {{ item.entry.session.start_time|time:"H:i" }}</span>
+          <span class="af-day__meta">أدخله {{ item.entry.entered_by.full_name }} · منذ {{ item.age_hours|floatformat:0 }} ساعة</span>
+          {% if item.as_leadership %}<span class="status-badge status-info" title="لا حاملَ فعليّاً لجناح الشعبة يومَ الحصّة — فالقرارُ للقيادة">بصفة القيادة</span>{% endif %}
+          {% if item.entry.supersedes_id %}<span class="status-badge status-info">تصحيح</span>{% endif %}
+        </div>
+        <div class="af-day__actions">
+          <a href="{% url 'attendance_correct' item.entry.session_id %}" class="btn-secondary btn-sm">تصحيحٌ دون معاينة لهذه الحصّة</a>
+        </div>
+        {# نموذجان لا نموذجٌ بزرّين: Enter في خانة سبب الرفض لا يعتمد. #}
+        <div class="xr-decide">
+          <form hx-post="{% url 'attendance_decide' item.entry.id %}" hx-target="#item-{{ item.entry.id }}" hx-swap="outerHTML" class="xr-form">
+            {% csrf_token %}
+            <input type="hidden" name="decision" value="approve">
+            <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} اعتماد</button>
+          </form>
+          <form hx-post="{% url 'attendance_decide' item.entry.id %}" hx-target="#item-{{ item.entry.id }}" hx-swap="outerHTML" class="xr-form xr-form--reject">
+            {% csrf_token %}
+            <input type="hidden" name="decision" value="reject">
+            <label class="form-label">سببُ الرفض
+              <input type="text" name="reason" class="form-control" maxlength="300" required aria-label="سببُ رفض إدخال {{ item.entry.student.full_name }}">
+            </label>
+            <button type="submit" class="btn-secondary btn-sm">رفض</button>
+          </form>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  {% endsection_card %}
+</div>
+{% endblock %}

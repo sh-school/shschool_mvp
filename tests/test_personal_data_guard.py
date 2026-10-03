@@ -89,11 +89,96 @@ def test_the_tests_directory_is_scanned():
 
 
 @pytest.mark.parametrize(
-    "path",
-    ["docs/plan.md", "README.md", "static/js/x.js", "app/migrations/0001_a.py", "poetry.lock"],
+    "path", ["static/js/x.js", "app/migrations/0001_a.py", "poetry.lock", "web/package-lock.json"]
 )
-def test_documents_and_generated_files_stay_out_of_scope(path):
+def test_generated_files_stay_out_of_scope(path):
     assert guard.is_excluded(path)
+
+
+@pytest.mark.parametrize(
+    "path", ["docs/plan.md", "README.md", "docs/data/export.csv", "notes/a.md"]
+)
+def test_documents_are_scanned_since_w005(path):
+    """`docs/` و`.md` تدخل صورةَ الإنتاج وتُنشر علناً — كان استثناؤُها ثغرةً بلا حارس (D-158م)."""
+    assert not guard.is_excluded(path)
+    assert [v.token for v in _violations(path, f"رقم: {LOOKS_REAL_ID}")] == [LOOKS_REAL_ID]
+
+
+def test_a_synthetic_number_in_a_document_passes():
+    assert _violations("docs/guide.md", "مثال: 29000000031") == []
+
+
+@pytest.mark.parametrize("prefix", ["run ", "run #", "Run  ", "runs/", "job ", "jobs/", "job #"])
+def test_a_ci_identifier_is_exempt_by_context(prefix):
+    """«run <معرّف>» رقمُ تشغيلٍ لا هويّة: يُعفى بالسياق لا بقائمة أرقام."""
+    assert _violations("docs/ci.md", f"see {prefix}{LOOKS_REAL_ID}") == []
+
+
+def test_the_ci_context_exempts_only_the_number_right_after_it():
+    line = f"run {LOOKS_REAL_ID} then {LOOKS_REAL_ID}"
+
+    assert len(_violations("docs/ci.md", line)) == 1, "الثاني بلا سياقٍ فيُلتقط"
+    assert _violations("docs/ci.md", f"running {LOOKS_REAL_ID}") != [], "«running» ليست «run»"
+
+
+def test_a_named_exception_exempts_a_path(monkeypatch):
+    monkeypatch.setitem(guard.EXCEPT_MD, "docs/legacy.md", "سببٌ مكتوب")
+
+    assert guard.is_excluded("docs/legacy.md")
+    assert not guard.is_excluded("docs/other.md")
+
+
+def _in_a_git_checkout():
+    if shutil.which("git") is None:
+        return False
+    probe = subprocess.run(
+        ["git", "rev-parse", "--is-inside-work-tree"], cwd=ROOT, capture_output=True
+    )
+    return probe.returncode == 0
+
+
+def _repo_with(tmp_path, files):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    for rel, text in files.items():
+        target = tmp_path / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    return tmp_path
+
+
+@pytest.mark.skipif(not _in_a_git_checkout(), reason="يحتاج نسخةَ git")
+def test_warning_mode_exits_zero_for_documents_before_the_deadline(tmp_path, capsys):
+    from datetime import timedelta
+
+    repo = _repo_with(tmp_path, {"docs/a.md": LOOKS_REAL_ID})
+
+    assert guard.main(["--root", str(repo)], today=guard.WARN_UNTIL) == 0
+    assert "::warning::" in capsys.readouterr().out
+    assert guard.main(["--root", str(repo)], today=guard.WARN_UNTIL + timedelta(days=1)) == 1
+
+
+@pytest.mark.skipif(not _in_a_git_checkout(), reason="يحتاج نسخةَ git")
+def test_code_fails_even_inside_the_warning_window(tmp_path):
+    repo = _repo_with(tmp_path, {"core/x.py": f'NID = "{LOOKS_REAL_ID}"'})
+
+    assert guard.main(["--root", str(repo)], today=guard.WARN_UNTIL) == 1
+
+
+@pytest.mark.skipif(not _in_a_git_checkout(), reason="يحتاج نسخةَ git")
+def test_a_docs_file_without_md_extension_is_caught(tmp_path):
+    repo = _repo_with(tmp_path, {"docs/data/export.csv": LOOKS_REAL_ID})
+
+    assert [v.path for v in guard.scan_repo(repo)] == ["docs/data/export.csv"]
+
+
+@pytest.mark.skipif(not _in_a_git_checkout(), reason="يحتاج نسخةَ git")
+def test_an_oversized_file_is_named_not_silently_skipped(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(guard, "MAX_BYTES", 10)
+    repo = _repo_with(tmp_path, {"docs/big.md": "x" * 50})
+
+    assert guard.main(["--root", str(repo)]) == 0
+    assert "docs/big.md" in capsys.readouterr().out
 
 
 def test_the_output_never_prints_a_full_number():
@@ -114,15 +199,6 @@ def test_the_gate_step_runs_the_script_and_does_not_exclude_tests():
     assert "scripts/check_personal_data.py" in workflow
     assert ":!tests/*" not in workflow
     assert ":!*/tests/*" not in workflow
-
-
-def _in_a_git_checkout():
-    if shutil.which("git") is None:
-        return False
-    probe = subprocess.run(
-        ["git", "rev-parse", "--is-inside-work-tree"], cwd=ROOT, capture_output=True
-    )
-    return probe.returncode == 0
 
 
 @pytest.mark.skipif(not _in_a_git_checkout(), reason="يحتاج نسخةَ git (في CI متوفّرة)")

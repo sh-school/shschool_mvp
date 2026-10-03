@@ -17,6 +17,7 @@ from django.views.decorators.http import require_POST
 from core.academic_calendar import academic_year_for
 from core.capabilities import capability_required
 from core.models import AuditLog
+from core.unrestricted_role import has_unrestricted_role
 
 from . import evaluation_selectors as selectors
 from .evaluation_services import (
@@ -72,7 +73,7 @@ def evaluation_grievances(request):
     (`is_superuser`) يرى ما يراه المديرُ **للعرض وحدَه** — التدوينُ للمدير (`record_grievance_decision`).
     """
     can_record = is_school_principal(request.school, request.user)
-    if not (can_record or request.user.is_superuser):
+    if not (can_record or request.user.is_superuser or has_unrestricted_role(request.user)):
         return HttpResponse("غير مسموح — لمدير المدرسة وحده", status=403)
     year = request.GET.get("year") or academic_year_for(request)
     if not is_academic_year(year):

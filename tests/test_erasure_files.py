@@ -15,7 +15,9 @@ from student_affairs.models import StudentActivity
 
 
 @pytest.mark.django_db
-def test_erasure_purges_uploaded_files(school, student_user, principal_user):
+def test_erasure_purges_uploaded_files(
+    school, student_user, principal_user, django_capture_on_commit_callbacks
+):
     # ملف مرفوع في التخزين (DatabaseStorage → StoredFile)
     name = default_storage.save(
         "student_activities/2026/06/cert.pdf", ContentFile(b"PII certificate")
@@ -38,7 +40,9 @@ def test_erasure_purges_uploaded_files(school, student_user, principal_user):
         reason="محو شامل لبيانات الطالب",
     )
 
-    summary = ErasureService.execute(req)
+    # حذفُ الملفّات يُؤجَّل إلى on_commit (لا يُنفَّذ إلّا بنجاح المعاملة كلِّها — حكمُ 0105 N1)
+    with django_capture_on_commit_callbacks(execute=True):
+        summary = ErasureService.execute(req)
 
     # الملف طُهِّر من التخزين (لا blob يتيم)
     assert not StoredFile.objects.filter(name=name).exists()

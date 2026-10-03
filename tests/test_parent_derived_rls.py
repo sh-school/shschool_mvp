@@ -149,9 +149,9 @@ def test_join_table_checks_are_stronger_than_their_using(table):
         qual, with_check = cursor.fetchone()
 
     assert "core_membership" in with_check, f"{table}: WITH CHECK لا يفحص الطرف الثاني"
-    assert "core_membership" not in qual, (
-        f"{table}: USING يفحص العضويّة — وهذا يُخفي صفوفاً مشروعة انتهت عضويّة " f"صاحبها ويمنع تصحيحها"
-    )
+    assert (
+        "core_membership" not in qual
+    ), f"{table}: USING يفحص العضويّة — وهذا يُخفي صفوفاً مشروعة انتهت عضويّة صاحبها ويمنع تصحيحها"
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -625,3 +625,86 @@ def test_foreign_observation_score_is_invisible():
         readable=OBSERVATION_TABLES + ("quality_observationscore",),
     ):
         assert foreign_score.id not in _visible_ids("quality_observationscore")
+
+
+# ── أصوات لجنة الضبط (W-024، الهجرة behavior/0023) ───────────────────────────
+
+COMMITTEE_VOTE_TABLES = ("core_behaviorinfraction", "behavior_behaviorcommitteevote")
+
+_VOTE_INSERT = (
+    "INSERT INTO public.behavior_behaviorcommitteevote "
+    "(infraction_id, voter_id, decision, action_taken, suspension_type, "
+    " suspension_days, status, created_at, updated_at) "
+    "VALUES (%s, NULL, 'escalate', '', '', 1, 'open', now(), now())"
+)
+
+
+def _make_vote(school):
+    from behavior.models import BehaviorCommitteeVote
+    from tests.conftest import BehaviorInfractionFactory
+
+    infraction = BehaviorInfractionFactory(
+        school=school, student=UserFactory(), reported_by=UserFactory(), level=3
+    )
+    vote = BehaviorCommitteeVote.objects.create(
+        infraction=infraction, voter=UserFactory(), decision="escalate"
+    )
+    return infraction, vote
+
+
+@pytest.mark.django_db
+def test_own_committee_vote_is_visible():
+    """الوصول المشروع يعمل — وإلا كان العزل تعطيلاً لا حماية."""
+    _skip_unless_postgres()
+
+    own = SchoolFactory()
+    _, vote = _make_vote(own)
+
+    with _rls_enforced_as(own.id, readable=COMMITTEE_VOTE_TABLES):
+        assert vote.id in _visible_ids("behavior_behaviorcommitteevote")
+
+
+@pytest.mark.django_db
+def test_foreign_committee_vote_is_invisible():
+    """أصواتُ لجنة مدرسة أخرى في مخالفاتها لا تُقرأ."""
+    _skip_unless_postgres()
+
+    own = SchoolFactory()
+    victim = SchoolFactory()
+    _, foreign_vote = _make_vote(victim)
+
+    with _rls_enforced_as(own.id, readable=COMMITTEE_VOTE_TABLES):
+        assert foreign_vote.id not in _visible_ids("behavior_behaviorcommitteevote")
+
+
+@pytest.mark.django_db
+def test_own_committee_vote_insert_succeeds_under_the_restricted_role():
+    _skip_unless_postgres()
+
+    own = SchoolFactory()
+    infraction, _ = _make_vote(own)
+
+    with _rls_enforced_as(
+        own.id,
+        readable=COMMITTEE_VOTE_TABLES,
+        writable=("behavior_behaviorcommitteevote",),
+    ):
+        with connection.cursor() as cursor:
+            cursor.execute(_VOTE_INSERT, [str(infraction.id)])
+
+
+@pytest.mark.django_db
+def test_committee_vote_on_a_foreign_infraction_is_rejected():
+    """إدخالٌ عابرٌ للمدارس: صوتٌ على مخالفة مدرسة أخرى يُرفض بـ42501."""
+    _skip_unless_postgres()
+
+    own = SchoolFactory()
+    victim = SchoolFactory()
+    foreign_infraction, _ = _make_vote(victim)
+
+    with _rls_enforced_as(
+        own.id,
+        readable=COMMITTEE_VOTE_TABLES,
+        writable=("behavior_behaviorcommitteevote",),
+    ):
+        _assert_rejected_by_rls(_VOTE_INSERT, [str(foreign_infraction.id)])

@@ -556,6 +556,44 @@ def test_an_unplaceable_lesson_names_what_blocks_it_most():
     assert message.startswith("تعذر وضع:")
 
 
+def test_a_nearly_full_class_is_not_blamed_on_its_own_occupied_cells():
+    """W-20261003-010: «الشعبة لا تأخذ مادّتين معاً (33 خانة)» صحيحٌ حرفاً ولا يقول شيئاً.
+
+    الخاناتُ التي تشغلها الشعبةُ ليست موضعاً محتملاً أصلاً؛ فيُقال امتلاؤها رقماً، والمانعُ
+    يُعدّ في خاناتها الفارغة وحدَها — وهنا معلّمُ المهمّة مشغولٌ فيهما.
+    """
+    from operations.scheduler_audit import unplaced_message
+
+    grid = ScheduleGrid()
+    cells = [(d, p) for d in range(5) for p in range(1, 8) if not (d == 4 and p == 7)]
+    free = cells[-2:]
+    for index, (day, period) in enumerate(cells[:-2]):
+        grid.place(day, period, lesson("c-1", f"s-{index}", f"t-{index}", weekly=1))
+    for index, (day, period) in enumerate(free):
+        grid.place(day, period, lesson(f"c-other-{index}", "s-x", "t-me", weekly=1))
+    wanted = lesson("c-1", "s-new", "t-me", weekly=1)
+
+    message = unplaced_message(grid, wanted)
+
+    assert "في خانات الشعبة الفارغة (2)" in message
+    assert "المعلّم لا يُدرّس شعبتين معاً (2 خانة)" in message
+    assert "الشعبةُ مشغولةٌ في 32 من 34 خانة" in message
+    assert "الشعبة لا تأخذ مادّتين معاً" not in message, "الامتلاءُ رقمٌ لا مانع"
+
+
+def test_a_full_class_says_so_plainly():
+    from operations.scheduler_audit import unplaced_message
+
+    grid = ScheduleGrid()
+    cells = [(d, p) for d in range(5) for p in range(1, 8) if not (d == 4 and p == 7)]
+    for index, (day, period) in enumerate(cells):
+        grid.place(day, period, lesson("c-1", f"s-{index}", f"t-{index}", weekly=1))
+
+    message = unplaced_message(grid, lesson("c-1", "s-new", "t-me", weekly=1))
+
+    assert "أكثرُ ما منعها: الشعبةُ ممتلئة (34 من 34 خانة مشغولة بموادّ أخرى)" in message
+
+
 def test_a_lesson_with_free_cells_is_not_blamed_for_any_constraint():
     from operations.scheduler_audit import blockers
 

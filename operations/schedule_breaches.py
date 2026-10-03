@@ -61,6 +61,20 @@ def draft_breaches(snapshot: dict | None) -> dict | None:
     return {"count": int(recorded.get("count") or 0), "groups": groups}
 
 
+def budget_cut_notice(snapshot: dict | None) -> dict | None:
+    """`{attempt, after_seconds}` إن قُطع إصلاحُ التوليد بنفاد الميزانية — وإلّا `None`.
+
+    فالمتعذّراتُ حينها قد تكون من قطعٍ لا من استحالة، ومن يعتمد المسودّةَ يُخبَر بذلك (0105، W-20261002-033).
+    """
+    recorded = snapshot or {}
+    if not recorded.get("budget_cut"):
+        return None
+    return {
+        "attempt": recorded.get("budget_cut_attempt"),
+        "after_seconds": recorded.get("budget_cut_after_s"),
+    }
+
+
 class BreachesNotAcknowledgedError(Exception):
     """اعتمادُ مسودّةٍ فيها مخالفاتٌ صلبةٌ لم يُقَرّ بها — السببُ يُقال كما هو."""
 
@@ -70,18 +84,64 @@ def acknowledged(data: Mapping[str, Any]) -> bool:
     return data.get(ACKNOWLEDGE_FIELD) == "1"
 
 
+def unplaced_count(snapshot: dict | None) -> int:
+    """عددُ المهامّ التي لم تجد موضعاً في المسودّة (`config_snapshot["unplaced"]`) — وصفرٌ للقطةٍ أقدم لا تحمله."""
+    recorded = (snapshot or {}).get("unplaced")
+    if isinstance(recorded, int) and not isinstance(recorded, bool) and recorded > 0:
+        return recorded
+    return 0
+
+
+def quality_display(relative: float | None, unplaced: int, breaches: int) -> dict:
+    """درجةُ عمود «الجودة» في سجلّ التوليد — **الصحّةُ أوّلاً ثمّ الجودة** (W-20261003-010).
+
+    الدرجةُ المنسوبةُ متوسّطُ نِسَب المؤشّرات إلى أساسها، وكلٌّ منها حتى 120 — فـ«اكتمالُ النصاب»
+    واحدٌ من اثنين وعشرين يُمحى أثرُه بتحسّنٍ في غيره، ومخالفاتُ المدقّق (HC14، HC16B…) ليست في
+    المختبر أصلاً. فأُعلنت مسودّةٌ فيها ثلاثُ متعذّراتٍ وخمسُ مخالفاتٍ «100%» فوق جدولين كاملين «99%»:
+    حذفُ ما يصعب وضعُه يُريح المؤشّراتِ المرنة فيرفع الرقم.
+
+    والمولّدُ نفسُه يفاضل معجميّاً (المتعذّراتُ قبل الدرجة، `scheduler.py`)، والمقارنةُ بالدرجة لا
+    تصحّ إلّا بين جدولين متساويَين صحّةً (ADR-0008 §5). فالمسودّةُ الناقصةُ أو المكسورةُ لا تُعطى
+    درجةً تُقارَن: تُوسَم «ناقصة» بلون الخطر، وتُذكر درجةُ ما وُضع فيها ثانويّةً مسمّاةً باسمها،
+    وتُفرَز تحت كلِّ جدولٍ سليم.
+    """
+    invalid = bool(unplaced or breaches)
+    if relative is None:
+        return {"invalid": invalid, "value": None, "tone": "danger" if invalid else "", "sort": ""}
+    return {
+        "invalid": invalid,
+        "value": relative,
+        "tone": "danger" if invalid else "",
+        # الفرزُ معجميّ: كلُّ سليمٍ فوق كلِّ ناقص، ثمّ بالدرجة داخل كلٍّ منهما.
+        "sort": round(relative - (1000 if invalid else 0), 1),
+    }
+
+
 def approval_refusal(gen: ScheduleGeneration, acknowledged_: bool) -> str:
     """سببُ رفض الاعتماد — أو نصٌّ فارغٌ إن جاز.
 
     القيدُ الصلبُ لا يُكسر بصمت: إمّا يُسدَّد قبل انتهاء التوليد، وإمّا يُعلَن
     بموضعه ويُقرّ به من يعتمد. والإقرارُ حقلٌ في الطلب يُحكم فيه على الخادم، لا
     تأكيدُ المتصفّح وحدَه — ذاك يتجاوزه طلبٌ مباشر.
+
+    وكذلك **المتعذّرات** (OR-01، قرارُ المالك): جدولٌ فيه حصّةٌ لم تجد موضعاً لا يُعتمد إلّا بإقرارٍ صريحٍ
+    مسجَّل — فكان يُعتمد بضغطةٍ واحدةٍ لأنّ الحارسَ لا يعدّ إلّا المخالفاتِ المُسنَدةَ لقيودٍ صلبة. وإن قُطع البحثُ
+    بنفاد الميزانية يُذكر ذلك: المتعذّرُ حينها قد يكون من قطعٍ لا من استحالة.
     """
     breaches = draft_breaches(gen.config_snapshot)
     count = breaches["count"] if breaches else 0
-    if not count or acknowledged_:
+    unplaced = unplaced_count(gen.config_snapshot)
+    if (not count and not unplaced) or acknowledged_:
         return ""
-    return (
-        f"لم يُعتمد الجدول: في المسودّة مخالفاتٌ لقيودٍ صلبة (عددُها {count}). "
+    parts = []
+    if count:
+        parts.append(f"مخالفاتٌ لقيودٍ صلبة (عددُها {count})")
+    if unplaced:
+        parts.append(f"{unplaced} مهمّةً متعذّرةً لم تجد موضعاً")
+    message = (
+        f"لم يُعتمد الجدول: في المسودّة {' و'.join(parts)}. "
         "راجعها في سجلّ التوليد، ثمّ أقرَّ بها صراحةً عند الاعتماد."
     )
+    if unplaced and budget_cut_notice(gen.config_snapshot):
+        message += " وقد قُطع البحثُ بنفاد الميزانية فقد تُحلّ المتعذّراتُ بميزانيةٍ أطول."
+    return message

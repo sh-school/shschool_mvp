@@ -15,9 +15,10 @@ from core.academic_calendar import academic_year_for_school
 from core.capabilities import capability_required
 from core.models import StudentEnrollment
 
-from .day_attendance import can_record, is_recorder, recorded_by_supervisor
+from .day_attendance import can_record, is_recorder
 from .models import Session, StudentAttendance
 from .services import AttendanceService, ScheduleService, SubstituteService
+from .services.attendance_teacher import TeacherAttendanceService
 
 logger = logging.getLogger(__name__)
 
@@ -195,40 +196,14 @@ def attendance_view(request, session_id):
     ]
     for row in students_data:
         row["tone"] = attendance_tone(row["status"])
-    summary = AttendanceService.get_session_summary(session)
-    from .class_exit import exits_of_session
-
-    exits = exits_of_session(session)
     if not can_record(request.user, session):
-        # اطّلاعٌ لا رصد: يرى المعلّمُ ما رصده مشرفُ الجناح، ولا زرَّ يكتب —
-        # إلّا نقرةَ «دخل متأخّراً» لصاحب الحصّة (قرارُ 2026-09-13).
-        return render(
-            request,
-            "teacher/attendance_readonly.html",
-            {
-                "session": session,
-                "can_tap_late": request.user == session.teacher,
-                "exits": exits,
-                "out_now": sum(1 for cur, _ in exits.values() if cur is not None),
-                "students_data": [
-                    {
-                        **row,
-                        "status": row["status"] if row["attendance"] else "unmarked",
-                        "tap_minutes": (
-                            row["attendance"].late_minutes
-                            if row["attendance"] and row["attendance"].source == "teacher_late"
-                            else None
-                        ),
-                        "exit": exits.get(row["student"].id, (None, []))[0],
-                        "exit_count": len(exits.get(row["student"].id, (None, []))[1]),
-                    }
-                    for row in students_data
-                ],
-                "summary": summary,
-                "recorded": bool(existing),
-                **_session_heading(session),
-            },
-        )
+        # شُعبُ الأجنحة: المعلّمُ الفعليّ يُدخل رصداً مبدئيّاً يعتمده حاملُ الجناح (W-020)، وله نقرتا الدخول والخروج.
+        context = {
+            **TeacherAttendanceService.page_context(request.user, session),
+            **_session_heading(session),
+        }
+        return render(request, "teacher/attendance_readonly.html", context)
+    summary = AttendanceService.get_session_summary(session)
     view_mode = request.GET.get("view", "list")
     template = "teacher/attendance_grid.html" if view_mode == "grid" else "teacher/attendance.html"
 
@@ -275,12 +250,11 @@ def mark_single(request, session_id):
         enrollments__class_group=session.class_group,
         enrollments__is_active=True,
     )
-    # الرصدُ لمشرف الجناح (قرارُ المدير) — والمعلّمُ لا يرصد في شُعب الأجنحة،
-    # وما رصده المشرفُ لا يُكتب فوقه إلّا من أهل الرصد.
-    if not can_record(request.user, session) or (
-        not is_recorder(request.user) and recorded_by_supervisor(session, student)
+    # الرصدُ لمشرف الجناح (قرارُ المدير)، وفي شُعبٍ بلا جناحٍ لمعلّم الحصّة داخل وقتها (W-026).
+    if not can_record(request.user, session) or not AttendanceService.may_write(
+        request.user, session, student
     ):
-        return HttpResponse("الرصدُ لمشرف الجناح.", status=403)
+        return HttpResponse("الرصدُ لمشرف الجناح أو لمعلّم الحصّة داخل وقتها.", status=403)
     att, _ = AttendanceService.mark_attendance(
         session=session,
         student=student,
@@ -325,14 +299,15 @@ def mark_late_tap(request, session_id):
 
     school = request.user.get_school()
     session = get_object_or_404(Session, id=session_id, school=school)
-    if request.user != session.teacher and not request.user.is_leadership():
-        return HttpResponse("هذه الحصّة ليست لك.", status=403)
     student = get_object_or_404(
         CustomUser,
         id=request.POST.get("student_id"),
         enrollments__class_group=session.class_group,
         enrollments__is_active=True,
     )
+    # معلّمُ الحصّة وحدَه وبنافذة الحصّة نفسِها (D-136م) — لا القيادةُ باسمه.
+    if not AttendanceService.may_tap("late", request.user, session, student):
+        return HttpResponse("النقرةُ لمعلّم الحصّة وحدَه وأثناء الحصّة.", status=403)
     minutes = tap_late(session, student, by=request.user)
     return render(
         request,
@@ -381,6 +356,10 @@ def mark_exit(request, session_id):
     if denied:
         return denied
     student = _enrolled_student(request, session)
+    if not AttendanceService.may_tap(
+        "out", request.user, session, student
+    ):  # G4: بنافذة اليوم لمعلّم الحصّة وحدَه
+        return HttpResponse("الخروجُ بإذنٍ لمعلّم الحصّة وحدَه خلال اليوم الدراسيّ.", status=403)
     leave(session, student, request.POST.get("destination", "restroom"), by=request.user)
     return _exit_cell(request, session, student)
 

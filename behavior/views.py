@@ -48,7 +48,7 @@ def _behavior_report_redirect(
             "period": period,
         }
     )
-    target = f"{reverse('behavior:behavior_report', kwargs={'student_id': student_id})}" f"?{query}"
+    target = f"{reverse('behavior:behavior_report', kwargs={'student_id': student_id})}?{query}"
 
     if url_has_allowed_host_and_scheme(
         target,
@@ -63,12 +63,14 @@ def _behavior_report_redirect(
     )
 
 
+from behavior.committee_services import decide_committee
 from behavior.forms import InfractionForm
 from behavior.models import BehaviorInfraction, ViolationCategory
 from core.capabilities import capability_required, has_capability
 from core.domain.tones import SHARE_KPI, tone_for
 from core.models import CustomUser
 from core.navigation import can_open
+from core.unrestricted_role import has_unrestricted_role
 from wings.scope import student_scope_for
 
 # ── نطاقُ الطلبة ─────────────────────────────────────────────
@@ -332,10 +334,8 @@ def report_infraction(request):
                         # فيُعيد التسجيل ويُنشئ ثانية. وكان الارتدادُ المحذوف
                         # هو ما يبتلع ذلك بالمصادفة.
                         transaction.on_commit(
-                            lambda infraction=infraction,
-                            school=school,
-                            reporter=request.user: _notify_behavior_after_commit(
-                                infraction, school, reporter
+                            lambda infraction=infraction, school=school, reporter=request.user: (
+                                _notify_behavior_after_commit(infraction, school, reporter)
                             ),
                             robust=True,
                         )
@@ -467,9 +467,9 @@ def quick_log(request):
             )
 
             transaction.on_commit(
-                lambda infraction=infraction,
-                school=school,
-                reporter=request.user: _notify_behavior_after_commit(infraction, school, reporter),
+                lambda infraction=infraction, school=school, reporter=request.user: (
+                    _notify_behavior_after_commit(infraction, school, reporter)
+                ),
                 robust=True,
             )
 
@@ -571,17 +571,7 @@ def committee_decision(request, infraction_id):
         BehaviorInfraction, id=infraction_id, level__in=[3, 4], school=school
     )
     if request.method == "POST":
-        # نظام النقاط ملغى — restore_pts=0 دائماً
-        msg, level = BehaviorService.apply_committee_decision(
-            infraction=infraction,
-            decision=request.POST.get("decision"),
-            action=request.POST.get("action_taken", "").strip(),
-            restore_pts=0,
-            reason="",
-            approved_by=request.user,
-            suspension_type=request.POST.get("suspension_type", "internal"),
-            suspension_days=int(request.POST.get("suspension_days", 1) or 1),
-        )
+        msg, level = decide_committee(infraction, request.user, request.POST)
         getattr(messages, level)(request, msg)
         return redirect("behavior:committee")
 
@@ -697,7 +687,11 @@ def behavior_statistics(request):
     else:
         # القيادة ولجنة الضبط والأخصائيون → كل طلاب المدرسة
         _full_access = BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL | BEHAVIOR_COMMITTEE
-        if role not in _full_access and not request.user.is_superuser:
+        if (
+            role not in _full_access
+            and not request.user.is_superuser
+            and not has_unrestricted_role(request.user)
+        ):
             return HttpResponseForbidden("للمدير ونائبيه واللجنة فقط.")
         stats = BehaviorService.get_statistics(school)
         stats["is_scoped"] = False

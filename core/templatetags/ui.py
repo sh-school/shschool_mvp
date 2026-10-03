@@ -130,10 +130,11 @@ def _tone(value: str, allowed: tuple[str, ...], tag: str) -> str:
 
 
 @register.simple_tag
-def kpi(label, value, sub="", tone="maroon", href="", title=""):
+def kpi(label, value, sub="", tone="maroon", href="", title="", key=""):
     """بطاقةُ رقمٍ في سطرٍ واحد: الاسمُ ثمّ الرقمُ ثمّ تفصيلٌ قصير.
 
-    `value` صفرٌ يُعرض صفراً — فغيابُ الغياب رقمٌ لا فراغ.
+    `value` صفرٌ يُعرض صفراً — فغيابُ الغياب رقمٌ لا فراغ. و`key` اختياريٌّ: مفتاحُ `data-key` على عنصر الرقم لسكربتٍ يحدّثه حيّاً
+    (مركزُ قيادة الجودة)؛ وبلاه لا يتغيّر شيءٌ في الناتج.
     """
     _require(label, "kpi", "الاسم")
     if value is None or value == "":
@@ -148,6 +149,7 @@ def kpi(label, value, sub="", tone="maroon", href="", title=""):
                 "tone": _tone(tone, KPI_TONES, "kpi"),
                 "href": href,
                 "title": title,
+                "key": key,
                 "mark": _KPI_MARK,
             },
         )

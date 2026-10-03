@@ -671,9 +671,13 @@ class TestTheTeacherTapsLate:
         assert _auto(kids[0], "period_tardy").count() == 1
 
     def test_the_teacher_sees_the_button_and_the_supervisor_page_does_not_count_the_tap_as_recorded(
-        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
+        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor, monkeypatch
     ):
         (period,) = _periods(school, klass, teacher, 1)
+        # النقرةُ لمعلّم الحصّة بنافذة الحصّة (D-136م/W-020): نثبّت الساعةَ داخلها وقيدَ الطلبة بتاريخ الحصّة.
+        monkeypatch.setattr(timezone, "now", lambda: at(7, 30))
+        for kid in kids:
+            kid.enrollments.update(enrolled_at=SUNDAY)
 
         body = client_as(teacher).get(reverse("attendance", args=[period.id])).content.decode()
         assert reverse("mark_late_tap", args=[period.id]) in body
@@ -768,7 +772,7 @@ class TestTheTeacherDoesNotRecord:
         body = response.content.decode()
 
         assert response.status_code == 200
-        assert "لمشرف الجناح" in body
+        assert "يعتمده حاملُ جناح الشعبة" in body
         assert reverse("mark_single", args=[periods[0].id]) not in body
 
     def test_the_teachers_schedule_does_not_invite_him_to_record(
@@ -786,15 +790,16 @@ class TestTheTeacherDoesNotRecord:
         assert "تسجيل حضور" not in body
 
     def test_a_section_outside_the_wings_keeps_its_teacher_recording(
-        self, client_as, school, year, teacher
+        self, client_as, school, year, teacher, monkeypatch
     ):
-        """التربيةُ الخاصّة خارجَ الأجنحة، ويرصدها معلّموها."""
+        """التربيةُ الخاصّة خارجَ الأجنحة، ويرصدها معلّموها — معلّمُ الحصّة وحدَه داخل نافذتها (W-026)."""
         ese = ClassGroupFactory(
             school=school, grade="G7", section="9", level_type="prep", academic_year=year
         )
         student = UserFactory(full_name="طالب خاصّ", national_id="29300000099")
-        StudentEnrollmentFactory(student=student, class_group=ese)
+        StudentEnrollmentFactory(student=student, class_group=ese, enrolled_at=SUNDAY)
         (session,) = _periods(school, ese, teacher, 1)
+        monkeypatch.setattr(timezone, "now", lambda: at(7, 30))
 
         response = client_as(teacher).post(
             reverse("mark_single", args=[session.id]),

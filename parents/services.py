@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from django.db.models import Count, Q
+from django.db.models import Count, Manager, Q, QuerySet
 from django.utils import timezone
 
 from assessments.models import AnnualSubjectResult, StudentSubjectResult
@@ -22,6 +22,16 @@ from operations.models import StudentAttendance
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
+
+
+def _confirmed_only(manager: Manager[StudentAttendance]) -> QuerySet[StudentAttendance]:
+    """ما يراه وليُّ الأمر من الحضور: **بلا نقرةِ المعلّم «دخل متأخّراً» التي لم يثبّتها المشرف** (D-139م).
+
+    النقرةُ (`source="teacher_late"`) استثناءٌ مسمّىً من «مبدئيٌّ حتى الاعتماد» يكتب `late` فوراً؛ وقرّر المالكُ أنّها لا
+    تُعرض على وليّ الأمر قبل التثبيت — فإذا ثبّتها المشرفُ كُتبت بمصدر `supervisor` فظهرت. وغيرُ البوّابة (تقاريرُ، لوحاتُ
+    موظّفين) يقرؤها كما هي. يُطبَّق في كلّ استعلام حضورٍ هنا من موضعٍ واحدٍ فلا يُنسى أحدُها.
+    """
+    return manager.exclude(source="teacher_late")
 
 
 class ParentService:
@@ -70,7 +80,8 @@ class ParentService:
 
         # Bulk: attendance counts per student (last 30 days)
         att_counts = (
-            StudentAttendance.objects.filter(
+            _confirmed_only(StudentAttendance.objects)
+            .filter(
                 student_id__in=student_ids,
                 session__school=school,
                 session__date__gte=since,
@@ -162,7 +173,8 @@ class ParentService:
         since = timezone.now().date() - timedelta(days=days)
 
         attendance = (
-            StudentAttendance.objects.filter(
+            _confirmed_only(StudentAttendance.objects)
+            .filter(
                 student=student,
                 session__school=school,
                 session__date__gte=since,
@@ -235,7 +247,8 @@ class ParentService:
         # Batch: نسبة الحضور خلال 30 يومًا لكل طالب
         att_stats: dict = {}
         for row in (
-            StudentAttendance.objects.filter(
+            _confirmed_only(StudentAttendance.objects)
+            .filter(
                 student_id__in=student_ids,
                 session__school=school,
                 session__date__gte=today - timedelta(days=30),
@@ -251,7 +264,8 @@ class ParentService:
         # (4) Batch: اتجاه الحضور آخر 7 أيام لكل طالب
         week_att_map: dict = defaultdict(list)
         for row in (
-            StudentAttendance.objects.filter(
+            _confirmed_only(StudentAttendance.objects)
+            .filter(
                 student_id__in=student_ids,
                 session__school=school,
                 session__date__gte=today - timedelta(days=7),

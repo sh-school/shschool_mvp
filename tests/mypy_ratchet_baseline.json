@@ -54,7 +54,6 @@
   "core/templatetags/navigation.py": 1,
   "core/templatetags/privacy.py": 1,
   "core/templatetags/schedule_filters.py": 2,
-  "core/templatetags/sorting.py": 2,
   "core/templatetags/ui.py": 21,
   "core/tenancy.py": 5,
   "core/validators.py": 7,
@@ -90,7 +89,7 @@
   "operations/preference_capacity.py": 1,
   "operations/schedule_feasibility.py": 5,
   "operations/schedule_lab.py": 13,
-  "operations/scheduler.py": 58,
+  "operations/scheduler.py": 56,
   "operations/scheduler_constraints.py": 6,
   "operations/scheduler_improve.py": 11,
   "operations/scheduler_tight.py": 5,
@@ -123,5 +122,5 @@
   "wings/scope.py": 1,
   "wings/services.py": 14
  },
- "total": 1221
+ "total": 1217
 }

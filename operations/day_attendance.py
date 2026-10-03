@@ -1,11 +1,17 @@
 """من يرصد حالةَ الحضور، وبأيّ مصدر — أساسُ كشف الحصص وشاشةِ المعلّم.
 
-## والمعلّمُ لا يرصد
+## المعلّمُ الفعليّ يُدخل مبدئيّاً، ويعتمد حاملُ الجناح
 
-قرارُ المدير، واللوائحُ تُقرّه: الرصدُ لمشرف الجناح، أصيلاً أو بديلاً، والقيادة.
-والسجلُّ واحدٌ لكلّ طالبٍ في كلّ حصّة (`unique_attendance_per_session`)، فمن يحفظ
-أخيراً يمحو ما قبله — فشاشةُ الحصّة لا تكتب فوق ما رصده المشرف
-(`recorded_by_supervisor`). وشُعبُ التربية الخاصّة خارجَ الأجنحة يرصدها معلّموها.
+**قرارُ مدرسة** (المالك، D-125م، 2026-10-02) لا «لوائحُ تُقرّه» — وكان نصُّ هذا الملفّ قبله «والمعلّمُ لا يرصد».
+المعلّمُ الفعليّ للحصّة (`Session.teacher`) يُدخل رصداً **مبدئيّاً** لطلبة حصّته (`AttendanceEntry`)، ويعتمده
+حاملُ جناح الشعبة يومَ الحصّة — أصيلاً أو بديلاً، والقيادةُ حين لا حاملَ — فيصير رصداً في `StudentAttendance`.
+القواعدُ كلُّها في [`attendance_policy`](attendance_policy.py) والتنفيذُ في
+[`attendance_entries`](attendance_entries.py). وشُعبُ التربية الخاصّة (جناحٌ فارغٌ وشعبةُ ESE) رصدُ معلّمها
+نهائيٌّ بلا اعتماد، بقرارٍ ذاتيٍّ موسومٍ في السجلّ.
+
+والسجلُّ المعتمَدُ واحدٌ لكلّ طالبٍ في كلّ حصّة (`unique_attendance_per_session`)، فمن يحفظ أخيراً يمحو ما
+قبله — فشاشةُ الحصّة لا تكتب فوق ما رصده المشرف (`recorded_by_supervisor`)، واعتمادُ إدخالٍ لا يكتب فوق رصدٍ
+بشريٍّ آخر. وتصحيحُ المعتمَد صفٌّ جديدٌ بسبب في `AttendanceEntry` لا تعديل.
 
 ## وكانت هنا «الموجةُ الواحدة»
 
@@ -22,6 +28,7 @@ from django.db.models import QuerySet
 
 from core.models import ClassGroup, StudentEnrollment
 from core.permissions import WING_DAY_RECORD
+from core.unrestricted_role import has_unrestricted_role
 
 from .models import StudentAttendance
 
@@ -30,15 +37,21 @@ SOURCE = "supervisor"
 
 
 def is_recorder(user) -> bool:
-    """أهلُ الرصد: `WING_DAY_RECORD` في مركز الصلاحيّات — والمعلّمُ ليس منهم."""
-    return user.is_superuser or user.get_role() in WING_DAY_RECORD
+    """أهلُ الكتابة المباشرة في `StudentAttendance`: `WING_DAY_RECORD` في مركز الصلاحيّات.
+
+    والمعلّمُ ليس منهم: يُدخل مبدئيّاً في `AttendanceEntry` فيعتمده حاملُ الجناح (`attendance_entries`). والمطوّرُ
+    لا يرصد ولو كان superuser (D-128م، `has_unrestricted_role` من #781)؛ وغيرُه من الخارقين يمرّ كالقاعدة العامّة.
+    """
+    if has_unrestricted_role(user):
+        return False
+    return bool(user.is_superuser or user.get_role() in WING_DAY_RECORD)
 
 
 def can_record(user, session) -> bool:
     """هل يكتب هذا المستخدمُ حالةَ الحضور في هذه الحصّة؟
 
-    شُعبُ الأجنحة يرصدها أهلُ الرصد وحدَهم. وشُعبُ التربية الخاصّة خارجَ الأجنحة
-    بقرار الإدارة، ويرصدها معلّموها — فتبقى على حالها.
+    شُعبُ الأجنحة يكتبها أهلُ الرصد وحدَهم مباشرةً (والمعلّمُ بإدخالٍ مبدئيٍّ يعتمده الحاملُ). وشُعبُ
+    التربية الخاصّة خارجَ الأجنحة بقرار الإدارة، ويرصدها معلّموها — فتبقى على حالها.
     """
     return is_recorder(user) or session.class_group.wing_id is None
 

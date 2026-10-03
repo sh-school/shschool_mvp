@@ -6,6 +6,7 @@ from django import forms
 
 from core.validators import FileTypeValidator
 
+from .attendance.biometric_services import MAX_BYTES as MAX_BIOMETRIC_BYTES
 from .models import (
     ABSENCE_TYPES,
     EXCEPTION_TYPES,
@@ -118,13 +119,29 @@ class StaffDepartureForm(forms.Form):
     reference = forms.CharField(max_length=200, label="مرجع القرار")
     note = forms.CharField(max_length=200, required=False, label="ملاحظة")
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, roles=(), **kwargs):
         super().__init__(*args, **kwargs)
         from core.models.access import DEPARTURE_REASONS
 
         self.fields["reason"].choices = DEPARTURE_REASONS
+        if roles:
+            # لمن له أكثرُ من دورٍ: اختيارٌ صريحٌ لما يُنهى، فلا تذهب أدوارُه كلُّها بضغطةٍ.
+            self.fields["membership"] = forms.ChoiceField(
+                label="الدورُ المغادَر", choices=[("", "— اختر —"), *roles]
+            )
+            self.order_fields(["membership"])
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
+
+    @classmethod
+    def for_person(cls, user, school):
+        """نموذجُ مغادرة هذا الشخص: يسأل عن الدور إن كان له أكثرُ من دور."""
+        from django.utils import timezone
+
+        from . import selectors, services
+
+        roles = services.departure_choices(selectors.active_staff_memberships(user, school))
+        return cls(initial={"on": timezone.localdate()}, roles=roles)
 
 
 class StaffPersonForm(forms.Form):
@@ -254,3 +271,18 @@ class AttendanceMarkForm(forms.Form):
     check_out = forms.TimeField(required=False)
     absence_type = forms.ChoiceField(choices=[("", ""), *ABSENCE_TYPES], required=False)
     accepted_excuse = forms.CharField(max_length=300, required=False)
+
+
+class BiometricUploadForm(forms.Form):
+    """رفعُ كشف البصمة اليوميّ — CSV من جهاز الحضور، يُقرأ في الذاكرة ولا يُخزَّن."""
+
+    file = forms.FileField(label="كشف البصمة (CSV)")
+
+    def clean_file(self) -> Any:
+        upload = self.cleaned_data["file"]
+        if not (upload.name or "").lower().endswith(".csv"):
+            raise forms.ValidationError("يُقبل ملفّ CSV فقط — صدِّر الكشفَ من الجهاز بهذه الصيغة.")
+        # الحجمُ قبل القراءة: الملفُّ الأكبر لا يُحمَّل في الذاكرة ليُرفض.
+        if upload.size > MAX_BIOMETRIC_BYTES:
+            raise forms.ValidationError("الملفُّ أكبرُ من الحدّ المقبول — كشفُ يومٍ واحدٍ أصغرُ بكثير.")
+        return upload

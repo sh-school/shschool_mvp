@@ -607,6 +607,9 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"staff_affairs:attendance_board" %}
   <a href="{% url 'staff_affairs:attendance_board' %}">{% icon "attendance_register" %} رصد حضور الموظفين</a>
   {% endif %}
+  {% if request.user|can_open:"staff_affairs:attendance_import" %}
+  <a href="{% url 'staff_affairs:attendance_import' %}">{% icon "upload" %} استيراد كشف البصمة</a>
+  {% endif %}
   {% if request.user|can_open:"staff_affairs:attendance_report" %}
   <a href="{% url 'staff_affairs:attendance_report' %}">{% icon "reports" %} تقرير الحضور الشهري</a>
   {% endif %}
@@ -823,6 +826,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   </a>
   <a href="{% url 'command_center:index' %}" role="menuitem" aria-label="مركز قيادة الجودة — صحة المنصة الحية">
     {% icon "quality" %} مركز قيادة الجودة
+  </a>
+  <a href="{% url 'command_center:status' %}" role="menuitem" aria-label="حالة اليوم — الطابور والأحمر والتعارضات والنشر">
+    {% icon "checklist" %} حالةُ اليوم
   </a>
   <a href="{% url 'improvement_roadmap' %}" role="menuitem" aria-label="خارطة تجويد المنصة الزمنية">
     {% icon "roadmap" %} خارطة التجويد

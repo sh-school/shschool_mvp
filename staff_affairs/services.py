@@ -22,6 +22,37 @@ from staff_affairs.models import LeaveBalance, LeaveRequest
 
 logger = logging.getLogger(__name__)
 
+#: قيمةُ «كلّ أدواره» في نموذج المغادرة — اختيارٌ صريحٌ لا افتراض.
+DEPART_ALL = "all"
+
+
+def departure_choices(memberships) -> list[tuple[str, str]]:
+    """خياراتُ مغادرة من له أكثرُ من دورِ كادر: كلُّ دورٍ على حدة، ثمّ «كلّها» — وإلّا فلا خيار."""
+    rows = list(memberships)
+    if len(rows) < 2:
+        return []
+    return [(str(m.pk), m.job_title or m.role.name) for m in rows] + [(DEPART_ALL, "كلّ أدواره")]
+
+
+def departing_memberships(rows: list, choice: str) -> list:
+    """العضويّاتُ التي تُنهى مغادرتُها.
+
+    عضويّةٌ واحدةٌ: هي. وأكثرُ من واحدة: لا مغادرةَ بلا اختيارٍ صريح (عضويّةٍ بعينها أو «كلّها»)،
+    فمن له دورا معلّمٍ ومنسّقٍ لا يفقدهما معاً بضغطةٍ لم يقصد بها إلّا أحدَهما.
+    """
+    from django.core.exceptions import ValidationError
+
+    if len(rows) < 2:
+        return rows
+    choice = (choice or "").strip()
+    if choice == DEPART_ALL:
+        return rows
+    picked = [m for m in rows if str(m.pk) == choice]
+    if not picked:
+        raise ValidationError("لهذا الشخص أكثرُ من دور — اختر الدورَ المغادَر أو «كلّ أدواره».")
+    return picked
+
+
 if TYPE_CHECKING:
     from core.models import CustomUser, School
 
@@ -324,9 +355,9 @@ class LeaveService:
             updated_by=creator,
         )
         logger.info(
-            "طلب إجازة جديد: %s لـ %s (%d يوم) في %s",
+            "طلب إجازة جديد: %s لـ موظف %s (%d يوم) في %s",
             leave.pk,
-            staff.full_name,
+            staff.pk,
             days_count,
             school.code,
         )
@@ -400,16 +431,16 @@ class LeaveService:
             balance.used_days += leave.days_count
             balance.save(update_fields=["used_days"])
             logger.info(
-                "رصيد إجازات %s: استُخدم %d يوم (إجمالي مُستخدم: %d)",
-                leave.staff.full_name,
+                "رصيد إجازات موظف %s: استُخدم %d يوم (إجمالي مُستخدم: %d)",
+                leave.staff_id,
                 leave.days_count,
                 balance.used_days,
             )
 
         logger.info(
-            "طلب إجازة #%s: %s بواسطة %s",
+            "طلب إجازة #%s: %s بواسطة موظف %s",
             leave.pk,
             action,
-            reviewer.full_name,
+            reviewer.pk,
         )
         return leave

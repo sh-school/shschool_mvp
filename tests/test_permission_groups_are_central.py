@@ -68,12 +68,12 @@ MOVED = {
     | set(permissions.QUALITY_VIEW)
     | {"ese_teacher"},
     "BEHAVIOR_STATS_TEACHING": {"teacher", "coordinator", "ese_teacher"},
+    # بلا platform_developer: D-128م (لا يُدخل ولا يعتمد رصدَ غياب الطلبة).
     "WING_DAY_RECORD": {
         "admin_supervisor",
         "vice_admin",
         "vice_academic",
         "principal",
-        "platform_developer",
     },
 }
 

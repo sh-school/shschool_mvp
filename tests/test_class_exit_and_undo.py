@@ -115,9 +115,24 @@ class TestTheTeacherLetsAStudentOut:
         assert not StudentAttendance.objects.exists(), "العرضُ لا يكتب"
 
     def test_the_endpoints_belong_to_the_sessions_teacher(
-        self, client_as, school, seeded_calendar, klass, kids, teacher, other_teacher, supervisor
+        self,
+        client_as,
+        school,
+        seeded_calendar,
+        klass,
+        kids,
+        teacher,
+        other_teacher,
+        supervisor,
+        monkeypatch,
     ):
+        from django.utils import timezone
+
         (period,) = _periods(school, klass, teacher, 1)
+        # «خرج بإذن» لمعلّم الحصّة بنافذة اليوم (G4/W-020): نثبّت الساعةَ داخلها وقيدَ الطلبة بتاريخ الحصّة.
+        monkeypatch.setattr(timezone, "now", lambda: at(7, 30))
+        for kid in kids:
+            kid.enrollments.update(enrolled_at=SUNDAY)
         payload = {"student_id": str(kids[0].id), "destination": "clinic"}
 
         assert (
