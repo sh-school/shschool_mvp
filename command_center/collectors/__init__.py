@@ -24,6 +24,7 @@ from command_center.collectors import (
     production,
     pulls,
     quality,
+    queue,
     roadmap,
     security,
     supply,
@@ -54,6 +55,7 @@ REMOTE: dict[str, Collector] = {
     "quality": quality.collect,
     "delivery": delivery.collect,
     "today": today.collect,
+    "queue": queue.collect,
     "sync": sync.collect,
 }
 #: لوحاتٌ تقرؤها **عمليّةُ الويب** لا العامل (مقاييسُ في ذاكرتها) — تُؤخذ عيّنتُها عند فتح الصفحة أو استطلاعها (`webstats.sample_safe`).

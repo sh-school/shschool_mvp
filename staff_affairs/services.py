@@ -22,6 +22,37 @@ from staff_affairs.models import LeaveBalance, LeaveRequest
 
 logger = logging.getLogger(__name__)
 
+#: قيمةُ «كلّ أدواره» في نموذج المغادرة — اختيارٌ صريحٌ لا افتراض.
+DEPART_ALL = "all"
+
+
+def departure_choices(memberships) -> list[tuple[str, str]]:
+    """خياراتُ مغادرة من له أكثرُ من دورِ كادر: كلُّ دورٍ على حدة، ثمّ «كلّها» — وإلّا فلا خيار."""
+    rows = list(memberships)
+    if len(rows) < 2:
+        return []
+    return [(str(m.pk), m.job_title or m.role.name) for m in rows] + [(DEPART_ALL, "كلّ أدواره")]
+
+
+def departing_memberships(rows: list, choice: str) -> list:
+    """العضويّاتُ التي تُنهى مغادرتُها.
+
+    عضويّةٌ واحدةٌ: هي. وأكثرُ من واحدة: لا مغادرةَ بلا اختيارٍ صريح (عضويّةٍ بعينها أو «كلّها»)،
+    فمن له دورا معلّمٍ ومنسّقٍ لا يفقدهما معاً بضغطةٍ لم يقصد بها إلّا أحدَهما.
+    """
+    from django.core.exceptions import ValidationError
+
+    if len(rows) < 2:
+        return rows
+    choice = (choice or "").strip()
+    if choice == DEPART_ALL:
+        return rows
+    picked = [m for m in rows if str(m.pk) == choice]
+    if not picked:
+        raise ValidationError("لهذا الشخص أكثرُ من دور — اختر الدورَ المغادَر أو «كلّ أدواره».")
+    return picked
+
+
 if TYPE_CHECKING:
     from core.models import CustomUser, School
 

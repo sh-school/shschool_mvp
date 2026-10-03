@@ -15,4 +15,5 @@ app_name = "command_center"
 urlpatterns = [
     path("", views.index, name="index"),
     path("snapshot/", views.snapshot, name="snapshot"),
+    path("status/", views.status, name="status"),
 ]

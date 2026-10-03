@@ -18,6 +18,7 @@
 
   {% page_header "مركز قيادة الجودة" subtitle="عرضٌ حيٌّ لصحّة المنصّة" icon="quality" %}
     {% callout "info" %}كلُّ لوحةٍ تقرأ آخرَ قيمةٍ جمعها المجمِّعُ الخاصّ بها. «غير معلوم» يعني أنّها لم تُجمَع بعدُ أو انقطع جمعُها — ولا يعني أنّ الأمر سليم.{% endcallout %}
+    <a class="btn-secondary" href="{% url 'command_center:status' %}">حالةُ اليوم</a>
     <button type="button" class="btn-secondary" data-qc-refresh>تحديثٌ الآن</button>
     <span class="ui-note" data-key="generated">لم يُحدَّث بعدُ</span>
   {% endpage_header %}
@@ -33,7 +34,7 @@
     {% kpi "غير معلوم" strip.unknown sub="لم تُجمَع بعدُ" tone="sky" key="strip.unknown" %}
     {% kpi "إيداعاتٌ غيرُ منشورة" strip.unpublished_text sub="في main" tone="maroon" key="strip.unpublished" %}
   {% endkpi_strip %}
-  <p class="ui-note"><span data-key="strip.reds">{% if strip.reds %}✖ خطر: {{ strip.reds|join:"، " }}{% else %}✔ لا لوحةَ في حالة خطر{% endif %}</span>{% if status_url %} · <a href="{{ status_url }}">حالةُ اليوم</a>{% endif %}</p>
+  <p class="ui-note"><span data-key="strip.reds">{% if strip.reds %}✖ خطر: {{ strip.reds|join:"، " }}{% else %}✔ لا لوحةَ في حالة خطر{% endif %}</span>{% if status_url %} · <a class="qc-status-link" href="{{ status_url }}">حالةُ اليوم</a>{% endif %}</p>
 
   {# بطاقتان متجاورتان متطابقتان طولاً وعرضاً افتراضاً (طلبُ المالك 2026-10-02) آخرَ أبناء الغلاف فتملآن الباقيَ بلا تمرير (50-utilities: .qc-cards). لكلّ مؤشّرٍ بارٌ في سطرٍ واحد. #}
   <div class="ui-grid-2 qc-cards">

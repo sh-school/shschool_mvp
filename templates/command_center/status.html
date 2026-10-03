@@ -1,0 +1,75 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% comment %}
+  حالةُ اليوم للمالك (W-20261002-022) — أجوبةُ أسئلته المتكرّرة في صفحةٍ واحدة من لقطة مركز قيادة الجودة؛ قراءةٌ فقط، وتُعاد كلَّ دقيقة.
+  لا CSS جديد (هامشُ ميزانيّة CSS ضيّق): أصنافٌ قائمةٌ فقط. أرقامُ الطلبات وحالاتُها بلا عناوين (contract.py)، والرقمُ رابطٌ إلى GitHub.
+{% endcomment %}
+{% block title %}حالةُ اليوم{% endblock %}
+{% block extra_head %}<meta http-equiv="refresh" content="60">{% endblock %}
+{% block main_class %}{% page_layout "dashboard" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/command-center/" parent_label="مركز قيادة الجودة" current="حالةُ اليوم" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "حالةُ اليوم" subtitle="الطابورُ والأحمرُ والتعارضاتُ والنشر — بلا استعلامٍ يدويّ" icon="quality" %}
+    <a class="btn-secondary" href="{% url 'command_center:index' %}">مركزُ قيادة الجودة</a>
+    <span class="ui-note">تتجدّد الصفحةُ كلَّ دقيقة{% if ctx.queue_age is not None %} · آخرُ جمعٍ للطابور قبل {{ ctx.queue_age }} ثانية{% endif %}</span>
+  {% endpage_header %}
+
+  {% if ctx.reds %}
+    {% callout "error" %}<strong>أحمر:</strong> {{ ctx.reds|join:"، " }}{% endcallout %}
+  {% else %}
+    {% callout "success" %}لا لوحةَ حمراءَ الآن في مركز قيادة الجودة.{% endcallout %}
+  {% endif %}
+
+  {% if ctx.conflicts %}
+    {% callout "warning" %}<strong>تعارضاتٌ مع main:</strong> {% for n in ctx.conflicts %}#{{ n }}{% if not forloop.last %}، {% endif %}{% endfor %}{% endcallout %}
+  {% endif %}
+
+  {% if ctx.deployed_clean %}
+    {% callout "success" %}الإنتاجُ على آخر main: لا إيداعاتٍ غيرَ منشورة.{% endcallout %}
+  {% elif ctx.unpublished %}
+    {% callout "info" %}{{ ctx.unpublished }} إيداعاً في main لم يُنشر بعدُ (النشرُ بعد الدوام في دفعةٍ واحدة).{% endcallout %}
+  {% else %}
+    {% callout "warning" %}لم يُعرف عددُ الإيداعات غيرِ المنشورة — لم تُجمَع لوحةُ الطلبات بعدُ.{% endcallout %}
+  {% endif %}
+
+  {% if ctx.unknown %}
+    {% callout "warning" %}لم تُجمَع بعدُ (غيرُ معلوم — لا يعني سليماً): {{ ctx.unknown|join:"، " }}{% endcallout %}
+  {% endif %}
+
+  {% section_card "الطابور — الطلباتُ المفتوحة" icon="checklist" flush=True empty="لا طلباتٍ مفتوحةً" %}{% if ctx.rows %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-center">الطلب</th>
+            <th class="col-center">الحالة</th>
+            <th class="col-center">الدمجُ التلقائيّ</th>
+            <th class="num">الفحوصُ الناجحة</th>
+            <th class="num">الفاشلة</th>
+            <th class="num">خاملٌ منذ (س)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in ctx.rows %}
+          <tr>
+            <td class="col-center"><a href="https://github.com/sh-school/shschool_mvp/pull/{{ r.number }}" rel="noopener noreferrer" target="_blank">#{{ r.number }}</a></td>
+            <td class="col-center">{{ r.label }}</td>
+            <td class="col-center">{% if r.auto %}مفعَّل{% else %}—{% endif %}</td>
+            <td class="num">{{ r.checks_ok }} من {{ r.checks_total }}</td>
+            <td class="num">{{ r.checks_bad }}</td>
+            <td class="num">{% if r.idle_hours is None %}—{% else %}{{ r.idle_hours }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+
+  {% callout "info" %}ما ينتظر اعتمادَك وحالةُ 8500 وجلساتُ الشريط لا يراها الخادمُ اليوم؛ تأتي في المرحلة 2 من مرآة الفلو (بعد قراراتك لها). حتى ذلك اسأل «0101 · المايسترو».{% endcallout %}
+</div>
+{% endblock %}

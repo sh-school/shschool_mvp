@@ -59,6 +59,15 @@ class ErasureRequestSerializer(serializers.ModelSerializer):
 # ── Views ─────────────────────────────────────────────────────
 
 
+def _school_scope(request):
+    """حصرُ الطلب بمدرسة المستخدم (W-20261002-040) — والمطوّر يرى الكلّ."""
+    if request.user.is_superuser:
+        return {}
+    # get_school() لا request.school: مصادقةُ DRF بالتوكن تجري بعد SchoolContextMiddleware
+    # فتكون المدرسةُ هناك None (فيفشل الحصرُ مغلقاً). فالاستدعاءُ الثالثُ مقصود.
+    return {"school": request.user.get_school()}
+
+
 @extend_schema(summary="تقديم طلب محو بيانات طالب", tags=["PDPPL"])
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, NotPlatformDeveloper])
@@ -82,6 +91,14 @@ def create_erasure_request(request):
                 {"detail": "يمكنك فقط طلب محو بيانات أبنائك."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+    # [W-20261002-040] المحوُ لا رجعةَ فيه: مديرُ مدرسةٍ لا يطلبه لطالبٍ من غير
+    # مدرسته. 404 لا 403 فلا يُعرَف وجودُ الطالب. المطوّر (superuser) خارج الحصر.
+    # ويسري على وليّ الأمر أيضاً (ParentStudentLink بلا مرشّح مدرسة). وعضويّةُ طالبٍ
+    # غيرِ نشطةٍ (تخرّج/انتقال) تكفي: حقُّ المحو لا يسقط بخروجه.
+    if not request.user.is_superuser:
+        if not ErasureService.student_in_school(student, school):
+            return Response({"detail": "غير موجود."}, status=status.HTTP_404_NOT_FOUND)
 
     # Check for existing pending request
     existing = ErasureRequest.objects.filter(
@@ -124,7 +141,7 @@ def list_erasure_requests(request):
 @permission_classes([IsAuthenticated])
 def erasure_request_detail(request, request_id):
     """تفاصيل طلب محو — للمقدّم أو المدير."""
-    obj = get_object_or_404(ErasureRequest, id=request_id)
+    obj = get_object_or_404(ErasureRequest, id=request_id, **_school_scope(request))
     is_admin = request.user.is_admin() or request.user.is_superuser
     if not is_admin and obj.requested_by != request.user:
         return Response({"detail": "غير مسموح"}, status=status.HTTP_403_FORBIDDEN)
@@ -136,7 +153,7 @@ def erasure_request_detail(request, request_id):
 @permission_classes([IsSchoolAdmin, NotPlatformDeveloper])
 def approve_erasure(request, request_id):
     """المدير يوافق على الطلب ويُنفَّذ فوراً."""
-    obj = get_object_or_404(ErasureRequest, id=request_id)
+    obj = get_object_or_404(ErasureRequest, id=request_id, **_school_scope(request))
 
     # القفلُ والانتقالُ والتنفيذُ في الخدمة: «approved» تعني تنفيذاً سابقاً تعثّر فيجوز إعادتُه، وما سوى pending/approved يُردّ.
     try:
@@ -162,7 +179,7 @@ def approve_erasure(request, request_id):
 @permission_classes([IsSchoolAdmin, NotPlatformDeveloper])
 def reject_erasure(request, request_id):
     """المدير يرفض الطلب مع ذكر السبب."""
-    obj = get_object_or_404(ErasureRequest, id=request_id)
+    obj = get_object_or_404(ErasureRequest, id=request_id, **_school_scope(request))
 
     if obj.status != "pending":
         return Response(
