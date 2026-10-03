@@ -52,6 +52,7 @@ from core.models import (
 )
 from core.parent_consent import needs_parent_consent
 from core.permissions import LIBRARY_BORROWINGS_ALL
+from core.unrestricted_role import has_unrestricted_role
 from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing, LibraryBook
 from notifications.models import InAppNotification, UserNotificationPreference
@@ -863,7 +864,11 @@ class BorrowingListView(generics.ListAPIView):
         user = self.request.user
         school = _school(self.request)
         qs = BookBorrowing.objects.filter(book__school=school)
-        if not (user.is_superuser or user.get_role() in LIBRARY_BORROWINGS_ALL):
+        if not (
+            user.is_superuser
+            or has_unrestricted_role(user)
+            or user.get_role() in LIBRARY_BORROWINGS_ALL
+        ):
             own = Q(user=user)
             # استعاراتُ الأبناء معالجةٌ لبياناتهم لصالح وليّ الأمر — فلا تُعرض قبل
             # موافقته. والكادرُ الذي هو وليُّ أمرٍ يبلغ هذا المسارَ بلا موافقة.

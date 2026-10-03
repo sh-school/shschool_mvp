@@ -102,6 +102,8 @@ MIDDLEWARE = [
     # `request.school` — مدرسةُ المستخدم تُحسب مرّةً بعد حارس المسارات (الذي حمّل العضويّة)
     "core.middleware.SchoolContextMiddleware",
     "core.middleware.CurrentUserMiddleware",
+    # أثرٌ لدخول مطوّر المنصّة صفحاتِ الصحّة والتظلّم والتقييم (D-118م) — يسجّل ولا يمنع.
+    "core.middleware_developer_audit.DeveloperAccessAuditMiddleware",
     "core.middleware.SentryScopeMiddleware",  # ✅ v5.5: Sentry context (school_id + role)
     "operations.middleware.SessionAutoGenerateMiddleware",  # ✅ توليد الحصص تلقائياً — بدون Celery
     "csp.middleware.CSPMiddleware",

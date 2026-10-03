@@ -34,6 +34,7 @@ from core.models import (
     StudentEnrollment,
 )
 from core.sorting import apply_sort, arabic_key
+from core.unrestricted_role import has_unrestricted_role
 from operations.models import AbsenceAlert
 
 from .services import ParentService, consent_state, save_consents
@@ -41,7 +42,7 @@ from .services import ParentService, consent_state, save_consents
 
 def _get_parent_school(request):
     """يُعيد school لولي الأمر أو None"""
-    if request.user.is_superuser:
+    if request.user.is_superuser or has_unrestricted_role(request.user):
         return request.user.get_school()
     m = request.user.get_parent_membership()
     return m.school if m else None

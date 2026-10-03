@@ -12,6 +12,7 @@ from django.utils import timezone
 from core.academic_calendar import academic_year_for
 from core.capabilities import capability_required, has_capability
 from core.permissions import EXAM_CONTROL_ACCESS
+from core.unrestricted_role import has_unrestricted_role
 
 from .models import (
     ExamGradeSheet,
@@ -25,7 +26,10 @@ from .services import ExamControlService
 
 def _can_access(user):
     return user.is_authenticated and (
-        user.is_admin() or user.is_superuser or user.get_role() in EXAM_CONTROL_ACCESS
+        user.is_admin()
+        or user.is_superuser
+        or has_unrestricted_role(user)
+        or user.get_role() in EXAM_CONTROL_ACCESS
     )
 
 

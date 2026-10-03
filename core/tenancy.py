@@ -38,6 +38,7 @@ the same.
 PARENT_DERIVED = {
     # behavior
     "core_behaviorpointrecovery": "infraction -> core_behaviorinfraction.school_id",
+    "behavior_behaviorcommitteevote": "infraction -> core_behaviorinfraction.school_id",
     # core
     "core_studentenrollment": "class_group -> core_classgroup.school_id",
     "core_wingcoverage": "wing -> core_wing.school_id",
