@@ -25,6 +25,7 @@ from django.db import transaction
 from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
+from core.audit_repr import masked_repr
 from core.models import AuditLog
 from operations.class_exit import WHEREABOUTS_OF, close_unreturned, is_unreturned, session_end
 from operations.day_attendance import SOURCE
@@ -65,7 +66,7 @@ def audit_cell_change(
         action="update",
         model_name="other",
         object_id=str(session.pk),
-        object_repr=f"أثرُ الخروج بإذن في الكشف — {student.full_name} · {session}"[:300],
+        object_repr=f"أثرُ الخروج بإذن في الكشف — {masked_repr(student)} · {session}"[:300],
         changes={
             "student": str(student.pk),
             "before": before,
