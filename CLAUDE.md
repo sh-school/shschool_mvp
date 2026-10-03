@@ -138,4 +138,5 @@
 
 - **`.claude/rules/design-system.md`**: الأنماطُ والهويّةُ والتخطيط والبطاقات والتنبيهات والانتقال والقائمة وكسرُ ذاكرة المتصفّح — تُحمَّل حين تقرأ أو تكتب ملفّاً في `static/` أو `templates/`.
 - **`.claude/rules/migrations.md`**: توسيعٌ ثمّ تقليص — تُحمَّل حين تلمس هجرةً أو نموذجاً.
+- **`.claude/rules/dashboards.md`**: لوحاتُ الأدوار — لا أسماءَ طلبةٍ في رأس لوحة المدير، وكلُّ عدّادٍ مشتركٍ بين أدوارٍ يحمل `has_capability` (D-171م) — تُحمَّل حين تلمس `templates/dashboard/` أو `core/dashboard_selectors.py`.
 - **`docs/deployment/session_server.md`**: خادمُ الجلسة وقاعدتُها وأوامرُها.
