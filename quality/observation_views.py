@@ -25,6 +25,7 @@ from core.permissions import (
     OBSERVATION_SEND,
     OBSERVATION_VIEW_ALL,
 )
+from core.person_names import short_name
 from core.sorting import apply_sort
 from core.unrestricted_role import has_unrestricted_role
 
@@ -256,6 +257,11 @@ def _pdf_context(obs):
     return {
         "obs": obs,
         "blocks": [b for b in (first, rest) if b],
+        # خانتا «المعلّم» و«الصّف»: الرمزُ المختصر المعتمَد في الجدول العامّ (مقطعا الاسم، ورمزُ الشعبة
+        # «12/1») لا النصُّ الكامل — الاسمُ الكاملُ ووصفُ الشعبة الكامل يبقيان في التدقيق والتصدير وحدهما.
+        "teacher_short_name": short_name(obs.teacher.full_name),
+        "observer_short_name": short_name(obs.observer.full_name),
+        "class_short_label": obs.class_group.short_label if obs.class_group_id else "",
         # الشعار: `School.logo` إن وُجد، وإلّا الشعارُ المعتمد `logoMaroon.png` — وترويسةُ/تذييلُ الصور أُلغيا (2026-09-26)
         "logo": _as_data_uri(obs.school.logo) or brand_logo_data_uri(),
         "ratings": RATING_CHOICES,

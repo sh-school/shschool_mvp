@@ -198,7 +198,7 @@ td {
         <td class="key">المادّة</td>
         <td colspan="3">{{ obs.subject.name_ar|default:"" }}</td>
         <td class="key">الصّف</td>
-        <td colspan="3">{{ obs.class_group|default:"" }}</td>
+        <td colspan="3">{{ class_short_label }}</td>
         <td class="key">الحصة</td>
         <td colspan="3">{{ obs.period|default:"" }}</td>
       </tr>
@@ -206,12 +206,12 @@ td {
         <td class="key">الموضوع</td>
         <td colspan="6">{{ obs.topic }}</td>
         <td class="key">الزائر</td>
-        <td colspan="4">{{ obs.observer.full_name }}</td>
+        <td colspan="4">{{ observer_short_name }}</td>
       </tr>
       {# الأصل يجمع الأربعة في صفٍّ واحد، ويُفرد الصفَّ الذي يليه لخياري البثّ #}
       <tr>
         <td class="key" rowspan="2">المعلّم</td>
-        <td colspan="2" rowspan="2">{{ obs.teacher.full_name }}</td>
+        <td colspan="2" rowspan="2">{{ teacher_short_name }}</td>
         <td class="key">نوع المتابعة</td>
         <td class="key center">ميدانيّة</td>
         <td class="center tk">{% if obs.follow_up_mode == 'field' %}✓{% endif %}</td>
