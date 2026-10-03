@@ -28,6 +28,8 @@ ADR_RE = re.compile(r"^docs/adr/(\d{4})-[^/]+\.md$")
 CODE_RE = re.compile(r"""^\s*_(?:hard|soft)\(\s*["']([A-Za-z]+\d+)["']""", re.MULTILINE)
 REGISTRY = "operations/constraint_registry.py"
 MAIN_REF = "origin/main"
+#: سقفُ ما يُجلب من الطلبات المفتوحة؛ بلوغُه يُنبَّه عليه لأنّ ما بعده يُغفَل.
+PR_LIMIT = 200
 
 
 def adr_prefix(path: str) -> str | None:
@@ -78,7 +80,17 @@ def load_prs(prs_json: Path | None) -> list[dict] | None:
     try:
         # أمرٌ ثابتٌ بلا مدخلٍ خارجيّ
         result = subprocess.run(  # noqa: S603
-            ["gh", "pr", "list", "--state", "open", "--limit", "200", "--json", "number,files"],  # noqa: S607
+            [
+                "gh",
+                "pr",
+                "list",
+                "--state",
+                "open",
+                "--limit",
+                str(PR_LIMIT),
+                "--json",
+                "number,files",
+            ],  # noqa: S607
             capture_output=True,
             check=True,
         )
@@ -139,13 +151,17 @@ def main(argv: list[str] | None = None) -> int:
     problems: list[str] = []
     main_list = main_adrs(args.root)
     if main_list is None:
-        print(f"::notice::تعذّر قراءةُ {MAIN_REF} — يُتخطّى فحصُ التصادم مع main.")
+        print(f"::warning::تعذّر قراءةُ {MAIN_REF} — يُتخطّى فحصُ التصادم مع main.")
     prs = None
     if not args.skip_prs:
         loaded = load_prs(args.prs_json)
         if loaded is None:
-            print("::notice::تعذّر الوصولُ إلى الطلبات المفتوحة (gh) — يُتخطّى فحصُ التصادم معها.")
+            print("::warning::تعذّر الوصولُ إلى الطلبات المفتوحة (gh) — يُتخطّى فحصُ التصادم معها.")
         else:
+            if len(loaded) >= PR_LIMIT:
+                print(
+                    f"::warning::بلغ عددُ الطلبات المفتوحة {PR_LIMIT} — ما بعده لا يُفحص؛ ارفع PR_LIMIT."
+                )
             prs = open_pr_adrs(loaded)
     problems += adr_collisions(tree_adrs(args.root), main_list, prs, args.own_pr)
 
