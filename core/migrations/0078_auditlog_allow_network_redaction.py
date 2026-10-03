@@ -6,7 +6,8 @@ W-20261003-013، قرارُ المالك بصفته DPO (2026-10-03): من مُ�
 فالمسموحُ في الزناد الآن `UPDATE` من نوعَين لا غير:
 1. فصلُ هويّة الفاعل: `user_id` إلى NULL وكلُّ ما عداه كما هو (الهجرة 0059).
 2. تفريغُ الشبكة: `ip_address` إلى NULL و`user_agent` إلى فارغ، وكلُّ ما عداهما كما هو
-   حرفيّاً — ولا يُغيَّر `user_id` معه. وما عداهما يُرفع كما كان.
+   حرفيّاً — ولا يُغيَّر `user_id` معه — **وبعلَم المعاملة `app.auditlog_network_erasure = on`**
+   وحدَه. وما عداهما يُرفع كما كان.
 """
 
 from django.db import migrations
@@ -33,8 +34,11 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    -- 2) تفريغُ الشبكة عند محو صاحب البيانات (W-20261003-013): IP إلى NULL والمتصفّحُ فارغاً.
+    -- 2) تفريغُ الشبكة عند محو صاحب البيانات (W-20261003-013): IP إلى NULL والمتصفّحُ فارغاً،
+    --    وبعلَمٍ محلّيٍّ للمعاملة وحدَها يضبطه `redact_network_identity` ويُغلقه في finally.
+    --    فبلا العلَم يُرفض أيُّ UPDATE حتى لو جاء بSQL مباشر (حكم 0105، شرطٌ قبل الدمج).
     IF TG_OP = 'UPDATE'
+       AND coalesce(current_setting('app.auditlog_network_erasure', true), '') = 'on'
        AND NEW.ip_address IS NULL
        AND NEW.user_agent = ''
        AND NEW.id = OLD.id

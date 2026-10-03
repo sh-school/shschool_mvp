@@ -2,7 +2,7 @@ from datetime import timedelta
 from typing import Any
 
 from django.core.exceptions import PermissionDenied
-from django.db import models
+from django.db import connection, models, transaction
 from django.utils import timezone
 
 from .school import School, _uuid
@@ -44,7 +44,14 @@ class _ImmutableManager(models.Manager):
         )
         # مرشّحُ الفراغ: إعادةُ الاستدعاء لا تكتب شيئاً ولا تُرجع صفوفاً مُفرَّغةً من قبل.
         pending = rows.exclude(ip_address__isnull=True, user_agent="")
-        return models.QuerySet.update(pending, ip_address=None, user_agent="")
+        # علَمٌ محلّيٌّ للمعاملة يفتح الحالةَ الثانيةَ في الزناد ويُغلق في finally: بلاه يُرفض أيُّ
+        # UPDATE لهذين العمودَين حتى بSQL مباشر (دورُ التطبيق لا يمحو أثرَه بلا هذا المسار).
+        with transaction.atomic(using=self._db), connection.cursor() as cur:
+            cur.execute("SELECT set_config('app.auditlog_network_erasure', 'on', true)")
+            try:
+                return models.QuerySet.update(pending, ip_address=None, user_agent="")
+            finally:
+                cur.execute("SELECT set_config('app.auditlog_network_erasure', '', true)")
 
 
 class AuditLog(models.Model):

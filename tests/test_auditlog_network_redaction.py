@@ -126,6 +126,51 @@ class TestEverythingElseStaysForbidden:
                 )
 
 
+class TestTriggerNeedsTheTransactionFlag:
+    """حكم 0105: الحالةُ الثانية في الزناد لا تعمل بلا علَم المعاملة (SQL مباشر لا يمحو الأثر)."""
+
+    def _raw(self, row, *, flag):
+        with transaction.atomic(), connection.cursor() as cur:
+            if flag:
+                cur.execute("SELECT set_config('app.auditlog_network_erasure', 'on', true)")
+            cur.execute(
+                "UPDATE core_auditlog SET ip_address = NULL, user_agent = '' WHERE id = %s",
+                [row.pk],
+            )
+
+    def test_raw_sql_without_the_flag_is_refused(self, student):
+        row = _entry(student)
+
+        with pytest.raises((InternalError, IntegrityError)):
+            self._raw(row, flag=False)
+
+        row.refresh_from_db()
+        assert (row.ip_address, row.user_agent) == (IP, UA)
+
+    def test_with_the_flag_it_is_allowed(self, student):
+        row = _entry(student)
+
+        self._raw(row, flag=True)
+
+        row.refresh_from_db()
+        assert row.ip_address is None and row.user_agent == ""
+
+    def test_the_flag_is_closed_after_redaction(self, student):
+        row = _entry(student)
+        AuditLog.objects.redact_network_identity(student)
+        other_row = _entry(student)
+
+        with pytest.raises((InternalError, IntegrityError)):
+            self._raw(other_row, flag=False)
+
+        with connection.cursor() as cur:
+            cur.execute(
+                "SELECT coalesce(current_setting('app.auditlog_network_erasure', true), '')"
+            )
+            assert cur.fetchone()[0] in ("", "off")
+        row.refresh_from_db()
+
+
 def test_erasure_service_redacts_and_records_the_count(student_user, school):
     _entry(student_user)
     _entry(student_user, action="login_failed", object_id=student_user.pk)
