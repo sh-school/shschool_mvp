@@ -10,6 +10,7 @@ from django.db import DatabaseError
 from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 
+from core.audit_repr import masked_repr
 from core.request_utils import get_client_ip
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ def _log(model_name, action, instance, changes=None):
             action=action,
             model_name=model_name,
             object_id=str(instance.pk),
-            object_repr=str(instance)[:300],
+            object_repr=masked_repr(instance),  # لا اسمَ شخصيّاً في سجلٍّ ملحق (W-019)
             changes=changes,
             school=school,
             ip_address=ip or None,
@@ -163,7 +164,7 @@ def audit_membership(sender, instance, created, **kwargs):
         "create" if created else "update",
         instance,
         changes={
-            "user": str(instance.user),
+            "user_id": str(instance.user_id),
             "role": str(instance.role),
             "is_active": instance.is_active,
             "school": str(instance.school),
@@ -239,7 +240,7 @@ def audit_user_change(sender, instance, created, **kwargs):
             "create",
             instance,
             # PDPPL [PII-02]: لا نُخزّن الرقم الشخصي الخام في سجل التدقيق الدائم
-            changes={"user_id": str(instance.id), "full_name": instance.full_name},
+            changes={"user_id": str(instance.id)},
         )
     else:
         # تسجيل التعديل فقط إذا تغيّرت حقول حساسة
@@ -318,7 +319,7 @@ def audit_login(sender, request, user, **kwargs):
             action="login",
             model_name="CustomUser",
             object_id=str(user.pk),
-            object_repr=str(user),
+            object_repr=masked_repr(user),
             # أيَّ معرّفٍ كُتب في الباب — به تُقاس نهايةُ النافذة المزدوجة: يُقطع
             # الرقمُ الشخصيُّ عن أصحاب الأرقام الوظيفيّة حين يبلغ استعمالُه صفراً.
             changes={"identifier": getattr(request, "login_identifier_kind", "unknown")},
@@ -344,7 +345,7 @@ def audit_logout(sender, request, user, **kwargs):
             action="logout",
             model_name="CustomUser",
             object_id=str(user.pk),
-            object_repr=str(user),
+            object_repr=masked_repr(user),
             school=user.get_school() if hasattr(user, "get_school") else None,
             ip_address=get_client_ip(request),
         )
