@@ -22,11 +22,14 @@
     {% include "wings/partials/watchlist.html" %}
   {% endif %}
 
+  {# كلُّ عدّادٍ بقدرة وجهته: يغيب (None) عمّن لا تُفتح له شاشتُه، والشريطُ الفارغ خطأ فيُحجب كلُّه #}
+  {% if absent_teachers_today is not None or pending_swaps is not None %}
   {% kpi_strip label="ما ينتظر الإدارة" %}
-    {% kpi "معلّمون غائبون اليوم" absent_teachers_today tone=teachers_tone %}
-    {% kpi "طلبات تبديلٍ معلّقة" pending_swaps tone=swaps_tone %}
-    {% kpi "حصصٌ تعويضيّةٌ معلّقة" pending_comp tone=comp_tone %}
+    {% if absent_teachers_today is not None %}{% kpi "معلّمون غائبون اليوم" absent_teachers_today tone=teachers_tone %}{% endif %}
+    {% if pending_swaps is not None %}{% kpi "طلبات تبديلٍ معلّقة" pending_swaps tone=swaps_tone %}
+    {% kpi "حصصٌ تعويضيّةٌ معلّقة" pending_comp tone=comp_tone %}{% endif %}
   {% endkpi_strip %}
+  {% endif %}
 
   {% if recent_alerts %}
   {% section_card "تنبيهات الغياب المعلّقة" meta=recent_alerts|length icon="absence" %}
