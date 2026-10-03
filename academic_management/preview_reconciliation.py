@@ -11,6 +11,11 @@
 هذه الوحدةُ قراءةٌ وتحويلٌ فقط. الكتابةُ الفعليّةُ في `apply_preview_workload_changes` عبر خدمتَي المنصّة
 القائمتين (`assignment_services.apply_assignment`، `workload_workflow`) — لا عبر `save()` مباشرةً، فتبقى
 الحراسةُ والتدقيقُ كما لكلّ تعديلٍ آخر.
+
+**ما لا يعبر (D-167م، W-20261003-023):** حساباتُ المعاينة الدائمةُ (`core/preview_accounts.py`: بادئةُ الاسم «[وهميّ» **و**الرقم `PV-`)
+تبقى على 8500: `dump` يُسقط صفوفَ معلّمٍ موسومٍ (`exclude_preview_teachers`)، و`apply` يرفض ملفّاً يحمل مفتاحاً خارج قائمة السماح
+(`INJECTABLE_KEYS`: إسنادٌ وخطّةُ نصابٍ لا غير) أو صفّاً معلّمُه موسوم (`injection_violations`) قبل أيّ كتابة. وعلى هذا فتعليقُ «لا
+بياناتٍ شخصيّةً في الملفّ» يعني: الـHMAC والرقمُ الوظيفيّ للمطابقة وحدَها، **ولا حسابَ وهميّاً** مهما بلغ الدمقُ.
 """
 
 from __future__ import annotations
@@ -19,13 +24,48 @@ from dataclasses import dataclass
 from typing import Any
 
 from core.models import ClassGroup, CustomUser, School
+from core.preview_accounts import ID_PREFIX, ROLES, preview_accounts_q
 from operations.models import Subject, SubjectClassAssignment
 
 from .models import TeacherWorkloadPlan
 
+#: قائمةُ سماحٍ بما يعبر 8500 → الإنتاج (حكمُ 0105 ب-٢): مفاتيحُ الملفّ هذه وحدَها — نموذجان معرَّفان لا غير. مفتاحٌ آخرُ يرفضه
+#: `injection_violations` فلا يُقبل ملفٌّ يحمل مستخدمين أو عضويّاتٍ أو أيَّ صنفٍ لم يُسمَّ هنا.
+INJECTABLE_KEYS = frozenset({"since", "assignments", "workload_plans"})
+
 
 class ReconciliationError(Exception):
     """تعذّرت المطابقةُ أو الحلّ — يُذكر بلا تخمين."""
+
+
+def exclude_preview_teachers(queryset):
+    """يُسقط من الدمق كلَّ صفٍّ معلّمُه حسابُ معاينةٍ وهميّ (الوسمُ المركَّب) — «الحساباتُ كلُّها على المحلّيّ ولا تُحقن في الإنتاج»."""
+    return queryset.exclude(preview_accounts_q("teacher__"))
+
+
+def _preview_hmacs() -> set[str]:
+    """بصماتُ أرقام الدخول الاصطناعيّة `PV-…` — محسوبةٌ بسرّ هذه البيئة نفسِه (الحتميُّ في كلّ البيئات)."""
+    from core.models.crypto import hmac_field  # لا يُستورد في الرأس: يتبع إعداداتِ التشفير
+
+    return {hmac_field(national_id) for national_id in ROLES.values()}
+
+
+def injection_violations(payload: dict[str, Any]) -> list[str]:
+    """ما يمنع قبولَ ملفّ حقنٍ على هذه القاعدة (الإنتاجُ عادةً): مفتاحٌ خارج `INJECTABLE_KEYS`، أو صفٌّ معلّمُه حسابُ معاينة.
+
+    يُفحص قبل أيّ كتابةٍ في `apply_preview_workload_changes` ولو بلا `--apply`. والمطابقةُ بالبصمة وبالرقم الوظيفيّ بالبادئة `PV-`
+    (لا بالاسم — قد لا يحمله الملفّ).
+    """
+    problems = [
+        f"مفتاحٌ غيرُ مسموحٍ في ملفّ الحقن: «{key}»" for key in payload if key not in INJECTABLE_KEYS
+    ]
+    fake_hmacs = _preview_hmacs()
+    for section in ("assignments", "workload_plans"):
+        for index, row in enumerate(payload.get(section, []) or []):
+            identity = (row.get("teacher_hmac") or "", row.get("teacher_employee_number") or "")
+            if identity[0] in fake_hmacs or identity[1].startswith(ID_PREFIX):
+                problems.append(f"{section}[{index}]: معلّمُه حسابُ معاينةٍ وهميّ — لا يُحقن في الإنتاج")
+    return problems
 
 
 def resolve_school(code: str) -> School:

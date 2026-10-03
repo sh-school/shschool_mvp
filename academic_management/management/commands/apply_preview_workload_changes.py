@@ -97,6 +97,11 @@ class Command(BaseCommand):
         except OSError as exc:
             raise CommandError(f"تعذّر فتحُ الملفّ: {options['in_path']}") from exc
 
+        # قائمةُ السماح واستثناءُ حسابات المعاينة (D-167م): يُرفض الملفُّ كلُّه قبل أيّ كتابةٍ ولو بلا --apply.
+        violations = recon.injection_violations(payload)
+        if violations:
+            raise CommandError("رُفض ملفُّ الحقن: " + "؛ ".join(violations))
+
         actor = self._actor(options["actor_employee_number"])
         approver = self._approver(options["approver_employee_number"], actor)
         self.stdout.write(
