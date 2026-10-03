@@ -44,7 +44,12 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
     from clinic.models import ClinicVisit, HealthRecord
     from exam_control.models import ExamIncident
     from library.models import BookBorrowing
-    from notifications.models import NotificationLog
+    from notifications.models import (
+        InAppNotification,
+        NotificationLog,
+        PushSubscription,
+        UserNotificationPreference,
+    )
     from operations.models import (
         AbsenceAlert,
         AbsenceExcuse,
@@ -79,6 +84,10 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
             (ClassExit, "student", False),  # خروجُ الطالب من الحصّة
             (ExamIncident, "student", False),  # محضرُ حادثةٍ في اللجنة
             (NotificationLog, "student", False),  # سجلُّ إشعارٍ يحمل المستلمَ ونصَّه
+            # [W-20261002-042] مخازنُ محتوى الطالب بحقل `user` لا `student`.
+            (InAppNotification, "user", False),  # إشعاراتُه داخل المنصّة
+            (PushSubscription, "user", False),  # اشتراكُ دفعٍ بجهازه (نقطةُ اتّصال)
+            (UserNotificationPreference, "user", True),  # تفضيلاتُه
         ]
     )
     return _STUDENT_FK_MODELS
