@@ -21,6 +21,25 @@ from api.permissions import IsSchoolAdmin, NotPlatformDeveloper
 from core.models import CustomUser, ErasureRequest, ParentStudentLink
 from governance.erasure_service import ErasureFailedError, ErasureService, ErasureStateError
 
+#: ردودُ تعثّر المحو **ثابتةٌ من جدولٍ** — لا يخرج نصُّ الاستثناء إلى العميل (CodeQL py/stack-trace-exposure، قرارُ المالك: الإغلاقُ
+#: بالكود لا بالاستبعاد). رمزُ الاستثناء مفتاحٌ فقط؛ والتفصيلُ الكاملُ في AuditLog وlogger بمعرّفٍ لا بنصّ.
+ERASURE_FAILURES = {
+    "erasure_wrong_tenant": (
+        "erasure_wrong_tenant",
+        "تعذّر محو سجلّ رصد المعلّم لهذا الطالب: دورُ القاعدة الحاليّ لمدرسةٍ غيرِ مدرسة الطلب — يُنفَّذ بدور مدرستها.",
+    ),
+    "erasure_incomplete": (
+        "erasure_incomplete",
+        "تعذّر محو سجلّ رصد المعلّم لهذا الطالب: بقيت صفوفٌ بعد المحو وأُلغيت المعاملة.",
+    ),
+    "erasure_error": (
+        "erasure_error",
+        "تعذّر تنفيذ المحو لخطأٍ غيرِ متوقَّع سُجّل للمراجعة.",
+    ),
+}
+ERASURE_RETRY_NOTE = "لم يُمسّ شيء. الطلبُ باقٍ «تمّت الموافقة» ويمكن إعادة التنفيذ بعد معالجة السبب."
+ERASURE_STATE_MESSAGE = "لا يمكن الموافقة — الطلبُ ليس في حالةٍ تقبل الموافقة أو التنفيذ."
+
 # ── Serializers ───────────────────────────────────────────────
 
 
@@ -160,10 +179,15 @@ def approve_erasure(request, request_id):
         obj, summary = ErasureService.approve_and_execute(
             obj.pk, request.user, request.data.get("note", "")
         )
-    except ErasureStateError as exc:
-        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    except ErasureStateError:
+        return Response({"detail": ERASURE_STATE_MESSAGE}, status=status.HTTP_400_BAD_REQUEST)
     except ErasureFailedError as exc:
-        return Response({"detail": str(exc), "code": exc.code}, status=status.HTTP_409_CONFLICT)
+        # رمزٌ وجملةٌ من جدولٍ ثابتٍ لا نصُّ الاستثناء (CodeQL py/stack-trace-exposure): الرمزُ المجهولُ `erasure_error`.
+        code, detail = ERASURE_FAILURES.get(exc.code, ERASURE_FAILURES["erasure_error"])
+        return Response(
+            {"detail": f"{detail} {ERASURE_RETRY_NOTE}", "code": code},
+            status=status.HTTP_409_CONFLICT,
+        )
 
     return Response(
         {

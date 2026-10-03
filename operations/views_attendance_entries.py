@@ -30,9 +30,28 @@ REFUSALS = {
 }
 DEFAULT_REFUSAL = "لا تملك هذا الإجراء على هذه الحصّة."
 
+#: رسائلُ أخطاء الطلب بالرمز `exc.code` — **ثابتةٌ من هذا الجدول** لا نصَّ الاستثناء: لا يُعاد للعميل `str(exc)` أبداً (CodeQL
+#: py/stack-trace-exposure، قرارُ المالك: يُغلق بالكود لا بالاستبعاد). رمزٌ مجهولٌ يأخذ `DEFAULT_ENTRY_ERROR`.
+ENTRY_ERRORS = {
+    "bad_status": "حالةٌ غيرُ مسموحةٍ للإدخال.",
+    "reason_required": "هذا الإجراءُ يلزمه سبب.",
+    "reason_too_long": "السببُ أطولُ من الحدّ المسموح.",
+    "unchanged": "الحالةُ المعتمَدةُ كما هي — لا تصحيحَ.",
+    "superseded": "حلّت محلَّه نسخةٌ أحدث — القرارُ على الأحدث.",
+    "bad_evidence": "نوعُ الدليل غيرُ معروف.",
+    "concurrent": "سبقك إدخالٌ آخرُ — أعِد المحاولة.",
+    "non_teacher_row": "رصدٌ آخرُ (مشرفٌ أو عيادةٌ أو بوّابةٌ) قائمٌ على هذا الطالب — لا كتابةَ فوقه؛ ارفضْ الإدخالَ بسبب.",
+    "non_correctable_row": "الرصدُ القائمُ مصدرُه العيادةُ أو البوّابةُ أو النظام — لا كتابةَ فوقه.",
+}
+DEFAULT_ENTRY_ERROR = "تعذّر تنفيذ الطلب."
+
 
 def _refusal(exc: EntryRefusedError) -> HttpResponse:
     return HttpResponse(REFUSALS.get(exc.reason, DEFAULT_REFUSAL), status=403)
+
+
+def _entry_error(exc: EntryError, status: int) -> HttpResponse:
+    return HttpResponse(ENTRY_ERRORS.get(exc.code, DEFAULT_ENTRY_ERROR), status=status)
 
 
 @login_required
@@ -53,10 +72,10 @@ def entry_submit(request, session_id):
         )
     except EntryRefusedError as exc:
         return _refusal(exc)
-    except EntryConflictError:
-        return HttpResponse("سبقك إدخالٌ آخرُ — أعِد المحاولة.", status=409)
+    except EntryConflictError as exc:
+        return _entry_error(exc, 409)
     except EntryError as exc:
-        return HttpResponse(str(exc), status=400)
+        return _entry_error(exc, 400)
     context = {"session": session, "line": line, "can_enter": True}
     return render(request, "teacher/partials/entry_cell.html", context)
 
@@ -85,13 +104,10 @@ def approval_decide(request, entry_id):
         )
     except EntryRefusedError as exc:
         return _refusal(exc)
-    except EntryConflictError:
-        return HttpResponse(
-            "رصدٌ آخرُ (مشرفٌ أو عيادةٌ) قائمٌ على هذا الطالب — لا كتابةَ فوقه؛ ارفضْ الإدخالَ بسبب.",
-            status=409,
-        )
+    except EntryConflictError as exc:
+        return _entry_error(exc, 409)
     except EntryError as exc:
-        return HttpResponse(str(exc), status=400)
+        return _entry_error(exc, 400)
     context = {"entry": entry, "decision": decision}
     return render(request, "attendance/partials/decided_row.html", context)
 
@@ -140,8 +156,8 @@ def correct_submit(request, session_id):
     except EntryRefusedError as exc:
         return _refusal(exc)
     except EntryConflictError as exc:
-        return HttpResponse(str(exc), status=409)
+        return _entry_error(exc, 409)
     except EntryError as exc:
-        return HttpResponse(str(exc), status=400)
+        return _entry_error(exc, 400)
     context = {"session": session, "line": line, "evidence_types": EVIDENCE_TYPES}
     return render(request, "attendance/partials/correct_row.html", context)
