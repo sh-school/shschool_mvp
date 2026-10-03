@@ -5,6 +5,7 @@
 ما لا حاملَ فعليّاً له (لا مشرفَ للجناح، أو الحاملُ هو معلّمُ الحصّة، أو بلا عضويّةٍ نشطة) يُوسَم لتتصرّف فيه القيادة.
 {% endcomment %}
 {% block title %}رصدٌ غيرُ معتمَد{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% url 'attendance_approvals' as approvals_url %}
@@ -17,7 +18,7 @@
 
   <form method="get" class="xr-form">
     <label class="form-label" for="hours">أقدمُ من (ساعة)
-      <input type="number" id="hours" name="hours" min="1" max="336" value="{{ hours|floatformat:0 }}" class="form-control">
+      <input type="number" inputmode="numeric" id="hours" name="hours" min="1" max="336" value="{{ hours|floatformat:0 }}" class="form-control">
     </label>
     <button type="submit" class="btn-secondary btn-sm">عرض</button>
   </form>
