@@ -48,10 +48,10 @@ class TestAnalyticsViews:
         resp = c.get("/analytics/")
         assert resp.status_code == 403
 
-    def test_platform_developer_is_denied_even_without_superuser(
+    def test_platform_developer_reaches_analytics_without_superuser(
         self, client_as, school, django_user_model
     ):
-        """D-98م: platform_developer مستبعدٌ من /analytics/ كاملاً."""
+        """D-118م (يُلغي D-98م): لا حظرَ على platform_developer في أيّ صفحة."""
         from core.models.access import Membership, Role
 
         user = django_user_model.objects.create(
@@ -64,12 +64,12 @@ class TestAnalyticsViews:
 
         resp = client_as(user).get("/analytics/")
 
-        assert resp.status_code == 403
+        assert resp.status_code == 200
 
-    def test_platform_developer_is_denied_even_as_superuser(
+    def test_platform_developer_reaches_analytics_apis_as_superuser_too(
         self, client_as, school, django_user_model
     ):
-        """الاستبعادُ صريحٌ، لا يعتمد على تجاوز `is_superuser` (اكتشافُ W-20261001-040)."""
+        """الوصولُ بالدور نفسِه لا بتجاوز `is_superuser` وحدَه — ويبقى مع الصفتين."""
         from core.models.access import Membership, Role
 
         user = django_user_model.objects.create(
@@ -85,7 +85,7 @@ class TestAnalyticsViews:
 
         resp = client_as(user).get("/analytics/api/attendance-trend/")
 
-        assert resp.status_code == 403
+        assert resp.status_code == 200
 
     def test_api_attendance_trend(self, client_as, principal_user):
         c = client_as(principal_user)

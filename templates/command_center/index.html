@@ -19,19 +19,35 @@
   {% page_header "مركز قيادة الجودة" subtitle="عرضٌ حيٌّ لصحّة المنصّة" icon="quality" %}
     {% callout "info" %}كلُّ لوحةٍ تقرأ آخرَ قيمةٍ جمعها المجمِّعُ الخاصّ بها. «غير معلوم» يعني أنّها لم تُجمَع بعدُ أو انقطع جمعُها — ولا يعني أنّ الأمر سليم.{% endcallout %}
     <button type="button" class="btn-secondary" data-qc-refresh>تحديثٌ الآن</button>
-    <button type="button" class="btn-secondary" data-modal-open="qc-panels" aria-haspopup="dialog">المؤشّراتُ المعروضة <span data-qc-count aria-live="polite">{{ shown }} من {{ total }}</span></button>
     <span class="ui-note" data-key="generated">لم يُحدَّث بعدُ</span>
   {% endpage_header %}
 
   {# تنبيهُ الجلسة/العقد: مخفيٌّ حتى يكشفه السكربتُ (انتهت الجلسة أو تغيّر إصدارُ العقد) #}
   <div role="status" data-qc-note hidden>{% callout "error" %}<span data-qc-note-text></span>{% endcallout %}</div>
 
-  <div class="auto-grid is-tiles">
-    {% for panel in snapshot.panels %}<div data-card="{{ panel.key }}"{% if panel.hidden %} hidden{% endif %}>{% include "command_center/_panel.html" %}</div>{% endfor %}
-  </div>
-  <div data-qc-none{% if shown %} hidden{% endif %}>{% callout "info" %}كلُّ المؤشّرات مخفيّة — أظهِر ما تريد من زرّ «المؤشّراتُ المعروضة».{% endcallout %}</div>
+  {# «ما ينتظرك الآن»: أربعُ بطاقاتِ رقمٍ مركزيّة (`kpi_strip`) بما يراه الخادمُ من مصادره وحدَها — لا قراراتٍ مفتوحةً ولا ما في الدفتر المحلّيّ ولا رقماً مخمَّناً. وبلا callout «info» مفروضٍ ظهورُه: أيقونتُه (i) تبدو زرّاً ولا تعمل. #}
+  {% url 'command_center:status' as status_url %}
+  {% kpi_strip "ما ينتظرك الآن" %}
+    {% kpi "خطر" strip.bad_count sub="لوحة" tone="red" key="strip.bad" %}
+    {% kpi "انتبه" strip.warns sub="لوحة" tone="amber" key="strip.warn" %}
+    {% kpi "غير معلوم" strip.unknown sub="لم تُجمَع بعدُ" tone="sky" key="strip.unknown" %}
+    {% kpi "إيداعاتٌ غيرُ منشورة" strip.unpublished_text sub="في main" tone="maroon" key="strip.unpublished" %}
+  {% endkpi_strip %}
+  <p class="ui-note"><span data-key="strip.reds">{% if strip.reds %}✖ خطر: {{ strip.reds|join:"، " }}{% else %}✔ لا لوحةَ في حالة خطر{% endif %}</span>{% if status_url %} · <a href="{{ status_url }}">حالةُ اليوم</a>{% endif %}</p>
 
-  {% include "command_center/_picker.html" %}
+  {# بطاقتان متجاورتان متطابقتان طولاً وعرضاً افتراضاً (طلبُ المالك 2026-10-02) آخرَ أبناء الغلاف فتملآن الباقيَ بلا تمرير (50-utilities: .qc-cards). لكلّ مؤشّرٍ بارٌ في سطرٍ واحد. #}
+  <div class="ui-grid-2 qc-cards">
+    {% for card in cards %}
+    {% section_card card.title icon="quality" %}
+      {% for group in card.groups %}
+      <section class="qc-group" data-group="{{ group.key }}" aria-labelledby="qc-g-{{ group.key }}">
+        <h3 id="qc-g-{{ group.key }}">{{ group.title }} <span class="ui-note" data-key="group.{{ group.key }}.state">{{ group.worst_label }} · {{ group.ok }} من {{ group.total }} سليمة</span></h3>
+        {% for panel in group.tiles %}<div data-card="{{ panel.key }}">{% include "command_center/_panel.html" %}</div>{% endfor %}
+      </section>
+      {% endfor %}
+    {% endsection_card %}
+    {% endfor %}
+  </div>
 </div>
 {% endblock %}
 

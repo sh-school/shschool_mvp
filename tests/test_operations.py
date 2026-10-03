@@ -186,8 +186,16 @@ class TestOperationsViews:
         assert resp.status_code in [302, 403]  # ParentConsentMiddleware قد يُعيد توجيهاً
 
     def test_mark_single_attendance(
-        self, client_as, teacher_user, session, student_user, enrolled_student, school
+        self, client_as, teacher_user, session, student_user, enrolled_student, school, monkeypatch
     ):
+        # معلّمُ الحصّة يرصد داخل نافذتها وحدَها (W-20261002-026): نثبّت الساعةَ في منتصف الحصّة
+        # فلا يتوقّف الاختبارُ على ساعة تشغيله.
+        from datetime import datetime
+
+        from django.utils import timezone
+
+        inside = timezone.make_aware(datetime.combine(session.date, time(8, 10)))
+        monkeypatch.setattr(timezone, "now", lambda: inside)
         c = client_as(teacher_user)
         resp = c.post(
             f"/teacher/attendance/{session.id}/mark-single/",

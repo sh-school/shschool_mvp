@@ -16,23 +16,17 @@
   var MAX_SECONDS = 60;
   var FAILURES_BEFORE_NOTICE = 3;
   var MAX_BACKOFF_SECONDS = 300;
-  var STATE_LABEL = { ok: "سليم", warn: "انتبه", bad: "خطر", unknown: "غير معلوم" };
+  // الحالةُ نصّاً ورمزاً لا لوناً وحدَه — وتطابق command_center/layout.py:STATE_LABELS (يحرسه اختبار)
+  var STATE_LABEL = { ok: "✔ سليم", warn: "▲ انتبه", bad: "✖ خطر", unknown: "؟ غير معلوم" };
   var STATUSES = ["ok", "warn", "bad", "unknown"];
-  var ARC_SHARE = 0.75;      // القوسُ 270° من 360°: pathLength=100 فيه 75 وحدة
-  var SWEEP_DEGREES = 270;   // مدى العقرب من أسفل اليسار (−135°) إلى أسفل اليمين (+135°)
+  var ORDER = ["bad", "warn", "unknown", "ok"];   // الأخطرُ أوّلاً — لاختيار أسوأ حالات المجموعة
   var METRIC_SLOTS = 4;
-  // تفضيلُ اللوحات المخفيّة: كوكي مفاتيحُه مفصولةٌ بفواصل؛ الخادمُ يقرؤه فيرسم المخفيَّ مخفيّاً (بلا وميض) ويتحقّق من المفاتيح.
-  var HIDDEN_COOKIE = "qcc_hidden";
-  var HIDDEN_MAX_AGE = 365 * 24 * 3600;
 
   var url = root.getAttribute("data-qc-url");
   var note = root.querySelector("[data-qc-note]");
   var noteText = root.querySelector("[data-qc-note-text]");
   var clock = root.querySelector('[data-key="generated"]');
   var button = root.querySelector("[data-qc-refresh]");
-  var toggles = Array.prototype.slice.call(root.querySelectorAll("[data-qc-toggle]"));
-  var counter = root.querySelector("[data-qc-count]");
-  var none = root.querySelector("[data-qc-none]");
   var panels = Array.prototype.slice.call(root.querySelectorAll("[data-panel]"));
   var failures = 0;
   var timer = null;
@@ -68,35 +62,43 @@
     note.hidden = !text;
   }
 
-  function clampGauge(value) {
-    if (value === null || value === undefined || value === "" || isNaN(Number(value))) { return null; }
-    return Math.max(0, Math.min(100, Math.round(Number(value))));
+  // بارُ قراءة اللوحة (0–100، 100 أسلم) بمكوّن الهويّة `progress-qatar`: متغيّرُ CSS `--progress-w` وصنفُ النبرة `pf-*` — لا بناءَ DOM ولا لونَ محلّيّ؛
+  // وبلا قراءةٍ يعود إلى 0 بنصٍّ بديلٍ «لم تُجمَع بعدُ».
+  var BAR_TONE = { ok: "pf-success", warn: "pf-warning", bad: "pf-danger", unknown: "" };
+  var BADGE = { ok: "status-success", warn: "status-warning", bad: "status-danger", unknown: "status-gray" };
+
+  function paintBar(panel, gauge, status) {
+    var bar = panel.querySelector("[data-bar]");
+    if (!bar) { return; }
+    var value = gauge === null || gauge === undefined || gauge === "" || isNaN(Number(gauge)) ? null : Math.max(0, Math.min(100, Math.round(Number(gauge))));
+    var fill = bar.querySelector(".progress-qatar-fill");
+    if (fill) {
+      fill.style.setProperty("--progress-w", (value === null ? 0 : value) + "%");
+      Object.keys(BAR_TONE).forEach(function (name) {
+        if (BAR_TONE[name]) { fill.classList.toggle(BAR_TONE[name], name === status); }
+      });
+    }
+    bar.setAttribute("aria-valuenow", String(value === null ? 0 : value));
+    if (value === null) { bar.setAttribute("aria-valuetext", "لم تُجمَع بعدُ"); } else { bar.removeAttribute("aria-valuetext"); }
   }
 
-  // القرصُ كالساعة: طولُ القوس وزاويةُ العقرب والرقمُ من القراءة 0–100 (100 أسلم)؛ وبلا قراءةٍ يعود العقربُ إلى البداية والرقمُ «؟».
-  function paintDial(panel, key, gauge) {
-    var arc = panel.querySelector("[data-dial-arc]");
-    var needle = panel.querySelector("[data-dial-needle]");
-    var dial = panel.querySelector("[data-dial]");
-    var value = gauge === null ? 0 : gauge;
-    if (arc) { arc.setAttribute("stroke-dasharray", (value * ARC_SHARE) + " 100"); }
-    if (needle) {
-      needle.setAttribute("transform", "rotate(" + (value * SWEEP_DEGREES / 100 - SWEEP_DEGREES / 2) + " 60 60)");
-    }
-    if (dial) {
-      dial.setAttribute("aria-label", gauge === null ? "قراءةُ القرص: لم تُجمَع بعدُ" : "قراءةُ القرص " + gauge + " من 100");
-    }
-    setText(panel, key + ".gauge", gauge === null ? "؟" : String(gauge));
+  // شارةُ الحالة بصنف الهويّة المركزيّ `status-*` (والنصُّ والرمزُ يبقيان: لا لونٌ وحدَه).
+  function paintBadge(panel, key, status) {
+    var badge = panel.querySelector('[data-key="' + key + '.state"]');
+    if (!badge) { return; }
+    Object.keys(BADGE).forEach(function (name) { badge.classList.toggle(BADGE[name], name === status); });
   }
 
   function paintMetrics(panel, key, metrics) {
     var list = Array.isArray(metrics) ? metrics : [];
+    var featured = Number(panel.getAttribute("data-featured")) || 0;
     for (var index = 1; index <= METRIC_SLOTS; index += 1) {
       var metric = list[index - 1];
       var row = panel.querySelector('[data-row="' + key + ".m" + index + '"]');
       if (row) { row.hidden = !metric; }
       setText(panel, key + ".m" + index + "l", metric ? String(metric.label) : "");
-      setText(panel, key + ".m" + index + "v", metric ? String(metric.value) : "");
+      // الرقمُ الكبير بلا قراءةٍ يعرض «؟» لا فراغاً (لا يُوهَم سليماً)
+      setText(panel, key + ".m" + index + "v", metric ? String(metric.value) : (index === featured ? "؟" : ""));
     }
   }
 
@@ -111,12 +113,51 @@
     setText(panel, key + ".headline", String(data.headline || "") || "لم يُجمَع بعدُ", true);
     setText(panel, key + ".detail", String(data.detail || ""));
     setText(panel, key + ".age", ageText(data.age_seconds));
-    paintDial(panel, key, clampGauge(data.gauge));
+    paintBar(panel, data.gauge, status);
+    paintBadge(panel, key, status);
     paintMetrics(panel, key, data.metrics);
     // يُعلن قارئُ الشاشة الانتقالَ إلى الأحمر وحدَه، لا كلَّ استطلاعٍ (تنبيهٌ عند الأحمر فقط)
     if (status === "bad" && previous && previous !== "bad") {
       showNote("صارت لوحة «" + String(data.title || key) + "» في حالة خطر.");
     }
+  }
+
+  // شريطُ «ما ينتظرك الآن» ورؤوسُ المجموعات من اللقطة نفسِها — ما يراه الخادمُ وحدَه (يطابق command_center/layout.py:strip وgroups).
+  function paintSummary(list) {
+    var reds = [];
+    var warns = 0;
+    var unknown = 0;
+    var unpublished = null;
+    list.forEach(function (data) {
+      if (data.status === "bad") { reds.push(String(data.title || data.key)); }
+      else if (data.status === "warn") { warns += 1; }
+      else if (STATUSES.indexOf(data.status) === -1 || data.status === "unknown") { unknown += 1; }
+      if (data.key === "pulls" && Array.isArray(data.metrics)) {
+        data.metrics.forEach(function (metric) {
+          if (metric.label === "إيداعاتٌ غيرُ منشورة") { unpublished = String(metric.value); }
+        });
+      }
+    });
+    setText(root, "strip.reds", reds.length ? "✖ خطر: " + reds.join("، ") : "✔ لا لوحةَ في حالة خطر");
+    setText(root, "strip.bad", String(reds.length));
+    setText(root, "strip.warn", String(warns));
+    setText(root, "strip.unknown", String(unknown));
+    setText(root, "strip.unpublished", unpublished === null ? "؟" : unpublished);
+    var byKey = {};
+    list.forEach(function (data) { byKey[data.key] = data; });
+    Array.prototype.forEach.call(root.querySelectorAll("[data-group]"), function (group) {
+      var members = Array.prototype.slice.call(group.querySelectorAll("[data-panel]"));
+      var worst = "ok";
+      var ok = 0;
+      members.forEach(function (member) {
+        var data = byKey[member.getAttribute("data-panel")];
+        var status = data && STATUSES.indexOf(data.status) !== -1 ? data.status : "unknown";
+        if (status === "ok") { ok += 1; }
+        if (ORDER.indexOf(status) < ORDER.indexOf(worst)) { worst = status; }
+      });
+      setText(group, "group." + group.getAttribute("data-group") + ".state",
+        STATE_LABEL[worst] + " · " + ok + " من " + members.length + " سليمة");
+    });
   }
 
   function apply(snapshot) {
@@ -129,42 +170,11 @@
       var data = byKey[panel.getAttribute("data-panel")];
       if (data) { paint(panel, data); }
     });
+    paintSummary(snapshot.panels);
     if (clock) {
       clock.textContent = "آخر تحديث " + new Date(snapshot.generated_at * 1000).toLocaleTimeString("ar");
     }
   }
-
-  function saveHidden(keys) {
-    var secure = window.location.protocol === "https:" ? "; Secure" : "";
-    document.cookie = HIDDEN_COOKIE + "=" + keys.join(",") + "; Path=/command-center/; Max-Age=" +
-      (keys.length ? HIDDEN_MAX_AGE : 0) + "; SameSite=Lax" + secure;
-  }
-
-  // يطبّق اختيارَ المربّعات: يُظهر ويُخفي بطاقاتِ اللوحات، ويحدّث العدّادَ ورسالةَ «كلُّها مخفيّة»، ويحفظ التفضيل.
-  function applyChoices(save) {
-    var hidden = [];
-    toggles.forEach(function (box) {
-      var key = box.getAttribute("data-qc-toggle");
-      var card = root.querySelector('[data-card="' + key + '"]');
-      if (card) { card.hidden = !box.checked; }
-      if (!box.checked) { hidden.push(key); }
-    });
-    var shown = toggles.length - hidden.length;
-    if (counter) { counter.textContent = shown + " من " + toggles.length; }
-    if (none) { none.hidden = shown > 0; }
-    if (save) { saveHidden(hidden); }
-  }
-
-  toggles.forEach(function (box) {
-    box.addEventListener("change", function () { applyChoices(true); });
-  });
-  Array.prototype.forEach.call(root.querySelectorAll("[data-qc-all]"), function (control) {
-    control.addEventListener("click", function () {
-      var show = control.getAttribute("data-qc-all") === "show";
-      toggles.forEach(function (box) { box.checked = show; });
-      applyChoices(true);
-    });
-  });
 
   function schedule() {
     window.clearTimeout(timer);
@@ -212,8 +222,6 @@
     panel.setAttribute("data-status", STATUSES.filter(function (name) {
       return panel.classList.contains("is-" + name);
     })[0] || "unknown");
-    // أوّلُ رسمٍ من قراءة الخادم المضمَّنة فلا يبدأ القرصُ من الصفر حتى يعود الاستطلاع
-    paintDial(panel, panel.getAttribute("data-panel"), clampGauge(panel.getAttribute("data-gauge")));
   });
   poll();
 })();

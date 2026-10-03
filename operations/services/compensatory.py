@@ -343,9 +343,7 @@ class CompensatoryService:
                 f"طلب تعويض من {teacher.full_name}",
             )
 
-        logger.info(
-            "CompensatoryService: created request %s for teacher %s", comp.pk, teacher.full_name
-        )
+        logger.info("CompensatoryService: created request %s for teacher %s", comp.pk, teacher.pk)
         return comp
 
     @staticmethod

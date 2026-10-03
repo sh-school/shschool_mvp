@@ -29,7 +29,9 @@ from .models import (
     TeacherPreference,
     TimeSlotConfig,
 )
+from .scheduler_advice import _capacity_shortfalls, _day_coverage, _slack_advice
 from .scheduler_audit import unplaced_message
+from .scheduler_clock import Deadline
 from .scheduler_constraints import (
     calculate_quality_score,
     evaluate_soft_constraints,
@@ -55,6 +57,7 @@ logger = logging.getLogger(__name__)
 MIN_ATTEMPTS = 3
 MAX_ATTEMPTS = 20
 PATIENCE = 3
+
 
 DAYS = [0, 1, 2, 3, 4]  # أحد - خميس
 #: آخرُ حصّةٍ في اليوم — لها حكمُها الخاصّ في التوزيع.
@@ -978,6 +981,7 @@ def _repair_pass(
     allow_adjacent=False,
     allow_dense=False,
     depth: int = 3,
+    deadline: Deadline | None = None,
 ):
     """الإزاحةُ الموجَّهة: أخرِج ساكنَ الخانة، وأنزِل المتعذّرة، ثمّ أعِد الساكن.
 
@@ -994,21 +998,41 @@ def _repair_pass(
     remaining = list(leftovers)
     for _ in range(3):
         still = []
-        for task in remaining:
+        for position, task in enumerate(remaining):
+            if deadline is not None and deadline.expired():
+                # نفدت الميزانيةُ: ما بقي يبقى متعذّراً بموضعه — لا يُترك بلا ذكر (يُسجَّل `budget_cut`).
+                still.extend(remaining[position:])
+                break
             if budget <= 0 or not _try_eject(
-                grid, task, blocked, preferences, depth, school, allow_adjacent, allow_dense
+                grid,
+                task,
+                blocked,
+                preferences,
+                depth,
+                school,
+                allow_adjacent,
+                allow_dense,
+                deadline,
             ):
                 still.append(task)
             else:
                 budget -= 1
-        if len(still) == len(remaining):
+        if len(still) == len(remaining) or (deadline is not None and deadline.hit):
             return still
         remaining = still
     return remaining
 
 
 def _try_eject(
-    grid, task, blocked, preferences, depth=1, school=None, allow_adjacent=False, allow_dense=False
+    grid,
+    task,
+    blocked,
+    preferences,
+    depth=1,
+    school=None,
+    allow_adjacent=False,
+    allow_dense=False,
+    deadline=None,
 ):
     """يُخرج ساكنَ الخانةِ لينزل فيها المتعذّر — ثمّ يُعيد الساكنَ إلى بديل.
 
@@ -1017,6 +1041,10 @@ def _try_eject(
     ممّا يُصلح، وقد كفى العمقان: اثنتان بقيتا من ثمانٍ وخمسين.
     """
     for day, period in _candidate_starts(grid, task, blocked, school):
+        # الساعةُ داخل السلسلة نفسِها لا بين المتعذّرات وحدَها: إزاحةٌ واحدةٌ بعمق 4 قاست 39 ثانيةً (W-20261002-033).
+        # والفحصُ هنا قبل `grid.begin()` فلا حركةَ مفتوحة: يفشل هذا المستوى فيتراجع المُنادي ذرّيّاً كأيّ فشل.
+        if deadline is not None and deadline.expired():
+            return False
         evicted = _blockers(grid, task, day, period, blocked)
         #: إزاحةُ أكثرَ من ساكنَين تُقلّب الجدولَ أكثرَ ممّا تُصلح.
         if evicted is None or not evicted or len(evicted) > 2:
@@ -1046,6 +1074,7 @@ def _try_eject(
                 school,
                 allow_adjacent,
                 allow_dense,
+                deadline,
             ):
                 grid.commit()
                 return True
@@ -1086,7 +1115,15 @@ def _home_of(grid, task):
 
 
 def _rehome_all(
-    grid, tasks, blocked, preferences, depth=1, school=None, allow_adjacent=False, allow_dense=False
+    grid,
+    tasks,
+    blocked,
+    preferences,
+    depth=1,
+    school=None,
+    allow_adjacent=False,
+    allow_dense=False,
+    deadline=None,
 ):
     """يُعيد المُزاحين إلى خاناتٍ صحيحة، أو يُعلن الفشلَ ليتراجع المُنادي.
 
@@ -1106,7 +1143,15 @@ def _rehome_all(
             continue
         # لا خانةَ فارغةً له — فليُزِح هو الآخرُ إن بقي في العمق سعة.
         if depth > 1 and _try_eject(
-            grid, task, blocked, preferences, depth - 1, school, allow_adjacent, allow_dense
+            grid,
+            task,
+            blocked,
+            preferences,
+            depth - 1,
+            school,
+            allow_adjacent,
+            allow_dense,
+            deadline,
         ):
             continue
         return False
@@ -1231,6 +1276,7 @@ def _run_attempt(
     school,
     rng,
     max_backtrack,
+    deadline: Deadline | None = None,
 ) -> tuple:
     """محاولةٌ واحدة: الدقيقُ للضيّقين، فالجشع، فالإصلاح، فالرخصتان، فالإنقاذ.
 
@@ -1243,7 +1289,9 @@ def _run_attempt(
     pending = [t for t in sorted_tasks if grid.home_of(t) is None]
     leftovers = _greedy_pass(grid, pending, blocked_slots, preferences, school, rng)
     before_repair = len(leftovers)
-    leftovers = _repair_pass(grid, leftovers, blocked_slots, preferences, max_backtrack, school)
+    leftovers = _repair_pass(
+        grid, leftovers, blocked_slots, preferences, max_backtrack, school, deadline=deadline
+    )
     repaired = before_repair - len(leftovers)
 
     # الرخصةُ الأولى: زوجٌ واحدٌ متلاصق. والقياسُ هو الذي فرض تأخيرَها —
@@ -1260,6 +1308,7 @@ def _run_attempt(
             max_backtrack,
             school,
             allow_adjacent=True,
+            deadline=deadline,
         )
         relaxed = before - len(leftovers)
 
@@ -1286,6 +1335,7 @@ def _run_attempt(
             school,
             allow_adjacent=True,
             allow_dense=True,
+            deadline=deadline,
         )
         densed = before - len(leftovers)
 
@@ -1303,6 +1353,7 @@ def _run_attempt(
             allow_adjacent=True,
             allow_dense=True,
             depth=4,
+            deadline=deadline,
         )
 
     # والمفاضلةُ بالثمن لا بالعدد وحدَه: جدولٌ تامٌّ بلا رخصةِ كثافةٍ خيرٌ
@@ -1322,35 +1373,11 @@ def _search_exhausted(done: int, elapsed: float, budget: float, idle: int, compl
     """
     # وما دام الأفضلُ ناقصاً تُمَدّ الميزانيةُ إلى ضعفها: حصّةٌ بلا موضعٍ أغلى من دقيقة.
     limit = budget if complete else 2 * budget
-    if done >= MAX_ATTEMPTS or (done >= MIN_ATTEMPTS and elapsed >= limit):
+    # الحدُّ الأدنى للمقارنة (ثلاثُ محاولات) يسقط حين تنفد الميزانية: محاولةٌ واحدةٌ على الأقلّ لا ثلاثٌ مهما طالت
+    # الأولى (قرارُ المالك W-20261002-033) — فمحاولاتٌ سريعةٌ لا تبلغ الميزانيةَ فلا يتغيّر شيءٌ.
+    if done >= MAX_ATTEMPTS or (done >= 1 and elapsed >= limit):
         return True
     return done >= MIN_ATTEMPTS and idle >= PATIENCE and complete
-
-
-def _day_coverage(tasks: list[Task], blocked_slots: set) -> dict:
-    """{معلّم: (نصابُه، أيّامُه المتاحة)} — واليومُ المفرَّغُ كاملاً ليس متاحاً.
-
-    قرارُ الإدارة 2026-09-04: حصصُ المعلّم على أيّام الأسبوع كلِّها، لا يومَ
-    بلا حصّة إلّا بتفريغٍ من الإعدادات. ومن نصابُه دون عدد أيّامه (منسّقٌ
-    بأربع حصص) مستثنىً بالضرورة — والقيدُ لا يمسّه.
-    """
-    placements: dict[str, int] = defaultdict(int)
-    periods: dict[str, int] = defaultdict(int)
-    for t in tasks:
-        for m in t.members:
-            placements[m.teacher_id] += 1
-            periods[m.teacher_id] += t.span
-    blocked_per_day: dict[tuple[str, int], int] = defaultdict(int)
-    for teacher_id, day, _period in blocked_slots:
-        blocked_per_day[(teacher_id, day)] += 1
-    return {
-        tid: (
-            count,
-            periods[tid],
-            frozenset(d for d in DAYS if blocked_per_day[(tid, d)] < LAST_PERIOD),
-        )
-        for tid, count in placements.items()
-    }
 
 
 def _empty_day_reports(grid: ScheduleGrid, tasks: list[Task], skip: set | None = None) -> list[str]:
@@ -1369,75 +1396,6 @@ def _empty_day_reports(grid: ScheduleGrid, tasks: list[Task], skip: set | None =
                 f"يومٌ بلا حصّة لـ{names.get(tid, tid)}: "
                 + "، ".join(day_names.get(d, str(d)) for d in empty)
             )
-    return found
-
-
-def _slack_advice(leftovers: list[Task], prefs, blocked_slots: set, tasks: list[Task]) -> list[str]:
-    """متعذّرةٌ لمعلّمٍ سعتُه تساوي نصابَه: يُقال له أين الهامشُ لا «تعذّر» وحدَها.
-
-    سفيان (2026-09-04): تفريغاتٌ تترك له اثنتي عشرةَ خانةً بلا تلاصق لاثنتي عشرةَ
-    حصّة — فأيُّ قيدٍ آخر (تنوّعُ الحصّة، القسمة، شعبةٌ بلا خانةٍ فائضة) يُسقط
-    حصّة. والعلاجُ بياناتٌ لا خوارزميّة: تفريغٌ واحدٌ أقلّ.
-    """
-    from .preference_capacity import weekly_capacity
-
-    load: dict[str, int] = defaultdict(int)
-    for t in tasks:
-        for m in t.members:
-            load[m.teacher_id] += t.span
-    blocked_per_day: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))
-    for teacher_id, day, _period in blocked_slots:
-        blocked_per_day[teacher_id][day] += 1
-    by_teacher = {str(p.teacher_id): p for p in prefs}
-    advice, seen = [], set()
-    for task in leftovers:
-        for m in task.members:
-            pref = by_teacher.get(m.teacher_id)
-            if pref is None or m.teacher_id in seen:
-                continue
-            seen.add(m.teacher_id)
-            free = {d: LAST_PERIOD - n for d, n in blocked_per_day[m.teacher_id].items()}
-            capacity = weekly_capacity(
-                pref.max_daily_periods, pref.max_consecutive, pref.max_gap, pref.free_day, free
-            )
-            if capacity - load[m.teacher_id] <= 1:
-                advice.append(
-                    f"قيودُ {m.teacher_name} تسع {capacity} حصّةً ونصابُه {load[m.teacher_id]} — "
-                    "بلا هامش، فأيُّ قيدٍ آخر يُسقط حصّة: أزل تفريغاً واحداً أو ارفع سقفاً "
-                    "ليكتمل الجدول"
-                )
-    return advice
-
-
-def _capacity_shortfalls(tasks: list[Task], prefs, blocked_slots: set) -> list[str]:
-    """معلّمون تسع قيودُهم أقلَّ من نصابهم — بالحساب لا بالتخمين."""
-    from .preference_capacity import explain_shortfall, weekly_capacity
-
-    load: dict[str, int] = defaultdict(int)
-    names: dict[str, str] = {}
-    for t in tasks:
-        for m in t.members:
-            load[m.teacher_id] += t.span
-            names[m.teacher_id] = m.teacher_name
-    blocked_per_day: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))
-    for teacher_id, day, _period in blocked_slots:
-        blocked_per_day[teacher_id][day] += 1
-
-    found = []
-    for pref in prefs:
-        tid = str(pref.teacher_id)
-        if tid not in load:
-            continue
-        free_per_day = {d: LAST_PERIOD - n for d, n in blocked_per_day[tid].items()}
-        capacity = weekly_capacity(
-            pref.max_daily_periods,
-            pref.max_consecutive,
-            pref.max_gap,
-            pref.free_day,
-            free_per_day,
-        )
-        if capacity < load[tid]:
-            found.append(explain_shortfall(names[tid], capacity, load[tid], pref))
     return found
 
 
@@ -1556,6 +1514,8 @@ def generate_schedule(
     from operations.schedule_lab import grid_lab_score, load_context
 
     budget = float(getattr(_settings, "SCHEDULE_TIME_BUDGET_SECONDS", 60))
+    # سقفُ البحث الصلب ضعفُ الميزانية (كما في `_search_exhausted` لما بقي متعذّرٌ): الإصلاحُ يقف عنده داخل المحاولة.
+    search_deadline = Deadline(2 * budget)
     lab_ctx = load_context(school, academic_year)
     attempt_log: list[dict] = []
     since_improvement = 0
@@ -1565,6 +1525,7 @@ def generate_schedule(
             return _stopped_result()
         attempt += 1
         attempt_started = time.time()
+        search_deadline.attempt = attempt + 1
         rng = random.Random(attempt)
         grid = ScheduleGrid(
             band_times=band_times,
@@ -1573,7 +1534,15 @@ def generate_schedule(
             policy=constraint_registry.resolve(school, academic_year),
         )
         leftovers, repaired, relaxed, densed, tight_done = _run_attempt(
-            grid, sorted_tasks, blocked_slots, preferences, prefs_qs, school, rng, max_backtrack
+            grid,
+            sorted_tasks,
+            blocked_slots,
+            preferences,
+            prefs_qs,
+            school,
+            rng,
+            max_backtrack,
+            search_deadline,
         )
         uncovered = len(
             _empty_day_reports(grid, tasks, {m.teacher_id for t in leftovers for m in t.members})
@@ -1598,6 +1567,9 @@ def generate_schedule(
                 "relaxed": relaxed,
                 "score": lab_score,
                 "ms": int((time.time() - attempt_started) * 1000),
+                # الساعةُ رتيبةُ الانقضاء: ما انقضى بعد هذه المحاولة فقد انقضى فيها أو قبلها، فتكون مقطوعةَ
+                # الإصلاح (والرخصُ لم تُجرَّب إن سبق القطعُ بدايتَها). وتامّةٌ قبل الموعد ⇒ `cut=False`.
+                "cut": search_deadline.hit,
             }
         )
         # «تامّ» هنا: لا متعذّرَ ولا يومَ فارغاً ولا رخصةَ كثافة — فما دون ذلك يستحقّ
@@ -1609,6 +1581,14 @@ def generate_schedule(
             break
 
     _, grid, leftovers, repaired, relaxed, densed, chosen = best
+    chosen_cut = bool(attempt_log[chosen]["cut"])
+    if search_deadline.hit:
+        logger.warning(
+            "قُطع إصلاحُ التوليد بنفاد الميزانية (%.0f ثانية) بعد %d محاولة — متعذّرات: %d",
+            budget,
+            attempt + 1,
+            len(leftovers),
+        )
 
     # التحسينُ المحلّيّ على الجدول الكامل: نقلٌ أو تبديلٌ يُقبل إن رفع درجةَ
     # المختبر بلا كسر قيد — فيما بقي من الميزانية، وربعُها على الأقلّ.
@@ -1701,6 +1681,16 @@ def generate_schedule(
                         "attempts": attempt + 1,
                         "chosen_attempt": chosen,
                         "budget_seconds": budget,
+                        #: قُطع إصلاحُ **المحاولة المختارة** بنفاد الميزانية — فمتعذّراتُها قد تكون من قطعٍ لا من استحالة.
+                        #: (لا العلمُ العامّ: محاولةٌ تامّةٌ قبل الموعد اختيرت ثمّ قُطعت التي بعدها ⇒ `False`.)
+                        "budget_cut": chosen_cut,
+                        #: ولو قُطعت المحاولةُ المختارة فالرخصتان (التلاصق، الكثافة) **لم تُجرَّبا** — و`relaxed`/`densed`
+                        #: صفرٌ حينها لا لأنّ الرخصةَ لم تنفع بل لأنّها لم تُجرَّب.
+                        "licences_tried": not chosen_cut,
+                        #: وبيانُ القطع العامّ للبحث: أيُّ محاولةٍ أوّلاً وبعد كم ثانية (للتشخيص — قد لا تكون المختارة).
+                        "search_budget_exhausted": search_deadline.hit,
+                        "budget_cut_attempt": search_deadline.hit_attempt,
+                        "budget_cut_after_s": search_deadline.hit_after,
                         "attempt_log": attempt_log,
                         "improvement": improvement,
                         #: ما بقي مكسوراً بعد السداد — بموضعه، لبوّابة الاعتماد (SCH-04).

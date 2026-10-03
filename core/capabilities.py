@@ -24,8 +24,16 @@ from dataclasses import dataclass
 from functools import cache
 from typing import Any
 
+from django.http import HttpRequest
+from django.http.response import HttpResponseBase
+
 from core.parent_consent import holds_parent_membership
 from core.permissions import expand_roles, role_required
+from core.unrestricted_role import (
+    DEVELOPER_EXCLUDED_CAPABILITIES,
+    has_unrestricted_role,
+    is_excluded_developer,
+)
 
 #: الأساسُ حين لا نصَّ ولا قرار — القدرةُ كما في الشيفرة، تنتظر المراجعة.
 PLATFORM_ASSUMPTION = "افتراضُ المنصّة — لم يُراجَع مقابل نصّ"
@@ -566,7 +574,9 @@ def has_capability(user, key: str) -> bool:
     """أيملك هذا المستخدمُ هذه القدرة؟ — بالوراثة نفسِها التي يفحص بها الحارس."""
     if user is None or not user.is_authenticated:
         return False
-    if user.is_superuser:
+    if is_excluded_developer(user, key):
+        return False
+    if user.is_superuser or has_unrestricted_role(user):
         return True
     cap = capability(key)
     return user.get_role() in cap.expanded_roles or cap.granted(user)
@@ -584,10 +594,33 @@ def capability_required(key: str):
             wrapped = role_required(cap.roles)(view_func)
         else:
             wrapped = _roles_or_grant(cap, view_func)
+        if key in DEVELOPER_EXCLUDED_CAPABILITIES:
+            wrapped = _refuse_excluded_developer(key, wrapped)
         wrapped._capability = key
         return wrapped
 
     return decorator
+
+
+def _refuse_excluded_developer(
+    key: str, view_func: Callable[..., HttpResponseBase]
+) -> Callable[..., HttpResponseBase]:
+    """يردّ المطوّرَ عن قدرةٍ استثناها المالكُ (D-128م) قبل أيّ تحقّق آخر — ولو كان superuser."""
+    from functools import wraps
+
+    from core.permissions import _forbidden_response, log_denial
+
+    @wraps(view_func)
+    def wrapper(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponseBase:
+        if is_excluded_developer(request.user, key):
+            log_denial(request, role="platform_developer", source="excluded_capability")
+            return _forbidden_response(request, "رصدُ الحضور ليس للمطوّر — قرارُ المالك D-128م")
+        return view_func(request, *args, **kwargs)
+
+    for attr in ("_required_roles", "_grant"):
+        if hasattr(view_func, attr):
+            setattr(wrapper, attr, getattr(view_func, attr))
+    return wrapper
 
 
 def _roles_or_grant(cap: Capability, view_func):
@@ -609,7 +642,12 @@ def _roles_or_grant(cap: Capability, view_func):
         user = request.user
         if not user.is_authenticated:
             return redirect("login")
-        if user.is_superuser or user.get_role() in expanded or cap.granted(user):
+        if (
+            user.is_superuser
+            or has_unrestricted_role(user)
+            or user.get_role() in expanded
+            or cap.granted(user)
+        ):
             return view_func(request, *args, **kwargs)
         role = user.get_role()
         log_denial(request, role=role, required=expanded)

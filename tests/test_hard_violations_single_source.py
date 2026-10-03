@@ -37,7 +37,11 @@ def _generation(school, hard_violations, snapshot):
 
 @pytest.fixture
 def overloaded(school):
-    """شعبةٌ مطلوبٌ لها فوق سعة الأسبوع — فتخرج متعذّراتٌ ونصوصُ أخطاءٍ كثيرة، والمخالفاتُ قليلة."""
+    """شعبةٌ مطلوبٌ لها حصّةٌ واحدةٌ فوق سعة الأسبوع (36 على 35 خانة) — فتخرج متعذّرةٌ ونصوصُ أخطاءٍ، والمخالفاتُ قليلة.
+
+    وهي حصّةٌ واحدةٌ لا عشرون: الإزاحةُ الموجَّهةُ (`_try_eject`) أسّيّةٌ في عدد المتعذّرات، فكانت 60 حصّةً على 35
+    تُنفق ≈290 ثانيةً في الاختبار الواحد وتضاعف خطوةَ pytest في بوّابة الجودة (W-20261002-033)؛ وهذا يحرس ما يلزم
+    وحدَه — أنّ العدّادَ عددُ المُقيِّم لا أسطرُ الخطأ."""
     from datetime import time
 
     for period in range(1, 8):
@@ -61,13 +65,18 @@ def overloaded(school):
             teacher=teacher,
             class_group=group,
             subject=subject,
-            weekly_periods=20,
+            weekly_periods=12,
             is_active=True,
         )
     return school
 
 
-def test_the_generator_writes_the_evaluator_count_not_the_error_lines(overloaded):
+def test_the_generator_writes_the_evaluator_count_not_the_error_lines(overloaded, monkeypatch):
+    # خطوةُ الإصلاح (الإزاحةُ الموجَّهة) خارجَ ما يحرسه هذا الاختبار وهي أغلى ما في التوليد — تُعطَّل هنا فقط.
+    monkeypatch.setattr(
+        "operations.scheduler._repair_pass", lambda grid, leftovers, *a, **k: list(leftovers)
+    )
+
     result = generate_schedule(overloaded, YEAR)
 
     generation = ScheduleGeneration.objects.get(pk=result["generation"].pk)
