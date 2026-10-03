@@ -97,6 +97,8 @@ def special_klass(school, year):
 def kid(school, klass):
     student = UserFactory(full_name="طالب الشعبة", national_id="29000001001")
     StudentEnrollmentFactory(student=student, class_group=klass, enrolled_at=ENROLLED)
+    # للطالب عضويّةٌ في مدرسته (W-20261002-040: لا محوَ لطالبٍ ليس من مدرسة الطلب).
+    MembershipFactory(user=student, school=school, role=RoleFactory(school=school, name="student"))
     return student
 
 

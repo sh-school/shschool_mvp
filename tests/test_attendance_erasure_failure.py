@@ -277,3 +277,29 @@ def test_a_file_that_fails_to_delete_is_logged_by_key_not_content(
     line = AuditLog.objects.filter(object_repr__contains="ملفٌّ يتيمٌ بعد محو").get()
     assert line.changes["key"] == name
     assert "PII" not in str(line.changes)
+
+
+def test_a_student_outside_the_requests_school_keeps_the_request_retryable_with_a_409(
+    school, admin_client, kid
+):
+    """W-040 فوق N1–N3: `execute` يرفع ValueError لطالبٍ ليس من مدرسة الطلب، و`execute_safely` يلتقطه فيعود الطلبُ «approved» بـ409
+    ولا يبقى «processing» ولا يُمسّ الطالب."""
+    client, _admin = admin_client
+    request_id = _file_request(client, kid)
+    kid.memberships.all().delete()
+
+    response = _approve(client, request_id)
+
+    assert response.status_code == 409
+    assert ErasureRequest.objects.get(pk=request_id).status == "approved"
+    kid.refresh_from_db()
+    assert kid.is_active is True and "ERASED-" not in kid.full_name
+
+
+def test_the_school_admin_gate_and_the_developer_exclusion_survive_the_merge(school, kid):
+    """`IsSchoolAdmin` و`NotPlatformDeveloper` وحصرُ المدرسة على طرق الموافقة والرفض معاً."""
+    from api.views_erasure import approve_erasure, reject_erasure
+
+    for view in (approve_erasure, reject_erasure):
+        classes = {p.__name__ for p in view.cls.permission_classes}
+        assert {"IsSchoolAdmin", "NotPlatformDeveloper"} <= classes
