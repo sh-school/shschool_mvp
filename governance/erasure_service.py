@@ -110,6 +110,11 @@ class ErasureService:
     """Anonymize all PII for a student — PDPPL م.18."""
 
     @staticmethod
+    def student_in_school(student: Any, school: Any) -> bool:
+        """هل للطالب عضويّةٌ في المدرسة؟ (نشطةً أو لا: حقُّ المحو لا يسقط بتخرّجه)."""
+        return bool(student.memberships.filter(school=school).exists())
+
+    @staticmethod
     @transaction.atomic
     def execute(erasure_request: ErasureRequest) -> dict[str, Any]:
         """
@@ -119,6 +124,11 @@ class ErasureService:
         student = erasure_request.student
         if not student:
             raise ValueError("Student record not found for this erasure request.")
+
+        # دفاعٌ في العمق (W-20261002-040): لا محوَ لطالبٍ ليس من مدرسة الطلب مهما كان
+        # الطريق إلى هنا — فالفعلُ لا رجعةَ فيه.
+        if not ErasureService.student_in_school(student, erasure_request.school):
+            raise ValueError("الطالب ليس من مدرسة طلب المحو.")
 
         anon_id = f"ERASED-{str(erasure_request.id)[:8].upper()}"
         summary: dict[str, Any] = {"anon_id": anon_id, "models": {}}
