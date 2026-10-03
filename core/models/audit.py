@@ -38,7 +38,7 @@ class _ImmutableManager(models.Manager):
         خدمة المحو وحدَها (يحرس ذلك اختبارٌ معماريّ)، ويقابله استثناءٌ مماثلٌ ضيّقٌ في
         زناد القاعدة (الهجرة 0078). و`update` العاديُّ يبقى مرفوضاً.
         """
-        rows = self.get_queryset().filter(
+        rows: "models.QuerySet[Any]" = _ImmutableQuerySet(self.model, using=self._db).filter(
             models.Q(user=user)
             | models.Q(action__in=("login_failed", "mfa_failed"), object_id=str(user.pk))
         )
