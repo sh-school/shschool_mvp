@@ -92,6 +92,31 @@ def unplaced_count(snapshot: dict | None) -> int:
     return 0
 
 
+def quality_display(relative: float | None, unplaced: int, breaches: int) -> dict:
+    """درجةُ عمود «الجودة» في سجلّ التوليد — **الصحّةُ أوّلاً ثمّ الجودة** (W-20261003-010).
+
+    الدرجةُ المنسوبةُ متوسّطُ نِسَب المؤشّرات إلى أساسها، وكلٌّ منها حتى 120 — فـ«اكتمالُ النصاب»
+    واحدٌ من اثنين وعشرين يُمحى أثرُه بتحسّنٍ في غيره، ومخالفاتُ المدقّق (HC14، HC16B…) ليست في
+    المختبر أصلاً. فأُعلنت مسودّةٌ فيها ثلاثُ متعذّراتٍ وخمسُ مخالفاتٍ «100%» فوق جدولين كاملين «99%»:
+    حذفُ ما يصعب وضعُه يُريح المؤشّراتِ المرنة فيرفع الرقم.
+
+    والمولّدُ نفسُه يفاضل معجميّاً (المتعذّراتُ قبل الدرجة، `scheduler.py`)، والمقارنةُ بالدرجة لا
+    تصحّ إلّا بين جدولين متساويَين صحّةً (ADR-0008 §5). فالمسودّةُ الناقصةُ أو المكسورةُ لا تُعطى
+    درجةً تُقارَن: تُوسَم «ناقصة» بلون الخطر، وتُذكر درجةُ ما وُضع فيها ثانويّةً مسمّاةً باسمها،
+    وتُفرَز تحت كلِّ جدولٍ سليم.
+    """
+    invalid = bool(unplaced or breaches)
+    if relative is None:
+        return {"invalid": invalid, "value": None, "tone": "danger" if invalid else "", "sort": ""}
+    return {
+        "invalid": invalid,
+        "value": relative,
+        "tone": "danger" if invalid else "",
+        # الفرزُ معجميّ: كلُّ سليمٍ فوق كلِّ ناقص، ثمّ بالدرجة داخل كلٍّ منهما.
+        "sort": round(relative - (1000 if invalid else 0), 1),
+    }
+
+
 def approval_refusal(gen: ScheduleGeneration, acknowledged_: bool) -> str:
     """سببُ رفض الاعتماد — أو نصٌّ فارغٌ إن جاز.
 

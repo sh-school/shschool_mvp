@@ -133,16 +133,13 @@ def summary(breaches: list[Breach]) -> dict:
     return {"count": len(breaches), "by_code": by_code, "items": [b.as_dict() for b in breaches]}
 
 
-def blockers(
-    grid: ScheduleGrid, task: Task, blocked: Blocked | None = None, limit: int = 3
-) -> list[tuple[str, int]]:
-    """القيودُ التي تمنع أكثرَ خاناتِ مهمّةٍ لم تجد موضعاً — (رمزٌ، عددُ الخانات) (SCH-15).
+#: «الشعبة لا تأخذ مادّتين معاً» — خانةٌ تشغلها الشعبةُ بغير هذه المهمّة.
+CLASS_BUSY = "HC2"
 
-    «تعذّر وضع» تقول إنّ الحصّةَ بلا موضعٍ ولا تقول **لماذا**، فيبقى النائبُ يخمّن: أالمعلّمُ
-    مشغول؟ أم الشعبةُ ممتلئة؟ أم قسمةُ المادّة؟ فتُسأل كلُّ خانةٍ في الأسبوع أيَّ قيدٍ صلبٍ
-    يرفضها (`slot_violations` بلا رخصة)، وتُعدّ الرموزُ — فأكثرُها منعاً هو الجواب.
-    """
-    counts: Counter[str] = Counter()
+
+def _slot_codes(grid: ScheduleGrid, task: Task, blocked: Blocked | None) -> list[set[str]]:
+    """لكلّ خانةِ بدءٍ في الأسبوع: رموزُ القيود الصلبة التي ترفضها (بلا رخصة)."""
+    rows = []
     for day in range(5):
         last = get_max_periods_for_day(day, getattr(task, "level_type", ""))
         for period in range(1, last - task.span + 2):
@@ -153,17 +150,52 @@ def blockers(
                 for slot in task.slots(period)
             ):
                 codes.add(EXEMPTION)
-            counts.update(codes)
+            rows.append(codes)
+    return rows
+
+
+def _ranked(rows: Iterable[set[str]], limit: int) -> list[tuple[str, int]]:
+    counts: Counter[str] = Counter()
+    for codes in rows:
+        counts.update(codes)
     # وعند التعادل بترتيب الرمز — ليثبت الجوابُ بين تشغيلٍ وآخر.
     return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:limit]
 
 
+def blockers(
+    grid: ScheduleGrid, task: Task, blocked: Blocked | None = None, limit: int = 3
+) -> list[tuple[str, int]]:
+    """القيودُ التي تمنع أكثرَ خاناتِ مهمّةٍ لم تجد موضعاً — (رمزٌ، عددُ الخانات) (SCH-15).
+
+    «تعذّر وضع» تقول إنّ الحصّةَ بلا موضعٍ ولا تقول **لماذا**، فيبقى النائبُ يخمّن: أالمعلّمُ
+    مشغول؟ أم الشعبةُ ممتلئة؟ أم قسمةُ المادّة؟ فتُسأل كلُّ خانةٍ في الأسبوع أيَّ قيدٍ صلبٍ
+    يرفضها (`slot_violations` بلا رخصة)، وتُعدّ الرموزُ — فأكثرُها منعاً هو الجواب.
+    """
+    return _ranked(_slot_codes(grid, task, blocked), limit)
+
+
+def _title(code: str) -> str:
+    return "تفريغُ معلّم" if code == EXEMPTION else REGISTRY[code].title if code in REGISTRY else code
+
+
 def unplaced_message(grid: ScheduleGrid, task: Task, blocked: Blocked | None = None) -> str:
-    """سطرُ «تعذّر وضع» مع أكثر ما منعها — بأسماء القيود لا برموزها."""
+    """سطرُ «تعذّر وضع» مع ما منعها فعلاً — بأسماء القيود لا برموزها.
+
+    كان العدُّ على خانات الأسبوع كلِّها، فشعبةٌ ممتلئةٌ إلّا خانتين يتصدّر سببَها «الشعبة لا تأخذ
+    مادّتين معاً (33 خانة)»: صحيحٌ حرفاً ولا يقول شيئاً — فالخاناتُ المشغولةُ بالشعبة لم تكن موضعاً
+    محتملاً أصلاً، والسؤالُ عن الفارغة منها: لماذا رُفضت؟ (W-20261003-010). فيُقال امتلاءُ الشعبة
+    رقماً، والمانعُ يُعدّ في خاناتها الفارغة وحدَها.
+    """
     head = f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})"
-    why = "؛ ".join(
-        f"{'تفريغُ معلّم' if code == EXEMPTION else REGISTRY[code].title if code in REGISTRY else code}"
-        f" ({count} خانة)"
-        for code, count in blockers(grid, task, blocked)
-    )
-    return f"{head} — أكثرُ ما منعها: {why}" if why else head
+    rows = _slot_codes(grid, task, blocked)
+    busy = sum(1 for codes in rows if CLASS_BUSY in codes)
+    free = [codes for codes in rows if CLASS_BUSY not in codes]
+    if rows and not free:
+        return (
+            f"{head} — أكثرُ ما منعها: الشعبةُ ممتلئة ({busy} من {len(rows)} خانة مشغولة بموادّ أخرى)"
+        )
+    why = "؛ ".join(f"{_title(code)} ({count} خانة)" for code, count in _ranked(free, 3))
+    occupancy = f"؛ والشعبةُ مشغولةٌ في {busy} من {len(rows)} خانة" if busy else ""
+    if not why:
+        return f"{head}{' — ' + occupancy.lstrip('؛ ') if occupancy else ''}"
+    return f"{head} — أكثرُ ما منعها في خانات الشعبة الفارغة ({len(free)}): {why}{occupancy}"
