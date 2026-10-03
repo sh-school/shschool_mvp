@@ -30,6 +30,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from core.audit_repr import masked_repr
 from core.models import CustomUser, School
 from core.models.audit import AuditLog
 
@@ -192,7 +193,7 @@ class Command(BaseCommand):
             action="update",
             model_name="CustomUser",
             object_id=str(user.pk),
-            object_repr=user.full_name[:300],
+            object_repr=masked_repr(user),
             # الرقمُ مقنَّعٌ في السجلّ: التدقيقُ يحتاج أن يعرف **أنّ** الهويّة
             # تغيّرت ومَن صاحبُها، لا أن يحفظ رقمين شخصيّين كاملين في جدولٍ يُصدَّر.
             changes={**changes, "reason": f"تصحيحٌ من كشف الكادر ({correction['matched_by']})"},

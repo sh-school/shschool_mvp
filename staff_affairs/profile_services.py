@@ -18,6 +18,7 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
+from core.audit_repr import masked_repr
 from core.models import AuditLog, Department
 
 #: حقولُ الشخص — تخصّ صاحبَها أينما عمل.
@@ -97,7 +98,7 @@ def save_person(*, user, data, by, request=None):
         action="update",
         model_name="CustomUser",
         object_id=user.id,
-        object_repr=user.full_name,
+        object_repr=masked_repr(user),
         changes=_as_log(changes),
         request=request,
     )
@@ -136,7 +137,7 @@ def save_employment(*, membership, data, by, request=None):
         action="update",
         model_name="Membership",
         object_id=membership.id,
-        object_repr=f"{membership.user.full_name} — {membership.role.get_name_display()}",
+        object_repr=f"{masked_repr(membership.user)} — {membership.role.get_name_display()}",
         changes=_as_log(changes),
         school=membership.school,
         request=request,

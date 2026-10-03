@@ -27,20 +27,12 @@ IDENTITY = re.compile(
 )
 HUMAN_STR = re.compile(
     r"\bstr\(\s*(request\.user|user|student|instance|obj|target|actor|teacher)\s*\)"
+    # f"{student}" منفردةً — نمطٌ أضافه حكمُ 0105 على الإيداع 2:
+    r"|\{\s*(request\.user|user|student|instance|obj|target|actor|teacher)\s*(![rsa])?\s*\}"
 )
 
 #: مواضعُ قديمةٌ لم تُصلَح بعد (ملفٌّ ← عددُ نداءاتٍ مخالفة). لا تُضِف هنا: أصلِح الموضع.
-BASELINE: dict[str, int] = {
-    # كادرٌ وأوامرُ إدارةٍ — الإيداعُ التالي من W-019
-    "core/management/commands/correct_identity_from_register.py": 1,
-    "core/management/commands/reset_2fa.py": 1,
-    "operations/management/commands/relabel_exemptions.py": 1,
-    "quality/admin.py": 1,
-    "quality/evaluation_views.py": 3,
-    "quality/grievance_views.py": 1,
-    "quality/observation_views.py": 11,
-    "staff_affairs/profile_services.py": 2,
-}
+BASELINE: dict[str, int] = {}
 
 
 def _violations() -> Counter[str]:
@@ -102,4 +94,6 @@ def test_the_scanner_catches_a_planted_leak(tmp_path):
                         total += bool(IDENTITY.search(seg) or HUMAN_STR.search(seg))
         return total
 
-    assert (hits(planted), hits(ok)) == (1, 0)
+    bare = 'AuditLog.log(object_repr=f"عرض — {student}")'
+
+    assert (hits(planted), hits(ok), hits(bare)) == (1, 0, 1)

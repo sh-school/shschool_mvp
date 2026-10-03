@@ -15,6 +15,7 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
+from core.audit_repr import masked_repr
 from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser
 from core.pdf_utils import render_pdf
@@ -321,7 +322,7 @@ def observation_create(request):
             action="create",
             model_name="other",
             object_id=obs.pk,
-            object_repr=f"إشراف صفّي — {teacher.full_name}",
+            object_repr=f"إشراف صفّي — {masked_repr(teacher)}",
             request=request,
         )
         return redirect("observation_detail", obs_id=obs.pk)
@@ -354,7 +355,7 @@ def observation_self_create(request):
             action="create",
             model_name="other",
             object_id=obs.pk,
-            object_repr=f"تقييم ذاتي — {request.user.full_name}",
+            object_repr=f"تقييم ذاتي — {masked_repr(request.user)}",
             request=request,
         )
         return redirect("observation_detail", obs_id=obs.pk)
@@ -402,7 +403,7 @@ def observation_peer_create(request):
             action="create",
             model_name="other",
             object_id=obs.pk,
-            object_repr=f"زيارة زميل — {colleague.full_name}",
+            object_repr=f"زيارة زميل — {masked_repr(colleague)}",
             request=request,
         )
         return redirect("observation_detail", obs_id=obs.pk)
@@ -457,7 +458,7 @@ def observation_edit(request, obs_id):
             action="update",
             model_name="other",
             object_id=obs.pk,
-            object_repr=f"إشراف صفّي — {obs.teacher.full_name}",
+            object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)}",
             request=request,
         )
         return redirect("observation_detail", obs_id=obs.pk)
@@ -555,7 +556,7 @@ def observation_detail(request, obs_id):
         "obs": obs,
         "grouped": _groups_with_scores(obs),
         # كان العنوانُ «الزيارة الصفّية» لزيارة الزميل أيضاً، والنوعُ يُكرَّر حقلاً تحته.
-        "page_title": f"{kind_title}: {obs.teacher.full_name}",
+        "page_title": f"{kind_title}: {masked_repr(obs.teacher)}",
         "score_label": f"{obs.score_percent}%" if obs.score_percent is not None else "—",
     }
     ctx.update(_obs_perms(request.user, obs))
@@ -588,7 +589,7 @@ def observation_submit(request, obs_id):
         action="update",
         model_name="other",
         object_id=obs.pk,
-        object_repr=f"إشراف صفّي — {obs.teacher.full_name}",
+        object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)}",
         changes={"transition": "submit"},
         request=request,
     )
@@ -608,7 +609,7 @@ def observation_withdraw(request, obs_id):
         action="update",
         model_name="other",
         object_id=obs.pk,
-        object_repr=f"إشراف صفّي — {obs.teacher.full_name}",
+        object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)}",
         changes={"transition": "withdraw"},
         request=request,
     )
@@ -629,7 +630,7 @@ def observation_reopen(request, obs_id):
         action="update",
         model_name="other",
         object_id=obs.pk,
-        object_repr=f"إشراف صفّي — {obs.teacher.full_name}",
+        object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)}",
         changes={"transition": "reopen", "reason": reason},
         request=request,
     )
@@ -654,7 +655,7 @@ def observation_delete(request, obs_id):
         action="delete",
         model_name="other",
         object_id=obs.pk,
-        object_repr=f"إشراف صفّي — {obs.teacher.full_name} — {prev_status}",
+        object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)} — {prev_status}",
         changes={"reason": reason, "prev_status": prev_status},
         request=request,
     )
@@ -712,7 +713,7 @@ def observation_restore(request, obs_id):
         action="update",
         model_name="other",
         object_id=obs.pk,
-        object_repr=f"إشراف صفّي — {obs.teacher.full_name}",
+        object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)}",
         changes={"action": "restore"},
         request=request,
     )
@@ -740,10 +741,10 @@ def observation_pdf(request, obs_id):
         "quality.observation_pdf",
         rows=1,
         object_id=obs.pk,
-        object_repr=f"إشراف صفّي — {obs.teacher.full_name} — {obs.observation_date}",
+        object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)} — {obs.observation_date}",
     )
     html = render_to_string("quality/observation_pdf.html", _pdf_context(obs))
-    return render_pdf(html, f"observation_{obs.teacher.full_name}_{obs.observation_date}.pdf")
+    return render_pdf(html, f"observation_{masked_repr(obs.teacher)}_{obs.observation_date}.pdf")
 
 
 @login_required
@@ -763,7 +764,7 @@ def observation_pdf_view(request, obs_id):
         "quality/observation_pdf_view.html",
         {
             "obs": obs,
-            "page_title": f"استمارة {kind}: {obs.teacher.full_name}",
+            "page_title": f"استمارة {kind}: {masked_repr(obs.teacher)}",
             # لا نسخةَ من مسوّدة (W-20261001-004) — فلا يُعرض الزرُّ على خيارٍ
             # سيُرفَض أصلاً في `send_copy` (البوّابةُ الحقيقيّة هناك لا هنا).
             "can_send": _can_send(request.user) and obs.status != "draft",
@@ -796,7 +797,7 @@ def observation_send(request, obs_id):
             action="update",
             model_name="other",
             object_id=obs.pk,
-            object_repr=f"إشراف صفّي — {obs.teacher.full_name}",
+            object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)}",
             changes={"action": "send_copy", "recipients": len(sent)},
             request=request,
         )
