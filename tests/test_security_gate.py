@@ -60,7 +60,11 @@ def _summary_gate_step():
 
 
 def _judge():
-    spec = importlib.util.spec_from_file_location("ci_needs_gate", "scripts/ci_needs_gate.py")
+    # المسارُ من موضع هذا الملفّ لا من مجلّد التشغيل — فلا ينكسر إن شُغّل pytest من غير جذر المستودع (0105 P3).
+    root = pathlib.Path(__file__).resolve().parent.parent
+    spec = importlib.util.spec_from_file_location(
+        "ci_needs_gate", root / "scripts" / "ci_needs_gate.py"
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
