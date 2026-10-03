@@ -19,7 +19,7 @@ from rest_framework.response import Response
 
 from api.permissions import IsSchoolAdmin, NotPlatformDeveloper
 from core.models import CustomUser, ErasureRequest, ParentStudentLink
-from governance.erasure_service import ErasureService
+from governance.erasure_service import ErasureFailedError, ErasureService, ErasureStateError
 
 # ── Serializers ───────────────────────────────────────────────
 
@@ -155,23 +155,15 @@ def approve_erasure(request, request_id):
     """المدير يوافق على الطلب ويُنفَّذ فوراً."""
     obj = get_object_or_404(ErasureRequest, id=request_id, **_school_scope(request))
 
-    if obj.status != "pending":
-        return Response(
-            {"detail": f"لا يمكن الموافقة — الحالة الحالية: {obj.get_status_display()}"},
-            status=status.HTTP_400_BAD_REQUEST,
+    # القفلُ والانتقالُ والتنفيذُ في الخدمة: «approved» تعني تنفيذاً سابقاً تعثّر فيجوز إعادتُه، وما سوى pending/approved يُردّ.
+    try:
+        obj, summary = ErasureService.approve_and_execute(
+            obj.pk, request.user, request.data.get("note", "")
         )
-
-    obj.status = "approved"
-    obj.reviewed_by = request.user
-    obj.reviewed_at = timezone.now()
-    obj.review_note = request.data.get("note", "")
-    obj.save()
-
-    # Execute immediately
-    obj.status = "processing"
-    obj.save()
-
-    summary = ErasureService.execute(obj)
+    except ErasureStateError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    except ErasureFailedError as exc:
+        return Response({"detail": str(exc), "code": exc.code}, status=status.HTTP_409_CONFLICT)
 
     return Response(
         {

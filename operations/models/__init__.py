@@ -2,8 +2,9 @@
 
 الاستيرادُ من `operations.models` كما كان: كلُّ الأسماء (بما فيها `_uuid` و`_excuse_upload_path` اللتان تشير إليهما الهجرات)
 مُعاد تصديرُها هنا، فلا يتغيّر مستوردٌ ولا هجرة. والتقسيم: `schedule` (الجدول)، و`attendance` (الحصص والحضور)،
-و`substitution` (الغياب والتبديل والتعويض)، و`permissions` (الأذونات المؤقّتة). الاعتماديّةُ باتّجاهٍ واحد:
-`schedule` ← `attendance` ← `substitution` ← `permissions` بلا دورة."""
+و`attendance_ledger` (سجلُّ رصد المعلّم المضافُ إليه ولا يُمحى)، و`substitution` (الغياب والتبديل والتعويض)،
+و`permissions` (الأذونات المؤقّتة). الاعتماديّةُ باتّجاهٍ واحد:
+`schedule` ← `attendance` ← `attendance_ledger`/`substitution` ← `permissions` بلا دورة."""
 
 from .attendance import (  # noqa: F401
     AbsenceAlert,
@@ -15,6 +16,10 @@ from .attendance import (  # noqa: F401
     Session,
     StudentAttendance,
     _excuse_upload_path,
+)
+from .attendance_ledger import (  # noqa: F401
+    AttendanceDecision,
+    AttendanceEntry,
 )
 from .common import (  # noqa: F401
     _uuid,
@@ -45,6 +50,8 @@ from .substitution import (  # noqa: F401
 )
 
 __all__ = [
+    "AttendanceEntry",
+    "AttendanceDecision",
     "Subject",
     "ScheduleSlot",
     "TimeSlotConfig",

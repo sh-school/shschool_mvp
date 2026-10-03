@@ -364,13 +364,11 @@ def tap_late(session, student, by, now: dt.datetime | None = None) -> int:
     """
     now = now or timezone.now()
     existing = StudentAttendance.objects.filter(session=session, student=student).first()
-    if existing is not None and existing.source == SOURCE:
+    # لا تكتب فوق **أيِّ** رصدٍ قائمٍ غيرِ نقرةٍ سابقة — مشرفٍ (كما كان) ولا معلّمٍ معتمَدٍ ولا عيادةٍ ولا بوّابةٍ ولا
+    # نظام (D-136م وحكمُ 0105): النقرةُ تسجّل لحظةَ دخولٍ ولا تستبدل ما رُصد.
+    if existing is not None and existing.source != TEACHER_LATE:
         return existing.late_minutes or 0
-    if (
-        existing is not None
-        and existing.source == TEACHER_LATE
-        and existing.late_minutes is not None
-    ):
+    if existing is not None and existing.late_minutes is not None:
         return existing.late_minutes
     minutes = minutes_after_start(session, timezone.localtime(now))
     StudentAttendance.objects.update_or_create(
@@ -552,6 +550,7 @@ def confirm_period(
     """
     from operations.class_exit import close_unreturned
     from operations.models import ClassExit
+    from operations.services.attendance_teacher import settle_before_supervisor_write
 
     now = now or timezone.now()
     periods = periods_of(class_group, day)
@@ -594,6 +593,7 @@ def confirm_period(
         tally[status] += 1
 
         for session in period.sessions:
+            settle_before_supervisor_write(session, student, by, new_status=status, now=now)
             StudentAttendance.objects.update_or_create(
                 session=session,
                 student=student,

@@ -5,6 +5,7 @@
 
   {% page_header dashboard_title|default:"لوحة تحكم المدير" subtitle=subtitle icon="dashboard" %}
     <a href="{% url 'daily_report' %}" class="btn-primary btn-sm">{% icon "absence" %} غياب اليوم</a>
+    <a href="{% url 'attendance_unapproved' %}" class="btn-secondary btn-sm">{% icon "time" %} رصدٌ غيرُ معتمَد</a>
   {% endpage_header %}
 
   {% if pending_excuses %}

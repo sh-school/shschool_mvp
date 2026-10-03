@@ -27,6 +27,7 @@ HANDLED_BY_DEDICATED_STEPS = {
     "core.ParentStudentLink": "الخطوة 5: حذفُ روابط الأولياء",
     "core.ConsentRecord": "الخطوة 4: حذفُ سجلّات الموافقة",
     "core.ErasureRequest": "طلبُ المحو نفسُه — دليلُ الامتثال يبقى (SET_NULL)",
+    "operations.AttendanceEntry": "سجلٌّ ملحقٌ يُمحى بـ`erase_attendance_ledger` في ErasureService قبل جمع الملفّات — ولا حذفَ عاديَّ يمرّ من مُشغِّل القاعدة",
 }
 
 

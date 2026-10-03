@@ -29,7 +29,7 @@ from django.utils import timezone
 from core.models import StudentEnrollment
 
 from .bells import day_type_for
-from .models import Session, TimeSlotConfig
+from .models import AttendanceEntry, Session, TimeSlotConfig
 
 if TYPE_CHECKING:
     from core.models import ClassGroup, CustomUser, School, TimeBand
@@ -112,17 +112,56 @@ def needs_approval(session: Session) -> bool:
     return not is_special_education(session.class_group)
 
 
-def approval_holder(session: Session) -> CustomUser | None:
-    """من يحمل جناحَ شعبة الحصّة **يومَ الحصّة**: بديلُ التغطية الساريةِ بتاريخها وإلّا الأصيل.
-
-    و`None` إن لم يكن للشعبة جناحٌ أو كان الجناحُ غيرَ نشطٍ أو بلا مشرفٍ ولا تغطية. و`Wing.is_held_by`
-    الخامّ لا يصلح هنا: يجيب أيحمل المستخدمُ أيَّ جناحٍ لا جناحَ هذه الشعبة.
-    """
+def _raw_holder(session: Session) -> CustomUser | None:
     wing = session.class_group.wing
     if wing is None or not wing.is_active:
         return None
     holder: CustomUser | None = wing.current_supervisor(on_date=session.date)  # type: ignore[no-untyped-call]
     return holder
+
+
+def holder_gap(session: Session) -> str | None:
+    """لِمَ لا حاملَ فعليّاً لجناح هذه الحصّة؟ — `None` إن وُجد حاملٌ يصلح، وإلّا السببُ (حكمُ 0105 P1/P2):
+
+    - `no_holder`: لا جناحَ أو جناحٌ غيرُ نشطٍ أو بلا مشرفٍ ولا تغطية.
+    - `holder_is_teacher`: حاملُ الجناح هو معلّمُ الحصّة نفسُه — لا يعتمد رصدَ حصّته (`own_session`)، فلو بقي حاملاً
+      لجمد الاعتمادُ ولم تعتمد القيادة.
+    - `holder_inactive`: حاملٌ بلا عضويّةٍ نشطةٍ في مدرسة الحصّة (غادر أو أُوقفت عضويّتُه) — اسمٌ لا يستطيع القرار.
+    """
+    holder = _raw_holder(session)
+    if holder is None:
+        return "no_holder"
+    if holder.id == session.teacher_id:
+        return "holder_is_teacher"
+    if not _roles_in_school(holder, session.school_id):
+        return "holder_inactive"
+    return None
+
+
+def approval_holder(session: Session) -> CustomUser | None:
+    """من يحمل جناحَ شعبة الحصّة **يومَ الحصّة** حاملاً **فعليّاً**: بديلُ التغطية الساريةِ بتاريخها وإلّا الأصيل.
+
+    و`None` إن لم يكن للشعبة جناحٌ أو كان غيرَ نشطٍ أو بلا مشرفٍ ولا تغطية، أو كان الحاملُ لا يصلح (معلّمَ الحصّة
+    نفسَه أو بلا عضويّةٍ نشطة — `holder_gap`) فيُعامَل الجناحُ كأنّه بلا حاملٍ وتعتمد القيادةُ. و`Wing.is_held_by`
+    الخامّ لا يصلح هنا: يجيب أيحمل المستخدمُ أيَّ جناحٍ لا جناحَ هذه الشعبة.
+    """
+    return _raw_holder(session) if holder_gap(session) is None else None
+
+
+def approval_evidence(session: Session) -> dict[str, str | None]:
+    """دليلُ الصلاحيّة وقتَ القرار: الجناحُ والتغطيةُ والحامل — يُحفظ مع القرار فلا يُعاد حسابُه بعد تغيّر التغطية."""
+    wing = session.class_group.wing
+    if wing is None:
+        return {"wing_id": None, "coverage_id": None, "holder_id": None}
+    if not wing.is_active:
+        return {"wing_id": str(wing.pk), "coverage_id": None, "holder_id": None}
+    cover = wing.active_coverage(on_date=session.date)  # type: ignore[no-untyped-call]
+    holder = cover.substitute if cover else wing.supervisor
+    return {
+        "wing_id": str(wing.pk),
+        "coverage_id": str(cover.pk) if cover else None,
+        "holder_id": str(holder.pk) if holder else None,
+    }
 
 
 def _roles_in_school(user: CustomUser, school_id: Any) -> set[str]:
@@ -133,10 +172,21 @@ def _roles_in_school(user: CustomUser, school_id: Any) -> set[str]:
     )
 
 
-def can_enter(
-    user: CustomUser, session: Session, student: CustomUser, *, now: dt.datetime | None = None
+def tap_window(session: Session) -> tuple[dt.datetime, dt.datetime]:
+    """نافذةُ نقرة «دخل متأخّراً» (D-136م): الحصّةُ نفسُها، من بدئها إلى نهايتها — لا إلى نهاية اليوم (لحظتان واعيتان بالدوحة)."""
+    start = timezone.make_aware(dt.datetime.combine(session.date, session.start_time))
+    end = timezone.make_aware(dt.datetime.combine(session.date, session.end_time))
+    return start, end
+
+
+def _teacher_write_verdict(
+    user: CustomUser,
+    session: Session,
+    student: CustomUser,
+    window: tuple[dt.datetime, dt.datetime],
+    now: dt.datetime | None,
 ) -> Verdict:
-    """هل يُدخل هذا المستخدمُ رصداً مبدئيّاً لهذا الطالب في هذه الحصّة الآن؟"""
+    """الفحصُ المشترك لكلّ كتابةٍ يجريها معلّمُ الحصّة الفعليّ: من هو، وفي أيّ حصّةٍ، ولأيّ طالبٍ، وضمن أيّ نافذة."""
     if not getattr(user, "is_authenticated", False):
         return _deny("anonymous")
     if is_developer(user):
@@ -149,16 +199,33 @@ def can_enter(
         return _deny("not_teacher")
     if session.status == "cancelled":
         return _deny("cancelled")
-    if not _is_enrolled(student, session):
+    if not (_is_enrolled(student, session) or _has_entry_in_session(student, session)):
         return _deny("not_enrolled")
 
     moment = now or timezone.now()
-    opens, closes = entry_window(session)
+    opens, closes = window
     if moment < opens:
         return _deny("before_start")
     if moment > closes:
         return _deny("after_window")
     return _allow()
+
+
+def can_enter(
+    user: CustomUser, session: Session, student: CustomUser, *, now: dt.datetime | None = None
+) -> Verdict:
+    """هل يُدخل هذا المستخدمُ رصداً مبدئيّاً لهذا الطالب في هذه الحصّة الآن؟ (نافذةُ اليوم الدراسيّ.)
+
+    وبها أيضاً «خرج بإذن» (`teacher_out`، G4): معلّمُ الحصّة وحدَه بنافذة اليوم.
+    """
+    return _teacher_write_verdict(user, session, student, entry_window(session), now)
+
+
+def can_tap_late(
+    user: CustomUser, session: Session, student: CustomUser, *, now: dt.datetime | None = None
+) -> Verdict:
+    """هل ينقر هذا المستخدمُ «دخل متأخّراً» لهذا الطالب الآن؟ — معلّمُ الحصّة وحدَه، **بنافذة الحصّة نفسِها** (D-136م)."""
+    return _teacher_write_verdict(user, session, student, tap_window(session), now)
 
 
 def _is_enrolled(student: CustomUser, session: Session) -> bool:
@@ -171,6 +238,30 @@ def _is_enrolled(student: CustomUser, session: Session) -> bool:
             enrolled_at__lte=session.date,
         ).exists()
     )
+
+
+def holds_leadership_role(user: CustomUser, school_id: Any) -> bool:
+    """أللمستخدم دورُ قيادةٍ (مديرٌ أو نائب) نشطٌ في هذه المدرسة؟ — بالدور لا بـ`is_superuser`، ولا مطوّر."""
+    if not getattr(user, "is_authenticated", False) or is_developer(user):
+        return False
+    return bool(_roles_in_school(user, school_id) & set(LEADERSHIP_ROLES))
+
+
+def can_correct(user: CustomUser, session: Session) -> Verdict:
+    """هل يصحّح هذا المستخدمُ رصداً لم يشاهده (A: تصحيحُ المشرف)؟ — لمن له الاعتمادُ على هذه الحصّة وحدَه.
+
+    حاملُ الجناح الفعليّ يومَ الحصّة، أو القيادةُ حين لا حاملَ فعليّاً؛ لا معلّمُ الحصّة ولا المطوّر.
+    """
+    return can_approve(user, session)
+
+
+def _has_entry_in_session(student: CustomUser, session: Session) -> bool:
+    """أُدخل لهذا الطالب رصدٌ في هذه الحصّة نفسِها وهو في شعبتها (حكمُ 0105 P3).
+
+    فمن نُقل بعد الحصّة وقبل أن يصحّح المعلّمُ يُصحَّح له في النافذة: الرصدُ حدثٌ وقع في الحصّة لا حالةُ قيدٍ اليوم.
+    ولا يفتح البابَ لأوّل إدخالٍ (يلزمه القيدُ النشط) ولا لحصّةٍ أخرى.
+    """
+    return bool(AttendanceEntry.objects.filter(session=session, student=student).exists())
 
 
 def can_approve(
