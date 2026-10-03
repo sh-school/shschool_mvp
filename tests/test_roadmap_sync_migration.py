@@ -8760,7 +8760,7 @@ def test_0056_appends_notes_once_without_touching_status_or_progress():
     assert (by["N-050"].status, by["N-050"].progress) == ("doing", 75)
     assert (by["N-069"].status, by["N-069"].progress) == ("done", 100)
     assert "#824" in by["N-050"].note and "لا قياسَ رقميّ" in by["N-050"].note
-    assert "#797" in by["N-069"].note and "لم يُقَس" in by["N-069"].note
+    assert "#797" in by["N-069"].note and "11,289" in by["N-069"].note
     assert "نُشر" not in by["N-069"].note
 
 
