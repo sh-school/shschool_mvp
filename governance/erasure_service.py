@@ -220,6 +220,12 @@ class ErasureService:
         # 9. AuditLog — immutable per PDPPL م.19, DO NOT delete or update.
         #    The student's CustomUser record is already anonymized (name=ERASED-XXXX),
         #    so FK references in AuditLog now point to an anonymized identity.
+        # [W-20261003-013] قرارُ DPO: يبقى السجلُّ وتُفرَّغ شبكةُ الطالب (IP والمتصفّح)،
+        # بما فيها محاولاتُ الدخول الفاشلة على حسابه. يُسجَّل العدّ في الملخّص.
+        redacted = AuditLog.objects.redact_network_identity(student)
+        if redacted:
+            summary["models"]["AuditLog_network_redacted"] = redacted
+
         audit_count = AuditLog.objects.filter(user=student).count()
         if audit_count:
             summary["models"]["AuditLog_preserved"] = audit_count

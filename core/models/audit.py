@@ -30,6 +30,22 @@ class _ImmutableManager(models.Manager):
     def get_queryset(self):
         return _ImmutableQuerySet(self.model, using=self._db)
 
+    def redact_network_identity(self, user: Any) -> int:
+        """يُفرِّغ `ip_address` و`user_agent` لصفوف مستخدمٍ مُحيَ — الاستثناءُ الوحيدُ الثاني.
+
+        قرارُ المالك بصفته DPO (2026-10-03، W-20261003-013): `NULL` كاملٌ لا HMAC، ويشمل
+        محاولاتِ الدخول الفاشلة على حسابه؛ وتبقى الواقعةُ (من فعل ماذا ومتى). يُستدعى من
+        خدمة المحو وحدَها (يحرس ذلك اختبارٌ معماريّ)، ويقابله استثناءٌ مماثلٌ ضيّقٌ في
+        زناد القاعدة (الهجرة 0078). و`update` العاديُّ يبقى مرفوضاً.
+        """
+        rows = self.get_queryset().filter(
+            models.Q(user=user)
+            | models.Q(action__in=("login_failed", "mfa_failed"), object_id=str(user.pk))
+        )
+        # مرشّحُ الفراغ: إعادةُ الاستدعاء لا تكتب شيئاً ولا تُرجع صفوفاً مُفرَّغةً من قبل.
+        pending = rows.exclude(ip_address__isnull=True, user_agent="")
+        return models.QuerySet.update(pending, ip_address=None, user_agent="")
+
 
 class AuditLog(models.Model):
     ACTION_CHOICES = [
