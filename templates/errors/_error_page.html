@@ -178,6 +178,10 @@
       {% else %}
       <a href="{{ primary_url|default:'/dashboard/' }}" class="error-btn">{{ primary_label|default:'العودة للرئيسية' }}</a>
       <a href="{{ primary_url|default:'/dashboard/' }}" class="error-btn-outline" data-error-back>الرجوع للخلف</a>
+      {% if show_logout and request.user.is_authenticated %}
+      {# المنعُ يجب ألّا يكون فخّاً (W-20261003-024): زرّا العودة يقودان إلى /dashboard/ — فإن كانت هي المحجوبةَ عادا إلى المنع نفسِه؛ فيبقى الخروجُ (POST) مخرجاً دائماً. #}
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="error-btn">تسجيل الخروج</button></form>
+      {% endif %}
       {% endif %}
     </div>
     {% if brand_footer %}<div class="error-brand">{% include "components/site_brand.html" %}</div>{% else %}
