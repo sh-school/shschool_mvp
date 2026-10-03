@@ -255,14 +255,16 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   /* رابطُ «حالةُ اليوم»: عرضُ الجوّال لا يفعّل coarse في كلّ متصفّحٍ (محاكاةُ المقياس بلا لمس) فيُرفع هنا أيضاً إلى 44px */
   .qc-status-link { display: inline-flex; align-items: center; min-block-size: var(--control-h); }
 
-  /* سجلُّ الموظفين: 12 عموداً في 338px يلفّ الاسمَ حرفاً حرفاً؛ فحدٌّ أدنى أوسعُ من كتلة 1024 أعلاه. */
-  .staff-register { min-inline-size: 64rem; }
+  /* سجلُّ الموظفين على الهاتف: بطاقةٌ لكلّ منتسب لا جدولٌ بتمريرٍ أفقيّ (W-20261002-044). كان جدولاً بحدٍّ
+     أدنى 64rem في 338px: العمودُ الثابتُ 65% من المرئيّ فلا يبقى للمتحرّك إلا 118px، وهو أصلُ شكوى المالك. */
+  .table-wrap-scroll:has(> .staff-register) { display: none; }
+  .staff-cards { display: block; }
 }
 
 /* M-01: 44px على المؤشّر الخشن (D1)؛ الصندوقُ نفسُه يكبر لأنّ mobile_audit يقيسه. */
 @media (pointer: coarse) {
   .site-header .nav-logo, .site-header .nav-user-btn, .btn-sm, .btn-xs, .parent-child__actions .btn-secondary,
-  .notif-group-switch__opt, .period-switch__item, a.status-badge, a.ui-kpi, .staff-name, .qc-status-link { min-block-size: var(--control-h); }
+  .notif-group-switch__opt, .period-switch__item, a.status-badge, a.ui-kpi, .staff-name, .staff-card__name, .staff-card__link, .qc-status-link { min-block-size: var(--control-h); }
   .site-header .nav-bell, .theme-toggle, .bc-back, .breadcrumbs a, .th-sort, .ui-tip__btn,
   .pwa-dismiss-btn, .toast-close, .modal-close-btn, .notif-item__read { min-inline-size: var(--control-h); min-block-size: var(--control-h); }
   .col-actions .btn-xs { min-inline-size: var(--control-h); }
@@ -272,6 +274,9 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   .site-header .nav-bell, .breadcrumbs a, .btn-xs, .notif-group-switch__opt, a.status-badge, .staff-name, .qc-status-link {
     display: inline-flex; align-items: center; justify-content: center;
   }
+  /* بطاقةُ الجوال (W-20261002-044): الاسمُ والجوالُ والبريدُ أهدافُ لمسٍ 44px بسطرٍ واحدٍ ارتفاعُه الهدف (`block` لا
+     `flex` فتبقى النقاطُ `text-overflow: ellipsis` تعمل) */
+  .staff-card__name, .staff-card__link { line-height: var(--control-h); }
   /* gap يعوّض مسافةَ الأيقونة التي يحذفها inline-flex */
   :is(a, summary).btn-sm { display: inline-flex; align-items: center; justify-content: center; }
   :is(a, summary).btn-sm, .btn-xs { gap: var(--sp-1); }

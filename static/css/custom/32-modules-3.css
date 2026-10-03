@@ -1422,8 +1422,6 @@
   .sa-span-2 { grid-column: 1 / -1; }
   .sa-form-footer { margin-block-start: var(--sp-4); }
   .sa-register { padding: 0; }
-  .sa-register__foot { padding: var(--sp-2); }
-  .sa-start { text-align: start; }
 
 /* ── templates/staff_affairs/assignments.html ── */
   /* أربعةُ أعمدةٍ من 1025px (ثلاثةٌ بلا نموذج)، ودونها عمودان متى اتّسعت الحاويةُ لـ2×26rem.

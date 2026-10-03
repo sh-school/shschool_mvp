@@ -1073,18 +1073,76 @@ main.page-wide {
 .staff-register .status-badge { white-space: normal; overflow-wrap: normal; text-align: center; }
 /* وعرضٌ لكلّ عمودٍ بقدر ما يحمل — لا بالتساوي كما يفعل `table-layout: fixed`.
    والمجموعُ مئةٌ بالضبط، فلا يُقتطع من عمودٍ لغيره. */
-.staff-register th:nth-child(1)  { inline-size: 13%; }
-.staff-register th:nth-child(2)  { inline-size: 7%; }
-.staff-register th:nth-child(3)  { inline-size: 8%; }
-.staff-register th:nth-child(4)  { inline-size: 11%; }
-.staff-register th:nth-child(5)  { inline-size: 8%; }
-.staff-register th:nth-child(6)  { inline-size: 7%; }
-.staff-register th:nth-child(7)  { inline-size: 10%; }
-.staff-register th:nth-child(8)  { inline-size: 6%; }
-.staff-register th:nth-child(9)  { inline-size: 7%; }
-.staff-register th:nth-child(10) { inline-size: 8%; }
-.staff-register th:nth-child(11) { inline-size: 7%; }
-.staff-register th:nth-child(12) { inline-size: 7%; }
+/* العرضُ بصنفٍ لكلّ عمود (`c-*`) لا بموضعه: إضافةُ عمودٍ («المغادرة») لا تُزيح نسبَ غيره — وقد عصرت
+   الثالثَ عشرَ إلى 13px يومَ كانت النسبُ `nth-child` لاثني عشر. والمجموعُ مئةٌ بالضبط في الحالتين
+   (يحرسه tests/test_staff_register_columns.py). والاسمُ ≥ 300px عند 1366 كي يبقى سطراً واحداً. */
+.staff-register .c-name    { inline-size: 22%; }
+.staff-register .c-ids     { inline-size: 10%; }
+.staff-register .c-title   { inline-size: 13%; }
+.staff-register .c-dept    { inline-size: 9%; }
+.staff-register .c-contact { inline-size: 14%; }
+.staff-register .c-place   { inline-size: 8%; }
+.staff-register .c-license { inline-size: 8%; }
+.staff-register .c-joined  { inline-size: 7%; }
+.staff-register .c-login   { inline-size: 9%; }
+/* المغادرون: عمودٌ إضافيّ — يُقتطع من غيره بالتناسب فيبقى المجموعُ مئة */
+.staff-register[data-left] .c-name    { inline-size: 21%; }
+.staff-register[data-left] .c-title   { inline-size: 11%; }
+.staff-register[data-left] .c-dept    { inline-size: 8%; }
+.staff-register[data-left] .c-contact { inline-size: 13%; }
+.staff-register[data-left] .c-joined  { inline-size: 6%; }
+.staff-register[data-left] .c-left    { inline-size: 6%; }
+/* الخليّةُ بسطرين: الأوّلُ القيمةُ والثاني ثانويّةٌ أخفّ — وكلٌّ سطرٌ واحد لا يلتفّ ما وسعه الفراغ */
+.staff-register .sa-line { display: block; line-height: 1.35; }
+.staff-register .sa-sub { color: var(--text-muted); font-size: var(--text-xs); }
+.staff-register .c-contact .sa-line { overflow-wrap: anywhere; }
+.staff-register .c-login .status-badge { white-space: nowrap; }
+/* ترويسةٌ أخفّ: كانت 68px (سطران مركّبان بحشوٍ كامل) تأكل من صندوق التمرير الذي لا يزيد عن 300px */
+.staff-register thead th { padding-block: var(--sp-1-5); line-height: 1.3; }
+/* ترويسةُ العمود المركّب: رابطا فرزٍ فوق بعض */
+.staff-register th.is-stacked .th-sort { display: flex; justify-content: center; }
+.staff-register th.is-stacked .th-plain { cursor: default; }
+/* صفٌّ بسطرين لا أكثر: حشوٌ رأسيٌّ أخفّ (كان 11px) فيُرى من الصفوف ضعفُ ما كان في البطاقة نفسِها */
+.staff-register tbody td { vertical-align: middle; padding-block: var(--sp-1-5); }
+/* بطاقاتُ الجوال (≤640px، W-20261002-044): مخفيّةٌ هنا، وتُظهرها كتلةُ الهاتف في `50-utilities`. */
+.staff-cards { display: none; list-style: none; margin: 0; padding: 0; }
+.staff-card {
+  display: grid;
+  gap: var(--sp-1-5);
+  padding: var(--sp-3);
+  border-block-end: 1px solid var(--border);
+}
+.staff-card__name {
+  display: block;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+  color: var(--maroon-fg);
+  font-weight: 600;
+  font-size: var(--text-base);
+}
+.staff-card__meta,
+.staff-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.staff-card__meta .sa-sub { color: var(--text-muted); font-size: var(--text-xs); }
+.staff-card__contact { display: grid; gap: var(--sp-1); }
+.staff-card__link {
+  display: block;
+  min-block-size: 24px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--maroon-fg);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
 .staff-register th:first-child,
 .staff-register td:first-child {
   position: sticky;
@@ -1107,6 +1165,17 @@ main.page-wide {
   text-decoration: none;
   color: var(--maroon-fg);
   font-weight: 600;
+}
+/* اسمُ المنتسب **سطرٌ واحدٌ دائماً** (بلاغُ المالك W-20261002-044: التفّ في 39 صفّاً من 50 عند 1366):
+   بلا التفاف، وبنقاطٍ إن زاد على عموده (والاسمُ كاملاً في `title`). والخطُّ بالرمز لا px. */
+.staff-register .staff-name {
+  display: block;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  font-size: var(--text-sm);
 }
 .staff-name:hover { text-decoration: underline; }
 
