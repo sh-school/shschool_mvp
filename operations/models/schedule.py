@@ -384,6 +384,17 @@ class SchedulingResource(models.Model):
 class TeacherPreference(models.Model):
     """تفضيلات المعلم للجدولة الذكية"""
 
+    #: ما تكتبه شاشةُ المعلّم الذاتيّة وحده: `save()` كاملاً يمحو بالقيمة القديمة ما عدّله مديرٌ من الأدمن
+    #: بين جلب الصفّ وحفظه — كسقف السابعة الإداريّ (W-20261003-035، شرطُ 0105).
+    TEACHER_EDITABLE_FIELDS = (
+        "max_daily_periods",
+        "max_consecutive",
+        "max_gap",
+        "free_day",
+        "notes",
+        "updated_at",
+    )
+
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     teacher = models.ForeignKey(
         CustomUser,

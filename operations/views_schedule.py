@@ -1068,18 +1068,7 @@ def teacher_preferences(request):
             )
             pref.refresh_from_db()
         else:
-            #: الحقولُ المكتوبةُ بأسمائها: `save()` كاملاً يمحو بالقيمة القديمة ما عدّله مديرٌ من
-            #: الأدمن بين جلب الصفّ وحفظه — كسقف السابعة الإداريّ (W-20261003-035، شرطُ 0105).
-            pref.save(
-                update_fields=[
-                    "max_daily_periods",
-                    "max_consecutive",
-                    "max_gap",
-                    "free_day",
-                    "notes",
-                    "updated_at",
-                ]
-            )
+            pref.save(update_fields=pref.TEACHER_EDITABLE_FIELDS)
             messages.success(request, "تم حفظ تفضيلاتك للجدولة الذكية")
             # العامُ يبقى في الرابط: الرجوعُ بلا عامٍ يفتح تفضيلاتِ عامٍ آخر.
             return safe_redirect(request, "teacher_preferences", {"year": year})
