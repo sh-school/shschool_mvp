@@ -101,7 +101,7 @@ def approval_decide(request, entry_id):
 def unapproved(request):
     """تقريرُ «غيرُ معتمَد بعد X ساعة» — بالعدد لا بأسماء الطلاب، ويُظهر ما لا حاملَ فعليّاً له."""
     rows, hours, corrections = TeacherAttendanceService.report(
-        request.school, request.GET.get("hours")
+        request.user, request.school, request.GET.get("hours")
     )
     context = {"rows": rows, "hours": hours, "corrections": corrections}
     return render(request, "attendance/unapproved.html", context)

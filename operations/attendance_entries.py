@@ -585,7 +585,14 @@ def correct_without_observation(
     if status != "absent":
         row.excuse = None
         row.excuse_type = ""
-    row.save()
+    try:
+        with transaction.atomic():
+            row.save()
+    except IntegrityError as exc:
+        # صفٌّ لم نجده عند القفل كُتب في اللحظة نفسِها فاصطدم القيدُ الفريد — تعارضٌ لا 500.
+        raise EntryConflictError(
+            "concurrent", "رصدٌ آخرُ كُتب على هذا الطالب للتوّ — أعِد المحاولة."
+        ) from exc
     _audit(
         user,
         session,

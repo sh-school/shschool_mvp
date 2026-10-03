@@ -240,6 +240,13 @@ def _is_enrolled(student: CustomUser, session: Session) -> bool:
     )
 
 
+def holds_leadership_role(user: CustomUser, school_id: Any) -> bool:
+    """أللمستخدم دورُ قيادةٍ (مديرٌ أو نائب) نشطٌ في هذه المدرسة؟ — بالدور لا بـ`is_superuser`، ولا مطوّر."""
+    if not getattr(user, "is_authenticated", False) or is_developer(user):
+        return False
+    return bool(_roles_in_school(user, school_id) & set(LEADERSHIP_ROLES))
+
+
 def can_correct(user: CustomUser, session: Session) -> Verdict:
     """هل يصحّح هذا المستخدمُ رصداً لم يشاهده (A: تصحيحُ المشرف)؟ — لمن له الاعتمادُ على هذه الحصّة وحدَه.
 

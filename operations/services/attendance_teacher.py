@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 
 from core.models import CustomUser
@@ -20,7 +21,7 @@ from operations.attendance_entries import (
     settle_before_supervisor_write,
     submit_entry,
 )
-from operations.attendance_policy import can_correct
+from operations.attendance_policy import can_correct, holds_leadership_role
 from operations.attendance_selectors import (
     CorrectionItem,
     QueueItem,
@@ -41,11 +42,22 @@ if TYPE_CHECKING:
 # `settle_before_supervisor_write` يُصدَّر من هنا: `confirm_period` يستدعيه قبل كتابة المشرف (A11) عبر طبقة الخدمات.
 __all__ = ["TeacherAttendanceService", "settle_before_supervisor_write"]
 
-#: يُستدعى من `confirm_period` قبل كتابة المشرف: يُسوّي أثرَ رصد المعلّم (A11) — يُصدَّر من هنا ليبقى المسارُ عبر طبقة الخدمات.
 #: ساعاتُ تقرير «غيرُ معتمَد»: الافتراضيُّ يوم، وما يُطلب يُحصر في هذا المدى.
 REPORT_DEFAULT_HOURS = 24
 REPORT_MAX_HOURS = 24 * 14
 MAX_TARDINESS_MINUTES = 600
+
+
+def _student_of(session: Session, student_id: Any) -> CustomUser:
+    """طالبٌ من قيد شعبة الحصّة: مُعرِّفٌ ليس UUID أو غريبٌ عن الشعبة ← 404، و`distinct` فقيدان لا يكرّران الصفّ."""
+    try:
+        wanted = UUID(str(student_id))
+    except ValueError:
+        raise Http404("طالبٌ غيرُ معروف") from None
+    return get_object_or_404(
+        CustomUser.objects.filter(enrollments__class_group=session.class_group).distinct(),
+        id=wanted,
+    )
 
 
 def parse_minutes(raw: str | None) -> int | None:
@@ -82,9 +94,7 @@ class TeacherAttendanceService:
         session = get_object_or_404(
             Session.objects.select_related("class_group__wing"), id=session_id, school=school
         )
-        student = get_object_or_404(
-            CustomUser, id=student_id, enrollments__class_group=session.class_group
-        )
+        student = _student_of(session, student_id)
         submit_entry(
             user,
             session,
@@ -112,11 +122,18 @@ class TeacherAttendanceService:
 
     @staticmethod
     def report(
-        school: School, raw_hours: str | None
+        user: CustomUser, school: School, raw_hours: str | None
     ) -> tuple[list[UnapprovedSession], float, list[CorrectionItem]]:
-        """غيرُ المعتمَد بعد X ساعة، ومعه تصحيحاتُ المشرف الموسومةُ «دون معاينة» لقراءة النائب."""
+        """غيرُ المعتمَد بعد X ساعة، ومعه تصحيحاتُ المشرف الموسومةُ «دون معاينة» — لمن له عليها سلطة.
+
+        السببُ الحرُّ لتصحيحٍ لا يراه إلّا القيادةُ أو حاملُ جناح تلك الحصّة (`can_correct`)؛ ومشرفٌ لجناحٍ آخر يرى العدّادَ
+        وحدَه لا التصحيحاتِ ولا أسبابَها (حكمُ 0105).
+        """
         hours = parse_hours(raw_hours)
-        return unapproved_by_session(school, hours=hours), hours, recent_corrections(school)
+        corrections = recent_corrections(school)
+        if not holds_leadership_role(user, school.pk):
+            corrections = [c for c in corrections if can_correct(user, c.row.session)]
+        return unapproved_by_session(school, hours=hours), hours, corrections
 
     @staticmethod
     def correction_page(
@@ -146,9 +163,7 @@ class TeacherAttendanceService:
         session = get_object_or_404(
             Session.objects.select_related("class_group__wing"), id=session_id, school=school
         )
-        student = get_object_or_404(
-            CustomUser, id=student_id, enrollments__class_group=session.class_group
-        )
+        student = _student_of(session, student_id)
         correct_without_observation(
             user, session, student, status, reason=reason, evidence_type=evidence_type
         )
