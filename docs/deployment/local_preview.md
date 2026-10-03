@@ -141,3 +141,27 @@ bash scripts/preview.sh down        # أوقف الخادمَ والعامل (ل
 الذاكرةُ المتاحة ضيّقة، فلا يُقلَع خادمٌ جديدٌ قبل أن يُفرَّغ مكانُه: (1) يُوقَف خادمُ الحزمة الأصليّة وعاملُه في
 الجذر (`shschool-dev-web` و`shschool-dev-worker`، المنفذ 8000) — قاعدتُها وredis يبقيان؛ (2) يُقلَع `preview.sh up`؛
 (3) تُطفئ كلُّ جلسةٍ خادمَها بنفسها (`make session-down`) وتشغّله عند الحاجة فقط. ولا يوقف أحدٌ خادمَ جلسةٍ غيرِه.
+
+## 9. حساباتُ المعاينة الدائمة (W-20261003-023، D-167م)
+
+حساباتٌ وهميّةٌ لتسعة أدوارٍ تُبذر عند إقلاع حاوية المعاينة بعد `migrate` (`manage.py preview_accounts --sync`؛ الأمرُ يرفض خارجَ بيئة المعاينة).
+**ما يكتبه المالكُ في حقل الدخول** هو **الرقمُ الوظيفيّ** من النطاق المحجوز `99900001–99900009` (ثمانُ خاناتٍ؛ آخرُ خانةٍ تدلّ على الدور — المصدرُ
+`core/preview_accounts.py:EMPLOYEE_NUMBERS`)، وكلمتُها من `PREVIEW_ACCOUNTS_PASSWORD` في `.env` غير المتتبَّع. أمّا `national_id=PV-<الدور>` فوسمُ المصيدة وحدَه:
+حسابٌ بالوسم المركَّب (بادئةُ الاسم «[وهميّ» **و**`PV-`) لا يدخل خارجَ المعاينة ولا تبقى جلستُه، ولا يُحقن إلى الإنتاج (`dump` يُسقطه و`apply` يرفض أيَّ صفٍّ رقمُه
+في النطاق المحجوز).
+
+**كتلةُ قراءةٍ للإنتاج (قراءةٌ فقط، المتوقَّعُ صفر)** — تُشغَّل بإذن المالك بعد الدمج لتأكيد أنّ شيئاً من هذا لم يصل الإنتاج:
+
+```python
+# manage.py shell — قراءةٌ فقط
+from django.db.models import Q
+from django.db.models.functions import Length
+from core.models import CustomUser
+
+reserved = CustomUser.objects.annotate(n=Length("employee_number")).filter(
+    Q(n__gte=7) | Q(employee_number__startswith="999")
+)
+tagged = CustomUser.objects.filter(full_name__startswith="[وهميّ")
+print("أرقامٌ وظيفيّةٌ بطول ≥7 أو بادئة 999:", reserved.count())
+print("حساباتٌ باسمٍ يبدأ «[وهميّ»:", tagged.count())
+```

@@ -10,6 +10,8 @@
    عن **حدث المنع نفسِه** (سجلّ + Sentry) بمعرّف الحساب لا اسمِه ولا رقمِه — لا من استعلامِ إقلاعٍ على قاعدة الإنتاج.
 4. **استثناءُ الحقن 8500→الإنتاج**: `exclude_from_injection`/`injection_violations` (انظر `academic_management/preview_reconciliation.py`).
 
+**ما يكتبه المالكُ في حقل الدخول** هو الرقمُ الوظيفيُّ `EMPLOYEE_NUMBERS[الدور]` (رقمٌ من ثماني خانات)؛ أمّا `national_id=PV-<الدور>` فوسمُ المصيدة وحدَه.
+
 كلمةُ المرور ليست هنا ولا في أيّ كودٍ أو اختبار: من `PREVIEW_ACCOUNTS_PASSWORD` في `.env` غير المتتبَّع (انظر الأمر `preview_accounts`).
 """
 
@@ -59,8 +61,28 @@ ROLES: dict[str, str] = {
     "coordinator": "PV-coordinator",
     "specialist": "PV-specialist",
 }
+#: الرقمُ الوظيفيّ (**ما يُكتب في حقل الدخول**، فنموذجُ الدخول يفرض `pattern="[0-9]{5,20}"` ولا يقبل `PV-…`): ثمانُ خاناتٍ من نطاقٍ مخصَّصٍ
+#: `99900001–99900009` يفترق عن الرقم الوظيفيّ الحقيقيّ (5–6 خاناتٍ) وعن الرقم الشخصيّ (11)؛ وآخرُ خانةٍ تدلّ على الدور. حكمُ 0105 (أ بقيود).
+#: **ثابتٌ واحدٌ للنطاق** هنا: `RESERVED_EMPLOYEE_REGEX` — منه يرفض `apply` كلَّ صفٍّ رقمُه فيه، ويرفض البذرُ رقماً محجوزاً لحسابٍ غيرِ موسوم.
+EMPLOYEE_NUMBERS: dict[str, str] = {
+    "principal": "99900001",
+    "vice_admin": "99900002",
+    "vice_academic": "99900003",
+    "admin_supervisor": "99900004",
+    "secretary": "99900005",  # pragma: allowlist secret — رقمٌ وظيفيٌّ اصطناعيٌّ لدورٍ لا سرّ
+    "coordinator": "99900006",
+    "teacher": "99900007",
+    "ese_teacher": "99900008",
+    "specialist": "99900009",
+}
+RESERVED_EMPLOYEE_REGEX = r"^9990000[1-9]$"
 #: أدوارٌ محظورةٌ على هذه الحسابات مهما كان السبب.
 FORBIDDEN_ROLES = frozenset({"platform_developer"})
+
+
+def is_reserved_employee_number(value: str) -> bool:
+    """أرقامٌ وظيفيّةٌ من النطاق المحجوز لحسابات المعاينة (`99900001–99900009`)."""
+    return re.match(RESERVED_EMPLOYEE_REGEX, str(value or "")) is not None
 
 
 def current_db_name() -> str:

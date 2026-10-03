@@ -206,7 +206,8 @@ def test_the_seeded_accounts_can_log_in_under_the_preview_settings(client, schoo
     with PREVIEW:
         _sync()
         response = client.post(
-            reverse("login"), {"identifier": pa.ROLES["teacher"], "password": preview_env}
+            reverse("login"),
+            {"identifier": pa.EMPLOYEE_NUMBERS["teacher"], "password": preview_env},
         )
     assert response.status_code == 302 and response["Location"] == "/dashboard/"
 
@@ -304,7 +305,11 @@ def injection_world(school):
         academic_year="2026-2027",
     )
     real = UserFactory(full_name="معلّمٌ حقيقيّ")
-    fake = UserFactory(full_name=f"{pa.FULL_NAME_PREFIX}معلّم", national_id="PV-teacher")
+    fake = UserFactory(
+        full_name=f"{pa.FULL_NAME_PREFIX}معلّم",
+        national_id="PV-teacher",
+        employee_number=pa.EMPLOYEE_NUMBERS["teacher"],
+    )
     return school, klass, subject, real, fake
 
 
@@ -373,7 +378,10 @@ def test_apply_rejects_a_tagged_employee_number(tmp_path, injection_world):
     path = tmp_path / "c.json"
     path.write_text(
         json.dumps(
-            {"assignments": [], "workload_plans": [{"teacher_employee_number": "PV-teacher"}]}
+            {
+                "assignments": [],
+                "workload_plans": [{"teacher_employee_number": pa.EMPLOYEE_NUMBERS["teacher"]}],
+            }
         ),
         encoding="utf-8",
     )
@@ -504,8 +512,7 @@ def test_sync_sets_the_employee_number_to_the_synthetic_id_for_every_account(sch
     with PREVIEW:
         _sync()
     for role, nid in pa.ROLES.items():
-        assert CustomUser.objects.get(national_id=nid).employee_number == nid
-    assert len(pa.ROLES["admin_supervisor"]) <= 20
+        assert CustomUser.objects.get(national_id=nid).employee_number == pa.EMPLOYEE_NUMBERS[role]
 
 
 def test_a_dump_row_of_another_environment_is_rejected_by_the_employee_number_even_with_a_foreign_hmac(
@@ -521,7 +528,7 @@ def test_a_dump_row_of_another_environment_is_rejected_by_the_employee_number_ev
                     {
                         "school_code": school.code,
                         "teacher_hmac": "f" * 64,  # بصمةٌ بمفتاحٍ آخر لا تطابق شيئاً هنا
-                        "teacher_employee_number": pa.ROLES["teacher"],
+                        "teacher_employee_number": pa.EMPLOYEE_NUMBERS["teacher"],
                     }
                 ],
                 "workload_plans": [],
@@ -540,7 +547,7 @@ def test_sync_corrects_a_missing_employee_number(school, preview_env):
         _sync()
     assert (
         CustomUser.objects.get(national_id=pa.ROLES["teacher"]).employee_number
-        == pa.ROLES["teacher"]
+        == pa.EMPLOYEE_NUMBERS["teacher"]
     )
 
 
@@ -593,7 +600,8 @@ def test_b2_the_tagged_account_logs_in_under_the_pinned_development_preview(
     with DEVELOPMENT:
         _sync()
         response = client.post(
-            reverse("login"), {"identifier": pa.ROLES["teacher"], "password": preview_env}
+            reverse("login"),
+            {"identifier": pa.EMPLOYEE_NUMBERS["teacher"], "password": preview_env},
         )
     assert response.status_code == 302 and response["Location"] == "/dashboard/"
 
@@ -638,3 +646,83 @@ def test_the_testing_settings_are_never_a_preview(monkeypatch, preview_env, scho
     user = _fake_user(password)
     assert not pa.in_preview_environment()
     assert authenticate(identifier=user.national_id, password=password) is None
+
+
+# ══════════════════════════════════════════════════════════════════
+# ٩) الرقمُ الوظيفيّ الثماني من النطاق المحجوز — ما يُكتب في حقل الدخول (حكمُ 0105 أ بقيود)
+# ══════════════════════════════════════════════════════════════════
+
+
+def test_the_reserved_employee_numbers_are_eight_digits_apart_from_real_5_6_and_11_digit_numbers():
+    numbers = list(pa.EMPLOYEE_NUMBERS.values())
+    assert len(set(numbers)) == len(numbers) == 9
+    assert set(pa.EMPLOYEE_NUMBERS) == set(pa.ROLES)
+    for number in numbers:
+        assert len(number) == 8 and number.isdigit()
+        assert pa.is_reserved_employee_number(number)
+    for real in ("12345", "123456", "29000001234", "99900000", "99900010", "999000010", ""):
+        assert not pa.is_reserved_employee_number(real), real
+
+
+def test_every_employee_number_can_be_typed_in_the_login_form():
+    html = (ROOT / "templates/auth/login.html").read_text(encoding="utf-8")
+    pattern = re.search(r'pattern="([^"]+)"', html).group(1)
+    for number in pa.EMPLOYEE_NUMBERS.values():
+        assert re.fullmatch(pattern, number), number
+
+
+def test_the_owner_logs_in_with_the_numeric_employee_number(client, school, preview_env):
+    with PREVIEW:
+        _sync()
+        response = client.post(
+            reverse("login"),
+            {"identifier": pa.EMPLOYEE_NUMBERS["teacher"], "password": preview_env},
+        )
+    assert response.status_code == 302 and response["Location"] == "/dashboard/"
+
+
+def test_the_login_template_is_untouched_by_this_card():
+    html = (ROOT / "templates/auth/login.html").read_text(encoding="utf-8")
+    assert 'pattern="[0-9]{5,20}"' in html
+
+
+def test_sync_stops_without_changes_when_a_real_user_holds_a_reserved_number(school, preview_env):
+    UserFactory(full_name="موظّفٌ حقيقيّ", employee_number=pa.EMPLOYEE_NUMBERS["teacher"])
+    with PREVIEW, pytest.raises(CommandError, match="ممسوكٌ لحسابٍ آخر"):
+        _sync()
+    assert not _fakes().exists()
+
+
+def test_sync_stops_when_an_untagged_account_holds_a_reserved_number(school, preview_env):
+    UserFactory(full_name="حسابٌ بلا وسم", employee_number=pa.EMPLOYEE_NUMBERS["principal"])
+    with PREVIEW, pytest.raises(CommandError):
+        _sync()
+    assert not _fakes().exists()
+
+
+def test_apply_rejects_any_row_in_the_reserved_range_even_with_a_foreign_hmac(
+    tmp_path, injection_world
+):
+    for number in pa.EMPLOYEE_NUMBERS.values():
+        path = tmp_path / f"{number}.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "assignments": [{"teacher_hmac": "e" * 64, "teacher_employee_number": number}],
+                    "workload_plans": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        with pytest.raises(CommandError, match="حسابُ معاينةٍ وهميّ"):
+            call_command("apply_preview_workload_changes", "--in", str(path))
+
+
+def test_apply_does_not_reject_a_real_five_or_six_digit_employee_number(tmp_path, injection_world):
+    problems = recon.injection_violations(
+        {
+            "assignments": [{"teacher_hmac": "", "teacher_employee_number": "12345"}],
+            "workload_plans": [],
+        }
+    )
+    assert problems == []
