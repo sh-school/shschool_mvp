@@ -18,6 +18,7 @@ from django.urls import reverse
 from django.utils import timezone as _tz
 from django.utils.http import url_has_allowed_host_and_scheme
 
+from core.audit_repr import masked_repr
 from core.permissions import (
     BEHAVIOR_COMMITTEE,
     BEHAVIOR_MANAGE,
@@ -814,7 +815,7 @@ def _render_behavior_pdf(request, template_name, context, filename, *, kind, stu
         rows=1 if student else None,
         full_national_id=student is not None,
         object_id=student.pk if student else "",
-        object_repr=f"{kind} — {student.full_name}" if student else kind,
+        object_repr=f"{kind} — {masked_repr(student)}" if student else kind,
     )
     return render_pdf(render_to_string(template_name, context), filename)
 

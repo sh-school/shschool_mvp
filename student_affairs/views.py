@@ -27,6 +27,7 @@ from clinic.models import ClinicVisit, HealthRecord
 from core import brand
 from core.academic_calendar import academic_year_for, academic_year_window
 from core.audit_export import log_export
+from core.audit_repr import masked_repr
 from core.capabilities import capability_required, has_capability
 from core.domain.attendance import attendance_rate
 from core.domain.tones import ATTENDANCE_SUMMARY, tone_for
@@ -1899,7 +1900,7 @@ def student_profile_pdf(request, student_id):
         full_national_id=True,
         object_id=student.pk,
         object_repr=(
-            f"ملف الطالب {student.full_name} — {year}" + (" — طلبة الجناح" if limited else "")
+            f"ملف الطالب {masked_repr(student)} — {year}" + (" — طلبة الجناح" if limited else "")
         ),
     )
 
@@ -2801,7 +2802,7 @@ def tardiness_record(request):
         action="create",
         model_name="other",
         object_id=str(attendance.pk),
-        object_repr=_with_wing(f"تسجيل تأخير {student.full_name}", _followup_wing_label(scope)),
+        object_repr=_with_wing(f"تسجيل تأخير {masked_repr(student)}", _followup_wing_label(scope)),
         ip_address=request.META.get("REMOTE_ADDR"),
     )
 
@@ -2854,7 +2855,9 @@ def tardiness_delete(request, pk):
         action="delete",
         model_name="other",
         object_id=str(rec.pk),
-        object_repr=_with_wing(f"إلغاء تأخير {rec.student.full_name}", _followup_wing_label(scope)),
+        object_repr=_with_wing(
+            f"إلغاء تأخير {masked_repr(rec.student)}", _followup_wing_label(scope)
+        ),
         ip_address=request.META.get("REMOTE_ADDR"),
     )
 

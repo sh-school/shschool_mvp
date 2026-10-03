@@ -26,6 +26,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school, academic_year_window
+from core.audit_repr import masked_repr
 from core.capabilities import capability_required, has_capability
 from core.models import (
     AuditLog,
@@ -88,7 +89,7 @@ def _audit_guardian_phones(
         action="view",
         model_name="ParentStudentLink",
         object_id=student.id,
-        object_repr=f"هواتف أولياء أمر {student.full_name}",
+        object_repr=f"هواتف أولياء أمر {masked_repr(student)}",
         changes={"phones": phones, "role": user.get_role()},  # type: ignore[union-attr]
         school=school,
         request=request,

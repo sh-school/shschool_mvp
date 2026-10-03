@@ -18,6 +18,7 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from core.audit_repr import masked_repr
 from core.auth_identity import identifier_kind, lockout_key, resolve_user
 from core.mfa_session import mark_verified
 from core.models import AuditLog, CustomUser
@@ -369,7 +370,7 @@ def verify_2fa(request):
                 action="mfa_failed",
                 model_name="CustomUser",
                 object_id=user.pk,
-                object_repr=f"رمز تحقّق خاطئ — {user.full_name}",
+                object_repr=f"رمز تحقّق خاطئ — {masked_repr(user)}",
                 changes={"locked": locked},
                 request=request,
             )
