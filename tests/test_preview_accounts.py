@@ -436,3 +436,105 @@ def test_no_password_value_is_written_in_the_compose_or_the_code():
     for rel in ("core/preview_accounts.py", "core/management/commands/preview_accounts.py"):
         source = (ROOT / rel).read_text(encoding="utf-8")
         assert not re.search(r"""(?i)password\s*=\s*["'][^"']+["']""", source), rel
+
+
+# ══════════════════════════════════════════════════════════════════
+# ٦) التعايش مع حسابات الأداة الخارجيّة السابقة (29000009NNN)
+# ══════════════════════════════════════════════════════════════════
+
+
+def _legacy_user(school, role="teacher", national_id="29000009005", password="x"):
+    user = UserFactory(
+        full_name=f"[وهميّ معاينة] {role}", national_id=national_id, password=password
+    )
+    MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name=role))
+    return user
+
+
+def test_a_legacy_account_is_tagged_and_trapped_outside_the_preview(school, password):
+    user = _legacy_user(school, password=password)
+    assert pa.is_preview_account(user)
+    assert authenticate(identifier=user.national_id, password=password) is None
+    with PREVIEW:
+        assert authenticate(identifier=user.national_id, password=password) == user
+
+
+def test_sync_removes_legacy_accounts_and_seeds_each_role_once(school, preview_env):
+    for role, number in (("teacher", "29000009005"), ("principal", "29000009001")):
+        _legacy_user(school, role=role, national_id=number)
+    with PREVIEW:
+        _sync()
+    assert not CustomUser.objects.filter(pa.legacy_accounts_q()).exists()
+    assert _fakes().count() == 9
+    for role in EXPECTED_ROLES:
+        assert (
+            Membership.objects.filter(user__in=_fakes(), role__name=role, is_active=True).count()
+            == 1
+        )
+
+
+def test_the_dump_also_leaves_out_a_legacy_teacher(tmp_path, injection_world):
+    school, klass, subject, real, _fake = injection_world
+    legacy = _legacy_user(school, national_id="29000009007")
+    _assignment(school, klass, subject, real)
+    other = type(subject).objects.create(school=school, name_ar="الأحياء", code="BIO")
+    _assignment(school, klass, other, legacy)
+    out = tmp_path / "d.json"
+    call_command(
+        "dump_preview_workload_changes", "--since", "2000-01-01T00:00:00+00:00", "--out", str(out)
+    )
+    assert legacy.national_id_hmac not in out.read_text(encoding="utf-8")
+
+
+def test_a_real_user_with_a_similar_number_but_a_normal_name_is_not_tagged(school, password):
+    user = UserFactory(full_name="موظّفٌ حقيقيّ", national_id="29000009123", password=password)
+    assert not pa.is_preview_account(user)
+
+
+# ══════════════════════════════════════════════════════════════════
+# ٧) الساقُ الفاعلةُ للحقن: الرقمُ الوظيفيّ `PV-…` (حكمُ 0105 P2)
+# ══════════════════════════════════════════════════════════════════
+
+
+def test_sync_sets_the_employee_number_to_the_synthetic_id_for_every_account(school, preview_env):
+    with PREVIEW:
+        _sync()
+    for role, nid in pa.ROLES.items():
+        assert CustomUser.objects.get(national_id=nid).employee_number == nid
+    assert len(pa.ROLES["admin_supervisor"]) <= 20
+
+
+def test_a_dump_row_of_another_environment_is_rejected_by_the_employee_number_even_with_a_foreign_hmac(
+    tmp_path, injection_world
+):
+    """بصمةُ المعاينة تُحسب بمفتاحٍ غيرِ مفتاح الإنتاج فلا تُطابَق — فالرفضُ يقع بالرقم الوظيفيّ وحدَه."""
+    school, *_ = injection_world
+    path = tmp_path / "c.json"
+    path.write_text(
+        json.dumps(
+            {
+                "assignments": [
+                    {
+                        "school_code": school.code,
+                        "teacher_hmac": "f" * 64,  # بصمةٌ بمفتاحٍ آخر لا تطابق شيئاً هنا
+                        "teacher_employee_number": pa.ROLES["teacher"],
+                    }
+                ],
+                "workload_plans": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(CommandError, match="حسابُ معاينةٍ وهميّ"):
+        call_command("apply_preview_workload_changes", "--in", str(path))
+
+
+def test_sync_corrects_a_missing_employee_number(school, preview_env):
+    with PREVIEW:
+        _sync()
+        CustomUser.objects.filter(national_id=pa.ROLES["teacher"]).update(employee_number="")
+        _sync()
+    assert (
+        CustomUser.objects.get(national_id=pa.ROLES["teacher"]).employee_number
+        == pa.ROLES["teacher"]
+    )

@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 from django.conf import settings
@@ -28,6 +29,9 @@ PREVIEW_SETTINGS_MODULE = "shschool.settings.preview"
 #: الوسمُ المركَّب — لا يكفي أحدُ شقَّيه (حكمُ 0105 ب-٢).
 NAME_PREFIX = "[وهميّ"
 ID_PREFIX = "PV-"
+#: أرقامُ الدخول الاصطناعيّةُ للأداة الخارجيّة السابقة (29000009NNN بنمط الحارس، 2026-10-03) — حساباتٌ مبذورةٌ قبل هذا الكود: تُحجب
+#: وتُستثنى من الحقن كالجديدة (بالاسم المركَّب نفسِه)، ويحذفها `preview_accounts --sync` ثمّ يبذر `PV-…` مكانها فلا يتكرّر دورٌ.
+LEGACY_ID_REGEX = r"^29000009[0-9]{3}$"
 #: البريدُ وسمٌ ثالثٌ للإنشاء لا شرطٌ في الحجب.
 EMAIL_PREFIX = "preview_"
 FULL_NAME_PREFIX = "[وهميّ] "
@@ -59,13 +63,23 @@ def is_preview_account(user: Any) -> bool:
         return False
     name = str(getattr(user, "full_name", "") or "")
     national_id = str(getattr(user, "national_id", "") or "")
-    return name.startswith(NAME_PREFIX) and national_id.startswith(ID_PREFIX)
+    return name.startswith(NAME_PREFIX) and (
+        national_id.startswith(ID_PREFIX) or re.match(LEGACY_ID_REGEX, national_id) is not None
+    )
+
+
+def legacy_accounts_q(prefix: str = "") -> Q:
+    """حساباتُ الأداة الخارجيّة السابقة: بادئةُ الاسم **و**الرقمُ 29000009NNN."""
+    return Q(**{f"{prefix}full_name__startswith": NAME_PREFIX}) & Q(
+        **{f"{prefix}national_id__regex": LEGACY_ID_REGEX}
+    )
 
 
 def preview_accounts_q(prefix: str = "") -> Q:
-    """الوسمُ المركَّب كشرطِ استعلام (`prefix` مثل `teacher__` لعلاقةٍ)."""
-    return Q(**{f"{prefix}full_name__startswith": NAME_PREFIX}) & Q(
-        **{f"{prefix}national_id__startswith": ID_PREFIX}
+    """الوسمُ المركَّب كشرطِ استعلام (`prefix` مثل `teacher__` لعلاقةٍ): الجديدُ `PV-…` أو السابقُ 29000009NNN."""
+    return Q(**{f"{prefix}full_name__startswith": NAME_PREFIX}) & (
+        Q(**{f"{prefix}national_id__startswith": ID_PREFIX})
+        | Q(**{f"{prefix}national_id__regex": LEGACY_ID_REGEX})
     )
 
 

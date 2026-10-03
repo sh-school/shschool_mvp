@@ -31,6 +31,7 @@ from core.preview_accounts import (
     NAME_PREFIX,
     ROLES,
     in_preview_environment,
+    legacy_accounts_q,
     preview_accounts_q,
 )
 
@@ -140,6 +141,7 @@ class Command(BaseCommand):
 
         created = fixed = 0
         with transaction.atomic():
+            removed = self._remove_legacy()
             for role_name, nid in ROLES.items():
                 user = CustomUser.objects.filter(national_id=nid).first()
                 if user is None:
@@ -153,6 +155,8 @@ class Command(BaseCommand):
                     is_new = False
                 wanted = {
                     "full_name": f"{FULL_NAME_PREFIX}{role_name}",
+                    # الرقمُ الوظيفيُّ `PV-<الدور>` يحمل الوسمَ في ملفّ الدمق (البصمةُ تختلف بمفتاح كلّ بيئة فلا تُطابَق) — حكمُ 0105 (P2).
+                    "employee_number": nid,
                     "email": f"{EMAIL_PREFIX}{role_name}@preview.invalid",
                     "is_active": True,
                     "is_staff": False,
@@ -190,10 +194,36 @@ class Command(BaseCommand):
                         "حسابُ معاينةٍ دائم — تصحيح",
                         {"role": role_name, "drift": drift, "stray_memberships": stray},
                     )
-        self.stdout.write(f"حساباتُ المعاينة: أُنشئ {created}، وصُحّح {fixed}، من {len(ROLES)}.")
+        self.stdout.write(
+            f"حساباتُ المعاينة: أُنشئ {created}، وصُحّح {fixed}، من {len(ROLES)}"
+            + (f"؛ وأُزيل {removed} حساباً من الأداة السابقة" if removed else "")
+            + "."
+        )
+
+    def _remove_legacy(self) -> int:
+        """يزيل حساباتِ الأداة الخارجيّة السابقة (29000009NNN) قبل بذر `PV-…` فلا يتكرّر دورٌ — حذفٌ وإلا تعطيل."""
+        removed = 0
+        for user in list(CustomUser.objects.filter(legacy_accounts_q())):
+            school_id = (
+                Membership.objects.filter(user=user).values_list("school", flat=True).first()
+            )
+            school = School.objects.filter(pk=school_id).first() if school_id else None
+            Membership.objects.filter(user=user).delete()
+            try:
+                with transaction.atomic():
+                    user.delete()
+            except Exception:
+                user.is_active = False
+                user.set_unusable_password()
+                user.save(update_fields=["is_active", "password"])
+            removed += 1
+            self._audit(user, school, "delete", "حسابُ معاينةٍ من الأداة السابقة — إزالة", {})
+        return removed
 
     @staticmethod
-    def _audit(user: CustomUser, school: School, action: str, text: str, changes: dict) -> None:
+    def _audit(
+        user: CustomUser, school: School | None, action: str, text: str, changes: dict
+    ) -> None:
         AuditLog.log(
             user=None,
             action=action,
