@@ -538,3 +538,14 @@ def test_sync_corrects_a_missing_employee_number(school, preview_env):
         CustomUser.objects.get(national_id=pa.ROLES["teacher"]).employee_number
         == pa.ROLES["teacher"]
     )
+
+
+def test_the_legacy_removal_audit_keeps_the_removed_accounts_id(school, preview_env):
+    from core.models import AuditLog
+
+    legacy = _legacy_user(school, national_id="29000009005")
+    legacy_id = legacy.pk
+    with PREVIEW:
+        _sync()
+    line = AuditLog.objects.get(object_repr__contains="إزالة")
+    assert str(line.object_id) == str(legacy_id)

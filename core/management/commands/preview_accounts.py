@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
@@ -183,12 +184,12 @@ class Command(BaseCommand):
                 if is_new:
                     created += 1
                     self._audit(
-                        user, school, "create", "حسابُ معاينةٍ دائم — إنشاء", {"role": role_name}
+                        user.pk, school, "create", "حسابُ معاينةٍ دائم — إنشاء", {"role": role_name}
                     )
                 elif drift or stray:
                     fixed += 1
                     self._audit(
-                        user,
+                        user.pk,
                         school,
                         "update",
                         "حسابُ معاينةٍ دائم — تصحيح",
@@ -208,6 +209,9 @@ class Command(BaseCommand):
                 Membership.objects.filter(user=user).values_list("school", flat=True).first()
             )
             school = School.objects.filter(pk=school_id).first() if school_id else None
+            account_id = (
+                user.pk
+            )  # يُفرَّغ pk الكائن بعد delete() فيُحفظ هنا ليبقى أثرُ الإزالة بمعرّفها (حكمُ 0105 P3)
             Membership.objects.filter(user=user).delete()
             try:
                 with transaction.atomic():
@@ -217,18 +221,18 @@ class Command(BaseCommand):
                 user.set_unusable_password()
                 user.save(update_fields=["is_active", "password"])
             removed += 1
-            self._audit(user, school, "delete", "حسابُ معاينةٍ من الأداة السابقة — إزالة", {})
+            self._audit(account_id, school, "delete", "حسابُ معاينةٍ من الأداة السابقة — إزالة", {})
         return removed
 
     @staticmethod
     def _audit(
-        user: CustomUser, school: School | None, action: str, text: str, changes: dict
+        account_id: Any, school: School | None, action: str, text: str, changes: dict
     ) -> None:
         AuditLog.log(
             user=None,
             action=action,
             model_name="other",
-            object_id=user.pk,
+            object_id=account_id,
             object_repr=text,
             changes=changes,
             school=school,
