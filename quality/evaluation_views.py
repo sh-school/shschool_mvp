@@ -18,6 +18,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for, default_academic_year
+from core.audit_repr import masked_repr
 from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser
 from core.safe_redirect import safe_redirect
@@ -117,7 +118,7 @@ def _audit_saved(request, obj):
         action="update",
         model_name="other",
         object_id=obj.pk,
-        object_repr=str(obj),
+        object_repr=masked_repr(obj),
         request=request,
         changes={"total_score": obj.total_score, "rating": obj.rating},
     )
@@ -313,7 +314,7 @@ def approve_evaluation(request, eval_id):
             action="update",
             model_name="other",
             object_id=obj.pk,
-            object_repr=str(obj),
+            object_repr=masked_repr(obj),
             request=request,
             changes={"status": "approved"},
         )
@@ -347,7 +348,7 @@ def record_evaluation_receipt(request, eval_id):
             action="update",
             model_name="other",
             object_id=obj.pk,
-            object_repr=str(obj),
+            object_repr=masked_repr(obj),
             request=request,
             changes={"received_on": received_on.isoformat()},
         )

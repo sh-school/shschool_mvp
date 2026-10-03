@@ -3,6 +3,7 @@ import logging
 from django.contrib import admin
 
 from core.academic_calendar import academic_year_for, default_academic_year
+from core.audit_repr import masked_repr
 from core.models import AuditLog
 
 logger = logging.getLogger(__name__)
@@ -389,7 +390,7 @@ class EmployeeEvaluationAdmin(admin.ModelAdmin):
             action="update",
             model_name="other",
             object_id=obj.pk,
-            object_repr=str(obj),
+            object_repr=masked_repr(obj),
             school=obj.school,
             request=request,
             changes={

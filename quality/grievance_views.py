@@ -15,6 +15,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for
+from core.audit_repr import masked_repr
 from core.capabilities import capability_required
 from core.models import AuditLog
 from core.unrestricted_role import has_unrestricted_role
@@ -38,7 +39,7 @@ def _audit(request, obj, changes):
         action="update",
         model_name="other",
         object_id=obj.pk,
-        object_repr=str(obj),
+        object_repr=masked_repr(obj),
         request=request,
         changes=changes,
     )
