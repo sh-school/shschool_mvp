@@ -8812,3 +8812,101 @@ def test_0056_publishes_nothing_a_public_repo_must_not_say():
     assert [term for term in banned if term in body] == []
     assert not re.search(r"\b\d{11}\b", body)
     assert not re.search(r"\b[0-9a-f]{40}\b", body)
+
+
+# ── 0057: نشرُ #797 وقراءةُ 0702، وبندُ N-084 (قاعدةُ التنبيهات D-170م) ──
+
+_sync57 = importlib.import_module("roadmap.migrations.0057_sync_items_2026_10_03h")
+
+
+class _Apps57:
+    @staticmethod
+    def get_model(_app, name):
+        return {"RoadmapItem": RoadmapItem, "RoadmapKpi": RoadmapKpi}[name]
+
+
+def _seed57_items():
+    _item("N-069", "done", 100)
+    _item("SCH-23", "doing", 60)
+
+
+def test_0057_appends_notes_once_without_touching_status_or_progress():
+    _seed57_items()
+    assert set(_sync57.sync_notes(RoadmapItem)) == {"N-069", "SCH-23"}
+    assert _sync57.sync_notes(RoadmapItem) == []
+    by = {i.code: i for i in RoadmapItem.objects.all()}
+    assert (by["N-069"].status, by["N-069"].progress) == ("done", 100)
+    assert (by["SCH-23"].status, by["SCH-23"].progress) == ("doing", 60)
+    assert "#797 نُشر" in by["N-069"].note and "11,289" in by["N-069"].note
+    assert "لا اتّجاه" in by["N-069"].note
+    assert "لقطتان فقط" in by["SCH-23"].note and "ارتباطٌ" in by["SCH-23"].note
+
+
+def test_0057_creates_n084_without_overwriting_and_not_as_done():
+    assert _sync57.add_new_items(RoadmapItem) == ["N-084"]
+    assert _sync57.add_new_items(RoadmapItem) == []
+    item = RoadmapItem.objects.get(code="N-084")
+    assert (item.status, item.progress, item.pr) == ("doing", 50, "#826")
+    assert "بلا شيفرةٍ" in item.note and "اشتقاقٌ" in item.note
+    assert len(item.date_basis) <= 120
+
+
+def test_0057_leaves_an_existing_n084_untouched():
+    _item("N-084", "done", 100)
+    assert _sync57.add_new_items(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="N-084").progress == 100
+
+
+def test_0057_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
+    _sync57.forwards(_Apps57, None)
+    assert RoadmapItem.objects.count() == 0
+    _seed57_items()
+    _sync57.forwards(_Apps57, None)
+
+    def snapshot():
+        return list(
+            RoadmapItem.objects.order_by("code").values_list(
+                "code", "status", "progress", "pr", "note"
+            )
+        )
+
+    first = snapshot()
+    _sync57.forwards(_Apps57, None)
+    assert snapshot() == first
+    assert RoadmapItem.objects.filter(code="N-084").count() == 1
+
+
+def test_0057_orders_new_item_after_0055s_last_slot():
+    assert {row[0]: row[-1] for row in _sync57.NEW_ITEMS} == {"N-084": 812}
+
+
+def test_0057_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0057_sync_items_2026_10_03h").origin
+    with open(origin, encoding="utf-8") as f:
+        body = f.read()
+    banned = (
+        "aaaa",
+        ".zip",
+        "FERNET",
+        "artifact",
+        "Security Summary",
+        "بصمات",
+        "الحادثة",
+        "قيد التقييم",
+        "wave2",
+        "archive/",
+        "كلمة المرور",
+        "كلمة مرور",
+        "Temp@",
+        "مرض",
+        "C:/",
+        "localhost",
+        "up.railway.app",
+        "railway ssh",
+        "run_prod",
+    )
+    assert [term for term in banned if term in body] == []
+    assert not re.search(r"\b\d{11}\b", body)
+    assert not re.search(r"\b[0-9a-f]{40}\b", body)
