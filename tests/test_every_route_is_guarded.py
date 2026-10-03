@@ -57,6 +57,7 @@ GUARDED_INSIDE = {
     "roadmap/checklist/<str:code>/": "developer_only — superuser أو مجموعة developers",
     "command-center/": "developer_only — superuser أو مجموعة developers (مركز قيادة الجودة، QCC-01b)",
     "command-center/snapshot/": "developer_only — superuser أو مجموعة developers (لقطةُ المركز JSON)",
+    "command-center/status/": "developer_only — superuser أو مجموعة developers (حالةُ اليوم للمالك، W-20261002-022)",
     "docs/": "developer_only — superuser أو مجموعة developers (عارضُ md)",
     "docs/^(?P<doc_path>.+\\.md)/?$": "developer_only — superuser أو مجموعة developers (عارضُ md)",
     "docs/_asset/<path:rel_path>": "developer_only — superuser أو مجموعة developers (صورُ md)",
