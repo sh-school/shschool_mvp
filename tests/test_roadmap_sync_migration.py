@@ -8651,7 +8651,8 @@ def test_0055_creates_new_items_without_overwriting_existing():
     by = {i.code: i for i in RoadmapItem.objects.all()}
     assert (by["N-082"].status, by["N-082"].progress) == ("done", 100)
     assert (by["N-083"].status, by["N-083"].progress) == ("doing", 25)
-    assert by["N-083"].pr == "#819" and "لم يُنشر بعدُ" in by["N-083"].note
+    assert by["N-083"].pr == "#819" and "لا انحرافَ في المؤشّرات" in by["N-083"].note
+    assert "لم يُنشر" not in by["N-083"].note
 
 
 def test_0055_new_items_are_doing_not_done_until_their_pr_and_second_commit_land():
