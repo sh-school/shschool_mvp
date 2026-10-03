@@ -223,3 +223,12 @@ def test_docs_only_prepares_no_environment_in_shards_2_to_5():
     assert len(setup) == 3
     for step in setup:
         assert step["if"] == "steps.diff.outputs.docs_only != 'true' || matrix.shard == 1"
+
+
+def test_each_shard_keeps_the_postgres_and_redis_services_and_the_job_env():
+    """خدماتُ كلّ shard وبيئتُه كاملتان: فقدُ متغيّرات postgres سقط به ملفُّ الـworkflow كلُّه (GitHub: workflow file issue)."""
+    job = _WF["pytest-shards"]
+    assert job["services"]["postgres"]["env"]["POSTGRES_DB"] == "test_db"
+    assert set(job["services"]) == {"postgres", "redis"}
+    for key in ("DJANGO_SETTINGS_MODULE", "SECRET_KEY", "CI_SHARD_COUNT", "CI_SHARD_INDEX"):
+        assert key in job["env"], f"{key} غاب عن بيئة وظيفة الـshards"
