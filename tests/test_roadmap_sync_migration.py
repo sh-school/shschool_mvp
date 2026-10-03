@@ -9013,3 +9013,94 @@ def test_0058_publishes_nothing_a_public_repo_must_not_say():
     assert [term for term in banned if term in body] == []
     assert not re.search(r"\b\d{11}\b", body)
     assert not re.search(r"\b[0-9a-f]{40}\b", body)
+
+
+# ── 0059: تقدّمُ N-087 بنشر #833 بلا إغلاق، وقياسُ 0702 على N-086 ──
+
+_sync59 = importlib.import_module("roadmap.migrations.0059_sync_items_2026_10_03j")
+
+
+class _Apps59:
+    @staticmethod
+    def get_model(_app, name):
+        return {"RoadmapItem": RoadmapItem, "RoadmapKpi": RoadmapKpi}[name]
+
+
+def _seed59_items():
+    _item("N-087", "doing", 80)
+    _item("N-086", "done", 100)
+
+
+def test_0059_advances_n087_without_closing_it_and_is_idempotent():
+    _seed59_items()
+    assert _sync59.sync(RoadmapItem) == ["N-087"]
+    assert _sync59.sync(RoadmapItem) == []
+    item = RoadmapItem.objects.get(code="N-087")
+    assert (item.status, item.progress) == ("doing", 90)
+    assert "لم يُقَس" in item.note and "فلا done" in item.note and "0406" in item.note
+
+
+def test_0059_leaves_n087_if_the_developer_moved_it():
+    _seed59_items()
+    RoadmapItem.objects.filter(code="N-087").update(progress=95)
+    assert _sync59.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="N-087").progress == 95
+
+
+def test_0059_appends_the_0702_note_once_without_touching_status_or_progress():
+    _seed59_items()
+    assert _sync59.sync_notes(RoadmapItem) == ["N-086"]
+    assert _sync59.sync_notes(RoadmapItem) == []
+    item = RoadmapItem.objects.get(code="N-086")
+    assert (item.status, item.progress) == ("done", 100)
+    assert "11,336" in item.note and "18.7" in item.note and "غيرُ معروف" in item.note
+
+
+def test_0059_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
+    _sync59.forwards(_Apps59, None)
+    assert RoadmapItem.objects.count() == 0
+    _seed59_items()
+    _sync59.forwards(_Apps59, None)
+
+    def snapshot():
+        return list(
+            RoadmapItem.objects.order_by("code").values_list(
+                "code", "status", "progress", "pr", "note"
+            )
+        )
+
+    first = snapshot()
+    _sync59.forwards(_Apps59, None)
+    assert snapshot() == first
+
+
+def test_0059_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0059_sync_items_2026_10_03j").origin
+    with open(origin, encoding="utf-8") as f:
+        body = f.read()
+    banned = (
+        "aaaa",
+        ".zip",
+        "FERNET",
+        "artifact",
+        "Security Summary",
+        "بصمات",
+        "الحادثة",
+        "قيد التقييم",
+        "wave2",
+        "archive/",
+        "كلمة المرور",
+        "كلمة مرور",
+        "Temp@",
+        "مرض",
+        "C:/",
+        "localhost",
+        "up.railway.app",
+        "railway ssh",
+        "run_prod",
+    )
+    assert [term for term in banned if term in body] == []
+    assert not re.search(r"\b\d{11}\b", body)
+    assert not re.search(r"\b[0-9a-f]{40}\b", body)
