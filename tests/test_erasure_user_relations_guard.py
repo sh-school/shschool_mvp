@@ -27,7 +27,10 @@ TEXT_PII = re.compile(
 #: يُحتفَظ بها بعد المحو عمداً — السببُ شرطُ الدخول.
 RETAINED = {
     ("core.Profile", "user"): "يُحذف في الخطوة 7 من ErasureService.execute (حذفٌ مخصَّص)",
-    ("core.AuditLog", "user"): "سجلُّ التدقيق لا يُمحى (م.19)؛ المستخدمُ مجهَّلٌ فيه",
+    (
+        "core.AuditLog",
+        "user",
+    ): "سجلُّ التدقيق ملحقٌ لا يُعدَّل؛ المستخدمُ مجهَّلٌ فيه (ip وuser_agent بطاقةٌ مستقلّة بقرار المالك/DPO)",
     ("core.Membership", "user"): "ربطُ مجهَّلٍ بالمدرسة لا يحمل بياناً؛ يُبقي سلامةَ العدّ والإحصاء",
     ("core.CapabilityGrant", "user"): "صلاحيّاتُ كادرٍ لا طلبة",
     ("token_blacklist.OutstandingToken", "user"): (
@@ -38,15 +41,11 @@ RETAINED = {
         "developer_feedback.LegalOnboardingConsent",
         "user",
     ): "دليلُ موافقةٍ قانونيّة — قرارُ الاحتفاظ لـ0105/DPO",
-    (
-        "developer_feedback.DeveloperMessage",
-        "user",
-    ): "رسائلُ مستخدمٍ إلى المطوّر — قرارُ محوها أو تجهيلها لـ0105/DPO (SET_NULL)",
     ("notifications.NotificationDelivery", "recipient"): (
         "دليلُ محاولة تسليمٍ (PROTECT) — قرارُ الاحتفاظ لـ0105/DPO"
     ),
     ("notifications.NotificationEnqueueIntent", "recipient"): (
-        "نيّةُ إرسالٍ دائمة (PROTECT) — قرارُ الاحتفاظ لـ0105/DPO"
+        "يُبقى الصفُّ (PROTECT) ويُمسح محتواه (title وbody) ويُضبط content_cleared_at عند المحو"
     ),
 }
 
@@ -126,6 +125,7 @@ def test_personal_content_stores_are_erased():
         "notifications.InAppNotification",
         "notifications.PushSubscription",
         "notifications.UserNotificationPreference",
+        "developer_feedback.DeveloperMessage",
     ):
         assert label in covered, f"{label} لا يُمحى مع الطالب"
 
@@ -166,3 +166,34 @@ def test_user_keyed_notification_rows_are_gone_after_erasure(school, student_use
     assert not InAppNotification.objects.filter(user=student_user).exists()
     assert not PushSubscription.objects.filter(user=student_user).exists()
     assert not UserNotificationPreference.objects.filter(user=student_user).exists()
+
+
+@pytest.mark.django_db
+def test_intent_content_is_cleared_but_row_is_kept_and_messages_deleted(school, student_user):
+    """(أ) نيّةُ الإرسال PROTECT: يبقى الصفُّ ويُمسح محتواه. (ب) رسائلُ المطوّر تُحذف."""
+    from developer_feedback.models import DeveloperMessage
+    from notifications.models import NotificationDispatch, NotificationEnqueueIntent
+
+    dispatch = NotificationDispatch.objects.create(school=school, event_type="custom")
+    intent = NotificationEnqueueIntent.objects.create(
+        school=school, dispatch=dispatch, recipient=student_user, title="عنوانٌ شخصيّ", body="نصٌّ"
+    )
+    DeveloperMessage.objects.create(
+        ticket_number="T-042-1", user=student_user, user_id_hash="h", subject="موضوع", body="نصٌّ حرّ"
+    )
+    admin = UserFactory(full_name="مدير", is_superuser=True)
+    req = ErasureRequest.objects.create(
+        school=school,
+        student=student_user,
+        requested_by=admin,
+        reason="اختبار المسح والحذف",
+        status="approved",
+        reviewed_by=admin,
+    )
+
+    ErasureService.execute(req)
+
+    intent.refresh_from_db()
+    assert intent.title is None and intent.body is None
+    assert intent.content_cleared_at is not None
+    assert not DeveloperMessage.objects.filter(user=student_user).exists()

@@ -42,6 +42,7 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
     )
     from behavior.models import AutoInfractionNotice, BehaviorInfraction
     from clinic.models import ClinicVisit, HealthRecord
+    from developer_feedback.models import DeveloperMessage
     from exam_control.models import ExamIncident
     from library.models import BookBorrowing
     from notifications.models import (
@@ -88,6 +89,7 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
             (InAppNotification, "user", False),  # إشعاراتُه داخل المنصّة
             (PushSubscription, "user", False),  # اشتراكُ دفعٍ بجهازه (نقطةُ اتّصال)
             (UserNotificationPreference, "user", True),  # تفضيلاتُه
+            (DeveloperMessage, "user", False),  # موضوعٌ ونصٌّ حرٌّ منه إلى المطوّر
         ]
     )
     return _STUDENT_FK_MODELS
@@ -172,6 +174,16 @@ class ErasureService:
         # 3. Delete child FK records (CASCADE would do this, but explicit is better for counting)
         for Model, fk_field, _ in _lazy_student_fk_models():
             Model.objects.filter(**{fk_field: student}).delete()
+
+        # 3.5 [W-20261002-042] نيّةُ الإرسال PROTECT ودليلٌ على المحاولة: يبقى الصفُّ
+        #     ويُمسح محتواه (title وbody) ويُضبط وقتُ المسح.
+        from notifications.models import NotificationEnqueueIntent
+
+        cleared = NotificationEnqueueIntent.objects.filter(recipient=student).update(
+            title=None, body=None, content_cleared_at=timezone.now()
+        )
+        if cleared:
+            summary["models"]["NotificationEnqueueIntent_cleared"] = cleared
 
         # 4. Anonymize consent records (keep structure, remove PII)
         consent_count = ConsentRecord.objects.filter(student=student).count()
