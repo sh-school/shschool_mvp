@@ -246,7 +246,12 @@ def test_the_whole_path_writes_one_warning_and_no_error(caplog, no_retry):
         _run(school, delivery)
 
     assert [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR] == []
-    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    # يُحصى تحذيرُ مسار الإرسال وحدَه: سطرٌ من مكتبةٍ أخرى (مثل «No hostname was supplied» التي يسرّبها اختبارٌ سابق في الشريحة نفسها) ليس من عقده
+    warnings = [
+        r
+        for r in caplog.records
+        if r.levelno == logging.WARNING and r.name.startswith("notifications")
+    ]
     assert len(warnings) == 1, [r.getMessage() for r in warnings]
     assert warnings[0].name == "notifications.services"
     assert not any(r.exc_info for r in caplog.records), "لا traceback"
