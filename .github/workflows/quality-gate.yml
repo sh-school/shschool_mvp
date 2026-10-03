@@ -369,6 +369,9 @@ jobs:
   secrets-scan:
     name: detect-secrets — كشف الأسرار
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # حارسُ الترقيم يقرأ ملفّاتِ الطلبات المفتوحة (`gh pr list`) — قراءةٌ فقط
     steps:
       - uses: actions/checkout@v7
 
@@ -385,6 +388,17 @@ jobs:
         # ويطبع الأرقامَ كاملةً في هذا السجلّ وهو عامّ. والبياناتُ الحقيقيّةُ في `data/` و`backups/`
         # يتجاهلها git، وهذا الحارسُ يرفض ما يفلت.
         run: python scripts/check_personal_data.py
+
+      - name: حارسُ تصادم الترقيم — ADR ورموزُ القيود عبر main والطلبات المفتوحة
+        # المنطقُ في `scripts/check_numbering.py` (وتحرسه `tests/test_numbering_guard.py`). تصادمُ ADR-0008/0009
+        # وHC21/HC22 (2026-10-01/02) رصده إنسانٌ بعد الدمج؛ هنا يُرصد قبله: كلُّ فرعٍ أخضرُ وحدَه والتصادمُ بينها.
+        # `origin/main` يُجلب لأنّ الاستنساخ سطحيّ؛ والطلباتُ المفتوحة من `gh` بالرمز الافتراضيّ (قراءةٌ فقط).
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWN_PR: ${{ github.event.pull_request.number }}
+        run: |
+          git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
+          python scripts/check_numbering.py ${OWN_PR:+--own-pr "$OWN_PR"}
 
       - name: فحص الأسرار المسربة — سرٌّ ليس في السجلّ يُسقط البوّابة
         # كان `detect-secrets scan … || true` ثمّ عدٌّ للجديد يُطبع ولا يُقارن —
