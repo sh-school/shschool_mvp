@@ -223,8 +223,10 @@
             {% endif %}
           </td>
           {# الأرقامُ لا تُعرض قبل وجودها: «0%» على توليدٍ لم ينتهِ رقمٌ كاذب. #}
-          <td class="num">
+          <td class="num" data-sort-value="{{ g.quality.sort }}">
             {% comment %}
+              الصحّةُ أوّلاً: مسودّةٌ فيها متعذّراتٌ أو مخالفاتٌ لا تُعطى درجةً تُقارَن بجدولٍ سليم
+              (W-20261003-010) — تُوسَم «ناقصة» وتُذكر درجةُ ما وُضع فيها ثانويّة.
               الدرجةُ منسوبةٌ إلى الأساس المعتمَد: مئةٌ تعني «بمستوى ما اعتمدناه».
               والمطلقةُ تقيس بُعداً عن كمالٍ لا تبلغه مدرسة — «سابعةٌ واحدةٌ
               للمعلّم» مستحيلةٌ حين تكون خاناتُ السابعة أكثرَ من عدد المعلّمين —
@@ -232,6 +234,9 @@
               عُرضت المطلقةُ موسومةً بأنّها مطلقة.
             {% endcomment %}
             {% if g.is_pending or g.status == 'failed' %}<span class="text-muted">—</span>
+            {% elif g.quality.invalid %}
+            <b class="text-status-danger" title="فيها {{ g.unplaced_count }} متعذّرة و{{ g.breaches.count|default:0 }} مخالفة — لا تُقارَن جودتُها بجدولٍ كامل">ناقصة</b>
+            {% if g.quality.value is not None %}<span class="text-xs text-muted" title="جودةُ ما وُضع وحدَه، منسوبةً إلى الأساس">(ما وُضع {{ g.quality.value|floatformat:0 }}%)</span>{% endif %}
             {% elif g.lab_relative %}
             <b class="text-status-{{ g.lab_tone }}" title="من الأساس">{{ g.lab_relative|floatformat:0 }}%</b>
             {% elif g.lab_absolute %}
