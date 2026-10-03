@@ -29,6 +29,7 @@ from core import preview_accounts as preview_module
 from core.models import AuditLog, CustomUser, Membership, Role, School
 from core.preview_accounts import (
     EMAIL_PREFIX,
+    EMPLOYEE_NUMBERS,
     FORBIDDEN_ROLES,
     FULL_NAME_PREFIX,
     ID_PREFIX,
@@ -151,6 +152,17 @@ class Command(BaseCommand):
             if role_name in FORBIDDEN_ROLES or role_name not in known:
                 raise CommandError(f"دورٌ غيرُ مسموحٍ في القائمة المغلقة: {role_name}")
 
+        # حكمُ 0105 (٣ و٦): رقمٌ وظيفيٌّ من النطاق المحجوز لحسابٍ غيرِ حسابات المعاينة (حقيقيٌّ أو غيرُ موسوم) ⇒ توقّفٌ بلا تغيير.
+        for role_name, nid in ROLES.items():
+            holder = (
+                CustomUser.objects.filter(employee_number=EMPLOYEE_NUMBERS[role_name])
+                .exclude(national_id=nid)
+                .first()
+            )
+            if holder is not None:
+                raise CommandError(
+                    "رقمٌ وظيفيٌّ من النطاق المحجوز لحساباتِ المعاينة ممسوكٌ لحسابٍ آخر — توقّف بلا تغيير"
+                )
         created = fixed = 0
         with transaction.atomic():
             removed = self._remove_legacy()
@@ -167,8 +179,8 @@ class Command(BaseCommand):
                     is_new = False
                 wanted = {
                     "full_name": f"{FULL_NAME_PREFIX}{role_name}",
-                    # الرقمُ الوظيفيُّ `PV-<الدور>` يحمل الوسمَ في ملفّ الدمق (البصمةُ تختلف بمفتاح كلّ بيئة فلا تُطابَق) — حكمُ 0105 (P2).
-                    "employee_number": nid,
+                    # الرقمُ الوظيفيُّ الثماني من النطاق المحجوز: ما يكتبه المالكُ في الدخول، وبه يرفض `apply` الصفَّ (البصمةُ تختلف بمفتاح كلّ بيئة).
+                    "employee_number": EMPLOYEE_NUMBERS[role_name],
                     "email": f"{EMAIL_PREFIX}{role_name}@preview.invalid",
                     "is_active": True,
                     "is_staff": False,

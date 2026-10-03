@@ -14,7 +14,7 @@
 
 **ما لا يعبر (D-167م، W-20261003-023):** حساباتُ المعاينة الدائمةُ (`core/preview_accounts.py`: بادئةُ الاسم «[وهميّ» **و**الرقم `PV-`)
 تبقى على 8500: `dump` يُسقط صفوفَ معلّمٍ موسومٍ (`exclude_preview_teachers`)، و`apply` يرفض ملفّاً يحمل مفتاحاً خارج قائمة السماح
-(`INJECTABLE_KEYS`: إسنادٌ وخطّةُ نصابٍ لا غير) أو صفّاً معلّمُه موسوم برقمه الوظيفيّ `PV-…` (`injection_violations`) قبل أيّ كتابة. وعلى هذا فتعليقُ «لا
+(`INJECTABLE_KEYS`: إسنادٌ وخطّةُ نصابٍ لا غير) أو صفّاً رقمُه الوظيفيّ من النطاق المحجوز `99900001–99900009` (`injection_violations`) قبل أيّ كتابة. وعلى هذا فتعليقُ «لا
 بياناتٍ شخصيّةً في الملفّ» يعني: الـHMAC والرقمُ الوظيفيّ للمطابقة وحدَها، **ولا حسابَ وهميّاً** مهما بلغ الدمقُ.
 """
 
@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from core.models import ClassGroup, CustomUser, School
-from core.preview_accounts import ID_PREFIX, ROLES, preview_accounts_q
+from core.preview_accounts import ROLES, is_reserved_employee_number, preview_accounts_q
 from operations.models import Subject, SubjectClassAssignment
 
 from .models import TeacherWorkloadPlan
@@ -53,8 +53,8 @@ def _preview_hmacs() -> set[str]:
 def injection_violations(payload: dict[str, Any]) -> list[str]:
     """ما يمنع قبولَ ملفّ حقنٍ على هذه القاعدة (الإنتاجُ عادةً): مفتاحٌ خارج `INJECTABLE_KEYS`، أو صفٌّ معلّمُه حسابُ معاينة.
 
-    يُفحص قبل أيّ كتابةٍ في `apply_preview_workload_changes` ولو بلا `--apply`. **الساقُ الفاعلةُ هي الرقمُ الوظيفيّ بالبادئة `PV-`**
-    (`preview_accounts` يضبط `employee_number=PV-<الدور>` لكلّ حساب، ولا يحمل الملفُّ الاسمَ). أمّا مطابقةُ البصمة فلا تصحّ إلّا إن اتّحد
+    يُفحص قبل أيّ كتابةٍ في `apply_preview_workload_changes` ولو بلا `--apply`. **الساقُ الفاعلةُ هي الرقمُ الوظيفيّ من النطاق المحجوز**
+    `99900001–99900009` (`preview_accounts` يضبط `employee_number` منه لكلّ حساب، ولا يحمل الملفُّ الاسمَ). أمّا مطابقةُ البصمة فلا تصحّ إلّا إن اتّحد
     مفتاحُ HMAC بين البيئتين — وهو يختلف بين 8500 والإنتاج عادةً، فهي طبقةٌ إضافيّةٌ عند اتّحاده لا ضمانٌ؛ والحاجزُ الأوّلُ دائماً أنّ
     `dump` لا يُدمق الموسومين، ثمّ فشلُ `resolve_teacher` المغلق في الإنتاج لمعلّمٍ لا وجودَ له.
     """
@@ -65,7 +65,7 @@ def injection_violations(payload: dict[str, Any]) -> list[str]:
     for section in ("assignments", "workload_plans"):
         for index, row in enumerate(payload.get(section, []) or []):
             identity = (row.get("teacher_hmac") or "", row.get("teacher_employee_number") or "")
-            if identity[0] in fake_hmacs or identity[1].startswith(ID_PREFIX):
+            if identity[0] in fake_hmacs or is_reserved_employee_number(identity[1]):
                 problems.append(f"{section}[{index}]: معلّمُه حسابُ معاينةٍ وهميّ — لا يُحقن في الإنتاج")
     return problems
 
