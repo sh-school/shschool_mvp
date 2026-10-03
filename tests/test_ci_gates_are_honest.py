@@ -142,6 +142,23 @@ def test_the_coverage_threshold_is_one_number_in_pyproject():
     ), "أعلامُ التغطية تُطلب في البوّابة صراحةً — لا في addopts حيث تُبطئ كلَّ تشغيلٍ محلّيّ"
 
 
+#: الاستثناءُ الوحيدُ المسموح: صفرٌ صريحٌ فقط. `(?![\d.])` لا `\b`: الحدُّ \b يقع بين `0` و`.` فكانت
+#: `=0.5` تمرّ بحذف «=0» وبقاء «.5» خارج الفحص (ملاحظة P3 من 0105)؛ وهذا يرفض أيضاً `=00` و`=05`.
+ZERO_COV_THRESHOLD = re.compile(r"--cov-fail-under=0(?![\d.])")
+
+
+def test_the_zero_exemption_matches_only_a_plain_zero():
+    assert ZERO_COV_THRESHOLD.search("--cov=. --cov-fail-under=0")
+    assert ZERO_COV_THRESHOLD.search("--cov-fail-under=0 -q")
+    for sneaky in (
+        "--cov-fail-under=0.5",
+        "--cov-fail-under=05",
+        "--cov-fail-under=00",
+        "--cov-fail-under=70",
+    ):
+        assert not ZERO_COV_THRESHOLD.search(sneaky), sneaky
+
+
 def test_no_second_threshold_anywhere():
     """`--cov-fail-under` أو `fail_under` خارجَ pyproject رقمٌ ثانٍ — والاثنان يتناقضان يوماً."""
     candidates = [
@@ -160,6 +177,11 @@ def test_no_second_threshold_anywhere():
         text = path.read_text(encoding="utf-8")
         for n, line in enumerate(text.splitlines(), 1):
             # قراءةُ العتبة (`['fail_under']` عبر tomllib) مسموحة؛ كتابتُها (`fail_under =`) لا.
+            # `--cov-fail-under=0` في quality-gate.yml وحدَه ليس عتبةً بل تعطيلٌ للحكم على shard يرى جزءاً من
+            # المجموعة (W-20261002-034): pytest-cov يحسب المجموع ويحكم بعتبة pyproject حتى بلا تقرير فيُسقط كلَّ
+            # shard لأنّ تغطيتَه جزئيّة؛ والحكمُ الوحيدُ للمُجمِّع بـ`coverage report`. أيُّ قيمةٍ غيرُ 0 مخالفة.
+            if path.name == "quality-gate.yml":
+                line = ZERO_COV_THRESHOLD.sub("", line)
             if "--cov-fail-under" in line or (
                 re.search(r"\bfail_under\s*=", line) and path != PYPROJECT
             ):

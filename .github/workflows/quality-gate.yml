@@ -23,12 +23,21 @@ jobs:
   # ══════════════════════════════════════════════════════
   #
   # إصدارٌ واحد: 3.12 — ما تُفحص عليه البوّاباتُ ويعمل عليه الإنتاج
-  # (`Dockerfile: python:3.12-slim`). كانت هنا مصفوفةٌ مع 3.11 حين كان الإنتاجُ
-  # عليه (#259)، ثمّ حارساً لطريق الرجوع بعد التحويل (#278)؛ واستقرّ الإنتاجُ على
-  # 3.12 منذ 2026-09-14 فسقطت الخانة. إصدارٌ جديد = سطرٌ هنا + Dockerfile + pyproject.
-  test-coverage:
-    name: pytest — تغطية
+  # (`Dockerfile: python:3.12-slim`). إصدارٌ جديد = سطرٌ هنا + Dockerfile + pyproject.
+  #
+  # **مقسومةٌ على shards (W-20261002-034):** كانت وظيفةً واحدةً ~17 دقيقةً ثمّ ~33 بعد #777. الآن:
+  #   · `pytest-shards`: مصفوفةُ خمسةٍ، كلٌّ تجمع المجموعةَ كلَّها بقواعد pytest نفسِها وتُسقط ما ليس لها
+  #     (tests/ci_sharding.py — قسمةٌ حتميّةٌ على ملفّ الاختبار، والملفُّ الثقيلُ مثبَّتٌ على آخرها) وتكتب بياناتِ
+  #     تغطيتها `.coverage.shardN` بلا حكم (`--cov-fail-under=0`: التغطيةُ الجزئيّةُ لا تُقاس بالعتبة).
+  #   · `test-coverage` («pytest — تغطية» — الاسمُ لم يتغيّر): يتحقّق أنّ الـshards غطّت المجموعةَ بلا فقدٍ
+  #     (scripts/ci_shard_verify.py) ثمّ يدمج التغطيةَ ويحكم بعتبة pyproject — الرقمُ الوحيدُ في المستودع.
+  pytest-shards:
+    name: pytest shard ${{ matrix.shard }}/${{ strategy.job-total }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
 
     services:
       postgres:
@@ -58,6 +67,8 @@ jobs:
       SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
       FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
+      CI_SHARD_COUNT: ${{ strategy.job-total }}
+      CI_SHARD_INDEX: ${{ matrix.shard }}
 
     steps:
       - uses: actions/checkout@v7
@@ -76,12 +87,15 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: python3 scripts/ci_docs_only.py classify "$BASE_SHA" >> "$GITHUB_OUTPUT" || echo "docs_only=false" >> "$GITHUB_OUTPUT"
 
+      # على طلبٍ وثائقيٍّ لا يعمل إلّا shard 1 («قرّاءُ الوثائق»)؛ فلا تُجهَّز البيئةُ في 2–5 هدراً (مراجعة 0105).
       - uses: actions/setup-python@v7
+        if: steps.diff.outputs.docs_only != 'true' || matrix.shard == 1
         with:
           python-version: "3.12"
           cache: pip
 
       - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
+        if: steps.diff.outputs.docs_only != 'true' || matrix.shard == 1
         run: |
           sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
           sudo apt-get update -qq
@@ -94,41 +108,109 @@ jobs:
             pkg-config
 
       - name: تثبيت المتطلبات
+        if: steps.diff.outputs.docs_only != 'true' || matrix.shard == 1
         run: |
           pip install -r requirements.txt
           pip install pytest pytest-django pytest-cov pytest-asyncio factory-boy \
             pytest-xdist==3.8.0
 
+      # فحوصٌ لا تتغيّر بتغيّر الـshard: مرّةً واحدةً (shard 1) لا خمساً.
       - name: تطبيق Migrations
-        if: steps.diff.outputs.docs_only != 'true'
+        if: steps.diff.outputs.docs_only != 'true' && matrix.shard == 1
         run: python manage.py migrate --noinput
 
       # كانتا في ci.yml وحده، وهو الملفُّ الذي أُزيل لأنّ بقيّته تكرارٌ لهذه البوّابة.
       - name: التحقق من عدم وجود migrations غير مطبّقة
-        if: steps.diff.outputs.docs_only != 'true'
+        if: steps.diff.outputs.docs_only != 'true' && matrix.shard == 1
         run: python manage.py makemigrations --check --noinput
 
       - name: فحص إعدادات Django
-        if: steps.diff.outputs.docs_only != 'true'
+        if: steps.diff.outputs.docs_only != 'true' && matrix.shard == 1
         run: python manage.py check --fail-level WARNING
 
       - name: "pytest — قرّاءُ الوثائق (طلبٌ وثائقيٌّ؛ بلا تغطية لأنّ العتبةَ لا تُقاس على مجموعةٍ جزئيّة)"
-        if: steps.diff.outputs.docs_only == 'true'
+        if: steps.diff.outputs.docs_only == 'true' && matrix.shard == 1
         run: python -m pytest -n auto $(python3 scripts/ci_docs_only.py readers)
 
-      - name: "pytest + Coverage Gate"
+      - name: "pytest — shard (بلا حكمِ تغطية: الحكمُ للمُجمِّع)"
         if: steps.diff.outputs.docs_only != 'true'
-        # العتبةُ ليست هنا: pytest-cov يقرأ `fail_under` من
-        # `[tool.coverage.report]` في pyproject.toml — الرقمُ الوحيدُ في المستودع.
-        # كانت 70 هنا و60 في nightly و85 في عنوانه، والملخّصُ يطبع PASS عند 60.
-        #
-        # و`-n auto`: المجموعةُ نفسُها تمرّ في CI في اثنتي عشرةَ دقيقةً وتمرّ هنا
-        # في اثنتين وأربعين — والفرقُ أنّ تلك تُوزّعها على الأنوية وهذه تُسلسلها.
-        # ثلاثون دقيقةً تُهدر في كلّ دورة، وبوّابةٌ بهذا الطول تُغري بتخطّيها لا
-        # باحترامها.
+        env:
+          COVERAGE_FILE: .coverage.shard${{ matrix.shard }}
+          CI_SHARD_REPORT: shard-report-${{ matrix.shard }}.json
+        # `-n auto`: المجموعةُ نفسُها تمرّ في CI على الأنوية لا تسلسلاً. و`-p tests.ci_sharding` يقسمها بحسب
+        # CI_SHARD_INDEX/COUNT. و`--cov-report=` بلا تقرير و`--cov-fail-under=0`: هذا shard لا يرى إلّا جزءاً.
         run: |
-          python -m pytest -n auto --junit-xml=test-results.xml \
-            --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov
+          python -m pytest -p tests.ci_sharding -n auto --junit-xml=test-results-${{ matrix.shard }}.xml \
+            --cov=. --cov-report= --cov-fail-under=0
+
+      - name: رفع بيانات الـshard
+        uses: actions/upload-artifact@v7
+        if: always() && steps.diff.outputs.docs_only != 'true'
+        with:
+          name: shard-data-${{ matrix.shard }}
+          path: |
+            .coverage.shard${{ matrix.shard }}
+            shard-report-${{ matrix.shard }}.json
+            test-results-${{ matrix.shard }}.xml
+          include-hidden-files: true
+          retention-days: 14
+
+  test-coverage:
+    name: pytest — تغطية
+    needs: [pytest-shards]
+    # دائماً: ليُبلَّغ بنتيجةٍ حتى لو فشل shard (فشلُه يُسقط هذه الوظيفةَ أوّلَ خطوة).
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: ${{ github.event_name == 'pull_request' && '0' || '1' }}
+
+      - name: تصنيف الطلب — وثائقيٌّ فقط؟
+        id: diff
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 scripts/ci_docs_only.py classify "$BASE_SHA" >> "$GITHUB_OUTPUT" || echo "docs_only=false" >> "$GITHUB_OUTPUT"
+
+      - name: نتيجةُ الـshards
+        env:
+          SHARDS_RESULT: ${{ needs.pytest-shards.result }}
+        run: |
+          if [ "$SHARDS_RESULT" != "success" ]; then
+            echo "::error::pytest-shards لم تنجح (النتيجة: $SHARDS_RESULT) — افتح الـshard الفاشل"
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v7
+        if: steps.diff.outputs.docs_only != 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: تنزيل بيانات الـshards
+        if: steps.diff.outputs.docs_only != 'true'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: shard-data-*
+          path: shards
+          merge-multiple: true
+
+      - name: التحقق من أنّ الـshards غطّت المجموعةَ كلَّها
+        if: steps.diff.outputs.docs_only != 'true'
+        run: python3 scripts/ci_shard_verify.py shards 5
+
+      - name: "دمج التغطية + Coverage Gate"
+        if: steps.diff.outputs.docs_only != 'true'
+        # العتبةُ ليست هنا: `coverage report` يقرأ `fail_under` من `[tool.coverage.report]` في pyproject.toml —
+        # الرقمُ الوحيدُ في المستودع. والمساراتُ في بيانات التغطية مطلقةٌ بجذر مساحة العمل نفسِه في كلّ مهمّة
+        # (مسارُ checkout واحد) فيدمجها `combine` بلا `[paths]`.
+        run: |
+          pip install coverage==7.16.1
+          coverage combine shards/.coverage.shard*
+          coverage xml -o coverage.xml
+          coverage html -d htmlcov
+          coverage report
 
       - name: رفع تقارير التغطية
         uses: actions/upload-artifact@v7
@@ -136,7 +218,7 @@ jobs:
         with:
           name: coverage-report
           path: |
-            test-results.xml
+            shards/test-results-*.xml
             coverage.xml
             htmlcov/
           retention-days: 14
@@ -292,7 +374,7 @@ jobs:
           esac
 
       - name: تثبيت المتطلبات + المدقّق
-        # مجموعةُ pytest نفسُها التي في وظيفة test-coverage: tests/conftest.py
+        # مجموعةُ pytest نفسُها التي في وظيفة pytest-shards: tests/conftest.py
         # (يُحمَّل تلقائيّاً مع أيّ اختبارٍ تحته) يستورد factory، وpyproject.toml
         # يضبط asyncio_mode — فتُثبَّت الحزمُ كلُّها لا factory-boy وحدَه.
         run: |
@@ -707,7 +789,7 @@ jobs:
   gate-summary:
     name: ملخص بوابة الجودة
     runs-on: ubuntu-latest
-    needs: [test-coverage, fast-guards, ruff, mypy, migration-linter, complexity, secrets-scan, deploy-window, axe-a11y, e2e]
+    needs: [pytest-shards, test-coverage, fast-guards, ruff, mypy, migration-linter, complexity, secrets-scan, deploy-window, axe-a11y, e2e]
     if: always()
     steps:
       - uses: actions/checkout@v7
