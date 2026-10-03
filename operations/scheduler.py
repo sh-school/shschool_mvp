@@ -313,7 +313,6 @@ class ScheduleGrid:
             for member in task.members:
                 self._teacher_slots[member.teacher_id].append((day, slot))
                 self._teacher_at[(member.teacher_id, day, slot)] = task
-            self._subject_class_day[(task.subject_id, task.class_id, day)] += 1
             self._subject_period[(task.subject_id, task.class_id, slot)] += 1
             for resource_id, *_ in task.resources:
                 self._resource_at[(resource_id, day, slot)] += 1
@@ -321,6 +320,9 @@ class ScheduleGrid:
                 self._resource_bands[(resource_id, day, slot)][
                     (task.band_id or "", task.level_type)
                 ] += 1
+        # كتلةٌ واحدةٌ لا حصّةٌ لكلّ خانة: `per_day_cap` يُحسب بالكتل (⌈W/D⌉ على عدد الكتل)، فلو عُدّت
+        # الخاناتُ كانت المزدوجةُ تُحسب اثنتين ويضيق السقفُ إلى النصف صامتاً (W-20260930-003).
+        self._subject_class_day[(task.subject_id, task.class_id, day)] += 1
         for member in task.members:
             self._teacher_tasks[member.teacher_id] += 1
         self._entries[id(task)] = {"day": day, "period": period, "task": task}
@@ -349,7 +351,6 @@ class ScheduleGrid:
             for member in task.members:
                 self._teacher_slots[member.teacher_id].remove((day, slot))
                 self._teacher_at.pop((member.teacher_id, day, slot), None)
-            self._subject_class_day[(task.subject_id, task.class_id, day)] -= 1
             self._subject_period[(task.subject_id, task.class_id, slot)] -= 1
             for resource_id, *_ in task.resources:
                 self._resource_at[(resource_id, day, slot)] -= 1
@@ -357,6 +358,7 @@ class ScheduleGrid:
                 self._resource_bands[(resource_id, day, slot)][
                     (task.band_id or "", task.level_type)
                 ] -= 1
+        self._subject_class_day[(task.subject_id, task.class_id, day)] -= 1
         for member in task.members:
             self._teacher_tasks[member.teacher_id] -= 1
         self._entries.pop(id(task), None)
