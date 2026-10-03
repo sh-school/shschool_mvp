@@ -8941,14 +8941,15 @@ def test_0058_appends_notes_once_without_touching_status_or_progress():
     assert "D-172م" in by["SCH-25"].note and "D-175م" in by["SCH-25"].note
 
 
-def test_0058_creates_new_items_with_unpublished_ones_as_doing_not_done():
+def test_0058_creates_new_items_with_n086_closed_by_publish_and_n087_still_doing():
     assert set(_sync58.add_new_items(RoadmapItem)) == {"N-085", "N-086", "N-087"}
     assert _sync58.add_new_items(RoadmapItem) == []
     by = {i.code: i for i in RoadmapItem.objects.all()}
     assert by["N-085"].pr == "#829 #832"
-    for code in ("N-086", "N-087"):
-        assert by[code].status == "doing" and by[code].progress < 100
-        assert "ولم يُنشر" in by[code].note
+    assert (by["N-086"].status, by["N-086"].progress) == ("done", 100)
+    assert "نُشر a9d1c17" in by["N-086"].note and "غيرُ مقيس" in by["N-086"].note
+    assert by["N-087"].status == "doing" and by["N-087"].progress < 100
+    assert "ولم يُنشر" in by["N-087"].note
     assert all(len(i.date_basis) <= 120 for i in by.values())
 
 
