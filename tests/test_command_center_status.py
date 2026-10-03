@@ -19,7 +19,10 @@ HOUR = 3600
 
 
 @pytest.fixture(autouse=True)
-def _clean_cache():
+def _clean_cache(settings):
+    # لا جمعَ كسولاً أثناء الاختبار: صفحةُ الحالة تستدعي ensure_fresh فيُطلَق جمعُ المجموعات القديمة (بجلبٍ مزيَّفٍ لا يعرف إلّا مسارَ الطابور)
+    # فيُعاد كتابةُ لوحة الطابور من خيطٍ آخر (فشلُ CI تحت xdist: «#10» غائبٌ). الاختباراتُ تخزّن اللوحةَ بنفسها وتقرؤها.
+    settings.QCC_LAZY_REFRESH = False
     cache.clear()
     yield
     cache.clear()
