@@ -281,3 +281,17 @@ def test_self_assessment_edit_by_teacher_no_teacher_field(client_as, school, tea
     obs.refresh_from_db()
     assert obs.topic == "تأمل ذاتي"
     assert obs.teacher_id == teacher_user.id  # المعلّم ثابت
+
+
+@pytest.mark.django_db
+def test_detail_page_title_shows_the_teacher_name_not_a_masked_id(
+    client_as, school, coordinator_user, teacher_user
+):
+    """الإخفاءُ من سجلّ التدقيق الملحق لا من ترويسة الصفحة التي يقرؤها المصرَّحُ له (W-019)."""
+    obs, _ = _make_obs(school, coordinator_user, teacher_user, status="submitted")
+
+    r = client_as(coordinator_user).get(reverse("observation_detail", args=[obs.id]))
+
+    assert r.status_code == 200
+    assert teacher_user.full_name in r.context["page_title"]
+    assert "CustomUser" not in r.context["page_title"]

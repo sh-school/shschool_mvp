@@ -556,7 +556,7 @@ def observation_detail(request, obs_id):
         "obs": obs,
         "grouped": _groups_with_scores(obs),
         # كان العنوانُ «الزيارة الصفّية» لزيارة الزميل أيضاً، والنوعُ يُكرَّر حقلاً تحته.
-        "page_title": f"{kind_title}: {masked_repr(obs.teacher)}",
+        "page_title": f"{kind_title}: {obs.teacher.full_name}",
         "score_label": f"{obs.score_percent}%" if obs.score_percent is not None else "—",
     }
     ctx.update(_obs_perms(request.user, obs))
@@ -744,7 +744,7 @@ def observation_pdf(request, obs_id):
         object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)} — {obs.observation_date}",
     )
     html = render_to_string("quality/observation_pdf.html", _pdf_context(obs))
-    return render_pdf(html, f"observation_{masked_repr(obs.teacher)}_{obs.observation_date}.pdf")
+    return render_pdf(html, f"observation_{obs.teacher.full_name}_{obs.observation_date}.pdf")
 
 
 @login_required
@@ -764,7 +764,7 @@ def observation_pdf_view(request, obs_id):
         "quality/observation_pdf_view.html",
         {
             "obs": obs,
-            "page_title": f"استمارة {kind}: {masked_repr(obs.teacher)}",
+            "page_title": f"استمارة {kind}: {obs.teacher.full_name}",
             # لا نسخةَ من مسوّدة (W-20261001-004) — فلا يُعرض الزرُّ على خيارٍ
             # سيُرفَض أصلاً في `send_copy` (البوّابةُ الحقيقيّة هناك لا هنا).
             "can_send": _can_send(request.user) and obs.status != "draft",
