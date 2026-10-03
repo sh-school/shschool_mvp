@@ -211,3 +211,24 @@ def test_verify_rejects_a_fingerprint_with_a_non_ok_result(tmp_path, monkeypatch
         lambda *a: subprocess.CompletedProcess(a, 0, "a" * 40 if a[1] == "HEAD" else "c" * 40, ""),
     )
     assert at.verify(path) == 1
+
+
+# ── حكمُ 0105: أسماءٌ بمسافات، وملفٌّ بلا حارس لا يُطبع سلامةً ──────────
+
+
+def test_z_output_keeps_names_with_spaces_and_non_ascii():
+    out = "core/a b.py\0templates/اختبار.html\0\0"
+    assert at.parse_z(out) == ["core/a b.py", "templates/اختبار.html"]
+
+
+def test_a_changed_file_with_no_rule_is_reported_as_unmatched():
+    plan = at.select(["docs/notes.md", "core/x.py"], exists=_all_exist)
+    assert plan["unmatched"] == ["docs/notes.md"]
+    assert at.select(["docs/notes.md"], exists=_all_exist)["tests"] == []
+
+
+def test_the_docstring_states_it_is_not_a_gate_or_an_approval_reference():
+    doc = at.__doc__
+    assert "ليست حاجزاً ولا مرجعاً للاعتماد" in doc and "نسخة main" in doc
+    assert "لا يعني السلامة" in doc
+    assert "ليس حاجزاً ولا مرجعاً للاعتماد" in (_ROOT / "Makefile").read_text(encoding="utf-8")

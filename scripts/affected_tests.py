@@ -18,6 +18,16 @@
     سطرٍ واحدٍ يُلصق في البطاقة. و`--verify` يعيد حسابَه ويتحقّق أنّ الرأسَ هو الرأسُ الحاليّ وأنّ الأداةَ التي كتبته
     هي نسخةُ main نفسُها (شرطُ 0105: تُقرأ من main ولا تُعدَّل بصمتُها).
   · رمزُ الخروج: 0 كلُّ ما طُلب نجح، 1 فحصٌ فشل أو شجرةٌ غيرُ نظيفة، 3 غيرُ مقيس.
+
+**حدٌّ صريح (حكم 0105): هذه الأداةُ مساعدٌ للمطوِّر، ليست حاجزاً ولا مرجعاً للاعتماد.** البصمةُ تعاونٌ لا شهادة:
+`--verify` يعمل بشيفرة الفرع نفسِه، فمن عدّل الأداةَ أنجحه. وقيمتُه الوحيدة أن يُشغَّل من نسخة main لا من الفرع:
+
+    git show origin/main:scripts/affected_tests.py > "$TMPDIR/affected_tests_main.py"
+    python "$TMPDIR/affected_tests_main.py" --verify <ملفّ-البصمة>
+
+والاعتمادُ يبقى للمالك على 8500 ولحكم 0105 في المسارات الحسّاسة؛ و«كلُّ المطلوب نجح» لا يعني السلامة: جدولُ `RULES`
+لا يغطّي المساراتِ الحسّاسة بعد (بطاقةٌ لاحقة تقابل security/sensitive_paths.json)، فكلُّ ملفٍّ معدَّلٍ لا تطابقه قاعدةٌ
+يُطبع «لا حارسَ مطابق — لا يعني السلامة».
 """
 
 from __future__ import annotations
@@ -110,6 +120,19 @@ RULES: tuple[tuple[str, object, tuple[str, ...]], ...] = (
 )
 
 
+def parse_z(output: str) -> list[str]:
+    """مخرجُ `git ... -z`: أسماءٌ مفصولةٌ بـ\0 فلا تنكسر بمسافةٍ ولا تُقتبس بغير ASCII."""
+    return sorted(name for name in output.split("\0") if name)
+
+
+def rule_matches(path: str) -> bool:
+    return (
+        any(matches(path) for _name, matches, _guards in RULES)  # type: ignore[operator]
+        or (path.startswith("tests/test_") and path.endswith(".py"))
+        or bool(tools_for([path]))
+    )
+
+
 def tools_for(changed: list[str]) -> list[str]:
     tools = []
     if any(p.startswith(MYPY_ROOTS) and p.endswith(".py") for p in changed):
@@ -139,6 +162,7 @@ def select(changed: list[str], exists=lambda p: Path(p).is_file()) -> dict:
         "tests": present,
         "absent": absent,
         "tools": tools_for(changed),
+        "unmatched": sorted(p for p in changed if not rule_matches(p)),
         "reasons": {k: sorted(set(v)) for k, v in sorted(reasons.items())},
     }
 
@@ -215,6 +239,7 @@ def build_fingerprint(
         "required_tests": plan["tests"],
         "absent_guards": plan["absent"],
         "required_tools": plan["tools"],
+        "unmatched": plan["unmatched"],
         "results": results,
         "dirty": dirty,
         "tool_blob": _git("hash-object", TOOL_PATH).stdout.strip(),
@@ -245,6 +270,7 @@ def verify(path: Path) -> int:
     for line in problems:
         print(f"✘ {line}")
     if not problems:
+        print("(تعاونٌ لا شهادة: شغّله من نسخة main لا من الفرع — راجع وصفَ الأداة)")
         print(f"✔ البصمةُ سليمةٌ للرأس {body['head'][:8]} (sha256={body['digest'][:16]})")
     return 1 if problems else 0
 
@@ -268,9 +294,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"✘ لا أساسَ للمقارنة ({args.base}): git fetch origin main أوّلاً")
         return 3
     base = merge_base.stdout.strip()
-    changed = sorted(
-        _git("diff", "--name-only", "--diff-filter=ACMRD", f"{base}...HEAD").stdout.split()
-    )
+    changed = parse_z(_git("diff", "-z", "--name-only", "--diff-filter=ACMRD", f"{base}...HEAD").stdout)
     plan = select(changed)
     dirty = dirty_entries(_git("status", "--porcelain").stdout)
 
@@ -281,6 +305,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  · {guard}  ← {'، '.join(plan['reasons'].get(guard, []))}")
     for guard in plan["absent"]:
         print(f"  ؟ {guard}  ← غيرُ موجودٍ في هذه الشجرة (يُسجَّل في البصمة)")
+    if plan["unmatched"] or not plan["tests"]:
+        shown = "، ".join(plan["unmatched"][:8]) + (" …" if len(plan["unmatched"]) > 8 else "")
+        print(f"؟ لا حارسَ مطابق لـ{len(plan['unmatched'])} ملفّاً — لا يعني السلامة: {shown}")
     if dirty:
         print("✘ تعديلاتٌ متتبَّعةٌ غيرُ مودَعة (هل أخفق إيداعٌ بسبب خطّاف التنسيق؟):")
         for line in dirty[:12]:
@@ -323,7 +350,8 @@ def main(argv: list[str] | None = None) -> int:
     if missing:
         print("غيرُ مقيس: ما قيس لا يكفي حكماً — شغّله ببيئةٍ فيها المتطلّبات.")
         return 3
-    print("كلُّ المطلوب نجح.")
+    note = " (لا يعني السلامة: لا حارسَ مطابقاً لبعض الملفّات)" if plan["unmatched"] or not plan["tests"] else ""
+    print(f"كلُّ المطلوب نجح{note}. مساعدٌ للمطوِّر لا حاجزٌ ولا مرجعٌ للاعتماد.")
     return 0
 
 
