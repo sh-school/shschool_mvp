@@ -8277,3 +8277,91 @@ def test_0051_publishes_nothing_a_public_repo_must_not_say():
     assert [term for term in banned if term in body] == []
     assert not re.search(r"\b\d{11}\b", body)
     assert not re.search(r"\b[0-9a-f]{40}\b", body)
+
+
+# ── 0052: «حالةُ اليوم» QCC-10 وإغلاقُ N-079 ──
+
+_sync52 = importlib.import_module("roadmap.migrations.0052_sync_items_2026_10_03c")
+
+
+class _Apps52:
+    @staticmethod
+    def get_model(_app, name):
+        return {"RoadmapItem": RoadmapItem, "RoadmapKpi": RoadmapKpi}[name]
+
+
+def test_0052_closes_n079_only_from_its_expected_state_and_is_idempotent():
+    _item("N-079", "doing", 90)
+    assert _sync52.sync(RoadmapItem) == ["N-079"]
+    assert _sync52.sync(RoadmapItem) == []
+    item = RoadmapItem.objects.get(code="N-079")
+    assert (item.status, item.progress) == ("done", 100)
+    assert "سلفٌ للإيداع 2eb36411" in item.note
+
+
+def test_0052_leaves_n079_if_the_developer_moved_it():
+    _item("N-079", "doing", 95)
+    assert _sync52.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="N-079").progress == 95
+
+
+def test_0052_creates_qcc10_once_with_owner_gate_and_never_overwrites():
+    assert _sync52.add_new_items(RoadmapItem) == ["QCC-10"]
+    assert _sync52.add_new_items(RoadmapItem) == []
+    item = RoadmapItem.objects.get(code="QCC-10")
+    assert (item.status, item.progress, item.gate, item.sort_order) == ("doing", 50, "owner", 807)
+    assert "لم يُقَس" in item.note and len(item.date_basis) <= 120
+    RoadmapItem.objects.filter(code="QCC-10").update(title="أعاد المطوّرُ تسميته")
+    assert _sync52.add_new_items(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="QCC-10").title == "أعاد المطوّرُ تسميته"
+
+
+def test_0052_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
+    _sync52.forwards(_Apps52, None)
+    assert RoadmapItem.objects.count() == 0
+    _item("N-079", "doing", 90)
+    _sync52.forwards(_Apps52, None)
+
+    def snapshot():
+        return list(
+            RoadmapItem.objects.order_by("code").values_list(
+                "code", "status", "progress", "pr", "note"
+            )
+        )
+
+    first = snapshot()
+    _sync52.forwards(_Apps52, None)
+    assert snapshot() == first
+    assert RoadmapItem.objects.filter(code="QCC-10").count() == 1
+
+
+def test_0052_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0052_sync_items_2026_10_03c").origin
+    with open(origin, encoding="utf-8") as f:
+        body = f.read()
+    banned = (
+        "aaaa",
+        ".zip",
+        "FERNET",
+        "artifact",
+        "Security Summary",
+        "بصمات",
+        "الحادثة",
+        "قيد التقييم",
+        "wave2",
+        "archive/",
+        "كلمة المرور",
+        "كلمة مرور",
+        "Temp@",
+        "مرض",
+        "C:/",
+        "localhost",
+        "up.railway.app",
+        "railway ssh",
+        "run_prod",
+    )
+    assert [term for term in banned if term in body] == []
+    assert not re.search(r"\b\d{11}\b", body)
+    assert not re.search(r"\b[0-9a-f]{40}\b", body)
