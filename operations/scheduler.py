@@ -20,6 +20,7 @@ from django.utils import timezone
 from core.models import School
 
 from . import constraint_registry
+from .last_period_cap import personal_last_cap
 from .models import (
     ScheduleGeneration,
     ScheduleSlot,
@@ -78,6 +79,8 @@ class Member:
     subject_id: str
     subject_name: str
     subject_code: str
+    #: سقفُ السابعة الأسبوعيّ الخاصّ بهذا المعلّم (HC8) — صفرٌ يعني «خُذ العامّ».
+    last_cap: int = 0
 
 
 @dataclass
@@ -642,6 +645,12 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
     #: سقوفُ الفراغ الخاصّة — `None` لا قيد، والصفرُ قيدٌ صحيح: «لا فراغَ
     #: البتّة». فيُسأل عن العدم لا عن الصدق، وإلّا سقط الأشدُّ من القيدين.
     personal_gap = {str(p.teacher_id): p.max_gap for p in prefs if p.max_gap is not None}
+    #: سقفُ السابعة الشخصيّ (HC8) — قرارٌ في حقّ معلّمٍ يفوق نصابُه سعتَه بالعدّ (W-20261003-035).
+    personal_last = {
+        str(p.teacher_id): personal_last_cap(p.max_last_periods)
+        for p in prefs
+        if personal_last_cap(p.max_last_periods)
+    }
 
     # أيّامُ التفريغ الكاملة لكلّ معلّم — مقامُ القسمة في التوزيع.
     # ومواردُ المدرسة المحدودة: أيُّ مادّةٍ تستهلك أيَّ موردٍ وبأيّ سعة.
@@ -693,11 +702,18 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
         available = len(DAYS) - len(exempt_days.get(str(a.teacher_id), ()))
         rows.append((a, level_type, is_double, max(1, available)))
 
-    return _to_tasks(rows, resources_by_subject, personal_cap, personal_gap, pedagogies)
+    return _to_tasks(
+        rows, resources_by_subject, personal_cap, personal_gap, pedagogies, personal_last
+    )
 
 
 def _to_tasks(
-    rows, resources_by_subject=None, personal_cap=None, personal_gap=None, pedagogies=None
+    rows,
+    resources_by_subject=None,
+    personal_cap=None,
+    personal_gap=None,
+    pedagogies=None,
+    personal_last=None,
 ) -> list[Task]:
     """يحوّل الإسنادات إلى مهامّ — والمتوازيةُ منها مهمّةٌ واحدةٌ بساكنَين.
 
@@ -714,11 +730,13 @@ def _to_tasks(
             subject_id=str(a.subject_id),
             subject_name=a.subject.name_ar,
             subject_code=a.subject.code,
+            last_cap=personal_last.get(str(a.teacher_id), 0),
         )
 
     resources_by_subject = resources_by_subject or {}
     personal_cap = personal_cap or {}
     personal_gap = personal_gap or {}
+    personal_last = personal_last or {}
     pedagogies = pedagogies or {}
 
     def build(a, level_type, is_double, members, available):

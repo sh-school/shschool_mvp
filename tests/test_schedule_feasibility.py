@@ -507,9 +507,9 @@ def test_a_back_to_back_bell_caps_at_four_a_day_not_one(school):
 
 
 def test_a_normal_load_is_not_flagged_on_a_realistic_bell(school, teacher):
-    """نصابٌ ١٦ على جرسٍ متتالٍ (سقفُه ٢٠) لا يُحجَب — العدُّ بالتكتّلات كان يحجبه."""
+    """نصابٌ ١٤ على جرسٍ متتالٍ (سقفُه ١٧ بعد HC8) لا يُحجَب — العدُّ بالتكتّلات كان يحجبه."""
     a_bell(school, None, SEVEN_BACK_TO_BACK)
-    assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 16)
+    assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 14)
 
     assert finding(sf.check(school, YEAR), "assignment.daily_band").status == "ok"
 
@@ -625,3 +625,133 @@ def test_entry_accepts_a_different_teacher_on_the_same_parallel_group(school, te
             svc, school, section, subject, who, vice, 2, parallel_group="فنون-تكنولوجيا"
         )
         assert row.pk
+
+
+# ── سقفُ السابعة (HC8) في سعة المعلّم — W-20261003-035 ────────────────────
+
+
+def _pref(school, teacher, **kw):
+    from operations.models import TeacherPreference
+
+    return TeacherPreference.objects.create(
+        school=school, teacher=teacher, academic_year=YEAR, max_daily_periods=7, **kw
+    )
+
+
+def test_the_seventh_period_limit_lowers_a_teachers_real_cap(school, teacher):
+    """٣ خاناتٍ مستقلّةٍ يومياً بلا السابعة و٤ معها، وسابعتان فقط ⇒ ٥×٣+٢ = ١٧ لا ٢٠.
+
+    معلّمٌ نصابُه ١٨ على هذا الجرس حصّةٌ منه لا موضعَ لها بأيّ خوارزميّة — وكان الفحصُ يقول ٢٠ فيمرّ.
+    """
+    a_bell(school, None, SEVEN_BACK_TO_BACK)
+    assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 18)
+
+    found = finding(sf.check(school, YEAR), "assignment.daily_band")
+
+    assert found.status == "fail"
+    assert found.rows[0].capacity == 17 and found.rows[0].gap == 1
+    assert "HC8" in found.rows[0].note
+
+
+def test_a_personal_seventh_cap_of_three_lifts_that_teacher_alone(school, teacher):
+    """سقفٌ شخصيٌّ ٣ يجعل سعتَه ١٨ فيحلّ العجز (ويبقى على الحدّ بلا هامش: تحذيرٌ لا رفض)."""
+    a_bell(school, None, SEVEN_BACK_TO_BACK)
+    other = a_user(school, "معلّمُ العلوم", "teacher")
+    assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 18)
+    assign(school, a_subject(school, "العلوم", "SCI"), a_class(school, section="2"), other, 18)
+    _pref(school, teacher, max_last_periods=3)
+
+    rows = {r.name: r for r in finding(sf.check(school, YEAR), "assignment.daily_band").rows}
+
+    assert rows[teacher.full_name].capacity == 18 and "على حدّ" in rows[teacher.full_name].note
+    assert rows[other.full_name].capacity == 17, "غيرُه يبقى على السقف العامّ"
+
+
+def test_entry_rejects_the_eighteenth_period_unless_the_teacher_has_a_seventh_cap(school, teacher):
+    a_bell(school, None, SEVEN_BACK_TO_BACK)
+    section = a_class(school)
+
+    refused = sf.entry_load_violation(school, YEAR, teacher, section, 18)
+    assert refused and "HC8" in refused and "17" in refused
+
+    _pref(school, teacher, max_last_periods=3)
+    assert sf.entry_load_violation(school, YEAR, teacher, section, 18) is None
+
+
+def test_build_tasks_carries_only_a_written_seventh_cap(school, teacher):
+    """السقفُ يُحمل إلى `Member` لمن كُتب له فقط؛ الصفرُ يعني العامّ."""
+    from operations import scheduler
+
+    other = a_user(school, "معلّمُ العلوم", "teacher")
+    assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school, section="1"), teacher, 2)
+    assign(school, a_subject(school, "العلوم", "SCI"), a_class(school, section="2"), other, 2)
+    _pref(school, teacher, max_last_periods=3)
+    _pref(school, other)  # سجلٌّ بلا سقف سابعة
+
+    caps = {
+        m.teacher_id: m.last_cap for t in scheduler.build_tasks(school, YEAR) for m in t.members
+    }
+
+    assert caps == {str(teacher.id): 3, str(other.id): 0}
+
+
+def test_an_out_of_range_seventh_cap_is_read_as_absent(school, teacher):
+    """شرطُ 0105: إدخالٌ مباشرٌ بالـORM لا يمرّ بالـvalidators (0 أو 99) لا يتحوّل إلى إلغاء HC8."""
+    from operations import scheduler
+
+    a_bell(school, None, SEVEN_BACK_TO_BACK)
+    assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 2)
+    section = a_class(school, section="9")
+    for bad in (0, 99):
+        pref = _pref(school, teacher, max_last_periods=bad)
+
+        member = scheduler.build_tasks(school, YEAR)[0].members[0]
+        assert member.last_cap == 0, f"{bad} يُقرأ غيابَ سقف"
+        assert sf.entry_load_violation(school, YEAR, teacher, section, 18)
+        pref.delete()
+
+
+def test_the_teacher_screen_never_writes_the_admin_seventh_cap(client_as, school, teacher):
+    """شرطُ 0105: الحفظ بـ`update_fields` فلا يمحو سقفاً عدّله مديرٌ بين الجلب والحفظ."""
+    from unittest import mock
+
+    from operations.models import TeacherPreference
+
+    pref = _pref(school, teacher, max_last_periods=3)
+    with mock.patch.object(TeacherPreference, "save", autospec=True) as spy:
+        client_as(teacher).post(
+            f"{reverse('teacher_preferences')}?year={YEAR}",
+            {"max_daily_periods": "5", "max_consecutive": "3"},
+        )
+
+    assert spy.called
+    written = spy.call_args.kwargs["update_fields"]
+    assert "max_last_periods" not in written and "updated_at" in written
+    pref.refresh_from_db()
+    assert pref.max_last_periods == 3
+
+
+def test_changing_the_seventh_cap_in_admin_leaves_an_audit_trail_without_a_name(
+    school, teacher, vice
+):
+    """توصيةُ 0105: قيمتان قبل وبعد ومعرّفُ الصفّ — لا اسمُ المعلّم (قاعدة W-019)."""
+    from django.contrib.admin.sites import AdminSite
+    from django.test import RequestFactory
+
+    from core.models import AuditLog
+    from operations.admin import TeacherPreferenceAdmin
+    from operations.models import TeacherPreference
+
+    pref = _pref(school, teacher)
+    request = RequestFactory().post("/")
+    request.user = vice
+    admin = TeacherPreferenceAdmin(TeacherPreference, AdminSite())
+
+    pref.max_last_periods = 3
+    admin.save_model(request, pref, None, True)
+    log = AuditLog.objects.get(changes__event="teacher_last_period_cap_changed")
+    assert log.changes["before"] is None and log.changes["after"] == 3
+    assert log.object_id == str(pref.pk) and teacher.full_name not in log.object_repr
+
+    admin.save_model(request, pref, None, True)  # بلا تغيير ⇒ لا سطرَ جديد
+    assert AuditLog.objects.filter(changes__event="teacher_last_period_cap_changed").count() == 1

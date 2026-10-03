@@ -267,12 +267,41 @@ class TeacherPreferenceAdmin(admin.ModelAdmin):
         "max_daily_periods",
         "max_consecutive",
         "max_gap",
+        "max_last_periods",
         "free_day",
         "academic_year",
     )
     list_filter = ("school", "academic_year", "free_day")
     search_fields = ("teacher__full_name",)
     autocomplete_fields = ("teacher",)
+
+    def save_model(self, request, obj, form, change):
+        """تغييرُ سقف السابعة الإداريّ يُثبَّت أثرُه: قيمتان قبل وبعد ومعرّفُ الصفّ — لا اسمُ المعلّم.
+
+        ثمرةُ قرار المالك D-172م، فيُراد أثرُه أبعدَ من `LogEntry` (W-20261003-035، توصيةُ 0105).
+        """
+        before = (
+            type(obj).objects.filter(pk=obj.pk).values_list("max_last_periods", flat=True).first()
+            if change
+            else None
+        )
+        super().save_model(request, obj, form, change)
+        if before != obj.max_last_periods:
+            from core.models import AuditLog
+
+            AuditLog.objects.create(
+                school=obj.school,
+                user=request.user,
+                action="update" if change else "create",
+                model_name="other",
+                object_id=str(obj.pk),
+                object_repr=f"سقفُ السابعة الشخصيّ {obj.academic_year}",
+                changes={
+                    "event": "teacher_last_period_cap_changed",
+                    "before": before,
+                    "after": obj.max_last_periods,
+                },
+            )
 
 
 @admin.register(ScheduleGeneration)

@@ -1,5 +1,6 @@
 """الجدول الدراسيّ: الموادّ، والحصصُ الأسبوعيّة، وإسنادُ المادّة للشعبة، وتفضيلاتُ المعلّمين وتفريغاتُهم، وخطُّ الأساس وقيودُه، وسجلُّ التوليد، والحصصُ الشاغرة."""
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from core.academic_calendar import default_academic_year
@@ -7,6 +8,7 @@ from core.models import ClassGroup, CustomUser, School
 from core.models.base import AuditedModel
 from core.querysets import YearScopedQuerySet
 
+from ..last_period_cap import MAX_PERSONAL_LAST, MIN_PERSONAL_LAST
 from .common import _uuid
 
 
@@ -397,6 +399,18 @@ class TeacherPreference(models.Model):
     )
     max_daily_periods = models.PositiveIntegerField(default=5, verbose_name="أقصى حصص يومية")
     max_consecutive = models.PositiveIntegerField(default=3, verbose_name="أقصى حصص متتالية")
+    #: سقفُ السابعة الأسبوعيّ لهذا المعلّم (HC8) — `NULL` يعني السقفَ العامّ (اثنتان).
+    #:
+    #: **قرارٌ إداريّ في حقّ معلّمٍ لا تفضيلُه**: معلّمٌ نصابُه ١٨ على جرسٍ ثانويّ سعتُه ١٧ بسابعتين
+    #: (٣ خاناتٍ مستقلّةٍ يومياً بلا السابعة و٤ معها) لا يُسَع إلّا بثالثة (D-172م). فلا يظهر في شاشة
+    #: المعلّم الذاتيّة ويُحرَّر من لوحة الإدارة، ولا يخرج عن هذا السقف المكتوب أحدٌ آخر.
+    max_last_periods = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(MIN_PERSONAL_LAST), MaxValueValidator(MAX_PERSONAL_LAST)],
+        verbose_name="أقصى سابعات أسبوعيّاً",
+        help_text="قرارٌ إداريّ في حقّ هذا المعلّم — فارغٌ يعني السقفَ العامّ (اثنتان)",
+    )
     #: أوسعُ فراغٍ يُقبل بين حصّتين في اليوم الواحد — بعدد الحصص الفارغة.
     #:
     #: فالمعلّمُ الذي بين حصّتيه ثلاثُ فراغاتٍ يقضي يومَه في المدرسة ليعمل
