@@ -23,9 +23,9 @@
     {% endif %}
     {% if can_edit %}<a href="{% url 'observation_edit' obs.id %}" class="btn-secondary btn-sm">تعديل</a>{% endif %}
     <a href="{% url 'observation_pdf_view' obs.id %}" class="btn-secondary btn-sm">PDF</a>
-    {% if can_delete and obs.status == "draft" %}
-    <form method="post" action="{% url 'observation_delete' obs.id %}" class="form-inline" data-confirm="حذف هذه المسودة؟">
-      {% csrf_token %}<button type="submit" class="btn-danger btn-sm">حذف</button>
+    {% if can_archive and obs.status == "draft" %}
+    <form method="post" action="{% url 'observation_delete' obs.id %}" class="form-inline" data-confirm="أرشفة هذه المسودة؟ تُحفظ في الأرشيف ويمكن استرجاعها.">
+      {% csrf_token %}<button type="submit" class="btn-danger btn-sm">أرشفة</button>
     </form>
     {% endif %}
     <a href="{% url 'observation_list' %}" class="btn-secondary btn-sm">← القائمة</a>
@@ -85,8 +85,8 @@
   {% section_card "إقرار المعلّم" meta=obs.teacher_acknowledged_at|date:"Y-m-d H:i" icon="status_success" %}
     <p class="qobs-notes">{% if obs.teacher_comment %}<b>تعليقه:</b> {{ obs.teacher_comment }}{% else %}أقرّ المعلّم بالاطّلاع دون تعليق.{% endif %}</p>
 
-    {# إعادة الفتح + الحذف المُعلَّل (قيادة) #}
-    {% if can_reopen or can_delete %}
+    {# إعادة الفتح + الأرشفة المُعلَّلة (قيادة) #}
+    {% if can_reopen or can_archive %}
     <div class="qobs-lead">
       {% if can_reopen %}
       <form method="post" action="{% url 'observation_reopen' obs.id %}" class="qobs-lead__form"
@@ -96,12 +96,12 @@
         <button type="submit" class="btn-secondary btn-sm">إعادة فتح للتعديل</button>
       </form>
       {% endif %}
-      {% if can_delete %}
+      {% if can_archive %}
       <form method="post" action="{% url 'observation_delete' obs.id %}" class="qobs-lead__form"
-            data-confirm="حذف ملاحظة مُقَرّة؟ ستُحفظ في الأرشيف.">
+            data-confirm="أرشفة ملاحظة مُقَرّة؟ ستُحفظ في الأرشيف.">
         {% csrf_token %}
-        <input type="text" name="reason" required class="form-control" placeholder="سبب الحذف (إلزامي)" aria-label="سبب الحذف">
-        <button type="submit" class="btn-danger btn-sm">حذف (أرشفة)</button>
+        <input type="text" name="reason" required class="form-control" placeholder="سبب الأرشفة (إلزامي)" aria-label="سبب الأرشفة">
+        <button type="submit" class="btn-danger btn-sm">أرشفة</button>
       </form>
       {% endif %}
     </div>
@@ -109,13 +109,13 @@
   {% endsection_card %}
   {% endif %}
 
-  {% if obs.status == "submitted" and can_delete %}
-  {% section_card "حذف ملاحظة مُرسَلة" icon="delete" %}
+  {% if obs.status == "submitted" and can_archive %}
+  {% section_card "أرشفة ملاحظة مُرسَلة" icon="delete" %}
     <form method="post" action="{% url 'observation_delete' obs.id %}" class="qobs-lead__form"
-          data-confirm="حذف ملاحظة مُرسَلة؟ ستُحفظ في الأرشيف.">
+          data-confirm="أرشفة ملاحظة مُرسَلة؟ ستُحفظ في الأرشيف.">
       {% csrf_token %}
-      <input type="text" name="reason" required class="form-control" placeholder="سبب الحذف (إلزامي)" aria-label="سبب الحذف">
-      <button type="submit" class="btn-danger btn-sm">حذف (أرشفة)</button>
+      <input type="text" name="reason" required class="form-control" placeholder="سبب الأرشفة (إلزامي)" aria-label="سبب الأرشفة">
+      <button type="submit" class="btn-danger btn-sm">أرشفة</button>
     </form>
   {% endsection_card %}
   {% endif %}

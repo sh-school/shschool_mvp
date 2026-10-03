@@ -120,13 +120,13 @@ def _obs_perms(user, obs):
     is_observer = obs.observer_id == user.id
     is_teacher = obs.teacher_id == user.id
     status = obs.status
-    can_edit = (is_observer or su) and status != "acknowledged"
-    if status == "draft":
-        can_delete = is_observer or su
-    elif status == "submitted":
-        can_delete = lead
-    else:  # acknowledged
-        can_delete = su or role == "principal"
+    # التعديلُ للزائر صاحبِ الزيارة وحدَه (بلاغ المالك W-20261002-015): لا قيادةٌ ولا مستخدمٌ فائقٌ ولا معلّم —
+    # فالتقييمُ شهادةُ كاتبِه، ومن يملك الاطّلاعَ لا يملك تغييرَ ما كُتب. والقيادةُ تسحب وتُعيد الفتح فيعدّل صاحبُها.
+    can_edit = is_observer and status != "acknowledged"
+    # الزيارةُ تُؤرشف ولا تُحذف (قرارُ المالك W-20261002-015): المسودّةُ يؤرشفها الزائرُ وحدَه، والمرسَلةُ
+    # والمُقَرّةُ تؤرشفها القيادةُ والمدير **بدورهما** (لا بالمستخدم الفائق) بسببٍ إلزاميٍّ يُدقَّق، والمعلّمُ
+    # المُزارُ لا يؤرشف شيئاً. والحذفُ النهائيُّ غيرُ موصولٍ بأيّ مسارٍ حتى للمطوّر.
+    can_archive = is_observer if status == "draft" else role in OBSERVATION_VIEW_ALL
     return {
         "is_teacher": is_teacher,
         "is_observer": is_observer,
@@ -138,7 +138,7 @@ def _obs_perms(user, obs):
         # الزيارة الإشرافية وزيارة الزميل يُقرّهما المزور — والتقييم
         # الذاتيّ لا إقرارَ فيه، فصاحبُه هو كاتبُه.
         "can_ack": is_teacher and status == "submitted" and obs.kind != "self",
-        "can_delete": can_delete,
+        "can_archive": can_archive,
     }
 
 
@@ -641,12 +641,13 @@ def observation_reopen(request, obs_id):
 @login_required
 @require_POST
 def observation_delete(request, obs_id):
+    """أرشفةُ الزيارة (حذفٌ ناعمٌ قابلٌ للاسترجاع) — الاسمُ باقٍ للرابط وحدَه؛ لا حذفَ نهائيّاً في أيّ مسار."""
     obs, allowed = _get_observation(request, obs_id)
-    if not allowed or not _obs_perms(request.user, obs)["can_delete"]:
+    if not allowed or not _obs_perms(request.user, obs)["can_archive"]:
         return render(request, "403.html", status=403)
     reason = request.POST.get("reason", "").strip()
     if obs.status in ("submitted", "acknowledged") and not reason:
-        messages.error(request, "يجب ذكر سبب حذف ملاحظة مُرسَلة/مُقَرّة.")
+        messages.error(request, "يجب ذكر سبب أرشفة ملاحظة مُرسَلة/مُقَرّة.")
         return redirect("observation_detail", obs_id=obs.pk)
     prev_status = obs.status
     ObservationService.archive(obs, request.user, reason=reason)
@@ -659,7 +660,7 @@ def observation_delete(request, obs_id):
         changes={"reason": reason, "prev_status": prev_status},
         request=request,
     )
-    messages.success(request, "حُذفت الملاحظة (محفوظة في الأرشيف ويمكن استرجاعها).")
+    messages.success(request, "أُرشفت الملاحظة (محفوظة في الأرشيف ويمكن استرجاعها).")
     return redirect("observation_list")
 
 
@@ -704,7 +705,7 @@ def observation_restore(request, obs_id):
     """
     school = request.user.active_membership.school
     obs = get_object_or_404(ObservationService.archived_for(request.user, school), pk=obs_id)
-    if not _obs_perms(request.user, obs)["can_delete"]:
+    if not _obs_perms(request.user, obs)["can_archive"]:
         return render(request, "403.html", status=403)
 
     ObservationService.restore(obs, request.user)
