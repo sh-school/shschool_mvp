@@ -37,9 +37,9 @@
     var set = !!select.value;
     // المعلّم (data-exit-url): الزرُّ يبقى «خروج» ويحمرّ فقط — اسمُ الوجهة الطويلُ يغطّي أزرارَ الحالة في البطاقة الضيّقة.
     label.textContent = set && !exitUrl ? option.textContent : 'خروج';
-    // المعلّم: عددُ مرّات خروج الطالب اليومَ يُرى على الزرّ نفسه («خروج · 2») بلا سطرٍ إضافيّ يطيل البطاقة؛ ومن هو خارجٌ يحلّ عدّادُه محلَّه.
-    var times = exitUrl && !set ? parseInt(cell.closest('tr').getAttribute('data-exit-count'), 10) || 0 : 0;
-    if (times) label.textContent = 'خروج · ' + times;
+    // المعلّم: عددُ مرّات خروج الطالب اليومَ رقاقةٌ على الزرّ نفسِه (CSS `data-times`) لا نصٌّ يطيل الكلمة؛ ومن هو خارجٌ يحلّ عدّادُه محلَّ الكلمة.
+    var times = exitUrl ? parseInt(cell.closest('tr').getAttribute('data-exit-count'), 10) || 0 : 0;
+    if (times) button.setAttribute('data-times', String(times)); else button.removeAttribute('data-times');
     button.classList.toggle('is-set', set);
     if (exitUrl) button.title = set ? 'خرج: ' + option.textContent : 'خروجُ الطالب — أين هو؟';
   }
