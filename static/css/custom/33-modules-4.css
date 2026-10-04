@@ -286,7 +286,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .grid-cell__who, .grid-cell__state { text-align: center; }
 .grid-cell__name { margin: 0; font-size: var(--text-sm); font-weight: 600; line-height: 1.3; color: var(--text-primary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .grid-cell__nid { margin: var(--sp-0-5) 0 0; font-size: var(--text-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; text-align: center; }
-.grid-cell__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-1); margin-block-start: var(--sp-1); }
+.grid-cell__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-1); }
 .att-btn--tile { min-block-size: var(--control-h); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-0-5); font-weight: 700; }
 .att-btn--tile span { font-size: var(--text-xs); }
 
@@ -707,12 +707,11 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 /* رمزُ حالة إدخال المعلّم في خليّته (◔ بانتظار الاعتماد · ✓ معتمَد · ! لم يُعتمد · ⚑ تصحيح) — صغيرٌ بلا جملة؛ نصُّه في title ولقارئ الشاشة. */
 .per-pend { display: inline-block; margin-inline: var(--sp-1); font-size: var(--text-xs); line-height: 1; color: var(--status-warning-fg); cursor: help; }
 .per-pend.is-ok { color: var(--status-success-fg); }
-.per-pend.is-no { color: var(--status-danger-fg); font-weight: 800; }
+.per-pend.is-no { color: var(--status-danger-fg); }
 .per-pend.is-fix { color: var(--status-info-fg); }
 .per-pend .icon { inline-size: 1em; block-size: 1em; vertical-align: -0.125em; }
 /* علامةُ إدخال المعلّم في خليّة الطالب (W-20261004-014): شارةٌ ثمّ زرُّ الاعتماد، وتلتفّ على الجوّال. */
-.rec-entry { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); margin-block-start: var(--sp-1); }
-.rec-entry .badge { font-size: var(--text-xs); }
+.rec-entry { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); }
 /* «أين الطالب» للغائب وحدَه، والدقائقُ للمتأخّر وحدَه — فالسطرُ قصيرٌ ما دام
    الطالبُ حاضراً، وهو الغالب. */
 .rec-row__more { display: flex; gap: var(--sp-1); flex-shrink: 0; }
@@ -1007,6 +1006,8 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 }
 .per-grid-wrap.is-tiles .rec-exit.is-set { background: var(--status-danger-bg); border-color: var(--status-danger); color: var(--status-danger-fg); }
 .rec-exit__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* مفاتيحُ مطفأةٌ (الإدخالُ مغلقٌ أو رصدٌ معتمَد): تُرى مطفأةً لا عاملةً. */
+.rec-pick input:disabled + span, .rec-exit:disabled { opacity: 0.5; cursor: not-allowed; }
 /* اللوحان العائمان داخل البطاقة (الطالب) لا يخرجان عنها (قرارُ المالك 2026-09-20): خليّةُ الرصد بلا `position`
    فتُرسى اللوحان على البطاقة كلِّها؛ ونافذةُ الوجهات تغطّيها بعمودَين، ودقائقُ التأخّر في أسفلها فوق صفّ الحصص. */
 .per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > td.per-cell.is-focus { position: static; }

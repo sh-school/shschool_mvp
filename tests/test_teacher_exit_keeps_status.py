@@ -24,6 +24,38 @@ def now_0730(monkeypatch):
     monkeypatch.setattr(timezone, "now", lambda: at(7, 30))
 
 
+@pytest.fixture
+def now_1500(monkeypatch):
+    monkeypatch.setattr(timezone, "now", lambda: at(15, 0))
+
+
+def test_the_exit_button_is_disabled_when_entry_is_closed_so_no_403_toast(
+    client_as, now_0730, now_1500, session, teacher, kid
+):
+    """لقطةُ المالك: «تعذّر تسجيلُ الخروج» مرّتين — الزرُّ كان عاملاً والإدخالُ مغلقٌ فيردّ الخادمُ 403."""
+    html = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
+    assert "الإدخالُ مغلق: انتهت نافذةُ الإدخال" in html  # سطرٌ ظاهرٌ نصّاً لا أيقونةً فحسب
+    assert 'class="per-head__note">الإدخالُ مغلق' in html
+    assert (
+        'data-exit-open aria-haspopup="true" aria-expanded="false" title="خروجُ الطالب — أين هو؟" disabled'
+        in html
+    )
+
+
+def test_the_exit_button_is_enabled_when_entry_is_open(client_as, now_0730, session, teacher, kid):
+    html = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
+    assert 'title="خروجُ الطالب — أين هو؟" disabled' not in html
+    assert "عاد إلى الفصل" in html  # العودةُ بمفتاحٍ باسمها للمعلّم
+
+
+def test_the_supervisor_keeps_his_popup_label(client_as, now_0730, klass, session, holder, kid):
+    response = client_as(holder).get(
+        reverse("wings:record_section", args=[klass.id]), {"date": session.date.isoformat()}
+    )
+    html = response.content.decode()
+    assert ">في فصله<" in html and "عاد إلى الفصل" not in html
+
+
 def test_the_teacher_form_carries_the_exit_and_return_endpoints(
     client_as, now_0730, session, teacher, kid
 ):
