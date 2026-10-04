@@ -12,6 +12,7 @@ from uuid import UUID
 
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from core.models import CustomUser
 from operations.attendance_entries import (
@@ -35,6 +36,14 @@ from operations.attendance_selectors import (
     unapproved_by_session,
 )
 from operations.models import AttendanceDecision, AttendanceEntry, Session
+from operations.teacher_period_sheet import (
+    EnterResult,
+    enter_period_marks,
+    late_minutes,
+    next_session_of,
+    parse_marks,
+    teacher_sheet_context,
+)
 
 if TYPE_CHECKING:
     from core.models import School
@@ -89,21 +98,48 @@ class TeacherAttendanceService:
         status: str,
         minutes: str | None,
         reason: str,
+        tapped_at: str | None = None,
     ) -> tuple[Session, StudentLine]:
         """إدخالُ المعلّم الفعليّ لطالبٍ في حصّته. الحصّةُ بنطاق المدرسة والطالبُ من شعبتها وإلّا 404؛ والمنعُ يرفعه الإدخالُ."""
         session = get_object_or_404(
             Session.objects.select_related("class_group__wing"), id=session_id, school=school
         )
         student = _student_of(session, student_id)
+        typed = parse_minutes(minutes)
+        if status == "late" and typed is None:  # متأخّرٌ بلا رقمٍ مكتوب: من لحظة ضغطه وبدء الحصّة آلياً
+            typed = late_minutes(session, {"tapped_at": tapped_at or ""}, timezone.now())
         submit_entry(
             user,
             session,
             student,
             status,
-            tardiness_minutes=parse_minutes(minutes),
+            tardiness_minutes=typed,
             correction_reason=reason,
         )
         return session, student_line(session, student)
+
+    @staticmethod
+    def sheet(user: CustomUser, session: Session) -> dict[str, Any]:
+        """سياقُ كشف المعلّم المشترك مع كشف المشرف (`attendance/period_sheet.html`)."""
+        return teacher_sheet_context(user, session)
+
+    @staticmethod
+    def enter_marks(
+        user: CustomUser, school: School, session_id: UUID, post: Any
+    ) -> tuple[Session, EnterResult, Session | None]:
+        """«ثبّتِ الحصّة» من الكشف المشترك: إدخالاتٌ مبدئيّةٌ لكلّ ما اختاره المعلّمُ (والخروجُ `ClassExit`) — يعيد التاليةَ لـ«ثبّت وانتقل»."""
+        session = get_object_or_404(
+            Session.objects.select_related("class_group__wing"), id=session_id, school=school
+        )
+        students = {
+            s.id: s
+            for s in CustomUser.objects.filter(
+                enrollments__class_group=session.class_group, enrollments__is_active=True
+            ).distinct()
+        }
+        result = enter_period_marks(user, session, students, parse_marks(post))
+        following = next_session_of(session) if post.get("next") else None
+        return session, result, following
 
     @staticmethod
     def decide(

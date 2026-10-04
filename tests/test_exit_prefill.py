@@ -760,8 +760,9 @@ class TestTheStudentComesBack:
         self, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
         (period,) = _periods(school, klass, teacher, 1)
+        # غائبٌ وخروجٌ لا يجتمعان (2026-10-04): المشرفُ لا يثبّت غياباً فوق خروجٍ مسجَّل، فالغيابُ اليدويّ يسبقه ثمّ يُسجَّل الخروج.
+        _confirm(klass, period, {kids[0]: "absent"}, supervisor, now=at(7, 15))
         leave(period, kids[0], "clinic", by=teacher, now=at(7, 20))
-        _confirm(klass, period, {kids[0]: "absent"}, supervisor, now=at(7, 25))
 
         come_back(period, kids[0], now=at(7, 40), by=teacher)
 
@@ -819,8 +820,8 @@ class TestTheStudentComesBack:
         self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
         (period,) = _periods(school, klass, teacher, 1)
+        _confirm(klass, period, {kids[0]: "absent"}, supervisor, now=at(7, 15))
         exit_ = leave(period, kids[0], "clinic", by=teacher, now=at(7, 20))
-        _confirm(klass, period, {kids[0]: "absent"}, supervisor, now=at(7, 25))
 
         client_as(supervisor).post(
             reverse("wings:exit_event_delete", args=[exit_.pk]), {"reason": "خطأ"}

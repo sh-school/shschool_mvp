@@ -1,0 +1,26 @@
+{% load icons %}
+{% comment %}
+علامةُ إدخال المعلّم لطالبٍ في حصّةٍ داخل الكشف المشترك (W-20261004-014/015): **أيقونةٌ صغيرةٌ** لا جملةٌ في كلّ بطاقة — الساعة بانتظار الاعتماد، والتأكيدُ معتمَد،
+والإغلاقُ لم يُعتمد، و«يحتاج متابعة» تصحيحٌ دون معاينة. النصُّ في `title` ولقارئ الشاشة. المبدئيُّ ليس حضوراً ولا غياباً حتى يقرّر الحاملُ.
+ولا يُعرض سببُ الرفض ولا التصحيح هنا (نصٌّ حرٌّ لأصحاب الاعتماد في صفحة الاعتماد).
+زرُّ الاعتماد لمن يملك `can_approve` وحدَه (`mark.can_decide`)، والرفضُ رابطٌ إلى صفحة الاعتماد لأنّه يلزمه سبب.
+الأزرارُ `type="button"` بـhx-post: الكشفُ داخل نموذجِ التثبيت فلا نموذجَ متداخلاً.
+{% endcomment %}
+<span class="rec-entry" id="mark-{{ mark.entry_id }}">
+  {% if mark.corrected %}<span class="per-pend is-fix" title="صحّح المشرفُ هذا الرصدَ دون معاينةٍ بدليلٍ مسمّى" aria-hidden="true">{% icon "status_warning" %}</span><span class="sr-only">تصحيحٌ دون معاينة</span>{% endif %}
+  {% if mark.state == "pending" %}
+    <span class="per-pend" title="المعلّم: {{ mark.label }}{% if mark.minutes %} {{ mark.minutes }} د{% endif %} — بانتظار الاعتماد (لم يُحتسب حضوراً ولا غياباً حتى يقرّر حاملُ الجناح)" aria-hidden="true">{% icon "time" %}</span><span class="sr-only">المعلّم: {{ mark.label }} — بانتظار الاعتماد</span>{% if mark.minutes %}<small class="per-pend" title="دقائقُ التأخّر محسوبةٌ من بدء الحصّة">{{ mark.minutes }} د</small>{% endif %}
+    {% if mark.can_decide %}
+      <button type="button" class="btn-primary btn-xs"
+              hx-post="{% url 'attendance_decide' mark.entry_id %}"
+              hx-vals='{"decision": "approve", "surface": "grid"}'
+              hx-include="[name=csrfmiddlewaretoken]"
+              hx-target="#mark-{{ mark.entry_id }}" hx-swap="outerHTML">اعتماد</button>
+      <a href="{% url 'attendance_approvals' %}#item-{{ mark.entry_id }}" class="btn-secondary btn-xs" title="الرفضُ يلزمه سبب — يُنجَز في صفحة الاعتماد">رفض</a>
+    {% endif %}
+  {% elif mark.state == "approved" %}
+    <span class="per-pend is-ok" title="المعلّم: معتمَد {{ mark.label }}{% if mark.minutes %} {{ mark.minutes }} د{% endif %}" aria-hidden="true">{% icon "confirm" %}</span><span class="sr-only">المعلّم: معتمَد {{ mark.label }}</span>
+  {% elif mark.state == "rejected" %}
+    <span class="per-pend is-no" title="{% if teacher_sheet %}لم يُعتمد إدخالُك — راجع حاملَ الجناح ثمّ أعِد الإدخال{% else %}لم يُعتمد إدخالُ المعلّم{% endif %}" aria-hidden="true">{% icon "close" %}</span><span class="sr-only">{% if teacher_sheet %}لم يُعتمد إدخالُك{% else %}لم يُعتمد إدخالُ المعلّم{% endif %}</span>
+  {% endif %}
+</span>

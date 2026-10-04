@@ -200,7 +200,7 @@ def attendance_view(request, session_id):
         # شُعبُ الأجنحة: المعلّمُ الفعليّ يُدخل رصداً مبدئيّاً يعتمده حاملُ الجناح (W-020)، وله نقرتا الدخول والخروج.
         context = {
             **TeacherAttendanceService.page_context(request.user, session),
-            **_session_heading(session),
+            **TeacherAttendanceService.sheet(request.user, session),
         }
         return render(request, "teacher/attendance_readonly.html", context)
     summary = AttendanceService.get_session_summary(session)
