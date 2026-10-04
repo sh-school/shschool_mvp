@@ -466,10 +466,10 @@ def get_admin_ops_ctx(user, school, today, role):
         ).count()
         pending_comp = CompensatorySession.objects.filter(school=school, status="pending").count()
 
-    # قائمةُ الأسماء لمن يملك «متابعة الحضور» وحدَه (وجهةُ الأسماء `attendance_overview`)،
-    # وتنبيهاتُ المشرف لطلبة جناحه وحدَهم (قرارُ 2026-09-15).
+    # قائمةُ الأسماء بقدرتها المخصّصة لها وحدَها (قرارُ المالك 2026-10-03)، لا بـ`follow_up`
+    # التي تفتح ملفّاتِ الطلبة؛ وتنبيهاتُ المشرف لطلبة جناحه وحدَهم (قرارُ 2026-09-15).
     recent_alerts = []
-    if has_capability(user, "student_affairs.follow_up"):
+    if has_capability(user, "dashboard.absence_alert_names"):
         from wings.scope import student_scope
 
         recent_alerts = (

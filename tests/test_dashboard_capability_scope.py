@@ -40,10 +40,10 @@ class TestAdminOpsCountersFollowTheirDestination:
             held = has_capability(user, cap)
             assert (ctx[key] is not None) == held, f"{role_name}: {key} ↔ {cap}"
 
-    def test_the_names_list_needs_the_follow_up_capability(self, school, role_name):  # noqa: F811
+    def test_the_names_list_needs_its_dedicated_capability(self, school, role_name):  # noqa: F811
         user = _user(school, role_name)
         ctx = get_admin_ops_ctx(user, school, datetime.date.today(), role_name)
-        if not has_capability(user, "student_affairs.follow_up"):
+        if not has_capability(user, "dashboard.absence_alert_names"):
             assert list(ctx["recent_alerts"]) == []
 
 

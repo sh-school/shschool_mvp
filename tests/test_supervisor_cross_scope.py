@@ -564,20 +564,22 @@ class TestRecentAlerts:
         assert self._alerted(supervisor, school, "admin_supervisor") == {mine}
 
     def test_the_admin_role_is_not_narrowed(self, school, alerts, mine, theirs):
-        """قائمةُ الأسماء بقدرة وجهتها `student_affairs.follow_up` (W-20261003-030)، وقرارُ المالك
-        2026-10-03 يمنح admin إيّاها: فيبقى يرى الأسماءَ كلَّها غيرَ مقيَّدٍ بجناح."""
+        """قائمةُ الأسماء بقدرتها المخصّصة `dashboard.absence_alert_names` (W-20261003-030)، وقرارُ
+        المالك 2026-10-03 يمنح admin إيّاها: فيبقى يرى الأسماءَ كلَّها غيرَ مقيَّدٍ بجناح."""
         from core.capabilities import has_capability
 
         admin = _member(school, "admin", "الإداري", "29400000005")
 
-        assert has_capability(admin, "student_affairs.follow_up")
+        assert has_capability(admin, "dashboard.absence_alert_names")
         assert self._alerted(admin, school, "admin") == {mine, theirs}
 
-    def test_the_tardiness_capability_is_not_widened_by_the_grant(self, school):
+    def test_the_grant_does_not_open_the_student_files_to_admin(self, school):
+        """القدرةُ المخصّصةُ لا تفتح شيئاً من شاشات المتابعة وملفّات الطلبة."""
         from core.capabilities import has_capability
 
         admin = _member(school, "admin", "الإداري", "29400000006")
 
+        assert not has_capability(admin, "student_affairs.follow_up")
         assert not has_capability(admin, "student_affairs.tardiness")
 
 
