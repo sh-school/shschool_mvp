@@ -13,6 +13,7 @@ behavior، clinic، library، operations، transport) — الملفّ لا يز
 """
 
 import datetime
+from collections.abc import Iterable
 
 from django.db.models import Count, Q
 from django.urls import reverse
@@ -455,11 +456,12 @@ def get_admin_ops_ctx(user, school, today, role):
     """
     # كلُّ عدّادٍ بقدرة وجهته (W-20261003-030): رقمٌ يُعرض لمن لا تُفتح له شاشتُه
     # كشفٌ بلا مسوّغ — فيغيب (None) ويُخفيه القالب، ولا يُنفَّذ له استعلام.
-    absent_teachers = None
+    absent_teachers: int | None = None
     if has_capability(user, "operations.reports"):
         absent_teachers = TeacherAbsence.objects.filter(school=school, date=today).count()
 
-    pending_swaps = pending_comp = None
+    pending_swaps: int | None = None
+    pending_comp: int | None = None
     if has_capability(user, "schedule.view"):
         pending_swaps = TeacherSwap.objects.filter(
             school=school, status__in=["pending_b", "accepted_b", "pending_coordinator"]
@@ -468,7 +470,7 @@ def get_admin_ops_ctx(user, school, today, role):
 
     # قائمةُ الأسماء بقدرتها المخصّصة لها وحدَها (قرارُ المالك 2026-10-03)، لا بـ`follow_up`
     # التي تفتح ملفّاتِ الطلبة؛ وتنبيهاتُ المشرف لطلبة جناحه وحدَهم (قرارُ 2026-09-15).
-    recent_alerts = []
+    recent_alerts: Iterable[AbsenceAlert] = []
     if has_capability(user, "dashboard.absence_alert_names"):
         from wings.scope import student_scope
 

@@ -20,7 +20,7 @@
   "core/celery_tasks.py": 15,
   "core/context_processors.py": 4,
   "core/dashboard_presentation.py": 3,
-  "core/dashboard_selectors.py": 15,
+  "core/dashboard_selectors.py": 14,
   "core/db_storage.py": 12,
   "core/export_utils.py": 9,
   "core/fields.py": 2,
@@ -122,5 +122,5 @@
   "wings/scope.py": 1,
   "wings/services.py": 14
  },
- "total": 1217
+ "total": 1216
 }
