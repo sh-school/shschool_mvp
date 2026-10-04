@@ -92,18 +92,6 @@ def test_the_exit_endpoint_records_a_class_exit_and_no_absence(
     assert not AttendanceEntry.objects.filter(session=session, student=kid).exists()
 
 
-def test_the_table_view_shows_the_exit_list_for_the_teacher_and_sends_it_on_change():
-    """ملاحظةُ المالك «لا يوجد مفتاح خروج» في الجدول: قائمةُ «أين الطالب» ظاهرةٌ للمعلّم في الجدول وتُسجّل الخروجَ عند تغيّرها."""
-    css = (JS.parent.parent / "css" / "custom" / "33-modules-4.css").read_text(encoding="utf-8")
-    assert (
-        ".rec-form[data-exit-url] .per-grid-wrap:not(.is-tiles) :is(.rec-row__more, .per-where)"
-        in css
-    )
-    source = JS.read_text(encoding="utf-8")
-    assert "select.per-where').forEach(function (select) {" in source
-    assert "if (!exitUrl && radio && radio.type === 'radio' && radio.value !== 'absent')" in source
-
-
 def test_a_student_already_out_is_preselected_without_an_extra_badge_line(
     client_as, now_0730, session, teacher, kid
 ):
@@ -127,8 +115,10 @@ def test_the_teachers_exit_button_keeps_its_short_label_so_it_cannot_cover_the_s
     assert "if (exitUrl) button.title" in source  # اسمُ الوجهة في التلميح
 
 
-def test_absent_and_exit_never_coexist_on_the_server(client_as, now_0730, session, teacher, kid):
-    """ملاحظةُ المالك: «غائب وخروج لا يجتمعان» — طالبٌ خارجٌ لم يعد لا يُكتب له غيابٌ."""
+def test_marking_absent_closes_the_open_exit_and_records_the_absence(
+    client_as, now_0730, session, teacher, kid
+):
+    """أمرُ المالك 2026-10-04: غائبٌ وخروجٌ لا يجتمعان — وسمُ الغياب يُغلق الخروجَ المفتوح ويُدخَل الغياب."""
     ClassExit.objects.create(
         school=session.school,
         session=session,
@@ -140,7 +130,8 @@ def test_absent_and_exit_never_coexist_on_the_server(client_as, now_0730, sessio
     client_as(teacher).post(
         reverse("attendance_period_entries", args=[session.id]), {f"s-{kid.id}": "absent"}
     )
-    assert not AttendanceEntry.objects.filter(session=session, student=kid).exists()
+    assert ClassExit.objects.get(session=session, student=kid).returned_at == at(7, 30)
+    assert AttendanceEntry.objects.get(session=session, student=kid).status == "absent"
 
 
 def test_the_row_of_a_student_out_carries_his_exit_moment_for_the_timer(
@@ -185,19 +176,35 @@ def test_the_script_has_the_exclusion_the_stopwatch_and_the_immediate_late_save(
         assert needle in source, needle
 
 
-def test_the_exit_button_is_a_toggle_and_the_stopwatch_stops_at_the_end_of_the_session():
-    """توضيحُ المالك: الضغطةُ التالية تُوقف العدّاد ويعود المفتاحُ «خروج»؛ ومن لم يعد حتى نهاية الحصّة يتوقّف عدّادُه ويُحسب وقتُه إلى نهايتها."""
+def test_the_exit_button_is_a_toggle_and_the_stopwatch_is_continuous_across_periods():
+    """الضغطةُ التالية تُوقف العدّاد ويعود المفتاحُ «خروج»؛ ومن لم يعد ينتقل عدّادُه المتّصلُ إلى الحصص التالية (لا قصَّ عند نهاية الحصّة)."""
     source = JS.read_text(encoding="utf-8")
     assert "var outRow = exitUrl ? cell.closest('tr[data-out-since]') : null;" in source
-    assert (
-        "var now = endEpoch && since <= endEpoch ? Math.min(nowSec(), endEpoch) : nowSec();"
-        in source
-    )
+    assert "endEpoch" not in source
+    assert "var text = stopwatch(Math.max(0, now - since));" in source
 
 
-def test_the_form_carries_the_end_of_the_session_for_the_stopwatch(
+def test_the_row_carries_the_day_count_and_the_closed_total_for_the_tooltip(
     client_as, now_0730, session, teacher, kid
 ):
+    ClassExit.objects.create(
+        school=session.school,
+        session=session,
+        student=kid,
+        destination="restroom",
+        left_at=at(7, 12),
+        returned_at=at(7, 17),
+        allowed_by=teacher,
+    )
+    ClassExit.objects.create(
+        school=session.school,
+        session=session,
+        student=kid,
+        destination="clinic",
+        left_at=at(7, 20),
+        allowed_by=teacher,
+    )
     html = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
-    end = int(at(7, 55).timestamp())  # نهايةُ حصّة 07:10 في تجهيز الاختبار
-    assert f'data-end-epoch="{end}"' in html
+    assert 'data-exit-count="2"' in html
+    assert 'data-exit-base="300"' in html  # الجزءُ المغلق وحدَه 5 د؛ والمفتوحُ يُضاف في المتصفّح
+    assert f'data-exit-open-at="{int(at(7, 20).timestamp())}"' in html

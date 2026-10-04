@@ -258,7 +258,7 @@ def enter_period_marks(
     - رصدٌ معتمَدٌ أو لرصد غيرِ المعلّم: لا يُكتب فوقه (تصحيحُه المسبَّب في نموذجه) — يُعدّ ولا يُسقط البقيّة.
     - المنعُ بالسياسة (`EntryRefusedError`) يُرفع كلُّه إلى المستدعي فيُلغى الطلبُ بلا إدخالٍ جزئيّ.
     """
-    from .class_exit import leave, open_exit
+    from .class_exit import close_for_absence, leave, open_exit
 
     result = EnterResult()
     now = timezone.now()
@@ -277,8 +277,10 @@ def enter_period_marks(
             if status not in ENTERABLE_STATUSES:
                 continue
             if status == "absent" and open_exit(session, student) is not None:
-                result.conflicts += 1  # غائبٌ وخارجٌ لا يجتمعان: يعود أوّلاً
-                continue
+                close_for_absence(
+                    session, student, now
+                )  # غائبٌ وخروجٌ لا يجتمعان: وسمُ الغياب يُغلق الخروجَ المفتوح
+                result.conflicts += 1
             minutes = late_minutes(session, mark, now) if status == "late" else None
             try:
                 with transaction.atomic():

@@ -68,9 +68,7 @@ def test_the_teacher_page_is_the_shared_sheet_with_the_supervisors_elements(
         'class="per-head"',
         'data-bulk="present"',
         'data-bulk="absent"',
-        'data-view="tiles"',
-        'data-view="table"',
-        'class="per-grid-wrap is-tiles"',
+        'class="per-grid-wrap"',
         'class="rec-form"',
         "data-draft-key=",
         "period-register.js",
@@ -80,6 +78,9 @@ def test_the_teacher_page_is_the_shared_sheet_with_the_supervisors_elements(
     ):
         assert marker in html, marker
     assert reverse("attendance_period_entries", args=[session.id]) in html
+    assert (
+        "data-view=" not in html and "per-view" not in html
+    )  # لا وضعَ «جدول» (أمر المالك 2026-10-04)
 
 
 def test_supervisor_only_elements_are_absent_for_the_teacher(

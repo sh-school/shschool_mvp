@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 from django.db import transaction
 from django.utils import timezone
 
-from operations.models import ClassExit
+from operations.models import ClassExit, DailyExitTally
 
 if TYPE_CHECKING:
     from core.models import ClassGroup, CustomUser
@@ -63,6 +63,8 @@ def leave(session, student, destination: str, by, now: dt.datetime | None = None
     current = open_exit(session, student)
     if current is not None:
         return current
+    if is_marked_absent(session, student):
+        return None  # غائبٌ وخروجٌ لا يجتمعان (أمرُ المالك 2026-10-04): الغائبُ لا يُفتح له خروج
     if destination not in dict(ClassExit.DESTINATIONS):
         destination = "other"
     exit_ = ClassExit.objects.create(
@@ -73,9 +75,67 @@ def leave(session, student, destination: str, by, now: dt.datetime | None = None
         left_at=now,
         allowed_by=by,
     )
+    refresh_tally(session.school, student, session.date)
     if destination in NOTIFY_SUPERVISOR_FOR:
         _notify_supervisor(exit_)
     return exit_
+
+
+def is_marked_absent(session, student) -> bool:
+    """هل وسمه معلّمُ الحصّة غائباً (إدخالٌ مبدئيٌّ)؟ — رصدُ المشرف لا يمنع: تثبيتُه يُقرأ ولا يُكتب فوقه من هنا."""
+    from operations.models import AttendanceEntry
+
+    return AttendanceEntry.objects.filter(
+        session=session, student=student, status="absent"
+    ).exists()
+
+
+def close_for_absence(session, student, now: dt.datetime | None = None) -> ClassExit | None:
+    """وسمُ الطالب غائباً يُغلق خروجَه المفتوح (غائبٌ وخروجٌ لا يجتمعان) — بلا سجلّ مراجعة غيابٍ مشتقّ."""
+    current = open_exit(session, student)
+    if current is None:
+        return None
+    current.returned_at = now or timezone.now()
+    current.save(update_fields=["returned_at"])
+    refresh_tally(session.school, student, session.date)
+    return current
+
+
+def tally_of(student, day: dt.date, now: dt.datetime | None = None) -> tuple[int, int]:
+    """`(عددُ المرّات, مجموعُ الثواني)` لليوم — **الخروجُ المفتوحُ يُحتسب إلى لحظة الاستعلام** لا يُهمَل.
+
+    المخزَّنُ في `DailyExitTally` للأجزاء المغلقة وعددِ المرّات؛ والمفتوحُ يُضاف منه `now - left_at`.
+    """
+    now = now or timezone.now()
+    row = DailyExitTally.objects.filter(student=student, date=day).first()
+    count, seconds = (row.exit_count, row.total_seconds) if row else (0, 0)
+    for left_at in ClassExit.objects.filter(
+        student=student, session__date=day, returned_at__isnull=True
+    ).values_list("left_at", flat=True):
+        seconds += max(0, int((now - left_at).total_seconds()))
+    return count, seconds
+
+
+def refresh_tally(school, student, day: dt.date) -> DailyExitTally:
+    """يُعيد **حسابَ** ملخّص اليوم من `ClassExit` (لا يزيد فوقه): فتكرارُه لا يضاعف شيئاً (idempotent).
+
+    العددُ سطورُ الخروج بلا `continued_from` (الامتدادُ مدّةٌ لا مرّةٌ جديدة)، والمجموعُ للأجزاء المغلقة كلِّها.
+    """
+    rows = list(
+        ClassExit.objects.filter(student=student, session__date=day).values_list(
+            "continued_from_id", "left_at", "returned_at"
+        )
+    )
+    count = sum(1 for origin, _, _ in rows if origin is None)
+    seconds = sum(
+        max(0, int((back - left).total_seconds())) for _, left, back in rows if back is not None
+    )
+    tally, _ = DailyExitTally.objects.update_or_create(
+        student=student,
+        date=day,
+        defaults={"school": school, "exit_count": count, "total_seconds": seconds},
+    )
+    return tally
 
 
 def _notify_supervisor(exit_: ClassExit) -> None:
@@ -133,6 +193,7 @@ def come_back(
         return None
     current.returned_at = now or timezone.now()
     current.save(update_fields=["returned_at"])
+    refresh_tally(session.school, student, session.date)
     if current.returned_at < session_end(session):
         from operations.exit_reflection import revert_derived_absence
 
@@ -161,9 +222,23 @@ def close_unreturned(session: Session, now: dt.datetime | None = None) -> int:
     end = session_end(session)
     if (now or timezone.now()) < end:
         return 0
-    return ClassExit.objects.filter(
-        session=session, returned_at__isnull=True, left_at__lt=end
-    ).update(returned_at=end)
+    pending = ClassExit.objects.filter(session=session, returned_at__isnull=True, left_at__lt=end)
+    students = [e.student for e in pending.select_related("student")]
+    closed = pending.update(returned_at=end)
+    for student in students:
+        refresh_tally(session.school, student, session.date)
+    following = (
+        type(session)
+        .objects.filter(
+            class_group=session.class_group, date=session.date, start_time__gt=session.start_time
+        )
+        .exclude(status="cancelled")
+        .order_by("start_time")
+        .first()
+    )
+    if following is not None and students:
+        carry_over(following, now=now, at_bell=True)  # يمتدّ إلى الحصّة التالية حتى آخر حصّة في اليوم
+    return closed
 
 
 @dataclass(frozen=True)
@@ -232,7 +307,7 @@ def root_of(exit_: ClassExit) -> ClassExit:
 
 
 @transaction.atomic
-def carry_over(session: Session, now: dt.datetime | None = None) -> int:
+def carry_over(session: Session, now: dt.datetime | None = None, at_bell: bool = False) -> int:
     """يُرحِّل إلى هذه الحصّة خروجَ من لم يعد من حصّةٍ سبقتها اليومَ — ويُرجع عددَ الامتدادات المنشأة.
 
     أمرُ المالك 2026-10-04: عدّادُ الخروج يمتدّ إلى الحصص التالية حتى نهاية دوام اليوم ما لم يعد الطالب، وفي الغد يبدأ من الصفر
@@ -241,14 +316,16 @@ def carry_over(session: Session, now: dt.datetime | None = None) -> int:
     وهو **مثبِّتُ التكرار**: لا ينشئ إلا للطالب الذي ليس له سطرٌ في هذه الحصّة ولا امتدادٌ لهذا الأصل.
     """
     now = now or timezone.now()
-    if now < timezone.make_aware(dt.datetime.combine(session.date, session.start_time)):
-        return 0  # حصّةٌ لم تبدأ: لا ترحيلَ قبل أوانه
+    if not at_bell and now < timezone.make_aware(
+        dt.datetime.combine(session.date, session.start_time)
+    ):
+        return 0  # حصّةٌ لم تبدأ: لا ترحيلَ قبل أوانه (إلا عند الجرس: الإغلاقُ هو الذي يرحّل)
     earlier = ClassExit.objects.filter(
         session__class_group=session.class_group,
         session__date=session.date,
         session__start_time__lt=session.start_time,
         left_at__lt=timezone.make_aware(dt.datetime.combine(session.date, session.start_time)),
-    ).select_related("session")
+    ).select_related("session", "student")
     here = set(ClassExit.objects.filter(session=session).values_list("student_id", flat=True))
     made = 0
     pending: dict = {}
@@ -275,6 +352,7 @@ def carry_over(session: Session, now: dt.datetime | None = None) -> int:
             continued_from=exit_,
         )
         made += 1
+        refresh_tally(session.school, exit_.student, session.date)
     return made
 
 

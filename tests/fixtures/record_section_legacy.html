@@ -34,7 +34,7 @@
   {% endif %}
 
   <form method="post" action="{% url 'wings:record_period' klass.id %}" class="rec-form"
-        data-draft-key="{{ draft_key }}" data-now="{% now 'U' %}" data-offset="{% now 'O' %}">
+        data-draft-key="{{ draft_key }}" data-now="{% now 'U' %}">
     {% csrf_token %}
     <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
     <input type="hidden" name="start" value="{{ focus.key }}">
@@ -62,10 +62,6 @@
           <button type="button" class="btn-secondary btn-sm" data-bulk="present">الكلُّ حاضر</button>
           <button type="button" class="btn-secondary btn-sm" data-bulk="absent">غيابُ الكلّ</button>
         </div>
-        <div class="per-view" role="group" aria-label="طريقةُ العرض">
-          <button type="button" class="btn-secondary btn-sm" data-view="tiles" aria-pressed="true">شبكة</button>
-          <button type="button" class="btn-secondary btn-sm" data-view="table" aria-pressed="false">جدول</button>
-        </div>
         </div>
         <nav class="per-tabs" aria-label="حصصُ اليوم">
           {% for period, status in periods %}
@@ -81,29 +77,8 @@
       والشبكةُ (الأصل) هي الجدولُ نفسُه بلا نسخةٍ ثانيةٍ من الحقول: يُعاد تنسيقُ الصفّ
       بطاقةً بالأنماط وحدَها، فلا يتضاعف شيءٌ في الإرسال.
     {% endcomment %}
-    <div class="per-grid-wrap is-tiles">
+    <div class="per-grid-wrap">
       <table class="per-grid" data-no-sort>
-        <thead>
-          <tr data-plain-head>
-            <th scope="col" class="per-grid__no">#</th>
-            <th scope="col" class="per-grid__name">الطالب</th>
-            {% for period, status in periods %}
-              <th scope="col" class="per-col is-{{ status }}{% if period.start == focus.start %} is-focus{% endif %}">
-                <a href="?date={{ day|date:'Y-m-d' }}&amp;p={{ period.key }}" {% if period.start == focus.start %}aria-current="true"{% endif %}>
-                  <span class="per-col__no">ح{{ period.number }}</span>
-                  {% if period.confirmation %}
-                    {% comment %} وقتُ التثبيت محفوظٌ مع الحصّة — لا يتحرّك بعدها. {% endcomment %}
-                    <time class="per-col__clock is-fixed" datetime="{{ period.confirmation.first_confirmed_at|date:'c' }}"
-                          title="ثُبّتت {{ period.confirmation.first_confirmed_at|time:'H:i:s' }}">{{ period.confirmation.first_confirmed_at|time:"H:i:s" }}</time>
-                  {% else %}
-                    <time class="per-col__clock" data-clock aria-label="الساعةُ الآن">{% now "H:i:s" %}</time>
-                  {% endif %}
-                  <span class="per-state is-{{ status }}">{% if status == "confirmed" %}مثبّتة{% elif status == "confirmed_late" %}ثُبّتت متأخّرة{% elif status == "current" %}الآن{% elif status == "missed" %}لم تُرصد{% else %}قادمة{% endif %}</span>
-                </a>
-              </th>
-            {% endfor %}
-          </tr>
-        </thead>
         <tbody>
           {% for row in rows %}
           {% with sid=row.student.id %}

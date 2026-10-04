@@ -71,7 +71,8 @@ class TestTheTeacherLetsAStudentOut:
         row = StudentAttendance.objects.get(session=periods[1], student=kids[0])
         assert (row.status, row.whereabouts) == ("absent", "clinic")
         assert not _auto(kids[0], "class_escape").exists()
-        exit_ = ClassExit.objects.get()
+        # الخروجُ غيرُ المنتهي يمتدّ إلى الحصّة التالية (W-20261004-018): نقرأ سطرَ حصّته الأصليّ.
+        exit_ = ClassExit.objects.get(session=periods[1])
         assert exit_.returned_at is not None and exit_.minutes_away() == 35
 
     def test_close_unreturned_closes_at_the_bell_and_writes_no_attendance(

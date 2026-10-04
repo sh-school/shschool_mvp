@@ -107,7 +107,7 @@ def period_entries(request, session_id):
     if result.needs_reason:
         parts.append(f"{result.needs_reason} معتمَدٌ يلزم تصحيحَه سببٌ (لم يُمسّ)")
     if result.conflicts:
-        parts.append(f"{result.conflicts} خارجٌ لم يعد — لا غيابَ له حتى يعود")
+        parts.append(f"{result.conflicts} خروجٌ أُغلق لأنّ الطالب وُسم غائباً")
     messages.success(request, " · ".join(parts) or "لا تغييرَ في الحصّة.")
     target = following.id if following is not None else session_id
     return redirect(reverse("attendance", args=[target]))
