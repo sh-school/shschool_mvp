@@ -169,6 +169,26 @@ def teacher_sheet_context(user: CustomUser, session: Session) -> dict[str, Any]:
     }
 
 
+def late_minutes(session: Session, mark: dict[str, str], now: dt.datetime) -> int | None:
+    """دقائقُ التأخّر **آلياً كما في كشف المشرف**: داخل وقت الحصّة تُحسب من لحظة ضغط المعلّم على «متأخّر» (ساعةُ الجهاز مصحَّحةً بساعة الخادم
+    في `t-<طالب>`) أو من لحظة التثبيت إن لم تصحّ — لا يكتب المعلّمُ وقتاً؛ وخارج وقت الحصّة (حتى خمس دقائق بعد نهايتها) تُكتب باليد.
+    """
+    from types import SimpleNamespace
+
+    from .period_register import GRACE, _tapped
+    from .tardiness import minutes_after_start
+
+    start = timezone.make_aware(dt.datetime.combine(session.date, session.start_time))
+    end = timezone.make_aware(dt.datetime.combine(session.date, session.end_time)) + GRACE
+    if not start <= now <= end:
+        typed = mark.get("late_minutes", "")
+        return int(typed) if typed.isdigit() and int(typed) <= 240 else None
+    tapped = _tapped(
+        mark.get("tapped_at"), session.date, SimpleNamespace(start=session.start_time), now
+    )
+    return minutes_after_start(session, timezone.localtime(tapped or now))
+
+
 @dataclass
 class EnterResult:
     entered: int = 0
@@ -181,7 +201,12 @@ def parse_marks(post: Any) -> dict[str, dict[str, str]]:
     """حقولُ النموذج المشترك `s-/w-/m-<طالب>` → `{طالب: {status, whereabouts, late_minutes}}` — كما يقرؤها `record_period` للمشرف."""
     marks: dict[str, dict[str, str]] = {}
     for key, value in post.items():
-        for prefix, field in (("s-", "status"), ("w-", "whereabouts"), ("m-", "late_minutes")):
+        for prefix, field in (
+            ("s-", "status"),
+            ("w-", "whereabouts"),
+            ("m-", "late_minutes"),
+            ("t-", "tapped_at"),
+        ):
             if key.startswith(prefix):
                 marks.setdefault(key.removeprefix(prefix), {})[field] = value
     return marks
@@ -202,6 +227,7 @@ def enter_period_marks(
     from .class_exit import leave
 
     result = EnterResult()
+    now = timezone.now()
     with transaction.atomic():
         for raw_id, mark in marks.items():
             try:
@@ -216,16 +242,10 @@ def enter_period_marks(
             status = mark.get("status", "")
             if status not in ENTERABLE_STATUSES:
                 continue
-            minutes = mark.get("late_minutes", "")
+            minutes = late_minutes(session, mark, now) if status == "late" else None
             try:
                 with transaction.atomic():
-                    submit_entry(
-                        user,
-                        session,
-                        student,
-                        status,
-                        tardiness_minutes=int(minutes) if minutes.isdigit() else None,
-                    )
+                    submit_entry(user, session, student, status, tardiness_minutes=minutes)
                 result.entered += 1
             except EntryRefusedError:
                 raise  # المنعُ بالسياسة يُلغي الطلبَ كلَّه

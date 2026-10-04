@@ -710,8 +710,6 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .per-pend.is-no { color: var(--status-danger-fg); }
 .per-pend.is-fix { color: var(--status-info-fg); }
 .per-pend .icon { inline-size: 1em; block-size: 1em; vertical-align: -0.125em; }
-/* علامةُ إدخال المعلّم في خليّة الطالب (W-20261004-014): شارةٌ ثمّ زرُّ الاعتماد، وتلتفّ على الجوّال. */
-.rec-entry { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); }
 /* «أين الطالب» للغائب وحدَه، والدقائقُ للمتأخّر وحدَه — فالسطرُ قصيرٌ ما دام
    الطالبُ حاضراً، وهو الغالب. */
 .rec-row__more { display: flex; gap: var(--sp-1); flex-shrink: 0; }
@@ -1008,6 +1006,8 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .rec-exit__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* مفاتيحُ مطفأةٌ (الإدخالُ مغلقٌ أو رصدٌ معتمَد): تُرى مطفأةً لا عاملةً. */
 .rec-pick input:disabled + span, .rec-exit:disabled { opacity: 0.5; cursor: not-allowed; }
+/* كشفُ المعلّم (جدول): «أين الطالب» ظاهرةٌ دائماً — الخروجُ ليس غياباً فلا يُخفى حتى يُختار غائب. */
+.rec-form[data-exit-url] .per-grid-wrap:not(.is-tiles) :is(.rec-row__more, .per-where) { display: inline-flex !important; }
 /* اللوحان العائمان داخل البطاقة (الطالب) لا يخرجان عنها (قرارُ المالك 2026-09-20): خليّةُ الرصد بلا `position`
    فتُرسى اللوحان على البطاقة كلِّها؛ ونافذةُ الوجهات تغطّيها بعمودَين، ودقائقُ التأخّر في أسفلها فوق صفّ الحصص. */
 .per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > td.per-cell.is-focus { position: static; }

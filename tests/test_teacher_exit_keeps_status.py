@@ -90,3 +90,15 @@ def test_the_exit_endpoint_records_a_class_exit_and_no_absence(
     assert response.status_code == 200
     assert ClassExit.objects.filter(session=session, student=kid, destination="clinic").exists()
     assert not AttendanceEntry.objects.filter(session=session, student=kid).exists()
+
+
+def test_the_table_view_shows_the_exit_list_for_the_teacher_and_sends_it_on_change():
+    """ملاحظةُ المالك «لا يوجد مفتاح خروج» في الجدول: قائمةُ «أين الطالب» ظاهرةٌ للمعلّم في الجدول وتُسجّل الخروجَ عند تغيّرها."""
+    css = (JS.parent.parent / "css" / "custom" / "33-modules-4.css").read_text(encoding="utf-8")
+    assert (
+        ".rec-form[data-exit-url] .per-grid-wrap:not(.is-tiles) :is(.rec-row__more, .per-where)"
+        in css
+    )
+    source = JS.read_text(encoding="utf-8")
+    assert "select.per-where').forEach(function (select) {" in source
+    assert "if (!exitUrl && radio && radio.type === 'radio' && radio.value !== 'absent')" in source

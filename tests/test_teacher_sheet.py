@@ -123,10 +123,41 @@ def test_submit_creates_pending_entries_not_effective_rows(
     assert not StudentAttendance.objects.filter(session=session).exists()  # D-125م
 
 
-def test_late_minutes_travel_with_the_entry(client_as, now_0730, session, teacher, kid):
+def test_late_minutes_are_computed_automatically_from_the_session_start(
+    client_as, now_0730, session, teacher, kid
+):
+    """ملاحظةُ المالك: «دقائقُ التأخّر حسب ضغط المعلّم وبداية الحصّة من ساعة الجهاز آلياً — المعلّمُ لا يُدخل الوقت».
+
+    داخل وقت الحصّة: الدقائقُ من بدء الحصّة (07:10) إلى لحظة التثبيت (07:30) = 20 ولو كُتب رقمٌ آخر باليد.
+    """
     _submit(client_as, teacher, session, {f"s-{kid.id}": "late", f"m-{kid.id}": "7"})
     entry = AttendanceEntry.objects.get(session=session, student=kid)
-    assert (entry.status, entry.tardiness_minutes) == ("late", 7)
+    assert (entry.status, entry.tardiness_minutes) == ("late", 20)
+
+
+def test_late_minutes_come_from_the_moment_the_teacher_pressed_late(
+    client_as, now_0730, session, teacher, kid
+):
+    pressed = int(at(7, 22).timestamp())  # لحظةُ الضغط بساعة الجهاز (JS يحفظها في t-<طالب>)
+    _submit(client_as, teacher, session, {f"s-{kid.id}": "late", f"t-{kid.id}": str(pressed)})
+    assert AttendanceEntry.objects.get(session=session, student=kid).tardiness_minutes == 12
+
+
+def test_a_press_time_outside_the_session_is_ignored(client_as, now_0730, session, teacher, kid):
+    """لحظةٌ قبل بدء الحصّة عبثٌ أو ساعةٌ مختلّة: تُترك ويُحسب من لحظة التثبيت (كما يفعل كشفُ المشرف)."""
+    before = int(at(6, 0).timestamp())
+    _submit(client_as, teacher, session, {f"s-{kid.id}": "late", f"t-{kid.id}": str(before)})
+    assert AttendanceEntry.objects.get(session=session, student=kid).tardiness_minutes == 20
+
+
+def test_outside_the_session_window_the_minutes_are_typed(
+    client_as, monkeypatch, session, teacher, kid
+):
+    monkeypatch.setattr(
+        timezone, "now", lambda: at(10, 0)
+    )  # بعد نهاية الحصّة بساعاتٍ وقبل نهاية اليوم
+    _submit(client_as, teacher, session, {f"s-{kid.id}": "late", f"m-{kid.id}": "9"})
+    assert AttendanceEntry.objects.get(session=session, student=kid).tardiness_minutes == 9
 
 
 def test_an_exit_destination_opens_a_class_exit_and_no_entry(

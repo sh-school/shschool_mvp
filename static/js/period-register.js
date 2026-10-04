@@ -106,6 +106,15 @@
       });
     });
   });
+  // الجدولُ (المعلّم): قائمةُ «أين الطالب» ظاهرةٌ دائماً وتسجّل الخروجَ/العودةَ فوراً عند تغيّرها كما تفعل نافذةُ الشبكة.
+  if (exitUrl) {
+    form.querySelectorAll('select.per-where').forEach(function (select) {
+      select.addEventListener('change', function () {
+        var cell = select.closest('td.per-cell.is-focus');
+        if (cell) { sendExit(cell, select.value); syncExit(cell); }
+      });
+    });
+  }
   // نافذةُ دقائق التأخّر (الشبكة، خارجَ وقت الحصّة): تُفتح عند الضغط على «متأخّر» لهذه البطاقة
   // وحدَها، وتُغلق بالضغط عليه ثانيةً أو بمفتاحٍ آخر في البطاقة أو بالنقر خارجها أو Enter/Esc —
   // فلا تبقى مفتوحةً على كلّ متأخّر.
@@ -195,7 +204,7 @@
       if (tap) tap.value = radio.value === 'late' ? String(Math.floor((Date.now() + skew) / 1000)) : '';
     }
     // من رجع حاضراً أو متأخّراً لا وجهةَ له: تُمحى فلا تُحفظ وجهةٌ على غير غائب.
-    if (radio && radio.type === 'radio' && radio.value !== 'absent') {
+    if (!exitUrl && radio && radio.type === 'radio' && radio.value !== 'absent') {
       var where = form.querySelector('select[name="w-' + radio.name.slice(2) + '"]');
       if (where && where.value) { where.value = ''; syncExit(where.closest('td')); }
     }
@@ -216,7 +225,7 @@
         // «الكلُّ حاضر» و«غيابُ الكلّ» لا متأخّرَ بعدهما — فلا لحظةَ نقرةٍ تبقى.
         var tap = form.querySelector('[name="t-' + radio.name.slice(2) + '"]');
         if (tap) tap.value = '';
-        if (value !== 'absent') {
+        if (value !== 'absent' && !exitUrl) {
           var where = form.querySelector('select[name="w-' + radio.name.slice(2) + '"]');
           if (where && where.value) { where.value = ''; syncExit(where.closest('td')); }
         }
