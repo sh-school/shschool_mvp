@@ -13,6 +13,7 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 from django.utils import timezone
 
@@ -20,12 +21,11 @@ from core.models import StudentEnrollment
 
 from .attendance_entries import EVIDENCE_TYPES, PendingRow, unapproved_report
 from .attendance_policy import approval_holder, can_approve, can_enter, holder_gap
-from .models import AttendanceEntry, StudentAttendance
+from .models import AttendanceEntry, Session, StudentAttendance
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
 
-    from .models import Session
 
 #: نافذةُ الطابور بالأيّام: إدخالٌ أقدمُ منها يخرج من طابور الاعتماد ويبقى في تقرير «غيرُ معتمَد».
 QUEUE_DAYS = 14
@@ -126,6 +126,60 @@ def teacher_may_enter_now(user: CustomUser, session: Session, lines: list[Studen
     return bool(can_enter(user, session, lines[0].student))
 
 
+@dataclass(frozen=True)
+class GridCell:
+    """خليّةُ طالبٍ في حصّةٍ بشبكة المعلّم: ما يُعرض رمزاً صغيراً — المبدئيُّ المعلَّق بوسمٍ، وإلّا المعتمَدُ الفعليّ."""
+
+    shown: str  # present | absent | late | excused | "" (لم يُرصد)
+    pending: bool
+
+
+@dataclass(frozen=True)
+class GridColumn:
+    session: Session
+    number: int
+    is_focus: bool
+
+
+def teacher_grid(
+    session: Session, student_ids: list[UUID]
+) -> tuple[list[GridColumn], dict[UUID, dict[UUID, GridCell]]]:
+    """أعمدةُ شبكة المعلّم وخلاياها: حصصُ هذا المعلّم اليومَ في الشعبة نفسِها (كشفُ المشرف بالمكوّن نفسِه مقتصراً على حصصه).
+
+    الحصّةُ المفتوحةُ عمودُ الإدخال، وبقيّةُ حصصه رموزٌ للاطّلاع. والقراءةُ بثلاثة استعلاماتٍ لكلّ الشبكة لا لكلّ خليّة.
+    """
+    sessions = list(
+        Session.objects.filter(
+            class_group_id=session.class_group_id, date=session.date, teacher_id=session.teacher_id
+        )
+        .exclude(status="cancelled")
+        .order_by("start_time")
+    )
+    ids = [s.id for s in sessions]
+    effective = {
+        (r.student_id, r.session_id): r.status
+        for r in StudentAttendance.objects.filter(session_id__in=ids)
+    }
+    pending = {
+        (e.student_id, e.session_id): e.status
+        for e in AttendanceEntry.objects.filter(
+            session_id__in=ids, superseded_by__isnull=True, decision__isnull=True
+        )
+    }
+    cells: dict[UUID, dict[UUID, GridCell]] = {}
+    for student_id in student_ids:
+        row: dict[UUID, GridCell] = {}
+        for s in sessions:
+            key = (student_id, s.id)
+            waiting = key in pending
+            row[s.id] = GridCell(
+                shown=str(pending.get(key) or effective.get(key) or ""), pending=waiting
+            )
+        cells[student_id] = row
+    columns = [GridColumn(s, i + 1, s.id == session.id) for i, s in enumerate(sessions)]
+    return columns, cells
+
+
 def teacher_page_context(user: CustomUser, session: Session) -> dict[str, Any]:
     """سياقُ شاشة المعلّم في حصّةٍ لا يرصد فيها مباشرةً (شُعب الأجنحة): المعتمَدُ والمبدئيُّ والنقراتُ والخروج.
 
@@ -151,7 +205,10 @@ def teacher_page_context(user: CustomUser, session: Session) -> dict[str, Any]:
                 "exit_count": len(exits.get(line.student.id, (None, []))[1]),
             }
         )
+    columns, cells = teacher_grid(session, [line.student.id for line in lines])
     return {
+        "grid_cols": columns,
+        "grid_cells": cells,
         "session": session,
         "can_tap_late": is_teacher,
         "can_enter": is_teacher and teacher_may_enter_now(user, session, lines),

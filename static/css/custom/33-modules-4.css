@@ -704,6 +704,13 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 
 .rec-row__flags { display: flex; gap: var(--sp-1); flex-wrap: wrap; }
 .rec-row__flags .badge { font-size: var(--text-xs); }
+/* رمزُ حالة إدخال المعلّم في خليّته (◔ بانتظار الاعتماد · ✓ معتمَد · ! لم يُعتمد · ⚑ تصحيح) — صغيرٌ بلا جملة؛ نصُّه في title ولقارئ الشاشة. */
+.per-pend { display: inline-block; margin-inline: var(--sp-1); font-size: var(--text-xs); line-height: 1; color: var(--status-warning-fg); cursor: help; }
+.per-pend.is-ok { color: var(--status-success-fg); }
+.per-pend.is-no { color: var(--status-danger-fg); font-weight: 800; }
+.per-pend.is-fix { color: var(--status-info-fg); }
+.per-cell.is-focus .per-state-mark { display: inline-block; min-width: 1.2em; }
+.asg-correct > summary { cursor: pointer; display: inline-block; }
 /* أزرارُ المعلّم بضغطةٍ واحدة (حاضر · غائب · متأخّر) مع خانةِ دقائقَ صغيرة — تلتفّ على الجوّال. */
 .asg-quick { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); }
 .asg-quick__min { inline-size: 56px; }

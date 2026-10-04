@@ -1,41 +1,43 @@
 {% comment %}
-خليّةُ إدخال المعلّم الفعليّ لطالبٍ في شُعب الأجنحة (W-020): حالةُ ما أدخله، ثمّ **ثلاثةُ أزرارٍ بضغطةٍ واحدة** (حاضر · غائب · متأخّر) كما كانت
-للمشرف في شبكته (W-20261004-014): لا قائمةَ منسدلةً ولا زرَّ إرسالٍ منفصلاً — الضغطةُ تُدخل فوراً (HTMX). والمتأخّرُ يأخذ دقائقَه من خانتها إن كُتبت.
-المبدئيُّ «بانتظار الاعتماد» ليس حضوراً ولا غياباً حتى يقرّر حاملُ الجناح — فيُعرض وسماً لا حالةً.
-ولا يُعرض سببُ الرفض ولا سببُ التصحيح هنا (نصٌّ حرٌّ لأصحاب الاعتماد وحدَهم). وتصحيحُ رصدٍ **معتمَد** يلزمه سببٌ فيبقى نموذجَه.
+خليّةُ إدخال المعلّم الفعليّ في **شبكة كشف المعلّم** (W-020 وW-20261004-014): عمودُ حصّته المفتوحة — ثلاثةُ أزرارٍ صغيرةٍ بضغطةٍ واحدة (حاضر · غائب · متأخّر)
+كأزرار كشف المشرف، وحالةُ ما أدخله **رمزاً صغيراً** لا جملةً في كلّ صفّ: ◔ بانتظار الاعتماد · ✓ معتمَد · ! لم يُعتمد · ⚑ تصحيحٌ دون معاينة (النصُّ في `title` ولقارئ الشاشة).
+المبدئيُّ ليس حضوراً ولا غياباً حتى يقرّر حاملُ الجناح. ولا يُعرض سببُ الرفض ولا سببُ التصحيح هنا (نصٌّ حرٌّ لأصحاب الاعتماد وحدَهم).
+وتصحيحُ رصدٍ **معتمَد** يلزمه سببٌ فيبقى نموذجاً صغيراً مطويّاً.
 {% endcomment %}
-{% if line.correction %}
-  <span class="badge badge--warning" title="صحّح المشرفُ هذا الرصدَ دون معاينةٍ بدليلٍ مسمّى">تصحيحٌ دون معاينة</span>
-{% endif %}
+<span class="per-state-mark">
+{% if line.correction %}<span class="per-pend is-fix" title="صحّح المشرفُ هذا الرصدَ دون معاينةٍ بدليلٍ مسمّى" aria-hidden="true">⚑</span><span class="sr-only">تصحيحٌ دون معاينة</span>{% endif %}
 {% if line.entry %}
   {% if line.entry_state == "pending" %}
-    <span class="badge badge--neutral" title="لم يُحتسب حضوراً ولا غياباً حتى يقرّر حاملُ الجناح">بانتظار الاعتماد: {{ line.entry.get_status_display }}</span>
+    <span class="per-pend" title="بانتظار الاعتماد: {{ line.entry.get_status_display }} — لم يُحتسب حضوراً ولا غياباً حتى يقرّر حاملُ الجناح" aria-hidden="true">◔</span><span class="sr-only">بانتظار الاعتماد: {{ line.entry.get_status_display }}</span>
   {% elif line.entry_state == "approved" %}
-    <span class="badge badge--success">معتمَد: {{ line.entry.get_status_display }}</span>
+    <span class="per-pend is-ok" title="معتمَد: {{ line.entry.get_status_display }}" aria-hidden="true">✓</span><span class="sr-only">معتمَد: {{ line.entry.get_status_display }}</span>
   {% elif line.entry_state == "rejected" %}
-    <span class="badge badge--danger" title="راجع حاملَ الجناح ثمّ أعِد الإدخال">لم يُعتمد إدخالُك</span>
+    <span class="per-pend is-no" title="لم يُعتمد إدخالُك — راجع حاملَ الجناح ثمّ أعِد الإدخال" aria-hidden="true">!</span><span class="sr-only">لم يُعتمد إدخالُك</span>
   {% endif %}
 {% endif %}
+</span>
 {% if can_enter %}
 {% if line.entry_state == "approved" %}
-<form hx-post="{% url 'attendance_entry' session.id %}" hx-target="#entry-{{ line.student.id }}" hx-swap="innerHTML" class="asg-inline">
-  {% csrf_token %}
-  <input type="hidden" name="student_id" value="{{ line.student.id }}">
-  <label class="sr-only" for="entry-status-{{ line.student.id }}">حالةُ {{ line.student.full_name }}</label>
-  <select name="status" id="entry-status-{{ line.student.id }}" class="form-select">
-    <option value="present" {% if line.entry.status == "present" %}selected{% endif %}>حاضر</option>
-    <option value="absent" {% if line.entry.status == "absent" %}selected{% endif %}>غائب</option>
-    <option value="late" {% if line.entry.status == "late" %}selected{% endif %}>متأخّر</option>
-  </select>
-  <input type="number" inputmode="numeric" name="minutes" min="1" max="600" class="form-control" placeholder="دقائق" aria-label="دقائقُ التأخّر" value="{{ line.entry.tardiness_minutes|default_if_none:'' }}">
-  <input type="text" name="reason" maxlength="300" required class="form-control" placeholder="سببُ التصحيح" aria-label="سببُ تصحيح رصدٍ معتمَد">
-  <button type="submit" class="btn-secondary btn-sm">تصحيح</button>
-</form>
+<details class="asg-correct">
+  <summary class="btn-secondary btn-xs">تصحيح</summary>
+  <form hx-post="{% url 'attendance_entry' session.id %}" hx-target="#entry-{{ line.student.id }}" hx-swap="innerHTML" class="asg-inline">
+    {% csrf_token %}
+    <input type="hidden" name="student_id" value="{{ line.student.id }}">
+    <label class="sr-only" for="entry-status-{{ line.student.id }}">حالةُ {{ line.student.full_name }}</label>
+    <select name="status" id="entry-status-{{ line.student.id }}" class="form-select">
+      <option value="present" {% if line.entry.status == "present" %}selected{% endif %}>حاضر</option>
+      <option value="absent" {% if line.entry.status == "absent" %}selected{% endif %}>غائب</option>
+      <option value="late" {% if line.entry.status == "late" %}selected{% endif %}>متأخّر</option>
+    </select>
+    <input type="number" inputmode="numeric" name="minutes" min="1" max="600" class="form-control" placeholder="دقائق" aria-label="دقائقُ التأخّر" value="{{ line.entry.tardiness_minutes|default_if_none:'' }}">
+    <input type="text" name="reason" maxlength="300" required class="form-control" placeholder="سببُ التصحيح" aria-label="سببُ تصحيح رصدٍ معتمَد">
+    <button type="submit" class="btn-secondary btn-sm">تصحيح</button>
+  </form>
+</details>
 {% else %}
-{% comment %} لا نماذجَ متداخلة: الأزرارُ `type="button"` بـhx-post وتحمل `student_id` و`status` معها، ويضمّ hx-include رمزَ CSRF والدقائق من الغلاف. {% endcomment %}
+{% comment %} لا نماذجَ متداخلة: الأزرارُ `type="button"` بـhx-post وتحمل `student_id` و`status`، ويضمّ hx-include رمزَ CSRF من الغلاف. {% endcomment %}
 <span class="asg-quick" role="group" aria-label="رصدُ {{ line.student.full_name }}" id="quick-{{ line.student.id }}">
   {% csrf_token %}
-  <input type="number" inputmode="numeric" name="minutes" min="1" max="600" class="form-control asg-quick__min" placeholder="د" aria-label="دقائقُ التأخّر" value="{{ line.entry.tardiness_minutes|default_if_none:'' }}">
   <button type="button" class="att-btn is-present{% if line.entry.status == 'present' %} is-current{% endif %}"
           hx-post="{% url 'attendance_entry' session.id %}" hx-vals='{"student_id": "{{ line.student.id }}", "status": "present"}'
           hx-include="closest .asg-quick" hx-target="#entry-{{ line.student.id }}" hx-swap="innerHTML">حاضر</button>

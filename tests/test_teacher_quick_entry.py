@@ -4,6 +4,7 @@
 لمن لم يُدخَل له شيء. والإدخالُ مبدئيٌّ يعتمده حاملُ الجناح كما قرّر المالك (D-125م): لا يصل `StudentAttendance` إلّا المعتمَد.
 """
 
+import datetime as dt
 import uuid
 
 import pytest
@@ -11,7 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from operations.attendance_entries import decide_entry, submit_entry
-from operations.models import AttendanceEntry, StudentAttendance
+from operations.models import AttendanceEntry, Session, StudentAttendance
 from tests.attendance_fixtures import *  # noqa: F401,F403
 from tests.attendance_fixtures import ENROLLED, at
 from tests.conftest import StudentEnrollmentFactory, UserFactory
@@ -122,3 +123,65 @@ def test_an_approved_row_keeps_the_correction_form_with_a_required_reason(
     html = _page(client_as, teacher, session).content.decode()
     assert 'name="reason"' in html and "required" in html
     assert 'name="status"' in html
+
+
+# ── صفحةُ المعلّم هي شبكةُ الكشف نفسُها (طلابٌ صفوفاً وحصصُه أعمدةً) ─────────────────────────
+
+
+def test_the_teacher_page_is_the_grid_with_only_his_own_sessions_as_columns(
+    client_as, now_0730, session, teacher, other_teacher, kid, second_kid
+):
+    later = Session.objects.create(
+        school=session.school,
+        class_group=session.class_group,
+        teacher=teacher,
+        date=session.date,
+        start_time=dt.time(8, 0),
+        end_time=dt.time(8, 45),
+        status="scheduled",
+    )
+    Session.objects.create(  # حصّةُ زميله للشعبة نفسِها: ليست من أعمدته
+        school=session.school,
+        class_group=session.class_group,
+        teacher=other_teacher,
+        date=session.date,
+        start_time=dt.time(9, 0),
+        end_time=dt.time(9, 45),
+        status="scheduled",
+    )
+    html = _page(client_as, teacher, session).content.decode()
+    assert 'class="per-grid"' in html and "tch-list" not in html
+    assert html.count('<th scope="col" class="per-col') == 3  # حصّتان له + عمودُ الأدوات
+    assert reverse("attendance", args=[later.id]) in html
+    assert "09:00" not in html
+    assert html.count('class="rec-row"') == 2  # صفٌّ لكلّ طالب
+
+
+def test_pending_is_a_small_symbol_not_a_sentence_in_every_row(
+    client_as, now_0730, session, teacher, kid, second_kid
+):
+    submit_entry(teacher, session, kid, "absent", now=at(7, 30))
+    submit_entry(teacher, session, second_kid, "present", now=at(7, 30))
+    html = _page(client_as, teacher, session).content.decode()
+    assert html.count("◔") == 2
+    assert "badge--neutral" not in html  # لا شارةَ نصّيّةً في كلّ صفّ
+    assert "2 بانتظار الاعتماد" in html  # سطرٌ واحدٌ أعلى الصفحة يلخّص المعلّق
+    assert "لم يُرصد</span>" not in html  # لا «لم يُرصد» مكرَّرة
+
+
+def test_another_sessions_cell_shows_its_state_as_a_symbol(
+    client_as, now_0730, session, teacher, kid
+):
+    later = Session.objects.create(
+        school=session.school,
+        class_group=session.class_group,
+        teacher=teacher,
+        date=session.date,
+        start_time=dt.time(8, 0),
+        end_time=dt.time(8, 45),
+        status="scheduled",
+    )
+    submit_entry(teacher, later, kid, "late", now=at(8, 5))
+    html = _page(client_as, teacher, session).content.decode()
+    assert 'class="per-cell is-late"' in html
+    assert ">م</span>" in html

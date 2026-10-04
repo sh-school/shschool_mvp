@@ -1,10 +1,11 @@
 {% extends "base/base.html" %}
 {% load icons %}
 {% load ui %}
+{% load dict_filters %}
 {% comment %}
-حصّةُ المعلّم في شُعب الأجنحة — لا رصدَ غيابٍ فيها (الرصدُ لمشرف الجناح، قرارُ المدير).
-للمعلّم نقرتان تسجّلان اللحظةَ بلا إدخال: «دخل الآن» لمن دخل متأخّراً، و«خرج بإذن» ثمّ
-«عاد» لمن غادر الفصل أثناء الحصّة (قرارُ 2026-09-13). ولا رقمَ شخصيّاً: الاسمُ يكفي.
+حصّةُ المعلّم في شُعب الأجنحة (D-125م): كشفٌ **بشبكة كشف المشرف نفسِها** (أصنافُ `per-grid` — الطلابُ صفوفاً وحصصُ هذا المعلّم اليومَ أعمدةً، خليّةٌ صغيرةٌ بضغطة)
+مقتصراً على حصصه، لا قائمةً طويلةً بجمل. إدخالُه مبدئيٌّ يعتمده حاملُ جناح الشعبة؛ وحالةُ «بانتظار الاعتماد» رمزٌ صغيرٌ في الخليّة (◔)، وسطرٌ واحدٌ أعلى الصفحة يلخّص المعلّق.
+وله نقرتان تسجّلان اللحظةَ بلا إدخال في عمود «أدوات»: «دخل الآن» لمن دخل متأخّراً، و«خرج بإذن» ثمّ «عاد» (قرارُ 2026-09-13). ولا رقمَ شخصيّاً: الاسمُ يكفي.
 {% endcomment %}
 {% block title %}حصّتي — {{ session.class_group.short_label }}{% endblock %}
 
@@ -17,16 +18,15 @@
 <div class="exec-dash">
 
   {% page_header page_title subtitle=session_label icon="checklist" %}
-    {% if recorded %}<span class="status-badge status-success">{% icon "confirm" %} رصدها المشرف</span>
-    {% else %}<span class="status-badge status-warning">{% icon "time" %} لم يُرصد بعد</span>{% endif %}
-    {% if pending_count %}<span class="status-badge status-warning">{% icon "time" %} {{ pending_count }} بانتظار الاعتماد</span>{% endif %}
     {% if can_enter %}
     <form method="post" action="{% url 'attendance_entry_all' session.id %}" class="asg-bulk">
       {% csrf_token %}
       <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} الكلُّ حاضر</button>
     </form>
     {% endif %}
-    {% callout "info" %}إدخالُك مبدئيٌّ: يعتمده حاملُ جناح الشعبة فيصير رصداً، وقبل اعتماده لا يُحتسب حضوراً ولا غياباً. ولك نقرتان تسجّلان الوقتَ من فورهما: <b>دخل الآن</b> لمن دخل متأخّراً، و<b>خرج بإذن</b> ثمّ <b>عاد</b> لمن غادر الفصل.{% endcallout %}
+    {% if pending_count %}<span class="status-badge status-warning">{% icon "time" %} {{ pending_count }} بانتظار الاعتماد</span>
+    {% elif recorded %}<span class="status-badge status-success">{% icon "confirm" %} رصدها المشرف</span>
+    {% else %}<span class="status-badge status-gray">{% icon "time" %} لم يُرصد بعد</span>{% endif %}
   {% endpage_header %}
 
   {% kpi_strip label="الحصّة الآن" %}
@@ -37,44 +37,75 @@
     {% kpi "خارج الفصل الآن" out_now|default:0 tone="blue" %}
   {% endkpi_strip %}
 
-  {% if can_tap_late %}
-
+  {% if not students_data %}
+    {% callout "info" show=True %}لا طلابَ مقيَّدون في هذه الشعبة.{% endcallout %}
+  {% else %}
+  <div class="per-grid-wrap">
+    <table class="per-grid" data-no-sort>
+      <thead>
+        <tr data-plain-head>
+          <th scope="col" class="per-grid__no">#</th>
+          <th scope="col" class="per-grid__name">الطالب</th>
+          {% for col in grid_cols %}
+          <th scope="col" class="per-col{% if col.is_focus %} is-focus{% endif %}">
+            <a href="{% url 'attendance' col.session.id %}" {% if col.is_focus %}aria-current="true"{% endif %}>
+              <span class="per-col__no">ح{{ col.number }}</span>
+              <span class="per-col__clock">{{ col.session.start_time|time:"H:i" }}</span>
+            </a>
+          </th>
+          {% endfor %}
+          {% if can_tap_late %}<th scope="col" class="per-col">أدوات</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in students_data %}
+        {% with sid=item.student.id %}
+        <tr class="rec-row" data-state="{{ item.status }}">
+          <td class="per-grid__no">{{ forloop.counter }}</td>
+          <th scope="row" class="per-grid__name">
+            <span class="rec-row__name">{{ item.student.full_name }}</span>
+            {% if item.exit_count %}<span class="rec-row__flags"><span class="badge badge--info">خرج {{ item.exit_count }} مرّة</span></span>{% endif %}
+          </th>
+          {% for col in grid_cols %}
+            {% if col.is_focus %}
+            <td class="per-cell is-focus">
+              {% if can_enter or item.line.entry or item.line.correction %}
+              <span class="tch-entry" id="entry-{{ sid }}">{% include "teacher/partials/entry_cell.html" with line=item.line %}</span>
+              {% else %}
+              {% with cell=grid_cells|get_item:sid|get_item:col.session.id %}
+              <span class="per-mark">{% if cell.shown == "absent" %}غ{% elif cell.shown == "late" %}م{% elif cell.shown == "present" %}ح{% else %}·{% endif %}</span>
+              {% endwith %}
+              {% endif %}
+            </td>
+            {% else %}
+            {% with cell=grid_cells|get_item:sid|get_item:col.session.id %}
+            <td class="per-cell is-{{ cell.shown|default:'none' }}">
+              <span class="per-mark">{% if cell.shown == "absent" %}غ{% elif cell.shown == "late" %}م{% elif cell.shown == "present" %}ح{% else %}·{% endif %}</span>{% if cell.pending %}<span class="per-pend" title="بانتظار الاعتماد" aria-hidden="true">◔</span><span class="sr-only">بانتظار الاعتماد</span>{% endif %}
+            </td>
+            {% endwith %}
+            {% endif %}
+          {% endfor %}
+          {% if can_tap_late %}
+          <td class="per-cell">
+            <span class="tch-state" id="late-tap-{{ sid }}">
+              {% if item.tap_minutes is not None %}
+                {% include "teacher/partials/late_tap.html" with student=item.student minutes=item.tap_minutes tapped=True %}
+              {% elif item.status != "late" %}
+                {% include "teacher/partials/late_tap.html" with student=item.student tapped=False %}
+              {% endif %}
+            </span>
+            <span class="tch-exit" id="exit-tap-{{ sid }}">
+              {% include "teacher/partials/exit_tap.html" with student=item.student current=item.exit %}
+            </span>
+          </td>
+          {% endif %}
+        </tr>
+        {% endwith %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% endif %}
-
-  {% section_card "الطلاب" meta=students_data|length icon="students" flush=True empty="لا طلابَ مقيَّدون في هذه الشعبة" %}{% if students_data %}
-  <ul class="plain-list tch-list">
-    {% for item in students_data %}
-    <li class="plain-list__row" data-state="{{ item.status }}">
-      <span class="plain-list__main">
-        <span class="plain-list__title"><span class="tch-no">{{ forloop.counter }}</span> {{ item.student.full_name }}</span>
-        {% if item.exit_count %}<span class="plain-list__sub">خرج {{ item.exit_count }} مرّة في هذه الحصّة</span>{% endif %}
-      </span>
-      <span class="tch-state" id="late-tap-{{ item.student.id }}">
-        {% if item.tap_minutes is not None %}
-          {% include "teacher/partials/late_tap.html" with student=item.student minutes=item.tap_minutes tapped=True %}
-        {% elif item.status == "absent" %}<span class="badge badge--danger">غائب</span>
-        {% elif item.status == "late" %}<span class="badge badge--warning">متأخّر</span>
-        {% elif item.status == "excused" %}<span class="badge badge--info">معذور</span>
-        {% elif item.status == "present" %}<span class="badge badge--success">حاضر</span>
-        {% else %}<span class="badge badge--neutral">لم يُرصد</span>{% endif %}
-        {% if can_tap_late and item.tap_minutes is None and item.status != "late" %}
-          {% include "teacher/partials/late_tap.html" with student=item.student tapped=False %}
-        {% endif %}
-      </span>
-      {% if can_enter or item.line.entry or item.line.correction %}
-      <span class="tch-entry" id="entry-{{ item.student.id }}">
-        {% include "teacher/partials/entry_cell.html" with line=item.line %}
-      </span>
-      {% endif %}
-      {% if can_tap_late %}
-      <span class="tch-exit" id="exit-tap-{{ item.student.id }}">
-        {% include "teacher/partials/exit_tap.html" with student=item.student current=item.exit %}
-      </span>
-      {% endif %}
-    </li>
-    {% endfor %}
-  </ul>
-  {% endif %}{% endsection_card %}
 
 </div>
 {% endblock %}
