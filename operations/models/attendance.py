@@ -634,6 +634,12 @@ class DailyExitTally(models.Model):
     date = models.DateField(verbose_name="التاريخ")
     exit_count = models.PositiveIntegerField(default=0, verbose_name="عددُ مرّات الخروج")
     total_seconds = models.PositiveIntegerField(default=0, verbose_name="مجموعُ مدّة الخروج (ثوانٍ)")
+    by_destination = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="التفصيل بالوجهة",
+        help_text='{"clinic": {"count": 1, "seconds": 300}, ...} — عددُ المرّات ومجموعُ الأجزاء المغلقة لكلّ وجهةٍ (العيادة، الإدارة/المشرف، دورة المياه، أخرى).',
+    )
     updated_at = models.DateTimeField(auto_now=True, verbose_name="آخرُ تحديث")
 
     class Meta:

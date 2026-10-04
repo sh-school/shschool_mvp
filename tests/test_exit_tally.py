@@ -248,3 +248,28 @@ def test_the_supervisor_sees_the_conflict_warning_when_absent_is_refused_over_an
     assert response.status_code == 302
     texts = [str(m) for m in get_messages(response.wsgi_request)]
     assert any("تعارضٌ لم يُثبَّت: 1" in t for t in texts)
+
+
+def test_the_daily_summary_keeps_the_destination_of_every_exit(kid, day):
+    """أمرُ المالك: الوجهةُ (العيادة/الإدارة/دورة المياه) تُحفظ أيضاً في الملخّص اليوميّ، ويبقى المفتوحُ منسوباً لوجهته."""
+    first = day[0]
+    leave(first, kid, "clinic", by=first.teacher, now=at(7, 12))
+    come_back(first, kid, now=at(7, 22))
+    leave(first, kid, "restroom", by=first.teacher, now=at(7, 30))
+    come_back(first, kid, now=at(7, 35))
+    leave(first, kid, "admin", by=first.teacher, now=at(7, 40))
+    row = DailyExitTally.objects.get(student=kid, date=SUNDAY)
+    assert row.by_destination["clinic"] == {"count": 1, "seconds": 600}
+    assert row.by_destination["restroom"] == {"count": 1, "seconds": 300}
+    summary = exit_day_summary(kid, SUNDAY, now=at(7, 50))
+    assert summary.by_destination["admin"]["seconds"] == 600  # المفتوحُ يُحتسب إلى لحظة الاستعلام
+    assert [part[3] for part in summary.parts] == ["clinic", "restroom", "admin"]
+
+
+def test_the_exit_tables_are_visible_in_the_django_admin(client, db):
+    from django.contrib import admin
+
+    from operations.models import ClassExit, DailyExitTally
+
+    assert ClassExit in admin.site._registry
+    assert DailyExitTally in admin.site._registry

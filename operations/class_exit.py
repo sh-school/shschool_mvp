@@ -108,17 +108,29 @@ def refresh_tally(school, student, day: dt.date) -> DailyExitTally:
     """
     rows = list(
         ClassExit.objects.filter(student=student, session__date=day).values_list(
-            "continued_from_id", "left_at", "returned_at"
+            "continued_from_id", "left_at", "returned_at", "destination"
         )
     )
-    count = sum(1 for origin, _, _ in rows if origin is None)
-    seconds = sum(
-        max(0, int((back - left).total_seconds())) for _, left, back in rows if back is not None
-    )
+    count = sum(1 for origin, _, _, _ in rows if origin is None)
+    seconds = 0
+    by_destination: dict = {}
+    for origin, left, back, destination in rows:
+        slot = by_destination.setdefault(destination, {"count": 0, "seconds": 0})
+        if origin is None:
+            slot["count"] += 1
+        if back is not None:
+            span = max(0, int((back - left).total_seconds()))
+            seconds += span
+            slot["seconds"] += span
     tally, _ = DailyExitTally.objects.update_or_create(
         student=student,
         date=day,
-        defaults={"school": school, "exit_count": count, "total_seconds": seconds},
+        defaults={
+            "school": school,
+            "exit_count": count,
+            "total_seconds": seconds,
+            "by_destination": by_destination,
+        },
     )
     return tally
 
@@ -355,6 +367,7 @@ class ExitDay:
     parts: list
     open_left: int = 0
     open_span: int = 0
+    by_destination: dict | None = None
 
     @property
     def label(self) -> str:
@@ -404,6 +417,7 @@ def exit_day_summary(student, day: dt.date, now: dt.datetime | None = None) -> E
     now = now or timezone.now()
     row = DailyExitTally.objects.filter(student=student, date=day).first()
     count, seconds = (row.exit_count, row.total_seconds) if row else (0, 0)
+    by_destination = {k: dict(v) for k, v in (row.by_destination if row else {}).items()}
     limit = day_end_of(student, day)
     cut = min(now, limit) if limit else now
     parts: list = []
@@ -418,11 +432,13 @@ def exit_day_summary(student, day: dt.date, now: dt.datetime | None = None) -> E
             open_left = int(exit_.left_at.timestamp())
             seconds += open_span
             span = open_span
+            slot = by_destination.setdefault(exit_.destination, {"count": 0, "seconds": 0})
+            slot["seconds"] += open_span
         else:
             span = max(0, int((exit_.returned_at - exit_.left_at).total_seconds()))
         subject = exit_.session.subject.name_ar if exit_.session.subject_id else ""
-        parts.append((exit_.session.start_time, subject, span))
-    return ExitDay(count, seconds, parts, open_left, open_span)
+        parts.append((exit_.session.start_time, subject, span, exit_.destination))
+    return ExitDay(count, seconds, parts, open_left, open_span, by_destination)
 
 
 def exits_of_session(session) -> dict:
