@@ -696,28 +696,32 @@ def leave_request_create(request):
     from .forms import LeaveRequestForm
 
     if request.method == "POST":
-        form = LeaveRequestForm(request.POST, request.FILES)
+        form = LeaveRequestForm(request.POST, request.FILES, school=school)
         if form.is_valid():
             cd = form.cleaned_data
             staff = _member_or_404(cd["staff_id"], school, active_only=True)
-            # ✅ v5.4: LeaveService.create_leave_request — atomic + audit trail
-            LeaveService.create_leave_request(
-                school=school,
-                staff=staff,
-                leave_type=cd["leave_type"],
-                start_date=cd["start_date"],
-                end_date=cd["end_date"],
-                days_count=cd["days_count"],
-                reason=cd["reason"],
-                attachment=cd.get("attachment"),
-                created_by=request.user,
-            )
-            messages.success(
-                request, f"تم تقديم طلب إجازة {staff.full_name} ({cd['days_count']} يوم)."
-            )
-            return redirect("staff_affairs:leave_list")
+            try:
+                # ✅ v5.4: LeaveService.create_leave_request — atomic + audit trail
+                LeaveService.create_leave_request(
+                    school=school,
+                    staff=staff,
+                    leave_type=cd["leave_type"],
+                    start_date=cd["start_date"],
+                    end_date=cd["end_date"],
+                    days_count=cd["days_count"],
+                    reason=cd["reason"],
+                    attachment=cd.get("attachment"),
+                    created_by=request.user,
+                )
+            except ValueError as e:
+                form.add_error(None, str(e))
+            else:
+                messages.success(
+                    request, f"تم تقديم طلب إجازة {staff.full_name} ({cd['days_count']} يوم)."
+                )
+                return redirect("staff_affairs:leave_list")
     else:
-        form = LeaveRequestForm()
+        form = LeaveRequestForm(school=school)
 
     staff_members = (
         Membership.objects.filter(school=school, is_active=True)
