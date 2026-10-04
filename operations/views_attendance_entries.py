@@ -86,11 +86,11 @@ def entry_submit(request, session_id):
 @login_required
 @capability_required("attendance.mark")
 @require_POST
-def entry_submit_all(request, session_id):
-    """«الكلُّ حاضر» بضغطةٍ للمعلّم الفعليّ في شعبة جناحٍ — إدخالاتٌ مبدئيّةٌ لمن لم يُدخَل له شيءٌ، ثمّ العودةُ إلى صفحة الحصّة."""
+def period_entries(request, session_id):
+    """«ثبّتِ الحصّة» من كشف المعلّم (القالبُ نفسُه كشفِ المشرف): إدخالاتٌ مبدئيّةٌ تنتظر اعتمادَ الحامل، والخروجُ `ClassExit`."""
     try:
-        _session, done = TeacherAttendanceService.enter_all(
-            request.user, request.school, session_id
+        _session, result, following = TeacherAttendanceService.enter_marks(
+            request.user, request.school, session_id, request.POST
         )
     except EntryRefusedError as exc:
         return _refusal(exc)
@@ -98,13 +98,16 @@ def entry_submit_all(request, session_id):
         return _entry_error(exc, 409)
     except EntryError as exc:
         return _entry_error(exc, 400)
-    messages.success(
-        request,
-        f"أُدخل «حاضر» لـ{done} طالباً — مبدئيّاً حتى يعتمده حاملُ الجناح."
-        if done
-        else "لا طالبَ بلا إدخالٍ — لم يتغيّر شيء.",
-    )
-    return redirect(reverse("attendance", args=[session_id]))
+    parts = []
+    if result.entered:
+        parts.append(f"أُدخل {result.entered} مبدئيّاً — يعتمده حاملُ الجناح")
+    if result.exits:
+        parts.append(f"سُجّل خروجُ {result.exits}")
+    if result.needs_reason:
+        parts.append(f"{result.needs_reason} معتمَدٌ يلزم تصحيحَه سببٌ (لم يُمسّ)")
+    messages.success(request, " · ".join(parts) or "لا تغييرَ في الحصّة.")
+    target = following.id if following is not None else session_id
+    return redirect(reverse("attendance", args=[target]))
 
 
 @login_required

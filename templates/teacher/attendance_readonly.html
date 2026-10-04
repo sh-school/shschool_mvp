@@ -1,11 +1,9 @@
 {% extends "base/base.html" %}
-{% load icons %}
-{% load ui %}
-{% load dict_filters %}
+{% load static %}
 {% comment %}
-حصّةُ المعلّم في شُعب الأجنحة (D-125م): كشفٌ **ببطاقات كشف المشرف نفسِها** (أصنافُ `per-grid` — شبكةٌ أو جدول: الطلابُ صفوفاً وحصصُ هذا المعلّم اليومَ أعمدةً)،
-مدمجةً بلا تمريرٍ رأسيٍّ: اسمٌ بسطرٍ واحدٍ وثلاثةُ أزرارٍ بضغطة، والعدّاداتُ سطرٌ في رأس الحصّة لا شريطُ مؤشّراتٍ، وحالةُ الاعتماد أيقونةٌ صغيرةٌ في البطاقة.
-إدخالُه مبدئيٌّ يعتمده حاملُ جناح الشعبة. و«دخل الآن» و«خرج بإذن» (قرارُ 2026-09-13) تحت زرّ «أدوات» الصغير في البطاقة، ولا تُعرضان إلا حيث تُقبلان (نافذةُ الحصّة/اليوم).
+حصّةُ المعلّم في شُعب الأجنحة (D-125م): **كشفُ المشرف نفسُه** — القالبُ المشتركُ `attendance/period_sheet.html` بالـCSS والـJS نفسِها (`period-register.js`)
+(W-20261004-015، أمرُ المالك: نسخةٌ طبقُ الأصل مع أنّ المعلّم يرصد حصّتَه) — أعمدتُه حصصُه اليومَ وحدَها. والفرقُ في الخدمة وحدَها: «ثبّتِ الحصّة»
+يُرسل إدخالاتٍ مبدئيّةً `AttendanceEntry` ينتظر اعتمادَها حاملُ الجناح، والخروجُ `ClassExit` (انظر `operations/teacher_period_sheet.py`).
 {% endcomment %}
 {% block title %}حصّتي — {{ session.class_group.short_label }}{% endblock %}
 
@@ -17,161 +15,10 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header page_title subtitle=session_label icon="checklist" %}{% endpage_header %}
-
-  {% comment %} رأسُ الحصّة المفتوحة كرأس كشف المشرف: رقمُها ومادّتُها ووقتُها وعدّاداتُها، و«الكلُّ حاضر»، ومبدّلُ شبكة/جدول، وتبويبُ حصصِه اليوم. {% endcomment %}
-  <section class="per-head" aria-label="الحصّة المفتوحة للرصد">
-    <span class="per-head__badge" aria-hidden="true">ح{% for col in grid_cols %}{% if col.is_focus %}{{ col.number }}{% endif %}{% endfor %}</span>
-    <div class="per-head__body">
-      <p class="per-head__title">
-        {{ session.subject.name_ar|default:"حصّة" }}
-        {% if pending_count %}<span class="status-badge status-warning">{% icon "time" %} {{ pending_count }} بانتظار الاعتماد</span>
-        {% elif recorded %}<span class="status-badge status-success">{% icon "confirm" %} رصدها المشرف</span>{% endif %}
-      </p>
-      <p class="per-head__time">
-        <span>تبدأ <b>{{ session.start_time|time:"H:i" }}</b></span>
-        <span>تنتهي <b>{{ session.end_time|time:"H:i" }}</b></span>
-      </p>
-      <p class="per-bar__counts" aria-label="عدّاداتُ الحصّة">
-        <span class="rec-count is-present">حاضر <b>{{ summary.present|default:0 }}</b></span>
-        <span class="rec-count is-absent">غائب <b>{{ summary.absent|default:0 }}</b></span>
-        <span class="rec-count is-late">متأخّر <b>{{ summary.late|default:0 }}</b></span>
-        {% if out_now %}<span class="rec-count">خارج الفصل <b>{{ out_now }}</b></span>{% endif %}
-      </p>
-      {% if entry_closed %}<p class="per-head__note">{% icon "time" %} الإدخالُ مغلق: {{ entry_closed }}.</p>{% endif %}
-    </div>
-    <div class="per-head__tools">
-      <div class="per-head__keys">
-        {% if can_enter %}
-        <form method="post" action="{% url 'attendance_entry_all' session.id %}" class="asg-bulk">
-          {% csrf_token %}
-          <button type="submit" class="btn-secondary btn-sm">الكلُّ حاضر</button>
-        </form>
-        {% endif %}
-        <div class="per-view" role="group" aria-label="طريقةُ العرض">
-          <button type="button" class="btn-secondary btn-sm" data-view="tiles" aria-pressed="true">شبكة</button>
-          <button type="button" class="btn-secondary btn-sm" data-view="table" aria-pressed="false">جدول</button>
-        </div>
-      </div>
-      <nav class="per-tabs" aria-label="حصصي اليوم">
-        {% for col in grid_cols %}
-          <a href="{% url 'attendance' col.session.id %}" class="per-tab{% if col.is_focus %} is-focus{% endif %}" {% if col.is_focus %}aria-current="true"{% endif %}>ح{{ col.number }}</a>
-        {% endfor %}
-      </nav>
-    </div>
-  </section>
-
-  {% if not students_data %}
-    {% callout "info" show=True %}لا طلابَ مقيَّدون في هذه الشعبة.{% endcallout %}
-  {% else %}
-  <div class="per-grid-wrap is-tiles">
-    <table class="per-grid" data-no-sort>
-      <thead>
-        <tr data-plain-head>
-          <th scope="col" class="per-grid__no">#</th>
-          <th scope="col" class="per-grid__name">الطالب</th>
-          {% for col in grid_cols %}
-          <th scope="col" class="per-col{% if col.is_focus %} is-focus{% endif %}">
-            <a href="{% url 'attendance' col.session.id %}" {% if col.is_focus %}aria-current="true"{% endif %}>
-              <span class="per-col__no">ح{{ col.number }}</span>
-              <span class="per-col__clock">{{ col.session.start_time|time:"H:i" }}</span>
-            </a>
-          </th>
-          {% endfor %}
-          {% if can_tap_late or can_tap_out %}<th scope="col" class="per-col">أدوات</th>{% endif %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in students_data %}
-        {% with sid=item.student.id %}
-        <tr class="rec-row{% if can_tap_late or can_tap_out %} tch-has-tools{% endif %}" data-state="{{ item.status }}">
-          <td class="per-grid__no">{{ forloop.counter }}</td>
-          <th scope="row" class="per-grid__name">
-            <span class="rec-row__name rec-row__file" title="{{ item.student.full_name }}">{{ item.student.full_name }}</span>
-            {% if item.exit %}<span class="rec-row__flags"><span class="badge badge--info">{{ item.exit.get_destination_display }}</span></span>{% endif %}
-          </th>
-          {% for col in grid_cols %}
-            {% if col.is_focus %}
-            <td class="per-cell is-focus">
-              {% if can_enter %}
-              <span class="tch-entry" id="entry-{{ sid }}">{% include "teacher/partials/entry_cell.html" with line=item.line %}</span>
-              {% else %}
-              {% comment %} إدخالٌ مغلق: حالةُ الطالب كلمةً واضحةً لا نقطةً صغيرة (وإلّا بدت البطاقةُ فارغة)، والمعلَّقُ بأيقونة. {% endcomment %}
-              {% with cell=grid_cells|get_item:sid|get_item:col.session.id %}
-              <span class="tch-ro">
-                {% if cell.shown == "absent" %}<span class="badge badge--danger">غائب</span>
-                {% elif cell.shown == "late" %}<span class="badge badge--warning">متأخّر</span>
-                {% elif cell.shown == "present" %}<span class="badge badge--success">حاضر</span>
-                {% elif cell.shown == "excused" %}<span class="badge badge--info">معذور</span>
-                {% else %}<span class="badge badge--neutral">لم يُرصد</span>{% endif %}
-                {% if cell.pending %}<span class="per-pend" title="بانتظار الاعتماد" aria-hidden="true">{% icon "time" %}</span><span class="sr-only">بانتظار الاعتماد</span>{% endif %}
-              </span>
-              {% endwith %}
-              {% endif %}
-            </td>
-            {% else %}
-            {% with cell=grid_cells|get_item:sid|get_item:col.session.id %}
-            <td class="per-cell is-{{ cell.shown|default:'none' }}">
-              <span class="per-mark">{% if cell.shown == "absent" %}غ{% elif cell.shown == "late" %}م{% elif cell.shown == "present" %}ح{% else %}·{% endif %}</span>{% if cell.pending %}<span class="per-pend" title="بانتظار الاعتماد" aria-hidden="true">{% icon "time" %}</span><span class="sr-only">بانتظار الاعتماد</span>{% endif %}
-            </td>
-            {% endwith %}
-            {% endif %}
-          {% endfor %}
-          {% if can_tap_late or can_tap_out %}
-          <td class="per-cell tch-tools">
-            <details class="tch-more">
-              <summary class="btn-secondary btn-xs" title="أدوات: دخل الآن · خرج بإذن" aria-label="أدوات {{ item.student.full_name }}">{% icon "menu" %}</summary>
-              <div class="tch-more__body">
-                {% if can_tap_late %}
-                <span class="tch-state" id="late-tap-{{ sid }}">
-                  {% if item.tap_minutes is not None %}
-                    {% include "teacher/partials/late_tap.html" with student=item.student minutes=item.tap_minutes tapped=True %}
-                  {% elif item.status != "late" %}
-                    {% include "teacher/partials/late_tap.html" with student=item.student tapped=False %}
-                  {% endif %}
-                </span>
-                {% endif %}
-                {% if can_tap_out %}
-                <span class="tch-exit" id="exit-tap-{{ sid }}">
-                  {% include "teacher/partials/exit_tap.html" with student=item.student current=item.exit %}
-                </span>
-                {% endif %}
-              </div>
-            </details>
-          </td>
-          {% endif %}
-        </tr>
-        {% endwith %}
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% endif %}
-
+  {% include "attendance/period_sheet.html" %}
 </div>
 {% endblock %}
 
 {% block extra_js %}
-{% comment %} مبدّلُ شبكة/جدول بمفتاح التفضيل نفسِه (`per-view`) الذي يحفظه كشفُ المشرف: الاختيارُ واحدٌ للصفحتين، والشبكةُ الأصل. {% endcomment %}
-<script nonce="{{ request.csp_nonce }}">
-(function () {
-  var wrap = document.querySelector('.per-grid-wrap');
-  if (!wrap) return;
-  var key = 'per-view';
-  function set(view) {
-    wrap.classList.toggle('is-tiles', view !== 'table');
-    document.querySelectorAll('[data-view]').forEach(function (b) {
-      b.setAttribute('aria-pressed', b.getAttribute('data-view') === view ? 'true' : 'false');
-    });
-  }
-  try { set(window.localStorage.getItem(key) === 'table' ? 'table' : 'tiles'); } catch (e) { /* لا تخزين */ }
-  document.querySelectorAll('[data-view]').forEach(function (b) {
-    b.addEventListener('click', function () {
-      var view = b.getAttribute('data-view');
-      set(view);
-      try { window.localStorage.setItem(key, view); } catch (e) { /* لا تخزين */ }
-    });
-  });
-})();
-</script>
+<script src="{% static 'js/period-register.js' %}" defer></script>
 {% endblock %}

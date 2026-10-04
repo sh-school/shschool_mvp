@@ -680,7 +680,9 @@ class TestTheTeacherTapsLate:
             kid.enrollments.update(enrolled_at=SUNDAY)
 
         body = client_as(teacher).get(reverse("attendance", args=[period.id])).content.decode()
-        assert reverse("mark_late_tap", args=[period.id]) in body
+        # صفحةُ المعلّم الآن كشفُ المشرف المشترك (W-20261004-015): لا زرَّ «دخل الآن» فيها (المتأخّرُ اختيارٌ بدقائقه)،
+        # ونقطةُ النقرة نفسُها باقيةٌ بنافذتها وسياستها (تُختبر أدناه).
+        assert reverse("attendance_period_entries", args=[period.id]) in body
         assert reverse("mark_single", args=[period.id]) not in body, "لا يرصد"
 
         response = client_as(teacher).post(

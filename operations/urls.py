@@ -7,7 +7,7 @@ from .views_attendance_entries import (
     correct_page,
     correct_submit,
     entry_submit,
-    entry_submit_all,
+    period_entries,
     unapproved,
 )
 from .views_schedule_drafts import discard_schedule, stop_schedule_generation
@@ -19,7 +19,7 @@ urlpatterns = [
     path("attendance/approvals/<uuid:entry_id>/decide/", approval_decide, name="attendance_decide"),
     path("attendance/unapproved/", unapproved, name="attendance_unapproved"),
     path("attendance/<uuid:session_id>/entry/", entry_submit, name="attendance_entry"),
-    path("attendance/<uuid:session_id>/entry/all/", entry_submit_all, name="attendance_entry_all"),
+    path("attendance/<uuid:session_id>/entries/", period_entries, name="attendance_period_entries"),
     path("attendance/<uuid:session_id>/correct/", correct_page, name="attendance_correct"),
     path(
         "attendance/<uuid:session_id>/correct/submit/",

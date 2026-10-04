@@ -10,7 +10,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 
@@ -36,6 +35,13 @@ from operations.attendance_selectors import (
     unapproved_by_session,
 )
 from operations.models import AttendanceDecision, AttendanceEntry, Session
+from operations.teacher_period_sheet import (
+    EnterResult,
+    enter_period_marks,
+    next_session_of,
+    parse_marks,
+    teacher_sheet_context,
+)
 
 if TYPE_CHECKING:
     from core.models import School
@@ -107,25 +113,27 @@ class TeacherAttendanceService:
         return session, student_line(session, student)
 
     @staticmethod
-    def enter_all(
-        user: CustomUser, school: School, session_id: UUID, *, status: str = "present"
-    ) -> tuple[Session, int]:
-        """«الكلُّ حاضر» للمعلّم الفعليّ: إدخالٌ مبدئيٌّ لكلّ طالبٍ لم يُدخَل له شيء — **لا يمسّ ما أدخله** من قبلُ ولا ما اعتُمد.
+    def sheet(user: CustomUser, session: Session) -> dict[str, Any]:
+        """سياقُ كشف المعلّم المشترك مع كشف المشرف (`attendance/period_sheet.html`)."""
+        return teacher_sheet_context(user, session)
 
-        كلُّ إدخالٍ بالسياسة نفسِها (`submit_entry`: معلّمُ الحصّة ونافذةُ اليوم والقيد)، والمنعُ يُلغي الجملةَ كلَّها في معاملةٍ واحدة.
-        يعيد (الحصّة، عددَ من أُدخل لهم).
-        """
+    @staticmethod
+    def enter_marks(
+        user: CustomUser, school: School, session_id: UUID, post: Any
+    ) -> tuple[Session, EnterResult, Session | None]:
+        """«ثبّتِ الحصّة» من الكشف المشترك: إدخالاتٌ مبدئيّةٌ لكلّ ما اختاره المعلّمُ (والخروجُ `ClassExit`) — يعيد التاليةَ لـ«ثبّت وانتقل»."""
         session = get_object_or_404(
             Session.objects.select_related("class_group__wing"), id=session_id, school=school
         )
-        done = 0
-        with transaction.atomic():
-            for line in student_lines(session):
-                if line.entry is not None or line.effective_status is not None:
-                    continue
-                submit_entry(user, session, line.student, status)
-                done += 1
-        return session, done
+        students = {
+            s.id: s
+            for s in CustomUser.objects.filter(
+                enrollments__class_group=session.class_group, enrollments__is_active=True
+            ).distinct()
+        }
+        result = enter_period_marks(user, session, students, parse_marks(post))
+        following = next_session_of(session) if post.get("next") else None
+        return session, result, following
 
     @staticmethod
     def decide(
