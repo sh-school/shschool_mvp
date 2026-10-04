@@ -40,6 +40,23 @@ def test_a_closed_entry_window_says_why_and_shows_each_state_as_a_word_not_an_em
     assert "badge--success" in html and ">حاضر<" in html  # كلمةٌ لا نقطةٌ صغيرة
 
 
+def test_in_the_preview_environment_the_window_stays_open_all_day_so_the_owner_sees_the_buttons(
+    client_as, now_0730, now_1500, session, teacher, kid, monkeypatch
+):
+    """قرارُ المالك 2026-10-04: المعاينةُ وحدَها تفتح نافذةَ الإدخال حتى آخر اليوم؛ والإنتاجُ (المصيدةُ ترفضه دائماً) بنافذته."""
+    monkeypatch.setattr("operations.attendance_policy.in_preview_environment", lambda: True)
+    html = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
+    assert 'class="att-btn is-present' in html
+    assert "الإدخالُ مغلق" not in html
+
+
+def test_outside_the_preview_environment_the_window_is_unchanged(
+    client_as, now_0730, now_1500, session, teacher, kid
+):
+    html = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
+    assert 'class="att-btn' not in html and "الإدخالُ مغلق" in html
+
+
 def test_the_name_has_no_tools_padding_when_there_is_no_tools_menu(
     client_as, now_1500, session, teacher, kid
 ):
