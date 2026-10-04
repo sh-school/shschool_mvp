@@ -33,7 +33,7 @@
   <form method="post" action="{% if form_action %}{{ form_action }}{% else %}{% url 'wings:record_period' klass.id %}{% endif %}" class="rec-form"
         data-draft-key="{{ draft_key }}" data-now="{% now 'U' %}" data-offset="{% now 'O' %}"{% if teacher_sheet %}
         data-exit-url="{% url 'mark_exit' session.id %}" data-return-url="{% url 'mark_return' session.id %}"
-        {% if not sheet_closed %}data-entry-url="{% url 'attendance_entry' session.id %}" {% endif %}data-start-epoch="{{ start_epoch }}"{% endif %}>
+        {% if not sheet_closed %}data-entry-url="{% url 'attendance_entry' session.id %}" {% endif %}data-start-epoch="{{ start_epoch }}" data-end-epoch="{{ end_epoch }}"{% endif %}>
     {% csrf_token %}
     <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
     <input type="hidden" name="start" value="{{ focus.key }}">

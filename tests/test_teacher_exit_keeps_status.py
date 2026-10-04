@@ -183,3 +183,18 @@ def test_the_script_has_the_exclusion_the_stopwatch_and_the_immediate_late_save(
         "data-out-since",
     ):
         assert needle in source, needle
+
+
+def test_the_exit_button_is_a_toggle_and_the_stopwatch_stops_at_the_end_of_the_session():
+    """توضيحُ المالك: الضغطةُ التالية تُوقف العدّاد ويعود المفتاحُ «خروج»؛ ومن لم يعد حتى نهاية الحصّة يتوقّف عدّادُه ويُحسب وقتُه إلى نهايتها."""
+    source = JS.read_text(encoding="utf-8")
+    assert "var outRow = exitUrl ? cell.closest('tr[data-out-since]') : null;" in source
+    assert "var now = endEpoch ? Math.min(nowSec(), endEpoch) : nowSec();" in source
+
+
+def test_the_form_carries_the_end_of_the_session_for_the_stopwatch(
+    client_as, now_0730, session, teacher, kid
+):
+    html = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
+    end = int(at(7, 55).timestamp())  # نهايةُ حصّة 07:10 في تجهيز الاختبار
+    assert f'data-end-epoch="{end}"' in html

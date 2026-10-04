@@ -88,3 +88,24 @@ def test_another_teacher_cannot_record_an_exit_in_a_colleagues_session(
     )
     assert response.status_code == 403
     assert not ClassExit.objects.exists()
+
+
+def test_a_student_may_leave_again_with_a_new_exit_and_a_new_moment(
+    client_as, monkeypatch, session, teacher, kid
+):
+    """توضيحُ المالك: يجوز خروجٌ متكرّرٌ في الحصّة الواحدة، لكلٍّ عدّادٌ ووقتُ خروجٍ جديد."""
+    for minute in (20, 40):
+        monkeypatch.setattr(timezone, "now", lambda minute=minute: at(7, minute))
+        client_as(teacher).post(
+            reverse("mark_exit", args=[session.id]),
+            {"student_id": str(kid.id), "destination": "restroom"},
+        )
+        monkeypatch.setattr(timezone, "now", lambda minute=minute: at(7, minute + 5))
+        client_as(teacher).post(
+            reverse("mark_return", args=[session.id]), {"student_id": str(kid.id)}
+        )
+    exits = list(ClassExit.objects.filter(session=session, student=kid).order_by("left_at"))
+    assert [(e.left_at, e.returned_at) for e in exits] == [
+        (at(7, 20), at(7, 25)),
+        (at(7, 40), at(7, 45)),
+    ]

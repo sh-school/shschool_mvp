@@ -90,6 +90,15 @@
     if (!button) return;
     button.addEventListener('click', function (event) {
       event.stopPropagation();
+      var outRow = exitUrl ? cell.closest('tr[data-out-since]') : null;
+      if (outRow) {  // المعلّم: الضغطةُ التالية على من هو خارجٌ تُنهي خروجَه ويعود المفتاحُ «خروج»
+        cell.querySelector('select.per-where').value = '';
+        sendExit(cell, '');
+        syncExit(cell);
+        closeExit();
+        write(snapshot());
+        return;
+      }
       var open = !cell.classList.contains('is-exit-open');
       closeExit();
       cell.classList.toggle('is-exit-open', open);
@@ -203,6 +212,7 @@
   // (٣) «متأخّر» يُسجَّل وقتُ دخوله فوراً وتُحسب دقائقُه من بدء الحصّة آلياً ويُحفظ (الخادمُ يعيد الحساب بساعته).
   var entryUrl = form.getAttribute('data-entry-url');
   var startEpoch = parseInt(form.getAttribute('data-start-epoch'), 10) || 0;
+  var endEpoch = parseInt(form.getAttribute('data-end-epoch'), 10) || 0;
   function nowSec() { return Math.floor((Date.now() + skew) / 1000); }
   function csrf() { var t = form.querySelector('input[name=csrfmiddlewaretoken]'); return t ? t.value : ''; }
   function stopwatch(seconds) {
@@ -226,7 +236,9 @@
   }
   function outTick() {
     form.querySelectorAll('tr[data-out-since]').forEach(function (row) {
-      var text = stopwatch(Math.max(0, nowSec() - parseInt(row.getAttribute('data-out-since'), 10)));
+      // من لم يعد حتى نهاية الحصّة يتوقّف عدّادُه ويُحسب وقتُه إلى نهايتها.
+      var now = endEpoch ? Math.min(nowSec(), endEpoch) : nowSec();
+      var text = stopwatch(Math.max(0, now - parseInt(row.getAttribute('data-out-since'), 10)));
       var label = row.querySelector('[data-exit-label]');
       if (label) label.textContent = text;
       var select = row.querySelector('select.per-where');

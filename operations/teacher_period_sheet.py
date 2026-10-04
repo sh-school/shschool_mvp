@@ -167,6 +167,9 @@ def teacher_sheet_context(user: CustomUser, session: Session) -> dict[str, Any]:
         "entry_marks": marks,
         "awaiting_decision": 0,
         "form_action": reverse("attendance_period_entries", args=[session.id]),
+        "end_epoch": int(
+            timezone.make_aware(dt.datetime.combine(session.date, session.end_time)).timestamp()
+        ),
         "start_epoch": int(
             timezone.make_aware(dt.datetime.combine(session.date, session.start_time)).timestamp()
         ),
