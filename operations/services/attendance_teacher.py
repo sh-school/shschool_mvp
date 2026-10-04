@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 
@@ -104,6 +105,27 @@ class TeacherAttendanceService:
             correction_reason=reason,
         )
         return session, student_line(session, student)
+
+    @staticmethod
+    def enter_all(
+        user: CustomUser, school: School, session_id: UUID, *, status: str = "present"
+    ) -> tuple[Session, int]:
+        """«الكلُّ حاضر» للمعلّم الفعليّ: إدخالٌ مبدئيٌّ لكلّ طالبٍ لم يُدخَل له شيء — **لا يمسّ ما أدخله** من قبلُ ولا ما اعتُمد.
+
+        كلُّ إدخالٍ بالسياسة نفسِها (`submit_entry`: معلّمُ الحصّة ونافذةُ اليوم والقيد)، والمنعُ يُلغي الجملةَ كلَّها في معاملةٍ واحدة.
+        يعيد (الحصّة، عددَ من أُدخل لهم).
+        """
+        session = get_object_or_404(
+            Session.objects.select_related("class_group__wing"), id=session_id, school=school
+        )
+        done = 0
+        with transaction.atomic():
+            for line in student_lines(session):
+                if line.entry is not None or line.effective_status is not None:
+                    continue
+                submit_entry(user, session, line.student, status)
+                done += 1
+        return session, done
 
     @staticmethod
     def decide(

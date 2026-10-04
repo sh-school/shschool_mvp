@@ -20,6 +20,12 @@
     {% if recorded %}<span class="status-badge status-success">{% icon "confirm" %} رصدها المشرف</span>
     {% else %}<span class="status-badge status-warning">{% icon "time" %} لم يُرصد بعد</span>{% endif %}
     {% if pending_count %}<span class="status-badge status-warning">{% icon "time" %} {{ pending_count }} بانتظار الاعتماد</span>{% endif %}
+    {% if can_enter %}
+    <form method="post" action="{% url 'attendance_entry_all' session.id %}" class="asg-bulk">
+      {% csrf_token %}
+      <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} الكلُّ حاضر</button>
+    </form>
+    {% endif %}
     {% callout "info" %}إدخالُك مبدئيٌّ: يعتمده حاملُ جناح الشعبة فيصير رصداً، وقبل اعتماده لا يُحتسب حضوراً ولا غياباً. ولك نقرتان تسجّلان الوقتَ من فورهما: <b>دخل الآن</b> لمن دخل متأخّراً، و<b>خرج بإذن</b> ثمّ <b>عاد</b> لمن غادر الفصل.{% endcallout %}
   {% endpage_header %}
 

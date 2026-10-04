@@ -5,9 +5,11 @@
 والقدرةُ على المسار بوّابةٌ أوسعُ لا بديلٌ منها. وكلُّ جلبٍ وكتابةٍ في `TeacherAttendanceService`.
 """
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from core.capabilities import capability_required
@@ -79,6 +81,30 @@ def entry_submit(request, session_id):
         return _entry_error(exc, 400)
     context = {"session": session, "line": line, "can_enter": True}
     return render(request, "teacher/partials/entry_cell.html", context)
+
+
+@login_required
+@capability_required("attendance.mark")
+@require_POST
+def entry_submit_all(request, session_id):
+    """«الكلُّ حاضر» بضغطةٍ للمعلّم الفعليّ في شعبة جناحٍ — إدخالاتٌ مبدئيّةٌ لمن لم يُدخَل له شيءٌ، ثمّ العودةُ إلى صفحة الحصّة."""
+    try:
+        _session, done = TeacherAttendanceService.enter_all(
+            request.user, request.school, session_id
+        )
+    except EntryRefusedError as exc:
+        return _refusal(exc)
+    except EntryConflictError as exc:
+        return _entry_error(exc, 409)
+    except EntryError as exc:
+        return _entry_error(exc, 400)
+    messages.success(
+        request,
+        f"أُدخل «حاضر» لـ{done} طالباً — مبدئيّاً حتى يعتمده حاملُ الجناح."
+        if done
+        else "لا طالبَ بلا إدخالٍ — لم يتغيّر شيء.",
+    )
+    return redirect(reverse("attendance", args=[session_id]))
 
 
 @login_required

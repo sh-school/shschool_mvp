@@ -704,6 +704,9 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 
 .rec-row__flags { display: flex; gap: var(--sp-1); flex-wrap: wrap; }
 .rec-row__flags .badge { font-size: var(--text-xs); }
+/* أزرارُ المعلّم بضغطةٍ واحدة (حاضر · غائب · متأخّر) مع خانةِ دقائقَ صغيرة — تلتفّ على الجوّال. */
+.asg-quick { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); }
+.asg-quick__min { inline-size: 56px; }
 /* علامةُ إدخال المعلّم في خليّة الطالب (W-20261004-014): شارةٌ ثمّ زرُّ الاعتماد، وتلتفّ على الجوّال. */
 .rec-entry { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); margin-block-start: var(--sp-1); }
 .rec-entry .badge { font-size: var(--text-xs); }

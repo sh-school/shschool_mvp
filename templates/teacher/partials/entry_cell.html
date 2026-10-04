@@ -1,7 +1,8 @@
 {% comment %}
-خليّةُ إدخال المعلّم الفعليّ لطالبٍ في شُعب الأجنحة (W-020): حالةُ ما أدخله، ثمّ نموذجُ الإدخال أو التصحيح داخل النافذة.
+خليّةُ إدخال المعلّم الفعليّ لطالبٍ في شُعب الأجنحة (W-020): حالةُ ما أدخله، ثمّ **ثلاثةُ أزرارٍ بضغطةٍ واحدة** (حاضر · غائب · متأخّر) كما كانت
+للمشرف في شبكته (W-20261004-014): لا قائمةَ منسدلةً ولا زرَّ إرسالٍ منفصلاً — الضغطةُ تُدخل فوراً (HTMX). والمتأخّرُ يأخذ دقائقَه من خانتها إن كُتبت.
 المبدئيُّ «بانتظار الاعتماد» ليس حضوراً ولا غياباً حتى يقرّر حاملُ الجناح — فيُعرض وسماً لا حالةً.
-ولا يُعرض سببُ الرفض ولا سببُ التصحيح هنا (نصٌّ حرٌّ لأصحاب الاعتماد وحدَهم).
+ولا يُعرض سببُ الرفض ولا سببُ التصحيح هنا (نصٌّ حرٌّ لأصحاب الاعتماد وحدَهم). وتصحيحُ رصدٍ **معتمَد** يلزمه سببٌ فيبقى نموذجَه.
 {% endcomment %}
 {% if line.correction %}
   <span class="badge badge--warning" title="صحّح المشرفُ هذا الرصدَ دون معاينةٍ بدليلٍ مسمّى">تصحيحٌ دون معاينة</span>
@@ -16,6 +17,7 @@
   {% endif %}
 {% endif %}
 {% if can_enter %}
+{% if line.entry_state == "approved" %}
 <form hx-post="{% url 'attendance_entry' session.id %}" hx-target="#entry-{{ line.student.id }}" hx-swap="innerHTML" class="asg-inline">
   {% csrf_token %}
   <input type="hidden" name="student_id" value="{{ line.student.id }}">
@@ -26,9 +28,23 @@
     <option value="late" {% if line.entry.status == "late" %}selected{% endif %}>متأخّر</option>
   </select>
   <input type="number" inputmode="numeric" name="minutes" min="1" max="600" class="form-control" placeholder="دقائق" aria-label="دقائقُ التأخّر" value="{{ line.entry.tardiness_minutes|default_if_none:'' }}">
-  {% if line.entry_state == "approved" %}
   <input type="text" name="reason" maxlength="300" required class="form-control" placeholder="سببُ التصحيح" aria-label="سببُ تصحيح رصدٍ معتمَد">
-  {% endif %}
-  <button type="submit" class="btn-secondary btn-sm">{% if line.entry %}تصحيح{% else %}إدخال{% endif %}</button>
+  <button type="submit" class="btn-secondary btn-sm">تصحيح</button>
 </form>
+{% else %}
+{% comment %} لا نماذجَ متداخلة: الأزرارُ `type="button"` بـhx-post وتحمل `student_id` و`status` معها، ويضمّ hx-include رمزَ CSRF والدقائق من الغلاف. {% endcomment %}
+<span class="asg-quick" role="group" aria-label="رصدُ {{ line.student.full_name }}" id="quick-{{ line.student.id }}">
+  {% csrf_token %}
+  <input type="number" inputmode="numeric" name="minutes" min="1" max="600" class="form-control asg-quick__min" placeholder="د" aria-label="دقائقُ التأخّر" value="{{ line.entry.tardiness_minutes|default_if_none:'' }}">
+  <button type="button" class="att-btn is-present{% if line.entry.status == 'present' %} is-current{% endif %}"
+          hx-post="{% url 'attendance_entry' session.id %}" hx-vals='{"student_id": "{{ line.student.id }}", "status": "present"}'
+          hx-include="closest .asg-quick" hx-target="#entry-{{ line.student.id }}" hx-swap="innerHTML">حاضر</button>
+  <button type="button" class="att-btn is-absent{% if line.entry.status == 'absent' %} is-current{% endif %}"
+          hx-post="{% url 'attendance_entry' session.id %}" hx-vals='{"student_id": "{{ line.student.id }}", "status": "absent"}'
+          hx-include="closest .asg-quick" hx-target="#entry-{{ line.student.id }}" hx-swap="innerHTML">غائب</button>
+  <button type="button" class="att-btn is-late{% if line.entry.status == 'late' %} is-current{% endif %}"
+          hx-post="{% url 'attendance_entry' session.id %}" hx-vals='{"student_id": "{{ line.student.id }}", "status": "late"}'
+          hx-include="closest .asg-quick" hx-target="#entry-{{ line.student.id }}" hx-swap="innerHTML">متأخّر</button>
+</span>
+{% endif %}
 {% endif %}
