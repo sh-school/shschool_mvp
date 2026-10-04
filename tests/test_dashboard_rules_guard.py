@@ -14,13 +14,14 @@ SELECTORS = ROOT / "core" / "dashboard_selectors.py"
 # ١) قوالبُ رأسٍ لا يظهر فيها اسمُ طالب (المدير يرى العددَ والرابط).
 NO_STUDENT_NAMES = ("director.html",)
 NAME_USES = re.compile(r"\.student\.full_name|student\.full_name|\.student\.name")
-NAMES_DEBT = {"director.html": "تنبيهاتُ الغياب تعرض أسماء الطلبة للمدير — تنتظر بطاقة تنفيذ D-171م"}
+NAMES_DEBT: dict[
+    str, str
+] = {}  # أُصلح director.html في W-20261003-030 (عدّادٌ ورابطٌ بلا أسماء، D-171م)
 
 # ٢) دوالُّ سياقٍ مشتركةٌ بين أدوار (تأخذ role) تحمل فحصَ قدرةٍ أو نطاقاً.
 # `student_scope` يقيّد قوائمَ الطلبة لا العدّادات (وُجد في get_admin_ops_ctx وعدّاداتُه بلا قدرة)، فلا يكفي وحدَه.
 GUARD_CALLS = {"has_capability"}
 COUNTER_DEBT = {
-    "get_admin_ops_ctx": "عدّاداتٌ بمستوى المدرسة بلا فحص قدرة — W-20261003-030 عند 0105",
     "get_teacher_ctx": "فرعُ المنسّق يُحصر بقيمة role لا بقدرة — يراجعه 0105 مع W-030",
     "get_service_ctx": "فروعُ الممرّض والمكتبي والفنّي تُحصر بقيمة role لا بقدرة — يراجعه 0105 مع W-030",
 }

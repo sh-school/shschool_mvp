@@ -9,6 +9,7 @@
 import datetime as dt
 
 import pytest
+from django.urls import reverse
 
 from core.academic_calendar import academic_year_for_school
 from core.dashboard_presentation import _delta, chunk_for_grid, present
@@ -108,12 +109,11 @@ def test_every_role_dashboard_is_drawn_with_the_shared_components(
 
 
 @pytest.mark.django_db
-def test_the_director_dashboard_shows_class_and_days_on_absence_alerts(
+def test_the_director_dashboard_shows_a_count_and_a_link_not_student_names(
     client_as, school, principal_user
 ):
-    """السكرول الرأسيّ كان يدفع الرسمين البيانيّين خارج الشاشة (ملاحظة
-    المدير 2026-09-18): البطاقةُ انضمّت عموداً ثالثاً بجانبهما بدل قسمٍ
-    مستقلٍّ فوقهما، والصفُّ/الشعبةُ صار جزءاً من السطر — لا الاسم وحده."""
+    """المدير أرقامٌ ورابطٌ لا أسماءُ طلبة (D-171م، W-20261003-030): البطاقةُ تعدّ التنبيهات
+    وتحيل إلى «متابعة الحضور» المحروسة بقدرتها، وفيها الأسماءُ والصفُّ والشعبة."""
     year = academic_year_for_school(school)
     klass = ClassGroupFactory(school=school, academic_year=year)
     student = UserFactory(full_name="طالبٌ متكرّر الغياب")
@@ -129,10 +129,8 @@ def test_the_director_dashboard_shows_class_and_days_on_absence_alerts(
 
     html = client_as(principal_user).get("/dashboard/").content.decode()
 
-    assert "طالبٌ متكرّر الغياب" in html
-    assert klass.short_label in html
-    assert "7 أيّام" in html
-    assert 'class="plain-list is-scroll"' in html
+    assert "طالبٌ متكرّر الغياب" not in html
+    assert reverse("student_affairs:attendance_overview") in html
 
 
 @pytest.mark.django_db

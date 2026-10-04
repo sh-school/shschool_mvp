@@ -22,8 +22,9 @@ from assessments.models import AnnualSubjectResult, SubjectClassSetup
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit
 from core.academic_calendar import academic_year_for_school
+from core.capabilities import has_capability
 from core.domain.attendance import attendance_rate
-from core.models.academic import StudentEnrollment, grade_order
+from core.models.academic import grade_order
 from core.permissions import SCHEDULE_BROWSE, get_department_teacher_ids
 from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing
@@ -159,22 +160,9 @@ def get_director_ctx(school, today):
     att_delta = att_pct - att_pct_y if att_pct_y is not None else None
     absent_delta = absent - absent_y if total_y else None
 
-    #: قواميسُ لا نماذج — `AbsenceAlert` لا حقلَ صفٍّ فيها، وإلحاقُ خانةٍ
-    #: ديناميكيّةً بنموذج Django غيرُ مطابَقٍ للتصريح (`mypy: attr-defined`).
-    alerts = []
-    for alert in (
-        AbsenceAlert.objects.filter(school=school, status="pending")
-        .select_related("student")
-        .order_by("-created_at")[:5]
-    ):
-        enrollment = StudentEnrollment.objects.current_of(alert.student, school=school)
-        alerts.append(
-            {
-                "student": alert.student,
-                "class_text": enrollment.class_group.short_label if enrollment else "—",
-                "absence_count": alert.absence_count,
-            }
-        )
+    # عدّادٌ لا أسماء (D-171م: لوحةُ المدير أرقامٌ ورابطٌ إلى الشاشة المحروسة) —
+    # فالأسماءُ تُفتح في «متابعة الحضور» بقدرتها `student_affairs.follow_up`.
+    alerts_count = AbsenceAlert.objects.filter(school=school, status="pending").count()
 
     # إحصائيات التقييمات — aggregate واحد
     annual = AnnualSubjectResult.objects.filter(school=school, academic_year=year).aggregate(
@@ -232,7 +220,7 @@ def get_director_ctx(school, today):
         "att_delta": att_delta,
         "absent_delta": absent_delta,
         "total_students": total_att,
-        "alerts": alerts,
+        "alerts_count": alerts_count,
         "total_annual": total_annual,
         "passed_annual": passed_annual,
         "failed_annual": failed_annual,
@@ -465,23 +453,31 @@ def get_admin_ops_ctx(user, school, today, role):
     سياق الإداريين: admin + admin_supervisor + secretary + receptionist.
     يُركّز على: المهام الإدارية + الإشعارات + حضور الموظفين.
     """
-    absent_teachers = TeacherAbsence.objects.filter(school=school, date=today).count()
+    # كلُّ عدّادٍ بقدرة وجهته (W-20261003-030): رقمٌ يُعرض لمن لا تُفتح له شاشتُه
+    # كشفٌ بلا مسوّغ — فيغيب (None) ويُخفيه القالب، ولا يُنفَّذ له استعلام.
+    absent_teachers = None
+    if has_capability(user, "operations.reports"):
+        absent_teachers = TeacherAbsence.objects.filter(school=school, date=today).count()
 
-    pending_swaps = TeacherSwap.objects.filter(
-        school=school, status__in=["pending_b", "accepted_b", "pending_coordinator"]
-    ).count()
-    pending_comp = CompensatorySession.objects.filter(school=school, status="pending").count()
+    pending_swaps = pending_comp = None
+    if has_capability(user, "schedule.view"):
+        pending_swaps = TeacherSwap.objects.filter(
+            school=school, status__in=["pending_b", "accepted_b", "pending_coordinator"]
+        ).count()
+        pending_comp = CompensatorySession.objects.filter(school=school, status="pending").count()
 
-    # تنبيهاتُ الغياب لطلبة جناح المشرف وحدَهم (قرارُ 2026-09-15) — والإداريُّ والسكرتيرُ
-    # غيرُ مقيَّدين، فلا يتغيّر ما يريانه ولا يُنفَّذ لهما استعلامٌ زائد.
-    from wings.scope import student_scope
+    # قائمةُ الأسماء بقدرتها المخصّصة لها وحدَها (قرارُ المالك 2026-10-03)، لا بـ`follow_up`
+    # التي تفتح ملفّاتِ الطلبة؛ وتنبيهاتُ المشرف لطلبة جناحه وحدَهم (قرارُ 2026-09-15).
+    recent_alerts = []
+    if has_capability(user, "dashboard.absence_alert_names"):
+        from wings.scope import student_scope
 
-    recent_alerts = (
-        student_scope(user, school)
-        .narrow(AbsenceAlert.objects.filter(school=school, status="pending"), "student_id")
-        .select_related("student")
-        .order_by("-created_at")[:5]
-    )
+        recent_alerts = (
+            student_scope(user, school)
+            .narrow(AbsenceAlert.objects.filter(school=school, status="pending"), "student_id")
+            .select_related("student")
+            .order_by("-created_at")[:5]
+        )
 
     ctx = {
         "view_type": "admin_ops",
