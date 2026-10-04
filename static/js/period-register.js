@@ -53,8 +53,10 @@
     if (!select || !label || !button) return;
     var option = select.options[select.selectedIndex];
     var set = !!select.value;
-    label.textContent = set ? option.textContent : 'خروج';
+    // المعلّم (data-exit-url): الزرُّ يبقى «خروج» ويحمرّ فقط — اسمُ الوجهة الطويلُ يغطّي أزرارَ الحالة في البطاقة الضيّقة.
+    label.textContent = set && !exitUrl ? option.textContent : 'خروج';
     button.classList.toggle('is-set', set);
+    if (exitUrl) button.title = set ? 'خرج: ' + option.textContent : 'خروجُ الطالب — أين هو؟';
   }
   function closeExit() {
     exitCells().forEach(function (cell) {
@@ -74,7 +76,7 @@
     body.append('student_id', row.getAttribute('data-student'));
     if (destination) body.append('destination', destination);
     fetch(destination ? exitUrl : returnUrl, { method: 'POST', body: body, credentials: 'same-origin' }).then(function (response) {
-      if (!response.ok && window.showToast) window.showToast('تعذّر تسجيلُ الخروج', 'danger');
+      if (!response.ok && window.showToast) window.showToast('تعذّر تسجيلُ الخروج (' + response.status + ')', 'danger');
     });
   }
   exitCells().forEach(function (cell) {

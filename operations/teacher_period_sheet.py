@@ -56,15 +56,17 @@ class TeacherPick:
     locked: bool = False
 
 
-def _pick_of(line: StudentLine, note: str) -> TeacherPick:
+def _pick_of(line: StudentLine, destination: str) -> TeacherPick:
     entry = line.entry
     if entry is not None and line.entry_state in ("pending", "approved"):
         return TeacherPick(
-            status=str(entry.status), away_note=note, locked=line.entry_state == "approved"
+            status=str(entry.status),
+            whereabouts=destination,
+            locked=line.entry_state == "approved",
         )
     if line.effective_status:  # رصدُ مشرفٍ أو عيادةٍ أو بوّابة: لا يُكتب فوقه من هنا
-        return TeacherPick(status=str(line.effective_status), away_note=note, locked=True)
-    return TeacherPick(away_note=note)
+        return TeacherPick(status=str(line.effective_status), whereabouts=destination, locked=True)
+    return TeacherPick(whereabouts=destination)
 
 
 def _cells(class_group: Any, day: dt.date) -> dict:
@@ -124,7 +126,7 @@ def teacher_sheet_context(user: CustomUser, session: Session) -> dict[str, Any]:
         own = cells.get(sid, {})
         gone = outs.get(sid, {})
         current = exits.get(sid, (None, []))[0]
-        note = f"خرج · {current.get_destination_display()}" if current is not None else ""
+        destination = current.destination if current is not None else ""
         rows.append(
             {
                 "student": line.student,
@@ -133,7 +135,7 @@ def teacher_sheet_context(user: CustomUser, session: Session) -> dict[str, Any]:
                     for p in mine
                 ],
                 "cell": own.get(focus.start) if focus else None,
-                "pick": _pick_of(line, note),
+                "pick": _pick_of(line, destination),
             }
         )
     following = next_session_of(session)

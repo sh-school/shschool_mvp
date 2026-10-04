@@ -102,3 +102,26 @@ def test_the_table_view_shows_the_exit_list_for_the_teacher_and_sends_it_on_chan
     source = JS.read_text(encoding="utf-8")
     assert "select.per-where').forEach(function (select) {" in source
     assert "if (!exitUrl && radio && radio.type === 'radio' && radio.value !== 'absent')" in source
+
+
+def test_a_student_already_out_is_preselected_without_an_extra_badge_line(
+    client_as, now_0730, session, teacher, kid
+):
+    """لقطةُ المالك: سطرُ «خرج · …» كان يُطيل بطاقاتٍ دون غيرها وزرُّ الوجهة يغطّي أزرارَ الحالة — الآن الوجهةُ مختارةٌ في القائمة فيحمرّ الزرُّ بلا سطرٍ إضافيّ."""
+    ClassExit.objects.create(
+        school=session.school,
+        session=session,
+        student=kid,
+        destination="clinic",
+        left_at=at(7, 20),
+        allowed_by=teacher,
+    )
+    html = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
+    assert '<option value="clinic" selected>' in html
+    assert "rec-row__flags" not in html and "خرج · " not in html
+
+
+def test_the_teachers_exit_button_keeps_its_short_label_so_it_cannot_cover_the_status_buttons():
+    source = JS.read_text(encoding="utf-8")
+    assert "label.textContent = set && !exitUrl ? option.textContent : 'خروج';" in source
+    assert "if (exitUrl) button.title" in source  # اسمُ الوجهة في التلميح
