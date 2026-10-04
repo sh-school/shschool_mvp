@@ -18,16 +18,41 @@
 <div class="exec-dash">
 
   {% page_header page_title subtitle=session_label icon="checklist" %}
-    {% if can_enter %}
-    <form method="post" action="{% url 'attendance_entry_all' session.id %}" class="asg-bulk">
-      {% csrf_token %}
-      <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} الكلُّ حاضر</button>
-    </form>
-    {% endif %}
     {% if pending_count %}<span class="status-badge status-warning">{% icon "time" %} {{ pending_count }} بانتظار الاعتماد</span>
     {% elif recorded %}<span class="status-badge status-success">{% icon "confirm" %} رصدها المشرف</span>
     {% else %}<span class="status-badge status-gray">{% icon "time" %} لم يُرصد بعد</span>{% endif %}
   {% endpage_header %}
+
+  {% comment %} رأسُ الحصّة المفتوحة كرأس كشف المشرف: رقمُها ومادّتُها ووقتُها، و«الكلُّ حاضر»، ومبدّلُ شبكة/جدول، وتبويبُ حصصِه اليوم. {% endcomment %}
+  <section class="per-head" aria-label="الحصّة المفتوحة للرصد">
+    <span class="per-head__badge" aria-hidden="true">ح{% for col in grid_cols %}{% if col.is_focus %}{{ col.number }}{% endif %}{% endfor %}</span>
+    <div class="per-head__body">
+      <p class="per-head__title">{{ session.subject.name_ar|default:"حصّة" }}</p>
+      <p class="per-head__time">
+        <span>تبدأ <b>{{ session.start_time|time:"H:i" }}</b></span>
+        <span>تنتهي <b>{{ session.end_time|time:"H:i" }}</b></span>
+      </p>
+    </div>
+    <div class="per-head__tools">
+      <div class="per-head__keys">
+        {% if can_enter %}
+        <form method="post" action="{% url 'attendance_entry_all' session.id %}" class="asg-bulk">
+          {% csrf_token %}
+          <button type="submit" class="btn-secondary btn-sm">الكلُّ حاضر</button>
+        </form>
+        {% endif %}
+        <div class="per-view" role="group" aria-label="طريقةُ العرض">
+          <button type="button" class="btn-secondary btn-sm" data-view="tiles" aria-pressed="true">شبكة</button>
+          <button type="button" class="btn-secondary btn-sm" data-view="table" aria-pressed="false">جدول</button>
+        </div>
+      </div>
+      <nav class="per-tabs" aria-label="حصصي اليوم">
+        {% for col in grid_cols %}
+          <a href="{% url 'attendance' col.session.id %}" class="per-tab{% if col.is_focus %} is-focus{% endif %}" {% if col.is_focus %}aria-current="true"{% endif %}>ح{{ col.number }}</a>
+        {% endfor %}
+      </nav>
+    </div>
+  </section>
 
   {% kpi_strip label="الحصّة الآن" %}
     {% kpi "الطلاب" students_data|length %}
@@ -40,7 +65,7 @@
   {% if not students_data %}
     {% callout "info" show=True %}لا طلابَ مقيَّدون في هذه الشعبة.{% endcallout %}
   {% else %}
-  <div class="per-grid-wrap">
+  <div class="per-grid-wrap is-tiles">
     <table class="per-grid" data-no-sort>
       <thead>
         <tr data-plain-head>
@@ -108,4 +133,29 @@
   {% endif %}
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% comment %} مبدّلُ شبكة/جدول بمفتاح التفضيل نفسِه (`per-view`) الذي يحفظه كشفُ المشرف: الاختيارُ واحدٌ للصفحتين، والشبكةُ الأصل. {% endcomment %}
+<script nonce="{{ request.csp_nonce }}">
+(function () {
+  var wrap = document.querySelector('.per-grid-wrap');
+  if (!wrap) return;
+  var key = 'per-view';
+  function set(view) {
+    wrap.classList.toggle('is-tiles', view !== 'table');
+    document.querySelectorAll('[data-view]').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-view') === view ? 'true' : 'false');
+    });
+  }
+  try { set(window.localStorage.getItem(key) === 'table' ? 'table' : 'tiles'); } catch (e) { /* لا تخزين */ }
+  document.querySelectorAll('[data-view]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var view = b.getAttribute('data-view');
+      set(view);
+      try { window.localStorage.setItem(key, view); } catch (e) { /* لا تخزين */ }
+    });
+  });
+})();
+</script>
 {% endblock %}

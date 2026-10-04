@@ -711,6 +711,9 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .per-pend.is-fix { color: var(--status-info-fg); }
 .per-cell.is-focus .per-state-mark { display: inline-block; min-width: 1.2em; }
 .asg-correct > summary { cursor: pointer; display: inline-block; }
+/* بطاقاتُ المعلّم (الشبكة): الأزرارُ الثلاثةُ تملأ عرضَ البطاقة كأزرار كشف المشرف. */
+.per-grid-wrap.is-tiles .asg-quick { flex: 1 1 0; display: flex; flex-wrap: nowrap; }
+.per-grid-wrap.is-tiles .asg-quick .att-btn { flex: 1 1 0; min-width: 0; min-height: 40px; padding-inline: var(--sp-1); }
 /* أزرارُ المعلّم بضغطةٍ واحدة (حاضر · غائب · متأخّر) مع خانةِ دقائقَ صغيرة — تلتفّ على الجوّال. */
 .asg-quick { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); }
 .asg-quick__min { inline-size: 56px; }
