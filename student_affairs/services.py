@@ -22,6 +22,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
+from core.audit_repr import masked_repr
 from core.initial_passwords import make_initial_password
 from core.labels import class_label
 from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment, grade_order
@@ -482,7 +483,7 @@ class StudentService:
             action="create",
             model_name="other",
             object_id=str(user.id),
-            object_repr=f"إضافةُ طالبٍ بكلمة مرورٍ أوّليّةٍ عشوائيّة: {user.full_name}"[:300],
+            object_repr=f"إضافةُ طالبٍ بكلمة مرورٍ أوّليّةٍ عشوائيّة: {masked_repr(user)}"[:300],
             changes={"event": "student_added_initial_password", "must_change_password": True},
         )
 

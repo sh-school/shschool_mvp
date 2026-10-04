@@ -20,6 +20,7 @@ from django.utils import timezone
 from core.models import School
 
 from . import constraint_registry
+from .last_period_cap import personal_last_cap
 from .models import (
     ScheduleGeneration,
     ScheduleSlot,
@@ -78,6 +79,8 @@ class Member:
     subject_id: str
     subject_name: str
     subject_code: str
+    #: سقفُ السابعة الأسبوعيّ الخاصّ بهذا المعلّم (HC8) — صفرٌ يعني «خُذ العامّ».
+    last_cap: int = 0
 
 
 @dataclass
@@ -310,14 +313,19 @@ class ScheduleGrid:
             for member in task.members:
                 self._teacher_slots[member.teacher_id].append((day, slot))
                 self._teacher_at[(member.teacher_id, day, slot)] = task
-            self._subject_class_day[(task.subject_id, task.class_id, day)] += 1
-            self._subject_period[(task.subject_id, task.class_id, slot)] += 1
             for resource_id, *_ in task.resources:
                 self._resource_at[(resource_id, day, slot)] += 1
                 self._resource_levels[(resource_id, day, slot)][task.level_type] += 1
                 self._resource_bands[(resource_id, day, slot)][
                     (task.band_id or "", task.level_type)
                 ] += 1
+        # موضعُ البداية وحدَه: `check_period_variety` (HC7) يسأل عن موضع بداية الكتلة، فلو عُدّت كلُّ خانةٍ
+        # تغطّيها المزدوجةُ رُفع العدّادُ على حصّتَيها وضاقت مواضعُ البدء الأربعةُ (ح1، ح2، ح4، ح6) فتعذّرت
+        # كتلةٌ من نصاب 12 مزدوجة (W-20261002-014). والمفردةُ بدايتُها هي خانتُها فلا تتغيّر.
+        self._subject_period[(task.subject_id, task.class_id, period)] += 1
+        # كتلةٌ واحدةٌ لا حصّةٌ لكلّ خانة: `per_day_cap` يُحسب بالكتل (⌈W/D⌉ على عدد الكتل)، فلو عُدّت
+        # الخاناتُ كانت المزدوجةُ تُحسب اثنتين ويضيق السقفُ إلى النصف صامتاً (W-20260930-003).
+        self._subject_class_day[(task.subject_id, task.class_id, day)] += 1
         for member in task.members:
             self._teacher_tasks[member.teacher_id] += 1
         self._entries[id(task)] = {"day": day, "period": period, "task": task}
@@ -346,14 +354,14 @@ class ScheduleGrid:
             for member in task.members:
                 self._teacher_slots[member.teacher_id].remove((day, slot))
                 self._teacher_at.pop((member.teacher_id, day, slot), None)
-            self._subject_class_day[(task.subject_id, task.class_id, day)] -= 1
-            self._subject_period[(task.subject_id, task.class_id, slot)] -= 1
             for resource_id, *_ in task.resources:
                 self._resource_at[(resource_id, day, slot)] -= 1
                 self._resource_levels[(resource_id, day, slot)][task.level_type] -= 1
                 self._resource_bands[(resource_id, day, slot)][
                     (task.band_id or "", task.level_type)
                 ] -= 1
+        self._subject_class_day[(task.subject_id, task.class_id, day)] -= 1
+        self._subject_period[(task.subject_id, task.class_id, start)] -= 1
         for member in task.members:
             self._teacher_tasks[member.teacher_id] -= 1
         self._entries.pop(id(task), None)
@@ -486,7 +494,7 @@ class ScheduleGrid:
         return self._subject_class_day.get((subject_id, class_id, day), 0)
 
     def subject_at_period(self, class_id: str, subject_id: str, period: int) -> int:
-        """كم مرّةً وقعت هذه المادّةُ في هذه الحصّة من اليوم خلال الأسبوع.
+        """كم كتلةً بدأت لهذه المادّة في هذه الحصّة من اليوم خلال الأسبوع (المزدوجةُ كتلةٌ تُعدّ عند بدايتها).
 
         فمادّةٌ كلُّ حصصها في الحصّة الخامسة جدولٌ لا يقبله أحد: الطالبُ يلقاها
         في التوقيت نفسه كلَّ يوم، والمعلّمُ كذلك. والتنوّعُ مقصودٌ لا مصادفة.
@@ -642,6 +650,12 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
     #: سقوفُ الفراغ الخاصّة — `None` لا قيد، والصفرُ قيدٌ صحيح: «لا فراغَ
     #: البتّة». فيُسأل عن العدم لا عن الصدق، وإلّا سقط الأشدُّ من القيدين.
     personal_gap = {str(p.teacher_id): p.max_gap for p in prefs if p.max_gap is not None}
+    #: سقفُ السابعة الشخصيّ (HC8) — قرارٌ في حقّ معلّمٍ يفوق نصابُه سعتَه بالعدّ (W-20261003-035).
+    personal_last = {
+        str(p.teacher_id): personal_last_cap(p.max_last_periods)
+        for p in prefs
+        if personal_last_cap(p.max_last_periods)
+    }
 
     # أيّامُ التفريغ الكاملة لكلّ معلّم — مقامُ القسمة في التوزيع.
     # ومواردُ المدرسة المحدودة: أيُّ مادّةٍ تستهلك أيَّ موردٍ وبأيّ سعة.
@@ -693,11 +707,18 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
         available = len(DAYS) - len(exempt_days.get(str(a.teacher_id), ()))
         rows.append((a, level_type, is_double, max(1, available)))
 
-    return _to_tasks(rows, resources_by_subject, personal_cap, personal_gap, pedagogies)
+    return _to_tasks(
+        rows, resources_by_subject, personal_cap, personal_gap, pedagogies, personal_last
+    )
 
 
 def _to_tasks(
-    rows, resources_by_subject=None, personal_cap=None, personal_gap=None, pedagogies=None
+    rows,
+    resources_by_subject=None,
+    personal_cap=None,
+    personal_gap=None,
+    pedagogies=None,
+    personal_last=None,
 ) -> list[Task]:
     """يحوّل الإسنادات إلى مهامّ — والمتوازيةُ منها مهمّةٌ واحدةٌ بساكنَين.
 
@@ -714,11 +735,13 @@ def _to_tasks(
             subject_id=str(a.subject_id),
             subject_name=a.subject.name_ar,
             subject_code=a.subject.code,
+            last_cap=personal_last.get(str(a.teacher_id), 0),
         )
 
     resources_by_subject = resources_by_subject or {}
     personal_cap = personal_cap or {}
     personal_gap = personal_gap or {}
+    personal_last = personal_last or {}
     pedagogies = pedagogies or {}
 
     def build(a, level_type, is_double, members, available):

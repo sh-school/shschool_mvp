@@ -12,6 +12,7 @@ from typing import Any
 from django.db import transaction
 
 from core.academic_calendar import academic_year_for_school
+from core.audit_repr import masked_repr
 
 logger = logging.getLogger(__name__)
 
@@ -503,6 +504,6 @@ def reset_user_password(*, school: Any, target_id: Any, actor: Any) -> tuple[Any
             action="update",
             model_name="CustomUser",
             object_id=str(target.id),
-            object_repr=f"إعادة تعيين كلمة مرور: {target.full_name}"[:300],
+            object_repr=f"إعادة تعيين كلمة مرور: {masked_repr(target)}",
         )
     return target, new_password

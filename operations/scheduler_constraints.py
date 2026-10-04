@@ -20,6 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from .last_period_cap import personal_last_cap
 from .scheduler_bell import (  # noqa: F401  (تُصدَّر من هنا لمن استوردها منه)
     DOUBLE_PERIOD_GAP_MINUTES,
     HC5_JOINABLE_GAP_MINUTES,
@@ -467,7 +468,11 @@ def check_last_period_share(grid: ScheduleGrid, period: int, task: Task) -> bool
     if period != LAST_PERIOD:
         return True
     for m in task.members:
-        if grid.teacher_periods_at(m.teacher_id, LAST_PERIOD) >= MAX_LAST_PERIODS:
+        #: سقفٌ شخصيٌّ إن كُتب (`TeacherPreference.max_last_periods`) وإلّا العامّ: معلّمٌ نصابُه
+        #: يفوق سعتَه بالعدّ (HC5 + HC8) لا يُسَع إلّا بسابعةٍ ثالثة، وسقفٌ عامٌّ لا يعرفه (W-20261003-035).
+        if grid.teacher_periods_at(m.teacher_id, LAST_PERIOD) >= (
+            personal_last_cap(getattr(m, "last_cap", 0)) or MAX_LAST_PERIODS
+        ):
             return False
         #: وطرفا المعلّم لا يقعان على شعبةٍ واحدة: طرفُ اليوم أثقلُ ما فيه،
         #: فإن تكرّر على الشعبة نفسها حمَلت وحدَها ضعفَ ما تحمله أخواتُها من

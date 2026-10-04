@@ -21,6 +21,7 @@ from django.utils.http import urlencode
 from django.views.decorators.http import require_http_methods
 
 from core.academic_calendar import academic_year_for
+from core.audit_repr import masked_repr
 from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser
 from core.models.academic import ClassGroup
@@ -93,7 +94,7 @@ def _audit_sensitive_read(request, student, categories):
         action="view",
         model_name="StudentNote",
         object_id=student.id,
-        object_repr=f"{student.full_name} — {'، '.join(CATEGORY_LABELS[c] for c in touched)}",
+        object_repr=f"{masked_repr(student)} — {'، '.join(CATEGORY_LABELS[c] for c in touched)}",
         changes={"categories": touched},
         request=request,
     )

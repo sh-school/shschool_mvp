@@ -10,10 +10,10 @@
 <div class="qobs">
 
   {% comment %}
-  الحذف ناعمٌ دائماً: الزيارة وتقييماتها تبقى للتدقيق. وهذه الصفحة هي ما يجعل
-  وعد رسالة الحذف — «محفوظة في الأرشيف ويمكن استرجاعها» — قابلاً للتحقّق.
+  الأرشفةُ حذفٌ ناعمٌ دائماً: الزيارة وتقييماتها تبقى للتدقيق. وهذه الصفحة هي ما يجعل
+  وعد رسالة الأرشفة — «محفوظة في الأرشيف ويمكن استرجاعها» — قابلاً للتحقّق.
   {% endcomment %}
-  {% page_header "أرشيف الزيارات الصفية" subtitle="الزيارات المحذوفة محفوظة هنا بتقييماتها كاملةً، ويستعيدها من يملك حذفها" icon="observation" %}
+  {% page_header "أرشيف الزيارات الصفية" subtitle="الزيارات المؤرشَفة محفوظة هنا بتقييماتها كاملةً، ويستعيدها من يملك أرشفتها" icon="observation" %}
     <a href="{% url 'observation_list' %}" class="btn-secondary btn-sm">← الزيارات</a>
   {% endpage_header %}
 
@@ -40,7 +40,7 @@
           <td class="col-num">{% if o.score_percent != None %}{{ o.score_percent }}%{% else %}—{% endif %}</td>
           <td class="col-num">{{ o.deleted_at|date:"Y-m-d H:i"|default:"—" }}</td>
           <td class="qobs-actions">
-            {% if o.perms.can_delete %}
+            {% if o.perms.can_archive %}
             <form method="post" action="{% url 'observation_restore' o.id %}" class="form-inline"
                   data-confirm="إعادة هذه الملاحظة من الأرشيف؟">
               {% csrf_token %}

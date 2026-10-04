@@ -3,6 +3,7 @@ import logging
 from django.contrib import admin
 
 from core.academic_calendar import academic_year_for, default_academic_year
+from core.audit_repr import masked_repr
 from core.models import AuditLog
 
 logger = logging.getLogger(__name__)
@@ -389,7 +390,7 @@ class EmployeeEvaluationAdmin(admin.ModelAdmin):
             action="update",
             model_name="other",
             object_id=obj.pk,
-            object_repr=str(obj),
+            object_repr=masked_repr(obj),
             school=obj.school,
             request=request,
             changes={
@@ -465,6 +466,8 @@ class ObservationCriterionAdmin(admin.ModelAdmin):
 class ObservationScoreInline(admin.TabularInline):
     model = ObservationScore
     extra = 0
+    # لا حذفَ نهائيّاً حتى للمطوّر (قرارُ المالك W-20261002-015): التقييمُ يبقى للتدقيق.
+    can_delete = False
     fields = ("criterion", "rating", "recommendation")
     autocomplete_fields = ("criterion",)
     ordering = ("criterion__order",)
@@ -550,6 +553,10 @@ class ObservationScoreAdmin(admin.ModelAdmin):
     search_fields = ("criterion__text", "recommendation", "observation__teacher__full_name")
     autocomplete_fields = ("observation", "criterion")
     ordering = ("observation", "criterion__order")
+
+    def has_delete_permission(self, request, obj=None):
+        """لا حذفَ نهائيّاً حتى للمطوّر — التقييمُ شهادةٌ تبقى للتدقيق (قرارُ المالك W-20261002-015)."""
+        return False
 
     def get_queryset(self, request):
         return (

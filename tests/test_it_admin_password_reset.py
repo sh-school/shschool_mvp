@@ -56,7 +56,9 @@ def test_reset_is_logged_without_the_password_in_the_audit_trail(client_as, it_t
         "timestamp"
     )
     assert entry.action == "update"
-    assert teacher.full_name in entry.object_repr
+    # W-20261003-019: لا اسمَ شخصيّاً في سجلٍّ ملحق — المعرّفُ المقنَّع يكفي المدقّقَ.
+    assert teacher.full_name not in entry.object_repr
+    assert str(teacher.id)[:8] in entry.object_repr
     assert "كلمة" in entry.object_repr
 
 

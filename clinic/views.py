@@ -11,6 +11,7 @@ from django.views.decorators.http import require_http_methods
 
 from clinic.models import ClinicVisit, HealthRecord
 from clinic.services import ClinicService
+from core.audit_repr import masked_repr
 from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser
 
@@ -80,7 +81,7 @@ def student_health_record(request, student_id):
         action="view",
         model_name="HealthRecord",
         object_id=health_record.pk,
-        object_repr=f"عرض السجل الصحي — {student.full_name}",
+        object_repr=f"عرض السجل الصحي — {masked_repr(student)}",
         request=request,
     )
     return render(request, "clinic/health_record.html", context)

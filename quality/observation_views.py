@@ -15,6 +15,7 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
+from core.audit_repr import masked_repr
 from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser
 from core.pdf_utils import render_pdf
@@ -119,13 +120,13 @@ def _obs_perms(user, obs):
     is_observer = obs.observer_id == user.id
     is_teacher = obs.teacher_id == user.id
     status = obs.status
-    can_edit = (is_observer or su) and status != "acknowledged"
-    if status == "draft":
-        can_delete = is_observer or su
-    elif status == "submitted":
-        can_delete = lead
-    else:  # acknowledged
-        can_delete = su or role == "principal"
+    # التعديلُ للزائر صاحبِ الزيارة وحدَه (بلاغ المالك W-20261002-015): لا قيادةٌ ولا مستخدمٌ فائقٌ ولا معلّم —
+    # فالتقييمُ شهادةُ كاتبِه، ومن يملك الاطّلاعَ لا يملك تغييرَ ما كُتب. والقيادةُ تسحب وتُعيد الفتح فيعدّل صاحبُها.
+    can_edit = is_observer and status != "acknowledged"
+    # الزيارةُ تُؤرشف ولا تُحذف (قرارُ المالك W-20261002-015): المسودّةُ يؤرشفها الزائرُ وحدَه، والمرسَلةُ
+    # والمُقَرّةُ تؤرشفها القيادةُ والمدير **بدورهما** (لا بالمستخدم الفائق) بسببٍ إلزاميٍّ يُدقَّق، والمعلّمُ
+    # المُزارُ لا يؤرشف شيئاً. والحذفُ النهائيُّ غيرُ موصولٍ بأيّ مسارٍ حتى للمطوّر.
+    can_archive = is_observer if status == "draft" else role in OBSERVATION_VIEW_ALL
     return {
         "is_teacher": is_teacher,
         "is_observer": is_observer,
@@ -137,7 +138,7 @@ def _obs_perms(user, obs):
         # الزيارة الإشرافية وزيارة الزميل يُقرّهما المزور — والتقييم
         # الذاتيّ لا إقرارَ فيه، فصاحبُه هو كاتبُه.
         "can_ack": is_teacher and status == "submitted" and obs.kind != "self",
-        "can_delete": can_delete,
+        "can_archive": can_archive,
     }
 
 
@@ -321,7 +322,7 @@ def observation_create(request):
             action="create",
             model_name="other",
             object_id=obs.pk,
-            object_repr=f"إشراف صفّي — {teacher.full_name}",
+            object_repr=f"إشراف صفّي — {masked_repr(teacher)}",
             request=request,
         )
         return redirect("observation_detail", obs_id=obs.pk)
@@ -354,7 +355,7 @@ def observation_self_create(request):
             action="create",
             model_name="other",
             object_id=obs.pk,
-            object_repr=f"تقييم ذاتي — {request.user.full_name}",
+            object_repr=f"تقييم ذاتي — {masked_repr(request.user)}",
             request=request,
         )
         return redirect("observation_detail", obs_id=obs.pk)
@@ -402,7 +403,7 @@ def observation_peer_create(request):
             action="create",
             model_name="other",
             object_id=obs.pk,
-            object_repr=f"زيارة زميل — {colleague.full_name}",
+            object_repr=f"زيارة زميل — {masked_repr(colleague)}",
             request=request,
         )
         return redirect("observation_detail", obs_id=obs.pk)
@@ -457,7 +458,7 @@ def observation_edit(request, obs_id):
             action="update",
             model_name="other",
             object_id=obs.pk,
-            object_repr=f"إشراف صفّي — {obs.teacher.full_name}",
+            object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)}",
             request=request,
         )
         return redirect("observation_detail", obs_id=obs.pk)
@@ -588,7 +589,7 @@ def observation_submit(request, obs_id):
         action="update",
         model_name="other",
         object_id=obs.pk,
-        object_repr=f"إشراف صفّي — {obs.teacher.full_name}",
+        object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)}",
         changes={"transition": "submit"},
         request=request,
     )
@@ -608,7 +609,7 @@ def observation_withdraw(request, obs_id):
         action="update",
         model_name="other",
         object_id=obs.pk,
-        object_repr=f"إشراف صفّي — {obs.teacher.full_name}",
+        object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)}",
         changes={"transition": "withdraw"},
         request=request,
     )
@@ -629,7 +630,7 @@ def observation_reopen(request, obs_id):
         action="update",
         model_name="other",
         object_id=obs.pk,
-        object_repr=f"إشراف صفّي — {obs.teacher.full_name}",
+        object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)}",
         changes={"transition": "reopen", "reason": reason},
         request=request,
     )
@@ -640,12 +641,13 @@ def observation_reopen(request, obs_id):
 @login_required
 @require_POST
 def observation_delete(request, obs_id):
+    """أرشفةُ الزيارة (حذفٌ ناعمٌ قابلٌ للاسترجاع) — الاسمُ باقٍ للرابط وحدَه؛ لا حذفَ نهائيّاً في أيّ مسار."""
     obs, allowed = _get_observation(request, obs_id)
-    if not allowed or not _obs_perms(request.user, obs)["can_delete"]:
+    if not allowed or not _obs_perms(request.user, obs)["can_archive"]:
         return render(request, "403.html", status=403)
     reason = request.POST.get("reason", "").strip()
     if obs.status in ("submitted", "acknowledged") and not reason:
-        messages.error(request, "يجب ذكر سبب حذف ملاحظة مُرسَلة/مُقَرّة.")
+        messages.error(request, "يجب ذكر سبب أرشفة ملاحظة مُرسَلة/مُقَرّة.")
         return redirect("observation_detail", obs_id=obs.pk)
     prev_status = obs.status
     ObservationService.archive(obs, request.user, reason=reason)
@@ -654,11 +656,11 @@ def observation_delete(request, obs_id):
         action="delete",
         model_name="other",
         object_id=obs.pk,
-        object_repr=f"إشراف صفّي — {obs.teacher.full_name} — {prev_status}",
+        object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)} — {prev_status}",
         changes={"reason": reason, "prev_status": prev_status},
         request=request,
     )
-    messages.success(request, "حُذفت الملاحظة (محفوظة في الأرشيف ويمكن استرجاعها).")
+    messages.success(request, "أُرشفت الملاحظة (محفوظة في الأرشيف ويمكن استرجاعها).")
     return redirect("observation_list")
 
 
@@ -703,7 +705,7 @@ def observation_restore(request, obs_id):
     """
     school = request.user.active_membership.school
     obs = get_object_or_404(ObservationService.archived_for(request.user, school), pk=obs_id)
-    if not _obs_perms(request.user, obs)["can_delete"]:
+    if not _obs_perms(request.user, obs)["can_archive"]:
         return render(request, "403.html", status=403)
 
     ObservationService.restore(obs, request.user)
@@ -712,7 +714,7 @@ def observation_restore(request, obs_id):
         action="update",
         model_name="other",
         object_id=obs.pk,
-        object_repr=f"إشراف صفّي — {obs.teacher.full_name}",
+        object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)}",
         changes={"action": "restore"},
         request=request,
     )
@@ -740,7 +742,7 @@ def observation_pdf(request, obs_id):
         "quality.observation_pdf",
         rows=1,
         object_id=obs.pk,
-        object_repr=f"إشراف صفّي — {obs.teacher.full_name} — {obs.observation_date}",
+        object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)} — {obs.observation_date}",
     )
     html = render_to_string("quality/observation_pdf.html", _pdf_context(obs))
     return render_pdf(html, f"observation_{obs.teacher.full_name}_{obs.observation_date}.pdf")
@@ -796,7 +798,7 @@ def observation_send(request, obs_id):
             action="update",
             model_name="other",
             object_id=obs.pk,
-            object_repr=f"إشراف صفّي — {obs.teacher.full_name}",
+            object_repr=f"إشراف صفّي — {masked_repr(obs.teacher)}",
             changes={"action": "send_copy", "recipients": len(sent)},
             request=request,
         )

@@ -104,7 +104,13 @@ def test_every_preview_variable_is_known_to_the_script(compose):
         if re.match(r"\s*export\s", line)
         for name in re.findall(r"(?<![$\w{])(PREVIEW_[A-Z_]+)(?==|;|\s|$)", line)
     }
-    optional = {"PREVIEW_REDIS_DB"}  # للإنشاء افتراضٌ ولا يضبطه السكربت
+    optional = {
+        "PREVIEW_REDIS_DB",  # للإنشاء افتراضٌ ولا يضبطه السكربت
+        # حساباتُ المعاينة الدائمة (W-20261003-023): `PREVIEW_DB_NAME` يُشتقّ داخل compose من `PREVIEW_DB` (يضبطه السكربت) فلا يصدّره،
+        # و`PREVIEW_ACCOUNTS_PASSWORD` يأتي من `.env` غير المتتبَّع بقرار المالك — وكلاهما يجب ألّا يمرّ بالسكربت (الكلمةُ خارجه عمداً).
+        "PREVIEW_DB_NAME",
+        "PREVIEW_ACCOUNTS_PASSWORD",
+    }
 
     assert in_compose - optional <= in_script, "متغيّرٌ في الإنشاء لا يضبطه السكربت"
     assert exported <= in_compose, "متغيّرٌ يصدّره السكربتُ ولا يقرؤه الإنشاء"

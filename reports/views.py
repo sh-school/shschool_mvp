@@ -18,6 +18,7 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from assessments.models import SubjectClassSetup
 from core.academic_calendar import academic_year_for
 from core.audit_export import log_export
+from core.audit_repr import masked_repr
 from core.capabilities import capability_required
 from core.domain.tones import tone_for
 from core.exports.services import respond_export
@@ -466,7 +467,7 @@ def student_result_pdf(request, student_id):
         rows=1,
         full_national_id=True,
         object_id=student.pk,
-        object_repr=f"نتيجة {student.full_name} — {year}",
+        object_repr=f"نتيجة {masked_repr(student)} — {year}",
     )
     if preview:
         return render(request, "reports/student_result.html", ctx)
@@ -510,7 +511,7 @@ def student_annual_result_pdf(request, student_id):
         rows=1,
         full_national_id=True,
         object_id=student.pk,
-        object_repr=f"كشف نتائج {student.full_name} — {year}",
+        object_repr=f"كشف نتائج {masked_repr(student)} — {year}",
     )
 
     if preview:
@@ -555,7 +556,7 @@ def student_certificate_pdf(request, student_id):
         rows=1,
         full_national_id=True,
         object_id=student.pk,
-        object_repr=f"شهادة {student.full_name} — {year}",
+        object_repr=f"شهادة {masked_repr(student)} — {year}",
     )
 
     if preview:

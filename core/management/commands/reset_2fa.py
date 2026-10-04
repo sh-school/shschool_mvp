@@ -12,6 +12,7 @@
 
 from django.core.management.base import BaseCommand, CommandError
 
+from core.audit_repr import masked_repr
 from core.models import AuditLog, CustomUser
 from core.views_auth import usable_totp_secret
 
@@ -59,7 +60,7 @@ class Command(BaseCommand):
                 action="update",
                 model_name="CustomUser",
                 object_id=str(user.pk),
-                object_repr=str(user),
+                object_repr=masked_repr(user),
                 changes={"totp": "reset by management command reset_2fa"},
             )
         self.stdout.write(self.style.SUCCESS(f"{len(users)} حساباً"))

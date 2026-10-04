@@ -23,6 +23,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from core.audit_repr import masked_repr
 from core.models import CustomUser, School
 from core.models.audit import AuditLog
 from operations.models import TeacherExemption
@@ -92,7 +93,7 @@ class Command(BaseCommand):
                 action="update",
                 model_name="other",
                 object_id=str(row.pk),
-                object_repr=f"تفريغ {row.teacher.full_name} — {row}"[:300],
+                object_repr=f"تفريغ {masked_repr(row.teacher)} — {masked_repr(row)}",
                 changes={
                     "event": "exemption_relabelled",
                     "source": [before, target],

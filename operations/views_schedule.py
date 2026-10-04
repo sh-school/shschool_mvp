@@ -1068,7 +1068,7 @@ def teacher_preferences(request):
             )
             pref.refresh_from_db()
         else:
-            pref.save()
+            pref.save(update_fields=pref.TEACHER_EDITABLE_FIELDS)
             messages.success(request, "تم حفظ تفضيلاتك للجدولة الذكية")
             # العامُ يبقى في الرابط: الرجوعُ بلا عامٍ يفتح تفضيلاتِ عامٍ آخر.
             return safe_redirect(request, "teacher_preferences", {"year": year})

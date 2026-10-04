@@ -25,9 +25,15 @@ from typing import Any
 
 from core.models import School
 
+from .last_period_cap import personal_last_cap
 from .models import SchedulingResource, SubjectClassAssignment, TeacherExemption, TeacherPreference
 from .scheduler_bell import HC5_JOINABLE_GAP_MINUTES
-from .scheduler_constraints import THURSDAY, get_max_periods_for_day
+from .scheduler_constraints import (
+    LAST_PERIOD,
+    MAX_LAST_PERIODS,
+    THURSDAY,
+    get_max_periods_for_day,
+)
 
 #: أيّامُ الأسبوع الدراسيّ — الأحدُ إلى الخميس، كما في `scheduler.DAYS`.
 DAYS = (0, 1, 2, 3, 4)
@@ -333,8 +339,12 @@ def _minutes(moment: time) -> int:
     return moment.hour * 60 + moment.minute
 
 
-def _band_day_cap(school: School, band_ids: frozenset[str], day_type: str) -> int:
+def _band_day_cap(
+    school: School, band_ids: frozenset[str], day_type: str, skip_period: int | None = None
+) -> int:
     """AS-1/AS-5: أقصى خاناتٍ غيرِ متلاصقةٍ في يومٍ، من اتّحاد خانات نطاقاته.
+
+    و`skip_period` يُسقط خانةَ رقمٍ بعينه (السابعة لحساب HC8): ما تسمح به بلا السابعة.
 
     معلّمٌ يخدم نطاقين قد تتلاصق خانتاهما بالساعة وإن اختلف رقمُ الحصّة —
     فجرسُ النطاقات متداخلٌ بالساعة. فالحسابُ هنا على الأوقات الفعليّة
@@ -348,7 +358,9 @@ def _band_day_cap(school: School, band_ids: frozenset[str], day_type: str) -> in
     intervals: set[tuple[time, time]] = set()
     for band_id in band_ids or {""}:
         scoped = rows.filter(band__id=band_id) if band_id else rows.filter(band__isnull=True)
-        for row in scoped.only("start_time", "end_time"):
+        for row in scoped.only("start_time", "end_time", "period_number"):
+            if skip_period is not None and row.period_number == skip_period:
+                continue
             intervals.add((row.start_time, row.end_time))
     if not intervals:
         #: لا جرسَ معروفاً لهذا النطاق — الصمتُ لا يُقرأ منعاً (كـ`are_joined`).
@@ -372,6 +384,7 @@ def binding_daily_cap(
     full_days: Collection[int],
     blocked: dict,
     personal_max_daily: int | None,
+    personal_max_last: int | None = None,
 ) -> tuple[int, str | None]:
     """السقفُ الساري على نصاب معلّمٍ في الأسبوع، واسمُ القيد الذي حكم.
 
@@ -379,23 +392,37 @@ def binding_daily_cap(
     فعليّ، و`None` لمن لا سجلَّ له (لا قيدَ شخصيّاً — لا الافتراضَ ٥).
     والمصدرُ `None` يعني: لا يومَ متاحاً له أصلاً فلا حكمَ هنا.
     وهي مشتركةٌ بين فحص التوليد وفحص الإدخال كي لا يختلف الحكمان.
+
+    **وسقفُ الجرس يشمل HC8 (W-20261003-035):** بجرسٍ ثانويّ يسع اليومُ ٣ خاناتٍ مستقلّةٍ بلا
+    السابعة و٤ معها، والسابعةُ لا تُسند للمعلّم نفسِه أكثرَ من `personal_max_last` (أو العامّ
+    `MAX_LAST_PERIODS`) أسبوعيّاً. فسعتُه = مجموعُ «بلا السابعة» + أفضلُ ذلك العدد من فروق «معها − بلا».
+    ومعلّمٌ نصابُه ١٨ على جرسٍ كهذا سعتُه ١٧ لا ٢٠ — حصّةٌ لا يجد لها المولّدُ موضعاً بأيّ خوارزميّة.
     """
     days = [d for d in DAYS if d not in full_days]
     if not days:
         return 0, None
-    structural = sum(
-        max(
-            0,
-            _band_day_cap(school, band_ids, "thursday" if d == THURSDAY else "regular")
-            - blocked.get(d, 0),
+    without_last, with_last = [], []
+    for d in days:
+        day_type = "thursday" if d == THURSDAY else "regular"
+        held = blocked.get(d, 0)
+        with_last.append(max(0, _band_day_cap(school, band_ids, day_type) - held))
+        without_last.append(
+            max(0, _band_day_cap(school, band_ids, day_type, skip_period=LAST_PERIOD) - held)
         )
-        for d in days
+    allowed_sevenths = personal_last_cap(personal_max_last) or MAX_LAST_PERIODS
+    gains = sorted((w - n for w, n in zip(with_last, without_last, strict=True)), reverse=True)
+    structural = sum(without_last) + sum(g for g in gains[:allowed_sevenths] if g > 0)
+    plain = sum(with_last)
+    bell_source = (
+        "سقفُ الجرس"
+        if structural == plain
+        else f"سقفُ الجرس مع سقف السابعة (HC8: {allowed_sevenths} أسبوعيّاً)"
     )
     #: لا تفضيلَ مسجَّلٌ يعني لا قيدَ شخصيّاً — لا الافتراضَ ٥ من حقل
     #: النموذج. فذاك افتراضُ عرضِ الاستمارة لمن يملأها، وليس قراراً
     #: إداريّاً صدر في حقّ من لم يُفتح له سجلٌّ أصلاً (AS-4 "لمن كُتب له").
     if personal_max_daily is None or structural <= personal_max_daily * len(days):
-        return structural, "سقفُ الجرس"
+        return structural, bell_source
     return personal_max_daily * len(days), "تفضيلُه الشخصيّ"
 
 
@@ -421,12 +448,17 @@ def entry_load_violation(
     full_days, blocked = _exempt_map(school, year, teacher.id)
     personal = (
         TeacherPreference.objects.filter(school=school, academic_year=year, teacher=teacher)
-        .values_list("max_daily_periods", flat=True)
+        .values_list("max_daily_periods", "max_last_periods")
         .first()
     )
     tid = str(teacher.id)
     binding, source = binding_daily_cap(
-        school, frozenset(bands), full_days.get(tid, ()), blocked.get(tid, {}), personal
+        school,
+        frozenset(bands),
+        full_days.get(tid, ()),
+        blocked.get(tid, {}),
+        personal[0] if personal else None,
+        personal[1] if personal else None,
     )
     if source is None or projected_teaching <= binding:
         return None
@@ -460,10 +492,10 @@ def _check_daily_band_load(
         names[tid] = a.teacher.full_name
 
     personal = {
-        str(k): v
-        for k, v in TeacherPreference.objects.filter(school=school, academic_year=year).values_list(
-            "teacher_id", "max_daily_periods"
-        )
+        str(tid): (daily, last)
+        for tid, daily, last in TeacherPreference.objects.filter(
+            school=school, academic_year=year
+        ).values_list("teacher_id", "max_daily_periods", "max_last_periods")
     }
 
     rows = []
@@ -473,7 +505,8 @@ def _check_daily_band_load(
             frozenset(bands[tid]),
             full_days.get(tid, ()),
             blocked.get(tid, {}),
-            personal.get(tid),
+            personal[tid][0] if tid in personal else None,
+            personal[tid][1] if tid in personal else None,
         )
         if source is None:
             continue

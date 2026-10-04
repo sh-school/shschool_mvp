@@ -1,0 +1,728 @@
+"""حساباتُ المعاينة الدائمة على 8500: قائمةٌ مغلقة، بذرٌ يرفض غيرَ المعاينة، مصيدةُ الإنتاج، واستثناءُ الحقن (W-20261003-023، D-167م، حكمُ 0105).
+
+«الحساباتُ كلُّها على المحلّيّ ولا تُحقن في الإنتاج» (المالك). فالمحروسُ هنا أربعةُ أشياء:
+
+1. القائمةُ المغلقةُ في ملفٍّ واحد: تسعةُ أدوارٍ، لا platform_developer، أرقامُها `PV-…` فريدة، ويفشل الاختبارُ إن ظهر دورٌ خارجها.
+2. الأمرُ `preview_accounts` لا يلمس القاعدةَ خارج `shschool.settings.preview` وقاعدةِ المعاينة والربط 127.0.0.1 وكلمةِ البيئة؛ ومعه idempotence.
+3. المصيدةُ: حسابٌ موسومٌ (الوسمُ المركَّب) خارج إعداد المعاينة لا يدخل وتسقط جلستُه، بحدثٍ يحمل المعرّفَ لا الاسمَ ولا الرقم.
+4. الحقنُ 8500→الإنتاج: الدمقُ يُسقط الموسومين، والتطبيقُ يرفض ملفّاً يحمل مفتاحاً خارج القائمة أو معلّماً موسوماً.
+
+كلمةُ المرور هنا قيمةٌ مولَّدةٌ للاختبار وحدَه — لا كلمةَ في كودٍ ولا compose.
+"""
+
+import json
+import logging
+import re
+import secrets
+from pathlib import Path
+
+import pytest
+from django.contrib.auth import authenticate
+from django.core.management import CommandError, call_command
+from django.test import override_settings
+from django.urls import reverse
+
+from academic_management import preview_reconciliation as recon
+from core import preview_accounts as pa
+from core.management.commands import preview_accounts as pa_command
+from core.models import CustomUser, Membership, Role
+from tests.conftest import MembershipFactory, RoleFactory, UserFactory
+
+pytestmark = pytest.mark.django_db
+
+ROOT = Path(__file__).resolve().parent.parent
+PREVIEW = override_settings(SETTINGS_MODULE=pa.PREVIEW_SETTINGS_MODULE)
+EXPECTED_ROLES = {
+    "principal",
+    "vice_admin",
+    "vice_academic",
+    "admin_supervisor",
+    "secretary",
+    "teacher",
+    "ese_teacher",
+    "coordinator",
+    "specialist",
+}
+
+
+@pytest.fixture
+def password():
+    return secrets.token_urlsafe(10)
+
+
+PREVIEW_DB = "schoolos_main_preview_test"
+
+
+@pytest.fixture
+def preview_env(monkeypatch, password):
+    """بيئةُ معاينةٍ سليمة: اسمُ قاعدةٍ يحوي «preview»، والوضعُ، والربطُ المحلّيّ، والكلمةُ من البيئة."""
+    monkeypatch.setattr(pa, "current_db_name", lambda: PREVIEW_DB)
+    monkeypatch.setenv("PREVIEW_DB_NAME", PREVIEW_DB)
+    monkeypatch.setenv("PREVIEW_MODE", "prod")
+    monkeypatch.setenv("PREVIEW_BIND", "127.0.0.1")
+    monkeypatch.setenv(pa_command.PASSWORD_ENV, password)
+    return password
+
+
+def _sync(**kwargs):
+    call_command("preview_accounts", "--sync", **kwargs)
+
+
+def _fakes():
+    return CustomUser.objects.filter(pa.preview_accounts_q())
+
+
+# ══════════════════════════════════════════════════════════════════
+# ١) القائمةُ المغلقة
+# ══════════════════════════════════════════════════════════════════
+
+
+def test_the_closed_list_is_exactly_the_nine_roles():
+    assert set(pa.ROLES) == EXPECTED_ROLES
+
+
+def test_no_forbidden_role_is_in_the_list_and_every_role_is_a_platform_role():
+    assert not set(pa.ROLES) & pa.FORBIDDEN_ROLES
+    assert "platform_developer" in pa.FORBIDDEN_ROLES
+    assert set(pa.ROLES) <= {name for name, _ in Role.ROLES}
+
+
+def test_the_synthetic_ids_are_unique_and_carry_the_prefix():
+    ids = list(pa.ROLES.values())
+    assert len(set(ids)) == len(ids) == 9
+    assert all(i.startswith(pa.ID_PREFIX) for i in ids)
+
+
+def test_a_role_outside_the_list_never_gets_an_account(school, preview_env):
+    with PREVIEW:
+        _sync()
+    roles = set(Membership.objects.filter(user__in=_fakes()).values_list("role__name", flat=True))
+    assert roles == EXPECTED_ROLES
+
+
+# ══════════════════════════════════════════════════════════════════
+# ٢) الأمرُ: الرفضُ خارج المعاينة، والأثرُ المتساوي
+# ══════════════════════════════════════════════════════════════════
+
+
+def test_the_command_refuses_outside_the_preview_settings_and_touches_nothing(school, preview_env):
+    with pytest.raises(CommandError, match="ليست بيئةَ معاينة"):
+        _sync()  # إعدادُ الاختبار لا المعاينة
+    assert not _fakes().exists()
+
+
+def test_the_command_refuses_without_the_preview_db_name(school, monkeypatch, preview_env):
+    monkeypatch.delenv("PREVIEW_DB_NAME")
+    with PREVIEW, pytest.raises(CommandError, match="PREVIEW_DB_NAME"):
+        _sync()
+    assert not _fakes().exists()
+
+
+def test_the_command_refuses_when_the_db_name_differs(school, monkeypatch, preview_env):
+    monkeypatch.setenv("PREVIEW_DB_NAME", "some_other_db")
+    with PREVIEW, pytest.raises(CommandError, match="لا يساوي"):
+        _sync()
+    assert not _fakes().exists()
+
+
+def test_the_command_refuses_without_a_password(school, monkeypatch, preview_env):
+    monkeypatch.delenv(pa_command.PASSWORD_ENV)
+    with PREVIEW, pytest.raises(CommandError, match="لا كلمةَ مرور"):
+        _sync()
+    assert not _fakes().exists()
+
+
+def test_a_non_loopback_bind_seeds_nothing_and_deactivates_what_was_seeded(
+    school, monkeypatch, preview_env
+):
+    with PREVIEW:
+        _sync()
+        assert _fakes().filter(is_active=True).count() == 9
+        monkeypatch.setenv("PREVIEW_BIND", "0.0.0.0")
+        with pytest.raises(CommandError, match="PREVIEW_BIND"):
+            _sync()
+    assert _fakes().filter(is_active=True).count() == 0
+    assert _fakes().count() == 9
+
+
+def test_sync_creates_the_nine_accounts_with_safe_flags(school, preview_env):
+    with PREVIEW:
+        _sync()
+    users = list(_fakes())
+    assert len(users) == 9
+    for user in users:
+        assert user.full_name.startswith(pa.FULL_NAME_PREFIX)
+        assert user.email.startswith(pa.EMAIL_PREFIX)
+        assert not user.is_superuser and not user.is_staff and not user.must_change_password
+        assert user.check_password(preview_env)
+        assert Membership.objects.filter(user=user, is_active=True).count() == 1
+
+
+def test_sync_is_idempotent(school, preview_env):
+    with PREVIEW:
+        _sync()
+        _sync()
+    assert _fakes().count() == 9
+    assert Membership.objects.filter(user__in=_fakes()).count() == 9
+
+
+def test_sync_corrects_a_drifted_role_membership_and_flags(school, preview_env):
+    with PREVIEW:
+        _sync()
+        teacher = CustomUser.objects.get(national_id=pa.ROLES["teacher"])
+        Membership.objects.filter(user=teacher).update(is_active=False)
+        wrong = RoleFactory(school=school, name="principal")
+        MembershipFactory(user=teacher, school=school, role=wrong)
+        CustomUser.objects.filter(pk=teacher.pk).update(
+            is_superuser=True, is_staff=True, is_active=False
+        )
+
+        _sync()
+
+    teacher.refresh_from_db()
+    assert not teacher.is_superuser and not teacher.is_staff and teacher.is_active
+    active = set(
+        Membership.objects.filter(user=teacher, is_active=True).values_list("role__name", flat=True)
+    )
+    assert active == {"teacher"}
+
+
+def test_a_taken_id_belonging_to_a_real_user_aborts_without_changing_it(school, preview_env):
+    UserFactory(full_name="موظّفٌ حقيقيّ", national_id=pa.ROLES["teacher"])
+    with PREVIEW, pytest.raises(CommandError, match="غيرِ موسوم"):
+        _sync()
+    assert CustomUser.objects.get(national_id=pa.ROLES["teacher"]).full_name == "موظّفٌ حقيقيّ"
+
+
+def test_the_check_mode_reports_a_missing_account(school, preview_env):
+    with PREVIEW:
+        _sync()
+        CustomUser.objects.filter(national_id=pa.ROLES["secretary"]).delete()
+        with pytest.raises(CommandError, match="secretary"):
+            call_command("preview_accounts", "--check")
+
+
+def test_the_seeded_accounts_can_log_in_under_the_preview_settings(client, school, preview_env):
+    with PREVIEW:
+        _sync()
+        response = client.post(
+            reverse("login"),
+            {"identifier": pa.EMPLOYEE_NUMBERS["teacher"], "password": preview_env},
+        )
+    assert response.status_code == 302 and response["Location"] == "/dashboard/"
+
+
+# ══════════════════════════════════════════════════════════════════
+# ٣) المصيدةُ في الإنتاج
+# ══════════════════════════════════════════════════════════════════
+
+
+def _fake_user(password, national_id="PV-teacher"):
+    user = UserFactory(
+        full_name=f"{pa.FULL_NAME_PREFIX}معلّم", national_id=national_id, password=password
+    )
+    return user
+
+
+def test_a_tagged_account_cannot_authenticate_outside_the_preview_and_the_event_has_the_id_not_the_name(
+    password, caplog, monkeypatch
+):
+    user = _fake_user(password)
+    sent = []
+    import sentry_sdk
+
+    monkeypatch.setattr(sentry_sdk, "capture_message", lambda message, **kw: sent.append(message))
+    with caplog.at_level(logging.ERROR, logger="core.preview_accounts"):
+        assert authenticate(identifier=user.national_id, password=password) is None
+    text = caplog.text
+    assert str(user.pk) in text
+    assert user.full_name not in text and user.national_id not in text
+    assert sent and str(user.pk) in sent[0] and user.national_id not in sent[0]
+
+
+def test_the_same_account_authenticates_inside_the_preview(password):
+    user = _fake_user(password)
+    with PREVIEW:
+        assert authenticate(identifier=user.national_id, password=password) == user
+
+
+def test_an_open_session_of_a_tagged_account_is_closed_outside_the_preview(client, password):
+    user = _fake_user(password)
+    with PREVIEW:
+        client.force_login(user, backend="core.backends.HMACAuthBackend")
+        inside = client.get("/dashboard/")
+        assert "login" not in inside.get("Location", "")  # الجلسةُ قائمةٌ داخل المعاينة
+    response = client.get("/dashboard/")
+    assert response.status_code == 302 and "login" in response["Location"]
+
+
+def test_a_name_prefix_alone_does_not_block_a_real_user(password):
+    user = UserFactory(
+        full_name=f"{pa.FULL_NAME_PREFIX}اسمٌ يشبه الوسم",
+        national_id="29000001234",
+        password=password,
+    )
+    assert not pa.is_preview_account(user)
+    assert authenticate(identifier=user.national_id, password=password) == user
+
+
+def test_an_id_prefix_alone_does_not_block_a_real_user(password):
+    user = UserFactory(full_name="موظّفٌ حقيقيّ", national_id="PV-9999", password=password)
+    assert not pa.is_preview_account(user)
+    assert authenticate(identifier=user.national_id, password=password) == user
+
+
+# ══════════════════════════════════════════════════════════════════
+# ٤) استثناءُ الحقن 8500 → الإنتاج
+# ══════════════════════════════════════════════════════════════════
+
+
+def _assignment(school, klass, subject, teacher):
+    from operations.models import SubjectClassAssignment
+
+    return SubjectClassAssignment.objects.create(
+        school=school,
+        class_group=klass,
+        subject=subject,
+        teacher=teacher,
+        weekly_periods=4,
+        academic_year="2026-2027",
+    )
+
+
+@pytest.fixture
+def injection_world(school):
+    from core.models import ClassGroup
+    from operations.models import Subject
+
+    subject = Subject.objects.create(school=school, name_ar="الكيمياء", code="CHM")
+    klass = ClassGroup.objects.create(
+        school=school,
+        grade="G12",
+        section="1",
+        level_type="sec",
+        track="science",
+        academic_year="2026-2027",
+    )
+    real = UserFactory(full_name="معلّمٌ حقيقيّ")
+    fake = UserFactory(
+        full_name=f"{pa.FULL_NAME_PREFIX}معلّم",
+        national_id="PV-teacher",
+        employee_number=pa.EMPLOYEE_NUMBERS["teacher"],
+    )
+    return school, klass, subject, real, fake
+
+
+def test_the_dump_leaves_out_rows_of_a_tagged_teacher(tmp_path, injection_world):
+    school, klass, subject, real, fake = injection_world
+    real_row = _assignment(school, klass, subject, real)
+    other_subject = type(subject).objects.create(school=school, name_ar="الفيزياء", code="PHY")
+    _assignment(school, klass, other_subject, fake)
+    out = tmp_path / "d.json"
+    call_command(
+        "dump_preview_workload_changes", "--since", "2000-01-01T00:00:00+00:00", "--out", str(out)
+    )
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert [r["teacher_hmac"] for r in payload["assignments"]] == [real.national_id_hmac]
+    assert fake.national_id_hmac not in out.read_text(encoding="utf-8")
+    assert real_row.pk is not None
+
+
+def test_the_exclusion_filter_removes_exactly_the_tagged_teachers(injection_world):
+    from operations.models import SubjectClassAssignment
+
+    school, klass, subject, real, fake = injection_world
+    _assignment(school, klass, subject, real)
+    other_subject = type(subject).objects.create(school=school, name_ar="الفيزياء", code="PHY")
+    _assignment(school, klass, other_subject, fake)
+    kept = recon.exclude_preview_teachers(SubjectClassAssignment.objects.all())
+    assert [row.teacher_id for row in kept] == [real.pk]
+
+
+def test_apply_rejects_a_file_with_a_tagged_teacher_by_hmac_before_any_write(
+    tmp_path, injection_world
+):
+    school, klass, subject, real, fake = injection_world
+    from operations.models import SubjectClassAssignment
+
+    path = tmp_path / "c.json"
+    path.write_text(
+        json.dumps(
+            {
+                "assignments": [
+                    {
+                        "school_code": school.code,
+                        "academic_year": "2026-2027",
+                        "grade": "G12",
+                        "section": "1",
+                        "subject_code": "CHM",
+                        "teacher_hmac": fake.national_id_hmac,
+                        "weekly_periods": 4,
+                        "requires_lab": False,
+                        "parallel_group": "",
+                        "periods_override_reason": "",
+                        "is_active": True,
+                    }
+                ],
+                "workload_plans": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(CommandError, match="حسابُ معاينةٍ وهميّ"):
+        call_command("apply_preview_workload_changes", "--in", str(path))
+    assert not SubjectClassAssignment.objects.exists()
+
+
+def test_apply_rejects_a_tagged_employee_number(tmp_path, injection_world):
+    path = tmp_path / "c.json"
+    path.write_text(
+        json.dumps(
+            {
+                "assignments": [],
+                "workload_plans": [{"teacher_employee_number": pa.EMPLOYEE_NUMBERS["teacher"]}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(CommandError, match="حسابُ معاينةٍ وهميّ"):
+        call_command("apply_preview_workload_changes", "--in", str(path))
+
+
+def test_apply_rejects_a_key_outside_the_allowlist(tmp_path, injection_world):
+    path = tmp_path / "c.json"
+    path.write_text(
+        json.dumps({"assignments": [], "workload_plans": [], "users": [{"x": 1}]}), encoding="utf-8"
+    )
+    with pytest.raises(CommandError, match="users"):
+        call_command("apply_preview_workload_changes", "--in", str(path))
+
+
+def test_the_allowlist_is_exactly_what_the_dump_writes(tmp_path, injection_world):
+    out = tmp_path / "d.json"
+    call_command(
+        "dump_preview_workload_changes", "--since", "2000-01-01T00:00:00+00:00", "--out", str(out)
+    )
+    assert set(json.loads(out.read_text(encoding="utf-8"))) == recon.INJECTABLE_KEYS
+
+
+# ══════════════════════════════════════════════════════════════════
+# ٥) الإقلاعُ في compose المعاينة وحدَه، والكلمةُ ليست فيه
+# ══════════════════════════════════════════════════════════════════
+
+OTHER_STARTUP_FILES = (
+    "Dockerfile",
+    "docker-compose.yml",
+    "docker-compose.session.yml",
+    "railway.toml",
+    "railway.json",
+    "scripts/railway-predeploy.sh",
+    "scripts/railway-release.sh",
+    "scripts/railway-worker.sh",
+    "scripts/railway-beat.sh",
+)
+
+
+def test_the_seed_runs_after_migrate_in_the_preview_compose():
+    text = (ROOT / "docker-compose.preview.yml").read_text(encoding="utf-8")
+    assert "preview_accounts --sync" in text
+    assert text.index("manage.py migrate") < text.index("preview_accounts --sync")
+    assert (
+        "PREVIEW_DB_NAME: ${PREVIEW_DB}" in text
+        and "PREVIEW_BIND: ${PREVIEW_BIND:-127.0.0.1}" in text
+    )
+
+
+def test_no_other_startup_path_calls_the_seed():
+    leaks = [
+        rel
+        for rel in OTHER_STARTUP_FILES
+        if (ROOT / rel).exists() and "preview_accounts" in (ROOT / rel).read_text(encoding="utf-8")
+    ]
+    assert not leaks, leaks
+
+
+def test_no_password_value_is_written_in_the_compose_or_the_code():
+    compose = (ROOT / "docker-compose.preview.yml").read_text(encoding="utf-8")
+    assert not re.search(r"PREVIEW_ACCOUNTS_PASSWORD\s*[:=]\s*\S", compose)
+    for rel in ("core/preview_accounts.py", "core/management/commands/preview_accounts.py"):
+        source = (ROOT / rel).read_text(encoding="utf-8")
+        assert not re.search(r"""(?i)password\s*=\s*["'][^"']+["']""", source), rel
+
+
+# ══════════════════════════════════════════════════════════════════
+# ٦) التعايش مع حسابات الأداة الخارجيّة السابقة (29000009NNN)
+# ══════════════════════════════════════════════════════════════════
+
+
+def _legacy_user(school, role="teacher", national_id="29000009005", password="x"):
+    user = UserFactory(
+        full_name=f"[وهميّ معاينة] {role}", national_id=national_id, password=password
+    )
+    MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name=role))
+    return user
+
+
+def test_a_legacy_account_is_tagged_and_trapped_outside_the_preview(school, password):
+    user = _legacy_user(school, password=password)
+    assert pa.is_preview_account(user)
+    assert authenticate(identifier=user.national_id, password=password) is None
+    with PREVIEW:
+        assert authenticate(identifier=user.national_id, password=password) == user
+
+
+def test_sync_removes_legacy_accounts_and_seeds_each_role_once(school, preview_env):
+    for role, number in (("teacher", "29000009005"), ("principal", "29000009001")):
+        _legacy_user(school, role=role, national_id=number)
+    with PREVIEW:
+        _sync()
+    assert not CustomUser.objects.filter(pa.legacy_accounts_q()).exists()
+    assert _fakes().count() == 9
+    for role in EXPECTED_ROLES:
+        assert (
+            Membership.objects.filter(user__in=_fakes(), role__name=role, is_active=True).count()
+            == 1
+        )
+
+
+def test_the_dump_also_leaves_out_a_legacy_teacher(tmp_path, injection_world):
+    school, klass, subject, real, _fake = injection_world
+    legacy = _legacy_user(school, national_id="29000009007")
+    _assignment(school, klass, subject, real)
+    other = type(subject).objects.create(school=school, name_ar="الأحياء", code="BIO")
+    _assignment(school, klass, other, legacy)
+    out = tmp_path / "d.json"
+    call_command(
+        "dump_preview_workload_changes", "--since", "2000-01-01T00:00:00+00:00", "--out", str(out)
+    )
+    assert legacy.national_id_hmac not in out.read_text(encoding="utf-8")
+
+
+def test_a_real_user_with_a_similar_number_but_a_normal_name_is_not_tagged(school, password):
+    user = UserFactory(full_name="موظّفٌ حقيقيّ", national_id="29000009123", password=password)
+    assert not pa.is_preview_account(user)
+
+
+# ══════════════════════════════════════════════════════════════════
+# ٧) الساقُ الفاعلةُ للحقن: الرقمُ الوظيفيّ `PV-…` (حكمُ 0105 P2)
+# ══════════════════════════════════════════════════════════════════
+
+
+def test_sync_sets_the_employee_number_to_the_synthetic_id_for_every_account(school, preview_env):
+    with PREVIEW:
+        _sync()
+    for role, nid in pa.ROLES.items():
+        assert CustomUser.objects.get(national_id=nid).employee_number == pa.EMPLOYEE_NUMBERS[role]
+
+
+def test_a_dump_row_of_another_environment_is_rejected_by_the_employee_number_even_with_a_foreign_hmac(
+    tmp_path, injection_world
+):
+    """بصمةُ المعاينة تُحسب بمفتاحٍ غيرِ مفتاح الإنتاج فلا تُطابَق — فالرفضُ يقع بالرقم الوظيفيّ وحدَه."""
+    school, *_ = injection_world
+    path = tmp_path / "c.json"
+    path.write_text(
+        json.dumps(
+            {
+                "assignments": [
+                    {
+                        "school_code": school.code,
+                        "teacher_hmac": "f" * 64,  # بصمةٌ بمفتاحٍ آخر لا تطابق شيئاً هنا
+                        "teacher_employee_number": pa.EMPLOYEE_NUMBERS["teacher"],
+                    }
+                ],
+                "workload_plans": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(CommandError, match="حسابُ معاينةٍ وهميّ"):
+        call_command("apply_preview_workload_changes", "--in", str(path))
+
+
+def test_sync_corrects_a_missing_employee_number(school, preview_env):
+    with PREVIEW:
+        _sync()
+        CustomUser.objects.filter(national_id=pa.ROLES["teacher"]).update(employee_number="")
+        _sync()
+    assert (
+        CustomUser.objects.get(national_id=pa.ROLES["teacher"]).employee_number
+        == pa.EMPLOYEE_NUMBERS["teacher"]
+    )
+
+
+def test_the_legacy_removal_audit_keeps_the_removed_accounts_id(school, preview_env):
+    from core.models import AuditLog
+
+    legacy = _legacy_user(school, national_id="29000009005")
+    legacy_id = legacy.pk
+    with PREVIEW:
+        _sync()
+    line = AuditLog.objects.get(object_repr__contains="إزالة")
+    assert str(line.object_id) == str(legacy_id)
+
+
+# ══════════════════════════════════════════════════════════════════
+# ٨) توسيعُ «بيئة المعاينة» لوضع dev المثبَّت — بتشديدات 0105 الأربعة
+#    تخفيفٌ مسبَّبٌ لحارس: المعاينةُ المثبَّتةُ على شجرة جلسةٍ تعمل بإعداد التطوير وهي استعمالُ المالك الرئيسيّ.
+# ══════════════════════════════════════════════════════════════════
+
+DEVELOPMENT = override_settings(SETTINGS_MODULE=pa.DEVELOPMENT_SETTINGS_MODULE)
+
+
+def test_a_development_without_the_preview_db_name_is_not_a_preview(monkeypatch, school, password):
+    monkeypatch.setattr(pa, "current_db_name", lambda: PREVIEW_DB)
+    monkeypatch.setenv("PREVIEW_MODE", "dev")
+    monkeypatch.delenv("PREVIEW_DB_NAME", raising=False)
+    user = _fake_user(password)
+    with DEVELOPMENT:
+        assert not pa.in_preview_environment()
+        assert authenticate(identifier=user.national_id, password=password) is None
+        with pytest.raises(CommandError):
+            _sync()
+    assert _fakes().count() == 1  # لا بذرَ
+
+
+def test_b_development_with_matching_variables_and_a_preview_named_db_is_a_preview(
+    preview_env, monkeypatch, school
+):
+    monkeypatch.setenv("PREVIEW_MODE", "dev")
+    with DEVELOPMENT:
+        assert pa.in_preview_environment()
+        _sync()
+    assert _fakes().filter(is_active=True).count() == 9
+
+
+def test_b2_the_tagged_account_logs_in_under_the_pinned_development_preview(
+    client, preview_env, monkeypatch, school
+):
+    monkeypatch.setenv("PREVIEW_MODE", "dev")
+    with DEVELOPMENT:
+        _sync()
+        response = client.post(
+            reverse("login"),
+            {"identifier": pa.EMPLOYEE_NUMBERS["teacher"], "password": preview_env},
+        )
+    assert response.status_code == 302 and response["Location"] == "/dashboard/"
+
+
+def test_c_a_db_name_without_preview_is_refused_even_with_matching_variables(
+    monkeypatch, school, preview_env
+):
+    monkeypatch.setattr(pa, "current_db_name", lambda: "railway")
+    monkeypatch.setenv("PREVIEW_DB_NAME", "railway")
+    monkeypatch.setenv("PREVIEW_MODE", "dev")
+    with DEVELOPMENT:
+        assert not pa.in_preview_environment()
+        with pytest.raises(CommandError, match="preview"):
+            _sync()
+    assert not _fakes().exists()
+
+
+@pytest.mark.parametrize("module", ["shschool.settings.production", "shschool.settings.staging"])
+def test_d_production_and_staging_always_block_even_with_every_preview_variable(
+    module, monkeypatch, school, preview_env, password
+):
+    monkeypatch.setenv("PREVIEW_MODE", "prod")
+    user = _fake_user(password)
+    with override_settings(SETTINGS_MODULE=module):
+        assert not pa.in_preview_environment()
+        assert authenticate(identifier=user.national_id, password=password) is None
+        with pytest.raises(CommandError):
+            _sync()
+
+
+@pytest.mark.parametrize("mode", ["", "staging", "PROD", "preview"])
+def test_a_preview_mode_other_than_prod_or_dev_seeds_nothing(
+    mode, monkeypatch, school, preview_env
+):
+    monkeypatch.setenv("PREVIEW_MODE", mode)
+    with PREVIEW, pytest.raises(CommandError, match="PREVIEW_MODE"):
+        _sync()
+    assert not _fakes().exists()
+
+
+def test_the_testing_settings_are_never_a_preview(monkeypatch, preview_env, school, password):
+    user = _fake_user(password)
+    assert not pa.in_preview_environment()
+    assert authenticate(identifier=user.national_id, password=password) is None
+
+
+# ══════════════════════════════════════════════════════════════════
+# ٩) الرقمُ الوظيفيّ الثماني من النطاق المحجوز — ما يُكتب في حقل الدخول (حكمُ 0105 أ بقيود)
+# ══════════════════════════════════════════════════════════════════
+
+
+def test_the_reserved_employee_numbers_are_eight_digits_apart_from_real_5_6_and_11_digit_numbers():
+    numbers = list(pa.EMPLOYEE_NUMBERS.values())
+    assert len(set(numbers)) == len(numbers) == 9
+    assert set(pa.EMPLOYEE_NUMBERS) == set(pa.ROLES)
+    for number in numbers:
+        assert len(number) == 8 and number.isdigit()
+        assert pa.is_reserved_employee_number(number)
+    for real in ("12345", "123456", "29000001234", "99900000", "99900010", "999000010", ""):
+        assert not pa.is_reserved_employee_number(real), real
+
+
+def test_every_employee_number_can_be_typed_in_the_login_form():
+    html = (ROOT / "templates/auth/login.html").read_text(encoding="utf-8")
+    pattern = re.search(r'pattern="([^"]+)"', html).group(1)
+    for number in pa.EMPLOYEE_NUMBERS.values():
+        assert re.fullmatch(pattern, number), number
+
+
+def test_the_owner_logs_in_with_the_numeric_employee_number(client, school, preview_env):
+    with PREVIEW:
+        _sync()
+        response = client.post(
+            reverse("login"),
+            {"identifier": pa.EMPLOYEE_NUMBERS["teacher"], "password": preview_env},
+        )
+    assert response.status_code == 302 and response["Location"] == "/dashboard/"
+
+
+def test_the_login_template_is_untouched_by_this_card():
+    html = (ROOT / "templates/auth/login.html").read_text(encoding="utf-8")
+    assert 'pattern="[0-9]{5,20}"' in html
+
+
+def test_sync_stops_without_changes_when_a_real_user_holds_a_reserved_number(school, preview_env):
+    UserFactory(full_name="موظّفٌ حقيقيّ", employee_number=pa.EMPLOYEE_NUMBERS["teacher"])
+    with PREVIEW, pytest.raises(CommandError, match="ممسوكٌ لحسابٍ آخر"):
+        _sync()
+    assert not _fakes().exists()
+
+
+def test_sync_stops_when_an_untagged_account_holds_a_reserved_number(school, preview_env):
+    UserFactory(full_name="حسابٌ بلا وسم", employee_number=pa.EMPLOYEE_NUMBERS["principal"])
+    with PREVIEW, pytest.raises(CommandError):
+        _sync()
+    assert not _fakes().exists()
+
+
+def test_apply_rejects_any_row_in_the_reserved_range_even_with_a_foreign_hmac(
+    tmp_path, injection_world
+):
+    for number in pa.EMPLOYEE_NUMBERS.values():
+        path = tmp_path / f"{number}.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "assignments": [{"teacher_hmac": "e" * 64, "teacher_employee_number": number}],
+                    "workload_plans": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        with pytest.raises(CommandError, match="حسابُ معاينةٍ وهميّ"):
+            call_command("apply_preview_workload_changes", "--in", str(path))
+
+
+def test_apply_does_not_reject_a_real_five_or_six_digit_employee_number(tmp_path, injection_world):
+    problems = recon.injection_violations(
+        {
+            "assignments": [{"teacher_hmac": "", "teacher_employee_number": "12345"}],
+            "workload_plans": [],
+        }
+    )
+    assert problems == []

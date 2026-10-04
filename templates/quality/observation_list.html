@@ -61,11 +61,11 @@
             <a href="{% url 'observation_detail' o.id %}" class="btn-secondary btn-sm">عرض</a>
             {% if p.can_edit %}<a href="{% url 'observation_edit' o.id %}" class="btn-secondary btn-sm">تعديل</a>{% endif %}
             <a href="{% url 'observation_pdf_view' o.id %}" class="btn-secondary btn-sm">PDF</a>
-            {% if p.can_delete and o.status == "draft" %}
+            {% if p.can_archive and o.status == "draft" %}
             <form method="post" action="{% url 'observation_delete' o.id %}" class="form-inline"
-                  data-confirm="حذف هذه المسودة؟">
+                  data-confirm="أرشفة هذه المسودة؟ تُحفظ في الأرشيف ويمكن استرجاعها.">
               {% csrf_token %}
-              <button type="submit" class="btn-danger btn-sm">حذف</button>
+              <button type="submit" class="btn-danger btn-sm">أرشفة</button>
             </form>
             {% endif %}
           </td>
