@@ -9346,6 +9346,7 @@ def test_0062_appends_notes_once_without_touching_status_or_progress():
     sch = by["SCH-22"].note
     assert "#845" in sch and "#846" in sch and "D-174م" in sch
     assert "+120.3MB" in sch and "42 حصّةً" in sch and "لا تغيّرَ في الحالة" in sch
+    assert "على فرع 0402" in sch and "1,217" in sch and "0.6–0.8" in sch
 
 
 def test_0062_creates_n090_done_and_leaves_an_existing_n089_untouched():
