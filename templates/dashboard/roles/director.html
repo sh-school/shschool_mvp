@@ -61,18 +61,16 @@
     فتبقى ظاهرةً دوماً بحالةٍ فارغةٍ موحّدة (`section_card` نفسُها ترسمها
     حين يكون محتواها فارغاً — `{% if alerts %}` هنا لا حول القسم كلِّه).
     {% endcomment %}
-    {% section_card "تنبيهات الغياب المتكرّر" meta=alerts|length icon="absence" empty="لا تنبيهات معلّقة" %}
-      {% if alerts %}
-      <ul class="plain-list is-scroll">
-        {% for alert in alerts %}
-          <li class="plain-list__row">
-            <span class="plain-list__main">
-              <span class="plain-list__title">{{ alert.student.full_name }}</span>
-              <span class="plain-list__sub">{{ alert.class_text }}</span>
-            </span>
-            <span class="status-badge status-danger">{{ alert.absence_count }} أيّام</span>
-          </li>
-        {% endfor %}
+    {% section_card "تنبيهات الغياب المتكرّر" meta=alerts_count icon="absence" empty="لا تنبيهات معلّقة" %}
+      {% if alerts_count %}
+      <ul class="plain-list">
+        <li class="plain-list__row">
+          <span class="plain-list__title">طلبةٌ تنتظر المتابعة</span>
+          <span class="status-badge status-danger">{{ alerts_count }}</span>
+        </li>
+        <li class="plain-list__row">
+          <a href="{% url 'student_affairs:attendance_overview' %}" class="btn-secondary btn-sm">افتح متابعة الحضور</a>
+        </li>
       </ul>
       {% endif %}
     {% endsection_card %}
