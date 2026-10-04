@@ -375,7 +375,9 @@ def record_period(request, class_id):
         messages.error(request, str(err))
         return redirect(back)
 
-    messages.success(request, f"ثُبّتت {klass.short_code} — {result.says}.")
+    (messages.warning if result.conflicts else messages.success)(
+        request, f"ثُبّتت {klass.short_code} — {result.says}."
+    )
     if request.POST.get("next"):
         following = next_section_awaiting(klass, day, start)
         if following is not None:

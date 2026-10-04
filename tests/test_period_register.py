@@ -867,7 +867,7 @@ class TestTheScreen:
             .content.decode()
         )
 
-        assert body.count('class="per-col is-') == 7, "عمودٌ لكلّ حصّةٍ من حصص اليوم"
+        assert body.count('class="per-tab is-') == 7, "تبويبٌ لكلّ حصّةٍ من حصص اليوم"
         assert body.count('class="per-cell is-none"') == 7 * 4 - 4, "الحصصُ غيرُ المفتوحة حرفُ حال"
         assert "غاب أمس" in body
         assert "غيابُ الكلّ" in body
@@ -977,13 +977,16 @@ class TestTheScreen:
 
         body = (
             client_as(supervisor)
-            .get(reverse("wings:record_section", args=[klass.id]) + f"?date={SUNDAY.isoformat()}")
+            .get(
+                reverse("wings:record_section", args=[klass.id])
+                + f"?date={SUNDAY.isoformat()}&p=07:10"
+            )
             .content.decode()
         )
 
-        assert body.count('class="per-col__clock is-fixed"') == 1
-        assert f">{saved:%H:%M:%S}</time>" in body
-        assert body.count("data-clock") == 2, "الحصّتان الباقيتان ساعتُهما حيّة"
+        # حُذف رأسُ الجدول (والساعةُ الحيّة فيه) بحذف وضع «جدول»: وقتُ التثبيت المحفوظ في رأس الحصّة المفتوحة.
+        assert f"ثُبّتت أوّلَ مرّةٍ {saved:%H:%M:%S}" in body
+        assert "data-clock" not in body
 
     def test_there_is_no_copy_button(self, client_as, school, klass, kids, teacher, supervisor):
         """قرارُ 2026-09-13: كلُّ حصّةٍ دخولٌ إلى الفصل — لا نسخَ من حصّةٍ إلى أخرى."""

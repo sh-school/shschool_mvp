@@ -101,21 +101,6 @@ def close_for_absence(session, student, now: dt.datetime | None = None) -> Class
     return current
 
 
-def tally_of(student, day: dt.date, now: dt.datetime | None = None) -> tuple[int, int]:
-    """`(عددُ المرّات, مجموعُ الثواني)` لليوم — **الخروجُ المفتوحُ يُحتسب إلى لحظة الاستعلام** لا يُهمَل.
-
-    المخزَّنُ في `DailyExitTally` للأجزاء المغلقة وعددِ المرّات؛ والمفتوحُ يُضاف منه `now - left_at`.
-    """
-    now = now or timezone.now()
-    row = DailyExitTally.objects.filter(student=student, date=day).first()
-    count, seconds = (row.exit_count, row.total_seconds) if row else (0, 0)
-    for left_at in ClassExit.objects.filter(
-        student=student, session__date=day, returned_at__isnull=True
-    ).values_list("left_at", flat=True):
-        seconds += max(0, int((now - left_at).total_seconds()))
-    return count, seconds
-
-
 def refresh_tally(school, student, day: dt.date) -> DailyExitTally:
     """يُعيد **حسابَ** ملخّص اليوم من `ClassExit` (لا يزيد فوقه): فتكرارُه لا يضاعف شيئاً (idempotent).
 
@@ -236,8 +221,13 @@ def close_unreturned(session: Session, now: dt.datetime | None = None) -> int:
         .order_by("start_time")
         .first()
     )
-    if following is not None and students:
-        carry_over(following, now=now, at_bell=True)  # يمتدّ إلى الحصّة التالية حتى آخر حصّة في اليوم
+    if following is not None and students and following.start_time < _day_end_time(session):
+        carry_over(following, now=now, at_bell=True)  # يمتدّ إلى الحصّة التالية حتى آخر حصّةٍ للطالب
+    else:
+        # آخرُ جرسٍ ولم يعد: يُغلق بعلامةٍ صريحةٍ لا صامتاً — مؤشّرُ «لم يعد» للمشرف يقرؤها.
+        ClassExit.objects.filter(
+            session=session, returned_at=end, continuations__isnull=True
+        ).update(system_closed=True)
     return closed
 
 
@@ -372,29 +362,64 @@ class ExitDay:
         return f"{minutes:02d}:{sec:02d}"
 
 
-def exit_day_of(student, day: dt.date, now: dt.datetime | None = None) -> ExitDay:
-    """مجموعُ خروج الطالب في اليوم: السطرُ بلا أصلٍ مرّةٌ، والمدّةُ كلُّ الأسطر (المفتوحُ إلى `now`).
+def _day_end_time(session) -> dt.time:
+    """نهايةُ دوام طلاّب فصل هذه الحصّة: آخرُ حصّةٍ مجدولةٍ للفصل ذلك اليوم، مقصوصةً بنهاية اليوم الدراسيّ للمدرسة."""
+    from django.db.models import Max
 
-    المصدرُ `ClassExit` نفسُه (لا جدولٌ مكرَّرٌ يتباعد عنه): لكلّ سطرٍ حصّتُه ومادّتُه ووقتاه، واليومُ مفتاحُ التجميع —
-    فلا شيءَ يُمسح في الغد، ويبدأ اليومُ التالي من الصفر لأنّ تاريخه غيرُ تاريخه.
+    from operations.attendance_policy import school_day_end
+    from operations.models import Session as SessionModel
+
+    last = (
+        (
+            SessionModel.objects.filter(class_group=session.class_group, date=session.date)
+            .exclude(status="cancelled")
+            .aggregate(last=Max("end_time"))["last"]
+        )
+        or session.end_time
+    )
+    cap = school_day_end(session.school, session.date, band=session.class_group.time_band)
+    return min(last, cap) if cap else last
+
+
+def day_end_of(student, day: dt.date) -> dt.datetime | None:
+    """لحظةُ نهاية دوام الطالب في اليوم (آخرُ حصّةٍ مجدولةٍ لفصله بسقف نهاية اليوم الدراسيّ) أو `None` بلا حصّة."""
+    session = (
+        ClassExit.objects.filter(student=student, session__date=day)
+        .select_related("session", "session__class_group", "session__school")
+        .order_by("-session__start_time")
+        .first()
+    )
+    if session is None:
+        return None
+    return timezone.make_aware(dt.datetime.combine(day, _day_end_time(session.session)))
+
+
+def exit_day_summary(student, day: dt.date, now: dt.datetime | None = None) -> ExitDay:
+    """**دالةُ القراءة الواحدة** لملخّص خروج الطالب في يوم — تستعملها كلُّ الشاشات.
+
+    المخزَّنُ في `DailyExitTally` (عددُ المرّات ومجموعُ الأجزاء المغلقة)، ويُضمّ إليه الخروجُ المفتوحُ **إلى لحظة الاستعلام**
+    مقصوصاً عند نهاية دوام الطالب (`day_end_of`): فمن لم يعد لا يتضخّم مجموعُه بعد الدوام، وتغلقه مهمّةُ نهاية اليوم بعلامة
+    `system_closed`. وتفصيلُ كلّ خروجٍ (حصّته ومادّته) من `ClassExit` عبر `session`.
     """
     now = now or timezone.now()
-    count = 0
-    seconds = 0
+    row = DailyExitTally.objects.filter(student=student, date=day).first()
+    count, seconds = (row.exit_count, row.total_seconds) if row else (0, 0)
+    limit = day_end_of(student, day)
+    cut = min(now, limit) if limit else now
     parts: list = []
     open_left = open_span = 0
-    rows = (
+    for exit_ in (
         ClassExit.objects.filter(student=student, session__date=day)
         .select_related("session", "session__subject")
         .order_by("left_at")
-    )
-    for exit_ in rows:
-        if exit_.continued_from_id is None:
-            count += 1
-        span = max(0, int(((exit_.returned_at or now) - exit_.left_at).total_seconds()))
-        seconds += span
+    ):
         if exit_.returned_at is None:
-            open_left, open_span = int(exit_.left_at.timestamp()), span
+            open_span = max(0, int((cut - exit_.left_at).total_seconds()))
+            open_left = int(exit_.left_at.timestamp())
+            seconds += open_span
+            span = open_span
+        else:
+            span = max(0, int((exit_.returned_at - exit_.left_at).total_seconds()))
         subject = exit_.session.subject.name_ar if exit_.session.subject_id else ""
         parts.append((exit_.session.start_time, subject, span))
     return ExitDay(count, seconds, parts, open_left, open_span)

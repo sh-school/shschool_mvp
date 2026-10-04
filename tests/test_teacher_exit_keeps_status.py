@@ -188,23 +188,11 @@ def test_the_exit_button_is_a_toggle_and_the_stopwatch_is_continuous_across_peri
 def test_the_row_carries_the_day_count_and_the_closed_total_for_the_tooltip(
     client_as, now_0730, session, teacher, kid
 ):
-    ClassExit.objects.create(
-        school=session.school,
-        session=session,
-        student=kid,
-        destination="restroom",
-        left_at=at(7, 12),
-        returned_at=at(7, 17),
-        allowed_by=teacher,
-    )
-    ClassExit.objects.create(
-        school=session.school,
-        session=session,
-        student=kid,
-        destination="clinic",
-        left_at=at(7, 20),
-        allowed_by=teacher,
-    )
+    from operations.class_exit import come_back, leave
+
+    leave(session, kid, "restroom", by=teacher, now=at(7, 12))
+    come_back(session, kid, now=at(7, 17))
+    leave(session, kid, "clinic", by=teacher, now=at(7, 20))
     html = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
     assert 'data-exit-count="2"' in html
     assert 'data-exit-base="300"' in html  # الجزءُ المغلق وحدَه 5 د؛ والمفتوحُ يُضاف في المتصفّح

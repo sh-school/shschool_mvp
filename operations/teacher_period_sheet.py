@@ -83,7 +83,7 @@ def _pick_of(line: StudentLine, destination: str, out_since: int, day: Any = Non
 
 
 def _exit_fields(day: Any) -> dict[str, Any]:
-    """ما يحمله زرُّ «خروج» من حساب اليوم (`exit_day_of`): عددُ المرّات، ومجموعُ المدّة قبل الخروج المفتوح، ولحظةُ بدئه."""
+    """ما يحمله زرُّ «خروج» من حساب اليوم (`exit_day_summary`): عددُ المرّات، ومجموعُ المدّة قبل الخروج المفتوح، ولحظةُ بدئه."""
     if day is None:
         return {}
     open_left = day.open_left
@@ -131,7 +131,7 @@ def next_session_of(session: Session) -> Session | None:
 
 def teacher_sheet_context(user: CustomUser, session: Session) -> dict[str, Any]:
     """سياقُ الكشف المشترك لحصّة المعلّم (المفتاحُ نفسُه الذي يبنيه المشرف) — أعمدتُه حصصُه وحدَها."""
-    from .class_exit import carry_over, exit_day_of, exits_of_session, root_of
+    from .class_exit import carry_over, exit_day_summary, exits_of_session, root_of
     from .period_register import period_end, periods_of, teacher_outs_of, track_note
 
     klass = session.class_group
@@ -157,7 +157,7 @@ def teacher_sheet_context(user: CustomUser, session: Session) -> dict[str, Any]:
         current = exits.get(sid, (None, []))[0]
         destination = current.destination if current is not None else ""
         out_since = int(root_of(current).left_at.timestamp()) if current is not None else 0
-        day_exit = exit_day_of(line.student, day, now)
+        day_exit = exit_day_summary(line.student, day, now)
         rows.append(
             {
                 "student": line.student,

@@ -578,6 +578,15 @@ class ClassExit(models.Model):
         ),
     )
 
+    system_closed = models.BooleanField(
+        default=False,
+        verbose_name="أُغلق بالنظام بلا عودة",
+        help_text=(
+            "أغلقه جرسُ آخر حصّةٍ للطالب أو مهمّةُ نهاية اليوم والطالبُ لم يعد: علامةٌ صريحةٌ يقرؤها مؤشّرُ «لم يعد» للمشرف، "
+            "فلا يكون الإغلاقُ صامتاً ولا يُخفي أنّه لم يعد."
+        ),
+    )
+
     class Meta:
         verbose_name = "خروجٌ من الفصل"
         verbose_name_plural = "خروجٌ من الفصل"
