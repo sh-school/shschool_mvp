@@ -563,17 +563,22 @@ class TestRecentAlerts:
     def test_the_supervisor_sees_his_wing_alerts(self, school, supervisor, alerts, mine):
         assert self._alerted(supervisor, school, "admin_supervisor") == {mine}
 
-    def test_the_admin_role_gets_names_only_with_the_follow_up_capability(
-        self, school, alerts, mine, theirs
-    ):
-        """قائمةُ الأسماء بقدرة وجهتها `student_affairs.follow_up` (W-20261003-030):
-        من يملكها غيرَ مقيَّدٍ بجناح يراها كلَّها، ومن لا يملكها لا يرى اسماً."""
+    def test_the_admin_role_is_not_narrowed(self, school, alerts, mine, theirs):
+        """قائمةُ الأسماء بقدرة وجهتها `student_affairs.follow_up` (W-20261003-030)، وقرارُ المالك
+        2026-10-03 يمنح admin إيّاها: فيبقى يرى الأسماءَ كلَّها غيرَ مقيَّدٍ بجناح."""
         from core.capabilities import has_capability
 
         admin = _member(school, "admin", "الإداري", "29400000005")
-        expected = {mine, theirs} if has_capability(admin, "student_affairs.follow_up") else set()
 
-        assert self._alerted(admin, school, "admin") == expected
+        assert has_capability(admin, "student_affairs.follow_up")
+        assert self._alerted(admin, school, "admin") == {mine, theirs}
+
+    def test_the_tardiness_capability_is_not_widened_by_the_grant(self, school):
+        from core.capabilities import has_capability
+
+        admin = _member(school, "admin", "الإداري", "29400000006")
+
+        assert not has_capability(admin, "student_affairs.tardiness")
 
 
 # ══════════════════════════════════════════════════════════════════
