@@ -43,6 +43,9 @@ def test_a_pending_teacher_entry_shows_in_the_holders_grid_with_an_approve_butto
     assert response.status_code == 200
     assert "المعلّم: غائب — بانتظار الاعتماد" in html
     assert reverse("attendance_decide", args=[entry.id]) in html
+    assert (
+        'class="per-pend__chip is-absent" aria-hidden="true">المعلّم: غائب<' in html
+    )  # رقاقةٌ نصّيّةٌ ظاهرة لا أيقونةٌ وحدَها
     assert "ينتظر اعتمادك في هذه الشعبة" in html
 
 
