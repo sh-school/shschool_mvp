@@ -46,8 +46,10 @@ def student_search_api(request):
         .values_list("student_id", flat=True)
     )
 
+    # الرقمُ الشخصيّ بالتساوي التامّ لا بالاحتواء: «icontains» كان يمكّن من تخمين رقم أيّ طالبٍ رقماً رقماً
+    # (كلُّ إضافةِ خانةٍ تُضيّق النتيجةَ والاسمُ يظهر)، أمّا التساوي فيؤكّد رقماً يملكه السائلُ كاملاً ولا يكشف شيئاً غيرَه.
     qs = CustomUser.objects.filter(id__in=student_ids).filter(
-        Q(full_name__icontains=q) | Q(national_id__icontains=q)
+        Q(full_name__icontains=q) | Q(national_id=q)
     )[:10]  # حد أقصى 10 نتائج دائماً
 
     return JsonResponse(
