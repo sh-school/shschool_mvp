@@ -25,6 +25,7 @@ from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school, default_academic_year
 from core.domain.tones import tone_for
+from core.permissions import BEHAVIOR_COMMITTEE
 from core.unrestricted_role import has_unrestricted_role
 
 logger = logging.getLogger(__name__)
@@ -78,7 +79,7 @@ class BehaviorPermissions:
         "admin",
         "platform_developer",
     }
-    COMMITTEE_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "specialist"}
+    COMMITTEE_ROLES = BEHAVIOR_COMMITTEE  # م5.7 — مصدرٌ واحدٌ في core/permissions.py (W-20261001-023)
     SUMMON_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "psychologist"}
     STATS_ROLES = {
         # لجنة الضبط والقيادة

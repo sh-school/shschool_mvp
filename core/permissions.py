@@ -182,7 +182,23 @@ BEHAVIOR_RECORD = {
     "e_projects_coordinator",
 }
 BEHAVIOR_MANAGE = {"principal", "vice_admin", "vice_academic", "social_worker"}
-BEHAVIOR_COMMITTEE = {"principal", "vice_admin", "vice_academic", "social_worker", "specialist"}
+#: أعضاءُ فريق إدارة سلوك الطلبة الأساسيّون — م5.7 من سياسة إدارة سلوك الطلبة (08_conduct_policy_2026.md):
+#: «مدير المدرسة، نائب المدير للشؤون الإدارية وشؤون الطلاب، نائب المدير للشؤون الأكاديمية، منسق شؤون
+#: الطلبة، الاختصاصي الاجتماعي، الاختصاصي النفسي، المشرف الإداري» (W-20261001-023). مصدرٌ واحدٌ
+#: تقرؤه `BehaviorPermissions.COMMITTEE_ROLES` ونصابُ التصويت — فلا قائمةَ ثانيةً تتباعد عنه.
+BEHAVIOR_COMMITTEE_ART_5_7 = frozenset(
+    {
+        "principal",
+        "vice_admin",
+        "vice_academic",
+        "student_affairs_coordinator",
+        "social_worker",
+        "psychologist",
+        "admin_supervisor",
+    }
+)
+#: و`specialist` («أخصائي قديم») يبقى إصداراً واحداً للتوافق ثمّ يُحذف بعد عدّ مستخدميه (قرارُ 0301).
+BEHAVIOR_COMMITTEE = BEHAVIOR_COMMITTEE_ART_5_7 | frozenset({"specialist"})
 BEHAVIOR_VIEW_ALL = {
     "principal",
     "vice_admin",
