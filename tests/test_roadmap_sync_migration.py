@@ -9449,6 +9449,7 @@ def test_0063_advances_n085_only_from_its_expected_state_and_never_closes_it():
     assert "#848" in item.pr and "اشتقاقٌ" in item.note
     assert "get_specialist_social_ctx" in item.note and "فالبندُ لا يُغلق" in item.note
     assert "72" in item.note and "196" in item.note
+    assert "11,564" in item.note and "14.0–14.6" in item.note
 
 
 def test_0063_leaves_n085_if_the_developer_moved_it():
@@ -9465,6 +9466,7 @@ def test_0063_appends_the_n090_note_once_without_touching_state():
     item = RoadmapItem.objects.get(code="N-090")
     assert (item.status, item.progress) == ("done", 100)
     assert "N-091" in item.note and "#851" in item.note
+    assert "0105" not in item.note
 
 
 def test_0063_creates_n091_neutral_and_without_naming_roles_or_overwriting():
@@ -9476,6 +9478,7 @@ def test_0063_creates_n091_neutral_and_without_naming_roles_or_overwriting():
     text = " ".join(str(x) for x in _sync63.NEW_ITEMS[0])
     for word in ("المندوب", "أمين المخزن", "محضّر", "مشرف المقصف"):
         assert word not in text
+    assert "0105" not in text.replace("حكمُ 0105", "")
 
 
 def test_0063_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
