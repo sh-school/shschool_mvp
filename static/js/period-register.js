@@ -63,6 +63,20 @@
       if (button) button.setAttribute('aria-expanded', 'false');
     });
   }
+  var exitUrl = form.getAttribute('data-exit-url');
+  var returnUrl = form.getAttribute('data-return-url');
+  function sendExit(cell, destination) {
+    var row = cell.closest('tr');
+    var token = form.querySelector('input[name=csrfmiddlewaretoken]');
+    if (!row || !token) return;
+    var body = new FormData();
+    body.append('csrfmiddlewaretoken', token.value);
+    body.append('student_id', row.getAttribute('data-student'));
+    if (destination) body.append('destination', destination);
+    fetch(destination ? exitUrl : returnUrl, { method: 'POST', body: body, credentials: 'same-origin' }).then(function (response) {
+      if (!response.ok && window.showToast) window.showToast('تعذّر تسجيلُ الخروج', 'danger');
+    });
+  }
   exitCells().forEach(function (cell) {
     var button = cell.querySelector('[data-exit-open]');
     if (!button) return;
@@ -78,7 +92,10 @@
         var select = cell.querySelector('select.per-where');
         var value = option.getAttribute('data-where');
         select.value = value;
-        if (value) {
+        // المشرفُ: وجهةٌ تجعل الطالبَ غائباً. المعلّم (data-exit-url): الخروجُ بإذنه ليس غياباً — يبقى حالُه ويُسجَّل الخروجُ/العودةُ فوراً بلحظتهما.
+        if (exitUrl) {
+          sendExit(cell, value);
+        } else if (value) {
           var absent = cell.querySelector('input[type=radio][value="absent"]');
           if (absent && !absent.checked) { absent.checked = true; absent.dispatchEvent(new Event('change', { bubbles: true })); }
         }
