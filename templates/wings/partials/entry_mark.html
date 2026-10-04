@@ -1,0 +1,25 @@
+{% comment %}
+علامةُ إدخال المعلّم لطالبٍ في حصّةٍ داخل شبكة المشرف (W-20261004-014) — الحالاتُ نفسُها التي تعرضها صفحةُ المعلّم
+(`teacher/partials/entry_cell.html`): بانتظار الاعتماد / معتمَد / لم يُعتمد / تصحيحٌ دون معاينة. المبدئيُّ ليس حضوراً ولا غياباً
+حتى يقرّر الحاملُ. ولا يُعرض سببُ الرفض ولا التصحيح هنا (نصٌّ حرٌّ لأصحاب الاعتماد في صفحة الاعتماد).
+زرُّ الاعتماد لمن يملك `can_approve` وحدَه (`mark.can_decide`)، والرفضُ رابطٌ إلى صفحة الاعتماد لأنّه يلزمه سبب.
+الأزرارُ `type="button"` بـhx-post: الشبكةُ داخل نموذجِ تثبيتِ الحصّة فلا نموذجَ متداخلاً.
+{% endcomment %}
+<span class="rec-entry" id="mark-{{ mark.entry_id }}">
+  {% if mark.corrected %}<span class="badge badge--warning" title="صحّح المشرفُ هذا الرصدَ دون معاينةٍ بدليلٍ مسمّى">تصحيحٌ دون معاينة</span>{% endif %}
+  {% if mark.state == "pending" %}
+    <span class="badge badge--neutral" title="لم يُحتسب حضوراً ولا غياباً حتى يقرّر حاملُ الجناح">المعلّم: {{ mark.label }}{% if mark.minutes %} {{ mark.minutes }} د{% endif %} — بانتظار الاعتماد</span>
+    {% if mark.can_decide %}
+      <button type="button" class="btn-primary btn-sm"
+              hx-post="{% url 'attendance_decide' mark.entry_id %}"
+              hx-vals='{"decision": "approve", "surface": "grid"}'
+              hx-include="[name=csrfmiddlewaretoken]"
+              hx-target="#mark-{{ mark.entry_id }}" hx-swap="outerHTML">اعتماد</button>
+      <a href="{% url 'attendance_approvals' %}#item-{{ mark.entry_id }}" class="btn-secondary btn-sm" title="الرفضُ يلزمه سبب — يُنجَز في صفحة الاعتماد">رفض</a>
+    {% endif %}
+  {% elif mark.state == "approved" %}
+    <span class="badge badge--success">المعلّم: معتمَد {{ mark.label }}{% if mark.minutes %} {{ mark.minutes }} د{% endif %}</span>
+  {% elif mark.state == "rejected" %}
+    <span class="badge badge--danger">لم يُعتمد إدخالُ المعلّم</span>
+  {% endif %}
+</span>

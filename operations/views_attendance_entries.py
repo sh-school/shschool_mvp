@@ -13,6 +13,7 @@ from django.views.decorators.http import require_POST
 from core.capabilities import capability_required
 
 from .attendance_entries import EVIDENCE_TYPES, EntryConflictError, EntryError, EntryRefusedError
+from .attendance_selectors import entry_mark_of
 from .services.attendance_teacher import TeacherAttendanceService
 
 #: رموزُ منعِ السياسة بنصٍّ للمستخدم — رمزٌ لا نصَّ له يُعرض عامّاً بلا تسريب.
@@ -108,6 +109,10 @@ def approval_decide(request, entry_id):
         return _entry_error(exc, 409)
     except EntryError as exc:
         return _entry_error(exc, 400)
+    if post.get("surface") == "grid":
+        # الاعتمادُ من خليّة شبكة المشرف: تُرسَم علامةُ الإدخال وحدَها لا بطاقةُ الطابور.
+        mark = entry_mark_of(entry.id, request.user)
+        return render(request, "wings/partials/entry_mark.html", {"mark": mark})
     context = {"entry": entry, "decision": decision}
     return render(request, "attendance/partials/decided_row.html", context)
 

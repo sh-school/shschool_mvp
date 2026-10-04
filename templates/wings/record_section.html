@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static ui icons %}
+{% load static ui icons dict_filters %}
 
 {% block title %}رصد {{ klass.short_code }}{% endblock %}
 
@@ -28,6 +28,10 @@
   {% if not periods %}
     {% callout "info" show=True %}لا حصصَ لهذه الشعبة في {{ day|date:"d M" }} — فلا شيءَ يُرصد.{% endcallout %}
   {% else %}
+
+  {% if awaiting_decision %}
+    {% callout "info" show=True %}{{ awaiting_decision }} إدخالاً من المعلّمين ينتظر اعتمادك في هذه الشعبة — يظهر بجانب كلّ طالبٍ في عمود حصّته، ويُنجَز الرفضُ (بسببه) في <a href="{% url 'attendance_approvals' %}">صفحة الاعتماد</a>.{% endcallout %}
+  {% endif %}
 
   <form method="post" action="{% url 'wings:record_period' klass.id %}" class="rec-form"
         data-draft-key="{{ draft_key }}" data-now="{% now 'U' %}" data-offset="{% now 'O' %}">
@@ -145,6 +149,7 @@
                 </div>
                 <input type="hidden" name="t-{{ sid }}" value="">
                 {% if row.pick.seen_exit %}<input type="hidden" name="o-{{ sid }}" value="{{ row.pick.seen_exit }}">{% endif %}
+                {% with mark=entry_marks|get_item:sid|get_item:period.start %}{% if mark %}{% include "wings/partials/entry_mark.html" %}{% endif %}{% endwith %}
                 <span class="rec-row__more">
                   <select name="w-{{ sid }}" class="form-select per-where" aria-label="أين الطالب">
                     <option value="">في فصله</option>
@@ -163,6 +168,7 @@
               <td class="per-cell is-{{ cell.status|default:'none' }}"
                   title="{% if cell.status == 'absent' %}غائب{% elif cell.status == 'late' %}متأخّر{% if cell.late_minutes %} {{ cell.late_minutes }} دقيقة{% endif %}{% elif cell.status == 'present' %}حاضر{% else %}لم تُرصد{% endif %}{% if cell.whereabouts %} · {{ cell.where_label }}{% endif %}{% if gone %} · {{ gone }}{% endif %}">
                 <span class="per-mark">{% if cell.status == "absent" %}غ{% elif cell.status == "late" %}م{% elif cell.status == "present" %}ح{% else %}·{% endif %}</span>{% if gone %}<sup aria-hidden="true">خ</sup><span class="sr-only">{{ gone }}</span>{% endif %}
+                {% with mark=entry_marks|get_item:sid|get_item:period.start %}{% if mark %}{% include "wings/partials/entry_mark.html" %}{% endif %}{% endwith %}
               </td>
               {% endif %}
             {% endfor %}

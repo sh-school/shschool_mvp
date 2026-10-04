@@ -704,6 +704,9 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 
 .rec-row__flags { display: flex; gap: var(--sp-1); flex-wrap: wrap; }
 .rec-row__flags .badge { font-size: var(--text-xs); }
+/* علامةُ إدخال المعلّم في خليّة الطالب (W-20261004-014): شارةٌ ثمّ زرُّ الاعتماد، وتلتفّ على الجوّال. */
+.rec-entry { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); margin-block-start: var(--sp-1); }
+.rec-entry .badge { font-size: var(--text-xs); }
 /* «أين الطالب» للغائب وحدَه، والدقائقُ للمتأخّر وحدَه — فالسطرُ قصيرٌ ما دام
    الطالبُ حاضراً، وهو الغالب. */
 .rec-row__more { display: flex; gap: var(--sp-1); flex-shrink: 0; }

@@ -265,3 +265,91 @@ def unapproved_by_session(
         for rows in grouped.values()
     ]
     return sorted(result, key=lambda item: -item.oldest_hours)
+
+
+# ── إدخالاتُ المعلّم في شبكة المشرف (W-20261004-014) ─────────────────────────
+
+
+@dataclass(frozen=True)
+class EntryMark:
+    """ما أدخله المعلّمُ لطالبٍ في حصّةٍ — يُعرض في خليّته بشبكة المشرف كما تعرضه صفحةُ المعلّم، بلا سببِ رفضٍ ولا نصٍّ حرّ.
+
+    `can_decide`: أيملك هذا المستخدمُ الاعتمادَ الآن (الحاملُ يومَ الحصّة أو القيادةُ حين لا حامل، ولا يعتمد أحدٌ ما أدخله بنفسه).
+    """
+
+    entry_id: object
+    state: str  # pending | approved | rejected
+    status: str
+    label: str
+    minutes: int | None
+    can_decide: bool
+    corrected: bool
+
+
+def _mark_of(entry: AttendanceEntry, can_decide: bool, corrected: bool) -> EntryMark:
+    state, _reason = _state(entry)
+    return EntryMark(
+        entry_id=entry.id,
+        state=state,
+        status=str(entry.status),
+        label=str(entry.get_status_display()),
+        minutes=entry.tardiness_minutes,
+        can_decide=can_decide and state == "pending",
+        corrected=corrected,
+    )
+
+
+def entry_marks_of(
+    class_group: Any, day: dt.date, user: CustomUser
+) -> dict[object, dict[dt.time, EntryMark]]:
+    """`{student_id: {start_time: EntryMark}}` لإدخالات المعلّمين في شعبةٍ ويومٍ — وحصّتا الزوج خانةٌ واحدة.
+
+    مصدرُها واحدٌ مع صفحة المعلّم (`AttendanceEntry` الرأسُ غيرُ المُستبدَل ثمّ قرارُه) فلا منطقَ ثانياً للحالة؛ والأهليّةُ من
+    `can_approve` نفسِها مخزَّنةً بالحصّة والمدخِل فلا استعلامَ لكلّ طالب.
+    """
+    heads = (
+        AttendanceEntry.objects.filter(
+            session__class_group=class_group, session__date=day, superseded_by__isnull=True
+        )
+        .select_related("decision", "session__class_group__wing", "entered_by")
+        .order_by("session__start_time", "entered_at")
+    )
+    corrected = set(
+        StudentAttendance.objects.filter(
+            session__class_group=class_group, session__date=day, unobserved_correction__isnull=False
+        ).values_list("student_id", "session__start_time")
+    )
+    verdicts: dict[tuple[object, object], bool] = {}
+    marks: dict[object, dict[dt.time, EntryMark]] = {}
+    for entry in heads:
+        key = (entry.session_id, entry.entered_by_id)
+        if key not in verdicts:
+            verdicts[key] = bool(can_approve(user, entry.session, entered_by=entry.entered_by))
+        start = entry.session.start_time
+        marks.setdefault(entry.student_id, {}).setdefault(
+            start, _mark_of(entry, verdicts[key], (entry.student_id, start) in corrected)
+        )
+    return marks
+
+
+def entry_mark_of(entry_id: Any, user: CustomUser) -> EntryMark:
+    """علامةُ إدخالٍ واحدٍ بعد قرارٍ — تُجلَب من جديدٍ فلا يبقى قرارٌ مخزَّنٌ قديم، ويُعاد رسمُها وحدَها (HTMX) في الشبكة."""
+    entry = AttendanceEntry.objects.select_related(
+        "decision", "session__class_group__wing", "entered_by"
+    ).get(pk=entry_id)
+    can = bool(can_approve(user, entry.session, entered_by=entry.entered_by))
+    corrected = StudentAttendance.objects.filter(
+        session=entry.session, student_id=entry.student_id, unobserved_correction__isnull=False
+    ).exists()
+    return _mark_of(entry, can, corrected)
+
+
+def pending_decidable_count(marks: dict[object, dict[dt.time, EntryMark]]) -> int:
+    """كم إدخالاً معلَّقاً يملك هذا المستخدمُ قرارَه في هذه العلامات — لسطر «ينتظر اعتمادك»."""
+    return sum(1 for per_student in marks.values() for m in per_student.values() if m.can_decide)
+
+
+def entry_grid_context(class_group: Any, day: dt.date, user: CustomUser) -> dict[str, Any]:
+    """سياقُ شبكة المشرف من إدخالات المعلّمين: علاماتُ الخلايا وعدّادُ ما ينتظر قرارَ هذا المستخدم — بمفتاحَين لا غير."""
+    marks = entry_marks_of(class_group, day, user)
+    return {"entry_marks": marks, "awaiting_decision": pending_decidable_count(marks)}
