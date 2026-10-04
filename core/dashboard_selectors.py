@@ -14,7 +14,6 @@ behavior، clinic، library، operations، transport) — الملفّ لا يز
 
 import datetime
 from collections.abc import Iterable
-from typing import Any
 
 from django.db.models import Count, Q
 from django.urls import reverse
@@ -30,9 +29,9 @@ from core.models.academic import grade_order
 from core.permissions import SCHEDULE_BROWSE, get_department_teacher_ids
 from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing
+from operations.attendance_selectors import session_entry_states
 from operations.models import (
     AbsenceAlert,
-    AttendanceEntry,
     CompensatorySession,
     Session,
     StudentAttendance,
@@ -240,33 +239,6 @@ def get_director_ctx(school, today):
         "pending_comp": pending_comp,
         "absent_teachers_today": absent_teachers_today,
     }
-
-
-def session_entry_states(session_ids: list[Any]) -> dict[Any, str]:
-    """حالةُ رصد كلّ حصّةٍ في استعلامٍ واحد (شارةُ لوحة المعلّم، W-20261003-038): `none` لم يُدخَل، `pending` بانتظار
-    الاعتماد، `approved` معتمَد.
-
-    تُقرأ من رؤوس الإدخالات (`superseded_by` فارغ) لا من `StudentAttendance`: المعلَّقُ ليس حضوراً ولا غياباً فيُعرض وسماً.
-    أيُّ إدخالٍ بلا قرارٍ يجعل الحصّةَ «بانتظار الاعتماد» (فاعتماد بعضه لا يكفي)؛ وحصّةٌ كلُّ إدخالاتها مرفوضةٌ تعود «لم يُدخَل»
-    لأنّ المرفوضَ لا أثرَ له وعلى المعلّم أن يرصد من جديد.
-    """
-    states: dict[Any, str] = dict.fromkeys(session_ids, "none")
-    if not session_ids:
-        return states
-    rows = (
-        AttendanceEntry.objects.filter(session_id__in=session_ids, superseded_by__isnull=True)
-        .values("session_id")
-        .annotate(
-            undecided=Count("id", filter=Q(decision__isnull=True)),
-            approved=Count("id", filter=Q(decision__decision="approved")),
-        )
-    )
-    for row in rows:
-        if row["undecided"]:
-            states[row["session_id"]] = "pending"
-        elif row["approved"]:
-            states[row["session_id"]] = "approved"
-    return states
 
 
 def get_teacher_ctx(user, school, today, role):

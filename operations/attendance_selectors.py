@@ -14,6 +14,7 @@ import datetime as dt
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from core.models import StudentEnrollment
@@ -265,3 +266,30 @@ def unapproved_by_session(
         for rows in grouped.values()
     ]
     return sorted(result, key=lambda item: -item.oldest_hours)
+
+
+def session_entry_states(session_ids: list[Any]) -> dict[Any, str]:
+    """حالةُ رصد كلّ حصّةٍ في استعلامٍ واحد (شارةُ لوحة المعلّم، W-20261003-038): `none` لم يُدخَل، `pending` بانتظار
+    الاعتماد، `approved` معتمَد.
+
+    تُقرأ من رؤوس الإدخالات (`superseded_by` فارغ) لا من `StudentAttendance`: المعلَّقُ ليس حضوراً ولا غياباً فيُعرض وسماً.
+    أيُّ إدخالٍ بلا قرارٍ يجعل الحصّةَ «بانتظار الاعتماد» (فاعتماد بعضه لا يكفي)؛ وحصّةٌ كلُّ إدخالاتها مرفوضةٌ تعود «لم يُدخَل»
+    لأنّ المرفوضَ لا أثرَ له وعلى المعلّم أن يرصد من جديد.
+    """
+    states: dict[Any, str] = dict.fromkeys(session_ids, "none")
+    if not session_ids:
+        return states
+    rows = (
+        AttendanceEntry.objects.filter(session_id__in=session_ids, superseded_by__isnull=True)
+        .values("session_id")
+        .annotate(
+            undecided=Count("id", filter=Q(decision__isnull=True)),
+            approved=Count("id", filter=Q(decision__decision="approved")),
+        )
+    )
+    for row in rows:
+        if row["undecided"]:
+            states[row["session_id"]] = "pending"
+        elif row["approved"]:
+            states[row["session_id"]] = "approved"
+    return states
