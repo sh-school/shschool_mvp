@@ -1,7 +1,7 @@
 .PHONY: up down build logs shell migrate seed full-seed test reset \
         quality lint security ci test-cov pre-commit-install minify-js \
         axes-reset health-check ready-check test-v54 pip-audit-check \
-        prepush railway-plan preview-up preview-watch preview-status preview-plan preview-pin preview-release
+        prepush affected railway-plan preview-up preview-watch preview-status preview-plan preview-pin preview-release
 
 # ── Docker (Development) ──────────────────────────────
 up:
@@ -86,6 +86,11 @@ test-cov:
 # الفحوصُ السريعةُ نفسُها التي يشغّلها CI (ruff, أسرار, تعقيد, بيانات شخصيّة) — قبل كلّ دفع
 prepush:
 	python scripts/prepush_check.py
+
+# الحرّاسُ والاختباراتُ المتأثّرةُ بما عدّلتَه + بصمةٌ للبطاقة (W-20261003-004)؛ يفشل على شجرةٍ فيها تعديلٌ غيرُ مودَع.
+# مساعدٌ للمطوِّر: ليس حاجزاً ولا مرجعاً للاعتماد (حكم 0105)؛ و«كلُّ المطلوب نجح» لا يعني السلامة
+affected:
+	python scripts/affected_tests.py
 
 lint:
 	ruff check . --fix
