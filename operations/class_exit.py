@@ -222,6 +222,106 @@ def unreturned_of(class_group: ClassGroup, day: dt.date) -> dict:
     return out
 
 
+def root_of(exit_: ClassExit) -> ClassExit:
+    """أصلُ سلسلة الامتدادات — منه يبدأ عدّادُ الخروج المتّصل عبر الحصص."""
+    seen = 0
+    while exit_.continued_from_id is not None and seen < 12:
+        exit_ = exit_.continued_from
+        seen += 1
+    return exit_
+
+
+@transaction.atomic
+def carry_over(session: Session, now: dt.datetime | None = None) -> int:
+    """يُرحِّل إلى هذه الحصّة خروجَ من لم يعد من حصّةٍ سبقتها اليومَ — ويُرجع عددَ الامتدادات المنشأة.
+
+    أمرُ المالك 2026-10-04: عدّادُ الخروج يمتدّ إلى الحصص التالية حتى نهاية دوام اليوم ما لم يعد الطالب، وفي الغد يبدأ من الصفر
+    (الترحيلُ في اليوم نفسه فقط). السطرُ الجديد `continued_from` أصلَه: لا يُعدّ خروجاً جديداً، وزمنُه متّصلٌ بلا ثغرة
+    (يبدأ حيث انتهى أصلُه عند جرس حصّته). ومن ثُبّت غائباً بإذن في حصّته السابقة يبقى كذلك: الترحيلُ لا يكتب في سجلّ الحضور.
+    وهو **مثبِّتُ التكرار**: لا ينشئ إلا للطالب الذي ليس له سطرٌ في هذه الحصّة ولا امتدادٌ لهذا الأصل.
+    """
+    now = now or timezone.now()
+    if now < timezone.make_aware(dt.datetime.combine(session.date, session.start_time)):
+        return 0  # حصّةٌ لم تبدأ: لا ترحيلَ قبل أوانه
+    earlier = ClassExit.objects.filter(
+        session__class_group=session.class_group,
+        session__date=session.date,
+        session__start_time__lt=session.start_time,
+        left_at__lt=timezone.make_aware(dt.datetime.combine(session.date, session.start_time)),
+    ).select_related("session")
+    here = set(ClassExit.objects.filter(session=session).values_list("student_id", flat=True))
+    made = 0
+    pending: dict = {}
+    for exit_ in earlier.order_by("left_at"):
+        end = session_end(exit_.session)
+        if exit_.returned_at is not None and exit_.returned_at < end:
+            continue  # عاد قبل الجرس
+        if ClassExit.objects.filter(continued_from=exit_).exists():
+            continue
+        pending[exit_.student_id] = exit_  # الأحدثُ يغلب لكلّ طالب
+    for student_id, exit_ in pending.items():
+        if student_id in here:
+            continue
+        end = session_end(exit_.session)
+        if exit_.returned_at is None:
+            ClassExit.objects.filter(pk=exit_.pk).update(returned_at=end)
+        ClassExit.objects.create(
+            school=session.school,
+            session=session,
+            student_id=student_id,
+            destination=exit_.destination,
+            left_at=end,
+            allowed_by=exit_.allowed_by,
+            continued_from=exit_,
+        )
+        made += 1
+    return made
+
+
+@dataclass(frozen=True)
+class ExitDay:
+    """خروجُ طالبٍ في يومٍ: عددُ المرّات، ومجموعُ الثواني، وتفصيلُها بالحصّة والمادّة."""
+
+    count: int
+    seconds: int
+    parts: list
+    open_left: int = 0
+    open_span: int = 0
+
+    @property
+    def label(self) -> str:
+        minutes, sec = divmod(self.seconds, 60)
+        return f"{minutes:02d}:{sec:02d}"
+
+
+def exit_day_of(student, day: dt.date, now: dt.datetime | None = None) -> ExitDay:
+    """مجموعُ خروج الطالب في اليوم: السطرُ بلا أصلٍ مرّةٌ، والمدّةُ كلُّ الأسطر (المفتوحُ إلى `now`).
+
+    المصدرُ `ClassExit` نفسُه (لا جدولٌ مكرَّرٌ يتباعد عنه): لكلّ سطرٍ حصّتُه ومادّتُه ووقتاه، واليومُ مفتاحُ التجميع —
+    فلا شيءَ يُمسح في الغد، ويبدأ اليومُ التالي من الصفر لأنّ تاريخه غيرُ تاريخه.
+    """
+    now = now or timezone.now()
+    count = 0
+    seconds = 0
+    parts: list = []
+    open_left = open_span = 0
+    rows = (
+        ClassExit.objects.filter(student=student, session__date=day)
+        .select_related("session", "session__subject")
+        .order_by("left_at")
+    )
+    for exit_ in rows:
+        if exit_.continued_from_id is None:
+            count += 1
+        span = max(0, int(((exit_.returned_at or now) - exit_.left_at).total_seconds()))
+        seconds += span
+        if exit_.returned_at is None:
+            open_left, open_span = int(exit_.left_at.timestamp()), span
+        subject = exit_.session.subject.name_ar if exit_.session.subject_id else ""
+        parts.append((exit_.session.start_time, subject, span))
+    return ExitDay(count, seconds, parts, open_left, open_span)
+
+
 def exits_of_session(session) -> dict:
     """`{student_id: (open_exit | None, [exits])}` لعرض الشاشة."""
     out: dict = {}

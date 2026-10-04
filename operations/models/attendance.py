@@ -565,6 +565,18 @@ class ClassExit(models.Model):
         related_name="class_exits_allowed",
         verbose_name="أذِن به",
     )
+    continued_from = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="continuations",
+        verbose_name="امتدادٌ لخروجٍ سابق",
+        help_text=(
+            "الخروجُ الذي لم يعد صاحبُه بنهاية حصّته يُرحَّل إلى الحصّة التالية بسطرٍ جديد يشير إلى أصله؛ "
+            "فالسطرُ بلا أصلٍ خروجٌ جديدٌ يُعدّ مرّةً، والامتدادُ يزيد المدّةَ ولا يزيد العدد."
+        ),
+    )
 
     class Meta:
         verbose_name = "خروجٌ من الفصل"

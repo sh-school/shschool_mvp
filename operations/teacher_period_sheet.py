@@ -55,9 +55,13 @@ class TeacherPick:
     away_note: str = ""
     locked: bool = False
     out_since: int = 0
+    exit_count: int = 0
+    exit_base: int = 0
+    exit_open_at: int = 0
+    exit_note: str = ""
 
 
-def _pick_of(line: StudentLine, destination: str, out_since: int) -> TeacherPick:
+def _pick_of(line: StudentLine, destination: str, out_since: int, day: Any = None) -> TeacherPick:
     entry = line.entry
     if entry is not None and line.entry_state in ("pending", "approved"):
         return TeacherPick(
@@ -65,6 +69,7 @@ def _pick_of(line: StudentLine, destination: str, out_since: int) -> TeacherPick
             whereabouts=destination,
             locked=line.entry_state == "approved",
             out_since=out_since,
+            **_exit_fields(day),
         )
     if line.effective_status:  # رصدُ مشرفٍ أو عيادةٍ أو بوّابة: لا يُكتب فوقه من هنا
         return TeacherPick(
@@ -72,8 +77,24 @@ def _pick_of(line: StudentLine, destination: str, out_since: int) -> TeacherPick
             whereabouts=destination,
             locked=True,
             out_since=out_since,
+            **_exit_fields(day),
         )
-    return TeacherPick(whereabouts=destination, out_since=out_since)
+    return TeacherPick(whereabouts=destination, out_since=out_since, **_exit_fields(day))
+
+
+def _exit_fields(day: Any) -> dict[str, Any]:
+    """ما يحمله زرُّ «خروج» من حساب اليوم (`exit_day_of`): عددُ المرّات، ومجموعُ المدّة قبل الخروج المفتوح، ولحظةُ بدئه."""
+    if day is None:
+        return {}
+    open_left = day.open_left
+    base = day.seconds - (day.open_span if open_left else 0)
+    note = f"خرج {day.count} مرّة اليوم · المجموع {day.label}" if day.count else ""
+    return {
+        "exit_count": day.count,
+        "exit_base": base,
+        "exit_open_at": open_left,
+        "exit_note": note,
+    }
 
 
 def _cells(class_group: Any, day: dt.date) -> dict:
@@ -110,7 +131,7 @@ def next_session_of(session: Session) -> Session | None:
 
 def teacher_sheet_context(user: CustomUser, session: Session) -> dict[str, Any]:
     """سياقُ الكشف المشترك لحصّة المعلّم (المفتاحُ نفسُه الذي يبنيه المشرف) — أعمدتُه حصصُه وحدَها."""
-    from .class_exit import exits_of_session
+    from .class_exit import carry_over, exit_day_of, exits_of_session, root_of
     from .period_register import period_end, periods_of, teacher_outs_of, track_note
 
     klass = session.class_group
@@ -126,6 +147,7 @@ def teacher_sheet_context(user: CustomUser, session: Session) -> dict[str, Any]:
     cells = _cells(klass, day)
     outs = teacher_outs_of(klass, day)
     ends = {p.start: period_end(day, p) for p in mine}
+    carry_over(session, now)  # خروجُ من لم يعد من حصّةٍ سابقةٍ اليومَ يمتدّ هنا
     exits = exits_of_session(session)
     rows = []
     for line in lines:
@@ -134,7 +156,8 @@ def teacher_sheet_context(user: CustomUser, session: Session) -> dict[str, Any]:
         gone = outs.get(sid, {})
         current = exits.get(sid, (None, []))[0]
         destination = current.destination if current is not None else ""
-        out_since = int(current.left_at.timestamp()) if current is not None else 0
+        out_since = int(root_of(current).left_at.timestamp()) if current is not None else 0
+        day_exit = exit_day_of(line.student, day, now)
         rows.append(
             {
                 "student": line.student,
@@ -143,7 +166,7 @@ def teacher_sheet_context(user: CustomUser, session: Session) -> dict[str, Any]:
                     for p in mine
                 ],
                 "cell": own.get(focus.start) if focus else None,
-                "pick": _pick_of(line, destination, out_since),
+                "pick": _pick_of(line, destination, out_since, day_exit),
             }
         )
     following = next_session_of(session)
@@ -167,9 +190,6 @@ def teacher_sheet_context(user: CustomUser, session: Session) -> dict[str, Any]:
         "entry_marks": marks,
         "awaiting_decision": 0,
         "form_action": reverse("attendance_period_entries", args=[session.id]),
-        "end_epoch": int(
-            timezone.make_aware(dt.datetime.combine(session.date, session.end_time)).timestamp()
-        ),
         "start_epoch": int(
             timezone.make_aware(dt.datetime.combine(session.date, session.start_time)).timestamp()
         ),

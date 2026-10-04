@@ -25,24 +25,6 @@
     try { window.localStorage.removeItem(key); } catch (e) { /* لا تخزين */ }
   }
 
-  // الشبكةُ أو الجدول: الاختيارُ عادةٌ للمشرف فيُحفظ، والشبكةُ الأصلُ حتى يختار غيرَها.
-  var viewKey = 'per-view';
-  var wrap = form.querySelector('.per-grid-wrap');
-  function setView(view) {
-    if (wrap) wrap.classList.toggle('is-tiles', view !== 'table');
-    form.querySelectorAll('[data-view]').forEach(function (button) {
-      button.setAttribute('aria-pressed', button.getAttribute('data-view') === view ? 'true' : 'false');
-    });
-  }
-  try { setView(window.localStorage.getItem(viewKey) === 'table' ? 'table' : 'tiles'); } catch (e) { /* لا تخزين */ }
-  form.querySelectorAll('[data-view]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      var view = button.getAttribute('data-view');
-      setView(view);
-      try { window.localStorage.setItem(viewKey, view); } catch (e) { /* لا تخزين */ }
-    });
-  });
-
   // «خروج» (الشبكة): نافذةٌ عائمةٌ تكتب في قائمة «أين الطالب» نفسِها، فلا حقلَ جديدَ في الإرسال.
   // اختيارُ وجهةٍ يجعل الطالبَ غائباً؛ والرجوعُ إلى حاضر/متأخّر يمحو وجهتَه.
   function exitCells() { return form.querySelectorAll('td.per-cell.is-focus'); }
@@ -75,8 +57,14 @@
     body.append('csrfmiddlewaretoken', token.value);
     body.append('student_id', row.getAttribute('data-student'));
     if (destination) body.append('destination', destination);
-    if (destination) { row.setAttribute('data-out-since', String(nowSec())); }
-    else {
+    if (destination) {
+      row.setAttribute('data-out-since', String(nowSec()));
+      row.setAttribute('data-exit-open-at', String(nowSec()));
+      row.setAttribute('data-exit-count', String((parseInt(row.getAttribute('data-exit-count'), 10) || 0) + 1));
+    } else {
+      var openAt = parseInt(row.getAttribute('data-exit-open-at'), 10);
+      if (openAt) row.setAttribute('data-exit-base', String((parseInt(row.getAttribute('data-exit-base'), 10) || 0) + Math.max(0, nowSec() - openAt)));
+      row.removeAttribute('data-exit-open-at');
       row.removeAttribute('data-out-since');
       row.querySelectorAll('select.per-where option').forEach(function (o) { o.textContent = o.getAttribute('data-base') || o.textContent; });
     }
@@ -188,31 +176,15 @@
     });
   }
 
-  // الساعةُ الحيّة في كلّ عمودٍ لم يُثبَّت: ساعةُ الخادم لا ساعةُ الهاتف — فهاتفٌ
-  // متأخّرٌ دقيقتين لا يُري وقتاً غيرَ الذي يُحفظ عند التثبيت. يُحسب الفرقُ مرّةً
-  // عند التحميل ويُضاف كلَّ ثانية. والعمودُ المثبَّتُ وقتُه محفوظٌ من الخادم فلا يُمسّ.
+  // ساعةُ الخادم لا ساعةُ الهاتف: فهاتفٌ متأخّرٌ دقيقتين لا يُري وقتاً غيرَ الذي يُحفظ. يُحسب الفرقُ مرّةً عند التحميل.
   var skew = (parseInt(form.getAttribute('data-now'), 10) * 1000 || Date.now()) - Date.now();
-  var zone = (form.getAttribute('data-offset') || '+0300').match(/([+-])(\d\d)(\d\d)/);
-  var zoneMs = zone ? (zone[1] === '-' ? -1 : 1) * (parseInt(zone[2], 10) * 60 + parseInt(zone[3], 10)) * 60000 : 0;
-  var clocks = document.querySelectorAll('[data-clock]');
-
   function two(n) { return (n < 10 ? '0' : '') + n; }
-
-  function tick() {
-    // بتوقيت المدرسة لا بتوقيت الجهاز: نُزيح اللحظةَ بفرق المنطقة ونقرأها بـUTC.
-    var local = new Date(Date.now() + skew + zoneMs);
-    var text = two(local.getUTCHours()) + ':' + two(local.getUTCMinutes()) + ':' + two(local.getUTCSeconds());
-    clocks.forEach(function (clock) { clock.textContent = text; });
-  }
-  tick();
-  if (clocks.length) window.setInterval(tick, 1000);
 
   // ── المعلّم (data-exit-url) ──────────────────────────────────────────────────────────────
   // (١) «غائب» و«خروج» لا يجتمعان على طالبٍ واحد؛ (٢) عدّادُ الخروج من لحظة الضغط إلى «عاد إلى الفصل»؛
   // (٣) «متأخّر» يُسجَّل وقتُ دخوله فوراً وتُحسب دقائقُه من بدء الحصّة آلياً ويُحفظ (الخادمُ يعيد الحساب بساعته).
   var entryUrl = form.getAttribute('data-entry-url');
   var startEpoch = parseInt(form.getAttribute('data-start-epoch'), 10) || 0;
-  var endEpoch = parseInt(form.getAttribute('data-end-epoch'), 10) || 0;
   function nowSec() { return Math.floor((Date.now() + skew) / 1000); }
   function csrf() { var t = form.querySelector('input[name=csrfmiddlewaretoken]'); return t ? t.value : ''; }
   function stopwatch(seconds) {
@@ -236,11 +208,17 @@
   }
   function outTick() {
     form.querySelectorAll('tr[data-out-since]').forEach(function (row) {
-      // من لم يعد حتى نهاية الحصّة يتوقّف عدّادُه ويُحسب وقتُه إلى نهايتها.
-      // (خروجٌ بدأ بعد نهاية الحصّة — في المعاينة المفتوحة طوال اليوم — يعدّ طبيعيّاً: لا قصَّ لما بدأ بعد حدّه.)
+      // العدّادُ متّصلٌ من لحظة الضغط (أو من أصل الخروج المرحَّل) إلى العودة؛ وإن لم يعد انتقل مع الطالب إلى الحصص التالية
+      // حتى نهاية اليوم (الخادمُ يُرحّله بسطرٍ جديدٍ في كلّ حصّة، فيبقى `data-out-since` أصلَه).
       var since = parseInt(row.getAttribute('data-out-since'), 10);
-      var now = endEpoch && since <= endEpoch ? Math.min(nowSec(), endEpoch) : nowSec();
+      var now = nowSec();
       var text = stopwatch(Math.max(0, now - since));
+      var openAt = parseInt(row.getAttribute('data-exit-open-at'), 10);
+      var button = row.querySelector('[data-exit-open]');
+      if (button && openAt) {
+        var total = (parseInt(row.getAttribute('data-exit-base'), 10) || 0) + Math.max(0, now - openAt);
+        button.title = 'خرج ' + (row.getAttribute('data-exit-count') || '1') + ' مرّة اليوم · المجموع ' + stopwatch(total);
+      }
       var label = row.querySelector('[data-exit-label]');
       if (label) label.textContent = text;
       var select = row.querySelector('select.per-where');
