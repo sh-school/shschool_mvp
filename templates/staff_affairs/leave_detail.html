@@ -22,14 +22,19 @@
       <dt>السبب</dt><dd>{{ leave.reason }}</dd>
       {% if leave.rejection_reason %}<dt class="text-status-danger">سبب الرفض</dt><dd>{{ leave.rejection_reason }}</dd>{% endif %}
       <dt>تاريخ الطلب</dt><dd>{{ leave.created_at|date:"d/m/Y H:i" }}</dd>
+      <dt>المرحلة</dt><dd>{{ leave.get_stage_display }}</dd>
+      {% if leave.supervisor_by %}<dt>المسؤول والنائب</dt><dd>{{ leave.supervisor_by.full_name }} — {{ leave.supervisor_at|date:"d/m/Y H:i" }}</dd>{% endif %}
+      {% if leave.secretary_by %}<dt>السكرتارية</dt><dd>{{ leave.secretary_by.full_name }} — {{ leave.secretary_at|date:"d/m/Y H:i" }}{% if leave.recorded_balance_days is not None %} — الرصيد المتبقي قبل الطلب: {{ leave.recorded_balance_days }} يوماً{% endif %}</dd>{% endif %}
+      {% if leave.decided_on_behalf %}<dt>قُرّر</dt><dd>بالإنابة عن المدير (مكلَّف بأعبائه)</dd>{% endif %}
       {% if leave.reviewed_by %}<dt>راجعها</dt><dd>{{ leave.reviewed_by.full_name }} — {{ leave.reviewed_at|date:"d/m/Y H:i" }}</dd>{% endif %}
     </dl>
   {% endsection_card %}
 
-  {% if leave.status == "pending" %}
+  {% if can_act %}
   {% section_card "مراجعة الطلب" icon="checklist" %}
     <form method="post" action="{% url 'staff_affairs:leave_review' leave.pk %}">{% csrf_token %}
-      {% callout "warning" %}الموافقة تخصم أيامَ الإجازة من رصيد الموظف فوراً ولا مسارَ للتراجع عنها من المنصّة؛ أمّا الرفض فلا يمسّ الرصيد.{% endcallout %}
+      {% if leave.stage == "principal" %}{% callout "warning" %}الموافقة اعتمادٌ نهائيّ تخصم أيامَ الإجازة من رصيد الموظف فوراً ولا مسارَ للتراجع عنها من المنصّة؛ أمّا الرفض فلا يمسّ الرصيد.{% endcallout %}
+      {% else %}{% callout "info" %}مرحلة «{{ leave.get_stage_display }}»: لا اعتمادَ نهائياً فيها — الاعتمادُ النهائيّ لمدير المدرسة أو المكلَّف بأعبائه.{% endcallout %}{% endif %}
       <div class="form-row">
         {% field "action" "القرار" type="select" choices="approved=موافقة|rejected=رفض" required=True %}
         {% field "rejection_reason" "سبب الرفض" placeholder="سبب الرفض..." help="مطلوب عند الرفض" %}
