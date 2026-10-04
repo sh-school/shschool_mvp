@@ -22,6 +22,32 @@ def now_0730(monkeypatch):
 
 
 @pytest.fixture
+def now_1500(monkeypatch):
+    """بعد نهاية الدوام (13:30): الإدخالُ مغلق."""
+    monkeypatch.setattr(timezone, "now", lambda: at(15, 0))
+
+
+def test_a_closed_entry_window_says_why_and_shows_each_state_as_a_word_not_an_empty_card(
+    client_as, now_0730, now_1500, session, teacher, kid
+):
+    """لقطةُ المالك: بطاقاتٌ فارغةٌ بلا أزرارٍ ولا تفسير — صار سطرُ سببٍ واحدٌ وحالةُ كلّ طالبٍ كلمةً."""
+    from operations.attendance_entries import submit_entry
+
+    submit_entry(teacher, session, kid, "present", now=at(7, 30))
+    html = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
+    assert "الإدخالُ مغلق: انتهت نافذةُ الإدخال" in html
+    assert 'class="att-btn' not in html  # لا أزرارَ مغلقة
+    assert "badge--success" in html and ">حاضر<" in html  # كلمةٌ لا نقطةٌ صغيرة
+
+
+def test_the_name_has_no_tools_padding_when_there_is_no_tools_menu(
+    client_as, now_1500, session, teacher, kid
+):
+    html = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
+    assert "tch-has-tools" not in html and 'class="tch-more"' not in html
+
+
+@pytest.fixture
 def now_1030(monkeypatch):
     """بعد نهاية حصّة 07:10 وقبل نهاية اليوم: الإدخالُ والخروجُ مسموحان (بنافذة اليوم)، و«دخل الآن» (بنافذة الحصّة) لا."""
     monkeypatch.setattr(timezone, "now", lambda: at(10, 30))

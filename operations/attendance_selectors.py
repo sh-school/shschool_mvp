@@ -126,6 +126,24 @@ def teacher_may_enter_now(user: CustomUser, session: Session, lines: list[Studen
     return bool(can_enter(user, session, lines[0].student))
 
 
+#: سببُ إغلاق الإدخال بنصٍّ للمعلّم — يُعرض سطراً واحداً في رأس الحصّة حين لا أزرارَ (وإلّا بدت البطاقاتُ فارغةً بلا تفسير).
+ENTRY_CLOSED = {
+    "not_teacher": "لست معلّمَ هذه الحصّة — للاطّلاع فقط",
+    "before_start": "لم تبدأ الحصّةُ بعد",
+    "after_window": "انتهت نافذةُ الإدخال (آخرُ اليوم الدراسيّ)",
+    "developer": "حسابُ المطوّر لا يُدخل",
+    "cancelled": "الحصّةُ ملغاة",
+}
+
+
+def entry_closed_reason(user: CustomUser, session: Session, lines: list[StudentLine]) -> str:
+    """سطرُ سبب إغلاق الإدخال لهذا المستخدم، أو «» إن كان مفتوحاً."""
+    if not lines:
+        return ""
+    verdict = can_enter(user, session, lines[0].student)
+    return "" if verdict else ENTRY_CLOSED.get(verdict.reason, "الإدخالُ مغلقٌ لهذه الحصّة")
+
+
 @dataclass(frozen=True)
 class GridCell:
     """خليّةُ طالبٍ في حصّةٍ بشبكة المعلّم: ما يُعرض رمزاً صغيراً — المبدئيُّ المعلَّق بوسمٍ، وإلّا المعتمَدُ الفعليّ."""
@@ -222,6 +240,7 @@ def teacher_page_context(user: CustomUser, session: Session) -> dict[str, Any]:
             and AttendanceService.may_tap("out", user, session, lines[0].student)
         ),
         "can_enter": is_teacher and teacher_may_enter_now(user, session, lines),
+        "entry_closed": entry_closed_reason(user, session, lines),
         "exits": exits,
         "out_now": sum(1 for cur, _ in exits.values() if cur is not None),
         "students_data": rows,

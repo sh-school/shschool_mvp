@@ -726,7 +726,8 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   position: absolute; inset-block-start: var(--sp-2); inset-inline-end: var(--sp-2);
   display: block; flex: none; order: 0; z-index: 2;
 }
-.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > th.per-grid__name .rec-row__name { padding-inline-end: var(--sp-8); }
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row.tch-has-tools > th.per-grid__name .rec-row__name { padding-inline-end: var(--sp-8); }
+.tch-ro { display: inline-flex; align-items: center; gap: var(--sp-1); }
 /* بطاقاتُ المعلّم (الشبكة): الأزرارُ الثلاثةُ تملأ عرضَ البطاقة كأزرار كشف المشرف. */
 .per-grid-wrap.is-tiles .asg-quick { flex: 1 1 0; display: flex; flex-wrap: nowrap; }
 .per-grid-wrap.is-tiles .asg-quick .att-btn { flex: 1 1 0; min-width: 0; min-height: 40px; padding-inline: var(--sp-1); }

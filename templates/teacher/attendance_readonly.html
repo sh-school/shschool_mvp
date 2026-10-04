@@ -38,6 +38,7 @@
         <span class="rec-count is-late">متأخّر <b>{{ summary.late|default:0 }}</b></span>
         {% if out_now %}<span class="rec-count">خارج الفصل <b>{{ out_now }}</b></span>{% endif %}
       </p>
+      {% if entry_closed %}<p class="per-head__note">{% icon "time" %} الإدخالُ مغلق: {{ entry_closed }}.</p>{% endif %}
     </div>
     <div class="per-head__tools">
       <div class="per-head__keys">
@@ -83,7 +84,7 @@
       <tbody>
         {% for item in students_data %}
         {% with sid=item.student.id %}
-        <tr class="rec-row" data-state="{{ item.status }}">
+        <tr class="rec-row{% if can_tap_late or can_tap_out %} tch-has-tools{% endif %}" data-state="{{ item.status }}">
           <td class="per-grid__no">{{ forloop.counter }}</td>
           <th scope="row" class="per-grid__name">
             <span class="rec-row__name rec-row__file" title="{{ item.student.full_name }}">{{ item.student.full_name }}</span>
@@ -92,11 +93,19 @@
           {% for col in grid_cols %}
             {% if col.is_focus %}
             <td class="per-cell is-focus">
-              {% if can_enter or item.line.entry or item.line.correction %}
+              {% if can_enter %}
               <span class="tch-entry" id="entry-{{ sid }}">{% include "teacher/partials/entry_cell.html" with line=item.line %}</span>
               {% else %}
+              {% comment %} إدخالٌ مغلق: حالةُ الطالب كلمةً واضحةً لا نقطةً صغيرة (وإلّا بدت البطاقةُ فارغة)، والمعلَّقُ بأيقونة. {% endcomment %}
               {% with cell=grid_cells|get_item:sid|get_item:col.session.id %}
-              <span class="per-mark">{% if cell.shown == "absent" %}غ{% elif cell.shown == "late" %}م{% elif cell.shown == "present" %}ح{% else %}·{% endif %}</span>
+              <span class="tch-ro">
+                {% if cell.shown == "absent" %}<span class="badge badge--danger">غائب</span>
+                {% elif cell.shown == "late" %}<span class="badge badge--warning">متأخّر</span>
+                {% elif cell.shown == "present" %}<span class="badge badge--success">حاضر</span>
+                {% elif cell.shown == "excused" %}<span class="badge badge--info">معذور</span>
+                {% else %}<span class="badge badge--neutral">لم يُرصد</span>{% endif %}
+                {% if cell.pending %}<span class="per-pend" title="بانتظار الاعتماد" aria-hidden="true">{% icon "time" %}</span><span class="sr-only">بانتظار الاعتماد</span>{% endif %}
+              </span>
               {% endwith %}
               {% endif %}
             </td>

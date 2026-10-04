@@ -154,7 +154,7 @@ def test_the_teacher_page_is_the_grid_with_only_his_own_sessions_as_columns(
     assert html.count('<th scope="col" class="per-col') == 3  # حصّتان له + عمودُ الأدوات
     assert reverse("attendance", args=[later.id]) in html
     assert "09:00" not in html
-    assert html.count('class="rec-row"') == 2  # صفٌّ لكلّ طالب
+    assert html.count('<tr class="rec-row') == 2  # صفٌّ لكلّ طالب
 
 
 def test_pending_is_a_small_symbol_not_a_sentence_in_every_row(
