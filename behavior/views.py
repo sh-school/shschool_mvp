@@ -66,7 +66,7 @@ def _behavior_report_redirect(
 
 
 from behavior.committee_services import decide_committee
-from behavior.forms import InfractionForm
+from behavior.forms import InfractionForm, action_choices_for
 from behavior.models import BehaviorInfraction, ViolationCategory
 from core.capabilities import capability_required, has_capability
 from core.domain.tones import SHARE_KPI, tone_for
@@ -275,7 +275,7 @@ def report_infraction(request):
     if request.method == "POST":
         # معرّفُ الطالب يُسأل عنه قبل صحّة النموذج: طالبٌ خارج الجناح 404 مهما كان باقيه.
         _require_in_wing(request, request.POST.get("student_id", "").strip())
-        form = InfractionForm(request.POST)
+        form = InfractionForm(request.POST, role=request.user.get_role())
         if not form.is_valid():
             for field, errs in form.errors.items():
                 for err in errs:
@@ -364,6 +364,7 @@ def report_infraction(request):
             "levels": BehaviorInfraction.LEVELS,
             "violations_by_degree": violations_by_degree,
             "degree_panels": _degree_panels(violations_by_degree),
+            "action_choices": [c for c in action_choices_for(request.user.get_role()) if c[0]],
         },
     )
 
