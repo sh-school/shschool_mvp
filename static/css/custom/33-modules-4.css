@@ -800,9 +800,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   font-variant-numeric: tabular-nums;
 }
 .per-head__time b { color: var(--text-primary); }
-.per-head__note { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
 /* الملاحظتان في سطرٍ واحد ما اتّسع العرض، وتلتفّان في الهاتف. */
-.per-head__notes { display: flex; flex-wrap: wrap; column-gap: var(--sp-3); }
 .per-bulk { display: flex; gap: var(--sp-1-5); }
 
 /* رقاقةُ حال الحصّة: كلمةٌ ولونٌ معاً. */

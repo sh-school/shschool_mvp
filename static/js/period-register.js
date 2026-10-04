@@ -40,6 +40,10 @@
     // المعلّم: عددُ مرّات خروج الطالب اليومَ رقاقةٌ على الزرّ نفسِه (CSS `data-times`) لا نصٌّ يطيل الكلمة؛ ومن هو خارجٌ يحلّ عدّادُه محلَّ الكلمة.
     var times = exitUrl ? parseInt(cell.closest('tr').getAttribute('data-exit-count'), 10) || 0 : 0;
     if (times) button.setAttribute('data-times', String(times)); else button.removeAttribute('data-times');
+    // الاسمُ المقروءُ لقارئ الشاشة يحمل اسمَ الطالب والعدد (الرقاقةُ CSS لا تُقرأ دائماً) — وإلّا تماثلت عشراتُ أزرار «خروج».
+    if (exitUrl && button.getAttribute('data-who')) {
+      button.setAttribute('aria-label', 'خروج ' + button.getAttribute('data-who') + (times ? ' — خرج ' + times + ' مرّة اليوم' : ''));
+    }
     button.classList.toggle('is-set', set);
     if (exitUrl) button.title = set ? 'خرج: ' + option.textContent : 'خروجُ الطالب — أين هو؟';
   }
@@ -221,6 +225,7 @@
       if (button && openAt) {
         var total = (parseInt(row.getAttribute('data-exit-base'), 10) || 0) + Math.max(0, now - openAt);
         button.title = 'خرج ' + (row.getAttribute('data-exit-count') || '1') + ' مرّة اليوم · المجموع ' + stopwatch(total);
+        button.setAttribute('aria-label', 'خروج ' + (button.getAttribute('data-who') || '') + ' — ' + button.title);
       }
       var label = row.querySelector('[data-exit-label]');
       if (label) label.textContent = text;

@@ -56,6 +56,9 @@ def test_an_exit_without_return_is_carried_into_the_next_periods_until_the_last_
     carried = ClassExit.objects.get(session=second, student=kid)
     assert carried.continued_from_id == origin.id
     assert carried.session_id == second.id  # يحتفظ بحصّته ليُستخرج تفصيلُ الحصّة والمادّة
+    assert (
+        origin.destination == carried.destination == "restroom"
+    )  # الوجهةُ محفوظةٌ في السطر الأصل وتمتدّ مع الامتداد
     assert carried.left_at == at(7, 55) and carried.returned_at is None
 
     close_unreturned(second, now=at(8, 46))

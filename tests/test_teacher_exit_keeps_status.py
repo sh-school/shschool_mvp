@@ -35,9 +35,8 @@ def test_the_exit_button_is_disabled_when_entry_is_closed_so_no_403_toast(
     """لقطةُ المالك: «تعذّر تسجيلُ الخروج» مرّتين — الزرُّ كان عاملاً والإدخالُ مغلقٌ فيردّ الخادمُ 403."""
     html = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
     assert "الإدخالُ مغلق: انتهت نافذةُ الإدخال" in html  # سطرٌ ظاهرٌ نصّاً لا أيقونةً فحسب
-    assert 'class="per-head__note">الإدخالُ مغلق' in html
     assert (
-        'data-exit-open aria-haspopup="true" aria-expanded="false" title="خروجُ الطالب — أين هو؟" disabled'
+        'data-exit-open aria-haspopup="true" aria-expanded="false" aria-label="خروج طالب الشعبة" data-who="طالب الشعبة" title="خروجُ الطالب — أين هو؟" disabled'
         in html
     )
 

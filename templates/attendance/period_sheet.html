@@ -20,6 +20,11 @@
     </form>
     {% endif %}
     {% if teacher_sheet %}{% callout "info" %}إدخالُك مبدئيٌّ: يعتمده حاملُ جناح الشعبة فيصير رصداً، وقبل اعتماده لا يُحتسب حضوراً ولا غياباً.{% endcallout %}{% endif %}
+    {% if periods %}
+      {% if entry_closed %}{% callout "warning" %}الإدخالُ مغلق: {{ entry_closed }}.{% endcallout %}{% endif %}
+      {% if focus.confirmation %}{% callout "info" %}ثُبّتت أوّلَ مرّةٍ {{ focus.confirmation.first_confirmed_at|time:"H:i:s" }} — والتثبيتُ ثانيةً يستبدل ما رُصد ولا يغيّر هذا الوقت.{% endcallout %}{% endif %}
+      {% if not measured_now %}{% callout "hint" %}خارجَ وقت الحصّة: دقائقُ التأخّر تُكتب باليد.{% endcallout %}{% endif %}
+    {% endif %}
   {% endpage_header %}
 
   {% if not periods %}
@@ -50,11 +55,6 @@
           <span>تبدأ <b>{{ focus.start|time:"H:i" }}</b></span>
           <span>تنتهي <b>{{ focus.end|time:"H:i" }}</b></span>
         </p>
-        <div class="per-head__notes">
-        {% if entry_closed %}<p class="per-head__note">الإدخالُ مغلق: {{ entry_closed }}.</p>{% endif %}
-        {% if focus.confirmation %}<p class="per-head__note">ثُبّتت أوّلَ مرّةٍ {{ focus.confirmation.first_confirmed_at|time:"H:i:s" }} — والتثبيتُ ثانيةً يستبدل ما رُصد ولا يغيّر هذا الوقت.</p>{% endif %}
-        {% if not measured_now %}<p class="per-head__note">خارجَ وقت الحصّة: دقائقُ التأخّر تُكتب باليد.</p>{% endif %}
-        </div>
       </div>
       <div class="per-head__tools">
         <div class="per-head__keys">
@@ -118,7 +118,7 @@
                   </label>
                 </span>
                 {% comment %} الشبكةُ فقط: «خروج» يفتح نافذةً عائمةً بوجهات «أين الطالب» (تكتب `w-` نفسَه)، فلا يزيد ارتفاعَ البطاقة. {% endcomment %}
-                <button type="button" class="rec-exit" data-exit-open aria-haspopup="true" aria-expanded="false" title="{% if row.pick.exit_note %}{{ row.pick.exit_note }}{% else %}خروجُ الطالب — أين هو؟{% endif %}"{% if sheet_closed %} disabled{% endif %}>
+                <button type="button" class="rec-exit" data-exit-open aria-haspopup="true" aria-expanded="false" aria-label="خروج {{ row.student.full_name }}" data-who="{{ row.student.full_name }}" title="{% if row.pick.exit_note %}{{ row.pick.exit_note }}{% else %}خروجُ الطالب — أين هو؟{% endif %}"{% if sheet_closed %} disabled{% endif %}>
                   <span class="rec-exit__label" data-exit-label>خروج</span>
                 </button>
                 <div class="rec-pop" data-exit-pop role="menu" aria-label="أين الطالب">
