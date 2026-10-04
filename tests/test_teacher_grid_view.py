@@ -50,6 +50,25 @@ def test_in_the_preview_environment_the_window_stays_open_all_day_so_the_owner_s
     assert "الإدخالُ مغلق" not in html
 
 
+@pytest.mark.parametrize(
+    "module",
+    sorted(__import__("core.preview_accounts", fromlist=["x"]).PRODUCTION_SETTINGS_MODULES),
+)
+def test_production_keeps_its_window_even_if_every_preview_variable_is_set(
+    client_as, now_0730, now_1500, session, teacher, kid, monkeypatch, settings, module
+):
+    """حكمُ 0105 (2): الإنتاجُ بنافذته يُغلق بعد آخر الدوام **حتى لو ضُبطت كلُّ متغيّرات المعاينة خطأً** — لا نغيّر السياسةَ فنتحقّق من الاستثناء لا القاعدة."""
+    from core import preview_accounts as pa
+
+    settings.SETTINGS_MODULE = module
+    monkeypatch.setenv("PREVIEW_MODE", "prod")
+    monkeypatch.setenv("PREVIEW_DB_NAME", "ss_main_preview_x")
+    monkeypatch.setattr(pa, "current_db_name", lambda: "ss_main_preview_x")
+    assert pa.in_preview_environment() is False
+    html = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
+    assert 'class="att-btn' not in html and "الإدخالُ مغلق" in html
+
+
 def test_outside_the_preview_environment_the_window_is_unchanged(
     client_as, now_0730, now_1500, session, teacher, kid
 ):
