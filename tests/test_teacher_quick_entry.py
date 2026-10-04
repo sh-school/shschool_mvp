@@ -163,7 +163,7 @@ def test_pending_is_a_small_symbol_not_a_sentence_in_every_row(
     submit_entry(teacher, session, kid, "absent", now=at(7, 30))
     submit_entry(teacher, session, second_kid, "present", now=at(7, 30))
     html = _page(client_as, teacher, session).content.decode()
-    assert html.count("◔") == 2
+    assert html.count('class="per-pend"') == 2
     assert "badge--neutral" not in html  # لا شارةَ نصّيّةً في كلّ صفّ
     assert "2 بانتظار الاعتماد" in html  # سطرٌ واحدٌ أعلى الصفحة يلخّص المعلّق
     assert "لم يُرصد</span>" not in html  # لا «لم يُرصد» مكرَّرة

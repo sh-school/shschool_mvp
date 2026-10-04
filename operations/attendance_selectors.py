@@ -210,7 +210,17 @@ def teacher_page_context(user: CustomUser, session: Session) -> dict[str, Any]:
         "grid_cols": columns,
         "grid_cells": cells,
         "session": session,
-        "can_tap_late": is_teacher,
+        # النقرتان لا تُعرضان إلا حيث تُقبلان: «دخل الآن» بنافذة الحصّة نفسِها و«خرج بإذن» بنافذة اليوم (وإلّا ردّ الخادمُ 403 فتتراكم التنبيهات).
+        "can_tap_late": bool(
+            is_teacher
+            and lines
+            and AttendanceService.may_tap("late", user, session, lines[0].student)
+        ),
+        "can_tap_out": bool(
+            is_teacher
+            and lines
+            and AttendanceService.may_tap("out", user, session, lines[0].student)
+        ),
         "can_enter": is_teacher and teacher_may_enter_now(user, session, lines),
         "exits": exits,
         "out_now": sum(1 for cur, _ in exits.values() if cur is not None),

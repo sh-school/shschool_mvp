@@ -3,9 +3,9 @@
 {% load ui %}
 {% load dict_filters %}
 {% comment %}
-حصّةُ المعلّم في شُعب الأجنحة (D-125م): كشفٌ **بشبكة كشف المشرف نفسِها** (أصنافُ `per-grid` — الطلابُ صفوفاً وحصصُ هذا المعلّم اليومَ أعمدةً، خليّةٌ صغيرةٌ بضغطة)
-مقتصراً على حصصه، لا قائمةً طويلةً بجمل. إدخالُه مبدئيٌّ يعتمده حاملُ جناح الشعبة؛ وحالةُ «بانتظار الاعتماد» رمزٌ صغيرٌ في الخليّة (◔)، وسطرٌ واحدٌ أعلى الصفحة يلخّص المعلّق.
-وله نقرتان تسجّلان اللحظةَ بلا إدخال في عمود «أدوات»: «دخل الآن» لمن دخل متأخّراً، و«خرج بإذن» ثمّ «عاد» (قرارُ 2026-09-13). ولا رقمَ شخصيّاً: الاسمُ يكفي.
+حصّةُ المعلّم في شُعب الأجنحة (D-125م): كشفٌ **ببطاقات كشف المشرف نفسِها** (أصنافُ `per-grid` — شبكةٌ أو جدول: الطلابُ صفوفاً وحصصُ هذا المعلّم اليومَ أعمدةً)،
+مدمجةً بلا تمريرٍ رأسيٍّ: اسمٌ بسطرٍ واحدٍ وثلاثةُ أزرارٍ بضغطة، والعدّاداتُ سطرٌ في رأس الحصّة لا شريطُ مؤشّراتٍ، وحالةُ الاعتماد أيقونةٌ صغيرةٌ في البطاقة.
+إدخالُه مبدئيٌّ يعتمده حاملُ جناح الشعبة. و«دخل الآن» و«خرج بإذن» (قرارُ 2026-09-13) تحت زرّ «أدوات» الصغير في البطاقة، ولا تُعرضان إلا حيث تُقبلان (نافذةُ الحصّة/اليوم).
 {% endcomment %}
 {% block title %}حصّتي — {{ session.class_group.short_label }}{% endblock %}
 
@@ -17,20 +17,26 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header page_title subtitle=session_label icon="checklist" %}
-    {% if pending_count %}<span class="status-badge status-warning">{% icon "time" %} {{ pending_count }} بانتظار الاعتماد</span>
-    {% elif recorded %}<span class="status-badge status-success">{% icon "confirm" %} رصدها المشرف</span>
-    {% else %}<span class="status-badge status-gray">{% icon "time" %} لم يُرصد بعد</span>{% endif %}
-  {% endpage_header %}
+  {% page_header page_title subtitle=session_label icon="checklist" %}{% endpage_header %}
 
-  {% comment %} رأسُ الحصّة المفتوحة كرأس كشف المشرف: رقمُها ومادّتُها ووقتُها، و«الكلُّ حاضر»، ومبدّلُ شبكة/جدول، وتبويبُ حصصِه اليوم. {% endcomment %}
+  {% comment %} رأسُ الحصّة المفتوحة كرأس كشف المشرف: رقمُها ومادّتُها ووقتُها وعدّاداتُها، و«الكلُّ حاضر»، ومبدّلُ شبكة/جدول، وتبويبُ حصصِه اليوم. {% endcomment %}
   <section class="per-head" aria-label="الحصّة المفتوحة للرصد">
     <span class="per-head__badge" aria-hidden="true">ح{% for col in grid_cols %}{% if col.is_focus %}{{ col.number }}{% endif %}{% endfor %}</span>
     <div class="per-head__body">
-      <p class="per-head__title">{{ session.subject.name_ar|default:"حصّة" }}</p>
+      <p class="per-head__title">
+        {{ session.subject.name_ar|default:"حصّة" }}
+        {% if pending_count %}<span class="status-badge status-warning">{% icon "time" %} {{ pending_count }} بانتظار الاعتماد</span>
+        {% elif recorded %}<span class="status-badge status-success">{% icon "confirm" %} رصدها المشرف</span>{% endif %}
+      </p>
       <p class="per-head__time">
         <span>تبدأ <b>{{ session.start_time|time:"H:i" }}</b></span>
         <span>تنتهي <b>{{ session.end_time|time:"H:i" }}</b></span>
+      </p>
+      <p class="per-bar__counts" aria-label="عدّاداتُ الحصّة">
+        <span class="rec-count is-present">حاضر <b>{{ summary.present|default:0 }}</b></span>
+        <span class="rec-count is-absent">غائب <b>{{ summary.absent|default:0 }}</b></span>
+        <span class="rec-count is-late">متأخّر <b>{{ summary.late|default:0 }}</b></span>
+        {% if out_now %}<span class="rec-count">خارج الفصل <b>{{ out_now }}</b></span>{% endif %}
       </p>
     </div>
     <div class="per-head__tools">
@@ -54,14 +60,6 @@
     </div>
   </section>
 
-  {% kpi_strip label="الحصّة الآن" %}
-    {% kpi "الطلاب" students_data|length %}
-    {% kpi "حاضر" summary.present|default:0 tone="green" %}
-    {% kpi "غائب" summary.absent|default:0 tone="red" %}
-    {% kpi "متأخّر" summary.late|default:0 tone="amber" %}
-    {% kpi "خارج الفصل الآن" out_now|default:0 tone="blue" %}
-  {% endkpi_strip %}
-
   {% if not students_data %}
     {% callout "info" show=True %}لا طلابَ مقيَّدون في هذه الشعبة.{% endcallout %}
   {% else %}
@@ -79,7 +77,7 @@
             </a>
           </th>
           {% endfor %}
-          {% if can_tap_late %}<th scope="col" class="per-col">أدوات</th>{% endif %}
+          {% if can_tap_late or can_tap_out %}<th scope="col" class="per-col">أدوات</th>{% endif %}
         </tr>
       </thead>
       <tbody>
@@ -88,8 +86,8 @@
         <tr class="rec-row" data-state="{{ item.status }}">
           <td class="per-grid__no">{{ forloop.counter }}</td>
           <th scope="row" class="per-grid__name">
-            <span class="rec-row__name">{{ item.student.full_name }}</span>
-            {% if item.exit_count %}<span class="rec-row__flags"><span class="badge badge--info">خرج {{ item.exit_count }} مرّة</span></span>{% endif %}
+            <span class="rec-row__name rec-row__file" title="{{ item.student.full_name }}">{{ item.student.full_name }}</span>
+            {% if item.exit %}<span class="rec-row__flags"><span class="badge badge--info">{{ item.exit.get_destination_display }}</span></span>{% endif %}
           </th>
           {% for col in grid_cols %}
             {% if col.is_focus %}
@@ -105,23 +103,32 @@
             {% else %}
             {% with cell=grid_cells|get_item:sid|get_item:col.session.id %}
             <td class="per-cell is-{{ cell.shown|default:'none' }}">
-              <span class="per-mark">{% if cell.shown == "absent" %}غ{% elif cell.shown == "late" %}م{% elif cell.shown == "present" %}ح{% else %}·{% endif %}</span>{% if cell.pending %}<span class="per-pend" title="بانتظار الاعتماد" aria-hidden="true">◔</span><span class="sr-only">بانتظار الاعتماد</span>{% endif %}
+              <span class="per-mark">{% if cell.shown == "absent" %}غ{% elif cell.shown == "late" %}م{% elif cell.shown == "present" %}ح{% else %}·{% endif %}</span>{% if cell.pending %}<span class="per-pend" title="بانتظار الاعتماد" aria-hidden="true">{% icon "time" %}</span><span class="sr-only">بانتظار الاعتماد</span>{% endif %}
             </td>
             {% endwith %}
             {% endif %}
           {% endfor %}
-          {% if can_tap_late %}
-          <td class="per-cell">
-            <span class="tch-state" id="late-tap-{{ sid }}">
-              {% if item.tap_minutes is not None %}
-                {% include "teacher/partials/late_tap.html" with student=item.student minutes=item.tap_minutes tapped=True %}
-              {% elif item.status != "late" %}
-                {% include "teacher/partials/late_tap.html" with student=item.student tapped=False %}
-              {% endif %}
-            </span>
-            <span class="tch-exit" id="exit-tap-{{ sid }}">
-              {% include "teacher/partials/exit_tap.html" with student=item.student current=item.exit %}
-            </span>
+          {% if can_tap_late or can_tap_out %}
+          <td class="per-cell tch-tools">
+            <details class="tch-more">
+              <summary class="btn-secondary btn-xs" title="أدوات: دخل الآن · خرج بإذن" aria-label="أدوات {{ item.student.full_name }}">{% icon "menu" %}</summary>
+              <div class="tch-more__body">
+                {% if can_tap_late %}
+                <span class="tch-state" id="late-tap-{{ sid }}">
+                  {% if item.tap_minutes is not None %}
+                    {% include "teacher/partials/late_tap.html" with student=item.student minutes=item.tap_minutes tapped=True %}
+                  {% elif item.status != "late" %}
+                    {% include "teacher/partials/late_tap.html" with student=item.student tapped=False %}
+                  {% endif %}
+                </span>
+                {% endif %}
+                {% if can_tap_out %}
+                <span class="tch-exit" id="exit-tap-{{ sid }}">
+                  {% include "teacher/partials/exit_tap.html" with student=item.student current=item.exit %}
+                </span>
+                {% endif %}
+              </div>
+            </details>
           </td>
           {% endif %}
         </tr>

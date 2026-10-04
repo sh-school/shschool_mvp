@@ -21,6 +21,37 @@ def now_0730(monkeypatch):
     monkeypatch.setattr(timezone, "now", lambda: at(7, 30))
 
 
+@pytest.fixture
+def now_1030(monkeypatch):
+    """بعد نهاية حصّة 07:10 وقبل نهاية اليوم: الإدخالُ والخروجُ مسموحان (بنافذة اليوم)، و«دخل الآن» (بنافذة الحصّة) لا."""
+    monkeypatch.setattr(timezone, "now", lambda: at(10, 30))
+
+
+def test_the_tools_menu_shows_only_where_the_taps_are_accepted_so_no_403_toasts(
+    client_as, now_1030, session, teacher, kid
+):
+    """خارجَ نافذة الحصّة كانت «دخل الآن» تُعرض وتردّ 403 فتتراكم تنبيهاتُ «غير مصرّح» — فلا تُعرض الآن."""
+    html = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
+    assert 'id="late-tap-' not in html  # «دخل الآن» بنافذة الحصّة نفسِها فلا تُعرض بعدها
+    assert 'id="exit-tap-' in html  # و«خرج بإذن» بنافذة اليوم فتبقى
+    assert 'class="att-btn is-present' in html  # والإدخالُ (بنافذة اليوم) مسموح
+
+
+def test_the_tools_menu_shows_inside_the_session_window(client_as, now_0730, session, teacher, kid):
+    html = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
+    assert 'class="tch-more"' in html
+    assert 'id="late-tap-' in html and 'id="exit-tap-' in html
+
+
+def test_counts_are_one_line_in_the_head_not_a_kpi_strip_and_names_are_single_line(
+    client_as, now_0730, session, teacher, kid
+):
+    html = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
+    assert 'class="per-bar__counts"' in html
+    assert "الحصّة الآن" not in html  # لا شريطَ مؤشّراتٍ يزيد الارتفاع
+    assert 'class="rec-row__name rec-row__file"' in html  # اسمٌ بسطرٍ واحدٍ بنقطتين
+
+
 def test_the_teacher_page_has_the_supervisors_head_view_toggle_and_session_tabs(
     client_as, now_0730, session, teacher, kid
 ):
