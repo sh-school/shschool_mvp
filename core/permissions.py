@@ -326,7 +326,10 @@ STAGING_MANAGE = {"principal", "vice_academic", "vice_admin"}
 # صلاحيات شؤون الطلاب — MTG-2026-012
 # ═══════════════════════════════════════════════════════════════
 
-STUDENT_AFFAIRS_MANAGE = frozenset(
+#: انتقالُ الطلبة (الشاشاتُ الأربع) — الموافقةُ على الانتقال الصادر وإتمامُه يعطّلان عضويّةَ الطالب
+#: فعلاً، فلا تدخل في «إدخال البيانات وإعداد القوائم» التي تنصّ عليها بطاقةُ منسّق شؤون الطلبة (W-20261001-020).
+#: وهي عينُ حاملي `manage` قبل إضافة المنسّق: فلا يتغيّر وصولُ أحدٍ منهم.
+STUDENT_AFFAIRS_TRANSFERS = frozenset(
     {
         "principal",
         "vice_admin",
@@ -334,11 +337,15 @@ STUDENT_AFFAIRS_MANAGE = frozenset(
         "platform_developer",
     }
 )
+#: إدخالُ بيانات الطلبة وتحديثُها وإعدادُ القوائم — ويضيف إليها منسّقُ شؤون الطلبة (بطاقته في
+#: 03_job_descriptions_rbac.md) دون الانتقالات ودون `STUDENT_DEACTIVATE`.
+STUDENT_AFFAIRS_MANAGE = STUDENT_AFFAIRS_TRANSFERS | frozenset({"student_affairs_coordinator"})
 STUDENT_AFFAIRS_VIEW = frozenset(
     {
         "principal",
         "vice_admin",
         "vice_academic",
+        "student_affairs_coordinator",
         "coordinator",
         "social_worker",
         "psychologist",
@@ -352,7 +359,8 @@ STUDENT_AFFAIRS_VIEW = frozenset(
 #: ويردُّه الحارس. والنصُّ الوزاريُّ صريحٌ في أهليّته: «تكون صلاحيّةُ الدخول على
 #: النظام الإلكترونيّ للبرامج والأنشطة **محصورةً بالنائب الأكاديميّ وأخصائيّ
 #: الأنشطة** أو من ينوب عنه» (ضوابط البرامج والأنشطة، ص3).
-ACTIVITIES_MANAGE = STUDENT_AFFAIRS_MANAGE | frozenset({"activities_coordinator"})
+#: ولا يدخلها منسّقُ شؤون الطلبة: لا نصَّ يمنحه إدارةَ الأنشطة (الحدُّ الأدنى من الصلاحيات).
+ACTIVITIES_MANAGE = STUDENT_AFFAIRS_TRANSFERS | frozenset({"activities_coordinator"})
 
 STUDENT_DEACTIVATE = frozenset(
     {

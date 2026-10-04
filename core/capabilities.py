@@ -135,6 +135,15 @@ def registry() -> dict[str, Capability]:
         ),
         _cap("student_affairs.deactivate", "إيقافُ قيد طالب", P.STUDENT_DEACTIVATE),
         _cap(
+            "student_affairs.transfers",
+            "انتقالاتُ الطلبة (طلبٌ ومراجعةٌ وإتمام)",
+            P.STUDENT_AFFAIRS_TRANSFERS,
+            basis=(
+                "إتمامُ الانتقال الصادر يعطّل عضويّةَ الطالب، فلا يُمنح من يملك إدخالَ البيانات وحدَه "
+                "(W-20261001-020)"
+            ),
+        ),
+        _cap(
             "student_affairs.activities",
             "إدارةُ الأنشطة الطلابيّة",
             P.ACTIVITIES_MANAGE,

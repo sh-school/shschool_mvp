@@ -950,7 +950,7 @@ def student_profile(request, student_id):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.transfers")
 def transfer_list(request):
     """قائمة الانتقالات مع فلتر حسب الحالة والاتجاه."""
     school = request.school
@@ -981,7 +981,7 @@ def transfer_list(request):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.transfers")
 def transfer_create(request):
     """تسجيل طلب انتقال جديد."""
     school = request.school
@@ -1033,7 +1033,7 @@ def transfer_create(request):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.transfers")
 def transfer_detail(request, pk):
     """تفاصيل طلب انتقال."""
     school = request.school
@@ -1049,7 +1049,7 @@ def transfer_detail(request, pk):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.transfers")
 @require_POST
 def transfer_review(request, pk):
     """مراجعة طلب انتقال — موافقة / رفض / إتمام."""
