@@ -189,7 +189,10 @@ def test_the_exit_button_is_a_toggle_and_the_stopwatch_stops_at_the_end_of_the_s
     """توضيحُ المالك: الضغطةُ التالية تُوقف العدّاد ويعود المفتاحُ «خروج»؛ ومن لم يعد حتى نهاية الحصّة يتوقّف عدّادُه ويُحسب وقتُه إلى نهايتها."""
     source = JS.read_text(encoding="utf-8")
     assert "var outRow = exitUrl ? cell.closest('tr[data-out-since]') : null;" in source
-    assert "var now = endEpoch ? Math.min(nowSec(), endEpoch) : nowSec();" in source
+    assert (
+        "var now = endEpoch && since <= endEpoch ? Math.min(nowSec(), endEpoch) : nowSec();"
+        in source
+    )
 
 
 def test_the_form_carries_the_end_of_the_session_for_the_stopwatch(

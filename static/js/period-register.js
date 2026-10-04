@@ -237,8 +237,10 @@
   function outTick() {
     form.querySelectorAll('tr[data-out-since]').forEach(function (row) {
       // من لم يعد حتى نهاية الحصّة يتوقّف عدّادُه ويُحسب وقتُه إلى نهايتها.
-      var now = endEpoch ? Math.min(nowSec(), endEpoch) : nowSec();
-      var text = stopwatch(Math.max(0, now - parseInt(row.getAttribute('data-out-since'), 10)));
+      // (خروجٌ بدأ بعد نهاية الحصّة — في المعاينة المفتوحة طوال اليوم — يعدّ طبيعيّاً: لا قصَّ لما بدأ بعد حدّه.)
+      var since = parseInt(row.getAttribute('data-out-since'), 10);
+      var now = endEpoch && since <= endEpoch ? Math.min(nowSec(), endEpoch) : nowSec();
+      var text = stopwatch(Math.max(0, now - since));
       var label = row.querySelector('[data-exit-label]');
       if (label) label.textContent = text;
       var select = row.querySelector('select.per-where');
