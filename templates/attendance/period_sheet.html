@@ -32,7 +32,8 @@
 
   <form method="post" action="{% if form_action %}{{ form_action }}{% else %}{% url 'wings:record_period' klass.id %}{% endif %}" class="rec-form"
         data-draft-key="{{ draft_key }}" data-now="{% now 'U' %}" data-offset="{% now 'O' %}"{% if teacher_sheet %}
-        data-exit-url="{% url 'mark_exit' session.id %}" data-return-url="{% url 'mark_return' session.id %}"{% endif %}>
+        data-exit-url="{% url 'mark_exit' session.id %}" data-return-url="{% url 'mark_return' session.id %}"
+        {% if not sheet_closed %}data-entry-url="{% url 'attendance_entry' session.id %}" {% endif %}data-start-epoch="{{ start_epoch }}"{% endif %}>
     {% csrf_token %}
     <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
     <input type="hidden" name="start" value="{{ focus.key }}">
@@ -106,7 +107,7 @@
         <tbody>
           {% for row in rows %}
           {% with sid=row.student.id %}
-          <tr class="rec-row" data-student="{{ sid }}" data-prefill="{{ row.pick.marker }}">
+          <tr class="rec-row" data-student="{{ sid }}" data-prefill="{{ row.pick.marker }}"{% if row.pick.out_since %} data-out-since="{{ row.pick.out_since }}"{% endif %}>
             <td class="per-grid__no">{{ forloop.counter }}</td>
             <th scope="row" class="per-grid__name">
               {% if teacher_sheet %}
@@ -154,7 +155,7 @@
                 {% if row.pick.seen_exit %}<input type="hidden" name="o-{{ sid }}" value="{{ row.pick.seen_exit }}">{% endif %}
                 {% with mark=entry_marks|get_item:sid|get_item:period.start %}{% if mark %}{% include "wings/partials/entry_mark.html" %}{% endif %}{% endwith %}
                 <span class="rec-row__more">
-                  <select name="w-{{ sid }}" class="form-select per-where" aria-label="أين الطالب">
+                  <select name="w-{{ sid }}" class="form-select per-where" aria-label="أين الطالب"{% if sheet_closed %} disabled{% endif %}>
                     <option value="">في فصله</option>
                     {% for value, label in whereabouts %}
                       <option value="{{ value }}" {% if row.pick.whereabouts == value %}selected{% endif %}>{{ label }}</option>

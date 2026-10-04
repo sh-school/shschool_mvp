@@ -54,19 +54,26 @@ class TeacherPick:
     seen_exit: str = ""
     away_note: str = ""
     locked: bool = False
+    out_since: int = 0
 
 
-def _pick_of(line: StudentLine, destination: str) -> TeacherPick:
+def _pick_of(line: StudentLine, destination: str, out_since: int) -> TeacherPick:
     entry = line.entry
     if entry is not None and line.entry_state in ("pending", "approved"):
         return TeacherPick(
             status=str(entry.status),
             whereabouts=destination,
             locked=line.entry_state == "approved",
+            out_since=out_since,
         )
     if line.effective_status:  # رصدُ مشرفٍ أو عيادةٍ أو بوّابة: لا يُكتب فوقه من هنا
-        return TeacherPick(status=str(line.effective_status), whereabouts=destination, locked=True)
-    return TeacherPick(whereabouts=destination)
+        return TeacherPick(
+            status=str(line.effective_status),
+            whereabouts=destination,
+            locked=True,
+            out_since=out_since,
+        )
+    return TeacherPick(whereabouts=destination, out_since=out_since)
 
 
 def _cells(class_group: Any, day: dt.date) -> dict:
@@ -127,6 +134,7 @@ def teacher_sheet_context(user: CustomUser, session: Session) -> dict[str, Any]:
         gone = outs.get(sid, {})
         current = exits.get(sid, (None, []))[0]
         destination = current.destination if current is not None else ""
+        out_since = int(current.left_at.timestamp()) if current is not None else 0
         rows.append(
             {
                 "student": line.student,
@@ -135,7 +143,7 @@ def teacher_sheet_context(user: CustomUser, session: Session) -> dict[str, Any]:
                     for p in mine
                 ],
                 "cell": own.get(focus.start) if focus else None,
-                "pick": _pick_of(line, destination),
+                "pick": _pick_of(line, destination, out_since),
             }
         )
     following = next_session_of(session)
@@ -159,6 +167,9 @@ def teacher_sheet_context(user: CustomUser, session: Session) -> dict[str, Any]:
         "entry_marks": marks,
         "awaiting_decision": 0,
         "form_action": reverse("attendance_period_entries", args=[session.id]),
+        "start_epoch": int(
+            timezone.make_aware(dt.datetime.combine(session.date, session.start_time)).timestamp()
+        ),
         "tab_urls": {
             p.key: reverse(
                 "attendance",
@@ -175,9 +186,7 @@ def late_minutes(session: Session, mark: dict[str, str], now: dt.datetime) -> in
     """دقائقُ التأخّر **آلياً كما في كشف المشرف**: داخل وقت الحصّة تُحسب من لحظة ضغط المعلّم على «متأخّر» (ساعةُ الجهاز مصحَّحةً بساعة الخادم
     في `t-<طالب>`) أو من لحظة التثبيت إن لم تصحّ — لا يكتب المعلّمُ وقتاً؛ وخارج وقت الحصّة (حتى خمس دقائق بعد نهايتها) تُكتب باليد.
     """
-    from types import SimpleNamespace
-
-    from .period_register import GRACE, _tapped
+    from .period_register import GRACE, Period, _tapped
     from .tardiness import minutes_after_start
 
     start = timezone.make_aware(dt.datetime.combine(session.date, session.start_time))
@@ -185,9 +194,8 @@ def late_minutes(session: Session, mark: dict[str, str], now: dt.datetime) -> in
     if not start <= now <= end:
         typed = mark.get("late_minutes", "")
         return int(typed) if typed.isdigit() and int(typed) <= 240 else None
-    tapped = _tapped(
-        mark.get("tapped_at"), session.date, SimpleNamespace(start=session.start_time), now
-    )
+    period = Period(number=0, start=session.start_time, end=session.end_time, sessions=[])
+    tapped = _tapped(mark.get("tapped_at"), session.date, period, now)
     return minutes_after_start(session, timezone.localtime(tapped or now))
 
 
@@ -196,6 +204,7 @@ class EnterResult:
     entered: int = 0
     exits: int = 0
     needs_reason: int = 0
+    conflicts: int = 0
     refused: int = 0
 
 
@@ -226,7 +235,7 @@ def enter_period_marks(
     - رصدٌ معتمَدٌ أو لرصد غيرِ المعلّم: لا يُكتب فوقه (تصحيحُه المسبَّب في نموذجه) — يُعدّ ولا يُسقط البقيّة.
     - المنعُ بالسياسة (`EntryRefusedError`) يُرفع كلُّه إلى المستدعي فيُلغى الطلبُ بلا إدخالٍ جزئيّ.
     """
-    from .class_exit import leave
+    from .class_exit import leave, open_exit
 
     result = EnterResult()
     now = timezone.now()
@@ -243,6 +252,9 @@ def enter_period_marks(
                 continue
             status = mark.get("status", "")
             if status not in ENTERABLE_STATUSES:
+                continue
+            if status == "absent" and open_exit(session, student) is not None:
+                result.conflicts += 1  # غائبٌ وخارجٌ لا يجتمعان: يعود أوّلاً
                 continue
             minutes = late_minutes(session, mark, now) if status == "late" else None
             try:

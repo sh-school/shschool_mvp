@@ -72,6 +72,7 @@ def entry_submit(request, session_id):
             status=post.get("status", ""),
             minutes=post.get("minutes"),
             reason=post.get("reason", ""),
+            tapped_at=post.get("tapped_at"),
         )
     except EntryRefusedError as exc:
         return _refusal(exc)
@@ -105,6 +106,8 @@ def period_entries(request, session_id):
         parts.append(f"سُجّل خروجُ {result.exits}")
     if result.needs_reason:
         parts.append(f"{result.needs_reason} معتمَدٌ يلزم تصحيحَه سببٌ (لم يُمسّ)")
+    if result.conflicts:
+        parts.append(f"{result.conflicts} خارجٌ لم يعد — لا غيابَ له حتى يعود")
     messages.success(request, " · ".join(parts) or "لا تغييرَ في الحصّة.")
     target = following.id if following is not None else session_id
     return redirect(reverse("attendance", args=[target]))

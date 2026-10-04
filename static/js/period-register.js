@@ -75,6 +75,12 @@
     body.append('csrfmiddlewaretoken', token.value);
     body.append('student_id', row.getAttribute('data-student'));
     if (destination) body.append('destination', destination);
+    if (destination) { row.setAttribute('data-out-since', String(nowSec())); }
+    else {
+      row.removeAttribute('data-out-since');
+      row.querySelectorAll('select.per-where option').forEach(function (o) { o.textContent = o.getAttribute('data-base') || o.textContent; });
+    }
+    syncExclusive(row);
     fetch(destination ? exitUrl : returnUrl, { method: 'POST', body: body, credentials: 'same-origin' }).then(function (response) {
       if (!response.ok && window.showToast) window.showToast('تعذّر تسجيلُ الخروج (' + response.status + ')', 'danger');
     });
@@ -192,9 +198,70 @@
   tick();
   if (clocks.length) window.setInterval(tick, 1000);
 
+  // ── المعلّم (data-exit-url) ──────────────────────────────────────────────────────────────
+  // (١) «غائب» و«خروج» لا يجتمعان على طالبٍ واحد؛ (٢) عدّادُ الخروج من لحظة الضغط إلى «عاد إلى الفصل»؛
+  // (٣) «متأخّر» يُسجَّل وقتُ دخوله فوراً وتُحسب دقائقُه من بدء الحصّة آلياً ويُحفظ (الخادمُ يعيد الحساب بساعته).
+  var entryUrl = form.getAttribute('data-entry-url');
+  var startEpoch = parseInt(form.getAttribute('data-start-epoch'), 10) || 0;
+  function nowSec() { return Math.floor((Date.now() + skew) / 1000); }
+  function csrf() { var t = form.querySelector('input[name=csrfmiddlewaretoken]'); return t ? t.value : ''; }
+  function stopwatch(seconds) {
+    var m = Math.floor(seconds / 60);
+    var h = Math.floor(m / 60);
+    return (h ? h + ':' + two(m % 60) : two(m)) + ':' + two(seconds % 60);
+  }
+  function syncExclusive(row) {
+    var select = row.querySelector('select.per-where');
+    var absent = row.querySelector('input[type=radio][value="absent"]');
+    var button = row.querySelector('[data-exit-open]');
+    var out = !!(select && select.value);
+    if (out && absent && absent.checked) {
+      var present = row.querySelector('input[type=radio][value="present"]');
+      if (present) present.checked = true;
+    }
+    var isAbsent = !!(absent && absent.checked);
+    if (absent) absent.disabled = out || absent.hasAttribute('data-keep');
+    if (button) button.disabled = isAbsent || button.hasAttribute('data-keep');
+    if (select) select.disabled = isAbsent || select.hasAttribute('data-keep');
+  }
+  function outTick() {
+    form.querySelectorAll('tr[data-out-since]').forEach(function (row) {
+      var text = stopwatch(Math.max(0, nowSec() - parseInt(row.getAttribute('data-out-since'), 10)));
+      var label = row.querySelector('[data-exit-label]');
+      if (label) label.textContent = text;
+      var select = row.querySelector('select.per-where');
+      var option = select && select.selectedIndex >= 0 ? select.options[select.selectedIndex] : null;
+      if (option && option.value) option.textContent = (option.getAttribute('data-base') || option.textContent) + ' · ' + text;
+    });
+  }
+  function saveLate(radio) {
+    var sid = radio.name.slice(2);
+    var field = form.querySelector('[name="t-' + sid + '"]');
+    var tapped = field && field.value ? parseInt(field.value, 10) : nowSec();
+    var span = radio.parentNode.querySelector('span');
+    if (span) span.textContent = 'متأخّر ' + Math.max(0, Math.floor((tapped - startEpoch) / 60)) + ' د';
+    var body = new FormData();
+    body.append('csrfmiddlewaretoken', csrf());
+    body.append('student_id', sid);
+    body.append('status', 'late');
+    body.append('tapped_at', String(tapped));
+    fetch(entryUrl, { method: 'POST', body: body, credentials: 'same-origin' }).then(function (response) {
+      if (!response.ok && window.showToast) window.showToast('تعذّر حفظُ التأخّر (' + response.status + ')', 'danger');
+    });
+  }
+  function allRows() { return form.querySelectorAll('tr.rec-row'); }
+  if (exitUrl) {
+    form.querySelectorAll('input[type=radio][disabled], .rec-exit[disabled], select.per-where[disabled]').forEach(function (el) { el.setAttribute('data-keep', ''); });
+    form.querySelectorAll('select.per-where option').forEach(function (option) { option.setAttribute('data-base', option.textContent); });
+    allRows().forEach(syncExclusive);
+    window.setInterval(outTick, 1000);
+    outTick();
+  }
+
   var draft = read();
   if (draft) restore(draft);
   exitCells().forEach(syncExit);
+  if (exitUrl) allRows().forEach(syncExclusive);
   count();
 
   // لحظةُ النقرة على «متأخّر» تُحفظ بساعة الخادم: الدقائقُ منها لا من لحظة التثبيت.
@@ -204,6 +271,13 @@
     if (radio && radio.type === 'radio') {
       var tap = form.querySelector('[name="t-' + radio.name.slice(2) + '"]');
       if (tap) tap.value = radio.value === 'late' ? String(Math.floor((Date.now() + skew) / 1000)) : '';
+      if (exitUrl) {
+        var lateSpan = radio.closest('.rec-row__pick');
+        lateSpan = lateSpan && lateSpan.querySelector('.rec-pick--late span');
+        if (lateSpan && radio.value !== 'late') lateSpan.textContent = 'متأخّر';
+        if (radio.value === 'late' && entryUrl && !radio.closest('td').querySelector('.per-minutes')) saveLate(radio);
+        syncExclusive(radio.closest('tr'));
+      }
     }
     // من رجع حاضراً أو متأخّراً لا وجهةَ له: تُمحى فلا تُحفظ وجهةٌ على غير غائب.
     if (!exitUrl && radio && radio.type === 'radio' && radio.value !== 'absent') {
@@ -223,6 +297,7 @@
       var keep = value === 'present' ? 'tr[data-prefill="out"]' : null;
       form.querySelectorAll('input[type=radio][value="' + value + '"]').forEach(function (radio) {
         if (keep && radio.closest(keep)) return;
+        if (radio.disabled) return;
         radio.checked = true;
         // «الكلُّ حاضر» و«غيابُ الكلّ» لا متأخّرَ بعدهما — فلا لحظةَ نقرةٍ تبقى.
         var tap = form.querySelector('[name="t-' + radio.name.slice(2) + '"]');

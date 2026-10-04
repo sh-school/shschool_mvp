@@ -125,3 +125,61 @@ def test_the_teachers_exit_button_keeps_its_short_label_so_it_cannot_cover_the_s
     source = JS.read_text(encoding="utf-8")
     assert "label.textContent = set && !exitUrl ? option.textContent : 'خروج';" in source
     assert "if (exitUrl) button.title" in source  # اسمُ الوجهة في التلميح
+
+
+def test_absent_and_exit_never_coexist_on_the_server(client_as, now_0730, session, teacher, kid):
+    """ملاحظةُ المالك: «غائب وخروج لا يجتمعان» — طالبٌ خارجٌ لم يعد لا يُكتب له غيابٌ."""
+    ClassExit.objects.create(
+        school=session.school,
+        session=session,
+        student=kid,
+        destination="clinic",
+        left_at=at(7, 20),
+        allowed_by=teacher,
+    )
+    client_as(teacher).post(
+        reverse("attendance_period_entries", args=[session.id]), {f"s-{kid.id}": "absent"}
+    )
+    assert not AttendanceEntry.objects.filter(session=session, student=kid).exists()
+
+
+def test_the_row_of_a_student_out_carries_his_exit_moment_for_the_timer(
+    client_as, now_0730, session, teacher, kid
+):
+    left = at(7, 20)
+    ClassExit.objects.create(
+        school=session.school,
+        session=session,
+        student=kid,
+        destination="restroom",
+        left_at=left,
+        allowed_by=teacher,
+    )
+    html = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
+    assert f'data-out-since="{int(left.timestamp())}"' in html
+    assert f'data-entry-url="{reverse("attendance_entry", args=[session.id])}"' in html
+    assert 'data-start-epoch="' in html
+
+
+def test_pressing_late_saves_at_once_with_minutes_from_the_session_start(
+    client_as, now_0730, session, teacher, kid
+):
+    """«متأخّر»: وقتُ الدخول من لحظة الضغط ودقائقُه من بدء الحصّة (07:10) آلياً ويُحفظ — الدقائقُ لا يكتبها المعلّم."""
+    response = client_as(teacher).post(
+        reverse("attendance_entry", args=[session.id]),
+        {"student_id": str(kid.id), "status": "late", "tapped_at": str(int(at(7, 22).timestamp()))},
+    )
+    assert response.status_code == 200
+    entry = AttendanceEntry.objects.get(session=session, student=kid)
+    assert (entry.status, entry.tardiness_minutes) == ("late", 12)
+
+
+def test_the_script_has_the_exclusion_the_stopwatch_and_the_immediate_late_save():
+    source = JS.read_text(encoding="utf-8")
+    for needle in (
+        "function syncExclusive(row)",
+        "function outTick()",
+        "function saveLate(radio)",
+        "data-out-since",
+    ):
+        assert needle in source, needle

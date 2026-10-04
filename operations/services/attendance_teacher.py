@@ -12,6 +12,7 @@ from uuid import UUID
 
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from core.models import CustomUser
 from operations.attendance_entries import (
@@ -38,6 +39,7 @@ from operations.models import AttendanceDecision, AttendanceEntry, Session
 from operations.teacher_period_sheet import (
     EnterResult,
     enter_period_marks,
+    late_minutes,
     next_session_of,
     parse_marks,
     teacher_sheet_context,
@@ -96,18 +98,22 @@ class TeacherAttendanceService:
         status: str,
         minutes: str | None,
         reason: str,
+        tapped_at: str | None = None,
     ) -> tuple[Session, StudentLine]:
         """إدخالُ المعلّم الفعليّ لطالبٍ في حصّته. الحصّةُ بنطاق المدرسة والطالبُ من شعبتها وإلّا 404؛ والمنعُ يرفعه الإدخالُ."""
         session = get_object_or_404(
             Session.objects.select_related("class_group__wing"), id=session_id, school=school
         )
         student = _student_of(session, student_id)
+        typed = parse_minutes(minutes)
+        if status == "late" and typed is None:  # متأخّرٌ بلا رقمٍ مكتوب: من لحظة ضغطه وبدء الحصّة آلياً
+            typed = late_minutes(session, {"tapped_at": tapped_at or ""}, timezone.now())
         submit_entry(
             user,
             session,
             student,
             status,
-            tardiness_minutes=parse_minutes(minutes),
+            tardiness_minutes=typed,
             correction_reason=reason,
         )
         return session, student_line(session, student)
