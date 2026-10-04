@@ -4,7 +4,7 @@
 <div class="divide-y">
   {% for s in sessions %}
   <a href="/teacher/attendance/{{ s.id }}/"
-     class="flex items-center justify-between px-5 py-4 hover:bg-[var(--surface-alt)] transition no-underline text-inherit
+     class="flex items-center justify-between px-5 py-2 hover:bg-[var(--surface-alt)] transition no-underline text-inherit
        {% if s == next_session %}bg-status-warning-light{% endif %}"
      aria-label="حصة {{ s.subject.name_ar }} — {{ s.class_group.short_label }} — {{ s.start_time|time:'H:i' }}">
     <div class="flex items-center gap-4">
@@ -25,12 +25,14 @@
         <span class="status-badge status-success">{{ s.get_status_display }}</span>
       {% elif s.status == 'in_progress' %}
         <span class="status-badge status-warning">{{ s.get_status_display }}</span>
+      {% endif %}
+      {# حالةُ رصد الحضور في الحصّة — تغني عن وسم «تسجيل/عرض الحضور» العامّ، والصفُّ كلُّه رابطٌ إلى الرصد #}
+      {% if s.entry_state == 'approved' %}
+        <span class="status-badge status-success">معتمَد</span>
+      {% elif s.entry_state == 'pending' %}
+        <span class="status-badge status-warning">بانتظار الاعتماد</span>
       {% else %}
-        {% if s.class_group.wing_id %}
-        <span class="status-badge status-gray">عرض الحضور ←</span>
-        {% else %}
-        <span class="status-badge status-gray">تسجيل حضور ←</span>
-        {% endif %}
+        <span class="status-badge status-gray">لم يُدخَل ←</span>
       {% endif %}
     </div>
   </a>
