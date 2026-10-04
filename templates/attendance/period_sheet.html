@@ -114,7 +114,7 @@
                   </label>
                   <label class="rec-pick rec-pick--late">
                     <input type="radio" name="s-{{ sid }}" value="late" {% if row.pick.status == "late" %}checked{% endif %}{% if row.pick.locked or sheet_closed %} disabled{% endif %} data-tap="t-{{ sid }}">
-                    <span>متأخّر{% if row.pick.marker == "late" %} <small title="نقرةُ المعلّم">{{ row.pick.tap }} د</small>{% endif %}</span>
+                    <span>متأخّر{% if row.pick.marker == "late" %} <small title="نقرةُ المعلّم">{{ row.pick.tap }} د</small>{% elif row.pick.late_minutes %} <small title="دقائقُ التأخّر محسوبةٌ من بدء الحصّة">{{ row.pick.late_minutes }} د</small>{% endif %}</span>
                   </label>
                 </span>
                 {% comment %} الشبكةُ فقط: «خروج» يفتح نافذةً عائمةً بوجهات «أين الطالب» (تكتب `w-` نفسَه)، فلا يزيد ارتفاعَ البطاقة. {% endcomment %}

@@ -59,6 +59,7 @@ class TeacherPick:
     exit_base: int = 0
     exit_open_at: int = 0
     exit_note: str = ""
+    late_minutes: int | None = None
 
 
 def _pick_of(line: StudentLine, destination: str, out_since: int, day: Any = None) -> TeacherPick:
@@ -69,6 +70,7 @@ def _pick_of(line: StudentLine, destination: str, out_since: int, day: Any = Non
             whereabouts=destination,
             locked=line.entry_state == "approved",
             out_since=out_since,
+            late_minutes=entry.tardiness_minutes if entry.status == "late" else None,
             **_exit_fields(day),
         )
     if line.effective_status:  # رصدُ مشرفٍ أو عيادةٍ أو بوّابة: لا يُكتب فوقه من هنا

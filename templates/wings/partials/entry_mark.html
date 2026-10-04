@@ -9,7 +9,7 @@
 <span class="rec-entry" id="mark-{{ mark.entry_id }}">
   {% if mark.corrected %}<span class="per-pend is-fix" title="صحّح المشرفُ هذا الرصدَ دون معاينةٍ بدليلٍ مسمّى" aria-hidden="true">{% icon "status_warning" %}</span><span class="sr-only">تصحيحٌ دون معاينة</span>{% endif %}
   {% if mark.state == "pending" %}
-    <span class="per-pend" title="المعلّم: {{ mark.label }}{% if mark.minutes %} {{ mark.minutes }} د{% endif %} — بانتظار الاعتماد (لم يُحتسب حضوراً ولا غياباً حتى يقرّر حاملُ الجناح)" aria-hidden="true">{% icon "time" %}</span><span class="sr-only">المعلّم: {{ mark.label }} — بانتظار الاعتماد</span>
+    <span class="per-pend" title="المعلّم: {{ mark.label }}{% if mark.minutes %} {{ mark.minutes }} د{% endif %} — بانتظار الاعتماد (لم يُحتسب حضوراً ولا غياباً حتى يقرّر حاملُ الجناح)" aria-hidden="true">{% icon "time" %}</span><span class="sr-only">المعلّم: {{ mark.label }} — بانتظار الاعتماد</span>{% if mark.minutes %}<small class="per-pend" title="دقائقُ التأخّر محسوبةٌ من بدء الحصّة">{{ mark.minutes }} د</small>{% endif %}
     {% if mark.can_decide %}
       <button type="button" class="btn-primary btn-xs"
               hx-post="{% url 'attendance_decide' mark.entry_id %}"

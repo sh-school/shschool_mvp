@@ -273,3 +273,19 @@ def test_the_exit_tables_are_visible_in_the_django_admin(client, db):
 
     assert ClassExit in admin.site._registry
     assert DailyExitTally in admin.site._registry
+
+
+def test_the_saved_late_minutes_stay_visible_on_the_teacher_card_after_reload(
+    client_as, kid, day, teacher, monkeypatch
+):
+    from django.urls import reverse
+    from django.utils import timezone
+
+    first = day[0]
+    monkeypatch.setattr(timezone, "now", lambda: at(7, 25))
+    client_as(teacher).post(
+        reverse("attendance_entry", args=[first.id]),
+        {"student_id": str(kid.id), "status": "late", "tapped_at": str(int(at(7, 25).timestamp()))},
+    )
+    body = client_as(teacher).get(reverse("attendance", args=[first.id])).content.decode()
+    assert 'title="دقائقُ التأخّر محسوبةٌ من بدء الحصّة">15 د<' in body

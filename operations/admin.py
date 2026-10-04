@@ -79,7 +79,15 @@ class SessionAdmin(admin.ModelAdmin):
 
 @admin.register(StudentAttendance)
 class StudentAttendanceAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ("student", "session", "status", "marked_by", "marked_at")
+    list_display = (
+        "student",
+        "session",
+        "status",
+        "late_minutes",
+        "tardiness_minutes",
+        "marked_by",
+        "marked_at",
+    )
     # الأعمدةُ و`__str__` تقرأ هذه العلاقات لكلّ صفّ — تُجلب في استعلام القائمة نفسه (كانت ~25 سؤالاً للصفحة).
     list_select_related = ("student", "session__subject", "session__class_group", "marked_by")
     list_filter = ("status", "school")
@@ -89,7 +97,15 @@ class StudentAttendanceAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
 
 @admin.register(AttendanceEntry)
 class AttendanceEntryAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ("student", "session", "status", "entered_by", "entered_at", "supersedes")
+    list_display = (
+        "student",
+        "session",
+        "status",
+        "tardiness_minutes",
+        "entered_by",
+        "entered_at",
+        "supersedes",
+    )
     list_select_related = ("student", "session__class_group", "entered_by")
     list_filter = ("status", "school")
     date_hierarchy = "entered_at"
