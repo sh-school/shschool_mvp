@@ -9312,3 +9312,113 @@ def test_0061_publishes_nothing_a_public_repo_must_not_say():
     assert [term for term in banned if term in body] == []
     assert not re.search(r"\b\d{11}\b", body)
     assert not re.search(r"\b[0-9a-f]{40}\b", body)
+
+
+# ── 0062: نشرُ #845 و#846 و#847 و#849، وتصحيحُ N-087 بنشر #840 ──
+
+_sync62 = importlib.import_module("roadmap.migrations.0062_sync_items_2026_10_04b")
+
+
+class _Apps62:
+    @staticmethod
+    def get_model(_app, name):
+        return {"RoadmapItem": RoadmapItem, "RoadmapKpi": RoadmapKpi}[name]
+
+
+def _seed62_items():
+    _item("N-087", "doing", 90)
+    _item("QCC-10", "doing", 50)
+    _item("SCH-22", "doing", 15)
+
+
+def test_0062_appends_notes_once_without_touching_status_or_progress():
+    _seed62_items()
+    assert set(_sync62.sync_notes(RoadmapItem)) == {"N-087", "QCC-10", "SCH-22"}
+    assert _sync62.sync_notes(RoadmapItem) == []
+    by = {i.code: i for i in RoadmapItem.objects.all()}
+    assert [(by[c].status, by[c].progress) for c in ("N-087", "QCC-10", "SCH-22")] == [
+        ("doing", 90),
+        ("doing", 50),
+        ("doing", 15),
+    ]
+    assert "#840 نُشر 91d3f1c" in by["N-087"].note and "لم يُقَس بعد" in by["N-087"].note
+    assert "235" in by["QCC-10"].note and "لم يُقَس" in by["QCC-10"].note
+    sch = by["SCH-22"].note
+    assert "#845" in sch and "#846" in sch and "D-174م" in sch
+    assert "+120.3MB" in sch and "42 حصّةً" in sch and "لا تغيّرَ في الحالة" in sch
+    assert "على فرع 0402" in sch and "1,217" in sch and "0.6–0.8" in sch
+
+
+def test_0062_creates_n090_done_and_leaves_an_existing_n089_untouched():
+    _item("N-089", "doing", 40)
+    assert _sync62.add_new_items(RoadmapItem) == ["N-090"]
+    assert _sync62.add_new_items(RoadmapItem) == []
+    by = {i.code: i for i in RoadmapItem.objects.all()}
+    assert (by["N-089"].status, by["N-089"].progress) == ("doing", 40)
+    assert (by["N-090"].status, by["N-090"].progress, by["N-090"].pr) == ("done", 100, "#849")
+    assert all(len(i.date_basis) <= 120 for i in by.values())
+
+
+def test_0062_new_items_declare_the_new_rows_and_keep_the_security_item_neutral():
+    rows = {row[0]: row for row in _sync62.NEW_ITEMS}
+    assert rows["N-089"][6:8] == ("doing", 80) and "W-20261004-009" in rows["N-089"][15]
+    assert rows["N-090"][6:8] == ("done", 100)
+    neutral = " ".join(str(x) for x in rows["N-090"])
+    for word in ("icontains", "تخمين", "ثغرة", "استغلال"):
+        assert word not in neutral
+
+
+def test_0062_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
+    _sync62.forwards(_Apps62, None)
+    assert RoadmapItem.objects.count() == 0
+    _seed62_items()
+    _sync62.forwards(_Apps62, None)
+
+    def snapshot():
+        return list(
+            RoadmapItem.objects.order_by("code").values_list(
+                "code", "status", "progress", "pr", "note"
+            )
+        )
+
+    first = snapshot()
+    _sync62.forwards(_Apps62, None)
+    assert snapshot() == first
+    assert RoadmapItem.objects.filter(code__in=["N-089", "N-090"]).count() == 2
+
+
+def test_0062_orders_new_items_after_0060s_last_slot():
+    assert {row[0]: row[-1] for row in _sync62.NEW_ITEMS} == {"N-089": 817, "N-090": 818}
+
+
+def test_0062_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0062_sync_items_2026_10_04b").origin
+    with open(origin, encoding="utf-8") as f:
+        body = f.read()
+    banned = (
+        "aaaa",
+        ".zip",
+        "FERNET",
+        "artifact",
+        "Security Summary",
+        "بصمات",
+        "الحادثة",
+        "قيد التقييم",
+        "wave2",
+        "archive/",
+        "كلمة المرور",
+        "كلمة مرور",
+        "Temp@",
+        "مرض",
+        "C:/",
+        "localhost",
+        "up.railway.app",
+        "railway ssh",
+        "run_prod",
+        "icontains",
+    )
+    assert [term for term in banned if term in body] == []
+    assert not re.search(r"\b\d{11}\b", body)
+    assert not re.search(r"\b[0-9a-f]{40}\b", body)
