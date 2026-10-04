@@ -113,6 +113,7 @@ def test_the_teachers_exit_button_keeps_its_short_label_so_it_cannot_cover_the_s
     source = JS.read_text(encoding="utf-8")
     assert "label.textContent = set && !exitUrl ? option.textContent : 'خروج';" in source
     assert "if (exitUrl) button.title" in source  # اسمُ الوجهة في التلميح
+    assert "label.textContent = 'خروج · ' + times;" in source  # عددُ مرّات اليوم على الزرّ نفسه
 
 
 def test_marking_absent_closes_the_open_exit_and_records_the_absence(

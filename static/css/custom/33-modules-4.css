@@ -876,7 +876,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .per-grid tbody tr.rec-row > td.per-cell:not(.is-focus) { display: flex; align-items: center; flex: 0 0 auto; order: 3; text-align: center; }
 .per-cell.is-focus .rec-row__pick { flex: 1 1 0; min-width: 0; display: flex; gap: 3px; }
 .per-cell.is-focus .rec-pick { flex: 1 1 0; }
-.per-cell.is-focus .rec-pick > span { min-width: 0; min-height: 40px; padding-inline: var(--sp-1); }
+.per-cell.is-focus .rec-pick > span { min-width: 0; min-height: 44px; padding-inline: var(--sp-1); }
 /* خلايا الحصص الأخرى: حرفٌ في دائرةٍ بلون حاله. */
 .per-mark {
   display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
@@ -887,10 +887,10 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .per-cell.is-late .per-mark { color: var(--on-fill); background: var(--status-warning-dark); }
 /* «تصحيح» في زاوية البطاقة لا في سطرٍ خاصّ به: يوفّر سطراً كاملاً من الارتفاع. */
 .per-grid .rec-row__fix { opacity: 1; position: absolute; inset-block-start: var(--sp-2); inset-inline-end: var(--sp-2); font-size: var(--text-xs); }
-/* الاسمُ سطرٌ واحدٌ بخطّه المعتاد: الطويلُ يُقتطع بنقطتين، وتمامُه في التلميح. */
+/* الاسمُ بسطرين على الأكثر: يظهر كاملاً في الغالب، وما زاد يُقتطع وتمامُه في التلميح. */
 .per-grid .rec-row__file {
-  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  padding-inline-end: var(--sp-8);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  padding-inline-end: var(--sp-8); overflow-wrap: anywhere;
 }
 .per-grid .rec-row__flags { margin-top: var(--sp-0-5); }
 .per-grid .rec-row__flags .badge { font-size: var(--text-xs); padding-block: 0; }
@@ -899,7 +899,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .rec-exit, .rec-pop { display: none; }
 .per-grid .rec-exit {
   display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
-  max-width: 46%; min-height: 40px; padding-inline: var(--sp-2); cursor: pointer;
+  max-width: 46%; min-height: 44px; padding-inline: var(--sp-2); cursor: pointer;
   font: inherit; font-size: var(--text-xs); font-weight: 600; color: var(--text-secondary);
   background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-sm);
 }
