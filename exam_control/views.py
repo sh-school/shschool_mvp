@@ -132,9 +132,9 @@ def supervisors(request, pk):
         )
         return redirect("exam_control:supervisors", pk=pk)
 
-    from core.models import Membership
+    from staff_affairs.selectors import staff_memberships
 
-    staff_list = Membership.objects.filter(school=school, is_active=True).select_related("user")
+    staff_list = staff_memberships(school).select_related("user")
     context = {
         "session": session,
         "supervisors": session.supervisors.select_related("staff", "room").order_by("role"),

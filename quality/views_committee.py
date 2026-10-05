@@ -15,8 +15,9 @@ from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for, default_academic_year
 from core.capabilities import capability_required
-from core.models import CustomUser, Membership
+from core.models import CustomUser
 from core.user_selectors import school_user_or_404
+from staff_affairs.selectors import staff_memberships
 
 from .models import (
     OperationalDomain,
@@ -76,9 +77,7 @@ def quality_committee(request):
     if not (is_admin or is_reviewer):
         return HttpResponse("غير مسموح — للمدير وأعضاء لجنة المراجعة فقط", status=403)
 
-    staff_ids = Membership.objects.filter(school=school, is_active=True).values_list(
-        "user_id", flat=True
-    )
+    staff_ids = staff_memberships(school).values_list("user_id", flat=True)
 
     members = QualityCommitteeMember.objects.review_committee(school, year)
 
@@ -242,9 +241,7 @@ def executor_committee(request):
     year = request.GET.get("year") or _default_year(request)
 
     data = QualityService.get_executor_committee_data(school, year)
-    staff_ids = Membership.objects.filter(school=school, is_active=True).values_list(
-        "user_id", flat=True
-    )
+    staff_ids = staff_memberships(school).values_list("user_id", flat=True)
     for stat in data["member_stats"]:
         stat["responsibility_tone"] = responsibility_tone(stat["member"].responsibility)
         # العتبةُ كما كانت في القالب: 70 فأكثر أخضر، و40 فأكثر كهرمانيّ.
