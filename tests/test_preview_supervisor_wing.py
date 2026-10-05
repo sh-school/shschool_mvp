@@ -103,3 +103,94 @@ def test_nothing_is_covered_outside_the_preview_environment(school, year, monkey
     with pytest.raises(CommandError):
         _sync()
     assert not WingCoverage.objects.exists()
+
+
+def _teacher_session_in(school, year, wing, hour):
+    """حصّةٌ اليومَ للمعلّم الوهميّ في شعبةٍ تتبع `wing` (المعلّمُ يُبذر في `--sync` الأوّل)."""
+    import datetime as dt
+
+    from operations.models import Session
+    from tests.conftest import ClassGroupFactory
+
+    teacher = CustomUser.objects.get(employee_number=pa.EMPLOYEE_NUMBERS["teacher"])
+    klass = ClassGroupFactory(
+        school=school,
+        grade="G10",
+        section=f"s{hour}",
+        level_type="sec",
+        academic_year=year,
+        wing=wing,
+    )
+    return Session.objects.create(
+        school=school,
+        class_group=klass,
+        teacher=teacher,
+        date=timezone.localdate(),
+        start_time=dt.time(hour, 10),
+        end_time=dt.time(hour, 55),
+        status="scheduled",
+    )
+
+
+@PREVIEW
+def test_resync_moves_the_own_coverage_to_the_wing_of_the_preview_teachers_sessions(
+    school,
+    year,
+    preview_env,  # noqa: F811
+):
+    """W-20261005-001: المنتقى «أوّلُ جناحٍ حرّ» (w1) لا جناحُ حصص المعلّم (w2) فلا يصل رصدُه المشرفَ؛ إعادةُ `--sync` بعد البذر تنقل تغطيةَ هذا الحساب نفسِه إلى w2
+    (لا يحمل أحدٌ تغطيتين فلا إضافةَ؛ ونقلٌ لا حذف)، وتغطيةُ غيره لا تُمسّ."""
+    other = _staff(school, "admin_supervisor", "بديل حقيقيّ", "29000001046")
+    w1 = _wing(school, year, "w1", 1)
+    w2 = _wing(school, year, "w2", 2)
+    w3 = _wing(school, year, "w3", 3)
+    WingCoverage.objects.create(
+        wing=w3, substitute=other, reason="absence", start_date=timezone.localdate()
+    )
+    _sync()  # بلا حصصٍ بعدُ: أوّلُ جناحٍ حرّ
+    user = _supervisor()
+    first = WingCoverage.objects.get(substitute=user)
+    assert first.wing_id == w1.id
+    _teacher_session_in(school, year, w2, 8)
+    _sync()
+    moved = WingCoverage.objects.get(substitute=user)
+    assert moved.pk == first.pk and moved.wing_id == w2.id  # نُقلت لا حُذفت ولا أُضيفت
+    assert WingCoverage.objects.get(substitute=other).wing_id == w3.id  # تغطيةُ غيره لم تُمسّ
+    _sync()  # متساوي الأثر
+    assert WingCoverage.objects.filter(substitute=user).count() == 1
+    assert WingCoverage.objects.get(substitute=user).wing_id == w2.id
+
+
+@PREVIEW
+def test_a_coverage_written_by_someone_else_is_never_moved(school, year, preview_env):  # noqa: F811
+    w1 = _wing(school, year, "w1", 1)
+    w2 = _wing(school, year, "w2", 2)
+    _sync()
+    user = _supervisor()
+    WingCoverage.objects.filter(substitute=user).update(note="كتبها بشريّ")
+    _teacher_session_in(school, year, w2, 8)
+    _sync()
+    assert WingCoverage.objects.get(substitute=user).wing_id == w1.id
+
+
+@PREVIEW
+def test_the_first_sync_already_prefers_the_teachers_wing_when_he_has_sessions(
+    school,
+    year,
+    preview_env,  # noqa: F811
+):
+    _wing(school, year, "w1", 1)
+    w2 = _wing(school, year, "w2", 2)
+    _sync()  # يُنشئ المعلّم الوهميّ
+    WingCoverage.objects.filter(substitute=_supervisor()).delete()  # كإعادة بناءٍ للتغطية وحدها
+    _teacher_session_in(school, year, w2, 9)
+    _sync()
+    assert [c.wing.code for c in WingCoverage.objects.filter(substitute=_supervisor())] == ["w2"]
+
+
+def test_the_wing_pinning_never_runs_outside_the_preview_environment(school, year, monkeypatch):
+    monkeypatch.delenv("PREVIEW_DB_NAME", raising=False)
+    _wing(school, year, "w1", 1)
+    with pytest.raises(CommandError):
+        _sync()
+    assert not WingCoverage.objects.exists()
