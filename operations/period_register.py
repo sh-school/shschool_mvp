@@ -606,10 +606,15 @@ def confirm_period(
     tardy = 0
     absentees = []
     clash = _exit_conflicts(period, marks)
+    held = _entry_held(period)
     for enrollment in enrolled_of(class_group):
         student = enrollment.student
         if str(student.id) in clash:
             continue  # غائبٌ وخروجٌ لا يجتمعان: لا يُثبَّت غيابُه ويُعرض للمشرف تعارضاً
+        if student.id in held:
+            # إدخالُ معلّمٍ معلَّقٌ أو معتمَد (متأخّراً كان أو غائباً أو حاضراً) أسبقُ من تثبيت المشرف (قاموس الغياب §٢): لا يكتب التثبيتُ فوقه
+            # ولا يرفضه ولا يُحصيه في عدّ الغياب الرسميّ ولا يُطلق تنبيهَ العتبة؛ والتثبيتُ يملأ الفراغَ فقط (من لا إدخالَ له).
+            continue
         mark = marks.get(str(student.id)) or marks.get(student.id) or {}
         away = outs.get(student.id, {}).get(period.start)
         seen = shown.get(str(mark.get("exit") or ""))
@@ -687,6 +692,17 @@ def confirm_period(
     _warn_of_gates(class_group.school, absentees, day)
     return PeriodResult(
         period, tally["present"], tally["absent"], tally["late"], tardy, escapes, len(clash)
+    )
+
+
+def _entry_held(period: Period) -> set:
+    """معرّفاتُ من له إدخالُ معلّمٍ **معلَّقٌ أو معتمَد** في هذه الحصّة (رأسُ السلسلة ولو لم يُرفض) — لا يمسّه تثبيتُ المشرف."""
+    from operations.models import AttendanceEntry
+
+    return set(
+        AttendanceEntry.objects.filter(session__in=period.sessions, superseded_by__isnull=True)
+        .exclude(decision__decision="rejected")
+        .values_list("student_id", flat=True)
     )
 
 

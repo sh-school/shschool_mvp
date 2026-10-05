@@ -62,7 +62,7 @@
           <button type="button" class="btn-secondary btn-sm" data-bulk="present"{% if sheet_closed %} disabled{% endif %}>الكلُّ حاضر</button>
           <button type="button" class="btn-secondary btn-sm" data-bulk="absent"{% if sheet_closed %} disabled{% endif %}>غيابُ الكلّ</button>
         </div>
-        {% if not teacher_sheet %}{% approve_all_button %}{% endif %}
+        {% if not teacher_sheet %}{% approve_all_button detached=True %}{% endif %}
         </div>
         <nav class="per-tabs" aria-label="حصصُ اليوم">
           {% for period, status in periods %}
@@ -186,6 +186,6 @@
       </div>
     </div>
   </form>
-
+  {% if not teacher_sheet %}{% approve_all_form %}{% endif %}
 
   {% endif %}
