@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 from core.academic_calendar import academic_year_for_school, academic_year_window
 from core.capabilities import capability_required, has_capability
 from core.models import ClassGroup, CustomUser, Wing, WingCoverage
+from core.user_selectors import school_user_or_none
 from operations.absence_policy import next_gate
 from operations.absence_standing import unexcused_days_for_class
 from operations.attendance_selectors import entry_grid_context
@@ -163,7 +164,7 @@ def coverage_assign(request, code):
     wing = get_object_or_404(Wing, school=school, code=code, academic_year=year)
     today = timezone.localdate()
 
-    substitute = CustomUser.objects.filter(id=request.POST.get("substitute") or None).first()
+    substitute = school_user_or_none(school, request.POST.get("substitute"))
     if substitute is None:
         messages.error(request, "اختر البديل.")
         return redirect("wings:coverage")

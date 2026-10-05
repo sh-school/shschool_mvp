@@ -171,37 +171,37 @@
  "views": {
   "academic_management/assignment_views.py::add_row": {
    "lines": 74,
-   "orm": 16
+   "orm": 12
   },
   "academic_management/assignment_views.py::cancel_transfer": {
-   "orm": 10
+   "orm": 6
   },
   "academic_management/assignment_views.py::move": {
-   "orm": 26
+   "orm": 22
   },
   "academic_management/assignment_views.py::remove_row": {
-   "orm": 10
+   "orm": 7
   },
   "academic_management/assignment_views.py::set_department": {
-   "orm": 15
+   "orm": 11
   },
   "academic_management/assignment_views.py::set_load": {
-   "orm": 16
+   "orm": 12
   },
   "academic_management/assignment_views.py::set_parallel": {
-   "orm": 14
+   "orm": 11
   },
   "academic_management/assignment_views.py::subject_options": {
    "orm": 8
   },
   "academic_management/assignment_views.py::toggle_double": {
-   "orm": 10
+   "orm": 7
   },
   "academic_management/assignment_views.py::toggle_preparation": {
-   "orm": 14
+   "orm": 10
   },
   "academic_management/assignment_views.py::update_periods": {
-   "orm": 10
+   "orm": 7
   },
   "analytics/views.py::analytics_dashboard": {
    "lines": 89,
@@ -275,7 +275,7 @@
    "orm": 17
   },
   "assessments/views.py::setup_subject": {
-   "orm": 21
+   "orm": 20
   },
   "assessments/views.py::student_report": {
    "orm": 21
@@ -384,7 +384,7 @@
    "orm": 17
   },
   "exam_control/views.py::supervisors": {
-   "orm": 12
+   "orm": 11
   },
   "library/views.py::book_list": {
    "orm": 8
@@ -541,7 +541,7 @@
    "orm": 7
   },
   "quality/views_committee.py::add_committee_member": {
-   "orm": 12
+   "orm": 9
   },
   "quality/views_committee.py::executor_committee": {
    "orm": 13
@@ -561,7 +561,7 @@
    "orm": 20
   },
   "quality/views_executor.py::save_executor_mapping": {
-   "orm": 12
+   "orm": 9
   },
   "quality/views_reports.py::progress_report": {
    "lines": 79,
@@ -766,7 +766,7 @@
    "orm": 8
   },
   "wings/views.py::coverage_assign": {
-   "orm": 9
+   "orm": 6
   },
   "wings/views.py::excuse_grant": {
    "orm": 9
