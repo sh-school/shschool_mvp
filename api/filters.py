@@ -14,6 +14,7 @@ from django_filters.rest_framework import FilterSet
 
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit
+from core.privacy import national_id_search_q
 from library.models import BookBorrowing, LibraryBook
 from notifications.models import InAppNotification
 from operations.models import Session, StudentAttendance
@@ -42,7 +43,10 @@ class StudentFilter(FilterSet):
         if not value:
             return queryset
         q = value.strip()[:100]
-        return queryset.filter(Q(full_name__icontains=q) | Q(national_id__icontains=q))
+        user = getattr(self.request, "user", None)
+        return queryset.filter(
+            Q(full_name__icontains=q) | national_id_search_q("national_id", q, user=user)
+        )
 
     class Meta:
         # لا يوجد model مباشر — يُطبَّق على CustomUser queryset

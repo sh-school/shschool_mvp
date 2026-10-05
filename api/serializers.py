@@ -52,6 +52,8 @@ class UserBriefSerializer(serializers.ModelSerializer):
     غيرهم يرى الاسم فقط. الافتراض إخفاء (privacy-by-default) عند غياب سياق الطلب.
     """
 
+    phone = serializers.CharField(source="get_phone_decrypted", read_only=True)
+
     class Meta:
         model = CustomUser
         fields = ["id", "full_name", "national_id", "email", "phone"]
@@ -96,6 +98,8 @@ class MeSerializer(serializers.ModelSerializer):
 
     school = serializers.SerializerMethodField()
     role = serializers.SerializerMethodField()
+
+    phone = serializers.CharField(source="get_phone_decrypted", read_only=True)
 
     class Meta:
         model = CustomUser

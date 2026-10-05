@@ -19,7 +19,7 @@ from core.dashboard_presentation import chunk_for_grid
 from core.models.access import DEPARTMENT_ROLES, Membership
 from core.models.department import Department
 from core.models.user import CustomUser
-from core.privacy import mask_national_id
+from core.privacy import mask_national_id, national_id_search_q
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 
 from . import appointments, profile_services, services
@@ -259,7 +259,7 @@ def staff_list(request):
         people = people.filter(
             Q(name_key__icontains=shaped)
             | Q(title_key__icontains=shaped)
-            | Q(national_id__icontains=q)
+            | national_id_search_q("national_id", q, user=request.user)
             | Q(employee_number__icontains=q)
             | Q(id__in=phone_holder_ids(people, q))
             | Q(email__icontains=q)
@@ -307,7 +307,7 @@ def staff_list(request):
                 # الصلاحيّات — و«معلم علوم شرعية» لا يقول أيَّ شاشةٍ تُفتح له.
                 "role_label": role_label(m.role.name) if m and m.role else "—",
                 "department": (m.department_name if m else "") or "—",
-                "phone": user.phone,
+                "phone": user.get_phone_decrypted(),
                 "email": user.email,
                 "residence_area": user.residence_area,
                 "nationality": user.nationality,
