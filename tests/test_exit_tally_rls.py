@@ -66,7 +66,7 @@ def _tally(school, student):
 
 def test_a_school_sees_only_its_own_daily_tallies():
     a, b = SchoolFactory(), SchoolFactory()
-    kid_a, kid_b = UserFactory(national_id="29000091001"), UserFactory(national_id="29000091002")
+    kid_a, kid_b = UserFactory(), UserFactory()
     _tally(a, kid_a)
     _tally(b, kid_b)
     with _as_tenant(b.pk), connection.cursor() as cursor:
@@ -77,7 +77,7 @@ def test_a_school_sees_only_its_own_daily_tallies():
 
 def test_writing_a_row_for_another_school_is_refused_by_with_check():
     a, b = SchoolFactory(), SchoolFactory()
-    kid = UserFactory(national_id="29000091003")
+    kid = UserFactory()
     with _as_tenant(b.pk):
         with pytest.raises(DatabaseError), transaction.atomic(), connection.cursor() as cursor:
             cursor.execute(
@@ -106,7 +106,7 @@ def test_refresh_tally_writes_under_the_tenant_role_of_its_own_school():
     from operations.class_exit import refresh_tally
 
     school = SchoolFactory()
-    kid = UserFactory(national_id="29000091009")
+    kid = UserFactory()
     # الصفُّ المصدر (ClassExit) يُكتب بدور المالك العاديّ؛ ثمّ يُعاد حسابُ الملخّص بدور المدرسة
     DailyExitTally.objects.filter(student=kid).delete()
     with _as_tenant(school.pk):
