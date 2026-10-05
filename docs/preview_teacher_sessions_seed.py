@@ -1,35 +1,41 @@
-"""بذرٌ محدودٌ ومُعلَن: ستُّ حصصٍ لليوم لحساب المعلّم الوهميّ على 8500 — لقياس أساس لوحة المعلّم (W-20261003-023).
+"""بذرٌ محدودٌ ومُعلَن: يُسنِد حصصَ جناحٍ واحدٍ القائمةَ لليوم إلى حساب المعلّم الوهميّ على 8500 (W-20261003-023، W-20261005-005).
 
 لا يُشغَّل من هنا تلقائيّاً ولا يشغّله غيرُ 0501 بعد إذن المالك. يُنفَّذ داخل حاوية ويب المعاينة بـ`manage.py shell` (stdin)
 ومتغيّر البيئة `TEACHER_SEED_ACTION`:
 
-    up    : ستُّ حصصٍ (`scheduled`) بتاريخ اليوم بتوقيت الدوحة لحساب المعلّم الوهميّ (رقمُه من `core.preview_accounts.EMPLOYEE_NUMBERS`)
-            — مواقيتُها وموادُّها من **الجدول المعتمَد** (`ScheduleSlot` الفعّالة لليوم الأسبوعيّ نفسِه)؛ ولا يُرتجل وقتٌ: إن قلّت فتراتُه عن ستٍّ رُفض.
-            الشعبُ ممّا لا حصّةَ لها في الوقت نفسِه (يحلّ `_solve` توزيعاً كاملاً: ستُّ فتراتٍ من فترات الجدول، وفترةُ رصد الجناح تُختار حيث تخلو شعبةُ جناح، لا فترةً ثابتة) (لا يصطدم قيدا `no_teacher_time_overlap` و`no_class_time_overlap`).
-            حصّةُ رصد الجناح لشعبةٍ **في جناحٍ** وفيها طلبةٌ نشطون، والخمسُ الباقياتُ لشعبٍ بلا جناحٍ أوّلاً ثمّ بجناحٍ عند النقص (بلا تغيير مشرف أيّ جناح). وحالاتُ الرصد:
-              ١ رصدُ الجناح (الوسمُ [جناح الرصد]) : طالبٌ بإدخالٍ **معتمَد** (submit_entry ثمّ decide_entry بالحاملِ الفعليّ)، وآخرُ بإدخالٍ **بانتظار الاعتماد**، والباقي فارغ.
+    up    : **تبديلُ المعلّم** على حصصٍ **قائمةٍ** اليومَ بدل إنشاء حصصٍ جديدة (التي كانت تصطدم بـ`no_class_time_overlap` لأنّ شعب الجناح
+            مشغولةٌ في معظم الفترات): حتى أربعِ حصصٍ في فتراتٍ مختلفةٍ لشعب جناحٍ واحدٍ — `w3` (`TEACHER_SEED_WING` يبدّله) — وحصّتَين من التربية الخاصّة
+            (`…/ESE`، بلا جناح) إن وُجدتا، فيرى مشرفُ الجناح المغطّي له كلَّ ما يدخله المعلّمُ الوهميّ ويظهر «اعتماد الكلّ» والطابورُ كاملاً.
+            المتاحُ هو ما يُسنَد: لا يُشترط العددُ، والحدُّ الأدنى حصّتان في الجناح وإلا رُفض.
+            الحصّةُ المرشَّحةُ **لم يمسّها أحد**: مجدولةٌ بلا حضورٍ ولا إدخالٍ ولا خروجٍ ولا مخالفةٍ ولا تبديلٍ سابق (كما تعرّف `ScheduleService._untouched`)،
+            وشعبتُها فيها طلبةٌ نشطون، ولا حصّةَ للمعلّم الوهميّ في وقتها (قيدُ `no_teacher_time_overlap`). والتبديلُ بكتابة `original_teacher`
+            وهو **ما يقول إنّ الحصّةَ مبدَّلة** في الجدول، فتحميها إعادةُ التوليد من الحذف؛ وتُوسَم في `notes` بـ«[معاينة المعلّم]» لـ`down`.
+            وحالاتُ الرصد على حصصٍ مُسنَدة:
+              ١ رصدُ الجناح (الوسمُ [جناح الرصد]، أبكرُ حصّةٍ في الجناح) : طالبٌ بإدخالٍ **معتمَد** (submit_entry ثمّ decide_entry بالحاملِ الفعليّ)،
+                وآخرُ بإدخالٍ **بانتظار الاعتماد**، والباقي فارغ.
               ٢ و٣    : رصدٌ مكتملٌ لطالبَين (حاضر ومتأخّر) فتصير الحصّةُ `completed`.
-              ٤ و٥ و٦ : فارغةٌ `scheduled`.
-            وكلُّ حصّةٍ موسومةٌ في `notes` بـ«[معاينة المعلّم]».
-    plan  : قراءةٌ فقط **لا تكتب شيئاً**: يطبع فتراتِ الجدول وعددَ الشعب المشغولة في كلّ فترة (بالرمز لا بالأسماء) والحلَّ الكامل المقترح أو سببَ تعذّره.
-    who   : قراءةٌ فقط: يطبع ما بُذر وحالةَ كلّ حصّة.
-    down  : يمحو ما وُسم: صفوفَ `StudentAttendance` للحصص الموسومة، ثمّ الإدخالاتِ والقراراتِ عبر `erase_attendance_ledger`
-            (المسارُ الوحيد المسموح له بالحذف من السجلّ الملحق) — **لطالبٍ كلُّ إدخالاته في حصصٍ موسومة وحدَها**؛ طالبٌ له إدخالٌ في حصّةٍ
-            غيرِ موسومة يُتخطّى ويُطبع اسمُ السبب (لا يُمحى سجلُّ الحصص الحقيقيّة). ثمّ الحصصَ الموسومة. سطورُ التدقيق تبقى.
+              والباقيةُ فارغةٌ `scheduled`.
+    plan  : قراءةٌ فقط **لا تكتب شيئاً**: يطبع لكلّ فترةٍ عددَ حصص الجناح والتربية الخاصّة المرشَّحة (بالرمز لا بالأسماء) والإسنادَ المقترح.
+    who   : قراءةٌ فقط: يطبع ما أُسنِد وحالةَ كلّ حصّة.
+    down  : يعيد المعلّمَ الأصليّ للحصص المُسنَدة (ويُصفّر `original_teacher` ويُزيل الوسم)، ويمحو ما وُسم: صفوفَ `StudentAttendance` للحصص الموسومة،
+            ثمّ الإدخالاتِ والقراراتِ عبر `erase_attendance_ledger` (المسارُ الوحيد المسموح له بالحذف من السجلّ الملحق) — **لطالبٍ كلُّ إدخالاته
+            في حصصٍ موسومة وحدَها**؛ طالبٌ له إدخالٌ في حصّةٍ غيرِ موسومة يُتخطّى. وما أنشأه إصدارٌ سابقٌ من هذا السكربت من حصصٍ جديدةٍ
+            (موسومةٍ بلا `original_teacher`) تُحذف. سطورُ التدقيق تبقى.
 
 حدودٌ مقصودة: **يرفض خارج بيئة المعاينة** (`in_preview_environment()`)، ويرفض إن لم يكن حسابُ المعلّم موجوداً وموسوماً وسماً مركَّباً
-(شغّل `preview_accounts --sync` أوّلاً)، ولا يغيّر مشرفَ أيّ جناحٍ ولا أيَّ حسابٍ ولا الجدولَ المعتمَد. التشغيلُ ثانيةً لـup بلا تغيير (متساوي الأثر).
+(شغّل `preview_accounts --sync` أوّلاً)، ولا يغيّر مشرفَ أيّ جناحٍ ولا أيَّ تغطيةٍ ولا الجدولَ المعتمَد. التشغيلُ ثانيةً لـup بلا تغيير (متساوي الأثر).
 نافذةُ الإدخال في `attendance_policy.can_enter` يوميّةٌ لا بالحصّة؛ فإن رُفض الإدخالُ لخروج ساعة المعاينة عن اليوم الدراسيّ طُبع السببُ ويبقى الباقي.
+البذرُ مؤقّتٌ للمعاينة؛ وقرارُ المالك أنّ «شعبَ المعلّم مفتوحةٌ له كلَّ يومٍ دراسيّ» سيصير ميزةً دائمةً (حصّةٌ عند الطلب) لا بذراً.
 """
 
-import itertools
 import os
 import sys
 
 from django.db import transaction
+from django.db.models import Count, Q
 from django.utils import timezone
 
-from core.models import ClassGroup, CustomUser, School, StudentEnrollment
+from core.models import CustomUser, School, StudentEnrollment
 from core.preview_accounts import EMPLOYEE_NUMBERS, in_preview_environment, is_preview_account
 from operations.attendance_entries import (
     EntryError,
@@ -37,16 +43,18 @@ from operations.attendance_entries import (
     erase_attendance_ledger,
     submit_entry,
 )
-from operations.models import AttendanceEntry, ScheduleSlot, Session, StudentAttendance
+from operations.models import AttendanceEntry, Session, StudentAttendance
 
 MARK = "[معاينة المعلّم]"
 ACTION = os.environ.get("TEACHER_SEED_ACTION", "")
 BASE = "http://localhost:8500"
-SESSIONS = 6
-#: حصصُ المعلّم الوهميّ: أربعٌ في جناحٍ واحد وحصّتان للتربية الخاصّة (W-20261005-005).
+#: حصصُ المعلّم الوهميّ: حتى أربعٍ في جناحٍ واحد وحتى حصّتين للتربية الخاصّة، والحدُّ الأدنى للجناح حصّتان.
+WING_SESSIONS = 4
 SPECIAL_SESSIONS = 2
+MIN_WING_SESSIONS = 2
 WING_CODE = os.environ.get("TEACHER_SEED_WING", "w3")
 ENTRY_TAG = "[جناح الرصد]"
+ASSIGNED_NOTE = f"{MARK} حصّةٌ مُسنَدةٌ للمعاينة تُعاد بـdown"
 
 
 def _refuse(message):
@@ -63,150 +71,122 @@ def _teacher():
     return user
 
 
+def _school(teacher):
+    school_id = teacher.memberships.filter(is_active=True).values_list("school", flat=True).first()
+    if school_id is None:
+        _refuse("لا عضويّةَ نشطةً للمعلّم الوهميّ في مدرسة")
+    return School.objects.get(pk=school_id)
+
+
 def _marked():
     return Session.objects.filter(notes__contains=MARK)
 
 
-def _period_times(school, today):
-    """كلُّ فترات الجدول المعتمَد ليومٍ أسبوعيٍّ مطابق: [(بدء، نهاية، مادّة)] مرتّبةً بالفترة."""
-    day = (today.weekday() + 1) % 7  # الأحد=0 في ScheduleSlot
-    if day > 4:
-        day = 0
-    rows = {}
-    for slot in (
-        ScheduleSlot.objects.filter(school=school, is_active=True, day_of_week=day)
-        .select_related("subject")
-        .order_by("period_number", "id")
-    ):
-        rows.setdefault(slot.period_number, (slot.start_time, slot.end_time, slot.subject))
-    return [rows[p] for p in sorted(rows)]
-
-
-def _label(group):
-    return str(group.short_label)
-
-
-def _groups(school):
-    """(شعبُ الجناح المختار الصالحة للرصد، شعبُ التربية الخاصّة بلا جناح) — بالرمز لا بالأسماء.
-
-    الجناحُ واحدٌ بالرمز `WING_CODE` فلا تتوزّع حصصُ المعلّم على أجنحةٍ يغطّيها غيرُ مشرفه (W-20261005-005).
-    """
-    base = ClassGroup.objects.filter(
-        school=school, is_active=True, enrollments__is_active=True
-    ).distinct()
-    wing = list(
-        base.filter(wing__code=WING_CODE, wing__is_active=True)
-        .exclude(section__iendswith="ESE")
-        .order_by("grade", "section")
+def _untouched(queryset):
+    """ما لم يمسّه أحد — التعريفُ نفسُه في `ScheduleService._untouched` (يُكرَّر هنا لأنّ السكربتَ لا يستورد خدمةَ الجدول)."""
+    return queryset.filter(
+        status="scheduled",
+        attendances__isnull=True,
+        attendance_entries__isnull=True,
+        class_exits__isnull=True,
+        infractions__isnull=True,
+        original_teacher__isnull=True,
+        compensatory_source__isnull=True,
     )
-    special = list(
-        base.filter(wing__isnull=True, section__iendswith="ESE").order_by("grade", "section")
+
+
+def _candidates(school, today, teacher):
+    """(حصصُ الجناح المرشَّحة، حصصُ التربية الخاصّة المرشَّحة) مرتّبةً بالوقت — لشعبٍ فيها طلبةٌ نشطون، وبلا حصّةٍ للمعلّم الوهميّ في وقتها."""
+    base = (
+        _untouched(
+            Session.objects.filter(school=school, date=today, class_group__is_active=True)
+            .exclude(teacher=teacher)
+            .annotate(
+                students=Count(
+                    "class_group__enrollments",
+                    filter=Q(class_group__enrollments__is_active=True),
+                    distinct=True,
+                )
+            )
+            .filter(students__gt=0)
+        )
+        .select_related("class_group__wing")
+        .order_by("start_time", "class_group__grade", "class_group__section", "id")
     )
+    busy = set(
+        Session.objects.filter(date=today, teacher=teacher).values_list("start_time", flat=True)
+    )
+    wing = [
+        s
+        for s in base.filter(
+            class_group__wing__code=WING_CODE, class_group__wing__is_active=True
+        ).exclude(class_group__section__iendswith="ESE")
+        if s.start_time not in busy
+    ]
+    special = [
+        s
+        for s in base.filter(class_group__wing__isnull=True, class_group__section__iendswith="ESE")
+        if s.start_time not in busy
+    ]
     return wing, special
 
 
-def _busy(today):
-    """{وقتُ البدء: شعبٌ لها حصّةٌ فيه اليوم} — فيُرفض الاصطدامُ بقيد no_class_time_overlap."""
-    busy = {}
-    for start, group_id in Session.objects.filter(date=today).values_list(
-        "start_time", "class_group_id"
-    ):
-        busy.setdefault(start, set()).add(group_id)
-    return busy
+def _pick(candidates, limit, taken):
+    """حصّةٌ واحدةٌ لكلّ وقتِ بدءٍ (قيدُ `no_teacher_time_overlap`) بعيداً عمّا اختير سلفاً، حتى `limit`."""
+    chosen = []
+    for session in candidates:
+        if len(chosen) >= limit:
+            break
+        if session.start_time in taken:
+            continue
+        taken.add(session.start_time)
+        chosen.append(session)
+    return chosen
 
 
-def _solve(periods, wing, special, busy):
-    """يوزّع ستّ فتراتٍ على ستّ شعبٍ مختلفة: فترةُ رصد الجناح وثلاثٌ أخرى لشعب الجناح المختار، وفترتان لشعب التربية الخاصّة.
-
-    يجرّب كلَّ اختيارِ ستٍّ من الفترات المتاحة، وفي كلٍّ كلَّ فترةٍ لرصد الجناح وكلَّ زوجٍ من الباقي للتربية الخاصّة.
-    يعيد (التوزيع أو None، سطورُ التعليل). التوزيعُ: [(فترةٌ، شعبة، هل هي فترةُ رصد الجناح)].
-    """
-    trace = []
-    for chosen in itertools.combinations(range(len(periods)), SESSIONS):
-        for entry_at in chosen:
-            rest = [i for i in chosen if i != entry_at]
-            for ese_at in itertools.combinations(rest, SPECIAL_SESSIONS):
-                plan = _fill(chosen, entry_at, set(ese_at), periods, wing, special, busy)
-                if plan is not None:
-                    return plan, trace
-    for index, (start, _end, _subject) in enumerate(periods):
-        free_wing = [g for g in wing if g.id not in busy.get(start, set())]
-        free_special = [g for g in special if g.id not in busy.get(start, set())]
-        trace.append(
-            f"  فترة {index + 1} ({start:%H:%M}): شعبُ الجناح {WING_CODE} خاليةٌ {len(free_wing)}/{len(wing)}، تربيةٌ خاصّةٌ خاليةٌ {len(free_special)}/{len(special)}"
-        )
-    return None, trace
+def _label(session):
+    return str(session.class_group.short_label)
 
 
-def _fill(chosen, entry_at, ese_at, periods, wing, special, busy):
-    """مطابقةٌ كاملةٌ فترات←شعب (مسارُ تحسينٍ لـKuhn): كلُّ فترةٍ تقبل شعبةً خاليةً في وقتها من حوضها.
-
-    حوضُ فترات التربية الخاصّة `special`، وحوضُ الباقي (ومنه فترةُ الرصد) `wing` وحدَه. مفتاحُ الشعبة لا يتكرّر.
-    """
-    options = {}
-    for index in chosen:
-        taken = busy.get(periods[index][0], set())
-        pool = special if index in ese_at else wing
-        options[index] = [g for g in pool if g.id not in taken]
-    owner = {}  # معرّفُ الشعبة ← الفترة التي أخذتها
-
-    def assign(index, seen):
-        for group in options[index]:
-            if group.id in seen:
-                continue
-            seen.add(group.id)
-            if group.id not in owner or assign(owner[group.id], seen):
-                owner[group.id] = index
-                return True
-        return False
-
-    for index in sorted(chosen, key=lambda i: len(options[i])):
-        if not assign(index, set()):
-            return None
-    by_id = {g.id: g for g in special + wing}
-    mine = {index: by_id[gid] for gid, index in owner.items()}
-    return [(index, mine[index], index == entry_at) for index in chosen]
+def _plan(school, today, teacher):
+    wing, special = _candidates(school, today, teacher)
+    taken: set = set()
+    picked_wing = _pick(wing, WING_SESSIONS, taken)
+    picked_special = _pick(special, SPECIAL_SESSIONS, taken)
+    return wing, special, picked_wing, picked_special
 
 
 def plan():
-    """قراءةٌ فقط: يطبع اختيارَ كلّ فترةٍ ولِمَ رُفض ما رُفض، ولا يكتب شيئاً."""
+    """قراءةٌ فقط: يطبع المرشَّحَ لكلّ فترةٍ والإسنادَ المقترح، ولا يكتب شيئاً."""
     if not in_preview_environment():
         _refuse("هذه ليست بيئةَ معاينة")
     teacher = _teacher()
     today = timezone.localdate()
-    school_id = teacher.memberships.filter(is_active=True).values_list("school", flat=True).first()
-    if school_id is None:
-        _refuse("لا عضويّةَ نشطةً للمعلّم الوهميّ في مدرسة")
-    school = School.objects.get(pk=school_id)
-    periods = _period_times(school, today)
-    wing, special = _groups(school)
-    busy = _busy(today)
+    school = _school(teacher)
+    wing, special, picked_wing, picked_special = _plan(school, today, teacher)
     print(
-        f"اليوم {today} — فتراتُ الجدول المعتمَد: {len(periods)}؛ شعبُ جناحٍ صالحةٌ {len(wing)}؛ تربيةٌ خاصّة {len(special)}"
+        f"اليوم {today} — حصصٌ مرشَّحةٌ لجناح {WING_CODE}: {len(wing)}؛ للتربية الخاصّة: {len(special)}"
     )
-    for index, (start, end, subject) in enumerate(periods):
-        taken = busy.get(start, set())
-        refused = [_label(g) for g in wing + special if g.id in taken]
+    by_time: dict = {}
+    for session in wing:
+        by_time.setdefault(session.start_time, [0, 0])[0] += 1
+    for session in special:
+        by_time.setdefault(session.start_time, [0, 0])[1] += 1
+    for start in sorted(by_time):
+        in_wing, in_special = by_time[start]
+        print(f"  {start:%H:%M}: حصصُ {WING_CODE} {in_wing}، تربيةٌ خاصّةٌ {in_special}")
+    if len(picked_wing) < MIN_WING_SESSIONS:
         print(
-            f"فترة {index + 1} {start:%H:%M}–{end:%H:%M}: مشغولةٌ (لها حصّةٌ في الوقت نفسه) {len(refused)} شعبة"
+            f"لا يكفي الجناحُ {WING_CODE}: {len(picked_wing)} حصّةً مرشَّحةً في فتراتٍ مختلفة "
+            f"(الحدُّ الأدنى {MIN_WING_SESSIONS}) — لن يُسنَد شيء."
         )
-    chosen, trace = (
-        _solve(periods, wing, special, _busy(today)) if len(periods) >= SESSIONS else (None, [])
-    )
-    if chosen is None:
-        print("لا حلَّ كاملاً بستّ فتراتٍ من الجدول المعتمَد — سبب الرفض:")
-        for line in trace or [f"  فتراتُ الجدول {len(periods)} < {SESSIONS}"]:
-            print(line)
         return
-    print("الحلُّ الكامل (فترةٌ ← شعبة بالرمز):")
-    for index, group, is_entry in chosen:
-        start, end, subject = periods[index]
-        kind = (
-            "جناح — رصدُ الإدخال والاعتماد"
-            if is_entry
-            else ("جناح" if group.wing_id else "تربيةٌ خاصّة")
-        )
-        print(f"  فترة {index + 1} {start:%H:%M}–{end:%H:%M} ← {_label(group)} ({kind})")
+    print("الإسنادُ المقترح (فترةٌ ← شعبة بالرمز):")
+    for index, session in enumerate(picked_wing):
+        kind = "جناح — رصدُ الإدخال والاعتماد" if index == 0 else "جناح"
+        print(f"  {session.start_time:%H:%M} ← {_label(session)} ({kind})")
+    for session in picked_special:
+        print(f"  {session.start_time:%H:%M} ← {_label(session)} (تربيةٌ خاصّة)")
     print("لا كتابةَ: هذا عرضٌ فقط.")
 
 
@@ -228,47 +208,44 @@ def _record(session, student, status, **extra):
     )
 
 
+def _assign(session, teacher, entry):
+    """تبديلُ معلّم حصّةٍ قائمة: `original_teacher` يحفظ صاحبَها فيُعاد بـdown."""
+    Session.objects.filter(pk=session.pk).update(
+        original_teacher_id=session.teacher_id,
+        teacher=teacher,
+        notes=(f"{session.notes} " if session.notes else "")
+        + ASSIGNED_NOTE
+        + (f" {ENTRY_TAG}" if entry else ""),
+    )
+
+
+def _mine(today, teacher):
+    return list(
+        _marked()
+        .filter(date=today, teacher=teacher)
+        .select_related("class_group__wing")
+        .order_by("start_time")
+    )
+
+
 def up():
     if not in_preview_environment():
         _refuse("هذه ليست بيئةَ معاينة")
     teacher = _teacher()
     today = timezone.localdate()
-    school = teacher.memberships.filter(is_active=True).values_list("school", flat=True).first()
-    if school is None:
-        _refuse("لا عضويّةَ نشطةً للمعلّم الوهميّ في مدرسة")
-    school = School.objects.get(pk=school)
+    school = _school(teacher)
 
-    existing = list(_marked().filter(date=today, teacher=teacher).order_by("start_time"))
-    if existing and len(existing) < SESSIONS:
-        _refuse(f"حصصٌ موسومةٌ ناقصة ({len(existing)} من {SESSIONS}) — شغّل down ثمّ up")
-    made = existing
-    if not existing:
-        periods = _period_times(school, today)
-        wing, special = _groups(school)
-        chosen, trace = (
-            _solve(periods, wing, special, _busy(today)) if len(periods) >= SESSIONS else (None, [])
-        )
-        if chosen is None:
-            _refuse("لا حلَّ كاملاً بستّ فتراتٍ — شغّل TEACHER_SEED_ACTION=plan:\n" + "\n".join(trace))
+    made = _mine(today, teacher)
+    if not made:
+        _wing, _special, picked_wing, picked_special = _plan(school, today, teacher)
+        if len(picked_wing) < MIN_WING_SESSIONS:
+            _refuse(
+                f"حصصُ الجناح {WING_CODE} المرشَّحةُ أقلُّ من {MIN_WING_SESSIONS} — شغّل TEACHER_SEED_ACTION=plan"
+            )
         with transaction.atomic():
-            for index, group, is_entry in chosen:
-                start, end, subject = periods[index]
-                made.append(
-                    Session.objects.create(
-                        school=school,
-                        class_group=group,
-                        teacher=teacher,
-                        subject=subject,
-                        date=today,
-                        start_time=start,
-                        end_time=end,
-                        period_number=index + 1,
-                        status="scheduled",
-                        notes=f"{MARK} حصّةُ معاينةٍ تُمحى بـdown"
-                        + (f" {ENTRY_TAG}" if is_entry else ""),
-                    )
-                )
-    source = "الجدول المعتمَد"
+            for index, session in enumerate(picked_wing + picked_special):
+                _assign(session, teacher, entry=index == 0)
+        made = _mine(today, teacher)
 
     wing_session = next((x for x in made if ENTRY_TAG in x.notes), made[0])
     others = [x for x in made if x.pk != wing_session.pk]
@@ -296,9 +273,9 @@ def up():
                 _record(session, people[1], "late", late_minutes=5)
                 Session.objects.filter(pk=session.pk).update(status="completed")
             else:
-                notes.append(f"شعبةُ حصّة {session.period_number} بأقلّ من طالبَين — تُركت فارغة")
+                notes.append(f"شعبةُ حصّة {session.start_time:%H:%M} بأقلّ من طالبَين — تُركت فارغة")
 
-    print(f"مصدرُ المواقيت: {source} — اليوم {today}")
+    print(f"مصدرُ الحصص: حصصٌ قائمةٌ مُسنَدةٌ (تبديلُ المعلّم) — اليوم {today}")
     print(
         f"المعلّم: user_id {teacher.pk} — الدخول بالرقم الوظيفيّ الوهميّ المحجوز؛ اللوحة: {BASE}/dashboard/"
     )
@@ -315,7 +292,7 @@ def who():
         rows = StudentAttendance.objects.filter(session=session).count()
         wing = session.class_group.wing.code if session.class_group.wing_id else "—"
         print(
-            f"  {session.date} {session.start_time:%H:%M}–{session.end_time:%H:%M} حصّة {session.period_number} "
+            f"  {session.date} {session.start_time:%H:%M}–{session.end_time:%H:%M} "
             f"[{session.status}] جناح={wing} إدخالات={entries} رصدٌ معتمَد={rows} {BASE}/teacher/attendance/{session.id}/"
         )
     if not _marked().filter(date=today).exists():
@@ -326,8 +303,11 @@ def down():
     if not in_preview_environment():
         _refuse("هذه ليست بيئةَ معاينة")
     sessions = list(_marked())
+    if not sessions:
+        print("لا حصصَ موسومة — لا شيءَ يُعاد")
+        return
     ids = {s.pk for s in sessions}
-    removed_rows = StudentAttendance.objects.filter(session_id__in=ids).delete()[0] if ids else 0
+    removed_rows = StudentAttendance.objects.filter(session_id__in=ids).delete()[0]
     student_ids = set(
         AttendanceEntry.objects.filter(session_id__in=ids).values_list("student_id", flat=True)
     )
@@ -340,13 +320,30 @@ def down():
         counts = erase_attendance_ledger(student, school=sessions[0].school)
         for key in erased:
             erased[key] += counts.get(key, 0)
-    leftover = AttendanceEntry.objects.filter(session_id__in=ids).exists()
-    if not leftover:
-        _marked().delete()
+    leftover = set(
+        AttendanceEntry.objects.filter(session_id__in=ids).values_list("session_id", flat=True)
+    )
+    restored = deleted = 0
+    for session in sessions:
+        if session.pk in leftover:
+            continue
+        if session.original_teacher_id:
+            # حصّةٌ قائمةٌ بُدِّل معلّمُها: يعود صاحبُها وتعود مجدولةً كما كانت (لم تكن مرصودةً قبل البذر)
+            Session.objects.filter(pk=session.pk).update(
+                teacher_id=session.original_teacher_id,
+                original_teacher=None,
+                status="scheduled",
+                notes=session.notes.replace(f" {ENTRY_TAG}", "").replace(ASSIGNED_NOTE, "").strip(),
+            )
+            restored += 1
+        else:
+            session.delete()
+            deleted += 1
     print(
         f"صفوفُ رصدٍ محذوفة={removed_rows} · إدخالاتٌ {erased['entries']} وقرارات {erased['decisions']} · "
         f"طلبةٌ تُخطُّوا لوجود إدخالاتٍ في حصصٍ غير موسومة={skipped} · "
-        + ("بقيت حصصٌ لبقاء إدخالاتٍ فيها" if leftover else "حُذفت الحصصُ الموسومة")
+        f"حصصٌ أُعيد معلّمُها={restored} وحُذفت (أنشأها إصدارٌ سابق)={deleted}"
+        + (f" · بقيت {len(leftover)} حصّةً لبقاء إدخالاتٍ فيها" if leftover else "")
     )
 
 
