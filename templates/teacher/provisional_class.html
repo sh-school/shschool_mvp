@@ -6,6 +6,7 @@
 رقمٌ بلا زمنٍ في جرس الشعبة يُعرض معطَّلاً لا مخفيّاً. والقائمةُ للقراءة: لا رصدَ قبل اختيار الحصّة.
 {% endcomment %}
 {% block title %}رصد {{ klass.short_label }}{% endblock %}
+{% block main_class %}{% page_layout "detail" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% url 'provisional_classes' as classes_url %}
