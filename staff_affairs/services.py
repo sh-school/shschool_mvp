@@ -18,6 +18,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
+from staff_affairs.leave_rules import default_total_days, leave_rule, missing_document_error
 from staff_affairs.models import LeaveBalance, LeaveRequest
 
 logger = logging.getLogger(__name__)
@@ -308,7 +309,7 @@ class StaffService:
 class LeaveService:
     """خدمات الإجازات — إنشاء + مراجعة + إحصائيات."""
 
-    DEFAULT_ANNUAL_DAYS = 30  # وفق قانون 15/2016
+    DEFAULT_ANNUAL_DAYS = 30  # م62: أدنى استحقاقٍ سنويّ (الدرجات الأخرى)؛ ومن فوقها 40 أو 45
 
     @staticmethod
     @transaction.atomic
@@ -340,6 +341,9 @@ class LeaveService:
         Returns:
             LeaveRequest: الطلب المنشأ
         """
+        error = missing_document_error(leave_type, bool(attachment))
+        if error:
+            raise ValueError(error)
         creator = created_by or staff
         leave = LeaveRequest.objects.create(
             school=school,
@@ -399,6 +403,22 @@ class LeaveService:
                 "الطلب يجب أن يكون قيد الانتظار."
             )
 
+        balance = None
+        if action == "approved":
+            # select_for_update: يمنع race condition على balance.used_days
+            balance, _ = LeaveBalance.objects.select_for_update().get_or_create(
+                school=leave.school,
+                staff=leave.staff,
+                academic_year=leave.academic_year,
+                leave_type=leave.leave_type,
+                defaults={
+                    "total_days": default_total_days(
+                        leave.leave_type, LeaveService.DEFAULT_ANNUAL_DAYS
+                    )
+                },
+            )
+            LeaveService._refuse_if_over_limit(leave, balance)
+
         leave.status = action
         leave.reviewed_by = reviewer
         leave.reviewed_at = timezone.now()
@@ -419,15 +439,7 @@ class LeaveService:
         )
 
         # ── تحديث رصيد الإجازات عند الموافقة ──────────────────
-        if action == "approved":
-            # select_for_update: يمنع race condition على balance.used_days
-            balance, _ = LeaveBalance.objects.select_for_update().get_or_create(
-                school=leave.school,
-                staff=leave.staff,
-                academic_year=leave.academic_year,
-                leave_type=leave.leave_type,
-                defaults={"total_days": LeaveService.DEFAULT_ANNUAL_DAYS},
-            )
+        if balance is not None:
             balance.used_days += leave.days_count
             balance.save(update_fields=["used_days"])
             logger.info(
@@ -444,3 +456,33 @@ class LeaveService:
             reviewer.pk,
         )
         return leave
+
+    @staticmethod
+    def _refuse_if_over_limit(leave: LeaveRequest, balance: LeaveBalance) -> None:
+        """يرفض الاعتمادَ عند تجاوز السقف أو تكرار ما هو لمرّةٍ واحدة (م65 وم75 وم76).
+
+        السقفُ القانونيّ لنوعٍ ذي سقفٍ يغلب ``total_days`` المخزَّن (صفوفٌ قديمةٌ بُذرت 30 لكلّ
+        الأنواع)؛ وللسنويّة الرصيدُ المخزَّن إذ يختلف بالدرجة (م62). وما لا سقفَ له لا يُرفض.
+        """
+        rule = leave_rule(leave.leave_type)
+        if rule and rule.once_in_service:
+            earlier = LeaveRequest.objects.filter(
+                staff=leave.staff, leave_type=leave.leave_type, status="approved"
+            ).exclude(pk=leave.pk)
+            if earlier.exists():
+                raise ValueError(
+                    f"{leave.get_leave_type_display()} لمرّةٍ واحدةٍ طوال مدة الخدمة ({rule.article}) "
+                    "وقد اعتُمدت للموظف سابقاً."
+                )
+        if leave.leave_type == "annual":
+            limit = balance.total_days
+        elif rule and rule.cap_days is not None:
+            limit = rule.cap_days
+        else:
+            return
+        if balance.used_days + leave.days_count > limit:
+            article = f" ({rule.article})" if rule else ""
+            raise ValueError(
+                f"يتجاوز الطلبُ رصيدَ {leave.get_leave_type_display()}{article}: "
+                f"المتبقّي {max(0, limit - balance.used_days)} يوماً والمطلوب {leave.days_count}."
+            )
