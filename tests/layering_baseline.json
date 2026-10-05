@@ -384,7 +384,7 @@
    "orm": 17
   },
   "exam_control/views.py::supervisors": {
-   "orm": 11
+   "orm": 9
   },
   "library/views.py::book_list": {
    "orm": 8
@@ -544,21 +544,21 @@
    "orm": 9
   },
   "quality/views_committee.py::executor_committee": {
-   "orm": 13
+   "orm": 11
   },
   "quality/views_committee.py::executor_member_detail": {
    "orm": 10
   },
   "quality/views_committee.py::quality_committee": {
-   "lines": 111,
-   "orm": 34
+   "lines": 109,
+   "orm": 32
   },
   "quality/views_executor.py::apply_all_mappings": {
    "orm": 10
   },
   "quality/views_executor.py::executor_mapping": {
-   "lines": 65,
-   "orm": 20
+   "lines": 63,
+   "orm": 18
   },
   "quality/views_executor.py::save_executor_mapping": {
    "orm": 9

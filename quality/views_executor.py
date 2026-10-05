@@ -15,8 +15,9 @@ from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for, default_academic_year
 from core.capabilities import capability_required
-from core.models import CustomUser, Membership
+from core.models import CustomUser
 from core.user_selectors import school_user_or_404
+from staff_affairs.selectors import staff_memberships
 
 from .models import ExecutorMapping, OperationalProcedure
 
@@ -64,9 +65,7 @@ def executor_mapping(request):
         )
     }
 
-    staff_ids = Membership.objects.filter(school=school, is_active=True).values_list(
-        "user_id", flat=True
-    )
+    staff_ids = staff_memberships(school).values_list("user_id", flat=True)
     all_users = CustomUser.objects.filter(id__in=staff_ids).order_by("full_name")
 
     executor_rows = []
