@@ -17,7 +17,7 @@ from core.models import StudentEnrollment
 
 from .day_attendance import can_record, is_recorder
 from .models import Session, StudentAttendance
-from .services import AttendanceService, ScheduleService, SubstituteService, provisional_session
+from .services import AttendanceService, ScheduleService, SubstituteService
 from .services.attendance_teacher import TeacherAttendanceService
 
 logger = logging.getLogger(__name__)
@@ -148,8 +148,6 @@ def schedule(request):
             "completed_count": completed_count,
             "filter_teachers": filter_teachers,
             "filter_classes": filter_classes,
-            # بابُ الرصد بحصّةٍ مؤقّتة (W-20261005-006): مفتاحُ التشغيل مطفأً فلا زرَّ ولا أثر.
-            "provisional_enabled": provisional_session.enabled(),
         },
     )
 

@@ -18,7 +18,7 @@ from .services import provisional_session as provisional
 
 
 def _class_or_404(request, class_id):
-    school = request.user.get_school()
+    school = request.school
     try:
         return school, provisional.assigned_class(request.user, school, class_id)
     except provisional.ProvisionalNotAllowedError:
@@ -31,7 +31,7 @@ def provisional_classes(request):
     """شُعبُ إسناد المعلّم — منها يبدأ الرصدُ بحصّةٍ مؤقّتة."""
     if not provisional.enabled():
         raise Http404
-    school = request.user.get_school()
+    school = request.school
     return render(
         request,
         "teacher/provisional_classes.html",

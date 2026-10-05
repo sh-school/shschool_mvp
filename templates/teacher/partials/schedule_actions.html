@@ -7,6 +7,7 @@
 <a href="{% url 'swap_list' %}" class="btn-secondary btn-sm">طلبات التبديل</a>
 <a href="{% url 'compensatory_list' %}" class="btn-secondary btn-sm">الحصص التعويضية</a>
 {% endif %}
-{% if provisional_enabled and user_role in "teacher,ese_teacher,coordinator" %}
+{% load provisional_door %}{% provisional_enabled as provisional_door %}
+{% if provisional_door and user_role in "teacher,ese_teacher,coordinator" %}
 <a href="{% url 'provisional_classes' %}" class="btn-secondary btn-sm">شُعبي للرصد</a>
 {% endif %}

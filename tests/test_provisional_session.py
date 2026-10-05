@@ -236,7 +236,7 @@ KEY_READERS = {
     "shschool/settings/base.py",
     "operations/services/provisional_session.py",
     "operations/views_provisional.py",
-    "operations/views_attendance.py",  # سياقُ زرّ جدول المعلّم فقط
+    "operations/templatetags/provisional_door.py",  # وسمُ القالب لزرّ جدول المعلّم (لا سياقَ في العرض)
     "operations/urls.py",  # مساراتُ الميزة
     "operations/admin.py",  # عمودُ القائمة وترشيحُها
     "operations/signals.py",  # إشارةُ إغلاق المؤقّتة عند حقيقيّةٍ جديدة (بالمفتاح وحدَه)
