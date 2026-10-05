@@ -153,8 +153,19 @@ def period_choices(
             class_group=klass, date=today, provisional=True, teacher=user
         )
     }
+    own_real = {
+        s.start_time: s
+        for s in Session.objects.filter(
+            class_group=klass, date=today, teacher=user, provisional=False
+        ).exclude(status="cancelled")
+    }
     return [
-        PeriodChoice(n, *(bell.get(n) or (None, None)), session=mine.get(n)) for n in PERIOD_NUMBERS
+        PeriodChoice(
+            n,
+            *(bell.get(n) or (None, None)),
+            session=mine.get(n) or own_real.get((bell.get(n) or (None,))[0]),
+        )
+        for n in PERIOD_NUMBERS
     ]
 
 
@@ -202,6 +213,20 @@ def create(
             ).first()
             if existing is not None:
                 return existing, False
+            # حصّةٌ **حقيقيّةٌ للمعلّم نفسِه** في هذه الشعبة والوقت (جدولٌ أو إسنادٌ للمعاينة): تُفتح لا تُرفض ولا تُنشأ فوقها مؤقّتة.
+            own_real = (
+                Session.objects.filter(
+                    class_group=klass,
+                    date=today,
+                    start_time=start,
+                    teacher=user,
+                    provisional=False,
+                )
+                .exclude(status="cancelled")
+                .first()
+            )
+            if own_real is not None:
+                return own_real, False
 
             _guard(user, klass, today, start, number)
             session = Session.objects.create(

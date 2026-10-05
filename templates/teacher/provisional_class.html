@@ -25,7 +25,7 @@
               class="{% if choice.session %}btn-primary{% else %}btn-secondary{% endif %} pp-picker__btn"
               {% if not choice.available %}disabled aria-disabled="true"{% endif %}>
         <b>ح{{ choice.number }}</b>
-        <small>{% if choice.available %}{{ choice.start|time:"H:i" }}–{{ choice.end|time:"H:i" }}{% else %}بلا زمن{% endif %}</small>
+        <small>{% if choice.available %}<bdi dir="ltr">{{ choice.start|time:"H:i" }}–{{ choice.end|time:"H:i" }}</bdi>{% else %}بلا زمن{% endif %}</small>
         {% if choice.session %}<small>مفتوحة</small>{% endif %}
       </button>
       {% endfor %}

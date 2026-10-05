@@ -98,10 +98,42 @@ def test_a_period_with_no_bell_time_for_the_class_is_refused(school, assigned, t
         provisional.create(teacher, school, assigned.id, 5)  # جرسُ الاختبار ثلاثُ حصصٍ فقط
 
 
-def test_it_refuses_a_slot_that_a_real_session_already_holds(school, assigned, teacher, session):
-    """`session` حقيقيّةٌ لهذه الشعبة 07:10 — فلا مؤقّتةَ فوقها (بند 4)."""
+def test_it_refuses_a_slot_that_a_real_session_of_another_teacher_holds(
+    school, assigned, teacher, other_teacher, session
+):
+    """حقيقيّةٌ لهذه الشعبة 07:10 لمعلّمٍ **آخر** — فلا مؤقّتةَ فوقها (بند 4)."""
+    Session.objects.filter(pk=session.pk).update(teacher=other_teacher)
+
     with pytest.raises(provisional.ProvisionalRefusedError):
         provisional.create(teacher, school, assigned.id, 1)
+
+
+def test_a_real_session_of_the_same_teacher_in_the_slot_is_opened_not_refused(
+    school, assigned, teacher, session, client_as
+):
+    """واقعةُ 8500: المعلّمُ أُسندت إليه حصّةٌ قائمةٌ لهذه الشعبة (ح1) فاختارها — تُفتح لا يظهر «لهذه الشعبة حصّةٌ في هذا الوقت»."""
+    opened, created = provisional.create(teacher, school, assigned.id, 1)
+
+    assert (opened.pk, created, opened.provisional) == (session.pk, False, False)
+    assert not Session.objects.filter(provisional=True).exists()
+
+    response = client_as(teacher).post(
+        reverse("provisional_create", args=[assigned.id]), {"period": "1"}
+    )
+    assert response.status_code == 302
+    assert response.url == reverse("attendance", args=[session.id])
+
+    choices = provisional.period_choices(teacher, school, assigned)
+    assert choices[0].session is not None and choices[0].session.pk == session.pk
+
+
+def test_the_period_times_are_isolated_left_to_right_so_they_do_not_flip_in_rtl(
+    client_as, assigned, teacher
+):
+    """واقعةُ 8500: «07:10–08:00» ظهرت «08:00–07:10» لأنّ النصَّ العدديَّ داخل فقرةٍ RTL يُعكَس — فيُعزل بـ`<bdi dir="ltr">`."""
+    body = client_as(teacher).get(reverse("provisional_class", args=[assigned.id])).content.decode()
+
+    assert '<bdi dir="ltr">07:10–07:55</bdi>' in body
 
 
 def test_it_refuses_when_the_teacher_already_teaches_at_that_time(
