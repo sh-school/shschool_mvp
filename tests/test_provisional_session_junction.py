@@ -141,25 +141,30 @@ def test_handing_over_a_slot_ignores_a_provisional_row_in_it(
     assert mine.teacher_id == teacher.id, "المؤقّتةُ لم تُسلَّم ولم تُلمس"
 
 
-def test_a_real_session_closes_the_provisional_one_in_its_slot_whoever_created_it(
+def test_only_an_identical_real_session_closes_the_provisional_one_whoever_created_it(
     school, klass, teacher, other_teacher, subject
 ):
-    """بالإشارة (ORM) — وبالقراءة لما أُدرج بـbulk_create بلا إشارة — دون اعتمادٍ على مولّد."""
+    """النسخةُ المكرَّرةُ فقط (الشعبةُ والمعلّمُ نفسُهما) تُغلق المؤقّتة — بالإشارة (ORM) وبالقراءة لما أُدرج بـbulk_create؛ وحقيقيّةُ معلّمٍ آخر لا تُغلقها (D-229م)."""
     mine = _provisional(school, klass, teacher, subject)
 
-    _real(school, klass, other_teacher, subject)  # ORM: تُطلق الإشارة
+    _real(
+        school, klass, other_teacher, subject
+    )  # معلّمٌ آخر: جدولُ المنصّة غيرُ المعتمد لا يُقدَّم على رصد المعلّم
 
     mine.refresh_from_db()
-    assert mine.provisional_until <= timezone.now()
-    assert Session.objects.filter(pk=mine.pk).exists(), "تُغلق ولا تُحذف"
+    assert mine.provisional_until > timezone.now()
 
-    third = _provisional(school, klass, teacher, subject, start=dt.time(8, 0), period=2)
-    Session.objects.bulk_create(  # لا إشارة هنا: كمولّدٍ يُدرج دفعةً
+    _real(school, klass, teacher, subject, start=dt.time(9, 0))  # لا علاقةَ بوقتها
+    mine.refresh_from_db()
+    assert mine.provisional_until > timezone.now()
+
+    twin = _provisional(school, klass, teacher, subject, start=dt.time(8, 0), period=2)
+    Session.objects.bulk_create(  # لا إشارة هنا: كمولّدٍ يُدرج دفعةً — النسخةُ المكرَّرة
         [
             Session(
                 school=school,
                 class_group=klass,
-                teacher=other_teacher,
+                teacher=teacher,
                 subject=subject,
                 date=SUNDAY,
                 start_time=dt.time(8, 0),
@@ -168,8 +173,9 @@ def test_a_real_session_closes_the_provisional_one_in_its_slot_whoever_created_i
         ]
     )
     assert provisional.close_shadowed(school, SUNDAY) == 1
-    third.refresh_from_db()
-    assert third.provisional_until <= timezone.now()
+    twin.refresh_from_db()
+    assert twin.provisional_until <= timezone.now()
+    assert Session.objects.filter(pk=twin.pk).exists(), "تُغلق ولا تُحذف"
 
 
 def test_the_signal_is_silent_with_the_switch_off(

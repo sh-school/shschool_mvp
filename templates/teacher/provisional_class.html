@@ -1,12 +1,12 @@
 {% extends "base/base.html" %}
-{% load ui %}
+{% load ui static %}
 {% comment %}
 صفحةُ الشعبة للرصد بحصّةٍ مؤقّتة (W-20261005-006، أمرُ المالك D-217م): **فوق قائمة الطلبة** يختار المعلّمُ الحصّةَ من ح1 إلى ح7 قبل الرصد.
 الأزمنةُ من `TimeSlotConfig` لجرس الشعبة (لا رقمَ يُعدّ زمناً)؛ والاختيارُ يُنشئ الحصّةَ المؤقّتةَ بالرقم ثمّ يفتح كشفَ الرصد القائم.
 رقمٌ بلا زمنٍ في جرس الشعبة يُعرض معطَّلاً لا مخفيّاً. والقائمةُ للقراءة: لا رصدَ قبل اختيار الحصّة.
 {% endcomment %}
 {% block title %}رصد {{ klass.short_label }}{% endblock %}
-{% block main_class %}{% page_layout "detail" %}{% endblock %}
+{% block main_class %}{% page_layout "sheet" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% url 'provisional_classes' as classes_url %}
@@ -15,7 +15,9 @@
 
 {% block content %}
 <div class="exec-dash">
+  {% if not session %}
   {% page_header klass.short_label subtitle="اختر حصّتَك أوّلاً ثمّ ارصد — حصّةٌ مؤقّتةٌ لليوم الجاري ريثما يُعتمد الجدول" icon="attendance_register" %}{% endpage_header %}
+  {% endif %}
 
   {% section_card "الحصّة" meta="ح1 – ح7" icon="periods_today" %}
     <form method="post" action="{% url 'provisional_create' klass.id %}" class="pp-picker" aria-label="اختيارُ الحصّة">
@@ -32,21 +34,26 @@
     </form>
   {% endsection_card %}
 
+  {% if session %}
+  {% include "attendance/period_sheet.html" %}
+  {% else %}
+  {% comment %}قبل اختيار الحصّة: الشبكةُ بلا اختيار — بطاقةُ كلّ طالبٍ مُعطَّلةٌ ونصُّ «اختر الحصّة أوّلاً» (D-229م)، لا قائمةٌ مبتورة.{% endcomment %}
   {% section_card "طلبةُ الشعبة" meta=enrollments|length icon="attendance_register" %}
     {% if enrollments %}
-    <div class="table-wrap">
-      <table data-no-sort>
-        <thead><tr><th>الطالب</th></tr></thead>
-        <tbody>
-          {% for enrollment in enrollments %}
-          <tr><td>{{ enrollment.student.full_name }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <p class="ui-note">اختر الحصّة أوّلاً</p>
+    <div class="auto-grid prov-off" aria-disabled="true">
+      {% for enrollment in enrollments %}
+      <div class="card-qatar pp-student">{{ enrollment.student.full_name }}</div>
+      {% endfor %}
     </div>
     {% else %}
     {% include "components/empty_state.html" with title="لا طلبةَ في هذه الشعبة" only %}
     {% endif %}
   {% endsection_card %}
+  {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if session %}<script src="{% static 'js/period-register.js' %}" defer></script>{% endif %}
 {% endblock %}

@@ -288,12 +288,10 @@ def _subject_of(assignments: list[SubjectClassAssignment], subject_id: Any):
 def _guard(
     user: CustomUser, klass: ClassGroup, today: dt.date, start: dt.time, number: int
 ) -> None:
-    """حراسُ الإنشاء: لا تصادمَ مع حقيقيّةٍ، ولا تجاوزَ للسقف اليوميّ ولا لمعدّل الساعة."""
-    live = Session.objects.filter(date=today, start_time=start).exclude(status="cancelled")
-    if live.filter(class_group=klass).exists():
-        raise ProvisionalRefusedError("لهذه الشعبة حصّةٌ في هذا الوقت")
-    if live.filter(teacher=user).exists():
-        raise ProvisionalRefusedError("لك حصّةٌ أخرى في هذا الوقت")
+    """حراسُ الإنشاء: السقفُ اليوميّ ومعدّلُ الساعة (ولا رفضَ لتصادمٍ مع حقيقيّةٍ لمعلّمٍ آخر — D-229م)."""
+    # لا يُرفض الإنشاءُ لوجود حصّةٍ حقيقيّةٍ لمعلّمٍ آخر في الشعبة والوقت (قرارُ المالك D-229م): جدولُ المنصّة غيرُ المعتمد قد يخالف الجدولَ الخارجيَّ المعمولَ به
+    # تماماً، فتلك الحصّةُ المولَّدةُ ليست الحقيقةَ — والمؤقّتةُ هي ما يرصده المعلّم فعلاً. والازدواجُ لا يُعدّ مرّتين لأنّ التقارير تحسب الطالبَ بخانة الساعة
+    # (حاضرٌ في إحدى حصّتَي الخانة حاضر) لا بعدد الجلسات، وصفوفُ الرصد لا تُكتب إلا حيث رُصد.
     if Session.objects.filter(teacher=user, date=today, provisional=True).count() >= len(
         PERIOD_NUMBERS
     ):
@@ -329,7 +327,8 @@ def close(session: Session, *, reason: str, by: Any = None) -> bool:
 def close_shadowed(school: School, day: dt.date) -> int:
     """يُغلق مؤقّتاتِ يومٍ **زاحمتها حصّةٌ حقيقيّة** في خانتها (بند 10، D-219م) — بلا اعتماد على مولّدٍ بعينه.
 
-    الحقيقيّةُ تعني صفّاً غيرَ مؤقّتٍ غيرَ ملغًى بالساعة نفسِها لشعبة المؤقّتة **أو لمعلّمها** (لا يكون في مكانين). المصدرُ لا يهمّ:
+    الحقيقيّةُ تعني صفّاً غيرَ مؤقّتٍ غيرَ ملغًى بالساعة نفسِها لشعبة المؤقّتة **ولمعلّمها معاً** (نسخةٌ مكرَّرةٌ من الحصّة نفسِها)؛ أمّا حقيقيّةٌ لمعلّمٍ آخر فلا تُغلق
+    مؤقّتةً (D-229م: جدولُ المنصّة غيرُ المعتمد قد يخالف الواقعَ فلا يُقدَّم على رصد المعلّم) — وتُغلق المؤقّتاتُ كلُّها عند اعتماد الجدول (بند 14). المصدرُ لا يهمّ:
     المولّدُ الحاليّ (`bulk_create` بلا إشاراتٍ) أو V2 أو تبديلٌ أو إنشاءٌ يدويّ — فالقاعدةُ على مستوى `Session` نفسِها. ويُستدعى حيث تُقرأ المؤقّتات
     (الإنشاءُ ومنتقي الشعبة) وبإشارةٍ عند حفظ حقيقيّةٍ جديدة؛ والمؤقّتةُ تُغلق ولا تُحذف، وكلُّ إغلاقٍ بسطر تدقيق. يرجع عددَ ما أُغلق.
     """
@@ -342,7 +341,8 @@ def close_shadowed(school: School, day: dt.date) -> int:
             start_time=OuterRef("start_time"),
         )
         .exclude(status="cancelled")
-        .filter(Q(class_group_id=OuterRef("class_group_id")) | Q(teacher_id=OuterRef("teacher_id")))
+        # **الحقيقيّةُ المطابقةُ فقط**: الشعبةُ والمعلّمُ كلاهما — فالمؤقّتةُ حينئذٍ نسخةٌ مكرَّرةٌ من الحصّة نفسِها. حصّةٌ حقيقيّةٌ لمعلّمٍ آخر لا تُغلقها (D-229م).
+        .filter(class_group_id=OuterRef("class_group_id"), teacher_id=OuterRef("teacher_id"))
     )
     now = timezone.now()
     shadowed = (

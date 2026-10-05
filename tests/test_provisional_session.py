@@ -98,14 +98,19 @@ def test_a_period_with_no_bell_time_for_the_class_is_refused(school, assigned, t
         provisional.create(teacher, school, assigned.id, 5)  # جرسُ الاختبار ثلاثُ حصصٍ فقط
 
 
-def test_it_refuses_a_slot_that_a_real_session_of_another_teacher_holds(
+def test_a_real_session_of_another_teacher_does_not_block_the_provisional_one(
     school, assigned, teacher, other_teacher, session
 ):
-    """حقيقيّةٌ لهذه الشعبة 07:10 لمعلّمٍ **آخر** — فلا مؤقّتةَ فوقها (بند 4)."""
+    """واقعةُ المالك (12/2): للشعبة حصّةٌ حقيقيّةٌ مولَّدةٌ من جدول المنصّة لمعلّمٍ **آخر** في الوقت نفسِه — جدولُ المنصّة غيرُ المعتمد قد يخالف الواقع،
+    فتُنشأ المؤقّتةُ ويُرصد عليها (D-229م) وتبقى الحقيقيّةُ كما هي لا تُلمس ولا تُغلق المؤقّتة."""
     Session.objects.filter(pk=session.pk).update(teacher=other_teacher)
 
-    with pytest.raises(provisional.ProvisionalRefusedError):
-        provisional.create(teacher, school, assigned.id, 1)
+    made, created = provisional.create(teacher, school, assigned.id, 1)
+
+    assert created is True and made.provisional is True and made.teacher_id == teacher.id
+    session.refresh_from_db()
+    assert session.teacher_id == other_teacher.id and session.provisional is False
+    assert made.provisional_until > timezone.now(), "لا تُغلق بحقيقيّةِ معلّمٍ آخر"
 
 
 def test_a_real_session_of_the_same_teacher_in_the_slot_is_opened_not_refused(
@@ -121,7 +126,9 @@ def test_a_real_session_of_the_same_teacher_in_the_slot_is_opened_not_refused(
         reverse("provisional_create", args=[assigned.id]), {"period": "1"}
     )
     assert response.status_code == 302
-    assert response.url == reverse("attendance", args=[session.id])
+    assert (
+        response.url == f"{reverse('provisional_class', args=[assigned.id])}?session={session.id}"
+    )
 
     choices = provisional.period_choices(teacher, school, assigned)
     assert choices[0].session is not None and choices[0].session.pk == session.pk
@@ -136,9 +143,10 @@ def test_the_period_times_are_isolated_left_to_right_so_they_do_not_flip_in_rtl(
     assert '<bdi dir="ltr">07:10–07:55</bdi>' in body
 
 
-def test_it_refuses_when_the_teacher_already_teaches_at_that_time(
+def test_a_teacher_busy_in_another_class_in_the_platform_schedule_may_still_record_provisionally(
     school, year, assigned, teacher, wing
 ):
+    """المنصّةُ تقول إنّه يدرّس شعبةً أخرى 08:00 (جدولٌ غيرُ معتمد) — فلا يمنعه ذلك من رصد هذه الشعبة مؤقّتاً (D-229م)."""
     from tests.conftest import ClassGroupFactory
 
     other = ClassGroupFactory(school=school, grade="G9", section="z", academic_year=year, wing=wing)
@@ -151,8 +159,10 @@ def test_it_refuses_when_the_teacher_already_teaches_at_that_time(
         end_time=dt.time(8, 45),
         status="scheduled",
     )
-    with pytest.raises(provisional.ProvisionalRefusedError):
-        provisional.create(teacher, school, assigned.id, 2)
+
+    made, created = provisional.create(teacher, school, assigned.id, 2)
+
+    assert created is True and made.provisional is True
 
 
 def test_the_unique_keys_hold_at_the_database(school, assigned, teacher, subject):
@@ -205,7 +215,9 @@ def test_picking_a_period_creates_it_and_opens_the_register(client_as, assigned,
 
     session = Session.objects.get(provisional=True)
     assert response.status_code == 302
-    assert response.url == reverse("attendance", args=[session.id])
+    assert (
+        response.url == f"{reverse('provisional_class', args=[assigned.id])}?session={session.id}"
+    )
     assert session.period_number == 2
 
 
@@ -425,3 +437,58 @@ def test_with_the_switch_off_the_home_is_exactly_as_it_was(
 
     assert f'href="{reverse("attendance", args=[session.id])}"' in page
     assert "رصدُ الغياب (مؤقّت" not in page and "prov-off" not in page
+
+
+# ── صفحةُ الشعبة بشبكة الكشف نفسِها (D-229م، D-16 layout-sheet) ──
+
+
+def test_before_choosing_a_period_the_grid_is_shown_disabled_with_the_prompt(
+    client_as, assigned, teacher, kid
+):
+    body = client_as(teacher).get(reverse("provisional_class", args=[assigned.id])).content.decode()
+
+    assert "اختر الحصّة أوّلاً" in body
+    assert 'class="auto-grid prov-off"' in body and kid.full_name in body
+    assert "rec-form" not in body, "لا نموذجَ رصدٍ قبل الاختيار"
+    assert "layout-sheet" in body
+
+
+def test_after_choosing_the_shared_register_sheet_is_in_the_same_page(
+    client_as, assigned, teacher, kid
+):
+    client = client_as(teacher)
+    response = client.post(reverse("provisional_create", args=[assigned.id]), {"period": "2"})
+
+    body = client.get(response.url).content.decode()
+
+    assert (
+        "rec-form" in body and kid.full_name in body
+    ), "شبكةُ كشف الحصّة (بطاقةُ كلّ طالب) في الصفحة نفسِها"
+    assert "اختر الحصّة أوّلاً" not in body
+    assert (
+        reverse("attendance_period_entries", args=[Session.objects.get(provisional=True).id])
+        in body
+    )
+
+
+def test_a_session_param_of_another_teacher_or_class_shows_no_sheet(
+    client_as, assigned, teacher, other_teacher, school, klass, subject, kid
+):
+    theirs = Session.objects.create(
+        school=school,
+        class_group=klass,
+        teacher=other_teacher,
+        subject=subject,
+        date=SUNDAY,
+        start_time=dt.time(8, 0),
+        end_time=dt.time(8, 45),
+        status="scheduled",
+    )
+
+    body = (
+        client_as(teacher)
+        .get(f"{reverse('provisional_class', args=[assigned.id])}?session={theirs.id}")
+        .content.decode()
+    )
+
+    assert "rec-form" not in body and "اختر الحصّة أوّلاً" in body
