@@ -10,7 +10,6 @@ from .models import (
     AbsenceExcuse,
     AttendanceDecision,
     AttendanceEntry,
-    ClassExit,
     CompensatorySession,
     FreeSlotRegistry,
     GuardianContact,
@@ -240,15 +239,6 @@ class PeriodConfirmationAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
     list_select_related = ("class_group", "confirmed_by")
     list_filter = ("school", "confirmed_late", "date")
     date_hierarchy = "date"
-
-
-@admin.register(ClassExit)
-class ClassExitAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
-    list_display = ("student", "session", "destination", "left_at", "returned_at", "allowed_by")
-    list_select_related = ("student", "session__subject", "session__class_group", "allowed_by")
-    list_filter = ("destination", "school")
-    search_fields = ("student__full_name", "student__national_id")
-    date_hierarchy = "left_at"
 
 
 # ── Phase 2 ──────────────────────────────────
