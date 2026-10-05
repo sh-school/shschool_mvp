@@ -6,7 +6,6 @@
 """
 
 import pathlib
-import sys
 
 from playwright.sync_api import sync_playwright
 
@@ -307,4 +306,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
