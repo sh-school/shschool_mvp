@@ -8,6 +8,8 @@
 """
 
 import datetime as dt
+import json
+import pathlib
 from decimal import Decimal
 
 import django
@@ -35,7 +37,7 @@ from tests.conftest import (  # noqa: E402
 )
 
 PASSWORD = "Demo-Pass-2026!"  # pragma: allowlist secret
-TODAY = dt.date(2026, 10, 5)  # الإثنين
+TODAY = dt.date.fromisoformat("2026-10-05")  # الإثنين
 NAMES = [
     "راشد سعيد المهندي",
     "ناصر علي الهاجري",
@@ -55,7 +57,12 @@ NAMES = [
     "هاشم كمال الفخرو",
 ]
 
-school = SchoolFactory(name="مدرسة الشحانية الإعدادية الثانوية للبنين", code="DEMO01")
+school = SchoolFactory(
+    name=json.loads((pathlib.Path(__file__).parent / "meta.json").read_text(encoding="utf-8"))[
+        "school"
+    ],
+    code="DEMO01",
+)
 year = academic_year_for_school(school)
 teacher_role = RoleFactory(school=school, name="teacher")
 teacher = UserFactory(full_name="أحمد سالم الكعبي", national_id="29000000001", password=PASSWORD)
@@ -109,7 +116,9 @@ for index, name in enumerate(NAMES):
     kid = UserFactory(full_name=name, national_id=f"290000{index + 10:05d}")
     MembershipFactory(user=kid, school=school, role=student_role)
     StudentEnrollmentFactory(
-        student=kid, class_group=klass if index < 12 else klass2, enrolled_at=dt.date(2026, 9, 1)
+        student=kid,
+        class_group=klass if index < 12 else klass2,
+        enrolled_at=TODAY - dt.timedelta(days=34),
     )
     students.append(kid)
 

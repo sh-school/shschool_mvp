@@ -12,7 +12,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "shschool.settings.development")
 
 from django.utils import timezone  # noqa: E402
 
-_FIXED = timezone.make_aware(dt.datetime(2026, 10, 5, 9, 20, 0))
+_FIXED = timezone.make_aware(dt.datetime.fromisoformat("2026-10-05T09:20:00"))
 _START = dt.datetime.now(dt.UTC)
 
 
