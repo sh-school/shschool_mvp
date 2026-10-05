@@ -23,7 +23,7 @@ import datetime as dt
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from django.db.models import Max
+from django.db.models import Max, Min
 from django.utils import timezone
 
 from core.models import StudentEnrollment
@@ -89,6 +89,18 @@ def school_day_end(school: School, day: dt.date, band: TimeBand | None = None) -
     return last
 
 
+def _first_slot_start(session: Session) -> dt.time | None:
+    """بدءُ أوّل خانةٍ (غيرِ استراحةٍ) في جرس **شعبة** الحصّة لنوع يومها — لا جرسِ جناحها كلِّه (جناحٌ يعبر جرسين لكلّ شعبةٍ جرسُها)؛ `None` بلا جرسٍ مضبوط."""
+    day_type = day_type_for(session.date)
+    band = session.class_group.time_band
+    if not day_type or band is None:
+        return None
+    first: dt.time | None = TimeSlotConfig.objects.filter(
+        school=session.school, day_type=day_type, band=band, is_break=False
+    ).aggregate(first=Min("start_time"))["first"]
+    return first
+
+
 def entry_window(session: Session) -> tuple[dt.datetime, dt.datetime]:
     """نافذةُ إدخال المعلّم: من بدء الحصّة إلى نهاية اليوم الدراسيّ، لحظتان واعيتان بتوقيت الدوحة.
 
@@ -98,6 +110,12 @@ def entry_window(session: Session) -> tuple[dt.datetime, dt.datetime]:
     start = timezone.make_aware(dt.datetime.combine(session.date, session.start_time))
     day_end = school_day_end(session.school, session.date, band=session.class_group.time_band)
     last = max(day_end, session.end_time) if day_end else session.end_time
+    if session.provisional:
+        # الحصّةُ **المؤقّتة** وحدَها (W-20261005-006، D-232م): فعّالةٌ للإدخال من بدء **أوّل حصّةٍ في جرس الشعبة** إلى نهاية الدوام لا من بدء حصّتها،
+        # فلا يُقيَّد معلّمٌ يرصد ح5 قبل وقتها. والحقيقيّةُ (D-128م) تبقى من بدء حصّتها كما هي.
+        first = _first_slot_start(session)
+        if first is not None:
+            start = timezone.make_aware(dt.datetime.combine(session.date, first))
     if in_preview_environment():
         # المعاينةُ وحدَها (قرارُ المالك 2026-10-04): النافذةُ مفتوحةٌ من أوّل اليوم إلى آخره ليرى الأزرارَ في أيّ ساعةٍ
         # (فجراً قبل الحصّة وبعد الدوام)؛ والإنتاجُ بنافذته كما هي.

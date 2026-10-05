@@ -96,6 +96,9 @@ class ScheduleSessionsMixin:
                 school=school,
                 date__range=(week_sun, week_thu),
                 class_group__academic_year=academic_year,
+                # الحصّةُ المؤقّتة للمعلّم ليست من الجدول فلا تُعدّ «يوماً مولَّداً» (W-20261005-006، D-219م): بلا هذا يمنع أسبوعٌ
+                # فيه مؤقّتاتٌ كلَّ يومٍ توليدَ الجدول الحقيقيّ. أثرُه صفرٌ حيث لا مؤقّتات (كلُّ الإنتاج اليوم).
+                provisional=False,
             )
             .order_by()
             .values_list("date")
@@ -207,6 +210,8 @@ class ScheduleSessionsMixin:
         توليدُ اليوم كلِّه بـ`ProtectedError` أو اختفت أدلّةُ سندِ الخصم.
         """
         return sessions.filter(
+            # المؤقّتةُ تُغلق ولا تُحذف أبداً (W-20261005-006، بند 14): لا تدخل في «ما لم يمسّه أحد» الذي يُمحى.
+            provisional=False,
             status="scheduled",
             attendances__isnull=True,
             attendance_entries__isnull=True,
@@ -260,7 +265,8 @@ class ScheduleSessionsMixin:
             wanted = {identity(s): s for s in slots}
 
         existing = list(
-            Session.objects.filter(school=school, date=target_date).only(
+            # الحقيقيّةُ وحدَها: هويّةُ المؤقّتة قد تطابق هويّةَ حقيقيّةٍ مرتقَبة فتمنع إنشاءَها صامتةً (W-20261005-006، أثرُه صفرٌ بلا مؤقّتات).
+            Session.objects.filter(school=school, date=target_date, provisional=False).only(
                 "teacher_id", "class_group_id", "start_time", "subject_id"
             )
         )

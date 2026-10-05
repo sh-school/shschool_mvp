@@ -1,0 +1,40 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% comment %}
+شُعبُ إسناد المعلّم للرصد بحصّةٍ مؤقّتة (W-20261005-006): لا شعبةَ هنا غيرُ المُسنَدة إليه، والرصدُ لليوم الدراسيّ الجاري وحدَه.
+تظهر الصفحةُ بمفتاح PROVISIONAL_SESSIONS_ENABLED وحدَه — مطفأً 404.
+{% endcomment %}
+{% block title %}شُعبي للرصد{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% url 'teacher_schedule' as schedule_url %}
+{% include "components/breadcrumbs.html" with parent_url=schedule_url parent_label="حصصي اليوم" current="شُعبي للرصد" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "شُعبي للرصد" subtitle="اضغط «ارصد» أمامَ شعبتك فتُفتح شبكةُ الرصد مباشرةً" icon="attendance_register" %}{% endpage_header %}
+
+  {% section_card "شُعب إسنادك" meta=classes|length icon="attendance_register" %}
+    {% if classes %}
+    <ul class="pp-classes">
+      {% for klass in classes %}
+      <li class="pp-class">
+        <span class="pp-class__info">
+          <b class="pp-class__name">{{ klass.short_label }}</b>
+          <span class="pp-class__wing">{{ klass.wing.name|default:"—" }}</span>
+        </span>
+        {% comment %}«ارصد» يُنشئ حصّةَ الوقت الجاريّ ويفتح الشبكةَ مباشرةً (أمرُ المالك): لا صفحةَ وسيطة.{% endcomment %}
+        <form method="post" action="{% url 'provisional_create' klass.id %}">{% csrf_token %}
+          <button type="submit" class="btn-primary btn-sm">ارصد</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    {% include "components/empty_state.html" with title="لا شُعبَ مُسنَدةً إليك" only %}
+    {% endif %}
+  {% endsection_card %}
+</div>
+{% endblock %}

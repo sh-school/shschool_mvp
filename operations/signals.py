@@ -31,3 +31,20 @@ def clear_sessions_of_a_break(
     ScheduleService.clear_holiday_sessions(
         instance.academic_year.school, instance.start_date, instance.end_date
     )
+
+
+@receiver(post_save, sender="operations.Session")
+def close_provisional_when_a_real_session_arrives(
+    sender: object, instance: object, created: bool = False, raw: bool = False, **kwargs: object
+) -> None:
+    """حصّةٌ حقيقيّةٌ تُحفظ تُغلق المؤقّتةَ التي زاحمتها (W-20261005-006، D-219م) — أيّاً كان من أنشأها.
+
+    **بمفتاح الحصّة المؤقّتة وحدَه**: مطفأً يرجع المستقبِلُ قبل أيّ استعلامٍ فلا يتغيّر شيءٌ (ولا عدّادُ استعلاماتٍ في اختبار).
+    وما يُدرَج بـ`bulk_create` لا يُطلق هذه الإشارة؛ فالقراءةُ التي تعرض المؤقّتات تستدعي `close_shadowed` أيضاً، فلا تتّكل القاعدةُ على مولّدٍ بعينه.
+    """
+    if raw or not created or getattr(instance, "provisional", False):
+        return
+    from operations.services import provisional_session
+
+    if provisional_session.enabled():
+        provisional_session.close_shadowed(instance.school, instance.date)  # type: ignore[attr-defined]

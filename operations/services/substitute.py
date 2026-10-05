@@ -381,6 +381,8 @@ class SubstituteService:
             date=day,
             start_time=slot.start_time,
             elective_group=slot.elective_group,
+            # الحقيقيّةُ وحدَها: لا يُسلَّم صفٌّ مؤقّتٌ ولا يُخلط بها (W-20261005-006)؛ أثرُه صفرٌ بلا مؤقّتات.
+            provisional=False,
             defaults={
                 "teacher": slot.teacher,
                 "subject": slot.subject,

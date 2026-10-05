@@ -71,6 +71,14 @@ class Session(models.Model):
         related_name="sessions_swapped_away",
         verbose_name="المعلّم الأصليّ",
     )
+    #: حصّةٌ **مؤقّتة** ينشئها المعلّمُ لشعبةٍ مُسنَدةٍ إليه ليرصد قبل اعتماد الجدول (W-20261005-006، D-217م/D-218م) — ليست من الجدول المعتمَد.
+    #: `db_default` لا `default` وحده: نسخةُ الكود القديمةُ أثناء النشر المتدحرج تُدرج بلا الحقل فلا تفشل (توسيعٌ ثمّ تقليص).
+    provisional = models.BooleanField(default=False, db_default=False, verbose_name="حصّة مؤقّتة")
+    #: نهايةُ سريان المؤقّتة: تُضبط عند الإنشاء (14 يوماً)، وتُقصَّر إلى لحظة الإغلاق عند وجود حقيقيّةٍ لخانتها أو اعتماد الجدول.
+    #: المؤقّتةُ **تُغلق ولا تُحذف** (بند 14): تبقى تاريخاً ورصدُها محفوظ.
+    provisional_until = models.DateTimeField(
+        null=True, blank=True, verbose_name="سريانُ المؤقّتة حتى"
+    )
     notes = models.TextField(blank=True, verbose_name="ملاحظات")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
@@ -83,12 +91,28 @@ class Session(models.Model):
             models.Index(fields=["class_group", "date"]),
         ]
         constraints = [
+            # قيدا التداخل **على الحقيقيّة وحدَها** (W-20261005-006، D-219م): الحمايةُ نفسُها للصفوف غير المؤقّتة حرفاً، والمؤقّتةُ خارجَهما فلا تُسقط
+            # حصّةً حقيقيّةً بصمتٍ (`bulk_create(ignore_conflicts=True)`) أيّاً كان من أنشأها — المولّدُ الحاليّ أو V2 أو غيرُهما.
             models.UniqueConstraint(
-                fields=["teacher", "date", "start_time"], name="no_teacher_time_overlap"
+                fields=["teacher", "date", "start_time"],
+                condition=models.Q(provisional=False),
+                name="no_teacher_time_overlap_real",
             ),
             models.UniqueConstraint(
                 fields=["class_group", "date", "start_time", "elective_group"],
-                name="no_class_time_overlap",
+                condition=models.Q(provisional=False),
+                name="no_class_time_overlap_real",
+            ),
+            # تفرّدُ المؤقّتة وحدَها (إضافةٌ لا تمسّ الحقيقيّة): الشعبةُ لا تحمل مؤقّتتَين لرقم حصّةٍ واحد، والمعلّمُ كذلك.
+            models.UniqueConstraint(
+                fields=["class_group", "date", "period_number"],
+                condition=models.Q(provisional=True),
+                name="provisional_class_period_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["teacher", "date", "period_number"],
+                condition=models.Q(provisional=True),
+                name="provisional_teacher_period_unique",
             ),
         ]
 

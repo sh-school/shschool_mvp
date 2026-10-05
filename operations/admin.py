@@ -76,6 +76,19 @@ class SessionAdmin(admin.ModelAdmin):
     date_hierarchy = "date"
     inlines = [AttendanceInline]
 
+    def get_list_display(self, request):
+        """عمودُ `provisional` يُضاف **بمفتاح الحصّة المؤقّتة وحدَه** (W-20261005-006): مطفأً تبقى القائمةُ كما كانت حرفاً."""
+        from operations.services import provisional_session
+
+        columns = super().get_list_display(request)
+        return (*columns, "provisional") if provisional_session.enabled() else columns
+
+    def get_list_filter(self, request):
+        from operations.services import provisional_session
+
+        filters = super().get_list_filter(request)
+        return (*filters, "provisional") if provisional_session.enabled() else filters
+
 
 @admin.register(StudentAttendance)
 class StudentAttendanceAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
