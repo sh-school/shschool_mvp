@@ -13,6 +13,7 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 from django.utils import timezone
 
@@ -20,12 +21,11 @@ from core.models import StudentEnrollment
 
 from .attendance_entries import EVIDENCE_TYPES, PendingRow, unapproved_report
 from .attendance_policy import approval_holder, can_approve, can_enter, holder_gap
-from .models import AttendanceEntry, StudentAttendance
+from .models import AttendanceEntry, Session, StudentAttendance
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
 
-    from .models import Session
 
 #: نافذةُ الطابور بالأيّام: إدخالٌ أقدمُ منها يخرج من طابور الاعتماد ويبقى في تقرير «غيرُ معتمَد».
 QUEUE_DAYS = 14
@@ -126,6 +126,78 @@ def teacher_may_enter_now(user: CustomUser, session: Session, lines: list[Studen
     return bool(can_enter(user, session, lines[0].student))
 
 
+#: سببُ إغلاق الإدخال بنصٍّ للمعلّم — يُعرض سطراً واحداً في رأس الحصّة حين لا أزرارَ (وإلّا بدت البطاقاتُ فارغةً بلا تفسير).
+ENTRY_CLOSED = {
+    "not_teacher": "لست معلّمَ هذه الحصّة — للاطّلاع فقط",
+    "before_start": "لم تبدأ الحصّةُ بعد",
+    "after_window": "انتهت نافذةُ الإدخال (آخرُ اليوم الدراسيّ)",
+    "developer": "حسابُ المطوّر لا يُدخل",
+    "cancelled": "الحصّةُ ملغاة",
+}
+
+
+def entry_closed_reason(user: CustomUser, session: Session, lines: list[StudentLine]) -> str:
+    """سطرُ سبب إغلاق الإدخال لهذا المستخدم، أو «» إن كان مفتوحاً."""
+    if not lines:
+        return ""
+    verdict = can_enter(user, session, lines[0].student)
+    return "" if verdict else ENTRY_CLOSED.get(verdict.reason, "الإدخالُ مغلقٌ لهذه الحصّة")
+
+
+@dataclass(frozen=True)
+class GridCell:
+    """خليّةُ طالبٍ في حصّةٍ بشبكة المعلّم: ما يُعرض رمزاً صغيراً — المبدئيُّ المعلَّق بوسمٍ، وإلّا المعتمَدُ الفعليّ."""
+
+    shown: str  # present | absent | late | excused | "" (لم يُرصد)
+    pending: bool
+
+
+@dataclass(frozen=True)
+class GridColumn:
+    session: Session
+    number: int
+    is_focus: bool
+
+
+def teacher_grid(
+    session: Session, student_ids: list[UUID]
+) -> tuple[list[GridColumn], dict[UUID, dict[UUID, GridCell]]]:
+    """أعمدةُ شبكة المعلّم وخلاياها: حصصُ هذا المعلّم اليومَ في الشعبة نفسِها (كشفُ المشرف بالمكوّن نفسِه مقتصراً على حصصه).
+
+    الحصّةُ المفتوحةُ عمودُ الإدخال، وبقيّةُ حصصه رموزٌ للاطّلاع. والقراءةُ بثلاثة استعلاماتٍ لكلّ الشبكة لا لكلّ خليّة.
+    """
+    sessions = list(
+        Session.objects.filter(
+            class_group_id=session.class_group_id, date=session.date, teacher_id=session.teacher_id
+        )
+        .exclude(status="cancelled")
+        .order_by("start_time")
+    )
+    ids = [s.id for s in sessions]
+    effective = {
+        (r.student_id, r.session_id): r.status
+        for r in StudentAttendance.objects.filter(session_id__in=ids)
+    }
+    pending = {
+        (e.student_id, e.session_id): e.status
+        for e in AttendanceEntry.objects.filter(
+            session_id__in=ids, superseded_by__isnull=True, decision__isnull=True
+        )
+    }
+    cells: dict[UUID, dict[UUID, GridCell]] = {}
+    for student_id in student_ids:
+        row: dict[UUID, GridCell] = {}
+        for s in sessions:
+            key = (student_id, s.id)
+            waiting = key in pending
+            row[s.id] = GridCell(
+                shown=str(pending.get(key) or effective.get(key) or ""), pending=waiting
+            )
+        cells[student_id] = row
+    columns = [GridColumn(s, i + 1, s.id == session.id) for i, s in enumerate(sessions)]
+    return columns, cells
+
+
 def teacher_page_context(user: CustomUser, session: Session) -> dict[str, Any]:
     """سياقُ شاشة المعلّم في حصّةٍ لا يرصد فيها مباشرةً (شُعب الأجنحة): المعتمَدُ والمبدئيُّ والنقراتُ والخروج.
 
@@ -151,10 +223,24 @@ def teacher_page_context(user: CustomUser, session: Session) -> dict[str, Any]:
                 "exit_count": len(exits.get(line.student.id, (None, []))[1]),
             }
         )
+    columns, cells = teacher_grid(session, [line.student.id for line in lines])
     return {
+        "grid_cols": columns,
+        "grid_cells": cells,
         "session": session,
-        "can_tap_late": is_teacher,
+        # النقرتان لا تُعرضان إلا حيث تُقبلان: «دخل الآن» بنافذة الحصّة نفسِها و«خرج بإذن» بنافذة اليوم (وإلّا ردّ الخادمُ 403 فتتراكم التنبيهات).
+        "can_tap_late": bool(
+            is_teacher
+            and lines
+            and AttendanceService.may_tap("late", user, session, lines[0].student)
+        ),
+        "can_tap_out": bool(
+            is_teacher
+            and lines
+            and AttendanceService.may_tap("out", user, session, lines[0].student)
+        ),
         "can_enter": is_teacher and teacher_may_enter_now(user, session, lines),
+        "entry_closed": entry_closed_reason(user, session, lines),
         "exits": exits,
         "out_now": sum(1 for cur, _ in exits.values() if cur is not None),
         "students_data": rows,
@@ -265,3 +351,140 @@ def unapproved_by_session(
         for rows in grouped.values()
     ]
     return sorted(result, key=lambda item: -item.oldest_hours)
+
+
+# ── إدخالاتُ المعلّم في شبكة المشرف (W-20261004-014) ─────────────────────────
+
+
+@dataclass(frozen=True)
+class EntryMark:
+    """ما أدخله المعلّمُ لطالبٍ في حصّةٍ — يُعرض في خليّته بشبكة المشرف كما تعرضه صفحةُ المعلّم، بلا سببِ رفضٍ ولا نصٍّ حرّ.
+
+    `can_decide`: أيملك هذا المستخدمُ الاعتمادَ الآن (الحاملُ يومَ الحصّة أو القيادةُ حين لا حامل، ولا يعتمد أحدٌ ما أدخله بنفسه).
+    """
+
+    entry_id: object
+    state: str  # pending | approved | rejected
+    status: str
+    label: str
+    minutes: int | None
+    can_decide: bool
+    corrected: bool
+
+
+def _mark_of(entry: AttendanceEntry, can_decide: bool, corrected: bool) -> EntryMark:
+    state, _reason = _state(entry)
+    return EntryMark(
+        entry_id=entry.id,
+        state=state,
+        status=str(entry.status),
+        label=str(entry.get_status_display()),
+        minutes=entry.tardiness_minutes,
+        can_decide=can_decide and state == "pending",
+        corrected=corrected,
+    )
+
+
+def entry_marks_of(
+    class_group: Any, day: dt.date, user: CustomUser
+) -> dict[object, dict[dt.time, EntryMark]]:
+    """`{student_id: {start_time: EntryMark}}` لإدخالات المعلّمين في شعبةٍ ويومٍ — وحصّتا الزوج خانةٌ واحدة.
+
+    مصدرُها واحدٌ مع صفحة المعلّم (`AttendanceEntry` الرأسُ غيرُ المُستبدَل ثمّ قرارُه) فلا منطقَ ثانياً للحالة؛ والأهليّةُ من
+    `can_approve` نفسِها مخزَّنةً بالحصّة والمدخِل فلا استعلامَ لكلّ طالب.
+    """
+    heads = (
+        AttendanceEntry.objects.filter(
+            session__class_group=class_group, session__date=day, superseded_by__isnull=True
+        )
+        .select_related("decision", "session__class_group__wing", "entered_by")
+        .order_by("session__start_time", "entered_at")
+    )
+    corrected = set(
+        StudentAttendance.objects.filter(
+            session__class_group=class_group, session__date=day, unobserved_correction__isnull=False
+        ).values_list("student_id", "session__start_time")
+    )
+    verdicts: dict[tuple[object, object], bool] = {}
+    marks: dict[object, dict[dt.time, EntryMark]] = {}
+    for entry in heads:
+        key = (entry.session_id, entry.entered_by_id)
+        if key not in verdicts:
+            verdicts[key] = bool(can_approve(user, entry.session, entered_by=entry.entered_by))
+        start = entry.session.start_time
+        marks.setdefault(entry.student_id, {}).setdefault(
+            start, _mark_of(entry, verdicts[key], (entry.student_id, start) in corrected)
+        )
+    return marks
+
+
+def entry_mark_of(entry_id: Any, user: CustomUser) -> EntryMark:
+    """علامةُ إدخالٍ واحدٍ بعد قرارٍ — تُجلَب من جديدٍ فلا يبقى قرارٌ مخزَّنٌ قديم، ويُعاد رسمُها وحدَها (HTMX) في الشبكة."""
+    entry = AttendanceEntry.objects.select_related(
+        "decision", "session__class_group__wing", "entered_by"
+    ).get(pk=entry_id)
+    can = bool(can_approve(user, entry.session, entered_by=entry.entered_by))
+    corrected = StudentAttendance.objects.filter(
+        session=entry.session, student_id=entry.student_id, unobserved_correction__isnull=False
+    ).exists()
+    return _mark_of(entry, can, corrected)
+
+
+def pending_decidable_count(marks: dict[object, dict[dt.time, EntryMark]]) -> int:
+    """كم إدخالاً معلَّقاً يملك هذا المستخدمُ قرارَه في هذه العلامات — لسطر «ينتظر اعتمادك»."""
+    return sum(1 for per_student in marks.values() for m in per_student.values() if m.can_decide)
+
+
+def entry_grid_context(class_group: Any, day: dt.date, user: CustomUser) -> dict[str, Any]:
+    """سياقُ شبكة المشرف من إدخالات المعلّمين: علاماتُ الخلايا وعدّادُ ما ينتظر قرارَ هذا المستخدم — بمفتاحَين لا غير."""
+    marks = entry_marks_of(class_group, day, user)
+    return {"entry_marks": marks, "awaiting_decision": pending_decidable_count(marks)}
+
+
+def teacher_entry_overrides(sessions: Any) -> list[tuple[Any, str, int | None]]:
+    """`(طالب، غائب|متأخّر، دقائق)` لما أدخله المعلّمُ **معلَّقاً أو معتمَداً** في حصص خانة — يُفتح عليه كشفُ المشرف مُعبَّأً.
+
+    واقعةُ 2026-10-05: بعد «اعتمادُ الكلّ» رُسمت الأزرارُ «حاضر» للجميع لأنّ الرصدَ المعتمَدَ مصدرُه المعلّم لا المشرف فلا يقرؤه `cells_of`.
+    الحاضرُ لا يُملأ (الافتراضيُّ حاضر)؛ والمرفوضُ لا يُعرض.
+    """
+    entries = (
+        AttendanceEntry.objects.filter(
+            session__in=sessions, superseded_by__isnull=True, status__in=("absent", "late")
+        )
+        .exclude(decision__decision="rejected")
+        .order_by("entered_at")
+    )
+    return [(e.student_id, str(e.status), e.tardiness_minutes) for e in entries]
+
+
+def held_student_ids(sessions: Any) -> set[Any]:
+    """معرّفاتُ من له إدخالُ معلّمٍ **معلَّقٌ أو معتمَد** (رأسُ السلسلة ولو لم يُرفض) في حصص الخانة — لا يمسّه تثبيتُ المشرف."""
+    return set(
+        AttendanceEntry.objects.filter(session__in=sessions, superseded_by__isnull=True)
+        .exclude(decision__decision="rejected")
+        .values_list("student_id", flat=True)
+    )
+
+
+def exit_conflicts_of(sessions: Any, marks: dict) -> set[str]:
+    """طلابٌ وسمهم المشرفُ **غائباً بنفسه** (بلا أن يرى خروجَهم: لا `exit`) ولهم خروجٌ مسجَّلٌ في هذه الحصّة — تعارضٌ لا يُثبَّت.
+
+    الغيابُ المشتقُّ من الخروج نفسِه (يحمل `exit`) مشروعٌ: هو «غائبٌ بإذن المعلّم». والممنوعُ أن يُثبَّت غيابٌ عاديٌّ فوق خروجٍ لم يُنظر إليه.
+    """
+    from operations.class_exit import is_unreturned
+    from operations.models import ClassExit
+
+    manual = {
+        str(student): mark
+        for student, mark in marks.items()
+        if mark.get("status") == "absent" and not mark.get("exit")
+    }
+    if not manual:
+        return set()
+    return {
+        str(exit_.student_id)
+        for exit_ in ClassExit.objects.filter(
+            session__in=sessions, student_id__in=list(manual)
+        ).select_related("session")
+        if exit_.returned_at is None or is_unreturned(exit_)
+    }

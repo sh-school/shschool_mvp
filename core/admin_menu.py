@@ -107,7 +107,12 @@ GROUPS: tuple[tuple[str, tuple[tuple[str | None, tuple[str, ...]], ...]], ...] =
             ),
             (
                 "الحضور والغياب",
-                ("operations.StudentAttendance", "operations.AbsenceAlert"),
+                (
+                    "operations.StudentAttendance",
+                    "operations.ClassExit",
+                    "operations.DailyExitTally",
+                    "operations.AbsenceAlert",
+                ),
             ),
             (
                 "إدارة السلوك",

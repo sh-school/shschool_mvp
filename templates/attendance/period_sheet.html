@@ -1,0 +1,193 @@
+{% load static ui icons dict_filters approvals %}
+{% comment %}
+كشفُ الحصّة المشتركُ (W-20261004-015): **قالبٌ واحدٌ** يرسمه كشفُ المشرف (`wings/record_section.html`) وصفحةُ المعلّم (`teacher/attendance_readonly.html`)
+بالقالب والـCSS والـJS نفسِها (`period-register.js`)، والفرقُ في الخدمة وحدَها: المشرفُ يُرسل النموذجَ إلى `wings:record_period` فيكتب `StudentAttendance` مباشرةً،
+والمعلّمُ إلى `attendance_period_entries` فتُكتب إدخالاتٌ مبدئيّةٌ `AttendanceEntry` تنتظر اعتمادَ الحامل (D-125م).
+المتغيّراتُ التي تفرّق بينهما: `teacher_sheet` (لا تصديرَ ولا روابطَ ملفّ الغياب/التصحيح)، و`form_action` (وجهةُ الإرسال)، و`tab_urls` (روابطُ التبويب).
+يتوقّع السياقَ نفسَه الذي يبنيه المشرفُ: heading, subtitle, periods, focus, focus_status, measured_now, rows, whereabouts, draft_key, following, entry_marks, awaiting_decision.
+{% endcomment %}
+  {% page_header heading subtitle=subtitle icon="checklist" %}
+    {% if periods and not teacher_sheet %}
+    {% comment %} نموذجُ GET بلا سكربت: الاتّجاهُ يُختار مرّةً، وكلُّ زرٍّ يرسل صيغتَه. {% endcomment %}
+    <form method="get" action="{% url 'wings:section_register' klass.id %}" class="per-exports">
+      <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+      <select name="orient" class="form-select per-orient" aria-label="اتّجاه الصفحة">
+        <option value="landscape">أفقي</option>
+        <option value="portrait">عمودي — صفحةٌ واحدة</option>
+      </select>
+      <button data-app-file type="submit" name="format" value="xlsx" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</button>
+      <button data-app-file type="submit" name="format" value="pdf" class="btn-secondary btn-sm">{% icon "export_pdf" %} تصدير PDF</button>
+    </form>
+    {% endif %}
+    {% if teacher_sheet %}{% callout "info" %}إدخالُك مبدئيٌّ: يعتمده حاملُ جناح الشعبة فيصير رصداً، وقبل اعتماده لا يُحتسب حضوراً ولا غياباً.{% endcallout %}{% endif %}
+    {% if periods %}
+      {% if entry_closed %}{% callout "warning" %}الإدخالُ مغلق: {{ entry_closed }}.{% endcallout %}{% endif %}
+      {% if focus.confirmation %}{% callout "info" %}ثُبّتت أوّلَ مرّةٍ {{ focus.confirmation.first_confirmed_at|time:"H:i:s" }} — والتثبيتُ ثانيةً يستبدل ما رُصد ولا يغيّر هذا الوقت.{% endcallout %}{% endif %}
+      {% if not measured_now %}{% callout "hint" %}خارجَ وقت الحصّة: دقائقُ التأخّر تُكتب باليد.{% endcallout %}{% endif %}
+    {% endif %}
+  {% endpage_header %}
+
+  {% if not periods %}
+    {% callout "info" show=True %}لا حصصَ لهذه الشعبة في {{ day|date:"d M" }} — فلا شيءَ يُرصد.{% endcallout %}
+  {% else %}
+
+  {% if awaiting_decision %}
+    {% callout "info" show=True %}{{ awaiting_decision }} إدخالاً من المعلّمين ينتظر اعتمادك في هذه الشعبة — يظهر بجانب كلّ طالبٍ في عمود حصّته، ويُنجَز الرفضُ (بسببه) في <a href="{% url 'attendance_approvals' %}">صفحة الاعتماد</a>.{% endcallout %}
+  {% endif %}
+
+  <form method="post" action="{% if form_action %}{{ form_action }}{% else %}{% url 'wings:record_period' klass.id %}{% endif %}" class="rec-form"
+        data-draft-key="{{ draft_key }}" data-now="{% now 'U' %}"{% if teacher_sheet %}
+        data-exit-url="{% url 'mark_exit' session.id %}" data-return-url="{% url 'mark_return' session.id %}"
+        {% if not sheet_closed %}data-entry-url="{% url 'attendance_entry' session.id %}" {% endif %}data-start-epoch="{{ start_epoch }}"{% endif %}>
+    {% csrf_token %}
+    <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+    <input type="hidden" name="start" value="{{ focus.key }}">
+
+    {% comment %} رأسُ الحصّة المفتوحة: رقمُها ومادّتُها ووقتُها وحالُها، وزرّا الجملة. {% endcomment %}
+    <section class="per-head" aria-label="الحصّة المفتوحة للرصد">
+      <span class="per-head__badge" aria-hidden="true">ح{{ focus.number }}</span>
+      <div class="per-head__body">
+        <p class="per-head__title">
+          الحصّة {{ focus.number }} — {{ focus.subjects }}
+          <span class="per-state is-{{ focus_status }}">{% if focus_status == "confirmed" %}مثبّتة{% elif focus_status == "confirmed_late" %}ثُبّتت متأخّرة{% elif focus_status == "current" %}الآن{% elif focus_status == "missed" %}لم تُرصد{% else %}قادمة{% endif %}</span>
+        </p>
+        <p class="per-head__time">
+          <span>تبدأ <b>{{ focus.start|time:"H:i" }}</b></span>
+          <span>تنتهي <b>{{ focus.end|time:"H:i" }}</b></span>
+        </p>
+      </div>
+      <div class="per-head__tools">
+        <div class="per-head__keys">
+        <div class="per-bulk">
+          <button type="button" class="btn-secondary btn-sm" data-bulk="present"{% if sheet_closed %} disabled{% endif %}>الكلُّ حاضر</button>
+          <button type="button" class="btn-secondary btn-sm" data-bulk="absent"{% if sheet_closed %} disabled{% endif %}>غيابُ الكلّ</button>
+        </div>
+        {% if not teacher_sheet %}{% approve_all_button detached=True %}{% endif %}
+        </div>
+        <nav class="per-tabs" aria-label="حصصُ اليوم">
+          {% for period, status in periods %}
+            <a href="{% if tab_urls %}{{ tab_urls|get_item:period.key }}{% else %}?date={{ day|date:'Y-m-d' }}&amp;p={{ period.key }}{% endif %}" class="per-tab is-{{ status }}{% if period.start == focus.start %} is-focus{% endif %}" {% if period.start == focus.start %}aria-current="true"{% endif %}>ح{{ period.number }}</a>
+          {% empty %}
+            <span class="sr-only">لا حصصَ لهذه الشعبة</span>
+          {% endfor %}
+        </nav>
+      </div>
+    </section>
+
+    {% comment %}
+      كشفُ الشعبة: الطلابُ صفوفاً، وحصصُ اليوم كلُّها أعمدة. العمودُ المفتوحُ للرصد
+      فيه الأزرار، وبقيّةُ الأعمدة حالُ الطالب فيها. ورأسُ العمود يفتح حصّتَه.
+      والشبكةُ (الأصل) هي الجدولُ نفسُه بلا نسخةٍ ثانيةٍ من الحقول: يُعاد تنسيقُ الصفّ
+      بطاقةً بالأنماط وحدَها، فلا يتضاعف شيءٌ في الإرسال.
+    {% endcomment %}
+    <div class="per-grid-wrap">
+      <table class="per-grid" data-no-sort>
+        <tbody>
+          {% for row in rows %}
+          {% with sid=row.student.id %}
+          <tr class="rec-row" data-student="{{ sid }}" data-prefill="{{ row.pick.marker }}"{% if row.pick.out_since %} data-out-since="{{ row.pick.out_since }}"{% endif %}{% if teacher_sheet %} data-exit-count="{{ row.pick.exit_count }}" data-exit-base="{{ row.pick.exit_base }}"{% if row.pick.exit_open_at %} data-exit-open-at="{{ row.pick.exit_open_at }}"{% endif %}{% endif %}>
+            <td class="per-grid__no">{{ forloop.counter }}</td>
+            <th scope="row" class="per-grid__name">
+              {% if teacher_sheet %}
+              <span class="rec-row__name"><span class="rec-row__file" title="{{ row.student.full_name }}">{{ row.student.full_name }}</span></span>
+              {% else %}
+              <span class="rec-row__name"><a href="{% url 'wings:absence_file' sid %}" class="rec-row__file" title="{{ row.student.full_name }} — ملفُّ غيابه يوماً بيوم">{{ row.student.full_name }}</a> <a href="{% url 'wings:student_events' klass.id sid %}" class="rec-row__fix" title="تصحيح أو عذرُ إدخالٍ خاطئ على هذا الطالب">تصحيح</a></span>
+              {% endif %}
+              {% if row.absent_yesterday or row.days or row.pick.away_note %}
+              <span class="rec-row__flags">
+                {% if row.pick.away_note %}<span class="badge badge--info" title="بإذن المعلّم">{{ row.pick.away_note }}</span>{% endif %}
+                {% if row.pick.marker == "out" %}<span class="badge badge--danger" title="خرج بإذن ولم يعد حتى الآن">لم يعد</span>{% endif %}
+                {% if row.absent_yesterday %}<span class="badge badge--warning">غاب أمس</span>{% endif %}
+                {% if row.needs_contact %}<a href="{% url 'wings:absence_file' sid %}?call={{ row.needs_contact|date:'Y-m-d' }}#day-{{ row.needs_contact|date:'Y-m-d' }}" class="badge badge--danger" title="أخطِر وليَّ الأمر عن غياب {{ row.needs_contact|date:'d/m' }}">لم يُخطَر وليُّ الأمر</a>{% endif %}
+                {% if row.days %}<span class="badge badge--neutral">{{ row.days }} يوم بلا عذر{% if row.gate %} · الحرمانُ بعد {{ row.gate.max_days }}{% endif %}</span>{% endif %}
+              </span>
+              {% endif %}
+            </th>
+            {% for period, cell, gone in row.track %}
+              {% if period.start == focus.start %}
+              <td class="per-cell is-focus">
+                <span class="rec-row__pick" role="radiogroup" aria-label="حال {{ row.student.full_name }}">
+                  <label class="rec-pick rec-pick--present">
+                    <input type="radio" name="s-{{ sid }}" value="present" {% if row.pick.status == "present" %}checked{% endif %}{% if row.pick.locked or sheet_closed %} disabled{% endif %}>
+                    <span>حاضر</span>
+                  </label>
+                  <label class="rec-pick rec-pick--absent">
+                    <input type="radio" name="s-{{ sid }}" value="absent" {% if row.pick.status == "absent" %}checked{% endif %}{% if row.pick.locked or sheet_closed %} disabled{% endif %}>
+                    <span>غائب{% if row.pick.marker == "out" %} <small title="{{ row.pick.away_note }} — لم يعد">بإذن المعلّم</small>{% endif %}</span>
+                  </label>
+                  <label class="rec-pick rec-pick--late">
+                    <input type="radio" name="s-{{ sid }}" value="late" {% if row.pick.status == "late" %}checked{% endif %}{% if row.pick.locked or sheet_closed %} disabled{% endif %} data-tap="t-{{ sid }}">
+                    <span>متأخّر{% if row.pick.marker == "late" %} <small title="نقرةُ المعلّم">{{ row.pick.tap }} د</small>{% elif row.pick.late_minutes %} <small title="دقائقُ التأخّر محسوبةٌ من بدء الحصّة">{{ row.pick.late_minutes }} د</small>{% endif %}</span>
+                  </label>
+                </span>
+                {% comment %} الشبكةُ فقط: «خروج» يفتح نافذةً عائمةً بوجهات «أين الطالب» (تكتب `w-` نفسَه)، فلا يزيد ارتفاعَ البطاقة. {% endcomment %}
+                <button type="button" class="rec-exit" data-exit-open aria-haspopup="true" aria-expanded="false" aria-label="خروج {{ row.student.full_name }}" data-who="{{ row.student.full_name }}" title="{% if row.pick.exit_note %}{{ row.pick.exit_note }}{% else %}خروجُ الطالب — أين هو؟{% endif %}"{% if sheet_closed %} disabled{% endif %}>
+                  <span class="rec-exit__label" data-exit-label>خروج</span>
+                </button>
+                <div class="rec-pop" data-exit-pop role="menu" aria-label="أين الطالب">
+                  <button type="button" role="menuitem" class="rec-pop__opt" data-where="">{% if teacher_sheet %}عاد إلى الفصل{% else %}في فصله{% endif %}</button>
+                  {% for value, label in whereabouts %}
+                    <button type="button" role="menuitem" class="rec-pop__opt" data-where="{{ value }}">{{ label }}</button>
+                  {% endfor %}
+                </div>
+                <input type="hidden" name="t-{{ sid }}" value="">
+                {% if row.pick.seen_exit %}<input type="hidden" name="o-{{ sid }}" value="{{ row.pick.seen_exit }}">{% endif %}
+                {% with mark=entry_marks|get_item:sid|get_item:period.start %}{% if mark %}{% include "wings/partials/entry_mark.html" %}{% endif %}{% endwith %}
+                <span class="rec-row__more">
+                  <select name="w-{{ sid }}" class="form-select per-where" aria-label="أين الطالب"{% if sheet_closed %} disabled{% endif %}>
+                    <option value="">في فصله</option>
+                    {% for value, label in whereabouts %}
+                      <option value="{{ value }}" {% if row.pick.whereabouts == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                  {% if not measured_now %}
+                    <input type="number" name="m-{{ sid }}" min="0" max="240" inputmode="numeric"
+                           class="form-control per-minutes" placeholder="دقائق"
+                           value="{{ cell.late_minutes|default_if_none:'' }}" aria-label="دقائق التأخّر">
+                  {% endif %}
+                </span>
+              </td>
+              {% else %}
+              <td class="per-cell is-{{ cell.status|default:'none' }}"
+                  title="{% if cell.status == 'absent' %}غائب{% elif cell.status == 'late' %}متأخّر{% if cell.late_minutes %} {{ cell.late_minutes }} دقيقة{% endif %}{% elif cell.status == 'present' %}حاضر{% else %}لم تُرصد{% endif %}{% if cell.whereabouts %} · {{ cell.where_label }}{% endif %}{% if gone %} · {{ gone }}{% endif %}">
+                <span class="per-mark">{% if cell.status == "absent" %}غ{% elif cell.status == "late" %}م{% elif cell.status == "present" %}ح{% else %}·{% endif %}</span>{% if gone %}<sup aria-hidden="true">خ</sup><span class="sr-only">{{ gone }}</span>{% endif %}
+                {% with mark=entry_marks|get_item:sid|get_item:period.start %}{% if mark %}{% include "wings/partials/entry_mark.html" %}{% endif %}{% endwith %}
+              </td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+          {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% comment %} شريطُ التثبيت لاصقٌ أسفلَ الشاشة: العدّادُ يتبدّل مع كلّ ضغطة، والزرُّ في متناول الإبهام. {% endcomment %}
+    <div class="per-bar">
+      <p class="per-bar__counts" aria-live="polite">
+        <span class="rec-count is-present">حاضر <b data-count="present">{{ rows|length }}</b></span>
+        <span class="rec-count is-absent">غائب <b data-count="absent">0</b></span>
+        <span class="rec-count is-late">متأخّر <b data-count="late">0</b></span>
+      </p>
+      <div class="per-bar__actions">
+        {% if sheet_closed %}{% else %}{% if following %}
+        <button type="submit" class="btn-secondary">
+          {% icon "confirm" %}
+          ثبّتِ الحصّة {{ focus.number }}
+        </button>
+        <button type="submit" name="next" value="1" class="btn-primary" title="ثمّ {{ following.short_code }}">
+          {% icon "next" %}
+          ثبّت وانتقل إلى {{ following.short_code }}
+        </button>
+        {% else %}
+        <button type="submit" class="btn-primary">
+          {% icon "confirm" %}
+          ثبّتِ الحصّة {{ focus.number }}
+        </button>
+        {% endif %}{% endif %}
+      </div>
+    </div>
+  </form>
+  {% if not teacher_sheet %}{% approve_all_form %}{% endif %}
+
+  {% endif %}

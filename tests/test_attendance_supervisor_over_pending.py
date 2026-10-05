@@ -11,7 +11,7 @@ import pytest
 
 from core.models import AuditLog
 from operations.attendance_entries import decide_entry, state_of, submit_entry, unapproved_report
-from operations.models import AttendanceDecision, AttendanceEntry, StudentAttendance
+from operations.models import AttendanceDecision, StudentAttendance
 from operations.period_register import confirm_period
 from tests.attendance_fixtures import *  # noqa: F401,F403
 from tests.attendance_fixtures import SUNDAY, at
@@ -32,44 +32,40 @@ def _audits():
     return AuditLog.objects.filter(object_repr__contains="تثبيتُ مشرفٍ يستبدل")
 
 
-def test_a_supervisor_confirmation_over_a_pending_entry_keeps_the_entry_and_records_why(
+def test_a_supervisor_confirmation_never_touches_a_pending_teacher_entry(
     klass, session, teacher, holder, kid
 ):
+    """قاموسُ الغياب 2026-10-05 §٣ (يُلغي الرفضَ التلقائيَّ القديم): التثبيتُ يملأ الفراغَ فقط ولا يكتب فوق إدخال معلّمٍ ولا يرفضه."""
     entry = submit_entry(teacher, session, kid, "absent", now=NOW)
     _confirm(klass, kid, holder, "present")
-    assert AttendanceEntry.objects.filter(pk=entry.pk).exists()
     entry.refresh_from_db()
     assert entry.status == "absent"
-    decision = AttendanceDecision.objects.get(entry=entry)
-    assert decision.decision == "rejected"
-    assert decision.basis == "supervisor_record"
-    assert decision.decided_by_id == holder.id
-    assert "مشرف" in decision.reason
-    assert state_of(entry) == "rejected"
-    assert StudentAttendance.objects.get(session=session, student=kid).source == "supervisor"
+    assert not AttendanceDecision.objects.filter(entry=entry).exists()  # لم يُرفض ولم يُعتمد
+    assert state_of(entry) == "pending"
+    assert not StudentAttendance.objects.filter(
+        session=session, student=kid
+    ).exists()  # ولم يُكتب فوقه
+    assert not _audits().exists()
 
 
-def test_the_overridden_entry_leaves_the_unapproved_report(
+def test_a_pending_entry_stays_in_the_unapproved_report_after_a_confirmation(
     school, klass, session, teacher, holder, kid
 ):
     submit_entry(teacher, session, kid, "absent", now=NOW)
     assert len(unapproved_report(school, older_than_hours=1, now=at(13, 0))) == 1
     _confirm(klass, kid, holder)
-    assert unapproved_report(school, older_than_hours=1, now=at(13, 0)) == []
+    assert len(unapproved_report(school, older_than_hours=1, now=at(13, 0))) == 1  # يبقى حتى يُقرَّر
 
 
-def test_a_confirmation_over_an_approved_teacher_row_audits_before_and_after(
+def test_a_confirmation_never_overwrites_an_approved_teacher_row(
     klass, session, teacher, holder, kid
 ):
     entry = submit_entry(teacher, session, kid, "absent", now=NOW)
     decide_entry(holder, entry, approve=True, now=NOW)
     _confirm(klass, kid, holder, "present")
-    (audit,) = _audits()
-    assert audit.changes["before"]["status"] == "absent"
-    assert audit.changes["before"]["source"] == "teacher"
-    assert audit.changes["after"]["status"] == "present"
-    assert audit.user_id == holder.id
-    # الإدخالُ المقرَّر لا يُقرَّر ثانيةً.
+    row = StudentAttendance.objects.get(session=session, student=kid)
+    assert (row.status, row.source) == ("absent", "teacher")  # المعتمَدُ أسبقُ من التثبيت
+    assert not _audits().exists()
     assert AttendanceDecision.objects.filter(entry=entry).count() == 1
 
 

@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load ui icons %}
+{% load ui icons approvals %}
 {% comment %}
 طابورُ اعتماد رصد المعلّمين (W-020): ما أدخله المعلّمون الفعليّون مبدئيّاً وينتظر قرارَك — حاملَ جناحِ الشعبة يومَ الحصّة،
 أو القيادةَ حين لا حاملَ فعليّاً للجناح. الاعتمادُ يكتب الرصدَ المعتمَد، والرفضُ يلزمه سببٌ ولا يكتب شيئاً.
@@ -15,6 +15,7 @@
 {% block content %}
 <div class="exec-dash">
   {% page_header "اعتمادُ رصد المعلّمين" subtitle="إدخالاتٌ مبدئيّةٌ من معلّمي الحصص تنتظر قرارك" icon="checklist" %}
+    {% approve_all_button %}
     <a href="{% url 'attendance_unapproved' %}" class="btn-secondary btn-sm">{% icon "time" %} غيرُ المعتمَد بعد مدّة</a>
   {% endpage_header %}
 

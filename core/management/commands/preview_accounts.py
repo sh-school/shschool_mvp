@@ -14,7 +14,8 @@
 
 الإنشاءُ بالـORM بلا تعطيل مدقّقات، والدورُ نفسُه بعضويّةٍ واحدةٍ نشطةٍ في مدرسة المعاينة بلا superuser ولا is_staff، و`must_change_password=False`،
 وسطرُ AuditLog لكلّ إنشاءٍ وتصحيحٍ بلا كلمة. الأدوارُ التسعةُ في `core/preview_accounts.py` وحدَه.
-بذراتُ البيانات الخاصّةُ بكلّ بطاقة (حصصُ اليوم، مشرفُ الجناح…) ليست هنا.
+وحسابُ المشرف الإداريّ يُغطّي جناحاً بتغطيةٍ (`WingCoverage`) لا باستبدال حاملٍ (قرارُ المالك 2026-10-04) — ليراه ويرصد فيه بعد كلّ إعادة بناءٍ للقاعدة؛ متساوي الأثر.
+بذراتُ البيانات الخاصّةُ بكلّ بطاقة (حصصُ اليوم…) ليست هنا.
 """
 
 from __future__ import annotations
@@ -22,11 +23,15 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.db.models import Q
+from django.utils import timezone
 
 from core import preview_accounts as preview_module
-from core.models import AuditLog, CustomUser, Membership, Role, School
+from core.academic_calendar import academic_year_for_school
+from core.models import AuditLog, CustomUser, Membership, Role, School, Wing, WingCoverage
 from core.preview_accounts import (
     EMAIL_PREFIX,
     EMPLOYEE_NUMBERS,
@@ -42,6 +47,8 @@ from core.preview_accounts import (
     preview_accounts_q,
 )
 
+#: وسمُ ملاحظة تغطيةِ هذا الحساب الدائمة — به يُعرف ما يجوز نقلُه (ولا تُنقل تغطيةٌ كتبها غيرُه).
+OWN_COVERAGE_NOTE = "تغطيةُ حساب معاينةٍ دائم"
 PASSWORD_ENV = "PREVIEW_ACCOUNTS_PASSWORD"  # pragma: allowlist secret — اسمُ متغيّر البيئة لا قيمتُه
 LOOPBACK = "127.0.0.1"
 PRODUCTION_DB = "shschool_db"
@@ -164,6 +171,7 @@ class Command(BaseCommand):
                     "رقمٌ وظيفيٌّ من النطاق المحجوز لحساباتِ المعاينة ممسوكٌ لحسابٍ آخر — توقّف بلا تغيير"
                 )
         created = fixed = 0
+        wing_note = ""
         with transaction.atomic():
             removed = self._remove_legacy()
             for role_name, nid in ROLES.items():
@@ -218,11 +226,104 @@ class Command(BaseCommand):
                         "حسابُ معاينةٍ دائم — تصحيح",
                         {"role": role_name, "drift": drift, "stray_memberships": stray},
                     )
+                if role_name == "admin_supervisor":
+                    wing_note = self._assign_wing(school, user)
         self.stdout.write(
             f"حساباتُ المعاينة: أُنشئ {created}، وصُحّح {fixed}، من {len(ROLES)}"
             + (f"؛ وأُزيل {removed} حساباً من الأداة السابقة" if removed else "")
+            + (f"؛ {wing_note}" if wing_note else "")
             + "."
         )
+
+    def _assign_wing(self, school: School, user: CustomUser) -> str:
+        """يغطّي جناحاً بحساب المشرف الإداريّ الوهميّ **بتغطيةٍ (`WingCoverage`) لا باستبدال حاملٍ** — متساوي الأثر.
+
+        بلا جناحٍ يرى «لا جناحَ مُسنَدٌ إليك» والفهرسُ فارغٌ وطلبُ شعبةٍ 404 (`wings_of` لغير القيادة)، فيبدو الرصدُ مختفياً. وقرارُ المالك
+        (2026-10-04) تغطيةٌ دون المساس بأصيل أيّ جناحٍ ولا بأيّ حساب: التغطيةُ مفتوحةٌ من اليوم (`covers`)، وتُنهى بالطريق المعتاد.
+
+        **الجناحُ هو جناحُ حصص المعلّم الوهميّ اليوم** (W-20261005-001): كان المنتقى «أوّلَ جناحٍ بلا تغطيةٍ» فيقع غالباً على جناحٍ غيرِ جناح حصصه
+        فلا يصل رصدُه المشرفَ (واقعةُ w1/w3 2026-10-05). فتُضاف تغطيةٌ لكلّ جناحٍ فيه حصّةٌ للمعلّم الوهميّ اليومَ وهو بلا تغطيةٍ سارية — **إضافةً لا حذفاً**
+        فلا تضيع تغطيةٌ قائمة، ويلتقطها إعادةُ `--sync` بعد بذر الحصص؛ وإن لم تكن له حصصٌ ولا تغطيةٌ فأوّلُ جناحٍ بلا تغطيةٍ سارية كما كان.
+        """
+        today = timezone.localdate()
+        wings = list(
+            Wing.objects.filter(
+                school=school, academic_year=academic_year_for_school(school), is_active=True
+            ).order_by("order", "code")
+        )
+        live = WingCoverage.objects.filter(wing__in=wings, start_date__lte=today).filter(
+            Q(end_date__isnull=True) | Q(end_date__gte=today)
+        )
+        mine = {w.pk for w in wings if w.supervisor_id == user.pk} | set(
+            live.filter(substitute=user).values_list("wing_id", flat=True)
+        )
+        busy = set(live.values_list("wing_id", flat=True))
+        # جناحُ أبكر حصّةٍ للمعلّم الوهميّ اليومَ أوّلاً (حصّةُ رصد الجناح تُبذر أولاً) ثمّ بقيّةُ أجنحة حصصه
+        rows = (
+            school.sessions.filter(
+                date=today,
+                teacher__employee_number=EMPLOYEE_NUMBERS["teacher"],
+                class_group__wing__in=wings,
+            )
+            .order_by("start_time")
+            .values_list("class_group__wing_id", flat=True)
+        )
+        order: list = []
+        for wing_id in rows:
+            if wing_id not in order:
+                order.append(wing_id)
+        by_id = {w.pk: w for w in wings}
+        free_teacher_wings = [by_id[i] for i in order if i not in busy and i not in mine]
+        own = live.filter(substitute=user, note__startswith=OWN_COVERAGE_NOTE).first()
+        if order and not (mine & set(order)) and free_teacher_wings:
+            target = free_teacher_wings[0]
+            if own is not None:
+                # تغطيةُ هذا الحساب نفسِه على جناحٍ ليس فيه حصصُ المعلّم: تُنقل إلى جناح حصصه (تعديلٌ لا حذف؛ لا يحمل أحدٌ تغطيتين)
+                old = own.wing.code
+                own.wing = target
+                try:
+                    own.clean()
+                    with transaction.atomic():
+                        own.save(update_fields=["wing"])
+                except (ValidationError, IntegrityError):
+                    return f"تعذّر نقلُ التغطية إلى {target.code}"
+                self._audit(
+                    user.pk,
+                    school,
+                    "update",
+                    "حسابُ معاينةٍ دائم — نقلُ تغطيةِ جناح",
+                    {"from": old, "to": target.code},
+                )
+                return f"نُقلت تغطيةُ المشرف الوهميّ من {old} إلى {target.code} (جناحُ حصص المعلّم)"
+            wanted = [target]
+        elif mine:
+            return ""
+        else:
+            first = next((w for w in wings if w.pk not in busy), None)
+            if first is None:
+                return "لا جناحَ بلا تغطيةٍ سارية لإسناده"
+            wanted = [first]
+        notes = []
+        for wing in wanted:
+            cover = WingCoverage(
+                wing=wing,
+                substitute=user,
+                reason="other",
+                start_date=today,
+                note=OWN_COVERAGE_NOTE + " — بقرار المالك 2026-10-04",
+            )
+            try:
+                cover.clean()
+                with transaction.atomic():
+                    cover.save()
+            except (ValidationError, IntegrityError):
+                notes.append(f"تعذّر إسنادُ تغطية {wing.code}")
+                continue
+            self._audit(
+                user.pk, school, "create", "حسابُ معاينةٍ دائم — تغطيةُ جناح", {"wing": wing.code}
+            )
+            notes.append(f"غُطّي الجناح {wing.code} بالمشرف الوهميّ")
+        return "؛ ".join(notes)
 
     def _remove_legacy(self) -> int:
         """يزيل حساباتِ الأداة الخارجيّة السابقة (29000009NNN) قبل بذر `PV-…` فلا يتكرّر دورٌ — حذفٌ وإلا تعطيل."""
