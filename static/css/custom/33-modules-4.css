@@ -806,6 +806,9 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .per-head__time b { color: var(--text-primary); }
 /* الملاحظتان في سطرٍ واحد ما اتّسع العرض، وتلتفّان في الهاتف. */
 .per-bulk { display: flex; gap: var(--sp-1-5); }
+/* «اعتمادُ الكلّ»: الوحيدُ الأساسيّ بين مفاتيح الرأس، يُفصل عن «غيابُ الكلّ» بمسافةٍ فلا يُضغط بالخطأ؛ وعلى الهاتف صفٌّ كاملٌ. */
+.per-approve-all { margin: 0; margin-inline-start: var(--sp-3); }
+.per-head__keys .per-approve-all { align-self: center; }
 
 /* رقاقةُ حال الحصّة: كلمةٌ ولونٌ معاً. */
 .per-state {
@@ -992,6 +995,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   .per-head__badge { width: 44px; height: 44px; font-size: var(--text-base); }
   .per-head__tools, .per-head__keys, .per-tabs { width: 100%; align-items: stretch; justify-content: flex-start; }
   .per-bulk { width: 100%; }
+  .per-approve-all, .per-approve-all .btn-primary { width: 100%; margin-inline-start: 0; min-height: 44px; }
   .per-bulk .btn-sm { flex: 1; min-height: 40px; }
   /* الشبكةُ عمودان في الهاتف: بطاقةٌ بـ150px تتّسع لأزرارٍ ثلاثةٍ بخطّ 11px. */
   .per-grid tbody { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-2); }

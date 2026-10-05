@@ -1,4 +1,4 @@
-{% load static ui icons dict_filters %}
+{% load static ui icons dict_filters approvals %}
 {% comment %}
 كشفُ الحصّة المشتركُ (W-20261004-015): **قالبٌ واحدٌ** يرسمه كشفُ المشرف (`wings/record_section.html`) وصفحةُ المعلّم (`teacher/attendance_readonly.html`)
 بالقالب والـCSS والـJS نفسِها (`period-register.js`)، والفرقُ في الخدمة وحدَها: المشرفُ يُرسل النموذجَ إلى `wings:record_period` فيكتب `StudentAttendance` مباشرةً،
@@ -62,6 +62,7 @@
           <button type="button" class="btn-secondary btn-sm" data-bulk="present"{% if sheet_closed %} disabled{% endif %}>الكلُّ حاضر</button>
           <button type="button" class="btn-secondary btn-sm" data-bulk="absent"{% if sheet_closed %} disabled{% endif %}>غيابُ الكلّ</button>
         </div>
+        {% if not teacher_sheet %}{% approve_all_button %}{% endif %}
         </div>
         <nav class="per-tabs" aria-label="حصصُ اليوم">
           {% for period, status in periods %}

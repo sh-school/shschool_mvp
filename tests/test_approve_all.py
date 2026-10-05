@@ -67,3 +67,46 @@ def test_the_queue_page_shows_the_approve_all_button_with_the_count(
     submit_entry(teacher, session, kid, "absent", now=at(7, 30))
     body = client_as(holder).get(reverse("attendance_approvals")).content.decode()
     assert reverse("attendance_approve_all") in body and "اعتمادُ الكلّ (1)" in body
+
+
+def test_the_approve_all_button_is_in_the_absence_dashboards_themselves(
+    client_as, now_0830, klass, session, teacher, holder, kid
+):
+    """ملاحظةُ المالك: الزرُّ في لوحة الغياب (شبكةُ الشعبة وتقريرُ غياب اليوم) لا في صفحةٍ جانبيّةٍ وحدَها."""
+    submit_entry(teacher, session, kid, "absent", now=at(7, 30))
+    url = reverse("attendance_approve_all")
+    grid = (
+        client_as(holder)
+        .get(reverse("wings:record_section", args=[klass.id]), {"date": SUNDAY.isoformat()})
+        .content.decode()
+    )
+    assert url in grid and "اعتمادُ الكلّ (1)" in grid
+    report = (
+        client_as(holder)
+        .get(reverse("daily_report"), {"date": SUNDAY.isoformat()})
+        .content.decode()
+    )
+    assert url in report and "اعتمادُ الكلّ (1)" in report
+
+
+def test_the_button_returns_to_the_page_it_was_pressed_from_and_ignores_foreign_hosts(
+    client_as, now_0830, session, teacher, holder, kid
+):
+    submit_entry(teacher, session, kid, "absent", now=at(7, 30))
+    back = client_as(holder).post(
+        reverse("attendance_approve_all"), {"next": "/teacher/reports/daily/?date=2026-09-13"}
+    )
+    assert back.url == "/teacher/reports/daily/?date=2026-09-13"
+    foreign = client_as(holder).post(
+        reverse("attendance_approve_all"), {"next": "https://evil.example/x"}
+    )
+    assert foreign.url == reverse("attendance_approvals")
+
+
+def test_the_button_is_absent_when_nothing_waits(client_as, now_0830, klass, session, holder, kid):
+    body = (
+        client_as(holder)
+        .get(reverse("wings:record_section", args=[klass.id]), {"date": SUNDAY.isoformat()})
+        .content.decode()
+    )
+    assert "اعتمادُ الكلّ" not in body

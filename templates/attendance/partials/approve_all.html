@@ -1,0 +1,4 @@
+{% load icons %}{% if count %}<form method="post" action="{% url 'attendance_approve_all' %}" class="per-approve-all" data-confirm="اعتماد {{ count }} إدخالاً دفعةً واحدة (كلُّ الشعب والحصص)؟ يُسجَّل كلُّ قرارٍ باسمك والرفضُ يبقى بنداً بنداً.">
+  {% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+  <button type="submit" class="btn-primary btn-sm" aria-label="اعتماد كلّ الإدخالات المعلّقة وعددها {{ count }} دفعةً واحدة" title="كلُّ الشعب والحصص دفعةً واحدة — الرفضُ يبقى بنداً بنداً">{% icon "confirm" %} اعتمادُ الكلّ ({{ count }})</button>
+</form>{% endif %}

@@ -10,6 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from core.capabilities import capability_required
@@ -131,7 +132,10 @@ def approve_all(request):
     if skipped:
         text += f" · وتُخطّي {skipped} (تعارضٌ أو نسخةٌ أحدث) بقيت في القائمة لتنظر فيها"
     (messages.warning if skipped else messages.success)(request, text + ".")
-    return redirect(reverse("attendance_approvals"))
+    target = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()}):
+        target = reverse("attendance_approvals")
+    return redirect(target)
 
 
 @login_required
