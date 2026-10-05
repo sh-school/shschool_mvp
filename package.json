@@ -2,6 +2,6 @@
   "name": "schoolos-frontend",
   "private": true,
   "devDependencies": {
-    "railway": "3.11.0"
+    "railway": "3.12.0"
   }
 }
