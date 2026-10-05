@@ -110,3 +110,31 @@ def test_the_button_is_absent_when_nothing_waits(client_as, now_0830, klass, ses
         .content.decode()
     )
     assert "اعتمادُ الكلّ" not in body
+
+
+def test_the_supervisor_sheet_opens_with_the_teachers_pending_absence_checked(
+    client_as, now_0830, klass, session, teacher, holder, kid
+):
+    """واقعة «الكلُّ سُجّل حاضراً» 2026-10-05: كان الكشفُ يفتح الجميعَ حاضراً فيكتب تثبيتُه حاضراً فوق غياب المعلّم."""
+    submit_entry(teacher, session, kid, "absent", now=at(7, 30))
+    body = (
+        client_as(holder)
+        .get(
+            reverse("wings:record_section", args=[klass.id]),
+            {"date": SUNDAY.isoformat(), "p": "07:10"},
+        )
+        .content.decode()
+    )
+    assert f'name="s-{kid.id}" value="absent" checked' in body
+    assert f'name="s-{kid.id}" value="present" checked' not in body
+
+
+def test_confirming_the_prefilled_sheet_records_the_teachers_absence_not_present(
+    client_as, now_0830, klass, session, teacher, holder, kid
+):
+    submit_entry(teacher, session, kid, "absent", now=at(7, 30))
+    client_as(holder).post(
+        reverse("wings:record_period", args=[klass.id]),
+        {"date": SUNDAY.isoformat(), "start": "07:10", f"s-{kid.id}": "absent"},
+    )
+    assert StudentAttendance.objects.get(session=session, student=kid).status == "absent"
