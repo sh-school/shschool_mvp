@@ -540,3 +540,15 @@ def test_with_the_switch_off_the_weekly_schedule_is_as_it_was(
     )
 
     assert "prov-off" not in page and "تحت الإجراء" not in page
+
+
+def test_the_under_action_note_is_centered_triple_size_and_glowing_red():
+    """أمرُ المالك: «تحت الإجراء» وسطَ السطر وأكبرَ 300% وبالأحمر المتوهّج."""
+    from tests.css_source import read_css
+
+    css = read_css()
+    rule = css[css.index(".sessions-off-note {") :].split("}", 1)[0]
+
+    assert "text-align: center" in rule
+    assert "calc(var(--text-sm) * 3)" in rule
+    assert "var(--status-danger)" in rule and "text-shadow" in rule
