@@ -226,3 +226,84 @@ def test_with_the_switch_on_the_schedule_offers_the_door(client_as, assigned, te
     page = client_as(teacher).get(reverse("teacher_schedule")).content.decode()
 
     assert "شُعبي للرصد" in page
+
+
+# ── المفتاحُ مطفأ ← السلوكُ السابق حرفاً (قيدُ المالك D-218م: الإضافةُ لا الحذفُ ولا التعديل) ──
+
+#: وحدهنّ تذكرنَ المفتاحَ أو خدمتَه؛ ما سواهنّ (التوليدُ والجدولُ والتبديلُ والتعويضُ والرصدُ المبنيُّ على الحصص المجدولة) **لا يقرأ المفتاحَ أبداً**
+#: فلا شيءَ فيها يتغيّر مطفأً ولا مشغَّلاً.
+KEY_READERS = {
+    "shschool/settings/base.py",
+    "operations/services/provisional_session.py",
+    "operations/views_provisional.py",
+    "operations/views_attendance.py",  # سياقُ زرّ جدول المعلّم فقط
+    "operations/urls.py",  # مساراتُ الميزة
+    "operations/admin.py",  # عمودُ القائمة وترشيحُها
+}
+
+
+def test_nothing_on_the_schedule_or_register_path_reads_the_switch():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    readers = set()
+    for path in root.rglob("*.py"):
+        parts = path.relative_to(root).parts
+        if (
+            parts[0] in {"tests", ".claude", ".venv", "node_modules", "migrations"}
+            or "migrations" in parts
+        ):
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        if "PROVISIONAL_SESSIONS_ENABLED" in text or "provisional_session" in text:
+            readers.add(path.relative_to(root).as_posix())
+    assert readers <= KEY_READERS, f"وحدةٌ جديدةٌ تقرأ المفتاح: {sorted(readers - KEY_READERS)}"
+    for untouched in (
+        "operations/services/schedule_sessions.py",
+        "operations/services/swap.py",
+        "operations/services/compensatory.py",
+        "operations/services/schedule_read.py",
+    ):
+        assert untouched not in readers
+
+
+def test_with_the_switch_off_the_session_admin_is_unchanged(settings, rf):
+    from django.contrib import admin
+
+    from operations.admin import SessionAdmin
+
+    settings.PROVISIONAL_SESSIONS_ENABLED = False
+    model_admin = SessionAdmin(Session, admin.site)
+    request = rf.get("/")
+
+    assert "provisional" not in model_admin.get_list_display(request)
+    assert "provisional" not in model_admin.get_list_filter(request)
+    settings.PROVISIONAL_SESSIONS_ENABLED = True
+    assert "provisional" in model_admin.get_list_display(request)
+
+
+def test_with_the_switch_off_a_real_week_generates_exactly_as_before(
+    settings, school, year, klass, teacher, subject, band, bells, monkeypatch
+):
+    """التوليدُ لا يعرف المفتاح: العددُ نفسُه مطفأً ومشغَّلاً — ولا صفَّ مؤقّتاً يُنشأ من التوليد."""
+    from operations.models import ScheduleSlot
+    from operations.services import ScheduleService
+
+    ScheduleSlot.objects.create(
+        school=school,
+        teacher=teacher,
+        class_group=klass,
+        subject=subject,
+        day_of_week=0,
+        period_number=1,
+        start_time=dt.time(7, 10),
+        end_time=dt.time(7, 55),
+        academic_year=year,
+    )
+    counts = {}
+    for flag in (False, True):
+        settings.PROVISIONAL_SESSIONS_ENABLED = flag
+        Session.objects.all().delete()
+        counts[flag] = ScheduleService.ensure_sessions_for_date(school, SUNDAY)
+        assert not Session.objects.filter(provisional=True).exists()
+    assert counts[False] == counts[True]

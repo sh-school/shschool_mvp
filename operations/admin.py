@@ -67,23 +67,27 @@ class AttendanceInline(ReadOnlyAdminMixin, admin.TabularInline):
 
 @admin.register(Session)
 class SessionAdmin(admin.ModelAdmin):
-    list_display = (
-        "class_group",
-        "subject",
-        "teacher",
-        "date",
-        "start_time",
-        "status",
-        "provisional",
-    )
+    list_display = ("class_group", "subject", "teacher", "date", "start_time", "status")
     # الأعمدةُ و`__str__` تقرأ هذه العلاقات لكلّ صفّ — تُجلب في استعلام القائمة نفسه (كانت ~25 سؤالاً للصفحة).
     list_select_related = ("class_group", "subject", "teacher")
-    # `provisional`: الحصّةُ المؤقّتة للمعلّم (W-20261005-006) ظاهرةٌ وقابلةٌ للترشيح، وحقلاها يظهران في نموذج الصفّ.
-    list_filter = ("school", "status", "provisional", "date")
+    list_filter = ("school", "status", "date")
     search_fields = ("teacher__full_name", "class_group__section")
     autocomplete_fields = ("teacher", "class_group", "subject")
     date_hierarchy = "date"
     inlines = [AttendanceInline]
+
+    def get_list_display(self, request):
+        """عمودُ `provisional` يُضاف **بمفتاح الحصّة المؤقّتة وحدَه** (W-20261005-006): مطفأً تبقى القائمةُ كما كانت حرفاً."""
+        from operations.services import provisional_session
+
+        columns = super().get_list_display(request)
+        return (*columns, "provisional") if provisional_session.enabled() else columns
+
+    def get_list_filter(self, request):
+        from operations.services import provisional_session
+
+        filters = super().get_list_filter(request)
+        return (*filters, "provisional") if provisional_session.enabled() else filters
 
 
 @admin.register(StudentAttendance)
