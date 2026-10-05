@@ -379,7 +379,7 @@ def run():
             u.is_superuser = True
             u.is_staff = True
             u.save(update_fields=["is_superuser", "is_staff"])
-            print(f"\n🔑 المدير (superuser): {u.full_name} | رقم: {u.national_id}")
+            print(f"\n🔑 المدير (superuser): id={u.pk}")
 
     # ═══════════════════════════════════════════════════
     # ملخص نهائي
