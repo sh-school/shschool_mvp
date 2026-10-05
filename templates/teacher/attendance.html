@@ -3,6 +3,9 @@
 {% load ui %}
 {% block title %}تسجيل حضور — {{ session.class_group.short_label }}{% endblock %}
 
+{# النمطُ: سجلٌّ (layout-list) — القائمةُ تُمرَّر داخل بطاقتها والصفحةُ لا تُمرَّر. #}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
 {% block breadcrumbs %}
 {% url 'teacher_schedule' as schedule_url %}
 {% include "components/breadcrumbs.html" with parent_url=schedule_url parent_label="الأكاديمية" current="تسجيل الحضور" %}
@@ -16,6 +19,7 @@
     <span class="period-switch__item is-current" aria-current="page">{% icon "checklist" %} قائمة</span>
     <a href="?view=grid" class="period-switch__item">{% icon "stats" %} شبكة</a>
   </nav>
+  {% callout "warning" %}«غائب» بلا عذرٍ يُحتسب ضمن حدّ الغياب، وقد يصل وليَّ الأمر إنذارٌ عند اقتراب الحدّ أو بلوغه؛ وتصحيحُ الحالة إلى «حاضر» لا يسحب إنذاراً أُرسل.{% endcallout %}
 {% endpage_header %}
 
 {# ── ملخّص الحضور — يُستبدل داخله كلّما رُصد طالب ── #}
@@ -52,7 +56,6 @@
   {% endif %}
 {% endfilter_bar %}
 
-{% callout "warning" %}«غائب» بلا عذرٍ يُحتسب ضمن حدّ الغياب، وقد يصل وليَّ الأمر إنذارٌ عند اقتراب الحدّ أو بلوغه؛ وتصحيحُ الحالة إلى «حاضر» لا يسحب إنذاراً أُرسل.{% endcallout %}
 
 {# ── قائمة الطلاب — `#students-list` يستبدله «الكل حاضر» بنفسه ── #}
 {% section_card "الطلاب" meta=students_data|length icon="students" flush=True empty="لا طلابَ مقيَّدون في هذه الشعبة" %}{% if students_data %}

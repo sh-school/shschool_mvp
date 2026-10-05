@@ -3,6 +3,9 @@
 {% load ui %}
 {% block title %}تسجيل حضور (شبكة) — {{ session.class_group.short_label }}{% endblock %}
 
+{# النمطُ: ورقةٌ كثيفة (layout-sheet) — الشبكةُ تُمرَّر داخل بطاقتها والصفحةُ لا تُمرَّر. #}
+{% block main_class %}{% page_layout "sheet" %}{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/teacher/schedule/" parent_label="الأكاديمية" current="تسجيل الحضور (شبكة)" %}
 {% endblock %}
@@ -17,6 +20,7 @@
     <a href="?view=list" class="period-switch__item">{% icon "checklist" %} قائمة</a>
     <span class="period-switch__item is-current" aria-current="page">{% icon "stats" %} شبكة</span>
   </nav>
+  {% callout "warning" %}«غائب» بلا عذرٍ يُحتسب ضمن حدّ الغياب، وقد يصل وليَّ الأمر إنذارٌ عند اقتراب الحدّ أو بلوغه؛ وتصحيحُ الحالة إلى «حاضر» لا يسحب إنذاراً أُرسل. ومفتاح A على الخليّة يسجّل الغياب مباشرةً.{% endcallout %}
 {% endpage_header %}
 
 {# ── ملخّص الحضور — يُستبدل داخله كلّما رُصد طالب ── #}
@@ -52,7 +56,6 @@
   {% endif %}
 {% endfilter_bar %}
 
-{% callout "warning" %}«غائب» بلا عذرٍ يُحتسب ضمن حدّ الغياب، وقد يصل وليَّ الأمر إنذارٌ عند اقتراب الحدّ أو بلوغه؛ وتصحيحُ الحالة إلى «حاضر» لا يسحب إنذاراً أُرسل. ومفتاح A على الخليّة يسجّل الغياب مباشرةً.{% endcallout %}
 
 {# ── شبكة الطلاب — `#grid-container` يستبدله «الكل حاضر» بنفسه ── #}
 {% section_card "الطلاب" meta=students_data|length icon="students" empty="لا طلابَ مقيَّدون في هذه الشعبة" %}{% if students_data %}
