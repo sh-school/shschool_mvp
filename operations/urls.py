@@ -4,6 +4,7 @@ from . import views
 from .views_attendance_entries import (
     approval_decide,
     approvals,
+    approve_all,
     correct_page,
     correct_submit,
     entry_submit,
@@ -16,6 +17,7 @@ urlpatterns = [
     path("schedule/", views.schedule, name="teacher_schedule"),
     # -- رصدُ المعلّم المبدئيّ واعتمادُه (W-020) --
     path("attendance/approvals/", approvals, name="attendance_approvals"),
+    path("attendance/approvals/approve-all/", approve_all, name="attendance_approve_all"),
     path("attendance/approvals/<uuid:entry_id>/decide/", approval_decide, name="attendance_decide"),
     path("attendance/unapproved/", unapproved, name="attendance_unapproved"),
     path("attendance/<uuid:session_id>/entry/", entry_submit, name="attendance_entry"),

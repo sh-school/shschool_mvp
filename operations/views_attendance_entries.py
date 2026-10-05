@@ -124,6 +124,19 @@ def approvals(request):
 @login_required
 @capability_required("wings.record_day")
 @require_POST
+def approve_all(request):
+    """اعتمادُ كلِّ ما ينتظر هذا المشرفَ دفعةً واحدة (كلُّ الشعب والحصص) — كلُّ إدخالٍ بقراره المسجَّل باسمه."""
+    approved, skipped = TeacherAttendanceService.approve_all(request.user, request.school)
+    text = f"اعتُمد {approved} إدخالاً"
+    if skipped:
+        text += f" · وتُخطّي {skipped} (تعارضٌ أو نسخةٌ أحدث) بقيت في القائمة لتنظر فيها"
+    (messages.warning if skipped else messages.success)(request, text + ".")
+    return redirect(reverse("attendance_approvals"))
+
+
+@login_required
+@capability_required("wings.record_day")
+@require_POST
 def approval_decide(request, entry_id):
     """HTMX: اعتمادُ إدخالٍ معلَّقٍ أو رفضُه — الرفضُ يلزمه سبب."""
     post = request.POST
