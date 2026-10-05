@@ -7,12 +7,24 @@
 """
 
 import pytest
+from django.urls import reverse
 
-from behavior.committee_services import eligible_member_ids
+from behavior.committee_services import eligible_member_ids, may_act_on
 from behavior.services import BehaviorPermissions
 from core.capabilities import has_capability
-from core.permissions import BEHAVIOR_COMMITTEE, BEHAVIOR_COMMITTEE_ART_5_7
-from tests.conftest import MembershipFactory, RoleFactory, UserFactory
+from core.permissions import (
+    BEHAVIOR_COMMITTEE,
+    BEHAVIOR_COMMITTEE_ART_5_7,
+    BEHAVIOR_COMMITTEE_CASE_SCOPED,
+)
+from tests.conftest import (
+    BehaviorInfractionFactory,
+    MembershipFactory,
+    RoleFactory,
+    UserFactory,
+)
+from tests.test_period_register import klass, supervisor, teacher, year  # noqa: F401
+from tests.test_supervisor_behavior_scope import far_klass, mine, principal, theirs  # noqa: F401
 
 #: نصُّ م5.7 بأسماء الأدوار في المنصّة — الاختصاصي الاجتماعي (social_worker) والنفسي (psychologist).
 ART_5_7 = {
@@ -59,8 +71,84 @@ def test_the_rest_do_not_join(school, role):
     assert not BehaviorPermissions.is_committee(_user_with(school, role))
 
 
+def test_the_supervisor_is_case_scoped_not_school_wide():
+    assert BEHAVIOR_COMMITTEE_CASE_SCOPED == {"admin_supervisor"}
+
+
 @pytest.mark.django_db
-def test_the_voting_quorum_counts_the_new_members(school):
-    """النصابُ يُحسب من المؤهَّلين: دخولُ المشرف الإداريّ والنفسيّ يرفعه."""
-    users = [_user_with(school, role) for role in ("principal", "admin_supervisor", "psychologist")]
-    assert eligible_member_ids(school) == {user.id for user in users}
+class TestOneSupervisorPerCase:
+    """قرارُ المالك 2026-10-05: يدخل اللجنةَ مشرفُ جناح الطالب المعنيّ وحدَه — واحدٌ لكلّ قضيّة."""
+
+    def _case(self, school, student, reporter, level=3):
+        return BehaviorInfractionFactory(
+            school=school, student=student, reported_by=reporter, level=level
+        )
+
+    def test_the_wing_supervisor_votes_in_his_wings_case_only(
+        self, school, seeded_calendar, mine, theirs, supervisor, teacher, principal
+    ):
+        near = self._case(school, mine, teacher)
+        far = self._case(school, theirs, teacher)
+        assert supervisor.pk in eligible_member_ids(school, near)
+        assert supervisor.pk not in eligible_member_ids(school, far)
+
+    def test_other_supervisors_do_not_vote_at_all(
+        self, school, seeded_calendar, mine, supervisor, teacher
+    ):
+        other = _user_with(school, "admin_supervisor")
+        case = self._case(school, mine, teacher)
+        members = eligible_member_ids(school, case)
+        assert supervisor.pk in members
+        assert other.pk not in members
+
+    def test_the_quorum_grows_by_one_not_by_every_supervisor(
+        self, school, seeded_calendar, mine, supervisor, teacher
+    ):
+        for _ in range(4):
+            _user_with(school, "admin_supervisor")  # أربعةٌ آخرون بلا جناح الطالب
+        fixed = [_user_with(school, role) for role in ("principal", "vice_admin", "psychologist")]
+        case = self._case(school, mine, teacher)
+        assert eligible_member_ids(school, case) == {u.pk for u in fixed} | {supervisor.pk}
+        assert eligible_member_ids(school) == {u.pk for u in fixed}
+
+    def test_the_reporter_does_not_vote_even_if_he_is_the_wing_supervisor(
+        self, school, seeded_calendar, mine, supervisor
+    ):
+        case = self._case(school, mine, supervisor)
+        assert supervisor.pk not in eligible_member_ids(school, case)
+
+    def test_may_act_on_follows_the_wing(
+        self, school, seeded_calendar, mine, theirs, supervisor, teacher, principal
+    ):
+        near = self._case(school, mine, teacher)
+        far = self._case(school, theirs, teacher)
+        assert may_act_on(supervisor, near)
+        assert not may_act_on(supervisor, far)
+        assert may_act_on(principal, near) and may_act_on(principal, far)
+
+
+@pytest.mark.django_db
+class TestTheScreens:
+    def test_the_dashboard_lists_only_the_wings_cases_for_the_supervisor(
+        self, client_as, school, seeded_calendar, mine, theirs, supervisor, teacher
+    ):
+        near = BehaviorInfractionFactory(school=school, student=mine, reported_by=teacher, level=3)
+        BehaviorInfractionFactory(school=school, student=theirs, reported_by=teacher, level=3)
+        ctx = client_as(supervisor).get(reverse("behavior:committee")).context
+        assert [c.pk for c in ctx["open_cases"]] == [near.pk]
+        assert ctx["stats"]["open_count"] == 1
+
+    def test_the_principal_still_sees_the_whole_school(
+        self, client_as, school, seeded_calendar, mine, theirs, principal, teacher
+    ):
+        for student in (mine, theirs):
+            BehaviorInfractionFactory(school=school, student=student, reported_by=teacher, level=3)
+        ctx = client_as(principal).get(reverse("behavior:committee")).context
+        assert ctx["stats"]["open_count"] == 2
+
+    def test_a_case_of_another_wing_is_404_for_the_supervisor(
+        self, client_as, school, seeded_calendar, theirs, supervisor, teacher
+    ):
+        far = BehaviorInfractionFactory(school=school, student=theirs, reported_by=teacher, level=3)
+        response = client_as(supervisor).get(reverse("behavior:committee_decision", args=[far.pk]))
+        assert response.status_code == 404

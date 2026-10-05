@@ -221,24 +221,34 @@ class BehaviorService:
 
     # ── إحصائيات اللجنة ────────────────────────────────────
     @staticmethod
-    def get_committee_data(school: School) -> dict:
-        """بيانات لوحة لجنة الضبط السلوكي"""
+    def get_committee_data(school: School, scope=None) -> dict:
+        """بيانات لوحة لجنة الضبط السلوكي — و`scope` (نطاق الجناح) يضيّق قضايا المشرف الإداريّ بجناحه."""
+
+        def _narrow(qs):
+            return scope.narrow(qs) if scope is not None else qs
+
         open_cases = (
-            BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=False)
+            _narrow(
+                BehaviorInfraction.objects.filter(
+                    school=school, level__in=[3, 4], is_resolved=False
+                )
+            )
             .select_related("student", "reported_by", "violation_category")
             .order_by("-date")
         )
 
         resolved_cases = (
-            BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=True)
+            _narrow(
+                BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=True)
+            )
             .select_related("student", "reported_by")
             .order_by("-date")[:20]
         )
 
         stats = {
             "open_count": open_cases.count(),
-            "resolved_count": BehaviorInfraction.objects.filter(
-                school=school, level__in=[3, 4], is_resolved=True
+            "resolved_count": _narrow(
+                BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=True)
             ).count(),
             "level3": open_cases.filter(level=3).count(),
             "level4": open_cases.filter(level=4).count(),

@@ -17,7 +17,9 @@ import logging
 
 from django.db import transaction
 
-from core.models import Membership
+from core.models import Membership, StudentEnrollment
+from core.permissions import BEHAVIOR_COMMITTEE_CASE_SCOPED
+from core.unrestricted_role import has_unrestricted_role
 
 from .models import BehaviorCommitteeVote, BehaviorInfraction
 from .services import BehaviorPermissions, BehaviorService
@@ -28,20 +30,54 @@ logger = logging.getLogger(__name__)
 COLLECTIVE_DECISIONS = frozenset({"escalate", "suspend"})
 
 
-def eligible_member_ids(school, infraction: BehaviorInfraction | None = None) -> set:
-    """أعضاءُ اللجنة المؤهَّلون في المدرسة (مفاتيحُ المستخدمين).
+#: أدوارُ اللجنة التي تصوّت في كلّ قضيّة — وما عداها (المشرفُ الإداريّ) يصوّت في قضيّة جناحه وحدَها.
+SCHOOL_WIDE_ROLES = frozenset(BehaviorPermissions.COMMITTEE_ROLES) - BEHAVIOR_COMMITTEE_CASE_SCOPED
 
-    ومع `infraction`: يُستبعد منهم المُبلِّغُ عنها (تضاربُ مصلحة — قرارُ المالك تكملةً لـD-116م)،
-    فيُحسب النصابُ من بقيّة الأعضاء المؤهَّلين.
+
+def case_supervisor_id(infraction: BehaviorInfraction):
+    """مشرفُ جناح الطالب الإداريّ اليومَ — أصيلاً أو بديلاً مغطّياً — إن كان بدور «مشرف إداريّ»، وإلّا `None`.
+
+    «واحدٌ لكلّ قضيّة»: من يحمل الجناحَ بسؤال `Wing.current_supervisor` نفسِه الذي تمرّ عليه كلُّ
+    صلاحيّةٍ في الجناح. وبديلٌ من غير هذا الدور (ملاحظُ طلبةٍ مثلاً) ليس عضواً بالمادّة 5.7.
+    """
+    enrollment = StudentEnrollment.objects.current_of(infraction.student, infraction.school)
+    wing = enrollment.class_group.wing if enrollment else None
+    holder = wing.current_supervisor() if wing is not None and wing.is_active else None
+    if holder is None:
+        return None
+    is_supervisor = Membership.objects.filter(
+        school=infraction.school, user=holder, is_active=True, role__name="admin_supervisor"
+    ).exists()
+    return holder.pk if is_supervisor else None
+
+
+def may_act_on(user, infraction: BehaviorInfraction) -> bool:
+    """أيعمل هذا العضوُ في هذه القضيّة؟ — أعضاءُ المدرسة كلُّهم، والمشرفُ لجناح طالبها وحدَه."""
+    if user.is_superuser or has_unrestricted_role(user):
+        return True
+    role = user.get_role()
+    if role in BEHAVIOR_COMMITTEE_CASE_SCOPED:
+        return user.pk == case_supervisor_id(infraction)
+    return role in BehaviorPermissions.COMMITTEE_ROLES
+
+
+def eligible_member_ids(school, infraction: BehaviorInfraction | None = None) -> set:
+    """أعضاءُ اللجنة المؤهَّلون (مفاتيحُ المستخدمين).
+
+    الأدوارُ العامّةُ لكلّ قضيّة، ومع `infraction` يُضاف مشرفُ جناح طالبها (واحدٌ لا كلُّ المشرفين) ويُستبعد
+    المُبلِّغُ عنها (تضاربُ مصلحة — قرارُ المالك تكملةً لـD-116م)، فيُحسب النصابُ من بقيّة المؤهَّلين.
     """
     members = set(
         Membership.objects.filter(
             school=school,
             is_active=True,
-            role__name__in=BehaviorPermissions.COMMITTEE_ROLES,
+            role__name__in=SCHOOL_WIDE_ROLES,
         ).values_list("user_id", flat=True)
     )
     if infraction is not None:
+        supervisor_id = case_supervisor_id(infraction)
+        if supervisor_id is not None:
+            members.add(supervisor_id)
         members.discard(infraction.reported_by_id)
     return members
 

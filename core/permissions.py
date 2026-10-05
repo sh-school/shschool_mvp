@@ -199,6 +199,10 @@ BEHAVIOR_COMMITTEE_ART_5_7 = frozenset(
 )
 #: و`specialist` («أخصائي قديم») يبقى إصداراً واحداً للتوافق ثمّ يُحذف بعد عدّ مستخدميه (قرارُ 0301).
 BEHAVIOR_COMMITTEE = BEHAVIOR_COMMITTEE_ART_5_7 | frozenset({"specialist"})
+#: المشرفُ الإداريّ يدخل **قضيّةَ طالب جناحه وحدَها** — واحدٌ لكلّ قضيّة (قرارُ المالك 2026-10-05):
+#: م5.7 تذكره بصيغة المفرد «المشرف الإداري» ولا تنصّ على نصابٍ عدديّ. فلا يصوّت كلُّ حاملي الدور
+#: (11 في المدرسة اليوم): يصوّت مشرفُ جناح الطالب وحدَه (`WingCoverage`)، ولا يرى غيرَ قضايا جناحه.
+BEHAVIOR_COMMITTEE_CASE_SCOPED = frozenset({"admin_supervisor"})
 BEHAVIOR_VIEW_ALL = {
     "principal",
     "vice_admin",
