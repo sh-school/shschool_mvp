@@ -40,6 +40,8 @@ def _as_tenant(school_id):
         cursor.execute(f"GRANT SELECT ON public.app_rls_role_school TO {PROBE_ROLE}")
         cursor.execute(f"GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO {PROBE_ROLE}")
         cursor.execute(f"GRANT SELECT, INSERT, UPDATE ON public.{TABLE} TO {PROBE_ROLE}")
+        for table in ("operations_classexit", "operations_session"):
+            cursor.execute(f"GRANT SELECT ON public.{table} TO {PROBE_ROLE}")
         cursor.execute(
             """
             INSERT INTO public.app_rls_role_school (db_role, school_id)
@@ -97,3 +99,20 @@ def test_the_table_has_the_canonical_policy():
             "SELECT policyname FROM pg_policies WHERE tablename = 'operations_dailyexittally'"
         )
         assert [row[0] for row in cursor.fetchall()] == ["school_isolation"]
+
+
+def test_refresh_tally_writes_under_the_tenant_role_of_its_own_school():
+    """حكمُ 0104: كتابةُ الخدمة (refresh_tally) تنجح بدور المدرسة نفسِها بعد تفعيل RLS ولا تتعطّل صامتةً؛ ومدرسةٌ أخرى لا تكتب لغيرها."""
+    from operations.class_exit import refresh_tally
+
+    school = SchoolFactory()
+    kid = UserFactory(national_id="29000091009")
+    # الصفُّ المصدر (ClassExit) يُكتب بدور المالك العاديّ؛ ثمّ يُعاد حسابُ الملخّص بدور المدرسة
+    DailyExitTally.objects.filter(student=kid).delete()
+    with _as_tenant(school.pk):
+        tally = refresh_tally(school, kid, DAY)
+    assert (tally.school_id, tally.exit_count) == (school.pk, 0)
+    other = SchoolFactory()
+    with _as_tenant(other.pk):
+        with pytest.raises(DatabaseError), transaction.atomic():
+            refresh_tally(school, kid, DAY)  # سطرُ مدرسةٍ أخرى لا يُكتب بدورٍ غير دورها
