@@ -229,12 +229,18 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return self.national_id
 
     def get_phone_decrypted(self) -> str:
-        """فك تشفير رقم الهاتف — fallback إلى الحقل العادي."""
+        """رقمُ الهاتف — **المنفذُ الوحيد لقراءته** (لا `.phone` الخام ولا `phone__…` في استعلام).
+
+        الصريحُ إن وُجد أوّلاً: قيمةٌ أُسندت ولم تُحفظ بعدُ أحدثُ من النسخة المشفَّرة، أو صفٌّ قديمٌ لم
+        تُملأ نسختُه. وإلّا فالمشفَّرُ — وهو ما يبقى حين يُفرَّغ العمودُ الصريحُ (المرحلة 2).
+        """
+        if self.phone:
+            return str(self.phone)
         if self.phone_encrypted:
             decrypted = decrypt_field(self.phone_encrypted)
             if decrypted and decrypted != self.phone_encrypted:
                 return str(decrypted)
-        return str(self.phone)
+        return ""
 
     @property
     def active_membership(self):

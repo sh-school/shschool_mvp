@@ -181,7 +181,7 @@ def _upsert_user_from_registry(
     # بدل upsert أعمى يكلّف صفّاً في سجلّ التدقيق لكلّ طالبٍ في كلّ مرّة.
     before = (
         user.full_name,
-        user.phone,
+        user.get_phone_decrypted(),
         user.email,
         user.nationality,
         user.municipality,
@@ -217,7 +217,7 @@ def _upsert_user_from_registry(
     else:
         after = (
             user.full_name,
-            user.phone,
+            user.get_phone_decrypted(),
             user.email,
             user.nationality,
             user.municipality,

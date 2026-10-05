@@ -60,8 +60,8 @@
             <span class="status-badge status-maroon">{{ lnk.get_relationship_display }}</span>
           </td>
           <td data-label="جوّال ولي الأمر" class="text-center col-num text-xs">
-            {% if lnk.parent.phone %}
-              <a href="tel:{{ lnk.parent.phone }}" class="text-maroon">{{ lnk.parent.phone }}</a>
+            {% if lnk.parent.get_phone_decrypted %}
+              <a href="tel:{{ lnk.parent.get_phone_decrypted }}" class="text-maroon">{{ lnk.parent.get_phone_decrypted }}</a>
             {% else %}—{% endif %}
           </td>
           <td data-label="حذف" class="text-center">

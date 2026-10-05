@@ -460,7 +460,7 @@
   },
   "parents/views.py::manage_parent_links": {
    "lines": 145,
-   "orm": 52
+   "orm": 51
   },
   "parents/views.py::parent_all_attendance": {
    "orm": 7

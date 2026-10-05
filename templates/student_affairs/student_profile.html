@@ -60,8 +60,8 @@
           {% if profile and profile.date_of_birth %}
           <dt>تاريخ الميلاد</dt><dd>{{ profile.date_of_birth|date:"d/m/Y" }}</dd>
           {% endif %}
-          {% if student.phone %}
-          <dt>الجوال</dt><dd dir="ltr">{{ student.phone }}</dd>
+          {% if student.get_phone_decrypted %}
+          <dt>الجوال</dt><dd dir="ltr">{{ student.get_phone_decrypted }}</dd>
           {% endif %}
           {% if student.email %}
           <dt>البريد</dt><dd dir="ltr">{{ student.email }}</dd>
@@ -74,7 +74,7 @@
           {% for link in parent_links %}
             <li class="plain-list__row">
               <span class="plain-list__main"><b class="plain-list__title">{{ link.parent.full_name }}</b><span class="plain-list__sub">{{ link.get_relationship_display }}</span></span>
-              <span class="col-num" dir="ltr">{{ link.parent.phone|default:"—" }}</span>
+              <span class="col-num" dir="ltr">{{ link.parent.get_phone_decrypted|default:"—" }}</span>
             </li>
           {% endfor %}
         </ul>
