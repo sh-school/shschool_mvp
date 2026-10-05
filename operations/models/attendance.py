@@ -91,12 +91,17 @@ class Session(models.Model):
             models.Index(fields=["class_group", "date"]),
         ]
         constraints = [
+            # قيدا التداخل **على الحقيقيّة وحدَها** (W-20261005-006، D-219م): الحمايةُ نفسُها للصفوف غير المؤقّتة حرفاً، والمؤقّتةُ خارجَهما فلا تُسقط
+            # حصّةً حقيقيّةً بصمتٍ (`bulk_create(ignore_conflicts=True)`) أيّاً كان من أنشأها — المولّدُ الحاليّ أو V2 أو غيرُهما.
             models.UniqueConstraint(
-                fields=["teacher", "date", "start_time"], name="no_teacher_time_overlap"
+                fields=["teacher", "date", "start_time"],
+                condition=models.Q(provisional=False),
+                name="no_teacher_time_overlap_real",
             ),
             models.UniqueConstraint(
                 fields=["class_group", "date", "start_time", "elective_group"],
-                name="no_class_time_overlap",
+                condition=models.Q(provisional=False),
+                name="no_class_time_overlap_real",
             ),
             # تفرّدُ المؤقّتة وحدَها (إضافةٌ لا تمسّ الحقيقيّة): الشعبةُ لا تحمل مؤقّتتَين لرقم حصّةٍ واحد، والمعلّمُ كذلك.
             models.UniqueConstraint(

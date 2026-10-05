@@ -239,6 +239,7 @@ KEY_READERS = {
     "operations/views_attendance.py",  # سياقُ زرّ جدول المعلّم فقط
     "operations/urls.py",  # مساراتُ الميزة
     "operations/admin.py",  # عمودُ القائمة وترشيحُها
+    "operations/signals.py",  # إشارةُ إغلاق المؤقّتة عند حقيقيّةٍ جديدة (بالمفتاح وحدَه)
 }
 
 

@@ -25,8 +25,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
@@ -43,6 +44,8 @@ PERIOD_NUMBERS = tuple(range(1, 8))
 VALIDITY = dt.timedelta(days=14)
 #: سقفُ الإنشاء في الساعة لكلّ معلّم (سقفُ معدّل الطلبات، بند 2).
 HOURLY_LIMIT = 30
+#: سقفُ محاولات الإنشاء في الساعة لكلّ معلّم (تُعدّ المرفوضةُ أيضاً).
+ATTEMPTS_PER_HOUR = 60
 #: وسمُ المؤقّتة في الشاشات والإحصاءات.
 LABEL = "حصّة مؤقّتة"
 
@@ -142,6 +145,7 @@ def period_choices(
 ) -> list[PeriodChoice]:
     """ح1…ح7 بأزمنتها لهذه الشعبة اليوم، ومع كلٍّ مؤقّتتُها إن وُجدت — لمنتقي الواجهة."""
     today = _open_day(school, day)
+    close_shadowed(school, today)
     bell = _bell(school, klass, today)
     mine = {
         s.period_number: s
@@ -170,6 +174,8 @@ def create(
     """
     klass = assigned_class(user, school, class_id)
     today = _open_day(school, day)
+    _throttle(user)
+    close_shadowed(school, today)
     try:
         number = int(period_number)
     except (TypeError, ValueError):
@@ -184,7 +190,9 @@ def create(
     try:
         with transaction.atomic():
             # قفلُ صفوف الإسناد: طلبان متزامنان لمعلّمٍ واحدٍ يتسلسلان فلا يتجاوزان السقف معاً.
-            assignments = list(_assignments(user, school, klass).select_for_update())
+            # كلُّ إسنادات المعلّم لا إسنادُ هذه الشعبة وحدَها: طلبان على شعبتين مختلفتين يتسلسلان فلا يتجاوزان السقفَ معاً (مراجعة 0104، 4).
+            held = list(_assignments(user, school).select_for_update())
+            assignments = [a for a in held if a.class_group_id == klass.pk]
             if not assignments:
                 raise ProvisionalNotAllowedError("ليست من إسنادك")
             subject = _subject_of(assignments, subject_id)
@@ -224,6 +232,19 @@ def create(
         # سباقٌ على القيد الفريد المشروط: خسر هذا الطلبُ فيُرفض بمعنى لا بـ500.
         raise ProvisionalRefusedError("سبقتْه حصّةٌ مؤقّتةٌ لهذه الخانة") from None
     return session, True
+
+
+def _throttle(user: CustomUser) -> None:
+    """سقفُ **معدّل الطلبات** لا الصفوفِ المُنشأة فقط (بند 2، مراجعة 0104، 3): كلُّ محاولةٍ تُعدّ ولو رُفضت — فلا تعدادَ بالتجريب."""
+    key = f"provisional:attempts:{user.pk}:{timezone.now():%Y%m%d%H}"
+    cache.add(key, 0, timeout=3600)
+    try:
+        attempts = cache.incr(key)
+    except ValueError:  # انقضى المفتاحُ بين add وincr
+        cache.set(key, 1, timeout=3600)
+        attempts = 1
+    if attempts > ATTEMPTS_PER_HOUR:
+        raise ProvisionalRefusedError("طلباتٌ كثيرةٌ في الساعة الأخيرة — حاول لاحقاً")
 
 
 def _subject_of(assignments: list[SubjectClassAssignment], subject_id: Any):
@@ -278,3 +299,30 @@ def close(session: Session, *, reason: str, by: Any = None) -> bool:
         school=session.school,
     )
     return True
+
+
+def close_shadowed(school: School, day: dt.date) -> int:
+    """يُغلق مؤقّتاتِ يومٍ **زاحمتها حصّةٌ حقيقيّة** في خانتها (بند 10، D-219م) — بلا اعتماد على مولّدٍ بعينه.
+
+    الحقيقيّةُ تعني صفّاً غيرَ مؤقّتٍ غيرَ ملغًى بالساعة نفسِها لشعبة المؤقّتة **أو لمعلّمها** (لا يكون في مكانين). المصدرُ لا يهمّ:
+    المولّدُ الحاليّ (`bulk_create` بلا إشاراتٍ) أو V2 أو تبديلٌ أو إنشاءٌ يدويّ — فالقاعدةُ على مستوى `Session` نفسِها. ويُستدعى حيث تُقرأ المؤقّتات
+    (الإنشاءُ ومنتقي الشعبة) وبإشارةٍ عند حفظ حقيقيّةٍ جديدة؛ والمؤقّتةُ تُغلق ولا تُحذف، وكلُّ إغلاقٍ بسطر تدقيق. يرجع عددَ ما أُغلق.
+    """
+    if not enabled():
+        return 0
+    real = (
+        Session.objects.filter(
+            provisional=False,
+            date=OuterRef("date"),
+            start_time=OuterRef("start_time"),
+        )
+        .exclude(status="cancelled")
+        .filter(Q(class_group_id=OuterRef("class_group_id")) | Q(teacher_id=OuterRef("teacher_id")))
+    )
+    now = timezone.now()
+    shadowed = (
+        Session.objects.filter(school=school, date=day, provisional=True)
+        .filter(Q(provisional_until__isnull=True) | Q(provisional_until__gt=now))
+        .filter(Exists(real))
+    )
+    return sum(close(session, reason="real_session_exists") for session in list(shadowed))
