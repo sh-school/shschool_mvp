@@ -353,6 +353,54 @@ def unapproved_by_session(
     return sorted(result, key=lambda item: -item.oldest_hours)
 
 
+@dataclass(frozen=True)
+class PendingMark:
+    """رصدُ معلّمٍ (غائب/متأخّر) لطالبٍ في اليوم لم يُقرَّر فيه بعد — وسمٌ لا حالة."""
+
+    student: CustomUser
+    class_group: Any
+    count: int
+
+
+def pending_marks_by_student(
+    school: School,
+    day: dt.date,
+    *,
+    teacher_ids: Any = None,
+    student_ids: Any = None,
+) -> dict[object, PendingMark]:
+    """رصدُ المعلّم بانتظار اعتماد المشرف في يومٍ — عددٌ لكلّ طالبٍ في استعلامٍ واحد (تقريرُ غياب اليوم، W-20261005-002).
+
+    يُعدّ رأسُ الإدخال بلا قرارٍ بحالة غائب أو متأخّر فقط: الحاضرُ لا يُنبَّه إليه، والمعتمَدُ في `StudentAttendance`، والمرفوضُ
+    لا أثرَ له. وهو **وسمٌ لا احتساب**: المبدئيُّ لا يُحتسب غياباً قبل الاعتماد (D-125م) فلا يدخل في أيّ عدّ.
+    النطاقُ كنطاق التقرير: `teacher_ids` معلّمو القسم، و`student_ids` طلبةُ الجناح؛ و`None` بلا قيد.
+    """
+    entries = (
+        AttendanceEntry.objects.filter(
+            school=school,
+            session__date=day,
+            superseded_by__isnull=True,
+            decision__isnull=True,
+            status__in=("absent", "late"),
+        )
+        .exclude(session__status="cancelled")
+        .select_related("student", "session__class_group")
+    )
+    if teacher_ids is not None:
+        entries = entries.filter(session__teacher_id__in=teacher_ids)
+    if student_ids is not None:
+        entries = entries.filter(student_id__in=student_ids)
+    marks: dict[object, PendingMark] = {}
+    for entry in entries:
+        seen = marks.get(entry.student_id)
+        marks[entry.student_id] = PendingMark(
+            entry.student,
+            seen.class_group if seen else entry.session.class_group,
+            (seen.count if seen else 0) + 1,
+        )
+    return marks
+
+
 # ── إدخالاتُ المعلّم في شبكة المشرف (W-20261004-014) ─────────────────────────
 
 
