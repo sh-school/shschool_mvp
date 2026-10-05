@@ -1,0 +1,39 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% comment %}
+شُعبُ إسناد المعلّم للرصد بحصّةٍ مؤقّتة (W-20261005-006): لا شعبةَ هنا غيرُ المُسنَدة إليه، والرصدُ لليوم الدراسيّ الجاري وحدَه.
+تظهر الصفحةُ بمفتاح PROVISIONAL_SESSIONS_ENABLED وحدَه — مطفأً 404.
+{% endcomment %}
+{% block title %}شُعبي للرصد{% endblock %}
+
+{% block breadcrumbs %}
+{% url 'teacher_schedule' as schedule_url %}
+{% include "components/breadcrumbs.html" with parent_url=schedule_url parent_label="حصصي اليوم" current="شُعبي للرصد" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "شُعبي للرصد" subtitle="شُعبُ إسنادك — اختر الشعبةَ ثمّ حصّتَك لترصد الغياب" icon="attendance_register" %}{% endpage_header %}
+
+  {% section_card "شُعب إسنادك" meta=classes|length icon="attendance_register" %}
+    {% if classes %}
+    <div class="table-wrap">
+      <table data-no-sort>
+        <thead><tr><th>الشعبة</th><th>الجناح</th><th><span class="sr-only">الإجراء</span></th></tr></thead>
+        <tbody>
+          {% for klass in classes %}
+          <tr>
+            <td>{{ klass.short_label }}</td>
+            <td>{{ klass.wing.name|default:"—" }}</td>
+            <td><a class="btn-secondary btn-sm" href="{% url 'provisional_class' klass.id %}">ارصد</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with title="لا شُعبَ مُسنَدةً إليك" only %}
+    {% endif %}
+  {% endsection_card %}
+</div>
+{% endblock %}

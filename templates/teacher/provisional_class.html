@@ -1,0 +1,51 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% comment %}
+صفحةُ الشعبة للرصد بحصّةٍ مؤقّتة (W-20261005-006، أمرُ المالك D-217م): **فوق قائمة الطلبة** يختار المعلّمُ الحصّةَ من ح1 إلى ح7 قبل الرصد.
+الأزمنةُ من `TimeSlotConfig` لجرس الشعبة (لا رقمَ يُعدّ زمناً)؛ والاختيارُ يُنشئ الحصّةَ المؤقّتةَ بالرقم ثمّ يفتح كشفَ الرصد القائم.
+رقمٌ بلا زمنٍ في جرس الشعبة يُعرض معطَّلاً لا مخفيّاً. والقائمةُ للقراءة: لا رصدَ قبل اختيار الحصّة.
+{% endcomment %}
+{% block title %}رصد {{ klass.short_label }}{% endblock %}
+
+{% block breadcrumbs %}
+{% url 'provisional_classes' as classes_url %}
+{% include "components/breadcrumbs.html" with parent_url=classes_url parent_label="شُعبي للرصد" current=klass.short_label %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header klass.short_label subtitle="اختر حصّتَك أوّلاً ثمّ ارصد — حصّةٌ مؤقّتةٌ لليوم الجاري ريثما يُعتمد الجدول" icon="attendance_register" %}{% endpage_header %}
+
+  {% section_card "الحصّة" meta="ح1 – ح7" icon="periods_today" %}
+    <form method="post" action="{% url 'provisional_create' klass.id %}" class="pp-picker" aria-label="اختيارُ الحصّة">
+      {% csrf_token %}
+      {% for choice in choices %}
+      <button type="submit" name="period" value="{{ choice.number }}"
+              class="{% if choice.session %}btn-primary{% else %}btn-secondary{% endif %} pp-picker__btn"
+              {% if not choice.available %}disabled aria-disabled="true"{% endif %}>
+        <b>ح{{ choice.number }}</b>
+        <small>{% if choice.available %}{{ choice.start|time:"H:i" }}–{{ choice.end|time:"H:i" }}{% else %}بلا زمن{% endif %}</small>
+        {% if choice.session %}<small>مفتوحة</small>{% endif %}
+      </button>
+      {% endfor %}
+    </form>
+  {% endsection_card %}
+
+  {% section_card "طلبةُ الشعبة" meta=enrollments|length icon="attendance_register" %}
+    {% if enrollments %}
+    <div class="table-wrap">
+      <table data-no-sort>
+        <thead><tr><th>الطالب</th></tr></thead>
+        <tbody>
+          {% for enrollment in enrollments %}
+          <tr><td>{{ enrollment.student.full_name }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with title="لا طلبةَ في هذه الشعبة" only %}
+    {% endif %}
+  {% endsection_card %}
+</div>
+{% endblock %}

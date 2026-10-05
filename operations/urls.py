@@ -11,10 +11,15 @@ from .views_attendance_entries import (
     period_entries,
     unapproved,
 )
+from .views_provisional import provisional_class, provisional_classes, provisional_create
 from .views_schedule_drafts import discard_schedule, stop_schedule_generation
 
 urlpatterns = [
     path("schedule/", views.schedule, name="teacher_schedule"),
+    # -- رصدٌ بحصّةٍ مؤقّتة للمعلّم قبل اعتماد الجدول (W-20261005-006؛ مطفأٌ بمفتاح PROVISIONAL_SESSIONS_ENABLED) --
+    path("classes/", provisional_classes, name="provisional_classes"),
+    path("classes/<uuid:class_id>/", provisional_class, name="provisional_class"),
+    path("classes/<uuid:class_id>/period/", provisional_create, name="provisional_create"),
     # -- رصدُ المعلّم المبدئيّ واعتمادُه (W-020) --
     path("attendance/approvals/", approvals, name="attendance_approvals"),
     path("attendance/approvals/approve-all/", approve_all, name="attendance_approve_all"),

@@ -67,10 +67,19 @@ class AttendanceInline(ReadOnlyAdminMixin, admin.TabularInline):
 
 @admin.register(Session)
 class SessionAdmin(admin.ModelAdmin):
-    list_display = ("class_group", "subject", "teacher", "date", "start_time", "status")
+    list_display = (
+        "class_group",
+        "subject",
+        "teacher",
+        "date",
+        "start_time",
+        "status",
+        "provisional",
+    )
     # الأعمدةُ و`__str__` تقرأ هذه العلاقات لكلّ صفّ — تُجلب في استعلام القائمة نفسه (كانت ~25 سؤالاً للصفحة).
     list_select_related = ("class_group", "subject", "teacher")
-    list_filter = ("school", "status", "date")
+    # `provisional`: الحصّةُ المؤقّتة للمعلّم (W-20261005-006) ظاهرةٌ وقابلةٌ للترشيح، وحقلاها يظهران في نموذج الصفّ.
+    list_filter = ("school", "status", "provisional", "date")
     search_fields = ("teacher__full_name", "class_group__section")
     autocomplete_fields = ("teacher", "class_group", "subject")
     date_hierarchy = "date"
