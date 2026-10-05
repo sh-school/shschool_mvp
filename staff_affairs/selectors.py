@@ -3,7 +3,17 @@
 from __future__ import annotations
 
 from core.models.access import Membership
-from core.phone_search import MIN_PHONE_DIGITS, phone_holder_ids  # noqa: F401  (يُعاد تصديرُهما)
+from core.phone_search import MIN_PHONE_DIGITS, phone_holder_ids
+
+#: الواجهةُ العامّة. `MIN_PHONE_DIGITS` و`phone_holder_ids` تُعاد تصديرُهما من `core.phone_search`: العرضُ والاختبارُ
+#: يستوردانهما من هنا، ونقلُ النداء إلى وحدةٍ خارج `selectors` يرفع عدَّ سقّاطة الطبقات في `staff_list`.
+__all__ = [
+    "MIN_PHONE_DIGITS",
+    "NON_STAFF_ROLES",
+    "active_staff_memberships",
+    "phone_holder_ids",
+    "staff_memberships",
+]
 
 #: أدوارٌ ليست كادراً: الطالبُ ووليُّ الأمر لهما عضويّةٌ في المدرسة ولا يظهران في سجلّ الكادر.
 NON_STAFF_ROLES = ("student", "parent")
