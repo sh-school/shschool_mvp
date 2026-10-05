@@ -239,10 +239,15 @@ class TestTheSharedSelector:
 
     def test_the_search_matches_a_name_or_a_number(self, school, seeded_calendar, pupils):
         by_name, _ = student_register(school, seeded_calendar, QueryDict("q=الثامن"))
-        by_number, _ = student_register(school, seeded_calendar, QueryDict("q=0538"))
+        by_fragment, _ = student_register(
+            school, seeded_calendar, QueryDict("q=0538"), partial_id=True
+        )
+        by_fragment_unprivileged, _ = student_register(school, seeded_calendar, QueryDict("q=0538"))
 
         assert [m.user.full_name for m in by_name] == ["طالبُ الثامن"]
-        assert [m.user.full_name for m in by_number] == ["طالبُ السابع"]
+        # الجزءُ من الرقم للإدارة وحدَها (قرارُ المالك 2026-10-05)؛ وغيرُها لا يجد به أحداً.
+        assert [m.user.full_name for m in by_fragment] == ["طالبُ السابع"]
+        assert list(by_fragment_unprivileged) == []
 
 
 def test_the_builder_needs_no_request(school, principal_user, pupils, captured_html):
