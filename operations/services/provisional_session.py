@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
@@ -351,3 +352,54 @@ def close_shadowed(school: School, day: dt.date) -> int:
         .filter(Exists(real))
     )
     return sum(close(session, reason="real_session_exists") for session in list(shadowed))
+
+
+def class_page_context(
+    user: CustomUser, school: School, klass: ClassGroup, session_id: Any = None
+) -> dict[str, Any]:
+    """سياقُ صفحة الشعبة للرصد المؤقّت: المنتقي ح1–ح7 وقائمةُ الطلبة، ومع الحصّة المختارة `?session=` **شبكةُ كشف الحصّة نفسُها** (D-229م).
+
+    الحصّةُ المختارةُ تُقبل إن كانت **حصّةَ هذا المعلّم اليومَ في هذه الشعبة** وإلا لا شبكة (لا يُكشف وجودُ غيرها). في الخدمة لا العرض: سقّاطةُ الطبقات.
+    `ProvisionalNotAllowedError` لغير اليوم الدراسيّ الجاري.
+    """
+    from core.models import StudentEnrollment
+
+    from .attendance_teacher import TeacherAttendanceService
+
+    context: dict[str, Any] = {
+        "klass": klass,
+        "choices": period_choices(user, school, klass),
+        "enrollments": StudentEnrollment.objects.filter(class_group=klass, is_active=True)
+        .select_related("student")
+        .order_by("student__full_name"),
+    }
+    chosen = _chosen_session(user, school, klass, session_id)
+    if chosen is not None:
+        context.update(
+            {
+                **TeacherAttendanceService.page_context(user, chosen),
+                **TeacherAttendanceService.sheet(user, chosen),
+            }
+        )
+    return context
+
+
+def _chosen_session(
+    user: CustomUser, school: School, klass: ClassGroup, raw: Any
+) -> Session | None:
+    if not raw:
+        return None
+    try:
+        return (
+            Session.objects.select_related("class_group__wing", "subject")
+            .exclude(status="cancelled")
+            .get(
+                pk=raw,
+                school=school,
+                class_group=klass,
+                teacher=user,
+                date=timezone.localdate(),
+            )
+        )
+    except (Session.DoesNotExist, ValueError, ValidationError):
+        return None

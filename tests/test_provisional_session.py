@@ -551,4 +551,4 @@ def test_the_under_action_note_is_centered_triple_size_and_glowing_red():
 
     assert "text-align: center" in rule
     assert "calc(var(--text-sm) * 3)" in rule
-    assert "var(--status-danger)" in rule and "text-shadow" in rule
+    assert "var(--status-danger-fg)" in rule and "text-shadow" in rule

@@ -43,7 +43,7 @@
     <p class="ui-note">اختر الحصّة أوّلاً</p>
     <div class="auto-grid prov-off" aria-disabled="true">
       {% for enrollment in enrollments %}
-      <div class="card-qatar pp-student">{{ enrollment.student.full_name }}</div>
+      <div class="pp-student">{{ enrollment.student.full_name }}</div>
       {% endfor %}
     </div>
     {% else %}
