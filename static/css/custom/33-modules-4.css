@@ -851,6 +851,16 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .per-tab.is-confirmed { border-color: var(--status-success); }
 .per-tab.is-missed { border-color: var(--status-danger); }
 
+/* منتقي الحصّة (ح1–ح7) — تمايزُ الحال بالرموز لا بلونٍ واحد (ملاحظةُ المالك 2026-10-05، W-20261005-012):
+   الحاليّةُ عنّابيّةٌ مصمَتة، والماضيةُ هادئةٌ، والقادمةُ مخطَّطةٌ؛ والزمنُ بـ`--text-sm` لا أصغر.
+   الصنفُ `is-current|is-past|is-future` يضعه القالبُ من حالِ الحصّة (حسابُها في العرض لا هنا). */
+.pp-picker .pp-picker__btn small { font-size: var(--text-sm); }
+.pp-picker__btn.is-current { background: var(--maroon); border-color: var(--maroon); color: var(--on-fill); }
+.pp-picker__btn.is-past { background: var(--surface-alt); border-color: var(--border); color: var(--text-secondary); }
+.pp-picker__btn.is-future { background: var(--surface); border-color: var(--maroon-border); color: var(--maroon); }
+/* «ح1 – ح7» نصٌّ ثنائيّ الاتّجاه: يُعزل فلا ينقلب ترتيبُه داخل ترويسة البطاقة العربيّة. */
+.ui-section__meta bdi, .pp-picker__btn b { unicode-bidi: isolate; }
+
 /* البطاقة: الاسمُ ثمّ الأزرارُ الثلاثةُ ثمّ حالُ الحصص الأخرى حروفاً صغيرة. */
 .per-grid tbody tr.rec-row {
   display: flex; flex-wrap: wrap; align-content: flex-start; gap: var(--sp-1); padding: var(--sp-2); position: relative;
