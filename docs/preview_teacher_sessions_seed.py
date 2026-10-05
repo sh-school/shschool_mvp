@@ -15,7 +15,9 @@
                 وآخرُ بإدخالٍ **بانتظار الاعتماد**، والباقي فارغ.
               ٢ و٣    : رصدٌ مكتملٌ لطالبَين (حاضر ومتأخّر) فتصير الحصّةُ `completed`.
               والباقيةُ فارغةٌ `scheduled`.
-    plan  : قراءةٌ فقط **لا تكتب شيئاً**: يطبع لكلّ فترةٍ عددَ حصص الجناح والتربية الخاصّة المرشَّحة (بالرمز لا بالأسماء) والإسنادَ المقترح.
+    plan  : قراءةٌ فقط **لا تكتب شيئاً**: يعرض أوّلاً الحصصَ الموسومةَ القائمةَ (جناحُها وإدخالاتُها ونوعُها) وهل يرفضها up، ثمّ يطبع لكلّ فترةٍ عددَ حصص الجناح والتربية الخاصّة المرشَّحة (بالرمز لا بالأسماء) والإسنادَ المقترح.
+    ملاحظة: بقايا إصدارٍ سابقٍ (حصصٌ **أنشأها** بذرٌ قديمٌ أو في جناحٍ غيرِ المختار) يرفضها `up` بسببٍ مكتوبٍ ويطلب `down` أوّلاً بدل إعادة استعمالها بصمت
+            (واقعةُ 8500 في 2026-10-05: plan قدّر حصّتين وup أبلغ ستّاً من بقايا تشغيلٍ سابق، وإدخالٌ معتمَدٌ سلفاً منع ظهور «بانتظار الاعتماد»).
     who   : قراءةٌ فقط: يطبع ما أُسنِد وحالةَ كلّ حصّة.
     down  : يعيد المعلّمَ الأصليّ للحصص المُسنَدة (ويُصفّر `original_teacher` ويُزيل الوسم)، ويمحو ما وُسم: صفوفَ `StudentAttendance` للحصص الموسومة،
             ثمّ الإدخالاتِ والقراراتِ عبر `erase_attendance_ledger` (المسارُ الوحيد المسموح له بالحذف من السجلّ الملحق) — **لطالبٍ كلُّ إدخالاته
@@ -164,6 +166,19 @@ def plan():
     today = timezone.localdate()
     school = _school(teacher)
     wing, special, picked_wing, picked_special = _plan(school, today, teacher)
+    existing = _mine(today, teacher)
+    if existing:
+        # ما وُسم سلفاً يُعرض أوّلاً: `up` يعيد استعمالَه ولا يُسنِد جديداً (وكان plan يسكت عنه فيبدو الحالُ غيرَ ما سيقع).
+        print(f"حصصٌ موسومةٌ قائمةٌ اليوم: {len(existing)} (يعيد up استعمالَها ولا يُسنِد جديداً):")
+        for session in existing:
+            wing_code = session.class_group.wing.code if session.class_group.wing_id else "—"
+            entries = AttendanceEntry.objects.filter(session=session).count()
+            kind = "مُسنَدة" if session.original_teacher_id else "أنشأها إصدارٌ سابق"
+            print(
+                f"  {session.start_time:%H:%M} جناح={wing_code} [{kind}] إدخالات={entries} [{session.status}]"
+            )
+        if reason := _stale_reason(existing):
+            print(f"لا تصلح لإعادة الاستعمال: {reason} — سيرفض up ويطلب down أوّلاً.")
     print(
         f"اليوم {today} — حصصٌ مرشَّحةٌ لجناح {WING_CODE}: {len(wing)}؛ للتربية الخاصّة: {len(special)}"
     )
@@ -228,6 +243,21 @@ def _mine(today, teacher):
     )
 
 
+def _stale_reason(made):
+    """سببُ أنّ الموسومةَ القائمةَ لا تصلح لإعادة الاستعمال، أو `""` — فلا يُخفي `up` بقايا إصدارٍ سابقٍ بصمت (واقعةُ 8500 في 2026-10-05).
+
+    بقايا إصدارٍ سابقٍ: حصصٌ **أُنشئت** (بلا `original_teacher`) لا حصصٌ مُسنَدة، أو حصّةُ جناحٍ غيرِ المختار. وفي الحالين التشغيلُ الصحيحُ `down` ثمّ `up`.
+    """
+    created = [s for s in made if not s.original_teacher_id]
+    if created:
+        return f"{len(created)} حصّةً أنشأها إصدارٌ سابقٌ من البذر (لا مُسنَدة)"
+    off_wing = [s for s in made if s.class_group.wing_id and s.class_group.wing.code != WING_CODE]
+    if off_wing:
+        codes = sorted({s.class_group.wing.code for s in off_wing})
+        return f"حصصٌ موسومةٌ في جناحٍ غيرِ {WING_CODE}: {', '.join(codes)}"
+    return ""
+
+
 def up():
     if not in_preview_environment():
         _refuse("هذه ليست بيئةَ معاينة")
@@ -236,6 +266,11 @@ def up():
     school = _school(teacher)
 
     made = _mine(today, teacher)
+    if made and (reason := _stale_reason(made)):
+        _refuse(
+            f"حصصٌ موسومةٌ قائمةٌ لا تصلح لإعادة الاستعمال — {reason}. شغّل `TEACHER_SEED_ACTION=who` لتراها، "
+            "ثمّ `down` (يمحو إدخالاتِ الحصص الموسومة وحدَها) ثمّ `up` — ولا يُشغَّل down إلا بإذن المالك."
+        )
     if not made:
         _wing, _special, picked_wing, picked_special = _plan(school, today, teacher)
         if len(picked_wing) < MIN_WING_SESSIONS:
@@ -252,7 +287,11 @@ def up():
     holder = wing_session.class_group.wing.current_supervisor(on_date=today)
     students = _students(wing_session.class_group, 2)
     notes = []
-    if len(students) < 2:
+    if AttendanceEntry.objects.filter(session=wing_session).exists():
+        notes.append(
+            "حصّةُ رصد الجناح لها إدخالاتٌ سلفاً — لم تُضَف حالاتٌ جديدة (الإدخالُ المعتمَدُ يمنع ظهورَ «بانتظار الاعتماد»)"
+        )
+    elif len(students) < 2:
         notes.append("طلبةُ شعبة الجناح أقلُّ من اثنين — لا حالاتِ رصدٍ فيها")
     else:
         try:

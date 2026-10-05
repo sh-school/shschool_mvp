@@ -240,3 +240,57 @@ def test_down_gives_every_session_back_to_its_teacher(world, monkeypatch):
     assert not StudentAttendance.objects.filter(
         session__class_group__enrollments__isnull=False
     ).exists()
+
+
+def _legacy_created(school, world, klass):
+    """بقايا إصدارٍ سابق: حصّةٌ **أُنشئت** وسمُها بلا `original_teacher` (كما على 8500)."""
+    start, end = PERIODS[0]
+    return Session.objects.create(
+        school=school,
+        class_group=klass,
+        teacher=world,
+        date=timezone.localdate(),
+        start_time=dt.time(6, 0),
+        end_time=dt.time(6, 40),
+        status="scheduled",
+        notes=f"{MARK} حصّةُ معاينةٍ تُمحى بـdown [جناح الرصد]",
+    )
+
+
+def test_up_refuses_leftovers_of_an_older_seed_instead_of_reusing_them_silently(
+    school, klass, world, monkeypatch
+):
+    _legacy_created(school, world, klass)
+    before = Session.objects.count()
+
+    with pytest.raises(SystemExit):
+        _run("up", monkeypatch)
+
+    assert Session.objects.count() == before, "لم يُسنَد ولم يُنشأ شيء"
+
+
+def test_plan_shows_the_existing_marked_sessions_first(school, klass, world, monkeypatch, capsys):
+    _legacy_created(school, world, klass)
+
+    _run("plan", monkeypatch)
+
+    out = capsys.readouterr().out
+    assert "حصصٌ موسومةٌ قائمةٌ اليوم: 1" in out
+    assert "أنشأها إصدارٌ سابق" in out and "لا تصلح لإعادة الاستعمال" in out
+
+
+def test_up_does_not_try_new_entries_on_a_wing_session_that_already_has_entries(
+    world, monkeypatch, capsys
+):
+    from operations.models import AttendanceEntry
+
+    _run("up", monkeypatch)
+    entry_session = next(s for s in _mine(world) if "[جناح الرصد]" in s.notes)
+    entries_before = AttendanceEntry.objects.filter(session=entry_session).count()
+
+    _run("up", monkeypatch)
+
+    out = capsys.readouterr().out
+    assert AttendanceEntry.objects.filter(session=entry_session).count() == entries_before
+    if entries_before:
+        assert "لها إدخالاتٌ سلفاً" in out
