@@ -70,9 +70,6 @@
 </table>
 </div>
 {% if provisional_door and not is_leadership %}
-{% comment %}تنبيهٌ تحت عمود الإجراء (نصٌّ مقترحٌ يعدّله المالك عند المعاينة) ورابطٌ إلى «شُعبي للرصد» (زرٌّ ≥44px بالهويّة نفسِها).{% endcomment %}
-<div class="sessions-off-note" role="note">
-  <p>الجدولُ غيرُ معتمدٍ بعدُ — ارصد غيابَ طلّابك مؤقّتاً من «شُعبي للرصد»، إلى حين اعتماد جدول المنصّة.</p>
-  <a href="{% url 'provisional_classes' %}" class="btn-primary btn-sm">شُعبي للرصد</a>
-</div>
+{% comment %}نصٌّ حرفيٌّ بأمر المالك (D-228م): «تحت الإجراء» أسفلَ الجدول — لا تنبيهَ مطوَّلاً ولا رابطاً.{% endcomment %}
+<p class="ui-note sessions-off-note">تحت الإجراء</p>
 {% endif %}

@@ -1,0 +1,9 @@
+{% comment %}بلاطةُ انتقالٍ مُعطَّلة — مظهرُ `action_tile` بلا رابط (W-20261005-006): تُرسم من الوسم `{% action_tile_off %}` في operations/templatetags/provisional_door.py.{% endcomment %}
+{% load icons %}
+<span class="action-card prov-off" role="link" aria-disabled="true">
+  {% if icon %}<span class="action-card-icon" aria-hidden="true">{% icon_named icon %}</span>{% endif %}
+  <span class="action-card-body">
+    <span class="action-title">{{ title }}</span>
+    {% if desc %}<span class="action-desc">{{ desc }}</span>{% endif %}
+  </span>
+</span>

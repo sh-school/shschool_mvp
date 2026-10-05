@@ -1,4 +1,16 @@
-{% comment %}أزرارُ ترويسة «جدول حصصي» — التاريخُ وأبوابُ التبديل والتعويض، للمعلّم والقيادة معاً.{% endcomment %}
+{% load provisional_door %}{% provisional_enabled as provisional_door %}{% comment %}أزرارُ ترويسة «جدول حصصي» — التاريخُ وأبوابُ التبديل والتعويض، للمعلّم والقيادة معاً.
+الرصدُ المؤقّت (W-20261005-006، أمرُ المالك D-228م): بمفتاح `PROVISIONAL_SESSIONS_ENABLED` وحدَه تُطفأ للمعلّم **كلُّ مفاتيح الترويسة** — الترشيحُ بالتاريخ وزرُّ «عرض»
+وطلباتُ التبديل والحصصُ التعويضيّة — فلا يتعامل المعلّمُ مع جدولٍ غيرِ معتمد؛ مطفأً تبقى كما كانت. القيادةُ (`is_leadership`) لا تتأثّر.{% endcomment %}
+{% if provisional_door and not is_leadership %}
+<form class="schedule-date prov-off" inert aria-disabled="true">
+  <input type="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control form-control-sm" aria-label="تاريخ الحصص" disabled>
+  <button type="button" class="btn-primary btn-sm" disabled>عرض</button>
+</form>
+{% if user_role in "teacher,ese_teacher,coordinator,principal,vice_academic,vice_admin,platform_developer" or request.user.is_superuser %}
+<span class="btn-secondary btn-sm prov-off" role="link" aria-disabled="true" tabindex="-1">طلبات التبديل</span>
+<span class="btn-secondary btn-sm prov-off" role="link" aria-disabled="true" tabindex="-1">الحصص التعويضية</span>
+{% endif %}
+{% else %}
 <form method="get" class="schedule-date">
   <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control form-control-sm" aria-label="تاريخ الحصص">
   <button type="submit" class="btn-primary btn-sm">عرض</button>
@@ -7,7 +19,7 @@
 <a href="{% url 'swap_list' %}" class="btn-secondary btn-sm">طلبات التبديل</a>
 <a href="{% url 'compensatory_list' %}" class="btn-secondary btn-sm">الحصص التعويضية</a>
 {% endif %}
-{% load provisional_door %}{% provisional_enabled as provisional_door %}
+{% endif %}
 {% if provisional_door and user_role in "teacher,ese_teacher,coordinator" %}
 <a href="{% url 'provisional_classes' %}" class="btn-secondary btn-sm">شُعبي للرصد</a>
 {% endif %}

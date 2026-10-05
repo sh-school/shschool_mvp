@@ -5,6 +5,7 @@
 """
 
 import datetime as dt
+import re
 
 import pytest
 from django.db import IntegrityError
@@ -317,19 +318,34 @@ def _schedule_page(client, user):
     return client.get(reverse("teacher_schedule")).content.decode()
 
 
-def test_with_the_switch_on_the_teachers_schedule_has_no_live_button_and_shows_the_note(
+def _anchors_to(page, *names):
+    """كلُّ وسوم <a> في الصفحة إلى هذه المسارات (بأسمائها) — لمعرفة هل عطّلها `inert`."""
+    urls = [reverse(n) for n in names]
+    return [tag for tag in re.findall(r"<a [^>]*>", page) if any(f'href="{u}' in tag for u in urls)]
+
+
+def test_with_the_switch_on_the_teachers_schedule_is_switched_off_everywhere(
     client_as, assigned, teacher, session
 ):
     page = _schedule_page(client_as(teacher), teacher)
 
-    attendance_url = reverse("attendance", args=[session.id])
-    assert f'href="{attendance_url}"' not in page, "لا زرَّ فعّالَ في جدول حصصي"
+    # الجدولُ: لا رابطَ حضورٍ فعّال، وتحته «تحت الإجراء» حرفاً (D-228م)
+    assert f'href="{reverse("attendance", args=[session.id])}"' not in page
     assert 'aria-disabled="true"' in page and "sessions-table is-off" in page
-    assert "الجدولُ غيرُ معتمدٍ بعدُ" in page
-    assert f'href="{reverse("provisional_classes")}"' in page, "رابطٌ إلى شُعبي للرصد"
-    assert (
-        reverse("swap_list") in page and reverse("compensatory_list") in page
-    ), "أزرارُ الترويسة كما هي"
+    assert '<p class="ui-note sessions-off-note">تحت الإجراء</p>' in page
+    assert "الجدولُ غيرُ معتمدٍ بعدُ" not in page
+    # مفاتيحُ الترويسة مطفأةٌ: لا رابطَ تبديلٍ ولا تعويض في الترويسة، والترشيحُ بالتاريخ معطَّل
+    assert '<span class="btn-secondary btn-sm prov-off"' in page
+    assert re.search(r'<form class="schedule-date prov-off" inert', page)
+    # ومفاتيحُ القائمة (التبديل والتعويض والجدول) معطَّلةٌ بـinert حيث وُجدت
+    nav = _anchors_to(page, "swap_list", "compensatory_list") + [
+        tag
+        for tag in _anchors_to(page, "teacher_schedule")
+        if "class=" in tag  # لا فتاتُ الخبز
+    ]
+    assert nav and all("inert" in tag and "data-prov-off" in tag for tag in nav), nav
+    # بابُ الرصد المؤقّت وحدَه يعمل
+    assert f'href="{reverse("provisional_classes")}"' in page
 
 
 def test_with_the_switch_off_the_schedule_is_exactly_as_it_was(
@@ -341,7 +357,7 @@ def test_with_the_switch_off_the_schedule_is_exactly_as_it_was(
 
     assert f'href="{reverse("attendance", args=[session.id])}"' in page
     assert "is-off" not in page and "sessions-off-note" not in page
-    assert "الجدولُ غيرُ معتمدٍ بعدُ" not in page
+    assert "data-prov-off" not in page and "prov-off" not in page and "تحت الإجراء" not in page
     assert 'aria-disabled="true"' not in page.split('class="sessions-table')[1].split("</table>")[0]
 
 
@@ -351,3 +367,29 @@ def test_leadership_view_of_the_schedule_is_untouched_by_the_switch(
     page = client_as(principal_user).get(reverse("teacher_schedule")).content.decode()
 
     assert "sessions-off-note" not in page and "is-off" not in page
+
+
+# ── الصفحةُ الرئيسيّةُ للمعلّم (D-227م): تُخفى حصصُه من جدول المنصّة وتحلّ بطاقةُ «رصدُ الغياب (مؤقّت)» ──
+
+
+def test_with_the_switch_on_the_home_hides_the_platform_sessions_and_offers_the_temporary_card(
+    client_as, assigned, teacher, session
+):
+    page = client_as(teacher).get(reverse("dashboard")).content.decode()
+
+    assert f'href="{reverse("attendance", args=[session.id])}"' not in page, "لا حصصَ من جدول المنصّة"
+    assert "رصدُ الغياب (مؤقّت — إلى حين اعتماد جدول المنصّة)" in page
+    assert f'href="{reverse("provisional_classes")}"' in page
+    # بلاطاتُ الجدول والتبديل مطفأةٌ بلا رابط (مظهرُ البلاطة نفسُه بلا href)
+    assert 'class="action-card prov-off"' in page
+
+
+def test_with_the_switch_off_the_home_is_exactly_as_it_was(
+    client_as, settings, assigned, teacher, session
+):
+    settings.PROVISIONAL_SESSIONS_ENABLED = False
+
+    page = client_as(teacher).get(reverse("dashboard")).content.decode()
+
+    assert f'href="{reverse("attendance", args=[session.id])}"' in page
+    assert "رصدُ الغياب (مؤقّت" not in page and "prov-off" not in page
