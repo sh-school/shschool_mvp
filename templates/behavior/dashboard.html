@@ -3,6 +3,9 @@
 {% load static ui %}
 {% block title %}لوحة السلوك{% endblock %}
 
+{# النمطُ: لوحة (layout-dashboard). #}
+{% block main_class %}{% page_layout "dashboard" %}{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with current="السلوك المدرسي" %}
 {% endblock %}
