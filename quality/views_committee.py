@@ -16,6 +16,7 @@ from django.views.decorators.http import require_POST
 from core.academic_calendar import academic_year_for, default_academic_year
 from core.capabilities import capability_required
 from core.models import CustomUser, Membership
+from core.user_selectors import school_user_or_404
 
 from .models import (
     OperationalDomain,
@@ -186,7 +187,7 @@ def add_committee_member(request):
     committee_type = request.POST.get("committee_type", QualityCommitteeMember.REVIEW)
     domain_id = request.POST.get("domain_id", "").strip() or None
 
-    user = CustomUser.objects.filter(id=user_id).first() if user_id else None
+    user = school_user_or_404(school, user_id) if user_id else None
     domain = (
         OperationalDomain.objects.filter(id=domain_id, school=school).first() if domain_id else None
     )

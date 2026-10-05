@@ -32,8 +32,9 @@ from academic_management import workload_workflow as flow
 from academic_management.models import FROZEN_STATUSES, CoursePreparation
 from core.academic_calendar import academic_year_for
 from core.dashboard_presentation import chunk_for_grid
-from core.models import ClassGroup, CustomUser, Department, Membership
+from core.models import ClassGroup, Department, Membership
 from core.models.access import DEPARTMENT_ROLES
+from core.user_selectors import school_user_or_404, school_user_or_none
 from operations.models import Subject, SubjectClassAssignment
 
 MODULE_NAME = "إدارة الشؤون الأكاديمية"
@@ -117,7 +118,7 @@ def _stale_card_html(request, school, year, caps, rendered_teacher):
     target = (request.headers.get("HX-Target") or "").removeprefix("teacher-")
     if not target or target == str(rendered_teacher.id):
         return ""
-    other = CustomUser.objects.filter(id=target).first() if _is_uuid(target) else None
+    other = school_user_or_none(school, target) if _is_uuid(target) else None
     if other is None:
         return ""
     return render_to_string(
@@ -247,7 +248,7 @@ def _chosen_plan_row(request, school):
 @require_POST
 def add_row(request, teacher_id):
     """إسنادٌ جديد: الشعبةُ والمادّة — والحصصُ من الخطّة الوزاريّة."""
-    teacher = get_object_or_404(CustomUser, id=teacher_id)
+    teacher = school_user_or_404(request.school, teacher_id)
     school, caps, _scope, year = _guard(request, teacher)
     locked = _locked_card(request, school, year, teacher, caps)
     if locked is not None:
@@ -370,7 +371,7 @@ def update_periods(request, assignment_id):
 @require_POST
 def cancel_transfer(request, teacher_id):
     """صرفُ النظر عن نقلٍ لم يُؤكَّد — تُعاد البطاقةُ كما كانت."""
-    teacher = get_object_or_404(CustomUser, id=teacher_id)
+    teacher = school_user_or_404(request.school, teacher_id)
     school, caps, _scope, year = _guard(request, teacher)
     return _render_card(request, school, year, teacher, caps)
 
@@ -498,7 +499,7 @@ def toggle_double(request, assignment_id):
 @require_POST
 def toggle_preparation(request, teacher_id):
     """مربّعُ «يحضّر» — تعيينُ مسؤوليّة تحضير المقرّر أو إسقاطُها."""
-    teacher = get_object_or_404(CustomUser, id=teacher_id)
+    teacher = school_user_or_404(request.school, teacher_id)
     school, caps, _scope, year = _guard(request, teacher)
     locked = _locked_card(request, school, year, teacher, caps)
     if locked is not None:
@@ -537,7 +538,7 @@ def toggle_preparation(request, teacher_id):
 @require_POST
 def set_load(request, teacher_id):
     """النصابُ رقمٌ واحد — يُفتح له مسودّةٌ إن لم تكن، ويُحدَّث إن كانت."""
-    teacher = get_object_or_404(CustomUser, id=teacher_id)
+    teacher = school_user_or_404(request.school, teacher_id)
     school, caps, _scope, year = _guard(request, teacher)
     locked = _locked_card(request, school, year, teacher, caps)
     if locked is not None:
@@ -585,7 +586,7 @@ def set_department(request, teacher_id):
     تدريسيّ (يحرسه `Membership.clean`). وبهذا يجد المعيَّنُ حديثاً والمنقولُ
     بابَه في المنصّة، بلا لوحةِ إدارة.
     """
-    teacher = get_object_or_404(CustomUser, id=teacher_id)
+    teacher = school_user_or_404(request.school, teacher_id)
     school, caps, _scope, year = _guard(request, teacher)
     if not (caps["review"] or caps["approve"]):
         raise PermissionDenied("نقلُ المعلّم بين الأقسام للنائب الأكاديميّ والمدير.")
@@ -625,7 +626,7 @@ def set_department(request, teacher_id):
 @require_POST
 def move(request, teacher_id, action):
     """نقلةٌ واحدةٌ في دورة الخطّة — والبوّابةُ والختمُ في `workload_workflow`."""
-    teacher = get_object_or_404(CustomUser, id=teacher_id)
+    teacher = school_user_or_404(request.school, teacher_id)
     school, caps, _scope, year = _guard(request, teacher)
     if selectors.entry_paused_for(caps):
         return _render_card(request, school, year, teacher, caps, error=ENTRY_PAUSED_REASON)
