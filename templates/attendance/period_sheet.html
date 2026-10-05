@@ -67,6 +67,8 @@
         <nav class="per-tabs" aria-label="حصصُ اليوم">
           {% for period, status in periods %}
             <a href="{% if tab_urls %}{{ tab_urls|get_item:period.key }}{% else %}?date={{ day|date:'Y-m-d' }}&amp;p={{ period.key }}{% endif %}" class="per-tab is-{{ status }}{% if period.start == focus.start %} is-focus{% endif %}" {% if period.start == focus.start %}aria-current="true"{% endif %}>ح{{ period.number }}</a>
+          {% empty %}
+            <span class="sr-only">لا حصصَ لهذه الشعبة</span>
           {% endfor %}
         </nav>
       </div>

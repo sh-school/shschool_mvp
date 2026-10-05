@@ -69,7 +69,9 @@ def leave(
     current = open_exit(session, student)
     if current is not None:
         return current
-    if is_marked_absent(session, student):
+    from operations.attendance_entries import teacher_marked_absent
+
+    if teacher_marked_absent(session, student):
         return None  # غائبٌ وخروجٌ لا يجتمعان (أمرُ المالك 2026-10-04): الغائبُ لا يُفتح له خروج
     if destination not in dict(ClassExit.DESTINATIONS):
         destination = "other"
@@ -85,15 +87,6 @@ def leave(
     if destination in NOTIFY_SUPERVISOR_FOR:
         _notify_supervisor(exit_)
     return exit_
-
-
-def is_marked_absent(session: Session, student: CustomUser) -> bool:
-    """هل وسمه معلّمُ الحصّة غائباً (إدخالٌ مبدئيٌّ)؟ — رصدُ المشرف لا يمنع: تثبيتُه يُقرأ ولا يُكتب فوقه من هنا."""
-    from operations.models import AttendanceEntry
-
-    return AttendanceEntry.objects.filter(
-        session=session, student=student, status="absent"
-    ).exists()
 
 
 def close_for_absence(
