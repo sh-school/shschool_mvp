@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load ui %}
+{% load ui approvals %}
 {% comment %}
 تقريرُ غياب اليوم — طالبٌ في سطر، لأيّ تاريخ (قرارُ 2026-09-13). يحلّ محلَّ
 «سجلّات الحضور والغياب» التي كانت تعدّ السجلّات لا الطلاب. ووسمُ الوزارة لمن غاب
@@ -20,6 +20,7 @@
       <button type="submit" class="btn-secondary btn-sm">اعرض</button>
     </form>
     {% callout "hint" %}النطاقُ قسمُك: حصصُ معلّميه وطلابُها.{% endcallout %}
+    {% approve_all_button %}
   {% endpage_header %}
 
   {% kpi_strip label="اليوم في رقم" %}
@@ -28,10 +29,6 @@
     {% kpi "تأخّروا حصّةً فأكثر" report.late_students tone="amber" %}
     {% kpi "للرفع الوزاريّ" report.ministry_rows|length sub="غابوا الأولى والثانية" tone="maroon" %}
   {% endkpi_strip %}
-
-  {% if report.scoped_to_department %}
-
-  {% endif %}
 
   {% if report.pending_total %}
   {% callout "warning" show=True %}رصد معلّم بانتظار اعتماد المشرف: {{ report.pending_total }} — وسمٌ للمتابعة، لا يدخل في أيٍّ من الأعداد أعلاه حتى يُعتمد.{% endcallout %}

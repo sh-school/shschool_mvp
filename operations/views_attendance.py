@@ -196,11 +196,12 @@ def attendance_view(request, session_id):
     ]
     for row in students_data:
         row["tone"] = attendance_tone(row["status"])
-    if not can_record(request.user, session):
-        # شُعبُ الأجنحة: المعلّمُ الفعليّ يُدخل رصداً مبدئيّاً يعتمده حاملُ الجناح (W-020)، وله نقرتا الدخول والخروج.
+    if not is_recorder(request.user):
+        # كلُّ معلّمٍ يرى **الكشفَ المشتركَ نفسَه** (أمرُ المالك 2026-10-04: تصميمٌ واحد): شُعبُ الأجنحة إدخالٌ مبدئيٌّ يعتمده الحاملُ (W-020)،
+        # وشُعبُ التربية الخاصّة (بلا جناح) إدخالٌ نهائيٌّ مباشر (D-126م) — والفرقُ في الخدمة (`needs_approval`) لا في الصفحة.
         context = {
             **TeacherAttendanceService.page_context(request.user, session),
-            **_session_heading(session),
+            **TeacherAttendanceService.sheet(request.user, session),
         }
         return render(request, "teacher/attendance_readonly.html", context)
     summary = AttendanceService.get_session_summary(session)

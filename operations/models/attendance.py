@@ -565,6 +565,27 @@ class ClassExit(models.Model):
         related_name="class_exits_allowed",
         verbose_name="أذِن به",
     )
+    continued_from = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="continuations",
+        verbose_name="امتدادٌ لخروجٍ سابق",
+        help_text=(
+            "الخروجُ الذي لم يعد صاحبُه بنهاية حصّته يُرحَّل إلى الحصّة التالية بسطرٍ جديد يشير إلى أصله؛ "
+            "فالسطرُ بلا أصلٍ خروجٌ جديدٌ يُعدّ مرّةً، والامتدادُ يزيد المدّةَ ولا يزيد العدد."
+        ),
+    )
+
+    system_closed = models.BooleanField(
+        default=False,
+        verbose_name="أُغلق بالنظام بلا عودة",
+        help_text=(
+            "أغلقه جرسُ آخر حصّةٍ للطالب أو مهمّةُ نهاية اليوم والطالبُ لم يعد: علامةٌ صريحةٌ يقرؤها مؤشّرُ «لم يعد» للمشرف، "
+            "فلا يكون الإغلاقُ صامتاً ولا يُخفي أنّه لم يعد."
+        ),
+    )
 
     class Meta:
         verbose_name = "خروجٌ من الفصل"
@@ -588,6 +609,49 @@ class ClassExit(models.Model):
 
     def __str__(self):
         return f"{self.student.full_name} · {self.get_destination_display()} · {self.left_at:%H:%M}"
+
+
+class DailyExitTally(models.Model):
+    """مجموعُ خروج طالبٍ من الفصل في **يومٍ** — عددُ المرّات ومجموعُ المدّة (أمرُ المالك 2026-10-04).
+
+    صفٌّ لكلّ (طالب، تاريخ): فاليومُ التالي يبدأ من الصفر لأنّ تاريخَه مفتاحٌ آخر لا لأنّ شيئاً يُمسح. وهو **ملخّصٌ مشتقٌّ** من `ClassExit`
+    يُعاد حسابُه (لا يُزاد فوقه) عند كلّ خروجٍ وعودةٍ وإغلاقٍ بجرس: فتكرارُ العودة أو الإغلاق لا يضاعف العدّ. تفاصيلُ كلّ خروجٍ
+    (الحصّةُ والمادّةُ والوقتان) تبقى في `ClassExit` عبر `session`.
+
+    `total_seconds` للأجزاء **المغلقة**؛ والخروجُ المفتوحُ يُضاف إليه عند العرض (`now - left_at`) فلا يتحرّك المخزَّنُ كلَّ ثانية.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="daily_exit_tallies", verbose_name="المدرسة"
+    )
+    student = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="daily_exit_tallies",
+        verbose_name="الطالب",
+    )
+    date = models.DateField(verbose_name="التاريخ")
+    exit_count = models.PositiveIntegerField(default=0, verbose_name="عددُ مرّات الخروج")
+    total_seconds = models.PositiveIntegerField(default=0, verbose_name="مجموعُ مدّة الخروج (ثوانٍ)")
+    by_destination = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="التفصيل بالوجهة",
+        help_text='{"clinic": {"count": 1, "seconds": 300}, ...} — عددُ المرّات ومجموعُ الأجزاء المغلقة لكلّ وجهةٍ (العيادة، الإدارة/المشرف، دورة المياه، أخرى).',
+    )
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="آخرُ تحديث")
+
+    class Meta:
+        verbose_name = "ملخّصُ خروجٍ يوميّ"
+        verbose_name_plural = "ملخّصاتُ الخروج اليوميّة"
+        constraints = [
+            models.UniqueConstraint(fields=["student", "date"], name="uniq_exit_tally_student_day")
+        ]
+        indexes = [models.Index(fields=["school", "date"])]
+
+    def __str__(self) -> str:
+        return f"{self.date} · {self.exit_count} مرّة · {self.total_seconds} ث"
 
 
 class PeriodConfirmation(models.Model):

@@ -4,9 +4,11 @@ from . import views
 from .views_attendance_entries import (
     approval_decide,
     approvals,
+    approve_all,
     correct_page,
     correct_submit,
     entry_submit,
+    period_entries,
     unapproved,
 )
 from .views_schedule_drafts import discard_schedule, stop_schedule_generation
@@ -15,9 +17,11 @@ urlpatterns = [
     path("schedule/", views.schedule, name="teacher_schedule"),
     # -- رصدُ المعلّم المبدئيّ واعتمادُه (W-020) --
     path("attendance/approvals/", approvals, name="attendance_approvals"),
+    path("attendance/approvals/approve-all/", approve_all, name="attendance_approve_all"),
     path("attendance/approvals/<uuid:entry_id>/decide/", approval_decide, name="attendance_decide"),
     path("attendance/unapproved/", unapproved, name="attendance_unapproved"),
     path("attendance/<uuid:session_id>/entry/", entry_submit, name="attendance_entry"),
+    path("attendance/<uuid:session_id>/entries/", period_entries, name="attendance_period_entries"),
     path("attendance/<uuid:session_id>/correct/", correct_page, name="attendance_correct"),
     path(
         "attendance/<uuid:session_id>/correct/submit/",
