@@ -33,11 +33,12 @@ from core.models import (
     Role,
     StudentEnrollment,
 )
-from core.privacy import may_search_id_partially, national_id_search_q
+from core.privacy import national_id_search_q
 from core.sorting import apply_sort, arabic_key
 from core.unrestricted_role import has_unrestricted_role
 from operations.models import AbsenceAlert
 
+from .selectors import parent_ids_by_phone
 from .services import ParentService, consent_state, save_consents
 
 
@@ -430,13 +431,12 @@ def manage_parent_links(request):
     total_count = links.count()
 
     if search:
-        id_partial = may_search_id_partially(request.user)
         links = links.filter(
             Q(parent__full_name__icontains=search)
             | Q(student__full_name__icontains=search)
-            | national_id_search_q("parent__national_id", search, partial=id_partial)
-            | national_id_search_q("student__national_id", search, partial=id_partial)
-            | Q(parent__phone__icontains=search)
+            | national_id_search_q("parent__national_id", search, user=request.user)
+            | national_id_search_q("student__national_id", search, user=request.user)
+            | Q(parent_id__in=parent_ids_by_phone(links, search))
             | Q(grade_code__icontains=search)
         )
 

@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.http import JsonResponse
 
 from core.permissions import ALL_STAFF_ROLES, STUDENT_AFFAIRS_VIEW
-from core.privacy import mask_national_id, may_search_id_partially, national_id_search_q
+from core.privacy import mask_national_id, national_id_search_q
 
 # ✅ v5.1.1: regex للتحقق من صحة استعلامات البحث (عربي + لاتيني + أرقام + مسافات)
 _SEARCH_RE = re.compile(r"^[\w\s\u0600-\u06FF\u0750-\u077F\-_.@]+$")
@@ -38,9 +38,7 @@ def global_search(request):
     if request.user.is_superuser or role in ALL_STAFF_ROLES:
         match = Q(student__full_name__icontains=q)
         if request.user.is_superuser or role in STUDENT_AFFAIRS_VIEW:
-            match |= national_id_search_q(
-                "student__national_id", q, partial=may_search_id_partially(request.user)
-            )
+            match |= national_id_search_q("student__national_id", q, user=request.user)
         # المقيَّدُ بجناحه يجد طلبةَ جناحه وحدَهم — قبل المطابقة والاقتطاع، فلا تملأ
         # الخاناتِ الستَّ أسماءٌ من غير جناحه (قرارُ 2026-09-15). وغيرُه كما كان.
         from wings.scope import student_scope_for

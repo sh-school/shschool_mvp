@@ -61,7 +61,7 @@ def _diff(instance, data, fields):
     for field in fields:
         if field not in data:
             continue
-        before = getattr(instance, field)
+        before = instance.get_phone_decrypted() if field == "phone" else getattr(instance, field)
         after = data[field]
         if (before or "") != (after or ""):
             changes[field] = (before, after)

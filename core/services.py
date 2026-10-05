@@ -146,7 +146,7 @@ def _upsert_user(
         if not user.full_name and full_name:
             user.full_name = full_name
             changed = True
-        if not user.phone and phone:
+        if not user.get_phone_decrypted() and phone:
             user.phone = phone
             changed = True
         if not user.email and email:

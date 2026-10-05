@@ -47,7 +47,7 @@ def build_students_pdf(school: Any, user: Any, params: Any) -> ExportResult:
                 "national_id": m.user.national_id,
                 "grade": enr.get("class_group__grade", "—"),
                 "section": enr.get("class_group__section", "—"),
-                "phone": m.user.phone or "—",
+                "phone": m.user.get_phone_decrypted() or "—",
                 "email": m.user.email or "—",
             }
         )

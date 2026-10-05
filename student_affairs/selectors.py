@@ -6,8 +6,10 @@ from typing import Any
 
 from django.db.models import Exists, OuterRef, Q
 
-from core.models.academic import StudentEnrollment
+from core.models.academic import ParentStudentLink, StudentEnrollment
 from core.models.access import Membership
+from core.models.user import CustomUser
+from core.phone_search import phone_holder_ids
 from core.privacy import national_id_search_q
 
 
@@ -81,3 +83,26 @@ def student_register(
         students = students.filter(user_id__in=enrolled_ids)
 
     return students, enrollment_data
+
+
+def guardian_ids_by_phone(school: Any, term: str) -> list:
+    """معرّفاتُ أولياء الأمر في المدرسة ممّن يحوي جوّالُه الأرقامَ المكتوبة — بلا قراءةٍ للعمود الصريح."""
+    parents = CustomUser.objects.filter(
+        pk__in=ParentStudentLink.objects.filter(school=school).values("parent_id")
+    )
+    return list(phone_holder_ids(parents, term))
+
+
+def guardian_phones(parent_ids: Any) -> dict:
+    """{معرّفُ وليّ الأمر: جوّالُه} لمن في الصفحة وحدَهم."""
+    ids = {pk for pk in parent_ids if pk}
+    users = CustomUser.objects.filter(pk__in=ids).only("pk", "phone", "phone_encrypted")
+    return {u.pk: u.get_phone_decrypted() for u in users}
+
+
+def attach_guardian_phones(page: Any) -> Any:
+    """يضع `guardian_phone` على كلّ صفٍّ في الصفحة من النسخة المشفَّرة، ويُرجع الصفحةَ نفسَها."""
+    phones = guardian_phones(m.guardian_parent_id for m in page)
+    for m in page:
+        m.guardian_phone = phones.get(m.guardian_parent_id, "")
+    return page

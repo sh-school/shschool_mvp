@@ -56,18 +56,21 @@ def may_search_id_partially(user: Any) -> bool:
         return False
     if getattr(user, "is_superuser", False):
         return True
-    return user.has_any_role(*PARTIAL_ID_SEARCH_ROLES)
+    return user.role in PARTIAL_ID_SEARCH_ROLES
 
 
-def national_id_search_q(field: str, term: str, *, partial: bool = False) -> Q:
-    """شرطُ بحثٍ في الرقم الشخصيّ: تساوٍ تامٌّ، أو احتواءٌ لمن يجوز له (`may_search_id_partially`).
+def national_id_search_q(field: str, term: str, *, user: Any = None, partial: bool = False) -> Q:
+    """شرطُ بحثٍ في الرقم الشخصيّ: تساوٍ تامٌّ، أو احتواءٌ لمن يجوز له.
 
-    `field` مسارُ الحقل كاملاً (`national_id` أو `user__national_id`…). والمدخلُ الفارغُ لا يطابق شيئاً.
+    الاحتواءُ حين `partial` صريحاً (من يستدعي من غير عرض: مصدِّرٌ يعرف مستخدمَه)، أو حين `user`
+    يجوز له (`may_search_id_partially`). `field` مسارُ الحقل كاملاً (`national_id` أو
+    `user__national_id`…). والمدخلُ الفارغُ لا يطابق شيئاً.
     """
     text = (term or "").strip()
+    lookup = f"{field}__icontains" if partial or may_search_id_partially(user) else field
     if not text:
-        return Q(pk__in=[])
-    return Q(**{f"{field}__icontains" if partial else field: text})
+        lookup, text = "pk__in", []  # type: ignore[assignment]
+    return Q(**{lookup: text})
 
 
 def mask_national_id(value: str | None, tail: int = VISIBLE_TAIL) -> str:

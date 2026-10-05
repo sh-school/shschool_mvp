@@ -68,7 +68,7 @@ from operations.tardiness import tardiness_now
 from wings.scope import student_scope_for
 
 from .models import StudentActivity, StudentTransfer
-from .selectors import student_register
+from .selectors import attach_guardian_phones, guardian_ids_by_phone, student_register
 
 logger = logging.getLogger(__name__)
 
@@ -350,7 +350,7 @@ def student_list(request):
         # وليُّ الأمر: الأساسيُّ أوّلاً، فإن لم يُعلَّم أحدٌ فأقدمُ ارتباط.
         # وجوّالُه هو الفعلُ المقصودُ من هذه الشاشة — الاتّصالُ بالأسرة.
         guardian_name=Subquery(guardian.values("parent__full_name")[:1]),
-        guardian_phone=Subquery(guardian.values("parent__phone")[:1]),
+        guardian_parent_id=Subquery(guardian.values("parent_id")[:1]),
         guardian_relation=Subquery(guardian.values("relationship")[:1]),
     ).annotate(
         # «G10» نصّاً يسبق «G7»، وعدداً يليه. فيُحشى الجزءُ الرقميُّ بصفرٍ
@@ -382,11 +382,9 @@ def student_list(request):
         shaped = normalise_arabic(q)
         students = students.filter(
             Q(name_key__icontains=shaped)
-            | national_id_search_q(
-                "user__national_id", q, partial=may_search_id_partially(request.user)
-            )
+            | national_id_search_q("user__national_id", q, user=request.user)
             | Q(guardian_key__icontains=shaped)
-            | Q(guardian_phone__icontains=q)
+            | Q(guardian_parent_id__in=guardian_ids_by_phone(school, q))
             | Q(grade_code__icontains=q)
             | Q(section_code__icontains=q)
         )
@@ -394,7 +392,7 @@ def student_list(request):
     students, sort = apply_sort(students, request, allowed=STUDENT_SORTS, default="name")
 
     paginator = Paginator(students, STUDENT_PAGE_SIZE)
-    page_obj = paginator.get_page(request.GET.get("page"))
+    page_obj = attach_guardian_phones(paginator.get_page(request.GET.get("page")))
 
     # الصلةُ تُعرض بعنوانها العربيّ لا بمفتاحها المخزَّن، والقائمةُ من النموذج
     # نفسِه فلا قاموسَ ثانٍ يتخلّف عنه.
@@ -411,7 +409,7 @@ def student_list(request):
             # بلا حرفٍ وبخانتين، فيطابق ما في يد القارئ من كشوف.
             "class_label": class_label(m.grade_code, m.section_code),
             "guardian_name": m.guardian_name or "",
-            "guardian_phone": m.guardian_phone or "",
+            "guardian_phone": m.guardian_phone,
             "guardian_relation": relations.get(m.guardian_relation, ""),
             "can_sign_in": m.user.is_active and m.user.has_usable_password(),
         }
@@ -525,7 +523,7 @@ def student_export_excel(request):
             mask_national_id(m.user.national_id),
             enr.get("class_group__grade", "—"),
             enr.get("class_group__section", "—"),
-            m.user.phone or "—",
+            m.user.get_phone_decrypted() or "—",
             m.user.email or "—",
         ]
         row_data = [neutralize_formula_value(v) for v in row_data]
@@ -689,7 +687,7 @@ def student_edit(request, student_id):
         form = StudentEditForm(
             initial={
                 "full_name": student.full_name,
-                "phone": student.phone,
+                "phone": student.get_phone_decrypted(),
                 "email": student.email,
                 "grade": enrollment.class_group.grade if enrollment else "",
                 "section": enrollment.class_group.section if enrollment else "",
