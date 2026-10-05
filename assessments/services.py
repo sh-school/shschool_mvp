@@ -48,6 +48,32 @@ _ROW_KEYS = ("grade_", "absent_", "excused_", "notes_")
 
 
 class GradeService:
+    # ── من تُحفظ له الدرجة ─────────────────────────────────
+
+    @staticmethod
+    def enrolled_student_or_404(assessment: Assessment, student_id: Any) -> CustomUser:
+        """الطالبُ المقيَّدُ الآن في شعبة هذا التقييم، وإلّا 404.
+
+        كان `save_single_grade` يقبل أيَّ معرّفِ مستخدمٍ فتُكتب له درجةٌ في ورقةٍ لا تخصّه — من مدرسةٍ أخرى أو من شعبةٍ أخرى.
+        و`save_all_from_post` يمرّ على المقيَّدين وحدَهم أصلاً؛ فهذا يوحّد البابَين.
+        """
+        from django.core.exceptions import ValidationError
+        from django.http import Http404
+
+        try:
+            enrollment = (
+                StudentEnrollment.objects.filter(
+                    class_group=assessment.class_group, is_active=True, student_id=student_id
+                )
+                .select_related("student")
+                .first()
+            )
+        except (ValidationError, ValueError, TypeError):
+            enrollment = None
+        if enrollment is None:
+            raise Http404("الطالبُ غيرُ مقيَّدٍ في شعبة هذا التقييم")
+        return enrollment.student
+
     # ── حفظ درجة طالب ──────────────────────────────────────
 
     @staticmethod

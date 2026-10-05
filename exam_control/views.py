@@ -13,6 +13,7 @@ from core.academic_calendar import academic_year_for
 from core.capabilities import capability_required, has_capability
 from core.permissions import EXAM_CONTROL_ACCESS
 from core.unrestricted_role import has_unrestricted_role
+from core.user_selectors import school_user_or_404
 
 from .models import (
     ExamGradeSheet,
@@ -121,12 +122,10 @@ def supervisors(request, pk):
     school = request.user.get_school()
     session = get_object_or_404(ExamSession, pk=pk, school=school)
     if request.method == "POST":
-        from core.models import CustomUser
-
         staff_id = request.POST.get("staff_id")
         role = request.POST.get("role", "supervisor")
         room_id = request.POST.get("room_id") or None
-        staff = get_object_or_404(CustomUser, id=staff_id)
+        staff = school_user_or_404(school, staff_id)
         room = session.rooms.filter(id=room_id).first() if room_id else None
         ExamSupervisor.objects.update_or_create(
             session=session, staff=staff, defaults={"role": role, "room": room}
