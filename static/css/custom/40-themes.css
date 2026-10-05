@@ -753,12 +753,6 @@ html.dark .login-page::before {
 table thead tr:not([data-plain-head]) th,
 table thead tr:not([data-plain-head]) th a { color: var(--on-fill); }
 
-/* كشفُ الحصص ليلاً (القسم 40): `html.dark table thead th` هنا يغلب طبقةَ
-   `modules` مهما علا وزنُ قاعدتها، فيمحو عنّابيّةَ العمود المفتوح. فيُعاد
-   حكمُه في الطبقة نفسها. */
-html.dark .per-grid thead th { background: var(--surface-alt); color: var(--text-primary); }
-html.dark .per-grid thead th.per-col.is-focus { background: var(--maroon); color: var(--on-fill); border-color: var(--maroon); }
-
 /* ── مُجمَّعةٌ هنا من طبقاتٍ أخرى (base/components/utilities/modules) — قرارُ 2026-09-18:
    كلُّ قاعدة html.dark تعيش في @layer themes وحدها، لا حيث كُتبت أوّل مرّة. النظيرةُ
    النهاريّةُ لكلٍّ منها تبقى في مكانها؛ هذه الطبقةُ تغلبها بترتيب الطبقات لا بالنوعيّة. ── */

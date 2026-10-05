@@ -5,14 +5,17 @@
 والقدرةُ على المسار بوّابةٌ أوسعُ لا بديلٌ منها. وكلُّ جلبٍ وكتابةٍ في `TeacherAttendanceService`.
 """
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from core.capabilities import capability_required
 
 from .attendance_entries import EVIDENCE_TYPES, EntryConflictError, EntryError, EntryRefusedError
+from .attendance_selectors import entry_mark_of
 from .services.attendance_teacher import TeacherAttendanceService
 
 #: رموزُ منعِ السياسة بنصٍّ للمستخدم — رمزٌ لا نصَّ له يُعرض عامّاً بلا تسريب.
@@ -69,6 +72,7 @@ def entry_submit(request, session_id):
             status=post.get("status", ""),
             minutes=post.get("minutes"),
             reason=post.get("reason", ""),
+            tapped_at=post.get("tapped_at"),
         )
     except EntryRefusedError as exc:
         return _refusal(exc)
@@ -78,6 +82,35 @@ def entry_submit(request, session_id):
         return _entry_error(exc, 400)
     context = {"session": session, "line": line, "can_enter": True}
     return render(request, "teacher/partials/entry_cell.html", context)
+
+
+@login_required
+@capability_required("attendance.mark")
+@require_POST
+def period_entries(request, session_id):
+    """«ثبّتِ الحصّة» من كشف المعلّم (القالبُ نفسُه كشفِ المشرف): إدخالاتٌ مبدئيّةٌ تنتظر اعتمادَ الحامل، والخروجُ `ClassExit`."""
+    try:
+        _session, result, following = TeacherAttendanceService.enter_marks(
+            request.user, request.school, session_id, request.POST
+        )
+    except EntryRefusedError as exc:
+        return _refusal(exc)
+    except EntryConflictError as exc:
+        return _entry_error(exc, 409)
+    except EntryError as exc:
+        return _entry_error(exc, 400)
+    parts = []
+    if result.entered:
+        parts.append(f"أُدخل {result.entered} مبدئيّاً — يعتمده حاملُ الجناح")
+    if result.exits:
+        parts.append(f"سُجّل خروجُ {result.exits}")
+    if result.needs_reason:
+        parts.append(f"{result.needs_reason} معتمَدٌ يلزم تصحيحَه سببٌ (لم يُمسّ)")
+    if result.conflicts:
+        parts.append(f"{result.conflicts} خروجٌ أُغلق لأنّ الطالب وُسم غائباً")
+    messages.success(request, " · ".join(parts) or "لا تغييرَ في الحصّة.")
+    target = following.id if following is not None else session_id
+    return redirect(reverse("attendance", args=[target]))
 
 
 @login_required
@@ -108,6 +141,10 @@ def approval_decide(request, entry_id):
         return _entry_error(exc, 409)
     except EntryError as exc:
         return _entry_error(exc, 400)
+    if post.get("surface") == "grid":
+        # الاعتمادُ من خليّة شبكة المشرف: تُرسَم علامةُ الإدخال وحدَها لا بطاقةُ الطابور.
+        mark = entry_mark_of(entry.id, request.user)
+        return render(request, "wings/partials/entry_mark.html", {"mark": mark})
     context = {"entry": entry, "decision": decision}
     return render(request, "attendance/partials/decided_row.html", context)
 

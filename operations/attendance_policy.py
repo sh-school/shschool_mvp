@@ -27,6 +27,7 @@ from django.db.models import Max
 from django.utils import timezone
 
 from core.models import StudentEnrollment
+from core.preview_accounts import in_preview_environment
 
 from .bells import day_type_for
 from .models import AttendanceEntry, Session, TimeSlotConfig
@@ -97,6 +98,9 @@ def entry_window(session: Session) -> tuple[dt.datetime, dt.datetime]:
     start = timezone.make_aware(dt.datetime.combine(session.date, session.start_time))
     day_end = school_day_end(session.school, session.date, band=session.class_group.time_band)
     last = max(day_end, session.end_time) if day_end else session.end_time
+    if in_preview_environment():
+        # المعاينةُ وحدَها (قرارُ المالك 2026-10-04): النافذةُ مفتوحةٌ حتى آخر اليوم ليرى الأزرارَ بعد الدوام؛ والإنتاجُ بنافذته كما هي.
+        last = dt.time(23, 59, 59)
     return start, timezone.make_aware(dt.datetime.combine(session.date, last))
 
 

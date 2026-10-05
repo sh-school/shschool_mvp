@@ -414,10 +414,15 @@ class PeriodResult:
     late: int
     tardy_infractions: int
     escape_infractions: int
+    conflicts: int = 0
 
     @property
     def says(self) -> str:
         parts = [f"الحصّة {self.period.number}: غياب {self.absent} · تأخّر {self.late}"]
+        if self.conflicts:
+            parts.append(
+                f"تعارضٌ لم يُثبَّت: {self.conflicts} غائبٌ له خروجٌ مسجَّل — يُحلّ بعودته أو بإلغاء الغياب"
+            )
         if self.tardy_infractions or self.escape_infractions:
             parts.append(f"مخالفات: تأخّر {self.tardy_infractions} · هروب {self.escape_infractions}")
         return " — ".join(parts)
@@ -573,8 +578,11 @@ def confirm_period(
     tally = {"present": 0, "absent": 0, "late": 0}
     tardy = 0
     absentees = []
+    clash = _exit_conflicts(period, marks)
     for enrollment in enrolled_of(class_group):
         student = enrollment.student
+        if str(student.id) in clash:
+            continue  # غائبٌ وخروجٌ لا يجتمعان: لا يُثبَّت غيابُه ويُعرض للمشرف تعارضاً
         mark = marks.get(str(student.id)) or marks.get(student.id) or {}
         away = outs.get(student.id, {}).get(period.start)
         seen = shown.get(str(mark.get("exit") or ""))
@@ -650,7 +658,33 @@ def confirm_period(
         )
     escapes = sync_escapes(class_group, day, by)
     _warn_of_gates(class_group.school, absentees, day)
-    return PeriodResult(period, tally["present"], tally["absent"], tally["late"], tardy, escapes)
+    return PeriodResult(
+        period, tally["present"], tally["absent"], tally["late"], tardy, escapes, len(clash)
+    )
+
+
+def _exit_conflicts(period: Period, marks: dict) -> set[str]:
+    """طلابٌ وسمهم المشرفُ **غائباً بنفسه** (بلا أن يرى خروجَهم: لا `exit`) ولهم خروجٌ مسجَّلٌ في هذه الحصّة — تعارضٌ لا يُثبَّت.
+
+    الغيابُ المشتقُّ من الخروج نفسِه (يحمل `exit`) مشروعٌ: هو «غائبٌ بإذن المعلّم». والممنوعُ أن يُثبَّت غيابٌ عاديٌّ فوق خروجٍ لم يُنظر إليه.
+    """
+    from operations.class_exit import is_unreturned
+    from operations.models import ClassExit
+
+    manual = {
+        str(student): mark
+        for student, mark in marks.items()
+        if mark.get("status") == "absent" and not mark.get("exit")
+    }
+    if not manual:
+        return set()
+    return {
+        str(exit_.student_id)
+        for exit_ in ClassExit.objects.filter(
+            session__in=period.sessions, student_id__in=list(manual)
+        ).select_related("session")
+        if exit_.returned_at is None or is_unreturned(exit_)
+    }
 
 
 def _warn_of_gates(school, absentees, day: dt.date) -> None:

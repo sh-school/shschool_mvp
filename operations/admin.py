@@ -7,6 +7,8 @@ from .models import (
     AbsenceAlert,
     AttendanceDecision,
     AttendanceEntry,
+    ClassExit,
+    DailyExitTally,
     ScheduleBaseline,
     ScheduleConstraintOverride,
     ScheduleGeneration,
@@ -77,7 +79,15 @@ class SessionAdmin(admin.ModelAdmin):
 
 @admin.register(StudentAttendance)
 class StudentAttendanceAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ("student", "session", "status", "marked_by", "marked_at")
+    list_display = (
+        "student",
+        "session",
+        "status",
+        "late_minutes",
+        "tardiness_minutes",
+        "marked_by",
+        "marked_at",
+    )
     # الأعمدةُ و`__str__` تقرأ هذه العلاقات لكلّ صفّ — تُجلب في استعلام القائمة نفسه (كانت ~25 سؤالاً للصفحة).
     list_select_related = ("student", "session__subject", "session__class_group", "marked_by")
     list_filter = ("status", "school")
@@ -87,10 +97,48 @@ class StudentAttendanceAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
 
 @admin.register(AttendanceEntry)
 class AttendanceEntryAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ("student", "session", "status", "entered_by", "entered_at", "supersedes")
+    list_display = (
+        "student",
+        "session",
+        "status",
+        "tardiness_minutes",
+        "entered_by",
+        "entered_at",
+        "supersedes",
+    )
     list_select_related = ("student", "session__class_group", "entered_by")
     list_filter = ("status", "school")
     date_hierarchy = "entered_at"
+
+
+@admin.register(ClassExit)
+class ClassExitAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    """خروجُ الطلاب من الفصل (الحصّةُ والمادّةُ والوجهةُ والوقتان وهل أُغلق بالنظام) — للقراءة والتدقيق فقط."""
+
+    list_display = (
+        "student",
+        "session",
+        "destination",
+        "left_at",
+        "returned_at",
+        "continued_from",
+        "system_closed",
+    )
+    list_select_related = ("student", "session__subject", "session__class_group", "continued_from")
+    list_filter = ("destination", "system_closed", "school")
+    search_fields = ("student__full_name", "student__national_id")
+    date_hierarchy = "left_at"
+
+
+@admin.register(DailyExitTally)
+class DailyExitTallyAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    """ملخّصُ خروج كلّ طالبٍ في كلّ يوم: عددُ المرّات ومجموعُ الثواني والتفصيلُ بالوجهة — مشتقٌّ من «خروجٌ من الفصل»."""
+
+    list_display = ("student", "date", "exit_count", "total_seconds", "by_destination")
+    list_select_related = ("student",)
+    list_filter = ("school",)
+    search_fields = ("student__full_name", "student__national_id")
+    date_hierarchy = "date"
 
 
 @admin.register(AttendanceDecision)
