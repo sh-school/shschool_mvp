@@ -20,6 +20,7 @@ from django.db import transaction
 
 from core.audit_repr import masked_repr
 from core.models import AuditLog, Department
+from core.privacy import mask_email, mask_phone
 
 #: حقولُ الشخص — تخصّ صاحبَها أينما عمل.
 PERSON_FIELDS = (
@@ -68,9 +69,22 @@ def _diff(instance, data, fields):
     return changes
 
 
+#: حقولٌ يُسجَّل تغيّرُها بقيمٍ مستورةٍ: `AuditLog` دائمٌ لا يُعدَّل ولا يُحذف (مشغّلُ القاعدة)،
+#: فلا يُكتب فيه جوّالٌ ولا بريدٌ كاملان (PDPPL م.10 و م.13؛ سابقةُ `core/signals.py` [PII-02]). والمساءلةُ تكفيها
+#: «من غيّر ماذا ومتى» وذيلُ القيمة.
+_MASKED_IN_LOG = {"phone": mask_phone, "email": mask_email}
+
+
+def _logged(field, value):
+    return _text(_MASKED_IN_LOG[field](value) if field in _MASKED_IN_LOG and value else value)
+
+
 def _as_log(changes):
     return {
-        LABELS.get(field, field): {"من": _text(before), "إلى": _text(after)}
+        LABELS.get(field, field): {
+            "من": _logged(field, before),
+            "إلى": _logged(field, after),
+        }
         for field, (before, after) in changes.items()
     }
 

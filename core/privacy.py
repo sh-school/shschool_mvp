@@ -85,3 +85,22 @@ def mask_national_id(value: str | None, tail: int = VISIBLE_TAIL) -> str:
     if len(text) <= tail + 1:
         return "*" * len(text)
     return f"{'*' * (len(text) - tail)}{text[-tail:]}"
+
+
+def mask_phone(value: str | None, tail: int = VISIBLE_TAIL) -> str:
+    """يستر الجوّالَ إلّا ذيلَه — للسجلّات الدائمة التي يُراد منها المساءلةُ لا المعرفة.
+
+    القاعدةُ نفسُها في `mask_national_id`: القارئُ يحتاج أن يميّز «تغيّر من ...1234 إلى ...5678» لا أن يعرف الرقم.
+    """
+    return mask_national_id(value, tail)
+
+
+def mask_email(value: str | None) -> str:
+    """يستر اسمَ البريد ويُبقي أوّلَ حرفٍ ونطاقَه: `a***@school.edu.qa`. وما ليس بريداً يُستر كلُّه."""
+    text = (value or "").strip()
+    if not text:
+        return ""
+    local, sep, domain = text.partition("@")
+    if not sep or not local or not domain:
+        return "*" * len(text)
+    return f"{local[0]}***@{domain}"
