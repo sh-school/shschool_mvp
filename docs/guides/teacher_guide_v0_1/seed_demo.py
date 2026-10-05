@@ -169,4 +169,4 @@ for index, kid in enumerate(students[:8]):
         assessment=quiz, student=kid, school=school, grade=Decimal(str(12 + (index * 3) % 8))
     )
 
-print("OK", school.id, teacher.employee_number, klass.id, setup.id, quiz.id)
+print("OK", school.id, klass.id, setup.id, quiz.id)
