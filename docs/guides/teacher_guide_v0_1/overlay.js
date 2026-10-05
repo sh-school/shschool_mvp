@@ -1,4 +1,4 @@
-(items) => {
+function overlay(items) {
   document.querySelectorAll('.__mk').forEach(e => e.remove());
   const sx = window.scrollX, sy = window.scrollY;
   for (const it of items) {
