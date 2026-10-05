@@ -367,23 +367,16 @@ def _pending_entry_picks(period: Period) -> dict:
     ويُلحق بإدخاله قرارَ رفضٍ (`settle_before_supervisor_write`). الآن يظهر غيابُ المعلّم مختاراً في الكشف، فتثبيتُه اعتمادٌ له، وللمشرف أن يغيّره بوعيٍ.
     الحاضرُ لا يُملأ (الافتراضيُّ حاضر).
     """
-    from operations.models import AttendanceEntry
+    from operations.attendance_selectors import teacher_entry_overrides
 
-    picks: dict = {}
-    entries = (
-        AttendanceEntry.objects.filter(
-            session__in=period.sessions, superseded_by__isnull=True, status__in=("absent", "late")
-        )
-        .exclude(decision__decision="rejected")
-        .order_by("entered_at")
-    )
-    for entry in entries:
-        picks[entry.student_id] = Pick(
-            status=str(entry.status),
+    return {
+        student_id: Pick(
+            status=status,
             marker="entry",
-            tap=entry.tardiness_minutes if entry.status == "late" else None,
+            tap=minutes if status == "late" else None,
         )
-    return picks
+        for student_id, status, minutes in teacher_entry_overrides(period.sessions)
+    }
 
 
 @transaction.atomic
@@ -609,8 +602,10 @@ def confirm_period(
     tally = {"present": 0, "absent": 0, "late": 0}
     tardy = 0
     absentees = []
-    clash = _exit_conflicts(period, marks)
-    held = _entry_held(period)
+    from operations.attendance_selectors import exit_conflicts_of, held_student_ids
+
+    clash = exit_conflicts_of(period.sessions, marks)
+    held = held_student_ids(period.sessions)
     for enrollment in enrolled_of(class_group):
         student = enrollment.student
         if str(student.id) in clash:
@@ -697,41 +692,6 @@ def confirm_period(
     return PeriodResult(
         period, tally["present"], tally["absent"], tally["late"], tardy, escapes, len(clash)
     )
-
-
-def _entry_held(period: Period) -> set:
-    """معرّفاتُ من له إدخالُ معلّمٍ **معلَّقٌ أو معتمَد** في هذه الحصّة (رأسُ السلسلة ولو لم يُرفض) — لا يمسّه تثبيتُ المشرف."""
-    from operations.models import AttendanceEntry
-
-    return set(
-        AttendanceEntry.objects.filter(session__in=period.sessions, superseded_by__isnull=True)
-        .exclude(decision__decision="rejected")
-        .values_list("student_id", flat=True)
-    )
-
-
-def _exit_conflicts(period: Period, marks: dict) -> set[str]:
-    """طلابٌ وسمهم المشرفُ **غائباً بنفسه** (بلا أن يرى خروجَهم: لا `exit`) ولهم خروجٌ مسجَّلٌ في هذه الحصّة — تعارضٌ لا يُثبَّت.
-
-    الغيابُ المشتقُّ من الخروج نفسِه (يحمل `exit`) مشروعٌ: هو «غائبٌ بإذن المعلّم». والممنوعُ أن يُثبَّت غيابٌ عاديٌّ فوق خروجٍ لم يُنظر إليه.
-    """
-    from operations.class_exit import is_unreturned
-    from operations.models import ClassExit
-
-    manual = {
-        str(student): mark
-        for student, mark in marks.items()
-        if mark.get("status") == "absent" and not mark.get("exit")
-    }
-    if not manual:
-        return set()
-    return {
-        str(exit_.student_id)
-        for exit_ in ClassExit.objects.filter(
-            session__in=period.sessions, student_id__in=list(manual)
-        ).select_related("session")
-        if exit_.returned_at is None or is_unreturned(exit_)
-    }
 
 
 def _warn_of_gates(school, absentees, day: dt.date) -> None:

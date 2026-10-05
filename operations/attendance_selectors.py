@@ -439,3 +439,52 @@ def entry_grid_context(class_group: Any, day: dt.date, user: CustomUser) -> dict
     """سياقُ شبكة المشرف من إدخالات المعلّمين: علاماتُ الخلايا وعدّادُ ما ينتظر قرارَ هذا المستخدم — بمفتاحَين لا غير."""
     marks = entry_marks_of(class_group, day, user)
     return {"entry_marks": marks, "awaiting_decision": pending_decidable_count(marks)}
+
+
+def teacher_entry_overrides(sessions: Any) -> list[tuple[Any, str, int | None]]:
+    """`(طالب، غائب|متأخّر، دقائق)` لما أدخله المعلّمُ **معلَّقاً أو معتمَداً** في حصص خانة — يُفتح عليه كشفُ المشرف مُعبَّأً.
+
+    واقعةُ 2026-10-05: بعد «اعتمادُ الكلّ» رُسمت الأزرارُ «حاضر» للجميع لأنّ الرصدَ المعتمَدَ مصدرُه المعلّم لا المشرف فلا يقرؤه `cells_of`.
+    الحاضرُ لا يُملأ (الافتراضيُّ حاضر)؛ والمرفوضُ لا يُعرض.
+    """
+    entries = (
+        AttendanceEntry.objects.filter(
+            session__in=sessions, superseded_by__isnull=True, status__in=("absent", "late")
+        )
+        .exclude(decision__decision="rejected")
+        .order_by("entered_at")
+    )
+    return [(e.student_id, str(e.status), e.tardiness_minutes) for e in entries]
+
+
+def held_student_ids(sessions: Any) -> set[Any]:
+    """معرّفاتُ من له إدخالُ معلّمٍ **معلَّقٌ أو معتمَد** (رأسُ السلسلة ولو لم يُرفض) في حصص الخانة — لا يمسّه تثبيتُ المشرف."""
+    return set(
+        AttendanceEntry.objects.filter(session__in=sessions, superseded_by__isnull=True)
+        .exclude(decision__decision="rejected")
+        .values_list("student_id", flat=True)
+    )
+
+
+def exit_conflicts_of(sessions: Any, marks: dict) -> set[str]:
+    """طلابٌ وسمهم المشرفُ **غائباً بنفسه** (بلا أن يرى خروجَهم: لا `exit`) ولهم خروجٌ مسجَّلٌ في هذه الحصّة — تعارضٌ لا يُثبَّت.
+
+    الغيابُ المشتقُّ من الخروج نفسِه (يحمل `exit`) مشروعٌ: هو «غائبٌ بإذن المعلّم». والممنوعُ أن يُثبَّت غيابٌ عاديٌّ فوق خروجٍ لم يُنظر إليه.
+    """
+    from operations.class_exit import is_unreturned
+    from operations.models import ClassExit
+
+    manual = {
+        str(student): mark
+        for student, mark in marks.items()
+        if mark.get("status") == "absent" and not mark.get("exit")
+    }
+    if not manual:
+        return set()
+    return {
+        str(exit_.student_id)
+        for exit_ in ClassExit.objects.filter(
+            session__in=sessions, student_id__in=list(manual)
+        ).select_related("session")
+        if exit_.returned_at is None or is_unreturned(exit_)
+    }

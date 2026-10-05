@@ -245,8 +245,6 @@ class Command(BaseCommand):
         فلا يصل رصدُه المشرفَ (واقعةُ w1/w3 2026-10-05). فتُضاف تغطيةٌ لكلّ جناحٍ فيه حصّةٌ للمعلّم الوهميّ اليومَ وهو بلا تغطيةٍ سارية — **إضافةً لا حذفاً**
         فلا تضيع تغطيةٌ قائمة، ويلتقطها إعادةُ `--sync` بعد بذر الحصص؛ وإن لم تكن له حصصٌ ولا تغطيةٌ فأوّلُ جناحٍ بلا تغطيةٍ سارية كما كان.
         """
-        from operations.models import Session
-
         today = timezone.localdate()
         wings = list(
             Wing.objects.filter(
@@ -262,8 +260,7 @@ class Command(BaseCommand):
         busy = set(live.values_list("wing_id", flat=True))
         # جناحُ أبكر حصّةٍ للمعلّم الوهميّ اليومَ أوّلاً (حصّةُ رصد الجناح تُبذر أولاً) ثمّ بقيّةُ أجنحة حصصه
         rows = (
-            Session.objects.filter(
-                school=school,
+            school.sessions.filter(
                 date=today,
                 teacher__employee_number=EMPLOYEE_NUMBERS["teacher"],
                 class_group__wing__in=wings,

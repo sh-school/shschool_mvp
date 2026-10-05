@@ -650,7 +650,7 @@ class DailyExitTally(models.Model):
         ]
         indexes = [models.Index(fields=["school", "date"])]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.date} · {self.exit_count} مرّة · {self.total_seconds} ث"
 
 
