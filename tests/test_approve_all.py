@@ -287,3 +287,26 @@ def test_confirming_a_special_education_period_does_not_touch_the_teachers_final
     )
     confirm_period(special_klass, SUNDAY, ese.start_time, {}, holder, now=at(8, 30))
     assert StudentAttendance.objects.get(session=ese, student=pupil).status == "absent"
+
+
+def test_after_approve_all_the_supervisor_sheet_shows_the_approved_absences_checked(
+    client_as, now_0830, school, klass, session, teacher, holder
+):
+    """واقعةُ 2026-10-05 بعد الاعتماد: رُسمت الأزرارُ «حاضر» للجميع (cells_of يقرأ رصدَ المشرف وحدَه والمعتمَدُ مصدرُه المعلّم)."""
+    absent = _kids(school, klass, 4, start=20)
+    plain = _kids(school, klass, 1, start=30)[0]
+    for pupil in absent:
+        submit_entry(teacher, session, pupil, "absent", now=at(7, 30))
+    client_as(holder).post(reverse("attendance_approve_all"))
+    body = (
+        client_as(holder)
+        .get(
+            reverse("wings:record_section", args=[klass.id]),
+            {"date": SUNDAY.isoformat(), "p": "07:10"},
+        )
+        .content.decode()
+    )
+    for pupil in absent:
+        assert f'name="s-{pupil.id}" value="absent" checked' in body
+        assert f'name="s-{pupil.id}" value="present" checked' not in body
+    assert f'name="s-{plain.id}" value="present" checked' in body

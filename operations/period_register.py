@@ -347,7 +347,10 @@ def prefill_of(
         if pick != PRESENT:
             picks[sid] = pick
     for sid, entry_pick in _pending_entry_picks(period).items():
-        picks.setdefault(sid, entry_pick)  # رصدُ المشرف/الخروج/النقرة أسبقُ من إدخال المعلّم المعلَّق
+        if period.start not in cells.get(
+            sid, {}
+        ):  # رصدُ المشرف الصريحُ لهذه الخانة أسبقُ؛ وإلّا فالإدخالُ ظاهرٌ كما هو
+            picks.setdefault(sid, entry_pick)
     # البصمةُ من الخانات كما تُعرض لا من أرقام الخروج: خروجُ دورة المياه يبقى رقمُه
     # حين يرنّ الجرس ويتبدّل عرضُه من «حاضر» إلى «غائب بإذن» — فتتبدّل البصمةُ معه.
     seed = "|".join(
@@ -358,7 +361,7 @@ def prefill_of(
 
 
 def _pending_entry_picks(period: Period) -> dict:
-    """ما أدخله المعلّمُ (غائب/متأخّر) وينتظر القرار — يُفتح عليه كشفُ المشرف مُعبَّأً.
+    """ما أدخله المعلّمُ (غائب/متأخّر) **معلَّقاً أو معتمَداً** — يُفتح عليه كشفُ المشرف مُعبَّأً (واقعةُ 2026-10-05: بعد «اعتمادُ الكلّ» رُسمت الأزرارُ «حاضر» للجميع لأنّ الرصدَ المعتمَدَ مصدرُه المعلّم لا المشرف فلا يقرؤه `cells_of`).
 
     أمرُ المالك 2026-10-04 (واقعة «الكلُّ سُجّل حاضراً»): كان الكشفُ يفتح الجميعَ «حاضراً» فتثبيتُه يكتب «حاضر» فوق غيابٍ أدخله المعلّمُ
     ويُلحق بإدخاله قرارَ رفضٍ (`settle_before_supervisor_write`). الآن يظهر غيابُ المعلّم مختاراً في الكشف، فتثبيتُه اعتمادٌ له، وللمشرف أن يغيّره بوعيٍ.
@@ -367,12 +370,13 @@ def _pending_entry_picks(period: Period) -> dict:
     from operations.models import AttendanceEntry
 
     picks: dict = {}
-    entries = AttendanceEntry.objects.filter(
-        session__in=period.sessions,
-        superseded_by__isnull=True,
-        decision__isnull=True,
-        status__in=("absent", "late"),
-    ).order_by("entered_at")
+    entries = (
+        AttendanceEntry.objects.filter(
+            session__in=period.sessions, superseded_by__isnull=True, status__in=("absent", "late")
+        )
+        .exclude(decision__decision="rejected")
+        .order_by("entered_at")
+    )
     for entry in entries:
         picks[entry.student_id] = Pick(
             status=str(entry.status),
