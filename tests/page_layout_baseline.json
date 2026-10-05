@@ -120,11 +120,8 @@
  "transport/student_assignments.html",
  "transport/tracking_map.html",
  "wings/absence_file.html",
- "wings/coverage.html",
  "wings/excuse_requests.html",
  "wings/floors.html",
- "wings/record_index.html",
- "wings/record_section.html",
  "wings/student_events.html",
  "wings/student_search.html"
 ]

@@ -3,6 +3,9 @@
 
 {% block title %}رصد {{ klass.short_code }}{% endblock %}
 
+{# النمطُ: ورقةٌ كثيفة (layout-sheet) — كشفُ الشعبة المشتركُ مع كشف المعلّم. #}
+{% block main_class %}{% page_layout "sheet" %}{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent2_url="/wings/" parent2_label="أجنحة المدرسة" parent_url="/wings/record/" parent_label="رصد الغياب" current=klass.short_code %}
 {% endblock %}

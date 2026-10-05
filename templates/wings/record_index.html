@@ -4,8 +4,8 @@
 
 {% block title %}رصد الغياب{% endblock %}
 
-{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
-{% block main_class %}page-noscroll{% endblock %}
+{# النمطُ: سجلٌّ (layout-list) — الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/wings/" parent_label="أجنحة المدرسة" current="رصد الغياب" %}
@@ -37,7 +37,7 @@
     </div>
   {% endif %}
 
-  
+
 
 </div>
 {% endblock %}

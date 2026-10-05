@@ -4,8 +4,8 @@
 
 {% block title %}تغطية الأجنحة{% endblock %}
 
-{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
-{% block main_class %}page-noscroll{% endblock %}
+{# النمطُ: سجلٌّ (layout-list) — الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/wings/" parent_label="أجنحة المدرسة" current="التغطية والإنابة" %}
@@ -22,7 +22,7 @@
     غيابَ الأسبوع الماضي يحتاج أن يعرف من كان يرصده.{% endcallout %}
   {% endpage_header %}
 
-  
+
 
   <div class="wing-row">
   {% for row in rows %}
