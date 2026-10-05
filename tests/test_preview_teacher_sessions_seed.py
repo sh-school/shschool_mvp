@@ -356,3 +356,98 @@ def test_down_stops_the_seeded_assignments_without_touching_other_teachers(world
     assert SubjectClassAssignment.objects.filter(
         teacher=world, is_active=False, deletion_reason__contains="إسنادٌ للمعاينة"
     ).exists(), "حذفٌ ليّنٌ لا فعليّ"
+
+
+# ── قاعدةٌ أُعيد بناؤها بلا حصصٍ لليوم (واقعةُ 8500، 2026-10-05): تُنشأ الحصصُ بدل رفض البذر ──
+
+
+@pytest.fixture
+def empty_day_world(school, year, klass, kid, wing, band, monkeypatch):
+    """شعبُ جناحٍ وتربيةٍ خاصّةٍ بجرسٍ من ست حصص، **بلا أيّ حصّةٍ اليوم** — يومٌ دراسيٌّ (الأحد) كما بعد إعادة بناء القاعدة."""
+    from tests.attendance_fixtures import SUNDAY
+
+    monkeypatch.setattr(timezone, "localdate", lambda *a, **k: SUNDAY)
+    monkeypatch.setenv("TEACHER_SEED_WING", wing.code)
+    from operations.models import TimeSlotConfig
+
+    for number, (start, end) in enumerate(PERIODS, start=1):
+        TimeSlotConfig.objects.create(
+            school=school,
+            band=band,
+            day_type="regular",
+            period_number=number,
+            start_time=start,
+            end_time=end,
+        )
+    type(klass).objects.filter(pk=klass.pk).update(time_band=band)
+    teacher = UserFactory(
+        full_name=f"{NAME_PREFIX}معلّم",
+        national_id=f"{ID_PREFIX}teacher",
+        employee_number=EMPLOYEE_NUMBERS["teacher"],
+    )
+    MembershipFactory(user=teacher, school=school, role=RoleFactory(school=school, name="teacher"))
+    groups = [klass] + [
+        ClassGroupFactory(
+            school=school,
+            grade="G9",
+            section=f"w{n}",
+            academic_year=year,
+            wing=wing,
+            time_band=band,
+        )
+        for n in range(2)
+    ]
+    groups += [
+        ClassGroupFactory(
+            school=school,
+            grade="G8",
+            section=f"0{n}/ESE",
+            academic_year=year,
+            wing=None,
+            time_band=band,
+        )
+        for n in range(2)
+    ]
+    for group in groups:
+        _students(school, group)
+    Subject.objects.create(school=school, name_ar="العلوم", code="SCI")
+    return teacher
+
+
+def test_up_creates_the_sessions_when_the_day_has_none(empty_day_world, wing, monkeypatch, capsys):
+    from tests.attendance_fixtures import SUNDAY
+
+    _run("plan", monkeypatch)
+    plan_out = capsys.readouterr().out
+    assert "تشخيص: حصصُ اليوم في المدرسة 0" in plan_out and "تُنشأ" in plan_out
+
+    _run("up", monkeypatch)
+
+    sessions = _mine(empty_day_world)
+    in_wing = [s for s in sessions if s.class_group.wing_id]
+    special = [s for s in sessions if not s.class_group.wing_id]
+    assert len(in_wing) == 4 and {s.class_group.wing_id for s in in_wing} == {wing.id}
+    assert len(special) == 2 and all(s.class_group.section.upper().endswith("ESE") for s in special)
+    assert len({s.start_time for s in sessions}) == 6
+    assert all(s.date == SUNDAY and not s.original_teacher_id for s in sessions)
+    assert sum(1 for s in sessions if "[جناح الرصد]" in s.notes) == 1
+    assert _tagged(empty_day_world).count() >= 1, "إسنادٌ لشعبٍ أُنشئت لها حصصٌ"
+
+
+def test_down_removes_what_was_created_and_stops_the_assignments(empty_day_world, monkeypatch):
+    _run("up", monkeypatch)
+    assert _mine(empty_day_world)
+
+    _run("down", monkeypatch)
+
+    assert not Session.objects.filter(notes__contains=MARK).exists()
+    assert not _tagged(empty_day_world).exists()
+
+
+def test_a_created_session_from_this_version_is_reused_by_the_next_up(empty_day_world, monkeypatch):
+    _run("up", monkeypatch)
+    state = (Session.objects.count(), _tagged(empty_day_world).count())
+
+    _run("up", monkeypatch)  # لا يرفض بقايا: ما أُنشئ بهذا الإصدار مشروعٌ
+
+    assert (Session.objects.count(), _tagged(empty_day_world).count()) == state

@@ -40,7 +40,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
-from core.models import CustomUser, School, StudentEnrollment
+from core.models import ClassGroup, CustomUser, School, StudentEnrollment
 from core.preview_accounts import EMPLOYEE_NUMBERS, in_preview_environment, is_preview_account
 from operations.attendance_entries import (
     EntryError,
@@ -48,7 +48,15 @@ from operations.attendance_entries import (
     erase_attendance_ledger,
     submit_entry,
 )
-from operations.models import AttendanceEntry, Session, StudentAttendance, SubjectClassAssignment
+from operations.models import (
+    AttendanceEntry,
+    Session,
+    StudentAttendance,
+    Subject,
+    SubjectClassAssignment,
+    TimeSlotConfig,
+)
+from operations.school_days import school_day
 
 MARK = "[معاينة المعلّم]"
 ACTION = os.environ.get("TEACHER_SEED_ACTION", "")
@@ -60,6 +68,8 @@ MIN_WING_SESSIONS = 2
 WING_CODE = os.environ.get("TEACHER_SEED_WING", "w3")
 ENTRY_TAG = "[جناح الرصد]"
 ASSIGNED_NOTE = f"{MARK} حصّةٌ مُسنَدةٌ للمعاينة تُعاد بـdown"
+#: حصّةٌ **أُنشئت** حين لا حصصَ قائمةً لشعب الجناح اليومَ (قاعدةٌ أُعيد بناؤها بلا توليد جدول) — تُحذف بـdown؛ وغيرُها من الموسومة المُنشأة بقايا إصدارٍ سابق.
+CREATED_NOTE = f"{MARK} حصّةٌ مُنشأةٌ للمعاينة تُمحى بـdown"
 #: وسمُ إسنادِ المعلّم الوهميّ للشعب (SubjectClassAssignment) لمعاينة الرصد بحصّةٍ مؤقّتة (W-006): يُوقَف بـ`down` ولا يُحذف.
 ASSIGNMENT_TAG = f"{MARK} إسنادٌ للمعاينة"
 
@@ -155,12 +165,107 @@ def _label(session):
     return str(session.class_group.short_label)
 
 
+def _bell(school, klass, day):
+    """حصصُ جرس الشعبة في هذا اليوم `[(رقم، بدء، نهاية)]` من `TimeSlotConfig` — فارغةٌ إن لم يكن يومَ دراسةٍ أو بلا جرس."""
+    day_type = school_day(school, day).bell_day_type
+    if not day_type or not klass.time_band_id:
+        return []
+    rows = TimeSlotConfig.objects.filter(
+        school=school, band_id=klass.time_band_id, day_type=day_type, is_break=False
+    ).order_by("start_time")
+    return [(r.period_number, r.start_time, r.end_time) for r in rows]
+
+
+def _creations(school, today, teacher, taken, need_wing, need_special):
+    """حصصٌ **تُنشأ** حين لا تكفي القائمةُ (قاعدةٌ بلا حصصٍ مولَّدةٍ لليوم): `[(شعبة، رقم، بدء، نهاية، جناح؟)]`.
+
+    الشعبةُ بطلبةٍ نشطين؛ وكلُّ حصّةٍ بوقتِ بدءٍ مختلف (قيدُ `no_teacher_time_overlap`)، وفي وقتٍ لا حصّةَ فيه للشعبة (`no_class_time_overlap`).
+    """
+    base = ClassGroup.objects.filter(
+        school=school, is_active=True, enrollments__is_active=True
+    ).distinct()
+    pools = (
+        (
+            True,
+            need_wing,
+            list(
+                base.filter(wing__code=WING_CODE, wing__is_active=True)
+                .exclude(section__iendswith="ESE")
+                .select_related("wing", "time_band")
+                .order_by("grade", "section")
+            ),
+        ),
+        (
+            False,
+            need_special,
+            list(
+                base.filter(wing__isnull=True, section__iendswith="ESE")
+                .select_related("time_band")
+                .order_by("grade", "section")
+            ),
+        ),
+    )
+    busy = set(
+        Session.objects.filter(date=today, teacher=teacher).values_list("start_time", flat=True)
+    )
+    made = []
+    for is_wing, need, groups in pools:
+        got, progress = 0, True
+        while got < need and progress:
+            progress = False
+            for klass in groups:
+                if got >= need:
+                    break
+                taken_here = set(
+                    Session.objects.filter(class_group=klass, date=today).values_list(
+                        "start_time", flat=True
+                    )
+                )
+                for number, start, end in _bell(school, klass, today):
+                    if start in taken or start in busy or start in taken_here:
+                        continue
+                    taken.add(start)
+                    made.append((klass, number, start, end, is_wing))
+                    got += 1
+                    progress = True
+                    break
+    return made
+
+
 def _plan(school, today, teacher):
     wing, special = _candidates(school, today, teacher)
     taken: set = set()
     picked_wing = _pick(wing, WING_SESSIONS, taken)
     picked_special = _pick(special, SPECIAL_SESSIONS, taken)
-    return wing, special, picked_wing, picked_special
+    creations = _creations(
+        school,
+        today,
+        teacher,
+        taken,
+        WING_SESSIONS - len(picked_wing),
+        SPECIAL_SESSIONS - len(picked_special),
+    )
+    return wing, special, picked_wing, picked_special, creations
+
+
+def _diagnose(school, today):
+    """أرقامُ مراحل التصفية — لمعرفة لِمَ خلا الجناحُ من المرشَّحات (بالرمز لا بالأسماء)."""
+    day = Session.objects.filter(school=school, date=today)
+    classes = ClassGroup.objects.filter(school=school, is_active=True, wing__code=WING_CODE)
+    special = ClassGroup.objects.filter(
+        school=school,
+        is_active=True,
+        wing__isnull=True,
+        section__iendswith="ESE",
+        enrollments__is_active=True,
+    ).distinct()
+    print(
+        f"تشخيص: حصصُ اليوم في المدرسة {day.count()}؛ في الجناح {WING_CODE} "
+        f"{day.filter(class_group__wing__code=WING_CODE).count()}؛ "
+        f"شعبُ الجناح الفعّالة {classes.count()} (بطلبةٍ نشطين "
+        f"{classes.filter(enrollments__is_active=True).distinct().count()})؛ "
+        f"التربيةُ الخاصّة بطلبة {special.count()}؛ اليومُ يومُ دراسة: {school_day(school, today).is_open}"
+    )
 
 
 def plan():
@@ -170,7 +275,8 @@ def plan():
     teacher = _teacher()
     today = timezone.localdate()
     school = _school(teacher)
-    wing, special, picked_wing, picked_special = _plan(school, today, teacher)
+    wing, special, picked_wing, picked_special, creations = _plan(school, today, teacher)
+    _diagnose(school, today)
     existing = _mine(today, teacher)
     if existing:
         # ما وُسم سلفاً يُعرض أوّلاً: `up` يعيد استعمالَه ولا يُسنِد جديداً (وكان plan يسكت عنه فيبدو الحالُ غيرَ ما سيقع).
@@ -195,12 +301,19 @@ def plan():
     for start in sorted(by_time):
         in_wing, in_special = by_time[start]
         print(f"  {start:%H:%M}: حصصُ {WING_CODE} {in_wing}، تربيةٌ خاصّةٌ {in_special}")
-    if len(picked_wing) < MIN_WING_SESSIONS:
+    created_wing = [c for c in creations if c[4]]
+    if len(picked_wing) + len(created_wing) < MIN_WING_SESSIONS:
         print(
-            f"لا يكفي الجناحُ {WING_CODE}: {len(picked_wing)} حصّةً مرشَّحةً في فتراتٍ مختلفة "
-            f"(الحدُّ الأدنى {MIN_WING_SESSIONS}) — لن يُسنَد شيء."
+            f"لا يكفي الجناحُ {WING_CODE}: {len(picked_wing)} حصّةً مرشَّحةً قائمةً و{len(created_wing)} تُنشأ "
+            f"(الحدُّ الأدنى {MIN_WING_SESSIONS}) — لن يُسنَد ولن يُنشأ شيء. "
+            "(قد لا تُولَّد حصصُ اليوم بعدُ: يحاول up توليدَها من الجدول أوّلاً.)"
         )
         return
+    if creations:
+        print("حصصٌ **تُنشأ** لعدم كفاية القائمة (فترةٌ ← شعبة بالرمز):")
+        for klass, number, start, _end, is_wing in creations:
+            kind = "جناح" if is_wing else "تربيةٌ خاصّة"
+            print(f"  {start:%H:%M} ← {klass.short_label} ({kind}) [ح{number}]")
     print("الإسنادُ المقترح (فترةٌ ← شعبة بالرمز):")
     for index, session in enumerate(picked_wing):
         kind = "جناح — رصدُ الإدخال والاعتماد" if index == 0 else "جناح"
@@ -267,6 +380,8 @@ def _ensure_assignments(school, teacher, sessions):
                 .first()
             )
         if subject_id is None:
+            subject_id = Subject.objects.filter(school=school).values_list("pk", flat=True).first()
+        if subject_id is None:
             continue
         _row, created = SubjectClassAssignment.objects.get_or_create(
             school=school,
@@ -293,7 +408,7 @@ def _stale_reason(made):
 
     بقايا إصدارٍ سابقٍ: حصصٌ **أُنشئت** (بلا `original_teacher`) لا حصصٌ مُسنَدة، أو حصّةُ جناحٍ غيرِ المختار. وفي الحالين التشغيلُ الصحيحُ `down` ثمّ `up`.
     """
-    created = [s for s in made if not s.original_teacher_id]
+    created = [s for s in made if not s.original_teacher_id and CREATED_NOTE not in s.notes]
     if created:
         return f"{len(created)} حصّةً أنشأها إصدارٌ سابقٌ من البذر (لا مُسنَدة)"
     off_wing = [s for s in made if s.class_group.wing_id and s.class_group.wing.code != WING_CODE]
@@ -317,14 +432,45 @@ def up():
             "ثمّ `down` (يمحو إدخالاتِ الحصص الموسومة وحدَها) ثمّ `up` — ولا يُشغَّل down إلا بإذن المالك."
         )
     if not made:
-        _wing, _special, picked_wing, picked_special = _plan(school, today, teacher)
-        if len(picked_wing) < MIN_WING_SESSIONS:
+        # قاعدةٌ أُعيد بناؤها بلا حصصٍ لليوم: تُولَّد من الجدول كما تفعل أيّ شاشةٍ تعرض الحصص (متساوي الأثر) قبل ترشيح المرشَّحات.
+        try:
+            from operations.services import ScheduleService
+
+            ScheduleService.ensure_sessions_for_date(school, today)
+        except Exception as error:  # noqa: BLE001 — لا يمنع البذرَ فيُنشئ ما يلزم
+            print(f"تنبيه: تعذّر توليدُ حصص اليوم من الجدول: {error}")
+        _wing, _special, picked_wing, picked_special, creations = _plan(school, today, teacher)
+        created_wing = [c for c in creations if c[4]]
+        if len(picked_wing) + len(created_wing) < MIN_WING_SESSIONS:
+            _diagnose(school, today)
             _refuse(
-                f"حصصُ الجناح {WING_CODE} المرشَّحةُ أقلُّ من {MIN_WING_SESSIONS} — شغّل TEACHER_SEED_ACTION=plan"
+                f"حصصُ الجناح {WING_CODE} (قائمةً أو تُنشأ) أقلُّ من {MIN_WING_SESSIONS} — شغّل TEACHER_SEED_ACTION=plan"
             )
         with transaction.atomic():
             for index, session in enumerate(picked_wing + picked_special):
                 _assign(session, teacher, entry=index == 0)
+            fallback_subject = Subject.objects.filter(school=school).first()
+            entry_pending = not picked_wing
+            for klass, number, start, end, is_wing in creations:
+                subject_id = (
+                    SubjectClassAssignment.objects.filter(school=school, class_group=klass)
+                    .values_list("subject_id", flat=True)
+                    .first()
+                ) or (fallback_subject.pk if fallback_subject else None)
+                entry = bool(is_wing and entry_pending)
+                entry_pending = entry_pending and not entry
+                Session.objects.create(
+                    school=school,
+                    class_group=klass,
+                    teacher=teacher,
+                    subject_id=subject_id,
+                    date=today,
+                    start_time=start,
+                    end_time=end,
+                    period_number=number,
+                    status="scheduled",
+                    notes=CREATED_NOTE + (f" {ENTRY_TAG}" if entry else ""),
+                )
         made = _mine(today, teacher)
 
     assigned_rows = _ensure_assignments(school, teacher, made)
