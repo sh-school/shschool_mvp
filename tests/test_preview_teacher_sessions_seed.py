@@ -16,7 +16,7 @@ import pytest
 from django.utils import timezone
 
 from core.preview_accounts import EMPLOYEE_NUMBERS, ID_PREFIX, NAME_PREFIX
-from operations.models import Session, StudentAttendance
+from operations.models import Session, StudentAttendance, Subject, SubjectClassAssignment
 from tests.attendance_fixtures import *  # noqa: F401,F403
 from tests.attendance_fixtures import ENROLLED
 from tests.conftest import (
@@ -56,13 +56,14 @@ def _students(school, group, count=2):
         )
 
 
-def _session(school, group, period, teacher=None):
+def _session(school, group, period, teacher=None, subject=None):
     """حصّةٌ قائمةٌ لمعلّمٍ حقيقيٍّ لهذه الشعبة في هذه الفترة اليوم."""
     start, end = PERIODS[period]
     return Session.objects.create(
         school=school,
         class_group=group,
         teacher=teacher or UserFactory(),
+        subject=subject,
         date=timezone.localdate(),
         start_time=start,
         end_time=end,
@@ -92,12 +93,13 @@ def world(school, year, klass, kid, wing, monkeypatch):
     ]
     for group in wing_groups + special_groups:
         _students(school, group)
+    subject = Subject.objects.create(school=school, name_ar="العلوم", code="SCI")
     for group in wing_groups:
         for period in range(4):
-            _session(school, group, period)
+            _session(school, group, period, subject=subject)
     for group in special_groups:
         for period in range(6):
-            _session(school, group, period)
+            _session(school, group, period, subject=subject)
     return teacher
 
 
@@ -294,3 +296,63 @@ def test_up_does_not_try_new_entries_on_a_wing_session_that_already_has_entries(
     assert AttendanceEntry.objects.filter(session=entry_session).count() == entries_before
     if entries_before:
         assert "لها إدخالاتٌ سلفاً" in out
+
+
+def _tagged(teacher):
+    return SubjectClassAssignment.objects.filter(
+        teacher=teacher, is_active=True, periods_override_reason__contains="إسنادٌ للمعاينة"
+    )
+
+
+def test_up_gives_the_teacher_an_active_assignment_for_each_class_of_his_sessions(
+    world, monkeypatch
+):
+    """شرطُ معاينة الرصد بحصّةٍ مؤقّتة: المعلّمُ لا يُنشئ إلا لشعبةٍ من إسناده (W-20261005-006)."""
+    _run("up", monkeypatch)
+
+    classes = {s.class_group_id for s in _mine(world)}
+    assert {a.class_group_id for a in _tagged(world)} == classes
+    count = _tagged(world).count()
+
+    _run("up", monkeypatch)
+    assert _tagged(world).count() == count, "متساوي الأثر"
+
+
+def test_the_seeded_assignment_matches_what_the_provisional_door_requires(world, monkeypatch):
+    """الشرطُ نفسُه الذي تقرؤه خدمةُ الحصّة المؤقّتة (W-006): إسنادٌ فعّالٌ غيرُ محذوفٍ لعام المدرسة — بلا استيرادها هنا (فرعٌ مستقلّ)."""
+    from core.academic_calendar import academic_year_for_school
+
+    _run("up", monkeypatch)
+    school = _mine(world)[0].school
+
+    visible = SubjectClassAssignment.objects.filter(
+        school=school,
+        teacher=world,
+        is_active=True,
+        deleted_at__isnull=True,
+        academic_year=academic_year_for_school(school),
+    )
+
+    assert {a.class_group_id for a in visible} == {s.class_group_id for s in _mine(world)}
+
+
+def test_down_stops_the_seeded_assignments_without_touching_other_teachers(world, monkeypatch):
+    other = SubjectClassAssignment.objects.create(
+        school=Session.objects.first().school,
+        class_group=Session.objects.first().class_group,
+        subject=Subject.objects.first(),
+        teacher=UserFactory(),
+        weekly_periods=2,
+        academic_year=SubjectClassAssignment._meta.get_field("academic_year").get_default(),
+    )
+    _run("up", monkeypatch)
+    assert _tagged(world).exists()
+
+    _run("down", monkeypatch)
+
+    assert not _tagged(world).exists()
+    other.refresh_from_db()
+    assert other.is_active is True
+    assert SubjectClassAssignment.objects.filter(
+        teacher=world, is_active=False, deletion_reason__contains="إسنادٌ للمعاينة"
+    ).exists(), "حذفٌ ليّنٌ لا فعليّ"

@@ -15,6 +15,8 @@
                 وآخرُ بإدخالٍ **بانتظار الاعتماد**، والباقي فارغ.
               ٢ و٣    : رصدٌ مكتملٌ لطالبَين (حاضر ومتأخّر) فتصير الحصّةُ `completed`.
               والباقيةُ فارغةٌ `scheduled`.
+    إسنادُ الشعب (W-20261005-006): يضيف `up` سطرَ `SubjectClassAssignment` فعّالاً للمعلّم الوهميّ لكلّ شعبةٍ فيها حصّتُه المُسنَدة (موسومٌ، للمعاينة وحدَها)
+            ليرى «شُعبي للرصد» ويُنشئ حصّةً مؤقّتةً؛ و`down` يوقفه (حذفٌ ليّن). ولا يمسّ إسنادَ معلّمٍ آخر.
     plan  : قراءةٌ فقط **لا تكتب شيئاً**: يعرض أوّلاً الحصصَ الموسومةَ القائمةَ (جناحُها وإدخالاتُها ونوعُها) وهل يرفضها up، ثمّ يطبع لكلّ فترةٍ عددَ حصص الجناح والتربية الخاصّة المرشَّحة (بالرمز لا بالأسماء) والإسنادَ المقترح.
     ملاحظة: بقايا إصدارٍ سابقٍ (حصصٌ **أنشأها** بذرٌ قديمٌ أو في جناحٍ غيرِ المختار) يرفضها `up` بسببٍ مكتوبٍ ويطلب `down` أوّلاً بدل إعادة استعمالها بصمت
             (واقعةُ 8500 في 2026-10-05: plan قدّر حصّتين وup أبلغ ستّاً من بقايا تشغيلٍ سابق، وإدخالٌ معتمَدٌ سلفاً منع ظهور «بانتظار الاعتماد»).
@@ -37,6 +39,7 @@ from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 
+from core.academic_calendar import academic_year_for_school
 from core.models import CustomUser, School, StudentEnrollment
 from core.preview_accounts import EMPLOYEE_NUMBERS, in_preview_environment, is_preview_account
 from operations.attendance_entries import (
@@ -45,7 +48,7 @@ from operations.attendance_entries import (
     erase_attendance_ledger,
     submit_entry,
 )
-from operations.models import AttendanceEntry, Session, StudentAttendance
+from operations.models import AttendanceEntry, Session, StudentAttendance, SubjectClassAssignment
 
 MARK = "[معاينة المعلّم]"
 ACTION = os.environ.get("TEACHER_SEED_ACTION", "")
@@ -57,6 +60,8 @@ MIN_WING_SESSIONS = 2
 WING_CODE = os.environ.get("TEACHER_SEED_WING", "w3")
 ENTRY_TAG = "[جناح الرصد]"
 ASSIGNED_NOTE = f"{MARK} حصّةٌ مُسنَدةٌ للمعاينة تُعاد بـdown"
+#: وسمُ إسنادِ المعلّم الوهميّ للشعب (SubjectClassAssignment) لمعاينة الرصد بحصّةٍ مؤقّتة (W-006): يُوقَف بـ`down` ولا يُحذف.
+ASSIGNMENT_TAG = f"{MARK} إسنادٌ للمعاينة"
 
 
 def _refuse(message):
@@ -243,6 +248,46 @@ def _mine(today, teacher):
     )
 
 
+def _ensure_assignments(school, teacher, sessions):
+    """إسنادٌ فعّالٌ للمعلّم الوهميّ لشُعب حصصه المُسنَدة (`SubjectClassAssignment`) — شرطُ معاينة «الرصد بحصّةٍ مؤقّتة» (W-20261005-006).
+
+    المعلّمُ لا يُنشئ مؤقّتةً إلا لشعبةٍ **من إسناده**؛ والحصصُ المبدَّلة لا تُنشئ له إسناداً. فيُضاف سطرُ إسنادٍ لكلّ شعبةٍ فيها حصّتُه بمادّة الحصّة (أو مادّةِ
+    أيّ إسنادٍ للشعبة إن لم تكن للحصّة مادّة) — **وللمعاينة وحدَها** (موسومٌ بـ`ASSIGNMENT_TAG`)، متساوي الأثر، ولا يمسّ إسنادَ معلّمٍ آخر. يُرجع ما أُضيف.
+    """
+    year = academic_year_for_school(school)
+    added = 0
+    for group_id in dict.fromkeys(s.class_group_id for s in sessions):
+        subject_id = next(
+            (s.subject_id for s in sessions if s.class_group_id == group_id and s.subject_id), None
+        )
+        if subject_id is None:
+            subject_id = (
+                SubjectClassAssignment.objects.filter(school=school, class_group_id=group_id)
+                .values_list("subject_id", flat=True)
+                .first()
+            )
+        if subject_id is None:
+            continue
+        _row, created = SubjectClassAssignment.objects.get_or_create(
+            school=school,
+            class_group_id=group_id,
+            subject_id=subject_id,
+            teacher=teacher,
+            academic_year=year,
+            is_active=True,
+            defaults={"weekly_periods": 1, "periods_override_reason": ASSIGNMENT_TAG},
+        )
+        added += int(created)
+    return added
+
+
+def _deactivate_assignments(teacher):
+    """يوقف إسناداتِ المعاينة الموسومة (ولا يحذفها: الحذفُ الليّنُ بسببٍ، كما يفعل النظام)."""
+    return SubjectClassAssignment.objects.filter(
+        teacher=teacher, is_active=True, periods_override_reason=ASSIGNMENT_TAG
+    ).update(is_active=False, deleted_at=timezone.now(), deletion_reason=ASSIGNMENT_TAG[:200])
+
+
 def _stale_reason(made):
     """سببُ أنّ الموسومةَ القائمةَ لا تصلح لإعادة الاستعمال، أو `""` — فلا يُخفي `up` بقايا إصدارٍ سابقٍ بصمت (واقعةُ 8500 في 2026-10-05).
 
@@ -282,6 +327,8 @@ def up():
                 _assign(session, teacher, entry=index == 0)
         made = _mine(today, teacher)
 
+    assigned_rows = _ensure_assignments(school, teacher, made)
+
     wing_session = next((x for x in made if ENTRY_TAG in x.notes), made[0])
     others = [x for x in made if x.pk != wing_session.pk]
     holder = wing_session.class_group.wing.current_supervisor(on_date=today)
@@ -314,7 +361,9 @@ def up():
             else:
                 notes.append(f"شعبةُ حصّة {session.start_time:%H:%M} بأقلّ من طالبَين — تُركت فارغة")
 
-    print(f"مصدرُ الحصص: حصصٌ قائمةٌ مُسنَدةٌ (تبديلُ المعلّم) — اليوم {today}")
+    print(
+        f"مصدرُ الحصص: حصصٌ قائمةٌ مُسنَدةٌ (تبديلُ المعلّم) — اليوم {today}؛ إسناداتُ شعبٍ للرصد المؤقّت أُضيفت: {assigned_rows}"
+    )
     print(
         f"المعلّم: user_id {teacher.pk} — الدخول بالرقم الوظيفيّ الوهميّ المحجوز؛ اللوحة: {BASE}/dashboard/"
     )
@@ -336,14 +385,30 @@ def who():
         )
     if not _marked().filter(date=today).exists():
         print("  (لا حصصَ موسومةً اليوم)")
+    teacher = CustomUser.objects.filter(employee_number=EMPLOYEE_NUMBERS["teacher"]).first()
+    tagged = (
+        SubjectClassAssignment.objects.filter(
+            teacher=teacher, is_active=True, periods_override_reason=ASSIGNMENT_TAG
+        ).select_related("class_group__wing")
+        if teacher
+        else []
+    )
+    print(f"إسناداتُ المعاينة للشعب (الرصد المؤقّت): {len(tagged)}")
+    for row in tagged:
+        wing = row.class_group.wing.code if row.class_group.wing_id else "—"
+        print(
+            f"  {row.class_group.short_label} جناح={wing} {BASE}/teacher/classes/{row.class_group_id}/"
+        )
 
 
 def down():
     if not in_preview_environment():
         _refuse("هذه ليست بيئةَ معاينة")
+    teacher = CustomUser.objects.filter(employee_number=EMPLOYEE_NUMBERS["teacher"]).first()
+    stopped = _deactivate_assignments(teacher) if teacher else 0
     sessions = list(_marked())
     if not sessions:
-        print("لا حصصَ موسومة — لا شيءَ يُعاد")
+        print(f"لا حصصَ موسومة — لا شيءَ يُعاد؛ إسناداتٌ أُوقفت={stopped}")
         return
     ids = {s.pk for s in sessions}
     removed_rows = StudentAttendance.objects.filter(session_id__in=ids).delete()[0]
@@ -381,7 +446,7 @@ def down():
     print(
         f"صفوفُ رصدٍ محذوفة={removed_rows} · إدخالاتٌ {erased['entries']} وقرارات {erased['decisions']} · "
         f"طلبةٌ تُخطُّوا لوجود إدخالاتٍ في حصصٍ غير موسومة={skipped} · "
-        f"حصصٌ أُعيد معلّمُها={restored} وحُذفت (أنشأها إصدارٌ سابق)={deleted}"
+        f"حصصٌ أُعيد معلّمُها={restored} وحُذفت (أنشأها إصدارٌ سابق)={deleted} · إسناداتٌ أُوقفت={stopped}"
         + (f" · بقيت {len(leftover)} حصّةً لبقاء إدخالاتٍ فيها" if leftover else "")
     )
 
