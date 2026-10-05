@@ -8,9 +8,12 @@ from django.db.models import Exists, OuterRef, Q
 
 from core.models.academic import StudentEnrollment
 from core.models.access import Membership
+from core.privacy import national_id_search_q
 
 
-def student_register(school: Any, year: str, params: Any) -> tuple[Any, dict[int, dict[str, Any]]]:
+def student_register(
+    school: Any, year: str, params: Any, *, partial_id: bool = False
+) -> tuple[Any, dict[int, dict[str, Any]]]:
     """الاستعلامُ المشترَك بين تصديرَي سجلّ الطلاب — Excel وPDF: `(الطلبة، القيدُ لكلّ طالب)`.
 
     نفس فلترة `student_list`، بما فيها الإصلاحُ الذي أخذته الشاشةُ في #191 ولم
@@ -36,7 +39,8 @@ def student_register(school: Any, year: str, params: Any) -> tuple[Any, dict[int
 
     if q:
         students = students.filter(
-            Q(user__full_name__icontains=q) | Q(user__national_id__icontains=q)
+            Q(user__full_name__icontains=q)
+            | national_id_search_q("user__national_id", q, partial=partial_id)
         )
 
     status = params.get("status") or "enrolled"

@@ -57,7 +57,7 @@ from core.models.audit import AuditLog
 from core.models.user import CustomUser
 from core.pdf_utils import render_pdf
 from core.photo_privacy import clean_photo
-from core.privacy import mask_national_id
+from core.privacy import mask_national_id, may_search_id_partially, national_id_search_q
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing
@@ -382,7 +382,9 @@ def student_list(request):
         shaped = normalise_arabic(q)
         students = students.filter(
             Q(name_key__icontains=shaped)
-            | Q(user__national_id__icontains=q)
+            | national_id_search_q(
+                "user__national_id", q, partial=may_search_id_partially(request.user)
+            )
             | Q(guardian_key__icontains=shaped)
             | Q(guardian_phone__icontains=q)
             | Q(grade_code__icontains=q)
@@ -475,7 +477,9 @@ def student_table_partial(request):
 def _student_register_queryset(request):
     """الاستعلامُ المشترَك بين تصديرَي سجلّ الطلاب — الشرحُ في `selectors.student_register`."""
     year = academic_year_for(request)
-    students, enrollment_data = student_register(request.school, year, request.GET)
+    students, enrollment_data = student_register(
+        request.school, year, request.GET, partial_id=may_search_id_partially(request.user)
+    )
     return students, enrollment_data, year
 
 

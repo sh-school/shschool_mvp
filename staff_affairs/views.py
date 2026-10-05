@@ -19,7 +19,7 @@ from core.dashboard_presentation import chunk_for_grid
 from core.models.access import DEPARTMENT_ROLES, Membership
 from core.models.department import Department
 from core.models.user import CustomUser
-from core.privacy import mask_national_id
+from core.privacy import mask_national_id, may_search_id_partially, national_id_search_q
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 
 from . import appointments, profile_services, services
@@ -259,7 +259,7 @@ def staff_list(request):
         people = people.filter(
             Q(name_key__icontains=shaped)
             | Q(title_key__icontains=shaped)
-            | Q(national_id__icontains=q)
+            | national_id_search_q("national_id", q, partial=may_search_id_partially(request.user))
             | Q(employee_number__icontains=q)
             | Q(id__in=phone_holder_ids(people, q))
             | Q(email__icontains=q)

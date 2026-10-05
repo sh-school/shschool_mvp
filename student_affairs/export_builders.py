@@ -19,6 +19,7 @@ from core.export_utils import (
     get_pdf_header_html,
 )
 from core.exports.registry import ExportResult
+from core.privacy import may_search_id_partially
 
 from .selectors import student_register
 
@@ -32,7 +33,9 @@ def build_students_pdf(school: Any, user: Any, params: Any) -> ExportResult:
 
     year = academic_year_for_school(user.get_school())
     ctx = get_export_context_for(user, "سجل الطلاب")
-    students, enrollment_data = student_register(school, year, params)
+    students, enrollment_data = student_register(
+        school, year, params, partial_id=may_search_id_partially(user)
+    )
 
     rows = []
     for i, m in enumerate(students, 1):
