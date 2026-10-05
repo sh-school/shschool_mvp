@@ -1,8 +1,6 @@
 """بابُ الرصد بحصّةٍ مؤقّتة في القوالب (W-20261005-006): وسمٌ يقرأ مفتاحَ التشغيل — لا سياقَ إضافيّ في عرض جدول المعلّم (سقفُ طبقات العروض)."""
 
 from django import template
-from django.template.loader import render_to_string
-from django.utils.safestring import mark_safe
 
 from operations.services import provisional_session
 
@@ -15,11 +13,21 @@ def provisional_enabled() -> bool:
     return provisional_session.enabled()
 
 
+#: أدوارُ المعلّم والمنسّق ومن في حكمهم — لهم يُعطَّل جدولُ المنصّة عند تشغيل الرصد المؤقّت (القيادةُ والإدارةُ تُديران الجدولَ ولا تُعطَّل لهما).
+TEACHER_ROLES = frozenset(
+    {
+        "teacher",
+        "ese_teacher",
+        "specialist",
+        "coordinator",
+        "teacher_assistant",
+        "ese_assistant",
+        "e_projects_coordinator",
+    }
+)
+
+
 @register.simple_tag
-def action_tile_off(title: str, desc: str = "", icon: str = "") -> str:
-    """بلاطةُ انتقالٍ **مُعطَّلة** بمظهر `action_tile` نفسِه — لا رابطَ ولا تركيز (أمرُ المالك D-228م: مفاتيحُ الجدول تُطفأ بالمفتاح)."""
-    return mark_safe(
-        render_to_string(
-            "components/ui/action_tile_off.html", {"title": title, "desc": desc, "icon": icon}
-        )
-    )
+def provisional_teacher_off(user) -> bool:
+    """هل جدولُ المنصّة مُطفأٌ لهذا الدور؟ — مفتاحُ الحصّة المؤقّتة مشغَّلٌ والدورُ معلّمٌ أو منسّقٌ أو في حكمهما (D-231م)."""
+    return provisional_session.enabled() and user.get_role() in TEACHER_ROLES

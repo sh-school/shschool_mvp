@@ -388,6 +388,15 @@ def test_with_the_switch_on_the_teachers_schedule_is_switched_off_everywhere(
         if "class=" in tag  # لا فتاتُ الخبز
     ]
     assert nav and all("inert" in tag and "data-prov-off" in tag for tag in nav), nav
+    # «جدولي» (الجدولُ الأسبوعيّ للمعلّم) فعّالٌ يفتح (D-231م)، وبقيّةُ بنود القائمة مقفلة
+    weekly = [
+        tag
+        for tag in re.findall(r"<a [^>]*>", page)
+        if f'href="{reverse("weekly_schedule")}?view=teacher' in tag
+    ]
+    assert weekly and all(
+        "inert" not in tag and "data-prov-off" not in tag for tag in weekly
+    ), weekly
     # بابُ الرصد المؤقّت وحدَه يعمل
     assert f'href="{reverse("provisional_classes")}"' in page
 
@@ -425,7 +434,14 @@ def test_with_the_switch_on_the_home_hides_the_platform_sessions_and_offers_the_
     assert "رصدُ الغياب (مؤقّت — إلى حين اعتماد جدول المنصّة)" in page
     assert f'href="{reverse("provisional_classes")}"' in page
     # بلاطاتُ الجدول والتبديل مطفأةٌ بلا رابط (مظهرُ البلاطة نفسُه بلا href)
-    assert 'class="action-card prov-off"' in page
+    for tile_text in (
+        "حصصي هذا الأسبوع",
+        "جداولُ كلّ المعلّمين",
+        "تبديلُ حصّةٍ مع زميل",
+        "حصصُ اليوم — والحضورُ",
+    ):
+        assert tile_text not in page, f"بلاطةُ الجدول مخفيّةٌ لا مُعطَّلة: {tile_text}"
+    assert "action-card prov-off" not in page
 
 
 def test_with_the_switch_off_the_home_is_exactly_as_it_was(
@@ -492,3 +508,35 @@ def test_a_session_param_of_another_teacher_or_class_shows_no_sheet(
     )
 
     assert "rec-form" not in body and "اختر الحصّة أوّلاً" in body
+
+
+# ── الجدولُ الأسبوعيّ للمعلّم: يُفتح مُطفأً كلُّ شيءٍ فيه و«تحت الإجراء» (D-231م) ──
+
+
+def test_with_the_switch_on_the_teacher_opens_the_weekly_schedule_switched_off(
+    client_as, assigned, teacher
+):
+    url = f"{reverse('weekly_schedule')}?view=teacher&teacher={teacher.id}"
+
+    response = client_as(teacher).get(url)
+    page = response.content.decode()
+
+    assert response.status_code == 200, "«جدولي» يفتح"
+    assert '<p class="ui-note sessions-off-note">تحت الإجراء</p>' in page
+    # مفاتيحُ الترويسة والتصدير مُعطَّلةٌ بـinert، والجدولُ خافت
+    assert re.search(r'<div class="schedule-head prov-off" inert', page)
+    assert re.search(r'<div class="table-wrap prov-off"', page)
+
+
+def test_with_the_switch_off_the_weekly_schedule_is_as_it_was(
+    client_as, settings, assigned, teacher
+):
+    settings.PROVISIONAL_SESSIONS_ENABLED = False
+
+    page = (
+        client_as(teacher)
+        .get(f"{reverse('weekly_schedule')}?view=teacher&teacher={teacher.id}")
+        .content.decode()
+    )
+
+    assert "prov-off" not in page and "تحت الإجراء" not in page

@@ -959,7 +959,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   رابطٌ منفصلٌ أدناه لمن يملك حقَّ التصفّح (قرارُ المالك 2026-09-23).
   {% endcomment %}
   {% if request.user|can_open:"weekly_schedule" %}
-  <a href="{% url 'weekly_schedule' %}?view=teacher&teacher={{ request.user.id }}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "schedule" %} الجدول الأسبوعي</a>
+  <a href="{% url 'weekly_schedule' %}?view=teacher&teacher={{ request.user.id }}">{% icon "schedule" %} الجدول الأسبوعي</a>
   {% endif %}
   {% if request.user|can_open:"schedule_print" %}
   <a href="{% url 'schedule_print' %}?view=teacher&teacher={{ request.user.id }}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "export_pdf" %} تصدير الجدول</a>
@@ -1004,7 +1004,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% endif %}
   {# مسؤولُ التعليم الإلكترونيّ وحدَه هنا يملك تصفّح غيره (SCHEDULE_BROWSE)، فوسائطُ الذات صريحةٌ — لا أثرَ لها على البقيّة أصلاً (الحارسُ يفرض جدولَهم هم دائماً). #}
   {% if request.user|can_open:"weekly_schedule" %}
-  <a href="{% url 'weekly_schedule' %}?view=teacher&teacher={{ request.user.id }}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "schedule" %} الجدول الأسبوعي</a>
+  <a href="{% url 'weekly_schedule' %}?view=teacher&teacher={{ request.user.id }}">{% icon "schedule" %} الجدول الأسبوعي</a>
   {% endif %}
   {% if request.user|can_open:"schedule_print" %}
   <a href="{% url 'schedule_print' %}?view=teacher&teacher={{ request.user.id }}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "export_pdf" %} تصدير الجدول</a>
@@ -1279,7 +1279,7 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
     </a>
     {% endif %}
     {% if request.user|can_open:"weekly_schedule" %}
-    <a href="{% url 'weekly_schedule' %}" class="mobile-nav-item {% if 'weekly' in request.path %}active{% endif %}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>
+    <a href="{% url 'weekly_schedule' %}" class="mobile-nav-item {% if 'weekly' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% icon "schedule" %}</span><span>جدولي</span>
     </a>
     {% endif %}
