@@ -256,6 +256,18 @@ def test_in_the_preview_environment_the_window_stays_open_all_day(
     assert _submit(client_as, teacher, session, {f"s-{kid.id}": "absent"}).status_code == 302
 
 
+def test_in_the_preview_environment_the_window_is_open_before_the_period_too(
+    client_as, session, teacher, kid, monkeypatch
+):
+    """الفجرُ قبل الحصّة: أزرارُ المعاينة تعمل (واقعةُ 2026-10-05 03:59: «لم تبدأ الحصّةُ بعد» أطفأت كلَّ اللوحات)؛ والإنتاجُ يغلق قبل البدء."""
+    monkeypatch.setattr(timezone, "now", lambda: at(4, 0))
+    html = _page(client_as, teacher, session).content.decode()
+    assert "لم تبدأ الحصّةُ بعد" in html  # الإنتاج
+    monkeypatch.setattr("operations.attendance_policy.in_preview_environment", lambda: True)
+    html = _page(client_as, teacher, session).content.decode()
+    assert "الإدخالُ مغلق" not in html and "ثبّتِ الحصّة" in html
+
+
 @pytest.mark.parametrize(
     "module",
     sorted(__import__("core.preview_accounts", fromlist=["x"]).PRODUCTION_SETTINGS_MODULES),

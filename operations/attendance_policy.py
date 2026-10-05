@@ -99,7 +99,9 @@ def entry_window(session: Session) -> tuple[dt.datetime, dt.datetime]:
     day_end = school_day_end(session.school, session.date, band=session.class_group.time_band)
     last = max(day_end, session.end_time) if day_end else session.end_time
     if in_preview_environment():
-        # المعاينةُ وحدَها (قرارُ المالك 2026-10-04): النافذةُ مفتوحةٌ حتى آخر اليوم ليرى الأزرارَ بعد الدوام؛ والإنتاجُ بنافذته كما هي.
+        # المعاينةُ وحدَها (قرارُ المالك 2026-10-04): النافذةُ مفتوحةٌ من أوّل اليوم إلى آخره ليرى الأزرارَ في أيّ ساعةٍ
+        # (فجراً قبل الحصّة وبعد الدوام)؛ والإنتاجُ بنافذته كما هي.
+        start = timezone.make_aware(dt.datetime.combine(session.date, dt.time.min))
         last = dt.time(23, 59, 59)
     return start, timezone.make_aware(dt.datetime.combine(session.date, last))
 
