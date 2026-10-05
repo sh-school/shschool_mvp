@@ -3,8 +3,10 @@
 السكربتُ يُنفَّذ بـ`manage.py shell` لا استيراداً، فيُشغَّل هنا بـ`runpy` وبمتغيّر البيئة نفسِه. ورصدُ الجناح يتوقّف على نافذة اليوم الدراسيّ
 بساعة التشغيل الحقيقيّة، فلا يُجزَم هنا بوجود إدخالاتٍ؛ يُجزَم بالحصص وصفوف الرصد المعتمَد وبالمحو.
 
-العالمُ الاختباريّ يحاكي ما ظهر على 8500: ثلاثُ شعبٍ بلا جناح فقط، **وكلُّ شعب الجناح لها حصّةٌ في الفترة الأولى** — فلا يصحّ اختيارٌ
+العالمُ الاختباريّ يحاكي ما ظهر على 8500: ثلاثُ شعبِ تربيةٍ خاصّةٍ (`…/ESE`) بلا جناح، **وكلُّ شعب الجناح لها حصّةٌ في الفترة الأولى** — فلا يصحّ اختيارٌ
 جشعٌ لفترةٍ ثابتة؛ والحلُّ يجد فترةً تخلو فيها شعبةُ جناح.
+
+وقاعدةُ W-20261005-005: كلُّ حصص المعلّم الوهميّ في **جناحٍ واحد** (أربعٌ) وحصّتان فقط للتربية الخاصّة، ليرى مشرفُه المغطّي كلَّ ما يدخله.
 """
 
 import datetime as dt
@@ -75,8 +77,9 @@ def _busy_at(school, group, start, end):
 
 
 @pytest.fixture
-def world(school, year, klass, kid, wing):
-    """معلّمٌ وهميٌّ موسوم، وثلاثُ شعب جناحٍ مشغولةٍ كلُّها في الفترة 1، وثلاثُ شعبٍ بلا جناحٍ (كما على 8500)، وجدولٌ بسبع فترات."""
+def world(school, year, klass, kid, wing, monkeypatch):
+    """معلّمٌ وهميٌّ موسوم، وخمسُ شعبِ جناحٍ مشغولةٍ كلُّها في الفترة 1، وثلاثُ شعبِ تربيةٍ خاصّةٍ بلا جناحٍ، وجدولٌ بسبع فترات."""
+    monkeypatch.setenv("TEACHER_SEED_WING", wing.code)
     teacher = UserFactory(
         full_name=f"{NAME_PREFIX}معلّم",
         national_id=f"{ID_PREFIX}teacher",
@@ -86,14 +89,16 @@ def world(school, year, klass, kid, wing):
     _students(school, klass, 1)
     wing_groups = [klass] + [
         ClassGroupFactory(school=school, grade="G9", section=f"w{n}", academic_year=year, wing=wing)
-        for n in range(2)
+        for n in range(4)
     ]
     for group in wing_groups[1:]:
         _students(school, group)
     for number in range(3):
         _students(
             school,
-            ClassGroupFactory(school=school, grade="G8", section=f"p{number}", academic_year=year),
+            ClassGroupFactory(
+                school=school, grade="G8", section=f"0{number}/ESE", academic_year=year
+            ),
         )
     for group in wing_groups:
         _busy_at(school, group, *PERIODS[0])
@@ -132,18 +137,21 @@ def test_it_refuses_an_untagged_teacher(world, monkeypatch):
     assert not Session.objects.filter(notes__contains=MARK).exists()
 
 
-def test_up_finds_a_complete_plan_when_every_wing_group_is_busy_in_period_one(world, monkeypatch):
+def test_up_puts_four_sessions_in_one_wing_and_two_in_special_education(world, wing, monkeypatch):
     _run("up", monkeypatch)
     sessions = list(Session.objects.filter(notes__contains=MARK).order_by("start_time"))
     assert len(sessions) == 6
     assert {s.teacher_id for s in sessions} == {world.id}
     assert len({s.class_group_id for s in sessions}) == 6
+    in_wing = [s for s in sessions if s.class_group.wing_id]
+    special = [s for s in sessions if not s.class_group.wing_id]
+    # كلُّ حصص الجناح في جناحٍ واحد، والباقي حصّتان للتربية الخاصّة فقط
+    assert len(in_wing) == 4 and {s.class_group.wing_id for s in in_wing} == {wing.id}
+    assert len(special) == 2 and all(s.class_group.section.upper().endswith("ESE") for s in special)
     # فترةُ رصد الجناح بشعبةِ جناحٍ لا تصطدم بحصّةٍ، وليست الفترةَ 1 المشغولة
     entry = [s for s in sessions if "[جناح الرصد]" in s.notes]
-    assert len(entry) == 1 and entry[0].class_group.wing_id
+    assert len(entry) == 1 and entry[0].class_group.wing_id == wing.id
     assert entry[0].start_time != PERIODS[0][0]
-    # الشعبُ بلا جناحٍ أوّلاً: الثلاثُ كلُّها مستعملة
-    assert sum(1 for s in sessions if not s.class_group.wing_id) == 3
     completed = [s for s in sessions if s.status == "completed"]
     assert len(completed) == 2
     assert StudentAttendance.objects.filter(session__in=completed).count() == 4
@@ -151,6 +159,20 @@ def test_up_finds_a_complete_plan_when_every_wing_group_is_busy_in_period_one(wo
 
     _run("up", monkeypatch)
     assert (Session.objects.count(), StudentAttendance.objects.count()) == before
+
+
+def test_the_wing_supervisor_sees_every_wing_session(world, wing, holder, monkeypatch):
+    """المشرفُ المغطّي لجناحٍ واحدٍ يرى حصصَ المعلّم الأربعَ فيه كلَّها — لا حصّتَين من ستّ (واقعةُ 2026-10-05)."""
+    _run("up", monkeypatch)
+    seen = Session.objects.filter(notes__contains=MARK, class_group__wing__supervisor=holder)
+    assert seen.count() == 4
+
+
+def test_it_refuses_when_the_chosen_wing_has_no_groups(world, monkeypatch):
+    monkeypatch.setenv("TEACHER_SEED_WING", "w9")
+    with pytest.raises(SystemExit):
+        _run("up", monkeypatch)
+    assert not Session.objects.filter(notes__contains=MARK).exists()
 
 
 def test_plan_writes_nothing_and_prints_the_codes_not_names(world, monkeypatch, capsys):
@@ -173,27 +195,26 @@ def test_plan_explains_when_there_is_no_complete_plan(world, monkeypatch, capsys
     _run("plan", monkeypatch)
     out = capsys.readouterr().out
     assert "لا حلَّ كاملاً" in out
-    assert "شعبُ جناحٍ خاليةٌ 0/" in out
+    assert "خاليةٌ 0/" in out
     assert not Session.objects.filter(notes__contains=MARK).exists()
 
 
-def test_a_full_plan_exists_when_wing_groups_are_free_only_in_three_periods(world, monkeypatch):
-    """حالةُ 8500 الفعليّة (قياس plan): شعبُ الجناح خاليةٌ في الفترات 3 و4 و7 وحدَها وبلا الجناح ثلاثٌ فقط — اختيارٌ جشعٌ كان يستنفد الثلاثَ مبكّراً."""
+def test_a_full_plan_exists_when_wing_groups_are_free_in_exactly_four_periods(
+    world, wing, monkeypatch
+):
+    """شعبُ الجناح خاليةٌ في الفترات 3 و4 و6 و7 وحدَها: أربعُ حصصٍ للجناح بالضبط وحصّتان للتربية الخاصّة في الباقي."""
     from core.models import ClassGroup
 
     for group in ClassGroup.objects.filter(wing__isnull=False):
-        for index in (1, 4, 5):  # الفترة 1 مشغولةٌ أصلاً في العالم
+        for index in (1, 4):  # الفترة 1 مشغولةٌ أصلاً في العالم
             _busy_at(group.school, group, *PERIODS[index])
     _run("up", monkeypatch)
     sessions = list(Session.objects.filter(notes__contains=MARK).order_by("start_time"))
     assert len(sessions) == 6
-    assert len({s.class_group_id for s in sessions}) == 6
+    in_wing = [s for s in sessions if s.class_group.wing_id]
+    assert {s.start_time for s in in_wing} == {PERIODS[i][0] for i in (2, 3, 5, 6)}
     entry = [s for s in sessions if "[جناح الرصد]" in s.notes][0]
-    assert entry.start_time in {PERIODS[2][0], PERIODS[3][0], PERIODS[6][0]}
-    # في الفترات التي لا جناحَ خالياً فيها لا تُستعمل إلا الشعبُ بلا جناح
-    for session in sessions:
-        if session.start_time in {PERIODS[i][0] for i in (0, 1, 4, 5)}:
-            assert not session.class_group.wing_id
+    assert entry.class_group.wing_id == wing.id
 
 
 def test_down_removes_only_what_was_marked(world, school, klass, monkeypatch):

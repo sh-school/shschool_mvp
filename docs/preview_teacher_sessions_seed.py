@@ -43,6 +43,9 @@ MARK = "[معاينة المعلّم]"
 ACTION = os.environ.get("TEACHER_SEED_ACTION", "")
 BASE = "http://localhost:8500"
 SESSIONS = 6
+#: حصصُ المعلّم الوهميّ: أربعٌ في جناحٍ واحد وحصّتان للتربية الخاصّة (W-20261005-005).
+SPECIAL_SESSIONS = 2
+WING_CODE = os.environ.get("TEACHER_SEED_WING", "w3")
 ENTRY_TAG = "[جناح الرصد]"
 
 
@@ -84,17 +87,22 @@ def _label(group):
 
 
 def _groups(school):
-    """(شعبُ الجناح الصالحة للرصد، شعبٌ بلا جناح) — بالرمز لا بالأسماء."""
+    """(شعبُ الجناح المختار الصالحة للرصد، شعبُ التربية الخاصّة بلا جناح) — بالرمز لا بالأسماء.
+
+    الجناحُ واحدٌ بالرمز `WING_CODE` فلا تتوزّع حصصُ المعلّم على أجنحةٍ يغطّيها غيرُ مشرفه (W-20261005-005).
+    """
     base = ClassGroup.objects.filter(
         school=school, is_active=True, enrollments__is_active=True
     ).distinct()
     wing = list(
-        base.filter(wing__isnull=False, wing__is_active=True)
+        base.filter(wing__code=WING_CODE, wing__is_active=True)
         .exclude(section__iendswith="ESE")
         .order_by("grade", "section")
     )
-    plain = list(base.filter(wing__isnull=True).order_by("grade", "section"))
-    return wing, plain
+    special = list(
+        base.filter(wing__isnull=True, section__iendswith="ESE").order_by("grade", "section")
+    )
+    return wing, special
 
 
 def _busy(today):
@@ -107,36 +115,38 @@ def _busy(today):
     return busy
 
 
-def _solve(periods, wing, plain, busy):
-    """يوزّع ستّ فتراتٍ على ستّ شعبٍ مختلفة: فترةٌ واحدةٌ لشعبةِ جناحٍ (رصد الجناح)، والباقياتُ بلا جناحٍ أوّلاً ثمّ بجناح.
+def _solve(periods, wing, special, busy):
+    """يوزّع ستّ فتراتٍ على ستّ شعبٍ مختلفة: فترةُ رصد الجناح وثلاثٌ أخرى لشعب الجناح المختار، وفترتان لشعب التربية الخاصّة.
 
-    يجرّب كلَّ اختيارِ ستٍّ من الفترات المتاحة، وفي كلٍّ كلَّ فترةٍ لرصد الجناح. يعيد (التوزيع أو None، سطورُ التعليل).
-    التوزيعُ: [(فترةٌ، شعبة، هل هي فترةُ رصد الجناح)].
+    يجرّب كلَّ اختيارِ ستٍّ من الفترات المتاحة، وفي كلٍّ كلَّ فترةٍ لرصد الجناح وكلَّ زوجٍ من الباقي للتربية الخاصّة.
+    يعيد (التوزيع أو None، سطورُ التعليل). التوزيعُ: [(فترةٌ، شعبة، هل هي فترةُ رصد الجناح)].
     """
     trace = []
     for chosen in itertools.combinations(range(len(periods)), SESSIONS):
         for entry_at in chosen:
-            plan = _fill(chosen, entry_at, periods, wing, plain, busy)
-            if plan is not None:
-                return plan, trace
+            rest = [i for i in chosen if i != entry_at]
+            for ese_at in itertools.combinations(rest, SPECIAL_SESSIONS):
+                plan = _fill(chosen, entry_at, set(ese_at), periods, wing, special, busy)
+                if plan is not None:
+                    return plan, trace
     for index, (start, _end, _subject) in enumerate(periods):
         free_wing = [g for g in wing if g.id not in busy.get(start, set())]
-        free_plain = [g for g in plain if g.id not in busy.get(start, set())]
+        free_special = [g for g in special if g.id not in busy.get(start, set())]
         trace.append(
-            f"  فترة {index + 1} ({start:%H:%M}): شعبُ جناحٍ خاليةٌ {len(free_wing)}/{len(wing)}، بلا جناحٍ خاليةٌ {len(free_plain)}/{len(plain)}"
+            f"  فترة {index + 1} ({start:%H:%M}): شعبُ الجناح {WING_CODE} خاليةٌ {len(free_wing)}/{len(wing)}، تربيةٌ خاصّةٌ خاليةٌ {len(free_special)}/{len(special)}"
         )
     return None, trace
 
 
-def _fill(chosen, entry_at, periods, wing, plain, busy):
-    """مطابقةٌ كاملةٌ فترات←شعب (مسارُ تحسينٍ لـKuhn): لا اختيارَ جشعاً يستنفد الشعبَ بلا جناحٍ في فتراتٍ يتّسع فيها الجناح.
+def _fill(chosen, entry_at, ese_at, periods, wing, special, busy):
+    """مطابقةٌ كاملةٌ فترات←شعب (مسارُ تحسينٍ لـKuhn): كلُّ فترةٍ تقبل شعبةً خاليةً في وقتها من حوضها.
 
-    كلُّ فترةٍ تقبل شعبةً خاليةً في وقتها (فترةُ الرصد: شعبُ جناحٍ وحدَها)، وتُرتَّب القوائمُ بلا جناحٍ أوّلاً. مفتاحُ الشعبة لا يتكرّر.
+    حوضُ فترات التربية الخاصّة `special`، وحوضُ الباقي (ومنه فترةُ الرصد) `wing` وحدَه. مفتاحُ الشعبة لا يتكرّر.
     """
     options = {}
     for index in chosen:
         taken = busy.get(periods[index][0], set())
-        pool = wing if index == entry_at else plain + wing
+        pool = special if index in ese_at else wing
         options[index] = [g for g in pool if g.id not in taken]
     owner = {}  # معرّفُ الشعبة ← الفترة التي أخذتها
 
@@ -153,7 +163,7 @@ def _fill(chosen, entry_at, periods, wing, plain, busy):
     for index in sorted(chosen, key=lambda i: len(options[i])):
         if not assign(index, set()):
             return None
-    by_id = {g.id: g for g in plain + wing}
+    by_id = {g.id: g for g in special + wing}
     mine = {index: by_id[gid] for gid, index in owner.items()}
     return [(index, mine[index], index == entry_at) for index in chosen]
 
@@ -169,19 +179,19 @@ def plan():
         _refuse("لا عضويّةَ نشطةً للمعلّم الوهميّ في مدرسة")
     school = School.objects.get(pk=school_id)
     periods = _period_times(school, today)
-    wing, plain = _groups(school)
+    wing, special = _groups(school)
     busy = _busy(today)
     print(
-        f"اليوم {today} — فتراتُ الجدول المعتمَد: {len(periods)}؛ شعبُ جناحٍ صالحةٌ {len(wing)}؛ بلا جناح {len(plain)}"
+        f"اليوم {today} — فتراتُ الجدول المعتمَد: {len(periods)}؛ شعبُ جناحٍ صالحةٌ {len(wing)}؛ تربيةٌ خاصّة {len(special)}"
     )
     for index, (start, end, subject) in enumerate(periods):
         taken = busy.get(start, set())
-        refused = [_label(g) for g in wing + plain if g.id in taken]
+        refused = [_label(g) for g in wing + special if g.id in taken]
         print(
             f"فترة {index + 1} {start:%H:%M}–{end:%H:%M}: مشغولةٌ (لها حصّةٌ في الوقت نفسه) {len(refused)} شعبة"
         )
     chosen, trace = (
-        _solve(periods, wing, plain, _busy(today)) if len(periods) >= SESSIONS else (None, [])
+        _solve(periods, wing, special, _busy(today)) if len(periods) >= SESSIONS else (None, [])
     )
     if chosen is None:
         print("لا حلَّ كاملاً بستّ فتراتٍ من الجدول المعتمَد — سبب الرفض:")
@@ -194,7 +204,7 @@ def plan():
         kind = (
             "جناح — رصدُ الإدخال والاعتماد"
             if is_entry
-            else ("جناح" if group.wing_id else "بلا جناح")
+            else ("جناح" if group.wing_id else "تربيةٌ خاصّة")
         )
         print(f"  فترة {index + 1} {start:%H:%M}–{end:%H:%M} ← {_label(group)} ({kind})")
     print("لا كتابةَ: هذا عرضٌ فقط.")
@@ -234,9 +244,9 @@ def up():
     made = existing
     if not existing:
         periods = _period_times(school, today)
-        wing, plain = _groups(school)
+        wing, special = _groups(school)
         chosen, trace = (
-            _solve(periods, wing, plain, _busy(today)) if len(periods) >= SESSIONS else (None, [])
+            _solve(periods, wing, special, _busy(today)) if len(periods) >= SESSIONS else (None, [])
         )
         if chosen is None:
             _refuse("لا حلَّ كاملاً بستّ فتراتٍ — شغّل TEACHER_SEED_ACTION=plan:\n" + "\n".join(trace))
