@@ -1,7 +1,7 @@
-{% load ui icons %}
+{% load ui icons provisional_door %}{% provisional_enabled as provisional_door %}
 {% comment %}جدولُ حصص اليوم في «جدول حصصي» — `sessions` و`next_session` و`is_recorder` من العرض.{% endcomment %}
 <div class="table-wrap-scroll sessions-scroll">
-<table class="sessions-table">
+<table class="sessions-table{% if provisional_door and not is_leadership %} is-off{% endif %}">
   <thead>
     <tr>
       <th scope="col">المادة</th>
@@ -47,7 +47,14 @@
         </span>
       </td>
       <td>
-        {% if session.status != 'completed' and session.status != 'cancelled' and is_recorder %}
+        {% if provisional_door and not is_leadership %}
+        {# الجدولُ غيرُ معتمدٍ بعدُ: الأزرارُ مقفلةٌ بلا رابط (المالك، W-20261005-006) — الرصدُ من «شُعبي للرصد» تحت الجدول #}
+        {% if session.status != 'completed' and session.status != 'cancelled' and is_recorder or session.status != 'completed' and session.status != 'cancelled' and not session.class_group.wing_id %}
+        <span class="btn-primary btn-sm" role="link" aria-disabled="true" tabindex="-1">تسجيل حضور</span>
+        {% else %}
+        <span class="btn-secondary btn-xs" role="link" aria-disabled="true" tabindex="-1">عرض</span>
+        {% endif %}
+        {% elif session.status != 'completed' and session.status != 'cancelled' and is_recorder %}
         <a href="{% url 'attendance' session.id %}" class="btn-primary btn-sm">تسجيل حضور</a>
         {% elif session.status != 'completed' and session.status != 'cancelled' and not session.class_group.wing_id %}
         <a href="{% url 'attendance' session.id %}" class="btn-primary btn-sm">تسجيل حضور</a>
@@ -62,3 +69,10 @@
   </tbody>
 </table>
 </div>
+{% if provisional_door and not is_leadership %}
+{% comment %}تنبيهٌ تحت عمود الإجراء (نصٌّ مقترحٌ يعدّله المالك عند المعاينة) ورابطٌ إلى «شُعبي للرصد» (زرٌّ ≥44px بالهويّة نفسِها).{% endcomment %}
+<div class="sessions-off-note" role="note">
+  <p>الجدولُ غيرُ معتمدٍ بعدُ — ارصد غيابَ طلّابك مؤقّتاً من «شُعبي للرصد»، إلى حين اعتماد جدول المنصّة.</p>
+  <a href="{% url 'provisional_classes' %}" class="btn-primary btn-sm">شُعبي للرصد</a>
+</div>
+{% endif %}

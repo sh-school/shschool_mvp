@@ -308,3 +308,46 @@ def test_with_the_switch_off_a_real_week_generates_exactly_as_before(
         counts[flag] = ScheduleService.ensure_sessions_for_date(school, SUNDAY)
         assert not Session.objects.filter(provisional=True).exists()
     assert counts[False] == counts[True]
+
+
+# ── جدولُ «حصصي اليوم» مُعطَّلٌ بمفتاح الحصّة المؤقّتة (أمرُ المالك، W-20261005-006) ──
+
+
+def _schedule_page(client, user):
+    return client.get(reverse("teacher_schedule")).content.decode()
+
+
+def test_with_the_switch_on_the_teachers_schedule_has_no_live_button_and_shows_the_note(
+    client_as, assigned, teacher, session
+):
+    page = _schedule_page(client_as(teacher), teacher)
+
+    attendance_url = reverse("attendance", args=[session.id])
+    assert f'href="{attendance_url}"' not in page, "لا زرَّ فعّالَ في جدول حصصي"
+    assert 'aria-disabled="true"' in page and "sessions-table is-off" in page
+    assert "الجدولُ غيرُ معتمدٍ بعدُ" in page
+    assert f'href="{reverse("provisional_classes")}"' in page, "رابطٌ إلى شُعبي للرصد"
+    assert (
+        reverse("swap_list") in page and reverse("compensatory_list") in page
+    ), "أزرارُ الترويسة كما هي"
+
+
+def test_with_the_switch_off_the_schedule_is_exactly_as_it_was(
+    client_as, settings, assigned, teacher, session
+):
+    settings.PROVISIONAL_SESSIONS_ENABLED = False
+
+    page = _schedule_page(client_as(teacher), teacher)
+
+    assert f'href="{reverse("attendance", args=[session.id])}"' in page
+    assert "is-off" not in page and "sessions-off-note" not in page
+    assert "الجدولُ غيرُ معتمدٍ بعدُ" not in page
+    assert 'aria-disabled="true"' not in page.split('class="sessions-table')[1].split("</table>")[0]
+
+
+def test_leadership_view_of_the_schedule_is_untouched_by_the_switch(
+    client_as, assigned, session, principal_user
+):
+    page = client_as(principal_user).get(reverse("teacher_schedule")).content.decode()
+
+    assert "sessions-off-note" not in page and "is-off" not in page
