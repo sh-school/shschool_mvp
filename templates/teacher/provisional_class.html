@@ -19,25 +19,16 @@
   {% page_header klass.short_label subtitle="اختر حصّتَك أوّلاً ثمّ ارصد — حصّةٌ مؤقّتةٌ لليوم الجاري ريثما يُعتمد الجدول" icon="attendance_register" %}{% endpage_header %}
   {% endif %}
 
-  {% section_card "الحصّة" meta="ح1 – ح7" icon="periods_today" %}
-    <form method="post" action="{% url 'provisional_create' klass.id %}" class="pp-picker" aria-label="اختيارُ الحصّة">
-      {% csrf_token %}
-      {% for choice in choices %}
-      <button type="submit" name="period" value="{{ choice.number }}"
-              class="{% if choice.session %}btn-primary{% else %}btn-secondary{% endif %} pp-picker__btn"
-              {% if not choice.available %}disabled aria-disabled="true"{% endif %}>
-        <b>ح{{ choice.number }}</b>
-        <small>{% if choice.available %}<bdi dir="ltr">{{ choice.start|time:"H:i" }}–{{ choice.end|time:"H:i" }}</bdi>{% else %}بلا زمن{% endif %}</small>
-        {% if choice.session %}<small>مفتوحة</small>{% endif %}
-      </button>
-      {% endfor %}
-    </form>
-  {% endsection_card %}
+  {% comment %}نموذجُ الإنشاء فارغٌ: أزرارُ المنتقي (provisional_tabs) ترتبط به بـform="pp-picker"، فتعمل داخل الكشف وخارجه بلا نموذجٍ متداخل.{% endcomment %}
+  <form id="pp-picker" method="post" action="{% url 'provisional_create' klass.id %}">{% csrf_token %}</form>
 
   {% if session %}
   {% include "attendance/period_sheet.html" %}
   {% else %}
   {% comment %}قبل اختيار الحصّة: الشبكةُ بلا اختيار — بطاقةُ كلّ طالبٍ مُعطَّلةٌ ونصُّ «اختر الحصّة أوّلاً» (D-229م)، لا قائمةٌ مبتورة.{% endcomment %}
+  {% section_card "الحصّة" meta="ح1 – ح7" icon="periods_today" %}
+    {% include "teacher/partials/provisional_tabs.html" %}
+  {% endsection_card %}
   {% section_card "طلبةُ الشعبة" meta=enrollments|length icon="attendance_register" %}
     {% if enrollments %}
     <p class="ui-note">اختر الحصّة أوّلاً</p>

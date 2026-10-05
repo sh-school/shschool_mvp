@@ -205,7 +205,9 @@ def test_the_class_page_puts_the_period_picker_above_the_students(
 
     assert all(f"ح{n}" in body for n in range(1, 8))
     assert "07:10" in body and "بلا زمن" in body
-    assert body.index("pp-picker") < body.index(kid.full_name), "المنتقي فوق قائمة الطلبة"
+    assert body.index("per-tabs--pick") < body.index(kid.full_name), "المنتقي فوق قائمة الطلبة"
+    assert "pp-picker__btn" not in body, "لا بطاقةَ بلاطاتٍ كبيرةً مكرَّرة (أمرُ المالك)"
+    assert body.count('class="per-tabs') == 1, "منتقٍ واحدٌ فقط"
 
 
 def test_picking_a_period_creates_it_and_opens_the_register(client_as, assigned, teacher):
@@ -552,3 +554,39 @@ def test_the_under_action_note_is_centered_triple_size_and_glowing_red():
     assert "text-align: center" in rule
     assert "calc(var(--text-sm) * 3)" in rule
     assert "var(--status-danger-fg)" in rule and "text-shadow" in rule
+
+
+def test_the_picker_is_the_only_one_after_a_period_is_chosen_and_it_shades_the_chosen(
+    client_as, assigned, teacher
+):
+    """بعد اختيار الحصّة يبقى شريطُ الكشف الصغيرُ وحدَه منتقياً: ح1–ح7 كلُّها، والمختارةُ مظلَّلة، وبلا تبويبٍ يُخرج من الصفحة."""
+    client = client_as(teacher)
+    response = client.post(reverse("provisional_create", args=[assigned.id]), {"period": "2"})
+    page = client.get(response["Location"]).content.decode()
+
+    assert page.count('class="per-tabs') == 1
+    assert "pp-picker__btn" not in page
+    tabs = re.findall(r"<button [^>]*form=\"pp-picker\"[^>]*>", page)
+    assert len(tabs) == 7, "ح1–ح7 كلُّها لا الموجودةُ فقط"
+    shaded = [tab for tab in tabs if "is-focus" in tab]
+    assert len(shaded) == 1 and 'value="2"' in shaded[0]
+    assert "href=" not in re.search(
+        r'<nav class="per-tabs per-tabs--pick".*?</nav>', page, re.S
+    ).group(0)
+
+
+def test_a_period_state_is_current_past_or_future(teacher):
+    from unittest.mock import patch
+
+    choice = provisional.PeriodChoice(3, dt.time(9, 0), dt.time(9, 45))
+
+    for now, expected in (
+        ((8, 59), "future"),
+        ((9, 0), "current"),
+        ((9, 44), "current"),
+        ((9, 45), "past"),
+    ):
+        with patch.object(provisional.timezone, "localtime") as localtime:
+            localtime.return_value.time.return_value = dt.time(*now)
+            assert choice.state == expected, now
+    assert provisional.PeriodChoice(7, None, None).state == "future"

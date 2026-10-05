@@ -73,6 +73,16 @@ class PeriodChoice:
         """للزمن المعرَّف وحدَه خيار؛ ورقمٌ بلا زمنٍ في جرس الشعبة يُعرض معطَّلاً."""
         return self.start is not None
 
+    @property
+    def state(self) -> str:
+        """حالةُ الحصّة الآن للمنتقي: `current` جاريةٌ، `past` انقضت، `future` لم تبدأ (بلا زمنٍ: `future`)."""
+        if self.start is None or self.end is None:
+            return "future"
+        now = timezone.localtime().time()
+        if now < self.start:
+            return "future"
+        return "current" if now < self.end else "past"
+
 
 def enabled() -> bool:
     """مفتاحُ التشغيل — مطفأً لا ميزةَ ولا مسار."""
@@ -369,6 +379,7 @@ def class_page_context(
     context: dict[str, Any] = {
         "klass": klass,
         "choices": period_choices(user, school, klass),
+        "provisional_pick": True,
         "enrollments": StudentEnrollment.objects.filter(class_group=klass, is_active=True)
         .select_related("student")
         .order_by("student__full_name"),
