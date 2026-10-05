@@ -87,10 +87,22 @@ def test_only_the_current_school_day_is_allowed(school, assigned, teacher, day):
         provisional.create(teacher, school, assigned.id, 1, day=day)
 
 
-@pytest.mark.parametrize("number", [0, 8, -1, "x", None])
+@pytest.mark.parametrize("number", [0, 8, -1, "x"])
 def test_a_period_outside_1_to_7_is_refused_in_the_service(school, assigned, teacher, number):
     with pytest.raises(provisional.ProvisionalRefusedError):
         provisional.create(teacher, school, assigned.id, number)
+
+
+def test_create_without_a_period_picks_the_default_one_by_the_bell(school, assigned, teacher):
+    """«ارصد» بلا اختيار: جاريةٌ ثمّ آخرُ ماضيةٍ ثمّ أوّلُ قادمة (الجرسُ ثلاثُ حصصٍ 07:10/08:00/12:45)."""
+    from unittest.mock import patch
+
+    for now, expected in (((7, 30), 1), ((8, 20), 2), ((13, 0), 3), ((6, 0), 1), ((15, 0), 3)):
+        Session.objects.filter(provisional=True).delete()
+        with patch.object(provisional.timezone, "localtime") as localtime:
+            localtime.return_value.time.return_value = dt.time(*now)
+            session, _ = provisional.create(teacher, school, assigned.id, None)
+        assert session.period_number == expected, now
 
 
 def test_a_period_with_no_bell_time_for_the_class_is_refused(school, assigned, teacher):
@@ -205,7 +217,8 @@ def test_the_class_page_puts_the_period_picker_above_the_students(
 
     assert all(f"ح{n}" in body for n in range(1, 8))
     assert "07:10" in body and "بلا زمن" in body
-    assert body.index("per-tabs--pick") < body.index(kid.full_name), "المنتقي فوق قائمة الطلبة"
+    assert "per-tabs--pick" in body
+    assert kid.full_name not in body, "لا أسماءَ قبل اختيار الحصّة (تُظنّ لوحةَ الرصد)"
     assert "pp-picker__btn" not in body, "لا بطاقةَ بلاطاتٍ كبيرةً مكرَّرة (أمرُ المالك)"
     assert body.count('class="per-tabs') == 1, "منتقٍ واحدٌ فقط"
 
@@ -460,15 +473,31 @@ def test_with_the_switch_off_the_home_is_exactly_as_it_was(
 # ── صفحةُ الشعبة بشبكة الكشف نفسِها (D-229م، D-16 layout-sheet) ──
 
 
-def test_before_choosing_a_period_the_grid_is_shown_disabled_with_the_prompt(
+def test_before_choosing_a_period_only_the_picker_shows_no_roster(
     client_as, assigned, teacher, kid
 ):
     body = client_as(teacher).get(reverse("provisional_class", args=[assigned.id])).content.decode()
 
-    assert "اختر الحصّة أوّلاً" in body
-    assert 'class="auto-grid prov-off"' in body and kid.full_name in body
+    assert "per-tabs--pick" in body
+    assert kid.full_name not in body and "auto-grid" not in body
     assert "rec-form" not in body, "لا نموذجَ رصدٍ قبل الاختيار"
     assert "layout-sheet" in body
+
+
+def test_arsed_opens_the_grid_directly_without_an_intermediate_choice(
+    client_as, assigned, teacher, kid
+):
+    """«ارصد» في قائمة الشعب: نموذجُ POST بلا حصّةٍ يُنشئ الافتراضيّةَ ويفتح الشبكةَ مباشرةً."""
+    client = client_as(teacher)
+    listing = client.get(reverse("provisional_classes")).content.decode()
+    assert f'action="{reverse("provisional_create", args=[assigned.id])}"' in listing
+    assert ">ارصد</button>" in listing
+
+    response = client.post(reverse("provisional_create", args=[assigned.id]))
+    body = client.get(response.url).content.decode()
+
+    assert response.status_code == 302 and "?session=" in response.url
+    assert "rec-form" in body and kid.full_name in body
 
 
 def test_after_choosing_the_shared_register_sheet_is_in_the_same_page(
@@ -509,7 +538,7 @@ def test_a_session_param_of_another_teacher_or_class_shows_no_sheet(
         .content.decode()
     )
 
-    assert "rec-form" not in body and "اختر الحصّة أوّلاً" in body
+    assert "rec-form" not in body and "per-tabs--pick" in body
 
 
 # ── الجدولُ الأسبوعيّ للمعلّم: يُفتح مُطفأً كلُّ شيءٍ فيه و«تحت الإجراء» (D-231م) ──

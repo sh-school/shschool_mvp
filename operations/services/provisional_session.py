@@ -180,6 +180,19 @@ def period_choices(
     ]
 
 
+def _default_period(bell: dict) -> int:
+    """رقمُ الحصّة الافتراضيّ من جرس الشعبة الآن — جاريةٌ ثمّ آخرُ ماضيةٍ ثمّ أوّلُ قادمة."""
+    choices = [PeriodChoice(n, *(bell.get(n) or (None, None))) for n in PERIOD_NUMBERS]
+    defined = [c for c in choices if c.available]
+    if not defined:
+        raise ProvisionalRefusedError("لا زمنَ مُعرَّفاً لأيّ حصّةٍ في جرس هذه الشعبة")
+    for choice in defined:
+        if choice.state == "current":
+            return choice.number
+    past = [c for c in defined if c.state == "past"]
+    return (past[-1] if past else defined[0]).number
+
+
 def create(
     user: CustomUser,
     school: School,
@@ -198,10 +211,14 @@ def create(
     today = _open_day(school, day)
     _throttle(user)
     close_shadowed(school, today)
-    try:
-        number = int(period_number)
-    except (TypeError, ValueError):
-        raise ProvisionalRefusedError("رقمُ الحصّة غيرُ صالح") from None
+    if period_number in (None, ""):
+        # «ارصد» بلا اختيارٍ: الحصّةُ الجاريةُ الآن، وإلا آخرُ ما انقضى، وإلا أوّلُ القادمة (النافذةُ مفتوحةٌ من بدء جرس الشعبة).
+        number = _default_period(_bell(school, klass, today))
+    else:
+        try:
+            number = int(period_number)
+        except (TypeError, ValueError):
+            raise ProvisionalRefusedError("رقمُ الحصّة غيرُ صالح") from None
     if number not in PERIOD_NUMBERS:
         raise ProvisionalRefusedError("رقمُ الحصّة من 1 إلى 7")
     times = _bell(school, klass, today).get(number)
@@ -372,17 +389,12 @@ def class_page_context(
     الحصّةُ المختارةُ تُقبل إن كانت **حصّةَ هذا المعلّم اليومَ في هذه الشعبة** وإلا لا شبكة (لا يُكشف وجودُ غيرها). في الخدمة لا العرض: سقّاطةُ الطبقات.
     `ProvisionalNotAllowedError` لغير اليوم الدراسيّ الجاري.
     """
-    from core.models import StudentEnrollment
-
     from .attendance_teacher import TeacherAttendanceService
 
     context: dict[str, Any] = {
         "klass": klass,
         "choices": period_choices(user, school, klass),
         "provisional_pick": True,
-        "enrollments": StudentEnrollment.objects.filter(class_group=klass, is_active=True)
-        .select_related("student")
-        .order_by("student__full_name"),
     }
     chosen = _chosen_session(user, school, klass, session_id)
     if chosen is not None:

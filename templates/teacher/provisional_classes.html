@@ -14,24 +14,24 @@
 
 {% block content %}
 <div class="exec-dash">
-  {% page_header "شُعبي للرصد" subtitle="شُعبُ إسنادك — اختر الشعبةَ ثمّ حصّتَك لترصد الغياب" icon="attendance_register" %}{% endpage_header %}
+  {% page_header "شُعبي للرصد" subtitle="اضغط «ارصد» أمامَ شعبتك فتُفتح شبكةُ الرصد مباشرةً" icon="attendance_register" %}{% endpage_header %}
 
   {% section_card "شُعب إسنادك" meta=classes|length icon="attendance_register" %}
     {% if classes %}
-    <div class="table-wrap">
-      <table data-no-sort>
-        <thead><tr><th>الشعبة</th><th>الجناح</th><th><span class="sr-only">الإجراء</span></th></tr></thead>
-        <tbody>
-          {% for klass in classes %}
-          <tr>
-            <td>{{ klass.short_label }}</td>
-            <td>{{ klass.wing.name|default:"—" }}</td>
-            <td><a class="btn-secondary btn-sm" href="{% url 'provisional_class' klass.id %}">ارصد</a></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <ul class="pp-classes">
+      {% for klass in classes %}
+      <li class="pp-class">
+        <span class="pp-class__info">
+          <b class="pp-class__name">{{ klass.short_label }}</b>
+          <span class="pp-class__wing">{{ klass.wing.name|default:"—" }}</span>
+        </span>
+        {% comment %}«ارصد» يُنشئ حصّةَ الوقت الجاريّ ويفتح الشبكةَ مباشرةً (أمرُ المالك): لا صفحةَ وسيطة.{% endcomment %}
+        <form method="post" action="{% url 'provisional_create' klass.id %}">{% csrf_token %}
+          <button type="submit" class="btn-primary btn-sm">ارصد</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
     {% else %}
     {% include "components/empty_state.html" with title="لا شُعبَ مُسنَدةً إليك" only %}
     {% endif %}

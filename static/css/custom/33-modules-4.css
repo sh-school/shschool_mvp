@@ -1817,11 +1817,20 @@ body:has(.rm-page) .site-footer { flex: none; }
 .per-tabs--pick .per-tab { gap: var(--sp-1-5); }
 .per-tabs--pick .per-tab small { font-size: var(--text-xs); font-weight: 400; font-variant-numeric: tabular-nums; }
 .per-tab:disabled { opacity: .5; cursor: not-allowed; }
-.per-tabs--pick .per-tab.is-current { background: var(--maroon-bg); border-color: var(--maroon); color: var(--maroon-fg); }
-.per-tabs--pick .per-tab.is-past { background: var(--surface-alt); color: var(--text-secondary); }
-.per-tabs--pick .per-tab.is-future { border-color: var(--maroon-border); color: var(--maroon-fg); }
+.per-tabs--pick { justify-content: center; }
+.per-tabs--pick .per-tab { color: var(--text-primary); }
+.per-tabs--pick .per-tab.is-current { background: var(--maroon-bg); border-color: var(--maroon); }
+.per-tabs--pick .per-tab.is-past { background: var(--surface-alt); }
+.per-tabs--pick .per-tab.is-future { border-color: var(--maroon-border); }
 .per-tabs--pick .per-tab.is-focus { background: var(--maroon); border-color: var(--maroon); color: var(--on-fill); }
-.pp-student { padding: var(--sp-3) var(--sp-4); border: 1px solid var(--surface-alt); border-radius: var(--radius-md); }
+/* قائمةُ شُعب الرصد: بطاقةٌ لكلّ شعبة — الاسمُ والجناحُ عند البداية و«ارصد» عند النهاية (W-20261005-006). والمفتاحُ في الرئيسيّة بحجمه لا بعرض البطاقة. */
+.pp-classes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--sp-3); }
+.pp-class { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.pp-class__info { display: flex; flex-direction: column; gap: var(--sp-0-5); }
+.pp-class__name { font-size: var(--text-lg); color: var(--text-primary); }
+.pp-class__wing { font-size: var(--text-sm); color: var(--text-secondary); }
+.pp-key { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.pp-key .ui-note { margin: 0; }
 
 /* جدولُ حصصي ومفاتيحُه مُعطَّلةُ المظهر حين يُشغَّل الرصدُ المؤقّت (W-20261005-006، أمرُ المالك): الجدولُ غيرُ معتمد؛ و«تحت الإجراء» وسطَ السطر بحجمٍ ×3 وأحمرَ متوهّج (أمرُ المالك). */
 .sessions-table.is-off tbody { opacity: .55; }

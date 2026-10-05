@@ -11,5 +11,7 @@
     ح{{ choice.number }}
     <small>{% if choice.available %}<bdi dir="ltr">{{ choice.start|time:"H:i" }}–{{ choice.end|time:"H:i" }}</bdi>{% else %}بلا زمن{% endif %}</small>
   </button>
+  {% empty %}
+  <span class="sr-only">لا حصصَ مُعرَّفةً لهذه الشعبة</span>
   {% endfor %}
 </nav>

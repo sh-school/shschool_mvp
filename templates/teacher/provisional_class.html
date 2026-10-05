@@ -25,21 +25,11 @@
   {% if session %}
   {% include "attendance/period_sheet.html" %}
   {% else %}
-  {% comment %}قبل اختيار الحصّة: الشبكةُ بلا اختيار — بطاقةُ كلّ طالبٍ مُعطَّلةٌ ونصُّ «اختر الحصّة أوّلاً» (D-229م)، لا قائمةٌ مبتورة.{% endcomment %}
-  {% section_card "الحصّة" meta="ح1 – ح7" icon="periods_today" %}
+  {% comment %}
+    من «ارصد» لا تُرى هذه الحالة (تُفتح الشبكةُ مباشرةً)؛ تبقى لمن فتح الرابط بلا اختيارٍ أو رُفض طلبُه: المنتقي وحدَه وسطَ السطر — بلا أسماء قد تُظنّ لوحةَ الرصد (أمرُ المالك).
+  {% endcomment %}
+  {% section_card "اختر الحصّة" meta="ح1 – ح7" icon="periods_today" %}
     {% include "teacher/partials/provisional_tabs.html" %}
-  {% endsection_card %}
-  {% section_card "طلبةُ الشعبة" meta=enrollments|length icon="attendance_register" %}
-    {% if enrollments %}
-    <p class="ui-note">اختر الحصّة أوّلاً</p>
-    <div class="auto-grid prov-off" aria-disabled="true">
-      {% for enrollment in enrollments %}
-      <div class="pp-student">{{ enrollment.student.full_name }}</div>
-      {% endfor %}
-    </div>
-    {% else %}
-    {% include "components/empty_state.html" with title="لا طلبةَ في هذه الشعبة" only %}
-    {% endif %}
   {% endsection_card %}
   {% endif %}
 </div>
