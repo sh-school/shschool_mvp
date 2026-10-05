@@ -89,9 +89,9 @@
             <td class="per-grid__no">{{ forloop.counter }}</td>
             <th scope="row" class="per-grid__name">
               {% if teacher_sheet %}
-              <span class="rec-row__name"><span class="rec-row__file" title="{{ row.student.full_name }}">{{ row.student.full_name }}</span></span>
+              <span class="rec-row__name" data-full="{{ row.student.full_name }}"><span class="rec-row__file" title="{{ row.student.full_name }}">{{ row.student.full_name }}</span></span>
               {% else %}
-              <span class="rec-row__name"><a href="{% url 'wings:absence_file' sid %}" class="rec-row__file" title="{{ row.student.full_name }} — ملفُّ غيابه يوماً بيوم">{{ row.student.full_name }}</a> <a href="{% url 'wings:student_events' klass.id sid %}" class="rec-row__fix" title="تصحيح أو عذرُ إدخالٍ خاطئ على هذا الطالب">تصحيح</a></span>
+              <span class="rec-row__name" data-full="{{ row.student.full_name }}"><a href="{% url 'wings:absence_file' sid %}" class="rec-row__file" title="{{ row.student.full_name }} — ملفُّ غيابه يوماً بيوم">{{ row.student.full_name }}</a> <a href="{% url 'wings:student_events' klass.id sid %}" class="rec-row__fix" title="تصحيح أو عذرُ إدخالٍ خاطئ على هذا الطالب">تصحيح</a></span>
               {% endif %}
               {% if row.absent_yesterday or row.days or row.pick.away_note %}
               <span class="rec-row__flags">

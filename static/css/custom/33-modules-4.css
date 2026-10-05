@@ -901,11 +901,22 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .per-cell.is-late .per-mark { color: var(--on-fill); background: var(--status-warning-dark); }
 /* «تصحيح» في زاوية البطاقة لا في سطرٍ خاصّ به: يوفّر سطراً كاملاً من الارتفاع. */
 .per-grid .rec-row__fix { opacity: 1; position: absolute; inset-block-start: var(--sp-2); inset-inline-end: var(--sp-2); font-size: var(--text-xs); }
-/* الاسمُ بسطرين على الأكثر: يظهر كاملاً في الغالب، وما زاد يُقتطع وتمامُه في التلميح. */
+/* الاسمُ سطرٌ واحدٌ دائماً يُقطع بنقاط (ملاحظةُ المالك 2026-10-05، W-20261005-012)، وتمامُه تلميحٌ يظهر بالمرور
+   وبالتركيز داخل البطاقة (يشمل نقرةَ اللمس على أزرارها) لا بالمرور وحده؛ والنصُّ الكاملُ باقٍ في DOM لقارئ الشاشة. */
+.per-grid .rec-row__name { position: relative; }
 .per-grid .rec-row__file {
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
-  padding-inline-end: var(--sp-8); overflow-wrap: anywhere;
+  display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  padding-inline-end: var(--sp-8);
 }
+.per-grid .rec-row__name::after {
+  content: attr(data-full); position: absolute; z-index: var(--z-dropdown); inset-inline-start: 0; inset-block-start: 100%;
+  max-inline-size: min(22rem, 90vw); padding: var(--sp-1-5) var(--sp-2); border-radius: var(--radius-sm);
+  background: var(--popover-bg); border: 1px solid var(--popover-border); box-shadow: var(--shadow-md);
+  color: var(--text-primary); font-size: var(--text-sm); font-weight: 600; line-height: 1.5; white-space: normal;
+  visibility: hidden; opacity: 0; pointer-events: none; transition: opacity var(--transition-fast, 150ms) ease;
+}
+.per-grid tr.rec-row:hover .rec-row__name::after,
+.per-grid tr.rec-row:focus-within .rec-row__name::after { visibility: visible; opacity: 1; }
 .per-grid .rec-row__flags { margin-top: var(--sp-0-5); }
 .per-grid .rec-row__flags .badge { font-size: var(--text-xs); padding-block: 0; }
 
