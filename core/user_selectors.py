@@ -10,12 +10,23 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from django.core.exceptions import ValidationError
+from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404
 
 from core.models.user import CustomUser
+
+
+def _users(school: Any, ever: bool) -> QuerySet[CustomUser]:
+    # `in_school`/`ever_in_school` في core/querysets.py بلا تلميحاتِ أنواع؛ تُحصَر هنا في موضعٍ واحد.
+    users = (
+        CustomUser.objects.ever_in_school(school)  # type: ignore[no-untyped-call]
+        if ever
+        else CustomUser.objects.in_school(school)  # type: ignore[no-untyped-call]
+    )
+    return cast("QuerySet[CustomUser]", users)
 
 
 def school_user_or_404(school: Any, pk: Any, *, ever: bool = False) -> CustomUser:
@@ -23,9 +34,7 @@ def school_user_or_404(school: Any, pk: Any, *, ever: bool = False) -> CustomUse
 
     معرّفٌ ليس UUID صالحاً يُعامَل كغير موجود (404) لا خطأً 500.
     """
-    users = (
-        CustomUser.objects.ever_in_school(school) if ever else CustomUser.objects.in_school(school)
-    )
+    users = _users(school, ever)
     try:
         return get_object_or_404(users, pk=pk)
     except (ValidationError, ValueError, TypeError):
@@ -38,9 +47,7 @@ def school_user_or_none(school: Any, pk: Any, *, ever: bool = False) -> CustomUs
     """كـ`school_user_or_404` لكن بـ`None` بدل 404 — حيث الحقلُ اختياريٌّ (معرّفٌ فارغٌ أو غريبٌ ⇐ لا أحد)."""
     if not pk:
         return None
-    users = (
-        CustomUser.objects.ever_in_school(school) if ever else CustomUser.objects.in_school(school)
-    )
+    users = _users(school, ever)
     try:
         return users.filter(pk=pk).first()
     except (ValidationError, ValueError, TypeError):
