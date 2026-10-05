@@ -138,3 +138,32 @@ def test_confirming_the_prefilled_sheet_records_the_teachers_absence_not_present
         {"date": SUNDAY.isoformat(), "start": "07:10", f"s-{kid.id}": "absent"},
     )
     assert StudentAttendance.objects.get(session=session, student=kid).status == "absent"
+
+
+def test_a_special_education_teacher_sees_the_same_shared_sheet_and_the_absence_is_final(
+    client_as, now_0830, school, special_klass, teacher, bells
+):
+    """أمرُ المالك 2026-10-04: تصميمٌ واحد — شعبةُ ESE (بلا جناح) تُرسم بالكشف المشترك نفسِه، وإدخالُها نهائيٌّ مباشر (D-126م)."""
+    from tests.attendance_fixtures import ENROLLED
+    from tests.conftest import MembershipFactory, RoleFactory, StudentEnrollmentFactory, UserFactory
+
+    pupil = UserFactory(full_name="طالب خاصّ", national_id="29000001077")
+    StudentEnrollmentFactory(student=pupil, class_group=special_klass, enrolled_at=ENROLLED)
+    MembershipFactory(user=pupil, school=school, role=RoleFactory(school=school, name="student"))
+    ese = Session.objects.create(
+        school=school,
+        class_group=special_klass,
+        teacher=teacher,
+        date=SUNDAY,
+        start_time=dt.time(7, 10),
+        end_time=dt.time(7, 55),
+        status="scheduled",
+    )
+    page = client_as(teacher).get(reverse("attendance", args=[ese.id]))
+    body = page.content.decode()
+    assert 'class="per-head"' in body and f'name="s-{pupil.id}"' in body
+    assert "student_row" not in body and "mark_all_present" not in body  # لا قائمةَ قديمة
+    client_as(teacher).post(
+        reverse("attendance_period_entries", args=[ese.id]), {f"s-{pupil.id}": "absent"}
+    )
+    assert StudentAttendance.objects.get(session=ese, student=pupil).status == "absent"
