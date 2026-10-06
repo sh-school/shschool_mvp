@@ -776,6 +776,8 @@ ATTENDANCE_GRID_OPENS = os.environ.get("ATTENDANCE_GRID_OPENS", "07:10")
 ATTENDANCE_GRID_CLOSES = os.environ.get("ATTENDANCE_GRID_CLOSES", "14:00")
 #: سقفُ حفظات الجدول في الساعة لكلّ مستخدم — عدّادٌ مستقلٌّ عن سقف المؤقّتة (كتلُ 7×~30 خليّة).
 ATTENDANCE_GRID_SAVES_PER_HOUR = int(os.environ.get("ATTENDANCE_GRID_SAVES_PER_HOUR", "60"))
+#: عتبةُ تنبيه القيادة: ما اعتمده حاملُ جناحٍ بنفسه في اليوم فوقها (لا سقفَ صلب — D-239م، شرطُ 0104). تحدّدها المدرسة.
+ATTENDANCE_SELF_APPROVAL_ALERT = int(os.environ.get("ATTENDANCE_SELF_APPROVAL_ALERT", "50"))
 
 # ── عنوانُ العميل خلف وكيل ─────────────────────────────────────────────
 # كم قفزةً موثوقةً تُلحقها البنيةُ بآخر X-Forwarded-For. محلّياً لا وكيلَ فالترويسة

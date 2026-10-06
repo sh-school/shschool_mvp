@@ -32,6 +32,7 @@ from operations.attendance_selectors import (
     approval_groups,
     approval_queue,
     recent_corrections,
+    self_approval_counts,
     student_line,
     student_lines,
     teacher_page_context,
@@ -164,15 +165,21 @@ class TeacherAttendanceService:
         return approval_groups(user, school)
 
     @staticmethod
-    def approve_session(user: CustomUser, school: School, session_id: UUID) -> tuple[int, int]:
+    def approve_session(
+        user: CustomUser, school: School, session_id: UUID, *, defaults_only: bool = False
+    ) -> tuple[int, int]:
         """يعتمد كلَّ ما ينتظر هذا المستخدمَ في **حصّةٍ واحدة** ويُرجع `(اعتُمد، تُخطّي)`.
 
         كلُّ إدخالٍ بقراره المسجَّل باسمه عبر `decide_entry` نفسِه كالاعتماد الجماعيّ (الأهليّةُ والقفلُ والتدقيق)؛ وما اصطدم
         يُتخطّى ويبقى في الطابور. والرفضُ لا يكون جماعيّاً أبداً — يلزمه سببٌ لكلّ إدخال.
+
+        **«الحاضرُ الافتراضيّ» لا يدخل اعتمادَ الحصّة** (D-240م): خلايا فارغةٌ كتبها الحفظُ ولم يرصدها أحدٌ، فلها إجراءٌ منفصلٌ (`defaults_only`).
         """
         approved = skipped = 0
         for item in approval_queue(user, school):
             if item.entry.session_id != session_id:
+                continue
+            if (item.entry.origin == "grid_default") != defaults_only:
                 continue
             try:
                 _decision, created = decide_entry(user, item.entry, approve=True)
@@ -181,6 +188,26 @@ class TeacherAttendanceService:
                 continue
             approved += 1 if created else 0
         return approved, skipped
+
+    @staticmethod
+    def pending_defaults(user: CustomUser, school: School, session_id: UUID) -> int:
+        """كم «حاضراً افتراضيّاً» ينتظر قرارَ هذا المستخدم في هذه الحصّة (للتأكيد بالعدد)."""
+        return sum(
+            1
+            for item in approval_queue(user, school)
+            if item.entry.session_id == session_id and item.entry.origin == "grid_default"
+        )
+
+    @staticmethod
+    def self_approval_summary(user: CustomUser, school: School) -> dict[str, Any] | None:
+        """ملخّصُ القيادة اليوميّ: ما اعتمده كلُّ حاملٍ ذاتيّاً (أعدادٌ بلا أسماء) وتنبيهٌ إن تجاوز عتبةَ المدرسة — للقيادة وحدَها، وإلّا `None`."""
+        from django.conf import settings
+
+        if not holds_leadership_role(user, school.pk):
+            return None
+        counts = self_approval_counts(school, timezone.localdate())
+        limit = int(getattr(settings, "ATTENDANCE_SELF_APPROVAL_ALERT", 50))
+        return {"counts": counts, "limit": limit, "alert": any(n > limit for n in counts)}
 
     @staticmethod
     def report(

@@ -26,6 +26,8 @@ from django.utils import timezone
 from core.models import AuditLog
 
 from .attendance_policy import (
+    GRID_ORIGINS,
+    _wing_holder_on,
     approval_evidence,
     approval_holder,
     can_approve,
@@ -70,10 +72,19 @@ _LEADERSHIP_BASIS = {
 }
 
 
-def _decision_basis(user: CustomUser, session: Session, gap: str | None) -> str:
-    """أساسُ الصلاحيّة المحفوظُ مع القرار: حاصرُ الغياب العامّ ليس حاملَ الجناح ولا القيادة، فيُسمّى باسمه."""
+def _decision_basis(
+    user: CustomUser, session: Session, gap: str | None, entry: AttendanceEntry | None = None
+) -> str:
+    """أساسُ الصلاحيّة المحفوظُ مع القرار: حاصرُ الغياب العامّ ليس حاملَ الجناح ولا القيادة، فيُسمّى باسمه.
+
+    وفي إدخال جدول الشعبة يعتمده حاملُ الجناح بأساسه: `wing_holder_self` إن كان هو كاتبَه (D-239م) وإلّا `wing_holder` — بلا نظرٍ إلى `holder_gap`.
+    """
     from wings.services import holds_school_wide
 
+    if entry is not None and entry.origin in GRID_ORIGINS:
+        holder = _wing_holder_on(session.class_group, session.date)
+        if holder is not None and holder.id == user.id:
+            return "wing_holder_self" if entry.entered_by_id == user.id else "wing_holder"
     holder = approval_holder(session)
     if holds_school_wide(user) and not (holder is not None and holder.id == user.id):
         return "school_wide"
@@ -453,7 +464,7 @@ def decide_entry(
         raise EntryError("superseded", "حلّت محلَّه نسخةٌ أحدث — القرارُ على الأحدث.")
 
     session = locked.session
-    verdict = can_approve(user, session, entered_by=locked.entered_by)
+    verdict = can_approve(user, session, entered_by=locked.entered_by, entry_origin=locked.origin)
     if not verdict:
         raise EntryRefusedError(verdict.reason)
 
@@ -462,12 +473,18 @@ def decide_entry(
         raise EntryError("reason_required", "الرفضُ يلزمه سبب.")
 
     gap = holder_gap(session)
+    basis = _decision_basis(user, session, gap, locked)
+    evidence: dict[str, Any] = dict(approval_evidence(session))
+    if locked.origin in GRID_ORIGINS:
+        # الدليلُ في سجلّ القرار: ما كتبه المعتمِدُ بنفسه وما كان «حاضراً افتراضيّاً» — يظهر في الشاشة وسجلّ التدقيق.
+        evidence["self_entered"] = locked.entered_by_id == user.id
+        evidence["default_present"] = locked.origin == "grid_default"
     decision = _decide(
         locked,
         user,
         approve=approve,
-        basis=_decision_basis(user, session, gap),
-        evidence=approval_evidence(session),
+        basis=basis,
+        evidence=evidence,
         reason=reason,
         now=now,
     )

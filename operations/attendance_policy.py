@@ -288,8 +288,30 @@ def _has_entry_in_session(student: CustomUser, session: Session) -> bool:
     return bool(AttendanceEntry.objects.filter(session=session, student=student).exists())
 
 
+#: مصدرُ إدخالات جدول الشعبة — لها وحدَها اعتمادُ حاملِ الجناح الذاتيّ (D-239م).
+GRID_ORIGINS = frozenset({"grid", "grid_default"})
+
+
+def grid_holder_approves(user: CustomUser, session: Session, entry_origin: str) -> bool:
+    """أحاملُ جناح الشعبةِ يومَ الحصّة هو هذا المستخدمُ، والإدخالُ من جدول الشعبة، والمفتاحُ مشغَّل؟ (قرارُ المالك D-239م: يعتمد ما كتبه بنفسه بتدقيق.)
+
+    في مسار الجدول وحدَه: يُستثنى `own_entry` و`own_session` و`holder_gap` عن الحامل الفعليّ؛ والقيادةُ (مديرٌ ونائبٌ ومشرفٌ إداريّ) لا تعتمد ما كتبته.
+    والمفتاحُ مطفأً ← المنعُ القائمُ كما هو حرفاً (لا إدخالَ جدولٍ يُنشأ أصلاً، وهنا يُقفل المسارُ بالمفتاح أيضاً).
+    """
+    from django.conf import settings
+
+    if entry_origin not in GRID_ORIGINS or not getattr(settings, "PROVISIONAL_GRID_ENABLED", False):
+        return False
+    holder = _wing_holder_on(session.class_group, session.date)
+    return holder is not None and holder.id == user.id
+
+
 def can_approve(
-    user: CustomUser, session: Session, *, entered_by: CustomUser | None = None
+    user: CustomUser,
+    session: Session,
+    *,
+    entered_by: CustomUser | None = None,
+    entry_origin: str = "",
 ) -> Verdict:
     """هل يعتمد هذا المستخدمُ رصدَ هذه الحصّة (أو يرفضه)؟
 
@@ -306,6 +328,8 @@ def can_approve(
         return _deny("other_school")
     if not needs_approval(session):
         return _deny("final_entry")
+    if grid_holder_approves(user, session, entry_origin):
+        return _allow()
     if user.id == session.teacher_id:
         return _deny("own_session")
     if entered_by is not None and user.id == entered_by.id:

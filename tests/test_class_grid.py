@@ -298,7 +298,7 @@ def test_the_legacy_entry_path_still_refuses_a_non_session_teacher(
 def test_unknown_or_foreign_students_are_rejected_by_the_server(
     client_as, school, assigned, teacher, kids, clock
 ):
-    stranger = UserFactory(full_name="غريب", national_id="29000099999")
+    stranger = UserFactory(full_name="غريب", national_id="29000000091")
     response = _save(
         client_as(teacher), assigned, 1, [_cells(stranger, "absent"), _cells(kids[0], "absent")]
     )

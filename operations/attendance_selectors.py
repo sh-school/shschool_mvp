@@ -15,13 +15,14 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+from django.db.models import Count
 from django.utils import timezone
 
 from core.models import StudentEnrollment
 
 from .attendance_entries import EVIDENCE_TYPES, PendingRow, unapproved_report
 from .attendance_policy import approval_holder, can_approve, can_enter, holder_gap
-from .models import AttendanceEntry, Session, StudentAttendance
+from .models import AttendanceDecision, AttendanceEntry, Session, StudentAttendance
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
@@ -276,12 +277,16 @@ def approval_queue(
         .select_related("session__class_group__wing", "student", "entered_by")
         .order_by("entered_at")
     )
-    verdicts: dict[tuple[object, object], bool] = {}
+    verdicts: dict[tuple[object, object, str], bool] = {}
     items = []
     for entry in pending:
-        key = (entry.session_id, entry.entered_by_id)
+        key = (entry.session_id, entry.entered_by_id, entry.origin)
         if key not in verdicts:
-            verdicts[key] = bool(can_approve(user, entry.session, entered_by=entry.entered_by))
+            verdicts[key] = bool(
+                can_approve(
+                    user, entry.session, entered_by=entry.entered_by, entry_origin=entry.origin
+                )
+            )
         if not verdicts[key]:
             continue
         gap = holder_gap(entry.session)
@@ -311,10 +316,17 @@ class SessionGroup:
     entered_by: Any
     age_hours: float
     as_leadership: bool
+    #: «حاضرٌ افتراضيّ» كتبه الحفظُ لخلايا فارغةٍ — لا يدخل «اعتمادَ الحصّة» ولا يُعدّ حاضراً مرصوداً؛ له إجراءٌ منفصلٌ بتأكيد.
+    defaults: int = 0
 
     @property
     def total(self) -> int:
         return len(self.items)
+
+    @property
+    def regular(self) -> int:
+        """ما يعتمده «اعتمادُ الحصّة»: كلُّ الإدخالات عدا الافتراضيّ."""
+        return len(self.items) - self.defaults
 
 
 def approval_groups(user: CustomUser, school: School) -> list[SessionGroup]:
@@ -325,11 +337,13 @@ def approval_groups(user: CustomUser, school: School) -> list[SessionGroup]:
     groups = []
     for items in by_session.values():
         exceptions = [i for i in items if i.entry.status != "present"]
+        defaults = sum(1 for i in items if i.entry.origin == "grid_default")
         groups.append(
             SessionGroup(
                 session=items[0].entry.session,
                 items=items,
-                present=len(items) - len(exceptions),
+                defaults=defaults,
+                present=len(items) - len(exceptions) - defaults,
                 exceptions=exceptions,
                 entered_by=items[0].entry.entered_by,
                 age_hours=max(i.age_hours for i in items),
@@ -497,12 +511,16 @@ def entry_marks_of(
             session__class_group=class_group, session__date=day, unobserved_correction__isnull=False
         ).values_list("student_id", "session__start_time")
     )
-    verdicts: dict[tuple[object, object], bool] = {}
+    verdicts: dict[tuple[object, object, str], bool] = {}
     marks: dict[object, dict[dt.time, EntryMark]] = {}
     for entry in heads:
-        key = (entry.session_id, entry.entered_by_id)
+        key = (entry.session_id, entry.entered_by_id, entry.origin)
         if key not in verdicts:
-            verdicts[key] = bool(can_approve(user, entry.session, entered_by=entry.entered_by))
+            verdicts[key] = bool(
+                can_approve(
+                    user, entry.session, entered_by=entry.entered_by, entry_origin=entry.origin
+                )
+            )
         start = entry.session.start_time
         marks.setdefault(entry.student_id, {}).setdefault(
             start, _mark_of(entry, verdicts[key], (entry.student_id, start) in corrected)
@@ -666,3 +684,16 @@ def cell_history(session: Session, student: CustomUser) -> list[CellHistoryRow]:
             )
         )
     return rows
+
+
+def self_approval_counts(school: School, day: dt.date) -> list[int]:
+    """عددُ ما اعتمده كلُّ حاملِ جناحٍ بنفسه (`wing_holder_self`) في اليوم — أعدادٌ مرتَّبةٌ تنازليّاً **بلا أسماء** (ملخّصُ القيادة، D-239م)."""
+    rows = (
+        AttendanceDecision.objects.filter(
+            school=school, basis="wing_holder_self", decided_at__date=day
+        )
+        .values("decided_by")
+        .annotate(n=Count("id"))
+        .order_by("-n")
+    )
+    return [row["n"] for row in rows]
