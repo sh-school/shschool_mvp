@@ -297,6 +297,50 @@ def approval_queue(
 
 
 @dataclass(frozen=True)
+class SessionGroup:
+    """حصّةٌ واحدةٌ في الطابور: كلُّ ما أدخله المعلّمُ فيها ينتظر قرارَ المشرف دفعةً واحدة.
+
+    المشرفُ يعتمد **حصّةً** لا طالباً: الحاضرون عدٌّ وحدَه، والغائبون والمتأخّرون وغيرُهم (`exceptions`) هم
+    ما يُنظر فيه بنداً بنداً ويُرفض بسببٍ (أمرُ المالك 2026-10-06: لا بطاقةَ لكلّ طالب).
+    """
+
+    session: Session
+    items: list[QueueItem]
+    present: int
+    exceptions: list[QueueItem]
+    entered_by: Any
+    age_hours: float
+    as_leadership: bool
+
+    @property
+    def total(self) -> int:
+        return len(self.items)
+
+
+def approval_groups(user: CustomUser, school: School) -> list[SessionGroup]:
+    """الطابورُ مجموعاً بالحصّة (الأقدمُ أوّلاً) — اعتمادٌ واحدٌ لحصّةٍ كاملة، وبنودٌ مستقلّةٌ لما يخرج عن الحاضر."""
+    by_session: dict[Any, list[QueueItem]] = {}
+    for item in approval_queue(user, school):
+        by_session.setdefault(item.entry.session_id, []).append(item)
+    groups = []
+    for items in by_session.values():
+        exceptions = [i for i in items if i.entry.status != "present"]
+        groups.append(
+            SessionGroup(
+                session=items[0].entry.session,
+                items=items,
+                present=len(items) - len(exceptions),
+                exceptions=exceptions,
+                entered_by=items[0].entry.entered_by,
+                age_hours=max(i.age_hours for i in items),
+                as_leadership=any(i.as_leadership for i in items),
+            )
+        )
+    groups.sort(key=lambda g: (-g.age_hours, str(g.session.class_group)))
+    return groups
+
+
+@dataclass(frozen=True)
 class CorrectionItem:
     """تصحيحٌ دون معاينة لقراءة النائب: من صحّح ولأيّ سبب وبأيّ دليل — السببُ الحرُّ لأهل الاعتماد وحدَهم."""
 

@@ -3,8 +3,7 @@
 <div class="exec-dash">
 
   {% page_header "اللوحة الإدارية" subtitle=subtitle icon="workload" %}
-    {% if admin_role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>
-    <a href="{% url 'attendance_approvals' %}" class="btn-secondary btn-sm">{% icon "checklist" %} اعتمادُ رصد المعلّمين</a>{% endif %}
+    {% if admin_role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>{% endif %}
   {% endpage_header %}
 
   {% if admin_role == "admin_supervisor" %}

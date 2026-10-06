@@ -310,3 +310,59 @@ def test_after_approve_all_the_supervisor_sheet_shows_the_approved_absences_chec
         assert f'name="s-{pupil.id}" value="absent" checked' in body
         assert f'name="s-{pupil.id}" value="present" checked' not in body
     assert f'name="s-{plain.id}" value="present" checked' in body
+
+
+# ── الطابورُ بالحصّة لا بالطالب — أمرُ المالك 2026-10-06 («يعتمد لـ731 طالباً كلَّ حصّة؟ خطأ») ──
+
+
+def _pupils(klass, count):
+    from tests.attendance_fixtures import ENROLLED
+    from tests.conftest import StudentEnrollmentFactory, UserFactory
+
+    out = []
+    for n in range(count):
+        student = UserFactory(full_name=f"حاضرٌ رقم {n}", national_id=f"2900006{n:04d}")
+        StudentEnrollmentFactory(student=student, class_group=klass, enrolled_at=ENROLLED)
+        out.append(student)
+    return out
+
+
+def test_the_queue_is_one_card_per_session_and_present_students_are_only_a_count(
+    client_as, now_0830, klass, session, teacher, holder, kid
+):
+    present = _pupils(klass, 4)
+    for student in present:
+        submit_entry(teacher, session, student, "present", now=at(7, 30))
+    submit_entry(teacher, session, kid, "absent", now=at(7, 30))
+
+    body = client_as(holder).get(reverse("attendance_approvals")).content.decode()
+
+    assert "اعتمادُ الحصّة (5)" in body  # خمسةُ إدخالاتٍ في بطاقةٍ واحدة
+    assert "حاضر 4" in body
+    assert "طالب الشعبة" in body  # الغائبُ يُنظر فيه
+    assert "حاضرٌ رقم 0" not in body  # والحاضرون عدٌّ لا بطاقاتٌ
+
+
+def test_approving_a_session_approves_only_its_entries_and_each_decision_is_recorded(
+    client_as, now_0830, klass, session, second, teacher, holder, kid
+):
+    present = _pupils(klass, 3)
+    for student in present:
+        submit_entry(teacher, session, student, "present", now=at(7, 30))
+    submit_entry(teacher, session, kid, "absent", now=at(7, 30))
+    other = submit_entry(teacher, second, present[0], "present", now=at(8, 10))
+
+    response = client_as(holder).post(reverse("attendance_approve_session", args=[session.id]))
+
+    assert response.status_code == 302 and response.url == reverse("attendance_approvals")
+    assert AttendanceDecision.objects.filter(entry__session=session).count() == 4
+    assert AttendanceDecision.objects.filter(decided_by=holder).count() == 4
+    assert not AttendanceDecision.objects.filter(entry=other).exists()  # حصّةٌ أخرى تبقى بانتظاره
+
+
+def test_a_teacher_cannot_approve_a_session(client_as, now_0830, session, teacher, holder, kid):
+    submit_entry(teacher, session, kid, "absent", now=at(7, 30))
+
+    response = client_as(teacher).post(reverse("attendance_approve_session", args=[session.id]))
+
+    assert response.status_code == 403 and not AttendanceDecision.objects.exists()

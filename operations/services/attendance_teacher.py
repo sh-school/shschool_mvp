@@ -29,6 +29,7 @@ from operations.attendance_selectors import (
     QueueItem,
     StudentLine,
     UnapprovedSession,
+    approval_groups,
     approval_queue,
     recent_corrections,
     student_line,
@@ -166,6 +167,30 @@ class TeacherAttendanceService:
         """
         approved = skipped = 0
         for item in approval_queue(user, school):
+            try:
+                _decision, created = decide_entry(user, item.entry, approve=True)
+            except (EntryError, EntryRefusedError):
+                skipped += 1
+                continue
+            approved += 1 if created else 0
+        return approved, skipped
+
+    @staticmethod
+    def approval_groups(user: CustomUser, school: School) -> list[Any]:
+        """الطابورُ مجموعاً بالحصّة — بطاقةٌ لكلّ حصّةٍ لا لكلّ طالب."""
+        return approval_groups(user, school)
+
+    @staticmethod
+    def approve_session(user: CustomUser, school: School, session_id: UUID) -> tuple[int, int]:
+        """يعتمد كلَّ ما ينتظر هذا المستخدمَ في **حصّةٍ واحدة** ويُرجع `(اعتُمد، تُخطّي)`.
+
+        كلُّ إدخالٍ بقراره المسجَّل باسمه عبر `decide_entry` نفسِه كالاعتماد الجماعيّ (الأهليّةُ والقفلُ والتدقيق)؛ وما اصطدم
+        يُتخطّى ويبقى في الطابور. والرفضُ لا يكون جماعيّاً أبداً — يلزمه سببٌ لكلّ إدخال.
+        """
+        approved = skipped = 0
+        for item in approval_queue(user, school):
+            if item.entry.session_id != session_id:
+                continue
             try:
                 _decision, created = decide_entry(user, item.entry, approve=True)
             except (EntryError, EntryRefusedError):
