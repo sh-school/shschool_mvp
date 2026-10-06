@@ -1839,7 +1839,8 @@ body:has(.rm-page) .site-footer { flex: none; }
 .cg-tab { min-block-size: 44px; min-inline-size: 44px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--text-secondary); font-weight: 700; }
 .cg-tab.is-active { background: var(--maroon-bg); border-color: var(--maroon); color: var(--maroon-fg); }
 .cg-table th, .cg-table td { text-align: center; vertical-align: middle; }
-.cg-name { position: sticky; inset-inline-start: 0; z-index: 1; background: var(--surface); text-align: start; min-inline-size: 11rem; }
+.cg-name { position: sticky; inset-inline-start: 0; z-index: 1; text-align: start; min-inline-size: 11rem; }
+.cg-table tbody .cg-name { background: var(--surface); }
 .cg-name__btn { background: none; border: 0; padding: var(--sp-2); font: inherit; font-weight: 600; color: var(--text-primary); text-align: start; cursor: pointer; min-block-size: 44px; }
 .cg-col__title { display: block; font-weight: 800; }
 .cg-col__time { display: block; font-size: 0.75rem; color: var(--text-secondary); }
