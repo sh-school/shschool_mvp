@@ -40,10 +40,31 @@ def rival(school, year, assigned, subject):
     return other
 
 
+def _aged(session, minutes):
+    Session.objects.filter(pk=session.pk).update(
+        created_at=timezone.now() - dt.timedelta(minutes=minutes)
+    )
+
+
+def test_a_fresh_unmarked_session_is_not_released_so_its_owner_keeps_filling_it(
+    school, assigned, teacher, rival
+):
+    owner, _ = provisional.create(rival, school, assigned.id, 3)
+    _aged(owner, 2)  # أُنشئت قبل دقيقتين: صاحبُها يملأ الكشفَ الآن
+
+    with pytest.raises(provisional.ProvisionalRefusedError) as refusal:
+        provisional.create(teacher, school, assigned.id, 3)
+
+    owner.refresh_from_db()
+    assert owner.status != "cancelled" and owner.period_number == 3
+    assert assigned.short_label in str(refusal.value) and "الحصّة 3" in str(refusal.value)
+
+
 def test_an_unmarked_provisional_of_another_teacher_is_released_not_refused(
     school, assigned, teacher, rival
 ):
     squatter, _ = provisional.create(rival, school, assigned.id, 1)
+    _aged(squatter, 30)
 
     mine, created = provisional.create(teacher, school, assigned.id, 1)
 
@@ -67,6 +88,7 @@ def test_the_same_teachers_unmarked_session_in_another_class_is_released(
     type(other).objects.filter(pk=other.pk).update(time_band=band)
     _assign(school, year, other, subject, teacher)
     wrong, _ = provisional.create(teacher, school, other.id, 2)  # الشعبةُ الخطأ
+    _aged(wrong, 30)
 
     right, created = provisional.create(teacher, school, assigned.id, 2)
 

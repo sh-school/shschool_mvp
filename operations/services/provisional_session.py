@@ -290,6 +290,10 @@ def create(
     return session, True
 
 
+#: لا تُحرَّر مؤقّتةٌ أحدثُ من هذا العمر ولو لم يُحفظ فيها رصدٌ بعد: صاحبُها قد يملأ الكشفَ الآن.
+RELEASE_AFTER = dt.timedelta(minutes=20)
+
+
 def _release_unmarked_blockers(
     user: CustomUser, school: School, klass: ClassGroup, today: dt.date, number: int
 ) -> None:
@@ -309,6 +313,7 @@ def _release_unmarked_blockers(
         .exclude(class_group=klass, teacher=user)
         .select_related("class_group")
     )
+    fresh_after = timezone.now() - RELEASE_AFTER
     for old in blockers:
         if (
             AttendanceEntry.objects.filter(session=old).exists()
@@ -317,6 +322,12 @@ def _release_unmarked_blockers(
             raise ProvisionalRefusedError(
                 f"حجزها معلّمٌ آخر وفيها رصد (الحصّة {number} — الشعبة {old.class_group.short_label}); "
                 "اختر رقماً آخر أو راجع المشرف"
+            )
+        if old.created_at > fresh_after:
+            # حديثةُ الإنشاء: صاحبُها قد يملأ الكشفَ الآن بلا حفظٍ بعد — لا تُلغى من تحته فيضيع رصدُه.
+            raise ProvisionalRefusedError(
+                f"حجزها معلّمٌ آخر قبل دقائق وهو يرصد فيها الآن (الحصّة {number} — الشعبة "
+                f"{old.class_group.short_label}); اختر رقماً آخر أو راجع المشرف"
             )
     for old in blockers:
         old.status = "cancelled"
