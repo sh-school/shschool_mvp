@@ -175,11 +175,8 @@ def attendance_view(request, session_id):
     ):
         return HttpResponse("<p dir='rtl'>غير مسموح — هذه الحصة ليست لك.</p>", status=403)
 
-    target = class_grid.redirect_target(request.user, session)
-    if target:
-        # مفتاحُ جدول الشعبة مشغَّل: الكشفُ القديمُ (الشبكة) مُطفأٌ لمن يملك الجدول — يُحال إلى جدول شعبته.
+    if target := class_grid.redirect_target(request.user, session):
         return redirect(target)
-
     enrollments = (
         StudentEnrollment.objects.filter(class_group=session.class_group, is_active=True)
         .select_related("student")
