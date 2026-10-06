@@ -588,7 +588,7 @@ def exit_conflicts_of(sessions: Any, marks: dict) -> set[str]:
 
 
 @dataclass(frozen=True)
-class GridCell:
+class ColumnCell:
     """رأسُ سلسلة خليّةٍ (حصّة، طالب): الأحدثُ يظهر والأقدمُ في السجلّ (D-239م). حالتُه وسمٌ لا حضورٌ معتمَد."""
 
     head_id: str
@@ -614,15 +614,15 @@ class CellHistoryRow:
     default_present: bool
 
 
-def grid_cells(session_ids: list[Any]) -> dict[tuple[Any, Any], GridCell]:
+def column_heads(session_ids: list[Any]) -> dict[tuple[Any, Any], ColumnCell]:
     """`{(حصّة، طالب): رأسُ السلسلة}` لعدّة حصصٍ باستعلامٍ واحد — لا استعلامَ لكلّ خليّة (ثابتٌ بعدد الطلبة)."""
     heads = AttendanceEntry.objects.filter(
         session_id__in=session_ids, superseded_by__isnull=True
     ).select_related("decision", "entered_by")
-    cells: dict[tuple[Any, Any], GridCell] = {}
+    cells: dict[tuple[Any, Any], ColumnCell] = {}
     for entry in heads:
         state, _reason = _state(entry)
-        cells[(entry.session_id, entry.student_id)] = GridCell(
+        cells[(entry.session_id, entry.student_id)] = ColumnCell(
             head_id=str(entry.pk),
             status=entry.status,
             minutes=entry.tardiness_minutes,
@@ -635,9 +635,9 @@ def grid_cells(session_ids: list[Any]) -> dict[tuple[Any, Any], GridCell]:
     return cells
 
 
-def grid_cell(session: Session, student: CustomUser) -> GridCell | None:
+def column_head(session: Session, student: CustomUser) -> ColumnCell | None:
     """رأسُ خليّةٍ واحدة (بعد كتابتها أو عند ردّ التعارض)."""
-    return grid_cells([session.pk]).get((session.pk, student.pk))
+    return column_heads([session.pk]).get((session.pk, student.pk))
 
 
 def cell_history(session: Session, student: CustomUser) -> list[CellHistoryRow]:

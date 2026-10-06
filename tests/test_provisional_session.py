@@ -300,6 +300,8 @@ KEY_READERS = {
     "operations/urls.py",  # مساراتُ الميزة
     "operations/admin.py",  # عمودُ القائمة وترشيحُها
     "operations/signals.py",  # إشارةُ إغلاق المؤقّتة عند حقيقيّةٍ جديدة (بالمفتاح وحدَه)
+    "operations/services/class_grid.py",  # جدولُ الشعبة العموديّ: ميزةُ المفتاح نفسِه (W-20261006-005)
+    "operations/views_class_grid.py",  # واجهةُ الجدول — ترجمةٌ إلى HTTP فقط
 }
 
 

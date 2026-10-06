@@ -48,7 +48,7 @@ from operations.attendance_policy import (
     grid_window,
     is_developer,
 )
-from operations.attendance_selectors import CellHistoryRow, GridCell, cell_history, grid_cells
+from operations.attendance_selectors import CellHistoryRow, ColumnCell, cell_history, column_heads
 from operations.models import Session, SubjectClassAssignment
 from operations.school_days import school_day
 
@@ -103,7 +103,7 @@ class GridColumn:
 class GridRow:
     student: CustomUser
     #: `(العمود، رأسُ خليّته أو None)` بترتيب الأعمدة — للقالب بلا فهرسة.
-    pairs: list[tuple[GridColumn, GridCell | None]]
+    pairs: list[tuple[GridColumn, ColumnCell | None]]
 
 
 @dataclass(frozen=True)
@@ -276,7 +276,7 @@ def page(
         .select_related("student")
         .order_by("student__full_name")
     ]
-    cells = grid_cells([c.session_id for c in columns if c.session_id])
+    cells = column_heads([c.session_id for c in columns if c.session_id])
     rows = [
         GridRow(
             student=student,
@@ -456,7 +456,7 @@ def _minutes(value: Any) -> int | None:
     return number if 0 < number <= 600 else None
 
 
-def _cell_payload(student_id: Any, cell: GridCell | None) -> dict[str, Any]:
+def _cell_payload(student_id: Any, cell: ColumnCell | None) -> dict[str, Any]:
     return {
         "student": str(student_id),
         "head": cell.head_id if cell else "",
@@ -520,7 +520,7 @@ def save_column(
     }
     with transaction.atomic():
         session = _ensure_session(user, school, klass, day, wanted, times, request)
-        existing = grid_cells([session.pk])
+        existing = column_heads([session.pk])
         result = SaveResult(session_id=session.pk)
         seen: set[Any] = set()
         for item in posted:
@@ -591,7 +591,7 @@ def _write_one(
             )
     except GridConflictError as conflict:
         current = (
-            grid_cells([session.pk]).get((session.pk, student.pk)) if conflict.current else None
+            column_heads([session.pk]).get((session.pk, student.pk)) if conflict.current else None
         )
         result.conflicts.append(_cell_payload(student.pk, current))
         return
@@ -599,7 +599,7 @@ def _write_one(
         result.errors.append({"student": str(student.pk), "code": getattr(error, "code", "error")})
         return
     result.saved.append(
-        _cell_payload(student.pk, grid_cells([session.pk]).get((session.pk, student.pk)))
+        _cell_payload(student.pk, column_heads([session.pk]).get((session.pk, student.pk)))
     )
     if correcting:
         AuditLog.log(
@@ -626,7 +626,7 @@ def _write_default(
         return
     result.defaults += 1
     result.saved.append(
-        _cell_payload(student.pk, grid_cells([session.pk]).get((session.pk, student.pk)))
+        _cell_payload(student.pk, column_heads([session.pk]).get((session.pk, student.pk)))
     )
 
 
@@ -654,7 +654,7 @@ def mark_late_now(
     if current is None:
         raise GridRefusedError("no_current_period", "لا حصّةَ جاريةً الآن")
     session = _column_sessions(klass, day, bell).get(current)
-    head = grid_cells([session.pk]).get((session.pk, student.pk)) if session else None
+    head = column_heads([session.pk]).get((session.pk, student.pk)) if session else None
     return save_column(
         user,
         school,

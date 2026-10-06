@@ -368,7 +368,7 @@ def grid_window(day: dt.date) -> tuple[dt.datetime, dt.datetime]:
 
 
 def is_class_assigned(user: CustomUser, class_group: ClassGroup) -> bool:
-    """أمُسنَدٌ هذا المعلّمُ إلى الشعبة (أيَّ مادّة)؟ — بشروط `provisional_session._assignments` نفسِها: فعّالٌ، عامُ المدرسة، غيرُ محذوف."""
+    """أمُسنَدٌ هذا المعلّمُ إلى الشعبة (أيَّ مادّة)؟ — بشروط إسناد المعلّم للحصّة المؤقّتة نفسِها: فعّالٌ، عامُ المدرسة، غيرُ محذوف."""
     from core.academic_calendar import academic_year_for_school
 
     from .models import SubjectClassAssignment
