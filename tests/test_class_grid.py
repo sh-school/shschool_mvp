@@ -588,3 +588,81 @@ def test_a_substitute_without_an_assignment_keeps_the_old_sheet_as_a_fallback(
     Session.objects.filter(pk=session.pk).update(teacher=other_teacher, class_group=assigned)
     response = client_as(other_teacher).get(reverse("attendance", args=[session.id]))
     assert not (response.status_code == 302 and "grid" in response.url)
+
+
+# ── خروجُ الطالب من الفصل: بمسار ClassExit القائم، في الحصّة الجارية وقتَ الضغط ─────────
+
+
+def _exit(client, klass, student, **data):
+    return client.post(
+        reverse("class_grid_exit", args=[klass.id]), {"student": str(student.pk), **data}
+    )
+
+
+def test_the_exit_button_opens_a_class_exit_in_the_current_period_with_a_destination(
+    client_as, assigned, teacher, kids, clock
+):
+    from operations.models import ClassExit
+
+    clock(7, 30)  # ح1 جاريةٌ
+    response = _exit(client_as(teacher), assigned, kids[0], action="leave", destination="clinic")
+
+    assert response.status_code == 200
+    exit_ = ClassExit.objects.get()
+    assert (exit_.destination, exit_.student_id, exit_.session.period_number) == (
+        "clinic",
+        kids[0].pk,
+        1,
+    )
+    assert exit_.allowed_by_id == teacher.id and exit_.returned_at is None
+
+
+def test_the_return_button_closes_the_open_exit(client_as, assigned, teacher, kids, clock):
+    from operations.models import ClassExit
+
+    clock(7, 30)
+    client = client_as(teacher)
+    _exit(client, assigned, kids[0], action="leave", destination="restroom")
+    clock(7, 40)
+    assert _exit(client, assigned, kids[0], action="return").json()["returned"] is True
+    assert ClassExit.objects.get().returned_at is not None
+
+
+def test_an_unknown_destination_becomes_other(client_as, assigned, teacher, kids, clock):
+    from operations.models import ClassExit
+
+    clock(7, 30)
+    _exit(client_as(teacher), assigned, kids[0], action="leave", destination="mars")
+    assert ClassExit.objects.get().destination == "other"
+
+
+def test_a_student_marked_absent_cannot_leave(client_as, assigned, teacher, kids, clock):
+    clock(7, 30)
+    client = client_as(teacher)
+    _save(client, assigned, 1, [_cells(kids[0], "absent")])
+    response = _exit(client, assigned, kids[0], action="leave", destination="clinic")
+    assert response.status_code == 403 and response.json()["reason"] == "student_absent"
+
+
+def test_the_exit_needs_a_current_period_and_a_writer(
+    client_as, school, assigned, teacher, kids, clock
+):
+    client = client_as(teacher)
+    clock(10, 0)  # بين الحصّتين
+    assert _exit(client, assigned, kids[0], action="leave").json()["reason"] == "no_current_period"
+    clock(7, 30)
+    deputy = _staff(school, "vice_academic", "النائب الأكاديميّ", "29000001030")
+    refused = _exit(client_as(deputy), assigned, kids[0], action="leave")
+    assert refused.status_code == 403 and refused.json()["reason"] == "read_only"
+
+
+def test_the_page_shows_the_open_exit_and_the_destination_list(
+    client_as, assigned, teacher, kids, clock
+):
+    clock(7, 30)
+    client = client_as(teacher)
+    _exit(client, assigned, kids[0], action="leave", destination="clinic")
+    body = client.get(reverse("class_grid", args=[assigned.id])).content.decode()
+    i = body.find("cg-acts", body.find("<tbody"))
+    assert "خارج: العيادة" in body, body[i : i + 900]
+    assert "دورة المياه" in body and "data-exit-return" in body

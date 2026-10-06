@@ -30,6 +30,7 @@
     <div class="cg" data-class-grid
          data-save-url="{% url 'class_grid_save' page.klass.id %}"
          data-late-url="{% url 'class_grid_late' page.klass.id %}"
+         data-exit-url="{% url 'class_grid_exit' page.klass.id %}"
          data-draft-key="class-grid:{{ request.user.pk }}:{{ page.klass.pk }}:{{ page.day|date:'Y-m-d' }}"
          data-closes="{{ page.closes|time:'H:i' }}"
          data-correcting="{% if page.correction_mode %}1{% endif %}">
@@ -39,7 +40,7 @@
         <button type="button" class="cg-tab{% if col.state == 'current' %} is-active{% endif %}" role="tab" data-tab="{{ col.number }}" aria-selected="{% if col.state == 'current' %}true{% else %}false{% endif %}">ح{{ col.number }}</button>
         {% endfor %}
       </div>
-      <div class="table-wrap">
+      <div class="table-wrap table-wrap-scroll">
         <table class="cg-table" data-no-sort>
           <thead>
             <tr>
@@ -79,6 +80,15 @@
               {% if page.can_write %}
               <td class="cg-acts">
                 <button type="button" class="btn-secondary btn-sm" data-late="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>متأخّر</button>
+                {% if row.exit %}
+                <span class="status-badge status-warning">خارج: {{ row.exit.get_destination_display }} منذ {{ row.exit.left_at|time:"H:i" }}</span>
+                <button type="button" class="btn-secondary btn-sm" data-exit-return="{{ row.student.pk }}">عاد</button>
+                {% else %}
+                <select class="form-select" data-exit-dest="{{ row.student.pk }}" aria-label="وجهة خروج {{ row.student.full_name }}"{% if not page.current %} disabled{% endif %}>
+                  {% for code, label in page.destinations %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+                </select>
+                <button type="button" class="btn-secondary btn-sm" data-exit="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>خروج</button>
+                {% endif %}
                 <a class="btn-secondary btn-sm" href="{% url 'behavior:report_infraction' %}?student={{ row.student.pk }}&next={{ request.path|urlencode }}">مخالفة</a>
               </td>
               {% endif %}

@@ -119,3 +119,26 @@ def class_grid_late(request, class_id):
     return JsonResponse(
         {"ok": status == 200, "saved": result.saved, "conflicts": result.conflicts}, status=status
     )
+
+
+@login_required
+@require_POST
+def class_grid_exit(request, class_id):
+    """«خرج من الفصل» (بوجهة) أو «عاد» لطالبٍ في الحصّة الجارية — بمسار `ClassExit` القائم."""
+    try:
+        result = grid.exit_action(
+            request.user,
+            request.school,
+            class_id,
+            request.POST.get("student"),
+            request.POST.get("action", "leave"),
+            request.POST.get("destination", ""),
+            request=request,
+        )
+    except grid.GridNotFoundError:
+        raise Http404 from None
+    except grid.GridRefusedError as refusal:
+        return JsonResponse(
+            {"ok": False, "reason": refusal.reason, "message": str(refusal)}, status=403
+        )
+    return JsonResponse(result)

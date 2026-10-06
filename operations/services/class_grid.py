@@ -49,7 +49,7 @@ from operations.attendance_policy import (
     is_developer,
 )
 from operations.attendance_selectors import CellHistoryRow, ColumnCell, cell_history, column_heads
-from operations.models import Session, SubjectClassAssignment
+from operations.models import ClassExit, Session, SubjectClassAssignment
 from operations.school_days import school_day
 
 from . import provisional_session
@@ -104,6 +104,8 @@ class GridRow:
     student: CustomUser
     #: `(العمود، رأسُ خليّته أو None)` بترتيب الأعمدة — للقالب بلا فهرسة.
     pairs: list[tuple[GridColumn, ColumnCell | None]]
+    #: خروجٌ مفتوحٌ لهذا الطالب في الحصّة الجارية (`ClassExit` — لم يعد بعد) أو `None`.
+    exit: ClassExit | None = None
 
 
 @dataclass(frozen=True)
@@ -121,6 +123,8 @@ class GridPage:
     closes: dt.datetime
     #: أيكتب هذا المستخدمُ أصلاً (لا قراءةً فقط)؟
     can_write: bool
+    #: وجهاتُ الخروج من الفصل (`ClassExit.DESTINATIONS`) لقائمة المفتاح.
+    destinations: tuple[tuple[str, str], ...] = tuple(ClassExit.DESTINATIONS)
 
 
 @dataclass
@@ -277,6 +281,17 @@ def page(
         .order_by("student__full_name")
     ]
     cells = column_heads([c.session_id for c in columns if c.session_id])
+    current = next((c for c in columns if c.state == "current"), None)
+    open_exits = (
+        {
+            e.student_id: e
+            for e in ClassExit.objects.filter(
+                session_id=current.session_id, returned_at__isnull=True
+            )
+        }
+        if current is not None and current.session_id
+        else {}
+    )
     rows = [
         GridRow(
             student=student,
@@ -284,10 +299,10 @@ def page(
                 (c, cells.get((c.session_id, student.pk)) if c.session_id else None)
                 for c in columns
             ],
+            exit=open_exits.get(student.pk),
         )
         for student in students
     ]
-    current = next((c for c in columns if c.state == "current"), None)
     write_roles = roles & {GRID_TEACHER, GRID_HOLDER, GRID_LEADERSHIP}
     return GridPage(
         klass=klass,
@@ -677,3 +692,50 @@ def redirect_target(user: CustomUser, session: Session) -> str | None:
     if not can_read_grid(user, session.class_group, session.date):
         return None
     return reverse("class_grid", args=[session.class_group_id])
+
+
+def exit_action(
+    user: CustomUser,
+    school: School,
+    class_id: Any,
+    student_id: Any,
+    action: str,
+    destination: str = "",
+    *,
+    request: Any = None,
+    now: dt.datetime | None = None,
+) -> dict[str, Any]:
+    """«خرج من الفصل» / «عاد» لطالبٍ في **الحصّة الجارية وقتَ الضغط** (قرارُ المالك D-239م) — بمسار `ClassExit` القائم دون تعديل (`class_exit.leave/come_back`).
+
+    الصلاحيةُ نفسُها كتابةِ الجدول (`can_write_grid` لعمود الحصّة الجارية)؛ ولا حصّةَ جاريةً ← رفض (الزرُّ معطَّل). والغائبُ لا يُفتح له خروج
+    (غائبٌ وخروجٌ لا يجتمعان). والوجهةُ من قائمة `ClassExit.DESTINATIONS` وما سواها «أخرى».
+    """
+    from operations.class_exit import come_back, leave
+
+    _require_enabled()
+    day = _today(school)
+    klass = _class_or_404(school, class_id)
+    if not can_read_grid(user, klass, day):
+        raise GridNotFoundError("ليست من شُعبك")
+    student = _roster_student(klass, day, student_id)
+    moment = timezone.localtime(now) if now is not None else timezone.localtime()
+    bell = provisional_session.bell_periods(school, klass, day)
+    current = next(
+        (n for n, (s, e) in sorted(bell.items()) if _state_of(s, e, moment.time()) == "current"),
+        None,
+    )
+    if current is None:
+        raise GridRefusedError("no_current_period", "لا حصّةَ جاريةً الآن")
+    verdict = can_write_grid(user, klass, day, period_start=bell[current][0], now=moment)
+    if not verdict:
+        if verdict.reason in NOT_FOUND_REASONS:
+            raise GridNotFoundError("ليست من شُعبك")
+        raise GridRefusedError(verdict.reason)
+    session = _ensure_session(user, school, klass, day, current, bell[current], request)
+    if action == "return":
+        closed = come_back(session, student, now=moment, by=user)
+        return {"ok": True, "returned": closed is not None, "period": current}
+    opened = leave(session, student, destination, by=user, now=moment)
+    if opened is None:
+        raise GridRefusedError("student_absent", "الطالبُ مرصودٌ غائباً — لا خروجَ لغائب")
+    return {"ok": True, "destination": opened.destination, "period": current}

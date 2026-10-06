@@ -15,6 +15,7 @@
   if (!root) return;
   var saveUrl = root.getAttribute('data-save-url');
   var lateUrl = root.getAttribute('data-late-url');
+  var exitUrl = root.getAttribute('data-exit-url');
   var draftKey = root.getAttribute('data-draft-key');
   var correcting = root.getAttribute('data-correcting') === '1';
   var statusLine = root.querySelector('[data-grid-status]');
@@ -74,6 +75,10 @@
     if (saveBtn) return save(saveBtn.getAttribute('data-save-col'), '');
     var late = event.target.closest('[data-late]');
     if (late) return markLate(late);
+    var exitBtn = event.target.closest('[data-exit]');
+    if (exitBtn) return exitAction(exitBtn.getAttribute('data-exit'), 'leave');
+    var backBtn = event.target.closest('[data-exit-return]');
+    if (backBtn) return exitAction(backBtn.getAttribute('data-exit-return'), 'return');
     var hist = event.target.closest('[data-history-open]');
     if (hist) return openHistory(hist.getAttribute('data-student'), currentCol());
     var tab = event.target.closest('[data-tab]');
@@ -184,6 +189,22 @@
         if (result.status === 403) { say((result.data && result.data.message) || 'تعذّر تسجيلُ التأخّر'); return; }
         window.location.reload();
       }).catch(function () { say('تعذّر تسجيلُ التأخّر.'); });
+  }
+
+  // «خرج من الفصل» (بوجهةٍ من القائمة) و«عاد» — تُنسب إلى الحصّة الجارية وقتَ الضغط، والخادمُ هو الحَكَم.
+  function exitAction(student, action) {
+    var body = new URLSearchParams();
+    body.append('student', student);
+    body.append('action', action);
+    var select = root.querySelector('[data-exit-dest="' + student + '"]');
+    if (select) body.append('destination', select.value);
+    body.append('csrfmiddlewaretoken', csrf());
+    fetch(exitUrl, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrf() }, body: body })
+      .then(function (response) { return response.json().then(function (d) { return { status: response.status, data: d }; }); })
+      .then(function (result) {
+        if (result.status === 403) { say((result.data && result.data.message) || 'تعذّر تسجيلُ الخروج'); return; }
+        window.location.reload();
+      }).catch(function () { say('تعذّر تسجيلُ الخروج.'); });
   }
 
   function openHistory(student, col) {
