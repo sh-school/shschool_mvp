@@ -19,14 +19,15 @@
 <div class="exec-dash">
   {% page_header page.klass.short_label subtitle=page.day|date:"l j F Y" icon="attendance_register" %}
     {% callout "hint" %}الضغطةُ تضع حالةً صريحةً: غائب ثمّ حاضر. الخليّةُ الفارغةُ «لم تُرصد» ولا تُحسب غياباً، وعند حفظ عمودٍ بدأت حصّتُه تُكتب الفارغاتُ «حاضراً افتراضيّاً» بعد تأكيدك. الأحدثُ يظهر والأقدمُ في سجلّ الخليّة (اضغط اسمَ الطالب).{% endcallout %}
-    {% if page.can_write and page.writable_columns %}
-    <div class="per-exports" data-grid-bar>
-      <select class="form-select" data-bar-col aria-label="العمود المراد رصدُه">
-        {% for col in page.writable_columns %}<option value="{{ col.number }}"{% if col.state == "current" %} selected{% endif %}>ح{{ col.number }} · {{ col.start|time:"H:i" }}</option>{% endfor %}
+    {% if page.can_write %}
+    {# الشريطُ يظهر دائماً لمن يكتب — معطَّلاً مع سببٍ ظاهرٍ خارجَ نافذة الرصد أو قبل بدء أيّ حصّة، فلا «يختفي» فيُظنّ عطلاً. #}
+    <div class="per-exports" data-grid-bar{% if not page.writable_columns %} title="لا عمودَ مفتوحٌ للرصد الآن — النافذةُ {{ page.opens|time:'H:i' }}–{{ page.closes|time:'H:i' }} وتُفتح كلُّ حصّةٍ عند بدئها"{% endif %}>
+      <select class="form-select" data-bar-col aria-label="العمود المراد رصدُه"{% if not page.writable_columns %} disabled{% endif %}>
+        {% for col in page.writable_columns %}<option value="{{ col.number }}"{% if col.state == "current" %} selected{% endif %}>ح{{ col.number }} · {{ col.start|time:"H:i" }}</option>{% empty %}<option>لا عمودَ مفتوح</option>{% endfor %}
       </select>
-      <button type="button" class="btn-secondary btn-sm" data-bulk="all_present" aria-label="الكلُّ حاضر في العمود المحدّد">الكلّ ✓</button>
-      <button type="button" class="btn-secondary btn-sm" data-bulk="all_absent" aria-label="الكلُّ غائب في العمود المحدّد">الكلّ ✗</button>
-      <button type="button" class="btn-primary btn-sm" data-save-bar>حفظ</button>
+      <button type="button" class="btn-secondary btn-sm" data-bulk="all_present" aria-label="الكلُّ حاضر في العمود المحدّد"{% if not page.writable_columns %} disabled{% endif %}>الكلّ ✓</button>
+      <button type="button" class="btn-secondary btn-sm" data-bulk="all_absent" aria-label="الكلُّ غائب في العمود المحدّد"{% if not page.writable_columns %} disabled{% endif %}>الكلّ ✗</button>
+      <button type="button" class="btn-primary btn-sm" data-save-bar{% if not page.writable_columns %} disabled{% endif %}>حفظ</button>
     </div>
     {% endif %}
     {% if not page.can_write %}{% callout "info" %}للمراقبة فقط: تقرأ كلَّ الأعمدة ولا تكتب ولا تعتمد.{% endcallout %}{% endif %}
