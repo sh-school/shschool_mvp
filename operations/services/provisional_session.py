@@ -300,10 +300,10 @@ def _release_unmarked_blockers(
     """تحريرُ خانةٍ حجزتها مؤقّتةٌ **غيرُ مرصودةٍ** بدل رفض الطالب (hotfix W-20261006-001، قرارُ المالك): معلّمون يجرّبون حصصاً فيحجزون الخانةَ على من يدرّسها فعلاً.
 
     القيدان الفريدان المشروطان (شعبة+تاريخ+رقم) و(معلّم+تاريخ+رقم) يشملان `period_number`؛ فإسقاطُه إلى NULL يحرّر الخانةَ بلا هجرةٍ ولا حذف: `status=cancelled` والصفُّ يبقى تاريخاً
-    بسطر تدقيقٍ (السبب بلا PII). المعارِضةُ: مؤقّتةٌ لمعلّمٍ آخر في الشعبة نفسِها، أو لهذا المعلّم في شعبةٍ أخرى. فإن كان فيها رصدٌ (`AttendanceEntry` أو `StudentAttendance`) رُفض الطلبُ باسم الشعبة والحصّة.
+    بسطر تدقيقٍ (السبب بلا PII). المعارِضةُ: مؤقّتةٌ لمعلّمٍ آخر في الشعبة نفسِها، أو لهذا المعلّم في شعبةٍ أخرى. فإن كان فيها رصدٌ (إدخالٌ مبدئيٌّ أو حضورٌ معتمَد؛ القراءةُ عبر `session_has_marks`) رُفض الطلبُ باسم الشعبة والحصّة.
     الحقيقيّةُ لا تُمسّ أبداً (`provisional=True` فقط). يُستدعى داخل معاملة `create` وبقفل الصفوف.
     """
-    from operations.models import AttendanceEntry, StudentAttendance
+    from operations.attendance_selectors import session_has_marks
 
     blockers = list(
         Session.objects.select_for_update()
@@ -315,10 +315,7 @@ def _release_unmarked_blockers(
     )
     fresh_after = timezone.now() - RELEASE_AFTER
     for old in blockers:
-        if (
-            AttendanceEntry.objects.filter(session=old).exists()
-            or StudentAttendance.objects.filter(session=old).exists()
-        ):
+        if session_has_marks(old):
             raise ProvisionalRefusedError(
                 f"حجزها معلّمٌ آخر وفيها رصد (الحصّة {number} — الشعبة {old.class_group.short_label}); "
                 "اختر رقماً آخر أو راجع المشرف"

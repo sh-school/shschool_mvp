@@ -536,3 +536,14 @@ def exit_conflicts_of(sessions: Any, marks: dict) -> set[str]:
         ).select_related("session")
         if exit_.returned_at is None or is_unreturned(exit_)
     }
+
+
+def session_has_marks(session: Session) -> bool:
+    """هل رُصد في الحصّة شيءٌ — إدخالٌ مبدئيٌّ أو حضورٌ معتمَد؟ قراءةُ وجودٍ لا حالة (للحصّة المؤقّتة: لا تُحرَّر ولا تُلغى إن رُصد فيها).
+
+    هنا لأنّ هذه الوحدةَ من القائمة المراجَعة لقراءة السجلّ المبدئيّ (حارس ledger readers).
+    """
+    return (
+        AttendanceEntry.objects.filter(session=session).exists()
+        or StudentAttendance.objects.filter(session=session).exists()
+    )

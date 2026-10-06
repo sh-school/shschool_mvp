@@ -386,6 +386,8 @@ def _anchors_to(page, *names):
 def test_with_the_switch_on_the_teachers_schedule_is_switched_off_everywhere(
     client_as, assigned, teacher, session
 ):
+    # لا تتعلّق النتيجةُ بساعة التشغيل: حصّةٌ في الدقيقة الأولى من اليوم لا تكون «الحصّةَ القادمة» أبداً (بطاقتُها فيها رابطُ حضور)
+    Session.objects.filter(pk=session.pk).update(start_time=dt.time(0, 1), end_time=dt.time(0, 2))
     page = _schedule_page(client_as(teacher), teacher)
 
     # الجدولُ: لا رابطَ حضورٍ فعّال، وتحته «تحت الإجراء» حرفاً (D-228م)
