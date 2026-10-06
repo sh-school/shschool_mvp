@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load ui icons approvals %}
+{% load ui icons %}
 {% comment %}
 طابورُ اعتماد رصد المعلّمين (W-020): ما أدخله المعلّمون الفعليّون مبدئيّاً وينتظر قرارَك — حاملَ جناحِ الشعبة يومَ الحصّة،
 أو القيادةَ حين لا حاملَ فعليّاً. **بطاقةٌ لكلّ حصّةٍ لا لكلّ طالب** (أمرُ المالك 2026-10-06): اعتمادُ الحصّة بنقرةٍ يعتمد كلَّ ما أدخله
@@ -16,7 +16,6 @@
 {% block content %}
 <div class="exec-dash">
   {% page_header "اعتمادُ رصد المعلّمين" subtitle="حصّةٌ في بطاقة: اعتمادُها بنقرةٍ يعتمد كلَّ ما أدخله المعلّمُ فيها" icon="checklist" %}
-    {% approve_all_button %}
     <a href="{% url 'attendance_unapproved' %}" class="btn-secondary btn-sm">{% icon "time" %} غيرُ المعتمَد بعد مدّة</a>
   {% endpage_header %}
 

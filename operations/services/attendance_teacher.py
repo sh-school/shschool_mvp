@@ -159,23 +159,6 @@ class TeacherAttendanceService:
         return approval_queue(user, school)
 
     @staticmethod
-    def approve_all(user: CustomUser, school: School) -> tuple[int, int]:
-        """يعتمد **كلَّ** ما يملك هذا المستخدمُ قرارَه في الطابور — كلَّ الشعب وكلَّ الحصص — ويُرجع `(اعتُمد، تُخطّي)`.
-
-        أمرُ المالك 2026-10-04: المشرفُ لا يعتمد حصّةً حصّةً لخمس شعبٍ. كلُّ إدخالٍ يمرّ بـ`decide_entry` نفسِه (الأهليّةُ والقفلُ وسجلُّ التدقيق باسم المعتمِد)
-        فلا طريقَ التفافيّاً؛ وما اصطدم برصدٍ بشريٍّ آخر أو حلّت محلَّه نسخةٌ أحدث يُتخطّى ويبقى في الطابور ليُنظر فيه بنفسه. والرفضُ لا يكون جماعيّاً أبداً (يلزمه سببٌ لكلّ إدخال).
-        """
-        approved = skipped = 0
-        for item in approval_queue(user, school):
-            try:
-                _decision, created = decide_entry(user, item.entry, approve=True)
-            except (EntryError, EntryRefusedError):
-                skipped += 1
-                continue
-            approved += 1 if created else 0
-        return approved, skipped
-
-    @staticmethod
     def approval_groups(user: CustomUser, school: School) -> list[Any]:
         """الطابورُ مجموعاً بالحصّة — بطاقةٌ لكلّ حصّةٍ لا لكلّ طالب."""
         return approval_groups(user, school)

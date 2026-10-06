@@ -10,7 +10,6 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from core.capabilities import capability_required
@@ -139,22 +138,6 @@ def approve_session(request, session_id):
         text += f" · وتُخطّي {skipped} (تعارضٌ أو نسخةٌ أحدث) بقيت في القائمة لتنظر فيها"
     (messages.warning if skipped else messages.success)(request, text + ".")
     return redirect("attendance_approvals")
-
-
-@login_required
-@capability_required("wings.record_day")
-@require_POST
-def approve_all(request):
-    """اعتمادُ كلِّ ما ينتظر هذا المشرفَ دفعةً واحدة (كلُّ الشعب والحصص) — كلُّ إدخالٍ بقراره المسجَّل باسمه."""
-    approved, skipped = TeacherAttendanceService.approve_all(request.user, request.school)
-    text = f"اعتُمد {approved} إدخالاً"
-    if skipped:
-        text += f" · وتُخطّي {skipped} (تعارضٌ أو نسخةٌ أحدث) بقيت في القائمة لتنظر فيها"
-    (messages.warning if skipped else messages.success)(request, text + ".")
-    target = request.POST.get("next", "")
-    if not url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()}):
-        target = reverse("attendance_approvals")
-    return redirect(target)
 
 
 @login_required

@@ -1,6 +1,6 @@
-"""[W-20261004-014] «اعتمادُ الكلّ» للمشرف — أمرُ المالك 2026-10-04: لا يعتمد حصّةً حصّةً لخمس شعب.
+"""اعتمادُ رصد المعلّمين بالحصّة — أمرُ المالك 2026-10-06: لا «اعتمادَ الكلّ» (مفتاحٌ خطير) ولا بطاقةَ لكلّ طالب.
 
-كلُّ إدخالٍ في طابوره (كلُّ الشعب والحصص) يمرّ بـ`decide_entry` نفسِه فيُسجَّل قرارُه باسمه؛ والرفضُ يبقى بنداً بنداً؛ ومن لا يملك الاعتمادَ لا يستطيع.
+كلُّ حصّةٍ بطاقةٌ؛ اعتمادُها يمرّ بـ`decide_entry` لكلّ إدخالٍ فيُسجَّل قرارُه باسم المعتمِد؛ والرفضُ يبقى بنداً بنداً؛ ومن لا يملك الاعتمادَ لا يستطيع.
 """
 
 import datetime as dt
@@ -35,81 +35,24 @@ def second(school, klass, teacher, session):
     )
 
 
-def test_approve_all_decides_every_pending_entry_across_periods_with_the_holders_name(
-    client_as, now_0830, session, second, teacher, holder, kid
-):
-    submit_entry(teacher, session, kid, "absent", now=at(7, 30))
-    submit_entry(teacher, second, kid, "late", tardiness_minutes=5, now=at(8, 5))
-    response = client_as(holder).post(reverse("attendance_approve_all"))
-    assert response.status_code == 302
-    assert AttendanceDecision.objects.filter(decided_by=holder, decision="approved").count() == 2
-    assert StudentAttendance.objects.filter(student=kid).count() == 2  # الرصدُ الفعليّ كُتب لكلّ حصّة
-
-
-def test_approve_all_is_idempotent_and_a_second_press_adds_nothing(
-    client_as, now_0830, session, teacher, holder, kid
-):
-    submit_entry(teacher, session, kid, "absent", now=at(7, 30))
-    client_as(holder).post(reverse("attendance_approve_all"))
-    client_as(holder).post(reverse("attendance_approve_all"))
-    assert AttendanceDecision.objects.count() == 1
-
-
-def test_a_teacher_cannot_approve_all(client_as, now_0830, session, teacher, holder, kid):
-    submit_entry(teacher, session, kid, "absent", now=at(7, 30))
-    assert client_as(teacher).post(reverse("attendance_approve_all")).status_code == 403
-    assert not AttendanceDecision.objects.exists()
-
-
-def test_the_queue_page_shows_the_approve_all_button_with_the_count(
-    client_as, now_0830, session, teacher, holder, kid
-):
-    submit_entry(teacher, session, kid, "absent", now=at(7, 30))
-    body = client_as(holder).get(reverse("attendance_approvals")).content.decode()
-    assert reverse("attendance_approve_all") in body and "اعتمادُ الكلّ (1)" in body
-
-
-def test_the_approve_all_button_is_in_the_absence_dashboards_themselves(
+def test_there_is_no_bulk_approve_button_or_route_anywhere(
     client_as, now_0830, klass, session, teacher, holder, kid
 ):
-    """ملاحظةُ المالك: الزرُّ في لوحة الغياب (شبكةُ الشعبة وتقريرُ غياب اليوم) لا في صفحةٍ جانبيّةٍ وحدَها."""
+    """أمرُ المالك 2026-10-06: «اعتمادُ الكلّ» مفتاحٌ خطير — يعتمد كلَّ الحصص والأجنحة بنقرةٍ دون نظر. فلا زرَّ ولا مسارَ."""
+    from django.urls import NoReverseMatch
+
     submit_entry(teacher, session, kid, "absent", now=at(7, 30))
-    url = reverse("attendance_approve_all")
-    grid = (
-        client_as(holder)
-        .get(reverse("wings:record_section", args=[klass.id]), {"date": SUNDAY.isoformat()})
-        .content.decode()
-    )
-    assert url in grid and "اعتمادُ الكلّ (1)" in grid
-    report = (
-        client_as(holder)
-        .get(reverse("daily_report"), {"date": SUNDAY.isoformat()})
-        .content.decode()
-    )
-    assert url in report and "اعتمادُ الكلّ (1)" in report
-
-
-def test_the_button_returns_to_the_page_it_was_pressed_from_and_ignores_foreign_hosts(
-    client_as, now_0830, session, teacher, holder, kid
-):
-    submit_entry(teacher, session, kid, "absent", now=at(7, 30))
-    back = client_as(holder).post(
-        reverse("attendance_approve_all"), {"next": "/teacher/reports/daily/?date=2026-09-13"}
-    )
-    assert back.url == "/teacher/reports/daily/?date=2026-09-13"
-    foreign = client_as(holder).post(
-        reverse("attendance_approve_all"), {"next": "https://evil.example/x"}
-    )
-    assert foreign.url == reverse("attendance_approvals")
-
-
-def test_the_button_is_absent_when_nothing_waits(client_as, now_0830, klass, session, holder, kid):
-    body = (
-        client_as(holder)
-        .get(reverse("wings:record_section", args=[klass.id]), {"date": SUNDAY.isoformat()})
-        .content.decode()
-    )
-    assert "اعتمادُ الكلّ" not in body
+    pages = [
+        reverse("attendance_approvals"),
+        reverse("wings:record_index"),
+        reverse("daily_report"),
+        reverse("wings:record_section", args=[klass.id]),
+    ]
+    for url in pages:
+        body = client_as(holder).get(url, {"date": SUNDAY.isoformat()}).content.decode()
+        assert "اعتمادُ الكلّ" not in body, url
+    with pytest.raises(NoReverseMatch):
+        reverse("attendance_approve_all")
 
 
 def test_the_supervisor_sheet_opens_with_the_teachers_pending_absence_checked(
@@ -140,7 +83,7 @@ def test_confirming_the_prefilled_sheet_leaves_the_teachers_absence_pending_for_
     )
     assert not StudentAttendance.objects.filter(session=session, student=kid).exists()
     assert not AttendanceDecision.objects.exists()
-    client_as(holder).post(reverse("attendance_approve_all"))
+    client_as(holder).post(reverse("attendance_approve_session", args=[session.id]))
     assert StudentAttendance.objects.get(session=session, student=kid).status == "absent"
 
 
@@ -173,7 +116,7 @@ def test_a_special_education_teacher_sees_the_same_shared_sheet_and_the_absence_
     assert StudentAttendance.objects.get(session=ese, student=pupil).status == "absent"
 
 
-# ── فصلُ «اعتماد الكلّ» عن «تثبيت الحصّة» (قاموس الغياب 2026-10-05 §٣) ──────────────────────────
+# ── فصلُ «اعتماد الحصّة» عن «تثبيت الحصّة» (قاموس الغياب 2026-10-05 §٣) ──────────────────────────
 
 
 def _kids(school, klass, n, start=0):
@@ -191,15 +134,15 @@ def _kids(school, klass, n, start=0):
     return out
 
 
-def test_four_absences_then_approve_all_then_confirm_keeps_four_absent_and_rejects_nothing(
+def test_four_absences_then_approve_the_session_then_confirm_keeps_four_absent_and_rejects_nothing(
     client_as, now_0830, school, klass, session, teacher, holder
 ):
-    """القبولُ بنصّ القاموس: 4 غيابات ← اعتماد الكلّ ← 4 غائبين بقراراتٍ approved؛ ثمّ التثبيتُ لا يغيّر منهم أحداً ولا يرفض شيئاً؛ وطالبٌ بلا إدخالٍ يُثبَّت حاضراً."""
+    """القبولُ بنصّ القاموس: 4 غيابات ← اعتماد الحصّة ← 4 غائبين بقراراتٍ approved؛ ثمّ التثبيتُ لا يغيّر منهم أحداً ولا يرفض شيئاً؛ وطالبٌ بلا إدخالٍ يُثبَّت حاضراً."""
     absent = _kids(school, klass, 4)
     plain = _kids(school, klass, 1, start=10)[0]
     for pupil in absent:
         submit_entry(teacher, session, pupil, "absent", now=at(7, 30))
-    client_as(holder).post(reverse("attendance_approve_all"))
+    client_as(holder).post(reverse("attendance_approve_session", args=[session.id]))
     assert StudentAttendance.objects.filter(session=session, status="absent").count() == 4
     assert AttendanceDecision.objects.filter(decision="approved", decided_by=holder).count() == 4
     client_as(holder).post(
@@ -263,7 +206,7 @@ def test_no_form_is_nested_inside_another_form_on_the_shared_sheet(
         parser.feed(response.content.decode())
         assert parser.worst <= 1, f"{name}: نموذجٌ داخل نموذج"
     sheet = pages["supervisor"].content.decode()
-    assert 'form="approve-all-form"' in sheet and 'id="approve-all-form"' in sheet
+    assert "approve-all-form" not in sheet  # لا زرَّ جماعيّاً ولا نموذجَه المستقلَّ بعد اليوم
 
 
 def test_confirming_a_special_education_period_does_not_touch_the_teachers_final_entry(
@@ -289,7 +232,7 @@ def test_confirming_a_special_education_period_does_not_touch_the_teachers_final
     assert StudentAttendance.objects.get(session=ese, student=pupil).status == "absent"
 
 
-def test_after_approve_all_the_supervisor_sheet_shows_the_approved_absences_checked(
+def test_after_approving_the_session_the_supervisor_sheet_shows_the_approved_absences_checked(
     client_as, now_0830, school, klass, session, teacher, holder
 ):
     """واقعةُ 2026-10-05 بعد الاعتماد: رُسمت الأزرارُ «حاضر» للجميع (cells_of يقرأ رصدَ المشرف وحدَه والمعتمَدُ مصدرُه المعلّم)."""
@@ -297,7 +240,7 @@ def test_after_approve_all_the_supervisor_sheet_shows_the_approved_absences_chec
     plain = _kids(school, klass, 1, start=30)[0]
     for pupil in absent:
         submit_entry(teacher, session, pupil, "absent", now=at(7, 30))
-    client_as(holder).post(reverse("attendance_approve_all"))
+    client_as(holder).post(reverse("attendance_approve_session", args=[session.id]))
     body = (
         client_as(holder)
         .get(
