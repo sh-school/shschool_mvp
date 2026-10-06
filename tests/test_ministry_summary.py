@@ -197,6 +197,15 @@ def test_the_absence_register_page_links_to_the_summary_and_lists_every_wing_for
     assert reverse("wings:ministry_report") in body
     assert "لا جناحَ مُسنَدٌ إليك" not in body
     assert reverse("wings:ministry_report") not in home  # الرئيسيّةُ بلا إضافةٍ لهذا الملخّص
+    assert "wing-panel" in body  # الأجنحةُ في «رصد الغياب»
+    assert "wing-panel" not in home  # لا بطاقاتِ أجنحةٍ مكدّسةً في رئيسيّة حاصر الغياب العامّ
+    assert "لا جناحَ مُسنَدٌ إليك" not in home
+
+
+def test_the_ordinary_wing_supervisor_keeps_his_wing_card_on_the_home_page(
+    school, klass, class_day, holder, client_as
+):
+    assert "wing-panel" in client_as(holder).get("/dashboard/").content.decode()
 
 
 def test_the_screen_is_a_platform_page_with_filters_and_exports_not_a_print_sheet(

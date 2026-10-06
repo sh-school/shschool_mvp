@@ -11,7 +11,7 @@
     {% include "wings/partials/student_search_form.html" %}
     {% if not school_day.is_open %}
       {% include "wings/partials/day_off.html" %}
-    {% else %}
+    {% elif not school_wide %}
       {% for panel in record_panels %}
         {% include "wings/partials/record_panel.html" %}
       {% empty %}
