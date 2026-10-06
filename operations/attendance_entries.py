@@ -27,6 +27,7 @@ from core.models import AuditLog
 
 from .attendance_policy import (
     approval_evidence,
+    approval_holder,
     can_approve,
     can_correct,
     can_enter,
@@ -67,6 +68,16 @@ _LEADERSHIP_BASIS = {
     "holder_is_teacher": "leadership_holder_is_teacher",
     "holder_inactive": "leadership_holder_inactive",
 }
+
+
+def _decision_basis(user: CustomUser, session: Session, gap: str | None) -> str:
+    """أساسُ الصلاحيّة المحفوظُ مع القرار: حاصرُ الغياب العامّ ليس حاملَ الجناح ولا القيادة، فيُسمّى باسمه."""
+    from wings.services import holds_school_wide
+
+    holder = approval_holder(session)
+    if holds_school_wide(user) and not (holder is not None and holder.id == user.id):
+        return "school_wide"
+    return "wing_holder" if gap is None else _LEADERSHIP_BASIS[gap]
 
 
 class EntryError(Exception):
@@ -455,7 +466,7 @@ def decide_entry(
         locked,
         user,
         approve=approve,
-        basis="wing_holder" if gap is None else _LEADERSHIP_BASIS[gap],
+        basis=_decision_basis(user, session, gap),
         evidence=approval_evidence(session),
         reason=reason,
         now=now,
