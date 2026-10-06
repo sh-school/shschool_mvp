@@ -25,6 +25,11 @@
 
   function csrf() { return tokenInput ? tokenInput.value : ''; }
   function say(text) { if (statusLine) statusLine.textContent = text || ''; }
+  // رسالةٌ ظاهرةٌ (toast المنصّة المركزيّ) مع سطر الحالة: سطرُ الحالة أسفلَ الجدول يغيب عن النظر في بطاقةٍ تتمرّر.
+  function notify(text, type) {
+    say(text);
+    if (typeof window.showToast === 'function') window.showToast(text, type || 'info');
+  }
 
   // ── المسوّدة: { col: { studentId: status } } ──
   function readDraft() {
@@ -116,7 +121,7 @@
     var empties = Array.prototype.filter.call(all, function (c) {
       return c.getAttribute('data-writable') === '1' && !c.getAttribute('data-status');
     });
-    if (!dirty.length && !empties.length) { say('لا تغييرَ لحفظه في ح' + col); return; }
+    if (!dirty.length && !empties.length) { notify('لا تغييرَ لحفظه في ح' + col, 'info'); return; }
     var fill = false;
     if (empties.length) {
       if (!window.confirm('يوجد ' + empties.length + ' خليّةٍ فارغةٍ في ح' + col + ' ستُكتب «حاضراً افتراضيّاً». حفظُ العمود؟')) return;
@@ -124,7 +129,7 @@
     }
     if (correcting && !reason) {
       reason = window.prompt('نافذةُ المعلّم مغلقة — اكتب سببَ التصحيح (إلزاميّ):') || '';
-      if (!reason.trim()) { say('التصحيحُ بعد الإغلاق يلزمه سبب.'); return; }
+      if (!reason.trim()) { notify('التصحيحُ بعد الإغلاق يلزمه سبب.', 'warning'); return; }
     }
     var payload = {
       period: parseInt(col, 10),
@@ -144,9 +149,10 @@
     }).then(function (response) {
       return response.json().then(function (data) { return { status: response.status, data: data }; });
     }).then(function (result) {
-      if (result.status === 403 && result.data && result.data.message) { say(result.data.message); return; }
+      if (result.status === 403 && result.data && result.data.message) { notify(result.data.message, 'danger'); return; }
+      if (result.status >= 400) { notify('تعذّر الحفظ — لم يُحفظ شيء (' + result.status + ').', 'danger'); return; }
       applyResult(col, result.data);
-    }).catch(function () { say('تعذّر الحفظ — المسوّدةُ محفوظةٌ في جهازك، أعِد المحاولة.'); });
+    }).catch(function () { notify('تعذّر الحفظ — المسوّدةُ محفوظةٌ في جهازك، أعِد المحاولة.', 'danger'); });
   }
 
   function cellOf(col, student) {
@@ -176,9 +182,14 @@
       writeDraft(draft);
     }
     var conflicts = (data.conflicts || []).length;
-    say(conflicts
-      ? 'حُفظ ' + (data.saved || []).length + ' وتعارض ' + conflicts + ' — راجع الخلايا المعلَّمة.'
-      : 'تمّ حفظ ح' + col + ' (' + (data.saved || []).length + ' خليّة' + (data.defaults ? '، منها ' + data.defaults + ' حاضرٌ افتراضيّ' : '') + ').');
+    var saved = (data.saved || []).length;
+    if (conflicts) {
+      notify('حُفظ ' + saved + ' وتعارض ' + conflicts + ' — راجع الخلايا المعلَّمة بالأحمر وأعِد الاختيار.', 'warning');
+    } else if ((data.errors || []).length) {
+      notify('حُفظ ' + saved + ' وتعذّر ' + data.errors.length + ' — أعِد المحاولة.', 'warning');
+    } else {
+      notify('تمّ الحفظ ✓ — ح' + col + ': ' + saved + ' خليّة' + (data.defaults ? ' (منها ' + data.defaults + ' حاضرٌ افتراضيّ)' : '') + '.', 'success');
+    }
   }
 
   function markLate(button) {
@@ -188,9 +199,10 @@
     fetch(lateUrl, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrf() }, body: body })
       .then(function (response) { return response.json().then(function (d) { return { status: response.status, data: d }; }); })
       .then(function (result) {
-        if (result.status === 403) { say((result.data && result.data.message) || 'تعذّر تسجيلُ التأخّر'); return; }
-        window.location.reload();
-      }).catch(function () { say('تعذّر تسجيلُ التأخّر.'); });
+        if (result.status === 403) { notify((result.data && result.data.message) || 'تعذّر تسجيلُ التأخّر', 'danger'); return; }
+        notify('سُجّل التأخّر ✓', 'success');
+        window.setTimeout(function () { window.location.reload(); }, 900);
+      }).catch(function () { notify('تعذّر تسجيلُ التأخّر.', 'danger'); });
   }
 
   // «خرج من الفصل» (بوجهةٍ من القائمة) و«عاد» — تُنسب إلى الحصّة الجارية وقتَ الضغط، والخادمُ هو الحَكَم.
@@ -204,9 +216,10 @@
     fetch(exitUrl, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrf() }, body: body })
       .then(function (response) { return response.json().then(function (d) { return { status: response.status, data: d }; }); })
       .then(function (result) {
-        if (result.status === 403) { say((result.data && result.data.message) || 'تعذّر تسجيلُ الخروج'); return; }
-        window.location.reload();
-      }).catch(function () { say('تعذّر تسجيلُ الخروج.'); });
+        if (result.status === 403) { notify((result.data && result.data.message) || 'تعذّر تسجيلُ الخروج', 'danger'); return; }
+        notify(action === 'return' ? 'سُجّلت العودة ✓' : 'سُجّل الخروج ✓', 'success');
+        window.setTimeout(function () { window.location.reload(); }, 900);
+      }).catch(function () { notify('تعذّر تسجيلُ الخروج.', 'danger'); });
   }
 
   function openHistory(student, col) {
