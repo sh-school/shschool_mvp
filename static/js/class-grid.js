@@ -240,10 +240,25 @@
         var doc = new DOMParser().parseFromString(html, 'text/html');
         var fresh = doc.querySelector('tr[data-student="' + student + '"]');
         var old = root.querySelector('tr[data-student="' + student + '"]');
-        if (fresh && old) old.replaceWith(document.importNode(fresh, true));
+        if (fresh && old) { old.replaceWith(document.importNode(fresh, true)); tick(); }
         else window.location.reload();
       }).catch(function () { window.location.reload(); });
   }
+
+  // عدّادُ الخروج: دقائقُ وثوانٍ من لحظة الضغط حتى «عاد» (الزمنُ من الخادم لا ساعةِ الجهاز وحدَها).
+  var skew = Number(root.getAttribute('data-now')) - Date.now() / 1000;
+  function elapsed(sinceSec) {
+    var secs = Math.max(0, Math.floor(Date.now() / 1000 + skew - sinceSec));
+    var m = Math.floor(secs / 60), r = secs % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (r < 10 ? '0' : '') + r;
+  }
+  function tick() {
+    root.querySelectorAll('[data-out-since]').forEach(function (t) {
+      t.textContent = elapsed(Number(t.getAttribute('data-out-since')));
+    });
+  }
+  tick();
+  window.setInterval(tick, 1000);
 
   function markLate(button) {
     var body = new URLSearchParams();
@@ -270,7 +285,9 @@
       .then(function (response) { return response.json().then(function (d) { return { status: response.status, data: d }; }); })
       .then(function (result) {
         if (result.status === 403) { notify((result.data && result.data.message) || 'تعذّر تسجيلُ الخروج', 'danger'); return; }
-        notify(action === 'return' ? 'سُجّلت العودة ✓' : 'سُجّل الخروج ✓', 'success');
+        var timer = root.querySelector('tr[data-student="' + student + '"] [data-out-since]');
+        var took = timer ? ' — غاب ' + timer.textContent : '';
+        notify(action === 'return' ? 'سُجّلت العودة ✓' + took : 'سُجّل الخروج ✓', 'success');
         refreshRow(student);
       }).catch(function () { notify('تعذّر تسجيلُ الخروج.', 'danger'); });
   }

@@ -122,6 +122,8 @@ class GridPage:
     current: GridColumn | None
     opens: dt.datetime
     closes: dt.datetime
+    #: لحظةُ العرض بساعة الشبكة (تتبع `ATTENDANCE_GRID_FAKE_TIME` في التطوير) — يقيس بها عدّادُ الخروج.
+    now: dt.datetime
     #: أيكتب هذا المستخدمُ أصلاً (لا قراءةً فقط)؟
     can_write: bool
     #: وجهاتُ الخروج من الفصل (`ClassExit.DESTINATIONS`) لقائمة المفتاح.
@@ -320,6 +322,7 @@ def page(
         current=current,
         opens=opens,
         closes=closes,
+        now=moment,
         can_write=bool(write_roles),
     )
 

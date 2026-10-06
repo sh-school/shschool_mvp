@@ -38,7 +38,7 @@
     {% if not page.columns %}
       {% include "components/empty_state.html" with title="لا زمنَ مُعرَّفاً لحصص هذه الشعبة اليوم" only %}
     {% else %}
-    <div data-class-grid
+    <div data-class-grid data-now="{{ page.now|date:'U' }}"
          data-save-url="{% url 'class_grid_save' page.klass.id %}"
          data-late-url="{% url 'class_grid_late' page.klass.id %}"
          data-exit-url="{% url 'class_grid_exit' page.klass.id %}"
@@ -90,7 +90,7 @@
               <td class="cg-acts"><div class="cg-acts__box">
                 <button type="button" class="btn-secondary btn-sm" data-late="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>متأخّر</button>
                 {% if row.exit %}
-                <span class="status-badge status-warning">خارج: {{ row.exit.get_destination_display }} منذ {{ row.exit.left_at|time:"H:i" }}</span>
+                <span class="status-badge status-warning">خارج: {{ row.exit.get_destination_display }} · <time data-out-since="{{ row.exit.left_at|date:'U' }}">00:00</time></span>
                 <button type="button" class="btn-secondary btn-sm" data-exit-return="{{ row.student.pk }}">عاد</button>
                 {% else %}
                 <select class="form-select cg-dest" data-exit-dest="{{ row.student.pk }}" aria-label="وجهة خروج {{ row.student.full_name }}"{% if not page.current %} disabled{% endif %}>
