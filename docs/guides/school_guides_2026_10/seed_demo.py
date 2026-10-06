@@ -32,7 +32,6 @@ from operations.models import (
     ClassExit,
     ScheduleSlot,
     Session,
-    StudentAttendance,
     Subject,
     SubjectClassAssignment,
     TimeSlotConfig,
@@ -266,20 +265,12 @@ for day in past_days:
             start_time=row.start_time, end_time=row.end_time, period_number=number, status="completed",
         )  # fmt: skip
 heavy, medium, excused = k104[1], k104[4], k104[7]
-for day in past_days:  # خمسةُ أيّامٍ بلا عذر → عند عتبة الحرمان
+for index, day in enumerate(past_days):  # الثقيلُ خمسةُ أيّامٍ بلا عذر، والمتوسّطُ أربعةٌ، ويومٌ بعذرٍ مقبول
+    absent = [heavy] + ([medium] if index < 4 else []) + ([excused] if index == 0 else [])
     for number in (1, 2):
-        StudentAttendance.objects.create(
-            session=history[(day, number)], student=heavy, school=school, status="absent", source="supervisor", marked_by=sup
-        )  # fmt: skip
-for day in past_days[:4]:  # أربعةُ أيّام
-    for number in (1, 2):
-        StudentAttendance.objects.create(
-            session=history[(day, number)], student=medium, school=school, status="absent", source="supervisor", marked_by=sup
-        )  # fmt: skip
-for number in (1, 2):  # يومٌ بعذرٍ مقبول
-    StudentAttendance.objects.create(
-        session=history[(past_days[0], number)], student=excused, school=school, status="absent", source="supervisor", marked_by=sup
-    )  # fmt: skip
+        row = bell(klass("G10", "4"), number)
+        marks = {str(kid.id): {"status": "absent"} for kid in absent}
+        confirm_period(klass("G10", "4"), day, row.start_time, marks, sup, now=at(day, 13, 0))
 grant_excuse(
     student=excused, school=school, date_from=past_days[0], date_to=past_days[0], kind="bereavement",
     notes="وفاة الجدّ — قرابةٌ من الدرجة الأولى", by=sup, today=TODAY,
