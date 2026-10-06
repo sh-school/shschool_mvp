@@ -302,16 +302,3 @@ def summary_for_request(request: Any, day: dt.date) -> tuple[MinistrySummary, bo
         request.school, day, student_ids=scope.student_ids() if scope.is_wing_bound else None
     )
     return summary, scope.is_wing_bound and not holds_school_wide(request.user)
-
-
-def dashboard_figures(user: Any, school: Any, day: dt.date) -> Counts:
-    """أرقامُ الحصّتين الأولى والثانية لرأس لوحة المشرف — مجاميعُ بلا أسماء (PDPPL: تقليلُ البيانات).
-
-    النطاقُ نطاقُ الطلبة نفسُه كالملخّص: المشرفُ لطلبة جناحه، وحاصرُ الغياب العامّ والقيادةُ للمدرسة كلِّها.
-    """
-    from .scope import student_scope
-
-    scope = student_scope(user, school)
-    return ministry_summary(
-        school, day, student_ids=scope.student_ids() if scope.is_wing_bound else None
-    ).total

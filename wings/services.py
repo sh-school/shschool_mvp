@@ -612,19 +612,3 @@ def student_events_context(student: Any, school: Any, query: Any) -> dict:
         "contacts": contacts[:SHORT_LIST],
         "contacts_total": len(contacts),
     }
-
-
-def ministry_head(user, school, today, school_day) -> dict:
-    """رأسُ لوحة المشرف الإداريّ: غيابُ الحصّتين الأولى والثانية أرقاماً، وهل هو حاصرُ الغياب العامّ.
-
-    المفتاحُ `wings.record_day` ونطاقُ البيانات نطاقُ الطلبة (مشرفُ الجناح لجناحه، وحاصرُ الغياب العامّ للمدرسة).
-    ولا أسماءَ: الأسماءُ في صفحة الملخّص لمن يتصرّف على الطالب (`.claude/rules/dashboards.md`). وفي الإجازة لا أرقام.
-    """
-    from core.capabilities import has_capability
-
-    from .ministry_selectors import dashboard_figures
-
-    head = {"school_wide": holds_school_wide(user), "ministry_figures": None}
-    if school_day.is_open and has_capability(user, "wings.record_day"):
-        head["ministry_figures"] = dashboard_figures(user, school, today)
-    return head

@@ -1,12 +1,11 @@
 {% load icons %}
-{% load ui navigation %}
+{% load ui %}
 {% comment %}لوحةُ من يحمل جناحاً بتكليفٍ لا بدوره — بديلُ المشرف من ملاحظي الطلبة وعمّال الخدمات.{% endcomment %}
 <div class="exec-dash">
 
   {% page_header "رصد الغياب — جناحي اليوم" subtitle=subtitle icon="attendance_register" %}
     <a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>
     <a href="{% url 'attendance_approvals' %}" class="btn-secondary btn-sm">{% icon "checklist" %} اعتمادُ رصد المعلّمين</a>
-    {% if request.user|can_open:"wings:ministry_report" %}<a href="{% url 'wings:ministry_report' %}" class="btn-secondary btn-sm">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>{% endif %}
   {% endpage_header %}
 
   {% include "wings/partials/student_search_form.html" %}

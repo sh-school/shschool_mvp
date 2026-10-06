@@ -490,11 +490,11 @@ def get_admin_ops_ctx(user, school, today, role):
         "recent_alerts": recent_alerts,
     }
     if role == "admin_supervisor":
-        ctx.update(supervisor_record_ctx(user, school, today, with_ministry=True))
+        ctx.update(supervisor_record_ctx(user, school, today))
     return ctx
 
 
-def supervisor_record_ctx(user, school, today, with_ministry=False):
+def supervisor_record_ctx(user, school, today):
     """رصدُ الغياب في رأس لوحة مشرف الجناح — فهو عملُه الأوّل كلَّ صباح.
 
     كان الرابطُ في القائمة وحدَها، ولوحتُه التي يفتحها أوّلَ الدخول لا تذكر
@@ -503,7 +503,7 @@ def supervisor_record_ctx(user, school, today, with_ministry=False):
     from core.dashboard_presentation import chunk_for_grid
     from operations.school_days import school_day
     from operations.services import ScheduleService
-    from wings.services import ministry_head, record_panels, supervisor_watchlist
+    from wings.services import record_panels, supervisor_watchlist
 
     year = academic_year_for_school(school)
     day = school_day(school, today)
@@ -524,9 +524,6 @@ def supervisor_record_ctx(user, school, today, with_ministry=False):
         # الحصصُ تُولَّد إن لم تكن — وإلّا بدت الشُّعبُ «بلا حصص» صباحاً.
         ScheduleService.ensure_sessions_for_date(school, today)
         ctx["record_panels"] = record_panels(user, school, year, today)
-    if with_ministry:
-        # أرقامُ الحصّتين الأولى والثانية في رأس لوحة المشرف الإداريّ (لا للبديل): أرقامٌ ورابطٌ بلا أسماء.
-        ctx.update(ministry_head(user, school, today, day))
     return ctx
 
 

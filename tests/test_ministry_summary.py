@@ -179,10 +179,10 @@ def test_the_daily_absence_page_links_to_the_summary_for_the_supervisor(
     assert reverse("wings:ministry_report") in body
 
 
-def test_the_school_wide_holder_dashboard_links_to_the_summary_and_lists_every_wing(
+def test_the_absence_register_page_links_to_the_summary_and_lists_every_wing_for_the_wide_holder(
     school, year, band, klass, class_day, holder, client_as
 ):
-    """الأجنحةُ الخمسةُ تظهر في لوحة حاصر الغياب العامّ، وفيها رابطُ الملخّص (لقطةُ المالك 2026-10-06: لا جناح ولا رابط)."""
+    """رابطُ الملخّص في «رصد الغياب» (أمرُ المالك 2026-10-06: لا داعي له في الرئيسيّة) والأجنحةُ كلُّها لحاصر الغياب العامّ."""
     other_holder = _staff(school, "admin_supervisor", "حاملُ الثاني", "29000003020")
     Wing.objects.create(
         school=school, code="w2", name="جناح 2", academic_year=year, supervisor=other_holder
@@ -191,22 +191,12 @@ def test_the_school_wide_holder_dashboard_links_to_the_summary_and_lists_every_w
     wide = _staff(school, "admin_supervisor", "حاصرُ الغياب", "29000003022")
     grants.grant(user=wide, capability="wings.school_wide", by=principal, reason=REASON)
 
-    body = client_as(wide).get("/dashboard/").content.decode()
+    body = client_as(wide).get(reverse("wings:record_index")).content.decode()
+    home = client_as(wide).get("/dashboard/").content.decode()
 
     assert reverse("wings:ministry_report") in body
     assert "لا جناحَ مُسنَدٌ إليك" not in body
-    assert "الأجنحةُ الخمسة" in body  # بلاطةُ «طلبة المدرسة» لا «طلبة جناحي»
-    assert "غابوا الحصّتين" in body  # شريطُ أرقام الحصّتين برابط الملخّص
-
-
-def test_the_wing_supervisor_dashboard_keeps_wing_wording_and_shows_figures_without_names(
-    school, klass, class_day, holder, client_as
-):
-    body = client_as(holder).get("/dashboard/").content.decode()
-
-    assert "الأجنحةُ الخمسة" not in body
-    assert "غابوا الحصّتين" in body
-    assert "غائبٌ بعذر" not in body  # أرقامٌ ورابطٌ لا أسماء (D-171م)
+    assert reverse("wings:ministry_report") not in home  # الرئيسيّةُ بلا إضافةٍ لهذا الملخّص
 
 
 def test_the_screen_is_a_platform_page_with_filters_and_exports_not_a_print_sheet(

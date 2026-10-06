@@ -4,8 +4,7 @@
 
   {% page_header "اللوحة الإدارية" subtitle=subtitle icon="workload" %}
     {% if admin_role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>
-    <a href="{% url 'attendance_approvals' %}" class="btn-secondary btn-sm">{% icon "checklist" %} اعتمادُ رصد المعلّمين</a>
-    {% if request.user|can_open:"wings:ministry_report" %}<a href="{% url 'wings:ministry_report' %}" class="btn-secondary btn-sm">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>{% endif %}{% endif %}
+    <a href="{% url 'attendance_approvals' %}" class="btn-secondary btn-sm">{% icon "checklist" %} اعتمادُ رصد المعلّمين</a>{% endif %}
   {% endpage_header %}
 
   {% if admin_role == "admin_supervisor" %}
@@ -21,16 +20,6 @@
     {% endif %}
 
     {% include "wings/partials/watchlist.html" %}
-  {% endif %}
-
-  {# غيابُ الحصّتين الأولى والثانية اليوم — أرقامٌ ورابطٌ إلى الملخّص لا أسماء (D-171م)؛ يغيب (None) في الإجازة ولمن لا يرصد #}
-  {% if ministry_figures %}
-  {% url 'wings:ministry_report' as ministry_url %}
-  {% kpi_strip label="غياب الحصّتين الأولى والثانية اليوم" %}
-    {% kpi "غابوا الحصّتين" ministry_figures.absent_both sub="يُرفعون في نظام الوزارة" tone="red" href=ministry_url %}
-    {% kpi "بلا رصد" ministry_figures.unrecorded sub="لا يُحكم عليهم بعد" tone="orange" href=ministry_url %}
-    {% kpi "بانتظار الاعتماد" ministry_figures.pending sub="رصدُ معلّمين" tone="amber" href=ministry_url %}
-  {% endkpi_strip %}
   {% endif %}
 
   {# كلُّ عدّادٍ بقدرة وجهته: يغيب (None) عمّن لا تُفتح له شاشتُه، والشريطُ الفارغ خطأ فيُحجب كلُّه #}
@@ -55,7 +44,7 @@
   {# لا بلاطةَ تُعرض لمن لا تُفتح له: كانت «شؤون الموظفين» تظهر لمشرف الجناح وتردّه 403 #}
   <nav class="ui-actions" aria-label="إجراءات سريعة">
     {% if request.user|can_open:"staff_affairs:dashboard" %}{% url 'staff_affairs:dashboard' as u %}{% action_tile "شؤون الموظفين" desc="الحضورُ والغيابُ والإجازات" icon="staff" href=u primary=True %}{% endif %}
-    {% if request.user|can_open:"student_affairs:student_list" %}{% url 'student_affairs:student_list' as u %}{% if admin_role == "admin_supervisor" %}{% if school_wide %}{% action_tile "طلبة المدرسة" desc="الأجنحةُ الخمسة: سجلُّهم وملفّاتُهم وغيابُهم" icon="students" href=u primary=True %}{% else %}{% action_tile "طلبة جناحي" desc="سجلُّهم وملفّاتُهم وغيابُهم" icon="students" href=u primary=True %}{% endif %}{% else %}{% action_tile "شؤون الطلاب" desc="بياناتُ الطلاب وملفّاتُهم" icon="students" href=u %}{% endif %}{% endif %}
+    {% if request.user|can_open:"student_affairs:student_list" %}{% url 'student_affairs:student_list' as u %}{% if admin_role == "admin_supervisor" %}{% action_tile "طلبة جناحي" desc="سجلُّهم وملفّاتُهم وغيابُهم" icon="students" href=u primary=True %}{% else %}{% action_tile "شؤون الطلاب" desc="بياناتُ الطلاب وملفّاتُهم" icon="students" href=u %}{% endif %}{% endif %}
     {% if request.user|can_open:"weekly_schedule" %}{% url 'weekly_schedule' as u %}{% action_tile "الجدول الدراسي" desc="الحصصُ والمعلّمون" icon="schedule" href=u %}{% endif %}
   </nav>
 
