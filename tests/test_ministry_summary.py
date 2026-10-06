@@ -177,3 +177,21 @@ def test_the_daily_absence_page_links_to_the_summary_for_the_supervisor(
     )
 
     assert reverse("wings:ministry_report") in body
+
+
+def test_the_school_wide_holder_dashboard_links_to_the_summary_and_lists_every_wing(
+    school, year, band, klass, class_day, holder, client_as
+):
+    """الأجنحةُ الخمسةُ تظهر في لوحة حاصر الغياب العامّ، وفيها رابطُ الملخّص (لقطةُ المالك 2026-10-06: لا جناح ولا رابط)."""
+    other_holder = _staff(school, "admin_supervisor", "حاملُ الثاني", "29000003020")
+    Wing.objects.create(
+        school=school, code="w2", name="جناح 2", academic_year=year, supervisor=other_holder
+    )
+    principal = _staff(school, "principal", "المدير", "29000003021")
+    wide = _staff(school, "admin_supervisor", "حاصرُ الغياب", "29000003022")
+    grants.grant(user=wide, capability="wings.school_wide", by=principal, reason=REASON)
+
+    body = client_as(wide).get("/dashboard/").content.decode()
+
+    assert reverse("wings:ministry_report") in body
+    assert "لا جناحَ مُسنَدٌ إليك" not in body

@@ -4,7 +4,8 @@
 
   {% page_header "اللوحة الإدارية" subtitle=subtitle icon="workload" %}
     {% if admin_role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>
-    <a href="{% url 'attendance_approvals' %}" class="btn-secondary btn-sm">{% icon "checklist" %} اعتمادُ رصد المعلّمين</a>{% endif %}
+    <a href="{% url 'attendance_approvals' %}" class="btn-secondary btn-sm">{% icon "checklist" %} اعتمادُ رصد المعلّمين</a>
+    {% if request.user|can_open:"wings:ministry_report" %}<a href="{% url 'wings:ministry_report' %}" class="btn-secondary btn-sm">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>{% endif %}{% endif %}
   {% endpage_header %}
 
   {% if admin_role == "admin_supervisor" %}
