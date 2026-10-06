@@ -686,3 +686,13 @@ def test_the_fake_clock_works_only_with_debug_on(
     settings.DEBUG = True
     accepted = _save(client, assigned, 1, [_cells(kids[0], "absent")])
     assert accepted.status_code == 200 and AttendanceEntry.objects.count() == 1
+
+
+def test_a_student_corrected_to_present_can_leave(client_as, assigned, teacher, kids, clock):
+    clock(7, 30)
+    client = client_as(teacher)
+    _save(client, assigned, 1, [_cells(kids[0], "absent")])
+    head = AttendanceEntry.objects.get(student=kids[0]).pk
+    _save(client, assigned, 1, [_cells(kids[0], "present", str(head))])
+    response = _exit(client, assigned, kids[0], action="leave", destination="clinic")
+    assert response.status_code == 200, response.content

@@ -812,5 +812,5 @@ def erase_attendance_ledger(
 def teacher_marked_absent(session: Session, student: CustomUser) -> bool:
     """هل وسمه معلّمُ الحصّة غائباً (إدخالٌ مبدئيّ)؟ — لمنع فتح خروجٍ لغائبٍ (غائبٌ وخروجٌ لا يجتمعان). رصدُ المشرف لا يمنع."""
     return AttendanceEntry.objects.filter(
-        session=session, student=student, status="absent"
+        session=session, student=student, status="absent", superseded_by__isnull=True
     ).exists()
