@@ -76,10 +76,6 @@
       remember(cell);
       return;
     }
-    var bulk = event.target.closest('[data-bulk]');
-    if (bulk) return bulkFill(bulk);
-    var saveBtn = event.target.closest('[data-save-col]');
-    if (saveBtn) return save(saveBtn.getAttribute('data-save-col'), '');
     var late = event.target.closest('[data-late]');
     if (late) return markLate(late);
     var exitBtn = event.target.closest('[data-exit]');
@@ -91,6 +87,17 @@
     var tab = event.target.closest('[data-tab]');
     if (tab) return showTab(tab.getAttribute('data-tab'));
   });
+
+  // شريطُ «الكلّ ✓ / الكلّ ✗ / حفظ» فوق البطاقة (في ترويسة الصفحة خارجَ `root`): يعمل على العمود المختار في قائمته.
+  var bar = document.querySelector('[data-grid-bar]');
+  function barCol() { var pick = bar && bar.querySelector('[data-bar-col]'); return pick ? pick.value : currentCol(); }
+  if (bar) {
+    bar.addEventListener('click', function (event) {
+      var bulk = event.target.closest('[data-bulk]');
+      if (bulk) return bulkFill(bulk);
+      if (event.target.closest('[data-save-bar]')) return save(barCol());
+    });
+  }
 
   root.addEventListener('dblclick', function (event) {
     var cell = event.target.closest('[data-cell]');
@@ -125,7 +132,7 @@
   }
 
   function bulkFill(button) {
-    var col = button.getAttribute('data-col');
+    var col = barCol();
     var status = button.getAttribute('data-bulk') === 'all_absent' ? 'absent' : 'present';
     var targets = Array.prototype.filter.call(cells(col), function (c) { return c.getAttribute('data-writable') === '1'; });
     var label = status === 'absent' ? 'غائب' : 'حاضر';

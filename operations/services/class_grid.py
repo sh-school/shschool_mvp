@@ -127,6 +127,11 @@ class GridPage:
     #: وجهاتُ الخروج من الفصل (`ClassExit.DESTINATIONS`) لقائمة المفتاح.
     destinations: tuple[tuple[str, str], ...] = tuple(ClassExit.DESTINATIONS)
 
+    @property
+    def writable_columns(self) -> list[GridColumn]:
+        """أعمدةٌ يكتب فيها هذا المستخدمُ الآن — لقائمة العمود في شريط «الكلّ ✓ / الكلّ ✗ / حفظ» فوق البطاقة."""
+        return [c for c in self.columns if c.writable]
+
 
 @dataclass
 class SaveResult:
