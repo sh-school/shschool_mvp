@@ -232,6 +232,19 @@
     }
   }
 
+  // يبدّل صفَّ الطالب وحدَه من الخادم بلا إعادة تحميل الصفحة (لا رمشَ ولا ضياعَ لمسوّدة بقيّة الصفوف).
+  function refreshRow(student) {
+    fetch(window.location.href, { credentials: 'same-origin' })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var fresh = doc.querySelector('tr[data-student="' + student + '"]');
+        var old = root.querySelector('tr[data-student="' + student + '"]');
+        if (fresh && old) old.replaceWith(document.importNode(fresh, true));
+        else window.location.reload();
+      }).catch(function () { window.location.reload(); });
+  }
+
   function markLate(button) {
     var body = new URLSearchParams();
     body.append('student', button.getAttribute('data-late'));
@@ -241,7 +254,7 @@
       .then(function (result) {
         if (result.status === 403) { notify((result.data && result.data.message) || 'تعذّر تسجيلُ التأخّر', 'danger'); return; }
         notify('سُجّل التأخّر ✓', 'success');
-        window.setTimeout(function () { window.location.reload(); }, 900);
+        refreshRow(button.getAttribute('data-late'));
       }).catch(function () { notify('تعذّر تسجيلُ التأخّر.', 'danger'); });
   }
 
@@ -258,7 +271,7 @@
       .then(function (result) {
         if (result.status === 403) { notify((result.data && result.data.message) || 'تعذّر تسجيلُ الخروج', 'danger'); return; }
         notify(action === 'return' ? 'سُجّلت العودة ✓' : 'سُجّل الخروج ✓', 'success');
-        window.setTimeout(function () { window.location.reload(); }, 900);
+        refreshRow(student);
       }).catch(function () { notify('تعذّر تسجيلُ الخروج.', 'danger'); });
   }
 
