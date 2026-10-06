@@ -374,6 +374,23 @@ def _clock(raw: str, fallback: dt.time) -> dt.time:
         return fallback
 
 
+def grid_now(now: dt.datetime | None = None) -> dt.datetime:
+    """لحظةُ الجدول بتوقيت الدوحة: الممرَّرةُ، وإلّا الآن. و**للمعاينة وحدَها** (`DEBUG` مشغَّلٌ) يُقدِّم `ATTENDANCE_GRID_FAKE_TIME` («07:11») ساعةَ اليوم لتجربة الكتابة ليلاً (أمرُ المالك).
+
+    الإنتاجُ بـ`DEBUG` مطفأٍ فلا أثرَ للمتغيّر فيه ولو ضُبط خطأً — كشرط `in_preview_environment`: لا مفتاحَ زمنٍ يعمل خارجَ بيئةِ التطوير.
+    """
+    from django.conf import settings
+
+    if now is not None:
+        return timezone.localtime(now)
+    fake = str(getattr(settings, "ATTENDANCE_GRID_FAKE_TIME", "") or "")
+    if fake and settings.DEBUG:
+        return timezone.make_aware(
+            dt.datetime.combine(timezone.localdate(), _clock(fake, dt.time(7, 11)))
+        )
+    return timezone.localtime()
+
+
 def grid_window(day: dt.date) -> tuple[dt.datetime, dt.datetime]:
     """نافذةُ كتابة المعلّم في الجدول (D-237م): من إعدادٍ مركزيٍّ واحد (07:10–14:00 افتراضاً) بتوقيت الدوحة.
 
@@ -476,7 +493,7 @@ def can_write_grid(
         return _deny("read_only")
     if class_group.is_active is False:
         return _deny("inactive_class")
-    moment = timezone.localtime(now) if now is not None else timezone.localtime()
+    moment = grid_now(now)
     if moment.date() != day:
         return _deny("not_today")
     opens, closes = grid_window(day)
@@ -505,7 +522,7 @@ def can_correct_grid(
     roles = grid_roles(user, class_group, day)
     if not roles & {GRID_HOLDER, GRID_LEADERSHIP}:
         return _deny("not_found" if not roles else "not_corrector")
-    moment = timezone.localtime(now) if now is not None else timezone.localtime()
+    moment = grid_now(now)
     if moment.date() != day:
         return _deny("not_today")
     return _allow()

@@ -775,6 +775,8 @@ PROVISIONAL_GRID_ENABLED_SET = "PROVISIONAL_GRID_ENABLED" in os.environ
 ATTENDANCE_GRID_OPENS = os.environ.get("ATTENDANCE_GRID_OPENS", "07:10")
 ATTENDANCE_GRID_CLOSES = os.environ.get("ATTENDANCE_GRID_CLOSES", "14:00")
 #: سقفُ حفظات الجدول في الساعة لكلّ مستخدم — عدّادٌ مستقلٌّ عن سقف المؤقّتة (كتلُ 7×~30 خليّة).
+#: للمعاينة وحدَها (يُقرأ إن كان DEBUG مشغَّلاً): ساعةُ اليوم المفترَضةُ لتجربة الجدول ليلاً، مثل «07:11». فارغٌ افتراضاً.
+ATTENDANCE_GRID_FAKE_TIME = os.environ.get("ATTENDANCE_GRID_FAKE_TIME", "")
 ATTENDANCE_GRID_SAVES_PER_HOUR = int(os.environ.get("ATTENDANCE_GRID_SAVES_PER_HOUR", "60"))
 #: عتبةُ تنبيه القيادة: ما اعتمده حاملُ جناحٍ بنفسه في اليوم فوقها (لا سقفَ صلب — D-239م، شرطُ 0104). تحدّدها المدرسة.
 ATTENDANCE_SELF_APPROVAL_ALERT = int(os.environ.get("ATTENDANCE_SELF_APPROVAL_ALERT", "50"))

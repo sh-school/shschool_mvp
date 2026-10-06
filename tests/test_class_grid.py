@@ -666,3 +666,23 @@ def test_the_page_shows_the_open_exit_and_the_destination_list(
     i = body.find("cg-acts", body.find("<tbody"))
     assert "خارج: العيادة" in body, body[i : i + 900]
     assert "دورة المياه" in body and "data-exit-return" in body
+
+
+# ── ساعةُ المعاينة المفترَضة: DEBUG وحدَه ─────────────────────────────────────────
+
+
+def test_the_fake_clock_works_only_with_debug_on(
+    settings, client_as, assigned, teacher, kids, monkeypatch
+):
+    """`ATTENDANCE_GRID_FAKE_TIME` يقدّم الساعةَ للمعاينة وحدَها: مع DEBUG مطفأٍ لا أثرَ له (إنتاجٌ بمتغيّرٍ خاطئٍ لا يفتح الجدولَ ليلاً)."""
+    monkeypatch.setattr(timezone, "now", lambda: at(2, 0))  # الثانية فجراً: خارجَ النافذة
+    settings.ATTENDANCE_GRID_FAKE_TIME = "07:11"
+    client = client_as(teacher)
+
+    settings.DEBUG = False
+    refused = _save(client, assigned, 1, [_cells(kids[0], "absent")])
+    assert refused.status_code == 403 and refused.json()["reason"] == "before_window"
+
+    settings.DEBUG = True
+    accepted = _save(client, assigned, 1, [_cells(kids[0], "absent")])
+    assert accepted.status_code == 200 and AttendanceEntry.objects.count() == 1

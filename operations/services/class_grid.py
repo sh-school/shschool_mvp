@@ -44,6 +44,7 @@ from operations.attendance_policy import (
     can_correct_grid,
     can_read_grid,
     can_write_grid,
+    grid_now,
     grid_roles,
     grid_window,
     is_developer,
@@ -150,7 +151,7 @@ def _require_enabled() -> None:
 
 def _today(school: School) -> dt.date:
     """اليومُ الدراسيّ الجاري وحدَه — أيُّ يومٍ بلا دراسةٍ ← 404 (لا ماضيَ ولا مستقبل، D-215م)."""
-    today: dt.date = timezone.localdate()
+    today: dt.date = grid_now().date()
     if not school_day(school, today).is_open:
         raise GridNotFoundError("لا دراسةَ اليوم")
     return today
@@ -248,7 +249,7 @@ def page(
 ) -> GridPage:
     """سياقُ صفحة الشعبة: الطلبةُ (قيدٌ نشطٌ بدأ في تاريخ اليوم أو قبله) × أعمدةُ جرس الشعبة، ورؤوسُ السلاسل باستعلامٍ واحد."""
     klass, day, roles = _readable_class(user, school, class_id)
-    moment = timezone.localtime(now) if now is not None else timezone.localtime()
+    moment = grid_now(now)
     bell = provisional_session.bell_periods(school, klass, day)
     sessions = _column_sessions(klass, day, bell)
     opens, closes = grid_window(day)
@@ -504,7 +505,7 @@ def save_column(
     _require_enabled()
     day = _today(school)
     klass = _class_or_404(school, class_id)
-    moment = timezone.localtime(now) if now is not None else timezone.localtime()
+    moment = grid_now(now)
     try:
         wanted = int(number)
     except (TypeError, ValueError):
@@ -648,7 +649,7 @@ def _write_default(
 def _late_minutes(session: Session) -> int:
     """دقائقُ التأخّر منذ بدء الحصّة حتّى الآن (على الأقلّ دقيقة)."""
     start = timezone.make_aware(dt.datetime.combine(session.date, session.start_time))
-    return max(1, int((timezone.now() - start).total_seconds() // 60))
+    return max(1, int((grid_now() - start).total_seconds() // 60))
 
 
 def mark_late_now(
@@ -661,7 +662,7 @@ def mark_late_now(
     if not can_read_grid(user, klass, day):
         raise GridNotFoundError("ليست من شُعبك")
     student = _roster_student(klass, day, student_id)
-    now = timezone.localtime()
+    now = grid_now()
     bell = provisional_session.bell_periods(school, klass, day)
     current = next(
         (n for n, (s, e) in sorted(bell.items()) if _state_of(s, e, now.time()) == "current"), None
@@ -687,7 +688,7 @@ def redirect_target(user: CustomUser, session: Session) -> str | None:
     """
     from django.urls import reverse
 
-    if not provisional_session.grid_enabled() or session.date != timezone.localdate():
+    if not provisional_session.grid_enabled() or session.date != grid_now().date():
         return None
     if not can_read_grid(user, session.class_group, session.date):
         return None
@@ -718,7 +719,7 @@ def exit_action(
     if not can_read_grid(user, klass, day):
         raise GridNotFoundError("ليست من شُعبك")
     student = _roster_student(klass, day, student_id)
-    moment = timezone.localtime(now) if now is not None else timezone.localtime()
+    moment = grid_now(now)
     bell = provisional_session.bell_periods(school, klass, day)
     current = next(
         (n for n, (s, e) in sorted(bell.items()) if _state_of(s, e, moment.time()) == "current"),
