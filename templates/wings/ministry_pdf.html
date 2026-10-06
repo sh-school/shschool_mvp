@@ -7,7 +7,7 @@
 {% endcomment %}
 
 {% block extra_styles %}
-@page { size: A4 {{ orient|default:"landscape" }}; margin: 9mm 10mm 22mm 10mm; @bottom-center { vertical-align: top; padding-top: 3mm; } }
+@page { size: A4 {{ orient|default:"landscape" }}; margin: 9mm 10mm 22mm 10mm; }
 {% if for_screen %}.running-footer { display: none; }{% endif %}
 .doc-body { padding: 6px 14px 12px; }
 .report-title-bar { font-size: 13px; padding: 6px 16px; }
