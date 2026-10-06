@@ -161,13 +161,16 @@ def _class_or_404(school: School, class_id: Any) -> ClassGroup:
         raise GridNotFoundError("لا شعبة") from None
 
 
-def _readable_class(user: CustomUser, school: School, class_id: Any) -> tuple[ClassGroup, dt.date]:
+def _readable_class(
+    user: CustomUser, school: School, class_id: Any
+) -> tuple[ClassGroup, dt.date, frozenset[str]]:
     _require_enabled()
     day = _today(school)
     klass = _class_or_404(school, class_id)
-    if not can_read_grid(user, klass, day):
+    roles = grid_roles(user, klass, day)
+    if not can_read_grid(user, klass, day, roles=roles):
         raise GridNotFoundError("ليست من شُعبك")
-    return klass, day
+    return klass, day, roles
 
 
 def classes_for(user: CustomUser, school: School) -> list[ClassGroup]:
@@ -240,9 +243,8 @@ def page(
     user: CustomUser, school: School, class_id: Any, *, now: dt.datetime | None = None
 ) -> GridPage:
     """سياقُ صفحة الشعبة: الطلبةُ (قيدٌ نشطٌ بدأ في تاريخ اليوم أو قبله) × أعمدةُ جرس الشعبة، ورؤوسُ السلاسل باستعلامٍ واحد."""
-    klass, day = _readable_class(user, school, class_id)
+    klass, day, roles = _readable_class(user, school, class_id)
     moment = timezone.localtime(now) if now is not None else timezone.localtime()
-    roles = grid_roles(user, klass, day)
     bell = provisional_session.bell_periods(school, klass, day)
     sessions = _column_sessions(klass, day, bell)
     opens, closes = grid_window(day)
@@ -254,7 +256,7 @@ def page(
             continue
         start, end = times
         state = _state_of(start, end, moment.time())
-        verdict = can_write_grid(user, klass, day, period_start=start, now=moment)
+        verdict = can_write_grid(user, klass, day, period_start=start, now=moment, roles=roles)
         session = sessions.get(number)
         columns.append(
             GridColumn(
@@ -305,7 +307,7 @@ def history(
     user: CustomUser, school: School, class_id: Any, student_id: Any, number: Any
 ) -> tuple[ClassGroup, CustomUser, list[CellHistoryRow]]:
     """سجلُّ خليّةٍ: من كتب ومتى ومن صحّح. الطالبُ من كشف الشعبة وإلّا 404."""
-    klass, day = _readable_class(user, school, class_id)
+    klass, day, _roles = _readable_class(user, school, class_id)
     student = _roster_student(klass, day, student_id)
     try:
         wanted = int(number)

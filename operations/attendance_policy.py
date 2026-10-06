@@ -418,9 +418,16 @@ def grid_roles(user: CustomUser, class_group: ClassGroup, day: dt.date) -> froze
     return frozenset(found)
 
 
-def can_read_grid(user: CustomUser, class_group: ClassGroup, day: dt.date) -> Verdict:
-    """هل يقرأ هذا المستخدمُ جدولَ هذه الشعبة؟ — كلُّ دورٍ في `grid_roles`."""
-    return _allow() if grid_roles(user, class_group, day) else _deny("not_found")
+def can_read_grid(
+    user: CustomUser,
+    class_group: ClassGroup,
+    day: dt.date,
+    *,
+    roles: frozenset[str] | None = None,
+) -> Verdict:
+    """هل يقرأ هذا المستخدمُ جدولَ هذه الشعبة؟ — كلُّ دورٍ في `grid_roles`. و`roles` محسوبةٌ سلفاً تُجنّب إعادةَ الاستعلام لكلّ عمود."""
+    found = grid_roles(user, class_group, day) if roles is None else roles
+    return _allow() if found else _deny("not_found")
 
 
 def can_write_grid(
@@ -430,6 +437,7 @@ def can_write_grid(
     *,
     period_start: dt.time | None = None,
     now: dt.datetime | None = None,
+    roles: frozenset[str] | None = None,
 ) -> Verdict:
     """هل يكتب هذا المستخدمُ رصداً في عمودٍ من جدول الشعبة الآن؟ — معلّمو الإسناد وحاملُ الجناح والقيادةُ الإداريّةُ على كلّ الأعمدة.
 
@@ -437,7 +445,7 @@ def can_write_grid(
     (07:10) إلى إغلاقها (14:00)؛ وعمودٌ لم تبدأ حصّتُه (`period_start`) يُرفض لكلّ كاتب (`before_start`) فلا يملأ معلّمٌ ح1–ح7 في 07:10.
     وبعد الإغلاق يُقفل الكلُّ هنا ويصحّح المشرفُ بسببٍ عبر `can_correct_grid`.
     """
-    roles = grid_roles(user, class_group, day)
+    roles = grid_roles(user, class_group, day) if roles is None else roles
     if not roles:
         return _deny("not_found")
     if not roles & {GRID_TEACHER, GRID_HOLDER, GRID_LEADERSHIP}:

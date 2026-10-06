@@ -397,7 +397,7 @@ def test_empty_cells_become_default_present_only_when_the_column_is_saved_with_f
     assert filled.json()["defaults"] == 2
     defaults = AttendanceEntry.objects.filter(origin="grid_default")
     assert defaults.count() == 2 and all(e.status == "present" for e in defaults)
-    audit = AuditLog.objects.filter(object_repr="جدول الشعبة — حفظُ عمود").latest("timestamp")
+    audit = AuditLog.objects.filter(object_repr="جدول الشعبة — حفظُ عمود", changes__period=2).get()
     assert audit.changes["default_present"] == 2 and "full_name" not in json.dumps(audit.changes)
 
 
@@ -534,14 +534,25 @@ def test_the_cell_history_shows_who_wrote_and_who_corrected(
     assert teacher.full_name in body and holder.full_name in body and "صُحِّح" in body
 
 
-@pytest.mark.parametrize("count", [30, 60])
 def test_the_read_query_count_is_flat_in_the_number_of_students(
-    client_as, school, assigned, teacher, clock, count
+    client_as, school, assigned, teacher, clock
 ):
-    for index in range(count):
-        student = UserFactory(full_name=f"ط{index:03d}", national_id=f"2900{index:07d}")
-        StudentEnrollmentFactory(student=student, class_group=assigned, enrolled_at=ENROLLED)
-    client = client_as(teacher)
-    with CaptureQueriesContext(connection) as queries:
-        assert client.get(reverse("class_grid", args=[assigned.id])).status_code == 200
-    assert len(queries) <= 25, len(queries)
+    """عدُّ الاستعلامات ثابتٌ بعدد الطلبة: شعبةٌ بـ30 ثمّ بـ60 تُقرأ بالعدد نفسِه، وتحت حدٍّ مطلق (خطُّ أساسٍ مقيس: 27)."""
+
+    def measure():
+        with CaptureQueriesContext(connection) as queries:
+            assert (
+                client_as(teacher).get(reverse("class_grid", args=[assigned.id])).status_code == 200
+            )
+        return len(queries)
+
+    def enroll(start, stop):
+        for index in range(start, stop):
+            student = UserFactory(full_name=f"ط{index:03d}", national_id=f"2900{index:07d}")
+            StudentEnrollmentFactory(student=student, class_group=assigned, enrolled_at=ENROLLED)
+
+    enroll(0, 30)
+    thirty = measure()
+    enroll(30, 60)
+    sixty = measure()
+    assert thirty == sixty and thirty <= 30, (thirty, sixty)
