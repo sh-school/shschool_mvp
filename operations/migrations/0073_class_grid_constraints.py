@@ -3,8 +3,8 @@
 1. إزالةُ `provisional_teacher_period_unique`: عمودُ الجدول يُنسب لمُسنَدٍ حتميّ فيصادمه كاتبٌ يحفظ ح1 لعدّة شعب. (يمسّ صفوفَ المؤقّتة وحدَها.)
 2. استبدالُ `provisional_class_period_unique` بنسخةٍ تحمل `elective_group` (مراجعة 0102): الصفوفُ القائمةُ كلُّها بمجموعةٍ فارغةٍ
    وفريدةٍ أصلاً بـ(شعبة، تاريخ، رقم) فالقيدُ الجديدُ يمرّ عليها. الإزالةُ والإضافةُ في المعاملة نفسِها (سابقة 0071).
-3. `AttendanceEntry.origin` — توسيعٌ بـ`db_default` فلا تفشل نسخةُ الكود القديمةُ أثناء النشر المتدحرج.
-4. `AlterField` لخيارات `AttendanceDecision.basis` بإضافة `wing_holder_self` (قائمةُ اختيارٍ بلا SQL).
+3. `origin` في إدخال الرصد المبدئيّ — توسيعٌ بـ`db_default` فلا تفشل نسخةُ الكود القديمةُ أثناء النشر المتدحرج.
+4. `AlterField` لخيارات `basis` في قرار الرصد بإضافة `wing_holder_self` (قائمةُ اختيارٍ بلا SQL).
 
 العكسُ يفشل بسببٍ مكتوبٍ إن وُجدت مؤقّتتان لمعلّمٍ واحدٍ في الخانة نفسِها (يمنعان إعادةَ قيد المعلّم) — تُغلق إحداهما أوّلاً.
 """
@@ -36,7 +36,6 @@ def ensure_reversible(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("core", "0079_capability_grant_wings_school_wide"),
         ("operations", "0072_decision_basis_school_wide"),
