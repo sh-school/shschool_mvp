@@ -557,3 +557,34 @@ def test_the_read_query_count_is_flat_in_the_number_of_students(
     enroll(30, 60)
     sixty = measure()
     assert thirty == sixty and thirty <= 35, (thirty, sixty)
+
+
+# ── «اطفئ الشبكة»: مع المفتاح لا يُفتح كشفُ الحصّة القديم لمن يملك الجدول ───────────
+
+
+def test_with_the_switch_on_the_old_session_sheet_redirects_to_the_class_grid(
+    client_as, assigned, teacher, session, clock
+):
+    """الكشفُ القديمُ (الشبكة) `/teacher/attendance/<حصّة>/` يُحيل المعلّمَ المُسنَدَ إلى جدول شعبته."""
+    Session.objects.filter(pk=session.pk).update(teacher=teacher, class_group=assigned)
+    response = client_as(teacher).get(reverse("attendance", args=[session.id]))
+    assert response.status_code == 302
+    assert response.url == reverse("class_grid", args=[assigned.id])
+
+
+def test_with_the_switch_off_the_old_sheet_is_untouched(
+    settings, client_as, assigned, teacher, session, clock
+):
+    settings.PROVISIONAL_GRID_ENABLED = False
+    Session.objects.filter(pk=session.pk).update(teacher=teacher, class_group=assigned)
+    response = client_as(teacher).get(reverse("attendance", args=[session.id]))
+    assert response.status_code != 302 or "grid" not in response.url
+
+
+def test_a_substitute_without_an_assignment_keeps_the_old_sheet_as_a_fallback(
+    client_as, school, assigned, other_teacher, session, clock
+):
+    """بديلٌ سُلّمتْه الحصّةُ ولا إسنادَ له في الشعبة: لا جدولَ له فلا يُحال، ويبقى الكشفُ القديمُ بديلاً."""
+    Session.objects.filter(pk=session.pk).update(teacher=other_teacher, class_group=assigned)
+    response = client_as(other_teacher).get(reverse("attendance", args=[session.id]))
+    assert not (response.status_code == 302 and "grid" in response.url)

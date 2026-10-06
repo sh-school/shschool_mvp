@@ -663,3 +663,17 @@ def mark_late_now(
         [{"student": str(student.pk), "status": "late", "head": head.head_id if head else ""}],
         request=request,
     )
+
+
+def redirect_target(user: CustomUser, session: Session) -> str | None:
+    """رابطُ جدول شعبة هذه الحصّة إن كان مفتاحُ الجدول مشغَّلاً ويقرؤه هذا المستخدمُ — وإلّا `None` فيبقى الكشفُ القديمُ بديلاً (بديلٌ لا إسنادَ له مثلاً).
+
+    أمرُ المالك 2026-10-06: «اطفئ الشبكة» — مع المفتاح لا يُفتح كشفُ الحصّة القديمُ لمن يملك الجدول، بل جدولُ شعبته.
+    """
+    from django.urls import reverse
+
+    if not provisional_session.grid_enabled() or session.date != timezone.localdate():
+        return None
+    if not can_read_grid(user, session.class_group, session.date):
+        return None
+    return reverse("class_grid", args=[session.class_group_id])

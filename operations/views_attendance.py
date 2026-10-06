@@ -17,7 +17,7 @@ from core.models import StudentEnrollment
 
 from .day_attendance import can_record, is_recorder
 from .models import Session, StudentAttendance
-from .services import AttendanceService, ScheduleService, SubstituteService
+from .services import AttendanceService, ScheduleService, SubstituteService, class_grid
 from .services.attendance_teacher import TeacherAttendanceService
 
 logger = logging.getLogger(__name__)
@@ -174,6 +174,11 @@ def attendance_view(request, session_id):
         and not request.user.is_leadership()
     ):
         return HttpResponse("<p dir='rtl'>غير مسموح — هذه الحصة ليست لك.</p>", status=403)
+
+    target = class_grid.redirect_target(request.user, session)
+    if target:
+        # مفتاحُ جدول الشعبة مشغَّل: الكشفُ القديمُ (الشبكة) مُطفأٌ لمن يملك الجدول — يُحال إلى جدول شعبته.
+        return redirect(target)
 
     enrollments = (
         StudentEnrollment.objects.filter(class_group=session.class_group, is_active=True)
