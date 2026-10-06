@@ -200,12 +200,17 @@ def test_the_absence_register_page_links_to_the_summary_and_lists_every_wing_for
     assert "wing-panel" in body  # الأجنحةُ في «رصد الغياب»
     assert "wing-panel" not in home  # لا بطاقاتِ أجنحةٍ مكدّسةً في رئيسيّة حاصر الغياب العامّ
     assert "لا جناحَ مُسنَدٌ إليك" not in home
+    # رئيسيّتُه بحثٌ ومتابعةٌ فقط: لا بلاطاتٌ ولا عدّاداتٌ مكرّرة (الخيار أ — أمرُ المالك 2026-10-06)
+    assert 'aria-label="إجراءات سريعة"' not in home and "ui-kpis" not in home
+    assert reverse("wings:record_index") in home and 'role="search"' in home
 
 
 def test_the_ordinary_wing_supervisor_keeps_his_wing_card_on_the_home_page(
     school, klass, class_day, holder, client_as
 ):
-    assert "wing-panel" in client_as(holder).get("/dashboard/").content.decode()
+    home = client_as(holder).get("/dashboard/").content.decode()
+    assert "wing-panel" in home
+    assert 'aria-label="إجراءات سريعة"' in home  # بلاطاتُه باقيةٌ لمن ليس حاصراً عامّاً
 
 
 def test_the_screen_is_a_platform_page_with_filters_and_exports_not_a_print_sheet(
