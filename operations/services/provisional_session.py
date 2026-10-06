@@ -162,7 +162,7 @@ def period_choices(
         s.period_number: s
         for s in Session.objects.filter(
             class_group=klass, date=today, provisional=True, teacher=user
-        )
+        ).exclude(status="cancelled")
     }
     own_real = {
         s.start_time: s
@@ -256,6 +256,7 @@ def create(
             if own_real is not None:
                 return own_real, False
 
+            _release_unmarked_blockers(user, school, klass, today, number)
             _guard(user, klass, today, start, number)
             session = Session.objects.create(
                 school=school,
@@ -283,8 +284,58 @@ def create(
             )
     except IntegrityError:
         # سباقٌ على القيد الفريد المشروط: خسر هذا الطلبُ فيُرفض بمعنى لا بـ500.
-        raise ProvisionalRefusedError("سبقتْه حصّةٌ مؤقّتةٌ لهذه الخانة") from None
+        raise ProvisionalRefusedError(
+            f"حجز هذه الخانةَ (الحصّة {number}) معلّمٌ آخرُ قبل لحظات — أعد المحاولة أو اختر رقماً آخر"
+        ) from None
     return session, True
+
+
+def _release_unmarked_blockers(
+    user: CustomUser, school: School, klass: ClassGroup, today: dt.date, number: int
+) -> None:
+    """تحريرُ خانةٍ حجزتها مؤقّتةٌ **غيرُ مرصودةٍ** بدل رفض الطالب (hotfix W-20261006-001، قرارُ المالك): معلّمون يجرّبون حصصاً فيحجزون الخانةَ على من يدرّسها فعلاً.
+
+    القيدان الفريدان المشروطان (شعبة+تاريخ+رقم) و(معلّم+تاريخ+رقم) يشملان `period_number`؛ فإسقاطُه إلى NULL يحرّر الخانةَ بلا هجرةٍ ولا حذف: `status=cancelled` والصفُّ يبقى تاريخاً
+    بسطر تدقيقٍ (السبب بلا PII). المعارِضةُ: مؤقّتةٌ لمعلّمٍ آخر في الشعبة نفسِها، أو لهذا المعلّم في شعبةٍ أخرى. فإن كان فيها رصدٌ (`AttendanceEntry` أو `StudentAttendance`) رُفض الطلبُ باسم الشعبة والحصّة.
+    الحقيقيّةُ لا تُمسّ أبداً (`provisional=True` فقط). يُستدعى داخل معاملة `create` وبقفل الصفوف.
+    """
+    from operations.models import AttendanceEntry, StudentAttendance
+
+    blockers = list(
+        Session.objects.select_for_update()
+        .filter(school=school, date=today, provisional=True, period_number=number)
+        .filter(Q(class_group=klass) | Q(teacher=user))
+        .exclude(status="cancelled")
+        .exclude(class_group=klass, teacher=user)
+        .select_related("class_group")
+    )
+    for old in blockers:
+        if (
+            AttendanceEntry.objects.filter(session=old).exists()
+            or StudentAttendance.objects.filter(session=old).exists()
+        ):
+            raise ProvisionalRefusedError(
+                f"حجزها معلّمٌ آخر وفيها رصد (الحصّة {number} — الشعبة {old.class_group.short_label}); "
+                "اختر رقماً آخر أو راجع المشرف"
+            )
+    for old in blockers:
+        old.status = "cancelled"
+        old.period_number = None
+        old.provisional_until = timezone.now()
+        old.save(update_fields=["status", "period_number", "provisional_until"])
+        AuditLog.log(
+            user=user,
+            action="update",
+            model_name="other",
+            object_id=old.pk,
+            object_repr=f"{LABEL} — تحريرُ خانةٍ غيرِ مرصودةٍ",
+            changes={
+                "reason": "slot_released_unmarked",
+                "class_group": str(old.class_group_id),
+                "period": number,
+            },
+            school=school,
+        )
 
 
 def _throttle(user: CustomUser) -> None:
@@ -320,9 +371,9 @@ def _guard(
     # لا يُرفض الإنشاءُ لوجود حصّةٍ حقيقيّةٍ لمعلّمٍ آخر في الشعبة والوقت (قرارُ المالك D-229م): جدولُ المنصّة غيرُ المعتمد قد يخالف الجدولَ الخارجيَّ المعمولَ به
     # تماماً، فتلك الحصّةُ المولَّدةُ ليست الحقيقةَ — والمؤقّتةُ هي ما يرصده المعلّم فعلاً. والازدواجُ لا يُعدّ مرّتين لأنّ التقارير تحسب الطالبَ بخانة الساعة
     # (حاضرٌ في إحدى حصّتَي الخانة حاضر) لا بعدد الجلسات، وصفوفُ الرصد لا تُكتب إلا حيث رُصد.
-    if Session.objects.filter(teacher=user, date=today, provisional=True).count() >= len(
-        PERIOD_NUMBERS
-    ):
+    if Session.objects.filter(teacher=user, date=today, provisional=True).exclude(
+        status="cancelled"
+    ).count() >= len(PERIOD_NUMBERS):
         raise ProvisionalRefusedError("بلغتَ سقفَ الحصص المؤقّتة اليوم")
     recent = Session.objects.filter(
         teacher=user, provisional=True, created_at__gte=timezone.now() - dt.timedelta(hours=1)
