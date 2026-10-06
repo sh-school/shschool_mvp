@@ -498,7 +498,7 @@ def holds_school_wide(user: CustomUser) -> bool:
     """أمشرفٌ إداريٌّ مُنح «حاصرَ الغياب العامّ»؟ — المنحُ وحدَه لا يكفي دون الدور: لا يرفع غيرَ المشرف."""
     from core.capability_grants import holds
 
-    return user.get_role() == "admin_supervisor" and holds(user, SCHOOL_WIDE)  # type: ignore[no-untyped-call]
+    return user.get_role() == "admin_supervisor" and holds(user, SCHOOL_WIDE)
 
 
 def wings_of(user: CustomUser, school: School, year: str) -> list[Wing]:

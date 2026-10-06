@@ -22,7 +22,7 @@
 .grid td.is-warn { color: {% brand_color "STATUS_WARNING_DARK" %}; font-weight: 700; }
 .grid td.muted { color: {% brand_color "TEXT_MUTED" %}; }
 .note { margin: 6px 0; font-size: 9.5px; color: {% brand_color "STATUS_WARNING_DARK" %}; font-weight: 700; }
-.names { page-break-before: always; }
+.sheet + .sheet, .names { page-break-before: always; }
 {% endblock %}
 
 {% block content %}
