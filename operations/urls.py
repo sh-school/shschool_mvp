@@ -4,7 +4,7 @@ from . import views
 from .views_attendance_entries import (
     approval_decide,
     approvals,
-    approve_all,
+    approve_session,
     correct_page,
     correct_submit,
     entry_submit,
@@ -22,7 +22,11 @@ urlpatterns = [
     path("classes/<uuid:class_id>/period/", provisional_create, name="provisional_create"),
     # -- رصدُ المعلّم المبدئيّ واعتمادُه (W-020) --
     path("attendance/approvals/", approvals, name="attendance_approvals"),
-    path("attendance/approvals/approve-all/", approve_all, name="attendance_approve_all"),
+    path(
+        "attendance/approvals/session/<uuid:session_id>/approve/",
+        approve_session,
+        name="attendance_approve_session",
+    ),
     path("attendance/approvals/<uuid:entry_id>/decide/", approval_decide, name="attendance_decide"),
     path("attendance/unapproved/", unapproved, name="attendance_unapproved"),
     path("attendance/<uuid:session_id>/entry/", entry_submit, name="attendance_entry"),

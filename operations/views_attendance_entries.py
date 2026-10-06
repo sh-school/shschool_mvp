@@ -10,7 +10,6 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from core.capabilities import capability_required
@@ -118,24 +117,27 @@ def period_entries(request, session_id):
 @capability_required("wings.record_day")
 def approvals(request):
     """طابورُ الاعتماد: ما يملك هذا المستخدمُ قرارَه (حاملُ الجناح، أو القيادةُ حين لا حاملَ فعليّاً)."""
-    items = TeacherAttendanceService.queue(request.user, request.school)
-    return render(request, "attendance/approvals.html", {"items": items})
+    groups = TeacherAttendanceService.approval_groups(request.user, request.school)
+    return render(
+        request,
+        "attendance/approvals.html",
+        {"groups": groups, "entries_total": sum(g.total for g in groups)},
+    )
 
 
 @login_required
 @capability_required("wings.record_day")
 @require_POST
-def approve_all(request):
-    """اعتمادُ كلِّ ما ينتظر هذا المشرفَ دفعةً واحدة (كلُّ الشعب والحصص) — كلُّ إدخالٍ بقراره المسجَّل باسمه."""
-    approved, skipped = TeacherAttendanceService.approve_all(request.user, request.school)
-    text = f"اعتُمد {approved} إدخالاً"
+def approve_session(request, session_id):
+    """اعتمادُ حصّةٍ كاملةٍ دفعةً واحدة — كلُّ إدخالٍ بقراره المسجَّل باسمه؛ والرفضُ بنداً بنداً."""
+    approved, skipped = TeacherAttendanceService.approve_session(
+        request.user, request.school, session_id
+    )
+    text = f"اعتُمدت الحصّة: {approved} إدخالاً"
     if skipped:
         text += f" · وتُخطّي {skipped} (تعارضٌ أو نسخةٌ أحدث) بقيت في القائمة لتنظر فيها"
     (messages.warning if skipped else messages.success)(request, text + ".")
-    target = request.POST.get("next", "")
-    if not url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()}):
-        target = reverse("attendance_approvals")
-    return redirect(target)
+    return redirect("attendance_approvals")
 
 
 @login_required

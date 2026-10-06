@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
 {% load icons %}
-{% load ui %}
+{% load ui navigation %}
 
 {% block title %}رصد الغياب{% endblock %}
 
@@ -21,6 +21,8 @@
     </form>
     {% callout "hint" %}تُرصد كلُّ حصّةٍ بدخول الفصل، والحصّةُ التي لم تُثبَّت حتى خمس دقائق بعد نهايتها
     تبقى «لم تُرصد». وشعبةٌ «لم تُرصد» ليست شعبةً كلُّها حاضر.{% endcallout %}
+    <a href="{% url 'attendance_approvals' %}" class="btn-secondary btn-sm">{% icon "checklist" %} اعتمادُ رصد المعلّمين</a>
+    {% if request.user|can_open:"wings:ministry_report" %}<a href="{% url 'wings:ministry_report' %}?date={{ day|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>{% endif %}
   {% endpage_header %}
 
   {% include "wings/partials/student_search_form.html" %}

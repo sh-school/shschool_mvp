@@ -491,6 +491,16 @@ def next_section_awaiting(klass: ClassGroup, day: dt.date, start: dt.time) -> Cl
     return None
 
 
+SCHOOL_WIDE = "wings.school_wide"
+
+
+def holds_school_wide(user: CustomUser) -> bool:
+    """أمشرفٌ إداريٌّ مُنح «حاصرَ الغياب العامّ»؟ — المنحُ وحدَه لا يكفي دون الدور: لا يرفع غيرَ المشرف."""
+    from core.capability_grants import holds
+
+    return user.get_role() == "admin_supervisor" and holds(user, SCHOOL_WIDE)
+
+
 def wings_of(user: CustomUser, school: School, year: str) -> list[Wing]:
     """أجنحةُ هذا المستخدم — ما يحمله اليوم أصيلاً أو بديلاً.
 
@@ -514,6 +524,8 @@ def wings_of(user: CustomUser, school: School, year: str) -> list[Wing]:
         "vice_academic",
         "platform_developer",
     ):
+        return all_wings
+    if holds_school_wide(user):
         return all_wings
     return [w for w in all_wings if w.current_supervisor() == user]
 

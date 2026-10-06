@@ -311,6 +311,12 @@ def can_approve(
     if entered_by is not None and user.id == entered_by.id:
         return _deny("own_entry")
 
+    from wings.services import holds_school_wide
+
+    # حاصرُ الغياب العامّ معتمِدٌ ثانٍ بجانب حامل الجناح دائماً (قرارُ المالك 2026-10-06): لا ما أدخله بنفسه
+    # ولا رصدَ التربية الخاصّة (النهائيّ) — وقد رُدّا أعلاه.
+    if holds_school_wide(user):
+        return _allow()
     holder = approval_holder(session)
     if holder is not None:
         return _allow() if user.id == holder.id else _deny("not_holder")

@@ -503,7 +503,7 @@ def supervisor_record_ctx(user, school, today):
     from core.dashboard_presentation import chunk_for_grid
     from operations.school_days import school_day
     from operations.services import ScheduleService
-    from wings.services import record_panels, supervisor_watchlist
+    from wings.services import holds_school_wide, record_panels, supervisor_watchlist
 
     year = academic_year_for_school(school)
     day = school_day(school, today)
@@ -520,7 +520,9 @@ def supervisor_record_ctx(user, school, today):
         "awaiting_contact_cols": chunk_for_grid(watchlist["awaiting_contact"], 2),
         "at_gates_cols": chunk_for_grid(watchlist["at_gates"], 2),
     }
-    if day.is_open:
+    # حاصرُ الغياب العامّ يرى الأجنحةَ الخمسة في «رصد الغياب» (أمرُ المالك 2026-10-06): لا بطاقاتِ أجنحةٍ مكدّسةً في رئيسيّته.
+    ctx["school_wide"] = holds_school_wide(user)
+    if day.is_open and not ctx["school_wide"]:
         # الحصصُ تُولَّد إن لم تكن — وإلّا بدت الشُّعبُ «بلا حصص» صباحاً.
         ScheduleService.ensure_sessions_for_date(school, today)
         ctx["record_panels"] = record_panels(user, school, year, today)

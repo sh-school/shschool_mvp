@@ -1,0 +1,136 @@
+{% extends "base/base.html" %}
+{% load ui icons %}
+{% comment %}
+  ملخّصُ غياب الحصّتين الأولى والثانية — شاشةُ المنصّة (للقراءة والتصدير). قرارُ المالك 2026-10-06.
+  الرفعُ في نظام الوزارة يدويٌّ خارجَ المنصّة، فالشاشةُ تُعدّ له ما يحتاجه من مكانٍ واحد: كم طالباً غاب الحصّتين معاً
+  في كلّ شعبةٍ، ثمّ أسماءُ من يُرفعون. وهي بمكوّنات المنصّة المركزيّة وحدَها (ui.py) بلا نمطٍ محلّيّ؛
+  والبياناتُ من `wings/ministry_selectors.py`، والـPDF/Excel من القالب `ministry_pdf.html` ومصنّف `ministry_excel.py`.
+  لا رقمَ شخصيّاً في أيّ مخرَج (قرارُ 2026-09-13).
+{% endcomment %}
+{% block title %}ملخّص غياب الحصّتين الأولى والثانية{% endblock %}
+
+{% block main_class %}{% page_layout "report" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% url 'daily_report' as daily_url %}
+{% include "components/breadcrumbs.html" with parent_url=daily_url parent_label="غياب اليوم" current="ملخّص الحصّتين الأولى والثانية" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "ملخّص غياب الحصّتين الأولى والثانية" subtitle=subtitle icon="absence" %}
+    <form method="get" class="per-exports" aria-label="تصدير الملخّص">
+      <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+      <input type="hidden" name="grade" value="{{ grade }}">
+      <input type="hidden" name="q" value="{{ q }}">
+      <select name="orient" class="form-select per-orient" aria-label="اتّجاه الصفحة">
+        <option value="landscape">أفقي</option>
+        <option value="portrait">عمودي</option>
+      </select>
+      <button data-app-file type="submit" name="format" value="xlsx" class="btn-secondary btn-sm">{% icon "export_excel" %} Excel</button>
+      <button data-app-file type="submit" name="format" value="pdf" class="btn-secondary btn-sm">{% icon "export_pdf" %} PDF</button>
+    </form>
+    {% callout "hint" %}للقراءة فقط: يُرفع الطالبُ غائباً إن غاب الحصّتين الأولى والثانية معاً ورصدُه كاملٌ في الاثنتين. ومن لم تُرصد إحداهما «بلا رصد» ولا يُحسب غائباً، ورصدُ المعلّم بانتظار الاعتماد وسمٌ لا يدخل في أيّ عدّ. والرفعُ في نظام الوزارة يدويٌّ خارجَ المنصّة.{% endcallout %}
+  {% endpage_header %}
+
+  {% filter_bar "ترشيحُ الملخّص" %}
+    {% field "date" "التاريخ" type="date" value=day|date:"Y-m-d" data_autosubmit=True %}
+    {% field "grade" "الصفّ" type="select" choices=grades value=grade blank="— كل الصفوف —" data_autosubmit=True %}
+    {% field "q" "بحث" type="search" value=q grow=True placeholder="رمزُ شعبةٍ أو اسمُ طالب" autocomplete="off" %}
+    <button type="submit" class="btn-primary btn-sm">{% icon "search" %} بحث</button>
+  {% endfilter_bar %}
+
+  {% kpi_strip label="أرقام الحصّتين الأولى والثانية" %}
+    {% kpi "المقيَّدون" summary.total.enrolled tone="teal" %}
+    {% kpi "غابوا الحصّتين" summary.total.absent_both tone="red" sub="يُرفعون في نظام الوزارة" %}
+    {% kpi "بلا عذر" summary.total.absent_both_unexcused tone="maroon" sub="من غابوا الحصّتين" %}
+    {% kpi "بعذر" summary.total.absent_both_excused tone="blue" sub="من غابوا الحصّتين" %}
+    {% kpi "غابوا إحداهما" summary.total.absent_one tone="amber" %}
+    {% kpi "بلا رصد" summary.total.unrecorded tone="orange" sub="لا يُحكم عليهم" %}
+  {% endkpi_strip %}
+
+  {% for note in summary.notes %}{% callout "warning" show=True %}{{ note }}{% endcallout %}{% endfor %}
+
+  {% section_card "حسب الصفّ والشعبة" meta=summary.class_rows|length icon="stats" empty="لا شعبَ تطابق الترشيح" flush=True %}{% if summary.grades %}
+    <div class="table-wrap">
+      <table data-no-sort>
+        <thead>
+          <tr>
+            <th>الصفُّ / الشعبة</th>
+            <th class="num">المقيَّدون</th>
+            <th class="num">غابوا الحصّتين بلا عذر</th>
+            <th class="num">غابوا الحصّتين بعذر</th>
+            <th class="num">غابوا إحداهما</th>
+            <th class="num">تأخّروا</th>
+            <th class="num">بلا رصد</th>
+            <th class="num">بانتظار الاعتماد</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for grade_row in summary.grades %}
+          {% for item in grade_row.rows %}
+          <tr>
+            <td>{{ item.group.short_code }}{% if not item.has_periods %} <span class="status-badge status-warning">لا حصّتان</span>{% endif %}</td>
+            <td class="num">{{ item.counts.enrolled }}</td>
+            <td class="num">{% if item.counts.absent_both_unexcused %}<span class="status-badge status-danger">{{ item.counts.absent_both_unexcused }}</span>{% else %}{{ item.counts.absent_both_unexcused }}{% endif %}</td>
+            <td class="num">{% if item.counts.absent_both_excused %}<span class="status-badge status-info">{{ item.counts.absent_both_excused }}</span>{% else %}{{ item.counts.absent_both_excused }}{% endif %}</td>
+            <td class="num">{{ item.counts.absent_one }}</td>
+            <td class="num">{{ item.counts.late }}</td>
+            <td class="num">{% if item.counts.unrecorded %}<span class="status-badge status-warning">{{ item.counts.unrecorded }}</span>{% else %}{{ item.counts.unrecorded }}{% endif %}</td>
+            <td class="num">{% if item.counts.pending %}<span class="status-badge status-warning">{{ item.counts.pending }}</span>{% else %}{{ item.counts.pending }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+          <tr>
+            <td><strong>مجموع {{ grade_row.label }}</strong></td>
+            <td class="num"><strong>{{ grade_row.counts.enrolled }}</strong></td>
+            <td class="num"><strong>{{ grade_row.counts.absent_both_unexcused }}</strong></td>
+            <td class="num"><strong>{{ grade_row.counts.absent_both_excused }}</strong></td>
+            <td class="num"><strong>{{ grade_row.counts.absent_one }}</strong></td>
+            <td class="num"><strong>{{ grade_row.counts.late }}</strong></td>
+            <td class="num"><strong>{{ grade_row.counts.unrecorded }}</strong></td>
+            <td class="num"><strong>{{ grade_row.counts.pending }}</strong></td>
+          </tr>
+        {% endfor %}
+          <tr>
+            <td><strong>{% if filtered %}مجموع المعروض{% elif bound %}مجموع جناحك{% else %}مجموع المدرسة{% endif %}</strong></td>
+            <td class="num"><strong>{{ summary.total.enrolled }}</strong></td>
+            <td class="num"><strong>{{ summary.total.absent_both_unexcused }}</strong></td>
+            <td class="num"><strong>{{ summary.total.absent_both_excused }}</strong></td>
+            <td class="num"><strong>{{ summary.total.absent_one }}</strong></td>
+            <td class="num"><strong>{{ summary.total.late }}</strong></td>
+            <td class="num"><strong>{{ summary.total.unrecorded }}</strong></td>
+            <td class="num"><strong>{{ summary.total.pending }}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+
+  {% section_card "من يُرفعون غائبين — الحصّتان الأولى والثانية" meta=summary.ministered|length icon="status_warning" empty="لا غائبَ في الحصّتين معاً" flush=True %}{% if summary.ministered %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="num">#</th>
+            <th>الطالب</th>
+            <th data-sort="num" data-sort-first="asc">الشعبة</th>
+            <th>الحال</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in summary.ministered %}
+          <tr>
+            <td class="num">{{ forloop.counter }}</td>
+            <td>{{ item.name }}</td>
+            <td>{{ item.class_code }}</td>
+            <td><span class="status-badge {% if item.excused %}status-info{% else %}status-danger{% endif %}">{% if item.excused %}غائب بعذر{% else %}غائب بلا عذر{% endif %}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+
+</div>
+{% endblock %}

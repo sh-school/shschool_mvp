@@ -162,6 +162,7 @@ class AttendanceDecision(AppendOnlyModel):
         ("leadership_no_holder", "القيادةُ — لا حاملَ للجناح"),
         ("leadership_holder_is_teacher", "القيادةُ — حاملُ الجناح هو معلّمُ الحصّة"),
         ("leadership_holder_inactive", "القيادةُ — حاملُ الجناح بلا عضويّةٍ نشطة"),
+        ("school_wide", "حاصرُ الغياب العامّ — اعتمادٌ ثانٍ بجانب الحامل"),
         ("supervisor_record", "كُتب رصدُ مشرفٍ فوق الإدخال"),
         ("special_ed_self", "التربيةُ الخاصّة — اعتمادٌ ذاتيٌّ بالتصميم"),
     ]

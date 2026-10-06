@@ -1,3 +1,0 @@
-{% if count %}<form id="approve-all-form" method="post" action="{% url 'attendance_approve_all' %}" data-confirm="اعتماد {{ count }} إدخالاً دفعةً واحدة (كلُّ الشعب والحصص)؟ يُسجَّل كلُّ قرارٍ باسمك والرفضُ يبقى بنداً بنداً.">
-  {% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
-</form>{% endif %}

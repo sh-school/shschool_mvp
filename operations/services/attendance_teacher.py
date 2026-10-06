@@ -29,6 +29,7 @@ from operations.attendance_selectors import (
     QueueItem,
     StudentLine,
     UnapprovedSession,
+    approval_groups,
     approval_queue,
     recent_corrections,
     student_line,
@@ -158,14 +159,21 @@ class TeacherAttendanceService:
         return approval_queue(user, school)
 
     @staticmethod
-    def approve_all(user: CustomUser, school: School) -> tuple[int, int]:
-        """يعتمد **كلَّ** ما يملك هذا المستخدمُ قرارَه في الطابور — كلَّ الشعب وكلَّ الحصص — ويُرجع `(اعتُمد، تُخطّي)`.
+    def approval_groups(user: CustomUser, school: School) -> list[Any]:
+        """الطابورُ مجموعاً بالحصّة — بطاقةٌ لكلّ حصّةٍ لا لكلّ طالب."""
+        return approval_groups(user, school)
 
-        أمرُ المالك 2026-10-04: المشرفُ لا يعتمد حصّةً حصّةً لخمس شعبٍ. كلُّ إدخالٍ يمرّ بـ`decide_entry` نفسِه (الأهليّةُ والقفلُ وسجلُّ التدقيق باسم المعتمِد)
-        فلا طريقَ التفافيّاً؛ وما اصطدم برصدٍ بشريٍّ آخر أو حلّت محلَّه نسخةٌ أحدث يُتخطّى ويبقى في الطابور ليُنظر فيه بنفسه. والرفضُ لا يكون جماعيّاً أبداً (يلزمه سببٌ لكلّ إدخال).
+    @staticmethod
+    def approve_session(user: CustomUser, school: School, session_id: UUID) -> tuple[int, int]:
+        """يعتمد كلَّ ما ينتظر هذا المستخدمَ في **حصّةٍ واحدة** ويُرجع `(اعتُمد، تُخطّي)`.
+
+        كلُّ إدخالٍ بقراره المسجَّل باسمه عبر `decide_entry` نفسِه كالاعتماد الجماعيّ (الأهليّةُ والقفلُ والتدقيق)؛ وما اصطدم
+        يُتخطّى ويبقى في الطابور. والرفضُ لا يكون جماعيّاً أبداً — يلزمه سببٌ لكلّ إدخال.
         """
         approved = skipped = 0
         for item in approval_queue(user, school):
+            if item.entry.session_id != session_id:
+                continue
             try:
                 _decision, created = decide_entry(user, item.entry, approve=True)
             except (EntryError, EntryRefusedError):
