@@ -8,8 +8,8 @@
 
 import importlib
 import json
+import os
 import pathlib
-import subprocess
 import sys
 
 from weasyprint import HTML
@@ -46,16 +46,8 @@ GUIDES = {
 
 
 def base_commit():
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(ROOT), "rev-parse", "--short=8", "HEAD"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return out.stdout.strip()
-    except (OSError, subprocess.CalledProcessError):
-        return "غير معروف"
+    """رأسُ الشيفرة المصوَّرة منها الشاشات: يُمرَّر بالمتغيّر BASE_COMMIT عند البناء (لا استدعاءَ لغيت من هنا)."""
+    return os.environ.get("BASE_COMMIT", "غير معروف")
 
 
 def render_block(block):

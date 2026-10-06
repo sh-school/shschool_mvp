@@ -21,7 +21,6 @@ from django.db import transaction  # noqa: E402
 transaction.set_autocommit(False)  # أيُّ خطأ يُلغي البذرَ كلَّه فيُعاد بلا إعادة تهجير
 
 from django.core.management import call_command  # noqa: E402
-from django.utils import timezone  # noqa: E402
 
 from core.academic_calendar import academic_year_for_school  # noqa: E402
 from core.management.commands.seed_wings import WINGS  # noqa: E402
@@ -37,7 +36,9 @@ from operations.models import (
     Subject,
     SubjectClassAssignment,
     TimeSlotConfig,
-)  # noqa: E402
+)
+
+# noqa: E402
 from operations.period_register import confirm_period  # noqa: E402
 from tests.conftest import (  # noqa: E402
     MembershipFactory,
