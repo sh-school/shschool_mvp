@@ -1,4 +1,4 @@
-"""استجابةُ ملخّص الحصّتين الأولى والثانية — معاينةً أو PDF أو Excel. (كتابتُها هنا لا في العرض: طبقاتُ المنصّة.)"""
+"""استجابةُ ملخّص الحصّتين الأولى والثانية — شاشةَ منصّةٍ أو PDF أو Excel. (كتابتُها هنا لا في العرض: طبقاتُ المنصّة.)"""
 
 from django.shortcuts import render
 from django.template.loader import render_to_string
@@ -15,7 +15,16 @@ from .register import footer_lines
 TITLE = "ملخّصُ غياب الحصّتين الأولى والثانية"
 
 
-def respond(request, school, summary: MinistrySummary, *, fmt: str, orient: str, bound: bool):
+def respond(
+    request,
+    school,
+    summary: MinistrySummary,
+    *,
+    fmt: str,
+    orient: str,
+    bound: bool,
+    screen: dict | None = None,
+):
     """يُخرج الملخّصَ بالصيغة المطلوبة؛ والتصديرُ مدقَّق بلا رقمٍ شخصيّ."""
     ctx = get_export_context(request, TITLE)
     ctx.update(
@@ -34,5 +43,9 @@ def respond(request, school, summary: MinistrySummary, *, fmt: str, orient: str,
         return render_pdf(
             html, generate_export_filename("wings", "ministry_p1p2", "pdf"), as_attachment=True
         )
-    ctx["for_screen"] = True
-    return render(request, "wings/ministry_pdf.html", ctx)
+    ctx.update(screen or {})
+    ctx.update(day=summary.day, bound=bound, filtered=bool(ctx.get("grade") or ctx.get("q")))
+    ctx["subtitle"] = f"للرفع في نظام الوزارة · {summary.day:%d/%m/%Y} · " + (
+        "طلبةُ جناحك" if bound else "المدرسةُ كلُّها"
+    )
+    return render(request, "wings/ministry_report.html", ctx)

@@ -69,6 +69,8 @@ class GradeRow:
     label: str
     counts: Counts
     rows: list[ClassRow] = field(default_factory=list)
+    #: رمزُ الصفّ (G8…) — مفتاحُ الترشيح لا نصُّ العرض.
+    key: str = ""
 
 
 @dataclass(frozen=True)
@@ -78,6 +80,7 @@ class Ministered:
     name: str
     class_code: str
     excused: bool
+    grade: str = ""
 
 
 @dataclass
@@ -166,6 +169,7 @@ def _row_counts(
     pending: dict[Any, Any],
     ministered: list[Ministered],
     class_code: str,
+    grade_key: str,
 ) -> Counts:
     counts = Counts(enrolled=len(students))
     for student in students:
@@ -183,12 +187,65 @@ def _row_counts(
                 counts.absent_both_excused += 1
             else:
                 counts.absent_both_unexcused += 1
-            ministered.append(Ministered(student.full_name, class_code, excused))
+            ministered.append(Ministered(student.full_name, class_code, excused, grade_key))
         elif "absent" in statuses:
             counts.absent_one += 1
         elif "late" in statuses:
             counts.late += 1
     return counts
+
+
+def _notes(total: Counts) -> list[str]:
+    """تنبيهاتُ الملخّص من مجاميعه — بلا رصدٍ وبانتظار الاعتماد."""
+    notes: list[str] = []
+    if total.unrecorded:
+        notes.append(f"{total.unrecorded} طالباً بلا رصدٍ في إحدى الحصّتين — لا يُرفعون حتّى يُرصدوا.")
+    if total.pending:
+        notes.append(
+            f"{total.pending} طالباً لهم رصدُ معلّمٍ بانتظار الاعتماد — لا يدخل في أيّ عدٍّ حتّى يُعتمد."
+        )
+    return notes
+
+
+def grade_choices(summary: MinistrySummary) -> list[tuple[str, str]]:
+    """(رمزُ الصفّ، نصُّه) لقائمة الترشيح — بترتيب الصفوف في الملخّص."""
+    return [(grade.key, grade.label) for grade in summary.grades if grade.key]
+
+
+def narrow(summary: MinistrySummary, *, grade: str = "", q: str = "") -> MinistrySummary:
+    """ملخّصٌ مضيَّقٌ بصفٍّ و/أو بحثٍ في الشعبة أو اسم الطالب — والمجاميعُ تُعاد من الصفوف الباقية.
+
+    فما يراه المستخدمُ في الجدول والأرقام والتصدير شيءٌ واحد: ترشيحٌ لا يطابق مجموعَه. والبحثُ باسمِ طالبٍ
+    يُبقي شعبتَه وحدَها، وبرمز شعبةٍ يُبقي الشعبةَ وأسماءَ من يُرفعون منها.
+    """
+    needle = (q or "").strip()
+    if not grade and not needle:
+        return summary
+    in_scope = [g for g in summary.grades if not grade or g.key == grade]
+    scope_codes = {row.group.short_code for g in in_scope for row in g.rows}
+    by_name = {m.class_code for m in summary.ministered if needle and needle in m.name}
+    ministered = [
+        m
+        for m in summary.ministered
+        if m.class_code in scope_codes
+        and (not needle or needle in m.name or needle in m.class_code)
+    ]
+    grades: list[GradeRow] = []
+    total = Counts()
+    for source in in_scope:
+        rows = [
+            row
+            for row in source.rows
+            if not needle or needle in row.group.short_code or row.group.short_code in by_name
+        ]
+        if not rows:
+            continue
+        counts = Counts()
+        for row in rows:
+            counts.add(row.counts)
+        grades.append(GradeRow(source.label, counts, rows, source.key))
+        total.add(counts)
+    return MinistrySummary(summary.day, grades, total, ministered, _notes(total))
 
 
 def ministry_summary(school: Any, day: dt.date, *, student_ids: Any = None) -> MinistrySummary:
@@ -215,25 +272,20 @@ def ministry_summary(school: Any, day: dt.date, *, student_ids: Any = None) -> M
         times = slots.get(group.id, [])
         has_periods = len(times) >= PERIODS
         counts = (
-            _row_counts(students, group.id, times, marks, pending, ministered, group.short_code)
+            _row_counts(
+                students, group.id, times, marks, pending, ministered, group.short_code, group.grade
+            )
             if has_periods
             else Counts(enrolled=len(students))
         )
         label = group.get_grade_display() if hasattr(group, "get_grade_display") else group.grade
-        grade = grades.setdefault(group.grade, GradeRow(str(label), Counts()))
+        grade = grades.setdefault(group.grade, GradeRow(str(label), Counts(), key=group.grade))
         grade.rows.append(ClassRow(group, counts, has_periods))
         grade.counts.add(counts)
         total.add(counts)
 
-    notes: list[str] = []
-    if total.unrecorded:
-        notes.append(f"{total.unrecorded} طالباً بلا رصدٍ في إحدى الحصّتين — لا يُرفعون حتّى يُرصدوا.")
-    if total.pending:
-        notes.append(
-            f"{total.pending} طالباً لهم رصدُ معلّمٍ بانتظار الاعتماد — لا يدخل في أيّ عدٍّ حتّى يُعتمد."
-        )
     ministered.sort(key=lambda m: (m.class_code, m.name))
-    return MinistrySummary(day, list(grades.values()), total, ministered, notes)
+    return MinistrySummary(day, list(grades.values()), total, ministered, _notes(total))
 
 
 def summary_for_request(request: Any, day: dt.date) -> tuple[MinistrySummary, bool]:
@@ -250,3 +302,16 @@ def summary_for_request(request: Any, day: dt.date) -> tuple[MinistrySummary, bo
         request.school, day, student_ids=scope.student_ids() if scope.is_wing_bound else None
     )
     return summary, scope.is_wing_bound and not holds_school_wide(request.user)
+
+
+def dashboard_figures(user: Any, school: Any, day: dt.date) -> Counts:
+    """أرقامُ الحصّتين الأولى والثانية لرأس لوحة المشرف — مجاميعُ بلا أسماء (PDPPL: تقليلُ البيانات).
+
+    النطاقُ نطاقُ الطلبة نفسُه كالملخّص: المشرفُ لطلبة جناحه، وحاصرُ الغياب العامّ والقيادةُ للمدرسة كلِّها.
+    """
+    from .scope import student_scope
+
+    scope = student_scope(user, school)
+    return ministry_summary(
+        school, day, student_ids=scope.student_ids() if scope.is_wing_bound else None
+    ).total

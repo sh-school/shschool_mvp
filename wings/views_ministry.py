@@ -1,7 +1,7 @@
-"""ملخّصُ الحصّتين الأولى والثانية للرفع في نظام الوزارة — معاينةً أو PDF أو Excel.
+"""ملخّصُ الحصّتين الأولى والثانية للرفع في نظام الوزارة — شاشةَ منصّةٍ أو PDF أو Excel.
 
 الصلاحيّةُ صلاحيّةُ الرصد (`wings.record_day`) والنطاقُ نطاقُ الطلبة نفسُه: المشرفُ لطلبة جناحه، وحاصرُ
-الغياب العامّ والقيادةُ للمدرسة كلِّها. والتصديرُ يُدقَّق كأيّ مصدِّر، بلا رقمٍ شخصيّ.
+الغياب العامّ والقيادةُ للمدرسة كلِّها. والتصديرُ يُدقَّق كأيّ مصدِّر، بلا رقمٍ شخصيّ. والترشيحُ (الصفّ والبحث) يسري على الشاشة والملفّ معاً.
 """
 
 from django.contrib.auth.decorators import login_required
@@ -10,7 +10,7 @@ from django.utils import timezone
 from core.capabilities import capability_required
 
 from .ministry_response import respond
-from .ministry_selectors import summary_for_request
+from .ministry_selectors import grade_choices, narrow, summary_for_request
 from .views import _day
 from .views_register import _format, _orientation
 
@@ -21,11 +21,17 @@ def ministry_report(request):
     """غابوا الأولى والثانية — بالشعبة والصفّ والمدرسة، وأسماءُ من يُرفعون."""
     day = _day(request.GET.get("date"), timezone.localdate())
     summary, bound = summary_for_request(request, day)
+    grades = grade_choices(summary)
+    grade = request.GET.get("grade", "")
+    if grade not in {key for key, _ in grades}:
+        grade = ""
+    q = request.GET.get("q", "").strip()[:60]
     return respond(
         request,
         request.school,
-        summary,
+        narrow(summary, grade=grade, q=q),
         fmt=_format(request),
         orient=_orientation(request),
         bound=bound,
+        screen={"grades": grades, "grade": grade, "q": q},
     )

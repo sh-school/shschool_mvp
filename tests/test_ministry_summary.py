@@ -195,3 +195,58 @@ def test_the_school_wide_holder_dashboard_links_to_the_summary_and_lists_every_w
 
     assert reverse("wings:ministry_report") in body
     assert "لا جناحَ مُسنَدٌ إليك" not in body
+    assert "الأجنحةُ الخمسة" in body  # بلاطةُ «طلبة المدرسة» لا «طلبة جناحي»
+    assert "غابوا الحصّتين" in body  # شريطُ أرقام الحصّتين برابط الملخّص
+
+
+def test_the_wing_supervisor_dashboard_keeps_wing_wording_and_shows_figures_without_names(
+    school, klass, class_day, holder, client_as
+):
+    body = client_as(holder).get("/dashboard/").content.decode()
+
+    assert "الأجنحةُ الخمسة" not in body
+    assert "غابوا الحصّتين" in body
+    assert "غائبٌ بعذر" not in body  # أرقامٌ ورابطٌ لا أسماء (D-171م)
+
+
+def test_the_screen_is_a_platform_page_with_filters_and_exports_not_a_print_sheet(
+    school, klass, class_day, holder, client_as
+):
+    """الشاشةُ بمكوّنات المنصّة (ترويسةٌ وشريطُ ترشيحٍ وبطاقاتٌ) وفيها تصديرُ Excel وPDF — لا قالبَ طباعة."""
+    body = (
+        client_as(holder)
+        .get(reverse("wings:ministry_report"), {"date": SUNDAY.isoformat()})
+        .content.decode()
+    )
+
+    assert 'role="search"' in body and "ui-page-header" in body and "ui-kpis" in body
+    assert 'value="xlsx"' in body and 'value="pdf"' in body
+    assert "running-footer" not in body  # ليس قالبَ PDF
+
+
+def test_the_grade_and_search_filters_narrow_the_numbers_and_the_names_together(
+    school, klass, class_day, holder, client_as
+):
+    page = client_as(holder)
+    url = reverse("wings:ministry_report")
+
+    by_name = page.get(url, {"date": SUNDAY.isoformat(), "q": "غائبٌ بعذر"}).content.decode()
+    nothing = page.get(url, {"date": SUNDAY.isoformat(), "q": "لا يوجد أحد بهذا"}).content.decode()
+    own_grade = page.get(url, {"date": SUNDAY.isoformat(), "grade": klass.grade}).content.decode()
+
+    assert "غائبٌ بعذر" in by_name and "طالب الشعبة" not in by_name
+    assert "لا شعبَ تطابق الترشيح" in nothing
+    assert "غائبٌ بعذر" in own_grade
+
+
+def test_a_filtered_export_matches_the_screen(school, klass, class_day, holder, client_as):
+    from wings.ministry_selectors import narrow
+
+    summary = ministry_summary(school, SUNDAY)
+    narrowed = narrow(summary, q="غائبٌ بعذر")
+
+    assert [m.name for m in narrowed.ministered] == ["غائبٌ بعذر"]
+    assert narrowed.total.enrolled == summary.total.enrolled  # شعبتُه وحدَها وهي الوحيدة
+    assert narrow(summary) is summary  # بلا ترشيحٍ لا نسخةَ ثانية
+    other = narrow(summary, grade="G99")  # صفٌّ لا يضمّ شعبتَه
+    assert other.ministered == [] and other.total.enrolled == 0

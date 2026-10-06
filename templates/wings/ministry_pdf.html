@@ -2,13 +2,12 @@
 {% load brand_tags %}
 {% comment %}
   ملخّصُ غياب الحصّتين الأولى والثانية للرفع في نظام الوزارة — الشعبةُ والصفُّ والمدرسةُ، ثمّ أسماءُ من يُرفعون.
-  قالبٌ للـPDF وعرضِ المتصفّح (`for_screen`) معاً — لا طباعةَ مباشرةً منه (قرارُ المالك 2026-09-28)،
+  قالبُ الـPDF وحدَه — شاشةُ المنصّة `ministry_report.html` (لا طباعةَ مباشرةً من صفحة ويب، قرارُ المالك 2026-09-28)،
   والبياناتُ من `wings/ministry_selectors.py`. ولا رقمَ شخصيّاً فيه (قرارُ 2026-09-13).
 {% endcomment %}
 
 {% block extra_styles %}
 @page { size: A4 {{ orient|default:"landscape" }}; margin: 9mm 10mm 22mm 10mm; }
-{% if for_screen %}.running-footer { display: none; }{% endif %}
 .doc-body { padding: 6px 14px 12px; }
 .report-title-bar { font-size: 13px; padding: 6px 16px; }
 .report-meta td { padding: 4px 10px; font-size: 10px; }
