@@ -35,6 +35,11 @@
          data-closes="{{ page.closes|time:'H:i' }}"
          data-correcting="{% if page.correction_mode %}1{% endif %}">
       {% csrf_token %}
+      {# نموذجٌ مخفيٌّ يستدعي نافذةَ التأكيد المركزيّة (`data-confirm` في base.js) من JS الجدول — لا window.confirm #}
+      <form data-grid-confirm hidden></form>
+      {% if page.correction_mode %}
+      <div class="ui-note">{% field "reason" "سببُ التصحيح — إلزاميّ بعد إغلاق نافذة المعلّم" required=True maxlength="300" data_grid_reason=True %}</div>
+      {% endif %}
       <div hidden data-tabs role="tablist" aria-label="الحصّة المعروضة">
         {% for col in page.columns %}
         <button type="button" class="btn-secondary btn-sm" role="tab" data-tab="{{ col.number }}" aria-selected="false">ح{{ col.number }}</button>

@@ -104,33 +104,66 @@
     return started.length ? started[started.length - 1].getAttribute('data-col') : '1';
   }
 
+  // نافذةُ التأكيد = نافذةُ المنصّة المركزيّة (`base.js`، مالكةُ `data-confirm`): نموذجٌ مخفيٌّ بنصّ التأكيد يُرسَل برمجيّاً، فتظهر النافذةُ
+  // المصمَّمةُ بهويّة المنصّة (لا `window.confirm` الأصليّ)، وعند «تأكيد» يعود الإرسالُ إلى هنا فننفّذ المؤجَّل.
+  var gate = root.querySelector('[data-grid-confirm]');
+  var pending = null;
+  if (gate) {
+    gate.addEventListener('submit', function (event) {
+      if (!gate._confirmed) return;           // الإرسالُ الأوّل: تعترضه نافذةُ المنصّة
+      event.preventDefault();                 // الإرسالُ المؤكَّد: ننفّذ ما أُجِّل ولا نُرسل النموذج
+      var next = pending; pending = null;
+      // بعد أن يُسقط base.js علَمَ التأكيد (setTimeout 0): تنفيذٌ فوريٌّ يجعل تأكيداً ثانياً متداخلاً يمرّ بلا نافذة.
+      if (next) window.setTimeout(next, 30);
+    });
+  }
+  function confirmThen(message, next) {
+    if (!gate) { next(); return; }
+    pending = next;
+    gate.setAttribute('data-confirm', message);
+    gate.requestSubmit();
+  }
+
   function bulkFill(button) {
     var col = button.getAttribute('data-col');
     var status = button.getAttribute('data-bulk') === 'all_absent' ? 'absent' : 'present';
     var targets = Array.prototype.filter.call(cells(col), function (c) { return c.getAttribute('data-writable') === '1'; });
     var label = status === 'absent' ? 'غائب' : 'حاضر';
-    if (!window.confirm('سيُسجَّل ' + targets.length + ' طالباً «' + label + '» في ح' + col + '. متابعة؟')) return;
-    if (status === 'absent' && !window.confirm('تأكيدٌ ثانٍ: «الكلُّ غائب» في ح' + col + ' — ' + targets.length + ' طالباً. متأكّد؟')) return;
-    targets.forEach(function (c) { paint(c, status); c.classList.add('is-dirty'); remember(c); });
-    root.setAttribute('data-bulk-' + col, button.getAttribute('data-bulk'));
+    function apply() {
+      targets.forEach(function (c) { paint(c, status); c.classList.add('is-dirty'); remember(c); });
+      root.setAttribute('data-bulk-' + col, button.getAttribute('data-bulk'));
+    }
+    confirmThen('سيُسجَّل ' + targets.length + ' طالباً «' + label + '» في ح' + col + '. متابعة؟', function () {
+      if (status !== 'absent') { apply(); return; }
+      // «الكلُّ غائب» أخطرُ: تأكيدٌ ثانٍ بالعدد.
+      confirmThen('تأكيدٌ ثانٍ: «الكلُّ غائب» في ح' + col + ' — ' + targets.length + ' طالباً. متأكّد؟', apply);
+    });
   }
 
-  function save(col, reason) {
+  function save(col) {
     var all = cells(col);
     var dirty = Array.prototype.filter.call(all, function (c) { return c.classList.contains('is-dirty'); });
     var empties = Array.prototype.filter.call(all, function (c) {
       return c.getAttribute('data-writable') === '1' && !c.getAttribute('data-status');
     });
     if (!dirty.length && !empties.length) { notify('لا تغييرَ لحفظه في ح' + col, 'info'); return; }
-    var fill = false;
-    if (empties.length) {
-      if (!window.confirm('يوجد ' + empties.length + ' خليّةٍ فارغةٍ في ح' + col + ' ستُكتب «حاضراً افتراضيّاً». حفظُ العمود؟')) return;
-      fill = true;
-    }
+    var reasonInput = root.querySelector('[data-grid-reason]');
+    var reason = reasonInput ? reasonInput.value.trim() : '';
     if (correcting && !reason) {
-      reason = window.prompt('نافذةُ المعلّم مغلقة — اكتب سببَ التصحيح (إلزاميّ):') || '';
-      if (!reason.trim()) { notify('التصحيحُ بعد الإغلاق يلزمه سبب.', 'warning'); return; }
+      notify('نافذةُ المعلّم مغلقة — اكتب سببَ التصحيح في الحقل أعلى الجدول (إلزاميّ).', 'warning');
+      if (reasonInput) reasonInput.focus();
+      return;
     }
+    if (empties.length) {
+      confirmThen('يوجد ' + empties.length + ' خليّةٍ فارغةٍ في ح' + col + ' ستُكتب «حاضراً افتراضيّاً». حفظُ العمود؟', function () {
+        send(col, dirty, true, reason);
+      });
+      return;
+    }
+    send(col, dirty, false, reason);
+  }
+
+  function send(col, dirty, fill, reason) {
     var payload = {
       period: parseInt(col, 10),
       cells: dirty.map(function (c) {
