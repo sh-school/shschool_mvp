@@ -1835,52 +1835,41 @@ body:has(.rm-page) .site-footer { flex: none; }
 
 
 /* ── جدولُ الشعبة العموديّ لرصد الغياب (W-20261006-005): صفوفُ الطلاب × أعمدةُ ح1–ح7 ── */
-.cg-tabs { display: none; gap: var(--sp-1); padding: var(--sp-2); overflow-x: auto; }
-.cg-tab { min-block-size: 44px; min-inline-size: 44px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--text-secondary); font-weight: 700; }
-.cg-tab.is-active { background: var(--maroon-bg); border-color: var(--maroon); color: var(--maroon-fg); }
-.cg-table th, .cg-table td { text-align: center; vertical-align: middle; }
+/* لا تمريرَ أفقيّاً (أمرُ المالك): التخطيطُ ثابتٌ بعرض الغلاف، والأعمدةُ تتقاسم العرضَ؛ والتمريرُ عموديٌّ داخل الغلاف فيلصق الرأسُ.
+   الارتفاعُ = النافذةُ ناقصَ ما حولها (ترويسةُ المنصّة وبطاقةُ العنوان والتذييل) فلا يتمرّر الجسمُ والغلافُ معاً. */
+.cg-wrap { overflow-x: hidden; overflow-y: auto; max-block-size: calc(100dvh - 17rem); }
+.cg-table { table-layout: fixed; inline-size: 100%; }
+.cg-table th, .cg-table td { text-align: center; vertical-align: middle; padding-inline: var(--sp-1); }
 /* الاسمُ على يمين السطر (بدايةُ السطر في RTL) — القاعدةُ أعلاه أخصُّ من `.cg-name` وحدَها فكانت تُوسّطه. */
-.cg-table .cg-name { text-align: start; }
-.cg-name { position: sticky; inset-inline-start: 0; z-index: 1; min-inline-size: 11rem; }
-/* زاويةُ الرأس والعمود الثابتان معاً: فوق خلايا الجسم، وخلفيّتُها من الرأس لا من السطح (نصٌّ أبيضُ على عنّابيّ). */
-.cg-table thead .cg-name { z-index: calc(var(--z-raised) + 1); background: inherit; }
-.cg-table tbody .cg-name { background: var(--surface); }
-.cg-name__btn { background: none; border: 0; padding: var(--sp-2); font: inherit; font-weight: 600; color: var(--text-primary); text-align: start; cursor: pointer; min-block-size: 44px; }
-.cg-col__title { display: block; font-weight: 800; }
+/* عرضُ الاسم بمقدار أطولِ اسمٍ لا نسبةٍ من النافذة: الفراغُ المهدرُ بين الاسم وح1 يذهب إلى خلايا الحصص. */
+.cg-table .cg-name { text-align: start; inline-size: 15rem; padding-inline: var(--sp-3); }
+.cg-table .cg-acts { inline-size: 22%; }
+/* كلُّ سطرٍ يُميَّز عن جاره: خطٌّ فاصلٌ وتظليلُ الأزواج بلونٍ من هويّة العنّابيّ (يمتدّ تحت خليّة الاسم أيضاً) ومرورُ المؤشّر. */
+.cg-table tbody th, .cg-table tbody td { border-bottom: 1px solid var(--border); }
+.cg-table tbody tr:nth-child(even) > * { background: color-mix(in srgb, var(--maroon) 6%, var(--surface)); }
+.cg-table tbody tr:hover > * { background: color-mix(in srgb, var(--maroon) 12%, var(--surface)); }
 /* الرأسُ عنّابيٌّ: نصُّه `--on-fill` لا `--text-secondary` (كان رماديّاً على العنّابيّ فلا يُقرأ) ولا تعتيمَ يُضعف تباينَه. */
 .cg-table thead th { color: var(--on-fill); }
-.cg-col__time { display: block; font-size: 0.75rem; color: var(--on-fill); }
+.cg-name__btn { background: none; border: 0; font: inherit; font-weight: 700; color: inherit; text-align: start; cursor: pointer; inline-size: 100%; min-block-size: 44px; }
+.cg-col__title, .cg-col__time { display: block; font-size: 0.75rem; }
+.cg-col__title { font-size: inherit; }
 .cg-col__tools { display: flex; flex-direction: column; gap: var(--sp-1); margin-block-start: var(--sp-1); }
-/* الحصّةُ الجاريةُ في الرأس بخطٍّ ذهبيٍّ سفليّ (الذهبيُّ تمييزٌ لا نصّ)؛ وغيرُ المبدوءة بلا تعتيمٍ: خلاياها المعطَّلةُ تكفي. */
+/* الحصّةُ الجاريةُ: خطٌّ ذهبيٌّ تحت رأسها (الذهبيُّ تمييزٌ لا نصّ) وتلوينٌ خفيفٌ لخلاياها. */
 .cg-table thead .cg-col--current { box-shadow: inset 0 -3px 0 var(--gold); }
-.cg-table tbody .cg-col--future .cg-cell { opacity: .75; }
-.cg-cell { inline-size: 100%; min-inline-size: 44px; min-block-size: 44px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); color: var(--text-secondary); font-weight: 800; cursor: pointer; }
-.cg-cell:disabled { cursor: default; opacity: .75; }
-.cg-cell.is-none::before { content: "·"; }
+.cg-cell { inline-size: 100%; min-block-size: 44px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); color: var(--text-secondary); font-weight: 800; cursor: pointer; }
 .cg-cell.is-present { background: var(--status-success-bg); border-color: var(--status-success); color: var(--status-success-fg); }
-.cg-cell.is-present::before { content: "✓"; }
 .cg-cell.is-absent { background: var(--status-danger-bg); border-color: var(--status-danger); color: var(--status-danger-fg); }
-.cg-cell.is-absent::before { content: "غ"; }
 .cg-cell.is-late { background: var(--status-warning-bg); border-color: var(--status-warning); color: var(--status-warning-fg); }
-.cg-cell.is-late::before { content: "ت"; }
 .cg-cell.is-default { border-style: dashed; }
-.cg-cell.is-pending { box-shadow: inset 0 -3px 0 var(--status-warning); }
-.cg-cell.is-dirty { outline: 2px solid var(--gold); outline-offset: -2px; }
-.cg-cell.is-conflict { outline: 2px solid var(--status-danger); outline-offset: -2px; }
-.cg-acts { white-space: nowrap; }
-.cg-dialog { max-inline-size: min(40rem, 94vw); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text-primary); padding: var(--sp-4); }
+.cg-cell.is-pending { border-block-end-width: 3px; }
+.cg-cell.is-dirty, .cg-cell.is-conflict { outline: 2px solid var(--gold); outline-offset: -2px; }
+.cg-cell.is-conflict { outline-color: var(--status-danger); }
+/* الإجراءاتُ سطران: (متأخّر · مخالفة) ثمّ (الوجهة · خروج) — القائمةُ بعرضٍ محدودٍ لا بعرض العمود. */
+.cg-acts__box { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-1); }
+.cg-dest { inline-size: auto; max-inline-size: 6.5rem; min-block-size: 36px; padding-inline: var(--sp-1-5); font-size: 0.75rem; }
 @media (max-width: 640px) {
-  .cg-tabs { display: flex; }
-  .cg:not([data-active-col]) .cg-col:not([data-col="1"]) { display: none; }
-  .cg[data-active-col="1"] .cg-col:not([data-col="1"]),
-  .cg[data-active-col="2"] .cg-col:not([data-col="2"]),
-  .cg[data-active-col="3"] .cg-col:not([data-col="3"]),
-  .cg[data-active-col="4"] .cg-col:not([data-col="4"]),
-  .cg[data-active-col="5"] .cg-col:not([data-col="5"]),
-  .cg[data-active-col="6"] .cg-col:not([data-col="6"]),
-  .cg[data-active-col="7"] .cg-col:not([data-col="7"]) { display: none; }
-  .cg-name { min-inline-size: 7rem; }
+  .cg-table .cg-name { inline-size: 34%; min-inline-size: 6rem; }
+  .cg-table .cg-acts { inline-size: 36%; }
 }
-@media (prefers-reduced-motion: no-preference) { .cg-cell { transition: background-color var(--transition-fast), border-color var(--transition-fast); } }
 
 } /* end @layer modules */

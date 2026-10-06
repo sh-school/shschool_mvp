@@ -27,7 +27,7 @@
     {% if not page.columns %}
       {% include "components/empty_state.html" with title="لا زمنَ مُعرَّفاً لحصص هذه الشعبة اليوم" only %}
     {% else %}
-    <div class="cg" data-class-grid
+    <div data-class-grid
          data-save-url="{% url 'class_grid_save' page.klass.id %}"
          data-late-url="{% url 'class_grid_late' page.klass.id %}"
          data-exit-url="{% url 'class_grid_exit' page.klass.id %}"
@@ -35,25 +35,25 @@
          data-closes="{{ page.closes|time:'H:i' }}"
          data-correcting="{% if page.correction_mode %}1{% endif %}">
       {% csrf_token %}
-      <div class="cg-tabs" role="tablist" aria-label="الحصّة المعروضة">
+      <div hidden data-tabs role="tablist" aria-label="الحصّة المعروضة">
         {% for col in page.columns %}
-        <button type="button" class="cg-tab{% if col.state == 'current' %} is-active{% endif %}" role="tab" data-tab="{{ col.number }}" aria-selected="{% if col.state == 'current' %}true{% else %}false{% endif %}">ح{{ col.number }}</button>
+        <button type="button" class="btn-secondary btn-sm" role="tab" data-tab="{{ col.number }}" aria-selected="false">ح{{ col.number }}</button>
         {% endfor %}
       </div>
-      <div class="table-wrap table-wrap-scroll">
+      <div class="table-wrap cg-wrap">
         <table class="cg-table" data-no-sort>
           <thead>
             <tr>
               <th scope="col" class="cg-name">الطالب</th>
               {% for col in page.columns %}
-              <th scope="col" class="cg-col cg-col--{{ col.state }}" data-col="{{ col.number }}">
+              <th scope="col" class="cg-col--{{ col.state }}" data-col="{{ col.number }}">
                 <span class="cg-col__title">ح{{ col.number }}</span>
                 <span class="cg-col__time num">{{ col.start|time:"H:i" }}</span>
                 {% if col.writable %}
                 <span class="cg-col__tools">
-                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_present" data-col="{{ col.number }}">الكلّ حاضر</button>
-                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_absent" data-col="{{ col.number }}">الكلّ غائب</button>
-                  <button type="button" class="btn-primary btn-sm" data-save-col="{{ col.number }}">حفظ ح{{ col.number }}</button>
+                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_present" data-col="{{ col.number }}" title="الكلُّ حاضر" aria-label="الكلُّ حاضر في ح{{ col.number }}">الكلّ ✓</button>
+                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_absent" data-col="{{ col.number }}" title="الكلُّ غائب" aria-label="الكلُّ غائب في ح{{ col.number }}">الكلّ ✗</button>
+                  <button type="button" class="btn-primary btn-sm" data-save-col="{{ col.number }}" aria-label="حفظ ح{{ col.number }}">حفظ</button>
                 </span>
                 {% endif %}
               </th>
@@ -68,28 +68,29 @@
                 <button type="button" class="cg-name__btn" data-history-open data-student="{{ row.student.pk }}">{{ row.student.full_name }}</button>
               </th>
               {% for col, cell in row.pairs %}
-              <td class="cg-col" data-col="{{ col.number }}">
+              <td class="cg-col--{{ col.state }}" data-col="{{ col.number }}">
                 <button type="button" class="cg-cell is-{{ cell.status|default:'none' }}{% if cell.default_present %} is-default{% endif %}{% if cell.state == 'pending' %} is-pending{% endif %}"
                         data-cell data-student="{{ row.student.pk }}" data-col="{{ col.number }}"
                         data-head="{{ cell.head_id }}" data-status="{{ cell.status }}"
                         data-writable="{% if col.writable %}1{% endif %}"
                         {% if not col.writable %}disabled{% endif %}
-                        aria-label="{{ row.student.full_name }} — ح{{ col.number }}"></button>
+                        aria-label="{{ row.student.full_name }} — ح{{ col.number }}">{% if cell.status == "present" %}✓{% elif cell.status == "absent" %}غ{% elif cell.status == "late" %}ت{% else %}·{% endif %}</button>
               </td>
               {% endfor %}
               {% if page.can_write %}
-              <td class="cg-acts">
+              <td class="cg-acts"><div class="cg-acts__box">
                 <button type="button" class="btn-secondary btn-sm" data-late="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>متأخّر</button>
                 {% if row.exit %}
                 <span class="status-badge status-warning">خارج: {{ row.exit.get_destination_display }} منذ {{ row.exit.left_at|time:"H:i" }}</span>
                 <button type="button" class="btn-secondary btn-sm" data-exit-return="{{ row.student.pk }}">عاد</button>
                 {% else %}
-                <select class="form-select" data-exit-dest="{{ row.student.pk }}" aria-label="وجهة خروج {{ row.student.full_name }}"{% if not page.current %} disabled{% endif %}>
+                <select class="form-select cg-dest" data-exit-dest="{{ row.student.pk }}" aria-label="وجهة خروج {{ row.student.full_name }}"{% if not page.current %} disabled{% endif %}>
                   {% for code, label in page.destinations %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
                 </select>
                 <button type="button" class="btn-secondary btn-sm" data-exit="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>خروج</button>
                 {% endif %}
                 <a class="btn-secondary btn-sm" href="{% url 'behavior:report_infraction' %}?student={{ row.student.pk }}&next={{ request.path|urlencode }}">مخالفة</a>
+                </div>
               </td>
               {% endif %}
             </tr>
@@ -98,7 +99,7 @@
         </table>
       </div>
       <p class="ui-note" data-grid-status role="status" aria-live="polite"></p>
-      <dialog class="cg-dialog" data-history-dialog aria-label="سجلّ الخليّة"><div data-history-body></div><form method="dialog"><button class="btn-secondary btn-sm">إغلاق</button></form></dialog>
+      <dialog data-history-dialog aria-label="سجلّ الخليّة"><div data-history-body></div><form method="dialog"><button class="btn-secondary btn-sm">إغلاق</button></form></dialog>
     </div>
     {% endif %}
   {% endif %}{% endsection_card %}

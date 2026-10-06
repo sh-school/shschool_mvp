@@ -20,6 +20,7 @@
   var correcting = root.getAttribute('data-correcting') === '1';
   var statusLine = root.querySelector('[data-grid-status]');
   var tokenInput = document.querySelector('input[name=csrfmiddlewaretoken]');
+  var SYMBOL = { '': '·', present: '✓', absent: 'غ', late: 'ت' };
   var CYCLE = { '': 'absent', absent: 'present', present: 'absent', late: 'present' };
 
   function csrf() { return tokenInput ? tokenInput.value : ''; }
@@ -40,6 +41,7 @@
     cell.classList.remove('is-none', 'is-present', 'is-absent', 'is-late', 'is-default', 'is-conflict');
     cell.classList.add('is-' + (status || 'none'));
     cell.setAttribute('data-status', status || '');
+    cell.textContent = SYMBOL[status || ''];
   }
 
   function remember(cell) {
@@ -218,13 +220,23 @@
     });
   }
 
+  // الجوالُ: عمودٌ واحدٌ بتبويب ح1–ح7 — تُخفى بقيّةُ الأعمدة بالسمة `hidden` (لا قواعدَ CSS لكلّ رقم).
+  var narrow = window.matchMedia('(max-width: 640px)');
+  var activeCol = '';
   function showTab(col) {
-    root.setAttribute('data-active-col', col);
+    activeCol = col;
     root.querySelectorAll('[data-tab]').forEach(function (tab) {
       var on = tab.getAttribute('data-tab') === col;
-      tab.classList.toggle('is-active', on);
+      tab.classList.toggle('btn-primary', on);
+      tab.classList.toggle('btn-secondary', !on);
       tab.setAttribute('aria-selected', on ? 'true' : 'false');
     });
+    var tabs = root.querySelector('[data-tabs]');
+    if (tabs) tabs.hidden = !narrow.matches;
+    root.querySelectorAll('th[data-col], td[data-col]').forEach(function (cell) {
+      cell.hidden = narrow.matches && cell.getAttribute('data-col') !== col;
+    });
   }
+  if (narrow.addEventListener) narrow.addEventListener('change', function () { showTab(activeCol); });
   showTab(currentCol());
 })();
