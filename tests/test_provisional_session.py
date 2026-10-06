@@ -384,8 +384,13 @@ def _anchors_to(page, *names):
 
 
 def test_with_the_switch_on_the_teachers_schedule_is_switched_off_everywhere(
-    client_as, assigned, teacher, session
+    client_as, assigned, teacher, session, monkeypatch
 ):
+    # قبل بدء أوّل حصّةٍ: وقتُها هو الذي تظهر فيه بطاقةُ «الحصة القادمة» — وكان الاختبارُ يسقط في هذه الساعة وحدَها
+    # (CI يعمل قبل الدوام) لأنّ البطاقةَ كانت تحمل رابطَ حضورٍ فعّالاً. فنثبّت الساعةَ لنُمسك الحالةَ نفسَها كلَّ مرّة.
+    monkeypatch.setattr(
+        timezone, "now", lambda: dt.datetime.combine(SUNDAY, dt.time(4, 0), tzinfo=dt.UTC)
+    )
     page = _schedule_page(client_as(teacher), teacher)
 
     # الجدولُ: لا رابطَ حضورٍ فعّال، وتحته «تحت الإجراء» حرفاً (D-228م)
