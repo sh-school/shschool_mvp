@@ -69,6 +69,13 @@
    "reason": "W-028: استيرادُ سجلّ القيد يكتب أطلسياً سطرَ الطالب (core) وسجلَّه الصحّيّ (clinic.HealthRecord) من صفٍّ واحد",
    "to": 2,
    "where": "core → clinic"
+  },
+  {
+   "from": 0,
+   "metric": "orm",
+   "reason": "مصدِّرُ ملخّص الحصّتين للوزارة يمرّ بـrender_pdf وget_export_context كأخويه في wings/views_register.py؛ الثمانيةُ كلُّها من مساعدين مشتركين في core (default_academic_year ‏4 و_materialise_stored_fonts ‏4) لا من استعلامٍ في العرض",
+   "to": 8,
+   "where": "wings/views_ministry.py::ministry_report"
   }
  ],
  "core_import_sites": {
@@ -810,6 +817,9 @@
   },
   "wings/views_absence_file.py::student_search": {
    "orm": 16
+  },
+  "wings/views_ministry.py::ministry_report": {
+   "orm": 8
   },
   "wings/views_register.py::_respond": {
    "orm": 8

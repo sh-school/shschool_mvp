@@ -1,0 +1,93 @@
+{% extends "reports/base_qatar_report.html" %}
+{% load brand_tags %}
+{% comment %}
+  ملخّصُ غياب الحصّتين الأولى والثانية للرفع في نظام الوزارة — الشعبةُ والصفُّ والمدرسةُ، ثمّ أسماءُ من يُرفعون.
+  قالبٌ للـPDF وعرضِ المتصفّح (`for_screen`) معاً — لا طباعةَ مباشرةً منه (قرارُ المالك 2026-09-28)،
+  والبياناتُ من `wings/ministry_selectors.py`. ولا رقمَ شخصيّاً فيه (قرارُ 2026-09-13).
+{% endcomment %}
+
+{% block extra_styles %}
+@page { size: A4 {{ orient|default:"landscape" }}; margin: 9mm 10mm 22mm 10mm; @bottom-center { vertical-align: top; padding-top: 3mm; } }
+{% if for_screen %}.running-footer { display: none; }{% endif %}
+.doc-body { padding: 6px 14px 12px; }
+.report-title-bar { font-size: 13px; padding: 6px 16px; }
+.report-meta td { padding: 4px 10px; font-size: 10px; }
+.grid { width: 100%; border-collapse: collapse; font-size: 10px; line-height: 1.3; }
+.grid th { background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; padding: 5px 4px; font-weight: 700; text-align: center; border: 1px solid {% brand_color "BORDER_STRONG" %}; }
+.grid td { padding: 3px 4px; border: 1px solid {% brand_color "BORDER_STRONG" %}; text-align: center; color: {% brand_color "TEXT_PRIMARY" %}; }
+.grid tbody tr:nth-child(even) td { background: {% brand_color "SURFACE_ALT" %}; }
+.grid td.label { text-align: right; font-weight: 600; }
+.grid tr.subtotal td, .grid tr.total td { background: {% brand_color "MAROON_BG" %}; color: {% brand_color "MAROON" %}; font-weight: 700; }
+.grid td.is-ministry { background: {% brand_color "STATUS_DANGER_BG" %}; color: {% brand_color "STATUS_DANGER_DARK" %}; font-weight: 700; }
+.grid td.is-warn { color: {% brand_color "STATUS_WARNING_DARK" %}; font-weight: 700; }
+.grid td.muted { color: {% brand_color "TEXT_MUTED" %}; }
+.note { margin: 6px 0; font-size: 9.5px; color: {% brand_color "STATUS_WARNING_DARK" %}; font-weight: 700; }
+.names { page-break-before: always; }
+{% endblock %}
+
+{% block content %}
+<section class="sheet">
+  <div class="report-title-bar">ملخّصُ غياب الحصّتين الأولى والثانية — للرفع في نظام الوزارة — {{ summary.day|date:"l d/m/Y" }}</div>
+  <table class="report-meta">
+    <tr>
+      <td>النطاق: <strong>{% if bound %}طلبةُ جناحك{% else %}المدرسةُ كلُّها{% endif %}</strong></td>
+      <td>غابوا الحصّتين: <strong>{{ summary.total.absent_both }}</strong></td>
+      <td>صدر بواسطة: <strong>{{ exported_by }}</strong> — {{ exporter_role }}</td>
+    </tr>
+  </table>
+  {% for note in summary.notes %}<p class="note">{{ note }}</p>{% endfor %}
+  <table class="grid">
+    <thead>
+      <tr>
+        <th>الصفُّ / الشعبة</th><th>المقيَّدون</th><th>غابوا الحصّتين بلا عذر</th><th>غابوا الحصّتين بعذر</th>
+        <th>غابوا إحداهما</th><th>تأخّروا</th><th>بلا رصد</th><th>بانتظار الاعتماد</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for grade in summary.grades %}
+      {% for item in grade.rows %}
+      <tr>
+        <td class="label">{{ item.group.short_code }}{% if not item.has_periods %} <small>(لا حصّتان)</small>{% endif %}</td>
+        <td>{{ item.counts.enrolled }}</td>
+        <td{% if item.counts.absent_both_unexcused %} class="is-ministry"{% endif %}>{{ item.counts.absent_both_unexcused }}</td>
+        <td{% if item.counts.absent_both_excused %} class="is-ministry"{% endif %}>{{ item.counts.absent_both_excused }}</td>
+        <td>{{ item.counts.absent_one }}</td>
+        <td>{{ item.counts.late }}</td>
+        <td{% if item.counts.unrecorded %} class="is-warn"{% endif %}>{{ item.counts.unrecorded }}</td>
+        <td{% if item.counts.pending %} class="is-warn"{% endif %}>{{ item.counts.pending }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="subtotal">
+        <td class="label">مجموع {{ grade.label }}</td>
+        <td>{{ grade.counts.enrolled }}</td><td>{{ grade.counts.absent_both_unexcused }}</td><td>{{ grade.counts.absent_both_excused }}</td>
+        <td>{{ grade.counts.absent_one }}</td><td>{{ grade.counts.late }}</td><td>{{ grade.counts.unrecorded }}</td><td>{{ grade.counts.pending }}</td>
+      </tr>
+    {% endfor %}
+      <tr class="total">
+        <td class="label">مجموع المدرسة</td>
+        <td>{{ summary.total.enrolled }}</td><td>{{ summary.total.absent_both_unexcused }}</td><td>{{ summary.total.absent_both_excused }}</td>
+        <td>{{ summary.total.absent_one }}</td><td>{{ summary.total.late }}</td><td>{{ summary.total.unrecorded }}</td><td>{{ summary.total.pending }}</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="sheet names">
+  <div class="report-title-bar">من يُرفعون غائبين — الحصّتان الأولى والثانية — {{ summary.day|date:"l d/m/Y" }} ({{ summary.ministered|length }})</div>
+  <table class="grid">
+    <thead><tr><th>#</th><th>الطالب</th><th>الشعبة</th><th>الحال</th></tr></thead>
+    <tbody>
+    {% for item in summary.ministered %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td class="label">{{ item.name }}</td>
+        <td>{{ item.class_code }}</td>
+        <td{% if not item.excused %} class="is-ministry"{% endif %}>{% if item.excused %}غائب بعذر{% else %}غائب بلا عذر{% endif %}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="muted">لا غائبَ في الحصّتين معاً.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load ui approvals %}
+{% load ui approvals navigation icons %}
 {% comment %}
 تقريرُ غياب اليوم — طالبٌ في سطر، لأيّ تاريخ (قرارُ 2026-09-13). يحلّ محلَّ
 «سجلّات الحضور والغياب» التي كانت تعدّ السجلّات لا الطلاب. ووسمُ الوزارة لمن غاب
@@ -21,6 +21,9 @@
     </form>
     {% callout "hint" %}النطاقُ قسمُك: حصصُ معلّميه وطلابُها.{% endcallout %}
     {% approve_all_button %}
+    {% if request.user|can_open:"wings:ministry_report" %}
+    <a href="{% url 'wings:ministry_report' %}?date={{ report.day|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>
+    {% endif %}
   {% endpage_header %}
 
   {% kpi_strip label="اليوم في رقم" %}
