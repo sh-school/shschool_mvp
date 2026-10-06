@@ -352,14 +352,19 @@ def report_infraction(request):
                     messages.warning(
                         request, f"تم إحالة المخالفة للجنة الضبط السلوكي لكونها من الدرجة {level}"
                     )
-                return redirect(_after_record_url(request.user, student.id, level))
+                back = _safe_next(request, request.POST.get("next", ""))
+                return redirect(back or _after_record_url(request.user, student.id, level))
 
     students = _get_scoped_students(request, school)
+    wanted = request.GET.get("student", "").strip()
     return render(
         request,
         "behavior/report_form.html",
         {
             **student_picker(students, school),
+            # من جدول الشعبة (W-20261006-005): الطالبُ مختارٌ مسبقاً إن كان في نطاق من يسجّل، والعودةُ بعد التسجيل إلى الجدول.
+            "preselected_student_id": wanted if any(str(s.pk) == wanted for s in students) else "",
+            "next_url": _safe_next(request, request.GET.get("next", "")),
             "levels": BehaviorInfraction.LEVELS,
             "violations_by_degree": violations_by_degree,
             "degree_panels": _degree_panels(violations_by_degree),
@@ -488,6 +493,17 @@ def quick_log(request):
         "behavior/partials/quick_log_form.html",
         _quick_log_context(request, school, student_id_hint),
     )
+
+
+def _safe_next(request, raw: str) -> str:
+    """وجهةُ العودة من مسارٍ داخليٍّ فقط (لا مضيفَ خارجيّ) — وإلّا فارغ."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    if raw.startswith("/") and url_has_allowed_host_and_scheme(
+        raw, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return raw
+    return ""
 
 
 def _after_record_url(user, student_id, level: int) -> str:

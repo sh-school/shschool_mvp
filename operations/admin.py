@@ -117,10 +117,11 @@ class AttendanceEntryAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
         "tardiness_minutes",
         "entered_by",
         "entered_at",
+        "origin",
         "supersedes",
     )
     list_select_related = ("student", "session__class_group", "entered_by")
-    list_filter = ("status", "school")
+    list_filter = ("status", "origin", "school")
     date_hierarchy = "entered_at"
 
 

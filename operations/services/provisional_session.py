@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -84,9 +85,31 @@ class PeriodChoice:
         return "current" if now < self.end else "past"
 
 
+def grid_enabled() -> bool:
+    """مفتاحُ جدول الشعبة العموديّ (`PROVISIONAL_GRID_ENABLED`) — مطفأً لا جدولَ ولا مسار (404)."""
+    return bool(getattr(settings, "PROVISIONAL_GRID_ENABLED", False))
+
+
 def enabled() -> bool:
-    """مفتاحُ التشغيل — مطفأً لا ميزةَ ولا مسار."""
-    return bool(getattr(settings, "PROVISIONAL_SESSIONS_ENABLED", False))
+    """مفتاحُ الميزة الواحد (W-20261006-005): الجديدُ إن ضُبط في البيئة، وإلّا المهجورُ `PROVISIONAL_SESSIONS_ENABLED` اسماً بديلاً مؤقّتاً.
+
+    المهجورُ يبقى فعّالاً في الإنتاج حتّى يحلّ الجديدُ محلَّه (وإلّا توقّف الرصدُ الحاليّ)؛ ويُحذف في م4.
+    """
+    if getattr(settings, "PROVISIONAL_GRID_ENABLED_SET", False):
+        return grid_enabled()
+    legacy = bool(getattr(settings, "PROVISIONAL_SESSIONS_ENABLED", False))
+    if legacy:
+        warnings.warn(
+            "PROVISIONAL_SESSIONS_ENABLED مهجور — استعمل PROVISIONAL_GRID_ENABLED",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    return legacy or grid_enabled()
+
+
+def picker_enabled() -> bool:
+    """منتقي الحصّة المؤقّتة (D-228م) يعمل حين المفتاحُ مشغَّلٌ **والجدولُ مطفأ** — تبادلٌ: الجدولُ يُخفي المنتقي."""
+    return enabled() and not grid_enabled()
 
 
 def _assignments(user: CustomUser, school: School, klass: ClassGroup | None = None):
@@ -149,6 +172,13 @@ def _bell(school: School, klass: ClassGroup, day: dt.date) -> dict[int, tuple[dt
         period_number__in=PERIOD_NUMBERS,
     )
     return {row.period_number: (row.start_time, row.end_time) for row in rows}
+
+
+def bell_periods(
+    school: School, klass: ClassGroup, day: dt.date
+) -> dict[int, tuple[dt.time, dt.time]]:
+    """`{رقم: (بدء، نهاية)}` لحصص جرس الشعبة — واجهةٌ عامّةٌ لجدول الشعبة (لا رقمَ يُعدّ زمناً)."""
+    return _bell(school, klass, day)
 
 
 def period_choices(

@@ -323,3 +323,157 @@ def can_approve(
     if roles & set(LEADERSHIP_ROLES):
         return _allow()
     return _deny("not_holder")
+
+
+# ══════════════════════════════════════════════════════════════════
+# جدولُ الشعبة العموديّ (W-20261006-005، قرارا المالك D-238م–D-240م)
+# ══════════════════════════════════════════════════════════════════
+#
+# حكمٌ **منفصلٌ** عن `can_enter`/`can_correct`/`can_approve` العامّة (لا تُخفَّف): الصلاحيةُ هنا تُشتقّ من إسناد المعلّم للشعبة ومن حمل الجناح
+# ومن الدور، لا من `Session.teacher` ولا من الطلب. وغيرُ المخوَّل يُردّ بـ404 في الواجهة (رمزُ `not_found`) فلا يُعرف أنّ الشعبة موجودة.
+
+#: القيادةُ الإداريّةُ التي تكتب على كلّ الأعمدة (D-240م) — بالدور لا بـ`is_leadership()`؛ والنائبُ الأكاديميّ يراقب فقط (D-239م).
+GRID_WRITER_ROLES = frozenset({"principal", "vice_admin", "admin_supervisor"})
+GRID_READER_ROLES = GRID_WRITER_ROLES | {"vice_academic"}
+
+GRID_TEACHER = "teacher"
+GRID_HOLDER = "holder"
+GRID_LEADERSHIP = "leadership"
+GRID_READER = "reader"
+
+
+def _clock(raw: str, fallback: dt.time) -> dt.time:
+    try:
+        hour, minute = (int(part) for part in str(raw).split(":", 1))
+        return dt.time(hour, minute)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def grid_window(day: dt.date) -> tuple[dt.datetime, dt.datetime]:
+    """نافذةُ كتابة المعلّم في الجدول (D-237م): من إعدادٍ مركزيٍّ واحد (07:10–14:00 افتراضاً) بتوقيت الدوحة.
+
+    وفي المعاينة وحدَها اليومُ كلُّه (قرارُ المالك 2026-10-04) كما في `entry_window`.
+    """
+    from django.conf import settings
+
+    opens = _clock(getattr(settings, "ATTENDANCE_GRID_OPENS", "07:10"), dt.time(7, 10))
+    closes = _clock(getattr(settings, "ATTENDANCE_GRID_CLOSES", "14:00"), dt.time(14, 0))
+    if in_preview_environment():
+        opens, closes = dt.time.min, dt.time(23, 59, 59)
+    return (
+        timezone.make_aware(dt.datetime.combine(day, opens)),
+        timezone.make_aware(dt.datetime.combine(day, closes)),
+    )
+
+
+def is_class_assigned(user: CustomUser, class_group: ClassGroup) -> bool:
+    """أمُسنَدٌ هذا المعلّمُ إلى الشعبة (أيَّ مادّة)؟ — بشروط `provisional_session._assignments` نفسِها: فعّالٌ، عامُ المدرسة، غيرُ محذوف."""
+    from core.academic_calendar import academic_year_for_school
+
+    from .models import SubjectClassAssignment
+
+    return bool(
+        SubjectClassAssignment.objects.filter(
+            school_id=class_group.school_id,
+            teacher=user,
+            class_group=class_group,
+            is_active=True,
+            deleted_at__isnull=True,
+            academic_year=academic_year_for_school(class_group.school),
+        ).exists()
+    )
+
+
+def _wing_holder_on(class_group: ClassGroup, day: dt.date) -> CustomUser | None:
+    wing = class_group.wing
+    if wing is None or not wing.is_active:
+        return None
+    holder: CustomUser | None = wing.current_supervisor(on_date=day)  # type: ignore[no-untyped-call]
+    return holder
+
+
+def grid_roles(user: CustomUser, class_group: ClassGroup, day: dt.date) -> frozenset[str]:
+    """أدوارُ المستخدم في هذه الشعبة لهذا اليوم: `teacher` (إسنادٌ) و`holder` (حاملُ جناحها) و`leadership` (قيادةٌ إداريّةٌ أو حاصرُ الغياب العامّ) و`reader` (نائبٌ أكاديميّ).
+
+    فارغةٌ لغير المخوَّل (مطوّرٌ، مدرسةٌ أخرى، معلّمٌ لشعبةٍ غيرِ شعبته) — يُردّ 404.
+    """
+    if not getattr(user, "is_authenticated", False) or is_developer(user):
+        return frozenset()
+    school_roles = _roles_in_school(user, class_group.school_id)
+    if not school_roles:
+        return frozenset()
+    from wings.services import holds_school_wide
+
+    found: set[str] = set()
+    if school_roles & GRID_WRITER_ROLES or holds_school_wide(user):
+        found.add(GRID_LEADERSHIP)
+    holder = _wing_holder_on(class_group, day)
+    if holder is not None and holder.id == user.id:
+        found.add(GRID_HOLDER)
+    if is_class_assigned(user, class_group):
+        found.add(GRID_TEACHER)
+    if "vice_academic" in school_roles:
+        found.add(GRID_READER)
+    return frozenset(found)
+
+
+def can_read_grid(user: CustomUser, class_group: ClassGroup, day: dt.date) -> Verdict:
+    """هل يقرأ هذا المستخدمُ جدولَ هذه الشعبة؟ — كلُّ دورٍ في `grid_roles`."""
+    return _allow() if grid_roles(user, class_group, day) else _deny("not_found")
+
+
+def can_write_grid(
+    user: CustomUser,
+    class_group: ClassGroup,
+    day: dt.date,
+    *,
+    period_start: dt.time | None = None,
+    now: dt.datetime | None = None,
+) -> Verdict:
+    """هل يكتب هذا المستخدمُ رصداً في عمودٍ من جدول الشعبة الآن؟ — معلّمو الإسناد وحاملُ الجناح والقيادةُ الإداريّةُ على كلّ الأعمدة.
+
+    الوقتُ يُقرأ هنا لحظةَ الكتابة بتوقيت المدرسة لا عند عرض الصفحة: اليومُ هو اليومُ الجاري وحدَه (لا ماضيَ ولا مستقبلَ)، ومن فتح النافذة
+    (07:10) إلى إغلاقها (14:00)؛ وعمودٌ لم تبدأ حصّتُه (`period_start`) يُرفض لكلّ كاتب (`before_start`) فلا يملأ معلّمٌ ح1–ح7 في 07:10.
+    وبعد الإغلاق يُقفل الكلُّ هنا ويصحّح المشرفُ بسببٍ عبر `can_correct_grid`.
+    """
+    roles = grid_roles(user, class_group, day)
+    if not roles:
+        return _deny("not_found")
+    if not roles & {GRID_TEACHER, GRID_HOLDER, GRID_LEADERSHIP}:
+        return _deny("read_only")
+    if class_group.is_active is False:
+        return _deny("inactive_class")
+    moment = timezone.localtime(now) if now is not None else timezone.localtime()
+    if moment.date() != day:
+        return _deny("not_today")
+    opens, closes = grid_window(day)
+    if moment < opens:
+        return _deny("before_window")
+    if moment > closes:
+        return _deny("after_window")
+    if period_start is not None and moment < timezone.make_aware(
+        dt.datetime.combine(day, period_start)
+    ):
+        return _deny("before_start")
+    return _allow()
+
+
+def can_correct_grid(
+    user: CustomUser,
+    class_group: ClassGroup,
+    day: dt.date,
+    *,
+    now: dt.datetime | None = None,
+) -> Verdict:
+    """التصحيحُ بعد إغلاق النافذة (14:00) — لحاملِ الجناح والقيادةِ الإداريّة وحدَهم، بسببٍ إلزاميٍّ تفرضه الخدمة؛ لا المعلّمُ ولا النائبُ الأكاديميّ.
+
+    في اليوم نفسِه وحدَه (لا ماضيَ يُصحَّح من هنا، D-215م). وقبل الإغلاق تكفي `can_write_grid`.
+    """
+    roles = grid_roles(user, class_group, day)
+    if not roles & {GRID_HOLDER, GRID_LEADERSHIP}:
+        return _deny("not_found" if not roles else "not_corrector")
+    moment = timezone.localtime(now) if now is not None else timezone.localtime()
+    if moment.date() != day:
+        return _deny("not_today")
+    return _allow()

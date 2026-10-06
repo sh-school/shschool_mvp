@@ -11,6 +11,12 @@ from .views_attendance_entries import (
     period_entries,
     unapproved,
 )
+from .views_class_grid import (
+    class_grid,
+    class_grid_history,
+    class_grid_late,
+    class_grid_save,
+)
 from .views_provisional import provisional_class, provisional_classes, provisional_create
 from .views_schedule_drafts import discard_schedule, stop_schedule_generation
 
@@ -20,6 +26,15 @@ urlpatterns = [
     path("classes/", provisional_classes, name="provisional_classes"),
     path("classes/<uuid:class_id>/", provisional_class, name="provisional_class"),
     path("classes/<uuid:class_id>/period/", provisional_create, name="provisional_create"),
+    # -- جدولُ الشعبة العموديّ لرصد الغياب (W-20261006-005؛ مطفأٌ بمفتاح PROVISIONAL_GRID_ENABLED ← 404) --
+    path("classes/<uuid:class_id>/grid/", class_grid, name="class_grid"),
+    path("classes/<uuid:class_id>/grid/save/", class_grid_save, name="class_grid_save"),
+    path("classes/<uuid:class_id>/grid/late/", class_grid_late, name="class_grid_late"),
+    path(
+        "classes/<uuid:class_id>/grid/history/<uuid:student_id>/<int:number>/",
+        class_grid_history,
+        name="class_grid_history",
+    ),
     # -- رصدُ المعلّم المبدئيّ واعتمادُه (W-020) --
     path("attendance/approvals/", approvals, name="attendance_approvals"),
     path(

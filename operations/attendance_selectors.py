@@ -580,3 +580,89 @@ def exit_conflicts_of(sessions: Any, marks: dict) -> set[str]:
         ).select_related("session")
         if exit_.returned_at is None or is_unreturned(exit_)
     }
+
+
+# ══════════════════════════════════════════════════════════════════
+# جدولُ الشعبة العموديّ (W-20261006-005) — رؤوسُ السلاسل وسجلُّ الخليّة
+# ══════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True)
+class GridCell:
+    """رأسُ سلسلة خليّةٍ (حصّة، طالب): الأحدثُ يظهر والأقدمُ في السجلّ (D-239م). حالتُه وسمٌ لا حضورٌ معتمَد."""
+
+    head_id: str
+    status: str
+    minutes: int | None
+    state: str  # pending | approved | rejected
+    default_present: bool
+    entered_by_name: str
+    entered_at: dt.datetime
+    depth: int
+
+
+@dataclass(frozen=True)
+class CellHistoryRow:
+    """سطرٌ من سجلّ الخليّة: من كتب ومتى ومن صحّح (القديمُ أوّلاً)."""
+
+    status: str
+    minutes: int | None
+    entered_by_name: str
+    entered_at: dt.datetime
+    reason: str
+    state: str
+    default_present: bool
+
+
+def grid_cells(session_ids: list[Any]) -> dict[tuple[Any, Any], GridCell]:
+    """`{(حصّة، طالب): رأسُ السلسلة}` لعدّة حصصٍ باستعلامٍ واحد — لا استعلامَ لكلّ خليّة (ثابتٌ بعدد الطلبة)."""
+    heads = AttendanceEntry.objects.filter(
+        session_id__in=session_ids, superseded_by__isnull=True
+    ).select_related("decision", "entered_by")
+    cells: dict[tuple[Any, Any], GridCell] = {}
+    for entry in heads:
+        state, _reason = _state(entry)
+        cells[(entry.session_id, entry.student_id)] = GridCell(
+            head_id=str(entry.pk),
+            status=entry.status,
+            minutes=entry.tardiness_minutes,
+            state=state,
+            default_present=entry.origin == "grid_default",
+            entered_by_name=entry.entered_by.full_name,
+            entered_at=entry.entered_at,
+            depth=1 if entry.supersedes_id is None else 2,
+        )
+    return cells
+
+
+def grid_cell(session: Session, student: CustomUser) -> GridCell | None:
+    """رأسُ خليّةٍ واحدة (بعد كتابتها أو عند ردّ التعارض)."""
+    return grid_cells([session.pk]).get((session.pk, student.pk))
+
+
+def cell_history(session: Session, student: CustomUser) -> list[CellHistoryRow]:
+    """سلسلةُ الخليّة كاملةً — من كتب ومتى ومن صحّح. بلا PII سوى اسم الكاتب لمن يراه في مدرسته."""
+    chain = (
+        AttendanceEntry.objects.filter(session=session, student=student)
+        .select_related("decision", "entered_by")
+        .order_by("entered_at")
+    )
+    chain = list(chain)
+    replaced = {entry.supersedes_id for entry in chain if entry.supersedes_id}
+    rows = []
+    for entry in chain:
+        state, _reason = _state(entry)
+        if entry.pk in replaced:
+            state = "superseded"
+        rows.append(
+            CellHistoryRow(
+                status=entry.status,
+                minutes=entry.tardiness_minutes,
+                entered_by_name=entry.entered_by.full_name,
+                entered_at=entry.entered_at,
+                reason=entry.correction_reason,
+                state=state,
+                default_present=entry.origin == "grid_default",
+            )
+        )
+    return rows

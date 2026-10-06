@@ -622,6 +622,108 @@ def correct_without_observation(
 
 
 # ══════════════════════════════════════════════════════════════════
+# جدولُ الشعبة العموديّ (W-20261006-005) — كتابةُ خليّةٍ بحالةٍ صريحةٍ و`expected_head`
+# ══════════════════════════════════════════════════════════════════
+
+#: مصدرُ الإدخال لخليّةٍ كتبها كاتبٌ في الجدول، ولحاضرٍ افتراضيٍّ كتبه الحفظُ لخليّةٍ فارغة (D-240م).
+GRID_ORIGIN = "grid"
+GRID_DEFAULT_ORIGIN = "grid_default"
+#: أسبابٌ ثابتةٌ مركزيّةٌ تحقّق قيدَ `correction_reason` دون احتكاك (لا يكتب المعلّمُ سبباً لتعديلٍ من الجدول).
+GRID_EDIT_REASON = "تعديلٌ من جدول الشعبة"
+GRID_DEFAULT_FIX_REASON = "تصحيحُ حاضرٍ افتراضيّ"
+
+
+class GridConflictError(EntryConflictError):
+    """الرأسُ الحاليُّ للخليّة غيرُ ما رآه العميلُ — لا يُكتب شيءٌ، ويحمل الإدخالَ الحاليَّ ليُعرض من كتبه ومتى."""
+
+    def __init__(self, current: AttendanceEntry | None):
+        super().__init__("conflict", "غيّر آخرُ هذه الخليّةَ قبل حفظك.")
+        self.current = current
+
+
+@transaction.atomic
+def write_grid_cell(
+    user: CustomUser,
+    session: Session,
+    student: CustomUser,
+    status: str,
+    *,
+    minutes: int | None = None,
+    expected_head: str = "",
+    default_present: bool = False,
+    now: dt.datetime | None = None,
+) -> tuple[AttendanceEntry, bool]:
+    """يكتب خليّةً من جدول الشعبة: إدخالٌ جديدٌ، أو إدخالٌ يصحّح الرأسَ القائم (`supersedes`) بسببٍ ثابت. `(الإدخال، أُنشئ الآن؟)`.
+
+    **الصلاحيةُ ليست هنا**: يفحصها المستدعي (`can_write_grid`) فلا تُخفَّف `can_enter` العامّة. وهنا الذرّيّةُ والتزامن:
+    - `expected_head` معرّفُ الرأس الذي رآه العميلُ أو فارغٌ لـ«لا شيء»؛ يختلف الرأسُ الحاليُّ ← `GridConflictError` ولا كتابة.
+    - التكرارُ بالمفتاح نفسِه (الرأسُ الحاليُّ بالقيمة المطلوبة نفسِها وكاتبُه المستدعي) لا يُنتج صفّاً ثانياً.
+    - الحاضرُ الافتراضيُّ (`default_present`) يُوسَم `origin=grid_default` ولا يكتب فوق خليّةٍ لها رأس.
+    """
+    if status not in ENTERABLE_STATUSES:
+        raise EntryError("bad_status", "حالةٌ غيرُ مسموحةٍ للإدخال.")
+    value_minutes = minutes if status == "late" else None
+    head = head_of(session, student, lock=True)
+    if (
+        head is not None
+        and head.status == status
+        and head.tardiness_minutes == value_minutes
+        and head.entered_by_id == user.id
+    ):
+        return head, False
+    if str(head.pk if head else "") != (expected_head or ""):
+        raise GridConflictError(head)
+    if default_present and head is not None:
+        raise GridConflictError(head)
+
+    reason = ""
+    if head is not None:
+        reason = GRID_DEFAULT_FIX_REASON if head.origin == GRID_DEFAULT_ORIGIN else GRID_EDIT_REASON
+    try:
+        with transaction.atomic():
+            entry = AttendanceEntry.objects.create(
+                school_id=session.school_id,
+                session=session,
+                student=student,
+                status=status,
+                tardiness_minutes=value_minutes,
+                entered_by=user,
+                entered_at=now or timezone.now(),
+                supersedes=head,
+                correction_reason=reason,
+                origin=GRID_DEFAULT_ORIGIN if default_present else GRID_ORIGIN,
+            )
+    except IntegrityError as exc:
+        raise EntryConflictError(
+            "concurrent", "إدخالٌ آخرُ سبقك على هذا الطالب — أعِد المحاولة."
+        ) from exc
+
+    _audit(
+        user,
+        session,
+        "create",
+        entry.pk,
+        "إدخالٌ من جدول الشعبة",
+        {
+            "status": status,
+            "student": str(student.pk),
+            "supersedes": str(head.pk) if head else None,
+            "default_present": default_present,
+        },
+    )
+    if not needs_approval(session):
+        _decide(
+            entry,
+            user,
+            approve=True,
+            basis="special_ed_self",
+            evidence={"rule": "special_education", "section": session.class_group.section},
+            reason="",
+        )
+    return entry, True
+
+
+# ══════════════════════════════════════════════════════════════════
 # المحو (PDPPL م.18) — المسارُ الوحيد الذي يحذف من السجلّ
 # ══════════════════════════════════════════════════════════════════
 
