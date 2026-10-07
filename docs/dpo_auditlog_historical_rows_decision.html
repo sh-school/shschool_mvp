@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>قرار DPO — صفوف سجلّ التدقيق القديمة</title>
+<style>
+  :root { --bg:#fbfaf8; --fg:#1d1b1a; --muted:#6b6560; --line:#ddd6cf; --card:#fff; --accent:#7a1f3d; --warn:#b45309; --ok:#15803d; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#1b1918; --fg:#efeae5; --muted:#a39b94; --line:#3a3532; --card:#242120; --accent:#e08aa5; --warn:#f2a950; --ok:#6fcf8f; }
+  }
+  body { background:var(--bg); color:var(--fg); font-family:Tajawal,"Segoe UI",Tahoma,sans-serif; line-height:1.9; margin:0; }
+  main { max-width:56rem; margin-inline:auto; padding:1.5rem 1rem 3rem; }
+  h1 { font-size:1.5rem; margin:0 0 .25rem; color:var(--accent); }
+  h2 { font-size:1.1rem; margin:1.6rem 0 .5rem; border-block-end:1px solid var(--line); padding-block-end:.25rem; }
+  .sub { color:var(--muted); font-size:.9rem; margin:0 0 1rem; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:.6rem; padding:.9rem 1.1rem; margin:.7rem 0; }
+  table { width:100%; border-collapse:collapse; font-size:.95rem; }
+  th, td { text-align:start; border:1px solid var(--line); padding:.45rem .6rem; vertical-align:top; }
+  th { background:color-mix(in srgb, var(--accent) 8%, var(--card)); }
+  .num { font-variant-numeric: tabular-nums; white-space:nowrap; }
+  .rec { border-inline-start:4px solid var(--ok); }
+  .risk { border-inline-start:4px solid var(--warn); }
+  ul { margin:.3rem 0; padding-inline-start:1.3rem; }
+  .tag { display:inline-block; font-size:.8rem; padding:0 .5rem; border-radius:1rem; border:1px solid var(--line); color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>قرار DPO — صفوف سجلّ التدقيق القديمة التي تحمل أسماءً</h1>
+  <p class="sub">البطاقة W-20261003-019 · قرارُ المالك D-184م «عدٌّ أولاً ثمّ قرار» · أعدادٌ مجمَّعةٌ من الإنتاج (قراءةٌ فقط) بلا أسماء · 0414</p>
+
+  <h2>١. المشكلة في سطرَين</h2>
+  <div class="card">
+    صفوفُ <code>AuditLog</code> قبل الإصلاح كتبت اسمَ شخصٍ في <code>object_repr</code> (دخولٌ وخروجٌ وحفظُ مستخدمٍ وربطُ وليّ بطالبٍ وعرضُ سجلٍّ صحّيّ…).
+    وزنادُ القاعدة (الهجرة 0078) يمنع تعديلَ <code>object_repr</code> فتبقى الأسماءُ بعد محو صاحبها.
+    وما يُكتب بعد #830 و#839 لا يحمل أسماءً — فالعددُ <b>لا يزيد</b>.
+  </div>
+
+  <h2>٢. ما قِيس (الإنتاج: 8102 صفٍّ، مدرسةٌ واحدة)</h2>
+  <table>
+    <tr><th>القياس</th><th class="num">العدد</th><th>ما يعنيه</th></tr>
+    <tr><td>دقيق: مقطعٌ يطابق اسماً كاملاً لمستخدمٍ حاليّ</td><td class="num">3536 (44%)</td><td>حدٌّ أدنى مؤكَّد</td></tr>
+    <tr><td>تقديريّ: كلمتان عربيّتان فأكثر دون رقمٍ ولا معرّفٍ مقنَّع</td><td class="num">5539 (68%)</td><td>يُضخِّم: عباراتٌ ثابتةٌ تُحسب</td></tr>
+    <tr><td>ربطُ وليٍّ بطالبٍ (<code>ParentStudentLink</code>) «اسمٌ ← اسمٌ»</td><td class="num">742 + 8</td><td>اسمُ وليٍّ <b>واسمُ طفلٍ قاصر</b> معاً؛ فاتَ المقياسَ الدقيقَ لفاصل «←»</td></tr>
+    <tr><td><b>الأسماءُ الفعليّة (تقدير الجمع)</b></td><td class="num">≈ 4300</td><td>الدقيق + ربطُ الأولياء</td></tr>
+    <tr><td>صفوفٌ عن طالبٍ (<code>object_id</code> لطالب)</td><td class="num">480</td><td>سلوكٌ 86، تصديرٌ 121، سجلٌّ صحّيّ 7، عيادةٌ 3…</td></tr>
+    <tr><td>صفوفٌ بيد طالبٍ (<code>user</code> = طالب)</td><td class="num">4</td><td>ضئيل</td></tr>
+    <tr><td>مستخدمون مَحوّون حتى الآن</td><td class="num">0</td><td>لا التزامَ محوٍ قائمٌ على صفٍّ بعينه اليوم</td></tr>
+    <tr><td>الجزءُ الأكبر: كادرٌ (<code>update|CustomUser</code> وlogin وlogout)</td><td class="num">≈ 3000</td><td>اسمُ فاعلٍ/موضوعٍ بالغ</td></tr>
+  </table>
+  <p class="sub">حدّان: المقياسُ الدقيقُ يطابق أسماءَ المستخدمين الحاليّين فقط (من غُيِّر اسمُه لا يظهر)، وحقولُ <code>changes</code> لم تُقَس. والجدولُ صغيرٌ فالكتابةُ المقيَّدةُ معقولةُ الكلفة.</p>
+
+  <h2>٣. الخيارات وثمنُ كلٍّ</h2>
+  <table>
+    <tr><th>الخيار</th><th>ما يفعله</th><th>ثمنُه</th><th>أسوأ حالة</th></tr>
+    <tr>
+      <td><b>أ</b> · إبقاءٌ بتعليلٍ مكتوب</td>
+      <td>لا تعديل. يُكتب التعليلُ: سندُ تدقيقٍ مؤسّسيّ.</td>
+      <td>صفرُ مخاطرةِ كتابة؛ لكنّ ≈4300 اسماً تبقى، منها ≈1250 تمسّ قاصرين (480 + 750).</td>
+      <td>أوّلُ طلب محوٍ لطفلٍ يتبيّن أنّ اسمَه باقٍ في صفوفٍ لا مسارَ لمحوها.</td>
+    </tr>
+    <tr>
+      <td><b>ب</b> · تفريغٌ عند المحو فقط</td>
+      <td>حالةٌ ثالثةٌ في الزناد بعلَم معاملةٍ (كـW-013): عند المحو يُستبدل الاسمُ الكاملُ للطالب (قبل التجهيل) بمعرّفٍ مقنَّعٍ في كلّ صفٍّ يحويه، بما فيه صفوفُ ربط الأولياء.</td>
+      <td>هجرةُ زنادٍ + مسارٌ في خدمة المحو + اختبارات؛ المطابقةُ نصّيّة. لا يعالج من لم يطلب.</td>
+      <td>اسمٌ مشتركٌ بين مستخدمَين يُستبدل خطأً — لذا يُتخطّى ويُبلَّغ يدويّاً.</td>
+    </tr>
+    <tr>
+      <td><b>ج</b> · تمريرةٌ لمرّةٍ واحدة</td>
+      <td>أمرُ إدارةٍ بعلَمٍ مؤقّتٍ يعيد كتابةَ <code>object_repr</code> لكلّ ما يطابق اسماً.</td>
+      <td>كتابةٌ جماعيّةٌ في سجلٍّ ملحق لا رجوعَ فيها؛ تلزمها نسخةٌ احتياطيّةٌ وdry-run.</td>
+      <td>استبدالٌ خاطئٌ جماعيٌّ يفسد سندَ التدقيق.</td>
+    </tr>
+  </table>
+
+  <h2>٤. التوصية</h2>
+  <div class="card rec">
+    <b>ب دائماً + ج مقيَّدةً بالقاصرين وحدَهم + أ لأسماء الكادر.</b>
+    <ul>
+      <li><b>(ب)</b> يعالج الالتزامَ حين يولد (أوّل طلب محو) بلا لمس السجلّ قبله.</li>
+      <li><b>(ج) للقاصرين فقط (≈1250 صفّاً):</b> الصفوفُ عن طالب + صفوفُ ربط الولي بالطالب — بعد (١) نسخةٍ احتياطيّةٍ للجدول، (٢) dry-run بأعدادٍ لا أسماء يوافق عليه المالك، (٣) تخطّي أيّ اسمٍ مشتركٍ بين مستخدمين.</li>
+      <li><b>(أ) لأسماء الكادر (≈3000):</b> فاعلٌ أو موضوعٌ بالغ في سجلٍّ مؤسّسيّ، أخفُّ حساسيّةً، وخطأُ تعديلها لا رجوعَ فيه — يُدوَّن التعليلُ مكتوباً.</li>
+    </ul>
+  </div>
+  <div class="card risk">
+    <b>الأقلّ مخاطرةً إن فضّل المالكُ ذلك:</b> (أ) + (ب) فقط — فلا كتابةَ جماعيّةَ في الماضي، ويُعالَج كلُّ طلبِ محوٍ حين يصل.
+  </div>
+
+  <h2>٥. المطلوب من المالك بصفته DPO</h2>
+  <div class="card">
+    اختيارٌ واحد: <span class="tag">أ</span> <span class="tag">أ + ب</span> <span class="tag">ب + ج للقاصرين + أ للكادر (المقترح)</span> <span class="tag">ب + ج لكلّ الأسماء</span>.
+    وبعده: لا شيفرةَ ولا هجرةَ قبل قراره؛ ثمّ تمرّ بمراجعة 0105 والمعاينة والاعتماد بالرأس.
+  </div>
+</main>
+</body>
+</html>
