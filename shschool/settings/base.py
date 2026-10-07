@@ -761,6 +761,26 @@ PROVISIONAL_SESSIONS_ENABLED = os.environ.get("PROVISIONAL_SESSIONS_ENABLED", ""
     "yes",
 )
 
+# ── جدولُ الشعبة العموديّ لرصد الغياب (W-20261006-005، قرارا المالك D-239م وD-240م) ─────────────
+# مفتاحٌ واحدٌ للميزة: مشغَّلاً ← الجدولُ وحدَه (والمنتقي المؤقّتُ مخفيٌّ)، ومطفأً ← 404 لمساراته ويخدم الكشفُ الحاليّ.
+# `PROVISIONAL_SESSIONS_ENABLED` أعلاه **مهجورٌ**: يُقرأ اسماً بديلاً مؤقّتاً فقط إن لم يُضبط الجديدُ في البيئة، ويُحذف في م4.
+PROVISIONAL_GRID_ENABLED = os.environ.get("PROVISIONAL_GRID_ENABLED", "").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+#: أضُبط المفتاحُ الجديدُ في البيئة صراحةً (ولو بـ0)؟ — حينئذٍ لا يُقرأ المهجور.
+PROVISIONAL_GRID_ENABLED_SET = "PROVISIONAL_GRID_ENABLED" in os.environ
+#: نافذةُ رصد المعلّم من إعدادٍ مركزيٍّ واحد (D-237م): كلَّ يومٍ دراسيّ من الفتح إلى الإغلاق بتوقيت الدوحة؛ وبعد الإغلاق يُقفل المعلّمُ ويصحّح المشرفُ بسبب.
+ATTENDANCE_GRID_OPENS = os.environ.get("ATTENDANCE_GRID_OPENS", "07:10")
+ATTENDANCE_GRID_CLOSES = os.environ.get("ATTENDANCE_GRID_CLOSES", "14:00")
+#: سقفُ حفظات الجدول في الساعة لكلّ مستخدم — عدّادٌ مستقلٌّ عن سقف المؤقّتة (كتلُ 7×~30 خليّة).
+#: للمعاينة وحدَها (يُقرأ إن كان DEBUG مشغَّلاً): ساعةُ اليوم المفترَضةُ لتجربة الجدول ليلاً، مثل «07:11». فارغٌ افتراضاً.
+ATTENDANCE_GRID_FAKE_TIME = os.environ.get("ATTENDANCE_GRID_FAKE_TIME", "")
+ATTENDANCE_GRID_SAVES_PER_HOUR = int(os.environ.get("ATTENDANCE_GRID_SAVES_PER_HOUR", "60"))
+#: عتبةُ تنبيه القيادة: ما اعتمده حاملُ جناحٍ بنفسه في اليوم فوقها (لا سقفَ صلب — D-239م، شرطُ 0104). تحدّدها المدرسة.
+ATTENDANCE_SELF_APPROVAL_ALERT = int(os.environ.get("ATTENDANCE_SELF_APPROVAL_ALERT", "50"))
+
 # ── عنوانُ العميل خلف وكيل ─────────────────────────────────────────────
 # كم قفزةً موثوقةً تُلحقها البنيةُ بآخر X-Forwarded-For. محلّياً لا وكيلَ فالترويسة
 # لا تُصدَّق (0)؛ Railway يُلحق قفزةً واحدة (الإنتاج 1). راجع core/request_utils.py.

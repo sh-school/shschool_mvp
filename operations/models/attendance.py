@@ -103,16 +103,14 @@ class Session(models.Model):
                 condition=models.Q(provisional=False),
                 name="no_class_time_overlap_real",
             ),
-            # تفرّدُ المؤقّتة وحدَها (إضافةٌ لا تمسّ الحقيقيّة): الشعبةُ لا تحمل مؤقّتتَين لرقم حصّةٍ واحد، والمعلّمُ كذلك.
+            # تفرّدُ المؤقّتة وحدَها (إضافةٌ لا تمسّ الحقيقيّة): الشعبةُ لا تحمل مؤقّتتَين لرقم حصّةٍ واحدٍ **في مجموعة الاختيار نفسِها**
+            # (W-20261006-005، مراجعة 0102: القيدُ بلا `elective_group` كان يحجب معلّمَين شرعيَّين لمجموعتَي اختيارٍ في الحصّة نفسها).
+            # وقيدُ (المعلّم، التاريخ، الرقم) أُزيل: عمودُ الجدول يُنسب لمُسنَدٍ حتميّ فيصادمه كاتبٌ يحفظ ح1 لعدّة شعب؛
+            # وحارسُ «معلّمٌ واحدٌ في خانةٍ واحدة» للحقيقيّة وحدَها (قيدُها القائم).
             models.UniqueConstraint(
-                fields=["class_group", "date", "period_number"],
+                fields=["class_group", "date", "period_number", "elective_group"],
                 condition=models.Q(provisional=True),
                 name="provisional_class_period_unique",
-            ),
-            models.UniqueConstraint(
-                fields=["teacher", "date", "period_number"],
-                condition=models.Q(provisional=True),
-                name="provisional_teacher_period_unique",
             ),
         ]
 

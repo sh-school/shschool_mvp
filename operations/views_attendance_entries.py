@@ -121,7 +121,13 @@ def approvals(request):
     return render(
         request,
         "attendance/approvals.html",
-        {"groups": groups, "entries_total": sum(g.total for g in groups)},
+        {
+            "groups": groups,
+            "entries_total": sum(g.total for g in groups),
+            "self_summary": TeacherAttendanceService.self_approval_summary(
+                request.user, request.school
+            ),
+        },
     )
 
 
@@ -136,6 +142,25 @@ def approve_session(request, session_id):
     text = f"اعتُمدت الحصّة: {approved} إدخالاً"
     if skipped:
         text += f" · وتُخطّي {skipped} (تعارضٌ أو نسخةٌ أحدث) بقيت في القائمة لتنظر فيها"
+    (messages.warning if skipped else messages.success)(request, text + ".")
+    return redirect("attendance_approvals")
+
+
+@login_required
+@capability_required("wings.record_day")
+@require_POST
+def approve_session_defaults(request, session_id):
+    """اعتمادُ «الحاضر الافتراضيّ» في حصّةٍ — إجراءٌ **منفصلٌ بتأكيدٍ وعدد** (D-240م): لا يدخل اعتمادَ الحصّة."""
+    expected = TeacherAttendanceService.pending_defaults(request.user, request.school, session_id)
+    if request.POST.get("confirm") != "1" or request.POST.get("count") != str(expected):
+        messages.error(request, "أكّد العدد المعروض لاعتماد الحاضر الافتراضيّ — لم يُعتمد شيء.")
+        return redirect("attendance_approvals")
+    approved, skipped = TeacherAttendanceService.approve_session(
+        request.user, request.school, session_id, defaults_only=True
+    )
+    text = f"اعتُمد {approved} حاضراً افتراضيّاً"
+    if skipped:
+        text += f" · وتُخطّي {skipped}"
     (messages.warning if skipped else messages.success)(request, text + ".")
     return redirect("attendance_approvals")
 

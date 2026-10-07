@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 from core.capabilities import capability_required
 
 from .services import provisional_session as provisional
+from .views_class_grid import grid_classes
 
 
 def _class_or_404(request, class_id):
@@ -25,10 +26,16 @@ def _class_or_404(request, class_id):
 
 
 @login_required
-@capability_required("attendance.mark")
 def provisional_classes(request):
-    """شُعبُ إسناد المعلّم — منها يبدأ الرصدُ بحصّةٍ مؤقّتة."""
-    if not provisional.enabled():
+    """شُعبُ إسناد المعلّم — منها يبدأ الرصدُ بحصّةٍ مؤقّتة؛ ومع مفتاح الجدول القائمةُ نفسُها تفتح جدولَ الشعبة (W-20261006-005)."""
+    if provisional.grid_enabled():
+        return grid_classes(request)
+    return _picker_classes(request)
+
+
+@capability_required("attendance.mark")
+def _picker_classes(request):
+    if not provisional.picker_enabled():
         raise Http404
     school = request.school
     return render(
@@ -42,6 +49,8 @@ def provisional_classes(request):
 @capability_required("attendance.mark")
 def provisional_class(request, class_id):
     """صفحةُ الشعبة: منتقي الحصّة ح1–ح7 **فوق** الشبكة، وبعد الاختيار شبكةُ كشف الحصّة نفسُها في الصفحة (السياقُ في الخدمة)."""
+    if not provisional.picker_enabled():
+        raise Http404
     school, klass = _class_or_404(request, class_id)
     try:
         context = provisional.class_page_context(
@@ -57,6 +66,8 @@ def provisional_class(request, class_id):
 @require_POST
 def provisional_create(request, class_id):
     """ينشئ المؤقّتةَ للحصّة المختارة (أو يفتح حصّتَه القائمة) ويعود إلى صفحة الشعبة بشبكة كشفها."""
+    if not provisional.picker_enabled():
+        raise Http404
     school, klass = _class_or_404(request, class_id)
     back = reverse("provisional_class", args=[klass.id])
     try:

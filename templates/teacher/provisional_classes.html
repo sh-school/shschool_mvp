@@ -26,9 +26,13 @@
           <span class="pp-class__wing">{{ klass.wing.name|default:"—" }}</span>
         </span>
         {% comment %}«ارصد» يُنشئ حصّةَ الوقت الجاريّ ويفتح الشبكةَ مباشرةً (أمرُ المالك): لا صفحةَ وسيطة.{% endcomment %}
+        {% if grid %}
+        <a href="{% url 'class_grid' klass.id %}" class="btn-primary btn-sm">افتح الجدول</a>
+        {% else %}
         <form method="post" action="{% url 'provisional_create' klass.id %}">{% csrf_token %}
           <button type="submit" class="btn-primary btn-sm">ارصد</button>
         </form>
+        {% endif %}
       </li>
       {% endfor %}
     </ul>

@@ -1833,4 +1833,43 @@ body:has(.rm-page) .site-footer { flex: none; }
 .sessions-off-note { margin-block-start: var(--sp-3); text-align: center; font-size: calc(var(--text-sm) * 3); font-weight: 700; line-height: 1.3; color: var(--status-danger-fg); text-shadow: 0 0 .3em var(--status-danger-fg), 0 0 .8em var(--status-danger-fg); }
 .prov-off, [data-prov-off] { opacity: .55; pointer-events: none; cursor: not-allowed; }
 
+
+/* ── جدولُ الشعبة العموديّ لرصد الغياب (W-20261006-005): صفوفُ الطلاب × أعمدةُ ح1–ح7 ── */
+/* لا تمريرَ أفقيّاً (أمرُ المالك): التخطيطُ ثابتٌ بعرض الغلاف والأعمدةُ تتقاسم العرضَ. والتمريرُ العموديُّ **داخل الغلاف**: سلسلةُ flex من جسم البطاقة
+   (محدودِ الارتفاع في صفحاتِ `sheet`) إلى الغلاف، فيبلغ الغلافُ ارتفاعَ ما بقي ويتمرّر وحدَه ويلصق رأسُ الجدول بأعلاه ولا يسافر مع الصفوف. */
+[data-class-grid] { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.cg-wrap { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+.cg-table { table-layout: fixed; inline-size: 100%; }
+.cg-table th, .cg-table td { text-align: center; vertical-align: middle; padding-inline: var(--sp-1); }
+/* الاسمُ على يمين السطر (بدايةُ السطر في RTL) — القاعدةُ أعلاه أخصُّ من `.cg-name` وحدَها فكانت تُوسّطه. */
+/* عرضُ الاسم بمقدار أطولِ اسمٍ لا نسبةٍ من النافذة: الفراغُ المهدرُ بين الاسم وح1 يذهب إلى خلايا الحصص. */
+.cg-table .cg-name { text-align: start; inline-size: 15rem; padding-inline: var(--sp-3); }
+.cg-table .cg-acts { inline-size: 22%; }
+/* كلُّ سطرٍ يُميَّز عن جاره: خطٌّ فاصلٌ وتظليلُ الأزواج بلونٍ من هويّة العنّابيّ (يمتدّ تحت خليّة الاسم أيضاً) ومرورُ المؤشّر. */
+.cg-table tbody th, .cg-table tbody td { border-bottom: 1px solid var(--border); }
+.cg-table tbody tr:nth-child(even) > * { background: color-mix(in srgb, var(--maroon) 6%, var(--surface)); }
+.cg-table tbody tr:hover > * { background: color-mix(in srgb, var(--maroon) 12%, var(--surface)); }
+/* الرأسُ عنّابيٌّ: نصُّه `--on-fill` لا `--text-secondary` (كان رماديّاً على العنّابيّ فلا يُقرأ) ولا تعتيمَ يُضعف تباينَه. */
+.cg-table thead th { color: var(--on-fill); }
+.cg-name__btn { background: none; border: 0; font: inherit; font-weight: 700; color: inherit; text-align: start; cursor: pointer; inline-size: 100%; min-block-size: var(--control-h); }
+.cg-col__title, .cg-col__time { display: block; font-size: 0.75rem; }
+.cg-col__title { font-size: inherit; }
+/* الحصّةُ الجاريةُ: خطٌّ ذهبيٌّ تحت رأسها (الذهبيُّ تمييزٌ لا نصّ) وتلوينٌ خفيفٌ لخلاياها. */
+.cg-table thead .cg-col--current { box-shadow: inset 0 -3px 0 var(--gold); }
+.cg-cell { inline-size: 100%; min-block-size: var(--control-h); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); color: var(--text-secondary); font-weight: 800; cursor: pointer; }
+.cg-cell.is-present { background: var(--status-success-bg); border-color: var(--status-success); color: var(--status-success-fg); }
+.cg-cell.is-absent { background: var(--status-danger-bg); border-color: var(--status-danger); color: var(--status-danger-fg); }
+.cg-cell.is-late { background: var(--status-warning-bg); border-color: var(--status-warning); color: var(--status-warning-fg); }
+.cg-cell.is-default { border-style: dashed; }
+.cg-cell.is-pending { border-block-end-width: 3px; }
+.cg-cell.is-dirty, .cg-cell.is-conflict { outline: 2px solid var(--gold); outline-offset: -2px; }
+.cg-cell.is-conflict { outline-color: var(--status-danger); }
+/* الإجراءاتُ سطران: (متأخّر · مخالفة) ثمّ (الوجهة · خروج) — القائمةُ بعرضٍ محدودٍ لا بعرض العمود. */
+.cg-acts__box { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-1); }
+.cg-dest { inline-size: auto; max-inline-size: 6.5rem; font-size: 0.75rem; }
+@media (max-width: 640px) {
+  .cg-table .cg-name { inline-size: 34%; min-inline-size: 6rem; }
+  .cg-table .cg-acts { inline-size: 36%; }
+}
+
 } /* end @layer modules */

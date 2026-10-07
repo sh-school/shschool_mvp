@@ -26,6 +26,8 @@ from django.utils import timezone
 from core.models import AuditLog
 
 from .attendance_policy import (
+    GRID_ORIGINS,
+    _wing_holder_on,
     approval_evidence,
     approval_holder,
     can_approve,
@@ -70,10 +72,19 @@ _LEADERSHIP_BASIS = {
 }
 
 
-def _decision_basis(user: CustomUser, session: Session, gap: str | None) -> str:
-    """أساسُ الصلاحيّة المحفوظُ مع القرار: حاصرُ الغياب العامّ ليس حاملَ الجناح ولا القيادة، فيُسمّى باسمه."""
+def _decision_basis(
+    user: CustomUser, session: Session, gap: str | None, entry: AttendanceEntry | None = None
+) -> str:
+    """أساسُ الصلاحيّة المحفوظُ مع القرار: حاصرُ الغياب العامّ ليس حاملَ الجناح ولا القيادة، فيُسمّى باسمه.
+
+    وفي إدخال جدول الشعبة يعتمده حاملُ الجناح بأساسه: `wing_holder_self` إن كان هو كاتبَه (D-239م) وإلّا `wing_holder` — بلا نظرٍ إلى `holder_gap`.
+    """
     from wings.services import holds_school_wide
 
+    if entry is not None and entry.origin in GRID_ORIGINS:
+        holder = _wing_holder_on(session.class_group, session.date)
+        if holder is not None and holder.id == user.id:
+            return "wing_holder_self" if entry.entered_by_id == user.id else "wing_holder"
     holder = approval_holder(session)
     if holds_school_wide(user) and not (holder is not None and holder.id == user.id):
         return "school_wide"
@@ -453,7 +464,7 @@ def decide_entry(
         raise EntryError("superseded", "حلّت محلَّه نسخةٌ أحدث — القرارُ على الأحدث.")
 
     session = locked.session
-    verdict = can_approve(user, session, entered_by=locked.entered_by)
+    verdict = can_approve(user, session, entered_by=locked.entered_by, entry_origin=locked.origin)
     if not verdict:
         raise EntryRefusedError(verdict.reason)
 
@@ -462,12 +473,18 @@ def decide_entry(
         raise EntryError("reason_required", "الرفضُ يلزمه سبب.")
 
     gap = holder_gap(session)
+    basis = _decision_basis(user, session, gap, locked)
+    evidence: dict[str, Any] = dict(approval_evidence(session))
+    if locked.origin in GRID_ORIGINS:
+        # الدليلُ في سجلّ القرار: ما كتبه المعتمِدُ بنفسه وما كان «حاضراً افتراضيّاً» — يظهر في الشاشة وسجلّ التدقيق.
+        evidence["self_entered"] = locked.entered_by_id == user.id
+        evidence["default_present"] = locked.origin == "grid_default"
     decision = _decide(
         locked,
         user,
         approve=approve,
-        basis=_decision_basis(user, session, gap),
-        evidence=approval_evidence(session),
+        basis=basis,
+        evidence=evidence,
         reason=reason,
         now=now,
     )
@@ -622,6 +639,108 @@ def correct_without_observation(
 
 
 # ══════════════════════════════════════════════════════════════════
+# جدولُ الشعبة العموديّ (W-20261006-005) — كتابةُ خليّةٍ بحالةٍ صريحةٍ و`expected_head`
+# ══════════════════════════════════════════════════════════════════
+
+#: مصدرُ الإدخال لخليّةٍ كتبها كاتبٌ في الجدول، ولحاضرٍ افتراضيٍّ كتبه الحفظُ لخليّةٍ فارغة (D-240م).
+GRID_ORIGIN = "grid"
+GRID_DEFAULT_ORIGIN = "grid_default"
+#: أسبابٌ ثابتةٌ مركزيّةٌ تحقّق قيدَ `correction_reason` دون احتكاك (لا يكتب المعلّمُ سبباً لتعديلٍ من الجدول).
+GRID_EDIT_REASON = "تعديلٌ من جدول الشعبة"
+GRID_DEFAULT_FIX_REASON = "تصحيحُ حاضرٍ افتراضيّ"
+
+
+class GridConflictError(EntryConflictError):
+    """الرأسُ الحاليُّ للخليّة غيرُ ما رآه العميلُ — لا يُكتب شيءٌ، ويحمل الإدخالَ الحاليَّ ليُعرض من كتبه ومتى."""
+
+    def __init__(self, current: AttendanceEntry | None):
+        super().__init__("conflict", "غيّر آخرُ هذه الخليّةَ قبل حفظك.")
+        self.current = current
+
+
+@transaction.atomic
+def write_grid_cell(
+    user: CustomUser,
+    session: Session,
+    student: CustomUser,
+    status: str,
+    *,
+    minutes: int | None = None,
+    expected_head: str = "",
+    default_present: bool = False,
+    now: dt.datetime | None = None,
+) -> tuple[AttendanceEntry, bool]:
+    """يكتب خليّةً من جدول الشعبة: إدخالٌ جديدٌ، أو إدخالٌ يصحّح الرأسَ القائم (`supersedes`) بسببٍ ثابت. `(الإدخال، أُنشئ الآن؟)`.
+
+    **الصلاحيةُ ليست هنا**: يفحصها المستدعي (`can_write_grid`) فلا تُخفَّف `can_enter` العامّة. وهنا الذرّيّةُ والتزامن:
+    - `expected_head` معرّفُ الرأس الذي رآه العميلُ أو فارغٌ لـ«لا شيء»؛ يختلف الرأسُ الحاليُّ ← `GridConflictError` ولا كتابة.
+    - التكرارُ بالمفتاح نفسِه (الرأسُ الحاليُّ بالقيمة المطلوبة نفسِها وكاتبُه المستدعي) لا يُنتج صفّاً ثانياً.
+    - الحاضرُ الافتراضيُّ (`default_present`) يُوسَم `origin=grid_default` ولا يكتب فوق خليّةٍ لها رأس.
+    """
+    if status not in ENTERABLE_STATUSES:
+        raise EntryError("bad_status", "حالةٌ غيرُ مسموحةٍ للإدخال.")
+    value_minutes = minutes if status == "late" else None
+    head = head_of(session, student, lock=True)
+    if (
+        head is not None
+        and head.status == status
+        and head.tardiness_minutes == value_minutes
+        and head.entered_by_id == user.id
+    ):
+        return head, False
+    if str(head.pk if head else "") != (expected_head or ""):
+        raise GridConflictError(head)
+    if default_present and head is not None:
+        raise GridConflictError(head)
+
+    reason = ""
+    if head is not None:
+        reason = GRID_DEFAULT_FIX_REASON if head.origin == GRID_DEFAULT_ORIGIN else GRID_EDIT_REASON
+    try:
+        with transaction.atomic():
+            entry = AttendanceEntry.objects.create(
+                school_id=session.school_id,
+                session=session,
+                student=student,
+                status=status,
+                tardiness_minutes=value_minutes,
+                entered_by=user,
+                entered_at=now or timezone.now(),
+                supersedes=head,
+                correction_reason=reason,
+                origin=GRID_DEFAULT_ORIGIN if default_present else GRID_ORIGIN,
+            )
+    except IntegrityError as exc:
+        raise EntryConflictError(
+            "concurrent", "إدخالٌ آخرُ سبقك على هذا الطالب — أعِد المحاولة."
+        ) from exc
+
+    _audit(
+        user,
+        session,
+        "create",
+        entry.pk,
+        "إدخالٌ من جدول الشعبة",
+        {
+            "status": status,
+            "student": str(student.pk),
+            "supersedes": str(head.pk) if head else None,
+            "default_present": default_present,
+        },
+    )
+    if not needs_approval(session):
+        _decide(
+            entry,
+            user,
+            approve=True,
+            basis="special_ed_self",
+            evidence={"rule": "special_education", "section": session.class_group.section},
+            reason="",
+        )
+    return entry, True
+
+
+# ══════════════════════════════════════════════════════════════════
 # المحو (PDPPL م.18) — المسارُ الوحيد الذي يحذف من السجلّ
 # ══════════════════════════════════════════════════════════════════
 
@@ -693,5 +812,5 @@ def erase_attendance_ledger(
 def teacher_marked_absent(session: Session, student: CustomUser) -> bool:
     """هل وسمه معلّمُ الحصّة غائباً (إدخالٌ مبدئيّ)؟ — لمنع فتح خروجٍ لغائبٍ (غائبٌ وخروجٌ لا يجتمعان). رصدُ المشرف لا يمنع."""
     return AttendanceEntry.objects.filter(
-        session=session, student=student, status="absent"
+        session=session, student=student, status="absent", superseded_by__isnull=True
     ).exists()
