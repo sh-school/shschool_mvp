@@ -86,6 +86,15 @@ app.conf.beat_schedule = {
         "task": "staff_affairs.send_monthly_absence_notices",
         "schedule": crontab(hour=7, minute=30, day_of_month=1),
     },
+    # قرارُ المالك 2026-10-07: عتباتُ الغياب وإخطارُ وليّ الأمر بعد نهاية الدوام (لا لحظةَ الرصد) — الأحد–الخميس.
+    "sweep-absence-gates-after-school": {
+        "task": "operations.sweep_absence_gates_after_school",
+        "schedule": crontab(
+            hour=int(os.environ.get("ATTENDANCE_DAY_CLOSE_HOUR", "14")),
+            minute=int(os.environ.get("ATTENDANCE_DAY_CLOSE_MINUTE", "30")),
+            day_of_week="0-4",
+        ),
+    },
     # ✅ v7: إلغاء الصلاحيات المؤقتة المنتهية — كل دقيقة
     "revoke-expired-temp-permissions": {
         "task": "operations.revoke_expired_temp_permissions",

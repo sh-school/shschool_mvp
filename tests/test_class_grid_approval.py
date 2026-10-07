@@ -172,3 +172,86 @@ def test_the_old_sheet_stays_with_the_switch_off_or_another_day(
     settings.PROVISIONAL_GRID_ENABLED = False
     off = client_as(holder).get(url)
     assert off.status_code != 302 or "/grid/" not in off["Location"]
+
+
+# ── الرصد النهائيّ بلا اعتماد (قرارُ المالك 2026-10-07) ─────────────────────────────────────────
+
+
+@pytest.fixture
+def direct(settings, assigned):
+    settings.ATTENDANCE_GRID_DIRECT_WINGS = assigned.wing.code
+    return assigned
+
+
+def test_a_direct_wing_teacher_entry_is_final_and_reaches_the_record_at_once(
+    school, direct, teacher, kids, clock
+):
+    _write(teacher, school, direct, kids)
+    decision = AttendanceDecision.objects.get()
+    assert decision.basis == "direct_entry" and decision.evidence["rule"] == "direct_wing"
+    assert StudentAttendance.objects.get(student=kids[0]).status == "absent"
+    page = grid.page(teacher, school, direct.id, now=at(9, 0))
+    assert page.approvable_columns == []
+
+
+def test_without_the_direct_setting_the_entry_still_waits_for_the_holder(
+    school, assigned, teacher, kids, clock
+):
+    _write(teacher, school, assigned, kids)
+    assert not AttendanceDecision.objects.exists()
+    assert not StudentAttendance.objects.exists()
+
+
+def test_the_supervisor_replaces_the_teachers_entry_directly_and_the_teacher_is_told(
+    school, direct, teacher, holder, kids, clock
+):
+    from notifications.models import InAppNotification
+
+    _write(teacher, school, direct, kids, status="present")
+    head = str(AttendanceEntry.objects.get().pk)
+    grid.save_column(
+        holder,
+        school,
+        direct.id,
+        1,
+        [{"student": str(kids[0].pk), "status": "absent", "head": head}],
+        now=at(9, 5),
+    )
+    assert StudentAttendance.objects.get(student=kids[0]).status == "absent"
+    assert AttendanceEntry.objects.count() == 2  # السلسلةُ كاملةٌ لا تُمحى
+    note = InAppNotification.objects.get(user=teacher)
+    assert "عدّل مشرفُ الجناح" in note.title
+
+
+def test_settling_the_old_pending_entries_decides_them_as_direct(
+    settings, school, assigned, teacher, kids, clock
+):
+    from operations.attendance_entries import settle_pending_as_direct
+
+    _write(teacher, school, assigned, kids)
+    settings.ATTENDANCE_GRID_DIRECT_WINGS = assigned.wing.code
+    assert settle_pending_as_direct(school) == 1 and not AttendanceDecision.objects.exists()
+    assert settle_pending_as_direct(school, apply=True) == 1
+    assert AttendanceDecision.objects.get().basis == "direct_entry"
+    assert StudentAttendance.objects.get(student=kids[0]).status == "absent"
+
+
+def test_the_end_of_day_sweep_checks_the_gates_of_todays_absentees(
+    monkeypatch, school, direct, teacher, kids, clock
+):
+    import datetime as dt
+
+    from operations.end_of_day import sweep_absence_gates
+    from operations.services import AttendanceService
+
+    _write(teacher, school, direct, kids)
+    seen = []
+    monkeypatch.setattr(
+        AttendanceService,
+        "check_absence_threshold",
+        staticmethod(lambda student, school, on=None: seen.append((student.pk, on))),
+    )
+    day = AttendanceEntry.objects.get().session.date
+    assert sweep_absence_gates(school, day) == 1
+    assert seen == [(kids[0].pk, day)]
+    assert sweep_absence_gates(school, day + dt.timedelta(days=1)) == 0

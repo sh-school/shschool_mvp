@@ -562,3 +562,26 @@ def purge_expired_export_jobs_task():
     deleted, _ = ExportJob.objects.filter(created_at__lt=cutoff).delete()
     if deleted:
         logger.info("purge_expired_export_jobs: حُذف %s صفّ تصدير منتهٍ", deleted)
+
+
+@shared_task(name="operations.sweep_absence_gates_after_school")
+def sweep_absence_gates_after_school_task():
+    """بعد نهاية الدوام: عتباتُ الغياب وإنذاراتُ أولياء الأمور لغياب اليوم (قرارُ المالك 2026-10-07). مدرسةً مدرسةً بنطاق RLS وعطبُ واحدةٍ لا يُسقط غيرَها."""
+    from django.utils import timezone
+
+    from core.models import School
+    from operations.end_of_day import sweep_absence_gates
+    from operations.school_days import is_school_day
+
+    day = timezone.localdate()
+    checked = 0
+    failed = 0
+    for school in School.objects.filter(is_active=True).iterator(chunk_size=100):
+        try:
+            with school_rls_scope(school.id):
+                if is_school_day(school, day):
+                    checked += sweep_absence_gates(school, day)
+        except Exception:  # noqa: BLE001
+            failed += 1
+            logger.exception("sweep_absence_gates_after_school: تعذّر في المدرسة %s", school.pk)
+    return {"checked": checked, "failed_schools": failed}
