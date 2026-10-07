@@ -42,6 +42,7 @@
          data-save-url="{% url 'class_grid_save' page.klass.id %}"
          data-late-url="{% url 'class_grid_late' page.klass.id %}"
          data-exit-url="{% url 'class_grid_exit' page.klass.id %}"
+         data-approve-url="{% url 'class_grid_approve' page.klass.id %}"
          data-draft-key="class-grid:{{ request.user.pk }}:{{ page.klass.pk }}:{{ page.day|date:'Y-m-d' }}"
          data-closes="{{ page.closes|time:'H:i' }}"
          data-correcting="{% if page.correction_mode %}1{% endif %}">
@@ -105,6 +106,17 @@
             </tr>
             {% endfor %}
           </tbody>
+          {% if page.approvable_columns %}
+          <tfoot>
+            <tr>
+              <th scope="row" class="cg-name">اعتماد المشرف</th>
+              {% for col in page.columns %}
+              <td class="cg-col--{{ col.state }}">{% if col.approvable %}<button type="button" class="btn-primary btn-sm" data-approve-col="{{ col.number }}" data-pending="{{ col.pending }}">اعتماد الحصّة ({{ col.pending }})</button>{% endif %}</td>
+              {% endfor %}
+              {% if page.can_write %}<td></td>{% endif %}
+            </tr>
+          </tfoot>
+          {% endif %}
         </table>
       </div>
       <p class="ui-note" data-grid-status role="status" aria-live="polite"></p>
