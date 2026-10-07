@@ -1,6 +1,7 @@
 ---
 name: schoolos-feedback-intake
-description: "Use for the SchoolOS «0201 · أمين البلاغات» duty: reading users' messages to the developer in the production inbox via Chrome (owner's session, never log in), the gate.js sanitization gate, triaging SOS-YYYYMMDD-XXXX tickets, the 07:00 daily report, status changes (only new→seen→in_progress, D-53م), and four-line cards of owner-approved items to 0204. Trigger on: developer feedback inbox, SOS ticket, gate.js, ledger.json, prompt injection in a user message, login page while reading the inbox, 0204 asking the card format. استخدمها عند «رسائل المطوّر»، «شو في الصندوق اليوم؟»، «في رسائل جديدة؟»، «سِم الرسائل مقروءة»، «تقرير البلاغات»، «شكوى مستخدم»، «سلّم المعتمَد» — ولو لم تُذكر المهارة. ليست لـ: بناء تطبيق developer_feedback أو تعديله (schoolos-platform)، تدقيق PII في الشيفرة (pdppl-pii-audit)، ترتيب الطابور وledger.py (maestro-intake)، إنذارات Sentry وCI (schoolos-watch)، الخارطة (schoolos-roadmap-sync)، واجهة المرسِل (arabic-rtl-review)، تثبيت طلبٍ على 8500 (schoolos-preview-8500)."
+description: "Manual (session 0201): read developer feedback inbox via Chrome, sanitize with gate.js, triage SOS tickets, daily report. يدوية (/schoolos-feedback-intake): قراءة رسائل المطوّر وفرزها وتقرير 07:00."
+disable-model-invocation: true
 ---
 
 # أمين البلاغات — قراءةُ صندوق المطوّر وفرزُه وتقريرُه

@@ -1,6 +1,6 @@
 ---
 name: schoolos-source-of-truth
-description: "Use for answering Qatar MoE regulation, school-decision and related-law questions (HR law 15/2016, PDPPL 13/2016) from SchoolOS's source of truth (md extraction; the PDF is final), and before encoding any regulatory number, deadline or role rule in code or a spec. Trigger on: absence threshold, exam deprivation, 40/60 split, grievance deadline, violation ladder, professional license, excuses, ministerial decision, new circular, ministry_data, [LEGAL]. استخدمها عند «كم يوم غياب يُحرم الطالب؟»، «من صاحب الصلاحيّة في المخالفة؟»، «مهلة التظلّم كم يوم؟»، «السياسة وزاريّة أم مدرسيّة؟»، «وصل تعميمٌ أو كتابٌ جديد»، «md يخالف الكود — أيّهما صح؟»، وعند مواصفةٍ أو طلب دمجٍ يرمّز عتبةً أو يستشهد بمادّةٍ بلا صفحة — ولو لم تُذكر المهارة. ليست لـ: فحص تشفير PII (pdppl-pii-audit)، استشارة PDPPL وتقييم الأثر (pdppl-qatar-advisor)، موضع الشيفرة (schoolos-platform)، تصنيف البطاقة وتسمية الجلسة (ميثاق 0301)، الفلو (schoolos-flow)، الهجرات (schoolos-migration-guard)، خطط الدروس (lesson)."
+description: "Use for Qatar MoE regulation and school-decision questions (HR law 15/2016, PDPPL) and before encoding any regulatory number, deadline or role rule in code. استخدمها عند أسئلة اللوائح والعتبات (غياب، حرمان، تظلم، مخالفات) وقبل ترميز أي رقم تنظيمي."
 ---
 
 # مصدر الحقيقة — الجوابُ اللائحيّ بمصدرٍ ونوعٍ وثقة

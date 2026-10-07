@@ -1,9 +1,6 @@
 ---
 name: schoolos-report-ar
-description: |
-  Use for building or fixing official Arabic (RTL) PDF and Excel exports in SchoolOS: the central export registry (core/exports, background job by default), core.pdf_utils.render_pdf / render_pdf_bytes (WeasyPrint), the print frame ({% print_frame_css/header/footer %}, data-pdf-own-page), font minimums (D2, print-fit spec v2.4), ministry vision footer, ExcelService / excel_to_response, log_export audit, national-ID masking in bulk documents. Trigger on: PDF, Excel, xlsx, export, تصدير, تقرير, كشف, شهادة, طباعة, ترويسة, تذييل, render_pdf, openpyxl, WeasyPrint, A3, A4, "الخط صغير في الـPDF".
-  استخدمها عند: إضافة تقريرٍ أو كشفٍ أو شهادةٍ أو ملفّ Excel، أو تعديل قالبٍ تحت templates/*/pdf/ أو *_pdf.html، أو نقل تصديرٍ إلى المهمّة الخلفيّة، أو شكوى من خطٍّ صغير أو ترويسةٍ مزدوجة أو تذييلٍ بلا رؤية — ولو لم تُذكر كلمة «تقرير».
-  ليست لـ: صفحات الويب التفاعليّة (web-design-mastery)، ولا قرارِ ما يجوز إظهارُه من بياناتٍ شخصيّة (pdppl-pii-audit)، ولا بطءِ الاستعلامات، ولا الجدولِ المدرسيّ المطبوع (مسارُ «جدول · التشغيل»).
+description: "Use for official Arabic RTL PDF/Excel exports: export registry, render_pdf (WeasyPrint), print frame, font minimums, ExcelService, log_export, ID masking. استخدمها عند إضافة تقرير أو كشف أو شهادة أو ملف Excel أو إصلاح PDF (الخط صغير، ترويسة، تذييل)."
 ---
 
 # التقارير الرسميّة PDF وExcel — SchoolOS

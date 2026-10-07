@@ -1,6 +1,6 @@
 ---
 name: schoolos-quality-guards
-description: "Use for SchoolOS quality guards and post-deploy measurement: which CI guard, ratchet or budget failed, whether it blocks the merge, reproducing it with pinned versions (ruff 0.4.4, mypy 1.10.0), live budget margins, the nine lanes' KPI recipes, and the deviation card to 0204. Trigger on: «ملخص بوابة الجودة» red, axe-a11y, test_px_tokens, test_file_size, mypy_ratchet, baseline.json, detect-secrets, deploy-window, Nightly, Lighthouse, MAX_SHIPPED_BYTES, KPI, PK/RK/LK. استخدمها عند فشل حارسٍ أو سقّاطة (ولو بعد إصلاحين)، و«هل يحجب الدمج؟»، و«نقص — اخفض السقف»، وقبل إضافة CSS أو ملفٍّ طويل، وقياس المؤشّرات بعد النشر أو أسبوعيّاً (0702)، وبطاقة الانحراف — ولو قيل «CI أحمر وما فهمت ليش» أو «كم باقي في ميزانيّة CSS؟» أو «يمرّ عندي ويسقط في CI». ليست لـ: الدفع والدمج (schoolos-flow)، غيت (schoolos-git-safety)، الهجرات (schoolos-migration-guard)، رموز الألوان (web-design-mastery)، عطل الإنتاج (schoolos-watch)، هجرة الخارطة (schoolos-roadmap-sync)، N+1 (nplus1-hunter)، PII (pdppl-pii-audit)."
+description: "Use when a CI guard, ratchet or budget fails (ruff, mypy, axe, file size, px tokens, detect-secrets) or for post-deploy KPI measurement and the deviation card. استخدمها عند فشل حارس في CI أو قبل إضافة CSS/ملف طويل أو لقياس المؤشرات."
 ---
 
 # حرّاسُ الجودة وقياسُ المؤشّرات — SchoolOS

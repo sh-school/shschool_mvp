@@ -1,6 +1,7 @@
 ---
 name: schoolos-watch
-description: "Use for SchoolOS operational monitoring (session «0203 · الرصد والإنذارات»): alert sources (production /health/, uptime/worker-heartbeat issues, CI on main, backups, memory, GitHub security alerts, orphan worktrees by PR state), running watch_once.py, grading S1/S2/S3, whom to notify, false alarms, daily summary. Trigger on: watch_once, monitoring round, UPTIME FAILED, 500, main is red, backup failed, claude_backup, orphan tree, secret scanning, Dependabot alert, false alarm, U-01 window. استخدمها عند «هل الإنتاجُ سليم؟»، «main أحمر»، «فشل النسخ»، «الذاكرة حمراء»، «شجرةٌ يتيمة؟»، «تنبيهٌ أمنيّ»، «إنذارٌ كاذب؟»، «ما درجتُه ولمن أبلّغ؟»، «ملخّص الرصد» — ولو لم تُذكر. ليست لـ: قيادة حادثٍ مُعلن (maestro-incident)، النشر والرجوع (schoolos-deploy)، قياس المؤشّرات (schoolos-quality-guards)، رسائل المستخدمين (schoolos-feedback-intake)، أرشفة شجرة (maestro-archive-check)، N+1 (nplus1-hunter)، 8500 (schoolos-preview-8500)، الهجرات (schoolos-migration-guard)، إصلاح العطل (schoolos-debugger)."
+description: "Manual (session 0203): operational monitoring: production /health/, CI on main, backups, orphan worktrees, alert grading S1/S2/S3, watch_once.py. يدوية (/schoolos-watch): الرصد والإنذارات وتصنيفها."
+disable-model-invocation: true
 ---
 
 # الرصدُ والإنذارات — SchoolOS

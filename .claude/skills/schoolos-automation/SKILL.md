@@ -1,6 +1,7 @@
 ---
 name: schoolos-automation
-description: "Use for turning any recurring, scheduled or event-driven SchoolOS job into code that runs by itself, never a Claude Code scheduled task (D-50م): choosing Celery beat, GitHub Actions (cron or PR event) or Windows Task Scheduler, and designing it (idempotent, timeout, bounded retry, lock, exit code, silent-failure alert, tests, env secrets, no PII). Trigger on: cron, beat_schedule, periodic, nightly, weekly report, Task Scheduler, PowerShell job, watch_once, REP-10, MAE-06/09/11, worker-heartbeat, silent failure, 0801. استخدمها عند نقل مهمّةٍ دوريّةٍ من Claude إلى شيفرة، أو إضافة مهمّةٍ مجدولةٍ واختيار مكانها، أو أتمتةٍ «تنجح» ولا تعمل — ولو قيل «خلّ التقرير يطلع لحاله كلّ أحد» أو «ذكّر الجلسة كلّ يوم الساعة 7». ليست لـ: هجرة بياناتٍ لمرّة (schoolos-migration-guard)، حرّاس بوّابة الطلب (regression_guards.md)، الدمج والنشر (schoolos-flow، schoolos-deploy)، git (schoolos-git-safety)، تصديرٍ بطيءٍ عند الطلب (core/exports)، تذكيرٍ شخصيّ، تتبّع خطأ Celery (schoolos-debugger)."
+description: "Manual: turn a recurring/scheduled job into self-running code (Celery beat, GitHub Actions, Task Scheduler): idempotent, timeout, lock, alert. يدوية (/schoolos-automation): لنقل مهمة دورية من Claude إلى شيفرة تعمل وحدها."
+disable-model-invocation: true
 ---
 
 # أتمتةُ الجدولة في الكود — SchoolOS

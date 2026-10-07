@@ -1,9 +1,6 @@
 ---
 name: schoolos-platform
-description: |
-  Use for any code-level question or change in the SchoolOS Django codebase: where is X, which app/model/service/URL owns a feature, users/roles/memberships, school scoping and RLS, the Qatari grading engine (packages P1..P4+AW, 40/60, pass mark 50, grade 12), attendance and absence thresholds, the 2026 conduct catalog, notifications, exports, layering rules. Trigger even unnamed: "أين أجد…"، "وين الموديل حق…"، "كيف أجيب طلاب الشعبة"، "درجة النجاح كم"، "دور المنسق"، "request.school"، "أضيف تقرير/جدول جديد"، or any edit in models/services/views.
-  استخدمها عند أيّ عملٍ على شيفرة المنصّة: خريطةُ التطبيقات والنماذج والخدمات، والأدوار والعضويّات، وعزلُ المدرسة، ونظامُ التقييم، والحضورُ والسلوكُ والإشعاراتُ والتصدير، وفخاخُها الموثَّقة.
-  Not for: session workflow, preview 8500, push/merge (schoolos-flow / schoolos-git-safety); ministry PDFs and policy answers (schoolos-source-of-truth); CSS, templates, RTL (web-design-mastery); migrations (schoolos-migration-guard); PII (pdppl-pii-audit); N+1 (nplus1-hunter).
+description: "Use for any code-level question or change in the SchoolOS Django codebase: apps/models/services map, roles, school scoping, grading engine, attendance, notifications, exports. استخدمها عند أي عمل على شيفرة المنصة («أين أجد…؟»، نظام التقييم، الحضور، الأدوار)."
 ---
 
 # SchoolOS — خريطةُ الشيفرة

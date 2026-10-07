@@ -1,6 +1,7 @@
 ---
 name: schoolos-roadmap-sync
-description: "Use for keeping the SchoolOS living roadmap (/roadmap/) in step after a merge or deploy: reporting merged work to «0701 · تحديث الخارطة», closing or progressing items (VI-, LAY-, N-…), owner decisions, KPI readings, placing work with no item, writing or reviewing roadmap/migrations and their guard, RoadmapItem fields (priority, start time: MAE-00). Trigger on: roadmap, roadmap/migrations, close item, blocked vs done, N-0xx, P0..P3. استخدمها عند اندماج طلبك (ولو صغيراً) و«أيش أسوّي بخصوص الخارطة؟»، وبناء 0701 هجرةَ المزامنة بعد نشر، و«أين يُسجَّل هذا العمل؟»، و«أغلق البند»، و«سجّل قرار المالك»، و«حدّث المؤشّر»، و«في الخارطة حقلُ أولويّة؟»، وبندٍ ينتظر المالك — ولو لم تُذكر الخارطة، كمراجعة ملفٍّ تحت roadmap/migrations. ليست لـ: الفلو قبل الاندماج (schoolos-flow)، هجرات التطبيقات الأخرى (schoolos-migration-guard)، القياس نفسه (schoolos-quality-guards)، غيت (schoolos-git-safety)، لوحة command_center، خارطة منهج (lesson)، product roadmap لأذكياء (product-management:roadmap-update)."
+description: "Manual: keep the living roadmap (/roadmap/) in step after a merge or deploy: report merged work, close/progress items, KPI readings, roadmap migrations. يدوية (/schoolos-roadmap-sync): بعد اندماج طلبك أو لتحديث الخارطة. الملخص في .claude/rules/roadmap.md."
+disable-model-invocation: true
 ---
 
 # مزامنةُ خارطة التجويد الحيّة

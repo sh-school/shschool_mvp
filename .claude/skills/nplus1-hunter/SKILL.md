@@ -1,9 +1,6 @@
 ---
 name: nplus1-hunter
-description: |
-  Use for N+1 and query-count problems in SchoolOS (Django 5.2, server-rendered templates + HTMX partials, DRF under /api/v1/): a slow page, list, export or API; a loop touching a relation (FK, reverse _set, M2M) or a per-row method like user.get_role; choosing select_related vs prefetch_related vs annotate; proving the fix with the flat query-count test (1 row vs 3 rows). Trigger on: N+1, slow page, too many queries, query count, select_related, prefetch_related, Prefetch, CaptureQueriesContext, django_assert_num_queries, "why is this slow".
-  استخدمها عند: بطء صفحةٍ أو قائمةٍ أو تصديرٍ أو API، أو كتابة view أو selector أو serializer أو قالبٍ يمرّ على قائمة، أو سؤال «ليش الصفحة بطيئة؟» — ولو لم تُذكر كلمة N+1: كلُّ {% for %} يقرأ x.y.z مرشّح.
-  ليست لـ: أمان الهجرات والفهارس (schoolos-migration-guard)، ولا بطءِ توليد الجدول أو المهامّ الطويلة (زمنُ حسابٍ)، ولا أداءِ الواجهة وCLS/LCP (schoolos-quality-guards)، ولا بناءِ نقطة API جديدة (drf-endpoint-scaffold).
+description: "Use for N+1 and query-count problems: slow page/list/export/API, loops over relations, select_related vs prefetch_related, flat query-count tests. استخدمها عند بطء صفحة أو قائمة أو API، أو {% for %} يقرأ علاقة. ليست للهجرات ولا لأداء الواجهة."
 ---
 
 # صيّاد N+1 في SchoolOS

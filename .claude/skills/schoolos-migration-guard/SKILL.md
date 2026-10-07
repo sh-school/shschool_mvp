@@ -1,9 +1,6 @@
 ---
 name: schoolos-migration-guard
-description: |
-  Use for any Django schema or data migration in SchoolOS: writing or reviewing */migrations/, changing a field in models.py, Add/Remove/Rename/AlterField, NOT NULL, default vs db_default, indexes and unique constraints on live tables, RunPython/RunSQL backfills (encrypted PII), the expand/contract rule and the migration-linter CI gate, or two sessions colliding on a migration number. Trigger on: migration, makemigrations, sqlmigrate, lintmigrations, schema change, db_default, "is this migration safe", "migration-linter failed", "Conflicting migrations".
-  استخدمها عند: كتابة هجرةٍ أو مراجعتها قبل الدفع، أو تعديل حقلٍ في models.py، أو سقوط «مدقّق الهجرات — Expand/Contract» في CI، أو RunPython يملأ بياناتٍ مشفّرة، أو تعارضِ ترقيم هجرتين — ولو لم تُذكر كلمة migration: كلُّ تعديلٍ في models.py يولّد هجرة.
-  ليست لـ: بطء الاستعلامات (nplus1-hunter)، ولا تصنيفِ حقلٍ شخصيّ (pdppl-pii-audit)، ولا هجراتِ الخارطة roadmap/migrations (جلسةُ الخارطة)، ولا الدفعِ والنشر (schoolos-flow)، ولا أوامرِ غيت.
+description: "Use for any Django migration or models.py change: expand/contract, NOT NULL, db_default, indexes, RunPython backfills, migration-linter, number collisions. استخدمها عند كتابة هجرة أو تعديل models.py أو سقوط مدقّق الهجرات."
 ---
 
 # حارس هجرات SchoolOS

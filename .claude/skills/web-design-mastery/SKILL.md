@@ -1,9 +1,6 @@
 ---
 name: web-design-mastery
-description: |
-  Use for SchoolOS web UI work: CSS in the eight layer files (static/css/custom/, ADR-0003), design tokens (colour roles, -fg text tokens, spacing/radius scales, rem font sizes), dark mode (html.dark in 40-themes), the seven page layouts (D-16), ui.py components (page_header, section_card, kpi, callout, empty_state, field, filter_bar), RTL logical properties, responsive/mobile, HTMX and CSP-safe JS (data-action, nonce), accessibility, and the live CSS/JS/Web-Vitals budgets. Trigger on: CSS, template, component, card, table, dark mode, RTL, responsive, mobile, HTMX, a11y, contrast, layout, "the page looks wrong", "overflows on phone".
-  استخدمها عند: تعديل أيّ قالبٍ أو CSS أو JS في الواجهة، أو بناء صفحةٍ أو بطاقةٍ أو مكوّن، أو إصلاح الوضع الليليّ أو الجوال أو التباين، أو السؤال «أين أكتب هذا النمط؟» — ولو بدا التعديلُ سطراً واحداً.
-  ليست لـ: ملفّات PDF وExcel المطبوعة (schoolos-report-ar)، ولا تشخيصِ حارسٍ فشل في CI (schoolos-quality-guards)، ولا هويّةِ علامةٍ خارج المنصّة (sma-design)، ولا بطءِ الاستعلامات.
+description: "Use for SchoolOS web UI work: CSS layer files, design tokens, dark mode, page layouts, ui.py components, RTL, responsive, HTMX/CSP-safe JS, accessibility, budgets. استخدمها عند تعديل أي قالب أو CSS أو JS أو إصلاح الجوال والوضع الليلي والتباين. ليست لـ PDF."
 ---
 
 # معاييرُ الواجهة في SchoolOS
