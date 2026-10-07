@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load ui %}
+{% load ui provisional_door %}
 {% block title %}{% if is_leadership %}حصص المدرسة{% else %}جدول حصصي{% endif %}{% endblock %}
 
 {% block breadcrumbs %}
@@ -73,8 +73,8 @@
 {% endfilter_bar %}
 {% endif %}
 
-{# ── الحصة القادمة ── #}
-{% if next_session %}
+{# ── الحصة القادمة ── (مع مفتاح الرصد المؤقّت لا بابَ حضورٍ فعّالاً للمعلّم، D-228م) #}
+{% provisional_enabled as provisional_door %}{% if next_session and not provisional_door or next_session and is_leadership %}
 {% section_card "الحصة القادمة" meta=next_session.start_time|time:"H:i" icon="time" %}
   <div class="plain-list__row next-session">
     <span class="plain-list__main">
