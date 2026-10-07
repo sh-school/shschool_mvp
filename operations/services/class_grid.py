@@ -80,6 +80,8 @@ class GridRefusedError(Exception):
     def __init__(self, reason: str, message: str = ""):
         super().__init__(message or reason)
         self.reason = reason
+        #: نصٌّ كتبناه نحن للعرض — لا `str(exc)` (يمنع تسرّبَ تتبّع الاستثناء إلى الاستجابة، CodeQL).
+        self.message = message or reason
 
 
 @dataclass(frozen=True)
@@ -191,7 +193,9 @@ def classes_for(user: CustomUser, school: School) -> list[ClassGroup]:
         return []
     from wings.services import holds_school_wide, wings_of
 
-    base = ClassGroup.objects.filter(school=school, is_active=True).select_related("wing")
+    base = ClassGroup.objects.filter(
+        school=school, is_active=True, academic_year=academic_year_for_school(school)
+    ).select_related("wing")
     if is_developer(user):
         return []
     roles = set(

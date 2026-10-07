@@ -660,12 +660,11 @@ def column_head(session: Session, student: CustomUser) -> ColumnCell | None:
 
 def cell_history(session: Session, student: CustomUser) -> list[CellHistoryRow]:
     """سلسلةُ الخليّة كاملةً — من كتب ومتى ومن صحّح. بلا PII سوى اسم الكاتب لمن يراه في مدرسته."""
-    chain = (
+    chain = list(
         AttendanceEntry.objects.filter(session=session, student=student)
         .select_related("decision", "entered_by")
         .order_by("entered_at")
     )
-    chain = list(chain)
     replaced = {entry.supersedes_id for entry in chain if entry.supersedes_id}
     rows = []
     for entry in chain:

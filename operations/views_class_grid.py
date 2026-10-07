@@ -69,7 +69,7 @@ def class_grid_save(request, class_id):
         raise Http404 from None
     except grid.GridRefusedError as refusal:
         return JsonResponse(
-            {"ok": False, "reason": refusal.reason, "message": str(refusal)}, status=403
+            {"ok": False, "reason": refusal.reason, "message": refusal.message}, status=403
         )
     status = 207 if (result.conflicts or result.errors) else 200
     return JsonResponse(
@@ -113,7 +113,7 @@ def class_grid_late(request, class_id):
         raise Http404 from None
     except grid.GridRefusedError as refusal:
         return JsonResponse(
-            {"ok": False, "reason": refusal.reason, "message": str(refusal)}, status=403
+            {"ok": False, "reason": refusal.reason, "message": refusal.message}, status=403
         )
     status = 207 if (result.conflicts or result.errors) else 200
     return JsonResponse(
@@ -139,6 +139,6 @@ def class_grid_exit(request, class_id):
         raise Http404 from None
     except grid.GridRefusedError as refusal:
         return JsonResponse(
-            {"ok": False, "reason": refusal.reason, "message": str(refusal)}, status=403
+            {"ok": False, "reason": refusal.reason, "message": refusal.message}, status=403
         )
     return JsonResponse(result)
