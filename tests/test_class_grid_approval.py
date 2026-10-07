@@ -152,3 +152,23 @@ def test_the_approve_column_endpoint_is_post_only_and_returns_the_counts(
     assert client.get(url).status_code == 405
     response = client.post(url, {"period": "1"})
     assert response.status_code == 200 and response.json()["approved"] == 1
+
+
+def test_the_wing_supervisors_old_sheet_opens_the_grid_with_the_switch_on(
+    client_as, school, assigned, holder, clock
+):
+    url = reverse("wings:record_section", args=[assigned.id])
+    response = client_as(holder).get(url)
+    assert response.status_code == 302
+    assert response["Location"] == reverse("class_grid", args=[assigned.id])
+
+
+def test_the_old_sheet_stays_with_the_switch_off_or_another_day(
+    settings, client_as, school, assigned, holder, clock
+):
+    url = reverse("wings:record_section", args=[assigned.id])
+    other_day = client_as(holder).get(url + "?date=2020-01-05")
+    assert other_day.status_code != 302 or "/grid/" not in other_day["Location"]
+    settings.PROVISIONAL_GRID_ENABLED = False
+    off = client_as(holder).get(url)
+    assert off.status_code != 302 or "/grid/" not in off["Location"]

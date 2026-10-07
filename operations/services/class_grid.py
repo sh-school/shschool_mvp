@@ -731,6 +731,42 @@ def redirect_target(user: CustomUser, session: Session) -> str | None:
     return reverse("class_grid", args=[session.class_group_id])
 
 
+def grid_url_for_class(
+    user: CustomUser, klass: ClassGroup, day: dt.date | None = None
+) -> str | None:
+    """رابطُ جدول هذه الشعبة لليوم الجاري إن كان المفتاحُ مشغَّلاً ويقرؤه المستخدم — لكشف المشرف القديم (`wings.record_section`) فيفتح الجدولَ بدل الشبكة."""
+    from django.urls import reverse
+
+    if not provisional_session.grid_enabled():
+        return None
+    today = grid_now().date()
+    if day is not None and day != today:
+        return None
+    if not can_read_grid(user, klass, today):
+        return None
+    return reverse("class_grid", args=[klass.pk])
+
+
+def opens_the_grid(view):
+    """مزخرِف عرضٍ يأخذ `class_id`: مع مفتاح الجدول وفي اليوم الجاري يحوّل من قرأ الشعبةَ إلى جدولها بدل الكشف القديم."""
+    import functools
+
+    from django.shortcuts import redirect
+
+    @functools.wraps(view)
+    def wrapper(request, class_id, *args, **kwargs):
+        klass = ClassGroup.objects.filter(pk=class_id, school=request.school).first()
+        try:
+            day = dt.date.fromisoformat(request.GET["date"]) if request.GET.get("date") else None
+        except ValueError:
+            return view(request, class_id, *args, **kwargs)  # تاريخٌ فاسدٌ يعالجه الكشفُ نفسُه
+        if klass is not None and (target := grid_url_for_class(request.user, klass, day)):
+            return redirect(target)
+        return view(request, class_id, *args, **kwargs)
+
+    return wrapper
+
+
 def exit_action(
     user: CustomUser,
     school: School,
