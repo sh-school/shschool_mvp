@@ -9,7 +9,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0078_auditlog_allow_network_redaction"),
+        ("core", "0079_capability_grant_wings_school_wide"),
     ]
 
     operations = [
