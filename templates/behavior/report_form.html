@@ -90,6 +90,8 @@
               <div id="studentEmpty" class="beh-combo__option beh-combo__empty" role="option" aria-disabled="true" hidden>لا طالب مطابق لهذا الاختيار</div>
             </div>
           </div>
+          {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+          {{ preselected_student_id|json_script:"preStudent" }}
           <select name="student_id" required id="studentSelect" hidden aria-label="الطالب">
             <option value="">— اختر الطالب —</option>
             {% for s in students %}
@@ -279,6 +281,13 @@
    studentSearch.classList.add('is-valid');
   });
  });
+
+ /* الطالبُ مختارٌ مسبقاً حين يُفتح النموذجُ من جدول الشعبة (?student=). */
+ var preStudent = JSON.parse(document.getElementById('preStudent').textContent);
+ if (preStudent) {
+  var preOption = document.querySelector('.js-student-option[data-id="' + preStudent + '"]');
+  if (preOption) { preOption.click(); }
+ }
 
  document.addEventListener('click', function(e) {
   if (!e.target.closest('#studentSearchInput') && !e.target.closest('#studentDropdown')) {

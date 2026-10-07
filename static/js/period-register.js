@@ -25,24 +25,6 @@
     try { window.localStorage.removeItem(key); } catch (e) { /* لا تخزين */ }
   }
 
-  // الشبكةُ أو الجدول: الاختيارُ عادةٌ للمشرف فيُحفظ، والشبكةُ الأصلُ حتى يختار غيرَها.
-  var viewKey = 'per-view';
-  var wrap = form.querySelector('.per-grid-wrap');
-  function setView(view) {
-    if (wrap) wrap.classList.toggle('is-tiles', view !== 'table');
-    form.querySelectorAll('[data-view]').forEach(function (button) {
-      button.setAttribute('aria-pressed', button.getAttribute('data-view') === view ? 'true' : 'false');
-    });
-  }
-  try { setView(window.localStorage.getItem(viewKey) === 'table' ? 'table' : 'tiles'); } catch (e) { /* لا تخزين */ }
-  form.querySelectorAll('[data-view]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      var view = button.getAttribute('data-view');
-      setView(view);
-      try { window.localStorage.setItem(viewKey, view); } catch (e) { /* لا تخزين */ }
-    });
-  });
-
   // «خروج» (الشبكة): نافذةٌ عائمةٌ تكتب في قائمة «أين الطالب» نفسِها، فلا حقلَ جديدَ في الإرسال.
   // اختيارُ وجهةٍ يجعل الطالبَ غائباً؛ والرجوعُ إلى حاضر/متأخّر يمحو وجهتَه.
   function exitCells() { return form.querySelectorAll('td.per-cell.is-focus'); }
@@ -53,8 +35,17 @@
     if (!select || !label || !button) return;
     var option = select.options[select.selectedIndex];
     var set = !!select.value;
-    label.textContent = set ? option.textContent : 'خروج';
+    // المعلّم (data-exit-url): الزرُّ يبقى «خروج» ويحمرّ فقط — اسمُ الوجهة الطويلُ يغطّي أزرارَ الحالة في البطاقة الضيّقة.
+    label.textContent = set && !exitUrl ? option.textContent : 'خروج';
+    // المعلّم: عددُ مرّات خروج الطالب اليومَ رقاقةٌ على الزرّ نفسِه (CSS `data-times`) لا نصٌّ يطيل الكلمة؛ ومن هو خارجٌ يحلّ عدّادُه محلَّ الكلمة.
+    var times = exitUrl ? parseInt(cell.closest('tr').getAttribute('data-exit-count'), 10) || 0 : 0;
+    if (times) button.setAttribute('data-times', String(times)); else button.removeAttribute('data-times');
+    // الاسمُ المقروءُ لقارئ الشاشة يحمل اسمَ الطالب والعدد (الرقاقةُ CSS لا تُقرأ دائماً) — وإلّا تماثلت عشراتُ أزرار «خروج».
+    if (exitUrl && button.getAttribute('data-who')) {
+      button.setAttribute('aria-label', 'خروج ' + button.getAttribute('data-who') + (times ? ' — خرج ' + times + ' مرّة اليوم' : ''));
+    }
     button.classList.toggle('is-set', set);
+    if (exitUrl) button.title = set ? 'خرج: ' + option.textContent : 'خروجُ الطالب — أين هو؟';
   }
   function closeExit() {
     exitCells().forEach(function (cell) {
@@ -63,11 +54,46 @@
       if (button) button.setAttribute('aria-expanded', 'false');
     });
   }
+  var exitUrl = form.getAttribute('data-exit-url');
+  var returnUrl = form.getAttribute('data-return-url');
+  function sendExit(cell, destination) {
+    var row = cell.closest('tr');
+    var token = form.querySelector('input[name=csrfmiddlewaretoken]');
+    if (!row || !token) return;
+    var body = new FormData();
+    body.append('csrfmiddlewaretoken', token.value);
+    body.append('student_id', row.getAttribute('data-student'));
+    if (destination) body.append('destination', destination);
+    if (destination) {
+      row.setAttribute('data-out-since', String(nowSec()));
+      row.setAttribute('data-exit-open-at', String(nowSec()));
+      row.setAttribute('data-exit-count', String((parseInt(row.getAttribute('data-exit-count'), 10) || 0) + 1));
+    } else {
+      var openAt = parseInt(row.getAttribute('data-exit-open-at'), 10);
+      if (openAt) row.setAttribute('data-exit-base', String((parseInt(row.getAttribute('data-exit-base'), 10) || 0) + Math.max(0, nowSec() - openAt)));
+      row.removeAttribute('data-exit-open-at');
+      row.removeAttribute('data-out-since');
+      row.querySelectorAll('select.per-where option').forEach(function (o) { o.textContent = o.getAttribute('data-base') || o.textContent; });
+    }
+    syncExclusive(row);
+    fetch(destination ? exitUrl : returnUrl, { method: 'POST', body: body, credentials: 'same-origin' }).then(function (response) {
+      if (!response.ok && window.showToast) window.showToast('تعذّر تسجيلُ الخروج (' + response.status + ')', 'danger');
+    });
+  }
   exitCells().forEach(function (cell) {
     var button = cell.querySelector('[data-exit-open]');
     if (!button) return;
     button.addEventListener('click', function (event) {
       event.stopPropagation();
+      var outRow = exitUrl ? cell.closest('tr[data-out-since]') : null;
+      if (outRow) {  // المعلّم: الضغطةُ التالية على من هو خارجٌ تُنهي خروجَه ويعود المفتاحُ «خروج»
+        cell.querySelector('select.per-where').value = '';
+        sendExit(cell, '');
+        syncExit(cell);
+        closeExit();
+        write(snapshot());
+        return;
+      }
       var open = !cell.classList.contains('is-exit-open');
       closeExit();
       cell.classList.toggle('is-exit-open', open);
@@ -78,7 +104,10 @@
         var select = cell.querySelector('select.per-where');
         var value = option.getAttribute('data-where');
         select.value = value;
-        if (value) {
+        // المشرفُ: وجهةٌ تجعل الطالبَ غائباً. المعلّم (data-exit-url): الخروجُ بإذنه ليس غياباً — يبقى حالُه ويُسجَّل الخروجُ/العودةُ فوراً بلحظتهما.
+        if (exitUrl) {
+          sendExit(cell, value);
+        } else if (value) {
           var absent = cell.querySelector('input[type=radio][value="absent"]');
           if (absent && !absent.checked) { absent.checked = true; absent.dispatchEvent(new Event('change', { bubbles: true })); }
         }
@@ -89,6 +118,15 @@
       });
     });
   });
+  // الجدولُ (المعلّم): قائمةُ «أين الطالب» ظاهرةٌ دائماً وتسجّل الخروجَ/العودةَ فوراً عند تغيّرها كما تفعل نافذةُ الشبكة.
+  if (exitUrl) {
+    form.querySelectorAll('select.per-where').forEach(function (select) {
+      select.addEventListener('change', function () {
+        var cell = select.closest('td.per-cell.is-focus');
+        if (cell) { sendExit(cell, select.value); syncExit(cell); }
+      });
+    });
+  }
   // نافذةُ دقائق التأخّر (الشبكة، خارجَ وقت الحصّة): تُفتح عند الضغط على «متأخّر» لهذه البطاقة
   // وحدَها، وتُغلق بالضغط عليه ثانيةً أو بمفتاحٍ آخر في البطاقة أو بالنقر خارجها أو Enter/Esc —
   // فلا تبقى مفتوحةً على كلّ متأخّر.
@@ -145,28 +183,85 @@
     });
   }
 
-  // الساعةُ الحيّة في كلّ عمودٍ لم يُثبَّت: ساعةُ الخادم لا ساعةُ الهاتف — فهاتفٌ
-  // متأخّرٌ دقيقتين لا يُري وقتاً غيرَ الذي يُحفظ عند التثبيت. يُحسب الفرقُ مرّةً
-  // عند التحميل ويُضاف كلَّ ثانية. والعمودُ المثبَّتُ وقتُه محفوظٌ من الخادم فلا يُمسّ.
+  // ساعةُ الخادم لا ساعةُ الهاتف: فهاتفٌ متأخّرٌ دقيقتين لا يُري وقتاً غيرَ الذي يُحفظ. يُحسب الفرقُ مرّةً عند التحميل.
   var skew = (parseInt(form.getAttribute('data-now'), 10) * 1000 || Date.now()) - Date.now();
-  var zone = (form.getAttribute('data-offset') || '+0300').match(/([+-])(\d\d)(\d\d)/);
-  var zoneMs = zone ? (zone[1] === '-' ? -1 : 1) * (parseInt(zone[2], 10) * 60 + parseInt(zone[3], 10)) * 60000 : 0;
-  var clocks = document.querySelectorAll('[data-clock]');
-
   function two(n) { return (n < 10 ? '0' : '') + n; }
 
-  function tick() {
-    // بتوقيت المدرسة لا بتوقيت الجهاز: نُزيح اللحظةَ بفرق المنطقة ونقرأها بـUTC.
-    var local = new Date(Date.now() + skew + zoneMs);
-    var text = two(local.getUTCHours()) + ':' + two(local.getUTCMinutes()) + ':' + two(local.getUTCSeconds());
-    clocks.forEach(function (clock) { clock.textContent = text; });
+  // ── المعلّم (data-exit-url) ──────────────────────────────────────────────────────────────
+  // (١) «غائب» و«خروج» لا يجتمعان على طالبٍ واحد؛ (٢) عدّادُ الخروج من لحظة الضغط إلى «عاد إلى الفصل»؛
+  // (٣) «متأخّر» يُسجَّل وقتُ دخوله فوراً وتُحسب دقائقُه من بدء الحصّة آلياً ويُحفظ (الخادمُ يعيد الحساب بساعته).
+  var entryUrl = form.getAttribute('data-entry-url');
+  var startEpoch = parseInt(form.getAttribute('data-start-epoch'), 10) || 0;
+  function nowSec() { return Math.floor((Date.now() + skew) / 1000); }
+  function csrf() { var t = form.querySelector('input[name=csrfmiddlewaretoken]'); return t ? t.value : ''; }
+  function stopwatch(seconds) {
+    var m = Math.floor(seconds / 60);
+    var h = Math.floor(m / 60);
+    return (h ? h + ':' + two(m % 60) : two(m)) + ':' + two(seconds % 60);
   }
-  tick();
-  if (clocks.length) window.setInterval(tick, 1000);
+  function syncExclusive(row) {
+    var select = row.querySelector('select.per-where');
+    var absent = row.querySelector('input[type=radio][value="absent"]');
+    var button = row.querySelector('[data-exit-open]');
+    var out = !!(select && select.value);
+    if (out && absent && absent.checked) {
+      var present = row.querySelector('input[type=radio][value="present"]');
+      if (present) present.checked = true;
+    }
+    var isAbsent = !!(absent && absent.checked);
+    if (absent) absent.disabled = out || absent.hasAttribute('data-keep');
+    if (button) button.disabled = isAbsent || button.hasAttribute('data-keep');
+    if (select) select.disabled = isAbsent || select.hasAttribute('data-keep');
+  }
+  function outTick() {
+    form.querySelectorAll('tr[data-out-since]').forEach(function (row) {
+      // العدّادُ متّصلٌ من لحظة الضغط (أو من أصل الخروج المرحَّل) إلى العودة؛ وإن لم يعد انتقل مع الطالب إلى الحصص التالية
+      // حتى نهاية اليوم (الخادمُ يُرحّله بسطرٍ جديدٍ في كلّ حصّة، فيبقى `data-out-since` أصلَه).
+      var since = parseInt(row.getAttribute('data-out-since'), 10);
+      var now = nowSec();
+      var text = stopwatch(Math.max(0, now - since));
+      var openAt = parseInt(row.getAttribute('data-exit-open-at'), 10);
+      var button = row.querySelector('[data-exit-open]');
+      if (button && openAt) {
+        var total = (parseInt(row.getAttribute('data-exit-base'), 10) || 0) + Math.max(0, now - openAt);
+        button.title = 'خرج ' + (row.getAttribute('data-exit-count') || '1') + ' مرّة اليوم · المجموع ' + stopwatch(total);
+        button.setAttribute('aria-label', 'خروج ' + (button.getAttribute('data-who') || '') + ' — ' + button.title);
+      }
+      var label = row.querySelector('[data-exit-label]');
+      if (label) label.textContent = text;
+      var select = row.querySelector('select.per-where');
+      var option = select && select.selectedIndex >= 0 ? select.options[select.selectedIndex] : null;
+      if (option && option.value) option.textContent = (option.getAttribute('data-base') || option.textContent) + ' · ' + text;
+    });
+  }
+  function saveLate(radio) {
+    var sid = radio.name.slice(2);
+    var field = form.querySelector('[name="t-' + sid + '"]');
+    var tapped = field && field.value ? parseInt(field.value, 10) : nowSec();
+    var span = radio.parentNode.querySelector('span');
+    if (span) span.textContent = 'متأخّر ' + Math.max(0, Math.floor((tapped - startEpoch) / 60)) + ' د';
+    var body = new FormData();
+    body.append('csrfmiddlewaretoken', csrf());
+    body.append('student_id', sid);
+    body.append('status', 'late');
+    body.append('tapped_at', String(tapped));
+    fetch(entryUrl, { method: 'POST', body: body, credentials: 'same-origin' }).then(function (response) {
+      if (!response.ok && window.showToast) window.showToast('تعذّر حفظُ التأخّر (' + response.status + ')', 'danger');
+    });
+  }
+  function allRows() { return form.querySelectorAll('tr.rec-row'); }
+  if (exitUrl) {
+    form.querySelectorAll('input[type=radio][disabled], .rec-exit[disabled], select.per-where[disabled]').forEach(function (el) { el.setAttribute('data-keep', ''); });
+    form.querySelectorAll('select.per-where option').forEach(function (option) { option.setAttribute('data-base', option.textContent); });
+    allRows().forEach(syncExclusive);
+    window.setInterval(outTick, 1000);
+    outTick();
+  }
 
   var draft = read();
   if (draft) restore(draft);
   exitCells().forEach(syncExit);
+  if (exitUrl) allRows().forEach(syncExclusive);
   count();
 
   // لحظةُ النقرة على «متأخّر» تُحفظ بساعة الخادم: الدقائقُ منها لا من لحظة التثبيت.
@@ -176,9 +271,16 @@
     if (radio && radio.type === 'radio') {
       var tap = form.querySelector('[name="t-' + radio.name.slice(2) + '"]');
       if (tap) tap.value = radio.value === 'late' ? String(Math.floor((Date.now() + skew) / 1000)) : '';
+      if (exitUrl) {
+        var lateSpan = radio.closest('.rec-row__pick');
+        lateSpan = lateSpan && lateSpan.querySelector('.rec-pick--late span');
+        if (lateSpan && radio.value !== 'late') lateSpan.textContent = 'متأخّر';
+        if (radio.value === 'late' && entryUrl && !radio.closest('td').querySelector('.per-minutes')) saveLate(radio);
+        syncExclusive(radio.closest('tr'));
+      }
     }
     // من رجع حاضراً أو متأخّراً لا وجهةَ له: تُمحى فلا تُحفظ وجهةٌ على غير غائب.
-    if (radio && radio.type === 'radio' && radio.value !== 'absent') {
+    if (!exitUrl && radio && radio.type === 'radio' && radio.value !== 'absent') {
       var where = form.querySelector('select[name="w-' + radio.name.slice(2) + '"]');
       if (where && where.value) { where.value = ''; syncExit(where.closest('td')); }
     }
@@ -195,11 +297,12 @@
       var keep = value === 'present' ? 'tr[data-prefill="out"]' : null;
       form.querySelectorAll('input[type=radio][value="' + value + '"]').forEach(function (radio) {
         if (keep && radio.closest(keep)) return;
+        if (radio.disabled) return;
         radio.checked = true;
         // «الكلُّ حاضر» و«غيابُ الكلّ» لا متأخّرَ بعدهما — فلا لحظةَ نقرةٍ تبقى.
         var tap = form.querySelector('[name="t-' + radio.name.slice(2) + '"]');
         if (tap) tap.value = '';
-        if (value !== 'absent') {
+        if (value !== 'absent' && !exitUrl) {
           var where = form.querySelector('select[name="w-' + radio.name.slice(2) + '"]');
           if (where && where.value) { where.value = ''; syncExit(where.closest('td')); }
         }

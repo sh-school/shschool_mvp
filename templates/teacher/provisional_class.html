@@ -1,0 +1,40 @@
+{% extends "base/base.html" %}
+{% load ui static %}
+{% comment %}
+صفحةُ الشعبة للرصد بحصّةٍ مؤقّتة (W-20261005-006، أمرُ المالك D-217م): **فوق قائمة الطلبة** يختار المعلّمُ الحصّةَ من ح1 إلى ح7 قبل الرصد.
+الأزمنةُ من `TimeSlotConfig` لجرس الشعبة (لا رقمَ يُعدّ زمناً)؛ والاختيارُ يُنشئ الحصّةَ المؤقّتةَ بالرقم ثمّ يفتح كشفَ الرصد القائم.
+رقمٌ بلا زمنٍ في جرس الشعبة يُعرض معطَّلاً لا مخفيّاً. والقائمةُ للقراءة: لا رصدَ قبل اختيار الحصّة.
+{% endcomment %}
+{% block title %}رصد {{ klass.short_label }}{% endblock %}
+{% block main_class %}{% page_layout "sheet" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% url 'provisional_classes' as classes_url %}
+{% include "components/breadcrumbs.html" with parent_url=classes_url parent_label="شُعبي للرصد" current=klass.short_label %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% if not session %}
+  {% page_header klass.short_label subtitle="اختر حصّتَك أوّلاً ثمّ ارصد — حصّةٌ مؤقّتةٌ لليوم الجاري ريثما يُعتمد الجدول" icon="attendance_register" %}{% endpage_header %}
+  {% endif %}
+
+  {% comment %}نموذجُ الإنشاء فارغٌ: أزرارُ المنتقي (provisional_tabs) ترتبط به بـform="pp-picker"، فتعمل داخل الكشف وخارجه بلا نموذجٍ متداخل.{% endcomment %}
+  <form id="pp-picker" method="post" action="{% url 'provisional_create' klass.id %}">{% csrf_token %}</form>
+
+  {% if session %}
+  {% include "attendance/period_sheet.html" %}
+  {% else %}
+  {% comment %}
+    من «ارصد» لا تُرى هذه الحالة (تُفتح الشبكةُ مباشرةً)؛ تبقى لمن فتح الرابط بلا اختيارٍ أو رُفض طلبُه: المنتقي وحدَه وسطَ السطر — بلا أسماء قد تُظنّ لوحةَ الرصد (أمرُ المالك).
+  {% endcomment %}
+  {% section_card "اختر الحصّة" meta="ح1 – ح7" icon="periods_today" %}
+    {% include "teacher/partials/provisional_tabs.html" %}
+  {% endsection_card %}
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if session %}<script src="{% static 'js/period-register.js' %}" defer></script>{% endif %}
+{% endblock %}

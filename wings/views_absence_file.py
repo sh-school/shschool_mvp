@@ -36,6 +36,7 @@ from core.models import (
     School,
     StudentEnrollment,
 )
+from core.privacy import national_id_search_q
 from core.sorting import arabic_key, normalise_arabic
 
 from .scope import student_scope_for
@@ -118,7 +119,10 @@ def student_search(request: HttpRequest) -> HttpResponse:
                 class_group__wing__in=wings,
             )
             .annotate(name_key=arabic_key(F("student__full_name")))  # type: ignore[no-untyped-call]
-            .filter(Q(name_key__icontains=shaped) | Q(student__national_id__startswith=query))
+            .filter(
+                Q(name_key__icontains=shaped)
+                | national_id_search_q("student__national_id", query, user=request.user)
+            )
             # من قيدُه الجاري في جناحي — لا من بقي له قيدٌ قديمٌ نشطٌ في شعبةٍ منه.
             .filter(student_id__in=_scoped_ids(request))
             .select_related("student", "class_group")
@@ -157,7 +161,7 @@ def absence_file(request: HttpRequest, student_id: object) -> HttpResponse:
         {
             "name": link.parent.full_name,
             "relation": link.get_relationship_display(),
-            "phone": (link.parent.phone or "").strip(),
+            "phone": (link.parent.get_phone_decrypted() or "").strip(),
         }
         for link in ParentStudentLink.objects.filter(student=student, school=school)
         .select_related("parent")

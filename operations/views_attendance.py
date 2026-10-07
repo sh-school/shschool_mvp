@@ -17,7 +17,7 @@ from core.models import StudentEnrollment
 
 from .day_attendance import can_record, is_recorder
 from .models import Session, StudentAttendance
-from .services import AttendanceService, ScheduleService, SubstituteService
+from .services import AttendanceService, ScheduleService, SubstituteService, class_grid
 from .services.attendance_teacher import TeacherAttendanceService
 
 logger = logging.getLogger(__name__)
@@ -175,6 +175,8 @@ def attendance_view(request, session_id):
     ):
         return HttpResponse("<p dir='rtl'>غير مسموح — هذه الحصة ليست لك.</p>", status=403)
 
+    if target := class_grid.redirect_target(request.user, session):
+        return redirect(target)
     enrollments = (
         StudentEnrollment.objects.filter(class_group=session.class_group, is_active=True)
         .select_related("student")
@@ -196,11 +198,12 @@ def attendance_view(request, session_id):
     ]
     for row in students_data:
         row["tone"] = attendance_tone(row["status"])
-    if not can_record(request.user, session):
-        # شُعبُ الأجنحة: المعلّمُ الفعليّ يُدخل رصداً مبدئيّاً يعتمده حاملُ الجناح (W-020)، وله نقرتا الدخول والخروج.
+    if not is_recorder(request.user):
+        # كلُّ معلّمٍ يرى **الكشفَ المشتركَ نفسَه** (أمرُ المالك 2026-10-04: تصميمٌ واحد): شُعبُ الأجنحة إدخالٌ مبدئيٌّ يعتمده الحاملُ (W-020)،
+        # وشُعبُ التربية الخاصّة (بلا جناح) إدخالٌ نهائيٌّ مباشر (D-126م) — والفرقُ في الخدمة (`needs_approval`) لا في الصفحة.
         context = {
             **TeacherAttendanceService.page_context(request.user, session),
-            **_session_heading(session),
+            **TeacherAttendanceService.sheet(request.user, session),
         }
         return render(request, "teacher/attendance_readonly.html", context)
     summary = AttendanceService.get_session_summary(session)

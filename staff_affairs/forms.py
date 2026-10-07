@@ -7,6 +7,7 @@ from django import forms
 from core.validators import FileTypeValidator
 
 from .attendance.biometric_services import MAX_BYTES as MAX_BIOMETRIC_BYTES
+from .leave_rules import count_leave_days, missing_document_error, per_request_cap_error
 from .models import (
     ABSENCE_TYPES,
     EXCEPTION_TYPES,
@@ -40,14 +41,32 @@ class LeaveRequestForm(forms.Form):
         validators=[FileTypeValidator(allowed_types="document", max_size_mb=10)],
     )
 
+    def __init__(self, *args, school=None, **kwargs):
+        # المدرسةُ لقراءة عطلات تقويمها في عدّ أيّام العمل (م62 وم65 وم66)؛ بلا مدرسةٍ
+        # تُستبعد عطلةُ نهاية الأسبوع وحدَها.
+        super().__init__(*args, **kwargs)
+        self.school = school
+
     def clean(self):
         cleaned = super().clean()
         start = cleaned.get("start_date")
         end = cleaned.get("end_date")
+        leave_type = cleaned.get("leave_type")
         if start and end and end < start:
             raise forms.ValidationError("تاريخ النهاية يجب أن يكون بعد تاريخ البداية.")
-        if start and end:
-            cleaned["days_count"] = (end - start).days + 1
+        if start and end and leave_type:
+            days = count_leave_days(leave_type, start, end, self.school)
+            if days == 0:
+                raise forms.ValidationError("الفترة المختارة كلُّها عطلة — لا يوجد يوم عمل فيها.")
+            cleaned["days_count"] = days
+            error = per_request_cap_error(leave_type, days)
+            if error:
+                raise forms.ValidationError(error)
+        # مرفقٌ رُفض ملفُّه خطؤه ظاهر — فلا نُضيف فوقه خطأَ «يلزم إرفاق».
+        if leave_type and "attachment" not in self.errors:
+            error = missing_document_error(leave_type, bool(cleaned.get("attachment")))
+            if error:
+                raise forms.ValidationError(error)
         return cleaned
 
 

@@ -116,7 +116,8 @@ class CompensatoryService:
         bell = cls._bell(school, class_group, day)
         ScheduleService.ensure_sessions_for_date(school, day)
         sessions = list(
-            Session.objects.filter(school=school, date=day)
+            # الحقيقيّةُ وحدَها: المؤقّتةُ ليست «حصّةَ الشعبة» التي تُعوَّض فيها (W-20261005-006)؛ أثرُه صفرٌ بلا مؤقّتات.
+            Session.objects.filter(school=school, date=day, provisional=False)
             .filter(Q(teacher=teacher) | Q(class_group=class_group))
             .select_related("teacher", "subject", "class_group")
         )

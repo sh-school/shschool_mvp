@@ -19,6 +19,8 @@ from django.db import models
 from django.db.models import Prefetch, Q
 from django.utils import timezone
 
+from core.privacy import national_id_search_q
+
 logger = logging.getLogger(__name__)
 
 
@@ -112,12 +114,14 @@ class UserQuerySet(models.QuerySet):
             .order_by("-sim_name")
         )
 
-    def search_simple(self, query: str) -> UserQuerySet:
+    def search_simple(self, query: str, *, partial_id: bool = False) -> UserQuerySet:
         """بحث بسيط بـ icontains — احتياطي إذا لم يكن pg_trgm مفعّلاً."""
         if not query:
             return self
         q = query.strip()[:100]
-        return self.filter(Q(full_name__icontains=q) | Q(national_id__icontains=q))
+        return self.filter(
+            Q(full_name__icontains=q) | national_id_search_q("national_id", q, partial=partial_id)
+        )
 
     # ── الانتماء إلى مدرسة ─────────────────────────────────────────────────
 

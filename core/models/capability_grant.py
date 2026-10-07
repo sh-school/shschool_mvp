@@ -21,6 +21,8 @@ from .base import SchoolScopedModel
 #: تُعرَّف في السجلّ بـ`grant=` (يقرأ هذا الجدول) — راجع `core/capabilities.py`.
 DELEGABLE_CAPABILITIES = {
     "schedule.operator": "مُشغِّل الجدول",
+    # مشرفٌ إداريٌّ يرى الأجنحةَ الخمسةَ كلَّها في الغياب ويعتمد رصدَ المعلّمين ويصحّحه فيها (قرارُ المالك 2026-10-06).
+    "wings.school_wide": "حاصرُ الغياب العامّ",
 }
 
 

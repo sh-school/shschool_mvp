@@ -14,8 +14,10 @@ from django.views.decorators.http import require_POST
 from core.academic_calendar import academic_year_for_school, academic_year_window
 from core.capabilities import capability_required, has_capability
 from core.models import ClassGroup, CustomUser, Wing, WingCoverage
+from core.user_selectors import school_user_or_none
 from operations.absence_policy import next_gate
 from operations.absence_standing import unexcused_days_for_class
+from operations.attendance_selectors import entry_grid_context
 from operations.day_attendance import enrolled_of
 from operations.guardian_contact import awaiting_contact
 from operations.models import StudentAttendance
@@ -162,7 +164,7 @@ def coverage_assign(request, code):
     wing = get_object_or_404(Wing, school=school, code=code, academic_year=year)
     today = timezone.localdate()
 
-    substitute = CustomUser.objects.filter(id=request.POST.get("substitute") or None).first()
+    substitute = school_user_or_none(school, request.POST.get("substitute"))
     if substitute is None:
         messages.error(request, "اختر البديل.")
         return redirect("wings:coverage")
@@ -283,7 +285,6 @@ def record_section(request, class_id):
     focus = next((p for p in periods if p.start == wanted), None) or focus_period(periods, day, now)
     cells = cells_of(klass, day)
     awaiting = awaiting_contact(klass, day)
-    following = next_section_awaiting(klass, day, focus.start) if focus else None
     taps = teacher_taps_of(klass, day)
     outs = teacher_outs_of(klass, day)
     # ما يأتي جاهزاً من المعلّم يُحسب في الخدمة؛ والقالبُ يعرض `row.pick` ولا يحكم.
@@ -335,6 +336,7 @@ def record_section(request, class_id):
             "focus_status": focus.status(day, now) if focus else "",
             "measured_now": bool(focus and focus.in_window(day, now)),
             "rows": rows,
+            **entry_grid_context(klass, day, request.user),
             "whereabouts": [w for w in StudentAttendance.WHEREABOUTS if w[0] != "gate"],
             # بصمةُ الخانات كما تُفتح في المفتاح: ملءٌ تبدّل يُسقط المسوّدةَ القديمة.
             "draft_key": (
@@ -342,7 +344,7 @@ def record_section(request, class_id):
                 f":{prefill.fingerprint if prefill else ''}"
             ),
             # «ثبّت وانتقل»: الشعبةُ التي تنتظر الحصّةَ نفسَها بعد هذه — إن بقيت.
-            "following": following,
+            "following": next_section_awaiting(klass, day, focus.start) if focus else None,
         },
     )
 
@@ -374,7 +376,9 @@ def record_period(request, class_id):
         messages.error(request, str(err))
         return redirect(back)
 
-    messages.success(request, f"ثُبّتت {klass.short_code} — {result.says}.")
+    (messages.warning if result.conflicts else messages.success)(
+        request, f"ثُبّتت {klass.short_code} — {result.says}."
+    )
     if request.POST.get("next"):
         following = next_section_awaiting(klass, day, start)
         if following is not None:
