@@ -548,6 +548,9 @@ def notify_absence_task(self, absence_alert_id, sent_by_id=None, school_id=None)
         )
         sent_by = CustomUser.objects.filter(id=sent_by_id).first() if sent_by_id else None
 
+        if alert.status in AbsenceAlert.HIDDEN_FROM_PARENTS:
+            # محجوزٌ أو قيد الإصدار: لا يُرسَل لوليّ الأمر إلا بزرّ حاصر الغياب (D-246م)
+            return {"skipped": "held", "alert": str(alert.pk)}
         results = NotificationService.notify_absence(alert, sent_by=sent_by)
         sent = sum(1 for r in results if r["ok"])
         # [B4-7O] `{alert.student}` يستدعي `__str__` فيُسرّب اسم الطالب.
