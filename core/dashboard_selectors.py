@@ -202,7 +202,7 @@ def get_director_ctx(school, today):
         sent_home=Count("id", filter=Q(is_sent_home=True)),
     )
 
-    library_overdue = BookBorrowing.objects.filter(book__school=school, status="OVERDUE").count()
+    library_overdue = BookBorrowing.objects.filter(book__school=school).late().count()
 
     pending_swaps = TeacherSwap.objects.filter(
         school=school, status__in=["accepted_b", "pending_coordinator", "pending_vp"]
@@ -570,9 +570,7 @@ def get_service_ctx(user, school, today, role):
         ctx["clinic_sent_home"] = clinic["sent_home"]
 
     elif role == "librarian":
-        ctx["library_overdue"] = BookBorrowing.objects.filter(
-            book__school=school, status="OVERDUE"
-        ).count()
+        ctx["library_overdue"] = BookBorrowing.objects.filter(book__school=school).late().count()
         ctx["library_today"] = BookBorrowing.objects.filter(
             book__school=school,
             borrow_date=today,
