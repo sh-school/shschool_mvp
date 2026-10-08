@@ -70,6 +70,8 @@ class CpSatInputs:
     class_band: dict[str, str] = field(default_factory=dict)
     #: مرحلةُ كلّ شعبة («prep»/«sec») — لسقف حصص الخميس.
     class_level: dict[str, str] = field(default_factory=dict)
+    #: صفُّ كلّ شعبة («G7»…«G12») من `ClassGroup.grade` — لـHC17 (G11/G12) وغيره.
+    class_grade: dict[str, str] = field(default_factory=dict)
     #: المواد التي لها حصصٌ مزدوجةٌ (مهمّةٌ بخانتين).
     doubles: frozenset[str] = frozenset()
     ex_full: frozenset[tuple[str, int]] = frozenset()
@@ -150,6 +152,8 @@ def build_inputs(
         inputs.class_names[task.class_id] = task.class_name
         if task.level_type:
             inputs.class_level[task.class_id] = task.level_type
+        if task.grade:
+            inputs.class_grade[task.class_id] = task.grade
         joint = ""
         if task.is_split:
             # مهمّةٌ واحدةٌ بخانةٍ واحدةٍ لساكنَيها: معرّفُها يربط صفَّيها (شعبةٌ + مادّتان + معلّمان).

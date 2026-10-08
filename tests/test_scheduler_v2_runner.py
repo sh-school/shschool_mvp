@@ -434,3 +434,42 @@ def test_infeasible_run_ends_with_infeasible_progress_state(known_good):
     runner.run_generation(generation, CONFIG, builder=builder, solver=solver)
     snap = progress.read_progress(generation)
     assert snap["state"] == "infeasible" and snap["done"] is True and snap["error"]
+
+
+# ── صفُّ الشعبة لـHC17 ─────────────────────────────────────────────────────
+
+
+def test_adapter_carries_the_class_grade_and_default_options_pass_it_on(monkeypatch):
+    from dataclasses import dataclass, field
+
+    from operations.cpsat_adapter import build_inputs
+    from operations.scheduler import Task
+
+    task = Task(
+        class_id="C1",
+        class_name="11/1",
+        subject_id="S1",
+        subject_name="م",
+        subject_code="M",
+        teacher_id="T1",
+        teacher_name="ع",
+        weekly_periods=3,
+        level_type="sec",
+        grade="G11",
+    )
+    inputs = build_inputs([task])
+    assert inputs.class_grade == {"C1": "G11"}
+
+    @dataclass(frozen=True)
+    class FakeOptions:
+        class_grade: dict = field(default_factory=dict)
+
+    monkeypatch.setattr(runner, "_load_attr", lambda module, name: FakeOptions)
+    assert runner.default_options(inputs).class_grade == {"C1": "G11"}
+
+    @dataclass(frozen=True)
+    class OldOptions:
+        first_cap: int = 2
+
+    monkeypatch.setattr(runner, "_load_attr", lambda module, name: OldOptions)
+    assert runner.default_options(inputs) == OldOptions()

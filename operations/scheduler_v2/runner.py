@@ -34,7 +34,8 @@ ENGINE = "cpsat_v2"
 #: بذرةٌ ثابتةٌ افتراضيّاً (ADR §3.5) وعمّالٌ مثبَّتون — يُسجَّلان مع كلّ توليد.
 DEFAULT_SEED = 20261011
 DEFAULT_WORKERS = 8
-DEFAULT_MAX_SECONDS = 600
+#: HC14 وHC16B مفعَّلان افتراضاً ويقيسهما الحلّالُ UNKNOWN عند 90ث، فالسقفُ طويل (30 دقيقة) لا إيقافٌ لهما.
+DEFAULT_MAX_SECONDS = 1800
 #: مساحةُ القفل الاستشاريّ (مع معرّف المدرسة) — حلٌّ متزامنٌ واحدٌ لكلّ مدرسة.
 _LOCK_NAMESPACE = 0x5632
 
@@ -118,6 +119,22 @@ def default_builder() -> ModelBuilder:
     if builder is None:
         raise ContractMissingError("نموذجُ V2 (operations/scheduler_v2/model.py) لم يُدمج بعد")
     return builder
+
+
+def default_options(inputs: CpSatInputs) -> Any:
+    """`ModelOptions` للمشغّل: صفوفُ الشعب لـHC17، ولا يُوقَف قيدٌ (HC14/HC16B مفعَّلان).
+
+    يُمرَّر `class_grade` إن كان حقلاً في `ModelOptions` (ملفُّ v2-core)؛ وإلّا يُترك فلا يسقط المشغّل بحقلٍ لم يصل.
+    """
+    from dataclasses import fields
+
+    model_options = _load_attr("operations.scheduler_v2.model", "ModelOptions")
+    if model_options is None:
+        return None
+    kwargs = {}
+    if "class_grade" in {f.name for f in fields(model_options)}:
+        kwargs["class_grade"] = dict(inputs.class_grade)
+    return model_options(**kwargs)
 
 
 def default_objective() -> ObjectiveAdder | None:
@@ -250,7 +267,13 @@ def solve_inputs(
     solver: Solver | None = None,
     progress: Any = None,
 ) -> SolveReport:
-    built = (builder or default_builder())(inputs)
+    if builder is None:
+        options = default_options(inputs)
+        built = (
+            default_builder()(inputs, options) if options is not None else default_builder()(inputs)
+        )
+    else:
+        built = builder(inputs)
     add_objective = objective if objective is not None else default_objective()
     if add_objective is not None:
         add_objective(built, inputs)
