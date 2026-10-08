@@ -16,8 +16,11 @@ from core.permissions import (
     ACTIVITIES_MANAGE,
     ALL_STAFF_ROLES,
     STUDENT_AFFAIRS_MANAGE,
+    STUDENT_AFFAIRS_TRANSFERS,
     STUDENT_DEACTIVATE,
     STUDENT_FOLLOW_UP,
+    SYSTEM_ADMIN,
+    USER_MANAGE,
 )
 from quality.reporting_lines import DIRECT_SUPERVISOR, VICE_ADMIN
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
@@ -56,13 +59,19 @@ class TestCapabilities:
         assert has_capability(student_affairs_coordinator_user, "student_affairs.manage")
         assert ROLE in STUDENT_AFFAIRS_MANAGE
 
-    def test_it_cannot_deactivate_a_student(self, student_affairs_coordinator_user):
-        assert not has_capability(student_affairs_coordinator_user, "student_affairs.deactivate")
-        assert ROLE not in STUDENT_DEACTIVATE
+    def test_it_deactivates_a_student(self, student_affairs_coordinator_user):
+        """D-265م (قرارُ المالك المباشر 2026-10-08): للمنسّق إيقافُ قيد الطالب."""
+        assert has_capability(student_affairs_coordinator_user, "student_affairs.deactivate")
+        assert ROLE in STUDENT_DEACTIVATE
 
-    def test_it_has_no_transfers(self, student_affairs_coordinator_user):
-        """إتمامُ الانتقال الصادر يعطّل عضويّةَ الطالب — ولا نصَّ في بطاقته يمنحه إيّاه."""
-        assert not has_capability(student_affairs_coordinator_user, "student_affairs.transfers")
+    def test_it_handles_the_transfers(self, student_affairs_coordinator_user):
+        """D-265م: للمنسّق انتقالاتُ الطلبة (طلبٌ ومراجعةٌ وإتمام)."""
+        assert has_capability(student_affairs_coordinator_user, "student_affairs.transfers")
+        assert ROLE in STUDENT_AFFAIRS_TRANSFERS
+
+    def test_it_does_not_change_roles_or_administer_the_system(self):
+        assert ROLE not in USER_MANAGE
+        assert ROLE not in SYSTEM_ADMIN
 
     def test_it_does_not_run_the_activities(self, student_affairs_coordinator_user):
         assert ROLE not in ACTIVITIES_MANAGE
@@ -120,11 +129,18 @@ class TestTheRoleHasAWayIn:
         assert 'id="btn-student-affairs"' in html
         assert reverse("student_affairs:student_list") in html
 
-    def test_it_is_not_offered_the_transfers_it_does_not_hold(
+    def test_the_menu_offers_it_the_transfers(self, client, student_affairs_coordinator_user):
+        client.force_login(student_affairs_coordinator_user)
+
+        html = client.get(reverse("student_affairs:dashboard")).content.decode()
+
+        assert reverse("student_affairs:transfer_list") in html
+
+    def test_it_is_not_offered_the_activities_it_does_not_run(
         self, client, student_affairs_coordinator_user
     ):
         client.force_login(student_affairs_coordinator_user)
 
         html = client.get(reverse("student_affairs:dashboard")).content.decode()
 
-        assert reverse("student_affairs:transfer_list") not in html
+        assert reverse("student_affairs:activity_add") not in html

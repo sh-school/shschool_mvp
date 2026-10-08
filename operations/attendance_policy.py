@@ -337,6 +337,9 @@ def can_approve(
 
     from wings.services import holds_school_wide
 
+    # منسّقُ شؤون الطلبة يتابع ويرصد ويصحّح ولا يعتمد (D-266م، والاعتمادُ ملغى بـD-245م).
+    if user.get_role() == "student_affairs_coordinator":
+        return _deny("not_approver")
     # حاصرُ الغياب العامّ معتمِدٌ ثانٍ بجانب حامل الجناح دائماً (قرارُ المالك 2026-10-06): لا ما أدخله بنفسه
     # ولا رصدَ التربية الخاصّة (النهائيّ) — وقد رُدّا أعلاه.
     if holds_school_wide(user):
@@ -357,7 +360,9 @@ def can_approve(
 # ومن الدور، لا من `Session.teacher` ولا من الطلب. وغيرُ المخوَّل يُردّ بـ404 في الواجهة (رمزُ `not_found`) فلا يُعرف أنّ الشعبة موجودة.
 
 #: القيادةُ الإداريّةُ التي تكتب على كلّ الأعمدة (D-240م) — بالدور لا بـ`is_leadership()`؛ والنائبُ الأكاديميّ يراقب فقط (D-239م).
-GRID_WRITER_ROLES = frozenset({"principal", "vice_admin", "admin_supervisor"})
+GRID_WRITER_ROLES = frozenset(
+    {"principal", "vice_admin", "admin_supervisor", "student_affairs_coordinator"}
+)
 GRID_READER_ROLES = GRID_WRITER_ROLES | {"vice_academic"}
 
 GRID_TEACHER = "teacher"

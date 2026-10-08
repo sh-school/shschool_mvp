@@ -26,6 +26,8 @@ class WingsConfig(AppConfig):
                 "vice_academic",
                 "admin_supervisor",
                 "platform_developer",
+                # حاصرُ الغياب العامّ بدوره (D-267م): المنسّقُ يتابع الغيابَ ويرصده في الأجنحة كلِّها.
+                "student_affairs_coordinator",
                 *WingCoverage.SUBSTITUTE_ROLES,
             },
             sidebar_roles={

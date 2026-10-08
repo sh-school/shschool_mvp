@@ -326,10 +326,8 @@ STAGING_MANAGE = {"principal", "vice_academic", "vice_admin"}
 # صلاحيات شؤون الطلاب — MTG-2026-012
 # ═══════════════════════════════════════════════════════════════
 
-#: انتقالُ الطلبة (الشاشاتُ الأربع) — الموافقةُ على الانتقال الصادر وإتمامُه يعطّلان عضويّةَ الطالب
-#: فعلاً، فلا تدخل في «إدخال البيانات وإعداد القوائم» التي تنصّ عليها بطاقةُ منسّق شؤون الطلبة (W-20261001-020).
-#: وهي عينُ حاملي `manage` قبل إضافة المنسّق: فلا يتغيّر وصولُ أحدٍ منهم.
-STUDENT_AFFAIRS_TRANSFERS = frozenset(
+#: القيادةُ ومطوّرُ المنصّة — أصلُ حاملي `manage` قبل إضافة منسّق شؤون الطلبة (W-20261001-020).
+_STUDENT_AFFAIRS_LEADERSHIP = frozenset(
     {
         "principal",
         "vice_admin",
@@ -337,9 +335,12 @@ STUDENT_AFFAIRS_TRANSFERS = frozenset(
         "platform_developer",
     }
 )
-#: إدخالُ بيانات الطلبة وتحديثُها وإعدادُ القوائم — ويضيف إليها منسّقُ شؤون الطلبة (بطاقته في
-#: 03_job_descriptions_rbac.md) دون الانتقالات ودون `STUDENT_DEACTIVATE`.
-STUDENT_AFFAIRS_MANAGE = STUDENT_AFFAIRS_TRANSFERS | frozenset({"student_affairs_coordinator"})
+#: انتقالُ الطلبة (الشاشاتُ الأربع) — الموافقةُ على الانتقال الصادر وإتمامُه يعطّلان عضويّةَ الطالب.
+#: ومنسّقُ شؤون الطلبة منهم بقرار المالك المباشر 2026-10-08 (D-265م) — وهو يعكس افتراضَ البطاقة الأوّل
+#: (إدخالُ البيانات وإعدادُ القوائم وحدَهما)، فتُدقَّق كلُّ عمليّةٍ فيها كما هي لسواه.
+STUDENT_AFFAIRS_TRANSFERS = _STUDENT_AFFAIRS_LEADERSHIP | frozenset({"student_affairs_coordinator"})
+#: إدخالُ بيانات الطلبة وتحديثُها وإعدادُ القوائم — ومنسّقُ شؤون الطلبة (بطاقته في 03_job_descriptions_rbac.md) فيهم.
+STUDENT_AFFAIRS_MANAGE = STUDENT_AFFAIRS_TRANSFERS
 STUDENT_AFFAIRS_VIEW = frozenset(
     {
         "principal",
@@ -359,14 +360,16 @@ STUDENT_AFFAIRS_VIEW = frozenset(
 #: ويردُّه الحارس. والنصُّ الوزاريُّ صريحٌ في أهليّته: «تكون صلاحيّةُ الدخول على
 #: النظام الإلكترونيّ للبرامج والأنشطة **محصورةً بالنائب الأكاديميّ وأخصائيّ
 #: الأنشطة** أو من ينوب عنه» (ضوابط البرامج والأنشطة، ص3).
-#: ولا يدخلها منسّقُ شؤون الطلبة: لا نصَّ يمنحه إدارةَ الأنشطة (الحدُّ الأدنى من الصلاحيات).
-ACTIVITIES_MANAGE = STUDENT_AFFAIRS_TRANSFERS | frozenset({"activities_coordinator"})
+#: ولا يدخلها منسّقُ شؤون الطلبة: لا نصَّ يمنحه إدارةَ الأنشطة (الحدُّ الأدنى من الصلاحيات؛ D-266م).
+ACTIVITIES_MANAGE = _STUDENT_AFFAIRS_LEADERSHIP | frozenset({"activities_coordinator"})
 
+#: إيقافُ قيد الطالب — ومنسّقُ شؤون الطلبة منهم (D-265م).
 STUDENT_DEACTIVATE = frozenset(
     {
         "principal",
         "vice_admin",
         "platform_developer",
+        "student_affairs_coordinator",
     }
 )
 PARENT_LINK_MANAGE = frozenset(
@@ -472,7 +475,13 @@ BEHAVIOR_STATS_TEACHING = frozenset({"teacher", "coordinator", "ese_teacher"})
 ACADEMIC_REPORTS_VIEW = frozenset(ASSESSMENT_VIEW_ALL)
 #: رصدُ حضور اليوم في الجناح: مشرفُ الجناح (أصيلاً أو بديلاً) والقيادة — ولا مطوّرَ المنصّة (D-128م:
 #: لا يُدخل ولا يعتمد رصدَ غياب الطلبة)، حذفه 0105 شرطاً للدمج.
-WING_DAY_RECORD = frozenset({"admin_supervisor", "vice_admin", "vice_academic", "principal"})
+WING_DAY_RECORD = frozenset(
+    {"admin_supervisor", "vice_admin", "vice_academic", "principal", "student_affairs_coordinator"}
+)
+
+#: حاصرُ الغياب العامّ **بالدور** (الأجنحةُ الخمسةُ كلُّها): منسّقُ شؤون الطلبة، بقرار المالك المباشر
+#: 2026-10-08 (D-267م) — ضمن قدرات دوره لا منحاً فرديّاً. ويبقى المشرفُ الإداريّ على المنح المفوَّض.
+SCHOOL_WIDE_ABSENCE_ROLES = frozenset({"student_affairs_coordinator"})
 
 #: قبولُ عذرِ غيابٍ بعد مهلة اليومين (الدليل 2026 م 3.4.1.5) — النائبُ الإداريّ لا المشرف.
 EXCUSE_AFTER_DEADLINE = frozenset({"vice_admin", "principal"})
