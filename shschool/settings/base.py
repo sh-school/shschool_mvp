@@ -777,6 +777,11 @@ ATTENDANCE_GRID_CLOSES = os.environ.get("ATTENDANCE_GRID_CLOSES", "14:00")
 #: سقفُ حفظات الجدول في الساعة لكلّ مستخدم — عدّادٌ مستقلٌّ عن سقف المؤقّتة (كتلُ 7×~30 خليّة).
 #: للمعاينة وحدَها (يُقرأ إن كان DEBUG مشغَّلاً): ساعةُ اليوم المفترَضةُ لتجربة الجدول ليلاً، مثل «07:11». فارغٌ افتراضاً.
 ATTENDANCE_GRID_FAKE_TIME = os.environ.get("ATTENDANCE_GRID_FAKE_TIME", "")
+# أجنحةٌ يكون فيها رصدُ المعلّم نهائيّاً بلا اعتماد (قرارُ المالك 2026-10-07): رموزُ الأجنحة مفصولةً بفاصلة، و`*` لكلّها؛ الفراغُ = الاعتمادُ كما هو.
+ATTENDANCE_GRID_DIRECT_WINGS = os.environ.get("ATTENDANCE_GRID_DIRECT_WINGS", "")
+# ساعةُ مسح عتبات الغياب بعد نهاية الدوام (بتوقيت المدرسة): تُنشأ التنبيهاتُ «محجوزةً» ولا يُرسَل لوليّ الأمر شيءٌ إلا بزرّ حاصر الغياب (D-246م).
+ATTENDANCE_DAY_CLOSE_HOUR = int(os.environ.get("ATTENDANCE_DAY_CLOSE_HOUR", "14"))
+ATTENDANCE_DAY_CLOSE_MINUTE = int(os.environ.get("ATTENDANCE_DAY_CLOSE_MINUTE", "30"))
 ATTENDANCE_GRID_SAVES_PER_HOUR = int(os.environ.get("ATTENDANCE_GRID_SAVES_PER_HOUR", "60"))
 #: عتبةُ تنبيه القيادة: ما اعتمده حاملُ جناحٍ بنفسه في اليوم فوقها (لا سقفَ صلب — D-239م، شرطُ 0104). تحدّدها المدرسة.
 ATTENDANCE_SELF_APPROVAL_ALERT = int(os.environ.get("ATTENDANCE_SELF_APPROVAL_ALERT", "50"))

@@ -150,6 +150,13 @@
     if (!dirty.length && !empties.length) { notify('لا تغييرَ لحفظه في ح' + col, 'info'); return; }
     var reasonInput = root.querySelector('[data-grid-reason]');
     var reason = reasonInput ? reasonInput.value.trim() : '';
+    var reasonAlways = root.getAttribute('data-reason-always') === '1';
+    var editsExisting = Array.prototype.some.call(dirty, function (c) { return !!c.getAttribute('data-head'); });
+    if (reasonAlways && editsExisting && !reason) {
+      notify('تعديلُ ما كتبه غيرُك يلزمه سببٌ — اكتبه في حقل السبب أعلى الجدول.', 'warning');
+      if (reasonInput) reasonInput.focus();
+      return;
+    }
     if (correcting && !reason) {
       notify('نافذةُ المعلّم مغلقة — اكتب سببَ التصحيح في الحقل أعلى الجدول (إلزاميّ).', 'warning');
       if (reasonInput) reasonInput.focus();
