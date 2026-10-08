@@ -1,6 +1,6 @@
 """نقطةُ الاستطلاع الحيّ للوحة مشرف الجناح وبديله (W-20261008-00x، D-249م القسم 9.3).
 
-لا معاملَ في الطلب إطلاقاً: الجناحُ من `wings_of(user)` فلا مدخلَ لتزوير معرّف جناح. بديلٌ انتهى تكليفُه (أو دورٌ لا يحمل جناحاً) ← 403 فيتوقّف العميلُ ولا
+بقدرة «رصد يوم الجناح» (`wings.record_day`) كسائر عروض `/wings/`: تُمنح للمشرف وبديلِه المكلَّف بتكليفه لا بدوره، فتسعها بوّابةُ الوحدة (حارسُ `test_module_gates_match_guards`). لا معاملَ في الطلب إطلاقاً: الجناحُ من `wings_of(user)` فلا مدخلَ لتزوير معرّف جناح. بديلٌ انتهى تكليفُه (أو دورٌ لا يحمل جناحاً) ← 403 فيتوقّف العميلُ ولا
 يعيد المحاولة. `Cache-Control: no-store` و`Vary: Cookie`. والمخزَّنُ في الذاكرة المشتركة هو ملخّصُ المدرسة كلِّها (أعدادٌ بلا أسماء)، ويُقتطع لكلّ مستخدم بعد القراءة.
 """
 
@@ -15,7 +15,7 @@ from wings.supervisor_day import supervisor_day_payload
 
 
 @login_required
-@capability_required("dashboard.open")
+@capability_required("wings.record_day")
 @require_GET
 @vary_on_cookie
 def supervisor_live(request):
