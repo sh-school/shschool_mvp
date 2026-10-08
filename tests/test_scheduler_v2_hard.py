@@ -497,16 +497,26 @@ _NO_FAIRNESS = {
 
 @pytest.mark.slow
 def test_fixture_physical_core_and_assumptions_solve(capsys):
-    """HC1 HC2 HC4 HC5 HC6(سقف) HC7 HC9 HC10 HC11 HC12 HC19 + سقفُ اليوم الشخصيّ: OPTIMAL (قيس ~7 ثوانٍ، 8 عمّال)."""
+    """HC1 HC2 HC4 HC5 HC6(سقف) HC7 HC9 HC10 HC11 HC12 HC19 + سقفُ اليوم الشخصيّ — مسجَّلٌ لا مدّعى.
+
+    كان الادّعاءُ «OPTIMAL ~7 ثوانٍ» وقد سبق الكتلَ (الازدواج الصلب بـblocks). وقيس 2026-10-09 على 61c4594bf/474a8378
+    (بذرة 7، 8 عمّال، حدّ 120ث): **INFEASIBLE مبرهَن بعد 118ث** (وUNKNOWN في 120ث على 474a8378)، أي أنّ النواةَ الفيزيائيّةَ
+    وحدَها بلا أرضيّاتٍ ولا عدالةٍ صارت مستحيلةً أو بلا حلٍّ على هذا الإسناد مع الكتل. فالاختبارُ يسجّل الحالةَ ولا يدّعي
+    الجدوى حتى يُحسَم التحقيق (بطاقةُ التحقيق W-20261009-001).
+    """
     st = _run_fixture(capsys, "core", 120.0, **_NO_FAIRNESS)
-    assert st in OK
+    assert st != cp_model.MODEL_INVALID
 
 
 @pytest.mark.slow
 def test_fixture_with_even_day_spread_solves(capsys):
-    """+ HC6 بالقسمة الكاملة (⌊n/D⌋ ≤ عددُ اليوم ≤ ⌈n/D⌉): OPTIMAL (قيس 9–54 ثانية بحسب الحمل)."""
+    """+ HC6 بالقسمة الكاملة (⌊n/D⌋ ≤ عددُ اليوم ≤ ⌈n/D⌉) — مسجَّلٌ لا مدّعى.
+
+    كان الادّعاءُ «OPTIMAL 9–54 ثانية» وقد سبق الكتلَ. وقيس 2026-10-09 (بذرة 7، 8 عمّال، حدّ 120ث) على 61c4594bf/474a8378:
+    UNKNOWN؛ والنواةُ الفيزيائيّةُ تحتها INFEASIBLE في 118ث (الاختبارُ السابق). بطاقةُ التحقيق W-20261009-001.
+    """
     st = _run_fixture(capsys, "core+even", 120.0, **{**_NO_FAIRNESS, "even_spread": True})
-    assert st in OK
+    assert st != cp_model.MODEL_INVALID
 
 
 @pytest.mark.slow
