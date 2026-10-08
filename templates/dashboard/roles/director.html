@@ -67,18 +67,17 @@
     {% comment %}
     الصفُّ ثلاثُ بطاقاتٍ دائماً (طلب المدير 2026-09-18: الشبكةُ بثلاثة أعمدةٍ لا تضطرب). كانت الثالثةُ «تنبيهات الغياب المتكرّر» وتستعمل 66px من 154px (قياسُ 2026-10-08)،
     فصار التنبيهُ مؤشّراً في «نبض الأقسام» بعدّادٍ ورابط، وصارت الثالثةُ «سيرُ اليوم»: خارج الفصل بإذن وخرجوا من الفصل ومعلّمون غائبون ظاهرةً، وجدولُ الأجنحة مطويّاً تحتها.
-    الارتفاعُ لا يتغيّر على 1366×768 (LAY-03): ثلاثةُ صفوفٍ بـ34px وسطرُ الطيّ لا يتجاوزان جسمَ البطاقة بجانب الرسمين.
+    الارتفاعُ لا يتغيّر على 1366×768 (LAY-03): صفّان بـ44px وسطرُ الطيّ (121px) لا يتجاوزان جسمَ الرسمين بجانبها (154px) — قياسُ 0501: ثلاثةُ صفوفٍ (165px) رفعت الصفَّ 12px فظهر تمريرٌ 4px.
     {% endcomment %}
     {% if day_open %}
     {% section_card "سير اليوم" meta=day_slots_sub icon="absence" %}
       <ul class="plain-list">
         <li class="plain-list__row">
-          <span class="plain-list__title" title="محسوبون غائبين حتى اعتماد القرار">خارج الفصل بإذن</span>
-          <span class="status-badge {% if day.school.away_permitted %}status-warning{% else %}status-success{% endif %}" data-key="school.away_permitted">{{ day.school.away_permitted }}</span>
-        </li>
-        <li class="plain-list__row">
-          <span class="plain-list__title" title="{{ day_exits_destinations }}">خرجوا من الفصل{% if day_exits_sub %} <span class="plain-list__sub">{{ day_exits_sub }}</span>{% endif %}</span>
-          <span class="status-badge status-info" data-key="exits.students">{{ day.exits_students }}</span>
+          <span class="plain-list__title" title="{{ day_exits_sub }} {{ day_exits_destinations }}">خارج الفصل</span>
+          <span>
+            <span class="status-badge {% if day.school.away_permitted %}status-warning{% else %}status-success{% endif %}" title="محسوبون غائبين حتى اعتماد القرار">بإذن <span data-key="school.away_permitted">{{ day.school.away_permitted }}</span></span>
+            <span class="status-badge status-gray">خرجوا <span data-key="exits.students">{{ day.exits_students }}</span></span>
+          </span>
         </li>
         <li class="plain-list__row">
           <a href="{{ teachers_url }}" class="plain-list__title">معلّمون غائبون</a>
