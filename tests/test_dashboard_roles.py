@@ -53,9 +53,6 @@ class TestDirectorPresentation:
         base = {
             "view_type": "director",
             "today": dt.date(2026, 9, 13),
-            "attendance_pct": 91,
-            "completed": 3,
-            "in_progress": 1,
         }
         base.update(extra)
         return present(base)
@@ -67,9 +64,6 @@ class TestDirectorPresentation:
     def test_critical_behaviour_turns_red_and_names_itself_once(self):
         out = self._ctx(behavior_monthly=9, behavior_critical=2)
         assert out["behavior_tone"] == "red" and out["behavior_sub"] == "2 حرجة"
-
-    def test_sessions_detail_is_one_line(self):
-        assert self._ctx()["sessions_sub"] == "3 مكتملة · 1 جارية"
 
     def test_the_subtitle_carries_the_date(self):
         assert self._ctx()["subtitle"].endswith("13/09/2026")

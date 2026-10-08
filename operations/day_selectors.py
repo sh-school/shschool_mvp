@@ -1,5 +1,5 @@
 """
-operations/day_summary.py — مُجمِّعُ يومِ المدرسة للوحة المدير (W-20261008-004، قرارات D-249م وD-251م وD-257م).
+operations/day_selectors.py — مُجمِّعُ يومِ المدرسة للوحة المدير (W-20261008-004، قرارات D-249م وD-251م وD-257م).
 
 **أرقامٌ لا أسماء** (D-171م): الطالبُ يُعدّ **مرّةً واحدة** مهما تعدّدت صفوفُ حضوره، وحكمُه اليوميُّ هو `_judge` من
 [`absence_standing`](absence_standing.py) نفسُه — لا حكمَ ثانياً يفترق عنه. فالعدّادُ في اللوحة هو ما يحسبه موقفُ الطالب وعدُّ الحرمان.
@@ -83,13 +83,19 @@ class DaySummary:
     exits_minutes: int = 0
     exits_by_destination: dict[str, int] = field(default_factory=dict)
 
+    @property
+    def headline(self) -> int:
+        """رقمُ أوّل بطاقة: «غائب بلا عذر» بعد 14:00، و«غائبون عن أوّل خانتين» قبلها (D-249م)."""
+        school = self.school
+        return school.absent_unexcused if self.phase == PHASE_FINAL else school.early_absent
+
     def as_dict(self) -> dict[str, Any]:
         """حمولةٌ JSON بلا أسماء ولا أرقامٍ شخصيّة (حارسُها نصّيٌّ في الاختبار)."""
         return {
             "day": self.day.isoformat(),
             "phase": self.phase,
             "generated_at": self.generated_at.isoformat(),
-            "school": self.school.as_dict(),
+            "school": {**self.school.as_dict(), "headline": self.headline},
             "wings": [{"name": name, **counts.as_dict()} for name, counts in self.wings],
             "bell_slots": self.bell_slots,
             "slots_ended": self.slots_ended,
@@ -124,26 +130,27 @@ def _new_day() -> dict[str, set]:
     }
 
 
-def school_day_summary(school: Any, day: dt.date, now: dt.datetime | None = None) -> DaySummary:
-    """مُجمِّعُ يومِ المدرسة: عدّاداتُ المدرسة وأجنحتُها بالحكم نفسِه — بستّة استعلاماتٍ ثابتة."""
-    from core.models.academic import StudentEnrollment
-    from operations.models import (
-        AttendanceEntry,
-        DailyExitTally,
-        PeriodConfirmation,
-        Session,
-        StudentAttendance,
-    )
+@dataclass
+class _Day:
+    """ما تقرؤه الاستعلاماتُ الستّة مرّةً واحدة — يُحسب منها كلُّ شيءٍ في الذاكرة."""
 
-    now = now or timezone.now()
-    phase = day_phase(school, day, now)
-    summary = DaySummary(day=day, phase=phase, generated_at=now)
-    if phase == PHASE_CLOSED:
-        return summary
-    local_now = timezone.localtime(now).time()
+    section_slots: dict[Any, set] = field(default_factory=dict)
+    section_real_slots: dict[Any, set] = field(default_factory=dict)
+    section_wing: dict[Any, Any] = field(default_factory=dict)
+    wing_names: dict[Any, tuple[int, str]] = field(default_factory=dict)
+    bell: dict[dt.time, dt.time] = field(default_factory=dict)
+    enrollments: list[tuple[Any, Any]] = field(default_factory=list)
+    days: dict[Any, dict[str, set]] = field(default_factory=dict)
+    registered: set[tuple[Any, dt.time]] = field(default_factory=set)
+    away_students: set[Any] = field(default_factory=set)
+    pending_students: set[Any] = field(default_factory=set)
 
-    # ١ خاناتُ الشعب اليوم (غيرُ الملغاة): المؤقّتةُ فيها تدخل الحكم لا عدّادَ الجرس.
-    sessions = list(
+
+def _load_sessions(school: Any, day: dt.date, data: _Day) -> None:
+    """١ خاناتُ الشعب اليوم (غيرُ الملغاة): المؤقّتةُ فيها تدخل الحكم لا عدّادَ الجرس."""
+    from operations.models import Session
+
+    rows = (
         Session.objects.filter(school=school, date=day)
         .exclude(status="cancelled")
         .values_list(
@@ -156,146 +163,215 @@ def school_day_summary(school: Any, day: dt.date, now: dt.datetime | None = None
             "provisional",
         )
     )
-    section_slots: dict[Any, set] = {}
-    section_real_slots: dict[Any, set] = {}
-    section_wing: dict[Any, Any] = {}
-    wing_names: dict[Any, tuple[int, str]] = {}
-    bell: dict[dt.time, dt.time] = {}
-    for section, wing_id, wing_name, wing_order, start, end, provisional in sessions:
-        section_slots.setdefault(section, set()).add(start)
-        section_wing[section] = wing_id
+    for section, wing_id, wing_name, wing_order, start, end, provisional in rows:
+        data.section_slots.setdefault(section, set()).add(start)
+        data.section_wing[section] = wing_id
         if wing_id is not None:
-            wing_names[wing_id] = (wing_order or 0, wing_name or "")
+            data.wing_names[wing_id] = (wing_order or 0, wing_name or "")
         if not provisional:
-            section_real_slots.setdefault(section, set()).add(start)
-            bell.setdefault(start, end)
+            data.section_real_slots.setdefault(section, set()).add(start)
+            data.bell.setdefault(start, end)
 
-    ordered_bell = sorted(bell)
-    summary.bell_slots = len(ordered_bell)
-    for number, start in enumerate(ordered_bell, start=1):
-        end = bell[start]
-        if end <= local_now:
-            summary.slots_ended += 1
-        elif start <= local_now:
-            summary.slots_running += 1
-            summary.current_slot = number
-    early = set(ordered_bell[:EARLY_SLOTS])
 
-    # ٢ تسجيلُ الطلاب النشط في شعب اليوم.
-    section_ids = list(section_slots)
-    enrollments = list(
+def _load_enrollments(data: _Day) -> None:
+    """٢ تسجيلُ الطلاب النشط في شعب اليوم."""
+    from core.models.academic import StudentEnrollment
+
+    data.enrollments = list(
         StudentEnrollment.objects.filter(
-            is_active=True, class_group_id__in=section_ids
+            is_active=True, class_group_id__in=list(data.section_slots)
         ).values_list("student_id", "class_group_id")
     )
 
-    # ٣ صفوفُ الحضور اليوم (طالبٌ، شعبةٌ، بدء، حالة، عذر).
-    days: dict[Any, dict[str, set]] = {}
-    registered: set[tuple[Any, dt.time]] = set()
-    away_students: set[Any] = set()
-    for student, section, start, status, excuse, where in StudentAttendance.objects.filter(
-        school=school, session__date=day
-    ).values_list(
+
+def _load_attendance(school: Any, day: dt.date, data: _Day) -> None:
+    """٣ صفوفُ الحضور اليوم: تُبنى منها خاناتُ كلِّ طالبٍ كما يبنيها `_day_map` — ثمّ يحكم `_judge`."""
+    from operations.models import StudentAttendance
+
+    rows = StudentAttendance.objects.filter(school=school, session__date=day).values_list(
         "student_id",
         "session__class_group_id",
         "session__start_time",
         "status",
         "excuse_type",
         "whereabouts",
-    ):
-        entry = days.setdefault(student, _new_day())
-        if status == "absent" and where in PERMITTED_WHEREABOUTS:
-            away_students.add(student)
+    )
+    for student, section, start, status, excuse, where in rows:
+        entry = data.days.setdefault(student, _new_day())
         entry["recorded"].add(start)
-        registered.add((section, start))
+        data.registered.add((section, start))
         if status in ATTENDED:
             entry["attended"].add(start)
         elif status == "absent":
             entry["excused" if excuse else "unexcused"].add(start)
+            if where in PERMITTED_WHEREABOUTS:
+                data.away_students.add(student)
 
-    # ٤ تثبيتاتُ المشرف للحصص اليوم.
-    for section, start in PeriodConfirmation.objects.filter(school=school, date=day).values_list(
-        "class_group_id", "start_time"
-    ):
-        registered.add((section, start))
 
-    # ٥ رؤوسُ إدخالات الجدول اليوم: المعلَّقُ (بلا قرار) يُعدّ ولا يُحتسب، وكلُّها تُسجِّل الخانة.
-    pending_students: set[Any] = set()
-    for student, section, start, decision in AttendanceEntry.objects.filter(
+def _load_registration(school: Any, day: dt.date, data: _Day) -> None:
+    """٤ تثبيتاتُ المشرف و٥ رؤوسُ إدخالات الجدول: كلُّها تسجّل الخانة، والمعلَّقُ (بلا قرار) يُعدّ ولا يُحتسب."""
+    from operations.models import AttendanceEntry, PeriodConfirmation
+
+    confirmations = PeriodConfirmation.objects.filter(school=school, date=day)
+    for section, start in confirmations.values_list("class_group_id", "start_time"):
+        data.registered.add((section, start))
+    entries = AttendanceEntry.objects.filter(
         school=school, session__date=day, superseded_by__isnull=True
-    ).values_list("student_id", "session__class_group_id", "session__start_time", "decision__id"):
-        registered.add((section, start))
+    ).values_list("student_id", "session__class_group_id", "session__start_time", "decision__id")
+    for student, section, start, decision in entries:
+        data.registered.add((section, start))
         if decision is None:
-            pending_students.add(student)
+            data.pending_students.add(student)
 
-    now_slots = {start for start, end in bell.items() if end <= local_now}
 
-    per_scope: dict[Any, DayCounts] = {}
-    school_counts = summary.school
+def _fill_bell(summary: DaySummary, data: _Day, local_now: dt.time) -> set[dt.time]:
+    """خاناتُ الجرس (غيرُ المؤقّتة): عددُها ومنتهيتُها وجاريتُها؛ وتُعيد خاناتِ «الغياب المبكّر»."""
+    ordered = sorted(data.bell)
+    summary.bell_slots = len(ordered)
+    for number, start in enumerate(ordered, start=1):
+        end = data.bell[start]
+        if end <= local_now:
+            summary.slots_ended += 1
+        elif start <= local_now:
+            summary.slots_running += 1
+            summary.current_slot = number
+    return set(ordered[:EARLY_SLOTS])
 
-    def counts_for(wing_id: Any) -> DayCounts:
-        return per_scope.setdefault(wing_id, DayCounts())
 
-    # الشعبُ: Y = ذاتُ حصةٍ غيرِ مؤقّتة؛ X = كلُّ خاناتها المنتهية مسجَّلة.
-    for section, real in section_real_slots.items():
-        wing_counts = counts_for(section_wing.get(section))
-        wing_counts.sections_total += 1
-        school_counts.sections_total += 1
-        ended = {start for start in real if start in now_slots}
-        if all((section, start) in registered for start in ended):
-            wing_counts.sections_registered += 1
-            school_counts.sections_registered += 1
+def _count_sections(
+    data: _Day, scopes: dict[Any, DayCounts], school_counts: DayCounts, local_now: dt.time
+) -> None:
+    """Y = شعبٌ ذاتُ حصةٍ غيرِ مؤقّتة؛ X = كلُّ خاناتها المنتهية بالساعة مسجَّلة."""
+    ended = {start for start, end in data.bell.items() if end <= local_now}
+    for section, real in data.section_real_slots.items():
+        scope = scopes.setdefault(data.section_wing.get(section), DayCounts())
+        done = all((section, start) in data.registered for start in real & ended)
+        for target in (scope, school_counts):
+            target.sections_total += 1
+            target.sections_registered += int(done)
 
+
+_VERDICT_FIELD = {
+    "present": "present",
+    "absent_unexcused": "absent_unexcused",
+    "absent_excused": "absent_excused",
+    "incomplete": "incomplete",
+}
+
+
+def _count_students(
+    data: _Day, scopes: dict[Any, DayCounts], school_counts: DayCounts, early: set[dt.time]
+) -> None:
+    """الطالبُ مرّةً واحدة بحكم `_judge`؛ و«غير مرصود» ما لا رصدَ فيه أصلاً."""
     seen: set[Any] = set()
-    for student, section in enrollments:
+    for student, section in data.enrollments:
         if student in seen:
             continue
         seen.add(student)
-        wing_counts = counts_for(section_wing.get(section))
-        entry = days.get(student) or _new_day()
-        entry["scheduled"] |= section_slots.get(section, set())
-        verdict = _judge(entry)
-        for scope in (wing_counts, school_counts):
-            scope.students += 1
-            if verdict == "present":
-                scope.present += 1
-            elif verdict == "absent_unexcused":
-                scope.absent_unexcused += 1
-            elif verdict == "absent_excused":
-                scope.absent_excused += 1
-            elif verdict == "incomplete":
-                scope.incomplete += 1
-            else:
-                scope.unrecorded += 1
-            if early and early <= (entry["unexcused"] | entry["excused"]):
-                scope.early_absent += 1
-            if student in pending_students:
-                scope.pending += 1
-            if student in away_students:
-                scope.away_permitted += 1
+        entry = data.days.get(student) or _new_day()
+        entry["scheduled"] |= data.section_slots.get(section, set())
+        field_name = _VERDICT_FIELD.get(_judge(entry), "unrecorded")
+        absent_early = bool(early) and early <= (entry["unexcused"] | entry["excused"])
+        scope = scopes.setdefault(data.section_wing.get(section), DayCounts())
+        for target in (scope, school_counts):
+            target.students += 1
+            setattr(target, field_name, getattr(target, field_name) + 1)
+            target.early_absent += int(absent_early)
+            target.pending += int(student in data.pending_students)
+            target.away_permitted += int(student in data.away_students)
 
-    # ٦ الزمنُ خارج الفصل — استعلامٌ واحد على الملخّص اليوميّ، مجمَّعٌ في الذاكرة.
-    enrolled_ids = {student for student, _ in enrollments}
-    exits_students: set[Any] = set()
-    by_destination: dict[str, int] = {}
-    for student, count, seconds, destinations in DailyExitTally.objects.filter(
-        school=school, date=day
-    ).values_list("student_id", "exit_count", "total_seconds", "by_destination"):
-        if student not in enrolled_ids or not count:
+
+def _fill_exits(summary: DaySummary, school: Any, day: dt.date, enrolled: set[Any]) -> None:
+    """٦ الزمنُ خارج الفصل — استعلامٌ واحد على الملخّص اليوميّ، مجمَّعٌ في الذاكرة بوجهاته العربيّة."""
+    from operations.models import ClassExit, DailyExitTally
+
+    labels = dict(ClassExit.DESTINATIONS)
+    students: set[Any] = set()
+    rows = DailyExitTally.objects.filter(school=school, date=day).values_list(
+        "student_id", "exit_count", "total_seconds", "by_destination"
+    )
+    for student, count, seconds, destinations in rows:
+        if student not in enrolled or not count:
             continue
-        exits_students.add(student)
+        students.add(student)
         summary.exits_count += count
         summary.exits_minutes += round(seconds / 60)
-        for destination, detail in (destinations or {}).items():
-            by_destination[destination] = by_destination.get(destination, 0) + int(
+        for code, detail in (destinations or {}).items():
+            label = labels.get(code, code)
+            summary.exits_by_destination[label] = summary.exits_by_destination.get(label, 0) + int(
                 (detail or {}).get("count", 0)
             )
-    summary.exits_students = len(exits_students)
-    summary.exits_by_destination = by_destination
+    summary.exits_students = len(students)
+
+
+def school_day_summary(school: Any, day: dt.date, now: dt.datetime | None = None) -> DaySummary:
+    """مُجمِّعُ يومِ المدرسة: عدّاداتُ المدرسة وأجنحتُها بالحكم نفسِه — بستّة استعلاماتٍ ثابتة."""
+    now = now or timezone.now()
+    summary = DaySummary(day=day, phase=day_phase(school, day, now), generated_at=now)
+    if summary.phase == PHASE_CLOSED:
+        return summary
+    local_now = timezone.localtime(now).time()
+
+    data = _Day()
+    _load_sessions(school, day, data)
+    _load_enrollments(data)
+    _load_attendance(school, day, data)
+    _load_registration(school, day, data)
+
+    scopes: dict[Any, DayCounts] = {}
+    early = _fill_bell(summary, data, local_now)
+    _count_sections(data, scopes, summary.school, local_now)
+    _count_students(data, scopes, summary.school, early)
+    _fill_exits(summary, school, day, {student for student, _ in data.enrollments})
+
     # الأجنحةُ بترتيبها ثمّ «بلا جناح» آخراً.
-    for wing_id, (_, name) in sorted(wing_names.items(), key=lambda item: (item[1][0], item[1][1])):
-        if wing_id in per_scope:
-            summary.wings.append((name, per_scope[wing_id]))
-    if None in per_scope:
-        summary.wings.append(("بلا جناح", per_scope[None]))
+    ordered = sorted(data.wing_names.items(), key=lambda item: (item[1][0], item[1][1]))
+    summary.wings = [(name, scopes[wing_id]) for wing_id, (_, name) in ordered if wing_id in scopes]
+    if None in scopes:
+        summary.wings.append(("بلا جناح", scopes[None]))
     return summary
+
+
+#: عمرُ الملخّص في الذاكرة المشتركة (ثانية) — ما وُجد الإنتاجُ على Redis فهو مشتركٌ بين العمليّات (REDIS_URL).
+LIVE_TTL = 20
+#: الاستطلاعُ الحيّ: فاصلُه من الخادم فيتغيّر دون نشر عميل.
+LIVE_NEXT_IN = 45
+LIVE_SCHEMA = 1
+
+
+def live_payload(school: Any, day: dt.date, now: dt.datetime | None = None) -> dict[str, Any]:
+    """حمولةُ نقطة الاستطلاع الحيّ للمدير: الملخّصُ مخزَّنٌ 20 ث بمفتاح `live:{school}:{day}` وحساباتُه بقفل `cache.add`.
+
+    فاستعلاماتُ القاعدة لا تتبع عددَ المستخدمين: يحسبه طلبٌ واحدٌ والباقون يقرؤون المخزَّنَ أو آخرَ نسخةٍ قديمةٍ إن فاتهم القفل.
+    ولا اسمَ ولا رقماً شخصيّاً في المخزَّن (أعدادٌ مجمَّعة)، فتسرُّبُه لا يكشف طالباً.
+    """
+    from django.core.cache import cache
+
+    key = f"live:{school.pk}:{day.isoformat()}"
+    data = cache.get(key)
+    if data is not None:
+        return data
+    last = cache.get(f"{key}:last")
+    if cache.add(f"{key}:lock", 1, 10) or last is None:
+        try:
+            data = school_day_summary(school, day, now).as_dict()
+            data = {**data, "schema": LIVE_SCHEMA, "next_in": LIVE_NEXT_IN}
+            cache.set(key, data, LIVE_TTL)
+            cache.set(f"{key}:last", data, LIVE_TTL * 6)
+        finally:
+            cache.delete(f"{key}:lock")
+        return data
+    return last
+
+
+def director_day_section(user: Any, school: Any, today: dt.date) -> dict[str, Any]:
+    """قسمُ «غياب اليوم» في سياق لوحة المدير — تسجّله `OperationsConfig.ready` فلا تستورد النواةُ هذه الوحدة (سقّاطةُ الطبقات).
+
+    الرابطُ إلى «متابعة الحضور» لمن يحمل قدرتَها وحدَه (D-171م: العددُ والرابطُ لا الأسماء).
+    """
+    from core.capabilities import has_capability
+
+    return {
+        "day": school_day_summary(school, today),
+        "can_follow_up": has_capability(user, "student_affairs.follow_up"),
+    }

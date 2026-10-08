@@ -10,7 +10,7 @@ import json
 import pytest
 
 from core.models.academic import StudentEnrollment
-from operations.day_summary import (
+from operations.day_selectors import (
     PHASE_CLOSED,
     PHASE_FINAL,
     PHASE_LIVE,

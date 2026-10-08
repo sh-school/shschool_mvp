@@ -12,16 +12,34 @@
     {% callout "warning" show=True %}أعذارٌ أرسلها المشرفون بعد المهلة تنتظر قرارك: {{ pending_excuses }}. <a href="{% url 'wings:excuse_requests' %}" class="btn-primary btn-sm">افتح الأعذار</a>{% endcallout %}
   {% endif %}
 
-  {% comment %}بطاقةٌ واحدةٌ لأرقام اليوم كلِّها: صفّان بخمسةٍ خمسة (طلب المالك 2026-09-23) —
-  الأوّلُ أرقامُ اليوم (الحضور والحصص والمعلّمون الغائبون)، والثاني ما ينتظر في الأقسام.{% endcomment %}
+  {% comment %}
+  غيابُ اليوم بطلابٍ مميَّزين بحكم `_judge` لا بصفوف حضور (W-20261008-004، D-249م): قبل 14:00 «غائبون عن ح1 وح2» وبعدها حكمُ السياسة
+  بخاناتٍ منفصلة (بلا عذر · بعذر · لم يُحسم · غير مرصود)، و«رصدٌ معلّق» يُعدّ ولا يُحتسب. أرقامٌ ورابطٌ لا أسماء (D-171م).
+  {% endcomment %}
+  <div data-director-live data-live-url="{% url 'director_live' %}" data-phase="{{ day.phase }}">
+  {% comment %}بطاقةٌ واحدةٌ لأرقام اليوم ونبضِ الأقسام (طلب المالك 2026-09-23): صفُّ غياب اليوم، فسيرُ اليوم، فنبضُ الأقسام.{% endcomment %}
   {% section_card "نبض المدرسة" meta="اليوم وهذا الشهر" icon="dashboard" %}
+    {% if day_open %}
     {% kpi_strip label="اليوم" %}
-      {% kpi "نسبة الحضور" attendance_label sub=att_delta_label tone="green" %}
-      {% kpi "الحاضرون" present tone="teal" %}
-      {% kpi "الغائبون" absent sub=absent_delta_label tone="red" %}
-      {% kpi "حصص اليوم" sessions_today sub=sessions_sub tone="maroon" %}
+      {% kpi day_headline_label day_headline_value sub=day_headline_sub tone=day_headline_tone href=day_follow_url key="school.headline" %}
+      {% kpi "غائب بعذر" day.school.absent_excused tone="teal" key="school.absent_excused" %}
+      {% kpi "لم يُحسم" day.school.incomplete sub="رصدُ شعبته ناقص" tone=day_incomplete_tone key="school.incomplete" %}
+      {% if day_final %}{% kpi "غير مرصود" day.school.unrecorded sub="لا رصدَ له" tone="orange" key="school.unrecorded" %}{% endif %}
+      {% kpi "رصدٌ معلّق" day.school.pending sub="بانتظار الاعتماد" tone=day_pending_tone href=day_unapproved_url key="school.pending" %}
+    {% endkpi_strip %}
+    {% kpi_strip label="سيرُ اليوم" %}
+      {% kpi "شعب سُجّلت حصصها" day_sections_label sub=day_sections_sub tone="maroon" %}
+      {% kpi "خانات الجرس" day.bell_slots sub=day_slots_sub tone="blue" %}
+      {% kpi "خرجوا من الفصل" day.exits_students sub=day_exits_sub tone="purple" key="exits.students" %}
+      {% kpi "خارج الفصل بإذن" day.school.away_permitted sub="عيادةٌ أو نشاط" tone=day_away_tone title="محسوبون غائبين حتى اعتماد القرار" key="school.away_permitted" %}
       {% kpi "معلّمون غائبون" absent_teachers_today tone=teachers_tone href=teachers_url %}
     {% endkpi_strip %}
+    {% if day_exits_destinations %}<p class="ui-note">الخروج حسب الوجهة: {{ day_exits_destinations }}</p>{% endif %}
+    <p class="ui-note" data-live-note role="status" aria-live="polite" hidden></p>
+    {% callout "hint" %}الطالبُ يُعدّ مرّةً واحدة بحكم سياسة الغياب نفسِه (حضورُ 4 خاناتٍ فأكثر)، لا بعدد صفوف الحضور. «لم يُحسم» رصدُ شعبته ناقصٌ فلا يُحتسب غياباً، و«غير مرصود» لا يُدمج في الغائب. «خارج الفصل بإذن» محسوبون غائبين حتى اعتماد القرار.{% endcallout %}
+    {% else %}
+    {% callout "info" show=True %}لا دوامَ اليوم — لا أرقامَ حضورٍ لليوم.{% endcallout %}
+    {% endif %}
     {% kpi_strip label="نبض الأقسام" %}
       {% kpi "مخالفات الشهر" behavior_monthly|default:0 sub=behavior_sub tone=behavior_tone href=behavior_url %}
       {% kpi "زيارات العيادة" clinic_today|default:0 sub=clinic_sub tone=clinic_tone href=clinic_url %}
@@ -30,6 +48,52 @@
       {% kpi "تعويضات معلّقة" pending_comp tone=comp_tone href=comp_url %}
     {% endkpi_strip %}
   {% endsection_card %}
+
+  {% if day_open %}
+  {% section_card "الأجنحة اليوم" meta=day.wings|length icon="students" flush=True empty="لا شعبَ بحصص اليوم" %}{% if day_wings %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">الجناح</th>
+            <th scope="col" class="col-center">طلاب</th>
+            {% if day_final %}
+            <th scope="col" class="col-center">حاضر</th>
+            <th scope="col" class="col-center">غائب بلا عذر</th>
+            <th scope="col" class="col-center">بعذر</th>
+            <th scope="col" class="col-center">لم يُحسم</th>
+            <th scope="col" class="col-center">غير مرصود</th>
+            {% else %}
+            <th scope="col" class="col-center">غائبون عن ح1 وح2</th>
+            {% endif %}
+            <th scope="col" class="col-center">معلّق</th>
+            <th scope="col" class="col-center">شعب مسجّلة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for wing in day_wings %}
+          <tr>
+            <th scope="row">{{ wing.name }}</th>
+            <td class="col-center">{{ wing.counts.students }}</td>
+            {% if day_final %}
+            <td class="col-center">{{ wing.counts.present }}</td>
+            <td class="col-center">{{ wing.counts.absent_unexcused }}</td>
+            <td class="col-center">{{ wing.counts.absent_excused }}</td>
+            <td class="col-center">{{ wing.counts.incomplete }}</td>
+            <td class="col-center">{{ wing.counts.unrecorded }}</td>
+            {% else %}
+            <td class="col-center">{{ wing.counts.early_absent }}</td>
+            {% endif %}
+            <td class="col-center">{{ wing.counts.pending }}</td>
+            <td class="col-center">{% if wing.gap %}<span class="status-badge status-warning">{{ wing.registered }}</span>{% else %}{{ wing.registered }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+  {% endif %}
+  </div>
 
   {% if total_annual %}
   {% section_card "العام الدراسي" meta=year icon="academic" %}

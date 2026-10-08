@@ -129,39 +129,7 @@ def get_student_ctx(user, school, today):
 def get_director_ctx(school, today):
     """بيانات لوحة تحكم الإدارة: حصص + حضور + تقييمات + سلوك + عيادة + مكتبة + عمليات."""
     year = academic_year_for_school(school)
-    yesterday = today - datetime.timedelta(days=1)
-
-    # حصص اليوم — aggregate واحد
-    session_stats = Session.objects.filter(school=school, date=today).aggregate(
-        total=Count("id"),
-        completed=Count("id", filter=Q(status="completed")),
-        in_progress=Count("id", filter=Q(status="in_progress")),
-    )
-
-    # حضور اليوم — aggregate واحد
-    att = StudentAttendance.objects.filter(school=school, session__date=today).aggregate(
-        present=Count("id", filter=Q(status="present")),
-        absent=Count("id", filter=Q(status="absent")),
-        late=Count("id", filter=Q(status="late")),
-    )
-    present = att["present"]
-    absent = att["absent"]
-    total_att = present + absent + att["late"]
-    att_pct = attendance_rate(present, total_att)
-
-    # حضور الأمس للمقارنة — aggregate واحد
-    att_y = StudentAttendance.objects.filter(school=school, session__date=yesterday).aggregate(
-        present_y=Count("id", filter=Q(status="present")),
-        absent_y=Count("id", filter=Q(status="absent")),
-        late_y=Count("id", filter=Q(status="late")),
-    )
-    present_y = att_y["present_y"]
-    absent_y = att_y["absent_y"]
-    total_y = present_y + absent_y + att_y["late_y"]
-    att_pct_y = attendance_rate(present_y, total_y, empty=None)
-    att_delta = att_pct - att_pct_y if att_pct_y is not None else None
-    absent_delta = absent - absent_y if total_y else None
-
+    # غيابُ اليوم بطلابٍ مميَّزين بحكم `_judge` يأتي من قسم «day» الذي تسجّله وحدةُ operations (dashboard_registry) — لا استيرادَ نازلاً هنا.
     # عدّادٌ لا أسماء (D-171م: لوحةُ المدير أرقامٌ ورابطٌ إلى الشاشة المحروسة) —
     # فالأسماءُ تُفتح في «متابعة الحضور» بقدرتها `student_affairs.follow_up`.
     alerts_count = AbsenceAlert.objects.filter(school=school, status="pending").count()
@@ -212,16 +180,6 @@ def get_director_ctx(school, today):
 
     return {
         "view_type": "director",
-        "sessions_today": session_stats["total"],
-        "completed": session_stats["completed"],
-        "in_progress": session_stats["in_progress"],
-        "present": present,
-        "absent": absent,
-        "late": att["late"],
-        "attendance_pct": att_pct,
-        "att_delta": att_delta,
-        "absent_delta": absent_delta,
-        "total_students": total_att,
         "alerts_count": alerts_count,
         "total_annual": total_annual,
         "passed_annual": passed_annual,
