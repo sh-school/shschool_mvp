@@ -29,6 +29,16 @@ from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, Us
 
 pytestmark = pytest.mark.django_db
 
+
+@pytest.fixture(autouse=True)
+def _no_real_objective(monkeypatch):
+    """بوجود النواة والهدف (ortools) يصير الهدفُ الافتراضيّ حقيقياً ويقرأ `built.x` الذي لا يملكه المزيَّف؛ فيُطفأ هنا.
+
+    الاختبارُ الذي يريد الهدفَ يمرّره صراحةً (`objective=`).
+    """
+    monkeypatch.setattr(runner, "default_objective", lambda: None)
+
+
 YEAR = "2026-2027"
 CONFIG = runner.SolverConfig(seed=11, workers=2, max_seconds=5)
 FIXTURE = (
@@ -89,7 +99,7 @@ def _fake(status="OPTIMAL", rows=()):
     built = SimpleNamespace(model=object())
     calls = {"builder": 0, "solver": 0}
 
-    def builder(inputs):
+    def builder(inputs, options=None):
         calls["builder"] += 1
         return built
 
