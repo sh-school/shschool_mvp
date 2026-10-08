@@ -7,8 +7,14 @@ class WingsConfig(AppConfig):
     verbose_name = "أجنحة المدرسة"
 
     def ready(self):
+        from core.dashboard_registry import register_dashboard_section
         from core.models.academic import WingCoverage
         from core.module_registry import register_module
+
+        from .supervisor_day import supervisor_day_section
+
+        # غيابُ اليوم في لوحة المشرف وبديله بالمُجمِّع نفسِه (W-20261008-00x): النواةُ تُرسل والوحدةُ تقرأ بياناتِها.
+        register_dashboard_section("supervisor", "day", supervisor_day_section)
 
         # النطاقُ مفتوحٌ على الأجنحة الخمسة حتّى تُبنى المرحلة 3 (`wing_scoped`):
         # المشرفُ اليومَ يرى كلَّ طلاب المدرسة أصلاً، فقصرُ هذه الشاشة وحدَها

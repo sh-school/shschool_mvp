@@ -468,6 +468,7 @@ def supervisor_record_ctx(user, school, today):
     الرصدَ أصلاً: عملُه اليوميُّ الرئيسيُّ غائبٌ عن صفحته الرئيسيّة.
     """
     from core.dashboard_presentation import chunk_for_grid
+    from core.dashboard_registry import dashboard_section_context
     from operations.school_days import school_day
     from operations.services import ScheduleService
     from wings.services import holds_school_wide, record_panels, supervisor_watchlist
@@ -489,6 +490,9 @@ def supervisor_record_ctx(user, school, today):
     }
     # حاصرُ الغياب العامّ يرى الأجنحةَ الخمسة في «رصد الغياب» (أمرُ المالك 2026-10-06): لا بطاقاتِ أجنحةٍ مكدّسةً في رئيسيّته.
     ctx["school_wide"] = holds_school_wide(user)
+    # عدّادُ العتبات فقط (لا قائمةُ أسماء): الإخطارُ انتقل إلى كاتب الغياب (D-245م/D-246م) — يُعرض عدداً ورابطاً.
+    ctx["gates_count"] = len(watchlist["at_gates"])
+    ctx.update(dashboard_section_context("supervisor", user, school, today))
     if day.is_open and not ctx["school_wide"]:
         # الحصصُ تُولَّد إن لم تكن — وإلّا بدت الشُّعبُ «بلا حصص» صباحاً.
         ScheduleService.ensure_sessions_for_date(school, today)

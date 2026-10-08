@@ -79,4 +79,5 @@ async function fc(u){try{return await(await fetch(u)).json()}catch(e){return nul
 })();
 </script>
 {% endif %}
+{% if sup_open %}<script src="{% static 'js/director-live.js' %}" defer></script>{% endif %}
 {% endblock %}

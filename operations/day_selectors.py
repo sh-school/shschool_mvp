@@ -59,9 +59,67 @@ class DayCounts:
     sections_registered: int = 0
     #: غائبون بإذنٍ خارجَ الفصل (عيادة/نشاط) — وسمٌ مرحليٌّ لا حكم.
     away_permitted: int = 0
+    #: الزمنُ خارج الفصل لهذا النطاق: طلابٌ · مرّاتٌ · دقائق (مجموعُ الأجزاء المغلقة من `DailyExitTally`).
+    exit_students: int = 0
+    exit_count: int = 0
+    exit_minutes: int = 0
 
     def as_dict(self) -> dict[str, int]:
         return {key: getattr(self, key) for key in self.__dataclass_fields__}
+
+
+@dataclass
+class WingRow:
+    wing_id: Any
+    name: str
+    counts: DayCounts
+
+
+#: حالةُ جدول الشعبة اليوم: لم يُبدأ (لا تسجيلَ لأيّ خانة) · حُفظ جزئياً (خانةٌ منتهيةٌ بلا تسجيل) · مكتمل.
+STATE_NOT_STARTED = "not_started"
+STATE_PARTIAL = "partial"
+STATE_COMPLETE = "complete"
+STATE_LABELS = {
+    STATE_NOT_STARTED: "لم يُبدأ",
+    STATE_PARTIAL: "حُفظ جزئياً",
+    STATE_COMPLETE: "مكتمل",
+}
+
+
+@dataclass
+class SectionRow:
+    """شعبةٌ: خاناتُها المسجَّلةُ من المجدولة وحالُ جدولها وأعدادُها — أرقامٌ لا أسماء (D-171م)."""
+
+    section_id: Any
+    wing_id: Any
+    code: str
+    counts: DayCounts
+    slots_total: int = 0
+    slots_registered: int = 0
+    slots_ended: int = 0
+    state: str = STATE_NOT_STARTED
+
+    @property
+    def gap(self) -> bool:
+        """فجوةٌ: خانةٌ منتهيةٌ بلا تسجيل (لم يُبدأ بعد انتهاء خانة، أو حُفظ جزئياً)."""
+        return self.state == STATE_PARTIAL or (
+            self.state == STATE_NOT_STARTED and self.slots_ended > 0
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.section_id),
+            "wing_id": None if self.wing_id is None else str(self.wing_id),
+            "code": self.code,
+            "slots_total": self.slots_total,
+            "slots_registered": self.slots_registered,
+            "slots_ended": self.slots_ended,
+            "recorded": f"{self.slots_registered}/{self.slots_total}",
+            "state": self.state,
+            "state_label": STATE_LABELS[self.state],
+            "gap": self.gap,
+            **self.counts.as_dict(),
+        }
 
 
 @dataclass
@@ -70,7 +128,8 @@ class DaySummary:
     phase: str
     generated_at: dt.datetime
     school: DayCounts = field(default_factory=DayCounts)
-    wings: list[tuple[str, DayCounts]] = field(default_factory=list)
+    wings: list[WingRow] = field(default_factory=list)
+    sections: list[SectionRow] = field(default_factory=list)
     #: خاناتُ الجرس (غيرُ المؤقّتة وغيرُ الملغاة): العددُ ومنتهيتُها وجاريتُها.
     bell_slots: int = 0
     slots_ended: int = 0
@@ -96,7 +155,15 @@ class DaySummary:
             "phase": self.phase,
             "generated_at": self.generated_at.isoformat(),
             "school": {**self.school.as_dict(), "headline": self.headline},
-            "wings": [{"name": name, **counts.as_dict()} for name, counts in self.wings],
+            "wings": [
+                {
+                    "id": None if w.wing_id is None else str(w.wing_id),
+                    "name": w.name,
+                    **w.counts.as_dict(),
+                }
+                for w in self.wings
+            ],
+            "sections": [section.as_dict() for section in self.sections],
             "bell_slots": self.bell_slots,
             "slots_ended": self.slots_ended,
             "slots_running": self.slots_running,
@@ -137,6 +204,7 @@ class _Day:
     section_slots: dict[Any, set] = field(default_factory=dict)
     section_real_slots: dict[Any, set] = field(default_factory=dict)
     section_wing: dict[Any, Any] = field(default_factory=dict)
+    section_code: dict[Any, str] = field(default_factory=dict)
     wing_names: dict[Any, tuple[int, str]] = field(default_factory=dict)
     bell: dict[dt.time, dt.time] = field(default_factory=dict)
     enrollments: list[tuple[Any, Any]] = field(default_factory=list)
@@ -148,6 +216,7 @@ class _Day:
 
 def _load_sessions(school: Any, day: dt.date, data: _Day) -> None:
     """١ خاناتُ الشعب اليوم (غيرُ الملغاة): المؤقّتةُ فيها تدخل الحكم لا عدّادَ الجرس."""
+    from core.models.academic import ClassGroup
     from operations.models import Session
 
     rows = (
@@ -158,12 +227,17 @@ def _load_sessions(school: Any, day: dt.date, data: _Day) -> None:
             "class_group__wing_id",
             "class_group__wing__name",
             "class_group__wing__order",
+            "class_group__grade",
+            "class_group__section",
             "start_time",
             "end_time",
             "provisional",
         )
     )
-    for section, wing_id, wing_name, wing_order, start, end, provisional in rows:
+    for section, wing_id, wing_name, wing_order, grade, section_no, start, end, provisional in rows:
+        data.section_code.setdefault(
+            section, ClassGroup(grade=grade, section=section_no).short_code
+        )
         data.section_slots.setdefault(section, set()).add(start)
         data.section_wing[section] = wing_id
         if wing_id is not None:
@@ -251,6 +325,36 @@ def _count_sections(
             target.sections_registered += int(done)
 
 
+def _build_sections(
+    data: _Day, section_counts: dict[Any, DayCounts], local_now: dt.time
+) -> list[SectionRow]:
+    """سطرُ كلّ شعبةٍ ذاتِ حصةٍ غيرِ مؤقّتة: خاناتُها المسجَّلةُ من المجدولة وحالُ جدولها (لم يُبدأ · حُفظ جزئياً · مكتمل)."""
+    ended = {start for start, end in data.bell.items() if end <= local_now}
+    rows = []
+    for section, real in data.section_real_slots.items():
+        registered = {start for start in real if (section, start) in data.registered}
+        due = real & ended
+        if not registered:
+            state = STATE_NOT_STARTED
+        elif due - registered:
+            state = STATE_PARTIAL
+        else:
+            state = STATE_COMPLETE
+        rows.append(
+            SectionRow(
+                section_id=section,
+                wing_id=data.section_wing.get(section),
+                code=data.section_code.get(section, ""),
+                counts=section_counts.setdefault(section, DayCounts()),
+                slots_total=len(real),
+                slots_registered=len(registered),
+                slots_ended=len(due),
+                state=state,
+            )
+        )
+    return sorted(rows, key=lambda row: row.code)
+
+
 _VERDICT_FIELD = {
     "present": "present",
     "absent_unexcused": "absent_unexcused",
@@ -260,7 +364,11 @@ _VERDICT_FIELD = {
 
 
 def _count_students(
-    data: _Day, scopes: dict[Any, DayCounts], school_counts: DayCounts, early: set[dt.time]
+    data: _Day,
+    scopes: dict[Any, DayCounts],
+    school_counts: DayCounts,
+    section_counts: dict[Any, DayCounts],
+    early: set[dt.time],
 ) -> None:
     """الطالبُ مرّةً واحدة بحكم `_judge`؛ و«غير مرصود» ما لا رصدَ فيه أصلاً."""
     seen: set[Any] = set()
@@ -273,7 +381,7 @@ def _count_students(
         field_name = _VERDICT_FIELD.get(_judge(entry), "unrecorded")
         absent_early = bool(early) and early <= (entry["unexcused"] | entry["excused"])
         scope = scopes.setdefault(data.section_wing.get(section), DayCounts())
-        for target in (scope, school_counts):
+        for target in (scope, school_counts, section_counts.setdefault(section, DayCounts())):
             target.students += 1
             setattr(target, field_name, getattr(target, field_name) + 1)
             target.early_absent += int(absent_early)
@@ -281,21 +389,35 @@ def _count_students(
             target.away_permitted += int(student in data.away_students)
 
 
-def _fill_exits(summary: DaySummary, school: Any, day: dt.date, enrolled: set[Any]) -> None:
+def _fill_exits(
+    summary: DaySummary,
+    school: Any,
+    day: dt.date,
+    data: _Day,
+    scopes: dict[Any, DayCounts],
+    section_counts: dict[Any, DayCounts],
+) -> None:
     """٦ الزمنُ خارج الفصل — استعلامٌ واحد على الملخّص اليوميّ، مجمَّعٌ في الذاكرة بوجهاته العربيّة."""
     from operations.models import ClassExit, DailyExitTally
 
     labels = dict(ClassExit.DESTINATIONS)
+    section_of = dict(data.enrollments)
     students: set[Any] = set()
     rows = DailyExitTally.objects.filter(school=school, date=day).values_list(
         "student_id", "exit_count", "total_seconds", "by_destination"
     )
     for student, count, seconds, destinations in rows:
-        if student not in enrolled or not count:
+        section = section_of.get(student)
+        if section is None or not count:
             continue
         students.add(student)
         summary.exits_count += count
         summary.exits_minutes += round(seconds / 60)
+        scope = scopes.setdefault(data.section_wing.get(section), DayCounts())
+        for target in (scope, section_counts.setdefault(section, DayCounts())):
+            target.exit_students += 1
+            target.exit_count += count
+            target.exit_minutes += round(seconds / 60)
         for code, detail in (destinations or {}).items():
             label = labels.get(code, code)
             summary.exits_by_destination[label] = summary.exits_by_destination.get(label, 0) + int(
@@ -319,16 +441,25 @@ def school_day_summary(school: Any, day: dt.date, now: dt.datetime | None = None
     _load_registration(school, day, data)
 
     scopes: dict[Any, DayCounts] = {}
+    section_counts: dict[Any, DayCounts] = {}
     early = _fill_bell(summary, data, local_now)
     _count_sections(data, scopes, summary.school, local_now)
-    _count_students(data, scopes, summary.school, early)
-    _fill_exits(summary, school, day, {student for student, _ in data.enrollments})
+    _count_students(data, scopes, summary.school, section_counts, early)
+    _fill_exits(summary, school, day, data, scopes, section_counts)
+    summary.sections = _build_sections(data, section_counts, local_now)
+    summary.school.exit_students = summary.exits_students
+    summary.school.exit_count = summary.exits_count
+    summary.school.exit_minutes = summary.exits_minutes
 
     # الأجنحةُ بترتيبها ثمّ «بلا جناح» آخراً.
     ordered = sorted(data.wing_names.items(), key=lambda item: (item[1][0], item[1][1]))
-    summary.wings = [(name, scopes[wing_id]) for wing_id, (_, name) in ordered if wing_id in scopes]
+    summary.wings = [
+        WingRow(wing_id, name, scopes[wing_id])
+        for wing_id, (_, name) in ordered
+        if wing_id in scopes
+    ]
     if None in scopes:
-        summary.wings.append(("بلا جناح", scopes[None]))
+        summary.wings.append(WingRow(None, "بلا جناح", scopes[None]))
     return summary
 
 
@@ -374,4 +505,43 @@ def director_day_section(user: Any, school: Any, today: dt.date) -> dict[str, An
     return {
         "day": school_day_summary(school, today),
         "can_follow_up": has_capability(user, "student_affairs.follow_up"),
+    }
+
+
+_COUNT_FIELDS = tuple(DayCounts.__dataclass_fields__)
+_SHARED_KEYS = (
+    "schema",
+    "next_in",
+    "day",
+    "phase",
+    "generated_at",
+    "bell_slots",
+    "slots_ended",
+    "slots_running",
+    "current_slot",
+)
+
+
+def scope_to_wings(payload: dict[str, Any], wing_ids: set[str]) -> dict[str, Any]:
+    """حمولةُ المشرف: الملخّصُ المخزَّنُ للمدرسة كلِّها مقتطَعاً لأجنحته وحدَها — بعد القراءة لا قبلها (D-249م 9.3).
+
+    الجناحُ لا يأتي من الطلب: يحدّده مستدعي هذه الدالّة من `wings_of(user)`. فلا تسرّب حمولةٌ جناحَ غيره، ولا اسمَ ولا رقماً شخصيّاً فيها.
+    """
+    wings = [row for row in payload["wings"] if row["id"] in wing_ids]
+    sections = [row for row in payload["sections"] if row["wing_id"] in wing_ids]
+    total = {name: sum(row[name] for row in wings) for name in _COUNT_FIELDS}
+    final = payload["phase"] == PHASE_FINAL
+    return {
+        **{key: payload[key] for key in _SHARED_KEYS if key in payload},
+        "school": {
+            **total,
+            "headline": total["absent_unexcused"] if final else total["early_absent"],
+        },
+        "wings": wings,
+        "sections": sections,
+        "exits": {
+            "students": total["exit_students"],
+            "count": total["exit_count"],
+            "minutes": total["exit_minutes"],
+        },
     }

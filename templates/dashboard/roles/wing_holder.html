@@ -8,6 +8,7 @@
   {% endpage_header %}
 
   {% include "wings/partials/student_search_form.html" %}
+  {% if sup_day %}{% include "wings/partials/supervisor_day.html" %}{% endif %}
 
   {% if not school_day.is_open %}
     {% include "wings/partials/day_off.html" %}

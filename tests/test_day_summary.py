@@ -191,9 +191,9 @@ def test_wings_are_grouped_with_a_no_wing_row(school, klass, special_klass, teac
 
     summary = school_day_summary(school, SUNDAY, now=at(14, 30))
 
-    names = [name for name, _ in summary.wings]
+    names = [row.name for row in summary.wings]
     assert names == ["جناح 1", "بلا جناح"]
-    assert [counts.students for _, counts in summary.wings] == [2, 1]
+    assert [row.counts.students for row in summary.wings] == [2, 1]
 
 
 def test_permitted_whereabouts_are_a_separate_marker_and_do_not_change_the_verdict(
@@ -242,3 +242,53 @@ def test_the_payload_carries_no_names_or_national_ids(school, klass, teacher, be
         assert student.full_name not in payload
         assert student.national_id not in payload
     assert StudentEnrollment.objects.count() == 2
+
+
+def test_a_sections_schedule_state_separates_not_started_from_partial_and_complete(
+    school, klass, teacher, bells
+):
+    sessions = _sessions(school, klass, teacher)
+    (student,) = _students(school, klass, 1)
+
+    def state():
+        (row,) = school_day_summary(school, SUNDAY, now=at(14, 30)).sections
+        return row
+
+    assert state().state == "not_started" and state().gap  # لا تسجيلَ وقد انتهت الخانات
+    _mark(school, sessions[0], student, "present")
+    assert state().state == "partial" and state().gap and state().slots_registered == 1
+    _mark(school, sessions[1], student, "present")
+    _mark(school, sessions[2], student, "present")
+    row = state()
+    assert row.state == "complete" and not row.gap
+    assert (row.slots_registered, row.slots_total, row.code) == (3, 3, klass.short_code)
+
+
+def test_a_section_with_no_ended_slot_yet_is_not_flagged_as_a_gap(school, klass, teacher, bells):
+    _sessions(school, klass, teacher)
+
+    (row,) = school_day_summary(school, SUNDAY, now=at(6, 0)).sections
+
+    assert row.state == "not_started" and not row.gap
+
+
+def test_exits_are_counted_per_wing_and_section(school, klass, teacher, bells):
+    from operations.models import DailyExitTally
+
+    _sessions(school, klass, teacher)
+    inside, outside = _students(school, klass, 2)
+    DailyExitTally.objects.create(
+        school=school,
+        student=inside,
+        date=SUNDAY,
+        exit_count=2,
+        total_seconds=600,
+        by_destination={"clinic": {"count": 2, "seconds": 600}},
+    )
+
+    summary = school_day_summary(school, SUNDAY, now=at(14, 30))
+
+    assert summary.school.exit_students == 1 and summary.school.exit_minutes == 10
+    assert summary.wings[0].counts.exit_count == 2
+    assert summary.sections[0].counts.exit_minutes == 10
+    assert outside.pk is not None

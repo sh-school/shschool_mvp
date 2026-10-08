@@ -74,12 +74,13 @@ def _director_day(ctx: dict) -> dict:
     )
     wings = [
         {
-            "name": name,
-            "counts": counts,
-            "registered": f"{counts.sections_registered}/{counts.sections_total}",
-            "gap": counts.sections_registered < counts.sections_total and day.slots_ended > 0,
+            "name": row.name,
+            "counts": row.counts,
+            "registered": f"{row.counts.sections_registered}/{row.counts.sections_total}",
+            "gap": row.counts.sections_registered < row.counts.sections_total
+            and day.slots_ended > 0,
         }
-        for name, counts in day.wings
+        for row in day.wings
     ]
     return {
         "day_final": final,

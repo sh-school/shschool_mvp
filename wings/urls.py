@@ -1,11 +1,14 @@
 from django.urls import path
 
 from . import views, views_absence_file, views_ministry, views_register
+from .views_supervisor_live import supervisor_live
 
 app_name = "wings"
 
 urlpatterns = [
     path("", views.floors, name="floors"),
+    # الاستطلاعُ الحيّ للوحة المشرف وبديله (D-249م القسم 9): JSON بلا أسماء لأجنحته وحدَها.
+    path("live/", supervisor_live, name="supervisor_live"),
     path("coverage/", views.coverage, name="coverage"),
     path("coverage/<slug:code>/assign/", views.coverage_assign, name="coverage_assign"),
     path("coverage/<uuid:pk>/end/", views.coverage_end, name="coverage_end"),

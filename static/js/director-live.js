@@ -35,11 +35,30 @@
     });
   }
 
+  var SECTION_FIELDS = ["recorded", "state_label", "absent_unexcused", "early_absent", "away_permitted", "exit_minutes"];
+  var STATE_BADGES = ["status-success", "status-warning", "status-danger", "status-gray"];
+
+  function badgeClass(section) {
+    if (section.state === "complete") { return "status-success"; }
+    if (section.state === "partial") { return "status-warning"; }
+    return section.gap ? "status-danger" : "status-gray";
+  }
+
+  function applySection(section) {
+    SECTION_FIELDS.forEach(function (name) { setText("section." + section.id + "." + name, section[name]); });
+    var badge = root.querySelector('[data-key="section.' + section.id + '.state_label"]');
+    if (badge) {
+      STATE_BADGES.forEach(function (name) { badge.classList.toggle(name, name === badgeClass(section)); });
+    }
+  }
+
   function apply(payload) {
     if (!payload || payload.schema !== SCHEMA || !payload.school) { throw new Error("schema"); }
     var school = payload.school;
     Object.keys(school).forEach(function (field) { setText("school." + field, school[field]); });
     if (payload.exits) { setText("exits.students", payload.exits.students); }
+    // لوحةُ المشرف: صفُّ كلّ شعبةٍ بمفاتيح `section.<id>.<حقل>` — الأرقامُ والنصوصُ بـtextContent وشارةُ الحالة بصنف الهويّة المركزيّ.
+    (payload.sections || []).forEach(applySection);
     if (payload.next_in) { seconds = Number(payload.next_in) || DEFAULT_SECONDS; }
     if (payload.phase === "final") {
       stopped = true;
