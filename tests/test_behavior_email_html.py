@@ -52,7 +52,13 @@ def test_the_text_part_renders_too():
     text = render_to_string(TEXT_TEMPLATE, CALL_SITE_CONTEXT)
     assert "{{" not in text and "{%" not in text
     assert CALL_SITE_CONTEXT["student_name"] in text
-    assert str(CALL_SITE_CONTEXT["points_deducted"]) in text
+    # نظامُ الخصم ملغى (أقرّ المالك حذفَ السطر، W-20261008-001): لا نقاطَ في بريد وليّ الأمر.
+    assert "النقاط" not in text and "نقطة" not in text
+
+
+def test_the_html_part_has_no_points_line_either():
+    html = render_to_string(TEMPLATE, CALL_SITE_CONTEXT)
+    assert "النقاط" not in html  # (كلمة «نقطة» ترد في تعليق CSS القاعدة فلا تُفحص)
 
 
 def test_the_hub_passes_the_rendered_html_to_the_mailer():

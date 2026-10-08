@@ -8,7 +8,6 @@
 الطالب       : {{ student_name }}
 مستوى المخالفة: {{ level_display }}
 التاريخ      : {{ infraction_date }}
-النقاط المخصومة: {{ points_deducted }} نقطة
 المُبلِّغ    : {{ reported_by }}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
