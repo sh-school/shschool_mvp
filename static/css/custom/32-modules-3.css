@@ -496,7 +496,8 @@
   flex-wrap: wrap; gap: var(--sp-1-5); margin-bottom: var(--sp-1);
 }
 .qproc-tl-badges { display: flex; align-items: center; gap: var(--sp-1-5); }
-.qproc-tl-arrow, .qproc-tl-old { color: var(--text-secondary); font-size: var(--text-xs); }
+.qproc-tl-arrow { color: var(--text-secondary); font-size: var(--text-xs); }
+.qproc-tl-old { color: var(--text-secondary); font-size: var(--text-xs); }
 .qproc-tl-time { font-size: var(--text-xs); color: var(--text-secondary); }
 .qproc-tl-user { display: flex; align-items: center; gap: var(--sp-1-5); font-size: var(--text-xs); color: var(--text-secondary); }
 .qproc-tl-note {
@@ -1206,7 +1207,8 @@
   /* البطاقةُ تمتدّ عرضَ عمودها كسائر المنصّة، لكنّ قائمةً منسدلةً بسبع قيمٍ
      رقميّةٍ لا تحتاج ذلك العرض — فيُقصر عليها وعلى سطر التلميح قياسٌ يُقرأ. */
   .prefs-form select.form-control { max-width: 20rem; }
-  .prefs-form .ui-field-hint, .prefs-form textarea.form-control { max-width: 46rem; }
+  .prefs-form .ui-field-hint { max-width: 46rem; }
+  .prefs-form textarea.form-control { max-width: 46rem; }
 
 /* ── templates/schedule/schedule_settings.html ── */
   /* استمارةُ التفريغ: `flex-wrap` على عرض الحاوية الفعليّ لا استعلامات نافذةٍ

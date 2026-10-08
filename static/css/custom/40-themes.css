@@ -664,7 +664,10 @@ html.dark [role="tooltip"] {
 }
 
 /* ── 35m. Borders ─── */
-html.dark .border, html.dark .border-t, html.dark hr { border-color: var(--border); }
+html.dark .border, html.dark .border-t {
+  border-color: var(--border);
+}
+html.dark hr { border-color: var(--border); }
 
 /* ── 35p. Analytics charts white area fix ───
    `.chart-card` نُزع من هنا: هو بطاقةٌ يحكمها 35e. وكان يستقرّ على سطح
@@ -771,7 +774,10 @@ html.dark .pr-exec { background: var(--surface-alt); border-color: var(--surface
 html.dark .pr-exec:hover { border-color: var(--border-strong); }
 html.dark .schedule-pages-card { color: var(--text-primary); }
 html.dark .gen-log-table thead tr { background: var(--surface); color: var(--maroon-fg); }
-html.dark .gen-log-table thead th, html.dark .df-intro-block h3 { color: var(--maroon-fg); }
+html.dark .gen-log-table thead th { color: var(--maroon-fg); }
+html.dark .df-intro-block h3 {
+  color: var(--maroon-fg);
+}
 html.dark .df-form-group input[type="text"],
 html.dark .df-form-group input[type="search"],
 html.dark .df-form-group input[type="email"],

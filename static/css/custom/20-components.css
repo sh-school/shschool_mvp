@@ -1081,7 +1081,8 @@ main.page-wide {
 .staff-register .c-title   { inline-size: 13%; }
 .staff-register .c-dept    { inline-size: 9%; }
 .staff-register .c-contact { inline-size: 14%; }
-.staff-register .c-place, .staff-register .c-license { inline-size: 8%; }
+.staff-register .c-place   { inline-size: 8%; }
+.staff-register .c-license { inline-size: 8%; }
 .staff-register .c-joined  { inline-size: 7%; }
 .staff-register .c-login   { inline-size: 9%; }
 /* المغادرون: عمودٌ إضافيّ — يُقتطع من غيره بالتناسب فيبقى المجموعُ مئة */
@@ -1089,7 +1090,8 @@ main.page-wide {
 .staff-register[data-left] .c-title   { inline-size: 11%; }
 .staff-register[data-left] .c-dept    { inline-size: 8%; }
 .staff-register[data-left] .c-contact { inline-size: 13%; }
-.staff-register[data-left] .c-joined, .staff-register[data-left] .c-left { inline-size: 6%; }
+.staff-register[data-left] .c-joined  { inline-size: 6%; }
+.staff-register[data-left] .c-left    { inline-size: 6%; }
 /* الخليّةُ بسطرين: الأوّلُ القيمةُ والثاني ثانويّةٌ أخفّ — وكلٌّ سطرٌ واحد لا يلتفّ ما وسعه الفراغ */
 .staff-register .sa-line { display: block; line-height: 1.35; }
 .staff-register .sa-sub { color: var(--text-muted); font-size: var(--text-xs); }
@@ -1728,7 +1730,8 @@ textarea:focus-visible {
 
 /* ── HTMX States ─── */
 .htmx-indicator          { display: none; }
-.htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline-block; }
+.htmx-request            .htmx-indicator  { display: inline-block; }
+.htmx-request.htmx-indicator             { display: inline-block; }
 .htmx-swapping           { opacity: 0; transition: opacity var(--transition-base); }
 .htmx-added              { animation: fadeInUp .2s ease; }
 .htmx-request            { position: relative; }
