@@ -348,6 +348,12 @@ def test_hc17_thursday_single_period_for_grade_11_12():
     assert feasible(make(rows), two, disabled=frozenset({"HC17"}), **grades)
 
 
+def test_hc17_reads_class_grade_from_inputs_when_adapter_supplies_it():
+    inp = make([("C1", "S1", "T1", "", 6)])
+    inp.class_grade = {"C1": "G12"}
+    assert not feasible(inp, [(0, 4, 1), (0, 4, 3)])
+
+
 def test_edge_caps_are_hard_with_decision_d166_defaults():
     opt = ModelOptions()
     assert (opt.first_cap, opt.last_cap) == (2, 2)  # قرارُ المالك: السقفان صلبان، لا تحويلَ مرنٌ

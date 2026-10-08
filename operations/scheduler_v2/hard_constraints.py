@@ -211,7 +211,7 @@ def _same_subject_rules(ctx: _Ctx) -> None:
                     if pa != pb and _touching(ctx, cls, day, pa, pb):
                         ctx.m.Add(va + vb <= 1)
                         ctx.count("HC20")
-        grade = ctx.opt.class_grade.get(cls)
+        grade = ctx.opt.class_grade.get(cls) or getattr(ctx.inp, "class_grade", {}).get(cls)
         if (
             "HC17" not in ctx.opt.disabled
             and day == 4
