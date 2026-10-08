@@ -34,13 +34,13 @@
           {% if not row.periods %}
             <span class="rec-chip__say">لا حصصَ اليوم</span>
           {% elif row.shown %}
-            {% with c=row.shown.confirmation %}
+            {% with c=row.shown_counts %}
             <span class="rec-chip__counts" aria-label="الحصّة {{ row.shown.number }}">
               <span class="rec-count is-present">حاضر {{ c.present_count }}</span>
               <span class="rec-count is-absent">غائب {{ c.absent_count }}</span>
               <span class="rec-count is-late">متأخّر {{ c.late_count }}</span>
             </span>
-            <span class="rec-chip__meta">آخرُ تثبيت: الحصّة {{ row.shown.number }}{% if row.missed %} · حصصٌ لم تُرصد {{ row.missed }}{% endif %}</span>
+            <span class="rec-chip__meta">آخرُ رصد: الحصّة {{ row.shown.number }}{% if row.missed %} · حصصٌ لم تُرصد {{ row.missed }}{% endif %}</span>
             {% endwith %}
           {% else %}
             <span class="rec-chip__say">لم تُرصد{% if row.missed %} · حصصٌ لم تُرصد {{ row.missed }}{% endif %}</span>

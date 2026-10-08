@@ -696,3 +696,25 @@ def self_approval_counts(school: School, day: dt.date) -> list[int]:
         .order_by("-n")
     )
     return [row["n"] for row in rows]
+
+
+def entry_tallies_by_start(class_group: Any, day: dt.date) -> dict[dt.time, dict[str, int]]:
+    """ما أُدخل لشعبةٍ في يومٍ من جدول الشعبة/كشف المعلّم: لكلّ خانةٍ (بدء الحصّة) عددُ الحاضر والغائب والمتأخّر من **رأس** كلّ طالب.
+
+    لوحةُ مشرف الجناح تقرؤه إلى جانب التثبيت القديم (`PeriodConfirmation`) لأنّ مسار الجدول لا يكتب التثبيتَ (W-20261008-003، الخيار أ). استعلامٌ واحد؛
+    ويحسب الإدخالَ المعلَّق والمعتمَدَ معاً (المبدئيُّ إدخالٌ يعرفه المشرفُ ويعتمده) — ولا يُحتسب حضوراً ولا غياباً في التقارير.
+    """
+    rows = (
+        AttendanceEntry.objects.filter(
+            session__class_group=class_group, session__date=day, superseded_by__isnull=True
+        )
+        .exclude(session__status="cancelled")
+        .values("session__start_time", "status")
+        .annotate(n=Count("id"))
+    )
+    out: dict[dt.time, dict[str, int]] = {}
+    for row in rows:
+        tally = out.setdefault(row["session__start_time"], {"present": 0, "absent": 0, "late": 0})
+        if row["status"] in tally:
+            tally[row["status"]] += row["n"]
+    return out
