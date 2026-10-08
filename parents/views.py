@@ -33,6 +33,7 @@ from core.models import (
     Role,
     StudentEnrollment,
 )
+from core.permissions import PARENT_LINK_STAFF
 from core.privacy import national_id_search_q
 from core.sorting import apply_sort, arabic_key
 from core.unrestricted_role import has_unrestricted_role
@@ -362,11 +363,16 @@ LINK_SORTS = {
 }
 
 
+def _may_link_parents(user) -> bool:
+    """من يربط أولياءَ الأمور: المديرُ والمطوّر، ومنسّقُ شؤون الطلبة (D-273م) — فيتّسق العرضُ مع قائمة `parents.admin`."""
+    return user.is_admin() or user.get_role() in PARENT_LINK_STAFF
+
+
 @login_required
 @capability_required("parents.admin")
 def manage_parent_links(request):
     """صفحة المدير: ربط أولياء الأمور بأبنائهم"""
-    if not request.user.is_admin():
+    if not _may_link_parents(request.user):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
@@ -575,7 +581,7 @@ def add_parent_link(request):
       اختيارُ وليٍّ من القائمة · رقمٌ شخصيٌّ لمن في النظام ولم يُوسَم وليّاً
       · رقمٌ لا يعرفه النظام فيُنشأ له حساب.
     """
-    if request.method != "POST" or not request.user.is_admin():
+    if request.method != "POST" or not _may_link_parents(request.user):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
@@ -620,8 +626,8 @@ def add_parent_link(request):
 @login_required
 @capability_required("parents.admin")
 def remove_parent_link(request, link_id):
-    """حذف ربط ولي الأمر بالطالب — للمدير فقط."""
-    if not request.user.is_admin():
+    """حذف ربط ولي الأمر بالطالب — للمدير ومنسّق شؤون الطلبة."""
+    if not _may_link_parents(request.user):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()

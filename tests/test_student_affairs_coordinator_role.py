@@ -189,3 +189,33 @@ class TestTheWholeStudentAffairsMenu:
         """`daily_report` انتقل إلى قدرته؛ وكلُّ من كان يفتحه يبقى يفتحه."""
         for role in ("principal", "vice_admin", "vice_academic", "coordinator", "admin_supervisor"):
             assert has_capability(_user_with(school, role), "operations.daily_absence"), role
+
+
+@pytest.mark.django_db
+class TestTheMenuAndTheScreensAgree:
+    """عيبُ المعاينة: بندُ «ربط أولياء الأمور» ظاهرٌ في القائمة والشاشةُ تردّ 403 (فحصٌ داخلها يخالف القدرة)."""
+
+    @pytest.mark.parametrize("url_name", STUDENT_AFFAIRS_MENU)
+    def test_every_listed_item_actually_opens(
+        self, client, student_affairs_coordinator_user, url_name
+    ):
+        client.force_login(student_affairs_coordinator_user)
+
+        assert client.get(reverse(url_name)).status_code == 200, url_name
+
+    @pytest.mark.parametrize("url_name", OUTSIDE_THE_ROLE)
+    def test_nothing_outside_the_role_opens_for_it(
+        self, client, student_affairs_coordinator_user, url_name
+    ):
+        client.force_login(student_affairs_coordinator_user)
+
+        assert client.get(reverse(url_name)).status_code in (403, 404), url_name
+
+    def test_the_parent_link_screens_follow_the_capability_not_a_separate_check(
+        self, client, school
+    ):
+        """`admin` يحمل القدرةَ ولم يكن يفتح الشاشة (فحصُ is_admin) — ولا يتّسع وصولُه بهذا الإصلاح."""
+        admin = _user_with(school, "admin")
+        client.force_login(admin)
+
+        assert client.get(reverse("manage_parent_links")).status_code == 403

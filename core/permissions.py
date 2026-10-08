@@ -469,6 +469,8 @@ PARENT_PORTAL = frozenset({"parent", "principal", "vice_admin", "vice_academic",
 #: ومنسّقُ شؤون الطلبة منهم: «ربطُ أولياء الأمور بالطلاب» بندٌ في قائمة «إدارة شؤون الطلاب» التي أسندها المالك
 #: كاملةً (D-273م).
 PARENT_PORTAL_ADMIN = frozenset({"principal", "admin", "student_affairs_coordinator"})
+#: من يتجاوز فحصَ `is_admin()` داخل شاشات ربط الأولياء بقدرته `parents.admin` (D-273م).
+PARENT_LINK_STAFF = frozenset({"student_affairs_coordinator"})
 #: وحدةُ الجودة كلُّها — عرضاً وإدارة.
 QUALITY_ACCESS = frozenset(QUALITY_MANAGE | QUALITY_VIEW | {"ese_teacher"})
 #: من يدرّس ويرى تقريرَ السلوك الإحصائيّ لطلبته.
