@@ -7,9 +7,11 @@
 """
 
 import pytest
+from django.urls import reverse
 
 from core.capabilities import has_capability
 from core.models import Role
+from core.navigation import can_open
 from core.permissions import (
     ACTIVITIES_MANAGE,
     ALL_STAFF_ROLES,
@@ -78,3 +80,51 @@ class TestCapabilities:
     @pytest.mark.parametrize("role", ("principal", "vice_admin"))
     def test_deactivation_stays_with_the_leadership(self, school, role):
         assert has_capability(_user_with(school, role), "student_affairs.deactivate")
+
+
+@pytest.mark.django_db
+class TestTheRoleHasAWayIn:
+    """عيبُ المعاينة: دورٌ يدير شؤون الطلبة وصل إلى «لم تُفعَّل صلاحيّاتُك» وقائمةٍ بلا شاشة."""
+
+    def test_the_home_page_lands_on_the_student_affairs_dashboard(
+        self, client, student_affairs_coordinator_user
+    ):
+        client.force_login(student_affairs_coordinator_user)
+
+        response = client.get(reverse("dashboard"))
+
+        assert response.status_code == 302
+        assert response.url == reverse("student_affairs:dashboard")
+
+    def test_that_dashboard_opens_for_it(self, client, student_affairs_coordinator_user):
+        client.force_login(student_affairs_coordinator_user)
+
+        assert client.get(reverse("student_affairs:dashboard")).status_code == 200
+
+    @pytest.mark.parametrize(
+        "url_name",
+        (
+            "student_affairs:dashboard",
+            "student_affairs:student_list",
+            "student_affairs:behavior_overview",
+        ),
+    )
+    def test_the_screens_it_manages_open_for_it(self, student_affairs_coordinator_user, url_name):
+        assert can_open(student_affairs_coordinator_user, url_name)
+
+    def test_the_menu_offers_it_the_student_screens(self, client, student_affairs_coordinator_user):
+        client.force_login(student_affairs_coordinator_user)
+
+        html = client.get(reverse("student_affairs:dashboard")).content.decode()
+
+        assert 'id="btn-student-affairs"' in html
+        assert reverse("student_affairs:student_list") in html
+
+    def test_it_is_not_offered_the_transfers_it_does_not_hold(
+        self, client, student_affairs_coordinator_user
+    ):
+        client.force_login(student_affairs_coordinator_user)
+
+        html = client.get(reverse("student_affairs:dashboard")).content.decode()
+
+        assert reverse("student_affairs:transfer_list") not in html

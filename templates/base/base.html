@@ -365,6 +365,22 @@
       <a href="{% url 'my_procedures' %}" class="nb">{% icon "my_actions" %} إجراءاتي</a>
       {% endif %}
 
+    {% elif role == "student_affairs_coordinator" %}
+      {# منسق شؤون الطلبة (بطاقة 1033) — يدير سجلّ الطلبة ومتابعتهم تحت النائب الإداري، وقوائمُه من القوائم المشتركة نفسها؛ كلُّ رابطٍ بقدرته. #}
+      {% if request.user|can_open:"dashboard" %}
+      <a href="{% url 'dashboard' %}" class="nb">{% icon "dashboard" %} الرئيسية</a>
+      {% endif %}
+      <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% icon "students" %} إدارة شؤون الطلاب <span class="chv">▼</span></button>
+      {% if request.user|can_open:"student_info:sections" %}
+      <button class="nb" id="btn-student-info" data-sd="m-student-info" aria-expanded="false" aria-controls="m-student-info">{% icon "student_info" %} مركز معلومات الطلبة <span class="chv">▼</span></button>
+      {% endif %}
+      {% if request.user|can_open:"reports_index" %}
+      <a href="{% url 'reports_index' %}" class="nb">{% icon "reports" %} التقارير</a>
+      {% endif %}
+      {% if request.user|can_open:"my_procedures" %}
+      <a href="{% url 'my_procedures' %}" class="nb">{% icon "my_actions" %} إجراءاتي</a>
+      {% endif %}
+
     {% elif role == "activities_coordinator" %}
       {# منسق الأنشطة المدرسية — يُدير الأنشطة اللاصفية ومشاركة الطلاب #}
       {% if request.user|can_open:"dashboard" %}
@@ -492,7 +508,7 @@ role == "secretary": W-20261001-026 — شريطُه يفتح أربعاً من 
 m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفتحها، فتبقى غيرَ
 قابلةٍ للوصول له (قرارُ المالك 2026-10-01).
 {% endcomment %}
-{% if is_admin_role or role == "secretary" %}
+{% if is_admin_role or role == "secretary" or role == "student_affairs_coordinator" %}
 
 {# ✅ REQ-SH-002 — Client 001 menu restructure (11 items، كلُّها باقيةٌ بلا حذف). #}
 {% comment %}

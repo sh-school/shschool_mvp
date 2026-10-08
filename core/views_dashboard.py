@@ -49,6 +49,11 @@ def dashboard(request):
     if role == "parent":
         return redirect("parent_dashboard")
 
+    # منسق شؤون الطلبة (بطاقة 1033): لا لوحةَ مستقلّةَ له — لوحتُه «لوحة شؤون الطلاب» القائمة
+    # (متابعةُ اليوم)، ويفتحها بقدرة المتابعة `student_affairs.follow_up` التي يرثها من الإدارة.
+    if role == "student_affairs_coordinator" and has_capability(user, "student_affairs.follow_up"):
+        return redirect("student_affairs:dashboard")
+
     # بتوقيت المدرسة لا UTC: بين 21:00 و00:00 UTC يختلف اليومان، فكان تكليفُ بديلٍ
     # يبدأ «اليوم» (بتوقيت قطر) لا يُرى في اللوحة (سقوطُ البوّابة عند منتصف الليل 2026-09-14).
     today = timezone.localdate()
