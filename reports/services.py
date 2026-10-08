@@ -942,7 +942,6 @@ class AcademicReportsExcel:
             ("عدد الاختبارات", 13),
             ("متوسط الاختبارات %", 17),
             ("عدد المخالفات", 13),
-            ("النقاط المخصومة", 15),
             ("التقييم المدمج", 14),
         ]
         data_rows = []
@@ -954,7 +953,6 @@ class AcademicReportsExcel:
                     r["quiz_count"],
                     r["quiz_avg"],
                     r["behavior_count"],
-                    r["behavior_points"],
                     r["combined_score"],
                 ]
             )
