@@ -25,11 +25,12 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
+    from operations.absence_policy import Gate
 
 NEWLINE = chr(10)
 
 
-def absence_notice_text(gate, unexcused_days: int) -> tuple[bool, str, str, str]:
+def absence_notice_text(gate: Gate, unexcused_days: int) -> tuple[bool, str, str, str]:
     """نصُّ إنذار العتبة: (تجاوزَ؟، العنوان، التفصيل، المرجع) — واحدٌ للأخصائي وللإخطار الذي يُصدره حاصرُ الغياب."""
     crossed = unexcused_days > gate.max_days
     if crossed:
