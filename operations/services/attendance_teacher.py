@@ -166,7 +166,12 @@ class TeacherAttendanceService:
 
     @staticmethod
     def approve_session(
-        user: CustomUser, school: School, session_id: UUID, *, defaults_only: bool = False
+        user: CustomUser,
+        school: School,
+        session_id: UUID,
+        *,
+        defaults_only: bool = False,
+        with_defaults: bool = False,
     ) -> tuple[int, int]:
         """يعتمد كلَّ ما ينتظر هذا المستخدمَ في **حصّةٍ واحدة** ويُرجع `(اعتُمد، تُخطّي)`.
 
@@ -174,12 +179,13 @@ class TeacherAttendanceService:
         يُتخطّى ويبقى في الطابور. والرفضُ لا يكون جماعيّاً أبداً — يلزمه سببٌ لكلّ إدخال.
 
         **«الحاضرُ الافتراضيّ» لا يدخل اعتمادَ الحصّة** (D-240م): خلايا فارغةٌ كتبها الحفظُ ولم يرصدها أحدٌ، فلها إجراءٌ منفصلٌ (`defaults_only`).
+        و`with_defaults` يضمّه إلى الاعتماد — لزرّ اعتماد العمود في الجدول (قرارُ المالك 2026-10-07: «الافتراضيّ حاضرٌ» يُعتمد مع الحصّة).
         """
         approved = skipped = 0
         for item in approval_queue(user, school):
             if item.entry.session_id != session_id:
                 continue
-            if (item.entry.origin == "grid_default") != defaults_only:
+            if not with_defaults and (item.entry.origin == "grid_default") != defaults_only:
                 continue
             try:
                 _decision, created = decide_entry(user, item.entry, approve=True)

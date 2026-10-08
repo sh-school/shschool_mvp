@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -41,6 +42,7 @@ from operations.attendance_policy import (
     GRID_READER_ROLES,
     GRID_TEACHER,
     _wing_holder_on,
+    can_approve,
     can_correct_grid,
     can_read_grid,
     can_write_grid,
@@ -96,6 +98,9 @@ class GridColumn:
     state: str
     #: أيُكتب فيه الآن (بدأت حصّتُه وفي نافذة اليوم وللمستخدم صلاحية)؟
     writable: bool
+    #: خلايا العمود المنتظرة قرارَ حاملِ الجناح، وهل لهذا المستخدم أن يعتمدها (زرُّ «اعتماد الحصّة» أسفل العمود).
+    pending: int = 0
+    approvable: bool = False
 
     @property
     def started(self) -> bool:
@@ -130,6 +135,10 @@ class GridPage:
     can_write: bool
     #: وجهاتُ الخروج من الفصل (`ClassExit.DESTINATIONS`) لقائمة المفتاح.
     destinations: tuple[tuple[str, str], ...] = tuple(ClassExit.DESTINATIONS)
+
+    @property
+    def approvable_columns(self) -> list[GridColumn]:
+        return [c for c in self.columns if c.approvable]
 
     @property
     def writable_columns(self) -> list[GridColumn]:
@@ -249,6 +258,20 @@ def _column_sessions(
     return found
 
 
+def _with_pending(
+    column: GridColumn, user: CustomUser, session: Session | None, cells: dict[Any, ColumnCell]
+) -> GridColumn:
+    """يضيف عدّادَ المنتظر وأهليّةَ الاعتماد للعمود — الأهليّةُ للسياسة وحدَها، لا لمن كتب الإدخال بنفسه."""
+    if session is None:
+        return column
+    waiting = sum(
+        1 for (sid, _s), cell in cells.items() if sid == session.pk and cell.state == "pending"
+    )
+    if not waiting:
+        return column
+    return dataclasses.replace(column, pending=waiting, approvable=bool(can_approve(user, session)))
+
+
 def _state_of(start: dt.time, end: dt.time, now: dt.time) -> str:
     if now < start:
         return "future"
@@ -293,6 +316,7 @@ def page(
         .order_by("student__full_name")
     ]
     cells = column_heads([c.session_id for c in columns if c.session_id])
+    columns = [_with_pending(c, user, sessions.get(c.number), cells) for c in columns]
     current = next((c for c in columns if c.state == "current"), None)
     open_exits = (
         {
@@ -707,6 +731,42 @@ def redirect_target(user: CustomUser, session: Session) -> str | None:
     return reverse("class_grid", args=[session.class_group_id])
 
 
+def grid_url_for_class(
+    user: CustomUser, klass: ClassGroup, day: dt.date | None = None
+) -> str | None:
+    """رابطُ جدول هذه الشعبة لليوم الجاري إن كان المفتاحُ مشغَّلاً ويقرؤه المستخدم — لكشف المشرف القديم (`wings.record_section`) فيفتح الجدولَ بدل الشبكة."""
+    from django.urls import reverse
+
+    if not provisional_session.grid_enabled():
+        return None
+    today = grid_now().date()
+    if day is not None and day != today:
+        return None
+    if not can_read_grid(user, klass, today):
+        return None
+    return reverse("class_grid", args=[klass.pk])
+
+
+def opens_the_grid(view):
+    """مزخرِف عرضٍ يأخذ `class_id`: مع مفتاح الجدول وفي اليوم الجاري يحوّل من قرأ الشعبةَ إلى جدولها بدل الكشف القديم."""
+    import functools
+
+    from django.shortcuts import redirect
+
+    @functools.wraps(view)
+    def wrapper(request, class_id, *args, **kwargs):
+        klass = ClassGroup.objects.filter(pk=class_id, school=request.school).first()
+        try:
+            day = dt.date.fromisoformat(request.GET["date"]) if request.GET.get("date") else None
+        except ValueError:
+            return view(request, class_id, *args, **kwargs)  # تاريخٌ فاسدٌ يعالجه الكشفُ نفسُه
+        if klass is not None and (target := grid_url_for_class(request.user, klass, day)):
+            return redirect(target)
+        return view(request, class_id, *args, **kwargs)
+
+    return wrapper
+
+
 def exit_action(
     user: CustomUser,
     school: School,
@@ -752,3 +812,28 @@ def exit_action(
     if opened is None:
         raise GridRefusedError("student_absent", "الطالبُ مرصودٌ غائباً — لا خروجَ لغائب")
     return {"ok": True, "destination": opened.destination, "period": current}
+
+
+def approve_column(user: CustomUser, school: School, class_id: Any, number: Any) -> dict[str, int]:
+    """«اعتماد الحصّة» من أسفل عمودها: يعتمد كلَّ ما ينتظر المستخدمَ في حصّة العمود **بما فيه الحاضرُ الافتراضيّ** (قرارُ المالك 2026-10-07).
+
+    كلُّ إدخالٍ بقراره المسجَّل باسمه عبر المسار القائم (الأهليّةُ والقفلُ والتدقيق)، والرفضُ يبقى بنداً بنداً. غيرُ ذي سلطةٍ ← رفضٌ بسبب.
+    """
+    from operations.services.attendance_teacher import TeacherAttendanceService
+
+    _require_enabled()
+    klass, day, _roles = _readable_class(user, school, class_id)
+    try:
+        wanted = int(number)
+    except (TypeError, ValueError):
+        raise GridNotFoundError("حصّةٌ غيرُ معروفة") from None
+    bell = provisional_session.bell_periods(school, klass, day)
+    session = _column_sessions(klass, day, bell).get(wanted)
+    if session is None:
+        raise GridNotFoundError("لا حصّةَ لهذا العمود")
+    if not can_approve(user, session):
+        raise GridRefusedError("not_approver", "ليس لك اعتمادُ هذه الحصّة")
+    approved, skipped = TeacherAttendanceService.approve_session(
+        user, school, session.pk, with_defaults=True
+    )
+    return {"approved": approved, "skipped": skipped}
