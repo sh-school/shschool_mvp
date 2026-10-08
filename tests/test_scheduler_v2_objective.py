@@ -258,3 +258,10 @@ def test_objective_does_not_minimize_by_itself():
     assert built.model.HasObjective()
     assert set(obj.terms) == set(sc.SOFT_KEYS)
     assert json.dumps(obj.weights)  # أعدادٌ صحيحةٌ تُسلسَل
+
+
+def test_as_terms_matches_add_soft_terms_contract():
+    obj = build_objective(_built(), PEDAGOGY, {"gap": 3})
+    terms = obj.as_terms()
+    assert [k for k, _e, _w in terms] == list(sc.SOFT_KEYS)
+    assert {k: w for k, _e, w in terms}["gap"] == 3

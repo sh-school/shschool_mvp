@@ -82,6 +82,10 @@ class SoftObjective:
     terms: dict[str, object]
     total: object
 
+    def as_terms(self) -> list[tuple[str, object, int]]:
+        """الحدودُ بصيغة `model.add_soft_terms(built, terms)`: (رمز، تعبيرٌ بلا وزن، وزن)."""
+        return [(k, self.units[k], self.weights[k]) for k in SOFT_KEYS]
+
     def apply(self, model: cp_model.CpModel) -> None:
         model.Minimize(self.total)
 
