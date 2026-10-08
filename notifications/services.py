@@ -23,6 +23,7 @@ from kombu.exceptions import OperationalError
 from core.academic_calendar import academic_year_for_school
 from core.mail_backends import provider_configured
 from core.models import ParentStudentLink
+from core.parents_freeze import FROZEN_MESSAGE, is_parent_only, parents_frozen
 
 from . import quiet_hours
 from .models import NotificationLog, NotificationSettings
@@ -41,6 +42,11 @@ if TYPE_CHECKING:
 
 _QUIET_UNHELD_MESSAGE = "ساعات هدوء المستلم — لا عاملَ يحفظ الإرسال المؤجَّل."
 _QUIET_HOLD_FAILED_MESSAGE = "تعذّر جدولة الإرسال المؤجَّل إلى انتهاء ساعات الهدوء."
+
+
+def _frozen_for(user) -> bool:
+    """مستلمٌ وليُّ أمرٍ خالصٌ والتواصلُ مع الأهل مجمَّد (W-20261008-013)."""
+    return parents_frozen() and is_parent_only(user)
 
 
 class DeliveryOutcome(NamedTuple):
@@ -125,6 +131,8 @@ class NotificationService:
         sent_by: CustomUser | None = None,
     ) -> DeliveryOutcome:
         """بريدٌ إلى `user` على عنوانه: الآن، أو مؤجَّلاً إلى انتهاء ساعات هدوئه."""
+        if _frozen_for(user):
+            return DeliveryOutcome(False, FROZEN_MESSAGE)
         plan = quiet_hours.plan(user)
 
         if plan.action == quiet_hours.SKIP:
@@ -171,6 +179,8 @@ class NotificationService:
         sent_by: CustomUser | None = None,
     ) -> DeliveryOutcome:
         """رسالةٌ نصّيّة إلى `user`: الآن، أو مؤجَّلةً إلى انتهاء ساعات هدوئه."""
+        if _frozen_for(user):
+            return DeliveryOutcome(False, FROZEN_MESSAGE)
         plan = quiet_hours.plan(user)
 
         if plan.action == quiet_hours.SKIP:
@@ -385,6 +395,9 @@ class NotificationService:
     @staticmethod
     def notify_absence(absence_alert: AbsenceAlert, sent_by: CustomUser | None = None) -> list:
         """إشعار ولي الأمر بغياب ابنه المتكرر"""
+        if parents_frozen():
+            # لا يُلمس التنبيه: يبقى بحالته (pending/held) فلا يضيع، ولا يُكتب «notified» لما لم يُرسل.
+            return []
         student = absence_alert.student
         school = absence_alert.school
 
@@ -469,6 +482,8 @@ class NotificationService:
         sent_by: CustomUser | None = None,
     ) -> list:
         """إشعار ولي الأمر بنتيجة الرسوب"""
+        if parents_frozen():
+            return []
         year = year or academic_year_for_school(school)
         cfg = NotificationSettings.objects.filter(school=school).first()
         if cfg and not cfg.fail_email_enabled and not cfg.sms_enabled:

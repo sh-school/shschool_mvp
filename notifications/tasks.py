@@ -25,6 +25,7 @@ from django.conf import settings
 
 from core.celery_tasks import TenantRLSTask, school_rls_scope
 from core.mail_backends import provider_configured
+from core.parents_freeze import is_parent_only, parents_frozen, without_frozen_parents
 from notifications.channels import deliverable_external_channels
 from notifications.delivery_state import (
     budget_exhausted,
@@ -561,6 +562,9 @@ def notify_absence_task(self, absence_alert_id, sent_by_id=None, school_id=None)
         # ✅ v5: إرسال Push للوالدين المشتركين
         try:
             from core.models import ParentStudentLink
+
+            if parents_frozen():
+                return {"sent": sent, "total": len(results), "frozen": True}
 
             parents = ParentStudentLink.objects.filter(
                 student=alert.student, school=alert.school
@@ -1163,6 +1167,13 @@ def send_push_to_school_task(school_id, title, body, url="/parents/"):
 
     from notifications.push_publisher import enqueue_push
 
+    if parents_frozen():
+        # المشتركون قد يكونون أولياءَ وكادراً معاً: يُستبعد الأولياءُ الخُلَّص وحدَهم (W-20261008-013).
+        from core.models import CustomUser
+
+        kept = {u.pk for u in without_frozen_parents(CustomUser.objects.filter(pk__in=list(users)))}
+        users = [uid for uid in users if uid in kept]
+
     for uid in users:
         enqueue_push(user_id=uid, school_id=school_id, title=title, body=body, url=url)
 
@@ -1210,6 +1221,9 @@ def hub_send_notification_task(
 
     try:
         user = CustomUser.objects.get(id=user_id)
+        if parents_frozen() and is_parent_only(user):
+            # نداءٌ سُجّل قبل التجميد ووصل العاملَ بعده: لا يخرج شيءٌ لوليّ أمر (W-20261008-013).
+            return {"user": str(user_id), "skipped": "parents_frozen"}
         school = School.objects.get(id=school_id)
         sender = CustomUser.objects.get(id=sent_by_id) if sent_by_id else None
 

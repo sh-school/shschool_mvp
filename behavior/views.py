@@ -648,7 +648,12 @@ def behavior_report(request, student_id):
 
     sent_to = []
     if request.method == "POST" and request.POST.get("action") == "send":
+        from core.parents_freeze import parents_frozen
         from notifications.services import NotificationService
+
+        if parents_frozen():
+            messages.warning(request, "التواصل مع أولياء الأمور مجمَّد — لم يُرسَل التقرير.")
+            return _behavior_report_redirect(request, student.id, year, period)
 
         for link in report["parent_links"]:
             parent = link.parent
@@ -993,7 +998,9 @@ def summon_parent(request, student_id=None):
             )
 
         count = result.get("in_app", 0)
-        if count:
+        if result.get("frozen"):
+            messages.warning(request, "التواصل مع أولياء الأمور مجمَّد — لم يُرسَل الاستدعاء.")
+        elif count:
             messages.success(request, f"تم إرسال الاستدعاء لـ {count} ولي أمر")
         else:
             messages.warning(request, "لم يُعثر على أولياء أمور مربوطين بهذا الطالب")
