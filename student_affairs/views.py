@@ -1013,6 +1013,15 @@ def transfer_create(request):
                 created_by=request.user,
                 updated_by=request.user,
             )
+            from .services import StudentService
+
+            StudentService.audit_student_event(
+                school,
+                request.user,
+                student,
+                "transfer_requested",
+                direction=cd["direction"],
+            )
             messages.success(request, f"تم تسجيل طلب انتقال {student.full_name} بنجاح.")
             return redirect("student_affairs:transfer_list")
     else:
@@ -1069,6 +1078,16 @@ def transfer_review(request, pk):
         transfer.notes = notes
         transfer.updated_by = request.user
         transfer.save()
+
+        from .services import StudentService
+
+        StudentService.audit_student_event(
+            school,
+            request.user,
+            transfer.student,
+            f"transfer_{action}",
+            direction=transfer.direction,
+        )
 
         # إذا اكتمل الانتقال الصادر → تعطيل الطالب
         if action == "completed" and transfer.direction == "out":
@@ -1946,9 +1965,19 @@ def protected_media(request, path):
 
     # تحقق أن الملف يخص مدرسة المستخدم — وطالباً من جناحه للمقيَّد، وإلّا 404
     # لا يُميَّز عن ملفٍّ غير موجود.
-    get_object_or_404(
+    record = get_object_or_404(
         student_scope_for(request).narrow(StudentAttendance.objects.filter(school=school)),
         excuse_file=path,
+    )
+    # فتحُ مرفق عذرٍ قد يحوي تقريراً طبّيّاً: أثرٌ بلا اسم الملف ولا نصّه (حمايةُ الصحّي، PDPPL).
+    AuditLog.objects.create(
+        school=school,
+        user=request.user,
+        action="view",
+        model_name="other",
+        object_id=str(record.pk),
+        object_repr="فتحُ مرفق عذر غياب",
+        changes={"event": "excuse_file_opened", "attendance_id": str(record.pk)},
     )
 
     # F-001-b: Content-Disposition RFC 5987 encoding

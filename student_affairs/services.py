@@ -488,6 +488,23 @@ class StudentService:
         )
 
     @staticmethod
+    def audit_student_event(
+        school: Any, actor: Any, student: Any, event: str, **detail: Any
+    ) -> None:
+        """أثرُ عمليّةٍ على قيد طالب (إيقافٌ، انتقال) — بلا اسمٍ شخصيّ (`masked_repr`) وبلا نصّ حرّ.
+
+        التحديثُ الجماعيّ (`queryset.update`) لا يُطلق إشاراتِ التدقيق، فيُكتب الأثرُ صراحةً."""
+        AuditLog.objects.create(
+            school=school,
+            user=actor,
+            action="update",
+            model_name="CustomUser",
+            object_id=str(student.pk),
+            object_repr=masked_repr(student)[:300],
+            changes={"event": event, **detail},
+        )
+
+    @staticmethod
     def credentials_sheet(user: Any) -> list[dict]:
         """ورقةُ الاعتماد للعرض مرّةً في الاستجابة — في الذاكرة، لا تُخزَّن ولا تُسجَّل."""
         return [
@@ -690,6 +707,15 @@ class StudentService:
 
         # إبطال cache العضوية
         student.invalidate_active_membership()
+
+        StudentService.audit_student_event(
+            school,
+            user,
+            student,
+            "student_deactivated",
+            memberships=updated_memberships,
+            enrollments=updated_enrollments,
+        )
 
         logger.info(
             "تم تعطيل الطالب user=%s في المدرسة %s بواسطة user=%s (عضويات: %d، تسجيلات: %d)",

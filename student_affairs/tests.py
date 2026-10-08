@@ -164,3 +164,17 @@ class ProtectedMediaTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["X-Accel-Redirect"], f"/media/{attendance.excuse_file.name}")
         self.assertIn("attachment", response["Content-Disposition"])
+
+    def test_opening_an_excuse_file_leaves_an_audit_trail_without_its_name(self):
+        """0104: عذرٌ قد يحوي تقريراً طبّيّاً — يُدقَّق الفتحُ بلا اسم الملف ولا نصّه."""
+        from core.models import AuditLog
+
+        attendance = self._attendance_with_excuse(self.school, "28900000040")
+        client = Client()
+        client.force_login(self._authorized_user("28900000006"))
+
+        client.get(reverse("student_affairs:protected_media", args=[attendance.excuse_file.name]))
+
+        entry = AuditLog.objects.get(changes__event="excuse_file_opened")
+        self.assertEqual(entry.object_id, str(attendance.pk))
+        self.assertNotIn(attendance.excuse_file.name, str(entry.changes) + entry.object_repr)

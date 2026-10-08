@@ -328,6 +328,9 @@ def can_approve(
         return _deny("other_school")
     if not needs_approval(session):
         return _deny("final_entry")
+    # قبل حاملِ الجناح: لو عُيّن المنسّقُ حاملَ جناحٍ لا يتجاوز المنع (D-266م؛ الاعتمادُ ملغى بـD-245م).
+    if "student_affairs_coordinator" in roles:
+        return _deny("not_approver")
     if grid_holder_approves(user, session, entry_origin):
         return _allow()
     if user.id == session.teacher_id:
@@ -337,9 +340,6 @@ def can_approve(
 
     from wings.services import holds_school_wide
 
-    # منسّقُ شؤون الطلبة يتابع ويرصد ويصحّح ولا يعتمد (D-266م، والاعتمادُ ملغى بـD-245م).
-    if user.get_role() == "student_affairs_coordinator":
-        return _deny("not_approver")
     # حاصرُ الغياب العامّ معتمِدٌ ثانٍ بجانب حامل الجناح دائماً (قرارُ المالك 2026-10-06): لا ما أدخله بنفسه
     # ولا رصدَ التربية الخاصّة (النهائيّ) — وقد رُدّا أعلاه.
     if holds_school_wide(user):
