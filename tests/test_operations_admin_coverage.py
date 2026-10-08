@@ -104,3 +104,17 @@ def test_sensitive_absence_reasons_hidden_without_superuser(root, staff):
     assert not sensitive & shown
     assert not sensitive & set(model_admin.get_list_display(staff))
     assert not sensitive & set(model_admin.get_list_filter(staff))
+
+
+def test_class_exit_registered_once_with_bundle_admin():
+    """ClassExit يُسجَّل مرّةً واحدةً (لا تسجيلَ مزدوجاً مع حزمة الحضور) بنسختها الكاملة وبقراءةٍ فقط."""
+    from operations.admin import ClassExitAdmin
+    from operations.models import ClassExit
+
+    assert type(admin.site._registry[ClassExit]) is ClassExitAdmin
+    registrations = [m for m in admin.site._registry if m is ClassExit]
+    assert len(registrations) == 1
+    model_admin = admin.site._registry[ClassExit]
+    assert {"continued_from", "system_closed"} <= set(model_admin.list_display)
+    assert not model_admin.has_add_permission(None)
+    assert not model_admin.has_delete_permission(None)
