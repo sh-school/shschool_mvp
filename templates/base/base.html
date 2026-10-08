@@ -374,6 +374,7 @@
       {% if request.user|can_open:"student_info:sections" %}
       <button class="nb" id="btn-student-info" data-sd="m-student-info" aria-expanded="false" aria-controls="m-student-info">{% icon "student_info" %} مركز معلومات الطلبة <span class="chv">▼</span></button>
       {% endif %}
+      <button class="nb" id="btn-services" data-sd="m-services" aria-expanded="false" aria-controls="m-services">{% icon "services" %} الخدمات <span class="chv">▼</span></button>
       {% if request.user|can_open:"reports_index" %}
       <a href="{% url 'reports_index' %}" class="nb">{% icon "reports" %} التقارير</a>
       {% endif %}
@@ -755,7 +756,7 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"wings:floors" %}
   <a href="{% url 'wings:floors' %}">{% icon "wings" %} أجنحة المدرسة والتوقيت</a>
   {% endif %}
-  {% if role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "platform_developer" %}
+  {% if role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "platform_developer" or role == "student_affairs_coordinator" %}
   {% if request.user|can_open:"wings:coverage" %}
   <a href="{% url 'wings:coverage' %}">{% icon "wing_coverage" %} تغطية الأجنحة والإنابة</a>
   {% endif %}

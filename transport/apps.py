@@ -13,12 +13,19 @@ class TransportConfig(AppConfig):
             name="transport",
             label="النقل المدرسي",
             url_prefix="/transport/",
-            allowed_roles={"principal", "vice_admin", "bus_supervisor", "transport_officer"},
+            allowed_roles={
+                "principal",
+                "vice_admin",
+                "bus_supervisor",
+                "transport_officer",
+                "student_affairs_coordinator",
+            },
             sidebar_roles={
                 "principal",
                 "vice_admin",
                 "bus_supervisor",
                 "transport_officer",
+                "student_affairs_coordinator",
             },
             sort_order=60,
         )

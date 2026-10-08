@@ -152,7 +152,7 @@ def registry() -> dict[str, Capability]:
         _cap(
             "students.import_export",
             "استيرادُ الطلبة وتصديرُهم",
-            {"principal", "vice_admin", "vice_academic", "admin"},
+            {"principal", "vice_admin", "vice_academic", "admin", "student_affairs_coordinator"},
         ),
         _cap(
             "student_info.read",
@@ -332,7 +332,11 @@ def registry() -> dict[str, Capability]:
             "كشوفُ النتائج وشهاداتُ الطلبة",
             {"principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher"},
         ),
-        _cap("reports.school", "تقاريرُ الحضور والسلوك والشهادات للشعبة", leadership),
+        _cap(
+            "reports.school",
+            "تقاريرُ الحضور والسلوك والشهادات للشعبة",
+            leadership | {"student_affairs_coordinator"},
+        ),
         _cap(
             "academic.reports_school",
             "التقاريرُ الأكاديميّةُ على مستوى المدرسة",
@@ -368,19 +372,38 @@ def registry() -> dict[str, Capability]:
         ),
         _cap("behavior.record", "تسجيلُ مخالفةٍ وتقريرُها", P.BEHAVIOR_MANAGE | P.BEHAVIOR_RECORD),
         _cap("behavior.manage", "إدارةُ المخالفات والإجراءات", P.BEHAVIOR_MANAGE),
-        _cap("behavior.committee", "لجنةُ الانضباط", P.BEHAVIOR_COMMITTEE),
+        _cap(
+            "behavior.committee",
+            "لجنةُ الانضباط",
+            P.BEHAVIOR_COMMITTEE | {"student_affairs_coordinator"},
+        ),
         _cap(
             "behavior.statistics",
             "إحصاءاتُ السلوك",
-            P.BEHAVIOR_COMMITTEE | P.BEHAVIOR_VIEW_ALL | P.BEHAVIOR_STATS_TEACHING,
+            P.BEHAVIOR_COMMITTEE
+            | P.BEHAVIOR_VIEW_ALL
+            | P.BEHAVIOR_STATS_TEACHING
+            | {"student_affairs_coordinator"},
         ),
-        _cap("behavior.summon_parent", "استدعاءُ وليّ الأمر", P.BEHAVIOR_MANAGE | {"psychologist"}),
+        _cap(
+            "behavior.summon_parent",
+            "استدعاءُ وليّ الأمر",
+            P.BEHAVIOR_MANAGE | {"psychologist", "student_affairs_coordinator"},
+        ),
         # ── العيادة والمكتبة والنقل ─────────────────────────────────
-        _cap("clinic.access", "وحدةُ العيادة", {"nurse", "principal", "vice_admin"}),
+        _cap(
+            "clinic.access",
+            "وحدةُ العيادة",
+            {"nurse", "principal", "vice_admin", "student_affairs_coordinator"},
+        ),
         _cap("library.view", "المكتبةُ والكتب", P.LIBRARY_VIEW | P.LIBRARY_FULL),
         _cap("library.lend", "الإعارةُ والإرجاع", {"librarian", "principal", "vice_admin"}),
         _cap("library.borrowings_all", "سجلُّ استعارات المدرسة", P.LIBRARY_BORROWINGS_ALL),
-        _cap("transport.access", "وحدةُ النقل", P.TRANSPORT_FULL | P.TRANSPORT_MANAGE),
+        _cap(
+            "transport.access",
+            "وحدةُ النقل",
+            P.TRANSPORT_FULL | P.TRANSPORT_MANAGE | {"student_affairs_coordinator"},
+        ),
         # ── الأدوات التقنيّة ─────────────────────────────────────────
         _cap(
             "it_admin.reset_passwords",

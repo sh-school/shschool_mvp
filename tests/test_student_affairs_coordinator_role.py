@@ -161,15 +161,25 @@ STUDENT_AFFAIRS_MENU = (
     "student_affairs:behavior_overview",
     "student_affairs:tardiness_list",
     "behavior:report_infraction",
+    # توسيعُ المالك 2026-10-08: كلُّ ما يخص الطلاب
+    "wings:coverage",
+    "behavior:committee",
+    "clinic:dashboard",
+    "transport:dashboard",
+    "student_import_export",
 )
 
-#: ما يبقى خارج الدور: الأنشطةُ، وتكليفُ البدلاء، وتقاريرُ المعلّمين، وإدارةُ المستخدمين والنظام.
+#: ما يبقى خارج الدور: الأنشطةُ، وتقاريرُ المعلّمين، والأكاديميُّ والموظّفون، والجودةُ والمكتبةُ والماليّةُ، وإدارةُ المستخدمين والنظام.
 OUTSIDE_THE_ROLE = (
     "student_affairs:activity_list",
-    "wings:coverage",
     "absence_list",
     "substitute_report",
     "teacher_load_report",
+    "quality_dashboard",
+    "library:dashboard",
+    "staff_affairs:dashboard",
+    "permission_audit_log",
+    "breach:dashboard",
 )
 
 

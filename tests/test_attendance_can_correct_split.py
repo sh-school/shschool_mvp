@@ -117,6 +117,9 @@ def test_a_school_wide_absence_role_is_covered_through_the_holder_check_not_by_n
 
     coordinator = _staff(school, "student_affairs_coordinator", "منسّق شؤون الطلبة", "29000003010")
 
-    assert not can_correct(coordinator, session).allowed, "قبل صفة حاصر الغياب العامّ: مرفوض"
-    with patch("wings.services.holds_school_wide", lambda user: user.id == coordinator.id):
-        assert can_correct(coordinator, session).allowed
+    # بعد دمج #895 يحمل الدورُ صفةَ حاصر الغياب العامّ بنفسه فيُسمح له بلا محاكاة.
+    assert can_correct(coordinator, session).allowed
+    with patch("wings.services.holds_school_wide", lambda user: False):
+        assert not can_correct(
+            coordinator, session
+        ).allowed, "الإذنُ يمرّ عبر فحص الحاصر لا باسم الدور"

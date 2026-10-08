@@ -74,4 +74,5 @@ class TestSchoolWide:
 
     def test_it_does_not_hold_the_wing_exclusive_powers(self, coordinator):
         assert not has_capability(coordinator, "wings.excuse_after_deadline")
-        assert not has_capability(coordinator, "wings.assign_cover")
+        # تكليفُ البديل صار له بقرار المالك 2026-10-08 («كلُّ ما يخص الطلاب»).
+        assert has_capability(coordinator, "wings.assign_cover")
