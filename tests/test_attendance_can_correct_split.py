@@ -104,3 +104,19 @@ def test_leadership_does_not_override_an_existing_holder(school, session, holder
     verdict = can_correct(principal, session)
 
     assert not verdict.allowed and verdict.reason == "not_holder"
+
+
+def test_a_school_wide_absence_role_is_covered_through_the_holder_check_not_by_name(
+    school, session, holder
+):
+    """منسّقُ شؤون الطلبة (D-266م) حاصرُ غيابٍ عامّ بدوره في #895: يُغطّى تلقائياً عبر `holds_school_wide` دون ذكر اسمه في الكود.
+
+    نُحاكي ذلك بدورٍ وهميٍّ يعيد `holds_school_wide` له (قبل دمج #895 لا يملك الدورُ هذه الصفة فيُرفض).
+    """
+    from unittest.mock import patch
+
+    coordinator = _staff(school, "student_affairs_coordinator", "منسّق شؤون الطلبة", "29000003010")
+
+    assert not can_correct(coordinator, session).allowed, "قبل صفة حاصر الغياب العامّ: مرفوض"
+    with patch("wings.services.holds_school_wide", lambda user: user.id == coordinator.id):
+        assert can_correct(coordinator, session).allowed
