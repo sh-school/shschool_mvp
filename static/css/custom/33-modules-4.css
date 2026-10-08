@@ -136,12 +136,10 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .ev-table { table-layout: fixed; width: 100%; }
 .ev-table td, .ev-table th { padding-block: var(--sp-1); }
 /* تسميةُ الحقل وتلميحُها سطرٌ واحد: الطويلُ يُقتطع بنقطتين. */
-.exc-form__grid .form-label > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ev-table td, .ev-table th { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.exc-form__grid .form-label > span, .ev-table td, .ev-table th { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ev-table th:nth-child(1) { inline-size: 13%; }
 .ev-table th:nth-child(2) { inline-size: 27%; }
-.ev-table th:nth-child(3) { inline-size: 30%; }
-.ev-table th:nth-child(4) { inline-size: 30%; }
+.ev-table th:nth-child(3), .ev-table th:nth-child(4) { inline-size: 30%; }
 .ev-table .sa-undo { display: flex; inline-size: 100%; min-inline-size: 0; }
 .ev-table .sa-undo .form-control { flex: 1 1 0; inline-size: auto; min-inline-size: 0; }
 .ev-table .sa-undo .btn-xs { flex: 0 0 auto; }
@@ -975,8 +973,8 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   position: absolute; inset-inline-end: var(--sp-3); inset-block-start: calc(100% + 6px); z-index: var(--z-dropdown);
   padding: var(--sp-2); background: var(--popover-bg); border: 1px solid var(--popover-border);
   border-radius: var(--radius-md); box-shadow: var(--shadow-md); color: var(--text-primary);
+  flex-direction: column; align-items: stretch; gap: var(--sp-1); inline-size: max-content; min-inline-size: 11rem;
 }
-.per-exports-menu[open] > .per-exports { flex-direction: column; align-items: stretch; gap: var(--sp-1); inline-size: max-content; min-inline-size: 11rem; }
 .per-exports-menu[open] .per-orient { inline-size: 100%; min-inline-size: 0; }
 .per-exports-menu[open] .btn-sm { justify-content: flex-start; }
 .per-exports-menu .per-exports { margin: 0; }
@@ -992,8 +990,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   .per-bulk .btn-sm { flex: 1; min-height: 40px; }
   /* الشبكةُ عمودان في الهاتف: بطاقةٌ بـ150px تتّسع لأزرارٍ ثلاثةٍ بخطّ 11px. */
   .per-grid tbody { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-2); }
-  .per-cell.is-focus .rec-pick > span { font-size: var(--text-xs); }
-  .per-cell.is-focus .rec-pick > span { min-height: var(--control-h); min-width: 50px; }
+  .per-cell.is-focus .rec-pick > span { font-size: var(--text-xs); min-height: var(--control-h); min-width: 50px; }
   /* فوق شريط التنقّل السفليّ الثابت لا تحته. */
   .per-bar { bottom: calc(var(--dock-h) + var(--dock-pad)); padding: var(--sp-2) var(--sp-3); }
   .per-bar__counts { gap: var(--sp-3); }
@@ -1868,9 +1865,9 @@ body:has(.rm-page) .site-footer { flex: none; }
 .cg-table tfoot > tr > * { position: sticky; inset-block-end: 0; background: var(--surface); border-top: 2px solid var(--maroon); }
 /* مفاتيحُ أسفل كلّ عمود حصّة (الكلّ ✓/✗ وحفظ العمود واعتماده): في تذييلٍ لاصق؛ عمودُ الحصّة ضيّق فالأزرارُ في شبكةٍ من عمودين، و«حفظ»/«اعتماد» بعرض العمود. */
 .cg-keys { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-1); }
-.cg-keys > button { min-inline-size: 0; padding-inline: var(--sp-1); }
-.cg-keys > [data-save-col], .cg-keys__approve { grid-column: 1 / -1; }
-@media (pointer: coarse) { .cg-keys > button { min-block-size: var(--control-h); } }
+.cg-keys > * { min-inline-size: 0; padding-inline: var(--sp-1); }
+.cg-keys > :nth-child(n+3) { grid-column: 1 / -1; }
+@media (pointer: coarse) { .cg-keys > * { min-block-size: var(--control-h); } }
 .cg-acts__box { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-1); }
 .cg-dest { max-inline-size: 6.5rem; font-size: 0.75rem; }
 @media (max-width: 640px) {
@@ -1878,8 +1875,8 @@ body:has(.rm-page) .site-footer { flex: none; }
   .cg-table .cg-acts { inline-size: 36%; }
   /* الهاتف: عمودٌ واحدٌ معروضٌ فمفاتيحُه الثلاثةُ في صفٍّ بعرض الشاشة، وكلُّ زرٍّ ≥ ارتفاع اللمس. */
   .cg-keys { grid-template-columns: repeat(3, 1fr); }
-  .cg-keys > [data-save-col] { grid-column: auto; }
-  .cg-keys > button { min-block-size: var(--control-h); }
+  .cg-keys > :nth-child(3) { grid-column: auto; }
+  .cg-keys > * { min-block-size: var(--control-h); }
 }
 
 } /* end @layer modules */
