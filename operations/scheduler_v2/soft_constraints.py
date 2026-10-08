@@ -435,25 +435,35 @@ def evaluate_placements(
     الأيّام الممكنة. يتحقّق به الاختبارُ من أنّ ترميزَ CP-SAT يطابق التعريف، ويصلح مقيِّماً
     مستقلاًّ عن الباني (ADR 0008) لتقرير جودة جدولٍ بلا حلّال.
     """
-    dem = inputs.demand
     placed = set(placements)
-    avail = set(available)
     cost = dict.fromkeys(SOFT_KEYS, 0)
-
     tcells: dict[tuple[str, int], dict[int, list[int]]] = defaultdict(lambda: defaultdict(list))
     gcells: dict[tuple[str, str, int], set[int]] = defaultdict(set)
     for i, d, p in placed:
-        row = dem[i]
+        row = inputs.demand[i]
         tcells[row.teacher, d][p].append(i)
         gcells[row.cls, row.subj, d].add(p)
+    _eval_cell_terms(inputs, pedagogy, placed, cost)
+    _eval_teacher_terms(inputs, set(available), tcells, cost)
+    _eval_group_terms(inputs, set(available), gcells, cost)
+    return {k: int(v) for k, v in cost.items()}
+
+
+def _eval_cell_terms(inputs, pedagogy, placed, cost) -> None:
+    """القيودُ التي تُقاس خانةً خانة: core_early وpe_after_break وfree_day."""
+    for i, d, p in placed:
+        row = inputs.demand[i]
         ped = pedagogy.get(row.subj)
         cost["core_early"] += ped == "heavy" and p > MORNING_LAST
         cost["pe_after_break"] += ped == "activity" and p <= MORNING_LAST
         pref = inputs.prefs.get(row.teacher)
         cost["free_day"] += pref is not None and pref.free_day == d
 
-    teachers = {r.teacher for r in dem}
-    for t in teachers:
+
+def _eval_teacher_terms(inputs, avail, tcells, cost) -> None:
+    """قيودُ المعلّم الأسبوعيّة: الحملُ والثقوبُ والتلاصقُ والتوازنُ والأطراف والأُولى."""
+    dem = inputs.demand
+    for t in {r.teacher for r in dem}:
         cap, factor = _load_cap(inputs, t)
         edges = firsts = 0
         cand_days = [d for d in DAYS if any(k[1] == d and dem[k[0]].teacher == t for k in avail)]
@@ -477,32 +487,35 @@ def evaluate_placements(
             MIN_FIRST_PERIODS - j + 1 for j in range(1, min(MIN_FIRST_PERIODS, firsts) + 1)
         )
 
+
+def _eval_adjacent_pairs(inputs, gcells, cls, subj) -> int:
+    """أزواجُ الحصص المتجاورةِ لـ(الشعبة، المادّة) على الأسبوع."""
+    total = 0
+    for d in DAYS:
+        cells = gcells.get((cls, subj, d), set())
+        total += sum(1 for a, b in touching(inputs, cls, d) if a in cells and b in cells)
+    return total
+
+
+def _eval_group_terms(inputs, avail, gcells, cost) -> None:
+    """قيودُ (الشعبة، المادّة): المزدوجةُ والخميسُ والتفريقُ وتلاصقُ عاليةِ النصاب."""
+    dem = inputs.demand
     groups: dict[tuple[str, str], list[int]] = defaultdict(list)
     for i, r in enumerate(dem):
         groups[r.cls, r.subj].append(i)
     for (cls, subj), rows in groups.items():
-        n = sum(dem[i].n for i in rows)
-        is_double = subj in inputs.doubles
-        possible = {d for (i, d, _p) in avail if i in rows}
-        if is_double:
-            for d in DAYS:
-                cells = gcells.get((cls, subj, d), set())
-                cost["double_bonus"] += sum(
-                    1 for a, b in touching(inputs, cls, d) if a in cells and b in cells
-                )
+        if subj in inputs.doubles:
+            cost["double_bonus"] += _eval_adjacent_pairs(inputs, gcells, cls, subj)
             continue
+        n = sum(dem[i].n for i in rows)
+        possible = {d for (i, d, _p) in avail if i in rows}
         used = sum(1 for d in DAYS if gcells.get((cls, subj, d)))
         # HC2 يمنع حصّتين في خانة، فعدُّ الخانات المميّزة = عدُّ الحصص
         cost["thursday_pair"] += max(len(gcells.get((cls, subj, THURSDAY), ())) - 1, 0)
         if possible:
             cost["subject_spread"] += n - max(n - len(possible), 0) - used
         if n >= HIGH_WEEKLY_THRESHOLD:
-            for d in DAYS:
-                cells = gcells.get((cls, subj, d), set())
-                cost["high_weekly_adjacent"] += sum(
-                    1 for a, b in touching(inputs, cls, d) if a in cells and b in cells
-                )
-    return {k: int(v) for k, v in cost.items()}
+            cost["high_weekly_adjacent"] += _eval_adjacent_pairs(inputs, gcells, cls, subj)
 
 
 def _count_consecutive(inputs: CpSatInputs, cells: dict[int, list[int]], day: int) -> int:
