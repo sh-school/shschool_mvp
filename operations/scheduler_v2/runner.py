@@ -153,8 +153,12 @@ def extract_slots(built: Any, solver: Any) -> list[SlotRow]:
     return rows
 
 
-def solve(built: BuiltModel, config: SolverConfig) -> SolveReport:
-    """يحلّ بإعدادٍ مثبَّت: بذرةٌ، عمّالٌ، سقفُ زمنٍ جداريّ. ويسجّل الحالةَ نصّاً (ADR §3.4/§3.5)."""
+def solve(built: BuiltModel, config: SolverConfig, progress: Any = None) -> SolveReport:
+    """يحلّ بإعدادٍ مثبَّت: بذرةٌ، عمّالٌ، سقفُ زمنٍ جداريّ. ويسجّل الحالةَ نصّاً (ADR §3.4/§3.5).
+
+    ومع `progress` (ProgressTracker) يُنشر التقدّمُ عند كلّ حلٍّ وكلَّ ثانية، ويوقف طلبُ الإيقاف البحثَ
+    فيُبقي أفضلَ حلّ (الحالةُ FEASIBLE).
+    """
     from ortools.sat.python import cp_model
 
     solver = cp_model.CpSolver()
@@ -164,8 +168,25 @@ def solve(built: BuiltModel, config: SolverConfig) -> SolveReport:
     params.max_time_in_seconds = float(config.max_seconds)
     # أقربُ ما يتيحه الحلّالُ إلى الحتميّة متعدّدَ العمّال.
     params.interleave_search = config.workers > 1
+
+    callback = None
+    ticker = None
+    if progress is not None:
+        from .progress import Ticker
+
+        class _Callback(cp_model.CpSolverSolutionCallback):
+            def on_solution_callback(self) -> None:
+                progress.on_solution(self.ObjectiveValue(), self.BestObjectiveBound())
+
+        callback = _Callback()
+        ticker = Ticker(progress, solver.StopSearch)
+        ticker.start()
     started = time.monotonic()
-    code = solver.Solve(built.model)
+    try:
+        code = solver.Solve(built.model, callback) if callback else solver.Solve(built.model)
+    finally:
+        if ticker is not None:
+            ticker.stop()
     seconds = time.monotonic() - started
     status = _status_name(cp_model, code)
     slots: list[SlotRow] = []
@@ -173,6 +194,8 @@ def solve(built: BuiltModel, config: SolverConfig) -> SolveReport:
     if status in ("OPTIMAL", "FEASIBLE"):
         slots = extract_slots(built, solver)
         objective = solver.ObjectiveValue()
+        if progress is not None:
+            progress.on_solution(objective, solver.BestObjectiveBound())
     return SolveReport(
         status=status,
         verdict=VERDICTS[status],
@@ -225,12 +248,15 @@ def solve_inputs(
     builder: ModelBuilder | None = None,
     objective: ObjectiveAdder | None = None,
     solver: Solver | None = None,
+    progress: Any = None,
 ) -> SolveReport:
     built = (builder or default_builder())(inputs)
     add_objective = objective if objective is not None else default_objective()
     if add_objective is not None:
         add_objective(built, inputs)
-    return (solver or solve)(built, config)
+    if solver is None:
+        return solve(built, config, progress)
+    return solver(built, config)
 
 
 def evaluate_report(school: Any, academic_year: str, report: SolveReport) -> Evaluation:
@@ -269,11 +295,14 @@ def run(
     builder: ModelBuilder | None = None,
     objective: ObjectiveAdder | None = None,
     solver: Solver | None = None,
+    progress: Any = None,
 ) -> tuple[RunResult, CpSatInputs]:
     """حلٌّ + تقييمٌ مستقلّ بلا كتابة. يميّز INFEASIBLE (برهان) عن UNKNOWN/المهلة وعن رفض المُقيِّم."""
     inputs = inputs if inputs is not None else load_inputs(school, academic_year)
     with school_solve_lock(school.pk):
-        report = solve_inputs(inputs, config, builder=builder, objective=objective, solver=solver)
+        report = solve_inputs(
+            inputs, config, builder=builder, objective=objective, solver=solver, progress=progress
+        )
     if report.status == "INFEASIBLE":
         message = "مستحيلٌ بالبرهان (INFEASIBLE): القيودُ متعارضة"
         return RunResult(False, report, None, message, "infeasible"), inputs
@@ -364,20 +393,37 @@ def fail_generation(generation: Any, result: RunResult) -> None:
     )
 
 
+def _final_state(result: RunResult, stopped: bool) -> str:
+    if result.reason in ("infeasible", "rejected"):
+        return result.reason
+    if result.ok and result.report:
+        if result.report.status == "OPTIMAL":
+            return "optimal"
+        return "stopped" if stopped else "timeout"
+    return "timeout" if result.reason == "timeout" else "failed"
+
+
 def run_generation(generation: Any, config: SolverConfig, **kwargs: Any) -> RunResult:
-    """يشغّل توليداً قائماً (صفٌّ `running`) ويكتب مصيرَه: مسودّةٌ مقبولة أو فشلٌ مفسَّر."""
+    """يشغّل توليداً قائماً (صفٌّ `running`) ويكتب مصيرَه: مسودّةٌ مقبولة أو فشلٌ مفسَّر، مع سجلّ تقدّم."""
+    from .progress import ProgressTracker
+
     started = time.monotonic()
     inputs = None
+    tracker = kwargs.pop("progress", None) or ProgressTracker(generation.pk, config.max_seconds)
     try:
-        result, inputs = run(generation.school, generation.academic_year, config, **kwargs)
+        result, inputs = run(
+            generation.school, generation.academic_year, config, progress=tracker, **kwargs
+        )
     except SchoolBusyError as error:
         result = RunResult(False, None, None, str(error), "busy")
     except ContractMissingError as error:
         result = RunResult(False, None, None, str(error), "no_model")
     if not result.ok:
         fail_generation(generation, result)
+        tracker.finish(_final_state(result, tracker.stop_flag))
         return result
     persist_draft(generation, result, inputs, int((time.monotonic() - started) * 1000))
+    tracker.finish(_final_state(result, tracker.stop_flag))
     return result
 
 

@@ -271,7 +271,7 @@ def test_dry_run_command_solves_and_evaluates_without_writing(known_good, monkey
     school, rows = known_good
     builder, solver, _ = _fake("OPTIMAL", rows)
     monkeypatch.setattr(runner, "default_builder", lambda: builder)
-    monkeypatch.setattr(runner, "solve", solver)
+    monkeypatch.setattr(runner, "solve", lambda built, config, progress=None: solver(built, config))
     monkeypatch.setattr(runner, "default_objective", lambda: None)
     before = ScheduleGeneration.objects.count()
 
@@ -370,3 +370,67 @@ def test_extract_slots_reads_the_core_x_contract():
         ("C1", "S1", "T1", 0, 2),
         ("C2", "S2", "T2", 3, 4),
     ]
+
+
+# ── سجلُّ التقدّم والإيقاف المبكر ───────────────────────────────────────────
+
+
+def test_tracker_publishes_gap_and_states_and_stop_flag_round_trips(scene):
+    from operations.scheduler_v2 import progress
+
+    generation = _generation(scene)
+    tracker = progress.ProgressTracker(generation.pk, 120)
+    assert tracker.snapshot()["state"] == "running" and tracker.snapshot()["gap_pct"] is None
+
+    tracker.on_solution(objective=110.0, bound=100.0)
+    snap = tracker.snapshot()
+    assert snap["state"] == "feasible" and snap["gap_pct"] == 9.09 and snap["solutions"] == 1
+    assert snap["remaining_s"] <= 120 and snap["done"] is False
+
+    assert tracker.publish() is False
+    assert progress.read_progress(generation)["objective"] == 110.0
+    assert progress.request_stop(generation) is True
+    assert tracker.publish() is True, "العاملُ يلتقط الطلبَ عند النشر التالي"
+    assert progress.read_progress(generation)["stop_requested"] is True
+    tracker.finish("stopped")
+    final = progress.read_progress(generation)
+    assert final["done"] is True and final["state_label"] == "أُوقف مبكّراً بأفضل حلّ"
+
+
+def test_stop_is_refused_when_not_running(scene):
+    from operations.scheduler_v2 import progress
+
+    done = _generation(scene, status="draft")
+    assert progress.request_stop(done) is False
+
+
+def test_stopped_run_with_a_solution_keeps_the_best_and_labels_it_stopped(known_good):
+    school, rows = known_good
+    builder, _, _ = _fake("FEASIBLE", rows)
+    generation = _generation(school)
+    from operations.scheduler_v2 import progress
+
+    tracker = progress.ProgressTracker(generation.pk, 60)
+    tracker.stop_flag = True
+
+    def solver(model, config):
+        return runner.SolveReport("FEASIBLE", runner.VERDICTS["FEASIBLE"], 1, 1, 0.1, slots=rows)
+
+    result = runner.run_generation(
+        generation, CONFIG, builder=builder, solver=solver, progress=tracker
+    )
+
+    generation.refresh_from_db()
+    assert result.ok and generation.status == "draft"
+    assert progress.read_progress(generation)["state"] == "stopped"
+
+
+def test_infeasible_run_ends_with_infeasible_progress_state(known_good):
+    from operations.scheduler_v2 import progress
+
+    school, _ = known_good
+    builder, solver, _ = _fake("INFEASIBLE")
+    generation = _generation(school)
+    runner.run_generation(generation, CONFIG, builder=builder, solver=solver)
+    snap = progress.read_progress(generation)
+    assert snap["state"] == "infeasible" and snap["done"] is True and snap["error"]

@@ -25,6 +25,9 @@ class Command(BaseCommand):
         parser.add_argument("--seed", type=int, default=runner.DEFAULT_SEED)
         parser.add_argument("--workers", type=int, default=runner.DEFAULT_WORKERS)
         parser.add_argument("--max-seconds", type=float, default=runner.DEFAULT_MAX_SECONDS)
+        parser.add_argument(
+            "--max-minutes", type=float, default=None, help="بالدقائق (يغلب --max-seconds)"
+        )
         parser.add_argument("--dry-run", action="store_true", help="لا يكتب شيئاً في القاعدة")
         parser.add_argument("--sync", action="store_true", help="ينفّذ هنا لا في العامل")
 
@@ -37,7 +40,8 @@ class Command(BaseCommand):
         if school is None:
             raise CommandError("لا مدرسة")
         year = opts["year"] or academic_year_for_school(school)
-        config = runner.SolverConfig(opts["seed"], opts["workers"], opts["max_seconds"])
+        seconds = opts["max_minutes"] * 60 if opts["max_minutes"] else opts["max_seconds"]
+        config = runner.SolverConfig(opts["seed"], opts["workers"], seconds)
 
         if opts["dry_run"]:
             try:

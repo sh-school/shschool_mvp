@@ -16,10 +16,12 @@ logger = logging.getLogger(__name__)
     name="operations.generate_schedule_v2",
     bind=True,
     max_retries=0,
-    soft_time_limit=1500,
-    time_limit=1560,
+    soft_time_limit=3600,
+    time_limit=3660,
 )
-def generate_schedule_v2_task(self, generation_id, seed=None, workers=None, max_seconds=None):
+def generate_schedule_v2_task(
+    self, generation_id, seed=None, workers=None, max_seconds=None, max_minutes=None
+):
     """يلتقط صفَّ توليدٍ «في الانتظار» ويحلّه. التقاطٌ مكرَّرٌ لرسالةٍ واحدةٍ يُتخطّى (لا يُعاد على نتيجةٍ قائمة)."""
     from operations.models import ScheduleGeneration
     from operations.scheduler_v2 import runner
@@ -36,6 +38,8 @@ def generate_schedule_v2_task(self, generation_id, seed=None, workers=None, max_
         return {"ok": False, "reason": "not_pending"}
     generation.status = "running"
 
+    if max_minutes:
+        max_seconds = max_minutes * 60
     config = runner.SolverConfig(
         seed=runner.DEFAULT_SEED if seed is None else seed,
         workers=runner.DEFAULT_WORKERS if workers is None else workers,
