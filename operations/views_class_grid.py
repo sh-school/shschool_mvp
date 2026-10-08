@@ -142,3 +142,20 @@ def class_grid_exit(request, class_id):
             {"ok": False, "reason": refusal.reason, "message": refusal.message}, status=403
         )
     return JsonResponse(result)
+
+
+@login_required
+@require_POST
+def class_grid_approve(request, class_id):
+    """«اعتماد الحصّة» أسفل عمودها — لمن له سلطةُ الاعتماد (حاملُ الجناح والقيادة)."""
+    try:
+        result = grid.approve_column(
+            request.user, request.school, class_id, request.POST.get("period")
+        )
+    except grid.GridNotFoundError:
+        raise Http404 from None
+    except grid.GridRefusedError as refusal:
+        return JsonResponse(
+            {"ok": False, "reason": refusal.reason, "message": refusal.message}, status=403
+        )
+    return JsonResponse({"ok": not result["skipped"], **result})

@@ -1840,13 +1840,13 @@ body:has(.rm-page) .site-footer { flex: none; }
 [data-class-grid] { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .cg-wrap { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; }
 .cg-table { table-layout: fixed; inline-size: 100%; }
-.cg-table th, .cg-table td { text-align: center; vertical-align: middle; padding-inline: var(--sp-1); }
+.cg-table :is(th, td) { text-align: center; padding-inline: var(--sp-1); }
 /* الاسمُ على يمين السطر (بدايةُ السطر في RTL) — القاعدةُ أعلاه أخصُّ من `.cg-name` وحدَها فكانت تُوسّطه. */
 /* عرضُ الاسم بمقدار أطولِ اسمٍ لا نسبةٍ من النافذة: الفراغُ المهدرُ بين الاسم وح1 يذهب إلى خلايا الحصص. */
 .cg-table .cg-name { text-align: start; inline-size: 15rem; padding-inline: var(--sp-3); }
 .cg-table .cg-acts { inline-size: 22%; }
 /* كلُّ سطرٍ يُميَّز عن جاره: خطٌّ فاصلٌ وتظليلُ الأزواج بلونٍ من هويّة العنّابيّ (يمتدّ تحت خليّة الاسم أيضاً) ومرورُ المؤشّر. */
-.cg-table tbody th, .cg-table tbody td { border-bottom: 1px solid var(--border); }
+.cg-table tbody > tr > * { border-bottom: 1px solid var(--border); }
 .cg-table tbody tr:nth-child(even) > * { background: color-mix(in srgb, var(--maroon) 6%, var(--surface)); }
 .cg-table tbody tr:hover > * { background: color-mix(in srgb, var(--maroon) 12%, var(--surface)); }
 /* الرأسُ عنّابيٌّ: نصُّه `--on-fill` لا `--text-secondary` (كان رماديّاً على العنّابيّ فلا يُقرأ) ولا تعتيمَ يُضعف تباينَه. */
@@ -1865,11 +1865,19 @@ body:has(.rm-page) .site-footer { flex: none; }
 .cg-cell.is-dirty, .cg-cell.is-conflict { outline: 2px solid var(--gold); outline-offset: -2px; }
 .cg-cell.is-conflict { outline-color: var(--status-danger); }
 /* الإجراءاتُ سطران: (متأخّر · مخالفة) ثمّ (الوجهة · خروج) — القائمةُ بعرضٍ محدودٍ لا بعرض العمود. */
+.cg-table tfoot > tr > * { position: sticky; inset-block-end: 0; background: var(--surface); border-top: 2px solid var(--maroon); }
+/* مفاتيحُ أسفل كلّ عمود حصّة (الكلّ ✓/✗ وحفظ العمود واعتماده): في تذييلٍ لاصق؛ عمودُ الحصّة ضيّق فالأزرارُ في شبكةٍ من عمودين، و«حفظ»/«اعتماد» بعرض العمود. ارتفاعُ اللمس من كتلة `coarse` المركزيّة (`.btn-sm`) لا من قاعدةٍ هنا. */
+.cg-keys { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-1); }
+.cg-keys > * { min-inline-size: 0; padding-inline: var(--sp-1); }
+.cg-keys > :nth-child(n+3) { grid-column: 1 / -1; }
 .cg-acts__box { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-1); }
-.cg-dest { inline-size: auto; max-inline-size: 6.5rem; font-size: 0.75rem; }
+.cg-dest { max-inline-size: 6.5rem; font-size: 0.75rem; }
 @media (max-width: 640px) {
   .cg-table .cg-name { inline-size: 34%; min-inline-size: 6rem; }
   .cg-table .cg-acts { inline-size: 36%; }
+  /* الهاتف: عمودٌ واحدٌ معروضٌ فمفاتيحُه الثلاثةُ في صفٍّ بعرض الشاشة، وارتفاعُ اللمس من الكتلة المركزيّة. */
+  .cg-keys { grid-template-columns: repeat(3, 1fr); }
+  .cg-keys > :nth-child(3) { grid-column: auto; }
 }
 
 } /* end @layer modules */

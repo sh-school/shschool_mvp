@@ -31,14 +31,14 @@ class ClinicVisitQuerySet(QuerySet):
         return self.filter(student=student)
 
     def sent_home(self) -> ClinicVisitQuerySet:
-        return self.filter(sent_home=True)
+        return self.filter(is_sent_home=True)
 
     def parent_notified(self) -> ClinicVisitQuerySet:
         return self.filter(parent_notified=True)
 
     def needs_notification(self) -> ClinicVisitQuerySet:
         """زيارات تحتاج إشعار ولي الأمر ولم تُرسَل بعد."""
-        return self.filter(sent_home=True, parent_notified=False)
+        return self.filter(is_sent_home=True, parent_notified=False)
 
     def with_details(self) -> ClinicVisitQuerySet:
         return self.select_related(

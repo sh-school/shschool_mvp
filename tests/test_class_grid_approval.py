@@ -114,3 +114,61 @@ def test_the_leadership_summary_counts_self_approvals_without_names(
     settings.ATTENDANCE_SELF_APPROVAL_ALERT = 0
     assert TeacherAttendanceService.self_approval_summary(boss, school)["alert"] is True
     assert TeacherAttendanceService.self_approval_summary(teacher, school) is None
+
+
+def test_the_column_button_approves_the_whole_period_including_the_defaults(
+    school, assigned, teacher, holder, kids, clock
+):
+    _write(teacher, school, assigned, kids, fill=True)  # واحدٌ مرصودٌ وإثنان افتراضيّان
+    page = grid.page(holder, school, assigned.id, now=at(9, 0))
+    column = next(c for c in page.columns if c.number == 1)
+    assert column.pending == 3 and column.approvable
+
+    result = grid.approve_column(holder, school, assigned.id, 1)
+
+    assert result == {"approved": 3, "skipped": 0}
+    assert AttendanceDecision.objects.count() == 3
+    assert grid.page(holder, school, assigned.id, now=at(9, 0)).approvable_columns == []
+
+
+def test_the_teacher_gets_no_approve_button_and_cannot_approve_the_column(
+    school, assigned, teacher, kids, clock
+):
+    _write(teacher, school, assigned, kids, fill=True)
+    page = grid.page(teacher, school, assigned.id, now=at(9, 0))
+    assert not any(c.approvable for c in page.columns)
+    with pytest.raises(grid.GridRefusedError) as refused:
+        grid.approve_column(teacher, school, assigned.id, 1)
+    assert refused.value.reason == "not_approver"
+    assert not AttendanceDecision.objects.exists()
+
+
+def test_the_approve_column_endpoint_is_post_only_and_returns_the_counts(
+    client_as, school, assigned, teacher, holder, kids, clock
+):
+    _write(teacher, school, assigned, kids)
+    url = reverse("class_grid_approve", args=[assigned.id])
+    client = client_as(holder)
+    assert client.get(url).status_code == 405
+    response = client.post(url, {"period": "1"})
+    assert response.status_code == 200 and response.json()["approved"] == 1
+
+
+def test_the_wing_supervisors_old_sheet_opens_the_grid_with_the_switch_on(
+    client_as, school, assigned, holder, clock
+):
+    url = reverse("wings:record_section", args=[assigned.id])
+    response = client_as(holder).get(url)
+    assert response.status_code == 302
+    assert response["Location"] == reverse("class_grid", args=[assigned.id])
+
+
+def test_the_old_sheet_stays_with_the_switch_off_or_another_day(
+    settings, client_as, school, assigned, holder, clock
+):
+    url = reverse("wings:record_section", args=[assigned.id])
+    other_day = client_as(holder).get(url + "?date=2020-01-05")
+    assert other_day.status_code != 302 or "/grid/" not in other_day["Location"]
+    settings.PROVISIONAL_GRID_ENABLED = False
+    off = client_as(holder).get(url)
+    assert off.status_code != 302 or "/grid/" not in off["Location"]

@@ -3,6 +3,7 @@
  * (W-20261006-005، قرارا المالك D-239م وD-240م)
  *
  * - الضغطةُ: لم تُرصد ← غائب ← حاضر ← غائب… والواجهةُ **ترسل الحالةَ الصريحة** مع `head` (رأسُ الخليّة الذي رأته) لا «تبديلاً».
+ * - مفاتيحُ أسفل كلّ عمود: «الكلّ ✓/✗» تعدّل خلايا العمود في الواجهة فقط (بلا تأكيد ولا حفظ، D-247م) و«حفظ» يحفظ ذلك العمودَ وحدَه.
  * - الحفظُ لعمودٍ واحد: خلايا العمود المتغيّرةُ فقط، وتنبيهٌ بعدد الفارغات (تُكتب «حاضراً افتراضيّاً» لعمودٍ بدأت حصّتُه) يطلب تأكيداً.
  * - تعارضٌ (207): تُبرَز الخليّةُ بقيمتها الحاليّة ومن كتبها ومتى، ويحسم المستخدمُ كلَّ واحدةٍ على حدة.
  * - المسوّدةُ في `localStorage`: **رموزُ الحالة ومعرّفاتُ الطلبة فقط** (بلا أسماء)، وتُمسح عند الحفظ الناجح؛ ولا كتابةَ تلقائيّةَ للخادم.
@@ -16,6 +17,7 @@
   var saveUrl = root.getAttribute('data-save-url');
   var lateUrl = root.getAttribute('data-late-url');
   var exitUrl = root.getAttribute('data-exit-url');
+  var approveUrl = root.getAttribute('data-approve-url');
   var draftKey = root.getAttribute('data-draft-key');
   var correcting = root.getAttribute('data-correcting') === '1';
   var statusLine = root.querySelector('[data-grid-status]');
@@ -76,6 +78,12 @@
       remember(cell);
       return;
     }
+    var bulk = event.target.closest('[data-bulk]');
+    if (bulk) return bulkFill(bulk);
+    var saveBtn = event.target.closest('[data-save-col]');
+    if (saveBtn) return save(saveBtn.getAttribute('data-save-col'));
+    var approve = event.target.closest('[data-approve-col]');
+    if (approve) return approveColumn(approve);
     var late = event.target.closest('[data-late]');
     if (late) return markLate(late);
     var exitBtn = event.target.closest('[data-exit]');
@@ -87,17 +95,6 @@
     var tab = event.target.closest('[data-tab]');
     if (tab) return showTab(tab.getAttribute('data-tab'));
   });
-
-  // شريطُ «الكلّ ✓ / الكلّ ✗ / حفظ» فوق البطاقة (في ترويسة الصفحة خارجَ `root`): يعمل على العمود المختار في قائمته.
-  var bar = document.querySelector('[data-grid-bar]');
-  function barCol() { var pick = bar && bar.querySelector('[data-bar-col]'); return pick ? pick.value : currentCol(); }
-  if (bar) {
-    bar.addEventListener('click', function (event) {
-      var bulk = event.target.closest('[data-bulk]');
-      if (bulk) return bulkFill(bulk);
-      if (event.target.closest('[data-save-bar]')) return save(barCol());
-    });
-  }
 
   root.addEventListener('dblclick', function (event) {
     var cell = event.target.closest('[data-cell]');
@@ -131,20 +128,17 @@
     gate.requestSubmit();
   }
 
+  // «الكلّ ✓/✗» لعمود الزرّ نفسِه: تغييرٌ في الواجهة فقط (خلايا مكتوبةٌ لا تُحفظ) — لا تأكيدَ هنا؛ التأكيدُ والحفظُ عند «حفظ».
   function bulkFill(button) {
-    var col = barCol();
+    var col = button.getAttribute('data-col');
     var status = button.getAttribute('data-bulk') === 'all_absent' ? 'absent' : 'present';
-    var targets = Array.prototype.filter.call(cells(col), function (c) { return c.getAttribute('data-writable') === '1'; });
-    var label = status === 'absent' ? 'غائب' : 'حاضر';
-    function apply() {
-      targets.forEach(function (c) { paint(c, status); c.classList.add('is-dirty'); remember(c); });
-      root.setAttribute('data-bulk-' + col, button.getAttribute('data-bulk'));
-    }
-    confirmThen('سيُسجَّل ' + targets.length + ' طالباً «' + label + '» في ح' + col + '. متابعة؟', function () {
-      if (status !== 'absent') { apply(); return; }
-      // «الكلُّ غائب» أخطرُ: تأكيدٌ ثانٍ بالعدد.
-      confirmThen('تأكيدٌ ثانٍ: «الكلُّ غائب» في ح' + col + ' — ' + targets.length + ' طالباً. متأكّد؟', apply);
+    Array.prototype.forEach.call(cells(col), function (c) {
+      if (c.getAttribute('data-writable') !== '1') return;
+      paint(c, status);
+      c.classList.add('is-dirty');
+      remember(c);
     });
+    root.setAttribute('data-bulk-' + col, button.getAttribute('data-bulk'));
   }
 
   function save(col) {
@@ -259,6 +253,38 @@
   }
   tick();
   window.setInterval(tick, 1000);
+
+  // «اعتماد الحصّة» أسفل العمود: تأكيدٌ بنافذة المنصّة ثم اعتمادُ كلّ ما ينتظر في الحصّة (بما فيه الحاضرُ الافتراضيّ) وتحديثُ الجدول وحدَه.
+  function approveColumn(button) {
+    var col = button.getAttribute('data-approve-col');
+    var count = button.getAttribute('data-pending');
+    confirmThen('اعتمادُ ح' + col + ': ' + count + ' خليّةً بما فيها الحاضرُ الافتراضيّ، بقرارٍ باسمك. متابعة؟', function () {
+      var body = new URLSearchParams();
+      body.append('period', col);
+      body.append('csrfmiddlewaretoken', csrf());
+      fetch(approveUrl, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrf() }, body: body })
+        .then(function (response) { return response.json().then(function (d) { return { status: response.status, data: d }; }); })
+        .then(function (result) {
+          if (result.status >= 400) { notify((result.data && result.data.message) || 'تعذّر الاعتماد', 'danger'); return; }
+          var d = result.data;
+          notify('اعتُمدت ح' + col + ' ✓ — ' + d.approved + ' خليّة' + (d.skipped ? ' وتُخطّي ' + d.skipped + ' (تعارضٌ أو نسخةٌ أحدث)' : '') + '.', d.skipped ? 'warning' : 'success');
+          refreshTable();
+        }).catch(function () { notify('تعذّر الاعتماد.', 'danger'); });
+    });
+  }
+
+  // يبدّل جسمَ الجدول (الصفوفَ والتذييل) من الخادم بلا إعادة تحميل الصفحة.
+  function refreshTable() {
+    fetch(window.location.href, { credentials: 'same-origin' })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var fresh = doc.querySelector('.cg-wrap');
+        var old = root.querySelector('.cg-wrap');
+        if (fresh && old) { old.replaceWith(document.importNode(fresh, true)); tick(); }
+        else window.location.reload();
+      }).catch(function () { window.location.reload(); });
+  }
 
   function markLate(button) {
     var body = new URLSearchParams();

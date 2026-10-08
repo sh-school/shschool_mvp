@@ -34,7 +34,7 @@ from operations.period_register import (
     track_note,
 )
 from operations.school_days import SchoolDay, school_day
-from operations.services import ScheduleService
+from operations.services import ScheduleService, class_grid
 from wings.scope import student_scope_for
 
 from .services import (
@@ -268,6 +268,7 @@ def _own_class(request, class_id):
 
 @login_required
 @capability_required("wings.record_day")
+@class_grid.opens_the_grid  # مع مفتاح الجدول يفتح المشرفُ جدولَ الشعبة لا الشبكةَ القديمة (أمرُ المالك 2026-10-07)
 def record_section(request, class_id):
     """كشفُ الشعبة: الطلابُ صفوفاً، والحصصُ أعمدةً، والحصّةُ المفتوحةُ للرصد.
 

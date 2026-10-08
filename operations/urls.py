@@ -14,6 +14,7 @@ from .views_attendance_entries import (
 )
 from .views_class_grid import (
     class_grid,
+    class_grid_approve,
     class_grid_exit,
     class_grid_history,
     class_grid_late,
@@ -36,6 +37,11 @@ urlpatterns = [
     path("classes/<uuid:class_id>/grid/save/", class_grid_save, name="class_grid_save"),
     path("classes/<uuid:class_id>/grid/late/", class_grid_late, name="class_grid_late"),
     path("classes/<uuid:class_id>/grid/exit/", class_grid_exit, name="class_grid_exit"),
+    path(
+        "classes/<uuid:class_id>/grid/approve/",
+        class_grid_approve,
+        name="class_grid_approve",
+    ),
     path(
         "classes/<uuid:class_id>/grid/history/<uuid:student_id>/<int:number>/",
         class_grid_history,

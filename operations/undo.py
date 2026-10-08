@@ -17,6 +17,7 @@ from __future__ import annotations
 from django.db import transaction
 
 from core.models import AuditLog
+from operations.class_exit import refresh_tally
 from operations.models import ClassExit, StudentAttendance
 
 
@@ -133,5 +134,9 @@ def delete_exit_event(request, exit_: ClassExit, reason: str) -> None:
             "reason": reason,
         },
     )
+    # (المدرسة والطالب واليوم) تُلتقط قبل الحذف: بعده لا يبقى `exit_.session` متاحاً لحساب الملخّص.
+    school, student, day = exit_.session.school, exit_.student, exit_.session.date
     revert_derived_absence(exit_, by=request.user, why=f"حُذف الخروجُ من ملف الطالب — {reason}")
     exit_.delete()
+    # ملخّصُ اليوم يُعاد حسابُه من الخروج الباقي (idempotent) — وإلا بقي يعدّ ما حُذف.
+    refresh_tally(school, student, day)
