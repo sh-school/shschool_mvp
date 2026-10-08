@@ -105,9 +105,12 @@ class TestTheFileShowsWhomToCall:
         assert '<details class="af-act" open>' in opened
         assert '<details class="af-act" open>' not in closed
 
-    def test_the_dashboard_says_notify_and_opens_the_panel(
+    def test_the_dashboard_hands_notification_to_the_absence_clerk_and_keeps_the_gates_counter(
         self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
+        """قرارا D-245م وD-246م: الإخطارُ انتقل إلى كاتب الغياب (حاصر الغياب العامّ، `/wings/absence-notices/`)، فلا قائمةَ «ينتظرون إخطاراً» ولا رابطَ
+        `?call=` على رئيسيّة مشرف الجناح؛ ولوحتُه (W-20261008-007) عدّادُ العتبات أرقاماً فقط، بلا أسماء ولا روابطِ ملفّاتٍ. والاختبارُ يحرس القرارَ
+        لا يُضعفه: ما كان يشترطه من الإخطار صار يُحرس في شاشة كاتب الغياب (`wings/views_absence_notices.py` واختباراتُها)."""
         from tests.test_period_register import _periods
 
         _absent_day(school, klass, kids[0], teacher, supervisor, day=SUNDAY)
@@ -118,8 +121,9 @@ class TestTheFileShowsWhomToCall:
         with mock.patch("django.utils.timezone.localdate", return_value=MONDAY):
             body = client_as(supervisor).get(reverse("dashboard")).content.decode()
 
-        assert "?call=2026-09-13#day-2026-09-13" in body
-        assert "أخطِر" in body
+        assert "عند العتبات" in body
+        assert "?call=2026-09-13#day-2026-09-13" not in body
+        assert "أخطِر" not in body
 
 
 class TestTheVicePage:

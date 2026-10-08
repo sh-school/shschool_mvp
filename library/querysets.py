@@ -62,6 +62,16 @@ class BorrowingQuerySet(QuerySet):
     def overdue(self) -> BorrowingQuerySet:
         return self.filter(status="OVERDUE")
 
+    def late(self) -> BorrowingQuerySet:
+        """المتأخّرة عدّاً لحظيّاً: انقضى موعد إعادتها ولم تُعَد، سواء وُسمت OVERDUE أم بقيت BORROWED.
+
+        لا مستدعيَ لـmark_overdue_books (لا beat في المعاينة) فالحالة وحدها تعرض صفراً كاذباً؛
+        فالعدُّ من التاريخ لا من حالة تُكتب.
+        """
+        return self.filter(
+            Q(status="OVERDUE") | Q(status="BORROWED", due_date__lt=timezone.localdate())
+        )
+
     def lost(self) -> BorrowingQuerySet:
         return self.filter(status="LOST")
 

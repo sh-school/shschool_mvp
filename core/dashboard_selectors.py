@@ -23,7 +23,7 @@ from django.utils import timezone
 from assessments.models import AnnualSubjectResult, SubjectClassSetup
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit
-from core.academic_calendar import academic_year_for_school
+from core.academic_calendar import academic_year_for_school, academic_year_window
 from core.capabilities import has_capability
 from core.domain.attendance import attendance_rate
 from core.models.academic import grade_order
@@ -81,8 +81,13 @@ def get_student_ctx(user, school, today):
 
     year = academic_year_for_school(school)
 
-    # حضور الطالب (aggregate واحد)
-    att = StudentAttendance.objects.filter(school=school, student=user).aggregate(
+    # حضور الطالب (aggregate واحد) — العامَ الدراسيَّ الجاري وحده: العنوان «حضوري هذا العام»،
+    # وبلا النافذة كان الرقم تراكمياً لكلّ الأعوام. (W-20261008-001 · البند 2)
+    att_rows = StudentAttendance.objects.filter(school=school, student=user)
+    window = academic_year_window(school, today)
+    if window:
+        att_rows = att_rows.filter(session__date__range=window)
+    att = att_rows.aggregate(
         present=Count("id", filter=Q(status="present")),
         absent=Count("id", filter=Q(status="absent")),
         late=Count("id", filter=Q(status="late")),
@@ -129,39 +134,7 @@ def get_student_ctx(user, school, today):
 def get_director_ctx(school, today):
     """بيانات لوحة تحكم الإدارة: حصص + حضور + تقييمات + سلوك + عيادة + مكتبة + عمليات."""
     year = academic_year_for_school(school)
-    yesterday = today - datetime.timedelta(days=1)
-
-    # حصص اليوم — aggregate واحد
-    session_stats = Session.objects.filter(school=school, date=today).aggregate(
-        total=Count("id"),
-        completed=Count("id", filter=Q(status="completed")),
-        in_progress=Count("id", filter=Q(status="in_progress")),
-    )
-
-    # حضور اليوم — aggregate واحد
-    att = StudentAttendance.objects.filter(school=school, session__date=today).aggregate(
-        present=Count("id", filter=Q(status="present")),
-        absent=Count("id", filter=Q(status="absent")),
-        late=Count("id", filter=Q(status="late")),
-    )
-    present = att["present"]
-    absent = att["absent"]
-    total_att = present + absent + att["late"]
-    att_pct = attendance_rate(present, total_att)
-
-    # حضور الأمس للمقارنة — aggregate واحد
-    att_y = StudentAttendance.objects.filter(school=school, session__date=yesterday).aggregate(
-        present_y=Count("id", filter=Q(status="present")),
-        absent_y=Count("id", filter=Q(status="absent")),
-        late_y=Count("id", filter=Q(status="late")),
-    )
-    present_y = att_y["present_y"]
-    absent_y = att_y["absent_y"]
-    total_y = present_y + absent_y + att_y["late_y"]
-    att_pct_y = attendance_rate(present_y, total_y, empty=None)
-    att_delta = att_pct - att_pct_y if att_pct_y is not None else None
-    absent_delta = absent - absent_y if total_y else None
-
+    # غيابُ اليوم بطلابٍ مميَّزين بحكم `_judge` يأتي من قسم «day» الذي تسجّله وحدةُ operations (dashboard_registry) — لا استيرادَ نازلاً هنا.
     # عدّادٌ لا أسماء (D-171م: لوحةُ المدير أرقامٌ ورابطٌ إلى الشاشة المحروسة) —
     # فالأسماءُ تُفتح في «متابعة الحضور» بقدرتها `student_affairs.follow_up`.
     alerts_count = AbsenceAlert.objects.filter(school=school, status="pending").count()
@@ -202,7 +175,7 @@ def get_director_ctx(school, today):
         sent_home=Count("id", filter=Q(is_sent_home=True)),
     )
 
-    library_overdue = BookBorrowing.objects.filter(book__school=school, status="OVERDUE").count()
+    library_overdue = BookBorrowing.objects.filter(book__school=school).late().count()
 
     pending_swaps = TeacherSwap.objects.filter(
         school=school, status__in=["accepted_b", "pending_coordinator", "pending_vp"]
@@ -212,16 +185,6 @@ def get_director_ctx(school, today):
 
     return {
         "view_type": "director",
-        "sessions_today": session_stats["total"],
-        "completed": session_stats["completed"],
-        "in_progress": session_stats["in_progress"],
-        "present": present,
-        "absent": absent,
-        "late": att["late"],
-        "attendance_pct": att_pct,
-        "att_delta": att_delta,
-        "absent_delta": absent_delta,
-        "total_students": total_att,
         "alerts_count": alerts_count,
         "total_annual": total_annual,
         "passed_annual": passed_annual,
@@ -505,6 +468,7 @@ def supervisor_record_ctx(user, school, today):
     الرصدَ أصلاً: عملُه اليوميُّ الرئيسيُّ غائبٌ عن صفحته الرئيسيّة.
     """
     from core.dashboard_presentation import chunk_for_grid
+    from core.dashboard_registry import dashboard_section_context
     from operations.school_days import school_day
     from operations.services import ScheduleService
     from wings.services import holds_school_wide, record_panels, supervisor_watchlist
@@ -526,6 +490,9 @@ def supervisor_record_ctx(user, school, today):
     }
     # حاصرُ الغياب العامّ يرى الأجنحةَ الخمسة في «رصد الغياب» (أمرُ المالك 2026-10-06): لا بطاقاتِ أجنحةٍ مكدّسةً في رئيسيّته.
     ctx["school_wide"] = holds_school_wide(user)
+    # عدّادُ العتبات فقط (لا قائمةُ أسماء): الإخطارُ انتقل إلى كاتب الغياب (D-245م/D-246م) — يُعرض عدداً ورابطاً.
+    ctx["gates_count"] = len(watchlist["at_gates"])
+    ctx.update(dashboard_section_context("supervisor", user, school, today))
     if day.is_open and not ctx["school_wide"]:
         # الحصصُ تُولَّد إن لم تكن — وإلّا بدت الشُّعبُ «بلا حصص» صباحاً.
         ScheduleService.ensure_sessions_for_date(school, today)
@@ -570,9 +537,7 @@ def get_service_ctx(user, school, today, role):
         ctx["clinic_sent_home"] = clinic["sent_home"]
 
     elif role == "librarian":
-        ctx["library_overdue"] = BookBorrowing.objects.filter(
-            book__school=school, status="OVERDUE"
-        ).count()
+        ctx["library_overdue"] = BookBorrowing.objects.filter(book__school=school).late().count()
         ctx["library_today"] = BookBorrowing.objects.filter(
             book__school=school,
             borrow_date=today,

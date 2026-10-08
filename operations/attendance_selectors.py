@@ -411,6 +411,20 @@ def unapproved_by_session(
     return sorted(result, key=lambda item: -item.oldest_hours)
 
 
+def day_entry_heads(school: School, day: dt.date) -> list[tuple[Any, Any, dt.time, bool]]:
+    """رؤوسُ إدخالات الجدول في يومٍ: `(طالب، شعبة، بدء الخانة، أبلا قرارٍ؟)` — لمُجمِّع يوم المدرسة (W-20261008-004).
+
+    قراءةُ **وجودٍ وعدٍّ** لا حالة: الخانةُ التي لها رأسُ إدخالٍ «مسجَّلةٌ» (فمسارُ الجدول لا يكتب `PeriodConfirmation`)، والطالبُ ذو الرأس بلا قرارٍ
+    «معلَّق» يُعدّ ولا يُحتسب حاضراً ولا غائباً (D-125م). فلا يُقرأ المبدئيُّ هنا حضوراً ولا غياباً.
+    """
+    rows = AttendanceEntry.objects.filter(
+        school=school, session__date=day, superseded_by__isnull=True
+    ).values_list("student_id", "session__class_group_id", "session__start_time", "decision__id")
+    return [
+        (student, section, start, decision is None) for student, section, start, decision in rows
+    ]
+
+
 @dataclass(frozen=True)
 class PendingMark:
     """رصدُ معلّمٍ (غائب/متأخّر) لطالبٍ في اليوم لم يُقرَّر فيه بعد — وسمٌ لا حالة."""
@@ -696,3 +710,25 @@ def self_approval_counts(school: School, day: dt.date) -> list[int]:
         .order_by("-n")
     )
     return [row["n"] for row in rows]
+
+
+def entry_tallies_by_start(class_group: Any, day: dt.date) -> dict[dt.time, dict[str, int]]:
+    """ما أُدخل لشعبةٍ في يومٍ من جدول الشعبة/كشف المعلّم: لكلّ خانةٍ (بدء الحصّة) عددُ الحاضر والغائب والمتأخّر من **رأس** كلّ طالب.
+
+    لوحةُ مشرف الجناح تقرؤه إلى جانب التثبيت القديم (`PeriodConfirmation`) لأنّ مسار الجدول لا يكتب التثبيتَ (W-20261008-003، الخيار أ). استعلامٌ واحد؛
+    ويحسب الإدخالَ المعلَّق والمعتمَدَ معاً (المبدئيُّ إدخالٌ يعرفه المشرفُ ويعتمده) — ولا يُحتسب حضوراً ولا غياباً في التقارير.
+    """
+    rows = (
+        AttendanceEntry.objects.filter(
+            session__class_group=class_group, session__date=day, superseded_by__isnull=True
+        )
+        .exclude(session__status="cancelled")
+        .values("session__start_time", "status")
+        .annotate(n=Count("id"))
+    )
+    out: dict[dt.time, dict[str, int]] = {}
+    for row in rows:
+        tally = out.setdefault(row["session__start_time"], {"present": 0, "absent": 0, "late": 0})
+        if row["status"] in tally:
+            tally[row["status"]] += row["n"]
+    return out

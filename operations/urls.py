@@ -14,16 +14,20 @@ from .views_attendance_entries import (
 )
 from .views_class_grid import (
     class_grid,
+    class_grid_approve,
     class_grid_exit,
     class_grid_history,
     class_grid_late,
     class_grid_save,
 )
+from .views_director_live import director_live
 from .views_provisional import provisional_class, provisional_classes, provisional_create
 from .views_schedule_drafts import discard_schedule, stop_schedule_generation
 
 urlpatterns = [
     path("schedule/", views.schedule, name="teacher_schedule"),
+    # الاستطلاعُ الحيّ للوحة المدير (W-20261008-004، D-249م القسم 9): JSON بلا أسماء، للمدير ونائبيه.
+    path("director-live/", director_live, name="director_live"),
     # -- رصدٌ بحصّةٍ مؤقّتة للمعلّم قبل اعتماد الجدول (W-20261005-006؛ مطفأٌ بمفتاح PROVISIONAL_SESSIONS_ENABLED) --
     path("classes/", provisional_classes, name="provisional_classes"),
     path("classes/<uuid:class_id>/", provisional_class, name="provisional_class"),
@@ -33,6 +37,11 @@ urlpatterns = [
     path("classes/<uuid:class_id>/grid/save/", class_grid_save, name="class_grid_save"),
     path("classes/<uuid:class_id>/grid/late/", class_grid_late, name="class_grid_late"),
     path("classes/<uuid:class_id>/grid/exit/", class_grid_exit, name="class_grid_exit"),
+    path(
+        "classes/<uuid:class_id>/grid/approve/",
+        class_grid_approve,
+        name="class_grid_approve",
+    ),
     path(
         "classes/<uuid:class_id>/grid/history/<uuid:student_id>/<int:number>/",
         class_grid_history,

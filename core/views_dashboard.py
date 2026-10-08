@@ -5,7 +5,11 @@ from django.utils import timezone
 
 from core.capabilities import capability_required, has_capability
 from core.dashboard_presentation import present
-from core.dashboard_registry import role_dashboard_context, role_dashboard_provider
+from core.dashboard_registry import (
+    dashboard_section_context,
+    role_dashboard_context,
+    role_dashboard_provider,
+)
 from core.dashboard_selectors import (
     ADMIN_OPS_ROLES,
     DIRECTOR_ROLES,
@@ -40,6 +44,22 @@ def _role_home(user, role):
     return None
 
 
+def _director_ctx(user, school, today, role):
+    """سياقُ لوحة المدير: بياناتُها، وعنوانُها باسم صاحبها، وأقسامٌ تسجّلها الوحدات (غياب اليوم)، وأعذارُ ما بعد المهلة لمن يملك قدرتَها."""
+    ctx = get_director_ctx(school, today)
+    # العنوانُ باسم صاحب اللوحة: النائبُ كان يرى «لوحة تحكم المدير».
+    ctx["dashboard_title"] = DIRECTOR_TITLES.get(role, "لوحة تحكم المدير")
+    ctx.update(dashboard_section_context("director", user, school, today))
+    if has_capability(user, "wings.excuse_after_deadline"):
+        # أعذارٌ أرسلها المشرفون بعد مهلة العودة — تنتظر النائبَ (قرارُ 2026-09-14).
+        from operations.models import AbsenceExcuse
+
+        ctx["pending_excuses"] = AbsenceExcuse.objects.filter(
+            school=school, status="pending"
+        ).count()
+    return ctx
+
+
 @login_required
 @landing_or_denied
 @capability_required("dashboard.open")
@@ -67,16 +87,7 @@ def dashboard(request):
     if role == "student":
         ctx.update(get_student_ctx(user, school, today))
     elif user.is_superuser or role in DIRECTOR_ROLES:
-        ctx.update(get_director_ctx(school, today))
-        # العنوانُ باسم صاحب اللوحة: النائبُ كان يرى «لوحة تحكم المدير».
-        ctx["dashboard_title"] = DIRECTOR_TITLES.get(role, "لوحة تحكم المدير")
-        if has_capability(user, "wings.excuse_after_deadline"):
-            # أعذارٌ أرسلها المشرفون بعد مهلة العودة — تنتظر النائبَ (قرارُ 2026-09-14).
-            from operations.models import AbsenceExcuse
-
-            ctx["pending_excuses"] = AbsenceExcuse.objects.filter(
-                school=school, status="pending"
-            ).count()
+        ctx.update(_director_ctx(user, school, today, role))
     elif role in TEACHER_ROLES:
         ctx.update(get_teacher_ctx(user, school, today, role))
     elif role in SPECIALIST_SOCIAL_ROLES:

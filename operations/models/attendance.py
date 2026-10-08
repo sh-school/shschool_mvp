@@ -448,7 +448,12 @@ class GuardianContact(models.Model):
 
 
 class AbsenceAlert(models.Model):
+    #: حالاتٌ لا يراها وليُّ الأمر ولا حسابُه أبداً: «محجوز» و«قيد الإصدار» لم يُصدرهما كاتبُ الغياب بعدُ (D-246م). كلُّ قارئٍ يُخرج التنبيهَ لوليّ الأمر يستثنيها.
+    HIDDEN_FROM_PARENTS = ("held", "issuing")
+
     STATUS = [
+        ("held", "بانتظار الإصدار"),
+        ("issuing", "قيد الإصدار"),
         ("pending", "قيد المراجعة"),
         ("notified", "تم الإبلاغ"),
         ("resolved", "تم الحل"),

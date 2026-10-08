@@ -14,9 +14,9 @@
 
 {% block content %}
 <div class="exec-dash">
-  {% page_header "شُعبي للرصد" subtitle="اضغط «ارصد» أمامَ شعبتك فتُفتح شبكةُ الرصد مباشرةً" icon="attendance_register" %}{% endpage_header %}
+  {% if grid %}{% page_header "شُعبي للرصد" subtitle="افتح جدولَ شعبتك لرصد الغياب، ولمشرف الجناح اعتمادُ الحصص من أسفل الجدول" icon="attendance_register" %}{% endpage_header %}{% else %}{% page_header "شُعبي للرصد" subtitle="اضغط «ارصد» أمامَ شعبتك فتُفتح شبكةُ الرصد مباشرةً" icon="attendance_register" %}{% endpage_header %}{% endif %}
 
-  {% section_card "شُعب إسنادك" meta=classes|length icon="attendance_register" %}
+  {% with card_title=grid|yesno:"شُعبك,شُعب إسنادك" %}{% section_card card_title meta=classes|length icon="attendance_register" %}
     {% if classes %}
     <ul class="pp-classes">
       {% for klass in classes %}
@@ -39,6 +39,6 @@
     {% else %}
     {% include "components/empty_state.html" with title="لا شُعبَ مُسنَدةً إليك" only %}
     {% endif %}
-  {% endsection_card %}
+  {% endsection_card %}{% endwith %}
 </div>
 {% endblock %}

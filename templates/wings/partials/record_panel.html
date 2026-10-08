@@ -1,4 +1,4 @@
-{% load ui icons %}
+{% load ui icons dict_filters %}
 {% comment %}لوحُ رصد جناحٍ واحد — يقرؤه فهرسُ الرصد ولوحةُ المشرف الرئيسيّة.
 شريطُه يحمل أزرارَ التصدير، فهو لوحُ جناحٍ (`wing-panel`) لا `section_card`.{% endcomment %}
   <div class="wing-panel">
@@ -34,13 +34,13 @@
           {% if not row.periods %}
             <span class="rec-chip__say">لا حصصَ اليوم</span>
           {% elif row.shown %}
-            {% with c=row.shown.confirmation %}
+            {% with c=row.shown_counts %}
             <span class="rec-chip__counts" aria-label="الحصّة {{ row.shown.number }}">
               <span class="rec-count is-present">حاضر {{ c.present_count }}</span>
               <span class="rec-count is-absent">غائب {{ c.absent_count }}</span>
               <span class="rec-count is-late">متأخّر {{ c.late_count }}</span>
             </span>
-            <span class="rec-chip__meta">آخرُ تثبيت: الحصّة {{ row.shown.number }}{% if row.missed %} · حصصٌ لم تُرصد {{ row.missed }}{% endif %}</span>
+            <span class="rec-chip__meta">آخرُ رصد: الحصّة {{ row.shown.number }}{% if row.missed %} · حصصٌ لم تُرصد {{ row.missed }}{% endif %}</span>
             {% endwith %}
           {% else %}
             <span class="rec-chip__say">لم تُرصد{% if row.missed %} · حصصٌ لم تُرصد {{ row.missed }}{% endif %}</span>
@@ -51,6 +51,14 @@
             {% endfor %}
           </span>
           <span class="rec-chip__meta">{{ row.students }} طالباً</span>
+          {% comment %}حالةُ جدول الشعبة اليوم من مُجمِّع يوم المدرسة (لوحةُ المشرف وبديله فقط — W-20261008-007): شارةُ الحالة وحصصٌ مسجَّلة n/m وغائبون مميَّزون.{% endcomment %}
+          {% if sup_sections %}{% with sid=row.class_group.id|stringformat:"s" %}{% with st=sup_sections|get_item:sid %}{% if st %}
+          <span class="rec-chip__meta">
+            <span class="status-badge {% if st.state == 'complete' %}status-success{% elif st.state == 'partial' %}status-warning{% elif st.gap %}status-danger{% else %}status-gray{% endif %}" data-key="section.{{ sid }}.state_label">{{ st.state_label }}</span>
+            حصصٌ <span data-key="section.{{ sid }}.recorded">{{ st.recorded }}</span>
+            · {% if sup_final %}غائبون <span data-key="section.{{ sid }}.absent_unexcused">{{ st.absent_unexcused }}</span>{% else %}غائبون عن ح1 وح2 <span data-key="section.{{ sid }}.early_absent">{{ st.early_absent }}</span>{% endif %}
+          </span>
+          {% endif %}{% endwith %}{% endwith %}{% endif %}
         </a>
       {% empty %}
         {% empty_state "لا شُعبَ في هذا الجناح" icon="wings" %}

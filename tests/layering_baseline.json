@@ -469,9 +469,6 @@
    "lines": 145,
    "orm": 51
   },
-  "parents/views.py::parent_all_attendance": {
-   "orm": 7
-  },
   "parents/views.py::parent_all_grades": {
    "orm": 8
   },
@@ -479,7 +476,7 @@
    "orm": 8
   },
   "parents/views.py::student_attendance": {
-   "orm": 12
+   "orm": 9
   },
   "parents/views.py::student_grades": {
    "orm": 9

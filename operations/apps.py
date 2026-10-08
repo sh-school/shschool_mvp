@@ -8,6 +8,7 @@ class OperationsConfig(AppConfig):
 
     def ready(self):
         import operations.signals  # noqa: F401
+        from core.dashboard_registry import register_dashboard_section
         from core.exports import registry as export_registry
         from core.module_registry import register_module
 
@@ -25,6 +26,11 @@ class OperationsConfig(AppConfig):
             build=builders.build_schedule_pages_pdf,
             capability="schedule.browse",
         )
+
+        # غيابُ اليوم في لوحة المدير بطلابٍ مميَّزين (W-20261008-004): النواةُ تُرسل والوحدةُ تقرأ بياناتِها.
+        from .day_selectors import director_day_section
+
+        register_dashboard_section("director", "day", director_day_section)
 
         register_module(
             name="schedule",

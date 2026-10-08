@@ -43,3 +43,29 @@ def role_dashboard_context(
     if clash := extra.keys() & base.keys():
         raise ImproperlyConfigured(f"مزوِّدُ لوحة «{role}» يكتب فوق مفاتيحَ النواة: {sorted(clash)}")
     return extra
+
+
+#: أقسامٌ تُضاف إلى سياق لوحةٍ تملكها النواة (المدير مثلاً) وبياناتُها في وحدةٍ أخرى — النواةُ تُرسل والوحدةُ تقرأ.
+_SECTIONS: dict[str, dict[str, DashboardProvider]] = {}
+
+
+def register_dashboard_section(view_type: str, key: str, provider: DashboardProvider) -> None:
+    """يسجّل قسماً لسياق لوحةِ `view_type` — والتسجيلُ المكرَّر بمزوِّدٍ آخر خطأٌ لا فوزٌ صامت."""
+    sections = _SECTIONS.setdefault(view_type, {})
+    existing = sections.get(key)
+    if existing is not None and existing is not provider:
+        raise ImproperlyConfigured(f"لقسم «{key}» في لوحة «{view_type}» مزوِّدٌ مسجَّلٌ سلفاً.")
+    sections[key] = provider
+
+
+def dashboard_section_context(
+    view_type: str, user: Any, school: Any, today: date
+) -> dict[str, Any]:
+    """سياقُ أقسام لوحةٍ من مزوِّديها — ولا يكتب قسمٌ فوق مفاتيح قسمٍ آخر."""
+    out: dict[str, Any] = {}
+    for key, provider in _SECTIONS.get(view_type, {}).items():
+        extra = provider(user, school, today)
+        if clash := extra.keys() & out.keys():
+            raise ImproperlyConfigured(f"قسم «{key}» يكتب فوق مفاتيحَ سبقته: {sorted(clash)}")
+        out.update(extra)
+    return out
