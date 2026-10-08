@@ -176,5 +176,6 @@ class ProtectedMediaTests(TestCase):
         client.get(reverse("student_affairs:protected_media", args=[attendance.excuse_file.name]))
 
         entry = AuditLog.objects.get(changes__event="excuse_file_opened")
-        self.assertEqual(entry.object_id, str(attendance.pk))
+        self.assertEqual(entry.object_id, str(attendance.student_id))
+        self.assertEqual(entry.action, "view")
         self.assertNotIn(attendance.excuse_file.name, str(entry.changes) + entry.object_repr)

@@ -60,7 +60,6 @@ def test_every_transfer_decision_leaves_an_audit_trail(
 
     entry = _events(f"transfer_{decision}").get()
     assert entry.user == student_affairs_coordinator_user
-    assert entry.changes["direction"] == "out"
 
 
 def test_a_coordinator_who_holds_a_wing_still_cannot_approve(

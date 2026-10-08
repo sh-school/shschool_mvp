@@ -171,7 +171,7 @@ ASSESSMENT_VIEW_SELF = {"student"}
 
 # ── السلوك والانضباط ────────────────────────────────────────────
 BEHAVIOR_RECORD = {
-    "student_affairs_coordinator",  # «تسجيل المخالفة» من قائمة إدارة سلوك الطلبة (D-273م)
+    "student_affairs_coordinator",  # D-273م
     "teacher",
     "ese_teacher",
     "coordinator",
@@ -336,9 +336,7 @@ _STUDENT_AFFAIRS_LEADERSHIP = frozenset(
         "platform_developer",
     }
 )
-#: انتقالُ الطلبة (الشاشاتُ الأربع) — الموافقةُ على الانتقال الصادر وإتمامُه يعطّلان عضويّةَ الطالب.
-#: ومنسّقُ شؤون الطلبة منهم بقرار المالك المباشر 2026-10-08 (D-265م) — وهو يعكس افتراضَ البطاقة الأوّل
-#: (إدخالُ البيانات وإعدادُ القوائم وحدَهما)، فتُدقَّق كلُّ عمليّةٍ فيها كما هي لسواه.
+#: انتقالُ الطلبة (الشاشاتُ الأربع) يعطّل عضويّةَ الطالب — ومنسّقُ شؤون الطلبة منهم بقرار المالك D-265م (2026-10-08).
 STUDENT_AFFAIRS_TRANSFERS = _STUDENT_AFFAIRS_LEADERSHIP | frozenset({"student_affairs_coordinator"})
 #: إدخالُ بيانات الطلبة وتحديثُها وإعدادُ القوائم — ومنسّقُ شؤون الطلبة (بطاقته في 03_job_descriptions_rbac.md) فيهم.
 STUDENT_AFFAIRS_MANAGE = STUDENT_AFFAIRS_TRANSFERS
@@ -364,7 +362,6 @@ STUDENT_AFFAIRS_VIEW = frozenset(
 #: ولا يدخلها منسّقُ شؤون الطلبة: لا نصَّ يمنحه إدارةَ الأنشطة (الحدُّ الأدنى من الصلاحيات؛ D-266م).
 ACTIVITIES_MANAGE = _STUDENT_AFFAIRS_LEADERSHIP | frozenset({"activities_coordinator"})
 
-#: إيقافُ قيد الطالب — ومنسّقُ شؤون الطلبة منهم (D-265م).
 STUDENT_DEACTIVATE = frozenset(
     {
         "principal",
@@ -410,8 +407,7 @@ BEHAVIOR_SUMMON = frozenset(
 OPERATIONS_REPORTS = frozenset(
     {"principal", "vice_academic", "vice_admin", "coordinator", "admin_supervisor", "admin"}
 )
-#: «غيابُ اليوم» (تقريرُ غياب الطلبة اليوميّ) وحدَه: حاملو `OPERATIONS_REPORTS` ومنسّقُ شؤون الطلبة (D-273م) —
-#: دون تقارير غياب المعلّمين والبدلاء وعبء المعلّم التي تبقى على `OPERATIONS_REPORTS`.
+#: «غيابُ اليوم» وحدَه: حاملو `OPERATIONS_REPORTS` ومنسّقُ شؤون الطلبة (D-273م)، دون تقارير المعلّمين والبدلاء.
 DAILY_STUDENT_ABSENCE_REPORT = OPERATIONS_REPORTS | frozenset({"student_affairs_coordinator"})
 #: تسجيلُ غياب معلّمٍ وتعيينُ بديله — فعلٌ لا تقرير. مشرفُ الجناح يرى
 #: `OPERATIONS_REPORTS` أعلاه ولا يكتب هنا (قرارُ المستخدم 2026-09-17:
@@ -466,8 +462,7 @@ STAFF_AFFAIRS_MANAGE = frozenset(
 #: بوّابةُ وليّ الأمر، ومن يدخلها من الإدارة.
 PARENT_PORTAL = frozenset({"parent", "principal", "vice_admin", "vice_academic", "admin"})
 #: إدارةُ ربط أولياء الأمور.
-#: ومنسّقُ شؤون الطلبة منهم: «ربطُ أولياء الأمور بالطلاب» بندٌ في قائمة «إدارة شؤون الطلاب» التي أسندها المالك
-#: كاملةً (D-273م).
+#: ومنسّقُ شؤون الطلبة منهم: «ربطُ أولياء الأمور» بندٌ في قائمة إدارة شؤون الطلاب المسندة كاملةً (D-273م).
 PARENT_PORTAL_ADMIN = frozenset({"principal", "admin", "student_affairs_coordinator"})
 #: وحدةُ الجودة كلُّها — عرضاً وإدارة.
 QUALITY_ACCESS = frozenset(QUALITY_MANAGE | QUALITY_VIEW | {"ese_teacher"})
@@ -485,8 +480,7 @@ WING_DAY_RECORD = frozenset(
     {"admin_supervisor", "vice_admin", "vice_academic", "principal", "student_affairs_coordinator"}
 )
 
-#: حاصرُ الغياب العامّ **بالدور** (الأجنحةُ الخمسةُ كلُّها): منسّقُ شؤون الطلبة، بقرار المالك المباشر
-#: 2026-10-08 (D-267م) — ضمن قدرات دوره لا منحاً فرديّاً. ويبقى المشرفُ الإداريّ على المنح المفوَّض.
+#: حاصرُ الغياب العامّ **بالدور**: منسّقُ شؤون الطلبة (D-267م)؛ والمشرفُ الإداريّ يبقى على المنح المفوَّض.
 SCHOOL_WIDE_ABSENCE_ROLES = frozenset({"student_affairs_coordinator"})
 
 #: قبولُ عذرِ غيابٍ بعد مهلة اليومين (الدليل 2026 م 3.4.1.5) — النائبُ الإداريّ لا المشرف.
