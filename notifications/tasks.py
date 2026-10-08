@@ -25,7 +25,13 @@ from django.conf import settings
 
 from core.celery_tasks import TenantRLSTask, school_rls_scope
 from core.mail_backends import provider_configured
-from core.parents_freeze import is_parent_only, parents_frozen, without_frozen_parents
+from core.parents_freeze import (
+    frozen_recipient,
+    is_parent_only,
+    parents_frozen,
+    without_frozen_parents,
+)
+from notifications import quiet_hours
 from notifications.channels import deliverable_external_channels
 from notifications.delivery_state import (
     budget_exhausted,
@@ -262,6 +268,9 @@ def send_email_task(
     delivery = None
     token = None
 
+    if frozen_recipient(email=recipient_email):
+        return {"status": "skipped", "reason": "parents_frozen", "channel": "email"}
+
     try:
         from core.models import CustomUser, School
         from notifications.services import NotificationService
@@ -388,6 +397,9 @@ def send_sms_task(
     delivery = None
     token = None
 
+    if frozen_recipient(phone=phone_number):
+        return {"status": "skipped", "reason": "parents_frozen", "channel": "sms"}
+
     try:
         from core.models import CustomUser, School
         from notifications.services import NotificationService
@@ -480,6 +492,9 @@ def send_whatsapp_task(
     """
     delivery = None
     token = None
+
+    if frozen_recipient(phone=phone_number):
+        return {"status": "skipped", "reason": "parents_frozen", "channel": "whatsapp"}
 
     try:
         from core.models import School
@@ -1468,8 +1483,9 @@ def reconcile_deliveries_task(self, school_id):
     return reconcile_school(school_id)
 
 
-#: مدّةُ إعادة سؤال عنصرٍ مؤجَّلٍ لوليّ أمرٍ أثناء التجميد.
-FROZEN_RECHECK_SECONDS = 3600
+#: مدّةُ إعادة سؤال عنصرٍ مؤجَّلٍ لوليّ أمرٍ أثناء التجميد — لا تتجاوز قفزةَ الهدوء (45 د)
+#: وإلا أُعيد تسليمُ Redis للمهمّة قبل موعدها فتكرّر.
+FROZEN_RECHECK_SECONDS = int(quiet_hours.MAX_HOLD_HOP.total_seconds())
 
 
 @shared_task(

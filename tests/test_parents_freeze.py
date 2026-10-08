@@ -336,3 +336,67 @@ def test_a_quiet_hours_item_for_a_parent_is_neither_sent_nor_dropped(
     assert result["status"] == "held_parents_frozen"
     sent.assert_not_called()
     assert again.call_args.kwargs["kwargs"]["payload"] == payload
+
+
+# ── مراجعة 0104: القفزة والمفتاح وحارسُ مهامّ القنوات ───────────────
+
+
+def test_the_frozen_recheck_never_exceeds_the_quiet_hours_hop():
+    from notifications.quiet_hours import MAX_HOLD_HOP
+    from notifications.tasks import FROZEN_RECHECK_SECONDS
+
+    assert FROZEN_RECHECK_SECONDS <= MAX_HOLD_HOP.total_seconds()
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected_frozen"),
+    [
+        ("", True),
+        ("1", True),
+        ("true", True),
+        ("garbage", True),
+        (" yes ", True),
+        ("0", False),
+        ("false", False),
+        ("No", False),
+        ("OFF", False),
+    ],
+)
+def test_only_an_explicit_off_value_thaws_the_key(raw, expected_frozen):
+    thawed = raw.strip().lower() in ("0", "false", "no", "off")
+    assert (not thawed) is expected_frozen
+    from pathlib import Path
+
+    src = Path("shschool/settings/base.py").read_text(encoding="utf-8")
+    assert 'not in ("0", "false", "no", "off")' in src
+
+
+def test_the_email_task_skips_a_parent_address_queued_before_the_freeze(
+    frozen, school, parent_with_email
+):
+    from notifications.tasks import send_email_task
+
+    out = send_email_task.run(school.id, parent_with_email.email, "s", "b")
+    assert out["reason"] == "parents_frozen"
+    assert mail.outbox == []
+
+
+def test_the_sms_and_whatsapp_tasks_skip_a_parent_phone(frozen, monkeypatch, school, parent_user):
+    from notifications import tasks
+
+    parent_user.phone = "+97455512345"
+    parent_user.save()
+    monkeypatch.setattr(tasks, "_send_whatsapp", lambda *a, **k: pytest.fail("sent"))
+    assert tasks.send_sms_task.run(school.id, parent_user.phone, "m")["reason"] == "parents_frozen"
+    assert (
+        tasks.send_whatsapp_task.run(school.id, parent_user.phone, "t", "b")["reason"]
+        == "parents_frozen"
+    )
+
+
+def test_the_email_task_still_reaches_staff_while_frozen(frozen, school, teacher_user):
+    from core.parents_freeze import frozen_recipient
+
+    teacher_user.email = "t@example.test"
+    teacher_user.save(update_fields=["email"])
+    assert frozen_recipient(email=teacher_user.email) is False

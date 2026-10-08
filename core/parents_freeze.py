@@ -40,3 +40,22 @@ def without_frozen_parents(users: Iterable[Any]) -> list[Any]:
     if not parents_frozen():
         return users
     return [u for u in users if not is_parent_only(u)]
+
+
+def frozen_recipient(*, email: str | None = None, phone: str | None = None) -> bool:
+    """هل عنوانُ التسليم (بريدٌ أو هاتف) لوليّ أمرٍ خالصٍ والتواصلُ مجمَّد؟
+
+    حارسٌ لمهامّ القنوات (send_email/sms/whatsapp) التي تستلم عنواناً لا مستخدماً: تُجمَّد
+    رسالةٌ وُضعت في الطابور قبل التجميد ثمّ وصلت بعده. لا تمسّ حالةَ أيّ سجلّ.
+    """
+    if not parents_frozen():
+        return False
+    from core.models import CustomUser
+    from core.models.crypto import hmac_field
+
+    users = CustomUser.objects.none()
+    if email:
+        users = CustomUser.objects.filter(email__iexact=email)
+    elif phone:
+        users = CustomUser.objects.filter(phone_hmac=hmac_field(phone))
+    return any(is_parent_only(u) for u in users[:20])
