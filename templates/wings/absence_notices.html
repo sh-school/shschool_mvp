@@ -1,0 +1,45 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% comment %}
+تنبيهات الغياب المحجوزة (قرارُ المالك D-246م): تُنشأ من المسح بعد الدوام ولا يُرسَل منها شيءٌ لوليّ الأمر إلا بزرّ «إصدار الإخطار» هنا بعد ح4.
+الشاشةُ لحاصر الغياب العامّ وحدَه (غيرُه 404)؛ والخادمُ يتحقق من الدور والتوقيت والتفرّد، لا هذه الصفحة.
+{% endcomment %}
+{% block title %}إخطاراتُ الغياب المحجوزة{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% url 'wings:ministry_report' as ministry_url %}
+{% include "components/breadcrumbs.html" with parent_url=ministry_url parent_label="ملخّص الحصّتين الأولى والثانية" current="إخطاراتُ الغياب المحجوزة" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "إخطاراتُ الغياب المحجوزة" subtitle="لا يُرسَل شيءٌ لوليّ الأمر إلا بضغطك «إصدار الإخطار» بعد الحصّة الرابعة" icon="attendance_register" %}{% endpage_header %}
+
+  {% section_card "بانتظار الإصدار" meta=rows|length icon="attendance_register" %}
+    {% if rows %}
+    <div class="table-wrap">
+      <table data-no-sort>
+        <thead><tr><th>الطالب</th><th>العتبة</th><th>أيّامُ الغياب</th><th><span class="sr-only">الإجراء</span></th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>{{ row.alert.student.full_name }}</td>
+            <td>{{ row.label }}</td>
+            <td>{{ row.alert.absence_count }}</td>
+            <td>
+              <form method="post" action="{% url 'wings:absence_notice_issue' row.alert.id %}">{% csrf_token %}
+                <button type="submit" class="btn-primary btn-sm">إصدار الإخطار</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with title="لا إخطاراتٍ محجوزة" only %}
+    {% endif %}
+  {% endsection_card %}
+</div>
+{% endblock %}
