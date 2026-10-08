@@ -47,6 +47,8 @@ class DemandRow:
     n: int
     #: معرّفُ المهمّة المنقسمة التي يشترك فيها هذا الصفُّ مع صفوفٍ أخرى في الخانة نفسها؛ فارغٌ لغيرها.
     joint: str = ""
+    #: عددُ كتل الازدواج (مهامّ span=2) في هذا الصفّ: كلُّ كتلةٍ حصّتان متلاصقتان بقيدٍ صلب (مثل المجدوِل والمُقيِّم).
+    blocks: int = 0
 
 
 @dataclass(frozen=True)
@@ -147,6 +149,7 @@ def build_inputs(
     inputs = CpSatInputs()
 
     demand: dict[tuple, int] = defaultdict(int)
+    block_count: dict[tuple, int] = defaultdict(int)
     doubles: set[str] = set()
     res_subjects: dict[str, set[str]] = defaultdict(set)
     for task in tasks:
@@ -170,13 +173,30 @@ def build_inputs(
             inputs.teacher_names[member.teacher_id] = member.teacher_name
             if task.span > 1:
                 doubles.add(member.subject_id)
+                block_count[
+                    (
+                        task.class_id,
+                        member.subject_id,
+                        member.teacher_id,
+                        task.parallel_group,
+                        joint,
+                    )
+                ] += 1
             # المهمّةُ المنقسمةُ تستهلك مواردَ ساكنيها جميعاً (كما يفعل `_to_tasks`).
             for resource_id, capacity, *_ in task.resources:
                 inputs.res_cap[resource_id] = capacity
                 res_subjects[resource_id].add(member.subject_id)
 
     inputs.demand = [
-        DemandRow(cls, subj, teacher, elec, n, joint)
+        DemandRow(
+            cls,
+            subj,
+            teacher,
+            elec,
+            n,
+            joint,
+            block_count.get((cls, subj, teacher, elec, joint), 0),
+        )
         for (cls, subj, teacher, elec, joint), n in sorted(demand.items())
     ]
     inputs.doubles = frozenset(doubles)

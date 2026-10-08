@@ -38,6 +38,8 @@ class _Ctx:
         self.opt = built.options
         self.rows = built.inputs.demand
         self.doubles = built.inputs.doubles
+        #: متغيّرُ الكتلة لكلّ زوجِ خانتين متلاصقتين (فهرسا المتغيّرين) — الإعفاءُ الوحيدُ من HC5/HC20.
+        self.pairvar: dict[tuple[int, int], object] = {}
         #: كلُّ الخانات المرشّحة قبل التفريغ (لتحديد «الأخيرة» الحقيقيّة للمعلّم) ثمّ المتاحة بعده.
         self.all_periods: dict[tuple[str, int], int] = {}
         self.by_t: dict[str, list[int]] = defaultdict(list)
@@ -97,11 +99,13 @@ def _demand_totals(ctx: _Ctx) -> None:
 
 
 def _joint(ctx: _Ctx) -> dict[int, int]:
-    """المهامُّ المنقسمة: أعضاؤها صفوفٌ تُوضع معاً في الخانة نفسها. يُرجع {صفٌّ ← ممثّلُ مهمّته}."""
+    """المهامُّ المنقسمة والمجموعاتُ المتوازية: أعضاؤها صفوفٌ تُوضع معاً في الخانة نفسها. يُرجع {صفٌّ ← ممثّلُ مهمّته}."""
     groups: dict[str, list[int]] = defaultdict(list)
     for i, r in enumerate(ctx.rows):
-        if r.joint:
-            groups[r.joint].append(i)
+        # المتوازيةُ مهمّةٌ واحدةٌ بأعضاءٍ كلّهم في الخانة نفسها (كما يبنيها `build_tasks` ويطابقها المُقيِّم).
+        key = r.joint or (f"pg|{r.cls}|{r.elec}" if r.elec else "")
+        if key:
+            groups[key].append(i)
     rep_of: dict[int, int] = {}
     for members in groups.values():
         rep = members[0]
@@ -159,7 +163,7 @@ def _per_row(ctx: _Ctx) -> None:
     for i, d, p in x:
         cells[i][d].append((d, p))
     for i, r in enumerate(ctx.rows):
-        is_double = r.subj in ctx.doubles
+        is_double = r.blocks > 0
         days_avail = [d for d in DAYS if cells[i].get(d)]
         n_days = len(days_avail)
         # HC6: القسمةُ على الأيّام المتاحة لا الخمسةِ المحفورة (AS-3: المنصّةُ تحسب available_days).
@@ -185,15 +189,37 @@ def _per_row(ctx: _Ctx) -> None:
             if len(vs) > MAX_SAME_PERIOD:
                 ctx.m.Add(sum(vs) <= MAX_SAME_PERIOD)
                 ctx.count("HC7")
-        # HC19: المزدوجةُ كتلةٌ — حصّتا اليوم للمادّة المزدوجة متلاصقتان بلا فسحةٍ ولا صلاة.
+        # HC19: المزدوجةُ كتلةٌ صلبة — بالضبط `blocks` كتلةً، كلٌّ حصّتان متلاصقتان بلا فسحةٍ ولا صلاة.
         if is_double:
+            ys: list = []
+            row_pairs: set = set()
             for d in days_avail:
                 ps = sorted(p for (_d, p) in cells[i][d])
-                for a in range(len(ps)):
-                    for c in range(a + 1, len(ps)):
-                        if not _touching(ctx, r.cls, d, ps[a], ps[c]):
-                            ctx.m.Add(x[i, d, ps[a]] + x[i, d, ps[c]] <= 1)
-                            ctx.count("HC19")
+                prev = None
+                for p in ps:
+                    if (i, d, p + 1) in x and _touching(ctx, r.cls, d, p, p + 1):
+                        y = ctx.m.NewBoolVar("")
+                        ctx.m.Add(y <= x[i, d, p])
+                        ctx.m.Add(y <= x[i, d, p + 1])
+                        if prev is not None:
+                            ctx.m.Add(prev + y <= 1)
+                        ctx.pairvar[x[i, d, p].Index(), x[i, d, p + 1].Index()] = y
+                        row_pairs.add((x[i, d, p].Index(), x[i, d, p + 1].Index()))
+                        ys.append(y)
+                        prev = y
+                    else:
+                        prev = None
+            ctx.m.Add(sum(ys) == r.blocks)
+            ctx.count("HC19")
+            if r.n == 2 * r.blocks:
+                # كلُّ حصصه كتلٌ (لا مفردة): الخانةُ مشغولةٌ ⇔ داخلَ كتلة — تقويةٌ للصياغة تُسرّع الحلّ.
+                cover: dict[int, list] = defaultdict(list)
+                for (ia, ib), y in ((k, v) for k, v in ctx.pairvar.items() if k in row_pairs):
+                    cover[ia].append(y)
+                    cover[ib].append(y)
+                for d in days_avail:
+                    for _d, p in cells[i][d]:
+                        ctx.m.Add(x[i, d, p] == sum(cover.get(x[i, d, p].Index(), [])))
 
 
 def _same_subject_rules(ctx: _Ctx) -> None:
@@ -204,12 +230,13 @@ def _same_subject_rules(ctx: _Ctx) -> None:
         r = ctx.rows[i]
         grouped[r.cls, r.subj, d].append((i, p, v))
     for (cls, subj, day), cells in grouped.items():
-        double = subj in ctx.doubles
-        if "HC20" not in ctx.opt.disabled and not double:
+        double = any(ctx.rows[i].blocks > 0 for i, _p, _v in cells)
+        if "HC20" not in ctx.opt.disabled:
             for a, (_ia, pa, va) in enumerate(cells):
                 for _ib, pb, vb in cells[a + 1 :]:
                     if pa != pb and _touching(ctx, cls, day, pa, pb):
-                        ctx.m.Add(va + vb <= 1)
+                        y = _pair(ctx, va, vb)
+                        ctx.m.Add(va + vb <= (1 if y is None else 1 + y))
                         ctx.count("HC20")
         grade = ctx.opt.class_grade.get(cls) or getattr(ctx.inp, "class_grade", {}).get(cls)
         if (
@@ -220,6 +247,12 @@ def _same_subject_rules(ctx: _Ctx) -> None:
         ):
             ctx.m.Add(sum(v for _i, _p, v in cells) <= (2 if double else 1))
             ctx.count("HC17")
+
+
+def _pair(ctx: _Ctx, a, b):
+    """متغيّرُ كتلةٍ يجيز تلاصقَ المتغيّرين (أو None)."""
+    y = ctx.pairvar.get((a.Index(), b.Index()))
+    return y if y is not None else ctx.pairvar.get((b.Index(), a.Index()))
 
 
 def _touching(ctx: _Ctx, cls: str, day: int, p1: int, p2: int) -> bool:
@@ -263,7 +296,7 @@ def _teachers(ctx: _Ctx) -> None:
     for t, idxs in ctx.by_t.items():
         edges = _Edges()
         load = sum(ctx.rows[i].n for i in idxs)
-        has_double = any(ctx.rows[i].subj in ctx.doubles for i in idxs)
+        has_double = any(ctx.rows[i].blocks > 0 for i in idxs)
         days_t = [d for d in DAYS if _teacher_day_cells(ctx, t, d)]
         for day in days_t:
             _teacher_day(
@@ -375,20 +408,16 @@ def _touch_pair(ctx: _Ctx, ca: list[_Cell], cb: list[_Cell], oa, ob, hc5: bool) 
         return
     if code is None:
         return
-    exempt = lambda a, c: (  # noqa: E731
-        ctx.rows[a.i].cls == ctx.rows[c.i].cls
-        and ctx.rows[a.i].subj == ctx.rows[c.i].subj
-        and ctx.rows[a.i].subj in ctx.doubles
-    )
-    if not any(ctx.rows[a.i].subj in ctx.doubles for a in ca + cb):
-        m.Add(oa + ob <= 1)
+    ys = {(a.var.Index(), c.var.Index()): _pair(ctx, a.var, c.var) for a in ca for c in cb}
+    if not any(y is not None for y in ys.values()):
+        m.Add(oa + ob <= 1)  # لا كتلةَ بين الفاصلين: قيدٌ واحدٌ على الإشغال
         ctx.count(code)
         return
     for a in ca:
         for c in cb:
-            if not exempt(a, c):
-                m.Add(a.var + c.var <= 1)
-                ctx.count(code)
+            y = ys[a.var.Index(), c.var.Index()]
+            m.Add(a.var + c.var <= (1 if y is None else 1 + y))
+            ctx.count(code)
 
 
 def _max_gap(ctx: _Ctx, t: str, day: int, by_key, occ, max_gap: int) -> None:

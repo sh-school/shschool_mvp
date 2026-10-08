@@ -43,6 +43,16 @@ def _add_band(inp, band, shift):
         inp.bell[f"{band}|{kind}"] = _bell(t)
 
 
+def _derive_blocks(inp, doubles):
+    """مادةٌ مزدوجةٌ ← n//2 كتلةً (كما يبني `build_tasks` مهامَّ span=2 من النصاب)."""
+    inp.demand = [
+        DemandRow(
+            r.cls, r.subj, r.teacher, r.elec, r.n, r.joint, r.n // 2 if r.subj in doubles else 0
+        )
+        for r in inp.demand
+    ]
+
+
 def make(rows, *, bands=None, levels=None, **kw):
     """مدخلاتٌ صغيرة. rows: (cls, subj, teacher, elec, n[, joint]). bands: {شعبةٌ: نطاق}."""
     inp = CpSatInputs()
@@ -53,6 +63,7 @@ def make(rows, *, bands=None, levels=None, **kw):
         inp.class_level[r.cls] = (levels or {}).get(r.cls, "sec")
     for band in set(inp.class_band.values()):
         _add_band(inp, band, {"B": 0, "B2": 25, "B3": 50}.get(band, 0))
+    _derive_blocks(inp, kw.get("doubles", frozenset()))
     for k, v in kw.items():
         setattr(inp, k, v)
     return inp
@@ -333,8 +344,8 @@ def test_hc20_same_subject_not_adjacent_unless_double():
     assert feasible(inp, [(0, 0, 1), (0, 0, 3)])  # بينهما حصّة
     assert feasible(inp, [(0, 0, 3), (0, 0, 4)])  # تفصلهما فسحة
     assert feasible(inp, [(0, 0, 1), (0, 0, 2)], disabled=frozenset({"HC20", "HC5"}))
-    dbl = make([("C1", "S1", "T1", "", 7)], doubles=frozenset({"S1"}))
-    assert feasible(dbl, [(0, 0, 1), (0, 0, 2)])  # المزدوجةُ مستثناة
+    dbl = make([("C1", "S1", "T1", "", 4)], doubles=frozenset({"S1"}))
+    assert feasible(dbl, [(0, 0, 1), (0, 0, 2)])  # الكتلةُ وحدَها مستثناة
 
 
 def test_hc17_thursday_single_period_for_grade_11_12():
@@ -441,6 +452,7 @@ def _fixture_inputs():
         for c, b in d["class_band"].items()
     }
     inp.doubles = frozenset(d["doubles"])
+    _derive_blocks(inp, inp.doubles)
     inp.ex_full = frozenset((t, day) for t, day in d["ex_full"])
     inp.ex_period = frozenset((t, day, p) for t, day, p in d["ex_period"])
     inp.prefs = {
@@ -521,3 +533,19 @@ def test_fixture_with_decision_d166_caps_is_recorded_not_assumed(capsys):
     """
     st = _run_fixture(capsys, "d166", 60.0)
     assert st == cp_model.INFEASIBLE  # برهانٌ مُقاس؛ تغيّرُه يستدعي إعادةَ قراءة الحزمة والسقفين
+
+
+def test_parallel_group_members_share_the_same_cells():
+    """المجموعةُ المتوازية مهمّةٌ واحدةٌ: أعضاؤها في الخانة نفسها لا في خاناتٍ منفصلة (كما يبنيها المنصّة ويطابقها المُقيِّم)."""
+    rows = [("C1", "S1", "T1", "G", 1), ("C1", "S2", "T2", "G", 1)]
+    inp = make(rows)
+    assert feasible(inp, [(0, 0, 1), (1, 0, 1)])
+    assert not feasible(inp, [(0, 0, 1), (1, 0, 2)])
+
+
+def test_adjacent_cells_of_a_double_subject_need_a_block():
+    """ازدواجٌ صلبٌ بعدد الكتل: 4 حصصٍ بكتلة واحدة لا تجيز تلاصقَ أكثر من كتلة."""
+    inp = make([("C1", "S1", "T1", "", 4)])
+    inp.demand = [DemandRow("C1", "S1", "T1", "", 4, "", 1)]
+    # كتلتان متلاصقتان (1-2 و3-4) تجمعان 3 تلاصقات: ممنوعٌ حين لا تُعلَن إلّا كتلة
+    assert not feasible(inp, [(0, 0, 1), (0, 0, 2), (0, 1, 1), (0, 1, 2)])
