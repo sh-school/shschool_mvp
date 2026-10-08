@@ -316,3 +316,23 @@ def test_the_absence_task_does_not_push_to_parents(
     notify_absence_task.run(str(alert.pk), None, str(school.id))
     assert pushed == []
     assert mail.outbox == []
+
+
+def test_a_quiet_hours_item_for_a_parent_is_neither_sent_nor_dropped(
+    frozen, monkeypatch, school, parent_with_email
+):
+    from unittest.mock import patch
+
+    from notifications.tasks import release_after_quiet_hours_task, send_email_task
+
+    payload = {"recipient_email": parent_with_email.email}
+    with (
+        patch.object(send_email_task, "delay") as sent,
+        patch.object(release_after_quiet_hours_task, "apply_async") as again,
+    ):
+        result = release_after_quiet_hours_task.run(
+            str(school.id), str(parent_with_email.pk), "email", payload
+        )
+    assert result["status"] == "held_parents_frozen"
+    sent.assert_not_called()
+    assert again.call_args.kwargs["kwargs"]["payload"] == payload

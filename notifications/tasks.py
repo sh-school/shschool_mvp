@@ -1468,6 +1468,10 @@ def reconcile_deliveries_task(self, school_id):
     return reconcile_school(school_id)
 
 
+#: مدّةُ إعادة سؤال عنصرٍ مؤجَّلٍ لوليّ أمرٍ أثناء التجميد.
+FROZEN_RECHECK_SECONDS = 3600
+
+
 @shared_task(
     base=TenantRLSTask,
     bind=True,
@@ -1528,6 +1532,19 @@ def release_after_quiet_hours_task(
     if plan.action == quiet_hours.SKIP:
         logger.warning("release_after_quiet_hours: no worker to hold — dropped target=%s", target)
         return {"status": "skipped"}
+
+    if user is not None and parents_frozen() and is_parent_only(user):
+        # مؤجَّلٌ بساعات الهدوء قبل التجميد: لا يُرسل ولا يُحذف — يُعاد سؤالُه كلَّ ساعةٍ حتى الفكّ (W-20261008-013).
+        self.apply_async(
+            kwargs={
+                "school_id": school_id,
+                "user_id": user_id,
+                "target": target,
+                "payload": payload,
+            },
+            countdown=FROZEN_RECHECK_SECONDS,
+        )
+        return {"status": "held_parents_frozen"}
 
     task.delay(**payload)
     return {"status": "released", "target": target}
