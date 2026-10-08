@@ -237,10 +237,14 @@ class AttendanceService:
         from core.models import StudentEnrollment
         from operations.absence_policy import gates_for
         from operations.absence_standing import standing_for
+        from operations.attendance_policy import is_special_education
 
         enrollment = StudentEnrollment.objects.current_of(student)
         grade = enrollment.class_group.grade if enrollment else None
-        if not gates_for(grade):
+        # طلبةُ التربية الخاصّة (شعبةُ …/ESE بلا جناح، مشتقٌّ من الشعبة لا علمٌ على الطالب — D-255م): عتبتا النهاية 8 و15 فقط، بلا منتصف الفصل (5 و11).
+        # لا يغيّر هذا حسابَ أيّام الغياب نفسِها.
+        ese = bool(enrollment and is_special_education(enrollment.class_group))
+        if not gates_for(grade, ese):
             # صفٌّ لا جدولَ له في السياسة — فلا إنذار بجدولٍ لا يخصّه.
             # (ودليلُ 2026 يشمل «من الصف الأول»، فلم يبقَ خارجَه صفٌّ في مدرسةٍ
             # إعداديّةٍ ثانويّة.) وطالبٌ بلا تسجيلٍ نشط يقع هنا أيضاً، فيفقد
@@ -253,7 +257,7 @@ class AttendanceService:
                 )
             return []
 
-        standing = standing_for(student, school, grade=grade, on=on)
+        standing = standing_for(student, school, grade=grade, on=on, ese=ese)
         window = academic_year_window(school, on)
         if window is None:
             return []

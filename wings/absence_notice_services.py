@@ -71,13 +71,15 @@ def _still_due(alert, today: dt.date) -> tuple[bool, object, int]:
     from core.models import StudentEnrollment
     from operations.absence_policy import gates_for
     from operations.absence_standing import standing_for
+    from operations.attendance_policy import is_special_education
     from operations.services import AttendanceService
 
     enrollment = StudentEnrollment.objects.current_of(alert.student)
     grade = enrollment.class_group.grade if enrollment else None
-    if not gates_for(grade):
+    ese = bool(enrollment and is_special_education(enrollment.class_group))  # D-255م
+    if not gates_for(grade, ese):
         return False, None, 0
-    standing = standing_for(alert.student, alert.school, grade=grade, on=today)
+    standing = standing_for(alert.student, alert.school, grade=grade, on=today, ese=ese)
     margin = AttendanceService.GATE_WARNING_MARGIN_DAYS
     for gate in standing.gates:
         if gate.key != alert.gate:

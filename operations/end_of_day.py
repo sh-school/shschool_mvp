@@ -50,6 +50,7 @@ def would_create(school: School, day: dt.date) -> int:
     from core.models import StudentEnrollment
     from operations.absence_policy import gates_for
     from operations.absence_standing import standing_for
+    from operations.attendance_policy import is_special_education
     from operations.models import AbsenceAlert
     from operations.services import AttendanceService
 
@@ -61,9 +62,10 @@ def would_create(school: School, day: dt.date) -> int:
     for student in absent_students_on(school, day):
         enrollment = StudentEnrollment.objects.current_of(student)
         grade = enrollment.class_group.grade if enrollment else None
-        if not gates_for(grade):
+        ese = bool(enrollment and is_special_education(enrollment.class_group))  # D-255م
+        if not gates_for(grade, ese):
             continue
-        standing = standing_for(student, school, grade=grade, on=day)
+        standing = standing_for(student, school, grade=grade, on=day, ese=ese)
         for gate in standing.gates:
             due = (
                 standing.unexcused_days > gate.max_days

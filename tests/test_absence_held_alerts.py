@@ -252,3 +252,68 @@ def test_the_held_status_migration_is_a_reversible_choices_only_change(db):
     assert forward not in MigrationExecutor(connection).loader.applied_migrations
     MigrationExecutor(connection).migrate([forward])
     assert forward in MigrationExecutor(connection).loader.applied_migrations
+
+
+# ── طلبةُ التربية الخاصّة (ESE): بلا إنذار «منتصف الفصل» (D-255م) ──
+
+
+def _make_ese(class_group):
+    type(class_group).objects.filter(pk=class_group.pk).update(section="07/ESE", wing=None)
+    class_group.refresh_from_db()
+
+
+def _gates_of(student):
+    return sorted(AbsenceAlert.objects.filter(student=student).values_list("gate", flat=True))
+
+
+@pytest.mark.parametrize(
+    ("days", "ese_gates", "regular_gates"),
+    [
+        (3, [], ["s1_midterm"]),  # عند 5: العاديُّ يُنذَر، وطالبُ ESE لا
+        (6, ["s1_final"], ["s1_final", "s1_midterm"]),  # عند 8 يُنذَر ESE
+        (
+            9,
+            ["s1_final"],
+            ["s1_final", "s1_midterm", "s2_midterm"],
+        ),  # تجاوز 8؛ وعند 11 لا إنذارَ لـESE
+        (
+            13,
+            ["s1_final", "s2_final"],
+            ["s1_final", "s1_midterm", "s2_final", "s2_midterm"],
+        ),  # عند 15
+    ],
+)
+def test_an_ese_student_gets_only_the_final_gates_and_a_regular_student_is_unchanged(
+    school, class_group, teacher_user, subject, student, year_window, days, ese_gates, regular_gates
+):
+    start, _ = year_window
+    _absent(school, class_group, teacher_user, subject, student, start, days)
+    day = start + timedelta(days=days)
+
+    AttendanceService.raise_absence_alerts(student, school, on=day)
+    regular = _gates_of(student)
+    AbsenceAlert.objects.filter(student=student).delete()
+    _make_ese(class_group)
+    AttendanceService.raise_absence_alerts(student, school, on=day)
+
+    assert regular == regular_gates, "الطالبُ العاديّ كما هو"
+    assert _gates_of(student) == ese_gates
+    assert set(AbsenceAlert.objects.filter(student=student).values_list("status", flat=True)) <= {
+        "held"
+    }
+
+
+def test_an_ese_student_is_derived_from_the_class_not_a_flag_and_the_days_are_unchanged(
+    school, class_group, teacher_user, subject, student, year_window
+):
+    from operations.absence_standing import standing_for
+
+    start, _ = year_window
+    _absent(school, class_group, teacher_user, subject, student, start, 6)
+    day = start + timedelta(days=6)
+    before = standing_for(student, school, grade="G7", on=day).unexcused_days
+    _make_ese(class_group)
+
+    after = standing_for(student, school, grade="G7", on=day, ese=True).unexcused_days
+
+    assert before == after == 6, "حسابُ أيّام الغياب لا يتغيّر"
