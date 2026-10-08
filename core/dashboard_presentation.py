@@ -96,6 +96,7 @@ def _director_day(ctx: dict) -> dict:
         "day_sections_label": f"{c.sections_registered} من {c.sections_total}",
         "day_sections_sub": sections_sub,
         "day_slots_sub": f"انتهت {day.slots_ended} · جارية {day.slots_running}",
+        "day_bell_meta": f"{day.bell_slots} خانات جرس · انتهت {day.slots_ended} · جارية {day.slots_running}",
         "day_exits_sub": exits_sub,
         "day_exits_destinations": destinations,
         "day_away_tone": _pending(c.away_permitted, "amber"),

@@ -70,7 +70,7 @@
     الارتفاعُ لا يتغيّر على 1366×768 (LAY-03): صفّان بـ44px وسطرُ الطيّ (121px) لا يتجاوزان جسمَ الرسمين بجانبها (154px) — قياسُ 0501: ثلاثةُ صفوفٍ (165px) رفعت الصفَّ 12px فظهر تمريرٌ 4px.
     {% endcomment %}
     {% if day_open %}
-    {% section_card "سير اليوم" meta=day_slots_sub icon="absence" %}
+    {% section_card "تفاصيل اليوم — سير اليوم" meta=day_bell_meta icon="absence" %}
       <ul class="plain-list">
         <li class="plain-list__row">
           <span class="plain-list__title" title="{{ day_exits_sub }} {{ day_exits_destinations }}">خارج الفصل</span>
@@ -87,6 +87,7 @@
       <details>
         <summary class="btn-secondary btn-sm">الأجنحة اليوم · {{ day_fold_meta }}</summary>
         <div>
+          {% if day_exits_destinations %}<p class="ui-note">الخروج حسب الوجهة: {{ day_exits_destinations }}</p>{% endif %}
           {% if day_wings %}
           <div class="table-wrap">
             <table>
