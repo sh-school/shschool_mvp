@@ -348,18 +348,12 @@ def test_hc17_thursday_single_period_for_grade_11_12():
     assert feasible(make(rows), two, disabled=frozenset({"HC17"}), **grades)
 
 
-def test_edge_caps_soft_conversion_penalises_excess_instead_of_forbidding():
-    rows = [("C1", "S1", "T1", "", 3), ("C2", "S2", "T1", "", 3)]
-    three = [(0, 0, 1), (0, 1, 1), (1, 2, 1)]
-    hard = ModelOptions(derived_day_cap=False)
-    assert not feasible(make(rows), three, derived_day_cap=False)
-    soft = ModelOptions(derived_day_cap=False, edge_caps_soft=True, edge_soft_weight=7)
-    built = build_model(make(rows), soft)
-    assert built.constraint_counts["HC22_SOFT"] == 1 and "HC22" not in built.constraint_counts
-    assert [t[0] for t in built.soft_terms if t[0].startswith("HC22")] == ["HC22_soft"]
-    st, sv = solve(built, three)
-    assert st == cp_model.OPTIMAL and sv.ObjectiveValue() == 7  # فائضٌ واحدٌ × 7
-    assert hard.edge_caps_soft is False  # مُطفأٌ افتراضاً
+def test_edge_caps_are_hard_with_decision_d166_defaults():
+    opt = ModelOptions()
+    assert (opt.first_cap, opt.last_cap) == (2, 2)  # قرارُ المالك: السقفان صلبان، لا تحويلَ مرنٌ
+    built = build_model(make([("C1", "S1", "T1", "", 3), ("C2", "S2", "T1", "", 3)]), opt)
+    assert built.constraint_counts["HC22"] == 1 and built.constraint_counts["HC8"] >= 1
+    assert not built.soft_terms
 
 
 # ───────── فحصُ الإسناد AS ─────────

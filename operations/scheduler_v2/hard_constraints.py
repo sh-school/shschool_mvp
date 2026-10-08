@@ -409,19 +409,6 @@ def _max_gap(ctx: _Ctx, t: str, day: int, by_key, occ, max_gap: int) -> None:
     ctx.count("HC10")
 
 
-def _cap_or_soft(ctx: _Ctx, kind: str, t: str, var, cap: int, code: str) -> None:
-    """سقفٌ صلبٌ (الافتراضُ) أو فائضٌ مُعاقَب (`edge_caps_soft`): الفائضُ e ≥ var − cap، وعقوبتُه عبر add_soft_terms."""
-    if not ctx.opt.edge_caps_soft:
-        ctx.m.Add(var <= cap)
-        ctx.count(code)
-        return
-    excess = ctx.m.NewIntVar(0, 5, "")
-    ctx.m.Add(excess >= var - cap)
-    ctx.b.vars[(f"{kind}_excess", t)] = excess
-    ctx.b.pending_soft.append((f"{code}_soft", excess, ctx.opt.edge_soft_weight))
-    ctx.count(f"{code}_SOFT")
-
-
 def _edge_caps(ctx: _Ctx, t, edges: _Edges, hc22: bool, hc8: bool) -> None:
     m, b = ctx.m, ctx.b
     if edges.first:
@@ -429,13 +416,15 @@ def _edge_caps(ctx: _Ctx, t, edges: _Edges, hc22: bool, hc8: bool) -> None:
         m.Add(f == sum(edges.first.values()))
         b.vars[("first", t)] = f
         if hc22:
-            _cap_or_soft(ctx, "first", t, f, ctx.opt.first_cap, "HC22")
+            m.Add(f <= ctx.opt.first_cap)
+            ctx.count("HC22")
     if edges.last:
         l = m.NewIntVar(0, 5, "")
         m.Add(l == sum(edges.last.values()))
         b.vars[("last", t)] = l
         if hc8:
-            _cap_or_soft(ctx, "last", t, l, ctx.opt.last_cap, "HC8")
+            m.Add(l <= ctx.opt.last_cap)
+            ctx.count("HC8")
             # الشرطُ الثاني المستقلّ في HC8: الطرفان لا يقعان على شعبةٍ واحدة.
             for vs in edges.last_by_cls.values() if ctx.opt.last_distinct_class else ():
                 if len(vs) > 1:
