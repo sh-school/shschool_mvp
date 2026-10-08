@@ -11,19 +11,19 @@
 <div class="exec-dash">
   {% page_header "إخطاراتُ الغياب المحجوزة" subtitle="لا يُرسَل شيءٌ لوليّ الأمر إلا بضغطك «إصدار الإخطار» بعد الحصّة الرابعة" icon="attendance_register" %}{% endpage_header %}
 
-  {% section_card "بانتظار الإصدار" meta=alerts|length icon="attendance_register" %}
-    {% if alerts %}
+  {% section_card "بانتظار الإصدار" meta=rows|length icon="attendance_register" %}
+    {% if rows %}
     <div class="table-wrap">
       <table data-no-sort>
         <thead><tr><th>الطالب</th><th>العتبة</th><th>أيّامُ الغياب</th><th><span class="sr-only">الإجراء</span></th></tr></thead>
         <tbody>
-          {% for alert in alerts %}
+          {% for row in rows %}
           <tr>
-            <td>{{ alert.student.full_name }}</td>
-            <td>{{ alert.gate }}</td>
-            <td>{{ alert.absence_count }}</td>
+            <td>{{ row.alert.student.full_name }}</td>
+            <td>{{ row.label }}</td>
+            <td>{{ row.alert.absence_count }}</td>
             <td>
-              <form method="post" action="{% url 'wings:absence_notice_issue' alert.id %}">{% csrf_token %}
+              <form method="post" action="{% url 'wings:absence_notice_issue' row.alert.id %}">{% csrf_token %}
                 <button type="submit" class="btn-primary btn-sm">إصدار الإخطار</button>
               </form>
             </td>

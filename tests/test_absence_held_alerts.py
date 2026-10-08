@@ -12,6 +12,7 @@ from unittest.mock import patch
 import pytest
 from django.core.management import call_command
 from django.urls import reverse
+from django.utils import timezone
 
 from core.models import TimeBand
 from operations.end_of_day import sweep_absence_gates, would_create
@@ -164,7 +165,7 @@ def test_a_lost_race_on_the_claim_is_refused_without_sending(school, held, gener
     def racing(*args, **kwargs):
         queryset = real_filter(*args, **kwargs)
         if kwargs.get("status") == "held" and "pk" in kwargs:
-            real_filter(pk=kwargs["pk"]).update(status="pending")  # سبقه غيرُه
+            real_filter(pk=kwargs["pk"]).update(status="issuing")  # سبقه غيرُه
         return queryset
 
     with _due(), patch(DISPATCH) as dispatch, patch.object(AbsenceAlert.objects, "filter", racing):
@@ -200,7 +201,7 @@ def test_the_audit_carries_ids_and_the_gate_but_no_names(school, held, general, 
 
     with _due(), patch(DISPATCH):
         absence_notices.issue(general, school, held.pk, now=at(15, 0))
-    audit = AuditLog.objects.get(object_id=str(held.pk), object_repr__contains="إخطارُ غياب")
+    audit = AuditLog.objects.get(object_id=str(held.pk), changes__action="issued")
 
     assert audit.changes["gate"] == "s1_midterm" and audit.changes["action"] == "issued"
     assert student.full_name not in str(audit.changes)
@@ -317,3 +318,59 @@ def test_an_ese_student_is_derived_from_the_class_not_a_flag_and_the_days_are_un
     after = standing_for(student, school, grade="G7", on=day, ese=True).unexcused_days
 
     assert before == after == 6, "حسابُ أيّام الغياب لا يتغيّر"
+
+
+# ── الحالة الوسيطة «قيد الإصدار» (ملاحظة 0104، P2) ──
+
+
+def test_the_bulk_sender_never_touches_an_issuing_alert(school, held):
+    from notifications.services import NotificationService
+    from notifications.tasks import send_pending_absence_alerts_task
+
+    AbsenceAlert.objects.filter(pk=held.pk).update(status="issuing")
+
+    with patch(DISPATCH) as dispatch, patch.object(NotificationService, "notify_absence") as notify:
+        NotificationService.send_pending_absence_alerts(school)
+        send_pending_absence_alerts_task()
+    held.refresh_from_db()
+
+    assert held.status == "issuing"
+    dispatch.assert_not_called()
+    notify.assert_not_called()
+
+
+def test_a_crash_between_the_claim_and_the_end_is_reconciled_back_to_held_without_sending(
+    school, held, general
+):
+    """العمليةُ توقّفت بعد المطالبة (إعادةُ نشر): بعد المهلة يعود التنبيهُ إلى «محجوز» ولا يُرسَل شيء."""
+    with _due(), patch(DISPATCH, side_effect=KeyboardInterrupt):
+        with pytest.raises(KeyboardInterrupt):
+            absence_notices.issue(general, school, held.pk, now=at(15, 0))
+    held.refresh_from_db()
+    assert held.status == "issuing", "علق في الوسيطة"
+
+    fresh = absence_notices.reconcile_stuck(school)
+    assert fresh == 0, "قبل المهلة لا يُمسّ (قد يكون إرسالٌ جارياً)"
+
+    late = absence_notices.reconcile_stuck(
+        school, now=timezone.now() + timedelta(minutes=absence_notices.STUCK_MINUTES + 1)
+    )
+    held.refresh_from_db()
+    assert late == 1 and held.status == "held"
+
+
+def test_a_failed_send_is_audited_without_names(school, held, general, student):
+    from core.models import AuditLog
+
+    with _due(), patch(DISPATCH, side_effect=RuntimeError("boom")):
+        with pytest.raises(IssueRefused):
+            absence_notices.issue(general, school, held.pk, now=at(15, 0))
+
+    failed = AuditLog.objects.get(object_id=str(held.pk), changes__action="issue_failed")
+    assert student.full_name not in str(failed.changes)
+
+
+def test_the_screen_shows_the_readable_gate_label_not_the_raw_key(client_as, school, held, general):
+    page = client_as(general).get(reverse("wings:absence_notices")).content.decode()
+
+    assert "منتصف الفصل الأول" in page and "s1_midterm" not in page

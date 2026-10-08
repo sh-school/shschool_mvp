@@ -6,7 +6,9 @@
 - التوقيتُ: لا إصدارَ لتنبيهِ اليوم قبل انتهاء ح4 بجرس صفّ الطالب (التنبيهُ من يومٍ سابقٍ مسموح).
 - المستلم: من روابط وليّ الأمر المسجَّلة (`ParentStudentLink` عبر الـHub) لا من الطلب.
 - لا إخطارَ مزدوج: مطالبةٌ ذرّيّةٌ `UPDATE … WHERE status='held'` فيمضي طلبٌ واحد؛ ومن يخسر السباق يُرفض. ولا إخطارَ لمن صُحّح غيابُه (لم تعد العتبةُ مستحقّة): يُوسَم `resolved` بلا إرسال.
-- الفشلُ يُعيد الحالةَ إلى `held` لا `pending` — فلا يلتقطه مرسِلُ 07:00 ولا يخرج إخطارٌ بلا كاتب.
+- حالةٌ وسيطةٌ خاصّة `issuing` أثناء الإرسال لا يلتقطها المرسِلُ الجماعيّ (07:00 والزرّ اليدويّ يلتقطان `pending` وحدَه)؛ فتوقّفُ العملية بين المطالبة والنهاية (إعادةُ نشر) لا يُخرج إخطاراً ثانياً بمسارٍ غير الزرّ.
+  وما علق فيها أكثرَ من `STUCK_MINUTES` يعيده `reconcile_stuck` إلى `held` (الزمنُ من سطر تدقيق المطالبة).
+- الفشلُ يُعيد الحالةَ إلى `held` لا `pending` — فلا يخرج إخطارٌ بلا كاتب.
 - التدقيقُ بمعرّفاتٍ وعتبةٍ فقط، بلا اسمِ طالبٍ ولا وليّ.
 """
 
@@ -27,6 +29,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 PERIOD_BOUND = 4  # يُصدر الإخطارَ بعد انتهاء الحصّة الرابعة
+AUDIT_LABEL = "إخطارُ غياب — حاصرُ الغياب"
+STUCK_MINUTES = 15  # أقصى مُكثٍ لتنبيهٍ في «قيد الإصدار» قبل أن يُعاد إلى «محجوز»
 
 
 class IssueRefused(Exception):  # noqa: N818 — رفضٌ بمعنى لا عطل
@@ -47,6 +51,43 @@ def held_alerts(school: School):
 
 def held_count(school: School) -> int:
     return held_alerts(school).count()
+
+
+def reconcile_stuck(school: School, *, now: dt.datetime | None = None) -> int:
+    """يعيد إلى «محجوز» كلَّ تنبيهٍ علق في «قيد الإصدار» أكثرَ من `STUCK_MINUTES` (انقطعت العمليةُ بين المطالبة والنهاية). يعيد عددَ ما أُعيد.
+
+    الزمنُ من سطر تدقيق المطالبة؛ ولا سطرَ ← يُعاد فوراً. لا يرسل شيئاً: يُرجِع الحالةَ فقط.
+    """
+    from operations.models import AbsenceAlert
+
+    cutoff = (now or timezone.now()) - dt.timedelta(minutes=STUCK_MINUTES)
+    released = 0
+    for alert in AbsenceAlert.objects.filter(school=school, status="issuing"):
+        claim = (
+            AuditLog.objects.filter(
+                object_id=str(alert.pk), object_repr=AUDIT_LABEL, changes__action="issuing"
+            )
+            .order_by("-timestamp")
+            .first()
+        )
+        if claim is not None and claim.timestamp > cutoff:
+            continue
+        if AbsenceAlert.objects.filter(pk=alert.pk, status="issuing").update(status="held"):
+            _audit(None, school, alert, "released_stuck")
+            released += 1
+    return released
+
+
+def screen_rows(school: School) -> list[dict]:
+    """صفوفُ شاشة المحجوزات: التنبيه وتسميةُ عتبته المقروءة (لا مفتاحُها الخام). تُصالح العالقَ أولاً."""
+    from operations.absence_policy import GATES_1_11
+
+    reconcile_stuck(school)
+    labels = {g.key: g.label for g in GATES_1_11}
+    return [
+        {"alert": alert, "label": labels.get(alert.gate, alert.gate)}
+        for alert in held_alerts(school)
+    ]
 
 
 def period_four_over(alert, now: dt.datetime) -> bool:
@@ -124,9 +165,10 @@ def issue(
         return IssueResult("resolved", "صُحّح الغيابُ فلم تعد العتبةُ مستحقّةً — لم يُرسَل إخطار")
 
     # مطالبةٌ ذرّيّة: طلبٌ واحدٌ فقط يمضي
-    claimed = AbsenceAlert.objects.filter(pk=alert.pk, status="held").update(status="pending")
+    claimed = AbsenceAlert.objects.filter(pk=alert.pk, status="held").update(status="issuing")
     if not claimed:
         raise IssueRefused("سبقك طلبٌ آخرُ إلى إصدار هذا الإخطار")
+    _audit(user, school, alert, "issuing")
 
     _crossed, headline, detail, source = absence_notice_text(gate, days)
     try:
@@ -142,10 +184,13 @@ def issue(
     except Exception:  # noqa: BLE001
         logger.exception("absence notice dispatch failed [alert=%s]", alert.pk)
         # الفشلُ يرجع إلى «محجوز» لا «معلَّق»: لا يلتقطه مرسِلُ 07:00 ولا يخرج إخطارٌ بلا كاتب (D-246م)
-        AbsenceAlert.objects.filter(pk=alert.pk, status="pending").update(status="held")
+        AbsenceAlert.objects.filter(pk=alert.pk, status="issuing").update(status="held")
+        _audit(user, school, alert, "issue_failed")
         raise IssueRefused("تعذّر الإرسال — بقي التنبيهُ محجوزاً فأعد المحاولة") from None
 
-    AbsenceAlert.objects.filter(pk=alert.pk).update(status="notified", resolved_by=user)
+    AbsenceAlert.objects.filter(pk=alert.pk, status="issuing").update(
+        status="notified", resolved_by=user
+    )
     _audit(user, school, alert, "issued")
     return IssueResult("sent", "أُرسل الإخطارُ إلى وليّ الأمر")
 
@@ -165,7 +210,7 @@ def _audit(user, school, alert, action: str) -> None:
         action="update",
         model_name="other",
         object_id=alert.pk,
-        object_repr="إخطارُ غياب — حاصرُ الغياب",
+        object_repr=AUDIT_LABEL,
         changes={"action": action, "gate": alert.gate, "count": alert.absence_count},
         school=school,
     )

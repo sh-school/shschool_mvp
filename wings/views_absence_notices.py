@@ -24,7 +24,7 @@ def absence_notice_list(request):
     return render(
         request,
         "wings/absence_notices.html",
-        {"alerts": absence_notices.held_alerts(request.school)},
+        {"rows": absence_notices.screen_rows(request.school)},
     )
 
 
