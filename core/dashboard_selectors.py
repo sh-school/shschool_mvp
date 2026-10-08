@@ -23,7 +23,7 @@ from django.utils import timezone
 from assessments.models import AnnualSubjectResult, SubjectClassSetup
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit
-from core.academic_calendar import academic_year_for_school
+from core.academic_calendar import academic_year_for_school, academic_year_window
 from core.capabilities import has_capability
 from core.domain.attendance import attendance_rate
 from core.models.academic import grade_order
@@ -81,8 +81,13 @@ def get_student_ctx(user, school, today):
 
     year = academic_year_for_school(school)
 
-    # حضور الطالب (aggregate واحد)
-    att = StudentAttendance.objects.filter(school=school, student=user).aggregate(
+    # حضور الطالب (aggregate واحد) — العامَ الدراسيَّ الجاري وحده: العنوان «حضوري هذا العام»،
+    # وبلا النافذة كان الرقم تراكمياً لكلّ الأعوام. (W-20261008-001 · البند 2)
+    att_rows = StudentAttendance.objects.filter(school=school, student=user)
+    window = academic_year_window(school, today)
+    if window:
+        att_rows = att_rows.filter(session__date__range=window)
+    att = att_rows.aggregate(
         present=Count("id", filter=Q(status="present")),
         absent=Count("id", filter=Q(status="absent")),
         late=Count("id", filter=Q(status="late")),
@@ -202,7 +207,7 @@ def get_director_ctx(school, today):
         sent_home=Count("id", filter=Q(is_sent_home=True)),
     )
 
-    library_overdue = BookBorrowing.objects.filter(book__school=school, status="OVERDUE").count()
+    library_overdue = BookBorrowing.objects.filter(book__school=school).late().count()
 
     pending_swaps = TeacherSwap.objects.filter(
         school=school, status__in=["accepted_b", "pending_coordinator", "pending_vp"]
@@ -570,9 +575,7 @@ def get_service_ctx(user, school, today, role):
         ctx["clinic_sent_home"] = clinic["sent_home"]
 
     elif role == "librarian":
-        ctx["library_overdue"] = BookBorrowing.objects.filter(
-            book__school=school, status="OVERDUE"
-        ).count()
+        ctx["library_overdue"] = BookBorrowing.objects.filter(book__school=school).late().count()
         ctx["library_today"] = BookBorrowing.objects.filter(
             book__school=school,
             borrow_date=today,

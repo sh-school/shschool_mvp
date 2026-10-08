@@ -89,7 +89,7 @@ def analytics_dashboard(request):
     # المكتبة
     total_books = LibraryBook.objects.filter(school=school).count()
     active_loans = BookBorrowing.objects.filter(book__school=school, status="BORROWED").count()
-    overdue_books = BookBorrowing.objects.filter(book__school=school, status="OVERDUE").count()
+    overdue_books = BookBorrowing.objects.filter(book__school=school).late().count()
 
     # الخطة التشغيلية
     total_procs = OperationalProcedure.objects.filter(school=school, academic_year=year).count()

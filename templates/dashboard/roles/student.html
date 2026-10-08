@@ -5,9 +5,9 @@
 
   {% kpi_strip label="حضوري هذا العام" %}
     {% kpi "نسبة الحضور" student_att_label tone="green" %}
-    {% kpi "أيّام الحضور" student_present tone="teal" %}
-    {% kpi "أيّام الغياب" student_absent tone="red" %}
-    {% kpi "أيّام التأخّر" student_late tone="orange" %}
+    {% kpi "حصص الحضور" student_present tone="teal" %}
+    {% kpi "حصص الغياب" student_absent tone="red" %}
+    {% kpi "حصص التأخّر" student_late tone="orange" %}
     {% if student_subjects_total %}
       {% kpi "راسب في" student_failed sub=student_failed_sub tone=student_failed_tone %}
     {% endif %}
