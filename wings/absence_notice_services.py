@@ -94,7 +94,8 @@ def screen_rows(school: School) -> list[dict]:
 def period_four_over(alert, now: dt.datetime) -> bool:
     """أانتهت ح4 بجرس صفّ الطالب اليوم؟ تنبيهٌ أُنشئ في يومٍ سابقٍ يُصدَر في أيّ وقت."""
     from core.models import StudentEnrollment
-    from operations.services.provisional_session import _bell
+    from operations.models import TimeSlotConfig
+    from operations.school_days import school_day
 
     today = timezone.localtime(now).date()
     if timezone.localtime(alert.created_at).date() < today:
@@ -102,10 +103,20 @@ def period_four_over(alert, now: dt.datetime) -> bool:
     enrollment = StudentEnrollment.objects.current_of(alert.student)
     if enrollment is None:
         return False
-    times = _bell(alert.school, enrollment.class_group, today).get(PERIOD_BOUND)
-    if times is None:
-        return False  # لا ح4 في جرس صفّه: لا إصدارَ حتى يُعرَّف
-    return timezone.localtime(now).time() >= times[1]
+    klass = enrollment.class_group
+    day_type = school_day(alert.school, today).bell_day_type
+    if not day_type or klass.time_band_id is None:
+        return False  # لا جرسَ معرَّف لصفّه اليوم: لا إصدارَ حتى يُعرَّف
+    row = TimeSlotConfig.objects.filter(
+        school=alert.school,
+        band_id=klass.time_band_id,
+        day_type=day_type,
+        is_break=False,
+        period_number=PERIOD_BOUND,
+    ).first()
+    if row is None:
+        return False  # لا ح4 في جرس صفّه
+    return timezone.localtime(now).time() >= row.end_time
 
 
 def _still_due(alert, today: dt.date) -> tuple[bool, object, int]:

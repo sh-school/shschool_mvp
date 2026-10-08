@@ -7,6 +7,11 @@
 {% block title %}إخطاراتُ الغياب المحجوزة{% endblock %}
 {% block main_class %}{% page_layout "list" %}{% endblock %}
 
+{% block breadcrumbs %}
+{% url 'wings:ministry_report' as ministry_url %}
+{% include "components/breadcrumbs.html" with parent_url=ministry_url parent_label="ملخّص الحصّتين الأولى والثانية" current="إخطاراتُ الغياب المحجوزة" %}
+{% endblock %}
+
 {% block content %}
 <div class="exec-dash">
   {% page_header "إخطاراتُ الغياب المحجوزة" subtitle="لا يُرسَل شيءٌ لوليّ الأمر إلا بضغطك «إصدار الإخطار» بعد الحصّة الرابعة" icon="attendance_register" %}{% endpage_header %}
