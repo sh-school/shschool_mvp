@@ -35,6 +35,10 @@ SKIP_PARTS = {"tests", "migrations", "node_modules", ".venv", "venv", ".claude",
 #: (الملفّ، الدالّة) ← لِمَ تكتب ومن يصلها. الدالّةُ `<module>` = كتابةٌ على مستوى الوحدة.
 ALLOWED_WRITERS: dict[tuple[str, str], str] = {
     (
+        "docs/preview_held_alerts_seed.py",
+        "<module>",
+    ): "بذرُ معاينةٍ يدويّ (جلسة 0501 على 8500 فقط، ليس مساراً في التطبيق): غيابٌ موسومٌ بـSEED_TAG يُنشأ لطالبَين ثمّ يُمحى بـdown؛ لا يصل إليه مستخدم",
+    (
         "operations/services/attendance.py",
         "mark_attendance",
     ): "حالةُ الرصد من mark_single؛ المعلّمُ فيه محكومٌ بسياسة can_enter ولا يصل شُعبَ الجناح",

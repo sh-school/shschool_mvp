@@ -103,7 +103,7 @@ def test_the_legal_absence_window_is_not_written_in_dates(db, school):
 
     from operations.services import AttendanceService
 
-    body = inspect.getsource(AttendanceService.check_absence_threshold)
+    body = inspect.getsource(AttendanceService.raise_absence_alerts)
 
     assert "date(2025" not in body and "date(2026" not in body
     assert "academic_year_window" in body

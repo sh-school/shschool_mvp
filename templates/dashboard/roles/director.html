@@ -85,11 +85,9 @@
           <span class="plain-list__title">طلبةٌ تنتظر المتابعة</span>
           <span class="status-badge status-danger">{{ alerts_count }}</span>
         </li>
-        {% if day_follow_url %}
         <li class="plain-list__row">
-          <a href="{{ day_follow_url }}" class="btn-secondary btn-sm">افتح متابعة الحضور</a>
+          <a href="{% url 'student_affairs:attendance_overview' %}" class="btn-secondary btn-sm">افتح متابعة الحضور</a>
         </li>
-        {% endif %}
       </ul>
       {% else %}
       <p class="ui-note">لا تنبيهات معلّقة</p>

@@ -449,6 +449,8 @@ class GuardianContact(models.Model):
 
 class AbsenceAlert(models.Model):
     STATUS = [
+        ("held", "بانتظار الإصدار"),
+        ("issuing", "قيد الإصدار"),
         ("pending", "قيد المراجعة"),
         ("notified", "تم الإبلاغ"),
         ("resolved", "تم الحل"),
