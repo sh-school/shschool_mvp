@@ -374,3 +374,18 @@ def test_the_screen_shows_the_readable_gate_label_not_the_raw_key(client_as, sch
     page = client_as(general).get(reverse("wings:absence_notices")).content.decode()
 
     assert "منتصف الفصل الأول" in page and "s1_midterm" not in page
+
+
+def test_the_preview_seed_refuses_to_run_outside_the_preview_environment(db):
+    """ملاحظة 0104: سكربتُ البذر يُنفَّذ بـmanage.py shell على أيّ قاعدة؛ فأوّلُ سطرٍ يرفض خارج المعاينة (testing ليست معاينة)."""
+    from pathlib import Path
+
+    source = (
+        Path(__file__).resolve().parent.parent / "docs" / "preview_held_alerts_seed.py"
+    ).read_text(encoding="utf-8")
+
+    with pytest.raises(SystemExit) as refused:
+        exec(compile(source, "preview_held_alerts_seed.py", "exec"), {"__name__": "__main__"})  # noqa: S102
+
+    assert "للمعاينة المركزيّة" in str(refused.value)
+    assert AbsenceAlert.objects.count() == 0, "لم يُكتب شيء"

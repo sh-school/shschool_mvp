@@ -19,6 +19,7 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from django.db import transaction
 from django.utils import timezone
 
 from core.models import AuditLog
@@ -165,10 +166,12 @@ def issue(
         return IssueResult("resolved", "صُحّح الغيابُ فلم تعد العتبةُ مستحقّةً — لم يُرسَل إخطار")
 
     # مطالبةٌ ذرّيّة: طلبٌ واحدٌ فقط يمضي
-    claimed = AbsenceAlert.objects.filter(pk=alert.pk, status="held").update(status="issuing")
-    if not claimed:
-        raise IssueRefused("سبقك طلبٌ آخرُ إلى إصدار هذا الإخطار")
-    _audit(user, school, alert, "issuing")
+    # المطالبةُ وسطرُ تدقيقها في معاملةٍ واحدة: لا نافذةَ يرى فيها المصالِحُ «issuing» بلا سطر مطالبةٍ فيعيده وهو قيد الإرسال (ملاحظة 0104 P3)
+    with transaction.atomic():
+        claimed = AbsenceAlert.objects.filter(pk=alert.pk, status="held").update(status="issuing")
+        if not claimed:
+            raise IssueRefused("سبقك طلبٌ آخرُ إلى إصدار هذا الإخطار")
+        _audit(user, school, alert, "issuing")
 
     _crossed, headline, detail, source = absence_notice_text(gate, days)
     try:

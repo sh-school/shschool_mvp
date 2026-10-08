@@ -8,7 +8,7 @@
 
 ما يفعله `up`: لطالبَين من شعبةٍ ذاتِ جناحٍ (ليست ESE) في أوّل مدرسةٍ نشطة، يُنشئ **خمسةَ أيّامِ غيابٍ كاملةً** (حصّةٌ وسمُها `SEED_TAG` في كلّ يوم دراسيّ من بداية العام)
 ثمّ يستدعي `AttendanceService.raise_absence_alerts` فتُنشأ التنبيهاتُ «محجوزةً» كما يفعل المسحُ تماماً (لا إدخالُ صفٍّ مصنوع). ولا يرسل شيئاً لأحد.
-و`down` يمحو ما وسمه فقط (الجلساتُ وحضورُها وتنبيهاتُ طالبَيها)، ولا يمسّ غيرَه.
+و`down` يمحو ما وسمه فقط: الجلساتُ الموسومةُ وحضورُها وتنبيهاتُ طالبَيها **المنشأةُ بعد أوّل جلسةٍ موسومة**؛ ولا يمسّ غيرَه. ويرفض الكلَّ خارج `in_preview_environment()`.
 
 مسارُ الاختبار بالدور بعد `up`:
   1. حسابٌ بدور «كاتب الغياب»: مشرفٌ إداريّ (`admin_supervisor`) مع منحة `wings.school_wide` (يمنحها المديرُ من شاشة المنح)؛ يدخل
@@ -22,6 +22,14 @@ import datetime as dt
 import os
 
 from django.utils import timezone
+
+from core.preview_accounts import in_preview_environment
+
+# حارسٌ أوّلَ سطرٍ ينفَّذ (ملاحظة 0104): يرفض خارجَ المعاينة المركزيّة كائناً ما كانت القاعدة، بما فيها الإنتاجُ وقواعدُ الجلسات.
+if not in_preview_environment():
+    raise SystemExit(
+        "مرفوض: هذا البذرُ للمعاينة المركزيّة وحدَها (in_preview_environment) — لا يُشغَّل على إنتاجٍ ولا قاعدةِ جلسة"
+    )
 
 SEED_TAG = "preview-held-alerts-seed"
 ACTION = os.environ.get("SEED_ACTION", "plan")
@@ -110,13 +118,21 @@ if ACTION == "up":
         print(f"{enrollment.student.full_name}: تنبيهاتٌ محجوزة جديدة = {len(raised)}")
     print(f"تم: {created} جلسةً موسومة. الوقت: {timezone.now():%Y-%m-%d %H:%M}")
 elif ACTION == "down":
+    # نطاقُ المحو الضيّق: تنبيهاتُ طالبَي البذر **المنشأةُ منذ أوّل جلسةٍ موسومة** فقط (لا ما سبقها من تنبيهاتٍ قائمة)، ثمّ الجلساتُ الموسومةُ وحضورُها.
+    first = tagged.order_by("created_at").first()
     ids = set(
         StudentAttendance.objects.filter(session__in=tagged).values_list("student_id", flat=True)
     )
-    AbsenceAlert.objects.filter(school=school, student_id__in=ids).delete()
+    alerts = AbsenceAlert.objects.filter(
+        school=school,
+        student_id__in=ids,
+        created_at__gte=first.created_at if first else timezone.now(),
+    )
+    removed_alerts = alerts.count()
+    alerts.delete()
     removed = tagged.count()
     StudentAttendance.objects.filter(session__in=tagged).delete()
     tagged.delete()
-    print(f"محوٌ: {removed} جلسةً موسومةً وتنبيهاتُ {len(ids)} طالباً.")
+    print(f"محوٌ: {removed} جلسةً موسومةً و{removed_alerts} تنبيهاً أُنشئ بعد البذر لـ{len(ids)} طالباً.")
 else:
     print("الخطّةُ فقط (قراءة). للتنفيذ: SEED_ACTION=up | down")
