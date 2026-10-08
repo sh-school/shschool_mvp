@@ -1,0 +1,254 @@
+"""[ATTENDANCE] تنبيهاتُ الغياب «المحجوزة» وإخطارُ وليّ الأمر بزرّ حاصر الغياب وحدَه (قرارُ المالك D-246م).
+
+الثوابت: التنبيهُ يُنشأ `held` ولا يُرسَل لوليّ الأمر شيءٌ من أيّ مسار (المسحُ ولا المساران القديمان ولا مرسِلُ 07:00 ولا الزرّ اليدويّ)؛
+والإخطارُ يُصدره حاصرُ الغياب (`admin_supervisor` + `wings.school_wide`) بزرّه بعد ح4، مرّةً واحدةً، لمستلمٍ من الروابط المسجَّلة لا من الطلب؛
+والفشلُ يرجع إلى `held` لا `pending`؛ ومن صُحّح غيابُه يُوسَم `resolved` بلا إرسال.
+"""
+
+import datetime as dt
+from datetime import timedelta
+from unittest.mock import patch
+
+import pytest
+from django.core.management import call_command
+from django.urls import reverse
+
+from core.models import TimeBand
+from operations.end_of_day import sweep_absence_gates, would_create
+from operations.models import AbsenceAlert, TimeSlotConfig
+from operations.services import AttendanceService
+from tests.attendance_fixtures import SUNDAY, at
+from tests.test_absence_alerts import _absent, student, subject, year_window  # noqa: F401
+from tests.test_school_wide_absence_supervisor import (  # noqa: F401
+    _staff,
+    general,
+    plain_supervisor,
+    principal,
+)
+from wings import absence_notice_services as absence_notices
+from wings.absence_notice_services import IssueRefused
+
+pytestmark = pytest.mark.django_db
+
+DISPATCH = "notifications.hub.NotificationHub.dispatch_to_parents"
+
+
+@pytest.fixture
+def held(db, school, student):
+    """تنبيهٌ محجوز من أمس (فيجوز إصدارُه في أيّ وقت)."""
+    alert = AbsenceAlert.objects.create(
+        school=school,
+        student=student,
+        absence_count=5,
+        gate="s1_midterm",
+        period_start=dt.date(2025, 9, 1),
+        period_end=dt.date(2026, 6, 30),
+        status="held",
+    )
+    AbsenceAlert.objects.filter(pk=alert.pk).update(created_at=at(8, 0) - timedelta(days=1))
+    alert.refresh_from_db()
+    return alert
+
+
+def _due(days=5):
+    from operations.absence_policy import gates_for
+
+    gate = next(g for g in gates_for("G7") if g.key == "s1_midterm")
+    return patch("wings.absence_notice_services._still_due", return_value=(True, gate, days))
+
+
+# ── المنشأ: محجوز، بلا إرسال ──
+
+
+def test_the_sweep_and_the_old_entry_point_both_create_held_without_any_parent_send(
+    school, class_group, teacher_user, subject, student, year_window
+):
+    start, _ = year_window
+    _absent(school, class_group, teacher_user, subject, student, start, 9)
+    day = start + timedelta(days=8)
+
+    with patch(DISPATCH) as dispatch:
+        sweep_absence_gates(school, day)
+        AttendanceService.check_absence_threshold(student, school, on=day)  # المسارُ القديم
+    statuses = set(AbsenceAlert.objects.filter(student=student).values_list("status", flat=True))
+
+    assert statuses == {"held"}, "كلُّ تنبيهٍ جديدٍ يُنشأ محجوزاً"
+    dispatch.assert_not_called()
+    assert AbsenceAlert.objects.filter(student=student).count() == 3, "get_or_create: لا تكرار"
+
+
+def test_no_path_sends_to_a_parent_from_a_held_alert_except_the_button(school, held, student):
+    """الاختبارُ الإلزاميّ: مرسِلُ 07:00 والزرّ اليدويّ ومهمّةُ الإرسال والمسحُ — كلُّها لا تلتقط المحجوز."""
+    from notifications.services import NotificationService
+    from notifications.tasks import send_pending_absence_alerts_task
+
+    with (
+        patch(DISPATCH) as dispatch,
+        patch.object(NotificationService, "notify_absence", wraps=None) as notify,
+    ):
+        NotificationService.send_pending_absence_alerts(school)  # زرّ الإرسال اليدويّ
+        send_pending_absence_alerts_task()  # مهمّةُ 07:00
+        sweep_absence_gates(school, SUNDAY)  # المسح
+    held.refresh_from_db()
+
+    assert held.status == "held"
+    dispatch.assert_not_called()
+    notify.assert_not_called()
+
+
+# ── الزرّ: الأدوار والتوقيت ──
+
+
+def test_only_the_school_wide_absence_holder_may_issue(
+    school, held, plain_supervisor, teacher_user
+):
+    for user in (plain_supervisor, teacher_user):
+        with pytest.raises(IssueRefused):
+            absence_notices.issue(user, school, held.pk, now=at(15, 0))
+    held.refresh_from_db()
+    assert held.status == "held"
+
+
+def test_a_same_day_alert_waits_for_the_end_of_period_four(
+    school, class_group, student, general, year_window
+):
+    band = TimeBand.objects.create(school=school, code="ground", name="الأرضيّ", floor="ground")
+    TimeSlotConfig.objects.create(
+        school=school,
+        band=band,
+        day_type="regular",
+        period_number=4,
+        start_time=dt.time(9, 0),
+        end_time=dt.time(9, 45),
+    )
+    type(class_group).objects.filter(pk=class_group.pk).update(time_band=band)
+    alert = AbsenceAlert.objects.create(
+        school=school,
+        student=student,
+        absence_count=5,
+        gate="s1_midterm",
+        period_start=dt.date(2025, 9, 1),
+        period_end=dt.date(2026, 6, 30),
+        status="held",
+    )
+    AbsenceAlert.objects.filter(pk=alert.pk).update(created_at=at(8, 0))
+
+    with _due(), patch(DISPATCH) as dispatch:
+        with pytest.raises(IssueRefused):
+            absence_notices.issue(general, school, alert.pk, now=at(9, 30))
+        dispatch.assert_not_called()
+        result = absence_notices.issue(general, school, alert.pk, now=at(9, 46))
+
+    assert result.status == "sent"
+    alert.refresh_from_db()
+    assert alert.status == "notified"
+
+
+# ── الزرّ: التفرّد والفشل والتصحيح ──
+
+
+def test_issuing_twice_sends_once_and_the_second_is_refused(school, held, general):
+    with _due(), patch(DISPATCH) as dispatch:
+        first = absence_notices.issue(general, school, held.pk, now=at(15, 0))
+        with pytest.raises(IssueRefused):
+            absence_notices.issue(general, school, held.pk, now=at(15, 1))
+
+    assert first.status == "sent"
+    assert dispatch.call_count == 1
+
+
+def test_a_lost_race_on_the_claim_is_refused_without_sending(school, held, general):
+    """طلبٌ آخرُ سبق إلى المطالبة الذرّيّة (held→pending) بين القراءة والتحويل."""
+    real_filter = AbsenceAlert.objects.filter
+
+    def racing(*args, **kwargs):
+        queryset = real_filter(*args, **kwargs)
+        if kwargs.get("status") == "held" and "pk" in kwargs:
+            real_filter(pk=kwargs["pk"]).update(status="pending")  # سبقه غيرُه
+        return queryset
+
+    with _due(), patch(DISPATCH) as dispatch, patch.object(AbsenceAlert.objects, "filter", racing):
+        with pytest.raises(IssueRefused):
+            absence_notices.issue(general, school, held.pk, now=at(15, 0))
+
+    dispatch.assert_not_called()
+
+
+def test_a_failed_send_returns_the_alert_to_held_not_pending(school, held, general):
+    with _due(), patch(DISPATCH, side_effect=RuntimeError("boom")):
+        with pytest.raises(IssueRefused):
+            absence_notices.issue(general, school, held.pk, now=at(15, 0))
+    held.refresh_from_db()
+
+    assert held.status == "held", "لا يلتقطه مرسِلُ 07:00 ولا يخرج إخطارٌ بلا كاتب"
+
+
+def test_a_corrected_absence_is_resolved_without_sending(school, held, general):
+    with (
+        patch("wings.absence_notice_services._still_due", return_value=(False, None, 0)),
+        patch(DISPATCH) as dispatch,
+    ):
+        result = absence_notices.issue(general, school, held.pk, now=at(15, 0))
+    held.refresh_from_db()
+
+    assert result.status == "resolved" and held.status == "resolved"
+    dispatch.assert_not_called()
+
+
+def test_the_audit_carries_ids_and_the_gate_but_no_names(school, held, general, student):
+    from core.models import AuditLog
+
+    with _due(), patch(DISPATCH):
+        absence_notices.issue(general, school, held.pk, now=at(15, 0))
+    audit = AuditLog.objects.get(object_id=str(held.pk), object_repr__contains="إخطارُ غياب")
+
+    assert audit.changes["gate"] == "s1_midterm" and audit.changes["action"] == "issued"
+    assert student.full_name not in str(audit.changes)
+
+
+# ── الشاشة ──
+
+
+def test_the_notices_screen_is_404_for_everyone_but_the_holder(
+    client_as, school, held, general, plain_supervisor
+):
+    url = reverse("wings:absence_notices")
+    issue_url = reverse("wings:absence_notice_issue", args=[held.pk])
+
+    assert client_as(plain_supervisor).get(url).status_code == 404
+    assert client_as(plain_supervisor).post(issue_url).status_code == 404
+    page = client_as(general).get(url)
+    assert page.status_code == 200 and "إصدار الإخطار" in page.content.decode()
+
+
+# ── التقرير (قراءةٌ فقط) والهجرة ──
+
+
+def test_the_report_command_reads_only_and_counts_what_the_sweep_would_create(
+    school, class_group, teacher_user, subject, student, year_window, capsys
+):
+    start, _ = year_window
+    _absent(school, class_group, teacher_user, subject, student, start, 9)
+    day = start + timedelta(days=8)
+    before = AbsenceAlert.objects.count()
+
+    expected = would_create(school, day)
+    call_command("absence_alerts_report", school=school.code, day=day.isoformat())
+    out = capsys.readouterr().out
+
+    assert expected == 3 and AbsenceAlert.objects.count() == before, "قراءةٌ لا تكتب"
+    assert "سيُنشئ مسحُ" in out and "معلَّقةٌ سيرسلها 07:00" in out
+    sweep_absence_gates(school, day)
+    assert would_create(school, day) == 0
+
+
+def test_the_held_status_migration_is_a_reversible_choices_only_change(db):
+    from django.db import connection
+    from django.db.migrations.executor import MigrationExecutor
+
+    forward = ("operations", "0074_absence_alert_held_status")
+    back = ("operations", "0073_class_grid_constraints")
+    MigrationExecutor(connection).migrate([back])
+    assert forward not in MigrationExecutor(connection).loader.applied_migrations
+    MigrationExecutor(connection).migrate([forward])
+    assert forward in MigrationExecutor(connection).loader.applied_migrations

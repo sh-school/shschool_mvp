@@ -175,3 +175,16 @@ app.conf.worker_max_memory_per_child = 300_000  # 300MB حد أقصى لكل ع�
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):
     print(f"Request: {self.request!r}")
+
+
+# مسحُ عتبات الغياب بعد نهاية الدوام (قرارُ المالك 2026-10-07): **مُعطَّلٌ افتراضياً** — لا يُجدوَل قبل إعادة نشر خدمة beat بأمر المالك.
+# يُفعَّل بـATTENDANCE_SWEEP_BEAT=1 مع ATTENDANCE_DAY_CLOSE_HOUR/MINUTE (14:30 افتراضاً)، الأحد–الخميس. ينشئ تنبيهاتٍ «محجوزة» ولا يرسل لوليّ الأمر.
+if os.environ.get("ATTENDANCE_SWEEP_BEAT", "") == "1":
+    app.conf.beat_schedule["sweep-absence-gates-after-school"] = {
+        "task": "operations.sweep_absence_gates_after_school",
+        "schedule": crontab(
+            hour=int(os.environ.get("ATTENDANCE_DAY_CLOSE_HOUR", "14")),
+            minute=int(os.environ.get("ATTENDANCE_DAY_CLOSE_MINUTE", "30")),
+            day_of_week="0-4",
+        ),
+    }

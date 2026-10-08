@@ -9,7 +9,6 @@ import logging
 from typing import TYPE_CHECKING
 
 from django.db import transaction
-from django.urls import reverse
 
 from core.academic_calendar import (
     academic_year_window,
@@ -28,6 +27,31 @@ if TYPE_CHECKING:
     from core.models import CustomUser, School
 
 NEWLINE = chr(10)
+
+
+def absence_notice_text(gate, unexcused_days: int) -> tuple[bool, str, str, str]:
+    """نصُّ إنذار العتبة: (تجاوزَ؟، العنوان، التفصيل، المرجع) — واحدٌ للأخصائي وللإخطار الذي يُصدره حاصرُ الغياب."""
+    crossed = unexcused_days > gate.max_days
+    if crossed:
+        headline = f"تجاوز حدّ الغياب لدخول {gate.label}"
+        detail = (
+            f"بلغ غياب ابنكم بدون عذر {unexcused_days} يوماً، "
+            f"والحدّ لدخول {gate.label} هو {gate.max_days} يوماً."
+        )
+    else:
+        remaining = gate.max_days - unexcused_days
+        headline = f"اقتراب من حدّ الغياب لدخول {gate.label}"
+        detail = (
+            f"بلغ غياب ابنكم بدون عذر {unexcused_days} يوماً، "
+            f"ويفصله {remaining} يوماً عن حدّ {gate.max_days} "
+            f"المقرّر لدخول {gate.label}."
+        )
+    # المرجعُ يُسمّى في الرسالة لأنّها تصل بيتاً: وليُّ أمرٍ يقرأ رقماً عن ابنه من حقّه أن يعرف من أين جاء.
+    source = (
+        "المرجع: الدليل التنظيمي لسياسة إدارة سلوك الطلبة 2026 (م 3.4.1.3) — "
+        "وزارة التربية والتعليم والتعليم العالي، قسم حماية ورعاية الطلبة."
+    )
+    return crossed, headline, detail, source
 
 
 class AttendanceService:
@@ -178,6 +202,11 @@ class AttendanceService:
 
     @staticmethod
     def check_absence_threshold(student: CustomUser, school: School, on=None) -> None:
+        """اسمُها القديم لمنادين قدماء (الرصدُ القديم وكشفُ الأجنحة): تُنشئ تنبيهاتٍ «محجوزة» ولا ترسل لوليّ الأمر (D-246م) — انظر `raise_absence_alerts`."""
+        AttendanceService.raise_absence_alerts(student, school, on=on)
+
+    @staticmethod
+    def raise_absence_alerts(student: CustomUser, school: School, on=None) -> list:
         """يُنذر عند اقتراب كلّ عتبةٍ من عتبات الدليل التنظيميّ 2026.
 
         كانت هذه الدالّة تُنذر عند «10٪ من أيام الدراسة» وتنسبها إلى المادة 7
@@ -201,6 +230,9 @@ class AttendanceService:
         بنصّ الدليل.
 
         `on` للاختبار وللمعالجة بأثرٍ رجعيّ — لا يُمرَّر في الاستعمال العاديّ.
+
+        **لا يُرسَل شيءٌ لوليّ الأمر من هنا (قرار المالك D-246م):** يُنشأ التنبيهُ بحالة «محجوز» `held` ويُشعَر الأخصائيُّ الاجتماعيّ داخلياً فقط؛
+        والإخطارُ يُصدره حاصرُ الغياب بزرّ «إصدار الإخطار» بعد ح4 (`wings.absence_notice_services`). يعيد التنبيهاتِ المُنشأةَ الآن.
         """
         from core.models import StudentEnrollment
         from operations.absence_policy import gates_for
@@ -216,15 +248,15 @@ class AttendanceService:
             # كي يُرى.
             if enrollment is None:
                 logger.warning(
-                    "check_absence_threshold: لا تسجيل نشط للطالب %s — لا إنذار غياب",
+                    "raise_absence_alerts: لا تسجيل نشط للطالب %s — لا إنذار غياب",
                     student.pk,
                 )
-            return
+            return []
 
         standing = standing_for(student, school, grade=grade, on=on)
         window = academic_year_window(school, on)
         if window is None:
-            return
+            return []
         year_start, year_end = window
 
         margin = AttendanceService.GATE_WARNING_MARGIN_DAYS
@@ -235,6 +267,7 @@ class AttendanceService:
             or gate.max_days - standing.unexcused_days <= margin
         ]
 
+        created_alerts: list = []
         for gate in due:
             _alert, created = AbsenceAlert.objects.get_or_create(
                 school=school,
@@ -242,52 +275,13 @@ class AttendanceService:
                 gate=gate.key,
                 period_start=year_start,
                 period_end=year_end,
-                defaults={"absence_count": standing.unexcused_days, "status": "pending"},
+                defaults={"absence_count": standing.unexcused_days, "status": "held"},
             )
             if not created:
                 continue
+            created_alerts.append(_alert)
 
-            crossed = standing.unexcused_days > gate.max_days
-            if crossed:
-                headline = f"تجاوز حدّ الغياب لدخول {gate.label}"
-                detail = (
-                    f"بلغ غياب ابنكم بدون عذر {standing.unexcused_days} يوماً، "
-                    f"والحدّ لدخول {gate.label} هو {gate.max_days} يوماً."
-                )
-            else:
-                remaining = gate.max_days - standing.unexcused_days
-                headline = f"اقتراب من حدّ الغياب لدخول {gate.label}"
-                detail = (
-                    f"بلغ غياب ابنكم بدون عذر {standing.unexcused_days} يوماً، "
-                    f"ويفصله {remaining} يوماً عن حدّ {gate.max_days} "
-                    f"المقرّر لدخول {gate.label}."
-                )
-            # المرجعُ يُسمّى في الرسالة لأنّها تصل بيتاً: وليُّ أمرٍ يقرأ رقماً
-            # عن ابنه من حقّه أن يعرف من أين جاء.
-            source = (
-                "المرجع: الدليل التنظيمي لسياسة إدارة سلوك الطلبة 2026 (م 3.4.1.3) — "
-                "وزارة التربية والتعليم والتعليم العالي، قسم حماية ورعاية الطلبة."
-            )
-
-            try:
-                from notifications.hub import NotificationHub
-
-                NotificationHub.dispatch_to_parents(
-                    event_type="absence",
-                    school=school,
-                    student=student,
-                    title=f"⚠️ {headline} — {student.full_name}",
-                    body=NEWLINE.join([detail, source, "يُرجى التواصل مع المدرسة."]),
-                    context={"student": student, "absence_count": standing.unexcused_days},
-                    related_url=reverse("student_affairs:student_profile", args=[student.pk]),
-                )
-            except Exception as exc:
-                logger.warning(
-                    "check_absence_threshold: Hub dispatch failed [student=%s gate=%s]: %s",
-                    student.pk,
-                    gate.key,
-                    exc,
-                )
+            crossed, headline, detail, source = absence_notice_text(gate, standing.unexcused_days)
 
             try:
                 from core.models import Membership
@@ -310,10 +304,11 @@ class AttendanceService:
                     )
             except Exception as exc:
                 logger.warning(
-                    "check_absence_threshold: social worker notify failed [student=%s]: %s",
+                    "raise_absence_alerts: social worker notify failed [student=%s]: %s",
                     student.pk,
                     exc,
                 )
+        return created_alerts
 
     @staticmethod
     def get_session_summary(session: Session) -> dict:
