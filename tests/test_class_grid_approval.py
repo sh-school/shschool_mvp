@@ -286,3 +286,25 @@ def test_the_end_of_day_sweep_checks_the_gates_of_todays_absentees(
     assert sweep_absence_gates(school, day) == 1
     assert seen == [(kids[0].pk, day)]
     assert sweep_absence_gates(school, day + dt.timedelta(days=1)) == 0
+
+
+def test_the_settle_command_counts_by_default_and_writes_only_with_apply(
+    settings, school, assigned, teacher, kids, clock, capsys
+):
+    from django.core.management import call_command
+    from django.core.management.base import CommandError
+
+    _write(teacher, school, assigned, kids)  # معلَّقٌ: المفتاحُ فارغ
+    settings.ATTENDANCE_GRID_DIRECT_WINGS = assigned.wing.code
+
+    call_command("settle_direct_entries")
+    assert "سيُسوّى 1" in capsys.readouterr().out and not AttendanceDecision.objects.exists()
+    call_command("settle_direct_entries", "--count")
+    assert not AttendanceDecision.objects.exists(), "العدُّ لا يكتب"
+    with pytest.raises(CommandError):
+        call_command("settle_direct_entries", "--count", "--apply")
+
+    call_command("settle_direct_entries", "--apply")
+    assert "سُوِّي 1" in capsys.readouterr().out
+    assert AttendanceDecision.objects.get().basis == "direct_entry"
+    assert StudentAttendance.objects.get(student=kids[0]).status == "absent"
