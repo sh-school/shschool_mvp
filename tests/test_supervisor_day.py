@@ -113,14 +113,17 @@ def test_a_substitute_sees_the_wing_only_while_the_coverage_is_live(
     assert client_as(substitute).get(URL).status_code == 403
 
 
-def test_the_home_page_shows_the_wing_table_without_student_names(
+def test_the_home_page_shows_each_sections_schedule_state_on_its_chip_without_a_table(
     client_as, school, klass, kid, teacher, holder, bells, wing, _today
 ):
+    """W-20261008-007 (قياسُ 2026-10-08): حالةُ جدول الشعبة في رقاقتها لا في جدولٍ مكرَّر يطيل الصفحةَ 343px؛ وبلا أسماء طلبة."""
     _day_of(school, klass, teacher, kid)
 
     page = client_as(holder).get("/dashboard/").content.decode()
 
-    assert "غياب جناحي اليوم" in page and "شعبُ جناحي اليوم" in page
-    assert klass.short_code in page
+    assert "غياب جناحي اليوم" in page and "شعبُ جناحي اليوم" not in page
+    assert f'data-key="section.{klass.id}.state_label"' in page
+    assert f'data-key="section.{klass.id}.recorded"' in page
+    assert "<table" not in page.split("غياب جناحي اليوم")[1].split("ui-actions")[0]
     assert kid.full_name not in page
     assert "data-director-live" in page

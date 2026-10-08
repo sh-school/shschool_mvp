@@ -34,4 +34,6 @@ def supervisor_day_section(user: Any, school: Any, today: dt.date) -> dict[str, 
         "sup_day": payload,
         "sup_final": payload["phase"] == "final",
         "sup_open": payload["phase"] != "closed",
+        # حالةُ كلّ شعبةٍ بمعرّفها: تقرؤها رقاقةُ الشعبة في لوح الجناح (`record_panel.html`) فلا جدولَ مكرَّراً (D-16: مصدرٌ واحدٌ للشعبة).
+        "sup_sections": {row["id"]: row for row in payload["sections"]},
     }

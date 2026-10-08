@@ -1,7 +1,8 @@
 {% load ui icons navigation %}
 {% comment %}
 غيابُ جناحي اليوم (W-20261008-00x، D-249م القسم 8): الملخّصُ المخزَّنُ للمدرسة مقتطَعاً لأجنحتي وحدَها — أرقامٌ بلا أسماءِ طلبة، وبالمُجمِّع نفسِه الذي تقرؤه لوحةُ المدير.
-حالةُ جدول الشعبة: لم يُبدأ (لا تسجيلَ لأيّ خانة) · حُفظ جزئياً (خانةٌ منتهيةٌ بلا تسجيل) · مكتمل؛ والشعبةُ ذاتُ الفجوة تُميَّز بشارةٍ وعلامة.
+حالةُ جدول كلّ شعبة (لم يُبدأ · حُفظ جزئياً · مكتمل) وحصصُها المسجَّلة n/m تُعرض **في رقاقة الشعبة** في لوح الجناح (`wings/partials/record_panel.html`) — مصدرٌ واحدٌ للشعبة بدل
+جدولٍ مكرَّر (D-16: لا ارتفاعَ مهدراً؛ قياسُ 2026-10-08: الجدولُ كان 343px من صفحةٍ تُمرَّر 388px على 1366×768).
 لا زرَّ اعتمادٍ هنا ولا «تصحيحاتي اليوم» (ينتظران W-20261006-006 عند 0405). والتحديثُ حيٌّ لأجنحتي وحدَها (`wings:supervisor_live`).
 {% endcomment %}
 {% if sup_open %}
@@ -16,43 +17,12 @@
       {% kpi "لم يُحسم" sup_day.school.incomplete sub="رصدُ شعبته ناقص" tone="orange" key="school.incomplete" %}
       {% kpi "شعب سُجّلت حصصها" sup_day.school.sections_registered sub="من " tone="maroon" title="من أصل شعب جناحي ذاتِ الحصص" key="school.sections_registered" %}
       {% kpi "خارج الفصل بإذن" sup_day.school.away_permitted sub="عيادةٌ أو نشاط" tone="amber" title="محسوبون غائبين حتى اعتماد القرار" key="school.away_permitted" %}
-      {% kpi "خرجوا من الفصل" sup_day.exits.students sub="مجموعُ دقائقهم" tone="purple" key="exits.students" %}
       {% if request.user|can_open:"student_affairs:attendance_overview" %}{% url 'student_affairs:attendance_overview' as gates_url %}{% kpi "عند العتبات" gates_count sub="رابطُ متابعة الحضور" tone="orange" href=gates_url title="من بلغ عتبةً أو بقي له يومٌ — عددٌ لا أسماء؛ والإخطارُ عند كاتب الغياب" %}{% else %}{% kpi "عند العتبات" gates_count sub="عددٌ لا أسماء" tone="orange" %}{% endif %}
+      {% if absent_teachers_today is not None %}{% kpi "معلّمون غائبون" absent_teachers_today tone=teachers_tone href=teachers_url %}{% endif %}
     {% endkpi_strip %}
-    <p class="ui-note">الزمنُ خارج الفصل لجناحي: {{ sup_day.exits.count }} مرّة · {{ sup_day.exits.minutes }} دقيقة.</p>
+    <p class="ui-note">خرجوا من الفصل في جناحي: <span data-key="exits.students">{{ sup_day.exits.students }}</span> طالباً · {{ sup_day.exits.count }} مرّة · {{ sup_day.exits.minutes }} دقيقة.</p>
     <p class="ui-note" data-live-note role="status" aria-live="polite" hidden></p>
-    {% callout "hint" %}الطالبُ يُعدّ مرّةً واحدة بحكم سياسة الغياب نفسِه. «لم يُبدأ» لا خانةَ مسجَّلةً في الشعبة، و«حُفظ جزئياً» خانةٌ منتهيةٌ بلا تسجيل. عدّادُ العتبات أرقامٌ فقط — الإخطارُ عند كاتب الغياب.{% endcallout %}
+    {% callout "hint" %}الطالبُ يُعدّ مرّةً واحدة بحكم سياسة الغياب نفسِه. حالةُ جدول كلِّ شعبةٍ في رقاقتها أدناه: «لم يُبدأ» لا خانةَ مسجَّلةً، و«حُفظ جزئياً» خانةٌ منتهيةٌ بلا تسجيل. عدّادُ العتبات أرقامٌ فقط — الإخطارُ عند كاتب الغياب.{% endcallout %}
   {% endsection_card %}
-
-  {% section_card "شعبُ جناحي اليوم" meta=sup_day.sections|length icon="students" flush=True empty="لا شعبَ بحصص اليوم في جناحي" %}{% if sup_day.sections %}
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">الشعبة</th>
-            <th scope="col" class="col-center">حالة الجدول</th>
-            <th scope="col" class="col-center">حصصٌ مسجَّلة</th>
-            <th scope="col" class="col-center">{% if sup_final %}غائبون بلا عذر{% else %}غائبون عن ح1 وح2{% endif %}</th>
-            <th scope="col" class="col-center">خارج الفصل بإذن</th>
-            <th scope="col" class="col-center">دقائق خارج الفصل</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for section in sup_day.sections %}
-          <tr>
-            <th scope="row">{{ section.code }}</th>
-            <td class="col-center">
-              <span class="status-badge {% if section.state == 'complete' %}status-success{% elif section.state == 'partial' %}status-warning{% elif section.gap %}status-danger{% else %}status-gray{% endif %}" data-key="section.{{ section.id }}.state_label">{{ section.state_label }}</span>{% if section.gap %} <span class="sr-only">فجوة</span>{% endif %}
-            </td>
-            <td class="col-center" data-key="section.{{ section.id }}.recorded">{{ section.recorded }}</td>
-            <td class="col-center" data-key="section.{{ section.id }}.{% if sup_final %}absent_unexcused{% else %}early_absent{% endif %}">{% if sup_final %}{{ section.absent_unexcused }}{% else %}{{ section.early_absent }}{% endif %}</td>
-            <td class="col-center" data-key="section.{{ section.id }}.away_permitted">{{ section.away_permitted }}</td>
-            <td class="col-center" data-key="section.{{ section.id }}.exit_minutes">{{ section.exit_minutes }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% endif %}{% endsection_card %}
 </div>
 {% endif %}
