@@ -354,3 +354,19 @@ def test_real_solver_records_seed_workers_and_status_text():
     model2.Add(y >= 2)
     bad = runner.solve(SimpleNamespace(model=model2, extract=lambda s: []), CONFIG)
     assert bad.status == "INFEASIBLE" and bad.slots == []
+
+
+def test_extract_slots_reads_the_core_x_contract():
+    """عقدُ v2-core: x[(فهرسُ الصفّ، يوم، حصّة)] متغيّرٌ ثنائيّ؛ ما قيمته 1 يصير صفّاً بالمعرّفات."""
+    demand = [DemandRow("C1", "S1", "T1", "", 2), DemandRow("C2", "S2", "T2", "", 1)]
+    built = SimpleNamespace(
+        inputs=CpSatInputs(demand=demand),
+        x={(0, 0, 1): "a", (0, 0, 2): "b", (1, 3, 4): "c", (1, 3, 5): "d"},
+    )
+    solver = SimpleNamespace(Value=lambda var: 1 if var in ("a", "b", "c") else 0)
+
+    assert runner.extract_slots(built, solver) == [
+        ("C1", "S1", "T1", 0, 1),
+        ("C1", "S1", "T1", 0, 2),
+        ("C2", "S2", "T2", 3, 4),
+    ]

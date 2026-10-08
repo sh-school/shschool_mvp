@@ -6,7 +6,7 @@
 
 العقدُ مع الجلستين الأخريين (Protocol مؤقّت إلى أن تظهر ملفّاتهما):
   · `operations.scheduler_v2.model.build_model(inputs: CpSatInputs) -> BuiltModel`
-  · `BuiltModel.model` (`cp_model.CpModel`) و`BuiltModel.extract(solver) -> Iterable[(شعبة، مادّة، معلّم، يوم، حصّة)]`
+  · `BuiltModel.model` و`BuiltModel.inputs` و`BuiltModel.x[(فهرسُ الصفّ، يوم، حصّة)]` (ثُبّت في 94ea34d7)
   · `operations.scheduler_v2.objective.add_objective(built, inputs) -> None` (اختياريّ: غيابُه يُسجَّل بلا هدف)
 """
 
@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import time
 import zlib
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from importlib import import_module
@@ -43,8 +43,8 @@ SlotRow = tuple[str, str, str, int, int]
 
 class BuiltModel(Protocol):
     model: Any
-
-    def extract(self, solver: Any) -> Iterable[SlotRow]: ...
+    inputs: CpSatInputs
+    x: dict
 
 
 ModelBuilder = Callable[[CpSatInputs], BuiltModel]
@@ -136,6 +136,23 @@ def _status_name(cp_model: Any, code: int) -> str:
     return names.get(code, "UNKNOWN")
 
 
+def extract_slots(built: Any, solver: Any) -> list[SlotRow]:
+    """صفوفُ (شعبة، مادّة، معلّم، يوم، حصّة) من `built.x[(فهرسُ الصفّ، يوم، حصّة)]` (عقدُ v2-core).
+
+    ويبقى `built.extract` مقدَّماً إن وُجد (للمزيَّفات). المفتاحُ يُحلّ إلى `built.inputs.demand[فهرس]`.
+    """
+    custom = getattr(built, "extract", None)
+    if custom is not None:
+        return [tuple(row) for row in custom(solver)]  # type: ignore[misc]
+    demand = built.inputs.demand
+    rows = []
+    for (index, day, period), var in sorted(built.x.items()):
+        if solver.Value(var):
+            row = demand[index]
+            rows.append((row.cls, row.subj, row.teacher, day, period))
+    return rows
+
+
 def solve(built: BuiltModel, config: SolverConfig) -> SolveReport:
     """يحلّ بإعدادٍ مثبَّت: بذرةٌ، عمّالٌ، سقفُ زمنٍ جداريّ. ويسجّل الحالةَ نصّاً (ADR §3.4/§3.5)."""
     from ortools.sat.python import cp_model
@@ -154,7 +171,7 @@ def solve(built: BuiltModel, config: SolverConfig) -> SolveReport:
     slots: list[SlotRow] = []
     objective = None
     if status in ("OPTIMAL", "FEASIBLE"):
-        slots = [tuple(row) for row in built.extract(solver)]  # type: ignore[misc]
+        slots = extract_slots(built, solver)
         objective = solver.ObjectiveValue()
     return SolveReport(
         status=status,
