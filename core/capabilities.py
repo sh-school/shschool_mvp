@@ -152,7 +152,7 @@ def registry() -> dict[str, Capability]:
         _cap(
             "students.import_export",
             "استيرادُ الطلبة وتصديرُهم",
-            {"principal", "vice_admin", "vice_academic", "admin", "student_affairs_coordinator"},
+            {"principal", "vice_admin", "vice_academic", "admin"},
         ),
         _cap(
             "student_info.read",
@@ -393,8 +393,14 @@ def registry() -> dict[str, Capability]:
         # ── العيادة والمكتبة والنقل ─────────────────────────────────
         _cap(
             "clinic.access",
-            "وحدةُ العيادة",
+            "وحدةُ العيادة (قراءة)",
             {"nurse", "principal", "vice_admin", "student_affairs_coordinator"},
+        ),
+        _cap(
+            "clinic.write",
+            "تعديلُ السجلّ الصحّيّ وتسجيلُ الزيارات",
+            {"nurse", "principal", "vice_admin"},
+            basis="بيانات صحّيّة لقاصرين: الكتابةُ سريريّةٌ — حكم 0104 على W-20261001-020 (المنسّقُ قراءةً فقط)",
         ),
         _cap("library.view", "المكتبةُ والكتب", P.LIBRARY_VIEW | P.LIBRARY_FULL),
         _cap("library.lend", "الإعارةُ والإرجاع", {"librarian", "principal", "vice_admin"}),

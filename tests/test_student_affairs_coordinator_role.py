@@ -166,7 +166,6 @@ STUDENT_AFFAIRS_MENU = (
     "behavior:committee",
     "clinic:dashboard",
     "transport:dashboard",
-    "student_import_export",
 )
 
 #: ما يبقى خارج الدور: الأنشطةُ، وتقاريرُ المعلّمين، والأكاديميُّ والموظّفون، والجودةُ والمكتبةُ والماليّةُ، وإدارةُ المستخدمين والنظام.
@@ -180,6 +179,8 @@ OUTSIDE_THE_ROLE = (
     "staff_affairs:dashboard",
     "permission_audit_log",
     "breach:dashboard",
+    "clinic:record_visit",  # العيادةُ للمنسّق قراءةً فقط (حكم 0104)
+    "student_import_export",  # يكتب الحساباتِ ويصدّر الرقمَ الشخصيّ كاملاً: قرارُ المالك
 )
 
 
@@ -199,3 +200,24 @@ class TestTheWholeStudentAffairsMenu:
         """`daily_report` انتقل إلى قدرته؛ وكلُّ من كان يفتحه يبقى يفتحه."""
         for role in ("principal", "vice_admin", "vice_academic", "coordinator", "admin_supervisor"):
             assert has_capability(_user_with(school, role), "operations.daily_absence"), role
+
+
+class TestClinicIsReadOnlyForTheCoordinator:
+    """حكم 0104: بياناتٌ صحّيّةٌ لقاصرين — المنسّقُ يطّلع ولا يكتب ولا يُنشئ سجلاًّ بفتح الصفحة."""
+
+    def test_capabilities(self, student_affairs_coordinator_user):
+        assert has_capability(student_affairs_coordinator_user, "clinic.access")
+        assert not has_capability(student_affairs_coordinator_user, "clinic.write")
+
+    def test_reading_does_not_create_a_record_and_posting_is_refused(
+        self, client, student_affairs_coordinator_user, student_user
+    ):
+        from clinic.models import HealthRecord
+
+        client.force_login(student_affairs_coordinator_user)
+        url = reverse("clinic:health_record", args=[student_user.id])
+        assert client.get(url).status_code == 200
+        assert not HealthRecord.objects.filter(student=student_user).exists()
+        assert client.post(url, {"allergies": "x"}).status_code == 403
+        assert not HealthRecord.objects.filter(student=student_user).exists()
+        assert client.get(reverse("clinic:record_visit")).status_code == 403

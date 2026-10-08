@@ -13,7 +13,9 @@
   {# ── ترويسةُ الصفحة: الطالبُ ورقمُه المستور في السطر الوصفيّ ── #}
   {% with masked=student.national_id|mask_id %}
   {% page_header "السجل الصحي" subtitle=student.full_name|add:" · "|add:masked icon="clinic" %}
+    {% if can_write %}
     <a href="{% url 'clinic:record_visit_student' student.id %}" class="btn-primary btn-sm no-underline">+ تسجيل زيارة جديدة</a>
+    {% endif %}
     <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
   {% endpage_header %}
   {% endwith %}
@@ -34,9 +36,13 @@
             {% field "emergency_contact_phone" "هاتف الطوارئ" type="tel" inputmode="tel" value=health_record.emergency_contact_phone placeholder="+974XXXXXXXX" %}
           </div>
           {% callout "warning" %}بياناتٌ صحّيّةٌ ذاتُ طبيعةٍ خاصّة، وكلُّ اطّلاعٍ عليها وتعديلٍ فيها يُسجَّل باسمك في سجلّ المراجعة.{% endcallout %}
+          {% if can_write %}
           <button type="submit" class="btn-danger mt-4 w-full py-2 text-sm font-bold">
             {% icon "save" %} حفظ السجل الصحي
           </button>
+          {% else %}
+          {% callout "info" %}اطّلاعٌ فقط: التعديلُ للتمريض والإدارة.{% endcallout %}
+          {% endif %}
         </form>
 
         {% if health_record.updated_at %}
