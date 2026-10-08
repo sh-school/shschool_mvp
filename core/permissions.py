@@ -171,6 +171,7 @@ ASSESSMENT_VIEW_SELF = {"student"}
 
 # ── السلوك والانضباط ────────────────────────────────────────────
 BEHAVIOR_RECORD = {
+    "student_affairs_coordinator",  # «تسجيل المخالفة» من قائمة إدارة سلوك الطلبة (D-273م)
     "teacher",
     "ese_teacher",
     "coordinator",
@@ -409,6 +410,9 @@ BEHAVIOR_SUMMON = frozenset(
 OPERATIONS_REPORTS = frozenset(
     {"principal", "vice_academic", "vice_admin", "coordinator", "admin_supervisor", "admin"}
 )
+#: «غيابُ اليوم» (تقريرُ غياب الطلبة اليوميّ) وحدَه: حاملو `OPERATIONS_REPORTS` ومنسّقُ شؤون الطلبة (D-273م) —
+#: دون تقارير غياب المعلّمين والبدلاء وعبء المعلّم التي تبقى على `OPERATIONS_REPORTS`.
+DAILY_STUDENT_ABSENCE_REPORT = OPERATIONS_REPORTS | frozenset({"student_affairs_coordinator"})
 #: تسجيلُ غياب معلّمٍ وتعيينُ بديله — فعلٌ لا تقرير. مشرفُ الجناح يرى
 #: `OPERATIONS_REPORTS` أعلاه ولا يكتب هنا (قرارُ المستخدم 2026-09-17:
 #: «البدلاء مشاهدة فقط»).
@@ -462,7 +466,9 @@ STAFF_AFFAIRS_MANAGE = frozenset(
 #: بوّابةُ وليّ الأمر، ومن يدخلها من الإدارة.
 PARENT_PORTAL = frozenset({"parent", "principal", "vice_admin", "vice_academic", "admin"})
 #: إدارةُ ربط أولياء الأمور.
-PARENT_PORTAL_ADMIN = frozenset({"principal", "admin"})
+#: ومنسّقُ شؤون الطلبة منهم: «ربطُ أولياء الأمور بالطلاب» بندٌ في قائمة «إدارة شؤون الطلاب» التي أسندها المالك
+#: كاملةً (D-273م).
+PARENT_PORTAL_ADMIN = frozenset({"principal", "admin", "student_affairs_coordinator"})
 #: وحدةُ الجودة كلُّها — عرضاً وإدارة.
 QUALITY_ACCESS = frozenset(QUALITY_MANAGE | QUALITY_VIEW | {"ese_teacher"})
 #: من يدرّس ويرى تقريرَ السلوك الإحصائيّ لطلبته.

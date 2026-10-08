@@ -417,6 +417,12 @@ def registry() -> dict[str, Capability]:
         ),
         _cap("operations.reports", "تقاريرُ الجدول والحضور", P.OPERATIONS_REPORTS),
         _cap(
+            "operations.daily_absence",
+            "غيابُ اليوم (تقريرُ غياب الطلبة اليوميّ)",
+            P.DAILY_STUDENT_ABSENCE_REPORT,
+            basis="قرارُ المالك D-273م: إدارةُ شؤون الطلاب كاملةً لمنسّق شؤون الطلبة، دون تقارير المعلّمين",
+        ),
+        _cap(
             "operations.substitutes_manage",
             "تسجيلُ غياب معلّمٍ وتعيينُ بديله",
             P.OPERATIONS_SUBSTITUTES_MANAGE,
@@ -556,7 +562,14 @@ def registry() -> dict[str, Capability]:
         _cap(
             "wings.floors",
             "شاشةُ الأجنحة والطوابق",
-            {"principal", "vice_admin", "vice_academic", "admin_supervisor", "platform_developer"},
+            {
+                "principal",
+                "vice_admin",
+                "vice_academic",
+                "admin_supervisor",
+                "platform_developer",
+                "student_affairs_coordinator",  # بندٌ في قائمة إدارة شؤون الطلاب (D-273م)
+            },
         ),
         _cap("wings.assign_cover", "تكليفُ بديلٍ لجناح", WingCoverage.ASSIGNER_ROLES),
         _cap(

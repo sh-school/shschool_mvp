@@ -144,3 +144,48 @@ class TestTheRoleHasAWayIn:
         html = client.get(reverse("student_affairs:dashboard")).content.decode()
 
         assert reverse("student_affairs:activity_add") not in html
+
+
+#: بنودُ قائمة «إدارة شؤون الطلاب» التي أسندها المالكُ كاملةً (D-273م): الاسمُ ← قدرتُه.
+STUDENT_AFFAIRS_MENU = (
+    "student_affairs:dashboard",
+    "student_affairs:student_list",
+    "student_affairs:student_add",
+    "manage_parent_links",
+    "student_affairs:transfer_list",
+    "wings:record_index",
+    "student_affairs:attendance_overview",
+    "student_affairs:student_movements",
+    "daily_report",
+    "wings:floors",
+    "student_affairs:behavior_overview",
+    "student_affairs:tardiness_list",
+    "behavior:report_infraction",
+)
+
+#: ما يبقى خارج الدور: الأنشطةُ، وتكليفُ البدلاء، وتقاريرُ المعلّمين، وإدارةُ المستخدمين والنظام.
+OUTSIDE_THE_ROLE = (
+    "student_affairs:activity_list",
+    "wings:coverage",
+    "absence_list",
+    "substitute_report",
+    "teacher_load_report",
+)
+
+
+@pytest.mark.django_db
+class TestTheWholeStudentAffairsMenu:
+    @pytest.mark.parametrize("url_name", STUDENT_AFFAIRS_MENU)
+    def test_every_menu_item_opens_for_it(self, student_affairs_coordinator_user, url_name):
+        assert can_open(student_affairs_coordinator_user, url_name), url_name
+
+    @pytest.mark.parametrize("url_name", OUTSIDE_THE_ROLE)
+    def test_what_stays_outside_the_role_stays_closed(
+        self, student_affairs_coordinator_user, url_name
+    ):
+        assert not can_open(student_affairs_coordinator_user, url_name), url_name
+
+    def test_the_daily_absence_report_did_not_widen_the_teacher_reports(self, school):
+        """`daily_report` انتقل إلى قدرته؛ وكلُّ من كان يفتحه يبقى يفتحه."""
+        for role in ("principal", "vice_admin", "vice_academic", "coordinator", "admin_supervisor"):
+            assert has_capability(_user_with(school, role), "operations.daily_absence"), role
