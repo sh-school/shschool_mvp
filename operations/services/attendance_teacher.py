@@ -12,9 +12,11 @@ from uuid import UUID
 
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from core.models import CustomUser
 from operations.attendance_entries import (
+    EntryError,
     EntryRefusedError,
     correct_without_observation,
     decide_entry,
@@ -27,14 +29,24 @@ from operations.attendance_selectors import (
     QueueItem,
     StudentLine,
     UnapprovedSession,
+    approval_groups,
     approval_queue,
     recent_corrections,
+    self_approval_counts,
     student_line,
     student_lines,
     teacher_page_context,
     unapproved_by_session,
 )
 from operations.models import AttendanceDecision, AttendanceEntry, Session
+from operations.teacher_period_sheet import (
+    EnterResult,
+    enter_period_marks,
+    late_minutes,
+    next_session_of,
+    parse_marks,
+    teacher_sheet_context,
+)
 
 if TYPE_CHECKING:
     from core.models import School
@@ -89,21 +101,48 @@ class TeacherAttendanceService:
         status: str,
         minutes: str | None,
         reason: str,
+        tapped_at: str | None = None,
     ) -> tuple[Session, StudentLine]:
         """إدخالُ المعلّم الفعليّ لطالبٍ في حصّته. الحصّةُ بنطاق المدرسة والطالبُ من شعبتها وإلّا 404؛ والمنعُ يرفعه الإدخالُ."""
         session = get_object_or_404(
             Session.objects.select_related("class_group__wing"), id=session_id, school=school
         )
         student = _student_of(session, student_id)
+        typed = parse_minutes(minutes)
+        if status == "late" and typed is None:  # متأخّرٌ بلا رقمٍ مكتوب: من لحظة ضغطه وبدء الحصّة آلياً
+            typed = late_minutes(session, {"tapped_at": tapped_at or ""}, timezone.now())
         submit_entry(
             user,
             session,
             student,
             status,
-            tardiness_minutes=parse_minutes(minutes),
+            tardiness_minutes=typed,
             correction_reason=reason,
         )
         return session, student_line(session, student)
+
+    @staticmethod
+    def sheet(user: CustomUser, session: Session) -> dict[str, Any]:
+        """سياقُ كشف المعلّم المشترك مع كشف المشرف (`attendance/period_sheet.html`)."""
+        return teacher_sheet_context(user, session)
+
+    @staticmethod
+    def enter_marks(
+        user: CustomUser, school: School, session_id: UUID, post: Any
+    ) -> tuple[Session, EnterResult, Session | None]:
+        """«ثبّتِ الحصّة» من الكشف المشترك: إدخالاتٌ مبدئيّةٌ لكلّ ما اختاره المعلّمُ (والخروجُ `ClassExit`) — يعيد التاليةَ لـ«ثبّت وانتقل»."""
+        session = get_object_or_404(
+            Session.objects.select_related("class_group__wing"), id=session_id, school=school
+        )
+        students = {
+            s.id: s
+            for s in CustomUser.objects.filter(
+                enrollments__class_group=session.class_group, enrollments__is_active=True
+            ).distinct()
+        }
+        result = enter_period_marks(user, session, students, parse_marks(post))
+        following = next_session_of(session) if post.get("next") else None
+        return session, result, following
 
     @staticmethod
     def decide(
@@ -119,6 +158,62 @@ class TeacherAttendanceService:
     @staticmethod
     def queue(user: CustomUser, school: School) -> list[QueueItem]:
         return approval_queue(user, school)
+
+    @staticmethod
+    def approval_groups(user: CustomUser, school: School) -> list[Any]:
+        """الطابورُ مجموعاً بالحصّة — بطاقةٌ لكلّ حصّةٍ لا لكلّ طالب."""
+        return approval_groups(user, school)
+
+    @staticmethod
+    def approve_session(
+        user: CustomUser,
+        school: School,
+        session_id: UUID,
+        *,
+        defaults_only: bool = False,
+        with_defaults: bool = False,
+    ) -> tuple[int, int]:
+        """يعتمد كلَّ ما ينتظر هذا المستخدمَ في **حصّةٍ واحدة** ويُرجع `(اعتُمد، تُخطّي)`.
+
+        كلُّ إدخالٍ بقراره المسجَّل باسمه عبر `decide_entry` نفسِه كالاعتماد الجماعيّ (الأهليّةُ والقفلُ والتدقيق)؛ وما اصطدم
+        يُتخطّى ويبقى في الطابور. والرفضُ لا يكون جماعيّاً أبداً — يلزمه سببٌ لكلّ إدخال.
+
+        **«الحاضرُ الافتراضيّ» لا يدخل اعتمادَ الحصّة** (D-240م): خلايا فارغةٌ كتبها الحفظُ ولم يرصدها أحدٌ، فلها إجراءٌ منفصلٌ (`defaults_only`).
+        و`with_defaults` يضمّه إلى الاعتماد — لزرّ اعتماد العمود في الجدول (قرارُ المالك 2026-10-07: «الافتراضيّ حاضرٌ» يُعتمد مع الحصّة).
+        """
+        approved = skipped = 0
+        for item in approval_queue(user, school):
+            if item.entry.session_id != session_id:
+                continue
+            if not with_defaults and (item.entry.origin == "grid_default") != defaults_only:
+                continue
+            try:
+                _decision, created = decide_entry(user, item.entry, approve=True)
+            except (EntryError, EntryRefusedError):
+                skipped += 1
+                continue
+            approved += 1 if created else 0
+        return approved, skipped
+
+    @staticmethod
+    def pending_defaults(user: CustomUser, school: School, session_id: UUID) -> int:
+        """كم «حاضراً افتراضيّاً» ينتظر قرارَ هذا المستخدم في هذه الحصّة (للتأكيد بالعدد)."""
+        return sum(
+            1
+            for item in approval_queue(user, school)
+            if item.entry.session_id == session_id and item.entry.origin == "grid_default"
+        )
+
+    @staticmethod
+    def self_approval_summary(user: CustomUser, school: School) -> dict[str, Any] | None:
+        """ملخّصُ القيادة اليوميّ: ما اعتمده كلُّ حاملٍ ذاتيّاً (أعدادٌ بلا أسماء) وتنبيهٌ إن تجاوز عتبةَ المدرسة — للقيادة وحدَها، وإلّا `None`."""
+        from django.conf import settings
+
+        if not holds_leadership_role(user, school.pk):
+            return None
+        counts = self_approval_counts(school, timezone.localdate())
+        limit = int(getattr(settings, "ATTENDANCE_SELF_APPROVAL_ALERT", 50))
+        return {"counts": counts, "limit": limit, "alert": any(n > limit for n in counts)}
 
     @staticmethod
     def report(

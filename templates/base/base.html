@@ -944,12 +944,13 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
 </div>
 {% endif %}
 
+{% load provisional_door %}{% provisional_enabled as prov_off %}{% comment %}الرصدُ المؤقّت (W-20261005-006، D-228م): بمفتاحه وحدَه تُعطَّل روابطُ الجدول والتبديل والتعويض والبدلاء في قوائم المعلّم والمنسّق — مطفأً كما كانت.{% endcomment %}
 {% if role == "coordinator" %}
 <div class="sd-menu sd-menu--cols-2" id="m-coord-schedule" role="menu" aria-label="جدول المنسق">
   <div class="sd-section">
   <div class="sd-label">جدولي</div>
   {% if request.user|can_open:"teacher_schedule" %}
-  <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% icon "periods_today" %} حصصي اليوم</a>
+  <a href="{% url 'teacher_schedule' %}" class="font-semibold"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "periods_today" %} حصصي اليوم</a>
   {% endif %}
   {% comment %}
   `weekly_schedule`/`schedule_print` بلا وسائط تعرضان الجدولَ العامّ (كلُّ
@@ -961,10 +962,10 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   <a href="{% url 'weekly_schedule' %}?view=teacher&teacher={{ request.user.id }}">{% icon "schedule" %} الجدول الأسبوعي</a>
   {% endif %}
   {% if request.user|can_open:"schedule_print" %}
-  <a href="{% url 'schedule_print' %}?view=teacher&teacher={{ request.user.id }}">{% icon "export_pdf" %} تصدير الجدول</a>
+  <a href="{% url 'schedule_print' %}?view=teacher&teacher={{ request.user.id }}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "export_pdf" %} تصدير الجدول</a>
   {% endif %}
   {% if request.user|can_open:"teacher_preferences" %}
-  <a href="{% url 'teacher_preferences' %}">{% icon "settings" %} تفضيلاتي للجدولة</a>
+  <a href="{% url 'teacher_preferences' %}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "settings" %} تفضيلاتي للجدولة</a>
   {% endif %}
   </div>
   <div class="sd-section">
@@ -974,16 +975,16 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   <a href="{% url 'academic_management:assignments' %}">{% icon "workload" %} الإسناد</a>
   {% endif %}
   {% if request.user|can_open:"weekly_schedule" %}
-  <a href="{% url 'weekly_schedule' %}">{% icon "schedule" %} الجدول العام</a>
+  <a href="{% url 'weekly_schedule' %}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "schedule" %} الجدول العام</a>
   {% endif %}
   {% if request.user|can_open:"swap_list" %}
-  <a href="{% url 'swap_list' %}">{% icon "swap_requests" %} طلبات التبديل</a>
+  <a href="{% url 'swap_list' %}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "swap_requests" %} طلبات التبديل</a>
   {% endif %}
   {% if request.user|can_open:"compensatory_list" %}
-  <a href="{% url 'compensatory_list' %}">{% icon "compensation" %} الحصص التعويضية</a>
+  <a href="{% url 'compensatory_list' %}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "compensation" %} الحصص التعويضية</a>
   {% endif %}
   {% if request.user|can_open:"absence_list" %}
-  <a href="{% url 'absence_list' %}">{% icon "attendance_teacher_absence" %} غياب المعلمين والبدلاء</a>
+  <a href="{% url 'absence_list' %}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "attendance_teacher_absence" %} غياب المعلمين والبدلاء</a>
   {% endif %}
   </div>
 </div>
@@ -999,30 +1000,30 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   <div class="sd-section">
   <div class="sd-label">جدولي</div>
   {% if request.user|can_open:"teacher_schedule" %}
-  <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% icon "periods_today" %} حصصي اليوم</a>
+  <a href="{% url 'teacher_schedule' %}" class="font-semibold"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "periods_today" %} حصصي اليوم</a>
   {% endif %}
   {# مسؤولُ التعليم الإلكترونيّ وحدَه هنا يملك تصفّح غيره (SCHEDULE_BROWSE)، فوسائطُ الذات صريحةٌ — لا أثرَ لها على البقيّة أصلاً (الحارسُ يفرض جدولَهم هم دائماً). #}
   {% if request.user|can_open:"weekly_schedule" %}
   <a href="{% url 'weekly_schedule' %}?view=teacher&teacher={{ request.user.id }}">{% icon "schedule" %} الجدول الأسبوعي</a>
   {% endif %}
   {% if request.user|can_open:"schedule_print" %}
-  <a href="{% url 'schedule_print' %}?view=teacher&teacher={{ request.user.id }}">{% icon "export_pdf" %} تصدير الجدول</a>
+  <a href="{% url 'schedule_print' %}?view=teacher&teacher={{ request.user.id }}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "export_pdf" %} تصدير الجدول</a>
   {% endif %}
   {% if role == "e_projects_coordinator" and request.user|can_open:"weekly_schedule" %}
-  <a href="{% url 'weekly_schedule' %}">{% icon "schedule" %} الجدول العام</a>
+  <a href="{% url 'weekly_schedule' %}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "schedule" %} الجدول العام</a>
   {% endif %}
   {% if request.user|can_open:"teacher_preferences" %}
-  <a href="{% url 'teacher_preferences' %}">{% icon "settings" %} تفضيلاتي للجدولة</a>
+  <a href="{% url 'teacher_preferences' %}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "settings" %} تفضيلاتي للجدولة</a>
   {% endif %}
   </div>
   {% if role != "teacher_assistant" and role != "ese_assistant" %}
   <div class="sd-section">
   <div class="sd-label">طلبات</div>
   {% if request.user|can_open:"swap_list" %}
-  <a href="{% url 'swap_list' %}">{% icon "swap_requests" %} طلبات التبديل</a>
+  <a href="{% url 'swap_list' %}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "swap_requests" %} طلبات التبديل</a>
   {% endif %}
   {% if request.user|can_open:"compensatory_list" %}
-  <a href="{% url 'compensatory_list' %}">{% icon "compensation" %} الحصص التعويضية</a>
+  <a href="{% url 'compensatory_list' %}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>{% icon "compensation" %} الحصص التعويضية</a>
   {% endif %}
   </div>
   {% endif %}
@@ -1270,9 +1271,10 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
       <span class="mobile-nav-icon">{% icon "dashboard" %}</span><span>الرئيسية</span>
     </a>
     {% endif %}
+    {% provisional_enabled as prov_off %}
     {% if role == 'teacher' or role == 'coordinator' or role == 'specialist' or role == 'ese_teacher' %}
     {% if request.user|can_open:"teacher_schedule" %}
-    <a href="{% url 'teacher_schedule' %}" class="mobile-nav-item {% if request.path == '/teacher/schedule/' or 'attendance' in request.path %}active{% endif %}">
+    <a href="{% url 'teacher_schedule' %}" class="mobile-nav-item {% if request.path == '/teacher/schedule/' or 'attendance' in request.path %}active{% endif %}"{% if prov_off %} inert data-prov-off aria-disabled="true"{% endif %}>
       <span class="mobile-nav-icon">{% icon "periods_today" %}</span><span>حصصي</span>
     </a>
     {% endif %}

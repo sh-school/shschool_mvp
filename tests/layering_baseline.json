@@ -69,6 +69,13 @@
    "reason": "W-028: استيرادُ سجلّ القيد يكتب أطلسياً سطرَ الطالب (core) وسجلَّه الصحّيّ (clinic.HealthRecord) من صفٍّ واحد",
    "to": 2,
    "where": "core → clinic"
+  },
+  {
+   "from": 0,
+   "metric": "orm",
+   "reason": "مصدِّرُ ملخّص الحصّتين للوزارة يمرّ بـrender_pdf وget_export_context كأخويه في wings/views_register.py؛ الثمانيةُ كلُّها من مساعدين مشتركين في core (default_academic_year ‏4 و_materialise_stored_fonts ‏4) لا من استعلامٍ في العرض",
+   "to": 8,
+   "where": "wings/views_ministry.py::ministry_report"
   }
  ],
  "core_import_sites": {
@@ -171,37 +178,37 @@
  "views": {
   "academic_management/assignment_views.py::add_row": {
    "lines": 74,
-   "orm": 16
+   "orm": 12
   },
   "academic_management/assignment_views.py::cancel_transfer": {
-   "orm": 10
+   "orm": 6
   },
   "academic_management/assignment_views.py::move": {
-   "orm": 26
+   "orm": 22
   },
   "academic_management/assignment_views.py::remove_row": {
-   "orm": 10
+   "orm": 7
   },
   "academic_management/assignment_views.py::set_department": {
-   "orm": 15
+   "orm": 11
   },
   "academic_management/assignment_views.py::set_load": {
-   "orm": 16
+   "orm": 12
   },
   "academic_management/assignment_views.py::set_parallel": {
-   "orm": 14
+   "orm": 11
   },
   "academic_management/assignment_views.py::subject_options": {
    "orm": 8
   },
   "academic_management/assignment_views.py::toggle_double": {
-   "orm": 10
+   "orm": 7
   },
   "academic_management/assignment_views.py::toggle_preparation": {
-   "orm": 14
+   "orm": 10
   },
   "academic_management/assignment_views.py::update_periods": {
-   "orm": 10
+   "orm": 7
   },
   "analytics/views.py::analytics_dashboard": {
    "lines": 89,
@@ -275,7 +282,7 @@
    "orm": 17
   },
   "assessments/views.py::setup_subject": {
-   "orm": 21
+   "orm": 20
   },
   "assessments/views.py::student_report": {
    "orm": 21
@@ -384,7 +391,7 @@
    "orm": 17
   },
   "exam_control/views.py::supervisors": {
-   "orm": 12
+   "orm": 9
   },
   "library/views.py::book_list": {
    "orm": 8
@@ -460,7 +467,7 @@
   },
   "parents/views.py::manage_parent_links": {
    "lines": 145,
-   "orm": 52
+   "orm": 51
   },
   "parents/views.py::parent_all_attendance": {
    "orm": 7
@@ -541,27 +548,27 @@
    "orm": 7
   },
   "quality/views_committee.py::add_committee_member": {
-   "orm": 12
+   "orm": 9
   },
   "quality/views_committee.py::executor_committee": {
-   "orm": 13
+   "orm": 11
   },
   "quality/views_committee.py::executor_member_detail": {
    "orm": 10
   },
   "quality/views_committee.py::quality_committee": {
-   "lines": 111,
-   "orm": 34
+   "lines": 109,
+   "orm": 32
   },
   "quality/views_executor.py::apply_all_mappings": {
    "orm": 10
   },
   "quality/views_executor.py::executor_mapping": {
-   "lines": 65,
-   "orm": 20
+   "lines": 63,
+   "orm": 18
   },
   "quality/views_executor.py::save_executor_mapping": {
-   "orm": 12
+   "orm": 9
   },
   "quality/views_reports.py::progress_report": {
    "lines": 79,
@@ -766,7 +773,7 @@
    "orm": 8
   },
   "wings/views.py::coverage_assign": {
-   "orm": 9
+   "orm": 6
   },
   "wings/views.py::excuse_grant": {
    "orm": 9
@@ -810,6 +817,9 @@
   },
   "wings/views_absence_file.py::student_search": {
    "orm": 16
+  },
+  "wings/views_ministry.py::ministry_report": {
+   "orm": 8
   },
   "wings/views_register.py::_respond": {
    "orm": 8

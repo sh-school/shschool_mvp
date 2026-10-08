@@ -41,6 +41,9 @@ SYNC_ONLY_KINDS = frozenset(
         "student_affairs.students_xlsx",
         "student_affairs.tardiness_pdf",
         "student_affairs.tardiness_xlsx",
+        # ملخّصُ الحصّتين: صفحةٌ واحدةٌ بعددٍ ثابتٍ من الصفوف (شعبٌ لا طلبة) — متزامنٌ بلا قياس p95 بعدُ؛ يُقاس ويُحوَّل إن لزم.
+        "wings.ministry_pdf",
+        "wings.ministry_xlsx",
     }
 )
 

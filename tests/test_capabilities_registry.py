@@ -58,7 +58,8 @@ def test_the_sweep_sees_the_guards():
 def test_every_capability_names_real_roles_and_says_what_it_is(key):
     cap = capability(key)
 
-    assert cap.roles, "قدرةٌ بلا أدوار"
+    # القدرةُ المفوَّضةُ وحدَها (`wings.school_wide`) تُمنح باسم مستخدمٍ فلا يحملها دورٌ؛ وما عداها لا بدّ له من أدوار.
+    assert cap.roles or cap.grant is not None, "قدرةٌ بلا أدوارٍ ولا منح"
     assert cap.roles <= ROLE_NAMES, sorted(cap.roles - ROLE_NAMES)
     assert cap.label and cap.basis and cap.scope
 

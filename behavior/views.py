@@ -352,14 +352,14 @@ def report_infraction(request):
                     messages.warning(
                         request, f"تم إحالة المخالفة للجنة الضبط السلوكي لكونها من الدرجة {level}"
                     )
-                return redirect(_after_record_url(request.user, student.id, level))
+                return redirect(_after_record(request, student.id, level))
 
     students = _get_scoped_students(request, school)
     return render(
         request,
         "behavior/report_form.html",
         {
-            **student_picker(students, school),
+            **_picker_with_prefill(request, students, school),
             "levels": BehaviorInfraction.LEVELS,
             "violations_by_degree": violations_by_degree,
             "degree_panels": _degree_panels(violations_by_degree),
@@ -488,6 +488,34 @@ def quick_log(request):
         "behavior/partials/quick_log_form.html",
         _quick_log_context(request, school, student_id_hint),
     )
+
+
+def _picker_with_prefill(request, students, school) -> dict:
+    """منتقي الطالب، ومعه الطالبُ المختارُ مسبقاً والعودةُ من جدول الشعبة (W-20261006-005) إن كان `?student=` في نطاق من يسجّل."""
+    wanted = request.GET.get("student", "").strip()
+    return {
+        **student_picker(students, school),
+        "preselected_student_id": wanted if any(str(s.pk) == wanted for s in students) else "",
+        "next_url": _safe_next(request, request.GET.get("next", "")),
+    }
+
+
+def _after_record(request, student_id, level: int) -> str:
+    """وجهةُ ما بعد التسجيل: `next` الداخليُّ المرسَل من جدول الشعبة إن وُجد، وإلّا الوجهةُ المعتادة."""
+    return _safe_next(request, request.POST.get("next", "")) or _after_record_url(
+        request.user, student_id, level
+    )
+
+
+def _safe_next(request, raw: str) -> str:
+    """وجهةُ العودة من مسارٍ داخليٍّ فقط (لا مضيفَ خارجيّ) — وإلّا فارغ."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    if raw.startswith("/") and url_has_allowed_host_and_scheme(
+        raw, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return raw
+    return ""
 
 
 def _after_record_url(user, student_id, level: int) -> str:

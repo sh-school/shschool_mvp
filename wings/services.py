@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import datetime as dt
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from django.core.paginator import Paginator
@@ -346,24 +346,49 @@ def bell_tables(school) -> list[BellTable]:
 
 
 @dataclass(frozen=True)
+class RecordedCounts:
+    """أرقامُ آخر حصّةٍ رُصدت، من التثبيت القديم أو من إدخالات الجدول."""
+
+    present_count: int
+    absent_count: int
+    late_count: int
+
+
+@dataclass(frozen=True)
 class SectionToRecord:
-    """شعبةٌ في فهرس الرصد — أرقامُ آخر حصّةٍ مثبّتة، ونقطةٌ لكلّ حصّة."""
+    """شعبةٌ في فهرس الرصد — أرقامُ آخر حصّةٍ رُصدت، ونقطةٌ لكلّ حصّة.
+
+    «رُصدت» = ثُبّتت بالمسار القديم (`PeriodConfirmation`) **أو** أُدخلت من جدول الشعبة (`entries`: بدءُ الخانة ← أعدادُها).
+    مسارُ الجدول لا يكتب التثبيتَ، فلولا قراءةُ الإدخالات لظلّت شعبةٌ رُصدت كاملةً «لم تُرصد» (W-20261008-003، الخيار أ).
+    """
 
     class_group: ClassGroup
     students: int
     periods: list
     statuses: list
+    entries: dict = field(default_factory=dict)
 
     @property
     def is_recorded(self) -> bool:
-        """لا حصّةَ جاريةً ولا فائتةً تنتظر التثبيت."""
+        """لا حصّةَ جاريةً ولا فائتةً تنتظر الرصد."""
         return bool(self.periods) and not any(s in ("current", "missed") for s in self.statuses)
 
     @property
     def shown(self):
-        """آخرُ حصّةٍ ثُبّتت — أرقامُها ما تعرضه البطاقة."""
-        confirmed = [p for p in self.periods if p.confirmation is not None]
-        return confirmed[-1] if confirmed else None
+        """آخرُ حصّةٍ رُصدت (تثبيتٌ أو إدخالُ جدول) — أرقامُها ما تعرضه البطاقة."""
+        done = [p for p in self.periods if p.confirmation is not None or p.start in self.entries]
+        return done[-1] if done else None
+
+    @property
+    def shown_counts(self) -> RecordedCounts | None:
+        period = self.shown
+        if period is None:
+            return None
+        if period.confirmation is not None:  # التثبيتُ القديمُ يغلب إن اجتمعا في الحصّة نفسِها
+            c = period.confirmation
+            return RecordedCounts(c.present_count, c.absent_count, c.late_count)
+        tally = self.entries[period.start]
+        return RecordedCounts(tally["present"], tally["absent"], tally["late"])
 
     @property
     def dots(self) -> list:
@@ -376,18 +401,27 @@ class SectionToRecord:
 
 def sections_to_record(wing, day, now=None) -> list[SectionToRecord]:
     """شُعبُ الجناح وحالُ رصدِ حصصها — ومنه «المتبقّية n من 5» ونقاطُ الحصص."""
+    from operations.attendance_selectors import entry_tallies_by_start
     from operations.period_register import periods_of
 
     now = now or timezone.now()
     rows = []
     for klass in wing.class_groups.filter(is_active=True).order_by("grade", "section"):
         periods = periods_of(klass, day)
+        entries = entry_tallies_by_start(klass, day)
         rows.append(
             SectionToRecord(
                 class_group=klass,
                 students=enrolled_of(klass).count(),
                 periods=periods,
-                statuses=[p.status(day, now) for p in periods],
+                # خانةٌ بلا تثبيتٍ وفيها إدخالُ جدول = رُصدت (لا «فائتة»)؛ والتثبيتُ القديمُ يحكم حالتَه كما كان
+                statuses=[
+                    "confirmed"
+                    if p.confirmation is None and p.start in entries
+                    else p.status(day, now)
+                    for p in periods
+                ],
+                entries=entries,
             )
         )
     return rows
@@ -491,6 +525,16 @@ def next_section_awaiting(klass: ClassGroup, day: dt.date, start: dt.time) -> Cl
     return None
 
 
+SCHOOL_WIDE = "wings.school_wide"
+
+
+def holds_school_wide(user: CustomUser) -> bool:
+    """أمشرفٌ إداريٌّ مُنح «حاصرَ الغياب العامّ»؟ — المنحُ وحدَه لا يكفي دون الدور: لا يرفع غيرَ المشرف."""
+    from core.capability_grants import holds
+
+    return user.get_role() == "admin_supervisor" and holds(user, SCHOOL_WIDE)
+
+
 def wings_of(user: CustomUser, school: School, year: str) -> list[Wing]:
     """أجنحةُ هذا المستخدم — ما يحمله اليوم أصيلاً أو بديلاً.
 
@@ -514,6 +558,8 @@ def wings_of(user: CustomUser, school: School, year: str) -> list[Wing]:
         "vice_academic",
         "platform_developer",
     ):
+        return all_wings
+    if holds_school_wide(user):
         return all_wings
     return [w for w in all_wings if w.current_supervisor() == user]
 

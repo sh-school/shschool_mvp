@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from django.db.models import Q
 
 from core.models.academic import grade_order
+from operations.attendance_selectors import PendingMark, pending_marks_by_student
 from operations.models import Session, StudentAttendance
 
 #: حصّتا الرفع الوزاريّ: الأولى والثانية بترتيب خانات يوم الشعبة.
@@ -54,6 +55,8 @@ class StudentDay:
     slots: tuple[Slot, ...]
     #: خاناتٌ فارغةٌ تُكمل عرضَ الجدول حين يومُ الشعبة أقصر (الخميسُ ستٌّ لا سبع).
     padding: range = range(0)
+    #: رصدُ معلّمٍ بانتظار اعتماد المشرف لهذا الطالب — وسمٌ لا يدخل في أيّ عدّ (W-20261005-002).
+    pending_marks: int = 0
 
     @property
     def absent_periods(self) -> int:
@@ -94,6 +97,9 @@ class DailyReport:
     #: عددُ الطلاب المرصودين في اليوم كلِّه (لا السجلّات).
     students_recorded: int = 0
     scoped_to_department: bool = False
+    #: طلبةٌ لهم رصدٌ معلَّق بلا غيابٍ مسجَّلٍ اليوم — كتلةٌ منفصلة بأسمائهم، لا صفوفَ في الجدول.
+    pending_only: list[PendingMark] = field(default_factory=list)
+    pending_total: int = 0
     notes: list[str] = field(default_factory=list)
 
     @property
@@ -190,9 +196,24 @@ def daily_report(school, day: dt.date, *, teacher_ids=None, student_ids=None) ->
         rows.append(StudentDay(data["student"], data["class_group"], slots))
 
     width = max((len(o) for o in numbered.values()), default=0)
+    pending = pending_marks_by_student(
+        school, day, teacher_ids=teacher_ids, student_ids=student_ids
+    )
     rows = [
-        StudentDay(r.student, r.class_group, r.slots, range(width - len(r.slots))) for r in rows
+        StudentDay(
+            r.student,
+            r.class_group,
+            r.slots,
+            range(width - len(r.slots)),
+            pending[r.student.id].count if r.student.id in pending else 0,
+        )
+        for r in rows
     ]
+    in_table = {r.student.id for r in rows}
+    pending_only = sorted(
+        (m for sid, m in pending.items() if sid not in in_table),
+        key=lambda m: (m.class_group.school_order, m.student.full_name),
+    )
     rows.sort(key=lambda r: (r.class_group.school_order, r.student.full_name))
     return DailyReport(
         day=day,
@@ -200,4 +221,6 @@ def daily_report(school, day: dt.date, *, teacher_ids=None, student_ids=None) ->
         max_periods=width,
         students_recorded=len(marks),
         scoped_to_department=teacher_ids is not None,
+        pending_only=pending_only,
+        pending_total=sum(m.count for m in pending.values()),
     )

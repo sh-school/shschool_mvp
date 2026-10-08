@@ -24,6 +24,7 @@ from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_order
 from core.permissions import teacher_can_access_student
 from core.privacy import mask_national_id
+from core.user_selectors import school_user_or_404
 from operations.models import Subject
 
 from .forms import CreateAssessmentForm
@@ -341,7 +342,7 @@ def save_single_grade(request, assessment_id):
         return HttpResponse("غير مسموح", status=403)
 
     student_id = request.POST.get("student_id")
-    student = get_object_or_404(CustomUser, id=student_id)
+    student = GradeService.enrolled_student_or_404(assessment, student_id)
     is_absent = request.POST.get("is_absent") == "1"
     is_excused = request.POST.get("is_excused") == "1"
     notes = request.POST.get("notes", "")
@@ -824,7 +825,7 @@ def setup_subject(request):
 
         subject = get_object_or_404(Subject, id=subject_id, school=school)
         class_group = get_object_or_404(ClassGroup, id=class_id, school=school)
-        teacher = get_object_or_404(CustomUser, id=teacher_id)
+        teacher = school_user_or_404(school, teacher_id)
 
         setup, created = SubjectClassSetup.objects.get_or_create(
             school=school,

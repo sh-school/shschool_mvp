@@ -150,10 +150,10 @@
             <span class="plain-list__title">{{ sender.full_name }}</span>
             {% if sender.get_role_display %}<span class="status-badge status-maroon">{{ sender.get_role_display }}</span>{% endif %}
           </li>
-          {% if sender.phone %}
+          {% if sender.get_phone_decrypted %}
           <li class="plain-list__row">
             <span class="plain-list__sub">الهاتف</span>
-            <span dir="ltr">{{ sender.phone }}</span>
+            <span dir="ltr">{{ sender.get_phone_decrypted }}</span>
           </li>
           {% endif %}
         </ul>
