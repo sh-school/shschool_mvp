@@ -34,6 +34,7 @@ from operations.attendance_entries import (
     EntryConflictError,
     EntryError,
     GridConflictError,
+    head_of,
     write_grid_cell,
 )
 from operations.attendance_policy import (
@@ -50,6 +51,7 @@ from operations.attendance_policy import (
     grid_roles,
     grid_window,
     is_developer,
+    is_direct_class,
 )
 from operations.attendance_selectors import CellHistoryRow, ColumnCell, cell_history, column_heads
 from operations.models import ClassExit, Session, SubjectClassAssignment
@@ -133,6 +135,8 @@ class GridPage:
     now: dt.datetime
     #: أيكتب هذا المستخدمُ أصلاً (لا قراءةً فقط)؟
     can_write: bool
+    #: جناحٌ رصدُه نهائيٌّ والكاتبُ ليس معلّمَ الشعبة (مشرفٌ/قيادة): تصحيحُه ما كتبه غيرُه بسببٍ إلزاميّ دائماً (D-201م، D-262م).
+    reason_always: bool = False
     #: وجهاتُ الخروج من الفصل (`ClassExit.DESTINATIONS`) لقائمة المفتاح.
     destinations: tuple[tuple[str, str], ...] = tuple(ClassExit.DESTINATIONS)
 
@@ -352,6 +356,7 @@ def page(
         closes=closes,
         now=moment,
         can_write=bool(write_roles),
+        reason_always=bool(write_roles) and GRID_TEACHER not in roles and is_direct_class(klass),
     )
 
 
@@ -583,7 +588,16 @@ def save_column(
                 )
                 continue
             seen.add(student.pk)
-            _write_one(user, session, student, item, result, correcting=correcting, reason=reason)
+            _write_one(
+                user,
+                session,
+                student,
+                item,
+                result,
+                correcting=correcting,
+                reason=reason,
+                direct=is_direct_class(klass),
+            )
         if fill_empty:
             for student_id, student in roster.items():
                 if student_id in seen or (session.pk, student_id) in existing:
@@ -626,11 +640,20 @@ def _write_one(
     *,
     correcting: bool,
     reason: str,
+    direct: bool = False,
 ) -> None:
     status = str(item.get("status", ""))
     minutes = _minutes(item.get("minutes"))
     if status == "late" and minutes is None:
         minutes = _late_minutes(session)
+    # جناحٌ رصدُه نهائيٌّ: من يعدّل ما كتبه غيرُه (المشرفُ) يكتب سبباً إلزاميّاً ويُسجَّل مع التصحيح (D-201م، D-262م)
+    overriding = False
+    if direct:
+        head = head_of(session, student)
+        overriding = head is not None and head.entered_by_id != user.id
+        if overriding and not (reason or "").strip():
+            result.errors.append({"student": str(student.pk), "code": "reason_required"})
+            return
     try:
         with transaction.atomic():  # نقطةُ حفظٍ لكلّ خليّة
             entry, _created = write_grid_cell(
@@ -640,6 +663,7 @@ def _write_one(
                 status,
                 minutes=minutes,
                 expected_head=str(item.get("head") or ""),
+                correction_reason=reason if overriding else "",
             )
     except GridConflictError as conflict:
         current = (

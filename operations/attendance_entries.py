@@ -34,6 +34,8 @@ from .attendance_policy import (
     can_correct,
     can_enter,
     holder_gap,
+    is_direct_entry,
+    is_special_education,
     needs_approval,
 )
 from .models import Session, StudentAttendance
@@ -314,14 +316,7 @@ def submit_entry(
     )
 
     if not needs_approval(session):
-        _decide(
-            entry,
-            user,
-            approve=True,
-            basis="special_ed_self",
-            evidence={"rule": "special_education", "section": session.class_group.section},
-            reason="",
-        )
+        _decide_directly(entry, user, session)
     elif session.class_group.wing_id is None:
         logger.warning(
             "إدخالُ رصدٍ مبدئيٍّ لشعبةٍ عاديّةٍ بلا جناح (يعتمده القيادةُ): class_group=%s",
@@ -397,6 +392,41 @@ def _apply_to_effective(entry: AttendanceEntry, actor: CustomUser) -> None:
             },
         },
     )
+
+
+def _decide_directly(entry: AttendanceEntry, user: CustomUser, session: Session) -> None:
+    """رصدٌ نهائيٌّ بلا اعتماد: التربيةُ الخاصّة (D-126م) أو جناحٌ بقرار المالك 2026-10-07 — بأساسٍ صريحٍ يُميّز كلاً منهما."""
+    if is_special_education(session.class_group):
+        basis = "special_ed_self"
+        evidence: dict[str, Any] = {
+            "rule": "special_education",
+            "section": session.class_group.section,
+        }
+    else:
+        basis = "direct_entry"
+        wing = session.class_group.wing
+        evidence = {"rule": "direct_wing", "wing": wing.code if wing else ""}
+    _decide(entry, user, approve=True, basis=basis, evidence=evidence, reason="")
+
+
+def _notify_replaced(head: AttendanceEntry, entry: AttendanceEntry, session: Session) -> None:
+    """يُخطَر المعلّمُ حين يبدّل غيرُه رصدَه (مشرفُ الجناح): إشعارٌ داخليٌّ لا يُفشل الكتابة."""
+    if head.entered_by_id == entry.entered_by_id or head.entered_by_id != session.teacher_id:
+        return
+    try:
+        from notifications.models import InAppNotification
+
+        InAppNotification.objects.create(
+            user_id=head.entered_by_id,
+            school_id=session.school_id,
+            title="عدّل مشرفُ الجناح رصدَك",
+            body=f"{entry.student.full_name}: من «{head.status}» إلى «{entry.status}» — الحصّة {session.start_time:%H:%M}.",
+            event_type="attendance",
+            priority="normal",
+            related_url=f"/teacher/classes/{session.class_group_id}/grid/",
+        )
+    except Exception as exc:  # الإشعارُ لا يُفشل الرصد
+        logger.warning("تعذّر إخطارُ المعلّم بتعديل رصدِه [entry=%s]: %s", entry.pk, exc)
 
 
 def _decide(
@@ -668,6 +698,7 @@ def write_grid_cell(
     minutes: int | None = None,
     expected_head: str = "",
     default_present: bool = False,
+    correction_reason: str = "",
     now: dt.datetime | None = None,
 ) -> tuple[AttendanceEntry, bool]:
     """يكتب خليّةً من جدول الشعبة: إدخالٌ جديدٌ، أو إدخالٌ يصحّح الرأسَ القائم (`supersedes`) بسببٍ ثابت. `(الإدخال، أُنشئ الآن؟)`.
@@ -696,6 +727,8 @@ def write_grid_cell(
     reason = ""
     if head is not None:
         reason = GRID_DEFAULT_FIX_REASON if head.origin == GRID_DEFAULT_ORIGIN else GRID_EDIT_REASON
+        if (correction_reason or "").strip():  # سببٌ كتبه المصحِّحُ بنفسه (D-201م) يغلب النصَّ الثابت
+            reason = correction_reason.strip()[:300]
     try:
         with transaction.atomic():
             entry = AttendanceEntry.objects.create(
@@ -729,14 +762,9 @@ def write_grid_cell(
         },
     )
     if not needs_approval(session):
-        _decide(
-            entry,
-            user,
-            approve=True,
-            basis="special_ed_self",
-            evidence={"rule": "special_education", "section": session.class_group.section},
-            reason="",
-        )
+        _decide_directly(entry, user, session)
+        if head is not None:
+            _notify_replaced(head, entry, session)
     return entry, True
 
 
@@ -814,3 +842,34 @@ def teacher_marked_absent(session: Session, student: CustomUser) -> bool:
     return AttendanceEntry.objects.filter(
         session=session, student=student, status="absent", superseded_by__isnull=True
     ).exists()
+
+
+@transaction.atomic
+def settle_pending_as_direct(school: School, *, apply: bool = False) -> int:
+    """عند تحويل جناحٍ إلى الرصد النهائيّ: ما بقي معلَّقاً من إدخالاتٍ سابقةٍ يُقرَّر نهائيّاً بقرارٍ مسجَّلٍ باسم كاتبه (أساسُ `direct_entry`، دليلُه تسويةٌ جماعيّة).
+
+    `apply=False` يعدّ ولا يكتب. يعيد عددَ الإدخالات.
+    """
+    pending = (
+        AttendanceEntry.objects.filter(
+            school=school, decision__isnull=True, superseded_by__isnull=True
+        )
+        .select_related("session__class_group__wing", "entered_by", "student")
+        .order_by("entered_at")
+    )
+    settled = 0
+    for entry in pending:
+        if not is_direct_entry(entry.session):
+            continue
+        if apply:
+            with transaction.atomic():
+                _decide(
+                    entry,
+                    entry.entered_by,
+                    approve=True,
+                    basis="direct_entry",
+                    evidence={"rule": "direct_wing", "bulk_settlement": True},
+                    reason="",
+                )
+        settled += 1
+    return settled

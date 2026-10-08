@@ -172,6 +172,7 @@ class AttendanceDecision(AppendOnlyModel):
         ("supervisor_record", "كُتب رصدُ مشرفٍ فوق الإدخال"),
         ("special_ed_self", "التربيةُ الخاصّة — اعتمادٌ ذاتيٌّ بالتصميم"),
         ("wing_holder_self", "حاملُ الجناح — اعتمادُ ما كتبه بنفسه (جدولُ الشعبة)"),
+        ("direct_entry", "رصدٌ نهائيٌّ مباشر — جناحٌ بلا اعتماد (جدولُ الشعبة)"),
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)

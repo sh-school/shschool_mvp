@@ -131,9 +131,29 @@ def is_special_education(class_group: ClassGroup) -> bool:
     return bool(class_group.section.rsplit("/", 1)[-1].strip().upper() == SPECIAL_EDUCATION_SECTION)
 
 
+def is_direct_class(class_group: ClassGroup) -> bool:
+    """شعبةٌ في جناحٍ رصدُ المعلّم فيه نهائيٌّ بلا اعتماد (قرارا المالك 2026-10-07 وD-262م) — بمفتاح الجدول و`ATTENDANCE_GRID_DIRECT_WINGS` (رموزُ الأجنحة أو `*`)."""
+    from django.conf import settings
+
+    if not getattr(settings, "PROVISIONAL_GRID_ENABLED", False):
+        return False
+    wing = class_group.wing
+    if wing is None:
+        return False
+    wanted = {
+        c.strip() for c in str(getattr(settings, "ATTENDANCE_GRID_DIRECT_WINGS", "")).split(",")
+    }
+    return "*" in wanted or wing.code in wanted
+
+
+def is_direct_entry(session: Session) -> bool:
+    """جناحٌ رصدُه نهائيٌّ بلا اعتماد؟ — انظر `is_direct_class`."""
+    return is_direct_class(session.class_group)
+
+
 def needs_approval(session: Session) -> bool:
-    """أيحتاج رصدُ هذه الحصّة اعتماداً؟ — كلُّ الشُّعب إلّا التربية الخاصّة (D-126م)."""
-    return not is_special_education(session.class_group)
+    """أيحتاج رصدُ هذه الحصّة اعتماداً؟ — كلُّ الشُّعب إلّا التربية الخاصّة (D-126م) والأجنحةَ ذاتَ الرصد النهائيّ."""
+    return not (is_special_education(session.class_group) or is_direct_entry(session))
 
 
 def _raw_holder(session: Session) -> CustomUser | None:
