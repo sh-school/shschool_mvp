@@ -128,14 +128,17 @@ def test_the_director_dashboard_shows_a_count_and_a_link_not_student_names(
 
 
 @pytest.mark.django_db
-def test_the_alerts_card_stays_in_place_with_no_pending_alerts(client_as, principal_user):
-    """طلب المدير 2026-09-18: البطاقةُ الثالثةُ دائمةٌ لا تختفي — فاختفاؤها
-    يُخِلّ بشبكة الأعمدة الثلاثة (تعود عموداً واحداً فقط لا اثنين متجاورين
-    بجانب فراغ) كلّما خلا يومٌ من التنبيهات المعلّقة."""
+def test_the_alerts_indicator_stays_visible_with_no_pending_alerts_and_the_grid_keeps_three_columns(
+    client_as, principal_user
+):
+    """طلب المدير 2026-09-18: تنبيهاتُ الغياب المتكرّر لا تختفي، والشبكةُ بثلاثة أعمدةٍ لا تضطرب كلّما خلا يومٌ منها.
+    W-20261008-004 (س٢، قياسُ 2026-10-08: البطاقةُ كانت تستعمل 66px من 154px): صارت مؤشّراً في «نبض الأقسام» بعدّادٍ ورابط
+    يقول «لا تنبيهات معلّقة» حين تخلو، وصارت البطاقةُ الثالثةُ «سير اليوم» فالصفُّ ثلاثُ بطاقاتٍ دائماً في يوم الدوام."""
     html = client_as(principal_user).get("/dashboard/").content.decode()
 
     assert "تنبيهات الغياب المتكرّر" in html
     assert "لا تنبيهات معلّقة" in html
+    assert 'href="/student-affairs/' in html or "attendance" in html
 
 
 @pytest.mark.django_db

@@ -41,6 +41,8 @@
       {% kpi "إعارات متأخّرة" library_overdue|default:0 tone=library_tone href=library_url %}
       {% kpi "تبديلات معلّقة" pending_swaps tone=swaps_tone href=swaps_url %}
       {% kpi "تعويضات معلّقة" pending_comp tone=comp_tone href=comp_url %}
+      {% comment %}بطاقةُ «تنبيهات الغياب المتكرّر» صارت مؤشّراً في هذا الشريط بعدّادها ورابطها (قياسُ 2026-10-08: كانت تستعمل 66px من 154px).{% endcomment %}
+      {% url 'student_affairs:attendance_overview' as alerts_url %}{% kpi "تنبيهات الغياب المتكرّر" alerts_count sub=alerts_sub tone=day_alerts_tone href=alerts_url %}
     {% endkpi_strip %}
   {% endsection_card %}
 
@@ -63,46 +65,29 @@
       <div class="dash-chart-wrap"><canvas id="miniGrades" role="img" aria-label="رسم بياني: توزيع الدرجات السنوية"></canvas></div>
     {% endsection_card %}
     {% comment %}
-    كانت هذه البطاقةُ قسماً مستقلّاً بقائمةٍ رأسيّةٍ (اسمٌ + شارةٌ في كلّ
-    سطر) — فترتفع مع تراكم "نبض الأقسام" و"العام الدراسي" فوقها حتى تدفع
-    الرسمين البيانيّين وشريطَ الأقسام السريعة خارج الشاشة، رغم أنّ عددها
-    محدودٌ بـ`[:5]` أصلاً. انضمّت هنا عموداً ثالثاً بجانب الرسمين (الشبكةُ
-    `auto-fit` أصلاً، لا تحتاج تعديلاً لتقبل عموداً ثالثاً)، و`.is-scroll`
-    تُسقّف ارتفاعها بارتفاع الرسمين بجانبها ولو زاد عددُ التنبيهات الحقيقيّ
-    مستقبلاً عن الخمسة المعروضة. وهي دائمةٌ لا مشروطةٌ بوجود تنبيهات — تختفي
-    البطاقةُ الثالثةُ فتضطرب الشبكةُ (عمودان فقط) كلّما خلا يومٌ من التنبيهات،
-    فتبقى ظاهرةً دوماً بحالةٍ فارغةٍ موحّدة (`section_card` نفسُها ترسمها
-    حين يكون محتواها فارغاً — `{% if alerts %}` هنا لا حول القسم كلِّه).
+    الصفُّ ثلاثُ بطاقاتٍ دائماً (طلب المدير 2026-09-18: الشبكةُ بثلاثة أعمدةٍ لا تضطرب). كانت الثالثةُ «تنبيهات الغياب المتكرّر» وتستعمل 66px من 154px (قياسُ 2026-10-08)،
+    فصار التنبيهُ مؤشّراً في «نبض الأقسام» بعدّادٍ ورابط، وصارت الثالثةُ «سيرُ اليوم»: خارج الفصل بإذن وخرجوا من الفصل ومعلّمون غائبون ظاهرةً، وجدولُ الأجنحة مطويّاً تحتها.
+    الارتفاعُ لا يتغيّر على 1366×768 (LAY-03): ثلاثةُ صفوفٍ بـ34px وسطرُ الطيّ لا يتجاوزان جسمَ البطاقة بجانب الرسمين.
     {% endcomment %}
-    {% comment %}
-    بطاقةُ «تنبيهات الغياب المتكرّر» كما كانت: عدّادُها ظاهرٌ دائماً (لا يُخفى شيءٌ عاينه المالك)، وتحتها «تفاصيل اليوم» (سيرُ اليوم وجدولُ الأجنحة) مطويّةً —
-    فلا يزيد الصفُّ ارتفاعاً على 1366×768 (LAY-03)؛ والطيُّ بـ`details` الأصليّ وزرِّ المنصّة (`btn-secondary`) لا بقاعدةٍ جديدة.
-    {% endcomment %}
-    {% section_card "تنبيهات الغياب المتكرّر" meta=alerts_count icon="absence" %}
-      {% if alerts_count %}
+    {% if day_open %}
+    {% section_card "سير اليوم" meta=day_slots_sub icon="absence" %}
       <ul class="plain-list">
         <li class="plain-list__row">
-          <span class="plain-list__title">طلبةٌ تنتظر المتابعة</span>
-          <span class="status-badge status-danger">{{ alerts_count }}</span>
+          <span class="plain-list__title" title="محسوبون غائبين حتى اعتماد القرار">خارج الفصل بإذن</span>
+          <span class="status-badge {% if day.school.away_permitted %}status-warning{% else %}status-success{% endif %}" data-key="school.away_permitted">{{ day.school.away_permitted }}</span>
         </li>
         <li class="plain-list__row">
-          <a href="{% url 'student_affairs:attendance_overview' %}" class="btn-secondary btn-sm">افتح متابعة الحضور</a>
+          <span class="plain-list__title" title="{{ day_exits_destinations }}">خرجوا من الفصل{% if day_exits_sub %} <span class="plain-list__sub">{{ day_exits_sub }}</span>{% endif %}</span>
+          <span class="status-badge status-info" data-key="exits.students">{{ day.exits_students }}</span>
+        </li>
+        <li class="plain-list__row">
+          <a href="{{ teachers_url }}" class="plain-list__title">معلّمون غائبون</a>
+          <span class="status-badge {% if absent_teachers_today %}status-danger{% else %}status-success{% endif %}">{{ absent_teachers_today }}</span>
         </li>
       </ul>
-      {% else %}
-      <p class="ui-note">لا تنبيهات معلّقة</p>
-      {% endif %}
-      {% if day_open %}
       <details>
-        <summary class="btn-secondary btn-sm">تفاصيل اليوم · {{ day_fold_meta }}</summary>
+        <summary class="btn-secondary btn-sm">الأجنحة اليوم · {{ day_fold_meta }}</summary>
         <div>
-          {% kpi_strip label="سيرُ اليوم" %}
-            {% kpi "خانات الجرس" day.bell_slots sub=day_slots_sub tone="blue" %}
-            {% kpi "خارج الفصل بإذن" day.school.away_permitted sub="عيادةٌ أو نشاط" tone=day_away_tone title="محسوبون غائبين حتى اعتماد القرار" key="school.away_permitted" %}
-            {% if day_final %}{% kpi "خرجوا من الفصل" day.exits_students sub=day_exits_sub tone="purple" key="exits.students" %}{% endif %}
-            {% kpi "معلّمون غائبون" absent_teachers_today tone=teachers_tone href=teachers_url %}
-          {% endkpi_strip %}
-          {% if day_exits_destinations %}<p class="ui-note">الخروج حسب الوجهة: {{ day_exits_destinations }}</p>{% endif %}
           {% if day_wings %}
           <div class="table-wrap">
             <table>
@@ -149,8 +134,8 @@
           {% endif %}
         </div>
       </details>
-      {% endif %}
     {% endsection_card %}
+    {% endif %}
   </div>
 
   <nav class="ui-actions" aria-label="الأقسام">

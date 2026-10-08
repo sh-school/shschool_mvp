@@ -102,6 +102,7 @@ def _director_day(ctx: dict) -> dict:
         "day_wings": wings,
         "day_fold_meta": f"{len(wings)} أجنحة" if wings else "لا أجنحة",
         "day_alerts_tone": _pending(ctx.get("alerts_count"), "red"),
+        "alerts_sub": "افتح متابعة الحضور" if ctx.get("alerts_count") else "لا تنبيهات معلّقة",
     }
 
 
