@@ -294,12 +294,38 @@ def holds_leadership_role(user: CustomUser, school_id: Any) -> bool:
     return bool(_roles_in_school(user, school_id) & set(LEADERSHIP_ROLES))
 
 
-def can_correct(user: CustomUser, session: Session) -> Verdict:
-    """هل يصحّح هذا المستخدمُ رصداً لم يشاهده (A: تصحيحُ المشرف)؟ — لمن له الاعتمادُ على هذه الحصّة وحدَه.
+#: قيادةٌ تصحّح رصداً لم تشاهده حين لا حاملَ فعليّاً للجناح — بالدور. **بلا النائب الأكاديميّ**: يراقب فقط (D-201م)؛ فهي أضيقُ من `LEADERSHIP_ROLES` عمداً.
+CORRECTOR_LEADERSHIP_ROLES = ("principal", "vice_admin")
 
-    حاملُ الجناح الفعليّ يومَ الحصّة، أو القيادةُ حين لا حاملَ فعليّاً؛ لا معلّمُ الحصّة ولا المطوّر.
+
+def can_correct(user: CustomUser, session: Session) -> Verdict:
+    """هل يصحّح هذا المستخدمُ رصداً لم يشاهده (A: تصحيحُ المشرف، D-201م) — **حكمٌ مستقلٌّ عن الاعتماد** (D-271م S1)؟
+
+    كان `can_approve(...)` حرفاً فحذفُ الاعتماد كان سيكسر التصحيحَ، ويرفضه اليومَ في الجلسة النهائيّة (`final_entry`). والآن:
+    - يصحّح حاملُ الجناح الفعليّ يومَ الحصّة (`approval_holder`)، وحاصرُ الغياب العامّ، والمديرُ والنائبُ الإداريّ حين لا حاملَ.
+    - لا معلّمُ الحصّة (`own_session`)، ولا المطوّر، ولا من خارج المدرسة، ولا النائبُ الأكاديميّ (يراقب فقط)، ولا حاملُ جناحٍ آخر.
+    - ولا يقرأ `needs_approval` ولا إدخالَ أحد: التصحيحُ بقرارٍ مباشرٍ بسببٍ إلزاميٍّ (الخدمة تفرضه).
     """
-    return can_approve(user, session)
+    if not getattr(user, "is_authenticated", False):
+        return _deny("anonymous")
+    if is_developer(user):
+        return _deny("developer")
+    roles = _roles_in_school(user, session.school_id)
+    if not roles:
+        return _deny("other_school")
+    if user.id == session.teacher_id:
+        return _deny("own_session")
+
+    from wings.services import holds_school_wide
+
+    if holds_school_wide(user):
+        return _allow()
+    holder = approval_holder(session)
+    if holder is not None:
+        return _allow() if user.id == holder.id else _deny("not_holder")
+    if roles & set(CORRECTOR_LEADERSHIP_ROLES):
+        return _allow()
+    return _deny("not_holder")
 
 
 def _has_entry_in_session(student: CustomUser, session: Session) -> bool:
