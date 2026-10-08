@@ -49,6 +49,64 @@ def chunk_for_grid(items: list, columns: int) -> list[list]:
     return [items[i : i + size] for i in range(0, len(items), size)]
 
 
+def _director_day(ctx: dict) -> dict:
+    """بطاقاتُ «غياب اليوم» وجدولُ الأجنحة — طلابٌ مميَّزون بحكم `_judge`، أرقامٌ بلا أسماء (D-171م، D-249م).
+
+    قبل 14:00 بتوقيت الدوحة: «غائبون عن ح1 وح2» ولا يُسمّى «غائب اليوم»؛ وبعدها حكمُ السياسة بخاناتٍ منفصلة. وهذه الدالّةُ
+    تحكم العناوينَ والألوانَ والروابطَ مرّةً واحدة لتقرأها الصفحةُ والنقطةُ الحيّة معاً.
+    """
+    day = ctx.get("day")
+    if day is None:
+        return {}
+    final = day.phase == "final"
+    c = day.school
+    follow_url = reverse("student_affairs:attendance_overview") if ctx.get("can_follow_up") else ""
+    unapproved_url = reverse("attendance_unapproved")
+    if day.slots_running and day.current_slot:
+        sections_sub = f"ح{day.current_slot} جارية"
+    else:
+        sections_sub = f"انتهت {day.slots_ended} خانات" if day.slots_ended else "لم تبدأ الحصص"
+    exits_sub = f"{day.exits_count} مرّة · {day.exits_minutes} دقيقة" if day.exits_count else ""
+    destinations = " · ".join(
+        f"{label} {count}"
+        for label, count in sorted(day.exits_by_destination.items(), key=lambda item: -item[1])
+        if count
+    )
+    wings = [
+        {
+            "name": row.name,
+            "counts": row.counts,
+            "registered": f"{row.counts.sections_registered}/{row.counts.sections_total}",
+            "gap": row.counts.sections_registered < row.counts.sections_total
+            and day.slots_ended > 0,
+        }
+        for row in day.wings
+    ]
+    return {
+        "day_final": final,
+        "day_open": day.phase != "closed",
+        "day_headline_label": "غائب بلا عذر" if final else "غائبون عن ح1 وح2",
+        "day_headline_value": c.absent_unexcused if final else c.early_absent,
+        "day_headline_tone": _pending(c.absent_unexcused if final else c.early_absent, "red"),
+        "day_headline_sub": "حكمُ اليوم" if final else "قبل حسم اليوم",
+        "day_follow_url": follow_url,
+        "day_unapproved_url": unapproved_url,
+        "day_pending_tone": _pending(c.pending, "amber"),
+        "day_incomplete_tone": _pending(c.incomplete, "amber"),
+        "day_sections_label": f"{c.sections_registered} من {c.sections_total}",
+        "day_sections_sub": sections_sub,
+        "day_slots_sub": f"انتهت {day.slots_ended} · جارية {day.slots_running}",
+        "day_bell_meta": f"{day.bell_slots} خانات جرس · انتهت {day.slots_ended} · جارية {day.slots_running}",
+        "day_exits_sub": exits_sub,
+        "day_exits_destinations": destinations,
+        "day_away_tone": _pending(c.away_permitted, "amber"),
+        "day_wings": wings,
+        "day_fold_meta": f"{len(wings)} أجنحة" if wings else "لا أجنحة",
+        "day_alerts_tone": _pending(ctx.get("alerts_count"), "red"),
+        "alerts_sub": "افتح متابعة الحضور" if ctx.get("alerts_count") else "لا تنبيهات معلّقة",
+    }
+
+
 def present(ctx: dict) -> dict:
     """المفاتيحُ التي يقرؤها قالبُ الدور — تُضاف فوق سياق العرض."""
     kind = ctx.get("view_type")
@@ -61,21 +119,17 @@ def present(ctx: dict) -> dict:
         critical = ctx.get("behavior_critical") or 0
         sent_home = ctx.get("clinic_sent_home") or 0
         out.update(
-            attendance_label=f"{ctx.get('attendance_pct', 0)}%",
-            att_delta_label=_delta(ctx.get("att_delta"), "%"),
-            absent_delta_label=_delta(ctx.get("absent_delta")),
-            sessions_sub=f"{ctx.get('completed', 0)} مكتملة · {ctx.get('in_progress', 0)} جارية",
             behavior_sub=f"{critical} حرجة" if critical else "",
             behavior_tone="red" if critical else "maroon",
             behavior_url=reverse("behavior:dashboard"),
             clinic_sub=f"{sent_home} أُرسلوا للمنزل" if sent_home else "",
-            clinic_tone="red" if sent_home else "blue",
+            clinic_tone="red" if sent_home else "maroon",
             clinic_url=reverse("clinic:dashboard"),
-            library_tone=_pending(ctx.get("library_overdue"), "purple"),
+            library_tone=_pending(ctx.get("library_overdue"), "amber"),
             library_url=reverse("library:dashboard"),
-            swaps_tone=_pending(ctx.get("pending_swaps"), "orange"),
+            swaps_tone=_pending(ctx.get("pending_swaps"), "amber"),
             swaps_url=reverse("swap_list"),
-            comp_tone=_pending(ctx.get("pending_comp"), "teal"),
+            comp_tone=_pending(ctx.get("pending_comp"), "amber"),
             comp_url=reverse("compensatory_list"),
             teachers_tone=_pending(ctx.get("absent_teachers_today"), "red"),
             teachers_url=reverse("absence_list"),
@@ -83,6 +137,7 @@ def present(ctx: dict) -> dict:
             failing_tone=_pending(ctx.get("failing_count"), "red"),
             failing_url=reverse("failing_students"),
         )
+        out.update(_director_day(ctx))
     elif kind in ("teacher", "coordinator"):
         out.update(
             swaps_url=reverse("swap_list"),
