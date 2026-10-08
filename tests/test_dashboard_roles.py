@@ -58,7 +58,9 @@ class TestDirectorPresentation:
         return present(base)
 
     def test_a_waiting_number_is_coloured_and_zero_is_green(self):
-        assert self._ctx(pending_swaps=2)["swaps_tone"] == "orange"
+        assert (
+            self._ctx(pending_swaps=2)["swaps_tone"] == "amber"
+        )  # نبراتُ اللوحة دلاليّةٌ: أحمر خطر، كهرمانيّ تنبيه، أخضر سليم، عنّابيّ عدّادٌ محايد (W-20261008-004 س٣)
         assert self._ctx(pending_swaps=0)["swaps_tone"] == "green"
 
     def test_critical_behaviour_turns_red_and_names_itself_once(self):
