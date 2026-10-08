@@ -103,11 +103,13 @@ def test_hc2_class_cannot_take_two_subjects_at_once():
     assert feasible(inp, [(0, 0, 3), (1, 0, 4)])
 
 
-def test_hc2_optional_groups_share_slot_but_not_with_plain():
+def test_hc2_optional_group_not_with_plain_nor_other_group():
     inp = make(
         [("C1", "S1", "T1", "G1", 1), ("C1", "S2", "T2", "G2", 1), ("C1", "S3", "T3", "", 1)]
     )
-    assert feasible(inp, [(0, 0, 3), (1, 0, 3)])  # مجموعتان تتقاسمان الخانة
+    assert not feasible(
+        inp, [(0, 0, 3), (1, 0, 3)]
+    )  # مجموعتان مختلفتان: يرفضه المُقيِّم (orphan_cells)
     assert not feasible(inp, [(0, 0, 3), (2, 0, 3)])  # مجموعةٌ مع عامّة
 
 
@@ -567,3 +569,10 @@ def test_floor_relaxation_is_declared_for_block_only_teachers():
     inp = make(rows, doubles=frozenset({"S1"}))
     built = build_model(inp, ModelOptions(derived_day_cap=False))
     assert built.relaxations == []  # حمل 4 في 5 أيام: لا أرضيّةَ أصلاً فلا إرخاء
+
+
+def test_two_different_elective_groups_cannot_share_a_class_cell():
+    """المُقيِّم لا يجيز مجموعتين اختياريّتين مختلفتين في خانة شعبةٍ واحدة (البصمةُ اتحادٌ فتصير orphan_cells)."""
+    inp = make([("C1", "S1", "T1", "GA", 1), ("C1", "S2", "T2", "GB", 1)])
+    assert not feasible(inp, [(0, 0, 3), (1, 0, 3)])
+    assert feasible(inp, [(0, 0, 3), (1, 0, 4)])

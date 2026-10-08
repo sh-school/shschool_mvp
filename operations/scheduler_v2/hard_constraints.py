@@ -152,6 +152,12 @@ def _class_conflict(ctx: _Ctx, rep_of: dict[int, int]) -> None:
                     if gv and plain:
                         ctx.m.Add(sum(plain) + sum(gv) <= 1)
                         ctx.count("HC2")
+                # المُقيِّم الرسميّ (load_grid/build_tasks) يرفض مجموعتين مختلفتين في خانةٍ واحدةٍ لشعبة:
+                # البصمةُ اتحادٌ لا تطابق مهمّةً فتصير orphan_cells. فخانةُ الشعبة تحمل مهمّةً واحدةً أياً كان نوعها.
+                every = [x[i, day, p] for i in live if (i, day, p) in x]
+                if len(groups) > 1 and len(every) > 1:
+                    ctx.m.Add(sum(every) <= 1)
+                    ctx.count("HC2")
 
 
 # ───────────────────────── HC19 والمزدوجات، HC7، HC6 ─────────────────────────
