@@ -3,6 +3,7 @@
  * (W-20261006-005، قرارا المالك D-239م وD-240م)
  *
  * - الضغطةُ: لم تُرصد ← غائب ← حاضر ← غائب… والواجهةُ **ترسل الحالةَ الصريحة** مع `head` (رأسُ الخليّة الذي رأته) لا «تبديلاً».
+ * - مفاتيحُ أسفل كلّ عمود: «الكلّ ✓/✗» تعدّل خلايا العمود في الواجهة فقط (بلا تأكيد ولا حفظ، D-247م) و«حفظ» يحفظ ذلك العمودَ وحدَه.
  * - الحفظُ لعمودٍ واحد: خلايا العمود المتغيّرةُ فقط، وتنبيهٌ بعدد الفارغات (تُكتب «حاضراً افتراضيّاً» لعمودٍ بدأت حصّتُه) يطلب تأكيداً.
  * - تعارضٌ (207): تُبرَز الخليّةُ بقيمتها الحاليّة ومن كتبها ومتى، ويحسم المستخدمُ كلَّ واحدةٍ على حدة.
  * - المسوّدةُ في `localStorage`: **رموزُ الحالة ومعرّفاتُ الطلبة فقط** (بلا أسماء)، وتُمسح عند الحفظ الناجح؛ ولا كتابةَ تلقائيّةَ للخادم.
@@ -77,6 +78,10 @@
       remember(cell);
       return;
     }
+    var bulk = event.target.closest('[data-bulk]');
+    if (bulk) return bulkFill(bulk);
+    var saveBtn = event.target.closest('[data-save-col]');
+    if (saveBtn) return save(saveBtn.getAttribute('data-save-col'));
     var approve = event.target.closest('[data-approve-col]');
     if (approve) return approveColumn(approve);
     var late = event.target.closest('[data-late]');
@@ -90,17 +95,6 @@
     var tab = event.target.closest('[data-tab]');
     if (tab) return showTab(tab.getAttribute('data-tab'));
   });
-
-  // شريطُ «الكلّ ✓ / الكلّ ✗ / حفظ» فوق البطاقة (في ترويسة الصفحة خارجَ `root`): يعمل على العمود المختار في قائمته.
-  var bar = document.querySelector('[data-grid-bar]');
-  function barCol() { var pick = bar && bar.querySelector('[data-bar-col]'); return pick ? pick.value : currentCol(); }
-  if (bar) {
-    bar.addEventListener('click', function (event) {
-      var bulk = event.target.closest('[data-bulk]');
-      if (bulk) return bulkFill(bulk);
-      if (event.target.closest('[data-save-bar]')) return save(barCol());
-    });
-  }
 
   root.addEventListener('dblclick', function (event) {
     var cell = event.target.closest('[data-cell]');
@@ -134,20 +128,17 @@
     gate.requestSubmit();
   }
 
+  // «الكلّ ✓/✗» لعمود الزرّ نفسِه: تغييرٌ في الواجهة فقط (خلايا مكتوبةٌ لا تُحفظ) — لا تأكيدَ هنا؛ التأكيدُ والحفظُ عند «حفظ».
   function bulkFill(button) {
-    var col = barCol();
+    var col = button.getAttribute('data-col');
     var status = button.getAttribute('data-bulk') === 'all_absent' ? 'absent' : 'present';
-    var targets = Array.prototype.filter.call(cells(col), function (c) { return c.getAttribute('data-writable') === '1'; });
-    var label = status === 'absent' ? 'غائب' : 'حاضر';
-    function apply() {
-      targets.forEach(function (c) { paint(c, status); c.classList.add('is-dirty'); remember(c); });
-      root.setAttribute('data-bulk-' + col, button.getAttribute('data-bulk'));
-    }
-    confirmThen('سيُسجَّل ' + targets.length + ' طالباً «' + label + '» في ح' + col + '. متابعة؟', function () {
-      if (status !== 'absent') { apply(); return; }
-      // «الكلُّ غائب» أخطرُ: تأكيدٌ ثانٍ بالعدد.
-      confirmThen('تأكيدٌ ثانٍ: «الكلُّ غائب» في ح' + col + ' — ' + targets.length + ' طالباً. متأكّد؟', apply);
+    Array.prototype.forEach.call(cells(col), function (c) {
+      if (c.getAttribute('data-writable') !== '1') return;
+      paint(c, status);
+      c.classList.add('is-dirty');
+      remember(c);
     });
+    root.setAttribute('data-bulk-' + col, button.getAttribute('data-bulk'));
   }
 
   function save(col) {
