@@ -138,7 +138,17 @@ def default_options(inputs: CpSatInputs) -> Any:
 
 
 def default_objective() -> ObjectiveAdder | None:
-    return _load_attr("operations.scheduler_v2.objective", "add_objective")
+    """يضيف الهدفَ المرن (v2-objective): `build_objective` ثمّ `add_soft_terms` (v2-core). غيابُهما ⇒ بلا هدف."""
+    build_objective = _load_attr("operations.scheduler_v2.objective", "build_objective")
+    add_soft_terms = _load_attr("operations.scheduler_v2.model", "add_soft_terms")
+    if build_objective is None or add_soft_terms is None:
+        return None
+
+    def add(built: BuiltModel, inputs: CpSatInputs) -> None:
+        objective = build_objective(built, inputs.subject_pedagogy)
+        add_soft_terms(built, objective.as_terms())
+
+    return add
 
 
 def _status_name(cp_model: Any, code: int) -> str:
@@ -184,7 +194,7 @@ def solve(built: BuiltModel, config: SolverConfig, progress: Any = None) -> Solv
     params.num_workers = config.workers
     params.max_time_in_seconds = float(config.max_seconds)
     # أقربُ ما يتيحه الحلّالُ إلى الحتميّة متعدّدَ العمّال.
-    params.interleave_search = config.workers > 1
+    params.interleave_search = False
 
     callback = None
     ticker = None

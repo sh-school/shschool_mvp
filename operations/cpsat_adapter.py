@@ -72,6 +72,8 @@ class CpSatInputs:
     class_level: dict[str, str] = field(default_factory=dict)
     #: صفُّ كلّ شعبة («G7»…«G12») من `ClassGroup.grade` — لـHC17 (G11/G12) وغيره.
     class_grade: dict[str, str] = field(default_factory=dict)
+    #: طبيعةُ كلّ مادّة (`heavy`/`activity`/`regular`) من `Subject.pedagogy` — للقيود المرنة.
+    subject_pedagogy: dict[str, str] = field(default_factory=dict)
     #: المواد التي لها حصصٌ مزدوجةٌ (مهمّةٌ بخانتين).
     doubles: frozenset[str] = frozenset()
     ex_full: frozenset[tuple[str, int]] = frozenset()
@@ -164,6 +166,7 @@ def build_inputs(
                 (task.class_id, member.subject_id, member.teacher_id, task.parallel_group, joint)
             ] += task.span
             inputs.subject_names[member.subject_id] = member.subject_name
+            inputs.subject_pedagogy.setdefault(member.subject_id, task.pedagogy)
             inputs.teacher_names[member.teacher_id] = member.teacher_name
             if task.span > 1:
                 doubles.add(member.subject_id)
