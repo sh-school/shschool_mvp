@@ -18,6 +18,8 @@ import pytest
 
 pytest.importorskip("pytest_playwright")
 
+from playwright.sync_api import TimeoutError as PlaywrightTimeout  # noqa: E402
+
 from tests import visual_snapshots as vs  # noqa: E402
 from tests.mobile_audit import PROFILES  # noqa: E402
 from tests.test_a11y_live_pages import _url  # noqa: E402
@@ -37,6 +39,15 @@ NO_CHART_ANIMATION = (
     "get:function(){return c},set:function(v){c=v;try{v.defaults.animation=false}catch(e){}}})})();"
 )
 LOGIN_PATH = "/auth/login/"
+
+#: الرسومُ البيانيّة (Chart.js 4) تُنشأ بعد `fetch` غير متزامنٍ — لوحةُ القيادة: «الحضور» و«الدرجات» — فلقطةٌ تلي التحميلَ بـ300ms ثابتةً
+#: تسبق الرسمَ أحياناً وتلحقه أحياناً: لقطتان متتاليتان على الصفحة نفسِها تختلفان (0.38% في تشغيلَين متتاليَين على main، 2026-10-08)، والفرقُ
+#: رسمٌ حاضرٌ في إحداهما غائبٌ في الأخرى. فيُنتظر أن يملك كلُّ `canvas` رسمَه (أو تنقضي مهلةٌ قصيرةٌ لصفحةٍ لا يُنشأ لها رسمٌ).
+CHARTS_READY = (
+    "() => !window.Chart || !window.Chart.getChart || "
+    "Array.from(document.querySelectorAll('canvas')).every(c => window.Chart.getChart(c))"
+)
+CHARTS_READY_TIMEOUT_MS = 4_000
 
 
 @pytest.fixture(autouse=True)
@@ -61,12 +72,23 @@ def _do_step(page, step: str) -> None:
         raise AssertionError(f"خطوةٌ غيرُ معرَّفة: {step} (المسموح {vs.STEPS})")
 
 
+def _wait_for_charts(page) -> None:
+    """شبكةٌ ساكنةٌ ثمّ رسومٌ مكتملة — حتّى لا تسبق اللقطةُ رسماً ينتظر ردَّ API. وصفحةٌ بلا رسمٍ لا تنتظر شيئاً."""
+    try:
+        page.wait_for_load_state("networkidle", timeout=CHARTS_READY_TIMEOUT_MS)
+        page.wait_for_function(CHARTS_READY, timeout=CHARTS_READY_TIMEOUT_MS)
+    except PlaywrightTimeout:
+        # canvas لا يُنشأ له رسمٌ (ردُّ API فاشل) يبقى فارغاً في اللقطتين معاً فتبقى الحتميّة؛ ولا نُسقط الالتقاطَ هنا.
+        pass
+
+
 def _capture(page, base: str, name: str, path: pathlib.Path, step: str = "") -> None:
     response = page.goto(f"{base}{_url(name)}", wait_until="load")
     assert response and response.ok, f"{name}: {response and response.status}"
     assert LOGIN_PATH not in page.url, f"{name}: أُحيل إلى الدخول — الجلسةُ لم تثبت"
     page.add_style_tag(content=vs.FREEZE_CSS)
     page.evaluate("document.fonts.ready.then(() => 1)")
+    _wait_for_charts(page)
     page.wait_for_timeout(300)
     if step:
         _do_step(page, step)
