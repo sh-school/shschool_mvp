@@ -7,6 +7,7 @@
 
 import datetime as dt
 from datetime import timedelta
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -33,6 +34,8 @@ from wings.absence_notice_services import IssueRefused
 pytestmark = pytest.mark.django_db
 
 DISPATCH = "notifications.hub.NotificationHub.dispatch_to_parents"
+#: المسارُ الحقيقيّ للبذر: يُترجَم به فتجد coverage مصدرَه في جذر المستودع (اسمٌ مجرَّدٌ كان يُسقط بوّابة التغطية: No source for code)
+SEED_PATH = Path(__file__).resolve().parent.parent / "docs" / "preview_held_alerts_seed.py"
 
 
 @pytest.fixture
@@ -379,14 +382,10 @@ def test_the_screen_shows_the_readable_gate_label_not_the_raw_key(client_as, sch
 
 def test_the_preview_seed_refuses_to_run_outside_the_preview_environment(db):
     """ملاحظة 0104: سكربتُ البذر يُنفَّذ بـmanage.py shell على أيّ قاعدة؛ فأوّلُ سطرٍ يرفض خارج المعاينة (testing ليست معاينة)."""
-    from pathlib import Path
-
-    source = (
-        Path(__file__).resolve().parent.parent / "docs" / "preview_held_alerts_seed.py"
-    ).read_text(encoding="utf-8")
+    source = SEED_PATH.read_text(encoding="utf-8")
 
     with pytest.raises(SystemExit) as refused:
-        exec(compile(source, "preview_held_alerts_seed.py", "exec"), {"__name__": "__main__"})  # noqa: S102
+        exec(compile(source, str(SEED_PATH), "exec"), {"__name__": "__main__"})  # noqa: S102
 
     assert "للمعاينة المركزيّة" in str(refused.value)
     assert AbsenceAlert.objects.count() == 0, "لم يُكتب شيء"
@@ -396,14 +395,10 @@ def test_the_preview_seed_refuses_to_run_outside_the_preview_environment(db):
 
 
 def _run_seed(monkeypatch, action):
-    from pathlib import Path
-
     monkeypatch.setenv("SEED_ACTION", action)
     monkeypatch.setattr("core.preview_accounts.in_preview_environment", lambda: True)
-    source = (
-        Path(__file__).resolve().parent.parent / "docs" / "preview_held_alerts_seed.py"
-    ).read_text(encoding="utf-8")
-    exec(compile(source, "preview_held_alerts_seed.py", "exec"), {"__name__": "__main__"})  # noqa: S102
+    source = SEED_PATH.read_text(encoding="utf-8")
+    exec(compile(source, str(SEED_PATH), "exec"), {"__name__": "__main__"})  # noqa: S102
 
 
 @pytest.fixture
