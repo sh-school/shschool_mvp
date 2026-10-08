@@ -196,6 +196,32 @@ def _per_row(ctx: _Ctx) -> None:
                             ctx.count("HC19")
 
 
+def _same_subject_rules(ctx: _Ctx) -> None:
+    """HC20: حصّتا المادّة في اليوم لا تتجاوران (إلّا المزدوجةَ المعلَنة) · HC17: خميسُ 11 و12 حصّةٌ واحدةٌ للمادّة (المزدوجةُ كتلة)."""
+    x = ctx.b.x
+    grouped: dict[tuple[str, str, int], list[tuple[int, int, object]]] = defaultdict(list)
+    for (i, d, p), v in x.items():
+        r = ctx.rows[i]
+        grouped[r.cls, r.subj, d].append((i, p, v))
+    for (cls, subj, day), cells in grouped.items():
+        double = subj in ctx.doubles
+        if "HC20" not in ctx.opt.disabled and not double:
+            for a, (_ia, pa, va) in enumerate(cells):
+                for _ib, pb, vb in cells[a + 1 :]:
+                    if pa != pb and _touching(ctx, cls, day, pa, pb):
+                        ctx.m.Add(va + vb <= 1)
+                        ctx.count("HC20")
+        grade = ctx.opt.class_grade.get(cls)
+        if (
+            "HC17" not in ctx.opt.disabled
+            and day == 4
+            and grade in ctx.opt.thursday_pair_grades
+            and len(cells) > 1
+        ):
+            ctx.m.Add(sum(v for _i, _p, v in cells) <= (2 if double else 1))
+            ctx.count("HC17")
+
+
 def _touching(ctx: _Ctx, cls: str, day: int, p1: int, p2: int) -> bool:
     t1, t2 = ctx.time_of(cls, day, p1), ctx.time_of(cls, day, p2)
     if not t1 or not t2:
@@ -282,6 +308,7 @@ def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
     if len(occ) > cap:
         m.Add(sum(occ.values()) <= cap)
         ctx.count(code)
+    _day_floor(ctx, occ, load, n_days)
     # الطرفان: أولى (HC22) وأخيرةٌ متاحةٌ للمعلّم في اليوم (HC8).
     fv = [c.var for c in cells if c.p == 1]
     last_p = ctx.all_periods.get((t, day), 0)
@@ -292,6 +319,20 @@ def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
         edges.last[day] = _any(ctx, [c.var for c in lcells])
         for c in lcells:
             edges.last_by_cls[ctx.rows[c.i].cls].append(c.var)
+
+
+def _day_floor(ctx: _Ctx, occ, load: int, n_days: int) -> None:
+    """HC14: لا يومَ فارغاً لتامّ النصاب (load ≥ أيّامه) · HC16B: لا يومَ دون ⌊النصاب÷الأيّام⌋ (احتياطٌ مسبقٌ لا فحصٌ بعديّ)."""
+    if not n_days:
+        return
+    total = sum(occ.values())
+    if "HC14" not in ctx.opt.disabled and load >= n_days:
+        ctx.m.Add(total >= 1)
+        ctx.count("HC14")
+    low = load // n_days
+    if "HC16B" not in ctx.opt.disabled and low >= 1:
+        ctx.m.Add(total >= low)
+        ctx.count("HC16B")
 
 
 def _day_pairs(ctx: _Ctx, by_key, occ, hc5: bool) -> None:
@@ -368,6 +409,19 @@ def _max_gap(ctx: _Ctx, t: str, day: int, by_key, occ, max_gap: int) -> None:
     ctx.count("HC10")
 
 
+def _cap_or_soft(ctx: _Ctx, kind: str, t: str, var, cap: int, code: str) -> None:
+    """سقفٌ صلبٌ (الافتراضُ) أو فائضٌ مُعاقَب (`edge_caps_soft`): الفائضُ e ≥ var − cap، وعقوبتُه عبر add_soft_terms."""
+    if not ctx.opt.edge_caps_soft:
+        ctx.m.Add(var <= cap)
+        ctx.count(code)
+        return
+    excess = ctx.m.NewIntVar(0, 5, "")
+    ctx.m.Add(excess >= var - cap)
+    ctx.b.vars[(f"{kind}_excess", t)] = excess
+    ctx.b.pending_soft.append((f"{code}_soft", excess, ctx.opt.edge_soft_weight))
+    ctx.count(f"{code}_SOFT")
+
+
 def _edge_caps(ctx: _Ctx, t, edges: _Edges, hc22: bool, hc8: bool) -> None:
     m, b = ctx.m, ctx.b
     if edges.first:
@@ -375,15 +429,13 @@ def _edge_caps(ctx: _Ctx, t, edges: _Edges, hc22: bool, hc8: bool) -> None:
         m.Add(f == sum(edges.first.values()))
         b.vars[("first", t)] = f
         if hc22:
-            m.Add(f <= ctx.opt.first_cap)
-            ctx.count("HC22")
+            _cap_or_soft(ctx, "first", t, f, ctx.opt.first_cap, "HC22")
     if edges.last:
         l = m.NewIntVar(0, 5, "")
         m.Add(l == sum(edges.last.values()))
         b.vars[("last", t)] = l
         if hc8:
-            m.Add(l <= ctx.opt.last_cap)
-            ctx.count("HC8")
+            _cap_or_soft(ctx, "last", t, l, ctx.opt.last_cap, "HC8")
             # الشرطُ الثاني المستقلّ في HC8: الطرفان لا يقعان على شعبةٍ واحدة.
             for vs in edges.last_by_cls.values() if ctx.opt.last_distinct_class else ():
                 if len(vs) > 1:
@@ -459,6 +511,7 @@ def add_all(built: BuiltModel) -> None:
     rep_of = _joint(ctx)
     _class_conflict(ctx, rep_of)
     _per_row(ctx)
+    _same_subject_rules(ctx)
     _teachers(ctx)
     _resources(ctx)
 

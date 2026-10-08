@@ -288,6 +288,80 @@ def test_overdemand_is_proven_infeasible_not_timeout():
     assert st == cp_model.INFEASIBLE
 
 
+# ───────── القيودُ الباقية: HC14 HC16B HC17 HC20 والسقفان المرنان ─────────
+
+
+def test_hc14_no_empty_day_for_full_load_teacher():
+    inp = make([("C1", "S1", "T1", "", 5)], ex_full=frozenset({("T1", 2)}))  # 5 حصصٍ على 4 أيّام
+    built = build_model(
+        inp, ModelOptions(derived_day_cap=False, even_spread=False, disabled=frozenset({"HC16B"}))
+    )
+    st, sv = solve(built)
+    assert st in OK
+    for day in (0, 1, 3, 4):
+        assert sum(sv.Value(v) for (_i, d, _p), v in built.x.items() if d == day) >= 1
+    # معلّمٌ نصابُه دون أيّامه (منسّق): اليومُ الفارغ مباحٌ
+    few = make([("C1", "S1", "T1", "", 3)])
+    assert feasible(few, [(0, 0, 1), (0, 1, 1), (0, 2, 3)])
+
+
+def test_hc14_can_be_disabled_by_tag():
+    rows = [("C1", "S1", "T1", "", 3), ("C2", "S2", "T1", "", 3)]  # 6 ≥ 5 أيّام
+    # الأيّام 0..2 بحصّتين والخميسُ والأربعاءُ فارغان
+    forced = [(0, 0, 1), (1, 0, 3), (0, 1, 3), (1, 1, 5), (0, 2, 5), (1, 2, 1)]
+    assert not feasible(make(rows), forced)
+    assert feasible(make(rows), forced, disabled=frozenset({"HC14", "HC16B"}))
+
+
+def test_hc16b_day_floor_is_floor_of_load_over_days():
+    rows = [("C1", "S1", "T1", "", 5), ("C2", "S2", "T1", "", 5)]  # 10 على 5 أيّام ⇒ ≥ 2 يوميّاً
+    built = build_model(make(rows), ModelOptions(derived_day_cap=False))
+    st, sv = solve(built)
+    assert st in OK
+    for day in range(5):
+        assert sum(sv.Value(v) for (_i, d, _p), v in built.x.items() if d == day) >= 2
+    # يومٌ بحصّةٍ واحدةٍ ممنوع: يلزم أن يُوزَّع الباقي في الأيّام الأخرى فقط
+    one_in_day0 = [(0, 0, 1)]
+    off = {"disabled": frozenset({"HC16B", "HC14"}), "even_spread": False}
+    assert feasible(make(rows), one_in_day0)
+    assert build_model(make(rows), ModelOptions(**off)).constraint_counts["HC16B"] == 0
+
+
+def test_hc20_same_subject_not_adjacent_unless_double():
+    inp = make([("C1", "S1", "T1", "", 7)])  # سقفُ اليوم 2
+    assert not feasible(inp, [(0, 0, 1), (0, 0, 2)])  # متجاورتان
+    assert feasible(inp, [(0, 0, 1), (0, 0, 3)])  # بينهما حصّة
+    assert feasible(inp, [(0, 0, 3), (0, 0, 4)])  # تفصلهما فسحة
+    assert feasible(inp, [(0, 0, 1), (0, 0, 2)], disabled=frozenset({"HC20", "HC5"}))
+    dbl = make([("C1", "S1", "T1", "", 7)], doubles=frozenset({"S1"}))
+    assert feasible(dbl, [(0, 0, 1), (0, 0, 2)])  # المزدوجةُ مستثناة
+
+
+def test_hc17_thursday_single_period_for_grade_11_12():
+    rows = [("C1", "S1", "T1", "", 6)]
+    grades = {"class_grade": {"C1": "G11"}}
+    two = [(0, 4, 1), (0, 4, 3)]
+    assert not feasible(make(rows), two, **grades)
+    assert feasible(make(rows), two)  # بلا صفٍّ معلوم لا حكم (مدخلٌ ناقص)
+    assert feasible(make(rows), two, class_grade={"C1": "G9"})
+    assert feasible(make(rows), [(0, 4, 1)], **grades)
+    assert feasible(make(rows), two, disabled=frozenset({"HC17"}), **grades)
+
+
+def test_edge_caps_soft_conversion_penalises_excess_instead_of_forbidding():
+    rows = [("C1", "S1", "T1", "", 3), ("C2", "S2", "T1", "", 3)]
+    three = [(0, 0, 1), (0, 1, 1), (1, 2, 1)]
+    hard = ModelOptions(derived_day_cap=False)
+    assert not feasible(make(rows), three, derived_day_cap=False)
+    soft = ModelOptions(derived_day_cap=False, edge_caps_soft=True, edge_soft_weight=7)
+    built = build_model(make(rows), soft)
+    assert built.constraint_counts["HC22_SOFT"] == 1 and "HC22" not in built.constraint_counts
+    assert [t[0] for t in built.soft_terms if t[0].startswith("HC22")] == ["HC22_soft"]
+    st, sv = solve(built, three)
+    assert st == cp_model.OPTIMAL and sv.ObjectiveValue() == 7  # فائضٌ واحدٌ × 7
+    assert hard.edge_caps_soft is False  # مُطفأٌ افتراضاً
+
+
 # ───────── فحصُ الإسناد AS ─────────
 
 
@@ -338,7 +412,7 @@ def test_interface_ids_and_soft_terms_extension_point():
     assert all(isinstance(k, tuple) and len(k) == 3 for k in built.x)
     assert built.var_counts["bool_x"] == len(built.x) and built.var_counts["constraints"] > 0
     known = {"DEMAND", "JOINT", "HC1", "HC2", "HC5", "HC6", "HC7", "HC8", "HC9", "HC10", "HC11"}
-    known |= {"HC12", "HC13", "HC16", "HC19", "HC22", "DAILY_CAP"}
+    known |= {"HC12", "HC13", "HC16", "HC19", "HC22", "DAILY_CAP", "HC14", "HC16B", "HC17", "HC20"}
     assert set(built.constraint_counts) <= known
     n = add_soft_terms(built, [("consecutive", built.x[0, 0, 1], 10), ("gap", built.x[0, 0, 2], 8)])
     assert n == 2
@@ -403,7 +477,7 @@ def _run_fixture(capsys, label, limit, **opt):
 
 # الجدوى على الحزمة المقنَّعة تعتمد على التفاصيل لا النسب (AS-6)؛ فالمراتبُ المقيسةُ هنا هي ما يُثبَت لا ما يُرجى.
 _NO_FAIRNESS = {
-    "disabled": frozenset({"HC22", "HC8"}),
+    "disabled": frozenset({"HC22", "HC8", "HC14", "HC16B"}),
     "derived_day_cap": False,
     "even_spread": False,
 }
@@ -421,6 +495,20 @@ def test_fixture_with_even_day_spread_solves(capsys):
     """+ HC6 بالقسمة الكاملة (⌊n/D⌋ ≤ عددُ اليوم ≤ ⌈n/D⌉): OPTIMAL (قيس 9–54 ثانية بحسب الحمل)."""
     st = _run_fixture(capsys, "core+even", 120.0, **{**_NO_FAIRNESS, "even_spread": True})
     assert st in OK
+
+
+@pytest.mark.slow
+def test_fixture_with_day_floors_hc14_hc16b_is_recorded_not_assumed(capsys):
+    """+ HC14 (لا يومَ فارغاً) وHC16B (حدٌّ أدنى لليوم): قيس 2026-10-08 UNKNOWN في 90ث على هذا الإسناد (HC14 وحدَه كذلك)."""
+    st = _run_fixture(
+        capsys,
+        "core+floors",
+        30.0,
+        disabled=frozenset({"HC22", "HC8"}),
+        derived_day_cap=False,
+        even_spread=False,
+    )
+    assert st != cp_model.MODEL_INVALID
 
 
 @pytest.mark.slow

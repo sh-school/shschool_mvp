@@ -27,6 +27,8 @@ SchedulerInputs = CpSatInputs
 
 #: قيودٌ قابلةٌ للإيقاف بوسمٍ (افتراضاتُ مالكٍ لا نواةٌ ولا قفلٌ إداريّ).
 TOGGLEABLE = ("HC5", "HC8", "HC11", "HC22")
+#: قيودٌ صلبةٌ رتبتُها dense/relaxed في السجلّ (لا جولاتِ استرخاءٍ في V2): قائمةٌ افتراضاً وتُوقَف بوسم `disabled` وحدَه.
+RANKED = ("HC14", "HC16B", "HC17", "HC20")
 
 
 @dataclass(frozen=True)
@@ -52,6 +54,13 @@ class ModelOptions:
     derived_day_cap: bool = True
     #: HC9: «time» = عبر النطاقات بالساعة (الافتراضيّ)، «period» = برقم الحصّة كالمرجع.
     resource_by: str = "time"
+    #: التحويلُ المرنُ للسقفين: بدل `f ≤ first_cap` و`l ≤ last_cap` صلباً يُعاقَب الفائضُ عبر `add_soft_terms`.
+    #: مُطفأٌ افتراضاً بانتظار قرار المالك (D-166م صلبٌ)؛ والفائضُ متغيّرٌ ("first_excess"/"last_excess", t).
+    edge_caps_soft: bool = False
+    edge_soft_weight: float = 100.0
+    #: صفُّ كلّ شعبة («G11»…) — يلزم HC17 ولا يحمله `CpSatInputs`؛ فارغٌ = HC17 لا يعمل (بلا مرجع صفٍّ لا حكم).
+    class_grade: dict[str, str] = field(default_factory=dict)
+    thursday_pair_grades: frozenset[str] = frozenset({"G11", "G12"})
     #: يسمّي القيودَ في الـproto (للتنقيح فقط؛ يزيد الذاكرة).
     name_constraints: bool = False
 
@@ -84,6 +93,8 @@ class BuiltModel:
     #: حدودٌ تُسجَّل للتشخيص (مثلاً HC4_cut_cells، exempt_cut_cells).
     notes: dict[str, int] = field(default_factory=dict)
     soft_terms: list[tuple[str, Any, float]] = field(default_factory=list)
+    #: حدودٌ مرنةٌ تولّدها القيودُ نفسُها (التحويلُ المرن للسقفين) ويضيفها `build_model` عبر `add_soft_terms`.
+    pending_soft: list[tuple[str, Any, float]] = field(default_factory=list)
 
     @property
     def rows(self) -> list[DemandRow]:
@@ -106,6 +117,8 @@ def build_model(inputs: CpSatInputs, options: ModelOptions | None = None) -> Bui
         row_ids=[row_id(r) for r in inputs.demand],
     )
     hard_constraints.add_all(built)
+    if built.pending_soft:
+        add_soft_terms(built, built.pending_soft)
     proto = built.model.Proto()
     built.var_counts = {
         "bool_x": len(built.x),
