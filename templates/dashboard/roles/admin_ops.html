@@ -18,15 +18,20 @@
       {% endfor %}
     {% endif %}
 
-    {% include "wings/partials/watchlist.html" %}
+    {% if sup_day %}
+      {% include "wings/partials/supervisor_day.html" %}
+    {% else %}
+      {% include "wings/partials/watchlist.html" %}
+    {% endif %}
   {% endif %}
 
   {# حاصرُ الغياب العامّ: رئيسيّتُه بحثٌ ومتابعتُه اليوميّة فقط (أمرُ المالك 2026-10-06) — العدّاداتُ والتنبيهاتُ والبلاطاتُ مكرّرةٌ فيما في «رصد الغياب» ولا تخصّه #}
   {% if not school_wide %}
   {# كلُّ عدّادٍ بقدرة وجهته: يغيب (None) عمّن لا تُفتح له شاشتُه، والشريطُ الفارغ خطأ فيُحجب كلُّه #}
-  {% if absent_teachers_today is not None or pending_swaps is not None %}
+  {% if absent_teachers_today is not None and not sup_day or pending_swaps is not None %}
   {% kpi_strip label="ما ينتظر الإدارة" %}
-    {% if absent_teachers_today is not None %}{% kpi "معلّمون غائبون اليوم" absent_teachers_today tone=teachers_tone %}{% endif %}
+    {# لمشرف الجناح «معلّمون غائبون» في شريط «غياب جناحي اليوم» (قياسُ 2026-10-08: مؤشّرٌ وحيدٌ كان يحتلّ صفّاً كاملاً) #}
+    {% if absent_teachers_today is not None and not sup_day %}{% kpi "معلّمون غائبون اليوم" absent_teachers_today tone=teachers_tone %}{% endif %}
     {% if pending_swaps is not None %}{% kpi "طلبات تبديلٍ معلّقة" pending_swaps tone=swaps_tone %}
     {% kpi "حصصٌ تعويضيّةٌ معلّقة" pending_comp tone=comp_tone %}{% endif %}
   {% endkpi_strip %}
