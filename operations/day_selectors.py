@@ -209,18 +209,16 @@ def _load_attendance(school: Any, day: dt.date, data: _Day) -> None:
 
 
 def _load_registration(school: Any, day: dt.date, data: _Day) -> None:
-    """٤ تثبيتاتُ المشرف و٥ رؤوسُ إدخالات الجدول: كلُّها تسجّل الخانة، والمعلَّقُ (بلا قرار) يُعدّ ولا يُحتسب."""
-    from operations.models import AttendanceEntry, PeriodConfirmation
+    """٤ تثبيتاتُ المشرف و٥ رؤوسُ إدخالات الجدول (عبر القارئ المراجَع): كلُّها تسجّل الخانة، والمعلَّقُ (بلا قرار) يُعدّ ولا يُحتسب."""
+    from operations.attendance_selectors import day_entry_heads
+    from operations.models import PeriodConfirmation
 
     confirmations = PeriodConfirmation.objects.filter(school=school, date=day)
     for section, start in confirmations.values_list("class_group_id", "start_time"):
         data.registered.add((section, start))
-    entries = AttendanceEntry.objects.filter(
-        school=school, session__date=day, superseded_by__isnull=True
-    ).values_list("student_id", "session__class_group_id", "session__start_time", "decision__id")
-    for student, section, start, decision in entries:
+    for student, section, start, undecided in day_entry_heads(school, day):
         data.registered.add((section, start))
-        if decision is None:
+        if undecided:
             data.pending_students.add(student)
 
 
