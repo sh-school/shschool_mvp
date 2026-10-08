@@ -18,9 +18,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
+import datetime as dt
 import json
 import pathlib
+from zoneinfo import ZoneInfo
 
 from PIL import Image, ImageChops
 
@@ -79,6 +82,27 @@ DETERMINISM_MAX = 0.0005
 CHANGE_MAX = 0.001
 #: أطولُ لقطةٍ (بكسل CSS) — صفحةٌ طويلةٌ تُقصّ لئلّا يكبر الـartifact.
 MAX_HEIGHT = 3200
+
+#: **اللحظةُ المثبَّتة** (W-20261008-005): أربعاءُ دوامٍ عاديّ بتوقيت الدوحة. كانت اللقطةُ تُلتقط بساعة الجهاز، فيُصيّر الأساسُ
+#: «الأربعاء 07/10» ويُصيّر طلبُ الغد «الخميس 08/10» (وبتخطيطٍ آخر: جدولُ جرسِ الخميس) فتفشل ثماني لقطاتٍ على رأسٍ لم يتغيّر فيه حرفٌ
+#: (قيس: تشغيلُ main@20381b76 نفسِه يوم الأساس + 1). فتُثبَّت الساعةُ على الخادم (`frozen_clock`) وفي المتصفّح (`clock.set_fixed_time`)،
+#: ويصلح الأساسُ أيّاماً لا يوماً. وليست مقصودةً بذاتها: أيُّ أربعاءِ دوامٍ يصلح، وتغييرُها يُجدّد الأساسَ كلَّه.
+FIXED_NOW = dt.datetime(2026, 10, 7, 7, 10, tzinfo=ZoneInfo("Asia/Qatar"))
+
+
+@contextlib.contextmanager
+def frozen_clock(now: dt.datetime = FIXED_NOW):
+    """يثبّت `django.utils.timezone.now` على `now` ما دام السياقُ مفتوحاً — فيتبعه `localdate()` و`localtime()` والجلساتُ والبذرُ.
+
+    خادمُ الاختبار الحيّ (`live_server`) خيطٌ في العمليّة نفسِها، فتبديلُ الدالّة على الوحدة يصل إلى طلباته. وهو **تثبيتٌ لا ساعةٌ ماشية**:
+    لقطتان في تشغيلَين مختلفَين تقرآن اللحظةَ نفسَها بالثانية، فلا يتغيّر وقتُ اليوم المعروض. (والمواضعُ التي تقرأ `date.today()` مباشرةً
+    لا تتبع هذا — `operations/presence.py` وبعضُ التقارير — وليست في صفحات اللقطات؛ وأيُّ صفحةٍ تدخلها لاحقاً تُغطّى بـ`data-visual-mask`.)
+    """
+    from unittest import mock
+
+    with mock.patch("django.utils.timezone.now", lambda: now):
+        yield now
+
 
 #: عناصرُ متقلّبةٌ (وقتٌ، عدّاد) يضع عليها القالبُ السمةَ `data-visual-mask` فتُغطّى في اللقطة.
 MASK_SELECTOR = "[data-visual-mask]"

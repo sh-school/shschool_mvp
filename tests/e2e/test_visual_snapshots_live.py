@@ -39,6 +39,13 @@ NO_CHART_ANIMATION = (
 LOGIN_PATH = "/auth/login/"
 
 
+@pytest.fixture(autouse=True)
+def _frozen_server_clock():
+    """ساعةُ الخادم مثبَّتةٌ على `vs.FIXED_NOW` طوالَ الاختبار (بذرُ المثبّتات والطلباتُ معاً) — لا تتبع الصفحاتُ يومَ التشغيل."""
+    with vs.frozen_clock():
+        yield
+
+
 def _do_step(page, step: str) -> None:
     """خطوةُ رحلةٍ (Q-11) حتميّة: نقرةٌ ثمّ انتظارُ حالةٍ ظاهرةٍ في الصفحة — لا انتظارَ بالزمن."""
     if step == "menu":  # لوحةُ الهامبرغر على الجوال
@@ -111,6 +118,8 @@ def test_the_key_pages_are_deterministic_and_have_not_changed_visually(
                         **PROFILES[profile],
                     )
                     context.add_init_script(vs.INIT_SCRIPT.format(theme=theme) + NO_CHART_ANIMATION)
+                    # ساعةُ المتصفّح (`Date`) على اللحظة نفسِها؛ تثبيتٌ لا ساعةٌ مزيَّفة فلا تتعطّل المؤقِّتات.
+                    context.clock.set_fixed_time(vs.FIXED_NOW)
                     try:
                         page = context.new_page()
                         for shot in batch:

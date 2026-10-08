@@ -676,32 +676,35 @@ class TestAbsenceHubIntegration:
         return start + timedelta(days=30)
 
     @patch("notifications.hub._queue_external_after_commit")
-    def test_absence_alert_creates_inapp_for_parent(
+    def test_absence_alert_is_held_and_nothing_reaches_the_parent(
         self, mock_queue, school, student_user, parent_user, teacher_user
     ):
+        """قرارُ المالك D-246م: لا إرسالَ لوليّ الأمر من الرصد؛ التنبيهُ «محجوز» ويُصدر إخطارَه حاصرُ الغياب بزرّه (`wings.absence_notice_services`)."""
+        from operations.models import AbsenceAlert
         from operations.services import AttendanceService
 
         on = self._reach_a_gate(school, student_user, teacher_user)
         AttendanceService.check_absence_threshold(student_user, school, on=on)
 
-        assert InAppNotification.objects.filter(
-            user=parent_user,
-            event_type="absence",
-        ).exists()
+        assert not InAppNotification.objects.filter(user=parent_user, event_type="absence").exists()
+        assert set(
+            AbsenceAlert.objects.filter(student=student_user).values_list("status", flat=True)
+        ) == {"held"}
+        mock_queue.assert_not_called()
 
     @patch("notifications.hub._queue_external_after_commit")
-    def test_absence_alert_sent_once_only(
+    def test_absence_alert_is_created_once_only(
         self, mock_queue, school, student_user, parent_user, teacher_user
     ):
-        """الدالّة تُنادى عند كل تسجيل حضور — فالتكرار يُغرق وليّ الأمر."""
+        """الدالّة تُنادى عند كل تسجيل حضور — فالتكرار لا يخلق تنبيهاً ثانياً."""
+        from operations.models import AbsenceAlert
         from operations.services import AttendanceService
 
         on = self._reach_a_gate(school, student_user, teacher_user)
         AttendanceService.check_absence_threshold(student_user, school, on=on)
         AttendanceService.check_absence_threshold(student_user, school, on=on)
 
-        count = InAppNotification.objects.filter(user=parent_user, event_type="absence").count()
-        assert count == 1, "إشعار الغياب يجب أن يُرسَل مرة واحدة فقط"
+        assert AbsenceAlert.objects.filter(student=student_user).count() == 1
 
     @patch("notifications.hub._queue_external_after_commit")
     def test_absence_alert_no_parent_no_error(self, mock_queue, school, student_user, teacher_user):
