@@ -140,10 +140,13 @@ def is_direct_class(class_group: ClassGroup) -> bool:
     wing = class_group.wing
     if wing is None:
         return False
+    # القيمةُ الفارغةُ تُستبعد: "".split(",") يعطي {""} فيُعدّ جناحٌ برمزٍ فارغٍ مباشراً (ملاحظة 0104)
     wanted = {
-        c.strip() for c in str(getattr(settings, "ATTENDANCE_GRID_DIRECT_WINGS", "")).split(",")
+        c.strip()
+        for c in str(getattr(settings, "ATTENDANCE_GRID_DIRECT_WINGS", "")).split(",")
+        if c.strip()
     }
-    return "*" in wanted or wing.code in wanted
+    return "*" in wanted or bool(wing.code and wing.code in wanted)
 
 
 def is_direct_entry(session: Session) -> bool:

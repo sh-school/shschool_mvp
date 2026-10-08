@@ -663,7 +663,7 @@ def _write_one(
                 status,
                 minutes=minutes,
                 expected_head=str(item.get("head") or ""),
-                correction_reason=reason if overriding else "",
+                correction_reason=reason if (overriding or correcting) else "",
             )
     except GridConflictError as conflict:
         current = (
@@ -684,7 +684,8 @@ def _write_one(
             model_name="other",
             object_id=entry.pk,
             object_repr="جدول الشعبة — تصحيحٌ بعد الإغلاق",
-            changes={"reason": (reason or "").strip()[:300], "student": str(student.pk)},
+            # النصُّ الحرّ للسبب محفوظٌ في الإدخال المصحِّح (`correction_reason`) — لا يُكرَّر في سجلّ التدقيق (ملاحظة 0104 P3)
+            changes={"reason_recorded": True, "student": str(student.pk)},
             school=session.school,
         )
 

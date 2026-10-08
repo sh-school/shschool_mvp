@@ -678,6 +678,7 @@ GRID_DEFAULT_ORIGIN = "grid_default"
 #: أسبابٌ ثابتةٌ مركزيّةٌ تحقّق قيدَ `correction_reason` دون احتكاك (لا يكتب المعلّمُ سبباً لتعديلٍ من الجدول).
 GRID_EDIT_REASON = "تعديلٌ من جدول الشعبة"
 GRID_DEFAULT_FIX_REASON = "تصحيحُ حاضرٍ افتراضيّ"
+BULK_SETTLEMENT_REASON = "تسوية جماعية"
 
 
 class GridConflictError(EntryConflictError):
@@ -858,6 +859,7 @@ def settle_pending_as_direct(school: School, *, apply: bool = False) -> int:
         .order_by("entered_at")
     )
     settled = 0
+    wings: set[str] = set()
     for entry in pending:
         if not is_direct_entry(entry.session):
             continue
@@ -869,7 +871,23 @@ def settle_pending_as_direct(school: School, *, apply: bool = False) -> int:
                     approve=True,
                     basis="direct_entry",
                     evidence={"rule": "direct_wing", "bulk_settlement": True},
-                    reason="",
+                    reason=BULK_SETTLEMENT_REASON,
                 )
+                wings.add(entry.session.class_group.wing.code)
         settled += 1
+    if apply and settled:
+        # القرارُ يُسجَّل باسم كاتب الإدخال، فسطرُ التدقيق هذا هو الأثرُ على **من شغّل التسوية**: المدرسةُ والعددُ والأجنحةُ والوقتُ بلا أسماء (ملاحظة 0104)
+        AuditLog.log(
+            user=None,
+            action="update",
+            model_name="other",
+            object_id=school.pk,
+            object_repr="تسويةٌ جماعيّةٌ لإدخالاتٍ معلَّقةٍ — رصدٌ نهائيّ",
+            changes={
+                "settled": settled,
+                "wings": sorted(wings),
+                "at": timezone.now().isoformat(timespec="seconds"),
+            },
+            school=school,
+        )
     return settled

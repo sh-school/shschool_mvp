@@ -308,3 +308,63 @@ def test_the_settle_command_counts_by_default_and_writes_only_with_apply(
     assert "سُوِّي 1" in capsys.readouterr().out
     assert AttendanceDecision.objects.get().basis == "direct_entry"
     assert StudentAttendance.objects.get(student=kids[0]).status == "absent"
+
+
+def test_an_empty_key_or_stray_commas_never_make_a_wing_direct(settings, school, assigned):
+    """ "".split(",") يعطي {""}: جناحٌ برمزٍ فارغٍ كان يُعدّ مباشراً (ملاحظة 0104)."""
+    from core.models import Wing
+    from operations.attendance_policy import is_direct_class
+
+    for raw in ("", ",", " , ,"):
+        settings.ATTENDANCE_GRID_DIRECT_WINGS = raw
+        assert not is_direct_class(assigned), repr(raw)
+    Wing.objects.filter(pk=assigned.wing_id).update(code="")
+    assigned.wing.refresh_from_db()
+    settings.ATTENDANCE_GRID_DIRECT_WINGS = ","
+    assert not is_direct_class(assigned), "رمزٌ فارغٌ مع مفتاحٍ فارغ"
+    settings.ATTENDANCE_GRID_DIRECT_WINGS = "*"
+    assert is_direct_class(assigned), "النجمةُ لكلّ الأجنحة"
+
+
+def test_the_bulk_settlement_leaves_a_reason_and_an_operator_audit_line_without_names(
+    settings, school, assigned, teacher, kids, clock
+):
+    from core.models import AuditLog
+    from operations.attendance_entries import settle_pending_as_direct
+
+    _write(teacher, school, assigned, kids)
+    settings.ATTENDANCE_GRID_DIRECT_WINGS = assigned.wing.code
+
+    assert settle_pending_as_direct(school, apply=True) == 1
+
+    decision = AttendanceDecision.objects.get()
+    assert decision.reason == "تسوية جماعية" and decision.evidence["bulk_settlement"] is True
+    audit = AuditLog.objects.get(object_repr__contains="تسويةٌ جماعيّةٌ")
+    assert audit.changes["settled"] == 1 and audit.changes["wings"] == [assigned.wing.code]
+    assert "at" in audit.changes
+    assert teacher.full_name not in str(audit.changes)
+
+
+def test_the_correction_reason_is_stored_in_the_entry_not_copied_into_the_audit(
+    school, direct, teacher, holder, kids, clock
+):
+    from core.models import AuditLog
+
+    _write(teacher, school, direct, kids, status="present")
+    head = str(AttendanceEntry.objects.get().pk)
+    secret = "سببٌ حرٌّ فيه نصٌّ يخصّ الطالب"
+
+    grid.save_column(
+        holder,
+        school,
+        direct.id,
+        1,
+        [{"student": str(kids[0].pk), "status": "absent", "head": head}],
+        reason=secret,
+        now=at(9, 5),
+    )
+
+    assert (
+        AttendanceEntry.objects.filter(supersedes__isnull=False).get().correction_reason == secret
+    )
+    assert not any(secret in str(row.changes) for row in AuditLog.objects.all())
