@@ -88,6 +88,8 @@ class BuiltModel:
     disabled: tuple[str, ...] = ()
     #: حدودٌ تُسجَّل للتشخيص (مثلاً HC4_cut_cells، exempt_cut_cells).
     notes: dict[str, int] = field(default_factory=dict)
+    #: إرخاءاتُ أرضيّة HC14/HC16B المعلَنة لكلّ معلّم (D-286م): معرّفٌ، حمل، كتل، الأرضيّة الأصليّة والمخفَّفة. «مخفَّف» وسمٌ للجدول.
+    relaxations: list[dict] = field(default_factory=list)
     soft_terms: list[tuple[str, Any, float]] = field(default_factory=list)
 
     @property

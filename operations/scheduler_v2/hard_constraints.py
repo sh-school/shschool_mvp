@@ -204,6 +204,7 @@ def _per_row(ctx: _Ctx) -> None:
                         if prev is not None:
                             ctx.m.Add(prev + y <= 1)
                         ctx.pairvar[x[i, d, p].Index(), x[i, d, p + 1].Index()] = y
+                        ctx.b.vars[("blk", i, d, p)] = y
                         row_pairs.add((x[i, d, p].Index(), x[i, d, p + 1].Index()))
                         ys.append(y)
                         prev = y
@@ -341,7 +342,7 @@ def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
     if len(occ) > cap:
         m.Add(sum(occ.values()) <= cap)
         ctx.count(code)
-    _day_floor(ctx, occ, load, n_days)
+    _day_floor(ctx, occ, t, load, n_days)
     # الطرفان: أولى (HC22) وأخيرةٌ متاحةٌ للمعلّم في اليوم (HC8).
     fv = [c.var for c in cells if c.p == 1]
     last_p = ctx.all_periods.get((t, day), 0)
@@ -354,18 +355,63 @@ def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
             edges.last_by_cls[ctx.rows[c.i].cls].append(c.var)
 
 
-def _day_floor(ctx: _Ctx, occ, load: int, n_days: int) -> None:
-    """HC14: لا يومَ فارغاً لتامّ النصاب (load ≥ أيّامه) · HC16B: لا يومَ دون ⌊النصاب÷الأيّام⌋ (احتياطٌ مسبقٌ لا فحصٌ بعديّ)."""
+def _feasible_floor(load: int, blocks: int, n_days: int, want: int, single_rows: int = 1) -> int:
+    """أكبرُ أرضيّةٍ ≤ want يمكن للمعلّم بلوغها في كلّ يومٍ مع كتله ومفرداته (حسابٌ دقيقٌ بلا حلّال).
+
+    اليومُ = 2×كتل + مفردات، والمفردةُ الواحدةُ من صفٍّ واحدٍ في اليوم (سقفُ HC6)، فاليومُ يحمل مفرداتٍ بعددِ
+    الصفوفِ ذات المفردات على الأكثر. DP على الأيّام: أقلُّ كتلٍ تكفي لأرضيّةٍ v بتوزيعٍ ما للمفردات."""
+    singles = load - 2 * blocks
+    if singles < 0 or (singles and single_rows * n_days < singles):
+        return 0
+    for v in range(want, 0, -1):
+        inf = blocks + 1
+        dp = {0: 0}  # مفرداتٌ مُسكَنة ← أقلّ كتلٍ مستعملة
+        for _ in range(n_days):
+            nxt: dict[int, int] = {}
+            for used, nb in dp.items():
+                for s_d in range(0, min(single_rows, singles - used) + 1):
+                    cost = nb + (max(0, v - s_d) + 1) // 2
+                    if cost < nxt.get(used + s_d, inf):
+                        nxt[used + s_d] = cost
+            dp = nxt
+        if dp.get(singles, inf) <= blocks:
+            return v
+    return 0
+
+
+def _day_floor(ctx: _Ctx, occ, t: str, load: int, n_days: int) -> None:
+    """HC14: لا يومَ فارغاً لتامّ النصاب (load ≥ أيّامه) · HC16B: لا يومَ دون ⌊النصاب÷الأيّام⌋ (احتياطٌ مسبقٌ لا فحصٌ بعديّ).
+
+    D-286م: أرضيّةٌ لا تبلغها كتلُ المعلّم الصلبة (زوجيّةُ الكتل) تُخفَّف إلى الممكن وتُعلَن في `relaxations`؛ بلا كتلٍ لا يتغيّر شيء."""
     if not n_days:
         return
     total = sum(occ.values())
-    if "HC14" not in ctx.opt.disabled and load >= n_days:
-        ctx.m.Add(total >= 1)
-        ctx.count("HC14")
-    low = load // n_days
-    if "HC16B" not in ctx.opt.disabled and low >= 1:
-        ctx.m.Add(total >= low)
-        ctx.count("HC16B")
+    blocks = sum(ctx.rows[i].blocks for i in ctx.by_t[t])
+    single_rows = sum(1 for i in ctx.by_t[t] if ctx.rows[i].n - 2 * ctx.rows[i].blocks > 0)
+    for code, want, active in (
+        ("HC14", 1, load >= n_days),
+        ("HC16B", load // n_days, load // n_days >= 1),
+    ):
+        if code in ctx.opt.disabled or not active:
+            continue
+        got = want if not blocks else _feasible_floor(load, blocks, n_days, want, single_rows)
+        if got != want and not any(
+            r["teacher"] == t and r["code"] == code for r in ctx.b.relaxations
+        ):
+            ctx.b.relaxations.append(
+                {
+                    "teacher": t,
+                    "code": code,
+                    "load": load,
+                    "blocks": blocks,
+                    "days": n_days,
+                    "original": want,
+                    "relaxed": got,
+                }
+            )
+        if got >= 1:
+            ctx.m.Add(total >= got)
+            ctx.count(code)
 
 
 def _day_pairs(ctx: _Ctx, by_key, occ, hc5: bool) -> None:

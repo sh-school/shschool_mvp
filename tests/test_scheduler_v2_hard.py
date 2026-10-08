@@ -549,3 +549,21 @@ def test_adjacent_cells_of_a_double_subject_need_a_block():
     inp.demand = [DemandRow("C1", "S1", "T1", "", 4, "", 1)]
     # كتلتان متلاصقتان (1-2 و3-4) تجمعان 3 تلاصقات: ممنوعٌ حين لا تُعلَن إلّا كتلة
     assert not feasible(inp, [(0, 0, 1), (0, 0, 2), (0, 1, 1), (0, 1, 2)])
+
+
+def test_floor_relaxation_is_declared_for_block_only_teachers():
+    """D-286م: معلّمٌ كلُّ حمله كتل لا يبلغ أرضيّةً فرديّة؛ تُخفَّف وتُعلَن بلا إرخاءٍ صامت."""
+    from operations.scheduler_v2.hard_constraints import _feasible_floor
+
+    # T-053 في الحزمة المقنَّعة: حمل 18 = 9 كتل، 5 أيام، الأرضيّة 3 ← 2
+    assert _feasible_floor(18, 9, 5, 3, single_rows=0) == 2
+    # كتلتان في 4 أيام: لا يومَ مضمون ← 0
+    assert _feasible_floor(4, 2, 4, 1, single_rows=0) == 0
+    # بلا كتلٍ تُستوفى الأرضيّة كما هي (لا يمرّ هنا أصلاً): كتلة وثلاثُ مفردات من ثلاثة صفوف في 4 أيام
+    assert _feasible_floor(5, 1, 4, 1, single_rows=3) == 1
+    # T-008: 4 كتل ومفردتان من صفٍّ واحدٍ (سقفُ HC6 مفردةٌ في اليوم) ← 2 غيرُ ممكنة، 1 ممكنة
+    assert _feasible_floor(10, 4, 5, 2, single_rows=1) == 1
+    rows = [("C1", "S1", "T1", "", 4)]
+    inp = make(rows, doubles=frozenset({"S1"}))
+    built = build_model(inp, ModelOptions(derived_day_cap=False))
+    assert built.relaxations == []  # حمل 4 في 5 أيام: لا أرضيّةَ أصلاً فلا إرخاء
