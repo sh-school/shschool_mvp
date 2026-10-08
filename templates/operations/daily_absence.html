@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load ui %}
+{% load ui navigation icons %}
 {% comment %}
 تقريرُ غياب اليوم — طالبٌ في سطر، لأيّ تاريخ (قرارُ 2026-09-13). يحلّ محلَّ
 «سجلّات الحضور والغياب» التي كانت تعدّ السجلّات لا الطلاب. ووسمُ الوزارة لمن غاب
@@ -20,6 +20,9 @@
       <button type="submit" class="btn-secondary btn-sm">اعرض</button>
     </form>
     {% callout "hint" %}النطاقُ قسمُك: حصصُ معلّميه وطلابُها.{% endcallout %}
+    {% if request.user|can_open:"wings:ministry_report" %}
+    <a href="{% url 'wings:ministry_report' %}?date={{ report.day|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>
+    {% endif %}
   {% endpage_header %}
 
   {% kpi_strip label="اليوم في رقم" %}
@@ -29,8 +32,8 @@
     {% kpi "للرفع الوزاريّ" report.ministry_rows|length sub="غابوا الأولى والثانية" tone="maroon" %}
   {% endkpi_strip %}
 
-  {% if report.scoped_to_department %}
-  
+  {% if report.pending_total %}
+  {% callout "warning" show=True %}رصد معلّم بانتظار اعتماد المشرف: {{ report.pending_total }} — وسمٌ للمتابعة، لا يدخل في أيٍّ من الأعداد أعلاه حتى يُعتمد.{% endcallout %}
   {% endif %}
 
   {% if report.ministry_rows %}
@@ -70,7 +73,7 @@
         <tbody>
           {% for row in report.rows %}
           <tr>
-            <td>{{ row.student.full_name }}</td>
+            <td>{{ row.student.full_name }}{% if row.pending_marks %} <span class="status-badge status-warning">رصد معلّم بانتظار اعتماد المشرف: {{ row.pending_marks }}</span>{% endif %}</td>
             <td>{{ row.class_group.short_label }}</td>
             {% for slot in row.slots %}<td class="num dab-{{ slot.status|default:'none' }}{% if slot.excused %} dab-excused{% endif %}">{{ slot.letter }}</td>{% endfor %}
             {% for _ in row.padding %}<td></td>{% endfor %}
@@ -87,6 +90,25 @@
     {% include "components/empty_state.html" with title="لا غيابَ ولا تأخّرَ مرصوداً في هذا اليوم" only %}
     {% endif %}
   {% endsection_card %}
+
+  {% if report.pending_only %}
+  {% section_card "رصد معلّم بانتظار اعتماد المشرف — طلبةٌ بلا غيابٍ مسجَّل بعد" meta=report.pending_only|length icon="status_warning" %}
+    <div class="table-wrap">
+      <table data-no-sort>
+        <thead><tr><th>الطالب</th><th>الشعبة</th><th class="num">بانتظار الاعتماد</th></tr></thead>
+        <tbody>
+          {% for mark in report.pending_only %}
+          <tr>
+            <td>{{ mark.student.full_name }}</td>
+            <td>{{ mark.class_group.short_label }}</td>
+            <td class="num"><span class="status-badge status-warning">{{ mark.count }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endsection_card %}
+  {% endif %}
 
 </div>
 {% endblock %}

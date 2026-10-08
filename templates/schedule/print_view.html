@@ -1,7 +1,7 @@
 {% extends "base/base.html" %}
 {% load static %}
 {% load icons %}
-{% load ui %}
+{% load ui provisional_door %}
 {% block title %}الجدول الأسبوعي — {{ title }}{% endblock %}
 {% block main_class %}page-wide{% endblock %}
 
@@ -10,6 +10,7 @@
 {% endblock %}
 
 {% block content %}
+{% provisional_teacher_off request.user as prov_off %}
 {% comment %}
 العرضُ والتصديرُ مستقلّان في كلّ أنواع الجدول (قرارُ 2026-09-18 للمعلّم والشعبة، و2026-09-25 للجدول العامّ؛
 ولا طباعةَ مباشرةً — قرارُ المالك 2026-09-28): ما يُعرض هنا جدولٌ عاديٌّ برموز المنصّة ومكوّناتها — لا ورقةٌ
@@ -42,8 +43,10 @@
 {% page_header heading icon="date" %}{% if view_type == 'all_teachers' and matrix %}{% callout "hint" %}مرورٌ على خانةٍ يُضيء صفَّها وعمودَها، ونقرٌ عليها يثبّت شعبتَها عبر الجدول كلِّه، ونقرٌ على اسمِ معلّمٍ يفتح لوحَه. الأسهمُ للتنقّل وEsc يفكّ التثبيت.{% endcallout %}{% endif %}{% endpage_header %}
 {# بطاقةٌ عاريةٌ بشريط أدواتٍ وإطار — لا ترويسةَ عنّابيّةَ لها فليست `section_card`. #}
 <div class="schedule-pages-card">
+  {% if prov_off %}<div class="prov-off" inert aria-disabled="true">{% endif %}
   {% include "schedule/partials/week_nav.html" %}
-  <div class="schedule-head">
+  {% if prov_off %}</div>{% endif %}
+  <div class="schedule-head{% if prov_off %} prov-off{% endif %}"{% if prov_off %} inert aria-disabled="true"{% endif %}>
     <div class="schedule-tools">
       {# القائمةُ الواحدة لمن يتصفّح غيره وحده — وعرضُها على المعلّم أداةٌ لا تعمل له #}
       {% if may_browse %}{% include "schedule/partials/schedule_picker.html" %}{% endif %}
@@ -109,13 +112,14 @@
   {% endif %}
   {% else %}
   {% comment %}عرضٌ عاديٌّ مستقلٌّ عن الطباعة: نفسُ جزئيّة بيانات الورقة، بلا مقاسها بالملّيمتر ولا ترويستها الرسميّة — هوّيةُ المنصّة نفسُها تكفي هنا.{% endcomment %}
-  <div class="table-wrap">
+  <div class="table-wrap{% if prov_off %} prov-off{% endif %}">
     {% if view_type == "class" %}
     {% include "schedule/pdf/week_grid.html" with who="teacher" show_band_labels=True %}
     {% else %}
     {% include "schedule/pdf/week_grid.html" with who="class" show_band_labels=True %}
     {% endif %}
   </div>
+  {% if prov_off %}{% comment %}نصٌّ حرفيٌّ بأمر المالك (D-228م/D-231م): «تحت الإجراء» أسفلَ الجدول المُطفأ.{% endcomment %}<p class="ui-note sessions-off-note">تحت الإجراء</p>{% endif %}
   {% comment %}جدولُ المعلّم وحدَه يحمل تفريغاتٍ ملوَّنة — الشعبةُ لا تفريغَ لها. {% endcomment %}
   {% if view_type == "teacher" and has_colored_exemptions %}
   {% include "schedule/partials/week_legend.html" %}

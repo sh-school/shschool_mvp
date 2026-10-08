@@ -26,11 +26,16 @@ from django.utils import timezone
 from core.models import AuditLog
 
 from .attendance_policy import (
+    GRID_ORIGINS,
+    _wing_holder_on,
     approval_evidence,
+    approval_holder,
     can_approve,
     can_correct,
     can_enter,
     holder_gap,
+    is_direct_entry,
+    is_special_education,
     needs_approval,
 )
 from .models import Session, StudentAttendance
@@ -67,6 +72,25 @@ _LEADERSHIP_BASIS = {
     "holder_is_teacher": "leadership_holder_is_teacher",
     "holder_inactive": "leadership_holder_inactive",
 }
+
+
+def _decision_basis(
+    user: CustomUser, session: Session, gap: str | None, entry: AttendanceEntry | None = None
+) -> str:
+    """أساسُ الصلاحيّة المحفوظُ مع القرار: حاصرُ الغياب العامّ ليس حاملَ الجناح ولا القيادة، فيُسمّى باسمه.
+
+    وفي إدخال جدول الشعبة يعتمده حاملُ الجناح بأساسه: `wing_holder_self` إن كان هو كاتبَه (D-239م) وإلّا `wing_holder` — بلا نظرٍ إلى `holder_gap`.
+    """
+    from wings.services import holds_school_wide
+
+    if entry is not None and entry.origin in GRID_ORIGINS:
+        holder = _wing_holder_on(session.class_group, session.date)
+        if holder is not None and holder.id == user.id:
+            return "wing_holder_self" if entry.entered_by_id == user.id else "wing_holder"
+    holder = approval_holder(session)
+    if holds_school_wide(user) and not (holder is not None and holder.id == user.id):
+        return "school_wide"
+    return "wing_holder" if gap is None else _LEADERSHIP_BASIS[gap]
 
 
 class EntryError(Exception):
@@ -292,14 +316,7 @@ def submit_entry(
     )
 
     if not needs_approval(session):
-        _decide(
-            entry,
-            user,
-            approve=True,
-            basis="special_ed_self",
-            evidence={"rule": "special_education", "section": session.class_group.section},
-            reason="",
-        )
+        _decide_directly(entry, user, session)
     elif session.class_group.wing_id is None:
         logger.warning(
             "إدخالُ رصدٍ مبدئيٍّ لشعبةٍ عاديّةٍ بلا جناح (يعتمده القيادةُ): class_group=%s",
@@ -377,6 +394,41 @@ def _apply_to_effective(entry: AttendanceEntry, actor: CustomUser) -> None:
     )
 
 
+def _decide_directly(entry: AttendanceEntry, user: CustomUser, session: Session) -> None:
+    """رصدٌ نهائيٌّ بلا اعتماد: التربيةُ الخاصّة (D-126م) أو جناحٌ بقرار المالك 2026-10-07 — بأساسٍ صريحٍ يُميّز كلاً منهما."""
+    if is_special_education(session.class_group):
+        basis = "special_ed_self"
+        evidence: dict[str, Any] = {
+            "rule": "special_education",
+            "section": session.class_group.section,
+        }
+    else:
+        basis = "direct_entry"
+        wing = session.class_group.wing
+        evidence = {"rule": "direct_wing", "wing": wing.code if wing else ""}
+    _decide(entry, user, approve=True, basis=basis, evidence=evidence, reason="")
+
+
+def _notify_replaced(head: AttendanceEntry, entry: AttendanceEntry, session: Session) -> None:
+    """يُخطَر المعلّمُ حين يبدّل غيرُه رصدَه (مشرفُ الجناح): إشعارٌ داخليٌّ لا يُفشل الكتابة."""
+    if head.entered_by_id == entry.entered_by_id or head.entered_by_id != session.teacher_id:
+        return
+    try:
+        from notifications.models import InAppNotification
+
+        InAppNotification.objects.create(
+            user_id=head.entered_by_id,
+            school_id=session.school_id,
+            title="عدّل مشرفُ الجناح رصدَك",
+            body=f"{entry.student.full_name}: من «{head.status}» إلى «{entry.status}» — الحصّة {session.start_time:%H:%M}.",
+            event_type="attendance",
+            priority="normal",
+            related_url=f"/teacher/classes/{session.class_group_id}/grid/",
+        )
+    except Exception as exc:  # الإشعارُ لا يُفشل الرصد
+        logger.warning("تعذّر إخطارُ المعلّم بتعديل رصدِه [entry=%s]: %s", entry.pk, exc)
+
+
 def _decide(
     entry: AttendanceEntry,
     user: CustomUser,
@@ -442,7 +494,7 @@ def decide_entry(
         raise EntryError("superseded", "حلّت محلَّه نسخةٌ أحدث — القرارُ على الأحدث.")
 
     session = locked.session
-    verdict = can_approve(user, session, entered_by=locked.entered_by)
+    verdict = can_approve(user, session, entered_by=locked.entered_by, entry_origin=locked.origin)
     if not verdict:
         raise EntryRefusedError(verdict.reason)
 
@@ -451,12 +503,18 @@ def decide_entry(
         raise EntryError("reason_required", "الرفضُ يلزمه سبب.")
 
     gap = holder_gap(session)
+    basis = _decision_basis(user, session, gap, locked)
+    evidence: dict[str, Any] = dict(approval_evidence(session))
+    if locked.origin in GRID_ORIGINS:
+        # الدليلُ في سجلّ القرار: ما كتبه المعتمِدُ بنفسه وما كان «حاضراً افتراضيّاً» — يظهر في الشاشة وسجلّ التدقيق.
+        evidence["self_entered"] = locked.entered_by_id == user.id
+        evidence["default_present"] = locked.origin == "grid_default"
     decision = _decide(
         locked,
         user,
         approve=approve,
-        basis="wing_holder" if gap is None else _LEADERSHIP_BASIS[gap],
-        evidence=approval_evidence(session),
+        basis=basis,
+        evidence=evidence,
         reason=reason,
         now=now,
     )
@@ -611,6 +669,107 @@ def correct_without_observation(
 
 
 # ══════════════════════════════════════════════════════════════════
+# جدولُ الشعبة العموديّ (W-20261006-005) — كتابةُ خليّةٍ بحالةٍ صريحةٍ و`expected_head`
+# ══════════════════════════════════════════════════════════════════
+
+#: مصدرُ الإدخال لخليّةٍ كتبها كاتبٌ في الجدول، ولحاضرٍ افتراضيٍّ كتبه الحفظُ لخليّةٍ فارغة (D-240م).
+GRID_ORIGIN = "grid"
+GRID_DEFAULT_ORIGIN = "grid_default"
+#: أسبابٌ ثابتةٌ مركزيّةٌ تحقّق قيدَ `correction_reason` دون احتكاك (لا يكتب المعلّمُ سبباً لتعديلٍ من الجدول).
+GRID_EDIT_REASON = "تعديلٌ من جدول الشعبة"
+GRID_DEFAULT_FIX_REASON = "تصحيحُ حاضرٍ افتراضيّ"
+BULK_SETTLEMENT_REASON = "تسوية جماعية"
+
+
+class GridConflictError(EntryConflictError):
+    """الرأسُ الحاليُّ للخليّة غيرُ ما رآه العميلُ — لا يُكتب شيءٌ، ويحمل الإدخالَ الحاليَّ ليُعرض من كتبه ومتى."""
+
+    def __init__(self, current: AttendanceEntry | None):
+        super().__init__("conflict", "غيّر آخرُ هذه الخليّةَ قبل حفظك.")
+        self.current = current
+
+
+@transaction.atomic
+def write_grid_cell(
+    user: CustomUser,
+    session: Session,
+    student: CustomUser,
+    status: str,
+    *,
+    minutes: int | None = None,
+    expected_head: str = "",
+    default_present: bool = False,
+    correction_reason: str = "",
+    now: dt.datetime | None = None,
+) -> tuple[AttendanceEntry, bool]:
+    """يكتب خليّةً من جدول الشعبة: إدخالٌ جديدٌ، أو إدخالٌ يصحّح الرأسَ القائم (`supersedes`) بسببٍ ثابت. `(الإدخال، أُنشئ الآن؟)`.
+
+    **الصلاحيةُ ليست هنا**: يفحصها المستدعي (`can_write_grid`) فلا تُخفَّف `can_enter` العامّة. وهنا الذرّيّةُ والتزامن:
+    - `expected_head` معرّفُ الرأس الذي رآه العميلُ أو فارغٌ لـ«لا شيء»؛ يختلف الرأسُ الحاليُّ ← `GridConflictError` ولا كتابة.
+    - التكرارُ بالمفتاح نفسِه (الرأسُ الحاليُّ بالقيمة المطلوبة نفسِها وكاتبُه المستدعي) لا يُنتج صفّاً ثانياً.
+    - الحاضرُ الافتراضيُّ (`default_present`) يُوسَم `origin=grid_default` ولا يكتب فوق خليّةٍ لها رأس.
+    """
+    if status not in ENTERABLE_STATUSES:
+        raise EntryError("bad_status", "حالةٌ غيرُ مسموحةٍ للإدخال.")
+    value_minutes = minutes if status == "late" else None
+    head = head_of(session, student, lock=True)
+    if (
+        head is not None
+        and head.status == status
+        and head.tardiness_minutes == value_minutes
+        and head.entered_by_id == user.id
+    ):
+        return head, False
+    if str(head.pk if head else "") != (expected_head or ""):
+        raise GridConflictError(head)
+    if default_present and head is not None:
+        raise GridConflictError(head)
+
+    reason = ""
+    if head is not None:
+        reason = GRID_DEFAULT_FIX_REASON if head.origin == GRID_DEFAULT_ORIGIN else GRID_EDIT_REASON
+        if (correction_reason or "").strip():  # سببٌ كتبه المصحِّحُ بنفسه (D-201م) يغلب النصَّ الثابت
+            reason = correction_reason.strip()[:300]
+    try:
+        with transaction.atomic():
+            entry = AttendanceEntry.objects.create(
+                school_id=session.school_id,
+                session=session,
+                student=student,
+                status=status,
+                tardiness_minutes=value_minutes,
+                entered_by=user,
+                entered_at=now or timezone.now(),
+                supersedes=head,
+                correction_reason=reason,
+                origin=GRID_DEFAULT_ORIGIN if default_present else GRID_ORIGIN,
+            )
+    except IntegrityError as exc:
+        raise EntryConflictError(
+            "concurrent", "إدخالٌ آخرُ سبقك على هذا الطالب — أعِد المحاولة."
+        ) from exc
+
+    _audit(
+        user,
+        session,
+        "create",
+        entry.pk,
+        "إدخالٌ من جدول الشعبة",
+        {
+            "status": status,
+            "student": str(student.pk),
+            "supersedes": str(head.pk) if head else None,
+            "default_present": default_present,
+        },
+    )
+    if not needs_approval(session):
+        _decide_directly(entry, user, session)
+        if head is not None:
+            _notify_replaced(head, entry, session)
+    return entry, True
+
+
+# ══════════════════════════════════════════════════════════════════
 # المحو (PDPPL م.18) — المسارُ الوحيد الذي يحذف من السجلّ
 # ══════════════════════════════════════════════════════════════════
 
@@ -677,3 +836,58 @@ def erase_attendance_ledger(
             school=school,
         )
     return counts
+
+
+def teacher_marked_absent(session: Session, student: CustomUser) -> bool:
+    """هل وسمه معلّمُ الحصّة غائباً (إدخالٌ مبدئيّ)؟ — لمنع فتح خروجٍ لغائبٍ (غائبٌ وخروجٌ لا يجتمعان). رصدُ المشرف لا يمنع."""
+    return AttendanceEntry.objects.filter(
+        session=session, student=student, status="absent", superseded_by__isnull=True
+    ).exists()
+
+
+@transaction.atomic
+def settle_pending_as_direct(school: School, *, apply: bool = False) -> int:
+    """عند تحويل جناحٍ إلى الرصد النهائيّ: ما بقي معلَّقاً من إدخالاتٍ سابقةٍ يُقرَّر نهائيّاً بقرارٍ مسجَّلٍ باسم كاتبه (أساسُ `direct_entry`، دليلُه تسويةٌ جماعيّة).
+
+    `apply=False` يعدّ ولا يكتب. يعيد عددَ الإدخالات.
+    """
+    pending = (
+        AttendanceEntry.objects.filter(
+            school=school, decision__isnull=True, superseded_by__isnull=True
+        )
+        .select_related("session__class_group__wing", "entered_by", "student")
+        .order_by("entered_at")
+    )
+    settled = 0
+    wings: set[str] = set()
+    for entry in pending:
+        if not is_direct_entry(entry.session):
+            continue
+        if apply:
+            with transaction.atomic():
+                _decide(
+                    entry,
+                    entry.entered_by,
+                    approve=True,
+                    basis="direct_entry",
+                    evidence={"rule": "direct_wing", "bulk_settlement": True},
+                    reason=BULK_SETTLEMENT_REASON,
+                )
+                wings.add(entry.session.class_group.wing.code)
+        settled += 1
+    if apply and settled:
+        # القرارُ يُسجَّل باسم كاتب الإدخال، فسطرُ التدقيق هذا هو الأثرُ على **من شغّل التسوية**: المدرسةُ والعددُ والأجنحةُ والوقتُ بلا أسماء (ملاحظة 0104)
+        AuditLog.log(
+            user=None,
+            action="update",
+            model_name="other",
+            object_id=school.pk,
+            object_repr="تسويةٌ جماعيّةٌ لإدخالاتٍ معلَّقةٍ — رصدٌ نهائيّ",
+            changes={
+                "settled": settled,
+                "wings": sorted(wings),
+                "at": timezone.now().isoformat(timespec="seconds"),
+            },
+            school=school,
+        )
+    return settled

@@ -29,6 +29,13 @@ _NOT_A_ROLE_CHECK = {"IsAuthenticated", "AllowAny"}
 
 #: يفحص الصلاحيّةَ داخلَه — القدرةَ أو الكائنَ أو صاحبَ البيانات. المسارُ ← أين يُفحص.
 GUARDED_INSIDE = {
+    "teacher/classes/": "الخدمةُ: `class_grid.classes_for` (إسنادٌ/جناحٌ/قيادةٌ) أو `attendance.mark` للمنتقي — والمفتاحُ مطفأً 404",
+    "teacher/classes/<uuid:class_id>/grid/": "`class_grid.page` — `can_read_grid` من الإسناد والجناح والدور، وغيرُ المخوَّل 404 (W-20261006-005)",
+    "teacher/classes/<uuid:class_id>/grid/save/": "`class_grid.save_column` — `can_write_grid` لحظةَ الكتابة بتوقيت المدرسة وPOST+CSRF، وغيرُ المخوَّل 404",
+    "teacher/classes/<uuid:class_id>/grid/exit/": "`class_grid.exit_action` — `can_read_grid` ثمّ `can_write_grid` للحصّة الجارية، ومسارُ `ClassExit` القائم، وغيرُ المخوَّل 404",
+    "teacher/classes/<uuid:class_id>/grid/approve/": "`class_grid.approve_column` — `can_read_grid` ثمّ سياسةُ `can_approve` للحصّة، وكلُّ إدخالٍ بقراره عبر `decide_entry`، وغيرُ المخوَّل 404/403",
+    "teacher/classes/<uuid:class_id>/grid/late/": "`class_grid.mark_late_now` — `can_read_grid` ثمّ `can_write_grid` في `save_column`، وغيرُ المخوَّل 404",
+    "teacher/classes/<uuid:class_id>/grid/history/<uuid:student_id>/<int:number>/": "`class_grid.history` — `can_read_grid` والطالبُ من كشف الشعبة، وغيرُ المخوَّل 404",
     "academic/assignments/": "_guard() — قدرةُ الإدخال/المراجعة/الاعتماد، ونطاقُ قسم المنسّق",
     "academic/assignments/entry/": "_guard() ثمّ ASSIGNMENT_ENTRY_TOGGLE في set_coordinator_entry_paused",
     "academic/assignments/subjects/": "_guard() — قدرةُ الإدخال/المراجعة/الاعتماد، ونطاقُ قسم المنسّق",

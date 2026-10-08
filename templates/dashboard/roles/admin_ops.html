@@ -3,15 +3,14 @@
 <div class="exec-dash">
 
   {% page_header "اللوحة الإدارية" subtitle=subtitle icon="workload" %}
-    {% if admin_role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>
-    <a href="{% url 'attendance_approvals' %}" class="btn-secondary btn-sm">{% icon "checklist" %} اعتمادُ رصد المعلّمين</a>{% endif %}
+    {% if admin_role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>{% endif %}
   {% endpage_header %}
 
   {% if admin_role == "admin_supervisor" %}
     {% include "wings/partials/student_search_form.html" %}
     {% if not school_day.is_open %}
       {% include "wings/partials/day_off.html" %}
-    {% else %}
+    {% elif not school_wide %}
       {% for panel in record_panels %}
         {% include "wings/partials/record_panel.html" %}
       {% empty %}
@@ -22,6 +21,8 @@
     {% include "wings/partials/watchlist.html" %}
   {% endif %}
 
+  {# حاصرُ الغياب العامّ: رئيسيّتُه بحثٌ ومتابعتُه اليوميّة فقط (أمرُ المالك 2026-10-06) — العدّاداتُ والتنبيهاتُ والبلاطاتُ مكرّرةٌ فيما في «رصد الغياب» ولا تخصّه #}
+  {% if not school_wide %}
   {# كلُّ عدّادٍ بقدرة وجهته: يغيب (None) عمّن لا تُفتح له شاشتُه، والشريطُ الفارغ خطأ فيُحجب كلُّه #}
   {% if absent_teachers_today is not None or pending_swaps is not None %}
   {% kpi_strip label="ما ينتظر الإدارة" %}
@@ -47,5 +48,6 @@
     {% if request.user|can_open:"student_affairs:student_list" %}{% url 'student_affairs:student_list' as u %}{% if admin_role == "admin_supervisor" %}{% action_tile "طلبة جناحي" desc="سجلُّهم وملفّاتُهم وغيابُهم" icon="students" href=u primary=True %}{% else %}{% action_tile "شؤون الطلاب" desc="بياناتُ الطلاب وملفّاتُهم" icon="students" href=u %}{% endif %}{% endif %}
     {% if request.user|can_open:"weekly_schedule" %}{% url 'weekly_schedule' as u %}{% action_tile "الجدول الدراسي" desc="الحصصُ والمعلّمون" icon="schedule" href=u %}{% endif %}
   </nav>
+  {% endif %}
 
 </div>

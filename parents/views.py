@@ -33,11 +33,17 @@ from core.models import (
     Role,
     StudentEnrollment,
 )
+from core.privacy import national_id_search_q
 from core.sorting import apply_sort, arabic_key
 from core.unrestricted_role import has_unrestricted_role
-from operations.models import AbsenceAlert
 
-from .services import ParentService, consent_state, save_consents
+from .selectors import parent_ids_by_phone
+from .services import (
+    ParentService,
+    consent_state,
+    recent_absence_alerts_for_parent,
+    save_consents,
+)
 
 
 def _get_parent_school(request):
@@ -159,7 +165,7 @@ def student_attendance(request, student_id):
 
     data = ParentService.get_student_attendance(student, school, days)
     enrollment = StudentEnrollment.objects.current_of(student)
-    alerts = AbsenceAlert.objects.filter(student=student, school=school).order_by("-created_at")[:5]
+    alerts = recent_absence_alerts_for_parent(student, school, 5)
 
     return render(
         request,
@@ -259,9 +265,7 @@ def parent_all_attendance(request):
             continue
         enrollment = StudentEnrollment.objects.current_of(link.student)
         data = ParentService.get_student_attendance(link.student, school, days)
-        alerts = AbsenceAlert.objects.filter(student=link.student, school=school).order_by(
-            "-created_at"
-        )[:3]
+        alerts = recent_absence_alerts_for_parent(link.student, school, 3)
         pct = data["att_pct"]
         children_attendance.append(
             {
@@ -432,9 +436,9 @@ def manage_parent_links(request):
         links = links.filter(
             Q(parent__full_name__icontains=search)
             | Q(student__full_name__icontains=search)
-            | Q(parent__national_id__icontains=search)
-            | Q(student__national_id__icontains=search)
-            | Q(parent__phone__icontains=search)
+            | national_id_search_q("parent__national_id", search, user=request.user)
+            | national_id_search_q("student__national_id", search, user=request.user)
+            | Q(parent_id__in=parent_ids_by_phone(links, search))
             | Q(grade_code__icontains=search)
         )
 

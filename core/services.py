@@ -146,7 +146,7 @@ def _upsert_user(
         if not user.full_name and full_name:
             user.full_name = full_name
             changed = True
-        if not user.phone and phone:
+        if not user.get_phone_decrypted() and phone:
             user.phone = phone
             changed = True
         if not user.email and email:
@@ -468,7 +468,7 @@ def students_by_grade_in_year(school: Any, year: str) -> list[tuple[str, str, in
 # ── إعادةُ تعيين كلمات مرور المستخدمين (فنّي تقنية المعلومات) ────────────
 
 
-def school_users(school: Any, q: str = "") -> Any:
+def school_users(school: Any, q: str = "", *, partial_id: bool = False) -> Any:
     """مستخدمو مدرسةٍ للبحث والعرض — `search_simple` عند وجود استعلام."""
     from core.models import CustomUser
 
@@ -476,7 +476,7 @@ def school_users(school: Any, q: str = "") -> Any:
     if not q:
         return people
     # django-stubs لا يعرف UserQuerySet خلف CustomUserManager — search_simple موجودةٌ فعلاً (core/querysets.py).
-    return people.search_simple(q)  # type: ignore[attr-defined]
+    return people.search_simple(q, partial_id=partial_id)  # type: ignore[attr-defined]
 
 
 def reset_user_password(*, school: Any, target_id: Any, actor: Any) -> tuple[Any, str]:

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_absence_file, views_register
+from . import views, views_absence_file, views_absence_notices, views_ministry, views_register
 
 app_name = "wings"
 
@@ -65,5 +65,12 @@ urlpatterns = [
         "record/wing/<slug:code>/register/",
         views_register.wing_register_export,
         name="wing_register",
+    ),
+    path("ministry/", views_ministry.ministry_report, name="ministry_report"),
+    path("absence-notices/", views_absence_notices.absence_notice_list, name="absence_notices"),
+    path(
+        "absence-notices/<uuid:alert_id>/issue/",
+        views_absence_notices.absence_notice_issue,
+        name="absence_notice_issue",
     ),
 ]

@@ -1,7 +1,7 @@
-{% load ui icons %}
+{% load ui icons provisional_door %}{% provisional_enabled as provisional_door %}
 {% comment %}جدولُ حصص اليوم في «جدول حصصي» — `sessions` و`next_session` و`is_recorder` من العرض.{% endcomment %}
 <div class="table-wrap-scroll sessions-scroll">
-<table class="sessions-table">
+<table class="sessions-table{% if provisional_door and not is_leadership %} is-off{% endif %}">
   <thead>
     <tr>
       <th scope="col">المادة</th>
@@ -24,7 +24,7 @@
     <tr class="{% if session.original_teacher_id %}is-swapped{% elif next_session and session.id == next_session.id %}is-next{% endif %}"
         data-filter-row data-text="{{ session.subject.name_ar|default:'' }} {{ session.teacher.full_name|default:'' }} {{ session.class_group.short_label }}">
       <td>
-        <div class="sessions-table__subject">{{ session.subject.name_ar|default:"—" }}</div>
+        <div class="sessions-table__subject">{{ session.subject.name_ar|default:"—" }}{% if session.provisional %} <span class="status-badge status-info">حصّة مؤقّتة</span>{% endif %}</div>
         {% if session.original_teacher_id %}
         <div class="swap-note">
           {% icon "refresh" size="sm" %}
@@ -47,7 +47,14 @@
         </span>
       </td>
       <td>
-        {% if session.status != 'completed' and session.status != 'cancelled' and is_recorder %}
+        {% if provisional_door and not is_leadership %}
+        {# الجدولُ غيرُ معتمدٍ بعدُ: الأزرارُ مقفلةٌ بلا رابط (المالك، W-20261005-006) — الرصدُ من «شُعبي للرصد» تحت الجدول #}
+        {% if session.status != 'completed' and session.status != 'cancelled' and is_recorder or session.status != 'completed' and session.status != 'cancelled' and not session.class_group.wing_id %}
+        <span class="btn-primary btn-sm" role="link" aria-disabled="true" tabindex="-1">تسجيل حضور</span>
+        {% else %}
+        <span class="btn-secondary btn-xs" role="link" aria-disabled="true" tabindex="-1">عرض</span>
+        {% endif %}
+        {% elif session.status != 'completed' and session.status != 'cancelled' and is_recorder %}
         <a href="{% url 'attendance' session.id %}" class="btn-primary btn-sm">تسجيل حضور</a>
         {% elif session.status != 'completed' and session.status != 'cancelled' and not session.class_group.wing_id %}
         <a href="{% url 'attendance' session.id %}" class="btn-primary btn-sm">تسجيل حضور</a>
@@ -62,3 +69,7 @@
   </tbody>
 </table>
 </div>
+{% if provisional_door and not is_leadership %}
+{% comment %}نصٌّ حرفيٌّ بأمر المالك (D-228م): «تحت الإجراء» أسفلَ الجدول — لا تنبيهَ مطوَّلاً ولا رابطاً.{% endcomment %}
+<p class="ui-note sessions-off-note">تحت الإجراء</p>
+{% endif %}

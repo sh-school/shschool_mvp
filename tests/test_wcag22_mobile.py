@@ -111,7 +111,14 @@ def test_no_viewport_meta_blocks_zoom():
 
 
 #: ما يقصّه `line-clamp` معاينةٌ مقصودةٌ نصُّها الكاملُ في الصفحة أو الرابط — ولا يفقد محتوىً بتباعد النصّ (1.4.12).
-LINE_CLAMPS = {".grid-cell__name", ".rm-clamp", ".rm-tile p.rm-clamp", ".qc-panel__headline"}
+#: و`.per-grid .rec-row__file`: اسمُ الطالب في بطاقة كشف الحصّة بسطرين على الأكثر وتمامُه في `title` (راجعتُه: لا يفقد محتوىً — W-20261004-019).
+LINE_CLAMPS = {
+    ".grid-cell__name",
+    ".rm-clamp",
+    ".rm-tile p.rm-clamp",
+    ".qc-panel__headline",
+    ".per-grid .rec-row__file",
+}
 
 
 def test_line_clamps_are_the_known_previews():

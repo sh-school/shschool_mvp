@@ -19,7 +19,7 @@ from core.dashboard_presentation import chunk_for_grid
 from core.models.access import DEPARTMENT_ROLES, Membership
 from core.models.department import Department
 from core.models.user import CustomUser
-from core.privacy import mask_national_id
+from core.privacy import mask_national_id, national_id_search_q
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 
 from . import appointments, profile_services, services
@@ -259,7 +259,7 @@ def staff_list(request):
         people = people.filter(
             Q(name_key__icontains=shaped)
             | Q(title_key__icontains=shaped)
-            | Q(national_id__icontains=q)
+            | national_id_search_q("national_id", q, user=request.user)
             | Q(employee_number__icontains=q)
             | Q(id__in=phone_holder_ids(people, q))
             | Q(email__icontains=q)
@@ -307,7 +307,7 @@ def staff_list(request):
                 # الصلاحيّات — و«معلم علوم شرعية» لا يقول أيَّ شاشةٍ تُفتح له.
                 "role_label": role_label(m.role.name) if m and m.role else "—",
                 "department": (m.department_name if m else "") or "—",
-                "phone": user.phone,
+                "phone": user.get_phone_decrypted(),
                 "email": user.email,
                 "residence_area": user.residence_area,
                 "nationality": user.nationality,
@@ -696,28 +696,32 @@ def leave_request_create(request):
     from .forms import LeaveRequestForm
 
     if request.method == "POST":
-        form = LeaveRequestForm(request.POST, request.FILES)
+        form = LeaveRequestForm(request.POST, request.FILES, school=school)
         if form.is_valid():
             cd = form.cleaned_data
             staff = _member_or_404(cd["staff_id"], school, active_only=True)
-            # ✅ v5.4: LeaveService.create_leave_request — atomic + audit trail
-            LeaveService.create_leave_request(
-                school=school,
-                staff=staff,
-                leave_type=cd["leave_type"],
-                start_date=cd["start_date"],
-                end_date=cd["end_date"],
-                days_count=cd["days_count"],
-                reason=cd["reason"],
-                attachment=cd.get("attachment"),
-                created_by=request.user,
-            )
-            messages.success(
-                request, f"تم تقديم طلب إجازة {staff.full_name} ({cd['days_count']} يوم)."
-            )
-            return redirect("staff_affairs:leave_list")
+            try:
+                # ✅ v5.4: LeaveService.create_leave_request — atomic + audit trail
+                LeaveService.create_leave_request(
+                    school=school,
+                    staff=staff,
+                    leave_type=cd["leave_type"],
+                    start_date=cd["start_date"],
+                    end_date=cd["end_date"],
+                    days_count=cd["days_count"],
+                    reason=cd["reason"],
+                    attachment=cd.get("attachment"),
+                    created_by=request.user,
+                )
+            except ValueError as e:
+                form.add_error(None, str(e))
+            else:
+                messages.success(
+                    request, f"تم تقديم طلب إجازة {staff.full_name} ({cd['days_count']} يوم)."
+                )
+                return redirect("staff_affairs:leave_list")
     else:
-        form = LeaveRequestForm()
+        form = LeaveRequestForm(school=school)
 
     staff_members = (
         Membership.objects.filter(school=school, is_active=True)

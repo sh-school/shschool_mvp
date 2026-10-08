@@ -3,22 +3,36 @@ from typing import Any
 from django.contrib import admin, messages
 from django.http import HttpRequest
 
+from core.admin import SchoolScopedAdmin
+
 from .models import (
     AbsenceAlert,
+    AbsenceExcuse,
     AttendanceDecision,
     AttendanceEntry,
+    ClassExit,
+    CompensatorySession,
+    DailyExitTally,
+    FreeSlotRegistry,
+    GuardianContact,
+    PeriodConfirmation,
+    PermissionAuditLog,
     ScheduleBaseline,
     ScheduleConstraintOverride,
     ScheduleGeneration,
     ScheduleSlot,
     SchedulingResource,
+    SectionDayConfirmation,
     Session,
     StudentAttendance,
     Subject,
     SubjectClassAssignment,
     SubstituteAssignment,
     TeacherAbsence,
+    TeacherExemption,
     TeacherPreference,
+    TeacherSwap,
+    TemporaryPermission,
     TimeSlotConfig,
 )
 
@@ -74,10 +88,31 @@ class SessionAdmin(admin.ModelAdmin):
     date_hierarchy = "date"
     inlines = [AttendanceInline]
 
+    def get_list_display(self, request):
+        """عمودُ `provisional` يُضاف **بمفتاح الحصّة المؤقّتة وحدَه** (W-20261005-006): مطفأً تبقى القائمةُ كما كانت حرفاً."""
+        from operations.services import provisional_session
+
+        columns = super().get_list_display(request)
+        return (*columns, "provisional") if provisional_session.enabled() else columns
+
+    def get_list_filter(self, request):
+        from operations.services import provisional_session
+
+        filters = super().get_list_filter(request)
+        return (*filters, "provisional") if provisional_session.enabled() else filters
+
 
 @admin.register(StudentAttendance)
 class StudentAttendanceAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ("student", "session", "status", "marked_by", "marked_at")
+    list_display = (
+        "student",
+        "session",
+        "status",
+        "late_minutes",
+        "tardiness_minutes",
+        "marked_by",
+        "marked_at",
+    )
     # الأعمدةُ و`__str__` تقرأ هذه العلاقات لكلّ صفّ — تُجلب في استعلام القائمة نفسه (كانت ~25 سؤالاً للصفحة).
     list_select_related = ("student", "session__subject", "session__class_group", "marked_by")
     list_filter = ("status", "school")
@@ -87,10 +122,49 @@ class StudentAttendanceAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
 
 @admin.register(AttendanceEntry)
 class AttendanceEntryAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ("student", "session", "status", "entered_by", "entered_at", "supersedes")
+    list_display = (
+        "student",
+        "session",
+        "status",
+        "tardiness_minutes",
+        "entered_by",
+        "entered_at",
+        "origin",
+        "supersedes",
+    )
     list_select_related = ("student", "session__class_group", "entered_by")
-    list_filter = ("status", "school")
+    list_filter = ("status", "origin", "school")
     date_hierarchy = "entered_at"
+
+
+@admin.register(ClassExit)
+class ClassExitAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    """خروجُ الطلاب من الفصل (الحصّةُ والمادّةُ والوجهةُ والوقتان وهل أُغلق بالنظام) — للقراءة والتدقيق فقط."""
+
+    list_display = (
+        "student",
+        "session",
+        "destination",
+        "left_at",
+        "returned_at",
+        "continued_from",
+        "system_closed",
+    )
+    list_select_related = ("student", "session__subject", "session__class_group", "continued_from")
+    list_filter = ("destination", "system_closed", "school")
+    search_fields = ("student__full_name", "student__national_id")
+    date_hierarchy = "left_at"
+
+
+@admin.register(DailyExitTally)
+class DailyExitTallyAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    """ملخّصُ خروج كلّ طالبٍ في كلّ يوم: عددُ المرّات ومجموعُ الثواني والتفصيلُ بالوجهة — مشتقٌّ من «خروجٌ من الفصل»."""
+
+    list_display = ("student", "date", "exit_count", "total_seconds", "by_destination")
+    list_select_related = ("student",)
+    list_filter = ("school",)
+    search_fields = ("student__full_name", "student__national_id")
+    date_hierarchy = "date"
 
 
 @admin.register(AttendanceDecision)
@@ -102,10 +176,131 @@ class AttendanceDecisionAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
 
 
 @admin.register(AbsenceAlert)
-class AbsenceAlertAdmin(admin.ModelAdmin):
-    list_display = ("student", "absence_count", "status", "created_at")
-    list_filter = ("status", "school")
-    autocomplete_fields = ("student", "resolved_by")
+class AbsenceAlertAdmin(SchoolScopedAdmin):
+    """تنبيهُ الغياب يُنشئه النظامُ بعتبةٍ وفترة — فلا يُضاف ولا يُحذف ولا يُعدَّل منه إلا الحلُّ (D-201م)."""
+
+    list_display = (
+        "student",
+        "absence_count",
+        "gate",
+        "period_start",
+        "period_end",
+        "status",
+        "created_at",
+    )
+    list_select_related = ("student", "resolved_by")
+    list_filter = ("status", "gate", "school")
+    search_fields = ("student__full_name", "student__national_id")
+    autocomplete_fields = ("resolved_by",)
+    #: الحلُّ وحدَه (الحالةُ ومن عالجه) قابلٌ للتعديل؛ والباقي يكتبه النظامُ.
+    readonly_fields = (
+        "school",
+        "student",
+        "absence_count",
+        "gate",
+        "period_start",
+        "period_end",
+        "created_at",
+    )
+
+    def get_actions(self, request: HttpRequest) -> dict[str, Any]:
+        return {}
+
+    def has_add_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+    def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+
+class SensitiveFieldsMixin:
+    """حقولُ الأسباب الصحّيّة لا تُعرض إلا للمشرف الأعلى (PDPPL: بياناتٌ ذاتُ طبيعةٍ خاصّة).
+
+    سببُ الغياب قد يكشف مرضاً (`kind` = مرضٌ بتقريرٍ طبّيّ، والبيانُ والمستندُ وسببُ القبول أو الرفض).
+    فمن دخل `/admin/` بصلاحيّة عرضٍ فقط يرى الصفَّ بلا هذه الحقول، لا نصّاً ولا في القائمة ولا بالبحث.
+    """
+
+    sensitive_fields: tuple[str, ...] = ()
+
+    def get_fields(self, request: HttpRequest, obj: Any = None) -> list[str]:
+        fields = super().get_fields(request, obj)  # type: ignore[misc]
+        if request.user.is_superuser:
+            return list(fields)
+        return [f for f in fields if f not in self.sensitive_fields]
+
+    def get_list_display(self, request: HttpRequest) -> Any:
+        columns = super().get_list_display(request)  # type: ignore[misc]
+        if request.user.is_superuser:
+            return columns
+        return [c for c in columns if c not in self.sensitive_fields]
+
+    def get_list_filter(self, request: HttpRequest) -> Any:
+        filters = super().get_list_filter(request)  # type: ignore[misc]
+        if request.user.is_superuser:
+            return filters
+        return [f for f in filters if f not in self.sensitive_fields]
+
+
+@admin.register(AbsenceExcuse)
+class AbsenceExcuseAdmin(SensitiveFieldsMixin, ReadOnlyAdminMixin, SchoolScopedAdmin):
+    """عذرُ الغياب قرارٌ مسجَّلٌ بخدمته (`operations/excuses.py`) — يُقرأ هنا ولا يُكتب."""
+
+    list_display = (
+        "student",
+        "kind",
+        "date_from",
+        "date_to",
+        "status",
+        "after_deadline",
+        "granted_by",
+    )
+    list_select_related = ("student", "granted_by")
+    list_filter = ("status", "kind", "after_deadline", "school")
+    search_fields = ("student__full_name", "student__national_id")
+    date_hierarchy = "date_from"
+    sensitive_fields = ("kind", "notes", "document", "override_reason", "rejection_reason")
+
+
+@admin.register(GuardianContact)
+class GuardianContactAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    list_display = ("student", "absence_date", "outcome", "channel", "contacted_by", "contacted_at")
+    list_select_related = ("student", "contacted_by")
+    list_filter = ("outcome", "channel", "school")
+    search_fields = ("student__full_name", "student__national_id")
+    date_hierarchy = "contacted_at"
+
+
+@admin.register(SectionDayConfirmation)
+class SectionDayConfirmationAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    list_display = (
+        "class_group",
+        "date",
+        "present_count",
+        "absent_count",
+        "late_count",
+        "periods_written",
+        "confirmed_by",
+    )
+    list_select_related = ("class_group", "confirmed_by")
+    list_filter = ("school", "date")
+    date_hierarchy = "date"
+
+
+@admin.register(PeriodConfirmation)
+class PeriodConfirmationAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    list_display = (
+        "class_group",
+        "date",
+        "start_time",
+        "end_time",
+        "present_count",
+        "absent_count",
+        "confirmed_late",
+        "confirmed_by",
+    )
+    list_select_related = ("class_group", "confirmed_by")
+    list_filter = ("school", "confirmed_late", "date")
+    date_hierarchy = "date"
 
 
 # ── Phase 2 ──────────────────────────────────
@@ -401,3 +596,90 @@ class ScheduleBaselineAdmin(admin.ModelAdmin):
     list_display = ("label", "academic_year", "school", "created_at")
     list_filter = ("school", "academic_year")
     readonly_fields = ("metrics", "created_at")
+
+
+# ── جداولٌ تكتبها خدماتُها وحدَها — تُقرأ هنا (قاعدةُ المالك: يظهر كلُّ جدول) ──
+
+
+@admin.register(TeacherExemption)
+class TeacherExemptionAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    list_display = (
+        "teacher",
+        "academic_year",
+        "exemption_type",
+        "day_of_week",
+        "period_number",
+        "is_active",
+    )
+    list_select_related = ("teacher",)
+    list_filter = ("school", "exemption_type", "is_active", "academic_year")
+    search_fields = ("teacher__full_name",)
+
+
+@admin.register(FreeSlotRegistry)
+class FreeSlotRegistryAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    list_display = (
+        "teacher",
+        "academic_year",
+        "day_of_week",
+        "period_number",
+        "is_available",
+        "reserved_for",
+    )
+    list_select_related = ("teacher", "reserved_for")
+    list_filter = ("school", "is_available", "academic_year")
+    search_fields = ("teacher__full_name",)
+
+
+@admin.register(TeacherSwap)
+class TeacherSwapAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    list_display = (
+        "teacher_a",
+        "teacher_b",
+        "swap_type",
+        "swap_date_a",
+        "swap_date_b",
+        "status",
+        "created_at",
+    )
+    list_select_related = ("teacher_a", "teacher_b")
+    list_filter = ("school", "status", "swap_type")
+    search_fields = ("teacher_a__full_name", "teacher_b__full_name")
+
+
+@admin.register(CompensatorySession)
+class CompensatorySessionAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    list_display = (
+        "teacher",
+        "compensatory_date",
+        "compensatory_period",
+        "class_group",
+        "subject",
+        "status",
+    )
+    list_select_related = ("teacher", "class_group", "subject")
+    list_filter = ("school", "status")
+    search_fields = ("teacher__full_name",)
+
+
+@admin.register(TemporaryPermission)
+class TemporaryPermissionAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    list_display = (
+        "teacher",
+        "class_group",
+        "permission_type",
+        "valid_from",
+        "valid_until",
+        "status",
+    )
+    list_select_related = ("teacher", "class_group")
+    list_filter = ("school", "status", "permission_type")
+    search_fields = ("teacher__full_name",)
+
+
+@admin.register(PermissionAuditLog)
+class PermissionAuditLogAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    school_lookup = "temp_permission__school"
+    list_display = ("temp_permission", "action", "performed_by", "performed_at")
+    list_select_related = ("temp_permission__teacher", "performed_by")
+    list_filter = ("action",)

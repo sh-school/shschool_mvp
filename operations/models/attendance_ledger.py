@@ -131,6 +131,12 @@ class AttendanceEntry(AppendOnlyModel):
         verbose_name="يصحّح",
     )
     correction_reason = models.TextField(blank=True, verbose_name="سببُ التصحيح")
+    #: مصدرُ الإدخال: فارغٌ لرصدٍ مرصودٍ بالمسار القائم، `grid` لخليّةٍ كتبها كاتبٌ في جدول الشعبة، و`grid_default` لـ«حاضرٍ افتراضيّ» كتبه الحفظُ
+    #: لخليّةٍ فارغةٍ في عمودٍ بدأت حصّتُه (W-20261006-005، قرارُ المالك D-240م): يظهر في الشاشة والتصدير مختلفاً عن «حاضرٍ مرصود».
+    #: `db_default` فتُدرج نسخةُ الكود القديمةُ أثناء النشر المتدحرج بلا الحقل (توسيعٌ ثمّ تقليص).
+    origin = models.CharField(
+        max_length=16, blank=True, default="", db_default="", verbose_name="مصدرُ الإدخال"
+    )
 
     class Meta:
         verbose_name = "إدخالُ رصدٍ مبدئيّ"
@@ -162,8 +168,11 @@ class AttendanceDecision(AppendOnlyModel):
         ("leadership_no_holder", "القيادةُ — لا حاملَ للجناح"),
         ("leadership_holder_is_teacher", "القيادةُ — حاملُ الجناح هو معلّمُ الحصّة"),
         ("leadership_holder_inactive", "القيادةُ — حاملُ الجناح بلا عضويّةٍ نشطة"),
+        ("school_wide", "حاصرُ الغياب العامّ — اعتمادٌ ثانٍ بجانب الحامل"),
         ("supervisor_record", "كُتب رصدُ مشرفٍ فوق الإدخال"),
         ("special_ed_self", "التربيةُ الخاصّة — اعتمادٌ ذاتيٌّ بالتصميم"),
+        ("wing_holder_self", "حاملُ الجناح — اعتمادُ ما كتبه بنفسه (جدولُ الشعبة)"),
+        ("direct_entry", "رصدٌ نهائيٌّ مباشر — جناحٌ بلا اعتماد (جدولُ الشعبة)"),
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)

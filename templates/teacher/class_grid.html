@@ -1,0 +1,131 @@
+{% extends "base/base.html" %}
+{% load ui icons static %}
+{% comment %}
+جدولُ الشعبة العموديّ لرصد الغياب (W-20261006-005، قرارا المالك D-239م وD-240م): صفوفُ الطلاب × أعمدةُ ح1…ح7 بجرس الشعبة.
+الحصّةُ للعمود لا للمعلّم وتُنشأ عند أوّل حفظٍ لا عند العرض. الخليّةُ بحالةٍ صريحةٍ (لا toggle)، والفارغةُ «لم تُرصد» ولا تُعدّ غائباً؛
+وتُكتب «حاضراً افتراضيّاً» عند حفظ عمودٍ بدأت حصّتُه بعد تأكيدٍ بعدد الفارغات. المنطقُ كلُّه في `services/class_grid.py`.
+الهاتف: عمودٌ واحدٌ بتبويب ح1–ح7؛ والمتأخّر والخروج والمخالفةُ لكلّ طالبٍ على الحاسوب والهاتف معاً.
+{% endcomment %}
+{% block title %}جدول {{ grid_page.klass.short_label }}{% endblock %}
+{% block main_class %}{% page_layout "sheet" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% url 'provisional_classes' as classes_url %}
+{% include "components/breadcrumbs.html" with parent_url=classes_url parent_label="شُعبي للرصد" current=grid_page.klass.short_label %}
+{% endblock %}
+
+{% block content %}
+{% with page=grid_page %}
+<div class="exec-dash">
+  {% page_header page.klass.short_label subtitle=page.day|date:"l j F Y" icon="attendance_register" %}
+    {% callout "hint" %}الضغطةُ تضع حالةً صريحةً: غائب ثمّ حاضر. الخليّةُ الفارغةُ «لم تُرصد» ولا تُحسب غياباً، وعند حفظ عمودٍ بدأت حصّتُه تُكتب الفارغاتُ «حاضراً افتراضيّاً» بعد تأكيدك. الأحدثُ يظهر والأقدمُ في سجلّ الخليّة (اضغط اسمَ الطالب).{% endcallout %}
+    {% if not page.can_write %}{% callout "info" %}للمراقبة فقط: تقرأ كلَّ الأعمدة ولا تكتب ولا تعتمد.{% endcallout %}{% endif %}
+    {% if page.correction_mode %}{% callout "warning" %}أُغلقت نافذةُ المعلّم ({{ page.closes|time:"H:i" }}): تصحيحُ المشرف بسببٍ إلزاميّ، والاعتمادُ مفتوح.{% endcallout %}{% endif %}
+  {% endpage_header %}
+
+  {% section_card "رصد الغياب بالحصّة" meta=page.rows|length icon="attendance_register" empty="لا طلبةَ مقيَّدين في هذه الشعبة" flush=True %}{% if page.rows %}
+    {% if not page.columns %}
+      {% include "components/empty_state.html" with title="لا زمنَ مُعرَّفاً لحصص هذه الشعبة اليوم" only %}
+    {% else %}
+    <div data-class-grid data-now="{{ page.now|date:'U' }}"
+         data-save-url="{% url 'class_grid_save' page.klass.id %}"
+         data-late-url="{% url 'class_grid_late' page.klass.id %}"
+         data-exit-url="{% url 'class_grid_exit' page.klass.id %}"
+         data-approve-url="{% url 'class_grid_approve' page.klass.id %}"
+         data-draft-key="class-grid:{{ request.user.pk }}:{{ page.klass.pk }}:{{ page.day|date:'Y-m-d' }}"
+         data-closes="{{ page.closes|time:'H:i' }}"
+         data-correcting="{% if page.correction_mode %}1{% endif %}"
+         data-reason-always="{% if page.reason_always %}1{% endif %}">
+      {% csrf_token %}
+      {# نموذجٌ مخفيٌّ يستدعي نافذةَ التأكيد المركزيّة (`data-confirm` في base.js) من JS الجدول — لا window.confirm #}
+      <form data-grid-confirm hidden></form>
+      {% if page.correction_mode or page.reason_always %}
+      <div class="ui-note">{% field "reason" "سببُ التصحيح — إلزاميّ عند تعديل ما كتبه غيرُك أو بعد إغلاق نافذة المعلّم" required=True maxlength="300" data_grid_reason=True %}</div>
+      {% endif %}
+      <div hidden data-tabs role="tablist" aria-label="الحصّة المعروضة">
+        {% for col in page.columns %}
+        <button type="button" class="btn-secondary btn-sm" role="tab" data-tab="{{ col.number }}" aria-selected="false">ح{{ col.number }}</button>
+        {% endfor %}
+      </div>
+      <div class="table-wrap cg-wrap">
+        <table class="cg-table" data-no-sort>
+          <thead>
+            <tr>
+              <th scope="col" class="cg-name">الطالب</th>
+              {% for col in page.columns %}
+              <th scope="col" class="cg-col--{{ col.state }}" data-col="{{ col.number }}">
+                <span class="cg-col__title">ح{{ col.number }}</span>
+                <span class="cg-col__time num">{{ col.start|time:"H:i" }}</span>
+              </th>
+              {% endfor %}
+              {% if page.can_write %}<th scope="col" class="cg-acts">إجراءات</th>{% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in page.rows %}
+            <tr data-student="{{ row.student.pk }}">
+              <th scope="row" class="cg-name">
+                <button type="button" class="cg-name__btn" data-history-open data-student="{{ row.student.pk }}">{{ row.student.full_name }}</button>
+              </th>
+              {% for col, cell in row.pairs %}
+              <td class="cg-col--{{ col.state }}" data-col="{{ col.number }}">
+                <button type="button" class="cg-cell is-{{ cell.status|default:'none' }}{% if cell.default_present %} is-default{% endif %}{% if cell.state == 'pending' %} is-pending{% endif %}"
+                        data-cell data-student="{{ row.student.pk }}" data-col="{{ col.number }}"
+                        data-head="{{ cell.head_id }}" data-status="{{ cell.status }}"
+                        data-writable="{% if col.writable %}1{% endif %}"
+                        {% if not col.writable %}disabled{% endif %}
+                        aria-label="{{ row.student.full_name }} — ح{{ col.number }}">{% if cell.status == "present" %}✓{% elif cell.status == "absent" %}غ{% elif cell.status == "late" %}ت{% else %}·{% endif %}</button>
+              </td>
+              {% endfor %}
+              {% if page.can_write %}
+              <td class="cg-acts"><div class="cg-acts__box">
+                <button type="button" class="btn-secondary btn-sm" data-late="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>متأخّر</button>
+                {% if row.exit %}
+                <span class="status-badge status-warning">خارج: {{ row.exit.get_destination_display }} · <time data-out-since="{{ row.exit.left_at|date:'U' }}">00:00</time></span>
+                <button type="button" class="btn-secondary btn-sm" data-exit-return="{{ row.student.pk }}">عاد</button>
+                {% else %}
+                <select class="form-select cg-dest" data-exit-dest="{{ row.student.pk }}" aria-label="وجهة خروج {{ row.student.full_name }}"{% if not page.current %} disabled{% endif %}>
+                  {% for code, label in page.destinations %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+                </select>
+                <button type="button" class="btn-secondary btn-sm" data-exit="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>خروج</button>
+                {% endif %}
+                <a class="btn-secondary btn-sm" href="{% url 'behavior:report_infraction' %}?student={{ row.student.pk }}&next={{ request.path|urlencode }}">مخالفة</a>
+                </div>
+              </td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+          {% if page.can_write or page.approvable_columns %}
+          <tfoot>
+            <tr>
+              <th scope="row" class="cg-name">مفاتيح الحصّة</th>
+              {% for col in page.columns %}
+              <td class="cg-col--{{ col.state }}" data-col="{{ col.number }}">
+                <div class="cg-keys" role="group" aria-label="مفاتيح ح{{ col.number }}">
+                  {% if page.can_write %}
+                  {# الكلُّ حاضر/غائب يعدّلان خلايا العمود في الواجهة فقط بلا تأكيد ولا حفظ؛ و«حفظ» يحفظ هذا العمودَ وحدَه. العمودُ المغلقُ معطَّلٌ بسببٍ ظاهرٍ في التلميح. #}
+                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_present" data-col="{{ col.number }}" aria-label="الكلُّ حاضر في ح{{ col.number }}"{% if not col.writable %} disabled title="{% if col.state == 'future' %}تُفتح ح{{ col.number }} عند {{ col.start|time:'H:i' }}{% else %}الرصدُ مغلقٌ لهذا العمود{% endif %}"{% endif %}>الكلّ ✓</button>
+                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_absent" data-col="{{ col.number }}" aria-label="الكلُّ غائب في ح{{ col.number }}"{% if not col.writable %} disabled{% endif %}>الكلّ ✗</button>
+                  <button type="button" class="btn-primary btn-sm" data-save-col="{{ col.number }}"{% if not col.writable %} disabled{% endif %}>حفظ</button>
+                  {% endif %}
+                  {% if col.approvable %}<button type="button" class="btn-primary btn-sm" data-approve-col="{{ col.number }}" data-pending="{{ col.pending }}">اعتماد الحصّة ({{ col.pending }})</button>{% endif %}
+                </div>
+              </td>
+              {% endfor %}
+              {% if page.can_write %}<td></td>{% endif %}
+            </tr>
+          </tfoot>
+          {% endif %}
+        </table>
+      </div>
+      <p class="ui-note" data-grid-status role="status" aria-live="polite"></p>
+      <dialog data-history-dialog aria-label="سجلّ الخليّة"><div data-history-body></div><form method="dialog"><button class="btn-secondary btn-sm">إغلاق</button></form></dialog>
+    </div>
+    {% endif %}
+  {% endif %}{% endsection_card %}
+</div>
+{% endwith %}
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/class-grid.js' %}" defer></script>{% endblock %}

@@ -31,6 +31,7 @@ ALLOWED_READERS = {
     "operations/attendance_policy.py": "أهليّةُ التصحيح (`_has_entry_in_session`) — قراءةُ وجودٍ لا حالة",
     "operations/attendance_selectors.py": "شاشاتُ المعلّم والحامل — يعرض المبدئيَّ وسماً «بانتظار الاعتماد» لا حالةً",
     "operations/services/attendance_teacher.py": "حدُّ الواجهات إلى ما سبق",
+    "operations/teacher_period_sheet.py": "كشفُ المعلّم المشترك مع كشف المشرف: يكتب إدخالاتٍ مبدئيّةً بـ`submit_entry` ويعرض حالتَها وسماً (`student_lines`) — لا يعدّ المبدئيَّ حضوراً",
     "operations/admin.py": "عرضُ قراءةٍ فقط (`ReadOnlyAdminMixin`)",
     "operations/day_attendance.py": "دوكسترنغٌ يصف القرار",
     "governance/erasure_service.py": "محوُ الطالب (PDPPL م.18) يمحو السجلَّ ويحصي ما محا",

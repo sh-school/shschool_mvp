@@ -23,10 +23,11 @@ import datetime as dt
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from django.db.models import Max
+from django.db.models import Max, Min
 from django.utils import timezone
 
 from core.models import StudentEnrollment
+from core.preview_accounts import in_preview_environment
 
 from .bells import day_type_for
 from .models import AttendanceEntry, Session, TimeSlotConfig
@@ -88,6 +89,18 @@ def school_day_end(school: School, day: dt.date, band: TimeBand | None = None) -
     return last
 
 
+def _first_slot_start(session: Session) -> dt.time | None:
+    """بدءُ أوّل خانةٍ (غيرِ استراحةٍ) في جرس **شعبة** الحصّة لنوع يومها — لا جرسِ جناحها كلِّه (جناحٌ يعبر جرسين لكلّ شعبةٍ جرسُها)؛ `None` بلا جرسٍ مضبوط."""
+    day_type = day_type_for(session.date)
+    band = session.class_group.time_band
+    if not day_type or band is None:
+        return None
+    first: dt.time | None = TimeSlotConfig.objects.filter(
+        school=session.school, day_type=day_type, band=band, is_break=False
+    ).aggregate(first=Min("start_time"))["first"]
+    return first
+
+
 def entry_window(session: Session) -> tuple[dt.datetime, dt.datetime]:
     """نافذةُ إدخال المعلّم: من بدء الحصّة إلى نهاية اليوم الدراسيّ، لحظتان واعيتان بتوقيت الدوحة.
 
@@ -97,6 +110,17 @@ def entry_window(session: Session) -> tuple[dt.datetime, dt.datetime]:
     start = timezone.make_aware(dt.datetime.combine(session.date, session.start_time))
     day_end = school_day_end(session.school, session.date, band=session.class_group.time_band)
     last = max(day_end, session.end_time) if day_end else session.end_time
+    if session.provisional:
+        # الحصّةُ **المؤقّتة** وحدَها (W-20261005-006، D-232م): فعّالةٌ للإدخال من بدء **أوّل حصّةٍ في جرس الشعبة** إلى نهاية الدوام لا من بدء حصّتها،
+        # فلا يُقيَّد معلّمٌ يرصد ح5 قبل وقتها. والحقيقيّةُ (D-128م) تبقى من بدء حصّتها كما هي.
+        first = _first_slot_start(session)
+        if first is not None:
+            start = timezone.make_aware(dt.datetime.combine(session.date, first))
+    if in_preview_environment():
+        # المعاينةُ وحدَها (قرارُ المالك 2026-10-04): النافذةُ مفتوحةٌ من أوّل اليوم إلى آخره ليرى الأزرارَ في أيّ ساعةٍ
+        # (فجراً قبل الحصّة وبعد الدوام)؛ والإنتاجُ بنافذته كما هي.
+        start = timezone.make_aware(dt.datetime.combine(session.date, dt.time.min))
+        last = dt.time(23, 59, 59)
     return start, timezone.make_aware(dt.datetime.combine(session.date, last))
 
 
@@ -107,9 +131,32 @@ def is_special_education(class_group: ClassGroup) -> bool:
     return bool(class_group.section.rsplit("/", 1)[-1].strip().upper() == SPECIAL_EDUCATION_SECTION)
 
 
+def is_direct_class(class_group: ClassGroup) -> bool:
+    """شعبةٌ في جناحٍ رصدُ المعلّم فيه نهائيٌّ بلا اعتماد (قرارا المالك 2026-10-07 وD-262م) — بمفتاح الجدول و`ATTENDANCE_GRID_DIRECT_WINGS` (رموزُ الأجنحة أو `*`)."""
+    from django.conf import settings
+
+    if not getattr(settings, "PROVISIONAL_GRID_ENABLED", False):
+        return False
+    wing = class_group.wing
+    if wing is None:
+        return False
+    # القيمةُ الفارغةُ تُستبعد: "".split(",") يعطي {""} فيُعدّ جناحٌ برمزٍ فارغٍ مباشراً (ملاحظة 0104)
+    wanted = {
+        c.strip()
+        for c in str(getattr(settings, "ATTENDANCE_GRID_DIRECT_WINGS", "")).split(",")
+        if c.strip()
+    }
+    return "*" in wanted or bool(wing.code and wing.code in wanted)
+
+
+def is_direct_entry(session: Session) -> bool:
+    """جناحٌ رصدُه نهائيٌّ بلا اعتماد؟ — انظر `is_direct_class`."""
+    return is_direct_class(session.class_group)
+
+
 def needs_approval(session: Session) -> bool:
-    """أيحتاج رصدُ هذه الحصّة اعتماداً؟ — كلُّ الشُّعب إلّا التربية الخاصّة (D-126م)."""
-    return not is_special_education(session.class_group)
+    """أيحتاج رصدُ هذه الحصّة اعتماداً؟ — كلُّ الشُّعب إلّا التربية الخاصّة (D-126م) والأجنحةَ ذاتَ الرصد النهائيّ."""
+    return not (is_special_education(session.class_group) or is_direct_entry(session))
 
 
 def _raw_holder(session: Session) -> CustomUser | None:
@@ -264,8 +311,30 @@ def _has_entry_in_session(student: CustomUser, session: Session) -> bool:
     return bool(AttendanceEntry.objects.filter(session=session, student=student).exists())
 
 
+#: مصدرُ إدخالات جدول الشعبة — لها وحدَها اعتمادُ حاملِ الجناح الذاتيّ (D-239م).
+GRID_ORIGINS = frozenset({"grid", "grid_default"})
+
+
+def grid_holder_approves(user: CustomUser, session: Session, entry_origin: str) -> bool:
+    """أحاملُ جناح الشعبةِ يومَ الحصّة هو هذا المستخدمُ، والإدخالُ من جدول الشعبة، والمفتاحُ مشغَّل؟ (قرارُ المالك D-239م: يعتمد ما كتبه بنفسه بتدقيق.)
+
+    في مسار الجدول وحدَه: يُستثنى `own_entry` و`own_session` و`holder_gap` عن الحامل الفعليّ؛ والقيادةُ (مديرٌ ونائبٌ ومشرفٌ إداريّ) لا تعتمد ما كتبته.
+    والمفتاحُ مطفأً ← المنعُ القائمُ كما هو حرفاً (لا إدخالَ جدولٍ يُنشأ أصلاً، وهنا يُقفل المسارُ بالمفتاح أيضاً).
+    """
+    from django.conf import settings
+
+    if entry_origin not in GRID_ORIGINS or not getattr(settings, "PROVISIONAL_GRID_ENABLED", False):
+        return False
+    holder = _wing_holder_on(session.class_group, session.date)
+    return holder is not None and holder.id == user.id
+
+
 def can_approve(
-    user: CustomUser, session: Session, *, entered_by: CustomUser | None = None
+    user: CustomUser,
+    session: Session,
+    *,
+    entered_by: CustomUser | None = None,
+    entry_origin: str = "",
 ) -> Verdict:
     """هل يعتمد هذا المستخدمُ رصدَ هذه الحصّة (أو يرفضه)؟
 
@@ -282,14 +351,201 @@ def can_approve(
         return _deny("other_school")
     if not needs_approval(session):
         return _deny("final_entry")
+    if grid_holder_approves(user, session, entry_origin):
+        return _allow()
     if user.id == session.teacher_id:
         return _deny("own_session")
     if entered_by is not None and user.id == entered_by.id:
         return _deny("own_entry")
 
+    from wings.services import holds_school_wide
+
+    # حاصرُ الغياب العامّ معتمِدٌ ثانٍ بجانب حامل الجناح دائماً (قرارُ المالك 2026-10-06): لا ما أدخله بنفسه
+    # ولا رصدَ التربية الخاصّة (النهائيّ) — وقد رُدّا أعلاه.
+    if holds_school_wide(user):
+        return _allow()
     holder = approval_holder(session)
     if holder is not None:
         return _allow() if user.id == holder.id else _deny("not_holder")
     if roles & set(LEADERSHIP_ROLES):
         return _allow()
     return _deny("not_holder")
+
+
+# ══════════════════════════════════════════════════════════════════
+# جدولُ الشعبة العموديّ (W-20261006-005، قرارا المالك D-238م–D-240م)
+# ══════════════════════════════════════════════════════════════════
+#
+# حكمٌ **منفصلٌ** عن `can_enter`/`can_correct`/`can_approve` العامّة (لا تُخفَّف): الصلاحيةُ هنا تُشتقّ من إسناد المعلّم للشعبة ومن حمل الجناح
+# ومن الدور، لا من `Session.teacher` ولا من الطلب. وغيرُ المخوَّل يُردّ بـ404 في الواجهة (رمزُ `not_found`) فلا يُعرف أنّ الشعبة موجودة.
+
+#: القيادةُ الإداريّةُ التي تكتب على كلّ الأعمدة (D-240م) — بالدور لا بـ`is_leadership()`؛ والنائبُ الأكاديميّ يراقب فقط (D-239م).
+GRID_WRITER_ROLES = frozenset({"principal", "vice_admin", "admin_supervisor"})
+GRID_READER_ROLES = GRID_WRITER_ROLES | {"vice_academic"}
+
+GRID_TEACHER = "teacher"
+GRID_HOLDER = "holder"
+GRID_LEADERSHIP = "leadership"
+GRID_READER = "reader"
+
+
+def _clock(raw: str, fallback: dt.time) -> dt.time:
+    try:
+        hour, minute = (int(part) for part in str(raw).split(":", 1))
+        return dt.time(hour, minute)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def grid_now(now: dt.datetime | None = None) -> dt.datetime:
+    """لحظةُ الجدول بتوقيت الدوحة: الممرَّرةُ، وإلّا الآن. و**للمعاينة وحدَها** (`DEBUG` مشغَّلٌ) يُقدِّم `ATTENDANCE_GRID_FAKE_TIME` («07:11») ساعةَ اليوم لتجربة الكتابة ليلاً (أمرُ المالك).
+
+    الإنتاجُ بـ`DEBUG` مطفأٍ فلا أثرَ للمتغيّر فيه ولو ضُبط خطأً — كشرط `in_preview_environment`: لا مفتاحَ زمنٍ يعمل خارجَ بيئةِ التطوير.
+    """
+    from django.conf import settings
+
+    if now is not None:
+        return timezone.localtime(now)
+    fake = str(getattr(settings, "ATTENDANCE_GRID_FAKE_TIME", "") or "")
+    if fake and settings.DEBUG:
+        return timezone.make_aware(
+            dt.datetime.combine(timezone.localdate(), _clock(fake, dt.time(7, 11)))
+        )
+    return timezone.localtime()
+
+
+def grid_window(day: dt.date) -> tuple[dt.datetime, dt.datetime]:
+    """نافذةُ كتابة المعلّم في الجدول (D-237م): من إعدادٍ مركزيٍّ واحد (07:10–14:00 افتراضاً) بتوقيت الدوحة.
+
+    وفي المعاينة وحدَها اليومُ كلُّه (قرارُ المالك 2026-10-04) كما في `entry_window`.
+    """
+    from django.conf import settings
+
+    opens = _clock(getattr(settings, "ATTENDANCE_GRID_OPENS", "07:10"), dt.time(7, 10))
+    closes = _clock(getattr(settings, "ATTENDANCE_GRID_CLOSES", "14:00"), dt.time(14, 0))
+    if in_preview_environment():
+        opens, closes = dt.time.min, dt.time(23, 59, 59)
+    return (
+        timezone.make_aware(dt.datetime.combine(day, opens)),
+        timezone.make_aware(dt.datetime.combine(day, closes)),
+    )
+
+
+def is_class_assigned(user: CustomUser, class_group: ClassGroup) -> bool:
+    """أمُسنَدٌ هذا المعلّمُ إلى الشعبة (أيَّ مادّة)؟ — بشروط إسناد المعلّم للحصّة المؤقّتة نفسِها: فعّالٌ، عامُ المدرسة، غيرُ محذوف."""
+    from core.academic_calendar import academic_year_for_school
+
+    from .models import SubjectClassAssignment
+
+    return bool(
+        SubjectClassAssignment.objects.filter(
+            school_id=class_group.school_id,
+            teacher=user,
+            class_group=class_group,
+            is_active=True,
+            deleted_at__isnull=True,
+            academic_year=academic_year_for_school(class_group.school),
+        ).exists()
+    )
+
+
+def _wing_holder_on(class_group: ClassGroup, day: dt.date) -> CustomUser | None:
+    wing = class_group.wing
+    if wing is None or not wing.is_active:
+        return None
+    holder: CustomUser | None = wing.current_supervisor(on_date=day)  # type: ignore[no-untyped-call]
+    return holder
+
+
+def grid_roles(user: CustomUser, class_group: ClassGroup, day: dt.date) -> frozenset[str]:
+    """أدوارُ المستخدم في هذه الشعبة لهذا اليوم: `teacher` (إسنادٌ) و`holder` (حاملُ جناحها) و`leadership` (قيادةٌ إداريّةٌ أو حاصرُ الغياب العامّ) و`reader` (نائبٌ أكاديميّ).
+
+    فارغةٌ لغير المخوَّل (مطوّرٌ، مدرسةٌ أخرى، معلّمٌ لشعبةٍ غيرِ شعبته) — يُردّ 404.
+    """
+    if not getattr(user, "is_authenticated", False) or is_developer(user):
+        return frozenset()
+    school_roles = _roles_in_school(user, class_group.school_id)
+    if not school_roles:
+        return frozenset()
+    from wings.services import holds_school_wide
+
+    found: set[str] = set()
+    if school_roles & GRID_WRITER_ROLES or holds_school_wide(user):
+        found.add(GRID_LEADERSHIP)
+    holder = _wing_holder_on(class_group, day)
+    if holder is not None and holder.id == user.id:
+        found.add(GRID_HOLDER)
+    if is_class_assigned(user, class_group):
+        found.add(GRID_TEACHER)
+    if "vice_academic" in school_roles:
+        found.add(GRID_READER)
+    return frozenset(found)
+
+
+def can_read_grid(
+    user: CustomUser,
+    class_group: ClassGroup,
+    day: dt.date,
+    *,
+    roles: frozenset[str] | None = None,
+) -> Verdict:
+    """هل يقرأ هذا المستخدمُ جدولَ هذه الشعبة؟ — كلُّ دورٍ في `grid_roles`. و`roles` محسوبةٌ سلفاً تُجنّب إعادةَ الاستعلام لكلّ عمود."""
+    found = grid_roles(user, class_group, day) if roles is None else roles
+    return _allow() if found else _deny("not_found")
+
+
+def can_write_grid(
+    user: CustomUser,
+    class_group: ClassGroup,
+    day: dt.date,
+    *,
+    period_start: dt.time | None = None,
+    now: dt.datetime | None = None,
+    roles: frozenset[str] | None = None,
+) -> Verdict:
+    """هل يكتب هذا المستخدمُ رصداً في عمودٍ من جدول الشعبة الآن؟ — معلّمو الإسناد وحاملُ الجناح والقيادةُ الإداريّةُ على كلّ الأعمدة.
+
+    الوقتُ يُقرأ هنا لحظةَ الكتابة بتوقيت المدرسة لا عند عرض الصفحة: اليومُ هو اليومُ الجاري وحدَه (لا ماضيَ ولا مستقبلَ)، ومن فتح النافذة
+    (07:10) إلى إغلاقها (14:00)؛ وعمودٌ لم تبدأ حصّتُه (`period_start`) يُرفض لكلّ كاتب (`before_start`) فلا يملأ معلّمٌ ح1–ح7 في 07:10.
+    وبعد الإغلاق يُقفل الكلُّ هنا ويصحّح المشرفُ بسببٍ عبر `can_correct_grid`.
+    """
+    roles = grid_roles(user, class_group, day) if roles is None else roles
+    if not roles:
+        return _deny("not_found")
+    if not roles & {GRID_TEACHER, GRID_HOLDER, GRID_LEADERSHIP}:
+        return _deny("read_only")
+    if class_group.is_active is False:
+        return _deny("inactive_class")
+    moment = grid_now(now)
+    if moment.date() != day:
+        return _deny("not_today")
+    opens, closes = grid_window(day)
+    if moment < opens:
+        return _deny("before_window")
+    if moment > closes:
+        return _deny("after_window")
+    if period_start is not None and moment < timezone.make_aware(
+        dt.datetime.combine(day, period_start)
+    ):
+        return _deny("before_start")
+    return _allow()
+
+
+def can_correct_grid(
+    user: CustomUser,
+    class_group: ClassGroup,
+    day: dt.date,
+    *,
+    now: dt.datetime | None = None,
+) -> Verdict:
+    """التصحيحُ بعد إغلاق النافذة (14:00) — لحاملِ الجناح والقيادةِ الإداريّة وحدَهم، بسببٍ إلزاميٍّ تفرضه الخدمة؛ لا المعلّمُ ولا النائبُ الأكاديميّ.
+
+    في اليوم نفسِه وحدَه (لا ماضيَ يُصحَّح من هنا، D-215م). وقبل الإغلاق تكفي `can_write_grid`.
+    """
+    roles = grid_roles(user, class_group, day)
+    if not roles & {GRID_HOLDER, GRID_LEADERSHIP}:
+        return _deny("not_found" if not roles else "not_corrector")
+    moment = grid_now(now)
+    if moment.date() != day:
+        return _deny("not_today")
+    return _allow()

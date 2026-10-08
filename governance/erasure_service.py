@@ -56,6 +56,7 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
         AbsenceAlert,
         AbsenceExcuse,
         ClassExit,
+        DailyExitTally,
         GuardianContact,
         StudentAttendance,
     )
@@ -84,6 +85,7 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
             (StudentTransfer, "student", False),  # سجلُّ الانتقال بين المدارس
             (GuardianContact, "student", False),  # اتّصالات وليّ الأمر بالهاتف
             (ClassExit, "student", False),  # خروجُ الطالب من الحصّة
+            (DailyExitTally, "student", False),  # ملخّصُ خروجه اليوميّ (مشتقٌّ من ClassExit)
             (ExamIncident, "student", False),  # محضرُ حادثةٍ في اللجنة
             (NotificationLog, "student", False),  # سجلُّ إشعارٍ يحمل المستلمَ ونصَّه
             # [W-20261002-042] مخازنُ محتوى الطالب بحقل `user` لا `student`.

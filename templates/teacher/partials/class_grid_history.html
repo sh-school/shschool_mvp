@@ -1,0 +1,22 @@
+{% comment %}سجلُّ خليّةٍ من جدول الشعبة (W-20261006-005): من كتب ومتى ومن صحّح — القديمُ أوّلاً، والأحدثُ هو ما يظهر في الخليّة.{% endcomment %}
+<h3>{{ student.full_name }} — ح{{ number }}</h3>
+{% if rows %}
+<div class="table-wrap">
+  <table data-no-sort>
+    <thead><tr><th>الحالة</th><th>من كتب</th><th>متى</th><th>السبب</th></tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{% if row.status == "present" %}حاضر{% elif row.status == "absent" %}غائب{% else %}متأخّر{% if row.minutes %} ({{ row.minutes }} د){% endif %}{% endif %}{% if row.default_present %} <span class="status-badge status-warning">افتراضيّ</span>{% endif %}{% if row.state == "superseded" %} <span class="status-badge status-info">صُحِّح</span>{% endif %}</td>
+        <td>{{ row.entered_by_name }}</td>
+        <td class="num">{{ row.entered_at|date:"H:i" }}</td>
+        <td>{{ row.reason|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="ui-note">لم تُرصد هذه الخليّةُ بعد.</p>
+{% endif %}
