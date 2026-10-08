@@ -18,6 +18,7 @@ from core.models import TimeBand
 from operations.end_of_day import sweep_absence_gates, would_create
 from operations.models import AbsenceAlert, TimeSlotConfig
 from operations.services import AttendanceService
+from tests.attendance_fixtures import *  # noqa: F401,F403
 from tests.attendance_fixtures import SUNDAY, at
 from tests.test_absence_alerts import _absent, student, subject, year_window  # noqa: F401
 from tests.test_school_wide_absence_supervisor import (  # noqa: F401
@@ -389,3 +390,101 @@ def test_the_preview_seed_refuses_to_run_outside_the_preview_environment(db):
 
     assert "للمعاينة المركزيّة" in str(refused.value)
     assert AbsenceAlert.objects.count() == 0, "لم يُكتب شيء"
+
+
+# ── بذر المعاينة: ذرّيّ، لا يصطدم بالقائم، و down مقيَّد ──
+
+
+def _run_seed(monkeypatch, action):
+    from pathlib import Path
+
+    monkeypatch.setenv("SEED_ACTION", action)
+    monkeypatch.setattr("core.preview_accounts.in_preview_environment", lambda: True)
+    source = (
+        Path(__file__).resolve().parent.parent / "docs" / "preview_held_alerts_seed.py"
+    ).read_text(encoding="utf-8")
+    exec(compile(source, "preview_held_alerts_seed.py", "exec"), {"__name__": "__main__"})  # noqa: S102
+
+
+@pytest.fixture
+def seeded_world(db, school, year, klass, kid, teacher, wing):
+    """مدرسةٌ بتقويمٍ مبذورٍ وشعبةٍ ذاتِ جناحٍ وطالبٍ ومعلّمٍ مُسنَد — وجلساتٌ قائمةٌ للمعلّم تحجز خاناتِ البذر الأولى (القاعدةُ ليست فارغة)."""
+    from core.academic_calendar import academic_year_window
+    from operations.models import Session, Subject, SubjectClassAssignment
+    from tests.conftest import ClassGroupFactory
+
+    call_command("seed_academic_calendar", school=school.code, verbosity=0)
+    subject = Subject.objects.create(school=school, name_ar="العلوم", code="SCI")
+    SubjectClassAssignment.objects.create(
+        school=school,
+        class_group=klass,
+        subject=subject,
+        teacher=teacher,
+        weekly_periods=2,
+        academic_year=year,
+    )
+    other = ClassGroupFactory(
+        school=school, grade="G8", section="9", level_type="prep", academic_year=year, wing=wing
+    )
+    start, _ = academic_year_window(school)
+    for offset in range(40):  # المعلّمُ مشغولٌ في الخانة الأولى بشعبةٍ أخرى طوال أسابيع
+        Session.objects.create(
+            school=school,
+            class_group=other,
+            teacher=teacher,
+            subject=subject,
+            date=start + timedelta(days=offset),
+            start_time=dt.time(5, 0),
+            end_time=dt.time(5, 45),
+            status="completed",
+        )
+    return school
+
+
+def test_the_seed_up_skips_existing_conflicts_and_raises_held_alerts(
+    seeded_world, kid, monkeypatch
+):
+    from operations.models import Session
+
+    _run_seed(monkeypatch, "up")
+    tagged = Session.objects.filter(notes="preview-held-alerts-seed")
+
+    assert tagged.count() == 5, "خمسةُ أيّامٍ رغم تصادم الخانة الأولى"
+    assert AbsenceAlert.objects.filter(student=kid, status="held").exists()
+
+
+def test_a_failed_seed_up_leaves_nothing_behind(seeded_world, kid, monkeypatch):
+    from operations.models import Session
+
+    with patch.object(AttendanceService, "raise_absence_alerts", side_effect=RuntimeError("boom")):
+        with pytest.raises(RuntimeError):
+            _run_seed(monkeypatch, "up")
+
+    assert not Session.objects.filter(notes="preview-held-alerts-seed").exists()
+    assert not AbsenceAlert.objects.filter(student=kid).exists()
+
+
+def test_seed_down_removes_only_what_the_seed_made(seeded_world, kid, monkeypatch):
+    from operations.models import Session
+
+    before_alert = AbsenceAlert.objects.create(
+        school=seeded_world,
+        student=kid,
+        absence_count=1,
+        gate="s1_final",
+        period_start=dt.date(2025, 9, 1),
+        period_end=dt.date(2026, 6, 30),
+        status="resolved",
+    )
+    AbsenceAlert.objects.filter(pk=before_alert.pk).update(
+        created_at=timezone.now() - timedelta(days=30)
+    )
+    other_sessions = Session.objects.count()
+
+    _run_seed(monkeypatch, "up")
+    _run_seed(monkeypatch, "down")
+
+    assert Session.objects.count() == other_sessions, "الجلساتُ القائمةُ لم تُمسّ"
+    assert not Session.objects.filter(notes="preview-held-alerts-seed").exists()
+    assert AbsenceAlert.objects.filter(pk=before_alert.pk).exists(), "تنبيهٌ سابقٌ للبذر يبقى"
+    assert AbsenceAlert.objects.filter(student=kid).count() == 1

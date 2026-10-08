@@ -80,42 +80,85 @@ print(
     f"[خطّة] طلابٌ مختارون: {[e.student.full_name for e in picks]} | جلساتٌ موسومةٌ قائمة: {tagged.count()}"
 )
 
+#: خاناتٌ خارجَ الدوام لا يشغلها جدولٌ عادةً؛ ويُتحقَّق مع ذلك من عدم التداخل مع جلساتِ المعلّم والشعبة القائمة قبل كلّ إنشاء.
+FREE_SLOTS = (
+    (dt.time(5, 0), dt.time(5, 45)),
+    (dt.time(5, 50), dt.time(6, 35)),
+    (dt.time(19, 0), dt.time(19, 45)),
+)
+SEARCH_DAYS = 120
+
+
+def _free_slot(teacher, klass, day):
+    """أوّلُ خانةٍ لا تتداخل مع أيّ جلسةٍ قائمةٍ لهذا المعلّم أو هذه الشعبة في اليوم، وإلا `None` (فيتخطّى البذرُ اليومَ)."""
+    from django.db.models import Q
+
+    existing = Session.objects.filter(Q(teacher=teacher) | Q(class_group=klass), date=day)
+    for start_time, end_time in FREE_SLOTS:
+        if not existing.filter(start_time__lt=end_time, end_time__gt=start_time).exists():
+            return start_time, end_time
+    return None
+
+
 if ACTION == "up":
+    from django.db import transaction
+
+    from operations.school_days import is_school_day
+
     if tagged.exists():
         raise SystemExit("البذرُ قائمٌ — شغّل down أوّلاً")
     start = window[0]
     created = 0
-    for enrollment in picks:
-        klass = enrollment.class_group
-        teacher = _teacher_of(klass)
-        if teacher is None:
-            print(f"تخطّي {klass}: لا معلّمَ مُسنَد")
-            continue
-        for offset in range(DAYS):
-            day = start + dt.timedelta(days=offset)
-            session = Session.objects.create(
-                school=school,
-                class_group=klass,
-                teacher=teacher,
-                date=day,
-                start_time=dt.time(8, 0),
-                end_time=dt.time(8, 45),
-                status="completed",
-                notes=SEED_TAG,
-            )
-            StudentAttendance.objects.create(
-                session=session,
-                student=enrollment.student,
-                school=school,
-                status="absent",
-                excuse_type="",
-                source="teacher",
-            )
-            created += 1
-        raised = AttendanceService.raise_absence_alerts(
-            enrollment.student, school, on=start + dt.timedelta(days=DAYS + 25)
-        )
-        print(f"{enrollment.student.full_name}: تنبيهاتٌ محجوزة جديدة = {len(raised)}")
+    # كلُّ up معاملةٌ واحدة: أيُّ فشلٍ (قيدٌ أو نقصُ أيّام) يتراجع كلُّه فلا تبقى جلساتٌ موسومةٌ جزئيّة.
+    with transaction.atomic():
+        for enrollment in picks:
+            klass = enrollment.class_group
+            teacher = _teacher_of(klass)
+            if teacher is None:
+                print(f"تخطّي {klass}: لا معلّمَ مُسنَد")
+                continue
+            made = 0
+            last_day = start
+            for offset in range(SEARCH_DAYS):
+                if made == DAYS:
+                    break
+                day = start + dt.timedelta(days=offset)
+                # أيّامٌ دراسيّةٌ لا جلسةَ فيها للشعبة أصلاً: فيكتمل غيابُ اليوم (لا حصصٌ أخرى بلا رصد تُبقيه «غيرَ محسوم»)
+                if (
+                    not is_school_day(school, day)
+                    or Session.objects.filter(class_group=klass, date=day).exists()
+                ):
+                    continue
+                slot = _free_slot(teacher, klass, day)
+                if slot is None:
+                    continue
+                session = Session.objects.create(
+                    school=school,
+                    class_group=klass,
+                    teacher=teacher,
+                    date=day,
+                    start_time=slot[0],
+                    end_time=slot[1],
+                    status="completed",
+                    notes=SEED_TAG,
+                )
+                StudentAttendance.objects.create(
+                    session=session,
+                    student=enrollment.student,
+                    school=school,
+                    status="absent",
+                    excuse_type="",
+                    source="teacher",
+                )
+                made += 1
+                created += 1
+                last_day = day
+            if made < DAYS:
+                raise SystemExit(
+                    f"تعذّر إيجاد {DAYS} أيّامٍ خاليةٍ للشعبة {klass} خلال {SEARCH_DAYS} يوماً — تراجع البذرُ كلُّه"
+                )
+            raised = AttendanceService.raise_absence_alerts(enrollment.student, school, on=last_day)
+            print(f"{enrollment.student.full_name}: تنبيهاتٌ محجوزة جديدة = {len(raised)}")
     print(f"تم: {created} جلسةً موسومة. الوقت: {timezone.now():%Y-%m-%d %H:%M}")
 elif ACTION == "down":
     # نطاقُ المحو الضيّق: تنبيهاتُ طالبَي البذر **المنشأةُ منذ أوّل جلسةٍ موسومة** فقط (لا ما سبقها من تنبيهاتٍ قائمة)، ثمّ الجلساتُ الموسومةُ وحضورُها.
