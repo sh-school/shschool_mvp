@@ -38,6 +38,7 @@ runs:
         echo "test_pass" > "$PWFILE"  # pragma: allowlist secret
         "$PGBIN/initdb" -D "$PGDATA" -U test_user --auth=md5 --pwfile="$PWFILE" -E UTF8 --locale=C.UTF-8 >/dev/null
         rm -f "$PWFILE"
+        # /dev/shm على runner ubuntu-24.04 نحو نصف الذاكرة (≈8 غيغا): يكفي قاعدةَ الاختبار
         # سرعةٌ للاختبار فقط: لا متانة مطلوبة على ذاكرةٍ تُمحى بانتهاء الوظيفة
         cat >> "$PGDATA/postgresql.conf" <<CONF
         listen_addresses = '127.0.0.1'
@@ -49,7 +50,7 @@ runs:
         max_connections = 200
         shared_buffers = 256MB
         CONF
-        "$PGBIN/pg_ctl" -D "$PGDATA" -l /tmp/pg-native.log -w start
+        "$PGBIN/pg_ctl" -D "$PGDATA" -l /tmp/pg-native.log -w -t 60 start
         PGPASSWORD=test_pass "$PGBIN/createdb" -h 127.0.0.1 -p "$PGPORT_IN" -U test_user test_db  # pragma: allowlist secret
         PGPASSWORD=test_pass "$PGBIN/psql" -h 127.0.0.1 -p "$PGPORT_IN" -U test_user -d test_db -Atc "select version()"  # pragma: allowlist secret
     - name: تشغيل redis من apt (اختياريّ)

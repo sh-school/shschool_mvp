@@ -232,5 +232,7 @@ def test_each_shard_keeps_native_postgres_and_redis_and_the_job_env():
     assert "services" not in job, "حاويةُ خدمةٍ تعيد الاعتمادَ على سحب Docker Hub"
     native = [s for s in job["steps"] if s.get("uses") == "./.github/actions/native-postgres"]
     assert len(native) == 1 and native[0]["with"]["redis"] == "true"
+    # الشرطُ نفسُه كخطوات التجهيز: طلبٌ وثائقيٌّ لا يشغّل postgres في shards 2–5 هدراً
+    assert native[0]["if"] == "steps.diff.outputs.docs_only != 'true' || matrix.shard == 1"
     for key in ("DJANGO_SETTINGS_MODULE", "SECRET_KEY", "CI_SHARD_COUNT", "CI_SHARD_INDEX"):
         assert key in job["env"], f"{key} غاب عن بيئة وظيفة الـshards"

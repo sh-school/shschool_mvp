@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from pathlib import Path
 
 KNOWN_EVENTS = {"push", "pull_request", "merge_group", "workflow_dispatch", "schedule"}
 KNOWN_RESULTS = {"success", "failure", "cancelled", "skipped"}
@@ -76,6 +77,22 @@ def infra_failures(jobs_json: str | None) -> list[str]:
         if failed and all(name in INFRA_STEPS for name in failed):
             names.append(str(job.get("name")))
     return sorted(names)
+
+
+MAX_JOBS_FILE_BYTES = 8 * 1024 * 1024  # أكبرُ من هذا يُهمَل: التمييزُ تسميةٌ لا تُسقط الحكم
+
+
+def infra_failures_from_file(path: str | None) -> list[str]:
+    """كـ`infra_failures` لكن من ملفٍ (لا من متغيّر بيئة: حدُّ Linux للسلسلة الواحدة 128 كيلوبايت)؛ يصمت إن غاب أو كبر."""
+    if not path:
+        return []
+    try:
+        file = Path(path)
+        if not file.is_file() or file.stat().st_size > MAX_JOBS_FILE_BYTES:
+            return []
+        return infra_failures(file.read_text(encoding="utf-8"))
+    except OSError:
+        return []
 
 
 def run(
@@ -140,7 +157,7 @@ def main() -> int:
         title,
         os.environ.get("GITHUB_STEP_SUMMARY"),
         exempt,
-        infra_failures(os.environ.get("INFRA_JOBS_JSON")),
+        infra_failures_from_file(os.environ.get("INFRA_JOBS_FILE")),
     )
 
 

@@ -240,3 +240,22 @@ def test_gate_summary_job_can_read_actions_for_the_infra_label():
     assert job["permissions"]["actions"] == "read"
     steps = [s.get("name", "") for s in job["steps"]]
     assert steps.index("بيانُ خطوات الوظائف (لتمييز فشل البنية)") < steps.index("حكمُ بوابة الجودة")
+
+
+def test_infra_file_is_read_and_silent_when_missing_or_huge(tmp_path):
+    payload = _jobs(("pytest shard 4/5", "failure", [("Initialize containers", "failure")]))
+    f = tmp_path / "jobs.json"
+    f.write_text(payload, encoding="utf-8")
+    assert gate.infra_failures_from_file(str(f)) == ["pytest shard 4/5"]
+    assert gate.infra_failures_from_file(str(tmp_path / "absent.json")) == []
+    assert gate.infra_failures_from_file(None) == []
+    big = tmp_path / "big.json"
+    big.write_bytes(b" " * (gate.MAX_JOBS_FILE_BYTES + 1))
+    assert gate.infra_failures_from_file(str(big)) == []
+
+
+def test_jobs_payload_goes_through_a_file_not_the_environment():
+    steps = _load("quality-gate.yml")["gate-summary"]["steps"]
+    step = next(s for s in steps if s.get("id") == "jobs")
+    assert "INFRA_JOBS_FILE" in step["run"] and "EOF_JOBS" not in step["run"]
+    assert "INFRA_JOBS_JSON" not in step["run"]

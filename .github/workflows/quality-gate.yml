@@ -67,6 +67,7 @@ jobs:
       # على طلبٍ وثائقيٍّ لا يعمل إلّا shard 1 («قرّاءُ الوثائق»)؛ فلا تُجهَّز البيئةُ في 2–5 هدراً (مراجعة 0105).
       # postgres 16 الأصليّ على الـrunner بدل حاويةٍ تُسحب من Docker Hub (سقفُ السحب أسقط الفحوصَ 2026-10-09)
       - uses: ./.github/actions/native-postgres
+        if: steps.diff.outputs.docs_only != 'true' || matrix.shard == 1
         with:
           redis: "true"  # tests/test_channel_layer_redis_integration.py يحتاج redis حقيقياً
 
@@ -779,8 +780,11 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
+        # ملفٌّ لا متغيّرُ بيئة: ردُّ الوظائف قد يقارب حدَّ Linux للسلسلة الواحدة (128 كيلوبايت) فتسقط الخطوةُ التاليةُ
+        # بسبب التمييز نفسه؛ ولا فاصلَ ثابتَ في $GITHUB_ENV يُحقَن من اسم وظيفة.
         run: |
-          { echo "INFRA_JOBS_JSON<<EOF_JOBS"; gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?per_page=100" || true; echo; echo "EOF_JOBS"; } >> "$GITHUB_ENV"
+          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?per_page=100" > "$RUNNER_TEMP/jobs.json" || rm -f "$RUNNER_TEMP/jobs.json"
+          echo "INFRA_JOBS_FILE=$RUNNER_TEMP/jobs.json" >> "$GITHUB_ENV"
 
       - name: حكمُ بوابة الجودة
         env:
