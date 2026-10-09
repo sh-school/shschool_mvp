@@ -44,10 +44,27 @@ def _add_band(inp, band, shift):
 
 
 def _derive_blocks(inp, doubles):
-    """مادةٌ مزدوجةٌ ← n//2 كتلةً (كما يبني `build_tasks` مهامَّ span=2 من النصاب)."""
+    """كتلُ الازدواج كما يبنيها `build_tasks`: مادّةٌ منفردةٌ مزدوجةٌ ← n//2 كتلةً؛ ومجموعةٌ متوازيةٌ لا تكون
+    مزدوجةً إلّا إن كان كلُّ أعضائها مزدوجين، وإلّا فحصصٌ مفردةٌ (W-20261009-001)."""
+    members: dict[tuple, list] = {}
+    for r in inp.demand:
+        if r.elec:
+            members.setdefault((r.cls, r.elec), []).append(r)
     inp.demand = [
         DemandRow(
-            r.cls, r.subj, r.teacher, r.elec, r.n, r.joint, r.n // 2 if r.subj in doubles else 0
+            r.cls,
+            r.subj,
+            r.teacher,
+            r.elec,
+            r.n,
+            r.joint,
+            r.n // 2
+            if (
+                all(m.subj in doubles for m in members[(r.cls, r.elec)])
+                if r.elec
+                else r.subj in doubles
+            )
+            else 0,
         )
         for r in inp.demand
     ]
