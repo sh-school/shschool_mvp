@@ -519,6 +519,10 @@ def _run_fixture(capsys, label, limit, **opt):
 
 
 # الجدوى على الحزمة المقنَّعة تعتمد على التفاصيل لا النسب (AS-6)؛ فالمراتبُ المقيسةُ هنا هي ما يُثبَت لا ما يُرجى.
+# مهلةُ الاختبارات التي تُثبت الجدوى: قيس الحلّ 22–74ث على 8 أنوية محلّية، وجهازُ CI المشترك أبطأ (شظايا -n auto)،
+# فمهلة 120ث أعطت UNKNOWN (#911). المهلةُ هنا سقفُ حمايةٍ لا زمنٌ متوقَّع؛ وUNKNOWN عندها يبقى فشلاً حقيقياً.
+CI_SOLVE_LIMIT = 900.0
+
 _NO_FAIRNESS = {
     "disabled": frozenset({"HC22", "HC8", "HC14", "HC16B"}),
     "derived_day_cap": False,
@@ -529,14 +533,14 @@ _NO_FAIRNESS = {
 @pytest.mark.slow
 def test_fixture_physical_core_and_assumptions_solve(capsys):
     """HC1 HC2 HC4 HC5 HC6(سقف) HC7 HC9 HC10 HC11 HC12 HC19 + سقفُ اليوم الشخصيّ: OPTIMAL (قيس ~7 ثوانٍ، 8 عمّال)."""
-    st = _run_fixture(capsys, "core", 120.0, **_NO_FAIRNESS)
+    st = _run_fixture(capsys, "core", CI_SOLVE_LIMIT, **_NO_FAIRNESS)
     assert st in OK
 
 
 @pytest.mark.slow
 def test_fixture_with_even_day_spread_solves(capsys):
     """+ HC6 بالقسمة الكاملة (⌊n/D⌋ ≤ عددُ اليوم ≤ ⌈n/D⌉): OPTIMAL (قيس 9–54 ثانية بحسب الحمل)."""
-    st = _run_fixture(capsys, "core+even", 120.0, **{**_NO_FAIRNESS, "even_spread": True})
+    st = _run_fixture(capsys, "core+even", CI_SOLVE_LIMIT, **{**_NO_FAIRNESS, "even_spread": True})
     assert st in OK
 
 
