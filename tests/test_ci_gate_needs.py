@@ -188,3 +188,55 @@ def test_security_summary_runs_without_exemptions():
     steps = _load("security-scan.yml")["summary"]["steps"]
     run = next(step["run"] for step in steps if "ci_needs_gate.py" in step.get("run", ""))
     assert "--no-exempt" in run, "Security Summary لا تُعفى فيه مهمّةٌ على أيّ حدث"
+
+
+# ── تمييز فشل البنية التحتية من فشل الشيفرة (W-20261010-007): تسميةٌ لا تخفيف ───────────────
+def _jobs(*specs) -> str:
+    return json.dumps(
+        {
+            "jobs": [
+                {
+                    "name": name,
+                    "conclusion": conclusion,
+                    "steps": [{"name": s, "conclusion": c} for s, c in steps],
+                }
+                for name, conclusion, steps in specs
+            ]
+        }
+    )
+
+
+def test_infra_failure_is_named_when_only_infra_steps_failed():
+    payload = _jobs(
+        ("pytest shard 4/5", "failure", [("Initialize containers", "failure")]),
+        ("ruff", "failure", [("Run ruff", "failure")]),
+        ("axe", "success", [("Run axe", "success")]),
+    )
+    assert gate.infra_failures(payload) == ["pytest shard 4/5"]
+
+
+def test_a_job_that_also_failed_a_code_step_is_not_infra():
+    payload = _jobs(
+        ("e2e", "failure", [("Initialize containers", "failure"), ("Run tests", "failure")])
+    )
+    assert gate.infra_failures(payload) == []
+
+
+@pytest.mark.parametrize("bad", [None, "", "   ", "{not json", "[]", '{"jobs": "x"}'])
+def test_infra_detection_is_silent_without_valid_data(bad):
+    assert gate.infra_failures(bad) == []
+
+
+def test_infra_label_never_loosens_the_verdict(capsys):
+    needs = json.dumps({"pytest-shards": {"result": "failure"}})
+    code = gate.run(needs, "pull_request", "t", None, infra=["pytest shard 4/5"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "فشلُ بنيةٍ تحتيّة" in out and "pytest shard 4/5" in out
+
+
+def test_gate_summary_job_can_read_actions_for_the_infra_label():
+    job = _load("quality-gate.yml")["gate-summary"]
+    assert job["permissions"]["actions"] == "read"
+    steps = [s.get("name", "") for s in job["steps"]]
+    assert steps.index("بيانُ خطوات الوظائف (لتمييز فشل البنية)") < steps.index("حكمُ بوابة الجودة")
