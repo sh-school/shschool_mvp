@@ -60,9 +60,13 @@ class ConstraintSpec:
     #: يُرفع: كسرُه تخطّيه في تلك الجولة وحدَها.
     relaxes_in_place: bool = False
     note: str = ""
+    #: لماذا هذا القيد؟ بصيغة «نوع: مرجع» والنوعُ مرجعٌ أو قرارٌ أو قياس — يُنقل من عمود المصدر في
+    #: `docs/schedule_v2/constraints_spec.html` بلا اختراع. القيدُ الصلبُ بلا مصدرٍ يفشل اختبارُه
+    #: (`test_every_hard_constraint_declares_its_source`): ما لا يُعرف سببُه يتعذّر تخفيفُه أو الدفاعُ عنه.
+    source: str = ""
 
 
-def _hard(code, title, break_at=NEVER, tunable=True, relaxes_in_place=False, note=""):
+def _hard(code, title, break_at=NEVER, tunable=True, relaxes_in_place=False, note="", source=""):
     return ConstraintSpec(
         code,
         title,
@@ -71,19 +75,26 @@ def _hard(code, title, break_at=NEVER, tunable=True, relaxes_in_place=False, not
         tunable=tunable,
         relaxes_in_place=relaxes_in_place,
         note=note,
+        source=source,
     )
 
 
-def _soft(code: str, title: str, weight: float, note: str = "") -> ConstraintSpec:
-    return ConstraintSpec(code, title, SOFT, weight=weight, note=note)
+def _soft(code: str, title: str, weight: float, note: str = "", source: str = "") -> ConstraintSpec:
+    return ConstraintSpec(code, title, SOFT, weight=weight, note=note, source=source)
 
 
 #: القيودُ الصلبة — الرتبةُ الافتراضيّةُ هنا هي ما يفعله المولّدُ اليوم بالضبط.
 #: من قَبِل رخصةً في `is_slot_valid` فرتبتُه رتبتُها، ومن لم يقبل فـ`never`.
 HARD_CONSTRAINTS = (
-    _hard("HC1", "المعلّم لا يُدرّس شعبتين معاً", tunable=False, note="نواة"),
-    _hard("HC2", "الشعبة لا تأخذ مادّتين معاً", tunable=False, note="نواة"),
-    _hard("HC4", "سقفُ حصص اليوم", tunable=False, note="الخميس: إعداديٌّ ستٌّ وثانويٌّ سبع"),
+    _hard("HC1", "المعلّم لا يُدرّس شعبتين معاً", tunable=False, note="نواة", source="مرجع: نواة"),
+    _hard("HC2", "الشعبة لا تأخذ مادّتين معاً", tunable=False, note="نواة", source="مرجع: نواة"),
+    _hard(
+        "HC4",
+        "سقفُ حصص اليوم",
+        tunable=False,
+        note="الخميس: إعداديٌّ ستٌّ وثانويٌّ سبع",
+        source="قرار: المالك 2026-10-02",
+    ),
     #: العنوانُ يُقرأ في صفحة الاعتماد: التلاصقُ المسموحُ صفر (`MAX_CONSECUTIVE = 1`)، وما يفصله فسحةٌ أو صلاةٌ لا يُعدّ.
     #: **لا يُكسَر في جولات الاسترخاء** — قرارُ المالك 2026-09-29 (D-61م، تجويد التوليد): «لا يقف
     #: المعلّمُ حصّتين متّصلتين إلّا في مزدوجةٍ مقصودة». وكان الرخصةَ الأولى (زوجٌ يُسمح به بدل حصّةٍ
@@ -95,7 +106,7 @@ HARD_CONSTRAINTS = (
     #: تحتاجه مدرسةٌ بعينها (يحرسه `test_a_rank_can_loosen_not_only_tighten`). فالفرقُ بين «لا يُرخى
     #: في جولةٍ» و«لا يُحرَّر بقرار» — وHC6 مقفولُ البابين (`tunable=False`) بنصّ D-17، فلا يُقاس
     #: عليه. (صِيغ هذا التفريقُ 2026-10-02 بعد أن قُرئ التعليقُ الأوّلُ خطأً فظُنّ القيدُ ثغرةً.)
-    _hard("HC5", "معلّمٌ يقف حصّتين متّصلتين بلا استراحة"),
+    _hard("HC5", "معلّمٌ يقف حصّتين متّصلتين بلا استراحة", source="قرار: D-61م"),
     #: لا يُكسَر ولا يُحرَّر — قرارُ المالك 2026-09-24 (D-17): «لا تكسر توزيع المادة ابداً».
     #: وكان `dense`، فوضع المولّدُ سبعَ حصصٍ بكسرها واعتُمد جدولٌ باثنتي عشرةَ مخالفة. وقِيس
     #: بلا رخصةٍ على نسخة الإنتاج: 869 من 869 بلا متعذّر، والمخالفاتُ 30 بدل 67.
@@ -105,24 +116,46 @@ HARD_CONSTRAINTS = (
         tunable=False,
         relaxes_in_place=True,
         note="قرارُ المالك — لا رخصةَ له",
+        source="قرار: D-17",
     ),
-    _hard("HC7", "لا تُكدَّس المادّةُ في حصّةٍ واحدةٍ من اليوم"),
-    _hard("HC8", "لا تتكدّس السابعةُ على معلّم"),
-    _hard("HC9", "سعةُ المورد في التوقيت", tunable=False, note="نواة"),
+    _hard("HC7", "لا تُكدَّس المادّةُ في حصّةٍ واحدةٍ من اليوم", source="قياس: موثَّق في الكود"),
+    _hard("HC8", "لا تتكدّس السابعةُ على معلّم", source="قرار: D-166م"),
+    _hard("HC9", "سعةُ المورد في التوقيت", tunable=False, note="نواة", source="مرجع: نواة"),
     _hard(
         "HC10",
         "فراغُ المعلّم لا يتجاوز سقفَه الشخصيّ",
         tunable=False,
         note="قرارٌ في حقّ الشخص يسبق كلّ رخصة",
+        source="مرجع: تفضيل فردي",
     ),
-    _hard("HC11", "موردٌ لا يجمع مرحلتين في التوقيت"),
-    _hard("HC12", "لا تداخلَ بالساعة بين الجرسين", tunable=False, note="نواة"),
-    _hard("HC13", "لا تماسَّ بين طابقين", tunable=False, note="نواة — الانتقالُ يحتاج زمناً"),
-    _hard("HC14", "لا يومَ فارغاً لمعلّمٍ تامّ النصاب", break_at=DENSE, relaxes_in_place=True),
-    _hard("HC16", "لا يومَ فوق حصّة القسمة"),
-    _hard("HC16B", "يومٌ دون الحدّ الأدنى لحصص المعلّم", break_at=DENSE, relaxes_in_place=True),
-    _hard("HC17", "لا حصّتان لمادّةٍ يومَ الخميس في 11 و12"),
-    _hard("HC19", "المزدوجةُ لا تعبر فسحةً ولا صلاة", tunable=False, note="نواة"),
+    _hard("HC11", "موردٌ لا يجمع مرحلتين في التوقيت", source="قرار: 2026-09-03"),
+    _hard("HC12", "لا تداخلَ بالساعة بين الجرسين", tunable=False, note="نواة", source="مرجع: نواة"),
+    _hard(
+        "HC13",
+        "لا تماسَّ بين طابقين",
+        tunable=False,
+        note="نواة — الانتقالُ يحتاج زمناً",
+        source="مرجع: نواة",
+    ),
+    _hard(
+        "HC14",
+        "لا يومَ فارغاً لمعلّمٍ تامّ النصاب",
+        break_at=DENSE,
+        relaxes_in_place=True,
+        source="قياس: موثَّق",
+    ),
+    _hard("HC16", "لا يومَ فوق حصّة القسمة", source="قياس: 2026-09-06"),
+    _hard(
+        "HC16B",
+        "يومٌ دون الحدّ الأدنى لحصص المعلّم",
+        break_at=DENSE,
+        relaxes_in_place=True,
+        source="قياس: موثَّق",
+    ),
+    _hard("HC17", "لا حصّتان لمادّةٍ يومَ الخميس في 11 و12", source="قرار: المالك 2026-10-02"),
+    _hard(
+        "HC19", "المزدوجةُ لا تعبر فسحةً ولا صلاة", tunable=False, note="نواة", source="مرجع: نواة"
+    ),
     #: حلَّ محلَّ HC18 «أيّامٌ مختلفة»: التباعدَ بين الأيّام يحسبه HC6 من القسمة،
     #: فلم يبقَ إلّا تلاصقُ الحصّتين في اليوم الواحد. وكسرُه رخصةٌ أولى لا منعٌ
     #: مطلق — التشديدُ بلا كسرٍ جرّب فأنتج ثمانيةً وعشرين تلاصقاً مخالفاً.
@@ -131,6 +164,7 @@ HARD_CONSTRAINTS = (
         "حصّتا المادّة في اليوم الواحد لا تتجاوران",
         break_at=RELAXED,
         relaxes_in_place=True,
+        source="قياس: موثَّق",
     ),
 )
 
