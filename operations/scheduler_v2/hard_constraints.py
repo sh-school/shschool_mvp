@@ -375,6 +375,8 @@ def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
     if len(occ) > cap:
         m.Add(sum(occ.values()) <= cap)
         ctx.count(code)
+    if code == "HC16" and has_double:
+        _single_day_cap(ctx, cells, occ, math.ceil(load / n_days))
     _day_floor(ctx, occ, t, load, n_days)
     # الطرفان: أولى (HC22) وأخيرةٌ متاحةٌ للمعلّم في اليوم (HC8).
     fv = [c.var for c in cells if c.p == 1]
@@ -386,6 +388,16 @@ def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
         edges.last[day] = _any(ctx, [c.var for c in lcells])
         for c in lcells:
             edges.last_by_cls[ctx.rows[c.i].cls].append(c.var)
+
+
+def _single_day_cap(ctx: _Ctx, cells: list[_Cell], occ, base: int) -> None:
+    """HC16 كما يفحصه المُقيِّم: زيادةُ الحصّة على سقف القسمة للمزدوجة وحدَها؛ فيومٌ فيه حصّةٌ مفردةٌ لا يتجاوز السقف."""
+    singles = [c.var for c in cells if ctx.rows[c.i].blocks == 0]
+    if not singles:
+        return
+    has_single = _any(ctx, singles)
+    ctx.m.Add(sum(occ.values()) + has_single <= base + 1)
+    ctx.count("HC16")
 
 
 def _feasible_floor(load: int, blocks: int, n_days: int, want: int, single_rows: int = 1) -> int:

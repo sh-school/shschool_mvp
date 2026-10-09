@@ -638,3 +638,11 @@ def test_band_transition_stays_hard_after_touch_relaxation():
     """HC13 يبقى صلباً مع تخفيف HC5: جرسان مختلفان يتماسّان تماماً لا يجتمعان لمعلّمٍ واحد."""
     inp = make([("C1", "S1", "T1", "", 1), ("C2", "S2", "T1", "", 1)])
     assert feasible(inp, [(0, 0, 3), (1, 0, 4)], touch_relaxed=frozenset({"T1"}))
+
+
+def test_hc16_day_with_a_single_period_cannot_exceed_share_even_with_a_double():
+    """HC16 كما يفحصه المُقيِّم: زيادةُ الحصّة للمزدوجة وحدَها، فيومٌ فيه مفردةٌ لا يتجاوز ⌈النصاب÷الأيام⌉."""
+    inp = make([("C1", "S1", "T1", "", 2), ("C2", "S2", "T1", "", 4)], doubles=frozenset({"S1"}))
+    ok = [(0, 0, 1), (0, 0, 2)]  # المزدوجةُ وحدها: 2 ≤ 2+1
+    assert feasible(inp, ok, derived_day_cap=True)
+    assert not feasible(inp, ok + [(1, 0, 4)], derived_day_cap=True)
