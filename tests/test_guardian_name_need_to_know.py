@@ -21,7 +21,11 @@ from core.capabilities import capability, has_capability
 from core.models import ParentStudentLink
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 from tests.test_period_register import klass, supervisor, year  # noqa: F401 — جناحٌ ومشرفُه
-from tests.test_supervisor_student_affairs_profile import _student
+from tests.test_supervisor_student_affairs_profile import (  # noqa: F401 — طالبُ جناحٍ ثانٍ خارج نطاق المشرف
+    _student,
+    other_klass,
+    outsider,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -232,3 +236,61 @@ def test_the_student_file_is_closed_to_everyone_else(
 
     assert response.status_code in (403, 404)
     assert GUARDIAN not in response.content.decode()
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  3. الإرسالُ والنطاق (مواصفة 0104)
+# ══════════════════════════════════════════════════════════════════════
+
+
+def test_a_contact_role_sending_the_report_mails_the_guardian_not_the_screen(
+    client_as, school, seeded_calendar, supervisor, child
+):
+    principal = _staff(school, "principal", "29500009010")
+    with patch("behavior.views._deny_unreachable", return_value=None):
+        client_as(principal).post(
+            reverse("behavior:behavior_report", args=[child.pk]), {"action": "send"}
+        )
+
+    # الاسمُ في نصّ البريد هو اسمُ مستلمه نفسِه (مخاطبته)؛ لا يُكتب فيه اسمُ غيره.
+    assert [m.to for m in mail.outbox] == [["g@example.test"]]
+
+
+def test_the_wing_supervisor_cannot_open_the_report_of_a_student_outside_his_wing(
+    client_as, school, seeded_calendar, supervisor, child, outsider
+):
+    ParentStudentLink.objects.create(
+        parent=UserFactory(full_name=GUARDIAN + "-خارج", national_id="29400000067"),
+        student=outsider,
+        school=school,
+        relationship="father",
+    )
+    response = client_as(supervisor).get(reverse("behavior:behavior_report", args=[outsider.pk]))
+
+    assert response.status_code == 404
+    assert GUARDIAN not in response.content.decode()
+
+
+def test_a_teacher_cannot_open_the_report_of_a_student_who_is_not_hers(
+    client_as, school, seeded_calendar, supervisor, child
+):
+    teacher = _staff(school, "teacher", "29500009011")
+    response = client_as(teacher).get(reverse("behavior:behavior_report", args=[child.pk]))
+
+    assert response.status_code == 403
+    assert GUARDIAN not in response.content.decode()
+
+
+def test_the_supervisor_register_lists_only_his_wing_guardians(
+    client_as, school, seeded_calendar, supervisor, child, outsider
+):
+    ParentStudentLink.objects.create(
+        parent=UserFactory(full_name="ولي-خارج-الجناح-٨٨", national_id="29400000068"),
+        student=outsider,
+        school=school,
+        relationship="father",
+    )
+    html = client_as(supervisor).get(reverse("student_affairs:student_list")).content.decode()
+
+    assert GUARDIAN in html
+    assert "ولي-خارج-الجناح-٨٨" not in html
