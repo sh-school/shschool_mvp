@@ -236,14 +236,36 @@ def classes_for(user: CustomUser, school: School) -> list[ClassGroup]:
     wing_ids = [wing.pk for wing in wings_of(user, school, academic_year_for_school(school))]
     from django.db.models import Q
 
-    from operations.models import SubstituteAssignment
+    from operations.models import CompensatorySession, SubstituteAssignment, TeacherSwap
 
-    covering = SubstituteAssignment.objects.filter(
-        school=school,
-        substitute=user,
-        status__in=("assigned", "confirmed"),
-        absence__date=timezone.localdate(),
-    ).values_list("slot__class_group_id", flat=True)
+    today = timezone.localdate()
+    covering = set(
+        SubstituteAssignment.objects.filter(
+            school=school,
+            substitute=user,
+            status__in=("assigned", "confirmed"),
+            absence__date=today,
+        ).values_list("slot__class_group_id", flat=True)
+    )
+    # من بُدِّلت إليه حصّةٌ اليومَ (التبديل المنفَّذ) أو له حصّةٌ تعويضيّةٌ معتمدةٌ — كما في `is_covering_class`
+    covering |= set(
+        TeacherSwap.objects.filter(
+            school=school, status="executed", teacher_b=user, swap_date_a=today
+        ).values_list("slot_a__class_group_id", flat=True)
+    )
+    covering |= set(
+        TeacherSwap.objects.filter(
+            school=school, status="executed", teacher_a=user, swap_date_b=today
+        ).values_list("slot_b__class_group_id", flat=True)
+    )
+    covering |= set(
+        CompensatorySession.objects.filter(
+            school=school,
+            teacher=user,
+            compensatory_date=today,
+            status__in=("approved", "completed"),
+        ).values_list("class_group_id", flat=True)
+    )
     return list(
         base.filter(
             Q(pk__in=list(assigned)) | Q(wing_id__in=wing_ids) | Q(pk__in=list(covering))
