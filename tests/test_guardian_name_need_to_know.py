@@ -66,7 +66,7 @@ def child(school, klass, supervisor):
 
 
 def _user_for(school, role, supervisor, n):
-    return supervisor if role == "admin_supervisor" else _staff(school, role, f"2950000{n:04d}")
+    return supervisor if role == "admin_supervisor" else _staff(school, role, f"29000{n:06d}")
 
 
 def _report(client_as, user, child):
@@ -137,7 +137,7 @@ def test_a_student_with_no_guardian_shows_no_guardian_section_to_anyone(
     client_as, school, seeded_calendar, supervisor, klass
 ):
     orphan = _student(school, klass, "طالب بلا وليّ", "29400000088")
-    teacher = _staff(school, "teacher", "29500009001")
+    teacher = _staff(school, "teacher", "29000009001")
 
     html = _report(client_as, teacher, orphan).content.decode()
 
@@ -155,7 +155,7 @@ def test_the_capability_is_exactly_the_contact_roles_among_the_recording_ones(sc
         set(RECORD_ONLY_ROLES + ["activities_coordinator", "e_projects_coordinator"]) & contact
     )
     # وما لا يسجّل المخالفةَ ولا يتّصل لا يحمل القدرة: المعلّمُ مثلاً.
-    assert not has_capability(_staff(school, "teacher", "29500009002"), "behavior.guardian_contact")
+    assert not has_capability(_staff(school, "teacher", "29000009002"), "behavior.guardian_contact")
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -246,7 +246,7 @@ def test_the_student_file_is_closed_to_everyone_else(
 def test_a_contact_role_sending_the_report_mails_the_guardian_not_the_screen(
     client_as, school, seeded_calendar, supervisor, child
 ):
-    principal = _staff(school, "principal", "29500009010")
+    principal = _staff(school, "principal", "29000009010")
     with patch("behavior.views._deny_unreachable", return_value=None):
         client_as(principal).post(
             reverse("behavior:behavior_report", args=[child.pk]), {"action": "send"}
@@ -274,7 +274,7 @@ def test_the_wing_supervisor_cannot_open_the_report_of_a_student_outside_his_win
 def test_a_teacher_cannot_open_the_report_of_a_student_who_is_not_hers(
     client_as, school, seeded_calendar, supervisor, child
 ):
-    teacher = _staff(school, "teacher", "29500009011")
+    teacher = _staff(school, "teacher", "29000009011")
     response = client_as(teacher).get(reverse("behavior:behavior_report", args=[child.pk]))
 
     assert response.status_code == 403
