@@ -276,6 +276,15 @@ def e_projects_coordinator_user(db, school):
 
 
 @pytest.fixture
+def student_affairs_coordinator_user(db, school):
+    """منسّق شؤون الطلبة — W-20261001-020"""
+    role = RoleFactory(school=school, name="student_affairs_coordinator")
+    user = UserFactory(full_name="منسق شؤون الطلبة")
+    MembershipFactory(user=user, school=school, role=role)
+    return user
+
+
+@pytest.fixture
 def activities_coordinator_user(db, school):
     """منسق الأنشطة المدرسية — v7"""
     role = RoleFactory(school=school, name="activities_coordinator")

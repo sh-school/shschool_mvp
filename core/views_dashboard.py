@@ -34,6 +34,16 @@ from core.landing import landing_or_denied
 from core.models.academic import Wing
 
 
+def _role_home(user, role):
+    """وجهةُ دورٍ لا تُرسم له لوحةُ الموزّع: ولي الأمر بوابتُه، ومنسق شؤون الطلبة (بطاقة 1033) «لوحة شؤون
+    الطلاب» (متابعةُ اليوم) بقدرة المتابعة التي يرثها من الإدارة."""
+    if role == "parent":
+        return "parent_dashboard"
+    if role == "student_affairs_coordinator" and has_capability(user, "student_affairs.follow_up"):
+        return "student_affairs:dashboard"
+    return None
+
+
 def _director_ctx(user, school, today, role):
     """سياقُ لوحة المدير: بياناتُها، وعنوانُها باسم صاحبها، وأقسامٌ تسجّلها الوحدات (غياب اليوم)، وأعذارُ ما بعد المهلة لمن يملك قدرتَها."""
     ctx = get_director_ctx(school, today)
@@ -65,9 +75,9 @@ def dashboard(request):
     if not school:
         return HttpResponseForbidden("<h2 dir='rtl'>لم يتم تعيينك في أي مدرسة</h2>")
 
-    # ولي الأمر → بوابته المخصصة
-    if role == "parent":
-        return redirect("parent_dashboard")
+    # ولي الأمر → بوابته المخصصة، ومن لا لوحةَ مستقلّةَ له → لوحته القائمة
+    if home := _role_home(user, role):
+        return redirect(home)
 
     # بتوقيت المدرسة لا UTC: بين 21:00 و00:00 UTC يختلف اليومان، فكان تكليفُ بديلٍ
     # يبدأ «اليوم» (بتوقيت قطر) لا يُرى في اللوحة (سقوطُ البوّابة عند منتصف الليل 2026-09-14).

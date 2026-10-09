@@ -199,8 +199,17 @@ class TestTherapistWeekStats:
 
 
 @pytest.mark.django_db
-def test_the_director_numbers_share_one_card(client_as, principal_user):
-    """طلب المالك 2026-09-23: أرقامُ الحضور ونبضُ الأقسام في بطاقةٍ واحدة لا شريطٌ عائمٌ فوقها."""
+def test_the_director_numbers_share_one_card(client_as, principal_user, monkeypatch):
+    """طلب المالك 2026-09-23: أرقامُ الحضور ونبضُ الأقسام في بطاقةٍ واحدة لا شريطٌ عائمٌ فوقها.
+
+    الوقتُ مثبَّتٌ على الأحد 09:00 بتوقيت الدوحة: شريطُ «اليوم» لا يُرسم في يوم إجازة، فكان الاختبارُ
+    يسقط كلَّ جمعةٍ وسبت (أسقط مجموعةَ الدمج في #895 و#905).
+    """
+    from django.utils import timezone
+
+    fixed = dt.datetime(2026, 10, 11, 9, 0, tzinfo=dt.timezone(dt.timedelta(hours=3)))
+    monkeypatch.setattr(timezone, "now", lambda: fixed)
+    monkeypatch.setattr(timezone, "localdate", lambda *a, **k: fixed.date())
     html = client_as(principal_user).get("/dashboard/").content.decode()
 
     card = html[html.index("نبض المدرسة") :]

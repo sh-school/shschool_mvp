@@ -2,7 +2,7 @@
 
 «الحساباتُ كلُّها على المحلّيّ ولا تُحقن في الإنتاج» (المالك). فالمحروسُ هنا أربعةُ أشياء:
 
-1. القائمةُ المغلقةُ في ملفٍّ واحد: تسعةُ أدوارٍ، لا platform_developer، أرقامُها `PV-…` فريدة، ويفشل الاختبارُ إن ظهر دورٌ خارجها.
+1. القائمةُ المغلقةُ في ملفٍّ واحد: عشرةُ أدوارٍ، لا platform_developer، أرقامُها `PV-…` فريدة، ويفشل الاختبارُ إن ظهر دورٌ خارجها.
 2. الأمرُ `preview_accounts` لا يلمس القاعدةَ خارج `shschool.settings.preview` وقاعدةِ المعاينة والربط 127.0.0.1 وكلمةِ البيئة؛ ومعه idempotence.
 3. المصيدةُ: حسابٌ موسومٌ (الوسمُ المركَّب) خارج إعداد المعاينة لا يدخل وتسقط جلستُه، بحدثٍ يحمل المعرّفَ لا الاسمَ ولا الرقم.
 4. الحقنُ 8500→الإنتاج: الدمقُ يُسقط الموسومين، والتطبيقُ يرفض ملفّاً يحمل مفتاحاً خارج القائمة أو معلّماً موسوماً.
@@ -42,6 +42,7 @@ EXPECTED_ROLES = {
     "ese_teacher",
     "coordinator",
     "specialist",
+    "student_affairs_coordinator",
 }
 
 
@@ -77,7 +78,7 @@ def _fakes():
 # ══════════════════════════════════════════════════════════════════
 
 
-def test_the_closed_list_is_exactly_the_nine_roles():
+def test_the_closed_list_is_exactly_the_ten_roles():
     assert set(pa.ROLES) == EXPECTED_ROLES
 
 
@@ -89,7 +90,7 @@ def test_no_forbidden_role_is_in_the_list_and_every_role_is_a_platform_role():
 
 def test_the_synthetic_ids_are_unique_and_carry_the_prefix():
     ids = list(pa.ROLES.values())
-    assert len(set(ids)) == len(ids) == 9
+    assert len(set(ids)) == len(ids) == 10
     assert all(i.startswith(pa.ID_PREFIX) for i in ids)
 
 
@@ -137,19 +138,19 @@ def test_a_non_loopback_bind_seeds_nothing_and_deactivates_what_was_seeded(
 ):
     with PREVIEW:
         _sync()
-        assert _fakes().filter(is_active=True).count() == 9
+        assert _fakes().filter(is_active=True).count() == 10
         monkeypatch.setenv("PREVIEW_BIND", "0.0.0.0")
         with pytest.raises(CommandError, match="PREVIEW_BIND"):
             _sync()
     assert _fakes().filter(is_active=True).count() == 0
-    assert _fakes().count() == 9
+    assert _fakes().count() == 10
 
 
-def test_sync_creates_the_nine_accounts_with_safe_flags(school, preview_env):
+def test_sync_creates_the_ten_accounts_with_safe_flags(school, preview_env):
     with PREVIEW:
         _sync()
     users = list(_fakes())
-    assert len(users) == 9
+    assert len(users) == 10
     for user in users:
         assert user.full_name.startswith(pa.FULL_NAME_PREFIX)
         assert user.email.startswith(pa.EMAIL_PREFIX)
@@ -158,12 +159,29 @@ def test_sync_creates_the_nine_accounts_with_safe_flags(school, preview_env):
         assert Membership.objects.filter(user=user, is_active=True).count() == 1
 
 
+def test_the_student_affairs_coordinator_account_follows_absence_across_all_wings(
+    school, preview_env
+):
+    """D-267م: حاصرُ الغياب العامّ بدوره، فلا تغطيةَ أجنحةٍ تلزم حسابَ المعاينة لرؤية الأجنحة كلِّها."""
+    from core.capabilities import has_capability
+    from core.models import CustomUser
+
+    with PREVIEW:
+        _sync()
+    user = CustomUser.objects.get(national_id=pa.ROLES["student_affairs_coordinator"])
+
+    assert user.get_role() == "student_affairs_coordinator"
+    assert has_capability(user, "wings.school_wide")
+    assert has_capability(user, "wings.record_day")
+    assert pa.EMPLOYEE_NUMBERS["student_affairs_coordinator"] == "99900010"
+
+
 def test_sync_is_idempotent(school, preview_env):
     with PREVIEW:
         _sync()
         _sync()
-    assert _fakes().count() == 9
-    assert Membership.objects.filter(user__in=_fakes()).count() == 9
+    assert _fakes().count() == 10
+    assert Membership.objects.filter(user__in=_fakes()).count() == 10
 
 
 def test_sync_corrects_a_drifted_role_membership_and_flags(school, preview_env):
@@ -477,7 +495,7 @@ def test_sync_removes_legacy_accounts_and_seeds_each_role_once(school, preview_e
     with PREVIEW:
         _sync()
     assert not CustomUser.objects.filter(pa.legacy_accounts_q()).exists()
-    assert _fakes().count() == 9
+    assert _fakes().count() == 10
     for role in EXPECTED_ROLES:
         assert (
             Membership.objects.filter(user__in=_fakes(), role__name=role, is_active=True).count()
@@ -590,7 +608,7 @@ def test_b_development_with_matching_variables_and_a_preview_named_db_is_a_previ
     with DEVELOPMENT:
         assert pa.in_preview_environment()
         _sync()
-    assert _fakes().filter(is_active=True).count() == 9
+    assert _fakes().filter(is_active=True).count() == 10
 
 
 def test_b2_the_tagged_account_logs_in_under_the_pinned_development_preview(
@@ -655,12 +673,12 @@ def test_the_testing_settings_are_never_a_preview(monkeypatch, preview_env, scho
 
 def test_the_reserved_employee_numbers_are_eight_digits_apart_from_real_5_6_and_11_digit_numbers():
     numbers = list(pa.EMPLOYEE_NUMBERS.values())
-    assert len(set(numbers)) == len(numbers) == 9
+    assert len(set(numbers)) == len(numbers) == 10
     assert set(pa.EMPLOYEE_NUMBERS) == set(pa.ROLES)
     for number in numbers:
         assert len(number) == 8 and number.isdigit()
         assert pa.is_reserved_employee_number(number)
-    for real in ("12345", "123456", "29000001234", "99900000", "99900010", "999000010", ""):
+    for real in ("12345", "123456", "29000001234", "99900000", "99900011", "999000010", ""):
         assert not pa.is_reserved_employee_number(real), real
 
 

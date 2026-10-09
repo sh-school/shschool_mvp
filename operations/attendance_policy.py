@@ -377,6 +377,9 @@ def can_approve(
         return _deny("other_school")
     if not needs_approval(session):
         return _deny("final_entry")
+    # قبل حاملِ الجناح: لو عُيّن المنسّقُ حاملَ جناحٍ لا يتجاوز المنع (D-266م؛ الاعتمادُ ملغى بـD-245م).
+    if "student_affairs_coordinator" in roles:
+        return _deny("not_approver")
     if grid_holder_approves(user, session, entry_origin):
         return _allow()
     if user.id == session.teacher_id:
@@ -406,7 +409,9 @@ def can_approve(
 # ومن الدور، لا من `Session.teacher` ولا من الطلب. وغيرُ المخوَّل يُردّ بـ404 في الواجهة (رمزُ `not_found`) فلا يُعرف أنّ الشعبة موجودة.
 
 #: القيادةُ الإداريّةُ التي تكتب على كلّ الأعمدة (D-240م) — بالدور لا بـ`is_leadership()`؛ والنائبُ الأكاديميّ يراقب فقط (D-239م).
-GRID_WRITER_ROLES = frozenset({"principal", "vice_admin", "admin_supervisor"})
+GRID_WRITER_ROLES = frozenset(
+    {"principal", "vice_admin", "admin_supervisor", "student_affairs_coordinator"}
+)
 GRID_READER_ROLES = GRID_WRITER_ROLES | {"vice_academic"}
 
 GRID_TEACHER = "teacher"

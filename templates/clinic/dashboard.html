@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load icons %}
+{% load icons navigation %}
 {% load static ui %}
 {% block title %}العيادة المدرسية — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
@@ -11,7 +11,9 @@
 <div class="exec-dash">
 
   {% page_header "لوحة العيادة" subtitle=today_label icon="clinic" %}
+    {% if request.user|can_open:"clinic:record_visit" %}
     <a href="{% url 'clinic:record_visit' %}" class="btn-primary btn-sm">{% icon "add" %} تسجيل زيارة</a>
+    {% endif %}
     <a href="{% url 'clinic:statistics' %}" class="btn-secondary btn-sm">{% icon "stats" %} الإحصائيات</a>
     <a href="{% url 'clinic:visits_list' %}" class="btn-secondary btn-sm">{% icon "document" %} السجلات</a>
   {% endpage_header %}
