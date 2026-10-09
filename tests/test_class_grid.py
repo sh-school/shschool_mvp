@@ -408,13 +408,11 @@ def test_after_14_00_the_teacher_is_locked_and_the_holder_corrects_with_a_reason
     assert locked.status_code == 403 and locked.json()["reason"] == "after_window"
 
     boss = client_as(holder)
-    no_reason = _save(boss, assigned, 1, [_cells(kids[0], "present", head)])
-    assert no_reason.status_code == 403 and no_reason.json()["reason"] == "reason_required"
-    fixed = _save(
-        boss, assigned, 1, [_cells(kids[0], "present", head)], reason="وصل متأخّراً وأُثبت حضورُه"
-    )
+    # السببُ اختياريّ (قرارُ المالك 2026-10-09): يكفي كاتبُ التصحيح ووقتُه، ويُوضع سببٌ ثابتٌ إن لم يُكتب
+    fixed = _save(boss, assigned, 1, [_cells(kids[0], "present", head)])
     assert fixed.status_code == 200
-    assert AttendanceEntry.objects.filter(entered_by=holder).count() == 1
+    mine = AttendanceEntry.objects.get(entered_by=holder)
+    assert mine.correction_reason == "تعديلٌ من جدول الشعبة" and mine.entered_at
     assert AuditLog.objects.filter(object_repr="جدول الشعبة — تصحيحٌ بعد الإغلاق").exists()
 
 

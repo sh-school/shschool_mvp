@@ -72,12 +72,12 @@ def test_a_day_without_school_and_a_bad_date_are_404(client_as, school, assigned
     assert client.get(url, {"date": "not-a-date"}).status_code == 404
 
 
-def test_the_past_is_corrected_with_a_reason_only(client_as, school, assigned, kids, clock):
+def test_the_past_is_corrected_by_the_holder_without_a_mandatory_reason(
+    client_as, school, assigned, kids, clock
+):
     client = client_as(_principal(school))
     day = THURSDAY_BEFORE.isoformat()
-    missing = _save(client, assigned, 1, [_cells(kids[0], "absent")], date=day)
-    assert missing.status_code == 403 and missing.json()["reason"] == "reason_required"
-    saved = _save(client, assigned, 1, [_cells(kids[0], "absent")], date=day, reason="تصحيحٌ بسبب")
+    saved = _save(client, assigned, 1, [_cells(kids[0], "absent")], date=day)
     assert saved.status_code == 200 and saved.json()["saved"]
 
 

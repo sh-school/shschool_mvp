@@ -18,7 +18,6 @@
   var lateUrl = root.getAttribute('data-late-url');
   var exitUrl = root.getAttribute('data-exit-url');
   var draftKey = root.getAttribute('data-draft-key');
-  var correcting = root.getAttribute('data-correcting') === '1';
   var statusLine = root.querySelector('[data-grid-status]');
   var tokenInput = document.querySelector('input[name=csrfmiddlewaretoken]');
   var SYMBOL = { '': '·', present: '✓', absent: 'غ', late: 'ت' };
@@ -145,20 +144,8 @@
       return c.getAttribute('data-writable') === '1' && !c.getAttribute('data-status');
     });
     if (!dirty.length && !empties.length) { notify('لا تغييرَ لحفظه في ح' + col, 'info'); return; }
-    var reasonInput = root.querySelector('[data-grid-reason]');
+    var reasonInput = document.querySelector('[data-grid-reason]');
     var reason = reasonInput ? reasonInput.value.trim() : '';
-    var reasonAlways = root.getAttribute('data-reason-always') === '1';
-    var editsExisting = Array.prototype.some.call(dirty, function (c) { return !!c.getAttribute('data-head'); });
-    if (reasonAlways && editsExisting && !reason) {
-      notify('تعديلُ ما كتبه غيرُك يلزمه سببٌ — اكتبه في حقل السبب أعلى الجدول.', 'warning');
-      if (reasonInput) reasonInput.focus();
-      return;
-    }
-    if (correcting && !reason) {
-      notify('نافذةُ المعلّم مغلقة — اكتب سببَ التصحيح في الحقل أعلى الجدول (إلزاميّ).', 'warning');
-      if (reasonInput) reasonInput.focus();
-      return;
-    }
     if (empties.length) {
       confirmThen('يوجد ' + empties.length + ' خليّةٍ فارغةٍ في ح' + col + ' ستُكتب «حاضراً افتراضيّاً». حفظُ العمود؟', function () {
         send(col, dirty, true, reason);

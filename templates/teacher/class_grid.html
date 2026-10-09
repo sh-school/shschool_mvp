@@ -20,13 +20,18 @@
   {% page_header page.klass.short_label subtitle=page.day|date:"l j F Y" icon="attendance_register" %}
     {% callout "hint" %}الضغطةُ تضع حالةً صريحةً: غائب ثمّ حاضر. الخليّةُ الفارغةُ «لم تُرصد» ولا تُحسب غياباً، وعند حفظ عمودٍ بدأت حصّتُه تُكتب الفارغاتُ «حاضراً افتراضيّاً» بعد تأكيدك. الأحدثُ يظهر والأقدمُ في سجلّ الخليّة (اضغط اسمَ الطالب).{% endcallout %}
     {% if not page.can_write %}{% callout "info" %}للمراقبة فقط: تقرأ كلَّ الأعمدة ولا تكتب ولا تعتمد.{% endcallout %}{% endif %}
-    <nav class="flex flex-wrap gap-2" aria-label="تنقّلٌ بين الأيام">
-      <a class="btn-secondary btn-sm" href="?date={{ page.prev_day|date:'Y-m-d' }}">‹ اليومُ السابق</a>
-      {% if not page.is_today %}<a class="btn-secondary btn-sm" href="{% url 'class_grid' page.klass.id %}">اليوم</a>{% endif %}
-      <a class="btn-secondary btn-sm" href="?date={{ page.next_day|date:'Y-m-d' }}">اليومُ التالي ›</a>
-    </nav>
+    <div class="cg-headbar">
+      <nav class="flex flex-wrap gap-2" aria-label="تنقّلٌ بين الأيام">
+        <a class="btn-secondary btn-sm" href="?date={{ page.prev_day|date:'Y-m-d' }}">‹ اليومُ السابق</a>
+        {% if not page.is_today %}<a class="btn-secondary btn-sm" href="{% url 'class_grid' page.klass.id %}">اليوم</a>{% endif %}
+        <a class="btn-secondary btn-sm" href="?date={{ page.next_day|date:'Y-m-d' }}">اليومُ التالي ›</a>
+      </nav>
+      {% if page.correction_mode or page.reason_always %}
+      <div class="cg-reasonbar">{% field "reason" "سببُ التصحيح (اختياريّ)" maxlength="300" data_grid_reason=True %}</div>
+      {% endif %}
+    </div>
     {% if page.is_future %}{% callout "info" %}يومٌ لم يأتِ بعد: عرضٌ فقط.{% endcallout %}
-    {% elif page.correction_mode %}{% callout "warning" %}{% if page.is_today %}أُغلقت نافذةُ المعلّم ({{ page.closes|time:"H:i" }}){% else %}يومٌ مضى{% endif %}: رصدُ المعلّم نهائيٌّ، وتصحيحُ المشرف بسببٍ إلزاميّ.{% endcallout %}{% endif %}
+    {% elif page.correction_mode %}{% callout "warning" %}{% if page.is_today %}أُغلقت نافذةُ المعلّم ({{ page.closes|time:"H:i" }}){% else %}يومٌ مضى{% endif %}: رصدُ المعلّم نهائيٌّ، وتصحيحُ المشرف يُسجَّل بكاتبه ووقته.{% endcallout %}{% endif %}
   {% endpage_header %}
 
   {% section_card "رصد الغياب بالحصّة" meta=page.rows|length icon="attendance_register" empty="لا طلبةَ مقيَّدين في هذه الشعبة" flush=True %}{% if page.rows %}
@@ -121,9 +126,6 @@
           {% endif %}
         </table>
       </div>
-      {% if page.correction_mode or page.reason_always %}
-      <div class="cg-reasonbar">{% field "reason" "سببُ التصحيح — إلزاميّ عند تعديل ما كتبه غيرُك أو بعد إغلاق نافذة المعلّم" required=True maxlength="300" data_grid_reason=True %}</div>
-      {% endif %}
       <p class="ui-note" data-grid-status role="status" aria-live="polite"></p>
       <dialog class="cg-dialog" data-history-dialog aria-label="سجلّ الخليّة"><div data-history-body></div><form method="dialog" class="cg-dialog__foot"><button class="btn-secondary btn-sm">إغلاق</button></form></dialog>
     </div>

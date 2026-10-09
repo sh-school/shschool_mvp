@@ -1509,9 +1509,11 @@ body:has(.rm-page) .site-footer { flex: none; }
 /* الجدولُ داخل بطاقةٍ ملاصقةٍ (`is-flush`) فلا إطارَ ثانيَ ولا ظلَّ ولا استدارةَ: كانت بطاقةً داخل بطاقة. */
 .cg-wrap { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 /* سببُ التصحيح: حشوُ جسم البطاقة ونصُّ التسمية بلون النصّ لا الرماديّ الباهت (`ui-note` كانت تُضعف تباينَ التسمية). */
-.cg-reasonbar { padding: var(--sp-2) var(--sp-3); color: var(--text-primary); }
-.cg-reasonbar .form-group { display: flex; align-items: center; gap: var(--sp-2); margin: 0; }
-.cg-reasonbar input { flex: 1 1 auto; max-inline-size: 32rem; }
+.cg-headbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); }
+.cg-reasonbar { flex: 1 1 9rem; color: var(--text-primary); }
+.cg-reasonbar .ui-field { display: flex; flex-direction: row; align-items: center; gap: var(--sp-2); margin: 0; }
+.cg-reasonbar .ui-field__label { flex: 0 0 auto; margin: 0; white-space: nowrap; }
+.cg-reasonbar input { flex: 1 1 auto; min-inline-size: 0; }
 .cg-table { table-layout: fixed; inline-size: 100%; }
 .cg-table :is(th, td) { text-align: center; padding-inline: var(--sp-1); }
 /* الاسمُ على يمين السطر (بدايةُ السطر في RTL) — القاعدةُ أعلاه أخصُّ من `.cg-name` وحدَها فكانت تُوسّطه. */

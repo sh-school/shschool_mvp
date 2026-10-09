@@ -591,8 +591,6 @@ def save_column(
             user, klass, day, now=moment
         ):
             correcting = True
-            if not (reason or "").strip():
-                raise GridRefusedError("reason_required", "التصحيحُ بعد إغلاق النافذة يلزمه سبب")
         else:
             raise GridRefusedError(verdict.reason)
     _throttle_saves(user)
@@ -672,12 +670,9 @@ def _write_one(
     minutes = _minutes(item.get("minutes"))
     if status == "late" and minutes is None:
         minutes = _late_minutes(session)
-    # رصدُ المعلّم نهائيٌّ: من يعدّل ما كتبه غيرُه (المشرفُ) يكتب سبباً إلزاميّاً ويُسجَّل مع التصحيح (D-201م، D-262م)
+    # رصدُ المعلّم نهائيٌّ: من يعدّل ما كتبه غيرُه (المشرفُ) يُسجَّل مع التصحيح كاتبُه ووقتُه، والسببُ اختياريّ (قرارُ المالك 2026-10-09)
     head = head_of(session, student)
     overriding = head is not None and head.entered_by_id != user.id
-    if overriding and not (reason or "").strip():
-        result.errors.append({"student": str(student.pk), "code": "reason_required"})
-        return
     try:
         with transaction.atomic():  # نقطةُ حفظٍ لكلّ خليّة
             entry, _created = write_grid_cell(
