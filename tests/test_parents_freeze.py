@@ -106,7 +106,6 @@ def test_dispatch_to_parents_writes_nothing_even_for_mandatory_events(
     result = NotificationHub.dispatch_to_parents(
         event_type=event, school=school, student=student_user, title="t", body="b"
     )
-    assert result["frozen"] is True
     assert result["in_app"] == 0
     assert not InAppNotification.objects.filter(user=parent_user).exists()
 
@@ -342,33 +341,20 @@ def test_a_quiet_hours_item_for_a_parent_is_neither_sent_nor_dropped(
 
 
 def test_the_frozen_recheck_never_exceeds_the_quiet_hours_hop():
+    from notifications.frozen import FROZEN_RECHECK_SECONDS
     from notifications.quiet_hours import MAX_HOLD_HOP
-    from notifications.tasks import FROZEN_RECHECK_SECONDS
 
     assert FROZEN_RECHECK_SECONDS <= MAX_HOLD_HOP.total_seconds()
 
 
-@pytest.mark.parametrize(
-    ("raw", "expected_frozen"),
-    [
-        ("", True),
-        ("1", True),
-        ("true", True),
-        ("garbage", True),
-        (" yes ", True),
-        ("0", False),
-        ("false", False),
-        ("No", False),
-        ("OFF", False),
-    ],
-)
-def test_only_an_explicit_off_value_thaws_the_key(raw, expected_frozen):
-    thawed = raw.strip().lower() in ("0", "false", "no", "off")
-    assert (not thawed) is expected_frozen
+def test_the_setting_thaws_only_on_an_explicit_off_value():
+    """الصيغةُ المكتوبةُ في base.py (تُقارَن مضغوطةً: ruff يلفّ الأسطر ويُضيف فاصلةً أخيرة)."""
+    import re
     from pathlib import Path
 
-    src = Path("shschool/settings/base.py").read_text(encoding="utf-8")
-    assert 'not in ("0", "false", "no", "off")' in src
+    src = re.sub(r"\s+", "", Path("shschool/settings/base.py").read_text(encoding="utf-8"))
+    assert 'PARENTS_FROZEN=os.environ.get("PARENTS_FROZEN","1").strip().lower()notin(' in src
+    assert '"0","false","no","off"' in src
 
 
 def test_the_email_task_skips_a_parent_address_queued_before_the_freeze(

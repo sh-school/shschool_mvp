@@ -59,3 +59,15 @@ def frozen_recipient(*, email: str | None = None, phone: str | None = None) -> b
     elif phone:
         users = CustomUser.objects.filter(phone_hmac=hmac_field(phone))
     return any(is_parent_only(u) for u in users[:20])
+
+
+def sendable_parent_links(links: Iterable[Any]) -> list[Any]:
+    """روابطُ الأولياء التي يجوز مراسلتُها: لا شيءَ أثناء التجميد (للعروض التي تُرسل مباشرةً)."""
+    return [] if parents_frozen() else list(links)
+
+
+def warn_or_frozen(request: Any, text: str) -> None:
+    """تحذيرٌ في عرضٍ لم يُرسل شيئاً: سببُ التجميد إن كان قائماً وإلا النصُّ الأصليّ."""
+    from django.contrib import messages
+
+    messages.warning(request, f"{FROZEN_MESSAGE} — لم يُرسَل شيء." if parents_frozen() else text)

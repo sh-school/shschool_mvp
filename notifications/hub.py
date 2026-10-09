@@ -28,9 +28,7 @@ from django.conf import settings
 from django.db import transaction
 from kombu.exceptions import OperationalError
 
-from core.parents_freeze import parents_frozen, without_frozen_parents
-
-from . import quiet_hours
+from . import frozen, quiet_hours
 from .channels import deliverable_external_channels
 from .delivery_state import CLAIMABLE
 from .models import (
@@ -178,11 +176,7 @@ class NotificationHub:
         # في معاملة النداء (`behavior/digest.py`) يحتاجه ليعرف أنّ شيئاً لم يخرج.
         results: dict[str, Any] = {"in_app": 0, "queued": {}, "failed": 0}
 
-        # التجميد (W-20261008-013) يتقدّم على كلّ فحصٍ بعده — ومنه `_MANDATORY_SERVICE_EVENTS` التي تتخطّى الموافقة.
-        # ولا يُكتب شيءٌ لوليّ أمرٍ مجمَّد (لا إشعار منصّة ولا قناة خارجيّة)؛ والكادرُ يستلم كالمعتاد.
-        recipients = without_frozen_parents(recipients or [])
-
-        if not recipients:
+        if not (recipients := frozen.without_frozen_parents(recipients or [])):
             # لا مستلم ⇒ لا واقعة. إشعارٌ لا يخصّ أحداً ليس حدثاً يُسجَّل.
             return results
 
@@ -358,11 +352,6 @@ class NotificationHub:
         والمخالفةُ اليدويّة على حالها حتى يُقرَّر فيها (المالك ومسؤولُ حماية البيانات).
         """
         from core.models import ParentStudentLink
-
-        if parents_frozen():
-            # قبل أيّ استعلامٍ أو فحصِ موافقة: التجميدُ يتقدّم على الإلزاميّ أيضاً (غياب، استدعاء، إرسال للمنزل).
-            logger.info("parents frozen — dispatch_to_parents skipped event=%s", event_type)
-            return {"in_app": 0, "queued": {}, "failed": 0, "frozen": True}
 
         links = ParentStudentLink.objects.filter(student=student, school=school).select_related(
             "parent"

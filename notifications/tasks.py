@@ -25,13 +25,7 @@ from django.conf import settings
 
 from core.celery_tasks import TenantRLSTask, school_rls_scope
 from core.mail_backends import provider_configured
-from core.parents_freeze import (
-    frozen_recipient,
-    is_parent_only,
-    parents_frozen,
-    without_frozen_parents,
-)
-from notifications import quiet_hours
+from notifications import frozen
 from notifications.channels import deliverable_external_channels
 from notifications.delivery_state import (
     budget_exhausted,
@@ -268,8 +262,8 @@ def send_email_task(
     delivery = None
     token = None
 
-    if frozen_recipient(email=recipient_email):
-        return {"status": "skipped", "reason": "parents_frozen", "channel": "email"}
+    if skipped := frozen.channel_skip("email", email=recipient_email):
+        return skipped
 
     try:
         from core.models import CustomUser, School
@@ -397,8 +391,8 @@ def send_sms_task(
     delivery = None
     token = None
 
-    if frozen_recipient(phone=phone_number):
-        return {"status": "skipped", "reason": "parents_frozen", "channel": "sms"}
+    if skipped := frozen.channel_skip("sms", phone=phone_number):
+        return skipped
 
     try:
         from core.models import CustomUser, School
@@ -493,8 +487,8 @@ def send_whatsapp_task(
     delivery = None
     token = None
 
-    if frozen_recipient(phone=phone_number):
-        return {"status": "skipped", "reason": "parents_frozen", "channel": "whatsapp"}
+    if skipped := frozen.channel_skip("whatsapp", phone=phone_number):
+        return skipped
 
     try:
         from core.models import School
@@ -578,7 +572,7 @@ def notify_absence_task(self, absence_alert_id, sent_by_id=None, school_id=None)
         try:
             from core.models import ParentStudentLink
 
-            if parents_frozen():
+            if frozen.parents_frozen():
                 return {"sent": sent, "total": len(results), "frozen": True}
 
             parents = ParentStudentLink.objects.filter(
@@ -1182,14 +1176,7 @@ def send_push_to_school_task(school_id, title, body, url="/parents/"):
 
     from notifications.push_publisher import enqueue_push
 
-    if parents_frozen():
-        # المشتركون قد يكونون أولياءَ وكادراً معاً: يُستبعد الأولياءُ الخُلَّص وحدَهم (W-20261008-013).
-        from core.models import CustomUser
-
-        kept = {u.pk for u in without_frozen_parents(CustomUser.objects.filter(pk__in=list(users)))}
-        users = [uid for uid in users if uid in kept]
-
-    for uid in users:
+    for uid in frozen.drop_frozen_subscribers(users):
         enqueue_push(user_id=uid, school_id=school_id, title=title, body=body, url=url)
 
     return {"queued": len(users)}
@@ -1236,8 +1223,7 @@ def hub_send_notification_task(
 
     try:
         user = CustomUser.objects.get(id=user_id)
-        if parents_frozen() and is_parent_only(user):
-            # نداءٌ سُجّل قبل التجميد ووصل العاملَ بعده: لا يخرج شيءٌ لوليّ أمر (W-20261008-013).
+        if frozen.frozen_user(user):
             return {"user": str(user_id), "skipped": "parents_frozen"}
         school = School.objects.get(id=school_id)
         sender = CustomUser.objects.get(id=sent_by_id) if sent_by_id else None
@@ -1483,11 +1469,6 @@ def reconcile_deliveries_task(self, school_id):
     return reconcile_school(school_id)
 
 
-#: مدّةُ إعادة سؤال عنصرٍ مؤجَّلٍ لوليّ أمرٍ أثناء التجميد — لا تتجاوز قفزةَ الهدوء (45 د)
-#: وإلا أُعيد تسليمُ Redis للمهمّة قبل موعدها فتكرّر.
-FROZEN_RECHECK_SECONDS = int(quiet_hours.MAX_HOLD_HOP.total_seconds())
-
-
 @shared_task(
     base=TenantRLSTask,
     bind=True,
@@ -1549,18 +1530,10 @@ def release_after_quiet_hours_task(
         logger.warning("release_after_quiet_hours: no worker to hold — dropped target=%s", target)
         return {"status": "skipped"}
 
-    if user is not None and parents_frozen() and is_parent_only(user):
-        # مؤجَّلٌ بساعات الهدوء قبل التجميد: لا يُرسل ولا يُحذف — يُعاد سؤالُه كلَّ ساعةٍ حتى الفكّ (W-20261008-013).
-        self.apply_async(
-            kwargs={
-                "school_id": school_id,
-                "user_id": user_id,
-                "target": target,
-                "payload": payload,
-            },
-            countdown=FROZEN_RECHECK_SECONDS,
+    if user is not None and frozen.frozen_user(user):
+        return frozen.hold_frozen_item(
+            self, school_id=school_id, user_id=user_id, target=target, payload=payload
         )
-        return {"status": "held_parents_frozen"}
 
     task.delay(**payload)
     return {"status": "released", "target": target}
