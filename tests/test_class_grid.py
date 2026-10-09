@@ -419,6 +419,25 @@ def test_after_14_00_the_teacher_is_locked_and_the_holder_corrects_with_a_reason
 # ── الأدوار ────────────────────────────────────────────────────────────────────
 
 
+def test_the_date_is_doha_not_utc_for_the_teacher_write(
+    client_as, assigned, teacher, kids, clock, monkeypatch
+):
+    """يعادل حارسَ ملكيّة الحصّة القديم: 21:30 UTC من الأحد = 00:30 من الاثنين بالدوحة، فيومُ الأحد مضى والمعلّمُ لا يكتبه (W-20261002-026)."""
+    late = dt.datetime(2026, 9, 13, 21, 30, tzinfo=dt.UTC)
+    monkeypatch.setattr(timezone, "now", lambda: late)
+
+    response = _save(
+        client_as(teacher),
+        assigned,
+        1,
+        [_cells(kids[0], "absent")],
+        date=SUNDAY.isoformat(),
+    )
+
+    assert response.status_code == 403
+    assert not AttendanceEntry.objects.exists()
+
+
 def test_the_academic_deputy_reads_but_never_writes(client_as, school, assigned, kids, clock):
     deputy = _staff(school, "vice_academic", "النائب الأكاديميّ", "29000001030")
     client = client_as(deputy)
