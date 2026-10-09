@@ -39,7 +39,9 @@ def test_creates_the_four_items_once_with_honest_states():
     assert by["N-105"].pr == "#909" and (by["N-105"].status, by["N-105"].progress) == ("doing", 40)
     assert by["N-106"].pr == "#906" and by["N-106"].deps == "N-100"
     assert (by["N-107"].status, by["N-107"].pr) == ("blocked", "#908")
-    assert by["N-108"].pr == "#915 #917" and by["N-108"].progress == 10
+    assert (
+        by["N-108"].pr == "#915 #917" and by["N-108"].progress == 10 and by["N-108"].deps == "U-33"
+    )
     assert [by[c].sort_order for c in NEW] == [833, 834, 835, 836]
 
 
