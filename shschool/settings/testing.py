@@ -134,3 +134,6 @@ MIGRATION_LINTER_OPTIONS = {"ignore_name_contains": "delete_staffevaluation"}
 # ويُختبَر `command_center.refresh` مباشرةً وبإعدادٍ صريح.
 QCC_LAZY_REFRESH = False
 QCC_NOTIFY_ENABLED = False  # تُفعَّل صراحةً في tests/test_command_center_alerts.py
+
+# التجميدُ مطفأٌ في الاختبارات ليبقى سلوكُ الأهل المُختبَر على حاله؛ وملفّاتُ التجميد ترفعه صراحةً (W-20261008-013).
+PARENTS_FROZEN = False

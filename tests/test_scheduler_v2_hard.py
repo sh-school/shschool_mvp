@@ -43,6 +43,33 @@ def _add_band(inp, band, shift):
         inp.bell[f"{band}|{kind}"] = _bell(t)
 
 
+def _derive_blocks(inp, doubles):
+    """كتلُ الازدواج كما يبنيها `build_tasks`: مادّةٌ منفردةٌ مزدوجةٌ ← n//2 كتلةً؛ ومجموعةٌ متوازيةٌ لا تكون
+    مزدوجةً إلّا إن كان كلُّ أعضائها مزدوجين، وإلّا فحصصٌ مفردةٌ (W-20261009-001)."""
+    members: dict[tuple, list] = {}
+    for r in inp.demand:
+        if r.elec:
+            members.setdefault((r.cls, r.elec), []).append(r)
+    inp.demand = [
+        DemandRow(
+            r.cls,
+            r.subj,
+            r.teacher,
+            r.elec,
+            r.n,
+            r.joint,
+            r.n // 2
+            if (
+                all(m.subj in doubles for m in members[(r.cls, r.elec)])
+                if r.elec
+                else r.subj in doubles
+            )
+            else 0,
+        )
+        for r in inp.demand
+    ]
+
+
 def make(rows, *, bands=None, levels=None, **kw):
     """مدخلاتٌ صغيرة. rows: (cls, subj, teacher, elec, n[, joint]). bands: {شعبةٌ: نطاق}."""
     inp = CpSatInputs()
@@ -53,6 +80,7 @@ def make(rows, *, bands=None, levels=None, **kw):
         inp.class_level[r.cls] = (levels or {}).get(r.cls, "sec")
     for band in set(inp.class_band.values()):
         _add_band(inp, band, {"B": 0, "B2": 25, "B3": 50}.get(band, 0))
+    _derive_blocks(inp, kw.get("doubles", frozenset()))
     for k, v in kw.items():
         setattr(inp, k, v)
     return inp
@@ -92,11 +120,13 @@ def test_hc2_class_cannot_take_two_subjects_at_once():
     assert feasible(inp, [(0, 0, 3), (1, 0, 4)])
 
 
-def test_hc2_optional_groups_share_slot_but_not_with_plain():
+def test_hc2_optional_group_not_with_plain_nor_other_group():
     inp = make(
         [("C1", "S1", "T1", "G1", 1), ("C1", "S2", "T2", "G2", 1), ("C1", "S3", "T3", "", 1)]
     )
-    assert feasible(inp, [(0, 0, 3), (1, 0, 3)])  # مجموعتان تتقاسمان الخانة
+    assert not feasible(
+        inp, [(0, 0, 3), (1, 0, 3)]
+    )  # مجموعتان مختلفتان: يرفضه المُقيِّم (orphan_cells)
     assert not feasible(inp, [(0, 0, 3), (2, 0, 3)])  # مجموعةٌ مع عامّة
 
 
@@ -333,8 +363,8 @@ def test_hc20_same_subject_not_adjacent_unless_double():
     assert feasible(inp, [(0, 0, 1), (0, 0, 3)])  # بينهما حصّة
     assert feasible(inp, [(0, 0, 3), (0, 0, 4)])  # تفصلهما فسحة
     assert feasible(inp, [(0, 0, 1), (0, 0, 2)], disabled=frozenset({"HC20", "HC5"}))
-    dbl = make([("C1", "S1", "T1", "", 7)], doubles=frozenset({"S1"}))
-    assert feasible(dbl, [(0, 0, 1), (0, 0, 2)])  # المزدوجةُ مستثناة
+    dbl = make([("C1", "S1", "T1", "", 4)], doubles=frozenset({"S1"}))
+    assert feasible(dbl, [(0, 0, 1), (0, 0, 2)])  # الكتلةُ وحدَها مستثناة
 
 
 def test_hc17_thursday_single_period_for_grade_11_12():
@@ -412,7 +442,19 @@ def test_interface_ids_and_soft_terms_extension_point():
     assert all(isinstance(k, tuple) and len(k) == 3 for k in built.x)
     assert built.var_counts["bool_x"] == len(built.x) and built.var_counts["constraints"] > 0
     known = {"DEMAND", "JOINT", "HC1", "HC2", "HC5", "HC6", "HC7", "HC8", "HC9", "HC10", "HC11"}
-    known |= {"HC12", "HC13", "HC16", "HC19", "HC22", "DAILY_CAP", "HC14", "HC16B", "HC17", "HC20"}
+    known |= {
+        "HC12",
+        "HC13",
+        "HC16",
+        "HC19",
+        "HC22",
+        "DAILY_CAP",
+        "HC14",
+        "HC16B",
+        "HC17",
+        "HC20",
+        "NO_6_7",
+    }
     assert set(built.constraint_counts) <= known
     n = add_soft_terms(built, [("consecutive", built.x[0, 0, 1], 10), ("gap", built.x[0, 0, 2], 8)])
     assert n == 2
@@ -441,6 +483,7 @@ def _fixture_inputs():
         for c, b in d["class_band"].items()
     }
     inp.doubles = frozenset(d["doubles"])
+    _derive_blocks(inp, inp.doubles)
     inp.ex_full = frozenset((t, day) for t, day in d["ex_full"])
     inp.ex_period = frozenset((t, day, p) for t, day, p in d["ex_period"])
     inp.prefs = {
@@ -476,6 +519,10 @@ def _run_fixture(capsys, label, limit, **opt):
 
 
 # الجدوى على الحزمة المقنَّعة تعتمد على التفاصيل لا النسب (AS-6)؛ فالمراتبُ المقيسةُ هنا هي ما يُثبَت لا ما يُرجى.
+# مهلةُ الاختبارات التي تُثبت الجدوى: قيس الحلّ 22–74ث على 8 أنوية محلّية، وجهازُ CI المشترك أبطأ (شظايا -n auto)،
+# فمهلة 120ث أعطت UNKNOWN (#911). المهلةُ هنا سقفُ حمايةٍ لا زمنٌ متوقَّع؛ وUNKNOWN عندها يبقى فشلاً حقيقياً.
+CI_SOLVE_LIMIT = 900.0
+
 _NO_FAIRNESS = {
     "disabled": frozenset({"HC22", "HC8", "HC14", "HC16B"}),
     "derived_day_cap": False,
@@ -486,14 +533,14 @@ _NO_FAIRNESS = {
 @pytest.mark.slow
 def test_fixture_physical_core_and_assumptions_solve(capsys):
     """HC1 HC2 HC4 HC5 HC6(سقف) HC7 HC9 HC10 HC11 HC12 HC19 + سقفُ اليوم الشخصيّ: OPTIMAL (قيس ~7 ثوانٍ، 8 عمّال)."""
-    st = _run_fixture(capsys, "core", 120.0, **_NO_FAIRNESS)
+    st = _run_fixture(capsys, "core", CI_SOLVE_LIMIT, **_NO_FAIRNESS)
     assert st in OK
 
 
 @pytest.mark.slow
 def test_fixture_with_even_day_spread_solves(capsys):
     """+ HC6 بالقسمة الكاملة (⌊n/D⌋ ≤ عددُ اليوم ≤ ⌈n/D⌉): OPTIMAL (قيس 9–54 ثانية بحسب الحمل)."""
-    st = _run_fixture(capsys, "core+even", 120.0, **{**_NO_FAIRNESS, "even_spread": True})
+    st = _run_fixture(capsys, "core+even", CI_SOLVE_LIMIT, **{**_NO_FAIRNESS, "even_spread": True})
     assert st in OK
 
 
@@ -521,3 +568,85 @@ def test_fixture_with_decision_d166_caps_is_recorded_not_assumed(capsys):
     """
     st = _run_fixture(capsys, "d166", 60.0)
     assert st == cp_model.INFEASIBLE  # برهانٌ مُقاس؛ تغيّرُه يستدعي إعادةَ قراءة الحزمة والسقفين
+
+
+def test_parallel_group_members_share_the_same_cells():
+    """المجموعةُ المتوازية مهمّةٌ واحدةٌ: أعضاؤها في الخانة نفسها لا في خاناتٍ منفصلة (كما يبنيها المنصّة ويطابقها المُقيِّم)."""
+    rows = [("C1", "S1", "T1", "G", 1), ("C1", "S2", "T2", "G", 1)]
+    inp = make(rows)
+    assert feasible(inp, [(0, 0, 1), (1, 0, 1)])
+    assert not feasible(inp, [(0, 0, 1), (1, 0, 2)])
+
+
+def test_adjacent_cells_of_a_double_subject_need_a_block():
+    """ازدواجٌ صلبٌ بعدد الكتل: 4 حصصٍ بكتلة واحدة لا تجيز تلاصقَ أكثر من كتلة."""
+    inp = make([("C1", "S1", "T1", "", 4)])
+    inp.demand = [DemandRow("C1", "S1", "T1", "", 4, "", 1)]
+    # كتلتان متلاصقتان (1-2 و3-4) تجمعان 3 تلاصقات: ممنوعٌ حين لا تُعلَن إلّا كتلة
+    assert not feasible(inp, [(0, 0, 1), (0, 0, 2), (0, 1, 1), (0, 1, 2)])
+
+
+def test_floor_relaxation_is_declared_for_block_only_teachers():
+    """D-286م: معلّمٌ كلُّ حمله كتل لا يبلغ أرضيّةً فرديّة؛ تُخفَّف وتُعلَن بلا إرخاءٍ صامت."""
+    from operations.scheduler_v2.hard_constraints import _feasible_floor
+
+    # T-053 في الحزمة المقنَّعة: حمل 18 = 9 كتل، 5 أيام، الأرضيّة 3 ← 2
+    assert _feasible_floor(18, 9, 5, 3, single_rows=0) == 2
+    # كتلتان في 4 أيام: لا يومَ مضمون ← 0
+    assert _feasible_floor(4, 2, 4, 1, single_rows=0) == 0
+    # بلا كتلٍ تُستوفى الأرضيّة كما هي (لا يمرّ هنا أصلاً): كتلة وثلاثُ مفردات من ثلاثة صفوف في 4 أيام
+    assert _feasible_floor(5, 1, 4, 1, single_rows=3) == 1
+    # T-008: 4 كتل ومفردتان من صفٍّ واحدٍ (سقفُ HC6 مفردةٌ في اليوم) ← 2 غيرُ ممكنة، 1 ممكنة
+    assert _feasible_floor(10, 4, 5, 2, single_rows=1) == 1
+    rows = [("C1", "S1", "T1", "", 4)]
+    inp = make(rows, doubles=frozenset({"S1"}))
+    built = build_model(inp, ModelOptions(derived_day_cap=False))
+    assert built.relaxations == []  # حمل 4 في 5 أيام: لا أرضيّةَ أصلاً فلا إرخاء
+
+
+def test_two_different_elective_groups_cannot_share_a_class_cell():
+    """المُقيِّم لا يجيز مجموعتين اختياريّتين مختلفتين في خانة شعبةٍ واحدة (البصمةُ اتحادٌ فتصير orphan_cells)."""
+    inp = make([("C1", "S1", "T1", "GA", 1), ("C1", "S2", "T2", "GB", 1)])
+    assert not feasible(inp, [(0, 0, 3), (1, 0, 3)])
+    assert feasible(inp, [(0, 0, 3), (1, 0, 4)])
+
+
+def test_touch_relaxation_is_declared_and_caps_runs_at_two():
+    """تخفيف التلاصق المعلَن (قرار المالك 2026-10-09): حصتان متتاليتان مسموحتان لمعلّم مخفَّف، والثالثة تُرفض بسقف 2."""
+    rows = [("C1", "S1", "T1", "", 1), ("C2", "S2", "T1", "", 1), ("C3", "S3", "T1", "", 1)]
+    inp = make(rows)
+    assert not feasible(inp, [(0, 0, 1), (1, 0, 2)])
+    assert feasible(inp, [(0, 0, 1), (1, 0, 2)], touch_relaxed=frozenset({"T1"}))
+    assert feasible(
+        inp, [(0, 0, 1), (1, 0, 2)], touch_relaxed=frozenset({"T1"}), touch_relaxed_run_cap=2
+    )
+    assert not feasible(
+        inp,
+        [(0, 0, 1), (1, 0, 2), (2, 0, 3)],
+        touch_relaxed=frozenset({"T1"}),
+        touch_relaxed_run_cap=2,
+    )
+    built = build_model(inp, ModelOptions(touch_relaxed=frozenset({"T1"})))
+    assert any(r["teacher"] == "T1" and r["code"] == "HC5" for r in built.relaxations)
+
+
+def test_no_6_7_forbids_a_teacher_in_both_periods_of_a_day():
+    """قيدٌ صلب بأمر المالك: السادسة والسابعة معاً ممنوعتان على المعلّم (ولو في شعبتين)."""
+    inp = make([("C1", "S1", "T1", "", 1), ("C2", "S2", "T1", "", 1)])
+    assert feasible(inp, [(0, 0, 6), (1, 0, 7)], touch_relaxed=frozenset({"T1"}))
+    assert not feasible(inp, [(0, 0, 6), (1, 0, 7)], no_6_7=True, touch_relaxed=frozenset({"T1"}))
+    assert feasible(inp, [(0, 0, 6), (1, 0, 5)], no_6_7=True, touch_relaxed=frozenset({"T1"}))
+
+
+def test_band_transition_stays_hard_after_touch_relaxation():
+    """HC13 يبقى صلباً مع تخفيف HC5: جرسان مختلفان يتماسّان تماماً لا يجتمعان لمعلّمٍ واحد."""
+    inp = make([("C1", "S1", "T1", "", 1), ("C2", "S2", "T1", "", 1)])
+    assert feasible(inp, [(0, 0, 3), (1, 0, 4)], touch_relaxed=frozenset({"T1"}))
+
+
+def test_hc16_day_with_a_single_period_cannot_exceed_share_even_with_a_double():
+    """HC16 كما يفحصه المُقيِّم: زيادةُ الحصّة للمزدوجة وحدَها، فيومٌ فيه مفردةٌ لا يتجاوز ⌈النصاب÷الأيام⌉."""
+    inp = make([("C1", "S1", "T1", "", 2), ("C2", "S2", "T1", "", 4)], doubles=frozenset({"S1"}))
+    ok = [(0, 0, 1), (0, 0, 2)]  # المزدوجةُ وحدها: 2 ≤ 2+1
+    assert feasible(inp, ok, derived_day_cap=True)
+    assert not feasible(inp, ok + [(1, 0, 4)], derived_day_cap=True)

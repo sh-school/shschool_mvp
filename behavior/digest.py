@@ -237,7 +237,12 @@ def _pending_on(school: School, day: dt.date) -> tuple[dict[Any, list[Item]], se
 def _parents_of(student: CustomUser, school: School) -> list[CustomUser]:
     """من يرى سلوكَ الطالب في البوابة، ناقصاً من سحب موافقتَه."""
     from core.models import ParentStudentLink
+    from core.parents_freeze import parents_frozen
     from notifications.hub import _filter_consent
+
+    if parents_frozen():
+        # لا مستلم ⇒ `_send_one` يعود قبل أن يكتب `AutoInfractionNotice`: فلا تضيع الإشعاراتُ ويلتقطها أوّلُ تشغيلٍ بعد الفكّ.
+        return []
 
     parents = [
         link.parent

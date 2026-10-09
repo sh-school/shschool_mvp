@@ -38,6 +38,8 @@ class _Ctx:
         self.opt = built.options
         self.rows = built.inputs.demand
         self.doubles = built.inputs.doubles
+        #: متغيّرُ الكتلة لكلّ زوجِ خانتين متلاصقتين (فهرسا المتغيّرين) — الإعفاءُ الوحيدُ من HC5/HC20.
+        self.pairvar: dict[tuple[int, int], object] = {}
         #: كلُّ الخانات المرشّحة قبل التفريغ (لتحديد «الأخيرة» الحقيقيّة للمعلّم) ثمّ المتاحة بعده.
         self.all_periods: dict[tuple[str, int], int] = {}
         self.by_t: dict[str, list[int]] = defaultdict(list)
@@ -97,11 +99,13 @@ def _demand_totals(ctx: _Ctx) -> None:
 
 
 def _joint(ctx: _Ctx) -> dict[int, int]:
-    """المهامُّ المنقسمة: أعضاؤها صفوفٌ تُوضع معاً في الخانة نفسها. يُرجع {صفٌّ ← ممثّلُ مهمّته}."""
+    """المهامُّ المنقسمة والمجموعاتُ المتوازية: أعضاؤها صفوفٌ تُوضع معاً في الخانة نفسها. يُرجع {صفٌّ ← ممثّلُ مهمّته}."""
     groups: dict[str, list[int]] = defaultdict(list)
     for i, r in enumerate(ctx.rows):
-        if r.joint:
-            groups[r.joint].append(i)
+        # المتوازيةُ مهمّةٌ واحدةٌ بأعضاءٍ كلّهم في الخانة نفسها (كما يبنيها `build_tasks` ويطابقها المُقيِّم).
+        key = r.joint or (f"pg|{r.cls}|{r.elec}" if r.elec else "")
+        if key:
+            groups[key].append(i)
     rep_of: dict[int, int] = {}
     for members in groups.values():
         rep = members[0]
@@ -148,6 +152,12 @@ def _class_conflict(ctx: _Ctx, rep_of: dict[int, int]) -> None:
                     if gv and plain:
                         ctx.m.Add(sum(plain) + sum(gv) <= 1)
                         ctx.count("HC2")
+                # المُقيِّم الرسميّ (load_grid/build_tasks) يرفض مجموعتين مختلفتين في خانةٍ واحدةٍ لشعبة:
+                # البصمةُ اتحادٌ لا تطابق مهمّةً فتصير orphan_cells. فخانةُ الشعبة تحمل مهمّةً واحدةً أياً كان نوعها.
+                every = [x[i, day, p] for i in live if (i, day, p) in x]
+                if len(groups) > 1 and len(every) > 1:
+                    ctx.m.Add(sum(every) <= 1)
+                    ctx.count("HC2")
 
 
 # ───────────────────────── HC19 والمزدوجات، HC7، HC6 ─────────────────────────
@@ -159,7 +169,7 @@ def _per_row(ctx: _Ctx) -> None:
     for i, d, p in x:
         cells[i][d].append((d, p))
     for i, r in enumerate(ctx.rows):
-        is_double = r.subj in ctx.doubles
+        is_double = r.blocks > 0
         days_avail = [d for d in DAYS if cells[i].get(d)]
         n_days = len(days_avail)
         # HC6: القسمةُ على الأيّام المتاحة لا الخمسةِ المحفورة (AS-3: المنصّةُ تحسب available_days).
@@ -185,15 +195,38 @@ def _per_row(ctx: _Ctx) -> None:
             if len(vs) > MAX_SAME_PERIOD:
                 ctx.m.Add(sum(vs) <= MAX_SAME_PERIOD)
                 ctx.count("HC7")
-        # HC19: المزدوجةُ كتلةٌ — حصّتا اليوم للمادّة المزدوجة متلاصقتان بلا فسحةٍ ولا صلاة.
+        # HC19: المزدوجةُ كتلةٌ صلبة — بالضبط `blocks` كتلةً، كلٌّ حصّتان متلاصقتان بلا فسحةٍ ولا صلاة.
         if is_double:
+            ys: list = []
+            row_pairs: set = set()
             for d in days_avail:
                 ps = sorted(p for (_d, p) in cells[i][d])
-                for a in range(len(ps)):
-                    for c in range(a + 1, len(ps)):
-                        if not _touching(ctx, r.cls, d, ps[a], ps[c]):
-                            ctx.m.Add(x[i, d, ps[a]] + x[i, d, ps[c]] <= 1)
-                            ctx.count("HC19")
+                prev = None
+                for p in ps:
+                    if (i, d, p + 1) in x and _touching(ctx, r.cls, d, p, p + 1):
+                        y = ctx.m.NewBoolVar("")
+                        ctx.m.Add(y <= x[i, d, p])
+                        ctx.m.Add(y <= x[i, d, p + 1])
+                        if prev is not None:
+                            ctx.m.Add(prev + y <= 1)
+                        ctx.pairvar[x[i, d, p].Index(), x[i, d, p + 1].Index()] = y
+                        ctx.b.vars[("blk", i, d, p)] = y
+                        row_pairs.add((x[i, d, p].Index(), x[i, d, p + 1].Index()))
+                        ys.append(y)
+                        prev = y
+                    else:
+                        prev = None
+            ctx.m.Add(sum(ys) == r.blocks)
+            ctx.count("HC19")
+            if r.n == 2 * r.blocks:
+                # كلُّ حصصه كتلٌ (لا مفردة): الخانةُ مشغولةٌ ⇔ داخلَ كتلة — تقويةٌ للصياغة تُسرّع الحلّ.
+                cover: dict[int, list] = defaultdict(list)
+                for (ia, ib), y in ((k, v) for k, v in ctx.pairvar.items() if k in row_pairs):
+                    cover[ia].append(y)
+                    cover[ib].append(y)
+                for d in days_avail:
+                    for _d, p in cells[i][d]:
+                        ctx.m.Add(x[i, d, p] == sum(cover.get(x[i, d, p].Index(), [])))
 
 
 def _same_subject_rules(ctx: _Ctx) -> None:
@@ -204,12 +237,13 @@ def _same_subject_rules(ctx: _Ctx) -> None:
         r = ctx.rows[i]
         grouped[r.cls, r.subj, d].append((i, p, v))
     for (cls, subj, day), cells in grouped.items():
-        double = subj in ctx.doubles
-        if "HC20" not in ctx.opt.disabled and not double:
+        double = any(ctx.rows[i].blocks > 0 for i, _p, _v in cells)
+        if "HC20" not in ctx.opt.disabled:
             for a, (_ia, pa, va) in enumerate(cells):
                 for _ib, pb, vb in cells[a + 1 :]:
                     if pa != pb and _touching(ctx, cls, day, pa, pb):
-                        ctx.m.Add(va + vb <= 1)
+                        y = _pair(ctx, va, vb)
+                        ctx.m.Add(va + vb <= (1 if y is None else 1 + y))
                         ctx.count("HC20")
         grade = ctx.opt.class_grade.get(cls) or getattr(ctx.inp, "class_grade", {}).get(cls)
         if (
@@ -220,6 +254,12 @@ def _same_subject_rules(ctx: _Ctx) -> None:
         ):
             ctx.m.Add(sum(v for _i, _p, v in cells) <= (2 if double else 1))
             ctx.count("HC17")
+
+
+def _pair(ctx: _Ctx, a, b):
+    """متغيّرُ كتلةٍ يجيز تلاصقَ المتغيّرين (أو None)."""
+    y = ctx.pairvar.get((a.Index(), b.Index()))
+    return y if y is not None else ctx.pairvar.get((b.Index(), a.Index()))
 
 
 def _touching(ctx: _Ctx, cls: str, day: int, p1: int, p2: int) -> bool:
@@ -263,7 +303,7 @@ def _teachers(ctx: _Ctx) -> None:
     for t, idxs in ctx.by_t.items():
         edges = _Edges()
         load = sum(ctx.rows[i].n for i in idxs)
-        has_double = any(ctx.rows[i].subj in ctx.doubles for i in idxs)
+        has_double = any(ctx.rows[i].blocks > 0 for i in idxs)
         days_t = [d for d in DAYS if _teacher_day_cells(ctx, t, d)]
         for day in days_t:
             _teacher_day(
@@ -277,6 +317,41 @@ class _Edges:
     first: dict[int, object] = field(default_factory=dict)
     last: dict[int, object] = field(default_factory=dict)
     last_by_cls: dict[str, list] = field(default_factory=lambda: defaultdict(list))
+
+
+def _touch_rules(ctx: _Ctx, t, day: int, cells: list[_Cell], by_key, occ) -> None:
+    """HC5 (أو تخفيفُه المعلَن) مع HC13 وقيد 6-7 وسقف التتابع، لمعلّمٍ في يوم."""
+    opt, m = ctx.opt, ctx.m
+    relaxed = t in opt.touch_relaxed and opt.enabled("HC5")
+    _day_pairs(ctx, by_key, occ, opt.enabled("HC5") and not relaxed)
+    if relaxed and day == 0:
+        ctx.b.relaxations.append(
+            {
+                "teacher": t,
+                "code": "HC5",
+                "original": "no_touch",
+                "relaxed": f"run_cap_{opt.touch_relaxed_run_cap}",
+                "decision": "قرار المالك 2026-10-09",
+            }
+        )
+    if opt.no_6_7:
+        six = [c.var for c in cells if c.p == 6]
+        seven = [c.var for c in cells if c.p == 7]
+        if six and seven:
+            m.Add(sum(six) + sum(seven) <= 1)
+            ctx.count("NO_6_7")
+    if relaxed:
+        _band_transition(ctx, cells, day)
+    if relaxed and opt.touch_relaxed_run_cap == 2:
+        _no_triples(ctx, by_key, occ)
+    if opt.triples_by_number:
+        by_p: dict[int, list] = {}
+        for c in cells:
+            by_p.setdefault(c.p, []).append(c.var)
+        for q in sorted(by_p):
+            if q + 1 in by_p and q + 2 in by_p:
+                m.Add(sum(by_p[q]) + sum(by_p[q + 1]) + sum(by_p[q + 2]) <= 2)
+                ctx.count("HC5")
 
 
 def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
@@ -296,7 +371,7 @@ def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
             ctx.count("HC1")
             occ[key] = o
         ctx.b.vars[("occ", t, day, key[0], key[1])] = occ[key]
-    _day_pairs(ctx, by_key, occ, opt.enabled("HC5"))
+    _touch_rules(ctx, t, day, cells, by_key, occ)
     if pref is not None and pref.max_gap is not None:
         _max_gap(ctx, t, day, by_key, occ, pref.max_gap)  # HC10: سقفُ الفراغ الشخصيّ
     # سقفُ اليوم: التفضيلُ الشخصيّ (أو الافتراضيّ 5) وHC16 المشتقّ.
@@ -308,7 +383,9 @@ def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
     if len(occ) > cap:
         m.Add(sum(occ.values()) <= cap)
         ctx.count(code)
-    _day_floor(ctx, occ, load, n_days)
+    if code == "HC16" and has_double:
+        _single_day_cap(ctx, cells, occ, math.ceil(load / n_days))
+    _day_floor(ctx, occ, t, load, n_days)
     # الطرفان: أولى (HC22) وأخيرةٌ متاحةٌ للمعلّم في اليوم (HC8).
     fv = [c.var for c in cells if c.p == 1]
     last_p = ctx.all_periods.get((t, day), 0)
@@ -321,18 +398,73 @@ def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
             edges.last_by_cls[ctx.rows[c.i].cls].append(c.var)
 
 
-def _day_floor(ctx: _Ctx, occ, load: int, n_days: int) -> None:
-    """HC14: لا يومَ فارغاً لتامّ النصاب (load ≥ أيّامه) · HC16B: لا يومَ دون ⌊النصاب÷الأيّام⌋ (احتياطٌ مسبقٌ لا فحصٌ بعديّ)."""
+def _single_day_cap(ctx: _Ctx, cells: list[_Cell], occ, base: int) -> None:
+    """HC16 كما يفحصه المُقيِّم: زيادةُ الحصّة على سقف القسمة للمزدوجة وحدَها؛ فيومٌ فيه حصّةٌ مفردةٌ لا يتجاوز السقف."""
+    singles = [c.var for c in cells if ctx.rows[c.i].blocks == 0]
+    if not singles:
+        return
+    has_single = _any(ctx, singles)
+    ctx.m.Add(sum(occ.values()) + has_single <= base + 1)
+    ctx.count("HC16")
+
+
+def _feasible_floor(load: int, blocks: int, n_days: int, want: int, single_rows: int = 1) -> int:
+    """أكبرُ أرضيّةٍ ≤ want يمكن للمعلّم بلوغها في كلّ يومٍ مع كتله ومفرداته (حسابٌ دقيقٌ بلا حلّال).
+
+    اليومُ = 2×كتل + مفردات، والمفردةُ الواحدةُ من صفٍّ واحدٍ في اليوم (سقفُ HC6)، فاليومُ يحمل مفرداتٍ بعددِ
+    الصفوفِ ذات المفردات على الأكثر. DP على الأيّام: أقلُّ كتلٍ تكفي لأرضيّةٍ v بتوزيعٍ ما للمفردات."""
+    singles = load - 2 * blocks
+    if singles < 0 or (singles and single_rows * n_days < singles):
+        return 0
+    for v in range(want, 0, -1):
+        inf = blocks + 1
+        dp = {0: 0}  # مفرداتٌ مُسكَنة ← أقلّ كتلٍ مستعملة
+        for _ in range(n_days):
+            nxt: dict[int, int] = {}
+            for used, nb in dp.items():
+                for s_d in range(0, min(single_rows, singles - used) + 1):
+                    cost = nb + (max(0, v - s_d) + 1) // 2
+                    if cost < nxt.get(used + s_d, inf):
+                        nxt[used + s_d] = cost
+            dp = nxt
+        if dp.get(singles, inf) <= blocks:
+            return v
+    return 0
+
+
+def _day_floor(ctx: _Ctx, occ, t: str, load: int, n_days: int) -> None:
+    """HC14: لا يومَ فارغاً لتامّ النصاب (load ≥ أيّامه) · HC16B: لا يومَ دون ⌊النصاب÷الأيّام⌋ (احتياطٌ مسبقٌ لا فحصٌ بعديّ).
+
+    D-286م: أرضيّةٌ لا تبلغها كتلُ المعلّم الصلبة (زوجيّةُ الكتل) تُخفَّف إلى الممكن وتُعلَن في `relaxations`؛ بلا كتلٍ لا يتغيّر شيء."""
     if not n_days:
         return
     total = sum(occ.values())
-    if "HC14" not in ctx.opt.disabled and load >= n_days:
-        ctx.m.Add(total >= 1)
-        ctx.count("HC14")
-    low = load // n_days
-    if "HC16B" not in ctx.opt.disabled and low >= 1:
-        ctx.m.Add(total >= low)
-        ctx.count("HC16B")
+    blocks = sum(ctx.rows[i].blocks for i in ctx.by_t[t])
+    single_rows = sum(1 for i in ctx.by_t[t] if ctx.rows[i].n - 2 * ctx.rows[i].blocks > 0)
+    for code, want, active in (
+        ("HC14", 1, load >= n_days),
+        ("HC16B", load // n_days, load // n_days >= 1),
+    ):
+        if code in ctx.opt.disabled or not active:
+            continue
+        got = want if not blocks else _feasible_floor(load, blocks, n_days, want, single_rows)
+        if got != want and not any(
+            r["teacher"] == t and r["code"] == code for r in ctx.b.relaxations
+        ):
+            ctx.b.relaxations.append(
+                {
+                    "teacher": t,
+                    "code": code,
+                    "load": load,
+                    "blocks": blocks,
+                    "days": n_days,
+                    "original": want,
+                    "relaxed": got,
+                }
+            )
+        if got >= 1:
+            ctx.m.Add(total >= got)
+            ctx.count(code)
 
 
 def _day_pairs(ctx: _Ctx, by_key, occ, hc5: bool) -> None:
@@ -348,6 +480,41 @@ def _day_pairs(ctx: _Ctx, by_key, occ, hc5: bool) -> None:
                 ctx.count("HC12")
             elif 0 <= kb[0] - ka[1] <= gap:
                 _touch_pair(ctx, by_key[ka], by_key[kb], occ[ka], occ[kb], hc5)
+
+
+def _band_transition(ctx: _Ctx, cells: list[_Cell], day: int) -> None:
+    """HC13 بعد تخفيف HC5: لا تماسَّ تامّاً (نهايةٌ = بداية) بين جرسين مختلفين في اليوم نفسه (المُقيِّم: same_bell)."""
+    bells: dict[str, tuple] = {}
+
+    def bell(cls: str) -> tuple:
+        if cls not in bells:
+            bells[cls] = tuple(ctx.time_of(cls, day, q) for q in range(1, 8))
+        return bells[cls]
+
+    for a in cells:
+        for c in cells:
+            if (
+                a.end == c.start
+                and a.i != c.i
+                and bell(ctx.rows[a.i].cls) != bell(ctx.rows[c.i].cls)
+            ):
+                ctx.m.Add(a.var + c.var <= 1)
+                ctx.count("HC13")
+
+
+def _no_triples(ctx: _Ctx, by_key, occ) -> None:
+    """بعد تخفيف HC5: حصتان متتاليتان مسموحتان، وثلاثٌ متتاليةٌ ممنوعة."""
+    gap = ctx.opt.joinable_gap
+    keys = sorted(by_key)
+    touch = lambda a, b: 0 <= b[0] - a[1] <= gap  # noqa: E731
+    for a, ka in enumerate(keys):
+        for b in range(a + 1, len(keys)):
+            if not touch(ka, keys[b]):
+                continue
+            for c in range(b + 1, len(keys)):
+                if touch(keys[b], keys[c]):
+                    ctx.m.Add(occ[ka] + occ[keys[b]] + occ[keys[c]] <= 2)
+                    ctx.count("HC5")
 
 
 def _any(ctx: _Ctx, vs: list):
@@ -375,20 +542,16 @@ def _touch_pair(ctx: _Ctx, ca: list[_Cell], cb: list[_Cell], oa, ob, hc5: bool) 
         return
     if code is None:
         return
-    exempt = lambda a, c: (  # noqa: E731
-        ctx.rows[a.i].cls == ctx.rows[c.i].cls
-        and ctx.rows[a.i].subj == ctx.rows[c.i].subj
-        and ctx.rows[a.i].subj in ctx.doubles
-    )
-    if not any(ctx.rows[a.i].subj in ctx.doubles for a in ca + cb):
-        m.Add(oa + ob <= 1)
+    ys = {(a.var.Index(), c.var.Index()): _pair(ctx, a.var, c.var) for a in ca for c in cb}
+    if not any(y is not None for y in ys.values()):
+        m.Add(oa + ob <= 1)  # لا كتلةَ بين الفاصلين: قيدٌ واحدٌ على الإشغال
         ctx.count(code)
         return
     for a in ca:
         for c in cb:
-            if not exempt(a, c):
-                m.Add(a.var + c.var <= 1)
-                ctx.count(code)
+            y = ys[a.var.Index(), c.var.Index()]
+            m.Add(a.var + c.var <= (1 if y is None else 1 + y))
+            ctx.count(code)
 
 
 def _max_gap(ctx: _Ctx, t: str, day: int, by_key, occ, max_gap: int) -> None:
@@ -416,7 +579,18 @@ def _edge_caps(ctx: _Ctx, t, edges: _Edges, hc22: bool, hc8: bool) -> None:
         m.Add(f == sum(edges.first.values()))
         b.vars[("first", t)] = f
         if hc22:
-            m.Add(f <= ctx.opt.first_cap)
+            cap = dict(ctx.opt.first_cap_override).get(t, ctx.opt.first_cap)
+            m.Add(f <= cap)
+            if cap != ctx.opt.first_cap:
+                b.relaxations.append(
+                    {
+                        "teacher": t,
+                        "code": "HC22",
+                        "original": f"first_cap_{ctx.opt.first_cap}",
+                        "relaxed": f"first_cap_{cap}",
+                        "decision": "قرار المالك 2026-10-09",
+                    }
+                )
             ctx.count("HC22")
     if edges.last:
         l = m.NewIntVar(0, 5, "")

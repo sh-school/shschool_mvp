@@ -272,3 +272,18 @@ def test_the_policy_is_stored_with_the_generation_snapshot(school):
 
     assert stored["overridden"] == ["HC17"]
     assert stored["breaks"]["HC17"] == cr.DENSE
+
+
+def test_every_hard_constraint_declares_its_source():
+    """لا قيدَ صلباً بلا مصدر: ما لا يُعرف سببُه يتعذّر تخفيفُه أو الدفاعُ عنه (W-20261009-005)."""
+    missing = [s.code for s in cr.HARD_CONSTRAINTS if not s.source.strip()]
+    assert not missing, f"قيودٌ صلبةٌ بلا source: {missing}"
+
+
+def test_source_has_kind_prefix():
+    """الصيغةُ «نوع: مرجع» والنوعُ مرجعٌ أو قرارٌ أو قياس — لا نصٌّ حرٌّ."""
+    kinds = {"مرجع", "قرار", "قياس"}
+    for s in cr.REGISTRY.values():
+        if s.source:
+            kind, sep, ref = s.source.partition(":")
+            assert sep and kind.strip() in kinds and ref.strip(), (s.code, s.source)

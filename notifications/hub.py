@@ -28,7 +28,7 @@ from django.conf import settings
 from django.db import transaction
 from kombu.exceptions import OperationalError
 
-from . import quiet_hours
+from . import frozen, quiet_hours
 from .channels import deliverable_external_channels
 from .delivery_state import CLAIMABLE
 from .models import (
@@ -176,7 +176,7 @@ class NotificationHub:
         # في معاملة النداء (`behavior/digest.py`) يحتاجه ليعرف أنّ شيئاً لم يخرج.
         results: dict[str, Any] = {"in_app": 0, "queued": {}, "failed": 0}
 
-        if not recipients:
+        if not (recipients := frozen.without_frozen_parents(recipients or [])):
             # لا مستلم ⇒ لا واقعة. إشعارٌ لا يخصّ أحداً ليس حدثاً يُسجَّل.
             return results
 
