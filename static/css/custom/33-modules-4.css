@@ -1503,16 +1503,15 @@ body:has(.rm-page) .site-footer { flex: none; }
 /* لا تمريرَ أفقيّاً (أمرُ المالك): التخطيطُ ثابتٌ بعرض الغلاف والأعمدةُ تتقاسم العرضَ. والتمريرُ العموديُّ **داخل الغلاف**: سلسلةُ flex من جسم البطاقة
    (محدودِ الارتفاع في صفحاتِ `sheet`) إلى الغلاف، فيبلغ الغلافُ ارتفاعَ ما بقي ويتمرّر وحدَه ويلصق رأسُ الجدول بأعلاه ولا يسافر مع الصفوف. */
 [data-class-grid] { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-.cg-wrap { overflow: visible; }
+.cg-wrap { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+/* دون 1025px لا تُقيَّد الصفحةُ بالنافذة (`page-noscroll` لا تعمل): فيُحدَّد ارتفاعُ الغلاف بما يُبقي المفاتيحَ وشريطَ السبب في النافذة ويتمرّر الجسمُ داخله. */
+@media (max-width: 1024px) { .cg-wrap { max-block-size: calc(100dvh - 16rem); min-block-size: 12rem; } }
 /* الجدولُ داخل بطاقةٍ ملاصقةٍ (`is-flush`) فلا إطارَ ثانيَ ولا ظلَّ ولا استدارةَ: كانت بطاقةً داخل بطاقة. */
 .cg-wrap { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 /* سببُ التصحيح: حشوُ جسم البطاقة ونصُّ التسمية بلون النصّ لا الرماديّ الباهت (`ui-note` كانت تُضعف تباينَ التسمية). */
 .cg-reasonbar { padding: var(--sp-2) var(--sp-3); color: var(--text-primary); }
 .cg-reasonbar .form-group { display: flex; align-items: center; gap: var(--sp-2); margin: 0; }
 .cg-reasonbar input { flex: 1 1 auto; max-inline-size: 32rem; }
-/* لا تمريرَ داخل البطاقة (أمرُ المالك): الصفحةُ هي التي تُمرَّر فلا قصَّ لآخر صفٍّ، وتذييلُ المفاتيح لاصقٌ بأسفل النافذة. */
-.ui-section:has(> .ui-section__body > [data-class-grid]),
-.ui-section__body:has(> [data-class-grid]) { overflow: visible; }
 .cg-table { table-layout: fixed; inline-size: 100%; }
 .cg-table :is(th, td) { text-align: center; padding-inline: var(--sp-1); }
 /* الاسمُ على يمين السطر (بدايةُ السطر في RTL) — القاعدةُ أعلاه أخصُّ من `.cg-name` وحدَها فكانت تُوسّطه. */
