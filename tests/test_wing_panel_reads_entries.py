@@ -16,7 +16,7 @@ from tests.attendance_fixtures import SUNDAY, at
 from tests.test_class_grid import _grid_on, assigned, clock, kids, subject  # noqa: F401
 from wings.services import record_panels, sections_to_record
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 STARTS = (dt.time(7, 10), dt.time(8, 0), dt.time(12, 45))
 AFTER_SCHOOL = at(14, 0)  # كلُّ حصّةٍ لم تُرصد بعدها «فائتة»
