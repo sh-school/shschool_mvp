@@ -56,6 +56,8 @@ class ModelOptions:
     #: 0 = بلا سقف، 2 = حصتان متتاليتان لا ثلاث. يُسجَّل كلُّ معلّمٍ في `BuiltModel.relaxations`.
     touch_relaxed: frozenset[str] = frozenset()
     touch_relaxed_run_cap: int = 0
+    #: قيدٌ صلب بأمر المالك 2026-10-09: لا يقف المعلّم الحصتين السادسة والسابعة معاً في اليوم (يشمل المزدوجات).
+    no_6_7: bool = False
     #: HC9: «time» = عبر النطاقات بالساعة (الافتراضيّ)، «period» = برقم الحصّة كالمرجع.
     resource_by: str = "time"
     #: صفُّ كلّ شعبة («G11»…) — يلزم HC17 ولا يحمله `CpSatInputs`؛ فارغٌ = HC17 لا يعمل (بلا مرجع صفٍّ لا حكم).

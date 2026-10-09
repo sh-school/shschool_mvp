@@ -348,6 +348,12 @@ def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
                 "decision": "قرار المالك 2026-10-09",
             }
         )
+    if opt.no_6_7:
+        six = [c.var for c in cells if c.p == 6]
+        seven = [c.var for c in cells if c.p == 7]
+        if six and seven:
+            m.Add(sum(six) + sum(seven) <= 1)
+            ctx.count("NO_6_7")
     if relaxed and opt.touch_relaxed_run_cap == 2:
         _no_triples(ctx, by_key, occ)
     if pref is not None and pref.max_gap is not None:

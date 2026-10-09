@@ -425,7 +425,19 @@ def test_interface_ids_and_soft_terms_extension_point():
     assert all(isinstance(k, tuple) and len(k) == 3 for k in built.x)
     assert built.var_counts["bool_x"] == len(built.x) and built.var_counts["constraints"] > 0
     known = {"DEMAND", "JOINT", "HC1", "HC2", "HC5", "HC6", "HC7", "HC8", "HC9", "HC10", "HC11"}
-    known |= {"HC12", "HC13", "HC16", "HC19", "HC22", "DAILY_CAP", "HC14", "HC16B", "HC17", "HC20"}
+    known |= {
+        "HC12",
+        "HC13",
+        "HC16",
+        "HC19",
+        "HC22",
+        "DAILY_CAP",
+        "HC14",
+        "HC16B",
+        "HC17",
+        "HC20",
+        "NO_6_7",
+    }
     assert set(built.constraint_counts) <= known
     n = add_soft_terms(built, [("consecutive", built.x[0, 0, 1], 10), ("gap", built.x[0, 0, 2], 8)])
     assert n == 2
@@ -595,3 +607,11 @@ def test_touch_relaxation_is_declared_and_caps_runs_at_two():
     )
     built = build_model(inp, ModelOptions(touch_relaxed=frozenset({"T1"})))
     assert any(r["teacher"] == "T1" and r["code"] == "HC5" for r in built.relaxations)
+
+
+def test_no_6_7_forbids_a_teacher_in_both_periods_of_a_day():
+    """قيدٌ صلب بأمر المالك: السادسة والسابعة معاً ممنوعتان على المعلّم (ولو في شعبتين)."""
+    inp = make([("C1", "S1", "T1", "", 1), ("C2", "S2", "T1", "", 1)])
+    assert feasible(inp, [(0, 0, 6), (1, 0, 7)], touch_relaxed=frozenset({"T1"}))
+    assert not feasible(inp, [(0, 0, 6), (1, 0, 7)], no_6_7=True, touch_relaxed=frozenset({"T1"}))
+    assert feasible(inp, [(0, 0, 6), (1, 0, 5)], no_6_7=True, touch_relaxed=frozenset({"T1"}))
