@@ -28,6 +28,19 @@ def test_improvements_are_recorded_so_they_cannot_be_spent_again():
     )
 
 
+#: الخمسةُ التي بلغت الصفرَ — والسبعةُ الجديدةُ (W-20261009-009) تسجّل الحالَ بأعدادٍ غير صفريّة.
+ZERO_METRICS = ("inline_style", "palette_class", "hex_colour", "legacy_header", "hand_kpi")
+SEVEN = (
+    "style_block",
+    "max_w",
+    "important",
+    "button_no_type",
+    "transition_all",
+    "physical_side",
+    "inline_script",
+)
+
+
 def test_the_baseline_is_zero_so_no_violation_can_be_recorded_back():
     """الصفرُ بلغناه في 2026-09-13 — فالسجلُّ لا يحمل مخالفةً بعدها.
 
@@ -36,7 +49,9 @@ def test_the_baseline_is_zero_so_no_violation_can_be_recorded_back():
     صفرٌ بالبناء، والمخالفةُ تُصلَح في القالب لا تُسجَّل.
     """
     baseline = _baseline()
-    recorded = {name: files for name, files in baseline["counts"].items() if files}
+    recorded = {
+        name: files for name, files in baseline["counts"].items() if files and name in ZERO_METRICS
+    }
     assert not recorded and not baseline["undefined_classes"], (
         "سجلُّ الهويّة البصريّة لا يقبل مخالفة — أصلحها في القالب بدل تسجيلها:\n  "
         + json.dumps(recorded, ensure_ascii=False)
@@ -84,6 +99,13 @@ class TestTheRatchetItself:
             "hex_colour": 1,
             "legacy_header": 1,
             "hand_kpi": 1,
+            "style_block": 0,
+            "max_w": 0,
+            "button_no_type": 0,
+            "inline_script": 0,
+            "important": 0,
+            "transition_all": 0,
+            "physical_side": 0,
         }
 
     def test_a_style_that_only_passes_a_custom_property_is_data_not_styling(self):
@@ -136,3 +158,71 @@ class TestTheRatchetItself:
         component = pathlib.Path("templates/components/ui/page_header.html")
         assert component.is_relative_to(ratchet.COMPONENTS_DIR)
         assert "templates/components/ui/page_header.html" not in ratchet.measure()["legacy_header"]
+
+
+class TestTheSevenGaps:
+    """السبعةُ تعدّ ما تسمّيه وتسقط بمخالفةٍ مُدخَلة (W-20261009-009)."""
+
+    def _count(self, name, text):
+        return len(ratchet.METRICS[name][1].findall(text))
+
+    def test_all_seven_are_registered_and_in_the_baseline(self):
+        counts = _baseline()["counts"]
+        for name in SEVEN:
+            assert name in ratchet.METRICS and name in counts
+
+    def test_the_five_original_metrics_are_still_zero(self):
+        counts = ratchet.measure()
+        assert all(not counts[name] for name in ZERO_METRICS)
+
+    def test_template_metrics(self):
+        assert self._count("style_block", "<style>a{}</style><style media=print>") == 2
+        assert self._count("max_w", '<div class="max-w-md md:max-w-lg max-width">') == 2
+        assert self._count("button_no_type", '<button class="a">x</button>') == 1
+        assert self._count("button_no_type", '<button type="button">x</button>') == 0
+        assert self._count("button_no_type", '<button {% if a %}type="submit"{% endif %}>x') == 0
+        assert self._count("button_no_type", "<button {% if a > 1 %}disabled{% endif %}>x") == 1
+        assert self._count("inline_script", "<script>alert(1)</script>") == 1
+        assert self._count("inline_script", '<script src="a.js" defer></script>') == 0
+        assert (
+            self._count("inline_script", '<script type="application/json" id="d">{}</script>') == 0
+        )
+
+    def test_css_metrics(self):
+        assert self._count("important", "a{color:red !important}/* !important */") == 1
+        allowed = "@media print{a{color:red!important}@media (x){b{c:d}}}"
+        assert self._count("important", allowed + "a{b:c!important}") == 1
+        reduced = "@media (prefers-reduced-motion: reduce){*{transition:none!important}}"
+        assert self._count("important", reduced) == 0
+        assert (
+            self._count("transition_all", "a{transition: all .2s}b{transition-property:all}") == 2
+        )
+        assert (
+            self._count("transition_all", "a{transition: all-items .2s;transition:opacity .2s}")
+            == 0
+        )
+        physical = "a{margin-left:1px;padding-right:2px;text-align:left;float:right;left:0}"
+        assert self._count("physical_side", physical) == 5
+        logical = "a{margin-inline-start:1px;text-align:start;inset-inline-end:0;--left:1}"
+        assert self._count("physical_side", logical) == 0
+
+    def test_a_new_violation_in_a_temp_template_or_sheet_fails(self, tmp_path, monkeypatch):
+        tpl, css = tmp_path / "templates", tmp_path / "custom"
+        tpl.mkdir()
+        css.mkdir()
+        (tpl / "new.html").write_text("<button>x</button><script>1</script>", encoding="utf-8")
+        (css / "x.css").write_text("a{transition:all 1s;margin-left:1px}", encoding="utf-8")
+        monkeypatch.setattr(ratchet, "TEMPLATE_ROOTS", (tpl,))
+        monkeypatch.setattr(ratchet, "CUSTOM_CSS_DIR", css)
+        monkeypatch.setattr(ratchet, "live_templates", lambda: sorted(tpl.rglob("*.html")))
+        current = {"counts": ratchet.measure(), "undefined_classes": []}
+        worse, _ = ratchet.compare({"counts": {}, "undefined_classes": []}, current)
+        assert any("new.html" in line for line in worse)
+        assert any("x.css" in line for line in worse)
+        assert len(worse) == 4
+
+    def test_a_decrease_must_be_recorded_for_a_css_file(self):
+        before = {"counts": {"important": {"static/css/custom/a.css": 3}}, "undefined_classes": []}
+        after = {"counts": {"important": {"static/css/custom/a.css": 2}}, "undefined_classes": []}
+        worse, stale = ratchet.compare(before, after)
+        assert not worse and len(stale) == 1
