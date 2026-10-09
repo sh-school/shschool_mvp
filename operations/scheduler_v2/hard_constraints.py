@@ -345,6 +345,7 @@ def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
                 "code": "HC5",
                 "original": "no_touch",
                 "relaxed": f"run_cap_{opt.touch_relaxed_run_cap}",
+                "decision": "قرار المالك 2026-10-09",
             }
         )
     if relaxed and opt.touch_relaxed_run_cap == 2:
