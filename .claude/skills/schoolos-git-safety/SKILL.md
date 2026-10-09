@@ -1,6 +1,6 @@
 ---
 name: schoolos-git-safety
-description: "Use for any git action in the SchoolOS repo (D:/shschool_mvp and its .claude/worktrees) shared by parallel sessions: commit, push, update from main, merge conflicts, switching branches, setting work aside, judging «really merged?» after a squash merge, removing worktrees, deleting local branches or tags. Trigger on: git add/commit/push/pull/rebase/merge/stash/reset/checkout/switch/worktree/branch -d/-D/tag, blocked by guard_git, REP-19, GH006, force push, rebase in progress, unknown file in git status, MSYS path in git show, «commit these files and open a PR». استخدمها ولو لم تُذكر كلمةُ غيت: «أودِع وادفع»، «حدّث فرعك من main»، «نحِّ التعديلات جانباً»، «الحارس حجب الأمر»، «هل اندمج الفرع؟»، «نظّف الأشجار»، «احذف الفروع القديمة»، «بدّل فرع الجذر». ليست لـ: متى تدفع ومن يدمج وينشر (schoolos-flow، schoolos-deploy)، الهجرات (schoolos-migration-guard)، فشل ruff أو حارس CI (schoolos-quality-guards)، مستودع الوثائق الخاصّ، شيفرة المنصّة (schoolos-platform)، شرح غيت العامّ."
+description: "Use for any git command in the shared repo/worktrees: commit, push, update from main, conflicts, branch switching, branch/worktree cleanup, blocked-by-guard. استخدمها عند أي أمر غيت (إيداع، تحديث من main، تعارض، تنظيف فروع) أو حين يحجبه الحارس. ليست لقرار متى تدفع."
 ---
 
 # أمانُ غيت في المحادثات المتوازية

@@ -1,6 +1,6 @@
 ---
 name: schoolos-preview-8500
-description: "Use for the SchoolOS central preview on port 8500 (scripts/preview.sh): integration vs pin, pinning and releasing a tree, checking what 8500 really serves (/health/, SHA), an owner review item (route, role, what preview doesn't reflect: PDF fonts, data), and binding the approval line to what the owner saw. Trigger on: 8500, preview.sh, pin, release, --force, main-preview, review item, approval line, expired pin, moving 8500 edits to production. استخدمها عند تثبيت شجرةٍ أو تحريرها أو «مقفول على شجرة غيري»، و«ليش فرعي ما يطلع؟»، واستلام 0501 «جاهزٌ للمعاينة»، و«هل المعروض هو المعتمَد؟»، وسطرِ «اعتُمد من المالك على 8500 — <التاريخ>» — ولو لم تُذكر المهارة. ليست لـ: خادم جلستك (CLAUDE.md)، up/down/watch/sync (المالك و0601)، الدمج والنشر (schoolos-deploy)، متى تدفع (schoolos-flow)، توليد النافذة والحزمة (maestro-review-window، maestro-evidence)، غيت (schoolos-git-safety)، الهجرات (schoolos-migration-guard)، بطء الإنتاج (schoolos-watch)، معاينة تصميمٍ أو PDF محلّيّاً."
+description: "Use for the central preview on port 8500 (scripts/preview.sh): what 8500 serves, integration vs pin, review items, binding the approval line to what the owner saw. استخدمها عند «ليش فرعي ما يطلع على 8500؟» أو تثبيت شجرة أو «جاهز للمعاينة». الدفع والدمج في schoolos-flow."
 ---
 
 # المعاينةُ المركزيّة 8500 — التثبيتُ والتحقّقُ وبندُ المراجعة

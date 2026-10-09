@@ -1,6 +1,7 @@
 ---
 name: schoolos-deploy
-description: "Use for SchoolOS merge-and-deploy work (session 0601): admitting owner-approved PRs to the merge queue, batching, after-hours Railway deploys, verifying web/worker/beat after deploy, ejected or stuck merges, rollback, and owner-only production commands. Trigger on: merge queue, gh pr merge --auto, UNMERGEABLE, merge_group red, dependabot PR, redeploy --from-source, verify_deploy, rollback, 500 after deploy, «نشر-عاجل», migration applied in production?, production behind main — even a bare «ادمج وانشر #N». استخدمها عند إدخال طلبٍ معتمَدٍ الطابور وترتيب الدفعة والنشر (بعد الدوام أو عاجلاً فيه) والتحقّق بعده، وطلبٍ «طلع من الطابور»، والرجوع، وأوامر الريدبلوي للمالك — ولو قيل «الإنتاج متأخّر عن main» أو «الطابور أحمر». ليست لـ: كتابة الإصلاح أو إصلاح mypy في طلبك، المعاينة والدفع وفتح الطلب (schoolos-preview-8500، schoolos-flow)، غيت الشجرة (schoolos-git-safety)، أقفال الهجرة (schoolos-migration-guard)، هجرة الخارطة (schoolos-roadmap-sync)، مشاريع أذكياء الأخرى (azkia-devops)."
+description: "Manual (session 0601): merge-queue admission, batching, after-hours Railway deploys, post-deploy verification, rollback. يدوية (/schoolos-deploy): إدخال طلب معتمد الطابور والنشر والتحقق والرجوع."
+disable-model-invocation: true
 ---
 
 # الدمج والنشر على الإنتاج — جلسة «0601 · النشر على الإنتاج والدمج»

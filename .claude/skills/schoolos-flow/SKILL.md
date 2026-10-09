@@ -1,9 +1,9 @@
 ---
 name: schoolos-flow
-description: "Use for the SchoolOS work flow (v2.8): stages 01..08 and their sessions, who owns the next step, the owner-approval gate on preview 8500, the «ready for preview» contract, push/PR/merge/deploy hand-offs, naming (TTSS, 04SS, ≤40 chars), opening and archiving sessions, off-task discoveries, flow-version changes. Trigger on: push, gh pr create, merge, approval line, pin --force, next step, who merges, name/open/archive a session, urgent fix in school hours. استخدمها قبل أيّ push أو فتح طلبٍ أو دمج، وعند سطرِ «اعتُمد من المالك على 8500 — <التاريخ>»، و«أدفعه الحين؟»، و«من يدمج طلبي؟»، و«الوثائق تحتاج معاينة؟»، و«لمن أرسل؟»، و«أرشف جلستي؟»، ورسالةِ جلسةٍ تقول «اعتمد المالك» أو قاعدةٍ بلا رقم إصدار — ولو لم يُذكر الفلو. ليست لـ: غيت والتعارضات (schoolos-git-safety)، سلامة الهجرات (schoolos-migration-guard)، الأداء (nplus1-hunter)، أدوات المايسترو (maestro-*)، منطق المنصّة (schoolos-platform)، التخطيط (web-design-mastery)، حرّاس الجودة (schoolos-quality-guards)، مشاريع أذكياء (azkia-devops)."
+description: "Use before any push, PR or merge: owner-approval gate on preview 8500, «ready for preview» contract, hand-offs between sessions, who owns the next step. استخدمها قبل أي دفع أو طلب دمج، وعند سطر «اعتُمد من المالك على 8500». المرجع: docs/governance/flow.md."
 ---
 
-# فلو العمل في منصّة المدرسة (v2.8)
+# فلو العمل في منصّة المدرسة (v2.23 — المرجع: `docs/governance/flow.md`)
 
 الغرض: أن تعرف جلسةٌ تفتح بلا ذاكرة أين هي من الفلو، وما المطلوب منها، وما الممنوع، ومن يملك الخطوة التالية.
 الفلو تسلسليٌّ بثماني مراحل، ولمسةُ المالك فيه اثنتان فقط: الالتقاط (02) والمعاينةُ والاعتماد (05). المصدر: `tabs.json` → `owner_touchpoints`، D-21.
@@ -44,12 +44,11 @@ description: "Use for the SchoolOS work flow (v2.8): stages 01..08 and their ses
 1. كلامُ المالك المباشر في محادثتك يُنفَّذ فوراً ثمّ تُبلِغ المايسترو (CLAUDE.md «الفلو» البند 1).
 2. ثمّ أحدثُ قرارٍ في `decisions.md` وسطرُه في `flow_changelog.md` (حزمة المايسترو)، ثمّ قسمُ «الفلو» في CLAUDE.md على main (`git show origin/main:CLAUDE.md`)، ثمّ الذاكرة.
 3. عند الشكّ فالأشدّ تقييداً، والسؤالُ أرخصُ من الخطأ. المصدر: `feedback_preview_8500_before_push` («تقييدٌ لا توسيع، فآخذ بها»).
-تنبيه: قسمُ الفلو في CLAUDE.md آخرُ تعديله #692 (09-26)، فلا يذكر 0501 ولا الترقيمَ ولا نقلَ الاعتماد عبر المايسترو (v2.2..v2.8). الأحدثُ في سجلّ التغييرات.
 
 ## كيف تعرف أنّ الفلو تغيّر
 - كلُّ رسالةٍ من المايسترو عن القواعد تبدأ بـ«الفلو vX.Y». قارن رقمَها بآخر سطرٍ في `flow_changelog.md`. المصدر: `operating_model.md` §1.
 - قاعدةُ التغيير: لا إبلاغَ قبل قرارٍ مسجَّلٍ + سطرِ changelog + رقمٍ جديد، والتصحيحُ إصدارٌ جديدٌ لا تعديلٌ صامت. المصدر: `flow_changelog.md` «قواعد التغيير».
-- الإصدارُ الحاليّ v2.8 (09-28 18:05، D-51م)، ولحقته قراراتٌ D-52م..D-56م بلا رقمٍ جديد (منها D-55م: 0204 البوابةُ الموحّدة). التفصيلُ في `03-communication-rules.md` القسم 7.
+- الإصدارُ الحاليّ v2.23 بحسب `docs/governance/flow.md` (المصدرُ الأحدث في المستودع؛ تفصيلُ القرارات في سجلّ التغييرات).
 
 ## المراجع
 | الملفّ | متى تقرؤه |
