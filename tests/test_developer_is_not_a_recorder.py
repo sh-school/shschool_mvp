@@ -27,6 +27,8 @@ def test_the_group_no_longer_contains_the_developer():
         "vice_admin",
         "vice_academic",
         "principal",
+        # منسّقُ شؤون الطلبة يرصد الغيابَ ويصحّحه كقيادته (قرارُ المالك D-266م، 2026-10-08).
+        "student_affairs_coordinator",
     }
 
 

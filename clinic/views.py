@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
 
 logger = logging.getLogger(__name__)
@@ -12,7 +13,7 @@ from django.views.decorators.http import require_http_methods
 from clinic.models import ClinicVisit, HealthRecord
 from clinic.services import ClinicService
 from core.audit_repr import masked_repr
-from core.capabilities import capability_required
+from core.capabilities import capability_required, has_capability
 from core.models import AuditLog, CustomUser
 
 
@@ -42,16 +43,24 @@ def student_health_record(request, student_id):
     school = request.user.get_school()
     student = get_object_or_404(CustomUser, id=student_id, memberships__school=school)
 
+    can_write = has_capability(request.user, "clinic.write")
     try:
         health_record = student.health_record
     except HealthRecord.DoesNotExist:
-        health_record = HealthRecord.objects.create(student=student)
+        # القارئُ لا يُنشئ سجلاًّ فارغاً بفتح الصفحة (حكم 0104): يُعرض فارغٌ غيرُ محفوظ.
+        health_record = (
+            HealthRecord.objects.create(student=student)
+            if can_write
+            else HealthRecord(student=student)
+        )
 
     # ── الحفظ ───────────────────────────────────────────────────────
     # لا تشفيرَ هنا: الحقولُ الطبّيّةُ `EncryptedTextField`، والنموذجُ يتولّاه.
     # وكان المسارُ القديم يشفّر يدوياً بـ`save_encrypted()`، والقالبُ يطبع
     # الحقلَ الخام — فتُعرض الطلاسمُ في المربّع ويُعاد تشفيرُها مع كلّ حفظ.
     if request.method == "POST":
+        if not can_write:
+            raise PermissionDenied
         health_record.blood_type_encrypted = request.POST.get("blood_type", "")
         health_record.emergency_contact_name = request.POST.get("emergency_contact_name", "")
         health_record.emergency_contact_phone = request.POST.get("emergency_contact_phone", "")
@@ -73,6 +82,7 @@ def student_health_record(request, student_id):
         "student": student,
         "health_record": health_record,
         "visits": visits,
+        "can_write": can_write,
     }
 
     # PDPPL م.19: تدقيق الوصول للسجل الصحي الحساس (يُفكّ تشفير الحساسية/الأمراض/الأدوية)
@@ -88,7 +98,7 @@ def student_health_record(request, student_id):
 
 
 @login_required
-@capability_required("clinic.access")
+@capability_required("clinic.write")
 @require_http_methods(["GET", "POST"])
 def record_visit(request, student_id=None):
     """تسجيل زيارة جديدة للعيادة"""

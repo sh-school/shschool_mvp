@@ -529,10 +529,16 @@ SCHOOL_WIDE = "wings.school_wide"
 
 
 def holds_school_wide(user: CustomUser) -> bool:
-    """أمشرفٌ إداريٌّ مُنح «حاصرَ الغياب العامّ»؟ — المنحُ وحدَه لا يكفي دون الدور: لا يرفع غيرَ المشرف."""
-    from core.capability_grants import holds
+    """أحاصرُ الغياب العامّ؟ — منسّقُ شؤون الطلبة بدوره (D-267م)، والمشرفُ الإداريّ بمنحٍ مفوَّض.
 
-    return user.get_role() == "admin_supervisor" and holds(user, SCHOOL_WIDE)
+    المنحُ وحدَه لا يكفي دون دور المشرف: لا يرفع غيرَ المشرف."""
+    from core.capability_grants import holds
+    from core.permissions import SCHOOL_WIDE_ABSENCE_ROLES
+
+    role = user.get_role()
+    if role in SCHOOL_WIDE_ABSENCE_ROLES:
+        return True
+    return role == "admin_supervisor" and holds(user, SCHOOL_WIDE)
 
 
 def wings_of(user: CustomUser, school: School, year: str) -> list[Wing]:

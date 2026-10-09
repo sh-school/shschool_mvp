@@ -112,7 +112,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          run_id=$(gh run list --workflow visual-snapshots.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          # أحدثُ artifact أساسٍ غيرِ منتهٍ — لا «أحدثُ تشغيلٍ ناجح»: التشغيلُ الذي فشلت لقطاتُه على main يصير الآن «ناجحاً» (D-277م) ولا أساسَ فيه.
+          run_id=$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=visual-baseline&per_page=20" --jq '[.artifacts[] | select(.expired == false)][0].workflow_run.id // empty')
           if [ -n "$run_id" ] && gh run download "$run_id" --name visual-baseline --dir visual-baseline; then
             echo "VISUAL_BASELINE_DIR=visual-baseline" >> "$GITHUB_ENV"
             echo "أساسُ main من التشغيل $run_id"
@@ -121,9 +122,24 @@ jobs:
           fi
 
       # المهلةُ على الخطوة لا الوظيفة: `test_ci_suite_parity` يقرأ مهلةَ الوظيفة ميزانيّةَ مجموعةٍ كاملةٍ تلزمها الموازاة، وهذه مساراتٌ محدَّدة.
+      # D-277م (أمر المالك المباشر، 2026-10-08): الفحصُ استشاريٌّ بنصّه فلا يحجب النشر. على `push` إلى main يفشل الاختبارُ ولا يُحمّر المهمّةَ
+      # (Railway «Wait for CI» يتخطّى النشرَ إن فشل أيُّ check-run في المجموعة ولو لم يكن مطلوباً بحماية الفرع)؛ وعلى طلب الدمج يبقى الفشلُ
+      # كما كان (استشاريّاً: ليس في gate-summary). وما يُرفع أساساً يُقرأ من `steps.snap.outcome` لا من `success()` فلا يُرفع أساسٌ من تشغيلٍ فاشل.
       - name: اللقطات (حتميّةٌ ومقارنة)
+        id: snap
         timeout-minutes: 20
+        continue-on-error: ${{ github.event_name == 'push' }}
         run: python -m pytest tests/e2e/test_visual_snapshots_live.py -v
+
+      - name: "تحذيرٌ — فشلت اللقطاتُ على main (غيرُ حاجبٍ للنشر)"
+        if: github.event_name == 'push' && steps.snap.outcome == 'failure'
+        run: |
+          echo "::warning title=VI-13::فشل فحصُ لقطات الهويّة على main — استشاريٌّ لا يحجب النشرَ (D-277م). راجع الملخّصَ وartifact المقارنة."
+          {
+            echo "## ⚠ لقطات الهويّة فشلت على main (غيرُ حاجبٍ للنشر — D-277م)"
+            echo
+            echo "الفشلُ استشاريٌّ: لا يُحمّر المهمّةَ ولا يحجب «Wait for CI». لا يُرفع أساسٌ من هذا التشغيل."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: الملخّص في صفحة التشغيل
         if: always()
@@ -147,7 +163,7 @@ jobs:
 
       # الأساس: لقطاتُ main وحدَها (بلا التكرار ولا الفروق) — يُنزَّل في طلباتِ الدمج التالية.
       - name: رفعُ أساس main
-        if: github.event_name == 'push' && success()
+        if: github.event_name == 'push' && steps.snap.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
           name: visual-baseline

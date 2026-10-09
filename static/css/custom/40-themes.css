@@ -245,6 +245,9 @@ html.dark .card-qatar, html.dark .kpi-card, html.dark .form-card, html.dark .act
   background: var(--surface);
   border-color: var(--border);
 }
+/* شريطُ مؤشّر العنّابيّ الجانبيُّ ليلاً: `--maroon` على السطح الداكن 1.56:1 (قياسُ 2026-10-08، دون 3:1 من WCAG 1.4.11) فيكاد يختفي؛ ونبرتُه هي المحايدةُ لمؤشّرات
+   لوحتَي المدير والمشرف (W-20261008-004 س٦، إذنُ 0101 لهذا الملفّ وحدَه تحت D-259م). فيأخذ رمزَ `--maroon-fg` (7.99:1) كما يأخذه رقمُه. */
+html.dark .kpi-maroon { --kc: var(--maroon-fg); }
 html.dark .card-qatar:hover, html.dark .kpi-card:hover, html.dark .action-card:hover {
   border-color: var(--maroon-border);
 }

@@ -14,7 +14,15 @@ class ParentsConfig(AppConfig):
             name="parents",
             label="بوابة أولياء الأمور",
             url_prefix="/parents/",
-            allowed_roles={"parent", "principal", "vice_admin", "vice_academic", "admin"},
+            allowed_roles={
+                "parent",
+                "principal",
+                "vice_admin",
+                "vice_academic",
+                "admin",
+                # ربطُ أولياء الأمور بالطلاب بندٌ في قائمة إدارة شؤون الطلاب (D-273م)
+                "student_affairs_coordinator",
+            },
             sidebar_roles={"parent"},
             # الكادرُ الذي هو وليُّ أمرٍ أيضاً يدخل بوّابتَه بعضويّته تلك لا بدوره
             # الحاكم (قرارُ 2026-09-16) — ويرى أبناءه وحدَهم، وحرّاسُ الشاشات باقون.
