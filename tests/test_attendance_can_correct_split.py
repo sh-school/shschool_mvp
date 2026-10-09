@@ -7,7 +7,7 @@
 
 import pytest
 
-from operations.attendance_policy import can_approve, can_correct
+from operations.attendance_policy import can_correct
 from tests.attendance_fixtures import *  # noqa: F401,F403
 from tests.attendance_fixtures import _staff
 
@@ -15,18 +15,6 @@ pytestmark = pytest.mark.django_db
 
 
 def test_the_wing_holder_corrects(session, holder):
-    assert can_correct(holder, session).allowed
-
-
-def test_correction_is_independent_of_approval_in_a_final_entry_session(
-    settings, session, holder, klass
-):
-    """الجلسةُ النهائيّة: الاعتمادُ مرفوضٌ بسبب `final_entry` والتصحيحُ مقبول."""
-    settings.PROVISIONAL_GRID_ENABLED = True
-    settings.ATTENDANCE_GRID_DIRECT_WINGS = "*"
-
-    assert not can_approve(holder, session).allowed
-    assert can_approve(holder, session).reason == "final_entry"
     assert can_correct(holder, session).allowed
 
 

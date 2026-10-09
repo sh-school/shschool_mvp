@@ -7,8 +7,6 @@
   في سجلّ المراجعة، ويزول ما بُني عليه آليّاً.
 """
 
-import re
-
 import pytest
 from django.urls import reverse
 
@@ -94,58 +92,6 @@ class TestTheTeacherLetsAStudentOut:
         row = StudentAttendance.objects.get(session=period, student=kids[0])
         assert (row.status, row.source) == ("present", "supervisor")
         assert not StudentAttendance.objects.filter(source="teacher_out").exists()
-
-    def test_the_supervisor_sees_the_unreturned_prefilled_absent_with_leave(
-        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
-    ):
-        """قبل أيّ تثبيت: الخانةُ «غائب» مختارةٌ والعيادةُ مكانُه — من الخروج نفسِه لا من سطرٍ مؤقّت."""
-        (period,) = _periods(school, klass, teacher, 1)
-        leave(period, kids[0], "clinic", by=teacher, now=at(7, 20))
-
-        body = (
-            client_as(supervisor)
-            .get(reverse("wings:record_section", args=[klass.id]) + f"?date={SUNDAY.isoformat()}")
-            .content.decode()
-        )
-
-        sid = kids[0].id
-        assert re.search(rf'name="s-{sid}" value="absent" checked', body)
-        assert not re.search(rf'name="s-{sid}" value="present" checked', body)
-        select = re.search(rf'<select name="w-{sid}".*?</select>', body, re.S).group(0)
-        assert re.search(r'<option value="clinic" selected>', select)
-        assert not StudentAttendance.objects.exists(), "العرضُ لا يكتب"
-
-    def test_the_endpoints_belong_to_the_sessions_teacher(
-        self,
-        client_as,
-        school,
-        seeded_calendar,
-        klass,
-        kids,
-        teacher,
-        other_teacher,
-        supervisor,
-        monkeypatch,
-    ):
-        from django.utils import timezone
-
-        (period,) = _periods(school, klass, teacher, 1)
-        # «خرج بإذن» لمعلّم الحصّة بنافذة اليوم (G4/W-020): نثبّت الساعةَ داخلها وقيدَ الطلبة بتاريخ الحصّة.
-        monkeypatch.setattr(timezone, "now", lambda: at(7, 30))
-        for kid in kids:
-            kid.enrollments.update(enrolled_at=SUNDAY)
-        payload = {"student_id": str(kids[0].id), "destination": "clinic"}
-
-        assert (
-            client_as(other_teacher)
-            .post(reverse("mark_exit", args=[period.id]), payload)
-            .status_code
-            == 403
-        )
-        response = client_as(teacher).post(reverse("mark_exit", args=[period.id]), payload)
-        assert response.status_code == 200 and "عاد" in response.content.decode()
-        response = client_as(teacher).post(reverse("mark_return", args=[period.id]), payload)
-        assert response.status_code == 200 and "خرج بإذن" in response.content.decode()
 
 
 class TestTheSupervisorIsNotified:
@@ -244,49 +190,6 @@ class TestPresenceMinutesBySubject:
 
 
 class TestUndo:
-    def test_the_teacher_undoes_a_late_tap_and_it_is_audited(
-        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
-    ):
-        from operations.period_register import tap_late
-
-        (period,) = _periods(school, klass, teacher, 1)
-        tap_late(period, kids[0], by=teacher, now=at(7, 22))
-
-        response = client_as(teacher).post(
-            reverse("undo_late_tap", args=[period.id]), {"student_id": str(kids[0].id)}
-        )
-
-        assert response.status_code == 200 and "دخل الآن" in response.content.decode()
-        assert not StudentAttendance.objects.filter(student=kids[0]).exists()
-        log = AuditLog.objects.get(action="delete")
-        assert "تراجع" in log.object_repr and log.changes["late_minutes"] == 12
-
-    def test_the_teacher_cannot_undo_what_the_supervisor_confirmed(
-        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
-    ):
-        (period,) = _periods(school, klass, teacher, 1)
-        _confirm(klass, period, {kids[0]: "late"}, supervisor, now=at(7, 30))
-
-        client_as(teacher).post(
-            reverse("undo_late_tap", args=[period.id]), {"student_id": str(kids[0].id)}
-        )
-
-        assert StudentAttendance.objects.filter(student=kids[0], source="supervisor").exists()
-
-    def test_cancelling_an_exit_leaves_no_minutes(
-        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
-    ):
-        (period,) = _periods(school, klass, teacher, 1)
-        leave(period, kids[0], "clinic", by=teacher, now=at(7, 20))
-
-        client_as(teacher).post(
-            reverse("cancel_exit", args=[period.id]), {"student_id": str(kids[0].id)}
-        )
-
-        assert not ClassExit.objects.exists()
-        assert presence_for(kids[0], school, SUNDAY, SUNDAY).total.exit_minutes == 0
-        assert AuditLog.objects.filter(action="delete").exists()
-
     def test_deleting_an_event_from_the_profile_removes_its_auto_infraction(
         self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
     ):

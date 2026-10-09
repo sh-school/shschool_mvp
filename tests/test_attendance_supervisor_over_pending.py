@@ -10,7 +10,7 @@ import datetime as dt
 import pytest
 
 from core.models import AuditLog
-from operations.attendance_entries import decide_entry, state_of, submit_entry, unapproved_report
+from operations.attendance_entries import state_of, submit_entry
 from operations.models import AttendanceDecision, StudentAttendance
 from operations.period_register import confirm_period
 from tests.attendance_fixtures import *  # noqa: F401,F403
@@ -46,27 +46,6 @@ def test_a_supervisor_confirmation_never_touches_a_pending_teacher_entry(
         session=session, student=kid
     ).exists()  # ولم يُكتب فوقه
     assert not _audits().exists()
-
-
-def test_a_pending_entry_stays_in_the_unapproved_report_after_a_confirmation(
-    school, klass, session, teacher, holder, kid
-):
-    submit_entry(teacher, session, kid, "absent", now=NOW)
-    assert len(unapproved_report(school, older_than_hours=1, now=at(13, 0))) == 1
-    _confirm(klass, kid, holder)
-    assert len(unapproved_report(school, older_than_hours=1, now=at(13, 0))) == 1  # يبقى حتى يُقرَّر
-
-
-def test_a_confirmation_never_overwrites_an_approved_teacher_row(
-    klass, session, teacher, holder, kid
-):
-    entry = submit_entry(teacher, session, kid, "absent", now=NOW)
-    decide_entry(holder, entry, approve=True, now=NOW)
-    _confirm(klass, kid, holder, "present")
-    row = StudentAttendance.objects.get(session=session, student=kid)
-    assert (row.status, row.source) == ("absent", "teacher")  # المعتمَدُ أسبقُ من التثبيت
-    assert not _audits().exists()
-    assert AttendanceDecision.objects.filter(entry=entry).count() == 1
 
 
 def test_a_confirmation_over_a_teacher_late_tap_audits_it(klass, session, teacher, holder, kid):

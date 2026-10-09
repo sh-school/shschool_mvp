@@ -1,88 +1,35 @@
 from django.urls import path
 
 from . import views
-from .views_attendance_entries import (
-    approval_decide,
-    approvals,
-    approve_session,
-    approve_session_defaults,
-    correct_page,
-    correct_submit,
-    entry_submit,
-    period_entries,
-    unapproved,
-)
 from .views_class_grid import (
     class_grid,
-    class_grid_approve,
     class_grid_exit,
     class_grid_history,
     class_grid_late,
     class_grid_save,
+    grid_classes,
 )
 from .views_director_live import director_live
-from .views_provisional import provisional_class, provisional_classes, provisional_create
 from .views_schedule_drafts import discard_schedule, stop_schedule_generation
 
 urlpatterns = [
     path("schedule/", views.schedule, name="teacher_schedule"),
     # الاستطلاعُ الحيّ للوحة المدير (W-20261008-004، D-249م القسم 9): JSON بلا أسماء، للمدير ونائبيه.
     path("director-live/", director_live, name="director_live"),
-    # -- رصدٌ بحصّةٍ مؤقّتة للمعلّم قبل اعتماد الجدول (W-20261005-006؛ مطفأٌ بمفتاح PROVISIONAL_SESSIONS_ENABLED) --
-    path("classes/", provisional_classes, name="provisional_classes"),
-    path("classes/<uuid:class_id>/", provisional_class, name="provisional_class"),
-    path("classes/<uuid:class_id>/period/", provisional_create, name="provisional_create"),
-    # -- جدولُ الشعبة العموديّ لرصد الغياب (W-20261006-005؛ مطفأٌ بمفتاح PROVISIONAL_GRID_ENABLED ← 404) --
+    # -- شُعبي للرصد: قائمةُ شُعب المستخدم، ومنها يُفتح جدولُ الشعبة --
+    path("classes/", grid_classes, name="provisional_classes"),
+    # -- جدولُ الشعبة العموديّ لرصد الغياب (W-20261006-005) — الواجهةُ الوحيدةُ لرصد الغياب لكلّ الأدوار ولكلّ التواريخ (أمرُ المالك 2026-10-09) --
     path("classes/<uuid:class_id>/grid/", class_grid, name="class_grid"),
     path("classes/<uuid:class_id>/grid/save/", class_grid_save, name="class_grid_save"),
     path("classes/<uuid:class_id>/grid/late/", class_grid_late, name="class_grid_late"),
     path("classes/<uuid:class_id>/grid/exit/", class_grid_exit, name="class_grid_exit"),
     path(
-        "classes/<uuid:class_id>/grid/approve/",
-        class_grid_approve,
-        name="class_grid_approve",
-    ),
-    path(
         "classes/<uuid:class_id>/grid/history/<uuid:student_id>/<int:number>/",
         class_grid_history,
         name="class_grid_history",
     ),
-    # -- رصدُ المعلّم المبدئيّ واعتمادُه (W-020) --
-    path("attendance/approvals/", approvals, name="attendance_approvals"),
-    path(
-        "attendance/approvals/session/<uuid:session_id>/approve/",
-        approve_session,
-        name="attendance_approve_session",
-    ),
-    path(
-        "attendance/approvals/session/<uuid:session_id>/approve-defaults/",
-        approve_session_defaults,
-        name="attendance_approve_defaults",
-    ),
-    path("attendance/approvals/<uuid:entry_id>/decide/", approval_decide, name="attendance_decide"),
-    path("attendance/unapproved/", unapproved, name="attendance_unapproved"),
-    path("attendance/<uuid:session_id>/entry/", entry_submit, name="attendance_entry"),
-    path("attendance/<uuid:session_id>/entries/", period_entries, name="attendance_period_entries"),
-    path("attendance/<uuid:session_id>/correct/", correct_page, name="attendance_correct"),
-    path(
-        "attendance/<uuid:session_id>/correct/submit/",
-        correct_submit,
-        name="attendance_correct_submit",
-    ),
+    # رابطُ الحصّة القديم يفتح جدولَ شعبتها بتاريخها
     path("attendance/<uuid:session_id>/", views.attendance_view, name="attendance"),
-    path("attendance/<uuid:session_id>/mark-single/", views.mark_single, name="mark_single"),
-    path("attendance/<uuid:session_id>/mark-all/", views.mark_all_present, name="mark_all_present"),
-    path("attendance/<uuid:session_id>/late-tap/", views.mark_late_tap, name="mark_late_tap"),
-    path("attendance/<uuid:session_id>/exit/", views.mark_exit, name="mark_exit"),
-    path("attendance/<uuid:session_id>/return/", views.mark_return, name="mark_return"),
-    path(
-        "attendance/<uuid:session_id>/late-tap/undo/",
-        views.undo_late_tap_view,
-        name="undo_late_tap",
-    ),
-    path("attendance/<uuid:session_id>/exit/cancel/", views.cancel_exit_view, name="cancel_exit"),
-    path("attendance/<uuid:session_id>/complete/", views.complete_session, name="complete_session"),
-    path("attendance/<uuid:session_id>/summary/", views.session_summary, name="session_summary"),
     path("reports/daily/", views.daily_report, name="daily_report"),
     # -- المرحلة 2: الجداول الذكية --
     path("weekly-schedule/", views.weekly_schedule, name="weekly_schedule"),

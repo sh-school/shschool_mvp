@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from django.db import IntegrityError, connection, transaction
@@ -26,17 +25,8 @@ from django.utils import timezone
 from core.models import AuditLog
 
 from .attendance_policy import (
-    GRID_ORIGINS,
-    _wing_holder_on,
-    approval_evidence,
-    approval_holder,
-    can_approve,
-    can_correct,
     can_enter,
-    holder_gap,
-    is_direct_entry,
     is_special_education,
-    needs_approval,
 )
 from .models import Session, StudentAttendance
 from .models.attendance_ledger import ERASURE_FLAG, AttendanceDecision, AttendanceEntry
@@ -66,33 +56,6 @@ def _checked_reason(reason: str) -> str:
     return reason
 
 
-#: أساسُ قرار القيادة بحسب سببِ غياب الحامل الفعليّ (`attendance_policy.holder_gap`).
-_LEADERSHIP_BASIS = {
-    "no_holder": "leadership_no_holder",
-    "holder_is_teacher": "leadership_holder_is_teacher",
-    "holder_inactive": "leadership_holder_inactive",
-}
-
-
-def _decision_basis(
-    user: CustomUser, session: Session, gap: str | None, entry: AttendanceEntry | None = None
-) -> str:
-    """أساسُ الصلاحيّة المحفوظُ مع القرار: حاصرُ الغياب العامّ ليس حاملَ الجناح ولا القيادة، فيُسمّى باسمه.
-
-    وفي إدخال جدول الشعبة يعتمده حاملُ الجناح بأساسه: `wing_holder_self` إن كان هو كاتبَه (D-239م) وإلّا `wing_holder` — بلا نظرٍ إلى `holder_gap`.
-    """
-    from wings.services import holds_school_wide
-
-    if entry is not None and entry.origin in GRID_ORIGINS:
-        holder = _wing_holder_on(session.class_group, session.date)
-        if holder is not None and holder.id == user.id:
-            return "wing_holder_self" if entry.entered_by_id == user.id else "wing_holder"
-    holder = approval_holder(session)
-    if holds_school_wide(user) and not (holder is not None and holder.id == user.id):
-        return "school_wide"
-    return "wing_holder" if gap is None else _LEADERSHIP_BASIS[gap]
-
-
 class EntryError(Exception):
     """خطأٌ في طلب الإدخال/القرار، برمزٍ مختصرٍ يُعرض ويُختبر."""
 
@@ -111,17 +74,6 @@ class EntryRefusedError(EntryError):
 
 class EntryConflictError(EntryError):
     """اعتمادُ الإدخال يصطدم برصدٍ بشريٍّ آخر — لا كتابةَ فوقه."""
-
-
-@dataclass(frozen=True)
-class PendingRow:
-    """سطرُ تقرير «غيرُ معتمَد بعد X ساعة»."""
-
-    entry: AttendanceEntry
-    age_hours: float
-    holder_missing: bool
-    #: سببُ غياب الحامل الفعليّ (`no_holder` | `holder_is_teacher` | `holder_inactive`) أو `None`.
-    holder_gap: str | None = None
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -148,49 +100,6 @@ def head_of(session: Session, student: CustomUser, *, lock: bool = False) -> Att
         qs = qs.select_for_update(of=("self",))
     head: AttendanceEntry | None = qs.first()
     return head
-
-
-def pending_entries(session: Session) -> list[AttendanceEntry]:
-    """الإدخالاتُ المعلَّقةُ في حصّة: رؤوسٌ بلا قرار — «بانتظار الاعتماد»."""
-    return list(
-        AttendanceEntry.objects.filter(
-            session=session, superseded_by__isnull=True, decision__isnull=True
-        ).select_related("student", "entered_by")
-    )
-
-
-def unapproved_report(
-    school: School, *, older_than_hours: float, now: dt.datetime | None = None
-) -> list[PendingRow]:
-    """تقريرُ النائب: إدخالاتٌ معلَّقةٌ مضى عليها أكثرُ من `older_than_hours` ساعة. قراءةٌ فقط، لمدرسةٍ واحدة.
-
-    و`holder_missing` يرفع الحالةَ التي لا حاملَ فيها للجناح (تعتمدها القيادةُ) — ومنها شعبةٌ عاديّةٌ بجناحٍ
-    لم يُسند خطأً — فلا يصل التنبيهُ المعلّمَ وحدَه بل من يتصرّف فيه.
-    """
-    moment = now or timezone.now()
-    cutoff = moment - dt.timedelta(hours=older_than_hours)
-    entries = (
-        AttendanceEntry.objects.filter(
-            school=school,
-            superseded_by__isnull=True,
-            decision__isnull=True,
-            entered_at__lte=cutoff,
-        )
-        .select_related("session__class_group__wing", "student", "entered_by")
-        .order_by("entered_at")
-    )
-    rows = []
-    for entry in entries:
-        gap = holder_gap(entry.session)
-        rows.append(
-            PendingRow(
-                entry=entry,
-                age_hours=(moment - entry.entered_at).total_seconds() / 3600,
-                holder_missing=gap is not None,
-                holder_gap=gap,
-            )
-        )
-    return rows
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -315,13 +224,8 @@ def submit_entry(
         },
     )
 
-    if not needs_approval(session):
-        _decide_directly(entry, user, session)
-    elif session.class_group.wing_id is None:
-        logger.warning(
-            "إدخالُ رصدٍ مبدئيٍّ لشعبةٍ عاديّةٍ بلا جناح (يعتمده القيادةُ): class_group=%s",
-            session.class_group_id,
-        )
+    # رصدُ المعلّم نهائيٌّ دائماً (أمرُ المالك 2026-10-09، W-20261009-003): لا اعتمادَ في المنصّة.
+    _decide_directly(entry, user, session)
     return entry
 
 
@@ -468,206 +372,6 @@ def _decide(
     return decision
 
 
-@transaction.atomic
-def decide_entry(
-    user: CustomUser,
-    entry: AttendanceEntry,
-    approve: bool,
-    *,
-    reason: str = "",
-    now: dt.datetime | None = None,
-) -> tuple[AttendanceDecision, bool]:
-    """حاملُ الجناح (أو القيادةُ حين لا حامل) يعتمد الإدخالَ أو يرفضه. يعيد `(القرار، أُنشئ الآن؟)`.
-
-    قفلُ صفّ الإدخال يُسلسل القرارَين المتزامنَين، والثاني يجد القرارَ قائماً فيعيده بلا أثر. والأهليّةُ تُقيَّم داخل
-    القفل لا قبله. والاعتمادُ الذي يصطدم برصدٍ بشريٍّ آخر يرفع `EntryConflictError` فتُلغى المعاملةُ كلُّها ويبقى معلَّقاً.
-    """
-    locked = (
-        AttendanceEntry.objects.select_for_update(of=("self",))
-        .select_related("session__class_group__wing", "session__school", "entered_by", "student")
-        .get(pk=entry.pk)
-    )
-    existing = AttendanceDecision.objects.filter(entry=locked).first()
-    if existing is not None:
-        return existing, False
-    if AttendanceEntry.objects.filter(supersedes_id=locked.pk).exists():
-        raise EntryError("superseded", "حلّت محلَّه نسخةٌ أحدث — القرارُ على الأحدث.")
-
-    session = locked.session
-    verdict = can_approve(user, session, entered_by=locked.entered_by, entry_origin=locked.origin)
-    if not verdict:
-        raise EntryRefusedError(verdict.reason)
-
-    reason = _checked_reason(reason)
-    if not approve and not reason:
-        raise EntryError("reason_required", "الرفضُ يلزمه سبب.")
-
-    gap = holder_gap(session)
-    basis = _decision_basis(user, session, gap, locked)
-    evidence: dict[str, Any] = dict(approval_evidence(session))
-    if locked.origin in GRID_ORIGINS:
-        # الدليلُ في سجلّ القرار: ما كتبه المعتمِدُ بنفسه وما كان «حاضراً افتراضيّاً» — يظهر في الشاشة وسجلّ التدقيق.
-        evidence["self_entered"] = locked.entered_by_id == user.id
-        evidence["default_present"] = locked.origin == "grid_default"
-    decision = _decide(
-        locked,
-        user,
-        approve=approve,
-        basis=basis,
-        evidence=evidence,
-        reason=reason,
-        now=now,
-    )
-    return decision, True
-
-
-@transaction.atomic
-def settle_before_supervisor_write(
-    session: Session,
-    student: CustomUser,
-    supervisor: CustomUser,
-    *,
-    new_status: str,
-    now: dt.datetime | None = None,
-) -> None:
-    """يُسوّي أثرَ رصدِ المعلّم قبل أن يكتب المشرفُ فوقه (A11، حكمُ 0105): لا استبدالَ صامتاً.
-
-    - إدخالٌ مبدئيٌّ معلَّق: يبقى كما كتبه المعلّمُ (سجلٌّ ملحقٌ فقط) ويُلحَق به قرارٌ مسبَّبٌ بفاعله
-      (`basis=supervisor_record`) فلا يبقى معلَّقاً إلى أن يصطدم اعتمادُه بـ`non_teacher_row`.
-    - رصدٌ مصدرُه المعلّم (`teacher` المعتمَد أو نقرةُ `teacher_late`): سطرُ تدقيقٍ بقبلٍ وبعد.
-    تُستدعى قبل كتابة المشرف في الدالّة نفسِها وضمن معاملتها.
-    """
-    row = (
-        StudentAttendance.objects.select_for_update()
-        .filter(session=session, student=student)
-        .first()
-    )
-    if row is not None and row.source in OVERWRITABLE_SOURCES:
-        _audit(
-            supervisor,
-            session,
-            "update",
-            row.pk,
-            "تثبيتُ مشرفٍ يستبدل رصدَ معلّم",
-            {
-                "student": str(student.pk),
-                "before": {
-                    "status": row.status,
-                    "source": row.source,
-                    "late_minutes": row.late_minutes,
-                },
-                "after": {"status": new_status, "source": "supervisor"},
-            },
-        )
-    head = head_of(session, student, lock=True)
-    if head is None or AttendanceDecision.objects.filter(entry=head).exists():
-        return
-    _decide(
-        head,
-        supervisor,
-        approve=False,
-        basis="supervisor_record",
-        evidence=approval_evidence(session),
-        reason=f"كُتب رصدُ مشرفٍ على هذا الطالب في الحصّة ({new_status}) فسقط الإدخالُ المبدئيّ",
-        now=now,
-    )
-
-
-#: أنواعُ الدليل لتصحيحٍ دون معاينة — لا تصحيحَ بلا نوعٍ منها وسبب.
-EVIDENCE_TYPES = {
-    "parent_contact": "اتّصالُ وليّ الأمر",
-    "gate_log": "سجلُّ البوّابة",
-    "clinic_record": "سجلُّ العيادة",
-    "staff_statement": "إفادةُ موظّفٍ آخر",
-    "document": "مستندٌ",
-}
-
-#: مصادرُ يصحّحها المشرفُ — وما سواها (عيادةٌ وبوّابةٌ ونظامٌ) رصدٌ آخرُ لا يُكتب فوقه.
-CORRECTABLE_SOURCES = OVERWRITABLE_SOURCES | {"supervisor"}
-
-
-@transaction.atomic
-def correct_without_observation(
-    user: CustomUser,
-    session: Session,
-    student: CustomUser,
-    status: str,
-    *,
-    reason: str,
-    evidence_type: str,
-    now: dt.datetime | None = None,
-) -> StudentAttendance:
-    """يصحّح المشرفُ (أو القيادةُ حين لا حاملَ) رصداً لم يشاهده — بسببٍ ونوعِ دليلٍ ووسمٍ وتدقيق.
-
-    يُسقط الإدخالَ المبدئيَّ المعلَّقَ بقرارٍ مسبَّب (`settle_before_supervisor_write`) ثمّ يكتب الرصدَ المعتمَدَ مصدرُه المشرفُ
-    موسوماً `unobserved_correction` ويدوّن قبلَه. ولا يكتب فوق رصدٍ مصدرُه العيادةُ أو البوّابة.
-    """
-    if status not in ENTERABLE_STATUSES:
-        raise EntryError("bad_status", "حالةٌ غيرُ مسموحة.")
-    verdict = can_correct(user, session)
-    if not verdict:
-        raise EntryRefusedError(verdict.reason)
-    reason = _checked_reason(reason)
-    if not reason:
-        raise EntryError("reason_required", "تصحيحٌ دون معاينةٍ يلزمه سببٌ.")
-    if evidence_type not in EVIDENCE_TYPES:
-        raise EntryError("bad_evidence", "نوعُ الدليل غيرُ معروف.")
-
-    row = (
-        StudentAttendance.objects.select_for_update()
-        .filter(session=session, student=student)
-        .first()
-    )
-    if row is not None and row.source not in CORRECTABLE_SOURCES:
-        raise EntryConflictError(
-            "non_correctable_row",
-            "الرصدُ القائمُ مصدرُه العيادةُ أو البوّابةُ أو النظام — لا كتابةَ فوقه.",
-        )
-    settle_before_supervisor_write(session, student, user, new_status=status, now=now)
-    before = {"status": row.status if row else None, "source": row.source if row else None}
-    moment = now or timezone.now()
-    tag = {
-        "type": evidence_type,
-        "reason": reason,
-        "by": str(user.pk),
-        "at": moment.isoformat(),
-        "before": before,
-    }
-    if row is None:
-        row = StudentAttendance(session=session, student=student, school_id=session.school_id)
-    row.status = status
-    row.source = "supervisor"
-    row.marked_by = user
-    row.late_minutes = row.late_minutes if status == "late" else None
-    row.unobserved_correction = tag
-    if status != "absent":
-        row.excuse = None
-        row.excuse_type = ""
-    try:
-        with transaction.atomic():
-            row.save()
-    except IntegrityError as exc:
-        # صفٌّ لم نجده عند القفل كُتب في اللحظة نفسِها فاصطدم القيدُ الفريد — تعارضٌ لا 500.
-        raise EntryConflictError(
-            "concurrent", "رصدٌ آخرُ كُتب على هذا الطالب للتوّ — أعِد المحاولة."
-        ) from exc
-    _audit(
-        user,
-        session,
-        "update",
-        row.pk,
-        "تصحيحٌ دون معاينة",
-        {
-            "student": str(student.pk),
-            "before": before,
-            "after": {"status": status, "source": "supervisor"},
-            "evidence_type": evidence_type,
-            "reason": reason,
-        },
-    )
-    return row
-
-
 # ══════════════════════════════════════════════════════════════════
 # جدولُ الشعبة العموديّ (W-20261006-005) — كتابةُ خليّةٍ بحالةٍ صريحةٍ و`expected_head`
 # ══════════════════════════════════════════════════════════════════
@@ -762,10 +466,9 @@ def write_grid_cell(
             "default_present": default_present,
         },
     )
-    if not needs_approval(session):
-        _decide_directly(entry, user, session)
-        if head is not None:
-            _notify_replaced(head, entry, session)
+    _decide_directly(entry, user, session)
+    if head is not None:
+        _notify_replaced(head, entry, session)
     return entry, True
 
 
@@ -861,8 +564,6 @@ def settle_pending_as_direct(school: School, *, apply: bool = False) -> int:
     settled = 0
     wings: set[str] = set()
     for entry in pending:
-        if not is_direct_entry(entry.session):
-            continue
         if apply:
             with transaction.atomic():
                 _decide(
@@ -873,7 +574,7 @@ def settle_pending_as_direct(school: School, *, apply: bool = False) -> int:
                     evidence={"rule": "direct_wing", "bulk_settlement": True},
                     reason=BULK_SETTLEMENT_REASON,
                 )
-                wings.add(entry.session.class_group.wing.code)
+                wings.add(getattr(entry.session.class_group.wing, "code", "") or "")
         settled += 1
     if apply and settled:
         # القرارُ يُسجَّل باسم كاتب الإدخال، فسطرُ التدقيق هذا هو الأثرُ على **من شغّل التسوية**: المدرسةُ والعددُ والأجنحةُ والوقتُ بلا أسماء (ملاحظة 0104)

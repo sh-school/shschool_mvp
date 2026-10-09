@@ -6,8 +6,6 @@
 """
 
 import pytest
-from django.urls import reverse
-from django.utils import timezone
 
 from core.models import AuditLog
 from operations.attendance_entries import (
@@ -165,67 +163,3 @@ def test_a_correction_that_turns_present_clears_a_previous_excuse_fields(
 # ══════════════════════════════════════════════════════════════════
 # الشاشة: من يصل، وما يُعرض
 # ══════════════════════════════════════════════════════════════════
-
-
-def test_the_correction_page_opens_for_the_holder_and_lists_the_students(
-    client_as, session, teacher, holder, kid
-):
-    _approved(teacher, holder, session, kid)
-    page = client_as(holder).get(reverse("attendance_correct", args=[session.id]))
-    assert page.status_code == 200
-    assert "طالب الشعبة" in page.content.decode()
-
-
-def test_the_correction_page_is_closed_to_the_session_teacher(client_as, session, teacher, kid):
-    assert (
-        client_as(teacher).get(reverse("attendance_correct", args=[session.id])).status_code == 403
-    )
-
-
-def test_the_holder_corrects_through_the_screen(
-    client_as, monkeypatch, session, teacher, holder, kid
-):
-    monkeypatch.setattr(timezone, "now", lambda: NOW)
-    _approved(teacher, holder, session, kid, "absent")
-    response = client_as(holder).post(
-        reverse("attendance_correct_submit", args=[session.id]),
-        {
-            "student_id": str(kid.id),
-            "status": "present",
-            "evidence_type": "gate_log",
-            "reason": "سجلُّ البوّابة يُظهر دخولَه",
-        },
-    )
-    assert response.status_code == 200
-    assert "تصحيحٌ دون معاينة" in response.content.decode()
-    assert StudentAttendance.objects.get(session=session, student=kid).status == "present"
-
-
-def test_a_missing_reason_through_the_screen_is_a_400(client_as, session, teacher, holder, kid):
-    _approved(teacher, holder, session, kid)
-    response = client_as(holder).post(
-        reverse("attendance_correct_submit", args=[session.id]),
-        {"student_id": str(kid.id), "status": "present", "evidence_type": "gate_log", "reason": ""},
-    )
-    assert response.status_code == 400
-
-
-def test_the_tag_shows_on_the_teachers_session_page(client_as, session, teacher, holder, kid):
-    _approved(teacher, holder, session, kid)
-    _correct(holder, session, kid, "present")
-    body = client_as(teacher).get(reverse("attendance", args=[session.id])).content.decode()
-    assert "تصحيحٌ دون معاينة" in body
-    # النصُّ الحرُّ للسبب لا يُعرض للمعلّم.
-    assert "اتّصل وليُّ الأمر" not in body
-
-
-def test_the_vice_sees_recent_corrections_with_the_reason(
-    client_as, monkeypatch, school, session, teacher, holder, kid
-):
-    monkeypatch.setattr(timezone, "now", lambda: at(13, 0))
-    _approved(teacher, holder, session, kid)
-    _correct(holder, session, kid, "present")
-    leader = _staff(school, "vice_admin", "النائب", "29000006010")
-    body = client_as(leader).get(reverse("attendance_unapproved")).content.decode()
-    assert "تصحيحٌ دون معاينة" in body
-    assert "اتّصل وليُّ الأمر وأكّد حضوره" in body

@@ -97,4 +97,4 @@ def awaiting_contact(class_group: ClassGroup, day: dt.date) -> dict:
             student_id__in=absent, absence_date=last, school=class_group.school
         ).values_list("student_id", flat=True)
     )
-    return {sid: last for sid in absent - contacted}
+    return dict.fromkeys(absent - contacted, last)

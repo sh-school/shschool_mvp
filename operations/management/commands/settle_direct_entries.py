@@ -1,7 +1,7 @@
-"""يسوّي المعلَّقَ من إدخالات الرصد في أجنحةٍ حُوّلت إلى الرصد النهائيّ (قرارُ المالك 2026-10-07).
+"""يسوّي المعلَّقَ من إدخالات الرصد القديمة بعد إلغاء الاعتماد (قرارُ المالك 2026-10-09).
 
 `python manage.py settle_direct_entries` (أو `--count`) يعدّ فقط ولا يكتب شيئاً؛ ومعه `--apply` وحدَه يقرّر ما بقي معلَّقاً نهائيّاً بقرارٍ باسم كاتب كلِّ إدخالٍ وأساس `direct_entry`.
-لا يمسّ إلا إدخالاتِ الأجنحة التي يشملها المفتاح `ATTENDANCE_GRID_DIRECT_WINGS` (فارغٌ افتراضاً ← لا شيء)، ويعمل مدرسةً مدرسةً بنطاق RLS.
+يشمل كلَّ إدخالٍ معلَّقٍ في المدرسة (لا اعتمادَ بعد اليوم)، ويعمل مدرسةً مدرسةً بنطاق RLS.
 """
 
 from django.core.management.base import BaseCommand, CommandError
@@ -12,7 +12,7 @@ from operations.attendance_entries import settle_pending_as_direct
 
 
 class Command(BaseCommand):
-    help = "تسويةُ الإدخالات المعلَّقة في أجنحةٍ ذاتِ رصدٍ نهائيّ"
+    help = "تسويةُ الإدخالات المعلَّقة بعد إلغاء الاعتماد"
 
     def add_arguments(self, parser):
         parser.add_argument(

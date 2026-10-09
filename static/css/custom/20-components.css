@@ -530,9 +530,6 @@ div#header h1 a {
   .site-footer-text { text-align: start; }
   .site-footer-brand { justify-self: end; }
 }
-
-/* ── PWA Install Banner ─── */
-body:has(.per-bar) .pwa-banner { display: none; }
 .pwa-banner {
   position: fixed;
   inset-block-end: calc(var(--dock-h) + var(--dock-pad) + var(--sp-2));

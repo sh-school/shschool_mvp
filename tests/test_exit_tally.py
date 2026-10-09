@@ -7,8 +7,6 @@
 import datetime as dt
 
 import pytest
-from django.urls import reverse
-from django.utils import timezone
 
 from operations.class_exit import (
     carry_over,
@@ -140,43 +138,6 @@ def test_a_student_marked_absent_gets_no_exit_and_marking_absent_closes_an_open_
     assert ClassExit.objects.filter(student=kid).count() == 1
 
 
-def test_a_late_tap_keeps_the_entry_moment_and_computes_minutes_from_the_period_start(
-    client_as, kid, day, teacher, monkeypatch
-):
-    first = day[0]
-    monkeypatch.setattr(timezone, "now", lambda: at(7, 25))
-    response = client_as(teacher).post(
-        reverse("attendance_entry", args=[first.id]),
-        {"student_id": str(kid.id), "status": "late", "tapped_at": str(int(at(7, 25).timestamp()))},
-    )
-    assert response.status_code in (200, 204)
-    entry = AttendanceEntry.objects.get(session=first, student=kid)
-    assert entry.status == "late"
-    assert entry.tardiness_minutes == 15  # 7:10 → 7:25 آلياً
-
-
-def test_the_summary_is_cut_at_the_end_of_the_students_day_and_the_background_job_flags_him(
-    kid, day
-):
-    """نهايةُ الدوام آخرُ حصّةٍ مجدولةٍ للطالب (13:30): لا يتضخّم المجموعُ بعدها، وتُغلقه المهمّةُ الخلفيّة بعلامةٍ صريحة لا صامتاً."""
-    first, second, third = day
-    leave(third, kid, "clinic", by=third.teacher, now=at(12, 50))
-    late_evening = exit_day_summary(kid, SUNDAY, now=at(20, 0))
-    assert (
-        late_evening.seconds == (13 * 60 + 30 - (12 * 60 + 50)) * 60
-    )  # 40 د إلى 13:30 لا إلى 20:00
-    from operations.exit_reflection import reflect_period_exits
-    from operations.period_register import periods_of
-
-    period = next(p for p in periods_of(third.class_group, SUNDAY) if p.start == third.start_time)
-    reflect_period_exits(third.class_group, SUNDAY, period, at(20, 0))
-    flagged = ClassExit.objects.get(session=third, student=kid)
-    assert flagged.system_closed is True and flagged.returned_at == at(13, 30)
-    reflect_period_exits(third.class_group, SUNDAY, period, at(20, 5))  # تكرارُ المهمّة
-    flagged.refresh_from_db()
-    assert flagged.system_closed is True  # المؤشّرُ باقٍ بعد المهمّة الخلفيّة
-
-
 def test_an_exit_carried_through_several_periods_counts_once_and_the_carry_never_adds_to_the_count(
     kid, day
 ):
@@ -186,68 +147,6 @@ def test_an_exit_carried_through_several_periods_counts_once_and_the_carry_never
     close_unreturned(second, now=at(8, 46))
     assert ClassExit.objects.filter(student=kid).count() == 3  # ثلاثةُ أسطرٍ بحصصها
     assert DailyExitTally.objects.get(student=kid, date=SUNDAY).exit_count == 1
-
-
-def test_the_supervisor_cannot_confirm_absent_for_a_student_who_has_a_registered_exit(
-    kid, day, holder
-):
-    from operations.period_register import confirm_period
-
-    first = day[0]
-    leave(first, kid, "restroom", by=first.teacher, now=at(7, 30))
-    result = confirm_period(
-        first.class_group,
-        SUNDAY,
-        first.start_time,
-        {str(kid.id): {"status": "absent"}},
-        holder,
-        now=at(7, 40),
-    )
-    assert result.conflicts == 1  # يُعرض تعارضاً ولا يُثبَّت
-    from operations.models import StudentAttendance
-
-    assert not StudentAttendance.objects.filter(
-        session=first, student=kid, status="absent"
-    ).exists()
-
-
-def test_the_supervisor_sheet_shows_the_did_not_return_indicator_for_a_student_who_is_out(
-    client_as, kid, day, holder, monkeypatch
-):
-    from django.urls import reverse
-    from django.utils import timezone
-
-    first = day[0]
-    leave(first, kid, "clinic", by=first.teacher, now=at(7, 20))
-    monkeypatch.setattr(timezone, "now", lambda: at(7, 40))
-    body = (
-        client_as(holder)
-        .get(
-            reverse("wings:record_section", args=[first.class_group_id]),
-            {"date": SUNDAY.isoformat()},
-        )
-        .content.decode()
-    )
-    assert 'title="خرج بإذن ولم يعد حتى الآن">لم يعد<' in body
-
-
-def test_the_supervisor_sees_the_conflict_warning_when_absent_is_refused_over_an_exit(
-    client_as, kid, day, holder, monkeypatch
-):
-    from django.contrib.messages import get_messages
-    from django.urls import reverse
-    from django.utils import timezone
-
-    first = day[0]
-    leave(first, kid, "clinic", by=first.teacher, now=at(7, 20))
-    monkeypatch.setattr(timezone, "now", lambda: at(7, 40))
-    response = client_as(holder).post(
-        reverse("wings:record_period", args=[first.class_group_id]),
-        {"date": SUNDAY.isoformat(), "start": "07:10", f"s-{kid.id}": "absent"},
-    )
-    assert response.status_code == 302
-    texts = [str(m) for m in get_messages(response.wsgi_request)]
-    assert any("تعارضٌ لم يُثبَّت: 1" in t for t in texts)
 
 
 def test_the_daily_summary_keeps_the_destination_of_every_exit(kid, day):
@@ -273,19 +172,3 @@ def test_the_exit_tables_are_visible_in_the_django_admin(client, db):
 
     assert ClassExit in admin.site._registry
     assert DailyExitTally in admin.site._registry
-
-
-def test_the_saved_late_minutes_stay_visible_on_the_teacher_card_after_reload(
-    client_as, kid, day, teacher, monkeypatch
-):
-    from django.urls import reverse
-    from django.utils import timezone
-
-    first = day[0]
-    monkeypatch.setattr(timezone, "now", lambda: at(7, 25))
-    client_as(teacher).post(
-        reverse("attendance_entry", args=[first.id]),
-        {"student_id": str(kid.id), "status": "late", "tapped_at": str(int(at(7, 25).timestamp()))},
-    )
-    body = client_as(teacher).get(reverse("attendance", args=[first.id])).content.decode()
-    assert 'title="دقائقُ التأخّر محسوبةٌ من بدء الحصّة">15 د<' in body

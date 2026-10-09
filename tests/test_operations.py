@@ -162,7 +162,7 @@ class TestOperationsViews:
     def test_attendance_page(self, client_as, teacher_user, session):
         c = client_as(teacher_user)
         resp = c.get(f"/teacher/attendance/{session.id}/")
-        assert resp.status_code == 200
+        assert resp.status_code in (302, 403)  # تحويلٌ إلى الجدول لمن يقرؤه، وإلّا منع
 
     def test_weekly_schedule_page(self, client_as, principal_user):
         c = client_as(principal_user)
@@ -184,32 +184,6 @@ class TestOperationsViews:
         c = client_as(parent_user)
         resp = c.get(f"/teacher/attendance/{session.id}/")
         assert resp.status_code in [302, 403]  # ParentConsentMiddleware قد يُعيد توجيهاً
-
-    def test_mark_single_attendance(
-        self, client_as, teacher_user, session, student_user, enrolled_student, school, monkeypatch
-    ):
-        # معلّمُ الحصّة يرصد داخل نافذتها وحدَها (W-20261002-026): نثبّت الساعةَ في منتصف الحصّة
-        # فلا يتوقّف الاختبارُ على ساعة تشغيله.
-        from datetime import datetime
-
-        from django.utils import timezone
-
-        inside = timezone.make_aware(datetime.combine(session.date, time(8, 10)))
-        monkeypatch.setattr(timezone, "now", lambda: inside)
-        c = client_as(teacher_user)
-        resp = c.post(
-            f"/teacher/attendance/{session.id}/mark-single/",
-            {"student_id": str(student_user.id), "status": "present"},
-        )
-        # HTMX عادةً يرجع 200 أو redirect
-        assert resp.status_code in [200, 302]
-
-    def test_complete_session(self, client_as, teacher_user, session):
-        c = client_as(teacher_user)
-        resp = c.post(f"/teacher/attendance/{session.id}/complete/")
-        assert resp.status_code in [200, 302]
-        session.refresh_from_db()
-        assert session.status == "completed"
 
 
 # ══════════════════════════════════════════════════

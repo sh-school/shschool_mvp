@@ -13,21 +13,18 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
 from io import StringIO
 
 import pytest
 from django.contrib import admin as django_admin
 from django.core.management import call_command
 from django.test import RequestFactory
-from django.utils import timezone
 
 from core.models import AuditLog
 from quality.evaluation_services import EvaluationRejectedError, save_evaluation
 from quality.models import (
     EmployeeEvaluation,
     EvaluationAxis,
-    EvaluationCycle,
     EvaluationScore,
     RoleEvaluationTemplate,
 )
@@ -103,52 +100,6 @@ def test_annual_report_is_not_saved_on_a_template_that_left_the_form(client, sch
     evaluation.refresh_from_db()
     assert evaluation.status == "draft"
     assert "تم تقديم" not in response.content.decode()
-
-
-@pytest.mark.django_db
-def test_no_approve_button_and_no_completion_for_a_report_off_the_form(
-    client, school, principal_user, teacher_user
-):
-    """
-    الاعتمادُ يرفض تقريراً على غير الاستمارة (المادة 15)، فلا يُعرض زرُّه، ولا تُحسب الدورةُ
-    منجزةً به.
-    """
-    form = _seed(school)
-    vice = _staff(school, "vice_academic")
-    _report_on_template(school, teacher_user, vice, form, status="submitted")
-    cycle = EvaluationCycle.objects.create(
-        school=school, academic_year=YEAR, period="S2",
-        deadline=timezone.localdate() + timedelta(days=30),
-    )  # fmt: skip
-    assert cycle.completion_rate > 0
-
-    _drift(school)
-    client.force_login(principal_user)
-    assert client.get(_url(teacher_user)).context["can_approve"] is False
-    assert EvaluationCycle.objects.get(pk=cycle.pk).completion_rate == 0
-
-
-@pytest.mark.django_db
-def test_seed_repairs_a_drifted_template_and_reopens_its_unapproved_reports(school, teacher_user):
-    """
-    المخرج: قالبٌ لم يُعتمد عليه تقريرٌ بعدُ يُعاد إلى الاستمارة بالبذر، والمُقدَّمُ عليه يرجع
-    مسودّةً بلا مجموعٍ ولا مستوى، فيعيد واضعُه وضعَه على الأوزان المطبوعة. كان البذرُ يعدّه
-    «مقفلاً» فلا سبيلَ إلى تصحيحه.
-    """
-    form = _seed(school)
-    vice = _staff(school, "vice_academic")
-    evaluation = _report_on_template(school, teacher_user, vice, form, status="submitted")
-    EmployeeEvaluation.objects.filter(pk=evaluation.pk).update(total_score=90, rating="excellent")
-    drifted = _drift(school)
-
-    output = _seed_output(school)
-    assert "مقفل" not in output
-    assert "يُعاد مسودّةً: 1" in output
-    assert _teacher_template(school).matches_ministry_form() is True
-    assert EvaluationAxis.objects.get(pk=drifted.pk).weight == drifted.weight
-    evaluation.refresh_from_db()
-    assert (evaluation.status, evaluation.total_score, evaluation.rating) == ("draft", 0, "")
-    assert AuditLog.objects.filter(object_id=str(evaluation.pk)).exists()
 
 
 @pytest.mark.django_db

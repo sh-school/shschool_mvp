@@ -14,7 +14,6 @@ urlpatterns = [
     path("coverage/<uuid:pk>/end/", views.coverage_end, name="coverage_end"),
     path("record/", views.record_index, name="record_index"),
     path("record/<uuid:class_id>/", views.record_section, name="record_section"),
-    path("record/<uuid:class_id>/period/", views.record_period, name="record_period"),
     path(
         "record/<uuid:class_id>/student/<uuid:student_id>/",
         views.student_events,

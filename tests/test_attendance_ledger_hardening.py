@@ -18,13 +18,12 @@ import pytest
 from django.db import connection
 
 from operations.attendance_entries import (
-    EntryConflictError,
     EntryError,
     decide_entry,
     erase_attendance_ledger,
     submit_entry,
 )
-from operations.models import AttendanceDecision, AttendanceEntry, StudentAttendance
+from operations.models import AttendanceDecision, AttendanceEntry
 from tests.attendance_fixtures import *  # noqa: F401,F403
 from tests.attendance_fixtures import at
 from tests.conftest import SchoolFactory
@@ -159,30 +158,6 @@ def test_the_ledger_rows_of_another_school_are_invisible_to_a_tenant_role(
 # ══════════════════════════════════════════════════════════════════
 # سباقُ الكتابة في الرصد المعتمَد
 # ══════════════════════════════════════════════════════════════════
-
-
-def test_a_supervisor_row_that_wins_the_race_becomes_a_conflict_not_a_500(
-    monkeypatch, session, teacher, holder, kid
-):
-    entry = submit_entry(teacher, session, kid, "absent", now=NOW)
-    StudentAttendance.objects.create(
-        session=session,
-        student=kid,
-        school=session.school,
-        status="present",
-        source="supervisor",
-        marked_by=holder,
-    )
-    # الاعتمادُ لا يجد الصفَّ عند القفل (سبقه المشرفُ بعده) فيصطدم بالقيد الفريد عند الإنشاء.
-    monkeypatch.setattr(
-        StudentAttendance.objects,
-        "select_for_update",
-        lambda **kw: StudentAttendance.objects.none(),
-    )
-    with pytest.raises(EntryConflictError):
-        decide_entry(holder, entry, approve=True)
-    assert not AttendanceDecision.objects.exists()
-    assert StudentAttendance.objects.get(session=session, student=kid).source == "supervisor"
 
 
 # ══════════════════════════════════════════════════════════════════

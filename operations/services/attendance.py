@@ -8,17 +8,12 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from django.db import transaction
-
 from core.academic_calendar import (
     academic_year_window,
 )
-from core.domain.attendance import attendance_rate
 from core.models import StudentEnrollment
 from operations.models import (
     AbsenceAlert,
-    Session,
-    StudentAttendance,
 )
 
 logger = logging.getLogger(__name__)
@@ -56,142 +51,6 @@ def absence_notice_text(gate: Gate, unexcused_days: int) -> tuple[bool, str, str
 
 
 class AttendanceService:
-    @staticmethod
-    def may_write(user: CustomUser, session: Session, student: CustomUser) -> bool:
-        """أيكتب هذا المستخدمُ حالةَ هذا الطالب في هذه الحصّة الآن؟ (بعد أن سمح `can_record` بالشعبة).
-
-        أهلُ الرصد (`is_recorder`) كما كانوا. وغيرُهم لا يكتب فوق ما رصده المشرفُ، ولا يكتب إلّا **معلّمُ الحصّة
-        الفعليّ داخل نافذتها** (`attendance_policy.can_enter`: عضويّةٌ في المدرسة، `Session.teacher`، غيرُ ملغاة،
-        قيدُ الطالب بتاريخها، من بدء الحصّة إلى نهاية الدوام بتوقيت الدوحة، وليس المطوّر) — W-20261002-026.
-        وتُستدعى من هنا لا من العرض لأنّ القراءةَ تُنقل إلى طبقة الخدمات.
-        """
-        from operations.attendance_policy import can_enter, is_developer
-        from operations.day_attendance import is_recorder, recorded_by_supervisor
-
-        if is_developer(user):
-            return False  # D-128م: المطوّرُ لا يُدخل ولو كان superuser، فلا يمرّ بـ`is_recorder`
-        if is_recorder(user):
-            return True
-        return not recorded_by_supervisor(session, student) and bool(
-            can_enter(user, session, student)
-        )
-
-    @staticmethod
-    def may_tap(kind: str, user: CustomUser, session: Session, student: CustomUser) -> bool:
-        """أينقر هذا المستخدمُ «دخل متأخّراً» (`late`) أو «خرج بإذن» (`out`) لهذا الطالب الآن؟
-
-        معلّمُ الحصّة الفعليّ وحدَه (لا القيادةُ تنقر باسمه ولا المطوّر): النقرةُ بنافذة الحصّة نفسِها (D-136م)،
-        والخروجُ بنافذة اليوم الدراسيّ (G4) — `attendance_policy.can_tap_late` / `can_enter`.
-        """
-        from operations.attendance_policy import can_enter, can_tap_late
-
-        verdict = (
-            can_tap_late(user, session, student)
-            if kind == "late"
-            else can_enter(user, session, student)
-        )
-        return bool(verdict)
-
-    @staticmethod
-    def _audit_teacher_mark(
-        marked_by: CustomUser | None,
-        session: Session,
-        student: CustomUser,
-        before: str | None,
-        after: str,
-        created: bool,
-    ) -> None:
-        """سطرُ تدقيقٍ بالقيمتين لكتابة غير أهل الرصد (معلّمُ ESE) — D-126م: رصدٌ نهائيٌّ **بتدقيقٍ كامل**.
-
-        أهلُ الرصد لهم مساراتُهم وتدقيقُهم (كشفُ الحصص). والمعرّفاتُ لا الأسماء (PDPPL).
-        """
-        from core.models import AuditLog
-        from operations.day_attendance import is_recorder
-
-        if marked_by is None or is_recorder(marked_by) or before == after:
-            return
-        AuditLog.log(
-            user=marked_by,
-            action="create" if created else "update",
-            model_name="other",
-            object_id=session.pk,
-            object_repr="رصدُ المعلّم — رصدٌ نهائيٌّ في شعبةٍ بلا جناح",
-            changes={
-                "role": marked_by.get_role(),
-                "session": str(session.pk),
-                "student": str(student.pk),
-                "before": before,
-                "after": after,
-            },
-            school=session.school,
-        )
-
-    @staticmethod
-    @transaction.atomic
-    def mark_attendance(
-        session: Session,
-        student: CustomUser,
-        status: str,
-        excuse_type: str = "",
-        excuse_notes: str = "",
-        marked_by: CustomUser | None = None,
-    ) -> tuple:
-        before = (
-            StudentAttendance.objects.filter(session=session, student=student)
-            .values_list("status", flat=True)
-            .first()
-        )
-        att, created = StudentAttendance.objects.update_or_create(
-            session=session,
-            student=student,
-            defaults={
-                "school": session.school,
-                "status": status,
-                "excuse_type": excuse_type,
-                "excuse_notes": excuse_notes,
-                "marked_by": marked_by,
-            },
-        )
-        AttendanceService._audit_teacher_mark(marked_by, session, student, before, status, created)
-        # Check absence threshold
-        if status == "absent":
-            AttendanceService.check_absence_threshold(student, session.school)
-        return att, created
-
-    @staticmethod
-    @transaction.atomic
-    def bulk_mark_all_present(session: Session, marked_by: CustomUser | None = None) -> int:
-        students = StudentEnrollment.objects.filter(
-            class_group=session.class_group, is_active=True
-        ).select_related("student")
-
-        records = []
-        for enrollment in students:
-            records.append(
-                StudentAttendance(
-                    session=session,
-                    student=enrollment.student,
-                    school=session.school,
-                    status="present",
-                    marked_by=marked_by,
-                )
-            )
-        if not records:
-            # شعبةٌ بلا طالبٍ نشطٍ — غالباً جلسةٌ يتيمة من عامٍ منقضٍ لم تُنظَّف
-            # بعد. رفعُ الحالة إلى "in_progress" هنا كان يُبقي أثراً بلا حضورٍ
-            # يحميه `ScheduleService._untouched` من التنظيف الآليّ إلى الأبد.
-            return 0
-        StudentAttendance.objects.bulk_create(records, ignore_conflicts=True)
-        session.status = "in_progress"
-        session.save(update_fields=["status"])
-        return len(records)
-
-    @staticmethod
-    @transaction.atomic
-    def complete_session(session: Session) -> None:
-        session.status = "completed"
-        session.save(update_fields=["status"])
-
     # ── إعداد السنة الدراسية (المادة 7 من قانون 25/2001 المعدّل) ─
     # عتبةٌ تشغيلية من وضعنا، لا سندَ لها في نصٍّ رسميّ — راجع
     # `check_absence_threshold` و`absence_policy`. والوحدة هنا حصصٌ لا أيام.
@@ -235,7 +94,6 @@ class AttendanceService:
         **لا يُرسَل شيءٌ لوليّ الأمر من هنا (قرار المالك D-246م):** يُنشأ التنبيهُ بحالة «محجوز» `held` ويُشعَر الأخصائيُّ الاجتماعيّ داخلياً فقط؛
         والإخطارُ يُصدره حاصرُ الغياب بزرّ «إصدار الإخطار» بعد ح4 (`wings.absence_notice_services`). يعيد التنبيهاتِ المُنشأةَ الآن.
         """
-        from core.models import StudentEnrollment
         from operations.absence_policy import gates_for
         from operations.absence_standing import standing_for
         from operations.attendance_policy import is_special_education
@@ -314,23 +172,3 @@ class AttendanceService:
                     exc,
                 )
         return created_alerts
-
-    @staticmethod
-    def get_session_summary(session: Session) -> dict:
-        att = StudentAttendance.objects.filter(session=session)
-        total = att.count()
-        present = att.filter(status="present").count()
-        absent = att.filter(status="absent").count()
-        late = att.filter(status="late").count()
-        excused = att.filter(status="excused").count()
-        pct = attendance_rate(present, total)
-        return {
-            "total": total,
-            "present": present,
-            "absent": absent,
-            "late": late,
-            "excused": excused,
-            "percentage": pct,
-            # نصُّ البطاقة جاهزاً — لا سلسلةَ مرشِّحاتٍ في القالب تلصق «%».
-            "percentage_label": f"{pct}%",
-        }

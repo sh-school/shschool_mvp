@@ -17,7 +17,6 @@
   var saveUrl = root.getAttribute('data-save-url');
   var lateUrl = root.getAttribute('data-late-url');
   var exitUrl = root.getAttribute('data-exit-url');
-  var approveUrl = root.getAttribute('data-approve-url');
   var draftKey = root.getAttribute('data-draft-key');
   var correcting = root.getAttribute('data-correcting') === '1';
   var statusLine = root.querySelector('[data-grid-status]');
@@ -82,8 +81,6 @@
     if (bulk) return bulkFill(bulk);
     var saveBtn = event.target.closest('[data-save-col]');
     if (saveBtn) return save(saveBtn.getAttribute('data-save-col'));
-    var approve = event.target.closest('[data-approve-col]');
-    if (approve) return approveColumn(approve);
     var late = event.target.closest('[data-late]');
     if (late) return markLate(late);
     var exitBtn = event.target.closest('[data-exit]');
@@ -174,6 +171,7 @@
   function send(col, dirty, fill, reason) {
     var payload = {
       period: parseInt(col, 10),
+      date: root.getAttribute('data-date') || '',
       cells: dirty.map(function (c) {
         return { student: c.getAttribute('data-student'), status: c.getAttribute('data-status'), head: c.getAttribute('data-head') || '' };
       }),
@@ -260,25 +258,6 @@
   }
   tick();
   window.setInterval(tick, 1000);
-
-  // «اعتماد الحصّة» أسفل العمود: تأكيدٌ بنافذة المنصّة ثم اعتمادُ كلّ ما ينتظر في الحصّة (بما فيه الحاضرُ الافتراضيّ) وتحديثُ الجدول وحدَه.
-  function approveColumn(button) {
-    var col = button.getAttribute('data-approve-col');
-    var count = button.getAttribute('data-pending');
-    confirmThen('اعتمادُ ح' + col + ': ' + count + ' خليّةً بما فيها الحاضرُ الافتراضيّ، بقرارٍ باسمك. متابعة؟', function () {
-      var body = new URLSearchParams();
-      body.append('period', col);
-      body.append('csrfmiddlewaretoken', csrf());
-      fetch(approveUrl, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrf() }, body: body })
-        .then(function (response) { return response.json().then(function (d) { return { status: response.status, data: d }; }); })
-        .then(function (result) {
-          if (result.status >= 400) { notify((result.data && result.data.message) || 'تعذّر الاعتماد', 'danger'); return; }
-          var d = result.data;
-          notify('اعتُمدت ح' + col + ' ✓ — ' + d.approved + ' خليّة' + (d.skipped ? ' وتُخطّي ' + d.skipped + ' (تعارضٌ أو نسخةٌ أحدث)' : '') + '.', d.skipped ? 'warning' : 'success');
-          refreshTable();
-        }).catch(function () { notify('تعذّر الاعتماد.', 'danger'); });
-    });
-  }
 
   // يبدّل جسمَ الجدول (الصفوفَ والتذييل) من الخادم بلا إعادة تحميل الصفحة.
   function refreshTable() {

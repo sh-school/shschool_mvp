@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import datetime as dt
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from django.db import transaction
@@ -28,16 +27,13 @@ from django.utils import timezone
 from operations.models import ClassExit, DailyExitTally
 
 if TYPE_CHECKING:
-    from core.models import ClassGroup, CustomUser, School
+    from core.models import CustomUser, School
     from operations.models import Session
 
 #: وجهاتٌ تُخرج الطالبَ من الجناح فيحتاج بطاقةَ المشرف — فيُشعَر فوراً (قرارُ 2026-09-14).
 #: دورةُ المياه داخل الجناح، بلا إشعار.
 NOTIFY_SUPERVISOR_FOR = ("clinic", "admin")
 
-#: الوجهةُ التي لا تُغيّب الطالبَ ما دامت الحصّةُ جارية — داخلَ الجناح ودقائقُها قليلة
-#: (قرارُ 2026-09-16). فإن بقي خارجاً حتى الجرس حُسب غائباً بإذن.
-IN_WING = "restroom"
 
 #: وجهةُ الخروج → «أين الطالب» في سجلّ الحضور لمن لم يعد.
 WHEREABOUTS_OF = {
@@ -46,8 +42,6 @@ WHEREABOUTS_OF = {
     "restroom": "out_permit",
     "other": "out_permit",
 }
-#: مصدرٌ قديمٌ كان يُكتب عند التثبيت — يُقرأ ولا يُكتب بعد اليوم.
-TEACHER_OUT = "teacher_out"
 
 
 def open_exit(session: Session, student: CustomUser) -> ClassExit | None:
@@ -87,19 +81,6 @@ def leave(
     if destination in NOTIFY_SUPERVISOR_FOR:
         _notify_supervisor(exit_)
     return exit_
-
-
-def close_for_absence(
-    session: Session, student: CustomUser, now: dt.datetime | None = None
-) -> ClassExit | None:
-    """وسمُ الطالب غائباً يُغلق خروجَه المفتوح (غائبٌ وخروجٌ لا يجتمعان) — بلا سجلّ مراجعة غيابٍ مشتقّ."""
-    current = open_exit(session, student)
-    if current is None:
-        return None
-    current.returned_at = now or timezone.now()
-    current.save(update_fields=["returned_at"])
-    refresh_tally(session.school, student, session.date)
-    return current
 
 
 def refresh_tally(school: School, student: CustomUser, day: dt.date) -> DailyExitTally:
@@ -161,8 +142,8 @@ def _notify_supervisor(exit_: ClassExit) -> None:
                 f"بإذن {exit_.allowed_by.full_name if exit_.allowed_by else 'المعلّم'} — "
                 "يحتاج بطاقةَ خروجٍ من الجناح."
             ),
-            related_url=reverse("wings:record_section", args=[exit_.session.class_group_id])
-            + f"?date={exit_.session.date.isoformat()}&p={exit_.session.start_time:%H:%M}",
+            related_url=reverse("class_grid", args=[exit_.session.class_group_id])
+            + f"?date={exit_.session.date.isoformat()}",
             related_object_id=str(exit_.pk),
             sent_by=exit_.allowed_by,
         )
@@ -240,62 +221,6 @@ def close_unreturned(session: Session, now: dt.datetime | None = None) -> int:
     return closed
 
 
-@dataclass(frozen=True)
-class Away:
-    """خروجٌ لم يعد صاحبُه قبل نهاية حصّته — كما يُعرض في الكشف.
-
-    `exit` فارغٌ لسطرٍ قديمٍ بمصدر `teacher_out` لا خروجَ وراءه يُقرأ.
-    """
-
-    exit: ClassExit | None
-    whereabouts: str
-    destination: str = ""
-    left_at: dt.datetime | None = None
-    still_open: bool = False
-
-    @property
-    def destination_label(self) -> str:
-        return dict(ClassExit.DESTINATIONS).get(self.destination, "")
-
-    def counts_as_absent(self, now: dt.datetime, end: dt.datetime) -> bool:
-        """هل يُحسب غائباً الآن؟ — دورةُ المياه الجاريةُ لا، حتى يرنّ الجرسُ وهو خارج."""
-        return not (self.destination == IN_WING and self.still_open and now < end)
-
-
-def away_of(exit_: ClassExit) -> Away:
-    return Away(
-        exit=exit_,
-        whereabouts=WHEREABOUTS_OF.get(exit_.destination, "out_permit"),
-        destination=exit_.destination,
-        left_at=exit_.left_at,
-        still_open=exit_.returned_at is None,
-    )
-
-
-def unreturned_of(class_group: ClassGroup, day: dt.date) -> dict:
-    """`{student_id: {start_time: Away}}` — من لم يعد قبل نهاية حصّته، باستعلامٍ واحد.
-
-    والمفتاحُ وقتُ البدء: خروجٌ من إحدى حصّتَي زوج الاختيار يملأ خانتَهما الواحدة.
-    وإن تعدّد في الخانة فالأحدثُ، والمفتوحُ يغلب ما أُغلق عند الجرس.
-    """
-    out: dict = {}
-    exits = (
-        ClassExit.objects.filter(session__class_group=class_group, session__date=day)
-        .exclude(session__status="cancelled")
-        .select_related("session")
-        .order_by("left_at")
-    )
-    for exit_ in exits:
-        if not is_unreturned(exit_):
-            continue
-        slot = out.setdefault(exit_.student_id, {})
-        current = slot.get(exit_.session.start_time)
-        if current is not None and current.still_open and exit_.returned_at is not None:
-            continue
-        slot[exit_.session.start_time] = away_of(exit_)
-    return out
-
-
 def root_of(exit_: ClassExit) -> ClassExit:
     """أصلُ سلسلة الامتدادات — منه يبدأ عدّادُ الخروج المتّصل عبر الحصص."""
     for _ in range(12):
@@ -356,23 +281,6 @@ def carry_over(session: Session, now: dt.datetime | None = None, at_bell: bool =
     return made
 
 
-@dataclass(frozen=True)
-class ExitDay:
-    """خروجُ طالبٍ في يومٍ: عددُ المرّات، ومجموعُ الثواني، وتفصيلُها بالحصّة والمادّة."""
-
-    count: int
-    seconds: int
-    parts: list
-    open_left: int = 0
-    open_span: int = 0
-    by_destination: dict | None = None
-
-    @property
-    def label(self) -> str:
-        minutes, sec = divmod(self.seconds, 60)
-        return f"{minutes:02d}:{sec:02d}"
-
-
 def _day_end_time(session: Session) -> dt.time:
     """نهايةُ دوام طلاّب فصل هذه الحصّة: آخرُ حصّةٍ مجدولةٍ للفصل ذلك اليوم، مقصوصةً بنهاية اليوم الدراسيّ للمدرسة."""
     from django.db.models import Max
@@ -391,62 +299,3 @@ def _day_end_time(session: Session) -> dt.time:
     cap = school_day_end(session.school, session.date, band=session.class_group.time_band)
     result: dt.time = min(last, cap) if cap else last
     return result
-
-
-def day_end_of(student: CustomUser, day: dt.date) -> dt.datetime | None:
-    """لحظةُ نهاية دوام الطالب في اليوم (آخرُ حصّةٍ مجدولةٍ لفصله بسقف نهاية اليوم الدراسيّ) أو `None` بلا حصّة."""
-    session = (
-        ClassExit.objects.filter(student=student, session__date=day)
-        .select_related("session", "session__class_group", "session__school")
-        .order_by("-session__start_time")
-        .first()
-    )
-    if session is None:
-        return None
-    return timezone.make_aware(dt.datetime.combine(day, _day_end_time(session.session)))
-
-
-def exit_day_summary(student: CustomUser, day: dt.date, now: dt.datetime | None = None) -> ExitDay:
-    """**دالةُ القراءة الواحدة** لملخّص خروج الطالب في يوم — تستعملها كلُّ الشاشات.
-
-    المخزَّنُ في `DailyExitTally` (عددُ المرّات ومجموعُ الأجزاء المغلقة)، ويُضمّ إليه الخروجُ المفتوحُ **إلى لحظة الاستعلام**
-    مقصوصاً عند نهاية دوام الطالب (`day_end_of`): فمن لم يعد لا يتضخّم مجموعُه بعد الدوام، وتغلقه مهمّةُ نهاية اليوم بعلامة
-    `system_closed`. وتفصيلُ كلّ خروجٍ (حصّته ومادّته) من `ClassExit` عبر `session`.
-    """
-    now = now or timezone.now()
-    row = DailyExitTally.objects.filter(student=student, date=day).first()
-    count, seconds = (row.exit_count, row.total_seconds) if row else (0, 0)
-    by_destination = {k: dict(v) for k, v in (row.by_destination if row else {}).items()}
-    limit = day_end_of(student, day)
-    cut = min(now, limit) if limit else now
-    parts: list = []
-    open_left = open_span = 0
-    for exit_ in (
-        ClassExit.objects.filter(student=student, session__date=day)
-        .select_related("session", "session__subject")
-        .order_by("left_at")
-    ):
-        if exit_.returned_at is None:
-            open_span = max(0, int((cut - exit_.left_at).total_seconds()))
-            open_left = int(exit_.left_at.timestamp())
-            seconds += open_span
-            span = open_span
-            slot = by_destination.setdefault(exit_.destination, {"count": 0, "seconds": 0})
-            slot["seconds"] += open_span
-        else:
-            span = max(0, int((exit_.returned_at - exit_.left_at).total_seconds()))
-        subject_row = exit_.session.subject
-        subject = subject_row.name_ar if subject_row is not None else ""
-        parts.append((exit_.session.start_time, subject, span, exit_.destination))
-    return ExitDay(count, seconds, parts, open_left, open_span, by_destination)
-
-
-def exits_of_session(session: Session) -> dict:
-    """`{student_id: (open_exit | None, [exits])}` لعرض الشاشة."""
-    out: dict = {}
-    for exit_ in ClassExit.objects.filter(session=session).order_by("left_at"):
-        current, all_ = out.setdefault(exit_.student_id, [None, []])
-        all_.append(exit_)
-        if exit_.returned_at is None:
-            out[exit_.student_id][0] = exit_
-    return out

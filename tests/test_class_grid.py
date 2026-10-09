@@ -23,7 +23,6 @@ from operations.attendance_policy import (
 )
 from operations.models import AttendanceEntry, Session, Subject, SubjectClassAssignment
 from operations.services import class_grid as grid
-from operations.services import provisional_session as provisional
 from tests.attendance_fixtures import *  # noqa: F401,F403
 from tests.attendance_fixtures import ENROLLED, SUNDAY, _staff, at
 from tests.conftest import ClassGroupFactory, StudentEnrollmentFactory, UserFactory
@@ -92,44 +91,6 @@ def _save(client, klass, number, cells, **extra):
 
 
 # ── المفتاح: مطفأً لا شيء ──────────────────────────────────────────────────────
-
-
-def test_with_the_switch_off_every_route_is_404(
-    client_as, settings, assigned, teacher, kids, clock
-):
-    settings.PROVISIONAL_GRID_ENABLED = False
-    client = client_as(teacher)
-    assert client.get(reverse("class_grid", args=[assigned.id])).status_code == 404
-    assert _save(client, assigned, 1, [_cells(kids[0], "absent")]).status_code == 404
-    assert (
-        client.post(
-            reverse("class_grid_late", args=[assigned.id]), {"student": str(kids[0].pk)}
-        ).status_code
-        == 404
-    )
-    url = reverse("class_grid_history", args=[assigned.id, kids[0].pk, 1])
-    assert client.get(url).status_code == 404
-    assert not Session.objects.filter(provisional=True).exists()
-
-
-def test_the_provisional_picker_swaps_with_the_grid(client_as, settings, assigned, teacher, clock):
-    """تبادلٌ: المفتاحُ يشغّل الجدولَ ويُخفي المنتقي (404 للمنتقي)."""
-    client = client_as(teacher)
-    assert client.get(reverse("provisional_class", args=[assigned.id])).status_code == 404
-    assert client.get(reverse("provisional_classes")).status_code == 200
-
-
-def test_the_legacy_key_is_a_temporary_alias_until_the_new_one_is_set(settings):
-    settings.PROVISIONAL_GRID_ENABLED = False
-    settings.PROVISIONAL_GRID_ENABLED_SET = False
-    settings.PROVISIONAL_SESSIONS_ENABLED = True
-    assert (
-        provisional.enabled() is True
-        and provisional.picker_enabled() is True
-        and not provisional.grid_enabled()
-    )
-    settings.PROVISIONAL_GRID_ENABLED_SET = True  # ضُبط الجديدُ صراحةً (ولو بصفر) فلا يُقرأ المهجور
-    assert provisional.enabled() is False
 
 
 # ── العرض: لا حصّةَ عند العرض ──────────────────────────────────────────────────
@@ -560,34 +521,6 @@ def test_the_read_query_count_is_flat_in_the_number_of_students(
 
 
 # ── «اطفئ الشبكة»: مع المفتاح لا يُفتح كشفُ الحصّة القديم لمن يملك الجدول ───────────
-
-
-def test_with_the_switch_on_the_old_session_sheet_redirects_to_the_class_grid(
-    client_as, assigned, teacher, session, clock
-):
-    """الكشفُ القديمُ (الشبكة) `/teacher/attendance/<حصّة>/` يُحيل المعلّمَ المُسنَدَ إلى جدول شعبته."""
-    Session.objects.filter(pk=session.pk).update(teacher=teacher, class_group=assigned)
-    response = client_as(teacher).get(reverse("attendance", args=[session.id]))
-    assert response.status_code == 302
-    assert response.url == reverse("class_grid", args=[assigned.id])
-
-
-def test_with_the_switch_off_the_old_sheet_is_untouched(
-    settings, client_as, assigned, teacher, session, clock
-):
-    settings.PROVISIONAL_GRID_ENABLED = False
-    Session.objects.filter(pk=session.pk).update(teacher=teacher, class_group=assigned)
-    response = client_as(teacher).get(reverse("attendance", args=[session.id]))
-    assert response.status_code != 302 or "grid" not in response.url
-
-
-def test_a_substitute_without_an_assignment_keeps_the_old_sheet_as_a_fallback(
-    client_as, school, assigned, other_teacher, session, clock
-):
-    """بديلٌ سُلّمتْه الحصّةُ ولا إسنادَ له في الشعبة: لا جدولَ له فلا يُحال، ويبقى الكشفُ القديمُ بديلاً."""
-    Session.objects.filter(pk=session.pk).update(teacher=other_teacher, class_group=assigned)
-    response = client_as(other_teacher).get(reverse("attendance", args=[session.id]))
-    assert not (response.status_code == 302 and "grid" in response.url)
 
 
 # ── خروجُ الطالب من الفصل: بمسار ClassExit القائم، في الحصّة الجارية وقتَ الضغط ─────────

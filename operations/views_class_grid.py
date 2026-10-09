@@ -5,6 +5,7 @@
 والنائبُ للقراءة) — فلا قدرةَ مفردةَ تغطّيهم؛ والمسارُ في `GUARDED_INSIDE`.
 """
 
+import datetime as dt
 import json
 
 from django.contrib.auth.decorators import login_required
@@ -13,6 +14,16 @@ from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
 from .services import class_grid as grid
+
+
+def _date_or_none(raw):
+    """التاريخُ المطلوب `YYYY-MM-DD` أو `None` (اليومُ الجاري)؛ وفاسدُه ← 404 لا خطأٌ عامّ."""
+    if not raw:
+        return None
+    try:
+        return dt.date.fromisoformat(str(raw))
+    except ValueError:
+        raise Http404 from None
 
 
 def _json_body(request):
@@ -26,21 +37,19 @@ def _json_body(request):
 @login_required
 def grid_classes(request):
     """شُعبي للجدول — إسنادُ المعلّم وأجنحةُ المشرف، وللقيادة والنائب كلُّ الشُّعب."""
-    from .services import provisional_session
-
-    if not provisional_session.grid_enabled():
-        raise Http404
     return render(
         request,
         "teacher/provisional_classes.html",
-        {"classes": grid.classes_for(request.user, request.school), "grid": True},
+        {"classes": grid.classes_for(request.user, request.school)},
     )
 
 
 @login_required
 def class_grid(request, class_id):
     try:
-        context = grid.page(request.user, request.school, class_id)
+        context = grid.page(
+            request.user, request.school, class_id, on=_date_or_none(request.GET.get("date"))
+        )
     except grid.GridNotFoundError:
         raise Http404 from None
     return render(request, "teacher/class_grid.html", {"grid_page": context})
@@ -64,6 +73,7 @@ def class_grid_save(request, class_id):
             bulk=str(body.get("bulk") or ""),
             reason=str(body.get("reason") or ""),
             request=request,
+            on=_date_or_none(body.get("date")),
         )
     except grid.GridNotFoundError:
         raise Http404 from None
@@ -142,20 +152,3 @@ def class_grid_exit(request, class_id):
             {"ok": False, "reason": refusal.reason, "message": refusal.message}, status=403
         )
     return JsonResponse(result)
-
-
-@login_required
-@require_POST
-def class_grid_approve(request, class_id):
-    """«اعتماد الحصّة» أسفل عمودها — لمن له سلطةُ الاعتماد (حاملُ الجناح والقيادة)."""
-    try:
-        result = grid.approve_column(
-            request.user, request.school, class_id, request.POST.get("period")
-        )
-    except grid.GridNotFoundError:
-        raise Http404 from None
-    except grid.GridRefusedError as refusal:
-        return JsonResponse(
-            {"ok": False, "reason": refusal.reason, "message": refusal.message}, status=403
-        )
-    return JsonResponse({"ok": not result["skipped"], **result})
