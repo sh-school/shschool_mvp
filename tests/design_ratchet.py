@@ -32,6 +32,8 @@ from collections import Counter
 
 BASELINE = pathlib.Path("tests/design_ratchet_baseline.json")
 CSS_DIR = pathlib.Path("static/css")
+#: ملفّاتُ الأنماط المكتوبة باليد (لا ناتجُ Tailwind) — موضعُ مقاييس CSS.
+CUSTOM_CSS_DIR = CSS_DIR / "custom"
 
 #: جذورُ القوالب الحيّة — كما في `test_design_tokens_resolve`.
 TEMPLATE_ROOTS = (pathlib.Path("templates"),)
@@ -67,6 +69,79 @@ class _InlineStyle:
         return found
 
 
+class _ButtonWithoutType:
+    """`<button>` بلا `type=` — يُرسل النموذجَ افتراضاً فيصير زرُّ «إلغاء» إرسالاً.
+
+    وسومُ القالب تُفرَّغ قبل الفحص كي لا يُحسب `>` داخلها نهايةَ الوسم، وكي يُرى
+    `type=` الذي يكتبه `{% if %}` حول الخاصّية.
+    """
+
+    TAG = re.compile(r"\{%.*?%\}|\{\{.*?\}\}", re.S)
+    BUTTON = re.compile(r"<button\b([^>]*)>", re.I)
+    TYPE = re.compile(r"(?<![\w-])type\s*=", re.I)
+
+    def findall(self, text: str) -> list[str]:
+        flat = self.TAG.sub(" ", text)
+        return [a for a in self.BUTTON.findall(flat) if not self.TYPE.search(a)]
+
+
+class _InlineScript:
+    """`<script>` بلا `src=` — شيفرةٌ داخل القالب تخرج عن CSP وعن الحزم.
+
+    كتلةُ بياناتٍ (`application/json` و`ld+json` وكتلةُ `json_script`) ليست شيفرةً
+    تُنفَّذ فلا تُعدّ؛ والباقي — بما فيه `importmap` — يُعدّ.
+    """
+
+    SCRIPT = re.compile(r"<script\b([^>]*)>", re.I)
+    SRC = re.compile(r"(?<![\w-])src\s*=", re.I)
+    DATA = re.compile(r"""type\s*=\s*["']application/(?:ld\+)?json["']""", re.I)
+
+    def findall(self, text: str) -> list[str]:
+        return [
+            a
+            for a in self.SCRIPT.findall(text)
+            if not self.SRC.search(a) and not self.DATA.search(a)
+        ]
+
+
+_CSS_COMMENT = re.compile(r"/\*.*?\*/", re.S)
+#: كتلُ `@media` التي يُقبل فيها `!important` عمداً — بسببها، لا بالسكوت:
+#: الطباعةُ تُسقط أنماطَ الشاشة عن عناصرَ لا تملك أصنافَها، وتفضيلُ تقليل الحركة
+#: يجب أن يغلب أيَّ انتقالٍ مهما بلغت نوعيّتُه.
+_IMPORTANT_ALLOWED_MEDIA = re.compile(r"@media[^{]*(?:\bprint\b|prefers-reduced-motion)[^{]*\{")
+
+
+def _strip_blocks(css: str, opener: re.Pattern) -> str:
+    """يحذف كلَّ كتلةٍ يفتحها `opener` حتى قوسها المقابل (الكتلُ المتداخلة تُحسب)."""
+    out, pos = [], 0
+    while (m := opener.search(css, pos)) is not None:
+        out.append(css[pos : m.start()])
+        depth, i = 1, m.end()
+        while i < len(css) and depth:
+            depth += {"{": 1, "}": -1}.get(css[i], 0)
+            i += 1
+        pos = i
+    out.append(css[pos:])
+    return "".join(out)
+
+
+class _CssPattern:
+    """نمطٌ على CSS بعد حذف التعليقات — فالتعليقُ الذي يشرح `!important` ليس مخالفة."""
+
+    def __init__(self, pattern: str, *, skip: re.Pattern | None = None):
+        self.pattern = re.compile(pattern, re.I)
+        self.skip = skip
+
+    def findall(self, text: str) -> list[str]:
+        css = _CSS_COMMENT.sub("", text)
+        if self.skip is not None:
+            css = _strip_blocks(css, self.skip)
+        return self.pattern.findall(css)
+
+
+#: المقاييسُ التي تُعدّ في ملفّات `static/css/custom/` لا في القوالب.
+CSS_METRICS = ("important", "transition_all", "physical_side")
+
 #: المخالفاتُ المعدودة — اسمٌ يُقرأ في رسالة السقوط، ونمطٌ يعدّه.
 METRICS: dict[str, tuple[str, re.Pattern | _InlineStyle]] = {
     "inline_style": (
@@ -94,6 +169,42 @@ METRICS: dict[str, tuple[str, re.Pattern | _InlineStyle]] = {
     "hand_kpi": (
         "بطاقةُ رقمٍ مكتوبةٌ باليد (kpi-mini)",
         re.compile(r"(?<![\w-])kpi-mini(?![\w-])"),
+    ),
+    # المقاييسُ السبعةُ التي سُجّلت بأعدادٍ غير صفريّةٍ (W-20261009-009): تسجّل الحالَ
+    # ولا تُصلحه — الزيادةُ والنقصُ كلاهما يُسقط. الأربعةُ الأولى في القوالب، والثلاثةُ
+    # الأخيرةُ (`CSS_METRICS`) في ملفّات `static/css/custom/`.
+    "style_block": (
+        "كتلةُ <style> داخل القالب",
+        re.compile(r"<style\b", re.I),
+    ),
+    "max_w": (
+        "عرضٌ أقصى من Tailwind (max-w-…) بدل رموز التخطيط",
+        re.compile(r"(?<![\w-])(?:[a-z0-9]+:)*max-w-[\w\[\]./%-]+"),
+    ),
+    "button_no_type": (
+        "زرٌّ بلا type= (يُرسل النموذجَ افتراضاً)",
+        _ButtonWithoutType(),
+    ),
+    "inline_script": (
+        "سكربتٌ داخل القالب بلا src (غير بياناتي)",
+        _InlineScript(),
+    ),
+    "important": (
+        "!important خارج الطباعة وتقليل الحركة",
+        _CssPattern(r"!\s*important", skip=_IMPORTANT_ALLOWED_MEDIA),
+    ),
+    "transition_all": (
+        "transition: all (يحرّك كلَّ خاصّيّة بما فيها التخطيط)",
+        _CssPattern(r"(?<![\w-])transition(?:-property)?\s*:\s*all(?![\w-])"),
+    ),
+    "physical_side": (
+        "خاصّيّةٌ فيزيائيّةٌ يمين/يسار بدل المنطقيّة (margin-left · right: · text-align:left…)",
+        _CssPattern(
+            r"(?<![\w-])(?:(?:margin|padding|border)-(?:left|right)(?:-[a-z]+)?"
+            r"|border-(?:top|bottom)-(?:left|right)-radius"
+            r"|(?:left|right)(?=\s*:)"
+            r"|(?:text-align|float|clear)\s*:\s*(?:left|right))(?![\w-])"
+        ),
     ),
 }
 
@@ -246,11 +357,19 @@ def measure() -> dict[str, dict[str, int]]:
     for path in live_templates():
         text = path.read_text(encoding="utf-8")
         for name, (_label, pattern) in METRICS.items():
+            if name in CSS_METRICS:
+                continue
             if name == "legacy_header" and path.is_relative_to(COMPONENTS_DIR):
                 continue
             found = len(pattern.findall(text))
             if found:
                 counts[name][path.as_posix()] = found
+    for sheet in sorted(CUSTOM_CSS_DIR.rglob("*.css")):
+        text = sheet.read_text(encoding="utf-8")
+        for name in CSS_METRICS:
+            found = len(METRICS[name][1].findall(text))
+            if found:
+                counts[name][sheet.as_posix()] = found
     return counts
 
 
