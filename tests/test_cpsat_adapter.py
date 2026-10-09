@@ -91,6 +91,20 @@ def test_resources_carry_capacity_and_the_subjects_that_use_them():
     assert inputs.res_subjects == {"R1": frozenset({"S1", "S2"})}
 
 
+def test_a_split_task_keeps_each_members_resources_separate():
+    """لا تتّسع مجموعةُ مواد المورد: مادّةُ كلّ ساكنٍ في مواردها وحدها (سبب INFEASIBLE على A1)."""
+    members = [
+        Member("T1", "أ", "S1", "رياضيات", "MATH", resources=(("R1", 2, False),)),
+        Member("T2", "ب", "S2", "فيزياء", "PHY", resources=(("R2", 1, False),)),
+    ]
+    task = _task(members=members, resources=(("R1", 2, False), ("R2", 1, False)))
+
+    inputs = build_inputs([task])
+
+    assert inputs.res_subjects == {"R1": frozenset({"S1"}), "R2": frozenset({"S2"})}
+    assert inputs.res_cap == {"R1": 2, "R2": 1}
+
+
 # ── الحجب ──────────────────────────────────────────────────────────────
 
 

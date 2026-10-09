@@ -20,6 +20,20 @@ ATTENDANCE_WARN = 75
 
 Number = int | float | Decimal
 
+#: «أين الطالب» التي تُبقيه **في عهدة المدرسة** وهو غائبٌ عن فصله: العيادةُ والنشاطُ المدرسيّ بإذنٍ مسجَّل
+#: (D-251م). القائمةُ الوحيدة؛ لا تُنسخ إلى ملف. وخروجٌ بإذنٍ (`out_permit`) أو استئذانٌ مبكّر (`left_early`)
+#: ليسا منها (قاعدةُ الأربع حصص م3.4.3)، ولا `out_no_permit` ولا `gate`.
+IN_CUSTODY = ("clinic", "activity")
+
+
+def is_out_with_leave(status: str, whereabouts: str) -> bool:
+    """أغائبٌ عن فصله وهو في عهدة المدرسة (عيادةٌ أو نشاط)؟ — المحمولُ المركزيّ الوحيد (W-20261008-018، S0).
+
+    للقراءة والعدّ فحسب: لا يغيّر حسابَ الغياب بلا عذر ولا الموقفَ ولا العتبات؛ تعديلُ الحساب يأتي خلف
+    المفتاح `AWAY_PRESENT_ENABLED` بقرار المالك (S2).
+    """
+    return status == "absent" and whereabouts in IN_CUSTODY
+
 
 @overload
 def percent(

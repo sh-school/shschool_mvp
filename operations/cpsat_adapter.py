@@ -182,8 +182,11 @@ def build_inputs(
                         joint,
                     )
                 ] += 1
-            # المهمّةُ المنقسمةُ تستهلك مواردَ ساكنيها جميعاً (كما يفعل `_to_tasks`).
-            for resource_id, capacity, *_ in task.resources:
+            # لكلّ عضوٍ مواردُ مادّته وحدها؛ فلو أُدخلت موادُّ الساكنين في كلّ موردٍ لاتّسعت
+            # مجموعاتُ المواد واختنق النموذجُ (A1). والعضوُ بلا موارد خاصّة في مهمّةٍ غير منقسمة
+            # يرث موارد المهمّة.
+            member_resources = member.resources or (() if task.is_split else task.resources)
+            for resource_id, capacity, *_ in member_resources:
                 inputs.res_cap[resource_id] = capacity
                 res_subjects[resource_id].add(member.subject_id)
 
