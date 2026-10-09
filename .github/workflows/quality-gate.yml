@@ -67,6 +67,8 @@ jobs:
       # على طلبٍ وثائقيٍّ لا يعمل إلّا shard 1 («قرّاءُ الوثائق»)؛ فلا تُجهَّز البيئةُ في 2–5 هدراً (مراجعة 0105).
       # postgres 16 الأصليّ على الـrunner بدل حاويةٍ تُسحب من Docker Hub (سقفُ السحب أسقط الفحوصَ 2026-10-09)
       - uses: ./.github/actions/native-postgres
+        with:
+          redis: "true"  # tests/test_channel_layer_redis_integration.py يحتاج redis حقيقياً
 
       - uses: actions/setup-python@v7
         if: steps.diff.outputs.docs_only != 'true' || matrix.shard == 1

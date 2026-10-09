@@ -4,6 +4,9 @@ description: >-
   بدل حاويةِ خدمةٍ تُسحب من Docker Hub (يسقطها سقفُ السحب غيرِ الموثَّق: toomanyrequests). المستخدم test_user وكلمتُه كلمةُ الاختبار المعتادة نفسُها
   وقاعدتُه test_db على 127.0.0.1:5432 — كما كانت الحاويةُ، فلا يتغيّر إعدادُ أيّ وظيفة.
 inputs:
+  redis:
+    description: "true ⇒ يُثبَّت redis-server من apt ويُشغَّل على 127.0.0.1:6379 (اختباراتُ طبقة القنوات تحتاج redis حقيقياً)"
+    default: "false"
   port:
     description: منفذ الاستماع
     default: "5432"
@@ -49,3 +52,15 @@ runs:
         "$PGBIN/pg_ctl" -D "$PGDATA" -l /tmp/pg-native.log -w start
         PGPASSWORD=test_pass "$PGBIN/createdb" -h 127.0.0.1 -p "$PGPORT_IN" -U test_user test_db  # pragma: allowlist secret
         PGPASSWORD=test_pass "$PGBIN/psql" -h 127.0.0.1 -p "$PGPORT_IN" -U test_user -d test_db -Atc "select version()"  # pragma: allowlist secret
+    - name: تشغيل redis من apt (اختياريّ)
+      if: inputs.redis == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends redis-server
+        sudo systemctl stop redis-server 2>/dev/null || true
+        redis-server --port 6379 --bind 127.0.0.1 --save "" --appendonly no --daemonize yes
+        for _ in $(seq 1 20); do redis-cli -h 127.0.0.1 ping 2>/dev/null | grep -q PONG && break; sleep 0.5; done
+        redis-cli -h 127.0.0.1 ping

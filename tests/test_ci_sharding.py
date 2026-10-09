@@ -225,10 +225,12 @@ def test_docs_only_prepares_no_environment_in_shards_2_to_5():
         assert step["if"] == "steps.diff.outputs.docs_only != 'true' || matrix.shard == 1"
 
 
-def test_each_shard_keeps_the_postgres_and_redis_services_and_the_job_env():
-    """خدماتُ كلّ shard وبيئتُه كاملتان: فقدُ متغيّرات postgres سقط به ملفُّ الـworkflow كلُّه (GitHub: workflow file issue)."""
+def test_each_shard_keeps_native_postgres_and_redis_and_the_job_env():
+    """خدماتُ كلّ shard وبيئتُه كاملتان: postgres وredis أصليّان على الـrunner (لا حاويةَ تُسحب من Docker Hub — سقفُ السحب
+    أسقط الفحوصَ 2026-10-09). وفقدُ متغيّرات البيئة سقط به ملفُّ الـworkflow كلُّه (GitHub: workflow file issue)."""
     job = _WF["pytest-shards"]
-    assert job["services"]["postgres"]["env"]["POSTGRES_DB"] == "test_db"
-    assert set(job["services"]) == {"postgres", "redis"}
+    assert "services" not in job, "حاويةُ خدمةٍ تعيد الاعتمادَ على سحب Docker Hub"
+    native = [s for s in job["steps"] if s.get("uses") == "./.github/actions/native-postgres"]
+    assert len(native) == 1 and native[0]["with"]["redis"] == "true"
     for key in ("DJANGO_SETTINGS_MODULE", "SECRET_KEY", "CI_SHARD_COUNT", "CI_SHARD_INDEX"):
         assert key in job["env"], f"{key} غاب عن بيئة وظيفة الـshards"
