@@ -115,9 +115,6 @@
  "substitute/absence_detail.html",
  "substitute/register_absence.html",
  "substitute/report.html",
- "teacher/attendance.html",
- "teacher/attendance_grid.html",
- "teacher/attendance_readonly.html",
  "teacher/schedule.html",
  "transport/bus_detail.html",
  "transport/buses_list.html",
@@ -131,7 +128,6 @@
  "wings/excuse_requests.html",
  "wings/floors.html",
  "wings/record_index.html",
- "wings/record_section.html",
  "wings/student_events.html",
  "wings/student_search.html"
 ]

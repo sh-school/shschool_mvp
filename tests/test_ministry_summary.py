@@ -102,7 +102,7 @@ def test_a_class_without_two_periods_is_not_judged(school, klass, kid, session, 
     assert row.counts.absent_both == 0 and row.counts.unrecorded == 0
 
 
-def test_a_teacher_entry_awaiting_approval_is_flagged_not_counted(
+def test_a_teacher_entry_is_final_at_once_so_nothing_is_pending(
     school, klass, periods, kid, teacher
 ):
     from operations.attendance_entries import submit_entry
@@ -112,7 +112,9 @@ def test_a_teacher_entry_awaiting_approval_is_flagged_not_counted(
 
     summary = ministry_summary(school, SUNDAY)
 
-    assert summary.total.pending == 1
+    # رصدُ المعلّم نهائيٌّ فوراً (W-20261009-003): لا معلَّقَ، والغيابُ في حصّةٍ واحدةٍ يُعدّ في «غائبٌ في إحداهما»
+    assert summary.total.pending == 0
+    assert summary.total.unrecorded == 1  # حصّةٌ واحدةٌ مرصودةٌ فلا يُحكم بعدُ
     assert summary.total.absent_both == 0
 
 

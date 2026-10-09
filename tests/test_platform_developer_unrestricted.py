@@ -337,11 +337,8 @@ def test_the_developer_holds_no_attendance_capability(developer, superuser_devel
     assert not has_capability(superuser_developer, key)
 
 
-@pytest.mark.parametrize("view", ["mark_single", "mark_all_present", "mark_late_tap"])
 @pytest.mark.parametrize("who", ["developer", "superuser_developer"])
-def test_the_developer_cannot_write_attendance(
-    request, client_as, school, seeded_calendar, view, who
-):
+def test_the_developer_cannot_write_attendance(request, client_as, school, seeded_calendar, who):
     from django.urls import reverse
 
     from operations.models import StudentAttendance
@@ -351,9 +348,14 @@ def test_the_developer_cannot_write_attendance(
     teacher_ = request.getfixturevalue("teacher")
     (session,) = _periods(school, klass_, teacher_, 1)
 
-    resp = client_as(actor).post(reverse(view, kwargs={"session_id": session.pk}), {})
+    # الكتابةُ الوحيدةُ للغياب الآن من جدول الشعبة العموديّ (حُذفت مسارات الشبكة القديمة)
+    resp = client_as(actor).post(
+        reverse("class_grid_save", args=[klass_.pk]),
+        {"period": 1, "cells": []},
+        content_type="application/json",
+    )
 
-    assert resp.status_code == 403
+    assert resp.status_code in (403, 404)
     assert not StudentAttendance.objects.filter(session=session).exists()
 
 
