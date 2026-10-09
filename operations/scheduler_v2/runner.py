@@ -73,6 +73,30 @@ class SolverConfig:
     seed: int = DEFAULT_SEED
     workers: int = DEFAULT_WORKERS
     max_seconds: float = DEFAULT_MAX_SECONDS
+    #: تخفيفاتٌ معلَنةٌ بقرار المالك تُمرَّر لخيارات النموذج (انظر `options_from_relaxations`)؛ فارغٌ = الصرامة.
+    relaxations: tuple[tuple[str, Any], ...] = ()
+
+
+def options_from_relaxations(spec: dict[str, Any] | None) -> dict[str, Any]:
+    """يحوّل ملفَّ `--relaxations` إلى حقول `ModelOptions`: touch_relaxed وrun_cap وfirst_cap_override وno_6_7 والثلاثيات.
+
+    الشكل: {"touch_relaxed": ["T..."], "run_cap": 2, "first_cap_override": {"T...": 4}, "no_6_7": true,
+    "triples_by_number": true}. مفتاحٌ مجهولٌ يُرفض (لا تخفيفَ صامت).
+    """
+    spec = dict(spec or {})
+    out: dict[str, Any] = {}
+    if "touch_relaxed" in spec:
+        out["touch_relaxed"] = frozenset(spec.pop("touch_relaxed"))
+    if "run_cap" in spec:
+        out["touch_relaxed_run_cap"] = int(spec.pop("run_cap"))
+    if "first_cap_override" in spec:
+        out["first_cap_override"] = tuple(sorted(dict(spec.pop("first_cap_override")).items()))
+    for flag in ("no_6_7", "triples_by_number"):
+        if flag in spec:
+            out[flag] = bool(spec.pop(flag))
+    if spec:
+        raise RunnerError(f"مفاتيح تخفيفٍ غير معروفة: {sorted(spec)}")
+    return out
 
 
 @dataclass
@@ -84,6 +108,8 @@ class SolveReport:
     seconds: float
     objective: float | None = None
     slots: list[SlotRow] = field(default_factory=list)
+    #: تخفيفُ HC5 المعلَن فعلاً ({معلّم ← أقصى تتابع}) كما يقرؤه المُقيِّم؛ يملؤه `solve_inputs` من BuiltModel.
+    relaxations: dict[str, int] = field(default_factory=dict)
 
     def solver_dict(self) -> dict[str, Any]:
         """الشكلُ الذي يقرؤه المُقيِّم: الحالةُ والبذرةُ والعمّالُ والزمن."""
@@ -121,7 +147,7 @@ def default_builder() -> ModelBuilder:
     return builder
 
 
-def default_options(inputs: CpSatInputs) -> Any:
+def default_options(inputs: CpSatInputs, extra: dict[str, Any] | None = None) -> Any:
     """`ModelOptions` للمشغّل: صفوفُ الشعب لـHC17، ولا يُوقَف قيدٌ (HC14/HC16B مفعَّلان).
 
     يُمرَّر `class_grade` إن كان حقلاً في `ModelOptions` (ملفُّ v2-core)؛ وإلّا يُترك فلا يسقط المشغّل بحقلٍ لم يصل.
@@ -134,6 +160,7 @@ def default_options(inputs: CpSatInputs) -> Any:
     kwargs = {}
     if "class_grade" in {f.name for f in fields(model_options)}:
         kwargs["class_grade"] = dict(inputs.class_grade)
+    kwargs.update(extra or {})
     return model_options(**kwargs)
 
 
@@ -278,7 +305,7 @@ def solve_inputs(
     progress: Any = None,
 ) -> SolveReport:
     if builder is None:
-        options = default_options(inputs)
+        options = default_options(inputs, options_from_relaxations(dict(config.relaxations)))
         built = (
             default_builder()(inputs, options) if options is not None else default_builder()(inputs)
         )
@@ -287,9 +314,13 @@ def solve_inputs(
     add_objective = objective if objective is not None else default_objective()
     if add_objective is not None:
         add_objective(built, inputs)
-    if solver is None:
-        return solve(built, config, progress)
-    return solver(built, config)
+    report = solve(built, config, progress) if solver is None else solver(built, config)
+    report.relaxations = {
+        r["teacher"]: int(str(r["relaxed"]).rsplit("_", 1)[-1])
+        for r in getattr(built, "relaxations", [])
+        if r.get("code") == "HC5"
+    }
+    return report
 
 
 def evaluate_report(school: Any, academic_year: str, report: SolveReport) -> Evaluation:
@@ -300,7 +331,9 @@ def evaluate_report(school: Any, academic_year: str, report: SolveReport) -> Eva
         )
         for c, s, t, d, p in report.slots
     ]
-    return evaluate_slots(school, academic_year, rows, report.solver_dict())
+    return evaluate_slots(
+        school, academic_year, rows, report.solver_dict(), report.relaxations or None
+    )
 
 
 def _elective_labels(inputs: CpSatInputs, slots: list[SlotRow]) -> dict[SlotRow, str]:

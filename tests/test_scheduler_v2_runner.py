@@ -483,3 +483,25 @@ def test_adapter_carries_the_class_grade_and_default_options_pass_it_on(monkeypa
 
     monkeypatch.setattr(runner, "_load_attr", lambda module, name: OldOptions)
     assert runner.default_options(inputs) == OldOptions()
+
+
+def test_options_from_relaxations_maps_owner_decisions_and_rejects_unknown_keys():
+    """ملفُّ --relaxations: يحوّل قراراتِ المالك إلى حقول ModelOptions، ويرفض مفتاحاً مجهولاً (لا تخفيفَ صامت)."""
+    out = runner.options_from_relaxations(
+        {
+            "touch_relaxed": ["T1"],
+            "run_cap": 2,
+            "first_cap_override": {"T2": 4},
+            "no_6_7": True,
+            "triples_by_number": True,
+        }
+    )
+    assert out == {
+        "touch_relaxed": frozenset({"T1"}),
+        "touch_relaxed_run_cap": 2,
+        "first_cap_override": (("T2", 4),),
+        "no_6_7": True,
+        "triples_by_number": True,
+    }
+    with pytest.raises(runner.RunnerError):
+        runner.options_from_relaxations({"bogus": 1})

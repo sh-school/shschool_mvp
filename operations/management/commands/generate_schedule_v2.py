@@ -6,6 +6,8 @@
 المخرجُ بمعرّفاتٍ لا أسماء. والمسودّةُ لا تُكتب إلّا بعد قبول المُقيِّم المستقلّ لها.
 """
 
+import json
+from pathlib import Path
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
@@ -28,6 +30,11 @@ class Command(BaseCommand):
         parser.add_argument(
             "--max-minutes", type=float, default=None, help="بالدقائق (يغلب --max-seconds)"
         )
+        parser.add_argument(
+            "--relaxations",
+            default=None,
+            help="ملفُّ JSON بتخفيفات المالك المعلَنة: touch_relaxed وrun_cap وfirst_cap_override وno_6_7 وtriples_by_number",
+        )
         parser.add_argument("--dry-run", action="store_true", help="لا يكتب شيئاً في القاعدة")
         parser.add_argument("--sync", action="store_true", help="ينفّذ هنا لا في العامل")
 
@@ -41,7 +48,16 @@ class Command(BaseCommand):
             raise CommandError("لا مدرسة")
         year = opts["year"] or academic_year_for_school(school)
         seconds = opts["max_minutes"] * 60 if opts["max_minutes"] else opts["max_seconds"]
-        config = runner.SolverConfig(opts["seed"], opts["workers"], seconds)
+        spec: dict = {}
+        relaxations: tuple = ()
+        if opts["relaxations"]:
+            spec = json.loads(Path(opts["relaxations"]).read_text(encoding="utf-8"))
+            try:
+                runner.options_from_relaxations(spec)  # يرفض المفتاحَ المجهول قبل أي حلّ
+            except runner.RunnerError as error:
+                raise CommandError(str(error)) from error
+            relaxations = tuple(sorted(spec.items(), key=lambda kv: kv[0]))
+        config = runner.SolverConfig(opts["seed"], opts["workers"], seconds, relaxations)
 
         if opts["dry_run"]:
             try:
@@ -67,7 +83,12 @@ class Command(BaseCommand):
             from operations.scheduler_v2.tasks import generate_schedule_v2_task
 
             generate_schedule_v2_task.delay(
-                str(generation.pk), config.seed, config.workers, config.max_seconds
+                str(generation.pk),
+                config.seed,
+                config.workers,
+                config.max_seconds,
+                None,
+                spec or None,
             )
             self.stdout.write(f"في الطابور: التوليد {str(generation.pk)[:8]}")
 

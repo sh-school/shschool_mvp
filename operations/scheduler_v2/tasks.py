@@ -20,7 +20,13 @@ logger = logging.getLogger(__name__)
     time_limit=3660,
 )
 def generate_schedule_v2_task(
-    self, generation_id, seed=None, workers=None, max_seconds=None, max_minutes=None
+    self,
+    generation_id,
+    seed=None,
+    workers=None,
+    max_seconds=None,
+    max_minutes=None,
+    relaxations=None,
 ):
     """يلتقط صفَّ توليدٍ «في الانتظار» ويحلّه. التقاطٌ مكرَّرٌ لرسالةٍ واحدةٍ يُتخطّى (لا يُعاد على نتيجةٍ قائمة)."""
     from operations.models import ScheduleGeneration
@@ -44,6 +50,7 @@ def generate_schedule_v2_task(
         seed=runner.DEFAULT_SEED if seed is None else seed,
         workers=runner.DEFAULT_WORKERS if workers is None else workers,
         max_seconds=runner.DEFAULT_MAX_SECONDS if max_seconds is None else max_seconds,
+        relaxations=tuple(sorted((relaxations or {}).items())),
     )
     try:
         with school_rls_scope(generation.school_id):
