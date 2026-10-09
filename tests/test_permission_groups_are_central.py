@@ -63,7 +63,8 @@ MOVED = {
         "secretary",
     },
     "PARENT_PORTAL": {"parent", "principal", "vice_admin", "vice_academic", "admin"},
-    "PARENT_PORTAL_ADMIN": {"principal", "admin"},
+    # ومنسّقُ شؤون الطلبة: ربطُ الأولياء بندٌ في قائمة إدارة شؤون الطلاب المسندة كاملةً (D-273م).
+    "PARENT_PORTAL_ADMIN": {"principal", "admin", "student_affairs_coordinator"},
     "QUALITY_ACCESS": set(permissions.QUALITY_MANAGE)
     | set(permissions.QUALITY_VIEW)
     | {"ese_teacher"},
@@ -74,6 +75,7 @@ MOVED = {
         "vice_admin",
         "vice_academic",
         "principal",
+        "student_affairs_coordinator",  # يرصد الغياب ويصحّحه كقيادته (D-266م)
     },
 }
 

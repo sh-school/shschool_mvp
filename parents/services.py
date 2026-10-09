@@ -18,7 +18,7 @@ from core.domain.attendance import attendance_rate
 from core.domain.tones import ATTENDANCE_KPI, GRADE_CELL, tone_for
 from core.models import ConsentRecord, ParentStudentLink, StudentEnrollment
 from core.verdict_read import failing_statuses, passing_statuses, pending_statuses
-from operations.models import StudentAttendance
+from operations.models import AbsenceAlert, StudentAttendance
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
@@ -32,6 +32,18 @@ def _confirmed_only(manager: Manager[StudentAttendance]) -> QuerySet[StudentAtte
     موظّفين) يقرؤها كما هي. يُطبَّق في كلّ استعلام حضورٍ هنا من موضعٍ واحدٍ فلا يُنسى أحدُها.
     """
     return manager.exclude(source="teacher_late")
+
+
+def recent_absence_alerts_for_parent(student, school, limit: int):
+    """آخرُ تنبيهات غياب الطالب **كما يراها وليُّ أمره**: بلا «محجوز» ولا «قيد الإصدار» (D-246م) — لم يُصدرهما كاتبُ الغياب بعد.
+
+    الموضعُ الوحيدُ لقراءة التنبيهات من بوّابة الأهل (العرضان يستدعيانه)؛ و`pending` و`notified` و`resolved` تبقى ظاهرة.
+    """
+    return list(
+        AbsenceAlert.objects.filter(student=student, school=school)
+        .exclude(status__in=AbsenceAlert.HIDDEN_FROM_PARENTS)
+        .order_by("-created_at")[:limit]
+    )
 
 
 class ParentService:

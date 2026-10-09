@@ -34,12 +34,13 @@
          data-approve-url="{% url 'class_grid_approve' page.klass.id %}"
          data-draft-key="class-grid:{{ request.user.pk }}:{{ page.klass.pk }}:{{ page.day|date:'Y-m-d' }}"
          data-closes="{{ page.closes|time:'H:i' }}"
-         data-correcting="{% if page.correction_mode %}1{% endif %}">
+         data-correcting="{% if page.correction_mode %}1{% endif %}"
+         data-reason-always="{% if page.reason_always %}1{% endif %}">
       {% csrf_token %}
       {# نموذجٌ مخفيٌّ يستدعي نافذةَ التأكيد المركزيّة (`data-confirm` في base.js) من JS الجدول — لا window.confirm #}
       <form data-grid-confirm hidden></form>
-      {% if page.correction_mode %}
-      <div class="ui-note">{% field "reason" "سببُ التصحيح — إلزاميّ بعد إغلاق نافذة المعلّم" required=True maxlength="300" data_grid_reason=True %}</div>
+      {% if page.correction_mode or page.reason_always %}
+      <div class="ui-note">{% field "reason" "سببُ التصحيح — إلزاميّ عند تعديل ما كتبه غيرُك أو بعد إغلاق نافذة المعلّم" required=True maxlength="300" data_grid_reason=True %}</div>
       {% endif %}
       <div hidden data-tabs role="tablist" aria-label="الحصّة المعروضة">
         {% for col in page.columns %}

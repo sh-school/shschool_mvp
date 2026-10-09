@@ -745,7 +745,15 @@ def leave_detail(request, pk):
     """تفاصيل طلب إجازة."""
     school = request.school
     leave = get_object_or_404(LeaveRequest, pk=pk, school=school)
-    return render(request, "staff_affairs/leave_detail.html", {"leave": leave})
+    from .leave_flow import eligible_actors
+
+    # الزرُّ لمن مرحلةُ الطلب مرحلتُه الآن وحدَه — والخدمةُ تفحص ذلك ثانيةً عند التنفيذ.
+    can_act = leave.status == "pending" and request.user in eligible_actors(leave)
+    return render(
+        request,
+        "staff_affairs/leave_detail.html",
+        {"leave": leave, "can_act": can_act},
+    )
 
 
 @login_required
@@ -757,22 +765,25 @@ def leave_review(request, pk):
     leave = get_object_or_404(LeaveRequest, pk=pk, school=school)
 
     from .forms import LeaveReviewForm
+    from .leave_flow import LeaveFlowError, act
 
     form = LeaveReviewForm(request.POST)
     if form.is_valid():
-        action = form.cleaned_data["action"]
+        approve = form.cleaned_data["action"] == "approved"
         try:
-            # ✅ v5.4: LeaveService.review_leave — select_for_update على LeaveBalance
-            # يمنع race condition عند موافقة مديرين في نفس الوقت على نفس الطلب
-            LeaveService.review_leave(
-                leave=leave,
-                action=action,
-                reviewer=request.user,
-                rejection_reason=form.cleaned_data.get("rejection_reason", ""),
+            # مراحلُ نموذج 01: النائبُ يوصي والسكرتاريةُ تُثبت الرصيد، والاعتمادُ النهائيّ
+            # (وبه وحدَه يُخصم الرصيد) للمدير أو المكلَّف بأعبائه — والخدمةُ تفحص دورَ المستخدم.
+            act(
+                leave,
+                actor=request.user,
+                approve=approve,
+                reason=form.cleaned_data.get("rejection_reason", ""),
+                request=request,
             )
-            status_label = "موافق عليها" if action == "approved" else "مرفوضة"
-            messages.success(request, f"تم تحديث طلب الإجازة إلى: {status_label}")
-        except ValueError as e:
+            messages.success(
+                request, f"سُجّل: {leave.get_stage_display()} — {leave.get_status_display()}."
+            )
+        except (LeaveFlowError, ValueError) as e:
             messages.error(request, str(e))
 
     return redirect("staff_affairs:leave_detail", pk=pk)

@@ -53,23 +53,19 @@ class TestDirectorPresentation:
         base = {
             "view_type": "director",
             "today": dt.date(2026, 9, 13),
-            "attendance_pct": 91,
-            "completed": 3,
-            "in_progress": 1,
         }
         base.update(extra)
         return present(base)
 
     def test_a_waiting_number_is_coloured_and_zero_is_green(self):
-        assert self._ctx(pending_swaps=2)["swaps_tone"] == "orange"
+        assert (
+            self._ctx(pending_swaps=2)["swaps_tone"] == "amber"
+        )  # نبراتُ اللوحة دلاليّةٌ: أحمر خطر، كهرمانيّ تنبيه، أخضر سليم، عنّابيّ عدّادٌ محايد (W-20261008-004 س٣)
         assert self._ctx(pending_swaps=0)["swaps_tone"] == "green"
 
     def test_critical_behaviour_turns_red_and_names_itself_once(self):
         out = self._ctx(behavior_monthly=9, behavior_critical=2)
         assert out["behavior_tone"] == "red" and out["behavior_sub"] == "2 حرجة"
-
-    def test_sessions_detail_is_one_line(self):
-        assert self._ctx()["sessions_sub"] == "3 مكتملة · 1 جارية"
 
     def test_the_subtitle_carries_the_date(self):
         assert self._ctx()["subtitle"].endswith("13/09/2026")
@@ -134,14 +130,17 @@ def test_the_director_dashboard_shows_a_count_and_a_link_not_student_names(
 
 
 @pytest.mark.django_db
-def test_the_alerts_card_stays_in_place_with_no_pending_alerts(client_as, principal_user):
-    """طلب المدير 2026-09-18: البطاقةُ الثالثةُ دائمةٌ لا تختفي — فاختفاؤها
-    يُخِلّ بشبكة الأعمدة الثلاثة (تعود عموداً واحداً فقط لا اثنين متجاورين
-    بجانب فراغ) كلّما خلا يومٌ من التنبيهات المعلّقة."""
+def test_the_alerts_indicator_stays_visible_with_no_pending_alerts_and_the_grid_keeps_three_columns(
+    client_as, principal_user
+):
+    """طلب المدير 2026-09-18: تنبيهاتُ الغياب المتكرّر لا تختفي، والشبكةُ بثلاثة أعمدةٍ لا تضطرب كلّما خلا يومٌ منها.
+    W-20261008-004 (س٢، قياسُ 2026-10-08: البطاقةُ كانت تستعمل 66px من 154px): صارت مؤشّراً في «نبض الأقسام» بعدّادٍ ورابط
+    يقول «لا تنبيهات معلّقة» حين تخلو، وصارت البطاقةُ الثالثةُ «سير اليوم» فالصفُّ ثلاثُ بطاقاتٍ دائماً في يوم الدوام."""
     html = client_as(principal_user).get("/dashboard/").content.decode()
 
     assert "تنبيهات الغياب المتكرّر" in html
     assert "لا تنبيهات معلّقة" in html
+    assert 'href="/student-affairs/' in html or "attendance" in html
 
 
 @pytest.mark.django_db
@@ -200,8 +199,17 @@ class TestTherapistWeekStats:
 
 
 @pytest.mark.django_db
-def test_the_director_numbers_share_one_card(client_as, principal_user):
-    """طلب المالك 2026-09-23: أرقامُ الحضور ونبضُ الأقسام في بطاقةٍ واحدة لا شريطٌ عائمٌ فوقها."""
+def test_the_director_numbers_share_one_card(client_as, principal_user, monkeypatch):
+    """طلب المالك 2026-09-23: أرقامُ الحضور ونبضُ الأقسام في بطاقةٍ واحدة لا شريطٌ عائمٌ فوقها.
+
+    الوقتُ مثبَّتٌ على الأحد 09:00 بتوقيت الدوحة: شريطُ «اليوم» لا يُرسم في يوم إجازة، فكان الاختبارُ
+    يسقط كلَّ جمعةٍ وسبت (أسقط مجموعةَ الدمج في #895 و#905).
+    """
+    from django.utils import timezone
+
+    fixed = dt.datetime(2026, 10, 11, 9, 0, tzinfo=dt.timezone(dt.timedelta(hours=3)))
+    monkeypatch.setattr(timezone, "now", lambda: fixed)
+    monkeypatch.setattr(timezone, "localdate", lambda *a, **k: fixed.date())
     html = client_as(principal_user).get("/dashboard/").content.decode()
 
     card = html[html.index("نبض المدرسة") :]

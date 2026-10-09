@@ -1,7 +1,7 @@
 {% load icons %}
 {% load ui %}
 {% comment %}لوحةُ المدير — اليومُ أوّلاً، ثمّ نبضُ الأقسام، ثمّ العامُ الدراسيّ.{% endcomment %}
-<div class="exec-dash">
+<div class="exec-dash" data-director-live data-live-url="{% url 'director_live' %}" data-phase="{{ day.phase }}">
 
   {% page_header dashboard_title|default:"لوحة تحكم المدير" subtitle=subtitle icon="dashboard" %}
     <a href="{% url 'daily_report' %}" class="btn-primary btn-sm">{% icon "absence" %} غياب اليوم</a>
@@ -12,22 +12,37 @@
     {% callout "warning" show=True %}أعذارٌ أرسلها المشرفون بعد المهلة تنتظر قرارك: {{ pending_excuses }}. <a href="{% url 'wings:excuse_requests' %}" class="btn-primary btn-sm">افتح الأعذار</a>{% endcallout %}
   {% endif %}
 
-  {% comment %}بطاقةٌ واحدةٌ لأرقام اليوم كلِّها: صفّان بخمسةٍ خمسة (طلب المالك 2026-09-23) —
-  الأوّلُ أرقامُ اليوم (الحضور والحصص والمعلّمون الغائبون)، والثاني ما ينتظر في الأقسام.{% endcomment %}
+  {% comment %}
+  غيابُ اليوم بطلابٍ مميَّزين بحكم `_judge` لا بصفوف حضور (W-20261008-004، D-249م): قبل 14:00 «غائبون عن ح1 وح2» وبعدها حكمُ السياسة
+  بخاناتٍ منفصلة (بلا عذر · بعذر · لم يُحسم · غير مرصود)، و«رصدٌ معلّق» يُعدّ ولا يُحتسب. أرقامٌ ورابطٌ لا أسماء (D-171م).
+  الارتفاعُ: اللوحةُ تسع 1366×768 بلا تمرير (LAY-03) — فالشريطان كما كانا (ستّةٌ لليوم وخمسةٌ لنبض الأقسام)، وبقيّةُ سير اليوم وجدولُ الأجنحة في بطاقة «تفاصيل اليوم»
+  القابلة للطيّ في صفّ البطاقات الثلاث، فلا صفَّ جديداً ولا ارتفاعاً.
+  {% endcomment %}
+  {% comment %}بطاقةٌ واحدةٌ لأرقام اليوم ونبضِ الأقسام (طلب المالك 2026-09-23): صفُّ غياب اليوم ثمّ نبضُ الأقسام.{% endcomment %}
   {% section_card "نبض المدرسة" meta="اليوم وهذا الشهر" icon="dashboard" %}
+    {% if day_open %}
     {% kpi_strip label="اليوم" %}
-      {% kpi "نسبة الحضور" attendance_label sub=att_delta_label tone="green" %}
-      {% kpi "الحاضرون" present tone="teal" %}
-      {% kpi "الغائبون" absent sub=absent_delta_label tone="red" %}
-      {% kpi "حصص اليوم" sessions_today sub=sessions_sub tone="maroon" %}
-      {% kpi "معلّمون غائبون" absent_teachers_today tone=teachers_tone href=teachers_url %}
+      {% kpi day_headline_label day_headline_value sub=day_headline_sub tone=day_headline_tone href=day_follow_url key="school.headline" %}
+      {% kpi "غائب بعذر" day.school.absent_excused tone="maroon" key="school.absent_excused" %}
+      {% kpi "لم يُحسم" day.school.incomplete sub="رصدُ شعبته ناقص" tone=day_incomplete_tone key="school.incomplete" %}
+      {% if day_final %}{% kpi "غير مرصود" day.school.unrecorded sub="لا رصدَ له" tone="amber" key="school.unrecorded" %}{% endif %}
+      {% kpi "رصدٌ معلّق" day.school.pending sub="بانتظار الاعتماد" tone=day_pending_tone href=day_unapproved_url key="school.pending" %}
+      {% kpi "شعب سُجّلت حصصها" day_sections_label sub=day_sections_sub tone="maroon" %}
+      {% if not day_final %}{% kpi "خرجوا من الفصل" day.exits_students sub=day_exits_sub tone="maroon" key="exits.students" %}{% endif %}
     {% endkpi_strip %}
+    <p class="ui-note" data-live-note role="status" aria-live="polite" hidden></p>
+    {% callout "hint" %}الطالبُ يُعدّ مرّةً واحدة بحكم سياسة الغياب نفسِه (حضورُ 4 خاناتٍ فأكثر)، لا بعدد صفوف الحضور. «لم يُحسم» رصدُ شعبته ناقصٌ فلا يُحتسب غياباً، و«غير مرصود» لا يُدمج في الغائب. وبقيّةُ سير اليوم وجدولُ الأجنحة في «تفاصيل اليوم».{% endcallout %}
+    {% else %}
+    {% callout "info" show=True %}لا دوامَ اليوم — لا أرقامَ حضورٍ لليوم.{% endcallout %}
+    {% endif %}
     {% kpi_strip label="نبض الأقسام" %}
       {% kpi "مخالفات الشهر" behavior_monthly|default:0 sub=behavior_sub tone=behavior_tone href=behavior_url %}
       {% kpi "زيارات العيادة" clinic_today|default:0 sub=clinic_sub tone=clinic_tone href=clinic_url %}
       {% kpi "إعارات متأخّرة" library_overdue|default:0 tone=library_tone href=library_url %}
       {% kpi "تبديلات معلّقة" pending_swaps tone=swaps_tone href=swaps_url %}
       {% kpi "تعويضات معلّقة" pending_comp tone=comp_tone href=comp_url %}
+      {% comment %}بطاقةُ «تنبيهات الغياب المتكرّر» صارت مؤشّراً في هذا الشريط بعدّادها ورابطها (قياسُ 2026-10-08: كانت تستعمل 66px من 154px).{% endcomment %}
+      {% url 'student_affairs:attendance_overview' as alerts_url %}{% kpi "تنبيهات الغياب المتكرّر" alerts_count sub=alerts_sub tone=day_alerts_tone href=alerts_url %}
     {% endkpi_strip %}
   {% endsection_card %}
 
@@ -37,7 +52,7 @@
       {% kpi "نسبة النجاح" pass_label tone="green" %}
       {% kpi "نتائجُ ناجحة" passed_annual tone="green" title="نتيجةُ مادّةٍ لطالب" %}
       {% kpi "طلابٌ راسبون" failing_count tone=failing_tone href=failing_url %}
-      {% kpi "موادّ غير مكتملة" incomplete_setups sub="مادّة × شعبة" tone="orange" %}
+      {% kpi "موادّ غير مكتملة" incomplete_setups sub="مادّة × شعبة" tone="amber" %}
     {% endkpi_strip %}
   {% endsection_card %}
   {% endif %}
@@ -50,30 +65,77 @@
       <div class="dash-chart-wrap"><canvas id="miniGrades" role="img" aria-label="رسم بياني: توزيع الدرجات السنوية"></canvas></div>
     {% endsection_card %}
     {% comment %}
-    كانت هذه البطاقةُ قسماً مستقلّاً بقائمةٍ رأسيّةٍ (اسمٌ + شارةٌ في كلّ
-    سطر) — فترتفع مع تراكم "نبض الأقسام" و"العام الدراسي" فوقها حتى تدفع
-    الرسمين البيانيّين وشريطَ الأقسام السريعة خارج الشاشة، رغم أنّ عددها
-    محدودٌ بـ`[:5]` أصلاً. انضمّت هنا عموداً ثالثاً بجانب الرسمين (الشبكةُ
-    `auto-fit` أصلاً، لا تحتاج تعديلاً لتقبل عموداً ثالثاً)، و`.is-scroll`
-    تُسقّف ارتفاعها بارتفاع الرسمين بجانبها ولو زاد عددُ التنبيهات الحقيقيّ
-    مستقبلاً عن الخمسة المعروضة. وهي دائمةٌ لا مشروطةٌ بوجود تنبيهات — تختفي
-    البطاقةُ الثالثةُ فتضطرب الشبكةُ (عمودان فقط) كلّما خلا يومٌ من التنبيهات،
-    فتبقى ظاهرةً دوماً بحالةٍ فارغةٍ موحّدة (`section_card` نفسُها ترسمها
-    حين يكون محتواها فارغاً — `{% if alerts %}` هنا لا حول القسم كلِّه).
+    الصفُّ ثلاثُ بطاقاتٍ دائماً (طلب المدير 2026-09-18: الشبكةُ بثلاثة أعمدةٍ لا تضطرب). كانت الثالثةُ «تنبيهات الغياب المتكرّر» وتستعمل 66px من 154px (قياسُ 2026-10-08)،
+    فصار التنبيهُ مؤشّراً في «نبض الأقسام» بعدّادٍ ورابط، وصارت الثالثةُ «سيرُ اليوم»: خارج الفصل بإذن وخرجوا من الفصل ومعلّمون غائبون ظاهرةً، وجدولُ الأجنحة مطويّاً تحتها.
+    الارتفاعُ لا يتغيّر على 1366×768 (LAY-03): صفّان بـ44px وسطرُ الطيّ (121px) لا يتجاوزان جسمَ الرسمين بجانبها (154px) — قياسُ 0501: ثلاثةُ صفوفٍ (165px) رفعت الصفَّ 12px فظهر تمريرٌ 4px.
     {% endcomment %}
-    {% section_card "تنبيهات الغياب المتكرّر" meta=alerts_count icon="absence" empty="لا تنبيهات معلّقة" %}
-      {% if alerts_count %}
+    {% if day_open %}
+    {% section_card "تفاصيل اليوم — سير اليوم" meta=day_bell_meta icon="absence" %}
       <ul class="plain-list">
         <li class="plain-list__row">
-          <span class="plain-list__title">طلبةٌ تنتظر المتابعة</span>
-          <span class="status-badge status-danger">{{ alerts_count }}</span>
+          <span class="plain-list__title" title="{{ day_exits_sub }} {{ day_exits_destinations }}">خارج الفصل</span>
+          <span>
+            <span class="status-badge {% if day.school.away_permitted %}status-warning{% else %}status-success{% endif %}" title="محسوبون غائبين حتى اعتماد القرار">بإذن <span data-key="school.away_permitted">{{ day.school.away_permitted }}</span></span>
+            <span class="status-badge status-gray">خرجوا <span data-key="exits.students">{{ day.exits_students }}</span></span>
+          </span>
         </li>
         <li class="plain-list__row">
-          <a href="{% url 'student_affairs:attendance_overview' %}" class="btn-secondary btn-sm">افتح متابعة الحضور</a>
+          <a href="{{ teachers_url }}" class="btn-secondary btn-sm">معلّمون غائبون</a>
+          <span class="status-badge {% if absent_teachers_today %}status-danger{% else %}status-success{% endif %}">{{ absent_teachers_today }}</span>
         </li>
       </ul>
-      {% endif %}
+      <details>
+        <summary class="btn-secondary btn-sm">الأجنحة اليوم · {{ day_fold_meta }}</summary>
+        <div>
+          {% if day_exits_destinations %}<p class="ui-note">الخروج حسب الوجهة: {{ day_exits_destinations }}</p>{% endif %}
+          {% if day_wings %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">الجناح</th>
+                  <th scope="col" class="col-center">طلاب</th>
+                  {% if day_final %}
+                  <th scope="col" class="col-center">حاضر</th>
+                  <th scope="col" class="col-center">غائب بلا عذر</th>
+                  <th scope="col" class="col-center">بعذر</th>
+                  <th scope="col" class="col-center">لم يُحسم</th>
+                  <th scope="col" class="col-center">غير مرصود</th>
+                  {% else %}
+                  <th scope="col" class="col-center">غائبون عن ح1 وح2</th>
+                  {% endif %}
+                  <th scope="col" class="col-center">معلّق</th>
+                  <th scope="col" class="col-center">شعب مسجّلة</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for wing in day_wings %}
+                <tr>
+                  <th scope="row">{{ wing.name }}</th>
+                  <td class="col-center">{{ wing.counts.students }}</td>
+                  {% if day_final %}
+                  <td class="col-center">{{ wing.counts.present }}</td>
+                  <td class="col-center">{{ wing.counts.absent_unexcused }}</td>
+                  <td class="col-center">{{ wing.counts.absent_excused }}</td>
+                  <td class="col-center">{{ wing.counts.incomplete }}</td>
+                  <td class="col-center">{{ wing.counts.unrecorded }}</td>
+                  {% else %}
+                  <td class="col-center">{{ wing.counts.early_absent }}</td>
+                  {% endif %}
+                  <td class="col-center">{{ wing.counts.pending }}</td>
+                  <td class="col-center">{% if wing.gap %}<span class="status-badge status-warning">{{ wing.registered }}</span>{% else %}{{ wing.registered }}{% endif %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="ui-note">لا شعبَ بحصص اليوم.</p>
+          {% endif %}
+        </div>
+      </details>
     {% endsection_card %}
+    {% endif %}
   </div>
 
   <nav class="ui-actions" aria-label="الأقسام">

@@ -22,6 +22,9 @@ TIER_3_SUPERVISORS = {
     "admin_supervisor",
     "activities_coordinator",
     "e_projects_coordinator",  # منسّق المشاريع الإلكترونية — المسمّى الوزاريّ
+    # منسّق شؤون الطلبة (W-20261001-020): بطاقته في 03_job_descriptions_rbac.md ومسؤولُه المباشر
+    # النائبُ الإداريّ. مفتاحٌ داخليّ مستقلّ — لا يُحمل على رمز 1033 (نائب الأكاديميّ).
+    "student_affairs_coordinator",
 }
 TIER_4_STAFF = {
     # الكادر التدريسي
@@ -124,6 +127,7 @@ class Role(models.Model):
         # المسمّى الوزاريّ الرسميّ (Electronic Projects Coordinator) — تتابعه إدارةُ
         # التعليم الإلكترونيّ بالوزارة. كان يُسجَّل «منسّقاً أكاديمياً بلا قسم».
         ("e_projects_coordinator", "منسق المشاريع الإلكترونية"),
+        ("student_affairs_coordinator", "منسق شؤون الطلبة"),  # W-20261001-020 — م5.7 سياسة السلوك
         # T4 — الكادر التدريسي
         ("teacher", "معلم"),
         ("ese_teacher", "معلم تربية خاصة"),

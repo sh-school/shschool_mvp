@@ -411,6 +411,20 @@ def unapproved_by_session(
     return sorted(result, key=lambda item: -item.oldest_hours)
 
 
+def day_entry_heads(school: School, day: dt.date) -> list[tuple[Any, Any, dt.time, bool]]:
+    """رؤوسُ إدخالات الجدول في يومٍ: `(طالب، شعبة، بدء الخانة، أبلا قرارٍ؟)` — لمُجمِّع يوم المدرسة (W-20261008-004).
+
+    قراءةُ **وجودٍ وعدٍّ** لا حالة: الخانةُ التي لها رأسُ إدخالٍ «مسجَّلةٌ» (فمسارُ الجدول لا يكتب `PeriodConfirmation`)، والطالبُ ذو الرأس بلا قرارٍ
+    «معلَّق» يُعدّ ولا يُحتسب حاضراً ولا غائباً (D-125م). فلا يُقرأ المبدئيُّ هنا حضوراً ولا غياباً.
+    """
+    rows = AttendanceEntry.objects.filter(
+        school=school, session__date=day, superseded_by__isnull=True
+    ).values_list("student_id", "session__class_group_id", "session__start_time", "decision__id")
+    return [
+        (student, section, start, decision is None) for student, section, start, decision in rows
+    ]
+
+
 @dataclass(frozen=True)
 class PendingMark:
     """رصدُ معلّمٍ (غائب/متأخّر) لطالبٍ في اليوم لم يُقرَّر فيه بعد — وسمٌ لا حالة."""
