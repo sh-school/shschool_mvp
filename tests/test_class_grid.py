@@ -285,7 +285,13 @@ def test_a_stale_expected_head_is_a_conflict_and_writes_nothing(
 
     # آخرُ يصحّح الخليّةَ أوّلاً، ثمّ يأتي طلبٌ يحمل الرأسَ القديم
     assert (
-        _save(client_as(other_teacher), assigned, 1, [_cells(kids[0], "present", head)]).status_code
+        _save(
+            client_as(other_teacher),
+            assigned,
+            1,
+            [_cells(kids[0], "present", head)],
+            reason="تصحيحٌ",
+        ).status_code
         == 200
     )
     stale = _save(first, assigned, 1, [_cells(kids[0], "late", head)])
@@ -485,7 +491,7 @@ def test_the_cell_history_shows_who_wrote_and_who_corrected(
 ):
     _save(client_as(teacher), assigned, 1, [_cells(kids[0], "absent")])
     head = str(AttendanceEntry.objects.get().pk)
-    _save(client_as(holder), assigned, 1, [_cells(kids[0], "present", head)])
+    _save(client_as(holder), assigned, 1, [_cells(kids[0], "present", head)], reason="تصحيحٌ")
 
     body = (
         client_as(holder)
@@ -498,7 +504,7 @@ def test_the_cell_history_shows_who_wrote_and_who_corrected(
 def test_the_read_query_count_is_flat_in_the_number_of_students(
     client_as, school, assigned, teacher, clock
 ):
-    """عدُّ الاستعلامات ثابتٌ بعدد الطلبة: شعبةٌ بـ30 ثمّ بـ60 تُقرأ بالعدد نفسِه، وتحت حدٍّ مطلق (خطُّ أساسٍ مقيس: 32)."""
+    """عدُّ الاستعلامات ثابتٌ بعدد الطلبة: شعبةٌ بـ30 ثمّ بـ60 تُقرأ بالعدد نفسِه، وتحت حدٍّ مطلق (خطُّ أساسٍ مقيس: 36 بعد استعلام تغطية البديل)."""
 
     def measure():
         with CaptureQueriesContext(connection) as queries:
@@ -517,7 +523,7 @@ def test_the_read_query_count_is_flat_in_the_number_of_students(
     thirty = measure()
     enroll(30, 60)
     sixty = measure()
-    assert thirty == sixty and thirty <= 35, (thirty, sixty)
+    assert thirty == sixty and thirty <= 37, (thirty, sixty)
 
 
 # ── «اطفئ الشبكة»: مع المفتاح لا يُفتح كشفُ الحصّة القديم لمن يملك الجدول ───────────

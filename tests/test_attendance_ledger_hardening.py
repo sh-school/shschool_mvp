@@ -6,7 +6,7 @@
   وتتحقّق بعد الحذف أنّه لم يبقَ شيءٌ، وإلّا تُلغى المعاملةُ كلُّها.
 - **سباقُ الكتابة:** اعتمادٌ يجد الصفَّ غائباً ثمّ يسبقه مشرفٌ بكتابته فيصطدم القيدُ الفريد — يصير `EntryConflictError` لا 500.
 - **الصلاحيّات:** دورُ التطبيق لا يملك `TRUNCATE` (مشغّلُ الصفّ لا يمنعه) — فحصٌ ساكنٌ على ملفّ التزويد وآخرُ تشغيليّ.
-- **الوقت:** أيُّ view لا يمرّر `now` من الطلب إلى `submit_entry`/`decide_entry` (معاملُ اختبارٍ لا مدخلُ مستخدم).
+- **الوقت:** أيُّ view لا يمرّر `now` من الطلب إلى `submit_entry` (معاملُ اختبارٍ لا مدخلُ مستخدم).
 """
 
 import ast
@@ -19,7 +19,6 @@ from django.db import connection
 
 from operations.attendance_entries import (
     EntryError,
-    decide_entry,
     erase_attendance_ledger,
     submit_entry,
 )
@@ -80,7 +79,6 @@ def _as_tenant(school_id):
 
 def _ledger_for(kid, session, teacher, holder):
     entry = submit_entry(teacher, session, kid, "absent", now=NOW)
-    decide_entry(holder, entry, approve=True)
     return entry
 
 
@@ -208,13 +206,13 @@ def _calls_with_request_now():
         if set(rel.parts) & skip or path.name.startswith("test_") or path.name == "conftest.py":
             continue
         text = path.read_text(encoding="utf-8")
-        if "submit_entry" not in text and "decide_entry" not in text:
+        if "submit_entry" not in text:
             continue
         for node in ast.walk(ast.parse(text)):
             if not isinstance(node, ast.Call):
                 continue
             name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
-            if name not in {"submit_entry", "decide_entry"}:
+            if name not in {"submit_entry"}:
                 continue
             for keyword in node.keywords:
                 if keyword.arg == "now" and "request" in ast.unparse(keyword.value):

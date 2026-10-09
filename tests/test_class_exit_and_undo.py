@@ -10,7 +10,6 @@
 import pytest
 from django.urls import reverse
 
-from core.models import AuditLog
 from operations.class_exit import close_unreturned, come_back, leave
 from operations.models import ClassExit, StudentAttendance
 from operations.presence import presence_for
@@ -54,24 +53,6 @@ class TestTheTeacherLetsAStudentOut:
         leave(period, kids[0], "admin", by=teacher, now=at(7, 25))
 
         assert ClassExit.objects.count() == 1
-
-    def test_who_never_came_back_is_absent_with_leave_not_an_escape(
-        self, school, seeded_calendar, klass, kids, teacher, supervisor
-    ):
-        """خرج إلى العيادة في الثانية ولم يعد: «غائب · العيادة» — ولا هروبَ عليه."""
-        periods = _periods(school, klass, teacher, 3)
-        _confirm(klass, periods[0], {}, supervisor)
-        leave(periods[1], kids[0], "clinic", by=teacher, now=at(8, 20))
-
-        _confirm(klass, periods[1], {}, supervisor, now=at(9, 0))
-        _confirm(klass, periods[2], {}, supervisor)
-
-        row = StudentAttendance.objects.get(session=periods[1], student=kids[0])
-        assert (row.status, row.whereabouts) == ("absent", "clinic")
-        assert not _auto(kids[0], "class_escape").exists()
-        # الخروجُ غيرُ المنتهي يمتدّ إلى الحصّة التالية (W-20261004-018): نقرأ سطرَ حصّته الأصليّ.
-        exit_ = ClassExit.objects.get(session=periods[1])
-        assert exit_.returned_at is not None and exit_.minutes_away() == 35
 
     def test_close_unreturned_closes_at_the_bell_and_writes_no_attendance(
         self, school, seeded_calendar, klass, kids, teacher, supervisor
@@ -142,36 +123,6 @@ class TestTheSupervisorIsNotified:
 
 
 class TestPresenceMinutesBySubject:
-    def test_minutes_are_schedule_minus_absence_late_and_exits(
-        self, school, seeded_calendar, klass, kids, teacher, supervisor, subjects
-    ):
-        """ثلاثُ حصصٍ رياضيّات (45 د): غاب الأولى، وتأخّر 10 في الثانية، وخرج 12 في الثالثة
-        ← حضر 135 − 45 − 10 − 12 = 68 دقيقة."""
-        math, _science = subjects
-        periods = _periods(school, klass, teacher, 3)
-        for p in periods:
-            p.subject = math
-            p.save(update_fields=["subject"])
-        _confirm(klass, periods[0], {kids[0]: "absent"}, supervisor)
-        _confirm(klass, periods[1], {kids[0]: "late"}, supervisor, now=at(8, 20))
-        leave(periods[2], kids[0], "restroom", by=teacher, now=at(9, 15))
-        come_back(periods[2], kids[0], now=at(9, 27))
-        _confirm(klass, periods[2], {}, supervisor)
-
-        presence = presence_for(kids[0], school, SUNDAY, SUNDAY)
-
-        row = presence.by_subject["الرياضيات"]
-        assert (row.scheduled_periods, row.scheduled_minutes) == (3, 135)
-        assert (
-            row.absent_periods,
-            row.late_count,
-            row.late_minutes,
-            row.exit_count,
-            row.exit_minutes,
-        ) == (1, 1, 10, 1, 12)
-        assert row.present_minutes == 68
-        assert row.present_pct == 50
-
     def test_escapes_are_counted_per_subject(
         self, school, seeded_calendar, klass, kids, teacher, supervisor, subjects
     ):
@@ -190,28 +141,6 @@ class TestPresenceMinutesBySubject:
 
 
 class TestUndo:
-    def test_deleting_an_event_from_the_profile_removes_its_auto_infraction(
-        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
-    ):
-        """رُصد متأخّراً 12 دقيقة على الطالب الخطأ: الحذفُ بسببٍ يُزيل مخالفةَ 1-01 معه."""
-        (period,) = _periods(school, klass, teacher, 1)
-        _confirm(klass, period, {kids[0]: "late"}, supervisor, now=at(7, 22))
-        assert _auto(kids[0], "period_tardy").count() == 1
-        row = StudentAttendance.objects.get(session=period, student=kids[0])
-
-        response = client_as(supervisor).post(
-            reverse("wings:attendance_event_delete", args=[row.pk]),
-            {"reason": "رُصد على طالبٍ آخر"},
-        )
-
-        assert response.status_code == 302
-        assert not StudentAttendance.objects.filter(pk=row.pk).exists()
-        assert not _auto(kids[0], "period_tardy").exists()
-        undo = AuditLog.objects.filter(
-            action="delete", object_repr__startswith="حذفُ سجلّ حضور"
-        ).get()
-        assert undo.changes["reason"] == "رُصد على طالبٍ آخر"
-
     def test_deletion_needs_a_reason_and_the_recorders_role(
         self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
     ):

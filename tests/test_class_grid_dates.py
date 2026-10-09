@@ -1,6 +1,7 @@
 """W-20261009-003 — جدولُ الشعبة لكلّ التواريخ: قراءةُ الماضي بتصحيحٍ مسبَّب، والمستقبلُ للقراءة فقط."""
 
 import datetime as dt
+import itertools
 
 import pytest
 from django.urls import reverse
@@ -26,8 +27,11 @@ MONDAY_AFTER = SUNDAY + dt.timedelta(days=1)
 FRIDAY_BEFORE = SUNDAY - dt.timedelta(days=2)
 
 
+_COUNTER = itertools.count(1)
+
+
 def _principal(school):
-    return _staff(school, "principal", "مدير", "29000009977")
+    return _staff(school, "principal", "مدير", f"2900000{next(_COUNTER):04d}9")
 
 
 def test_a_past_day_opens_for_reading_with_all_columns_past(
