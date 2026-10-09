@@ -470,6 +470,9 @@ input[type="checkbox"], input[type="radio"] { min-inline-size: 24px; min-block-s
   #main-content.page-noscroll .table-wrap-scroll,
   #main-content.page-noscroll .table-wrap,
   #main-content.page-noscroll .ui-entity-grid { flex: 1; min-height: 0; max-height: none; overflow: auto; }
+  /* جدولُ الشعبة العموديّ: لا تمريرَ داخل البطاقة ولا الغلاف (أمرُ المالك)؛ الصفحةُ هي التي تُمرَّر. */
+  #main-content.page-noscroll > .exec-dash > .ui-section:last-child > .ui-section__body:has(> [data-class-grid]),
+  #main-content.page-noscroll .table-wrap.cg-wrap { overflow: visible; flex: 0 0 auto; }
 }
 }
 

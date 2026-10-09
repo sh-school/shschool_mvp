@@ -45,9 +45,6 @@
       {% csrf_token %}
       {# نموذجٌ مخفيٌّ يستدعي نافذةَ التأكيد المركزيّة (`data-confirm` في base.js) من JS الجدول — لا window.confirm #}
       <form data-grid-confirm hidden></form>
-      {% if page.correction_mode or page.reason_always %}
-      <div class="ui-note">{% field "reason" "سببُ التصحيح — إلزاميّ عند تعديل ما كتبه غيرُك أو بعد إغلاق نافذة المعلّم" required=True maxlength="300" data_grid_reason=True %}</div>
-      {% endif %}
       <div hidden data-tabs role="tablist" aria-label="الحصّة المعروضة">
         {% for col in page.columns %}
         <button type="button" class="btn-secondary btn-sm" role="tab" data-tab="{{ col.number }}" aria-selected="false">ح{{ col.number }}</button>
@@ -124,8 +121,11 @@
           {% endif %}
         </table>
       </div>
+      {% if page.correction_mode or page.reason_always %}
+      <div class="cg-reasonbar">{% field "reason" "سببُ التصحيح — إلزاميّ عند تعديل ما كتبه غيرُك أو بعد إغلاق نافذة المعلّم" required=True maxlength="300" data_grid_reason=True %}</div>
+      {% endif %}
       <p class="ui-note" data-grid-status role="status" aria-live="polite"></p>
-      <dialog data-history-dialog aria-label="سجلّ الخليّة"><div data-history-body></div><form method="dialog"><button class="btn-secondary btn-sm">إغلاق</button></form></dialog>
+      <dialog class="cg-dialog" data-history-dialog aria-label="سجلّ الخليّة"><div data-history-body></div><form method="dialog" class="cg-dialog__foot"><button class="btn-secondary btn-sm">إغلاق</button></form></dialog>
     </div>
     {% endif %}
   {% endif %}{% endsection_card %}

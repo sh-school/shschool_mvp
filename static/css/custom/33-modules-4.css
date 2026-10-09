@@ -1503,7 +1503,16 @@ body:has(.rm-page) .site-footer { flex: none; }
 /* لا تمريرَ أفقيّاً (أمرُ المالك): التخطيطُ ثابتٌ بعرض الغلاف والأعمدةُ تتقاسم العرضَ. والتمريرُ العموديُّ **داخل الغلاف**: سلسلةُ flex من جسم البطاقة
    (محدودِ الارتفاع في صفحاتِ `sheet`) إلى الغلاف، فيبلغ الغلافُ ارتفاعَ ما بقي ويتمرّر وحدَه ويلصق رأسُ الجدول بأعلاه ولا يسافر مع الصفوف. */
 [data-class-grid] { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-.cg-wrap { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+.cg-wrap { overflow: visible; }
+/* الجدولُ داخل بطاقةٍ ملاصقةٍ (`is-flush`) فلا إطارَ ثانيَ ولا ظلَّ ولا استدارةَ: كانت بطاقةً داخل بطاقة. */
+.cg-wrap { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+/* سببُ التصحيح: حشوُ جسم البطاقة ونصُّ التسمية بلون النصّ لا الرماديّ الباهت (`ui-note` كانت تُضعف تباينَ التسمية). */
+.cg-reasonbar { padding: var(--sp-2) var(--sp-3); color: var(--text-primary); }
+.cg-reasonbar .form-group { display: flex; align-items: center; gap: var(--sp-2); margin: 0; }
+.cg-reasonbar input { flex: 1 1 auto; max-inline-size: 32rem; }
+/* لا تمريرَ داخل البطاقة (أمرُ المالك): الصفحةُ هي التي تُمرَّر فلا قصَّ لآخر صفٍّ، وتذييلُ المفاتيح لاصقٌ بأسفل النافذة. */
+.ui-section:has(> .ui-section__body > [data-class-grid]),
+.ui-section__body:has(> [data-class-grid]) { overflow: visible; }
 .cg-table { table-layout: fixed; inline-size: 100%; }
 .cg-table :is(th, td) { text-align: center; padding-inline: var(--sp-1); }
 /* الاسمُ على يمين السطر (بدايةُ السطر في RTL) — القاعدةُ أعلاه أخصُّ من `.cg-name` وحدَها فكانت تُوسّطه. */
@@ -1511,7 +1520,7 @@ body:has(.rm-page) .site-footer { flex: none; }
 .cg-table .cg-name { text-align: start; inline-size: 15rem; padding-inline: var(--sp-3); }
 .cg-table .cg-acts { inline-size: 22%; }
 /* كلُّ سطرٍ يُميَّز عن جاره: خطٌّ فاصلٌ وتظليلُ الأزواج بلونٍ من هويّة العنّابيّ (يمتدّ تحت خليّة الاسم أيضاً) ومرورُ المؤشّر. */
-.cg-table tbody > tr > * { border-bottom: 1px solid var(--border); }
+.cg-table tbody > tr > * { border-bottom: 1px solid var(--border); background: var(--surface); }
 .cg-table tbody tr:nth-child(even) > * { background: color-mix(in srgb, var(--maroon) 6%, var(--surface)); }
 .cg-table tbody tr:hover > * { background: color-mix(in srgb, var(--maroon) 12%, var(--surface)); }
 /* الرأسُ عنّابيٌّ: نصُّه `--on-fill` لا `--text-secondary` (كان رماديّاً على العنّابيّ فلا يُقرأ) ولا تعتيمَ يُضعف تباينَه. */
@@ -1521,7 +1530,7 @@ body:has(.rm-page) .site-footer { flex: none; }
 .cg-col__title { font-size: inherit; }
 /* الحصّةُ الجاريةُ: خطٌّ ذهبيٌّ تحت رأسها (الذهبيُّ تمييزٌ لا نصّ) وتلوينٌ خفيفٌ لخلاياها. */
 .cg-table thead .cg-col--current { box-shadow: inset 0 -3px 0 var(--gold); }
-.cg-cell { inline-size: 100%; min-block-size: var(--control-h); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); color: var(--text-secondary); font-weight: 800; cursor: pointer; }
+.cg-cell { inline-size: 100%; min-block-size: var(--control-h); border: 2px solid color-mix(in srgb, var(--text-muted) 75%, var(--surface)); border-radius: var(--radius-md); background: var(--surface); color: var(--text-secondary); font-weight: 800; cursor: pointer; }
 .cg-cell.is-present { background: var(--status-success-bg); border-color: var(--status-success); color: var(--status-success-fg); }
 .cg-cell.is-absent { background: var(--status-danger-bg); border-color: var(--status-danger); color: var(--status-danger-fg); }
 .cg-cell.is-late { background: var(--status-warning-bg); border-color: var(--status-warning); color: var(--status-warning-fg); }
@@ -1537,6 +1546,11 @@ body:has(.rm-page) .site-footer { flex: none; }
 .cg-keys > :nth-child(n+3) { grid-column: 1 / -1; }
 .cg-acts__box { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-1); }
 .cg-dest { max-inline-size: 6.5rem; font-size: 0.75rem; }
+/* نافذةُ سجلّ الخليّة بهويّة المنصّة: سطحٌ ونصٌّ وحدٌّ من الرموز فتنقلب ليلاً، وعنوانٌ بنصّ الرمز وخطٌّ عنّابيٌّ تحته، وحجبٌ خلفيٌّ من لون الظلّ. */
+.cg-dialog { background: var(--surface); color: var(--text-primary); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-modal); padding: var(--sp-4); inline-size: min(92vw, 36rem); max-block-size: 80vh; overflow: auto; z-index: var(--z-modal); }
+.cg-dialog::backdrop { background: color-mix(in srgb, var(--shadow-ink) 55%, transparent); }
+.cg-dialog h3 { margin: 0 0 var(--sp-3); padding-block-end: var(--sp-2); color: var(--text-primary); border-block-end: 2px solid var(--maroon); font-size: var(--text-lg); }
+.cg-dialog__foot { display: flex; justify-content: flex-end; margin-block-start: var(--sp-3); }
 @media (max-width: 640px) {
   .cg-table .cg-name { inline-size: 34%; min-inline-size: 6rem; }
   .cg-table .cg-acts { inline-size: 36%; }
