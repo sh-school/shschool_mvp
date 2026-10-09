@@ -652,3 +652,126 @@ def test_a_student_corrected_to_present_can_leave(client_as, assigned, teacher, 
     _save(client, assigned, 1, [_cells(kids[0], "present", str(head))])
     response = _exit(client, assigned, kids[0], action="leave", destination="clinic")
     assert response.status_code == 200, response.content
+
+
+# ── منقولٌ من tests/test_mark_single_ownership.py (حُذف مسارُ mark_single في 21aeeecbd) بالأسماء نفسِها ──────────────
+# الحارسُ كان: «معلّمُ الحصّة وحدَه، داخل النافذة، بتوقيت الدوحة، والمطوّرُ لا يُدخل، والتدقيقُ بالقيمتين». ينتقل إلى الجدول.
+
+
+def test_the_session_teacher_marks_inside_the_window(client_as, assigned, teacher, kids, clock):
+    response = _save(client_as(teacher), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code == 200
+    row = AttendanceEntry.objects.get(student=kids[0])
+    assert (row.status, row.entered_by_id) == ("absent", teacher.id)
+
+
+def test_another_teacher_may_not_mark_a_colleagues_session(
+    client_as, assigned, other_teacher, kids, clock
+):
+    """الثغرةُ بعينها: زميلٌ يحمل attendance.mark يكتب حصّةَ غيره."""
+    response = _save(client_as(other_teacher), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code in (403, 404)
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_a_coordinator_who_is_not_the_session_teacher_may_not_mark(
+    client_as, school, assigned, kids, clock
+):
+    coordinator = _staff(school, "coordinator", "منسّق", "29000004012")
+    response = _save(client_as(coordinator), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code in (403, 404)
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_the_teacher_may_not_mark_before_the_session_starts(
+    client_as, assigned, teacher, kids, clock
+):
+    clock(7, 9)
+    response = _save(client_as(teacher), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code == 403
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_the_teacher_may_not_mark_after_the_window_closes(
+    client_as, assigned, teacher, kids, clock
+):
+    clock(14, 1)
+    response = _save(client_as(teacher), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code == 403
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_the_teacher_may_not_mark_the_next_day(client_as, assigned, teacher, kids, monkeypatch):
+    monkeypatch.setattr(timezone, "now", lambda: at(9, 0, day=SUNDAY + dt.timedelta(days=1)))
+    response = _save(
+        client_as(teacher), assigned, 1, [_cells(kids[0], "absent")], date=SUNDAY.isoformat()
+    )
+    assert response.status_code == 403
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_a_cancelled_session_may_not_be_marked(client_as, assigned, teacher, kids, clock):
+    """الحصّةُ الملغاةُ لا تُرصد: عمودٌ حصّتُه ملغاةٌ يرفضه الخادم."""
+    Session.objects.create(
+        school=assigned.school,
+        class_group=assigned,
+        teacher=teacher,
+        date=SUNDAY,
+        start_time=dt.time(7, 10),
+        end_time=dt.time(7, 55),
+        period_number=1,
+        status="cancelled",
+        provisional=True,
+    )
+    response = _save(client_as(teacher), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code != 200
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_recorders_still_mark_any_wingless_session(client_as, school, assigned, kids, clock):
+    """أهلُ الرصد غيرُ المقيَّدين بجناحٍ (النائبُ الإداريّ والمدير) يكتبون العمودَ بلا قيدِ معلّم الحصّة."""
+    for kid, (role, nid) in zip(
+        kids, (("vice_admin", "29000004021"), ("principal", "29000004023")), strict=False
+    ):
+        recorder = _staff(school, role, role, nid)
+        response = _save(client_as(recorder), assigned, 1, [_cells(kid, "present")])
+        assert response.status_code == 200, role
+
+
+def test_the_developer_may_not_mark_even_as_a_superuser(client_as, school, assigned, kids, clock):
+    """D-128م: المطوّرُ لا يُدخل ولو كان superuser."""
+    developer = _staff(school, "platform_developer", "المطوّر", "29000004030")
+    developer.is_superuser = True
+    developer.save(update_fields=["is_superuser"])
+    response = _save(client_as(developer), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code in (403, 404)
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_the_teachers_changes_are_audited_with_before_and_after(
+    client_as, assigned, teacher, kids, clock
+):
+    """رصدُ المعلّم نهائيٌّ **بتدقيقٍ كامل**: كلُّ تغييرٍ إدخالٌ مُلحَق بالقيمتين، وسجلُّ التدقيق بالمعرّفات لا الأسماء."""
+    client = client_as(teacher)
+    first = _save(client, assigned, 1, [_cells(kids[0], "absent")])
+    assert first.status_code == 200
+    head = str(AttendanceEntry.objects.get(student=kids[0]).pk)
+    _save(client, assigned, 1, [_cells(kids[0], "present", head)])
+    rows = {row.pk: row for row in AttendanceEntry.objects.filter(student=kids[0])}
+    root = next(row for row in rows.values() if row.supersedes_id is None)
+    chain = [root, next(row for row in rows.values() if row.supersedes_id == root.pk)]
+    assert [row.status for row in chain] == ["absent", "present"]
+    assert chain[1].supersedes_id == chain[0].pk
+    assert all(row.entered_by_id == teacher.id for row in chain)
+    lines = list(AuditLog.objects.filter(model_name="other", user=teacher))
+    assert lines
+    assert all(kids[0].full_name not in str(line.changes) for line in lines)
+
+
+def test_a_recorders_marking_is_not_double_audited_by_this_path(
+    client_as, school, assigned, kids, clock
+):
+    """كاتبٌ واحدٌ لكلّ إدخال: أهلُ الرصد يكتبون بإدخالٍ واحدٍ لا بإدخالين."""
+    recorder = _staff(school, "vice_admin", "النائب", "29000004031")
+    _save(client_as(recorder), assigned, 1, [_cells(kids[0], "present")])
+    assert AttendanceEntry.objects.filter(student=kids[0], entered_by=recorder).count() == 1
