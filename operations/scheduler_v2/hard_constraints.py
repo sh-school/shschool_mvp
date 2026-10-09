@@ -319,23 +319,9 @@ class _Edges:
     last_by_cls: dict[str, list] = field(default_factory=lambda: defaultdict(list))
 
 
-def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
-    m, opt = ctx.m, ctx.opt
-    pref = ctx.inp.prefs.get(t)
-    # فواصلُ زمنيّةٌ متطابقةٌ ← HC1 (معلّمٌ واحدٌ لا يُدرّس شعبتين معاً) وتُعرَّف إشغالَ الفاصل.
-    by_key: dict[tuple[int, int], list[_Cell]] = defaultdict(list)
-    for c in cells:
-        by_key[c.start, c.end].append(c)
-    occ: dict[tuple[int, int], object] = {}
-    for key, cs in sorted(by_key.items()):
-        if len(cs) == 1:
-            occ[key] = cs[0].var
-        else:
-            o = m.NewBoolVar("")
-            m.Add(sum(c.var for c in cs) == o)
-            ctx.count("HC1")
-            occ[key] = o
-        ctx.b.vars[("occ", t, day, key[0], key[1])] = occ[key]
+def _touch_rules(ctx: _Ctx, t, day: int, cells: list[_Cell], by_key, occ) -> None:
+    """HC5 (أو تخفيفُه المعلَن) مع HC13 وقيد 6-7 وسقف التتابع، لمعلّمٍ في يوم."""
+    opt, m = ctx.opt, ctx.m
     relaxed = t in opt.touch_relaxed and opt.enabled("HC5")
     _day_pairs(ctx, by_key, occ, opt.enabled("HC5") and not relaxed)
     if relaxed and day == 0:
@@ -358,6 +344,26 @@ def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
         _band_transition(ctx, cells, day)
     if relaxed and opt.touch_relaxed_run_cap == 2:
         _no_triples(ctx, by_key, occ)
+
+
+def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
+    m, opt = ctx.m, ctx.opt
+    pref = ctx.inp.prefs.get(t)
+    # فواصلُ زمنيّةٌ متطابقةٌ ← HC1 (معلّمٌ واحدٌ لا يُدرّس شعبتين معاً) وتُعرَّف إشغالَ الفاصل.
+    by_key: dict[tuple[int, int], list[_Cell]] = defaultdict(list)
+    for c in cells:
+        by_key[c.start, c.end].append(c)
+    occ: dict[tuple[int, int], object] = {}
+    for key, cs in sorted(by_key.items()):
+        if len(cs) == 1:
+            occ[key] = cs[0].var
+        else:
+            o = m.NewBoolVar("")
+            m.Add(sum(c.var for c in cs) == o)
+            ctx.count("HC1")
+            occ[key] = o
+        ctx.b.vars[("occ", t, day, key[0], key[1])] = occ[key]
+    _touch_rules(ctx, t, day, cells, by_key, occ)
     if pref is not None and pref.max_gap is not None:
         _max_gap(ctx, t, day, by_key, occ, pref.max_gap)  # HC10: سقفُ الفراغ الشخصيّ
     # سقفُ اليوم: التفضيلُ الشخصيّ (أو الافتراضيّ 5) وHC16 المشتقّ.
