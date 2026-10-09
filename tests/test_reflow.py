@@ -34,7 +34,6 @@ from tests.css_source import read_css
 SCROLLABLE_EXCEPTIONS = {
     "table-wrap",
     "table-wrap-scroll",
-    "per-grid-wrap",
     "asg-guard-scroll",
     "report-tab",  # شريطُ تبويبٍ يُمرَّر أفقيّاً بذاته — مكوّنٌ صغيرٌ محتوًى، لا الصفحة
 }

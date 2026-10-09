@@ -8,12 +8,10 @@ import ast
 from pathlib import Path
 
 import pytest
-from django.urls import reverse
 from rest_framework.test import APIClient
 
 from api.views_erasure import ERASURE_FAILURES
 from governance.erasure_service import ErasureFailedError, ErasureStateError
-from operations.attendance_entries import EntryConflictError, EntryError
 from tests.attendance_fixtures import *  # noqa: F401,F403
 from tests.attendance_fixtures import _staff
 
@@ -21,7 +19,7 @@ pytestmark = pytest.mark.django_db
 
 CANARY = "CANARY-نصُّ-الاستثناء-الخامّ-لا-يخرج"
 ROOT = Path(__file__).resolve().parent.parent
-VIEW_FILES = ("operations/views_attendance_entries.py", "api/views_erasure.py")
+VIEW_FILES = ("api/views_erasure.py",)
 
 
 def _raise(exc):
@@ -29,45 +27,6 @@ def _raise(exc):
         raise exc
 
     return boom
-
-
-@pytest.mark.parametrize(
-    "exc, status",
-    [
-        (EntryError("bad_status", CANARY), 400),
-        (EntryError("a_code_nobody_mapped", CANARY), 400),
-        (EntryConflictError("concurrent", CANARY), 409),
-        (EntryConflictError("non_correctable_row", CANARY), 409),
-    ],
-)
-def test_the_entry_and_correction_screens_never_return_the_exception_text(
-    client_as, monkeypatch, session, teacher, holder, kid, exc, status
-):
-    from operations.services.attendance_teacher import TeacherAttendanceService
-
-    monkeypatch.setattr(TeacherAttendanceService, "enter", staticmethod(_raise(exc)))
-    monkeypatch.setattr(TeacherAttendanceService, "decide", staticmethod(_raise(exc)))
-    monkeypatch.setattr(TeacherAttendanceService, "correct", staticmethod(_raise(exc)))
-
-    responses = [
-        client_as(teacher).post(
-            reverse("attendance_entry", args=[session.id]),
-            {"student_id": str(kid.id), "status": "absent"},
-        ),
-        client_as(holder).post(
-            reverse("attendance_decide", args=[session.id]), {"decision": "approve"}
-        ),
-        client_as(holder).post(
-            reverse("attendance_correct_submit", args=[session.id]),
-            {"student_id": str(kid.id), "status": "present"},
-        ),
-    ]
-    for response in responses:
-        if response.status_code == 404:  # معرّفٌ غيرُ إدخال — يكفي أن لا يتسرّب
-            assert CANARY not in response.content.decode()
-            continue
-        assert response.status_code == status
-        assert CANARY not in response.content.decode()
 
 
 @pytest.mark.parametrize("known", ["erasure_wrong_tenant", "erasure_incomplete", "erasure_error"])

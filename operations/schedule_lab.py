@@ -601,7 +601,7 @@ class ScheduleLab:
             doubles[key] = s.requires_double
             names[key] = f"{s.class_name} — {s.subject_code or s.subject_id[:6]}"
         hits = [names[k] for k, n in counts.items() if n >= 2 and not doubles[k]]
-        return {"value": len(hits), "detail": {h: 2 for h in hits[:10]}}
+        return {"value": len(hits), "detail": dict.fromkeys(hits[:10], 2)}
 
     def pedagogy_timing(self) -> tuple[dict, dict]:
         heavy = [s for s in self.slots if s.pedagogy == "heavy"]

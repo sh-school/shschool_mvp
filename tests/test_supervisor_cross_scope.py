@@ -190,64 +190,6 @@ class TestDailyAbsenceReport:
 # ══════════════════════════════════════════════════════════════════
 
 
-class TestMarkSingle:
-    def test_a_session_outside_his_wing_is_404(
-        self, client_as, school, supervisor, other_klass, theirs
-    ):
-        session = _session(school, other_klass, "29400000201")
-
-        response = client_as(supervisor).post(
-            reverse("mark_single", args=[session.id]),
-            {"student_id": str(theirs.id), "status": "absent"},
-        )
-
-        assert response.status_code == 404
-        assert not StudentAttendance.objects.exists()
-
-    def test_a_student_not_enrolled_in_the_session_class_is_404(
-        self, client_as, school, supervisor, klass, mine, theirs
-    ):
-        session = _session(school, klass, "29400000202")
-
-        response = client_as(supervisor).post(
-            reverse("mark_single", args=[session.id]),
-            {"student_id": str(theirs.id), "status": "absent"},
-        )
-
-        assert response.status_code == 404
-        assert not StudentAttendance.objects.exists()
-
-    def test_his_own_wing_is_recorded(self, client_as, school, supervisor, klass, mine):
-        session = _session(school, klass, "29400000203")
-
-        response = client_as(supervisor).post(
-            reverse("mark_single", args=[session.id]),
-            {"student_id": str(mine.id), "status": "absent"},
-        )
-
-        assert response.status_code == 200
-        assert StudentAttendance.objects.get(session=session, student=mine).status == "absent"
-
-    def test_the_principal_records_any_wing_but_only_the_class_students(
-        self, client_as, school, principal, klass, other_klass, mine, theirs
-    ):
-        session = _session(school, other_klass, "29400000204")
-        client = client_as(principal)
-
-        ok = client.post(
-            reverse("mark_single", args=[session.id]),
-            {"student_id": str(theirs.id), "status": "late"},
-        )
-        stranger = client.post(
-            reverse("mark_single", args=[session.id]),
-            {"student_id": str(mine.id), "status": "late"},
-        )
-
-        assert ok.status_code == 200
-        assert stranger.status_code == 404
-        assert list(StudentAttendance.objects.values_list("student_id", flat=True)) == [theirs.id]
-
-
 # ══════════════════════════════════════════════════════════════════
 # محضرُ حادثة الكنترول
 # ══════════════════════════════════════════════════════════════════

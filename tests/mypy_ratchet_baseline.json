@@ -76,7 +76,6 @@
   "operations/absence_policy.py": 4,
   "operations/absence_standing.py": 10,
   "operations/bells.py": 12,
-  "operations/class_exit.py": 2,
   "operations/constraint_registry.py": 20,
   "operations/day_attendance.py": 4,
   "operations/departments.py": 11,
@@ -85,7 +84,7 @@
   "operations/models/permissions.py": 3,
   "operations/models/schedule.py": 17,
   "operations/models/substitution.py": 12,
-  "operations/period_register.py": 11,
+  "operations/period_register.py": 5,
   "operations/preference_capacity.py": 1,
   "operations/schedule_feasibility.py": 5,
   "operations/schedule_lab.py": 13,
@@ -101,7 +100,6 @@
   "operations/services/schedule_retention.py": 6,
   "operations/services/swap.py": 3,
   "operations/services/teacher_load.py": 1,
-  "operations/tardiness.py": 3,
   "quality/models/appraisal.py": 11,
   "quality/models/committee.py": 4,
   "quality/models/common.py": 1,
@@ -122,5 +120,5 @@
   "wings/scope.py": 1,
   "wings/services.py": 14
  },
- "total": 1213
+ "total": 1202
 }
