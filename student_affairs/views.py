@@ -952,7 +952,7 @@ def student_profile(request, student_id):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.transfers")
 def transfer_list(request):
     """قائمة الانتقالات مع فلتر حسب الحالة والاتجاه."""
     school = request.school
@@ -983,7 +983,7 @@ def transfer_list(request):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.transfers")
 def transfer_create(request):
     """تسجيل طلب انتقال جديد."""
     school = request.school
@@ -1013,6 +1013,9 @@ def transfer_create(request):
                 created_by=request.user,
                 updated_by=request.user,
             )
+            from .services import StudentService
+
+            StudentService.audit_student_event(school, request.user, student, "transfer_requested")
             messages.success(request, f"تم تسجيل طلب انتقال {student.full_name} بنجاح.")
             return redirect("student_affairs:transfer_list")
     else:
@@ -1035,7 +1038,7 @@ def transfer_create(request):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.transfers")
 def transfer_detail(request, pk):
     """تفاصيل طلب انتقال."""
     school = request.school
@@ -1051,7 +1054,7 @@ def transfer_detail(request, pk):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.transfers")
 @require_POST
 def transfer_review(request, pk):
     """مراجعة طلب انتقال — موافقة / رفض / إتمام."""
@@ -1069,6 +1072,12 @@ def transfer_review(request, pk):
         transfer.notes = notes
         transfer.updated_by = request.user
         transfer.save()
+
+        from .services import StudentService
+
+        StudentService.audit_student_event(
+            school, request.user, transfer.student, f"transfer_{action}"
+        )
 
         # إذا اكتمل الانتقال الصادر → تعطيل الطالب
         if action == "completed" and transfer.direction == "out":
@@ -1946,9 +1955,15 @@ def protected_media(request, path):
 
     # تحقق أن الملف يخص مدرسة المستخدم — وطالباً من جناحه للمقيَّد، وإلّا 404
     # لا يُميَّز عن ملفٍّ غير موجود.
-    get_object_or_404(
+    record = get_object_or_404(
         student_scope_for(request).narrow(StudentAttendance.objects.filter(school=school)),
         excuse_file=path,
+    )
+    from .services import StudentService
+
+    # عذرٌ قد يحوي تقريراً طبّيّاً: أثرُ الفتح بلا اسم الملف ولا نصّه (PDPPL).
+    StudentService.audit_student_event(
+        school, request.user, record.student, "excuse_file_opened", action="view"
     )
 
     # F-001-b: Content-Disposition RFC 5987 encoding

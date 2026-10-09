@@ -36,6 +36,7 @@
 {% endcomment %}
 {% block extra_js %}
 {% if view_type == "director" %}
+{% if day_open %}<script src="{% static 'js/director-live.js' %}" defer></script>{% endif %}
 <script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
 <script nonce="{{ request.csp_nonce }}">
 Chart.defaults.font.family = 'Tajawal, sans-serif';
@@ -78,4 +79,5 @@ async function fc(u){try{return await(await fetch(u)).json()}catch(e){return nul
 })();
 </script>
 {% endif %}
+{% if sup_open %}<script src="{% static 'js/director-live.js' %}" defer></script>{% endif %}
 {% endblock %}

@@ -1,0 +1,28 @@
+{% load ui icons navigation %}
+{% comment %}
+غيابُ جناحي اليوم (W-20261008-00x، D-249م القسم 8): الملخّصُ المخزَّنُ للمدرسة مقتطَعاً لأجنحتي وحدَها — أرقامٌ بلا أسماءِ طلبة، وبالمُجمِّع نفسِه الذي تقرؤه لوحةُ المدير.
+حالةُ جدول كلّ شعبة (لم يُبدأ · حُفظ جزئياً · مكتمل) وحصصُها المسجَّلة n/m تُعرض **في رقاقة الشعبة** في لوح الجناح (`wings/partials/record_panel.html`) — مصدرٌ واحدٌ للشعبة بدل
+جدولٍ مكرَّر (D-16: لا ارتفاعَ مهدراً؛ قياسُ 2026-10-08: الجدولُ كان 343px من صفحةٍ تُمرَّر 388px على 1366×768).
+لا زرَّ اعتمادٍ هنا ولا «تصحيحاتي اليوم» (ينتظران W-20261006-006 عند 0405). والتحديثُ حيٌّ لأجنحتي وحدَها (`wings:supervisor_live`).
+{% endcomment %}
+{% if sup_open %}
+<div data-director-live data-live-url="{% url 'wings:supervisor_live' %}" data-phase="{{ sup_day.phase }}">
+  {% section_card "غياب جناحي اليوم" meta=sup_day.sections|length icon="absence" %}
+    {% kpi_strip label="جناحي اليوم" %}
+      {% if sup_final %}
+        {% kpi "غائب بلا عذر" sup_day.school.headline sub="حكمُ اليوم" tone="red" key="school.headline" %}
+      {% else %}
+        {% kpi "غائبون عن ح1 وح2" sup_day.school.headline sub="قبل حسم اليوم" tone="red" key="school.headline" %}
+      {% endif %}
+      {% kpi "لم يُحسم" sup_day.school.incomplete sub="رصدُ شعبته ناقص" tone="amber" key="school.incomplete" %}
+      {% kpi "شعب سُجّلت حصصها" sup_day.school.sections_registered sub="من " tone="maroon" title="من أصل شعب جناحي ذاتِ الحصص" key="school.sections_registered" %}
+      {% kpi "خارج الفصل بإذن" sup_day.school.away_permitted sub="عيادةٌ أو نشاط" tone="amber" title="محسوبون غائبين حتى اعتماد القرار" key="school.away_permitted" %}
+      {% if request.user|can_open:"student_affairs:attendance_overview" %}{% url 'student_affairs:attendance_overview' as gates_url %}{% kpi "عند العتبات" gates_count sub="رابطُ متابعة الحضور" tone="amber" href=gates_url title="من بلغ عتبةً أو بقي له يومٌ — عددٌ لا أسماء؛ والإخطارُ عند كاتب الغياب" %}{% else %}{% kpi "عند العتبات" gates_count sub="عددٌ لا أسماء" tone="amber" %}{% endif %}
+      {% if absent_teachers_today is not None %}{% kpi "معلّمون غائبون" absent_teachers_today tone=teachers_tone href=teachers_url %}{% endif %}
+    {% endkpi_strip %}
+    <p class="ui-note">خرجوا من الفصل في جناحي: <span data-key="exits.students">{{ sup_day.exits.students }}</span> طالباً · {{ sup_day.exits.count }} مرّة · {{ sup_day.exits.minutes }} دقيقة.</p>
+    <p class="ui-note" data-live-note role="status" aria-live="polite" hidden></p>
+    {% callout "hint" %}الطالبُ يُعدّ مرّةً واحدة بحكم سياسة الغياب نفسِه. حالةُ جدول كلِّ شعبةٍ في رقاقتها أدناه: «لم يُبدأ» لا خانةَ مسجَّلةً، و«حُفظ جزئياً» خانةٌ منتهيةٌ بلا تسجيل. عدّادُ العتبات أرقامٌ فقط — الإخطارُ عند كاتب الغياب.{% endcallout %}
+  {% endsection_card %}
+</div>
+{% endif %}

@@ -37,6 +37,7 @@ class ReportsConfig(AppConfig):
                 "ese_assistant",
                 "speech_therapist",
                 "occupational_therapist",
+                "student_affairs_coordinator",
             },
             sort_order=35,
         )

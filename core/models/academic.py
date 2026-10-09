@@ -411,7 +411,13 @@ class WingCoverage(models.Model):
 
     #: من يعيّن. والأكاديميُّ منهم لأنّه يحمل صلاحيّاتِ المدير في غيابه عادةً —
     #: وحصرُه في الإداريّ يعني جناحاً بلا مشرفٍ يومَ يغيب المديرُ ونائبُه معاً.
-    ASSIGNER_ROLES = ("principal", "vice_admin", "vice_academic", "platform_developer")
+    ASSIGNER_ROLES = (
+        "principal",
+        "vice_admin",
+        "vice_academic",
+        "platform_developer",
+        "student_affairs_coordinator",
+    )
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     wing = models.ForeignKey(

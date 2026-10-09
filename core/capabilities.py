@@ -135,6 +135,15 @@ def registry() -> dict[str, Capability]:
         ),
         _cap("student_affairs.deactivate", "إيقافُ قيد طالب", P.STUDENT_DEACTIVATE),
         _cap(
+            "student_affairs.transfers",
+            "انتقالاتُ الطلبة (طلبٌ ومراجعةٌ وإتمام)",
+            P.STUDENT_AFFAIRS_TRANSFERS,
+            basis=(
+                "إتمامُ الانتقال الصادر يعطّل عضويّةَ الطالب، فلا يُمنح من يملك إدخالَ البيانات وحدَه "
+                "(W-20261001-020)؛ ومنسّقُ شؤون الطلبة منهم بقرار المالك D-265م"
+            ),
+        ),
+        _cap(
             "student_affairs.activities",
             "إدارةُ الأنشطة الطلابيّة",
             P.ACTIVITIES_MANAGE,
@@ -323,7 +332,11 @@ def registry() -> dict[str, Capability]:
             "كشوفُ النتائج وشهاداتُ الطلبة",
             {"principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher"},
         ),
-        _cap("reports.school", "تقاريرُ الحضور والسلوك والشهادات للشعبة", leadership),
+        _cap(
+            "reports.school",
+            "تقاريرُ الحضور والسلوك والشهادات للشعبة",
+            leadership | {"student_affairs_coordinator"},
+        ),
         _cap(
             "academic.reports_school",
             "التقاريرُ الأكاديميّةُ على مستوى المدرسة",
@@ -359,19 +372,44 @@ def registry() -> dict[str, Capability]:
         ),
         _cap("behavior.record", "تسجيلُ مخالفةٍ وتقريرُها", P.BEHAVIOR_MANAGE | P.BEHAVIOR_RECORD),
         _cap("behavior.manage", "إدارةُ المخالفات والإجراءات", P.BEHAVIOR_MANAGE),
-        _cap("behavior.committee", "لجنةُ الانضباط", P.BEHAVIOR_COMMITTEE),
+        _cap(
+            "behavior.committee",
+            "لجنةُ الانضباط",
+            P.BEHAVIOR_COMMITTEE | {"student_affairs_coordinator"},
+        ),
         _cap(
             "behavior.statistics",
             "إحصاءاتُ السلوك",
-            P.BEHAVIOR_COMMITTEE | P.BEHAVIOR_VIEW_ALL | P.BEHAVIOR_STATS_TEACHING,
+            P.BEHAVIOR_COMMITTEE
+            | P.BEHAVIOR_VIEW_ALL
+            | P.BEHAVIOR_STATS_TEACHING
+            | {"student_affairs_coordinator"},
         ),
-        _cap("behavior.summon_parent", "استدعاءُ وليّ الأمر", P.BEHAVIOR_MANAGE | {"psychologist"}),
+        _cap(
+            "behavior.summon_parent",
+            "استدعاءُ وليّ الأمر",
+            P.BEHAVIOR_MANAGE | {"psychologist", "student_affairs_coordinator"},
+        ),
         # ── العيادة والمكتبة والنقل ─────────────────────────────────
-        _cap("clinic.access", "وحدةُ العيادة", {"nurse", "principal", "vice_admin"}),
+        _cap(
+            "clinic.access",
+            "وحدةُ العيادة (قراءة)",
+            {"nurse", "principal", "vice_admin", "student_affairs_coordinator"},
+        ),
+        _cap(
+            "clinic.write",
+            "تعديلُ السجلّ الصحّيّ وتسجيلُ الزيارات",
+            {"nurse", "principal", "vice_admin"},
+            basis="بيانات صحّيّة لقاصرين: الكتابةُ سريريّةٌ — حكم 0104 على W-20261001-020 (المنسّقُ قراءةً فقط)",
+        ),
         _cap("library.view", "المكتبةُ والكتب", P.LIBRARY_VIEW | P.LIBRARY_FULL),
         _cap("library.lend", "الإعارةُ والإرجاع", {"librarian", "principal", "vice_admin"}),
         _cap("library.borrowings_all", "سجلُّ استعارات المدرسة", P.LIBRARY_BORROWINGS_ALL),
-        _cap("transport.access", "وحدةُ النقل", P.TRANSPORT_FULL | P.TRANSPORT_MANAGE),
+        _cap(
+            "transport.access",
+            "وحدةُ النقل",
+            P.TRANSPORT_FULL | P.TRANSPORT_MANAGE | {"student_affairs_coordinator"},
+        ),
         # ── الأدوات التقنيّة ─────────────────────────────────────────
         _cap(
             "it_admin.reset_passwords",
@@ -407,6 +445,12 @@ def registry() -> dict[str, Capability]:
             },
         ),
         _cap("operations.reports", "تقاريرُ الجدول والحضور", P.OPERATIONS_REPORTS),
+        _cap(
+            "operations.daily_absence",
+            "غيابُ اليوم (تقريرُ غياب الطلبة اليوميّ)",
+            P.DAILY_STUDENT_ABSENCE_REPORT,
+            basis="قرارُ المالك D-273م: إدارةُ شؤون الطلاب كاملةً لمنسّق شؤون الطلبة، دون تقارير المعلّمين",
+        ),
         _cap(
             "operations.substitutes_manage",
             "تسجيلُ غياب معلّمٍ وتعيينُ بديله",
@@ -547,7 +591,14 @@ def registry() -> dict[str, Capability]:
         _cap(
             "wings.floors",
             "شاشةُ الأجنحة والطوابق",
-            {"principal", "vice_admin", "vice_academic", "admin_supervisor", "platform_developer"},
+            {
+                "principal",
+                "vice_admin",
+                "vice_academic",
+                "admin_supervisor",
+                "platform_developer",
+                "student_affairs_coordinator",  # بندٌ في قائمة إدارة شؤون الطلاب (D-273م)
+            },
         ),
         _cap("wings.assign_cover", "تكليفُ بديلٍ لجناح", WingCoverage.ASSIGNER_ROLES),
         _cap(
@@ -564,7 +615,7 @@ def registry() -> dict[str, Capability]:
         _cap(
             "wings.school_wide",
             "حاصرُ الغياب العامّ — الأجنحةُ الخمسةُ كلُّها",
-            (),
+            P.SCHOOL_WIDE_ABSENCE_ROLES,
             scope="أجنحةُ المدرسة كلُّها، للغياب وحدَه",
             basis=(
                 "قرارُ المالك 2026-10-06: موظّفٌ إداريٌّ (مشرفٌ إداريّ) يحصر الغيابَ في المدرسة كلِّها، "

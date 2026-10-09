@@ -20,7 +20,8 @@ description: |
 2. **ابنِ من المكوّنات القائمة**: `page_header`، `section_card`، `kpi`/`kpi_strip`، `callout` (خمسة أنواع)، `empty_state`، `field`، `filter_bar`، `action_tile`، `entity_card`، و`{% icon "…" %}`. صنفٌ جديدٌ آخرُ الحلول.
 3. **الأنماطُ في ملفّ طبقتها**: مكوّنٌ ← `20-components`، شاشةٌ ← `30..33-modules` (آخرُها 33)، ليليٌّ ← `40-themes`، مساعدٌ ← `50-utilities`؛ ولا قاعدةَ خارج `@layer`. ← `references/10-css-architecture.md`
 4. **القيمُ رموز**: لونٌ بدوره (`--text-*`، `--status-*-fg`، `--on-fill`…)، تباعدٌ `var(--sp-*)`، تقوّسٌ `var(--radius-*)`، خطٌّ بـ`rem`. ← `references/00-tokens-theming.md`
-5. **قِس على أربعة أجهزةٍ نهاراً وليلاً**: 1366×768 و1920×1080 ولوحيّ (~768×1024) و375×812 — وما لم يُقَس يُقال «لم يُقَس». ← `references/50-responsive-mobile.md`
+5. **قِس على أربعة أجهزةٍ نهاراً وليلاً**: 1366×768 و1920×1080 ولوحيّ (~768×1024) و375×812 — وما لم يُقَس يُقال «لم يُقَس». طريقةُ القياس على صفحةٍ محميّةٍ في `schoolos-preview-8500` ← `03-measuring-protected-pages.md`؛ ثمّ التحقّقُ البصريُّ بالدور (تداخل، معطَّلٌ بلا سبب، اقتطاع، مصفوفةُ الحالات) **قبل** إعلان «جاهز». ← `references/50-responsive-mobile.md` و`references/55-visual-verification.md`
+   وإن طُلب أن تطابق صفحةٌ صفحةً قائمة فاتّبع إجراءَ «طبقَ الأصل» في `references/20-layouts-components.md` قبل البناء.
 6. **شغّل الحرّاس** قبل الدفع (من شجرة عملك بأوامر `CLAUDE.md`): `tests/test_css_*.py`، `test_px_tokens`، `test_rtl_logical_properties`، `test_dark_parity`، `test_contrast_ratios`، `test_design_ratchet`، `test_a11y_ratchet`، `test_page_layouts`. وقراءةُ الفاشل منها في مهارة `schoolos-quality-guards`.
 
 ## القواعد وأسبابها
@@ -54,6 +55,7 @@ description: |
 | `references/30-htmx-js.md` | عند HTMX أو JS أو تنقّلٍ أو تصديرٍ من الواجهة |
 | `references/40-accessibility.md` | عند نموذجٍ أو حوارٍ أو جدولٍ أو تباينٍ أو تركيز |
 | `references/50-responsive-mobile.md` | عند الجوال واللوحيّ و«بلا تمرير» والمنطقة الآمنة |
+| `references/55-visual-verification.md` | قبل إعلان «جاهزٌ للمعاينة» على عملٍ يلمس الواجهة: الأجهزة والتداخل والحالات والأدوار |
 | `references/60-typography.md` | عند الخطّ والأحجام والمسافات السطريّة والنصّ المختلط |
 | `references/70-performance.md` | عند صورٍ أو خطوطٍ أو سكربتاتٍ أو عامل خدمة أو ميزانيّة |
 | `references/80-print-and-export.md` | حين يتعلّق الطلبُ بالطباعة أو التصدير من الواجهة |
