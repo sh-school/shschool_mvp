@@ -493,7 +493,7 @@ def session_summary(request, session_id):
 
 
 @login_required
-@capability_required("operations.reports")
+@capability_required("operations.daily_absence")
 def daily_report(request):
     """غيابُ اليوم — طالبٌ في سطرٍ لأيّ تاريخ، ووسمُ الوزارة لمن غاب الأولى والثانية.
 

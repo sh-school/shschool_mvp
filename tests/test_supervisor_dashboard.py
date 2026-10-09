@@ -68,9 +68,10 @@ class TestTheWatchlist:
 
 
 class TestTheDashboard:
-    def test_the_supervisor_sees_both_lists_on_his_home_page(
+    def test_the_supervisor_sees_the_gates_as_a_counter_not_name_lists_on_his_home_page(
         self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor, monkeypatch
     ):
+        """W-20261008-007 (D-249م القسم 8.1 بند 4): عدّادُ العتبات أرقامٌ فقط؛ والإخطارُ انتقل إلى كاتب الغياب (D-245م/D-246م)."""
         _absent_days(school, klass, teacher, supervisor, {kids[0]: 4})
         # اليومُ الأحدُ التالي: آخرُ يومٍ دراسيٍّ قبله الأربعاءُ (غاب فيه ولم يُخطَر أهلُه)،
         # وأيّامُه الأربعةُ كلُّها قبل اليوم فتُعدّ — «عند العتبة» (الخامسة).
@@ -80,9 +81,9 @@ class TestTheDashboard:
 
         body = client_as(supervisor).get(reverse("dashboard")).content.decode()
 
-        assert "ينتظرون إخطارَ وليّ الأمر" in body
-        assert "عند عتبات الغياب بلا عذر" in body
-        assert reverse("wings:absence_file", args=[kids[0].id]) in body
+        assert "عند العتبات" in body
+        assert "ينتظرون إخطارَ وليّ الأمر" not in body
+        assert reverse("wings:absence_file", args=[kids[0].id]) not in body
 
     def test_a_quiet_wing_shows_neither_list(
         self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
