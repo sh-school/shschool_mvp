@@ -423,6 +423,8 @@ def persist_draft(generation: Any, result: RunResult, inputs: CpSatInputs, elaps
         "solver": result.report.solver_dict(),
         "verdict": result.report.verdict,
         "evaluation": result.evaluation.as_dict(),
+        # تخفيفاتُ المالك المعلَنة تُحفظ مع المسودّة (لا تخفيفَ صامت): HC5 للمُقيِّم، والباقي خياراتُ النموذج.
+        "relaxations": {"hc5_run_caps": result.report.relaxations},
     }
     with transaction.atomic():
         locked = ScheduleGeneration.objects.select_for_update().get(pk=generation.pk)
