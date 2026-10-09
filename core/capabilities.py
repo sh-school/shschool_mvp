@@ -97,6 +97,8 @@ def registry() -> dict[str, Capability]:
     from student_info.access import MODULE_ROLES as STUDENT_INFO_ROLES
 
     leadership = P.LEADERSHIP
+    #: من يتّصل بأسر الطلبة — تعريفٌ واحدٌ لقدرتَي الاستدعاء واسمِ الوليّ فلا تنجرف إحداهما.
+    family_callers = P.BEHAVIOR_MANAGE | {"psychologist", "student_affairs_coordinator"}
     caps = [
         # ── لوحة التحكّم ────────────────────────────────────────────
         _cap("dashboard.open", "فتحُ لوحة التحكّم", P.ALL_STAFF_ROLES | {"student", "parent"}),
@@ -385,15 +387,11 @@ def registry() -> dict[str, Capability]:
             | P.BEHAVIOR_STATS_TEACHING
             | {"student_affairs_coordinator"},
         ),
-        _cap(
-            "behavior.summon_parent",
-            "استدعاءُ وليّ الأمر",
-            P.BEHAVIOR_MANAGE | {"psychologist", "student_affairs_coordinator"},
-        ),
+        _cap("behavior.summon_parent", "استدعاءُ وليّ الأمر", family_callers),
         _cap(
             "behavior.guardian_contact",
             "اسمُ وليّ الأمر وإرسالُ التقرير السلوكيّ إليه",
-            P.BEHAVIOR_MANAGE | {"psychologist", "student_affairs_coordinator", "admin_supervisor"},
+            family_callers | {"admin_supervisor"},
             scope="طلبةُ صاحب الشاشة (المشرفُ لجناحه)",
             basis=(
                 "قاعدةُ الحاجة (PDPPL): الاسمُ لمن يتّصل بالأسرة أو يستدعيها أو يتابع — قيادةٌ وأخصائيٌّ "
