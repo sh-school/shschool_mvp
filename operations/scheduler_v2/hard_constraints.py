@@ -531,7 +531,18 @@ def _edge_caps(ctx: _Ctx, t, edges: _Edges, hc22: bool, hc8: bool) -> None:
         m.Add(f == sum(edges.first.values()))
         b.vars[("first", t)] = f
         if hc22:
-            m.Add(f <= ctx.opt.first_cap)
+            cap = dict(ctx.opt.first_cap_override).get(t, ctx.opt.first_cap)
+            m.Add(f <= cap)
+            if cap != ctx.opt.first_cap:
+                b.relaxations.append(
+                    {
+                        "teacher": t,
+                        "code": "HC22",
+                        "original": f"first_cap_{ctx.opt.first_cap}",
+                        "relaxed": f"first_cap_{cap}",
+                        "decision": "قرار المالك 2026-10-09",
+                    }
+                )
             ctx.count("HC22")
     if edges.last:
         l = m.NewIntVar(0, 5, "")
