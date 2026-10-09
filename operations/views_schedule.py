@@ -49,6 +49,7 @@ from .schedule_breaches import (
 from .schedule_selectors import pages_payload
 from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
 from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
+from .scheduler_v2.progress import is_v2_running
 from .services import AbsenceSwapService, ScheduleService, SubstituteService, schedule_gate
 from .services.substitute import TEACHING_ROLES
 
@@ -755,6 +756,7 @@ def smart_schedule_view(request):
             "assignments_count": len(assignments),
             "generations": generations,
             "pending_generation": pending_generation,
+            "pending_is_v2": bool(pending_generation and is_v2_running(pending_generation)),
             # زرُّ الاعتماد لمن يملكه: كان يظهر لكلّ من يرى الصفحةَ، و`admin`
             # يضغطه فيُصدَم بـ403.
             "can_approve": _may_decide_schedule(request.user),
