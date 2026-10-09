@@ -104,6 +104,11 @@ SCALE_TOKENS = {
     "lh-tight",
     "z-sticky",
     "shadow-modal",
+    # درجةُ التقوّس 16px: `px_tokens.RADIUS_TOKENS` تأمر بكتابة var(--radius-xl) بدل 16px الحرفيّة،
+    # فلا تُحذف ما دام الحارسُ يوجّه إليها (كان يقرؤها `.rounded-xl` المحذوف مع صنوف تايلويند الميّتة).
+    "radius-xl",
+    # والتقوّسُ الدائريّ: ثابتٌ لا ينقلب ليلاً (يعدّه test_dark_parity ضمن الثوابت)، وقيمتُه نفسُ --radius-pill؛ يبقى رمزَ سُلَّمٍ لمن يحتاجه.
+    "radius-full",
 }
 
 
