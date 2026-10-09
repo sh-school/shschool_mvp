@@ -52,6 +52,10 @@ class ModelOptions:
     even_spread: bool = True
     #: HC16: سقفُ اليوم المشتقُّ ⌈النصاب÷أيّام المعلّم⌉ (+1 لمن يدرّس مزدوجة)، وإلّا افتراضُ 5/التفضيل فقط.
     derived_day_cap: bool = True
+    #: تخفيفٌ معلَن (قرار المالك 2026-10-09): معلّمون يُرفع عنهم منعُ التلاصق HC5؛ وسقفُ التتابع بعده:
+    #: 0 = بلا سقف، 2 = حصتان متتاليتان لا ثلاث. يُسجَّل كلُّ معلّمٍ في `BuiltModel.relaxations`.
+    touch_relaxed: frozenset[str] = frozenset()
+    touch_relaxed_run_cap: int = 0
     #: HC9: «time» = عبر النطاقات بالساعة (الافتراضيّ)، «period» = برقم الحصّة كالمرجع.
     resource_by: str = "time"
     #: صفُّ كلّ شعبة («G11»…) — يلزم HC17 ولا يحمله `CpSatInputs`؛ فارغٌ = HC17 لا يعمل (بلا مرجع صفٍّ لا حكم).

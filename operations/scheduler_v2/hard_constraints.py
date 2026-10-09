@@ -336,7 +336,19 @@ def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
             ctx.count("HC1")
             occ[key] = o
         ctx.b.vars[("occ", t, day, key[0], key[1])] = occ[key]
-    _day_pairs(ctx, by_key, occ, opt.enabled("HC5"))
+    relaxed = t in opt.touch_relaxed and opt.enabled("HC5")
+    _day_pairs(ctx, by_key, occ, opt.enabled("HC5") and not relaxed)
+    if relaxed and day == 0:
+        ctx.b.relaxations.append(
+            {
+                "teacher": t,
+                "code": "HC5",
+                "original": "no_touch",
+                "relaxed": f"run_cap_{opt.touch_relaxed_run_cap}",
+            }
+        )
+    if relaxed and opt.touch_relaxed_run_cap == 2:
+        _no_triples(ctx, by_key, occ)
     if pref is not None and pref.max_gap is not None:
         _max_gap(ctx, t, day, by_key, occ, pref.max_gap)  # HC10: سقفُ الفراغ الشخصيّ
     # سقفُ اليوم: التفضيلُ الشخصيّ (أو الافتراضيّ 5) وHC16 المشتقّ.
@@ -433,6 +445,21 @@ def _day_pairs(ctx: _Ctx, by_key, occ, hc5: bool) -> None:
                 ctx.count("HC12")
             elif 0 <= kb[0] - ka[1] <= gap:
                 _touch_pair(ctx, by_key[ka], by_key[kb], occ[ka], occ[kb], hc5)
+
+
+def _no_triples(ctx: _Ctx, by_key, occ) -> None:
+    """بعد تخفيف HC5: حصتان متتاليتان مسموحتان، وثلاثٌ متتاليةٌ ممنوعة."""
+    gap = ctx.opt.joinable_gap
+    keys = sorted(by_key)
+    touch = lambda a, b: 0 <= b[0] - a[1] <= gap  # noqa: E731
+    for a, ka in enumerate(keys):
+        for b in range(a + 1, len(keys)):
+            if not touch(ka, keys[b]):
+                continue
+            for c in range(b + 1, len(keys)):
+                if touch(keys[b], keys[c]):
+                    ctx.m.Add(occ[ka] + occ[keys[b]] + occ[keys[c]] <= 2)
+                    ctx.count("HC5")
 
 
 def _any(ctx: _Ctx, vs: list):

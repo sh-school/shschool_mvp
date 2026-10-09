@@ -576,3 +576,22 @@ def test_two_different_elective_groups_cannot_share_a_class_cell():
     inp = make([("C1", "S1", "T1", "GA", 1), ("C1", "S2", "T2", "GB", 1)])
     assert not feasible(inp, [(0, 0, 3), (1, 0, 3)])
     assert feasible(inp, [(0, 0, 3), (1, 0, 4)])
+
+
+def test_touch_relaxation_is_declared_and_caps_runs_at_two():
+    """تخفيف التلاصق المعلَن (قرار المالك 2026-10-09): حصتان متتاليتان مسموحتان لمعلّم مخفَّف، والثالثة تُرفض بسقف 2."""
+    rows = [("C1", "S1", "T1", "", 1), ("C2", "S2", "T1", "", 1), ("C3", "S3", "T1", "", 1)]
+    inp = make(rows)
+    assert not feasible(inp, [(0, 0, 1), (1, 0, 2)])
+    assert feasible(inp, [(0, 0, 1), (1, 0, 2)], touch_relaxed=frozenset({"T1"}))
+    assert feasible(
+        inp, [(0, 0, 1), (1, 0, 2)], touch_relaxed=frozenset({"T1"}), touch_relaxed_run_cap=2
+    )
+    assert not feasible(
+        inp,
+        [(0, 0, 1), (1, 0, 2), (2, 0, 3)],
+        touch_relaxed=frozenset({"T1"}),
+        touch_relaxed_run_cap=2,
+    )
+    built = build_model(inp, ModelOptions(touch_relaxed=frozenset({"T1"})))
+    assert any(r["teacher"] == "T1" and r["code"] == "HC5" for r in built.relaxations)
