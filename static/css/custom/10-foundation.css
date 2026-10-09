@@ -301,6 +301,7 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   /* --radius: 10px  ← موجود أعلاه */
   /* --radius-lg: 14px ← موجود أعلاه */
   --radius-xl: 16px;
+  --radius-full: 9999px;
   --radius-pill: 9999px;
 
   /* ══ Z-index Scale (موحد — بدل z-index عشوائي) ══ */
