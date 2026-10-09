@@ -44,7 +44,7 @@ _QUIET_UNHELD_MESSAGE = "ساعات هدوء المستلم — لا عاملَ 
 _QUIET_HOLD_FAILED_MESSAGE = "تعذّر جدولة الإرسال المؤجَّل إلى انتهاء ساعات الهدوء."
 
 
-def _frozen_for(user) -> bool:
+def _frozen_for(user: Any) -> bool:
     """مستلمٌ وليُّ أمرٍ خالصٌ والتواصلُ مع الأهل مجمَّد (W-20261008-013)."""
     return parents_frozen() and is_parent_only(user)
 

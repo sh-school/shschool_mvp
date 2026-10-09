@@ -7,6 +7,9 @@
 الموافقة: فلا يُكتب لوليّ أمرٍ مجمَّد إشعارُ منصّة ولا قناةٌ خارجيّة، والكادرُ يستلم كالمعتاد.
 """
 
+from collections.abc import Iterable
+from typing import Any
+
 from core.parents_freeze import (  # noqa: F401
     frozen_recipient,
     is_parent_only,
@@ -21,19 +24,21 @@ from . import quiet_hours
 FROZEN_RECHECK_SECONDS = int(quiet_hours.MAX_HOLD_HOP.total_seconds())
 
 
-def channel_skip(channel: str, *, email: str | None = None, phone: str | None = None):
+def channel_skip(
+    channel: str, *, email: str | None = None, phone: str | None = None
+) -> dict[str, str] | None:
     """نتيجةُ تخطّي مهمّة قناةٍ لعنوان وليّ أمرٍ مجمَّد؛ و`None` إن وجب الإرسال."""
     if frozen_recipient(email=email, phone=phone):
         return {"status": "skipped", "reason": "parents_frozen", "channel": channel}
     return None
 
 
-def frozen_user(user) -> bool:
+def frozen_user(user: Any) -> bool:
     """مستلمٌ وليُّ أمرٍ خالصٌ والتواصلُ مجمَّد؟"""
     return parents_frozen() and is_parent_only(user)
 
 
-def drop_frozen_subscribers(user_ids) -> list:
+def drop_frozen_subscribers(user_ids: Iterable[Any]) -> list[Any]:
     """معرّفاتُ المشتركين بعد استبعاد أولياء الأمور الخُلَّص؛ المشتركُ الكادرُ يبقى."""
     user_ids = list(user_ids)
     if not parents_frozen():
@@ -44,7 +49,7 @@ def drop_frozen_subscribers(user_ids) -> list:
     return [uid for uid in user_ids if uid in kept]
 
 
-def hold_frozen_item(task, **kwargs) -> dict:
+def hold_frozen_item(task: Any, **kwargs: Any) -> dict[str, str]:
     """عنصرٌ مؤجَّلٌ بساعات الهدوء لوليّ أمر: لا يُرسل ولا يُحذف — يُعاد سؤالُه حتى الفكّ."""
     task.apply_async(kwargs=kwargs, countdown=FROZEN_RECHECK_SECONDS)
     return {"status": "held_parents_frozen"}
