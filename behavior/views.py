@@ -647,8 +647,17 @@ def behavior_report(request, student_id):
 
     report = BehaviorService.get_student_report_data(student, school, period, year)
 
+    # اسمُ وليّ الأمر وإرسالُ التقرير إليه لمن يتّصل بالأسرة وحدَه (قاعدة الحاجة، W-20261005-009):
+    # من يسجّل المخالفةَ ولا يستدعي لا يُحمَّل اسمَ والدة طالب. فلا يصل القالبَ اسمٌ لغيره أصلاً.
+    can_contact_guardian = has_capability(request.user, "behavior.guardian_contact")
+    guardian_registered = report["parent_links"].exists()
+    if not can_contact_guardian:
+        report["parent_links"] = []
+
     sent_to = []
     if request.method == "POST" and request.POST.get("action") == "send":
+        if not can_contact_guardian:
+            return forbidden_page(request, "إرسال التقرير لوليّ الأمر ليس من صلاحيّتك.")
         from notifications.services import NotificationService
 
         for link in sendable_parent_links(report["parent_links"]):
@@ -690,6 +699,8 @@ def behavior_report(request, student_id):
             "year": year,
             "period": period,
             "sent_to": sent_to,
+            "can_contact_guardian": can_contact_guardian,
+            "guardian_registered": guardian_registered,
             "period_choices": PERIOD_CHOICES,
             "report_subtitle": f"{student.full_name} · {report['period_label']} · {year}",
             **report,
