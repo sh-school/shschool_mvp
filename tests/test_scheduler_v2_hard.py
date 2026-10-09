@@ -271,6 +271,39 @@ def test_hc11_resource_does_not_mix_levels():
     assert feasible(inp, [(0, 0, 3), (1, 0, 3)], disabled=frozenset({"HC11"}))
 
 
+def _hc11_two_band_input(shift):
+    """prep على جرس B وsec على جرسٍ مزاحٍ `shift` دقيقة: الإزاحةُ تحدّد تقاطعَ ساعتَي رقمَين مختلفَين."""
+    rows = [("CP", "S1", "T1", "", 1), ("CS", "S1", "T2", "", 1)]
+    inp = make(
+        rows,
+        bands={"CP": "B", "CS": "BX"},
+        levels={"CP": "prep", "CS": "sec"},
+        res_cap={"R": 2},
+        res_subjects={"R": frozenset({"S1"})},
+    )
+    _add_band(inp, "BX", shift)
+    return inp
+
+
+def test_hc11_clock_overlap_across_different_period_numbers_is_refused():
+    """30e201f8: الإعداديّ حصّتُه 3 (530–580) والثانويّ حصّتُه 2 على جرسٍ مزاحٍ 25د (505–555): تقاطعُ 25د > 5د."""
+    inp = _hc11_two_band_input(25)
+    assert not feasible(inp, [(0, 0, 3), (1, 0, 2)])
+    assert feasible(inp, [(0, 0, 3), (1, 0, 2)], disabled=frozenset({"HC11"}))
+
+
+def test_hc11_transition_tolerance_still_allows_a_short_handover():
+    """إزاحةُ 3د ⇒ تقاطعُ حصّة 3 (530–580) مع حصّة 2 المزاحة (483–533) = 3د ≤ التسامح 5د: تبادلُ الملعب مسموح (قرار 2026-09-08)."""
+    inp = _hc11_two_band_input(3)
+    assert feasible(inp, [(0, 0, 3), (1, 0, 2)])
+
+
+def test_hc11_boundary_matches_the_evaluator_strictly_greater_than_five_minutes():
+    """المُقيِّم يرفض عند `تقاطع > 5` (scheduler.py::resource_overlapping_levels): 5 بالضبط مسموح و6 مرفوض."""
+    assert feasible(_hc11_two_band_input(5), [(0, 0, 3), (1, 0, 2)])
+    assert not feasible(_hc11_two_band_input(6), [(0, 0, 3), (1, 0, 2)])
+
+
 # ───────── الحمولة والتفريغ ─────────
 
 
@@ -498,6 +531,9 @@ def _fixture_inputs():
     }
     inp.res_cap = {r["id"]: r["capacity"] for r in d["resources"]}
     inp.res_subjects = {k: frozenset(v) for k, v in d["res_subjects"].items()}
+    # مراحلُ الحزمة مستنتَجةٌ من جرس الخميس لا حقيقيّة، فلا يُطبَّق عليها حكمُ HC11 بالساعة (يجعل الحلَّ UNKNOWN فيها؛
+    # الحكمُ يُثبَت على الإسناد الحقيقيّ A1 وفي اختبارات HC11 أعلاه). والحكمُ بالرقم يبقى.
+    inp.res_same_level = frozenset()
     return inp
 
 
