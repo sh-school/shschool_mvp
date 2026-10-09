@@ -585,3 +585,7 @@ def sweep_absence_gates_after_school_task():
             failed += 1
             logger.exception("sweep_absence_gates_after_school: تعذّر في المدرسة %s", school.pk)
     return {"checked": checked, "failed_schools": failed}
+
+
+# تسجيلُ عاملِ توليد V2 (Celery يكتشف operations.tasks وحدَه).
+from operations.scheduler_v2.tasks import generate_schedule_v2_task  # noqa: E402,F401
