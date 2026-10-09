@@ -354,6 +354,8 @@ def _teacher_day(ctx, t, day, cells, edges, load, has_double, n_days) -> None:
         if six and seven:
             m.Add(sum(six) + sum(seven) <= 1)
             ctx.count("NO_6_7")
+    if relaxed:
+        _band_transition(ctx, cells, day)
     if relaxed and opt.touch_relaxed_run_cap == 2:
         _no_triples(ctx, by_key, occ)
     if pref is not None and pref.max_gap is not None:
@@ -452,6 +454,26 @@ def _day_pairs(ctx: _Ctx, by_key, occ, hc5: bool) -> None:
                 ctx.count("HC12")
             elif 0 <= kb[0] - ka[1] <= gap:
                 _touch_pair(ctx, by_key[ka], by_key[kb], occ[ka], occ[kb], hc5)
+
+
+def _band_transition(ctx: _Ctx, cells: list[_Cell], day: int) -> None:
+    """HC13 بعد تخفيف HC5: لا تماسَّ تامّاً (نهايةٌ = بداية) بين جرسين مختلفين في اليوم نفسه (المُقيِّم: same_bell)."""
+    bells: dict[str, tuple] = {}
+
+    def bell(cls: str) -> tuple:
+        if cls not in bells:
+            bells[cls] = tuple(ctx.time_of(cls, day, q) for q in range(1, 8))
+        return bells[cls]
+
+    for a in cells:
+        for c in cells:
+            if (
+                a.end == c.start
+                and a.i != c.i
+                and bell(ctx.rows[a.i].cls) != bell(ctx.rows[c.i].cls)
+            ):
+                ctx.m.Add(a.var + c.var <= 1)
+                ctx.count("HC13")
 
 
 def _no_triples(ctx: _Ctx, by_key, occ) -> None:

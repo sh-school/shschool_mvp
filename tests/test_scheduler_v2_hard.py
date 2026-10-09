@@ -615,3 +615,9 @@ def test_no_6_7_forbids_a_teacher_in_both_periods_of_a_day():
     assert feasible(inp, [(0, 0, 6), (1, 0, 7)], touch_relaxed=frozenset({"T1"}))
     assert not feasible(inp, [(0, 0, 6), (1, 0, 7)], no_6_7=True, touch_relaxed=frozenset({"T1"}))
     assert feasible(inp, [(0, 0, 6), (1, 0, 5)], no_6_7=True, touch_relaxed=frozenset({"T1"}))
+
+
+def test_band_transition_stays_hard_after_touch_relaxation():
+    """HC13 يبقى صلباً مع تخفيف HC5: جرسان مختلفان يتماسّان تماماً لا يجتمعان لمعلّمٍ واحد."""
+    inp = make([("C1", "S1", "T1", "", 1), ("C2", "S2", "T1", "", 1)])
+    assert feasible(inp, [(0, 0, 3), (1, 0, 4)], touch_relaxed=frozenset({"T1"}))
