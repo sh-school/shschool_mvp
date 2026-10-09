@@ -14,6 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from core.capabilities import capability_required
+from core.parents_freeze import parents_frozen
 from core.sorting import apply_sort
 
 from .models import NotificationLog, NotificationSettings
@@ -152,6 +153,11 @@ def resend_notification(request, log_id):
     """إعادة إرسال إشعار فشل"""
     school = request.user.get_school()
     log = get_object_or_404(NotificationLog, id=log_id, school=school)
+
+    if parents_frozen() and log.student_id:
+        # سجلٌّ يخصّ طالباً = موجَّهٌ لوليّ أمره في الغالب؛ لا إعادةَ إرسالٍ أثناء التجميد (W-20261008-013).
+        messages.error(request, "التواصل مع أولياء الأمور مجمَّد — لا تُعاد الإشعارات الآن.")
+        return redirect("notifications_dashboard")
 
     if log.channel == "email":
         ok, err = NotificationService.send_email(

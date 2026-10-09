@@ -47,6 +47,8 @@ class DemandRow:
     n: int
     #: معرّفُ المهمّة المنقسمة التي يشترك فيها هذا الصفُّ مع صفوفٍ أخرى في الخانة نفسها؛ فارغٌ لغيرها.
     joint: str = ""
+    #: عددُ كتل الازدواج (مهامّ span=2) في هذا الصفّ: كلُّ كتلةٍ حصّتان متلاصقتان بقيدٍ صلب (مثل المجدوِل والمُقيِّم).
+    blocks: int = 0
 
 
 @dataclass(frozen=True)
@@ -70,6 +72,10 @@ class CpSatInputs:
     class_band: dict[str, str] = field(default_factory=dict)
     #: مرحلةُ كلّ شعبة («prep»/«sec») — لسقف حصص الخميس.
     class_level: dict[str, str] = field(default_factory=dict)
+    #: صفُّ كلّ شعبة («G7»…«G12») من `ClassGroup.grade` — لـHC17 (G11/G12) وغيره.
+    class_grade: dict[str, str] = field(default_factory=dict)
+    #: طبيعةُ كلّ مادّة (`heavy`/`activity`/`regular`) من `Subject.pedagogy` — للقيود المرنة.
+    subject_pedagogy: dict[str, str] = field(default_factory=dict)
     #: المواد التي لها حصصٌ مزدوجةٌ (مهمّةٌ بخانتين).
     doubles: frozenset[str] = frozenset()
     ex_full: frozenset[tuple[str, int]] = frozenset()
@@ -143,6 +149,7 @@ def build_inputs(
     inputs = CpSatInputs()
 
     demand: dict[tuple, int] = defaultdict(int)
+    block_count: dict[tuple, int] = defaultdict(int)
     doubles: set[str] = set()
     res_subjects: dict[str, set[str]] = defaultdict(set)
     for task in tasks:
@@ -150,6 +157,8 @@ def build_inputs(
         inputs.class_names[task.class_id] = task.class_name
         if task.level_type:
             inputs.class_level[task.class_id] = task.level_type
+        if task.grade:
+            inputs.class_grade[task.class_id] = task.grade
         joint = ""
         if task.is_split:
             # مهمّةٌ واحدةٌ بخانةٍ واحدةٍ لساكنَيها: معرّفُها يربط صفَّيها (شعبةٌ + مادّتان + معلّمان).
@@ -160,16 +169,34 @@ def build_inputs(
                 (task.class_id, member.subject_id, member.teacher_id, task.parallel_group, joint)
             ] += task.span
             inputs.subject_names[member.subject_id] = member.subject_name
+            inputs.subject_pedagogy.setdefault(member.subject_id, task.pedagogy)
             inputs.teacher_names[member.teacher_id] = member.teacher_name
             if task.span > 1:
                 doubles.add(member.subject_id)
+                block_count[
+                    (
+                        task.class_id,
+                        member.subject_id,
+                        member.teacher_id,
+                        task.parallel_group,
+                        joint,
+                    )
+                ] += 1
             # المهمّةُ المنقسمةُ تستهلك مواردَ ساكنيها جميعاً (كما يفعل `_to_tasks`).
             for resource_id, capacity, *_ in task.resources:
                 inputs.res_cap[resource_id] = capacity
                 res_subjects[resource_id].add(member.subject_id)
 
     inputs.demand = [
-        DemandRow(cls, subj, teacher, elec, n, joint)
+        DemandRow(
+            cls,
+            subj,
+            teacher,
+            elec,
+            n,
+            joint,
+            block_count.get((cls, subj, teacher, elec, joint), 0),
+        )
         for (cls, subj, teacher, elec, joint), n in sorted(demand.items())
     ]
     inputs.doubles = frozenset(doubles)

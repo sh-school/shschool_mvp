@@ -22,6 +22,7 @@ from operations.schedule_evaluator import (
     evaluate_slots,
     generation_slots,
     live_slots,
+    relaxations_from_payload,
     slots_from_payload,
 )
 
@@ -49,6 +50,7 @@ class Command(BaseCommand):
         year = opts["year"] or academic_year_for_school(school)
 
         solver = None
+        relaxations: dict[str, int] = {}
         if opts["live"]:
             label, slots = "الجدول الحيّ", live_slots(school, year)
         elif opts["generation"]:
@@ -58,12 +60,14 @@ class Command(BaseCommand):
         else:
             try:
                 with open(opts["slots_json"], encoding="utf-8") as handle:
-                    slots, solver = slots_from_payload(json.load(handle))
+                    payload = json.load(handle)
+                slots, solver = slots_from_payload(payload)
+                relaxations = relaxations_from_payload(payload)
             except (OSError, json.JSONDecodeError, EvaluatorInputError) as error:
                 raise CommandError(f"ملفٌّ مرفوض: {error}") from error
             label = "ناتج حلّالٍ خارجيّ"
 
-        result = evaluate_slots(school, year, slots, solver)
+        result = evaluate_slots(school, year, slots, solver, relaxations)
         self._print(label, year, result)
         if opts["json"]:
             with open(opts["json"], "w", encoding="utf-8") as out:

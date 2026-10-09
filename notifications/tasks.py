@@ -25,6 +25,7 @@ from django.conf import settings
 
 from core.celery_tasks import TenantRLSTask, school_rls_scope
 from core.mail_backends import provider_configured
+from notifications import frozen
 from notifications.channels import deliverable_external_channels
 from notifications.delivery_state import (
     budget_exhausted,
@@ -261,6 +262,9 @@ def send_email_task(
     delivery = None
     token = None
 
+    if skipped := frozen.channel_skip("email", email=recipient_email):
+        return skipped
+
     try:
         from core.models import CustomUser, School
         from notifications.services import NotificationService
@@ -387,6 +391,9 @@ def send_sms_task(
     delivery = None
     token = None
 
+    if skipped := frozen.channel_skip("sms", phone=phone_number):
+        return skipped
+
     try:
         from core.models import CustomUser, School
         from notifications.services import NotificationService
@@ -480,6 +487,9 @@ def send_whatsapp_task(
     delivery = None
     token = None
 
+    if skipped := frozen.channel_skip("whatsapp", phone=phone_number):
+        return skipped
+
     try:
         from core.models import School
 
@@ -564,6 +574,9 @@ def notify_absence_task(self, absence_alert_id, sent_by_id=None, school_id=None)
         # ✅ v5: إرسال Push للوالدين المشتركين
         try:
             from core.models import ParentStudentLink
+
+            if frozen.parents_frozen():
+                return {"sent": sent, "total": len(results), "frozen": True}
 
             parents = ParentStudentLink.objects.filter(
                 student=alert.student, school=alert.school
@@ -1166,7 +1179,7 @@ def send_push_to_school_task(school_id, title, body, url="/parents/"):
 
     from notifications.push_publisher import enqueue_push
 
-    for uid in users:
+    for uid in frozen.drop_frozen_subscribers(users):
         enqueue_push(user_id=uid, school_id=school_id, title=title, body=body, url=url)
 
     return {"queued": len(users)}
@@ -1213,6 +1226,8 @@ def hub_send_notification_task(
 
     try:
         user = CustomUser.objects.get(id=user_id)
+        if frozen.frozen_user(user):
+            return {"user": str(user_id), "skipped": "parents_frozen"}
         school = School.objects.get(id=school_id)
         sender = CustomUser.objects.get(id=sent_by_id) if sent_by_id else None
 
@@ -1517,6 +1532,11 @@ def release_after_quiet_hours_task(
     if plan.action == quiet_hours.SKIP:
         logger.warning("release_after_quiet_hours: no worker to hold — dropped target=%s", target)
         return {"status": "skipped"}
+
+    if user is not None and frozen.frozen_user(user):
+        return frozen.hold_frozen_item(
+            self, school_id=school_id, user_id=user_id, target=target, payload=payload
+        )
 
     task.delay(**payload)
     return {"status": "released", "target": target}
