@@ -127,3 +127,69 @@ def test_the_home_page_shows_each_sections_schedule_state_on_its_chip_without_a_
     assert "<table" not in page.split("غياب جناحي اليوم")[1].split("ui-actions")[0]
     assert kid.full_name not in page
     assert "data-director-live" in page
+
+
+def test_the_other_wings_holder_sees_the_other_wing_and_not_this_one(
+    client_as, school, klass, kid, teacher, holder, bells, wing, other_wing_section, _today
+):
+    """التناظر: المشرفُ الآخر يقرأ جناحَه وحدَه — لا يصله ما لجناح الأوّل (W-20261008-007)."""
+    _day_of(school, klass, teacher, kid)
+    section, _student = other_wing_section
+    other_holder = Wing.objects.get(code="w2", school=school).supervisor
+
+    data = client_as(other_holder).get(URL).json()
+
+    assert [row["code"] for row in data["sections"]] == [section.short_code]
+    assert [row["name"] for row in data["wings"]] == ["جناح 2"]
+    assert klass.short_code not in json.dumps(data, ensure_ascii=False)
+
+
+def test_a_school_wide_holder_gets_403_because_his_screen_is_the_five_wings(
+    client_as, school, bells, wing, _today
+):
+    """حاصرُ الغياب العامّ يرى الخمسةَ في «رصد الغياب»: لا حمولةَ مشرفٍ له، فيتوقّف عميلُه ولا يعيد المحاولة."""
+    coordinator = _staff(school, "student_affairs_coordinator", "منسّق شؤون الطلبة", "29000001050")
+
+    assert client_as(coordinator).get(URL).status_code in (403, 302)
+
+
+def test_the_live_endpoint_costs_a_fixed_number_of_queries_and_the_second_read_hits_the_cache(
+    client_as,
+    school,
+    klass,
+    kid,
+    teacher,
+    holder,
+    bells,
+    wing,
+    other_wing_section,
+    _today,
+    django_assert_max_num_queries,
+):
+    """سقفُ الاستعلامات: الأجنحةُ الإضافيّةُ لا تضاعفه، والقراءةُ الثانيةُ من الذاكرة المشتركة (20 ث) أرخص."""
+    _day_of(school, klass, teacher, kid)
+    client = client_as(holder)
+    client.get(URL)  # يسخّن الجلسةَ والصلاحيّاتِ ويملأ المخزَّن
+
+    with django_assert_max_num_queries(16) as warm:  # مقيس 13: جلسةٌ وصلاحيّاتٌ وأجنحةٌ بلا حساب الملخّص
+        assert client.get(URL).status_code == 200
+    cache.clear()
+    with django_assert_max_num_queries(30) as cold:  # مقيس 25: حساب الملخّص مرّةً واحدةً لكلّ المدرسة
+        assert client.get(URL).status_code == 200
+    assert len(warm.captured_queries) < len(cold.captured_queries)
+
+
+def test_the_poll_script_stops_in_a_hidden_tab_and_the_endpoint_comes_from_the_page():
+    """الاستطلاعُ يتوقّف حين تُخفى الصفحة ويستأنف عند ظهورها، والمسارُ من السمة لا من مُدخَلٍ في الطلب."""
+    from pathlib import Path
+
+    from django.conf import settings
+
+    source = (Path(settings.BASE_DIR) / "static" / "js" / "director-live.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "document.hidden" in source
+    assert "visibilitychange" in source
+    assert 'getAttribute("data-live-url")' in source
+    assert "clearTimeout" in source
