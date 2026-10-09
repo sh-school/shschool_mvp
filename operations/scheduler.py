@@ -81,6 +81,8 @@ class Member:
     subject_code: str
     #: سقفُ السابعة الأسبوعيّ الخاصّ بهذا المعلّم (HC8) — صفرٌ يعني «خُذ العامّ».
     last_cap: int = 0
+    #: موارد هذا العضو وحده (مادّتُه) — فالمنقسمةُ لا تُدخل موادَّ أحد ساكنيها في موارد الآخر.
+    resources: tuple = ()
 
 
 @dataclass
@@ -736,6 +738,7 @@ def _to_tasks(
             subject_name=a.subject.name_ar,
             subject_code=a.subject.code,
             last_cap=personal_last.get(str(a.teacher_id), 0),
+            resources=tuple(resources_by_subject.get(str(a.subject_id), ())),
         )
 
     resources_by_subject = resources_by_subject or {}
