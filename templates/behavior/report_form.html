@@ -3,8 +3,8 @@
 {% load ui %}
 {% block title %}تسجيل مخالفة سلوكية{% endblock %}
 
-{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
-{% block main_class %}page-noscroll{% endblock %}
+{# النمطُ: نموذج (layout-form) بوضع «بلا تمرير» — بطاقتان متجاورتان تُمرَّران داخلَهما والصفحةُ لا تُمرَّر. #}
+{% block main_class %}{% page_layout "form" "page-noscroll" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="الضبط السلوكي" current="تسجيل مخالفة" %}
