@@ -298,7 +298,7 @@ def test_the_settle_command_counts_by_default_and_writes_only_with_apply(
     settings.ATTENDANCE_GRID_DIRECT_WINGS = assigned.wing.code
 
     call_command("settle_direct_entries")
-    assert "سيُسوّى 1" in capsys.readouterr().out and not AttendanceDecision.objects.exists()
+    assert "سيُسوّى فعلاً 1" in capsys.readouterr().out and not AttendanceDecision.objects.exists()
     call_command("settle_direct_entries", "--count")
     assert not AttendanceDecision.objects.exists(), "العدُّ لا يكتب"
     with pytest.raises(CommandError):

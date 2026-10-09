@@ -18,6 +18,7 @@ from __future__ import annotations
 import datetime as dt
 import logging
 from dataclasses import dataclass
+from dataclasses import field as dc_field
 from typing import TYPE_CHECKING, Any
 
 from django.db import IntegrityError, connection, transaction
@@ -845,25 +846,91 @@ def teacher_marked_absent(session: Session, student: CustomUser) -> bool:
     ).exists()
 
 
-@transaction.atomic
-def settle_pending_as_direct(school: School, *, apply: bool = False) -> int:
-    """عند تحويل جناحٍ إلى الرصد النهائيّ: ما بقي معلَّقاً من إدخالاتٍ سابقةٍ يُقرَّر نهائيّاً بقرارٍ مسجَّلٍ باسم كاتبه (أساسُ `direct_entry`، دليلُه تسويةٌ جماعيّة).
+@dataclass
+class SettleReport:
+    """نتيجةُ تسوية المعلَّق (أو عدِّه): بالمعرّفات لا الأسماء (PDPPL)."""
 
-    `apply=False` يعدّ ولا يكتب. يعيد عددَ الإدخالات.
+    eligible: int = 0  # معلَّقٌ في أجنحة الرصد النهائيّ داخل النافذة (يشمل المتعارض)
+    settled: int = 0  # ما قُرِّر فعلاً (apply فقط)
+    conflicts: list[str] = dc_field(
+        default_factory=list
+    )  # إدخالاتٌ تتعارض مع رصدٍ بشريٍّ آخر (لا كتابةَ فوقه) — تُتخطّى
+    errors: list[str] = dc_field(
+        default_factory=list
+    )  # إدخالاتٌ فشلت بخطأٍ غيرِ متوقَّع — تُسجَّل ويستمرّ الباقي
+    by_day: dict[str, int] = dc_field(
+        default_factory=dict
+    )  # ما سيُسوّى (بلا المتعارض) بحسب يوم الحصّة
+    by_wing: dict[str, int] = dc_field(default_factory=dict)  # بحسب رمز الجناح
+
+    @property
+    def to_settle(self) -> int:
+        """ما سيُسوّى فعلاً لو طُبّق: المؤهَّلُ ناقصَ المتعارض."""
+        return self.eligible - len(self.conflicts)
+
+
+#: أقصى ما يُكتب من المعرّفات في سطر التدقيق الواحد (السطرُ ليس قائمةً كاملة؛ القائمةُ الكاملةُ يطبعها الأمرُ).
+AUDIT_ID_CAP = 500
+
+
+def pending_direct_entries(
+    school: School, *, since: dt.date | None = None, until: dt.date | None = None
+) -> tuple[list[AttendanceEntry], set[tuple[Any, Any]]]:
+    """(الإدخالاتُ المعلَّقةُ في أجنحة الرصد النهائيّ داخل النافذة، ومفاتيحُ (حصّة، طالب) المتعارضةُ مع رصدٍ بشريٍّ قائم) — قراءةٌ فقط.
+
+    المتعارضُ: صفُّ `StudentAttendance` مصدرُه خارج `OVERWRITABLE_SOURCES` (مشرفٌ أو عيادةٌ أو بوّابة) فلا يُكتب فوقه.
     """
-    pending = (
-        AttendanceEntry.objects.filter(
-            school=school, decision__isnull=True, superseded_by__isnull=True
-        )
-        .select_related("session__class_group__wing", "entered_by", "student")
-        .order_by("entered_at")
+    pending = AttendanceEntry.objects.filter(
+        school=school, decision__isnull=True, superseded_by__isnull=True
     )
-    settled = 0
-    wings: set[str] = set()
-    for entry in pending:
-        if not is_direct_entry(entry.session):
+    if since is not None:
+        pending = pending.filter(session__date__gte=since)
+    if until is not None:
+        pending = pending.filter(session__date__lte=until)
+    entries = [
+        e
+        for e in pending.select_related(
+            "session__class_group__wing", "entered_by", "student"
+        ).order_by("session__date", "entered_at")
+        if is_direct_entry(e.session)
+    ]
+    blocked = set(
+        StudentAttendance.objects.filter(session_id__in={e.session_id for e in entries})
+        .exclude(source__in=OVERWRITABLE_SOURCES)
+        .values_list("session_id", "student_id")
+    )
+    return entries, blocked
+
+
+def settle_pending(
+    school: School,
+    *,
+    apply: bool = False,
+    since: dt.date | None = None,
+    until: dt.date | None = None,
+) -> SettleReport:
+    """يسوّي المعلَّقَ من إدخالات الرصد في أجنحةٍ رصدُها نهائيّ — بقرارٍ باسم كاتب الإدخال (أساس `direct_entry`، سبب «تسوية جماعية»).
+
+    - `apply=False` يعدّ ولا يكتب (ويُبلغ بالمتعارض مسبقاً من استعلامٍ واحد).
+    - `since`/`until` نافذةُ **تاريخ الحصّة** (شاملةٌ الطرفين).
+    - إدخالٌ يتعارض مع رصدٍ بشريٍّ آخر (`non_teacher_row`) **يُتخطّى ويُسجَّل معرّفُه** ولا يُجهض الدفعة؛ وأيُّ خطأٍ آخر يُسجَّل لذلك الإدخال وحدَه ويستمرّ الباقي.
+    - كلُّ إدخالٍ في معاملته؛ وسطرُ تدقيقٍ واحدٌ للتشغيل (عند التطبيق) بالأعداد والنافذة والأجنحة والمعرّفات المقتطعة.
+    """
+    entries, blocked = pending_direct_entries(school, since=since, until=until)
+    report = SettleReport()
+    for entry in entries:
+        report.eligible += 1
+        if (entry.session_id, entry.student_id) in blocked:
+            report.conflicts.append(str(entry.pk))
             continue
-        if apply:
+        day = entry.session.date.isoformat()
+        wing_obj = entry.session.class_group.wing
+        wing = wing_obj.code if wing_obj else ""
+        if not apply:
+            report.by_day[day] = report.by_day.get(day, 0) + 1
+            report.by_wing[wing] = report.by_wing.get(wing, 0) + 1
+            continue
+        try:
             with transaction.atomic():
                 _decide(
                     entry,
@@ -873,10 +940,17 @@ def settle_pending_as_direct(school: School, *, apply: bool = False) -> int:
                     evidence={"rule": "direct_wing", "bulk_settlement": True},
                     reason=BULK_SETTLEMENT_REASON,
                 )
-                wings.add(entry.session.class_group.wing.code)
-        settled += 1
-    if apply and settled:
-        # القرارُ يُسجَّل باسم كاتب الإدخال، فسطرُ التدقيق هذا هو الأثرُ على **من شغّل التسوية**: المدرسةُ والعددُ والأجنحةُ والوقتُ بلا أسماء (ملاحظة 0104)
+        except EntryConflictError:  # سباقٌ: كُتب رصدٌ بشريٌّ بعد الفحص المسبق
+            report.conflicts.append(str(entry.pk))
+        except Exception:  # noqa: BLE001 — خطأٌ لإدخالٍ واحدٍ لا يُجهض الدفعة
+            logger.exception("تسوية الإدخال %s فشلت", entry.pk)
+            report.errors.append(str(entry.pk))
+        else:
+            report.settled += 1
+            report.by_day[day] = report.by_day.get(day, 0) + 1
+            report.by_wing[wing] = report.by_wing.get(wing, 0) + 1
+    if apply and report.eligible:
+        # القرارُ يُسجَّل باسم كاتب الإدخال، فسطرُ التدقيق هذا هو الأثرُ على **من شغّل التسوية**: لا أسماء (ملاحظة 0104)
         AuditLog.log(
             user=None,
             action="update",
@@ -884,10 +958,22 @@ def settle_pending_as_direct(school: School, *, apply: bool = False) -> int:
             object_id=school.pk,
             object_repr="تسويةٌ جماعيّةٌ لإدخالاتٍ معلَّقةٍ — رصدٌ نهائيّ",
             changes={
-                "settled": settled,
-                "wings": sorted(wings),
+                "settled": report.settled,
+                "conflicts": len(report.conflicts),
+                "errors": len(report.errors),
+                "wings": sorted(report.by_wing),
+                "since": since.isoformat() if since else None,
+                "until": until.isoformat() if until else None,
+                "conflict_ids": report.conflicts[:AUDIT_ID_CAP],
+                "error_ids": report.errors[:AUDIT_ID_CAP],
                 "at": timezone.now().isoformat(timespec="seconds"),
             },
             school=school,
         )
-    return settled
+    return report
+
+
+def settle_pending_as_direct(school: School, *, apply: bool = False) -> int:
+    """واجهةُ العدد القديمة: المؤهَّلُ عدّاً، والمسوَّى فعلاً عند التطبيق. التفصيلُ في `settle_pending`."""
+    report = settle_pending(school, apply=apply)
+    return report.settled if apply else report.eligible
