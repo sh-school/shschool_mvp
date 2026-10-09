@@ -344,7 +344,7 @@ def _touch_rules(ctx: _Ctx, t, day: int, cells: list[_Cell], by_key, occ) -> Non
         _band_transition(ctx, cells, day)
     if relaxed and opt.touch_relaxed_run_cap == 2:
         _no_triples(ctx, by_key, occ)
-    if relaxed and opt.triples_by_number:
+    if opt.triples_by_number:
         by_p: dict[int, list] = {}
         for c in cells:
             by_p.setdefault(c.p, []).append(c.var)
