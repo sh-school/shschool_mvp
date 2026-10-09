@@ -31,7 +31,16 @@ from django.utils import timezone
 
 from core import preview_accounts as preview_module
 from core.academic_calendar import academic_year_for_school
-from core.models import AuditLog, CustomUser, Membership, Role, School, Wing, WingCoverage
+from core.models import (
+    AuditLog,
+    ClassGroup,
+    CustomUser,
+    Membership,
+    Role,
+    School,
+    Wing,
+    WingCoverage,
+)
 from core.preview_accounts import (
     EMAIL_PREFIX,
     EMPLOYEE_NUMBERS,
@@ -46,6 +55,7 @@ from core.preview_accounts import (
     legacy_accounts_q,
     preview_accounts_q,
 )
+from operations.attendance_policy import is_special_education
 
 #: وسمُ ملاحظة تغطيةِ هذا الحساب الدائمة — به يُعرف ما يجوز نقلُه (ولا تُنقل تغطيةٌ كتبها غيرُه).
 OWN_COVERAGE_NOTE = "تغطيةُ حساب معاينةٍ دائم"
@@ -228,12 +238,95 @@ class Command(BaseCommand):
                     )
                 if role_name == "admin_supervisor":
                     wing_note = self._assign_wing(school, user)
+            teacher_note = self._seed_teacher_classes(school)
+            wing_note = "؛ ".join(note for note in (wing_note, teacher_note) if note)
         self.stdout.write(
             f"حساباتُ المعاينة: أُنشئ {created}، وصُحّح {fixed}، من {len(ROLES)}"
             + (f"؛ وأُزيل {removed} حساباً من الأداة السابقة" if removed else "")
             + (f"؛ {wing_note}" if wing_note else "")
             + "."
         )
+
+    #: شُعبٌ من جناح المشرف الوهميّ للمعلّم الوهميّ، وشعبتا تربيةٍ خاصّةٍ بلا جناحٍ للتجربة الخاصّة بها (W-20261005-005).
+    TEACHER_WING_CLASSES = 2
+    TEACHER_ESE_CLASSES = 2
+
+    def _seed_teacher_classes(self, school: School) -> str:
+        """يُسند المعلّمَ الوهميّ إلى شُعبٍ من **جناحٍ واحدٍ** يغطّيه المشرفُ الوهميّ، فيصل رصدُه المشرفَ كلَّه (W-20261005-005).
+
+        كان المعلّمُ يُسنَد خارج الأمر إلى ثلاثة أجنحةٍ والمشرفُ لا يغطّي إلا واحداً (لا تغطيتان لحسابٍ واحد — قرارُ 2026-10-04) فيرى حصّتين من ستّ.
+        فهنا: **إضافةٌ فقط** لشعبةٍ لا إسنادَ فيها لمادّةٍ ما — لا نقلَ إسنادٍ قائمٍ ولا حذفَ ولا مسَّ معلّمٍ آخر، ومتساوي الأثر (لا يكرّر ما أُسند).
+        ولا يعمل إلا إن كان المشرفُ يغطّي جناحاً ولم يُسنَد للمعلّم الوهميّ شيءٌ بعدُ في العام (بعد ذلك تبقى الإسناداتُ كما هي لا تُمسّ).
+        """
+        from operations.models import Subject, SubjectClassAssignment
+
+        supervisor = CustomUser.objects.filter(
+            employee_number=EMPLOYEE_NUMBERS["admin_supervisor"]
+        ).first()
+        teacher = CustomUser.objects.filter(employee_number=EMPLOYEE_NUMBERS["teacher"]).first()
+        if supervisor is None or teacher is None:
+            return ""
+        year = academic_year_for_school(school)
+        today = timezone.localdate()
+        wing_ids = list(
+            WingCoverage.objects.filter(substitute=supervisor, start_date__lte=today)
+            .filter(Q(end_date__isnull=True) | Q(end_date__gte=today))
+            .values_list("wing_id", flat=True)
+        )
+        if not wing_ids:
+            return ""
+        if SubjectClassAssignment.objects.filter(
+            school=school,
+            teacher=teacher,
+            academic_year=year,
+            is_active=True,
+            deleted_at__isnull=True,
+        ).exists():
+            return ""
+        classes = list(
+            ClassGroup.objects.filter(
+                school=school, academic_year=year, is_active=True, wing_id__in=wing_ids
+            ).order_by("grade", "section")[: self.TEACHER_WING_CLASSES]
+        )
+        classes += [
+            klass
+            for klass in ClassGroup.objects.filter(
+                school=school, academic_year=year, is_active=True, wing__isnull=True
+            ).order_by("grade", "section")
+            if is_special_education(klass)
+        ][: self.TEACHER_ESE_CLASSES]
+        subjects = list(Subject.objects.filter(school=school).order_by("code", "pk"))
+        added = 0
+        for klass in classes:
+            taken = set(
+                SubjectClassAssignment.objects.filter(
+                    school=school, class_group=klass, academic_year=year
+                ).values_list("subject_id", flat=True)
+            )
+            subject = next((sub for sub in subjects if sub.pk not in taken), None)
+            if subject is None:
+                continue
+            try:
+                with transaction.atomic():
+                    SubjectClassAssignment.objects.create(
+                        school=school,
+                        class_group=klass,
+                        subject=subject,
+                        teacher=teacher,
+                        weekly_periods=2,
+                        academic_year=year,
+                    )
+            except IntegrityError:
+                continue
+            added += 1
+            self._audit(
+                teacher.pk,
+                school,
+                "create",
+                "حسابُ معاينةٍ دائم — إسنادُ المعلّم لشعبة",
+                {"class": klass.short_label},
+            )
+        return f"أُسند المعلّم الوهميّ إلى {added} شعبة" if added else ""
 
     def _assign_wing(self, school: School, user: CustomUser) -> str:
         """يغطّي جناحاً بحساب المشرف الإداريّ الوهميّ **بتغطيةٍ (`WingCoverage`) لا باستبدال حاملٍ** — متساوي الأثر.

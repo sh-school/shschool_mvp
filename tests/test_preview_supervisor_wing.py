@@ -194,3 +194,104 @@ def test_the_wing_pinning_never_runs_outside_the_preview_environment(school, yea
     with pytest.raises(CommandError):
         _sync()
     assert not WingCoverage.objects.exists()
+
+
+# ── المعلّم الوهميّ يُسنَد لجناحٍ واحدٍ يغطّيه المشرف (W-20261005-005) ───────────────────────────────
+
+
+def _class_in(school, year, wing, section):
+    from tests.conftest import ClassGroupFactory
+
+    return ClassGroupFactory(
+        school=school, grade="G10", section=section, level_type="sec", academic_year=year, wing=wing
+    )
+
+
+def _teacher_assignments(school):
+    from operations.models import SubjectClassAssignment
+
+    teacher = CustomUser.objects.get(employee_number=pa.EMPLOYEE_NUMBERS["teacher"])
+    return SubjectClassAssignment.objects.filter(school=school, teacher=teacher)
+
+
+@PREVIEW
+def test_the_preview_teacher_is_assigned_only_to_the_wing_the_supervisor_covers(
+    school,
+    year,
+    preview_env,  # noqa: F811
+):
+    from operations.models import Subject
+
+    Subject.objects.create(school=school, name_ar="العلوم", code="SCI")
+    w1 = _wing(school, year, "w1", 1)
+    w3 = _wing(school, year, "w3", 3)
+    for i in range(3):
+        _class_in(school, year, w1, f"a{i}")
+        _class_in(school, year, w3, f"b{i}")
+    _class_in(school, year, None, "ESE")
+    _sync()
+    _sync()  # متساوي الأثر
+    covered = set(
+        WingCoverage.objects.filter(substitute=_supervisor()).values_list("wing_id", flat=True)
+    )
+    assert len(covered) == 1
+    rows = list(_teacher_assignments(school).select_related("class_group"))
+    assert rows
+    for row in rows:
+        wing_id = row.class_group.wing_id
+        assert wing_id in covered or wing_id is None  # الجناحُ المغطّى أو التربيةُ الخاصّة بلا جناح
+    assert len(rows) == len({row.class_group_id for row in rows})  # لا تكرار
+    assert sum(1 for row in rows if row.class_group.wing_id is None) <= 2
+
+
+@PREVIEW
+def test_an_existing_assignment_of_the_preview_teacher_is_never_touched_or_added_to(
+    school,
+    year,
+    preview_env,  # noqa: F811
+):
+    from operations.models import Subject, SubjectClassAssignment
+
+    subject = Subject.objects.create(school=school, name_ar="العلوم", code="SCI")
+    w1 = _wing(school, year, "w1", 1)
+    _class_in(school, year, w1, "a0")
+    elsewhere = _class_in(school, year, _wing(school, year, "w3", 3), "b0")
+    _sync()  # يُنشئ الحسابات
+    teacher = CustomUser.objects.get(employee_number=pa.EMPLOYEE_NUMBERS["teacher"])
+    SubjectClassAssignment.objects.all().delete()
+    kept = SubjectClassAssignment.objects.create(
+        school=school,
+        class_group=elsewhere,
+        subject=subject,
+        teacher=teacher,
+        weekly_periods=2,
+        academic_year=year,
+    )
+    _sync()
+    assert list(_teacher_assignments(school).values_list("pk", flat=True)) == [kept.pk]
+
+
+@PREVIEW
+def test_another_teachers_assignment_in_the_class_is_never_replaced(
+    school,
+    year,
+    preview_env,  # noqa: F811
+    teacher,
+):
+    from operations.models import Subject, SubjectClassAssignment
+
+    subject = Subject.objects.create(school=school, name_ar="العلوم", code="SCI")
+    w1 = _wing(school, year, "w1", 1)
+    klass = _class_in(school, year, w1, "a0")
+    real = SubjectClassAssignment.objects.create(
+        school=school,
+        class_group=klass,
+        subject=subject,
+        teacher=teacher,
+        weekly_periods=2,
+        academic_year=year,
+    )
+    _sync()
+    real.refresh_from_db()
+    assert real.teacher_id == teacher.id
+    assert not _teacher_assignments(school).exists()  # لا مادّةَ حرّةً في الشعبة فلا إسناد
