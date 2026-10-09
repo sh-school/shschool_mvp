@@ -1,101 +1,63 @@
 {% extends "base/base.html" %}
 {% load icons ui %}
 {% block title %}إعداد المصادقة الثنائية{% endblock %}
+{% block main_class %}{% page_layout "form" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with current="إعداد المصادقة الثنائية" %}
 {% endblock %}
 
 {% block content %}
-<div class="max-w-lg mx-auto py-10 px-4">
+<div class="form-page">
 
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">{% icon "two_factor" %} إعداد المصادقة الثنائية (2FA)</h1>
-      <p class="page-subtitle">حماية إضافية لحسابك — مطلوبة للحسابات الإدارية</p>
-    </div>
-  </div>
+  {% page_header "إعداد المصادقة الثنائية (2FA)" subtitle="حماية إضافية لحسابك — مطلوبة للحسابات الإدارية" icon="two_factor" %}{% endpage_header %}
 
-  {% if messages %}
-    {% for msg in messages %}
-    <div class="msg-bar mb-4 {% if msg.tags == 'error' %}msg-error{% else %}msg-success{% endif %}" role="{% if msg.tags == 'error' %}alert{% else %}status{% endif %}">
-      <span>{{ msg }}</span>
-    </div>
-    {% endfor %}
-  {% endif %}
+  {% for msg in messages %}
+  {% if msg.tags == 'error' %}{% callout "error" %}{{ msg }}{% endcallout %}{% else %}{% callout "success" %}{{ msg }}{% endcallout %}{% endif %}
+  {% endfor %}
 
   {% if totp_enabled %}
-  <!-- 2FA مفعّل بالفعل -->
-  <div class="msg-success rounded-2xl p-6 mb-6 flex items-start gap-4">
-    <div class="tfa-status-badge w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0">
-      {% icon "confirm" %}
-    </div>
-    <div>
-      <p class="font-semibold text-status-success">المصادقة الثنائية مفعّلة</p>
-      <p class="text-status-success text-sm mt-1">حسابك محمي. يمكنك إيقافها إذا لزم.</p>
-    </div>
+  {% callout "success" %}<strong>المصادقة الثنائية مفعّلة</strong> — حسابك محمي. يمكنك إيقافها إذا لزم.{% endcallout %}
+  <div class="form-actions">
+    <a href="{% url 'disable_2fa' %}" class="btn-danger">إيقاف المصادقة الثنائية</a>
   </div>
-  <a href="{% url 'disable_2fa' %}" class="btn-danger">
-    إيقاف المصادقة الثنائية
-  </a>
 
   {% else %}
-  <!-- خطوات الإعداد -->
-  <div class="form-card mb-6">
-
-    <h2 class="font-semibold text-[var(--text-primary)] mb-4">الخطوة 1 — امسح رمز QR</h2>
-    <p class="text-sm text-[var(--text-muted)] mb-4">
+  {% section_card "الخطوة 1 — امسح رمز QR" icon="two_factor" %}
+    <p class="ui-field-hint">
       افتح <strong>Google Authenticator</strong> أو <strong>Microsoft Authenticator</strong>
       واضغط "إضافة حساب" ثم امسح الرمز أدناه.
     </p>
 
-    <div class="flex justify-center mb-5">
-      <div class="p-3 bg-surface-base border-2 border-[var(--border)] rounded-xl inline-block">
-        <img src="data:image/png;base64,{{ qr_b64 }}"
-             alt="QR Code للمصادقة الثنائية"
-             class="w-44 h-44"
-             width="176" height="176" loading="lazy">
-      </div>
+    <div class="qr-frame">
+      <img src="data:image/png;base64,{{ qr_b64 }}"
+           alt="QR Code للمصادقة الثنائية"
+           width="176" height="176" loading="lazy">
     </div>
 
-    <!-- المفتاح اليدوي -->
-    <details class="mb-6">
-      <summary class="text-sm text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-primary)]">
-        لا يمكنك مسح الرمز؟ أدخله يدوياً
-      </summary>
-      <div class="mt-3 bg-[var(--surface-alt)] rounded-lg px-4 py-3 flex items-center justify-between gap-2">
-        <code class="text-sm font-mono text-[var(--text-primary)] tracking-wider select-all">{{ secret }}</code>
-        <button data-copy="{{ secret }}"
-                class="text-xs text-maroon hover:underline flex-shrink-0">نسخ</button>
+    <details>
+      <summary class="ui-field-hint">لا يمكنك مسح الرمز؟ أدخله يدوياً</summary>
+      <div class="secret-row">
+        <code>{{ secret }}</code>
+        <button type="button" data-copy="{{ secret }}" class="btn-ghost btn-xs">نسخ</button>
       </div>
     </details>
+  {% endsection_card %}
 
-    <h2 class="font-semibold text-[var(--text-primary)] mb-3">الخطوة 2 — أدخل رمز التحقق</h2>
-    {% callout "warning" %}لا تُوجد رموزُ استرجاع. إن فقدتَ الهاتف أو حُذف التطبيق تعذّر الدخول إلى حسابك، ولا يُعاد فتحُه إلا بإعادة ضبط المصادقة من إدارة النظام.{% endcallout %}
-    <form method="post">
+  {% section_card "الخطوة 2 — أدخل رمز التحقق" icon="confirm" %}
+    {% callout "warning" show=True %}لا تُوجد رموزُ استرجاع. إن فقدتَ الهاتف أو حُذف التطبيق تعذّر الدخول إلى حسابك، ولا يُعاد فتحُه إلا بإعادة ضبط المصادقة من إدارة النظام.{% endcallout %}
+    <form method="post" class="form-stack">
       {% csrf_token %}
-      {# حقلُ الرمز باليد: أصنافُ العرض على الحقل نفسِه، وتسميتُه للقارئ وحدَه — العنوانُ فوقه يقولها للعين #}
-      <div class="ui-field mb-4">
-        <label for="f-code" class="ui-field__label sr-only">رمز التحقق المكوّن من 6 أرقام</label>
-        <input type="text"
-               id="f-code"
-               name="code"
-               maxlength="7"
-               inputmode="numeric"
-               pattern="[0-9]{3} ?[0-9]{3}"
-               autocomplete="one-time-code"
-               autofocus
-               placeholder="أدخل الرمز المكوّن من 6 أرقام"
-               class="form-control text-center text-xl font-mono tracking-widest">
+      {% field "code" "رمز التحقق المكوّن من 6 أرقام" id="f-code" css="ui-field--code" hide_label=True maxlength="7" inputmode="numeric" pattern="[0-9]{3} ?[0-9]{3}" autocomplete="one-time-code" autofocus=True placeholder="أدخل الرمز المكوّن من 6 أرقام" %}
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">تفعيل المصادقة الثنائية</button>
       </div>
-      <button type="submit" class="btn-primary w-full py-3">
-        تفعيل المصادقة الثنائية
-      </button>
     </form>
-  </div>
-
+  {% endsection_card %}
   {% endif %}
 
-  <a href="{% url 'dashboard' %}" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)]">← العودة للوحة التحكم</a>
+  <div class="form-actions">
+    <a href="{% url 'dashboard' %}" class="btn-ghost">← العودة للوحة التحكم</a>
+  </div>
 </div>
 {% endblock %}

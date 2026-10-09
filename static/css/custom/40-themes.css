@@ -763,7 +763,6 @@ html.dark .staff-register td:first-child { background: var(--surface); }
 html.dark .free-slots-th { background: var(--surface-alt); border-color: var(--border); }
 html.dark .free-slots-td { border-color: var(--border); }
 html.dark .card-bar { background: var(--maroon-dark); }
-html.dark .tfa-status-badge { background-color: var(--status-success); }
 /* ── Dashboard KPI Colors ─── */
 html.dark .alert-strip { background: color-mix(in srgb, var(--status-danger) 10%, transparent); border-color: var(--border); }
 html.dark .text-status-info    { color: var(--status-info-fg); }

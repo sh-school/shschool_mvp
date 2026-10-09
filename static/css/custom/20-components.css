@@ -369,11 +369,6 @@ tbody tr:nth-child(even):hover {
   background: var(--maroon-bg);
 }
 
-/* ── رأس الصفحة (h1, h2) ─── */
-h1.text-2xl {
-  color: var(--text-primary);
-  font-weight: 800;
-}
 
 /* ── شارات الحالة ─── */
 
@@ -842,18 +837,6 @@ tr.active {
   flex-wrap: wrap;
   gap: var(--sp-3);
   margin-bottom: var(--sp-6);
-}
-.page-title {
-  font-size: 1.375rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  margin: 0;
-  line-height: 1.2;
-}
-.page-subtitle {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  margin: var(--sp-1) 0 0;
 }
 
 /* ════════════════════
@@ -1435,6 +1418,32 @@ main.page-wide {
   border-top: 1px solid var(--border);
   margin-top: var(--sp-5);
 }
+
+/* ── المصادقة الثنائية: حقلُ الرمز وإطارُ QR والمفتاحُ اليدويّ (بدل أدوات Tailwind في القالب) ── */
+.ui-field--code .form-control {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  letter-spacing: 0.1em;
+}
+.qr-frame {
+  inline-size: fit-content;
+  margin-inline: auto;
+  margin-block: var(--sp-4);
+  padding: var(--sp-3);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.qr-frame img { display: block; inline-size: 11rem; block-size: 11rem; }
+.secret-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+  margin-block-start: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-alt);
+  border-radius: var(--radius-md);
+}
+.secret-row code { font-family: var(--font-mono); letter-spacing: 0.1em; user-select: all; }
 
 /* ── Form Section Grouping (MTG-2026-004-STR) ── */
 .form-row {

@@ -494,7 +494,6 @@ html[lang="ar"] {
 }
 
 /* ── Maroon utility classes (Tailwind arbitrary values لا تعمل مع المصغّر) ── */
-.bg-maroon { background-color: var(--maroon); }
 
 .text-maroon { color: var(--maroon-fg); }
 
