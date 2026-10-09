@@ -237,7 +237,7 @@ class ConsentRecord(models.Model):
 
 
 class BreachReport(models.Model):
-    """تقرير خرق البيانات — PDPPL م.11 / إشعار NCSA خلال 72 ساعة"""
+    """تقرير خرق البيانات — PDPPL م.14 (إعلام الفرد والجهة) / إرشاد NCSA: 72 ساعةً من الاكتشاف"""
 
     SEVERITY = [
         ("low", "منخفضة"),
@@ -307,6 +307,75 @@ class BreachReport(models.Model):
     notification_text = models.TextField(blank=True, verbose_name="نص الإشعار لـ NCSA")
     evidence_notes = models.TextField(blank=True, verbose_name="الأدلة والملاحظات")
 
+    # ── إشعار NCSA على مراحل (دليل NCSA v2.0: ما توفّر خلال 72 ساعةً + أسباب النقص + موعد الاستكمال) ──
+    # `ncsa_notified_at` يُختم عند الإشعار الأوّل (مبدئيّاً كان أو مكتملاً) ولا يتغيّر بالاستكمال،
+    # فلا يوقف التحديثُ اللاحق احتسابَ المهلة الأصليّة (W-20261002-007).
+    NCSA_STAGE = [
+        ("none", "لم يُرسَل"),
+        ("initial", "إشعار مبدئي (ناقص)"),
+        ("complete", "إشعار مكتمل"),
+    ]
+    ncsa_notice_stage = models.CharField(
+        max_length=10, choices=NCSA_STAGE, default="none", verbose_name="مرحلة إشعار NCSA"
+    )
+    ncsa_missing_reasons = models.TextField(
+        blank=True, verbose_name="أسباب نقص معلومات الإشعار المبدئي"
+    )
+    ncsa_completion_due_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="موعد استكمال الإشعار"
+    )
+    ncsa_completed_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت استكمال الإشعار الفعلي"
+    )
+
+    # ── إخطار الأفراد المتأثّرين (PDPPL م.14 + دليل NCSA v2.0) ──
+    INDIVIDUALS_STATUS = [
+        ("not_assessed", "لم يُقيَّم بعد"),
+        ("required", "واجب إخطارهم"),
+        ("not_required", "غير لازم"),
+        ("notified", "أُخطروا"),
+    ]
+    individuals_status = models.CharField(
+        max_length=12,
+        choices=INDIVIDUALS_STATUS,
+        default="not_assessed",
+        verbose_name="حالة إخطار الأفراد",
+    )
+    individuals_deadline = models.DateTimeField(
+        null=True, blank=True, verbose_name="موعد إخطار الأفراد"
+    )
+    individuals_assessed_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت تقييم لزوم الإخطار"
+    )
+    individuals_notified_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت إخطار الأفراد الفعلي"
+    )
+    individuals_assessment_note = models.TextField(
+        blank=True, verbose_name="أساس التقدير أو سبب عدم لزوم الإخطار"
+    )
+    # صاحبُ قرار «واجب/غير لازم» — لا يصحّ «غير لازم» بلا سببٍ وصاحبِ قرار (مواصفة 0104).
+    individuals_decided_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="breach_individuals_decisions",
+        verbose_name="صاحب قرار إخطار الأفراد",
+    )
+    INDIVIDUALS_CHANNELS = [
+        ("sms", "رسالة نصّية"),
+        ("email", "بريد إلكتروني"),
+        ("letter", "خطاب رسمي"),
+        ("portal", "إشعار عبر المنصّة"),
+        ("in_person", "إبلاغ مباشر"),
+    ]
+    individuals_notified_channel = models.CharField(
+        max_length=10,
+        choices=INDIVIDUALS_CHANNELS,
+        blank=True,
+        verbose_name="قناة إخطار الأفراد",
+    )
+
     class Meta:
         verbose_name = "تقرير خرق بيانات"
         verbose_name_plural = "تقارير خرق البيانات"
@@ -337,6 +406,31 @@ class BreachReport(models.Model):
             self.ncsa_deadline
             and timezone.now() > self.ncsa_deadline
             and self.status not in ("notified", "resolved")
+        )
+
+    @property
+    def individuals_hours_remaining(self):
+        """الساعاتُ المتبقّية لإخطار الأفراد — للواجب إخطارُهم ولم يُخطَروا وحدَهم."""
+        if self.individuals_status == "required" and self.individuals_deadline:
+            delta = self.individuals_deadline - timezone.now()
+            return max(0, int(delta.total_seconds() / 3600))
+        return None
+
+    @property
+    def individuals_overdue(self):
+        return bool(
+            self.individuals_status == "required"
+            and self.individuals_deadline
+            and timezone.now() > self.individuals_deadline
+        )
+
+    @property
+    def ncsa_completion_overdue(self):
+        """إشعارٌ مبدئيٌّ فات موعدُ استكماله المعلَن ولم يكتمل."""
+        return bool(
+            self.ncsa_notice_stage == "initial"
+            and self.ncsa_completion_due_at
+            and timezone.now() > self.ncsa_completion_due_at
         )
 
 
