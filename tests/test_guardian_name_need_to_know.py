@@ -171,10 +171,9 @@ LIST_ROLES = [
     "social_worker",
     "psychologist",
     "admin_supervisor",
-    # يرث المنسّقَ (`ROLE_INHERITS`) فيفتح السجلَّ بوراثته — قائمٌ قبل هذه البطاقة، رُفع لحكم 0104.
-    "activities_coordinator",
 ]
-NOT_LIST_ROLES = ["teacher", "ese_teacher", "e_projects_coordinator"]
+# منسّق الأنشطة كان يرث المنسّقَ فيفتح السجلّ؛ سُحبت منه القدرةُ وحدَها (W-20261010-012).
+NOT_LIST_ROLES = ["teacher", "ese_teacher", "activities_coordinator", "e_projects_coordinator"]
 
 PROFILE_ROLES = [
     "principal",

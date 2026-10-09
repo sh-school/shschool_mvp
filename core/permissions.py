@@ -56,7 +56,7 @@ ROLE_INHERITS = {
 }
 
 
-def expand_roles(roles: set) -> set:
+def expand_roles(roles: set, *, not_inherited_by: frozenset | set = frozenset()) -> set:
     """
     يوسّع مجموعة أدوار لتشمل كل دور يرث منها.
 
@@ -68,11 +68,12 @@ def expand_roles(roles: set) -> set:
     الصلاحيات المتخصصة (nurse, librarian...) تبقى صريحة.
     """
     expanded = set(roles)
+    blocked = set(not_inherited_by) - expanded  # W-20261010-012: تُذكر صراحةً أو لا تُورَّث
     changed = True
     while changed:
         changed = False
         for child, parent in ROLE_INHERITS.items():
-            if parent in expanded and child not in expanded:
+            if parent in expanded and child not in expanded and child not in blocked:
                 expanded.add(child)
                 changed = True
     return expanded
@@ -593,7 +594,7 @@ def _forbidden_response(request: HttpRequest, message: str) -> HttpResponseBase:
     return forbidden_page(request, message)
 
 
-def role_required(*roles):
+def role_required(*roles, not_inherited_by: frozenset | set = frozenset()):
     """
     ديكوريتور أساسي — يتحقق من أن المستخدم لديه أحد الأدوار المعطاة.
     superuser يمر دائماً.
@@ -607,7 +608,7 @@ def role_required(*roles):
         roles = tuple(roles[0])
 
     # توسيع الأدوار لتشمل الأدوار الوارثة (coordinator ← teacher، إلخ)
-    expanded_roles = expand_roles(set(roles))
+    expanded_roles = expand_roles(set(roles), not_inherited_by=not_inherited_by)
 
     def decorator(view_func):
         @wraps(view_func)
