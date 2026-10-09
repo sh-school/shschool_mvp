@@ -19,6 +19,7 @@ from django.utils import timezone as _tz
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from core.audit_repr import masked_repr
+from core.parents_freeze import sendable_parent_links, warn_or_frozen
 from core.permissions import (
     BEHAVIOR_COMMITTEE,
     BEHAVIOR_MANAGE,
@@ -650,7 +651,7 @@ def behavior_report(request, student_id):
     if request.method == "POST" and request.POST.get("action") == "send":
         from notifications.services import NotificationService
 
-        for link in report["parent_links"]:
+        for link in sendable_parent_links(report["parent_links"]):
             parent = link.parent
             if parent.email:
                 body = (
@@ -678,7 +679,7 @@ def behavior_report(request, student_id):
         if sent_to:
             messages.success(request, f"تم إرسال التقرير لـ: {', '.join(sent_to)}")
         else:
-            messages.warning(request, "لا يوجد بريد إلكتروني مسجَّل لأولياء الأمور.")
+            warn_or_frozen(request, "لا يوجد بريد إلكتروني مسجَّل لأولياء الأمور.")
         return _behavior_report_redirect(request, student.id, year, period)
 
     return render(
@@ -996,7 +997,7 @@ def summon_parent(request, student_id=None):
         if count:
             messages.success(request, f"تم إرسال الاستدعاء لـ {count} ولي أمر")
         else:
-            messages.warning(request, "لم يُعثر على أولياء أمور مربوطين بهذا الطالب")
+            warn_or_frozen(request, "لم يُعثر على أولياء أمور مربوطين بهذا الطالب")
 
         return redirect("behavior:summon_parent")
 
