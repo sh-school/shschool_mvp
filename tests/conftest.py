@@ -5,6 +5,8 @@ Factories & shared fixtures for SchoolOS test suite
 يستخدم factory_boy لتوليد بيانات اختبار واقعية
 """
 
+import datetime as dt
+import os
 from datetime import date, timedelta
 
 import factory
@@ -514,3 +516,43 @@ def settings_broker_spy():
 
     with patch.object(send_push_task, "apply_async", spy):
         yield spy
+
+
+# ══════════════════════════════════════════════
+#  تثبيت الساعة (W-20261008-021)
+# ══════════════════════════════════════════════
+#  اختبارٌ يقرأ «اليوم» (timezone.now/localdate) بلا تثبيت يفشل بحسب يوم التشغيل (مثالُه حارس VI-13). الآلية هي
+#  `frozen_clock` القائمة نفسُها (tests/visual_snapshots.py) لا مكتبةٌ جديدة؛ وهي تثبّت `timezone.now` فتتبعه
+#  `localdate()` و`localtime()`، ولا تصل إلى `date.today()`/`datetime.now()` المباشرتين (يعدّهما الحارس ولا يعالجهما).
+#
+#  - العلامة `@pytest.mark.pin_clock` أو `pytestmark = pytest.mark.pin_clock` على الملف: تثبّت الساعةَ على أربعاءِ دوامٍ
+#    (FIXED_NOW) أو على لحظةٍ تُمرَّر `pin_clock(datetime)`.
+#  - `SCHOOLOS_TEST_NOW=<ISO مع منطقة>` (الوظيفةُ الليليّة تحت الجمعة والخميس): تثبّت كلَّ اختبارٍ لا علامةَ له على تلك اللحظة
+#    لكشف الحساسيّة لليوم؛ وللعلامة الأسبقيّة. والحارسُ: tests/test_clock_pin_ratchet.py.
+CLOCK_ENV = "SCHOOLOS_TEST_NOW"
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "pin_clock: يثبّت timezone.now على أربعاءِ دوامٍ (أو اللحظةِ الممرَّرة) بـ frozen_clock — W-20261008-021",
+    )
+
+
+@pytest.fixture(autouse=True)
+def _pinned_clock(request):
+    marker = request.node.get_closest_marker("pin_clock")
+    forced = os.environ.get(CLOCK_ENV, "")
+    if marker is None and not forced:
+        yield
+        return
+    from tests.visual_snapshots import FIXED_NOW, frozen_clock
+
+    if marker is not None:
+        now = marker.args[0] if marker.args else FIXED_NOW
+    else:
+        now = dt.datetime.fromisoformat(forced)
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=FIXED_NOW.tzinfo)
+    with frozen_clock(now):
+        yield

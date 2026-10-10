@@ -41,7 +41,7 @@ from tests.conftest import (
 from tests.test_views_quality2 import make_admin, make_domain, make_procedure, make_teacher
 from transport.models import BusRoute
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 
 def queries_for(client, url) -> list[str]:

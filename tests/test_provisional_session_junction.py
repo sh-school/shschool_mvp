@@ -21,7 +21,7 @@ from tests.test_provisional_session import (  # noqa: F401 — التجهيزا�
     subject,
 )
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 
 def _provisional(school, klass, teacher, subject, start=dt.time(7, 10), period=1, day=SUNDAY):

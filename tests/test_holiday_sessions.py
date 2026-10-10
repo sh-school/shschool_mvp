@@ -25,6 +25,8 @@ from operations.models import (
 from operations.services import ScheduleService
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
+pytestmark = pytest.mark.pin_clock
+
 YEAR = "2026-2027"
 SUNDAY = date(2026, 11, 1)
 TUESDAY = SUNDAY + timedelta(days=2)

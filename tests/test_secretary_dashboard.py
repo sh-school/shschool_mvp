@@ -20,7 +20,7 @@ from staff_affairs import dashboard as secretary_dashboard
 from staff_affairs.attendance import StaffAttendanceService
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 
 def _person(school, number, role="teacher"):
