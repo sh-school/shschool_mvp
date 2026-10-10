@@ -1180,12 +1180,11 @@ main.page-wide {
 }
 
 /* ── نصٌّ صغيرٌ بحسب دوره (W-20261010-010) ─────────────────────────────
-   حلَّت محلَّ أداة `.text-xs` التي كانت تُلصق في القوالب بلا دور: الخليّةُ
-   `cell-sm`، والبيانُ الثانويّ الخافت `ui-meta`، وعنوانُ الحقل الصغير
-   `form-label--sm`. والحجمُ من الرمز `--text-xs` لا من رقمٍ حرفيّ. */
+   حلَّت محلَّ أداة الحجم `text-xs` التي كانت تُلصق في القوالب بلا دور: الخليّةُ
+   `cell-sm`، والبيانُ الثانويّ الخافت `ui-meta`، والسطرُ الصغير `ui-note`.
+   والحجمُ من الرمز `--text-xs` لا من رقمٍ حرفيّ. */
 .cell-sm { font-size: var(--text-xs); line-height: var(--lh-tight); }
 .ui-meta { font-size: var(--text-xs); color: var(--text-muted); }
-.form-label--sm { font-size: var(--text-xs); }
 
 .col-actions {
   width: 80px;

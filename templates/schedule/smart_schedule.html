@@ -251,7 +251,7 @@
             {% if g.is_pending or g.status == 'failed' %}<span class="text-muted">—</span>
             {% elif g.quality.invalid %}
             <b class="text-status-danger" title="فيها {{ g.unplaced_count }} متعذّرة و{{ g.breaches.count|default:0 }} مخالفة — لا تُقارَن جودتُها بجدولٍ كامل">ناقصة</b>
-            {% if g.quality.value is not None %}<span class="text-xs text-muted" title="جودةُ ما وُضع وحدَه، منسوبةً إلى الأساس">(ما وُضع {{ g.quality.value|floatformat:0 }}%)</span>{% endif %}
+            {% if g.quality.value is not None %}<span class="ui-meta" title="جودةُ ما وُضع وحدَه، منسوبةً إلى الأساس">(ما وُضع {{ g.quality.value|floatformat:0 }}%)</span>{% endif %}
             {% elif g.lab_relative %}
             <b class="text-status-{{ g.lab_tone }}" title="من الأساس">{{ g.lab_relative|floatformat:0 }}%</b>
             {% elif g.lab_absolute %}
@@ -262,7 +262,7 @@
           <td class="num">
             {% if g.is_pending or g.status == 'failed' %}<span class="text-muted">—</span>{% else %}
             <b>{{ g.placed }}/{{ total_weekly }}</b>
-            <span class="text-xs text-muted">({{ g.placed_ratio }}%)</span>
+            <span class="ui-meta">({{ g.placed_ratio }}%)</span>
             {% endif %}
           </td>
           <td class="num text-muted" data-sort-value="{% if g.is_pending or g.status == 'failed' %}{% else %}{{ g.generation_time_ms }}{% endif %}">{% if g.is_pending or g.status == 'failed' %}—{% else %}{{ g.generation_time_ms|duration_ms }}{% endif %}</td>
@@ -271,7 +271,7 @@
             {% if g.status == "draft" %}
             <a href="{% url 'weekly_schedule' %}?year={{ year }}&amp;generation={{ g.id }}" class="btn-secondary btn-xs">معاينة</a>
             {% include "schedule/partials/discard_generation.html" %}
-            {% if g.budget_cut %}<span class="text-xs text-muted" title="قُطع البحثُ بنفاد الميزانية — قد تكون المتعذّراتُ قابلةً للحلّ بميزانيةٍ أطول">قُطع البحث</span>{% endif %}
+            {% if g.budget_cut %}<span class="ui-meta" title="قُطع البحثُ بنفاد الميزانية — قد تكون المتعذّراتُ قابلةً للحلّ بميزانيةٍ أطول">قُطع البحث</span>{% endif %}
             {% if g.gate_total %}
             <a href="#gen-breaches-{{ g.id }}" class="btn-secondary btn-xs">المخالفات والمتعذّرات ({{ g.gate_total }})</a>
             {% elif can_approve %}
