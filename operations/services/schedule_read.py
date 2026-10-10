@@ -462,7 +462,7 @@ class ScheduleReadMixin:
 
         دالّةٌ على المصفوفة القائمة، واستعلامٌ واحدٌ للخطّة.
         """
-        from operations.scheduler_constraints import get_max_periods_for_day
+        from operations.scheduling_limits import get_max_periods_for_day
 
         counts = [[0] * 7 for _ in range(5)]
         covered: list[list[set]] = [[set() for _ in range(7)] for _ in range(5)]
