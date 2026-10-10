@@ -115,8 +115,8 @@ def load_context(school, academic_year) -> Context:
         TeacherExemption,
         TeacherPreference,
     )
-    from operations.scheduler import load_band_times
-    from operations.scheduler_constraints import MAX_CONSECUTIVE
+    from operations.scheduling_inputs import load_band_times
+    from operations.scheduling_limits import MAX_CONSECUTIVE
 
     ctx = Context(general_run_cap=MAX_CONSECUTIVE)
     for ex in TeacherExemption.objects.filter(
