@@ -517,18 +517,21 @@ class TeacherPreferenceAdmin(admin.ModelAdmin):
 
         ثمرةُ قرار المالك D-172م، فيُراد أثرُه أبعدَ من `LogEntry` (W-20261003-035، توصيةُ 0105).
         """
-        before = (
-            type(obj).objects.filter(pk=obj.pk).values_list("max_last_periods", flat=True).first()
+        before, before_run = (
+            type(obj)
+            .objects.filter(pk=obj.pk)
+            .values_list("max_last_periods", "max_consecutive")
+            .first()
             if change
             else None
-        )
+        ) or (None, None)
         super().save_model(request, obj, form, change)
         from operations.preference_capacity import (
             exceeds_general_run_cap,
             record_run_cap_above_general,
         )
 
-        if "max_consecutive" in form.changed_data and exceeds_general_run_cap(obj.max_consecutive):
+        if before_run != obj.max_consecutive and exceeds_general_run_cap(obj.max_consecutive):
             record_run_cap_above_general(request, obj, "admin")
         if before != obj.max_last_periods:
             from core.models import AuditLog
