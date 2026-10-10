@@ -46,7 +46,7 @@ from .schedule_breaches import (
     quality_display,
     unplaced_count,
 )
-from .schedule_selectors import mark_v2, pages_payload
+from .schedule_selectors import generation_status_payload, mark_v2, pages_payload
 from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
 from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
 from .scheduler_v2.limits import GENERATION_STALE_AFTER_SECONDS
@@ -923,24 +923,7 @@ def smart_generate_status(request):
     if generation is None:
         return JsonResponse({"status": None, "pending": False})
 
-    is_v2 = (generation.config_snapshot or {}).get("engine") == "cpsat_v2" or (
-        generation.is_pending and not generation.config_snapshot
-    )
-    return JsonResponse(
-        {
-            "id": str(generation.id),
-            "status": generation.status,
-            "status_label": generation.get_status_display(),
-            "pending": generation.is_pending,
-            # V2 لا تحسب «جودةً» مئويّة (تقيسها بحصصٍ متعذّرة ومخالفاتٍ لينة)؛ والصفرُ الافتراضيّ
-            # يُقرأ فشلاً — فيُحجب الرقمُ ويُعرض ما تقيسه فعلاً.
-            "quality": None if is_v2 else round(generation.quality_score),
-            "soft_violations": generation.soft_violations if is_v2 else None,
-            "slots": generation.total_slots_created,
-            "elapsed_ms": generation.generation_time_ms,
-            "error": generation.error_message,
-        }
-    )
+    return JsonResponse(generation_status_payload(generation))
 
 
 @login_required
