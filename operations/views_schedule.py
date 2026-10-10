@@ -46,6 +46,7 @@ from .schedule_breaches import (
     quality_display,
     unplaced_count,
 )
+from .schedule_comparison import comparison_for_display as compare
 from .schedule_selectors import mark_v2, pages_payload
 from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
 from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
@@ -730,7 +731,6 @@ def smart_schedule_view(request):
         g.lab_relative = relative_score(lab, baseline.metrics) if baseline and lab else None
         # نصٌّ لا رقم: `floatformat` يتبع اللغةَ فيكتب «100٫0»، والرقمُ هنا يُقرأ ويُقارَن.
         g.placed_ratio = f"{ratio:.1f}"
-        g.comparison = _comparison_of(g)
 
     #: الحسابُ بالعدّ يسبق البحثَ بالساعات — طاقةُ الشُّعب والمعلّمين والموارد
     #: وتباعدُ الأيّام. وكان هنا فحصُ الشُّعب وحدَه، وهو اليومَ أحدُ خمسة.
@@ -770,27 +770,6 @@ def smart_schedule_view(request):
     )
 
 
-def _comparison_of(generation) -> dict | None:
-    """مقارنةُ المسودّة بالمعتمَد من `metrics`؛ ولو غابت لمسودّةٍ طُلبت لها مرّةً في الساعة (idempotent).
-
-    المقارنةُ مهمّةٌ خلفيّة (W-20261010-008) تُطلب عند انتهاء التوليد؛ وهذا الطلبُ يغطّي ما لم يُطلب لها
-    (توليدُ V2 ومسوّداتٌ سابقة) بلا أن يحسب الطلبُ شيئاً. والعرضُ بلا نتيجةٍ يقول «قيد الحساب».
-    """
-    found = (generation.metrics or {}).get("_comparison")
-    if found or generation.status != "draft":
-        return found
-    from django.core.cache import cache
-
-    from .tasks import compare_generation_to_live_task
-
-    if cache.add(f"schedule-compare:{generation.pk}", 1, 3600):
-        try:
-            compare_generation_to_live_task.delay(str(generation.pk))
-        except Exception:  # noqa: BLE001 — العرضُ لا يسقط لتعذّر الإرسال
-            logger.exception("تعذّر طلب مقارنة المسودّة %s", generation.pk)
-    return None
-
-
 def _smart_schedule_presentation(generations, year, occupied_slots, shared_periods) -> dict:
     """ما يُحكم فيه بشرطٍ في صفحة التوليد — يُحسب هنا لا في القالب.
 
@@ -803,7 +782,7 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
       ثلاثة أعمدةٍ متجاورة (معيار تخطيط الصفحات) بدل عمودٍ واحدٍ يطيل الصفحة.
     """
     for g in generations:
-        g.lab_tone = tone_for(g.lab_relative, LAB_RELATIVE_TONES, empty="")
+        g.comparison, g.lab_tone = compare(g), tone_for(g.lab_relative, LAB_RELATIVE_TONES, "")
         # ما بقي مكسوراً بموضعه — والإقرارُ به شرطُ اعتماد المسودّة (SCH-05).
         g.breaches = draft_breaches(g.config_snapshot)
         g.budget_cut = budget_cut_notice(g.config_snapshot)

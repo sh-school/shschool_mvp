@@ -19,13 +19,13 @@ import time
 from statistics import mean
 from typing import Any
 
+from .schedule_edges import edge_count
 from .schedule_evaluator import evaluate_slots, generation_slots, live_slots
 from .schedule_lab import (
     MIN_LOAD,
     REST_GAP,
     ScheduleLab,
     _gaps,
-    edge_count,
     load_context,
     load_slots,
 )
@@ -187,3 +187,24 @@ def _verdict(delta: float | None, better: str) -> str:
     if delta is None or delta == 0:
         return "same"
     return "better" if (delta > 0) == (better == "high") else "worse"
+
+
+def comparison_for_display(generation: Any) -> dict | None:
+    """مقارنةُ المسودّة بالمعتمَد من `metrics`؛ ولو غابت لمسودّةٍ طُلبت لها مرّةً في الساعة (idempotent).
+
+    المقارنةُ مهمّةٌ خلفيّة تُطلب عند انتهاء التوليد؛ وهذا الطلبُ يغطّي ما لم يُطلب لها (توليدُ V2 ومسوّداتٌ
+    سابقة) بلا أن يحسب الطلبُ شيئاً. والعرضُ بلا نتيجةٍ يقول «قيد الحساب».
+    """
+    found = (generation.metrics or {}).get(COMPARISON_KEY)
+    if found or generation.status != "draft":
+        return found
+    from django.core.cache import cache
+
+    from .tasks import compare_generation_to_live_task
+
+    if cache.add(f"schedule-compare:{generation.pk}", 1, 3600):
+        try:
+            compare_generation_to_live_task.delay(str(generation.pk))
+        except Exception:  # noqa: BLE001 — العرضُ لا يسقط لتعذّر الإرسال
+            logger.exception("تعذّر طلب مقارنة المسودّة %s", generation.pk)
+    return None

@@ -18,7 +18,8 @@ from operations.schedule_comparison import (
     compare_generation,
     slot_keys,
 )
-from operations.schedule_lab import Context, ScheduleLab, Slot, edge_count
+from operations.schedule_edges import edge_count
+from operations.schedule_lab import Context, ScheduleLab, Slot
 from operations.scheduler import generate_schedule
 from operations.tasks import compare_generation_to_live_task
 from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, UserFactory

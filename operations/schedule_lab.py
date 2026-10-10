@@ -26,6 +26,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from statistics import mean, pstdev
 
+from .schedule_edges import edge_count
 from .schedule_lab_exceptions import exception_load, longest_task_run
 from .scheduler_bell import Interval, longest_run
 
@@ -211,16 +212,6 @@ def alternating_compactness(periods: list[int]) -> float:
         return 1.0
     ideal_span = 2 * len(distinct) - 1
     return max(1.0, (distinct[-1] - distinct[0] + 1) / ideal_span)
-
-
-def edge_count(periods: list[int]) -> int:
-    """أول خانةٍ مشغولةٍ في اليوم وآخرها: واحدةٌ إن كان اليومُ حصّةً واحدة.
-
-    كان المقياسُ يعدّ الحصّتين 1 و7 حرفاً، فمن يبدأ يومه بالثانية ويختمه بالسادسة لا يُحسب عليه شيء
-    وهو يبدأ أبكرَ خانةٍ لديه ويختم آخرَها (W-20261010-008).
-    """
-    distinct = set(periods)
-    return len({min(distinct), max(distinct)}) if distinct else 0
 
 
 def _cv(values: list[float]) -> float:
