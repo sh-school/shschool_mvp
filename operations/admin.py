@@ -513,16 +513,29 @@ class TeacherPreferenceAdmin(admin.ModelAdmin):
     autocomplete_fields = ("teacher",)
 
     def save_model(self, request, obj, form, change):
-        """تغييرُ سقف السابعة الإداريّ يُثبَّت أثرُه: قيمتان قبل وبعد ومعرّفُ الصفّ — لا اسمُ المعلّم.
+        """تغييرُ سقف السابعة ويومِ التفريغ الإداريَّين يُثبَّت أثرُه: قيمتان قبل وبعد ومعرّفُ الصفّ — لا اسمُ المعلّم.
 
         ثمرةُ قرار المالك D-172م، فيُراد أثرُه أبعدَ من `LogEntry` (W-20261003-035، توصيةُ 0105).
         """
-        before = (
-            type(obj).objects.filter(pk=obj.pk).values_list("max_last_periods", flat=True).first()
+        before, before_run, before_free = (
+            type(obj)
+            .objects.filter(pk=obj.pk)
+            .values_list("max_last_periods", "max_consecutive", "free_day")
+            .first()
             if change
             else None
-        )
+        ) or (None, None, None)
         super().save_model(request, obj, form, change)
+        from operations.preference_capacity import (
+            exceeds_general_run_cap,
+            record_free_day_change,
+            record_run_cap_above_general,
+        )
+
+        if before_free != obj.free_day:
+            record_free_day_change(request, obj, before_free, change)
+        if before_run != obj.max_consecutive and exceeds_general_run_cap(obj.max_consecutive):
+            record_run_cap_above_general(request, obj, "admin")
         if before != obj.max_last_periods:
             from core.models import AuditLog
 

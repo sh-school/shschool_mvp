@@ -21,15 +21,25 @@
       <div class="form-group">
         <label class="form-label" for="max_consecutive">أقصى حصص متتالية</label>
         <select name="max_consecutive" id="max_consecutive" class="form-control">
+          <option value="" {% if pref.max_consecutive is None %}selected{% endif %}>السقف العام للمدرسة (الافتراضي)</option>
           {% for v in periods %}
           <option value="{{ v }}" {% if pref.max_consecutive == v %}selected{% endif %}>
-            {% if v == 1 %}حصة واحدة — لا تجاور{% else %}{{ v }} حصص{% endif %}{% if v == 3 %} (الافتراضي){% endif %}
+            {% if v == 1 %}حصة واحدة — لا تجاور{% else %}{{ v }} حصص{% endif %}
           </option>
           {% endfor %}
         </select>
         <p class="ui-field-hint">
           أقصى عدد حصص متتالية بلا استراحة بينها. و«حصة واحدة» تعني ألّا تقع لك حصتان متجاورتان إطلاقاً.
         </p>
+        <p class="ui-field-hint">
+          <strong>السقف العام للمدرسة = {% if pref.general_run_cap == 1 %}حصة واحدة، لا تجاور{% else %}{{ pref.general_run_cap }} حصص{% endif %}</strong>،
+          وهو قاعدة المدرسة لكل المعلّمين وتبقى عليه ما لم تختر غيره. وأيّ رقم أكبر تختاره ليس «بدون حدّ»:
+          هو سقفٌ خاصٌّ بك وحدك يسمح لك بحصص متتالية أكثر، ويُسجَّل عند الحفظ.
+        </p>
+        <p class="ui-field-hint">هذه الصفحة تخصّك وحدك: ما تحفظه هنا لا يغيّر شيئاً في جدول غيرك.</p>
+        {% if pref.run_cap_above_general %}
+        {% callout "warning" %}سقفُك الشخصي ({{ pref.max_consecutive }}) أعلى من السقف العام ({{ pref.general_run_cap }}): يُرخي قيد التلاصق لك وحدَك في التوليد، وقد سُجّل هذا الاختيار. اترك الخانة على «السقف العام» لتعود إليه.{% endcallout %}
+        {% endif %}
       </div>
 
       <div class="form-group">
@@ -75,14 +85,9 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="free_day">يوم التفريغ المفضل</label>
-        <select name="free_day" id="free_day" class="form-control">
-          <option value="">— بدون تفضيل —</option>
-          {% for val, label in days %}
-          <option value="{{ val }}" {% if pref.free_day == val %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-        <p class="ui-field-hint">اليوم الذي تفضّل ألّا تكون فيه حصص. نُرجّحه بقوّة، لكن لا نضمنه إذا ضاق الأسبوع.</p>
+        <span class="form-label">يوم التفريغ</span>
+        <p><b id="free_day_readonly">{{ pref.get_free_day_display|default:"لا يوجد يوم تفريغ محدَّد" }}</b></p>
+        <p class="ui-field-hint">يوم التفريغ قرارٌ إداريّ تحدّده الإدارة وفق حاجة الجدول، فلا يُغيَّر من هذه الصفحة. إن احتجتَ تعديله فراجع منسّق الجدول أو الإدارة.</p>
       </div>
     {% endsection_card %}
   </div>
