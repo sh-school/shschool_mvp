@@ -1,10 +1,19 @@
 {% load icons %}
 {% load ui %}
-{% comment %}بطاقةُ «رصدُ الغياب — شُعبي»: مشتركةٌ بين المعلّم والمنسّق، تظهر في وضعَي الجدول (مؤقّتاً وفعليّاً) وفي يوم الراحة،
-وتقود إلى جدول الشعبة العموديّ (provisional_classes). W-20261010-036. لا تلمس منطقَ الرصد.{% endcomment %}
+{% comment %}بطاقةُ «رصدُ الغياب — شُعبي»: مشتركةٌ بين المعلّم والمنسّق، تظهر في وضعَي الجدول (مؤقّتاً وفعليّاً) وفي يوم الراحة.
+تعرض شُعبَ المستخدم (المصدرُ نفسُه `grid_classes`، مرتَّبةً رقميّاً) فيفتح اختيارُ الشعبة جدولَها العموديّ بنقرةٍ واحدة (W-20261010-054)؛
+شعبةٌ واحدةٌ تذهب مباشرةً، وبلا شعبٍ رسالةٌ بلا زرّ. صفحةُ `provisional_classes` تبقى كما هي. لا تلمس منطقَ الرصد.{% endcomment %}
 {% section_card "رصدُ الغياب — شُعبي" icon="attendance_register" %}
-  <div class="pp-key">
-    <p class="ui-note">{% if prov %}ارصد غيابَ طلّابك مؤقّتاً إلى حين اعتماد جدول المنصّة{% else %}ارصد غيابَ طلّابك من جدول شعبتك{% endif %}</p>
-    {% url 'provisional_classes' as u %}<a class="btn-primary" href="{{ u }}">{% icon "attendance_register" %} شُعبي للرصد</a>
-  </div>
+  <p class="ui-note">{% if shobi_classes|length == 0 %}لا شُعبَ مُسنَدةً إليك للرصد{% elif prov %}اختر شعبتك لرصد الغياب مؤقّتاً إلى حين اعتماد جدول المنصّة{% else %}اختر شعبتك لرصد الغياب من جدولها{% endif %}</p>
+  {% if shobi_classes|length == 1 %}
+    {% for klass in shobi_classes %}
+    <a class="btn-primary" href="{% url 'class_grid' klass.id %}">{% icon "attendance_register" %} رصدُ شعبة {{ klass.short_label }}</a>
+    {% endfor %}
+  {% elif shobi_classes %}
+  <ul class="shobi-picks">
+    {% for klass in shobi_classes %}
+    <li><a class="shobi-pick" href="{% url 'class_grid' klass.id %}" title="{{ klass.wing.name|default:'' }}">{{ klass.short_label }}</a></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
 {% endsection_card %}

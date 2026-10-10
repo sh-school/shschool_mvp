@@ -234,7 +234,74 @@ def test_the_shobi_card_links_once_to_the_class_grid_in_both_schedule_modes(
     body = client_as(user).get("/dashboard/").content.decode()
 
     assert "رصدُ الغياب — شُعبي" in body
-    assert body.count(reverse("provisional_classes")) == 1
+    assert "لا شُعبَ مُسنَدةً إليك" in body  # بلا إسنادٍ ← رسالةٌ بلا زرّ (W-20261010-054)
+    assert reverse("provisional_classes") not in body
+
+
+def _assign(school, teacher, grade, section, subject):
+    """إسنادٌ فعليّ لمعلّمٍ في شعبةٍ بعامها الجاري — هو ما تقرؤه `classes_for`."""
+    from operations.models import SubjectClassAssignment
+
+    klass = ClassGroupFactory(
+        school=school,
+        grade=grade,
+        section=section,
+        academic_year=academic_year_for_school(school),
+    )
+    SubjectClassAssignment.objects.create(
+        school=school,
+        class_group=klass,
+        subject=subject,
+        teacher=teacher,
+        weekly_periods=3,
+        academic_year=academic_year_for_school(school),
+    )
+    return klass
+
+
+@pytest.mark.django_db
+def test_the_shobi_card_lists_only_my_sections_in_numeric_school_order(client_as, school):
+    """W-20261010-054: شُعبُ المعلّم وحدَها، رقميّاً بالصفّ ثمّ الشعبة (7/1 7/3 8/1 12/2) لا نصّيّاً، وكلٌّ برابط جدوله."""
+    from operations.models import Subject
+
+    subject = Subject.objects.create(school=school, name_ar="رياضيات", code="MAT")
+    user = UserFactory(full_name="مستخدمُ اختبار")
+    MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name="teacher"))
+    other = UserFactory(full_name="معلّمٌ آخر")
+    MembershipFactory(user=other, school=school, role=RoleFactory(school=school, name="teacher"))
+    mine = [
+        _assign(school, user, "G12", "2", subject),
+        _assign(school, user, "G8", "1", subject),
+        _assign(school, user, "G7", "3", subject),
+        _assign(school, user, "G7", "1", subject),
+    ]
+    foreign = _assign(school, other, "G9", "4", subject)
+
+    body = client_as(user).get("/dashboard/").content.decode()
+    card = body[body.index("رصدُ الغياب — شُعبي") :]
+
+    labels = ["7/1", "7/3", "8/1", "12/2"]
+    positions = [card.index(f">{label}</a>") for label in labels]
+    assert positions == sorted(positions)
+    for klass in mine:
+        assert reverse("class_grid", args=[klass.id]) in body
+    assert reverse("class_grid", args=[foreign.id]) not in body
+    assert ">9/4</a>" not in body
+
+
+@pytest.mark.django_db
+def test_the_shobi_card_has_one_direct_link_for_a_single_section(client_as, school):
+    from operations.models import Subject
+
+    subject = Subject.objects.create(school=school, name_ar="رياضيات", code="MAT")
+    user = UserFactory(full_name="مستخدمُ اختبار")
+    MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name="teacher"))
+    only = _assign(school, user, "G7", "1", subject)
+
+    body = client_as(user).get("/dashboard/").content.decode()
+
+    assert body.count(reverse("class_grid", args=[only.id])) == 1
+    assert "shobi-picks" not in body
 
 
 @pytest.mark.django_db

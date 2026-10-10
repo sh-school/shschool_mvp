@@ -1588,3 +1588,10 @@ body:has(.rm-page) .site-footer { flex: none; }
 .sess-state { display: flex; align-items: center; gap: var(--sp-2); flex-shrink: 0; }
 
 } /* end @layer modules */
+
+/* اختيارُ الشعبة داخل بطاقة «شُعبي للرصد» (W-20261010-054) */
+@layer modules {
+  .shobi-picks { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+  .shobi-pick { display: inline-flex; align-items: center; justify-content: center; min-inline-size: 4rem; min-block-size: var(--control-h); padding-inline: var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--text-primary); font-weight: 700; text-decoration: none; }
+  .shobi-pick:hover, .shobi-pick:focus-visible { border-color: var(--maroon); background: var(--maroon-bg); }
+}
