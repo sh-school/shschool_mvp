@@ -85,14 +85,9 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="free_day">يوم التفريغ المفضل</label>
-        <select name="free_day" id="free_day" class="form-control">
-          <option value="">— بدون تفضيل —</option>
-          {% for val, label in days %}
-          <option value="{{ val }}" {% if pref.free_day == val %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-        <p class="ui-field-hint">اليوم الذي تفضّل ألّا تكون فيه حصص. نُرجّحه بقوّة، لكن لا نضمنه إذا ضاق الأسبوع.</p>
+        <span class="form-label">يوم التفريغ</span>
+        <p><b id="free_day_readonly">{{ pref.get_free_day_display|default:"لا يوجد يوم تفريغ محدَّد" }}</b></p>
+        <p class="ui-field-hint">يوم التفريغ قرارٌ إداريّ تحدّده الإدارة وفق حاجة الجدول، فلا يُغيَّر من هذه الصفحة. إن احتجتَ تعديله فراجع منسّق الجدول أو الإدارة.</p>
       </div>
     {% endsection_card %}
   </div>

@@ -60,6 +60,27 @@ def record_run_cap_above_general(request: HttpRequest, pref: Any, channel: str) 
     )
 
 
+def record_free_day_change(
+    request: HttpRequest, pref: Any, before: int | None, change: bool
+) -> None:
+    """يومُ التفريغ قرارٌ إداريّ (W-20261010-025): تغييرُه من الأدمن يُثبَّت قيمتين قبل وبعد ومعرّفَ الصفّ.
+
+    لا اسمَ معلّم (PDPPL) — كسقف السابعة الإداريّ.
+    """
+    from core.models import AuditLog
+
+    actor: Any = request.user
+    AuditLog.objects.create(
+        school=pref.school,
+        user=actor,
+        action="update" if change else "create",
+        model_name="other",
+        object_id=str(pref.pk),
+        object_repr=f"يومُ التفريغ الإداريّ {pref.academic_year}",
+        changes={"event": "teacher_free_day_changed", "before": before, "after": pref.free_day},
+    )
+
+
 def save_teacher_preferences(request: HttpRequest, pref: Any) -> None:
     """حفظُ شاشة المعلّم: الحقولُ التي يحرّرها وحدَها، وسقفٌ فوق العامّ يُنبَّه إليه ويُسجَّل."""
     pref.save(update_fields=pref.TEACHER_EDITABLE_FIELDS)

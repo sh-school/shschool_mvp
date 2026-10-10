@@ -1031,8 +1031,7 @@ def teacher_preferences(request):
         #: بل يُقرأ عدماً — و«0» قيمةٌ صحيحةٌ تعني «لا فراغَ البتّة».
         max_gap = request.POST.get("max_gap", "")
         pref.max_gap = _one_of(max_gap, range(0, 6), None) if max_gap != "" else None
-        free_day = request.POST.get("free_day", "")
-        pref.free_day = _one_of(free_day, range(0, 5), None) if free_day else None
+        #: يومُ التفريغ قرارٌ إداريّ (W-20261010-025): يُقرأ من الصفّ المحفوظ ولا يُقرأ من الطلب.
         pref.notes = request.POST.get("notes", "")
 
         # قيودٌ لا تسع النصاب تُردّ بحسابها لا تُحفظ: «متتالية 1» مع «فراغ 0»
