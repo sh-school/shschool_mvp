@@ -708,7 +708,7 @@ def schedule_developer_only_blocks(user: Any, key: str) -> bool:
     """أيُحجَب هذا المستخدمُ عن هذه القدرة بالحصر؟ — لغير مطوّر المنصّة، والمفتاحُ مشغَّل."""
     if key not in SCHEDULE_DEVELOPER_ONLY_CAPABILITIES or not schedule_developer_only_active():
         return False
-    return user.get_role() != "platform_developer"
+    return bool(user.get_role() != "platform_developer")
 
 
 def schedule_developer_only(key: str) -> Callable:
@@ -717,7 +717,9 @@ def schedule_developer_only(key: str) -> Callable:
 
     from core.permissions import _forbidden_response, log_denial
 
-    def decorator(view_func):
+    def decorator(
+        view_func: Callable[..., HttpResponseBase],
+    ) -> Callable[..., HttpResponseBase]:
         @wraps(view_func)
         def wrapper(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponseBase:
             user = request.user
