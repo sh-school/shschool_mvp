@@ -21,9 +21,10 @@
       <div class="form-group">
         <label class="form-label" for="max_consecutive">أقصى حصص متتالية</label>
         <select name="max_consecutive" id="max_consecutive" class="form-control">
+          <option value="" {% if pref.max_consecutive is None %}selected{% endif %}>السقف العام للمدرسة (الافتراضي)</option>
           {% for v in periods %}
           <option value="{{ v }}" {% if pref.max_consecutive == v %}selected{% endif %}>
-            {% if v == 1 %}حصة واحدة — لا تجاور{% else %}{{ v }} حصص{% endif %}{% if v == 3 %} (الافتراضي){% endif %}
+            {% if v == 1 %}حصة واحدة — لا تجاور{% else %}{{ v }} حصص{% endif %}
           </option>
           {% endfor %}
         </select>

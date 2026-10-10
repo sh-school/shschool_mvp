@@ -523,6 +523,13 @@ class TeacherPreferenceAdmin(admin.ModelAdmin):
             else None
         )
         super().save_model(request, obj, form, change)
+        from operations.preference_capacity import (
+            exceeds_general_run_cap,
+            record_run_cap_above_general,
+        )
+
+        if "max_consecutive" in form.changed_data and exceeds_general_run_cap(obj.max_consecutive):
+            record_run_cap_above_general(request, obj, "admin")
         if before != obj.max_last_periods:
             from core.models import AuditLog
 

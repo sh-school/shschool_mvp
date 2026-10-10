@@ -409,7 +409,16 @@ class TeacherPreference(models.Model):
         max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
     )
     max_daily_periods = models.PositiveIntegerField(default=5, verbose_name="أقصى حصص يومية")
-    max_consecutive = models.PositiveIntegerField(default=3, verbose_name="أقصى حصص متتالية")
+    #: `NULL` = السقفُ العامّ (`MAX_CONSECUTIVE`) — لا قرارَ شخصيَّ. كان الافتراضيُّ ٣ فيُنشئ `get_or_create`
+    #: في شاشة التفضيلات سقفاً شخصيّاً يتقدّم على العامّ ويُرخي HC5 لمن لم يطلب ذلك (W-20261003-037).
+    #: والقيمةُ الأعلى من العامّ تُقبل بتنبيهٍ ظاهرٍ وسجلّ تدقيقٍ عند الحفظ (`preference_capacity`).
+    max_consecutive = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="أقصى حصص متتالية",
+        help_text="فارغٌ يعني السقفَ العامّ للمدرسة — وأيُّ قيمةٍ أعلى منه تُرخي HC5 لهذا المعلّم وتُسجَّل",
+    )
     #: سقفُ السابعة الأسبوعيّ لهذا المعلّم (HC8) — `NULL` يعني السقفَ العامّ (اثنتان).
     #:
     #: **قرارٌ إداريّ في حقّ معلّمٍ لا تفضيلُه**: معلّمٌ نصابُه ١٨ على جرسٍ ثانويّ سعتُه ١٧ بسابعتين
