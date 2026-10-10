@@ -3,7 +3,11 @@ from typing import Any
 
 from django.core.exceptions import PermissionDenied
 from django.db import connection, models, transaction
+from django.db.models import Value
+from django.db.models.functions import Length, Replace
 from django.utils import timezone
+
+from core.audit_repr import masked_repr
 
 from .school import School, _uuid
 from .user import CustomUser
@@ -52,6 +56,42 @@ class _ImmutableManager(models.Manager):
                 return models.QuerySet.update(pending, ip_address=None, user_agent="")
             finally:
                 cur.execute("SELECT set_config('app.auditlog_network_erasure', '', true)")
+
+    def anonymize_name_in_repr(self, user: Any, name: str) -> dict[str, int]:
+        """يستبدل اسمَ مستخدمٍ مُحيَ بمعرّفه المقنَّع في `object_repr` — الاستثناءُ الثالث.
+
+        قرارُ المالك بصفته DPO (D-186م ب، W-20261004-002): الاسمُ يُجهَّل في الوصف وحدَه، وتبقى الواقعةُ
+        بكلّ ما عداه. يُستدعى من خدمة المحو وحدَها (حارسٌ معماريّ)، ويقابله استثناءٌ ضيّقٌ في الزناد
+        (الهجرة 0082) بعلَم المعاملة. وتُتخطّى — وتُعدّ للإبلاغ اليدويّ لا للكتابة — ثلاثُ حالات:
+        اسمٌ مشتركٌ أو يحتويه اسمُ مستخدمٍ آخر (لا يُعرف أيُّهما)، واسمٌ من كلمةٍ واحدة (مطابقتُه ضعيفة)، وصفٌ
+        يتجاوز 300 حرفاً بعد الاستبدال. لا يُرجَع اسمٌ، أعدادٌ فقط.
+        """
+        name = (name or "").strip()
+        counts = {"anonymized": 0, "skipped_shared": 0, "skipped_short": 0, "skipped_long": 0}
+        if not name:
+            return counts
+        rows = _ImmutableQuerySet(self.model, using=self._db).filter(object_repr__contains=name)
+        if len(name.split()) < 2:
+            counts["skipped_short"] = rows.count()
+            return counts
+        if CustomUser.objects.filter(full_name__contains=name).exclude(pk=user.pk).exists():
+            counts["skipped_shared"] = rows.count()
+            return counts
+        masked = masked_repr(user)
+        fits = rows.annotate(_len=Length("object_repr")).filter(
+            _len__lte=300 - max(0, len(masked) - len(name))
+        )
+        counts["skipped_long"] = rows.count() - fits.count()
+        # علَمٌ محلّيٌّ للمعاملة يفتح الحالةَ الثالثةَ في الزناد ويُغلق في finally.
+        with transaction.atomic(using=self._db), connection.cursor() as cur:
+            cur.execute("SELECT set_config('app.auditlog_name_erasure', 'on', true)")
+            try:
+                counts["anonymized"] = models.QuerySet.update(
+                    fits, object_repr=Replace("object_repr", Value(name), Value(masked))
+                )
+            finally:
+                cur.execute("SELECT set_config('app.auditlog_name_erasure', '', true)")
+        return counts
 
 
 class AuditLog(models.Model):
