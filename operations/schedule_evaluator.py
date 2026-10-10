@@ -24,7 +24,6 @@ from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Any
 
-from .first_period_cap import MAX_FIRST_PERIODS
 from .scheduler_audit import grid_breaches
 from .scheduler_constraints import calculate_quality_score
 from .scheduler_live import entries_of, load_grid
@@ -213,6 +212,7 @@ def admin_first_caps(school: Any, academic_year: str) -> dict[str, int]:
     مصدرٌ واحدٌ يقرؤه المولّدُ والمُقيِّمُ معاً فلا يختلف حكمُهما (W-20261010-033): قيمةٌ خارج المدى
     تُعامَل كغيابها لا كإلغاءٍ للسقف، كما تفعل قراءةُ سقف السابعة.
     """
+    from operations.first_period_cap import MAX_FIRST_PERIODS
     from operations.models import TeacherPreference
     from operations.models.schedule import MAX_PERSONAL_FIRST
 
