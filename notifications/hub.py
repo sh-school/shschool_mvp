@@ -31,6 +31,7 @@ from kombu.exceptions import OperationalError
 from . import frozen, quiet_hours
 from .channels import deliverable_external_channels
 from .delivery_state import CLAIMABLE
+from .event_type_map import HUB_TO_STORED_EVENT
 from .models import (
     InAppNotification,
     NotificationDelivery,
@@ -85,6 +86,9 @@ DEFAULT_CHANNELS = {
     "appraisal_grievance": ["in_app"],
     # تغطيةُ غياب معلّم (إشغالٌ أو تبديل): تكليفٌ لحصّةٍ قريبة — داخل المنصّة وعلى الهاتف فوراً.
     "teacher_cover": ["in_app", "push"],
+    # تنبيها المعلّم الصباحيّان (W-20261010-042): «خارج لم يعد» فورياً على الهاتف (سلامةُ طالب)، و«حصّة بلا رصد» داخل المنصّة وحدَها — لا إزعاجَ خارجيّ لتذكيرٍ يُصلَح من اللوحة.
+    "exit_not_returned": ["in_app", "push"],
+    "session_unmarked": ["in_app"],
     "breach_assigned": ["in_app", "push"],  # DBT-24: داخلَ المنصّة والهاتف فقط
     "general": ["in_app", "push", "email"],
 }
@@ -110,6 +114,8 @@ DEFAULT_PRIORITY = {
     "review_cycle": "low",
     "appraisal_grievance": "high",
     "teacher_cover": "high",
+    "exit_not_returned": "high",
+    "session_unmarked": "medium",
     "breach_assigned": "urgent",
     "general": "low",
 }
@@ -572,32 +578,8 @@ def _resolve_channels(prefs, event_type, defaults):
 
 
 def _map_event_type(hub_event):
-    """يحوّل event_type من الـ Hub للنوع المخزّن في InAppNotification"""
-    mapping = {
-        "behavior_l1": "behavior",
-        "behavior_l2": "behavior",
-        "behavior_l3": "behavior",
-        "behavior_l4": "behavior",
-        "behavior_risk": "behavior",
-        "behavior_digest": "behavior",
-        "absence": "absence",
-        "class_exit": "general",
-        "grade": "grade",
-        "fail": "fail",
-        "clinic": "clinic",
-        "sent_home": "sent_home",
-        "meeting": "meeting",
-        "parent_summon": "parent_summon",
-        "plan_update": "plan_update",
-        "plan_deadline": "plan_deadline",
-        "plan_overdue": "plan_overdue",
-        "review_cycle": "review_cycle",
-        "observation": "general",
-        "appraisal_grievance": "general",
-        "teacher_cover": "general",
-        "general": "general",
-    }
-    return mapping.get(hub_event, "general")
+    """يحوّل event_type من الـ Hub للنوع المخزّن في InAppNotification (الجدولُ في `event_type_map.py`)"""
+    return HUB_TO_STORED_EVENT.get(hub_event, "general")
 
 
 def _enqueue_intent_after_commit(intent_id, school_id):
