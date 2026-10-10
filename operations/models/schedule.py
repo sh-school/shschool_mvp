@@ -437,7 +437,7 @@ class TeacherPreference(models.Model):
         blank=True,
         validators=[MinValueValidator(MIN_ADMIN_LAST), MaxValueValidator(MAX_PERSONAL_LAST)],
         verbose_name="أقصى سابعات أسبوعيّاً",
-        help_text="قرارٌ إداريّ في حقّ هذا المعلّم: أقصى عدد حصص السابعة في الأسبوع، من 2 إلى 5 — فارغٌ يعني السقفَ العامّ (اثنتان)",
+        help_text="قرارٌ إداريّ في حقّ هذا المعلّم: أقصى عدد حصص السابعة في الأسبوع (2 هو السقفُ العامّ)",
     )
     #: سقفُ الحصّة الأولى الأسبوعيّ لهذا المعلّم (HC22) — `NULL` يعني السقفَ العامّ (اثنتان).
     #:
@@ -449,7 +449,7 @@ class TeacherPreference(models.Model):
         blank=True,
         validators=[MinValueValidator(MIN_PERSONAL_FIRST), MaxValueValidator(MAX_PERSONAL_FIRST)],
         verbose_name="أقصى حصص أولى أسبوعيّاً",
-        help_text="قرارٌ إداريّ في حقّ هذا المعلّم: أقصى عدد الحصص الأولى في الأسبوع، من 2 إلى 5 — فارغٌ يعني السقفَ العامّ (اثنتان)",
+        help_text="قرارٌ إداريّ في حقّ هذا المعلّم: أقصى عدد الحصص الأولى في الأسبوع (2 هو السقفُ العامّ)",
     )
     #: أوسعُ فراغٍ يُقبل بين حصّتين في اليوم الواحد — بعدد الحصص الفارغة.
     #:

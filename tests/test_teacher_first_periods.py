@@ -92,7 +92,8 @@ def _admin_post(client, pref, school, **extra):
         "school": school.pk,
         "academic_year": YEAR,
         "max_daily_periods": 5,
-        "max_first_periods": "",
+        "max_first_periods": 2,
+        "max_last_periods": 2,
         "notes": "",
     }
     data.update(extra)
@@ -289,23 +290,10 @@ def test_the_seventh_cap_range_is_the_same_two_to_five(school, value, ok):
             pref.full_clean(exclude=["teacher", "school"])
 
 
-def test_the_admin_refuses_a_seventh_cap_outside_the_range(client, superuser, school):
-    pref = _pref(school, UserFactory().pk)
-    client.force_login(superuser)
-
-    _admin_post(client, pref, school, max_last_periods=1)
-    pref.refresh_from_db()
-    assert pref.max_last_periods is None
-
-    _admin_post(client, pref, school, max_last_periods=3)
-    pref.refresh_from_db()
-    assert pref.max_last_periods == 3
-
-
-def test_the_help_text_states_the_range_and_the_meaning(school):
+def test_the_help_text_names_the_meaning_without_an_empty_choice(school):
     for name in ("max_last_periods", "max_first_periods"):
         text = TeacherPreference._meta.get_field(name).help_text
-        assert "من 2 إلى 5" in text and "فارغٌ يعني السقفَ العامّ" in text
+        assert "2 هو السقفُ العامّ" in text and "فارغ" not in text
 
 
 def test_a_value_stored_before_the_range_is_not_rewritten_and_is_read_as_before(school):
@@ -319,12 +307,83 @@ def test_a_value_stored_before_the_range_is_not_rewritten_and_is_read_as_before(
     assert pref.max_last_periods == 1 and personal_last_cap(pref.max_last_periods) == 1
 
 
-def test_the_admin_inputs_carry_the_range_for_the_browser(client, superuser):
-    """حدٌّ في المتصفّح يسبق رسالةَ الخادم: min=2 وmax=5 على الحقلين (قرارُ المالك 10-10)."""
+def _select(page, name):
+    block = re.search(rf'<select[^>]*name="{name}"[^>]*>(.*?)</select>', page, re.S)
+    assert block, f"{name} ليس قائمةً منسدلة"
+    return block.group(0), re.findall(r'<option value="([^"]*)"', block.group(1))
+
+
+def test_the_admin_caps_are_selects_of_two_to_five_only(client, superuser):
+    """قرارُ المالك 10-10: قائمةٌ خياراتُها 2 و3 و4 و5 لا غير — بلا خيارٍ فارغ ولا min/max ولا إدخالٍ حرّ."""
     client.force_login(superuser)
 
     page = client.get(reverse("admin:operations_teacherpreference_add")).content.decode()
 
     for name in ("max_first_periods", "max_last_periods"):
-        tag = re.search(rf'<input[^>]*name="{name}"[^>]*>', page).group(0)
-        assert 'min="2"' in tag and 'max="5"' in tag
+        block, values = _select(page, name)
+        assert values == ["2", "3", "4", "5"]
+        assert "min=" not in block and "max=" not in block
+        assert re.search(r'<option value="2"[^>]* selected', block)
+
+
+def test_a_row_without_a_personal_cap_shows_the_general_two_preselected(client, superuser, school):
+    pref = _pref(school, UserFactory().pk)
+    client.force_login(superuser)
+
+    page = client.get(
+        reverse("admin:operations_teacherpreference_change", args=[pref.pk])
+    ).content.decode()
+
+    for name in ("max_first_periods", "max_last_periods"):
+        block, _ = _select(page, name)
+        assert re.search(r'<option value="2"[^>]* selected', block)
+
+
+def test_saving_a_blank_row_as_two_changes_nothing_in_audit_or_judgement(client, superuser, school):
+    """الفارغ والعامّ (2) حكمٌ واحد: حفظٌ عابرٌ لا يكتب سجلّاً ولا يغيّر ما يقرؤه المحرّك."""
+    pref = _pref(school, UserFactory().pk)
+    client.force_login(superuser)
+
+    _admin_post(client, pref, school)
+
+    pref.refresh_from_db()
+    assert (pref.max_first_periods, pref.max_last_periods) == (2, 2)
+    assert not AuditLog.objects.filter(
+        changes__event__in=[EVENT, "teacher_last_period_cap_changed"]
+    ).exists()
+    assert admin_first_caps(school, YEAR) == {}
+
+
+def test_a_chosen_cap_is_saved_and_audited_for_both_fields(client, superuser, school):
+    pref = _pref(school, UserFactory().pk)
+    client.force_login(superuser)
+
+    _admin_post(client, pref, school, max_first_periods=4, max_last_periods=3)
+
+    pref.refresh_from_db()
+    assert (pref.max_first_periods, pref.max_last_periods) == (4, 3)
+    assert AuditLog.objects.filter(changes__event=EVENT).count() == 1
+    assert AuditLog.objects.filter(changes__event="teacher_last_period_cap_changed").count() == 1
+
+
+def test_a_legacy_value_outside_the_range_stays_selected_for_its_owner_only(
+    client, superuser, school
+):
+    """ما خُزّن قبل القرار (1) لا يُكتب فوقه بحفظٍ عابر: يظهر محدَّداً لصاحبه وحده."""
+    legacy = _pref(school, UserFactory().pk)
+    TeacherPreference.objects.filter(pk=legacy.pk).update(max_last_periods=1)
+    other = _pref(school, UserFactory().pk)
+    client.force_login(superuser)
+
+    page = client.get(
+        reverse("admin:operations_teacherpreference_change", args=[legacy.pk])
+    ).content.decode()
+    other_page = client.get(
+        reverse("admin:operations_teacherpreference_change", args=[other.pk])
+    ).content.decode()
+    _admin_post(client, legacy, school, max_last_periods=1)
+
+    legacy.refresh_from_db()
+    assert _select(page, "max_last_periods")[1] == ["1", "2", "3", "4", "5"]
+    assert _select(other_page, "max_last_periods")[1] == ["2", "3", "4", "5"]
+    assert legacy.max_last_periods == 1

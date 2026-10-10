@@ -5,6 +5,7 @@ from django.http import HttpRequest
 
 from core.admin import SchoolScopedAdmin
 
+from .admin_forms import TeacherPreferenceAdminForm, effective_cap
 from .models import (
     AbsenceAlert,
     AbsenceExcuse,
@@ -513,14 +514,7 @@ class TeacherPreferenceAdmin(admin.ModelAdmin):
     search_fields = ("teacher__full_name",)
     autocomplete_fields = ("teacher",)
 
-    def formfield_for_dbfield(self, db_field, request, **kwargs):
-        """يُظهر مدى 2–5 في حقلَي سقف الأولى والسابعة للمتصفّح لا للخادم وحده (قرارُ المالك 2026-10-10)."""
-        from operations.models.schedule import MAX_PERSONAL_FIRST, MIN_PERSONAL_FIRST
-
-        field = super().formfield_for_dbfield(db_field, request, **kwargs)
-        if field is not None and db_field.name in ("max_first_periods", "max_last_periods"):
-            field.widget.attrs.update({"min": MIN_PERSONAL_FIRST, "max": MAX_PERSONAL_FIRST})
-        return field
+    form = TeacherPreferenceAdminForm
 
     def save_model(self, request, obj, form, change):
         """القراراتُ الإداريّة (سقفا السابعة والأولى ويومُ التفريغ) يُثبَّت أثرُها: قيمتان قبل وبعد ومعرّفُ الصفّ — لا اسمُ المعلّم.
@@ -546,7 +540,7 @@ class TeacherPreferenceAdmin(admin.ModelAdmin):
             record_free_day_change(request, obj, before_free, change)
         if before_run != obj.max_consecutive and exceeds_general_run_cap(obj.max_consecutive):
             record_run_cap_above_general(request, obj, "admin")
-        if before_first != obj.max_first_periods:
+        if effective_cap(before_first) != effective_cap(obj.max_first_periods):
             from core.models import AuditLog
 
             AuditLog.objects.create(
@@ -562,7 +556,7 @@ class TeacherPreferenceAdmin(admin.ModelAdmin):
                     "after": obj.max_first_periods,
                 },
             )
-        if before != obj.max_last_periods:
+        if effective_cap(before) != effective_cap(obj.max_last_periods):
             from core.models import AuditLog
 
             AuditLog.objects.create(
