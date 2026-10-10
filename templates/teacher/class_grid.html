@@ -73,7 +73,11 @@
             {% for row in page.rows %}
             <tr data-student="{{ row.student.pk }}">
               <th scope="row" class="cg-name">
-                <button type="button" class="cg-name__btn" data-history-open data-student="{{ row.student.pk }}">{{ row.student.full_name }}</button>
+                <div class="cg-name__box">
+                  <button type="button" class="cg-name__btn" data-history-open data-student="{{ row.student.pk }}">{{ row.student.full_name }}</button>
+                  {% if row.exit_count %}<button type="button" class="cg-exitdot" data-exit-tip aria-expanded="false" aria-label="خرج {{ row.exit_count }} مرّة اليوم">{{ row.exit_count }}</button>
+                  <span class="cg-exittip" role="tooltip" hidden>{{ row.exit_tip }}</span>{% endif %}
+                </div>
               </th>
               {% for col, cell in row.pairs %}
               <td class="cg-col--{{ col.state }}" data-col="{{ col.number }}">

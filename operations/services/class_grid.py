@@ -51,7 +51,7 @@ from operations.attendance_policy import (
     is_developer,
 )
 from operations.attendance_selectors import CellHistoryRow, ColumnCell, cell_history, column_heads
-from operations.models import ClassExit, Session, SubjectClassAssignment
+from operations.models import ClassExit, DailyExitTally, Session, SubjectClassAssignment
 from operations.school_days import school_day
 
 from . import provisional_session
@@ -110,6 +110,23 @@ class GridRow:
     pairs: list[tuple[GridColumn, ColumnCell | None]]
     #: خروجٌ مفتوحٌ لهذا الطالب في الحصّة الجارية (`ClassExit` — لم يعد بعد) أو `None`.
     exit: ClassExit | None = None
+    #: عددُ مرّات خروج الطالب من الفصل في يوم الصفحة (`DailyExitTally`)؛ 0 = لا دائرةَ.
+    exit_count: int = 0
+    #: نصُّ التلميح: «عيادة بإذن ×1 — 5 د · دورة مياه ×2 — 9 د» (وجهةٌ ومدّةٌ بالدقائق) أو فارغ.
+    exit_tip: str = ""
+
+
+def exit_tip(tally: DailyExitTally) -> str:
+    """تلميحُ الدائرة من ملخّص اليوم: الوجهاتُ بالأكثر عدداً فالأطول مدّةً، والمدّةُ بالدقائق مقرَّبةً للأعلى."""
+    labels = {**dict(ClassExit.DESTINATIONS), "clinic": "العيادة (بإذن)"}
+    parts = sorted(
+        (tally.by_destination or {}).items(),
+        key=lambda item: (-item[1].get("count", 0), -item[1].get("seconds", 0)),
+    )
+    return " · ".join(
+        f"{labels.get(code, code)} ×{d.get('count', 0)} — {-(-d.get('seconds', 0) // 60)} د"
+        for code, d in parts
+    )
 
 
 @dataclass(frozen=True)
@@ -379,6 +396,12 @@ def page(
         if current is not None and current.session_id
         else {}
     )
+    tallies = {
+        t.student_id: t
+        for t in DailyExitTally.objects.filter(
+            date=day, student_id__in=[st.pk for st in students], exit_count__gt=0
+        )
+    }
     rows = [
         GridRow(
             student=student,
@@ -387,6 +410,8 @@ def page(
                 for c in columns
             ],
             exit=open_exits.get(student.pk),
+            exit_count=tallies[student.pk].exit_count if student.pk in tallies else 0,
+            exit_tip=exit_tip(tallies[student.pk]) if student.pk in tallies else "",
         )
         for student in students
     ]

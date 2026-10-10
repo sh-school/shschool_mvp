@@ -86,10 +86,30 @@
     if (exitBtn) return exitAction(exitBtn.getAttribute('data-exit'), 'leave');
     var backBtn = event.target.closest('[data-exit-return]');
     if (backBtn) return exitAction(backBtn.getAttribute('data-exit-return'), 'return');
+    var dot = event.target.closest('[data-exit-tip]');
+    closeTips(dot);
+    if (dot) return toggleTip(dot);
     var hist = event.target.closest('[data-history-open]');
     if (hist) return openHistory(hist.getAttribute('data-student'), currentCol());
     var tab = event.target.closest('[data-tab]');
     if (tab) return showTab(tab.getAttribute('data-tab'));
+  });
+
+  // دائرةُ عدد الخروج: تلميحُ الوجهات والدقائق يُفتح بالنقر/اللمس ويُغلق بالنقر خارجه أو Escape.
+  function closeTips(except) {
+    root.querySelectorAll('[data-exit-tip][aria-expanded="true"]').forEach(function (dot) {
+      if (dot === except) return;
+      dot.setAttribute('aria-expanded', 'false');
+      dot.nextElementSibling.hidden = true;
+    });
+  }
+  function toggleTip(dot) {
+    var open = dot.getAttribute('aria-expanded') !== 'true';
+    dot.setAttribute('aria-expanded', open ? 'true' : 'false');
+    dot.nextElementSibling.hidden = !open;
+  }
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') closeTips(null);
   });
 
   root.addEventListener('dblclick', function (event) {

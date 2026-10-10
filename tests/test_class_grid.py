@@ -916,3 +916,57 @@ def test_the_coverage_lookup_adds_a_flat_number_of_queries(
     with CaptureQueriesContext(connection) as queries:
         assert not is_covering_class(stranger, assigned, SUNDAY)
     assert len(queries) <= 3
+
+
+# ── دائرةُ عدد الخروج بجانب اسم الطالب (W-20261010-041) ───────────────────────────────
+
+
+def _tally(school, student, **fields):
+    from operations.models import DailyExitTally
+
+    return DailyExitTally.objects.create(
+        school=school, student=student, date=timezone.localdate(), **fields
+    )
+
+
+def test_the_exit_circle_shows_the_count_and_a_destination_minutes_tip(
+    client_as, school, assigned, teacher, kids, clock
+):
+    _tally(
+        school,
+        kids[0],
+        exit_count=3,
+        total_seconds=840,
+        by_destination={
+            "restroom": {"count": 2, "seconds": 540},
+            "clinic": {"count": 1, "seconds": 61},
+        },
+    )
+    body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
+    assert body.count("data-exit-tip") == 1
+    assert "دورة المياه ×2 — 9 د · العيادة (بإذن) ×1 — 2 د" in body
+
+
+def test_no_circle_for_students_without_exits(client_as, school, assigned, teacher, kids, clock):
+    _tally(school, kids[0], exit_count=0)
+    body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
+    assert "data-exit-tip" not in body
+
+
+def test_the_exit_circle_adds_one_flat_query(client_as, school, assigned, teacher, kids, clock):
+    def measure():
+        with CaptureQueriesContext(connection) as queries:
+            client_as(teacher).get(reverse("class_grid", args=[assigned.id]))
+        return len(queries)
+
+    measure()
+    before = measure()
+    for kid in kids:
+        _tally(
+            school,
+            kid,
+            exit_count=1,
+            total_seconds=60,
+            by_destination={"other": {"count": 1, "seconds": 60}},
+        )
+    assert measure() == before
