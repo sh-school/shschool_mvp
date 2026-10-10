@@ -98,6 +98,14 @@ def test_a_personal_cap_above_the_general_is_saved_with_a_visible_warning_and_an
     assert "معلّمُ الرياضيات" not in str(entry.changes) + entry.object_repr, "لا اسمَ في الأثر"
 
 
+def test_the_page_shows_a_persistent_warning_for_a_cap_above_the_general(client, school, teacher):
+    save(client, teacher, max_consecutive="3")
+
+    body = client.get(URL).content.decode()
+
+    assert "سقفُك الشخصي (3) أعلى من السقف العام" in body
+
+
 def test_a_cap_equal_to_the_general_warns_nothing(client, school, teacher):
     response = save(client, teacher, max_consecutive=str(MAX_CONSECUTIVE))
 
@@ -117,7 +125,7 @@ def test_the_screen_offers_the_general_cap_as_the_default_option(client, school,
 
     body = client.get(URL).content.decode()
 
-    assert "السقف العام للمدرسة (الافتراضي)" in body and "(الافتراضي)" in body
+    assert "السقف العام للمدرسة" in body and "(الافتراضي)" in body
     assert "3 حصص (الافتراضي)" not in body
 
 

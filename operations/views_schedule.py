@@ -1011,6 +1011,14 @@ def _mark_teacher_loads(data: dict) -> None:
 @capability_required("schedule.preferences")
 def teacher_preferences(request):
     """صفحة تفضيلات المعلم للجدولة الذكية"""
+    from operations.preference_capacity import (
+        exceeds_general_run_cap,
+        explain_shortfall,
+        record_run_cap_above_general,
+        weekly_capacity,
+    )
+    from operations.scheduler_constraints import MAX_CONSECUTIVE
+
     school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     pref, _created = TeacherPreference.objects.get_or_create(
@@ -1039,13 +1047,6 @@ def teacher_preferences(request):
         # قيودٌ لا تسع النصاب تُردّ بحسابها لا تُحفظ: «متتالية 1» مع «فراغ 0»
         # حصّةٌ واحدةٌ في اليوم — ومن حفظها ونصابُه اثنتا عشرةَ رأى سبعاً بلا
         # موضعٍ في التوليد ولم يعرف لماذا.
-        from operations.preference_capacity import (
-            exceeds_general_run_cap,
-            explain_shortfall,
-            record_run_cap_above_general,
-            weekly_capacity,
-        )
-
         load = sum(
             SubjectClassAssignment.objects.filter(
                 school=school, academic_year=year, teacher=request.user, is_active=True
@@ -1105,6 +1106,9 @@ def teacher_preferences(request):
             "load": load,
             "min_daily": needed,
             "year": year,
+            #: سقفٌ شخصيٌّ فوق العامّ يبقى مرئيّاً في الصفحة لا عند الحفظ وحده (W-20261003-037).
+            "run_cap_above_general": exceeds_general_run_cap(pref.max_consecutive),
+            "general_run_cap": MAX_CONSECUTIVE,
         },
     )
 
