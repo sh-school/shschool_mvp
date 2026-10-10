@@ -342,3 +342,27 @@ def test_screen_stores_no_file(client_as, nurse_user, school, tmp_path, settings
         {"needs_care_file": _upload(_xlsx([(a.national_id, "10")]), name="students.xlsx")},
     )
     assert list(tmp_path.rglob("*")) == []
+
+
+# ── الوصول من قائمة «الخدمات» ────────────────────────────────────────────
+
+
+def _services_menu(html: str) -> str:
+    """قائمةُ «الخدمات» المنسدلة من الصفحة."""
+    m = re.search(r'id="m-services".*?\n</div>', html, re.S)
+    assert m, "قائمةُ الخدمات غائبة"
+    return m.group(0)
+
+
+def test_principal_reaches_the_import_from_the_services_menu(client_as, principal_user):
+    """المديرُ يجد «علامة المراعاة» تحت «العيادة المدرسية» في «الخدمات» كبقيّة القوائم بأقسامها."""
+    menu = _services_menu(client_as(principal_user).get("/clinic/").content.decode())
+    assert 'class="sd-label">العيادة المدرسية<' in menu
+    assert 'href="/clinic/needs-care/import/"' in menu
+    assert menu.index("العيادة المدرسية<") < menu.index("/clinic/needs-care/import/")
+
+
+def test_services_menu_hides_the_import_from_who_cannot_open_it(client_as, teacher_user):
+    # المعلّمُ لا يُرسم له قسمُ الخدمات أصلاً؛ فالرابطُ غائبٌ عن الصفحة كلّها.
+    html = client_as(teacher_user).get("/dashboard/").content.decode()
+    assert "/clinic/needs-care/import/" not in html
