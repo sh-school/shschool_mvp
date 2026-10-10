@@ -163,6 +163,50 @@ class TestSkippedRowsAreCountedNotWritten:
         assert row.object_repr == long_repr
 
 
+class TestRepeatedNameLengthIsMeasuredOnTheResult:
+    """حكم 0104: الاسمُ مكرَّراً في الوصف يطيل الناتجَ بقدر ظهوراته، لا بظهورٍ واحد."""
+
+    def test_two_occurrences_near_the_limit_are_skipped_not_crashing(self, db):
+        short = UserFactory(full_name="س ص")
+        # 278 حرفاً: ظهورٌ واحد يزيد 16 فيبلغ 294 (يتّسع)، لكنّ الظهورَين يبلغان 310 (يتجاوز 300).
+        repr_ = "س ص " + "ع" * 270 + " س ص"
+        assert len(repr_) < 300
+        row = _entry(repr_=repr_)
+
+        counts = AuditLog.objects.anonymize_name_in_repr(short, "س ص")
+
+        assert (counts["anonymized"], counts["skipped_long"]) == (0, 1)
+        row.refresh_from_db()
+        assert row.object_repr == repr_
+
+    def test_a_single_occurrence_that_fits_but_two_would_not(self, db):
+        short = UserFactory(full_name="س ص")
+        masked = masked_repr(short)
+        grow = len(masked) - len("س ص")
+        # يتّسع لظهورٍ واحد (الناتج 300 تماماً) ولا يتّسع لاثنين.
+        one_fits = "س ص" + "ع" * (300 - grow - 3)
+        two_do_not = "س ص" + "ع" * (300 - grow - 3 - 1) + "س ص"
+        fits_row = _entry(repr_=one_fits)
+        long_row = _entry(repr_=two_do_not)
+
+        counts = AuditLog.objects.anonymize_name_in_repr(short, "س ص")
+
+        assert (counts["anonymized"], counts["skipped_long"]) == (1, 1)
+        fits_row.refresh_from_db()
+        long_row.refresh_from_db()
+        assert len(fits_row.object_repr) == 300 and masked in fits_row.object_repr
+        assert long_row.object_repr == two_do_not
+
+    def test_every_occurrence_is_replaced_when_it_fits(self, student):
+        row = _entry(repr_=f"{NAME} ثم {NAME}")
+        masked = masked_repr(student)
+
+        AuditLog.objects.anonymize_name_in_repr(student, NAME)
+
+        row.refresh_from_db()
+        assert row.object_repr == f"{masked} ثم {masked}"
+
+
 class TestEverythingElseStaysForbidden:
     def test_ordinary_update_of_the_description_is_still_refused(self, student):
         row = _entry(repr_=NAME)

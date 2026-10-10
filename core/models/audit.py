@@ -65,6 +65,10 @@ class _ImmutableManager(models.Manager):
         (الهجرة 0082) بعلَم المعاملة. وتُتخطّى — وتُعدّ للإبلاغ اليدويّ لا للكتابة — ثلاثُ حالات:
         اسمٌ مشتركٌ أو يحتويه اسمُ مستخدمٍ آخر (لا يُعرف أيُّهما)، واسمٌ من كلمةٍ واحدة (مطابقتُه ضعيفة)، وصفٌ
         يتجاوز 300 حرفاً بعد الاستبدال. لا يُرجَع اسمٌ، أعدادٌ فقط.
+
+        حدودٌ معروفة (حكم 0104): فحصُ الاسم المشترك يقرأ `CustomUser` وحدَه (يشمل الطلبة والأولياء مستخدمين)،
+        فاسمٌ لشخصٍ ليس مستخدماً قد يحتويه الاسمُ فيُستبدل؛ والمطابقةُ حرفيّةٌ حسّاسةٌ بالاسم الحاليّ قبل المحو،
+        فاسمٌ مكتوبٌ بتشكيلٍ أو همزةٍ مختلفة يفوت ويدخل الإبلاغَ اليدويّ.
         """
         name = (name or "").strip()
         counts = {"anonymized": 0, "skipped_shared": 0, "skipped_short": 0, "skipped_long": 0}
@@ -78,17 +82,15 @@ class _ImmutableManager(models.Manager):
             counts["skipped_shared"] = rows.count()
             return counts
         masked = masked_repr(user)
-        fits = rows.annotate(_len=Length("object_repr")).filter(
-            _len__lte=300 - max(0, len(masked) - len(name))
-        )
+        # طولُ الناتج الفعليّ بعد استبدال **كلّ** ظهورٍ للاسم (لا فرقَ ظهورٍ واحد): الوصفُ CharField(300).
+        replaced = Replace("object_repr", Value(name), Value(masked))
+        fits = rows.annotate(_new_len=Length(replaced)).filter(_new_len__lte=300)
         counts["skipped_long"] = rows.count() - fits.count()
         # علَمٌ محلّيٌّ للمعاملة يفتح الحالةَ الثالثةَ في الزناد ويُغلق في finally.
         with transaction.atomic(using=self._db), connection.cursor() as cur:
             cur.execute("SELECT set_config('app.auditlog_name_erasure', 'on', true)")
             try:
-                counts["anonymized"] = models.QuerySet.update(
-                    fits, object_repr=Replace("object_repr", Value(name), Value(masked))
-                )
+                counts["anonymized"] = models.QuerySet.update(fits, object_repr=replaced)
             finally:
                 cur.execute("SELECT set_config('app.auditlog_name_erasure', '', true)")
         return counts
