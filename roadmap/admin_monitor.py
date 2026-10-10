@@ -303,7 +303,12 @@ def roadmap_status() -> Card:
 
     today = timezone.localdate()
     items = RoadmapItem.objects.all()
-    overdue = items.filter(end_date__lt=today).exclude(status=ItemStatus.DONE).count()
+    # المستمرُّ لا موعدَ إغلاقٍ له (يُقاس بإيقاع مراجعته) فلا يُحسب متأخّراً بتاريخ نهايته
+    overdue = (
+        items.filter(end_date__lt=today)
+        .exclude(status__in=[ItemStatus.DONE, ItemStatus.CONTINUOUS])
+        .count()
+    )
     blocked = items.filter(status=ItemStatus.BLOCKED).count()
     done, total = items.filter(status=ItemStatus.DONE).count(), items.count()
     return Card(
