@@ -304,7 +304,6 @@
    "orm": 36
   },
   "behavior/views.py::behavior_report": {
-   "lines": 70,
    "orm": 18
   },
   "behavior/views.py::behavior_statistics": {
