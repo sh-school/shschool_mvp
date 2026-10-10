@@ -106,7 +106,24 @@
   function toggleTip(dot) {
     var open = dot.getAttribute('aria-expanded') !== 'true';
     dot.setAttribute('aria-expanded', open ? 'true' : 'false');
-    dot.nextElementSibling.hidden = !open;
+    var tip = dot.nextElementSibling;
+    tip.hidden = !open;
+    if (open) revealAboveFooter(tip);
+  }
+  // كتلةُ مفاتيح الحصّة لاصقةٌ أسفلَ الجدول (tfoot) فتغطّي آخرَ الصفوف: يُمرَّر الجدولُ حتى يظهر التلميحُ كاملاً فوقها.
+  function revealAboveFooter(tip) {
+    var wrap = tip.closest('.cg-wrap');
+    // الخليّةُ لا `tfoot` هي اللاصقة، فمستطيلُها وحدَه يتبع موضعَها الفعليّ.
+    var foot = root.querySelector('tfoot > tr > *');
+    if (!wrap) return;
+    var top = wrap.getBoundingClientRect().top;
+    var bottom = foot ? foot.getBoundingClientRect().top : wrap.getBoundingClientRect().bottom;
+    var rect = tip.getBoundingClientRect();
+    if (rect.bottom > bottom - 8) wrap.scrollTop += rect.bottom - bottom + 8;
+    else if (rect.top < top) wrap.scrollTop -= top - rect.top + 8;
+    // وعلى الهاتف يتجاوز الجدولُ شاشةَ الصفحة نفسَها: تُمرَّر الصفحةُ إن بقي التلميحُ خارجها.
+    var after = tip.getBoundingClientRect();
+    if (after.bottom > window.innerHeight) window.scrollBy(0, after.bottom - window.innerHeight + 8);
   }
   document.addEventListener('keydown', function (event) {
     if (event.key === 'Escape') closeTips(null);

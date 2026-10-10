@@ -1555,7 +1555,7 @@ body:has(.rm-page) .site-footer { flex: none; }
 .cg-dialog h3 { margin: 0 0 var(--sp-3); padding-block-end: var(--sp-2); color: var(--text-primary); border-block-end: 2px solid var(--maroon); font-size: var(--text-lg); }
 .cg-dialog__foot { display: flex; justify-content: flex-end; margin-block-start: var(--sp-3); }
 .cg-name__box { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); min-inline-size: 0; }
-.cg-name__box .cg-name__btn { flex: 1 1 auto; min-inline-size: 0; }
+.cg-name__box .cg-name__btn { flex: 1 1 0; inline-size: auto; min-inline-size: 0; }
 .cg-exitdot { flex: none; display: inline-flex; align-items: center; justify-content: center; min-inline-size: var(--control-h); min-block-size: var(--control-h); padding: 0; background: transparent; border: 0; color: var(--status-info-fg); font: inherit; font-size: var(--text-xs); font-weight: 700; cursor: pointer; }
 .cg-exitdot { background-image: radial-gradient(circle, var(--status-info-bg) 0.7rem, transparent 0.72rem); border-radius: 50%; }
 /* التلميحُ في التدفّق لا مطلقاً: حاويةُ الجدول تقصّ (overflow) ما خرج عنها، فيتمدّد الصفّ بدل أن يُقصّ على 375. */
