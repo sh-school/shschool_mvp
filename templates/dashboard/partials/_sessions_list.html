@@ -1,46 +1,36 @@
 {% load icons %}
-{# ── حصص اليوم — partial مشترك بين المعلم والمنسق ── #}
+{% load ui %}
+{% comment %}حصصُ اليوم — جزئيةٌ مشتركةٌ بين المعلّم والمنسّق، بمكوّنات المنصّة ورموزها (W-20261010-039). لا أصنافَ Tailwind. اللوحةُ تعرض الجاريةَ والتاليةَ فقط ثمّ «عرض الكلّ»، فلا يطول يومٌ ممتلئ.{% endcomment %}
 {% if sessions %}
-<div class="divide-y">
+<div class="sess-list">
   {% for s in sessions %}
-  <a href="/teacher/attendance/{{ s.id }}/"
-     class="flex items-center justify-between px-5 py-4 hover:bg-[var(--surface-alt)] transition no-underline text-inherit
-       {% if s == next_session %}bg-status-warning-light{% endif %}"
+  {% if s == next_session or s.status == "in_progress" %}
+  <a href="/teacher/attendance/{{ s.id }}/" class="sess-row{% if s == next_session %} is-next{% endif %}"
      aria-label="حصة {{ s.subject.name_ar }} — {{ s.class_group.short_label }} — {{ s.start_time|time:'H:i' }}">
-    <div class="flex items-center gap-4">
-      <div class="text-center session-time">
-        <div class="text-sm font-bold text-[var(--text-primary)]">{{ s.start_time|time:"H:i" }}</div>
-        <div class="ui-meta">{{ s.end_time|time:"H:i" }}</div>
-      </div>
+    <div class="sess-main">
+      <div class="sess-clock">{{ s.start_time|time:"H:i" }}<small>{{ s.end_time|time:"H:i" }}</small></div>
       <div>
-        <div class="font-semibold text-[var(--text-primary)] text-sm">{{ s.subject.name_ar }}</div>
-        <div class="mt-0.5 ui-meta">{{ s.class_group.short_label }}</div>
+        <div class="sess-name">{{ s.subject.name_ar }}</div>
+        <div class="sess-sub">{{ s.class_group.short_label }}</div>
       </div>
     </div>
-    <div class="flex items-center gap-2">
-      {% if s == next_session %}
-        <span class="status-badge next-session-badge">{% icon "time" %} التالية</span>
-      {% endif %}
+    <div class="sess-state">
+      {% if s == next_session %}<span class="status-badge next-session-badge">{% icon "time" %} التالية</span>{% endif %}
       {% if s.status == 'completed' %}
         <span class="status-badge status-success">{{ s.get_status_display }}</span>
       {% elif s.status == 'in_progress' %}
         <span class="status-badge status-warning">{{ s.get_status_display }}</span>
-      {% else %}
-        {% if s.class_group.wing_id %}
+      {% elif s.class_group.wing_id %}
         <span class="status-badge status-gray">عرض الحضور ←</span>
-        {% else %}
+      {% else %}
         <span class="status-badge status-gray">تسجيل حضور ←</span>
-        {% endif %}
       {% endif %}
     </div>
   </a>
+  {% endif %}
   {% endfor %}
+  <a href="{% url 'teacher_schedule' %}" class="sess-all">عرض كلّ حصص اليوم ({{ sessions|length }}) ←</a>
 </div>
 {% else %}
-<div class="empty-state">
-  <span class="empty-icon">{% icon "date" size="2xl" %}</span>
-  <p class="empty-title">لا توجد حصص اليوم</p>
-  <p class="empty-sub">يوم راحة أو عطلة رسمية</p>
-  <a href="/teacher/schedule/" class="btn-primary btn-sm mt-3 no-underline inline-block">عرض الجدول</a>
-</div>
+{% empty_state "لا توجد حصص اليوم" sub="يوم راحة أو عطلة رسمية" icon="" %}
 {% endif %}

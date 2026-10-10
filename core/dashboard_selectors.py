@@ -241,8 +241,22 @@ def get_teacher_ctx(user, school, today, role):
     my_weekly_schedule_url = f"{reverse('weekly_schedule')}?view=teacher&teacher={user.id}"
     general_schedule_url = reverse("weekly_schedule") if role in SCHEDULE_BROWSE else ""
 
+    # شُعبُ بطاقة «شُعبي للرصد»: المصدرُ نفسُه الذي تعرضه `grid_classes` بلا قائمةٍ ثانية، مرتَّبةً رقميّاً بالصفّ ثمّ الشعبة (7/1 ثمّ 12/2).
+    from operations.services.class_grid import classes_for
+
+    shobi_classes = sorted(classes_for(user, school), key=lambda c: c.school_order)
+
+    # ملاحظةُ «مؤقّتاً إلى حين اعتماد الجدول» تتبع الجدولَ المعتمَدَ فعلاً (توليدٌ بحالة «معتمد» لعام المدرسة) لا المفتاحَ اليدويَّ وحدَه.
+    from operations.models import ScheduleGeneration
+
+    schedule_approved = ScheduleGeneration.objects.filter(
+        school=school, academic_year=year, status="approved"
+    ).exists()
+
     ctx = {
         "view_type": "teacher",
+        "shobi_classes": shobi_classes,
+        "schedule_approved": schedule_approved,
         "sessions": sessions,
         "next_session": next_session,
         "my_setups": my_setups,

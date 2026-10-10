@@ -17,25 +17,37 @@
     {% endkpi_strip %}
   {% else %}
     {% page_header "مرحباً، "|add:request.user.full_name subtitle=subtitle icon="dashboard" %}
-      {% if my_pending_swaps %}{% if prov %}<span class="btn-primary btn-sm prov-off" role="link" aria-disabled="true" tabindex="-1">{% icon "refresh" %} {{ my_swaps_label }}</span>{% else %}<a href="{% url 'swap_list' %}" class="btn-primary btn-sm">{% icon "refresh" %} {{ my_swaps_label }}</a>{% endif %}{% endif %}
       <a href="{% url 'assessments_dashboard' %}" class="btn-secondary btn-sm">{% icon "edit_record" %} التقييمات</a>
     {% endpage_header %}
+
+    {% comment %}ما ينتظرك: المعلّمُ يرى تبديلاتِه وخارجَ الفصل الآن (أعدادٌ مجمَّعة بلا أسماء، W-20261010-040). المفتاحُ المؤقّت يعطّل رابطَ التبديل كما كان.{% endcomment %}
+    {% if my_pending_swaps or my_students.out_now is not None %}
+    {% kpi_strip label="ما ينتظرك" %}
+      {% if my_pending_swaps %}{% if prov %}{% kpi "تبديلاتٌ تنتظر ردّك" my_pending_swaps tone="maroon" %}{% else %}{% url 'swap_list' as u %}{% kpi "تبديلاتٌ تنتظر ردّك" my_pending_swaps tone="maroon" href=u %}{% endif %}{% endif %}
+      {% if my_students.out_now is not None %}{% kpi "خارج الفصل الآن" my_students.out_now sub="لم يعودوا بعد" tone="amber" %}{% endif %}
+    {% endkpi_strip %}
+    {% endif %}
   {% endif %}
 
   {% comment %}
   الرصدُ المؤقّت (W-20261005-006، D-227م): حصصُ الصفحة الرئيسيّة تُقرأ من جدول المنصّة وقد تخالف الجدولَ الخارجيَّ المعمولَ به — فتُخفى كلُّها (كتلةَ الحصص والعدّاد)
   وتحلّ محلَّها بطاقةُ «رصدُ الغياب (مؤقّت)». مطفأً المفتاحُ تبقى الكتلةُ كما كانت.
   {% endcomment %}
-  {% if prov %}
-  {% section_card "رصدُ الغياب (مؤقّت — إلى حين اعتماد جدول المنصّة)" icon="attendance_register" %}
-    <div class="pp-key">
-      <p class="ui-note">ارصد غيابَ طلّابك مؤقّتاً</p>
-      {% url 'provisional_classes' as u %}<a class="btn-primary" href="{{ u }}">{% icon "attendance_register" %} شُعبي للرصد</a>
-    </div>
-  {% endsection_card %}
-  {% else %}
+  <div class="ui-grid-2">
+  {% include "dashboard/partials/_shobi_card.html" %}
+  {% if not prov %}
   {% section_card "حصصي اليوم" meta=sessions|length icon="periods_today" flush=True %}
     {% include "dashboard/partials/_sessions_list.html" %}
+  {% endsection_card %}
+  {% endif %}
+  </div>
+
+  <div class="ui-grid-2">
+  {% if my_students.exit_total is not None %}
+  {% section_card "طلابي" meta="اليوم" icon="students" %}
+    {% kpi_strip label="طلابي" %}
+      {% kpi "مرّات الخروج اليوم" my_students.exit_total sub="طلابُ شعبك، يشمل الخروجَ بإذن" tone="maroon" %}
+    {% endkpi_strip %}
   {% endsection_card %}
   {% endif %}
 
@@ -48,6 +60,7 @@
     </nav>
   {% endsection_card %}
   {% endif %}
+  </div>
 
   <nav class="ui-actions" aria-label="إجراءات سريعة">
     {% if view_type == "coordinator" %}
