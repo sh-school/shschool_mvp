@@ -75,6 +75,10 @@ class SolverConfig:
     max_seconds: float = DEFAULT_MAX_SECONDS
     #: تخفيفاتٌ معلَنةٌ بقرار المالك تُمرَّر لخيارات النموذج (انظر `options_from_relaxations`)؛ فارغٌ = الصرامة.
     relaxations: tuple[tuple[str, Any], ...] = ()
+    #: الهدفُ المعجميّ المتتالي (متعذّرات ← مخالفات ← درجة) بدل هدفٍ واحدٍ موزون؛ يعمل متى سُجّلت طبقاتٌ ≥ 2.
+    lexicographic: bool = True
+    #: يفتح فجوةَ الطلب في النموذج (يُفعَّل معه طبقةُ المتعذّرات)؛ افتراضُه الصرامة: مساواةٌ صلبة.
+    allow_unplaced: bool = False
 
 
 def options_from_relaxations(spec: dict[str, Any] | None) -> dict[str, Any]:
@@ -112,6 +116,10 @@ class SolveReport:
     relaxations: dict[str, int] = field(default_factory=dict)
     #: تخفيفُ HC22 المعلَن فعلاً ({معلّم ← سقف الأولى}) كما يقرؤه المُقيِّم (W-20261003-043).
     first_caps: dict[str, int] = field(default_factory=dict)
+    #: قيمُ الطبقات المعجميّة في الحلّ النهائيّ بالاسم ({"unplaced": …}) — فارغٌ حين لا طبقات.
+    layers: dict[str, int] = field(default_factory=dict)
+    #: حصصٌ لم توضع (طبقة المتعذّرات). >0 ⇒ جدولٌ ناقصٌ لا يصلح للتوليد حتى يعالجه المالك.
+    unplaced: int = 0
 
     def solver_dict(self) -> dict[str, Any]:
         """الشكلُ الذي يقرؤه المُقيِّم: الحالةُ والبذرةُ والعمّالُ والزمن."""
@@ -121,6 +129,10 @@ class SolveReport:
             "workers": self.workers,
             "seconds": round(self.seconds, 2),
         }
+
+    def lexicographic_dict(self) -> dict[str, Any]:
+        """طبقاتُ الهدف المعجميّ للّقطة (خارج `solver_dict` الذي يحرس المُقيِّمُ مفاتيحه)."""
+        return {"layers": dict(self.layers), "unplaced": self.unplaced}
 
 
 @dataclass
@@ -176,6 +188,9 @@ def default_objective() -> ObjectiveAdder | None:
     def add(built: BuiltModel, inputs: CpSatInputs) -> None:
         objective = build_objective(built, inputs.subject_pedagogy)
         add_soft_terms(built, objective.as_terms())
+        add_layers = _load_attr("operations.scheduler_v2.model", "add_layers")
+        if add_layers is not None and hasattr(objective, "layers"):
+            add_layers(built, objective.layers(built))
 
     return add
 
@@ -209,19 +224,21 @@ def extract_slots(built: Any, solver: Any) -> list[SlotRow]:
     return rows
 
 
-def solve(built: BuiltModel, config: SolverConfig, progress: Any = None) -> SolveReport:
-    """يحلّ بإعدادٍ مثبَّت: بذرةٌ، عمّالٌ، سقفُ زمنٍ جداريّ. ويسجّل الحالةَ نصّاً (ADR §3.4/§3.5).
-
-    ومع `progress` (ProgressTracker) يُنشر التقدّمُ عند كلّ حلٍّ وكلَّ ثانية، ويوقف طلبُ الإيقاف البحثَ
-    فيُبقي أفضلَ حلّ (الحالةُ FEASIBLE).
-    """
+def _run_stage(
+    built: BuiltModel,
+    config: SolverConfig,
+    progress: Any,
+    max_seconds: float,
+    report_progress: bool,
+) -> tuple[Any, int, float]:
+    """حلٌّ واحدٌ بإعدادٍ مثبَّت: (الحلّال، رمزُ الحالة، الثواني)."""
     from ortools.sat.python import cp_model
 
     solver = cp_model.CpSolver()
     params = solver.parameters
     params.random_seed = config.seed
     params.num_workers = config.workers
-    params.max_time_in_seconds = float(config.max_seconds)
+    params.max_time_in_seconds = float(max_seconds)
     # أقربُ ما يتيحه الحلّالُ إلى الحتميّة متعدّدَ العمّال.
     params.interleave_search = False
 
@@ -230,11 +247,13 @@ def solve(built: BuiltModel, config: SolverConfig, progress: Any = None) -> Solv
     if progress is not None:
         from .progress import Ticker
 
-        class _Callback(cp_model.CpSolverSolutionCallback):
-            def on_solution_callback(self) -> None:
-                progress.on_solution(self.ObjectiveValue(), self.BestObjectiveBound())
+        if report_progress:
 
-        callback = _Callback()
+            class _Callback(cp_model.CpSolverSolutionCallback):
+                def on_solution_callback(self) -> None:
+                    progress.on_solution(self.ObjectiveValue(), self.BestObjectiveBound())
+
+            callback = _Callback()
         ticker = Ticker(progress, solver.StopSearch)
         ticker.start()
     started = time.monotonic()
@@ -243,13 +262,117 @@ def solve(built: BuiltModel, config: SolverConfig, progress: Any = None) -> Solv
     finally:
         if ticker is not None:
             ticker.stop()
+    return solver, code, time.monotonic() - started
+
+
+def _layers_of(built: BuiltModel) -> list[tuple[str, Any]]:
+    """طبقاتُ الهدف الفعليّة (تُسقَط الثابتةُ صفراً: طبقةُ المتعذّرات بلا فجوة)."""
+    return [(n, e) for n, e in getattr(built, "layers", []) if not isinstance(e, int)]
+
+
+def _probe_full_placement(
+    built: BuiltModel, config: SolverConfig, progress: Any, seconds: float
+) -> Any:
+    """جسٌّ بلا هدف: هل يوجد جدولٌ بلا متعذّرات؟ يُرجع حلّالَه إن وُجد وإلّا None.
+
+    طبقةُ المتعذّرات لو صُغِّرت وحدَها بلا توجيهٍ ربّما وقفت عند عددٍ لا صفر (قيس 4 على الحزمة المقنَّعة في
+    100ث بينما الحلُّ الكاملُ موجود) ثم ثبّتها التاليةُ سقفاً. فيُجَسّ الصفرُ أوّلاً على نسخةٍ من النموذج
+    بلا هدفٍ (جدوى أسهل)؛ وُجد ⇒ يُثبَّت صفراً ويُبدأ منه، ولم يوجد ⇒ تُصغَّر الطبقةُ بالتتابع العاديّ.
+    """
+    from types import SimpleNamespace
+
+    from ortools.sat.python import cp_model
+
+    probe = built.model.clone()
+    probe.clear_objective()
+    for key, var in built.vars.items():
+        if key[0] == "unplaced":
+            probe.Add(probe.get_int_var_from_proto_index(var.index) == 0)
+    solver, code, _secs = _run_stage(SimpleNamespace(model=probe), config, progress, seconds, False)
+    return solver if _status_name(cp_model, code) in ("OPTIMAL", "FEASIBLE") else None
+
+
+def _solve_layers(
+    built: BuiltModel, config: SolverConfig, progress: Any, layers: list[tuple[str, Any]]
+) -> tuple[Any, str, float, dict[str, int], float]:
+    """الحلُّ المعجميّ المتتالي: تُصغَّر كلُّ طبقةٍ بتثبيت قيمة ما فوقها، فلا تُضحَّى عليا بدنيا.
+
+    تقسيمُ الزمن: ما بقي ÷ الطبقات الباقية. والمُثبَّت بعد طبقةٍ OPTIMAL مساواةٌ، وبعد FEASIBLE سقف
+    (≤). وتبدأ كلُّ طبقةٍ بتلميح الحلّ السابق. طلبُ الإيقاف المبكّر يُبقي أفضلَ ما وُجد ويقطع الباقي.
+    الإرجاع: (حلّالُ آخرِ حلٍّ، الحالة، الثواني، قيمُ الطبقات، قيمةُ الهدف الأخيرة).
+    """
+    from ortools.sat.python import cp_model
+
+    started = time.monotonic()
+    best = None
+    all_optimal = True
+    values: dict[str, int] = {}
+    pending = list(layers)
+    if pending[0][0] == "unplaced":
+        probe = _probe_full_placement(built, config, progress, float(config.max_seconds) * 0.4)
+        if probe is not None:  # جدولٌ كاملٌ موجود: الصفرُ مثبَّتٌ ولا تُصغَّر الطبقةُ الأولى
+            built.model.Add(pending[0][1] == 0)
+            best = probe
+            pending = pending[1:]
+    stage_total = len(pending)
+    for idx, (name, expr) in enumerate(pending):
+        remaining = max(0.5, float(config.max_seconds) - (time.monotonic() - started))
+        stage_seconds = remaining / (stage_total - idx)
+        built.model.ClearObjective()
+        built.model.Minimize(expr)
+        if best is not None:
+            built.model.ClearHints()
+            for var in built.x.values():
+                built.model.AddHint(var, best.Value(var))
+        last = idx == stage_total - 1
+        solver, code, _secs = _run_stage(built, config, progress, stage_seconds, last)
+        status = _status_name(cp_model, code)
+        if status not in ("OPTIMAL", "FEASIBLE"):
+            if best is None:  # الطبقةُ الأولى بلا حلّ: INFEASIBLE أو UNKNOWN كما هي
+                return None, status, time.monotonic() - started, {}, 0.0
+            all_optimal = False  # لم تجد الطبقةُ الأدنى شيئاً في وقتها: يبقى حلُّ ما فوقها
+            break
+        best = solver
+        values[name] = int(round(solver.Value(expr)))
+        all_optimal = all_optimal and status == "OPTIMAL"
+        if not last:
+            if status == "OPTIMAL":
+                built.model.Add(expr == values[name])
+            else:
+                built.model.Add(expr <= values[name])
+        if progress is not None and getattr(progress, "stop_flag", False):
+            all_optimal = False
+            break
+    for name, expr in layers:  # قيمُ كلّ الطبقات في الحلّ الأخير (ما لم تُحلّ منها يُقاس لا يُقدَّر)
+        values[name] = int(round(best.Value(expr)))
+    objective = float(values[layers[-1][0]])
     seconds = time.monotonic() - started
-    status = _status_name(cp_model, code)
+    return best, "OPTIMAL" if all_optimal else "FEASIBLE", seconds, values, objective
+
+
+def solve(built: BuiltModel, config: SolverConfig, progress: Any = None) -> SolveReport:
+    """يحلّ بإعدادٍ مثبَّت: بذرةٌ، عمّالٌ، سقفُ زمنٍ جداريّ. ويسجّل الحالةَ نصّاً (ADR §3.4/§3.5).
+
+    ومع `progress` (ProgressTracker) يُنشر التقدّمُ عند كلّ حلٍّ وكلَّ ثانية، ويوقف طلبُ الإيقاف البحثَ
+    فيُبقي أفضلَ حلّ (الحالةُ FEASIBLE). ومع طبقاتٍ ≥ 2 في الباني وconfig.lexicographic يُحلّ متتالياً.
+    """
+    from ortools.sat.python import cp_model
+
+    layers = _layers_of(built) if config.lexicographic else []
+    layer_values: dict[str, int] = {}
+    if len(layers) >= 2:
+        solver, status, seconds, layer_values, final_objective = _solve_layers(
+            built, config, progress, layers
+        )
+    else:
+        solver, code, seconds = _run_stage(built, config, progress, config.max_seconds, True)
+        status = _status_name(cp_model, code)
+        final_objective = None
     slots: list[SlotRow] = []
     objective = None
     if status in ("OPTIMAL", "FEASIBLE"):
         slots = extract_slots(built, solver)
-        objective = solver.ObjectiveValue()
+        objective = solver.ObjectiveValue() if final_objective is None else final_objective
         if progress is not None:
             progress.on_solution(objective, solver.BestObjectiveBound())
     return SolveReport(
@@ -260,6 +383,8 @@ def solve(built: BuiltModel, config: SolverConfig, progress: Any = None) -> Solv
         seconds=seconds,
         objective=objective,
         slots=slots,
+        layers=layer_values,
+        unplaced=layer_values.get("unplaced", 0),
     )
 
 
@@ -307,7 +432,10 @@ def solve_inputs(
     progress: Any = None,
 ) -> SolveReport:
     if builder is None:
-        options = default_options(inputs, options_from_relaxations(dict(config.relaxations)))
+        extra = options_from_relaxations(dict(config.relaxations))
+        if config.allow_unplaced:
+            extra["allow_unplaced"] = True
+        options = default_options(inputs, extra)
         built = (
             default_builder()(inputs, options) if options is not None else default_builder()(inputs)
         )
@@ -387,6 +515,10 @@ def run(
     if not report.slots:
         message = f"انقضت المهلةُ ({config.max_seconds:g}ث) بلا حلٍّ (UNKNOWN) — ضيقُ وقتٍ لا استحالة"
         return RunResult(False, report, None, message, "timeout"), inputs
+    if report.unplaced:
+        # جدولٌ ناقصٌ لا يصلح مسودّةً: يُرفض بالاسم قبل المُقيِّم ويبقى العددُ في اللقطة ليقرّر المالك.
+        message = f"جدولٌ ناقص: {report.unplaced} حصّةً متعذّرة الوضع (طبقة المتعذّرات) — لا يُحفظ مسودّة"
+        return RunResult(False, report, None, message, "rejected"), inputs
     evaluation = evaluate_report(school, academic_year, report)
     if not evaluation.accepted:
         hard = (
@@ -433,6 +565,7 @@ def persist_draft(generation: Any, result: RunResult, inputs: CpSatInputs, elaps
     snapshot = {
         "engine": ENGINE,
         "solver": result.report.solver_dict(),
+        "lexicographic": result.report.lexicographic_dict(),
         "verdict": result.report.verdict,
         "evaluation": result.evaluation.as_dict(),
         # تخفيفاتُ المالك المعلَنة تُحفظ مع المسودّة (لا تخفيفَ صامت): HC5 للمُقيِّم، والباقي خياراتُ النموذج.
@@ -462,6 +595,7 @@ def fail_generation(generation: Any, result: RunResult) -> None:
     snapshot: dict[str, Any] = {"engine": ENGINE, "reason": result.reason}
     if result.report is not None:
         snapshot["solver"] = result.report.solver_dict()
+        snapshot["lexicographic"] = result.report.lexicographic_dict()
         snapshot["verdict"] = result.report.verdict
     if result.evaluation is not None:
         snapshot["evaluation"] = result.evaluation.as_dict()
