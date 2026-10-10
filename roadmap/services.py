@@ -237,6 +237,7 @@ def page_context() -> dict[str, Any]:
             "checklist": [serialize_checklist(o) for o in selectors.checklist()],
             "health": health.page_health(item_rows, decision_rows, meta, timezone.localdate()),
             "glossary": health.glossary_payload(),
+            "definitions": health.definitions_payload(),
         },
     }
 

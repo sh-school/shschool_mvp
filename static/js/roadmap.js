@@ -41,6 +41,7 @@
 
   var G = D.glossary || {};
   var HL = D.health || {};
+  var DEF = D.definitions || {};
   // معنى كلّ رقمٍ وشارة من مسرد roadmap/health.py::GLOSSARY (مصدرٌ واحد)؛ مفتاحٌ مجهولٌ لا تلميحَ له فلا يُكتب نصٌّ بلا معنى
   function tip(key) { var g = G[key]; return g ? g.name + ' — ' + g.meaning : null; }
 
@@ -56,7 +57,8 @@
   var SRC = { DONE: 'منجز (أرشيف)', U: 'الخطّة الموحّدة', M: 'خطّة الجوال', VI: 'لوحة الهويّة', DBT: 'ديون', OWN: 'بنود المالك', PRP: 'مقترحات المنتج', NEW: 'مضافة من الواجهة' };
   var PILL = { ok: 'badge--success', warn: 'badge--warning', bad: 'badge--danger', idle: 'badge--neutral', accent: 'badge--accent' };
   var RULE_SECTIONS = [['rules', 'قواعد العمل'], ['dod', 'تعريف «تمّ» (DoD)'], ['crit', 'المسار الحرج'], ['win', 'نوافذ التنفيذ'],
-    ['own', 'المسؤوليّات'], ['rbk', 'التراجع والفحص بعد النشر'], ['map', 'خريطة الترقيم القديم ← الجديد'], ['srcs', 'مصادر الخارطة'], ['upd', 'كيف تُحدَّث الخارطة'], ['gloss', 'معاني الأرقام والشارات']];
+    ['own', 'المسؤوليّات'], ['rbk', 'التراجع والفحص بعد النشر'], ['map', 'خريطة الترقيم القديم ← الجديد'], ['srcs', 'مصادر الخارطة'], ['upd', 'كيف تُحدَّث الخارطة'], ['gloss', 'معاني الأرقام والشارات'],
+    ['lmap', 'مطابقة حالات الدفتر بحالات الخارطة'], ['prio', 'تعريف الأولويّات']];
   var HOW_TO_UPDATE = [
     'الحالةُ والتقدّمُ والتواريخُ: من تبويب الخريطة الزمنيّة بالنقر على أيّ بند؛ التعديلُ يُحفظ فوراً في القاعدة ويُدقَّق.',
     'المؤشّراتُ الآليّة: شغِّل scripts/measure_identity_kpis.py ثمّ أعِد الاستيرادَ: manage.py import_roadmap_snapshot <path> (لا يمسّ ما عدّلتَه هنا من حالةٍ وتقدّمٍ وتواريخَ وملاحظاتٍ وتأشيراتِ فحص؛ يحدّث المؤشّراتِ والحقولَ البنيويّة، و`--overwrite` يعيد الكلَّ إلى اللقطة).',
@@ -671,6 +673,8 @@
     if (k === 'own') return (m.ownership || []).map(function (r) { return r[0] + ' — ' + r[1] + ': ' + r[2]; });
     if (k === 'map') return (m.mapping || []).map(function (r) { return r[0] + ' ← ' + r[1]; });
     if (k === 'upd') return HOW_TO_UPDATE;
+    if (k === 'lmap') return (DEF.ledgerMap || []).map(function (r) { return r[0] + ' — ' + r[1] + ' ← ' + r[2]; });
+    if (k === 'prio') return (DEF.priorities || []).map(function (r) { return r[0] + ' — ' + r[1]; });
     if (k === 'gloss') return Object.keys(G).map(function (x) { return G[x].name + ' — ' + G[x].meaning; });
     return (m[{ rules: 'rules', dod: 'dod', crit: 'criticalPath', win: 'windows', rbk: 'rollback', srcs: 'sources' }[k]] || []);
   }
