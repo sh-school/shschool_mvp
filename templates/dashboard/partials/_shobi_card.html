@@ -4,7 +4,7 @@
 تعرض شُعبَ المستخدم (المصدرُ نفسُه `grid_classes`، مرتَّبةً رقميّاً) فيفتح اختيارُ الشعبة جدولَها العموديّ بنقرةٍ واحدة (W-20261010-054)؛
 شعبةٌ واحدةٌ تذهب مباشرةً، وبلا شعبٍ رسالةٌ بلا زرّ. صفحةُ `provisional_classes` تبقى كما هي. لا تلمس منطقَ الرصد.{% endcomment %}
 {% section_card "رصدُ الغياب — شُعبي" icon="attendance_register" %}
-  <p class="ui-note">{% if shobi_classes|length == 0 %}لا شُعبَ مُسنَدةً إليك للرصد{% elif prov %}اختر شعبتك لرصد الغياب مؤقّتاً إلى حين اعتماد جدول المنصّة{% else %}اختر شعبتك لرصد الغياب من جدولها{% endif %}</p>
+  <p class="ui-note">{% if shobi_classes|length == 0 %}لا شُعبَ مُسنَدةً إليك للرصد{% elif prov and not schedule_approved %}اختر شعبتك لرصد الغياب مؤقّتاً إلى حين اعتماد جدول المنصّة{% else %}اختر شعبتك لرصد الغياب من جدولها{% endif %}</p>
   {% if shobi_classes|length == 1 %}
     {% for klass in shobi_classes %}
     <a class="btn-primary" href="{% url 'class_grid' klass.id %}">{% icon "attendance_register" %} رصدُ شعبة {{ klass.short_label }}</a>

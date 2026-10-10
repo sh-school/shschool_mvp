@@ -245,9 +245,17 @@ def get_teacher_ctx(user, school, today, role):
 
     shobi_classes = sorted(classes_for(user, school), key=lambda c: c.school_order)
 
+    # ملاحظةُ «مؤقّتاً إلى حين اعتماد الجدول» تتبع الجدولَ المعتمَدَ فعلاً (توليدٌ بحالة «معتمد» لعام المدرسة) لا المفتاحَ اليدويَّ وحدَه.
+    from operations.models import ScheduleGeneration
+
+    schedule_approved = ScheduleGeneration.objects.filter(
+        school=school, academic_year=year, status="approved"
+    ).exists()
+
     ctx = {
         "view_type": "teacher",
         "shobi_classes": shobi_classes,
+        "schedule_approved": schedule_approved,
         "sessions": sessions,
         "next_session": next_session,
         "my_setups": my_setups,

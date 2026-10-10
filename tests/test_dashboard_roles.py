@@ -333,3 +333,30 @@ def test_every_teacher_like_role_draws_the_dashboard_without_error(client_as, sc
 
     assert resp.status_code == 200
     assert resp.content.decode().count(reverse("provisional_classes")) <= 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("approved", [True, False], ids=["جدولٌ-معتمَد", "جدولٌ-غيرُ-معتمَد"])
+def test_the_provisional_note_follows_the_approved_schedule_not_the_switch_alone(
+    client_as, school, monkeypatch, approved
+):
+    """ملاحظةُ «مؤقّتاً إلى حين اعتماد الجدول» تختفي متى اعتُمد جدولٌ فعلاً ولو بقي المفتاحُ مشغَّلاً."""
+    from operations.models import ScheduleGeneration, Subject
+    from operations.services import provisional_session
+
+    monkeypatch.setattr(provisional_session, "enabled", lambda: True)
+    subject = Subject.objects.create(school=school, name_ar="رياضيات", code="MAT")
+    user = UserFactory(full_name="مستخدمُ اختبار")
+    MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name="teacher"))
+    _assign(school, user, "G7", "1", subject)
+    _assign(school, user, "G7", "2", subject)
+    ScheduleGeneration.objects.create(
+        school=school,
+        academic_year=academic_year_for_school(school),
+        status="approved" if approved else "draft",
+    )
+
+    body = client_as(user).get("/dashboard/").content.decode()
+
+    assert ("مؤقّتاً إلى حين اعتماد" in body) is (not approved)
+    assert "اختر شعبتك" in body
