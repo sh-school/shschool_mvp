@@ -136,30 +136,7 @@ jobs:
   # ══════════════════════════════════════════════════════
   coverage-report:
     name: تقرير التغطية الأسبوعي
-    runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB:       test_db
-          POSTGRES_USER:     test_user
-          POSTGRES_PASSWORD: test_pass
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    runs-on: ubuntu-24.04
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
@@ -168,6 +145,10 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
     steps:
       - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/native-postgres
+        with:
+          redis: "true"
 
       - uses: actions/setup-python@v7
         with:
@@ -260,27 +241,9 @@ jobs:
   # ══════════════════════════════════════════════════════
   mutation-testing:
     name: mutmut — اختبار الطفرات
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     continue-on-error: true  # تقرير فقط
     timeout-minutes: 60      # سقفٌ احتياطيٌّ فوق `timeout 40m` أدناه
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB:       test_db
-          POSTGRES_USER:     test_user
-          POSTGRES_PASSWORD: test_pass
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
@@ -289,6 +252,10 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
     steps:
       - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/native-postgres
+        with:
+          redis: "true"
 
       - uses: actions/setup-python@v7
         with:
@@ -335,25 +302,7 @@ jobs:
   # ══════════════════════════════════════════════════════
   api-contracts:
     name: اختبار عقود API
-    runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB:       test_db
-          POSTGRES_USER:     test_user
-          POSTGRES_PASSWORD: test_pass
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
+    runs-on: ubuntu-24.04
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
@@ -362,6 +311,10 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
     steps:
       - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/native-postgres
+        with:
+          redis: "true"
 
       - uses: actions/setup-python@v7
         with:

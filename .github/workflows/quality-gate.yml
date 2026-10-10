@@ -489,32 +489,9 @@ jobs:
   #  موجودتين فعلاً (2026-09-18)؛ الحارسُ يمنع الزيادة لا يُصلحهما الآن.
   axe-a11y:
     name: axe-core — وصوليّةٌ حيّة
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # push إلى main: يُفحص على الطلب وطابور الدمج قبل الدمج (يُعفى skipped وحدَه في scripts/ci_needs_gate.py)
     if: github.event_name != 'push'
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB:       test_db
-          POSTGRES_USER:     test_user
-          POSTGRES_PASSWORD: test_pass
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
@@ -528,6 +505,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/native-postgres
+        with:
+          redis: "true"
 
       - uses: actions/setup-python@v7
         with:
@@ -589,32 +570,9 @@ jobs:
   #  `pytest — تغطية` الرئيسية).
   e2e:
     name: Playwright — e2e (مصادقة، تنقّل، صلاحيات)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # push إلى main: يُفحص على الطلب وطابور الدمج قبل الدمج (يُعفى skipped وحدَه في scripts/ci_needs_gate.py)
     if: github.event_name != 'push'
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB:       test_db
-          POSTGRES_USER:     test_user
-          POSTGRES_PASSWORD: test_pass
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
@@ -625,6 +583,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/native-postgres
+        with:
+          redis: "true"
 
       - uses: actions/setup-python@v7
         with:
