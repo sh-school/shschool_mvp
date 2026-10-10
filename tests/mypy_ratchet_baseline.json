@@ -72,7 +72,7 @@
   "notifications/push_publisher.py": 11,
   "notifications/reconciler.py": 19,
   "notifications/services.py": 4,
-  "notifications/tasks.py": 66,
+  "notifications/tasks.py": 63,
   "operations/absence_policy.py": 4,
   "operations/absence_standing.py": 10,
   "operations/bells.py": 12,
@@ -120,5 +120,5 @@
   "wings/scope.py": 1,
   "wings/services.py": 14
  },
- "total": 1183
+ "total": 1180
 }
