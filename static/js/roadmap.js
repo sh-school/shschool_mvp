@@ -45,7 +45,8 @@
     dc: 'all', kl: 'all', ru: 'rules', gview: 'mx', list: null, creating: false, drawer: null, focus: null
   };
   var TABS = ['ov', 'gt', 'kp', 'dc', 'rk', 'st', 'ru'];
-  var ST = { todo: 'لم يبدأ', doing: 'قيد التنفيذ', done: 'مُغلَق', blocked: 'محجوب', deferred: 'مؤجّل' };
+  var ST = { todo: 'لم يبدأ', doing: 'قيد التنفيذ', done: 'مُغلَق', blocked: 'محجوب', deferred: 'مؤجّل', continuous: 'مستمر' };
+  var CADENCE = { weekly: 'أسبوعيّ', monthly: 'شهريّ' };
   var DS = { open: 'مفتوح', decided: 'محسوم', deferred: 'مؤجَّل' };
   var SRC = { DONE: 'منجز (أرشيف)', U: 'الخطّة الموحّدة', M: 'خطّة الجوال', VI: 'لوحة الهويّة', DBT: 'ديون', OWN: 'بنود المالك', PRP: 'مقترحات المنتج', NEW: 'مضافة من الواجهة' };
   var PILL = { ok: 'badge--success', warn: 'badge--warning', bad: 'badge--danger', idle: 'badge--neutral', accent: 'badge--accent' };
@@ -59,6 +60,7 @@
     'مراجعةٌ ربعيّة: إعادةُ السواط ذي الأبعاد الثمانية، ثمّ إعادةُ ضبط التواريخ المقترَحة.'
   ];
   var DAY = 86400000;
+  var REVIEW_DAYS = D.reviewDays || {}; // أيّامُ كلّ إيقاعٍ من الخادم (مصدرٌ واحد: services.CADENCE_DAYS)
 
   function dt(s) { return s ? new Date(s + 'T00:00:00Z').getTime() : null; }
   var TODAY = (function () { var n = new Date(); return Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()); })();
@@ -66,7 +68,21 @@
   function pc(n) { return n + '%'; }
 
   // ── الحساب (مرآةُ الخدمة) ───────────────────────────────────────────
-  function weight(i) { return i.status === 'deferred' ? 0 : (Number(i.effort) || 1); }
+  function weight(i) { return i.status === 'deferred' || i.status === 'continuous' ? 0 : (Number(i.effort) || 1); }
+  // مراجعةُ البند المستمر: لا يُقاس إلا بإيقاعٍ معلوم؛ ولم يُراجَع قطّ أو فات موعدُه = متأخّرٌ عن المراجعة (مرآةُ services.review_state)
+  function reviewState(i) {
+    var days = REVIEW_DAYS[i.cadence];
+    if (i.status !== 'continuous' || !days) return 'none';
+    return !i.reviewed || dt(i.reviewed) + days * DAY < TODAY ? 'late' : 'ontime';
+  }
+  function statusPill(i) {
+    var rs = reviewState(i);
+    if (i.status === 'continuous') {
+      // الأيقونة ↻ تُميّزه عن «قيد التنفيذ» دون اللون (WCAG 1.4.1)، والنصُّ يقول حالةَ المراجعة
+      return pill(rs === 'late' ? 'warn' : 'accent', '↻ ' + ST.continuous + ' · ' + (rs === 'late' ? 'مراجعتُه متأخّرة' : (CADENCE[i.cadence] || 'بلا إيقاع')));
+    }
+    return pill(i.status === 'done' ? 'ok' : (i.status === 'blocked' ? 'bad' : (i.status === 'doing' ? 'accent' : 'idle')), ST[i.status] + (i.status === 'doing' ? ' ' + (i.progress || 0) + '%' : ''));
+  }
   function pct(list) {
     var w = 0, s = 0;
     list.forEach(function (i) { var x = weight(i); w += x; s += x * (i.status === 'done' ? 100 : (Number(i.progress) || 0)); });
@@ -229,7 +245,9 @@
     var done = it.filter(function (i) { return i.status === 'done'; }).length;
     var doing = it.filter(function (i) { return i.status === 'doing'; }).length;
     var blocked = it.filter(function (i) { return i.status === 'blocked'; }).length;
-    var overdue = it.filter(function (i) { return i.status !== 'done' && i.status !== 'deferred' && i.end && dt(i.end) < TODAY; }).length;
+    var overdue = it.filter(function (i) { return i.status !== 'done' && i.status !== 'deferred' && i.status !== 'continuous' && i.end && dt(i.end) < TODAY; }).length;
+    var cont = it.filter(function (i) { return i.status === 'continuous'; });
+    var contLate = cont.filter(function (i) { return reviewState(i) === 'late'; }).length;
     var owner = it.filter(function (i) { return i.gate === 'owner' && i.status !== 'done'; }).length;
     clear($('#rm-summary')).append(
       kpiCard('بنودٌ في الخارطة', it.length, 'maroon'),
@@ -237,7 +255,8 @@
       kpiCard('قيد التنفيذ', doing, 'blue'),
       kpiCard('متأخّر عن موعده', overdue, 'amber'),
       kpiCard('محجوب', blocked, 'red'),
-      kpiCard('ينتظر المالك', owner, 'purple'));
+      kpiCard('ينتظر المالك', owner, 'purple'),
+      kpiCard('أعمالٌ مستمرّة', cont.length, contLate ? 'amber' : 'blue', contLate ? contLate + ' متأخّرة عن المراجعة' : (cont.length ? 'كلُّها في موعد مراجعتها' : '')));
     $('#rm-pct').textContent = pct(it);
   }
   function laneRows() {
@@ -252,7 +271,7 @@
       h('small', { text: dn + ' / ' + x.li.length }));
   }
   function soonItems() {
-    return S.items.filter(function (i) { return i.status !== 'done' && i.status !== 'deferred' && i.end && dt(i.end) <= TODAY + 14 * DAY; })
+    return S.items.filter(function (i) { return i.status !== 'done' && i.status !== 'deferred' && i.status !== 'continuous' && i.end && dt(i.end) <= TODAY + 14 * DAY; })
       .sort(function (a, b) { return dt(a.end) - dt(b.end); });
   }
   function mkSoon(i) {
@@ -320,7 +339,11 @@
   }
   function detail(it) {
     var id = it.id;
-    var sel = h('select', { class: 'form-control', 'aria-label': 'حالة ' + id, onchange: function (e) { save('item', id, { status: e.target.value }, 'status'); } });
+    var sel = h('select', { class: 'form-control', 'aria-label': 'حالة ' + id, onchange: function (e) {
+      var body = { status: e.target.value };
+      if (body.status === 'continuous' && !it.cadence) body.cadence = 'monthly'; // المستمرُّ يلزمه إيقاعٌ؛ يُغيَّر بعد الحفظ
+      save('item', id, body, 'status');
+    } });
     Object.keys(ST).forEach(function (s) { sel.append(h('option', { value: s, text: ST[s], selected: s === it.status })); });
     var rngLabel = h('span', { text: 'التقدّم ' + (it.progress || 0) + '%' });
     var rng = h('input', {
@@ -336,14 +359,24 @@
     rng.setAttribute('data-rm-id', id);
     rng.setAttribute('data-rm-field', 'progress');
     function info(k, v) { return h('div', null, h('div', { class: 'k', text: k }), h('div', null, bidi(v))); }
+    var cont = it.status === 'continuous';
+    var review = null;
+    if (cont) {
+      var cad = h('select', { class: 'form-control', 'aria-label': 'إيقاع مراجعة ' + id, onchange: function (e) { save('item', id, { cadence: e.target.value }, 'cadence'); } });
+      Object.keys(CADENCE).forEach(function (k) { cad.append(h('option', { value: k, text: CADENCE[k], selected: k === it.cadence })); });
+      var rv = h('input', { type: 'date', class: 'form-control', value: it.reviewed || '', max: new Date(TODAY).toISOString().slice(0, 10), 'aria-label': 'آخر مراجعة ' + id, onchange: function (e) { save('item', id, { reviewed: e.target.value || null }, 'reviewed'); } });
+      var today = h('button', { type: 'button', class: 'btn-secondary btn-sm', text: 'راجعتُه اليوم', onclick: function () { save('item', id, { reviewed: new Date(TODAY).toISOString().slice(0, 10) }, 'reviewed'); } });
+      review = h('div', { class: 'g' }, field(id, 'cadence', 'إيقاع المراجعة', cad), field(id, 'reviewed', 'آخر مراجعة', rv), today);
+    }
     return h('div', { class: 'rm-det' },
       info(id, it.title),
       h('div', { class: 'g' },
         field(id, 'status', 'الحالة', sel),
-        h('label', null, rngLabel, rng),
+        cont ? null : h('label', null, rngLabel, rng), // المستمرُّ بلا نسبةِ تقدّمٍ (لا يدخل التقدّمَ المرجَّح)
         field(id, 'start', 'البداية', s0),
         field(id, 'end', 'النهاية', s1),
         field(id, 'pr', 'طلب الدمج', pr)),
+      review,
       field(id, 'note', 'ملاحظة', note),
       info('معيار الإغلاق', it.criterion || '–'),
       info('المصدر', it.ref || ''), info('الاعتماديّات', it.deps || '–'),
@@ -358,6 +391,10 @@
     lanes.forEach(function (l) { lane.append(h('option', { value: l.key, text: l.name })); });
     var status = ctl('select', { 'aria-label': 'الحالة' });
     Object.keys(ST).forEach(function (k) { status.append(h('option', { value: k, text: ST[k] })); });
+    var cadence = ctl('select', { 'aria-label': 'إيقاع المراجعة' });
+    Object.keys(CADENCE).forEach(function (k) { cadence.append(h('option', { value: k, text: CADENCE[k] })); });
+    var cadenceBox = h('label', { hidden: 'hidden' }, 'إيقاع المراجعة (للبند المستمر)', cadence);
+    status.addEventListener('change', function () { cadenceBox.hidden = status.value !== 'continuous'; });
     var start = ctl('input', { type: 'date', 'aria-label': 'البداية' });
     var end = ctl('input', { type: 'date', 'aria-label': 'النهاية' });
     var effort = ctl('input', { type: 'number', min: '0.5', max: '365', step: '0.5', value: '1', 'aria-label': 'الجهد بالأيام' });
@@ -376,6 +413,7 @@
       send.disabled = true;
       var body = { title: title.value, lane: lane.value, status: status.value, effort: effort.value,
         start: start.value || null, end: end.value || null, deps: deps.value, criterion: criterion.value, note: note.value, gate: gate.checked ? 'owner' : '' };
+      if (status.value === 'continuous') body.cadence = cadence.value;
       clear(err);
       fetch(root.dataset.itemCreateUrl, { method: 'POST', credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': root.dataset.csrf, 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify(body) })
@@ -399,6 +437,7 @@
     return h('form', { class: 'rm-det', onsubmit: submit },
       lab('العنوان *', title),
       h('div', { class: 'g' }, lab('المسار', lane), lab('الحالة', status), lab('البداية', start), lab('النهاية', end), lab('الجهد (أيّام)', effort)),
+      cadenceBox,
       lab('معيار الإغلاق', criterion), lab('الاعتماديّات', deps), lab('ملاحظة', note),
       h('label', { class: 'rm-check' }, gate, h('span', { text: 'ينتظر قرارَ/إذنَ المالك' })),
       err,
@@ -421,7 +460,7 @@
     return h('button', { type: 'button', class: 'rm-lrow', onclick: function () { openDrawer(it.id); } },
       h('b', { class: 'rm-code', text: it.id }),
       h('span', { class: 'rm-lrow__t rm-clamp' }, bidi(it.title), h('small', { text: it.start && it.end ? ' — ' + dstr(dt(it.start)) + ' ← ' + dstr(dt(it.end)) : ' — غيرُ مؤرَّخ' })),
-      pill(it.status === 'done' ? 'ok' : (it.status === 'blocked' ? 'bad' : (it.status === 'doing' ? 'accent' : 'idle')), ST[it.status] + (it.status === 'doing' ? ' ' + (it.progress || 0) + '%' : '')));
+      statusPill(it));
   }
   function renderDrawer() {
     var dr = $('#rm-drawer');
@@ -464,9 +503,9 @@
   }
   function mxCell(lane, k, items, label) {
     if (!items.length) return h('div', { class: 'rm-mx-c is-empty', 'aria-hidden': 'true' });
-    var n = { done: 0, doing: 0, blocked: 0, todo: 0, deferred: 0 };
+    var n = { done: 0, doing: 0, blocked: 0, todo: 0, deferred: 0, continuous: 0 };
     items.forEach(function (i) { n[i.status] = (n[i.status] || 0) + 1; });
-    var sub = n.done + ' مُغلَق' + (n.doing ? ' · ' + n.doing + ' جارٍ' : '') + (n.blocked ? ' · ' + n.blocked + ' محجوب' : '');
+    var sub = n.done + ' مُغلَق' + (n.doing ? ' · ' + n.doing + ' جارٍ' : '') + (n.blocked ? ' · ' + n.blocked + ' محجوب' : '') + (n.continuous ? ' · ' + n.continuous + ' مستمر' : '');
     var ids = items.map(function (i) { return i.id; });
     return h('button', { type: 'button', class: 'rm-mx-c', title: laneName(lane.key) + ' — ' + label + ': ' + sub,
       onclick: function () { openList(laneName(lane.key) + ' — ' + label, ids); } },

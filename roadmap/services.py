@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Mapping
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from django.db import IntegrityError, transaction
@@ -25,6 +25,7 @@ from roadmap import selectors
 from roadmap.models import (
     DecisionStatus,
     ItemStatus,
+    ReviewCadence,
     RoadmapChecklistItem,
     RoadmapDecision,
     RoadmapItem,
@@ -33,7 +34,9 @@ from roadmap.models import (
 )
 
 #: الحقولُ التي يجوز تحريرُها من الواجهة — ما سواها يُرفض لا يُتجاهَل.
-ITEM_EDITABLE = frozenset({"status", "progress", "start", "end", "pr", "note"})
+ITEM_EDITABLE = frozenset(
+    {"status", "progress", "start", "end", "pr", "note", "cadence", "reviewed"}
+)
 DECISION_EDITABLE = frozenset({"status", "date"})
 #: حقولُ البند الجديد — وبعد الإنشاء لا يُحرَّر منها إلّا `ITEM_EDITABLE`.
 ITEM_CREATABLE = frozenset(
@@ -50,8 +53,13 @@ ITEM_CREATABLE = frozenset(
         "gate",
         "ref",
         "pr",
+        "cadence",
     }
 )
+#: أيّامُ كلّ إيقاعِ مراجعة — المصدرُ الواحد: تُرسَل إلى الواجهة (`reviewDays`) فلا مرآةَ ثابتةً فيها.
+CADENCE_DAYS = {ReviewCadence.WEEKLY: 7, ReviewCadence.MONTHLY: 30}
+#: حالاتٌ وزنُها صفرٌ في التقدّم المرجَّح: المؤجَّلُ لم يُجدوَل، والمستمرُّ لا يُغلق فلا نسبةَ له.
+UNWEIGHTED_STATUSES = frozenset({ItemStatus.DEFERRED, ItemStatus.CONTINUOUS})
 NEW_ITEM_SRC = "NEW"
 TITLE_MAX = 500
 
@@ -80,17 +88,33 @@ class RoadmapNotFoundError(LookupError):
 def weighted_progress(rows: Iterable[tuple[str, float, float]]) -> int:
     """التقدّمُ المرجَّحُ بالجهد لصفوفٍ `(الحالة، الجهد، التقدّم)`، مقرَّباً إلى أقرب عدد صحيح.
 
-    المؤجَّلُ وزنُه صفر (لا يُحسب لا له ولا عليه)، والجهدُ الفارغُ أو الصفرُ يعادل 1،
+    المؤجَّلُ والمستمرُّ وزنُهما صفر (لا يُحسبان لا لهما ولا عليهما: الأوّلُ لم يُجدوَل والثاني لا يُغلق)، والجهدُ الفارغُ أو الصفرُ يعادل 1،
     والمُغلَقُ يُحسب 100 مهما كان تقدّمُه المخزَّن. والتقريبُ لأعلى عند المنتصف كما
     يفعل `Math.round` في الواجهة (لا تقريبُ المصرفيّ في `round`).
     """
     total_weight = 0.0
     total = 0.0
     for status, effort, progress in rows:
-        weight = 0.0 if status == ItemStatus.DEFERRED else (float(effort) or 1.0)
+        weight = 0.0 if status in UNWEIGHTED_STATUSES else (float(effort) or 1.0)
         total_weight += weight
         total += weight * (100.0 if status == ItemStatus.DONE else float(progress))
     return int(total / total_weight + 0.5) if total_weight else 0
+
+
+def review_due(cadence: str, last_reviewed: date | None) -> date | None:
+    """موعدُ المراجعة القادمة؛ `None` إن لم يُحدَّد إيقاعٌ (فلا موعدَ يُقاس) أو لم تُجرَ مراجعةٌ بعد."""
+    days = CADENCE_DAYS.get(cadence)
+    if days is None or last_reviewed is None:
+        return None
+    return last_reviewed + timedelta(days=days)
+
+
+def review_state(status: str, cadence: str, last_reviewed: date | None, today: date) -> str:
+    """حالةُ المراجعة: `none` (ليس مستمرّاً أو بلا إيقاع) ← `late` (لم تُراجَع قطّ أو فات موعدُها) ← `ontime`."""
+    if status != ItemStatus.CONTINUOUS or cadence not in CADENCE_DAYS:
+        return "none"
+    due = review_due(cadence, last_reviewed)
+    return "late" if due is None or due < today else "ontime"
 
 
 def _progress_of(objects: Iterable[RoadmapItem]) -> int:
@@ -132,6 +156,9 @@ def serialize_item(o: RoadmapItem) -> dict[str, Any]:
     }
     if o.pr:
         data["pr"] = o.pr
+    if o.status == ItemStatus.CONTINUOUS:  # لا يزدحم بهما غيرُ المستمر
+        data["cadence"] = o.review_cadence
+        data["reviewed"] = _iso(o.last_reviewed)
     return data
 
 
@@ -201,6 +228,7 @@ def page_context() -> dict[str, Any]:
         "item_count": len(item_rows),
         "roadmap_data": {
             "meta": meta,
+            "reviewDays": {k.value: v for k, v in CADENCE_DAYS.items()},
             "items": [serialize_item(o) for o in item_rows],
             "kpis": [serialize_kpi(o) for o in selectors.kpis()],
             "decisions": [serialize_decision(o) for o in selectors.decisions()],
@@ -311,7 +339,44 @@ def _tracked_item(item: RoadmapItem) -> dict[str, Any]:
         "pr": item.pr,
         "note": item.note,
         "dateBasis": item.date_basis,
+        "cadence": item.review_cadence,
+        "reviewed": _iso(item.last_reviewed),
     }
+
+
+def _clean_cadence(value: object, errors: dict[str, str]) -> str:
+    if not isinstance(value, str) or value not in {"", *ReviewCadence.values}:
+        errors["cadence"] = "أسبوعيّ أو شهريّ"
+        return ""
+    return value
+
+
+def _next_review(
+    item: RoadmapItem, fields: Mapping[str, Any], status: str, errors: dict[str, str]
+) -> tuple[str, date | None]:
+    """إيقاعُ المراجعة وتاريخُها بعد التعديل. المستمرُّ يلزمه إيقاعٌ؛ وغيرُ المستمرّ يُفرَّغان.
+
+    الانتقالُ إلى «مستمر» **مراجعةٌ بحدّ ذاتها**: إن لم يُعطَ تاريخٌ وكان فارغاً يُختم باليوم، فلا يولد البندُ المستمرُّ
+    «متأخّراً عن المراجعة» لحظةَ إنشائه. وتواريخُ المستقبل مرفوضةٌ (لا مراجعةَ لم تقع).
+    """
+    if status != ItemStatus.CONTINUOUS:
+        for name in ("cadence", "reviewed"):
+            if fields.get(name):
+                errors[name] = "للبند المستمر وحدَه"
+        return "", None
+    cadence = (
+        _clean_cadence(fields["cadence"], errors) if "cadence" in fields else item.review_cadence
+    )
+    reviewed = item.last_reviewed
+    if "reviewed" in fields:
+        reviewed = _clean_date(fields["reviewed"], "reviewed", errors)
+        if reviewed and reviewed > timezone.localdate():
+            errors["reviewed"] = "لا مراجعةَ في المستقبل"
+    elif reviewed is None:
+        reviewed = timezone.localdate()
+    if not cadence and "cadence" not in errors:
+        errors["cadence"] = "حدّد إيقاعَ مراجعة البند المستمر"
+    return cadence, reviewed
 
 
 def _next_progress(
@@ -366,6 +431,7 @@ def update_item(
         if pr and not _PR_RE.match(pr):
             errors["pr"] = "رقمُ طلب الدمج فقط (مثل #446)"
     note = _clean_text(fields["note"], "note", NOTE_MAX, errors) if "note" in fields else item.note
+    cadence, reviewed = _next_review(item, fields, status, errors)
     if errors:
         raise RoadmapError(errors)
 
@@ -373,6 +439,7 @@ def update_item(
         item.date_basis = MANUAL_DATE_BASIS
     item.status, item.progress, item.pr, item.note = status, progress, pr, note
     item.start_date, item.end_date = start, end
+    item.review_cadence, item.last_reviewed = cadence, reviewed
     delta = _diff(before, _tracked_item(item))
     if delta["after"]:
         item.updated_by = stamp_user(user)
@@ -435,6 +502,11 @@ def create_item(
     gate = fields.get("gate", "")
     if gate not in ("", "owner"):
         errors["gate"] = "قيمةٌ غيرُ مسموحة"
+    cadence = _clean_cadence(fields.get("cadence", ""), errors)
+    if status == ItemStatus.CONTINUOUS and not cadence and "cadence" not in errors:
+        errors["cadence"] = "حدّد إيقاعَ مراجعة البند المستمر"
+    if status != ItemStatus.CONTINUOUS:
+        cadence = ""
     if errors:
         raise RoadmapError(errors)
 
@@ -457,6 +529,8 @@ def create_item(
             gate=gate,
             ref=ref,
             pr=pr,
+            review_cadence=cadence,
+            last_reviewed=timezone.localdate() if status == ItemStatus.CONTINUOUS else None,
             sort_order=selectors.next_item_sort_order(),
             updated_by=stamp_user(user),
         )

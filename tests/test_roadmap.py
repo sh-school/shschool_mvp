@@ -573,7 +573,15 @@ class TestPageContext:
     def test_serialisation_keeps_the_snapshot_keys_the_script_reads(self, seeded):
         data = page_context()["roadmap_data"]
 
-        assert set(data) == {"meta", "items", "kpis", "decisions", "risks", "checklist"}
+        assert set(data) == {
+            "meta",
+            "items",
+            "kpis",
+            "decisions",
+            "risks",
+            "checklist",
+            "reviewDays",
+        }
         item = data["items"][0]
         assert {
             "id",
