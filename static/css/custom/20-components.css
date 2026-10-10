@@ -1183,7 +1183,8 @@ main.page-wide {
    حلَّت محلَّ أداة الحجم `text-xs` التي كانت تُلصق في القوالب بلا دور: الخليّةُ
    `cell-sm`، والبيانُ الثانويّ الخافت `ui-meta`، والسطرُ الصغير `ui-note`.
    والحجمُ من الرمز `--text-xs` لا من رقمٍ حرفيّ. */
-.cell-sm { font-size: var(--text-xs); line-height: var(--lh-tight); }
+/* الارتفاعُ يُورَّث من الجدول (≥ 1.6 للعربيّة بتشكيلها)؛ كان `text-xs` يفرض 1rem فيضيّق السطر. */
+.cell-sm { font-size: var(--text-xs); }
 .ui-meta { font-size: var(--text-xs); color: var(--text-muted); }
 
 .col-actions {
