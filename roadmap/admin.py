@@ -61,6 +61,7 @@ class RoadmapItemAdmin(_RoadmapAdmin):
     fieldsets = (
         _section("الأساسيّ", "code", "title", "lane", "status", "progress"),
         _section("الجدولة", "start_date", "end_date", "date_basis", "effort", "deps"),
+        _section("المراجعة (للبند المستمر)", "review_cadence", "last_reviewed"),
         _section("المعيار والملاحظات", "criterion", "note", "gate", "ref", "pr"),
         _section("المصدر والترتيب", "src", "sort_order"),
         _STAMPS_SECTION,
