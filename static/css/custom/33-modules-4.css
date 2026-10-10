@@ -1583,6 +1583,8 @@ body:has(.rm-page) .site-footer { flex: none; }
 .sess-clock small { display: block; font-weight: 400; color: var(--text-muted); font-size: var(--text-xs); }
 .sess-name { font-size: var(--text-sm); font-weight: 700; color: var(--text-primary); }
 .sess-sub { font-size: var(--text-xs); color: var(--text-secondary); }
+.sess-all { display: block; padding: var(--sp-2) var(--sp-4); font-size: var(--text-sm); font-weight: 700; color: var(--maroon-light); text-align: center; text-decoration: none; }
+.sess-all:hover { background: var(--surface-alt); }
 .sess-state { display: flex; align-items: center; gap: var(--sp-2); flex-shrink: 0; }
 
 } /* end @layer modules */

@@ -1,9 +1,10 @@
 {% load icons %}
 {% load ui %}
-{% comment %}حصصُ اليوم — جزئيةٌ مشتركةٌ بين المعلّم والمنسّق، بمكوّنات المنصّة ورموزها (W-20261010-039). لا أصنافَ Tailwind.{% endcomment %}
+{% comment %}حصصُ اليوم — جزئيةٌ مشتركةٌ بين المعلّم والمنسّق، بمكوّنات المنصّة ورموزها (W-20261010-039). لا أصنافَ Tailwind. اللوحةُ تعرض الجاريةَ والتاليةَ فقط ثمّ «عرض الكلّ»، فلا يطول يومٌ ممتلئ.{% endcomment %}
 {% if sessions %}
 <div class="sess-list">
   {% for s in sessions %}
+  {% if s == next_session or s.status == "in_progress" %}
   <a href="/teacher/attendance/{{ s.id }}/" class="sess-row{% if s == next_session %} is-next{% endif %}"
      aria-label="حصة {{ s.subject.name_ar }} — {{ s.class_group.short_label }} — {{ s.start_time|time:'H:i' }}">
     <div class="sess-main">
@@ -26,8 +27,10 @@
       {% endif %}
     </div>
   </a>
+  {% endif %}
   {% endfor %}
+  <a href="{% url 'teacher_schedule' %}" class="sess-all">عرض كلّ حصص اليوم ({{ sessions|length }}) ←</a>
 </div>
 {% else %}
-{% empty_state "لا توجد حصص اليوم" sub="يوم راحة أو عطلة رسمية" icon="date" %}
+{% empty_state "لا توجد حصص اليوم" sub="يوم راحة أو عطلة رسمية" icon="" %}
 {% endif %}
