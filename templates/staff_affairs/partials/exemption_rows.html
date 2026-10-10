@@ -14,7 +14,7 @@
       <tr>
         <td><strong>{{ e.staff.full_name }}</strong></td>
         <td class="col-center sa-nowrap">{{ e.start_date|date:"d/m/Y" }}<span class="sa-cell-sub">{% if e.end_date %}{{ e.end_date|date:"d/m/Y" }}{% else %}مفتوح{% endif %}</span></td>
-        <td class="text-xs">{{ e.reference|default:"—" }}</td>
+        <td class="cell-sm">{{ e.reference|default:"—" }}</td>
         <td class="col-actions">
           {% if live %}
           <form method="post" action="{% url 'staff_affairs:exemption_revoke' e.pk %}">{% csrf_token %}
@@ -25,7 +25,7 @@
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="4" class="text-xs">لا سجلَّ.</td></tr>
+      <tr><td colspan="4" class="cell-sm">لا سجلَّ.</td></tr>
       {% endfor %}
     </tbody>
   </table>

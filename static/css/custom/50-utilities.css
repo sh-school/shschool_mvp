@@ -127,7 +127,7 @@
 .text-secondary { color: var(--text-secondary); }
 .text-muted     { color: var(--text-muted); }
 /* داخلَ ترويسةٍ عنّابيّةٍ نصُّها أبيض: الخافتُ رماديٌّ على عنّابيّ بنسبة 1.64. */
-thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
+thead .text-muted, thead .ui-meta { color: inherit; opacity: .85; }
 
 /* ── الإشعارات: التفضيلات والصندوق واللوحة ───
    بُنيت الصفحاتُ الثلاث على مكوّنات القسم 39؛ وما هنا ما يخصّها وحدَها. */
