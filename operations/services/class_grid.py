@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -97,6 +98,8 @@ class GridColumn:
     state: str
     #: أيُكتب فيه الآن (بدأت حصّتُه وفي نافذة اليوم وللمستخدم صلاحية)؟
     writable: bool
+    #: التاليةُ في الفسحة: لا حصّةَ جاريةً اليومَ وهذا أوّلُ عمودٍ لم يبدأ — يُميَّز كالجارية (W-20261010-055).
+    is_next: bool = False
 
     @property
     def started(self) -> bool:
@@ -310,6 +313,14 @@ def _state_of(start: dt.time, end: dt.time, now: dt.time) -> str:
     return "current" if now < end else "past"
 
 
+def _mark_next(columns: list[GridColumn], is_today: bool) -> list[GridColumn]:
+    """في الفسحة (لا حصّةَ جاريةً اليومَ) يُوسَم أوّلُ عمودٍ لم يبدأ «التالي» ليُميَّز كالجارية (W-20261010-055)."""
+    if not is_today or any(c.state == "current" for c in columns):
+        return columns
+    upcoming = next((c for c in columns if c.state == "future"), None)
+    return [dataclasses.replace(c, is_next=c is upcoming) for c in columns]
+
+
 def page(
     user: CustomUser,
     school: School,
@@ -367,8 +378,9 @@ def page(
         .select_related("student")
         .order_by("student__full_name")
     ]
-    cells = column_heads([c.session_id for c in columns if c.session_id])
+    columns = _mark_next(columns, day == today)
     current = next((c for c in columns if c.state == "current"), None)
+    cells = column_heads([c.session_id for c in columns if c.session_id])
     open_exits = (
         {
             e.student_id: e
