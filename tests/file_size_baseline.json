@@ -4,7 +4,7 @@
   "behavior/views.py": 1121,
   "core/domain/grades.py": 1748,
   "core/permissions.py": 1091,
-  "notifications/tasks.py": 1519,
+  "notifications/tasks.py": 1407,
   "operations/scheduler.py": 1746,
   "operations/scheduler_constraints.py": 1067,
   "operations/views_schedule.py": 1432,
