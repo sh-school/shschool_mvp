@@ -52,6 +52,15 @@ SOURCES = ("actual", "plan")
 MAX_WEEKS_AWAY = 60
 
 
+def mark_v2(generation: Any) -> Any:
+    """يضع `is_v2` على صفّ التوليد الجاري (إن وُجد): الصفحةُ تعرض لـV2 الإيقافَ المبكّر لا إيقافَ V1 المُضيِّع (W-20261010-002)."""
+    from .scheduler_v2.progress import is_v2_running
+
+    if generation is not None:
+        generation.is_v2 = is_v2_running(generation)
+    return generation
+
+
 def browse_lists(school):
     """معلّمو المدرسة وشُعبُها لقائمة الجداول — لمن يتصفّح غيره."""
     from core.models import ClassGroup
