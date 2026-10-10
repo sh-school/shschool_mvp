@@ -20,7 +20,7 @@
         {# ── وقت التنفيذ ── #}
         <td class="num">
           {{ log.created_at|date:"d/m/Y" }}<br>
-          <span class="text-muted text-xs">{{ log.created_at|date:"H:i" }}</span>
+          <span class="ui-meta">{{ log.created_at|date:"H:i" }}</span>
         </td>
 
         {# ── المنفّذ ── #}
@@ -51,7 +51,7 @@
         </td>
 
         {# ── التفاصيل ── #}
-        <td class="text-xs text-secondary max-w-xs">
+        <td class="text-secondary max-w-xs cell-sm">
           {% if log.details %}
             {% for key, val in log.details.items %}
               <span class="inline-block">
@@ -65,7 +65,7 @@
         </td>
 
         {# ── IP ── #}
-        <td class="num text-xs text-muted font-mono">
+        <td class="num text-muted font-mono cell-sm">
           {{ log.ip_address|default:"—" }}
         </td>
 

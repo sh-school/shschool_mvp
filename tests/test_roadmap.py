@@ -573,7 +573,18 @@ class TestPageContext:
     def test_serialisation_keeps_the_snapshot_keys_the_script_reads(self, seeded):
         data = page_context()["roadmap_data"]
 
-        assert set(data) == {"meta", "items", "kpis", "decisions", "risks", "checklist"}
+        # health وglossary من roadmap/health.py (W-20261009-026): قياساتٌ مشتقّة ومسردُ المعاني، لا صفوف
+        assert set(data) == {
+            "meta",
+            "items",
+            "kpis",
+            "decisions",
+            "risks",
+            "checklist",
+            "reviewDays",
+            "health",
+            "glossary",
+        }
         item = data["items"][0]
         assert {
             "id",

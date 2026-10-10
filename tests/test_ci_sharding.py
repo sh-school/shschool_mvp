@@ -236,3 +236,83 @@ def test_each_shard_keeps_native_postgres_and_redis_and_the_job_env():
     assert native[0]["if"] == "steps.diff.outputs.docs_only != 'true' || matrix.shard == 1"
     for key in ("DJANGO_SETTINGS_MODULE", "SECRET_KEY", "CI_SHARD_COUNT", "CI_SHARD_INDEX"):
         assert key in job["env"], f"{key} غاب عن بيئة وظيفة الـshards"
+
+
+# ── أوزانُ الأجزاء: إسقاطُ كلفة إنشاء القاعدة وتوازنُ المشحون (W-20261009-033) ────────────────
+
+_wspec = importlib.util.spec_from_file_location(
+    "ci_shard_weights", _ROOT / "scripts" / "ci_shard_weights.py"
+)
+weights_mod = importlib.util.module_from_spec(_wspec)
+_wspec.loader.exec_module(weights_mod)
+
+
+def _junit(tmp_path, cases):
+    body = "".join(
+        f'<testcase classname="{cls}" name="t{i}" time="{t}"/>' for i, (cls, t) in enumerate(cases)
+    )
+    path = tmp_path / "r.xml"
+    path.write_text(f"<testsuites><testsuite>{body}</testsuite></testsuites>", encoding="utf-8")
+    return path
+
+
+def test_refresh_drops_the_db_build_cost_but_keeps_a_dedicated_files_real_cost(tmp_path):
+    """حالةٌ فوق السقف هي كلفةُ إنشاء القاعدة في أوّل اختبار؛ تُسقَط من العادي وتبقى في المثبَّت."""
+    ordinary = "tests.test_ci_sharding"  # ملفّان حقيقيّان في الشجرة ليُحلَّ classname إلى مسار
+    dedicated = "tests.test_ci_gate_needs"
+    junit = _junit(
+        tmp_path, [(ordinary, 3.0), (ordinary, 350.0), (dedicated, 4.0), (dedicated, 350.0)]
+    )
+    out = weights_mod.refresh(
+        [junit], ["tests/test_ci_gate_needs.py"], root=_ROOT, cap=weights_mod.DB_BUILD_CAP
+    )
+    assert out["weights"]["tests/test_ci_sharding.py"] == 3.0
+    assert out["weights"]["tests/test_ci_gate_needs.py"] == 354.0
+
+
+def test_without_a_cap_nothing_is_dropped(tmp_path):
+    junit = _junit(tmp_path, [("tests.test_ci_sharding", 3.0), ("tests.test_ci_sharding", 350.0)])
+    out = weights_mod.refresh([junit], [], root=_ROOT, cap=None)
+    assert out["weights"]["tests/test_ci_sharding.py"] == 353.0
+
+
+def test_the_shipped_weights_balance_the_ordinary_shards_within_1_3x():
+    """مقياسُ القبول: أبطأ جزءٍ عاديّ ≤ 1.3 ضعف متوسّط الأجزاء العاديّة (الأخيرُ للمثبَّت وحدَه)."""
+    data = ci_sharding.load_weights()
+    files = set(data["weights"])
+    mapping = ci_sharding.assign(files, 5, data)
+    loads = [0.0] * 4
+    for name in files - set(data["dedicated"]):
+        loads[mapping[name] - 1] += data["weights"][name]
+    assert max(loads) <= 1.3 * (sum(loads) / 4), loads
+
+
+# ── axe: ثلاثُ أرجلٍ متوازية بلا فقد فحص (W-20261009-033) ─────────────────────────────────────
+
+_AXE_FILES = {
+    "tests/test_a11y_axe_ratchet.py",
+    "tests/test_web_vitals_budget.py",
+    "tests/test_action_cards_fit_narrow_screens.py",
+    "tests/test_mobile_audit.py",
+}
+
+
+def test_the_axe_job_is_three_parallel_legs_that_still_run_every_file_it_ran_before():
+    job = _WF["axe-a11y"]
+    legs = job["strategy"]["matrix"]["include"]
+    assert len(legs) == 3
+    assert job["strategy"]["fail-fast"] is False  # فشلُ رجلٍ لا يُلغي الأخريَين فيُضيع تشخيصُهما
+    scheduled = [f for leg in legs for f in leg["tests"].split()]
+    assert sorted(scheduled) == sorted(_AXE_FILES), "فحصٌ سقط أو تكرّر عند تقسيم axe"
+    assert all(Path(f).is_file() for f in scheduled)
+
+
+def test_the_axe_job_keeps_its_id_so_the_summary_gate_and_its_push_exemption_are_unchanged():
+    assert "axe-a11y" in _WF["gate-summary"]["needs"]
+    assert not _WF["axe-a11y"].get("continue-on-error")  # لا يُخفَّف حكمُه
+    # الرجلُ الوحيدةُ التي تحتاج WebKit هي رجلُ الجوال؛ وغيرُها لا تدفع كلفةَ تثبيته.
+    legs = {leg["leg"]: leg for leg in _WF["axe-a11y"]["strategy"]["matrix"]["include"]}
+    assert legs["mobile"]["webkit"] is True
+    assert not legs["axe"]["webkit"] and not legs["web-vitals"]["webkit"]
+    webkit_steps = [s for s in _WF["axe-a11y"]["steps"] if "webkit" in str(s.get("run", ""))]
+    assert all(s.get("if") == "matrix.webkit" for s in webkit_steps)

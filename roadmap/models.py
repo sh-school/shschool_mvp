@@ -36,6 +36,16 @@ class ItemStatus(models.TextChoices):
     DONE = "done", "مُغلَق"
     BLOCKED = "blocked", "محجوب"
     DEFERRED = "deferred", "مؤجّل"
+    #: عملٌ دائمٌ لا يُغلق (حرّاسُ CI، القياسُ الأسبوعيّ، التدقيقُ الدوريّ، مزامنةُ الخارطة): لا يدخل التقدّمَ
+    #: المرجَّح (كالمؤجَّل) ولا «المتأخّر عن موعده»؛ يُقاس بإيقاعِ مراجعةٍ وتاريخِ آخر مراجعة (W-20261009-025).
+    CONTINUOUS = "continuous", "مستمر"
+
+
+class ReviewCadence(models.TextChoices):
+    """إيقاعُ مراجعة البند المستمر — أيّامُه في `services.CADENCE_DAYS` (مصدرٌ واحد للخادم والواجهة)."""
+
+    WEEKLY = "weekly", "أسبوعيّ"
+    MONTHLY = "monthly", "شهريّ"
 
 
 class DecisionStatus(models.TextChoices):
@@ -71,6 +81,11 @@ class RoadmapItem(Stamped):
     gate = models.CharField("البوّابة", max_length=32, blank=True)
     ref = models.CharField("المرجع", max_length=255, blank=True)
     pr = models.CharField("طلب الدمج", max_length=64, blank=True)
+    #: للبند المستمر وحدَه (`ItemStatus.CONTINUOUS`)؛ فارغان لسواه. اختياريّان بلا افتراضٍ يُعيد كتابة صفوف.
+    review_cadence = models.CharField(
+        "إيقاع المراجعة", max_length=8, choices=ReviewCadence.choices, blank=True, default=""
+    )
+    last_reviewed = models.DateField("آخر مراجعة", null=True, blank=True)
     sort_order = models.IntegerField("الترتيب", default=0)
 
     class Meta:

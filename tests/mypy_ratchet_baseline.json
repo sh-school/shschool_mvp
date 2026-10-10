@@ -76,7 +76,7 @@
   "operations/absence_policy.py": 4,
   "operations/absence_standing.py": 10,
   "operations/bells.py": 12,
-  "operations/constraint_registry.py": 20,
+  "operations/constraint_registry.py": 1,
   "operations/day_attendance.py": 4,
   "operations/departments.py": 11,
   "operations/models/attendance.py": 13,
@@ -120,5 +120,5 @@
   "wings/scope.py": 1,
   "wings/services.py": 14
  },
- "total": 1202
+ "total": 1183
 }
