@@ -33,7 +33,7 @@ def test_the_only_change_is_one_capability_for_one_role():
     for key, cap in registry().items():
         before = expand_roles(set(cap.roles))  # الوراثةُ كما كانت بلا استثناء
         after = set(cap.expanded_roles)
-        if before != after:
+        if before != after and key != "behavior.record":  # استثناءُ المساعدين بطاقةُ W-20261010-013
             diff[key] = before - after
     assert diff == {"student_affairs.view": {ACTIVITIES}}
 

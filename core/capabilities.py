@@ -382,7 +382,13 @@ def registry() -> dict[str, Capability]:
             "ملفُّ السلوك ولوحتُه",
             P.BEHAVIOR_MANAGE | P.BEHAVIOR_RECORD | P.BEHAVIOR_VIEW_ALL,
         ),
-        _cap("behavior.record", "تسجيلُ مخالفةٍ وتقريرُها", P.BEHAVIOR_MANAGE | P.BEHAVIOR_RECORD),
+        _cap(
+            "behavior.record",
+            "تسجيلُ مخالفةٍ وتقريرُها",
+            P.BEHAVIOR_MANAGE | P.BEHAVIOR_RECORD,
+            # رصدُ مخالفةٍ تأديبيّةٍ لقاصرٍ كتابةٌ حسّاسة؛ المساعدان يرثان جدولَ المعلّم وحضورَه لا رصدَه (حكم 0104، W-20261010-013).
+            not_inherited_by={"teacher_assistant", "ese_assistant"},
+        ),
         _cap("behavior.manage", "إدارةُ المخالفات والإجراءات", P.BEHAVIOR_MANAGE),
         _cap(
             "behavior.committee",
