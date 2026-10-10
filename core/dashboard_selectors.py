@@ -14,8 +14,9 @@ behavior، clinic، library، operations، transport) — الملفّ لا يز
 
 import datetime
 from collections.abc import Iterable
+from typing import Any
 
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
 from django.urls import reverse
 from django.utils import timezone
 
@@ -25,13 +26,15 @@ from clinic.models import ClinicVisit
 from core.academic_calendar import academic_year_for_school, academic_year_window
 from core.capabilities import has_capability
 from core.domain.attendance import attendance_rate
-from core.models.academic import grade_order
+from core.models.academic import StudentEnrollment, grade_order
 from core.permissions import SCHEDULE_BROWSE, get_department_teacher_ids
 from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing
 from operations.models import (
     AbsenceAlert,
+    ClassExit,
     CompensatorySession,
+    DailyExitTally,
     Session,
     StudentAttendance,
     TeacherAbsence,
@@ -245,6 +248,7 @@ def get_teacher_ctx(user, school, today, role):
         "my_pending_swaps": my_pending_swaps,
         "my_weekly_schedule_url": my_weekly_schedule_url,
         "general_schedule_url": general_schedule_url,
+        "my_students": _my_students_ctx(user, school, today, sessions),
     }
 
     if role == "coordinator":
@@ -264,6 +268,46 @@ def get_teacher_ctx(user, school, today, role):
         ctx["coord_absent_today"] = absent_today.count()
 
     return ctx
+
+
+def _my_students_ctx(
+    user: Any, school: Any, today: datetime.date, sessions: Iterable[Any]
+) -> dict[str, int | None]:
+    """«طلابي» (W-20261010-040، D-335م): أعدادٌ مجمَّعة لطلاب شعب المعلّم في جدوله اليوم — لا اسمَ طالبٍ ولا ترتيبَ ولا مقارنة.
+
+    الشعبُ من حصص اليوم المحمَّلة أصلاً (`sessions` قُيِّم قبلَ هذا فلا استعلامَ لها)، والطلابُ استعلامٌ فرعيٌّ لا قائمةٌ في الذاكرة:
+    فاستعلامان ثابتان مهما بلغ عددُ الشعب والطلاب. صفرٌ منهما حين لا حصصَ اليوم.
+
+    `exit_total` مجموعُ `DailyExitTally.exit_count` اليوم (يشمل الخروجَ الطبّيّ: خرج بإذن لا مخالفة، D-251م)، و`out_now` عددُ الطلاب
+    ذوي خروجٍ مفتوحٍ اليومَ (`ClassExit.returned_at` فارغ؛ وما أغلقه الجرسُ بلا عودة له `returned_at` فلا يدخل). وكلاهما `None` لمن لا يملك
+    قدرةَ رصد الحصّة (الدالّةُ مشتركةٌ مع المنسّق، D-171م). وعدّادُ الإشعارات ليس هنا: لا قيمةَ له في سياق اللوحة اليوم، وقراءتُه من `core`
+    استيرادٌ نازلٌ إلى `notifications` يرفضه حارسُ الطبقات؛ والجرسُ يجلبه من مسار `api/unread-count/`.
+    """
+    block: dict[str, int | None] = {"exit_total": None, "out_now": None}
+    if not has_capability(user, "attendance.mark"):
+        return block
+    group_ids = {s.class_group_id for s in sessions}
+    block["exit_total"] = block["out_now"] = 0
+    if not group_ids:
+        return block
+    students = StudentEnrollment.objects.filter(
+        class_group_id__in=group_ids, class_group__school=school, is_active=True
+    ).values("student_id")
+    block["exit_total"] = (
+        DailyExitTally.objects.filter(school=school, date=today, student_id__in=students).aggregate(
+            total=Sum("exit_count")
+        )["total"]
+        or 0
+    )
+    block["out_now"] = (
+        ClassExit.objects.filter(
+            school=school, left_at__date=today, returned_at__isnull=True, student_id__in=students
+        )
+        .values("student_id")
+        .distinct()
+        .count()
+    )
+    return block
 
 
 def get_specialist_social_ctx(user, school, today):
