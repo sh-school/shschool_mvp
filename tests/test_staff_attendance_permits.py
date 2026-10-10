@@ -66,7 +66,7 @@ from staff_affairs.attendance import (
 from staff_affairs.models import PERMIT_STAGES, PERMIT_TYPES, PermitRequest, StaffAttendance
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
-pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
+pytestmark = pytest.mark.django_db
 
 FEB = date(2026, 2, 1)
 MORNING = time(6, 0)
