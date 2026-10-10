@@ -316,10 +316,14 @@ def schedule_print_payload(school, user, get_params, default_source="plan") -> d
     grid, matrix, week_info = _read_sheet(ctx, school, year)
     nav = week_nav(ctx, week_info)
     matrix_totals, week, geometry = None, None, None
-    has_colored_exemptions = False
+    has_colored_exemptions = has_legend = False
     if ctx["view_type"] == "all_teachers":
         matrix_totals = ScheduleService.matrix_totals(matrix, school, year)
         has_colored_exemptions = any(row.get("exempt_map") for row in matrix)
+        # سطرُ المفتاح أسفل الجدول العام يظهر بأيٍّ من هذه — a3_metrics يحسبه فتبقى الورقةُ واحدة.
+        has_legend = bool(
+            has_colored_exemptions or nav["kinds"] or any(row.get("specialty") for row in matrix)
+        )
     else:
         # الفسحةُ والصلاةُ بين الحصص، والورقةُ بالملّيمتر — كورقة الصفحات سواءً.
         days = grid_to_days(grid)
@@ -364,6 +368,7 @@ def schedule_print_payload(school, user, get_params, default_source="plan") -> d
         "week_info": week_info,
         "nav": nav,
         "has_colored_exemptions": has_colored_exemptions,
+        "has_legend": has_legend,
         "days": days_names,
         "periods": periods,
         "period_numbers": range(1, 8),

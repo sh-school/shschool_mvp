@@ -15,6 +15,7 @@ from django.template import Context, Template
 from django.template.loader import render_to_string
 
 from core.pdf_utils import render_pdf_bytes
+from core.print_fit.text_metrics import text_mm
 from operations.models import ScheduleSlot
 from operations.schedule_selectors import schedule_print_payload
 from operations.templatetags.week_tags import (
@@ -24,7 +25,7 @@ from operations.templatetags.week_tags import (
     name_column_mm,
 )
 from tests.conftest import ClassGroupFactory
-from tests.pdf_geometry import median_center_offset_mm, missing_names, text_chunks
+from tests.pdf_geometry import header_lines_mm, median_center_offset_mm, missing_names, text_chunks
 from tests.test_week_page import YEAR, _teacher, world  # noqa: F401
 
 pytestmark = pytest.mark.django_db
@@ -288,20 +289,33 @@ class TestTheExemptionDotOnPaper:
 
 
 class TestTheNameColumnFollowsTheLongestName:
-    @pytest.mark.parametrize(
-        ("longest", "expected"),
-        [(0, "26.0"), (10, "26.0"), (16, "28.8"), (17, "30.5"), (60, "36.0")],
-    )
-    def test_the_width_grows_with_the_longest_display_name_within_a_floor_and_a_cap(
-        self, longest, expected
-    ):
-        rows = [{"display_name": "ا" * longest}, {"display_name": "قصير"}]
+    """العمودُ يُقاس بعرض النصّ الفعليّ (`text_mm`) لا بعدّ الأحرف: «عبدالباسط الجاسمي» 26.1مم فعليّاً (قياسُ 0422) لا 30.5."""
 
-        assert name_column_mm(rows) == expected
+    def test_the_width_is_the_measured_longest_name_plus_the_cell_margin(self):
+        rows = [{"display_name": "عبدالباسط الجاسمي"}, {"display_name": "قصير"}]
+
+        width = float(name_column_mm(rows))
+
+        assert width == pytest.approx(text_mm("عبدالباسط الجاسمي", 7.9, weight=700) + 2.6, abs=0.06)
+        assert 26.1 <= width < 30.5, "أضيقُ من التقدير القديم وأوسعُ من النصّ نفسِه"
+
+    def test_a_longer_name_never_gets_a_narrower_column(self):
+        widths = [float(name_column_mm([{"display_name": "ا" + "ب" * n}])) for n in (6, 12, 18, 24)]
+
+        assert widths == sorted(widths)
+
+    def test_the_floor_the_cap_and_the_annex_star(self):
+        assert name_column_mm([{"display_name": "ا"}]) == "20.0"
+        assert name_column_mm([{"display_name": "ب" * 80}]) == "36.0"
+        plain = float(name_column_mm([{"display_name": "عبدالباسط الجاسمي"}]))
+        tagged = float(
+            name_column_mm([{"display_name": "عبدالباسط الجاسمي", "specialty": "الرياضيات"}])
+        )
+        assert tagged > plain, "علامةُ « *» تُحسب في العرض"
 
     def test_rows_without_a_display_name_use_the_floor(self):
-        assert name_column_mm([{}, {"display_name": None}]) == "26.0"
-        assert name_column_mm(None) == "26.0"
+        assert name_column_mm([{}, {"display_name": None}]) == "20.0"
+        assert name_column_mm(None) == "20.0"
 
 
 #: أسوأُ أسبوعٍ فعليّ: الأسطرُ الثلاثةُ التي يكتبها `_week_notes` معاً بأطولِ ما تحمل (كلُّ الأيّام مغلقةٌ بسببٍ طويل، وكلُّ الأيّام من الخطّة، وحصصٌ بلا رقم).
@@ -337,3 +351,74 @@ class TestAWeekWithNotesStillFitsOnOneSheet:
         assert a3_metrics(None)["pt"] == A3_SHEET_PT
         assert a3_metrics("x")["pt"] == A3_SHEET_PT
         assert a3_metrics(-2)["pt"] == A3_SHEET_PT
+
+
+class TestTheHeaderIsCentredAndStaysInItsBand:
+    """ملاحظةُ المالك 2026-10-10 (W-20261010-049): ترويسةُ الجدول العامّ موسَّطةٌ ولا يتداخل سطرُ العام الدراسي مع ما يليه.
+
+    قياسٌ على PDF مرسوم: كلُّ سطرٍ طويلٌ (من الاسم إلى سطر العام والأسبوع) مركزُه مركزُ الصفحة، ولا نصَّ مرسوماً من الترويسة يدخل
+    على أوّل صفوف الجدول (أسفلُ الترويسة = هامشٌ علويٌّ + ارتفاعُها ≤ 30مم).
+    """
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "view=all_teachers&source=plan&paper=a3&orient=landscape",
+            "view=all_teachers&source=actual&week=2026-10-04&paper=a3&orient=landscape",
+        ],
+        ids=["plan", "actual-week"],
+    )
+    def test_each_header_line_is_centred_and_the_band_does_not_reach_the_table(
+        self,
+        world,
+        staff,
+        query,  # noqa: F811
+    ):
+        staff(teachers=72, per_teacher=12)
+
+        width, lines = header_lines_mm(_render(world, query)[0], limit_mm=36)
+
+        long_lines = [line for line in lines if line[1] - line[0] >= 20]
+        assert len(long_lines) >= 3, "الترويسةُ ناقصةُ الأسطر"
+        for left, right, _top, _bottom in long_lines:
+            assert (
+                abs((left + right) / 2 - width / 2) <= 2.0
+            ), f"سطرٌ غيرُ موسَّط: {left:.1f}–{right:.1f}"
+        # الترويسةُ ضمن الهامش العلويّ: هامشٌ 6مم + ترويسةٌ 30مم (core/print_frame) — لا يعلو سطرٌ منها أوّلَ الجدول
+        assert max(line[3] for line in lines) <= 6 + 30 + 0.5
+
+
+class TestTheKeyLineIsCountedSoTheSheetStaysOne:
+    """W-20261010-049 (قياس 0422 على بيانات 8500): تفريغٌ ملوَّنٌ أو ملحقٌ إداريّ يُظهران سطرَ المفتاح (9pt) ولم تكن `a3_metrics` تحسبه فخرجت الورقةُ ثانيةً."""
+
+    @pytest.mark.parametrize("mode", ["dots", "annex", "dots_annex"])
+    def test_a_key_line_keeps_one_page_even_with_the_worst_notes(self, world, staff, mode):  # noqa: F811
+        staff(teachers=72, per_teacher=12)
+        ctx = schedule_print_payload(
+            world["school"],
+            world["principal"],
+            QueryDict("view=all_teachers&source=plan&paper=a3&orient=landscape"),
+        )
+        if "dots" in mode:
+            ctx["has_colored_exemptions"] = True
+        if "annex" in mode:
+            ctx["matrix"][0]["specialty"] = "الرياضيات"
+        ctx["has_legend"] = True
+        ctx["nav"] = {**ctx["nav"], "notes": WORST_NOTES}
+        ctx["embed"] = True
+        ctx["for_pdf"] = True
+        pdf = render_pdf_bytes(
+            render_to_string("schedule/print_schedule.html", ctx), paper_size="A3"
+        )
+
+        pages, smallest, _ = _facts(pdf)
+
+        assert pages == 1, f"سطرُ المفتاح ({mode}) مع {len(WORST_NOTES)} ملاحظات كسر الصفحةَ"
+        assert smallest >= a3_metrics(len(WORST_NOTES), True)["pt"] - 0.05
+
+    def test_the_legend_only_shrinks_the_font_a_little(self):
+        assert a3_metrics(0, False)["pt"] == A3_SHEET_PT
+        assert a3_metrics(0, True)["pt"] < A3_SHEET_PT
+        assert (
+            a3_metrics(3, True)["pt"] >= A3_SHEET_PT - 0.8
+        ), "التصغيرُ طفيفٌ حتّى بالمفتاح وأسوأ الملاحظات"

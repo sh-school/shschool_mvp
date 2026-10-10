@@ -111,3 +111,37 @@ def median_center_offset_mm(pdf: bytes) -> float:
     """وسيطُ الفرق على الصفوف العاديّة فقط (ارتفاعٌ 2.8–3.5مم): صفوفُ القسم الضيّق المرتفعةُ ولقطاتُ الحدّ الملتبسة خارجَه."""
     normal = [offset for offset, h in center_offsets_mm(pdf) if 2.8 <= h <= 3.5]
     return statistics.median(normal)
+
+
+def header_lines_mm(
+    pdf: bytes, limit_mm: float
+) -> tuple[float, list[tuple[float, float, float, float]]]:
+    """(عرضُ الصفحة بالملّيمتر، [(يسار، يمين، أعلى، أسفل)] لكلّ سطرٍ مرسومٍ فوق `limit_mm` من أعلى الصفحة الأولى).
+
+    الأسطرُ تُجمَّع من صناديق الحروف في PDF نفسِه (pdfium) بقاعدة السطر نصفَ ملّيمتر — فيُحكم على ما يراه القارئُ (توسيطٌ وتداخلٌ) لا على CSS.
+    """
+    page = pypdfium2.PdfDocument(pdf)[0]
+    text = page.get_textpage()
+    width_pt, height_pt = page.get_size()
+    mm = 25.4 / 72
+    chars = text.get_text_range()
+    boxes: list[tuple[float, float, float, float]] = []
+    for i in range(text.count_chars()):
+        if not chars[i].strip():
+            continue
+        left, bottom, right, top = text.get_charbox(i)
+        if (height_pt - top) * mm > limit_mm:
+            continue
+        boxes.append((left * mm, right * mm, (height_pt - top) * mm, (height_pt - bottom) * mm))
+    # سطرٌ = حروفٌ يتقاطع مداها الرأسيّ (الأرقامُ والحروفُ والنقاطُ لا تتّفق على قاعدةٍ واحدة): نضمّ الصندوقَ لأوّل سطرٍ يشاركه نصفَ ارتفاعه
+    lines: list[list[float]] = []
+    for left, right, top, bottom in sorted(boxes, key=lambda b: b[2]):
+        for line in lines:
+            overlap = min(line[3], bottom) - max(line[2], top)
+            if overlap >= 0.5 * (bottom - top):
+                line[0], line[1] = min(line[0], left), max(line[1], right)
+                line[2], line[3] = min(line[2], top), max(line[3], bottom)
+                break
+        else:
+            lines.append([left, right, top, bottom])
+    return width_pt * mm, [tuple(line) for line in sorted(lines, key=lambda x: x[2])]  # type: ignore[misc]
