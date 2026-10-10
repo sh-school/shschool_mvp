@@ -559,7 +559,9 @@ def test_two_bands_union_caps_below_the_sum_of_their_bells(school, teacher):
     found = finding(sf.check(school, YEAR), "assignment.daily_band")
 
     assert found.status == "fail"
-    assert found.rows[0].capacity == 10, "اتّحادُ الخانات ٢ في اليوم لا مجموعُ سقفَي النطاقين"
+    #: اتّحادُ الخانات ٢ في اليوم لا مجموعُ سقفَي النطاقين (١٠)، ثمّ سقفُ الأولى HC22 يسحب يومَين من الثلاثة
+    #: التي لا أولى فيها إلى خانةٍ واحدة: ٢×٢ + ٣×١ = ٧ (W-20261003-043).
+    assert found.rows[0].capacity == 7
     assert "سقفُ الجرس" in found.rows[0].note
 
 
@@ -675,8 +677,14 @@ def test_the_seventh_period_limit_lowers_a_teachers_real_cap(school, teacher):
     assert "HC8" in found.rows[0].note
 
 
-def test_a_personal_seventh_cap_of_three_lifts_that_teacher_alone(school, teacher):
-    """سقفٌ شخصيٌّ ٣ يجعل سعتَه ١٨ فيحلّ العجز (ويبقى على الحدّ بلا هامش: تحذيرٌ لا رفض)."""
+def test_a_personal_seventh_cap_of_three_no_longer_lifts_the_report_because_the_first_cap_binds(
+    school, teacher
+):
+    """سقفٌ شخصيٌّ ٣ للسابعة كان يجعل السعة ١٨ (D-172م)؛ وبعد HC22 (أولى ≤ ٢) يظلّ ١٧.
+
+    يومُ الأربع خانات (١-٣-٥-٧) يحتاج الأولى والسابعة معاً، فالسابعةُ الثالثة بلا أولى ثالثة لا تضيف خانة.
+    والإدخالُ لا يتأثّر (انظر الاختبار التالي): تخفيفُ المالك لسقف الأولى لمعلّمين مسمَّين لا يُقرأ من القاعدة.
+    """
     a_bell(school, None, SEVEN_BACK_TO_BACK)
     other = a_user(school, "معلّمُ العلوم", "teacher")
     assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 18)
@@ -685,8 +693,8 @@ def test_a_personal_seventh_cap_of_three_lifts_that_teacher_alone(school, teache
 
     rows = {r.name: r for r in finding(sf.check(school, YEAR), "assignment.daily_band").rows}
 
-    assert rows[teacher.full_name].capacity == 18 and "على حدّ" in rows[teacher.full_name].note
-    assert rows[other.full_name].capacity == 17, "غيرُه يبقى على السقف العامّ"
+    assert rows[teacher.full_name].capacity == 17 and "HC22" in rows[teacher.full_name].note
+    assert rows[other.full_name].capacity == 17, "غيرُه على السقفين العامّين"
 
 
 def test_entry_rejects_the_eighteenth_period_unless_the_teacher_has_a_seventh_cap(school, teacher):
@@ -777,3 +785,38 @@ def test_changing_the_seventh_cap_in_admin_leaves_an_audit_trail_without_a_name(
 
     admin.save_model(request, pref, None, True)  # بلا تغيير ⇒ لا سطرَ جديد
     assert AuditLog.objects.filter(changes__event="teacher_last_period_cap_changed").count() == 1
+
+
+# ── سقفُ الأولى (HC22) في سعة المعلّم — W-20261003-043 ────────────────────
+
+
+def test_edge_capacity_shares_days_between_the_two_edges():
+    """قسمةٌ على الأيّام: الأولى والأخيرة تتشاركان اليومَ ولا تُحسبان مستقلّتين."""
+    # يومٌ: بلا طرف ٣، بالأولى وحدَها ٣، بالأخيرة وحدَها ٣، بهما ٤ (١-٣-٥-٧)
+    day = {(0, 0): 3, (1, 0): 3, (0, 1): 3, (1, 1): 4}
+
+    assert sf._edge_capacity([day] * 5, 5, 5) == 20, "بلا سقفٍ فعليّ"
+    assert sf._edge_capacity([day] * 5, 2, 2) == 17, "يومان بالطرفين معاً فقط"
+    assert sf._edge_capacity([day] * 5, 2, 5) == 17, "الأولى ≤ ٢ وحدَها تخفض الثلاثة الباقية"
+    assert sf._edge_capacity([day] * 5, 5, 3) == 18
+
+
+def test_a_load_within_both_edge_caps_is_not_a_blocker(school, teacher):
+    """سليم: ١٧ على السبع المتلاصقة (وعجزُ ١٨ مغطّى في اختبارَي السابعة والجرسين أعلاه)."""
+    a_bell(school, None, SEVEN_BACK_TO_BACK)
+    assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 17)
+
+    assert finding(sf.check(school, YEAR), "assignment.daily_band").status != "fail"
+
+
+def test_the_first_cap_alone_can_bind_and_the_entry_check_ignores_it(school, teacher):
+    """سقف السابعة ٣: التقريرُ يقول ١٧ (HC22)، والإدخالُ لا يرفض ١٨ — تخفيفُ المالك لا يُقرأ من القاعدة."""
+    a_bell(school, None, SEVEN_BACK_TO_BACK)
+    section = a_class(school)
+    _pref(school, teacher, max_last_periods=3)
+
+    strict, source = sf.binding_daily_cap(school, frozenset({""}), (), {}, 7, 3)
+    relaxed, _ = sf.binding_daily_cap(school, frozenset({""}), (), {}, 7, 3, first_cap=None)
+
+    assert (strict, relaxed) == (17, 18) and "HC22" in source
+    assert sf.entry_load_violation(school, YEAR, teacher, section, 18) is None

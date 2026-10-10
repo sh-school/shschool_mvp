@@ -425,6 +425,8 @@ tbody tr:nth-child(even):hover {
 .gen-progress__stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--sp-2) var(--sp-4); margin: 0; }
 .gen-progress__stats dt { font-size: var(--text-xs); color: var(--text-muted); }
 .gen-progress__stats dd { margin: 0; font-size: var(--text-sm); font-weight: 600; font-variant-numeric: tabular-nums; }
+.gen-progress__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.gen-progress__hint { margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
 
 /* ── Django Admin — تعريب اللون الرئيسي ─── */
 /* Django Admin header — مطلوب لتجاوز admin CSS */

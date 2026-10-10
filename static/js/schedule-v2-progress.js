@@ -10,6 +10,7 @@
   var MAX_MISSES = 5;
   var $ = function (name) { return root.querySelector('[data-gp="' + name + '"]'); };
   var fill = $('fill'), meter = $('meter');
+  var stopBtn = $('stop'), stopNote = $('stop-note');
   var misses = 0;
 
   function fmt(sec) {
@@ -50,7 +51,42 @@
       final.hidden = true;
     }
     $('offline').hidden = true;
+    syncStop(d);
   }
+
+  /* الإيقافُ المبكّر: يُفعَّل بعد أوّل حلٍّ فقط (لا حلَّ ⇒ لا شيء يُحفظ) وما دام التوليدُ running. */
+  function syncStop(d) {
+    if (!stopBtn) return;
+    var running = d.generation_status === 'running';
+    var haveSolution = typeof d.solutions === 'number' && d.solutions > 0;
+    if (d.stop_requested) {
+      stopBtn.disabled = true;
+      note('طُلب الإيقاف — يُحفظ أفضلُ حلٍّ وُجد خلال ثوانٍ.');
+      return;
+    }
+    stopBtn.disabled = !(running && haveSolution);
+    stopBtn.title = haveSolution ? '' : 'لا حلَّ مُوجَداً بعد — لا شيء يُحفظ';
+    stopBtn.hidden = !running && d.generation_status !== 'queued';
+  }
+  function note(text) {
+    if (!stopNote) return;
+    stopNote.textContent = text;
+    stopNote.hidden = !text;
+  }
+  function requestStop() {
+    if (!window.confirm('إيقافُ التوليد الآن؟ يُحفظ أفضلُ حلٍّ وُجد حتى الآن مسودّةً لتراجعها.')) return;
+    stopBtn.disabled = true;
+    fetch(stopBtn.dataset.url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': stopBtn.dataset.csrf, 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    }).then(function (r) {
+      if (r.status === 409) note('انتهى التوليدُ قبل وصول الطلب — لا شيء للإيقاف.');
+      else if (r.ok) note('طُلب الإيقاف — يُحفظ أفضلُ حلٍّ وُجد خلال ثوانٍ.');
+      else { note('تعذّر طلبُ الإيقاف — أعد المحاولة.'); stopBtn.disabled = false; }
+    }).catch(function () { note('تعذّر الاتصال — أعد المحاولة.'); stopBtn.disabled = false; });
+  }
+  if (stopBtn) stopBtn.addEventListener('click', requestStop);
 
   function poll() {
     fetch(root.dataset.url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })

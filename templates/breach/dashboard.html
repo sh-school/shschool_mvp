@@ -17,6 +17,7 @@
   {% kpi_strip label="أرقام الخروقات" %}
     {% kpi "تجاوز المهلة" stats.overdue tone=overdue_tone title="تقاريرُ فاتتها مهلةُ إشعار NCSA (72 ساعة)" %}
     {% kpi "نشط" stats.active sub="مكتشَف أو قيد التقييم" tone=active_tone %}
+    {% kpi "أفراد بانتظار الإخطار" stats.individuals_pending sub=individuals_sub tone=individuals_tone title="خروقٌ قُدِّر وجوبُ إخطار أفرادها المتأثّرين (م.14) ولم يُخطَروا بعد" %}
     {% kpi "تم الإشعار" stats.notified tone="green" %}
     {% kpi "محلول" stats.resolved tone="teal" %}
   {% endkpi_strip %}
@@ -37,7 +38,7 @@
         </thead>
         <tbody>
           {% for b in reports %}
-          <tr{% if b.is_overdue %} class="is-danger"{% endif %}>
+          <tr{% if b.is_overdue or b.individuals_overdue %} class="is-danger"{% endif %}>
             <td>{{ b.title }}</td>
             <td>
               <span class="status-badge {% if b.severity == 'critical' or b.severity == 'high' %}status-danger{% elif b.severity == 'medium' %}status-warning{% else %}status-gray{% endif %}">{{ b.get_severity_display }}</span>
@@ -57,6 +58,7 @@
             </td>
             <td>
               <span class="status-badge {% if b.status == 'discovered' %}status-danger{% elif b.status == 'assessing' %}status-warning{% elif b.status == 'notified' %}status-success{% else %}status-gray{% endif %}">{{ b.get_status_display }}</span>
+              {% if b.individuals_overdue %}<span class="status-badge status-danger">إخطار الأفراد فات</span>{% elif b.individuals_status == "required" %}<span class="status-badge status-warning">أفراد بانتظار الإخطار</span>{% endif %}
             </td>
             <td><a href="{% url 'breach:detail' b.pk %}" class="btn-secondary btn-xs">تفاصيل</a></td>
           </tr>
