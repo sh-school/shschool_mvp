@@ -39,12 +39,10 @@ def close_provisional_when_a_real_session_arrives(
 ) -> None:
     """حصّةٌ حقيقيّةٌ تُحفظ تُغلق المؤقّتةَ التي زاحمتها (W-20261005-006، D-219م) — أيّاً كان من أنشأها.
 
-    **بمفتاح الحصّة المؤقّتة وحدَه**: مطفأً يرجع المستقبِلُ قبل أيّ استعلامٍ فلا يتغيّر شيءٌ (ولا عدّادُ استعلاماتٍ في اختبار).
     وما يُدرَج بـ`bulk_create` لا يُطلق هذه الإشارة؛ فالقراءةُ التي تعرض المؤقّتات تستدعي `close_shadowed` أيضاً، فلا تتّكل القاعدةُ على مولّدٍ بعينه.
     """
     if raw or not created or getattr(instance, "provisional", False):
         return
     from operations.services import provisional_session
 
-    if provisional_session.enabled():
-        provisional_session.close_shadowed(instance.school, instance.date)  # type: ignore[attr-defined]
+    provisional_session.close_shadowed(instance.school, instance.date)  # type: ignore[attr-defined]

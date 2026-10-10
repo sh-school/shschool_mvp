@@ -957,9 +957,6 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 /* ── Mobile: dashboards ── */
 @media (max-width: 1024px) {
   .exec-dash { height: auto; overflow: auto; }
-  /* كشفُ الشعبة: جدولُه في غلافِ تمريرٍ خاصّ (.per-grid-wrap)، والحاويةُ لا تكون صندوقَ
-     تمرير — وإلّا صارت مرجعَ الالتصاق فلا يلتصق شريطُ «ثبّت الحصّة» بأسفل شاشة الجوّال. */
-  .exec-dash:has(> .rec-form) { overflow: visible; }
 
   .dash-chart-wrap { min-height: 180px; }
 }

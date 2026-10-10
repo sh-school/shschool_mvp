@@ -15,7 +15,6 @@ behavior، clinic، library، operations، transport) — الملفّ لا يز
 import datetime
 from collections.abc import Iterable
 
-from django.conf import settings
 from django.db.models import Count, Q
 from django.urls import reverse
 from django.utils import timezone
@@ -213,9 +212,8 @@ def get_teacher_ctx(user, school, today, role):
         .select_related("class_group", "subject")
         .order_by("start_time")
     )
-    if getattr(settings, "PROVISIONAL_GRID_ENABLED", False):
-        # حصصُ أعمدة جدول الشعبة مؤقّتةٌ بـ`Session.teacher` مُسنَدٍ حتميّ (W-20261006-005): ليست «حصصي» ولا «حصّتي التالية» لمن نُسبت إليه.
-        sessions = sessions.exclude(provisional=True)
+    # حصصُ أعمدة جدول الشعبة مؤقّتةٌ بـ`Session.teacher` مُسنَدٍ حتميّ (W-20261006-005): ليست «حصصي» ولا «حصّتي التالية» لمن نُسبت إليه.
+    sessions = sessions.exclude(provisional=True)
     now = timezone.now().time()
     next_session = next(
         (s for s in sessions if s.start_time >= now and s.status == "scheduled"), None

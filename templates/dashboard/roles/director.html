@@ -5,7 +5,6 @@
 
   {% page_header dashboard_title|default:"لوحة تحكم المدير" subtitle=subtitle icon="dashboard" %}
     <a href="{% url 'daily_report' %}" class="btn-primary btn-sm">{% icon "absence" %} غياب اليوم</a>
-    <a href="{% url 'attendance_unapproved' %}" class="btn-secondary btn-sm">{% icon "time" %} رصدٌ غيرُ معتمَد</a>
   {% endpage_header %}
 
   {% if pending_excuses %}
@@ -26,7 +25,7 @@
       {% kpi "غائب بعذر" day.school.absent_excused tone="maroon" key="school.absent_excused" %}
       {% kpi "لم يُحسم" day.school.incomplete sub="رصدُ شعبته ناقص" tone=day_incomplete_tone key="school.incomplete" %}
       {% if day_final %}{% kpi "غير مرصود" day.school.unrecorded sub="لا رصدَ له" tone="amber" key="school.unrecorded" %}{% endif %}
-      {% kpi "رصدٌ معلّق" day.school.pending sub="بانتظار الاعتماد" tone=day_pending_tone href=day_unapproved_url key="school.pending" %}
+      {% kpi "رصدٌ معلّق" day.school.pending sub="بانتظار الاعتماد" tone=day_pending_tone key="school.pending" %}
       {% kpi "شعب سُجّلت حصصها" day_sections_label sub=day_sections_sub tone="maroon" %}
       {% if not day_final %}{% kpi "خرجوا من الفصل" day.exits_students sub=day_exits_sub tone="maroon" key="exits.students" %}{% endif %}
     {% endkpi_strip %}

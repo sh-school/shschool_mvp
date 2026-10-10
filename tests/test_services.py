@@ -12,7 +12,6 @@ from unittest.mock import patch
 import pytest
 
 from assessments.services import GradeService
-from operations.services import AttendanceService
 
 from .conftest import (
     UserFactory,
@@ -158,68 +157,6 @@ class TestGradeService:
 # ══════════════════════════════════════════════
 #  AttendanceService
 # ══════════════════════════════════════════════
-
-
-@pytest.mark.django_db
-class TestAttendanceService:
-    def test_mark_attendance_present(
-        self, school, student_user, teacher_user, session, enrolled_student
-    ):
-        att, created = AttendanceService.mark_attendance(
-            session=session,
-            student=student_user,
-            status="present",
-            marked_by=teacher_user,
-        )
-        assert created is True
-        assert att.status == "present"
-
-    def test_mark_attendance_absent(
-        self, school, student_user, teacher_user, session, enrolled_student
-    ):
-        att, created = AttendanceService.mark_attendance(
-            session=session,
-            student=student_user,
-            status="absent",
-            marked_by=teacher_user,
-        )
-        assert att.status == "absent"
-
-    def test_update_attendance_record(
-        self, school, student_user, teacher_user, session, enrolled_student
-    ):
-        """تحديث الحضور من غياب إلى حضور"""
-        AttendanceService.mark_attendance(session, student_user, "absent", marked_by=teacher_user)
-        att, created = AttendanceService.mark_attendance(
-            session, student_user, "present", marked_by=teacher_user
-        )
-        assert created is False
-        assert att.status == "present"
-
-    def test_bulk_mark_all_present(self, school, teacher_user, session, enrolled_student):
-        count = AttendanceService.bulk_mark_all_present(session, marked_by=teacher_user)
-        assert count >= 1
-        from operations.models import StudentAttendance
-
-        assert StudentAttendance.objects.filter(session=session, status="present").count() >= 1
-
-    def test_bulk_mark_all_present_with_no_active_students_does_not_touch_the_session(
-        self, school, teacher_user, session
-    ):
-        """جلسةٌ لشعبةٍ بلا طالبٍ نشط (شعبةٌ يتيمة من عامٍ منقضٍ مثلاً) لا تنقلب
-        إلى in_progress بلا حضور — وإلّا حماها ذلك من تنظيف `_untouched` للأبد."""
-        count = AttendanceService.bulk_mark_all_present(session, marked_by=teacher_user)
-
-        assert count == 0
-        session.refresh_from_db()
-        assert session.status == "scheduled"
-
-    def test_complete_session(self, school, session):
-        AttendanceService.complete_session(session)
-        from operations.models import Session
-
-        refreshed = Session.objects.get(id=session.id)
-        assert refreshed.status == "completed"
 
 
 # ══════════════════════════════════════════════

@@ -159,7 +159,7 @@
   "library/views.py": 6,
   "notifications/views.py": 5,
   "operations/api_views.py": 1,
-  "operations/views_attendance.py": 9,
+  "operations/views_attendance.py": 3,
   "operations/views_swap.py": 10,
   "parents/views.py": 16,
   "quality/observation_views.py": 6,
@@ -403,12 +403,6 @@
    "orm": 10
   },
   "operations/api_views.py::student_search_api": {
-   "orm": 8
-  },
-  "operations/views_attendance.py::attendance_view": {
-   "orm": 8
-  },
-  "operations/views_attendance.py::mark_all_present": {
    "orm": 8
   },
   "operations/views_attendance.py::schedule": {
@@ -789,13 +783,6 @@
   },
   "wings/views.py::record_index": {
    "orm": 12
-  },
-  "wings/views.py::record_period": {
-   "orm": 41
-  },
-  "wings/views.py::record_section": {
-   "lines": 79,
-   "orm": 55
   },
   "wings/views.py::student_events": {
    "orm": 12

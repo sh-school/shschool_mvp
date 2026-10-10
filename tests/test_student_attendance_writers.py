@@ -39,29 +39,9 @@ ALLOWED_WRITERS: dict[tuple[str, str], str] = {
         "<module>",
     ): "بذرُ معاينةٍ يدويّ (جلسة 0501 على 8500 فقط، ليس مساراً في التطبيق): غيابٌ موسومٌ بـSEED_TAG يُنشأ لطالبَين ثمّ يُمحى بـdown؛ لا يصل إليه مستخدم",
     (
-        "operations/services/attendance.py",
-        "mark_attendance",
-    ): "حالةُ الرصد من mark_single؛ المعلّمُ فيه محكومٌ بسياسة can_enter ولا يصل شُعبَ الجناح",
-    (
-        "operations/services/attendance.py",
-        "bulk_mark_all_present",
-    ): "«الكلُّ حاضر» من mark_all_present لمعلّم شعبةٍ بلا جناح أو مُسجِّل؛ لا يصله معلّمُ شعبة جناح",
-    (
         "operations/attendance_entries.py",
         "_apply_to_effective",
     ): "اعتمادُ إدخالِ معلّمٍ يكتب الرصدَ المعتمَد (قفلُ صفّ، لا فوق مصدرٍ بشريٍّ آخر، AuditLog) — لا يصله إلّا decide_entry/submit_entry (ESE)",
-    (
-        "operations/attendance_entries.py",
-        "correct_without_observation",
-    ): "تصحيحُ المشرف لما لم يشاهده: لمن له الاعتمادُ (can_correct) بسببٍ ونوعِ دليلٍ ووسمٍ وتدقيق، لا فوق عيادةٍ أو بوّابة — لا يصله المعلّم",
-    (
-        "operations/period_register.py",
-        "tap_late",
-    ): "نقرةُ تأخّرِ المعلّم (source=teacher_late) تنتظر تثبيتَ المشرف — استثناءٌ مسمّىً بحكم 0105",
-    (
-        "operations/period_register.py",
-        "confirm_period",
-    ): "تثبيتُ المشرف/حاملِ الجناح للحصّة (source=supervisor) — لا يصله المعلّم",
     (
         "operations/exit_reflection.py",
         "_flip_unaccounted",
@@ -70,10 +50,6 @@ ALLOWED_WRITERS: dict[tuple[str, str], str] = {
         "operations/exit_reflection.py",
         "revert_derived_absence",
     ): "إرجاعُ الغياب المشتقّ من خروجٍ عند العودة/الإلغاء (يصله معلّمُ الحصّة بقيده)",
-    (
-        "operations/undo.py",
-        "undo_late_tap",
-    ): "تراجعُ المعلّم عن نقرته وحدَها ما لم يثبّت المشرف (AuditLog)",
     (
         "operations/excuses.py",
         "grant_excuse",

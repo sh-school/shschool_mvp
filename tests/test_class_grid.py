@@ -23,7 +23,6 @@ from operations.attendance_policy import (
 )
 from operations.models import AttendanceEntry, Session, Subject, SubjectClassAssignment
 from operations.services import class_grid as grid
-from operations.services import provisional_session as provisional
 from tests.attendance_fixtures import *  # noqa: F401,F403
 from tests.attendance_fixtures import ENROLLED, SUNDAY, _staff, at
 from tests.conftest import ClassGroupFactory, StudentEnrollmentFactory, UserFactory
@@ -92,44 +91,6 @@ def _save(client, klass, number, cells, **extra):
 
 
 # ── المفتاح: مطفأً لا شيء ──────────────────────────────────────────────────────
-
-
-def test_with_the_switch_off_every_route_is_404(
-    client_as, settings, assigned, teacher, kids, clock
-):
-    settings.PROVISIONAL_GRID_ENABLED = False
-    client = client_as(teacher)
-    assert client.get(reverse("class_grid", args=[assigned.id])).status_code == 404
-    assert _save(client, assigned, 1, [_cells(kids[0], "absent")]).status_code == 404
-    assert (
-        client.post(
-            reverse("class_grid_late", args=[assigned.id]), {"student": str(kids[0].pk)}
-        ).status_code
-        == 404
-    )
-    url = reverse("class_grid_history", args=[assigned.id, kids[0].pk, 1])
-    assert client.get(url).status_code == 404
-    assert not Session.objects.filter(provisional=True).exists()
-
-
-def test_the_provisional_picker_swaps_with_the_grid(client_as, settings, assigned, teacher, clock):
-    """تبادلٌ: المفتاحُ يشغّل الجدولَ ويُخفي المنتقي (404 للمنتقي)."""
-    client = client_as(teacher)
-    assert client.get(reverse("provisional_class", args=[assigned.id])).status_code == 404
-    assert client.get(reverse("provisional_classes")).status_code == 200
-
-
-def test_the_legacy_key_is_a_temporary_alias_until_the_new_one_is_set(settings):
-    settings.PROVISIONAL_GRID_ENABLED = False
-    settings.PROVISIONAL_GRID_ENABLED_SET = False
-    settings.PROVISIONAL_SESSIONS_ENABLED = True
-    assert (
-        provisional.enabled() is True
-        and provisional.picker_enabled() is True
-        and not provisional.grid_enabled()
-    )
-    settings.PROVISIONAL_GRID_ENABLED_SET = True  # ضُبط الجديدُ صراحةً (ولو بصفر) فلا يُقرأ المهجور
-    assert provisional.enabled() is False
 
 
 # ── العرض: لا حصّةَ عند العرض ──────────────────────────────────────────────────
@@ -324,7 +285,13 @@ def test_a_stale_expected_head_is_a_conflict_and_writes_nothing(
 
     # آخرُ يصحّح الخليّةَ أوّلاً، ثمّ يأتي طلبٌ يحمل الرأسَ القديم
     assert (
-        _save(client_as(other_teacher), assigned, 1, [_cells(kids[0], "present", head)]).status_code
+        _save(
+            client_as(other_teacher),
+            assigned,
+            1,
+            [_cells(kids[0], "present", head)],
+            reason="تصحيحٌ",
+        ).status_code
         == 200
     )
     stale = _save(first, assigned, 1, [_cells(kids[0], "late", head)])
@@ -441,17 +408,34 @@ def test_after_14_00_the_teacher_is_locked_and_the_holder_corrects_with_a_reason
     assert locked.status_code == 403 and locked.json()["reason"] == "after_window"
 
     boss = client_as(holder)
-    no_reason = _save(boss, assigned, 1, [_cells(kids[0], "present", head)])
-    assert no_reason.status_code == 403 and no_reason.json()["reason"] == "reason_required"
-    fixed = _save(
-        boss, assigned, 1, [_cells(kids[0], "present", head)], reason="وصل متأخّراً وأُثبت حضورُه"
-    )
+    # السببُ اختياريّ (قرارُ المالك 2026-10-09): يكفي كاتبُ التصحيح ووقتُه، ويُوضع سببٌ ثابتٌ إن لم يُكتب
+    fixed = _save(boss, assigned, 1, [_cells(kids[0], "present", head)])
     assert fixed.status_code == 200
-    assert AttendanceEntry.objects.filter(entered_by=holder).count() == 1
+    mine = AttendanceEntry.objects.get(entered_by=holder)
+    assert mine.correction_reason == "تعديلٌ من جدول الشعبة" and mine.entered_at
     assert AuditLog.objects.filter(object_repr="جدول الشعبة — تصحيحٌ بعد الإغلاق").exists()
 
 
 # ── الأدوار ────────────────────────────────────────────────────────────────────
+
+
+def test_the_date_is_doha_not_utc_for_the_teacher_write(
+    client_as, assigned, teacher, kids, clock, monkeypatch
+):
+    """يعادل حارسَ ملكيّة الحصّة القديم: 21:30 UTC من الأحد = 00:30 من الاثنين بالدوحة، فيومُ الأحد مضى والمعلّمُ لا يكتبه (W-20261002-026)."""
+    late = dt.datetime(2026, 9, 13, 21, 30, tzinfo=dt.UTC)
+    monkeypatch.setattr(timezone, "now", lambda: late)
+
+    response = _save(
+        client_as(teacher),
+        assigned,
+        1,
+        [_cells(kids[0], "absent")],
+        date=SUNDAY.isoformat(),
+    )
+
+    assert response.status_code == 403
+    assert not AttendanceEntry.objects.exists()
 
 
 def test_the_academic_deputy_reads_but_never_writes(client_as, school, assigned, kids, clock):
@@ -524,7 +508,7 @@ def test_the_cell_history_shows_who_wrote_and_who_corrected(
 ):
     _save(client_as(teacher), assigned, 1, [_cells(kids[0], "absent")])
     head = str(AttendanceEntry.objects.get().pk)
-    _save(client_as(holder), assigned, 1, [_cells(kids[0], "present", head)])
+    _save(client_as(holder), assigned, 1, [_cells(kids[0], "present", head)], reason="تصحيحٌ")
 
     body = (
         client_as(holder)
@@ -537,7 +521,7 @@ def test_the_cell_history_shows_who_wrote_and_who_corrected(
 def test_the_read_query_count_is_flat_in_the_number_of_students(
     client_as, school, assigned, teacher, clock
 ):
-    """عدُّ الاستعلامات ثابتٌ بعدد الطلبة: شعبةٌ بـ30 ثمّ بـ60 تُقرأ بالعدد نفسِه، وتحت حدٍّ مطلق (خطُّ أساسٍ مقيس: 32)."""
+    """عدُّ الاستعلامات ثابتٌ بعدد الطلبة: شعبةٌ بـ30 ثمّ بـ60 تُقرأ بالعدد نفسِه، وتحت حدٍّ مطلق (خطُّ أساسٍ مقيس: 36 بعد استعلام تغطية البديل)."""
 
     def measure():
         with CaptureQueriesContext(connection) as queries:
@@ -556,38 +540,10 @@ def test_the_read_query_count_is_flat_in_the_number_of_students(
     thirty = measure()
     enroll(30, 60)
     sixty = measure()
-    assert thirty == sixty and thirty <= 35, (thirty, sixty)
+    assert thirty == sixty and thirty <= 37, (thirty, sixty)
 
 
 # ── «اطفئ الشبكة»: مع المفتاح لا يُفتح كشفُ الحصّة القديم لمن يملك الجدول ───────────
-
-
-def test_with_the_switch_on_the_old_session_sheet_redirects_to_the_class_grid(
-    client_as, assigned, teacher, session, clock
-):
-    """الكشفُ القديمُ (الشبكة) `/teacher/attendance/<حصّة>/` يُحيل المعلّمَ المُسنَدَ إلى جدول شعبته."""
-    Session.objects.filter(pk=session.pk).update(teacher=teacher, class_group=assigned)
-    response = client_as(teacher).get(reverse("attendance", args=[session.id]))
-    assert response.status_code == 302
-    assert response.url == reverse("class_grid", args=[assigned.id])
-
-
-def test_with_the_switch_off_the_old_sheet_is_untouched(
-    settings, client_as, assigned, teacher, session, clock
-):
-    settings.PROVISIONAL_GRID_ENABLED = False
-    Session.objects.filter(pk=session.pk).update(teacher=teacher, class_group=assigned)
-    response = client_as(teacher).get(reverse("attendance", args=[session.id]))
-    assert response.status_code != 302 or "grid" not in response.url
-
-
-def test_a_substitute_without_an_assignment_keeps_the_old_sheet_as_a_fallback(
-    client_as, school, assigned, other_teacher, session, clock
-):
-    """بديلٌ سُلّمتْه الحصّةُ ولا إسنادَ له في الشعبة: لا جدولَ له فلا يُحال، ويبقى الكشفُ القديمُ بديلاً."""
-    Session.objects.filter(pk=session.pk).update(teacher=other_teacher, class_group=assigned)
-    response = client_as(other_teacher).get(reverse("attendance", args=[session.id]))
-    assert not (response.status_code == 302 and "grid" in response.url)
 
 
 # ── خروجُ الطالب من الفصل: بمسار ClassExit القائم، في الحصّة الجارية وقتَ الضغط ─────────
@@ -696,3 +652,126 @@ def test_a_student_corrected_to_present_can_leave(client_as, assigned, teacher, 
     _save(client, assigned, 1, [_cells(kids[0], "present", str(head))])
     response = _exit(client, assigned, kids[0], action="leave", destination="clinic")
     assert response.status_code == 200, response.content
+
+
+# ── منقولٌ من tests/test_mark_single_ownership.py (حُذف مسارُ mark_single في 21aeeecbd) بالأسماء نفسِها ──────────────
+# الحارسُ كان: «معلّمُ الحصّة وحدَه، داخل النافذة، بتوقيت الدوحة، والمطوّرُ لا يُدخل، والتدقيقُ بالقيمتين». ينتقل إلى الجدول.
+
+
+def test_the_session_teacher_marks_inside_the_window(client_as, assigned, teacher, kids, clock):
+    response = _save(client_as(teacher), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code == 200
+    row = AttendanceEntry.objects.get(student=kids[0])
+    assert (row.status, row.entered_by_id) == ("absent", teacher.id)
+
+
+def test_another_teacher_may_not_mark_a_colleagues_session(
+    client_as, assigned, other_teacher, kids, clock
+):
+    """الثغرةُ بعينها: زميلٌ يحمل attendance.mark يكتب حصّةَ غيره."""
+    response = _save(client_as(other_teacher), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code in (403, 404)
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_a_coordinator_who_is_not_the_session_teacher_may_not_mark(
+    client_as, school, assigned, kids, clock
+):
+    coordinator = _staff(school, "coordinator", "منسّق", "29000004012")
+    response = _save(client_as(coordinator), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code in (403, 404)
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_the_teacher_may_not_mark_before_the_session_starts(
+    client_as, assigned, teacher, kids, clock
+):
+    clock(7, 9)
+    response = _save(client_as(teacher), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code == 403
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_the_teacher_may_not_mark_after_the_window_closes(
+    client_as, assigned, teacher, kids, clock
+):
+    clock(14, 1)
+    response = _save(client_as(teacher), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code == 403
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_the_teacher_may_not_mark_the_next_day(client_as, assigned, teacher, kids, monkeypatch):
+    monkeypatch.setattr(timezone, "now", lambda: at(9, 0, day=SUNDAY + dt.timedelta(days=1)))
+    response = _save(
+        client_as(teacher), assigned, 1, [_cells(kids[0], "absent")], date=SUNDAY.isoformat()
+    )
+    assert response.status_code == 403
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_a_cancelled_session_may_not_be_marked(client_as, assigned, teacher, kids, clock):
+    """الحصّةُ الملغاةُ لا تُرصد: عمودٌ حصّتُه ملغاةٌ يرفضه الخادم."""
+    Session.objects.create(
+        school=assigned.school,
+        class_group=assigned,
+        teacher=teacher,
+        date=SUNDAY,
+        start_time=dt.time(7, 10),
+        end_time=dt.time(7, 55),
+        period_number=1,
+        status="cancelled",
+        provisional=True,
+    )
+    response = _save(client_as(teacher), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code != 200
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_recorders_still_mark_any_wingless_session(client_as, school, assigned, kids, clock):
+    """أهلُ الرصد غيرُ المقيَّدين بجناحٍ (النائبُ الإداريّ والمدير) يكتبون العمودَ بلا قيدِ معلّم الحصّة."""
+    for kid, (role, nid) in zip(
+        kids, (("vice_admin", "29000004021"), ("principal", "29000004023")), strict=False
+    ):
+        recorder = _staff(school, role, role, nid)
+        response = _save(client_as(recorder), assigned, 1, [_cells(kid, "present")])
+        assert response.status_code == 200, role
+
+
+def test_the_developer_may_not_mark_even_as_a_superuser(client_as, school, assigned, kids, clock):
+    """D-128م: المطوّرُ لا يُدخل ولو كان superuser."""
+    developer = _staff(school, "platform_developer", "المطوّر", "29000004030")
+    developer.is_superuser = True
+    developer.save(update_fields=["is_superuser"])
+    response = _save(client_as(developer), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code in (403, 404)
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_the_teachers_changes_are_audited_with_before_and_after(
+    client_as, assigned, teacher, kids, clock
+):
+    """رصدُ المعلّم نهائيٌّ **بتدقيقٍ كامل**: كلُّ تغييرٍ إدخالٌ مُلحَق بالقيمتين، وسجلُّ التدقيق بالمعرّفات لا الأسماء."""
+    client = client_as(teacher)
+    first = _save(client, assigned, 1, [_cells(kids[0], "absent")])
+    assert first.status_code == 200
+    head = str(AttendanceEntry.objects.get(student=kids[0]).pk)
+    _save(client, assigned, 1, [_cells(kids[0], "present", head)])
+    rows = {row.pk: row for row in AttendanceEntry.objects.filter(student=kids[0])}
+    root = next(row for row in rows.values() if row.supersedes_id is None)
+    chain = [root, next(row for row in rows.values() if row.supersedes_id == root.pk)]
+    assert [row.status for row in chain] == ["absent", "present"]
+    assert chain[1].supersedes_id == chain[0].pk
+    assert all(row.entered_by_id == teacher.id for row in chain)
+    lines = list(AuditLog.objects.filter(model_name="other", user=teacher))
+    assert lines
+    assert all(kids[0].full_name not in str(line.changes) for line in lines)
+
+
+def test_a_recorders_marking_is_not_double_audited_by_this_path(
+    client_as, school, assigned, kids, clock
+):
+    """كاتبٌ واحدٌ لكلّ إدخال: أهلُ الرصد يكتبون بإدخالٍ واحدٍ لا بإدخالين."""
+    recorder = _staff(school, "vice_admin", "النائب", "29000004031")
+    _save(client_as(recorder), assigned, 1, [_cells(kids[0], "present")])
+    assert AttendanceEntry.objects.filter(student=kids[0], entered_by=recorder).count() == 1

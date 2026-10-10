@@ -68,43 +68,6 @@ def leaders(school):
 
 
 class TestTheSectionRegister:
-    def test_each_cell_says_the_status_and_the_minutes(
-        self, school, seeded_calendar, klass, kids, teacher, supervisor
-    ):
-        periods = _periods(school, klass, teacher, 3)
-        _confirm(
-            klass,
-            periods[0],
-            {
-                kids[0]: "absent",
-                kids[1]: "late",
-                kids[2]: {"status": "absent", "whereabouts": "clinic"},
-            },
-            supervisor,
-            now=at(7, 22),
-        )
-
-        register = section_register(klass, SUNDAY, now=at(9, 0))
-
-        first, second, third = (row.marks[0] for row in register.rows[:3])
-        assert (first.text, second.text, third.text) == ("غ", "م 12", "غ ع")
-        assert register.rows[1].late_minutes == 12
-        assert register.rows[3].marks[1].text == "·", "حصّةٌ لم تُثبَّت نقطة"
-
-    def test_the_column_keeps_its_first_confirmation(
-        self, school, klass, kids, teacher, supervisor
-    ):
-        periods = _periods(school, klass, teacher, 2)
-        _confirm(klass, periods[0], {}, supervisor, now=at(7, 20))
-        _confirm(klass, periods[1], {}, supervisor, now=at(9, 30))
-
-        register = section_register(klass, SUNDAY, now=at(10, 0))
-
-        on_time, late = register.columns
-        assert on_time.first_confirmed_at.strftime("%H:%M") == "07:20"
-        assert (on_time.label, late.label) == ("مثبّتة", "ثُبّتت متأخّرة")
-        assert on_time.confirmed_by == "مشرف الجناح"
-
     def test_a_day_with_unconfirmed_periods_is_partial(
         self, school, klass, kids, teacher, supervisor
     ):

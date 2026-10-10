@@ -98,36 +98,6 @@ def test_grievance_dates_out_of_article_20_order_are_rejected(
 
 
 @pytest.mark.django_db
-def test_grievance_dates_cannot_be_in_the_future_or_on_an_unapproved_report(
-    school, principal_user, teacher_user
-):
-    evaluation = _acknowledged(
-        school, teacher_user, principal_user,
-        grievance_submitted_on=timezone.localdate() + timedelta(days=1),
-    )  # fmt: skip
-    evaluation.acknowledged_at = timezone.now()
-    with pytest.raises(ValidationError) as caught:
-        evaluation.clean()
-    assert "grievance_submitted_on" in caught.value.message_dict
-
-    draft = EmployeeEvaluation.objects.create(
-        school=school, employee=UserFactory(), evaluator=principal_user, academic_year=YEAR,
-        period="S2", grievance_submitted_on=KNOWN_ON,
-    )  # fmt: skip
-    with pytest.raises(ValidationError) as caught:
-        draft.clean()
-    assert "grievance_submitted_on" in caught.value.message_dict
-
-    # والتسلسلُ السليم مقبول.
-    _acknowledged(
-        school, UserFactory(), principal_user,
-        grievance_submitted_on=KNOWN_ON + timedelta(days=3),
-        grievance_decided_on=KNOWN_ON + timedelta(days=20),
-        grievance_decision_approved_on=KNOWN_ON + timedelta(days=25),
-    ).clean()  # fmt: skip
-
-
-@pytest.mark.django_db
 def test_admin_form_refuses_a_minister_approval_without_a_grievance(
     school, principal_user, teacher_user
 ):

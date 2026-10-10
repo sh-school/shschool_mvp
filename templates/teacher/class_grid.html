@@ -20,7 +20,18 @@
   {% page_header page.klass.short_label subtitle=page.day|date:"l j F Y" icon="attendance_register" %}
     {% callout "hint" %}الضغطةُ تضع حالةً صريحةً: غائب ثمّ حاضر. الخليّةُ الفارغةُ «لم تُرصد» ولا تُحسب غياباً، وعند حفظ عمودٍ بدأت حصّتُه تُكتب الفارغاتُ «حاضراً افتراضيّاً» بعد تأكيدك. الأحدثُ يظهر والأقدمُ في سجلّ الخليّة (اضغط اسمَ الطالب).{% endcallout %}
     {% if not page.can_write %}{% callout "info" %}للمراقبة فقط: تقرأ كلَّ الأعمدة ولا تكتب ولا تعتمد.{% endcallout %}{% endif %}
-    {% if page.correction_mode %}{% callout "warning" %}أُغلقت نافذةُ المعلّم ({{ page.closes|time:"H:i" }}): تصحيحُ المشرف بسببٍ إلزاميّ، والاعتمادُ مفتوح.{% endcallout %}{% endif %}
+    <div class="cg-headbar">
+      <nav class="flex flex-wrap gap-2" aria-label="تنقّلٌ بين الأيام">
+        <a class="btn-secondary btn-sm" href="?date={{ page.prev_day|date:'Y-m-d' }}">‹ اليومُ السابق</a>
+        {% if not page.is_today %}<a class="btn-secondary btn-sm" href="{% url 'class_grid' page.klass.id %}">اليوم</a>{% endif %}
+        <a class="btn-secondary btn-sm" href="?date={{ page.next_day|date:'Y-m-d' }}">اليومُ التالي ›</a>
+      </nav>
+      {% if page.correction_mode or page.reason_always %}
+      <div class="cg-reasonbar">{% field "reason" "سببُ التصحيح (اختياريّ)" maxlength="300" data_grid_reason=True %}</div>
+      {% endif %}
+    </div>
+    {% if page.is_future %}{% callout "info" %}يومٌ لم يأتِ بعد: عرضٌ فقط.{% endcallout %}
+    {% elif page.correction_mode %}{% callout "warning" %}{% if page.is_today %}أُغلقت نافذةُ المعلّم ({{ page.closes|time:"H:i" }}){% else %}يومٌ مضى{% endif %}: رصدُ المعلّم نهائيٌّ، وتصحيحُ المشرف يُسجَّل بكاتبه ووقته.{% endcallout %}{% endif %}
   {% endpage_header %}
 
   {% section_card "رصد الغياب بالحصّة" meta=page.rows|length icon="attendance_register" empty="لا طلبةَ مقيَّدين في هذه الشعبة" flush=True %}{% if page.rows %}
@@ -31,7 +42,7 @@
          data-save-url="{% url 'class_grid_save' page.klass.id %}"
          data-late-url="{% url 'class_grid_late' page.klass.id %}"
          data-exit-url="{% url 'class_grid_exit' page.klass.id %}"
-         data-approve-url="{% url 'class_grid_approve' page.klass.id %}"
+         data-date="{{ page.day|date:'Y-m-d' }}"
          data-draft-key="class-grid:{{ request.user.pk }}:{{ page.klass.pk }}:{{ page.day|date:'Y-m-d' }}"
          data-closes="{{ page.closes|time:'H:i' }}"
          data-correcting="{% if page.correction_mode %}1{% endif %}"
@@ -39,9 +50,6 @@
       {% csrf_token %}
       {# نموذجٌ مخفيٌّ يستدعي نافذةَ التأكيد المركزيّة (`data-confirm` في base.js) من JS الجدول — لا window.confirm #}
       <form data-grid-confirm hidden></form>
-      {% if page.correction_mode or page.reason_always %}
-      <div class="ui-note">{% field "reason" "سببُ التصحيح — إلزاميّ عند تعديل ما كتبه غيرُك أو بعد إغلاق نافذة المعلّم" required=True maxlength="300" data_grid_reason=True %}</div>
-      {% endif %}
       <div hidden data-tabs role="tablist" aria-label="الحصّة المعروضة">
         {% for col in page.columns %}
         <button type="button" class="btn-secondary btn-sm" role="tab" data-tab="{{ col.number }}" aria-selected="false">ح{{ col.number }}</button>
@@ -96,7 +104,7 @@
             </tr>
             {% endfor %}
           </tbody>
-          {% if page.can_write or page.approvable_columns %}
+          {% if page.can_write %}
           <tfoot>
             <tr>
               <th scope="row" class="cg-name">مفاتيح الحصّة</th>
@@ -109,7 +117,6 @@
                   <button type="button" class="btn-secondary btn-sm" data-bulk="all_absent" data-col="{{ col.number }}" aria-label="الكلُّ غائب في ح{{ col.number }}"{% if not col.writable %} disabled{% endif %}>الكلّ ✗</button>
                   <button type="button" class="btn-primary btn-sm" data-save-col="{{ col.number }}"{% if not col.writable %} disabled{% endif %}>حفظ</button>
                   {% endif %}
-                  {% if col.approvable %}<button type="button" class="btn-primary btn-sm" data-approve-col="{{ col.number }}" data-pending="{{ col.pending }}">اعتماد الحصّة ({{ col.pending }})</button>{% endif %}
                 </div>
               </td>
               {% endfor %}
@@ -120,7 +127,7 @@
         </table>
       </div>
       <p class="ui-note" data-grid-status role="status" aria-live="polite"></p>
-      <dialog data-history-dialog aria-label="سجلّ الخليّة"><div data-history-body></div><form method="dialog"><button class="btn-secondary btn-sm">إغلاق</button></form></dialog>
+      <dialog class="cg-dialog" data-history-dialog aria-label="سجلّ الخليّة"><div data-history-body></div><form method="dialog" class="cg-dialog__foot"><button class="btn-secondary btn-sm">إغلاق</button></form></dialog>
     </div>
     {% endif %}
   {% endif %}{% endsection_card %}

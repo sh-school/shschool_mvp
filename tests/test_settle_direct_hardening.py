@@ -32,10 +32,10 @@ def _write_all(user, school, klass, kids, status="absent", number=1):
 
 
 @pytest.fixture
-def pending(settings, school, assigned, teacher, kids, clock):
-    """ثلاثةُ إدخالاتٍ معلَّقةٍ (المفتاحُ فارغٌ وقتَ الكتابة)، ثمّ يُفعَّل المفتاحُ للتسوية."""
-    _write_all(teacher, school, assigned, kids)
-    settings.ATTENDANCE_GRID_DIRECT_WINGS = assigned.wing.code
+def pending(school, assigned, teacher, kids, clock):
+    """ثلاثةُ إدخالاتٍ معلَّقةٍ كالتي بقيت من الاعتماد القديم: الكتابةُ الفوريّةُ معطَّلةٌ وقتَ الإنشاء فلا قرارَ لها."""
+    with patch.object(attendance_entries, "_decide_directly"):
+        _write_all(teacher, school, assigned, kids)
     assert AttendanceEntry.objects.count() == 3 and not AttendanceDecision.objects.exists()
     return list(AttendanceEntry.objects.order_by("entered_at"))
 

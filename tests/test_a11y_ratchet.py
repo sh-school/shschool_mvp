@@ -150,7 +150,6 @@ class TestTheRatchetItself:
         known = ratchet.scroll_classes()
         assert {
             "table-wrap-scroll",
-            "per-grid-wrap",
             "asg-guard-scroll",
             "quality-table-scroll",
         } <= known

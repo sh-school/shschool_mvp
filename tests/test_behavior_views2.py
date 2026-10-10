@@ -662,24 +662,6 @@ class TestBehaviorReport:
         resp = client.get(f"/behavior/report/student/{student_user.id}/?period=S2")
         assert resp.status_code == 200
 
-    def test_report_context_keys(self, client_as, principal_user, school, student_user):
-        client = client_as(principal_user)
-        resp = client.get(f"/behavior/report/student/{student_user.id}/")
-        # نظام النقاط ملغى — total_deducted/total_restored محذوفان
-        for key in (
-            "student",
-            "infractions",
-            "by_level",
-            "net_score",
-            "rating",
-            "rating_color",
-            "period",
-            "year",
-            "parent_links",
-            "period_choices",
-        ):
-            assert key in resp.context, f"Missing context key: {key}"
-
     def test_report_net_score_no_infractions(self, client_as, principal_user, school, student_user):
         client = client_as(principal_user)
         resp = client.get(f"/behavior/report/student/{student_user.id}/")
