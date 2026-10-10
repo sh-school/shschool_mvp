@@ -945,3 +945,25 @@ def test_the_page_shows_the_badge_and_the_green_frame_hook(
     body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
 
     assert "الحصة الحالية" in body and 'aria-current="true"' in body
+
+
+def test_the_mobile_tab_of_the_live_column_has_a_dot_and_a_reader_text(
+    client_as, assigned, teacher, kids, clock
+):
+    clock(7, 30)
+
+    body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
+    tab = body.split('data-tab="1"', 1)[1].split("</button>", 1)[0]
+
+    assert "cg-tab__dot" in tab and "الحصة الحالية" in tab
+    assert "cg-tab__dot" not in body.split('data-tab="2"', 1)[1].split("</button>", 1)[0]
+    assert "cg-col__badge--short" in body
+
+
+def test_the_next_tab_in_the_break_is_marked_too(client_as, assigned, teacher, kids, clock):
+    clock(10, 0)
+
+    body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
+    tab = body.split('data-tab="3"', 1)[1].split("</button>", 1)[0]
+
+    assert "cg-tab__dot" in tab and "التالية" in tab

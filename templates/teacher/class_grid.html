@@ -52,7 +52,7 @@
       <form data-grid-confirm hidden></form>
       <div hidden data-tabs role="tablist" aria-label="الحصّة المعروضة">
         {% for col in page.columns %}
-        <button type="button" class="btn-secondary btn-sm" role="tab" data-tab="{{ col.number }}" aria-selected="false">ح{{ col.number }}</button>
+        <button type="button" class="btn-secondary btn-sm" role="tab" data-tab="{{ col.number }}" aria-selected="false">{% if col.state == "current" or col.is_next %}<span class="cg-tab__dot" aria-hidden="true"></span><span class="sr-only">{% if col.is_next %}التالية: {% else %}الحصة الحالية: {% endif %}</span>{% endif %}ح{{ col.number }}</button>
         {% endfor %}
       </div>
       <div class="table-wrap cg-wrap">
@@ -63,7 +63,7 @@
               {% for col in page.columns %}
               <th scope="col" class="cg-col--{{ col.state }}{% if col.is_next %} cg-col--next{% endif %}" data-col="{{ col.number }}"{% if col.state == "current" %} aria-current="true"{% endif %}>
                 <span class="cg-col__title">ح{{ col.number }}</span>
-                {% if col.state == "current" %}<span class="cg-col__badge">الحصة الحالية</span>{% elif col.is_next %}<span class="cg-col__badge">التالية</span>{% endif %}
+                {% if col.state == "current" %}<span class="cg-col__badge cg-col__badge--full">الحصة الحالية</span><span class="cg-col__badge cg-col__badge--short" aria-hidden="true">الآن</span>{% elif col.is_next %}<span class="cg-col__badge">التالية</span>{% endif %}
                 <span class="cg-col__time num">{{ col.start|time:"H:i" }}</span>
               </th>
               {% endfor %}

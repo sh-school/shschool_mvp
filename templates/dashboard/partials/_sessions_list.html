@@ -21,11 +21,11 @@
       {% if s == next_session %}
         <span class="status-badge next-session-badge">{% icon "time" %} التالية</span>
       {% endif %}
-      {% if s.status == 'completed' %}
+      {% if s.entry_state == 'none' %}{% if s.status == 'completed' %}
         <span class="status-badge status-success">{{ s.get_status_display }}</span>
       {% elif s.status == 'in_progress' %}
         <span class="status-badge status-warning">{{ s.get_status_display }}</span>
-      {% endif %}
+      {% endif %}{% endif %}
       {# حالةُ رصد الحضور في الحصّة — تغني عن وسم «تسجيل/عرض الحضور» العامّ، والصفُّ كلُّه رابطٌ إلى الرصد #}
       {% if s.entry_state == 'approved' %}
         <span class="status-badge status-success">تم الرصد</span>
