@@ -19,7 +19,7 @@ from django.utils import timezone as _tz
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from core.audit_repr import masked_repr
-from core.parents_freeze import sendable_parent_links, warn_or_frozen
+from core.parents_freeze import warn_or_frozen
 from core.permissions import (
     BEHAVIOR_COMMITTEE,
     BEHAVIOR_MANAGE,
@@ -647,35 +647,20 @@ def behavior_report(request, student_id):
 
     report = BehaviorService.get_student_report_data(student, school, period, year)
 
+    # اسمُ وليّ الأمر وإرسالُ التقرير إليه لمن يتّصل بالأسرة وحدَه (قاعدة الحاجة، W-20261005-009):
+    # من يسجّل المخالفةَ ولا يستدعي لا يُحمَّل اسمَ والدة طالب. فلا يصل القالبَ اسمٌ لغيره أصلاً.
+    can_contact_guardian = has_capability(request.user, "behavior.guardian_contact")
+    guardian_registered = report["parent_links"].exists()
+    if not can_contact_guardian:
+        report["parent_links"] = []
+
     sent_to = []
     if request.method == "POST" and request.POST.get("action") == "send":
-        from notifications.services import NotificationService
-
-        for link in sendable_parent_links(report["parent_links"]):
-            parent = link.parent
-            if parent.email:
-                body = (
-                    f"ولي أمر الطالب: {parent.full_name}\n\n"
-                    f"التقرير السلوكي للطالب: {student.full_name}\n"
-                    f"الفترة: {report['period_label']} — {year}\n\n"
-                    f"نقاط السلوك: {report['net_score']}/100 ({report['rating']})\n"
-                    f"المخالفات: {report['infractions'].count()}\n\n"
-                    f"{school.name}"
-                )
-                try:
-                    NotificationService.deliver_email(
-                        user=parent,
-                        school=school,
-                        subject=f"التقرير السلوكي — {student.full_name} — {report['period_label']}",
-                        body_text=body,
-                        student=student,
-                        notif_type="behavior",
-                        sent_by=request.user,
-                    )
-                    sent_to.append(parent.full_name)
-                except Exception as e:
-                    # [PII-11] سجّل معرّف ولي الأمر لا بريده
-                    logger.error("behavior_report: email failed for parent id=%s: %s", parent.id, e)
+        if not can_contact_guardian:
+            return forbidden_page(request, "إرسال التقرير لوليّ الأمر ليس من صلاحيّتك.")
+        sent_to = BehaviorService.email_report_to_guardians(
+            student, school, report, year, sent_by=request.user
+        )
         if sent_to:
             messages.success(request, f"تم إرسال التقرير لـ: {', '.join(sent_to)}")
         else:
@@ -690,6 +675,8 @@ def behavior_report(request, student_id):
             "year": year,
             "period": period,
             "sent_to": sent_to,
+            "can_contact_guardian": can_contact_guardian,
+            "guardian_registered": guardian_registered,
             "period_choices": PERIOD_CHOICES,
             "report_subtitle": f"{student.full_name} · {report['period_label']} · {year}",
             **report,

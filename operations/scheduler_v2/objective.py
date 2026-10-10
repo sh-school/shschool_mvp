@@ -89,6 +89,22 @@ class SoftObjective:
     def apply(self, model: cp_model.CpModel) -> None:
         model.Minimize(self.total)
 
+    def layers(self, built: object) -> list[tuple[str, object]]:
+        """طبقاتُ الهدف المعجميّ من الأعلى (W-20261003-017): المتعذّرات ← عددُ المخالفات ← درجةُ الجودة.
+
+        الأولى مجموعُ فجوات الطلب (صفرٌ ثابتٌ ما لم يُفعَّل `allow_unplaced`)؛ والثانية عددُ مخالفات القيود
+        العقابيّة غيرُ موزونٍ (المكافآتُ لا تُحسب مخالفات)؛ والثالثة الدرجةُ الموزونةُ كاملةً بمكافآتها.
+        لا تُضحَّى طبقةٌ أعلى بأدنى: يطبّق ذلك الحلُّ المتتالي في `runner.solve`.
+        """
+        from .model import unplaced_total
+
+        penalties = [self.units[k] for k in SOFT_KEYS if k not in BONUS_KEYS]
+        return [
+            ("unplaced", unplaced_total(built)),
+            ("violations", sum(penalties)),
+            ("quality", self.total),
+        ]
+
     def breakdown(self, solver: cp_model.CpSolver) -> dict[str, int]:
         """عدّادُ مخالفات كلّ قيدٍ في حلٍّ مُحقَّق — بوحدة القيد لا بعد الوزن."""
         return {k: int(solver.Value(expr)) for k, expr in self.units.items()}

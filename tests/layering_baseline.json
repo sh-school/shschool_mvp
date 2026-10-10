@@ -311,7 +311,6 @@
    "orm": 36
   },
   "behavior/views.py::behavior_report": {
-   "lines": 70,
    "orm": 18
   },
   "behavior/views.py::behavior_statistics": {
@@ -447,8 +446,8 @@
    "orm": 13
   },
   "operations/views_schedule.py::teacher_preferences": {
-   "lines": 90,
-   "orm": 13
+   "lines": 89,
+   "orm": 12
   },
   "operations/views_swap.py::compensatory_request": {
    "orm": 9

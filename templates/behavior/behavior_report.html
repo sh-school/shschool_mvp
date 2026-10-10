@@ -70,6 +70,11 @@
       <button type="submit" class="btn-primary btn-sm">{% icon "messages" %} إرسال التقرير بالبريد الإلكتروني</button>
     </form>
   {% endsection_card %}
+  {% elif guardian_registered and not can_contact_guardian %}
+  {# لا اسمَ لمن لا يتّصل بالأسرة: يكفيه أن يعلم أنّ للطالب وليَّ أمرٍ مسجَّلاً (W-20261005-009). #}
+  {% section_card "وليّ الأمر" icon="parents" %}
+    <p class="text-muted">وليّ الأمر مسجَّل</p>
+  {% endsection_card %}
   {% endif %}
 
 </div>

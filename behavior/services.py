@@ -489,6 +489,46 @@ class BehaviorService:
             return date(start_year, 9, 1), date(end_year, 6, 30), "العام الدراسي كاملاً"
 
     @staticmethod
+    def email_report_to_guardians(
+        student: CustomUser, school: School, report: dict, year: str, *, sent_by: CustomUser
+    ) -> list[str]:
+        """يرسل التقرير السلوكي بالبريد لأولياء الطالب ذوي البريد؛ يُعيد أسماء من أُرسل إليهم.
+
+        لا يُستدعى إلّا لمن يتّصل بالأسرة (``behavior.guardian_contact``)؛ والتجميدُ يُفرغ القائمة.
+        """
+        from core.parents_freeze import sendable_parent_links
+        from notifications.services import NotificationService
+
+        sent_to: list[str] = []
+        for link in sendable_parent_links(report["parent_links"]):
+            parent = link.parent
+            if not parent.email:
+                continue
+            body = (
+                f"ولي أمر الطالب: {parent.full_name}\n\n"
+                f"التقرير السلوكي للطالب: {student.full_name}\n"
+                f"الفترة: {report['period_label']} — {year}\n\n"
+                f"نقاط السلوك: {report['net_score']}/100 ({report['rating']})\n"
+                f"المخالفات: {report['infractions'].count()}\n\n"
+                f"{school.name}"
+            )
+            try:
+                NotificationService.deliver_email(
+                    user=parent,
+                    school=school,
+                    subject=f"التقرير السلوكي — {student.full_name} — {report['period_label']}",
+                    body_text=body,
+                    student=student,
+                    notif_type="behavior",
+                    sent_by=sent_by,
+                )
+                sent_to.append(parent.full_name)
+            except Exception as e:
+                # [PII-11] سجّل معرّف ولي الأمر لا بريده
+                logger.error("behavior_report: email failed for parent id=%s: %s", parent.id, e)
+        return sent_to
+
+    @staticmethod
     def get_student_report_data(
         student: CustomUser,
         school: School,

@@ -13,7 +13,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from core.capabilities import capability_required
+from core.capabilities import capability_required, schedule_developer_only
 
 from .models import ScheduleGeneration
 from .schedule_breaches import BreachesNotAcknowledgedError, acknowledged
@@ -23,6 +23,7 @@ from .services.schedule_drafts import DiscardRefusedError, discard_generation, s
 
 
 @login_required
+@schedule_developer_only("schedule.approve")
 @capability_required("schedule.settings")
 @require_POST
 def approve_schedule(request, generation_id):

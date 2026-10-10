@@ -385,12 +385,12 @@ class TeacherPreference(models.Model):
     """تفضيلات المعلم للجدولة الذكية"""
 
     #: ما تكتبه شاشةُ المعلّم الذاتيّة وحده: `save()` كاملاً يمحو بالقيمة القديمة ما عدّله مديرٌ من الأدمن
-    #: بين جلب الصفّ وحفظه — كسقف السابعة الإداريّ (W-20261003-035، شرطُ 0105).
+    #: بين جلب الصفّ وحفظه — كسقف السابعة الإداريّ (W-20261003-035، شرطُ 0105). ويومُ التفريغ قرارٌ
+    #: إداريّ لا تفضيلٌ شخصيّ (W-20261010-025)، فليس هنا ولو وصل في الطلب.
     TEACHER_EDITABLE_FIELDS = (
         "max_daily_periods",
         "max_consecutive",
         "max_gap",
-        "free_day",
         "notes",
         "updated_at",
     )
@@ -409,7 +409,16 @@ class TeacherPreference(models.Model):
         max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
     )
     max_daily_periods = models.PositiveIntegerField(default=5, verbose_name="أقصى حصص يومية")
-    max_consecutive = models.PositiveIntegerField(default=3, verbose_name="أقصى حصص متتالية")
+    #: `NULL` = السقفُ العامّ (`MAX_CONSECUTIVE`) — لا قرارَ شخصيَّ. كان الافتراضيُّ ٣ فيُنشئ `get_or_create`
+    #: في شاشة التفضيلات سقفاً شخصيّاً يتقدّم على العامّ ويُرخي HC5 لمن لم يطلب ذلك (W-20261003-037).
+    #: والقيمةُ الأعلى من العامّ تُقبل بتنبيهٍ ظاهرٍ وسجلّ تدقيقٍ عند الحفظ (`preference_capacity`).
+    max_consecutive = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="أقصى حصص متتالية",
+        help_text="فارغٌ يعني السقفَ العامّ للمدرسة — وأيُّ قيمةٍ أعلى منه تُرخي HC5 لهذا المعلّم وتُسجَّل",
+    )
     #: سقفُ السابعة الأسبوعيّ لهذا المعلّم (HC8) — `NULL` يعني السقفَ العامّ (اثنتان).
     #:
     #: **قرارٌ إداريّ في حقّ معلّمٍ لا تفضيلُه**: معلّمٌ نصابُه ١٨ على جرسٍ ثانويّ سعتُه ١٧ بسابعتين
@@ -458,6 +467,20 @@ class TeacherPreference(models.Model):
                 name="unique_teacher_schedule_pref",
             ),
         ]
+
+    @property
+    def general_run_cap(self) -> int:
+        """السقفُ العامّ للتتالي — يعرضه القالبُ بجانب الاختيار (W-20261003-037)."""
+        from operations.preference_capacity import effective_run_cap
+
+        return effective_run_cap(None)
+
+    @property
+    def run_cap_above_general(self) -> bool:
+        """أسقفُه الشخصيُّ فوق العامّ، فيُرخي HC5 له؟"""
+        from operations.preference_capacity import exceeds_general_run_cap
+
+        return exceeds_general_run_cap(self.max_consecutive)
 
     def __str__(self):
         return f"تفضيلات: {self.teacher.full_name} ({self.academic_year})"

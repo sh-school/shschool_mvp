@@ -1025,27 +1025,26 @@ def teacher_preferences(request):
         pref.max_daily_periods = _one_of(request.POST.get("max_daily_periods"), range(1, 8), 5)
         #: و«حصّةٌ واحدة» سقفٌ مشروع: أي لا حصّتين متجاورتين البتّة — وهو
         #: قيدٌ قائمٌ لمعلّمٍ في المدرسة، والمحرّكُ يقرؤه ولا يرفعه في الاسترخاء.
-        pref.max_consecutive = _one_of(request.POST.get("max_consecutive"), range(1, 8), 3)
+        pref.max_consecutive = _one_of(request.POST.get("max_consecutive"), range(1, 8), None)
         #: سقفُ الفراغ اختياريّ: الفراغُ لعامّة الكادر ترجيحٌ مرن، ومن اختار
         #: سقفاً صار في حقّه قيداً صلباً. فالفراغُ نصّاً لا يُقرأ افتراضيّاً
         #: بل يُقرأ عدماً — و«0» قيمةٌ صحيحةٌ تعني «لا فراغَ البتّة».
         max_gap = request.POST.get("max_gap", "")
         pref.max_gap = _one_of(max_gap, range(0, 6), None) if max_gap != "" else None
-        free_day = request.POST.get("free_day", "")
-        pref.free_day = _one_of(free_day, range(0, 5), None) if free_day else None
+        #: يومُ التفريغ قرارٌ إداريّ (W-20261010-025): يُقرأ من الصفّ المحفوظ ولا يُقرأ من الطلب.
         pref.notes = request.POST.get("notes", "")
 
         # قيودٌ لا تسع النصاب تُردّ بحسابها لا تُحفظ: «متتالية 1» مع «فراغ 0»
         # حصّةٌ واحدةٌ في اليوم — ومن حفظها ونصابُه اثنتا عشرةَ رأى سبعاً بلا
         # موضعٍ في التوليد ولم يعرف لماذا.
-        from operations.preference_capacity import explain_shortfall, weekly_capacity
+        from operations import preference_capacity as pc
 
         load = sum(
             SubjectClassAssignment.objects.filter(
                 school=school, academic_year=year, teacher=request.user, is_active=True
             ).values_list("weekly_periods", flat=True)
         )
-        capacity = weekly_capacity(
+        capacity = pc.weekly_capacity(
             pref.max_daily_periods, pref.max_consecutive, pref.max_gap, pref.free_day
         )
         # وقرارُ 2026-09-06: النصابُ يُقسم على الأيّام بفرقِ حصّةٍ على الأكثر،
@@ -1064,11 +1063,11 @@ def teacher_preferences(request):
         elif capacity < load:
             messages.error(
                 request,
-                explain_shortfall(request.user.full_name, capacity, load, pref) + ". لم يُحفظ.",
+                pc.explain_shortfall(request.user.full_name, capacity, load, pref) + ". لم يُحفظ.",
             )
             pref.refresh_from_db()
         else:
-            pref.save(update_fields=pref.TEACHER_EDITABLE_FIELDS)
+            pc.save_teacher_preferences(request, pref)
             messages.success(request, "تم حفظ تفضيلاتك للجدولة الذكية")
             # العامُ يبقى في الرابط: الرجوعُ بلا عامٍ يفتح تفضيلاتِ عامٍ آخر.
             return safe_redirect(request, "teacher_preferences", {"year": year})

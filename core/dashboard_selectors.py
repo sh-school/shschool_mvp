@@ -217,7 +217,8 @@ def get_teacher_ctx(user, school, today, role):
     )
     # حصصُ أعمدة جدول الشعبة مؤقّتةٌ بـ`Session.teacher` مُسنَدٍ حتميّ (W-20261006-005): ليست «حصصي» ولا «حصّتي التالية» لمن نُسبت إليه.
     sessions = sessions.exclude(provisional=True)
-    now = timezone.now().time()
+    # بتوقيت المدرسة (Asia/Qatar) لا UTC: `now()` يعطي UTC فتنحرف «الحصّة التالية» ثلاث ساعات (W-20261010-047).
+    now = timezone.localtime().time()
     next_session = next(
         (s for s in sessions if s.start_time >= now and s.status == "scheduled"), None
     )
@@ -393,7 +394,8 @@ def get_therapist_ctx(user, school, today):
         .select_related("class_group", "subject")
         .order_by("start_time")
     )
-    now = timezone.now().time()
+    # بتوقيت المدرسة (Asia/Qatar) لا UTC: `now()` يعطي UTC فتنحرف «الحصّة التالية» ثلاث ساعات (W-20261010-047).
+    now = timezone.localtime().time()
     next_session = next(
         (s for s in sessions_today if s.start_time >= now and s.status == "scheduled"),
         None,

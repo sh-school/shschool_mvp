@@ -60,7 +60,7 @@ class CapacityCheckService:
         """
         from collections import defaultdict
 
-        from operations.scheduler_constraints import get_max_periods_for_day
+        from operations.scheduling_limits import get_max_periods_for_day
 
         class_rows: dict = defaultdict(list)
         class_levels: dict = {}

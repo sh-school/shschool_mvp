@@ -584,6 +584,7 @@ class TestPageContext:
             "reviewDays",
             "health",
             "glossary",
+            "definitions",
         }
         item = data["items"][0]
         assert {

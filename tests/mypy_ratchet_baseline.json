@@ -72,7 +72,7 @@
   "notifications/push_publisher.py": 11,
   "notifications/reconciler.py": 19,
   "notifications/services.py": 4,
-  "notifications/tasks.py": 66,
+  "notifications/tasks.py": 63,
   "operations/absence_policy.py": 4,
   "operations/absence_standing.py": 10,
   "operations/bells.py": 12,
@@ -88,10 +88,11 @@
   "operations/preference_capacity.py": 1,
   "operations/schedule_feasibility.py": 5,
   "operations/schedule_lab.py": 13,
-  "operations/scheduler.py": 56,
+  "operations/scheduler.py": 23,
   "operations/scheduler_constraints.py": 6,
   "operations/scheduler_improve.py": 11,
   "operations/scheduler_tight.py": 5,
+  "operations/scheduling_inputs.py": 33,
   "operations/services/attendance.py": 3,
   "operations/services/capacity_check.py": 4,
   "operations/services/free_slot.py": 3,
@@ -120,5 +121,5 @@
   "wings/scope.py": 1,
   "wings/services.py": 14
  },
- "total": 1183
+ "total": 1180
 }
