@@ -39,6 +39,11 @@
   }
   function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); return el; }
 
+  var G = D.glossary || {};
+  var HL = D.health || {};
+  // معنى كلّ رقمٍ وشارة من مسرد roadmap/health.py::GLOSSARY (مصدرٌ واحد)؛ مفتاحٌ مجهولٌ لا تلميحَ له فلا يُكتب نصٌّ بلا معنى
+  function tip(key) { var g = G[key]; return g ? g.name + ' — ' + g.meaning : null; }
+
   var S = {
     meta: D.meta || {}, items: D.items || [], kpis: D.kpis || [], decs: D.decisions || [],
     risks: D.risks || [], cks: D.checklist || [], tab: 'ov', lane: 'all', st: 'all', src: 'all',
@@ -51,7 +56,7 @@
   var SRC = { DONE: 'منجز (أرشيف)', U: 'الخطّة الموحّدة', M: 'خطّة الجوال', VI: 'لوحة الهويّة', DBT: 'ديون', OWN: 'بنود المالك', PRP: 'مقترحات المنتج', NEW: 'مضافة من الواجهة' };
   var PILL = { ok: 'badge--success', warn: 'badge--warning', bad: 'badge--danger', idle: 'badge--neutral', accent: 'badge--accent' };
   var RULE_SECTIONS = [['rules', 'قواعد العمل'], ['dod', 'تعريف «تمّ» (DoD)'], ['crit', 'المسار الحرج'], ['win', 'نوافذ التنفيذ'],
-    ['own', 'المسؤوليّات'], ['rbk', 'التراجع والفحص بعد النشر'], ['map', 'خريطة الترقيم القديم ← الجديد'], ['srcs', 'مصادر الخارطة'], ['upd', 'كيف تُحدَّث الخارطة']];
+    ['own', 'المسؤوليّات'], ['rbk', 'التراجع والفحص بعد النشر'], ['map', 'خريطة الترقيم القديم ← الجديد'], ['srcs', 'مصادر الخارطة'], ['upd', 'كيف تُحدَّث الخارطة'], ['gloss', 'معاني الأرقام والشارات']];
   var HOW_TO_UPDATE = [
     'الحالةُ والتقدّمُ والتواريخُ: من تبويب الخريطة الزمنيّة بالنقر على أيّ بند؛ التعديلُ يُحفظ فوراً في القاعدة ويُدقَّق.',
     'المؤشّراتُ الآليّة: شغِّل scripts/measure_identity_kpis.py ثمّ أعِد الاستيرادَ: manage.py import_roadmap_snapshot <path> (لا يمسّ ما عدّلتَه هنا من حالةٍ وتقدّمٍ وتواريخَ وملاحظاتٍ وتأشيراتِ فحص؛ يحدّث المؤشّراتِ والحقولَ البنيويّة، و`--overwrite` يعيد الكلَّ إلى اللقطة).',
@@ -79,9 +84,9 @@
     var rs = reviewState(i);
     if (i.status === 'continuous') {
       // الأيقونة ↻ تُميّزه عن «قيد التنفيذ» دون اللون (WCAG 1.4.1)، والنصُّ يقول حالةَ المراجعة
-      return pill(rs === 'late' ? 'warn' : 'accent', '↻ ' + ST.continuous + ' · ' + (rs === 'late' ? 'مراجعتُه متأخّرة' : (CADENCE[i.cadence] || 'بلا إيقاع')));
+      return pill(rs === 'late' ? 'warn' : 'accent', '↻ ' + ST.continuous + ' · ' + (rs === 'late' ? 'مراجعتُه متأخّرة' : (CADENCE[i.cadence] || 'بلا إيقاع')), 'st_continuous');
     }
-    return pill(i.status === 'done' ? 'ok' : (i.status === 'blocked' ? 'bad' : (i.status === 'doing' ? 'accent' : 'idle')), ST[i.status] + (i.status === 'doing' ? ' ' + (i.progress || 0) + '%' : ''));
+    return pill(i.status === 'done' ? 'ok' : (i.status === 'blocked' ? 'bad' : (i.status === 'doing' ? 'accent' : 'idle')), ST[i.status] + (i.status === 'doing' ? ' ' + (i.progress || 0) + '%' : ''), 'st_' + i.status);
   }
   function pct(list) {
     var w = 0, s = 0;
@@ -93,15 +98,15 @@
     return l ? l.name : k;
   }
   function calc(k) {
-    if (k.current == null) return { st: 'idle', label: 'لم يُقَس', pct: null };
-    if (k.target == null) return { st: 'idle', label: 'بلا هدف', pct: null };
+    if (k.current == null) return { st: 'idle', label: 'لم يُقَس', pct: null, tip: 'kpi_unmeasured' };
+    if (k.target == null) return { st: 'idle', label: 'بلا هدف', pct: null, tip: 'kpi_notarget' };
     var base = k.baseline == null ? k.current : k.baseline;
     var span = k.dir === 'down' ? base - k.target : k.target - base;
     var gone = k.dir === 'down' ? base - k.current : k.current - base;
     var reached = k.dir === 'down' ? k.current <= k.target : k.current >= k.target;
-    if (reached) return { st: 'ok', label: 'بلغ الهدف', pct: 100 };
+    if (reached) return { st: 'ok', label: 'بلغ الهدف', pct: 100, tip: 'kpi_reached' };
     var p = span <= 0 ? 0 : Math.max(0, Math.min(100, Math.round(100 * gone / span)));
-    return { st: p > 0 ? 'warn' : 'idle', label: p > 0 ? 'في الطريق' : 'عند الأساس', pct: p };
+    return { st: p > 0 ? 'warn' : 'idle', label: p > 0 ? 'في الطريق' : 'عند الأساس', pct: p, tip: p > 0 ? 'kpi_onway' : 'kpi_base' };
   }
   function fmt(v, u) {
     if (v == null) return '–';
@@ -113,7 +118,7 @@
     if (u === 'score') return Number(v).toFixed(1);
     return String(v);
   }
-  function pill(kind, text) { return h('span', { class: 'rm-pill ' + PILL[kind], text: text }); }
+  function pill(kind, text, tipKey) { return h('span', { class: 'rm-pill ' + PILL[kind], text: text, title: tipKey ? tip(tipKey) : null }); }
   function meter(p) { return h('div', { class: 'progress-qatar' }, h('div', { class: 'progress-qatar-fill', vars: { '--progress-w': pc(p) } })); }
   function bidi(text, cls) { return h('bdi', { class: cls || null, text: text }); }
 
@@ -234,11 +239,53 @@
   }
 
   // ── الملخّص والنظرة العامّة ─────────────────────────────────────────
-  function kpiCard(label, value, tone, sub) {
-    return h('div', { class: 'ui-kpi kpi-' + tone, role: 'listitem' },
+  function kpiCard(label, value, tone, sub, tipKey, onOpen, extra) {
+    var parts = [
       h('span', { class: 'ui-kpi__label', text: label }),
       h('span', { class: 'ui-kpi__value', text: value }),
-      sub ? h('span', { class: 'ui-kpi__sub', text: sub }) : null);
+      sub ? h('span', { class: 'ui-kpi__sub', text: sub }) : null];
+    var meaning = tipKey ? tip(tipKey) : null;
+    if (meaning && extra) meaning += ' — ' + extra;
+    if (onOpen) {
+      // بطاقةٌ تفتح قائمتها: زرٌّ حقيقيٌّ داخل عنصر القائمة (لوحة المفاتيح والجوال)، لا div بنقرة
+      return h('div', { role: 'listitem' },
+        h.apply(null, ['button', { type: 'button', class: 'ui-kpi is-link kpi-' + tone, title: meaning, onclick: onOpen }].concat(parts)));
+    }
+    return h.apply(null, ['div', { class: 'ui-kpi kpi-' + tone, role: 'listitem', title: meaning }].concat(parts));
+  }
+  // العربيّةُ تفرّق: يوم، يومان، 3–10 أيّام، 11 فأكثر يوماً — فلا «منذ 1 يوماً»
+  function daysSpan(n) { return n === 0 ? 'أقلّ من يوم' : n === 1 ? 'يوم' : n === 2 ? 'يومان' : n <= 10 ? n + ' أيّام' : n + ' يوماً'; }
+  function ago(n) { return n === 0 ? 'اليوم' : n === 1 ? 'منذ يوم' : n === 2 ? 'منذ يومين' : 'منذ ' + daysSpan(n); }
+  // قراراتٌ مفتوحة: العمرُ في الخارطة (الخادم يحسبه من created_at) واللونُ بعد HL.staleDays
+  function decisionAge(d) { var a = (HL.decisionAges || {})[d.id]; return a == null ? null : a; }
+  function staleDecisions() {
+    var lim = HL.staleDays || 7;
+    return S.decs.filter(function (d) { var a = decisionAge(d); return d.status === 'open' && a != null && a >= lim; });
+  }
+  function ledgerCards() {
+    var L = HL.ledger;
+    var cards = [];
+    if (!L) {
+      cards.push(kpiCard('موجَّهةٌ بلا حامل', 'غير مقيس', 'blue', 'لا لقطةَ للدفتر', 'routed_unheld'));
+      cards.push(kpiCard('انحراف الدفتر', 'غير مقيس', 'blue', 'لا لقطةَ للدفتر', 'ledger_drift'));
+      return cards;
+    }
+    // تاريخُ اللقطة في التلميح؛ وفي السطر ما لا يُترك خافياً: أنّها قديمة
+    var when = 'لقطةُ الدفتر في ' + L.asOf + (L.stale ? ' (قديمة: ' + daysSpan(L.ageDays) + ')' : '');
+    var late = L.stale ? ' — قياسٌ قديم' : '';
+    var held = L.routedNoHolder;
+    cards.push(kpiCard('موجَّهةٌ بلا حامل', held + ' / ' + L.routed, held ? 'red' : 'green',
+      'أقدمها ' + daysSpan(L.routedOldestDays) + late, 'routed_unheld', null, when));
+    var dr = L.drift;
+    if (dr) {
+      var n = (dr.prsWithoutItem || 0) + (dr.itemsWithUnknownCard || 0);
+      cards.push(kpiCard('انحراف الدفتر', n, n ? 'amber' : 'green',
+        'طلبات ' + (dr.prsWithoutItem || 0) + ' · بنود ' + (dr.itemsWithUnknownCard || 0) + late, 'ledger_drift', null,
+        'طلباتٌ بلا بند: ' + (dr.prsWithoutItem || 0) + '، بنودٌ بلا بطاقة: ' + (dr.itemsWithUnknownCard || 0) + '، بطاقاتٌ بلا رقم طلب: ' + (dr.mergedWithoutPr || 0) + ' — ' + when));
+    } else {
+      cards.push(kpiCard('انحراف الدفتر', 'غير مقيس', 'blue', 'اللقطةُ بلا انحراف', 'ledger_drift', null, when));
+    }
+    return cards;
   }
   function renderSummary() {
     var it = S.items;
@@ -249,14 +296,26 @@
     var cont = it.filter(function (i) { return i.status === 'continuous'; });
     var contLate = cont.filter(function (i) { return reviewState(i) === 'late'; }).length;
     var owner = it.filter(function (i) { return i.gate === 'owner' && i.status !== 'done'; }).length;
-    clear($('#rm-summary')).append(
-      kpiCard('بنودٌ في الخارطة', it.length, 'maroon'),
-      kpiCard('مُغلَق', done + ' / ' + it.length, 'green', it.length ? pc(Math.round(100 * done / it.length)) : ''),
-      kpiCard('قيد التنفيذ', doing, 'blue'),
-      kpiCard('متأخّر عن موعده', overdue, 'amber'),
-      kpiCard('محجوب', blocked, 'red'),
-      kpiCard('ينتظر المالك', owner, 'purple'),
-      kpiCard('أعمالٌ مستمرّة', cont.length, contLate ? 'amber' : 'blue', contLate ? contLate + ' متأخّرة عن المراجعة' : (cont.length ? 'كلُّها في موعد مراجعتها' : '')));
+    var open = S.decs.filter(function (d) { return d.status === 'open'; }).length;
+    var stale = staleDecisions().length;
+    var noRef = HL.closedNoRef || [];
+    var archived = HL.closedNoRefArchived || 0;
+    var host = clear($('#rm-summary'));
+    [
+      kpiCard('بنودٌ في الخارطة', it.length, 'maroon', null, 'items'),
+      kpiCard('مُغلَق', done + ' / ' + it.length, 'green', it.length ? pc(Math.round(100 * done / it.length)) : '', 'done'),
+      kpiCard('قيد التنفيذ', doing, 'blue', null, 'doing'),
+      kpiCard('متأخّر عن موعده', overdue, 'amber', null, 'overdue'),
+      kpiCard('محجوب', blocked, 'red', null, 'blocked'),
+      kpiCard('ينتظر المالك', owner, 'purple', null, 'owner'),
+      kpiCard('أعمالٌ مستمرّة', cont.length, contLate ? 'amber' : 'blue',
+        contLate ? contLate + ' متأخّرة عن المراجعة' : (cont.length ? 'كلُّها في موعد مراجعتها' : ''), 'continuous'),
+      kpiCard('قراراتٌ مفتوحة', open, stale ? 'amber' : 'blue',
+        stale ? stale + ' فوق ' + (HL.staleDays || 7) + ' أيّام' : 'لا قرارَ متأخّراً', 'decisions_open'),
+      kpiCard('مُغلَق بلا مرجع', noRef.length, noRef.length ? 'red' : 'green',
+        (archived ? archived + ' في الأرشيف لا تُعدّ' : 'كلُّها بدليل'), 'closed_no_ref',
+        noRef.length ? function () { openList('مُغلَقٌ بلا مرجع', noRef); } : null)
+    ].concat(ledgerCards()).forEach(function (c) { host.append(c); });
     $('#rm-pct').textContent = pct(it);
   }
   function laneRows() {
@@ -265,7 +324,7 @@
   }
   function mkLane(x) {
     var p = pct(x.li), dn = x.li.filter(function (i) { return i.status === 'done'; }).length;
-    return h('div', { class: 'plain-list__row' },
+    return h('div', { class: 'plain-list__row', title: tip('lane') },
       h('b', { text: pc(p) }),
       h('div', { class: 'plain-list__main' }, h('span', { class: 'plain-list__title', text: x.l.name }), meter(p)),
       h('small', { text: dn + ' / ' + x.li.length }));
@@ -281,7 +340,7 @@
       h('div', { class: 'plain-list__main' },
         h('span', { class: 'plain-list__title rm-clamp', title: i.title }, bidi(i.title)),
         h('span', { class: 'plain-list__sub', text: laneName(i.lane) + ' — ' + (SRC[i.src] || '') + (i.gate === 'owner' ? ' — ينتظر المالك' : '') })),
-      pill(late ? 'bad' : 'warn', (late ? 'متأخّر ' : '') + dstr(dt(i.end))));
+      pill(late ? 'bad' : 'warn', (late ? 'متأخّر ' : '') + dstr(dt(i.end)), late ? 'soon_late' : 'soon_date'));
   }
   function mkPhase(p) {
     var a = dt(p.start), b = dt(p.end);
@@ -291,7 +350,7 @@
       h('div', { class: 'plain-list__main' },
         h('span', { class: 'plain-list__title', text: p.name }),
         h('span', { class: 'plain-list__sub rm-clamp', text: dstr(a) + ' ← ' + dstr(b) + ' — ' + (p.goal || '') })),
-      pill('idle', li.length + ' بنداً — ' + pc(pct(li))));
+      pill('idle', li.length + ' بنداً — ' + pc(pct(li)), 'phase'));
   }
 
   // ── الخريطة الزمنيّة ────────────────────────────────────────────────
@@ -562,7 +621,7 @@
     var baseTxt = k.textMode || (k.baseline == null && k.baselineText) ? (k.baselineText || '–') : fmt(k.baseline, k.unit);
     var targetTxt = k.textMode || (k.target == null && k.targetText) ? (k.targetText || '–') : (k.dir === 'down' ? '≤ ' : '≥ ') + fmt(k.target, k.unit);
     return h('article', { class: 'rm-tile' },
-      h('header', { class: 'rm-tile__head' }, h('b', { class: 'rm-code', text: k.code }), pill(c.st, c.label)),
+      h('header', { class: 'rm-tile__head' }, h('b', { class: 'rm-code', text: k.code }), pill(c.st, c.label, c.tip)),
       h('h3', { class: 'rm-tile__title rm-clamp', title: k.name }, bidi(k.name)),
       h('dl', { class: 'rm-vals' },
         h('div', null, h('dt', { text: 'الأساس' }), h('dd', null, bidi(baseTxt))),
@@ -578,8 +637,11 @@
     Object.keys(DS).forEach(function (s) { sel.append(h('option', { value: s, text: DS[s], selected: s === d.status })); });
     var date = h('input', { type: 'date', class: 'form-control form-control-sm', value: d.date || '', 'data-rm-id': d.id, 'data-rm-field': 'date', 'aria-label': 'تاريخ حسم ' + d.id, onchange: function (e) { save('decision', d.id, { date: e.target.value || null }, 'date'); } });
     var txt = (d.blocks || d.options || '');
+    var age = d.status === 'open' ? decisionAge(d) : null;
     return h('article', { class: 'rm-tile' },
-      h('header', { class: 'rm-tile__head' }, h('b', { class: 'rm-code', text: d.id }), pill(d.status === 'open' ? 'warn' : (d.status === 'decided' ? 'ok' : 'idle'), DS[d.status] || d.status)),
+      h('header', { class: 'rm-tile__head' }, h('b', { class: 'rm-code', text: d.id }),
+        pill(d.status === 'open' ? 'warn' : (d.status === 'decided' ? 'ok' : 'idle'), DS[d.status] || d.status, 'dc_' + d.status),
+        age == null ? null : pill(age >= (HL.staleDays || 7) ? 'warn' : 'idle', ago(age), 'decision_age')),
       h('h3', { class: 'rm-tile__title rm-clamp', title: d.title }, bidi(d.title)),
       txt ? h('p', { class: 'rm-clamp', title: txt }, bidi(txt)) : null,
       d.recommendation ? h('p', { class: 'rm-clamp rm-muted', title: d.recommendation }, 'التوصية: ', bidi(d.recommendation)) : null,
@@ -588,7 +650,7 @@
   }
   function mkRisk(r) {
     return h('article', { class: 'rm-tile' },
-      h('header', { class: 'rm-tile__head' }, h('b', { class: 'rm-code', text: r.id }), pill('warn', 'احتمال ' + r.prob), pill('bad', 'أثر ' + r.impact)),
+      h('header', { class: 'rm-tile__head' }, h('b', { class: 'rm-code', text: r.id }), pill('warn', 'احتمال ' + r.prob, 'risk_prob'), pill('bad', 'أثر ' + r.impact, 'risk_impact')),
       h('h3', { class: 'rm-tile__title rm-clamp', title: r.risk }, bidi(r.risk)),
       h('p', { class: 'rm-clamp rm-muted', title: r.mitigation }, 'التخفيف: ', bidi(r.mitigation)));
   }
@@ -609,6 +671,7 @@
     if (k === 'own') return (m.ownership || []).map(function (r) { return r[0] + ' — ' + r[1] + ': ' + r[2]; });
     if (k === 'map') return (m.mapping || []).map(function (r) { return r[0] + ' ← ' + r[1]; });
     if (k === 'upd') return HOW_TO_UPDATE;
+    if (k === 'gloss') return Object.keys(G).map(function (x) { return G[x].name + ' — ' + G[x].meaning; });
     return (m[{ rules: 'rules', dod: 'dod', crit: 'criticalPath', win: 'windows', rbk: 'rollback', srcs: 'sources' }[k]] || []);
   }
   function mkRule(t, i) {
