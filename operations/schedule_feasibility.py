@@ -348,8 +348,9 @@ def _bell_rows(school: School, day_type: str, memo: dict | None) -> dict[str, li
     from .models import TimeSlotConfig
 
     key = ("rows", day_type)
-    if memo is not None and key in memo:
-        return memo[key]
+    cached: dict[str, list] | None = memo.get(key) if memo is not None else None
+    if cached is not None:
+        return cached
     grouped: dict[str, list] = defaultdict(list)
     for band_id, start, end, number in TimeSlotConfig.objects.filter(
         school=school, day_type=day_type, is_break=False
@@ -378,8 +379,9 @@ def _band_day_cap(
     الحصصَ بلا نظرٍ إلى تلاصقها (`_check_teachers` أعلاه).
     """
     result_key = (band_ids, day_type, skip_period)
-    if memo is not None and result_key in memo:
-        return memo[result_key]
+    known: int | None = memo.get(result_key) if memo is not None else None
+    if known is not None:
+        return known
     rows = _bell_rows(school, day_type, memo)
     intervals: set[tuple[time, time]] = set()
     for band_id in band_ids or {""}:
