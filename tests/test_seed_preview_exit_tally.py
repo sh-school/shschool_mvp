@@ -69,3 +69,26 @@ def test_seeding_is_idempotent_and_leaves_the_last_student_without_exits(
     assert rows.count() == 3
     assert sorted(r.exit_count for r in rows) == [1, 1, 3]
     assert not rows.filter(student=kids[-1]).exists()
+
+
+def test_a_class_too_small_to_show_every_case_is_skipped(school, assigned, teacher, kids, subject):
+    from tests.conftest import ClassGroupFactory
+
+    small = ClassGroupFactory(
+        school=school, academic_year=assigned.academic_year, grade=1, section="A"
+    )
+    SubjectClassAssignment.objects.create(
+        school=school,
+        class_group=small,
+        subject=subject,
+        teacher=teacher,
+        weekly_periods=2,
+        academic_year=assigned.academic_year,
+    )
+    StudentEnrollmentFactory(
+        student=UserFactory(national_id="29000009991"), class_group=small, enrolled_at=ENROLLED
+    )
+    teacher.employee_number = EMPLOYEE_NUMBERS["teacher"]
+    teacher.save(update_fields=["employee_number"])
+    Command().seed(school, THURSDAY)
+    assert DailyExitTally.objects.filter(date=THURSDAY).count() == 3

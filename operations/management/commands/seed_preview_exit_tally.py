@@ -39,6 +39,12 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--school", default="", help="رمزُ المدرسة (الأولى النشطة إن حُذف)")
+        parser.add_argument(
+            "--class",
+            dest="class_id",
+            default="",
+            help="معرّفُ الشعبة (الافتراضيّ أوّلُ شعبةٍ للمعلّم فيها 4 طلبةٍ فأكثر)",
+        )
         parser.add_argument("--date", default="", help="YYYY-MM-DD (الافتراضيّ آخرُ يومِ دوام)")
 
     def handle(self, *args, **options):
@@ -57,34 +63,38 @@ class Command(BaseCommand):
             )
         except ValueError as exc:
             raise CommandError("تاريخٌ غير صالح") from exc
-        self.stdout.write(self.seed(school, day))
+        self.stdout.write(self.seed(school, day, options["class_id"]))
 
-    def seed(self, school: School, day: dt.date) -> str:
+    def seed(self, school: School, day: dt.date, class_id: str = "") -> str:
         teacher = CustomUser.objects.filter(employee_number=EMPLOYEE_NUMBERS["teacher"]).first()
         if teacher is None:
             return "لا معلّمَ وهميّ"
-        assignment = (
-            SubjectClassAssignment.objects.filter(
-                school=school,
-                teacher=teacher,
-                academic_year=academic_year_for_school(school),
-                is_active=True,
-                deleted_at__isnull=True,
-            )
-            .select_related("class_group")
-            .order_by("class_group__grade", "class_group__section")
-            .first()
-        )
-        if assignment is None:
-            return "لا إسنادَ للمعلّم الوهميّ"
-        students = [
-            e.student
-            for e in StudentEnrollment.objects.filter(
-                class_group=assignment.class_group, is_active=True
-            )
-            .select_related("student")
-            .order_by("student__full_name")[: len(CASES)]
-        ]
+        assignments = SubjectClassAssignment.objects.filter(
+            school=school,
+            teacher=teacher,
+            academic_year=academic_year_for_school(school),
+            is_active=True,
+            deleted_at__isnull=True,
+        ).select_related("class_group")
+        if class_id:
+            assignments = assignments.filter(class_group_id=class_id)
+        students: list[CustomUser] = []
+        klass = None
+        # أوّلُ شعبةٍ فيها طلبةٌ يكفون للحالات الأربع (الأخيرُ بلا خروج) — الشعبةُ الصغيرةُ تُخفي الحالات.
+        for assignment in assignments.order_by("class_group__grade", "class_group__section"):
+            roster = [
+                e.student
+                for e in StudentEnrollment.objects.filter(
+                    class_group=assignment.class_group, is_active=True
+                )
+                .select_related("student")
+                .order_by("student__full_name")
+            ]
+            if len(roster) > len(CASES) or class_id:
+                students, klass = roster[: len(CASES)], assignment.class_group
+                break
+        if klass is None:
+            return "لا شعبةَ للمعلّم الوهميّ فيها طلبةٌ يكفون"
         for student, (count, seconds, detail) in zip(students, CASES, strict=False):
             DailyExitTally.objects.update_or_create(
                 student=student,
@@ -96,4 +106,4 @@ class Command(BaseCommand):
                     "by_destination": detail,
                 },
             )
-        return f"زُرع الخروج لـ{len(students)} طالباً في {assignment.class_group.short_label} بتاريخ {day}"
+        return f"زُرع الخروج لـ{len(students)} طالباً في {klass.short_label} بتاريخ {day}"
