@@ -135,6 +135,30 @@ def check_complexity():
     return (FAIL, out) if out else (OK, "")
 
 
+#: حرّاسُ الهويّة النصّيّة: تقرأ الأنماطَ والقوالبَ نصّاً بلا قاعدةٍ ولا خادم (لا django_db) — فتعمل محلّياً في ثوانٍ.
+IDENTITY_GUARDS = (
+    "tests/test_css_colours_are_tokens.py",
+    "tests/test_px_tokens.py",
+    "tests/test_design_tokens_resolve.py",
+    "tests/test_css_layers.py",
+    "tests/test_css_split.py",
+    "tests/test_identity_reference_fresh.py",
+)
+IDENTITY_PATHS = ("static/", "templates/", "core/icons.py", "core/templatetags/ui.py", "docs/design/page_layouts.md")
+
+
+def check_identity():
+    """W-20261011-001: حرّاسُ الهويّة كانت تسقط في CI وحدَه لأنّ هذا الفحص لا يشغّلها. تُشغَّل إن لمس العملُ الواجهة."""
+    files, _ = _files_to_scan(False)
+    if not any(f.startswith(IDENTITY_PATHS) for f in files):
+        return OK, "لا واجهة تغيّرت — تخطّي"
+    # --noconftest و-p no:django: الحرّاسُ نصّيّةٌ ولا تحتاج بيئةَ Django (conftest يستورد مكتبات المشروع).
+    proc = _run([sys.executable, "-m", "pytest", *IDENTITY_GUARDS, "-q", "-p", "no:cacheprovider", "-p", "no:django", "--noconftest", "--no-header"])
+    if proc.returncode != 0 and "No module named pytest" in proc.stderr:
+        return MISSING, "pytest غير مثبَّت"
+    return (OK, "") if proc.returncode == 0 else (FAIL, _tail(proc, 25))
+
+
 def check_types():
     proc = _run([sys.executable, "-m", "tests.mypy_ratchet"], env=MYPY_ENV)
     if proc.returncode != 0 and "ModuleNotFoundError" in proc.stderr:
@@ -157,6 +181,7 @@ def main(argv: list[str] | None = None) -> int:
         ("detect-secrets", lambda: check_secrets(args.all_files)),
         ("التعقيد الحلقي (CC ≥ 31)", check_complexity),
     ]
+    checks.append(("حرّاس الهويّة النصّيّة", check_identity))
     if args.types:
         checks.append(("mypy ratchet", check_types))
 
