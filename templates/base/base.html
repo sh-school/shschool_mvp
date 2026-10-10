@@ -665,6 +665,9 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"teacher_load_report" %}
   <a href="{% url 'teacher_load_report' %}">{% icon "workload" %} تقرير أعباء المعلمين</a>
   {% endif %}
+  {% if request.user|can_open:"teacher_preferences_overview" %}
+  <a href="{% url 'teacher_preferences_overview' %}">{% icon "settings" %} تفضيلات المعلّمين</a>
+  {% endif %}
   </div>
 </div>
 

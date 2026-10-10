@@ -510,6 +510,16 @@ def registry() -> dict[str, Capability]:
             },
             scope="تفضيلاتُه هو",
         ),
+        _cap(
+            "schedule.preferences_view",
+            "اطّلاعٌ على تفضيلات المعلّمين في الجدول",
+            {"principal", "vice_academic", "coordinator"},
+            scope="المدير والنائب الأكاديميّ: المدرسة؛ منسّق المادّة: قسمُه",
+            basis=(
+                "قرارُ المالك D-330م (W-20261010-026): قراءةٌ بلا تعديل؛ التعديلُ يبقى لصاحب "
+                "التفضيل بـ`schedule.preferences` التي لا تُوسَّع"
+            ),
+        ),
         _cap("schedule.settings", "إعداداتُ الجدول والتفريغات", P.SCHEDULE_SETTINGS),
         _cap("schedule.admin", "إعدادُ الجدول الإداريّ", P.SCHEDULE_ADMIN),
         _cap("schedule.manage", "توزيعاتُ الموادّ", P.SCHEDULE_MANAGE),
