@@ -9,7 +9,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 from .scheduler_constraints import MAX_CONSECUTIVE
+
+if TYPE_CHECKING:
+    from django.http import HttpRequest
 
 LAST_PERIOD = 7
 WEEK_DAYS = 5
@@ -22,10 +27,10 @@ def effective_run_cap(max_consecutive: int | None) -> int:
 
 def exceeds_general_run_cap(max_consecutive: int | None) -> bool:
     """أيُرخي السقفُ الشخصيُّ HC5 لصاحبه؟ — أعلى من العامّ."""
-    return bool(max_consecutive) and max_consecutive > MAX_CONSECUTIVE
+    return max_consecutive is not None and max_consecutive > MAX_CONSECUTIVE
 
 
-def record_run_cap_above_general(request, pref, channel: str) -> None:
+def record_run_cap_above_general(request: HttpRequest, pref: Any, channel: str) -> None:
     """تنبيهٌ ظاهرٌ وأثرٌ مدقَّق حين يُحفظ سقفٌ شخصيٌّ فوق العامّ — قبولٌ لا رفض (توصيةُ 0301، 10-10).
 
     الأثرُ قيمتان ومعرّفُ الصفّ والقناةُ (شاشةُ المعلّم أو الأدمن) — لا اسمُ المعلّم (PDPPL).
@@ -53,6 +58,13 @@ def record_run_cap_above_general(request, pref, channel: str) -> None:
             "general": MAX_CONSECUTIVE,
         },
     )
+
+
+def save_teacher_preferences(request: HttpRequest, pref: Any) -> None:
+    """حفظُ شاشة المعلّم: الحقولُ التي يحرّرها وحدَها، وسقفٌ فوق العامّ يُنبَّه إليه ويُسجَّل."""
+    pref.save(update_fields=pref.TEACHER_EDITABLE_FIELDS)
+    if exceeds_general_run_cap(pref.max_consecutive):
+        record_run_cap_above_general(request, pref, "teacher_preferences")
 
 
 def daily_capacity(
@@ -102,7 +114,7 @@ def weekly_capacity(
     return total
 
 
-def explain_shortfall(name: str, capacity: int, load: int, pref) -> str:
+def explain_shortfall(name: str, capacity: int, load: int, pref: Any) -> str:
     """جملةٌ تقول الحسابَ لا الحكمَ وحدَه — ليعرف صاحبُها أيَّ رقمٍ يغيّر."""
     parts = [f"يومي {pref.max_daily_periods}", f"متتالية {effective_run_cap(pref.max_consecutive)}"]
     if pref.max_gap is not None:

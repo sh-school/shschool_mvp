@@ -21,7 +21,7 @@
       <div class="form-group">
         <label class="form-label" for="max_consecutive">أقصى حصص متتالية</label>
         <select name="max_consecutive" id="max_consecutive" class="form-control">
-          <option value="" {% if pref.max_consecutive is None %}selected{% endif %}>السقف العام للمدرسة — {% if general_run_cap == 1 %}حصة واحدة، لا تجاور{% else %}{{ general_run_cap }} حصص{% endif %} (الافتراضي)</option>
+          <option value="" {% if pref.max_consecutive is None %}selected{% endif %}>السقف العام للمدرسة — {% if pref.general_run_cap == 1 %}حصة واحدة، لا تجاور{% else %}{{ pref.general_run_cap }} حصص{% endif %} (الافتراضي)</option>
           {% for v in periods %}
           <option value="{{ v }}" {% if pref.max_consecutive == v %}selected{% endif %}>
             {% if v == 1 %}حصة واحدة — لا تجاور{% else %}{{ v }} حصص{% endif %}
@@ -31,8 +31,8 @@
         <p class="ui-field-hint">
           أقصى عدد حصص متتالية بلا استراحة بينها. و«حصة واحدة» تعني ألّا تقع لك حصتان متجاورتان إطلاقاً.
         </p>
-        {% if run_cap_above_general %}
-        {% callout "warning" %}سقفُك الشخصي ({{ pref.max_consecutive }}) أعلى من السقف العام ({{ general_run_cap }}): يُرخي قيد التلاصق لك وحدَك في التوليد، وقد سُجّل هذا الاختيار. اترك الخانة على «السقف العام» لتعود إليه.{% endcallout %}
+        {% if pref.run_cap_above_general %}
+        {% callout "warning" %}سقفُك الشخصي ({{ pref.max_consecutive }}) أعلى من السقف العام ({{ pref.general_run_cap }}): يُرخي قيد التلاصق لك وحدَك في التوليد، وقد سُجّل هذا الاختيار. اترك الخانة على «السقف العام» لتعود إليه.{% endcallout %}
         {% endif %}
       </div>
 

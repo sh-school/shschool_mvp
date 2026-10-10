@@ -1011,14 +1011,6 @@ def _mark_teacher_loads(data: dict) -> None:
 @capability_required("schedule.preferences")
 def teacher_preferences(request):
     """صفحة تفضيلات المعلم للجدولة الذكية"""
-    from operations.preference_capacity import (
-        exceeds_general_run_cap,
-        explain_shortfall,
-        record_run_cap_above_general,
-        weekly_capacity,
-    )
-    from operations.scheduler_constraints import MAX_CONSECUTIVE
-
     school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     pref, _created = TeacherPreference.objects.get_or_create(
@@ -1033,7 +1025,6 @@ def teacher_preferences(request):
         pref.max_daily_periods = _one_of(request.POST.get("max_daily_periods"), range(1, 8), 5)
         #: و«حصّةٌ واحدة» سقفٌ مشروع: أي لا حصّتين متجاورتين البتّة — وهو
         #: قيدٌ قائمٌ لمعلّمٍ في المدرسة، والمحرّكُ يقرؤه ولا يرفعه في الاسترخاء.
-        #: وتركُه فارغاً (الافتراضُ) يعني السقفَ العامّ — لا قرارَ شخصيَّ يُرخي HC5 (W-20261003-037).
         pref.max_consecutive = _one_of(request.POST.get("max_consecutive"), range(1, 8), None)
         #: سقفُ الفراغ اختياريّ: الفراغُ لعامّة الكادر ترجيحٌ مرن، ومن اختار
         #: سقفاً صار في حقّه قيداً صلباً. فالفراغُ نصّاً لا يُقرأ افتراضيّاً
@@ -1047,12 +1038,14 @@ def teacher_preferences(request):
         # قيودٌ لا تسع النصاب تُردّ بحسابها لا تُحفظ: «متتالية 1» مع «فراغ 0»
         # حصّةٌ واحدةٌ في اليوم — ومن حفظها ونصابُه اثنتا عشرةَ رأى سبعاً بلا
         # موضعٍ في التوليد ولم يعرف لماذا.
+        from operations import preference_capacity as pc
+
         load = sum(
             SubjectClassAssignment.objects.filter(
                 school=school, academic_year=year, teacher=request.user, is_active=True
             ).values_list("weekly_periods", flat=True)
         )
-        capacity = weekly_capacity(
+        capacity = pc.weekly_capacity(
             pref.max_daily_periods, pref.max_consecutive, pref.max_gap, pref.free_day
         )
         # وقرارُ 2026-09-06: النصابُ يُقسم على الأيّام بفرقِ حصّةٍ على الأكثر،
@@ -1071,14 +1064,12 @@ def teacher_preferences(request):
         elif capacity < load:
             messages.error(
                 request,
-                explain_shortfall(request.user.full_name, capacity, load, pref) + ". لم يُحفظ.",
+                pc.explain_shortfall(request.user.full_name, capacity, load, pref) + ". لم يُحفظ.",
             )
             pref.refresh_from_db()
         else:
-            pref.save(update_fields=pref.TEACHER_EDITABLE_FIELDS)
+            pc.save_teacher_preferences(request, pref)
             messages.success(request, "تم حفظ تفضيلاتك للجدولة الذكية")
-            if exceeds_general_run_cap(pref.max_consecutive):
-                record_run_cap_above_general(request, pref, "teacher_preferences")
             # العامُ يبقى في الرابط: الرجوعُ بلا عامٍ يفتح تفضيلاتِ عامٍ آخر.
             return safe_redirect(request, "teacher_preferences", {"year": year})
 
@@ -1106,9 +1097,6 @@ def teacher_preferences(request):
             "load": load,
             "min_daily": needed,
             "year": year,
-            #: سقفٌ شخصيٌّ فوق العامّ يبقى مرئيّاً في الصفحة لا عند الحفظ وحده (W-20261003-037).
-            "run_cap_above_general": exceeds_general_run_cap(pref.max_consecutive),
-            "general_run_cap": MAX_CONSECUTIVE,
         },
     )
 

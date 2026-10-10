@@ -468,6 +468,20 @@ class TeacherPreference(models.Model):
             ),
         ]
 
+    @property
+    def general_run_cap(self) -> int:
+        """السقفُ العامّ للتتالي — يعرضه القالبُ بجانب الاختيار (W-20261003-037)."""
+        from operations.preference_capacity import effective_run_cap
+
+        return effective_run_cap(None)
+
+    @property
+    def run_cap_above_general(self) -> bool:
+        """أسقفُه الشخصيُّ فوق العامّ، فيُرخي HC5 له؟"""
+        from operations.preference_capacity import exceeds_general_run_cap
+
+        return exceeds_general_run_cap(self.max_consecutive)
+
     def __str__(self):
         return f"تفضيلات: {self.teacher.full_name} ({self.academic_year})"
 
