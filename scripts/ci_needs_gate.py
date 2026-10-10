@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from pathlib import Path
 
 KNOWN_EVENTS = {"push", "pull_request", "merge_group", "workflow_dispatch", "schedule"}
 KNOWN_RESULTS = {"success", "failure", "cancelled", "skipped"}
@@ -52,12 +53,55 @@ def judge(
     return rows, failures
 
 
+# خطواتٌ إن سقطت فالعطلُ في البنية لا في الشيفرة: تجهيزُ الوظيفة وسحبُ الحاويات (سقف Docker Hub، 2026-10-09)
+# وإقلاعُ postgres الأصليّ. تسميةٌ فقط — الحكمُ يبقى FAIL، ولا تُخفَّف البوّابة.
+INFRA_STEPS = {"Set up job", "Initialize containers", "Run ./.github/actions/native-postgres"}
+
+
+def infra_failures(jobs_json: str | None) -> list[str]:
+    """أسماءُ الوظائف التي سقطت في خطوةِ بنيةٍ (من `gh api .../actions/runs/<id>/jobs`)؛ فارغةٌ إن لم يتوفّر البيان."""
+    if not jobs_json or not jobs_json.strip():
+        return []
+    try:
+        payload = json.loads(jobs_json)
+    except ValueError:
+        return []
+    jobs = payload.get("jobs", []) if isinstance(payload, dict) else []
+    names = []
+    for job in jobs:
+        if not isinstance(job, dict) or job.get("conclusion") != "failure":
+            continue
+        failed = [
+            st.get("name") for st in job.get("steps", []) if st.get("conclusion") == "failure"
+        ]
+        if failed and all(name in INFRA_STEPS for name in failed):
+            names.append(str(job.get("name")))
+    return sorted(names)
+
+
+MAX_JOBS_FILE_BYTES = 8 * 1024 * 1024  # أكبرُ من هذا يُهمَل: التمييزُ تسميةٌ لا تُسقط الحكم
+
+
+def infra_failures_from_file(path: str | None) -> list[str]:
+    """كـ`infra_failures` لكن من ملفٍ (لا من متغيّر بيئة: حدُّ Linux للسلسلة الواحدة 128 كيلوبايت)؛ يصمت إن غاب أو كبر."""
+    if not path:
+        return []
+    try:
+        file = Path(path)
+        if not file.is_file() or file.stat().st_size > MAX_JOBS_FILE_BYTES:
+            return []
+        return infra_failures(file.read_text(encoding="utf-8"))
+    except OSError:
+        return []
+
+
 def run(
     needs_json: str | None,
     event: str | None,
     title: str,
     summary_path: str | None,
     exempt: dict[tuple[str, str], str] | None = None,
+    infra: list[str] | None = None,
 ) -> int:
     exempt = EXEMPT if exempt is None else exempt
     if not needs_json or not needs_json.strip():
@@ -83,6 +127,12 @@ def run(
         for (ev, job), reason in sorted(exempt.items())
         if ev == event and any(r[0] == job and r[2] == "EXEMPT" for r in rows)
     ]
+    if infra:
+        lines += [
+            "",
+            "**فشلُ بنيةٍ تحتيّة (لا اختبارات فاشلة) — أعد تشغيل الوظائف الفاشلة:** "
+            + "، ".join(infra),
+        ]
     text = "\n".join(lines)
     print(text)
     if summary_path:
@@ -107,6 +157,7 @@ def main() -> int:
         title,
         os.environ.get("GITHUB_STEP_SUMMARY"),
         exempt,
+        infra_failures_from_file(os.environ.get("INFRA_JOBS_FILE")),
     )
 
 

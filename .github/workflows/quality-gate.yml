@@ -39,29 +39,6 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4, 5]
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB:       test_db
-          POSTGRES_USER:     test_user
-          POSTGRES_PASSWORD: test_pass
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
       SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
@@ -88,6 +65,12 @@ jobs:
         run: python3 scripts/ci_docs_only.py classify "$BASE_SHA" >> "$GITHUB_OUTPUT" || echo "docs_only=false" >> "$GITHUB_OUTPUT"
 
       # على طلبٍ وثائقيٍّ لا يعمل إلّا shard 1 («قرّاءُ الوثائق»)؛ فلا تُجهَّز البيئةُ في 2–5 هدراً (مراجعة 0105).
+      # postgres 16 الأصليّ على الـrunner بدل حاويةٍ تُسحب من Docker Hub (سقفُ السحب أسقط الفحوصَ 2026-10-09)
+      - uses: ./.github/actions/native-postgres
+        if: steps.diff.outputs.docs_only != 'true' || matrix.shard == 1
+        with:
+          redis: "true"  # tests/test_channel_layer_redis_integration.py يحتاج redis حقيقياً
+
       - uses: actions/setup-python@v7
         if: steps.diff.outputs.docs_only != 'true' || matrix.shard == 1
         with:
@@ -323,20 +306,6 @@ jobs:
     name: مدقّق الهجرات — Expand/Contract
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB:       test_db
-          POSTGRES_USER:     test_user
-          POSTGRES_PASSWORD: test_pass
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
       SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
@@ -349,6 +318,9 @@ jobs:
           # التاريخُ كاملاً: `--git-commit-id` يقارن بفرع الأساس، وهو أسلافُ
           # رأس الفرع أصلاً (طلبُ الدمج/طابورُ الدمج) — لا حاجةَ لجلبٍ إضافيّ.
           fetch-depth: 0
+
+      # postgres 16 الأصليّ على الـrunner بدل حاويةٍ تُسحب من Docker Hub (سقفُ السحب أسقط الفحوصَ 2026-10-09)
+      - uses: ./.github/actions/native-postgres
 
       - uses: actions/setup-python@v7
         with:
@@ -789,6 +761,9 @@ jobs:
   gate-summary:
     name: ملخص بوابة الجودة
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read  # لقراءة خطوات وظائف التشغيل (تمييز فشل البنية)
     needs: [pytest-shards, test-coverage, fast-guards, ruff, mypy, migration-linter, complexity, secrets-scan, deploy-window, axe-a11y, e2e]
     if: always()
     steps:
@@ -798,6 +773,19 @@ jobs:
       # تنتهي `success` — `skipped` و`cancelled` فشلٌ إلّا الإعفاءَ المعلَّلَ في جدول السكربت (حدثٌ + مهمّةٌ +
       # skipped فقط). مهمّةٌ تُضاف إلى needs تُحكم بلا تعديل هذه الخطوة؛ ويفرض tests/test_ci_gate_needs.py
       # أن تُذكر كلُّ مهمّةٍ في needs أو في قائمة إعفاءٍ معلَّلة.
+      # تمييزُ فشل البنية (تجهيزُ الوظيفة/سحبُ الحاويات/postgres الأصليّ) من فشل الشيفرة: تسميةٌ في الملخّص فقط،
+      # والحكمُ لا يتغيّر. لا تفشل هذه الخطوةُ أبداً (بلا البيان يُحكم كما كان).
+      - name: بيانُ خطوات الوظائف (لتمييز فشل البنية)
+        id: jobs
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # ملفٌّ لا متغيّرُ بيئة: ردُّ الوظائف قد يقارب حدَّ Linux للسلسلة الواحدة (128 كيلوبايت) فتسقط الخطوةُ التاليةُ
+        # بسبب التمييز نفسه؛ ولا فاصلَ ثابتَ في $GITHUB_ENV يُحقَن من اسم وظيفة.
+        run: |
+          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?per_page=100" > "$RUNNER_TEMP/jobs.json" || rm -f "$RUNNER_TEMP/jobs.json"
+          echo "INFRA_JOBS_FILE=$RUNNER_TEMP/jobs.json" >> "$GITHUB_ENV"
+
       - name: حكمُ بوابة الجودة
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
