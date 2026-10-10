@@ -73,8 +73,29 @@
     stopNote.textContent = text;
     stopNote.hidden = !text;
   }
+  // نافذةُ التأكيد = نافذةُ المنصّة المركزيّة (`base.js`، مالكةُ `data-confirm`): نموذجٌ مخفيٌّ بنصّ التأكيد يُرسَل برمجيّاً، فتظهر
+  // النافذةُ المصمَّمةُ بهويّة المنصّة (لا `window.confirm` الأصليّ)، وعند «تأكيد» يعود الإرسالُ إلى هنا فننفّذ المؤجَّل (كما class-grid.js).
+  var gate = $('stop-confirm');
+  var pending = null;
+  if (gate) {
+    gate.addEventListener('submit', function (event) {
+      if (!gate._confirmed) return;           // الإرسالُ الأوّل: تعترضه نافذةُ المنصّة
+      event.preventDefault();                 // الإرسالُ المؤكَّد: ننفّذ ما أُجِّل ولا نُرسل النموذج
+      var next = pending; pending = null;
+      // بعد أن يُسقط base.js علَمَ التأكيد (setTimeout 0): تنفيذٌ فوريٌّ يجعل تأكيداً ثانياً متداخلاً يمرّ بلا نافذة.
+      if (next) window.setTimeout(next, 30);
+    });
+  }
+  function confirmThen(message, next) {
+    if (!gate) return;                        // بلا نافذةٍ لا يُرسَل شيءٌ (لا تأكيدَ ضمنيّ)
+    pending = next;
+    gate.setAttribute('data-confirm', message);
+    gate.requestSubmit();
+  }
   function requestStop() {
-    if (!window.confirm('إيقافُ التوليد الآن؟ يُحفظ أفضلُ حلٍّ وُجد حتى الآن مسودّةً لتراجعها.')) return;
+    confirmThen('إيقافُ التوليد الآن؟ يُحفظ أفضلُ حلٍّ وُجد حتى الآن مسودّةً لتراجعها.', sendStop);
+  }
+  function sendStop() {
     stopBtn.disabled = true;
     fetch(stopBtn.dataset.url, {
       method: 'POST',
