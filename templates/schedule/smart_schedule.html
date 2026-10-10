@@ -141,7 +141,7 @@
           <div><dt>قيمة الهدف (الأقلّ أفضل)</dt><dd data-gp="objective">—</dd></div>
           <div><dt>الفجوة عن الحدّ الأدنى</dt><dd data-gp="gap">—</dd></div>
         </dl>
-        {% if pending_is_v2 %}
+        {% if pending_generation.is_v2 %}
         {% comment %}الإيقافُ المبكّر (W-20261010-002): POST إلى schedule_v2_stop فيقف الحلّالُ ويُحفظ أفضلُ حلٍّ مسودّةً؛ يُعطَّل حتى يوجد حلّ، ويبقى زرُّ V1 (الذي يُضيّع الحلول) محجوباً عن صفوف V2.{% endcomment %}
         <div class="gen-progress__actions">
           <button type="button" class="btn-danger btn-xs" data-gp="stop" data-url="{% url 'schedule_v2_stop' pending_generation.id %}" data-csrf="{{ csrf_token }}" disabled title="لا حلَّ مُوجَداً بعد — لا شيء يُحفظ">إيقاف مبكر (يحتفظ بأفضل حلّ)</button>
@@ -289,7 +289,7 @@
             {% endif %}
             {% elif g.status == "approved" %}
             <a href="{% url 'weekly_schedule' %}?year={{ year }}" class="btn-secondary btn-xs">الجدول الحيّ</a>
-            {% elif g.is_pending and pending_is_v2 and g.pk == pending_generation.pk %}
+            {% elif g.is_pending and pending_generation.is_v2 and g.pk == pending_generation.pk %}
             <span class="text-xs text-muted">الإيقاف المبكر من لوحة التقدّم أعلاه</span>
             {% elif g.is_pending %}
             <form method="post" action="{% url 'stop_schedule_generation' g.id %}" data-confirm="إيقافُ التوليد الجاري؟ يقف عند أقرب حدٍّ آمن ولا يُكتب منه شيء، ثمّ تحذفه من السجلّ." class="gen-inline-form">

@@ -94,7 +94,11 @@ def _reap_stale_generations(school, year):
             "غالباً لأنّ Celery متوقّف. راجع تشغيلَه ثمّ أعد المحاولة."
         ),
     )
-    return pending.filter(generated_at__gte=cutoff).first()
+    alive = pending.filter(generated_at__gte=cutoff).first()
+    if alive is not None:
+        #: توليدُ V2 الجاري: الصفحةُ تعرض له الإيقافَ المبكّر لا إيقافَ V1 المُضيِّع (W-20261010-002).
+        alive.is_v2 = is_v2_running(alive)
+    return alive
 
 
 def _safe_schedule_settings_redirect(request, fallback_year=None):
@@ -756,7 +760,6 @@ def smart_schedule_view(request):
             "assignments_count": len(assignments),
             "generations": generations,
             "pending_generation": pending_generation,
-            "pending_is_v2": bool(pending_generation and is_v2_running(pending_generation)),
             # زرُّ الاعتماد لمن يملكه: كان يظهر لكلّ من يرى الصفحةَ، و`admin`
             # يضغطه فيُصدَم بـ403.
             "can_approve": _may_decide_schedule(request.user),
