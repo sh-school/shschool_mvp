@@ -284,19 +284,28 @@ def get_teacher_ctx(user, school, today, role):
 
     if role == "coordinator":
         ctx["view_type"] = "coordinator"
-        ctx["coord_pending_swaps"] = TeacherSwap.objects.filter(
-            school=school, status__in=["accepted_b", "pending_coordinator"]
-        ).count()
-        ctx["coord_pending_comp"] = CompensatorySession.objects.filter(
-            school=school, status="pending"
-        ).count()
-        # يعدّ غائبي قسمه وحده: القائمةُ التي تفتحها النقرةُ محصورةٌ في قسمه، وكان
-        # العدّادُ يعدّ المدرسةَ كلَّها فيقول «5» وتفتح صفّين.
-        absent_today = TeacherAbsence.objects.filter(school=school, date=today)
+        # كلُّ عدّادٍ يعدّ ما تفتحه نقرتُه لهذا المنسّق: قسمَه لا المدرسة (W-20261010-043)، بالشرط نفسِه الذي
+        # تُصفّي به القائمةُ (`swap_list` / `CompensatoryService.listing`) — ومن دون قسمٍ (`set()`) لا شيء.
+        # والقدرةُ بجانب كلّ عدّاد: swap.approve لتبديلاتٍ تنتظر اعتماده، compensatory.approve للتعويضات،
+        # operations.daily_absence لغياب معلّمي قسمه. ونطاقُها القسمُ (`get_department_teacher_ids`).
         dept_ids = get_department_teacher_ids(user)
+        swaps = TeacherSwap.objects.filter(
+            school=school, status__in=["accepted_b", "pending_coordinator"]
+        )
+        comps = CompensatorySession.objects.filter(school=school, status="pending")
+        absent_today = TeacherAbsence.objects.filter(school=school, date=today)
         if dept_ids is not None:
+            swaps = swaps.filter(Q(teacher_a_id__in=dept_ids) | Q(teacher_b_id__in=dept_ids))
+            comps = comps.filter(Q(teacher_id__in=dept_ids) | Q(colleague=user))
+            # يعدّ غائبي قسمه وحده: القائمةُ التي تفتحها النقرةُ محصورةٌ في قسمه.
             absent_today = absent_today.filter(teacher_id__in=dept_ids)
-        ctx["coord_absent_today"] = absent_today.count()
+        ctx["coord_pending_swaps"] = swaps.count() if has_capability(user, "swap.approve") else 0
+        ctx["coord_pending_comp"] = (
+            comps.count() if has_capability(user, "compensatory.approve") else 0
+        )
+        ctx["coord_absent_today"] = (
+            absent_today.count() if has_capability(user, "operations.daily_absence") else 0
+        )
 
     return ctx
 
