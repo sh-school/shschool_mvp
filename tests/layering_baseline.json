@@ -729,7 +729,7 @@
    "orm": 7
   },
   "student_affairs/views.py::transfer_create": {
-   "orm": 11
+   "orm": 6
   },
   "student_affairs/views.py::transfer_list": {
    "orm": 6

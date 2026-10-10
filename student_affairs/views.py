@@ -1000,14 +1000,11 @@ def transfer_create(request):
                 memberships__school=school,
                 memberships__is_active=True,
             )
+            from .selectors import active_class
             from .services import StudentService, TransferService
 
             internal = cd["direction"] == "internal"
-            target = None
-            if internal:
-                target = ClassGroup.objects.filter(
-                    id=cd["to_class_group_id"], school=school, is_active=True
-                ).first()
+            target = active_class(school, cd["to_class_group_id"]) if internal else None
             transfer = StudentTransfer(
                 school=school,
                 student=student,
@@ -1038,29 +1035,9 @@ def transfer_create(request):
 
 def _transfer_form_response(request, school, form):
     """عرضُ نموذج الطلب: كلُّ طالبٍ بصفّه وشعبته، وكلُّ شعبةٍ نشطةٍ هدفاً للانتقال الداخليّ."""
-    students = list(
-        Membership.objects.filter(school=school, role__name="student", is_active=True)
-        .select_related("user")
-        .order_by("user__full_name")
-    )
-    # قيدُ كلّ طالبٍ الحاليّ بلا استعلامٍ لكلّ سطر
-    current = {}
-    for enrollment in (
-        StudentEnrollment.objects.filter(
-            student_id__in=[m.user_id for m in students],
-            class_group__school=school,
-            is_active=True,
-        )
-        .select_related("class_group")
-        .newest_first()
-    ):
-        current.setdefault(enrollment.student_id, enrollment.class_group)
-    for membership in students:
-        klass = current.get(membership.user_id)
-        membership.class_grade = klass.grade if klass else ""
-        membership.class_id = klass.pk if klass else ""
-        membership.class_label = klass.short_label if klass else "بلا شعبة"
-    classes = ClassGroup.objects.filter(school=school, is_active=True)
+    from .selectors import transfer_form_options
+
+    students, classes = transfer_form_options(school)
     return render(
         request,
         "student_affairs/transfer_form.html",

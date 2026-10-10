@@ -6,7 +6,7 @@ from typing import Any
 
 from django.db.models import Exists, OuterRef, Q
 
-from core.models.academic import ParentStudentLink, StudentEnrollment
+from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment
 from core.models.access import Membership
 from core.models.user import CustomUser
 from core.phone_search import phone_holder_ids
@@ -106,3 +106,34 @@ def attach_guardian_phones(page: Any) -> Any:
     for m in page:
         m.guardian_phone = phones.get(m.guardian_parent_id, "")
     return page
+
+
+def transfer_form_options(school: Any) -> tuple[list, Any]:
+    """خياراتُ نموذج الانتقال: كلُّ طالبٍ بصفّه وشعبته (استعلامٌ واحدٌ للقيود)، وكلُّ شعبةٍ نشطةٍ هدفاً داخليّاً."""
+    students = list(
+        Membership.objects.filter(school=school, role__name="student", is_active=True)
+        .select_related("user")
+        .order_by("user__full_name")
+    )
+    current: dict = {}
+    for enrollment in (
+        StudentEnrollment.objects.filter(
+            student_id__in=[m.user_id for m in students],
+            class_group__school=school,
+            is_active=True,
+        )
+        .select_related("class_group")
+        .newest_first()
+    ):
+        current.setdefault(enrollment.student_id, enrollment.class_group)
+    for membership in students:
+        klass = current.get(membership.user_id)
+        membership.class_grade = klass.grade if klass else ""
+        membership.class_id = klass.pk if klass else ""
+        membership.class_label = klass.short_label if klass else "بلا شعبة"
+    return students, ClassGroup.objects.filter(school=school, is_active=True)
+
+
+def active_class(school: Any, class_id: Any) -> Any:
+    """الشعبةُ النشطة في المدرسة بمعرّفها، أو `None`."""
+    return ClassGroup.objects.filter(id=class_id, school=school, is_active=True).first()
