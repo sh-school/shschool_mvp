@@ -143,17 +143,28 @@ def test_the_script_stops_at_the_first_failure():
 FORBIDDEN = [
     r"\bgit\s+(push|checkout|switch|stash|clean|merge|rebase|pull|commit|add|branch\s+-D)\b",
     r"\brm\s+-\w*r",
-    r"\bdocker\s+(rm|rmi|stop|kill|system|network|volume|image\s+rm|container\s+prune)\b",
+    # `docker rm -f "$FRONT"` وحدَه مستثنى (واجهةُ المعاينة نفسُها)، والشبكةُ إنشاءٌ وفحصٌ لا حذف.
+    r"\bdocker\s+(rm|rmi|stop|kill|system|volume|image\s+rm|container\s+prune)\b",
+    r"\bdocker\s+network\s+(rm|prune|disconnect)\b",
     r"prune",
     r"DROP\s+DATABASE",
 ]
+
+
+def _allowed_front_removal(line: str) -> bool:
+    """إزالةُ واجهة المعاينة نفسِها (`docker rm -f "$FRONT"`) مسموحةٌ: هي حاويةُ هذا السكربت لا لغيره."""
+    return bool(re.search(r'docker\s+rm\s+-f\s+"\$FRONT"', line))
 
 
 @pytest.mark.parametrize("pattern", FORBIDDEN)
 def test_the_script_never_pushes_switches_or_deletes(pattern):
     """عقدُ الأمان: تكتب المعاينةُ في `main-preview` وقاعدتِها وحدَهما — لا تدفع، ولا تبدّل فرعاً
     (رأسُ المستودع مشتركٌ بين الجلسات)، ولا تحذف قاعدةً أو شجرةً أو حاويةً أو حجماً."""
-    offenders = [line for line in _code_lines() if re.search(pattern, line)]
+    offenders = [
+        line
+        for line in _code_lines()
+        if re.search(pattern, line) and not _allowed_front_removal(line)
+    ]
 
     assert not offenders, offenders
 
@@ -312,3 +323,59 @@ def test_production_itself_is_untouched_by_the_preview_module():
     backend, flags = result.stdout.strip().splitlines()
     assert backend == "storages.backends.s3boto3.S3Boto3Storage"
     assert flags == "True True sessionid"
+
+
+# ── أزرق/أخضر (W-20261010-051): لا انقطاع عند التطبيق الدوريّ ──────────────────────
+# كان `compose up --force-recreate` على المشروع القائم نفسِه يُوقف 8500 نحو دقيقتين (هجرة ← collectstatic ← daphne)
+# في كلّ تطبيقٍ دوريّ، أثناء معاينة المالك (بلاغه الثالث 2026-10-10).
+
+
+def _function_body(name: str) -> str:
+    text = SCRIPT.read_text(encoding="utf-8")
+    match = re.search(rf"^{name}\(\) \{{.*?^\}}", text, re.S | re.M)
+    assert match, f"لا دالّة {name}"
+    return match.group(0)
+
+
+def test_no_apply_recreates_the_serving_project_in_place():
+    """إعادةُ الإنشاء القسريّة تقع في الدالّة الوحيدة bluegreen_up وعلى مشروع الخانة الفارغة، لا على القائم."""
+    lines = [line for line in _code_lines() if "--force-recreate" in line]
+
+    assert len(lines) == 1, lines
+    assert lines[0] in _function_body("bluegreen_up")
+    assert '"$SLOT_PROJECT"' in _function_body("bluegreen_up")
+
+
+@pytest.mark.parametrize("name", ["deploy_main", "deploy_pin"])
+def test_every_apply_path_goes_through_the_blue_green_swap(name):
+    body = _function_body(name)
+
+    assert "bluegreen_up" in body
+    assert "up -d" not in body
+
+
+def test_the_front_switches_with_a_graceful_reload_and_a_failed_new_slot_keeps_the_old_one():
+    body = _function_body("bluegreen_up")
+    front = _function_body("front_point")
+
+    assert "nginx -s reload" in front
+    # الجديدُ لا يُوجَّه إليه قبل صحّته، وسقوطُه يُزيله ويُبقي القائم
+    assert body.index("wait_web") < body.index("front_point")
+    assert "return 1" in body[body.index("wait_web") :]
+    assert "down --remove-orphans" in body
+
+
+def test_the_apply_is_deferred_while_someone_is_viewing():
+    sync = _function_body("cmd_sync")
+
+    assert "owner_recent" in sync
+    assert "RECENT_SECONDS" in _function_body("owner_recent")
+    # الفحصُ الصحّيّ والثابتُ لا يُعدّان معاينةً
+    assert "/health/" in _function_body("owner_recent")
+
+
+def test_both_slots_share_one_network_so_the_address_pool_is_not_exhausted(compose):
+    default = compose["networks"]["default"]
+
+    assert default["external"] is True
+    assert "PREVIEW_NETWORK" in default["name"]

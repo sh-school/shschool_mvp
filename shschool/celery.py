@@ -188,3 +188,10 @@ if os.environ.get("ATTENDANCE_SWEEP_BEAT", "") == "1":
             day_of_week="0-4",
         ),
     }
+
+# تنبيها المعلّم «خارج لم يعد» و«حصّة بلا رصد» (W-20261010-042): **مُعطَّلان افتراضياً** كالمسح أعلاه، يُفعَّلان بـTEACHER_ALERTS_BEAT=1 بأمر المالك.
+# وحدتُهما خارج `tasks.py` (سقفُ الحجم) فتُكتشف هنا بالاسم.
+app.autodiscover_tasks(["notifications"], related_name="teacher_alerts")
+from notifications.teacher_alerts_beat import teacher_alerts_beat  # noqa: E402
+
+app.conf.beat_schedule.update(teacher_alerts_beat())

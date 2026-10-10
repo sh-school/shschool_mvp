@@ -83,12 +83,6 @@
           {% if load %}نصابُك <b>{{ load }}</b> حصة{% if min_daily %} — فأدنى رقمٍ يحتمله نصابُك عادةً <b>{{ min_daily }}</b>{% endif %}.{% endif %}
         </p>
       </div>
-
-      <div class="form-group">
-        <span class="form-label">يوم التفريغ</span>
-        <p><b id="free_day_readonly">{{ pref.get_free_day_display|default:"لا يوجد يوم تفريغ محدَّد" }}</b></p>
-        <p class="ui-field-hint">يوم التفريغ قرارٌ إداريّ تحدّده الإدارة وفق حاجة الجدول، فلا يُغيَّر من هذه الصفحة. إن احتجتَ تعديله فراجع منسّق الجدول أو الإدارة.</p>
-      </div>
     {% endsection_card %}
   </div>
 
