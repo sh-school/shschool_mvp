@@ -5,6 +5,7 @@
 """
 
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -50,7 +51,7 @@ def _breach_open_stage_deadlines(breach: "BreachReport") -> list[tuple[str, Any]
     return stages
 
 
-def breach_alert_events(breach: "BreachReport", now) -> list[dict[str, Any]]:
+def breach_alert_events(breach: "BreachReport", now: datetime) -> list[dict[str, Any]]:
     """تنبيهاتُ هذه اللحظة للخرق: صفرٌ أو أكثر، واحدٌ لكلّ مرحلةٍ مفتوحةٍ بلغت عتبتَها.
 
     العتبةُ مفتاحٌ يُكتب في الإشعار فلا تتكرّر: `pre` (داخل نافذة ما قبل الموعد)، `due` (أوّلُ 24 ساعةً
@@ -234,8 +235,14 @@ def notify_breach_in_app(
 
 
 def send_breach_alert(
-    breach, hours_left, overdue=False, *, stage="ncsa", threshold=None, days_late=0
-):
+    breach: "BreachReport",
+    hours_left: float | None,
+    overdue: bool = False,
+    *,
+    stage: str = "ncsa",
+    threshold: str | None = None,
+    days_late: int = 0,
+) -> None:
     """تنبيه الخرق: داخل المنصّة أوّلاً (لا يحتاج مزوّداً)، ثمّ بالبريد لمهلة NCSA وحدَها.
 
     إخطارُ الأفراد واستكمالُ الإشعار داخل المنصّة فقط: نصُّ البريد القائم خاصٌّ بإشعار NCSA.
