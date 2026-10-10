@@ -8,12 +8,15 @@ from core.models import ClassGroup, CustomUser, School
 from core.models.base import AuditedModel
 from core.querysets import YearScopedQuerySet
 
-from ..last_period_cap import MAX_PERSONAL_LAST, MIN_PERSONAL_LAST
+from ..last_period_cap import MAX_PERSONAL_LAST
 
 #: مدى سقف الأولى الشخصيّ (HC22): من العامّ (اثنتان) إلى خمسٍ، أي أولى كلَّ يومٍ في الأسبوع.
 #: وما دون العامّ لا يُقبل: السقفُ الشخصيّ للأولى يرفع ولا يُضيّق (قرارُ المالك 2026-10-09).
 MIN_PERSONAL_FIRST = 2
 MAX_PERSONAL_FIRST = 5
+#: مدى إدخال سقف السابعة الشخصيّ (HC8) في النموذج والأدمن: من العامّ (اثنتان) إلى خمس كسقف الأولى (قرارُ المالك
+#: 2026-10-10). وهو حدٌّ للإدخال وحده: قراءةُ المولّد (`personal_last_cap`) على حالها فما خُزّن قبله لا يتغيّر أثرُه.
+MIN_ADMIN_LAST = 2
 from .common import _uuid
 
 
@@ -432,9 +435,9 @@ class TeacherPreference(models.Model):
     max_last_periods = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
-        validators=[MinValueValidator(MIN_PERSONAL_LAST), MaxValueValidator(MAX_PERSONAL_LAST)],
+        validators=[MinValueValidator(MIN_ADMIN_LAST), MaxValueValidator(MAX_PERSONAL_LAST)],
         verbose_name="أقصى سابعات أسبوعيّاً",
-        help_text="قرارٌ إداريّ في حقّ هذا المعلّم — فارغٌ يعني السقفَ العامّ (اثنتان)",
+        help_text="قرارٌ إداريّ في حقّ هذا المعلّم: أقصى عدد حصص السابعة في الأسبوع، من 2 إلى 5 — فارغٌ يعني السقفَ العامّ (اثنتان)",
     )
     #: سقفُ الحصّة الأولى الأسبوعيّ لهذا المعلّم (HC22) — `NULL` يعني السقفَ العامّ (اثنتان).
     #:
@@ -446,7 +449,7 @@ class TeacherPreference(models.Model):
         blank=True,
         validators=[MinValueValidator(MIN_PERSONAL_FIRST), MaxValueValidator(MAX_PERSONAL_FIRST)],
         verbose_name="أقصى حصص أولى أسبوعيّاً",
-        help_text="قرارٌ إداريّ في حقّ هذا المعلّم — فارغٌ يعني السقفَ العامّ (اثنتان)",
+        help_text="قرارٌ إداريّ في حقّ هذا المعلّم: أقصى عدد الحصص الأولى في الأسبوع، من 2 إلى 5 — فارغٌ يعني السقفَ العامّ (اثنتان)",
     )
     #: أوسعُ فراغٍ يُقبل بين حصّتين في اليوم الواحد — بعدد الحصص الفارغة.
     #:

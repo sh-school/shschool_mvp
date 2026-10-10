@@ -271,3 +271,48 @@ def test_a_missing_teacher_row_is_counted_not_created(school, tmp_path):
 
     assert "بلا صفّ تفضيل=1" in output
     assert not TeacherPreference.objects.filter(teacher=teacher).exists()
+
+
+# ── سقف السابعة: المدى نفسه 2–5 إدخالاً لا قراءةً (قرارُ المالك 10-10) ─────
+
+
+@pytest.mark.parametrize("value, ok", [(1, False), (2, True), (5, True), (6, False)])
+def test_the_seventh_cap_range_is_the_same_two_to_five(school, value, ok):
+    pref = _pref(school, UserFactory().pk)
+    pref.max_last_periods = value
+
+    if ok:
+        pref.full_clean(exclude=["teacher", "school"])
+    else:
+        with pytest.raises(ValidationError):
+            pref.full_clean(exclude=["teacher", "school"])
+
+
+def test_the_admin_refuses_a_seventh_cap_outside_the_range(client, superuser, school):
+    pref = _pref(school, UserFactory().pk)
+    client.force_login(superuser)
+
+    _admin_post(client, pref, school, max_last_periods=1)
+    pref.refresh_from_db()
+    assert pref.max_last_periods is None
+
+    _admin_post(client, pref, school, max_last_periods=3)
+    pref.refresh_from_db()
+    assert pref.max_last_periods == 3
+
+
+def test_the_help_text_states_the_range_and_the_meaning(school):
+    for name in ("max_last_periods", "max_first_periods"):
+        text = TeacherPreference._meta.get_field(name).help_text
+        assert "من 2 إلى 5" in text and "فارغٌ يعني السقفَ العامّ" in text
+
+
+def test_a_value_stored_before_the_range_is_not_rewritten_and_is_read_as_before(school):
+    """الحدُّ للإدخال وحده: ما خُزّن (1) لا يُعدَّل ولا يتغيّر أثرُه في المولّد."""
+    from operations.last_period_cap import personal_last_cap
+
+    pref = _pref(school, UserFactory().pk)
+    TeacherPreference.objects.filter(pk=pref.pk).update(max_last_periods=1)
+
+    pref.refresh_from_db()
+    assert pref.max_last_periods == 1 and personal_last_cap(pref.max_last_periods) == 1
