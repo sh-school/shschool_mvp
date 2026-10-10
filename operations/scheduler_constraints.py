@@ -20,6 +20,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from .first_period_cap import (  # noqa: F401  (تُصدَّر من هنا لمن استوردها منه)
+    FIRST_PERIOD,
+    MAX_FIRST_PERIODS,
+    check_first_period_share,
+)
 from .last_period_cap import personal_last_cap
 from .scheduler_bell import (  # noqa: F401  (تُصدَّر من هنا لمن استوردها منه)
     DOUBLE_PERIOD_GAP_MINUTES,
@@ -708,6 +713,8 @@ def _refusals(
         yield "HC7"
     if not waived("HC8") and not check_last_period_share(grid, period, task):
         yield "HC8"
+    if not waived("HC22") and not check_first_period_share(grid, period, task):
+        yield "HC22"
     if not check_resource_capacity(grid, day, period, task):
         yield "HC9"
     if not waived("HC11") and not check_resource_level_homogeneity(grid, day, period, task):
