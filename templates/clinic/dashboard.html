@@ -14,6 +14,9 @@
     {% if request.user|can_open:"clinic:record_visit" %}
     <a href="{% url 'clinic:record_visit' %}" class="btn-primary btn-sm">{% icon "add" %} تسجيل زيارة</a>
     {% endif %}
+    {% if request.user|can_open:"clinic:needs_care_import" %}
+    <a href="{% url 'clinic:needs_care_import' %}" class="btn-secondary btn-sm">{% icon "document" %} علامة المراعاة</a>
+    {% endif %}
     <a href="{% url 'clinic:statistics' %}" class="btn-secondary btn-sm">{% icon "stats" %} الإحصائيات</a>
     <a href="{% url 'clinic:visits_list' %}" class="btn-secondary btn-sm">{% icon "document" %} السجلات</a>
   {% endpage_header %}
