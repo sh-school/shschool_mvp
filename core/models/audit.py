@@ -410,7 +410,7 @@ class BreachReport(models.Model):
         )
 
     @property
-    def individuals_hours_remaining(self):
+    def individuals_hours_remaining(self) -> int | None:
         """الساعاتُ المتبقّية لإخطار الأفراد — للواجب إخطارُهم ولم يُخطَروا وحدَهم."""
         if self.individuals_status == "required" and self.individuals_deadline:
             delta = self.individuals_deadline - timezone.now()
@@ -418,7 +418,7 @@ class BreachReport(models.Model):
         return None
 
     @property
-    def individuals_overdue(self):
+    def individuals_overdue(self) -> bool:
         return bool(
             self.individuals_status == "required"
             and self.individuals_deadline
@@ -426,7 +426,7 @@ class BreachReport(models.Model):
         )
 
     @property
-    def ncsa_completion_overdue(self):
+    def ncsa_completion_overdue(self) -> bool:
         """إشعارٌ مبدئيٌّ فات موعدُ استكماله المعلَن ولم يكتمل."""
         return bool(
             self.ncsa_notice_stage == "initial"
