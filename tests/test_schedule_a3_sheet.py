@@ -372,3 +372,39 @@ class TestTheHeaderIsCentredAndStaysInItsBand:
             ), f"سطرٌ غيرُ موسَّط: {left:.1f}–{right:.1f}"
         # الترويسةُ ضمن الهامش العلويّ: هامشٌ 6مم + ترويسةٌ 30مم (core/print_frame) — لا يعلو سطرٌ منها أوّلَ الجدول
         assert max(line[3] for line in lines) <= 6 + 30 + 0.5
+
+
+class TestTheKeyLineIsCountedSoTheSheetStaysOne:
+    """W-20261010-049 (قياس 0422 على بيانات 8500): تفريغٌ ملوَّنٌ أو ملحقٌ إداريّ يُظهران سطرَ المفتاح (9pt) ولم تكن `a3_metrics` تحسبه فخرجت الورقةُ ثانيةً."""
+
+    @pytest.mark.parametrize("mode", ["dots", "annex", "dots_annex"])
+    def test_a_key_line_keeps_one_page_even_with_the_worst_notes(self, world, staff, mode):  # noqa: F811
+        staff(teachers=72, per_teacher=12)
+        ctx = schedule_print_payload(
+            world["school"],
+            world["principal"],
+            QueryDict("view=all_teachers&source=plan&paper=a3&orient=landscape"),
+        )
+        if "dots" in mode:
+            ctx["has_colored_exemptions"] = True
+        if "annex" in mode:
+            ctx["matrix"][0]["specialty"] = "الرياضيات"
+        ctx["has_legend"] = True
+        ctx["nav"] = {**ctx["nav"], "notes": WORST_NOTES}
+        ctx["embed"] = True
+        ctx["for_pdf"] = True
+        pdf = render_pdf_bytes(
+            render_to_string("schedule/print_schedule.html", ctx), paper_size="A3"
+        )
+
+        pages, smallest, _ = _facts(pdf)
+
+        assert pages == 1, f"سطرُ المفتاح ({mode}) مع {len(WORST_NOTES)} ملاحظات كسر الصفحةَ"
+        assert smallest >= a3_metrics(len(WORST_NOTES), True)["pt"] - 0.05
+
+    def test_the_legend_only_shrinks_the_font_a_little(self):
+        assert a3_metrics(0, False)["pt"] == A3_SHEET_PT
+        assert a3_metrics(0, True)["pt"] < A3_SHEET_PT
+        assert (
+            a3_metrics(3, True)["pt"] >= A3_SHEET_PT - 0.8
+        ), "التصغيرُ طفيفٌ حتّى بالمفتاح وأسوأ الملاحظات"

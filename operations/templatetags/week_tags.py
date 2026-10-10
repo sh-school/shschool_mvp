@@ -120,11 +120,13 @@ _BASE_PT = 7.9  # الخطُّ الذي قيست عليه الثوابتُ (ت1)
 _GAP_AT_BASE_MM = 8.64
 _TABLE_FOLLOWING_FONT_MM = 212.0
 _NOTE_LINE_MM = 3.6
+#: سطرُ المفتاح (9pt + هامشٌ علويّ 1مم) أسفل الجدول حين يوجد تفريغٌ ملوَّنٌ أو حصصٌ محوَّلةٌ أو ملحقٌ إداريّ (W-20261010-049: بدونه تخرج الورقةُ ثانيةً)
+_LEGEND_LINE_MM = 4.4
 _SAFETY_MM = 1.0
 
 
 @register.simple_tag
-def a3_metrics(note_lines: Any = 0) -> dict[str, Any]:
+def a3_metrics(note_lines: Any = 0, legend: Any = 0) -> dict[str, Any]:
     """مقاييسُ ورقة A3 من `A3_SHEET_PT`: الخطُّ والحشوُ العلويُّ وارتفاعُ السطر (لتوسيط الرمز) وعرضا القسم والنصاب.
 
     مقيسةٌ عند 7.9pt (ت1) وتتناسب مع الخطّ: سطرٌ 1.05×الخطّ، وإزاحةُ التوسيط 0.42مم (حشوٌ علويٌّ ضعفُها ونقصٌ مثلُه من السطر فيبقى ارتفاعُ الصفّ
@@ -132,6 +134,8 @@ def a3_metrics(note_lines: Any = 0) -> dict[str, Any]:
 
     **أسبوعٌ بملاحظات** (`nav.notes`: أيّامٌ مغلقةٌ/من الخطّة/حصصٌ بلا رقم — حتّى ثلاثةُ أسطر): كلُّ سطرٍ 3.6مم يأكل من فراغ المتن، فيُصغَّر الخطُّ بقدر ما يلزم
     (مع هامشِ أمانٍ 1مم) كي تبقى الورقةُ واحدةً أيّاً كان الأسبوع — لا خطّاً واحداً يكسر الصفحةَ في أسابيع الإغلاق.
+
+    **سطرُ المفتاح** (`legend` صادقٌ حين يظهر): يأكل `_LEGEND_LINE_MM` هو الآخر؛ وكان غيرَ محسوبٍ فخرجت الورقةُ ثانيةً على بيانات الإنتاج.
     """
     try:
         lines = max(0, int(note_lines))
@@ -139,7 +143,7 @@ def a3_metrics(note_lines: Any = 0) -> dict[str, Any]:
         lines = 0
     font = A3_SHEET_PT
     gap = _GAP_AT_BASE_MM - _TABLE_FOLLOWING_FONT_MM * (A3_SHEET_PT / _BASE_PT - 1)
-    need = lines * _NOTE_LINE_MM - gap + _SAFETY_MM
+    need = lines * _NOTE_LINE_MM + (_LEGEND_LINE_MM if legend else 0.0) - gap + _SAFETY_MM
     if need > 0:
         font = round(A3_SHEET_PT * (1 - need / _TABLE_FOLLOWING_FONT_MM), 2)
     k = font / _BASE_PT

@@ -348,7 +348,7 @@
 
   {% if view_type == 'all_teachers' %}
   {% if paper == 'a3' %}
-  {% a3_metrics nav.notes|length as m %}
+  {% a3_metrics nav.notes|length has_legend as m %}
   {% comment %}
   ── الجدول العامّ على A3 عرضيّة: ت1 (قرارُ المالك 2026-09-26) ──
   ورقةٌ واحدةٌ لاثنين وسبعين معلّماً بخطٍّ موحَّدٍ (`A3_SHEET_PT` في week_tags؛ ت1 = 7.9pt، ورُفع إلى 8.1 بقرار المالك 2026-09-27
