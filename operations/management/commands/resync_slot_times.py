@@ -18,7 +18,7 @@ from django.db import transaction
 from core.academic_calendar import academic_year_for_school
 from core.models import School
 from operations.models import ScheduleSlot
-from operations.scheduler import bell_lookup
+from operations.scheduling_inputs import bell_lookup
 
 
 def _clock_overlaps(slots) -> list:

@@ -147,5 +147,13 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+# شبكةٌ واحدةٌ مشتركةٌ بين الخانتين (أزرق/أخضر) ينشئها scripts/preview.sh مرّةً: شبكةٌ لكلّ خانةٍ تستنفد
+# مجمّعَ العناوين على الجهاز («all predefined address pools have been fully subnetted»)، ولا حاجة لها: القاعدةُ وredis
+# يُوصَل إليهما عبر منفذَي المضيف.
+networks:
+  default:
+    name: ${PREVIEW_NETWORK:-schoolos-main-preview-net}
+    external: true
+
 volumes:
   preview_static:

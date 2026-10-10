@@ -91,25 +91,16 @@ def test_the_free_day_is_not_a_teacher_editable_field():
     assert "free_day" not in TeacherPreference.TEACHER_EDITABLE_FIELDS
 
 
-def test_the_page_shows_the_day_as_text_not_as_a_control(client, school, teacher):
+def test_the_page_neither_shows_nor_names_the_free_day(client, school, teacher):
+    """قرار المالك 10-10 (D-341م): يومُ التفريغ يُخفى كلّيّاً عن المعلّم — لا حقلَ ولا يومَ ولا نصَّ."""
     client.force_login(teacher)
     pref = _stored(school, teacher, WEDNESDAY)
 
     body = client.get(URL).content.decode()
 
-    assert 'name="free_day"' not in body
-    assert pref.get_free_day_display() in body
-    assert "قرارٌ إداريّ" in body
-
-
-def test_the_page_says_so_when_no_day_is_set(client, school, teacher):
-    client.force_login(teacher)
-    _stored(school, teacher, None)
-
-    body = client.get(URL).content.decode()
-
-    assert 'name="free_day"' not in body
-    assert "لا يوجد يوم تفريغ" in body
+    assert 'name="free_day"' not in body and "free_day" not in body
+    assert "يوم التفريغ" not in body and "لا يوجد يوم تفريغ" not in body
+    assert pref.get_free_day_display() not in body
 
 
 def test_the_capacity_check_still_counts_the_admin_day(client, school, teacher):

@@ -67,7 +67,7 @@ def _minutes(t: time) -> int:
 
 def audit(school: School, year: str | None = None, on: date | None = None) -> LinkageReport:
     """يفحص الجدولَ الحيّ لعام `year`؛ وإن مُرّر `on` فُحصت جلساتُ ذلك اليوم أيضاً."""
-    from operations.scheduler import bell_lookup
+    from operations.scheduling_inputs import bell_lookup
 
     slots = list(ScheduleSlot.objects.live(school, year=year).select_related("class_group"))
     year = year or (slots[0].academic_year if slots else "")
