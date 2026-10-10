@@ -15,6 +15,7 @@ from django.template import Context, Template
 from django.template.loader import render_to_string
 
 from core.pdf_utils import render_pdf_bytes
+from core.print_fit.text_metrics import text_mm
 from operations.models import ScheduleSlot
 from operations.schedule_selectors import schedule_print_payload
 from operations.templatetags.week_tags import (
@@ -288,16 +289,29 @@ class TestTheExemptionDotOnPaper:
 
 
 class TestTheNameColumnFollowsTheLongestName:
-    @pytest.mark.parametrize(
-        ("longest", "expected"),
-        [(0, "20.0"), (10, "20.0"), (16, "25.3"), (17, "26.8"), (18, "28.3"), (60, "36.0")],
-    )
-    def test_the_width_grows_with_the_longest_display_name_within_a_floor_and_a_cap(
-        self, longest, expected
-    ):
-        rows = [{"display_name": "ا" * longest}, {"display_name": "قصير"}]
+    """العمودُ يُقاس بعرض النصّ الفعليّ (`text_mm`) لا بعدّ الأحرف: «عبدالباسط الجاسمي» 26.1مم فعليّاً (قياسُ 0422) لا 30.5."""
 
-        assert name_column_mm(rows) == expected
+    def test_the_width_is_the_measured_longest_name_plus_the_cell_margin(self):
+        rows = [{"display_name": "عبدالباسط الجاسمي"}, {"display_name": "قصير"}]
+
+        width = float(name_column_mm(rows))
+
+        assert width == pytest.approx(text_mm("عبدالباسط الجاسمي", 7.9, weight=700) + 2.6, abs=0.06)
+        assert 26.1 <= width < 30.5, "أضيقُ من التقدير القديم وأوسعُ من النصّ نفسِه"
+
+    def test_a_longer_name_never_gets_a_narrower_column(self):
+        widths = [float(name_column_mm([{"display_name": "ا" + "ب" * n}])) for n in (6, 12, 18, 24)]
+
+        assert widths == sorted(widths)
+
+    def test_the_floor_the_cap_and_the_annex_star(self):
+        assert name_column_mm([{"display_name": "ا"}]) == "20.0"
+        assert name_column_mm([{"display_name": "ب" * 80}]) == "36.0"
+        plain = float(name_column_mm([{"display_name": "عبدالباسط الجاسمي"}]))
+        tagged = float(
+            name_column_mm([{"display_name": "عبدالباسط الجاسمي", "specialty": "الرياضيات"}])
+        )
+        assert tagged > plain, "علامةُ « *» تُحسب في العرض"
 
     def test_rows_without_a_display_name_use_the_floor(self):
         assert name_column_mm([{}, {"display_name": None}]) == "20.0"

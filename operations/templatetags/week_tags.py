@@ -6,6 +6,7 @@ from django.utils.html import format_html_join
 from django.utils.safestring import SafeString, mark_safe
 
 from core.dept_colors import dept_key, wing_key
+from core.print_fit.text_metrics import text_mm
 from operations.schedule_paper import cell_kind
 
 register = template.Library()
@@ -120,8 +121,8 @@ _BASE_PT = 7.9  # الخطُّ الذي قيست عليه الثوابتُ (ت1)
 _GAP_AT_BASE_MM = 8.64
 _TABLE_FOLLOWING_FONT_MM = 212.0
 _NOTE_LINE_MM = 3.6
-#: سطرُ المفتاح (9pt + هامشٌ علويّ 1مم) أسفل الجدول حين يوجد تفريغٌ ملوَّنٌ أو حصصٌ محوَّلةٌ أو ملحقٌ إداريّ (W-20261010-049: بدونه تخرج الورقةُ ثانيةً)
-_LEGEND_LINE_MM = 4.4
+#: سطرُ المفتاح (9pt ≈ 4.4مم) أسفل الجدول — **7مم** بقياس بيانات المعاينة الحقيقيّة (72 معلّماً): 4.4 تُبقيه في ورقةٍ ثانية و6 تكفي، والفرقُ ارتفاعُ صفّ القسم الذي يلتفّ سطرين. يظهر السطرُ حين يوجد تفريغٌ ملوَّنٌ أو حصصٌ محوَّلةٌ أو ملحقٌ إداريّ (W-20261010-049: بدونه تخرج الورقةُ ثانيةً)
+_LEGEND_LINE_MM = 7.0
 _SAFETY_MM = 1.0
 
 
@@ -160,14 +161,13 @@ def a3_metrics(note_lines: Any = 0, legend: Any = 0) -> dict[str, Any]:
     }
 
 
-#: عرضُ الحرف العريض من Tajawal بخطّ 7.9pt غليظاً ≈ 1.45مم (مقيسٌ على PDF مرسومٍ: «عبدالباسط الجاسم» 16 حرفاً يسعها 24.8مم)، والهامشُ حشوُ الخليّة.
-#: المعايرةُ قياسٌ لا تقدير (W-20261010-049، ملاحظةُ المالك 2026-10-10: عمودُ الاسم يهدر مساحةً): اثنان وسبعون معلّماً بأسماءٍ عريضةٍ من 18 حرفاً،
-#: وعدّةُ معايراتٍ على الرسم نفسِه — 1.45مم/حرفٍ و1.2 تُظهر الأسماءَ كلَّها، و1.4 تقصّ اسماً — فاخترنا 1.5 و1.3 بهامشٍ ≈1مم فوق أضيق عرضٍ ناجح.
-#: وكانت 1.7 و1.6 (أوسعَ بـ4مم) والأرضيّةُ 26 فلا يضيق العمودُ لأسماءٍ قصيرة.
-_NAME_MM_PER_CHAR = 1.5
-_NAME_MM_PAD = 1.3
+#: عمودُ الاسم يُقاس بعرض النصّ الفعليّ (`core.print_fit.text_metrics.text_mm`: Tajawal عريضٌ بعد إعادة التشكيل) لا بعدّ الأحرف
+#: (W-20261010-049، قياسُ 0422 وحكمُ 0419: العدُّ يُهدر مساحةً على أسماءٍ ويقصّ أخرى — «عبدالباسط الجاسمي» 26.1مم فعليّاً لا 30.5).
+#: الهامشُ = حشوُ الخليّة 0.6مم يمنةً ويسرةً + حدُّها الغليظ 2px + احتياطٌ ≈ 1مم؛ وللعمود أرضيّةٌ وسقف.
+_NAME_MM_PAD = 2.6
 _NAME_MM_MIN = 20.0
 _NAME_MM_MAX = 36.0
+_NAME_WEIGHT = 700
 
 
 @register.simple_tag
@@ -199,6 +199,15 @@ def schedule_subtitle(year: object, source: object, week_range: object) -> str:
     return text
 
 
+def _shown_name(row: Any) -> str:
+    """الاسمُ كما تعرضه خليّةُ الصفّ: اسمُ العرض (أو الاسمُ الكامل) وبعده « *» لملحقٍ إداريّ."""
+    get = getattr(row, "get", None)
+    if get is None:
+        return ""
+    name = str(get("display_name") or getattr(get("teacher"), "full_name", "") or "")
+    return f"{name} *" if name and get("specialty") else name
+
+
 @register.simple_tag
 def name_column_mm(rows: Any, scale: Any = 1.0) -> str:
     """عرضُ عمود الاسم في ورقة A3 (ملم) من أطول اسمِ عرضٍ فيها — فلا يُقصّ اسمٌ (بلاغ المالك 2026-09-27: «عبدالباسط الجا»).
@@ -209,16 +218,10 @@ def name_column_mm(rows: Any, scale: Any = 1.0) -> str:
     `scale` نسبةُ خطّ الورقة الفعليّ إلى خطّ القياس (`a3_metrics()["k"]`) — الحرفُ يعرض بقدرها فلا يضيق العمودُ عن الاسم
     حين يُصغَّر الخطُّ لأسبوعٍ بملاحظات.
     """
-    longest = max(
-        (
-            len(str(getattr(row, "get", lambda *_: "")("display_name", "") or ""))
-            for row in rows or []
-        ),
-        default=0,
-    )
     k = float(scale or 1.0)
-    width = min(
-        _NAME_MM_MAX * k,
-        max(_NAME_MM_MIN * k, _NAME_MM_PER_CHAR * k * longest + _NAME_MM_PAD),
+    pt = _BASE_PT * k
+    longest = max(
+        (text_mm(_shown_name(row), pt, weight=_NAME_WEIGHT) for row in rows or []), default=0.0
     )
+    width = min(_NAME_MM_MAX * k, max(_NAME_MM_MIN * k, longest + _NAME_MM_PAD * k))
     return f"{width:.1f}"

@@ -252,7 +252,14 @@
      تنقلب معها فيقع حدُّ اليوم بين الحصّة الأولى والثانية — أي خارج
      اليوم الذي يحدّه. */
   .schedule-matrix .m-day-start { border-right-width: 2px; }
-  .schedule-matrix thead th { border-bottom-width: 2px; }
+  /* ترويسةُ الجدول عنّابيّةٌ ونصُّها `ON_FILL` كسائر جداول المنصّة وورقتَي A4 (حكمُ 0419 على W-20261010-049: كانت بيضاءَ بنصٍّ أسود). */
+  .schedule-matrix thead th, .schedule-matrix thead .m-day {
+    border-bottom-width: 2px;
+    background: {% brand_color "MAROON" %};
+    color: {% brand_color "ON_FILL" %};
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
   .schedule-matrix .m-name,
   .schedule-matrix .m-total { border-right-width: 2px; }
   /* ── فرزُ الأقسام لوناً ──
