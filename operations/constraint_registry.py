@@ -66,7 +66,15 @@ class ConstraintSpec:
     source: str = ""
 
 
-def _hard(code, title, break_at=NEVER, tunable=True, relaxes_in_place=False, note="", source=""):
+def _hard(
+    code: str,
+    title: str,
+    break_at: str = NEVER,
+    tunable: bool = True,
+    relaxes_in_place: bool = False,
+    note: str = "",
+    source: str = "",
+) -> ConstraintSpec:
     return ConstraintSpec(
         code,
         title,

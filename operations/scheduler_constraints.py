@@ -20,6 +20,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from .first_period_cap import (  # noqa: F401  (تُصدَّر من هنا لمن استوردها منه)
+    FIRST_PERIOD,
+    MAX_FIRST_PERIODS,
+    check_first_period_share,
+)
 from .last_period_cap import personal_last_cap
 from .scheduler_bell import (  # noqa: F401  (تُصدَّر من هنا لمن استوردها منه)
     DOUBLE_PERIOD_GAP_MINUTES,
@@ -482,24 +487,6 @@ def check_last_period_share(grid: ScheduleGrid, period: int, task: Task) -> bool
     return True
 
 
-def check_first_period_share(grid: ScheduleGrid, period: int, task: Task) -> bool:
-    """HC22: لا تتكدّس الحصّةُ الأولى على معلّمٍ بعينه — أكثرُ من `MAX_FIRST_PERIODS` أسبوعيّاً.
-
-    توأمُ HC8 للطرف الآخر من اليوم، ومنطقُه مثلُه: يُسأل كم أولى للمعلّم في الجدول (دون هذه الحصّة)
-    فإن بلغ السقفَ رُفضت. والسقفُ الأعلى لمعلّمٍ بعينه (`first_cap` على عضو المهمّة) تخفيفٌ معلَنٌ بقرار
-    المالك يمرّره المُقيِّمُ من ناتج الحلّال (نظيرُ `first_cap_override` في V2)؛ وغيابُه يعني العامّ.
-    وهو منعٌ للأولى وحدَها لا للسابعة: السابعةُ لها HC8.
-    """
-    if period != FIRST_PERIOD:
-        return True
-    for m in task.members:
-        if grid.teacher_periods_at(m.teacher_id, FIRST_PERIOD) >= (
-            getattr(m, "first_cap", 0) or MAX_FIRST_PERIODS
-        ):
-            return False
-    return True
-
-
 def check_subject_distribution(
     grid: ScheduleGrid, day: int, task: Task, allow_dense: bool = False
 ) -> bool:
@@ -583,14 +570,6 @@ MAX_LAST_PERIODS = 2
 #: يُصادم `extra_edge_period` الذي يعاقب من عنده طرفٌ فعلاً: هذا يكافئ من
 #: عنده أقلُّ من اثنتين، وذاك يعاقب من زاد عليهما.
 MIN_FIRST_PERIODS = 2
-
-#: أولى حصةٍ في اليوم.
-FIRST_PERIOD = 1
-
-#: أكثرُ ما يُقبل من الحصص الأولى لمعلّمٍ في الأسبوع (HC22، D-166م وD-183م): اثنتان، صلبٌ قابلٌ للضبط.
-#: توأمُ `MAX_LAST_PERIODS` (HC8) وقيمتُه مثلُه؛ ولا سقفَ شخصيّاً للأولى كما للسابعة (قرارٌ منفصلٌ إن لزم).
-#: وهو غيرُ `MIN_FIRST_PERIODS` أعلاه: ذاك حدٌّ أدنى مرنٌ يُرجَّح، وهذا سقفٌ صلبٌ يُمنَع.
-MAX_FIRST_PERIODS = 2
 
 
 def _wants_adjacency(grid: ScheduleGrid, task: Task, day: int, period: int) -> bool:
