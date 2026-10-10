@@ -78,7 +78,7 @@
             <td class="col-center">{{ e.start_date|date:"d/m/Y" }} – {{ e.end_date|date:"d/m/Y" }}</td>
             <td class="col-center" dir="ltr">{{ e.boundary_time|time:"H:i" }}</td>
             <td class="col-center"><span class="status-badge {% if e.status == 'approved' %}status-success{% elif e.status == 'rejected' %}status-danger{% else %}status-warning{% endif %}">{{ e.get_status_display }}</span></td>
-            <td class="text-xs">{{ e.feedback|default:"—" }}{% if e.decided_on_behalf %} · بالإنابة: {{ e.reviewed_by.full_name }}{% endif %}</td>
+            <td class="cell-sm">{{ e.feedback|default:"—" }}{% if e.decided_on_behalf %} · بالإنابة: {{ e.reviewed_by.full_name }}{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -110,8 +110,8 @@
             <td class="col-center" dir="ltr">{{ p.start_time|time:"H:i" }} – {{ p.end_time|time:"H:i" }}</td>
             <td class="num">{{ p.duration_minutes }}</td>
             <td class="col-center"><span class="status-badge {% if p.status == 'approved' %}status-success{% elif p.status == 'rejected' %}status-danger{% elif p.status == 'pending' %}status-warning{% else %}status-gray{% endif %}">{{ p.get_status_display }}</span></td>
-            <td class="col-center text-xs">{{ p.get_stage_display }}</td>
-            <td class="text-xs">{% if p.rejection_reason %}{{ p.rejection_reason }}{% elif p.notified_at %}أُخطرت {{ p.notified_at|date:"d/m H:i" }}{% if p.decided_on_behalf %} · بالإنابة: {{ p.reviewed_by.full_name }}{% endif %}{% else %}—{% endif %}</td>
+            <td class="col-center cell-sm">{{ p.get_stage_display }}</td>
+            <td class="cell-sm">{% if p.rejection_reason %}{{ p.rejection_reason }}{% elif p.notified_at %}أُخطرت {{ p.notified_at|date:"d/m H:i" }}{% if p.decided_on_behalf %} · بالإنابة: {{ p.reviewed_by.full_name }}{% endif %}{% else %}—{% endif %}</td>
             <td class="col-actions">{% if p.cancellable %}
               <form method="post" action="{% url 'staff_affairs:permit_cancel' p.pk %}">{% csrf_token %}
                 <button type="submit" class="btn-secondary btn-xs" title="{% if p.status == 'approved' %}يُلغى قبل بدء نافذته فيُستردّ رصيدُه{% else %}يُلغى ما دام معلّقاً{% endif %}">{% icon "close" %} إلغاء</button>

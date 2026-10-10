@@ -105,7 +105,6 @@ SCHEDULE_VIEW = {
     "transport_officer",  # توقيت الدراسة للنقل
 }
 SCHEDULE_MANAGE = {"principal", "vice_academic"}
-#: من يُعدّ معلّماً في قوائم المدرسة (تقرير الأعباء، اطّلاع التفضيلات) — مصدرٌ واحد.
 TEACHING_STAFF_ROLES = ("teacher", "coordinator", "ese_teacher", "e_projects_coordinator")
 SCHEDULE_SWAP_REQUEST = {
     "teacher",
