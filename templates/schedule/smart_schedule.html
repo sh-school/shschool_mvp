@@ -210,6 +210,62 @@
     {% endif %}
   </div>
   {% endif %}{% endfor %}
+  {% comment %}
+  مقارنةُ المسودّة بالمعتمَد (W-20261010-008): المُقيِّم نفسُه على الجدولين بالمؤشّرات الخمسة — قيمٌ فقط بلا أسماء معلّمين.
+  القرارُ على النشر يحتاج أن يعرف أيُّهما أفضلُ ناعماً، لا المخالفاتِ الصلبةَ وحدَها.
+  {% endcomment %}
+  {% for g in generations %}{% if g.status == "draft" %}
+  <div class="gen-panel" id="gen-compare-{{ g.id }}">
+    <h3 class="section-title">مقارنة مسودّة {{ g.generated_at|date:"d/m H:i" }} بالمعتمَد</h3>
+    {% if g.comparison %}
+    <div class="table-wrap">
+      <table class="gen-log-table">
+        <thead>
+          <tr>
+            <th scope="col">المؤشّر</th>
+            <th scope="col" class="num">المعتمَد</th>
+            <th scope="col" class="num">المسودّة</th>
+            <th scope="col" class="num">الفرق</th>
+            <th scope="col" class="text-center">الحكم</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in g.comparison.rows %}
+          <tr>
+            <td><b>{{ r.code }} · {{ r.name }}</b><div class="text-muted">{{ r.meaning }} ({{ r.unit }}؛ {% if r.better == "high" %}الأعلى أفضل{% else %}الأقلّ أفضل{% endif %})</div></td>
+            <td class="num">{% if g.comparison.has_live and r.live.value is not None %}{{ r.live.value }}{% else %}—{% endif %}{% if r.live.detail %}<div class="text-muted">{{ r.live.detail }}</div>{% endif %}</td>
+            <td class="num">{% if r.draft.value is not None %}{{ r.draft.value }}{% else %}—{% endif %}{% if r.draft.detail %}<div class="text-muted">{{ r.draft.detail }}</div>{% endif %}</td>
+            <td class="num">{% if g.comparison.has_live and r.delta is not None %}{{ r.delta }}{% else %}—{% endif %}</td>
+            <td class="text-center">
+              {% if not g.comparison.has_live or r.delta is None %}<span class="status-badge status-gray">لا معتمَد</span>
+              {% elif r.verdict == "better" %}<span class="status-badge status-success">تحسّن</span>
+              {% elif r.verdict == "worse" %}<span class="status-badge status-danger">تراجع</span>
+              {% else %}<span class="status-badge status-gray">ثبات</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          <tr>
+            <td><b>مخالفات صلبة</b></td>
+            <td class="num">{% if g.comparison.has_live %}{{ g.comparison.live.hard_total }}{% else %}—{% endif %}</td>
+            <td class="num">{{ g.comparison.draft.hard_total }}</td>
+            <td class="num">—</td><td></td>
+          </tr>
+          <tr>
+            <td><b>الحصص المتغيّرة</b><div class="text-muted">ما في المسودّة ولم يكن في المعتمَد، وما كان فيه ولم يبقَ</div></td>
+            <td class="num" colspan="2">{{ g.comparison.changed_slots.added }} مضافة · {{ g.comparison.changed_slots.removed }} محذوفة</td>
+            <td class="num">—</td><td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-muted">
+      {% for n in g.comparison.notes %}{{ n }} {% endfor %}حُسبت في {{ g.comparison.seconds }} ثانية.
+    </p>
+    {% else %}
+    <p class="text-muted" role="status">المقارنةُ قيد الحساب — حدّث الصفحةَ بعد لحظات.</p>
+    {% endif %}
+  </div>
+  {% endif %}{% endfor %}
   <div class="table-wrap">
     {% comment %}
     سجلُّ التوليد يُفرَز من ترويسته (`base.js`) ويبدأ تصاعديّاً بتاريخ التوليد ووقته، وصفّان

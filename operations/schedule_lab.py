@@ -213,6 +213,16 @@ def alternating_compactness(periods: list[int]) -> float:
     return max(1.0, (distinct[-1] - distinct[0] + 1) / ideal_span)
 
 
+def edge_count(periods: list[int]) -> int:
+    """أول خانةٍ مشغولةٍ في اليوم وآخرها: واحدةٌ إن كان اليومُ حصّةً واحدة.
+
+    كان المقياسُ يعدّ الحصّتين 1 و7 حرفاً، فمن يبدأ يومه بالثانية ويختمه بالسادسة لا يُحسب عليه شيء
+    وهو يبدأ أبكرَ خانةٍ لديه ويختم آخرَها (W-20261010-008).
+    """
+    distinct = set(periods)
+    return len({min(distinct), max(distinct)}) if distinct else 0
+
+
 def _cv(values: list[float]) -> float:
     if not values or mean(values) == 0:
         return 0.0
@@ -493,7 +503,7 @@ class ScheduleLab:
         for tid, days in self.by_teacher_day.items():
             if self.load[tid] < MIN_LOAD:
                 continue
-            edges = sum(1 for ps in days.values() for p in ps if p in (1, LAST_PERIOD))
+            edges = sum(edge_count(ps) for ps in days.values())
             ratios[tid] = edges / self.load[tid]
         top = sorted(ratios.items(), key=lambda kv: -kv[1])[:3]
         return {

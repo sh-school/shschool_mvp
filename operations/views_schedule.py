@@ -730,6 +730,7 @@ def smart_schedule_view(request):
         g.lab_relative = relative_score(lab, baseline.metrics) if baseline and lab else None
         # نصٌّ لا رقم: `floatformat` يتبع اللغةَ فيكتب «100٫0»، والرقمُ هنا يُقرأ ويُقارَن.
         g.placed_ratio = f"{ratio:.1f}"
+        g.comparison = _comparison_of(g)
 
     #: الحسابُ بالعدّ يسبق البحثَ بالساعات — طاقةُ الشُّعب والمعلّمين والموارد
     #: وتباعدُ الأيّام. وكان هنا فحصُ الشُّعب وحدَه، وهو اليومَ أحدُ خمسة.
@@ -767,6 +768,27 @@ def smart_schedule_view(request):
             "constraint_overrides": overridden,
         },
     )
+
+
+def _comparison_of(generation) -> dict | None:
+    """مقارنةُ المسودّة بالمعتمَد من `metrics`؛ ولو غابت لمسودّةٍ طُلبت لها مرّةً في الساعة (idempotent).
+
+    المقارنةُ مهمّةٌ خلفيّة (W-20261010-008) تُطلب عند انتهاء التوليد؛ وهذا الطلبُ يغطّي ما لم يُطلب لها
+    (توليدُ V2 ومسوّداتٌ سابقة) بلا أن يحسب الطلبُ شيئاً. والعرضُ بلا نتيجةٍ يقول «قيد الحساب».
+    """
+    found = (generation.metrics or {}).get("_comparison")
+    if found or generation.status != "draft":
+        return found
+    from django.core.cache import cache
+
+    from .tasks import compare_generation_to_live_task
+
+    if cache.add(f"schedule-compare:{generation.pk}", 1, 3600):
+        try:
+            compare_generation_to_live_task.delay(str(generation.pk))
+        except Exception:  # noqa: BLE001 — العرضُ لا يسقط لتعذّر الإرسال
+            logger.exception("تعذّر طلب مقارنة المسودّة %s", generation.pk)
+    return None
 
 
 def _smart_schedule_presentation(generations, year, occupied_slots, shared_periods) -> dict:
