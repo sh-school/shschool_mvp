@@ -1151,50 +1151,62 @@
   .week-grid .slot-from { font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.2; }
 
 /* ── templates/schedule/quality_lab.html ── */
-  /* ── مختبر الجودة: بوّابة، رادار، بطاقات، جداول — كلُّ رقمٍ بجانب مرجعه ── */
+  /* ── مختبر الجودة: بوّابة، رادار، بطاقات، جداول — كلُّ رقمٍ بجانب مرجعه ──
+     كلُّ الأصناف المحلّيّة ببادئة `lab-`: كانت `.tile` و`.delta` و`.legend` و`.bar` عامّةً في ملف وحدة
+     فتصيب كلَّ صفحةٍ تستعمل الاسمَ نفسه (W-20261010-023، البند 17).
+     أبعادُ الأشرطة والأعمدة بـrem محلّيّةٍ لا رمزٍ عالميّ: لا درجةَ لها في سلّم التباعد (D-16)، وrem يتبع تكبيرَ المستخدم. */
   .lab-head { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: end; justify-content: space-between; }
   .lab-head form { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: end; }
-  .lab-head .form-group { margin: 0; min-width: 220px; }
+  .lab-head .form-group { margin: 0; min-width: 14rem; }
+  /* حفظُ الأساس إجراءُ كتابةٍ منفصل عن شريط التصفية الحيّ (GET) — وتُخفيه الطباعةُ مع الشريط. */
+  .lab-save { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: end; }
+  .lab-save .form-group { margin: 0; min-width: 14rem; }
 
   /* بوّابةُ الصلاحية صارت شريطَ أرقام (`kpi_strip`) — كانت لوحاتٍ مصمَتةً بنظامٍ خاصّ. */
-  /* الرادارُ 320px وجارُه، ينفكّان حين تضيق الحاوية. min-inline-size: 0 وإلّا دفع عرضُ الرسم عمودَ الصفحة. */
+  /* الرادارُ عمودٌ وجدولا الضغط والموارد مكدَّسان في عمودٍ ثانٍ، وينفكّان حين تضيق الحاوية (D-16: شرائطُ فأعمدةٌ مكدَّسة).
+     min-inline-size: 0 وإلّا دفع عرضُ الرسم عمودَ الصفحة. */
   .lab-main { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: flex-start; min-inline-size: 0; }
   .lab-main > * { flex: 1 1 20rem; min-inline-size: 0; }
   .lab-main > * + * { flex: 99999 1 36rem; }
-  .lab-radar { max-height: 300px; }
+  .lab-radar { max-height: 18.75rem; font-size: var(--text-xs); }
   .lab-chips { padding: var(--sp-2) var(--sp-3); }
   .lab-res-col { width: 40%; }
-  .score-list { display: grid; gap: var(--sp-1-5); margin-top: var(--sp-2); }
-  .score-row { display: grid; grid-template-columns: 1fr 110px auto; gap: var(--sp-2); align-items: center; font-size: var(--text-xs); }
-  .score-bar { position: relative; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
-  .score-bar > i { position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: var(--progress-w, 0%); background: var(--maroon); border-radius: 3px; }
-  .score-bar > b { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--gold); }
+  .lab-score-list { display: grid; gap: var(--sp-1-5); margin-top: var(--sp-2); }
+  .lab-score-row { display: grid; grid-template-columns: 1fr 7rem auto; gap: var(--sp-2); align-items: center; font-size: var(--text-xs); }
+  .lab-score-bar { position: relative; height: 0.375rem; background: var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+  .lab-score-bar > i { position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: var(--progress-w, 0%); background: var(--maroon); border-radius: var(--radius-sm); }
 
-  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--sp-2-5); padding: var(--sp-3); }
-  .tile { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp-2-5) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-1); background: var(--surface); }
-  .tile-label { font-size: var(--text-xs); color: var(--text-secondary); font-weight: 600; min-height: 2.4em; }
-  .tile-value { font-size: 1.375rem; font-weight: 800; color: var(--maroon-fg); direction: ltr; text-align: end; }
-  .tile-value small { font-size: var(--text-xs); color: var(--text-secondary); font-weight: 500; margin-inline-start: var(--sp-1); }
-  .tile-foot { display: flex; justify-content: space-between; align-items: center; font-size: var(--text-xs); color: var(--text-secondary); }
-  .delta { font-weight: 700; direction: ltr; }
-  .delta-better { color: var(--status-success-fg); }
-  .delta-worse { color: var(--status-danger-fg); }
-  .tile-bars { display: grid; gap: 3px; margin-top: var(--sp-1); }
-  .tile-bars .bar { height: 5px; border-radius: 3px; background: var(--border); position: relative; overflow: hidden; }
-  .tile-bars .bar > i { position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: var(--progress-w, 0%); border-radius: 3px; }
-  .bar-cur > i { background: var(--maroon); }
-  .bar-ref > i { background: var(--gold); }
+  /* أقسامُ المؤشرات: عرضُ كلّ قسمٍ بقدر بطاقاته (`--lab-n` من القالب) فلا مسارَ فارغَ داخله،
+     وتتجاور الأقسامُ الصغيرة بدل أن يحتلّ كلٌّ سطراً. وسقفُ العرض (n × 22rem) يمنع بطاقتَين من التمدّد عرضَ الصفحة. */
+  .lab-groups { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: flex-start; }
+  .lab-group { flex: var(--lab-n, 1) 1 calc(var(--lab-n, 1) * 15rem); min-inline-size: min(100%, 15rem); max-inline-size: calc(var(--lab-n, 1) * 22rem + 3rem); }
+  .lab-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: var(--sp-2-5); padding: var(--sp-3); }
+  .lab-tile { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp-2-5) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-1); background: var(--surface); }
+  .lab-tile__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-1); min-height: 2.4em; }
+  .lab-tile__label { font-size: var(--text-sm); color: var(--text-secondary); font-weight: 600; }
+  .lab-tile__value { font-size: var(--text-xl); font-weight: 800; color: var(--maroon-fg); direction: ltr; text-align: end; }
+  .lab-unit { font-size: var(--text-xs); color: var(--text-secondary); font-weight: 500; margin-inline-start: var(--sp-1); }
+  .lab-tile__foot { display: flex; justify-content: space-between; align-items: center; font-size: var(--text-xs); color: var(--text-secondary); }
+  .lab-delta { font-weight: 700; direction: ltr; }
+  .lab-delta--better { color: var(--status-success-fg); }
+  .lab-delta--worse { color: var(--status-danger-fg); }
+  .lab-tile__bars { display: grid; gap: var(--sp-1); margin-top: var(--sp-1); }
+  .lab-bar { height: 0.3125rem; border-radius: var(--radius-sm); background: var(--border); position: relative; overflow: hidden; }
+  .lab-bar > i { position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: var(--progress-w, 0%); border-radius: var(--radius-sm); }
+  .lab-bar--cur > i { background: var(--maroon); }
+  .lab-bar--ref > i { background: var(--gold); }
 
-  .lab-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--sp-3-5); }
-  .lab-tables table { width: 100%; font-size: 0.8125rem; }
+  /* جدولا الضغط والموارد مكدَّسان: بطاقةٌ بقدر محتواها لا مسارٌ يمدّ الفراغ. */
+  .lab-tables { display: grid; gap: var(--sp-3-5); }
+  .lab-tables table { width: 100%; font-size: var(--text-sm); }
   .lab-tables td.num { direction: ltr; text-align: end; font-weight: 700; }
-  .res-bar { height: 8px; background: var(--border); border-radius: var(--radius-sm); overflow: hidden; }
-  .res-bar > i { display: block; height: 100%; width: var(--progress-w, 0%); background: var(--maroon); }
-  .legend { display: flex; gap: var(--sp-3-5); font-size: var(--text-xs); color: var(--text-secondary); padding: 0 var(--sp-3) var(--sp-2-5); }
-  .legend i { display: inline-block; width: 14px; height: 5px; border-radius: 3px; vertical-align: middle; margin-inline-end: var(--sp-1); }
-  .legend i.legend-cur { background: var(--maroon); }
-  .legend i.legend-ref { background: var(--gold); }
-  @media print { .lab-head form { display: none !important; } .tiles { grid-template-columns: repeat(3, 1fr); } }
+  .lab-res-bar { height: 0.5rem; background: var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+  .lab-res-bar > i { display: block; height: 100%; width: var(--progress-w, 0%); background: var(--maroon); }
+  .lab-legend { display: flex; gap: var(--sp-3-5); font-size: var(--text-xs); color: var(--text-secondary); padding: 0 var(--sp-3) var(--sp-2-5); }
+  .lab-legend i { display: inline-block; width: 0.875rem; height: 0.3125rem; border-radius: var(--radius-sm); vertical-align: middle; margin-inline-end: var(--sp-1); }
+  .lab-legend__cur { background: var(--maroon); }
+  .lab-legend__ref { background: var(--gold); }
+  @media print { .lab-tiles { grid-template-columns: repeat(3, 1fr); } }
 
 /* ── templates/schedule/ — التبديلُ والتعويضُ والتفضيلات: ما كان تنسيقاً في الوسوم ── */
   .schedule-cards { max-height: 420px; }

@@ -1,6 +1,7 @@
 {% extends "base/base.html" %}
-{% load static schedule_filters ui %}
+{% load static l10n schedule_filters ui %}
 {% block title %}مختبر جودة الجدول — {{ year }}{% endblock %}
+{% block main_class %}{% page_layout "report" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/teacher/smart-schedule/" parent_label="الجدولة الذكية" current="مختبر الجودة" %}
@@ -9,7 +10,9 @@
 {% block content %}
 <div class="exec-dash">
 
-{% page_header "مختبر جودة الجدول" subtitle=lab_subtitle icon="schedule" %}{% endpage_header %}
+{% page_header "مختبر جودة الجدول" subtitle=lab_subtitle icon="schedule" %}
+  {% for k in gate_kpis %}{% if k.title %}{% callout "hint" title=k.label %}{{ k.title }}{% endcallout %}{% endif %}{% endfor %}
+{% endpage_header %}
 
 {# ── ما يُقاس وبماذا يُقارَن، وحفظُ القياس أساساً ── #}
 {% filter_bar "قياسُ الجدول ومرجعُه" live=True css="lab-head" %}
@@ -35,33 +38,39 @@
       </select>
     </div>
   </form>
-  {% if can_save %}
-  <form method="post" action="?year={{ year }}&amp;schedule={{ schedule_param }}">
+{% endfilter_bar %}
+
+{# ── حفظُ القياس أساساً: إجراءُ كتابة (POST) في بطاقته لا في شريط التصفية الحيّ (GET فوريّ) ── #}
+{% if can_save %}
+<div class="no-print">
+{% section_card "حفظ هذا القياس أساساً" icon="settings" foldable=True %}
+  <form method="post" action="?year={{ year }}&amp;schedule={{ schedule_param }}" class="lab-save">
     {% csrf_token %}
-    {% field "label" "حفظ هذا القياس أساساً" placeholder="أساس 2026-09" maxlength=60 css="form-group" %}
+    {% field "label" "اسم الأساس" placeholder="أساس 2026-09" maxlength=60 css="form-group" %}
     <button type="submit" name="save_baseline" value="1" class="btn-primary btn-sm">حفظ كأساس</button>
   </form>
-  {% endif %}
-{% endfilter_bar %}
+{% endsection_card %}
+</div>
+{% endif %}
 
 {# ── بوّابة الصلاحية: ثلاثة أرقام لا تقبل النقاش ── #}
 {% kpi_strip label="بوّابة الصلاحية" %}
   {% for k in gate_kpis %}
-  {% kpi k.label k.value sub=k.sub tone=k.tone title=k.title %}
+  {% kpi k.label k.value sub=k.sub tone=k.tone %}
   {% endfor %}
 {% endkpi_strip %}
 
 <div class="lab-main">
   {# ── الرادار: درجةٌ مشتقّةٌ لكلّ مجموعة، الحاليُّ عنّابيٌّ والمرجعُ ذهبيّ ── #}
   {% section_card "الصورة الكلّية" meta="درجة من 100" icon="stats" %}
-    <canvas id="lab-radar" class="lab-radar" aria-label="رادار مجموعات الجودة" role="img"></canvas>
-    <div class="score-list">
+    <canvas id="lab-radar" class="lab-radar" aria-label="رادار مجموعات الجودة: {% for g in groups %}{{ g.label }} {{ scores|get_item:g.code|default_if_none:"—" }}{% if not forloop.last %}، {% endif %}{% endfor %}" role="img"></canvas>
+    <div class="lab-score-list">
       {% for g in groups %}
       {% with sc=scores|get_item:g.code %}
-      <div class="score-row">
+      <div class="lab-score-row">
         <span>{{ g.label }}</span>
-        <span class="score-bar"><i style="--progress-w:{{ sc|default:0 }}%"></i></span>
-        <span class="delta">{{ sc|default_if_none:"—" }}</span>
+        <span class="lab-score-bar" aria-hidden="true"><i style="--progress-w:{{ sc|default:0|unlocalize }}%"></i></span>
+        <span class="lab-delta">{{ sc|default_if_none:"—" }}</span>
       </div>
       {% endwith %}
       {% endfor %}
@@ -71,9 +80,10 @@
   {# ── أشدّ المعلّمين ضغطاً والموارد ── #}
   <div class="lab-tables">
     {% section_card "أشدّ خمسة معلّمين ضغطاً" icon="status_warning" flush=True empty="لا ضغطَ مقيس" %}{% if stress_top %}
+      {% callout "hint" title="صيغة الضغط" %}الضغط = (الفراغ الموزون + الأولى والسابعة + تجاوزات التتابع + تفاوت الأيام) ÷ النصاب{% endcallout %}
       <div class="table-wrap">
         <table>
-          <thead><tr><th>المعلّم</th><th class="num" title="الضغط = (الفراغ الموزون + الأولى والسابعة + تجاوزات التتابع + تفاوت الأيام) ÷ النصاب">ضغط لكلّ حصّة</th></tr></thead>
+          <thead><tr><th scope="col">المعلّم</th><th scope="col" class="num">ضغط لكلّ حصّة</th></tr></thead>
           <tbody>
             {% for name, v in stress_top.items %}
             <tr><td>{{ name }}</td><td class="num">{{ v }}</td></tr>
@@ -87,10 +97,10 @@
       {% if resources %}
       <div class="table-wrap">
         <table>
-          <thead><tr><th>المورد</th><th class="num">الإشغال</th><th class="lab-res-col"></th></tr></thead>
+          <thead><tr><th scope="col">المورد</th><th scope="col" class="num">الإشغال</th><th scope="col" class="lab-res-col"><span class="sr-only">شريط الإشغال</span></th></tr></thead>
           <tbody>
             {% for name, v in resources.items %}
-            <tr><td>{{ name }}</td><td class="num">{{ v|default_if_none:"—" }}%</td><td><div class="res-bar"><i style="--progress-w:{{ v|default:0 }}%"></i></div></td></tr>
+            <tr><td>{{ name }}</td><td class="num">{{ v|default_if_none:"—" }}<small class="lab-unit">%</small></td><td><div class="lab-res-bar" aria-hidden="true"><i style="--progress-w:{{ v|default:0|unlocalize }}%"></i></div></td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -110,34 +120,42 @@
   </div>
 </div>
 
-{# ── بطاقات المؤشرات بالأقسام: القيمة، الفرق عن المرجع، وشريطا الدرجة — والتفصيلُ تلميح ── #}
+{# ── بطاقات المؤشرات بالأقسام: القيمة، الفرق عن المرجع، وشريطا الدرجة — والتفصيلُ تلميحٌ بأيقونة ── #}
+{# عرضُ كلّ قسمٍ بقدر بطاقاته (--lab-n) فلا مسارَ فارغَ داخل البطاقة؛ والأقسامُ مطويّةٌ مفتوحةً افتراضاً لتقصير الصفحة على الجوّال. #}
+<div class="lab-groups">
 {% for g in groups %}
-{% section_card g.label meta=g.score_label flush=True %}
-  <div class="tiles">
+<div class="lab-group" style="--lab-n:{{ g.rows|length }}">
+{% section_card g.label meta=g.score_label flush=True foldable=True opened=True %}
+  <div class="lab-tiles">
     {% for r in g.rows %}
-    <div class="tile"{% if r.detail and r.key != "resources.utilization" and r.key != "fairness.stress" %} title="{% for k, v in r.detail.items %}{{ k }}: {{ v }}{% if not forloop.last %} · {% endif %}{% endfor %}"{% endif %}>
-      <span class="tile-label">{{ r.label }}</span>
-      <span class="tile-value">{{ r.value|default_if_none:"—" }}<small>{{ r.unit }}</small></span>
-      <div class="tile-bars" title="عنّابي: الحالي — ذهبي: المرجع">
-        <div class="bar bar-cur"><i style="--progress-w:{{ r.score|default:0 }}%"></i></div>
-        {% if r.baseline_score is not None %}<div class="bar bar-ref"><i style="--progress-w:{{ r.baseline_score }}%"></i></div>{% endif %}
+    <div class="lab-tile">
+      <div class="lab-tile__head">
+        <span class="lab-tile__label">{{ r.label }}</span>
+        {% if r.detail and r.key != "resources.utilization" and r.key != "fairness.stress" %}{% with t="تفصيل: "|add:r.label %}{% callout "hint" title=t %}{% for k, v in r.detail.items %}{{ k }}: {{ v }}{% if not forloop.last %} · {% endif %}{% endfor %}{% endcallout %}{% endwith %}{% endif %}
       </div>
-      <div class="tile-foot">
+      <span class="lab-tile__value">{{ r.value|default_if_none:"—" }}<small class="lab-unit">{{ r.unit }}</small></span>
+      <div class="lab-tile__bars" aria-hidden="true">
+        <div class="lab-bar lab-bar--cur"><i style="--progress-w:{{ r.score|default:0|unlocalize }}%"></i></div>
+        {% if r.baseline_score is not None %}<div class="lab-bar lab-bar--ref"><i style="--progress-w:{{ r.baseline_score|unlocalize }}%"></i></div>{% endif %}
+      </div>
+      <div class="lab-tile__foot">
         <span>المرجع: <span dir="ltr">{{ r.baseline|default_if_none:"—" }}</span></span>
-        {% if r.delta is not None %}<span class="delta {% if r.verdict == 'better' %}delta-better{% elif r.verdict == 'worse' %}delta-worse{% endif %}">{{ r.delta }}{% if r.verdict == 'better' %} ▲{% elif r.verdict == 'worse' %} ▼{% endif %}</span>{% endif %}
+        {% if r.delta is not None %}<span class="lab-delta {% if r.verdict == 'better' %}lab-delta--better{% elif r.verdict == 'worse' %}lab-delta--worse{% endif %}"><span class="sr-only">{% if r.verdict == 'better' %}أفضل من المرجع: {% elif r.verdict == 'worse' %}أسوأ من المرجع: {% else %}بلا حكم: {% endif %}</span>{% if r.delta > 0 %}+{% endif %}{{ r.delta }}{% if r.verdict == 'better' %} <span aria-hidden="true">▲</span>{% elif r.verdict == 'worse' %} <span aria-hidden="true">▼</span>{% endif %}</span>{% endif %}
       </div>
     </div>
     {% endfor %}
   </div>
-  <div class="legend"><span><i class="legend-cur"></i>الحالي</span><span><i class="legend-ref"></i>المرجع</span><span>الشريط درجةٌ من 100 مشتقّة من القيمة</span></div>
+  <div class="lab-legend"><span><i class="lab-legend__cur"></i>الحالي</span><span><i class="lab-legend__ref"></i>المرجع</span><span>الشريط درجةٌ من 100 مشتقّة من القيمة</span></div>
 {% endsection_card %}
+</div>
 {% endfor %}
+</div>
 
 {% if missed_prefs %}
 {% section_card "تفضيلات لم تتحقّق" meta=missed_prefs|length icon="settings" flush=True %}
   <div class="table-wrap">
     <table>
-      <thead><tr><th>المعلّم</th><th>القاعدة</th></tr></thead>
+      <thead><tr><th scope="col">المعلّم</th><th scope="col">القاعدة</th></tr></thead>
       <tbody>{% for name, rules in missed_prefs.items %}<tr><td>{{ name }}</td><td>{{ rules }}</td></tr>{% endfor %}</tbody>
     </table>
   </div>
@@ -159,13 +177,16 @@
     if (data.reference.some(function (v) { return v !== null; })) {
       datasets.push({ label: "المرجع", data: data.reference, borderColor: chartColor("chart-4"), backgroundColor: chartAlpha("chart-4", .15), pointBackgroundColor: chartColor("chart-4") });
     }
+    // الخطُّ وحجمُه من أنماط الصفحة (`.lab-radar`) لا أرقامٌ حرفيّة هنا.
+    var style = getComputedStyle(el);
+    var font = { family: style.fontFamily, size: parseFloat(style.fontSize) };
     new Chart(el, {
       type: "radar",
       data: { labels: data.labels, datasets: datasets },
       options: {
         responsive: true,
-        scales: { r: { min: 0, max: 100, ticks: { stepSize: 25, backdropColor: "transparent" }, pointLabels: { font: { family: "Tajawal", size: 12 } } } },
-        plugins: { legend: { position: "bottom", labels: { font: { family: "Tajawal" } } } }
+        scales: { r: { min: 0, max: 100, ticks: { stepSize: 25, backdropColor: "transparent" }, pointLabels: { font: font } } },
+        plugins: { legend: { position: "bottom", labels: { font: font } } }
       }
     });
   })();
