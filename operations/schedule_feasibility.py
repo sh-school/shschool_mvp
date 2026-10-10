@@ -339,8 +339,34 @@ def _minutes(moment: time) -> int:
     return moment.hour * 60 + moment.minute
 
 
+def _bell_rows(school: School, day_type: str, memo: dict | None) -> dict[str, list]:
+    """خاناتُ الجرس غيرِ الاستراحة لنوع يومٍ، مجمَّعةً بالنطاق ("" = بلا نطاق).
+
+    استعلامٌ واحد لكلّ نوع يوم في كلّ فحصٍ بدل استعلامٍ لكلّ (معلّم، يوم، نطاق)؛
+    و`memo` يعيش داخل استدعاءٍ واحد ولا يُحفظ بعده فلا يبقى قديماً.
+    """
+    from .models import TimeSlotConfig
+
+    key = ("rows", day_type)
+    cached: dict[str, list] | None = memo.get(key) if memo is not None else None
+    if cached is not None:
+        return cached
+    grouped: dict[str, list] = defaultdict(list)
+    for band_id, start, end, number in TimeSlotConfig.objects.filter(
+        school=school, day_type=day_type, is_break=False
+    ).values_list("band_id", "start_time", "end_time", "period_number"):
+        grouped[str(band_id or "")].append((start, end, number))
+    if memo is not None:
+        memo[key] = grouped
+    return grouped
+
+
 def _band_day_cap(
-    school: School, band_ids: frozenset[str], day_type: str, skip_period: int | None = None
+    school: School,
+    band_ids: frozenset[str],
+    day_type: str,
+    skip_period: int | None = None,
+    memo: dict | None = None,
 ) -> int:
     """AS-1/AS-5: أقصى خاناتٍ غيرِ متلاصقةٍ في يومٍ، من اتّحاد خانات نطاقاته.
 
@@ -352,19 +378,23 @@ def _band_day_cap(
     بل قد يُنقصه؛ وهذا بعينه الفارقُ عن `get_max_periods_for_day` الذي يعدّ
     الحصصَ بلا نظرٍ إلى تلاصقها (`_check_teachers` أعلاه).
     """
-    from .models import TimeSlotConfig
-
-    rows = TimeSlotConfig.objects.filter(school=school, day_type=day_type, is_break=False)
+    result_key = (band_ids, day_type, skip_period)
+    known: int | None = memo.get(result_key) if memo is not None else None
+    if known is not None:
+        return known
+    rows = _bell_rows(school, day_type, memo)
     intervals: set[tuple[time, time]] = set()
     for band_id in band_ids or {""}:
-        scoped = rows.filter(band__id=band_id) if band_id else rows.filter(band__isnull=True)
-        for row in scoped.only("start_time", "end_time", "period_number"):
-            if skip_period is not None and row.period_number == skip_period:
+        for start, finish, number in rows.get(band_id, ()):
+            if skip_period is not None and number == skip_period:
                 continue
-            intervals.add((row.start_time, row.end_time))
+            intervals.add((start, finish))
     if not intervals:
         #: لا جرسَ معروفاً لهذا النطاق — الصمتُ لا يُقرأ منعاً (كـ`are_joined`).
-        return get_max_periods_for_day(THURSDAY if day_type == "thursday" else 0, "")
+        fallback = get_max_periods_for_day(THURSDAY if day_type == "thursday" else 0, "")
+        if memo is not None:
+            memo[result_key] = fallback
+        return fallback
 
     #: أقصى مجموعةٍ لا يتلاصق فيها عنصران (HC5: `MAX_CONSECUTIVE = 1`) — لا عدُّ
     #: التكتّلات. الأولى تعطي ٤ لسبعِ حصصٍ متتالية، والثانيةُ ١ فتُرفَض الأنصبةُ
@@ -375,6 +405,8 @@ def _band_day_cap(
         if last_end is None or _minutes(start) - _minutes(last_end) > HC5_JOINABLE_GAP_MINUTES:
             count += 1
             last_end = finish
+    if memo is not None:
+        memo[result_key] = count
     return count
 
 
@@ -385,6 +417,7 @@ def binding_daily_cap(
     blocked: dict,
     personal_max_daily: int | None,
     personal_max_last: int | None = None,
+    memo: dict | None = None,
 ) -> tuple[int, str | None]:
     """السقفُ الساري على نصاب معلّمٍ في الأسبوع، واسمُ القيد الذي حكم.
 
@@ -405,9 +438,13 @@ def binding_daily_cap(
     for d in days:
         day_type = "thursday" if d == THURSDAY else "regular"
         held = blocked.get(d, 0)
-        with_last.append(max(0, _band_day_cap(school, band_ids, day_type) - held))
+        with_last.append(max(0, _band_day_cap(school, band_ids, day_type, memo=memo) - held))
         without_last.append(
-            max(0, _band_day_cap(school, band_ids, day_type, skip_period=LAST_PERIOD) - held)
+            max(
+                0,
+                _band_day_cap(school, band_ids, day_type, skip_period=LAST_PERIOD, memo=memo)
+                - held,
+            )
         )
     allowed_sevenths = personal_last_cap(personal_max_last) or MAX_LAST_PERIODS
     gains = sorted((w - n for w, n in zip(with_last, without_last, strict=True)), reverse=True)
@@ -499,6 +536,8 @@ def _check_daily_band_load(
     }
 
     rows = []
+    #: ذاكرةٌ لهذا الفحص وحده: الجرسُ لا يتغيّر بين معلّمٍ وآخر.
+    bell_memo: dict = {}
     for tid, need in demand.items():
         binding, source = binding_daily_cap(
             school,
@@ -507,6 +546,7 @@ def _check_daily_band_load(
             blocked.get(tid, {}),
             personal[tid][0] if tid in personal else None,
             personal[tid][1] if tid in personal else None,
+            memo=bell_memo,
         )
         if source is None:
             continue
