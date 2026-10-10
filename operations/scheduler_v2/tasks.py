@@ -8,6 +8,7 @@ from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
 
 from core.celery_tasks import school_rls_scope
+from operations.scheduler_v2.limits import GENERATION_HARD_TIME_LIMIT, GENERATION_SOFT_TIME_LIMIT
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +17,8 @@ logger = logging.getLogger(__name__)
     name="operations.generate_schedule_v2",
     bind=True,
     max_retries=0,
-    soft_time_limit=3600,
-    time_limit=3660,
+    soft_time_limit=GENERATION_SOFT_TIME_LIMIT,
+    time_limit=GENERATION_HARD_TIME_LIMIT,
 )
 def generate_schedule_v2_task(
     self,
@@ -57,11 +58,40 @@ def generate_schedule_v2_task(
             result = runner.run_generation(generation, config)
     except SoftTimeLimitExceeded:
         message = "تجاوز العاملُ الزمنَ المسموح"
-        runner.fail_generation(generation, runner.RunResult(False, None, None, message, "timeout"))
+        failed = runner.RunResult(False, None, None, message, "timeout")
+        runner.fail_generation(generation, failed)
+        _finish(generation, failed)
         return {"ok": False, "reason": "soft_time_limit"}
     except Exception:  # noqa: BLE001 — يُسجَّل للمشغّل ويُقال للمستخدم عامّاً
         logger.exception("generate_schedule_v2: فشل التوليد %s", generation_id)
         message = "خطأ غير متوقَّع في توليد V2 — راجع سجلّ المشغّل"
-        runner.fail_generation(generation, runner.RunResult(False, None, None, message, "error"))
+        failed = runner.RunResult(False, None, None, message, "error")
+        runner.fail_generation(generation, failed)
+        _finish(generation, failed)
         return {"ok": False, "reason": "exception"}
+    _finish(generation, result)
     return {"ok": result.ok, "reason": result.reason}
+
+
+def _finish(generation, result):
+    """ما كانت V1 تفعله بعد الحلّ: مؤشّراتُ المختبر تُحفظ، ومن ضغط الزرَّ يُخبَر بالمصير."""
+    from operations.models import ScheduleGeneration
+    from operations.tasks import _notify_generation_done
+
+    generation = ScheduleGeneration.objects.select_related("school").get(pk=generation.pk)
+    if not result.ok:
+        _notify_generation_done(
+            generation, ok=False, summary=generation.error_message or result.message
+        )
+        return
+    try:
+        from operations.schedule_lab import store_metrics
+
+        store_metrics(generation)
+    except Exception:  # noqa: BLE001 — القياسُ لا يُسقط توليداً ناجحاً
+        logger.exception("schedule_lab: تعذّر حسابُ المؤشرات للتوليد %s", generation.pk)
+    _notify_generation_done(
+        generation,
+        ok=True,
+        summary=f"{generation.total_slots_created} حصّة في مسودّةٍ جاهزةٍ للمراجعة",
+    )

@@ -49,15 +49,16 @@ from .schedule_breaches import (
 from .schedule_selectors import mark_v2, pages_payload
 from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
 from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
+from .scheduler_v2.limits import GENERATION_STALE_AFTER_SECONDS
 from .services import AbsenceSwapService, ScheduleService, SubstituteService, schedule_gate
 from .services.substitute import TEACHING_ROLES
 
 logger = logging.getLogger(__name__)
 
 #: بعدها يُعدّ التوليدُ المعلّقُ ميّتاً. والحدُّ أكبرُ من `soft_time_limit`
-#: للمهمّة (خمس عشرة دقيقة) بهامشِ انتظارٍ في الطابور — فما تجاوزه لم يعد
-#: ينتظر عاملاً، بل يحجب الزرَّ عمّن يريد إعادةَ المحاولة.
-_GENERATION_STALE_AFTER = timedelta(minutes=20)
+#: للمهمّة بهامشِ انتظارٍ في الطابور — فما تجاوزه لم يعد ينتظر عاملاً، بل يحجب
+#: الزرَّ عمّن يريد إعادةَ المحاولة. ومصدرُه الوحيد `scheduler_v2/limits.py`.
+_GENERATION_STALE_AFTER = timedelta(seconds=GENERATION_STALE_AFTER_SECONDS)
 
 
 def _may_decide_schedule(user) -> bool:
@@ -89,7 +90,7 @@ def _reap_stale_generations(school, year):
         status="failed",
         finished_at=timezone.now(),
         error_message=(
-            "لم يلتقط عاملُ الخلفيّة هذه المهمّة خلال عشرين دقيقة — "
+            "لم يلتقط عاملُ الخلفيّة هذه المهمّة خلال الزمن المسموح — "
             "غالباً لأنّ Celery متوقّف. راجع تشغيلَه ثمّ أعد المحاولة."
         ),
     )
@@ -865,10 +866,10 @@ def smart_generate(request):
 
     generation = gate.create_generation(school, request.user)
 
-    from .tasks import generate_smart_schedule_task
+    from .scheduler_v2.tasks import generate_schedule_v2_task
 
     try:
-        generate_smart_schedule_task.delay(str(generation.id))
+        generate_schedule_v2_task.delay(str(generation.id))
     except Exception as exc:  # وسيطُ الرسائل ساقطٌ أو غيرُ مهيّأ
         # ولا يُترك الصفُّ «في الانتظار» إلى الأبد: انتظارٌ بلا عاملٍ كذبةٌ
         # صامتة. يُقال إنّ العاملَ غيرُ متاح، ويُقال ماذا يفعل المسؤول.
@@ -911,6 +912,8 @@ def smart_generate_status(request):
             "id",
             "status",
             "quality_score",
+            "soft_violations",
+            "config_snapshot",
             "total_slots_created",
             "generation_time_ms",
             "error_message",
@@ -920,13 +923,19 @@ def smart_generate_status(request):
     if generation is None:
         return JsonResponse({"status": None, "pending": False})
 
+    is_v2 = (generation.config_snapshot or {}).get("engine") == "cpsat_v2" or (
+        generation.is_pending and not generation.config_snapshot
+    )
     return JsonResponse(
         {
             "id": str(generation.id),
             "status": generation.status,
             "status_label": generation.get_status_display(),
             "pending": generation.is_pending,
-            "quality": round(generation.quality_score),
+            # V2 لا تحسب «جودةً» مئويّة (تقيسها بحصصٍ متعذّرة ومخالفاتٍ لينة)؛ والصفرُ الافتراضيّ
+            # يُقرأ فشلاً — فيُحجب الرقمُ ويُعرض ما تقيسه فعلاً.
+            "quality": None if is_v2 else round(generation.quality_score),
+            "soft_violations": generation.soft_violations if is_v2 else None,
             "slots": generation.total_slots_created,
             "elapsed_ms": generation.generation_time_ms,
             "error": generation.error_message,

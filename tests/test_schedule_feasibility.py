@@ -296,7 +296,9 @@ def test_a_healthy_school_is_told_so(client_as, vice, school, teacher):
 @pytest.fixture
 def no_op_task(monkeypatch):
     """يعطّل إرسالَ مهمّة التوليد الفعليّة — البوّابةُ تُختبَر لا المولّد."""
-    monkeypatch.setattr("operations.tasks.generate_smart_schedule_task.delay", lambda *a, **k: None)
+    monkeypatch.setattr(
+        "operations.scheduler_v2.tasks.generate_schedule_v2_task.delay", lambda *a, **k: None
+    )
 
 
 def test_infeasible_generation_is_blocked_without_a_reason(
