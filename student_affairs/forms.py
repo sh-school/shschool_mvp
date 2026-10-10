@@ -110,11 +110,12 @@ class TransferForm(forms.Form):
     )
     other_school_name = forms.CharField(
         max_length=200,
+        required=False,
         label="المدرسة الأخرى",
-        error_messages={"required": "اسم المدرسة الأخرى مطلوب."},
     )
     from_grade = forms.CharField(max_length=3, required=False, label="الصف (من)")
     to_grade = forms.CharField(max_length=3, required=False, label="الصف (إلى)")
+    to_class_group_id = forms.UUIDField(required=False, label="الشعبة المنقول إليها")
     transfer_date = forms.DateField(
         widget=forms.DateInput(attrs={"type": "date"}),
         label="تاريخ الانتقال",
@@ -125,6 +126,15 @@ class TransferForm(forms.Form):
         required=False,
         label="السبب",
     )
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("direction") == "internal":
+            if not cleaned.get("to_class_group_id"):
+                self.add_error("to_class_group_id", "اختر الشعبة المنقول إليها.")
+        elif not cleaned.get("other_school_name"):
+            self.add_error("other_school_name", "اسم المدرسة الأخرى مطلوب.")
+        return cleaned
 
 
 class TransferReviewForm(forms.Form):

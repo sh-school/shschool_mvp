@@ -28,6 +28,7 @@ class StudentTransfer(AuditedModel):
     DIRECTION_CHOICES = [
         ("in", "وارد"),
         ("out", "صادر"),
+        ("internal", "داخلي (بين شعب المدرسة)"),
     ]
 
     STATUS_CHOICES = [
@@ -51,7 +52,7 @@ class StudentTransfer(AuditedModel):
         verbose_name="الطالب",
     )
     direction = models.CharField(
-        max_length=3,
+        max_length=10,
         choices=DIRECTION_CHOICES,
         verbose_name="اتجاه الانتقال",
     )
@@ -68,6 +69,15 @@ class StudentTransfer(AuditedModel):
         max_length=3,
         blank=True,
         verbose_name="الصف (إلى)",
+    )
+    #: الشعبة المنقول إليها في الانتقال الداخلي وحده (W-20261005-008) — فارغةٌ في الوارد والصادر.
+    to_class_group = models.ForeignKey(
+        "core.ClassGroup",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="incoming_internal_transfers",
+        verbose_name="الشعبة المنقول إليها",
     )
     transfer_date = models.DateField(verbose_name="تاريخ الانتقال")
     reason = models.TextField(
@@ -99,7 +109,7 @@ class StudentTransfer(AuditedModel):
         ]
 
     def __str__(self):
-        direction_label = "← وارد" if self.direction == "in" else "→ صادر"
+        direction_label = {"in": "← وارد", "out": "→ صادر"}.get(self.direction, "⇄ داخلي")
         return f"{self.student.full_name} {direction_label} — {self.other_school_name}"
 
 

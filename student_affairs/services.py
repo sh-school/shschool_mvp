@@ -992,6 +992,7 @@ class TransferService:
             transfer_date=data["transfer_date"],
             from_grade=data.get("from_grade", ""),
             to_grade=data.get("to_grade", ""),
+            to_class_group=data.get("to_class_group"),
             reason=data.get("reason", ""),
             notes=data.get("notes", ""),
             status="pending",
@@ -1006,6 +1007,65 @@ class TransferService:
             school.code,
         )
         return transfer
+
+    @staticmethod
+    def internal_target_error(transfer, today=None) -> str:
+        """سببُ رفض الهدف في الانتقال الداخلي، أو «» إن صحّ — المصدرُ الواحد للنموذج والإتمام (D-201م).
+
+        الهدفُ شعبةٌ أخرى بنفس الصفّ والمدرسة والعام (صفّ الطالب الحالي لا الصفّ المكتوب في الطلب).
+        """
+        target = transfer.to_class_group
+        if target is None:
+            return "الشعبة المنقول إليها مطلوبة في الانتقال الداخلي."
+        current = StudentEnrollment.objects.current_of(transfer.student, transfer.school)
+        if current is None:
+            return "الطالب بلا تسجيل نشط في شعبة — لا انتقال داخليّ له."
+        source = current.class_group
+        if target.school_id != transfer.school_id or not target.is_active:
+            return "الشعبة المنقول إليها ليست شعبةً نشطة في هذه المدرسة."
+        if target.pk == source.pk:
+            return "الشعبة المنقول إليها هي شعبة الطالب الحالية."
+        if target.grade != source.grade or target.academic_year != source.academic_year:
+            return "الانتقال الداخلي يكون إلى شعبةٍ من الصفّ نفسه والعام نفسه."
+        return ""
+
+    @staticmethod
+    @transaction.atomic
+    def complete_internal(transfer, actor):
+        """إتمامُ انتقالٍ داخليّ ذرّيّاً: يُغلق التسجيلَ القديم وينشئ الجديد بتاريخ الانتقال، بلا حذف (W-20261005-008).
+
+        الغيابُ والإدخالاتُ والقراراتُ والأعذارُ والتنبيهاتُ مفتاحُها الطالبُ لا الشعبة، فتبقى كلُّها مع الطالب (D-201م).
+        ويُرفض قبل أيّ كتابةٍ: هدفٌ غيرُ صالح، أو تاريخٌ في المستقبل (لا يغيب الطالبُ عن الشعبتين).
+        """
+        error = TransferService.internal_target_error(transfer)
+        if error:
+            raise ValueError(error)
+        if transfer.transfer_date > timezone.localdate():
+            raise ValueError("تاريخ الانتقال في المستقبل — يُتمّ الانتقال الداخلي يوم نفاذه أو بعده.")
+        current = StudentEnrollment.objects.current_of(transfer.student, transfer.school)
+        source = current.class_group
+        current.is_active = False
+        current.save(update_fields=["is_active"])
+        enrollment = StudentEnrollment.objects.create(
+            student=transfer.student,
+            class_group=transfer.to_class_group,
+            enrolled_at=transfer.transfer_date,
+        )
+        AuditLog.log(
+            user=actor,
+            action="update",
+            model_name="other",
+            object_id=enrollment.pk,
+            object_repr=f"انتقال داخليّ: {source.short_label} ← {transfer.to_class_group.short_label}",
+            changes={
+                "student": masked_repr(transfer.student),
+                "from": source.short_label,
+                "to": transfer.to_class_group.short_label,
+                "date": transfer.transfer_date.isoformat(),
+            },
+            school=transfer.school,
+        )
+        return enrollment
 
     @staticmethod
     @transaction.atomic
@@ -1040,6 +1100,10 @@ class TransferService:
         if notes:
             separator = "\n---\n" if transfer.notes else ""
             transfer.notes += f"{separator}[{reviewer.full_name}]: {notes}"
+
+        if action == "completed" and transfer.direction == "internal":
+            # قبل حفظ الحالة: إن رُفض الهدف لا يُحفظ «مكتمل» بلا نقل
+            TransferService.complete_internal(transfer, reviewer)
 
         transfer.updated_by = reviewer
         transfer.save(update_fields=["status", "notes", "updated_by", "updated_at"])
