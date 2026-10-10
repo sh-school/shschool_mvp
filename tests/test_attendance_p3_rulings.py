@@ -8,10 +8,7 @@
 import pytest
 
 from operations.attendance_entries import (
-    MAX_REASON_LENGTH,
-    EntryError,
     EntryRefusedError,
-    decide_entry,
     submit_entry,
 )
 from operations.attendance_policy import can_enter
@@ -26,19 +23,6 @@ LATER = at(9, 0)
 
 def _transfer_out(kid):
     kid.enrollments.update(is_active=False)
-
-
-def test_a_student_transferred_after_the_entry_can_still_be_corrected_in_the_window(
-    session, teacher, holder, kid
-):
-    entry = submit_entry(teacher, session, kid, "absent", now=NOW)
-    decide_entry(holder, entry, approve=True, now=NOW)
-    _transfer_out(kid)
-    assert can_enter(teacher, session, kid, now=LATER)
-    corrected = submit_entry(
-        teacher, session, kid, "present", now=LATER, correction_reason="خطأ في الرصد"
-    )
-    assert corrected.supersedes_id == entry.pk
 
 
 def test_a_student_transferred_before_any_entry_is_still_not_enrolled(session, teacher, kid):
@@ -67,47 +51,6 @@ def test_a_transferred_student_with_no_entry_in_this_session_is_not_corrected_by
     submit_entry(teacher, other, kid, "absent", now=at(8, 10))
     _transfer_out(kid)
     assert can_enter(teacher, session, kid, now=NOW).reason == "not_enrolled"
-
-
-def test_a_correction_reason_over_the_cap_is_refused(session, teacher, holder, kid):
-    entry = submit_entry(teacher, session, kid, "absent", now=NOW)
-    decide_entry(holder, entry, approve=True, now=NOW)
-    with pytest.raises(EntryError) as raised:
-        submit_entry(
-            teacher,
-            session,
-            kid,
-            "present",
-            now=LATER,
-            correction_reason="س" * (MAX_REASON_LENGTH + 1),
-        )
-    assert raised.value.code == "reason_too_long"
-
-
-def test_a_correction_reason_at_the_cap_is_accepted(session, teacher, holder, kid):
-    entry = submit_entry(teacher, session, kid, "absent", now=NOW)
-    decide_entry(holder, entry, approve=True, now=NOW)
-    corrected = submit_entry(
-        teacher,
-        session,
-        kid,
-        "present",
-        now=LATER,
-        correction_reason="س" * MAX_REASON_LENGTH,
-    )
-    assert len(corrected.correction_reason) == MAX_REASON_LENGTH
-
-
-def test_a_rejection_reason_over_the_cap_is_refused_and_decides_nothing(
-    session, teacher, holder, kid
-):
-    entry = submit_entry(teacher, session, kid, "absent", now=NOW)
-    with pytest.raises(EntryError) as raised:
-        decide_entry(holder, entry, approve=False, reason="س" * (MAX_REASON_LENGTH + 1))
-    assert raised.value.code == "reason_too_long"
-    from operations.models import AttendanceDecision
-
-    assert not AttendanceDecision.objects.exists()
 
 
 def test_the_cap_does_not_hide_a_policy_refusal(session, other_teacher, kid):

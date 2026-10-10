@@ -609,6 +609,63 @@ def _edge_caps(ctx: _Ctx, t, edges: _Edges, hc22: bool, hc8: bool) -> None:
 # ───────────────────────── HC9 و HC11: الموارد ─────────────────────────
 
 
+#: دقائقُ الانتقال المسموحة بين مرحلتين على موردٍ واحد — مرآةُ scheduler.py::RESOURCE_OVERLAP_TOLERANCE (قرار 2026-09-08).
+HC11_TRANSITION_MINUTES = 5
+
+
+def _hc11_clock_overlap(ctx: _Ctx, cells: list) -> None:
+    """والمُقيِّمُ المستقلّ يحكم بالساعة أيضاً (scheduler.py::resource_overlapping_levels): مرحلتان بجرسَين مختلفَين
+    تتقاطعان في المورد أكثرَ من دقائق الانتقال المسموحة ممنوعتان وإن اختلف رقمُ الحصّة. كان النموذجُ يحكم بالرقم
+    وحدَه فقُبل في 30e201f8 حلٌّ فيه مخالفتان HC11 رفضهما المُقيِّم. `cells`: (بداية، نهاية، متغيّر، مرحلة، رقم).
+
+    التقاطعُ > التسامح ⇔ تقاطعُ الفاصلَين [بداية، نهاية−التسامح) — فالنقطةُ max(بدايتَين) تقع فيهما معاً. فيكفي في كلّ
+    بدايةٍ فريدةٍ علامةٌ لكلّ مرحلةٍ ومجموعُها ≤ 1 (صيغةُ HC9 نفسُها، عشراتُ النقاط لا آلافُ الأزواج)."""
+    seen = set()
+    for point in sorted({c[0] for c in cells}):
+        group = [c for c in cells if c[0] <= point < c[1] - HC11_TRANSITION_MINUTES]
+        levels = defaultdict(list)
+        for c in group:
+            levels[c[3]].append(c[2])
+        if len(levels) < 2:
+            continue
+        sig = tuple(sorted((lv, tuple(sorted(id(v) for v in vs))) for lv, vs in levels.items()))
+        if sig in seen:
+            continue
+        seen.add(sig)
+        marks = []
+        for vs in levels.values():
+            mark = ctx.m.NewBoolVar("")
+            for v in vs:
+                ctx.m.Add(v <= mark)
+            marks.append(mark)
+        ctx.m.Add(sum(marks) <= 1)
+        ctx.count("HC11")
+
+
+def _hc11(ctx: _Ctx, rid: str, cells: list) -> None:
+    """HC11 نصُّها ∀ r,d,p: بالحصّة لا بالساعة (قرارُ 2026-09-03)؛ مرحلتان في الخانة الرقميّة نفسِها ممنوعتان،
+    ثمّ بالساعة لموردٍ `same_level_only` وحدَه كما يحكم المُقيِّم."""
+    by_period = defaultdict(list)
+    for c in cells:
+        by_period[c[4]].append(c)
+    for grp in by_period.values():
+        levels = defaultdict(list)
+        for c in grp:
+            levels[c[3]].append(c[2])
+        if len(levels) > 1:
+            marks = []
+            for vs in levels.values():
+                mk = ctx.m.NewBoolVar("")
+                for v in vs:
+                    ctx.m.Add(v <= mk)
+                marks.append(mk)
+            ctx.m.Add(sum(marks) <= 1)
+            ctx.count("HC11")
+    same = ctx.inp.res_same_level
+    if same is None or rid in same:
+        _hc11_clock_overlap(ctx, cells)
+
+
 def _resources(ctx: _Ctx) -> None:
     m, x = ctx.m, ctx.b.x
     for rid, cap in ctx.inp.res_cap.items():
@@ -647,24 +704,8 @@ def _resources(ctx: _Ctx) -> None:
                 if len(grp) > cap:
                     m.Add(sum(c[2] for c in grp) <= cap)
                     ctx.count("HC9")
-            # HC11 نصُّها ∀ r,d,p: بالحصّة لا بالساعة (قرارُ 2026-09-03)؛ مرحلتان في الخانة الرقميّة نفسِها ممنوعتان.
             if ctx.opt.enabled("HC11"):
-                by_period = defaultdict(list)
-                for c in cells:
-                    by_period[c[4]].append(c)
-                for grp in by_period.values():
-                    levels = defaultdict(list)
-                    for c in grp:
-                        levels[c[3]].append(c[2])
-                    if len(levels) > 1:
-                        marks = []
-                        for vs in levels.values():
-                            mk = ctx.m.NewBoolVar("")
-                            for v in vs:
-                                m.Add(v <= mk)
-                            marks.append(mk)
-                        m.Add(sum(marks) <= 1)
-                        ctx.count("HC11")
+                _hc11(ctx, rid, cells)
 
 
 def add_all(built: BuiltModel) -> None:

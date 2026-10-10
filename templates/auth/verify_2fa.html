@@ -1,66 +1,32 @@
 {% extends "base/base.html" %}
-{% load icons %}
+{% load icons ui %}
 {% block title %}التحقق بخطوتين{% endblock %}
+{% block main_class %}{% page_layout "form" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with current="التحقق بخطوتين" %}
 {% endblock %}
 
 {% block content %}
-<div class="flex items-center justify-center py-12 px-4">
-  <div class="max-w-md w-full">
+<div class="form-page">
 
-    <!-- Header -->
-    <div class="text-center mb-8">
-      <div class="w-16 h-16 bg-maroon rounded-full flex items-center justify-center mx-auto mb-4">
-        {% icon "security" %}
+  {% page_header "التحقق بخطوتين" subtitle="افتح تطبيق المصادقة وأدخل رمز التحقق" icon="security" %}{% endpage_header %}
+
+  <div class="form-card">
+
+    {% for msg in messages %}
+    {% if msg.tags == 'error' %}{% callout "error" %}{{ msg }}{% endcallout %}{% else %}{% callout "success" %}{{ msg }}{% endcallout %}{% endif %}
+    {% endfor %}
+
+    <form method="post" autocomplete="off" class="form-stack">
+      {% csrf_token %}
+      {% field "code" "رمز التحقق (6 أرقام)" id="f-code" css="ui-field--code" maxlength="7" inputmode="numeric" pattern="[0-9]{3} ?[0-9]{3}" autocomplete="one-time-code" autofocus=True placeholder="• • • • • •" help="الرمز يتجدد كل 30 ثانية" %}
+      <div class="form-footer">
+        <button type="submit" class="btn-primary">تحقق ودخول</button>
+        <a href="{% url 'login' %}" class="btn-ghost">← العودة لتسجيل الدخول</a>
       </div>
-      <h1 class="page-title">التحقق بخطوتين</h1>
-      <p class="page-subtitle">افتح تطبيق المصادقة وأدخل رمز التحقق</p>
-    </div>
-
-    <!-- Card -->
-    <div class="form-card">
-
-      {% if messages %}
-        {% for msg in messages %}
-        <div class="msg-bar mb-4 {% if msg.tags == 'error' %}msg-error{% else %}msg-success{% endif %}" role="{% if msg.tags == 'error' %}alert{% else %}status{% endif %}">
-          <span>{{ msg }}</span>
-        </div>
-        {% endfor %}
-      {% endif %}
-
-      <form method="post" autocomplete="off">
-        {% csrf_token %}
-        {# حقلُ الرمز باليد: أصنافُ العرض (توسيطٌ وخطٌّ أحاديّ وتباعدٌ) على الحقل نفسِه لا على غلافه #}
-        <div class="ui-field mb-6">
-          <label for="f-code" class="ui-field__label">رمز التحقق (6 أرقام)</label>
-          <input type="text"
-                 id="f-code"
-                 name="code"
-                 maxlength="7"
-                 inputmode="numeric"
-                 pattern="[0-9]{3} ?[0-9]{3}"
-                 autocomplete="one-time-code"
-                 autofocus
-                 aria-describedby="f-code-help"
-                 placeholder="• • • • • •"
-                 class="form-control text-center text-2xl font-mono tracking-widest">
-          <p id="f-code-help" class="ui-field-hint text-center mt-2">الرمز يتجدد كل 30 ثانية</p>
-        </div>
-
-        <button type="submit" class="btn-primary w-full py-3">
-          تحقق ودخول
-        </button>
-      </form>
-
-      <div class="mt-6 text-center">
-        <a href="{% url 'login' %}" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)]">
-          ← العودة لتسجيل الدخول
-        </a>
-      </div>
-    </div>
-
+    </form>
   </div>
+
 </div>
 {% endblock %}

@@ -61,7 +61,6 @@ def _director_day(ctx: dict) -> dict:
     final = day.phase == "final"
     c = day.school
     follow_url = reverse("student_affairs:attendance_overview") if ctx.get("can_follow_up") else ""
-    unapproved_url = reverse("attendance_unapproved")
     if day.slots_running and day.current_slot:
         sections_sub = f"ح{day.current_slot} جارية"
     else:
@@ -90,9 +89,8 @@ def _director_day(ctx: dict) -> dict:
         "day_headline_tone": _pending(c.absent_unexcused if final else c.early_absent, "red"),
         "day_headline_sub": "حكمُ اليوم" if final else "قبل حسم اليوم",
         "day_follow_url": follow_url,
-        "day_unapproved_url": unapproved_url,
-        "day_pending_tone": _pending(c.pending, "amber"),
         "day_incomplete_tone": _pending(c.incomplete, "amber"),
+        "day_pending_tone": _pending(c.pending, "amber"),
         "day_sections_label": f"{c.sections_registered} من {c.sections_total}",
         "day_sections_sub": sections_sub,
         "day_slots_sub": f"انتهت {day.slots_ended} · جارية {day.slots_running}",

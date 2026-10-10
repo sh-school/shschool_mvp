@@ -738,10 +738,6 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 .login-inline-icon { width: 1em; height: 1em; vertical-align: middle; }
 /* توقيعُ «أذكياء» في ذيل البطاقة: أبعدُ عن نصّ المساعدة منه في ذيل المنصّة. */
 .login-card .login-brand { margin-top: 1rem; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); }
-/* شارةُ «المصادقة الثنائية مفعّلة» — دائرةٌ خضراءُ مصمتة تفتح ليلاً، وعلامتُها
-   بيضاء. كان القالبُ يمرّر `class="text-white"` إلى `icon.html` وهو لا يقبل
-   صنفاً، فكانت العلامةُ ترث لونَ ما حولها: سوداءَ على الأخضر الداكن نهاراً. */
-.tfa-status-badge { background-color: var(--status-success-dark); color: var(--on-fill); }
 
 /* ── 16. Responsive — Mobile-First ─── */
 .quality-page { width: 100%; padding: 0.5rem; }
@@ -961,9 +957,6 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 /* ── Mobile: dashboards ── */
 @media (max-width: 1024px) {
   .exec-dash { height: auto; overflow: auto; }
-  /* كشفُ الشعبة: جدولُه في غلافِ تمريرٍ خاصّ (.per-grid-wrap)، والحاويةُ لا تكون صندوقَ
-     تمرير — وإلّا صارت مرجعَ الالتصاق فلا يلتصق شريطُ «ثبّت الحصّة» بأسفل شاشة الجوّال. */
-  .exec-dash:has(> .rec-form) { overflow: visible; }
 
   .dash-chart-wrap { min-height: 180px; }
 }

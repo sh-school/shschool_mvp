@@ -211,10 +211,9 @@ SCENES = [scene_empty, scene_partial, scene_doubles_and_split, scene_bells_and_c
 #: كلُّ ما يقبل الرتبةَ يُكسَر في الرخصة الأولى — ليمرّ الاختبارُ بفرع `waived` أيضاً:
 #: HC7 وHC8 وHC11 وHC16 وHC17 لا تلين بنفسها، فكسرُها تخطّيها.
 LENIENT = ConstraintPolicy(
-    breaks={
-        code: RELAXED
-        for code in ("HC5", "HC6", "HC7", "HC8", "HC11", "HC14", "HC16", "HC16B", "HC17", "HC20")
-    },
+    breaks=dict.fromkeys(
+        ("HC5", "HC6", "HC7", "HC8", "HC11", "HC14", "HC16", "HC16B", "HC17", "HC20"), RELAXED
+    ),
     weights=default_policy().weights,
 )
 WAIVED = {"HC7", "HC8", "HC11", "HC16", "HC17"}

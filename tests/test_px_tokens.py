@@ -12,8 +12,8 @@ from tests.css_source import read_css
 
 #: خارجَ السلّم يومَ الترحيل (2026-09-19). تُخفَّض ولا تُرفع. 80 ← 79 (2026-09-25): حذفُ التصريحات الميّتة
 #: بالتتالي أسقط `padding: … 28px` من `.form-card` (لا تُرسم أصلاً — يمحوها لاحقٌ بالمُحدِّد نفسِه).
-OFF_SCALE_SPACING = 77
-OFF_SCALE_RADIUS = 31
+OFF_SCALE_SPACING = 75
+OFF_SCALE_RADIUS = 30
 
 
 def test_no_spacing_or_radius_px_literal_matches_a_token():

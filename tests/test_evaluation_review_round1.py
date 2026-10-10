@@ -468,27 +468,3 @@ def test_blank_and_internal_rows_are_not_counted_or_shown_as_weak(
 
 
 # ── 10. المديرُ يفتح التقريرَ ليعتمده: يرى درجاتِ واضعه، ولا يصير مقيِّماً ثانياً ──
-
-
-@pytest.mark.django_db
-def test_principal_sees_the_placers_scores_and_cannot_split_the_total(
-    client, school, principal_user, teacher_user
-):
-    """المادة 16: «يضع الرئيس المباشر تقييم أداء الموظف ويعتمد من مدير المدرسة» — واضعٌ واحد."""
-    form, vice, evaluation = _placed_by_vice(client, school, teacher_user)
-    placed = EvaluationScore.objects.get(evaluation=evaluation, evaluator=vice).custom_axes
-
-    client.force_login(principal_user)
-    page = client.get(_url(teacher_user))
-    rows = {key: value for key, _label, _max, value in page.context["axis_rows"]}
-    assert rows == placed
-    assert (page.context["is_editable"], page.context["can_approve"]) == (False, True)
-
-    client.post(_url(teacher_user), _post_total(form, 0, "submitted"))
-    evaluation.refresh_from_db()
-    assert (evaluation.total_score, evaluation.evaluator_id, evaluation.status) == (
-        92,
-        vice.pk,
-        "submitted",
-    )
-    assert not EvaluationScore.objects.filter(evaluator=principal_user).exists()

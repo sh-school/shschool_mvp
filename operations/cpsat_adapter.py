@@ -85,6 +85,8 @@ class CpSatInputs:
     res_cap: dict[str, int] = field(default_factory=dict)
     #: {معرّفُ المورد: موادُّه}
     res_subjects: dict[str, frozenset[str]] = field(default_factory=dict)
+    #: الموارد التي لا تجمع مرحلتين (`same_level_only`، HC11 بالساعة). None = كلُّ الموارد (توافقُ الاختبارات الصغيرة).
+    res_same_level: frozenset[str] | None = None
     subject_names: dict[str, str] = field(default_factory=dict)
     teacher_names: dict[str, str] = field(default_factory=dict)
     class_names: dict[str, str] = field(default_factory=dict)
@@ -152,6 +154,7 @@ def build_inputs(
     block_count: dict[tuple, int] = defaultdict(int)
     doubles: set[str] = set()
     res_subjects: dict[str, set[str]] = defaultdict(set)
+    same_level_ids: set[str] = set()
     for task in tasks:
         inputs.class_band[task.class_id] = task.band_id or ""
         inputs.class_names[task.class_id] = task.class_name
@@ -186,9 +189,11 @@ def build_inputs(
             # مجموعاتُ المواد واختنق النموذجُ (A1). والعضوُ بلا موارد خاصّة في مهمّةٍ غير منقسمة
             # يرث موارد المهمّة.
             member_resources = member.resources or (() if task.is_split else task.resources)
-            for resource_id, capacity, *_ in member_resources:
+            for resource_id, capacity, same_level, *_ in member_resources:
                 inputs.res_cap[resource_id] = capacity
                 res_subjects[resource_id].add(member.subject_id)
+                if same_level:
+                    same_level_ids.add(resource_id)
 
     inputs.demand = [
         DemandRow(
@@ -204,6 +209,7 @@ def build_inputs(
     ]
     inputs.doubles = frozenset(doubles)
     inputs.res_subjects = {rid: frozenset(subs) for rid, subs in res_subjects.items()}
+    inputs.res_same_level = frozenset(same_level_ids)
 
     # التفريغ: يومٌ كاملٌ ← `ex_full`، وغيرُه حصّةً حصّةً ← `ex_period`. ويومٌ مفرَّغةٌ كلُّ حصصه
     # (كما يُوسِّع `load_inputs` التفريغَ الكاملَ) يُعدّ يوماً كاملاً.

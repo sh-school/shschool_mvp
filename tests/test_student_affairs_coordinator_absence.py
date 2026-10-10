@@ -5,11 +5,12 @@
 ولا يعتمد (الاعتمادُ ملغى بـD-245م)، ولا يدير الأنشطة، ولا يغيّر الأدوار.
 """
 
+import datetime as dt
+
 import pytest
 
 from core.capabilities import has_capability
 from operations.attendance_policy import (
-    can_approve,
     can_correct_grid,
     can_read_grid,
     can_write_grid,
@@ -45,17 +46,12 @@ class TestReadWriteCorrect:
         assert can_correct_grid(coordinator, klass, SUNDAY, now=at(15, 0))
 
     def test_it_cannot_correct_another_day(self, coordinator, klass):
-        later = at(15, 0).replace(day=SUNDAY.day + 1)
-        assert can_correct_grid(coordinator, klass, SUNDAY, now=later).reason == "not_today"
-
-
-class TestNoApproval:
-    def test_it_does_not_approve_a_pending_entry(self, coordinator, session):
-        """D-266م: لا يعتمد — حتى وهو حاصرُ الغياب العامّ الذي كان معتمِدًا ثانيًا."""
-        verdict = can_approve(coordinator, session)
-
-        assert not verdict
-        assert verdict.reason == "not_approver"
+        assert (
+            can_correct_grid(
+                coordinator, klass, SUNDAY + dt.timedelta(days=1), now=at(15, 0)
+            ).reason
+            == "not_today"
+        )
 
 
 class TestSchoolWide:

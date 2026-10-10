@@ -76,6 +76,13 @@
    "reason": "مصدِّرُ ملخّص الحصّتين للوزارة يمرّ بـrender_pdf وget_export_context كأخويه في wings/views_register.py؛ الثمانيةُ كلُّها من مساعدين مشتركين في core (default_academic_year ‏4 و_materialise_stored_fonts ‏4) لا من استعلامٍ في العرض",
    "to": 8,
    "where": "wings/views_ministry.py::ministry_report"
+  },
+  {
+   "from": 2,
+   "metric": "get_school",
+   "reason": "مصادقة DRF بالتوكن تجري بعد SchoolContextMiddleware فلا request.school في هذا العرض؛ الاستدعاءات الثلاثة (87 و102 و150) مبرَّرة، وكان الرفع في #805 مباشراً بلا بند (W-20261003-021)",
+   "to": 3,
+   "where": "api/views_erasure.py"
   }
  ],
  "core_import_sites": {
@@ -159,7 +166,7 @@
   "library/views.py": 6,
   "notifications/views.py": 5,
   "operations/api_views.py": 1,
-  "operations/views_attendance.py": 9,
+  "operations/views_attendance.py": 3,
   "operations/views_swap.py": 10,
   "parents/views.py": 16,
   "quality/observation_views.py": 6,
@@ -403,12 +410,6 @@
    "orm": 10
   },
   "operations/api_views.py::student_search_api": {
-   "orm": 8
-  },
-  "operations/views_attendance.py::attendance_view": {
-   "orm": 8
-  },
-  "operations/views_attendance.py::mark_all_present": {
    "orm": 8
   },
   "operations/views_attendance.py::schedule": {
@@ -789,13 +790,6 @@
   },
   "wings/views.py::record_index": {
    "orm": 12
-  },
-  "wings/views.py::record_period": {
-   "orm": 41
-  },
-  "wings/views.py::record_section": {
-   "lines": 79,
-   "orm": 55
   },
   "wings/views.py::student_events": {
    "orm": 12

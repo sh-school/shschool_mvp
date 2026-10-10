@@ -204,23 +204,6 @@ def test_fairness_shows_the_spread_not_a_single_average():
 # ── الحكم يبقى معلَّقاً ──────────────────────────────────────────────
 
 
-def test_every_candidate_policy_is_marked_as_needing_approval():
-    """المقياسُ يعرض ما يستحقّ قراراً ولا يتّخذه.
-
-    و«لا معلّمَ يتجاوز أربعاً» نمطٌ مرصود؛ قد يكون قرارَ إدارةٍ وقد يكون أثراً
-    عرضيّاً لجدولٍ بُني هكذا. وكتابتُه قاعدةً من هذا وحده اختراعُ سياسةٍ باسم
-    المدرسة.
-    """
-    lessons = [lesson(day=d, period=p) for d in range(3) for p in (1, 2)]
-    teachers = profile_teachers(lessons)
-
-    found = observations(lessons, teachers, profile_sections(lessons), fairness(teachers))
-
-    assert found, "ثمّة ما يستحقّ النظر"
-    assert all(o.needs_approval for o in found)
-    assert all(o.fact and o.pattern and o.candidate for o in found)
-
-
 def test_nothing_is_observed_from_an_empty_schedule():
     assert observations([], [], [], {}) == []
 

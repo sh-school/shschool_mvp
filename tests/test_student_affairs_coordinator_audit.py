@@ -10,10 +10,8 @@ import pytest
 from django.urls import reverse
 
 from core.models import AuditLog, Membership
-from operations.attendance_policy import can_approve
 from student_affairs.models import StudentTransfer
 from tests.attendance_fixtures import *  # noqa: F401,F403
-from tests.attendance_fixtures import _staff
 
 pytestmark = pytest.mark.django_db
 
@@ -60,18 +58,3 @@ def test_every_transfer_decision_leaves_an_audit_trail(
 
     entry = _events(f"transfer_{decision}").get()
     assert entry.user == student_affairs_coordinator_user
-
-
-def test_a_coordinator_who_holds_a_wing_still_cannot_approve(
-    school, klass, session, wing, monkeypatch
-):
-    """0104: المنعُ قبل `grid_holder_approves` — فتعيينُه حاملَ جناحٍ لا يفتح الاعتماد."""
-    monkeypatch.setattr("django.conf.settings.PROVISIONAL_GRID_ENABLED", True, raising=False)
-    coordinator = _staff(school, "student_affairs_coordinator", "منسق", "29000009911")
-    wing.supervisor = coordinator
-    wing.save()
-
-    verdict = can_approve(coordinator, session, entry_origin="grid")
-
-    assert not verdict
-    assert verdict.reason == "not_approver"

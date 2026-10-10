@@ -22,6 +22,8 @@ ALLOWED_ORPHANS = {
     "admin/app_list.html",
     # جانغو يجدها بالاسم من `admin/includes/fieldset`/نموذج الصفحة المضمَّنة (نسخةٌ من قالبه بتسميةٍ مخفيّةٍ لكلّ خليّة).
     "admin/edit_inline/tabular.html",
+    # يتيمٌ بعد حذف الشبكة القديمة (W-20261009-003) — حذفُ القالب نفسِه خارج إيداعِ اختباراتٍ فقط، فيُحذف في طلبٍ لاحقٍ مع اعتمادٍ بصريّ.
+    "teacher/partials/grid_container.html",
 }
 
 

@@ -7,9 +7,10 @@ bots كـDependabot) مقابلَ الأرقام `#N` المذكورة في حق
 - **لا هجرةَ ولا لمسَ لـ`roadmap/`** (ملكُ «0701»): قراءةٌ فقط من جدول البنود.
 - **أرقامٌ فقط في اللوحة** (`contract.py`: لا نصَّ ولا رقمَ طلبٍ من طرفٍ ثالث): العددُ وعمرُ الأقدم. وقائمةُ الأرقام نفسِها بأمرٍ
   `python manage.py roadmap_unsynced` — هو «طابورُ المزامنة» الذي تقرؤه 0701.
-- **مهلةٌ طبيعيّة**: المزامنةُ تتبع النشرَ (نافذةٌ واحدةٌ بعد الدوام) فلا يُعدّ «متأخّراً» ما دُمج قبل أقلَّ من 36 ساعة. بعدها «انتبه».
+- **مهلةٌ طبيعيّة**: لا يُعدّ «متأخّراً» ما دُمج قبل أقلَّ من 24 ساعة (W-20260929-010: كانت 36). بعدها «انتبه».
   ولا أحمرَ: الخارطةُ خطّةٌ لا نظامٌ حيّ (كلوحة الخارطة).
-- **حدّ المطابقة**: ذكرُ الرقم في أيّ حقلٍ يكفي (قد يذكره بندٌ لا صلةَ له به)، فالنتيجةُ حدٌّ أدنى للمنسيّ لا يقينٌ بأنّ كلَّ مُطابَقٍ موثَّقٌ صحيحاً.
+- **المطابقةُ بحقل `pr` وحدَه** (W-20260929-010): الطلبُ «مُزامَنٌ» إن ورد في `RoadmapItem.pr` لبندٍ؛ وورودُه في `note` أو `ref` فقط
+  لا يُزامنه (لا تتغيّر به حالةُ بندٍ ولا مرجعُه)، بل يُعدّ في مقياسٍ مستقلٍّ «مذكورٌ في ملاحظةٍ فقط» ليراه من يغلق البند.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ from roadmap.models import RoadmapItem
 
 PANEL = "sync"
 MERGED_PATH = "pulls?state=closed&sort=updated&direction=desc&per_page=100"
-GRACE_HOURS = 36
+GRACE_HOURS = 24
 _REF = re.compile(r"#(\d{2,6})\b")
 
 
@@ -47,12 +48,23 @@ def reduce_merged(payload: Any) -> dict[str, Any] | None:
     return {"prs": prs, "full": len(payload) >= 100}
 
 
+def _numbers(texts: tuple[str, ...]) -> set[int]:
+    return {int(n) for text in texts for n in _REF.findall(text or "")}
+
+
 def synced_numbers() -> set[int]:
-    """كلُّ رقمٍ `#N` مذكورٍ في حقول `pr` و`note` و`ref` لأيّ بند."""
+    """الأرقامُ `#N` في حقل `pr` لأيّ بند — وحدَه هو المزامنة (W-20260929-010)."""
+    found: set[int] = set()
+    for (pr,) in RoadmapItem.objects.values_list("pr"):
+        found |= _numbers((pr,))
+    return found
+
+
+def mentioned_numbers() -> set[int]:
+    """الأرقامُ المذكورةُ في `pr` أو `note` أو `ref` — حدٌّ أعلى للمُزامَن، يُقارَن به لكشف «ذُكر في ملاحظةٍ فقط»."""
     found: set[int] = set()
     for pr, note, ref in RoadmapItem.objects.values_list("pr", "note", "ref"):
-        for text in (pr, note, ref):
-            found.update(int(n) for n in _REF.findall(text or ""))
+        found |= _numbers((pr, note, ref))
     return found
 
 
@@ -74,6 +86,8 @@ def collect(now: float | None = None) -> None:
     raw = merged.get("prs")
     prs: list[list[float]] = raw if isinstance(raw, list) else []
     missing = unsynced(prs, synced_numbers())
+    mentioned = mentioned_numbers()
+    note_only = sum(1 for number, _ in missing if number in mentioned)
     late = [item for item in missing if (moment - item[1]) / 3600 > GRACE_HOURS]
     total = len(prs)
     synced = total - len(missing)
@@ -81,7 +95,7 @@ def collect(now: float | None = None) -> None:
     if not total:
         headline, gauge = "لا طلباتٍ مدموجةً في العيّنة", None
     elif not missing:
-        headline, gauge = "كلُّ المدموج مذكورٌ في الخارطة", 100
+        headline, gauge = "كلُّ المدموج مُزامَنٌ في حقل الطلب", 100
     else:
         headline = f"{len(missing)} طلباً دُمج ولم يُزامَن"
         gauge = 100 * synced / total
@@ -93,8 +107,9 @@ def collect(now: float | None = None) -> None:
         gauge=gauge,
         metrics=(
             ("مدموجٌ لم يُزامَن", len(missing)),
-            ("متأخّرٌ فوق 36 س", len(late)),
+            ("متأخّرٌ فوق 24 س", len(late)),
             ("أقدمُ غيرِ مُزامَن", oldest),
+            ("مذكورٌ في ملاحظةٍ فقط", note_only),
             ("في العيّنة" + (" (محدودة)" if merged.get("full") else ""), total),
         ),
     )

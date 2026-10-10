@@ -131,86 +131,6 @@ def is_special_education(class_group: ClassGroup) -> bool:
     return bool(class_group.section.rsplit("/", 1)[-1].strip().upper() == SPECIAL_EDUCATION_SECTION)
 
 
-def is_direct_class(class_group: ClassGroup) -> bool:
-    """شعبةٌ في جناحٍ رصدُ المعلّم فيه نهائيٌّ بلا اعتماد (قرارا المالك 2026-10-07 وD-262م) — بمفتاح الجدول و`ATTENDANCE_GRID_DIRECT_WINGS` (رموزُ الأجنحة أو `*`)."""
-    from django.conf import settings
-
-    if not getattr(settings, "PROVISIONAL_GRID_ENABLED", False):
-        return False
-    wing = class_group.wing
-    if wing is None:
-        return False
-    # القيمةُ الفارغةُ تُستبعد: "".split(",") يعطي {""} فيُعدّ جناحٌ برمزٍ فارغٍ مباشراً (ملاحظة 0104)
-    wanted = {
-        c.strip()
-        for c in str(getattr(settings, "ATTENDANCE_GRID_DIRECT_WINGS", "")).split(",")
-        if c.strip()
-    }
-    return "*" in wanted or bool(wing.code and wing.code in wanted)
-
-
-def is_direct_entry(session: Session) -> bool:
-    """جناحٌ رصدُه نهائيٌّ بلا اعتماد؟ — انظر `is_direct_class`."""
-    return is_direct_class(session.class_group)
-
-
-def needs_approval(session: Session) -> bool:
-    """أيحتاج رصدُ هذه الحصّة اعتماداً؟ — كلُّ الشُّعب إلّا التربية الخاصّة (D-126م) والأجنحةَ ذاتَ الرصد النهائيّ."""
-    return not (is_special_education(session.class_group) or is_direct_entry(session))
-
-
-def _raw_holder(session: Session) -> CustomUser | None:
-    wing = session.class_group.wing
-    if wing is None or not wing.is_active:
-        return None
-    holder: CustomUser | None = wing.current_supervisor(on_date=session.date)  # type: ignore[no-untyped-call]
-    return holder
-
-
-def holder_gap(session: Session) -> str | None:
-    """لِمَ لا حاملَ فعليّاً لجناح هذه الحصّة؟ — `None` إن وُجد حاملٌ يصلح، وإلّا السببُ (حكمُ 0105 P1/P2):
-
-    - `no_holder`: لا جناحَ أو جناحٌ غيرُ نشطٍ أو بلا مشرفٍ ولا تغطية.
-    - `holder_is_teacher`: حاملُ الجناح هو معلّمُ الحصّة نفسُه — لا يعتمد رصدَ حصّته (`own_session`)، فلو بقي حاملاً
-      لجمد الاعتمادُ ولم تعتمد القيادة.
-    - `holder_inactive`: حاملٌ بلا عضويّةٍ نشطةٍ في مدرسة الحصّة (غادر أو أُوقفت عضويّتُه) — اسمٌ لا يستطيع القرار.
-    """
-    holder = _raw_holder(session)
-    if holder is None:
-        return "no_holder"
-    if holder.id == session.teacher_id:
-        return "holder_is_teacher"
-    if not _roles_in_school(holder, session.school_id):
-        return "holder_inactive"
-    return None
-
-
-def approval_holder(session: Session) -> CustomUser | None:
-    """من يحمل جناحَ شعبة الحصّة **يومَ الحصّة** حاملاً **فعليّاً**: بديلُ التغطية الساريةِ بتاريخها وإلّا الأصيل.
-
-    و`None` إن لم يكن للشعبة جناحٌ أو كان غيرَ نشطٍ أو بلا مشرفٍ ولا تغطية، أو كان الحاملُ لا يصلح (معلّمَ الحصّة
-    نفسَه أو بلا عضويّةٍ نشطة — `holder_gap`) فيُعامَل الجناحُ كأنّه بلا حاملٍ وتعتمد القيادةُ. و`Wing.is_held_by`
-    الخامّ لا يصلح هنا: يجيب أيحمل المستخدمُ أيَّ جناحٍ لا جناحَ هذه الشعبة.
-    """
-    return _raw_holder(session) if holder_gap(session) is None else None
-
-
-def approval_evidence(session: Session) -> dict[str, str | None]:
-    """دليلُ الصلاحيّة وقتَ القرار: الجناحُ والتغطيةُ والحامل — يُحفظ مع القرار فلا يُعاد حسابُه بعد تغيّر التغطية."""
-    wing = session.class_group.wing
-    if wing is None:
-        return {"wing_id": None, "coverage_id": None, "holder_id": None}
-    if not wing.is_active:
-        return {"wing_id": str(wing.pk), "coverage_id": None, "holder_id": None}
-    cover = wing.active_coverage(on_date=session.date)  # type: ignore[no-untyped-call]
-    holder = cover.substitute if cover else wing.supervisor
-    return {
-        "wing_id": str(wing.pk),
-        "coverage_id": str(cover.pk) if cover else None,
-        "holder_id": str(holder.pk) if holder else None,
-    }
-
-
 def _roles_in_school(user: CustomUser, school_id: Any) -> set[str]:
     return set(
         user.memberships.filter(is_active=True, school_id=school_id).values_list(
@@ -268,11 +188,13 @@ def can_enter(
     return _teacher_write_verdict(user, session, student, entry_window(session), now)
 
 
-def can_tap_late(
-    user: CustomUser, session: Session, student: CustomUser, *, now: dt.datetime | None = None
-) -> Verdict:
-    """هل ينقر هذا المستخدمُ «دخل متأخّراً» لهذا الطالب الآن؟ — معلّمُ الحصّة وحدَه، **بنافذة الحصّة نفسِها** (D-136م)."""
-    return _teacher_write_verdict(user, session, student, tap_window(session), now)
+def _has_entry_in_session(student: CustomUser, session: Session) -> bool:
+    """أُدخل لهذا الطالب رصدٌ في هذه الحصّة نفسِها وهو في شعبتها (حكمُ 0105 P3).
+
+    فمن نُقل بعد الحصّة وقبل أن يصحّح المعلّمُ يُصحَّح له في النافذة: الرصدُ حدثٌ وقع في الحصّة لا حالةُ قيدٍ اليوم.
+    ولا يفتح البابَ لأوّل إدخالٍ (يلزمه القيدُ النشط) ولا لحصّةٍ أخرى.
+    """
+    return bool(AttendanceEntry.objects.filter(session=session, student=student).exists())
 
 
 def _is_enrolled(student: CustomUser, session: Session) -> bool:
@@ -287,125 +209,11 @@ def _is_enrolled(student: CustomUser, session: Session) -> bool:
     )
 
 
-def holds_leadership_role(user: CustomUser, school_id: Any) -> bool:
-    """أللمستخدم دورُ قيادةٍ (مديرٌ أو نائب) نشطٌ في هذه المدرسة؟ — بالدور لا بـ`is_superuser`، ولا مطوّر."""
-    if not getattr(user, "is_authenticated", False) or is_developer(user):
-        return False
-    return bool(_roles_in_school(user, school_id) & set(LEADERSHIP_ROLES))
-
-
-#: قيادةٌ تصحّح رصداً لم تشاهده حين لا حاملَ فعليّاً للجناح — بالدور. **بلا النائب الأكاديميّ**: يراقب فقط (D-201م)؛ فهي أضيقُ من `LEADERSHIP_ROLES` عمداً.
-CORRECTOR_LEADERSHIP_ROLES = ("principal", "vice_admin")
-
-
-def can_correct(user: CustomUser, session: Session) -> Verdict:
-    """هل يصحّح هذا المستخدمُ رصداً لم يشاهده (A: تصحيحُ المشرف، D-201م) — **حكمٌ مستقلٌّ عن الاعتماد** (D-271م S1)؟
-
-    كان `can_approve(...)` حرفاً فحذفُ الاعتماد كان سيكسر التصحيحَ، ويرفضه اليومَ في الجلسة النهائيّة (`final_entry`). والآن:
-    - يصحّح حاملُ الجناح الفعليّ يومَ الحصّة (`approval_holder`)، وحاصرُ الغياب العامّ، والمديرُ والنائبُ الإداريّ حين لا حاملَ.
-    - لا معلّمُ الحصّة (`own_session`)، ولا المطوّر، ولا من خارج المدرسة، ولا النائبُ الأكاديميّ (يراقب فقط)، ولا حاملُ جناحٍ آخر.
-    - ولا يقرأ `needs_approval` ولا إدخالَ أحد: التصحيحُ بقرارٍ مباشرٍ بسببٍ إلزاميٍّ (الخدمة تفرضه).
-    """
-    if not getattr(user, "is_authenticated", False):
-        return _deny("anonymous")
-    if is_developer(user):
-        return _deny("developer")
-    roles = _roles_in_school(user, session.school_id)
-    if not roles:
-        return _deny("other_school")
-    if user.id == session.teacher_id:
-        return _deny("own_session")
-
-    from wings.services import holds_school_wide
-
-    if holds_school_wide(user):
-        return _allow()
-    holder = approval_holder(session)
-    if holder is not None:
-        return _allow() if user.id == holder.id else _deny("not_holder")
-    if roles & set(CORRECTOR_LEADERSHIP_ROLES):
-        return _allow()
-    return _deny("not_holder")
-
-
-def _has_entry_in_session(student: CustomUser, session: Session) -> bool:
-    """أُدخل لهذا الطالب رصدٌ في هذه الحصّة نفسِها وهو في شعبتها (حكمُ 0105 P3).
-
-    فمن نُقل بعد الحصّة وقبل أن يصحّح المعلّمُ يُصحَّح له في النافذة: الرصدُ حدثٌ وقع في الحصّة لا حالةُ قيدٍ اليوم.
-    ولا يفتح البابَ لأوّل إدخالٍ (يلزمه القيدُ النشط) ولا لحصّةٍ أخرى.
-    """
-    return bool(AttendanceEntry.objects.filter(session=session, student=student).exists())
-
-
-#: مصدرُ إدخالات جدول الشعبة — لها وحدَها اعتمادُ حاملِ الجناح الذاتيّ (D-239م).
-GRID_ORIGINS = frozenset({"grid", "grid_default"})
-
-
-def grid_holder_approves(user: CustomUser, session: Session, entry_origin: str) -> bool:
-    """أحاملُ جناح الشعبةِ يومَ الحصّة هو هذا المستخدمُ، والإدخالُ من جدول الشعبة، والمفتاحُ مشغَّل؟ (قرارُ المالك D-239م: يعتمد ما كتبه بنفسه بتدقيق.)
-
-    في مسار الجدول وحدَه: يُستثنى `own_entry` و`own_session` و`holder_gap` عن الحامل الفعليّ؛ والقيادةُ (مديرٌ ونائبٌ ومشرفٌ إداريّ) لا تعتمد ما كتبته.
-    والمفتاحُ مطفأً ← المنعُ القائمُ كما هو حرفاً (لا إدخالَ جدولٍ يُنشأ أصلاً، وهنا يُقفل المسارُ بالمفتاح أيضاً).
-    """
-    from django.conf import settings
-
-    if entry_origin not in GRID_ORIGINS or not getattr(settings, "PROVISIONAL_GRID_ENABLED", False):
-        return False
-    holder = _wing_holder_on(session.class_group, session.date)
-    return holder is not None and holder.id == user.id
-
-
-def can_approve(
-    user: CustomUser,
-    session: Session,
-    *,
-    entered_by: CustomUser | None = None,
-    entry_origin: str = "",
-) -> Verdict:
-    """هل يعتمد هذا المستخدمُ رصدَ هذه الحصّة (أو يرفضه)؟
-
-    لا يقرأ وقتَ الاعتماد: الحاملُ هو من حمل الجناحَ يومَ الحصّة. و`entered_by` صاحبُ الإدخال المعلَّق
-    فلا يعتمد أحدٌ ما أدخله بنفسه.
-    """
-    if not getattr(user, "is_authenticated", False):
-        return _deny("anonymous")
-    if is_developer(user):
-        return _deny("developer")
-
-    roles = _roles_in_school(user, session.school_id)
-    if not roles:
-        return _deny("other_school")
-    if not needs_approval(session):
-        return _deny("final_entry")
-    # قبل حاملِ الجناح: لو عُيّن المنسّقُ حاملَ جناحٍ لا يتجاوز المنع (D-266م؛ الاعتمادُ ملغى بـD-245م).
-    if "student_affairs_coordinator" in roles:
-        return _deny("not_approver")
-    if grid_holder_approves(user, session, entry_origin):
-        return _allow()
-    if user.id == session.teacher_id:
-        return _deny("own_session")
-    if entered_by is not None and user.id == entered_by.id:
-        return _deny("own_entry")
-
-    from wings.services import holds_school_wide
-
-    # حاصرُ الغياب العامّ معتمِدٌ ثانٍ بجانب حامل الجناح دائماً (قرارُ المالك 2026-10-06): لا ما أدخله بنفسه
-    # ولا رصدَ التربية الخاصّة (النهائيّ) — وقد رُدّا أعلاه.
-    if holds_school_wide(user):
-        return _allow()
-    holder = approval_holder(session)
-    if holder is not None:
-        return _allow() if user.id == holder.id else _deny("not_holder")
-    if roles & set(LEADERSHIP_ROLES):
-        return _allow()
-    return _deny("not_holder")
-
-
 # ══════════════════════════════════════════════════════════════════
 # جدولُ الشعبة العموديّ (W-20261006-005، قرارا المالك D-238م–D-240م)
 # ══════════════════════════════════════════════════════════════════
 #
-# حكمٌ **منفصلٌ** عن `can_enter`/`can_correct`/`can_approve` العامّة (لا تُخفَّف): الصلاحيةُ هنا تُشتقّ من إسناد المعلّم للشعبة ومن حمل الجناح
+# حكمٌ **منفصلٌ** عن `can_enter` العامّة (لا تُخفَّف): الصلاحيةُ هنا تُشتقّ من إسناد المعلّم للشعبة ومن حمل الجناح
 # ومن الدور، لا من `Session.teacher` ولا من الطلب. وغيرُ المخوَّل يُردّ بـ404 في الواجهة (رمزُ `not_found`) فلا يُعرف أنّ الشعبة موجودة.
 
 #: القيادةُ الإداريّةُ التي تكتب على كلّ الأعمدة (D-240م) — بالدور لا بـ`is_leadership()`؛ والنائبُ الأكاديميّ يراقب فقط (D-239م).
@@ -480,6 +288,43 @@ def is_class_assigned(user: CustomUser, class_group: ClassGroup) -> bool:
     )
 
 
+def is_covering_class(user: CustomUser, class_group: ClassGroup, day: dt.date) -> bool:
+    """هل يغطّي هذا المستخدمُ حصّةً من هذه الشعبة في هذا اليوم؟ — من سجلّاتٍ قائمةٍ لا واجهةٍ جديدة (D-125م).
+
+    ثلاثةُ مصادر: بديلٌ معيَّنٌ (`SubstituteAssignment` معيَّن/مؤكَّد)، ومن بُدِّلت إليه حصّةٌ
+    (`TeacherSwap` منفَّذ: `teacher_b` يأخذ حصّةَ `slot_a` يومَ `swap_date_a`، و`teacher_a` يأخذ
+    حصّةَ `slot_b` يومَ `swap_date_b`)، وصاحبُ حصّةٍ تعويضيّةٍ معتمدةٍ أو مكتملةٍ في الشعبة ذلك اليوم
+    (`CompensatorySession`؛ لا `colleague` ولا `pending` ولا الملغاة ولا المنتهية).
+    """
+    from django.db.models import Q
+
+    from .models import CompensatorySession, SubstituteAssignment, TeacherSwap
+
+    school_id = class_group.school_id
+    if SubstituteAssignment.objects.filter(
+        school_id=school_id,
+        substitute=user,
+        status__in=("assigned", "confirmed"),
+        absence__date=day,
+        slot__class_group=class_group,
+    ).exists():
+        return True
+    if TeacherSwap.objects.filter(
+        Q(teacher_b=user, swap_date_a=day, slot_a__class_group=class_group)
+        | Q(teacher_a=user, swap_date_b=day, slot_b__class_group=class_group),
+        school_id=school_id,
+        status="executed",
+    ).exists():
+        return True
+    return CompensatorySession.objects.filter(
+        school_id=school_id,
+        teacher=user,
+        class_group=class_group,
+        compensatory_date=day,
+        status__in=("approved", "completed"),
+    ).exists()
+
+
 def _wing_holder_on(class_group: ClassGroup, day: dt.date) -> CustomUser | None:
     wing = class_group.wing
     if wing is None or not wing.is_active:
@@ -506,7 +351,7 @@ def grid_roles(user: CustomUser, class_group: ClassGroup, day: dt.date) -> froze
     holder = _wing_holder_on(class_group, day)
     if holder is not None and holder.id == user.id:
         found.add(GRID_HOLDER)
-    if is_class_assigned(user, class_group):
+    if is_class_assigned(user, class_group) or is_covering_class(user, class_group, day):
         found.add(GRID_TEACHER)
     if "vice_academic" in school_roles:
         found.add(GRID_READER)
@@ -571,12 +416,12 @@ def can_correct_grid(
 ) -> Verdict:
     """التصحيحُ بعد إغلاق النافذة (14:00) — لحاملِ الجناح والقيادةِ الإداريّة وحدَهم، بسببٍ إلزاميٍّ تفرضه الخدمة؛ لا المعلّمُ ولا النائبُ الأكاديميّ.
 
-    في اليوم نفسِه وحدَه (لا ماضيَ يُصحَّح من هنا، D-215م). وقبل الإغلاق تكفي `can_write_grid`.
+    اليومُ الجاري والماضي؛ لا مستقبلَ (قرارُ المالك 2026-10-09 يعدّل D-215م: «وجميع التواريخ»). وقبل الإغلاق تكفي `can_write_grid`.
     """
     roles = grid_roles(user, class_group, day)
     if not roles & {GRID_HOLDER, GRID_LEADERSHIP}:
         return _deny("not_found" if not roles else "not_corrector")
     moment = grid_now(now)
-    if moment.date() != day:
+    if day > moment.date():
         return _deny("not_today")
     return _allow()

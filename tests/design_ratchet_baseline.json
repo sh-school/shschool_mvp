@@ -1,7 +1,6 @@
 {
  "counts": {
   "button_no_type": {
-   "templates/auth/setup_2fa.html": 1,
    "templates/base/base.html": 37,
    "templates/behavior/committee.html": 3,
    "templates/behavior/committee_decision.html": 3,
@@ -18,8 +17,6 @@
    "templates/schedule/partials/swap_card.html": 5,
    "templates/student_affairs/student_profile.html": 7,
    "templates/teacher/class_grid.html": 1,
-   "templates/teacher/partials/grid_cell.html": 4,
-   "templates/teacher/partials/student_row.html": 4,
    "templates/transport/bus_detail.html": 1,
    "templates/transport/manage_route.html": 1
   },
@@ -93,12 +90,7 @@
    "templates/student_affairs/tardiness_list.html": 1,
    "templates/styleguide/components.html": 1,
    "templates/substitute/absence_list.html": 1,
-   "templates/teacher/attendance.html": 1,
-   "templates/teacher/attendance_grid.html": 1,
-   "templates/teacher/partials/grid_cell.html": 1,
    "templates/teacher/partials/grid_container.html": 1,
-   "templates/teacher/partials/student_row.html": 1,
-   "templates/teacher/partials/students_list.html": 1,
    "templates/teacher/schedule.html": 1,
    "templates/transport/bus_detail.html": 1,
    "templates/transport/buses_list.html": 1,
@@ -109,11 +101,6 @@
   "inline_style": {},
   "legacy_header": {},
   "max_w": {
-   "templates/auth/change_password.html": 1,
-   "templates/auth/disable_2fa.html": 1,
-   "templates/auth/force_change_password.html": 1,
-   "templates/auth/setup_2fa.html": 1,
-   "templates/auth/verify_2fa.html": 1,
    "templates/base/base.html": 1,
    "templates/core/partials/audit_log_table.html": 1
   },
