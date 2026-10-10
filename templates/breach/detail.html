@@ -112,6 +112,7 @@
       {% endif %}
     </ul>
     {% if breach.status != "resolved" and breach.individuals_status != "notified" %}
+      {% callout "info" show=True %}موعدُ إخطار الأفراد الافتراضيُّ يساوي موعدَ إشعار NCSA (72 ساعةً من الاكتشاف)، وهو <strong>حدٌّ تشغيليٌّ</strong> من إرشاد NCSA وليس مدّةً منصوصاً عليها في م.14؛ ويُعدَّل لكلّ بلاغٍ عند الحاجة.{% endcallout %}
       {% if breach.individuals_status == "not_assessed" %}
       {% callout "warning" show=True %}لم يُقيَّم بعدُ لزومُ إخطار الأفراد المتأثّرين. يوجب القانونُ إعلامَهم عند الضرر الجسيم؛ سجّل تقديرَك: واجبٌ بموعد، أو غيرُ لازمٍ بسببٍ مكتوب.{% endcallout %}
       {% endif %}

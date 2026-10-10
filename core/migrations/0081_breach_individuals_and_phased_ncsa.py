@@ -16,7 +16,6 @@ def backfill_ncsa_stage(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("core", "0080_role_student_affairs_coordinator"),
     ]
@@ -33,15 +32,13 @@ class Migration(migrations.Migration):
             model_name="breachreport",
             name="individuals_assessment_note",
             field=models.TextField(
-                blank=True, verbose_name="أساس التقدير أو سبب عدم لزوم الإخطار"
+                blank=True, default="", verbose_name="أساس التقدير أو سبب عدم لزوم الإخطار"
             ),
         ),
         migrations.AddField(
             model_name="breachreport",
             name="individuals_deadline",
-            field=models.DateTimeField(
-                blank=True, null=True, verbose_name="موعد إخطار الأفراد"
-            ),
+            field=models.DateTimeField(blank=True, null=True, verbose_name="موعد إخطار الأفراد"),
         ),
         migrations.AddField(
             model_name="breachreport",
@@ -67,6 +64,7 @@ class Migration(migrations.Migration):
             name="individuals_notified_channel",
             field=models.CharField(
                 blank=True,
+                default="",
                 choices=[
                     ("sms", "رسالة نصّية"),
                     ("email", "بريد إلكتروني"),
@@ -103,15 +101,13 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="breachreport",
             name="ncsa_completion_due_at",
-            field=models.DateTimeField(
-                blank=True, null=True, verbose_name="موعد استكمال الإشعار"
-            ),
+            field=models.DateTimeField(blank=True, null=True, verbose_name="موعد استكمال الإشعار"),
         ),
         migrations.AddField(
             model_name="breachreport",
             name="ncsa_missing_reasons",
             field=models.TextField(
-                blank=True, verbose_name="أسباب نقص معلومات الإشعار المبدئي"
+                blank=True, default="", verbose_name="أسباب نقص معلومات الإشعار المبدئي"
             ),
         ),
         migrations.AddField(

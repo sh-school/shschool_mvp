@@ -33,6 +33,8 @@ def breach(db, school, principal_user):
         immediate_action="إغلاق المنفذ الخارجي فوراً",
         containment_action="مراجعة سجلات الوصول",
         notification_text="نصّ إشعارٍ اصطناعي",
+        individuals_status="not_required",
+        individuals_assessment_note="لا ضرر جسيم (اختبار)",
         reported_by=principal_user,
     )
 
@@ -51,6 +53,8 @@ def overdue_breach(db, school, principal_user):
         immediate_action="لم يتخذ إجراء",
         containment_action="لا احتواء بعد",
         notification_text="نصّ إشعارٍ اصطناعي",
+        individuals_status="not_required",
+        individuals_assessment_note="لا ضرر جسيم (اختبار)",
         reported_by=principal_user,
     )
 

@@ -319,7 +319,7 @@ class BreachReport(models.Model):
         max_length=10, choices=NCSA_STAGE, default="none", verbose_name="مرحلة إشعار NCSA"
     )
     ncsa_missing_reasons = models.TextField(
-        blank=True, verbose_name="أسباب نقص معلومات الإشعار المبدئي"
+        blank=True, default="", verbose_name="أسباب نقص معلومات الإشعار المبدئي"
     )
     ncsa_completion_due_at = models.DateTimeField(
         null=True, blank=True, verbose_name="موعد استكمال الإشعار"
@@ -351,7 +351,7 @@ class BreachReport(models.Model):
         null=True, blank=True, verbose_name="وقت إخطار الأفراد الفعلي"
     )
     individuals_assessment_note = models.TextField(
-        blank=True, verbose_name="أساس التقدير أو سبب عدم لزوم الإخطار"
+        blank=True, default="", verbose_name="أساس التقدير أو سبب عدم لزوم الإخطار"
     )
     # صاحبُ قرار «واجب/غير لازم» — لا يصحّ «غير لازم» بلا سببٍ وصاحبِ قرار (مواصفة 0104).
     individuals_decided_by = models.ForeignKey(
@@ -373,6 +373,7 @@ class BreachReport(models.Model):
         max_length=10,
         choices=INDIVIDUALS_CHANNELS,
         blank=True,
+        default="",
         verbose_name="قناة إخطار الأفراد",
     )
 

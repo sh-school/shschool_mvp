@@ -735,6 +735,24 @@ class BreachReportAdmin(SchoolScopedAdmin):
         ),
     )
 
+    #: الحدُّ الأدنى لإشعارٍ مكتمل وما يحدّد خطورتَه: يُقفل بعد «مكتمل» أو الإغلاق فلا يُفرَّغ بعد ختمه.
+    _LOCKED_AFTER_COMPLETE = (
+        "notification_text",
+        "immediate_action",
+        "containment_action",
+        "affected_count",
+        "severity",
+        "data_type_affected",
+        "title",
+        "description",
+    )
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = tuple(super().get_readonly_fields(request, obj))
+        if obj is not None and (obj.ncsa_notice_stage == "complete" or obj.status == "resolved"):
+            return fields + self._LOCKED_AFTER_COMPLETE
+        return fields
+
     def has_add_permission(self, request):
         return False  # يُسجَّل الخرقُ من `/breach/create/` فتُحسب المهلةُ ويُدقَّق
 

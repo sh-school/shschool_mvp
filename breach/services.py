@@ -148,6 +148,13 @@ def _assert_can_resolve(breach: BreachReport) -> None:
     """لا يُغلق خرقٌ ما زال عليه التزامٌ معلَنٌ لم يُوفَّ: إشعارٌ مبدئيٌّ لم يكتمل، أو أفرادٌ واجبٌ إخطارُهم."""
     if breach.ncsa_notice_stage == "initial":
         raise InvalidTransitionError("لا يُغلق الخرقُ وإشعارُ NCSA المبدئيُّ لم يكتمل — استكمله أوّلاً.")
+    if breach.individuals_status == "not_assessed" and (
+        breach.severity in ("high", "critical") or breach.affected_count > 0
+    ):
+        raise InvalidTransitionError(
+            "تقديرُ إخطار الأفراد واجبٌ قبل إغلاق خرقٍ شدّته عالية أو فيه متأثّرون (م.14) — "
+            "سجّل التقدير: واجبٌ بموعد، أو غيرُ لازمٍ بسببٍ مكتوب."
+        )
     if breach.individuals_status == "required":
         raise InvalidTransitionError(
             "لا يُغلق الخرقُ والأفرادُ المتأثّرون واجبٌ إخطارُهم ولم يُخطَروا — سجّل الإخطارَ أو أعد التقييم."

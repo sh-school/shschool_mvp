@@ -133,6 +133,7 @@ class TestPhasedNcsaNotice:
         with pytest.raises(InvalidTransitionError):
             services.transition(breach, "resolved", user=principal_user)
         services.complete_ncsa_notice(breach, user=principal_user)
+        services.assess_individuals(breach, required=False, note="لا ضرر", user=principal_user)
         assert services.transition(breach, "resolved", user=principal_user).status == "resolved"
 
     def test_complete_notice_in_one_step(self, breach, principal_user):
@@ -236,13 +237,31 @@ class TestIndividualsNotification:
         services.record_individuals_notified(breach, channel="email", user=principal_user)
         assert services.transition(breach, "resolved", user=principal_user).status == "resolved"
 
-    def test_closing_without_assessment_is_audited_not_blocked(self, breach, principal_user):
+    def test_closing_without_assessment_is_allowed_only_for_a_harmless_breach_and_is_audited(
+        self, breach, principal_user
+    ):
+        BreachReport.objects.filter(pk=breach.pk).update(severity="low", affected_count=0)
+        breach.refresh_from_db()
         services.transition(breach, "assessing", user=principal_user)
         services.transition(breach, "resolved", user=principal_user)
         assert _audit(breach)[-1].changes["closed_without_individuals_assessment"] is True
 
+    @pytest.mark.parametrize(("severity", "count"), [("high", 0), ("critical", 3), ("low", 5)])
+    def test_closing_without_assessment_is_refused_when_serious_or_people_affected(
+        self, breach, principal_user, severity, count
+    ):
+        BreachReport.objects.filter(pk=breach.pk).update(severity=severity, affected_count=count)
+        breach.refresh_from_db()
+        services.transition(breach, "assessing", user=principal_user)
+        with pytest.raises(InvalidTransitionError) as exc:
+            services.transition(breach, "resolved", user=principal_user)
+        assert "م.14" in str(exc.value)
+        services.assess_individuals(breach, required=False, note="لا ضرر", user=principal_user)
+        assert services.transition(breach, "resolved", user=principal_user).status == "resolved"
+
     def test_resolved_breach_is_frozen(self, breach, principal_user):
         services.transition(breach, "assessing", user=principal_user)
+        services.assess_individuals(breach, required=False, note="لا ضرر", user=principal_user)
         services.transition(breach, "resolved", user=principal_user)
         with pytest.raises(InvalidTransitionError):
             services.assess_individuals(breach, required=True, note="س", user=principal_user)
@@ -477,6 +496,28 @@ class TestAdminRegistration:
         assert resp.status_code == 200
         html = resp.content.decode()
         assert "إخطار الأفراد المتأثّرين" in html and "إشعار NCSA" in html
+
+    def test_minimum_fields_are_read_only_once_complete_or_resolved(self, client_as, breach):
+        from django.contrib import admin as dj_admin
+
+        model_admin = dj_admin.site._registry[BreachReport]
+        assert "affected_count" not in model_admin.get_readonly_fields(None, breach)
+        BreachReport.objects.filter(pk=breach.pk).update(ncsa_notice_stage="complete")
+        breach.refresh_from_db()
+        locked = model_admin.get_readonly_fields(None, breach)
+        for field in (
+            "notification_text",
+            "immediate_action",
+            "containment_action",
+            "affected_count",
+            "severity",
+        ):
+            assert field in locked
+        BreachReport.objects.filter(pk=breach.pk).update(
+            ncsa_notice_stage="none", status="resolved"
+        )
+        breach.refresh_from_db()
+        assert "affected_count" in model_admin.get_readonly_fields(None, breach)
 
     def test_admin_cannot_add_and_notice_fields_are_read_only(self):
         from django.contrib import admin as dj_admin
