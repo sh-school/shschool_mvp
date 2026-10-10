@@ -1000,40 +1000,71 @@ def transfer_create(request):
                 memberships__school=school,
                 memberships__is_active=True,
             )
-            StudentTransfer.objects.create(
+            from .services import StudentService, TransferService
+
+            internal = cd["direction"] == "internal"
+            target = None
+            if internal:
+                target = ClassGroup.objects.filter(
+                    id=cd["to_class_group_id"], school=school, is_active=True
+                ).first()
+            transfer = StudentTransfer(
                 school=school,
                 student=student,
                 direction=cd["direction"],
-                other_school_name=cd["other_school_name"],
+                other_school_name=school.name if internal else cd["other_school_name"],
                 from_grade=cd.get("from_grade", ""),
                 to_grade=cd.get("to_grade", ""),
+                to_class_group=target,
                 transfer_date=cd["transfer_date"],
                 reason=cd.get("reason", ""),
                 academic_year=academic_year_for(request),
                 created_by=request.user,
                 updated_by=request.user,
             )
-            from .services import StudentService
+            error = TransferService.internal_target_error(transfer) if internal else ""
+            if error:
+                form.add_error(None, error)
+                return _transfer_form_response(request, school, form)
+            transfer.save()
 
             StudentService.audit_student_event(school, request.user, student, "transfer_requested")
             messages.success(request, f"تم تسجيل طلب انتقال {student.full_name} بنجاح.")
             return redirect("student_affairs:transfer_list")
     else:
         form = TransferForm()
+    return _transfer_form_response(request, school, form)
 
-    # قائمة الطلاب للاختيار
-    students = (
+
+def _transfer_form_response(request, school, form):
+    """عرضُ نموذج الطلب: كلُّ طالبٍ بصفّه وشعبته، وكلُّ شعبةٍ نشطةٍ هدفاً للانتقال الداخليّ."""
+    students = list(
         Membership.objects.filter(school=school, role__name="student", is_active=True)
         .select_related("user")
         .order_by("user__full_name")
     )
+    # قيدُ كلّ طالبٍ الحاليّ بلا استعلامٍ لكلّ سطر
+    current = {}
+    for enrollment in (
+        StudentEnrollment.objects.filter(
+            student_id__in=[m.user_id for m in students],
+            class_group__school=school,
+            is_active=True,
+        )
+        .select_related("class_group")
+        .newest_first()
+    ):
+        current.setdefault(enrollment.student_id, enrollment.class_group)
+    for membership in students:
+        klass = current.get(membership.user_id)
+        membership.class_grade = klass.grade if klass else ""
+        membership.class_id = klass.pk if klass else ""
+        membership.class_label = klass.short_label if klass else "بلا شعبة"
+    classes = ClassGroup.objects.filter(school=school, is_active=True)
     return render(
         request,
         "student_affairs/transfer_form.html",
-        {
-            "form": form,
-            "students": students,
-        },
+        {"form": form, "students": students, "classes": classes},
     )
 
 
@@ -1068,12 +1099,19 @@ def transfer_review(request, pk):
         action = form.cleaned_data["action"]
         notes = form.cleaned_data.get("notes", "")
 
+        from .services import StudentService, TransferService
+
+        if action == "completed" and transfer.direction == "internal":
+            try:
+                TransferService.complete_internal(transfer, request.user)
+            except ValueError as exc:
+                messages.error(request, str(exc))
+                return redirect("student_affairs:transfer_detail", pk=pk)
+
         transfer.status = action
         transfer.notes = notes
         transfer.updated_by = request.user
         transfer.save()
-
-        from .services import StudentService
 
         StudentService.audit_student_event(
             school, request.user, transfer.student, f"transfer_{action}"

@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load icons %}
+{% load icons static %}
 {% load privacy ui %}
 
 {% block title %}طلب انتقال جديد{% endblock %}
@@ -13,7 +13,7 @@
   {% page_header "طلب انتقال جديد" icon="refresh" %}{% endpage_header %}
 
   <div class="form-card">
-    <form method="post">
+    <form method="post" data-transfer-form>
       {% csrf_token %}
 
       {% if form.non_field_errors %}
@@ -30,16 +30,30 @@
           <select id="f-student_id" name="student_id" class="form-control" required>
             <option value="">— اختر الطالب —</option>
             {% for m in students %}
-            <option value="{{ m.user_id }}" {% if form.student_id.value|slugify == m.user_id|slugify %}selected{% endif %}>
-              {{ m.user.full_name }} ({{ m.user.national_id|mask_id }})
+            <option value="{{ m.user_id }}" data-grade="{{ m.class_grade }}" data-class-id="{{ m.class_id }}" data-class-label="{{ m.class_label }}" {% if form.student_id.value|slugify == m.user_id|slugify %}selected{% endif %}>
+              {{ m.user.full_name }} ({{ m.user.national_id|mask_id }}) — {{ m.class_label }}
             </option>
             {% endfor %}
           </select>
+          <p class="ui-field__hint" data-student-class aria-live="polite"></p>
         </div>
 
-        {% field "direction" "اتجاه الانتقال" type="select" choices="in=وارد (← إلى مدرستنا)|out=صادر (→ من مدرستنا)" value=form.direction.value required=True %}
+        {% field "direction" "اتجاه الانتقال" type="select" choices="in=وارد (← إلى مدرستنا)|out=صادر (→ من مدرستنا)|internal=داخلي (إلى شعبة أخرى في مدرستنا)" value=form.direction.value required=True %}
         {% field "transfer_date" "تاريخ الانتقال" type="date" value=form.transfer_date.value required=True %}
+        {# الانتقال الداخلي: الشعبة المنقول إليها — تُصفّى بصفّ الطالب (والخادم يرفض غيره) #}
+        <div class="ui-field sa-span-full" data-internal-only hidden>
+          <label for="f-to_class_group_id" class="ui-field__label">الشعبة المنقول إليها <span class="req-star" aria-hidden="true">*</span></label>
+          <select id="f-to_class_group_id" name="to_class_group_id" class="form-control">
+            <option value="">— اختر الشعبة —</option>
+            {% for c in classes %}
+            <option value="{{ c.pk }}" data-grade="{{ c.grade }}" {% if form.to_class_group_id.value|slugify == c.pk|slugify %}selected{% endif %}>{{ c.short_label }}</option>
+            {% endfor %}
+          </select>
+          {% for err in form.to_class_group_id.errors %}<p class="ui-field__error">{{ err }}</p>{% endfor %}
+        </div>
+        <div data-external-only class="sa-span-full">
         {% field "other_school_name" "المدرسة الأخرى" value=form.other_school_name.value placeholder="اسم المدرسة المنقول منها/إليها" required=True css="sa-span-full" %}
+        </div>
         {% field "from_grade" "الصف (من)" value=form.from_grade.value placeholder="مثال: G9" %}
         {% field "to_grade" "الصف (إلى)" value=form.to_grade.value placeholder="مثال: G10" %}
         {% field "reason" "السبب" type="textarea" rows=3 value=form.reason.value placeholder="سبب الانتقال..." css="sa-span-full" %}
@@ -53,3 +67,5 @@
   </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/transfer-form.js' %}" defer></script>{% endblock %}
