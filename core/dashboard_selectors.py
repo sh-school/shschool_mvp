@@ -14,6 +14,7 @@ behavior، clinic، library، operations، transport) — الملفّ لا يز
 
 import datetime
 from collections.abc import Iterable
+from typing import Any
 
 from django.db.models import Count, Q, Sum
 from django.urls import reverse
@@ -269,7 +270,9 @@ def get_teacher_ctx(user, school, today, role):
     return ctx
 
 
-def _my_students_ctx(user, school, today, sessions):
+def _my_students_ctx(
+    user: Any, school: Any, today: datetime.date, sessions: Iterable[Any]
+) -> dict[str, int | None]:
     """«طلابي» (W-20261010-040، D-335م): أعدادٌ مجمَّعة لطلاب شعب المعلّم في جدوله اليوم — لا اسمَ طالبٍ ولا ترتيبَ ولا مقارنة.
 
     الشعبُ من حصص اليوم المحمَّلة أصلاً (`sessions` قُيِّم قبلَ هذا فلا استعلامَ لها)، والطلابُ استعلامٌ فرعيٌّ لا قائمةٌ في الذاكرة:
@@ -280,10 +283,7 @@ def _my_students_ctx(user, school, today, sessions):
     قدرةَ رصد الحصّة (الدالّةُ مشتركةٌ مع المنسّق، D-171م). وعدّادُ الإشعارات ليس هنا: لا قيمةَ له في سياق اللوحة اليوم، وقراءتُه من `core`
     استيرادٌ نازلٌ إلى `notifications` يرفضه حارسُ الطبقات؛ والجرسُ يجلبه من مسار `api/unread-count/`.
     """
-    block = {
-        "exit_total": None,
-        "out_now": None,
-    }
+    block: dict[str, int | None] = {"exit_total": None, "out_now": None}
     if not has_capability(user, "attendance.mark"):
         return block
     group_ids = {s.class_group_id for s in sessions}
