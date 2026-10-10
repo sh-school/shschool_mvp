@@ -210,6 +210,10 @@ PASSWORD_ROTATION_DAYS = config("PASSWORD_ROTATION_DAYS", default=90, cast=int)
 # لا إلزامَ ولا سؤالَ عن رمزٍ حتى للمفعِّل (سرُّه يبقى)، فالدخولُ بكلمة المرور وحدَها.
 TWO_FACTOR_REQUIRED_FOR_STAFF = config("TWO_FACTOR_REQUIRED_FOR_STAFF", default=True, cast=bool)
 
+# أمر المالك 2026-10-10 (W-20261010-034): توليدُ الجدول واعتمادُه لمطوّر المنصّة وحدَه من الآن؛ المديرُ والنائبُ
+# يقرآن الجدولَ فقط. المنفذُ المركزيّ في core/capabilities.py. وضبطُه 0/false يعيد السلوكَ السابق بلا شيفرة.
+SCHEDULE_DEVELOPER_ONLY = config("SCHEDULE_DEVELOPER_ONLY", default=True, cast=bool)
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {
