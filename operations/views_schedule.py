@@ -46,7 +46,7 @@ from .schedule_breaches import (
     quality_display,
     unplaced_count,
 )
-from .schedule_comparison import comparison_for_display as compare
+from .schedule_comparison import comparison_for_display as cmp
 from .schedule_selectors import mark_v2, pages_payload
 from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
 from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
@@ -782,7 +782,7 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
       ثلاثة أعمدةٍ متجاورة (معيار تخطيط الصفحات) بدل عمودٍ واحدٍ يطيل الصفحة.
     """
     for g in generations:
-        g.comparison, g.lab_tone = compare(g), tone_for(g.lab_relative, LAB_RELATIVE_TONES, "")
+        g.comparison, g.lab_tone = cmp(g), tone_for(g.lab_relative, LAB_RELATIVE_TONES, empty="")
         # ما بقي مكسوراً بموضعه — والإقرارُ به شرطُ اعتماد المسودّة (SCH-05).
         g.breaches = draft_breaches(g.config_snapshot)
         g.budget_cut = budget_cut_notice(g.config_snapshot)
