@@ -9,6 +9,11 @@ from core.models.base import AuditedModel
 from core.querysets import YearScopedQuerySet
 
 from ..last_period_cap import MAX_PERSONAL_LAST, MIN_PERSONAL_LAST
+
+#: مدى سقف الأولى الشخصيّ (HC22): من العامّ (اثنتان) إلى خمسٍ، أي أولى كلَّ يومٍ في الأسبوع.
+#: وما دون العامّ لا يُقبل: السقفُ الشخصيّ للأولى يرفع ولا يُضيّق (قرارُ المالك 2026-10-09).
+MIN_PERSONAL_FIRST = 2
+MAX_PERSONAL_FIRST = 5
 from .common import _uuid
 
 
@@ -429,6 +434,18 @@ class TeacherPreference(models.Model):
         blank=True,
         validators=[MinValueValidator(MIN_PERSONAL_LAST), MaxValueValidator(MAX_PERSONAL_LAST)],
         verbose_name="أقصى سابعات أسبوعيّاً",
+        help_text="قرارٌ إداريّ في حقّ هذا المعلّم — فارغٌ يعني السقفَ العامّ (اثنتان)",
+    )
+    #: سقفُ الحصّة الأولى الأسبوعيّ لهذا المعلّم (HC22) — `NULL` يعني السقفَ العامّ (اثنتان).
+    #:
+    #: **قرارٌ إداريّ في حقّ معلّمٍ لا تفضيلُه**، كتوأمه `max_last_periods`: كان الاستثناءُ (أربعٌ لاثني عشرَ
+    #: معلّماً بقرار المالك) في ملفٍّ خارج المستودع لا يُرى في الأدمن (W-20261010-033). فلا يظهر في شاشة
+    #: المعلّم ولا في `TEACHER_EDITABLE_FIELDS`، ويُحرَّر من لوحة الإدارة بسجلّ تدقيق قبل/بعد.
+    max_first_periods = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(MIN_PERSONAL_FIRST), MaxValueValidator(MAX_PERSONAL_FIRST)],
+        verbose_name="أقصى حصص أولى أسبوعيّاً",
         help_text="قرارٌ إداريّ في حقّ هذا المعلّم — فارغٌ يعني السقفَ العامّ (اثنتان)",
     )
     #: أوسعُ فراغٍ يُقبل بين حصّتين في اليوم الواحد — بعدد الحصص الفارغة.
