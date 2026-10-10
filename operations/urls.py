@@ -12,6 +12,7 @@ from .views_class_grid import (
 )
 from .views_director_live import director_live
 from .views_schedule_drafts import discard_schedule, stop_schedule_generation
+from .views_teacher_preferences import teacher_preferences_overview
 
 urlpatterns = [
     path("schedule/", views.schedule, name="teacher_schedule"),
@@ -119,6 +120,11 @@ urlpatterns = [
         name="save_subject_scheduling",
     ),
     path("teacher-preferences/", views.teacher_preferences, name="teacher_preferences"),
+    path(
+        "teacher-preferences/all/",
+        teacher_preferences_overview,
+        name="teacher_preferences_overview",
+    ),
     # ══ المرحلة 6: التبديل والتعويض ══
     path("schedule/swaps/", views.swap_list, name="swap_list"),
     path("schedule/swap/request/", views.swap_request, name="swap_request"),

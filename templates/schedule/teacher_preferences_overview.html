@@ -1,0 +1,59 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% block title %}تفضيلات المعلّمين في الجدول — {{ year }}{% endblock %}
+
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/teacher/smart-schedule/" parent_label="الجدولة الذكية" current="تفضيلات المعلّمين" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+{% page_header "تفضيلات المعلّمين في الجدول" subtitle=year icon="settings" %}{% endpage_header %}
+
+{% kpi_strip label="أرقام التفضيلات" %}
+  {% kpi "المعلّمون" total %}
+  {% kpi "سجّلوا تفضيلاتهم" with_pref tone="green" %}
+{% endkpi_strip %}
+
+{% section_card "تفضيلات المعلّمين" icon="settings" flush=True empty="لا معلّمين في النطاق" %}{% if rows %}
+  <div class="table-wrap-scroll load-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">المعلم</th>
+        <th scope="col" class="num">أقصى حصص يوميّة</th>
+        <th scope="col" class="num">أقصى متتالية</th>
+        <th scope="col" class="num">أقصى فجوة</th>
+        <th scope="col">يوم التفريغ</th>
+        {% if show_last %}<th scope="col" class="num">أقصى سابعات</th>{% endif %}
+        <th scope="col">ملاحظات</th>
+        <th scope="col">آخر تعديل</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td class="load-name">{{ r.teacher.full_name }}</td>
+        {% if r.pref %}
+        <td class="num">{{ r.pref.max_daily_periods }}</td>
+        <td class="num">{{ r.pref.max_consecutive }}</td>
+        <td class="num">{{ r.pref.max_gap|default_if_none:"—" }}</td>
+        <td>{{ r.free_day|default:"—" }}</td>
+        {% if show_last %}<td class="num">{{ r.pref.max_last_periods|default_if_none:"—" }}</td>{% endif %}
+        <td>{{ r.pref.notes|default:"—" }}</td>
+        <td>{{ r.pref.updated_at|date:"d/m/Y"|default:"—" }}</td>
+        {% else %}
+        <td colspan="{% if show_last %}7{% else %}6{% endif %}">لم يسجّل تفضيلاته بعد</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+{% endif %}{% endsection_card %}
+
+</div>
+{% endblock %}
