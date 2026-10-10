@@ -506,6 +506,28 @@ def test_a_back_to_back_bell_caps_at_four_a_day_not_one(school):
     assert sf._band_day_cap(school, frozenset({""}), "regular") == 4
 
 
+def test_bell_queries_do_not_grow_with_teacher_count(school):
+    """ثقل الصفحة: استعلامات الجرس في فحص الجدوى ثابتةٌ لا تتناسب مع عدد المعلّمين.
+
+    كان كلُّ معلّمٍ يُطلق استعلامَ TimeSlotConfig لكلّ يومٍ ونطاق (١٠٢٤ في صفحةٍ حقيقيّة)؛
+    فصار استعلامٌ واحدٌ لكلّ نوع يوم داخل الفحص الواحد.
+    """
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    a_bell(school, None, SEVEN_BACK_TO_BACK)
+    subject = a_subject(school, "الرياضيات", "MAT")
+    section = a_class(school)
+    for index in range(6):
+        assign(school, subject, section, a_user(school, f"معلّم {index}", f"teacher_{index}"), 3)
+
+    with CaptureQueriesContext(connection) as captured:
+        sf.check(school, YEAR)
+    bell_queries = [q for q in captured if "operations_timeslotconfig" in q["sql"]]
+
+    assert len(bell_queries) <= 2
+
+
 def test_a_normal_load_is_not_flagged_on_a_realistic_bell(school, teacher):
     """نصابٌ ١٤ على جرسٍ متتالٍ (سقفُه ١٧ بعد HC8) لا يُحجَب — العدُّ بالتكتّلات كان يحجبه."""
     a_bell(school, None, SEVEN_BACK_TO_BACK)
