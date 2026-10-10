@@ -4,6 +4,7 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 
 from core.capabilities import capability_required, has_capability
+from core.dashboard_day_selectors import PARAM, chosen_day, day_nav
 from core.dashboard_presentation import present
 from core.dashboard_registry import (
     dashboard_section_context,
@@ -44,6 +45,22 @@ def _role_home(user, role):
     return None
 
 
+def _day_base(request, school):
+    """اليومُ المعروض (للقراءة فقط خارج اليوم الحقيقيّ) وأساسُ السياق — W-20261010-056.
+
+    بتوقيت المدرسة لا UTC: بين 21:00 و00:00 UTC يختلف اليومان، فكان تكليفُ بديلٍ
+    يبدأ «اليوم» (بتوقيت قطر) لا يُرى في اللوحة (سقوطُ البوّابة عند منتصف الليل 2026-09-14)."""
+    real_today = timezone.localdate()
+    today = chosen_day(school, real_today, request.GET.get(PARAM))
+    return today, {
+        "today": today,
+        "real_today": real_today,
+        "school": school,
+        "view_only": today != real_today,
+        "date_nav": day_nav(school, real_today, today, request.path),
+    }
+
+
 def _director_ctx(user, school, today, role):
     """سياقُ لوحة المدير: بياناتُها، وعنوانُها باسم صاحبها، وأقسامٌ تسجّلها الوحدات (غياب اليوم)، وأعذارُ ما بعد المهلة لمن يملك قدرتَها."""
     ctx = get_director_ctx(school, today)
@@ -79,10 +96,7 @@ def dashboard(request):
     if home := _role_home(user, role):
         return redirect(home)
 
-    # بتوقيت المدرسة لا UTC: بين 21:00 و00:00 UTC يختلف اليومان، فكان تكليفُ بديلٍ
-    # يبدأ «اليوم» (بتوقيت قطر) لا يُرى في اللوحة (سقوطُ البوّابة عند منتصف الليل 2026-09-14).
-    today = timezone.localdate()
-    ctx = {"today": today, "school": school}
+    today, ctx = _day_base(request, school)
 
     if role == "student":
         ctx.update(get_student_ctx(user, school, today))

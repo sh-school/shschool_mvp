@@ -1562,4 +1562,10 @@ body:has(.rm-page) .site-footer { flex: none; }
   .cg-keys > :nth-child(3) { grid-column: auto; }
 }
 
+/* محدِّدُ يوم اللوحة (W-20261010-056): سهما السابق والتالي على جانبَي حقل التاريخ، وشارةُ «للقراءة فقط» في طرفه حين يكون اليومُ غيرَ اليوم الحقيقيّ. */
+.day-picker { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); margin-block-end: var(--sp-2); }
+.day-picker__form { display: flex; align-items: center; gap: var(--sp-1-5); }
+.day-picker__step.is-disabled { opacity: .45; pointer-events: none; }
+.day-picker__ro { margin-inline-start: var(--sp-1); }
+
 } /* end @layer modules */

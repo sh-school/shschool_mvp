@@ -12,6 +12,7 @@
 كلٌّ منها بإطارٍ وبطاقاتٍ مختلفة. والأسماءُ هنا قائمةٌ مغلقة: الدورُ الذي لا
 قالبَ له يرى «other» لا خطأً.
 {% endcomment %}
+{% if date_nav %}{% include "dashboard/partials/_day_picker.html" %}{% endif %}
 {% if view_type == "director" %}{% include "dashboard/roles/director.html" %}
 {% elif view_type == "teacher" or view_type == "coordinator" %}{% include "dashboard/roles/teacher.html" %}
 {% elif view_type == "student" %}{% include "dashboard/roles/student.html" %}
@@ -36,7 +37,7 @@
 {% endcomment %}
 {% block extra_js %}
 {% if view_type == "director" %}
-{% if day_open %}<script src="{% static 'js/director-live.js' %}" defer></script>{% endif %}
+{% if day_open and not view_only %}<script src="{% static 'js/director-live.js' %}" defer></script>{% endif %}
 <script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
 <script nonce="{{ request.csp_nonce }}">
 Chart.defaults.font.family = 'Tajawal, sans-serif';
@@ -79,5 +80,5 @@ async function fc(u){try{return await(await fetch(u)).json()}catch(e){return nul
 })();
 </script>
 {% endif %}
-{% if sup_open %}<script src="{% static 'js/director-live.js' %}" defer></script>{% endif %}
+{% if sup_open and not view_only %}<script src="{% static 'js/director-live.js' %}" defer></script>{% endif %}
 {% endblock %}

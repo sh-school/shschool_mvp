@@ -29,8 +29,12 @@
   {% if prov %}
   {% section_card "رصدُ الغياب (مؤقّت — إلى حين اعتماد جدول المنصّة)" icon="attendance_register" %}
     <div class="pp-key">
+      {% if view_only %}
+      <p class="ui-note">الرصدُ المؤقّت لليوم الحقيقيّ وحدَه — هذا عرضٌ للقراءة فقط.</p>
+      {% else %}
       <p class="ui-note">ارصد غيابَ طلّابك مؤقّتاً</p>
       {% url 'provisional_classes' as u %}<a class="btn-primary" href="{{ u }}">{% icon "attendance_register" %} شُعبي للرصد</a>
+      {% endif %}
     </div>
   {% endsection_card %}
   {% else %}
