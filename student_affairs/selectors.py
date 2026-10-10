@@ -6,6 +6,7 @@ from typing import Any
 
 from django.db.models import Exists, OuterRef, Q
 
+from core.academic_calendar import academic_year_for_school
 from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment
 from core.models.access import Membership
 from core.models.user import CustomUser
@@ -131,7 +132,9 @@ def transfer_form_options(school: Any) -> tuple[list, Any]:
         membership.class_grade = klass.grade if klass else ""
         membership.class_id = klass.pk if klass else ""
         membership.class_label = klass.short_label if klass else "بلا شعبة"
-    return students, ClassGroup.objects.filter(school=school, is_active=True)
+    return students, ClassGroup.objects.filter(
+        school=school, is_active=True, academic_year=academic_year_for_school(school)
+    )
 
 
 def active_class(school: Any, class_id: Any) -> Any:

@@ -35,7 +35,7 @@
             </option>
             {% endfor %}
           </select>
-          <p class="ui-field__hint" data-student-class aria-live="polite"></p>
+          <p class="ui-field-hint" data-student-class aria-live="polite"></p>
         </div>
 
         {% field "direction" "اتجاه الانتقال" type="select" choices="in=وارد (← إلى مدرستنا)|out=صادر (→ من مدرستنا)|internal=داخلي (إلى شعبة أخرى في مدرستنا)" value=form.direction.value required=True %}
@@ -49,7 +49,7 @@
             <option value="{{ c.pk }}" data-grade="{{ c.grade }}" {% if form.to_class_group_id.value|slugify == c.pk|slugify %}selected{% endif %}>{{ c.short_label }}</option>
             {% endfor %}
           </select>
-          {% for err in form.to_class_group_id.errors %}<p class="ui-field__error">{{ err }}</p>{% endfor %}
+          {% for err in form.to_class_group_id.errors %}<p class="field-error" role="alert">{{ err }}</p>{% endfor %}
         </div>
         <div data-external-only class="sa-span-full">
         {% field "other_school_name" "المدرسة الأخرى" value=form.other_school_name.value placeholder="اسم المدرسة المنقول منها/إليها" required=True css="sa-span-full" %}

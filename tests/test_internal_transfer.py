@@ -10,8 +10,8 @@ import pytest
 from django.urls import reverse
 
 from core.models import StudentEnrollment
+from student_affairs.internal_transfer import internal_target_error
 from student_affairs.models import StudentTransfer
-from student_affairs.services import TransferService
 from tests.attendance_fixtures import *  # noqa: F401,F403
 
 pytestmark = pytest.mark.django_db
@@ -114,7 +114,7 @@ def test_a_student_without_an_active_enrollment_cannot_move(
 ):
     transfer = _request(school, student_user, klass2, student_affairs_coordinator_user)
 
-    assert "بلا تسجيل" in TransferService.internal_target_error(transfer)
+    assert "بلا تسجيل" in internal_target_error(transfer)
 
 
 def test_the_create_form_requires_a_target_for_an_internal_move(

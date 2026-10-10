@@ -1000,26 +1000,12 @@ def transfer_create(request):
                 memberships__school=school,
                 memberships__is_active=True,
             )
-            from .selectors import active_class
-            from .services import StudentService, TransferService
+            from .internal_transfer import build_request
+            from .services import StudentService
 
-            internal = cd["direction"] == "internal"
-            target = active_class(school, cd["to_class_group_id"]) if internal else None
-            transfer = StudentTransfer(
-                school=school,
-                student=student,
-                direction=cd["direction"],
-                other_school_name=school.name if internal else cd["other_school_name"],
-                from_grade=cd.get("from_grade", ""),
-                to_grade=cd.get("to_grade", ""),
-                to_class_group=target,
-                transfer_date=cd["transfer_date"],
-                reason=cd.get("reason", ""),
-                academic_year=academic_year_for(request),
-                created_by=request.user,
-                updated_by=request.user,
+            transfer, error = build_request(
+                school, student, cd, academic_year_for(request), request.user
             )
-            error = TransferService.internal_target_error(transfer) if internal else ""
             if error:
                 form.add_error(None, error)
                 return _transfer_form_response(request, school, form)
@@ -1076,11 +1062,12 @@ def transfer_review(request, pk):
         action = form.cleaned_data["action"]
         notes = form.cleaned_data.get("notes", "")
 
-        from .services import StudentService, TransferService
+        from .internal_transfer import complete_internal
+        from .services import StudentService
 
         if action == "completed" and transfer.direction == "internal":
             try:
-                TransferService.complete_internal(transfer, request.user)
+                complete_internal(transfer, request.user)
             except ValueError as exc:
                 messages.error(request, str(exc))
                 return redirect("student_affairs:transfer_detail", pk=pk)
