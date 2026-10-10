@@ -1,0 +1,15 @@
+{% load icons ui %}
+{% comment %}
+محدِّدُ يومِ اللوحة لكلّ الأدوار (W-20261010-056، قرارُ المالك 2026-10-11): السابقُ · اليومُ · التالي. عرضٌ للقراءة فقط لا يقيّد شيئاً،
+ومداه العامُّ الدراسيُّ بفصلَيه من التقويم المدرسيّ (`core/dashboard_day_selectors.py`). والرابطُ يحمل `?date=` فيُشارَك ويُحدَّث بلا حالة.
+حدُّ المدى زرٌّ معطَّلٌ لا رابطٌ ميّت؛ وخارجَه يعود الخادمُ إلى اليوم بصمت.
+{% endcomment %}
+<nav class="day-picker" aria-label="التنقّل بين أيام اللوحة">
+  <form method="get" action="{{ date_nav.form_action }}" class="day-picker__form">
+    {% if date_nav.prev_url %}<a href="{{ date_nav.prev_url }}" class="btn-secondary btn-sm day-picker__step" rel="prev" aria-label="اليومُ السابق" title="اليومُ السابق">{% icon "prev" %}</a>{% else %}<span class="btn-secondary btn-sm day-picker__step is-disabled" aria-disabled="true" title="بدايةُ العام الدراسيّ">{% icon "prev" %}</span>{% endif %}
+    {% field "date" "يومُ اللوحة" type="date" value=date_nav.day|date:"Y-m-d" min=date_nav.min max=date_nav.max id="dash-day" hide_label=True data_autosubmit=True %}
+    {% if date_nav.next_url %}<a href="{{ date_nav.next_url }}" class="btn-secondary btn-sm day-picker__step" rel="next" aria-label="اليومُ التالي" title="اليومُ التالي">{% icon "next" %}</a>{% else %}<span class="btn-secondary btn-sm day-picker__step is-disabled" aria-disabled="true" title="نهايةُ العام الدراسيّ">{% icon "next" %}</span>{% endif %}
+    {% if not date_nav.is_today %}<a href="{{ date_nav.today_url }}" class="btn-secondary btn-sm">اليوم</a>{% endif %}
+  </form>
+  {% if view_only %}<span class="status-badge status-warning day-picker__ro" role="status">{% icon "view" %} {{ today|date:"l j F Y" }} — عرضٌ للقراءة فقط</span>{% endif %}
+</nav>

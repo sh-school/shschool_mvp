@@ -206,6 +206,17 @@ def get_director_ctx(school, today):
     }
 
 
+def _next_session(sessions: Iterable[Any], day: datetime.date) -> Any:
+    """«الحصّة التالية»: أوّلُ حصّةٍ مجدولةٍ لم تبدأ بعدُ، ولليوم الحقيقيّ وحدَه (W-20261010-056).
+
+    وفي يومٍ مضى أو لم يأتِ لا «آنَ» تُقارَن به حصصُه فتبقى فارغة. والمقارنةُ بساعة المدرسة (Asia/Qatar)
+    لا UTC: `now()` يعطي UTC فتنحرف الحصّةُ ثلاثَ ساعات (W-20261010-047)."""
+    if day != timezone.localdate():
+        return None
+    now = timezone.localtime().time()
+    return next((s for s in sessions if s.start_time >= now and s.status == "scheduled"), None)
+
+
 def get_teacher_ctx(user, school, today, role):
     """بيانات لوحة تحكم المعلم والمنسق: حصص اليوم + الإعدادات + طلبات التبديل."""
     year = academic_year_for_school(school)
@@ -217,11 +228,7 @@ def get_teacher_ctx(user, school, today, role):
     )
     # حصصُ أعمدة جدول الشعبة مؤقّتةٌ بـ`Session.teacher` مُسنَدٍ حتميّ (W-20261006-005): ليست «حصصي» ولا «حصّتي التالية» لمن نُسبت إليه.
     sessions = sessions.exclude(provisional=True)
-    # بتوقيت المدرسة (Asia/Qatar) لا UTC: `now()` يعطي UTC فتنحرف «الحصّة التالية» ثلاث ساعات (W-20261010-047).
-    now = timezone.localtime().time()
-    next_session = next(
-        (s for s in sessions if s.start_time >= now and s.status == "scheduled"), None
-    )
+    next_session = _next_session(sessions, today)
     my_setups = (
         SubjectClassSetup.objects.filter(
             school=school, teacher=user, academic_year=year, is_active=True
@@ -380,12 +387,7 @@ def get_therapist_ctx(user, school, today):
         .select_related("class_group", "subject")
         .order_by("start_time")
     )
-    # بتوقيت المدرسة (Asia/Qatar) لا UTC: `now()` يعطي UTC فتنحرف «الحصّة التالية» ثلاث ساعات (W-20261010-047).
-    now = timezone.localtime().time()
-    next_session = next(
-        (s for s in sessions_today if s.start_time >= now and s.status == "scheduled"),
-        None,
-    )
+    next_session = _next_session(sessions_today, today)
     total_today = sessions_today.count()
     completed_today = sessions_today.filter(status="completed").count()
 
@@ -537,8 +539,9 @@ def supervisor_record_ctx(user, school, today):
     # عدّادُ العتبات فقط (لا قائمةُ أسماء): الإخطارُ انتقل إلى كاتب الغياب (D-245م/D-246م) — يُعرض عدداً ورابطاً.
     ctx["gates_count"] = len(watchlist["at_gates"])
     ctx.update(dashboard_section_context("supervisor", user, school, today))
-    if day.is_open and not ctx["school_wide"]:
-        # الحصصُ تُولَّد إن لم تكن — وإلّا بدت الشُّعبُ «بلا حصص» صباحاً.
+    if day.is_open and not ctx["school_wide"] and today == timezone.localdate():
+        # الحصصُ تُولَّد إن لم تكن — وإلّا بدت الشُّعبُ «بلا حصص» صباحاً. وللقراءة لا للرصد في غير اليوم الحقيقيّ:
+        # فلا يُولَّد لأمسِ ولا لغدٍ حصصٌ، ولا لوحاتِ رصدٍ تُفتح (W-20261010-056).
         ScheduleService.ensure_sessions_for_date(school, today)
         ctx["record_panels"] = record_panels(user, school, year, today)
     return ctx

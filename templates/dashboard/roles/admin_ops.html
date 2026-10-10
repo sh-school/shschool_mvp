@@ -3,7 +3,7 @@
 <div class="exec-dash">
 
   {% page_header "اللوحة الإدارية" subtitle=subtitle icon="workload" %}
-    {% if admin_role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>{% endif %}
+    {% if admin_role == "admin_supervisor" and not view_only %}<a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>{% endif %}
   {% endpage_header %}
 
   {% if admin_role == "admin_supervisor" %}
@@ -14,7 +14,7 @@
       {% for panel in record_panels %}
         {% include "wings/partials/record_panel.html" %}
       {% empty %}
-        {% callout "info" show=True %}لا جناحَ مُسنَدٌ إليك اليوم — راجع النائبَ الإداريّ.{% endcallout %}
+        {% if view_only %}{% callout "info" show=True %}لوحاتُ الرصد تُفتح في اليوم الحقيقيّ وحدَه — هذا عرضٌ للقراءة فقط.{% endcallout %}{% else %}{% callout "info" show=True %}لا جناحَ مُسنَدٌ إليك اليوم — راجع النائبَ الإداريّ.{% endcallout %}{% endif %}
       {% endfor %}
     {% endif %}
 

@@ -177,14 +177,21 @@ class DaySummary:
         }
 
 
+def clock_on(day: dt.date, now: dt.datetime) -> dt.time:
+    """ساعةُ الدوحة كما تراها حصصُ `day`: يومٌ مضى انتهت كلُّ حصصه، ويومٌ لم يأتِ لم تبدأ حصّةٌ منه (عرضُ لوحةٍ ليومٍ آخر، W-20261010-056)."""
+    local = timezone.localtime(now)
+    if day < local.date():
+        return dt.time.max
+    return dt.time.min if day > local.date() else local.time()
+
+
 def day_phase(school: Any, day: dt.date, now: dt.datetime) -> str:
-    """`closed` ليومٍ بلا دوام · `final` من 14:00 بتوقيت الدوحة (حكمُ اليوم) · `live` قبلها."""
+    """`closed` ليومٍ بلا دوام · `final` من 14:00 بتوقيت الدوحة (حكمُ اليوم، ولكلّ يومٍ مضى) · `live` قبلها (ولكلّ يومٍ لم يأتِ)."""
     from operations.school_days import is_school_day
 
     if not is_school_day(school, day):
         return PHASE_CLOSED
-    local = timezone.localtime(now)
-    return PHASE_FINAL if local.hour >= FINAL_HOUR else PHASE_LIVE
+    return PHASE_FINAL if clock_on(day, now).hour >= FINAL_HOUR else PHASE_LIVE
 
 
 def _new_day() -> dict[str, set]:
@@ -430,7 +437,7 @@ def school_day_summary(school: Any, day: dt.date, now: dt.datetime | None = None
     summary = DaySummary(day=day, phase=day_phase(school, day, now), generated_at=now)
     if summary.phase == PHASE_CLOSED:
         return summary
-    local_now = timezone.localtime(now).time()
+    local_now = clock_on(day, now)
 
     data = _Day()
     _load_sessions(school, day, data)
