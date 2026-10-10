@@ -287,8 +287,8 @@ def school_solve_lock(school_id: Any):
 
 def load_inputs(school: Any, academic_year: str) -> CpSatInputs:
     """مدخلاتُ النموذج من الحقيقة الحيّة نفسِها التي يقرؤها المولّدُ الحاليّ — السياسةُ تُقرأ مرّةً هنا (ADR §3.2)."""
-    from operations.scheduler import bell_lookup, build_tasks
-    from operations.scheduler import load_inputs as load_scheduler_inputs
+    from operations.scheduling_inputs import bell_lookup, build_tasks
+    from operations.scheduling_inputs import load_inputs as load_scheduler_inputs
 
     tasks = build_tasks(school, academic_year)
     prefs_qs, _preferences, blocked = load_scheduler_inputs(school, academic_year)
@@ -391,7 +391,7 @@ def run(
 def persist_draft(generation: Any, result: RunResult, inputs: CpSatInputs, elapsed_ms: int) -> int:
     """يكتب مسودّةً غيرَ منشورة (`is_active=False`) بأرقام الحصص وأوقاتِ الجرس نفسِها — بعد قبول المُقيِّم فقط."""
     from operations.models import ScheduleGeneration, ScheduleSlot
-    from operations.scheduler import bell_lookup
+    from operations.scheduling_inputs import bell_lookup
 
     if not (result.ok and result.report and result.evaluation):
         raise RunnerError("لا تُكتب مسودّةٌ لم يقبلها المُقيِّم")

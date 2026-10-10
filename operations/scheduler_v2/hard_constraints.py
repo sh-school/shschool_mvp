@@ -18,7 +18,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from operations.scheduler_constraints import DEFAULT_MAX_DAILY, MAX_SAME_PERIOD
+from operations.scheduling_limits import DEFAULT_MAX_DAILY, MAX_SAME_PERIOD
 
 if TYPE_CHECKING:
     from operations.cpsat_adapter import CpSatInputs, DemandRow
