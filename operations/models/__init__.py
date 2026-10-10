@@ -45,6 +45,7 @@ from .schedule import (  # noqa: F401
     Subject,
     SubjectClassAssignment,
     TeacherExemption,
+    TeacherPeriodPreference,
     TeacherPreference,
     TimeSlotConfig,
 )
@@ -73,6 +74,7 @@ __all__ = [
     "SubjectClassAssignment",
     "SchedulingResource",
     "TeacherPreference",
+    "TeacherPeriodPreference",
     "TeacherExemption",
     "ScheduleBaseline",
     "ScheduleConstraintOverride",

@@ -10,6 +10,7 @@ from core.models.base import AuditedModel
 from core.querysets import YearScopedQuerySet
 
 from ..last_period_cap import BAN_PERSONAL_LAST, MAX_PERSONAL_LAST
+from .common import _uuid
 
 #: مدى سقف الأولى الشخصيّ (HC22): من العامّ (اثنتان) إلى خمسٍ، أي أولى كلَّ يومٍ في الأسبوع.
 #: وما دون العامّ لا يُقبل: السقفُ الشخصيّ للأولى يرفع ولا يُضيّق (قرارُ المالك 2026-10-09).
@@ -29,9 +30,6 @@ def validate_admin_last_cap(value: int) -> None:
             code="invalid_last_cap",
             params={"low": MIN_ADMIN_LAST, "high": MAX_PERSONAL_LAST},
         )
-
-
-from .common import _uuid
 
 
 class Subject(models.Model):
@@ -519,6 +517,61 @@ class TeacherPreference(models.Model):
 
     def __str__(self):
         return f"تفضيلات: {self.teacher.full_name} ({self.academic_year})"
+
+
+class TeacherPeriodPreference(models.Model):
+    """تفضيلُ المعلّم لموضعِ حصّةٍ في الأسبوع: «أفضّلها» أو «أتجنّبها» (المرحلة أ من W-20261010-032، D-330م).
+
+    الحالةُ المحايدةُ **لا تُخزَّن**: غيابُ الصفّ = محايدة، فلا يتضخّم الجدولُ بخمسٍ وثلاثين صفّاً لكلّ معلّم.
+    ولا يقرؤه أيُّ محرّكٍ بعد: تُحفَظ الشبكةُ وتُعرَض وتُسجَّل في الأدمن، ويُوصَل الوزنُ بالمولّد في بطاقةٍ لاحقة.
+    """
+
+    PREFER = "prefer"
+    AVOID = "avoid"
+    CHOICES = [(PREFER, "أفضّلها"), (AVOID, "أتجنّبها")]
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="teacher_period_preferences",
+        verbose_name="المدرسة",
+    )
+    teacher = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="period_preferences",
+        verbose_name="المعلم",
+    )
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
+    day_of_week = models.PositiveSmallIntegerField(
+        choices=ScheduleSlot.DAYS,
+        validators=[MinValueValidator(0), MaxValueValidator(4)],
+        verbose_name="اليوم",
+    )
+    period_number = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(ScheduleSlot.PERIODS_PER_DAY)],
+        verbose_name="رقم الحصة",
+    )
+    preference = models.CharField(max_length=8, choices=CHOICES, verbose_name="التفضيل")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
+
+    class Meta:
+        verbose_name = "تفضيل موضع حصة"
+        verbose_name_plural = "تفضيلات مواضع الحصص"
+        ordering = ["day_of_week", "period_number"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["teacher", "school", "academic_year", "day_of_week", "period_number"],
+                name="unique_teacher_period_pref",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_preference_display()}: {self.get_day_of_week_display()} ح{self.period_number}"
 
 
 #: كان هنا `PERSONAL_RULE_MARKERS` و`releases()`: قسمةُ التفريغات قسمين بمطابقة
