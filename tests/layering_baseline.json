@@ -728,9 +728,6 @@
   "student_affairs/views.py::tardiness_search_students": {
    "orm": 7
   },
-  "student_affairs/views.py::transfer_create": {
-   "orm": 11
-  },
   "student_affairs/views.py::transfer_list": {
    "orm": 6
   },

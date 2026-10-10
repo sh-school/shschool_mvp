@@ -2,6 +2,7 @@
 {% load icons %}
 {% load ui %}
 {% block title %}تفاصيل الإجازة — {{ leave.staff.full_name }}{% endblock %}
+{% block main_class %}{% page_layout "detail" %}{% endblock %}
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/staff-affairs/leave/" parent_label="الإجازات" current=leave.staff.full_name %}
 {% endblock %}

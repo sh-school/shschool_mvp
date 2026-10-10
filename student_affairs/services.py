@@ -992,6 +992,7 @@ class TransferService:
             transfer_date=data["transfer_date"],
             from_grade=data.get("from_grade", ""),
             to_grade=data.get("to_grade", ""),
+            to_class_group=data.get("to_class_group"),
             reason=data.get("reason", ""),
             notes=data.get("notes", ""),
             status="pending",
@@ -1040,6 +1041,12 @@ class TransferService:
         if notes:
             separator = "\n---\n" if transfer.notes else ""
             transfer.notes += f"{separator}[{reviewer.full_name}]: {notes}"
+
+        if action == "completed" and transfer.direction == "internal":
+            # قبل حفظ الحالة: إن رُفض الهدف لا يُحفظ «مكتمل» بلا نقل
+            from .internal_transfer import complete_internal
+
+            complete_internal(transfer, reviewer)
 
         transfer.updated_by = reviewer
         transfer.save(update_fields=["status", "notes", "updated_by", "updated_at"])
