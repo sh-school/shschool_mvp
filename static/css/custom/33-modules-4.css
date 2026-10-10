@@ -1562,4 +1562,27 @@ body:has(.rm-page) .site-footer { flex: none; }
   .cg-keys > :nth-child(3) { grid-column: auto; }
 }
 
+/* ── لوحة المعلّم: صفوفُ الحصص (W-20261010-039) ── */
+.sess-list { display: grid; }
+.sess-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-block-size: var(--control-h);
+  padding: var(--sp-2) var(--sp-4);
+  border-block-end: 1px solid var(--border-soft);
+  color: inherit;
+  text-decoration: none;
+}
+.sess-row:last-child { border-block-end: 0; }
+.sess-row:hover { background: var(--surface-alt); }
+.sess-row.is-next { background: var(--status-warning-bg); }
+.sess-main { display: flex; align-items: center; gap: var(--sp-4); min-inline-size: 0; }
+.sess-clock { min-inline-size: 3.25rem; text-align: center; font-size: var(--text-sm); font-weight: 700; color: var(--text-primary); }
+.sess-clock small { display: block; font-weight: 400; color: var(--text-muted); font-size: var(--text-xs); }
+.sess-name { font-size: var(--text-sm); font-weight: 700; color: var(--text-primary); }
+.sess-sub { font-size: var(--text-xs); color: var(--text-secondary); }
+.sess-state { display: flex; align-items: center; gap: var(--sp-2); flex-shrink: 0; }
+
 } /* end @layer modules */

@@ -235,3 +235,34 @@ def test_the_shobi_card_links_once_to_the_class_grid_in_both_schedule_modes(
 
     assert "رصدُ الغياب — شُعبي" in body
     assert body.count(reverse("provisional_classes")) == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("prov", [True, False], ids=["جدول-مؤقّت", "جدول-فعليّ"])
+def test_the_teacher_blocks_come_in_the_decided_order(client_as, school, monkeypatch, prov):
+    """W-20261010-039: ما ينتظرك ← الرصد ← الحصص ← طلابي (حصصي تُخفى مع الجدول المؤقّت كما كانت)."""
+    from operations.services import provisional_session
+
+    monkeypatch.setattr(provisional_session, "enabled", lambda: prov)
+    user = UserFactory(full_name="مستخدمُ اختبار")
+    MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name="teacher"))
+
+    body = client_as(user).get("/dashboard/").content.decode()
+    body = body[body.index("exec-dash") :]
+
+    marks = ["رصدُ الغياب — شُعبي"] + ([] if prov else ["حصصي اليوم"]) + ["موادّ التقييم"]
+    positions = [body.find(m) for m in marks if m in body]
+    assert positions == sorted(positions) and positions[0] != -1
+    assert ("حصصي اليوم" in body) is (not prov)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("role_name", ["teacher", "coordinator", "teacher_assistant"])
+def test_every_teacher_like_role_draws_the_dashboard_without_error(client_as, school, role_name):
+    user = UserFactory(full_name="مستخدمُ اختبار")
+    MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name=role_name))
+
+    resp = client_as(user).get("/dashboard/")
+
+    assert resp.status_code == 200
+    assert resp.content.decode().count(reverse("provisional_classes")) <= 1
