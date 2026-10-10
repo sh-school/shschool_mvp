@@ -216,3 +216,28 @@ def test_inputs_from_the_live_build_match_the_assignments_and_exemptions(live_sc
     assert inputs.ex_period == {(str(teachers[1].id), 1, 3)}
     assert len(inputs.periods(str(group.id), 4)) == 6, "إعداديّ ⇒ ستُّ حصصٍ في الخميس"
     assert inputs.class_names[str(group.id)] == str(group)
+
+
+def test_blocks_follow_the_group_rule_on_a_mixed_parallel_group():
+    """W-20261009-001: مجموعةٌ بعضها مزدوجٌ وبعضها لا ← لا كتلة لأحد؛ والمزدوجةُ كلُّها ← كتلةٌ لكلّ عضو."""
+    mixed = [
+        _task(subject_id="S1", teacher_id="T1", parallel_group="G", span=1, weekly_periods=2),
+        _task(subject_id="S1", teacher_id="T1", parallel_group="G", span=1, weekly_periods=2),
+    ]
+    mixed_members = (
+        Member("T1", "معلّم", "S1", "رياضيات", "MATH"),
+        Member("T2", "معلّم٢", "S2", "علوم", "SCI"),
+    )
+    for t in mixed:
+        t.members = mixed_members
+    full = _task(subject_id="S3", teacher_id="T3", parallel_group="H", span=2, weekly_periods=2)
+    full.members = (
+        Member("T3", "معلّم٣", "S3", "فنون", "ART"),
+        Member("T4", "معلّم٤", "S4", "تقنية", "TECH"),
+    )
+    solo = _task(subject_id="S5", teacher_id="T5", span=2, weekly_periods=4)
+    solo2 = _task(subject_id="S5", teacher_id="T5", span=2, weekly_periods=4)
+    got = {(r.subj, r.teacher): r.blocks for r in build_inputs([*mixed, full, solo, solo2]).demand}
+    assert got[("S1", "T1")] == 0 and got[("S2", "T2")] == 0
+    assert got[("S3", "T3")] == 1 and got[("S4", "T4")] == 1
+    assert got[("S5", "T5")] == 2
