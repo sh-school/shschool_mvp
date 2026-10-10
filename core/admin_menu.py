@@ -220,6 +220,7 @@ GROUPS: tuple[tuple[str, tuple[tuple[str | None, tuple[str, ...]], ...]], ...] =
                     "core.AuditLog",
                     "developer_feedback.AuditLog",
                     "core.ConsentRecord",
+                    "core.BreachReport",
                 ),
             ),
         ),
