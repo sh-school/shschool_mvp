@@ -77,6 +77,16 @@ class HealthRecord(models.Model):
     hamad_hospital_number = EncryptedTextField(
         blank=True, default="", db_default="", verbose_name="رقم مستشفى حمد"
     )
+    # [W-045، D-336م] علامةٌ محايدةٌ «يحتاج مراعاةً» يضعها الممرّض صراحةً وحده (لا تلقائيّاً من
+    # أيّ تشخيص). منطقيٌّ غيرُ مشفَّر عمداً: لا يكشف سبباً، ويُستخرج برقم الطالب فقط
+    # (`clinic.selectors.students_needing_care_ids`) دون فكّ أيّ حقلٍ مشفَّر. و`db_default`
+    # لازمةٌ لأنّ الجدولَ فيه صفوفٌ (حارسُ migration-linter).
+    needs_care = models.BooleanField(
+        default=False,
+        db_default=False,
+        verbose_name="يحتاج مراعاةً",
+        help_text="علامةٌ محايدةٌ تظهر للمعلّم في جدول رصد شعبته فقط، بلا سبب. يضعها الممرّض صراحةً.",
+    )
     updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:

@@ -698,16 +698,30 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   </div>
 </div>
 
-<div class="sd-menu" id="m-services" role="menu" aria-label="الخدمات">
-  <div class="sd-label">الخدمات المساندة</div>
+{% comment %}
+أقسامٌ بعناوينها كبقيّة القوائم (m-staff-affairs وm-quality): العيادةُ قسمٌ بروابطها — لوحتُها وعلامةُ المراعاة
+(W-20261010-045: كانت القائمةُ رابطاً واحداً إلى لوحة العيادة فلا يبلغ المديرُ الاستيرادَ منها). عمودان حين يظهر القسمان.
+{% endcomment %}
+<div class="sd-menu{% if request.user|can_open:'clinic:dashboard' and request.user|can_open:'transport:dashboard' or request.user|can_open:'clinic:dashboard' and request.user|can_open:'library:dashboard' %} sd-menu--cols-2{% endif %}" id="m-services" role="menu" aria-label="الخدمات">
   {% if request.user|can_open:"clinic:dashboard" %}
-  <a href="{% url 'clinic:dashboard' %}">{% icon "clinic" %} العيادة المدرسية</a>
+  <div class="sd-section">
+  <div class="sd-label">العيادة المدرسية</div>
+  <a href="{% url 'clinic:dashboard' %}">{% icon "clinic" %} لوحة العيادة</a>
+  {% if request.user|can_open:"clinic:needs_care_import" %}
+  <a href="{% url 'clinic:needs_care_import' %}">{% icon "document" %} علامة المراعاة</a>
   {% endif %}
+  </div>
+  {% endif %}
+  {% if request.user|can_open:"transport:dashboard" or request.user|can_open:"library:dashboard" %}
+  <div class="sd-section">
+  <div class="sd-label">النقل والمكتبة</div>
   {% if request.user|can_open:"transport:dashboard" %}
   <a href="{% url 'transport:dashboard' %}">{% icon "transport" %} النقل المدرسي</a>
   {% endif %}
   {% if request.user|can_open:"library:dashboard" %}
   <a href="{% url 'library:dashboard' %}">{% icon "library" %} المكتبة</a>
+  {% endif %}
+  </div>
   {% endif %}
 </div>
 

@@ -7,6 +7,7 @@ app_name = "clinic"
 urlpatterns = [
     path("", views.clinic_dashboard, name="dashboard"),
     path("student/<uuid:student_id>/record/", views.student_health_record, name="health_record"),
+    path("needs-care/import/", views.needs_care_import, name="needs_care_import"),
     path("visit/new/", views.record_visit, name="record_visit"),
     path("visit/new/<uuid:student_id>/", views.record_visit, name="record_visit_student"),
     path("visits/", views.visits_list, name="visits_list"),
