@@ -228,12 +228,27 @@ class Command(BaseCommand):
                     )
                 if role_name == "admin_supervisor":
                     wing_note = self._assign_wing(school, user)
+            teacher_note = self._seed_teacher_classes(school)
+            wing_note = "؛ ".join(note for note in (wing_note, teacher_note) if note)
         self.stdout.write(
             f"حساباتُ المعاينة: أُنشئ {created}، وصُحّح {fixed}، من {len(ROLES)}"
             + (f"؛ وأُزيل {removed} حساباً من الأداة السابقة" if removed else "")
             + (f"؛ {wing_note}" if wing_note else "")
             + "."
         )
+
+    def _seed_teacher_classes(self, school: School) -> str:
+        """يُسند المعلّمَ الوهميّ إلى شُعبٍ من جناحٍ واحدٍ يغطّيه المشرفُ الوهميّ (W-20261005-005).
+
+        المنطقُ في أمر `seed_preview_teacher_classes` في operations (نماذجُ الإسناد ملكُها) — يُستدعى باسمه فلا تستورد النواةُ من operations (سقّاطةُ الطبقات).
+        """
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        out = StringIO()
+        call_command("seed_preview_teacher_classes", school=school.code, stdout=out)
+        return out.getvalue().strip()
 
     def _assign_wing(self, school: School, user: CustomUser) -> str:
         """يغطّي جناحاً بحساب المشرف الإداريّ الوهميّ **بتغطيةٍ (`WingCoverage`) لا باستبدال حاملٍ** — متساوي الأثر.
