@@ -414,6 +414,18 @@ tbody tr:nth-child(even):hover {
 .progress-qatar-fill.pf-warning { background: var(--status-warning); }
 .progress-qatar-fill.pf-danger  { background: var(--status-danger);  }
 
+/* شريطُ تقدّم توليد V2 في الجدولة الذكية: بطاقةٌ تُكدَّس رأسياً، والإحصاءاتُ تلتفّ في الجوّال. */
+.gen-progress { margin-block-start: var(--sp-3); display: grid; gap: var(--sp-2); }
+.gen-progress[hidden] { display: none; }
+.gen-progress__track { display: block; }
+.gen-progress__fill { display: block; }
+.gen-progress__state, .gen-progress__final, .gen-progress__offline { margin: 0; font-size: var(--text-sm); font-weight: 600; }
+.gen-progress__state, .gen-progress__final { color: var(--status-info-fg); }
+.gen-progress__offline { color: var(--status-warning-fg); }
+.gen-progress__stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--sp-2) var(--sp-4); margin: 0; }
+.gen-progress__stats dt { font-size: var(--text-xs); color: var(--text-muted); }
+.gen-progress__stats dd { margin: 0; font-size: var(--text-sm); font-weight: 600; font-variant-numeric: tabular-nums; }
+
 /* ── Django Admin — تعريب اللون الرئيسي ─── */
 /* Django Admin header — مطلوب لتجاوز admin CSS */
 #header {

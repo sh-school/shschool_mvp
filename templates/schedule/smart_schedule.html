@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load icons %}
+{% load icons static %}
 {% load schedule_filters ui %}
 
 {% block title %}الجدولة الذكية — {{ year }}{% endblock %}
@@ -129,6 +129,21 @@
       <p class="gen-running__sub">
         تُحدَّث الحالةُ تلقائيّاً، ويصلك إشعارٌ عند الانتهاء. يمكنك مغادرةُ الصفحة.
       </p>
+      {% comment %}شريطُ تقدّم V2 (W-20261009-022): يُستطلع كلَّ 5ث من schedule_v2_progress بـstatic/js/schedule-v2-progress.js.
+      الشريطُ المنقضي من مهلة الحلّ لا نسبةُ إنجاز، والمتبقّي سقفٌ لا وعد؛ ويبقى مخفيّاً حتى تصل أوّلُ لقطة.{% endcomment %}
+      <div class="gen-progress" id="gen-progress" hidden data-url="{% url 'schedule_v2_progress' pending_generation.id %}">
+        <span class="progress-qatar gen-progress__track" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="المنقضي من مهلة التوليد" data-gp="meter"><span class="progress-qatar-fill gen-progress__fill" data-gp="fill"></span></span>
+        <p class="gen-progress__state" data-gp="state" aria-live="polite"></p>
+        <dl class="gen-progress__stats">
+          <div><dt>المنقضي</dt><dd data-gp="elapsed">—</dd></div>
+          <div><dt>المتبقّي حتى المهلة</dt><dd data-gp="remaining">—</dd></div>
+          <div><dt>الحلول المُوجَدة</dt><dd data-gp="solutions">—</dd></div>
+          <div><dt>قيمة الهدف (الأقلّ أفضل)</dt><dd data-gp="objective">—</dd></div>
+          <div><dt>الفجوة عن الحدّ الأدنى</dt><dd data-gp="gap">—</dd></div>
+        </dl>
+        <p class="gen-progress__final" data-gp="final" role="status" hidden></p>
+        <p class="gen-progress__offline" data-gp="offline" hidden>انقطع الاتصال بنقطة التقدّم — تُعاد المحاولةُ تلقائيّاً.</p>
+      </div>
     </details>
   </div>
   {% endif %}
@@ -368,5 +383,7 @@ document.addEventListener('DOMContentLoaded', function(){
   setTimeout(poll, 3000);
 });
 </script>
+
+<script src="{% static 'js/schedule-v2-progress.js' %}" defer></script>
 
 {% endblock %}
