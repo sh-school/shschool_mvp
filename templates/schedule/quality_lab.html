@@ -16,7 +16,7 @@
   <form method="get">
     <input type="hidden" name="year" value="{{ year }}">
     <div class="form-group">
-      <label class="form-label text-xs" for="lab-schedule">الجدول المقيس</label>
+      <label class="form-label" for="lab-schedule">الجدول المقيس</label>
       <select id="lab-schedule" name="schedule" class="form-control" data-autosubmit>
         <option value="live" {% if schedule_param == 'live' %}selected{% endif %}>الجدول الحيّ</option>
         {% for g in generations %}
@@ -25,7 +25,7 @@
       </select>
     </div>
     <div class="form-group">
-      <label class="form-label text-xs" for="lab-ref">المرجع</label>
+      <label class="form-label" for="lab-ref">المرجع</label>
       <select id="lab-ref" name="ref" class="form-control" data-autosubmit>
         <option value="baseline" {% if ref_param == 'baseline' %}selected{% endif %}>{% if baseline %}الأساس «{{ baseline.label }}»{% else %}الأساس (لا أساس بعد){% endif %}</option>
         <option value="live" {% if ref_param == 'live' %}selected{% endif %}>الجدول الحيّ</option>

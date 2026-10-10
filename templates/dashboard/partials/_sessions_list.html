@@ -10,11 +10,11 @@
     <div class="flex items-center gap-4">
       <div class="text-center session-time">
         <div class="text-sm font-bold text-[var(--text-primary)]">{{ s.start_time|time:"H:i" }}</div>
-        <div class="text-xs text-[var(--text-muted)]">{{ s.end_time|time:"H:i" }}</div>
+        <div class="ui-meta">{{ s.end_time|time:"H:i" }}</div>
       </div>
       <div>
         <div class="font-semibold text-[var(--text-primary)] text-sm">{{ s.subject.name_ar }}</div>
-        <div class="text-xs text-[var(--text-muted)] mt-0.5">{{ s.class_group.short_label }}</div>
+        <div class="mt-0.5 ui-meta">{{ s.class_group.short_label }}</div>
       </div>
     </div>
     <div class="flex items-center gap-2">
