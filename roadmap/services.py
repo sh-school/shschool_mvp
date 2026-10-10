@@ -21,7 +21,7 @@ from django.http import HttpRequest
 from django.utils import timezone
 
 from core.models import AuditLog
-from roadmap import selectors
+from roadmap import health, selectors
 from roadmap.models import (
     DecisionStatus,
     ItemStatus,
@@ -195,6 +195,7 @@ def serialize_checklist(o: RoadmapChecklistItem) -> dict[str, Any]:
 def page_context() -> dict[str, Any]:
     """كلُّ ما تحتاجه الصفحةُ في استعلاماتٍ ست، والتقدّمُ العامّ محسوباً هنا لا في القالب."""
     item_rows = list(selectors.items())
+    decision_rows = list(selectors.decisions())
     meta = selectors.meta_data()
     return {
         "overall_progress": _progress_of(item_rows),
@@ -203,9 +204,11 @@ def page_context() -> dict[str, Any]:
             "meta": meta,
             "items": [serialize_item(o) for o in item_rows],
             "kpis": [serialize_kpi(o) for o in selectors.kpis()],
-            "decisions": [serialize_decision(o) for o in selectors.decisions()],
+            "decisions": [serialize_decision(o) for o in decision_rows],
             "risks": [serialize_risk(o) for o in selectors.risks()],
             "checklist": [serialize_checklist(o) for o in selectors.checklist()],
+            "health": health.page_health(item_rows, decision_rows, meta, timezone.localdate()),
+            "glossary": health.glossary_payload(),
         },
     }
 
