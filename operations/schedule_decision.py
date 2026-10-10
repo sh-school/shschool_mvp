@@ -166,19 +166,35 @@ def current_card(generations: list) -> tuple[Any, dict | None]:
     return None, None
 
 
+def metrics_for(generation: Any) -> dict:
+    """مؤشّراتُ توليدٍ لعرضها: المخزَّنُ إن اكتمل لتعريفات اليوم، وإلّا تُحسب مرّةً وتُخزَّن (W-20261010-015).
+
+    حلقةُ `compute()` لكلّ صفٍّ عند كلّ فتحٍ للصفحة كانت أثقلَ ما فيها (747ms و39 استعلاماً). والحصصُ
+    لا تتغيّر بعد التوليد، فالقراءةُ من الصفّ تُغني عن إعادة الحساب؛ وغيابُ مؤشّرٍ من التعريفات الحاليّة
+    (أُضيف بعد التخزين) أو غيابُ المخزَّن أصلاً يُعيد الحسابَ مرّةً ثمّ يخزّنه — فلا يُكسر توليدٌ قديم.
+    والقيمُ هي نفسُها التي يحسبها `compute()` الآن (لا تعريفَ جديد): اختبارُ المطابقة يحرس ذلك.
+    """
+    from .schedule_lab import CATALOG, store_metrics
+
+    stored: dict = generation.metrics or {}
+    if stored and all(key in stored for key in CATALOG):
+        return stored
+    return store_metrics(generation)
+
+
 def annotate_generation(g: Any, total_weekly: int, baseline: Any) -> None:
     """ما يحتاجه سطرُ السجلّ: ما وُضع، وسطرُ V2، ونسبةُ الأساس لتوليدات V2 وحدَها.
 
-    المؤشّراتُ تُعاد من الحصص لا تُقرأ من الصفّ (المخزَّنُ كُتب بتعريفات يومه). لكنّ ذلك لتوليدات V2 فقط:
-    حسابُ المختبر لكلّ صفٍّ هو أثقلُ ما في فتح الصفحة، وصفوفُ المحرّك السابق تُطوى بلا درجة.
+    المؤشّراتُ لتوليدات V2 فقط وتُقرأ من المخزَّن (`metrics_for`): حسابُ المختبر لكلّ صفٍّ عند كلّ فتحٍ كان
+    أثقلَ ما في الصفحة، وصفوفُ المحرّك السابق تُطوى بلا درجة.
     """
-    from .schedule_lab import ScheduleLab, overall_score, relative_score
+    from .schedule_lab import overall_score, relative_score
 
     g.placed = g.slot_rows or g.total_slots_created
     # نصٌّ لا رقم: `floatformat` يتبع اللغةَ فيكتب «100٫0»، والرقمُ هنا يُقرأ ويُقارَن.
     g.placed_ratio = f"{100 * g.placed / total_weekly:.1f}" if total_weekly else "0.0"
     g.v2 = row_summary(g.config_snapshot)
-    lab = ScheduleLab.for_generation(g).compute() if g.v2 and g.placed else {}
+    lab = metrics_for(g) if g.v2 and g.placed else {}
     g.lab_absolute = overall_score(lab) if lab else None
     g.lab_relative = relative_score(lab, baseline.metrics) if baseline and lab else None
 
