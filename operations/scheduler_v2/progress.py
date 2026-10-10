@@ -114,6 +114,12 @@ class ProgressTracker:
         return self.stop_flag
 
 
+def is_v2_running(generation: Any) -> bool:
+    """هل هذا الصفُّ توليدُ V2 جارياً بلقطةٍ منشورة؟ (إيقافُ V1 عليه يُضيّع أفضل حلّ.)"""
+    metrics = generation.metrics or {}
+    return generation.status == "running" and bool(metrics.get(KEY))
+
+
 def request_stop(generation: Any) -> bool:
     """يطلب إيقافاً مبكّراً يحتفظ بأفضل حلّ. يُرجع False إن لم يكن التوليدُ جارياً."""
     from operations.models import ScheduleGeneration

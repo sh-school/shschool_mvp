@@ -46,7 +46,7 @@ from .schedule_breaches import (
     quality_display,
     unplaced_count,
 )
-from .schedule_selectors import pages_payload
+from .schedule_selectors import mark_v2, pages_payload
 from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
 from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
 from .services import AbsenceSwapService, ScheduleService, SubstituteService, schedule_gate
@@ -93,7 +93,7 @@ def _reap_stale_generations(school, year):
             "غالباً لأنّ Celery متوقّف. راجع تشغيلَه ثمّ أعد المحاولة."
         ),
     )
-    return pending.filter(generated_at__gte=cutoff).first()
+    return mark_v2(pending.filter(generated_at__gte=cutoff).first())
 
 
 def _safe_schedule_settings_redirect(request, fallback_year=None):

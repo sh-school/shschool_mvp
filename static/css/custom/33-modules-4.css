@@ -738,6 +738,8 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 }
 .ui-kpi.is-link { transition: border-color var(--transition-base), box-shadow var(--transition-base); }
 .ui-kpi.is-link:hover { box-shadow: var(--shadow-sm); border-color: var(--kc, var(--maroon)); }
+/* بطاقةٌ تفتح قائمتها (الخارطة: «مُغلَق بلا مرجع»): زرٌّ حقيقيٌّ داخل عنصر القائمة، يرث الخطَّ ويملأ الخليّة. */
+button.ui-kpi { font: inherit; inline-size: 100%; text-align: start; cursor: pointer; }
 
 @media (max-width: 640px) {
   .ui-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
