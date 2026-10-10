@@ -6,6 +6,7 @@
 """
 
 import json
+import re
 from io import StringIO
 
 import pytest
@@ -316,3 +317,14 @@ def test_a_value_stored_before_the_range_is_not_rewritten_and_is_read_as_before(
 
     pref.refresh_from_db()
     assert pref.max_last_periods == 1 and personal_last_cap(pref.max_last_periods) == 1
+
+
+def test_the_admin_inputs_carry_the_range_for_the_browser(client, superuser):
+    """حدٌّ في المتصفّح يسبق رسالةَ الخادم: min=2 وmax=5 على الحقلين (قرارُ المالك 10-10)."""
+    client.force_login(superuser)
+
+    page = client.get(reverse("admin:operations_teacherpreference_add")).content.decode()
+
+    for name in ("max_first_periods", "max_last_periods"):
+        tag = re.search(rf'<input[^>]*name="{name}"[^>]*>', page).group(0)
+        assert 'min="2"' in tag and 'max="5"' in tag

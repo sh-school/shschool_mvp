@@ -513,6 +513,15 @@ class TeacherPreferenceAdmin(admin.ModelAdmin):
     search_fields = ("teacher__full_name",)
     autocomplete_fields = ("teacher",)
 
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        """يُظهر مدى 2–5 في حقلَي سقف الأولى والسابعة للمتصفّح لا للخادم وحده (قرارُ المالك 2026-10-10)."""
+        from operations.models.schedule import MAX_PERSONAL_FIRST, MIN_PERSONAL_FIRST
+
+        field = super().formfield_for_dbfield(db_field, request, **kwargs)
+        if field is not None and db_field.name in ("max_first_periods", "max_last_periods"):
+            field.widget.attrs.update({"min": MIN_PERSONAL_FIRST, "max": MAX_PERSONAL_FIRST})
+        return field
+
     def save_model(self, request, obj, form, change):
         """القراراتُ الإداريّة (سقفا السابعة والأولى ويومُ التفريغ) يُثبَّت أثرُها: قيمتان قبل وبعد ومعرّفُ الصفّ — لا اسمُ المعلّم.
 
