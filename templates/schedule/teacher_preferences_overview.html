@@ -38,8 +38,8 @@
       <tr>
         <td class="load-name">{{ r.teacher.full_name }}</td>
         {% if r.pref %}
-        <td class="num">{{ r.pref.max_daily_periods }}</td>
-        <td class="num">{{ r.pref.max_consecutive }}</td>
+        <td class="num">{{ r.pref.max_daily_periods|default_if_none:"—" }}</td>
+        <td class="num">{{ r.pref.max_consecutive|default_if_none:"—" }}</td>
         <td class="num">{{ r.pref.max_gap|default_if_none:"—" }}</td>
         <td>{{ r.free_day|default:"—" }}</td>
         {% if show_last %}<td class="num">{{ r.pref.max_last_periods|default_if_none:"—" }}</td>{% endif %}

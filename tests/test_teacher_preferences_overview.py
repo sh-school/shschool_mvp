@@ -135,6 +135,33 @@ class TestLastPeriodsCap:
         assert "أقصى سابعات" not in _get(client_as, world["coordinator"]).content.decode()
 
 
+def test_an_empty_value_shows_a_dash_not_the_word_none():
+    """بيانُ معاينةٍ بقيمةٍ فارغةٍ في «أقصى متتالية» ظهر فيه نصُّ None حرفيّاً (حزمة 0502)."""
+    from types import SimpleNamespace
+
+    from django.template.loader import render_to_string
+
+    pref = SimpleNamespace(
+        max_daily_periods=None,
+        max_consecutive=None,
+        max_gap=None,
+        max_last_periods=None,
+        notes="",
+        updated_at=None,
+    )
+    html = render_to_string(
+        "schedule/teacher_preferences_overview.html",
+        {
+            "year": YEAR,
+            "total": 1,
+            "with_pref": 1,
+            "show_last": True,
+            "rows": [{"teacher": SimpleNamespace(full_name="معلّم"), "pref": pref, "free_day": ""}],
+        },
+    )
+    assert "None" not in html
+
+
 @pytest.mark.django_db
 def test_queries_do_not_grow_with_teachers(client_as, school, world, django_assert_max_num_queries):
     for i in range(12):
