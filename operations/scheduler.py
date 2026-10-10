@@ -21,7 +21,7 @@ from .models import (
     ScheduleGeneration,
     ScheduleSlot,
 )
-from .scheduler_advice import _capacity_shortfalls, _day_coverage, _slack_advice
+from .scheduler_advice import _capacity_shortfalls, _slack_advice
 from .scheduler_audit import unplaced_message
 from .scheduler_clock import Deadline
 from .scheduler_constraints import (
@@ -39,6 +39,7 @@ from .scheduling_inputs import (  # noqa: F401  (يُعاد تصديرها: ان
     Member,
     ScheduleGrid,
     Task,
+    _day_coverage,
     _to_tasks,
     bell_lookup,
     build_tasks,

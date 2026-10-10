@@ -24,9 +24,9 @@ from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Any
 
+from .schedule_grid_loader import entries_of, load_grid
 from .scheduler_audit import grid_breaches
 from .scheduler_constraints import calculate_quality_score
-from .scheduler_live import entries_of, load_grid
 
 #: حالاتُ الحلّال المقبولةُ في المصدر الخارجيّ — وما سواها يُرفض.
 SOLVER_STATUSES = ("OPTIMAL", "FEASIBLE", "UNKNOWN", "INFEASIBLE")
