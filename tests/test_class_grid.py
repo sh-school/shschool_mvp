@@ -775,3 +775,144 @@ def test_a_recorders_marking_is_not_double_audited_by_this_path(
     recorder = _staff(school, "vice_admin", "النائب", "29000004031")
     _save(client_as(recorder), assigned, 1, [_cells(kids[0], "present")])
     assert AttendanceEntry.objects.filter(student=kids[0], entered_by=recorder).count() == 1
+
+
+# ── التغطية بالتبديل والتعويض (W-20261002-017، D-125م) ───────────────────────────────────────────
+
+
+@pytest.fixture
+def lesson_slot(school, assigned, teacher, subject):
+    from operations.models import ScheduleSlot
+
+    return ScheduleSlot.objects.create(
+        school=school,
+        teacher=teacher,
+        class_group=assigned,
+        subject=subject,
+        day_of_week=0,
+        period_number=1,
+        start_time=dt.time(7, 10),
+        end_time=dt.time(7, 55),
+        academic_year=assigned.academic_year
+        if isinstance(assigned.academic_year, str)
+        else str(assigned.academic_year),
+    )
+
+
+def _swap(school, lesson_slot, mine, theirs, **extra):
+    from operations.models import TeacherSwap
+
+    return TeacherSwap.objects.create(
+        school=school,
+        teacher_a=mine,
+        teacher_b=theirs,
+        slot_a=lesson_slot,
+        slot_b=lesson_slot,
+        swap_date_a=extra.pop("swap_date_a", SUNDAY),
+        swap_date_b=extra.pop("swap_date_b", SUNDAY),
+        status=extra.pop("status", "executed"),
+        **extra,
+    )
+
+
+def test_a_teacher_a_swapped_in_for_today_writes_the_class_column(
+    client_as, school, assigned, teacher, kids, lesson_slot, clock
+):
+    """`teacher_b` يأخذ حصّةَ `slot_a` يومَ `swap_date_a`: يكتب عمودَ الشعبة، ولا يكتب في غير يومه ولا قبل التنفيذ."""
+    stranger = _staff(school, "teacher", "معلّمٌ بُدِّلت إليه", "29000007001")
+    client = client_as(stranger)
+    assert client.get(reverse("class_grid", args=[assigned.id])).status_code == 404
+    swap = _swap(school, lesson_slot, teacher, stranger, status="approved")
+    assert _save(client, assigned, 1, [_cells(kids[0], "absent")]).status_code == 404
+    swap.status = "executed"
+    swap.save(update_fields=["status"])
+    assert _save(client, assigned, 1, [_cells(kids[0], "absent")]).status_code == 200
+    swap.swap_date_a = SUNDAY + dt.timedelta(days=7)
+    swap.save(update_fields=["swap_date_a"])
+    assert _save(client, assigned, 1, [_cells(kids[1], "absent")]).status_code == 404
+
+
+def test_the_requester_takes_the_payback_slot_on_the_second_date(
+    client_as, school, assigned, teacher, kids, lesson_slot, clock
+):
+    """`teacher_a` يأخذ حصّةَ `slot_b` يومَ `swap_date_b` (وليس يومَ `swap_date_a`)."""
+    away = _staff(school, "teacher", "طالبُ التبديل", "29000007002")
+    _swap(school, lesson_slot, away, teacher, swap_date_a=SUNDAY - dt.timedelta(days=1))
+    client = client_as(away)
+    assert _save(client, assigned, 1, [_cells(kids[0], "absent")]).status_code == 200
+
+
+def test_an_approved_or_completed_compensatory_session_covers_only_its_date(
+    client_as, school, assigned, teacher, kids, subject, clock
+):
+    from operations.models import CompensatorySession, ScheduleSlot, TeacherAbsence
+
+    owner = _staff(school, "teacher", "صاحبُ التعويض", "29000007003")
+    slot = ScheduleSlot.objects.create(
+        school=school,
+        teacher=owner,
+        class_group=assigned,
+        subject=subject,
+        day_of_week=0,
+        period_number=2,
+        start_time=dt.time(8, 0),
+        end_time=dt.time(8, 45),
+        academic_year=str(assigned.academic_year),
+    )
+    absence = TeacherAbsence.objects.create(school=school, teacher=owner, date=SUNDAY)
+    session = CompensatorySession.objects.create(
+        school=school,
+        teacher=owner,
+        original_slot=slot,
+        absence=absence,
+        compensatory_date=SUNDAY,
+        compensatory_period=2,
+        class_group=assigned,
+        subject=subject,
+        status="pending",
+    )
+    client = client_as(owner)
+    for refused in ("colleague", "pending", "cancelled", "expired"):
+        session.status = refused
+        session.save(update_fields=["status"])
+        assert client.get(reverse("class_grid", args=[assigned.id])).status_code == 404, refused
+    for allowed in ("approved", "completed"):
+        session.status = allowed
+        session.save(update_fields=["status"])
+        assert client.get(reverse("class_grid", args=[assigned.id])).status_code == 200, allowed
+    session.compensatory_date = SUNDAY + dt.timedelta(days=7)
+    session.save(update_fields=["compensatory_date"])
+    assert client.get(reverse("class_grid", args=[assigned.id])).status_code == 404
+
+
+def test_a_substitute_still_covers_and_the_other_roles_are_unchanged(
+    client_as, school, assigned, teacher, other_teacher, holder, kids, lesson_slot, clock
+):
+    from operations.models import SubstituteAssignment, TeacherAbsence
+
+    absence = TeacherAbsence.objects.create(school=school, teacher=teacher, date=SUNDAY)
+    SubstituteAssignment.objects.create(
+        school=school,
+        absence=absence,
+        slot=lesson_slot,
+        substitute=other_teacher,
+        status="assigned",
+    )
+    assert (
+        _save(client_as(other_teacher), assigned, 1, [_cells(kids[0], "absent")]).status_code == 200
+    )
+    # الدور الأصليّ باقٍ (D-238م: كلُّ معلّمي الإسناد يكتبون كلَّ الأعمدة)
+    assert _save(client_as(teacher), assigned, 1, [_cells(kids[1], "absent")]).status_code == 200
+    assert can_correct_grid(holder, assigned, SUNDAY, now=at(15, 0))
+    assert not can_correct_grid(other_teacher, assigned, SUNDAY, now=at(15, 0))
+
+
+def test_the_coverage_lookup_adds_a_flat_number_of_queries(
+    school, assigned, teacher, lesson_slot, clock
+):
+    from operations.attendance_policy import is_covering_class
+
+    stranger = _staff(school, "teacher", "غريب", "29000007004")
+    with CaptureQueriesContext(connection) as queries:
+        assert not is_covering_class(stranger, assigned, SUNDAY)
+    assert len(queries) <= 3
