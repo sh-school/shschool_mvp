@@ -10,10 +10,18 @@
     <a class="btn-primary" href="{% url 'class_grid' klass.id %}">{% icon "attendance_register" %} رصدُ شعبة {{ klass.short_label }}</a>
     {% endfor %}
   {% elif shobi_classes %}
-  <ul class="shobi-picks">
-    {% for klass in shobi_classes %}
-    <li><a class="shobi-pick" href="{% url 'class_grid' klass.id %}" title="{{ klass.wing.name|default:'' }}">{{ klass.short_label }}</a></li>
+  {% regroup shobi_classes by get_grade_display as by_grade %}
+  <div class="shobi-grades">
+    {% for grade in by_grade %}
+    <div class="shobi-grade">
+      <span class="shobi-grade__name">{{ grade.grouper }}</span>
+      <ul class="shobi-picks">
+        {% for klass in grade.list %}
+        <li><a class="shobi-pick" href="{% url 'class_grid' klass.id %}" title="{{ klass.wing.name|default:'' }}">{{ klass.short_label }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
     {% endfor %}
-  </ul>
+  </div>
   {% endif %}
 {% endsection_card %}
