@@ -86,47 +86,39 @@
     if (exitBtn) return exitAction(exitBtn.getAttribute('data-exit'), 'leave');
     var backBtn = event.target.closest('[data-exit-return]');
     if (backBtn) return exitAction(backBtn.getAttribute('data-exit-return'), 'return');
-    var dot = event.target.closest('[data-exit-tip]');
-    closeTips(dot);
-    if (dot) return toggleTip(dot);
     var hist = event.target.closest('[data-history-open]');
     if (hist) return openHistory(hist.getAttribute('data-student'), currentCol());
     var tab = event.target.closest('[data-tab]');
     if (tab) return showTab(tab.getAttribute('data-tab'));
   });
 
-  // دائرةُ عدد الخروج: تلميحُ الوجهات والدقائق يُفتح بالنقر/اللمس ويُغلق بالنقر خارجه أو Escape.
-  function closeTips(except) {
-    root.querySelectorAll('[data-exit-tip][aria-expanded="true"]').forEach(function (dot) {
-      if (dot === except) return;
-      dot.setAttribute('aria-expanded', 'false');
-      dot.nextElementSibling.hidden = true;
-    });
+  // دائرةُ الخروج: المعلوماتُ (الوجهة والساعة والمدّة) تطفو عند مرور المؤشّر فقط؛ لا نقرَ ولا بقاء، وعلى اللمس يبقى الرقمُ وحدَه.
+  var pop = null;
+  function exitPop() {
+    if (!pop) {
+      pop = document.createElement('div');
+      pop.className = 'cg-exitpop';
+      pop.setAttribute('role', 'tooltip');
+      pop.hidden = true;
+      document.body.appendChild(pop);
+    }
+    return pop;
   }
-  function toggleTip(dot) {
-    var open = dot.getAttribute('aria-expanded') !== 'true';
-    dot.setAttribute('aria-expanded', open ? 'true' : 'false');
-    var tip = dot.nextElementSibling;
-    tip.hidden = !open;
-    if (open) revealAboveFooter(tip);
-  }
-  // كتلةُ مفاتيح الحصّة لاصقةٌ أسفلَ الجدول (tfoot) فتغطّي آخرَ الصفوف: يُمرَّر الجدولُ حتى يظهر التلميحُ كاملاً فوقها.
-  function revealAboveFooter(tip) {
-    var wrap = tip.closest('.cg-wrap');
-    // الخليّةُ لا `tfoot` هي اللاصقة، فمستطيلُها وحدَه يتبع موضعَها الفعليّ.
-    var foot = root.querySelector('tfoot > tr > *');
-    if (!wrap) return;
-    var top = wrap.getBoundingClientRect().top;
-    var bottom = foot ? foot.getBoundingClientRect().top : wrap.getBoundingClientRect().bottom;
-    var rect = tip.getBoundingClientRect();
-    if (rect.bottom > bottom - 8) wrap.scrollTop += rect.bottom - bottom + 8;
-    else if (rect.top < top) wrap.scrollTop -= top - rect.top + 8;
-    // وعلى الهاتف يتجاوز الجدولُ شاشةَ الصفحة نفسَها: تُمرَّر الصفحةُ إن بقي التلميحُ خارجها.
-    var after = tip.getBoundingClientRect();
-    if (after.bottom > window.innerHeight) window.scrollBy(0, after.bottom - window.innerHeight + 8);
-  }
-  document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape') closeTips(null);
+  root.addEventListener('mouseover', function (event) {
+    var dot = event.target.closest('[data-exit-tip]');
+    if (!dot) return;
+    var box = exitPop();
+    box.textContent = dot.getAttribute('data-exit-tip');
+    box.hidden = false;
+    var r = dot.getBoundingClientRect();
+    var w = box.offsetWidth, h = box.offsetHeight;
+    var left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
+    var top = r.top - h - 6 < 8 ? r.bottom + 6 : r.top - h - 6;
+    box.style.left = left + 'px';
+    box.style.top = top + 'px';
+  });
+  root.addEventListener('mouseout', function (event) {
+    if (event.target.closest('[data-exit-tip]') && pop) pop.hidden = true;
   });
 
   root.addEventListener('dblclick', function (event) {

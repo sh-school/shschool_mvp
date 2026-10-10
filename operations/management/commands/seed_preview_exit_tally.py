@@ -1,7 +1,7 @@
-"""يزرع ملخّصَ خروجٍ يوميّاً لطلبةٍ من شعبة المعلّم الوهميّ ليرى المعاينُ دائرةَ عدد الخروج في شبكة الفصل (W-20261010-041).
+"""يزرع خروجاً (`ClassExit`) لطلبةٍ من شعبة المعلّم الوهميّ في حصص يومٍ ليرى المعاينُ دوائرَ الخروج على خلايا الحصص (W-20261010-041).
 
-المعاينةُ فقط (`in_preview_environment`) ومتساوي الأثر: يُحدِّث صفَّ (الطالب، التاريخ) ولا يضاعف. ولا يمسّ `ClassExit` ولا الحضور.
-أربعُ حالات بترتيب الأسماء في أوّل شعبةٍ للمعلّم: وجهةٌ واحدة، ووجهتان، وعيادةٌ «بإذن»، وطالبٌ بلا خروج (يُترك كما هو).
+المعاينةُ فقط (`in_preview_environment`) ومتساوي الأثر (مفتاحُ الصفّ: الحصّة والطالب ووقتُ الخروج). لا يُنشئ حصصاً ولا يمسّ الحضور: يزرع في الحصص الموجودةِ للشعبة في ذلك اليوم.
+حالاتٌ بترتيب الأسماء: خروجٌ واحد؛ ثلاثةُ خروجٍ بوجهتَين في حصّةٍ واحدة؛ عيادةٌ «بإذن»؛ طالبٌ خرج من حصّتَين (دائرتان)؛ ويبقى الباقون بلا خروج.
 """
 
 from __future__ import annotations
@@ -14,16 +14,17 @@ from django.utils import timezone
 from core.academic_calendar import academic_year_for_school
 from core.models import CustomUser, School, StudentEnrollment
 from core.preview_accounts import EMPLOYEE_NUMBERS, in_preview_environment
-from operations.models import DailyExitTally, SubjectClassAssignment
+from operations.models import ClassExit, Session, SubjectClassAssignment
 
 #: الجمعةُ والسبت راحةٌ في قطر (weekday(): الجمعة 4، السبت 5) — الرابطُ بلا تاريخٍ يردّ 404 فيها.
 REST_WEEKDAYS = (4, 5)
 
-#: ما يُزرع بالترتيب: (عددٌ، ثوانٍ، تفصيلُ الوجهات).
+#: ما يُزرع بالترتيب لكلّ طالب: قائمةُ `(فهرسُ الحصّة، الوجهة، دقيقةُ الخروج بعد بدء الحصّة، المدّةُ بالدقائق)`.
 CASES = [
-    (1, 300, {"restroom": {"count": 1, "seconds": 300}}),
-    (3, 840, {"restroom": {"count": 2, "seconds": 540}, "admin": {"count": 1, "seconds": 300}}),
-    (1, 600, {"clinic": {"count": 1, "seconds": 600}}),
+    [(0, "restroom", 5, 5)],
+    [(0, "restroom", 4, 5), (0, "restroom", 20, 4), (0, "admin", 30, 5)],
+    [(0, "clinic", 10, 10)],
+    [(0, "restroom", 8, 6), (1, "admin", 12, 7)],
 ]
 
 
@@ -95,15 +96,30 @@ class Command(BaseCommand):
                 break
         if klass is None:
             return "لا شعبةَ للمعلّم الوهميّ فيها طلبةٌ يكفون"
-        for student, (count, seconds, detail) in zip(students, CASES, strict=False):
-            DailyExitTally.objects.update_or_create(
-                student=student,
-                date=day,
-                defaults={
-                    "school": school,
-                    "exit_count": count,
-                    "total_seconds": seconds,
-                    "by_destination": detail,
-                },
+        sessions = list(
+            Session.objects.filter(class_group=klass, date=day).order_by(
+                "period_number", "start_time"
             )
-        return f"زُرع الخروج لـ{len(students)} طالباً في {klass.short_label} بتاريخ {day}"
+        )
+        if not sessions:
+            return f"لا حصصَ للشعبة {klass.short_label} بتاريخ {day} — لا شيءَ يُزرع"
+        seeded = 0
+        for student, exits in zip(students, CASES, strict=False):
+            for index, destination, offset, minutes in exits:
+                session = sessions[index % len(sessions)]
+                left = timezone.make_aware(
+                    dt.datetime.combine(day, session.start_time)
+                ) + dt.timedelta(minutes=offset)
+                ClassExit.objects.update_or_create(
+                    session=session,
+                    student=student,
+                    left_at=left,
+                    defaults={
+                        "school": school,
+                        "destination": destination,
+                        "returned_at": left + dt.timedelta(minutes=minutes),
+                        "allowed_by": teacher,
+                    },
+                )
+                seeded += 1
+        return f"زُرع {seeded} خروجاً لـ{len(students)} طالباً في {klass.short_label} بتاريخ {day}"
