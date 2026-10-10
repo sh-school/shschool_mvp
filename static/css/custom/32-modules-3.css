@@ -1295,6 +1295,10 @@
   .gen-running__sub { margin: var(--sp-1) 0 0; font-size: var(--text-xs); color: var(--text-muted); }
   .gen-error { margin-block-start: var(--sp-1); max-width: 32ch; white-space: normal; font-size: var(--text-xs); color: var(--status-danger-fg); }
   .gen-inline-form { display: inline; }
+  /* توليداتُ المحرّك السابق المطويّة: للاطّلاع فقط، تُفتح بالضغط على عنوانها ولا زرَّ فيها. */
+  .gen-legacy { margin: var(--sp-3) var(--sp-4); }
+  .gen-legacy > summary { cursor: pointer; font-size: var(--text-sm); color: var(--text-muted); }
+  .gen-legacy > summary:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 3px; border-radius: var(--radius-1-5); }
   .smart-empty-action { display: flex; justify-content: center; padding-block-end: var(--sp-3); }
   /* «توليد الجدول التلقائي» و«سجلّ التوليد» بطاقةٌ واحدةٌ الآن — لوحةُ التحكّم
      تحتاج حشوَ البطاقة الذي أسقطه `is-flush` عن الجدول أسفلها. */

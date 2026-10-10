@@ -20,7 +20,6 @@ from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for
 from core.capabilities import capability_required, has_capability
-from core.dashboard_presentation import chunk_for_grid
 from core.domain.tones import tone_for
 from core.exports.services import respond_export
 from core.models import CustomUser, Membership
@@ -40,12 +39,9 @@ from .models import (
     TeacherExemption,
     TeacherPreference,
 )
-from .schedule_breaches import (
-    budget_cut_notice,
-    draft_breaches,
-    quality_display,
-    unplaced_count,
-)
+from .schedule_breaches import draft_breaches, unplaced_count
+from .schedule_decision import annotate_generation, current_card, split_generations
+from .schedule_lab import RELATIVE_CAP
 from .schedule_selectors import pages_payload
 from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
 from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
@@ -706,54 +702,40 @@ def smart_schedule_view(request):
 
     occupied_slots = _Cap.slot_demand(assignments)
     shared_periods = total_weekly - occupied_slots
-    # ما وُضع فعلاً مقابلَ ما تطلبه التوزيعاتُ اليوم — لا رقمٌ مجرَّدٌ لا يُقاس على شيء.
-    # ومسودّةٌ لم تعد تغطّي الطلبَ الحاليَّ هي بالضبط ما يجب أن يلفت النظر.
-    # مؤشراتُ المختبر لكلّ توليدٍ بجانب الأساس المرجعيّ: فرقٌ لا رقمٌ مجرَّد.
-    from operations.schedule_lab import (
-        ScheduleLab,
-        compare,
-        latest_baseline,
-        overall_score,
-        relative_score,
-    )
+    # ما وُضع فعلاً مقابلَ ما تطلبه التوزيعاتُ اليوم — ومسودّةٌ لم تعد تغطّي الطلبَ الحاليَّ
+    # هي بالضبط ما يجب أن يلفت النظر. ونسبةُ الأساس لتوليدات V2 وحدَها (schedule_decision).
+    from operations.schedule_lab import latest_baseline
 
     baseline = latest_baseline(school, year)
     for g in generations:
-        g.placed = g.slot_rows or g.total_slots_created
-        ratio = 100 * g.placed / total_weekly if total_weekly else 0.0
-        # المؤشّراتُ تُعاد من الحصص لا تُقرأ من الصفّ: المخزَّنُ كُتب بتعريفاتِ
-        # يومه، وقراءتُه بمنحنيات اليوم تخلط مسطرتين في عمودٍ واحد. والحصصُ
-        # هي الواقعة، والدرجةُ حكمٌ يُشتقّ منها كلَّما عُرض.
-        lab = ScheduleLab.for_generation(g).compute() if g.placed else (g.metrics or {})
-        g.lab_rows = compare(lab, baseline.metrics if baseline else None) if lab else []
-        g.lab_absolute = overall_score(lab) if lab else None
-        g.lab_relative = relative_score(lab, baseline.metrics) if baseline and lab else None
-        # نصٌّ لا رقم: `floatformat` يتبع اللغةَ فيكتب «100٫0»، والرقمُ هنا يُقرأ ويُقارَن.
-        g.placed_ratio = f"{ratio:.1f}"
+        annotate_generation(g, total_weekly, baseline)
 
-    #: الحسابُ بالعدّ يسبق البحثَ بالساعات — طاقةُ الشُّعب والمعلّمين والموارد
-    #: وتباعدُ الأيّام. وكان هنا فحصُ الشُّعب وحدَه، وهو اليومَ أحدُ خمسة.
-    from operations import constraint_registry, schedule_feasibility
+    #: فحصُ الجدوى بالعدّ يسبق البحثَ — لكنّه عند الطلب لا عند كلّ فتح (W-20261010-003):
+    #: طاقةُ الشُّعب والمعلّمين والموارد وتباعدُ الأيّام، ولا يحجب البوّابةَ الخادميّةَ شيء.
+    from operations import schedule_feasibility
 
-    feasibility = schedule_feasibility.check(school, year)
-    #: ما خالف افتراضَ الشيفرة من القيود — يُعرض ليُقاس، فالرتبةُ لا يكشف
-    #: أثرَها عدٌّ: الفحصُ يقيس الطاقةَ لا تشابكَ القيود.
-    policy = constraint_registry.resolve(school, year)
-    overridden = [(code, constraint_registry.REGISTRY[code].title) for code in policy.overridden]
+    feasibility = (
+        schedule_feasibility.check(school, year) if request.GET.get("feasibility") else None
+    )
 
     return render(
         request,
         "schedule/smart_schedule.html",
         {
             **_smart_schedule_presentation(generations, year, occupied_slots, shared_periods),
-            # حكمُ الفحص في طرف ترويسته — كان لونَ الشريط كلِّه وحدَّ البطاقة.
-            "feasibility_verdict": "عجزٌ يقينيّ" if feasibility.blocking else "لا عجزَ في العدّ",
+            # حكمُ الفحص في طرف ترويسته؛ ولا حكمَ قبل أن يُطلب الفحص.
+            "feasibility_verdict": (
+                ""
+                if feasibility is None
+                else "عجزٌ يقينيّ"
+                if feasibility.blocking
+                else "لا عجزَ في العدّ"
+            ),
             "occupied_slots": occupied_slots,
             "shared_periods": shared_periods,
             # جدولُ التوزيعات كان يُعرض هنا كاملاً — وشاشةُ الإسناد تعرضه
             # بأدواتها. فبقي العددُ وحدَه: مؤشّراً في الأعلى، وشرطاً للفراغ.
             "assignments_count": len(assignments),
-            "generations": generations,
             "pending_generation": pending_generation,
             # زرُّ الاعتماد لمن يملكه: كان يظهر لكلّ من يرى الصفحةَ، و`admin`
             # يضغطه فيُصدَم بـ403.
@@ -764,7 +746,6 @@ def smart_schedule_view(request):
             "classes_count": assignments.values("class_group").distinct().count(),
             "teachers_count": assignments.values("teacher").distinct().count(),
             "feasibility": feasibility,
-            "constraint_overrides": overridden,
         },
     )
 
@@ -772,39 +753,19 @@ def smart_schedule_view(request):
 def _smart_schedule_presentation(generations, year, occupied_slots, shared_periods) -> dict:
     """ما يُحكم فيه بشرطٍ في صفحة التوليد — يُحسب هنا لا في القالب.
 
-    * لونُ الدرجة المنسوبة إلى الأساس: 98 فأعلى نجاح، و90 فأعلى تنبيه، وما
-      دونها خطر — العتباتُ التي كانت في القالب.
-    * مؤشّراتُ المختبر مصفوفةٌ واحدة: صفٌّ لكلّ مؤشّر، وعمودٌ للأساس ثمّ عمودٌ
-      لكلّ توليد. كانت جدولاً داخل `details` داخل صفٍّ من سجلّ التوليد، لكلّ
-      توليدٍ جدولُه، فلا يُقارَن توليدٌ بتوليدٍ إلّا بفتح اثنين والتنقّل بينهما.
-    * وصفوفُها لا تُقصّ (اثنان وعشرون مؤشّراً فأكثر) ومحتوى الصفّ ضيّق — فتُقسَّم
-      ثلاثة أعمدةٍ متجاورة (معيار تخطيط الصفحات) بدل عمودٍ واحدٍ يطيل الصفحة.
+    * لونُ الدرجة المنسوبة إلى الأساس: 98 فأعلى نجاح، و90 فأعلى تنبيه، وما دونها خطر.
+    * بطاقةُ القرار بالمؤشّرات الخمسة لأحدث مسودّة V2 (`schedule_decision`) بدل مصفوفة
+      الاثنين والعشرين مؤشّراً لكلّ توليد؛ وصفوفُ المحرّك السابق المنتهية تُطوى بلا أزرار.
     """
     for g in generations:
         g.lab_tone = tone_for(g.lab_relative, LAB_RELATIVE_TONES, empty="")
         # ما بقي مكسوراً بموضعه — والإقرارُ به شرطُ اعتماد المسودّة (SCH-05).
         g.breaches = draft_breaches(g.config_snapshot)
-        g.budget_cut = budget_cut_notice(g.config_snapshot)
         g.unplaced_count = unplaced_count(g.config_snapshot)
         # الإقرارُ شرطٌ لمخالفاتٍ أو لمتعذّراتٍ (OR-01) — والعددُ الذي يُعرض على الزرّ مجموعُهما.
         g.gate_total = (g.breaches["count"] if g.breaches else 0) + g.unplaced_count
-        g.quality = quality_display(
-            g.lab_relative, g.unplaced_count, g.breaches["count"] if g.breaches else 0
-        )
-    measured = [g for g in generations if g.lab_rows]
-    rows: dict[str, dict] = {}
-    for column, g in enumerate(measured):
-        for r in g.lab_rows:
-            row = rows.setdefault(
-                r["key"],
-                {
-                    "label": r["label"],
-                    "unit": r["unit"],
-                    "baseline": r["baseline"],
-                    "cells": [None] * len(measured),
-                },
-            )
-            row["cells"][column] = r
+    shown, folded = split_generations(generations)
+    decision_generation, decision = current_card(generations)
     return {
         "page_subtitle": f"توليد الجدول الأسبوعي تلقائياً — {year}",
         # الرقمان معاً حيث يُقرأ المجموع: الحصصُ تُدرَّس، والخاناتُ تُشغَل.
@@ -814,9 +775,11 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
             if shared_periods
             else ""
         ),
-        "lab_columns": measured,
-        "lab_matrix": list(rows.values()),
-        "lab_matrix_cols": chunk_for_grid(list(rows.values()), 3),
+        "generations": shown,
+        "folded_generations": folded,
+        "decision": decision,
+        "decision_generation": decision_generation,
+        "relative_cap": RELATIVE_CAP,
     }
 
 
