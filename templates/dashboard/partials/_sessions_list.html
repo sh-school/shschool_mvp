@@ -28,9 +28,9 @@
       {% endif %}
       {# حالةُ رصد الحضور في الحصّة — تغني عن وسم «تسجيل/عرض الحضور» العامّ، والصفُّ كلُّه رابطٌ إلى الرصد #}
       {% if s.entry_state == 'approved' %}
-        <span class="status-badge status-success">معتمَد</span>
+        <span class="status-badge status-success">تم الرصد</span>
       {% elif s.entry_state == 'pending' %}
-        <span class="status-badge status-warning">بانتظار الاعتماد</span>
+        <span class="status-badge status-warning">بانتظار القرار</span>
       {% else %}
         <span class="status-badge status-gray">لم يُدخَل ←</span>
       {% endif %}

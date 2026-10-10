@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.dashboard_selectors import session_entry_states
-from operations.attendance_entries import decide_entry, submit_entry
+from operations.attendance_entries import submit_entry
 from tests.attendance_fixtures import *  # noqa: F401,F403
 from tests.attendance_fixtures import SUNDAY, at
 
@@ -49,22 +49,10 @@ def test_a_session_with_no_entry_says_not_entered(session):
     assert session_entry_states([session.id]) == {session.id: "none"}
 
 
-def test_an_undecided_entry_makes_the_session_pending(session, teacher, kid, now_0730):
+def test_an_entry_is_final_so_the_session_is_recorded(session, teacher, kid, now_0730):
+    """لا اعتمادَ في المنصّة (أمر المالك 10-09): رصدُ المعلّم نهائيٌّ فيُقرأ فوراً «مرصود»."""
     _enter(teacher, session, kid)
-    assert session_entry_states([session.id]) == {session.id: "pending"}
-
-
-def test_an_approved_entry_makes_the_session_approved(session, teacher, holder, kid, now_0730):
-    entry = _enter(teacher, session, kid)
-    decide_entry(holder, entry, approve=True, now=at(7, 31))
     assert session_entry_states([session.id]) == {session.id: "approved"}
-
-
-def test_a_rejected_only_session_goes_back_to_not_entered(session, teacher, holder, kid, now_0730):
-    """المرفوضُ لا أثرَ له: على المعلّم أن يرصد من جديد."""
-    entry = _enter(teacher, session, kid)
-    decide_entry(holder, entry, approve=False, reason="سببٌ", now=at(7, 31))
-    assert session_entry_states([session.id]) == {session.id: "none"}
 
 
 def test_the_states_come_from_one_query_for_all_sessions(
@@ -97,7 +85,7 @@ def test_the_dashboard_row_shows_the_state_badge(
     assert "لم يُدخَل" in html
     _enter(teacher, session, kid)
     html = client_as(teacher).get(reverse("dashboard")).content.decode()
-    assert "بانتظار الاعتماد" in html
+    assert "تم الرصد" in html
 
 
 def test_the_dashboard_makes_a_single_state_query_not_one_per_row(
@@ -115,7 +103,7 @@ def test_the_dashboard_makes_a_single_state_query_not_one_per_row(
 
 
 def test_the_tile_no_longer_says_attendance_is_for_special_education_only(
-    client_as, teacher, monkeypatch
+    client_as, teacher, monkeypatch, live_schedule
 ):
     monkeypatch.setattr(timezone, "localdate", lambda *a, **k: SUNDAY)
     html = client_as(teacher).get(reverse("dashboard")).content.decode()
