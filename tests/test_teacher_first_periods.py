@@ -387,3 +387,54 @@ def test_a_legacy_value_outside_the_range_stays_selected_for_its_owner_only(
     assert _select(page, "max_last_periods")[1] == ["1", "2", "3", "4", "5"]
     assert _select(other_page, "max_last_periods")[1] == ["2", "3", "4", "5"]
     assert legacy.max_last_periods == 1
+
+
+def test_the_admin_run_cap_is_a_select_like_the_other_two_with_general_first(client, superuser):
+    """قرارُ المالك 10-10: «أقصى حصص متتالية» قائمةٌ مثلهما — «السقف العامّ» فارغاً أوّلاً ثم 1 إلى 7."""
+    from operations.preference_capacity import effective_run_cap
+
+    client.force_login(superuser)
+
+    page = client.get(reverse("admin:operations_teacherpreference_add")).content.decode()
+
+    block, values = _select(page, "max_consecutive")
+    assert values == ["", "1", "2", "3", "4", "5", "6", "7"]
+    assert f"السقف العامّ ({effective_run_cap(None)})" in block
+    assert re.search(r'<option value=""[^>]* selected', block)
+    assert "min=" not in block and "max=" not in block
+
+
+def test_the_admin_run_cap_saves_blank_as_general_and_audits_only_above_it(
+    client, superuser, school
+):
+    pref = _pref(school, UserFactory().pk)
+    client.force_login(superuser)
+
+    _admin_post(client, pref, school, max_consecutive="")
+    pref.refresh_from_db()
+    assert pref.max_consecutive is None
+
+    _admin_post(client, pref, school, max_consecutive="4")
+    pref.refresh_from_db()
+    assert pref.max_consecutive == 4
+    assert AuditLog.objects.filter(changes__event="teacher_run_cap_above_general").count() == 1
+
+
+def test_a_legacy_run_cap_outside_one_to_seven_stays_selected_for_its_owner_only(
+    client, superuser, school
+):
+    legacy = _pref(school, UserFactory().pk)
+    TeacherPreference.objects.filter(pk=legacy.pk).update(max_consecutive=9)
+    other = _pref(school, UserFactory().pk)
+    client.force_login(superuser)
+
+    page = client.get(
+        reverse("admin:operations_teacherpreference_change", args=[legacy.pk])
+    ).content.decode()
+    other_page = client.get(
+        reverse("admin:operations_teacherpreference_change", args=[other.pk])
+    ).content.decode()
+
+    assert _select(page, "max_consecutive")[1][:3] == ["", "9", "1"]
+    assert "9" not in _select(other_page, "max_consecutive")[1]
+    assert re.search(r'<option value="9"[^>]* selected', _select(page, "max_consecutive")[0])

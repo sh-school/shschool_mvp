@@ -15,6 +15,8 @@ from .models.schedule import MAX_PERSONAL_FIRST, MIN_PERSONAL_FIRST
 GENERAL_CAP = MIN_PERSONAL_FIRST
 CAP_CHOICES = [(value, str(value)) for value in range(MIN_PERSONAL_FIRST, MAX_PERSONAL_FIRST + 1)]
 CAP_FIELDS = ("max_first_periods", "max_last_periods")
+#: قيمُ سقف التتالي الشخصيّ المسموحة كما في شاشة المعلّم (حصصُ اليوم سبع).
+RUN_CAP_VALUES = tuple(range(1, 8))
 
 
 def effective_cap(value: int | None) -> int:
@@ -43,3 +45,30 @@ class TeacherPreferenceAdminForm(forms.ModelForm):
                 required=True,
             )
             self.initial[name] = GENERAL_CAP if stored is None else stored
+        self._run_cap_as_select()
+
+    def _run_cap_as_select(self) -> None:
+        """«أقصى حصص متتالية» قائمةٌ كأخويها: أوّلُها «السقف العامّ» (فارغ) ثم 1 إلى 7 كشاشة المعلّم.
+
+        الفارغُ هنا قرارٌ معتبر (لا قرارَ شخصيَّ) فيبقى خياراً؛ وما خُزّن خارج 1–7 يظهر لصاحبه وحدَه.
+        """
+        from .preference_capacity import effective_run_cap
+
+        name = "max_consecutive"
+        model_field = TeacherPreference._meta.get_field(name)
+        stored = self.initial.get(name) if self.instance.pk else None
+        choices: list[tuple[int | str, str]] = [
+            ("", f"السقف العامّ ({effective_run_cap(None)})"),
+            *[(value, str(value)) for value in RUN_CAP_VALUES],
+        ]
+        if stored is not None and stored not in RUN_CAP_VALUES:
+            choices.insert(1, (stored, str(stored)))
+        self.fields[name] = forms.TypedChoiceField(
+            label=model_field.verbose_name,
+            help_text=model_field.help_text,
+            choices=choices,
+            coerce=int,
+            empty_value=None,
+            required=False,
+        )
+        self.initial[name] = "" if stored is None else stored
