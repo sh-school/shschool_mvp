@@ -511,7 +511,7 @@ def pages_payload(school, get_params) -> dict:
         # السطرُ يومٌ والعمودُ حصّة، واسمُ اليوم مقرونٌ بخاناته في `by_day`.
         "period_numbers": ScheduleSlot.PERIODS,
         # الورقةُ بالملّيمتر: الجدولُ يملأ ما بقي بعد الترويسة والذيل (قرار 2026-09-14).
-        "geo": paper_geometry(paper, orient, with_who=True),
+        "geo": paper_geometry(paper, orient, with_who=True, teacher_sheet=kind == "teachers"),
         "selection_query": _pages_selection_query(
             kind, dept, orient, paper, year, wing, teacher_id
         ),

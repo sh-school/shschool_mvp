@@ -24,7 +24,7 @@ from operations.templatetags.week_tags import (
     name_column_mm,
 )
 from tests.conftest import ClassGroupFactory
-from tests.pdf_geometry import median_center_offset_mm, missing_names, text_chunks
+from tests.pdf_geometry import header_lines_mm, median_center_offset_mm, missing_names, text_chunks
 from tests.test_week_page import YEAR, _teacher, world  # noqa: F401
 
 pytestmark = pytest.mark.django_db
@@ -290,7 +290,7 @@ class TestTheExemptionDotOnPaper:
 class TestTheNameColumnFollowsTheLongestName:
     @pytest.mark.parametrize(
         ("longest", "expected"),
-        [(0, "26.0"), (10, "26.0"), (16, "28.8"), (17, "30.5"), (60, "36.0")],
+        [(0, "20.0"), (10, "20.0"), (16, "25.3"), (17, "26.8"), (18, "28.3"), (60, "36.0")],
     )
     def test_the_width_grows_with_the_longest_display_name_within_a_floor_and_a_cap(
         self, longest, expected
@@ -300,8 +300,8 @@ class TestTheNameColumnFollowsTheLongestName:
         assert name_column_mm(rows) == expected
 
     def test_rows_without_a_display_name_use_the_floor(self):
-        assert name_column_mm([{}, {"display_name": None}]) == "26.0"
-        assert name_column_mm(None) == "26.0"
+        assert name_column_mm([{}, {"display_name": None}]) == "20.0"
+        assert name_column_mm(None) == "20.0"
 
 
 #: أسوأُ أسبوعٍ فعليّ: الأسطرُ الثلاثةُ التي يكتبها `_week_notes` معاً بأطولِ ما تحمل (كلُّ الأيّام مغلقةٌ بسببٍ طويل، وكلُّ الأيّام من الخطّة، وحصصٌ بلا رقم).
@@ -337,3 +337,38 @@ class TestAWeekWithNotesStillFitsOnOneSheet:
         assert a3_metrics(None)["pt"] == A3_SHEET_PT
         assert a3_metrics("x")["pt"] == A3_SHEET_PT
         assert a3_metrics(-2)["pt"] == A3_SHEET_PT
+
+
+class TestTheHeaderIsCentredAndStaysInItsBand:
+    """ملاحظةُ المالك 2026-10-10 (W-20261010-049): ترويسةُ الجدول العامّ موسَّطةٌ ولا يتداخل سطرُ العام الدراسي مع ما يليه.
+
+    قياسٌ على PDF مرسوم: كلُّ سطرٍ طويلٌ (من الاسم إلى سطر العام والأسبوع) مركزُه مركزُ الصفحة، ولا نصَّ مرسوماً من الترويسة يدخل
+    على أوّل صفوف الجدول (أسفلُ الترويسة = هامشٌ علويٌّ + ارتفاعُها ≤ 30مم).
+    """
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "view=all_teachers&source=plan&paper=a3&orient=landscape",
+            "view=all_teachers&source=actual&week=2026-10-04&paper=a3&orient=landscape",
+        ],
+        ids=["plan", "actual-week"],
+    )
+    def test_each_header_line_is_centred_and_the_band_does_not_reach_the_table(
+        self,
+        world,
+        staff,
+        query,  # noqa: F811
+    ):
+        staff(teachers=72, per_teacher=12)
+
+        width, lines = header_lines_mm(_render(world, query)[0], limit_mm=36)
+
+        long_lines = [line for line in lines if line[1] - line[0] >= 20]
+        assert len(long_lines) >= 3, "الترويسةُ ناقصةُ الأسطر"
+        for left, right, _top, _bottom in long_lines:
+            assert (
+                abs((left + right) / 2 - width / 2) <= 2.0
+            ), f"سطرٌ غيرُ موسَّط: {left:.1f}–{right:.1f}"
+        # الترويسةُ ضمن الهامش العلويّ: هامشٌ 6مم + ترويسةٌ 30مم (core/print_frame) — لا يعلو سطرٌ منها أوّلَ الجدول
+        assert max(line[3] for line in lines) <= 6 + 30 + 0.5
