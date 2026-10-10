@@ -97,3 +97,33 @@ def test_hc22_is_registered_as_a_hard_constraint_with_its_decision_source():
     assert spec.break_at == cr.NEVER, "كأخيه HC8: لا رخصةَ جولة"
     assert spec.source.startswith("قرار:") and "D-166م" in spec.source and "D-183م" in spec.source
     assert cr.default_policy().break_at("HC22") == cr.NEVER
+
+
+def test_the_runner_hands_the_declared_first_caps_to_the_evaluator(monkeypatch):
+    """تخفيفُ المالك (first_cap_override) يظهر في BuiltModel.relaxations فيصل المُقيِّمَ، وإلا رفض ناتجَ V2 المخفَّف."""
+    from operations.scheduler_v2 import runner
+
+    built = type(
+        "B",
+        (),
+        {
+            "relaxations": [
+                {"teacher": "T1", "code": "HC22", "relaxed": "first_cap_4"},
+                {"teacher": "T2", "code": "HC5", "relaxed": "run_cap_2"},
+            ]
+        },
+    )()
+    report = runner.solve_inputs(
+        None,
+        runner.SolverConfig(),
+        builder=lambda inputs: built,
+        objective=lambda b, i: None,
+        solver=lambda b, c: runner.SolveReport("FEASIBLE", "", 1, 1, 0.0),
+    )
+    seen = {}
+    monkeypatch.setattr(runner, "evaluate_slots", lambda *args: seen.setdefault("args", args))
+
+    runner.evaluate_report(None, "2026-2027", report)
+
+    assert report.first_caps == {"T1": 4} and report.relaxations == {"T2": 2}
+    assert seen["args"][-1] == {"T1": 4}

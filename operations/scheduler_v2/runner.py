@@ -110,6 +110,8 @@ class SolveReport:
     slots: list[SlotRow] = field(default_factory=list)
     #: تخفيفُ HC5 المعلَن فعلاً ({معلّم ← أقصى تتابع}) كما يقرؤه المُقيِّم؛ يملؤه `solve_inputs` من BuiltModel.
     relaxations: dict[str, int] = field(default_factory=dict)
+    #: تخفيفُ HC22 المعلَن فعلاً ({معلّم ← سقف الأولى}) كما يقرؤه المُقيِّم (W-20261003-043).
+    first_caps: dict[str, int] = field(default_factory=dict)
 
     def solver_dict(self) -> dict[str, Any]:
         """الشكلُ الذي يقرؤه المُقيِّم: الحالةُ والبذرةُ والعمّالُ والزمن."""
@@ -320,6 +322,11 @@ def solve_inputs(
         for r in getattr(built, "relaxations", [])
         if r.get("code") == "HC5"
     }
+    report.first_caps = {
+        r["teacher"]: int(str(r["relaxed"]).rsplit("_", 1)[-1])
+        for r in getattr(built, "relaxations", [])
+        if r.get("code") == "HC22"
+    }
     return report
 
 
@@ -332,7 +339,12 @@ def evaluate_report(school: Any, academic_year: str, report: SolveReport) -> Eva
         for c, s, t, d, p in report.slots
     ]
     return evaluate_slots(
-        school, academic_year, rows, report.solver_dict(), report.relaxations or None
+        school,
+        academic_year,
+        rows,
+        report.solver_dict(),
+        report.relaxations or None,
+        report.first_caps or None,
     )
 
 
