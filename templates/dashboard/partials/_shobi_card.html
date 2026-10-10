@@ -1,0 +1,10 @@
+{% load icons %}
+{% load ui %}
+{% comment %}بطاقةُ «رصدُ الغياب — شُعبي»: مشتركةٌ بين المعلّم والمنسّق، تظهر في وضعَي الجدول (مؤقّتاً وفعليّاً) وفي يوم الراحة،
+وتقود إلى جدول الشعبة العموديّ (provisional_classes). W-20261010-036. لا تلمس منطقَ الرصد.{% endcomment %}
+{% section_card "رصدُ الغياب — شُعبي" icon="attendance_register" %}
+  <div class="pp-key">
+    <p class="ui-note">{% if prov %}ارصد غيابَ طلّابك مؤقّتاً إلى حين اعتماد جدول المنصّة{% else %}ارصد غيابَ طلّابك من جدول شعبتك{% endif %}</p>
+    {% url 'provisional_classes' as u %}<a class="btn-primary" href="{{ u }}">{% icon "attendance_register" %} شُعبي للرصد</a>
+  </div>
+{% endsection_card %}

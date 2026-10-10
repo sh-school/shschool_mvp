@@ -26,14 +26,8 @@
   الرصدُ المؤقّت (W-20261005-006، D-227م): حصصُ الصفحة الرئيسيّة تُقرأ من جدول المنصّة وقد تخالف الجدولَ الخارجيَّ المعمولَ به — فتُخفى كلُّها (كتلةَ الحصص والعدّاد)
   وتحلّ محلَّها بطاقةُ «رصدُ الغياب (مؤقّت)». مطفأً المفتاحُ تبقى الكتلةُ كما كانت.
   {% endcomment %}
-  {% if prov %}
-  {% section_card "رصدُ الغياب (مؤقّت — إلى حين اعتماد جدول المنصّة)" icon="attendance_register" %}
-    <div class="pp-key">
-      <p class="ui-note">ارصد غيابَ طلّابك مؤقّتاً</p>
-      {% url 'provisional_classes' as u %}<a class="btn-primary" href="{{ u }}">{% icon "attendance_register" %} شُعبي للرصد</a>
-    </div>
-  {% endsection_card %}
-  {% else %}
+  {% include "dashboard/partials/_shobi_card.html" %}
+  {% if not prov %}
   {% section_card "حصصي اليوم" meta=sessions|length icon="periods_today" flush=True %}
     {% include "dashboard/partials/_sessions_list.html" %}
   {% endsection_card %}

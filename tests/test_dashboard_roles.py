@@ -216,3 +216,22 @@ def test_the_director_numbers_share_one_card(client_as, principal_user, monkeypa
     card = card[: card.index("</section>")]
     assert 'aria-label="اليوم"' in card
     assert 'aria-label="نبض الأقسام"' in card
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("prov", [True, False], ids=["جدول-مؤقّت", "جدول-فعليّ"])
+@pytest.mark.parametrize("role_name", ["teacher", "coordinator"])
+def test_the_shobi_card_links_once_to_the_class_grid_in_both_schedule_modes(
+    client_as, school, monkeypatch, role_name, prov
+):
+    """W-20261010-036: بطاقةُ «شُعبي للرصد» لا تختفي بفتح الجدول — رابطٌ واحدٌ لكلّ دورٍ وفي الوضعين."""
+    from operations.services import provisional_session
+
+    monkeypatch.setattr(provisional_session, "enabled", lambda: prov)
+    user = UserFactory(full_name="مستخدمُ اختبار")
+    MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name=role_name))
+
+    body = client_as(user).get("/dashboard/").content.decode()
+
+    assert "رصدُ الغياب — شُعبي" in body
+    assert body.count(reverse("provisional_classes")) == 1
