@@ -336,9 +336,6 @@ class PaperGeometry:
     day_col_w: float
     #: شريطُ المفتاح والملاحظات أسفل الجدول (الأسبوعُ الفعليّ) — صفرٌ للخطّة فلا يتبدّل مقاسُها.
     notes_h: float = 0.0
-    #: تكبيرُ خطّ جسم الجدول (المادة والشعبة والتوقيت واليوم والترويسة) في ورقة المعلّم الأسبوعيّة — لا الفسحة ولا الخانة المشتركة
-    #: (عمودُ الفسحة ضيّقٌ بالملّيمتر، والمشتركةُ ستّةُ أسطرٍ في صفّ). واحدٌ = بلا تكبير.
-    body_boost: float = 1.0
 
     @property
     def content_w(self) -> float:
@@ -378,9 +375,6 @@ class PaperGeometry:
         def pt(value: float) -> str:
             return f"{value * self.font_scale:.1f}pt"
 
-        def body_pt(value: float) -> str:
-            return f"{value * self.font_scale * self.body_boost:.1f}pt"
-
         return {
             "margin": f"{mm(self.margin_top)} {mm(self.margin_side)} {mm(self.margin_bottom)}",
             "content_w": mm(self.content_w),
@@ -394,11 +388,11 @@ class PaperGeometry:
             "cell_h": mm(self.cell_h),
             "day_col_w": mm(self.day_col_w),
             "break_col_w": mm(self.break_col_w),
-            "head_pt": body_pt(9),
-            "day_pt": body_pt(10),
-            "subject_pt": body_pt(8.5),
-            "meta_pt": body_pt(7.5),
-            "time_pt": body_pt(7),
+            "head_pt": pt(9),
+            "day_pt": pt(10),
+            "subject_pt": pt(8.5),
+            "meta_pt": pt(7.5),
+            "time_pt": pt(7),
             "break_pt": pt(7.5),
             "multi_subject_pt": pt(7.5),
             "multi_pt": pt(6.5),
@@ -414,19 +408,8 @@ _SHEETS[("a3", "portrait")] = (297, 420)
 STRIP_LINE_H = 3.4
 
 
-#: تكبيرُ جسم ورقة المعلّم الأسبوعيّة (صفحةٌ لكلّ معلّم) لكلّ مقاس — **مقيسٌ** لا مقدَّر: معلّمٌ بخمسٍ وثلاثين حصّةً (الأسوأ: كلُّ خليّةٍ
-#: ثلاثةُ أسطر، واسمُ مادّةٍ طويلٌ) يبقى في صفحةٍ واحدةٍ بلا قصٍّ في خليّته حتى 1.35× على A4 (يبدأ القصُّ عند 1.4×) وحتى 1.55× على A3 (1.6×)،
-#: وما اخترناه دونها بهامش ≈4%. يحرسه `tests/test_weekly_teacher_sheet_fit.py` على رسمٍ حقيقيّ.
-WEEKLY_TEACHER_BOOST = {"a4": 1.3, "a3": 1.5}
-
-
 def paper_geometry(
-    paper: str,
-    orient: str,
-    *,
-    with_who: bool,
-    strip_lines: int = 0,
-    teacher_sheet: bool = False,
+    paper: str, orient: str, *, with_who: bool, strip_lines: int = 0
 ) -> PaperGeometry:
     """مقاسُ ورقة المعلّم أو الشعبة.
 
@@ -435,8 +418,6 @@ def paper_geometry(
 
     `strip_lines`: سطورُ شريط المفتاح والملاحظات أسفل جدول الأسبوع الفعليّ — تُقتطع من ارتفاع
     الصفوف فتبقى الورقةُ صفحةً واحدة.
-
-    `teacher_sheet`: ورقةُ المعلّم الأسبوعيّة تكبّر خطَّ جسمها بـ`WEEKLY_TEACHER_BOOST` (بلاغ المالك 2026-10-10: خطُّها صغيرٌ في ورقةٍ فيها متّسع).
 
     والخطُّ يكبر على A3 بقدرٍ معتدل: الخانةُ تتّسع ضعفَها تقريباً، وخطُّ A4 فيها
     يتيه في بياضها.
@@ -462,5 +443,4 @@ def paper_geometry(
         break_col_w=16 if paper == "a3" else 12,
         day_col_w=20 if paper == "a3" else 16,
         notes_h=round(STRIP_LINE_H * strip_lines, 1),
-        body_boost=WEEKLY_TEACHER_BOOST[paper] if teacher_sheet else 1.0,
     )
