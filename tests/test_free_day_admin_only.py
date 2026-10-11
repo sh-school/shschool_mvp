@@ -123,6 +123,8 @@ def test_the_admin_change_is_audited_without_the_teacher_name(client, superuser,
         "school": school.pk,
         "academic_year": YEAR,
         "max_daily_periods": 5,
+        "max_first_periods": 2,
+        "max_last_periods": 2,
         "free_day": WEDNESDAY,
         "notes": "",
     }
