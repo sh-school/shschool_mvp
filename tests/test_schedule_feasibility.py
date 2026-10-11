@@ -38,6 +38,14 @@ def school(db):
     return School.objects.create(name="مدرسة الشحانية", code="SHH-FEA")
 
 
+@pytest.fixture(autouse=True)
+def strict_touch_policy(school):
+    """قياسُ السعة هنا بالتلاصق الصارم؛ والتخفيفُ المدرسيّ الافتراضيّ (D-382م) يُقاس في test_schedule_relaxation_policy."""
+    from operations.models import ScheduleRelaxationPolicy
+
+    ScheduleRelaxationPolicy.objects.create(school=school, relax_touch_for_all=False)
+
+
 def a_user(school, name, role_name):
     from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
