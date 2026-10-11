@@ -113,6 +113,11 @@ def test_the_page_reads_stored_metrics_within_the_declared_query_cap(
         raise AssertionError("الصفحةُ لا تحسب مؤشّراتٍ مخزَّنة")
 
     monkeypatch.setattr(ScheduleLab, "compute", boom)
+    # طلبُ مقارنة المسودّة بالمعتمَد مهمّةٌ خلفيّة (#969)؛ والتنفيذ الفوريّ في الاختبار يحسبها داخل الطلب
+    # فيُضخّم العدّ بما لا تفعله الصفحةُ في الإنتاج. نقيس الصفحةَ لا المهمّة.
+    monkeypatch.setattr(
+        "operations.tasks.compare_generation_to_live_task.delay", lambda *args, **kwargs: None
+    )
 
     with django_assert_max_num_queries(PAGE_QUERY_CAP):
         response = client_as(principal).get(reverse("smart_schedule") + f"?year={YEAR}")
