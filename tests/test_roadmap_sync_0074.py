@@ -22,6 +22,7 @@ class _Apps:
 
 def _seed():
     for code, status, progress in (
+        ("N-069", "doing", 60),
         ("SCH-22", "doing", 40),
         ("N-108", "doing", 55),
         ("N-106", "doing", 70),
