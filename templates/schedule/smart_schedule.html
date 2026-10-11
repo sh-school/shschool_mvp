@@ -133,8 +133,8 @@
       <tbody>
         {% for ind in decision.indicators %}
         <tr>
-          <td><b>{{ ind.label }}</b> <span class="text-xs text-muted">{{ ind.code }}</span></td>
-          <td class="num{% if not ind.measured %} text-muted{% endif %}">{{ ind.value }}{% if ind.measured %} <span class="text-xs text-muted">{{ ind.unit }}</span>{% endif %}</td>
+          <td><b>{{ ind.label }}</b> <span class="ui-meta">{{ ind.code }}</span></td>
+          <td class="num{% if not ind.measured %} text-muted{% endif %}">{{ ind.value }}{% if ind.measured %} <span class="ui-meta">{{ ind.unit }}</span>{% endif %}</td>
           <td>{{ ind.meaning }}</td>
           <td>{{ ind.direction }}</td>
           <td class="text-muted">{{ ind.cap }}</td>
