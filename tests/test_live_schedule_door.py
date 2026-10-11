@@ -108,10 +108,10 @@ def test_the_teacher_dashboard_swaps_the_card_for_the_sessions(bare, client):
     response = client.get(reverse("dashboard"), HTTP_HOST="localhost")
     assert response.status_code == 200, response.status_code
     before = response.content.decode()
-    assert "إلى حين اعتماد جدول المنصّة" in before
+    assert "رصدُ الغياب — شُعبي" in before
 
     subject = Subject.objects.create(school=bare["school"], name_ar="العلوم", code="SCI")
     make_slot(bare, bare["t1"], 0, 1, time(7, 10), time(7, 55), subject)
     after = client.get(reverse("dashboard"), HTTP_HOST="localhost").content.decode()
-    assert "إلى حين اعتماد جدول المنصّة" not in after and "من جدول شعبتك" in after
+    assert "رصدُ الغياب — شُعبي" in after
     assert after.count("حصصي اليوم") > before.count("حصصي اليوم")  # كتلةُ الحصص عادت

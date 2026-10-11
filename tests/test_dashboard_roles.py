@@ -310,7 +310,7 @@ def test_the_teacher_blocks_come_in_the_decided_order(client_as, school, monkeyp
     """W-20261010-039: ما ينتظرك ← الرصد ← الحصص ← طلابي (حصصي تُخفى مع الجدول المؤقّت كما كانت)."""
     from operations.services import provisional_session
 
-    monkeypatch.setattr(provisional_session, "enabled", lambda: prov)
+    monkeypatch.setattr(provisional_session, "enabled", lambda school=None: prov)
     user = UserFactory(full_name="مستخدمُ اختبار")
     MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name="teacher"))
 
@@ -344,7 +344,7 @@ def test_the_provisional_note_follows_the_approved_schedule_not_the_switch_alone
     from operations.models import ScheduleGeneration, Subject
     from operations.services import provisional_session
 
-    monkeypatch.setattr(provisional_session, "enabled", lambda: True)
+    monkeypatch.setattr(provisional_session, "enabled", lambda school=None: True)
     subject = Subject.objects.create(school=school, name_ar="رياضيات", code="MAT")
     user = UserFactory(full_name="مستخدمُ اختبار")
     MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name="teacher"))

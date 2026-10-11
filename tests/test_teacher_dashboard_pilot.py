@@ -81,6 +81,8 @@ def test_the_dashboard_row_shows_the_state_badge(
     client_as, teacher, session, kid, now_0730, monkeypatch, live_schedule
 ):
     monkeypatch.setattr(timezone, "localdate", lambda *a, **k: SUNDAY)
+    session.status = "in_progress"  # اللوحةُ تعرض الجاريةَ والتاليةَ فقط (W-20261010-039)
+    session.save(update_fields=["status"])
     html = client_as(teacher).get(reverse("dashboard")).content.decode()
     assert "لم يُدخَل" in html
     _enter(teacher, session, kid)
@@ -116,4 +118,4 @@ def test_without_a_live_schedule_the_dashboard_shows_the_provisional_card_not_th
 ):
     monkeypatch.setattr(timezone, "localdate", lambda *a, **k: SUNDAY)
     html = client_as(teacher).get(reverse("dashboard")).content.decode()
-    assert "شُعبي للرصد" in html and "لم يُدخَل" not in html
+    assert "رصدُ الغياب — شُعبي" in html and "لم يُدخَل" not in html
