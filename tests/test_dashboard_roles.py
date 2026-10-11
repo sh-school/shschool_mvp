@@ -227,7 +227,7 @@ def test_the_shobi_card_links_once_to_the_class_grid_in_both_schedule_modes(
     """W-20261010-036: بطاقةُ «شُعبي للرصد» لا تختفي بفتح الجدول — رابطٌ واحدٌ لكلّ دورٍ وفي الوضعين."""
     from operations.services import provisional_session
 
-    monkeypatch.setattr(provisional_session, "enabled", lambda: prov)
+    monkeypatch.setattr(provisional_session, "enabled", lambda school=None: prov)
     user = UserFactory(full_name="مستخدمُ اختبار")
     MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name=role_name))
 
