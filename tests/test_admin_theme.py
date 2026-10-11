@@ -197,7 +197,7 @@ def test_the_admin_uses_the_platform_favicon():
     base = pathlib.Path("templates/admin/base_site.html").read_text(encoding="utf-8")
     platform = pathlib.Path("templates/base/base.html").read_text(encoding="utf-8")
 
-    assert "icons/favicon.png" in base and "icons/favicon.png" in platform
+    assert "icons/v2/favicon.png" in base and "icons/v2/favicon.png" in platform
     assert "css/admin_theme.css" in base
 
 
