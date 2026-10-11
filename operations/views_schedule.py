@@ -561,6 +561,21 @@ def _quality_gate_kpis(by_key: dict) -> list[dict]:
     ]
 
 
+def _lab_group_columns(groups: list[dict]) -> list[list[dict]]:
+    """يقسم أقسامَ المؤشرات إلى عمودَين مكدّسَين متتابعَين (الأوّلُ يحمل الرأس).
+
+    قسمٌ بصفٍّ كاملٍ لكلّ قسم كان يترك عن جانبه فراغاً بقدر ما تنقص بطاقاتُه، فطالت الصفحةُ
+    وتبعثرت حوافُّها. هنا يُختار موضعُ القطع الذي يقلّل ارتفاعَ العمود الأطول (وزنُ القسم:
+    عددُ بطاقاته مع رأسه)، والترتيبُ المتتابعُ يحفظ ترتيبَ القراءة على الجوّال (عمودٌ واحد).
+    وعددُ الأقسام وأحجامُها من بنية المؤشرات لا من البيانات، فالمواقعُ ثابتةٌ كما تقرّر للّوحات.
+    """
+    if len(groups) < 2:
+        return [groups] if groups else []
+    weights = [len(g["rows"]) + 1 for g in groups]
+    cut = min(range(1, len(groups)), key=lambda i: max(sum(weights[:i]), sum(weights[i:])))
+    return [groups[:cut], groups[cut:]]
+
+
 @login_required
 @capability_required("schedule.admin")
 def schedule_quality_lab(request):
@@ -659,6 +674,7 @@ def schedule_quality_lab(request):
             "generations": generations,
             "baseline": baseline,
             "groups": shown_groups,
+            "group_cols": _lab_group_columns(shown_groups),
             "gate": by_key,
             "by_key": by_key,
             "scores": scores,
