@@ -696,7 +696,7 @@
    "orm": 15
   },
   "student_affairs/views.py::student_profile": {
-   "lines": 182,
+   "lines": 179,
    "orm": 81
   },
   "student_affairs/views.py::student_profile_pdf": {
