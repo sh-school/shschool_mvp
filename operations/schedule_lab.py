@@ -26,6 +26,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from statistics import mean, pstdev
 
+from .schedule_edges import edge_count
 from .schedule_lab_exceptions import exception_load, longest_task_run
 from .scheduler_bell import Interval, longest_run
 
@@ -493,7 +494,7 @@ class ScheduleLab:
         for tid, days in self.by_teacher_day.items():
             if self.load[tid] < MIN_LOAD:
                 continue
-            edges = sum(1 for ps in days.values() for p in ps if p in (1, LAST_PERIOD))
+            edges = sum(edge_count(ps) for ps in days.values())
             ratios[tid] = edges / self.load[tid]
         top = sorted(ratios.items(), key=lambda kv: -kv[1])[:3]
         return {
