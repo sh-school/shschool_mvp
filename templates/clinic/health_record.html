@@ -34,6 +34,7 @@
             {% field "medications" "الأدوية المستمرة" type="textarea" rows=2 value=health_record.medications placeholder="لا يوجد" %}
             {% field "emergency_contact_name" "اسم جهة الطوارئ" value=health_record.emergency_contact_name placeholder="اسم ولي الأمر" %}
             {% field "emergency_contact_phone" "هاتف الطوارئ" type="tel" inputmode="tel" value=health_record.emergency_contact_phone placeholder="+974XXXXXXXX" %}
+            {% field "needs_care" "يحتاج مراعاةً" type="checkbox" value="1" checked=health_record.needs_care help="علامةٌ محايدةٌ بلا سبب: تظهر للمعلّم في جدول رصد شعبته وحدَه. يضعها الممرّضُ بقراره." %}
           </div>
           {% callout "warning" %}بياناتٌ صحّيّةٌ ذاتُ طبيعةٍ خاصّة، وكلُّ اطّلاعٍ عليها وتعديلٍ فيها يُسجَّل باسمك في سجلّ المراجعة.{% endcallout %}
           {% if can_write %}
