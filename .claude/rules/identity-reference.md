@@ -117,7 +117,6 @@ paths:
 | `--status-danger-tint` | `var(--status-danger-bg)` | `#1a0a0a` |
 | `--status-warning-tint` | `var(--status-warning-bg)` | `#1c1305` |
 | `--status-warning-tint-strong` | `var(--status-warning-bg)` | `#422006` |
-| `--status-warning-tint-deep` | `var(--status-warning-bg)` | `#451a03` |
 | `--status-warning-badge-bg` | `var(--status-warning-bg)` | `#351c05` |
 | `--status-warning-fg-vivid` | `var(--status-warning-fg)` | `var(--status-warning-bright)` |
 | `--status-info-fg-vivid` | `var(--status-info-fg)` | `#60a5fa` |
