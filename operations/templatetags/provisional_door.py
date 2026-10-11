@@ -2,7 +2,7 @@
 
 from django import template
 
-from operations.services import provisional_session
+from operations.services import class_grid, provisional_session
 
 register = template.Library()
 
@@ -27,6 +27,15 @@ def provisional_enabled(context) -> bool:
     if not hasattr(request, "_prov_door"):
         request._prov_door = provisional_session.enabled(_school(context))
     return request._prov_door
+
+
+@register.simple_tag(takes_context=True)
+def shobi_classes(context) -> list:
+    """شُعبُ المستخدم لبطاقة «شُعبي للرصد»: مصدرُ `grid_classes` نفسُه، مرتَّبةً رقميّاً بالصفّ ثمّ الشعبة (7/1 ثمّ 12/2) — وسمٌ لا سياقٌ كي لا يزيد استيرادُ النواة (سقفُ الطبقات، W-20261010-054)."""
+    request = context["request"]
+    return sorted(
+        class_grid.classes_for(request.user, request.school), key=lambda c: c.school_order
+    )
 
 
 #: أدوارُ المعلّم والمنسّق ومن في حكمهم — لهم يُعطَّل جدولُ المنصّة عند تشغيل الرصد المؤقّت (القيادةُ والإدارةُ تُديران الجدولَ ولا تُعطَّل لهما).

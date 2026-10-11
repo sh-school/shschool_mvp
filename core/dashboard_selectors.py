@@ -35,6 +35,7 @@ from operations.models import (
     ClassExit,
     CompensatorySession,
     DailyExitTally,
+    ScheduleGeneration,
     Session,
     StudentAttendance,
     TeacherAbsence,
@@ -264,8 +265,14 @@ def get_teacher_ctx(user, school, today, role):
     my_weekly_schedule_url = f"{reverse('weekly_schedule')}?view=teacher&teacher={user.id}"
     general_schedule_url = reverse("weekly_schedule") if role in SCHEDULE_BROWSE else ""
 
+    # ملاحظةُ «مؤقّتاً إلى حين اعتماد الجدول» تتبع الجدولَ المعتمَدَ فعلاً (توليدٌ بحالة «معتمد» لعام المدرسة) لا المفتاحَ اليدويَّ وحدَه.
+    schedule_approved = ScheduleGeneration.objects.filter(
+        school=school, academic_year=year, status="approved"
+    ).exists()
+
     ctx = {
         "view_type": "teacher",
+        "schedule_approved": schedule_approved,
         "sessions": sessions,
         "next_session": next_session,
         "my_setups": my_setups,

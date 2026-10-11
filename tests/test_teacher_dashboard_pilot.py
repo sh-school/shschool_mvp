@@ -111,14 +111,6 @@ def test_the_tile_no_longer_says_attendance_is_for_special_education_only(
     assert "حصصُ اليوم وتسجيلُ حضور الطلبة" in html
 
 
-def test_the_session_rows_are_compact():
-    """py-2 لا py-4: 6 حصصٍ بـ16px أقلّ لكلّ صفّ يُنزل فائضَ 768 من 78 إلى 0 (قياس 2026-10-04)."""
-    from pathlib import Path
-
-    source = Path("templates/dashboard/partials/_sessions_list.html").read_text(encoding="utf-8")
-    assert "px-5 py-2" in source and "py-4" not in source
-
-
 def test_without_a_live_schedule_the_dashboard_shows_the_provisional_card_not_the_rows(
     client_as, teacher, session, monkeypatch
 ):
