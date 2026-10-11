@@ -33,6 +33,7 @@ from core import preview_accounts as preview_module
 from core.academic_calendar import academic_year_for_school
 from core.models import AuditLog, CustomUser, Membership, Role, School, Wing, WingCoverage
 from core.preview_accounts import (
+    DEPARTMENT_NAMES,
     EMAIL_PREFIX,
     EMPLOYEE_NUMBERS,
     FORBIDDEN_ROLES,
@@ -229,13 +230,29 @@ class Command(BaseCommand):
                 if role_name == "admin_supervisor":
                     wing_note = self._assign_wing(school, user)
             teacher_note = self._seed_teacher_classes(school)
-            wing_note = "؛ ".join(note for note in (wing_note, teacher_note) if note)
+            dept_note = self._assign_departments(school)
+            wing_note = "؛ ".join(note for note in (wing_note, teacher_note, dept_note) if note)
         self.stdout.write(
             f"حساباتُ المعاينة: أُنشئ {created}، وصُحّح {fixed}، من {len(ROLES)}"
             + (f"؛ وأُزيل {removed} حساباً من الأداة السابقة" if removed else "")
             + (f"؛ {wing_note}" if wing_note else "")
             + "."
         )
+
+    def _assign_departments(self, school: School) -> str:
+        """يُسند عضويّاتِ المنسّق والمعلّمَين إلى أقسامها (`DEPARTMENT_NAMES`) — قسمٌ غائبٌ يُذكر ولا يُنشأ."""
+        from core.models import Department
+
+        missing = []
+        for role_name, dept_name in DEPARTMENT_NAMES.items():
+            dept = Department.objects.filter(school=school, name=dept_name).first()
+            if dept is None:
+                missing.append(dept_name)
+                continue
+            Membership.objects.filter(
+                user__national_id=ROLES[role_name], school=school, role__name=role_name
+            ).update(department_obj=dept)
+        return f"قسمٌ غائب: {'، '.join(sorted(set(missing)))}" if missing else ""
 
     def _seed_teacher_classes(self, school: School) -> str:
         """يُسند المعلّمَ الوهميّ إلى شُعبٍ من جناحٍ واحدٍ يغطّيه المشرفُ الوهميّ (W-20261005-005).
