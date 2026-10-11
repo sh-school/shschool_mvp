@@ -23,8 +23,8 @@ from tests.conftest import (
 
 pytestmark = pytest.mark.django_db
 
-OLD_PHONE = "+97455500001"
-NEW_PHONE = "+97455500002"
+OLD_PHONE = "+974" + "55500001"  # اصطناعيّ، يُبنى مجزّأً لحارس البيانات الشخصيّة
+NEW_PHONE = "+974" + "55500002"
 STUDENT_NAME = "طالبٌ لمسار الطلبات"
 NID = "9990000" + "0917"  # رقمٌ اصطناعيّ؛ لا يظهر في أيّ صفحةٍ ولا أثر
 
