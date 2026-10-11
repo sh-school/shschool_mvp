@@ -236,7 +236,7 @@
 <table class="student-info-card">
   <tr>
     <td class="lbl">اسم الطالب</td>
-    <td class="val">{{ student.full_name }}</td>
+    <td class="val"{% if not enrollment %} colspan="3"{% endif %}>{{ student.full_name }}</td>
     {% if enrollment %}
     <td class="lbl">الفصل الدراسي</td>
     <td class="val">{{ enrollment.class_group.short_label }}</td>
@@ -246,7 +246,7 @@
     <td class="lbl">العام الدراسي</td>
     <td class="val">{{ year }}</td>
     <td class="lbl">المدرسة</td>
-    <td class="val" colspan="3">{{ school.name }}</td>
+    <td class="val">{{ school.name }}</td>
   </tr>
 </table>
 {% endblock %}
