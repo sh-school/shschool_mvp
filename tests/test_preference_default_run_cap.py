@@ -150,6 +150,8 @@ def test_the_admin_save_of_a_cap_above_the_general_warns_and_audits(
         "school": school.pk,
         "academic_year": YEAR,
         "max_daily_periods": 5,
+        "max_first_periods": 2,
+        "max_last_periods": 2,
         "max_consecutive": 3,
         "notes": "",
     }

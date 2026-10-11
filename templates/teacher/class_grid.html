@@ -75,14 +75,17 @@
               <th scope="row" class="cg-name">
                 <button type="button" class="cg-name__btn" data-history-open data-student="{{ row.student.pk }}">{{ row.student.full_name }}</button>
               </th>
-              {% for col, cell in row.pairs %}
+              {% for col, cell, exitbadge in row.pairs %}
               <td class="cg-col--{{ col.state }}" data-col="{{ col.number }}">
+                <div class="cg-cellbox">
+                {% if exitbadge %}<span class="cg-exitdot" data-exit-tip="{{ exitbadge.tip }}" aria-label="خرج {{ exitbadge.count }} مرّة في هذه الحصّة">{{ exitbadge.count }}</span>{% endif %}
                 <button type="button" class="cg-cell is-{{ cell.status|default:'none' }}{% if cell.default_present %} is-default{% endif %}{% if cell.state == 'pending' %} is-pending{% endif %}"
                         data-cell data-student="{{ row.student.pk }}" data-col="{{ col.number }}"
                         data-head="{{ cell.head_id }}" data-status="{{ cell.status }}"
                         data-writable="{% if col.writable %}1{% endif %}"
                         {% if not col.writable %}disabled{% endif %}
                         aria-label="{{ row.student.full_name }} — ح{{ col.number }}">{% if cell.status == "present" %}✓{% elif cell.status == "absent" %}غ{% elif cell.status == "late" %}ت{% else %}·{% endif %}</button>
+                </div>
               </td>
               {% endfor %}
               {% if page.can_write %}
