@@ -204,5 +204,14 @@ def split_generations(generations: list) -> tuple[list, list]:
 
     ومسودّةُ المحرّك السابق تبقى ظاهرةً بأزرارها: طيُّها يحجب اعتمادَها أو تجاهلَها.
     """
-    folded = [g for g in generations if not g.v2 and g.status in ("approved", "archived")]
+    folded = [
+        g
+        for g in generations
+        if not g.v2
+        and (
+            g.status in ("approved", "archived")
+            # فاشلُ المحرّك السابق (ومنه الموقوفُ يدوياً) يُطوى؛ وفاشلُ V2 يبقى ظاهراً بزرّ حذفه.
+            or (g.status == "failed" and not is_v2(g.config_snapshot))
+        )
+    ]
     return [g for g in generations if g not in folded], folded
