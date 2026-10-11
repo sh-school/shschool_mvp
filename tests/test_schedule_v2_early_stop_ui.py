@@ -4,6 +4,7 @@
 فصفُّ V2 الجاري يعرض زرَّ الإيقاف المبكّر (v2-stop) بدلَه، ويُحوَّل إيقافُ V1 عليه إلى الإيقاف المبكّر.
 """
 
+import re
 from pathlib import Path
 
 import pytest
@@ -68,6 +69,9 @@ def test_a_running_v2_row_shows_the_early_stop_button_not_the_v1_one(
     assert 'data-gp="stop"' in body
     assert reverse("schedule_v2_stop", args=[gen.id]) in body
     assert "إيقاف مبكر (يحتفظ بأفضل حلّ)" in body
+    # نموذجٌ مخفيٌّ بجانب الزرّ يستدعي نافذةَ التأكيد المركزيّة (W-20261010-019)
+    assert '<form data-gp="stop-confirm" hidden></form>' in body
+    assert body.index('data-gp="stop-confirm"') < body.index('data-gp="stop"')
     assert reverse("stop_schedule_generation", args=[gen.id]) not in body
 
 
@@ -130,3 +134,16 @@ def test_script_gates_the_button_on_solutions_and_handles_409():
     assert "d.solutions > 0" in JS
     assert "r.status === 409" in JS
     assert "X-CSRFToken" in JS
+
+
+def test_the_stop_asks_through_the_platform_dialog_and_never_the_native_one():
+    code = re.sub(r"(?m)(^|\s)//.*$", r"", re.sub(r"/\*.*?\*/", "", JS, flags=re.S))
+    assert "window.confirm" not in code and "confirm(" not in code.replace("confirmThen(", "")
+    assert "confirmThen(" in JS and "$('stop-confirm')" in JS
+    # الطلبُ لا يُرسَل إلا بعد التأكيد: requestStop يؤجّل sendStop إلى نداء التأكيد، والإلغاء لا ينفّذه
+    assert "function requestStop() {" in JS and "confirmThen('" in JS
+    assert "if (!gate._confirmed) return;" in JS
+    # بلا نافذةٍ لا يُرسَل شيء (لا تأكيدَ ضمنيّ)
+    assert "if (!gate) return;" in JS
+    # الإيقافُ المؤجَّل يُنفَّذ مرّةً واحدة: يُصفَّر pending قبل التنفيذ
+    assert "var next = pending; pending = null;" in JS

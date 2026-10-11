@@ -144,6 +144,8 @@
         {% if pending_generation.is_v2 %}
         {% comment %}الإيقافُ المبكّر (W-20261010-002): POST إلى schedule_v2_stop فيقف الحلّالُ ويُحفظ أفضلُ حلٍّ مسودّةً؛ يُعطَّل حتى يوجد حلّ، ويبقى زرُّ V1 (الذي يُضيّع الحلول) محجوباً عن صفوف V2.{% endcomment %}
         <div class="gen-progress__actions">
+          {# نموذجٌ مخفيٌّ يستدعي نافذةَ التأكيد المركزيّة (`data-confirm` في base.js) من JS الشريط — لا window.confirm (W-20261010-019) #}
+          <form data-gp="stop-confirm" hidden></form>
           <button type="button" class="btn-danger btn-xs" data-gp="stop" data-url="{% url 'schedule_v2_stop' pending_generation.id %}" data-csrf="{{ csrf_token }}" disabled title="لا حلَّ مُوجَداً بعد — لا شيء يُحفظ">إيقاف مبكر (يحتفظ بأفضل حلّ)</button>
           <p class="gen-progress__hint" data-gp="stop-note" role="status" hidden></p>
         </div>

@@ -11,8 +11,8 @@ from tests import px_tokens as px
 from tests.css_source import read_css
 
 #: خارجَ السلّم يومَ الترحيل (2026-09-19). تُخفَّض ولا تُرفع. 80 ← 79 (2026-09-25): حذفُ التصريحات الميّتة
-#: بالتتالي أسقط `padding: … 28px` من `.form-card` (لا تُرسم أصلاً — يمحوها لاحقٌ بالمُحدِّد نفسِه).
-OFF_SCALE_SPACING = 75
+#: بالتتالي أسقط `padding: … 28px` من `.form-card` (لا تُرسم أصلاً — يمحوها لاحقٌ بالمُحدِّد نفسِه). 75 ← 74 (2026-10-10): فجوة tile-bars صارت على السلّم (W-20261010-031).
+OFF_SCALE_SPACING = 74
 OFF_SCALE_RADIUS = 30
 
 
