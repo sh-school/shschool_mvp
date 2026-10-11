@@ -13,15 +13,17 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from core.capabilities import capability_required
+from core.capabilities import capability_required, schedule_developer_only
 
 from .models import ScheduleGeneration
 from .schedule_breaches import BreachesNotAcknowledgedError, acknowledged
+from .scheduler_v2.progress import is_v2_running
 from .services.schedule import ScheduleService
 from .services.schedule_drafts import DiscardRefusedError, discard_generation, stop_generation
 
 
 @login_required
+@schedule_developer_only("schedule.approve")
 @capability_required("schedule.settings")
 @require_POST
 def approve_schedule(request, generation_id):
@@ -70,6 +72,13 @@ def discard_schedule(request, generation_id):
 def stop_schedule_generation(request, generation_id):
     """يوقف توليداً جارياً — بالصلاحيّة نفسِها التي تبدؤه."""
     generation = get_object_or_404(ScheduleGeneration, id=generation_id, school=request.school)
+    if is_v2_running(generation):
+        #: إيقافُ V1 يجعل الصفَّ «فشل» ويُضيّع الحلولَ؛ فيُحوَّل إلى الإيقاف المبكّر الذي يحتفظ بأفضلها.
+        messages.warning(
+            request,
+            "هذا توليدُ V2: استُبدل الإيقافُ بإيقافٍ مبكّرٍ يحتفظ بأفضل حلّ — استعمل زرَّ «إيقاف مبكر» في لوحة التقدّم.",
+        )
+        return redirect(f"{reverse('smart_schedule')}?year={generation.academic_year}")
     try:
         stop_generation(generation, user=request.user, request=request)
     except DiscardRefusedError as refusal:

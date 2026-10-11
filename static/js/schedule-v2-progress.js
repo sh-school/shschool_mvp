@@ -10,6 +10,7 @@
   var MAX_MISSES = 5;
   var $ = function (name) { return root.querySelector('[data-gp="' + name + '"]'); };
   var fill = $('fill'), meter = $('meter');
+  var stopBtn = $('stop'), stopNote = $('stop-note');
   var misses = 0;
 
   function fmt(sec) {
@@ -50,7 +51,63 @@
       final.hidden = true;
     }
     $('offline').hidden = true;
+    syncStop(d);
   }
+
+  /* الإيقافُ المبكّر: يُفعَّل بعد أوّل حلٍّ فقط (لا حلَّ ⇒ لا شيء يُحفظ) وما دام التوليدُ running. */
+  function syncStop(d) {
+    if (!stopBtn) return;
+    var running = d.generation_status === 'running';
+    var haveSolution = typeof d.solutions === 'number' && d.solutions > 0;
+    if (d.stop_requested) {
+      stopBtn.disabled = true;
+      note('طُلب الإيقاف — يُحفظ أفضلُ حلٍّ وُجد خلال ثوانٍ.');
+      return;
+    }
+    stopBtn.disabled = !(running && haveSolution);
+    stopBtn.title = haveSolution ? '' : 'لا حلَّ مُوجَداً بعد — لا شيء يُحفظ';
+    stopBtn.hidden = !running && d.generation_status !== 'queued';
+  }
+  function note(text) {
+    if (!stopNote) return;
+    stopNote.textContent = text;
+    stopNote.hidden = !text;
+  }
+  // نافذةُ التأكيد = نافذةُ المنصّة المركزيّة (`base.js`، مالكةُ `data-confirm`): نموذجٌ مخفيٌّ بنصّ التأكيد يُرسَل برمجيّاً، فتظهر
+  // النافذةُ المصمَّمةُ بهويّة المنصّة (لا `window.confirm` الأصليّ)، وعند «تأكيد» يعود الإرسالُ إلى هنا فننفّذ المؤجَّل (كما class-grid.js).
+  var gate = $('stop-confirm');
+  var pending = null;
+  if (gate) {
+    gate.addEventListener('submit', function (event) {
+      if (!gate._confirmed) return;           // الإرسالُ الأوّل: تعترضه نافذةُ المنصّة
+      event.preventDefault();                 // الإرسالُ المؤكَّد: ننفّذ ما أُجِّل ولا نُرسل النموذج
+      var next = pending; pending = null;
+      // بعد أن يُسقط base.js علَمَ التأكيد (setTimeout 0): تنفيذٌ فوريٌّ يجعل تأكيداً ثانياً متداخلاً يمرّ بلا نافذة.
+      if (next) window.setTimeout(next, 30);
+    });
+  }
+  function confirmThen(message, next) {
+    if (!gate) return;                        // بلا نافذةٍ لا يُرسَل شيءٌ (لا تأكيدَ ضمنيّ)
+    pending = next;
+    gate.setAttribute('data-confirm', message);
+    gate.requestSubmit();
+  }
+  function requestStop() {
+    confirmThen('إيقافُ التوليد الآن؟ يُحفظ أفضلُ حلٍّ وُجد حتى الآن مسودّةً لتراجعها.', sendStop);
+  }
+  function sendStop() {
+    stopBtn.disabled = true;
+    fetch(stopBtn.dataset.url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': stopBtn.dataset.csrf, 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    }).then(function (r) {
+      if (r.status === 409) note('انتهى التوليدُ قبل وصول الطلب — لا شيء للإيقاف.');
+      else if (r.ok) note('طُلب الإيقاف — يُحفظ أفضلُ حلٍّ وُجد خلال ثوانٍ.');
+      else { note('تعذّر طلبُ الإيقاف — أعد المحاولة.'); stopBtn.disabled = false; }
+    }).catch(function () { note('تعذّر الاتصال — أعد المحاولة.'); stopBtn.disabled = false; });
+  }
+  if (stopBtn) stopBtn.addEventListener('click', requestStop);
 
   function poll() {
     fetch(root.dataset.url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })

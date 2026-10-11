@@ -171,7 +171,7 @@
             <td>
               <form method="post" action="{% url 'remove_exemption' ex.id %}" data-confirm="إلغاء تفريغ {{ ex.teacher.full_name }}؟">
                 {% csrf_token %}
-                <button type="submit" class="btn-ghost text-xs text-danger" aria-label="إلغاء التفريغ">{% icon "delete" size="sm" %} إلغاء</button>
+                <button type="submit" class="btn-ghost text-danger btn-sm" aria-label="إلغاء التفريغ">{% icon "delete" size="sm" %} إلغاء</button>
               </form>
             </td>
           </tr>
@@ -241,7 +241,7 @@
             </td>
             <td class="font-semibold text-maroon">{{ p.teacher.full_name }}</td>
             <td class="text-center">{{ p.max_daily_periods }}</td>
-            <td class="text-center">{{ p.max_consecutive }}</td>
+            <td class="text-center">{% if p.max_consecutive is None %}—{% else %}{{ p.max_consecutive }}{% endif %}</td>
             <td class="text-center">{% if p.max_gap is None %}—{% else %}{{ p.max_gap }}{% endif %}</td>
             <td class="text-center">{% if p.max_last_periods is None %}—{% else %}{{ p.max_last_periods }}{% endif %}</td>
             <td class="text-center">{{ p.get_free_day_display|default:"—" }}</td>

@@ -41,14 +41,14 @@
                class="font-semibold text-maroon hover:underline">{{ lnk.student.full_name }}</a>
           </td>
           {# آخرُ أربعِ خاناتٍ وما قبلها مستور — والرقمُ كاملاً في ملفّ صاحبه. #}
-          <td data-label="الرقم الشخصيّ" class="col-num text-center font-mono text-xs"
+          <td data-label="الرقم الشخصيّ" class="col-num text-center font-mono cell-sm"
               title="الرقم كاملاً في ملفّ الطالب">{{ lnk.student.national_id|mask_id|default:"—" }}</td>
           {# «07/2» كما تكتبه الوزارة — ومن غادر لا صفَّ له فيُقال ذلك #}
           <td data-label="الصف/الشعبة" class="text-center">
             {% if lnk.grade_code and lnk.section_code %}
               <span class="status-badge status-info">{% class_label lnk.grade_code lnk.section_code %}</span>
             {% else %}
-              <span class="text-xs text-muted">غادر</span>
+              <span class="ui-meta">غادر</span>
             {% endif %}
           </td>
           {% comment %}
@@ -59,7 +59,7 @@
           <td data-label="صلة القرابة" class="text-center">
             <span class="status-badge status-maroon">{{ lnk.get_relationship_display }}</span>
           </td>
-          <td data-label="جوّال ولي الأمر" class="text-center col-num text-xs">
+          <td data-label="جوّال ولي الأمر" class="text-center col-num cell-sm">
             {% if lnk.parent.get_phone_decrypted %}
               <a href="tel:{{ lnk.parent.get_phone_decrypted }}" class="text-maroon">{{ lnk.parent.get_phone_decrypted }}</a>
             {% else %}—{% endif %}

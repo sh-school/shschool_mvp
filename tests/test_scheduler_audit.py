@@ -417,7 +417,8 @@ def test_the_summary_is_what_the_generation_snapshot_stores():
 def test_an_empty_day_is_one_breach_for_the_teacher_not_one_per_lesson():
     tasks = [lesson(f"c-{k}", "s-geo", "t-1", weekly=1) for k in range(8)]
     grid = ScheduleGrid(coverage=_day_coverage(tasks, set()))
-    cells = [(0, 1), (0, 3), (1, 1), (1, 3), (2, 1), (2, 3), (3, 1), (3, 3)]
+    #: الثانية والرابعة لا الأولى والثالثة: أربعُ أولياتٍ لمعلّمٍ واحدٍ تخالف HC22 وليست موضوعَ الاختبار.
+    cells = [(0, 2), (0, 4), (1, 2), (1, 4), (2, 2), (2, 4), (3, 2), (3, 4)]
     for task, (day, period) in zip(tasks, cells, strict=True):
         grid.place(day, period, task)
 
@@ -426,7 +427,7 @@ def test_an_empty_day_is_one_breach_for_the_teacher_not_one_per_lesson():
         ("HC16B", ("t-1",)),
     ]
 
-    grid.remove("c-7", 3, 3)
+    grid.remove("c-7", 3, 4)
     grid.place(4, 2, tasks[7])
     assert grid_breaches(grid, tasks) == []
 

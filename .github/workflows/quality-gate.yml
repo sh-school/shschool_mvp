@@ -487,11 +487,33 @@ jobs:
   #  نفسَه — فيُمسك ما لا يظهر في المصدر (تبايناً محسوباً، دَوراً مُركَّباً من
   #  CSS/JS معاً). الخطُّ الأساس لا يبدأ من صفر — سُجِّل بمخالفتين حقيقيّتين
   #  موجودتين فعلاً (2026-09-18)؛ الحارسُ يمنع الزيادة لا يُصلحهما الآن.
+  #
+  #  **ثلاثُ أرجلٍ متوازية (W-20261009-033):** كانت وظيفةً واحدةً تُشغّل ثلاثَ خطواتٍ متسلسلة (axe، Core Web Vitals،
+  #  سقّاطة الجوال) فبلغت 660–900 ث — أطولَ مسارٍ حرج في الدفعة (أبطأ shard لـpytest 560–1045 ث). الآن مصفوفةٌ
+  #  بالمعرّف نفسه `axe-a11y`: فنتيجةُ `needs.axe-a11y` تجمع الأرجلَ الثلاث (تنجح إن نجحت كلُّها) ولا يتغيّر
+  #  `scripts/ci_needs_gate.py` ولا إعفاءُ push. ولا فحصَ أُلغي: الاختباراتُ الثلاثةُ نفسُها، موزَّعةً لا مُسقَطة.
+  #  والفحصان المطلوبان في حماية main هما «ملخص بوابة الجودة» و«Security Summary» وحدَهما (لا اسمَ وظيفةٍ فرعيّة).
   axe-a11y:
-    name: axe-core — وصوليّةٌ حيّة
+    name: axe-core — وصوليّةٌ حيّة (${{ matrix.leg }})
     runs-on: ubuntu-latest
     # push إلى main: يُفحص على الطلب وطابور الدمج قبل الدمج (يُعفى skipped وحدَه في scripts/ci_needs_gate.py)
     if: github.event_name != 'push'
+
+    strategy:
+      # كلُّ رجلٍ تُبلِّغ فشلَها مستقلّةً (لا يُلغي فشلُ إحداها الأخريَين فيُضيع تشخيصُهما).
+      fail-fast: false
+      matrix:
+        include:
+          - leg: axe
+            tests: tests/test_a11y_axe_ratchet.py
+            webkit: false
+          - leg: web-vitals
+            tests: tests/test_web_vitals_budget.py tests/test_action_cards_fit_narrow_screens.py
+            webkit: false
+          # سقّاطةُ الجوال (M-00): الجوالُ بالمحرّكَين Chromium وWebKit وسطحُ المكتب بـChromium.
+          - leg: mobile
+            tests: tests/test_mobile_audit.py
+            webkit: true
 
     services:
       postgres:
@@ -555,26 +577,22 @@ jobs:
           pip install pytest pytest-django factory-boy \
             pytest-playwright==0.9.0 axe-playwright-python==0.1.8
 
-      # WebKit (محرّكُ iOS Safari) لسقّاطة الجوال وحدها (Q-02)؛ وaxe وCore Web Vitals على Chromium.
-      - name: تثبيت متصفّحَي Chromium وWebKit (مع مكتبات النظام)
-        run: playwright install --with-deps chromium webkit
+      # WebKit (محرّكُ iOS Safari) لسقّاطة الجوال وحدها (Q-02)؛ وaxe وCore Web Vitals على Chromium. فيُثبَّت
+      # WebKit في رجل الجوال وحدَها ولا تدفع الرجلان الأخريان كلفتَه.
+      - name: تثبيت متصفّح Chromium (مع مكتبات النظام)
+        run: playwright install --with-deps chromium
+
+      - name: تثبيت متصفّح WebKit (رجل الجوال)
+        if: matrix.webkit
+        run: playwright install --with-deps webkit
 
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
 
-      - name: axe-core على الصفحات الحيّة
-        run: python -m pytest tests/test_a11y_axe_ratchet.py -v
-
-      # ميزانية Core Web Vitals (P3-3): الخطوةُ هنا لا في وظيفةٍ جديدة — المتصفّحُ
-      # والخدمات والهجراتُ جاهزةٌ. ولا يُعاد تسمية الوظيفة: اسمُها هو اسمُ الفحص
-      # المطلوب في حماية الفرع وطابور الدمج، وتبديلُه يُعلّق الدمج على اسمٍ لا يصل.
-      - name: ميزانية Core Web Vitals على الصفحات الحيّة
-        run: python -m pytest tests/test_web_vitals_budget.py tests/test_action_cards_fit_narrow_screens.py -v -s
-
-      # سقّاطةُ الجوال (M-00، خطّة الجوال §3): أهدافُ اللمس والنصّ والتجاوز على رحلات خمسة
-      # أدوار، جوالاً بالمحرّكَين وسطحَ مكتبٍ بـChromium. الخطوةُ هنا لا في وظيفةٍ جديدة للسبب أعلاه.
-      - name: سقّاطة الجوال على الرحلات الحيّة
-        run: python -m pytest tests/test_mobile_audit.py -v
+      # الرجلُ تُشغّل اختباراتِها وحدَها؛ و`-s` لميزانية Core Web Vitals (تطبع أرقامَها) ولا يضرّ غيرَها.
+      # ولا يُعاد تسمية الوظيفة بما يُغيّر معرّفَها `axe-a11y`: هو المفتاحُ في needs الملخّص وفي إعفاء push.
+      - name: "اختباراتُ الرجل: ${{ matrix.leg }}"
+        run: python -m pytest ${{ matrix.tests }} -v -s
 
   # ══════════════════════════════════════════════════════
   #  6b. tests/e2e/ — Playwright: مصادقة، تنقّل، صلاحياتُ أدوار (أُحييت 2026-09-19)

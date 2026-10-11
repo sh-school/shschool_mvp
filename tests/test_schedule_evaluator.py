@@ -363,3 +363,62 @@ def test_relaxations_are_read_from_the_payload_and_anything_else_is_refused():
     ):
         with pytest.raises(EvaluatorInputError):
             relaxations_from_payload({"slots": [], "relaxations": bad})
+
+
+# ── سقفُ الأولى (HC22) في المُقيِّم المستقلّ — W-20261003-043 ───────────────
+
+
+def test_three_firsts_for_one_teacher_are_a_hard_breach_and_two_are_not(run_scene):
+    three = evaluate_slots(run_scene.school, YEAR, run_scene.slots((0, 0, 1), (1, 1, 1), (2, 2, 1)))
+    two = evaluate_slots(run_scene.school, YEAR, run_scene.slots((0, 0, 1), (1, 1, 1), (2, 2, 3)))
+
+    assert three.hard_breaches.get("HC22") == 1
+    assert "HC22" not in two.hard_breaches
+
+
+def test_the_evaluator_and_v2_agree_on_the_first_period_cap(run_scene):
+    """المثالُ نفسُه عند V2: ثلاثُ أولياتٍ لمعلّمٍ INFEASIBLE، واثنتان ممكنتان."""
+    from tests.test_scheduler_v2_hard import feasible, make
+
+    rows = [("C1", "S1", "T1", "", 3), ("C2", "S2", "T1", "", 3)]
+    three = [(0, 0, 1), (0, 1, 1), (1, 2, 1)]
+    two = [(0, 0, 1), (1, 1, 1)]
+    assert feasible(make(rows), three) is False
+    assert feasible(make(rows), two) is True
+
+    ours_three = evaluate_slots(
+        run_scene.school, YEAR, run_scene.slots((0, 0, 1), (1, 1, 1), (2, 2, 1))
+    )
+    ours_two = evaluate_slots(run_scene.school, YEAR, run_scene.slots((0, 0, 1), (1, 1, 1)))
+    assert ours_three.hard_breaches.get("HC22") == 1
+    assert "HC22" not in ours_two.hard_breaches
+
+
+def test_a_declared_first_cap_turns_the_breach_into_a_note(run_scene):
+    slots = run_scene.slots((0, 0, 1), (1, 1, 1), (2, 2, 1))
+
+    result = evaluate_slots(
+        run_scene.school, YEAR, slots, None, None, first_caps={run_scene.teacher: 3}
+    )
+
+    assert "HC22" not in result.hard_breaches and result.eased == {"HC22": 1}
+    assert any("HC22" in note and "سقفُ الأولى" in note for note in result.notes)
+
+
+def test_a_first_cap_for_another_teacher_eases_nothing(run_scene):
+    slots = run_scene.slots((0, 0, 1), (1, 1, 1), (2, 2, 1))
+
+    result = evaluate_slots(
+        run_scene.school, YEAR, slots, None, None, first_caps={run_scene.other: 4}
+    )
+
+    assert result.hard_breaches.get("HC22") == 1 and result.eased == {}
+
+
+def test_a_declared_first_cap_does_not_leak_into_the_next_strict_call(run_scene):
+    slots = run_scene.slots((0, 0, 1), (1, 1, 1), (2, 2, 1))
+    evaluate_slots(run_scene.school, YEAR, slots, None, None, first_caps={run_scene.teacher: 3})
+
+    again = evaluate_slots(run_scene.school, YEAR, slots)
+
+    assert again.hard_breaches.get("HC22") == 1

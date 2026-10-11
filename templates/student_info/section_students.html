@@ -33,7 +33,7 @@
             <td>
               <a href="{% url 'student_info:student_file' e.student_id %}?year={{ year }}" class="font-semibold text-maroon hover:underline">{{ e.student.full_name }}</a>
             </td>
-            <td class="col-center text-xs">{{ e.student.national_id|mask_id }}</td>
+            <td class="col-center cell-sm">{{ e.student.national_id|mask_id }}</td>
             <td class="col-actions">
               <a href="{% url 'student_info:student_file' e.student_id %}?year={{ year }}" class="btn-secondary btn-xs">فتح الملفّ</a>
             </td>

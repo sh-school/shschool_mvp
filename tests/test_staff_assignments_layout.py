@@ -15,7 +15,12 @@ ROWS = (ROOT / "templates/staff_affairs/partials/assignment_rows.html").read_tex
 
 
 def test_page_opts_into_no_page_scroll():
-    assert "{% block main_class %}page-noscroll{% endblock %}" in PAGE
+    # النمط المركزيّ `list` هو ما يضيف page-noscroll (core/templatetags/ui.py::PAGE_LAYOUTS)،
+    # فالصفحةُ تعلنه بالوسم لا بكتابة الصنف بيدٍ — والقاعدةُ واحدة: لا تمريرَ رأسيّ للصفحة.
+    from core.templatetags.ui import PAGE_LAYOUTS
+
+    assert '{% block main_class %}{% page_layout "list" %}{% endblock %}' in PAGE
+    assert "page-noscroll" in PAGE_LAYOUTS["list"].split()
 
 
 def test_cards_are_direct_grid_children_and_solo_when_no_form():

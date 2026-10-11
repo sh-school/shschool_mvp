@@ -44,6 +44,27 @@
         <span class="plain-list__title">وقت إشعار NCSA الفعلي</span>
         <span class="num">{% if breach.ncsa_notified_at %}{{ breach.ncsa_notified_at|date:"Y/m/d H:i" }}{% else %}لم يُسجَّل بعد{% endif %}</span>
       </li>
+      {% if breach.ncsa_notice_stage != "none" %}
+      <li class="plain-list__row">
+        <span class="plain-list__title">مرحلة إشعار NCSA</span>
+        <span>{{ breach.get_ncsa_notice_stage_display }}</span>
+      </li>
+      {% endif %}
+      {% if breach.ncsa_notice_stage == "initial" %}
+      <li class="plain-list__row">
+        <span class="plain-list__title">أسباب نقص المعلومات</span>
+        <span>{{ breach.ncsa_missing_reasons|linebreaksbr }}</span>
+      </li>
+      <li class="plain-list__row">
+        <span class="plain-list__title">موعد الاستكمال المعلَن</span>
+        <span class="num">{{ breach.ncsa_completion_due_at|date:"Y/m/d H:i" }}{% if breach.ncsa_completion_overdue %} — فات{% endif %}</span>
+      </li>
+      {% elif breach.ncsa_completed_at and breach.ncsa_notified_at != breach.ncsa_completed_at %}
+      <li class="plain-list__row">
+        <span class="plain-list__title">وقت استكمال الإشعار</span>
+        <span class="num">{{ breach.ncsa_completed_at|date:"Y/m/d H:i" }}</span>
+      </li>
+      {% endif %}
       {% if breach.resolved_at %}
       <li class="plain-list__row">
         <span class="plain-list__title">وقت الحلّ</span>
@@ -51,6 +72,76 @@
       </li>
       {% endif %}
     </ul>
+  {% endsection_card %}
+
+  {% section_card "إخطار الأفراد المتأثّرين (م.14)" icon="notifications" %}
+    <ul class="plain-list">
+      <li class="plain-list__row">
+        <span class="plain-list__title">الحالة</span>
+        <span>{{ breach.get_individuals_status_display }}</span>
+      </li>
+      {% if breach.individuals_status == "required" or breach.individuals_status == "notified" %}
+      <li class="plain-list__row">
+        <span class="plain-list__title">موعد إخطار الأفراد</span>
+        <span class="num">{{ breach.individuals_deadline|date:"Y/m/d H:i"|default:"—" }}{% if breach.individuals_overdue %} — فات{% elif breach.individuals_status == "required" %} — بقي {{ breach.individuals_hours_remaining }} ساعة{% endif %}</span>
+      </li>
+      {% endif %}
+      {% if breach.individuals_notified_at %}
+      <li class="plain-list__row">
+        <span class="plain-list__title">وقت إخطار الأفراد الفعلي</span>
+        <span class="num">{{ breach.individuals_notified_at|date:"Y/m/d H:i" }}</span>
+      </li>
+      {% endif %}
+      {% if breach.individuals_notified_channel %}
+      <li class="plain-list__row">
+        <span class="plain-list__title">قناة الإخطار</span>
+        <span>{{ breach.get_individuals_notified_channel_display }}</span>
+      </li>
+      {% endif %}
+      {% if breach.individuals_decided_by %}
+      <li class="plain-list__row">
+        <span class="plain-list__title">صاحب قرار التقدير</span>
+        <span>{{ breach.individuals_decided_by.full_name }}</span>
+      </li>
+      {% endif %}
+      {% if breach.individuals_assessment_note %}
+      <li class="plain-list__row">
+        <span class="plain-list__title">أساس التقدير / سبب عدم اللزوم</span>
+        <span>{{ breach.individuals_assessment_note|linebreaksbr }}</span>
+      </li>
+      {% endif %}
+    </ul>
+    {% if breach.status != "resolved" and breach.individuals_status != "notified" %}
+      {% callout "info" show=True %}موعدُ إخطار الأفراد الافتراضيُّ يساوي موعدَ إشعار NCSA (72 ساعةً من الاكتشاف)، وهو <strong>حدٌّ تشغيليٌّ</strong> من إرشاد NCSA وليس مدّةً منصوصاً عليها في م.14؛ ويُعدَّل لكلّ بلاغٍ عند الحاجة.{% endcallout %}
+      {% if breach.individuals_status == "not_assessed" %}
+      {% callout "warning" show=True %}لم يُقيَّم بعدُ لزومُ إخطار الأفراد المتأثّرين. يوجب القانونُ إعلامَهم عند الضرر الجسيم؛ سجّل تقديرَك: واجبٌ بموعد، أو غيرُ لازمٍ بسببٍ مكتوب.{% endcallout %}
+      {% endif %}
+      <form method="post" action="{% url 'breach:individuals_assess' breach.pk %}" class="form-stack">{% csrf_token %}
+        <fieldset class="form-group">
+          <legend>هل يجب إخطارُ الأفراد المتأثّرين؟</legend>
+          <label><input type="radio" name="required" value="1" {% if breach.individuals_status == "required" %}checked{% endif %}> نعم — يجب إخطارُهم</label>
+          <label><input type="radio" name="required" value="0" {% if breach.individuals_status == "not_required" %}checked{% endif %}> لا — غيرُ لازم</label>
+        </fieldset>
+        <div class="form-group">
+          <label class="form-label" for="indDeadline">موعد الإخطار (يُترك فارغاً ليساوي موعد إشعار NCSA)</label>
+          <input type="datetime-local" name="deadline" id="indDeadline" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="indNote">أساس التقدير أو سبب عدم اللزوم</label>
+          <textarea name="note" id="indNote" rows="2" class="form-control resize-y">{{ breach.individuals_assessment_note }}</textarea>
+        </div>
+        <div class="form-actions"><button type="submit" class="btn-secondary">حفظ التقدير</button></div>
+      </form>
+      {% if breach.individuals_status == "required" %}
+      <form method="post" action="{% url 'breach:individuals_notified' breach.pk %}" class="form-actions">{% csrf_token %}
+        <select name="channel" id="indChannel" class="form-control" aria-label="قناة إخطار الأفراد" required>
+          <option value="">— قناة الإخطار —</option>
+          {% for value, label in channels %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="btn-danger">{% icon "notifications" %} تم إخطار الأفراد</button>
+      </form>
+      {% endif %}
+    {% endif %}
   {% endsection_card %}
 
   {% section_card "وصف الخرق" icon="breach" %}
@@ -110,12 +201,28 @@
         {% if breach.status == "assessing" %}
         <button type="submit" name="status" value="resolved" class="btn-secondary" title="خلص التقييمُ إلى أنّ الخرق لا يستوجب إشعاراً — يُدقَّق الإغلاقُ بلا إشعارٍ في السجلّ">إغلاق دون إشعار</button>
         {% endif %}
-        {% if breach.status != "notified" %}
-        <button type="submit" name="status" value="notified" class="btn-danger">{% icon "notifications" %} تم إشعار NCSA</button>
-        {% else %}
+        {% if breach.status == "notified" %}
         <button type="submit" name="status" value="resolved" class="btn-primary">{% icon "confirm" %} تمّ الحلّ</button>
         {% endif %}
       </form>
+      {% if breach.status != "notified" %}
+      <form method="post" action="{% url 'breach:ncsa_notice' breach.pk %}" class="form-stack">{% csrf_token %}
+        <label><input type="checkbox" name="is_initial" id="ncsaInitial" value="on"> الإشعارُ مبدئيّ (معلوماتُه ناقصة وسأستكمله لاحقاً)</label>
+        <div class="form-group">
+          <label class="form-label" for="ncsaMissing">أسباب نقص المعلومات (للمبدئيّ)</label>
+          <textarea name="missing_reasons" id="ncsaMissing" rows="2" class="form-control resize-y"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="ncsaDue">موعد الاستكمال (للمبدئيّ)</label>
+          <input type="datetime-local" name="completion_due_at" id="ncsaDue" class="form-control">
+        </div>
+        <div class="form-actions"><button type="submit" class="btn-danger">{% icon "notifications" %} تم إشعار NCSA</button></div>
+      </form>
+      {% elif breach.ncsa_notice_stage == "initial" %}
+      <form method="post" action="{% url 'breach:ncsa_complete' breach.pk %}" class="form-actions">{% csrf_token %}
+        <button type="submit" class="btn-primary">{% icon "confirm" %} تم استكمال إشعار NCSA</button>
+      </form>
+      {% endif %}
     {% endif %}
   {% endsection_card %}
 

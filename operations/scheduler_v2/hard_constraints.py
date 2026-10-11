@@ -18,7 +18,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from operations.scheduler_constraints import DEFAULT_MAX_DAILY, MAX_SAME_PERIOD
+from operations.scheduling_limits import DEFAULT_MAX_DAILY, MAX_SAME_PERIOD
 
 if TYPE_CHECKING:
     from operations.cpsat_adapter import CpSatInputs, DemandRow
@@ -94,6 +94,14 @@ def _demand_totals(ctx: _Ctx) -> None:
     for (i, _d, _p), v in ctx.b.x.items():
         by_row[i].append(v)
     for i, r in enumerate(ctx.rows):
+        if ctx.b.options.allow_unplaced:
+            # استثناءٌ معلَن (W-20261003-017، بقرار 0101): فجوةٌ اختياريةٌ تجعل «المتعذّر» عدداً يُصغَّر
+            # بدل استحالةٍ؛ الافتراضُ أدناه كما كان بلا فجوة.
+            gap = ctx.m.NewIntVar(0, r.n, "")
+            ctx.b.vars[("unplaced", i)] = gap
+            ctx.m.Add(sum(by_row.get(i, [])) + gap == r.n)
+            ctx.count("DEMAND_SLACK")
+            continue
         ctx.m.Add(sum(by_row.get(i, [])) == r.n)
         ctx.count("DEMAND")
 

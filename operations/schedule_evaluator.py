@@ -24,9 +24,9 @@ from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Any
 
+from .schedule_grid_loader import entries_of, load_grid
 from .scheduler_audit import grid_breaches
 from .scheduler_constraints import calculate_quality_score
-from .scheduler_live import entries_of, load_grid
 
 #: حالاتُ الحلّال المقبولةُ في المصدر الخارجيّ — وما سواها يُرفض.
 SOLVER_STATUSES = ("OPTIMAL", "FEASIBLE", "UNKNOWN", "INFEASIBLE")
@@ -206,6 +206,38 @@ def _ease_runs(tasks: Iterable[Any], caps: dict[str, int]) -> dict[int, int]:
     return saved
 
 
+def admin_first_caps(school: Any, academic_year: str) -> dict[str, int]:
+    """سقوفُ الأولى الشخصيّةُ المقرَّرة إدارياً ({معلّم ← سقف}) — ما يعلو العامَّ وفي مداه فقط.
+
+    مصدرٌ واحدٌ يقرؤه المولّدُ والمُقيِّمُ معاً فلا يختلف حكمُهما (W-20261010-033): قيمةٌ خارج المدى
+    تُعامَل كغيابها لا كإلغاءٍ للسقف، كما تفعل قراءةُ سقف السابعة.
+    """
+    from operations.first_period_cap import MAX_FIRST_PERIODS
+    from operations.models import TeacherPreference
+    from operations.models.schedule import MAX_PERSONAL_FIRST
+
+    rows = TeacherPreference.objects.filter(
+        school=school, academic_year=academic_year, max_first_periods__isnull=False
+    ).values_list("teacher_id", "max_first_periods")
+    return {
+        str(teacher): cap for teacher, cap in rows if MAX_FIRST_PERIODS < cap <= MAX_PERSONAL_FIRST
+    }
+
+
+def _raise_first_caps(tasks: Iterable[Any], caps: dict[str, int]) -> list[tuple[Any, int]]:
+    """يرفع سقفَ الأولى (HC22) لأعضاءٍ مسمَّين، ويُعيد قيمَهم الأصلَ ليُستعادوا.
+
+    السقفُ على العضو (معلّمٍ في المهمّة) لا على المهمّة: شريكٌ لم يُقرَّ له تخفيفٌ يبقى على العامّ.
+    """
+    saved: list[tuple[Any, int]] = []
+    for task in tasks:
+        for member in task.members:
+            if member.teacher_id in caps:
+                saved.append((member, getattr(member, "first_cap", 0)))
+                member.first_cap = caps[member.teacher_id]
+    return saved
+
+
 def fingerprint(grid: Any) -> str:
     """بصمةُ الجدول: تجزئةُ خاناته المرتَّبة — تشغيلان بالمدخلات نفسِها يعطيان البصمةَ نفسَها (ADR §3.5)."""
     rows = sorted(tuple(map(str, row)) for row in entries_of(grid))
@@ -218,12 +250,20 @@ def evaluate_slots(
     slots: Iterable[Any],
     solver: dict[str, Any] | None = None,
     relaxations: dict[str, int] | None = None,
+    first_caps: dict[str, int] | None = None,
 ) -> Evaluation:
     """يقيّم خاناتٍ (صفوفَ ScheduleSlot أو ما يشبهها) مقابلَ الإسناد النشط. لا يكتب شيئاً.
 
     `relaxations` ({معلّم ← أقصى حصصٍ متتالية}) تخفيفٌ معلَنٌ لـHC5: ما كان مخالفةً صلبةً وصار مقبولاً بسقفه يُبلَّغ
     في `eased` وفي الملاحظات (لا يُخفى)؛ وتتابعٌ أطولُ من السقف أو معلّمٌ غيرُ مسمّى يبقى مخالفةً صلبة.
+    و`first_caps` ({معلّم ← سقف الأولى}) تخفيفٌ معلَنٌ لـHC22 بالطريقة نفسها (نظيرُ `first_cap_override` في V2)؛
+    وبلا تخفيفٍ يُحكم على كلّ معلّمٍ بالسقف العامّ `MAX_FIRST_PERIODS`.
     """
+    #: القرارُ الإداريّ المحفوظ في الأدمن يُحكم به دائماً، والمُمرَّرُ من الحلّال يعلو إن كان أعلى.
+    stored = admin_first_caps(school, academic_year)
+    first_caps = {
+        t: max(c, (first_caps or {}).get(t, 0)) for t, c in {**stored, **(first_caps or {})}.items()
+    }
     loaded = load_grid(school, academic_year, list(slots))
     grid, placed_tasks, blocked = loaded["grid"], loaded["tasks"], loaded["blocked"]
     orphans = loaded["orphan_tasks"]
@@ -237,14 +277,17 @@ def evaluate_slots(
 
     found = grid_breaches(grid, placed_tasks, blocked)
     eased: Counter[str] = Counter()
-    if relaxations:
-        saved = _ease_runs(placed_tasks, relaxations)
+    if relaxations or first_caps:
+        saved = _ease_runs(placed_tasks, relaxations) if relaxations else {}
+        raised = _raise_first_caps(placed_tasks, first_caps) if first_caps else []
         try:
             relaxed_keys = {b.key for b in grid_breaches(grid, placed_tasks, blocked)}
         finally:
             for task in placed_tasks:
                 if id(task) in saved:
                     task.consecutive_cap = saved[id(task)]
+            for member, original in raised:
+                member.first_cap = original
         eased = Counter(b.code for b in found if b.key not in relaxed_keys)
         found = [b for b in found if b.key in relaxed_keys]
     breaches = Counter(b.code for b in found)
@@ -259,9 +302,13 @@ def evaluate_slots(
             notes.append(
                 "حالةُ الحلّال لا تُنتج جدولاً، ومع ذلك وُجدت خانات: يُقاس ما وُجد ولا يُصدَّق الوصف"
             )
-    if eased:
+    if eased["HC5"]:
         notes.append(
             f"HC5 خُفِّف بقرارٍ معلَن (حصّتان متتاليتان لا ثلاث): {eased['HC5']} موضوعاً صار ملاحظةً لا مخالفة صلبة"
+        )
+    if eased["HC22"]:
+        notes.append(
+            f"HC22 خُفِّف بقرارٍ معلَن (سقفُ الأولى أعلى من العامّ لمعلّمين مسمَّين): {eased['HC22']} معلّماً صار ملاحظةً لا مخالفة صلبة"
         )
     if orphans:
         notes.append("InfeasibilityValue > 0: حصصٌ بلا موضع تُبلَّغ ولا يُرخى لها سقفٌ بصمت (D-166م)")

@@ -52,6 +52,33 @@ SOURCES = ("actual", "plan")
 MAX_WEEKS_AWAY = 60
 
 
+def mark_v2(generation: Any) -> Any:
+    """يضع `is_v2` على صفّ التوليد الجاري (إن وُجد): الصفحةُ تعرض لـV2 الإيقافَ المبكّر لا إيقافَ V1 المُضيِّع (W-20261010-002)."""
+    from .scheduler_v2.progress import is_v2_running
+
+    if generation is not None:
+        generation.is_v2 = is_v2_running(generation)
+    return generation
+
+
+def generation_status_payload(generation: Any) -> dict:
+    """ما تعرضه الصفحةُ عن آخر توليد. V2 لا تحسب «جودةً» مئويّة: تقيسها بحصصٍ متعذّرة ومخالفاتٍ لينة،
+    والصفرُ الافتراضيّ يُقرأ فشلاً — فيُحجب الرقمُ ويُعرض ما تقيسه فعلاً (W-20261010-031)."""
+    snapshot = generation.config_snapshot or {}
+    is_v2 = snapshot.get("engine") == "cpsat_v2" or (generation.is_pending and not snapshot)
+    return {
+        "id": str(generation.id),
+        "status": generation.status,
+        "status_label": generation.get_status_display(),
+        "pending": generation.is_pending,
+        "quality": None if is_v2 else round(generation.quality_score),
+        "soft_violations": generation.soft_violations if is_v2 else None,
+        "slots": generation.total_slots_created,
+        "elapsed_ms": generation.generation_time_ms,
+        "error": generation.error_message,
+    }
+
+
 def browse_lists(school):
     """معلّمو المدرسة وشُعبُها لقائمة الجداول — لمن يتصفّح غيره."""
     from core.models import ClassGroup

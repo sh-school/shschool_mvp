@@ -39,18 +39,26 @@
   }
   function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); return el; }
 
+  var G = D.glossary || {};
+  var HL = D.health || {};
+  var DEF = D.definitions || {};
+  // معنى كلّ رقمٍ وشارة من مسرد roadmap/health.py::GLOSSARY (مصدرٌ واحد)؛ مفتاحٌ مجهولٌ لا تلميحَ له فلا يُكتب نصٌّ بلا معنى
+  function tip(key) { var g = G[key]; return g ? g.name + ' — ' + g.meaning : null; }
+
   var S = {
     meta: D.meta || {}, items: D.items || [], kpis: D.kpis || [], decs: D.decisions || [],
     risks: D.risks || [], cks: D.checklist || [], tab: 'ov', lane: 'all', st: 'all', src: 'all',
     dc: 'all', kl: 'all', ru: 'rules', gview: 'mx', list: null, creating: false, drawer: null, focus: null
   };
   var TABS = ['ov', 'gt', 'kp', 'dc', 'rk', 'st', 'ru'];
-  var ST = { todo: 'لم يبدأ', doing: 'قيد التنفيذ', done: 'مُغلَق', blocked: 'محجوب', deferred: 'مؤجّل' };
+  var ST = { todo: 'لم يبدأ', doing: 'قيد التنفيذ', done: 'مُغلَق', blocked: 'محجوب', deferred: 'مؤجّل', continuous: 'مستمر' };
+  var CADENCE = { weekly: 'أسبوعيّ', monthly: 'شهريّ' };
   var DS = { open: 'مفتوح', decided: 'محسوم', deferred: 'مؤجَّل' };
   var SRC = { DONE: 'منجز (أرشيف)', U: 'الخطّة الموحّدة', M: 'خطّة الجوال', VI: 'لوحة الهويّة', DBT: 'ديون', OWN: 'بنود المالك', PRP: 'مقترحات المنتج', NEW: 'مضافة من الواجهة' };
   var PILL = { ok: 'badge--success', warn: 'badge--warning', bad: 'badge--danger', idle: 'badge--neutral', accent: 'badge--accent' };
   var RULE_SECTIONS = [['rules', 'قواعد العمل'], ['dod', 'تعريف «تمّ» (DoD)'], ['crit', 'المسار الحرج'], ['win', 'نوافذ التنفيذ'],
-    ['own', 'المسؤوليّات'], ['rbk', 'التراجع والفحص بعد النشر'], ['map', 'خريطة الترقيم القديم ← الجديد'], ['srcs', 'مصادر الخارطة'], ['upd', 'كيف تُحدَّث الخارطة']];
+    ['own', 'المسؤوليّات'], ['rbk', 'التراجع والفحص بعد النشر'], ['map', 'خريطة الترقيم القديم ← الجديد'], ['srcs', 'مصادر الخارطة'], ['upd', 'كيف تُحدَّث الخارطة'], ['gloss', 'معاني الأرقام والشارات'],
+    ['lmap', 'مطابقة حالات الدفتر بحالات الخارطة'], ['prio', 'تعريف الأولويّات']];
   var HOW_TO_UPDATE = [
     'الحالةُ والتقدّمُ والتواريخُ: من تبويب الخريطة الزمنيّة بالنقر على أيّ بند؛ التعديلُ يُحفظ فوراً في القاعدة ويُدقَّق.',
     'المؤشّراتُ الآليّة: شغِّل scripts/measure_identity_kpis.py ثمّ أعِد الاستيرادَ: manage.py import_roadmap_snapshot <path> (لا يمسّ ما عدّلتَه هنا من حالةٍ وتقدّمٍ وتواريخَ وملاحظاتٍ وتأشيراتِ فحص؛ يحدّث المؤشّراتِ والحقولَ البنيويّة، و`--overwrite` يعيد الكلَّ إلى اللقطة).',
@@ -59,6 +67,7 @@
     'مراجعةٌ ربعيّة: إعادةُ السواط ذي الأبعاد الثمانية، ثمّ إعادةُ ضبط التواريخ المقترَحة.'
   ];
   var DAY = 86400000;
+  var REVIEW_DAYS = D.reviewDays || {}; // أيّامُ كلّ إيقاعٍ من الخادم (مصدرٌ واحد: services.CADENCE_DAYS)
 
   function dt(s) { return s ? new Date(s + 'T00:00:00Z').getTime() : null; }
   var TODAY = (function () { var n = new Date(); return Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()); })();
@@ -66,7 +75,21 @@
   function pc(n) { return n + '%'; }
 
   // ── الحساب (مرآةُ الخدمة) ───────────────────────────────────────────
-  function weight(i) { return i.status === 'deferred' ? 0 : (Number(i.effort) || 1); }
+  function weight(i) { return i.status === 'deferred' || i.status === 'continuous' ? 0 : (Number(i.effort) || 1); }
+  // مراجعةُ البند المستمر: لا يُقاس إلا بإيقاعٍ معلوم؛ ولم يُراجَع قطّ أو فات موعدُه = متأخّرٌ عن المراجعة (مرآةُ services.review_state)
+  function reviewState(i) {
+    var days = REVIEW_DAYS[i.cadence];
+    if (i.status !== 'continuous' || !days) return 'none';
+    return !i.reviewed || dt(i.reviewed) + days * DAY < TODAY ? 'late' : 'ontime';
+  }
+  function statusPill(i) {
+    var rs = reviewState(i);
+    if (i.status === 'continuous') {
+      // الأيقونة ↻ تُميّزه عن «قيد التنفيذ» دون اللون (WCAG 1.4.1)، والنصُّ يقول حالةَ المراجعة
+      return pill(rs === 'late' ? 'warn' : 'accent', '↻ ' + ST.continuous + ' · ' + (rs === 'late' ? 'مراجعتُه متأخّرة' : (CADENCE[i.cadence] || 'بلا إيقاع')), 'st_continuous');
+    }
+    return pill(i.status === 'done' ? 'ok' : (i.status === 'blocked' ? 'bad' : (i.status === 'doing' ? 'accent' : 'idle')), ST[i.status] + (i.status === 'doing' ? ' ' + (i.progress || 0) + '%' : ''), 'st_' + i.status);
+  }
   function pct(list) {
     var w = 0, s = 0;
     list.forEach(function (i) { var x = weight(i); w += x; s += x * (i.status === 'done' ? 100 : (Number(i.progress) || 0)); });
@@ -77,15 +100,15 @@
     return l ? l.name : k;
   }
   function calc(k) {
-    if (k.current == null) return { st: 'idle', label: 'لم يُقَس', pct: null };
-    if (k.target == null) return { st: 'idle', label: 'بلا هدف', pct: null };
+    if (k.current == null) return { st: 'idle', label: 'لم يُقَس', pct: null, tip: 'kpi_unmeasured' };
+    if (k.target == null) return { st: 'idle', label: 'بلا هدف', pct: null, tip: 'kpi_notarget' };
     var base = k.baseline == null ? k.current : k.baseline;
     var span = k.dir === 'down' ? base - k.target : k.target - base;
     var gone = k.dir === 'down' ? base - k.current : k.current - base;
     var reached = k.dir === 'down' ? k.current <= k.target : k.current >= k.target;
-    if (reached) return { st: 'ok', label: 'بلغ الهدف', pct: 100 };
+    if (reached) return { st: 'ok', label: 'بلغ الهدف', pct: 100, tip: 'kpi_reached' };
     var p = span <= 0 ? 0 : Math.max(0, Math.min(100, Math.round(100 * gone / span)));
-    return { st: p > 0 ? 'warn' : 'idle', label: p > 0 ? 'في الطريق' : 'عند الأساس', pct: p };
+    return { st: p > 0 ? 'warn' : 'idle', label: p > 0 ? 'في الطريق' : 'عند الأساس', pct: p, tip: p > 0 ? 'kpi_onway' : 'kpi_base' };
   }
   function fmt(v, u) {
     if (v == null) return '–';
@@ -97,7 +120,7 @@
     if (u === 'score') return Number(v).toFixed(1);
     return String(v);
   }
-  function pill(kind, text) { return h('span', { class: 'rm-pill ' + PILL[kind], text: text }); }
+  function pill(kind, text, tipKey) { return h('span', { class: 'rm-pill ' + PILL[kind], text: text, title: tipKey ? tip(tipKey) : null }); }
   function meter(p) { return h('div', { class: 'progress-qatar' }, h('div', { class: 'progress-qatar-fill', vars: { '--progress-w': pc(p) } })); }
   function bidi(text, cls) { return h('bdi', { class: cls || null, text: text }); }
 
@@ -218,26 +241,83 @@
   }
 
   // ── الملخّص والنظرة العامّة ─────────────────────────────────────────
-  function kpiCard(label, value, tone, sub) {
-    return h('div', { class: 'ui-kpi kpi-' + tone, role: 'listitem' },
+  function kpiCard(label, value, tone, sub, tipKey, onOpen, extra) {
+    var parts = [
       h('span', { class: 'ui-kpi__label', text: label }),
       h('span', { class: 'ui-kpi__value', text: value }),
-      sub ? h('span', { class: 'ui-kpi__sub', text: sub }) : null);
+      sub ? h('span', { class: 'ui-kpi__sub', text: sub }) : null];
+    var meaning = tipKey ? tip(tipKey) : null;
+    if (meaning && extra) meaning += ' — ' + extra;
+    if (onOpen) {
+      // بطاقةٌ تفتح قائمتها: زرٌّ حقيقيٌّ داخل عنصر القائمة (لوحة المفاتيح والجوال)، لا div بنقرة
+      return h('div', { role: 'listitem' },
+        h.apply(null, ['button', { type: 'button', class: 'ui-kpi is-link kpi-' + tone, title: meaning, onclick: onOpen }].concat(parts)));
+    }
+    return h.apply(null, ['div', { class: 'ui-kpi kpi-' + tone, role: 'listitem', title: meaning }].concat(parts));
+  }
+  // العربيّةُ تفرّق: يوم، يومان، 3–10 أيّام، 11 فأكثر يوماً — فلا «منذ 1 يوماً»
+  function daysSpan(n) { return n === 0 ? 'أقلّ من يوم' : n === 1 ? 'يوم' : n === 2 ? 'يومان' : n <= 10 ? n + ' أيّام' : n + ' يوماً'; }
+  function ago(n) { return n === 0 ? 'اليوم' : n === 1 ? 'منذ يوم' : n === 2 ? 'منذ يومين' : 'منذ ' + daysSpan(n); }
+  // قراراتٌ مفتوحة: العمرُ في الخارطة (الخادم يحسبه من created_at) واللونُ بعد HL.staleDays
+  function decisionAge(d) { var a = (HL.decisionAges || {})[d.id]; return a == null ? null : a; }
+  function staleDecisions() {
+    var lim = HL.staleDays || 7;
+    return S.decs.filter(function (d) { var a = decisionAge(d); return d.status === 'open' && a != null && a >= lim; });
+  }
+  function ledgerCards() {
+    var L = HL.ledger;
+    var cards = [];
+    if (!L) {
+      cards.push(kpiCard('موجَّهةٌ بلا حامل', 'غير مقيس', 'blue', 'لا لقطةَ للدفتر', 'routed_unheld'));
+      cards.push(kpiCard('انحراف الدفتر', 'غير مقيس', 'blue', 'لا لقطةَ للدفتر', 'ledger_drift'));
+      return cards;
+    }
+    // تاريخُ اللقطة في التلميح؛ وفي السطر ما لا يُترك خافياً: أنّها قديمة
+    var when = 'لقطةُ الدفتر في ' + L.asOf + (L.stale ? ' (قديمة: ' + daysSpan(L.ageDays) + ')' : '');
+    var late = L.stale ? ' — قياسٌ قديم' : '';
+    var held = L.routedNoHolder;
+    cards.push(kpiCard('موجَّهةٌ بلا حامل', held + ' / ' + L.routed, held ? 'red' : 'green',
+      'أقدمها ' + daysSpan(L.routedOldestDays) + late, 'routed_unheld', null, when));
+    var dr = L.drift;
+    if (dr) {
+      var n = (dr.prsWithoutItem || 0) + (dr.itemsWithUnknownCard || 0);
+      cards.push(kpiCard('انحراف الدفتر', n, n ? 'amber' : 'green',
+        'طلبات ' + (dr.prsWithoutItem || 0) + ' · بنود ' + (dr.itemsWithUnknownCard || 0) + late, 'ledger_drift', null,
+        'طلباتٌ بلا بند: ' + (dr.prsWithoutItem || 0) + '، بنودٌ بلا بطاقة: ' + (dr.itemsWithUnknownCard || 0) + '، بطاقاتٌ بلا رقم طلب: ' + (dr.mergedWithoutPr || 0) + ' — ' + when));
+    } else {
+      cards.push(kpiCard('انحراف الدفتر', 'غير مقيس', 'blue', 'اللقطةُ بلا انحراف', 'ledger_drift', null, when));
+    }
+    return cards;
   }
   function renderSummary() {
     var it = S.items;
     var done = it.filter(function (i) { return i.status === 'done'; }).length;
     var doing = it.filter(function (i) { return i.status === 'doing'; }).length;
     var blocked = it.filter(function (i) { return i.status === 'blocked'; }).length;
-    var overdue = it.filter(function (i) { return i.status !== 'done' && i.status !== 'deferred' && i.end && dt(i.end) < TODAY; }).length;
+    var overdue = it.filter(function (i) { return i.status !== 'done' && i.status !== 'deferred' && i.status !== 'continuous' && i.end && dt(i.end) < TODAY; }).length;
+    var cont = it.filter(function (i) { return i.status === 'continuous'; });
+    var contLate = cont.filter(function (i) { return reviewState(i) === 'late'; }).length;
     var owner = it.filter(function (i) { return i.gate === 'owner' && i.status !== 'done'; }).length;
-    clear($('#rm-summary')).append(
-      kpiCard('بنودٌ في الخارطة', it.length, 'maroon'),
-      kpiCard('مُغلَق', done + ' / ' + it.length, 'green', it.length ? pc(Math.round(100 * done / it.length)) : ''),
-      kpiCard('قيد التنفيذ', doing, 'blue'),
-      kpiCard('متأخّر عن موعده', overdue, 'amber'),
-      kpiCard('محجوب', blocked, 'red'),
-      kpiCard('ينتظر المالك', owner, 'purple'));
+    var open = S.decs.filter(function (d) { return d.status === 'open'; }).length;
+    var stale = staleDecisions().length;
+    var noRef = HL.closedNoRef || [];
+    var archived = HL.closedNoRefArchived || 0;
+    var host = clear($('#rm-summary'));
+    [
+      kpiCard('بنودٌ في الخارطة', it.length, 'maroon', null, 'items'),
+      kpiCard('مُغلَق', done + ' / ' + it.length, 'green', it.length ? pc(Math.round(100 * done / it.length)) : '', 'done'),
+      kpiCard('قيد التنفيذ', doing, 'blue', null, 'doing'),
+      kpiCard('متأخّر عن موعده', overdue, 'amber', null, 'overdue'),
+      kpiCard('محجوب', blocked, 'red', null, 'blocked'),
+      kpiCard('ينتظر المالك', owner, 'purple', null, 'owner'),
+      kpiCard('أعمالٌ مستمرّة', cont.length, contLate ? 'amber' : 'blue',
+        contLate ? contLate + ' متأخّرة عن المراجعة' : (cont.length ? 'كلُّها في موعد مراجعتها' : ''), 'continuous'),
+      kpiCard('قراراتٌ مفتوحة', open, stale ? 'amber' : 'blue',
+        stale ? stale + ' فوق ' + (HL.staleDays || 7) + ' أيّام' : 'لا قرارَ متأخّراً', 'decisions_open'),
+      kpiCard('مُغلَق بلا مرجع', noRef.length, noRef.length ? 'red' : 'green',
+        (archived ? archived + ' في الأرشيف لا تُعدّ' : 'كلُّها بدليل'), 'closed_no_ref',
+        noRef.length ? function () { openList('مُغلَقٌ بلا مرجع', noRef); } : null)
+    ].concat(ledgerCards()).forEach(function (c) { host.append(c); });
     $('#rm-pct').textContent = pct(it);
   }
   function laneRows() {
@@ -246,13 +326,13 @@
   }
   function mkLane(x) {
     var p = pct(x.li), dn = x.li.filter(function (i) { return i.status === 'done'; }).length;
-    return h('div', { class: 'plain-list__row' },
+    return h('div', { class: 'plain-list__row', title: tip('lane') },
       h('b', { text: pc(p) }),
       h('div', { class: 'plain-list__main' }, h('span', { class: 'plain-list__title', text: x.l.name }), meter(p)),
       h('small', { text: dn + ' / ' + x.li.length }));
   }
   function soonItems() {
-    return S.items.filter(function (i) { return i.status !== 'done' && i.status !== 'deferred' && i.end && dt(i.end) <= TODAY + 14 * DAY; })
+    return S.items.filter(function (i) { return i.status !== 'done' && i.status !== 'deferred' && i.status !== 'continuous' && i.end && dt(i.end) <= TODAY + 14 * DAY; })
       .sort(function (a, b) { return dt(a.end) - dt(b.end); });
   }
   function mkSoon(i) {
@@ -262,7 +342,7 @@
       h('div', { class: 'plain-list__main' },
         h('span', { class: 'plain-list__title rm-clamp', title: i.title }, bidi(i.title)),
         h('span', { class: 'plain-list__sub', text: laneName(i.lane) + ' — ' + (SRC[i.src] || '') + (i.gate === 'owner' ? ' — ينتظر المالك' : '') })),
-      pill(late ? 'bad' : 'warn', (late ? 'متأخّر ' : '') + dstr(dt(i.end))));
+      pill(late ? 'bad' : 'warn', (late ? 'متأخّر ' : '') + dstr(dt(i.end)), late ? 'soon_late' : 'soon_date'));
   }
   function mkPhase(p) {
     var a = dt(p.start), b = dt(p.end);
@@ -272,7 +352,7 @@
       h('div', { class: 'plain-list__main' },
         h('span', { class: 'plain-list__title', text: p.name }),
         h('span', { class: 'plain-list__sub rm-clamp', text: dstr(a) + ' ← ' + dstr(b) + ' — ' + (p.goal || '') })),
-      pill('idle', li.length + ' بنداً — ' + pc(pct(li))));
+      pill('idle', li.length + ' بنداً — ' + pc(pct(li)), 'phase'));
   }
 
   // ── الخريطة الزمنيّة ────────────────────────────────────────────────
@@ -320,7 +400,11 @@
   }
   function detail(it) {
     var id = it.id;
-    var sel = h('select', { class: 'form-control', 'aria-label': 'حالة ' + id, onchange: function (e) { save('item', id, { status: e.target.value }, 'status'); } });
+    var sel = h('select', { class: 'form-control', 'aria-label': 'حالة ' + id, onchange: function (e) {
+      var body = { status: e.target.value };
+      if (body.status === 'continuous' && !it.cadence) body.cadence = 'monthly'; // المستمرُّ يلزمه إيقاعٌ؛ يُغيَّر بعد الحفظ
+      save('item', id, body, 'status');
+    } });
     Object.keys(ST).forEach(function (s) { sel.append(h('option', { value: s, text: ST[s], selected: s === it.status })); });
     var rngLabel = h('span', { text: 'التقدّم ' + (it.progress || 0) + '%' });
     var rng = h('input', {
@@ -336,14 +420,24 @@
     rng.setAttribute('data-rm-id', id);
     rng.setAttribute('data-rm-field', 'progress');
     function info(k, v) { return h('div', null, h('div', { class: 'k', text: k }), h('div', null, bidi(v))); }
+    var cont = it.status === 'continuous';
+    var review = null;
+    if (cont) {
+      var cad = h('select', { class: 'form-control', 'aria-label': 'إيقاع مراجعة ' + id, onchange: function (e) { save('item', id, { cadence: e.target.value }, 'cadence'); } });
+      Object.keys(CADENCE).forEach(function (k) { cad.append(h('option', { value: k, text: CADENCE[k], selected: k === it.cadence })); });
+      var rv = h('input', { type: 'date', class: 'form-control', value: it.reviewed || '', max: new Date(TODAY).toISOString().slice(0, 10), 'aria-label': 'آخر مراجعة ' + id, onchange: function (e) { save('item', id, { reviewed: e.target.value || null }, 'reviewed'); } });
+      var today = h('button', { type: 'button', class: 'btn-secondary btn-sm', text: 'راجعتُه اليوم', onclick: function () { save('item', id, { reviewed: new Date(TODAY).toISOString().slice(0, 10) }, 'reviewed'); } });
+      review = h('div', { class: 'g' }, field(id, 'cadence', 'إيقاع المراجعة', cad), field(id, 'reviewed', 'آخر مراجعة', rv), today);
+    }
     return h('div', { class: 'rm-det' },
       info(id, it.title),
       h('div', { class: 'g' },
         field(id, 'status', 'الحالة', sel),
-        h('label', null, rngLabel, rng),
+        cont ? null : h('label', null, rngLabel, rng), // المستمرُّ بلا نسبةِ تقدّمٍ (لا يدخل التقدّمَ المرجَّح)
         field(id, 'start', 'البداية', s0),
         field(id, 'end', 'النهاية', s1),
         field(id, 'pr', 'طلب الدمج', pr)),
+      review,
       field(id, 'note', 'ملاحظة', note),
       info('معيار الإغلاق', it.criterion || '–'),
       info('المصدر', it.ref || ''), info('الاعتماديّات', it.deps || '–'),
@@ -358,6 +452,10 @@
     lanes.forEach(function (l) { lane.append(h('option', { value: l.key, text: l.name })); });
     var status = ctl('select', { 'aria-label': 'الحالة' });
     Object.keys(ST).forEach(function (k) { status.append(h('option', { value: k, text: ST[k] })); });
+    var cadence = ctl('select', { 'aria-label': 'إيقاع المراجعة' });
+    Object.keys(CADENCE).forEach(function (k) { cadence.append(h('option', { value: k, text: CADENCE[k] })); });
+    var cadenceBox = h('label', { hidden: 'hidden' }, 'إيقاع المراجعة (للبند المستمر)', cadence);
+    status.addEventListener('change', function () { cadenceBox.hidden = status.value !== 'continuous'; });
     var start = ctl('input', { type: 'date', 'aria-label': 'البداية' });
     var end = ctl('input', { type: 'date', 'aria-label': 'النهاية' });
     var effort = ctl('input', { type: 'number', min: '0.5', max: '365', step: '0.5', value: '1', 'aria-label': 'الجهد بالأيام' });
@@ -376,6 +474,7 @@
       send.disabled = true;
       var body = { title: title.value, lane: lane.value, status: status.value, effort: effort.value,
         start: start.value || null, end: end.value || null, deps: deps.value, criterion: criterion.value, note: note.value, gate: gate.checked ? 'owner' : '' };
+      if (status.value === 'continuous') body.cadence = cadence.value;
       clear(err);
       fetch(root.dataset.itemCreateUrl, { method: 'POST', credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': root.dataset.csrf, 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify(body) })
@@ -399,6 +498,7 @@
     return h('form', { class: 'rm-det', onsubmit: submit },
       lab('العنوان *', title),
       h('div', { class: 'g' }, lab('المسار', lane), lab('الحالة', status), lab('البداية', start), lab('النهاية', end), lab('الجهد (أيّام)', effort)),
+      cadenceBox,
       lab('معيار الإغلاق', criterion), lab('الاعتماديّات', deps), lab('ملاحظة', note),
       h('label', { class: 'rm-check' }, gate, h('span', { text: 'ينتظر قرارَ/إذنَ المالك' })),
       err,
@@ -421,7 +521,7 @@
     return h('button', { type: 'button', class: 'rm-lrow', onclick: function () { openDrawer(it.id); } },
       h('b', { class: 'rm-code', text: it.id }),
       h('span', { class: 'rm-lrow__t rm-clamp' }, bidi(it.title), h('small', { text: it.start && it.end ? ' — ' + dstr(dt(it.start)) + ' ← ' + dstr(dt(it.end)) : ' — غيرُ مؤرَّخ' })),
-      pill(it.status === 'done' ? 'ok' : (it.status === 'blocked' ? 'bad' : (it.status === 'doing' ? 'accent' : 'idle')), ST[it.status] + (it.status === 'doing' ? ' ' + (it.progress || 0) + '%' : '')));
+      statusPill(it));
   }
   function renderDrawer() {
     var dr = $('#rm-drawer');
@@ -464,9 +564,9 @@
   }
   function mxCell(lane, k, items, label) {
     if (!items.length) return h('div', { class: 'rm-mx-c is-empty', 'aria-hidden': 'true' });
-    var n = { done: 0, doing: 0, blocked: 0, todo: 0, deferred: 0 };
+    var n = { done: 0, doing: 0, blocked: 0, todo: 0, deferred: 0, continuous: 0 };
     items.forEach(function (i) { n[i.status] = (n[i.status] || 0) + 1; });
-    var sub = n.done + ' مُغلَق' + (n.doing ? ' · ' + n.doing + ' جارٍ' : '') + (n.blocked ? ' · ' + n.blocked + ' محجوب' : '');
+    var sub = n.done + ' مُغلَق' + (n.doing ? ' · ' + n.doing + ' جارٍ' : '') + (n.blocked ? ' · ' + n.blocked + ' محجوب' : '') + (n.continuous ? ' · ' + n.continuous + ' مستمر' : '');
     var ids = items.map(function (i) { return i.id; });
     return h('button', { type: 'button', class: 'rm-mx-c', title: laneName(lane.key) + ' — ' + label + ': ' + sub,
       onclick: function () { openList(laneName(lane.key) + ' — ' + label, ids); } },
@@ -523,7 +623,7 @@
     var baseTxt = k.textMode || (k.baseline == null && k.baselineText) ? (k.baselineText || '–') : fmt(k.baseline, k.unit);
     var targetTxt = k.textMode || (k.target == null && k.targetText) ? (k.targetText || '–') : (k.dir === 'down' ? '≤ ' : '≥ ') + fmt(k.target, k.unit);
     return h('article', { class: 'rm-tile' },
-      h('header', { class: 'rm-tile__head' }, h('b', { class: 'rm-code', text: k.code }), pill(c.st, c.label)),
+      h('header', { class: 'rm-tile__head' }, h('b', { class: 'rm-code', text: k.code }), pill(c.st, c.label, c.tip)),
       h('h3', { class: 'rm-tile__title rm-clamp', title: k.name }, bidi(k.name)),
       h('dl', { class: 'rm-vals' },
         h('div', null, h('dt', { text: 'الأساس' }), h('dd', null, bidi(baseTxt))),
@@ -539,8 +639,11 @@
     Object.keys(DS).forEach(function (s) { sel.append(h('option', { value: s, text: DS[s], selected: s === d.status })); });
     var date = h('input', { type: 'date', class: 'form-control form-control-sm', value: d.date || '', 'data-rm-id': d.id, 'data-rm-field': 'date', 'aria-label': 'تاريخ حسم ' + d.id, onchange: function (e) { save('decision', d.id, { date: e.target.value || null }, 'date'); } });
     var txt = (d.blocks || d.options || '');
+    var age = d.status === 'open' ? decisionAge(d) : null;
     return h('article', { class: 'rm-tile' },
-      h('header', { class: 'rm-tile__head' }, h('b', { class: 'rm-code', text: d.id }), pill(d.status === 'open' ? 'warn' : (d.status === 'decided' ? 'ok' : 'idle'), DS[d.status] || d.status)),
+      h('header', { class: 'rm-tile__head' }, h('b', { class: 'rm-code', text: d.id }),
+        pill(d.status === 'open' ? 'warn' : (d.status === 'decided' ? 'ok' : 'idle'), DS[d.status] || d.status, 'dc_' + d.status),
+        age == null ? null : pill(age >= (HL.staleDays || 7) ? 'warn' : 'idle', ago(age), 'decision_age')),
       h('h3', { class: 'rm-tile__title rm-clamp', title: d.title }, bidi(d.title)),
       txt ? h('p', { class: 'rm-clamp', title: txt }, bidi(txt)) : null,
       d.recommendation ? h('p', { class: 'rm-clamp rm-muted', title: d.recommendation }, 'التوصية: ', bidi(d.recommendation)) : null,
@@ -549,7 +652,7 @@
   }
   function mkRisk(r) {
     return h('article', { class: 'rm-tile' },
-      h('header', { class: 'rm-tile__head' }, h('b', { class: 'rm-code', text: r.id }), pill('warn', 'احتمال ' + r.prob), pill('bad', 'أثر ' + r.impact)),
+      h('header', { class: 'rm-tile__head' }, h('b', { class: 'rm-code', text: r.id }), pill('warn', 'احتمال ' + r.prob, 'risk_prob'), pill('bad', 'أثر ' + r.impact, 'risk_impact')),
       h('h3', { class: 'rm-tile__title rm-clamp', title: r.risk }, bidi(r.risk)),
       h('p', { class: 'rm-clamp rm-muted', title: r.mitigation }, 'التخفيف: ', bidi(r.mitigation)));
   }
@@ -570,6 +673,9 @@
     if (k === 'own') return (m.ownership || []).map(function (r) { return r[0] + ' — ' + r[1] + ': ' + r[2]; });
     if (k === 'map') return (m.mapping || []).map(function (r) { return r[0] + ' ← ' + r[1]; });
     if (k === 'upd') return HOW_TO_UPDATE;
+    if (k === 'lmap') return (DEF.ledgerMap || []).map(function (r) { return r[0] + ' — ' + r[1] + ' ← ' + r[2]; });
+    if (k === 'prio') return (DEF.priorities || []).map(function (r) { return r[0] + ' — ' + r[1]; });
+    if (k === 'gloss') return Object.keys(G).map(function (x) { return G[x].name + ' — ' + G[x].meaning; });
     return (m[{ rules: 'rules', dod: 'dod', crit: 'criticalPath', win: 'windows', rbk: 'rollback', srcs: 'sources' }[k]] || []);
   }
   function mkRule(t, i) {

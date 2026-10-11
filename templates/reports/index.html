@@ -133,25 +133,25 @@
             {{ cls.short_label }}
           </span>
         </div>
-        <span class="status-badge status-info flex-shrink-0 text-xs">{{ cls.students_count|default:"—" }} طالب</span>
+        <span class="status-badge status-info flex-shrink-0">{{ cls.students_count|default:"—" }} طالب</span>
       </div>
       <div class="pt-2 border-t flex gap-2 flex-wrap">
 
         {% if tab == "results" %}
           <a href="{% url 'report_viewer' %}?r=class_results_pdf&id={{ cls.id }}&year={{ year }}&paper={{ paper }}&tab={{ tab }}"
-             class="btn-secondary btn-sm text-xs no-underline">{% icon "export_pdf" %} PDF</a>
+             class="btn-secondary btn-sm no-underline">{% icon "export_pdf" %} PDF</a>
           <a data-app-file href="{% url 'class_results_excel' cls.id %}?year={{ year }}&paper={{ paper }}"
-             class="btn-secondary btn-sm text-xs no-underline">Excel</a>
+             class="btn-secondary btn-sm no-underline">Excel</a>
 
         {% elif tab == "certificates" %}
           <a href="{% url 'report_viewer' %}?r=class_certificates_pdf&id={{ cls.id }}&year={{ year }}&paper={{ paper }}&tab={{ tab }}"
-             class="btn-secondary btn-sm text-xs no-underline">{% icon "export_pdf" %} PDF</a>
+             class="btn-secondary btn-sm no-underline">{% icon "export_pdf" %} PDF</a>
 
         {% elif tab == "attendance" %}
           <a href="{% url 'report_viewer' %}?r=attendance_report_pdf&id={{ cls.id }}&year={{ year }}&paper={{ paper }}&tab={{ tab }}"
-             class="btn-secondary btn-sm text-xs no-underline">{% icon "export_pdf" %} PDF</a>
+             class="btn-secondary btn-sm no-underline">{% icon "export_pdf" %} PDF</a>
           <a data-app-file href="{% url 'attendance_excel' cls.id %}?year={{ year }}&paper={{ paper }}"
-             class="btn-secondary btn-sm text-xs no-underline">Excel</a>
+             class="btn-secondary btn-sm no-underline">Excel</a>
         {% endif %}
 
       </div>

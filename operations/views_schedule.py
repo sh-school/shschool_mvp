@@ -39,21 +39,22 @@ from .models import (
     TeacherExemption,
     TeacherPreference,
 )
-from .schedule_breaches import draft_breaches, unplaced_count
+from .schedule_breaches import budget_cut_notice, draft_breaches, unplaced_count
 from .schedule_decision import annotate_generation, current_card, split_generations
 from .schedule_lab import RELATIVE_CAP
-from .schedule_selectors import pages_payload
+from .schedule_selectors import generation_status_payload, mark_v2, pages_payload
 from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
 from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
+from .scheduler_v2.limits import GENERATION_STALE_AFTER_SECONDS
 from .services import AbsenceSwapService, ScheduleService, SubstituteService, schedule_gate
 from .services.substitute import TEACHING_ROLES
 
 logger = logging.getLogger(__name__)
 
 #: بعدها يُعدّ التوليدُ المعلّقُ ميّتاً. والحدُّ أكبرُ من `soft_time_limit`
-#: للمهمّة (خمس عشرة دقيقة) بهامشِ انتظارٍ في الطابور — فما تجاوزه لم يعد
-#: ينتظر عاملاً، بل يحجب الزرَّ عمّن يريد إعادةَ المحاولة.
-_GENERATION_STALE_AFTER = timedelta(minutes=20)
+#: للمهمّة بهامشِ انتظارٍ في الطابور — فما تجاوزه لم يعد ينتظر عاملاً، بل يحجب
+#: الزرَّ عمّن يريد إعادةَ المحاولة. ومصدرُه الوحيد `scheduler_v2/limits.py`.
+_GENERATION_STALE_AFTER = timedelta(seconds=GENERATION_STALE_AFTER_SECONDS)
 
 
 def _may_decide_schedule(user) -> bool:
@@ -85,11 +86,11 @@ def _reap_stale_generations(school, year):
         status="failed",
         finished_at=timezone.now(),
         error_message=(
-            "لم يلتقط عاملُ الخلفيّة هذه المهمّة خلال عشرين دقيقة — "
+            "لم يلتقط عاملُ الخلفيّة هذه المهمّة خلال الزمن المسموح — "
             "غالباً لأنّ Celery متوقّف. راجع تشغيلَه ثمّ أعد المحاولة."
         ),
     )
-    return pending.filter(generated_at__gte=cutoff).first()
+    return mark_v2(pending.filter(generated_at__gte=cutoff).first())
 
 
 def _safe_schedule_settings_redirect(request, fallback_year=None):
@@ -761,6 +762,7 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
         g.lab_tone = tone_for(g.lab_relative, LAB_RELATIVE_TONES, empty="")
         # ما بقي مكسوراً بموضعه — والإقرارُ به شرطُ اعتماد المسودّة (SCH-05).
         g.breaches = draft_breaches(g.config_snapshot)
+        g.budget_cut = budget_cut_notice(g.config_snapshot)
         g.unplaced_count = unplaced_count(g.config_snapshot)
         # الإقرارُ شرطٌ لمخالفاتٍ أو لمتعذّراتٍ (OR-01) — والعددُ الذي يُعرض على الزرّ مجموعُهما.
         g.gate_total = (g.breaches["count"] if g.breaches else 0) + g.unplaced_count
@@ -828,10 +830,10 @@ def smart_generate(request):
 
     generation = gate.create_generation(school, request.user)
 
-    from .tasks import generate_smart_schedule_task
+    from .scheduler_v2.tasks import generate_schedule_v2_task
 
     try:
-        generate_smart_schedule_task.delay(str(generation.id))
+        generate_schedule_v2_task.delay(str(generation.id))
     except Exception as exc:  # وسيطُ الرسائل ساقطٌ أو غيرُ مهيّأ
         # ولا يُترك الصفُّ «في الانتظار» إلى الأبد: انتظارٌ بلا عاملٍ كذبةٌ
         # صامتة. يُقال إنّ العاملَ غيرُ متاح، ويُقال ماذا يفعل المسؤول.
@@ -874,6 +876,8 @@ def smart_generate_status(request):
             "id",
             "status",
             "quality_score",
+            "soft_violations",
+            "config_snapshot",
             "total_slots_created",
             "generation_time_ms",
             "error_message",
@@ -883,18 +887,7 @@ def smart_generate_status(request):
     if generation is None:
         return JsonResponse({"status": None, "pending": False})
 
-    return JsonResponse(
-        {
-            "id": str(generation.id),
-            "status": generation.status,
-            "status_label": generation.get_status_display(),
-            "pending": generation.is_pending,
-            "quality": round(generation.quality_score),
-            "slots": generation.total_slots_created,
-            "elapsed_ms": generation.generation_time_ms,
-            "error": generation.error_message,
-        }
-    )
+    return JsonResponse(generation_status_payload(generation))
 
 
 @login_required
@@ -988,27 +981,26 @@ def teacher_preferences(request):
         pref.max_daily_periods = _one_of(request.POST.get("max_daily_periods"), range(1, 8), 5)
         #: و«حصّةٌ واحدة» سقفٌ مشروع: أي لا حصّتين متجاورتين البتّة — وهو
         #: قيدٌ قائمٌ لمعلّمٍ في المدرسة، والمحرّكُ يقرؤه ولا يرفعه في الاسترخاء.
-        pref.max_consecutive = _one_of(request.POST.get("max_consecutive"), range(1, 8), 3)
+        pref.max_consecutive = _one_of(request.POST.get("max_consecutive"), range(1, 8), None)
         #: سقفُ الفراغ اختياريّ: الفراغُ لعامّة الكادر ترجيحٌ مرن، ومن اختار
         #: سقفاً صار في حقّه قيداً صلباً. فالفراغُ نصّاً لا يُقرأ افتراضيّاً
         #: بل يُقرأ عدماً — و«0» قيمةٌ صحيحةٌ تعني «لا فراغَ البتّة».
         max_gap = request.POST.get("max_gap", "")
         pref.max_gap = _one_of(max_gap, range(0, 6), None) if max_gap != "" else None
-        free_day = request.POST.get("free_day", "")
-        pref.free_day = _one_of(free_day, range(0, 5), None) if free_day else None
+        #: يومُ التفريغ قرارٌ إداريّ (W-20261010-025): يُقرأ من الصفّ المحفوظ ولا يُقرأ من الطلب.
         pref.notes = request.POST.get("notes", "")
 
         # قيودٌ لا تسع النصاب تُردّ بحسابها لا تُحفظ: «متتالية 1» مع «فراغ 0»
         # حصّةٌ واحدةٌ في اليوم — ومن حفظها ونصابُه اثنتا عشرةَ رأى سبعاً بلا
         # موضعٍ في التوليد ولم يعرف لماذا.
-        from operations.preference_capacity import explain_shortfall, weekly_capacity
+        from operations import preference_capacity as pc
 
         load = sum(
             SubjectClassAssignment.objects.filter(
                 school=school, academic_year=year, teacher=request.user, is_active=True
             ).values_list("weekly_periods", flat=True)
         )
-        capacity = weekly_capacity(
+        capacity = pc.weekly_capacity(
             pref.max_daily_periods, pref.max_consecutive, pref.max_gap, pref.free_day
         )
         # وقرارُ 2026-09-06: النصابُ يُقسم على الأيّام بفرقِ حصّةٍ على الأكثر،
@@ -1027,11 +1019,11 @@ def teacher_preferences(request):
         elif capacity < load:
             messages.error(
                 request,
-                explain_shortfall(request.user.full_name, capacity, load, pref) + ". لم يُحفظ.",
+                pc.explain_shortfall(request.user.full_name, capacity, load, pref) + ". لم يُحفظ.",
             )
             pref.refresh_from_db()
         else:
-            pref.save(update_fields=pref.TEACHER_EDITABLE_FIELDS)
+            pc.save_teacher_preferences(request, pref)
             messages.success(request, "تم حفظ تفضيلاتك للجدولة الذكية")
             # العامُ يبقى في الرابط: الرجوعُ بلا عامٍ يفتح تفضيلاتِ عامٍ آخر.
             return safe_redirect(request, "teacher_preferences", {"year": year})

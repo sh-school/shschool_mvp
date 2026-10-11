@@ -12,6 +12,7 @@ import pytest
 from django.utils import timezone
 
 from operations.models import ScheduleGeneration
+from operations.scheduler_v2.limits import GENERATION_STALE_AFTER_SECONDS
 from operations.tasks import reap_stuck_schedule_generations_task
 
 YEAR = "2026-2027"
@@ -29,7 +30,7 @@ def _generation(school, status, *, age_seconds=0):
 
 @pytest.mark.django_db
 def test_a_generation_older_than_the_ceiling_is_declared_failed(school):
-    stuck = _generation(school, "running", age_seconds=900 + 300 + 1)
+    stuck = _generation(school, "running", age_seconds=GENERATION_STALE_AFTER_SECONDS + 1)
 
     outcome = reap_stuck_schedule_generations_task.run()
 
@@ -66,7 +67,7 @@ def test_a_finished_generation_is_never_touched_no_matter_its_age(school):
 @pytest.mark.django_db
 def test_a_queued_generation_past_the_ceiling_is_also_reaped(school):
     """لا يلتقطه عاملٌ قطّ — عالقٌ في الطابور لا داخل المهمّة، والحكمُ واحد."""
-    queued = _generation(school, "queued", age_seconds=900 + 300 + 1)
+    queued = _generation(school, "queued", age_seconds=GENERATION_STALE_AFTER_SECONDS + 1)
 
     outcome = reap_stuck_schedule_generations_task.run()
 
