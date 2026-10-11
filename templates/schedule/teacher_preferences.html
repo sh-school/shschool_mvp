@@ -47,22 +47,24 @@
   </div>
 
   {% section_card "مواضع الحصص — أفضّلها أو أتجنّبها" icon="settings" %}
-    {% callout "info" %}تُحفظ هذه الشبكة وتظهر لك كما اخترتها، لكنّ التوليد لا يقرؤها بعد؛ عند ربطها به سيُعلَن ذلك هنا. الحصة «المحايدة» لا تعني تفضيلاً ولا تجنّباً.{% endcallout %}
+    {% callout "info" %}تُحفظ هذه الشبكة وتظهر لك كما اخترتها، لكنّ التوليد لا يقرؤها بعد؛ عند ربطها به سيُعلَن ذلك هنا. الحصة «المحايدة» لا تعني تفضيلاً ولا تجنّباً. الرقم قبل كل قائمة هو رقم الحصة.{% endcallout %}
     <input type="hidden" name="grid_present" value="1">
     <div class="period-pref">
       {% for day in period_grid %}
       <fieldset class="period-pref__day">
         <legend>{{ day.label }}</legend>
-        {% for cell in day.cells %}
-        <div class="period-pref__row">
-          <label for="{{ cell.name }}">الحصة {{ cell.period }}</label>
-          <select name="{{ cell.name }}" id="{{ cell.name }}" class="form-control" aria-label="{{ day.label }} — الحصة {{ cell.period }}">
-            {% for value, text in period_states %}
-            <option value="{{ value }}" {% if cell.state == value %}selected{% endif %}>{{ text }}</option>
-            {% endfor %}
-          </select>
+        <div class="period-pref__cells">
+          {% for cell in day.cells %}
+          <label class="period-pref__row">
+            <span class="period-pref__no" aria-hidden="true">{{ cell.period }}</span>
+            <select name="{{ cell.name }}" id="{{ cell.name }}" class="form-control" aria-label="{{ day.label }} — الحصة {{ cell.period }}">
+              {% for value, text in period_states %}
+              <option value="{{ value }}" {% if cell.state == value %}selected{% endif %}>{{ text }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          {% endfor %}
         </div>
-        {% endfor %}
       </fieldset>
       {% endfor %}
     </div>
