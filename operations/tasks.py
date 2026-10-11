@@ -479,8 +479,8 @@ def reap_stuck_schedule_generations_task():
     تميّز عاملاً لا يزال يعمل بصمتٍ عن صفٍّ ماتت مهمّتُه فعلاً، فالحكمُ بسقفٍ
     زمنيّ من `generated_at` وحدَه — على نمط `purge_expired_export_jobs_task`.
 
-    المهلةُ: `soft_time_limit` الحقيقيّ للمهمّة (900 ثانية) + خمس دقائق هامشاً
-    لوقت الانتظار في الطابور قبل أن يلتقطها عاملٌ. تعمل كلَّ خمس دقائق
+    المهلةُ: `GENERATION_STALE_AFTER_SECONDS` من `scheduler_v2/limits.py` — سقفُ مهمّة V2
+    الليّن + هامشُ الطابور، ومصدرُها وحدَه (يشاركها حارسُ الزرّ في الواجهة). تعمل كلَّ خمس دقائق
     (`shschool/celery.py`).
     """
     from datetime import timedelta
@@ -488,8 +488,9 @@ def reap_stuck_schedule_generations_task():
     from django.utils import timezone
 
     from operations.models import ScheduleGeneration
+    from operations.scheduler_v2.limits import GENERATION_STALE_AFTER_SECONDS
 
-    cutoff = timezone.now() - timedelta(seconds=900 + 300)
+    cutoff = timezone.now() - timedelta(seconds=GENERATION_STALE_AFTER_SECONDS)
     stuck = ScheduleGeneration.objects.filter(
         status__in=ScheduleGeneration.PENDING_STATUSES, generated_at__lt=cutoff
     )
