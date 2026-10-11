@@ -39,7 +39,12 @@ from .models import (
     TeacherExemption,
     TeacherPreference,
 )
-from .schedule_breaches import budget_cut_notice, draft_breaches, unplaced_count
+from .schedule_breaches import (
+    budget_cut_notice,
+    draft_breaches,
+    unplaced_count,
+)
+from .schedule_comparison import comparison_for_display as cmp
 from .schedule_decision import annotate_generation, current_card, split_generations
 from .schedule_lab import RELATIVE_CAP
 from .schedule_selectors import generation_status_payload, mark_v2, pages_payload
@@ -759,7 +764,7 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
       الاثنين والعشرين مؤشّراً لكلّ توليد؛ وصفوفُ المحرّك السابق المنتهية تُطوى بلا أزرار.
     """
     for g in generations:
-        g.lab_tone = tone_for(g.lab_relative, LAB_RELATIVE_TONES, empty="")
+        g.comparison, g.lab_tone = cmp(g), tone_for(g.lab_relative, LAB_RELATIVE_TONES, empty="")
         # ما بقي مكسوراً بموضعه — والإقرارُ به شرطُ اعتماد المسودّة (SCH-05).
         g.breaches = draft_breaches(g.config_snapshot)
         g.budget_cut = budget_cut_notice(g.config_snapshot)
