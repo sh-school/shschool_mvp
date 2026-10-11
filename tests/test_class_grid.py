@@ -916,3 +916,54 @@ def test_the_coverage_lookup_adds_a_flat_number_of_queries(
     with CaptureQueriesContext(connection) as queries:
         assert not is_covering_class(stranger, assigned, SUNDAY)
     assert len(queries) <= 3
+
+
+# ── دائرةُ الخروج على خليّة الحصّة (W-20261010-041) ────────────────────────────────────
+
+
+def _out(session, student, destination, offset, minutes):
+    from operations.models import ClassExit
+
+    left = timezone.make_aware(
+        dt.datetime.combine(session.date, session.start_time)
+    ) + dt.timedelta(minutes=offset)
+    return ClassExit.objects.create(
+        school=session.school,
+        session=session,
+        student=student,
+        destination=destination,
+        left_at=left,
+        returned_at=left + dt.timedelta(minutes=minutes),
+    )
+
+
+def test_the_exit_circle_sits_on_each_period_cell_the_student_left(
+    client_as, assigned, teacher, kids, clock
+):
+    body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
+    assert "data-exit-tip" not in body  # لا خروجَ ⇒ لا دائرة
+    _save(client_as(teacher), assigned, 1, [_cells(kids[0], "present")])
+    first = Session.objects.get(class_group=assigned, period_number=1)
+    _out(first, kids[0], "restroom", 12, 5)
+    _out(first, kids[0], "clinic", 30, 10)
+    body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
+    assert body.count("data-exit-tip") == 1
+    assert 'aria-label="خرج 2 مرّة في هذه الحصّة"' in body
+    assert "دورة المياه — خرج 07:22 — 5 د" in body and "العيادة (بإذن) — خرج 07:40 — 10 د" in body
+
+
+def test_exit_circles_add_no_per_student_queries(client_as, assigned, teacher, kids, clock):
+    _save(client_as(teacher), assigned, 1, [_cells(k, "present") for k in kids])
+    first = Session.objects.get(class_group=assigned, period_number=1)
+
+    def measure():
+        with CaptureQueriesContext(connection) as queries:
+            client_as(teacher).get(reverse("class_grid", args=[assigned.id]))
+        return len(queries)
+
+    measure()
+    before = measure()
+    for kid in kids:
+        _out(first, kid, "restroom", 5, 3)
+    # استعلامُ خروج الحصص الجديدُ يُحسب مرّةً منذ المقياس الأوّل (حتى بلا خروج) فلا يزيد بعدد الطلبة.
+    assert measure() == before
