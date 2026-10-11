@@ -1,4 +1,4 @@
-"""[ROADMAP] هجرةُ المزامنة 0074 حارسة: ثمانيةُ بنودٍ جديدة مرّةً واحدة، وملاحظاتٌ بلا لمس الحالة، ونصٌّ محايد لمستودعٍ عامّ."""
+"""[ROADMAP] هجرةُ المزامنة 0074 حارسة: تسعةُ بنودٍ جديدة مرّةً واحدة، وملاحظاتٌ بلا لمس الحالة، ونصٌّ محايد لمستودعٍ عامّ."""
 
 import importlib
 import importlib.util
@@ -11,7 +11,7 @@ pytestmark = pytest.mark.django_db
 
 _MOD = "roadmap.migrations.0074_sync_items_2026_10_11"
 _sync74 = importlib.import_module(_MOD)
-_CODES = ["N-113", "N-114", "N-115", "N-116", "N-117", "N-118", "N-119", "N-120"]
+_CODES = ["N-113", "N-114", "N-115", "N-116", "N-117", "N-118", "N-119", "N-120", "N-121"]
 
 
 class _Apps:
@@ -29,10 +29,10 @@ def _seed():
         RoadmapItem.objects.create(code=code, lane="x", title="t", status=status, progress=progress)
 
 
-def test_creates_eight_items_once():
+def test_creates_nine_items_once():
     assert _sync74.add_new_items(RoadmapItem) == _CODES
     assert _sync74.add_new_items(RoadmapItem) == []
-    assert RoadmapItem.objects.count() == 8
+    assert RoadmapItem.objects.count() == 9
 
 
 def test_existing_item_is_never_rewritten():
@@ -47,7 +47,7 @@ def test_existing_item_is_never_rewritten():
 def test_only_finished_work_is_closed_and_unstarted_stays_todo():
     _sync74.add_new_items(RoadmapItem)
     status = {i.code: (i.status, i.progress) for i in RoadmapItem.objects.all()}
-    assert status["N-113"] == status["N-116"] == status["N-117"] == ("done", 100)
+    assert status["N-113"] == status["N-116"] == status["N-117"] == status["N-121"] == ("done", 100)
     assert status["N-118"] == status["N-119"] == ("todo", 0)
     assert status["N-114"][0] == status["N-115"][0] == status["N-120"][0] == "doing"
     assert status["N-115"][1] < 100
@@ -57,7 +57,12 @@ def test_notes_never_touch_status_or_progress_and_are_idempotent():
     _seed()
     _sync74.forwards(_Apps, None)
     _sync74.forwards(_Apps, None)
-    for code, st, pr in (("SCH-22", "doing", 40), ("N-108", "doing", 55), ("N-106", "doing", 70)):
+    for code, st, pr in (
+        ("N-069", "doing", 60),
+        ("SCH-22", "doing", 40),
+        ("N-108", "doing", 55),
+        ("N-106", "doing", 70),
+    ):
         item = RoadmapItem.objects.get(code=code)
         assert (item.status, item.progress) == (st, pr)
         assert item.note.count("[2026-10-11]") == 1
