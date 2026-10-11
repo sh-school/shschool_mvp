@@ -237,7 +237,7 @@ def get_teacher_ctx(user, school, today, role):
         # حصصُ أعمدة جدول الشعبة مؤقّتةٌ بـ`Session.teacher` مُسنَدٍ حتميّ (W-20261006-005): ليست «حصصي» ولا «حصّتي التالية» لمن نُسبت إليه.
         .exclude(provisional=True)
     )
-    # شارةُ حالة الرصد لكلّ حصّة (لم يُدخَل / بانتظار الاعتماد / معتمَد) — استعلامٌ واحد لا واحدٌ لكلّ صف.
+    # شارةُ حالة الرصد لكلّ حصّة (لم يُدخَل / تم الرصد — حالتان لأنّ الرصدَ نهائيٌّ فوريّ، D-245م) — استعلامٌ واحد لا واحدٌ لكلّ صف.
     entry_states = session_entry_states([s.id for s in sessions])
     for s in sessions:
         setattr(s, "entry_state", entry_states[s.id])  # noqa: B010 — وسمٌ للقالب لا حقلُ نموذج (mypy يرفض الإسناد المباشر)
