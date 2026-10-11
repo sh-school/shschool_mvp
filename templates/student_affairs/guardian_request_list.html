@@ -32,21 +32,16 @@
       <table>
         <thead>
           <tr>
-            <th>النوع</th>
-            <th>الطالب</th>
-            <th class="col-center">التاريخ</th>
+            <th>الطلب</th>
             <th class="col-center">المرحلة</th>
-            <th class="col-actions">تفاصيل</th>
           </tr>
         </thead>
         <tbody>
+          {# عمودان لا خمسة: النوعُ رابطُ التفاصيل والطالبُ والتاريخُ تحته، فيسع الجدولُ بطاقتَه على 375 #}
           {% for r in requests %}
           <tr>
-            <td data-label="النوع">{{ r.get_kind_display }}</td>
-            <td data-label="الطالب"><strong>{{ r.student.full_name|default:"—" }}</strong></td>
-            <td data-label="التاريخ" class="col-center">{{ r.request_date|date:"d/m/Y" }}</td>
+            <td data-label="الطلب"><a href="{% url 'student_affairs:request_detail' r.pk %}"><strong>{{ r.get_kind_display }}</strong></a><span class="sa-cell-sub">{{ r.student.full_name|default:"—" }} · {{ r.request_date|date:"d/m/Y" }}</span></td>
             <td data-label="المرحلة" class="col-center"><span class="status-badge status-{{ r.stage_tone }}">{{ r.get_stage_display }}</span></td>
-            <td class="col-actions"><a href="{% url 'student_affairs:request_detail' r.pk %}" class="btn-secondary btn-xs">عرض</a></td>
           </tr>
           {% endfor %}
         </tbody>
