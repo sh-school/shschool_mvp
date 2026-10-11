@@ -1533,6 +1533,16 @@ body:has(.rm-page) .site-footer { flex: none; }
 .cg-col__title { font-size: inherit; }
 /* الحصّةُ الجاريةُ: خطٌّ ذهبيٌّ تحت رأسها (الذهبيُّ تمييزٌ لا نصّ) وتلوينٌ خفيفٌ لخلاياها. */
 .cg-table thead .cg-col--current { box-shadow: inset 0 -3px 0 var(--gold); }
+/* الحصّةُ الفعّالةُ (والتاليةُ في الفسحة): إطارٌ أخضرُ من رمز النجاح داخل الخليّة (لا ظلَّ خارجيّ يُقصّه overflow)، وشارةٌ نصّيّة؛ والنبضُ خمسُ دوراتٍ لا يدور بلا نهاية (WCAG 2.2.2) ومعطَّلٌ عند خفض الحركة. */
+.cg-table :is(.cg-col--current, .cg-col--next) { box-shadow: inset 2px 0 0 var(--status-success), inset -2px 0 0 var(--status-success); }
+.cg-table thead :is(.cg-col--current, .cg-col--next) { box-shadow: inset 0 0 0 2px var(--status-success); animation: cg-glow 2s ease-in-out 5; }
+.cg-col__badge { display: inline-block; margin-block-start: var(--sp-1); padding: 0 var(--sp-2); border-radius: var(--radius-md); background: var(--status-success-bg); color: var(--status-success-fg); font-size: 0.75rem; font-weight: 800; white-space: nowrap; }
+.cg-col__badge--short { display: none; }
+@keyframes cg-glow { 50% { box-shadow: inset 0 0 0 4px var(--status-success); } }
+@media (max-width: 900px) { .cg-col__badge--full { display: none; } .cg-col__badge--short { display: inline-block; } }
+@media (prefers-reduced-motion: reduce) { .cg-table thead :is(.cg-col--current, .cg-col--next) { animation: none; } }
+/* تبويبُ الجوّال للحصّة الجارية/التالية: نقطةٌ بلون النجاح قبل رقم الحصّة (والمعنى نصٌّ للقارئ الشاشيّ لا اللونُ وحدَه). */
+.cg-tab__dot { display: inline-block; inline-size: 0.5rem; block-size: 0.5rem; margin-inline-end: var(--sp-1); border-radius: 50%; background: var(--status-success); box-shadow: 0 0 0 2px var(--surface); }
 .cg-cell { inline-size: 100%; min-block-size: var(--control-h); border: 2px solid color-mix(in srgb, var(--text-muted) 75%, var(--surface)); border-radius: var(--radius-md); background: var(--surface); color: var(--text-secondary); font-weight: 800; cursor: pointer; }
 .cg-cell.is-present { background: var(--status-success-bg); border-color: var(--status-success); color: var(--status-success-fg); }
 .cg-cell.is-absent { background: var(--status-danger-bg); border-color: var(--status-danger); color: var(--status-danger-fg); }

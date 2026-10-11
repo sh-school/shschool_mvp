@@ -32,6 +32,7 @@ from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing
 from operations.models import (
     AbsenceAlert,
+    AttendanceEntry,
     ClassExit,
     CompensatorySession,
     DailyExitTally,
@@ -206,17 +207,48 @@ def get_director_ctx(school, today):
     }
 
 
+def session_entry_states(session_ids: list[Any]) -> dict[Any, str]:
+    """حالةُ رصد كلّ حصّةٍ في استعلامٍ واحد (شارةُ لوحة المعلّم، W-20261003-038): `none` لم يُدخَل، `pending` بانتظار
+    الاعتماد، `approved` معتمَد.
+
+    تُقرأ من رؤوس الإدخالات (`superseded_by` فارغ) لا من `StudentAttendance`: المعلَّقُ ليس حضوراً ولا غياباً فيُعرض وسماً.
+    أيُّ إدخالٍ بلا قرارٍ يجعل الحصّةَ «بانتظار الاعتماد» (فاعتماد بعضه لا يكفي)؛ وحصّةٌ كلُّ إدخالاتها مرفوضةٌ تعود «لم يُدخَل»
+    لأنّ المرفوضَ لا أثرَ له وعلى المعلّم أن يرصد من جديد.
+    """
+    states: dict[Any, str] = dict.fromkeys(session_ids, "none")
+    if not session_ids:
+        return states
+    rows = (
+        AttendanceEntry.objects.filter(session_id__in=session_ids, superseded_by__isnull=True)
+        .values("session_id")
+        .annotate(
+            undecided=Count("id", filter=Q(decision__isnull=True)),
+            approved=Count("id", filter=Q(decision__decision="approved")),
+        )
+    )
+    for row in rows:
+        if row["undecided"]:
+            states[row["session_id"]] = "pending"
+        elif row["approved"]:
+            states[row["session_id"]] = "approved"
+    return states
+
+
 def get_teacher_ctx(user, school, today, role):
     """بيانات لوحة تحكم المعلم والمنسق: حصص اليوم + الإعدادات + طلبات التبديل."""
     year = academic_year_for_school(school)
 
-    sessions = (
+    sessions = list(
         Session.objects.filter(school=school, teacher=user, date=today)
         .select_related("class_group", "subject")
         .order_by("start_time")
+        # حصصُ أعمدة جدول الشعبة مؤقّتةٌ بـ`Session.teacher` مُسنَدٍ حتميّ (W-20261006-005): ليست «حصصي» ولا «حصّتي التالية» لمن نُسبت إليه.
+        .exclude(provisional=True)
     )
-    # حصصُ أعمدة جدول الشعبة مؤقّتةٌ بـ`Session.teacher` مُسنَدٍ حتميّ (W-20261006-005): ليست «حصصي» ولا «حصّتي التالية» لمن نُسبت إليه.
-    sessions = sessions.exclude(provisional=True)
+    # شارةُ حالة الرصد لكلّ حصّة (لم يُدخَل / بانتظار الاعتماد / معتمَد) — استعلامٌ واحد لا واحدٌ لكلّ صف.
+    entry_states = session_entry_states([s.id for s in sessions])
+    for s in sessions:
+        setattr(s, "entry_state", entry_states[s.id])  # noqa: B010 — وسمٌ للقالب لا حقلُ نموذج (mypy يرفض الإسناد المباشر)
     # بتوقيت المدرسة (Asia/Qatar) لا UTC: `now()` يعطي UTC فتنحرف «الحصّة التالية» ثلاث ساعات (W-20261010-047).
     now = timezone.localtime().time()
     next_session = next(

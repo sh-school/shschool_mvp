@@ -47,13 +47,13 @@
     {% if view_type == "coordinator" %}
       {% if not prov %}{% url 'swap_list' as u %}{% action_tile "طلبات التبديل" desc="مراجعةٌ واعتماد" icon="refresh" href=u primary=True %}{% endif %}
       {% if not prov %}{% url 'absence_list' as u %}{% action_tile "غياب المعلّمين" desc="تعيين البدلاء" icon="attendance_teacher_absence" href=u %}{% endif %}
-      {% if not prov %}{% url 'teacher_schedule' as u %}{% action_tile "حصصي اليوم" desc="حصصُ اليوم — والحضورُ لشُعب التربية الخاصّة" icon="periods_today" href=u %}{% endif %}
+      {% if not prov %}{% url 'teacher_schedule' as u %}{% action_tile "حصصي اليوم" desc="حصصُ اليوم وتسجيلُ حضور الطلبة" icon="periods_today" href=u %}{% endif %}
       {% if not prov %}{% action_tile "الجدول الأسبوعي" desc="حصصي هذا الأسبوع" icon="schedule" href=my_weekly_schedule_url %}{% endif %}
       {% if general_schedule_url %}{% if not prov %}{% action_tile "الجدول العام" desc="جداولُ كلّ المعلّمين" icon="schedule" href=general_schedule_url %}{% endif %}{% endif %}
       {% url 'behavior:report_infraction' as u %}{% action_tile "تسجيل سلوك" desc="تسجيلُ مخالفةٍ لطالب" icon="behavior_violation" href=u %}
       {% url 'assessments_dashboard' as u %}{% action_tile "التقييمات" desc="إدخال الدرجات" icon="assessments" href=u %}
     {% else %}
-      {% if not prov %}{% url 'teacher_schedule' as u %}{% action_tile "حصصي اليوم" desc="حصصُ اليوم — والحضورُ لشُعب التربية الخاصّة" icon="periods_today" href=u primary=True %}{% endif %}
+      {% if not prov %}{% url 'teacher_schedule' as u %}{% action_tile "حصصي اليوم" desc="حصصُ اليوم وتسجيلُ حضور الطلبة" icon="periods_today" href=u primary=True %}{% endif %}
       {% if not prov %}{% action_tile "الجدول الأسبوعي" desc="حصصي هذا الأسبوع" icon="schedule" href=my_weekly_schedule_url %}{% endif %}
       {% if general_schedule_url %}{% if not prov %}{% action_tile "الجدول العام" desc="جداولُ كلّ المعلّمين" icon="schedule" href=general_schedule_url %}{% endif %}{% endif %}
       {% url 'behavior:report_infraction' as u %}{% action_tile "تسجيل سلوك" desc="تسجيلُ مخالفةٍ لطالب" icon="behavior_violation" href=u %}

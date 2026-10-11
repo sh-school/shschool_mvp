@@ -100,6 +100,8 @@
   function currentCol() {
     var current = root.querySelector('th.cg-col--current');
     if (current) return current.getAttribute('data-col');
+    var next = root.querySelector('th.cg-col--next');
+    if (next) return next.getAttribute('data-col');
     var started = root.querySelectorAll('th.cg-col--past');
     return started.length ? started[started.length - 1].getAttribute('data-col') : '1';
   }
