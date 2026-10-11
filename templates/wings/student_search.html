@@ -18,7 +18,7 @@
   {% if too_short %}
     {% callout "error" show=True %}اكتب حرفين على الأقلّ من الاسم.{% endcallout %}
   {% elif query %}
-    {% section_card "النتائج" meta=results|length icon="students" empty="لا طالبَ بهذا الاسم في جناحك" empty_sub="جرّب جزءاً آخر من الاسم. وطالبُ جناحٍ آخر لا يظهر هنا." %}
+    {% section_card "النتائج" meta=results|length icon="students" empty="لا طالبَ بهذا الاسم أو الرقم في جناحك" empty_sub="جرّب جزءاً آخر من الاسم، أو أوّلَ الرقم الشخصيّ. وطالبُ جناحٍ آخر لا يظهر هنا." %}
       {% if results %}
       <ul class="plain-list">
         {% for enrollment in results %}
