@@ -43,9 +43,28 @@ def run_caps_for_tasks(
     return {**{m.teacher_id: cap for task in tasks for m in task.members}, **(explicit or {})}
 
 
+def rule_sentence(spec: dict[str, Any]) -> str:
+    """جملةٌ عربيّةٌ بالقاعدة السارية في تشغيلٍ بعينه (للرسائل)، أو «بلا تخفيفات» حين لا شيء مفعَّل."""
+    parts: list[str] = []
+    if spec.get("touch_relaxed_all"):
+        parts.append(
+            f"تلاصقُ حتى {int(spec.get('run_cap') or RELAXED_RUN_CAP)} حصصٍ متتاليةٍ لكلّ المعلّمين"
+        )
+    elif spec.get("touch_relaxed"):
+        parts.append(f"تلاصقٌ مخفَّفٌ لـ{len(spec['touch_relaxed'])} معلّماً مسمّى")
+    if spec.get("no_6_7"):
+        parts.append("منعُ السادسة مع السابعة")
+    if spec.get("triples_by_number"):
+        parts.append("منعُ ثلاثِ حصصٍ بأرقامٍ متتالية")
+    if not parts:
+        return "القاعدة السارية: بلا تخفيفات"
+    return "القاعدة السارية (إعداد المدرسة): " + "، ".join(parts)
+
+
 __all__ = [
     "RELAXED_RUN_CAP",
     "STRICT_RUN_CAP",
+    "rule_sentence",
     "relaxed_run_cap",
     "run_caps_for_tasks",
     "school_policy",

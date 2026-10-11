@@ -11,7 +11,13 @@ from operations import schedule_feasibility as sf
 from operations.admin import ScheduleRelaxationPolicyAdmin
 from operations.models import ScheduleRelaxationPolicy
 from operations.schedule_evaluator import evaluate_slots
-from operations.schedule_relaxation import STRICT_RUN_CAP, relaxed_run_cap, school_policy
+from operations.schedule_relaxation import (
+    STRICT_RUN_CAP,
+    relaxed_run_cap,
+    rule_sentence,
+    school_policy,
+)
+from operations.scheduler_v2 import runner
 from tests.conftest import UserFactory
 from tests.test_schedule_evaluator import YEAR, run_scene  # noqa: F401 — التركيبةُ نفسُها للمُقيِّم
 
@@ -108,3 +114,42 @@ def test_the_admin_records_before_and_after_without_any_teacher_name(school):
     assert events[1].changes["before"]["no_6_7"] is True
     assert events[1].changes["after"]["no_6_7"] is False
     assert obj.updated_by == admin_user
+
+
+def test_the_runner_reads_the_school_policy_and_a_run_specific_file_overrides_it(school):
+    base = runner.with_school_policy(runner.SolverConfig(), school)
+    spec = dict(base.relaxations)
+
+    assert spec == {
+        "no_6_7": True,
+        "run_cap": 2,
+        "touch_relaxed_all": True,
+        "triples_by_number": True,
+    }
+    assert runner.options_from_relaxations(spec)["touch_relaxed_all"] is True
+
+    own = runner.SolverConfig(relaxations=(("no_6_7", False),))
+    assert dict(runner.with_school_policy(own, school).relaxations)["no_6_7"] is False
+
+
+def test_a_strict_school_hands_the_runner_no_touch_relaxation(school):
+    ScheduleRelaxationPolicy.objects.create(school=school, relax_touch_for_all=False)
+
+    spec = dict(runner.with_school_policy(runner.SolverConfig(), school).relaxations)
+
+    assert "touch_relaxed_all" not in spec and "run_cap" not in spec
+
+
+def test_the_failure_note_names_the_rule_in_force_or_says_there_is_none(school):
+    on = runner.with_school_policy(runner.SolverConfig(), school)
+    assert "إعداد المدرسة" in runner._rule_note(on)
+    assert "2" in runner._rule_note(on)
+
+    assert rule_sentence({}) == "القاعدة السارية: بلا تخفيفات"
+    off = ScheduleRelaxationPolicy(
+        school=school, relax_touch_for_all=False, no_6_7=False, triples_by_number=False
+    )
+    assert (
+        runner._rule_note(runner.SolverConfig(relaxations=tuple(off.as_spec().items())))
+        == "القاعدة السارية: بلا تخفيفات"
+    )
