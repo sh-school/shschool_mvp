@@ -812,10 +812,10 @@
    "orm": 8
   },
   "wings/views_register.py::section_register_export": {
-   "orm": 29
+   "orm": 24
   },
   "wings/views_register.py::wing_register_export": {
-   "orm": 30
+   "orm": 25
   }
  }
 }
