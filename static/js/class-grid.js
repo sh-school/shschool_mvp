@@ -92,6 +92,35 @@
     if (tab) return showTab(tab.getAttribute('data-tab'));
   });
 
+  // دائرةُ الخروج: المعلوماتُ (الوجهة والساعة والمدّة) تطفو عند مرور المؤشّر فقط؛ لا نقرَ ولا بقاء، وعلى اللمس يبقى الرقمُ وحدَه.
+  var pop = null;
+  function exitPop() {
+    if (!pop) {
+      pop = document.createElement('div');
+      pop.className = 'cg-exitpop';
+      pop.setAttribute('role', 'tooltip');
+      pop.hidden = true;
+      document.body.appendChild(pop);
+    }
+    return pop;
+  }
+  root.addEventListener('mouseover', function (event) {
+    var dot = event.target.closest('[data-exit-tip]');
+    if (!dot) return;
+    var box = exitPop();
+    box.textContent = dot.getAttribute('data-exit-tip');
+    box.hidden = false;
+    var r = dot.getBoundingClientRect();
+    var w = box.offsetWidth, h = box.offsetHeight;
+    var left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
+    var top = r.top - h - 6 < 8 ? r.bottom + 6 : r.top - h - 6;
+    box.style.left = left + 'px';
+    box.style.top = top + 'px';
+  });
+  root.addEventListener('mouseout', function (event) {
+    if (event.target.closest('[data-exit-tip]') && pop) pop.hidden = true;
+  });
+
   root.addEventListener('dblclick', function (event) {
     var cell = event.target.closest('[data-cell]');
     if (cell) openHistory(cell.getAttribute('data-student'), cell.getAttribute('data-col'));
