@@ -61,8 +61,9 @@ class TestBulkDocumentsMaskAndLog:
         body = resp.content.decode()
 
         assert resp.status_code == 200
-        assert MASKED in body
-        assert STUDENT_ID not in body, "كشفُ فصلٍ كامل كشفٌ جماعيّ — يُستر وإن طُبع"
+        assert (
+            MASKED not in body and STUDENT_ID not in body
+        ), "لا رقمَ شخصيّاً في كشف الفصل (W-20261011-014)"
         trail = _exports("reports.attendance").get()
         assert trail.user == principal_user
         assert trail.changes["rows"] == 1
@@ -78,7 +79,7 @@ class TestBulkDocumentsMaskAndLog:
         body = resp.content.decode()
 
         assert resp.status_code == 200
-        assert MASKED in body and STUDENT_ID not in body
+        assert MASKED not in body and STUDENT_ID not in body
         assert _exports("reports.class_certificates").get().changes["rows"] == 1
 
 
@@ -91,7 +92,7 @@ class TestIndividualDocumentsKeepTheNumberAndLog:
         )
 
         assert resp.status_code == 200
-        assert STUDENT_ID in resp.content.decode()
+        assert STUDENT_ID not in resp.content.decode(), "الشهادة بلا رقمٍ شخصيّ (W-20261011-014)"
         trail = _exports("reports.certificate").get()
         assert trail.changes == {"kind": "reports.certificate", "rows": 1, "full_national_id": True}
         assert trail.object_id == str(pupil.pk)
