@@ -376,11 +376,25 @@ def empty_state(title="لا توجد بيانات", sub="", icon="empty", compac
 # ── 5. ترويسةُ الصفحة ─────────────────────────────────────────────────────
 
 
-@register.simple_block_tag
-def page_header(content, title, subtitle="", icon=""):
+def _day_picker_html(context) -> str:
+    """محدِّدُ يومِ اللوحة (W-20261010-056) داخل أوّل ترويسةٍ في الصفحة — لا صفَّ مستقلّاً يمدّ الارتفاعَ (اللوحةُ تسع 1366×768 بلا تمرير، LAY-03).
+
+    يظهر حيث يحمل السياقُ `date_nav` (لوحةُ الأدوار وحدَها) ومرّةً واحدةً لكلّ طلب، فلا ترويسةٌ ثانيةٌ في الصفحة تكرّره.
+    """
+    request = context.get("request")
+    if not context.get("date_nav") or getattr(request, "_day_picker_done", False):
+        return ""
+    if request is not None:
+        request._day_picker_done = True
+    return render_to_string("dashboard/partials/_day_picker.html", context.flatten())
+
+
+@register.simple_block_tag(takes_context=True)
+def page_header(context, content, title, subtitle="", icon=""):
     """عنوانُ الصفحة وسطرُها الوصفيّ وإجراءاتُها — إطارٌ واحدٌ بدل ثلاثة."""
     _require(title, "page_header", "العنوان")
     content, tips = _split_tips(content)
+    content = _day_picker_html(context) + content
     return mark_safe(
         render_to_string(
             "components/ui/page_header.html",

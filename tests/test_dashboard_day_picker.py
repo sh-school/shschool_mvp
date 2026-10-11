@@ -10,6 +10,7 @@
 """
 
 import datetime as dt
+import re
 
 import pytest
 from django.utils import timezone
@@ -89,6 +90,12 @@ class TestWindowAndChoice:
         assert (today["min"], today["max"]) == ("2026-09-01", "2027-06-30")
 
 
+def _assert_picker_in_the_header(body: str) -> None:
+    """المحدِّدُ مرّةً واحدةً وفي إجراءات ترويسة الصفحة — لا صفَّ مستقلّاً: اللوحةُ تسع 1366×768 بلا تمرير (LAY-03، فشل Playwright على #975)."""
+    assert body.count('class="day-picker"') == 1
+    assert re.search(r'<div class="exec-meta">\s*<nav class="day-picker"', body)
+
+
 class TestEveryRoleGetsThePicker:
     """أحدَ عشرَ دوراً + الطالبُ وحاملُ الجناح: اللوحةُ نفسُها تحمل المحدِّدَ، ولكلّ حالةٍ سياقُها."""
 
@@ -115,7 +122,7 @@ class TestEveryRoleGetsThePicker:
         assert resp.context["today"] == shown
         assert resp.context["view_only"] is read_only
         body = resp.content.decode()
-        assert 'class="day-picker"' in body
+        _assert_picker_in_the_header(body)
         assert ("عرضٌ للقراءة فقط" in body) is read_only
 
     @pytest.mark.parametrize("asked,read_only,shown", CASES)
@@ -129,7 +136,7 @@ class TestEveryRoleGetsThePicker:
 
             assert resp.status_code == 200
             assert resp.context["today"] == shown and resp.context["view_only"] is read_only
-            assert 'class="day-picker"' in resp.content.decode()
+            _assert_picker_in_the_header(resp.content.decode())
 
     def test_the_subtitle_carries_the_chosen_date_not_the_real_one(
         self, monkeypatch, client_as, teacher

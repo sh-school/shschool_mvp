@@ -12,7 +12,6 @@
 كلٌّ منها بإطارٍ وبطاقاتٍ مختلفة. والأسماءُ هنا قائمةٌ مغلقة: الدورُ الذي لا
 قالبَ له يرى «other» لا خطأً.
 {% endcomment %}
-{% if date_nav %}{% include "dashboard/partials/_day_picker.html" %}{% endif %}
 {% if view_type == "director" %}{% include "dashboard/roles/director.html" %}
 {% elif view_type == "teacher" or view_type == "coordinator" %}{% include "dashboard/roles/teacher.html" %}
 {% elif view_type == "student" %}{% include "dashboard/roles/student.html" %}
