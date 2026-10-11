@@ -32,7 +32,6 @@ from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing
 from operations.models import (
     AbsenceAlert,
-    AttendanceEntry,
     ClassExit,
     CompensatorySession,
     DailyExitTally,
@@ -208,29 +207,21 @@ def get_director_ctx(school, today):
 
 
 def session_entry_states(session_ids: list[Any]) -> dict[Any, str]:
-    """حالةُ رصد كلّ حصّةٍ في استعلامٍ واحد (شارةُ لوحة المعلّم، W-20261003-038): `none` لم يُدخَل، `pending` بانتظار
-    الاعتماد، `approved` معتمَد.
+    """حالةُ رصد كلّ حصّةٍ في استعلامٍ واحد (شارةُ لوحة المعلّم، W-20261003-038): `none` لم يُدخَل، `approved` تمّ الرصد.
 
-    تُقرأ من رؤوس الإدخالات (`superseded_by` فارغ) لا من `StudentAttendance`: المعلَّقُ ليس حضوراً ولا غياباً فيُعرض وسماً.
-    أيُّ إدخالٍ بلا قرارٍ يجعل الحصّةَ «بانتظار الاعتماد» (فاعتماد بعضه لا يكفي)؛ وحصّةٌ كلُّ إدخالاتها مرفوضةٌ تعود «لم يُدخَل»
-    لأنّ المرفوضَ لا أثرَ له وعلى المعلّم أن يرصد من جديد.
+    تُقرأ من `StudentAttendance` — الرصدُ نهائيٌّ فوريٌّ بلا اعتماد (D-245م، أمرُ المالك 2026-10-09)، فوجودُ سجلٍّ للحصّة يعني أنّها رُصدت.
+    وقيمةُ `approved` اسمٌ قديمٌ للحالة «تمّ الرصد» أُبقي لقالبٍ واحد.
     """
     states: dict[Any, str] = dict.fromkeys(session_ids, "none")
     if not session_ids:
         return states
-    rows = (
-        AttendanceEntry.objects.filter(session_id__in=session_ids, superseded_by__isnull=True)
-        .values("session_id")
-        .annotate(
-            undecided=Count("id", filter=Q(decision__isnull=True)),
-            approved=Count("id", filter=Q(decision__decision="approved")),
-        )
+    recorded = (
+        StudentAttendance.objects.filter(session_id__in=session_ids)
+        .values_list("session_id", flat=True)
+        .distinct()
     )
-    for row in rows:
-        if row["undecided"]:
-            states[row["session_id"]] = "pending"
-        elif row["approved"]:
-            states[row["session_id"]] = "approved"
+    for session_id in recorded:
+        states[session_id] = "approved"
     return states
 
 

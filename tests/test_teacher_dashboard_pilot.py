@@ -1,6 +1,6 @@
 """تجربة لوحة المعلّم: شارةُ حالة الرصد لكل حصّة، ونصُّ البلاطة، وصفوفٌ مضغوطة (W-20261003-038، D-177م).
 
-الشارةُ تُقرأ من رؤوس الإدخالات لا من `StudentAttendance`: المعلَّقُ ليس حضوراً ولا غياباً فيُعرض وسماً.
+الشارةُ حالتان فقط («لم يُدخَل» / «تم الرصد») وتُقرأ من `StudentAttendance`: الرصدُ نهائيٌّ بلا اعتماد (D-245م).
 """
 
 import datetime as dt
@@ -91,14 +91,14 @@ def test_the_dashboard_row_shows_the_state_badge(
 def test_the_dashboard_makes_a_single_state_query_not_one_per_row(
     client_as, teacher, session, monkeypatch, live_schedule
 ):
-    """لا N+1: عددُ استعلاماتِ الإدخالات في اللوحة واحدٌ مهما كثرت الحصص."""
+    """لا N+1: عددُ استعلاماتِ الرصد المعتمَد في اللوحة واحدٌ مهما كثرت الحصص."""
     from django.db import connection
     from django.test.utils import CaptureQueriesContext
 
     monkeypatch.setattr(timezone, "localdate", lambda *a, **k: SUNDAY)
     with CaptureQueriesContext(connection) as ctx:
         client_as(teacher).get(reverse("dashboard"))
-    entry_queries = [q for q in ctx.captured_queries if "operations_attendanceentry" in q["sql"]]
+    entry_queries = [q for q in ctx.captured_queries if "operations_studentattendance" in q["sql"]]
     assert len(entry_queries) <= 1
 
 
