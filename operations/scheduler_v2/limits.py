@@ -10,6 +10,10 @@ from __future__ import annotations
 
 #: مهلةُ الحلّال نفسِه (runner.DEFAULT_MAX_SECONDS) — يقرؤها المشغّل منها لا من هنا.
 SOLVER_MAX_SECONDS = 1800
+#: سقفُ طبقة المخالفات بعد أوّل حلٍّ لها (قرار المالك D-392م: «5 دقائق بعد أوّل حلّ، والباقي للجودة»).
+#: لا سقفَ مطلقاً قبل أوّل حلّ (قيس 52ث..464ث)؛ وتتوقّف الطبقة عند (أوّل حلّ + هذا) أو عند حصّتها أيّهما أسبق،
+#: وما وُفِّر ينتقل إلى الطبقة التالية فيبقى المجموعُ SOLVER_MAX_SECONDS.
+LAYER_AFTER_FIRST_SOLUTION_SECONDS = 300
 #: سقفُ المهمّة الليّن: الحلُّ + التقييمُ + كتابةُ المسودّة بهامش.
 GENERATION_SOFT_TIME_LIMIT = 3600
 GENERATION_HARD_TIME_LIMIT = GENERATION_SOFT_TIME_LIMIT + 60
