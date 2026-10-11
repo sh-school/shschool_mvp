@@ -27,6 +27,7 @@ from core.models import School
 
 from .last_period_cap import personal_last_cap
 from .models import SchedulingResource, SubjectClassAssignment, TeacherExemption, TeacherPreference
+from .schedule_relaxation import STRICT_RUN_CAP, relaxed_run_cap
 from .scheduler_bell import HC5_JOINABLE_GAP_MINUTES
 from .scheduler_constraints import (
     FIRST_PERIOD,
@@ -363,6 +364,33 @@ def _bell_rows(school: School, day_type: str, memo: dict | None) -> dict[str, li
     return grouped
 
 
+def _max_with_runs(ordered: list[tuple[time, time]], run_cap: int) -> int:
+    """أقصى خاناتٍ يُختار منها بحيث لا يزيد المتلاصقُ المتصلُ منها عن `run_cap`.
+
+    الخاناتُ مرتَّبةٌ بالانتهاء؛ متلاصقتان إن كان الفاصلُ بين انتهاء الأولى وبدء الثانية ≤ فاصل HC5،
+    وخانتان متداخلتان لا تُختاران معاً (معلّمٌ واحد). برمجةٌ ديناميكيّةٌ على طول التتابع الحاليّ.
+    """
+    best: list[list[int]] = []  # best[i][r] = أكبرُ عددٍ ينتهي باختيار الخانة i وفي تتابعها r خانة
+    top = 0
+    for i, (start, _finish) in enumerate(ordered):
+        row = [0] * (run_cap + 1)
+        row[1] = 1
+        for j in range(i):
+            gap = _minutes(start) - _minutes(ordered[j][1])
+            if gap < 0:
+                continue
+            joined = gap <= HC5_JOINABLE_GAP_MINUTES
+            for r in range(1, run_cap + 1):
+                if not best[j][r]:
+                    continue
+                nxt = r + 1 if joined else 1
+                if nxt <= run_cap:
+                    row[nxt] = max(row[nxt], best[j][r] + 1)
+        best.append(row)
+        top = max(top, *row)
+    return top
+
+
 def _band_day_cap(
     school: School,
     band_ids: frozenset[str],
@@ -403,12 +431,21 @@ def _band_day_cap(
     #: أقصى مجموعةٍ لا يتلاصق فيها عنصران (HC5: `MAX_CONSECUTIVE = 1`) — لا عدُّ
     #: التكتّلات. الأولى تعطي ٤ لسبعِ حصصٍ متتالية، والثانيةُ ١ فتُرفَض الأنصبةُ
     #: كلُّها. والجشعُ بأبكر انتهاءٍ مثاليٌّ لهذه الهيئة (جدولةُ الفترات بفاصل).
-    count = 0
-    last_end: time | None = None
-    for start, finish in sorted(intervals, key=lambda iv: (iv[1], iv[0])):
-        if last_end is None or _minutes(start) - _minutes(last_end) > HC5_JOINABLE_GAP_MINUTES:
-            count += 1
-            last_end = finish
+    #: ومع تخفيف التلاصق للجميع (D-382م) يتّسع اليومُ لحصّتين متلاصقتين فيُقاس بالسقف المخفَّف نفسِه الذي يقبله النموذج.
+    run_cap = memo.get("run_cap") if memo is not None else None
+    if run_cap is None:
+        run_cap = relaxed_run_cap(school)  # استعلامٌ واحد لكلّ فحصٍ لا لكلّ (معلّم، يوم)
+        if memo is not None:
+            memo["run_cap"] = run_cap
+    if run_cap > STRICT_RUN_CAP:
+        count = _max_with_runs(sorted(intervals, key=lambda iv: (iv[1], iv[0])), run_cap)
+    else:
+        count = 0
+        last_end: time | None = None
+        for start, finish in sorted(intervals, key=lambda iv: (iv[1], iv[0])):
+            if last_end is None or _minutes(start) - _minutes(last_end) > HC5_JOINABLE_GAP_MINUTES:
+                count += 1
+                last_end = finish
     if memo is not None:
         memo[result_key] = count
     return count

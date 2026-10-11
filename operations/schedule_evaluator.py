@@ -25,6 +25,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from .schedule_grid_loader import entries_of, load_grid
+from .schedule_relaxation import run_caps_for_tasks
 from .scheduler_audit import grid_breaches
 from .scheduler_constraints import calculate_quality_score
 
@@ -266,6 +267,8 @@ def evaluate_slots(
     }
     loaded = load_grid(school, academic_year, list(slots))
     grid, placed_tasks, blocked = loaded["grid"], loaded["tasks"], loaded["blocked"]
+    #: التخفيفُ المدرسيّ المحفوظ (D-382م) يُحكم به كما يُحكم بسقف الأولى: مصدرٌ واحد للمولّد والمُقيِّم؛ والمُمرَّرُ يعلوه.
+    relaxations = run_caps_for_tasks(school, placed_tasks, relaxations)
     orphans = loaded["orphan_tasks"]
 
     def periods(task: Any) -> int:

@@ -89,7 +89,8 @@ def test_a_diagnosis_crash_never_hides_the_proven_infeasibility(school, monkeypa
     result, _ = runner.run(school, YEAR, CONFIG, inputs=_inputs())
 
     assert result.reason == "infeasible" and result.diagnosis is None
-    assert result.message == "مستحيلٌ بالبرهان (INFEASIBLE): القيودُ متعارضة"
+    assert result.message.startswith("مستحيلٌ بالبرهان (INFEASIBLE): القيودُ متعارضة. ")
+    assert "القاعدة السارية" in result.message and "عطلٌ" not in result.message
 
 
 def test_an_injected_solver_skips_the_diagnosis_that_contract_tests_rely_on(school, monkeypatch):
