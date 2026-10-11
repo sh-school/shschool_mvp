@@ -1,0 +1,119 @@
+{% extends "base/base.html" %}
+{% load icons ui %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/requests/" parent_label="طلبات الأولياء" current=page_title %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash sa-page sa-form-page">
+
+  {% page_header page_title subtitle=req.student.full_name icon="edit_record" %}
+    <span class="status-badge status-{{ req.stage_tone }}">{{ req.get_stage_display }}</span>
+  {% endpage_header %}
+
+  {% section_card "بيانات الطلب" icon="edit_record" %}
+    <dl class="detail-dl">
+      {% if req.student %}<dt>الطالب</dt><dd><strong>{{ req.student.full_name }}</strong></dd>{% endif %}
+      {% if req.guardian_name %}<dt>{% if req.kind == "hotline" %}المتّصل{% else %}وليّ الأمر{% endif %}</dt><dd>{{ req.guardian_name }}</dd>{% endif %}
+      <dt>التاريخ</dt><dd>{{ req.request_date|date:"d/m/Y" }}</dd>
+      {% if req.kind == "hotline" %}
+      <dt>الرقم المرجعي</dt><dd dir="ltr">{{ req.call_reference }}</dd>
+      <dt>وقت الاتصال</dt><dd>{{ req.call_at|date:"d/m/Y H:i" }}</dd>
+      <dt>صفة المتصل</dt><dd>{{ req.get_caller_capacity_display }}{% if req.caller_capacity_note %} — {{ req.caller_capacity_note }}{% endif %}</dd>
+      <dt>الموجَّه إليه</dt><dd>{{ req.get_directed_to_display }}{% if req.directed_note %} — {{ req.directed_note }}{% endif %}</dd>
+      <dt>متلقّي الاتصال</dt><dd>{{ req.receiver_name }}</dd>
+      {% if req.related_students_text %}<dt>الطلاب ذوو العلاقة</dt><dd>{{ req.related_students_text }}</dd>{% endif %}
+      {% endif %}
+      {% if req.kind == "contact_change" %}
+      <dt>الرقم الحالي</dt><dd dir="ltr">{{ req.current_phone|default:"—" }}</dd>
+      <dt>الرقم الجديد</dt><dd dir="ltr">{{ req.new_phone }}</dd>
+      {% elif req.contact_phone %}
+      <dt>رقم التواصل</dt><dd dir="ltr">{{ req.contact_phone }}</dd>
+      {% endif %}
+      {% if req.body %}<dt>{% if req.kind == "hotline" %}أسباب الاتصال{% else %}النصّ{% endif %}</dt><dd>{{ req.body|linebreaksbr }}</dd>{% endif %}
+      {% if req.referred_to %}<dt>الموظّف المختصّ</dt><dd>{{ req.referred_to.full_name }} — {{ req.referred_at|date:"d/m/Y" }}</dd>{% endif %}
+      {% if req.feedback_text %}<dt>التغذية الراجعة</dt><dd>{{ req.feedback_text|linebreaksbr }}<br><small>{{ req.feedback_by.full_name }} — {{ req.feedback_at|date:"d/m/Y" }}</small></dd>{% endif %}
+      {% if req.contact_status %}<dt>التواصل مع وليّ الأمر</dt><dd>{{ req.get_contact_status_display }} — {{ req.contact_at|date:"d/m/Y" }}</dd>{% endif %}
+      {% if req.verified_by %}<dt>دقّقه</dt><dd>{{ req.verified_by.full_name }} — {{ req.verified_at|date:"d/m/Y H:i" }}</dd>{% endif %}
+    </dl>
+  {% endsection_card %}
+
+  {# ── المرحلة التالية: نموذجٌ واحدٌ ظاهرٌ في كلّ مرحلة ── #}
+  {% if req.kind == "contact_change" and req.stage == "submitted" %}
+    {% if can_verify %}
+    {% section_card "تدقيق الطلب" icon="checklist" %}
+      <form method="post" action="{% url 'student_affairs:request_verify' req.pk %}">
+        {% csrf_token %}
+        {% callout "warning" %}القبولُ يطبّق الرقمَ الجديد على سجلّ الطالب فوراً؛ ولا يدقّق الطلبَ من أنشأه.{% endcallout %}
+        <div class="form-actions">
+          <button type="submit" name="decision" value="approve" class="btn-primary btn-sm">{% icon "status_success" %} قبول وتطبيق الرقم</button>
+          <button type="submit" name="decision" value="reject" class="btn-secondary btn-sm">رفض</button>
+        </div>
+      </form>
+    {% endsection_card %}
+    {% else %}
+    {% callout "info" %}ينتظر الطلبُ تدقيقَ النائب الإداريّ أو المدير.{% endcallout %}
+    {% endif %}
+
+  {% elif req.stage == "submitted" and req.kind != "hotline" %}
+  {% section_card "التحويل للموظّف المختصّ" icon="checklist" %}
+    <form method="post" action="{% url 'student_affairs:request_refer' req.pk %}">
+      {% csrf_token %}
+      <div class="form-row">
+        <div class="ui-field sa-span-full">
+          <label for="f-employee" class="ui-field__label">الموظّف المختصّ <span class="req-star" aria-hidden="true">*</span></label>
+          <select id="f-employee" name="employee" class="form-control" required>
+            <option value="">— اختر الموظّف —</option>
+            {% for m in staff %}<option value="{{ m.user_id }}">{{ m.user.full_name }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-actions"><button type="submit" class="btn-primary btn-sm">{% icon "status_success" %} تحويل</button></div>
+    </form>
+  {% endsection_card %}
+
+  {% elif req.stage == "referred" %}
+  {% section_card "التغذية الراجعة" icon="checklist" %}
+    <form method="post" action="{% url 'student_affairs:request_feedback' req.pk %}">
+      {% csrf_token %}
+      <div class="form-row">
+        {% field "text" "ما تمّ في الطلب" type="textarea" rows=4 required=True css="sa-span-full" %}
+      </div>
+      <div class="form-actions"><button type="submit" class="btn-primary btn-sm">{% icon "status_success" %} تسجيل التغذية الراجعة</button></div>
+    </form>
+  {% endsection_card %}
+
+  {% elif req.stage == "feedback" %}
+  {% section_card "التواصل مع وليّ الأمر" icon="checklist" %}
+    <form method="post" action="{% url 'student_affairs:request_contact' req.pk %}">
+      {% csrf_token %}
+      <div class="form-row">
+        {% field "status" "هل تمّ التواصل مع وليّ الأمر؟" type="select" choices=contact_choices required=True %}
+      </div>
+      <div class="form-actions"><button type="submit" class="btn-primary btn-sm">{% icon "status_success" %} تأكيد</button></div>
+    </form>
+  {% endsection_card %}
+
+  {% elif req.stage == "contact_confirmed" or req.kind == "hotline" and req.stage == "submitted" %}
+  <form method="post" action="{% url 'student_affairs:request_close' req.pk %}">
+    {% csrf_token %}
+    <div class="form-actions"><button type="submit" class="btn-primary btn-sm">{% icon "status_success" %} إغلاق الطلب</button></div>
+  </form>
+  {% endif %}
+
+  {% section_card "مسار الطلب" icon="swap_requests" %}
+    <ul class="plain-list">
+      {% for e in events %}
+      <li class="plain-list__row">
+        <span class="plain-list__main"><b class="plain-list__title">{{ e.stage_label }}</b>{% if e.actor %}<span class="plain-list__sub">{{ e.actor.full_name }}</span>{% endif %}</span>
+        <span class="status-badge status-gray" dir="ltr">{{ e.at|date:"d/m/Y H:i" }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  {% endsection_card %}
+
+</div>
+{% endblock %}

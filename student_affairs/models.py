@@ -198,3 +198,10 @@ class StudentActivity(SchoolScopedModel):
 
     def __str__(self):
         return f"{self.student.full_name} — {self.title}"
+
+
+# طلبات الأولياء وشكاواهم (W-20261001-019) — في وحدةٍ مستقلّة، وتُسجَّل هنا لتراها Django.
+from student_affairs.guardian_request_models import (  # noqa: E402,F401
+    GuardianRequest,
+    GuardianRequestEvent,
+)

@@ -137,6 +137,15 @@ def registry() -> dict[str, Capability]:
         ),
         _cap("student_affairs.deactivate", "إيقافُ قيد طالب", P.STUDENT_DEACTIVATE),
         _cap(
+            "student_affairs.verify_contact",
+            "تدقيقُ طلب تغيير رقم التواصل مع وليّ الأمر",
+            {"principal", "vice_admin"},
+            basis=(
+                "نموذج 05 من كتالوج 07ج: يدقّقه النائبُ الإداريّ قبل تطبيق الرقم على سجلّ الطالب؛ "
+                "والمديرُ معه بقاعدة القيادة (W-20261001-019)"
+            ),
+        ),
+        _cap(
             "student_affairs.transfers",
             "انتقالاتُ الطلبة (طلبٌ ومراجعةٌ وإتمام)",
             P.STUDENT_AFFAIRS_TRANSFERS,

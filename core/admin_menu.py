@@ -103,6 +103,7 @@ GROUPS: tuple[tuple[str, tuple[tuple[str | None, tuple[str, ...]], ...]], ...] =
                     "core.StudentEnrollment",
                     "core.ParentStudentLink",
                     "student_affairs.StudentTransfer",
+                    "student_affairs.GuardianRequest",
                 ),
             ),
             (

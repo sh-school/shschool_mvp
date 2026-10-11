@@ -1,0 +1,86 @@
+{% extends "base/base.html" %}
+{% load icons ui %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/requests/" parent_label="طلبات الأولياء" current=page_title %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash sa-page sa-form-page">
+  {% page_header page_title icon=page_icon %}{% endpage_header %}
+
+  <div class="form-card">
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+      <div class="msg-bar msg-error sa-form-errors" role="alert">
+        {% for err in form.non_field_errors %}<span class="msg-text">{{ err }}</span>{% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="form-row">
+
+        {% if kind == "hotline" %}
+        {# الخطّ الساخن: سجلُّ مكالمةٍ — مرجعُها ووقتُها وصفةُ المتصل ومتلقّيها قبل مضمونها #}
+        {% field "call_reference" "الرقم المرجعي للاتصال" value=form.call_reference.value required=True error=form.call_reference.errors.0 %}
+        {% field "call_at" "وقت الاتصال" type="datetime-local" value=form.call_at.value required=True error=form.call_at.errors.0 %}
+        {% field "receiver_name" "متلقّي الاتصال" value=form.receiver_name.value required=True error=form.receiver_name.errors.0 %}
+        {% field "guardian_name" "اسم المتّصل" value=form.guardian_name.value error=form.guardian_name.errors.0 %}
+        {% field "caller_capacity" "صفة المتصل" type="select" choices=capacity_choices value=form.caller_capacity.value blank="— اختر —" required=True error=form.caller_capacity.errors.0 %}
+        {% field "caller_capacity_note" "توضيح الصفة (عند «غير ذلك»)" value=form.caller_capacity_note.value error=form.caller_capacity_note.errors.0 %}
+        {% field "directed_to" "الموجَّه إليه" type="select" choices=direct_choices value=form.directed_to.value blank="— اختر —" required=True error=form.directed_to.errors.0 %}
+        {% field "directed_note" "توضيح الجهة (عند «غير ذلك»)" value=form.directed_note.value error=form.directed_note.errors.0 %}
+        {% field "related_students_text" "الطلاب ذوو العلاقة" value=form.related_students_text.value placeholder="الاسم والشعبة، بالفصل بينهم بفاصلة" css="sa-span-full" error=form.related_students_text.errors.0 %}
+        {% field "body" "أسباب الاتصال" type="textarea" rows=5 value=form.body.value required=True css="sa-span-full" error=form.body.errors.0 %}
+
+        {% else %}
+        {# الطالب: بالاسم والشعبة وحدَهما — لا رقمَ شخصيّاً في الخيار #}
+        <div class="ui-field sa-span-full">
+          <label for="f-student_id" class="ui-field__label">الطالب <span class="req-star" aria-hidden="true">*</span></label>
+          <select id="f-student_id" name="student_id" class="form-control" required>
+            <option value="">— اختر الطالب —</option>
+            {% for m in students %}
+            <option value="{{ m.user_id }}" {% if form.student_id.value|slugify == m.user_id|slugify %}selected{% endif %}>{{ m.user.full_name }} — {{ m.class_label }}</option>
+            {% endfor %}
+          </select>
+          {% for err in form.student_id.errors %}<p class="field-error" role="alert">{{ err }}</p>{% endfor %}
+        </div>
+        {% if kind == "statement" %}
+        {% field "guardian_name" "وليّ الأمر (إن وُجد)" value=form.guardian_name.value error=form.guardian_name.errors.0 %}
+        {% else %}
+        {% field "guardian_name" "اسم وليّ الأمر" value=form.guardian_name.value required=True error=form.guardian_name.errors.0 %}
+        {% endif %}
+        {% field "request_date" "التاريخ" type="date" value=form.request_date.value error=form.request_date.errors.0 %}
+
+        {% if kind == "contact_change" %}
+        {% field "current_phone" "الرقم الحالي" type="tel" value=form.current_phone.value help="يُملأ من سجلّ الطالب إن تُرك فارغاً" dir="ltr" error=form.current_phone.errors.0 %}
+        {% field "new_phone" "الرقم الجديد" type="tel" value=form.new_phone.value required=True dir="ltr" error=form.new_phone.errors.0 %}
+        {% field "body" "سبب التغيير" type="textarea" rows=3 value=form.body.value css="sa-span-full" error=form.body.errors.0 %}
+        {% else %}
+        {% field "contact_phone" "رقم التواصل" type="tel" value=form.contact_phone.value dir="ltr" error=form.contact_phone.errors.0 %}
+        {% if kind == "complaint" %}
+        {% field "body" "نصّ الشكوى" type="textarea" rows=5 value=form.body.value required=True css="sa-span-full" error=form.body.errors.0 %}
+        {% elif kind == "statement" %}
+        {% field "body" "إفادة الطالب" type="textarea" rows=5 value=form.body.value required=True css="sa-span-full" error=form.body.errors.0 %}
+        {% else %}
+        {% field "body" "الطلب" type="textarea" rows=5 value=form.body.value required=True css="sa-span-full" error=form.body.errors.0 %}
+        {% endif %}
+        {% endif %}
+        {% endif %}
+      </div>
+
+      {% if kind == "contact_change" %}
+      {% callout "info" %}لا يتغيّر رقمُ الطالب في سجلّه حتى يدقّق النائبُ الإداريّ الطلبَ ويقبله.{% endcallout %}
+      {% endif %}
+
+      <div class="form-footer">
+        <a href="{% url 'student_affairs:request_list' %}" class="btn-secondary btn-sm">إلغاء</a>
+        <button type="submit" class="btn-primary btn-sm">{% icon "status_success" %} تسجيل</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base/base.html" %}
+{% load icons ui %}
+
+{% block title %}طلبات الأولياء وشكاواهم{% endblock %}
+
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="طلبات الأولياء" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash sa-page">
+  {% page_header "طلبات الأولياء وشكاواهم" icon="edit_record" %}
+    {% for key, page in kind_pages.items %}
+    <a href="{% url 'student_affairs:request_create' key %}" class="btn-primary btn-sm">{% icon "edit_record" %} {{ page.0 }}</a>
+    {% endfor %}
+  {% endpage_header %}
+
+  {% filter_bar "ترشيحُ الطلبات" %}
+    {% field "kind" "النوع" type="select" choices=kind_choices value=kind_filter blank="— الكل —" data_autosubmit=True %}
+    {% field "stage" "المرحلة" type="select" choices=stage_choices value=stage_filter blank="— الكل —" data_autosubmit=True %}
+    <div class="filter-actions">
+      <a href="{% url 'student_affairs:request_list' %}" class="btn-secondary btn-xs">إعادة ضبط</a>
+    </div>
+  {% endfilter_bar %}
+
+  <div class="table-wrap">
+    {% if requests %}
+    <div class="table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>النوع</th>
+            <th>الطالب</th>
+            <th class="col-center">التاريخ</th>
+            <th class="col-center">المرحلة</th>
+            <th class="col-actions">تفاصيل</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in requests %}
+          <tr>
+            <td data-label="النوع">{{ r.get_kind_display }}</td>
+            <td data-label="الطالب"><strong>{{ r.student.full_name|default:"—" }}</strong></td>
+            <td data-label="التاريخ" class="col-center">{{ r.request_date|date:"d/m/Y" }}</td>
+            <td data-label="المرحلة" class="col-center"><span class="status-badge status-{{ r.stage_tone }}">{{ r.get_stage_display }}</span></td>
+            <td class="col-actions"><a href="{% url 'student_affairs:request_detail' r.pk %}" class="btn-secondary btn-xs">عرض</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% empty_state "لا توجد طلبات" icon="edit_record" %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -30,6 +30,7 @@ from core.models.access import Membership, Role
 from core.models.audit import AuditLog
 from core.models.user import CustomUser, Profile
 from core.privacy import mask_national_id
+from student_affairs.guardian_requests import hold_phone_change
 
 logger = logging.getLogger(__name__)
 
@@ -616,7 +617,7 @@ class StudentService:
         Args:
             student: كائن الطالب (CustomUser)
             school: كائن المدرسة
-            data: dict يحتوي full_name, phone, email, birth_date, notes, grade, section
+            data: dict يحتوي full_name, phone, email, birth_date, notes, grade, section, actor
 
         Returns:
             CustomUser: الطالب بعد التحديث
@@ -628,7 +629,7 @@ class StudentService:
 
         # ── 1. تحديث المستخدم ──
         student.full_name = data["full_name"]
-        student.phone = data.get("phone", "")
+        student.phone = hold_phone_change(student, school, data.get("actor"), data.get("phone", ""))
         student.email = data.get("email", "")
         student.save(update_fields=["full_name", "phone", "email"])
 
