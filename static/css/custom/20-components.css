@@ -1525,14 +1525,6 @@ main.page-wide {
 }
 
 /* ── Empty State ── */
-.empty-state .empty-icon { font-size: 3rem; margin-bottom: var(--sp-3); display: block; }
-.empty-state .empty-title {
-  font-size: var(--text-base); font-weight: 700;
-  color: var(--text-secondary); margin: 0 0 var(--sp-1-5);
-}
-.empty-state .empty-sub {
-  font-size: var(--text-sm); color: var(--text-muted); margin: 0;
-}
 
 /* ── تذييل الجدول (إجماليات) ── */
 tfoot tr {

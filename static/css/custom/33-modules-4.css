@@ -1492,8 +1492,6 @@ body:has(.rm-page) .site-footer { flex: none; }
 .pp-class__info { display: flex; flex-direction: column; gap: var(--sp-0-5); }
 .pp-class__name { font-size: var(--text-lg); color: var(--text-primary); }
 .pp-class__wing { font-size: var(--text-sm); color: var(--text-secondary); }
-.pp-key { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
-.pp-key .ui-note { margin: 0; }
 
 /* جدولُ حصصي ومفاتيحُه مُعطَّلةُ المظهر حين يُشغَّل الرصدُ المؤقّت (W-20261005-006، أمرُ المالك): الجدولُ غيرُ معتمد؛ و«تحت الإجراء» وسطَ السطر بحجمٍ ×3 وأحمرَ متوهّج (أمرُ المالك). */
 .sessions-table.is-off tbody { opacity: .55; }
