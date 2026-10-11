@@ -173,11 +173,12 @@ def test_pedagogy_timing_and_maths_late():
 
 
 def test_edge_fairness_and_stress_name_the_worst():
-    slots = [slot(teacher="a", klass="c1", day=d, period=1) for d in range(5)] + [
-        slot(teacher="b", klass="c2", day=d, period=3) for d in range(5)
+    """أ يومُه حصّتان (أوّلُ خانةٍ وآخرُها كلُّ حصصه)، وب أربعٌ متّصلة (نصفُ حصصه طرفان)."""
+    slots = [slot(teacher="a", klass="c1", day=d, period=p) for d in range(5) for p in (2, 6)] + [
+        slot(teacher="b", klass="c2", day=d, period=p) for d in range(5) for p in (2, 3, 4, 5)
     ]
     lab = ScheduleLab(slots, Context())
-    assert lab.edge_fairness()["value"] > 0.9, "أ كلُّ حصصه أولى، وب لا شيء"
+    assert lab.edge_fairness()["value"] > 0.3, "أ كلُّ حصصه طرفٌ، وب نصفُها"
     assert list(lab.stress()["detail"])[0] == "a"
 
 
