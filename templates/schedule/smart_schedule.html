@@ -361,15 +361,17 @@
             <th scope="col">التاريخ</th>
             <th scope="col" class="text-center">الحالة</th>
             <th scope="col" class="num">الحصص</th>
+            <th scope="col" class="num">الزمن</th>
             <th scope="col">بواسطة</th>
           </tr>
         </thead>
         <tbody>
           {% for g in folded_generations %}
           <tr>
-            <td>{{ g.generated_at|date:"d/m/Y H:i" }}</td>
+            <td data-sort-value="{{ g.generated_at|date:'U' }}">{{ g.generated_at|date:"d/m/Y H:i" }}</td>
             <td class="text-center"><span class="status-badge status-gray">{{ g.get_status_display }}</span></td>
             <td class="num">{% if g.status == 'failed' %}<span class="text-muted">—</span>{% else %}{{ g.placed }}/{{ total_weekly }}{% endif %}</td>
+            <td class="num text-muted" data-sort-value="{% if g.status == 'failed' %}{% else %}{{ g.generation_time_ms }}{% endif %}">{% if g.status == 'failed' %}—{% else %}{{ g.generation_time_ms|duration_ms }}{% endif %}</td>
             <td>{{ g.generated_by.full_name|default:"—" }}</td>
           </tr>
           {% endfor %}

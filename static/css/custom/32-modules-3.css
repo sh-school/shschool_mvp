@@ -1281,11 +1281,8 @@
   .load-legend { padding: var(--sp-2) var(--sp-3); }
 
 /* ── templates/schedule/smart_schedule.html ── */
-  /* مؤشّراتُ المختبر مصفوفةٌ: عمودٌ لكلّ توليد، والأفضلُ من الأساس أخضرُ والأسوأُ أحمر.
-     كانت جدولاً داخل `details` داخل صفٍّ من سجلّ التوليد. */
-  .lab-table td.lab-cell.is-better { color: var(--status-success-fg); }
-  .lab-table td.lab-cell.is-worse { color: var(--status-danger-fg); }
-  .lab-table td.lab-cell small { font-size: var(--text-xs); opacity: .85; }
+  /* جدولُ مؤشّرات بطاقة القرار: قيمٌ رقميّةٌ تُقرأ من اليسار ومحاذاتُها لطرف الخانة. */
+  .lab-table td.num { direction: ltr; text-align: end; }
   .smart-notes { display: grid; gap: var(--sp-2); margin-block-end: var(--sp-3); }
   /* فحصُ الجدوى: أربعةُ أسطرٍ صارت رقاقاتٍ تلتفّ سطرين لا جدولاً بخمسة صفوف —
      التفصيلُ يبقى بـ`title` صامتاً حين الحكمُ سليم، ويظهر حين يستحقّ الانتباه. */
