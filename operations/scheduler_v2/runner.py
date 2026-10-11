@@ -28,6 +28,7 @@ from django.utils import timezone
 from operations.cpsat_adapter import CpSatInputs, build_inputs
 from operations.schedule_evaluator import VERDICTS, Evaluation, evaluate_slots
 from operations.scheduler_v2.limits import SOLVER_MAX_SECONDS
+from operations.scheduler_v2.progress import STOPPED_EMPTY_LABEL
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,7 @@ def options_from_relaxations(spec: dict[str, Any] | None) -> dict[str, Any]:
     """يحوّل ملفَّ `--relaxations` إلى حقول `ModelOptions`: touch_relaxed وrun_cap وfirst_cap_override وno_6_7 والثلاثيات.
 
     الشكل: {"touch_relaxed": ["T..."], "run_cap": 2, "first_cap_override": {"T...": 4}, "no_6_7": true,
-    "triples_by_number": true}. مفتاحٌ مجهولٌ يُرفض (لا تخفيفَ صامت).
+    "triples_by_number": true, "touch_relaxed_all": true}. مفتاحٌ مجهولٌ يُرفض (لا تخفيفَ صامت).
     """
     spec = dict(spec or {})
     out: dict[str, Any] = {}
@@ -94,6 +95,8 @@ def options_from_relaxations(spec: dict[str, Any] | None) -> dict[str, Any]:
         out["touch_relaxed"] = frozenset(spec.pop("touch_relaxed"))
     if "run_cap" in spec:
         out["touch_relaxed_run_cap"] = int(spec.pop("run_cap"))
+    if "touch_relaxed_all" in spec:
+        out["touch_relaxed_all"] = bool(spec.pop("touch_relaxed_all"))
     if "first_cap_override" in spec:
         out["first_cap_override"] = tuple(sorted(dict(spec.pop("first_cap_override")).items()))
     for flag in ("no_6_7", "triples_by_number"):
@@ -102,6 +105,26 @@ def options_from_relaxations(spec: dict[str, Any] | None) -> dict[str, Any]:
     if spec:
         raise RunnerError(f"مفاتيح تخفيفٍ غير معروفة: {sorted(spec)}")
     return out
+
+
+def with_school_policy(config: SolverConfig, school: Any) -> SolverConfig:
+    """يضمّ إعدادَ التخفيف المدرسيّ (الأدمن، D-382م) تحت ما مُرِّر صراحةً؛ المُمرَّرُ لتشغيلٍ بعينه يغلب الأساس.
+
+    هو نقطةٌ واحدة لكلّ المسارات (الزرّ والمهمّة والأمر): فلا يولَّد جدولٌ بقاعدةٍ لا يقرؤها المُقيِّمُ وفحصُ الجدوى.
+    """
+    from dataclasses import replace
+
+    from operations.schedule_relaxation import school_policy
+
+    spec = {**school_policy(school).as_spec(), **dict(config.relaxations)}
+    return replace(config, relaxations=tuple(sorted(spec.items(), key=lambda kv: kv[0])))
+
+
+def _rule_note(config: SolverConfig) -> str:
+    """جملةُ القاعدة السارية لرسالة الفشل، من الإعداد الذي حُلّ به فعلاً لا من افتراضٍ في الذاكرة."""
+    from operations.schedule_relaxation import rule_sentence
+
+    return rule_sentence(dict(config.relaxations))
 
 
 def with_admin_first_caps(config: SolverConfig, school: Any, academic_year: str) -> SolverConfig:
@@ -731,7 +754,8 @@ def run(
 ) -> tuple[RunResult, CpSatInputs]:
     """حلٌّ + تقييمٌ مستقلّ بلا كتابة. يميّز INFEASIBLE (برهان) عن UNKNOWN/المهلة وعن رفض المُقيِّم."""
     inputs = inputs if inputs is not None else load_inputs(school, academic_year)
-    config = with_admin_first_caps(config, school, academic_year)
+    config = with_admin_first_caps(with_school_policy(config, school), school, academic_year)
+    note = _rule_note(config)
     with school_solve_lock(school.pk):
         report = solve_inputs(
             inputs, config, builder=builder, objective=objective, solver=solver, progress=progress
@@ -741,9 +765,16 @@ def run(
         diagnosis = _diagnose_quietly(inputs, config, builder, solver)
         if diagnosis is not None:
             message = f"{message}. {diagnosis.sentence()}"
+        message = f"{message}. {note}"
         return RunResult(False, report, None, message, "infeasible", diagnosis), inputs
+    if not report.slots and getattr(progress, "stop_flag", False):
+        # إيقافٌ يدويٌّ قبل أول حلّ: لا «انقضت المهلة» — المهلةُ لم تنقضِ، والمستخدمُ هو من أوقف.
+        message = f"أوقفه المستخدمُ قبل أن يجد الحلّالُ أيَّ جدول — لم تنقضِ المهلة. {note}"
+        return RunResult(False, report, None, message, "stopped"), inputs
     if not report.slots:
-        message = f"انقضت المهلةُ ({config.max_seconds:g}ث) بلا حلٍّ (UNKNOWN) — ضيقُ وقتٍ لا استحالة"
+        message = (
+            f"انقضت المهلةُ ({config.max_seconds:g}ث) بلا حلٍّ (UNKNOWN) — ضيقُ وقتٍ لا استحالة. {note}"
+        )
         return RunResult(False, report, None, message, "timeout"), inputs
     if report.unplaced:
         # جدولٌ ناقصٌ لا يصلح مسودّةً: يُرفض بالاسم قبل المُقيِّم ويبقى العددُ في اللقطة ليقرّر المالك.
@@ -756,7 +787,7 @@ def run(
         )
         message = (
             f"رفض المُقيِّمُ المستقلّ ناتجَ الحلّال: InfeasibilityValue={evaluation.infeasibility_value}"
-            f"، مخالفاتٌ صلبة={evaluation.hard_total} ({hard})، خاناتٌ بلا إسناد={evaluation.orphan_cells}"
+            f"، مخالفاتٌ صلبة={evaluation.hard_total} ({hard})، خاناتٌ بلا إسناد={evaluation.orphan_cells}. {note}"
         )
         return RunResult(False, report, evaluation, message, "rejected"), inputs
     return RunResult(True, report, evaluation, "", "ok"), inputs
@@ -840,7 +871,7 @@ def fail_generation(generation: Any, result: RunResult) -> None:
 
 
 def _final_state(result: RunResult, stopped: bool) -> str:
-    if result.reason in ("infeasible", "rejected"):
+    if result.reason in ("infeasible", "rejected", "stopped"):
         return result.reason
     if result.ok and result.report:
         if result.report.status == "OPTIMAL":
@@ -866,7 +897,8 @@ def run_generation(generation: Any, config: SolverConfig, **kwargs: Any) -> RunR
         result = RunResult(False, None, None, str(error), "no_model")
     if not result.ok:
         fail_generation(generation, result)
-        tracker.finish(_final_state(result, tracker.stop_flag))
+        label = STOPPED_EMPTY_LABEL if result.reason == "stopped" else None
+        tracker.finish(_final_state(result, tracker.stop_flag), label)
         return result
     persist_draft(generation, result, inputs, int((time.monotonic() - started) * 1000))
     tracker.finish(_final_state(result, tracker.stop_flag))
