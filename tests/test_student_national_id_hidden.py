@@ -76,7 +76,7 @@ def test_the_student_form_edit_mode_has_no_national_id_field():
 # عرضٌ فعليّ: الرقمُ المحفوظ لا يخرج في HTML الصفحات الرئيسيّة.
 # ---------------------------------------------------------------------------
 pytestmark = pytest.mark.django_db
-NID = "29812340917"  # ذيلٌ 0917 لا يقع في صفحةٍ بالصدفة
+NID = "9990000" + "0917"  # رقمٌ اصطناعيٌّ من النطاق المحجوز؛ ذيلُه 0917 لا يقع في صفحةٍ بالصدفة
 
 
 @pytest.fixture
@@ -102,14 +102,7 @@ def student(school, seeded_calendar):
     "name,args",
     [
         ("student_affairs:student_list", []),
-        pytest.param(
-            "student_affairs:student_profile",
-            "student",
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason="سطرُ الترويسة يبنيه student_affairs/views.py (profile_subtitle) بذيلٍ مستور؛ خارج نطاق القوالب",
-            ),
-        ),
+        ("student_affairs:student_profile", "student"),
         ("student_affairs:student_edit", "student"),
     ],
 )
@@ -122,3 +115,13 @@ def test_pages_do_not_print_the_stored_number(admin_client, student, name, args)
     body = response.content.decode()
     assert NID not in body and NID[-4:] not in body  # لا كاملاً ولا مستوراً بذيله
     assert "طالبٌ تجريبيّ" in body
+
+
+def test_the_tardiness_search_json_carries_no_part_of_the_number(admin_client, student):
+    """ردُّ البحث يصل المتصفّح: لا مفتاحَ `nid` ولا ذيلٌ من الرقم (أمرُ 0101 ضمن W-20261011-014)."""
+    response = admin_client.get(reverse("student_affairs:tardiness_search") + "?q=طالب")
+
+    assert response.status_code == 200
+    payload = response.content.decode()
+    assert "nid" not in payload and NID[-4:] not in payload
+    assert "طالبٌ تجريبيّ" in response.json()["results"][0]["name"]

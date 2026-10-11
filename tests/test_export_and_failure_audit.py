@@ -154,13 +154,14 @@ class TestExcelRegistersMaskTheNumber:
 
 
 class TestJsonAndApiMaskTheNumber:
-    def test_the_tardiness_search_masks_the_number(self, client_as, principal_user, klass, pupil):
+    def test_the_tardiness_search_carries_no_number(self, client_as, principal_user, klass, pupil):
         resp = client_as(principal_user).get(
             reverse("student_affairs:tardiness_search") + "?q=طالبُ"
         )
 
         payload = resp.json()
-        assert [row["nid"] for row in payload["results"]] == [MASKED]
+        assert payload["results"] and all("nid" not in row for row in payload["results"])
+        assert MASKED not in resp.content.decode() and STUDENT_ID not in resp.content.decode()
 
     def test_the_brief_serializer_masks_even_for_leadership(self, principal_user, pupil):
         from rest_framework.test import APIRequestFactory
