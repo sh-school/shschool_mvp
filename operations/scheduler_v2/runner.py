@@ -28,6 +28,7 @@ from django.utils import timezone
 from operations.cpsat_adapter import CpSatInputs, build_inputs
 from operations.schedule_evaluator import VERDICTS, Evaluation, evaluate_slots
 from operations.scheduler_v2.limits import SOLVER_MAX_SECONDS
+from operations.scheduler_v2.progress import STOPPED_EMPTY_LABEL
 
 logger = logging.getLogger(__name__)
 
@@ -766,6 +767,10 @@ def run(
             message = f"{message}. {diagnosis.sentence()}"
         message = f"{message}. {note}"
         return RunResult(False, report, None, message, "infeasible", diagnosis), inputs
+    if not report.slots and getattr(progress, "stop_flag", False):
+        # إيقافٌ يدويٌّ قبل أول حلّ: لا «انقضت المهلة» — المهلةُ لم تنقضِ، والمستخدمُ هو من أوقف.
+        message = f"أوقفه المستخدمُ قبل أن يجد الحلّالُ أيَّ جدول — لم تنقضِ المهلة. {note}"
+        return RunResult(False, report, None, message, "stopped"), inputs
     if not report.slots:
         message = (
             f"انقضت المهلةُ ({config.max_seconds:g}ث) بلا حلٍّ (UNKNOWN) — ضيقُ وقتٍ لا استحالة. {note}"
@@ -866,7 +871,7 @@ def fail_generation(generation: Any, result: RunResult) -> None:
 
 
 def _final_state(result: RunResult, stopped: bool) -> str:
-    if result.reason in ("infeasible", "rejected"):
+    if result.reason in ("infeasible", "rejected", "stopped"):
         return result.reason
     if result.ok and result.report:
         if result.report.status == "OPTIMAL":
@@ -892,7 +897,8 @@ def run_generation(generation: Any, config: SolverConfig, **kwargs: Any) -> RunR
         result = RunResult(False, None, None, str(error), "no_model")
     if not result.ok:
         fail_generation(generation, result)
-        tracker.finish(_final_state(result, tracker.stop_flag))
+        label = STOPPED_EMPTY_LABEL if result.reason == "stopped" else None
+        tracker.finish(_final_state(result, tracker.stop_flag), label)
         return result
     persist_draft(generation, result, inputs, int((time.monotonic() - started) * 1000))
     tracker.finish(_final_state(result, tracker.stop_flag))
