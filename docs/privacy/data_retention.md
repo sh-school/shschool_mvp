@@ -201,6 +201,7 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `operations_schedulegeneration` | عمليّاتُ التوليد |
 | `operations_freeslotregistry` | الحصصُ الحرّة |
 | `operations_timeslotconfig` | الحصصُ الزمنيّة |
+| `operations_schedulerelaxationpolicy` | سياسةُ تخفيف التلاصق المدرسيّة (إعدادٌ إداريّ لا بياناتٌ شخصيّة: سقفُ التتابع وقواعدُ السادسة والسابعة) — صفٌّ واحدٌ لكلّ مدرسة، تُحفظ ما دام الجدولُ يُولَّد بها، وسجلُّ تغييراتها في سجلّ التدقيق |
 | `exam_control_examsession` | دوراتُ الاختبار |
 | `exam_control_examroom` | القاعات |
 | `exam_control_examschedule` | جدولُ الاختبار |
