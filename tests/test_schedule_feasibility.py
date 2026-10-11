@@ -270,7 +270,11 @@ def test_the_report_is_storable(school, teacher):
 def test_the_smart_schedule_screen_shows_the_verdict(client_as, vice, school, teacher):
     assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 35)
 
-    page = client_as(vice).get(f"{reverse('smart_schedule')}?year={YEAR}").content.decode()
+    page = (
+        client_as(vice)
+        .get(f"{reverse('smart_schedule')}?year={YEAR}&feasibility=1")
+        .content.decode()
+    )
 
     assert "فحصُ الجدوى قبل التوليد" in page
     assert "لن تجد موضعاً" in page
@@ -280,7 +284,11 @@ def test_the_smart_schedule_screen_shows_the_verdict(client_as, vice, school, te
 def test_a_healthy_school_is_told_so(client_as, vice, school, teacher):
     assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 20)
 
-    page = client_as(vice).get(f"{reverse('smart_schedule')}?year={YEAR}").content.decode()
+    page = (
+        client_as(vice)
+        .get(f"{reverse('smart_schedule')}?year={YEAR}&feasibility=1")
+        .content.decode()
+    )
 
     assert "لا عجزَ في العدّ" in page
     assert "عجزٌ يقينيّ" not in page
@@ -460,7 +468,11 @@ def test_the_generate_button_hides_when_infeasible_and_the_override_form_appears
     section = a_class(school)
     assign(school, a_subject(school, "الرياضيات", "MAT"), section, teacher, 35)
 
-    page = client_as(vice).get(f"{reverse('smart_schedule')}?year={YEAR}").content.decode()
+    page = (
+        client_as(vice)
+        .get(f"{reverse('smart_schedule')}?year={YEAR}&feasibility=1")
+        .content.decode()
+    )
 
     assert "بدء التوليد" not in page
     assert "ولِّد على أيّ حال" in page
