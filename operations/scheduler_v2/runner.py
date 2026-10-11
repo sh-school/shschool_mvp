@@ -27,6 +27,7 @@ from django.utils import timezone
 
 from operations.cpsat_adapter import CpSatInputs, build_inputs
 from operations.schedule_evaluator import VERDICTS, Evaluation, evaluate_slots
+from operations.scheduler_v2.limits import SOLVER_MAX_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ ENGINE = "cpsat_v2"
 DEFAULT_SEED = 20261011
 DEFAULT_WORKERS = 8
 #: HC14 وHC16B مفعَّلان افتراضاً ويقيسهما الحلّالُ UNKNOWN عند 90ث، فالسقفُ طويل (30 دقيقة) لا إيقافٌ لهما.
-DEFAULT_MAX_SECONDS = 1800
+DEFAULT_MAX_SECONDS = SOLVER_MAX_SECONDS
 #: مساحةُ القفل الاستشاريّ (مع معرّف المدرسة) — حلٌّ متزامنٌ واحدٌ لكلّ مدرسة.
 _LOCK_NAMESPACE = 0x5632
 
