@@ -28,9 +28,7 @@ import tempfile
 from pathlib import Path
 
 #: يطابق خطوةَ «فحص التعقيد الحلقي» في quality-gate.yml حرفيّاً (يحرسه test_prepush_check).
-RADON_EXCLUDE = (
-    "*/migrations/*,*/.venv/*,manage.py,scripts/*,*/scripts/*,tests/*,*/tests/*,*/management/commands/*"
-)
+RADON_EXCLUDE = "*/migrations/*,*/.venv/*,manage.py,scripts/*,*/scripts/*,tests/*,*/tests/*,*/management/commands/*"
 # قيمٌ عامّةٌ للاختبار فقط، منسوخةٌ حرفيّاً من quality-gate.yml (لا أسرارَ حقيقيّة).
 MYPY_ENV = {
     "DJANGO_SETTINGS_MODULE": "shschool.settings.testing",
@@ -43,7 +41,9 @@ OK, FAIL, MISSING = "ok", "fail", "missing"
 BATCH = 200
 
 
-def _run(cmd: list[str], env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+def _run(
+    cmd: list[str], env: dict[str, str] | None = None, timeout: float | None = None
+) -> subprocess.CompletedProcess:
     return subprocess.run(
         cmd,
         capture_output=True,
@@ -51,6 +51,7 @@ def _run(cmd: list[str], env: dict[str, str] | None = None) -> subprocess.Comple
         encoding="utf-8",
         errors="replace",
         env={**os.environ, **(env or {})},
+        timeout=timeout,
     )
 
 
@@ -136,6 +137,7 @@ def check_complexity():
 
 
 #: حرّاسُ الهويّة النصّيّة: تقرأ الأنماطَ والقوالبَ نصّاً بلا قاعدةٍ ولا خادم (لا django_db) — فتعمل محلّياً في ثوانٍ.
+#: الثلاثةُ الأخيرة أضافها W-20261011-002 (D-376م): سقطت في CI (#972 #977 #978) ولم يلتقطها prepush.
 IDENTITY_GUARDS = (
     "tests/test_css_colours_are_tokens.py",
     "tests/test_px_tokens.py",
@@ -143,20 +145,91 @@ IDENTITY_GUARDS = (
     "tests/test_css_layers.py",
     "tests/test_css_split.py",
     "tests/test_identity_reference_fresh.py",
+    "tests/test_dead_classes.py",
+    "tests/test_design_ratchet.py",
+    "tests/test_tailwind_freeze.py",
 )
-IDENTITY_PATHS = ("static/", "templates/", "core/icons.py", "core/templatetags/ui.py", "docs/design/page_layouts.md")
+IDENTITY_PATHS = (
+    "static/",
+    "templates/",
+    "core/icons.py",
+    "core/templatetags/ui.py",
+    "docs/design/page_layouts.md",
+)
+#: مهلةُ خطوة الهويّة وحدَها (D-376م: يُجاز رفعُ زمن prepush لهذا الغرض فقط). قيس تشغيلُ الحرّاس الثلاثة
+#: المضافة وحدَها ≈20 ثانية على المضيف؛ والمجموعةُ كلّها أبطأ على ويندوز فالمهلةُ سخيّة لا ضيّقة.
+IDENTITY_TIMEOUT_SECONDS = 300
+
+#: نتيجةُ خطوة الهويّة في هذا التشغيل لتطبع main إيصالَها آخرَ سطر؛ None = لم تُشغَّل (واجهةٌ لم تتغيّر).
+_identity_result: str | None = None
 
 
-def check_identity():
-    """W-20261011-001: حرّاسُ الهويّة كانت تسقط في CI وحدَه لأنّ هذا الفحص لا يشغّلها. تُشغَّل إن لمس العملُ الواجهة."""
-    files, _ = _files_to_scan(False)
-    if not any(f.startswith(IDENTITY_PATHS) for f in files):
-        return OK, "لا واجهة تغيّرت — تخطّي"
+def head8() -> str:
+    return _run(["git", "rev-parse", "--short=8", "HEAD"]).stdout.strip() or "unknown"
+
+
+def changed_paths_vs_merge_base() -> list[str] | None:
+    """ما تغيّر عن merge-base مع origin/main (مُودَعاً أو لا) مع غير المتتبَّع؛ None إن تعذّر الحساب."""
+    base = _run(["git", "merge-base", "HEAD", "origin/main"])
+    if base.returncode != 0 or not base.stdout.strip():
+        return None
+    diff = _run(["git", "diff", "--name-only", "--diff-filter=ACMR", base.stdout.strip()])
+    if diff.returncode != 0:
+        return None
+    untracked = _run(["git", "ls-files", "--others", "--exclude-standard"]).stdout.splitlines()
+    return sorted(set(diff.stdout.splitlines()) | set(untracked))
+
+
+def touches_interface(paths: list[str]) -> bool:
+    return any(p.startswith(IDENTITY_PATHS) for p in paths)
+
+
+def interface_touched() -> bool:
+    paths = changed_paths_vs_merge_base()
+    # تعذّر الفرق (لا merge-base): الأحوطُ تشغيلُ الحرّاس لا تخطّيها.
+    return True if paths is None else touches_interface(paths)
+
+
+def _run_identity_guards():
     # --noconftest و-p no:django: الحرّاسُ نصّيّةٌ ولا تحتاج بيئةَ Django (conftest يستورد مكتبات المشروع).
-    proc = _run([sys.executable, "-m", "pytest", *IDENTITY_GUARDS, "-q", "-p", "no:cacheprovider", "-p", "no:django", "--noconftest", "--no-header"])
+    cmd = [
+        sys.executable,
+        "-m",
+        "pytest",
+        *IDENTITY_GUARDS,
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "-p",
+        "no:django",
+        "--noconftest",
+        "--no-header",
+    ]
+    try:
+        proc = _run(cmd, timeout=IDENTITY_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        return FAIL, f"حرّاسُ الهويّة تجاوزت المهلة ({IDENTITY_TIMEOUT_SECONDS} ثانية)"
     if proc.returncode != 0 and "No module named pytest" in proc.stderr:
         return MISSING, "pytest غير مثبَّت"
     return (OK, "") if proc.returncode == 0 else (FAIL, _tail(proc, 25))
+
+
+def check_identity():
+    """W-20261011-001/-002: حرّاسُ الهويّة كانت تسقط في CI وحدَه. مانعةٌ إن لمس العملُ الواجهةَ (مقابل merge-base)."""
+    global _identity_result
+    _identity_result = None
+    if not interface_touched():
+        return OK, "لا واجهة تغيّرت — تخطّي"
+    status, detail = _run_identity_guards()
+    if status in (OK, FAIL):
+        _identity_result = "نجح" if status == OK else "سقط"
+    return status, detail
+
+
+def _print_identity_receipt() -> None:
+    """آخرُ سطرٍ في المخرَج: إيصالُ الحرّاس على رأس الإيداع (يقرؤه الاعتماد لاحقاً — D-376م)."""
+    if _identity_result:
+        print(f"identity_ack: {head8()} {_identity_result}")
 
 
 def check_types():
@@ -170,7 +243,9 @@ def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="الفحوصُ السريعة لـCI قبل الدفع")
     parser.add_argument("--types", action="store_true", help="يضيف سقّاطةَ mypy")
-    parser.add_argument("--all-files", action="store_true", help="مسحُ الأسرار على كلّ المتتبَّع كـCI (بطيء)")
+    parser.add_argument(
+        "--all-files", action="store_true", help="مسحُ الأسرار على كلّ المتتبَّع كـCI (بطيء)"
+    )
     parser.add_argument("--allow-missing", action="store_true", help="أداةٌ غائبة لا تُخرج بـ3")
     args = parser.parse_args(argv)
 
@@ -203,11 +278,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if failed:
         print("\nلا تدفع: فحصٌ سريعٌ فشل (سيسقط في CI نفسه).")
+        _print_identity_receipt()
         return 1
     if missing and not args.allow_missing:
         print("\nأدواتٌ غائبة فما قيس لا يكفي حكماً — ثبّتها أو استعمل --allow-missing عن وعي.")
+        _print_identity_receipt()
         return 3
     print("\nالفحوصُ السريعةُ ناجحة — الدفعُ مسموح (الاختبارات الكاملة تبقى في CI).")
+    _print_identity_receipt()
     return 0
 
 
