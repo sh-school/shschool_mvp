@@ -776,7 +776,6 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 
 /* ── Dashboard Misc ─── */
 
-.session-time { min-width: 52px; }
 
 .next-session-badge {
   background: var(--status-warning-tint-strong);
