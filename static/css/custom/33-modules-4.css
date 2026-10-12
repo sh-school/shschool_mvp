@@ -1183,6 +1183,12 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
   font-variant-numeric: tabular-nums;
 }
 .beh-degree__list { display: grid; align-content: start; padding: 0; max-block-size: 220px; overflow-y: auto; }
+@media (max-width: 640px) {
+  .beh-degrees { grid-template-columns: minmax(0, 1fr); }
+  .beh-degree__list { max-block-size: none; overflow-y: visible; }
+  .beh-degree__head { min-block-size: var(--control-h); }
+  .beh-vitem { align-items: center; min-block-size: var(--control-h); font-size: var(--text-sm); }
+}
 .beh-vitem {
   display: flex;
   align-items: baseline;
@@ -1271,6 +1277,12 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .beh-level-pick__option:hover .beh-level-pick__box { border-color: var(--border-strong); }
 .beh-level-pick__option input:checked + .beh-level-pick__box { border-color: var(--maroon); background: var(--maroon-bg); color: var(--maroon-fg); }
 .beh-level-pick__option.is-severe input:checked + .beh-level-pick__box { border-color: var(--status-danger); background: var(--status-danger-bg); color: var(--status-danger-fg); }
+.beh-level-pick__name { display: none; }
+@media (max-width: 640px) {
+  .beh-level-pick { grid-template-columns: minmax(0, 1fr); }
+  .beh-level-pick__box { flex-direction: row; justify-content: flex-start; gap: var(--sp-3); min-block-size: var(--control-h); padding-inline: var(--sp-3); }
+  .beh-level-pick__name { display: inline; font-weight: 400; }
+}
 
 /* ── التقارير الأكاديميّة — templates/academic_management/reports/ ── */
 /* صفحةُ التقارير: كلُّ سطرٍ رابطٌ إلى تقريره، والعنوانُ يأخذ لونَ الهويّة عند المرور. */
