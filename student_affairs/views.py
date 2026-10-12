@@ -69,7 +69,7 @@ from wings.scope import student_scope_for
 
 from .models import StudentActivity, StudentTransfer
 from .selectors import attach_guardian_phones, guardian_ids_by_phone, student_register
-from .transfer_decision import may_decide
+from .transfer_decision import detail_flags, may_decide
 
 logger = logging.getLogger(__name__)
 
@@ -997,13 +997,10 @@ def transfer_create(request):
                 return _transfer_form_response(request, school, form)
             if cd.get("direct"):
                 try:
-                    move_directly(transfer, request.user)
+                    move_directly(transfer, request.user, school)
                 except ValueError as exc:
                     form.add_error(None, str(exc))
                     return _transfer_form_response(request, school, form)
-                StudentService.audit_student_event(
-                    school, request.user, student, "transfer_completed"
-                )
                 messages.success(request, f"نُقل {student.full_name} إلى شعبته الجديدة مباشرةً.")
                 return redirect("student_affairs:transfer_detail", pk=transfer.pk)
             transfer.save()
@@ -1039,20 +1036,13 @@ def transfer_detail(request, pk):
     """تفاصيل طلب انتقال."""
     school = request.school
     transfer = get_object_or_404(StudentTransfer, pk=pk, school=school)
-    internal = transfer.direction == "internal"
-    can_decide = not internal or may_decide(request.user)
     return render(
         request,
         "student_affairs/transfer_detail.html",
         {
             "transfer": transfer,
             "page_subtitle": f"{transfer.student.full_name} — {transfer.get_direction_display()}",
-            "can_decide": can_decide,
-            # مقدّمُ الطلب (المنسّق) يلغي طلبَه المعلَّق وحده — لا يعتمد ولا يُتمّ (D-343م).
-            "can_cancel_own": internal
-            and not can_decide
-            and transfer.status == "pending"
-            and transfer.created_by_id == request.user.pk,
+            **detail_flags(transfer, request.user),
         },
     )
 
@@ -1073,20 +1063,16 @@ def transfer_review(request, pk):
         notes = form.cleaned_data.get("notes", "")
 
         from .services import StudentService
-        from .transfer_decision import decide_internal
+        from .transfer_decision import decide_and_audit
 
         if transfer.direction == "internal":
             # الاعتمادُ والإتمام للمدير والنائب الإداري، وبحالاتٍ صارمة، وسجلُّ من قرّر ومتى (D-343م).
             try:
-                decide_internal(transfer, action, notes, request.user)
+                label = decide_and_audit(transfer, action, notes, request.user, school)
             except ValueError as exc:
                 messages.error(request, str(exc))
                 return redirect("student_affairs:transfer_detail", pk=pk)
-            StudentService.audit_student_event(
-                school, request.user, transfer.student, f"transfer_{action}"
-            )
-            status_label = dict(StudentTransfer.STATUS_CHOICES).get(action, action)
-            messages.success(request, f"تم تحديث حالة الانتقال إلى: {status_label}")
+            messages.success(request, f"تم تحديث حالة الانتقال إلى: {label}")
             return redirect("student_affairs:transfer_detail", pk=pk)
 
         transfer.status = action

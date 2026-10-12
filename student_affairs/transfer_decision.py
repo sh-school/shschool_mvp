@@ -74,14 +74,32 @@ def decide_internal(transfer, action: str, notes: str, actor) -> None:
     )
 
 
+def decide_and_audit(transfer, action: str, notes: str, actor, school) -> str:
+    """`decide_internal` ثم سجلُّ التدقيق؛ يعيد وسمَ الحالة الجديدة للرسالة."""
+    from .services import StudentService
+
+    decide_internal(transfer, action, notes, actor)
+    StudentService.audit_student_event(school, actor, transfer.student, f"transfer_{action}")
+    return transfer.get_status_display()
+
+
+def detail_flags(transfer, user) -> dict:
+    """ما تعرضه صفحةُ التفاصيل: أيقرّر المستخدمُ، أم يلغي طلبَه المعلَّق وحدَه (مقدّمُ الطلب، D-343م)."""
+    internal = transfer.direction == "internal"
+    can_decide = not internal or may_decide(user)
+    own_pending = transfer.status == "pending" and transfer.created_by_id == user.pk
+    return {"can_decide": can_decide, "can_cancel_own": internal and not can_decide and own_pending}
+
+
 @transaction.atomic
-def move_directly(transfer, actor):
+def move_directly(transfer, actor, school):
     """نقلٌ مباشرٌ بلا طلبٍ معلَّق: يُنفَّذ ويُحفظ الطلبُ «مكتملاً» بمن نفّذه ومتى، في معاملةٍ واحدة.
 
     `transfer` طلبٌ غيرُ محفوظٍ من `internal_transfer.build_request`. يُرفض قبل أيّ كتابةٍ لمن لا قدرة له،
     ولهدفٍ غيرِ صالحٍ أو تاريخٍ مستقبليّ (يرفعهما `complete_internal`).
     """
     from .internal_transfer import complete_internal
+    from .services import StudentService
 
     if not may_decide(actor):
         raise PermissionDenied("النقل المباشر للمدير أو النائب الإداري.")
@@ -91,4 +109,5 @@ def move_directly(transfer, actor):
     transfer.decided_at = timezone.now()
     _append_note(transfer, actor, "نقل مباشر بلا طلب معلَّق (D-343م).")
     transfer.save()
+    StudentService.audit_student_event(school, actor, transfer.student, "transfer_completed")
     return transfer
