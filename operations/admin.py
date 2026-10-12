@@ -5,6 +5,7 @@ from django.http import HttpRequest
 
 from core.admin import SchoolScopedAdmin
 
+from .admin_forms import TeacherPreferenceAdminForm, effective_cap
 from .models import (
     AbsenceAlert,
     AbsenceExcuse,
@@ -20,6 +21,7 @@ from .models import (
     ScheduleBaseline,
     ScheduleConstraintOverride,
     ScheduleGeneration,
+    ScheduleRelaxationPolicy,
     ScheduleSlot,
     SchedulingResource,
     SectionDayConfirmation,
@@ -505,6 +507,7 @@ class TeacherPreferenceAdmin(admin.ModelAdmin):
         "max_consecutive",
         "max_gap",
         "max_last_periods",
+        "max_first_periods",
         "free_day",
         "academic_year",
     )
@@ -512,18 +515,49 @@ class TeacherPreferenceAdmin(admin.ModelAdmin):
     search_fields = ("teacher__full_name",)
     autocomplete_fields = ("teacher",)
 
+    form = TeacherPreferenceAdminForm
+
     def save_model(self, request, obj, form, change):
-        """تغييرُ سقف السابعة الإداريّ يُثبَّت أثرُه: قيمتان قبل وبعد ومعرّفُ الصفّ — لا اسمُ المعلّم.
+        """القراراتُ الإداريّة (سقفا السابعة والأولى ويومُ التفريغ) يُثبَّت أثرُها: قيمتان قبل وبعد ومعرّفُ الصفّ — لا اسمُ المعلّم.
 
         ثمرةُ قرار المالك D-172م، فيُراد أثرُه أبعدَ من `LogEntry` (W-20261003-035، توصيةُ 0105).
         """
-        before = (
-            type(obj).objects.filter(pk=obj.pk).values_list("max_last_periods", flat=True).first()
+        before, before_run, before_free, before_first = (
+            type(obj)
+            .objects.filter(pk=obj.pk)
+            .values_list("max_last_periods", "max_consecutive", "free_day", "max_first_periods")
+            .first()
             if change
             else None
-        )
+        ) or (None, None, None, None)
         super().save_model(request, obj, form, change)
-        if before != obj.max_last_periods:
+        from operations.preference_capacity import (
+            exceeds_general_run_cap,
+            record_free_day_change,
+            record_run_cap_above_general,
+        )
+
+        if before_free != obj.free_day:
+            record_free_day_change(request, obj, before_free, change)
+        if before_run != obj.max_consecutive and exceeds_general_run_cap(obj.max_consecutive):
+            record_run_cap_above_general(request, obj, "admin")
+        if effective_cap(before_first) != effective_cap(obj.max_first_periods):
+            from core.models import AuditLog
+
+            AuditLog.objects.create(
+                school=obj.school,
+                user=request.user,
+                action="update" if change else "create",
+                model_name="other",
+                object_id=str(obj.pk),
+                object_repr=f"سقفُ الأولى الشخصيّ {obj.academic_year}",
+                changes={
+                    "event": "teacher_first_period_cap_changed",
+                    "before": before_first,
+                    "after": obj.max_first_periods,
+                },
+            )
+        if effective_cap(before) != effective_cap(obj.max_last_periods):
             from core.models import AuditLog
 
             AuditLog.objects.create(
@@ -539,6 +573,55 @@ class TeacherPreferenceAdmin(admin.ModelAdmin):
                     "after": obj.max_last_periods,
                 },
             )
+
+
+@admin.register(ScheduleRelaxationPolicy)
+class ScheduleRelaxationPolicyAdmin(admin.ModelAdmin):
+    """تخفيفاتُ التوليد المدرسيّة (D-382م): يقرؤها زرُّ التوليد وأمرُ الإدارة والمُقيِّمُ وفحصُ الجدوى معاً.
+
+    كل تعديلٍ يُثبَّت قبل/بعد في `AuditLog` بلا أسماء معلّمين — فقرارٌ يغيّر ما يُسمح به في الجدول لا يمرّ صامتاً.
+    """
+
+    list_display = ("school", "relax_touch_for_all", "touch_run_cap", "no_6_7", "triples_by_number")
+    readonly_fields = ("updated_by", "updated_at")
+    FIELDS = ("relax_touch_for_all", "touch_run_cap", "no_6_7", "triples_by_number", "decision_ref")
+
+    def _snapshot(self, obj) -> dict:
+        return {name: getattr(obj, name) for name in self.FIELDS}
+
+    def _audit(self, request, obj, action: str, before, after) -> None:
+        from core.models import AuditLog
+
+        AuditLog.objects.create(
+            school=obj.school,
+            user=request.user,
+            action=action,
+            model_name="other",
+            object_id=str(obj.pk),
+            object_repr="تخفيفات توليد الجدول",
+            changes={
+                "event": "schedule_relaxation_policy_changed",
+                "before": before,
+                "after": after,
+            },
+        )
+
+    def save_model(self, request, obj, form, change):
+        before = self._snapshot(type(obj).objects.get(pk=obj.pk)) if change and obj.pk else None
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+        after = self._snapshot(obj)
+        if before != after:
+            self._audit(request, obj, "update" if change else "create", before, after)
+
+    def delete_model(self, request, obj):
+        self._audit(request, obj, "delete", self._snapshot(obj), None)
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            self._audit(request, obj, "delete", self._snapshot(obj), None)
+        super().delete_queryset(request, queryset)
 
 
 @admin.register(ScheduleGeneration)

@@ -289,15 +289,39 @@ def is_class_assigned(user: CustomUser, class_group: ClassGroup) -> bool:
 
 
 def is_covering_class(user: CustomUser, class_group: ClassGroup, day: dt.date) -> bool:
-    """هل هذا المستخدمُ بديلٌ معيَّنٌ لحصّةٍ من هذه الشعبة في هذا اليوم؟ — من سجلّ `SubstituteAssignment` القائم لا واجهةً جديدة."""
-    from .models import SubstituteAssignment
+    """هل يغطّي هذا المستخدمُ حصّةً من هذه الشعبة في هذا اليوم؟ — من سجلّاتٍ قائمةٍ لا واجهةٍ جديدة (D-125م).
 
-    return SubstituteAssignment.objects.filter(
-        school_id=class_group.school_id,
+    ثلاثةُ مصادر: بديلٌ معيَّنٌ (`SubstituteAssignment` معيَّن/مؤكَّد)، ومن بُدِّلت إليه حصّةٌ
+    (`TeacherSwap` منفَّذ: `teacher_b` يأخذ حصّةَ `slot_a` يومَ `swap_date_a`، و`teacher_a` يأخذ
+    حصّةَ `slot_b` يومَ `swap_date_b`)، وصاحبُ حصّةٍ تعويضيّةٍ معتمدةٍ أو مكتملةٍ في الشعبة ذلك اليوم
+    (`CompensatorySession`؛ لا `colleague` ولا `pending` ولا الملغاة ولا المنتهية).
+    """
+    from django.db.models import Q
+
+    from .models import CompensatorySession, SubstituteAssignment, TeacherSwap
+
+    school_id = class_group.school_id
+    if SubstituteAssignment.objects.filter(
+        school_id=school_id,
         substitute=user,
         status__in=("assigned", "confirmed"),
         absence__date=day,
         slot__class_group=class_group,
+    ).exists():
+        return True
+    if TeacherSwap.objects.filter(
+        Q(teacher_b=user, swap_date_a=day, slot_a__class_group=class_group)
+        | Q(teacher_a=user, swap_date_b=day, slot_b__class_group=class_group),
+        school_id=school_id,
+        status="executed",
+    ).exists():
+        return True
+    return CompensatorySession.objects.filter(
+        school_id=school_id,
+        teacher=user,
+        class_group=class_group,
+        compensatory_date=day,
+        status__in=("approved", "completed"),
     ).exists()
 
 

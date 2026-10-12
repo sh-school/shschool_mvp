@@ -173,11 +173,12 @@ def test_pedagogy_timing_and_maths_late():
 
 
 def test_edge_fairness_and_stress_name_the_worst():
-    slots = [slot(teacher="a", klass="c1", day=d, period=1) for d in range(5)] + [
-        slot(teacher="b", klass="c2", day=d, period=3) for d in range(5)
+    """أ يومُه حصّتان (أوّلُ خانةٍ وآخرُها كلُّ حصصه)، وب أربعٌ متّصلة (نصفُ حصصه طرفان)."""
+    slots = [slot(teacher="a", klass="c1", day=d, period=p) for d in range(5) for p in (2, 6)] + [
+        slot(teacher="b", klass="c2", day=d, period=p) for d in range(5) for p in (2, 3, 4, 5)
     ]
     lab = ScheduleLab(slots, Context())
-    assert lab.edge_fairness()["value"] > 0.9, "أ كلُّ حصصه أولى، وب لا شيء"
+    assert lab.edge_fairness()["value"] > 0.3, "أ كلُّ حصصه طرفٌ، وب نصفُها"
     assert list(lab.stress()["detail"])[0] == "a"
 
 
@@ -420,7 +421,7 @@ def test_the_pedagogy_seed_reads_the_code(school):
     assert hand.pedagogy == "heavy", "ما ضُبط يدويّاً لا يُمَسّ"
 
 
-def test_the_log_page_shows_metrics_against_the_baseline(client, small_school):
+def test_the_log_page_no_longer_carries_the_full_lab_matrix(client, small_school):
     from operations.scheduler import generate_schedule
 
     generation = generate_schedule(small_school, YEAR)["generation"]
@@ -441,10 +442,11 @@ def test_the_log_page_shows_metrics_against_the_baseline(client, small_school):
         reverse("smart_schedule") + f"?year={YEAR}", HTTP_HOST="localhost"
     ).content.decode()
 
-    # جدولُ مؤشّراتٍ واحدٌ: عمودٌ للأساس المعتمَد وعمودٌ لكلّ توليد.
-    assert "مؤشرات التوليد" in body and "أساس" in body
-    assert '<th scope="col" class="num">الأساس</th>' in body
-    assert "الفراغ الزائد عن الاستراحة" in body
+    # مصفوفةُ الاثنين والعشرين مؤشّراً استُبدلت ببطاقة القرار بالخمسة (W-20261010-001، D-310م): تبقى
+    # المؤشّراتُ كلُّها في المختبر، والصفحةُ لا تحمل جدولَها ولا أعمدةَ التواريخ.
+    assert "مؤشرات التوليد" not in body
+    assert '<th scope="col" class="num">الأساس</th>' not in body
+    assert "الفراغ الزائد عن الاستراحة" not in body
 
 
 def test_exemptions_and_preferences_reach_the_context(school):

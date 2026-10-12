@@ -1,0 +1,40 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}استيراد علامة المراعاة{% endblock %}
+{% block main_class %}{% page_layout "form" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/clinic/" parent_label="العيادة" current="استيراد علامة المراعاة" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "استيراد علامة «يحتاج مراعاةً»" subtitle="ملفٌّ فيه الرقمُ الوطنيّ والصفّ فقط" icon="clinic" %}
+    <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
+  {% endpage_header %}
+
+  {% if report %}
+  {% kpi_strip label="نتيجة الاستيراد" %}
+    {% kpi "طُوبق ووُضعت علامتُه" report.matched tone="green" %}
+    {% kpi "لم يُطابَق" report.unmatched tone="amber" title="رقمٌ صحيحُ الشكل لا طالبَ به في مدرستك — لم يُضبط شيء" %}
+    {% kpi "صفٌّ مخالف" report.violating tone="amber" title="رقمٌ ليس 11 خانةً، أو صفٌّ لا يوافق صفَّ الطالب — لم يُضبط شيء" %}
+  {% endkpi_strip %}
+  {% callout "info" %}التقريرُ أعدادٌ فقط: لا يُعرض رقمٌ ولا اسم، ولا يُحفظ الملف. صفٌّ بلا مطابقةٍ أو بصفٍّ مخالفٍ لا يُضبط ولا يُخمَّن؛ صحِّح الملفَّ وأعد رفعَه.{% endcallout %}
+  {% endif %}
+
+  {% section_card "رفع الملف" icon="document" %}
+    {% if error %}{% callout "error" %}{{ error }}{% endcallout %}{% endif %}
+    <form method="post" enctype="multipart/form-data" action="" novalidate>
+      {% csrf_token %}
+      <div class="form-stack">
+        {% field "needs_care_file" "ملف الطلاب (xlsx أو csv)" type="file" accept=".xlsx,.csv" required=True help="عمودان: الرقم الوطنيّ (11 خانة) ثم الصفّ، مثل 10 أو 10/2. يُقرأ في الذاكرة ولا يُحفظ." %}
+      </div>
+      {% callout "warning" %}الاستيرادُ يضع العلامةَ ولا يُزيلها. والإزالةُ من سجلّ الطالب الصحّيّ. كلُّ استيرادٍ يُسجَّل في سجلّ المراجعة بأعدادٍ فقط.{% endcallout %}
+      <button type="submit" class="btn-primary mt-4 w-full py-2 text-sm font-bold">{% icon "save" %} استيراد</button>
+    </form>
+  {% endsection_card %}
+
+</div>
+{% endblock %}

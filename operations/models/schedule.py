@@ -8,7 +8,15 @@ from core.models import ClassGroup, CustomUser, School
 from core.models.base import AuditedModel
 from core.querysets import YearScopedQuerySet
 
-from ..last_period_cap import MAX_PERSONAL_LAST, MIN_PERSONAL_LAST
+from ..last_period_cap import MAX_PERSONAL_LAST
+
+#: مدى سقف الأولى الشخصيّ (HC22): من العامّ (اثنتان) إلى خمسٍ، أي أولى كلَّ يومٍ في الأسبوع.
+#: وما دون العامّ لا يُقبل: السقفُ الشخصيّ للأولى يرفع ولا يُضيّق (قرارُ المالك 2026-10-09).
+MIN_PERSONAL_FIRST = 2
+MAX_PERSONAL_FIRST = 5
+#: مدى إدخال سقف السابعة الشخصيّ (HC8) في النموذج والأدمن: من العامّ (اثنتان) إلى خمس كسقف الأولى (قرارُ المالك
+#: 2026-10-10). وهو حدٌّ للإدخال وحده: قراءةُ المولّد (`personal_last_cap`) على حالها فما خُزّن قبله لا يتغيّر أثرُه.
+MIN_ADMIN_LAST = 2
 from .common import _uuid
 
 
@@ -385,12 +393,12 @@ class TeacherPreference(models.Model):
     """تفضيلات المعلم للجدولة الذكية"""
 
     #: ما تكتبه شاشةُ المعلّم الذاتيّة وحده: `save()` كاملاً يمحو بالقيمة القديمة ما عدّله مديرٌ من الأدمن
-    #: بين جلب الصفّ وحفظه — كسقف السابعة الإداريّ (W-20261003-035، شرطُ 0105).
+    #: بين جلب الصفّ وحفظه — كسقف السابعة الإداريّ (W-20261003-035، شرطُ 0105). ويومُ التفريغ قرارٌ
+    #: إداريّ لا تفضيلٌ شخصيّ (W-20261010-025)، فليس هنا ولو وصل في الطلب.
     TEACHER_EDITABLE_FIELDS = (
         "max_daily_periods",
         "max_consecutive",
         "max_gap",
-        "free_day",
         "notes",
         "updated_at",
     )
@@ -409,7 +417,16 @@ class TeacherPreference(models.Model):
         max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
     )
     max_daily_periods = models.PositiveIntegerField(default=5, verbose_name="أقصى حصص يومية")
-    max_consecutive = models.PositiveIntegerField(default=3, verbose_name="أقصى حصص متتالية")
+    #: `NULL` = السقفُ العامّ (`MAX_CONSECUTIVE`) — لا قرارَ شخصيَّ. كان الافتراضيُّ ٣ فيُنشئ `get_or_create`
+    #: في شاشة التفضيلات سقفاً شخصيّاً يتقدّم على العامّ ويُرخي HC5 لمن لم يطلب ذلك (W-20261003-037).
+    #: والقيمةُ الأعلى من العامّ تُقبل بتنبيهٍ ظاهرٍ وسجلّ تدقيقٍ عند الحفظ (`preference_capacity`).
+    max_consecutive = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="أقصى حصص متتالية",
+        help_text="فارغٌ يعني السقفَ العامّ للمدرسة — وأيُّ قيمةٍ أعلى منه تُرخي HC5 لهذا المعلّم وتُسجَّل",
+    )
     #: سقفُ السابعة الأسبوعيّ لهذا المعلّم (HC8) — `NULL` يعني السقفَ العامّ (اثنتان).
     #:
     #: **قرارٌ إداريّ في حقّ معلّمٍ لا تفضيلُه**: معلّمٌ نصابُه ١٨ على جرسٍ ثانويّ سعتُه ١٧ بسابعتين
@@ -418,9 +435,21 @@ class TeacherPreference(models.Model):
     max_last_periods = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
-        validators=[MinValueValidator(MIN_PERSONAL_LAST), MaxValueValidator(MAX_PERSONAL_LAST)],
+        validators=[MinValueValidator(MIN_ADMIN_LAST), MaxValueValidator(MAX_PERSONAL_LAST)],
         verbose_name="أقصى سابعات أسبوعيّاً",
-        help_text="قرارٌ إداريّ في حقّ هذا المعلّم — فارغٌ يعني السقفَ العامّ (اثنتان)",
+        help_text="قرارٌ إداريّ في حقّ هذا المعلّم: أقصى عدد حصص السابعة في الأسبوع (2 هو السقفُ العامّ)",
+    )
+    #: سقفُ الحصّة الأولى الأسبوعيّ لهذا المعلّم (HC22) — `NULL` يعني السقفَ العامّ (اثنتان).
+    #:
+    #: **قرارٌ إداريّ في حقّ معلّمٍ لا تفضيلُه**، كتوأمه `max_last_periods`: كان الاستثناءُ (أربعٌ لاثني عشرَ
+    #: معلّماً بقرار المالك) في ملفٍّ خارج المستودع لا يُرى في الأدمن (W-20261010-033). فلا يظهر في شاشة
+    #: المعلّم ولا في `TEACHER_EDITABLE_FIELDS`، ويُحرَّر من لوحة الإدارة بسجلّ تدقيق قبل/بعد.
+    max_first_periods = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(MIN_PERSONAL_FIRST), MaxValueValidator(MAX_PERSONAL_FIRST)],
+        verbose_name="أقصى حصص أولى أسبوعيّاً",
+        help_text="قرارٌ إداريّ في حقّ هذا المعلّم: أقصى عدد الحصص الأولى في الأسبوع (2 هو السقفُ العامّ)",
     )
     #: أوسعُ فراغٍ يُقبل بين حصّتين في اليوم الواحد — بعدد الحصص الفارغة.
     #:
@@ -458,6 +487,20 @@ class TeacherPreference(models.Model):
                 name="unique_teacher_schedule_pref",
             ),
         ]
+
+    @property
+    def general_run_cap(self) -> int:
+        """السقفُ العامّ للتتالي — يعرضه القالبُ بجانب الاختيار (W-20261003-037)."""
+        from operations.preference_capacity import effective_run_cap
+
+        return effective_run_cap(None)
+
+    @property
+    def run_cap_above_general(self) -> bool:
+        """أسقفُه الشخصيُّ فوق العامّ، فيُرخي HC5 له؟"""
+        from operations.preference_capacity import exceeds_general_run_cap
+
+        return exceeds_general_run_cap(self.max_consecutive)
 
     def __str__(self):
         return f"تفضيلات: {self.teacher.full_name} ({self.academic_year})"

@@ -22,6 +22,12 @@ def breach(db, school, principal_user):
         title="تسرب بيانات",
         description="وصف",
         discovered_at=timezone.now(),
+        affected_count=5,
+        immediate_action="عزل النظام",
+        containment_action="تغيير كلمات المرور",
+        notification_text="نصّ إشعارٍ اصطناعي",
+        individuals_status="not_required",
+        individuals_assessment_note="لا ضرر جسيم (اختبار)",
         reported_by=principal_user,
     )
 

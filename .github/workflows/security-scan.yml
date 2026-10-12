@@ -174,20 +174,6 @@ jobs:
     name: Django — Deployment Security Check
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: test_db
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_pass
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.production
       # ≥ 50 حرفاً و≥ 5 محارفَ مختلفة: دون ذلك يُصدر Django تحذيرَ security.W009، وهو
@@ -205,6 +191,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+
+      # postgres 16 الأصليّ على الـrunner بدل حاويةٍ تُسحب من Docker Hub (سقفُ السحب أسقط الفحوصَ 2026-10-09)
+      - uses: ./.github/actions/native-postgres
 
       - uses: actions/setup-python@v7
         with:

@@ -7,6 +7,7 @@
 الموافقة: فلا يُكتب لوليّ أمرٍ مجمَّد إشعارُ منصّة ولا قناةٌ خارجيّة، والكادرُ يستلم كالمعتاد.
 """
 
+import logging
 from collections.abc import Iterable
 from typing import Any
 
@@ -19,6 +20,8 @@ from core.parents_freeze import (  # noqa: F401
 
 from . import quiet_hours
 
+logger = logging.getLogger(__name__)
+
 #: مدّةُ إعادة سؤال عنصرٍ مؤجَّلٍ لوليّ أمرٍ أثناء التجميد — لا تتجاوز قفزةَ الهدوء (45 د)
 #: وإلا أُعيد تسليمُ Redis للمهمّة قبل موعدها فتكرّر.
 FROZEN_RECHECK_SECONDS = int(quiet_hours.MAX_HOLD_HOP.total_seconds())
@@ -29,6 +32,8 @@ def channel_skip(
 ) -> dict[str, str] | None:
     """نتيجةُ تخطّي مهمّة قناةٍ لعنوان وليّ أمرٍ مجمَّد؛ و`None` إن وجب الإرسال."""
     if frozen_recipient(email=email, phone=phone):
+        # القناةُ والسببُ وحدَهما: لا بريدَ ولا هاتفَ ولا اسمَ ولا معرّفَ (PDPPL) — يكفي لعدّ ما حُجب.
+        logger.info("تخطّي إرسال مجمَّد: القناة=%s السبب=parents_frozen", channel)
         return {"status": "skipped", "reason": "parents_frozen", "channel": channel}
     return None
 

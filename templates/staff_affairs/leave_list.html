@@ -40,9 +40,9 @@
           {% for l in leaves %}
           <tr>
             <td><strong>{{ l.staff.full_name }}</strong></td>
-            <td class="col-center text-xs">{{ l.get_leave_type_display }}</td>
-            <td class="col-center text-xs">{{ l.start_date|date:"d/m" }}</td>
-            <td class="col-center text-xs">{{ l.end_date|date:"d/m" }}</td>
+            <td class="col-center cell-sm">{{ l.get_leave_type_display }}</td>
+            <td class="col-center cell-sm">{{ l.start_date|date:"d/m" }}</td>
+            <td class="col-center cell-sm">{{ l.end_date|date:"d/m" }}</td>
             <td class="num">{{ l.days_count }}</td>
             <td class="col-center">
               <span class="status-badge {% if l.status == 'approved' %}status-success{% elif l.status == 'rejected' %}status-danger{% elif l.status == 'pending' %}status-warning{% else %}status-gray{% endif %}">{{ l.get_status_display }}</span>

@@ -416,6 +416,11 @@ def generate_smart_schedule_task(self, generation_id):
     except Exception:  # noqa: BLE001 — القياسُ لا يُسقط توليداً ناجحاً
         logger.exception("schedule_lab: تعذّر حسابُ المؤشرات للتوليد %s", generation_id)
 
+    try:
+        compare_generation_to_live_task.delay(str(generation_id))
+    except Exception:  # noqa: BLE001 — المقارنةُ عرضٌ لا شرطٌ؛ يعيد العرضُ طلبَها
+        logger.exception("compare_generation_to_live: تعذّر الإرسال للتوليد %s", generation_id)
+
     quality = result["quality"]
     summary = (
         f"{quality['total_slots']}/{quality['total_required']} حصّة "
@@ -440,6 +445,35 @@ def generate_smart_schedule_task(self, generation_id):
 
     _notify_generation_done(generation, ok=result["success"], summary=summary)
     return {"ok": result["success"], "summary": summary, "failed": len(result["errors"])}
+
+
+@shared_task(
+    name="operations.compare_generation_to_live",
+    max_retries=0,
+    soft_time_limit=120,
+    time_limit=150,
+)
+def compare_generation_to_live_task(generation_id):
+    """يقارن مسودّةً بالمعتمَد بمُقيِّمٍ واحد ويخزّن النتيجة في `metrics` (W-20261010-008).
+
+    idempotent: إعادتُه على المسودّة نفسِها تعطي النتيجةَ نفسَها وتكتبها فوق السابقة. والفشلُ يُسجَّل ولا
+    يُسقط شيئاً — فالمقارنةُ عرضٌ للقرار لا شرطٌ للتوليد.
+    """
+    from operations.models import ScheduleGeneration
+    from operations.schedule_comparison import compare_generation
+
+    generation = (
+        ScheduleGeneration.objects.select_related("school").filter(pk=generation_id).first()
+    )
+    if generation is None or generation.status not in ("draft", "approved"):
+        return {"ok": False, "reason": "not_comparable"}
+    try:
+        with school_rls_scope(generation.school_id):
+            result = compare_generation(generation)
+    except Exception:  # noqa: BLE001 — يُسجَّل للمشغّل ولا يُبتلع
+        logger.exception("compare_generation_to_live: تعذّرت المقارنة للتوليد %s", generation_id)
+        return {"ok": False, "reason": "exception"}
+    return {"ok": True, "seconds": result["seconds"]}
 
 
 def _notify_generation_done(generation, *, ok, summary):
@@ -479,8 +513,8 @@ def reap_stuck_schedule_generations_task():
     تميّز عاملاً لا يزال يعمل بصمتٍ عن صفٍّ ماتت مهمّتُه فعلاً، فالحكمُ بسقفٍ
     زمنيّ من `generated_at` وحدَه — على نمط `purge_expired_export_jobs_task`.
 
-    المهلةُ: `soft_time_limit` الحقيقيّ للمهمّة (900 ثانية) + خمس دقائق هامشاً
-    لوقت الانتظار في الطابور قبل أن يلتقطها عاملٌ. تعمل كلَّ خمس دقائق
+    المهلةُ: `GENERATION_STALE_AFTER_SECONDS` من `scheduler_v2/limits.py` — سقفُ مهمّة V2
+    الليّن + هامشُ الطابور، ومصدرُها وحدَه (يشاركها حارسُ الزرّ في الواجهة). تعمل كلَّ خمس دقائق
     (`shschool/celery.py`).
     """
     from datetime import timedelta
@@ -488,8 +522,9 @@ def reap_stuck_schedule_generations_task():
     from django.utils import timezone
 
     from operations.models import ScheduleGeneration
+    from operations.scheduler_v2.limits import GENERATION_STALE_AFTER_SECONDS
 
-    cutoff = timezone.now() - timedelta(seconds=900 + 300)
+    cutoff = timezone.now() - timedelta(seconds=GENERATION_STALE_AFTER_SECONDS)
     stuck = ScheduleGeneration.objects.filter(
         status__in=ScheduleGeneration.PENDING_STATUSES, generated_at__lt=cutoff
     )

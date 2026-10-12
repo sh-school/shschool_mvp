@@ -654,7 +654,9 @@ def kpi_list(request):
 
     school = _school(request)
     year = _year(request)
-    return Response(KPIService.compute(school=school, year=year))
+    data = KPIService.compute(school=school, year=year)
+    # كائنُ School لا يُسلسَل في JSON (كان يردّ 500 لكلّ مستدعٍ) — كما يعالجه `analytics.views.api_kpis_all`: اسمُ المدرسة نصّاً
+    return Response({**data, "school": str(data["school"])})
 
 
 # ══════════════════════════════════════════════════════════════════════

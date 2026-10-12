@@ -98,15 +98,20 @@ class TestKPIsEndpointContract:
         resp = client.get("/api/v1/kpis/")
         assert resp.status_code in (401, 403)
 
-    def test_kpis_endpoint_accessible(self, client, principal_user):
-        """مؤشرات الأداء يمكن الوصول إليها."""
+    def test_kpis_endpoint_returns_200_with_the_school_as_text(self, client, principal_user):
+        """مؤشرات الأداء تردّ 200 بمدرسةٍ نصّاً — لا 500 ولا ابتلاعَ لاستثناء (W-20261008-017).
+
+        كان الاختبارُ يقبل 500 ويبتلع أيَّ استثناءٍ فيُخفي أنّ `/api/v1/kpis/` يردّ 500 لكلّ مستدعٍ
+        (كائنُ School غيرُ قابلٍ للتسلسل في JSON).
+        """
         client.force_login(principal_user)
-        try:
-            resp = client.get("/api/v1/kpis/")
-            assert resp.status_code in (200, 500)
-        except Exception:
-            # KPI view قد يرمي خطأ serialization عند عدم وجود بيانات كافية
-            pass
+
+        resp = client.get("/api/v1/kpis/")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert isinstance(body["school"], str) and body["school"]
+        assert "kpis" in body and "summary" in body
 
 
 class TestHealthEndpointContract:

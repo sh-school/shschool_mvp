@@ -38,6 +38,8 @@ LABELS = {
     "failed": "فشل",
 }
 TERMINAL = {"optimal", "infeasible", "timeout", "stopped", "rejected", "failed"}
+#: أوقفه المستخدمُ قبل أن يجد الحلّالُ أيَّ جدول: الحالةُ «stopped» نفسُها، والوصفُ لا يَعِد بـ«أفضل حلّ» لا وجودَ له.
+STOPPED_EMPTY_LABEL = "أوقفه المستخدم قبل أن يوجد أيُّ جدول"
 
 
 class ProgressTracker:
@@ -50,6 +52,7 @@ class ProgressTracker:
         self.bound: float | None = None
         self.solutions = 0
         self.state = "running"
+        self.label: str | None = None
         self.stop_flag = False
         self._started = time.monotonic()
         self._lock = threading.Lock()
@@ -65,9 +68,9 @@ class ProgressTracker:
         with self._lock:
             self.bound = bound
 
-    def finish(self, state: str) -> None:
+    def finish(self, state: str, label: str | None = None) -> None:
         with self._lock:
-            self.state = state
+            self.state, self.label = state, label
         self.publish()
 
     # ── العرض ──
@@ -81,7 +84,7 @@ class ProgressTracker:
                 )
             return {
                 "state": self.state,
-                "state_label": LABELS[self.state],
+                "state_label": self.label or LABELS[self.state],
                 "done": self.state in TERMINAL,
                 "elapsed_s": round(elapsed, 1),
                 "max_s": self.max_seconds,
@@ -112,6 +115,30 @@ class ProgressTracker:
             metrics[KEY] = self.snapshot()
             ScheduleGeneration.objects.filter(pk=row.pk).update(metrics=metrics)
         return self.stop_flag
+
+
+def merge_metrics(generation: Any, computed: dict[str, Any]) -> dict[str, Any]:
+    """يدمج مؤشراتٍ محسوبة في `metrics` المحفوظ بدل استبداله، ويُرجع المحسوبَ كما كان يفعل الحفظُ القديم.
+
+    `metrics` يحمل مفاتيحَ لا يملكها المختبر (لقطةُ التقدّم `v2_progress` وعلَمُ الإيقاف)، واستبدالُه كلَّه كان يمحو
+    حالةَ «أُوقف» بعد التوليد. والنسخةُ الحيّةُ تُقرأ تحت قفل الصفّ لأنّ الخيطَ الناشرَ يكتب فيها مباشرةً لا في الكائن؛
+    وعند التعارض يعلو المحسوبُ الأقدم، فلا تتجمّد مؤشراتٌ قديمة.
+    """
+    model = type(generation)
+    with transaction.atomic():
+        row = model.objects.select_for_update().filter(pk=generation.pk).only("metrics").first()
+        stored = dict((row.metrics if row is not None else None) or {})
+        merged = {**(generation.metrics or {}), **stored, **computed}
+        if row is not None:
+            model.objects.filter(pk=row.pk).update(metrics=merged)
+    generation.metrics = merged
+    return computed
+
+
+def is_v2_running(generation: Any) -> bool:
+    """هل هذا الصفُّ توليدُ V2 جارياً بلقطةٍ منشورة؟ (إيقافُ V1 عليه يُضيّع أفضل حلّ.)"""
+    metrics = generation.metrics or {}
+    return generation.status == "running" and bool(metrics.get(KEY))
 
 
 def request_stop(generation: Any) -> bool:

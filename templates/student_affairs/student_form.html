@@ -37,19 +37,20 @@
 
       <div class="form-row">
 
-        {# الرقم الشخصي — في الإضافة يُكتب، وفي التعديل يُعرض مستوراً (|mask_id) معطَّلاً فلا يُرسَل #}
+        {# الرقم الشخصي — حقلُ إدخالٍ في الإضافة فقط؛ وفي التعديل لا يُعرض رقمٌ محفوظ (W-20261011-014) #}
         {% if mode == "add" %}
         {% field "national_id" "الرقم الشخصي" value=form.national_id.value placeholder="مثال: 29812345678" required=True dir="ltr" error=form.national_id.errors.0 %}
-        {% else %}
-        {% field "national_id" "الرقم الشخصي" value=student.national_id|mask_id disabled=True required=True dir="ltr" css="sa-span-full" error=form.national_id.errors.0 %}
         {% endif %}
 
         {% field "full_name" "الاسم الكامل" value=form.full_name.value placeholder="الاسم الرباعي" required=True css="sa-span-full" error=form.full_name.errors.0 %}
         {% field "gender" "الجنس" type="select" choices="M=ذكر|F=أنثى" value=form.gender.value %}
         {% field "nationality" "الجنسية" value=form.nationality.value|default:'قطري' placeholder="مثال: قطري" %}
         {% field "birth_date" "تاريخ الميلاد" type="date" value=form.birth_date.value %}
+        {# الصفّ والشعبة عند الإضافة فقط؛ وتغييرُهما بعد ذلك طلبُ انتقالٍ داخليّ يُعتمد (D-343م، W-20261001-017) #}
+        {% if mode == "add" %}
         {% field "grade" "الصف" type="select" choices=grades value=form.grade.value blank="— اختر الصف —" required=True error=form.grade.errors.0 %}
         {% field "section" "الشعبة" value=form.section.value placeholder="مثال: أ" required=True error=form.section.errors.0 %}
+        {% endif %}
         {% field "phone" "الجوال" value=form.phone.value placeholder="مثال: 55001234" dir="ltr" %}
         {% field "email" "البريد الإلكتروني" type="email" value=form.email.value placeholder="student@example.com" dir="ltr" %}
 

@@ -183,6 +183,36 @@ def cell_history(session: Session, student: CustomUser) -> list[CellHistoryRow]:
     return rows
 
 
+@dataclass(frozen=True)
+class EntryHead:
+    """رأسُ إدخالِ طالبٍ في خانةٍ من يوم الشعبة — حالتُه ودقائقُ تأخّره ووقتُ إدخاله (كشفُ الجناح، W-20261011-011)."""
+
+    status: str
+    late_minutes: int | None
+    entered_at: dt.datetime
+
+
+def entry_heads_by_start(class_group: Any, day: dt.date) -> dict[Any, dict[dt.time, EntryHead]]:
+    """`{student_id: {بدء الخانة: EntryHead}}` لشعبةٍ في يومٍ — استعلامٌ واحد، بالحكم نفسه الذي تعدّ به `entry_tallies_by_start`.
+
+    كشفُ الجناح المطبوعُ يقرؤه إلى جانب التثبيت القديم: مسارُ الجدول يكتب الإدخالَ ولا يكتب `PeriodConfirmation`. حصّتا زوج الاختيار خانةٌ واحدة.
+    """
+    rows = (
+        AttendanceEntry.objects.filter(
+            session__class_group=class_group, session__date=day, superseded_by__isnull=True
+        )
+        .exclude(session__status="cancelled")
+        .values_list(
+            "student_id", "session__start_time", "status", "tardiness_minutes", "entered_at"
+        )
+        .order_by("entered_at")
+    )
+    heads: dict[Any, dict[dt.time, EntryHead]] = {}
+    for student_id, start, status, minutes, entered_at in rows:
+        heads.setdefault(student_id, {}).setdefault(start, EntryHead(status, minutes, entered_at))
+    return heads
+
+
 def entry_tallies_by_start(class_group: Any, day: dt.date) -> dict[dt.time, dict[str, int]]:
     """ما أُدخل لشعبةٍ في يومٍ من جدول الشعبة/كشف المعلّم: لكلّ خانةٍ (بدء الحصّة) عددُ الحاضر والغائب والمتأخّر من **رأس** كلّ طالب.
 

@@ -3,7 +3,11 @@ from typing import Any
 
 from django.core.exceptions import PermissionDenied
 from django.db import connection, models, transaction
+from django.db.models import Value
+from django.db.models.functions import Length, Replace
 from django.utils import timezone
+
+from core.audit_repr import masked_repr
 
 from .school import School, _uuid
 from .user import CustomUser
@@ -52,6 +56,44 @@ class _ImmutableManager(models.Manager):
                 return models.QuerySet.update(pending, ip_address=None, user_agent="")
             finally:
                 cur.execute("SELECT set_config('app.auditlog_network_erasure', '', true)")
+
+    def anonymize_name_in_repr(self, user: Any, name: str) -> dict[str, int]:
+        """يستبدل اسمَ مستخدمٍ مُحيَ بمعرّفه المقنَّع في `object_repr` — الاستثناءُ الثالث.
+
+        قرارُ المالك بصفته DPO (D-186م ب، W-20261004-002): الاسمُ يُجهَّل في الوصف وحدَه، وتبقى الواقعةُ
+        بكلّ ما عداه. يُستدعى من خدمة المحو وحدَها (حارسٌ معماريّ)، ويقابله استثناءٌ ضيّقٌ في الزناد
+        (الهجرة 0082) بعلَم المعاملة. وتُتخطّى — وتُعدّ للإبلاغ اليدويّ لا للكتابة — ثلاثُ حالات:
+        اسمٌ مشتركٌ أو يحتويه اسمُ مستخدمٍ آخر (لا يُعرف أيُّهما)، واسمٌ من كلمةٍ واحدة (مطابقتُه ضعيفة)، وصفٌ
+        يتجاوز 300 حرفاً بعد الاستبدال. لا يُرجَع اسمٌ، أعدادٌ فقط.
+
+        حدودٌ معروفة (حكم 0104): فحصُ الاسم المشترك يقرأ `CustomUser` وحدَه (يشمل الطلبة والأولياء مستخدمين)،
+        فاسمٌ لشخصٍ ليس مستخدماً قد يحتويه الاسمُ فيُستبدل؛ والمطابقةُ حرفيّةٌ حسّاسةٌ بالاسم الحاليّ قبل المحو،
+        فاسمٌ مكتوبٌ بتشكيلٍ أو همزةٍ مختلفة يفوت ويدخل الإبلاغَ اليدويّ.
+        """
+        name = (name or "").strip()
+        counts = {"anonymized": 0, "skipped_shared": 0, "skipped_short": 0, "skipped_long": 0}
+        if not name:
+            return counts
+        rows = _ImmutableQuerySet(self.model, using=self._db).filter(object_repr__contains=name)
+        if len(name.split()) < 2:
+            counts["skipped_short"] = rows.count()
+            return counts
+        if CustomUser.objects.filter(full_name__contains=name).exclude(pk=user.pk).exists():
+            counts["skipped_shared"] = rows.count()
+            return counts
+        masked = masked_repr(user)
+        # طولُ الناتج الفعليّ بعد استبدال **كلّ** ظهورٍ للاسم (لا فرقَ ظهورٍ واحد): الوصفُ CharField(300).
+        replaced = Replace("object_repr", Value(name), Value(masked))
+        fits = rows.annotate(_new_len=Length(replaced)).filter(_new_len__lte=300)
+        counts["skipped_long"] = rows.count() - fits.count()
+        # علَمٌ محلّيٌّ للمعاملة يفتح الحالةَ الثالثةَ في الزناد ويُغلق في finally.
+        with transaction.atomic(using=self._db), connection.cursor() as cur:
+            cur.execute("SELECT set_config('app.auditlog_name_erasure', 'on', true)")
+            try:
+                counts["anonymized"] = models.QuerySet.update(fits, object_repr=replaced)
+            finally:
+                cur.execute("SELECT set_config('app.auditlog_name_erasure', '', true)")
+        return counts
 
 
 class AuditLog(models.Model):
@@ -237,7 +279,7 @@ class ConsentRecord(models.Model):
 
 
 class BreachReport(models.Model):
-    """تقرير خرق البيانات — PDPPL م.11 / إشعار NCSA خلال 72 ساعة"""
+    """تقرير خرق البيانات — PDPPL م.14 (إعلام الفرد والجهة) / إرشاد NCSA: 72 ساعةً من الاكتشاف"""
 
     SEVERITY = [
         ("low", "منخفضة"),
@@ -307,6 +349,76 @@ class BreachReport(models.Model):
     notification_text = models.TextField(blank=True, verbose_name="نص الإشعار لـ NCSA")
     evidence_notes = models.TextField(blank=True, verbose_name="الأدلة والملاحظات")
 
+    # ── إشعار NCSA على مراحل (دليل NCSA v2.0: ما توفّر خلال 72 ساعةً + أسباب النقص + موعد الاستكمال) ──
+    # `ncsa_notified_at` يُختم عند الإشعار الأوّل (مبدئيّاً كان أو مكتملاً) ولا يتغيّر بالاستكمال،
+    # فلا يوقف التحديثُ اللاحق احتسابَ المهلة الأصليّة (W-20261002-007).
+    NCSA_STAGE = [
+        ("none", "لم يُرسَل"),
+        ("initial", "إشعار مبدئي (ناقص)"),
+        ("complete", "إشعار مكتمل"),
+    ]
+    ncsa_notice_stage = models.CharField(
+        max_length=10, choices=NCSA_STAGE, default="none", verbose_name="مرحلة إشعار NCSA"
+    )
+    ncsa_missing_reasons = models.TextField(
+        blank=True, default="", verbose_name="أسباب نقص معلومات الإشعار المبدئي"
+    )
+    ncsa_completion_due_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="موعد استكمال الإشعار"
+    )
+    ncsa_completed_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت استكمال الإشعار الفعلي"
+    )
+
+    # ── إخطار الأفراد المتأثّرين (PDPPL م.14 + دليل NCSA v2.0) ──
+    INDIVIDUALS_STATUS = [
+        ("not_assessed", "لم يُقيَّم بعد"),
+        ("required", "واجب إخطارهم"),
+        ("not_required", "غير لازم"),
+        ("notified", "أُخطروا"),
+    ]
+    individuals_status = models.CharField(
+        max_length=12,
+        choices=INDIVIDUALS_STATUS,
+        default="not_assessed",
+        verbose_name="حالة إخطار الأفراد",
+    )
+    individuals_deadline = models.DateTimeField(
+        null=True, blank=True, verbose_name="موعد إخطار الأفراد"
+    )
+    individuals_assessed_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت تقييم لزوم الإخطار"
+    )
+    individuals_notified_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت إخطار الأفراد الفعلي"
+    )
+    individuals_assessment_note = models.TextField(
+        blank=True, default="", verbose_name="أساس التقدير أو سبب عدم لزوم الإخطار"
+    )
+    # صاحبُ قرار «واجب/غير لازم» — لا يصحّ «غير لازم» بلا سببٍ وصاحبِ قرار (مواصفة 0104).
+    individuals_decided_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="breach_individuals_decisions",
+        verbose_name="صاحب قرار إخطار الأفراد",
+    )
+    INDIVIDUALS_CHANNELS = [
+        ("sms", "رسالة نصّية"),
+        ("email", "بريد إلكتروني"),
+        ("letter", "خطاب رسمي"),
+        ("portal", "إشعار عبر المنصّة"),
+        ("in_person", "إبلاغ مباشر"),
+    ]
+    individuals_notified_channel = models.CharField(
+        max_length=10,
+        choices=INDIVIDUALS_CHANNELS,
+        blank=True,
+        default="",
+        verbose_name="قناة إخطار الأفراد",
+    )
+
     class Meta:
         verbose_name = "تقرير خرق بيانات"
         verbose_name_plural = "تقارير خرق البيانات"
@@ -337,6 +449,31 @@ class BreachReport(models.Model):
             self.ncsa_deadline
             and timezone.now() > self.ncsa_deadline
             and self.status not in ("notified", "resolved")
+        )
+
+    @property
+    def individuals_hours_remaining(self) -> int | None:
+        """الساعاتُ المتبقّية لإخطار الأفراد — للواجب إخطارُهم ولم يُخطَروا وحدَهم."""
+        if self.individuals_status == "required" and self.individuals_deadline:
+            delta = self.individuals_deadline - timezone.now()
+            return max(0, int(delta.total_seconds() / 3600))
+        return None
+
+    @property
+    def individuals_overdue(self) -> bool:
+        return bool(
+            self.individuals_status == "required"
+            and self.individuals_deadline
+            and timezone.now() > self.individuals_deadline
+        )
+
+    @property
+    def ncsa_completion_overdue(self) -> bool:
+        """إشعارٌ مبدئيٌّ فات موعدُ استكماله المعلَن ولم يكتمل."""
+        return bool(
+            self.ncsa_notice_stage == "initial"
+            and self.ncsa_completion_due_at
+            and timezone.now() > self.ncsa_completion_due_at
         )
 
 

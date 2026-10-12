@@ -56,6 +56,8 @@ class ModelOptions:
     #: 0 = بلا سقف، 2 = حصتان متتاليتان لا ثلاث. يُسجَّل كلُّ معلّمٍ في `BuiltModel.relaxations`.
     touch_relaxed: frozenset[str] = frozenset()
     touch_relaxed_run_cap: int = 0
+    #: «للجميع» عَلَماً لا قائمة (D-382م): كلُّ معلّمٍ يُخفَّف عنه HC5 ولو لم يُسمَّ في `touch_relaxed`، فلا يتقادم بدخول معلّمٍ جديد.
+    touch_relaxed_all: bool = False
     #: قيدٌ صلب بأمر المالك 2026-10-09: لا يقف المعلّم الحصتين السادسة والسابعة معاً في اليوم (يشمل المزدوجات).
     no_6_7: bool = False
     #: سقفُ الأولى (HC22) الأعلى لمعلّمين محدَّدين: ((معلّم، سقف), …) — قرار المالك 2026-10-09 لأنصبة 15 فأكثر.
@@ -67,6 +69,9 @@ class ModelOptions:
     #: صفُّ كلّ شعبة («G11»…) — يلزم HC17 ولا يحمله `CpSatInputs`؛ فارغٌ = HC17 لا يعمل (بلا مرجع صفٍّ لا حكم).
     class_grade: dict[str, str] = field(default_factory=dict)
     thursday_pair_grades: frozenset[str] = frozenset({"G11", "G12"})
+    #: فجوةٌ اختياريةٌ في مجموع حصص كلّ صفٍّ (استثناءٌ معلَنٌ من «الطلبُ مساواةٌ صلبة»): تتيح طبقةَ «المتعذّرات»
+    #: في الهدف المعجميّ. افتراضُه False = المساواةُ كما كانت، فلا يتغيّر نموذجُ أيّ مستدعٍ قائم.
+    allow_unplaced: bool = False
     #: يسمّي القيودَ في الـproto (للتنقيح فقط؛ يزيد الذاكرة).
     name_constraints: bool = False
 
@@ -101,6 +106,8 @@ class BuiltModel:
     #: إرخاءاتُ أرضيّة HC14/HC16B المعلَنة لكلّ معلّم (D-286م): معرّفٌ، حمل، كتل، الأرضيّة الأصليّة والمخفَّفة. «مخفَّف» وسمٌ للجدول.
     relaxations: list[dict] = field(default_factory=list)
     soft_terms: list[tuple[str, Any, float]] = field(default_factory=list)
+    #: طبقاتُ الهدف المعجميّ بالترتيب (الأعلى أوّلاً)؛ فارغةٌ = هدفٌ واحدٌ كما كان. يملؤها `add_layers`.
+    layers: list[tuple[str, Any]] = field(default_factory=list)
 
     @property
     def rows(self) -> list[DemandRow]:
@@ -144,12 +151,26 @@ def add_soft_terms(built: BuiltModel, terms: Iterable[tuple[str, Any, float]]) -
     return len(built.soft_terms)
 
 
+def unplaced_total(built: BuiltModel) -> Any:
+    """مجموعُ المتعذّرات (حصصٌ لم توضع) — صفرٌ ثابتٌ حين لا فجوة (`allow_unplaced` مطفأ)."""
+    gaps = [v for key, v in built.vars.items() if key[0] == "unplaced"]
+    return sum(gaps) if gaps else 0
+
+
+def add_layers(built: BuiltModel, layers: Iterable[tuple[str, Any]]) -> int:
+    """يسجّل طبقاتِ الهدف المعجميّ (اسمٌ، تعبيرٌ) من الأعلى. الحلُّ المتتالي في المشغّل (`runner.solve`)."""
+    built.layers = list(layers)
+    return len(built.layers)
+
+
 __all__ = [
     "BuiltModel",
     "ModelOptions",
     "SchedulerInputs",
     "TOGGLEABLE",
+    "add_layers",
     "add_soft_terms",
     "build_model",
     "row_id",
+    "unplaced_total",
 ]

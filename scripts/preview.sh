@@ -62,8 +62,16 @@ SELF_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && (pwd -W 2>/dev/null || pw
 ROOT="${SCHOOLOS_ROOT:-D:/shschool_mvp}"          # الجذرُ الأصليّ: منه .env وحده
 WORKTREES="$ROOT/.claude/worktrees"
 PREVIEW_DIR="${PREVIEW_DIR:-$WORKTREES/main-preview}"
-PROJECT="schoolos-main-preview"
+PROJECT="${PREVIEW_PROJECT:-schoolos-main-preview}"   # قابلٌ للتبديل لاختبارٍ على منفذٍ ومشروعٍ بديلين
 PORT="${PREVIEW_PORT:-8500}"
+# أزرق/أخضر (W-20261010-051): الخادمُ الحيّ على منفذ المالك PORT تحجزه واجهةُ nginx صغيرة ثابتة (FRONT)،
+# وخلفَها «خانتان» تتناوبان على منفذين داخليين؛ فالتطبيقُ يبني الجديدَ في الخانة الفارغة حتى يصحّ
+# ثمّ يحوِّل الواجهةَ إليه بـ`nginx -s reload` (بلا انقطاع)، ويبقى القائم إن سقط الجديد.
+FRONT="${PROJECT}-front"
+SLOT_PORT_A="${PREVIEW_SLOT_PORT_A:-$((PORT + 10))}"
+SLOT_PORT_B="${PREVIEW_SLOT_PORT_B:-$((PORT + 20))}"
+SLOT_PROJECT=""                                   # الخانةُ الجاري البناءُ فيها؛ فارغٌ = المشروعُ القديم المباشر
+RECENT_SECONDS="${PREVIEW_RECENT_SECONDS:-120}"   # طلبٌ على المعاينة أحدثُ من هذا يؤجّل التطبيقَ (حتى MAX_WAIT)
 QUIET="${PREVIEW_QUIET_SECONDS:-0}"               # سكونُ main قبل التطبيق (0 = معطَّل؛ كان 180)
 APPLY_EVERY="${PREVIEW_APPLY_EVERY_SECONDS:-600}" # تطبيقٌ إجباريٌّ كلَّ كذا ثانيةً إن وُجد جديد (0 = معطَّل) — قرارُ المالك 2026-10-02
 MAX_WAIT="${PREVIEW_MAX_WAIT_SECONDS:-900}"       # سقفُ الانتظار الأقصى (احتياطٌ أخيرٌ فوق الإيقاع)
@@ -283,13 +291,13 @@ export_env() {   # export_env <prod|dev> <شجرة> <قاعدة>
 
 compose() {   # compose <شجرة> <أوامر…>: الشجرةُ المعروضة هي المربوطة `.:/app`
   local tree="$1"; shift
-  docker compose -p "$PROJECT" --project-directory "$tree" \
+  docker compose -p "${SLOT_PROJECT:-$PROJECT}" --project-directory "$tree" \
     --env-file "$PREVIEW_DIR/.env" -f "$COMPOSE_FILE" "$@"
 }
 
 wait_web() {
   [ "$DRY" = 1 ] && return 0
-  local c="${PROJECT}-web-1" state i restarts
+  local c="${SLOT_PROJECT:-$PROJECT}-web-1" state i restarts
   for i in $(seq 1 90); do
     state="$(docker inspect -f '{{.State.Health.Status}}' "$c" 2>/dev/null || echo missing)"
     [ "$state" = "healthy" ] && return 0
@@ -302,6 +310,106 @@ wait_web() {
   warn "الخادمُ لم يصحّ — آخرُ سطورِ سجلّه:"
   docker logs --tail 25 "$c" 2>&1 | sed 's/^/    /' >&2 || true
   return 1
+}
+
+# ── أزرق/أخضر: الخانتان والواجهة ─────────────────────────────────────────
+slot_port() { if [ "$1" = a ]; then printf '%s' "$SLOT_PORT_A"; else printf '%s' "$SLOT_PORT_B"; fi; }
+
+# حاويةُ الخادم التي تخدم الآن (الخانةُ الفعّالة، أو المشروعُ القديم المباشر قبل أوّل تبديل).
+web_container() {
+  local s; s="$(sget slot)"
+  if [ -n "$s" ]; then printf '%s-%s-web-1' "$PROJECT" "$s"; else printf '%s-web-1' "$PROJECT"; fi
+}
+
+front_conf() {   # front_conf <منفذُ الخانة> — يكتب إعدادَ nginx إلى مجلّد الواجهة
+  local d; d="$(state_dir)/front"
+  mkdir -p "$d"
+  cat > "$d/default.conf" <<NGINX
+# يُولَّد آليّاً من scripts/preview.sh — لا يُحرَّر يدويّاً.
+map \$http_upgrade \$conn_upgrade { default upgrade; '' close; }
+server {
+  listen 80;
+  client_max_body_size 64m;
+  location / {
+    proxy_pass http://host.docker.internal:$1;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$http_host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection \$conn_upgrade;
+    proxy_read_timeout 300s;
+    proxy_connect_timeout 3s;
+  }
+}
+NGINX
+}
+
+# يضمن واجهةً عاملةً موجِّهةً إلى منفذ الخانة؛ وإن كانت قائمةً تُحوَّل بإعادة تحميلٍ رشيقة (لا إسقاطَ لأيّ اتصال).
+front_point() {   # front_point <منفذُ الخانة>
+  [ "$DRY" = 1 ] && { printf '[dry] واجهة %s → %s\n' "$FRONT" "$1"; return 0; }
+  front_conf "$1"
+  if [ "$(docker inspect -f '{{.State.Running}}' "$FRONT" 2>/dev/null || echo false)" = "true" ]; then
+    docker exec "$FRONT" nginx -s reload >/dev/null 2>&1 || { warn "تعذّرت إعادةُ تحميل الواجهة"; return 1; }
+    return 0
+  fi
+  # أوّلُ مرّة (أو سقطت الواجهة): يُحرَّر المنفذُ من المشروع القديم المباشر إن وُجد ثمّ تقوم الواجهة — ثوانٍ لا دقيقتان.
+  docker rm -f "$FRONT" >/dev/null 2>&1 || true
+  docker compose -p "$PROJECT" down --remove-orphans >/dev/null 2>&1 || true
+  local conf; conf="$(cd "$(state_dir)/front" && (pwd -W 2>/dev/null || pwd))"
+  MSYS_NO_PATHCONV=1 docker run -d --name "$FRONT" --restart unless-stopped \
+    --add-host host.docker.internal:host-gateway \
+    -p "${PREVIEW_BIND:-127.0.0.1}:${PORT}:80" \
+    -v "$conf/default.conf:/etc/nginx/conf.d/default.conf:ro" \
+    nginx:alpine >/dev/null || { warn "تعذّر تشغيلُ الواجهة"; return 1; }
+}
+
+# يبني الشجرةَ في الخانة الفارغة؛ وبعد صحّتها تُحوَّل الواجهةُ إليها وتُزال الخانةُ القديمة. فشلُها يُبقي القائمَ يخدم.
+bluegreen_up() {   # bluegreen_up <شجرة>
+  local tree="$1" cur new port
+  cur="$(sget slot)"
+  if [ "$cur" = a ]; then new=b; else new=a; fi
+  port="$(slot_port "$new")"
+  local net="${PREVIEW_NETWORK:-${PROJECT}-net}"
+  export PREVIEW_NETWORK="$net"
+  if [ "$DRY" != 1 ]; then
+    docker network inspect "$net" >/dev/null 2>&1 || docker network create "$net" >/dev/null       || { warn "تعذّر إنشاءُ شبكة $net"; return 1; }
+  fi
+  SLOT_PROJECT="${PROJECT}-${new}"
+  say "▸ يُبنى الجديدُ في الخانة $new (منفذ $port) والقائمُ يواصل الخدمة"
+  run env PREVIEW_PORT="$port" PREVIEW_BIND=127.0.0.1 \
+    docker compose -p "$SLOT_PROJECT" --project-directory "$tree" \
+    --env-file "$PREVIEW_DIR/.env" -f "$COMPOSE_FILE" up -d --force-recreate --remove-orphans \
+    || warn "docker compose up أعاد خطأً"
+  if ! wait_web; then
+    warn "سقط الجديدُ في الخانة $new — يبقى القائمُ يخدم"
+    run docker compose -p "$SLOT_PROJECT" down --remove-orphans >/dev/null 2>&1 || true
+    SLOT_PROJECT=""
+    return 1
+  fi
+  if ! front_point "$port"; then
+    run docker compose -p "$SLOT_PROJECT" down --remove-orphans >/dev/null 2>&1 || true
+    SLOT_PROJECT=""
+    return 1
+  fi
+  sset slot "$new"
+  SLOT_PROJECT=""
+  if [ -n "$cur" ]; then
+    [ "$DRY" = 1 ] || sleep 3   # مهلةٌ لطلباتٍ جارية على الخانة القديمة
+    run docker compose -p "${PROJECT}-${cur}" down --remove-orphans >/dev/null 2>&1 || true
+  fi
+  return 0
+}
+
+# هل يعاين أحدٌ الآن؟ أيُّ طلبٍ غيرِ فحصٍ صحّيٍّ أو ثابتٍ في آخر RECENT_SECONDS يمرّ بالواجهة.
+owner_recent() {
+  [ "$DRY" = 1 ] && return 1
+  [ "$RECENT_SECONDS" -gt 0 ] || return 1
+  [ "$(docker inspect -f '{{.State.Running}}' "$FRONT" 2>/dev/null || echo false)" = "true" ] || return 1
+  local n
+  n="$(docker logs --since "${RECENT_SECONDS}s" "$FRONT" 2>&1 | grep -E '"(GET|POST|PUT|PATCH|DELETE) ' | grep -vE '/health/|/static/' | grep -c . || true)"
+  [ "${n:-0}" -gt 0 ]
 }
 
 served_commit() {
@@ -494,8 +602,7 @@ deploy_main() {
   export_env prod "$tree" "$db"
   label="${LABEL:-main@$PREVIEW_SHA}"
   say "▸ يُعاد إنشاءُ الخادم والعامل على $label (هجرة ← collectstatic ← daphne) — قاعدة $db"
-  run compose "$tree" up -d --force-recreate --remove-orphans || warn "docker compose up أعاد خطأً"
-  wait_web || return 1
+  bluegreen_up "$tree" || return 1
   sset mode follow
   sset served_sha "$(git -C "$tree" rev-parse HEAD)"
   sset served_label "$label"
@@ -646,7 +753,7 @@ apply_main() {   # apply_main <sha> — بعد resolve_target (LABEL وINTEG_KIN
     if deploy_main; then
       sset last_error "$(now) $msg فتُخدَم ${good:0:7}"
     else
-      warn "وفشلت العودةُ أيضاً — الخادمُ متوقّف؛ راجع: docker logs ${PROJECT}-web-1"
+      warn "وفشلت العودةُ أيضاً — الخادمُ متوقّف؛ راجع: docker logs $(web_container)"
     fi
   fi
   return 1
@@ -661,8 +768,7 @@ deploy_pin() {   # deploy_pin <شجرة> <دقائق>
   fi
   export_env dev "$tree" "$db"
   say "▸ يُحوَّل الخادمُ إلى $(basename "$tree")@$PREVIEW_SHA (تطوير، قاعدة $db) لمدّة $mins دقيقة"
-  run compose "$tree" up -d --force-recreate --remove-orphans || warn "docker compose up أعاد خطأً"
-  if ! wait_web; then
+  if ! bluegreen_up "$tree"; then
     sset last_error "$(now) الإقلاعُ سقط عند تثبيت $(basename "$tree")"
     return 1
   fi
@@ -718,7 +824,7 @@ cmd_sync() {
   ts="$(now)"
 
   if same_content "$new" "$served"; then
-    if [ "$(docker inspect -f '{{.State.Running}}' "${PROJECT}-web-1" 2>/dev/null || echo false)" = "true" ]; then
+    if [ "$(docker inspect -f '{{.State.Running}}' "$(web_container)" 2>/dev/null || echo false)" = "true" ]; then
       idle "على $LABEL — لا جديد"
       return 0
     fi
@@ -740,7 +846,9 @@ cmd_sync() {
   since="$(sget pending_since)"; first="$(sget wait_since)"
   age=$(( ts - ${since:-$ts} )); waited=$(( ts - ${first:-$ts} ))
   local since_apply; since_apply="$(apply_age "$ts")"
-  if apply_due "$force" "$age" "$waited" "$since_apply"; then
+  if apply_due "$force" "$age" "$waited" "$since_apply" && [ "$force" = 0 ] && [ "$waited" -lt "$MAX_WAIT" ] && owner_recent; then
+    idle "$LABEL جاهزٌ للتطبيق لكن أحداً يعاين الآن (طلبٌ في آخر $RECENT_SECONDS ثانية) — أؤجّل حتى يسكن أو يبلغ الانتظارُ $MAX_WAIT ثانية"
+  elif apply_due "$force" "$age" "$waited" "$since_apply"; then
     say "▸ $LABEL — يُطبَّق"
     apply_main "$new"
   else
@@ -851,7 +959,7 @@ cmd_status() {
   main="$(git -C "$PREVIEW_DIR" rev-parse --short=7 origin/main)"
   [ "$REF" = "origin/main" ] || say "تتبع المعاينةُ الآن $REF لا main (PREVIEW_REF) — لتجربة شيفرةٍ لم تُدمج"
   prod="$(curl -s -m 8 "$PROD_URL/health/" | sed -n 's/.*"commit": *"\([0-9a-f]*\)".*/\1/p' || true)"
-  running="$(docker inspect -f '{{.State.Status}} ({{.State.Health.Status}})' "${PROJECT}-web-1" 2>/dev/null || echo 'غيرُ موجود')"
+  running="$(docker inspect -f '{{.State.Status}} ({{.State.Health.Status}})' "$(web_container)" 2>/dev/null || echo 'غيرُ موجود')"
   serving="$(served_commit)"
   if [ "$mode" = pin ]; then
     pin_note=" — $(basename "$(sget pin_tree)") (يعود إلى main بعد $(( ($(sget pin_until) - $(now)) / 60 + 1 )) دقيقة)"
@@ -905,7 +1013,7 @@ cmd_status() {
   err="$(sget last_error)"
   if [ -n "$err" ]; then
     err_ts="${err%% *}"   # الحالةُ تُخزَّن «<وقت> <نصّ>»؛ يُعرض الوقتُ مقروءاً
-    warn "آخرُ خطأ ($(date -d "@$err_ts" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "$err_ts")): ${err#* } — راجع: docker logs ${PROJECT}-web-1"
+    warn "آخرُ خطأ ($(date -d "@$err_ts" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "$err_ts")): ${err#* } — راجع: docker logs $(web_container)"
   fi
   err="$(sget db_note)"
   if [ -n "$err" ]; then
