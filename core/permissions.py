@@ -25,6 +25,7 @@ from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
 from core.behavior_committee_roles import BEHAVIOR_COMMITTEE  # noqa: F401
+from core.role_inheritance import ROLE_INHERITS, expand_roles  # noqa: F401  (إعادة تصدير)
 from core.unrestricted_role import has_unrestricted_role
 
 from .models.access import (
@@ -38,46 +39,8 @@ from .models.access import (
 logger = logging.getLogger(__name__)
 
 # ══════════════════════════════════════════════════════════════════════
-# 0. ROLE INHERITANCE — وراثة الأدوار التلقائية (v6)
+# 0. ROLE INHERITANCE — وراثة الأدوار: في core/role_inheritance.py (مستورَدةٌ هنا لمن يعتمد عليها)
 # ══════════════════════════════════════════════════════════════════════
-
-ROLE_INHERITS = {
-    # child → parent (يرث كل صلاحياته الأكاديمية)
-    "coordinator": "teacher",  # المنسق يرث المعلم
-    "ese_teacher": "teacher",  # معلم ESE يرث المعلم
-    "vice_academic": "coordinator",  # النائب الأكاديمي يرث المنسق
-    "vice_admin": "admin_supervisor",  # النائب الإداري يرث المشرف الإداري
-    "principal": "vice_academic",  # المدير يرث النائب الأكاديمي
-    # v7 — مساعدون يرثون من أساتذتهم
-    "teacher_assistant": "teacher",  # مساعد المعلم يرث المعلم (جدول + حضور)
-    "ese_assistant": "ese_teacher",  # مساعد ESE يرث معلم ESE
-    "activities_coordinator": "coordinator",  # منسق أنشطة يرث المنسق
-    "e_projects_coordinator": "teacher",  # منسّق المشاريع الإلكترونية معلّمٌ بنصابٍ مخفَّض
-    "transport_officer": "bus_supervisor",  # مسؤول نقل يرث مشرف النقل
-}
-
-
-def expand_roles(roles: set) -> set:
-    """
-    يوسّع مجموعة أدوار لتشمل كل دور يرث منها.
-
-    مثال:
-        expand_roles({"teacher"})
-        → {"teacher", "ese_teacher", "coordinator", "vice_academic", "principal"}
-
-    ملاحظة: تُستخدم فقط للصلاحيات ذات الطبيعة الوراثية (الأكاديمية).
-    الصلاحيات المتخصصة (nurse, librarian...) تبقى صريحة.
-    """
-    expanded = set(roles)
-    changed = True
-    while changed:
-        changed = False
-        for child, parent in ROLE_INHERITS.items():
-            if parent in expanded and child not in expanded:
-                expanded.add(child)
-                changed = True
-    return expanded
-
 
 # ══════════════════════════════════════════════════════════════════════
 # 1. PERMISSION CONSTANTS — ثوابت الصلاحيات لكل نظام فرعي
@@ -593,7 +556,7 @@ def _forbidden_response(request: HttpRequest, message: str) -> HttpResponseBase:
     return forbidden_page(request, message)
 
 
-def role_required(*roles):
+def role_required(*roles, not_inherited_by: frozenset | set = frozenset()):
     """
     ديكوريتور أساسي — يتحقق من أن المستخدم لديه أحد الأدوار المعطاة.
     superuser يمر دائماً.
@@ -607,7 +570,7 @@ def role_required(*roles):
         roles = tuple(roles[0])
 
     # توسيع الأدوار لتشمل الأدوار الوارثة (coordinator ← teacher، إلخ)
-    expanded_roles = expand_roles(set(roles))
+    expanded_roles = expand_roles(set(roles), not_inherited_by=not_inherited_by)
 
     def decorator(view_func):
         @wraps(view_func)

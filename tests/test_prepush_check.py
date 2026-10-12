@@ -46,6 +46,8 @@ def _all_pass(monkeypatch, **overrides):
     monkeypatch.setattr(prepush_check, "check_personal_data", ok)
     monkeypatch.setattr(prepush_check, "check_secrets", overrides.get("secrets", ok))
     monkeypatch.setattr(prepush_check, "check_complexity", overrides.get("complexity", ok))
+    # لا واجهةَ تغيّرت افتراضاً: خطوةُ الهويّة تُتخطّى فلا تُشغَّل الحرّاسُ الحقيقيّة في اختبارات الأداة.
+    monkeypatch.setattr(prepush_check, "changed_paths_vs_merge_base", lambda: [])
 
 
 def test_all_green_exits_zero(monkeypatch):
@@ -66,3 +68,74 @@ def test_a_missing_tool_exits_three_unless_allowed(monkeypatch):
     _all_pass(monkeypatch, complexity=lambda: (prepush_check.MISSING, "radon غائب"))
     assert prepush_check.main([]) == 3
     assert prepush_check.main(["--allow-missing"]) == 0
+
+
+# ── حرّاسُ الهويّة في prepush (W-20261011-002، D-376م) ─────────────────────────────────────
+
+
+def test_only_templates_and_static_count_as_touching_the_interface():
+    assert prepush_check.touches_interface(["templates/dashboard/a.html"])
+    assert prepush_check.touches_interface(["core/views.py", "static/css/custom/x.css"])
+    assert not prepush_check.touches_interface(["core/views.py", "tests/test_x.py", "docs/a.md"])
+    # بادئةٌ لا اسمُ مجلّدٍ يشبهها: `templates_old/` و`staticfiles/` ليسا الواجهة.
+    assert not prepush_check.touches_interface(["templates_old/a.html", "staticfiles/a.css"])
+
+
+def test_the_three_identity_guards_of_d376_are_among_those_prepush_runs():
+    added = {
+        "tests/test_dead_classes.py",
+        "tests/test_design_ratchet.py",
+        "tests/test_tailwind_freeze.py",
+    }
+    assert added <= set(prepush_check.IDENTITY_GUARDS)
+    for path in prepush_check.IDENTITY_GUARDS:
+        assert Path(path).exists(), f"حارسٌ مذكورٌ في الأداة وغيرُ موجود: {path}"
+
+
+def _stub_other_checks(monkeypatch):
+    _all_pass(monkeypatch)
+
+
+def test_a_commit_without_interface_files_skips_the_identity_guards(monkeypatch, capsys):
+    _stub_other_checks(monkeypatch)
+    monkeypatch.setattr(prepush_check, "changed_paths_vs_merge_base", lambda: ["core/views.py"])
+    ran = []
+    monkeypatch.setattr(
+        prepush_check, "_run_identity_guards", lambda: ran.append(1) or (prepush_check.OK, "")
+    )
+    assert prepush_check.main([]) == 0
+    assert not ran, "الحرّاس شُغّلت على إيداعٍ لا يمسّ الواجهة"
+    assert "identity_ack" not in capsys.readouterr().out
+
+
+def test_an_interface_commit_runs_the_guards_and_a_pass_prints_the_receipt_last(
+    monkeypatch, capsys
+):
+    _stub_other_checks(monkeypatch)
+    monkeypatch.setattr(prepush_check, "changed_paths_vs_merge_base", lambda: ["templates/a.html"])
+    monkeypatch.setattr(prepush_check, "_run_identity_guards", lambda: (prepush_check.OK, ""))
+    monkeypatch.setattr(prepush_check, "head8", lambda: "abcd1234")
+    assert prepush_check.main([]) == 0
+    assert capsys.readouterr().out.strip().splitlines()[-1] == "identity_ack: abcd1234 نجح"
+
+
+def test_a_failing_identity_guard_blocks_and_the_last_line_says_failed(monkeypatch, capsys):
+    _stub_other_checks(monkeypatch)
+    monkeypatch.setattr(prepush_check, "changed_paths_vs_merge_base", lambda: ["static/css/x.css"])
+    monkeypatch.setattr(
+        prepush_check, "_run_identity_guards", lambda: (prepush_check.FAIL, "صنفٌ بلا تعريف")
+    )
+    monkeypatch.setattr(prepush_check, "head8", lambda: "abcd1234")
+    assert prepush_check.main([]) == 1
+    assert capsys.readouterr().out.strip().splitlines()[-1] == "identity_ack: abcd1234 سقط"
+
+
+def test_an_unknown_diff_is_treated_as_touching_the_interface(monkeypatch):
+    # لا merge-base (فرعٌ وحيد/سجلٌّ مبتور): الأحوط تشغيلُ الحرّاس لا تخطّيها.
+    monkeypatch.setattr(prepush_check, "changed_paths_vs_merge_base", lambda: None)
+    assert prepush_check.interface_touched() is True
+
+
+def test_the_identity_step_has_its_own_time_budget_documented():
+    assert prepush_check.IDENTITY_TIMEOUT_SECONDS >= 120
+    assert "D-376" in Path("scripts/prepush_check.py").read_text(encoding="utf-8")

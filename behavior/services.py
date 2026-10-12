@@ -67,19 +67,6 @@ NET_SCORE_STATUS = ((80, "green"), (60, "yellow"), (None, "red"))
 class BehaviorPermissions:
     """صلاحيات وحدة السلوك"""
 
-    REPORTER_ROLES = {
-        "principal",
-        "vice_admin",
-        "vice_academic",
-        "coordinator",
-        "teacher",
-        "ese_teacher",
-        "social_worker",
-        "specialist",
-        "admin_supervisor",
-        "admin",
-        "platform_developer",
-    }
     COMMITTEE_ROLES = BEHAVIOR_COMMITTEE  # م5.7 — مصدرٌ واحدٌ في core/permissions.py (W-20261001-023)
     SUMMON_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "psychologist"}
     STATS_ROLES = {
@@ -98,7 +85,10 @@ class BehaviorPermissions:
 
     @staticmethod
     def can_report(user: CustomUser) -> bool:
-        return user.get_role() in BehaviorPermissions.REPORTER_ROLES
+        """يرصد المخالفة من يحمل القدرة ``behavior.record`` — المصدرُ الواحد بدل قائمة أدوار ثابتة (W-20261010-013)."""
+        from core.capabilities import has_capability
+
+        return has_capability(user, "behavior.record")
 
     @staticmethod
     def is_committee(user: CustomUser) -> bool:

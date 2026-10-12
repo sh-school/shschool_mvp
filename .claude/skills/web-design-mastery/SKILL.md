@@ -16,6 +16,7 @@ description: |
 - لا: قالبُ PDF (له إطارٌ مطبوعٌ مستقلّ)، ولا قرارُ دمجٍ أو نشر (`schoolos-flow`).
 
 ## الإجراء
+0. **ابدأ من مرجع الهويّة المولَّد** `.claude/rules/identity-reference.md` (يُحمَّل تلقائياً حين تلمس `static/` أو `templates/`؛ وإلا اقرأه): رموزُ الألوان نهاراً وليلاً، وقاموسُ الأيقونات بمعانيها، وأنماطُ الصفحات السبعة — فلا تفتح `/styleguide/` (مطوّريّةٌ) ولا تخمّن لوناً أو أيقونة. مولَّدٌ من المصادر ويحرسه `tests/test_identity_reference_fresh.py`.
 1. **اختر نمطَ الصفحة قبل أن تكتبها**: `{% block main_class %}{% page_layout "list" %}{% endblock %}` — أحدُ `dashboard|hub|list|detail|form|sheet|report` (أو `custom` بسطرٍ في جدول الاستثناءات). صفحةٌ جديدةٌ بلا نمطٍ تُسقط `tests/test_page_layouts.py`. ← `references/20-layouts-components.md`
 2. **ابنِ من المكوّنات القائمة**: `page_header`، `section_card`، `kpi`/`kpi_strip`، `callout` (خمسة أنواع)، `empty_state`، `field`، `filter_bar`، `action_tile`، `entity_card`، و`{% icon "…" %}`. صنفٌ جديدٌ آخرُ الحلول.
 3. **الأنماطُ في ملفّ طبقتها**: مكوّنٌ ← `20-components`، شاشةٌ ← `30..33-modules` (آخرُها 33)، ليليٌّ ← `40-themes`، مساعدٌ ← `50-utilities`؛ ولا قاعدةَ خارج `@layer`. ← `references/10-css-architecture.md`

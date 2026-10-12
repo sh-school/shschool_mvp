@@ -16,7 +16,7 @@
   "core/audit_export.py": 1,
   "core/auth_identity.py": 6,
   "core/backends.py": 1,
-  "core/capabilities.py": 11,
+  "core/capabilities.py": 10,
   "core/celery_tasks.py": 15,
   "core/context_processors.py": 4,
   "core/dashboard_presentation.py": 3,
@@ -41,7 +41,7 @@
   "core/models/user.py": 20,
   "core/module_registry.py": 1,
   "core/pdf_utils.py": 22,
-  "core/permissions.py": 41,
+  "core/permissions.py": 30,
   "core/querysets.py": 19,
   "core/request_utils.py": 2,
   "core/rls.py": 2,
@@ -121,5 +121,5 @@
   "wings/scope.py": 1,
   "wings/services.py": 14
  },
- "total": 1180
+ "total": 1168
 }
