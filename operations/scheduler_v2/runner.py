@@ -793,9 +793,9 @@ def run(
     return RunResult(True, report, evaluation, "", "ok"), inputs
 
 
-def persist_draft(generation: Any, result: RunResult, inputs: CpSatInputs, elapsed_ms: int) -> int:
-    """يكتب مسودّةً غيرَ منشورة (`is_active=False`) بأرقام الحصص وأوقاتِ الجرس نفسِها — بعد قبول المُقيِّم فقط."""
-    from operations.models import ScheduleGeneration, ScheduleSlot
+def draft_slot_rows(generation: Any, result: RunResult, inputs: CpSatInputs) -> list[Any]:
+    """صفوفُ `ScheduleSlot` غيرُ منشورة (`is_active=False`) بأرقام الحصص وأوقاتِ الجرس نفسِها — لا تُحفظ هنا."""
+    from operations.models import ScheduleSlot
     from operations.scheduling_inputs import bell_lookup
 
     if not (result.ok and result.report and result.evaluation):
@@ -823,6 +823,14 @@ def persist_draft(generation: Any, result: RunResult, inputs: CpSatInputs, elaps
                 generation=generation,
             )
         )
+    return rows
+
+
+def persist_draft(generation: Any, result: RunResult, inputs: CpSatInputs, elapsed_ms: int) -> int:
+    """يكتب مسودّةً غيرَ منشورة (`is_active=False`) بأرقام الحصص وأوقاتِ الجرس نفسِها — بعد قبول المُقيِّم فقط."""
+    from operations.models import ScheduleGeneration, ScheduleSlot
+
+    rows = draft_slot_rows(generation, result, inputs)
     snapshot = {
         "engine": ENGINE,
         "solver": result.report.solver_dict(),
