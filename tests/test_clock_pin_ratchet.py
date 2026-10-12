@@ -184,6 +184,21 @@ def test_the_marker_accepts_another_instant():
     assert timezone.localtime().weekday() == 4
 
 
+@pytest.fixture
+def _clock_patched_under_the_pin(monkeypatch):
+    """مرفقٌ يبدّل `timezone.now` وقد ثُبّتت الساعةُ قبله (كـ`clock` المستورد من test_class_grid في test_wing_panel_reads_entries)."""
+    monkeypatch.setattr(timezone, "now", lambda: FRIDAY)
+
+
+@pytest.mark.pin_clock
+def test_a_fixture_that_patches_now_under_the_pin_does_not_leave_the_freeze_behind(
+    _clock_patched_under_the_pin,
+):
+    # كان فكُّ تبديله يعيد الدالّةَ المجمَّدة بعد خروج التثبيت فتبقى في العامل (الشريحة 4 من #940)؛
+    # والاختبارُ التالي في الملفّ يتحقّق أنّ الساعة عادت حقيقيّة.
+    assert timezone.now() == FRIDAY
+
+
 @pytest.mark.skipif(
     bool(os.environ.get("SCHOOLOS_TEST_NOW")), reason="الوظيفةُ الليليّة تثبّت كلَّ اختبار"
 )

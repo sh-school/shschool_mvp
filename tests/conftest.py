@@ -522,8 +522,9 @@ def settings_broker_spy():
 #  تثبيت الساعة (W-20261008-021)
 # ══════════════════════════════════════════════
 #  اختبارٌ يقرأ «اليوم» (timezone.now/localdate) بلا تثبيت يفشل بحسب يوم التشغيل (مثالُه حارس VI-13). الآلية هي
-#  `frozen_clock` القائمة نفسُها (tests/visual_snapshots.py) لا مكتبةٌ جديدة؛ وهي تثبّت `timezone.now` فتتبعه
-#  `localdate()` و`localtime()`، ولا تصل إلى `date.today()`/`datetime.now()` المباشرتين (يعدّهما الحارس ولا يعالجهما).
+#  ما تفعله `frozen_clock` القائمة (tests/visual_snapshots.py) لا مكتبةٌ جديدة، بتبديل `timezone.now` عبر `monkeypatch`
+#  الاختبارِ نفسِه فيتبعه `localdate()` و`localtime()`، ولا تصل إلى `date.today()`/`datetime.now()` المباشرتين
+#  (يعدّهما الحارس ولا يعالجهما).
 #
 #  - العلامة `@pytest.mark.pin_clock` أو `pytestmark = pytest.mark.pin_clock` على الملف: تثبّت الساعةَ على أربعاءِ دوامٍ
 #    (FIXED_NOW) أو على لحظةٍ تُمرَّر `pin_clock(datetime)`.
@@ -546,7 +547,9 @@ def _pinned_clock(request):
     if marker is None and not forced:
         yield
         return
-    from tests.visual_snapshots import FIXED_NOW, frozen_clock
+    from django.utils import timezone
+
+    from tests.visual_snapshots import FIXED_NOW
 
     if marker is not None:
         now = marker.args[0] if marker.args else FIXED_NOW
@@ -554,5 +557,9 @@ def _pinned_clock(request):
         now = dt.datetime.fromisoformat(forced)
         if now.tzinfo is None:
             now = now.replace(tzinfo=FIXED_NOW.tzinfo)
-    with frozen_clock(now):
-        yield
+    # التثبيتُ بـ`monkeypatch` الاختبارِ نفسِه لا بـ`mock.patch` منفصل: فمرفقٌ يبدّل `timezone.now` تحت التثبيت
+    # (مثل `clock` المستورد من test_class_grid) يُفكّ بنفس المكدّس عكسَ ترتيب التبديل، فلا يعيد فكُّه المتأخّر
+    # بعد خروج التثبيت دالّةً مجمّدةً تبقى في العامل وتفسد كلَّ اختبارٍ بعده (سقط به test_clock_pin_ratchet
+    # في الشريحة 4 حين جمعتها إعادةُ التوزيع مع test_wing_panel_reads_entries).
+    request.getfixturevalue("monkeypatch").setattr(timezone, "now", lambda: now)
+    yield
