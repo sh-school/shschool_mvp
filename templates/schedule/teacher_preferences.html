@@ -21,14 +21,14 @@
       <div class="form-group">
         <label class="form-label" for="max_consecutive">أقصى حصص متتالية</label>
         <select name="max_consecutive" id="max_consecutive" class="form-control">
-          <option value="" {% if pref.max_consecutive is None %}selected{% endif %}>السقف العام للمدرسة (الافتراضي): {% if pref.general_run_cap == 1 %}حصة واحدة، لا تجاور{% else %}{{ pref.general_run_cap }} حصص{% endif %}</option>
+          <option value="" {% if pref.max_consecutive is None %}selected{% endif %}>السقف العام (الافتراضي): {% if pref.general_run_cap == 1 %}حصة واحدة{% else %}{{ pref.general_run_cap }} حصص{% endif %}</option>
           {% for v in periods %}
           <option value="{{ v }}" {% if pref.max_consecutive == v %}selected{% endif %}>
             {% if v == 1 %}حصة واحدة — لا تجاور{% else %}{{ v }} حصص{% endif %}
           </option>
           {% endfor %}
         </select>
-        <p class="ui-field-hint">لك وحدك ولا يُخرق؛ واختيارُ ما فوق السقف العام يُسجَّل عند الحفظ.</p>
+        <p class="ui-field-hint">لك وحدك ولا يُخرق؛ وما فوق السقف العام يُسجَّل.</p>
         {% if pref.run_cap_above_general %}
         {% callout "warning" %}سقفُك الشخصي ({{ pref.max_consecutive }}) أعلى من السقف العام ({{ pref.general_run_cap }}): يُرخي قيد التلاصق لك وحدَك في التوليد، وقد سُجّل هذا الاختيار. اترك الخانة على «السقف العام» لتعود إليه.{% endcallout %}
         {% endif %}

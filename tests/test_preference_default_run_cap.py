@@ -107,8 +107,9 @@ def test_the_page_explains_the_general_cap_and_who_the_page_belongs_to(client, s
 
     body = client.get(URL).content.decode()
 
-    assert "السقف العام للمدرسة (الافتراضي): حصة واحدة، لا تجاور" in body
-    assert "لك وحدك" in body and "ما فوق السقف العام يُسجَّل عند الحفظ" in body
+    # القيمةُ تُغلق الخيارَ: نصُّه يتّسع للقائمة على 375 فلا تُقطع القيمة (قياسُ W-20261010-050).
+    assert ">السقف العام (الافتراضي): حصة واحدة</option>" in body
+    assert "لك وحدك" in body and "ما فوق السقف العام يُسجَّل." in body
 
 
 def test_the_page_shows_a_persistent_warning_for_a_cap_above_the_general(client, school, teacher):
@@ -138,7 +139,7 @@ def test_the_screen_offers_the_general_cap_as_the_default_option(client, school,
 
     body = client.get(URL).content.decode()
 
-    assert "السقف العام للمدرسة" in body and "(الافتراضي)" in body
+    assert "السقف العام (الافتراضي)" in body
     assert "3 حصص (الافتراضي)" not in body
 
 
