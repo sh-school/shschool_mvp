@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from core.ministry import ministry_visible
+
 #: (عرض، ارتفاع) بالملّيمتر لكلّ (ورق، اتّجاه).
 SHEETS_MM: dict[tuple[str, str], tuple[float, float]] = {
     ("a4", "portrait"): (210.0, 297.0),
@@ -108,6 +110,8 @@ SHEET_HEADER_H_MM: dict[tuple[str, str], float] = {
 }
 #: التذييلُ عنصرٌ جارٍ محاذىً لأسفل مربّعه (`vertical-align: bottom`) فهو لاصقٌ بالحافّة أصلاً — هامشٌ سفليٌّ ثانٍ لا يزيد إلّا شريطاً فارغاً فوقه.
 SHEET_MARGIN_BOTTOM_MM = 0.0
+#: سطرُ الوزارة في الترويسة المضغوطة (10pt بسطر 4 ملم) — يسقط مع تجميد عبارة الوزارة (D-400م) فيُنقَص من الارتفاع كي لا يعود فراغٌ تحت الترويسة.
+SHEET_MINISTRY_LINE_MM = 4.0
 
 
 def frame(paper: str, orient: str, *, compact: bool = False) -> Frame:
@@ -121,6 +125,10 @@ def frame(paper: str, orient: str, *, compact: bool = False) -> Frame:
             f"الإطار المطبوع: الورقة {paper!r} باتّجاه {orient!r} غيرُ معروفة — {sorted(SHEETS_MM)}"
         )
     width, height = SHEETS_MM[key]
+    if compact:
+        header_h = SHEET_HEADER_H_MM[key] - (0.0 if ministry_visible() else SHEET_MINISTRY_LINE_MM)
+    else:
+        header_h = HEADER_H_MM[key]
     return Frame(
         paper=paper,
         orient=orient,
@@ -129,7 +137,7 @@ def frame(paper: str, orient: str, *, compact: bool = False) -> Frame:
         margin_top=MARGIN_TOP_MM,
         margin_bottom=SHEET_MARGIN_BOTTOM_MM if compact else MARGIN_BOTTOM_MM,
         margin_side=MARGIN_SIDE_MM,
-        header_h=SHEET_HEADER_H_MM[key] if compact else HEADER_H_MM[key],
+        header_h=header_h,
         footer_h=FOOTER_H_MM,
         gap=GAP_MM,
         vision_in_header=key in VISION_IN_HEADER,
