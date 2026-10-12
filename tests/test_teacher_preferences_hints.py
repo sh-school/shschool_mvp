@@ -12,6 +12,12 @@ pytestmark = pytest.mark.django_db
 YEAR = "2026-2027"
 URL = reverse("teacher_preferences") + f"?year={YEAR}"
 MAX_HINT = 70
+FIELDS = ["max_consecutive", "max_gap", "max_daily"]
+
+
+def _group(body, field_id):
+    """كتلةُ `form-group` التي فيها الحقلُ المسمّى، إلى بداية الكتلة التالية."""
+    return next(g for g in body.split('<div class="form-group">')[1:] if f'id="{field_id}"' in g)
 
 
 def _hint_after(body, field_id):
@@ -40,12 +46,21 @@ def body(client, school):
     return client.get(URL).content.decode()
 
 
-@pytest.mark.parametrize("field_id", ["max_consecutive", "max_gap"])
-def test_a_hard_constraint_hint_is_one_short_line_that_says_it_is_never_broken(body, field_id):
-    hint = _hint_after(body, field_id)
+@pytest.mark.parametrize("field_id", FIELDS)
+def test_each_field_has_exactly_one_help_line(body, field_id):
+    assert _group(body, field_id).count('class="ui-field-hint"') == 1
+
+
+@pytest.mark.parametrize("field_id", FIELDS)
+def test_each_help_line_is_short_apart_from_the_computed_load(body, field_id):
+    hint = _hint_after(body, field_id).split("نصابُك", 1)[0].strip()
 
     assert len(hint) <= MAX_HINT, hint
-    assert "لا يُخرق" in hint
+
+
+@pytest.mark.parametrize("field_id", ["max_consecutive", "max_gap"])
+def test_a_hard_constraint_hint_says_it_is_never_broken(body, field_id):
+    assert "لا يُخرق" in _hint_after(body, field_id)
 
 
 def test_the_gap_hint_says_it_binds_only_when_a_number_is_chosen(body):

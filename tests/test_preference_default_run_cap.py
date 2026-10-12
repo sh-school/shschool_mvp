@@ -99,13 +99,16 @@ def test_a_personal_cap_above_the_general_is_saved_with_a_visible_warning_and_an
 
 
 def test_the_page_explains_the_general_cap_and_who_the_page_belongs_to(client, school, teacher):
-    """D-330م: صياغةٌ بلا غموض للمعلّم — نصُّ العامّ كاملاً وفرقُه عن «بدون حدّ» وأن الصفحة لصاحبها."""
+    """D-330م: صياغةٌ بلا غموض للمعلّم — قيمةُ العامّ ظاهرة، والسقفُ له وحده، وما فوق العامّ يُسجَّل.
+
+    وبعد W-20261010-050 («كلام كثير») صارت القيمةُ في الخيار الافتراضيّ نفسه، والباقي سطرَ تلميحٍ واحداً.
+    """
     client.force_login(teacher)
 
     body = client.get(URL).content.decode()
 
-    assert "السقف العام للمدرسة = حصة واحدة، لا تجاور" in body
-    assert "ليس «بدون حدّ»" in body and "هذه الصفحة تخصّك وحدك" in body
+    assert "السقف العام للمدرسة (الافتراضي): حصة واحدة، لا تجاور" in body
+    assert "لك وحدك" in body and "ما فوق السقف العام يُسجَّل عند الحفظ" in body
 
 
 def test_the_page_shows_a_persistent_warning_for_a_cap_above_the_general(client, school, teacher):
