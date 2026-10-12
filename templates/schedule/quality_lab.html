@@ -8,6 +8,8 @@
 {% endblock %}
 
 {% block content %}
+{# أرقام الصفحة بنقطةٍ عشريّةٍ لا بفاصلة: ضغطُ المعلّم بثلاث خانات فكان 1.249 يُقرأ «1,249» آلافاً (W-20261011-004). #}
+{% localize off %}
 <div class="exec-dash">
 
 {% page_header "مختبر جودة الجدول" subtitle=lab_subtitle icon="schedule" %}
@@ -77,8 +79,7 @@
     </div>
   {% endsection_card %}
 
-  {# ── أشدّ المعلّمين ضغطاً والموارد ── #}
-  <div class="lab-tables">
+  {# ── أشدّ المعلّمين ضغطاً والموارد: عمودان بجوار الرادار، لا عمودٌ واحدٌ عريضٌ بخليّتين ── #}
     {% section_card "أشدّ خمسة معلّمين ضغطاً" icon="status_warning" flush=True empty="لا ضغطَ مقيس" %}{% if stress_top %}
       {% callout "hint" title="صيغة الضغط" %}الضغط = (الفراغ الموزون + الأولى والسابعة + تجاوزات التتابع + تفاوت الأيام) ÷ النصاب{% endcallout %}
       <div class="table-wrap">
@@ -117,14 +118,14 @@
         {% endwith %}
       </ul>
     {% endsection_card %}
-  </div>
 </div>
 
 {# ── بطاقات المؤشرات بالأقسام: القيمة، الفرق عن المرجع، وشريطا الدرجة — والتفصيلُ تلميحٌ بأيقونة ── #}
-{# عرضُ كلّ قسمٍ بقدر بطاقاته (--lab-n) فلا مسارَ فارغَ داخل البطاقة؛ والأقسامُ مطويّةٌ مفتوحةً افتراضاً لتقصير الصفحة على الجوّال. #}
+{# الأقسامُ في عمودَين مكدّسَين بمواقعَ ثابتةٍ من السياق (`group_cols`) بدل صفٍّ كاملٍ لكلّ قسم؛ ومطويّةٌ مفتوحةً افتراضاً لتقصير الصفحة على الجوّال. #}
 <div class="lab-groups">
-{% for g in groups %}
-<div class="lab-group" style="--lab-n:{{ g.rows|length }}">
+{% for col in group_cols %}
+<div class="lab-groups__col">
+{% for g in col %}
 {% section_card g.label meta=g.score_label flush=True foldable=True opened=True %}
   <div class="lab-tiles">
     {% for r in g.rows %}
@@ -147,6 +148,7 @@
   </div>
   <div class="lab-legend"><span><i class="lab-legend__cur"></i>الحالي</span><span><i class="lab-legend__ref"></i>المرجع</span><span>الشريط درجةٌ من 100 مشتقّة من القيمة</span></div>
 {% endsection_card %}
+{% endfor %}
 </div>
 {% endfor %}
 </div>
@@ -164,6 +166,7 @@
 
 </div>
 {{ radar_json|json_script:"lab-radar-data" }}
+{% endlocalize %}
 {% endblock %}
 
 {% block extra_js %}

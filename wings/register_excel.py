@@ -12,6 +12,7 @@ from openpyxl.utils import get_column_letter
 
 from core import brand
 from core.export_utils import add_excel_title_rows, excel_table_styles, xl_fill, xl_font
+from core.ministry import ministry_line, ministry_name
 from reports.services import ExcelService
 
 from .register import LETTER, UNRECORDED, WHERE_CODE
@@ -106,7 +107,7 @@ def write_section_sheet(
     add_excel_title_rows(
         ws,
         num_cols,
-        f"{school_name}  —  وزارة التربية والتعليم والتعليم العالي",
+        ministry_line(school_name, ministry_name(short=True), sep="  —  "),
         f"{register.title}  —  {register.day:%Y/%m/%d}",
         f"{wing}  |  {_stamp(register)}  |  صدر بواسطة: {exported_by}",
     )
@@ -206,7 +207,7 @@ def write_wing_summary(
     add_excel_title_rows(
         ws,
         num_cols,
-        f"{school_name}  —  وزارة التربية والتعليم والتعليم العالي",
+        ministry_line(school_name, ministry_name(short=True), sep="  —  "),
         f"{register.title}  —  {register.day:%Y/%m/%d}",
         f"ملخّصُ رصد الحصص  |  {_stamp(register)}  |  صدر بواسطة: {exported_by}",
     )

@@ -611,21 +611,19 @@ class StudentService:
     @transaction.atomic
     def update_student(student, school, data: dict) -> CustomUser:
         """
-        تحديث بيانات طالب — ذرّي (User + Profile + إعادة التسجيل عند تغيّر الصف/الشعبة).
+        تحديث بيانات طالب موجود — ذرّي (User + Profile).
+
+        لا يغيّر الشعبة ولا الصف أبداً ولو وصلا في `data`: تغيير الشعبة يمرّ بطلب انتقال داخليّ
+        يُعتمد ثم يُنفَّذ (`internal_transfer.complete_internal`) — D-343م، W-20261001-017.
 
         Args:
             student: كائن الطالب (CustomUser)
             school: كائن المدرسة
-            data: dict يحتوي full_name, phone, email, birth_date, notes, grade, section
+            data: dict يحتوي full_name, phone, email, birth_date, notes
 
         Returns:
             CustomUser: الطالب بعد التحديث
-
-        Raises:
-            ValueError: إذا طُلبت إعادة تسجيل لشعبة غير موجودة في المدرسة (يُلغى كل التحديث).
         """
-        year = academic_year_for_school(school)
-
         # ── 1. تحديث المستخدم ──
         student.full_name = data["full_name"]
         student.phone = data.get("phone", "")
@@ -640,36 +638,6 @@ class StudentService:
                 "notes": data.get("notes", ""),
             },
         )
-
-        # ── 3. إعادة التسجيل عند تغيّر الصف/الشعبة (deactivate + create ذرّياً) ──
-        enrollment = (
-            StudentEnrollment.objects.filter(
-                student=student, class_group__academic_year=year, is_active=True
-            )
-            .select_related("class_group")
-            .first()
-        )
-        new_grade = data["grade"]
-        new_section = data["section"]
-        needs_reenroll = (
-            not enrollment
-            or enrollment.class_group.grade != new_grade
-            or enrollment.class_group.section != new_section
-        )
-        if needs_reenroll:
-            new_class = ClassGroup.objects.filter(
-                school=school,
-                grade=new_grade,
-                section=new_section,
-                academic_year=year,
-                is_active=True,
-            ).first()
-            if not new_class:
-                raise ValueError(f"لا توجد شعبة {new_section} في الصف {new_grade} لإعادة التسجيل.")
-            if enrollment:
-                enrollment.is_active = False
-                enrollment.save(update_fields=["is_active"])
-            StudentEnrollment.objects.create(student=student, class_group=new_class, is_active=True)
 
         logger.info("تم تحديث الطالب: user=%s (school=%s)", student.pk, school.code)
         return student
@@ -1031,6 +999,13 @@ class TransferService:
                 f"إجراء غير صالح: {action}. الإجراءات المتاحة: {', '.join(valid_actions)}"
             )
 
+        if transfer.direction == "internal":
+            # الداخليُّ بقراره المستقلّ: من يعتمد، وحالاتٌ صارمة، وسجلُّ القرار (D-343م)
+            from .transfer_decision import decide_internal
+
+            decide_internal(transfer, action, notes, reviewer)
+            return
+
         # لا يمكن المراجعة إلا إذا كان الطلب قيد الانتظار أو موافقاً عليه
         if transfer.status not in ("pending", "approved"):
             raise ValueError(
@@ -1041,12 +1016,6 @@ class TransferService:
         if notes:
             separator = "\n---\n" if transfer.notes else ""
             transfer.notes += f"{separator}[{reviewer.full_name}]: {notes}"
-
-        if action == "completed" and transfer.direction == "internal":
-            # قبل حفظ الحالة: إن رُفض الهدف لا يُحفظ «مكتمل» بلا نقل
-            from .internal_transfer import complete_internal
-
-            complete_internal(transfer, reviewer)
 
         transfer.updated_by = reviewer
         transfer.save(update_fields=["status", "notes", "updated_by", "updated_at"])

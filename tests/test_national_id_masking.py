@@ -94,8 +94,13 @@ class TestEveryScreenMasks:
         ), f"{path}: «{expr}» يُعرض خاماً — أضِف |mask_id (و{{% load privacy %}})"
 
     def test_the_sweep_actually_found_screens(self):
-        """حارسٌ يمسح صفراً يمرّ دائماً."""
-        assert len(list(_screens())) > 2
+        """حارسٌ يمسح صفراً يمرّ دائماً — فالمسحُ يُثبَت على عيّنةٍ لا على عدّ الشاشات.
+
+        منذ إخفاء رقم الموظف كاملاً (D-386م، W-20261011-013) لا شاشةَ تعرض `national_id` أصلاً فعدّها صفر،
+        وهذا المطلوب؛ فيُثبَت أنّ النمطَ ما زال يلتقط رقماً خاماً ويُميّز المستورَ منه.
+        """
+        assert RENDER.findall("{{ s.national_id }}") == [("s.national_id", "")]
+        assert RENDER.findall("{{ s.national_id|mask_id }}") == [("s.national_id", "|mask_id")]
 
 
 class TestPrintingKeepsTheFullNumber:

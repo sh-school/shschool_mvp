@@ -15,10 +15,9 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 
 from core import print_frame as pf
+from core.ministry import ministry_name
 
 register = template.Library()
-
-MINISTRY = "وزارة التربية والتعليم والتعليم العالي — دولة قطر"
 
 _TAGS = re.compile(r"<[^>]+>")
 
@@ -59,7 +58,7 @@ def print_frame_header(
         "title": title,
         "subtitle": subtitle,
         "for_pdf": for_pdf,
-        "ministry": MINISTRY,
+        "ministry": ministry_name(),
         "vision": _vision_text(school) if fr.vision_in_header else "",
     }
 
@@ -83,7 +82,7 @@ def print_frame_footer(
         fr,
         school=school.name,
         vision=vision,
-        ministry=MINISTRY,
+        ministry=ministry_name(),
         contact=contact,
         stats=stats,
         date_text=date_text,
@@ -94,7 +93,7 @@ def print_frame_footer(
         "date": f"تاريخ الطباعة: ⁦{date_text}⁩",
         "stats": stats,
         "vision": vision,
-        "ministry": MINISTRY,
+        "ministry": ministry_name(),
         "contact": contact,
     }
     return {

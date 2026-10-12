@@ -144,6 +144,36 @@ def _purge_files(files: list[tuple[str, Any]], school: Any, actor: Any) -> None:
                 logger.exception("تعذّر تدوين ملفٍّ يتيمٍ بعد محو")
 
 
+def _anonymize_audit_name(student: Any, name: str, summary: dict[str, Any]) -> None:
+    """[W-20261004-002، W-20261010-053] قرارُ DPO D-186م ب وD-342م: يُجهَّل اسمُ المحوّ في السجلّ كلِّه.
+
+    `object_repr` يُستبدل فيه الاسمُ بمعرّفه المقنَّع، و`changes` يُمسح منه الاسمُ على القيمة المفكوكة؛
+    والتجهيلان في معاملةٍ واحدةٍ فلا يبقى سجلٌّ نصفُه مجهَّل. ما تُخطّي (اسمٌ مشتركٌ أو قصير أو وصفٌ يطول
+    أو قيمةٌ شديدة التداخل) لا يُكتب ويُبلَّغ يدوياً في ملاحظةٍ بأعدادٍ لا بأسماء.
+    """
+    with transaction.atomic():
+        named = AuditLog.objects.anonymize_name_in_repr(student, name)
+        scrubbed = AuditLog.objects.anonymize_name_in_changes(student, name)
+    if named["anonymized"]:
+        summary["models"]["AuditLog_name_anonymized"] = named["anonymized"]
+    skipped = {k: v for k, v in named.items() if k.startswith("skipped_") and v}
+    if skipped:
+        summary["auditlog_name_manual_report"] = skipped
+        summary["auditlog_name_note"] = (
+            "صفوفٌ في سجلّ التدقيق بقي فيها اسمُ المحوّ لأنّه مشتركٌ أو قصيرٌ أو يطول وصفُها بعد الاستبدال — "
+            "يلزم إبلاغٌ يدويّ بها (الأعدادُ في auditlog_name_manual_report)."
+        )
+    if scrubbed["changes_anonymized"]:
+        summary["models"]["AuditLog_changes_anonymized"] = scrubbed["changes_anonymized"]
+    skipped_changes = {k: v for k, v in scrubbed.items() if k.startswith("skipped_") and v}
+    if skipped_changes:
+        summary["auditlog_changes_manual_report"] = skipped_changes
+        summary["auditlog_changes_note"] = (
+            "صفوفٌ في سجلّ التدقيق بقي اسمُ المحوّ في عمود التغييرات لأنّه مشتركٌ أو قصيرٌ أو شديدُ التداخل — "
+            "يلزم إبلاغٌ يدويّ بها (الأعدادُ في auditlog_changes_manual_report)."
+        )
+
+
 class ErasureFailedError(Exception):
     """تعثّر المحو برسالةٍ مفهومةٍ للمدير — الطلبُ عاد «approved» وتجوز إعادةُ التنفيذ."""
 
@@ -262,6 +292,8 @@ class ErasureService:
             raise ValueError("الطالب ليس من مدرسة طلب المحو.")
 
         anon_id = f"ERASED-{str(erasure_request.id)[:8].upper()}"
+        # الاسمُ قبل الخطوة 8 تمحوه: يلزم لتجهيله في وصف سجلّ التدقيق (W-20261004-002).
+        original_name = student.full_name
         summary: dict[str, Any] = {"anon_id": anon_id, "models": {}}
 
         # 1. Anonymize records in child models (count before deleting)
@@ -385,6 +417,8 @@ class ErasureService:
         redacted = AuditLog.objects.redact_network_identity(student)
         if redacted:
             summary["models"]["AuditLog_network_redacted"] = redacted
+
+        _anonymize_audit_name(student, original_name, summary)
 
         audit_count = AuditLog.objects.filter(user=student).count()
         if audit_count:
