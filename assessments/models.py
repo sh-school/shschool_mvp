@@ -384,6 +384,9 @@ class StudentAssessmentGrade(models.Model):
     excuse_reference = models.CharField(
         max_length=200, blank=True, default="", verbose_name="مرجع العذر (رقم الشهادة أو جهتها)"
     )
+    # تاريخُ تقديم الطالب أو وليّه إثباتَ العذر (D-403م): يُقاس به آخرُ موعد؛ فارغٌ لما قُبل قبل المهلة
+    # فلا يُرفض بأثرٍ رجعيّ.
+    excuse_submitted_on = models.DateField(null=True, blank=True, verbose_name="تاريخ تقديم العذر")
     excuse_decided_by = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,

@@ -97,6 +97,7 @@ class StudentAssessmentGradeAdmin(admin.ModelAdmin):
         "is_absent",
         "is_excused",
         "excuse_type",
+        "excuse_submitted_on",
         "entered_at",
     )
     list_filter = (

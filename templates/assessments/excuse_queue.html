@@ -16,6 +16,7 @@
         <div class="asm-excuse__who">
           <strong>{{ row.student.full_name }}</strong>
           <span class="asm-excuse__ctx">{{ row.assessment.package.setup.subject.name_ar }} · {{ row.assessment.class_group }} · {{ row.assessment.title }}{% if row.assessment.date %} · {{ row.assessment.date|date:"Y/m/d" }}{% endif %}</span>
+          {% if row.excuse_deadline %}<span class="chip">آخرُ موعدٍ لتقديم العذر: {{ row.excuse_deadline|date:"Y/m/d" }}</span>{% else %}<span class="chip">لا جدولَ اختبارٍ مسجَّلٌ لهذا التقييم: المهلةُ لا تُفحص</span>{% endif %}
         </div>
         <form class="asm-excuse__form" method="post" action="{% url 'decide_excuse' row.assessment_id %}">
           {% csrf_token %}
@@ -26,6 +27,9 @@
           </select>
           <input type="text" name="reference" required maxlength="200" class="form-control form-control-sm"
                  placeholder="رقم الشهادة أو جهتها" aria-label="مرجع العذر لـ{{ row.student.full_name }}">
+          <label class="asm-excuse__date">تاريخ تقديم العذر
+            <input type="date" name="submitted_on" value="{{ today|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}" required class="form-control form-control-sm">
+          </label>
           <button type="submit" class="btn-primary btn-sm">تثبيت العذر</button>
         </form>
       </li>

@@ -1325,6 +1325,8 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .asm-excuse__ctx { color: var(--text-muted); font-size: var(--text-sm); }
 .asm-excuse__form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
 .asm-excuse__form .form-control { flex: 1 1 14rem; min-inline-size: 0; }
+.asm-excuse__date { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--text-sm); color: var(--text-muted); flex: 1 1 14rem; }
+.asm-excuse__date .form-control { flex: 1 1 auto; }
 
 /* ── مركز معلومات الطلبة — templates/student_info ──
    عرضُ الأعمدة الثابتة، ونصُّ الملاحظة بأسطره كما كُتب، وعددُ كلّ شريحةٍ

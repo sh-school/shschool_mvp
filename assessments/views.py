@@ -13,6 +13,8 @@ from django.db.models import Count, Prefetch, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 
 from core import brand
@@ -820,6 +822,10 @@ def excuse_queue(request):
         "assessment__package__setup__subject",
     )
     pending = Paginator(rows.filter(is_excused=False).order_by("-entered_at"), 25)
+    page_obj = pending.get_page(request.GET.get("page"))
+    for row in page_obj:  # آخرُ موعدٍ لتقديم العذر لكلّ غياب (D-403م) — يُقرأ من جدول الاختبار لا يُنسخ
+        found = GradeService.excuse_deadline(row.assessment)
+        row.excuse_deadline = found[0] if found else None
     decided = rows.filter(is_excused=True, excuse_decided_at__isnull=False).select_related(
         "excuse_decided_by"
     )
@@ -827,7 +833,8 @@ def excuse_queue(request):
         request,
         "assessments/excuse_queue.html",
         {
-            "page_obj": pending.get_page(request.GET.get("page")),
+            "page_obj": page_obj,
+            "today": timezone.localdate(),
             "decided": decided.order_by("-excuse_decided_at")[:20],
             "EXCUSE_TYPES": EXCUSE_TYPES,
             "subtitle": f"الغياباتُ التي تنتظر القرار: {pending.count}",
@@ -844,6 +851,11 @@ def decide_excuse(request, assessment_id):
 
     assessment = get_object_or_404(Assessment, id=assessment_id, school=request.school)
     student = GradeService.enrolled_student_or_404(assessment, request.POST.get("student_id"))
+    raw_date = request.POST.get("submitted_on", "").strip()
+    submitted_on = parse_date(raw_date) if raw_date else None
+    if raw_date and submitted_on is None:
+        messages.error(request, "تاريخُ تقديم العذر غيرُ صالح")
+        return redirect("excuse_queue")
     try:
         GradeService.decide_excuse(
             assessment,
@@ -851,6 +863,7 @@ def decide_excuse(request, assessment_id):
             request.POST.get("excuse_type", ""),
             request.POST.get("reference", ""),
             request.user,
+            submitted_on,
         )
     except ValidationError as e:
         messages.error(request, " ".join(e.messages))

@@ -11,6 +11,7 @@ assessments/services.py
 from __future__ import annotations
 
 import logging
+from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, Any
 
@@ -43,6 +44,9 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+#: مهلةُ تقديم عذر الغياب عن الاختبار: اليومُ الثالث التقويميّ بعد انتهاء جدول الاختبار (04b السطر 1949، D-403م).
+EXCUSE_GRACE_DAYS = 3
 
 _ROW_KEYS = ("grade_", "absent_", "notes_")
 
@@ -170,18 +174,46 @@ class GradeService:
     # ── قرار العذر (D-402م) ────────────────────────────────
 
     @staticmethod
-    @transaction.atomic
+    def excuse_deadline(assessment: Assessment) -> tuple[date, date] | None:
+        """(آخرُ موعدٍ لتقديم العذر، نهايةُ جدول الاختبار) أو None إن لم يُعرف الجدول.
+
+        الجدولُ يُقرأ من `exam_control.ExamSession` بلا نسخةٍ محلّيّة: دورةُ المدرسة والعام التي يقع
+        تاريخُ التقييم داخل مدّتها. والمهلةُ اليومُ الثالث التقويميّ بعد انتهاء الجدول لا تُستثنى
+        فيه عطلةٌ (04b السطر 1949، D-403م). ولا تاريخَ للتقييم أو لا دورةَ مسجَّلة: لا مهلةَ تُحسب."""
+        from exam_control.models import ExamSession
+
+        if assessment.date is None:
+            return None
+        session = (
+            ExamSession.objects.filter(
+                school=assessment.school,
+                academic_year=assessment.package.setup.academic_year,
+                start_date__lte=assessment.date,
+                end_date__gte=assessment.date,
+            )
+            .order_by("-start_date")
+            .first()
+        )
+        if session is None:
+            return None
+        return session.end_date + timedelta(days=EXCUSE_GRACE_DAYS), session.end_date
+
+    @staticmethod
     def decide_excuse(
         assessment: Assessment,
         student: CustomUser,
         excuse_type: str,
         reference: str,
         decided_by: CustomUser,
+        submitted_on: date | None = None,
     ) -> StudentAssessmentGrade:
         """يثبّت عذرَ غيابٍ رصده المعلّمُ: بنوعٍ من القائمة المغلقة ومرجعٍ ومن قرّر ومتى.
 
         القدرةُ `assessments.decide_excuse` شرطٌ هنا لا في العرض وحدَه، فلا يمرّ مسارٌ ثانٍ بلا حارس.
-        لا يُنشئ غياباً ولا يغيّر درجةً: الصفُّ يجب أن يكون «غائباً» من رصد المعلّم أصلاً."""
+        لا يُنشئ غياباً ولا يغيّر درجةً: الصفُّ يجب أن يكون «غائباً» من رصد المعلّم أصلاً.
+
+        `submitted_on` تاريخُ تقديم الطالب أو وليّه إثباتَ العذر (الدوحة؛ الافتراضيّ اليوم)، فمن قُدِّم
+        في موعده وقُيِّد متأخّراً يُقبل. ما قُدِّم بعد المهلة يُرفض بسببه ويُدقَّق محاولةً، والغيابُ باقٍ بلا عذر."""
         from django.core.exceptions import PermissionDenied, ValidationError
         from django.utils import timezone
 
@@ -196,8 +228,67 @@ class GradeService:
         reference = (reference or "").strip()
         if not reference:
             raise ValidationError("مرجعُ العذر (الشهادة أو جهتها) مطلوب")
+        today = timezone.localdate()
+        submitted_on = submitted_on or today
+        if submitted_on > today:
+            raise ValidationError("تاريخُ تقديم العذر لا يكون في المستقبل")
 
         ensure_open_year(assessment.package.setup)
+        deadline = GradeService.excuse_deadline(assessment)
+        if deadline is not None and submitted_on > deadline[0]:
+            GradeService._audit_late_excuse(
+                assessment, student, decided_by, excuse_type, submitted_on, deadline
+            )
+            raise ValidationError(
+                f"انقضت مهلةُ تقديم العذر: آخرُ موعدٍ {deadline[0]:%Y/%m/%d} "
+                f"(اليومُ الثالث بعد انتهاء جدول الاختبار في {deadline[1]:%Y/%m/%d})"
+                " — يبقى الغيابُ بلا عذر"
+            )
+        return GradeService._store_excuse(
+            assessment, student, excuse_type, reference, decided_by, submitted_on
+        )
+
+    @staticmethod
+    def _audit_late_excuse(
+        assessment: Assessment,
+        student: CustomUser,
+        decided_by: CustomUser,
+        excuse_type: str,
+        submitted_on: date,
+        deadline: tuple[date, date],
+    ) -> None:
+        """محاولةٌ مرفوضةٌ بسببها في سجلّ المراجعة (خارج أيّ معاملةٍ تُلغى بالرفض) — تاريخُها لا يضيع."""
+        from core.models import AuditLog
+
+        AuditLog.log(
+            user=decided_by,
+            action="update",
+            model_name="StudentAssessmentGrade",
+            object_id=assessment.pk,
+            object_repr=f"{student.full_name} — {assessment.title}",
+            changes={
+                "excuse_attempt": "rejected_after_deadline",
+                "excuse_type": excuse_type,
+                "submitted_on": submitted_on.isoformat(),
+                "deadline": deadline[0].isoformat(),
+                "exam_schedule_end": deadline[1].isoformat(),
+            },
+            school=assessment.school,
+        )
+
+    @staticmethod
+    @transaction.atomic
+    def _store_excuse(
+        assessment: Assessment,
+        student: CustomUser,
+        excuse_type: str,
+        reference: str,
+        decided_by: CustomUser,
+        submitted_on: date,
+    ) -> StudentAssessmentGrade:
+        from django.core.exceptions import ValidationError
+        from django.utils import timezone
+
         row = (
             StudentAssessmentGrade.objects.select_for_update()
             .filter(assessment=assessment, student=student, school=assessment.school)
@@ -211,6 +302,7 @@ class GradeService:
         row.is_excused = True
         row.excuse_type = excuse_type
         row.excuse_reference = reference[:200]
+        row.excuse_submitted_on = submitted_on
         row.excuse_decided_by = decided_by
         row.excuse_decided_at = timezone.now()
         row.save(
@@ -218,6 +310,7 @@ class GradeService:
                 "is_excused",
                 "excuse_type",
                 "excuse_reference",
+                "excuse_submitted_on",
                 "excuse_decided_by",
                 "excuse_decided_at",
             ]
