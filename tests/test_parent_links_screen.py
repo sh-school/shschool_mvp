@@ -388,3 +388,83 @@ class TestOneDoorAdds:
         assert 'id="parent-mode-existing"' in body
         assert 'id="parent-mode-new"' in body
         assert 'name="parent_national_id"' in body
+
+
+class TestNamesakesAreToldApartWithoutTheNationalId:
+    """الرقمُ الشخصيّ مخفيٌّ، فطالبان بالاسم نفسه يُميَّزان بالصفّ والشعبة (W-20261012-006)."""
+
+    @staticmethod
+    def _options(body, select_id):
+        block = re.search(rf'<select[^>]*id="{select_id}".*?</select>', body, re.S).group(0)
+        return [text.strip() for text in re.findall(r"<option[^>]*>([^<]*)</option>", block)[1:]]
+
+    def test_two_students_with_one_name_differ_by_class_in_the_dropdown(
+        self, client_as, school, admin, year
+    ):
+        _student(school, "محمد أحمد", "31500000001", year=year, grade="G7", section="2")
+        _student(school, "محمد أحمد", "31500000002", year=year, grade="G9", section="4")
+
+        options = self._options(_body(client_as, admin), "student-select")
+
+        assert sorted(options) == ["محمد أحمد — 07/2", "محمد أحمد — 09/4"]
+        assert "31500000001" not in _body(client_as, admin)
+
+    def test_a_parent_namesake_is_told_apart_by_a_childs_name_and_class(
+        self, client_as, school, admin, year
+    ):
+        first_child = _student(school, "سارة", "31500000011", year=year, grade="G7", section="2")
+        second_child = _student(school, "خالد", "31500000012", year=year, grade="G10", section="1")
+        _link(school, _parent(school, "علي حسن", "28500000011"), first_child)
+        _link(school, _parent(school, "علي حسن", "28500000012"), second_child)
+        _parent(school, "وليٌّ فريد", "28500000013")
+
+        options = self._options(_body(client_as, admin), "parent-select")
+
+        assert sorted(options) == sorted(
+            ["علي حسن — ولي سارة (07/2)", "علي حسن — ولي خالد (10/1)", "وليٌّ فريد"]
+        )
+
+    def test_the_delete_confirmation_names_the_class(self, client_as, school, admin, year):
+        student = _student(school, "نورة", "31500000021", year=year, grade="G8", section="3")
+        _link(school, _parent(school, "الوليّ", "28500000021"), student)
+
+        body = _body(client_as, admin)
+
+        assert "بـ نورة (08/3)؟" in body
+
+    def test_a_student_who_left_is_marked_so_in_the_confirmation(
+        self, client_as, school, admin, year
+    ):
+        left = _student(school, "غادر الطالب", "31500000022")  # بلا قيدٍ في هذا العام
+        _link(school, _parent(school, "الوليّ", "28500000022"), left)
+
+        body = _body(client_as, admin, "?status=all")
+
+        assert "بـ غادر الطالب (غادر)؟" in body
+
+    def test_the_dropdowns_add_no_queries_per_row(
+        self, client_as, school, admin, year, django_assert_max_num_queries
+    ):
+        client = client_as(admin)
+
+        def add(index):
+            student = _student(school, f"طالب {index}", f"3160000010{index}", year=year)
+            _link(school, _parent(school, f"وليّ {index}", f"2860000010{index}"), student)
+
+        add(0)
+        client.get(reverse("manage_parent_links"))  # تسخينُ ما يُخزَّن (الجلسة والمدرسة)
+        one = _count_queries(client)
+        for index in range(1, 6):
+            add(index)
+
+        with django_assert_max_num_queries(one):
+            client.get(reverse("manage_parent_links"))
+
+
+def _count_queries(client):
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    with CaptureQueriesContext(connection) as captured:
+        client.get(reverse("manage_parent_links"))
+    return len(captured)

@@ -156,3 +156,31 @@ def test_decorative_bars_are_hidden_from_assistive_tech_and_classes_are_prefixed
     assert not re.search(r'class="(tile|tiles|delta|legend|bar)[ "]', body)
     main_tag = re.search(r"<main[^>]*>", body).group(0)
     assert "page-noscroll" not in main_tag, "نمطُ الصفحة تقرير: تمريرٌ طبيعيّ لا لوحةٌ بلا تمرير"
+
+
+def _fake_groups(*sizes):
+    return [{"code": f"g{i}", "rows": [object()] * n} for i, n in enumerate(sizes)]
+
+
+def test_groups_split_into_two_balanced_sequential_columns():
+    from operations.views_schedule import _lab_group_columns
+
+    groups = _fake_groups(9, 4, 5, 2, 2)
+    cols = _lab_group_columns(groups)
+
+    assert [[g["code"] for g in c] for c in cols] == [["g0", "g1"], ["g2", "g3", "g4"]]
+    assert [g for c in cols for g in c] == groups, "الترتيبُ المتتابعُ يحفظ ترتيبَ القراءة على الجوّال"
+    assert _lab_group_columns([]) == []
+    assert len(_lab_group_columns(_fake_groups(3))) == 1
+
+
+def test_the_page_lays_groups_in_stacked_columns_and_keeps_every_group(
+    principal_client, tiny_schedule
+):
+    body = _lab_body(principal_client)
+
+    assert body.count('class="lab-groups__col"') == 2
+    assert "lab-tables" not in body, "جدولا الضغط والموارد ابنان مباشران لشبكة lab-main"
+    assert "--lab-n" not in body, "عرضُ القسم لا يُحدَّد بعدد بطاقاته: العمودان ثابتان من السياق"
+    # كلُّ قسمٍ يظهر مرّةً واحدة: التقسيمُ لا يُسقط ولا يكرّر.
+    assert body.count('class="lab-tiles"') >= 4
