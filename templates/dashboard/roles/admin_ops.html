@@ -4,7 +4,7 @@
 
   {% page_header "اللوحة الإدارية" subtitle=subtitle icon="workload" %}
     {% if admin_role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>{% endif %}
-  {% endpage_header %}
+  {% include "dashboard/partials/_leave_self.html" %}{% endpage_header %}
 
   {% if admin_role == "admin_supervisor" %}
     {% include "wings/partials/student_search_form.html" %}
