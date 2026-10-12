@@ -11,10 +11,13 @@ import pathlib
 
 import pytest
 from django.db import connection
+from django.test import override_settings
 
-from core.models import AuditLog
+from core.models import AuditLog, ErasureRequest
+from governance.erasure_service import ErasureService
 from operations.excuses import CLOSED_LIST, ExcuseError, grant_excuse, record_stage
 from operations.models import AbsenceExcuse
+from tests.conftest import MembershipFactory, RoleFactory
 from tests.test_absence_excuses import _absent_day, _report, vice_admin  # noqa: F401
 from tests.test_period_register import (  # noqa: F401 — التجهيزاتُ نفسُها
     SUNDAY,
@@ -121,6 +124,87 @@ class TestTheApplicantIsKept:
                 pledge_accepted=True,
             )
         assert not AbsenceExcuse.objects.filter(student=kids[2]).exists(), "لا يبقى نصفُ عذر"
+
+
+class TestTheApplicantInputIsBounded:
+    """حكمُ 0104: سقفٌ للهاتف، وتقصيرُ الاسم والصلة بحدّ الحقل، ولا هاتفَ نصّاً خامّاً بلا مفتاح تشفير."""
+
+    @staticmethod
+    def _base(school, kid, supervisor):
+        return {
+            "student": kid,
+            "school": school,
+            "date_from": SUNDAY,
+            "date_to": SUNDAY,
+            "kind": "medical",
+            "document": _report(),
+            "by": supervisor,
+            "today": MONDAY,
+        }
+
+    def test_a_long_name_and_relation_are_cut_to_the_field_limits(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        _absent_day(school, klass, kids[3], teacher, supervisor)
+
+        made = grant_excuse(
+            **self._base(school, kids[3], supervisor),
+            applicant_name="س" * 400,
+            applicant_relation="ص" * 90,
+        )
+
+        made.refresh_from_db()
+        assert len(made.applicant_name) == 150 and len(made.applicant_relation) == 40
+
+    def test_a_phone_longer_than_the_cap_is_refused_without_a_half_made_excuse(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        _absent_day(school, klass, kids[3], teacher, supervisor)
+
+        with pytest.raises(ExcuseError, match="الهاتف"):
+            grant_excuse(**self._base(school, kids[3], supervisor), applicant_phone="9" * 21)
+
+        assert not AbsenceExcuse.objects.filter(student=kids[3]).exists()
+
+    @override_settings(FERNET_KEY="")
+    def test_without_an_encryption_key_the_phone_is_refused_not_stored_raw(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        _absent_day(school, klass, kids[3], teacher, supervisor)
+
+        with pytest.raises(ExcuseError, match="الهاتف"):
+            grant_excuse(**self._base(school, kids[3], supervisor), applicant_phone=PHONE)
+        assert not AbsenceExcuse.objects.filter(student=kids[3]).exists()
+
+        made = grant_excuse(**self._base(school, kids[3], supervisor), applicant_name="ولي")
+        assert made.applicant_phone == "", "العذرُ بلا هاتفٍ يُقبل كما كان"
+
+
+class TestErasureRemovesTheApplicant:
+    def test_erasing_the_student_removes_the_excuse_with_the_applicant_data(
+        self, excuse, school, principal_user, django_capture_on_commit_callbacks
+    ):
+        # حقُّ المحو لعضو المدرسة؛ والطلبةُ في تجهيزات الحضور بتسجيلٍ بلا عضويّة.
+        MembershipFactory(
+            user=excuse.student, school=school, role=RoleFactory(school=school, name="student")
+        )
+        request = ErasureRequest.objects.create(
+            school=school,
+            student=excuse.student,
+            requested_by=principal_user,
+            reviewed_by=principal_user,
+            reason="محو شامل لبيانات الطالب",
+        )
+
+        with django_capture_on_commit_callbacks(execute=True):
+            ErasureService.execute(request)
+
+        assert not AbsenceExcuse.objects.filter(pk=excuse.pk).exists()
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT count(*) FROM operations_absenceexcuse WHERE applicant_name <> ''"
+            )
+            assert cursor.fetchone()[0] == 0
 
 
 class TestTheThreeExecutionStages:

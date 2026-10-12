@@ -24,6 +24,7 @@ from __future__ import annotations
 import datetime as dt
 from collections.abc import Iterable
 
+from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 from django.utils import timezone
@@ -278,6 +279,12 @@ def grant_excuse(
     return excuse
 
 
+#: أقصى أطوال بيانات مقدّم الطلب: اسمُه وصلتُه بحدّ حقليهما في النموذج، والهاتفُ رقماً دوليّاً.
+APPLICANT_NAME_MAX = 150
+APPLICANT_RELATION_MAX = 40
+APPLICANT_PHONE_MAX = 20
+
+
 def _applicant(
     name: str,
     relation: str,
@@ -287,8 +294,15 @@ def _applicant(
     today: dt.date,
 ) -> dict:
     """بيانات مقدّم الطلب منقّاةً — وارداتُ نموذج 04: الاسم والصلة والهاتف وتاريخ الكتاب والتعهّد."""
-    name, relation = (name or "").strip(), (relation or "").strip()
+    # الأطوالُ بحدود الحقول قبل الحفظ (حكمُ 0104): لا خطأَ قاعدةٍ ولا قيمةٌ مبتورةٌ بصمت.
+    name = (name or "").strip()[:APPLICANT_NAME_MAX]
+    relation = (relation or "").strip()[:APPLICANT_RELATION_MAX]
     phone = "".join(ch for ch in (phone or "") if ch.isdigit() or ch == "+")
+    if len(phone) > APPLICANT_PHONE_MAX:
+        raise ExcuseError("رقمُ الهاتف أطولُ من المسموح.")
+    if phone and not getattr(settings, "FERNET_KEY", ""):
+        # لا يُخزَّن هاتفٌ نصّاً خامّاً أبداً: غيابُ المفتاح يرفضه برسالةٍ مضبوطة، والعذرُ بلا هاتفٍ سليم.
+        raise ExcuseError("تعذّر حفظُ رقم الهاتف الآن؛ سجّل العذرَ بلا هاتفٍ أو أبلغ المسؤول.")
     if pledge and not (name and relation and letter_date):
         raise ExcuseError("إقرارُ التعهّد يلزمه اسمُ مقدّم الطلب وصلتُه وتاريخُ الكتاب.")
     if letter_date and letter_date > today:
