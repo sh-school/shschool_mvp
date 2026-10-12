@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from core import brand
 from core.export_utils import add_excel_title_rows, excel_table_styles, xl_fill, xl_font
+from core.ministry import ministry_line, ministry_name
 from reports.services import ExcelService
 
 from .ministry_selectors import MinistrySummary
@@ -59,7 +60,7 @@ def ministry_workbook(
     add_excel_title_rows(
         ws,
         num_cols,
-        f"{school_name}  —  وزارة التربية والتعليم والتعليم العالي",
+        ministry_line(school_name, ministry_name(short=True), sep="  —  "),
         f"ملخّصُ غياب الحصّتين الأولى والثانية  —  {summary.day:%Y/%m/%d}",
         f"للرفع في نظام الوزارة يدويّاً  |  صدر بواسطة: {exported_by}",
     )
@@ -105,7 +106,7 @@ def ministry_workbook(
     add_excel_title_rows(
         names,
         3,
-        f"{school_name}  —  وزارة التربية والتعليم والتعليم العالي",
+        ministry_line(school_name, ministry_name(short=True), sep="  —  "),
         f"من غاب الحصّتين الأولى والثانية  —  {summary.day:%Y/%m/%d}",
         f"العددُ: {len(summary.ministered)}  |  صدر بواسطة: {exported_by}",
     )

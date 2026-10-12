@@ -1,4 +1,4 @@
-{% load static brand_tags %}
+{% load static brand_tags ministry %}{% ministry_name as ministry %}
 {% comment %}
 استمارة الإشراف على أداء المعلّم — من نموذج المدرسة (docx)، **بنيتُه الأصليّة مُستعادةً** (قرارُ المالك 2026-09-28، W-20260928-003)
 بعد تجربة التصميم المؤقّت «صفحةٌ واحدة» في طلب الدمج 711 (اعتمده المالكُ بصريّاً بعد أربع تصييرات PDF فعليّة).
@@ -49,6 +49,7 @@
   size: A4;
   /* الهوامشُ: ترويسةٌ 1.2 بوصة (بلا رؤية) وتذييلٌ سطرٌ واحد 0.42 بوصة. الجانبيّان كالأصل. */
   margin: 0.8in 0.5in 0.42in 0.5in;
+  {% if not ministry %}margin-top: 0.56in; /* سطرُ الوزارة مجمَّد (D-400م): الترويسةُ أقصر فلا بياضَ زائداً */{% endif %}
   @top-center { content: element(sheet-header); }
   @bottom-center { content: element(sheet-footer); }
 }
@@ -164,7 +165,7 @@ td {
 
 <div id="sheet-header">
   <div class="doc-header">
-    <div class="ministry-name">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
+    {% if ministry %}<div class="ministry-name">{{ ministry }}</div>{% endif %}
     <div class="school-name">{{ obs.school.name }}</div>
   </div>
   <div class="ornament-hr"></div>
