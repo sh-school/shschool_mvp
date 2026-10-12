@@ -1,6 +1,13 @@
 from django.urls import path
 
-from . import views, views_absence_file, views_absence_notices, views_ministry, views_register
+from . import (
+    views,
+    views_absence_file,
+    views_absence_notices,
+    views_excuse_document,
+    views_ministry,
+    views_register,
+)
 from .views_supervisor_live import supervisor_live
 
 app_name = "wings"
@@ -48,6 +55,11 @@ urlpatterns = [
         name="absence_file_contact",
     ),
     path("excuses/requests/", views.excuse_requests, name="excuse_requests"),
+    path(
+        "excuses/<uuid:pk>/document/",
+        views_excuse_document.excuse_document,
+        name="excuse_document",
+    ),
     path(
         "excuses/requests/<uuid:pk>/decide/",
         views.excuse_request_decide,
