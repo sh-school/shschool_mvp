@@ -481,11 +481,12 @@ class ClassroomObservationAdmin(admin.ModelAdmin):
         "observer",
         "kind",
         "status",
+        "outside_schedule",
         "score_percent",
         "is_deleted",
         "school",
     )
-    list_filter = ("school", "kind", "status", "is_deleted", "observation_date")
+    list_filter = ("school", "kind", "status", "outside_schedule", "is_deleted", "observation_date")
     search_fields = ("teacher__full_name", "observer__full_name", "topic")
     date_hierarchy = "observation_date"
     autocomplete_fields = ("teacher", "observer", "subject", "class_group")
