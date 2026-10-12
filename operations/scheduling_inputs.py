@@ -15,6 +15,7 @@ from datetime import time as dt_time
 
 from core.models import School
 
+from .gap_rule import effective_max_gap, widest_gap_of_positions
 from .last_period_cap import personal_last_cap
 from .models import (
     ScheduleSlot,
@@ -565,10 +566,7 @@ class ScheduleGrid:
         """
         occupied = {p for d, p in self._teacher_slots[teacher_id] if d == day}
         occupied.update(periods)
-        ordered = sorted(occupied)
-        if len(ordered) < 2:
-            return 0
-        return max(b - a - 1 for a, b in zip(ordered, ordered[1:], strict=False))
+        return widest_gap_of_positions(occupied)
 
     def would_create_gap(self, teacher_id: str, day: int, period: int) -> bool:
         """هل إضافة حصة ستخلق فجوة للمعلم؟"""
@@ -619,7 +617,11 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
     personal_cap = {str(p.teacher_id): p.max_consecutive for p in prefs if p.max_consecutive}
     #: سقوفُ الفراغ الخاصّة — `None` لا قيد، والصفرُ قيدٌ صحيح: «لا فراغَ
     #: البتّة». فيُسأل عن العدم لا عن الصدق، وإلّا سقط الأشدُّ من القيدين.
-    personal_gap = {str(p.teacher_id): p.max_gap for p in prefs if p.max_gap is not None}
+    personal_gap = {
+        str(p.teacher_id): effective_max_gap(p.max_gap)
+        for p in prefs
+        if effective_max_gap(p.max_gap) is not None
+    }
     #: سقفُ السابعة الشخصيّ (HC8) — قرارٌ في حقّ معلّمٍ يفوق نصابُه سعتَه بالعدّ (W-20261003-035).
     personal_last = {
         str(p.teacher_id): personal_last_cap(p.max_last_periods)

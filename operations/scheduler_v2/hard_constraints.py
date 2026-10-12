@@ -563,7 +563,7 @@ def _touch_pair(ctx: _Ctx, ca: list[_Cell], cb: list[_Cell], oa, ob, hc5: bool) 
 
 
 def _max_gap(ctx: _Ctx, t: str, day: int, by_key, occ, max_gap: int) -> None:
-    """HC10: الفجواتُ بين أوّل حصّةٍ وآخرِها في اليوم ≤ سقفِ المعلّم (تُعدّ بالفواصل الزمنيّة).
+    """HC10: أوسعُ فراغٍ مفردٍ بين حصّتين مشغولتين في اليوم ≤ سقفِ المعلّم (تُعدّ بالفواصل الزمنيّة).
 
     والفراغُ يُعدّ داخل نطاق جرسٍ واحد (W-20261012-022): فجوةٌ بين حصّةٍ في نطاقٍ وحصّةٍ في نطاقٍ آخر ليست
     فراغاً، وإلّا دخلت فواصلُ النطاق الآخر في العدّ فحُسبت فجواتٌ وهميّةٌ لمن يدرّس في أكثر من نطاق.
@@ -595,19 +595,27 @@ def _max_gap(ctx: _Ctx, t: str, day: int, by_key, occ, max_gap: int) -> None:
 
 
 def _gap_within(ctx: _Ctx, keys: list, occ, max_gap: int) -> None:
-    """سقفُ الفراغ على فواصلَ مرتَّبةٍ بالزمن: ما بين أوّل مشغولٍ وآخرِه ولم يُشغَل ≤ السقف."""
+    """HC10 بتعريف المُقيِّم (`gap_rule.widest_gap`): لا نافذةَ من `max_gap + 1` فاصلاً فارغاً بين مشغولَين.
+
+    ``pre[i]`` يعلو إن شُغل فاصلٌ قبل ``i`` و``suf[j]`` إن شُغل فاصلٌ بعد ``j``؛ والنافذةُ [s..s+max_gap] إمّا أن
+    يُشغل فيها فاصلٌ أو لا يجتمع قبلُ وبعدُ (W-20261012-023). والتقييدُ من جهةٍ واحدةٍ كافٍ: رفعُ ``pre``/``suf``
+    فوق الحقيقة لا يفيد المحلِّلَ بل يضيّق عليه.
+    """
     m = ctx.m
     n = len(keys)
-    if n <= max_gap + 1:
-        return
-    f = m.NewIntVar(0, n, "")
-    l = m.NewIntVar(0, n, "")
-    any_occ = m.NewBoolVar("")
-    m.AddMaxEquality(any_occ, [occ[k] for k in keys])
-    for idx, k in enumerate(keys):
-        m.Add(f <= idx).OnlyEnforceIf(occ[k])
-        m.Add(l >= idx).OnlyEnforceIf(occ[k])
-    m.Add(l - f + 1 - sum(occ[k] for k in keys) <= max_gap).OnlyEnforceIf(any_occ)
+    window = max_gap + 1
+    if n < window + 2:
+        return  # أوسعُ فراغٍ ممكنٍ n-2 فلا يتجاوز السقفَ
+    pre = [m.NewBoolVar("") for _ in range(n)]
+    suf = [m.NewBoolVar("") for _ in range(n)]
+    for i in range(1, n):
+        m.Add(pre[i] >= pre[i - 1])
+        m.Add(pre[i] >= occ[keys[i - 1]])
+    for j in range(n - 2, -1, -1):
+        m.Add(suf[j] >= suf[j + 1])
+        m.Add(suf[j] >= occ[keys[j + 1]])
+    for s in range(1, n - window):
+        m.Add(pre[s] + suf[s + window - 1] <= 1 + sum(occ[keys[k]] for k in range(s, s + window)))
     ctx.count("HC10")
 
 
