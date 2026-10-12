@@ -10,6 +10,8 @@
 قائمة (شرطُ المالك: عدُّ الأصفار القديمة في الإنتاج قراءةٌ بإذنه المباشر وحدَه).
 """
 
+from typing import Any
+
 #: الصفرُ منعُ السابعة عن المعلّم. وما بين 1 و5 سقفٌ أسبوعيّ.
 BAN_PERSONAL_LAST = 0
 MIN_PERSONAL_LAST = 1
@@ -24,7 +26,7 @@ def personal_last_cap(value: int | None) -> int | None:
     return None
 
 
-def admin_last_caps(school, academic_year: str) -> dict[str, int]:
+def admin_last_caps(school: Any, academic_year: str) -> dict[str, int]:
     """سقوفُ السابعة الشخصيّةُ المقرَّرة إدارياً ({معلّم ← سقف}) — ما خالف العامَّ وفي مداه فقط، ومنه الصفر (منع).
 
     مصدرٌ واحدٌ يقرؤه المولّدُ V2 (نظيرُ `admin_first_caps`) فلا يختلف حكمُه عن V1 والمُقيِّم (W-20261004-013).
