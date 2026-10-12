@@ -19,6 +19,7 @@ from django.test import RequestFactory
 
 import staff_affairs.attendance as attendance_module
 from core.capabilities import (
+    ACTING_NEVER_KEYS,
     Capability,
     acting_capabilities,
     acting_transferable,
@@ -166,6 +167,27 @@ def test_user_management_and_system_administration_are_never_transferred(
     deputy = _fresh(vice_admin)
     assert "users" in get_accessible_modules(principal_user)
     assert "users" not in get_accessible_modules(deputy)
+
+
+@pytest.mark.parametrize("key", ["breach.manage", "audit.permissions_log"])
+def test_breach_data_and_the_permissions_log_are_never_transferred(
+    school, principal_user, vice_admin, vice_academic, key
+):
+    """قرارُ المالك D-413م: دورُهما يضمّ النائبين، فمن أُنيب عن نائبٍ لا يرثهما — ولا من أُنيب عن المدير."""
+    assert key in ACTING_NEVER_KEYS and not acting_transferable(capability(key))
+    assert key not in acting_capabilities()
+
+    under_vice_admin = _staff(school, 940, "admin_supervisor")
+    under_vice_academic = _staff(school, 941, "teacher")
+    _assign(school, vice_admin, under_vice_admin)
+    _assign(school, vice_academic, under_vice_academic)
+    for holder in (under_vice_admin, under_vice_academic):
+        assert not has_capability(_fresh(holder), key), holder
+    # الأصلُ يبقى لأصحاب الدور، وغيرُهما ممّا يُنَاب منتقل: الاستثناءُ بالمفتاح لا بالجملة
+    assert has_capability(_fresh(vice_admin), key)
+    other = _staff(school, 942, "vice_admin")
+    _assign(school, principal_user, other)
+    assert has_capability(_fresh(other), PRINCIPAL_ONLY)
 
 
 def test_the_schedule_generation_stays_with_the_platform_developer(
