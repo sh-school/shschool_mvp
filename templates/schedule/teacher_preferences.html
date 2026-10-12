@@ -17,58 +17,30 @@
   {% csrf_token %}
 
   <div class="auto-grid">
-    {% section_card "قيود صلبة — لا تُخرق أبداً" icon="settings" %}
-      <div class="form-group">
-        <label class="form-label" for="max_consecutive">أقصى حصص متتالية</label>
-        <select name="max_consecutive" id="max_consecutive" class="form-control">
-          <option value="" {% if pref.max_consecutive is None %}selected{% endif %}>السقف العام (الافتراضي): {% if pref.general_run_cap == 1 %}حصة واحدة{% else %}{{ pref.general_run_cap }} حصص{% endif %}</option>
-          {% for v in periods %}
-          <option value="{{ v }}" {% if pref.max_consecutive == v %}selected{% endif %}>
-            {% if v == 1 %}حصة واحدة — لا تجاور{% else %}{{ v }} حصص{% endif %}
-          </option>
-          {% endfor %}
-        </select>
-        <p class="ui-field-hint">لك وحدك ولا يُخرق؛ وما فوق السقف العام يُسجَّل.</p>
-        {% if pref.run_cap_above_general %}
-        {% callout "warning" %}سقفُك الشخصي ({{ pref.max_consecutive }}) أعلى من السقف العام ({{ pref.general_run_cap }}): يُرخي قيد التلاصق لك وحدَك في التوليد، وقد سُجّل هذا الاختيار. اترك الخانة على «السقف العام» لتعود إليه.{% endcallout %}
-        {% endif %}
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="max_gap">
-          أقصى فجوة بين حصتين
-          {% if pref.max_gap is None %}<span class="badge badge--neutral" title="بلا اختيارٍ بعد — الفراغُ ترجيحٌ عامٌّ كسائر الكادر">بلا قيد شخصي حالياً</span>{% endif %}
-        </label>
-        <select name="max_gap" id="max_gap" class="form-control">
-          <option value="" {% if pref.max_gap is None %}selected{% endif %}>— بدون حد (الافتراضي) —</option>
-          <option value="0" {% if pref.max_gap == 0 %}selected{% endif %}>بدون فجوة — حصص متصلة</option>
-          <option value="1" {% if pref.max_gap == 1 %}selected{% endif %}>حصة فارغة واحدة</option>
-          <option value="2" {% if pref.max_gap == 2 %}selected{% endif %}>حصتان فارغتان</option>
-          <option value="3" {% if pref.max_gap == 3 %}selected{% endif %}>3 حصص فارغة</option>
-        </select>
-        <p class="ui-field-hint">أوسع فراغ تقبله بين حصتين في اليوم. لا يُخرق عند اختيار رقم.</p>
-      </div>
-    {% endsection_card %}
-
+    {% comment %}
+    «أقصى حصص متتالية» و«أقصى فجوة» أُخفيا عن المعلّم بقرار المالك D-418م: الحلّالُ لا يقرأ التتالي،
+    ولا قيمةَ آمنةً للفراغ حتى يُصلح (W-20261012-020..025). فيبقيان في النموذج والأدمن، والحفظُ
+    لا يقرؤهما من الطلب. وإرجاعُهما من تاريخ هذا الملفّ بعد إعادة القياس بأداة W-20261011-008.
+    {% endcomment %}
     {% section_card "تفضيلات — نقاربها دون ضمان" icon="settings" %}
       <div class="form-group">
         <label class="form-label" for="max_daily">أقصى عدد حصص يومية</label>
         {% comment %}
-        المدى كاملاً من الواحدة إلى السبع. وكان «3456» يحجب الخيارين 1 و2 عن
-        المنسّقين — أنصبتُهم ثلاثٌ إلى ثمانٍ عمداً مقابلَ عمل التنسيق، وهم أحوجُ
-        الناس إلى تجميع حصصهم. وما دون حصّةِ القسمة يُطفأ لا يُردّ بعد الحفظ.
+        من 4 إلى 7 (D-418م): ثلاثٌ فما دونها تجعل التوليدَ مستحيلاً في قياس 0424. وما دون
+        حصّةِ القسمة يُطفأ قبل الاختيار لا يُردّ بعد الحفظ، ولا يُذكر «أدنى رقم» إلّا فوق أوّل خيار —
+        فـ«أدنى رقمٍ 2» وأوّلُ الخيارات 4 يحيّر.
         {% endcomment %}
         <select name="max_daily_periods" id="max_daily" class="form-control">
-          {% for v in periods %}
+          {% for v in daily_caps %}
           <option value="{{ v }}" {% if pref.max_daily_periods == v %}selected{% endif %}
                   {% if min_daily and v < min_daily %}disabled{% endif %}>
-            {{ v }} {% if v == 1 %}حصة{% else %}حصص{% endif %}{% if v == 7 %} (بدون حد){% endif %}{% if min_daily and v < min_daily %} — لا يسع نصابك{% endif %}
+            {{ v }} حصص{% if v == 7 %} (بدون حد){% endif %}{% if min_daily and v < min_daily %} — لا يسع نصابك{% endif %}
           </option>
           {% endfor %}
         </select>
         <p class="ui-field-hint">
           أكبر عدد حصص في يومك؛ نحاول ولا نضمن.
-          {% if load %}نصابُك <b>{{ load }}</b> حصة{% if min_daily %} — فأدنى رقمٍ يحتمله نصابُك عادةً <b>{{ min_daily }}</b>{% endif %}.{% endif %}
+          {% if load %}نصابُك <b>{{ load }}</b> حصة{% if min_daily > daily_caps.0 %} — فأدنى رقمٍ يحتمله نصابُك عادةً <b>{{ min_daily }}</b>{% endif %}.{% endif %}
         </p>
       </div>
     {% endsection_card %}
