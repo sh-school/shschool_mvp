@@ -5,7 +5,8 @@
 - **الهدف**: كادرٌ غيرُ مرتفعٍ في مدرسة المطوّر نفسِها — لا superuser ولا `is_staff` ولا مطوّرٌ ولا قيادةٌ عليا، ولا
   طالبٌ ولا وليُّ أمر — ولا ربطَ سلسليّاً (هدفٌ هو مطوّرٌ في ربطٍ آخر، أو مطوّرٌ هو هدفٌ في ربطٍ آخر).
 - **التأكيد**: أوّلُ تبديلٍ في الجلسة يعيد تأكيدَ هويّة المطوّر نفسِه — رمزُ عامله الثاني إن فعّله، وإلّا كلمةُ مروره —
-  لا كلمةَ المعلّم. وربطٌ لم يُؤكَّد قطّ يُؤكَّد بها أيضاً.
+  لا كلمةَ المعلّم. وربطٌ لم يُؤكَّد قطّ يُؤكَّد بها أيضاً. وقفلُ المحاولات الخاطئة وحجزُ الرمز المستعمَل في ذاكرةٍ
+  تشترك فيها العمليّات (Redis في الإنتاج)، فإن لم تكن أو تعذّرت أُقفل التأكيدُ ولم يُفتح بلا عدّ.
 - **الجلسة**: لا `login()` عاديّ؛ يُدوَّر مفتاحُ الجلسة ورمزُ CSRF دخولاً وخروجاً، ويُخزَّن المطوّرُ الفعليّ في علامةٍ
   موقَّعةٍ مع بصمة كلمة مروره، فتغييرُها يُسقط الانتحالَ كلَّه. 15 دقيقةً خاملةً وسقفُ ساعةٍ و10 تبديلاتٍ في الساعة.
 - **الخروج يعيد المطوّرَ لا يُخرجه** — إلّا إن لم يعد مطوّراً فاعلاً أو تغيّرت كلمةُ مروره: عندها تُغلق الجلسةُ كلُّها.
@@ -13,8 +14,11 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
+import redis
+from django.conf import settings
 from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, logout
 from django.core.cache import cache
 from django.middleware.csrf import rotate_token
@@ -24,10 +28,29 @@ from core.models.access import LEADERSHIP, TIER_3_SUPERVISORS, TIER_4_STAFF
 from core.unrestricted_role import has_unrestricted_role
 
 from . import state
-from .policy import LINKED_CAP_SECONDS, LINKED_IDLE_SECONDS, REAUTH_FAILURES, REAUTH_LOCK_SECONDS
+from .policy import (
+    LINKED_CAP_SECONDS,
+    LINKED_IDLE_SECONDS,
+    REAUTH_FAILURES,
+    REAUTH_LOCK_SECONDS,
+    TOTP_REPLAY_SECONDS,
+)
+
+logger = logging.getLogger(__name__)
 
 #: أدوارُ الكادر التي يجوز أن يكون الحسابُ المرتبطُ عليها: ما دون القيادة العليا (الإدارةُ العليا هدفٌ مرتفع).
 TARGET_ROLES = frozenset(TIER_3_SUPERVISORS | TIER_4_STAFF) - LEADERSHIP
+
+#: ذاكراتٌ لا تشترك فيها العمليّات: قفلٌ فيها يُعدّ لكلّ عاملٍ وحدَه، فتصير خمسُ المحاولات خمساً لكلّ عامل.
+_PROCESS_LOCAL_CACHES = frozenset(
+    {
+        "django.core.cache.backends.locmem.LocMemCache",
+        "django.core.cache.backends.dummy.DummyCache",
+    }
+)
+
+#: سقوطُ Redis كما يلتقطه `core/ratelimit_safe.py`.
+_CACHE_DOWN = (OSError, redis.exceptions.RedisError)
 
 
 def link_problems(developer: Any, target: Any, *, exclude_pk: Any = None) -> list[str]:
@@ -64,6 +87,10 @@ def entry_problems(request: Any, target: Any) -> list[str]:
     from core.middleware import TwoFactorEnforcementMiddleware
 
     problems: list[str] = []
+    if not lock_store_shared():
+        problems.append(
+            "قفلُ التأكيد يحتاج ذاكرةً مشتركةً (Redis) وهذه البيئةُ بلا واحدة — الحسابُ المرتبطُ موقوفٌ فيها."
+        )
     if target.must_change_password:
         problems.append("على الحساب المرتبط تغييرُ كلمة مروره — ادخله بنفسك مرّةً لذلك.")
     if TwoFactorEnforcementMiddleware._must_set_up(target):
@@ -93,8 +120,26 @@ def uses_second_factor(actor: Any) -> bool:
     return bool(actor.totp_enabled and usable_totp_secret(actor))
 
 
+def lock_store_shared() -> bool:
+    """قفلُ التأكيد وحجزُ الرمز في ذاكرةٍ تشترك فيها العمليّات — شرطُ 0104 قبل النشر.
+
+    الإنتاجُ يأخذ Redis من `REDIS_URL` وإلّا ذاكرةَ العمليّة (`settings/production.py`)، فبلا Redis يُوقف الحسابُ
+    المرتبطُ ولا يعمل بقفلٍ مقسومٍ على العمّال. والتطويرُ عمليّةٌ واحدة (DEBUG) فلا يلزمه.
+    """
+    backend = settings.CACHES.get("default", {}).get("BACKEND", "")
+    return settings.DEBUG or backend not in _PROCESS_LOCAL_CACHES
+
+
+#: المفتاحُ نفسُه في `core/views_auth.py` (VULN-001): فرمزٌ دخل به المطوّرُ لا يؤكّد هنا، ورمزٌ أكّد هنا لا يُدخل.
+def _totp_used_key(actor: Any, code: str) -> str:
+    return f"totp_used:{actor.id}:{code}"
+
+
 def verify_reauth(actor: Any, secret: str) -> bool:
-    """رمزُ عامله الثاني إن فعّله، وإلّا كلمةُ مروره — هويّةُ المطوّر لا المعلّم."""
+    """رمزُ عامله الثاني إن فعّله، وإلّا كلمةُ مروره — هويّةُ المطوّر لا المعلّم.
+
+    والرمزُ الصحيحُ يُحجز بـ`cache.add` (ذرّيٌّ في Redis): طلبان متزامنان بالرمز نفسِه يصحّ أحدُهما فقط.
+    """
     if not secret:
         return False
     if uses_second_factor(actor):
@@ -102,7 +147,14 @@ def verify_reauth(actor: Any, secret: str) -> bool:
 
         from core.views_auth import usable_totp_secret
 
-        return bool(pyotp.TOTP(usable_totp_secret(actor)).verify(secret.strip(), valid_window=1))
+        code = secret.strip().replace(" ", "")
+        if not pyotp.TOTP(usable_totp_secret(actor)).verify(code, valid_window=1):
+            return False
+        try:
+            return bool(cache.add(_totp_used_key(actor, code), True, timeout=TOTP_REPLAY_SECONDS))
+        except _CACHE_DOWN:
+            logger.warning("view_as: totp replay store unavailable for actor %s", actor.pk)
+            return False
     return bool(actor.check_password(secret))
 
 
@@ -117,21 +169,36 @@ def _failures_key(actor: Any) -> str:
 
 
 def reauth_locked(actor: Any) -> bool:
-    """خمسُ محاولاتٍ خاطئةٍ توقف التأكيدَ ربعَ ساعة — فلا تُخمَّن كلمةُ المطوّر من جلسةٍ مفتوحة."""
-    return int(cache.get(_failures_key(actor)) or 0) >= REAUTH_FAILURES
+    """خمسُ محاولاتٍ خاطئةٍ توقف التأكيدَ ربعَ ساعة — فلا تُخمَّن كلمةُ المطوّر من جلسةٍ مفتوحة.
+
+    وذاكرةٌ لا تشترك فيها العمليّاتُ أو سقط Redis: مقفلٌ — لا يُفتح التأكيدُ بلا عدٍّ يراه كلُّ العمّال.
+    """
+    if not lock_store_shared():
+        return True
+    try:
+        return int(cache.get(_failures_key(actor)) or 0) >= REAUTH_FAILURES
+    except _CACHE_DOWN:
+        logger.warning("view_as: reauth lock store unavailable for actor %s", actor.pk)
+        return True
 
 
 def note_reauth_failure(actor: Any) -> None:
     key = _failures_key(actor)
-    cache.add(key, 0, timeout=REAUTH_LOCK_SECONDS)
     try:
-        cache.incr(key)
-    except ValueError:  # انقضى المفتاحُ بين add وincr
-        cache.set(key, 1, timeout=REAUTH_LOCK_SECONDS)
+        cache.add(key, 0, timeout=REAUTH_LOCK_SECONDS)
+        try:
+            cache.incr(key)
+        except ValueError:  # انقضى المفتاحُ بين add وincr
+            cache.set(key, 1, timeout=REAUTH_LOCK_SECONDS)
+    except _CACHE_DOWN:  # التالي يقرأ القفلَ من الذاكرة الساقطة نفسِها فيُقفل
+        logger.warning("view_as: reauth failure not counted for actor %s", actor.pk)
 
 
 def clear_reauth_failures(actor: Any) -> None:
-    cache.delete(_failures_key(actor))
+    try:
+        cache.delete(_failures_key(actor))
+    except _CACHE_DOWN:
+        logger.warning("view_as: reauth failures not cleared for actor %s", actor.pk)
 
 
 # ── الدخولُ والخروج ──────────────────────────────────────────────

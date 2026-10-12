@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pyotp
 import pytest
+import redis
 from django.contrib.auth import SESSION_KEY
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
@@ -26,6 +27,15 @@ pytestmark = pytest.mark.django_db
 PASSWORD = "testpass123"  # pragma: allowlist secret — كلمةُ مصنع الاختبار الافتراضيّة
 EXIT = "/developer/view-as/linked/exit/"
 PICKER = "/developer/view-as/"
+
+#: الفحصُ الحقيقيّ قبل أن يستبدله المثبِّتُ أدناه — تقيسه اختباراتُ الذاكرة المشتركة وحدَها.
+_LOCK_STORE_SHARED = linked.lock_store_shared
+
+
+@pytest.fixture(autouse=True)
+def _shared_lock_store(monkeypatch):
+    """الاختباراتُ بذاكرة locmem وDEBUG مطفأ، والإنتاجُ بـRedis: فتُعدّ الذاكرةُ مشتركةً هنا إلّا حيث تُقاس."""
+    monkeypatch.setattr(linked, "lock_store_shared", lambda: True)
 
 
 def _member(school, role, **kwargs):
@@ -216,13 +226,18 @@ def test_the_targets_password_does_not_confirm(dev_client, link, developer, targ
     assert _rows("view_as_denied", user=developer).last().changes["why"] == "reauth_failed"
 
 
+def _with_second_factor(user):
+    secret = pyotp.random_base32()
+    user.totp_secret = encrypt_field(secret) or secret
+    user.totp_enabled = True
+    user.save(update_fields=["totp_secret", "totp_enabled"])
+    return secret
+
+
 def test_a_developer_with_a_second_factor_confirms_with_the_code(
     dev_client, link, developer, target
 ):
-    secret = pyotp.random_base32()
-    developer.totp_secret = encrypt_field(secret) or secret
-    developer.totp_enabled = True
-    developer.save(update_fields=["totp_secret", "totp_enabled"])
+    secret = _with_second_factor(developer)
     assert 'autocomplete="one-time-code"' in dev_client.get(_confirm_url(link)).content.decode()
     assert dev_client.post(_confirm_url(link), {"secret": PASSWORD}).status_code == 400
     response = dev_client.post(_confirm_url(link), {"secret": pyotp.TOTP(secret).now()})
@@ -262,8 +277,31 @@ def test_a_write_in_the_linked_account_is_logged_to_the_developer(
     assert row.changes["acting"] == {"actor": str(developer.pk), "as_user": str(target.pk)}
 
 
+def test_a_used_code_does_not_confirm_again(developer):
+    """شرطُ 0104: رمزٌ صحَّ مرّةً لا يصحّ ثانيةً في نوافذه الثلاث."""
+    code = pyotp.TOTP(_with_second_factor(developer)).now()
+    assert linked.verify_reauth(developer, code)
+    assert not linked.verify_reauth(developer, code)
+
+
+def test_a_code_used_at_login_does_not_confirm(developer):
+    """الحجزُ مشتركٌ مع باب الدخول (`core/views_auth.py`، VULN-001) فرمزُ الدخول لا يؤكّد هنا."""
+    code = pyotp.TOTP(_with_second_factor(developer)).now()
+    linked.cache.set(f"totp_used:{developer.id}:{code}", True, timeout=90)
+    assert not linked.verify_reauth(developer, code)
+
+
 @pytest.mark.parametrize(
-    "path", ["/auth/change-password/", "/auth/2fa/setup/", "/notifications/settings/", "/admin/"]
+    "path",
+    [
+        "/auth/change-password/",
+        "/auth/2fa/setup/",
+        "/notifications/settings/",
+        "/admin/",
+        "/api/v1/auth/token/",
+        "/api/v1/auth/token/refresh/",
+        "/core/it-admin/password-reset/",
+    ],
 )
 def test_account_pages_are_closed_in_the_linked_account(dev_client, link, developer, path):
     _enter(dev_client, link)
@@ -320,6 +358,59 @@ def test_five_wrong_confirmations_lock_it(dev_client, link, developer):
     assert "أُوقف التأكيدُ مؤقّتاً" in response.content.decode()
     assert _rows("view_as_limit", user=developer).get().changes["kind"] == "reauth"
     assert _session_user(dev_client) == str(developer.pk)
+
+
+class _FallenCache:
+    """ذاكرةٌ سقطت: كلُّ استدعاءٍ يرفع ما يرفعه Redis المنقطع."""
+
+    def __getattr__(self, name):
+        def fallen(*args, **kwargs):
+            raise redis.exceptions.ConnectionError("Redis down")
+
+        return fallen
+
+
+def test_a_fallen_store_locks_the_confirmation(dev_client, link, developer, monkeypatch):
+    """شرطُ 0104: لا يُفتح التأكيدُ بلا عدٍّ يراه كلُّ العمّال — يُقفل ولا يسقط 500."""
+    monkeypatch.setattr(linked, "cache", _FallenCache())
+    assert linked.reauth_locked(developer)
+    linked.note_reauth_failure(developer)
+    linked.clear_reauth_failures(developer)
+    response = dev_client.post(_confirm_url(link), {"secret": PASSWORD})
+    assert response.status_code == 429
+    assert _session_user(dev_client) == str(developer.pk)
+
+
+def test_a_fallen_store_refuses_a_correct_code(developer, monkeypatch):
+    code = pyotp.TOTP(_with_second_factor(developer)).now()
+    monkeypatch.setattr(linked, "cache", _FallenCache())
+    assert not linked.verify_reauth(developer, code)
+
+
+def test_a_process_local_store_is_not_shared(settings):
+    """اختباراتُ المنصّة بـlocmem وDEBUG مطفأ — كالإنتاج بلا REDIS_URL."""
+    assert settings.CACHES["default"]["BACKEND"].endswith("LocMemCache") and not settings.DEBUG
+    assert not _LOCK_STORE_SHARED()
+    settings.CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": "redis://127.0.0.1:6379/0",
+        }
+    }
+    assert _LOCK_STORE_SHARED()
+
+
+def test_without_a_shared_store_the_linked_account_is_stopped(
+    dev_client, link, developer, monkeypatch
+):
+    monkeypatch.setattr(linked, "lock_store_shared", _LOCK_STORE_SHARED)
+    assert linked.reauth_locked(developer)
+    response = dev_client.post(_confirm_url(link), {"secret": PASSWORD})
+    assert response.status_code == 302 and response.url == PICKER
+    assert _session_user(dev_client) == str(developer.pk)
+    row = _rows("view_as_denied", user=developer).last()
+    assert row.changes["why"] == "link_problems"
+    assert any("Redis" in problem for problem in row.changes["problems"])
 
 
 def test_switching_past_the_hourly_limit_is_429(dev_client, link, developer, monkeypatch):

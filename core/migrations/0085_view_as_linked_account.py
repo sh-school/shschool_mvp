@@ -9,7 +9,7 @@ import core.models.school
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0081_breach_individuals_and_phased_ncsa"),
+        ("core", "0084_acting_assignment_audit_and_coordinator"),
     ]
 
     operations = [

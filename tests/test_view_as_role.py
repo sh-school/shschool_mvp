@@ -247,9 +247,19 @@ def test_audit_rows_written_inside_a_preview_carry_acting():
     assert row.changes == {"k": 1, "acting": {"actor": "a1", "as_role": "teacher"}}
 
 
-@pytest.mark.parametrize("path", ["/auth/change-password/", "/auth/2fa/setup/", "/admin/"])
-def test_account_pages_are_closed_during_a_preview(dev_client, developer, path):
-    _start(dev_client, "teacher")
+@pytest.mark.parametrize(
+    ("role", "path"),
+    [
+        ("teacher", "/auth/change-password/"),
+        ("teacher", "/auth/2fa/setup/"),
+        ("teacher", "/admin/"),
+        ("teacher", "/api/v1/auth/token/"),
+        # الدعمُ التقنيّ يملك الصفحةَ بدوره، فحظرُها أثناء المعاينة من المسار لا من الدور (شرط 0104).
+        ("it_technician", "/core/it-admin/password-reset/"),
+    ],
+)
+def test_account_pages_are_closed_during_a_preview(dev_client, developer, role, path):
+    _start(dev_client, role)
     assert dev_client.get(path).status_code == 403
     row = _rows("view_as_denied", user=developer).last()
     assert row.changes["why"] == "account_page"
