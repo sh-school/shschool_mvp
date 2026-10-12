@@ -13,5 +13,5 @@
 لا ترقيمَ صفحاتٍ هنا عمداً (خلافَ `{% print_frame_footer %}` المركزيّ الأعمّ): هذه وثائقُ صفحةٍ واحدة
 أو ورقةٌ مستقلّةٌ لكلّ معلّمٍ/شعبة، فلا معنى لـ«صفحة 1 من 1» فيها.
 {% endcomment %}<div class="pdf-footer-line">
-  {{ school.name }} — وزارة التربية والتعليم والتعليم العالي — دولة قطر{% if show_date %} — تاريخ الطباعة: <span class="pdf-footer-date">&#8294;{% now "Y/m/d H:i" %}&#8297;</span>{% endif %} — {% include "components/ministry_vision.html" with school=school %}
+  {% load ministry %}{{ school.name }}{% ministry_name as ministry %}{% if ministry %} — {{ ministry }}{% endif %}{% if show_date %} — تاريخ الطباعة: <span class="pdf-footer-date">&#8294;{% now "Y/m/d H:i" %}&#8297;</span>{% endif %} — {% include "components/ministry_vision.html" with school=school %}
 </div>

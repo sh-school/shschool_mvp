@@ -69,6 +69,7 @@ from wings.scope import student_scope_for
 
 from .models import StudentActivity, StudentTransfer
 from .selectors import attach_guardian_phones, guardian_ids_by_phone, student_register
+from .transfer_decision import detail_flags, may_decide
 
 logger = logging.getLogger(__name__)
 
@@ -643,15 +644,6 @@ def student_edit(request, student_id):
     )
     year = academic_year_for(request)
     profile = getattr(student, "profile", None)
-    enrollment = (
-        StudentEnrollment.objects.filter(
-            student=student,
-            class_group__academic_year=year,
-            is_active=True,
-        )
-        .select_related("class_group")
-        .first()
-    )
 
     from .forms import StudentEditForm
 
@@ -672,8 +664,6 @@ def student_edit(request, student_id):
                         "email": cd.get("email", ""),
                         "birth_date": cd.get("birth_date"),
                         "notes": cd.get("notes", ""),
-                        "grade": cd["grade"],
-                        "section": cd["section"],
                     },
                 )
                 messages.success(request, f"تم تحديث بيانات {student.full_name} بنجاح.")
@@ -689,8 +679,6 @@ def student_edit(request, student_id):
                 "full_name": student.full_name,
                 "phone": student.get_phone_decrypted(),
                 "email": student.email,
-                "grade": enrollment.class_group.grade if enrollment else "",
-                "section": enrollment.class_group.section if enrollment else "",
                 "birth_date": profile.date_of_birth if profile else None,
                 "notes": profile.notes if profile else "",
             }
@@ -999,6 +987,7 @@ def transfer_create(request):
             )
             from .internal_transfer import build_request
             from .services import StudentService
+            from .transfer_decision import move_directly
 
             transfer, error = build_request(
                 school, student, cd, academic_year_for(request), request.user
@@ -1006,6 +995,14 @@ def transfer_create(request):
             if error:
                 form.add_error(None, error)
                 return _transfer_form_response(request, school, form)
+            if cd.get("direct"):
+                try:
+                    move_directly(transfer, request.user, school)
+                except ValueError as exc:
+                    form.add_error(None, str(exc))
+                    return _transfer_form_response(request, school, form)
+                messages.success(request, f"نُقل {student.full_name} إلى شعبته الجديدة مباشرةً.")
+                return redirect("student_affairs:transfer_detail", pk=transfer.pk)
             transfer.save()
 
             StudentService.audit_student_event(school, request.user, student, "transfer_requested")
@@ -1024,7 +1021,12 @@ def _transfer_form_response(request, school, form):
     return render(
         request,
         "student_affairs/transfer_form.html",
-        {"form": form, "students": students, "classes": classes},
+        {
+            "form": form,
+            "students": students,
+            "classes": classes,
+            "can_direct": may_decide(request.user),
+        },
     )
 
 
@@ -1040,6 +1042,7 @@ def transfer_detail(request, pk):
         {
             "transfer": transfer,
             "page_subtitle": f"{transfer.student.full_name} — {transfer.get_direction_display()}",
+            **detail_flags(transfer, request.user),
         },
     )
 
@@ -1059,15 +1062,18 @@ def transfer_review(request, pk):
         action = form.cleaned_data["action"]
         notes = form.cleaned_data.get("notes", "")
 
-        from .internal_transfer import complete_internal
         from .services import StudentService
+        from .transfer_decision import decide_and_audit
 
-        if action == "completed" and transfer.direction == "internal":
+        if transfer.direction == "internal":
+            # الاعتمادُ والإتمام للمدير والنائب الإداري، وبحالاتٍ صارمة، وسجلُّ من قرّر ومتى (D-343م).
             try:
-                complete_internal(transfer, request.user)
+                label = decide_and_audit(transfer, action, notes, request.user, school)
             except ValueError as exc:
                 messages.error(request, str(exc))
                 return redirect("student_affairs:transfer_detail", pk=pk)
+            messages.success(request, f"تم تحديث حالة الانتقال إلى: {label}")
+            return redirect("student_affairs:transfer_detail", pk=pk)
 
         transfer.status = action
         transfer.notes = notes
@@ -1901,13 +1907,13 @@ def student_profile_pdf(request, student_id):
     ).select_related("parent")
 
     ctx = get_export_context(request, "ملف الطالب الشامل")
-    # ملفُّ طالبٍ واحدٍ وثيقةٌ فرديّة: الرقمُ كاملاً — للمشرف كما للقيادة، فالوثيقةُ المستورةُ
-    # لا تُغني عن صاحبها (test_national_id_masking) — والتدقيقُ ثمنُه.
+    # ملفُّ طالبٍ واحدٍ بلا رقمٍ شخصيّ منذ D-386م (W-20261011-014) — لا للطالب ولا لأوليائه —
+    # فرايةُ التدقيق تقول ما في الملفّ (W-20261012-005).
     log_export(
         request,
         "student_affairs.student_profile_pdf",
         rows=1,
-        full_national_id=True,
+        full_national_id=False,
         object_id=student.pk,
         object_repr=(
             f"ملف الطالب {masked_repr(student)} — {year}" + (" — طلبة الجناح" if limited else "")
