@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     """
 
     dependencies = [
-        ("operations", "0080_rls_schedule_relaxation_policy"),
+        ("operations", "0081_absence_excuse_form04"),
     ]
 
     operations = [
