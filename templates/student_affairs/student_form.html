@@ -46,8 +46,11 @@
         {% field "gender" "الجنس" type="select" choices="M=ذكر|F=أنثى" value=form.gender.value %}
         {% field "nationality" "الجنسية" value=form.nationality.value|default:'قطري' placeholder="مثال: قطري" %}
         {% field "birth_date" "تاريخ الميلاد" type="date" value=form.birth_date.value %}
+        {# الصفّ والشعبة عند الإضافة فقط؛ وتغييرُهما بعد ذلك طلبُ انتقالٍ داخليّ يُعتمد (D-343م، W-20261001-017) #}
+        {% if mode == "add" %}
         {% field "grade" "الصف" type="select" choices=grades value=form.grade.value blank="— اختر الصف —" required=True error=form.grade.errors.0 %}
         {% field "section" "الشعبة" value=form.section.value placeholder="مثال: أ" required=True error=form.section.errors.0 %}
+        {% endif %}
         {% field "phone" "الجوال" value=form.phone.value placeholder="مثال: 55001234" dir="ltr" %}
         {% field "email" "البريد الإلكتروني" type="email" value=form.email.value placeholder="student@example.com" dir="ltr" %}
 
