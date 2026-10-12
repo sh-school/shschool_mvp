@@ -70,7 +70,8 @@ class TestTheEnteredDataSurvivesAnExpiredSession:
         frame.locator('button[type="submit"]').click()
 
         expect(dialog).to_be_hidden(timeout=15000)
-        expect(page.locator("#page-msgs, main")).to_contain_text("تم حفظ تفضيلات الإشعارات")
+        # `body` لا `#page-msgs, main`: المحدِّد المركّب يطابق عنصرَين فيفشل Playwright في الوضع الصارم.
+        expect(page.locator("body")).to_contain_text("تم حفظ تفضيلات الإشعارات")
         prefs = UserNotificationPreference.objects.get(user=e2e_teacher)
         assert prefs.quiet_hours_start == dt_time(22, 15)
         assert prefs.quiet_hours_end == dt_time(5, 45)
