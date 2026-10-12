@@ -579,7 +579,7 @@
 
 {% else %}
   <div class="schedule-header">
-    <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
+    {% load ministry %}{% ministry_name as ministry %}{% if ministry %}<div class="ministry">{{ ministry }}</div>{% endif %}
     <div class="school-name">{{ school.name }}</div>
     <h1 class="title">{{ title }}</h1>
     <div class="year">العام الدراسي &#8294;{{ year }}&#8297;{% if source == "actual" %} — الأسبوع {{ nav.range }}{% endif %}</div>
@@ -597,8 +597,8 @@
   {% if nav.kinds or nav.notes %}{% include "schedule/pdf/week_notes.html" %}{% endif %}
 
   <div class="schedule-footer">
-    وزارة التربية والتعليم والتعليم العالي — دولة قطر &nbsp;|&nbsp;
-    {{ school.name }} &nbsp;|&nbsp;
+    {% load ministry %}{% ministry_name as ministry_footer %}{% if ministry_footer %}{{ ministry_footer }} &nbsp;|&nbsp;
+    {% endif %}{{ school.name }} &nbsp;|&nbsp;
     تاريخ الطباعة: {% now "Y/m/d" %}<br>
     {% include "components/ministry_vision.html" %}
   </div>
