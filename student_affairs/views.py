@@ -1901,13 +1901,13 @@ def student_profile_pdf(request, student_id):
     ).select_related("parent")
 
     ctx = get_export_context(request, "ملف الطالب الشامل")
-    # ملفُّ طالبٍ واحدٍ وثيقةٌ فرديّة: الرقمُ كاملاً — للمشرف كما للقيادة، فالوثيقةُ المستورةُ
-    # لا تُغني عن صاحبها (test_national_id_masking) — والتدقيقُ ثمنُه.
+    # ملفُّ طالبٍ واحدٍ بلا رقمٍ شخصيّ منذ D-386م (W-20261011-014) — لا للطالب ولا لأوليائه —
+    # فرايةُ التدقيق تقول ما في الملفّ (W-20261012-005).
     log_export(
         request,
         "student_affairs.student_profile_pdf",
         rows=1,
-        full_national_id=True,
+        full_national_id=False,
         object_id=student.pk,
         object_repr=(
             f"ملف الطالب {masked_repr(student)} — {year}" + (" — طلبة الجناح" if limited else "")
