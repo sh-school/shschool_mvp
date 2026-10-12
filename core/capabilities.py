@@ -450,19 +450,7 @@ def registry() -> dict[str, Capability]:
             basis="قرارُ 2026-09-15 (النطاق) وقرارُ المستخدم 2026-09-17 (لا شيءَ آخر من الكنترول)",
         ),
         # ── الحضور والجدول ──────────────────────────────────────────
-        _cap(
-            "attendance.mark",
-            "رصدُ حضور الحصّة",
-            {
-                "principal",
-                "vice_academic",
-                "vice_admin",
-                "coordinator",
-                "teacher",
-                "ese_teacher",
-                "admin_supervisor",
-            },
-        ),
+        _cap("attendance.mark", "رصدُ حضور الحصّة", P.ATTENDANCE_RECORD),
         _cap("operations.reports", "تقاريرُ الجدول والحضور", P.OPERATIONS_REPORTS),
         _cap(
             "operations.daily_absence",

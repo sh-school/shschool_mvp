@@ -120,15 +120,25 @@ SCHEDULE_SUBSTITUTE_ASSIGN = {
 SCHEDULE_SUBSTITUTE_APPROVE = {"principal", "vice_academic", "vice_admin"}
 
 # ── الحضور والغياب ──────────────────────────────────────────────
-ATTENDANCE_RECORD = {
-    "teacher",
-    "ese_teacher",
-    "coordinator",
-    "admin_supervisor",
-    "teacher_assistant",
-    "ese_assistant",  # v7: يسجّلون تحت إشراف المعلم
-    "e_projects_coordinator",
-}
+#: المصدرُ الوحيد لقدرة «رصدُ حضور الحصّة» (`attendance.mark`) — كانت القدرةُ قائمةً ثانيةً تخالف هذه (W-20261004-022، D-201م أ٢).
+#: القدرةُ تفتح شاشاتِ الرصد وعدّاداتِ اللوحة. أمّا الكتابةُ في جدول الشعبة فيحكمها `grid_roles` (operations/attendance_policy.py):
+#: إسنادُ الشعبة أو تغطيتُها، أو حملُ جناحها، أو القيادةُ الإداريّة — لا الدورُ وحدَه.
+#: والمساعدون صراحةً (`teacher_assistant` و`ese_assistant`): يدخلون الشاشة، ويكتبون جدولَ الشعبة إن أُسندت إليهم كغيرهم.
+#: والنائبُ الأكاديميّ هنا للقراءة (التحويلُ وعدّاداتُ اللوحة)؛ لا يكتب الجدول (D-201م ١، D-239م ١).
+ATTENDANCE_RECORD = frozenset(
+    {
+        "principal",
+        "vice_academic",
+        "vice_admin",
+        "coordinator",
+        "teacher",
+        "ese_teacher",
+        "admin_supervisor",
+        "teacher_assistant",
+        "ese_assistant",
+        "e_projects_coordinator",
+    }
+)
 ATTENDANCE_VIEW_ALL = {
     "principal",
     "vice_academic",
