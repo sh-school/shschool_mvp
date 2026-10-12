@@ -745,6 +745,9 @@ button.ui-kpi { font: inherit; inline-size: 100%; text-align: start; cursor: poi
   .ui-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   /* في نصف شاشةٍ لا يتّسع السطرُ للتفصيل — والتلميحُ يحمله. */
   .ui-kpi__sub { display: none; }
+  /* بطاقةٌ بعرض نصف شاشةٍ لا يسع اسمَها ورقمَها معاً («شعب سُجّلت حصصها» و«0 من 0» عند 375px قُصّا يساراً، ملاحظة 0502): يلتفّ الرقمُ إلى سطرٍ ثانٍ ويلتفّ الاسمُ إن طال، ولا شيءَ يخرج من البطاقة. وما اتّسع لسطرٍ واحدٍ يبقى كما كان. */
+  .ui-kpi { flex-wrap: wrap; column-gap: var(--sp-2); row-gap: 0; }
+  .ui-kpi__label { white-space: normal; }
 }
 
 /* ── 2. بطاقةُ القسم: ترويسةٌ عنّابيّةٌ واحدة ──
