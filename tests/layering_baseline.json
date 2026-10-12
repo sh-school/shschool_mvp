@@ -803,7 +803,7 @@
    "orm": 9
   },
   "wings/views_absence_file.py::student_search": {
-   "orm": 16
+   "orm": 14
   },
   "wings/views_ministry.py::ministry_report": {
    "orm": 8
