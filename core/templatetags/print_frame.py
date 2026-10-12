@@ -44,10 +44,15 @@ def print_frame_css(paper: str, orient: str, variant: str = "") -> str:
     """كتلةُ `<style>` للصفحة والإطار: `@page` بحجم الورق والهوامش ومربّعَي الترويسة والتذييل، وأنماطُهما بألوان الهويّة.
 
     `variant="sheet"`: ورقةُ المعلّم/الشعبة المفردة (W-20261010-057) — خطوطُ الترويسة أكبرُ (المدرسةُ 16pt والعنوانُ 13pt وما دونهما 10pt) حدّاً أدنى
-    قرّره المالكُ؛ الهندسةُ (الهوامشُ وارتفاعُ الترويسة والتذييل) هي هي، فلا يتبدّل متنٌ ولا جدولٌ عامٌّ يستعمل الإطارَ بلا متغيّر."""
+    قرّره المالكُ؛ والهندسةُ **مضغوطةٌ** (`pf.frame(..., compact=True)`: ترويسةٌ على قدر محتواها وتذييلٌ ملاصق) فلا فراغَ تحت الترويسة ولا فوق التذييل؛
+    وبلا متغيّرٍ يبقى الإطارُ العامُّ بحاله فلا يتبدّل جدولٌ عامٌّ يستعمله."""
     return render_to_string(
         "components/print/frame_css.html",
-        {"fr": pf.frame(paper, orient), "footer_pt": pf.FOOTER_PT, "variant": variant},
+        {
+            "fr": pf.frame(paper, orient, compact=variant == "sheet"),
+            "footer_pt": pf.FOOTER_PT,
+            "variant": variant,
+        },
     )
 
 

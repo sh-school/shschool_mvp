@@ -96,8 +96,25 @@ class Frame:
         )
 
 
-def frame(paper: str, orient: str) -> Frame:
-    """ثوابتُ الإطار لـ(ورق، اتّجاه) — ورقٌ غيرُ معروفٍ يفشل بصوتٍ عالٍ لا بافتراضٍ صامت."""
+#: **الإطارُ المضغوط للورقة المفردة** (صفحةٌ لمعلّمٍ أو شعبة، W-20261010-057): الترويسةُ على قدر محتواها لا على الارتفاع المحجوز (30 ملم) لشعارٍ لا تحمله،
+#: والتذييلُ ملاصقٌ لأسفل الصفحة. فقد ظهر فراغان بلا علّة: نحو 14 ملم تحت الترويسة وأخرى فوق التذييل، والجدولُ ينكمش بينهما.
+#: حسابُ الترويسة (ملم): حشوةُ العلوّ `MARGIN_TOP_MM - 2` = 4 + وزارةٌ 4 + مدرسةٌ 6.4 + عنوانٌ 5.2 + سنةٌ 4 = 23.6 (وعلى العموديّ +4.4 لسطر الرؤية = 28)؛
+#: والمتنُ يبدأ عند `MARGIN_TOP_MM + h + GAP_MM`، فأقلُّ h يُبقي بين آخر سطرٍ في الترويسة وأوّل المتن نحو 3.4 ملم (≈ 10pt).
+SHEET_HEADER_H_MM: dict[tuple[str, str], float] = {
+    ("a4", "portrait"): 21.5,
+    ("a4", "landscape"): 17.0,
+    ("a3", "portrait"): 21.5,
+    ("a3", "landscape"): 17.0,
+}
+#: التذييلُ عنصرٌ جارٍ محاذىً لأسفل مربّعه (`vertical-align: bottom`) فهو لاصقٌ بالحافّة أصلاً — هامشٌ سفليٌّ ثانٍ لا يزيد إلّا شريطاً فارغاً فوقه.
+SHEET_MARGIN_BOTTOM_MM = 0.0
+
+
+def frame(paper: str, orient: str, *, compact: bool = False) -> Frame:
+    """ثوابتُ الإطار لـ(ورق، اتّجاه) — ورقٌ غيرُ معروفٍ يفشل بصوتٍ عالٍ لا بافتراضٍ صامت.
+
+    `compact`: الإطارُ المضغوط للورقة المفردة (`SHEET_HEADER_H_MM` و`SHEET_MARGIN_BOTTOM_MM`)؛ والافتراضيُّ هو الإطارُ العامّ الذي يعتمده الجدولُ العامّ A3 فلا يتبدّل.
+    """
     key = (paper, orient)
     if key not in SHEETS_MM:
         raise ValueError(
@@ -110,9 +127,9 @@ def frame(paper: str, orient: str) -> Frame:
         page_w=width,
         page_h=height,
         margin_top=MARGIN_TOP_MM,
-        margin_bottom=MARGIN_BOTTOM_MM,
+        margin_bottom=SHEET_MARGIN_BOTTOM_MM if compact else MARGIN_BOTTOM_MM,
         margin_side=MARGIN_SIDE_MM,
-        header_h=HEADER_H_MM[key],
+        header_h=SHEET_HEADER_H_MM[key] if compact else HEADER_H_MM[key],
         footer_h=FOOTER_H_MM,
         gap=GAP_MM,
         vision_in_header=key in VISION_IN_HEADER,

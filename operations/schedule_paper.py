@@ -436,21 +436,23 @@ STRIP_LINE_H = 3.4
 
 
 #: أحجامُ جسم الورقة المفردة (صفحةٌ لكلّ معلّمٍ أو شعبة) على A4 بالنقطة — **حدودٌ دنيا للمعاينة** قرّرها المالكُ لا سقفٌ مقيس (W-20261010-057، 2026-10-12):
-#: المادّةُ ≥ 10.5 والشعبةُ أو المعلّمُ ≥ 9.5 والتوقيتُ 9 (أصغرُ من المادّة بنحو 1.5)، واليومُ 11 والترويسةُ 10.5. وعلى A3 تُضرب بـ`SINGLE_SHEET_A3_SCALE`.
+#: الحدودُ الدنيا: المادّةُ 10.5 والشعبةُ أو المعلّمُ 9.5 والتوقيتُ 9 (أصغرُ من المادّة بنحو 1.5)؛ وبعد أن اتّسعت الصفوفُ بالإطار المضغوط زِيد نصفُ نقطةٍ لنصّ الخانة: المادّةُ 11 والشعبةُ 10 والتوقيتُ 9.5، واليومُ 11 والترويسةُ 10.5. وعلى A3 تُضرب بـ`SINGLE_SHEET_A3_SCALE`.
 #: والفسحةُ والخانةُ المشتركة أكبرُ ممّا كانت (8.5 / 8.5 / 8) لتبقى مقروءةً. وإن لم تسع أسوأُ ورقةٍ (35 حصّةً) صفحةً فالحشوةُ ثمّ المباعدةُ تُنقَصان قبل أيّ نزولٍ تحت هذه الحدود.
 #: يحرسه `tests/test_weekly_teacher_sheet_fit.py` على PDF مولَّدٍ من المسار الحقيقيّ (الخطُّ Tajawal مضمَّناً، وصفحةٌ واحدةٌ بلا قصّ).
 SINGLE_SHEET_PT = {
     "head_base": 10.5,
     "day_base": 11.0,
-    "subject_base": 10.5,
-    "meta_base": 9.5,
-    "time_base": 9.0,
+    "subject_base": 11.0,
+    "meta_base": 10.0,
+    "time_base": 9.5,
     "break_base": 8.5,
     "multi_subject_base": 8.5,
     "multi_base": 8.0,
 }
 #: نسبةُ A3 إلى A4 في خطّ الورقة المفردة — نسبةُ الإطار (420/297 ≈ 1.41) لا 1.5 القديمة، فخطُّ A3 لا يتضخّم في خانةٍ تتّسع ضعفَها.
 SINGLE_SHEET_A3_SCALE = 1.4
+#: هامشُ أمانٍ تحت الجدول لتقريب WeasyPrint (الصفُّ الأخيرُ لا يلامس حدَّ المتن): كان 4 ملم فصار الفراغُ بين آخر صفٍّ والتذييل ظاهراً.
+SINGLE_SHEET_SAFETY_MM = 1.5
 
 
 def paper_geometry(
@@ -477,7 +479,7 @@ def paper_geometry(
     page_w, page_h = _SHEETS[(paper, orient)]
     landscape = orient == "landscape"
     if single_sheet:
-        fr = pf.frame(paper, orient)
+        fr = pf.frame(paper, orient, compact=True)
         scale = SINGLE_SHEET_A3_SCALE if paper == "a3" else 1.0
         return PaperGeometry(
             page_w=page_w,
@@ -490,7 +492,7 @@ def paper_geometry(
             thead_h=7,
             footer_h=0,
             gap=fr.gap,
-            safety=4,
+            safety=SINGLE_SHEET_SAFETY_MM,
             rows=DAYS,
             font_scale=scale,
             break_col_w=16 if paper == "a3" else 12,

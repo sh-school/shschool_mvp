@@ -38,15 +38,58 @@ YEAR = "2026-2027"
 SUBJECT = "التكنولوجيا وعلوم الحاسب الآلي"
 
 
-def _fit(html: str) -> tuple[int, int, int, int]:
-    """(عددُ الصفحات، خلايا الجسم، المقصوصةُ منها، أيّامٌ يفيض اسمُها عن عمودها) من صناديق WeasyPrint — لا من نصٍّ ولا تقدير."""
+def _render(html: str):
+    """مستندُ WeasyPrint المرسوم بالخطوط المحقونة نفسِها التي يحقنها مولّدُ PDF."""
     from weasyprint import HTML
     from weasyprint.text.fonts import FontConfiguration
 
     from core.pdf_utils import _inject_fonts
 
     base = Path(settings.BASE_DIR).as_uri() + "/"
-    doc = HTML(string=_inject_fonts(html), base_url=base).render(font_config=FontConfiguration())
+    return HTML(string=_inject_fonts(html), base_url=base).render(font_config=FontConfiguration())
+
+
+_PX_PT = 0.75  # وحدةُ WeasyPrint بكسلُ CSS: 1px = 0.75pt
+
+
+def _gaps(doc) -> list[tuple[float, float]]:
+    """لكلّ صفحةٍ (الفراغُ تحت آخر سطرٍ في الترويسة قبل شريط المعلّم/الشعبة، والفراغُ بين آخر صفٍّ وخطّ التذييل) بالنقطة — من صناديق الرسم."""
+    out: list[tuple[float, float]] = []
+    for page in doc.pages:
+        header_bottom = who_top = table_bottom = footer_top = None
+
+        def element_id(box) -> str:
+            element = getattr(box, "element", None)
+            return (element.get("id") if element is not None else "") or ""
+
+        def text_bottoms(box) -> list[float]:
+            own = [box.position_y + box.height] if type(box).__name__ == "TextBox" else []
+            return own + [t for c in getattr(box, "children", None) or [] for t in text_bottoms(c)]
+
+        def walk(box, in_header: bool = False) -> None:
+            nonlocal header_bottom, who_top, table_bottom, footer_top
+            element = getattr(box, "element", None)
+            classes = ((element.get("class") if element is not None else "") or "").split()
+            if element_id(box) == "print-header":
+                header_bottom = max(text_bottoms(box))
+            if element_id(box) == "print-footer" and footer_top is None:
+                footer_top = box.position_y
+            if "who" in classes and who_top is None:
+                who_top = box.position_y
+            if type(box).__name__ == "TableCellBox":
+                low = box.position_y + box.border_height()
+                table_bottom = low if table_bottom is None else max(table_bottom, low)
+            for child in getattr(box, "children", None) or []:
+                walk(child, in_header)
+
+        walk(page._page_box)
+        assert None not in (header_bottom, who_top, table_bottom, footer_top)
+        out.append(((who_top - header_bottom) * _PX_PT, (footer_top - table_bottom) * _PX_PT))
+    return out
+
+
+def _fit(doc) -> tuple[int, int, int, int]:
+    """(عددُ الصفحات، خلايا الجسم، المقصوصةُ منها، أيّامٌ يفيض اسمُها عن عمودها) من صناديق WeasyPrint — لا من نصٍّ ولا تقدير."""
     cells = clipped = day_overflow = 0
 
     def bottom(box) -> float:
@@ -161,13 +204,19 @@ def test_the_worst_sheet_stays_on_one_page_with_no_clipped_cell_or_day(
     orient,  # noqa: F811
 ):
     html, _ = _pages(school, kind, paper, orient)
+    doc = _render(html)
 
-    pages, cells, clipped, day_overflow = _fit(html)
+    pages, cells, clipped, day_overflow = _fit(doc)
 
     # 36 ورقةً بالضبط (الأسوأُ + 35 من الجانب الآخر) = صفحةٌ لكلّ ورقة؛ وكلُّها 35 خليّةً.
     assert pages == 36
     assert cells == pages * 35
     assert (clipped, day_overflow) == (0, 0)
+    # لا فراغَ ظاهراً: أقلُّ من 12pt تحت الترويسة وأقلُّ من 12pt بين آخر صفٍّ والتذييل (ملاحظةُ المعاينة 2026-10-12: كان نحو 40pt لكلٍّ).
+    # وأكثرُ من صفرٍ: الجدولُ لا يلامس الترويسةَ ولا التذييل.
+    for top, bottom in _gaps(doc):
+        assert 0 < top < 12, top
+        assert 0 < bottom < 12, bottom
 
 
 @pytest.mark.parametrize("paper", ["a4", "a3"])
@@ -259,7 +308,7 @@ def test_the_framed_geometry_takes_what_the_frame_leaves(paper, orient):
     from core.print_frame import frame
 
     geo = paper_geometry(paper, orient, with_who=True, single_sheet=True)
-    fr = frame(paper, orient)
+    fr = frame(paper, orient, compact=True)
 
     assert geo.framed and geo.header_h == 0 and geo.footer_h == 0
     assert geo.content_h == pytest.approx(fr.body_height, abs=0.05)
@@ -281,3 +330,20 @@ def test_the_old_geometry_is_untouched_without_single_sheet():
 
     assert not old.framed and (old.header_h, old.footer_h, old.margin_top) == (29, 10, 8)
     assert old.css["subject_pt"] == "8.5pt" and old.css["day_col_w"] == "16.0mm"
+
+
+@pytest.mark.parametrize("paper", ["a4", "a3"])
+@pytest.mark.parametrize("orient", ["landscape", "portrait"])
+def test_the_general_frame_is_untouched_by_the_compact_one(paper, orient):
+    """الجدولُ العامّ A3 (#974) يستعمل الإطارَ العامَّ: ترويسةٌ 30/35 وهوامشُ 6 وتذييلٌ 8 — لا يتبدّل بالمضغوط."""
+    from core.print_frame import frame
+
+    general = frame(paper, orient)
+    compact = frame(paper, orient, compact=True)
+
+    assert (general.header_h, general.margin_bottom) == (
+        30.0 if orient == "landscape" else 35.0,
+        6.0,
+    )
+    assert compact.header_h < general.header_h and compact.margin_bottom == 0.0
+    assert compact.body_height > general.body_height
