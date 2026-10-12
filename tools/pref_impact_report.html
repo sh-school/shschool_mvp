@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>أثر تفضيلات المعلّمين</title>
+<style>
+:root {
+  --bg: #f7f6f2; --card: #ffffff; --ink: #1d2433; --muted: #5b6475; --line: #dcdfe5;
+  --head: #0f3d56; --accent: #8a1538; --ok: #1f7a4d; --ok-bg: #e7f4ec;
+  --warn: #8a5a00; --warn-bg: #fff4dc; --bad: #9b1c1c; --bad-bg: #fde8e8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161d; --card: #1a2029; --ink: #e6e9ef; --muted: #a3acbb; --line: #2e3643;
+    --head: #8cc7e6; --accent: #e07a95; --ok: #6fd3a0; --ok-bg: #173226;
+    --warn: #f2c063; --warn-bg: #3a2f14; --bad: #f19a9a; --bad-bg: #3d1c1c;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161d; --card: #1a2029; --ink: #e6e9ef; --muted: #a3acbb; --line: #2e3643;
+  --head: #8cc7e6; --accent: #e07a95; --ok: #6fd3a0; --ok-bg: #173226;
+  --warn: #f2c063; --warn-bg: #3a2f14; --bad: #f19a9a; --bad-bg: #3d1c1c;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Tajawal", "Segoe UI", "Noto Naskh Arabic", Tahoma, sans-serif;
+  font-size: 16px; line-height: 1.75;
+}
+main { max-inline-size: 1200px; margin-inline: auto; padding: 24px 16px 48px; }
+header { border-block-end: 3px solid var(--accent); padding-block-end: 12px; margin-block-end: 20px; }
+h1 { color: var(--head); font-size: 1.6rem; margin: 0 0 4px; }
+h2 { color: var(--head); font-size: 1.2rem; margin: 28px 0 10px; }
+.meta { color: var(--muted); font-size: .9rem; margin: 0; }
+section.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 16px 18px; margin-block: 14px;
+}
+.lead { font-size: 1.05rem; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; inline-size: 100%; font-size: .9rem; }
+th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: start; vertical-align: top; }
+th { background: var(--bg); color: var(--head); font-weight: 700; white-space: nowrap; }
+td.n { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center; }
+tr.v-ok td:last-child { background: var(--ok-bg); color: var(--ok); }
+tr.v-hc td:last-child { background: var(--warn-bg); color: var(--warn); }
+tr.v-gate td:last-child, tr.v-infeasible td:last-child, tr.v-timeout td:last-child,
+tr.v-rejected td:last-child, tr.v-failed td:last-child, tr.v-error td:last-child {
+  background: var(--bad-bg); color: var(--bad);
+}
+dl { margin: 0; }
+dt { font-weight: 700; color: var(--head); margin-block-start: 10px; }
+dd { margin-inline-start: 0; margin-block: 2px 0; }
+code { font-family: Consolas, "Courier New", monospace; font-size: .88em; direction: ltr; unicode-bidi: isolate; }
+ul { padding-inline-start: 1.3em; margin: 6px 0; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.kpi { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.kpi b { display: block; font-size: 1.4rem; color: var(--head); font-variant-numeric: tabular-nums; }
+.kpi span { color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>أثرُ تفضيلات المعلّمين على توليد الجدول</h1>
+  <p class="meta">البطاقة W-20261011-008 · الجلسة 0424 · الرأس @@head@@ · @@date@@ · قياسٌ على نسخةٍ محلّيّةٍ معزولة لا على الإنتاج</p>
+</header>
+
+<section class="card lead">
+  <h2>الخلاصة للمالك</h2>
+  @@summary@@
+</section>
+
+<section class="card">
+  <h2>العتبةُ لكلّ حقل (على 100% من المعلّمين الذين تقبل الشاشةُ تفضيلَهم)</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>الحقل في شاشة المعلّم</th><th>العتبة: أشدُّ قيمةٍ سليمة</th><th>أوّلُ قيمةٍ تنكسر ونوعُ الانكسار</th><th>أثرُ نسبة المعلّمين</th><th>القيدُ في المحرّك</th></tr></thead>
+    <tbody>
+@@thresholds@@
+    </tbody>
+  </table></div>
+  <p class="meta">«سليم» = مسودّةٌ مقبولةٌ كاملة (871 من 871 حصّة) بلا مخالفةٍ صلبة، وتخفيفٌ لا يتجاوز الأساسَ بأكثر من نطاق تذبذبه. القيمةُ الأصغرُ أشدُّ في الحقول الثلاثة.</p>
+</section>
+
+<section class="card">
+  <h2>التوصية</h2>
+  @@recommendation@@
+</section>
+
+<section class="card">
+  <h2>خطُّ الأساس (بلا تفضيلات)</h2>
+  <div class="kpis">
+    <div class="kpi"><b>@@base_hc5@@</b><span>HC5 المخفَّف في الأساس (أعلى التكرارات)</span></div>
+    <div class="kpi"><b>±@@band5@@</b><span>نطاقُ تذبذب HC5 المقبول</span></div>
+    <div class="kpi"><b>@@base_hc22@@</b><span>HC22 المخفَّف في الأساس</span></div>
+    <div class="kpi"><b>±@@band22@@</b><span>نطاقُ تذبذب HC22 المقبول</span></div>
+    <div class="kpi"><b>@@base_runs@@</b><span>تكراراتُ الأساس الناجحة</span></div>
+    <div class="kpi"><b>@@runs@@</b><span>كلُّ التشغيلات في هذا التقرير</span></div>
+  </div>
+  <p class="meta">يُحكم على زيادة التخفيف بالمقارنة مع (أعلى قيمةٍ في الأساس + النطاق). والنطاقُ = الفرقُ بين تكرارات الأساس، ولا يقلّ عن 5% من HC5 ولا عن معلّمٍ واحدٍ في HC22.</p>
+</section>
+
+<section class="card">
+  <h2>كلُّ السيناريوهات</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>الرمز</th><th>الحقل</th><th>القيمة</th><th>النسبة</th><th>طُبّق/اختير</th><th>البوّابة</th><th>حالة الحلّال</th><th>الزمن</th><th>HC5</th><th>HC22</th><th>تلاصق / فراغ (الكلّ)</th><th>القيدُ المتعارض أو الأعلى أثراً</th><th>المعلّم</th><th>الحكم</th></tr></thead>
+    <tbody>
+@@scenarios@@
+    </tbody>
+  </table></div>
+</section>
+
+<section class="card">
+  <h2>معنى كلّ رمزٍ ورقم</h2>
+  <dl>
+    <dt>رمزُ السيناريو مثل <code>daily:4:100</code></dt>
+    <dd>الحقلُ ثمّ القيمةُ ثمّ نسبةُ المعلّمين: <code>daily</code> أقصى حصصٍ يوميّة، <code>gap</code> أقصى فجوةٍ (حصصٍ فارغة) بين أوّل حصّة اليوم وآخرها، <code>consecutive</code> أقصى حصصٍ متتالية. و<code>base</code> الأساسُ بلا تفضيلات. فـ<code>daily:4:100</code> = سقفُ أربع حصصٍ يوميّاً لكلّ المعلّمين الذين تقبله الشاشةُ لهم.</dd>
+    <dt>النسبة (10% و30% و100%)</dt>
+    <dd>من 72 معلّماً لهم نصاب، يُختار الأثقلُ نصاباً أوّلاً (أسوأ حالة)، والعددُ مقرَّبٌ لأعلى: 10% = 8 معلّمين، 30% = 22، 100% = 72.</dd>
+    <dt>طُبّق/اختير</dt>
+    <dd>«اختير» عددُ المعلّمين في النسبة، و«طُبّق» من قبلت شاشةُ المعلّم تفضيلَه منهم بفحص السعة نفسِه (سقفٌ يوميّ لا يقلّ عن النصاب مقسوماً على أيّام الدوام، وسعةٌ أسبوعيّة لا تقلّ عن النصاب). من ترفضه الشاشةُ لا يُكتب له تفضيل، فالقياسُ لما يمكن أن يحدث فعلاً.</dd>
+    <dt>البوّابة</dt>
+    <dd>فحصُ الجدوى الذي يسبق زرَّ التوليد (<code>schedule_feasibility.check</code>). «تمرّ» = لم يحجب. ورموزُ الحجب: <code>AS-4</code> سقفٌ شخصيّ للمعلّم لا يسع نصابَه بهامشٍ وقائيّ، <code>AS-5</code> سقفٌ بنيويّ (عدد الحصص غير المتلاصقة في اليوم) لا يسعه.</dd>
+    <dt>حالة الحلّال</dt>
+    <dd>حكمُ CP-SAT على طبقته الأخيرة: «أمثلُ بالبرهان» <code>OPTIMAL</code>، «حلٌّ مقبولٌ غيرُ مثبَت الأمثليّة» <code>FEASIBLE</code> (المعتاد)، «مستحيلٌ بالبرهان» <code>INFEASIBLE</code> لا جدولَ يحقّق القيودَ الصلبة، «لا حلَّ في المهلة» <code>UNKNOWN</code>.</dd>
+    <dt>الزمن</dt>
+    <dd>الثواني من بدء التوليد إلى نهاية التقييم (الحلُّ + المُقيِّم + التشخيص إن لزم)، و«أوّلُ حلٍّ» ثانيةُ أوّل جدولٍ كامل في طبقة المخالفات منذ بدئها. قطعُ طبقة المخالفات بعد 300 ثانيةٍ من أوّل حلّها (قرار D-392م) سارٍ كما في الزرّ.</dd>
+    <dt>HC5 (التلاصق)</dt>
+    <dd>القاعدةُ الأصليّة: لا حصّتين متلاصقتين للمعلّم. والمدرسةُ خفّفتها للجميع إلى «حصّتان متتاليتان لا ثلاث» (D-382م). الرقمُ = عددُ المواضع التي صارت ملاحظةً لا مخالفةً بفضل هذا التخفيف؛ وزيادتُه تعني جدولاً أكثرَ تلاصقاً للمعلّمين.</dd>
+    <dt>HC22 (سقفُ الحصّة الأولى)</dt>
+    <dd>عددُ المعلّمين الذين تجاوزوا السقفَ العامّ للحصّة الأولى في الأسبوع ضمن سقفٍ أعلى قرّرته الإدارةُ لهم بالاسم (قرار المالك 2026-10-09).</dd>
+    <dt>HC16 و DAILY_CAP</dt>
+    <dd>سقفُ الحصص اليوميّة في الحلّال: <code>DAILY_CAP</code> حين يأتي من تفضيل المعلّم أو الافتراض (5)، و<code>HC16</code> حين يُشتقّ من النصاب (حصصٌ مزدوجة). هو قيدٌ صلبٌ في الحلّال لا تفضيلٌ ليّن.</dd>
+    <dt>HC10 (الفجوة)</dt>
+    <dd>قيدٌ صلبٌ في الحلّال: عددُ الفواصل الفارغة بين أوّل حصّة المعلّم في اليوم وآخرها لا يتجاوز تفضيلَه.</dd>
+    <dt>تلاصق / فراغ (الكلّ)</dt>
+    <dd>على المعلّمين جميعاً في الجدول الناتج: أزواجُ الحصص المتلاصقة في الأسبوع / الحصصُ الفارغة بين أوّل حصّة اليوم وآخرها مجموعةً. هو المقياسُ الذي يبقى صالحاً للمقارنة حين يختار المعلّمون «متتالية 2» فيغطّي سقفُهم الشخصيّ التلاصقَ فلا يُعدّ في HC5 المخفَّف (يصير 0) وهو قائم. وشَرطةٌ حين لا جدول.</dd>
+    <dt>تلاصق، فراغ، أثقلُ يوم (عمود المعلّم)</dt>
+    <dd>للمعلّم الأكثر تضرّراً ممّن طُبّق عليهم التفضيل، بمعرّفٍ مختصرٍ من ثمانية محارف ونصابه الأسبوعيّ (لا أسماء — PDPPL): «تلاصق» أزواجُ حصصٍ متلاصقةٍ في أسبوعه، «فراغ» الحصصُ الفارغةُ بين أوّل حصّته وآخرها مجموعةً على الأسبوع، «أثقلُ يوم» أكثرُ حصصه في يومٍ واحد. وعند الاستحالة يُذكر المعلّمُ الذي سمّاه التشخيص.</dd>
+    <dt>الحكم</dt>
+    <dd>آليٌّ من السطر بالترتيب: خطأُ تشغيل ← رفضته البوّابة ← مستحيلٌ بالبرهان ← انقضت المهلة بلا حلّ ← رفضه المُقيِّم ← فشل ← زيادةٌ في التخفيف فوق نطاق الأساس ← سليم. وكلُّ ما عدا «سليم» انكسار.</dd>
+  </dl>
+</section>
+
+<section class="card">
+  <h2>الطريقة وإعدادُ القياس</h2>
+  <ul>
+    <li>القاعدة: <code>@@database@@</code> — نسخةٌ عن قاعدة 0422 (إسناداتُ الإنتاج مستوردةً، 871 حصّة)، معزولةٌ في الجهاز المحلّيّ. الأداةُ ترفض أيَّ قاعدةٍ لا يبدأ اسمُها بـ<code>ss_</code> أو مضيفُها غيرُ محلّيّ، وكلُّ سيناريو داخل معاملةٍ يُتراجع عنها.</li>
+    <li>المعلّمون ذوو النصاب: @@teachers@@. مهلةُ الحلّال: @@seconds_cap@@ ثانية (كالزرّ)، وسقفُ طبقة الجودة: @@quality_cap@@ ثانية. البذرة @@seed@@، والعمّال @@workers@@.</li>
+    <li>فترةُ القياس: @@period@@.</li>
+  </ul>
+  @@method@@
+</section>
+
+<section class="card">
+  <h2>ما لم يُقَس</h2>
+  @@not_measured@@
+</section>
+
+<section class="card">
+  <h2>ملاحظاتٌ من قراءة الشيفرة (تُرفع لـ0201)</h2>
+  @@findings@@
+</section>
+</main>
+</body>
+</html>
