@@ -45,7 +45,9 @@
   height: 42px;
   gap: var(--sp-0-5);
 }
+/* بلا سقف 1280px كالترويسة فوقه: تسعةُ تبويباتٍ للمدير والمطوّر تحتاج نحو 1301px بحشوتها، فكان السقفُ يُنزل آخرَها إلى سطرٍ ثانٍ في كلّ عرضٍ (W-20261011، قياس 0403). */
 .site-nav .nav-inner {
+  max-width: none;
   justify-content: center;
 }
 /* زر Nav الأساسي — مشترك بين الروابط والأزرار */
@@ -74,7 +76,6 @@
 
 /* الشعار */
 .nav-logo      { font-weight: 700; font-size: var(--text-sm); gap: 7px; flex-shrink: 0; padding: var(--sp-1) var(--sp-2); }
-.nav-logo-img  { flex-shrink: 0; }
 .nav-logo-text { white-space: nowrap; }
 
 /* زر الهامبرغر (الجوال) */
@@ -216,7 +217,6 @@
 /* رأس قائمة المستخدم */
 .sd-user-header    { padding: var(--sp-2-5) var(--sp-4) 9px; border-bottom: 1px solid var(--menu-rule); }
 .sd-user-fullname  { font-size: var(--text-sm); font-weight: 700; color: var(--menu-ink-strong); margin: 0 0 var(--sp-0-5); }
-.sd-user-nid       { font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 3px; }
 .sd-user-role      { font-size: var(--text-xs); color: var(--maroon-fg); font-weight: 600; margin: 0; }
 /* زر تسجيل الخروج */
 .sd-logout-form { margin: 0; }
@@ -559,6 +559,15 @@ div#header h1 a {
 .pwa-text     { flex: 1; min-width: 0; }
 .pwa-title    { display: block; font-size: var(--text-sm); font-weight: 700; }
 .pwa-subtitle { opacity: .8; font-size: var(--text-xs); }
+.pwa-steps {
+  margin: var(--sp-1) 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--sp-1-5);
+  font-size: var(--text-xs);
+}
+.pwa-steps li { display: flex; align-items: center; gap: var(--sp-2); }
 .pwa-install-btn {
   background: var(--surface);
   color: var(--maroon-fg);

@@ -5,7 +5,8 @@ from clinic.models import ClinicVisit, HealthRecord
 
 @admin.register(HealthRecord)
 class HealthRecordAdmin(admin.ModelAdmin):
-    list_display = ("student", "blood_type_encrypted", "updated_at")
+    list_display = ("student", "blood_type_encrypted", "needs_care", "updated_at")
+    list_filter = ("needs_care",)
     search_fields = ("student__full_name", "student__national_id")
     readonly_fields = ("updated_at",)
     fieldsets = (
@@ -14,6 +15,7 @@ class HealthRecordAdmin(admin.ModelAdmin):
             "المعلومات الصحية",
             {"fields": ("blood_type_encrypted", "allergies", "chronic_diseases", "medications")},
         ),
+        ("علامة المراعاة", {"fields": ("needs_care",)}),
         ("جهات الاتصال الطارئة", {"fields": ("emergency_contact_name", "emergency_contact_phone")}),
         ("آخر تحديث", {"fields": ("updated_at",)}),
     )

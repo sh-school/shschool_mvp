@@ -330,7 +330,7 @@ class _Edges:
 def _touch_rules(ctx: _Ctx, t, day: int, cells: list[_Cell], by_key, occ) -> None:
     """HC5 (أو تخفيفُه المعلَن) مع HC13 وقيد 6-7 وسقف التتابع، لمعلّمٍ في يوم."""
     opt, m = ctx.opt, ctx.m
-    relaxed = t in opt.touch_relaxed and opt.enabled("HC5")
+    relaxed = (opt.touch_relaxed_all or t in opt.touch_relaxed) and opt.enabled("HC5")
     _day_pairs(ctx, by_key, occ, opt.enabled("HC5") and not relaxed)
     if relaxed and day == 0:
         ctx.b.relaxations.append(

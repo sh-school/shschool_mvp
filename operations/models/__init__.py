@@ -43,6 +43,10 @@ from .schedule import (  # noqa: F401
     TeacherPreference,
     TimeSlotConfig,
 )
+from .schedule_policy import (  # noqa: F401
+    RELAXED_RUN_CAP,
+    ScheduleRelaxationPolicy,
+)
 from .substitution import (  # noqa: F401
     CompensatorySession,
     SubstituteAssignment,
@@ -54,6 +58,8 @@ __all__ = [
     "AttendanceEntry",
     "AttendanceDecision",
     "Subject",
+    "ScheduleRelaxationPolicy",
+    "RELAXED_RUN_CAP",
     "ScheduleSlot",
     "TimeSlotConfig",
     "SubjectClassAssignment",

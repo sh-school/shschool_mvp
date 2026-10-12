@@ -1,23 +1,23 @@
 {% load icons %}
-{% load ui %}
+{% load ui schedule_filters %}
 {% load provisional_door %}{% provisional_enabled as prov %}
 {% comment %}لوحةُ المعلّم والمنسّق — حصصُ اليوم أوّلاً، ثمّ ما ينتظر فعلاً.{% endcomment %}
 <div class="exec-dash">
 
   {% if view_type == "coordinator" %}
     {% page_header "مرحباً، "|add:request.user.full_name subtitle=subtitle|add:" · منسّق" icon="dashboard" %}
-      <a href="{% url 'assessments_dashboard' %}" class="btn-secondary btn-sm">{% icon "edit_record" %} التقييمات</a>
+      {% if request.user|has_capability:"assessments.view_results" %}<a href="{% url 'assessments_dashboard' %}" class="btn-secondary btn-sm">{% icon "edit_record" %} التقييمات</a>{% endif %}
     {% endpage_header %}
 
     {% kpi_strip label="ما ينتظر المنسّق" %}
-      {% kpi "تبديلاتٌ تنتظر اعتمادك" coord_pending_swaps tone=coord_swaps_tone href=swaps_url %}
-      {% kpi "تعويضاتٌ معلّقة" coord_pending_comp tone=coord_comp_tone href=comp_url %}
-      {% kpi "معلّمون غائبون اليوم" coord_absent_today tone=coord_absent_tone href=absence_url %}
+      {% if request.user|has_capability:"swap.approve" %}{% kpi "تبديلاتٌ تنتظر اعتمادك" coord_pending_swaps tone=coord_swaps_tone href=swaps_url %}{% endif %}
+      {% if request.user|has_capability:"compensatory.approve" %}{% kpi "تعويضاتٌ معلّقة" coord_pending_comp tone=coord_comp_tone href=comp_url %}{% endif %}
+      {% if request.user|has_capability:"operations.reports" %}{% kpi "معلّمون غائبون اليوم" coord_absent_today tone=coord_absent_tone href=absence_url %}{% endif %}
       {% if my_pending_swaps %}{% kpi "تبديلاتٌ تنتظر ردّك" my_pending_swaps tone="maroon" href=swaps_url %}{% endif %}
     {% endkpi_strip %}
   {% else %}
     {% page_header "مرحباً، "|add:request.user.full_name subtitle=subtitle icon="dashboard" %}
-      <a href="{% url 'assessments_dashboard' %}" class="btn-secondary btn-sm">{% icon "edit_record" %} التقييمات</a>
+      {% if request.user|has_capability:"assessments.view_results" %}<a href="{% url 'assessments_dashboard' %}" class="btn-secondary btn-sm">{% icon "edit_record" %} التقييمات</a>{% endif %}
     {% endpage_header %}
 
     {% comment %}ما ينتظرك: المعلّمُ يرى تبديلاتِه وخارجَ الفصل الآن (أعدادٌ مجمَّعة بلا أسماء، W-20261010-040). المفتاحُ المؤقّت يعطّل رابطَ التبديل كما كان.{% endcomment %}
@@ -64,20 +64,20 @@
 
   <nav class="ui-actions" aria-label="إجراءات سريعة">
     {% if view_type == "coordinator" %}
-      {% if not prov %}{% url 'swap_list' as u %}{% action_tile "طلبات التبديل" desc="مراجعةٌ واعتماد" icon="refresh" href=u primary=True %}{% endif %}
-      {% if not prov %}{% url 'absence_list' as u %}{% action_tile "غياب المعلّمين" desc="تعيين البدلاء" icon="attendance_teacher_absence" href=u %}{% endif %}
-      {% if not prov %}{% url 'teacher_schedule' as u %}{% action_tile "حصصي اليوم" desc="حصصُ اليوم — والحضورُ لشُعب التربية الخاصّة" icon="periods_today" href=u %}{% endif %}
-      {% if not prov %}{% action_tile "الجدول الأسبوعي" desc="حصصي هذا الأسبوع" icon="schedule" href=my_weekly_schedule_url %}{% endif %}
+      {% if request.user|has_capability:"swap.approve" %}{% if not prov %}{% url 'swap_list' as u %}{% action_tile "طلبات التبديل" desc="مراجعةٌ واعتماد" icon="refresh" href=u primary=True %}{% endif %}{% endif %}
+      {% if request.user|has_capability:"operations.reports" %}{% if not prov %}{% url 'absence_list' as u %}{% action_tile "غياب المعلّمين" desc="تعيين البدلاء" icon="attendance_teacher_absence" href=u %}{% endif %}{% endif %}
+      {% if request.user|has_capability:"schedule.day" %}{% if not prov %}{% url 'teacher_schedule' as u %}{% action_tile "حصصي اليوم" desc="حصصُ اليوم وتسجيلُ حضور الطلبة" icon="periods_today" href=u %}{% endif %}{% endif %}
+      {% if request.user|has_capability:"schedule.weekly" %}{% if not prov %}{% action_tile "الجدول الأسبوعي" desc="حصصي هذا الأسبوع" icon="schedule" href=my_weekly_schedule_url %}{% endif %}{% endif %}
       {% if general_schedule_url %}{% if not prov %}{% action_tile "الجدول العام" desc="جداولُ كلّ المعلّمين" icon="schedule" href=general_schedule_url %}{% endif %}{% endif %}
-      {% url 'behavior:report_infraction' as u %}{% action_tile "تسجيل سلوك" desc="تسجيلُ مخالفةٍ لطالب" icon="behavior_violation" href=u %}
-      {% url 'assessments_dashboard' as u %}{% action_tile "التقييمات" desc="إدخال الدرجات" icon="assessments" href=u %}
+      {% if request.user|has_capability:"behavior.record" %}{% url 'behavior:report_infraction' as u %}{% action_tile "تسجيل سلوك" desc="تسجيلُ مخالفةٍ لطالب" icon="behavior_violation" href=u %}{% endif %}
+      {% if request.user|has_capability:"assessments.view_results" %}{% url 'assessments_dashboard' as u %}{% action_tile "التقييمات" desc="إدخال الدرجات" icon="assessments" href=u %}{% endif %}
     {% else %}
-      {% if not prov %}{% url 'teacher_schedule' as u %}{% action_tile "حصصي اليوم" desc="حصصُ اليوم — والحضورُ لشُعب التربية الخاصّة" icon="periods_today" href=u primary=True %}{% endif %}
-      {% if not prov %}{% action_tile "الجدول الأسبوعي" desc="حصصي هذا الأسبوع" icon="schedule" href=my_weekly_schedule_url %}{% endif %}
+      {% if request.user|has_capability:"schedule.day" %}{% if not prov %}{% url 'teacher_schedule' as u %}{% action_tile "حصصي اليوم" desc="حصصُ اليوم وتسجيلُ حضور الطلبة" icon="periods_today" href=u primary=True %}{% endif %}{% endif %}
+      {% if request.user|has_capability:"schedule.weekly" %}{% if not prov %}{% action_tile "الجدول الأسبوعي" desc="حصصي هذا الأسبوع" icon="schedule" href=my_weekly_schedule_url %}{% endif %}{% endif %}
       {% if general_schedule_url %}{% if not prov %}{% action_tile "الجدول العام" desc="جداولُ كلّ المعلّمين" icon="schedule" href=general_schedule_url %}{% endif %}{% endif %}
-      {% url 'behavior:report_infraction' as u %}{% action_tile "تسجيل سلوك" desc="تسجيلُ مخالفةٍ لطالب" icon="behavior_violation" href=u %}
-      {% url 'assessments_dashboard' as u %}{% action_tile "التقييمات" desc="إدخال الدرجات" icon="assessments" href=u %}
-      {% if not prov %}{% url 'swap_request' as u %}{% action_tile "طلب تبديل" desc="تبديلُ حصّةٍ مع زميل" icon="refresh" href=u %}{% endif %}
+      {% if request.user|has_capability:"behavior.record" %}{% url 'behavior:report_infraction' as u %}{% action_tile "تسجيل سلوك" desc="تسجيلُ مخالفةٍ لطالب" icon="behavior_violation" href=u %}{% endif %}
+      {% if request.user|has_capability:"assessments.view_results" %}{% url 'assessments_dashboard' as u %}{% action_tile "التقييمات" desc="إدخال الدرجات" icon="assessments" href=u %}{% endif %}
+      {% if request.user|has_capability:"swap.request" %}{% if not prov %}{% url 'swap_request' as u %}{% action_tile "طلب تبديل" desc="تبديلُ حصّةٍ مع زميل" icon="refresh" href=u %}{% endif %}{% endif %}
     {% endif %}
   </nav>
 

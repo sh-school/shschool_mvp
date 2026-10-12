@@ -10,7 +10,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header student.full_name subtitle=student.national_id|mask_id icon="behavior" %}
+  {% page_header student.full_name icon="behavior" %}
     {% if can_report %}<a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">{% icon "add" %} مخالفة جديدة</a>{% endif %}
     {% if can_summon %}<a href="{% url 'behavior:summon_parent_student' student.pk %}" class="btn-secondary btn-sm">{% icon "call_parent" %} استدعاء ولي أمر</a>{% endif %}
     <a data-app-file href="{% url 'behavior:student_behavior_pdf' student.pk %}" target="_blank" class="btn-secondary btn-sm" title="تصدير التقرير السلوكي الشامل للطالب A4">{% icon "export_pdf" %} تصدير التقرير الكامل</a>

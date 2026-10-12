@@ -5,7 +5,8 @@
 
 - كشفُ الحضور وشهاداتُ الفصل كشوفٌ جماعيّة: الرقمُ مستورٌ فيهما، والتوليدُ
   مسجَّلٌ بعدد الصفوف وبلا رايةِ «رقمٌ كامل».
-- شهادةُ الطالب وثيقةٌ فرديّة: الرقمُ كاملٌ فيها، والسجلُّ يقولها.
+- رايةُ «رقمٌ كامل» تطابق ما في الملفّ فعلاً: الوثائقُ الفرديّةُ (الشهادة، والنتيجة، ونماذجُ السلوك)
+  بلا رقمٍ منذ D-386م فرايتُها كاذبة، وكشفُ الطلبة Excel يحمله فرايتُه صادقة (W-20261012-005).
 - ردُّ بحث التأخّر وتمثيلُ API المختصر يستران الرقمَ حتى للقيادة.
 - كلمةُ مرورٍ خاطئةٌ تكتب `login_failed` — لحسابٍ معروفٍ ولمعرّفٍ لا وجودَ له —
   بلا معرّفٍ خام. ورمزُ تحقّقٍ خاطئٌ يكتب `mfa_failed` ويزيد العدّادَ نفسَه
@@ -13,13 +14,16 @@
 """
 
 import json
+from unittest.mock import patch
 
 import pyotp
 import pytest
+from django.http import HttpResponse
 from django.urls import reverse
 
 from core.models import AuditLog, encrypt_field
 from tests.conftest import (
+    BehaviorInfractionFactory,
     ClassGroupFactory,
     MembershipFactory,
     RoleFactory,
@@ -61,8 +65,9 @@ class TestBulkDocumentsMaskAndLog:
         body = resp.content.decode()
 
         assert resp.status_code == 200
-        assert MASKED in body
-        assert STUDENT_ID not in body, "كشفُ فصلٍ كامل كشفٌ جماعيّ — يُستر وإن طُبع"
+        assert (
+            MASKED not in body and STUDENT_ID not in body
+        ), "لا رقمَ شخصيّاً في كشف الفصل (W-20261011-014)"
         trail = _exports("reports.attendance").get()
         assert trail.user == principal_user
         assert trail.changes["rows"] == 1
@@ -78,12 +83,22 @@ class TestBulkDocumentsMaskAndLog:
         body = resp.content.decode()
 
         assert resp.status_code == 200
-        assert MASKED in body and STUDENT_ID not in body
+        assert MASKED not in body and STUDENT_ID not in body
         assert _exports("reports.class_certificates").get().changes["rows"] == 1
 
 
-class TestIndividualDocumentsKeepTheNumberAndLog:
-    def test_the_certificate_carries_the_full_number_and_says_so(
+def _rendered_html(client, url, patched):
+    """يطلب الوثيقةَ ويُرجع الـHTML الذي صار PDF — مدخلُ `render_pdf` نفسُه لا معاينةٌ تشبهه."""
+    with patch(patched, return_value=HttpResponse(b"%PDF")) as rendered:
+        resp = client.get(url)
+    assert resp.status_code == 200, url
+    return rendered.call_args.args[0]
+
+
+class TestTheTrailSaysWhatTheFileCarries:
+    """W-20261012-005: رايةُ التدقيق تُقرأ من الملفّ الخارج، لا ممّا كانت الوثيقةُ تحمله قبل D-386م."""
+
+    def test_the_certificate_carries_no_number_and_says_so(
         self, client_as, principal_user, klass, pupil
     ):
         resp = client_as(principal_user).get(
@@ -91,11 +106,73 @@ class TestIndividualDocumentsKeepTheNumberAndLog:
         )
 
         assert resp.status_code == 200
-        assert STUDENT_ID in resp.content.decode()
+        assert STUDENT_ID not in resp.content.decode(), "الشهادة بلا رقمٍ شخصيّ (W-20261011-014)"
         trail = _exports("reports.certificate").get()
-        assert trail.changes == {"kind": "reports.certificate", "rows": 1, "full_national_id": True}
+        assert trail.changes == {
+            "kind": "reports.certificate",
+            "rows": 1,
+            "full_national_id": False,
+        }
         assert trail.object_id == str(pupil.pk)
         assert STUDENT_ID not in trail.object_repr
+
+    @pytest.mark.parametrize(
+        ("route", "kind"),
+        [
+            ("student_certificate_pdf", "reports.certificate"),
+            ("student_result_pdf", "reports.student_result"),
+            ("student_annual_result_pdf", "reports.student_annual_result"),
+        ],
+    )
+    def test_a_student_report_flag_equals_the_number_in_its_pdf(
+        self, client_as, principal_user, klass, pupil, route, kind
+    ):
+        html = _rendered_html(
+            client_as(principal_user), reverse(route, args=[pupil.pk]), "reports.views.render_pdf"
+        )
+
+        assert pupil.full_name in html, "الملفُّ لصاحبه فعلاً، لا صفحةٌ فارغة"
+        flag = _exports(kind).get().changes["full_national_id"]
+        assert flag is (STUDENT_ID in html)
+        assert flag is False
+
+    @pytest.mark.parametrize(
+        ("form", "kind"),
+        [
+            ("warning_pdf", "behavior.warning_pdf"),
+            ("parent_pdf", "behavior.parent_undertaking_pdf"),
+            ("student_pdf", "behavior.student_undertaking_pdf"),
+        ],
+    )
+    def test_a_behaviour_form_flag_equals_the_number_in_its_pdf(
+        self, client_as, principal_user, school, klass, pupil, form, kind
+    ):
+        infraction = BehaviorInfractionFactory(
+            school=school, student=pupil, reported_by=principal_user, level=2
+        )
+        html = _rendered_html(
+            client_as(principal_user),
+            reverse(f"behavior:{form}", args=[infraction.pk]),
+            "core.pdf_utils.render_pdf",
+        )
+
+        assert pupil.full_name in html
+        flag = _exports(kind).get().changes["full_national_id"]
+        assert flag is (STUDENT_ID in html)
+        assert flag is False
+
+    def test_the_behaviour_report_flag_equals_the_number_in_its_pdf(
+        self, client_as, principal_user, klass, pupil
+    ):
+        html = _rendered_html(
+            client_as(principal_user),
+            reverse("behavior:student_behavior_pdf", args=[pupil.pk]),
+            "core.pdf_utils.render_pdf",
+        )
+
+        flag = _exports("behavior.student_report_pdf").get().changes["full_national_id"]
+        assert flag is (STUDENT_ID in html)
+        assert flag is False
 
     def test_the_import_compatible_register_keeps_the_number_and_says_so(
         self, client_as, principal_user, klass, pupil
@@ -153,13 +230,14 @@ class TestExcelRegistersMaskTheNumber:
 
 
 class TestJsonAndApiMaskTheNumber:
-    def test_the_tardiness_search_masks_the_number(self, client_as, principal_user, klass, pupil):
+    def test_the_tardiness_search_carries_no_number(self, client_as, principal_user, klass, pupil):
         resp = client_as(principal_user).get(
             reverse("student_affairs:tardiness_search") + "?q=طالبُ"
         )
 
         payload = resp.json()
-        assert [row["nid"] for row in payload["results"]] == [MASKED]
+        assert payload["results"] and all("nid" not in row for row in payload["results"])
+        assert MASKED not in resp.content.decode() and STUDENT_ID not in resp.content.decode()
 
     def test_the_brief_serializer_masks_even_for_leadership(self, principal_user, pupil):
         from rest_framework.test import APIRequestFactory

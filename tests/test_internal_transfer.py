@@ -33,7 +33,7 @@ def other_grade(school, year, wing):
     )
 
 
-def _request(school, student, target, user, date=PAST):
+def _request(school, student, target, user, date=PAST, status="approved"):
     return StudentTransfer.objects.create(
         school=school,
         student=student,
@@ -41,6 +41,7 @@ def _request(school, student, target, user, date=PAST):
         other_school_name=school.name,
         to_class_group=target,
         transfer_date=date,
+        status=status,
         academic_year="2026-2027",
         created_by=user,
         updated_by=user,
@@ -56,11 +57,11 @@ def _complete(client, user, transfer):
 
 
 def test_completing_moves_the_enrollment_without_deleting_anything(
-    client, student_affairs_coordinator_user, school, kid, klass, klass2
+    client, principal_user, student_affairs_coordinator_user, school, kid, klass, klass2
 ):
     transfer = _request(school, kid, klass2, student_affairs_coordinator_user)
 
-    _complete(client, student_affairs_coordinator_user, transfer)
+    _complete(client, principal_user, transfer)
 
     transfer.refresh_from_db()
     assert transfer.status == "completed"
@@ -71,41 +72,50 @@ def test_completing_moves_the_enrollment_without_deleting_anything(
 
 
 def test_the_move_does_not_touch_the_membership(
-    client, student_affairs_coordinator_user, school, kid, klass2
+    client, principal_user, student_affairs_coordinator_user, school, kid, klass2
 ):
     transfer = _request(school, kid, klass2, student_affairs_coordinator_user)
 
-    _complete(client, student_affairs_coordinator_user, transfer)
+    _complete(client, principal_user, transfer)
 
     assert kid.memberships.filter(school=school, is_active=True).exists()
 
 
 @pytest.mark.parametrize("target_fixture", ["other_grade", "klass"])
 def test_a_target_of_another_grade_or_the_same_class_is_refused_and_nothing_is_written(
-    client, student_affairs_coordinator_user, school, kid, klass, request, target_fixture
+    client,
+    principal_user,
+    student_affairs_coordinator_user,
+    school,
+    kid,
+    klass,
+    request,
+    target_fixture,
 ):
     target = request.getfixturevalue(target_fixture)
     transfer = _request(school, kid, target, student_affairs_coordinator_user)
 
-    _complete(client, student_affairs_coordinator_user, transfer)
+    _complete(client, principal_user, transfer)
 
     transfer.refresh_from_db()
-    assert transfer.status == "pending"
+    assert transfer.status == "approved"
     assert list(StudentEnrollment.objects.filter(student=kid)) == [
         StudentEnrollment.objects.get(student=kid, class_group=klass)
     ]
     assert StudentEnrollment.objects.get(student=kid).is_active
 
 
-def test_a_future_date_is_refused(client, student_affairs_coordinator_user, school, kid, klass2):
+def test_a_future_date_is_refused(
+    client, principal_user, student_affairs_coordinator_user, school, kid, klass2
+):
     transfer = _request(
         school, kid, klass2, student_affairs_coordinator_user, date=dt.date(2099, 1, 1)
     )
 
-    _complete(client, student_affairs_coordinator_user, transfer)
+    _complete(client, principal_user, transfer)
 
     transfer.refresh_from_db()
-    assert transfer.status == "pending"
+    assert transfer.status == "approved"
     assert StudentEnrollment.objects.filter(student=kid).count() == 1
 
 

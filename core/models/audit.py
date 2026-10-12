@@ -1,9 +1,15 @@
+import json
 from datetime import timedelta
 from typing import Any
 
 from django.core.exceptions import PermissionDenied
 from django.db import connection, models, transaction
+from django.db.models import Value
+from django.db.models.functions import Cast, Length, Replace
 from django.utils import timezone
+
+from core.audit_changes_scrub import TooDeepError, scrub_name
+from core.audit_repr import masked_repr
 
 from .school import School, _uuid
 from .user import CustomUser
@@ -52,6 +58,116 @@ class _ImmutableManager(models.Manager):
                 return models.QuerySet.update(pending, ip_address=None, user_agent="")
             finally:
                 cur.execute("SELECT set_config('app.auditlog_network_erasure', '', true)")
+
+    def anonymize_name_in_repr(self, user: Any, name: str) -> dict[str, int]:
+        """يستبدل اسمَ مستخدمٍ مُحيَ بمعرّفه المقنَّع في `object_repr` — الاستثناءُ الثالث.
+
+        قرارُ المالك بصفته DPO (D-186م ب، W-20261004-002): الاسمُ يُجهَّل في الوصف وحدَه، وتبقى الواقعةُ
+        بكلّ ما عداه. يُستدعى من خدمة المحو وحدَها (حارسٌ معماريّ)، ويقابله استثناءٌ ضيّقٌ في الزناد
+        (الهجرة 0082) بعلَم المعاملة. وتُتخطّى — وتُعدّ للإبلاغ اليدويّ لا للكتابة — ثلاثُ حالات:
+        اسمٌ مشتركٌ أو يحتويه اسمُ مستخدمٍ آخر (لا يُعرف أيُّهما)، واسمٌ من كلمةٍ واحدة (مطابقتُه ضعيفة)، وصفٌ
+        يتجاوز 300 حرفاً بعد الاستبدال. لا يُرجَع اسمٌ، أعدادٌ فقط.
+
+        حدودٌ معروفة (حكم 0104): فحصُ الاسم المشترك يقرأ `CustomUser` وحدَه (يشمل الطلبة والأولياء مستخدمين)،
+        فاسمٌ لشخصٍ ليس مستخدماً قد يحتويه الاسمُ فيُستبدل؛ والمطابقةُ حرفيّةٌ حسّاسةٌ بالاسم الحاليّ قبل المحو،
+        فاسمٌ مكتوبٌ بتشكيلٍ أو همزةٍ مختلفة يفوت ويدخل الإبلاغَ اليدويّ.
+        """
+        name = (name or "").strip()
+        counts = {"anonymized": 0, "skipped_shared": 0, "skipped_short": 0, "skipped_long": 0}
+        if not name:
+            return counts
+        rows = _ImmutableQuerySet(self.model, using=self._db).filter(object_repr__contains=name)
+        if len(name.split()) < 2:
+            counts["skipped_short"] = rows.count()
+            return counts
+        if self._name_is_shared(user, name):
+            counts["skipped_shared"] = rows.count()
+            return counts
+        masked = masked_repr(user)
+        # طولُ الناتج الفعليّ بعد استبدال **كلّ** ظهورٍ للاسم (لا فرقَ ظهورٍ واحد): الوصفُ CharField(300).
+        replaced = Replace("object_repr", Value(name), Value(masked))
+        fits = rows.annotate(_new_len=Length(replaced)).filter(_new_len__lte=300)
+        counts["skipped_long"] = rows.count() - fits.count()
+        # علَمٌ محلّيٌّ للمعاملة يفتح الحالةَ الثالثةَ في الزناد ويُغلق في finally.
+        with transaction.atomic(using=self._db), connection.cursor() as cur:
+            cur.execute("SELECT set_config('app.auditlog_name_erasure', 'on', true)")
+            try:
+                counts["anonymized"] = models.QuerySet.update(fits, object_repr=replaced)
+            finally:
+                cur.execute("SELECT set_config('app.auditlog_name_erasure', '', true)")
+        return counts
+
+    @staticmethod
+    def _name_is_shared(user: Any, name: str) -> bool:
+        """اسمٌ يحمله أو يحتويه اسمُ مستخدمٍ آخر: لا يُعرف أيُّهما صاحبُه فلا يُجهَّل."""
+        return CustomUser.objects.filter(full_name__contains=name).exclude(pk=user.pk).exists()
+
+    def anonymize_name_in_changes(self, user: Any, name: str) -> dict[str, int]:
+        """يمسح اسمَ مستخدمٍ مُحيَ من `changes` بمعرّفه المقنَّع — الاستثناءُ الرابع.
+
+        قرارُ المالك بصفته DPO (D-342م، W-20261010-053): يكمل `anonymize_name_in_repr` فلا يبقى الاسمُ في أيّ
+        عمودٍ من سجلّ التدقيق. المسحُ في Python على القيمة المفكوكة (`core.audit_changes_scrub`) لا SQL ولا
+        regex؛ ومرشّحُ الصفوف يقرأ `changes::text` تضييقاً للمسح لا حكماً به (وبلا مرشّحٍ للأسماء التي يغيّرها
+        الهروب)، والحكمُ للقيمة المفكوكة. الزنادُ (الهجرة 0083) يسمح بتغيير `changes` وحدَه وبعلَم المعاملة
+        `app.auditlog_changes_erasure` المستقلّ عن علَم `object_repr`؛ وتستدعي الخدمةُ التجهيلَين تحت
+        `transaction.atomic()` واحدةٍ فيكتملان معاً أو لا يكتمل شيء.
+
+        تُتخطّى — وتُعدّ بعدّاداتٍ **منفصلةٍ** عن `skipped_*` للإبلاغ اليدويّ لا للكتابة: اسمٌ مشتركٌ أو محتوًى
+        في اسمٍ آخر (`skipped_changes_shared`)، وكلمةٌ واحدة (`skipped_changes_short`)، وقيمةٌ متداخلةٌ فوق
+        `MAX_DEPTH` (`skipped_changes_deep`). لا يُرجَع اسمٌ، أعدادٌ فقط.
+
+        حدودٌ معلنة (حكم 0104): من محي سابقاً ضاع اسمُه فلا يُمسح؛ والاسمُ الجزئيُّ أو بتشكيلٍ مختلفٍ يفوت
+        ويدخل الإبلاغَ اليدويّ؛ والعلَمُ يحمي من الخطأ لا من شيفرةٍ تعمل بدور التطبيق نفسه.
+        """
+        name = (name or "").strip()
+        counts = {
+            "changes_anonymized": 0,
+            "skipped_changes_shared": 0,
+            "skipped_changes_short": 0,
+            "skipped_changes_deep": 0,
+        }
+        if not name:
+            return counts
+        # مرشّحٌ لتضييق المسح لا حَكَمٌ به: اسمٌ بلا `"` ولا `\` ولا أحرف تحكّم يظهر في `changes::text` حرفيّاً
+        # حيثما يظهر في القيمة المفكوكة (ولا يمتدّ عبر فاصلٍ لأنّ الفواصلَ تحمل علاماتِ اقتباس)، فالتصفيةُ
+        # بالنصّ عندئذٍ لا تُسقط صفّاً. وأيُّ اسمٍ يتغيّر بالهروب يُفحص كلُّ صفٍّ ذي `changes` بعد فك الهروب
+        # (حكم 0104: الحُكم للقيمة المفكوكة لا للنصّ)، فلا يضيع صفٌّ بفرقٍ في صيغة الهروب.
+        candidates = _ImmutableQuerySet(self.model, using=self._db).filter(changes__isnull=False)
+        if json.dumps(name, ensure_ascii=False)[1:-1] == name:
+            candidates = candidates.annotate(
+                _changes_text=Cast("changes", models.TextField())
+            ).filter(_changes_text__contains=name)
+        short = len(name.split()) < 2
+        shared = not short and self._name_is_shared(user, name)
+        masked = masked_repr(user)
+        updates: list[tuple[Any, Any]] = []
+        for pk, changes in candidates.values_list("pk", "changes").iterator():
+            try:
+                new_changes, changed = scrub_name(changes, name, masked)
+            except TooDeepError:
+                counts["skipped_changes_deep"] += 1
+                continue
+            if not changed:
+                continue
+            if short:
+                counts["skipped_changes_short"] += 1
+            elif shared:
+                counts["skipped_changes_shared"] += 1
+            else:
+                updates.append((pk, new_changes))
+        if not updates:
+            return counts
+        # علَمٌ محلّيٌّ للمعاملة يفتح الحالةَ الرابعةَ في الزناد ويُغلق في finally؛ والتحديثاتُ كلُّها معاً.
+        with transaction.atomic(using=self._db), connection.cursor() as cur:
+            cur.execute("SELECT set_config('app.auditlog_changes_erasure', 'on', true)")
+            try:
+                for pk, new_changes in updates:
+                    row = _ImmutableQuerySet(self.model, using=self._db).filter(pk=pk)
+                    models.QuerySet.update(row, changes=new_changes)
+                    counts["changes_anonymized"] += 1
+            finally:
+                cur.execute("SELECT set_config('app.auditlog_changes_erasure', '', true)")
+        return counts
 
 
 class AuditLog(models.Model):
