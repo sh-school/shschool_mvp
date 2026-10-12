@@ -146,6 +146,15 @@ def registry() -> dict[str, Capability]:
             ),
         ),
         _cap(
+            "student_affairs.transfer_approve",
+            "اعتمادُ الانتقال الداخلي بين الشعب وإتمامُه ونقلُه المباشر",
+            {"principal", "vice_admin"},
+            basis=(
+                "قرار المالك D-343م (2026-10-10): المنسّقُ يقدّم طلبَ النقل والنائبُ الإداريّ أو المدير يعتمده، "
+                "ولهما النقلُ المباشرُ بلا اعتماد أحد؛ والمنسّق لا يدخلها (W-20261001-017)"
+            ),
+        ),
+        _cap(
             "student_affairs.activities",
             "إدارةُ الأنشطة الطلابيّة",
             P.ACTIVITIES_MANAGE,
