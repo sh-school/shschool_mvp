@@ -18,7 +18,7 @@
   {% if error %}{% callout "error" show=True %}{{ error }}{% endcallout %}{% endif %}
 
   <div class="form-card">
-    <p class="ui-note">التبديلُ إلى: {{ link.target.full_name }} — {{ link.target.get_role|va_role_label }}</p>
+    <p class="ui-note">التبديلُ إلى: <bdi>{{ link.target.full_name }}</bdi> — {{ link.target.get_role|va_role_label }}</p>
     <form method="post" class="form-stack" data-no-page-nav>
       {% csrf_token %}
       {% if second_factor %}

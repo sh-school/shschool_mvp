@@ -261,7 +261,7 @@ thead .text-muted, thead .ui-meta { color: inherit; opacity: .85; }
 
 /* M-01: 44px على المؤشّر الخشن (D1)؛ الصندوقُ نفسُه يكبر لأنّ mobile_audit يقيسه. */
 @media (pointer: coarse) {
-  .site-header .nav-logo, .site-header .nav-user-btn, .btn-sm, .btn-xs, .parent-child__actions .btn-secondary,
+  .site-header .nav-logo, .site-header .nav-user-btn, .site-header .nav-view-as, .va-role, .btn-sm, .btn-xs, .parent-child__actions .btn-secondary,
   .notif-group-switch__opt, .period-switch__item, a.status-badge, a.ui-kpi, .staff-name, .staff-card__name, .staff-card__link, .qc-status-link { min-block-size: var(--control-h); }
   .site-header .nav-bell, .theme-toggle, .bc-back, .breadcrumbs a, .th-sort, .ui-tip__btn,
   .pwa-dismiss-btn, .toast-close, .modal-close-btn, .notif-item__read { min-inline-size: var(--control-h); min-block-size: var(--control-h); }

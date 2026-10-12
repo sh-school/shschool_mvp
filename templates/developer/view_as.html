@@ -46,7 +46,7 @@
     <li>
       <form method="post" action="{% url 'view_as_linked_switch' link.pk %}" data-no-page-nav>
         {% csrf_token %}
-        <button type="submit" class="va-role">{% icon "link" %} {{ link.target.full_name }} — {{ link.target.get_role|va_role_label }}</button>
+        <button type="submit" class="va-role">{% icon "link" %} <bdi>{{ link.target.full_name }}</bdi> — {{ link.target.get_role|va_role_label }}</button>
       </form>
     </li>
     {% endfor %}
