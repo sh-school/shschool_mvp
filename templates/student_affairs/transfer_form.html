@@ -57,6 +57,12 @@
         {% field "from_grade" "الصف (من)" value=form.from_grade.value placeholder="مثال: G9" %}
         {% field "to_grade" "الصف (إلى)" value=form.to_grade.value placeholder="مثال: G10" %}
         {% field "reason" "السبب" type="textarea" rows=3 value=form.reason.value placeholder="سبب الانتقال..." css="sa-span-full" %}
+        {# النقلُ المباشر: للمدير والنائب الإداري وحدهما، وفي الانتقال الداخلي فقط (D-343م) #}
+        {% if can_direct %}
+        <div class="sa-span-full" data-internal-only hidden>
+        {% field "direct" "نقل مباشر الآن بلا انتظار اعتماد" type="checkbox" value="1" %}
+        </div>
+        {% endif %}
       </div>
 
       <div class="form-footer">
