@@ -781,11 +781,10 @@ def compare(current: dict, baseline: dict | None) -> list[dict]:
 
 
 def store_metrics(generation) -> dict:
-    """يحسب مؤشرات توليدٍ ويحفظها فيه — يُستدعى بعد التوليد وعند الاعتماد."""
-    metrics = ScheduleLab.for_generation(generation).compute()
-    generation.metrics = metrics
-    generation.save(update_fields=["metrics"])
-    return metrics
+    """يحسب مؤشرات توليدٍ ويدمجها في ما حُفظ فيه (لا يستبدل مفاتيح التقدّم) — بعد التوليد وعند الاعتماد."""
+    from operations.scheduler_v2.progress import merge_metrics
+
+    return merge_metrics(generation, ScheduleLab.for_generation(generation).compute())
 
 
 def latest_baseline(school, academic_year):

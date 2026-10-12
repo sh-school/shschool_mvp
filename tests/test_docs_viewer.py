@@ -219,8 +219,8 @@ def test_a_folder_without_a_readme_keeps_its_raw_name():
 
 
 def test_resolve_asset_serves_a_real_allowed_image():
-    resolved = services.resolve_asset("static/brand/emblem.svg")
-    assert resolved == (services.DOCS_ROOT / "static/brand/emblem.svg").resolve()
+    resolved = services.resolve_asset("static/brand/azkia-logo.svg")
+    assert resolved == (services.DOCS_ROOT / "static/brand/azkia-logo.svg").resolve()
 
 
 def test_resolve_asset_refuses_a_disallowed_extension():
@@ -243,20 +243,20 @@ def test_resolve_asset_refuses_escape_attempts(traversal_path):
 
 
 def test_a_non_developer_gets_403_on_asset(client_as, teacher_user):
-    url = reverse("docs_viewer:asset", kwargs={"rel_path": "static/brand/emblem.svg"})
+    url = reverse("docs_viewer:asset", kwargs={"rel_path": "static/brand/azkia-logo.svg"})
     assert client_as(teacher_user).get(url).status_code == 403
 
 
 def test_the_developer_can_fetch_a_real_logo_asset(client_as, developer_user):
-    url = reverse("docs_viewer:asset", kwargs={"rel_path": "static/brand/emblem.svg"})
+    url = reverse("docs_viewer:asset", kwargs={"rel_path": "static/brand/azkia-logo.svg"})
     response = client_as(developer_user).get(url)
     assert response.status_code == 200
     assert response["Content-Type"] == "image/svg+xml"
 
 
 def test_render_markdown_rewrites_a_relative_image_into_an_asset_link():
-    rendered = render_markdown('<img src="static/brand/emblem.svg" alt="شعار">', source_dir="")
-    expected = reverse("docs_viewer:asset", kwargs={"rel_path": "static/brand/emblem.svg"})
+    rendered = render_markdown('<img src="static/brand/azkia-logo.svg" alt="شعار">', source_dir="")
+    expected = reverse("docs_viewer:asset", kwargs={"rel_path": "static/brand/azkia-logo.svg"})
     assert expected in rendered.content_html
 
 
@@ -284,14 +284,13 @@ def test_render_markdown_leaves_absolute_and_external_images_untouched():
     assert 'src="/static/x.svg"' in rendered.content_html
 
 
-def test_the_readme_page_shows_a_working_logo_not_a_broken_one(client_as, developer_user):
-    """الشكوى الأصليّة: الشعارُ مكسورٌ في README — الرابطُ المُصيَّر يجب أن يردّ 200 فعلاً."""
+def test_the_readme_page_renders_without_a_ministry_logo(client_as, developer_user):
+    """README لا يعرض شعارَ الوزارة بعد إزالته (W-20261011-012): تُعرض الصفحةُ بلا صورةٍ مكسورة."""
     url = reverse("docs_viewer:detail", kwargs={"doc_path": "README.md"})
     response = client_as(developer_user).get(url)
     body = response.content.decode("utf-8")
-    asset_url = reverse("docs_viewer:asset", kwargs={"rel_path": "static/brand/emblem.svg"})
-    assert asset_url in body
-    assert client_as(developer_user).get(asset_url).status_code == 200
+    assert response.status_code == 200
+    assert "brand/emblem" not in body and "logoMaroon" not in body
 
 
 # ── القائمةُ الرئيسيّة (الإدارة ← أدوات المطوّر) ─────────────────────────────────

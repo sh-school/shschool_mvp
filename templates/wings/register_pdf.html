@@ -68,7 +68,6 @@
    تُحذف من رأس العمود (وقتُها يكفي، وهي في الكشف الأفقيّ). */
 @page { margin: 7mm 7mm 22mm 7mm; }
 .doc-header { padding: 3px 12px; }
-.doc-header .emblem { width: 38px; height: 38px; margin-bottom: 2px; }
 .school-name { font-size: 15px; margin: 0; }
 .ministry-name { font-size: 8px; }
 .sheet { page-break-inside: avoid; }
@@ -95,6 +94,9 @@
 .sig-role { font-size: 7px; }
 {% endif %}
 {% endblock %}
+
+{% comment %}بلا شعار في كشف الحصص (طوارئ D-386م، W-20261011-011).{% endcomment %}
+{% block emblem %}{% endblock %}
 
 {% block content %}
 {% if wing_register %}

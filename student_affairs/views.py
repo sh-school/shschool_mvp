@@ -907,9 +907,6 @@ def student_profile(request, student_id):
         subtitle_parts.append(
             class_label(enrollment.class_group.grade, enrollment.class_group.section)
         )
-    if student.national_id:
-        # معزولُ الاتّجاه: «****0289» داخل سطرٍ عربيّ كان يُقرأ «0289****».
-        subtitle_parts.append(f"\u2066****{mask_national_id(student.national_id)[-4:]}\u2069")
     if profile and profile.gender:
         subtitle_parts.append("ذكر" if profile.gender == "M" else "أنثى")
 
@@ -2679,8 +2676,6 @@ def tardiness_search_students(request):
             {
                 "id": str(s["id"]),
                 "name": s["full_name"],
-                # ردُّ بحثٍ يضمّ خمسةَ عشرَ طالباً كشفٌ جماعيّ — يميّز ولا يعرّف.
-                "nid": mask_national_id(s["national_id"]),
                 "already_late": s["id"] in already_late_ids,
             }
         )

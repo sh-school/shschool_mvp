@@ -75,7 +75,6 @@
 
 /* ── Status Text Colors ─── */
 .text-status-danger  { color: var(--status-danger-fg); }
-.text-status-success { color: var(--status-success-fg); }
 .text-status-warning { color: var(--status-warning-fg); }
 .text-status-info    { color: var(--status-info); }
 

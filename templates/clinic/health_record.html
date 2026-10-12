@@ -10,15 +10,13 @@
 {% block content %}
 <div class="exec-dash">
 
-  {# ── ترويسةُ الصفحة: الطالبُ ورقمُه المستور في السطر الوصفيّ ── #}
-  {% with masked=student.national_id|mask_id %}
-  {% page_header "السجل الصحي" subtitle=student.full_name|add:" · "|add:masked icon="clinic" %}
+  {# ── ترويسةُ الصفحة: اسمُ الطالب في السطر الوصفيّ ── #}
+  {% page_header "السجل الصحي" subtitle=student.full_name icon="clinic" %}
     {% if can_write %}
     <a href="{% url 'clinic:record_visit_student' student.id %}" class="btn-primary btn-sm no-underline">+ تسجيل زيارة جديدة</a>
     {% endif %}
     <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
   {% endpage_header %}
-  {% endwith %}
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 

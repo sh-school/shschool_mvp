@@ -5,7 +5,6 @@
 {% endcomment %}{% localize off %}<style>
 {{ fr.page_css|safe }}
 #print-header { position: running(print-header); width: {{ fr.body_width }}mm; height: {{ fr.header_h }}mm; text-align: center; padding-top: {{ fr.margin_top|add:"-2" }}mm; font-family: 'Tajawal', 'Amiri', sans-serif; direction: rtl; }
-#print-header .pf-emblem { height: 11mm; width: auto; display: block; margin: 0 auto 0.5mm; }
 #print-header .pf-ministry { font-size: 9pt; line-height: 3.6mm; color: {% brand_color "TEXT_MUTED" %}; }
 #print-header .pf-school { font-size: 14pt; font-weight: 700; line-height: 5.6mm; color: {% brand_color "MAROON" %}; }
 #print-header .pf-title { font-size: 12pt; font-weight: 700; line-height: 4.8mm; color: {% brand_color "TEXT_PRIMARY" %}; }
