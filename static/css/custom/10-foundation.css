@@ -422,7 +422,6 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --status-danger-tint:    var(--status-danger-bg);
   --status-warning-tint:        var(--status-warning-bg);
   --status-warning-tint-strong: var(--status-warning-bg);
-  --status-warning-tint-deep:   var(--status-warning-bg);
   --status-warning-badge-bg:    var(--status-warning-bg);
   --status-warning-fg-vivid: var(--status-warning-fg);
   --status-info-fg-vivid:    var(--status-info-fg);

@@ -20,6 +20,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 
 from core import brand
+from core.ministry import ministry_name
 
 logger = logging.getLogger(__name__)
 
@@ -555,6 +556,8 @@ def _reshape_html_for_xhtml2pdf(html_str: str) -> str:
 def _playwright_header_template(school: str, title: str) -> str:
     """هيدر احترافي — يعمل على كل صفحة في Playwright"""
     title_part = f" — {title}" if title else ""
+    ministry = ministry_name()  # مجمَّدةٌ مطفأةٌ افتراضاً (D-400م): لا نطاقَ فارغاً في الترويسة
+    ministry_span = f'<span class="ph-ministry">{ministry}</span>' if ministry else ""
     return f"""
 <style>
 * {{ margin:0; padding:0; box-sizing:border-box; }}
@@ -590,7 +593,7 @@ def _playwright_header_template(school: str, title: str) -> str:
 </style>
 <div class="ph">
     <span class="ph-school">{school}{title_part}</span>
-    <span class="ph-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</span>
+    {ministry_span}
 </div>
 """
 
@@ -789,7 +792,7 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
                 return os.path.join(static_root, uri[8:].replace("/", os.sep))
             if uri.startswith("file:///"):
                 return uri[8:].replace("/", os.sep)
-            # مسارات نسبية مثل static/brand/logoMaroon.png
+            # مسارات نسبية مثل static/brand/azkia-logo.svg
             if not uri.startswith(("http://", "https://")):
                 candidate = os.path.join(str(Path(settings.BASE_DIR)), uri.replace("/", os.sep))
                 if os.path.exists(candidate):

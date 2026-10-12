@@ -99,7 +99,7 @@ def _margin_boxes(html):
 
 
 def test_the_vertical_margins_hold_the_standard_header_and_footer(db, observation):
-    """الهامشان يسعان الترويسةَ والتذييلَ الموحَّدَين (شعارٌ ووزارةٌ ومدرسةٌ وخطٌّ زخرفيّ؛ وسطران) — فلا يفيضان على المتن ولا يبقى بياضٌ كثير.
+    """الهامشان يسعان الترويسةَ والتذييلَ الموحَّدَين (وزارةٌ ومدرسةٌ وخطٌّ زخرفيّ؛ وسطران) — فلا يفيضان على المتن ولا يبقى بياضٌ كثير.
 
     يُقاس المرسومُ فعلاً: ارتفاعُ محتوى كلّ هامشٍ ≤ ارتفاعِه، وما زاد عليه فضلةٌ ≤ 0.35 بوصة (33.6px).
     """
@@ -209,13 +209,12 @@ def test_the_header_is_local_and_the_footer_is_the_shared_component(db, observat
 
     for marker in (
         'class="doc-header"',
-        'class="emblem"',
-        'class="ministry-name"',
         'class="school-name"',
         'class="ornament-hr"',
         'class="pdf-footer-line"',
     ):
         assert marker in html, marker
+    assert 'class="ministry-name"' not in html, "سطرُ الوزارة مجمَّد (D-400م)"
     header = html.split('<div id="sheet-header">', 1)[1].split('<div id="sheet-footer">', 1)[0]
     footer = html.split('<div id="sheet-footer">', 1)[1].split("<h1", 1)[0]
     assert "vision-text" not in header and school.vision not in header, "لا رؤيةَ في الترويسة"
@@ -225,7 +224,9 @@ def test_the_header_is_local_and_the_footer_is_the_shared_component(db, observat
     assert (
         "SchoolOS" not in html and "SAMM" not in html
     ), "اسمُ المنصّة لا يظهر في تذييل أيّ تصدير (أمرُ المالك 2026-09-27)"
-    assert html.count("<img") == 1, "الشعارُ وحده — لا صورةَ ترويسةٍ ولا تذييل"
+    assert (
+        html.count("<img") == 0
+    ), "لا صورةَ في الترويسة ولا التذييل (شعارُ الوزارة أُزيل — W-20261011-012)"
 
 
 def test_two_planning_domains_sit_on_the_first_page_the_rest_on_the_second(
@@ -651,9 +652,8 @@ def test_a_stamped_form_fits_wherever_the_unstamped_one_fits(db, school, named):
     ), f"الختمان أنزلا الاستمارةَ ({count} معياراً) عن صفحتَيها"
 
 
-# ── الشعارُ في الرأس (بلاغ المالك 2026-09-26) ─────────────────────────────────
-# الترتيب: صورةُ الترويسة المرفوعة إن وُجدت (كما هي) ← `School.logo` إن وُجد ← الشعارُ المعتمد `static/brand/logoMaroon.png` مع الترويسة
-# النصّيّة. فلا تحتاج مدرسةٌ إلى رفع شيءٍ لتظهر الاستمارةُ بشعار، وتبقى الصفحةُ واحدة.
+# ── لا شعارَ في الرأس (W-20261011-012، قرار المالك D-386م) ─────────────────────
+# شعارُ الوزارة أُزيل من الاستمارة كلِّها: الهويّةُ نصٌّ (وزارةٌ ومدرسةٌ) وخطٌّ زخرفيّ، ولا صورةَ لا من المنصّة ولا من رفعِ المدرسة.
 
 PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
 
@@ -666,55 +666,22 @@ def _save_image(field, name):
     field.save(name, ContentFile(base64.b64decode(PNG)), save=True)
 
 
-def test_without_any_upload_the_approved_logo_is_used(db, observation):
-    import base64
-    import pathlib
-
+def test_the_context_carries_no_logo_key(db, observation):
     from quality.observation_views import _pdf_context
 
-    logo = _pdf_context(observation)["logo"]
-
-    assert logo.startswith("data:image/png;base64,")
-    expected = pathlib.Path("static/brand/logoMaroon.png").read_bytes()
-    assert base64.b64decode(logo.split(",", 1)[1]) == expected, "الشعارُ المعتمدُ نفسُه لا نسخةٌ أخرى"
+    assert "logo" not in _pdf_context(observation)
 
 
-def test_the_schools_own_logo_comes_before_the_approved_one(db, observation):
-    from quality.observation_views import _as_data_uri, _pdf_context
-    from quality.pdf_assets import brand_logo_data_uri
+def test_an_uploaded_school_logo_or_letterhead_never_reaches_the_form(db, observation):
+    """صورةٌ مرفوعةٌ (شعارُ مدرسة أو تراثُ ترويسة) لا أثرَ لها: الهويّةُ نصٌّ فقط."""
+    from quality.observation_views import _pdf_context
 
     _save_image(observation.school.logo, "own.png")
-
-    ctx = _pdf_context(observation)
-
-    assert ctx["logo"] == _as_data_uri(observation.school.logo)
-    assert ctx["logo"] != brand_logo_data_uri()
-
-
-def test_an_uploaded_letterhead_no_longer_replaces_anything(db, observation):
-    """صورةٌ مرفوعةٌ في `School.letterhead` (تراثُ رفعٍ قديم) لا أثرَ لها: الهويّةُ نصٌّ والشعارُ المعتمدُ باقٍ."""
-    from quality.observation_views import _pdf_context
-
     _save_image(observation.school.letterhead, "head.png")
     _save_image(observation.school.letterfoot, "foot.png")
 
-    ctx = _pdf_context(observation)
-    html = render_to_string("quality/observation_pdf.html", ctx)
+    html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
 
-    assert ctx["logo"]
-    assert html.count("<img") == 1 and 'class="emblem"' in html
-
-
-def test_a_missing_approved_logo_falls_back_to_the_text_heading(db, observation, tmp_path):
-    from django.test import override_settings
-
-    from quality.observation_views import _pdf_context
-
-    with override_settings(BASE_DIR=tmp_path):
-        ctx = _pdf_context(observation)
-        html = render_to_string("quality/observation_pdf.html", ctx)
-
-    assert ctx["logo"] == ""
     assert "<img" not in html and observation.school.name in html
 
 
@@ -736,65 +703,24 @@ def _image_boxes(html):
     return found
 
 
-def test_the_emblem_is_drawn_small_not_stretched_across_the_header(db, observation):
-    """القاعدةُ العامّة `#sheet-header img` كانت تمدّ صورةَ الترويسة على عرض الشريط — والشعارُ الآن `.emblem` بارتفاع 0.5 بوصة (48px) لا أوسعَ من بوصة.
-
-    يُقاس حجمُه المرسوم فعلاً من تخطيط WeasyPrint.
-    """
+def test_the_header_draws_no_logo_image(db, observation):
+    """الترويسةُ نصٌّ فقط. يُقاس من تخطيط WeasyPrint نفسِه: لا صندوقَ صورةٍ في الصفحة الأولى."""
     from quality.observation_views import _pdf_context
 
     html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
-    images = _image_boxes(html)
 
-    assert len(images) == 1, images
-    width, height = images[0]
-    assert width <= 96 and 40 <= height <= 52, images
+    assert _image_boxes(html) == []
 
 
-def _images_and_pages(obs):
+def test_the_pdf_carries_no_image(db, school, named):
+    """القبولُ: ملفُّ PDF الناتج بلا صورةٍ في صفحته الأولى."""
     import io
 
     from core.pdf_utils import render_pdf_bytes
 
     pypdf = pytest.importorskip("pypdf")
-    reader = pypdf.PdfReader(io.BytesIO(render_pdf_bytes(_html_of(obs))))
-    return len(reader.pages), len(reader.pages[0].images)
-
-
-def test_the_logo_reaches_the_pdf_as_an_image_and_its_absence_leaves_none(
-    db, school, named, tmp_path
-):
-    """القبولُ: يظهر صورةً في PDF حين يُوجد الشعارُ ولا ترويسة، ولا يظهر حين لا يوجدان."""
-    from django.test import override_settings
-
-    pytest.importorskip("weasyprint")
     _real_criteria(school, 12)
 
-    pages_with, images_with = _images_and_pages(named)
-    with override_settings(BASE_DIR=tmp_path):  # لا شعارَ معتمداً ولا شعارَ مدرسة ولا ترويسة
-        pages_without, images_without = _images_and_pages(named)
+    reader = pypdf.PdfReader(io.BytesIO(render_pdf_bytes(_html_of(named))))
 
-    assert images_with == 1 and images_without == 0
-    assert pages_with == pages_without, "الشعارُ لا يغيّر عددَ الصفحات"
-
-
-def test_the_logo_never_costs_a_page(db, school, named, tmp_path):
-    """صفحتان: أكبرُ عددِ معاييرَ تسعه الصفحتان بلا شعار (حتّى حافّتهما) — والشعارُ عند العدد نفسِه لا يُنزلها إلى ثالثة.
-
-    نسبيّ عمداً كما في ختم F55E: عددُ الصفحات المطلق تحكمه خطوطُ PDF المثبَّتةُ في البيئة.
-    """
-    from django.test import override_settings
-
-    pytest.importorskip("weasyprint")
-    named.general_notes = ""
-    named.save()
-
-    for count in range(23, 8, -1):
-        _real_criteria(school, count)
-        with override_settings(BASE_DIR=tmp_path):
-            if _images_and_pages(named)[0] == 2:
-                break
-    else:
-        pytest.skip("لا عددَ معاييرَ تسعه صفحتان في هذه البيئة (خطوطُ PDF غيرُ مثبَّتة)")
-
-    assert _images_and_pages(named)[0] == 2, f"الشعارُ أنزل الاستمارةَ ({count} معياراً) عن صفحتَيها"
+    assert len(reader.pages[0].images) == 0

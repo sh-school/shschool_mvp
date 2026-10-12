@@ -21,7 +21,6 @@
     <thead>
       <tr>
         {% sort_th sort "name" "الاسم" target="#student-table-container" %}
-        {% sort_th sort "national" "الرقم الشخصي" "col-center" target="#student-table-container" %}
         {% sort_th sort "class" "الصف/الشعبة" "col-center" target="#student-table-container" %}
         {% sort_th sort "guardian" "وليّ الأمر" target="#student-table-container" %}
         <th class="col-center">جوّال وليّ الأمر</th>
@@ -37,9 +36,6 @@
             {{ s.full_name }}
           </a>
         </td>
-        {# آخرُ أربعِ خاناتٍ وما قبلها مستور — والرقمُ كاملاً في ملفّ صاحبه. #}
-        <td class="col-num col-center sa-mono"
-            title="الرقم كاملاً في ملفّ الطالب">{{ s.national_id|mask_id|default:"—" }}</td>
         <td class="col-center">
           <span class="status-badge status-info">{{ s.class_label }}</span>
         </td>

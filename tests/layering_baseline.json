@@ -311,7 +311,6 @@
    "orm": 36
   },
   "behavior/views.py::behavior_report": {
-   "lines": 70,
    "orm": 18
   },
   "behavior/views.py::behavior_statistics": {
@@ -440,15 +439,15 @@
    "orm": 14
   },
   "operations/views_schedule.py::smart_schedule_view": {
-   "lines": 96,
+   "lines": 81,
    "orm": 24
   },
   "operations/views_schedule.py::teacher_load_report": {
    "orm": 13
   },
   "operations/views_schedule.py::teacher_preferences": {
-   "lines": 90,
-   "orm": 13
+   "lines": 89,
+   "orm": 12
   },
   "operations/views_swap.py::compensatory_request": {
    "orm": 9
@@ -467,8 +466,8 @@
    "orm": 11
   },
   "parents/views.py::manage_parent_links": {
-   "lines": 145,
-   "orm": 51
+   "lines": 135,
+   "orm": 39
   },
   "parents/views.py::parent_all_grades": {
    "orm": 8
@@ -682,8 +681,7 @@
    "lines": 61
   },
   "student_affairs/views.py::student_edit": {
-   "lines": 76,
-   "orm": 9
+   "lines": 63
   },
   "student_affairs/views.py::student_export_excel": {
    "lines": 73
@@ -697,7 +695,7 @@
    "orm": 15
   },
   "student_affairs/views.py::student_profile": {
-   "lines": 182,
+   "lines": 179,
    "orm": 81
   },
   "student_affairs/views.py::student_profile_pdf": {
@@ -804,7 +802,7 @@
    "orm": 9
   },
   "wings/views_absence_file.py::student_search": {
-   "orm": 16
+   "orm": 14
   },
   "wings/views_ministry.py::ministry_report": {
    "orm": 8
@@ -813,10 +811,10 @@
    "orm": 8
   },
   "wings/views_register.py::section_register_export": {
-   "orm": 29
+   "orm": 24
   },
   "wings/views_register.py::wing_register_export": {
-   "orm": 30
+   "orm": 25
   }
  }
 }

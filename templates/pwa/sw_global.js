@@ -1,5 +1,5 @@
 {% load static %}
-/* SchoolOS — Global Service Worker v5.4
+/* SchoolOS — Global Service Worker v6.0
    يُغطّي جميع المسارات ما عدا /parents/ (التي لها SW خاص)
 
    ── لِمَ لا تُخزَّن كلُّ `/static/` تخزيناً أوّليّاً ──────────────────────
@@ -17,14 +17,14 @@
    فالتفرقةُ بالبصمة لا بالمسار: المبصومُ من الذاكرة، وغيرُه من الشبكة مع
    سقوطٍ إلى الذاكرة عند الانقطاع — فتبقى فائدةُ العمل دون شبكة.
 */
-var CACHE_NAME = 'schoolos-global-v3';
+/* v6: صفحةُ /offline/ المخزَّنةُ مسبقاً تحمل سطرَ الوزارة، وقد جُمّد (W-20261012-008، D-400م) فتُبطَل النسخةُ القديمة. */
+var CACHE_NAME = 'schoolos-global-v6';
 
 /* لا يُخزَّن مسبقاً إلّا ما لا يشيخ. وهذا الملفُّ نفسُه يُصيَّر بقالب جانغو
    (`core.views_pwa.global_sw`)، فعنوانُ كلّ أصلٍ هنا يحمل بصمةَ الإنتاج
    الفعليّة عبر وسم تحميل الثابت — لا مساراً خاماً قد لا يطابق المنشور. */
 var STATIC_ASSETS = [
   '/offline/',
-  '{% static "brand/emblem-white.svg" %}',
   '{% static "brand/azkia-logo.svg" %}',
   '{% static "brand/sufyan-logo.png" %}'
 ];

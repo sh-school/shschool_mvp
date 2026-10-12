@@ -45,7 +45,6 @@ from .observation_selectors import grouped_criteria as _grouped_criteria
 from .observation_selectors import groups_with_scores as _groups_with_scores
 from .observation_selectors import teacher_schedule_context as _teacher_schedule_context
 from .observation_services import ObservationService
-from .pdf_assets import brand_logo_data_uri
 from .presentation import decorate_observation, signature_stamps
 
 logger = logging.getLogger(__name__)
@@ -215,32 +214,6 @@ def _get_observation(request, obs_id):
     return obs, allowed
 
 
-def _as_data_uri(image_field):
-    """صورة المدرسة مضمَّنةً في الصفحة لا مُشاراً إليها برابط.
-
-    الملفّات المرفوعة تُخزَّن في القاعدة لا على قرص (Railway بلا قرصٍ
-    دائم)، فرابطها `/dbmedia/...` يُخدَم بعرضٍ يتطلّب جلسة. وWeasyPrint
-    يحلّ الروابط النسبية على **القرص** من `BASE_DIR`، فيبحث عن ملفٍّ لا
-    وجود له ويطبع الصفحة بلا ترويسة — بلا خطأٍ ولا شكوى.
-
-    فتُقرأ الصورة وتُضمَّن. وحجمُها عشراتُ الكيلوبايتات، والوثيقة تُولَّد
-    مرّةً عند الطلب.
-    """
-    if not image_field:
-        return ""
-    import base64
-    import mimetypes
-
-    kind = mimetypes.guess_type(image_field.name)[0] or "image/png"
-    try:
-        with image_field.open("rb") as fh:
-            payload = base64.b64encode(fh.read()).decode("ascii")
-    except (OSError, ValueError):
-        logger.warning("تعذّرت قراءة %s — تُطبع الوثيقة بعنوانٍ نصّيّ", image_field.name)
-        return ""
-    return f"data:{kind};base64,{payload}"
-
-
 #: المجالات المطبوعة على الصفحة الأولى — كما في نموذج المدرسة الورقيّ (استعادةُ بنية الاستمارة، قرارُ المالك 2026-09-28).
 #: الأصل يفصل بعد «تنفيذ الدرس» ويُعيد العنوانَ ورؤوسَ الأعمدة في الثانية، فالقسمة قصدٌ لا نتيجةَ امتلاء صفحة.
 FIRST_PAGE_DOMAINS = ("التخطيط", "تنفيذ الدرس")
@@ -263,8 +236,6 @@ def _pdf_context(obs):
         "teacher_short_name": short_name(obs.teacher.full_name),
         "observer_short_name": short_name(obs.observer.full_name),
         "class_short_label": obs.class_group.short_label if obs.class_group_id else "",
-        # الشعار: `School.logo` إن وُجد، وإلّا الشعارُ المعتمد `logoMaroon.png` — وترويسةُ/تذييلُ الصور أُلغيا (2026-09-26)
-        "logo": _as_data_uri(obs.school.logo) or brand_logo_data_uri(),
         "ratings": RATING_CHOICES,
         "signatures": signature_stamps(obs),
         "academic_year": academic_year_for_school(obs.school).replace("-", "/"),
