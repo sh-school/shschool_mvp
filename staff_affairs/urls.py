@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_attendance, views_biometric, views_exemptions
+from . import views, views_attendance, views_biometric, views_exemptions, views_leave_self
 
 app_name = "staff_affairs"
 
@@ -22,6 +22,7 @@ urlpatterns = [
     # ── الإجازات ──
     path("leave/", views.leave_list, name="leave_list"),
     path("leave/request/", views.leave_request_create, name="leave_request"),
+    path("leave/request/self/", views_leave_self.leave_request_self, name="leave_request_self"),
     path("leave/<uuid:pk>/", views.leave_detail, name="leave_detail"),
     path("leave/<uuid:pk>/review/", views.leave_review, name="leave_review"),
     # ── حضورُ الموظّفين (1.1) والأذونات القصيرة (1.3) ──
