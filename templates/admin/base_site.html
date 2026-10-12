@@ -11,8 +11,8 @@
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/admin_theme.css' %}">{% endblock %}
 
 {% block extrahead %}{{ block.super }}
-<link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/v2/favicon.png' %}">
-<link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/v2/apple-touch-icon.png' %}">
+<link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/v3/favicon.png' %}">
+<link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/v3/apple-touch-icon.png' %}">
 {# الخطُّ مسبقاً: بدونه يُرسم نصُّ الترويسة بخطٍّ بديلٍ لحظةً عند كلّ تحميلٍ ثمّ يتبدّل — وميضٌ يراه المستخدمُ في الترويسة والقائمة. #}
 <link rel="preload" href="{% static 'fonts/Tajawal-Regular.woff2' %}" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="{% static 'fonts/Tajawal-Medium.woff2' %}" as="font" type="font/woff2" crossorigin>
