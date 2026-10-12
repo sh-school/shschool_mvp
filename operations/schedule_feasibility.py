@@ -25,7 +25,7 @@ from typing import Any
 
 from core.models import School
 
-from .last_period_cap import personal_last_cap
+from .last_period_cap import last_cap_or
 from .models import SchedulingResource, SubjectClassAssignment, TeacherExemption, TeacherPreference
 from .schedule_relaxation import STRICT_RUN_CAP, relaxed_run_cap
 from .scheduler_bell import HC5_JOINABLE_GAP_MINUTES
@@ -525,7 +525,8 @@ def binding_daily_cap(
                 for l in (0, 1)
             }
         )
-    allowed_sevenths = personal_last_cap(personal_max_last) or MAX_LAST_PERIODS
+    #: الصفرُ منعٌ: لا تدخل السابعةُ في السعة أصلاً (W-20261004-013).
+    allowed_sevenths = last_cap_or(personal_max_last, MAX_LAST_PERIODS)
     plain = sum(day[(1, 1)] for day in per_day)
     #: السقفان معاً (HC22 وHC8)؛ وبلا سقف الأولى تعود الحسبةُ إلى HC8 وحدَه كما كانت.
     structural = _edge_capacity(

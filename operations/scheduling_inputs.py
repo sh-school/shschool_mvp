@@ -47,8 +47,8 @@ class Member:
     subject_id: str
     subject_name: str
     subject_code: str
-    #: سقفُ السابعة الأسبوعيّ الخاصّ بهذا المعلّم (HC8) — صفرٌ يعني «خُذ العامّ».
-    last_cap: int = 0
+    #: سقفُ السابعة الأسبوعيّ الخاصّ بهذا المعلّم (HC8) — `None` يعني «خُذ العامّ» والصفرُ منعٌ (W-20261004-013).
+    last_cap: int | None = None
     #: موارد هذا العضو وحده (مادّتُه) — فالمنقسمةُ لا تُدخل موادَّ أحد ساكنيها في موارد الآخر.
     resources: tuple = ()
 
@@ -624,7 +624,7 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
     personal_last = {
         str(p.teacher_id): personal_last_cap(p.max_last_periods)
         for p in prefs
-        if personal_last_cap(p.max_last_periods)
+        if personal_last_cap(p.max_last_periods) is not None
     }
 
     # أيّامُ التفريغ الكاملة لكلّ معلّم — مقامُ القسمة في التوزيع.
@@ -705,7 +705,7 @@ def _to_tasks(
             subject_id=str(a.subject_id),
             subject_name=a.subject.name_ar,
             subject_code=a.subject.code,
-            last_cap=personal_last.get(str(a.teacher_id), 0),
+            last_cap=personal_last.get(str(a.teacher_id)),
             resources=tuple(resources_by_subject.get(str(a.subject_id), ())),
         )
 

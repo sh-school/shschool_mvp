@@ -278,8 +278,9 @@ def test_a_missing_teacher_row_is_counted_not_created(school, tmp_path):
 # ── سقف السابعة: المدى نفسه 2–5 إدخالاً لا قراءةً (قرارُ المالك 10-10) ─────
 
 
-@pytest.mark.parametrize("value, ok", [(1, False), (2, True), (5, True), (6, False)])
-def test_the_seventh_cap_range_is_the_same_two_to_five(school, value, ok):
+@pytest.mark.parametrize("value, ok", [(0, True), (1, False), (2, True), (5, True), (6, False)])
+def test_the_seventh_cap_range_is_zero_or_two_to_five(school, value, ok):
+    """الصفرُ منعُ السابعة (W-20261004-013)؛ و1 لا يُقبل إدخالاً."""
     pref = _pref(school, UserFactory().pk)
     pref.max_last_periods = value
 
@@ -319,9 +320,12 @@ def test_the_admin_caps_are_selects_of_two_to_five_only(client, superuser):
 
     page = client.get(reverse("admin:operations_teacherpreference_add")).content.decode()
 
-    for name in ("max_first_periods", "max_last_periods"):
+    for name, expected in (
+        ("max_first_periods", ["2", "3", "4", "5"]),
+        ("max_last_periods", ["0", "2", "3", "4", "5"]),
+    ):
         block, values = _select(page, name)
-        assert values == ["2", "3", "4", "5"]
+        assert values == expected, "السابعةُ وحدَها لها خيارُ المنع (0)"
         assert "min=" not in block and "max=" not in block
         assert re.search(r'<option value="2"[^>]* selected', block)
 
@@ -384,8 +388,8 @@ def test_a_legacy_value_outside_the_range_stays_selected_for_its_owner_only(
     _admin_post(client, legacy, school, max_last_periods=1)
 
     legacy.refresh_from_db()
-    assert _select(page, "max_last_periods")[1] == ["1", "2", "3", "4", "5"]
-    assert _select(other_page, "max_last_periods")[1] == ["2", "3", "4", "5"]
+    assert _select(page, "max_last_periods")[1] == ["1", "0", "2", "3", "4", "5"]
+    assert _select(other_page, "max_last_periods")[1] == ["0", "2", "3", "4", "5"]
     assert legacy.max_last_periods == 1
 
 

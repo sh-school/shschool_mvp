@@ -102,6 +102,8 @@ def options_from_relaxations(spec: dict[str, Any] | None) -> dict[str, Any]:
         out["touch_relaxed_all"] = bool(spec.pop("touch_relaxed_all"))
     if "first_cap_override" in spec:
         out["first_cap_override"] = tuple(sorted(dict(spec.pop("first_cap_override")).items()))
+    if "last_cap_override" in spec:
+        out["last_cap_override"] = tuple(sorted(dict(spec.pop("last_cap_override")).items()))
     for flag in ("no_6_7", "triples_by_number"):
         if flag in spec:
             out[flag] = bool(spec.pop(flag))
@@ -148,6 +150,26 @@ def with_admin_first_caps(config: SolverConfig, school: Any, academic_year: str)
     for teacher, cap in stored.items():
         merged[teacher] = max(cap, merged.get(teacher, 0))
     spec["first_cap_override"] = merged
+    return replace(config, relaxations=tuple(sorted(spec.items(), key=lambda kv: kv[0])))
+
+
+def with_admin_last_caps(config: SolverConfig, school: Any, academic_year: str) -> SolverConfig:
+    """يضمّ سقوفَ السابعة المقرَّرةَ إدارياً (الأدمن) إلى `last_cap_override`، ومنها الصفرُ (منعُ السابعة).
+
+    على عكس سقف الأولى لا يُرفع هنا الأعلى فوق الملف: القرارُ الإداريّ المحفوظ في حقّ المعلّم هو الحاكم
+    (يضيّق بالصفر ويوسّع إلى خمس)، وملفُّ التخفيف يبقى لتشغيلٍ بعينه لمن لم يُقرَّ له سقفٌ محفوظ.
+    """
+    from dataclasses import replace
+
+    from operations.last_period_cap import admin_last_caps
+
+    stored = admin_last_caps(school, academic_year)
+    if not stored:
+        return config
+    spec = dict(config.relaxations)
+    merged = dict(spec.get("last_cap_override") or {})
+    merged.update(stored)
+    spec["last_cap_override"] = merged
     return replace(config, relaxations=tuple(sorted(spec.items(), key=lambda kv: kv[0])))
 
 
@@ -772,7 +794,11 @@ def run(
 ) -> tuple[RunResult, CpSatInputs]:
     """حلٌّ + تقييمٌ مستقلّ بلا كتابة. يميّز INFEASIBLE (برهان) عن UNKNOWN/المهلة وعن رفض المُقيِّم."""
     inputs = inputs if inputs is not None else load_inputs(school, academic_year)
-    config = with_admin_first_caps(with_school_policy(config, school), school, academic_year)
+    config = with_admin_last_caps(
+        with_admin_first_caps(with_school_policy(config, school), school, academic_year),
+        school,
+        academic_year,
+    )
     note = _rule_note(config)
     with school_solve_lock(school.pk):
         report = solve_inputs(
