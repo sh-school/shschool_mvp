@@ -5,7 +5,7 @@
 
   {% page_header "رصد الغياب — جناحي اليوم" subtitle=subtitle icon="attendance_register" %}
     <a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>
-  {% endpage_header %}
+  {% include "dashboard/partials/_leave_self.html" %}{% endpage_header %}
 
   {% include "wings/partials/student_search_form.html" %}
   {% if sup_day %}{% include "wings/partials/supervisor_day.html" %}{% endif %}
