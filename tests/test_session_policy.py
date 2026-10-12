@@ -201,12 +201,93 @@ class TestIdleRenewalIsThrottled:
         client.get(STATUS)
         assert client.session["_last_touch"] == stamp
 
+    def test_a_json_only_get_is_not_activity_even_without_the_ajax_header(self, teacher_user):
+        """استطلاعٌ بـ`Accept: application/json` وحدَه (توصية 0104) لا يجدّد الخمول."""
+        client = Client()
+        client.force_login(teacher_user)
+        _age(client, idle_for=6 * MINUTE)
+        stamp = client.session["_last_touch"]
+        client.get(_page(), HTTP_ACCEPT="application/json")
+        assert client.session["_last_touch"] == stamp
+
+    def test_the_command_center_poll_declares_itself_a_background_request(self):
+        """command_center.js يستطلع كلَّ بضع ثوانٍ؛ بلا الرأس كان يجدّد الخمول بلا نهاية فيُبطل المُهلة."""
+        source = pathlib.Path("static/js/command_center.js").read_text(encoding="utf-8")
+        assert '"X-Requested-With": "XMLHttpRequest"' in source
+
     def test_a_submitted_form_counts_as_activity(self, teacher_user):
         client = Client()
         client.force_login(teacher_user)
         _age(client, idle_for=6 * MINUTE)
         client.post(_page(), {"x": "1"})
         assert time.time() - client.session["_last_touch"] < 5
+
+
+@pytest.mark.django_db
+class TestWebSocketHandshake:
+    """المصافحةُ تحكم بمُهلتَي الجلسة نفسيهما (توصية 0104) — لا مقبسَ بكوكي جلسةٍ انتهت."""
+
+    @staticmethod
+    def _scope(user, *, idle_for=0, logged_in_for=0):
+        now = int(time.time())
+        session = {"_login_at": now - max(logged_in_for, idle_for), "_last_touch": now - idle_for}
+        return {"user": user, "session": session}
+
+    def test_a_live_session_may_connect(self, school):
+        user = _user_with_role(school, "teacher")
+        assert session_policy.websocket_ended(self._scope(user, idle_for=59 * MINUTE)) == ""
+
+    @pytest.mark.parametrize(
+        ("role", "idle_minutes"), [("teacher", 61), ("principal", 21), ("parent", 16)]
+    )
+    def test_an_idle_session_is_refused_by_the_roles_own_limit(self, school, role, idle_minutes):
+        user = _user_with_role(school, role)
+        scope = self._scope(user, idle_for=idle_minutes * MINUTE)
+        assert session_policy.websocket_ended(scope) == "idle"
+
+    def test_the_absolute_limit_is_refused_even_when_recently_active(self, school):
+        user = _user_with_role(school, "parent")
+        scope = self._scope(user, logged_in_for=2 * HOUR + MINUTE)
+        scope["session"]["_last_touch"] = int(time.time())
+        assert session_policy.websocket_ended(scope) == "absolute"
+
+    def test_a_session_without_stamps_or_a_scope_without_session_is_not_cut(self, school):
+        user = _user_with_role(school, "teacher")
+        assert session_policy.websocket_ended({"user": user, "session": {}}) == ""
+        assert session_policy.websocket_ended({"user": user}) == ""
+
+    def test_the_handshake_never_renews_the_idle_clock(self, school):
+        user = _user_with_role(school, "teacher")
+        scope = self._scope(user, idle_for=30 * MINUTE)
+        stamp = scope["session"]["_last_touch"]
+        session_policy.websocket_ended(scope)
+        assert scope["session"]["_last_touch"] == stamp
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_consumer_closes_before_accept_for_an_expired_session(school, settings):
+    """المقبسُ الفعليّ: جلسةٌ خامدةٌ تتجاوز خمولَ دورها تُرفض، وحيّةٌ تُقبل."""
+    import asyncio
+
+    from channels.testing import WebsocketCommunicator
+
+    from notifications.consumers import NotificationConsumer
+
+    settings.CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+    user = _user_with_role(school, "principal")
+
+    async def attempt(idle_for):
+        communicator = WebsocketCommunicator(NotificationConsumer.as_asgi(), "/ws/notifications/")
+        communicator.scope.update(
+            TestWebSocketHandshake._scope(user, idle_for=idle_for), url_route={"kwargs": {}}
+        )
+        connected, _ = await communicator.connect()
+        if connected:
+            await communicator.disconnect()
+        return connected
+
+    assert asyncio.run(attempt(30 * MINUTE)) is False
+    assert asyncio.run(attempt(MINUTE)) is True
 
 
 @pytest.mark.django_db

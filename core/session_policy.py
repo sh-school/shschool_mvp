@@ -194,11 +194,43 @@ def _user_initiated(request) -> bool:
     """طلبُ مستخدمٍ حقيقيّ: تصفّحٌ عاديّ أو إرسالٌ يغيّر شيئاً — لا استطلاعَ خلفيّاً (HTMX/fetch GET)."""
     if request.method not in ("GET", "HEAD"):
         return True
+    # من يطلب JSON وحدَه استطلاعٌ لا تصفّح: يُستبعد ولو نسي صاحبُه رأسَ X-Requested-With
+    # (command_center.js كان يجدّد الخمول بلا نهاية فيُبطله — توصية 0104).
+    wants_json_only = request.headers.get("Accept", "").startswith("application/json")
     return not (
         request.headers.get("HX-Request") == "true"
         or request.headers.get("X-Page-Nav") == "1"
         or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or wants_json_only
     )
+
+
+def ended_reason(login_at: int, touched: int, limits: Limits, now: int) -> str:
+    """سببُ انتهاء الجلسة بمُهلتَيها: «absolute» أو «idle»، و"" إن بقيت. حكمٌ واحدٌ للطلب والمصافحة."""
+    if now - login_at >= limits.absolute:
+        return "absolute"
+    if now - touched >= limits.idle:
+        return "idle"
+    return ""
+
+
+def websocket_ended(scope, *, now: int | None = None) -> str:
+    """يحكم على جلسة مصافحة WebSocket بالمُهلتين نفسيهما — يُستدعى في `connect` قبل `accept`.
+
+    المقبسُ ليس نشاطَ مستخدم فلا يجدّد شيئاً ولا يختم؛ وجلسةٌ بلا ختمٍ (سابقةٌ للسياسة) لا تُقطع
+    هنا لأنّ أوّل طلب HTTP لها يختمها. ويعيد "" إن بقيت، وسببَ الانتهاء إن انتهت.
+    ملاحظة: الحكمُ عند المصافحة وحدها؛ مقبسٌ مفتوحٌ لا يُقطع بعد ذلك، وقائمةُ الأجهزة المشتركة
+    لا تُطبَّق هنا (عنوانُ العميل خلف الوسيط ليس في النطاق).
+    """
+    user = scope.get("user")
+    session = scope.get("session")
+    if session is None or not user or not user.is_authenticated:
+        return ""
+    login_at, touched = session.get(LOGIN_AT_KEY), session.get(TOUCH_KEY)
+    if login_at is None or touched is None:
+        return ""
+    now = int(time.time()) if now is None else now
+    return ended_reason(login_at, touched, limits_for(user.get_role()), now)
 
 
 def enforce(request, *, now: int | None = None) -> str:
@@ -224,12 +256,7 @@ def enforce(request, *, now: int | None = None) -> str:
         session[ROLE_KEY] = request.user.get_role()
         return ""
 
-    limits = limits_for_request(request)
-    reason = ""
-    if now - login_at >= limits.absolute:
-        reason = "absolute"
-    elif now - touched >= limits.idle:
-        reason = "idle"
+    reason = ended_reason(login_at, touched, limits_for_request(request), now)
     if reason:
         logout(request)
         return reason
