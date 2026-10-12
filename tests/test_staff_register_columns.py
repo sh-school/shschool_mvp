@@ -93,7 +93,8 @@ class TestTheNameIsOneLine:
 class TestMergedColumnsKeepTheirSorts:
     @pytest.mark.parametrize(
         "key",
-        ["employee", "national", "email", "residence", "nationality"],
+        # «national» أُخفي من الواجهة (D-386م، W-20261011-013): عمودُ الرقم الوظيفيّ مفردٌ بلا سطرٍ شخصيّ.
+        ["employee", "email", "residence", "nationality"],
     )
     def test_each_label_in_a_stacked_header_still_sorts_by_its_own_key(self, key):
         """العمودُ المركّبُ سطرانِ كلٌّ برابط فرزه — فلا يُفقد فرزٌ بالدمج."""

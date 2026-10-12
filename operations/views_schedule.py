@@ -576,6 +576,11 @@ def _lab_group_columns(groups: list[dict]) -> list[list[dict]]:
     return [groups[:cut], groups[cut:]]
 
 
+def _score_label(score) -> str:
+    """تسميةُ درجة القسم: «درجة 87»، أو «درجة —» حين لا درجة له."""
+    return f"درجة {score}" if score is not None else "درجة —"
+
+
 @login_required
 @capability_required("schedule.admin")
 def schedule_quality_lab(request):
@@ -656,8 +661,7 @@ def schedule_quality_lab(request):
     }
     shown_groups = [g for g in groups if g["code"] != "validity"]
     for g in shown_groups:
-        score = scores.get(g["code"])
-        g["score_label"] = f"درجة {score}" if score is not None else "درجة —"
+        g["score_label"] = _score_label(scores.get(g["code"]))
     return render(
         request,
         "schedule/quality_lab.html",
