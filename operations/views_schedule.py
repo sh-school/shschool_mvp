@@ -20,7 +20,6 @@ from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for
 from core.capabilities import capability_required, has_capability
-from core.dashboard_presentation import chunk_for_grid
 from core.domain.tones import tone_for
 from core.exports.services import respond_export
 from core.models import CustomUser, Membership
@@ -43,21 +42,24 @@ from .models import (
 from .schedule_breaches import (
     budget_cut_notice,
     draft_breaches,
-    quality_display,
     unplaced_count,
 )
-from .schedule_selectors import mark_v2, pages_payload
+from .schedule_comparison import comparison_for_display as cmp
+from .schedule_decision import annotate_generation, current_card, split_generations
+from .schedule_lab import RELATIVE_CAP
+from .schedule_selectors import generation_status_payload, mark_v2, pages_payload
 from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
 from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
+from .scheduler_v2.limits import GENERATION_STALE_AFTER_SECONDS
 from .services import AbsenceSwapService, ScheduleService, SubstituteService, schedule_gate
 from .services.substitute import TEACHING_ROLES
 
 logger = logging.getLogger(__name__)
 
 #: بعدها يُعدّ التوليدُ المعلّقُ ميّتاً. والحدُّ أكبرُ من `soft_time_limit`
-#: للمهمّة (خمس عشرة دقيقة) بهامشِ انتظارٍ في الطابور — فما تجاوزه لم يعد
-#: ينتظر عاملاً، بل يحجب الزرَّ عمّن يريد إعادةَ المحاولة.
-_GENERATION_STALE_AFTER = timedelta(minutes=20)
+#: للمهمّة بهامشِ انتظارٍ في الطابور — فما تجاوزه لم يعد ينتظر عاملاً، بل يحجب
+#: الزرَّ عمّن يريد إعادةَ المحاولة. ومصدرُه الوحيد `scheduler_v2/limits.py`.
+_GENERATION_STALE_AFTER = timedelta(seconds=GENERATION_STALE_AFTER_SECONDS)
 
 
 def _may_decide_schedule(user) -> bool:
@@ -89,7 +91,7 @@ def _reap_stale_generations(school, year):
         status="failed",
         finished_at=timezone.now(),
         error_message=(
-            "لم يلتقط عاملُ الخلفيّة هذه المهمّة خلال عشرين دقيقة — "
+            "لم يلتقط عاملُ الخلفيّة هذه المهمّة خلال الزمن المسموح — "
             "غالباً لأنّ Celery متوقّف. راجع تشغيلَه ثمّ أعد المحاولة."
         ),
     )
@@ -559,6 +561,26 @@ def _quality_gate_kpis(by_key: dict) -> list[dict]:
     ]
 
 
+def _lab_group_columns(groups: list[dict]) -> list[list[dict]]:
+    """يقسم أقسامَ المؤشرات إلى عمودَين مكدّسَين متتابعَين (الأوّلُ يحمل الرأس).
+
+    قسمٌ بصفٍّ كاملٍ لكلّ قسم كان يترك عن جانبه فراغاً بقدر ما تنقص بطاقاتُه، فطالت الصفحةُ
+    وتبعثرت حوافُّها. هنا يُختار موضعُ القطع الذي يقلّل ارتفاعَ العمود الأطول (وزنُ القسم:
+    عددُ بطاقاته مع رأسه)، والترتيبُ المتتابعُ يحفظ ترتيبَ القراءة على الجوّال (عمودٌ واحد).
+    وعددُ الأقسام وأحجامُها من بنية المؤشرات لا من البيانات، فالمواقعُ ثابتةٌ كما تقرّر للّوحات.
+    """
+    if len(groups) < 2:
+        return [groups] if groups else []
+    weights = [len(g["rows"]) + 1 for g in groups]
+    cut = min(range(1, len(groups)), key=lambda i: max(sum(weights[:i]), sum(weights[i:])))
+    return [groups[:cut], groups[cut:]]
+
+
+def _score_label(score) -> str:
+    """تسميةُ درجة القسم: «درجة 87»، أو «درجة —» حين لا درجة له."""
+    return f"درجة {score}" if score is not None else "درجة —"
+
+
 @login_required
 @capability_required("schedule.admin")
 def schedule_quality_lab(request):
@@ -639,8 +661,7 @@ def schedule_quality_lab(request):
     }
     shown_groups = [g for g in groups if g["code"] != "validity"]
     for g in shown_groups:
-        score = scores.get(g["code"])
-        g["score_label"] = f"درجة {score}" if score is not None else "درجة —"
+        g["score_label"] = _score_label(scores.get(g["code"]))
     return render(
         request,
         "schedule/quality_lab.html",
@@ -657,6 +678,7 @@ def schedule_quality_lab(request):
             "generations": generations,
             "baseline": baseline,
             "groups": shown_groups,
+            "group_cols": _lab_group_columns(shown_groups),
             "gate": by_key,
             "by_key": by_key,
             "scores": scores,
@@ -706,54 +728,40 @@ def smart_schedule_view(request):
 
     occupied_slots = _Cap.slot_demand(assignments)
     shared_periods = total_weekly - occupied_slots
-    # ما وُضع فعلاً مقابلَ ما تطلبه التوزيعاتُ اليوم — لا رقمٌ مجرَّدٌ لا يُقاس على شيء.
-    # ومسودّةٌ لم تعد تغطّي الطلبَ الحاليَّ هي بالضبط ما يجب أن يلفت النظر.
-    # مؤشراتُ المختبر لكلّ توليدٍ بجانب الأساس المرجعيّ: فرقٌ لا رقمٌ مجرَّد.
-    from operations.schedule_lab import (
-        ScheduleLab,
-        compare,
-        latest_baseline,
-        overall_score,
-        relative_score,
-    )
+    # ما وُضع فعلاً مقابلَ ما تطلبه التوزيعاتُ اليوم — ومسودّةٌ لم تعد تغطّي الطلبَ الحاليَّ
+    # هي بالضبط ما يجب أن يلفت النظر. ونسبةُ الأساس لتوليدات V2 وحدَها (schedule_decision).
+    from operations.schedule_lab import latest_baseline
 
     baseline = latest_baseline(school, year)
     for g in generations:
-        g.placed = g.slot_rows or g.total_slots_created
-        ratio = 100 * g.placed / total_weekly if total_weekly else 0.0
-        # المؤشّراتُ تُعاد من الحصص لا تُقرأ من الصفّ: المخزَّنُ كُتب بتعريفاتِ
-        # يومه، وقراءتُه بمنحنيات اليوم تخلط مسطرتين في عمودٍ واحد. والحصصُ
-        # هي الواقعة، والدرجةُ حكمٌ يُشتقّ منها كلَّما عُرض.
-        lab = ScheduleLab.for_generation(g).compute() if g.placed else (g.metrics or {})
-        g.lab_rows = compare(lab, baseline.metrics if baseline else None) if lab else []
-        g.lab_absolute = overall_score(lab) if lab else None
-        g.lab_relative = relative_score(lab, baseline.metrics) if baseline and lab else None
-        # نصٌّ لا رقم: `floatformat` يتبع اللغةَ فيكتب «100٫0»، والرقمُ هنا يُقرأ ويُقارَن.
-        g.placed_ratio = f"{ratio:.1f}"
+        annotate_generation(g, total_weekly, baseline)
 
-    #: الحسابُ بالعدّ يسبق البحثَ بالساعات — طاقةُ الشُّعب والمعلّمين والموارد
-    #: وتباعدُ الأيّام. وكان هنا فحصُ الشُّعب وحدَه، وهو اليومَ أحدُ خمسة.
-    from operations import constraint_registry, schedule_feasibility
+    #: فحصُ الجدوى بالعدّ يسبق البحثَ — لكنّه عند الطلب لا عند كلّ فتح (W-20261010-003):
+    #: طاقةُ الشُّعب والمعلّمين والموارد وتباعدُ الأيّام، ولا يحجب البوّابةَ الخادميّةَ شيء.
+    from operations import schedule_feasibility
 
-    feasibility = schedule_feasibility.check(school, year)
-    #: ما خالف افتراضَ الشيفرة من القيود — يُعرض ليُقاس، فالرتبةُ لا يكشف
-    #: أثرَها عدٌّ: الفحصُ يقيس الطاقةَ لا تشابكَ القيود.
-    policy = constraint_registry.resolve(school, year)
-    overridden = [(code, constraint_registry.REGISTRY[code].title) for code in policy.overridden]
+    feasibility = (
+        schedule_feasibility.check(school, year) if request.GET.get("feasibility") else None
+    )
 
     return render(
         request,
         "schedule/smart_schedule.html",
         {
             **_smart_schedule_presentation(generations, year, occupied_slots, shared_periods),
-            # حكمُ الفحص في طرف ترويسته — كان لونَ الشريط كلِّه وحدَّ البطاقة.
-            "feasibility_verdict": "عجزٌ يقينيّ" if feasibility.blocking else "لا عجزَ في العدّ",
+            # حكمُ الفحص في طرف ترويسته؛ ولا حكمَ قبل أن يُطلب الفحص.
+            "feasibility_verdict": (
+                ""
+                if feasibility is None
+                else "عجزٌ يقينيّ"
+                if feasibility.blocking
+                else "لا عجزَ في العدّ"
+            ),
             "occupied_slots": occupied_slots,
             "shared_periods": shared_periods,
             # جدولُ التوزيعات كان يُعرض هنا كاملاً — وشاشةُ الإسناد تعرضه
             # بأدواتها. فبقي العددُ وحدَه: مؤشّراً في الأعلى، وشرطاً للفراغ.
             "assignments_count": len(assignments),
-            "generations": generations,
             "pending_generation": pending_generation,
             # زرُّ الاعتماد لمن يملكه: كان يظهر لكلّ من يرى الصفحةَ، و`admin`
             # يضغطه فيُصدَم بـ403.
@@ -764,7 +772,6 @@ def smart_schedule_view(request):
             "classes_count": assignments.values("class_group").distinct().count(),
             "teachers_count": assignments.values("teacher").distinct().count(),
             "feasibility": feasibility,
-            "constraint_overrides": overridden,
         },
     )
 
@@ -772,39 +779,20 @@ def smart_schedule_view(request):
 def _smart_schedule_presentation(generations, year, occupied_slots, shared_periods) -> dict:
     """ما يُحكم فيه بشرطٍ في صفحة التوليد — يُحسب هنا لا في القالب.
 
-    * لونُ الدرجة المنسوبة إلى الأساس: 98 فأعلى نجاح، و90 فأعلى تنبيه، وما
-      دونها خطر — العتباتُ التي كانت في القالب.
-    * مؤشّراتُ المختبر مصفوفةٌ واحدة: صفٌّ لكلّ مؤشّر، وعمودٌ للأساس ثمّ عمودٌ
-      لكلّ توليد. كانت جدولاً داخل `details` داخل صفٍّ من سجلّ التوليد، لكلّ
-      توليدٍ جدولُه، فلا يُقارَن توليدٌ بتوليدٍ إلّا بفتح اثنين والتنقّل بينهما.
-    * وصفوفُها لا تُقصّ (اثنان وعشرون مؤشّراً فأكثر) ومحتوى الصفّ ضيّق — فتُقسَّم
-      ثلاثة أعمدةٍ متجاورة (معيار تخطيط الصفحات) بدل عمودٍ واحدٍ يطيل الصفحة.
+    * لونُ الدرجة المنسوبة إلى الأساس: 98 فأعلى نجاح، و90 فأعلى تنبيه، وما دونها خطر.
+    * بطاقةُ القرار بالمؤشّرات الخمسة لأحدث مسودّة V2 (`schedule_decision`) بدل مصفوفة
+      الاثنين والعشرين مؤشّراً لكلّ توليد؛ وصفوفُ المحرّك السابق المنتهية تُطوى بلا أزرار.
     """
     for g in generations:
-        g.lab_tone = tone_for(g.lab_relative, LAB_RELATIVE_TONES, empty="")
+        g.comparison, g.lab_tone = cmp(g), tone_for(g.lab_relative, LAB_RELATIVE_TONES, empty="")
         # ما بقي مكسوراً بموضعه — والإقرارُ به شرطُ اعتماد المسودّة (SCH-05).
         g.breaches = draft_breaches(g.config_snapshot)
         g.budget_cut = budget_cut_notice(g.config_snapshot)
         g.unplaced_count = unplaced_count(g.config_snapshot)
         # الإقرارُ شرطٌ لمخالفاتٍ أو لمتعذّراتٍ (OR-01) — والعددُ الذي يُعرض على الزرّ مجموعُهما.
         g.gate_total = (g.breaches["count"] if g.breaches else 0) + g.unplaced_count
-        g.quality = quality_display(
-            g.lab_relative, g.unplaced_count, g.breaches["count"] if g.breaches else 0
-        )
-    measured = [g for g in generations if g.lab_rows]
-    rows: dict[str, dict] = {}
-    for column, g in enumerate(measured):
-        for r in g.lab_rows:
-            row = rows.setdefault(
-                r["key"],
-                {
-                    "label": r["label"],
-                    "unit": r["unit"],
-                    "baseline": r["baseline"],
-                    "cells": [None] * len(measured),
-                },
-            )
-            row["cells"][column] = r
+    shown, folded = split_generations(generations)
+    decision_generation, decision = current_card(generations)
     return {
         "page_subtitle": f"توليد الجدول الأسبوعي تلقائياً — {year}",
         # الرقمان معاً حيث يُقرأ المجموع: الحصصُ تُدرَّس، والخاناتُ تُشغَل.
@@ -814,9 +802,11 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
             if shared_periods
             else ""
         ),
-        "lab_columns": measured,
-        "lab_matrix": list(rows.values()),
-        "lab_matrix_cols": chunk_for_grid(list(rows.values()), 3),
+        "generations": shown,
+        "folded_generations": folded,
+        "decision": decision,
+        "decision_generation": decision_generation,
+        "relative_cap": RELATIVE_CAP,
     }
 
 
@@ -865,10 +855,10 @@ def smart_generate(request):
 
     generation = gate.create_generation(school, request.user)
 
-    from .tasks import generate_smart_schedule_task
+    from .scheduler_v2.tasks import generate_schedule_v2_task
 
     try:
-        generate_smart_schedule_task.delay(str(generation.id))
+        generate_schedule_v2_task.delay(str(generation.id))
     except Exception as exc:  # وسيطُ الرسائل ساقطٌ أو غيرُ مهيّأ
         # ولا يُترك الصفُّ «في الانتظار» إلى الأبد: انتظارٌ بلا عاملٍ كذبةٌ
         # صامتة. يُقال إنّ العاملَ غيرُ متاح، ويُقال ماذا يفعل المسؤول.
@@ -911,6 +901,8 @@ def smart_generate_status(request):
             "id",
             "status",
             "quality_score",
+            "soft_violations",
+            "config_snapshot",
             "total_slots_created",
             "generation_time_ms",
             "error_message",
@@ -920,18 +912,7 @@ def smart_generate_status(request):
     if generation is None:
         return JsonResponse({"status": None, "pending": False})
 
-    return JsonResponse(
-        {
-            "id": str(generation.id),
-            "status": generation.status,
-            "status_label": generation.get_status_display(),
-            "pending": generation.is_pending,
-            "quality": round(generation.quality_score),
-            "slots": generation.total_slots_created,
-            "elapsed_ms": generation.generation_time_ms,
-            "error": generation.error_message,
-        }
-    )
+    return JsonResponse(generation_status_payload(generation))
 
 
 @login_required
@@ -1025,27 +1006,26 @@ def teacher_preferences(request):
         pref.max_daily_periods = _one_of(request.POST.get("max_daily_periods"), range(1, 8), 5)
         #: و«حصّةٌ واحدة» سقفٌ مشروع: أي لا حصّتين متجاورتين البتّة — وهو
         #: قيدٌ قائمٌ لمعلّمٍ في المدرسة، والمحرّكُ يقرؤه ولا يرفعه في الاسترخاء.
-        pref.max_consecutive = _one_of(request.POST.get("max_consecutive"), range(1, 8), 3)
+        pref.max_consecutive = _one_of(request.POST.get("max_consecutive"), range(1, 8), None)
         #: سقفُ الفراغ اختياريّ: الفراغُ لعامّة الكادر ترجيحٌ مرن، ومن اختار
         #: سقفاً صار في حقّه قيداً صلباً. فالفراغُ نصّاً لا يُقرأ افتراضيّاً
         #: بل يُقرأ عدماً — و«0» قيمةٌ صحيحةٌ تعني «لا فراغَ البتّة».
         max_gap = request.POST.get("max_gap", "")
         pref.max_gap = _one_of(max_gap, range(0, 6), None) if max_gap != "" else None
-        free_day = request.POST.get("free_day", "")
-        pref.free_day = _one_of(free_day, range(0, 5), None) if free_day else None
+        #: يومُ التفريغ قرارٌ إداريّ (W-20261010-025): يُقرأ من الصفّ المحفوظ ولا يُقرأ من الطلب.
         pref.notes = request.POST.get("notes", "")
 
         # قيودٌ لا تسع النصاب تُردّ بحسابها لا تُحفظ: «متتالية 1» مع «فراغ 0»
         # حصّةٌ واحدةٌ في اليوم — ومن حفظها ونصابُه اثنتا عشرةَ رأى سبعاً بلا
         # موضعٍ في التوليد ولم يعرف لماذا.
-        from operations.preference_capacity import explain_shortfall, weekly_capacity
+        from operations import preference_capacity as pc
 
         load = sum(
             SubjectClassAssignment.objects.filter(
                 school=school, academic_year=year, teacher=request.user, is_active=True
             ).values_list("weekly_periods", flat=True)
         )
-        capacity = weekly_capacity(
+        capacity = pc.weekly_capacity(
             pref.max_daily_periods, pref.max_consecutive, pref.max_gap, pref.free_day
         )
         # وقرارُ 2026-09-06: النصابُ يُقسم على الأيّام بفرقِ حصّةٍ على الأكثر،
@@ -1064,11 +1044,11 @@ def teacher_preferences(request):
         elif capacity < load:
             messages.error(
                 request,
-                explain_shortfall(request.user.full_name, capacity, load, pref) + ". لم يُحفظ.",
+                pc.explain_shortfall(request.user.full_name, capacity, load, pref) + ". لم يُحفظ.",
             )
             pref.refresh_from_db()
         else:
-            pref.save(update_fields=pref.TEACHER_EDITABLE_FIELDS)
+            pc.save_teacher_preferences(request, pref)
             messages.success(request, "تم حفظ تفضيلاتك للجدولة الذكية")
             # العامُ يبقى في الرابط: الرجوعُ بلا عامٍ يفتح تفضيلاتِ عامٍ آخر.
             return safe_redirect(request, "teacher_preferences", {"year": year})

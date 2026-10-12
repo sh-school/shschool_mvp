@@ -33,6 +33,7 @@ ALLOWED_READERS = {
     "operations/admin.py": "عرضُ قراءةٍ فقط (`ReadOnlyAdminMixin`)",
     "operations/day_attendance.py": "دوكسترنغٌ يصف القرار",
     "governance/erasure_service.py": "محوُ الطالب (PDPPL م.18) يمحو السجلَّ ويحصي ما محا",
+    "notifications/teacher_alerts.py": "تنبيهُ «حصّة بلا رصد»: وجودُ إدخالٍ للحصّة يكفي لإسقاط التنبيه — قراءةُ وجودٍ لا حالة (W-20261010-042)",
 }
 
 #: مواضعُ في خدمات الجداول تذكر العلاقةَ العكسيّةَ لغرضٍ غيرِ الاحتساب — كلُّ سطرٍ باسمه وسببه.

@@ -744,3 +744,36 @@ def test_apply_does_not_reject_a_real_five_or_six_digit_employee_number(tmp_path
         }
     )
     assert problems == []
+
+
+# ══════════════════════════════════════════════════════════════════
+# أقسامُ المنسّق والمعلّمَين (W-20261010-026): نطاقُ «اطّلاع تفضيلات المعلّمين» يحتاج قسماً
+# ══════════════════════════════════════════════════════════════════
+
+
+def test_the_coordinator_and_teachers_are_seeded_into_their_departments(school, preview_env):
+    from core.models import Department
+
+    math = Department.objects.create(school=school, name="الرياضيات", code="math")
+    arabic = Department.objects.create(school=school, name="اللغة العربية", code="arabic")
+    with PREVIEW:
+        _sync()
+        _sync()  # idempotent
+
+    def dept_of(role):
+        m = Membership.objects.get(user__national_id=pa.ROLES[role], is_active=True)
+        return m.department_obj
+
+    assert dept_of("coordinator") == math
+    assert dept_of("teacher") == math
+    assert dept_of("ese_teacher") == arabic
+    assert dept_of("principal") is None
+
+
+def test_a_missing_department_is_reported_not_created(school, preview_env, capsys):
+    from core.models import Department
+
+    with PREVIEW:
+        _sync()
+    assert "قسمٌ غائب" in capsys.readouterr().out
+    assert not Department.objects.filter(school=school).exists()

@@ -6,7 +6,9 @@
 قراراتُ 2026-09-13:
 
 - **لا رقمَ شخصيّاً** في الكشف: الاسمُ يكفي لمن يوقّع، وأقلُّ البيانات أسلم.
-- **ثلاثةُ تواقيع**: مشرفُ الجناح، والنائبُ الإداريّ، ومديرُ المدرسة.
+- **توقيعٌ واحد**: مشرفُ الجناح وحدَه (D-385م، 2026-10-11 — يُلغي قرارَ الثلاثة تواقيع).
+- **مصدران للرصد**: التثبيتُ القديم (`PeriodConfirmation`) ورصدُ المعلّم من جدول الشعبة (دفترُ الإدخال)؛ الكشفُ يقرؤهما معاً،
+  والرصدُ بالإدخال يطابق لوحةَ المشرف بفرق 0 لأنّه يعدّ بـ`entry_tallies_by_start` نفسِها (W-20261011-011).
 - **الكشفُ الجزئيّ مسموح**: يومٌ لم تُثبَّت حصصُه كلُّها يُطبع موسوماً «كشفٌ جزئيٌّ
   حتى HH:MM» — فلا يُحسب ورقُ الصباح كشفَ يومٍ كامل.
 - **كشفُ الجناح**: مصفوفةُ شُعبه × حصص اليوم (وقتُ أوّل تثبيتٍ أو «لم تُرصد» أو
@@ -20,7 +22,8 @@ from dataclasses import dataclass, field
 
 from django.utils import timezone
 
-from core.models import Membership
+from core.ministry import ministry_line, ministry_name
+from operations.attendance_selectors import entry_heads_by_start, entry_tallies_by_start
 from operations.day_attendance import enrolled_of
 from operations.period_register import cells_of, periods_of
 
@@ -45,6 +48,9 @@ STATUS_LABEL = {
     "missed": "لم تُرصد",
     "upcoming": "قادمة",
 }
+
+
+ENTERED_LABEL = "رُصدت"
 
 
 @dataclass(frozen=True)
@@ -88,6 +94,8 @@ class Column:
     present: int
     absent: int
     late: int
+    #: رصدُ المعلّم من جدول الشعبة (إدخالٌ) لا تثبيتُ مشرف — فوسمُها «رُصدت» لا «مثبّتة».
+    from_entries: bool = False
 
     @property
     def is_confirmed(self) -> bool:
@@ -95,6 +103,8 @@ class Column:
 
     @property
     def label(self) -> str:
+        if self.from_entries:
+            return ENTERED_LABEL
         return STATUS_LABEL.get(self.status, "")
 
 
@@ -186,17 +196,6 @@ class WingRegister:
         return f"كشف حضور الحصص — {self.wing.name}"
 
 
-def _holder(school, role: str) -> str:
-    """اسمُ صاحب الدور في المدرسة — وإن لم يُسجَّل فخانةُ التوقيع تبقى للكتابة باليد."""
-    membership = (
-        Membership.objects.filter(school=school, is_active=True, role__name=role)
-        .select_related("user")
-        .order_by("user__full_name")
-        .first()
-    )
-    return membership.user.full_name if membership else ""
-
-
 def footer_lines(school) -> tuple[str, str]:
     """ذيلُ كلّ صفحةٍ مطبوعة — نصُّ ذيل `base_qatar_report` نفسُه، للطباعة وExcel.
 
@@ -215,29 +214,50 @@ def footer_lines(school) -> tuple[str, str]:
     vision = render_to_string("components/ministry_vision.html", {"school": school}).strip()
     return (
         " · ".join(p for p in parts if p),
-        f"وزارة التربية والتعليم والتعليم العالي — دولة قطر — {vision}",
+        ministry_line(ministry_name(), vision),
     )
 
 
 def signatories(wing, day: dt.date) -> list[Signatory]:
-    """المشرفُ ثمّ النائبُ الإداريّ ثمّ المدير — بترتيب التوقيع على الورق."""
+    """مشرفُ الجناح وحدَه (D-385م) — وإن لم يُعيَّن فخانةُ التوقيع تبقى للكتابة باليد."""
     holder = wing.current_supervisor(day) if wing is not None else None
-    school = wing.school if wing is not None else None
-    return [
-        Signatory("مشرف الجناح", holder.full_name if holder else ""),
-        Signatory("النائب الإداري", _holder(school, "vice_admin") if school else ""),
-        Signatory("مدير المدرسة", _holder(school, "principal") if school else ""),
-    ]
+    return [Signatory("مشرف الجناح", holder.full_name if holder else "")]
 
 
 def section_register(class_group, day: dt.date, now: dt.datetime | None = None) -> SectionRegister:
     now = now or timezone.now()
     periods = periods_of(class_group, day)
     cells = cells_of(class_group, day)
+    entry_heads = entry_heads_by_start(class_group, day)
+    tallies = entry_tallies_by_start(class_group, day)
+    # أوّلُ إدخالٍ في كلّ خانة — وقتُ «أوّل رصد» حين لا تثبيتَ للمشرف.
+    first_entered: dict = {}
+    for heads in entry_heads.values():
+        for start, head in heads.items():
+            if start not in first_entered or head.entered_at < first_entered[start]:
+                first_entered[start] = head.entered_at
 
     columns = []
     for period in periods:
         c = period.confirmation
+        if c is None and period.start in tallies:
+            tally = tallies[period.start]
+            columns.append(
+                Column(
+                    number=period.number,
+                    start=period.start,
+                    end=period.end,
+                    subjects=period.subjects,
+                    status="confirmed",
+                    first_confirmed_at=timezone.localtime(first_entered[period.start]),
+                    confirmed_by="",
+                    present=tally["present"],
+                    absent=tally["absent"],
+                    late=tally["late"],
+                    from_entries=True,
+                )
+            )
+            continue
         columns.append(
             Column(
                 number=period.number,
@@ -257,12 +277,17 @@ def section_register(class_group, day: dt.date, now: dt.datetime | None = None) 
     rows = []
     for index, enrollment in enumerate(enrolled_of(class_group), start=1):
         own = cells.get(enrollment.student_id, {})
+        own_entries = entry_heads.get(enrollment.student_id, {})
         marks = []
         for period in periods:
             cell = own.get(period.start) if period.start in confirmed else None
-            marks.append(
-                Mark(cell.status, cell.late_minutes, cell.whereabouts) if cell else Mark("")
-            )
+            head = None if cell else own_entries.get(period.start)
+            if cell:
+                marks.append(Mark(cell.status, cell.late_minutes, cell.whereabouts))
+            elif head and period.start not in confirmed:
+                marks.append(Mark(head.status, head.late_minutes))
+            else:
+                marks.append(Mark(""))
         rows.append(Row(index, enrollment.student.full_name, marks))
 
     wing = class_group.wing if class_group.wing_id else None

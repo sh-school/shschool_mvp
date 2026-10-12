@@ -10,7 +10,7 @@
    بلا نظرٍ في حالة الردّ ولا في `no-store` الذي يضعه الخادمُ لكلّ صفحةِ
    مسجَّل. فالصفحاتُ الآن من الشبكة وحدَها، وعند الانقطاع صفحةُ «غير متصل»؛
    ولا يُحفظ إلّا الثابتُ تحت /static/. ورفعُ الإصدار يمحو v2 وما فيها. */
-const CACHE_NAME = 'schoolos-parents-v3';
+const CACHE_NAME = 'schoolos-parents-v5';
 const OFFLINE_URL = '/parents/offline/';
 
 /* لا يُخزَّن مسبقاً إلّا صفحةُ الانقطاع — لا بياناتِ فيها. */
@@ -105,8 +105,8 @@ self.addEventListener('push', event => {
   const title = data.title || 'SchoolOS';
   const options = {
     body:    data.body || 'لديك إشعار جديد من المدرسة',
-    icon:    '/static/icons/icon-192.png',
-    badge:   '/static/icons/badge-72.png',
+    icon:    '/static/icons/v3/icon-192.png',
+    badge:   '/static/icons/v3/badge-72.png',
     dir:     'rtl',
     lang:    'ar',
     vibrate: [200, 100, 200],

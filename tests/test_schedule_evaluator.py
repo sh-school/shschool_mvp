@@ -13,7 +13,13 @@ import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
-from operations.models import ScheduleSlot, Subject, SubjectClassAssignment, TimeSlotConfig
+from operations.models import (
+    ScheduleRelaxationPolicy,
+    ScheduleSlot,
+    Subject,
+    SubjectClassAssignment,
+    TimeSlotConfig,
+)
 from operations.schedule_evaluator import (
     EvaluatorInputError,
     evaluate_slots,
@@ -35,6 +41,8 @@ NAMES = ("معلّم أوّل", "معلّم ثانٍ")
 @pytest.fixture
 def scene(school):
     """شعبةٌ واحدة، مادّتان بثلاث حصصٍ لكلٍّ منهما، معلّمان — جدولٌ صغيرٌ يولَّد في ثوانٍ."""
+    #: هذه الاختباراتُ تحكم بالتلاصق الصارم؛ والتخفيفُ المدرسيّ الافتراضيّ (D-382م) له ملفُّه: test_schedule_relaxation_policy.
+    ScheduleRelaxationPolicy.objects.create(school=school, relax_touch_for_all=False)
     for period in range(1, 8):
         for day_type in ("regular", "thursday"):
             TimeSlotConfig.objects.create(
@@ -263,6 +271,7 @@ def run_scene(school):
     """ثلاثُ شعبٍ ومعلّمٌ واحدٌ يدرّس كلاً منها حصّةً، وحصصُ اليوم متلاصقةٌ (فراغ عشر دقائق)."""
     from types import SimpleNamespace
 
+    ScheduleRelaxationPolicy.objects.create(school=school, relax_touch_for_all=False)
     for period in range(1, 8):
         for day_type in ("regular", "thursday"):
             TimeSlotConfig.objects.create(

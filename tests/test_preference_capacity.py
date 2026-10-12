@@ -85,7 +85,7 @@ def test_saving_contradictory_preferences_is_refused(client, school, maths_teach
     body = response.content.decode()
     assert "تسع 5 حصّةً" in body and "نصابُه 12" in body
     pref = TeacherPreference.objects.get(teacher=maths_teacher)
-    assert (pref.max_consecutive, pref.max_gap) == (3, None), "لم يُحفظ المتناقض"
+    assert (pref.max_consecutive, pref.max_gap) == (None, None), "لم يُحفظ المتناقض"
 
 
 def test_a_feasible_preference_is_saved(client, school, maths_teacher):

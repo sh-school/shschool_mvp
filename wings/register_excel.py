@@ -12,6 +12,7 @@ from openpyxl.utils import get_column_letter
 
 from core import brand
 from core.export_utils import add_excel_title_rows, excel_table_styles, xl_fill, xl_font
+from core.ministry import ministry_line, ministry_name
 from reports.services import ExcelService
 
 from .register import LETTER, UNRECORDED, WHERE_CODE
@@ -61,13 +62,14 @@ def _stamp(register) -> str:
 
 
 def _signatures(ws, row: int, num_cols: int, signatories) -> int:
-    """ثلاثُ خاناتِ توقيعٍ متجاورة: المسمّى، ثمّ الاسم، ثمّ سطرُ التوقيع."""
+    """خانةُ توقيعِ مشرف الجناح وحدَه (D-385م) في وسط الصفّ: المسمّى، ثمّ الاسم، ثمّ سطرُ التوقيع."""
     row += 1
-    third = max(1, num_cols // 3)
+    width = max(1, num_cols // 3)
+    start = 1 + max(0, (num_cols - width * len(signatories)) // 2)
     line = Border(bottom=Side(style="thin", color=brand.excel(brand.TEXT_PRIMARY)))
     for index, person in enumerate(signatories):
-        first = 1 + index * third
-        last = num_cols if index == len(signatories) - 1 else first + third - 1
+        first = start + index * width
+        last = min(num_cols, first + width - 1)
         for offset, (value, font, height) in enumerate(
             (
                 (person.title, xl_font(brand.MAROON, size=10, bold=True), 20),
@@ -105,7 +107,7 @@ def write_section_sheet(
     add_excel_title_rows(
         ws,
         num_cols,
-        f"{school_name}  —  وزارة التربية والتعليم والتعليم العالي",
+        ministry_line(school_name, ministry_name(short=True), sep="  —  "),
         f"{register.title}  —  {register.day:%Y/%m/%d}",
         f"{wing}  |  {_stamp(register)}  |  صدر بواسطة: {exported_by}",
     )
@@ -205,7 +207,7 @@ def write_wing_summary(
     add_excel_title_rows(
         ws,
         num_cols,
-        f"{school_name}  —  وزارة التربية والتعليم والتعليم العالي",
+        ministry_line(school_name, ministry_name(short=True), sep="  —  "),
         f"{register.title}  —  {register.day:%Y/%m/%d}",
         f"ملخّصُ رصد الحصص  |  {_stamp(register)}  |  صدر بواسطة: {exported_by}",
     )
