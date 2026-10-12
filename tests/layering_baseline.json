@@ -347,7 +347,7 @@
    "orm": 7
   },
   "core/views_auth.py::login_view": {
-   "lines": 91,
+   "lines": 85,
    "orm": 22
   },
   "core/views_auth.py::verify_2fa": {

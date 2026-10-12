@@ -57,7 +57,7 @@
   "core/templatetags/ui.py": 21,
   "core/tenancy.py": 5,
   "core/validators.py": 7,
-  "core/views_auth.py": 17,
+  "core/views_auth.py": 16,
   "developer_feedback/models.py": 2,
   "developer_feedback/services/ticketing.py": 1,
   "exam_control/models.py": 7,
@@ -121,5 +121,5 @@
   "wings/scope.py": 1,
   "wings/services.py": 14
  },
- "total": 1180
+ "total": 1179
 }

@@ -3,6 +3,7 @@ import logging
 import time
 from datetime import timedelta
 from io import BytesIO
+from typing import Any
 
 import django.db
 import pyotp
@@ -14,7 +15,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.signals import user_logged_in
 from django.db import transaction
 from django.db.models import F
-from django.http import JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -224,6 +225,23 @@ def axes_lockout_response(request, credentials=None):
     )
 
 
+def _begin_two_factor(request: HttpRequest, user: Any, kind: str) -> HttpResponse:
+    """يحجز مصدَّقاً بكلمة المرور في الجلسة ويحوّله إلى خطوة الرمز الثاني."""
+    request.session["pending_2fa_user"] = str(user.id)
+    request.session["pending_identifier_kind"] = kind
+    # `authenticate()` يعلّق على المستخدم اسمَ الخلفيّة التي صدّقته، و`login()`
+    # يشترطه حين تتعدّد الخلفيّات. وصفحةُ التحقّق تُحمِّل المستخدمَ من القاعدة
+    # من جديد فلا تجده — فيُحمَل هنا في الجلسة إلى هناك.
+    request.session["pending_2fa_backend"] = getattr(user, "backend", "")
+    # `next` يُحمَل إلى خطوة الرمز، وإلّا ضاعت وجهةُ العودة (نافذة إعادة الدخول).
+    nxt = request.GET.get("next", "")
+    if nxt and url_has_allowed_host_and_scheme(
+        nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return redirect(f"{reverse('verify_2fa')}?{urlencode({'next': nxt})}")
+    return redirect("verify_2fa")
+
+
 @xframe_options_sameorigin  # نافذةُ إعادة الدخول في الصفحة نفسها (session-guard.js) تُدرج هذه الصفحةَ في إطار
 @ratelimit(key="ip", rate="10/m", method="POST", block=True)
 def login_view(request):
@@ -278,19 +296,7 @@ def login_view(request):
                 and requires_two_factor(user)
                 and getattr(settings, "TWO_FACTOR_REQUIRED_FOR_STAFF", True)
             ):
-                request.session["pending_2fa_user"] = str(user.id)
-                request.session["pending_identifier_kind"] = kind
-                # `authenticate()` يعلّق على المستخدم اسمَ الخلفيّة التي صدّقته، و`login()`
-                # يشترطه حين تتعدّد الخلفيّات. وصفحةُ التحقّق تُحمِّل المستخدمَ من القاعدة
-                # من جديد فلا تجده — فيُحمَل هنا في الجلسة إلى هناك.
-                request.session["pending_2fa_backend"] = getattr(user, "backend", "")
-                # `next` يُحمَل إلى خطوة الرمز، وإلّا ضاعت وجهةُ العودة (نافذة إعادة الدخول).
-                nxt = request.GET.get("next", "")
-                if nxt and url_has_allowed_host_and_scheme(
-                    nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure()
-                ):
-                    return redirect(f"{reverse('verify_2fa')}?{urlencode({'next': nxt})}")
-                return redirect("verify_2fa")
+                return _begin_two_factor(request, user, kind)
 
             login(request, user)
 
@@ -609,7 +615,7 @@ BENEFICIARY_ABSOLUTE_AGE = 2 * 3600
 MIN_TOUCH_INTERVAL = 60
 
 
-def _stamp_session(sender, request, user, **kwargs) -> None:
+def _stamp_session(sender: Any, request: HttpRequest | None, user: Any, **kwargs: Any) -> None:
     """يختم الجلسةَ بلحظة الدخول وآخر تجديد — منها تُحسب المتبقّياتُ دون استعلام."""
     if request is None or not hasattr(request, "session"):
         return
@@ -621,7 +627,7 @@ def _stamp_session(sender, request, user, **kwargs) -> None:
 user_logged_in.connect(_stamp_session, dispatch_uid="core.views_auth.stamp_session")
 
 
-def _absolute_age(user) -> int:
+def _absolute_age(user: Any) -> int:
     configured = getattr(settings, "SESSION_ABSOLUTE_AGE", None)
     if configured:
         return int(configured)
@@ -630,7 +636,7 @@ def _absolute_age(user) -> int:
     )
 
 
-def _session_clock(request, *, now: int | None = None) -> dict:
+def _session_clock(request: HttpRequest, *, now: int | None = None) -> dict[str, Any]:
     """المتبقّي للخمول والمطلقة بالثواني — `None` لجلسةٍ سابقةٍ للختم (يُختم أوّلَ تجديد).
 
     متحفّظٌ عن قصد: الخادمُ يحكم بوقت آخر حفظٍ للجلسة وهو لا يقلّ عن آخر ختم،
@@ -651,7 +657,7 @@ def _session_clock(request, *, now: int | None = None) -> dict:
     }
 
 
-def _session_payload(request, **extra) -> dict:
+def _session_payload(request: HttpRequest, **extra: Any) -> dict[str, Any]:
     """جسمُ الردّ: الساعةُ + مَن المستخدم + رمزُ CSRF الحاليّ.
 
     الرمزُ هنا لأنّ كوكيه HttpOnly فلا يقرؤه JS، ويدور عند كلّ دخول — فبعد إعادة الدخول
@@ -669,7 +675,7 @@ def _session_payload(request, **extra) -> dict:
 
 @never_cache
 @require_GET
-def session_status(request):
+def session_status(request: HttpRequest) -> HttpResponse:
     """حالةُ الجلسة — قراءةٌ خالصة، لا تكتب في الجلسة ولا تجدّدها."""
     from core.middleware import session_expired_response
 
@@ -680,7 +686,7 @@ def session_status(request):
 
 @never_cache
 @require_POST
-def session_touch(request):
+def session_touch(request: HttpRequest) -> HttpResponse:
     """تجديدُ الخمول بنبضة مستخدمٍ فعليّ — ضمن المطلقة فقط، وبكتابةٍ واحدةٍ كلَّ دقيقة."""
     from core.middleware import session_expired_response
 
@@ -707,6 +713,6 @@ def session_touch(request):
 
 @xframe_options_sameorigin
 @never_cache
-def session_done(request):
+def session_done(request: HttpRequest) -> HttpResponse:
     """وجهةُ `next` في نافذة إعادة الدخول: صفحةٌ صغيرةٌ تُغلق بعدها النافذة."""
     return render(request, "auth/session_done.html")
