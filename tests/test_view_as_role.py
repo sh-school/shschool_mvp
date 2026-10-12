@@ -7,7 +7,10 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
+import redis
 from django.test import RequestFactory
 from django.urls import reverse
 
@@ -349,6 +352,18 @@ def test_switching_past_the_hourly_limit_is_429_and_a_row(dev_client, developer,
     row = _rows("view_as_limit", user=developer).get()
     assert row.changes["kind"] == state.PREVIEW
     assert row.changes["acting"] == {"actor": str(developer.pk), "as_role": "nurse"}
+
+
+def test_a_fallen_switch_store_is_429_not_500(dev_client, developer, monkeypatch):
+    """ملاحظةُ 0104: سقوطُ Redis في حدّ التبديل يرفض المعاينةَ ولا يسقط 500 — لا تبديلَ بلا عدّ."""
+
+    def fallen(*args, **kwargs):
+        raise redis.exceptions.ConnectionError("Redis down")
+
+    monkeypatch.setattr(state, "cache", SimpleNamespace(add=fallen, incr=fallen, set=fallen))
+    assert _start(dev_client, "teacher").status_code == 429
+    assert _rows("view_as_limit", user=developer).get().changes["kind"] == state.PREVIEW
+    assert state.ROLE_KEY not in dev_client.session
 
 
 # ── قيودُ الهويّة لا الدور ──────────────────────────────────────

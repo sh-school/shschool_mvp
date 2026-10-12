@@ -6,12 +6,19 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
 from typing import Any
 
+import redis
 from django.core import signing
 from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
+
+#: سقوطُ Redis كما يلتقطه `core/ratelimit_safe.py` — يقرؤه الحدُّ هنا والقفلُ في `linked.py`.
+CACHE_DOWN = (OSError, redis.exceptions.RedisError)
 
 ROLE_KEY = "view_as_role"
 ROLE_SEEN_KEY = "view_as_role_seen"
@@ -73,14 +80,21 @@ def unsign(token: Any, salt: str) -> dict[str, Any] | None:
 
 
 def allow_switch(actor_id: Any, kind: str, per_hour: int) -> bool:
-    """حدُّ التبديل في نافذةٍ ساعيّةٍ تبدأ من أوّل تبديل — يُعدّ هذا الطلبُ منها."""
+    """حدُّ التبديل في نافذةٍ ساعيّةٍ تبدأ من أوّل تبديل — يُعدّ هذا الطلبُ منها.
+
+    وإن سقط Redis رُفض التبديلُ (429) ولم يسقط 500 — لا تبديلَ بلا عدٍّ (ملاحظةُ 0104).
+    """
     key = f"view_as:switches:{kind}:{actor_id}"
-    cache.add(key, 0, timeout=3600)
     try:
-        count = cache.incr(key)
-    except ValueError:  # انقضى المفتاحُ بين add وincr
-        cache.set(key, 1, timeout=3600)
-        count = 1
+        cache.add(key, 0, timeout=3600)
+        try:
+            count = cache.incr(key)
+        except ValueError:  # انقضى المفتاحُ بين add وincr
+            cache.set(key, 1, timeout=3600)
+            count = 1
+    except CACHE_DOWN:
+        logger.warning("view_as: switch limit store unavailable for actor %s", actor_id)
+        return False
     return count <= per_hour
 
 

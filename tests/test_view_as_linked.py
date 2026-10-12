@@ -387,6 +387,15 @@ def test_a_fallen_store_refuses_a_correct_code(developer, monkeypatch):
     assert not linked.verify_reauth(developer, code)
 
 
+def test_a_fallen_switch_limit_refuses_entry_without_500(dev_client, link, developer, monkeypatch):
+    """ملاحظةُ 0104: حدُّ التبديل في `state` يرفض عند السقوط (429) ولا يسقط 500 — والتأكيدُ نفسُه صحيح."""
+    monkeypatch.setattr(state, "cache", _FallenCache())
+    response = dev_client.post(_confirm_url(link), {"secret": PASSWORD})
+    assert response.status_code == 429
+    assert _rows("view_as_limit", user=developer).get().changes["kind"] == state.LINKED
+    assert _session_user(dev_client) == str(developer.pk)
+
+
 def test_a_process_local_store_is_not_shared(settings):
     """اختباراتُ المنصّة بـlocmem وDEBUG مطفأ — كالإنتاج بلا REDIS_URL."""
     assert settings.CACHES["default"]["BACKEND"].endswith("LocMemCache") and not settings.DEBUG

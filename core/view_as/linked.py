@@ -17,7 +17,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import redis
 from django.conf import settings
 from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, logout
 from django.core.cache import cache
@@ -48,9 +47,6 @@ _PROCESS_LOCAL_CACHES = frozenset(
         "django.core.cache.backends.dummy.DummyCache",
     }
 )
-
-#: سقوطُ Redis كما يلتقطه `core/ratelimit_safe.py`.
-_CACHE_DOWN = (OSError, redis.exceptions.RedisError)
 
 
 def link_problems(developer: Any, target: Any, *, exclude_pk: Any = None) -> list[str]:
@@ -152,7 +148,7 @@ def verify_reauth(actor: Any, secret: str) -> bool:
             return False
         try:
             return bool(cache.add(_totp_used_key(actor, code), True, timeout=TOTP_REPLAY_SECONDS))
-        except _CACHE_DOWN:
+        except state.CACHE_DOWN:
             logger.warning("view_as: totp replay store unavailable for actor %s", actor.pk)
             return False
     return bool(actor.check_password(secret))
@@ -177,7 +173,7 @@ def reauth_locked(actor: Any) -> bool:
         return True
     try:
         return int(cache.get(_failures_key(actor)) or 0) >= REAUTH_FAILURES
-    except _CACHE_DOWN:
+    except state.CACHE_DOWN:
         logger.warning("view_as: reauth lock store unavailable for actor %s", actor.pk)
         return True
 
@@ -190,14 +186,14 @@ def note_reauth_failure(actor: Any) -> None:
             cache.incr(key)
         except ValueError:  # انقضى المفتاحُ بين add وincr
             cache.set(key, 1, timeout=REAUTH_LOCK_SECONDS)
-    except _CACHE_DOWN:  # التالي يقرأ القفلَ من الذاكرة الساقطة نفسِها فيُقفل
+    except state.CACHE_DOWN:  # التالي يقرأ القفلَ من الذاكرة الساقطة نفسِها فيُقفل
         logger.warning("view_as: reauth failure not counted for actor %s", actor.pk)
 
 
 def clear_reauth_failures(actor: Any) -> None:
     try:
         cache.delete(_failures_key(actor))
-    except _CACHE_DOWN:
+    except state.CACHE_DOWN:
         logger.warning("view_as: reauth failures not cleared for actor %s", actor.pk)
 
 
