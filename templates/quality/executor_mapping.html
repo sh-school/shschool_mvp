@@ -56,11 +56,11 @@
             <td>
               {% if row.user %}
                 <span class="qexec-user">{{ row.user.full_name }}</span>
-                <span class="pr-muted" dir="ltr">({{ row.user.national_id|mask_id }})</span>
+                <span class="pr-muted" dir="ltr">({{ row.user.employee_number|default:"—" }})</span>
               {% else %}
                 <span class="status-badge status-danger">غير مربوط</span>
                 {% if row.suggested_user %}
-                <span class="qexec-suggest">مقترح: {{ row.suggested_user.full_name }} <span dir="ltr">({{ row.suggested_user.national_id|mask_id }})</span></span>
+                <span class="qexec-suggest">مقترح: {{ row.suggested_user.full_name }} <span dir="ltr">({{ row.suggested_user.employee_number|default:"—" }})</span></span>
                 {% endif %}
               {% endif %}
             </td>

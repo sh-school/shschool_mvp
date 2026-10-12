@@ -22,7 +22,6 @@ NAMES_DEBT: dict[
 # `student_scope` يقيّد قوائمَ الطلبة لا العدّادات (وُجد في get_admin_ops_ctx وعدّاداتُه بلا قدرة)، فلا يكفي وحدَه.
 GUARD_CALLS = {"has_capability"}
 COUNTER_DEBT = {
-    "get_teacher_ctx": "فرعُ المنسّق يُحصر بقيمة role لا بقدرة — يراجعه 0105 مع W-030",
     "get_service_ctx": "فروعُ الممرّض والمكتبي والفنّي تُحصر بقيمة role لا بقدرة — يراجعه 0105 مع W-030",
 }
 

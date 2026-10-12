@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 
 from django.utils import timezone
 
+from core.ministry import ministry_line, ministry_name
 from operations.attendance_selectors import entry_heads_by_start, entry_tallies_by_start
 from operations.day_attendance import enrolled_of
 from operations.period_register import cells_of, periods_of
@@ -213,7 +214,7 @@ def footer_lines(school) -> tuple[str, str]:
     vision = render_to_string("components/ministry_vision.html", {"school": school}).strip()
     return (
         " · ".join(p for p in parts if p),
-        f"وزارة التربية والتعليم والتعليم العالي — دولة قطر — {vision}",
+        ministry_line(ministry_name(), vision),
     )
 
 
