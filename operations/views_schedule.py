@@ -561,6 +561,26 @@ def _quality_gate_kpis(by_key: dict) -> list[dict]:
     ]
 
 
+def _lab_group_columns(groups: list[dict]) -> list[list[dict]]:
+    """يقسم أقسامَ المؤشرات إلى عمودَين مكدّسَين متتابعَين (الأوّلُ يحمل الرأس).
+
+    قسمٌ بصفٍّ كاملٍ لكلّ قسم كان يترك عن جانبه فراغاً بقدر ما تنقص بطاقاتُه، فطالت الصفحةُ
+    وتبعثرت حوافُّها. هنا يُختار موضعُ القطع الذي يقلّل ارتفاعَ العمود الأطول (وزنُ القسم:
+    عددُ بطاقاته مع رأسه)، والترتيبُ المتتابعُ يحفظ ترتيبَ القراءة على الجوّال (عمودٌ واحد).
+    وعددُ الأقسام وأحجامُها من بنية المؤشرات لا من البيانات، فالمواقعُ ثابتةٌ كما تقرّر للّوحات.
+    """
+    if len(groups) < 2:
+        return [groups] if groups else []
+    weights = [len(g["rows"]) + 1 for g in groups]
+    cut = min(range(1, len(groups)), key=lambda i: max(sum(weights[:i]), sum(weights[i:])))
+    return [groups[:cut], groups[cut:]]
+
+
+def _score_label(score) -> str:
+    """تسميةُ درجة القسم: «درجة 87»، أو «درجة —» حين لا درجة له."""
+    return f"درجة {score}" if score is not None else "درجة —"
+
+
 @login_required
 @capability_required("schedule.admin")
 def schedule_quality_lab(request):
@@ -641,8 +661,7 @@ def schedule_quality_lab(request):
     }
     shown_groups = [g for g in groups if g["code"] != "validity"]
     for g in shown_groups:
-        score = scores.get(g["code"])
-        g["score_label"] = f"درجة {score}" if score is not None else "درجة —"
+        g["score_label"] = _score_label(scores.get(g["code"]))
     return render(
         request,
         "schedule/quality_lab.html",
@@ -659,6 +678,7 @@ def schedule_quality_lab(request):
             "generations": generations,
             "baseline": baseline,
             "groups": shown_groups,
+            "group_cols": _lab_group_columns(shown_groups),
             "gate": by_key,
             "by_key": by_key,
             "scores": scores,
