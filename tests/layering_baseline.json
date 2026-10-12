@@ -466,8 +466,8 @@
    "orm": 11
   },
   "parents/views.py::manage_parent_links": {
-   "lines": 145,
-   "orm": 51
+   "lines": 135,
+   "orm": 39
   },
   "parents/views.py::parent_all_grades": {
    "orm": 8

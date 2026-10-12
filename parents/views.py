@@ -6,7 +6,6 @@ parents/views.py — thin views (Phase 4)
 import json
 import logging
 import re
-from collections import Counter
 from datetime import timedelta
 
 from django.conf import settings
@@ -38,7 +37,7 @@ from core.privacy import national_id_search_q
 from core.sorting import apply_sort, arabic_key
 from core.unrestricted_role import has_unrestricted_role
 
-from .selectors import parent_ids_by_phone
+from .selectors import link_form_parents, link_form_students, parent_ids_by_phone
 from .services import (
     ParentService,
     consent_state,
@@ -497,57 +496,9 @@ def manage_parent_links(request):
     if request.headers.get("HX-Request"):
         return render(request, "parents/partials/links_table.html", ctx)
 
-    # قائمة الطلاب للـ dropdown
-    student_ids = StudentEnrollment.objects.filter(
-        class_group__school=school,
-        class_group__academic_year=year,
-        is_active=True,
-    ).values_list("student_id", flat=True)
-    # الرقمُ الشخصيّ لا يُعرض في القائمة، فطالبان بالاسم نفسه يُميَّزان بصفّ كلٍّ منهما وشعبته (W-20261012-006).
-    seat = StudentEnrollment.objects.filter(
-        student_id=OuterRef("pk"),
-        class_group__school=school,
-        class_group__academic_year=year,
-        is_active=True,
-    ).order_by("-enrolled_at")
-    ctx["students"] = (
-        CustomUser.objects.filter(id__in=student_ids)
-        .annotate(
-            grade_code=Subquery(seat.values("class_group__grade")[:1]),
-            section_code=Subquery(seat.values("class_group__section")[:1]),
-        )
-        .order_by("full_name")
-    )
-
-    # قائمة أولياء الأمور — وليّان بالاسم نفسه يُميَّزان باسم أحد أبنائهما وصفّه، فاستعلامٌ واحدٌ يحمل ذلك لكلٍّ منهما.
-    parent_ids = Membership.objects.filter(
-        school=school, is_active=True, role__name="parent"
-    ).values_list("user_id", flat=True)
-    first_link = ParentStudentLink.objects.filter(school=school, parent_id=OuterRef("pk")).order_by(
-        "student__full_name"
-    )
-    child_seat = StudentEnrollment.objects.filter(
-        student_id=OuterRef("child_id"),
-        class_group__school=school,
-        class_group__academic_year=year,
-        is_active=True,
-    ).order_by("-enrolled_at")
-    parents = list(
-        CustomUser.objects.filter(id__in=parent_ids)
-        .annotate(
-            child_id=Subquery(first_link.values("student_id")[:1]),
-            child_name=Subquery(first_link.values("student__full_name")[:1]),
-        )
-        .annotate(
-            child_grade=Subquery(child_seat.values("class_group__grade")[:1]),
-            child_section=Subquery(child_seat.values("class_group__section")[:1]),
-        )
-        .order_by("full_name")
-    )
-    name_counts = Counter(parent.full_name for parent in parents)
-    for parent in parents:
-        setattr(parent, "has_namesake", name_counts[parent.full_name] > 1)  # noqa: B010 — وسمٌ للقالب لا حقلُ نموذج
-    ctx["parents"] = parents
+    # قائمتا الاستمارة — كلٌّ مميَّزةٌ بما يفرّق المتشابه دون رقمٍ شخصيّ (W-20261012-006).
+    ctx["students"] = link_form_students(school, year)
+    ctx["parents"] = link_form_parents(school, year)
 
     return render(request, "parents/manage_links.html", ctx)
 
