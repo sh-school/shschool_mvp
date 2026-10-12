@@ -16,10 +16,10 @@ from __future__ import annotations
 
 import logging
 from datetime import date
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, QuerySet
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
@@ -35,6 +35,7 @@ from core.models import ParentStudentLink, StudentEnrollment
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
+    from wings.scope import StudentScope
 
 # ── ثوابت موحدة من constants.py ────────────────────────────
 # POINTS_BY_LEVEL مُستبعد — نظام النقاط ملغى
@@ -221,10 +222,10 @@ class BehaviorService:
 
     # ── إحصائيات اللجنة ────────────────────────────────────
     @staticmethod
-    def get_committee_data(school: School, scope=None) -> dict:
+    def get_committee_data(school: School, scope: StudentScope | None = None) -> dict:
         """بيانات لوحة لجنة الضبط السلوكي — و`scope` (نطاق الجناح) يضيّق قضايا المشرف الإداريّ بجناحه."""
 
-        def _narrow(qs):
+        def _narrow(qs: QuerySet[Any]) -> QuerySet[Any]:
             return scope.narrow(qs) if scope is not None else qs
 
         open_cases = (
