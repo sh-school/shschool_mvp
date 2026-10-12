@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 import zlib
 from collections.abc import Callable
@@ -27,7 +28,7 @@ from django.utils import timezone
 
 from operations.cpsat_adapter import CpSatInputs, build_inputs
 from operations.schedule_evaluator import VERDICTS, Evaluation, evaluate_slots
-from operations.scheduler_v2.limits import SOLVER_MAX_SECONDS
+from operations.scheduler_v2.limits import LAYER_AFTER_FIRST_SOLUTION_SECONDS, SOLVER_MAX_SECONDS
 from operations.scheduler_v2.progress import STOPPED_EMPTY_LABEL
 
 logger = logging.getLogger(__name__)
@@ -81,6 +82,8 @@ class SolverConfig:
     lexicographic: bool = True
     #: يفتح فجوةَ الطلب في النموذج (يُفعَّل معه طبقةُ المتعذّرات)؛ افتراضُه الصرامة: مساواةٌ صلبة.
     allow_unplaced: bool = False
+    #: ثوانٍ تُمنح لكلّ طبقةٍ غيرِ أخيرةٍ بعد أوّل حلٍّ لها ثم تُقطع لتنتقل البقيةُ إلى التالية (D-392م)؛ None = بلا قطع.
+    layer_grace_seconds: float | None = LAYER_AFTER_FIRST_SOLUTION_SECONDS
 
 
 def options_from_relaxations(spec: dict[str, Any] | None) -> dict[str, Any]:
@@ -277,8 +280,12 @@ def _run_stage(
     progress: Any,
     max_seconds: float,
     report_progress: bool,
+    stop_after_first: float | None = None,
 ) -> tuple[Any, int, float]:
-    """حلٌّ واحدٌ بإعدادٍ مثبَّت: (الحلّال، رمزُ الحالة، الثواني)."""
+    """حلٌّ واحدٌ بإعدادٍ مثبَّت: (الحلّال، رمزُ الحالة، الثواني).
+
+    و`stop_after_first` يوقف البحثَ بعد هذا العددِ من الثواني على أوّل حلٍّ يُوجد (يبقى أفضلُ ما وُجد: FEASIBLE).
+    """
     from ortools.sat.python import cp_model
 
     solver = cp_model.CpSolver()
@@ -291,22 +298,31 @@ def _run_stage(
 
     callback = None
     ticker = None
+    cutoff: list[threading.Timer] = []
+    if (report_progress and progress is not None) or stop_after_first is not None:
+
+        class _Callback(cp_model.CpSolverSolutionCallback):
+            def on_solution_callback(self) -> None:
+                if stop_after_first is not None and not cutoff:  # أوّلُ حلٍّ: يبدأ العدُّ التنازليّ للقطع
+                    timer = threading.Timer(stop_after_first, solver.StopSearch)
+                    timer.daemon = True
+                    cutoff.append(timer)
+                    timer.start()
+                if report_progress and progress is not None:
+                    progress.on_solution(self.ObjectiveValue(), self.BestObjectiveBound())
+
+        callback = _Callback()
     if progress is not None:
         from .progress import Ticker
 
-        if report_progress:
-
-            class _Callback(cp_model.CpSolverSolutionCallback):
-                def on_solution_callback(self) -> None:
-                    progress.on_solution(self.ObjectiveValue(), self.BestObjectiveBound())
-
-            callback = _Callback()
         ticker = Ticker(progress, solver.StopSearch)
         ticker.start()
     started = time.monotonic()
     try:
         code = solver.Solve(built.model, callback) if callback else solver.Solve(built.model)
     finally:
+        for timer in cutoff:
+            timer.cancel()
         if ticker is not None:
             ticker.stop()
     return solver, code, time.monotonic() - started
@@ -372,7 +388,9 @@ def _solve_layers(
             for var in built.x.values():
                 built.model.AddHint(var, best.Value(var))
         last = idx == stage_total - 1
-        solver, code, _secs = _run_stage(built, config, progress, stage_seconds, last)
+        # السقفُ لطبقة المخالفات وحدَها (D-392م): طبقةُ المتعذّرات لا تُقطع فقد تبقى حصصٌ كان يمكن وضعُها.
+        grace = config.layer_grace_seconds if name == "violations" and not last else None
+        solver, code, _secs = _run_stage(built, config, progress, stage_seconds, last, grace)
         status = _status_name(cp_model, code)
         if status not in ("OPTIMAL", "FEASIBLE"):
             if best is None:  # الطبقةُ الأولى بلا حلّ: INFEASIBLE أو UNKNOWN كما هي
