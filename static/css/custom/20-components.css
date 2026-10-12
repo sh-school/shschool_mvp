@@ -1835,8 +1835,7 @@ textarea:focus-visible {
 /* داخل إطار إعادة الدخول (خطوةُ الرمز الثاني ممّا يرثه base.html): لا إطارَ محيطاً ولا تذييل. */
 html.is-embedded .site-footer,
 html.is-embedded #crumbs,
-html.is-embedded .skip-nav,
-html.is-embedded .pwa-banner { display: none; }
+html.is-embedded .skip-nav { display: none; }
 
 /* ── Mobile Bottom Navigation ─── */
 .mobile-bottom-nav {
