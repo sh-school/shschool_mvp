@@ -154,7 +154,7 @@
     <div class="eh-header">
       <h1 class="eh-school">{{ current_school.name|default:"المدرسة" }}</h1>
       <p class="eh-platform">منصة الإدارة المدرسية</p>
-      <p class="eh-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</p>
+      {% load ministry %}{% ministry_name as ministry %}{% if ministry %}<p class="eh-ministry">{{ ministry }}</p>{% endif %}
     </div>
     <div class="eh-body">
     {% endif %}
@@ -181,7 +181,7 @@
       {% endif %}
     </div>
     {% if brand_footer %}<div class="error-brand">{% include "components/site_brand.html" %}</div>{% else %}
-    <div class="error-footer">{{ current_school.name|default:"المدرسة" }} — وزارة التربية والتعليم والتعليم العالي</div>
+    <div class="error-footer">{{ current_school.name|default:"المدرسة" }}{% ministry_name short=True as ministry_short %}{% if ministry_short %} — {{ ministry_short }}{% endif %}</div>
     {% endif %}
     {% if login_header %}</div>{% endif %}{# /eh-body #}
   </div>

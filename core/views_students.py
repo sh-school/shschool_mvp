@@ -31,6 +31,7 @@ from core.export_utils import (
     xl_fill,
     xl_font,
 )
+from core.ministry import ministry_line, ministry_name
 from core.services import (  # noqa: F401 — أسماءٌ كانت هنا وتستوردها الاختبارات
     _IMPORT_GRADE_NORMALIZE,
     _parse_import_row,
@@ -152,7 +153,7 @@ def _finalize_workbook(
         num_cols,
         school_name,
         f"{report_title}  —  السنة الدراسية {year}",
-        f"وزارة التربية والتعليم والتعليم العالي — دولة قطر  |  {today_str}",
+        ministry_line(ministry_name(), today_str, sep="  |  "),
     )
 
     # الصف 4 هو الرأس (تم تعبئته قبل insert_rows → أصبح الصف 7 مؤقتاً، لذا نعيد الترتيب)
@@ -303,7 +304,7 @@ def student_export_excel(request):
         num_cols,
         school.name,
         f"كشف الطلاب الكامل  —  السنة الدراسية {year}",
-        f"وزارة التربية والتعليم والتعليم العالي — دولة قطر  |  {today_str}",
+        ministry_line(ministry_name(), today_str, sep="  |  "),
     )
 
     # ── صف رأس الأعمدة (الصف 4) ────────────────────────────────────

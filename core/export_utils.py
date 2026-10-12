@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from core import brand
 from core.academic_calendar import academic_year_for_school
+from core.ministry import ministry_line, ministry_name
 
 
 def generate_export_filename(module: str, report_type: str, ext: str) -> str:
@@ -59,7 +60,7 @@ def get_export_context_for(user: Any, title: str) -> dict[str, Any]:
         "export_datetime": now.strftime("%d/%m/%Y %H:%M"),
         "title": title,
         "academic_year": academic_year_for_school(school),
-        "ministry": "وزارة التربية والتعليم والتعليم العالي — دولة قطر",
+        "ministry": ministry_name(),
     }
 
 
@@ -171,7 +172,7 @@ def add_excel_header(ws, context: dict, num_cols: int):
     add_excel_title_rows(
         ws,
         num_cols,
-        f"{context['school_name']}  —  {context['ministry']}",
+        ministry_line(context["school_name"], context["ministry"], sep="  —  "),
         f"{context['title']}  —  العام الدراسي {context['academic_year']}",
         f"صدر بواسطة: {context['exported_by']} — {context['exporter_role']}  |  {context['export_datetime']}",
     )
@@ -224,6 +225,10 @@ def get_pdf_header_html(context: dict) -> str:
     """
     HTML هيدر PDF موحّد — يُدرج في أعلى كل template PDF
     """
+    # سطرُ الوزارة مجمَّدٌ مطفأٌ افتراضاً (D-400م) — فلا فقرةَ فارغةً تحجز مكاناً.
+    ministry_p = (
+        f'<p class="xp-head-ministry">{context["ministry"]}</p>' if context["ministry"] else ""
+    )
     return f"""
     <style>
       .xp-head {{ text-align:center; border-bottom:3px solid {brand.MAROON}; padding-bottom:12px; margin-bottom:20px; }}
@@ -234,7 +239,7 @@ def get_pdf_header_html(context: dict) -> str:
     </style>
     <div class="xp-head">
       <h1>{context["school_name"]}</h1>
-      <p class="xp-head-ministry">{context["ministry"]}</p>
+      {ministry_p}
       <p class="xp-head-title">{context["title"]}</p>
       <p class="xp-head-year">العام الدراسي {context["academic_year"]}</p>
     </div>
