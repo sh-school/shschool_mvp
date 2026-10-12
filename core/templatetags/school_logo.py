@@ -30,11 +30,10 @@ def school_logo(size: str = "nav", pdf: bool = False) -> str:
     except FileNotFoundError:
         return ""
     return format_html(
-        '<img class="school-logo school-logo--{}" src="{}" alt="" width="{}" height="{}" decoding="async">',
-        size,
-        src,
-        side,
-        side,
+        '<img class="school-logo school-logo--{size}" src="{src}" alt="" width="{side}" height="{side}" decoding="async">',
+        size=size,
+        src=src,
+        side=side,
     )
 
 

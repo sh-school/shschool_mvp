@@ -17,6 +17,7 @@ import base64
 import functools
 import io
 from pathlib import Path
+from typing import Any
 
 from django.conf import settings
 
@@ -55,7 +56,7 @@ def logo_data_uri() -> str:
     return "data:image/png;base64," + base64.b64encode(logo_bytes()).decode("ascii")
 
 
-def logo_excel_image(side_px: int = EXCEL_SIDE_PX):
+def logo_excel_image(side_px: int = EXCEL_SIDE_PX) -> Any:
     """`openpyxl` Image بحجمٍ ثابتٍ، أو `None` إن غاب الأصلُ أو Pillow (فيُصدَّر الملفُّ بلا شعار بدل أن يسقط)."""
     try:
         from openpyxl.drawing.image import Image

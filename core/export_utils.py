@@ -160,7 +160,7 @@ def add_excel_title_rows(ws, num_cols: int, first: str, second: str, third: str)
     _add_logo_to_title(ws)
 
 
-def _add_logo_to_title(ws) -> None:
+def _add_logo_to_title(ws: Any) -> None:
     """شعارُ المدرسة في A1 بحجمٍ ثابتٍ يسكن ارتفاعَ الصفّ الأوّل (40pt ≈ 53px) — فلا يتغيّر عددُ الصفوف ولا ارتفاعُها."""
     from core.school_logo import logo_excel_image
 
