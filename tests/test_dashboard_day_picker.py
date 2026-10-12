@@ -279,6 +279,26 @@ class TestNextSessionIsTodayOnly:
         assert _get(client_as, teacher, FUTURE).context["next_session"] is None
         assert _get(client_as, teacher, PAST).context["next_session"] is None
 
+    def test_a_read_only_day_lists_its_sessions_without_a_recording_link(
+        self, monkeypatch, client_as, school, klass, teacher, bells
+    ):
+        """يومٌ غيرُ اليوم الحقيقيّ يعرض حصصَه كلَّها (لا الجاريةَ والتاليةَ فقط) وصفُّها بلا href فلا يفتح رصداً يُحرَّر (W-20261010-056)."""
+        _freeze(monkeypatch, (7, 0))
+        past = Session.objects.create(
+            school=school,
+            class_group=klass,
+            teacher=teacher,
+            date=PAST,
+            start_time=dt.time(7, 10),
+            end_time=dt.time(7, 55),
+            status="scheduled",
+        )
+
+        html = _get(client_as, teacher, PAST).content.decode()
+
+        assert 'class="sess-row"' in html, "حصّةُ اليوم الماضي تظهر وإن لم تكن جاريةً ولا تالية"
+        assert f"/teacher/attendance/{past.id}/" not in html, "ولا رابطَ رصدٍ في عرض القراءة"
+
     def test_just_after_doha_midnight_yesterday_is_a_past_day(
         self, monkeypatch, client_as, school, klass, teacher, session, bells
     ):

@@ -144,7 +144,7 @@ class TestTheView:
         )
         frame = client_as(principal_user).get(reverse("class_certificates_pdf", args=[klass.pk]))
 
-        assert preview.status_code == 200 and MASKED in preview.content.decode()
+        assert preview.status_code == 200 and MASKED not in preview.content.decode()
         assert frame.status_code == 200 and frame["Content-Type"] == "application/pdf"
         assert frame["Content-Disposition"].startswith("inline;")
         assert not ExportJob.objects.exists()
@@ -180,8 +180,9 @@ class TestTheWorkerBuildsTheSameFile:
         _run(school, principal_user, klass)
 
         html, _ = captured[0]
-        assert MASKED in html
-        assert STUDENT_ID not in html, "ملفٌّ واحدٌ لفصلٍ كامل كشفٌ جماعيّ — يُستر وإن طُبع"
+        assert (
+            MASKED not in html and STUDENT_ID not in html
+        ), "لا رقمَ شخصيّاً في شهادات الفصل (W-20261011-014)"
 
     def test_a_class_of_another_school_is_never_built(
         self, school, principal_user, seeded_calendar, captured

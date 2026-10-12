@@ -61,8 +61,9 @@ class TestBulkDocumentsMaskAndLog:
         body = resp.content.decode()
 
         assert resp.status_code == 200
-        assert MASKED in body
-        assert STUDENT_ID not in body, "كشفُ فصلٍ كامل كشفٌ جماعيّ — يُستر وإن طُبع"
+        assert (
+            MASKED not in body and STUDENT_ID not in body
+        ), "لا رقمَ شخصيّاً في كشف الفصل (W-20261011-014)"
         trail = _exports("reports.attendance").get()
         assert trail.user == principal_user
         assert trail.changes["rows"] == 1
@@ -78,7 +79,7 @@ class TestBulkDocumentsMaskAndLog:
         body = resp.content.decode()
 
         assert resp.status_code == 200
-        assert MASKED in body and STUDENT_ID not in body
+        assert MASKED not in body and STUDENT_ID not in body
         assert _exports("reports.class_certificates").get().changes["rows"] == 1
 
 
@@ -91,7 +92,7 @@ class TestIndividualDocumentsKeepTheNumberAndLog:
         )
 
         assert resp.status_code == 200
-        assert STUDENT_ID in resp.content.decode()
+        assert STUDENT_ID not in resp.content.decode(), "الشهادة بلا رقمٍ شخصيّ (W-20261011-014)"
         trail = _exports("reports.certificate").get()
         assert trail.changes == {"kind": "reports.certificate", "rows": 1, "full_national_id": True}
         assert trail.object_id == str(pupil.pk)
@@ -153,13 +154,14 @@ class TestExcelRegistersMaskTheNumber:
 
 
 class TestJsonAndApiMaskTheNumber:
-    def test_the_tardiness_search_masks_the_number(self, client_as, principal_user, klass, pupil):
+    def test_the_tardiness_search_carries_no_number(self, client_as, principal_user, klass, pupil):
         resp = client_as(principal_user).get(
             reverse("student_affairs:tardiness_search") + "?q=طالبُ"
         )
 
         payload = resp.json()
-        assert [row["nid"] for row in payload["results"]] == [MASKED]
+        assert payload["results"] and all("nid" not in row for row in payload["results"])
+        assert MASKED not in resp.content.decode() and STUDENT_ID not in resp.content.decode()
 
     def test_the_brief_serializer_masks_even_for_leadership(self, principal_user, pupil):
         from rest_framework.test import APIRequestFactory

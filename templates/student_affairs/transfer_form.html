@@ -31,7 +31,7 @@
             <option value="">— اختر الطالب —</option>
             {% for m in students %}
             <option value="{{ m.user_id }}" data-grade="{{ m.class_grade }}" data-class-id="{{ m.class_id }}" data-class-label="{{ m.class_label }}" {% if form.student_id.value|slugify == m.user_id|slugify %}selected{% endif %}>
-              {{ m.user.full_name }} ({{ m.user.national_id|mask_id }}) — {{ m.class_label }}
+              {{ m.user.full_name }} — {{ m.class_label }}
             </option>
             {% endfor %}
           </select>

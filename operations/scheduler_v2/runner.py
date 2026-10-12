@@ -28,6 +28,7 @@ from django.utils import timezone
 from operations.cpsat_adapter import CpSatInputs, build_inputs
 from operations.schedule_evaluator import VERDICTS, Evaluation, evaluate_slots
 from operations.scheduler_v2.limits import SOLVER_MAX_SECONDS
+from operations.scheduler_v2.progress import STOPPED_EMPTY_LABEL
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,7 @@ def options_from_relaxations(spec: dict[str, Any] | None) -> dict[str, Any]:
     """يحوّل ملفَّ `--relaxations` إلى حقول `ModelOptions`: touch_relaxed وrun_cap وfirst_cap_override وno_6_7 والثلاثيات.
 
     الشكل: {"touch_relaxed": ["T..."], "run_cap": 2, "first_cap_override": {"T...": 4}, "no_6_7": true,
-    "triples_by_number": true}. مفتاحٌ مجهولٌ يُرفض (لا تخفيفَ صامت).
+    "triples_by_number": true, "touch_relaxed_all": true}. مفتاحٌ مجهولٌ يُرفض (لا تخفيفَ صامت).
     """
     spec = dict(spec or {})
     out: dict[str, Any] = {}
@@ -94,6 +95,8 @@ def options_from_relaxations(spec: dict[str, Any] | None) -> dict[str, Any]:
         out["touch_relaxed"] = frozenset(spec.pop("touch_relaxed"))
     if "run_cap" in spec:
         out["touch_relaxed_run_cap"] = int(spec.pop("run_cap"))
+    if "touch_relaxed_all" in spec:
+        out["touch_relaxed_all"] = bool(spec.pop("touch_relaxed_all"))
     if "first_cap_override" in spec:
         out["first_cap_override"] = tuple(sorted(dict(spec.pop("first_cap_override")).items()))
     for flag in ("no_6_7", "triples_by_number"):
@@ -102,6 +105,26 @@ def options_from_relaxations(spec: dict[str, Any] | None) -> dict[str, Any]:
     if spec:
         raise RunnerError(f"مفاتيح تخفيفٍ غير معروفة: {sorted(spec)}")
     return out
+
+
+def with_school_policy(config: SolverConfig, school: Any) -> SolverConfig:
+    """يضمّ إعدادَ التخفيف المدرسيّ (الأدمن، D-382م) تحت ما مُرِّر صراحةً؛ المُمرَّرُ لتشغيلٍ بعينه يغلب الأساس.
+
+    هو نقطةٌ واحدة لكلّ المسارات (الزرّ والمهمّة والأمر): فلا يولَّد جدولٌ بقاعدةٍ لا يقرؤها المُقيِّمُ وفحصُ الجدوى.
+    """
+    from dataclasses import replace
+
+    from operations.schedule_relaxation import school_policy
+
+    spec = {**school_policy(school).as_spec(), **dict(config.relaxations)}
+    return replace(config, relaxations=tuple(sorted(spec.items(), key=lambda kv: kv[0])))
+
+
+def _rule_note(config: SolverConfig) -> str:
+    """جملةُ القاعدة السارية لرسالة الفشل، من الإعداد الذي حُلّ به فعلاً لا من افتراضٍ في الذاكرة."""
+    from operations.schedule_relaxation import rule_sentence
+
+    return rule_sentence(dict(config.relaxations))
 
 
 def with_admin_first_caps(config: SolverConfig, school: Any, academic_year: str) -> SolverConfig:
@@ -164,6 +187,8 @@ class RunResult:
     evaluation: Evaluation | None
     message: str = ""
     reason: str = ""  # infeasible | timeout | rejected | busy | no_model | ok
+    #: تشخيصُ الاستحالة (INFEASIBLE فقط): أيُّ القيود تتعارض وأيُّ المعلّمين فيها — يُسمَّى في الرسالة واللقطة.
+    diagnosis: Diagnosis | None = None
 
 
 # ───────────────────────── العقد والحلّال ─────────────────────────
@@ -413,6 +438,208 @@ def solve(built: BuiltModel, config: SolverConfig, progress: Any = None) -> Solv
 Solver = Callable[[BuiltModel, SolverConfig], SolveReport]
 
 
+# ───────────────────────── تشخيصُ الاستحالة (W-20261011-005) ─────────────────────────
+
+#: القيودُ التي يقبل النموذجُ إيقافَها بوسم `ModelOptions.disabled` — وكلُّ ما عداها نواةٌ صلبةٌ لا تُطفأ.
+DIAGNOSIS_CODES = ("HC5", "HC8", "HC11", "HC22", "HC14", "HC16B", "HC17", "HC20")
+#: سقفُ زمن التشخيص كلِّه بعد INFEASIBLE، وسقفُ المسبار الواحد. فإن نفد قبل الإتمام يُبلَّغ بما بُلغ ويُوسم «غيرُ مكتمل».
+DIAGNOSIS_BUDGET_SECONDS = 120.0
+DIAGNOSIS_PROBE_SECONDS = 15.0
+_FEASIBLE_STATUSES = ("OPTIMAL", "FEASIBLE")
+
+
+@dataclass
+class Diagnosis:
+    """من أين جاءت الاستحالة — رموزٌ ومعرّفاتٌ فقط (لا أسماءَ معلّمين: PDPPL)."""
+
+    #: أصغرُ مجموعةِ معلّمين (معرّفات) تبقى مستحيلةً وحدَها — ما سواها لا يُسهم في التعارض.
+    teachers: tuple[str, ...] = ()
+    #: عددُ الحصص الأسبوعيّة لكلّ منهم ({معرّف ← حصص}) ليُعرَف من هو بلا اسم.
+    loads: dict[str, int] = field(default_factory=dict)
+    teachers_total: int = 0
+    #: أصغرُ مجموعةٍ من القيود القابلة للإيقاف يجعل إيقافُها معاً هؤلاءِ المعلّمين ممكنين. فارغةٌ = لم تكفِ.
+    codes: tuple[str, ...] = ()
+    #: هل يزيل إيقافُ بعضِ القيود القابلة للإيقاف الاستحالةَ؟ لا ⇒ العطلُ في النواة الصلبة (معلّم/شعبة/توقيت).
+    switchable_cures: bool = False
+    #: كلُّ مجموعةٍ أصغرَ من `codes` ثبت عجزُها (لا مسبارَ UNKNOWN فيها): فالمجموعةُ أدنى حقّاً لا أصغرُ ما وُجد.
+    minimal: bool = True
+    #: نفد الزمنُ أو خرج مسبارٌ UNKNOWN قبل الحسم: النتيجةُ صحيحةٌ لكنها قد تكون أوسعَ من الأدنى.
+    complete: bool = True
+    probes: int = 0
+    seconds: float = 0.0
+
+    def titles(self) -> list[str]:
+        from operations.constraint_registry import spec
+
+        out = []
+        for code in self.codes:
+            found = spec(code)
+            out.append(f"«{found.title}» ({code})" if found else code)
+        return out
+
+    def _who(self) -> str:
+        shown = "، ".join(f"{t[:8]} ({self.loads.get(t, 0)} حصّة)" for t in self.teachers[:5])
+        if len(self.teachers) == 1:
+            return f"المعلّمُ {shown} لا يمكن جدولةُ إسنادِه وحدَه"
+        more = " وغيرُهم" if len(self.teachers) > 5 else ""
+        return f"{len(self.teachers)} معلّمين ({shown}{more}) لا تُجدوَل إسناداتُهم معاً"
+
+    def sentence(self) -> str:
+        """الجملةُ التي تُضاف إلى رسالة الفشل: تسمّي القيدَ أو المجموعة المتعارضة ومن يظهر فيه التعارض."""
+        parts = []
+        if self.teachers and len(self.teachers) < self.teachers_total:
+            parts.append(self._who())
+        if self.codes:
+            names = " و".join(self.titles())
+            only = "" if len(self.codes) == 1 else " معاً ولا يكفي إيقافُ أحدِها وحدَه"
+            parts.append(f"تتعارض القيودُ: {names}{only}")
+        elif self.switchable_cures:
+            parts.append("تتعارض عدّةُ قيودٍ قابلةٍ للإيقاف معاً (أكثرُ من ثلاثة)")
+        else:
+            parts.append(
+                "العطلُ في النواة الصلبة (تضاربُ معلّمٍ أو شعبةٍ أو توقيت) ولا يزول بإيقاف أيٍّ من القيود"
+                " القابلة للإيقاف"
+            )
+        text = "السببُ: " + "؛ ".join(parts)
+        if not self.complete:
+            text += " (تشخيصٌ غيرُ مكتمل: انتهى زمنُه أو تعذّر الحسمُ في مسبار)"
+        return text
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "teachers": list(self.teachers),
+            "loads": dict(self.loads),
+            "teachers_total": self.teachers_total,
+            "codes": list(self.codes),
+            "switchable_cures": self.switchable_cures,
+            "minimal": self.minimal,
+            "complete": self.complete,
+            "probes": self.probes,
+            "seconds": round(self.seconds, 2),
+        }
+
+
+class _Prober:
+    """يبني النموذجَ من جديد بوسمٍ وصفوفٍ مختلفةٍ ويحلّه بلا هدف — مسبارُ جدوى لا توليد."""
+
+    def __init__(
+        self, inputs: CpSatInputs, config: SolverConfig, budget: float, probe_seconds: float
+    ):
+        self.inputs = inputs
+        self.config = config
+        self.started = time.monotonic()
+        self.budget = budget
+        self.probe_seconds = probe_seconds
+        self.count = 0
+        self.unknown = False
+        self.base = options_from_relaxations(dict(config.relaxations))
+        if config.allow_unplaced:
+            self.base["allow_unplaced"] = True
+
+    def left(self) -> float:
+        return self.budget - (time.monotonic() - self.started)
+
+    def exhausted(self) -> bool:
+        return self.left() <= 0.5
+
+    def status(self, disabled=frozenset(), teachers=None) -> str:
+        """حالةُ النموذج بإيقاف `disabled` وبصفوف `teachers` وحدَها (None = كلُّها). UNKNOWN عند نفاد الزمن."""
+        from dataclasses import replace
+
+        from ortools.sat.python import cp_model
+
+        if self.exhausted():
+            self.unknown = True
+            return "UNKNOWN"
+        inputs = self.inputs
+        if teachers is not None:
+            keep = set(teachers)
+            inputs = replace(inputs, demand=[r for r in inputs.demand if r.teacher in keep])
+        extra = dict(self.base)
+        extra["disabled"] = frozenset(disabled)
+        options = default_options(inputs, extra)
+        built = default_builder()(inputs, options)
+        solver = cp_model.CpSolver()
+        solver.parameters.random_seed = self.config.seed
+        solver.parameters.num_workers = self.config.workers
+        solver.parameters.max_time_in_seconds = max(0.5, min(self.probe_seconds, self.left()))
+        self.count += 1
+        name = _status_name(cp_model, solver.Solve(built.model))
+        if name == "UNKNOWN":
+            self.unknown = True
+        return name
+
+
+def diagnose_infeasibility(
+    inputs: CpSatInputs,
+    config: SolverConfig,
+    *,
+    budget_seconds: float = DIAGNOSIS_BUDGET_SECONDS,
+    probe_seconds: float = DIAGNOSIS_PROBE_SECONDS,
+) -> Diagnosis:
+    """يسمّي القيدَ أو المجموعةَ المتعارضة بعد INFEASIBLE، بإعادة بناء النموذج كلَّ مرّةٍ بلا هدف.
+
+    ١) المعلّمون: أصغرُ مجموعةِ معلّمين تبقى مستحيلةً وحدَها (حذفٌ بالنصف ثمّ بالمفرد). الاستحالةُ تُثبَت بسرعةٍ
+       والقيودُ كلُّها قائمة، فهذا أسرعُ المسابير وأوضحُها؛ والحذفُ لا يُنتج استحالةً من عدم لأنّ ما بقي جزءٌ من الطلب.
+    ٢) القيود: على هؤلاء وحدَهم، أصغرُ مجموعةٍ (حتى ثلاثة) من القيود القابلة للإيقاف يجعل إيقافُها معاً النموذجَ ممكناً،
+       بتجربة الأحادية فالثنائية فالثلاثية؛ فإن لم تنفع فإيقافُ كلّها: ممكنٌ ⇒ أكثرُ من ثلاثة، مستحيلٌ ⇒ نواةٌ صلبة.
+    ولا يُشغَّل على نموذجٍ مُحقَن (اختباراتُ العقد)؛ ولا يُسقط التوليدَ: انظر `run`.
+    """
+    from itertools import combinations
+
+    prober = _Prober(inputs, config, budget_seconds, probe_seconds)
+    all_teachers = sorted({row.teacher for row in inputs.demand})
+    diagnosis = Diagnosis(teachers_total=len(all_teachers))
+
+    teachers = list(all_teachers)
+    chunk = max(1, len(teachers) // 2)
+    while chunk >= 1 and teachers and not prober.exhausted():
+        index = 0
+        while index < len(teachers) and not prober.exhausted():
+            trial = teachers[:index] + teachers[index + chunk :]
+            if trial and prober.status(teachers=trial) == "INFEASIBLE":
+                teachers = trial
+            else:
+                index += chunk
+        chunk //= 2
+    diagnosis.teachers = tuple(teachers)
+    for row in inputs.demand:
+        if row.teacher in teachers:
+            diagnosis.loads[row.teacher] = diagnosis.loads.get(row.teacher, 0) + row.n
+
+    prober.unknown = False  # الحكمُ على «أدنى» يخصّ مسابيرَ القيود وحدَها
+    found = False
+    for size in (1, 2, 3):
+        for combo in combinations(DIAGNOSIS_CODES, size):
+            if prober.status(combo, teachers) in _FEASIBLE_STATUSES:
+                diagnosis.codes, found = combo, True
+                break
+        if found or prober.exhausted():
+            break
+    diagnosis.minimal = not prober.unknown
+    if found:
+        diagnosis.switchable_cures = True
+    elif prober.status(DIAGNOSIS_CODES, teachers) in _FEASIBLE_STATUSES:
+        diagnosis.switchable_cures = True
+    diagnosis.complete = not prober.unknown and not prober.exhausted()
+    diagnosis.probes = prober.count
+    diagnosis.seconds = time.monotonic() - prober.started
+    return diagnosis
+
+
+def _diagnose_quietly(
+    inputs: CpSatInputs, config: SolverConfig, builder: Any, solver: Any
+) -> Diagnosis | None:
+    """التشخيصُ يُثري رسالةَ INFEASIBLE ولا يُسقطها: على باني/حلّالٍ مُحقَنَين (اختباراتُ العقد) لا يُشغَّل، وأيُّ خطأٍ يُسجَّل."""
+    if builder is not None or solver is not None:
+        return None
+    try:
+        return diagnose_infeasibility(inputs, config)
+    except Exception:  # noqa: BLE001 — فشلُ التشخيص لا يُخفي الاستحالةَ الثابتة
+        logger.exception("diagnose_infeasibility: تعذّر تشخيصُ الاستحالة")
+        return None
+
+
 # ───────────────────────── القفل ─────────────────────────
 
 
@@ -527,16 +754,27 @@ def run(
 ) -> tuple[RunResult, CpSatInputs]:
     """حلٌّ + تقييمٌ مستقلّ بلا كتابة. يميّز INFEASIBLE (برهان) عن UNKNOWN/المهلة وعن رفض المُقيِّم."""
     inputs = inputs if inputs is not None else load_inputs(school, academic_year)
-    config = with_admin_first_caps(config, school, academic_year)
+    config = with_admin_first_caps(with_school_policy(config, school), school, academic_year)
+    note = _rule_note(config)
     with school_solve_lock(school.pk):
         report = solve_inputs(
             inputs, config, builder=builder, objective=objective, solver=solver, progress=progress
         )
     if report.status == "INFEASIBLE":
         message = "مستحيلٌ بالبرهان (INFEASIBLE): القيودُ متعارضة"
-        return RunResult(False, report, None, message, "infeasible"), inputs
+        diagnosis = _diagnose_quietly(inputs, config, builder, solver)
+        if diagnosis is not None:
+            message = f"{message}. {diagnosis.sentence()}"
+        message = f"{message}. {note}"
+        return RunResult(False, report, None, message, "infeasible", diagnosis), inputs
+    if not report.slots and getattr(progress, "stop_flag", False):
+        # إيقافٌ يدويٌّ قبل أول حلّ: لا «انقضت المهلة» — المهلةُ لم تنقضِ، والمستخدمُ هو من أوقف.
+        message = f"أوقفه المستخدمُ قبل أن يجد الحلّالُ أيَّ جدول — لم تنقضِ المهلة. {note}"
+        return RunResult(False, report, None, message, "stopped"), inputs
     if not report.slots:
-        message = f"انقضت المهلةُ ({config.max_seconds:g}ث) بلا حلٍّ (UNKNOWN) — ضيقُ وقتٍ لا استحالة"
+        message = (
+            f"انقضت المهلةُ ({config.max_seconds:g}ث) بلا حلٍّ (UNKNOWN) — ضيقُ وقتٍ لا استحالة. {note}"
+        )
         return RunResult(False, report, None, message, "timeout"), inputs
     if report.unplaced:
         # جدولٌ ناقصٌ لا يصلح مسودّةً: يُرفض بالاسم قبل المُقيِّم ويبقى العددُ في اللقطة ليقرّر المالك.
@@ -549,7 +787,7 @@ def run(
         )
         message = (
             f"رفض المُقيِّمُ المستقلّ ناتجَ الحلّال: InfeasibilityValue={evaluation.infeasibility_value}"
-            f"، مخالفاتٌ صلبة={evaluation.hard_total} ({hard})، خاناتٌ بلا إسناد={evaluation.orphan_cells}"
+            f"، مخالفاتٌ صلبة={evaluation.hard_total} ({hard})، خاناتٌ بلا إسناد={evaluation.orphan_cells}. {note}"
         )
         return RunResult(False, report, evaluation, message, "rejected"), inputs
     return RunResult(True, report, evaluation, "", "ok"), inputs
@@ -622,6 +860,8 @@ def fail_generation(generation: Any, result: RunResult) -> None:
         snapshot["verdict"] = result.report.verdict
     if result.evaluation is not None:
         snapshot["evaluation"] = result.evaluation.as_dict()
+    if result.diagnosis is not None:
+        snapshot["diagnosis"] = result.diagnosis.as_dict()
     ScheduleGeneration.objects.filter(pk=generation.pk, status="running").update(
         status="failed",
         error_message=result.message[:2000],
@@ -631,7 +871,7 @@ def fail_generation(generation: Any, result: RunResult) -> None:
 
 
 def _final_state(result: RunResult, stopped: bool) -> str:
-    if result.reason in ("infeasible", "rejected"):
+    if result.reason in ("infeasible", "rejected", "stopped"):
         return result.reason
     if result.ok and result.report:
         if result.report.status == "OPTIMAL":
@@ -657,7 +897,8 @@ def run_generation(generation: Any, config: SolverConfig, **kwargs: Any) -> RunR
         result = RunResult(False, None, None, str(error), "no_model")
     if not result.ok:
         fail_generation(generation, result)
-        tracker.finish(_final_state(result, tracker.stop_flag))
+        label = STOPPED_EMPTY_LABEL if result.reason == "stopped" else None
+        tracker.finish(_final_state(result, tracker.stop_flag), label)
         return result
     persist_draft(generation, result, inputs, int((time.monotonic() - started) * 1000))
     tracker.finish(_final_state(result, tracker.stop_flag))

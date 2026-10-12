@@ -48,7 +48,7 @@
 @page {
   size: A4;
   /* الهوامشُ: ترويسةٌ 1.2 بوصة (بلا رؤية) وتذييلٌ سطرٌ واحد 0.42 بوصة. الجانبيّان كالأصل. */
-  margin: 1.2in 0.5in 0.42in 0.5in;
+  margin: 0.8in 0.5in 0.42in 0.5in;
   @top-center { content: element(sheet-header); }
   @bottom-center { content: element(sheet-footer); }
 }
@@ -74,7 +74,6 @@ body {
 #sheet-header { position: running(sheet-header); width: 184.6mm; padding-top: 0.08in; }
 #sheet-footer { position: running(sheet-footer); width: 184.6mm; padding-bottom: 0.1in; }
 .doc-header { text-align: center; }
-.doc-header .emblem { display: block; height: 0.5in; width: auto; margin: 0 auto 2pt; }
 .doc-header .ministry-name { font-size: 8.5pt; color: {% brand_color "TEXT_PRIMARY" %}; }
 .doc-header .school-name { font-size: 15pt; font-weight: 700; color: {% brand_color "MAROON" %}; line-height: 1.25; }
 .ornament-hr { height: 4pt; margin-top: 3pt; border-top: 2pt solid {% brand_color "MAROON" %}; border-bottom: 0.75pt solid {% brand_color "GOLD" %}; }
@@ -165,7 +164,6 @@ td {
 
 <div id="sheet-header">
   <div class="doc-header">
-    {% if logo %}<img class="emblem" src="{{ logo }}" alt="">{% endif %}
     <div class="ministry-name">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
     <div class="school-name">{{ obs.school.name }}</div>
   </div>

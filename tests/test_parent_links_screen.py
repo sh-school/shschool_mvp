@@ -155,7 +155,7 @@ class TestTheColumnsAreTheOnesUsed:
 
         body = _body(client_as, admin)
 
-        assert "*******0538" in body
+        assert "*******0538" not in body and "0538" not in body
         assert "99900000538" not in body
         assert "99900002649" not in body
 

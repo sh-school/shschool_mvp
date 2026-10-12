@@ -4,10 +4,8 @@ core/export_utils.py — أدوات تصدير موحّدة لكل المنصة
 """
 
 import uuid
-from pathlib import Path
 from typing import Any, NamedTuple
 
-from django.conf import settings
 from django.utils import timezone
 
 from core import brand
@@ -29,7 +27,7 @@ def generate_export_filename(module: str, report_type: str, ext: str) -> str:
 def get_export_context(request, title: str) -> dict:
     """
     context موحّد لجميع التصديرات (Excel + PDF):
-    - school_name, school_logo_path
+    - school_name
     - exported_by (الاسم), exporter_role (الدور)
     - export_date, export_time, export_datetime
     - title, academic_year
@@ -49,12 +47,9 @@ def get_export_context_for(user: Any, title: str) -> dict[str, Any]:
     # نفسُه يُطبع رمزاً في ترويسة Excel وذيله وستّةِ قوالبِ PDF.
     role_code = user.get_role() or ""
     role_ar = dict(Role.ROLES).get(role_code, role_code) or "—"
-    logo_path = str(Path(settings.BASE_DIR) / "static" / "brand" / "logoMaroon.png")
 
     return {
         "school_name": school.name if school else "المدرسة",
-        "school_logo_path": str(Path(settings.BASE_DIR) / "static" / "brand" / "logowhite.png"),
-        "logo_path": logo_path,
         "exported_by": user.full_name,
         "exporter_role": role_ar,
         "exporter_role_code": role_code,
@@ -142,11 +137,10 @@ def brand_cell(cell) -> None:
 def add_excel_title_rows(ws, num_cols: int, first: str, second: str, third: str) -> None:
     """الصفوفُ الثلاثةُ الأولى في كلّ ملفّ Excel — ترويسةٌ واحدةٌ للمنصّة.
 
-    ١ عنّابيٌّ بنصٍّ أبيضَ كبير وشعارِ المدرسة، ٢ عنّابيٌّ فاتحٌ بنصٍّ أبيض،
+    ١ عنّابيٌّ بنصٍّ أبيضَ كبير (بلا صورة شعار، D-387م)، ٢ عنّابيٌّ فاتحٌ بنصٍّ أبيض،
     ٣ عنّابيٌّ خفيفٌ بنصٍّ خافت. وكانت نسختان منها بتصميمين: هذه في شؤون
     الطلبة، وأخرى فاتحةٌ بخطٍّ عنّابيّ في التقارير وتصدير الطلبة — ثلاثَ مرّات.
     """
-    from openpyxl.drawing.image import Image as XLImage
     from openpyxl.styles import Alignment
 
     center = Alignment(horizontal="center", vertical="center")
@@ -163,21 +157,11 @@ def add_excel_title_rows(ws, num_cols: int, first: str, second: str, third: str)
         cell.alignment = center
         ws.row_dimensions[row].height = height
 
-    logo = Path(settings.BASE_DIR) / "static" / "brand" / "logowhite.png"
-    if logo.exists():
-        try:
-            img = XLImage(str(logo))
-            img.width = 36
-            img.height = 36
-            ws.add_image(img, "A1")
-        except (OSError, ValueError):
-            pass
-
 
 def add_excel_header(ws, context: dict, num_cols: int):
     """
     هيدر Excel احترافي موحّد:
-    صف 1: [شعار] اسم المدرسة — الوزارة (merged)
+    صف 1: اسم المدرسة — الوزارة (merged)
     صف 2: عنوان التقرير — العام الدراسي (merged)
     صف 3: صدر بواسطة: الاسم — الدور — التاريخ (merged)
     صف 4: (فارغ)
