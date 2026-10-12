@@ -1,34 +1,45 @@
-"""الورقةُ المفردة (صفحةٌ لكلّ معلّمٍ أو شعبة) بخطٍّ مكبَّر: تبقى صفحةً واحدةً ولا تُقَصّ خليّةٌ — قياسٌ على رسم WeasyPrint حقيقيّ.
+"""الورقةُ المفردة (صفحةٌ لكلّ معلّمٍ أو شعبة) بعد إعادة التنسيق (W-20261010-057، 2026-10-12): قياسٌ على PDF مولَّدٍ من **المسار الحقيقيّ**.
 
-ملاحظةُ المالك 2026-10-10 (W-20261010-049 ثمّ W-20261010-057): خطُّ الجدول الأسبوعيّ صغيرٌ في ورقةٍ فيها متّسع، في المعلّمين والشعب. فكُبِّر `SINGLE_SHEET_BOOST`
-بقدرٍ **مقيسٍ** على الأسوأ لكلّ نوع: معلّمٌ بخمسٍ وثلاثين حصّةً (كلُّ خليّةٍ شعبةٌ ومادّةٌ طويلةُ الاسم وتوقيت)، وشعبةٌ بخمسٍ وثلاثين حصّةً (كلُّ خليّةٍ معلّمٌ باسمٍ
-طويلٍ ومادّةٌ طويلة). والحدُّ قياسُ صناديق الرسم نفسِه: ما يعلو ارتفاعَ الخليّة المحسوبَ بالملّيمتر (`wg-fit` بـ`overflow: hidden`) يُقَصّ بصمت — فيُعدّ ذلك فشلاً.
+رفض المالكُ التنسيقَ السابق: «نوع الخط غير مناسب — البولد قويٌّ جدّاً»، والترويسةُ والتذييلُ نسختان محلّيّتان بفجوةٍ وتذييلٍ مكرَّر. فالمُلزِمُ الآن:
+
+- **الخطُّ Tajawal مضمَّناً** (لا DejaVu): العرضُ نفسُه الذي يبنيه `build_schedule_pages_pdf` — `for_pdf` بلا `@font-face` فيحقنه `_inject_fonts` من القرص.
+  (قياسٌ سابقٌ على HTMLِ الشاشة كان يسقط إلى DejaVu لأنّ `@font-face` النسبيّ لا يُحَلّ على القرص، فكانت الأرقامُ كاذبة.)
+- **الأوزان:** المادّةُ 500، والتوقيتُ والشعبةُ 400، و700 للترويسة (ترويسةُ الجدول واسمُ المدرسة وعنوانُ الوثيقة) وحدَها.
+- **الحدودُ الدنيا بالنقطة:** المادّةُ ≥ 10.5 على A4، والتوقيتُ والشعبةُ ≥ 9، والتذييلُ ≥ 9.
+- **صفحةٌ واحدةٌ بلا قصٍّ** لأسوأ معلّمٍ (35 حصّةً) وأطول شعبةٍ، وعمودُ اليوم يتّسع لـ«الأربعاء» — بصناديق رسم WeasyPrint (`wg-fit` بـ`overflow: hidden` يقصّ بصمت، فيُعدّ ذلك فشلاً).
+- **الإطارُ المركزيّ** (`print_frame_*`) لا ترويسةٌ ولا تذييلٌ محلّيّان، ولا نصَّ وزارةٍ مكتوباً في القالب (D-400م).
+
 أسماءٌ ومعلّمون مصطنعون.
 """
 
 from __future__ import annotations
 
-import dataclasses
 import datetime as dt
+import io
 from pathlib import Path
 
+import pypdf
 import pytest
 from django.conf import settings
-from django.urls import reverse
+from django.http import QueryDict
+from django.template.loader import render_to_string
 
-import operations.schedule_selectors as selectors
+from core.pdf_utils import render_pdf_bytes
 from operations.models import ScheduleSlot, Subject
-from operations.schedule_paper import SINGLE_SHEET_BOOST, paper_geometry
+from operations.schedule_paper import SINGLE_SHEET_A3_SCALE, SINGLE_SHEET_PT, paper_geometry
+from operations.schedule_selectors import pages_payload
 from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, UserFactory
+from tests.pdf_geometry import text_chunks
 from tests.test_schedule_pages_parity import _register, arts  # noqa: F401
 
 pytestmark = pytest.mark.django_db
 
 YEAR = "2026-2027"
+SUBJECT = "التكنولوجيا وعلوم الحاسب الآلي"
 
 
-def _fit(html: str) -> tuple[int, int, int]:
-    """(عددُ الصفحات، خلايا الجسم، المقصوصةُ منها) من صناديق WeasyPrint — لا من نصٍّ ولا تقدير."""
+def _fit(html: str) -> tuple[int, int, int, int]:
+    """(عددُ الصفحات، خلايا الجسم، المقصوصةُ منها، أيّامٌ يفيض اسمُها عن عمودها) من صناديق WeasyPrint — لا من نصٍّ ولا تقدير."""
     from weasyprint import HTML
     from weasyprint.text.fonts import FontConfiguration
 
@@ -36,35 +47,39 @@ def _fit(html: str) -> tuple[int, int, int]:
 
     base = Path(settings.BASE_DIR).as_uri() + "/"
     doc = HTML(string=_inject_fonts(html), base_url=base).render(font_config=FontConfiguration())
-    cells = clipped = 0
+    cells = clipped = day_overflow = 0
 
     def bottom(box) -> float:
         low = box.position_y + box.margin_height() if hasattr(box, "margin_height") else 0
         return max([low, *(bottom(c) for c in getattr(box, "children", None) or [])])
 
+    def widest(box) -> float:
+        own = getattr(box, "width", 0) if type(box).__name__ == "TextBox" else 0
+        return max([own, *(widest(c) for c in getattr(box, "children", None) or [])])
+
     def walk(box) -> None:
-        nonlocal cells, clipped
+        nonlocal cells, clipped, day_overflow
         element = getattr(box, "element", None)
         classes = (element.get("class") if element is not None else "") or ""
         if "wg-fit" in classes.split() and type(box).__name__ == "BlockBox" and box.children:
             cells += 1
             need = max(bottom(c) for c in box.children) - box.content_box_y()
             clipped += need > box.height + 0.5
+        if "wg-day" in classes.split() and type(box).__name__ == "TableCellBox":
+            day_overflow += widest(box) > box.width + 0.5
         for child in getattr(box, "children", None) or []:
             walk(child)
 
     for page in doc.pages:
         walk(page._page_box)
-    return len(doc.pages), cells, clipped
+    return len(doc.pages), cells, clipped, day_overflow
 
 
 @pytest.fixture
 def busiest_teacher(school, teacher_user, arts):  # noqa: F811
     """معلّمٌ بخمسٍ وثلاثين حصّةً (7 × 5) بمادّةٍ طويلةِ الاسم — أسوأُ ورقةٍ أسبوعيّةٍ ممكنة."""
     _register(teacher_user, school, arts, "إدارة الأعمال")
-    subject = Subject.objects.create(
-        school=school, name_ar="التكنولوجيا وعلوم الحاسب الآلي", code="TEC"
-    )
+    subject = Subject.objects.create(school=school, name_ar=SUBJECT, code="TEC")
     n = 0
     for day in range(5):
         for period in range(1, 8):
@@ -93,9 +108,7 @@ def busiest_teacher(school, teacher_user, arts):  # noqa: F811
 @pytest.fixture
 def busiest_class(school, arts):  # noqa: F811
     """شعبةٌ بخمسٍ وثلاثين حصّةً (7 × 5) بمعلّمٍ باسمٍ طويلٍ ومادّةٍ طويلة — أسوأُ ورقةِ شعبةٍ ممكنة."""
-    subject = Subject.objects.create(
-        school=school, name_ar="التكنولوجيا وعلوم الحاسب الآلي", code="TEC"
-    )
+    subject = Subject.objects.create(school=school, name_ar=SUBJECT, code="TEC2")
     group = ClassGroupFactory(
         school=school, grade="G12", section="99", level_type="prep", academic_year=YEAR
     )
@@ -119,101 +132,152 @@ def busiest_class(school, arts):  # noqa: F811
     return group
 
 
-def _paper_html(client, principal_user, paper: str, kind: str = "teachers") -> str:
-    client.force_login(principal_user)
-    query = {"kind": kind, "year": YEAR, "paper": paper, "orient": "landscape"}
-    return client.get(reverse("schedule_pages_paper"), query).content.decode()
+def _pages(school, kind: str, paper: str, orient: str = "landscape") -> tuple[str, bytes]:
+    """(HTML، PDF) من المسار الحقيقيّ لتصدير صفحات المعلّمين/الشعب: `for_pdf` بلا `@font-face` ثمّ `render_pdf_bytes`."""
+    ctx = pages_payload(school, QueryDict(f"kind={kind}&year={YEAR}&paper={paper}&orient={orient}"))
+    ctx["embed"] = True
+    ctx["for_pdf"] = True
+    html = render_to_string("schedule/print_pages.html", ctx)
+    return html, render_pdf_bytes(html, paper_size=paper.upper())
 
 
+def _fonts(pdf: bytes) -> set[str]:
+    names: set[str] = set()
+    for page in pypdf.PdfReader(io.BytesIO(pdf)).pages:
+        for font in (page["/Resources"].get("/Font") or {}).values():
+            names.add(str(font.get_object().get("/BaseFont")).split("+")[-1])
+    return names
+
+
+@pytest.mark.parametrize("orient", ["landscape", "portrait"])
 @pytest.mark.parametrize("paper", ["a4", "a3"])
-def test_the_busiest_teacher_stays_on_one_page_with_no_clipped_cell(
-    client, principal_user, busiest_teacher, paper
-):
-    pages, cells, clipped = _fit(_paper_html(client, principal_user, paper))
-
-    assert (pages, cells, clipped) == (1, 35, 0)
-
-
-@pytest.mark.parametrize("paper", ["a4", "a3"])
-def test_the_longest_class_stays_on_one_page_with_no_clipped_cell(
-    client, principal_user, busiest_class, paper
-):
-    pages, cells, clipped = _fit(_paper_html(client, principal_user, paper, "classes"))
-
-    assert (pages, cells, clipped) == (1, 35, 0)
-
-
 @pytest.mark.parametrize("kind", ["teachers", "classes"])
-@pytest.mark.parametrize("paper", ["a4", "a3"])
-def test_the_actual_week_strip_takes_rows_and_the_font_shrinks_with_them(kind, paper):
-    """شريطُ المفتاح والملاحظات يقتطع من الصفوف، فينقص التكبيرُ بنسبة ارتفاعها لئلّا تُقَصّ خليّة."""
-    bare = paper_geometry(paper, "landscape", with_who=False, sheet_kind=kind)
-    keyed = paper_geometry(paper, "landscape", with_who=False, strip_lines=4, sheet_kind=kind)
-
-    assert 1.0 < keyed.body_boost < bare.body_boost
-    assert keyed.body_boost / bare.body_boost == pytest.approx(keyed.row_h / bare.row_h, rel=1e-6)
-
-
-@pytest.mark.parametrize("paper", ["a4", "a3"])
-def test_the_worst_sheets_keep_one_page_even_with_a_four_line_strip(
-    client, principal_user, busiest_teacher, busiest_class, monkeypatch, paper
+def test_the_worst_sheet_stays_on_one_page_with_no_clipped_cell_or_day(
+    school,
+    busiest_teacher,
+    busiest_class,
+    kind,
+    paper,
+    orient,  # noqa: F811
 ):
-    """الجدولُ الفعليّ بشريطٍ من أربعة سطور: صفوفه أقصر، والخطُّ يُنقَص بنسبتها فيبقى كلُّ شيءٍ في صفحةٍ بلا قصّ."""
-    original = selectors.paper_geometry
+    html, _ = _pages(school, kind, paper, orient)
 
-    def keyed(p, o, **kwargs):
-        return original(p, o, **{**kwargs, "strip_lines": 4})
+    pages, cells, clipped, day_overflow = _fit(html)
 
-    monkeypatch.setattr(selectors, "paper_geometry", keyed)
-    for kind, expected in (("teachers", 36), ("classes", 36)):
-        pages, _, clipped = _fit(_paper_html(client, principal_user, paper, kind))
-        assert (pages, clipped) == (expected, 0), kind
+    # 36 ورقةً بالضبط (الأسوأُ + 35 من الجانب الآخر) = صفحةٌ لكلّ ورقة؛ وكلُّها 35 خليّةً.
+    assert pages == 36
+    assert cells == pages * 35
+    assert (clipped, day_overflow) == (0, 0)
 
 
-@pytest.mark.parametrize("kind", ["teachers", "classes"])
 @pytest.mark.parametrize("paper", ["a4", "a3"])
-def test_the_body_font_is_larger_than_before_and_breaks_stay_as_they_were(paper, kind):
-    plain = paper_geometry(paper, "landscape", with_who=True).css
-    bigger = paper_geometry(paper, "landscape", with_who=True, sheet_kind=kind).css
-
-    for key in ("subject_pt", "meta_pt", "time_pt", "day_pt", "head_pt"):
-        assert float(bigger[key][:-2]) > float(plain[key][:-2]), key
-    # عمودُ الفسحة ضيّقٌ بالملّيمتر والخليّةُ المشتركةُ ستّةُ أسطرٍ: خطُّهما كما كان
-    for key in ("break_pt", "multi_subject_pt", "multi_pt"):
-        assert bigger[key] == plain[key], key
-
-
-def test_the_general_sheet_is_never_boosted():
-    """الجدولُ العامّ (ورقة A3 للمدرسة كلّها) خارج هذا التكبير: بلا `sheet_kind` يبقى 1."""
-    for paper in ("a4", "a3"):
-        assert paper_geometry(paper, "landscape", with_who=True).body_boost == 1.0
-
-
-def test_the_measurement_can_fail_a_boost_past_the_measured_limit(
-    client, principal_user, busiest_teacher, monkeypatch
+@pytest.mark.parametrize("kind", ["teachers", "classes"])
+def test_the_pdf_embeds_tajawal_and_never_dejavu(
+    school,
+    busiest_teacher,
+    busiest_class,
+    kind,
+    paper,  # noqa: F811
 ):
-    """حارسُ الحارس: تكبيرٌ فوق الحدّ المقيس (1.45× على A4) يُظهر خليّةً مقصوصةً — فالاختبارُ أعلاه ليس فارغاً."""
-    original = selectors.paper_geometry
-    assert SINGLE_SHEET_BOOST["teachers"]["a4"] < 1.45
+    """«نوعُ الخطّ غير مناسب» كان DejaVu Sans العريض؛ الهويّةُ Tajawal بأوزانها 400 و500 و700."""
+    _, pdf = _pages(school, kind, paper)
 
-    def too_big(paper, orient, **kwargs):
-        return dataclasses.replace(original(paper, orient, **kwargs), body_boost=1.45)
+    fonts = _fonts(pdf)
 
-    monkeypatch.setattr(selectors, "paper_geometry", too_big)
-
-    _, _, clipped = _fit(_paper_html(client, principal_user, "a4"))
-
-    assert clipped > 0
+    # الوزنُ 400 يُسمّى في الملفّ «Tajawal» بلا لاحقة.
+    assert {"Tajawal", "Tajawal-Medium", "Tajawal-Bold"} <= fonts, fonts
+    assert not any("DejaVu" in name for name in fonts), fonts
 
 
-@pytest.mark.parametrize("kind", ["teachers", "classes"])
 @pytest.mark.parametrize("paper", ["a4", "a3"])
-def test_the_day_column_widens_with_its_font_so_wednesday_is_not_cut(paper, kind):
-    """لقطةُ W-20261010-057: «الأربعاء» و«الخميس» كانا يُقصّان بالخطّ المكبَّر في عمودٍ بعرضه الأصليّ."""
-    plain = paper_geometry(paper, "landscape", with_who=True).css
-    bigger = paper_geometry(paper, "landscape", with_who=True, sheet_kind=kind).css
+@pytest.mark.parametrize("kind", ["teachers", "classes"])
+def test_the_body_sizes_never_drop_below_the_owners_minimums(
+    school,
+    busiest_teacher,
+    busiest_class,
+    kind,
+    paper,  # noqa: F811
+):
+    """حدودُ المالك الدنيا بالنقطة على الصفحة المرسومة لا على CSS: المادّةُ ≥ 10.5 والشعبة/المعلّمُ والتوقيتُ والتذييلُ ≥ 9 (وعلى A3 بنسبتها)."""
+    _, pdf = _pages(school, kind, paper)
+    scale = SINGLE_SHEET_A3_SCALE if paper == "a3" else 1.0
 
-    boost = SINGLE_SHEET_BOOST[kind][paper]
-    assert float(bigger["day_col_w"][:-2]) == pytest.approx(
-        float(plain["day_col_w"][:-2]) * boost, abs=0.05
+    chunks = text_chunks(pdf, 0)
+    subject = max(size for text, _x, _y, size in chunks if "الحاسب" in text)
+    time = min(size for text, _x, _y, size in chunks if "07:10" in text)
+
+    assert subject >= 10.5 * scale - 0.1, subject
+    assert time >= 9.0 * scale - 0.1, time
+    # لا سطرَ في الصفحة (الشعبةُ والتوقيتُ والتذييلُ وما بينها) بأقلّ من 9pt: الحدُّ الأدنى المرسوم.
+    assert min(size for _t, _x, _y, size in chunks) >= 8.9
+
+
+def test_the_template_has_no_local_header_footer_and_no_literal_ministry_text():
+    """إطارٌ مركزيٌّ واحد: لا `.page-header` ولا `.page-footer` محلّيّان، ولا نصَّ وزارةٍ مكتوباً حرفيّاً (D-400م — يُجمَّد من موضعٍ واحد)."""
+    source = Path(settings.BASE_DIR, "templates/schedule/print_pages.html").read_text(
+        encoding="utf-8"
     )
+
+    assert "print_frame_header" in source and "print_frame_footer" in source
+    assert "print_frame_css" in source
+    assert "page-header" not in source and "page-footer" not in source
+    assert "وزارة التربية" not in source
+
+
+@pytest.mark.parametrize("paper", ["a4", "a3"])
+def test_the_header_and_footer_come_from_the_frame_and_the_year_is_bidi_isolated(
+    school,
+    busiest_teacher,
+    paper,  # noqa: F811
+):
+    html, pdf = _pages(school, "teachers", paper)
+
+    assert html.count('id="print-header"') == html.count('id="print-footer"') >= 1
+    # السنةُ بين عازلَي اتّجاه حقيقيَّين وحولها نصٌّ بمسافات: «العام الدراسي ⁦2026-2027⁩».
+    assert f"العام الدراسي ⁦{YEAR}⁩" in html
+    drawn = " ".join(text for text, _x, _y, _size in text_chunks(pdf, 0))
+    assert "الشحانية" in drawn and "الجدول الأسبوعي للمعلّم" in drawn
+
+
+def test_the_sizes_are_explicit_minimums_not_a_boost():
+    for paper, scale in (("a4", 1.0), ("a3", SINGLE_SHEET_A3_SCALE)):
+        css = paper_geometry(paper, "landscape", with_who=True, single_sheet=True).css
+        assert float(css["subject_pt"][:-2]) == pytest.approx(
+            SINGLE_SHEET_PT["subject_base"] * scale, abs=0.06
+        )
+        assert float(css["time_pt"][:-2]) == pytest.approx(
+            SINGLE_SHEET_PT["time_base"] * scale, abs=0.06
+        )
+    # التوقيتُ أصغرُ من المادّة بنحو 1.5pt
+    assert 1.2 <= SINGLE_SHEET_PT["subject_base"] - SINGLE_SHEET_PT["time_base"] <= 1.8
+
+
+@pytest.mark.parametrize("paper", ["a4", "a3"])
+@pytest.mark.parametrize("orient", ["landscape", "portrait"])
+def test_the_framed_geometry_takes_what_the_frame_leaves(paper, orient):
+    """الورقةُ المفردة تأخذ من المتن ما يتركه الإطارُ لا ما كانت تتركه الترويسةُ القديمة: لا فجوةَ ولا تذييلَ مكرَّراً."""
+    from core.print_frame import frame
+
+    geo = paper_geometry(paper, orient, with_who=True, single_sheet=True)
+    fr = frame(paper, orient)
+
+    assert geo.framed and geo.header_h == 0 and geo.footer_h == 0
+    assert geo.content_h == pytest.approx(fr.body_height, abs=0.05)
+    assert geo.bands_h + geo.row_h * geo.rows <= geo.content_h + 0.5
+
+
+@pytest.mark.parametrize("paper", ["a4", "a3"])
+def test_the_actual_week_strip_takes_rows_and_still_fits(paper):
+    bare = paper_geometry(paper, "landscape", with_who=False, single_sheet=True)
+    keyed = paper_geometry(paper, "landscape", with_who=False, strip_lines=4, single_sheet=True)
+
+    assert keyed.row_h < bare.row_h
+    assert keyed.bands_h + keyed.row_h * keyed.rows <= keyed.content_h + 0.5
+
+
+def test_the_old_geometry_is_untouched_without_single_sheet():
+    """الأسلوبُ القديم (بترويسته المحلّيّة وأحجامه الأصليّة) يبقى لمن لا يطلب `single_sheet`."""
+    old = paper_geometry("a4", "landscape", with_who=False)
+
+    assert not old.framed and (old.header_h, old.footer_h, old.margin_top) == (29, 10, 8)
+    assert old.css["subject_pt"] == "8.5pt" and old.css["day_col_w"] == "16.0mm"

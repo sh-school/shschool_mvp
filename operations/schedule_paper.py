@@ -22,12 +22,12 @@
 
 from __future__ import annotations
 
-import dataclasses
 import datetime as dt
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from core import print_frame as pf
 from operations.bells import REGULAR, THURSDAY, Bell, bells_for
 from operations.models import ScheduleSlot
 
@@ -337,9 +337,20 @@ class PaperGeometry:
     day_col_w: float
     #: شريطُ المفتاح والملاحظات أسفل الجدول (الأسبوعُ الفعليّ) — صفرٌ للخطّة فلا يتبدّل مقاسُها.
     notes_h: float = 0.0
-    #: تكبيرُ خطّ جسم الجدول (المادة والشعبة والتوقيت واليوم والترويسة) في ورقة المعلّم الأسبوعيّة — لا الفسحة ولا الخانة المشتركة
-    #: (عمودُ الفسحة ضيّقٌ بالملّيمتر، والمشتركةُ ستّةُ أسطرٍ في صفّ). واحدٌ = بلا تكبير.
-    body_boost: float = 1.0
+    #: الإطارُ المطبوعُ المركزيّ (`core/print_frame.py`) يحمل ترويسةَ الورقة وتذييلَها في هامشَي الصفحة، فالمتنُ ما بين الهامشين وحدَه:
+    #: `margin_top`/`margin_bottom` هنا مجموعُ الهامش والترويسة والفاصل (والتذييل)، و`header_h` و`footer_h` صفرٌ، ولا فاصلَ بينهما وبين الجدول.
+    framed: bool = False
+    #: أحجامُ جسم الجدول على A4 بالنقطة (المادّةُ والشعبةُ أو المعلّم والتوقيتُ واليومُ والترويسة)؛ والتكبيرُ على A3 بـ`font_scale`.
+    #: وللورقة المفردة المعتمدةُ أرقامُها في `SINGLE_SHEET_PT` — حدودٌ دنيا قرّرها المالكُ للمعاينة (2026-10-12).
+    head_base: float = 9.0
+    day_base: float = 10.0
+    subject_base: float = 8.5
+    meta_base: float = 7.5
+    time_base: float = 7.0
+    #: الفسحةُ والخانةُ المشتركة: خطٌّ ثابتٌ لا يتبع جسمَ الجدول (عمودُ الفسحة ضيّقٌ بالملّيمتر، والمشتركةُ ستّةُ أسطرٍ في صفّ).
+    break_base: float = 7.5
+    multi_subject_base: float = 7.5
+    multi_base: float = 6.5
 
     @property
     def content_w(self) -> float:
@@ -351,6 +362,10 @@ class PaperGeometry:
 
     @property
     def bands_h(self) -> float:
+        if self.framed:
+            # الترويسةُ والتذييلُ في هامشَي الصفحة؛ ما في المتن شريطُ المعلّم/الشعبة ورأسُ الجدول وشريطُ الأسبوع الفعليّ.
+            gaps = (self.gap if self.who_h else 0) + (self.gap if self.notes_h else 0)
+            return self.who_h + self.thead_h + self.notes_h + gaps + self.safety
         gaps = self.gap * (3 if self.who_h else 2) + (self.gap if self.notes_h else 0)
         return (
             self.header_h + self.who_h + self.thead_h + self.footer_h + self.notes_h + gaps
@@ -380,10 +395,15 @@ class PaperGeometry:
             return f"{value * self.font_scale:.1f}pt"
 
         def body_pt(value: float) -> str:
-            return f"{value * self.font_scale * self.body_boost:.1f}pt"
+            return f"{value * self.font_scale:.1f}pt"
 
         return {
-            "margin": f"{mm(self.margin_top)} {mm(self.margin_side)} {mm(self.margin_bottom)}",
+            # على الشاشة حشوُ الورقة هوامشُ الصفحة؛ والإطارُ المركزيّ يضع هوامشَه وترويستَه بنفسه في الطباعة (`print_frame_css`).
+            "margin": (
+                f"{mm(pf.MARGIN_TOP_MM)} {mm(self.margin_side)} {mm(pf.MARGIN_BOTTOM_MM)}"
+                if self.framed
+                else f"{mm(self.margin_top)} {mm(self.margin_side)} {mm(self.margin_bottom)}"
+            ),
             "content_w": mm(self.content_w),
             "header_h": mm(self.header_h),
             "who_h": mm(self.who_h),
@@ -393,17 +413,16 @@ class PaperGeometry:
             "gap": mm(self.gap),
             "row_h": mm(self.row_h),
             "cell_h": mm(self.cell_h),
-            # عمودُ اليوم يتّسع بنسبة تكبير خطّه وإلّا قُصَّ «الأربعاء» و«الخميس» (لقطةُ W-20261010-057).
-            "day_col_w": mm(self.day_col_w * self.body_boost),
+            "day_col_w": mm(self.day_col_w),
             "break_col_w": mm(self.break_col_w),
-            "head_pt": body_pt(9),
-            "day_pt": body_pt(10),
-            "subject_pt": body_pt(8.5),
-            "meta_pt": body_pt(7.5),
-            "time_pt": body_pt(7),
-            "break_pt": pt(7.5),
-            "multi_subject_pt": pt(7.5),
-            "multi_pt": pt(6.5),
+            "head_pt": body_pt(self.head_base),
+            "day_pt": body_pt(self.day_base),
+            "subject_pt": body_pt(self.subject_base),
+            "meta_pt": body_pt(self.meta_base),
+            "time_pt": body_pt(self.time_base),
+            "break_pt": pt(self.break_base),
+            "multi_subject_pt": pt(self.multi_subject_base),
+            "multi_pt": pt(self.multi_base),
         }
 
 
@@ -416,15 +435,22 @@ _SHEETS[("a3", "portrait")] = (297, 420)
 STRIP_LINE_H = 3.4
 
 
-#: تكبيرُ جسم الورقة المفردة (صفحةٌ لكلّ معلّمٍ أو شعبة) لكلّ نوعٍ ومقاس (W-20261010-057). **السقفُ مقيسٌ، والمختارُ دونه بصريّاً:** أسوأُ ورقةٍ
-#: لكلّ نوع (خمسٌ وثلاثون حصّةً، كلُّ خليّةٍ ثلاثةُ أسطر، واسمُ معلّمٍ ومادّةٍ طويلان) تبقى صفحةً واحدةً بلا قصٍّ حتى: معلّم A4 1.35× · معلّم A3 1.575×
-#: · شعبة A4 1.3× · شعبة A3 1.325× (يبدأ القصُّ بعدها بقليل). لكنّ المالك رأى لقطاتِ الحدّ الأقصى «كبيرةً جدّاً ومنظرُها غيرُ مريح» (2026-10-12)،
-#: فالمعتمدُ 1.15× — أكبرُ من الأصل وأريحُ للعين، وهامشُه عن القصّ كبير. وعمودُ اليوم يتّسع بالنسبة نفسها (`PaperGeometry.css`) وإلّا قُصَّ «الأربعاء».
-#: يحرسه `tests/test_weekly_teacher_sheet_fit.py` على رسمٍ حقيقيّ.
-SINGLE_SHEET_BOOST = {
-    "teachers": {"a4": 1.15, "a3": 1.15},
-    "classes": {"a4": 1.15, "a3": 1.15},
+#: أحجامُ جسم الورقة المفردة (صفحةٌ لكلّ معلّمٍ أو شعبة) على A4 بالنقطة — **حدودٌ دنيا للمعاينة** قرّرها المالكُ لا سقفٌ مقيس (W-20261010-057، 2026-10-12):
+#: المادّةُ ≥ 10.5 والشعبةُ أو المعلّمُ ≥ 9.5 والتوقيتُ 9 (أصغرُ من المادّة بنحو 1.5)، واليومُ 11 والترويسةُ 10.5. وعلى A3 تُضرب بـ`SINGLE_SHEET_A3_SCALE`.
+#: والفسحةُ والخانةُ المشتركة أكبرُ ممّا كانت (8.5 / 8.5 / 8) لتبقى مقروءةً. وإن لم تسع أسوأُ ورقةٍ (35 حصّةً) صفحةً فالحشوةُ ثمّ المباعدةُ تُنقَصان قبل أيّ نزولٍ تحت هذه الحدود.
+#: يحرسه `tests/test_weekly_teacher_sheet_fit.py` على PDF مولَّدٍ من المسار الحقيقيّ (الخطُّ Tajawal مضمَّناً، وصفحةٌ واحدةٌ بلا قصّ).
+SINGLE_SHEET_PT = {
+    "head_base": 10.5,
+    "day_base": 11.0,
+    "subject_base": 10.5,
+    "meta_base": 9.5,
+    "time_base": 9.0,
+    "break_base": 8.5,
+    "multi_subject_base": 8.5,
+    "multi_base": 8.0,
 }
+#: نسبةُ A3 إلى A4 في خطّ الورقة المفردة — نسبةُ الإطار (420/297 ≈ 1.41) لا 1.5 القديمة، فخطُّ A3 لا يتضخّم في خانةٍ تتّسع ضعفَها.
+SINGLE_SHEET_A3_SCALE = 1.4
 
 
 def paper_geometry(
@@ -433,7 +459,7 @@ def paper_geometry(
     *,
     with_who: bool,
     strip_lines: int = 0,
-    sheet_kind: str = "",
+    single_sheet: bool = False,
 ) -> PaperGeometry:
     """مقاسُ ورقة المعلّم أو الشعبة.
 
@@ -443,18 +469,38 @@ def paper_geometry(
     `strip_lines`: سطورُ شريط المفتاح والملاحظات أسفل جدول الأسبوع الفعليّ — تُقتطع من ارتفاع
     الصفوف فتبقى الورقةُ صفحةً واحدة.
 
-    `sheet_kind`: "teachers" أو "classes" للورقة المفردة (صفحةٌ لمعلّمٍ أو شعبة) فيكبّر خطُّ جسمها بـ`SINGLE_SHEET_BOOST`
-    (بلاغ المالك 2026-10-10: خطُّها صغيرٌ في ورقةٍ فيها متّسع)؛ وفارغٌ للجدول العامّ فلا يُمسّ. وشريطُ الأسبوع الفعليّ يُنقص ارتفاعَ الصفوف
-    فيُنقَص التكبيرُ بنسبته لتبقى الورقةُ صفحةً واحدة.
-
-    والخطُّ يكبر على A3 بقدرٍ معتدل: الخانةُ تتّسع ضعفَها تقريباً، وخطُّ A4 فيها
-    يتيه في بياضها.
+    `single_sheet`: الورقةُ المفردة (صفحةٌ لمعلّمٍ أو شعبة) على **الإطار المركزيّ** (ترويسةٌ وتذييلٌ في هامشَي الصفحة) بأحجام `SINGLE_SHEET_PT`
+    (بلاغات المالك 2026-10-10 و2026-10-12)؛ وبدونه المقاسُ القديمُ بترويسته المحلّيّة.
     """
     paper = paper if paper in ("a3", "a4") else "a4"
     orient = orient if orient in ("landscape", "portrait") else "landscape"
     page_w, page_h = _SHEETS[(paper, orient)]
     landscape = orient == "landscape"
-    geo = PaperGeometry(
+    if single_sheet:
+        fr = pf.frame(paper, orient)
+        scale = SINGLE_SHEET_A3_SCALE if paper == "a3" else 1.0
+        return PaperGeometry(
+            page_w=page_w,
+            page_h=page_h,
+            margin_top=fr.top_total,
+            margin_side=fr.margin_side,
+            margin_bottom=fr.bottom_total,
+            header_h=0,
+            who_h=8 if with_who else 0,
+            thead_h=7,
+            footer_h=0,
+            gap=fr.gap,
+            safety=4,
+            rows=DAYS,
+            font_scale=scale,
+            break_col_w=16 if paper == "a3" else 12,
+            # يتّسع لاسم اليوم الأطول («الأربعاء») بخطّه: 11pt على A4 و15.4pt على A3.
+            day_col_w=(18 * scale) if paper == "a3" else 18,
+            notes_h=round(STRIP_LINE_H * strip_lines, 1),
+            framed=True,
+            **SINGLE_SHEET_PT,
+        )
+    return PaperGeometry(
         page_w=page_w,
         page_h=page_h,
         margin_top=8,
@@ -471,11 +517,4 @@ def paper_geometry(
         break_col_w=16 if paper == "a3" else 12,
         day_col_w=20 if paper == "a3" else 16,
         notes_h=round(STRIP_LINE_H * strip_lines, 1),
-        body_boost=SINGLE_SHEET_BOOST[sheet_kind][paper]
-        if sheet_kind in SINGLE_SHEET_BOOST
-        else 1.0,
     )
-    if geo.notes_h and geo.body_boost > 1.0:
-        bare = dataclasses.replace(geo, notes_h=0)
-        geo = dataclasses.replace(geo, body_boost=max(1.0, geo.body_boost * geo.row_h / bare.row_h))
-    return geo

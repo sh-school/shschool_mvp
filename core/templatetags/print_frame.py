@@ -40,11 +40,14 @@ def _contact(school: Any) -> str:
 
 
 @register.simple_tag
-def print_frame_css(paper: str, orient: str) -> str:
-    """كتلةُ `<style>` للصفحة والإطار: `@page` بحجم الورق والهوامش ومربّعَي الترويسة والتذييل، وأنماطُهما بألوان الهويّة."""
+def print_frame_css(paper: str, orient: str, variant: str = "") -> str:
+    """كتلةُ `<style>` للصفحة والإطار: `@page` بحجم الورق والهوامش ومربّعَي الترويسة والتذييل، وأنماطُهما بألوان الهويّة.
+
+    `variant="sheet"`: ورقةُ المعلّم/الشعبة المفردة (W-20261010-057) — خطوطُ الترويسة أكبرُ (المدرسةُ 16pt والعنوانُ 13pt وما دونهما 10pt) حدّاً أدنى
+    قرّره المالكُ؛ الهندسةُ (الهوامشُ وارتفاعُ الترويسة والتذييل) هي هي، فلا يتبدّل متنٌ ولا جدولٌ عامٌّ يستعمل الإطارَ بلا متغيّر."""
     return render_to_string(
         "components/print/frame_css.html",
-        {"fr": pf.frame(paper, orient), "footer_pt": pf.FOOTER_PT},
+        {"fr": pf.frame(paper, orient), "footer_pt": pf.FOOTER_PT, "variant": variant},
     )
 
 
