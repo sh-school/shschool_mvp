@@ -35,7 +35,7 @@
 
   {% section_card "طلباتي الأخيرة" meta=recent|length icon="leave" empty="لم تقدّم طلبَ إجازةٍ بعد" %}{% if recent %}
     <div class="table-wrap">
-      <table class="data-table">
+      <table>
         <thead><tr><th>النوع</th><th>من</th><th>إلى</th><th>الأيّام</th><th>الحالة</th></tr></thead>
         <tbody>
           {% for l in recent %}
