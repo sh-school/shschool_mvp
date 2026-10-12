@@ -22,6 +22,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -336,6 +337,9 @@ class PaperGeometry:
     day_col_w: float
     #: شريطُ المفتاح والملاحظات أسفل الجدول (الأسبوعُ الفعليّ) — صفرٌ للخطّة فلا يتبدّل مقاسُها.
     notes_h: float = 0.0
+    #: تكبيرُ خطّ جسم الجدول (المادة والشعبة والتوقيت واليوم والترويسة) في ورقة المعلّم الأسبوعيّة — لا الفسحة ولا الخانة المشتركة
+    #: (عمودُ الفسحة ضيّقٌ بالملّيمتر، والمشتركةُ ستّةُ أسطرٍ في صفّ). واحدٌ = بلا تكبير.
+    body_boost: float = 1.0
 
     @property
     def content_w(self) -> float:
@@ -375,6 +379,9 @@ class PaperGeometry:
         def pt(value: float) -> str:
             return f"{value * self.font_scale:.1f}pt"
 
+        def body_pt(value: float) -> str:
+            return f"{value * self.font_scale * self.body_boost:.1f}pt"
+
         return {
             "margin": f"{mm(self.margin_top)} {mm(self.margin_side)} {mm(self.margin_bottom)}",
             "content_w": mm(self.content_w),
@@ -386,13 +393,14 @@ class PaperGeometry:
             "gap": mm(self.gap),
             "row_h": mm(self.row_h),
             "cell_h": mm(self.cell_h),
-            "day_col_w": mm(self.day_col_w),
+            # عمودُ اليوم يتّسع بنسبة تكبير خطّه وإلّا قُصَّ «الأربعاء» و«الخميس» (لقطةُ W-20261010-057).
+            "day_col_w": mm(self.day_col_w * self.body_boost),
             "break_col_w": mm(self.break_col_w),
-            "head_pt": pt(9),
-            "day_pt": pt(10),
-            "subject_pt": pt(8.5),
-            "meta_pt": pt(7.5),
-            "time_pt": pt(7),
+            "head_pt": body_pt(9),
+            "day_pt": body_pt(10),
+            "subject_pt": body_pt(8.5),
+            "meta_pt": body_pt(7.5),
+            "time_pt": body_pt(7),
             "break_pt": pt(7.5),
             "multi_subject_pt": pt(7.5),
             "multi_pt": pt(6.5),
@@ -408,8 +416,24 @@ _SHEETS[("a3", "portrait")] = (297, 420)
 STRIP_LINE_H = 3.4
 
 
+#: تكبيرُ جسم الورقة المفردة (صفحةٌ لكلّ معلّمٍ أو شعبة) لكلّ نوعٍ ومقاس (W-20261010-057). **السقفُ مقيسٌ، والمختارُ دونه بصريّاً:** أسوأُ ورقةٍ
+#: لكلّ نوع (خمسٌ وثلاثون حصّةً، كلُّ خليّةٍ ثلاثةُ أسطر، واسمُ معلّمٍ ومادّةٍ طويلان) تبقى صفحةً واحدةً بلا قصٍّ حتى: معلّم A4 1.35× · معلّم A3 1.575×
+#: · شعبة A4 1.3× · شعبة A3 1.325× (يبدأ القصُّ بعدها بقليل). لكنّ المالك رأى لقطاتِ الحدّ الأقصى «كبيرةً جدّاً ومنظرُها غيرُ مريح» (2026-10-12)،
+#: فالمعتمدُ 1.15× — أكبرُ من الأصل وأريحُ للعين، وهامشُه عن القصّ كبير. وعمودُ اليوم يتّسع بالنسبة نفسها (`PaperGeometry.css`) وإلّا قُصَّ «الأربعاء».
+#: يحرسه `tests/test_weekly_teacher_sheet_fit.py` على رسمٍ حقيقيّ.
+SINGLE_SHEET_BOOST = {
+    "teachers": {"a4": 1.15, "a3": 1.15},
+    "classes": {"a4": 1.15, "a3": 1.15},
+}
+
+
 def paper_geometry(
-    paper: str, orient: str, *, with_who: bool, strip_lines: int = 0
+    paper: str,
+    orient: str,
+    *,
+    with_who: bool,
+    strip_lines: int = 0,
+    sheet_kind: str = "",
 ) -> PaperGeometry:
     """مقاسُ ورقة المعلّم أو الشعبة.
 
@@ -419,6 +443,10 @@ def paper_geometry(
     `strip_lines`: سطورُ شريط المفتاح والملاحظات أسفل جدول الأسبوع الفعليّ — تُقتطع من ارتفاع
     الصفوف فتبقى الورقةُ صفحةً واحدة.
 
+    `sheet_kind`: "teachers" أو "classes" للورقة المفردة (صفحةٌ لمعلّمٍ أو شعبة) فيكبّر خطُّ جسمها بـ`SINGLE_SHEET_BOOST`
+    (بلاغ المالك 2026-10-10: خطُّها صغيرٌ في ورقةٍ فيها متّسع)؛ وفارغٌ للجدول العامّ فلا يُمسّ. وشريطُ الأسبوع الفعليّ يُنقص ارتفاعَ الصفوف
+    فيُنقَص التكبيرُ بنسبته لتبقى الورقةُ صفحةً واحدة.
+
     والخطُّ يكبر على A3 بقدرٍ معتدل: الخانةُ تتّسع ضعفَها تقريباً، وخطُّ A4 فيها
     يتيه في بياضها.
     """
@@ -426,7 +454,7 @@ def paper_geometry(
     orient = orient if orient in ("landscape", "portrait") else "landscape"
     page_w, page_h = _SHEETS[(paper, orient)]
     landscape = orient == "landscape"
-    return PaperGeometry(
+    geo = PaperGeometry(
         page_w=page_w,
         page_h=page_h,
         margin_top=8,
@@ -443,4 +471,11 @@ def paper_geometry(
         break_col_w=16 if paper == "a3" else 12,
         day_col_w=20 if paper == "a3" else 16,
         notes_h=round(STRIP_LINE_H * strip_lines, 1),
+        body_boost=SINGLE_SHEET_BOOST[sheet_kind][paper]
+        if sheet_kind in SINGLE_SHEET_BOOST
+        else 1.0,
     )
+    if geo.notes_h and geo.body_boost > 1.0:
+        bare = dataclasses.replace(geo, notes_h=0)
+        geo = dataclasses.replace(geo, body_boost=max(1.0, geo.body_boost * geo.row_h / bare.row_h))
+    return geo

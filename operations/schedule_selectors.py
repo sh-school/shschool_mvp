@@ -359,7 +359,11 @@ def schedule_print_payload(school, user, get_params, default_source="plan") -> d
         # وسطرٌ لكلّ ملاحظة. والخطّةُ بلا شريط — فمقاسُ المعلَّق في المدرسة كما كان.
         strip_lines = len(nav["notes"]) + (1 if nav["kinds"] else 0)
         geometry = paper_geometry(
-            ctx["paper"], ctx["orient"], with_who=False, strip_lines=strip_lines
+            ctx["paper"],
+            ctx["orient"],
+            with_who=False,
+            strip_lines=strip_lines,
+            sheet_kind="classes" if target_class is not None else "teachers",
         )
 
     # أسماءُ الأيّام من `ScheduleSlot.DAYS` — مصدرٌ واحدٌ يقرؤه المولّدُ والورقة.
@@ -529,7 +533,7 @@ def pages_payload(school, get_params) -> dict:
         # السطرُ يومٌ والعمودُ حصّة، واسمُ اليوم مقرونٌ بخاناته في `by_day`.
         "period_numbers": ScheduleSlot.PERIODS,
         # الورقةُ بالملّيمتر: الجدولُ يملأ ما بقي بعد الترويسة والذيل (قرار 2026-09-14).
-        "geo": paper_geometry(paper, orient, with_who=True),
+        "geo": paper_geometry(paper, orient, with_who=True, sheet_kind=kind),
         "selection_query": _pages_selection_query(
             kind, dept, orient, paper, year, wing, teacher_id
         ),
