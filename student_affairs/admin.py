@@ -13,12 +13,21 @@ class StudentTransferAdmin(admin.ModelAdmin):
         "status",
         "transfer_date",
         "academic_year",
+        "decided_by",
+        "decided_at",
     )
     list_filter = ("direction", "status", "academic_year")
     search_fields = ("student__full_name", "student__national_id", "other_school_name")
     date_hierarchy = "transfer_date"
-    list_select_related = ("student", "to_class_group")
-    readonly_fields = ("created_at", "updated_at", "created_by", "updated_by")
+    list_select_related = ("student", "to_class_group", "decided_by")
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+        "created_by",
+        "updated_by",
+        "decided_by",
+        "decided_at",
+    )
 
 
 @admin.register(StudentActivity)
