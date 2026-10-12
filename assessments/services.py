@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_ROW_KEYS = ("grade_", "absent_", "excused_", "notes_")
+_ROW_KEYS = ("grade_", "absent_", "notes_")
 
 
 class GradeService:
@@ -83,7 +83,7 @@ class GradeService:
         student: CustomUser,
         grade: Decimal | None = None,
         is_absent: bool = False,
-        is_excused: bool = False,
+        is_excused: bool | None = None,
         notes: str = "",
         entered_by: CustomUser | None = None,
         recalc: bool = True,
@@ -92,6 +92,9 @@ class GradeService:
         حفظ درجة طالب، ثم:
         1. إعادة حساب نتيجة الفصل
         2. إعادة حساب النتيجة السنوية
+
+        العذرُ لا يُثبَّت من هنا (D-402م): `is_excused=None` يُبقي ما هو محفوظٌ كما هو، والصفُّ المعذور
+        مقفلٌ على راصد الدرجات فيُرجَع كما هو. وتثبيتُ العذر في `decide_excuse` وحدَه، لحامل القدرة.
 
         Uses select_for_update() to prevent race conditions when two
         teachers attempt to record the same student's grade simultaneously.
@@ -111,11 +114,15 @@ class GradeService:
             .first()
         )
 
+        if existing and existing.is_excused and is_excused is None:
+            return existing, False  # عذرٌ مقرَّر: لا يغيّره راصدُ الدرجات (لا غيابَه ولا درجتَه)
+
         if existing:
             existing.school = assessment.school
             existing.grade = grade
             existing.is_absent = is_absent
-            existing.is_excused = is_excused
+            if is_excused is not None:
+                existing.is_excused = is_excused
             existing.notes = notes
             existing.entered_by = entered_by
             existing.save()
@@ -127,32 +134,96 @@ class GradeService:
                 school=assessment.school,
                 grade=grade,
                 is_absent=is_absent,
-                is_excused=is_excused,
+                is_excused=bool(is_excused),
                 notes=notes,
                 entered_by=entered_by,
             )
             created = True
 
-        setup = assessment.package.setup
-        semester = assessment.package.semester
-
         # [PERF-02] عند الحفظ الجماعي نُمرِّر recalc=False ونعيد الحساب دفعةً واحدة بعد الحلقة
-        if recalc and engine:
+        if recalc:
+            GradeService._recalculate_student(assessment, student, entered_by, "save_grade")
+
+        return obj, created
+
+    @staticmethod
+    def _recalculate_student(
+        assessment: Assessment, student: CustomUser, actor: CustomUser | None, trigger: str
+    ) -> None:
+        """إعادةُ حساب نتيجة طالبٍ بعد تغيّر صفّ درجته (محرّكُ الحكم أو المسارُ القديم)."""
+        setup = assessment.package.setup
+        if verdict_engine_enabled():
             VerdictEngine.recalculate_students(
                 setup.class_group,
                 setup.academic_year,
                 [student],
                 setup,
-                actor=entered_by,
-                trigger=f"save_grade:{assessment.pk}",
+                actor=actor,
+                trigger=f"{trigger}:{assessment.pk}",
             )
-        elif recalc:
+        else:
             # 1. نتيجة الفصل
-            GradeService.recalculate_semester_result(student, setup, semester)
+            GradeService.recalculate_semester_result(student, setup, assessment.package.semester)
             # 2. النتيجة السنوية
             GradeService.recalculate_annual_result(student, setup)
 
-        return obj, created
+    # ── قرار العذر (D-402م) ────────────────────────────────
+
+    @staticmethod
+    @transaction.atomic
+    def decide_excuse(
+        assessment: Assessment,
+        student: CustomUser,
+        excuse_type: str,
+        reference: str,
+        decided_by: CustomUser,
+    ) -> StudentAssessmentGrade:
+        """يثبّت عذرَ غيابٍ رصده المعلّمُ: بنوعٍ من القائمة المغلقة ومرجعٍ ومن قرّر ومتى.
+
+        القدرةُ `assessments.decide_excuse` شرطٌ هنا لا في العرض وحدَه، فلا يمرّ مسارٌ ثانٍ بلا حارس.
+        لا يُنشئ غياباً ولا يغيّر درجةً: الصفُّ يجب أن يكون «غائباً» من رصد المعلّم أصلاً."""
+        from django.core.exceptions import PermissionDenied, ValidationError
+        from django.utils import timezone
+
+        from core.capabilities import has_capability
+
+        from .models import EXCUSE_TYPES
+
+        if not has_capability(decided_by, "assessments.decide_excuse"):
+            raise PermissionDenied("قرارُ العذر لأصحاب القدرة وحدَهم")
+        if excuse_type not in dict(EXCUSE_TYPES):
+            raise ValidationError("نوعُ العذر خارج القائمة المغلقة")
+        reference = (reference or "").strip()
+        if not reference:
+            raise ValidationError("مرجعُ العذر (الشهادة أو جهتها) مطلوب")
+
+        ensure_open_year(assessment.package.setup)
+        row = (
+            StudentAssessmentGrade.objects.select_for_update()
+            .filter(assessment=assessment, student=student, school=assessment.school)
+            .first()
+        )
+        if row is None or not row.is_absent:
+            raise ValidationError("لا عذرَ إلّا لغيابٍ رصده المعلّم")
+        if row.is_excused:
+            raise ValidationError("العذرُ مقرَّرٌ سابقاً")
+
+        row.is_excused = True
+        row.excuse_type = excuse_type
+        row.excuse_reference = reference[:200]
+        row.excuse_decided_by = decided_by
+        row.excuse_decided_at = timezone.now()
+        row.save(
+            update_fields=[
+                "is_excused",
+                "excuse_type",
+                "excuse_reference",
+                "excuse_decided_by",
+                "excuse_decided_at",
+            ]
+        )
+        GradeService._recalculate_student(assessment, student, decided_by, "decide_excuse")
+        return row
 
     # ── حساب درجات الباقات دفعة واحدة (Batch) ──────────────
 
@@ -481,11 +552,10 @@ class GradeService:
         sid: str,
         current: StudentAssessmentGrade | None,
         is_absent: bool,
-        is_excused: bool,
         notes: str,
     ) -> tuple[Decimal | None, bool]:
         """(الدرجة، تخطٍّ؟) لصفٍّ واحد من نموذج الحفظ الجماعيّ — منطقُ التخطّي الدفاعيّ."""
-        if is_absent or is_excused:
+        if is_absent:
             return None, False
         grade = None
         if f"grade_{sid}" in post:
@@ -520,11 +590,10 @@ class GradeService:
                 continue
             current = existing.get(enr.student.id)
             is_absent = post.get(f"absent_{sid}") == "1"
-            is_excused = post.get(f"excused_{sid}") == "1"
+            if current is not None and current.is_excused:
+                continue  # عذرٌ مقرَّر: الصفُّ مقفلٌ على راصد الدرجات
             notes = post.get(f"notes_{sid}", "")
-            grade, skip = GradeService._grade_from_post(
-                post, sid, current, is_absent, is_excused, notes
-            )
+            grade, skip = GradeService._grade_from_post(post, sid, current, is_absent, notes)
             if skip:
                 continue
             GradeService.save_grade(
@@ -532,7 +601,6 @@ class GradeService:
                 student=enr.student,
                 grade=grade,
                 is_absent=is_absent,
-                is_excused=is_excused,
                 notes=notes,
                 entered_by=entered_by,
                 recalc=False,  # [PERF-02] يُعاد الحساب دفعةً واحدة بعد الحلقة

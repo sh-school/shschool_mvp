@@ -19,31 +19,32 @@
              class="form-control form-control-sm asm-grade-input"
              id="grade_inp_{{ student.id }}"
              aria-label="درجة {{ student.full_name }}"
-             {% if grade_obj and grade_obj.is_absent %}disabled{% endif %}>
+             {% if grade_obj and grade_obj.is_absent or grade_obj.is_excused %}disabled{% endif %}>
     </td>
 
     <td class="num">
       <input type="checkbox" name="is_absent" value="1"
              {% if grade_obj and grade_obj.is_absent %}checked{% endif %}
              class="asm-check is-absent" aria-label="غائب"
+             {% if grade_obj.is_excused %}disabled{% endif %}
              data-disables="#grade_inp_{{ student.id }}">
     </td>
 
+    {# العذرُ يقرّره أصحابُ القدرة assessments.decide_excuse لا راصدُ الدرجات (D-402م): هنا عرضٌ فقط #}
     <td class="num">
-      <input type="checkbox" name="is_excused" value="1"
-             {% if grade_obj and grade_obj.is_excused %}checked{% endif %}
-             class="asm-check is-excused" aria-label="معذور">
+      {% if grade_obj.is_excused %}<span class="chip" title="{{ grade_obj.get_excuse_type_display }}">معذور</span>{% else %}—{% endif %}
     </td>
 
     <td>
       <input type="text" name="notes"
              value="{% if grade_obj %}{{ grade_obj.notes }}{% endif %}"
              placeholder="ملاحظة..." aria-label="ملاحظة"
-             class="form-control form-control-sm">
+             class="form-control form-control-sm"
+             {% if grade_obj.is_excused %}disabled{% endif %}>
     </td>
 
     <td class="num">
-      <button type="submit" class="btn-secondary btn-sm">حفظ</button>
+      <button type="submit" class="btn-secondary btn-sm"{% if grade_obj.is_excused %} disabled{% endif %}>حفظ</button>
     </td>
   </form>
 

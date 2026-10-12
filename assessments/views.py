@@ -29,6 +29,7 @@ from operations.models import Subject
 
 from .forms import CreateAssessmentForm
 from .models import (
+    EXCUSE_TYPES,
     AnnualSubjectResult,
     Assessment,
     AssessmentPackage,
@@ -37,6 +38,7 @@ from .models import (
     SubjectClassSetup,
 )
 from .services import GradeService
+from .verdict_engine import ClosedYearError
 
 # ── ألوانُ العرض — الحكمُ هنا مرّةً لا شرطاً في القالب ─────────
 
@@ -344,11 +346,11 @@ def save_single_grade(request, assessment_id):
     student_id = request.POST.get("student_id")
     student = GradeService.enrolled_student_or_404(assessment, student_id)
     is_absent = request.POST.get("is_absent") == "1"
-    is_excused = request.POST.get("is_excused") == "1"
+    # العذرُ لا يُقرأ من هذا النموذج أبداً (D-402م): المعلّم يرصد «غائباً» فقط، والعذرُ في `decide_excuse`.
     notes = request.POST.get("notes", "")
 
     grade = None
-    if not is_absent and not is_excused:
+    if not is_absent:
         raw = request.POST.get("grade", "").strip()
         if raw:
             try:
@@ -362,7 +364,6 @@ def save_single_grade(request, assessment_id):
         student=student,
         grade=grade,
         is_absent=is_absent,
-        is_excused=is_excused,
         notes=notes,
         entered_by=request.user,
     )
@@ -803,6 +804,61 @@ def failing_students(request):
             "subtitle": f"{len(by_student)} طالب في مادة أو أكثر · {year}",
         },
     )
+
+
+# ── قرار عذر الغياب عن الاختبار (D-402م) ───────────────────
+
+
+@login_required
+@capability_required("assessments.decide_excuse")
+def excuse_queue(request):
+    """غياباتُ الاختبار التي رصدها المعلّمون وتنتظر قرارَ العذر، ثمّ آخرُ الأعذار المقرَّرة."""
+    rows = StudentAssessmentGrade.objects.filter(school=request.school, is_absent=True)
+    rows = rows.select_related(
+        "student",
+        "assessment__package__setup__class_group",
+        "assessment__package__setup__subject",
+    )
+    pending = Paginator(rows.filter(is_excused=False).order_by("-entered_at"), 25)
+    decided = rows.filter(is_excused=True, excuse_decided_at__isnull=False).select_related(
+        "excuse_decided_by"
+    )
+    return render(
+        request,
+        "assessments/excuse_queue.html",
+        {
+            "page_obj": pending.get_page(request.GET.get("page")),
+            "decided": decided.order_by("-excuse_decided_at")[:20],
+            "EXCUSE_TYPES": EXCUSE_TYPES,
+            "subtitle": f"الغياباتُ التي تنتظر القرار: {pending.count}",
+        },
+    )
+
+
+@login_required
+@capability_required("assessments.decide_excuse")
+@require_POST
+def decide_excuse(request, assessment_id):
+    """يثبّت عذرَ غيابٍ بنوعٍ من القائمة المغلقة ومرجعٍ؛ والتحقّقُ كلُّه في الخدمة."""
+    from django.core.exceptions import ValidationError
+
+    assessment = get_object_or_404(Assessment, id=assessment_id, school=request.school)
+    student = GradeService.enrolled_student_or_404(assessment, request.POST.get("student_id"))
+    try:
+        GradeService.decide_excuse(
+            assessment,
+            student,
+            request.POST.get("excuse_type", ""),
+            request.POST.get("reference", ""),
+            request.user,
+        )
+    except ValidationError as e:
+        messages.error(request, " ".join(e.messages))
+    except ClosedYearError as e:
+        messages.error(request, str(e))  # عامٌ مغلق: رفضٌ صريحٌ بنصّ المحرّك لا خطأُ خادم
+    else:
+        messages.success(request, f"ثُبِّت عذرُ {student.full_name} في «{assessment.title}»")
+    return redirect("excuse_queue")
 
 
 # ── إعداد المواد (للمدير) ──────────────────────────────────

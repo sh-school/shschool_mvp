@@ -164,6 +164,18 @@ ASSESSMENT_EDIT = {
     "vice_academic",
     "e_projects_coordinator",
 }
+#: من يقرّر عذرَ الغياب عن الاختبار (D-402م، 04b السطر 1944): خمسةُ أدوارٍ بأسمائها لا بالوراثة الأكاديميّة.
+#: المدير والنائبُ الأكاديميّ والمعلّمُ خارجَها عمداً؛ والمدير يرث الأكاديميَّ عبر ROLE_INHERITS فلا يدخل
+#: من هنا ما دام أصلُ الوراثة (المنسّق/المعلّم) ليس في القائمة — ويحرسه اختبارُ رفضٍ لكلّ دور.
+ASSESSMENT_DECIDE_EXCUSE = frozenset(
+    {
+        "student_affairs_coordinator",
+        "vice_admin",
+        "admin_supervisor",
+        "social_worker",
+        "psychologist",
+    }
+)
 ASSESSMENT_VIEW_ALL = {"principal", "vice_academic", "vice_admin"}
 ASSESSMENT_VIEW_DEPT = {"coordinator"}
 ASSESSMENT_VIEW_OWN = {"teacher", "ese_teacher", "e_projects_coordinator"}

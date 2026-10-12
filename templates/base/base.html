@@ -765,6 +765,9 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"daily_report" %}
   <a href="{% url 'daily_report' %}">{% icon "absence" %} غياب اليوم</a>
   {% endif %}
+  {% if request.user|can_open:"excuse_queue" %}
+  <a href="{% url 'excuse_queue' %}">{% icon "absence" %} أعذارُ الغياب عن الاختبارات</a>
+  {% endif %}
   </div>
   <div class="sd-section">
   <div class="sd-label">الأجنحة والتغطية</div>
@@ -951,6 +954,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% if request.user|can_open:"daily_report" %}
   <a href="{% url 'daily_report' %}">{% icon "absence" %} غياب اليوم</a>
   {% endif %}
+  {% if request.user|can_open:"excuse_queue" %}
+  <a href="{% url 'excuse_queue' %}">{% icon "absence" %} أعذارُ الغياب عن الاختبارات</a>
+  {% endif %}
   {% if request.user|can_open:"student_affairs:attendance_overview" %}
   <a href="{% url 'student_affairs:attendance_overview' %}">{% icon "stats" %} إحصائيات غياب الجناح</a>
   {% endif %}
@@ -1100,6 +1106,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% endif %}
   {% if request.user|can_open:"failing_students" %}
   <a href="{% url 'failing_students' %}">{% icon "failing_students" %} الطلاب المتعثرون</a>
+  {% endif %}
+  {% if request.user|can_open:"excuse_queue" %}
+  <a href="{% url 'excuse_queue' %}">{% icon "absence" %} أعذارُ الغياب عن الاختبارات</a>
   {% endif %}
 </div>
 {% endif %}

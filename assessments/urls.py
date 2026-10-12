@@ -21,5 +21,11 @@ urlpatterns = [
     ),
     path("student/<uuid:student_id>/report/", views.student_report, name="student_report"),
     path("failing/", views.failing_students, name="failing_students"),
+    path("excuses/", views.excuse_queue, name="excuse_queue"),
+    path(
+        "assessment/<uuid:assessment_id>/decide-excuse/",
+        views.decide_excuse,
+        name="decide_excuse",
+    ),
     path("api/charts/", views.api_assessment_charts, name="api_assessment_charts"),
 ]

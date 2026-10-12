@@ -28,6 +28,12 @@ class AssessmentsConfig(AppConfig):
                 "activities_coordinator",
                 "e_projects_coordinator",
                 "ese_assistant",
+                # قرارُ عذر الغياب عن الاختبار (D-402م): بوّابةُ المسار تسعهم، وحارسُ كلّ عرضٍ بقدرته
+                # يحجب عنهم ما سوى `excuse_queue` و`decide_excuse` (اختبارُ ذلك في test_exam_excuse_decision).
+                "student_affairs_coordinator",
+                "admin_supervisor",
+                "social_worker",
+                "psychologist",
             },
             sidebar_roles={
                 "principal",

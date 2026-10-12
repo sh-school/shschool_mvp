@@ -1317,6 +1317,15 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .asm-save-bar .ui-callout { flex: 1 1 280px; padding: var(--sp-2) var(--sp-3); }
 .ui-section.is-flush > .ui-section__body > .ui-callout { border-radius: 0; border-block-start: 1px solid var(--border); }
 
+/* ── أعذارُ الغياب عن الاختبارات — بطاقةٌ لكلّ غياب لا جدولٌ عريض (يُقرأ ويُحرَّر على الجوّال) ── */
+.asm-excuse-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.asm-excuse { display: grid; gap: var(--sp-2); padding: var(--sp-3); border-block-end: 1px solid var(--border); }
+.asm-excuse:last-child { border-block-end: 0; }
+.asm-excuse__who { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); }
+.asm-excuse__ctx { color: var(--text-muted); font-size: var(--text-sm); }
+.asm-excuse__form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.asm-excuse__form .form-control { flex: 1 1 14rem; min-inline-size: 0; }
+
 /* ── مركز معلومات الطلبة — templates/student_info ──
    عرضُ الأعمدة الثابتة، ونصُّ الملاحظة بأسطره كما كُتب، وعددُ كلّ شريحةٍ
    بنغمة حالتها (`ACHIEVEMENT_BANDS` في student_info/services.py) — كانت

@@ -1,0 +1,69 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% block title %}أعذارُ الغياب عن الاختبارات{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "أعذارُ الغياب عن الاختبارات" subtitle=subtitle icon="confirm" %}
+    {% callout "hint" %}المعلّمُ يرصد «غائباً» فقط، وتُثبَّتُ هنا الأعذارُ المقبولة: المرضُ بشهادةٍ طبية معتمدة، أو الحادثُ الطارئ والظرفُ القهريّ، أو المهمةُ الرسميةُ بشهادة جهة العمل. ولا يُقبل عذرٌ بلا مرجع.{% endcallout %}
+  {% endpage_header %}
+
+  {% section_card "غياباتٌ تنتظر القرار" meta=page_obj.paginator.count icon="grades" flush=True empty="لا غياباتٍ تنتظر القرار" %}{% if page_obj.object_list %}
+    <ul class="asm-excuse-list">
+      {% for row in page_obj %}
+      <li class="asm-excuse">
+        <div class="asm-excuse__who">
+          <strong>{{ row.student.full_name }}</strong>
+          <span class="asm-excuse__ctx">{{ row.assessment.package.setup.subject.name_ar }} · {{ row.assessment.class_group }} · {{ row.assessment.title }}{% if row.assessment.date %} · {{ row.assessment.date|date:"Y/m/d" }}{% endif %}</span>
+        </div>
+        <form class="asm-excuse__form" method="post" action="{% url 'decide_excuse' row.assessment_id %}">
+          {% csrf_token %}
+          <input type="hidden" name="student_id" value="{{ row.student_id }}">
+          <select name="excuse_type" required class="form-control form-control-sm" aria-label="نوع العذر لـ{{ row.student.full_name }}">
+            <option value="">اختر نوعَ العذر…</option>
+            {% for value, label in EXCUSE_TYPES %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+          </select>
+          <input type="text" name="reference" required maxlength="200" class="form-control form-control-sm"
+                 placeholder="رقم الشهادة أو جهتها" aria-label="مرجع العذر لـ{{ row.student.full_name }}">
+          <button type="submit" class="btn-primary btn-sm">تثبيت العذر</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% include "components/pagination.html" with page_obj=page_obj %}
+  {% endif %}{% endsection_card %}
+
+  {% if decided %}
+  {% section_card "آخرُ الأعذار المقرَّرة" meta=decided|length icon="status_success" flush=True %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">الطالب</th>
+            <th scope="col">الاختبار</th>
+            <th scope="col">النوع</th>
+            <th scope="col">المرجع</th>
+            <th scope="col">قرّره</th>
+            <th scope="col">وقتُ القرار</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in decided %}
+          <tr>
+            <td>{{ row.student.full_name }}</td>
+            <td>{{ row.assessment.title }}</td>
+            <td>{{ row.get_excuse_type_display }}</td>
+            <td>{{ row.excuse_reference }}</td>
+            <td>{{ row.excuse_decided_by.full_name|default:"—" }}</td>
+            <td>{{ row.excuse_decided_at|date:"Y/m/d H:i" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endsection_card %}
+  {% endif %}
+
+</div>
+{% endblock %}

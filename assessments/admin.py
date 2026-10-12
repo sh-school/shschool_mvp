@@ -90,11 +90,25 @@ class AssessmentAdmin(admin.ModelAdmin):
 
 @admin.register(StudentAssessmentGrade)
 class StudentAssessmentGradeAdmin(admin.ModelAdmin):
-    list_display = ("student", "assessment", "grade", "is_absent", "is_excused", "entered_at")
-    list_filter = ("is_absent", "school", "assessment__package__semester")
+    list_display = (
+        "student",
+        "assessment",
+        "grade",
+        "is_absent",
+        "is_excused",
+        "excuse_type",
+        "entered_at",
+    )
+    list_filter = (
+        "is_absent",
+        "is_excused",
+        "excuse_type",
+        "school",
+        "assessment__package__semester",
+    )
     list_select_related = ("student", "assessment__package__setup__subject", "school")
     search_fields = ("student__full_name", "student__national_id", "assessment__title")
-    autocomplete_fields = ("student", "assessment", "entered_by")
+    autocomplete_fields = ("student", "assessment", "entered_by", "excuse_decided_by")
 
 
 @admin.register(StudentSubjectResult)

@@ -340,6 +340,14 @@ class Assessment(models.Model):
 # ─────────────────────────────────────────────────────────────
 
 
+#: أنواعُ العذر المقبول عن غياب الاختبار — قائمةٌ مغلقةٌ كما وردت في الدليل (04b، ص. 28، السطر 1944).
+EXCUSE_TYPES = [
+    ("illness", "المرض — بشهادة طبية معتمدة من الجهات الحكومية المختصة"),
+    ("force_majeure", "الحوادث الطارئة والظروف القهرية التي لا يمكن دفعها"),
+    ("official_mission", "المهمة الرسمية — بشهادة من جهة العمل"),
+]
+
+
 class StudentAssessmentGrade(models.Model):
     """درجة طالب في تقييم خام"""
 
@@ -368,6 +376,23 @@ class StudentAssessmentGrade(models.Model):
     )
     is_absent = models.BooleanField(default=False, verbose_name="غائب")
     is_excused = models.BooleanField(default=False, verbose_name="معذور")
+    # قرارُ العذر (D-402م): من قرّر ومتى وبأيّ نوعٍ من القائمة المغلقة (04b السطر 1944) وبأيّ مرجع.
+    # حقولٌ فارغةٌ لمن ثبت عذرُه قبل هذا القرار؛ لا تُملأ بأثرٍ رجعيّ.
+    excuse_type = models.CharField(
+        max_length=20, blank=True, choices=EXCUSE_TYPES, verbose_name="نوع العذر"
+    )
+    excuse_reference = models.CharField(
+        max_length=200, blank=True, verbose_name="مرجع العذر (رقم الشهادة أو جهتها)"
+    )
+    excuse_decided_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="excuses_decided",
+        verbose_name="قرّر العذر",
+    )
+    excuse_decided_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت قرار العذر")
     notes = models.CharField(max_length=200, blank=True, verbose_name="ملاحظة")
     entered_by = models.ForeignKey(
         CustomUser,
