@@ -32,7 +32,7 @@
 
     {# العذرُ يقرّره أصحابُ القدرة assessments.decide_excuse لا راصدُ الدرجات (D-402م): هنا عرضٌ فقط #}
     <td class="num">
-      {% if grade_obj.is_excused %}<span class="chip" title="{{ grade_obj.get_excuse_type_display }}">معذور</span>{% else %}—{% endif %}
+      {% if grade_obj.is_excused %}<span class="chip">معذور</span>{% else %}—{% endif %}
     </td>
 
     <td>

@@ -399,3 +399,53 @@ def test_a_closed_year_is_refused_with_a_message_not_a_server_error(
 
     assert resp.status_code == 302
     assert _row(assessment, student_user).is_excused is False
+
+
+# ── ملاحظات 0104: التدقيق والخصوصية ───────────────────────────────
+
+
+def test_the_decision_leaves_an_audit_trail_without_the_type_or_reference(
+    school,
+    assessment,  # noqa: F811
+    student_user,
+    absent,  # noqa: F811
+):
+    from core.models import AuditLog
+
+    by = _staff(school, "social_worker")
+    GradeService.decide_excuse(assessment, student_user, "illness", "شهادة سرّيّة 777", by)
+
+    log = AuditLog.objects.filter(user=by, model_name="StudentAssessmentGrade").latest("pk")
+    assert log.changes == {"excuse": "decided"}
+    assert "777" not in str(log.changes) and "illness" not in str(log.changes)
+
+
+def test_a_refused_decision_leaves_no_audit_trail(school, assessment, student_user, absent):  # noqa: F811
+    from core.models import AuditLog
+
+    with pytest.raises(ValidationError):
+        GradeService.decide_excuse(
+            assessment, student_user, "bogus", "x", _staff(school, "social_worker")
+        )
+
+    assert not AuditLog.objects.filter(
+        model_name="StudentAssessmentGrade", changes__excuse="decided"
+    ).exists()
+
+
+def test_the_teacher_grade_row_does_not_reveal_the_excuse_type(
+    client_as,
+    teacher_user,
+    school,
+    assessment,  # noqa: F811
+    student_user,
+    absent,  # noqa: F811
+):
+    GradeService.decide_excuse(
+        assessment, student_user, "illness", "شهادة 9", _staff(school, "social_worker")
+    )
+
+    html = client_as(teacher_user).get(f"/assessments/assessment/{assessment.id}/").content.decode()
+
+    assert "معذور" in html
+    assert "المرض" not in html

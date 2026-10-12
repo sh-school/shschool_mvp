@@ -37,6 +37,7 @@ class Migration(migrations.Migration):
             name="excuse_reference",
             field=models.CharField(
                 blank=True,
+                default="",
                 max_length=200,
                 verbose_name="مرجع العذر (رقم الشهادة أو جهتها)",
             ),
@@ -46,6 +47,7 @@ class Migration(migrations.Migration):
             name="excuse_type",
             field=models.CharField(
                 blank=True,
+                default="",
                 choices=[
                     (
                         "illness",

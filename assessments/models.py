@@ -379,10 +379,10 @@ class StudentAssessmentGrade(models.Model):
     # قرارُ العذر (D-402م): من قرّر ومتى وبأيّ نوعٍ من القائمة المغلقة (04b السطر 1944) وبأيّ مرجع.
     # حقولٌ فارغةٌ لمن ثبت عذرُه قبل هذا القرار؛ لا تُملأ بأثرٍ رجعيّ.
     excuse_type = models.CharField(
-        max_length=20, blank=True, choices=EXCUSE_TYPES, verbose_name="نوع العذر"
+        max_length=20, blank=True, default="", choices=EXCUSE_TYPES, verbose_name="نوع العذر"
     )
     excuse_reference = models.CharField(
-        max_length=200, blank=True, verbose_name="مرجع العذر (رقم الشهادة أو جهتها)"
+        max_length=200, blank=True, default="", verbose_name="مرجع العذر (رقم الشهادة أو جهتها)"
     )
     excuse_decided_by = models.ForeignKey(
         CustomUser,

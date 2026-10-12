@@ -223,6 +223,18 @@ class GradeService:
             ]
         )
         GradeService._recalculate_student(assessment, student, decided_by, "decide_excuse")
+        # أثرُ تدقيقٍ لا يُعدَّل من الإدارة: الحدثُ وحدَه بلا نوعٍ ولا مرجعٍ (صحّةُ الطالب لا تدخل السجلّ)
+        from core.models import AuditLog
+
+        AuditLog.log(
+            user=decided_by,
+            action="update",
+            model_name="StudentAssessmentGrade",
+            object_id=row.pk,
+            object_repr=f"{student.full_name} — {assessment.title}",
+            changes={"excuse": "decided"},
+            school=assessment.school,
+        )
         return row
 
     # ── حساب درجات الباقات دفعة واحدة (Batch) ──────────────
