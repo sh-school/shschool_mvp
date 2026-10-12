@@ -62,7 +62,7 @@ def test_measurements_are_attributed_not_claimed_from_production():
     notes = {i[0]: i[15] for i in _sync75.NEW_ITEMS}
     assert "لم يُقَس أثرٌ على الإنتاج" in notes["N-122"]
     assert "لا أثرَ مقيساً حيّاً" in notes["N-123"]
-    assert "باقٍ لقرار المالك" in notes["N-124"]
+    assert "D-400م" in notes["N-124"]
     assert "لم يُقَس أثرٌ على الإنتاج" in notes["N-125"]
 
 
