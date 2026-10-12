@@ -17,8 +17,8 @@ import logging
 
 from django.db import transaction
 
+from core.behavior_committee_roles import BEHAVIOR_COMMITTEE_CASE_SCOPED
 from core.models import Membership, StudentEnrollment
-from core.permissions import BEHAVIOR_COMMITTEE_CASE_SCOPED
 from core.unrestricted_role import has_unrestricted_role
 
 from .models import BehaviorCommitteeVote, BehaviorInfraction

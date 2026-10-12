@@ -11,12 +11,12 @@ from django.urls import reverse
 
 from behavior.committee_services import eligible_member_ids, may_act_on
 from behavior.services import BehaviorPermissions
-from core.capabilities import has_capability
-from core.permissions import (
-    BEHAVIOR_COMMITTEE,
+from core.behavior_committee_roles import (
     BEHAVIOR_COMMITTEE_ART_5_7,
     BEHAVIOR_COMMITTEE_CASE_SCOPED,
 )
+from core.capabilities import has_capability
+from core.permissions import BEHAVIOR_COMMITTEE
 from tests.conftest import (
     BehaviorInfractionFactory,
     MembershipFactory,

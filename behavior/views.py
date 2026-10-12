@@ -22,7 +22,6 @@ from core.audit_repr import masked_repr
 from core.parents_freeze import warn_or_frozen
 from core.permissions import (
     BEHAVIOR_COMMITTEE,
-    BEHAVIOR_COMMITTEE_CASE_SCOPED,
     BEHAVIOR_MANAGE,
     BEHAVIOR_STATS_TEACHING,
     BEHAVIOR_VIEW_ALL,
@@ -69,6 +68,7 @@ def _behavior_report_redirect(
 from behavior.committee_services import decide_committee, may_act_on
 from behavior.forms import InfractionForm, action_choices_for
 from behavior.models import BehaviorInfraction, ViolationCategory
+from core.behavior_committee_roles import BEHAVIOR_COMMITTEE_CASE_SCOPED
 from core.capabilities import capability_required, has_capability
 from core.domain.tones import SHARE_KPI, tone_for
 from core.models import CustomUser
@@ -288,8 +288,7 @@ def report_infraction(request):
             # REQ-SH-001: structured disciplinary action + conditional textarea
             disciplinary_action_type = form.cleaned_data.get("disciplinary_action_type", "")
             violation_description = form.cleaned_data.get("violation_description", "")
-            # Legacy free-text (kept for backward compat). Mirror the selected label
-            # from the dropdown so legacy readers still see a human-friendly value.
+            # نصٌّ حرٌّ قديم للتوافق: يُنسخ إليه نصُّ الخيار المختار ليقرأه القديمُ مقروءاً.
             _choices_map = dict(form.fields["disciplinary_action_type"].choices)
             action = _choices_map.get(disciplinary_action_type, "") or form.cleaned_data.get(
                 "action_taken", ""
