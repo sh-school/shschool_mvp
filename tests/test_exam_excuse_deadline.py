@@ -104,6 +104,9 @@ def test_a_late_attempt_is_audited_with_its_reason(
     assert log.changes["excuse_attempt"] == "rejected_after_deadline"
     assert log.changes["submitted_on"] == late.isoformat()
     assert log.changes["deadline"] == LAST_DAY.isoformat()
+    # صحّةُ الطالب لا تدخل سجلّاً لا يُمحى: لا نوعَ عذرٍ ولا مرجع
+    assert "excuse_type" not in log.changes and "excuse_reference" not in log.changes
+    assert "شهادة" not in str(log.changes) and "illness" not in str(log.changes)
 
 
 def test_the_view_shows_the_rejection_and_the_late_row_is_unchanged(

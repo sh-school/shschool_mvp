@@ -236,9 +236,7 @@ class GradeService:
         ensure_open_year(assessment.package.setup)
         deadline = GradeService.excuse_deadline(assessment)
         if deadline is not None and submitted_on > deadline[0]:
-            GradeService._audit_late_excuse(
-                assessment, student, decided_by, excuse_type, submitted_on, deadline
-            )
+            GradeService._audit_late_excuse(assessment, student, decided_by, submitted_on, deadline)
             raise ValidationError(
                 f"انقضت مهلةُ تقديم العذر: آخرُ موعدٍ {deadline[0]:%Y/%m/%d} "
                 f"(اليومُ الثالث بعد انتهاء جدول الاختبار في {deadline[1]:%Y/%m/%d})"
@@ -253,7 +251,6 @@ class GradeService:
         assessment: Assessment,
         student: CustomUser,
         decided_by: CustomUser,
-        excuse_type: str,
         submitted_on: date,
         deadline: tuple[date, date],
     ) -> None:
@@ -268,7 +265,6 @@ class GradeService:
             object_repr=f"{student.full_name} — {assessment.title}",
             changes={
                 "excuse_attempt": "rejected_after_deadline",
-                "excuse_type": excuse_type,
                 "submitted_on": submitted_on.isoformat(),
                 "deadline": deadline[0].isoformat(),
                 "exam_schedule_end": deadline[1].isoformat(),
