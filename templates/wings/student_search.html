@@ -25,7 +25,7 @@
         <li class="plain-list__row">
           <a href="{% url 'wings:absence_file' enrollment.student_id %}" class="af-result">
             <span class="plain-list__title">{{ enrollment.student.full_name }}</span>
-            <span class="af-day__meta"><span dir="ltr">{{ enrollment.student.national_id|mask_id }}</span> · {{ enrollment.class_group.short_code }}</span>
+            <span class="af-day__meta">{{ enrollment.class_group.short_code }}</span>
           </a>
         </li>
         {% endfor %}

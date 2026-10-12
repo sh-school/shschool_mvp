@@ -1,16 +1,13 @@
-"""شعارُ الواجهة مشتقٌّ من الأصل المسطَّح `static/brand/logoMaroon.png` — لا رسمةٌ أخرى ولا فلترُ تبييض.
+"""هويّةُ التطبيق حرفُ «ش» أبيضُ على العنّابيّ — لا شعارَ وزارةٍ في أيّ أصلٍ (W-20261011-012، قرار المالك D-386م/D-387م).
 
-كانت الترويسةُ وصفحةُ الدخول وترويسةُ الإدارة وصفحاتُ الخطأ وfavicon وأيقوناتُ التطبيق تعرض `icons/favicon.png`:
-رسمةً مظلَّلةً منقوشةً (6371 لوناً، ونحو 40% فقط من تطابق الشكل مع الأصل)، وتُبيَّضُ بفلترٍ
-`brightness(0) invert(1)` في أربعة مواضع، وحجمُها 60KB لتُعرض بـ72px.
-
-فصار الأصلُ المسطَّحُ (لونٌ واحدٌ #8A1538 هو Al Adaam) مرجعاً وحيداً:
-- `static/brand/emblem.svg` و`emblem-white.svg`: المتّجهُ نفسُه بلونَين، مُتتبَّعٌ من الأصل (`scripts/build_emblem.py`).
-- الأيقوناتُ النقطيّةُ (`icons/`) تُرسم من المتّجه بلونٍ واحدٍ دقيق، بلا فلتر.
+كانت الأيقوناتُ مشتقّةً من `static/brand/logoMaroon.png` (شعارُ الدولة كما في ترويسة الوزارة)؛ فأُزيل الشعارُ من المنصّة
+كلِّها وصارت الأيقوناتُ تُرسم من الخطّ بـ`manage.py build_app_icons`. وهذا الحارسُ يثبّت الحالةَ الجديدة:
+- ملفّاتُ الشعار وأداةُ اشتقاقها لم تعد في المستودع فلا يخدمها رابط.
+- كلُّ أيقونةٍ بلونَين فقط: العنّابيُّ والأبيض (والبادجُ أبيضُ على شفّاف).
+- ما يبقى في `static/brand/` توقيعُ المطوّر وحدَه، والأيقوناتُ كلُّها في `static/icons/v2/` (مجلّدٌ مرقَّم: انظر `test_pwa_icon_urls_are_versioned`).
 """
 
 import pathlib
-import re
 
 import numpy as np
 from PIL import Image
@@ -18,69 +15,56 @@ from PIL import Image
 from core.brand import MAROON, ON_FILL
 
 BRAND = pathlib.Path("static/brand")
-ICONS = pathlib.Path("static/icons")
+ICONS = pathlib.Path("static/icons/v2")
 
-#: ما يُعرض على العنّابيّ يقرأ النسخةَ البيضاءَ مباشرةً — لا فلترَ يحوّل العنّابيَّ إلى أبيض.
-WHITE_ON_MAROON = (
-    "templates/base/base.html",
-    "templates/auth/login.html",
-    "templates/admin/base_site.html",
-    "templates/errors/_error_page.html",
+REMOVED = ("logoMaroon.png", "logowhite.png", "emblem.svg", "emblem-white.svg")
+DEVELOPER_SIGNATURE = {"azkia-logo.svg", "sufyan-logo.png"}
+SQUARE_ICONS = (
+    "icon-192.png",
+    "icon-512.png",
+    "favicon.png",
+    "icon-maskable-192.png",
+    "icon-maskable-512.png",
+    "apple-touch-icon.png",
 )
 
-#: أدنى تطابقٍ لشكل الأيقونة مع الأصل (تقاطعٌ على اتّحاد بعد ضبط الصندوق المحيط). الرسمةُ القديمة 0.40.
-MIN_SILHOUETTE_MATCH = 0.80
+
+def _rgb(hex_colour: str) -> tuple[int, int, int]:
+    return tuple(int(hex_colour.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
 
 
-def _silhouette(image: Image.Image, size: int = 256) -> np.ndarray:
-    alpha = np.array(image.convert("RGBA"))[:, :, 3] > 128
-    ys, xs = np.where(alpha)
-    cropped = alpha[ys.min() : ys.max() + 1, xs.min() : xs.max() + 1]
-    resized = Image.fromarray((cropped * 255).astype("uint8")).resize(
-        (size, size), Image.Resampling.LANCZOS
-    )
-    return np.array(resized) > 128
+def test_the_ministry_logo_files_and_their_builder_are_gone():
+    for name in REMOVED:
+        assert not (BRAND / name).exists(), name
+    assert not pathlib.Path("scripts/build_emblem.py").exists()
 
 
-def test_the_two_emblem_svgs_are_one_shape_in_two_fills():
-    maroon = (BRAND / "emblem.svg").read_text(encoding="utf-8")
-    white = (BRAND / "emblem-white.svg").read_text(encoding="utf-8")
-    assert f'fill="{MAROON}"' in maroon and f'fill="{ON_FILL}"' in white
-    assert (
-        maroon.replace(f'fill="{MAROON}"', f'fill="{ON_FILL}"') == white
-    )  # الشكلُ نفسُه بايتاً ببايت
+def test_the_brand_folder_holds_only_the_developer_signature():
+    names = {p.name for p in BRAND.iterdir() if p.is_file()}
+    assert names == DEVELOPER_SIGNATURE, names ^ DEVELOPER_SIGNATURE
 
 
-def test_the_emblem_svg_stays_small():
-    """متّجهٌ مضلَّعٌ من ثلاثة آلاف نقطة: نحو 18KB خاماً و7KB مضغوطاً — لا أثقلَ من النقطيّ الذي حلّ محلّه."""
-    assert (BRAND / "emblem.svg").stat().st_size <= 30_000
+def test_the_square_icons_are_white_on_maroon_and_nothing_else():
+    allowed = {_rgb(MAROON), _rgb(ON_FILL)}
+    for name in SQUARE_ICONS:
+        image = Image.open(ICONS / name).convert("RGB")
+        assert image.getpixel((0, 0)) == _rgb(MAROON), name
+        colours = np.array(image).reshape(-1, 3)
+        # التنعيمُ عند حافّة الحرف بين اللونين: كلُّ نقطةٍ على القطعة بين العنّابيّ والأبيض
+        maroon, white = np.array(_rgb(MAROON)), np.array(_rgb(ON_FILL))
+        span = white - maroon
+        ratio = (colours - maroon) / span
+        assert (np.abs(ratio - ratio[:, :1]) < 0.02).all(), name
+        assert {tuple(c) for c in colours} >= allowed, name
 
 
-def test_the_raster_icons_are_the_flat_brand_colour():
-    """كلُّ نقطةٍ مرئيّةٍ في الأيقونات بلونٍ واحدٍ هو #8A1538 — لا تظليلَ ولا نقشَ ولا لونٌ أغمق منه."""
-    brand_rgb = tuple(int(MAROON.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
-    for name in ("favicon.png", "icon-192.png", "icon-512.png", "badge-72.png"):
-        pixels = np.array(Image.open(ICONS / name).convert("RGBA"))
-        visible = pixels[pixels[:, :, 3] > 0][:, :3]
-        assert len(visible) and (visible == brand_rgb).all(), name
+def test_the_badge_is_a_white_glyph_on_transparent():
+    pixels = np.array(Image.open(ICONS / "badge-72.png").convert("RGBA"))
+    assert (pixels[:, :, 3] == 0).any() and (pixels[:, :, 3] == 255).any()
+    visible = pixels[pixels[:, :, 3] > 0][:, :3]
+    assert (visible == _rgb(ON_FILL)).all()
 
 
-def test_the_raster_icons_are_drawn_from_the_flat_original_not_another_artwork():
-    original = _silhouette(Image.open(BRAND / "logoMaroon.png"))
-    for name in ("favicon.png", "icon-192.png", "icon-512.png", "badge-72.png"):
-        icon = _silhouette(Image.open(ICONS / name))
-        match = (original & icon).sum() / (original | icon).sum()
-        assert match >= MIN_SILHOUETTE_MATCH, (name, round(float(match), 3))
-
-
-def test_the_maroon_surfaces_show_the_white_emblem_and_no_whitening_filter():
-    for path in WHITE_ON_MAROON:
-        html = pathlib.Path(path).read_text(encoding="utf-8")
-        assert "brand/emblem-white.svg" in html, path
-        assert "icons/favicon.png" not in re.sub(
-            r'<link rel="(icon|apple-touch-icon)"[^>]*>', "", html
-        ), path
-    for path in pathlib.Path("static/css").rglob("*.css"):
-        assert "brightness(0) invert(1)" not in path.read_text(encoding="utf-8"), path
-    for path in WHITE_ON_MAROON:
-        assert "brightness(0) invert(1)" not in pathlib.Path(path).read_text(encoding="utf-8"), path
+def test_the_favicon_ico_carries_the_small_tab_sizes():
+    sizes = Image.open(ICONS / "favicon.ico").info["sizes"]
+    assert {(16, 16), (32, 32)} <= sizes

@@ -35,18 +35,10 @@ from django.urls import URLPattern, URLResolver, get_resolver
 BASE_DIR = Path(settings.BASE_DIR)
 
 #: الوثائقُ الفرديّةُ الرسميّة — الرقمُ فيها كاملٌ عمداً، وتوليدُها مدقَّق.
-INDIVIDUAL_DOCUMENTS = frozenset(
-    {
-        "reports/certificate.html",
-        "reports/student_result.html",
-        "reports/student_result_pdf.html",
-        "student_affairs/student_profile_pdf.html",
-        "behavior/pdf/student_warning.html",
-        "behavior/pdf/student_undertaking.html",
-        "behavior/pdf/parent_undertaking.html",
-        "behavior/pdf/student_report.html",
-    }
-)
+INDIVIDUAL_DOCUMENTS: frozenset[str] = frozenset()
+# قرار المالك D-386م (W-20261011-014، 2026-10-11): أُخفي الرقمُ الشخصيّ للطالب ووليّ أمره من كلّ الوثائق
+# الفرديّة أيضاً (الشهادة، كشف النتيجة، ملفّ الطالب PDF، إنذار/تعهّد/تقرير السلوك). فالقائمةُ فارغةٌ عمداً،
+# ولا يدخلها اسمٌ إلا بقرارٍ جديدٍ مسجَّل؛ وحارسُ `tests/test_student_national_id_hidden.py` يمنع العودة.
 
 RENDER = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z_.]*national_id)((?:\|[^}]*?)?)\s*\}\}")
 #: `{{ form.national_id.value }}` قيمةٌ تُعاد إلى حقل إدخال — سترُها يحفظ نجوماً.

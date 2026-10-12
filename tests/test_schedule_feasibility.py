@@ -38,6 +38,14 @@ def school(db):
     return School.objects.create(name="مدرسة الشحانية", code="SHH-FEA")
 
 
+@pytest.fixture(autouse=True)
+def strict_touch_policy(school):
+    """قياسُ السعة هنا بالتلاصق الصارم؛ والتخفيفُ المدرسيّ الافتراضيّ (D-382م) يُقاس في test_schedule_relaxation_policy."""
+    from operations.models import ScheduleRelaxationPolicy
+
+    ScheduleRelaxationPolicy.objects.create(school=school, relax_touch_for_all=False)
+
+
 def a_user(school, name, role_name):
     from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
@@ -270,7 +278,11 @@ def test_the_report_is_storable(school, teacher):
 def test_the_smart_schedule_screen_shows_the_verdict(client_as, vice, school, teacher):
     assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 35)
 
-    page = client_as(vice).get(f"{reverse('smart_schedule')}?year={YEAR}").content.decode()
+    page = (
+        client_as(vice)
+        .get(f"{reverse('smart_schedule')}?year={YEAR}&feasibility=1")
+        .content.decode()
+    )
 
     assert "فحصُ الجدوى قبل التوليد" in page
     assert "لن تجد موضعاً" in page
@@ -280,7 +292,11 @@ def test_the_smart_schedule_screen_shows_the_verdict(client_as, vice, school, te
 def test_a_healthy_school_is_told_so(client_as, vice, school, teacher):
     assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 20)
 
-    page = client_as(vice).get(f"{reverse('smart_schedule')}?year={YEAR}").content.decode()
+    page = (
+        client_as(vice)
+        .get(f"{reverse('smart_schedule')}?year={YEAR}&feasibility=1")
+        .content.decode()
+    )
 
     assert "لا عجزَ في العدّ" in page
     assert "عجزٌ يقينيّ" not in page
@@ -296,7 +312,9 @@ def test_a_healthy_school_is_told_so(client_as, vice, school, teacher):
 @pytest.fixture
 def no_op_task(monkeypatch):
     """يعطّل إرسالَ مهمّة التوليد الفعليّة — البوّابةُ تُختبَر لا المولّد."""
-    monkeypatch.setattr("operations.tasks.generate_smart_schedule_task.delay", lambda *a, **k: None)
+    monkeypatch.setattr(
+        "operations.scheduler_v2.tasks.generate_schedule_v2_task.delay", lambda *a, **k: None
+    )
 
 
 def test_infeasible_generation_is_blocked_without_a_reason(
@@ -458,7 +476,11 @@ def test_the_generate_button_hides_when_infeasible_and_the_override_form_appears
     section = a_class(school)
     assign(school, a_subject(school, "الرياضيات", "MAT"), section, teacher, 35)
 
-    page = client_as(vice).get(f"{reverse('smart_schedule')}?year={YEAR}").content.decode()
+    page = (
+        client_as(vice)
+        .get(f"{reverse('smart_schedule')}?year={YEAR}&feasibility=1")
+        .content.decode()
+    )
 
     assert "بدء التوليد" not in page
     assert "ولِّد على أيّ حال" in page

@@ -133,13 +133,14 @@ class TestThePagesAreReal:
 class TestTheNationalIdIsNotBared:
     """قانونُ حماية البيانات يقوم على التقليل — والقارئُ يحتاج أن يميّز لا أن يعرف."""
 
-    def test_only_the_last_four_digits_are_shown(self, client_as, school, reader, year):
+    def test_no_digit_of_the_number_is_shown(self, client_as, school, reader, year):
+        """منذ W-20261011-014 (D-386م) لا كاملاً ولا مستوراً؛ والبحثُ بالاسم."""
         _student(school, "الطالب", "99900000538", year=year)
 
         body = _body(client_as, reader)
 
-        assert "*******0538" in body
-        assert "99900000538" not in body, "الرقمُ كاملاً في ملفّ صاحبه لا في الكشف"
+        assert "*******0538" not in body and "0538" not in body
+        assert "99900000538" not in body
 
     def test_the_search_still_finds_the_full_number(self, client_as, school, reader, year):
         """من كتب رقماً كاملاً وجد صاحبَه — البحثُ على المخزَّن لا على المستور."""

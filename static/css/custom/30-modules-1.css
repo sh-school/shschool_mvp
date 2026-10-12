@@ -675,14 +675,6 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 .login-card-body {
   padding: 28px 36px 0;
 }
-.login-logo {
-  width: 72px; height: 72px;
-  margin: 0 auto var(--sp-4);
-}
-.login-logo img {
-  width: 100%; height: 100%;
-  object-fit: contain; display: block;
-}
 .login-school-name {
   font-size: 1.0625rem;
   font-weight: 800;
@@ -776,7 +768,6 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 
 /* ── Dashboard Misc ─── */
 
-.session-time { min-width: 52px; }
 
 .next-session-badge {
   background: var(--status-warning-tint-strong);

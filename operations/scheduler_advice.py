@@ -80,31 +80,3 @@ def _capacity_shortfalls(tasks: list[Task], prefs: Any, blocked_slots: set) -> l
         if capacity < load[tid]:
             found.append(explain_shortfall(names[tid], capacity, load[tid], pref))
     return found
-
-
-def _day_coverage(tasks: list[Task], blocked_slots: set) -> dict:
-    """{معلّم: (نصابُه، أيّامُه المتاحة)} — واليومُ المفرَّغُ كاملاً ليس متاحاً.
-
-    قرارُ الإدارة 2026-09-04: حصصُ المعلّم على أيّام الأسبوع كلِّها، لا يومَ
-    بلا حصّة إلّا بتفريغٍ من الإعدادات. ومن نصابُه دون عدد أيّامه (منسّقٌ
-    بأربع حصص) مستثنىً بالضرورة — والقيدُ لا يمسّه.
-    """
-    from .scheduler import DAYS, LAST_PERIOD
-
-    placements: dict[str, int] = defaultdict(int)
-    periods: dict[str, int] = defaultdict(int)
-    for t in tasks:
-        for m in t.members:
-            placements[m.teacher_id] += 1
-            periods[m.teacher_id] += t.span
-    blocked_per_day: dict[tuple[str, int], int] = defaultdict(int)
-    for teacher_id, day, _period in blocked_slots:
-        blocked_per_day[(teacher_id, day)] += 1
-    return {
-        tid: (
-            count,
-            periods[tid],
-            frozenset(d for d in DAYS if blocked_per_day[(tid, d)] < LAST_PERIOD),
-        )
-        for tid, count in placements.items()
-    }

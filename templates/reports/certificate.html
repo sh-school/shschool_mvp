@@ -72,8 +72,7 @@
     {{ student.full_name }}
   </div>
   <div>
-    الرقم الشخصي: {{ student.national_id|default:"—" }}
-    {% if enrollment %} &nbsp;|&nbsp; الفصل: {{ enrollment.class_group.short_label }}{% endif %}
+    {% if enrollment %}الفصل: {{ enrollment.class_group.short_label }}{% endif %}
   </div>
 
   <div>

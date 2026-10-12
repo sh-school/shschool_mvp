@@ -73,7 +73,7 @@ def schedule(request):
         teacher_filter = class_filter = status_filter = period_filter = show_all = ""
         all_count = completed_count = 0
 
-    now = timezone.now().time()
+    now = timezone.localtime().time()
     next_session = next(
         (s for s in sessions if s.start_time >= now and s.status == "scheduled"), None
     )

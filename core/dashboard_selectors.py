@@ -35,6 +35,7 @@ from operations.models import (
     ClassExit,
     CompensatorySession,
     DailyExitTally,
+    ScheduleGeneration,
     Session,
     StudentAttendance,
     TeacherAbsence,
@@ -206,18 +207,42 @@ def get_director_ctx(school, today):
     }
 
 
+def session_entry_states(session_ids: list[Any]) -> dict[Any, str]:
+    """حالةُ رصد كلّ حصّةٍ في استعلامٍ واحد (شارةُ لوحة المعلّم، W-20261003-038): `none` لم يُدخَل، `approved` تمّ الرصد.
+
+    تُقرأ من `StudentAttendance` — الرصدُ نهائيٌّ فوريٌّ بلا اعتماد (D-245م، أمرُ المالك 2026-10-09)، فوجودُ سجلٍّ للحصّة يعني أنّها رُصدت.
+    وقيمةُ `approved` اسمٌ قديمٌ للحالة «تمّ الرصد» أُبقي لقالبٍ واحد.
+    """
+    states: dict[Any, str] = dict.fromkeys(session_ids, "none")
+    if not session_ids:
+        return states
+    recorded = (
+        StudentAttendance.objects.filter(session_id__in=session_ids)
+        .values_list("session_id", flat=True)
+        .distinct()
+    )
+    for session_id in recorded:
+        states[session_id] = "approved"
+    return states
+
+
 def get_teacher_ctx(user, school, today, role):
     """بيانات لوحة تحكم المعلم والمنسق: حصص اليوم + الإعدادات + طلبات التبديل."""
     year = academic_year_for_school(school)
 
-    sessions = (
+    sessions = list(
         Session.objects.filter(school=school, teacher=user, date=today)
         .select_related("class_group", "subject")
         .order_by("start_time")
+        # حصصُ أعمدة جدول الشعبة مؤقّتةٌ بـ`Session.teacher` مُسنَدٍ حتميّ (W-20261006-005): ليست «حصصي» ولا «حصّتي التالية» لمن نُسبت إليه.
+        .exclude(provisional=True)
     )
-    # حصصُ أعمدة جدول الشعبة مؤقّتةٌ بـ`Session.teacher` مُسنَدٍ حتميّ (W-20261006-005): ليست «حصصي» ولا «حصّتي التالية» لمن نُسبت إليه.
-    sessions = sessions.exclude(provisional=True)
-    now = timezone.now().time()
+    # شارةُ حالة الرصد لكلّ حصّة (لم يُدخَل / تم الرصد — حالتان لأنّ الرصدَ نهائيٌّ فوريّ، D-245م) — استعلامٌ واحد لا واحدٌ لكلّ صف.
+    entry_states = session_entry_states([s.id for s in sessions])
+    for s in sessions:
+        setattr(s, "entry_state", entry_states[s.id])  # noqa: B010 — وسمٌ للقالب لا حقلُ نموذج (mypy يرفض الإسناد المباشر)
+    # بتوقيت المدرسة (Asia/Qatar) لا UTC: `now()` يعطي UTC فتنحرف «الحصّة التالية» ثلاث ساعات (W-20261010-047).
+    now = timezone.localtime().time()
     next_session = next(
         (s for s in sessions if s.start_time >= now and s.status == "scheduled"), None
     )
@@ -240,8 +265,14 @@ def get_teacher_ctx(user, school, today, role):
     my_weekly_schedule_url = f"{reverse('weekly_schedule')}?view=teacher&teacher={user.id}"
     general_schedule_url = reverse("weekly_schedule") if role in SCHEDULE_BROWSE else ""
 
+    # ملاحظةُ «مؤقّتاً إلى حين اعتماد الجدول» تتبع الجدولَ المعتمَدَ فعلاً (توليدٌ بحالة «معتمد» لعام المدرسة) لا المفتاحَ اليدويَّ وحدَه.
+    schedule_approved = ScheduleGeneration.objects.filter(
+        school=school, academic_year=year, status="approved"
+    ).exists()
+
     ctx = {
         "view_type": "teacher",
+        "schedule_approved": schedule_approved,
         "sessions": sessions,
         "next_session": next_session,
         "my_setups": my_setups,
@@ -379,7 +410,8 @@ def get_therapist_ctx(user, school, today):
         .select_related("class_group", "subject")
         .order_by("start_time")
     )
-    now = timezone.now().time()
+    # بتوقيت المدرسة (Asia/Qatar) لا UTC: `now()` يعطي UTC فتنحرف «الحصّة التالية» ثلاث ساعات (W-20261010-047).
+    now = timezone.localtime().time()
     next_session = next(
         (s for s in sessions_today if s.start_time >= now and s.status == "scheduled"),
         None,

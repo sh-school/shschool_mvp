@@ -37,11 +37,9 @@
 
       <div class="form-row">
 
-        {# الرقم الشخصي — في الإضافة يُكتب، وفي التعديل يُعرض مستوراً (|mask_id) معطَّلاً فلا يُرسَل #}
+        {# الرقم الشخصي — حقلُ إدخالٍ في الإضافة فقط؛ وفي التعديل لا يُعرض رقمٌ محفوظ (W-20261011-014) #}
         {% if mode == "add" %}
         {% field "national_id" "الرقم الشخصي" value=form.national_id.value placeholder="مثال: 29812345678" required=True dir="ltr" error=form.national_id.errors.0 %}
-        {% else %}
-        {% field "national_id" "الرقم الشخصي" value=student.national_id|mask_id disabled=True required=True dir="ltr" css="sa-span-full" error=form.national_id.errors.0 %}
         {% endif %}
 
         {% field "full_name" "الاسم الكامل" value=form.full_name.value placeholder="الاسم الرباعي" required=True css="sa-span-full" error=form.full_name.errors.0 %}

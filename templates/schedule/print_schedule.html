@@ -83,17 +83,6 @@
     text-align: center;
     margin-bottom: 20px;
   }
-  /* الشعارُ فوق الاسم: ورقةٌ رسميّةٌ تُعرف من رأسها قبل أن تُقرأ. */
-  .print-emblem {
-    display: block;
-    height: 62px;
-    width: auto;
-    margin: 0 auto 6px;
-  }
-  .matrix-head .print-emblem { height: 44px; margin-bottom: 2px; }
-  @media print {
-    .print-emblem { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  }
   .schedule-header .ministry {
     font-size: 13px;
     color: {% brand_color "TEXT_SECONDARY" %};
@@ -345,7 +334,6 @@
     html, body { height: auto; }
     .schedule-print { padding: 0; }
     .schedule-header { height: {{ geo.css.header_h }}; margin: 0 0 {{ geo.css.gap }}; overflow: hidden; box-sizing: border-box; }
-    .print-emblem { height: {% if orient == 'landscape' %}11mm{% else %}14mm{% endif %}; margin-bottom: 0.5mm; }
     .schedule-header .ministry, .schedule-header .year { font-size: 7.5pt; line-height: 3.2mm; margin: 0; }
     .schedule-header .school-name { font-size: 12pt; line-height: 5.4mm; margin: 0; }
     .schedule-header .title { font-size: 10pt; line-height: 4.4mm; margin: 0; }
@@ -544,7 +532,6 @@
   {% print_frame_footer "a3" "landscape" school stats=stats_text %}
   {% else %}
   <div class="matrix-head">
-    <img class="print-emblem" src="{% if for_pdf %}static/brand/logoMaroon.png{% else %}{% static 'brand/logoMaroon.png' %}{% endif %}" alt="شعار {{ school.name }}" width="295" height="295">
     <div class="ministry">{{ school.name }}</div>
     <h1 class="title">الجدول العام للمعلمين</h1>
   </div>
@@ -592,7 +579,6 @@
 
 {% else %}
   <div class="schedule-header">
-    <img class="print-emblem" src="{% if for_pdf %}static/brand/logoMaroon.png{% else %}{% static 'brand/logoMaroon.png' %}{% endif %}" alt="شعار {{ school.name }}" width="295" height="295">
     <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
     <div class="school-name">{{ school.name }}</div>
     <h1 class="title">{{ title }}</h1>

@@ -439,7 +439,7 @@
    "orm": 14
   },
   "operations/views_schedule.py::smart_schedule_view": {
-   "lines": 96,
+   "lines": 81,
    "orm": 24
   },
   "operations/views_schedule.py::teacher_load_report": {
@@ -696,7 +696,7 @@
    "orm": 15
   },
   "student_affairs/views.py::student_profile": {
-   "lines": 182,
+   "lines": 179,
    "orm": 81
   },
   "student_affairs/views.py::student_profile_pdf": {
@@ -812,10 +812,10 @@
    "orm": 8
   },
   "wings/views_register.py::section_register_export": {
-   "orm": 29
+   "orm": 24
   },
   "wings/views_register.py::wing_register_export": {
-   "orm": 30
+   "orm": 25
   }
  }
 }

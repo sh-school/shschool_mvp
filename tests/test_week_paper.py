@@ -147,7 +147,10 @@ class TestTheSheetHeaderIsForPaperOnly:
 
         html = render_to_string("schedule/print_schedule.html", ctx)
 
-        assert '<div class="matrix-head">' in html and "شعار" in html
+        # الترويسةُ نصّيّةٌ: اسمُ المدرسة وعنوانُ الورقة، بلا صورةِ شعارٍ (قرار المالك D-386م).
+        assert '<div class="matrix-head">' in html
+        assert world["school"].name in html and "الجدول العام للمعلمين" in html
+        assert "print-emblem" not in html
 
     def test_the_file_name_carries_the_week_only_for_an_actual_week(self, world, client):
         _sheet(
