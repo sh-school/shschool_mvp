@@ -849,16 +849,6 @@ tr.active {
    مكوّنات الصفحة — Page Layout Components
    ════════════════════ */
 
-/* ── عنوان الصفحة ── */
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-6);
-}
-
 /* ════════════════════
    Detail/Profile Layout (MTG-2026-004-STR)
    ════════════════════ */

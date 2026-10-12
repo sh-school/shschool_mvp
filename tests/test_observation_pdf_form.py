@@ -209,12 +209,12 @@ def test_the_header_is_local_and_the_footer_is_the_shared_component(db, observat
 
     for marker in (
         'class="doc-header"',
-        'class="ministry-name"',
         'class="school-name"',
         'class="ornament-hr"',
         'class="pdf-footer-line"',
     ):
         assert marker in html, marker
+    assert 'class="ministry-name"' not in html, "سطرُ الوزارة مجمَّد (D-400م)"
     header = html.split('<div id="sheet-header">', 1)[1].split('<div id="sheet-footer">', 1)[0]
     footer = html.split('<div id="sheet-footer">', 1)[1].split("<h1", 1)[0]
     assert "vision-text" not in header and school.vision not in header, "لا رؤيةَ في الترويسة"

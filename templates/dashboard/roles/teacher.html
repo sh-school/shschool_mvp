@@ -7,7 +7,7 @@
   {% if view_type == "coordinator" %}
     {% page_header "مرحباً، "|add:request.user.full_name subtitle=subtitle|add:" · منسّق" icon="dashboard" %}
       {% if request.user|has_capability:"assessments.view_results" %}<a href="{% url 'assessments_dashboard' %}" class="btn-secondary btn-sm">{% icon "edit_record" %} التقييمات</a>{% endif %}
-    {% endpage_header %}
+    {% include "dashboard/partials/_leave_self.html" %}{% endpage_header %}
 
     {% kpi_strip label="ما ينتظر المنسّق" %}
       {% if request.user|has_capability:"swap.approve" %}{% kpi "تبديلاتٌ تنتظر اعتمادك" coord_pending_swaps tone=coord_swaps_tone href=swaps_url %}{% endif %}
@@ -18,7 +18,7 @@
   {% else %}
     {% page_header "مرحباً، "|add:request.user.full_name subtitle=subtitle icon="dashboard" %}
       {% if request.user|has_capability:"assessments.view_results" %}<a href="{% url 'assessments_dashboard' %}" class="btn-secondary btn-sm">{% icon "edit_record" %} التقييمات</a>{% endif %}
-    {% endpage_header %}
+    {% include "dashboard/partials/_leave_self.html" %}{% endpage_header %}
 
     {% comment %}ما ينتظرك: المعلّمُ يرى تبديلاتِه وخارجَ الفصل الآن (أعدادٌ مجمَّعة بلا أسماء، W-20261010-040). المفتاحُ المؤقّت يعطّل رابطَ التبديل كما كان.{% endcomment %}
     {% if my_pending_swaps or my_students.out_now is not None %}

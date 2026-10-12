@@ -26,6 +26,7 @@ from core import brand
 from core.academic_calendar import academic_year_for_school
 from core.domain.attendance import attendance_rate
 from core.export_utils import add_excel_title_rows, brand_cell, excel_table_styles, xl_font
+from core.ministry import ministry_line, ministry_name
 from core.models import StudentEnrollment
 from core.privacy import mask_national_id
 from core.verdict_read import failing_statuses, passing_statuses
@@ -1024,7 +1025,7 @@ class ExcelService:
             num_cols,
             school_name,
             f"{report_title}  —  السنة الدراسية {year}",
-            f"وزارة التربية والتعليم والتعليم العالي — دولة قطر  |  {today_str}",
+            ministry_line(ministry_name(), today_str, sep="  |  "),
         )
         # رأسُ الصفحة المطبوعة باسم المدرسة التي صدر عنها الملفّ — لا باسمٍ ثابت.
         cls._print_header(ws, school_name)

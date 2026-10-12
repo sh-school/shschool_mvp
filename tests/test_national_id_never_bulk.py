@@ -16,6 +16,9 @@
    «الرقم الشخصيّ: مطابقةٌ وزاريّة — كامل» (واسمُها في `EXCEL_FULL_NUMBER`،
    ورايةُ التدقيق صادقة) أو «الرقم الشخصيّ: مستور» (وكلُّ كتابةٍ للرقم عبر
    `mask_national_id`، والرايةُ كاذبة).
+5. **رايةُ التدقيق** (W-20261012-005): لا يكتب `log_export` ولا `ExportResult` رايةَ
+   «رقمٌ كامل» بغير `False` الحرفيّة إلّا في دالّةٍ من `EXCEL_FULL_NUMBER` — فالوثائقُ
+   الفرديّةُ بلا رقمٍ منذ D-386م، وسجلٌّ يدّعيه لها يكذب على مدقّق الامتثال.
 
 والقائمتان المسمّاتان تُراجَعان كأيّ شيفرة: اسمٌ يُضاف إليهما قرارٌ يُسأل عنه.
 """
@@ -349,3 +352,69 @@ class TestExcelCarriesTheNumberOnlyWhereItIsMatched:
             '        ws.cell(1, 4, mask_national_id(rec["student__national_id"]))\n'
         )
         assert _unmasked_references(planted) == [4, 5]
+
+
+# ── رايةُ التدقيق: «رقمٌ كامل» لا تُدّعى إلّا لملفٍّ يُطابَق عليه ──────────────
+
+#: من يكتب الرايةَ: `log_export(...)` للتصدير المباشر، و`ExportResult(...)` لمولّدات الخلفيّة.
+FLAG_WRITERS = frozenset({"log_export", "ExportResult"})
+
+
+def _claims_in(source: str, module: str) -> dict[str, int]:
+    """«الوحدة.الدالّة» ← سطرُ أوّلِ نداءٍ يكتب الرايةَ بغير `False` الحرفيّة (صادقةً أو بتعبير)."""
+    found: dict[str, int] = {}
+    for func in ast.walk(ast.parse(source)):
+        if not isinstance(func, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        for call in ast.walk(func):
+            if not isinstance(call, ast.Call):
+                continue
+            name = getattr(call.func, "id", None) or getattr(call.func, "attr", None)
+            if name not in FLAG_WRITERS:
+                continue
+            for kw in call.keywords:
+                literal_false = isinstance(kw.value, ast.Constant) and kw.value.value is False
+                if kw.arg == "full_national_id" and not literal_false:
+                    found.setdefault(f"{module}.{func.name}", call.lineno)
+    return found
+
+
+def _flag_claims() -> dict[str, int]:
+    found: dict[str, int] = {}
+    for path in _app_python_files():
+        source = path.read_text(encoding="utf-8")
+        if "full_national_id" in source:
+            module = ".".join(path.relative_to(BASE_DIR).with_suffix("").parts)
+            found.update(_claims_in(source, module))
+    return found
+
+
+class TestTheAuditFlagClaimsAFullNumberOnlyForAMatchedFile:
+    def test_no_other_exporter_claims_a_full_number(self):
+        claims = _flag_claims()
+        stray = {
+            name: line for name, line in sorted(claims.items()) if name not in EXCEL_FULL_NUMBER
+        }
+        assert not stray, (
+            f"رايةُ «رقمٌ كامل» لملفٍّ ليس في EXCEL_FULL_NUMBER: {stray} — "
+            "الوثائقُ الفرديّةُ بلا رقمٍ منذ D-386م، فالرايةُ False ما لم يحمله الملفُّ بقرارٍ مسمّى"
+        )
+
+    def test_the_named_matching_files_still_claim_it(self):
+        assert set(_flag_claims()) == EXCEL_FULL_NUMBER
+
+    def test_the_scanner_sees_a_planted_claim(self):
+        """ضبطٌ موجب: `True` وتعبيرٌ يحتملها يُلتقطان، و`False` الحرفيّةُ والغيابُ يمرّان."""
+        planted = (
+            "def a(request):\n"
+            '    log_export(request, "k", full_national_id=True)\n'
+            "def b(request, student):\n"
+            '    log_export(request, "k", full_national_id=student is not None)\n'
+            "def c(request):\n"
+            '    log_export(request, "k", full_national_id=False)\n'
+            "def d(request):\n"
+            '    log_export(request, "k", rows=1)\n'
+            "def e():\n"
+            '    return ExportResult(b"", "t", "f", full_national_id=True)\n'
+        )
+        assert _claims_in(planted, "m") == {"m.a": 2, "m.b": 4, "m.e": 10}

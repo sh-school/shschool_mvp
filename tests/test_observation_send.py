@@ -302,8 +302,8 @@ def test_the_letterhead_markup_reads_the_school_not_a_hardcoded_name(
     # الهويّةُ نصٌّ موحَّدٌ كباقي ملفّات PDF (ترويسةُ الصور أُلغيت) من اسم المدرسة نفسها،
     # لا ترويسةُ مدرسةٍ أخرى.
     assert "doc-header" in html
-    assert "وزارة التربية والتعليم والتعليم العالي" in html
     assert school.name in html
+    assert "وزارة التربية والتعليم والتعليم العالي" not in html  # مجمَّدة (D-400م)
 
 
 # ══════════════════════ الصفحة تُعرض فعلاً ══════════════════════════

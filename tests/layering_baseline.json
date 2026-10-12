@@ -681,8 +681,7 @@
    "lines": 61
   },
   "student_affairs/views.py::student_edit": {
-   "lines": 76,
-   "orm": 9
+   "lines": 63
   },
   "student_affairs/views.py::student_export_excel": {
    "lines": 73

@@ -1005,7 +1005,9 @@ def calculate_quality_score(
     if max_possible == 0:
         score = 100.0
     else:
-        score = max(0, 100 * (1 - total_penalty / max_possible))
+        # مكافأةُ المزاوجة وزنُها سالب، فقد يصير مجموعُ العقوبات سالباً والدرجةُ فوق المئة؛
+        # فالمقياسُ مقيَّدٌ من الجهتين: [0, 100].
+        score = min(100.0, max(0.0, 100 * (1 - total_penalty / max_possible)))
 
     required = total_required if total_required is not None else placed_periods
     placed_ratio = round(100 * placed_periods / required, 1) if required else 100.0

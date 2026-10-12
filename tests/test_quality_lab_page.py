@@ -174,6 +174,28 @@ def test_groups_split_into_two_balanced_sequential_columns():
     assert len(_lab_group_columns(_fake_groups(3))) == 1
 
 
+def test_numbers_never_show_a_comma_that_reads_as_thousands(principal_client, monkeypatch):
+    """ضغطُ المعلّم بثلاث خانات: 1249.347 كان يظهر «1249,347» فيُقرأ آلافاً (W-20261011-004)."""
+    from operations.schedule_lab import ScheduleLab
+
+    real_compute = ScheduleLab.compute
+
+    def compute_with_big_stress(self, *args, **kwargs):
+        metrics = real_compute(self, *args, **kwargs)
+        metrics["fairness.stress"] = {
+            "value": 1249.347,
+            "detail": {"معلّمٌ أوّل": 1249.347, "معلّمٌ ثانٍ": 2310.5},
+        }
+        return metrics
+
+    monkeypatch.setattr(ScheduleLab, "compute", compute_with_big_stress)
+    body = _lab_body(principal_client)
+
+    assert "1249.347" in body, "قيمةُ الضغط تظهر بنقطةٍ عشريّةٍ في الجدول وفي بطاقة المؤشر"
+    assert "2310.5" in body
+    assert not re.findall(r"\d[,،٬]\d{3}", body), "فاصلةٌ بين رقمين وثلاثة بعدها تُقرأ آلافاً"
+
+
 def test_the_page_lays_groups_in_stacked_columns_and_keeps_every_group(
     principal_client, tiny_schedule
 ):
