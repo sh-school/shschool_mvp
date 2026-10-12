@@ -1,0 +1,36 @@
+{% extends "base/base.html" %}
+{% load icons ui view_as %}
+{% comment %}
+تأكيدُ هويّة المطوّر قبل التبديل إلى حسابه المرتبط (شرطُ 0104، W-20261009-032): رمزُ عامله الثاني إن فعّله، وإلّا
+كلمةُ مروره هو — لا كلمةُ الحساب المرتبط. أوّلَ مرّةٍ في الجلسة، وأوّلَ استعمالٍ لكلّ ربط.
+{% endcomment %}
+{% block title %}تأكيد الهويّة قبل التبديل{% endblock %}
+{% block main_class %}{% page_layout "form" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="تأكيد الهويّة قبل التبديل" %}
+{% endblock %}
+
+{% block content %}
+<div class="form-page">
+  {% page_header "تأكيدُ هويّتك قبل التبديل" subtitle="أوّلُ تبديلٍ في الجلسة يُؤكَّد بهويّتك أنت لا بهويّة الحساب المرتبط" icon="link" %}{% endpage_header %}
+
+  {% if error %}{% callout "error" show=True %}{{ error }}{% endcallout %}{% endif %}
+
+  <div class="form-card">
+    <p class="ui-note">التبديلُ إلى: {{ link.target.full_name }} — {{ link.target.get_role|va_role_label }}</p>
+    <form method="post" class="form-stack" data-no-page-nav>
+      {% csrf_token %}
+      {% if second_factor %}
+      {% field "secret" "رمزُ التحقّق من تطبيقك" id="f-secret" css="ui-field--code" maxlength="7" inputmode="numeric" pattern="[0-9]{3} ?[0-9]{3}" autocomplete="one-time-code" autofocus=True required=True placeholder="• • • • • •" %}
+      {% else %}
+      {% field "secret" "كلمةُ مرور حسابك (المطوّر)" type="password" id="f-secret" autocomplete="current-password" autofocus=True required=True %}
+      {% endif %}
+      <div class="form-footer">
+        <button type="submit" class="btn-primary">{% icon "link" %} تأكيدٌ وتبديل</button>
+        <a href="{% url 'view_as_picker' %}" class="btn-ghost">إلغاء</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

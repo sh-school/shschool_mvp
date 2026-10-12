@@ -819,3 +819,7 @@ class CapabilityGrantAdmin(SchoolScopedAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+# الحساباتُ المرتبطة بمطوّر المنصّة (W-20261009-032) — لوحتُها في ملفٍّ مستقلّ بقدرتها.
+from . import admin_linked_account  # noqa: E402, F401

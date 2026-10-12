@@ -1,0 +1,57 @@
+{% extends "base/base.html" %}
+{% load icons ui view_as %}
+{% comment %}
+«عرض بصفة دور» — صفحةُ المطوّر (W-20261009-032، D-303م وD-304م وD-305م). أدوارُ الكادر في أعمدةٍ أربعة بترتيب
+الهيكل التنظيميّ، وكلُّ دورٍ زرُّ إرسالٍ في نموذجٍ واحد (`va-page-form`)؛ والحساباتُ المرتبطة بطاقةٌ خامسة.
+والقائمةُ في الترويسة (`m-view-as`) تحمل الأزرارَ نفسَها؛ وهذه الصفحةُ بابُها حين يضيق الجوّال عن القائمة.
+{% endcomment %}
+{% block title %}عرض بصفة دور{% endblock %}
+{% block main_class %}{% page_layout "hub" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="عرض بصفة دور" %}
+{% endblock %}
+
+{% block content %}
+{% page_header "عرض بصفة دور" subtitle="ترى المنصّةَ وتعمل فيها بصلاحيّات الدور، وهويّتُك في السجلّ هويّتُك" icon="role_switch" %}
+  {% callout "info" %}تنتهي المعاينةُ بعد ساعتين من بدئها أو نصفِ ساعةٍ بلا نشاط، وكلُّ صفحةٍ تُفتح فيها وكلُّ فعلٍ سطرٌ في سجلّ التدقيق بالدور المعروض. وصفحاتُ الحساب نفسِه (كلمةُ المرور والثنائيّة ولوحةُ الإدارة) لا تُفتح أثناءها.{% endcallout %}
+  {% if current.is_preview %}
+  <form method="post" action="{% url 'view_as_stop' %}" data-no-page-nav>
+    {% csrf_token %}
+    <button type="submit" class="btn-secondary btn-sm">{% icon "back" %} العودة إلى صفة المطوّر</button>
+  </form>
+  {% endif %}
+{% endpage_header %}
+
+<form method="post" action="{% url 'view_as_start' %}" id="va-page-form" data-no-page-nav>{% csrf_token %}</form>
+
+<div class="card-flow">
+  {% for group in groups %}
+  {% section_card group.title meta=group.roles|length icon="role_switch" %}
+  <ul class="va-roles" role="list">
+    {% for name, label in group.roles %}
+    <li>
+      <button type="submit" form="va-page-form" name="role" value="{{ name }}" class="va-role"{% if current.role == name %} aria-current="true"{% endif %}>{{ label }}</button>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endsection_card %}
+  {% endfor %}
+
+  {% section_card "حسابُك المرتبط" meta=links|length icon="link" empty="لا حسابَ مرتبطاً بعد" empty_sub="يُربط حسابُك الآخر في المدرسة من لوحة الإدارة، ثمّ يُؤكَّد بهويّتك عند أوّل تبديل." span="wide" %}
+  {% callout "info" %}تنتقل الجلسةُ إلى الحساب نفسِه ساعةً على الأكثر (وربعَ ساعةٍ بلا نشاط)، وتعود إلى حسابك بزرّ العودة دون خروجٍ ودخول.{% endcallout %}
+  {% if links %}
+  <ul class="va-roles" role="list">
+    {% for link in links %}
+    <li>
+      <form method="post" action="{% url 'view_as_linked_switch' link.pk %}" data-no-page-nav>
+        {% csrf_token %}
+        <button type="submit" class="va-role">{% icon "link" %} {{ link.target.full_name }} — {{ link.target.get_role|va_role_label }}</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% endsection_card %}
+</div>
+{% endblock %}

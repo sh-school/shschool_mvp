@@ -49,6 +49,8 @@ def _is_approval(request: HttpRequest) -> bool:
 #: مساراتٍ مسمّاة تتقادم (حكمُ 0105 C2 وقرارُ المالك على #781).
 WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
+VIEW_AS_PREFIX = "/developer/view-as/"
+
 
 def _is_write(request: HttpRequest) -> bool:
     return request.method in WRITE_METHODS
@@ -60,11 +62,44 @@ class DeveloperAccessAuditMiddleware:
 
     def __call__(self, request: HttpRequest) -> HttpResponseBase:
         response = self.get_response(request)
-        if response.status_code < 400 and (
-            request.path.startswith(AUDITED_PREFIXES) or _is_write(request)
-        ):
+        if response.status_code >= 400 or request.path.startswith(VIEW_AS_PREFIX):
+            # أفعالُ «عرض بصفة» نفسُها أسطرٌ مسمّاةٌ (`view_as_*`) في عروضها، فلا تُكرَّر هنا.
+            return response
+        view_as = getattr(request, "view_as", None)
+        if view_as is not None:
+            # «عرض بصفة» (W-20261009-032): صفحاتُه أسطرُ `view_as_page` في وسيطه، وكتابتُه تُسجَّل هنا بصفتها.
+            if _is_write(request):
+                self._audit_view_as(request, response, view_as)
+        elif request.path.startswith(AUDITED_PREFIXES) or _is_write(request):
             self._audit(request, response)
         return response
+
+    @staticmethod
+    def _audit_view_as(request: HttpRequest, response: HttpResponseBase, view_as: object) -> None:
+        """كتابةٌ ناجحةٌ والمطوّرُ يعرض بصفة دورٍ أو بحسابٍ مرتبط: سطرٌ بالمنفّذ الفعليّ والصفة المعروضة."""
+        try:
+            from core.models import AuditLog
+            from core.view_as.policy import clean_path, role_label
+
+            role = getattr(view_as, "role", "")
+            capacity = f"بصفة {role_label(role)} (معاينةُ مطوّر)" if role else "بحسابٍ مرتبطٍ بالمطوّر"
+            AuditLog.log(
+                # المطوّرُ لا الحسابُ المعروض: في الحساب المرتبط `request.user` هو المعلّم.
+                user=getattr(request, "view_as_actor", None) or request.user,
+                action="update",
+                model_name="other",
+                object_repr=f"فعلٌ {capacity}: {request.method} {clean_path(request.path)}"[:300],
+                changes={
+                    "path": clean_path(request.path),
+                    "method": request.method,
+                    "status": response.status_code,
+                    "capacity": capacity,
+                    "acting": view_as.acting(),  # type: ignore[attr-defined]
+                },
+                request=request,
+            )
+        except Exception:  # noqa: BLE001 — التدقيق لا يُسقط الطلب
+            logger.exception("view_as write audit failed path=%s", request.path)
 
     @staticmethod
     def _audit(request: HttpRequest, response: HttpResponseBase) -> None:

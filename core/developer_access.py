@@ -22,8 +22,10 @@ _View = TypeVar("_View", bound=Callable[..., HttpResponse])
 
 
 def is_platform_developer(user: Any) -> bool:
-    """superuser أو مجموعة `developers` — ولا شيء لمجهولٍ."""
+    """superuser أو مجموعة `developers` — ولا شيء لمجهولٍ، ولا لمطوّرٍ يعاين بصفة دورٍ آخر (يرى ما يراه الدور)."""
     if not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "view_as_role", None) is not None:
         return False
     return bool(user.is_superuser or user.groups.filter(name__iexact=DEVELOPERS_GROUP).exists())
 

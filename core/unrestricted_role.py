@@ -38,6 +38,15 @@ DEVELOPER_EXCLUDED_CAPABILITIES = frozenset(
 )
 
 
+def is_developer_in_fact(user: Any) -> bool:
+    """أمطوّرُ المنصّة هذا الحسابُ في حقيقته — ولو كان يعاين بصفة دورٍ آخر (W-20261009-032)؟
+
+    للمنع لا للإذن: قيودُ المالك الصريحةُ على المطوّر (D-128م، ومحوُ بيانات الطلبة) على هويّته لا على دوره، فلا
+    يتخطّاها بأن يعاين بصفة معلّمٍ أو مدير. والإذنُ يبقى بـ`has_unrestricted_role` وحدَها (المعاينةُ تُطفئه).
+    """
+    return has_unrestricted_role(user) or getattr(user, "view_as_role", None) is not None
+
+
 def is_excluded_developer(user: Any, capability_key: str) -> bool:
     """أمطوّرٌ يُمنع من هذه القدرة بقرارٍ مالكيّ صريح؟"""
-    return capability_key in DEVELOPER_EXCLUDED_CAPABILITIES and has_unrestricted_role(user)
+    return capability_key in DEVELOPER_EXCLUDED_CAPABILITIES and is_developer_in_fact(user)

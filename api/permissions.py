@@ -11,7 +11,7 @@ from core.models import ParentStudentLink
 from core.models.access import ALL_STAFF_ROLES, LEADERSHIP
 from core.parent_consent import needs_parent_consent
 from core.permissions import expand_roles
-from core.unrestricted_role import has_unrestricted_role
+from core.unrestricted_role import has_unrestricted_role, is_developer_in_fact
 
 #: نصُّ الرفض نفسُه الذي يردّ به وسيطُ الموافقة.
 CONSENT_REQUIRED_MESSAGE = "يجب الموافقة على سياسة البيانات أولاً"
@@ -205,4 +205,5 @@ class NotPlatformDeveloper(BasePermission):
     message = "محوُ بيانات الطلبة ليس للمطوّر — قرارُ المالك."
 
     def has_permission(self, request, view):
-        return not has_unrestricted_role(request.user)
+        # بالهويّة لا بالدور: والمطوّرُ يعاين بصفة دورٍ آخر يبقى مطوّراً هنا (W-20261009-032).
+        return not is_developer_in_fact(request.user)

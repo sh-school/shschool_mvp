@@ -193,6 +193,12 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return self.full_name
 
     def save(self, *args: Any, **kwargs: Any) -> None:
+        # حسابُ مطوّرٍ يعاين بصفة دورٍ رايتاه `is_superuser` و`is_staff` مطفأتان في الذاكرة وحدَها (W-20261009-032):
+        # حفظُه كاملاً كان يكتبهما في القاعدة فيُسقط صلاحيّتَه الحقيقيّة. فلا يُحفظ إلّا بحقولٍ مسمّاةٍ ليستا منها.
+        if self.view_as_role is not None:
+            update_fields = kwargs.get("update_fields")
+            if update_fields is None or {"is_superuser", "is_staff"} & set(update_fields):
+                raise RuntimeError("حسابٌ يعاين بصفة دورٍ لا يُحفظ كاملاً — بحقولٍ مسمّاةٍ وحدها")
         # ── Auto-populate HMAC + Fernet fields on every save ──
         if self.national_id:
             new_hmac = hmac_field(self.national_id)
@@ -250,7 +256,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         الاختيارُ بلا ترتيبٍ — `first()` بلا `order_by` تُعيد ما يشاء المحرّك —
         فيظهر معلّمُ الرياضيات بلا قسم، وقد يُقرأ دورُه «وليَّ أمرٍ» فيُحرَم
         شاشاتِه. والترتيبُ الآن صريحٌ ومستقرّ.
+
+        والمطوّرُ الذي يعاين بصفة دورٍ (W-20261009-032) عضويّتُه الحاكمةُ هي المعروضة: تُقدَّم على المخزَّن
+        فلا يُسقطها `invalidate_active_membership` في منتصف الطلب.
         """
+        masked = self.__dict__.get("_view_as_membership")
+        if masked is not None:
+            return masked
         cached = self.__dict__.get("_active_membership")
         if cached is not None:
             return cached
@@ -269,6 +281,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         قلّةٌ (واحدةٌ إلى ثلاث)، فجلبُها معاً يكلّف ما كان يكلّفه جلبُ الأولى،
         ويُغني عن عدٍّ في كلّ صفحة.
         """
+        masked = self.__dict__.get("_view_as_membership")
+        if masked is not None:
+            return [masked]
         cached: list[Membership] | None = self.__dict__.get("_active_memberships")
         if cached is not None:
             return cached
@@ -320,7 +335,14 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def get_role(self) -> str:
         return self.role or ""
 
+    @property
+    def view_as_role(self) -> str | None:
+        """الدورُ المعروض إن كان صاحبُ الحساب مطوّراً يعاين بصفة دور (W-20261009-032)، وإلّا None."""
+        return self.__dict__.get("_view_as_role")
+
     def has_role(self, role_name):
+        if self.view_as_role is not None:
+            return role_name == self.view_as_role
         return self.memberships.filter(is_active=True, role__name=role_name).exists()
 
     def has_any_role(self, *role_names):
@@ -332,9 +354,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         الكادرَ يتقدّم في `role_rank`. والفرقُ لا يظهر اليومَ إلّا في عشرة
         حساباتٍ محلّيّاً — وكلُّها كادرٌ ووليُّ أمرٍ معاً.
         """
+        if self.view_as_role is not None:
+            return self.view_as_role in role_names
         return self.memberships.filter(is_active=True, role__name__in=role_names).exists()
 
     def get_parent_membership(self):
+        if self.view_as_role is not None:
+            return None
         return (
             self.memberships.filter(is_active=True, role__name="parent")
             .select_related("school", "role")
@@ -355,6 +381,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         تُقرأ من مُعالج السياق في كلّ طلب، وقد تُقرأ ثانيةً في الصلاحيّات أو
         القالب لنفس المستخدم — فتُحفظ على الكائن كـ`active_membership`.
         """
+        if self.view_as_role is not None:
+            return None
         cached = self.__dict__.get("_department_obj", "__unset__")
         if cached != "__unset__":
             return cached

@@ -236,6 +236,69 @@
 /* قائمة المستخدم — min-width */
 #m-user { min-width: 200px; }
 
+/* ══ عرضٌ بصفة دور (W-20261009-032): زرُّ الترويسة وقائمتُه وشريطُ المعاينة الثابت ══
+   الأدوارُ أزرارُ إرسالٍ لا روابط (POST)، فـ`.va-role` نظيرُ `.sd-menu a` لزرّ؛ والقائمةُ 33 دوراً فتُحدّ بالنافذة
+   وتُمرَّر هي لا الصفحة. والشريطُ عائمٌ أسفلَ الصفحة فوق الشريط السفليّ كـ`.pwa-banner`: الترويسةُ والقائمةُ لزجتان
+   بارتفاعٍ مكتوبٍ في مواضعَ عدّة، فشريطٌ فوقهما كان يُزيح كلَّ ما يحسب عليهما. */
+.nav-view-as { flex-shrink: 0; }
+.nav-view-as__text { display: none; font-size: var(--text-xs); white-space: nowrap; }
+.nav-view-as.is-active { box-shadow: inset 0 0 0 1px var(--gold-mark); }
+#m-view-as {
+  max-block-size: calc(100vh - var(--sp-16));
+  max-block-size: calc(100dvh - var(--sp-16));
+  overflow-y: auto;
+}
+.va-roles { list-style: none; margin: 0; padding: 0; }
+.va-role {
+  display: flex; align-items: center; gap: var(--sp-2);
+  inline-size: 100%;
+  padding: var(--sp-2) var(--sp-4);
+  font: inherit; font-size: var(--text-sm); text-align: start;
+  color: var(--text-primary); background: none;
+  border: 0; border-inline-start: 3px solid transparent;
+  cursor: pointer;
+}
+.sd-menu .va-role { color: var(--menu-ink); white-space: nowrap; }
+.va-role:hover, .va-role:focus-visible { background: var(--menu-hover); color: var(--maroon-fg); }
+.va-role[aria-current="true"] { font-weight: 700; color: var(--maroon-fg); border-inline-start-color: var(--maroon); }
+.va-menu-foot form { margin: 0; }
+.va-bar {
+  position: fixed;
+  inset-block-end: calc(var(--dock-h) + var(--dock-pad) + var(--sp-2));
+  inset-inline: max(var(--sp-3), var(--safe-inline));
+  z-index: var(--z-banner);
+  max-inline-size: 40rem;
+  margin-inline: auto;
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--status-warning-bg);
+  color: var(--status-warning-fg);
+  border: 1px solid var(--status-warning-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--text-sm);
+}
+.va-bar__text { flex: 1; min-inline-size: 0; }
+.va-bar form { margin: 0; }
+/* والشريطُ عائمٌ فلا يغطّي آخرَ الصفحة: يزيد حشوَ `body` بارتفاعه حين يحضر — وفي الهاتف قد يلتفّ سطرين فوق الشريط السفليّ. */
+body:has(> .va-bar) { padding-block-end: calc(var(--dock-h) + var(--dock-pad) + var(--sp-16) + var(--sp-8)); }
+@media (min-width: 641px) {
+  .va-bar { inset-block-end: var(--sp-4); }
+  body:has(> .va-bar) { padding-block-end: calc(var(--sp-16) + var(--sp-4)); }
+  .nav-view-as__text { display: inline; }
+}
+@media (min-width: 1025px) {
+  #m-view-as .va-menu-foot {
+    grid-column: 1 / -1;
+    display: flex; flex-wrap: wrap;
+    border-inline-start: 0; padding-inline-start: 0;
+    border-block-start: 1px solid var(--menu-rule);
+    margin-block-start: var(--sp-1); padding-block-start: var(--sp-1);
+  }
+  #m-view-as .va-menu-foot .va-role { inline-size: auto; }
+}
+
 /* ══ Flash messages — عائمةٌ فوق الصفحة (قرار المالك 2026-09-22): كانت سطراً
    في مجرى الصفحة يسقط تحت الطيّ أو يُغطّيه محتوًى طويل، وخطُّها 13.5px لا
    يُقرأ من مسافة. هوّيةٌ مركزيّةٌ واحدة في base.html — كلُّ صفحةٍ ترثها.

@@ -67,6 +67,15 @@ class AuditLog(models.Model):
         # هجومٌ يُرى في السجلّ لا في ذاكرة الخادم وحدَها.
         ("login_failed", "محاولة دخول فاشلة"),
         ("mfa_failed", "رمز تحقّق خاطئ"),
+        # العرضُ بصفة دورٍ والحسابُ المرتبط لمطوّر المنصّة (W-20261009-032): كلُّ دخولٍ وخروجٍ وتبديلٍ وصفحة.
+        ("view_as_start", "بدء معاينة بصفة دور"),
+        ("view_as_switch", "تبديل الدور المعروض"),
+        ("view_as_page", "صفحة أثناء العرض بصفة"),
+        ("view_as_end", "انتهاء معاينة الدور"),
+        ("view_as_limit", "تجاوز حدّ التبديل"),
+        ("view_as_denied", "رفض في العرض بصفة"),
+        ("view_as_linked_in", "دخول الحساب المرتبط"),
+        ("view_as_linked_out", "عودة من الحساب المرتبط"),
     ]
     MODEL_CHOICES = [
         ("HealthRecord", "سجل صحي"),
@@ -80,6 +89,7 @@ class AuditLog(models.Model):
         ("ConsentRecord", "سجل موافقة"),
         ("StudentAssessmentGrade", "درجة تقييم"),
         ("StaffEvaluation", "تقييم أداء موظف"),
+        ("LinkedAccount", "حساب مرتبط بالمطوّر"),
         ("other", "أخرى"),
     ]
 
@@ -128,6 +138,13 @@ class AuditLog(models.Model):
     def save(self, *args: Any, **kwargs: Any) -> None:
         if self.pk and AuditLog.objects.filter(pk=self.pk).exists():
             raise PermissionDenied("AuditLog records are immutable and cannot be updated.")
+        if self._state.adding:
+            # سطرٌ كُتب والمطوّرُ يعرض بصفة دورٍ أو حسابٍ مرتبط يحمل المنفّذَ الفعليَّ والصفةَ المعروضة (شرطُ 0104).
+            from core.view_as.state import acting_for_current_request, with_acting
+
+            acting = acting_for_current_request()
+            if acting is not None:
+                self.changes = with_acting(self.changes, acting)
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):

@@ -267,6 +267,9 @@
         if (post) { document.open(); document.write(got.html); document.close(); } else full(got.final || url);
         return null;
       }
+      // هويّةُ الصفحة تغيّرت: بدأ «عرضٌ بصفة» أو انتهى أو تبدّل الحساب (W-20261009-032). فالترويسةُ ورموزُ CSRF في نماذجها
+      // لا تصحّ بعده — تحميلٌ كامل.
+      if (doc.body.getAttribute('data-page-nav') !== document.body.getAttribute('data-page-nav')) { full(got.final || url); return null; }
       var more = extras(doc);
       return addStyles(more).then(function () {
         if (mine !== token) return;

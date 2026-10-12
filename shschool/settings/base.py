@@ -98,6 +98,8 @@ MIDDLEWARE = [
     "django_htmx.middleware.HtmxMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # «عرض بصفة» (W-20261009-032): يُلبس الطلبَ الدورَ المعروض قبل حارس المسارات وكلِّ عرض، ويفحص الحسابَ المرتبط
+    "core.view_as.middleware.ViewAsMiddleware",
     "core.middleware.SchoolPermissionMiddleware",
     # `request.school` — مدرسةُ المستخدم تُحسب مرّةً بعد حارس المسارات (الذي حمّل العضويّة)
     "core.middleware.SchoolContextMiddleware",

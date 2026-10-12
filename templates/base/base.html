@@ -1,5 +1,5 @@
 {% load privacy brand_tags icons %}
-{% load navigation assets %}
+{% load navigation assets view_as %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -68,7 +68,9 @@
   <script src="{% static 'js/htmx.min.js' %}" defer></script>
 </head>
 
-<body class="app-body min-h-screen flex flex-col" data-icon-sprite="{% static 'icons/sprite.svg' %}" data-page-nav>
+{% comment %}هويّةُ الصفحة لـpage-nav.js: تتغيّر ببدء «عرض بصفة» أو انتهائه أو تبدّل الحساب (W-20261009-032) فيُحمَّل المستندُ
+كاملاً — الترويسةُ ورموزُ CSRF في نماذجها لا تصحّ بعدها.{% endcomment %}{% view_as_state as va %}
+<body class="app-body min-h-screen flex flex-col" data-icon-sprite="{% static 'icons/sprite.svg' %}" data-page-nav="{% if va.current %}{{ va.current.kind }}:{{ va.current.role }}{{ va.current.target_id }}{% endif %}">
 
 {# ✅ Skip Navigation — WCAG 2.1 AA #}
 <a href="#main-content" class="skip-nav">تخطي للمحتوى الرئيسي</a>
@@ -84,6 +86,18 @@
 
 {% if user.is_authenticated %}
 {% with role=request.user.get_role %}
+
+{% comment %}«عرض بصفة» (W-20261009-032): شريطٌ ثابتٌ في كلّ صفحةٍ أثناء معاينة الدور أو الحساب المرتبط، بزرّ العودة.{% endcomment %}
+{% if va.current %}
+<div class="va-bar" role="status">
+  {% icon "role_switch" %}
+  <span class="va-bar__text">{% if va.current.is_preview %}تعاين بصفة: <strong>{{ va.label }}</strong>{% else %}في حسابك المرتبط: <strong>{{ role|va_role_label }}</strong>{% endif %}</span>
+  <form method="post" action="{% if va.current.is_preview %}{% url 'view_as_stop' %}{% else %}{% url 'view_as_linked_exit' %}{% endif %}" data-no-page-nav>
+    {% csrf_token %}
+    <button type="submit" class="btn-primary btn-sm">{% icon "back" %} {% if va.current.is_preview %}العودة إلى صفة المطوّر{% else %}العودة إلى حساب المطوّر{% endif %}</button>
+  </form>
+</div>
+{% endif %}
 
 {# ═══════════════════════ NAVIGATION — السطر العلوي (الهوية + المستخدم) ═══ #}
 <header class="site-header" role="banner">
@@ -115,6 +129,13 @@
       <span class="nav-bell-icon">{% icon "notifications" %}</span>
       <span id="notif-badge" class="notif-badge" aria-label="عدد الإشعارات غير المقروءة"></span>
     </a>
+    {% endif %}
+
+    {# ── عرض بصفة دور: للمطوّر الفعليّ وحدَه، وأثناء المعاينة يحمل اسمَ الدور المعروض ── #}
+    {% if va.can %}
+    <button type="button" class="nb nav-view-as{% if va.current %} is-active{% endif %}" id="btn-view-as" data-sd="m-view-as" aria-expanded="false" aria-controls="m-view-as" aria-label="عرض بصفة دور{% if va.label %} — الآن: {{ va.label }}{% endif %}">
+      {% icon "role_switch" %}<span class="nav-view-as__text">{% if va.label %}بصفة: {{ va.label }}{% else %}عرض بصفة{% endif %}</span><span class="chv">▼</span>
+    </button>
     {% endif %}
 
     {# ── User Menu ── #}
@@ -1109,8 +1130,11 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
     <p class="sd-user-fullname">{{ request.user.full_name }}</p>
     <p class="sd-user-role">{{ request.user.get_role_display }}</p>
   </div>
-  {% if request.user.has_multiple_roles %}
+  {% if request.user.has_multiple_roles and not va.current %}
   <a href="/auth/choose-role/">{% icon "role_switch" %} تبديل الدور</a>
+  {% endif %}
+  {% if va.can %}
+  <a href="{% url 'view_as_picker' %}">{% icon "role_switch" %} عرض بصفة دور…</a>
   {% endif %}
   {% if request.user|can_open:"notification_inbox" %}
   <a href="{% url 'notification_inbox' %}">{% icon "notifications" %} الإشعارات</a>
@@ -1121,6 +1145,8 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% if request.user|can_open:"staff_affairs:my_permits" %}
   <a href="{% url 'staff_affairs:my_permits' %}">{% icon "leave" %} أذوناتي</a>
   {% endif %}
+  {% comment %}صفحاتُ الحساب لا تُفتح أثناء «عرض بصفة» (يردّها ViewAsMiddleware بـ403)، فلا تُعرض روابطُها.{% endcomment %}
+  {% if not va.current %}
   {% if request.user|can_open:"change_password" %}
   <a href="{% url 'change_password' %}">{% icon "password" %} تغيير كلمة المرور</a>
   {% endif %}
@@ -1134,12 +1160,46 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   </a>
   {% endif %}
   {% endif %}
+  {% endif %}
   <hr>
   <form method="post" action="{% url 'logout' %}" class="sd-logout-form">
     {% csrf_token %}
     <button type="submit" class="sd-logout-btn">{% icon "logout" %} تسجيل الخروج</button>
   </form>
 </div>
+
+{% comment %}
+قائمةُ «عرض بصفة دور» (W-20261009-032): أدوارُ الكادر في أعمدتها الأربعة، كلُّ دورٍ زرُّ إرسالٍ في نموذجٍ خارجها
+(`va-menu-form`)، وفي ذيلها حساباتُ المطوّر المرتبطة والعودةُ وصفحةُ «عرض بصفة».
+{% endcomment %}
+{% if va.can %}
+<form method="post" action="{% url 'view_as_start' %}" id="va-menu-form" hidden data-no-page-nav>{% csrf_token %}</form>
+<div class="sd-menu sd-menu--cols-4" id="m-view-as" role="menu" aria-label="عرض بصفة دور">
+  {% for group in va.groups %}
+  <div class="sd-section">
+  <div class="sd-label">{{ group.title }}</div>
+  {% for name, label in group.roles %}
+  <button type="submit" form="va-menu-form" name="role" value="{{ name }}" class="va-role" role="menuitem"{% if va.current.role == name %} aria-current="true"{% endif %}>{{ label }}</button>
+  {% endfor %}
+  </div>
+  {% endfor %}
+  <div class="sd-section va-menu-foot">
+    {% for link in va.links %}
+    <form method="post" action="{% url 'view_as_linked_switch' link.pk %}" data-no-page-nav>
+      {% csrf_token %}
+      <button type="submit" class="va-role" role="menuitem">{% icon "link" %} حسابُك المرتبط: {{ link.target.get_role|va_role_label }}</button>
+    </form>
+    {% endfor %}
+    {% if va.current %}
+    <form method="post" action="{% url 'view_as_stop' %}" data-no-page-nav>
+      {% csrf_token %}
+      <button type="submit" class="va-role" role="menuitem">{% icon "back" %} العودة إلى صفة المطوّر</button>
+    </form>
+    {% endif %}
+    <a href="{% url 'view_as_picker' %}" role="menuitem">{% icon "role_switch" %} صفحةُ «عرض بصفة»</a>
+  </div>
+</div>
+{% endif %}
 
 {% endwith %}
 {% endif %}

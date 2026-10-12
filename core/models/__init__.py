@@ -40,6 +40,7 @@ from .capability_grant import DELEGABLE_CAPABILITIES, CapabilityGrant  # noqa: F
 from .crypto import _get_fernet, decrypt_field, encrypt_field, hmac_field  # noqa: F401
 from .department import Department  # noqa: F401
 from .export_job import ExportJob  # noqa: F401
+from .linked_account import LinkedAccount  # noqa: F401
 from .permission_audit import PermissionAuditLog  # noqa: F401
 from .school import School, _uuid  # noqa: F401
 from .stored_file import StoredFile  # noqa: F401
