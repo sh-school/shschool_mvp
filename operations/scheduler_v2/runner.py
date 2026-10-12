@@ -28,6 +28,7 @@ from django.utils import timezone
 
 from operations.cpsat_adapter import CpSatInputs, build_inputs
 from operations.schedule_evaluator import VERDICTS, Evaluation, evaluate_slots
+from operations.scheduler_v2.admin_caps import with_admin_first_caps, with_admin_last_caps
 from operations.scheduler_v2.limits import LAYER_AFTER_FIRST_SOLUTION_SECONDS, SOLVER_MAX_SECONDS
 from operations.scheduler_v2.progress import STOPPED_EMPTY_LABEL
 
@@ -130,47 +131,6 @@ def _rule_note(config: SolverConfig) -> str:
     from operations.schedule_relaxation import rule_sentence
 
     return rule_sentence(dict(config.relaxations))
-
-
-def with_admin_first_caps(config: SolverConfig, school: Any, academic_year: str) -> SolverConfig:
-    """يضمّ سقوفَ الأولى المقرَّرةَ إدارياً (الأدمن) إلى `first_cap_override`؛ والأعلى يغلب ملفَّ التخفيف.
-
-    المصدرُ بعد W-20261010-033 هو الحقل `TeacherPreference.max_first_periods`؛ وملفُّ `--relaxations` يبقى
-    خياراً لتشغيلٍ بعينه فوق الأساس لا بديلاً عنه.
-    """
-    from dataclasses import replace
-
-    from operations.schedule_evaluator import admin_first_caps
-
-    stored = admin_first_caps(school, academic_year)
-    if not stored:
-        return config
-    spec = dict(config.relaxations)
-    merged = dict(spec.get("first_cap_override") or {})
-    for teacher, cap in stored.items():
-        merged[teacher] = max(cap, merged.get(teacher, 0))
-    spec["first_cap_override"] = merged
-    return replace(config, relaxations=tuple(sorted(spec.items(), key=lambda kv: kv[0])))
-
-
-def with_admin_last_caps(config: SolverConfig, school: Any, academic_year: str) -> SolverConfig:
-    """يضمّ سقوفَ السابعة المقرَّرةَ إدارياً (الأدمن) إلى `last_cap_override`، ومنها الصفرُ (منعُ السابعة).
-
-    على عكس سقف الأولى لا يُرفع هنا الأعلى فوق الملف: القرارُ الإداريّ المحفوظ في حقّ المعلّم هو الحاكم
-    (يضيّق بالصفر ويوسّع إلى خمس)، وملفُّ التخفيف يبقى لتشغيلٍ بعينه لمن لم يُقرَّ له سقفٌ محفوظ.
-    """
-    from dataclasses import replace
-
-    from operations.last_period_cap import admin_last_caps
-
-    stored = admin_last_caps(school, academic_year)
-    if not stored:
-        return config
-    spec = dict(config.relaxations)
-    merged = dict(spec.get("last_cap_override") or {})
-    merged.update(stored)
-    spec["last_cap_override"] = merged
-    return replace(config, relaxations=tuple(sorted(spec.items(), key=lambda kv: kv[0])))
 
 
 @dataclass
