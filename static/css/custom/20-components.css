@@ -1827,6 +1827,27 @@ textarea:focus-visible {
 /* حوارُ التأكيد (base.js، data-confirm): العنوانُ بلون الخطر المقروء، والسؤالُ ثانويّ. */
 .confirm-dlg-message { color: var(--text-secondary); line-height: 1.7; }
 
+/* ── حارس الجلسة (session-guard.js): تحذيرُ الانتهاء ونافذةُ إعادة الدخول في الصفحة نفسها ── */
+.session-guard__lead { margin: 0 0 var(--sp-3); color: var(--text-secondary); line-height: 1.7; }
+.session-guard__countdown { font-variant-numeric: tabular-nums; color: var(--status-danger-fg); }
+.session-guard__frame {
+  display: block;
+  width: 100%;
+  height: min(24rem, 48dvh);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+/* العنوانُ والتذييلُ ثابتان والإطارُ يتمرّر: لا يُقصّ العنوانُ على الشاشات القصيرة. */
+.session-guard .modal-box { display: flex; flex-direction: column; max-height: calc(100dvh - var(--sp-8)); overflow: hidden; }
+.session-guard .modal-body { overflow-y: auto; }
+.session-guard__status { margin: var(--sp-3) 0 0; min-height: 1.5em; color: var(--text-secondary); }
+/* داخل إطار إعادة الدخول (خطوةُ الرمز الثاني ممّا يرثه base.html): لا إطارَ محيطاً ولا تذييل. */
+html.is-embedded .site-footer,
+html.is-embedded #crumbs,
+html.is-embedded .skip-nav,
+html.is-embedded .pwa-banner { display: none; }
+
 /* ── Mobile Bottom Navigation ─── */
 .mobile-bottom-nav {
   position: fixed;

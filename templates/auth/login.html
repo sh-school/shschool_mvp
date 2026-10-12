@@ -25,7 +25,7 @@
   {# Login styles — defined in the modules sheets (static/css/custom/) #}
 </head>
 
-<body class="login-page">
+<body class="login-page{% if request.GET.embed %} is-embedded{% endif %}">
   <div class="login-card">
 
     {# ── Header Strip (maroon) ── #}
@@ -51,7 +51,7 @@
     {% endif %}
 
     {# ── Login Form ── #}
-    <form method="post" action="/auth/login/" class="space-y-4" autocomplete="on" data-validate>
+    <form method="post" class="space-y-4" autocomplete="on" data-validate>
       {% csrf_token %}
 
       <div>

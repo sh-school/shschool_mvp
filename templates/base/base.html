@@ -1273,6 +1273,8 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
 <script src="{% static 'js/export-center.js' %}" defer></script>
 {% comment %}التنقّلُ بين الصفحات بتبديل المحتوى وحدَه: الترويسةُ والقائمةُ والفوتر ثابتةٌ لا تُعاد، والمحتوى يتلاشى ثمّ يظهر بسلاسةٍ (قرارُ المالك 2026-09-20). صفحةٌ لها سكربتُها أو أنماطُها الخاصّة تُحمَّل كاملةً كما كانت.{% endcomment %}
 <script src="{% static 'js/page-nav.js' %}" defer></script>
+{# حارسُ الجلسة: نبضٌ وتحذيرٌ ونافذةُ إعادة دخولٍ تحفظ ما أُدخل (W-20261005-003). يُحمَّل لكلّ صفحة: داخل إطار إعادة الدخول يكتفي بإخفاء الإطار المحيط. #}
+<script src="{% static 'js/session-guard.js' %}" defer></script>
 {% if rum_endpoint %}{# قياسُ الأداء الميدانيّ (Q-04): لا يُحمَّل ما دام RUM_ENDPOINT فارغاً #}
 <script src="{% static 'js/rum.js' %}" defer></script>
 {% endif %}
@@ -1292,6 +1294,7 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
   <button class="pwa-dismiss-btn" data-action="dismiss-pwa" aria-label="إغلاق">{% icon "close" size="sm" %}</button>
 </div>
 {% include "components/icon_update_notice.html" %}
+{% include "components/session_guard.html" %}
 {% endif %}
 
 
