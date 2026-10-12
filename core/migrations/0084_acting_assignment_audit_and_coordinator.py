@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("core", "0081_breach_individuals_and_phased_ncsa"),
+        ("core", "0083_auditlog_allow_changes_erasure"),
     ]
 
     operations = [
