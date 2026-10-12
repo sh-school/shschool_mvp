@@ -347,3 +347,20 @@ def test_the_general_frame_is_untouched_by_the_compact_one(paper, orient):
     )
     assert compact.header_h < general.header_h and compact.margin_bottom == 0.0
     assert compact.body_height > general.body_height
+
+
+@pytest.mark.parametrize("paper", ["a4", "a3"])
+@pytest.mark.parametrize("orient", ["landscape", "portrait"])
+def test_the_compact_header_sheds_the_ministry_line_when_the_phrase_is_frozen(
+    paper, orient, settings
+):
+    """تجميدُ عبارة الوزارة (D-400م) يُسقط سطرَها من الترويسة، فينقص ارتفاعُها بقدره وإلّا عاد فراغٌ تحتها."""
+    from core.print_frame import SHEET_MINISTRY_LINE_MM, frame
+
+    settings.MINISTRY_AFFILIATION_VISIBLE = True
+    shown = frame(paper, orient, compact=True)
+    settings.MINISTRY_AFFILIATION_VISIBLE = False
+    frozen = frame(paper, orient, compact=True)
+
+    assert shown.header_h - frozen.header_h == pytest.approx(SHEET_MINISTRY_LINE_MM)
+    assert frozen.body_height - shown.body_height == pytest.approx(SHEET_MINISTRY_LINE_MM, abs=0.1)
