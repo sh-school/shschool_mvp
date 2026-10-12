@@ -17,6 +17,12 @@
   <form method="post" class="qobs-form-stack"
         action="{% if mode == 'edit' %}{% url 'observation_edit' obs.id %}{% elif is_peer %}{% url 'observation_peer_create' %}{% elif is_self %}{% url 'observation_self_create' %}{% else %}{% url 'observation_create' %}{% endif %}">
     {% csrf_token %}
+    {% comment %}
+    الإرسالُ للمعلّم بالنقر الصريح على زرّه وحدَه. المتصفّحُ يضغط **أوّلَ زرّ إرسالٍ** عند Enter في حقلٍ نصّيّ، فيُوضع هنا
+    زرُّ «حفظ كمسودة» خفيٌّ بصريّاً (sr-only لا display:none، ومعه tabindex وaria-hidden فلا يدخله التبويب ولا يقرؤه قارئ
+    الشاشة) ليكون هو الافتراضيَّ — W-20260929-004. وبعد الإرسال لا مسوّدةَ: زرُّ «حفظ التعديلات» وحدَه.
+    {% endcomment %}
+    {% if not is_sent_edit %}<button type="submit" name="action" value="draft" class="sr-only" tabindex="-1" aria-hidden="true">حفظ كمسودة</button>{% endif %}
 
     {% section_card "المعلومات الأساسيّة" icon="status_info" %}
       <div class="qobs-fields">
@@ -209,6 +215,17 @@
 
 </div>
 <script nonce="{{ request.csp_nonce }}">
+  // حارسٌ احتياطيٌّ: Enter في حقلٍ مفرد (لا textarea) لا يُرسل شيئاً؛ فالحفظُ والإرسالُ بنقر الزرّ.
+  (function () {
+    var form = document.querySelector('form.qobs-form-stack');
+    if (!form) return;
+    form.addEventListener('keydown', function (event) {
+      var field = event.target;
+      if (event.key === 'Enter' && field.tagName === 'INPUT' && !/^(submit|button|checkbox|radio)$/.test(field.type)) {
+        event.preventDefault();
+      }
+    });
+  })();
   // قفلُ عطلة نهاية الأسبوع على حقل التاريخ: الجمعة والسبت بلا استعلامٍ
   // (كـ`is_school_day` في الخادم) — يُرجع القيمةَ السابقة فوراً بدل انتظار
   // ردّ الخادم على يومٍ لا حصصَ فيه أصلاً. أمّا إجازاتُ التقويم فرسالةُ
