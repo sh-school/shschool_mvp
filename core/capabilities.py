@@ -49,11 +49,13 @@ class Capability:
     #: منحٌ لا يقرؤه الدور: ``grant(user) -> bool``. لقدرةٍ يملكها المستخدمُ بتكليفٍ ساري
     #: لا بمسمّاه — كبديل الجناح من ملاحظي الطلبة وعمّال الخدمات.
     grant: Callable | None = None
+    #: أدوارٌ لا تَرِث هذه القدرةَ من أصلها في ``ROLE_INHERITS`` — تحملها إن ذُكرت في ``roles`` صراحةً فقط.
+    not_inherited_by: frozenset = frozenset()
 
     @property
     def expanded_roles(self) -> frozenset:
         """الأدوارُ بعد الوراثة — ما يفحصه الحارسُ فعلاً."""
-        return frozenset(expand_roles(set(self.roles)))
+        return frozenset(expand_roles(set(self.roles), not_inherited_by=self.not_inherited_by))
 
     def granted(self, user) -> bool:
         return self.grant is not None and bool(self.grant(user))
@@ -66,8 +68,11 @@ def _cap(
     scope: str = "المدرسة",
     basis: str = PLATFORM_ASSUMPTION,
     grant: Callable | None = None,
+    not_inherited_by: Iterable[str] = (),
 ) -> Capability:
-    return Capability(key, label, frozenset(roles), scope, basis, grant)
+    return Capability(
+        key, label, frozenset(roles), scope, basis, grant, frozenset(not_inherited_by)
+    )
 
 
 def _holds_a_wing(user) -> bool:
@@ -109,6 +114,11 @@ def registry() -> dict[str, Capability]:
             "الاطّلاعُ على سجلّات الطلبة",
             P.STUDENT_REGISTER_READ,
             scope="المدرسة؛ المشرفُ الإداريُّ لشُعب جناحه (wings/scope.py)",
+            basis=(
+                "سجلُّ الطلبة يعرض اسمَ وليّ الأمر وهاتفَه — قاعدةُ الحاجة (PDPPL): منسّقُ الأنشطة يرث المنسّقَ "
+                "ولا يتّصل بالأسر، فلا يرث هذه القدرةَ (ويبقى له ما يرثه من غيرها) — بطاقة W-20261010-012، حكم 0104"
+            ),
+            not_inherited_by={"activities_coordinator"},
         ),
         _cap(
             "student_affairs.follow_up",
@@ -391,7 +401,13 @@ def registry() -> dict[str, Capability]:
             "ملفُّ السلوك ولوحتُه",
             P.BEHAVIOR_MANAGE | P.BEHAVIOR_RECORD | P.BEHAVIOR_VIEW_ALL,
         ),
-        _cap("behavior.record", "تسجيلُ مخالفةٍ وتقريرُها", P.BEHAVIOR_MANAGE | P.BEHAVIOR_RECORD),
+        _cap(
+            "behavior.record",
+            "تسجيلُ مخالفةٍ وتقريرُها",
+            P.BEHAVIOR_MANAGE | P.BEHAVIOR_RECORD,
+            # رصدُ مخالفةٍ تأديبيّةٍ لقاصرٍ كتابةٌ حسّاسة؛ المساعدان يرثان جدولَ المعلّم وحضورَه لا رصدَه (حكم 0104، W-20261010-013).
+            not_inherited_by={"teacher_assistant", "ese_assistant"},
+        ),
         _cap("behavior.manage", "إدارةُ المخالفات والإجراءات", P.BEHAVIOR_MANAGE),
         _cap(
             "behavior.committee",
@@ -711,7 +727,7 @@ def capability_required(key: str):
 
     def decorator(view_func):
         if cap.grant is None:
-            wrapped = role_required(cap.roles)(view_func)
+            wrapped = role_required(cap.roles, not_inherited_by=cap.not_inherited_by)(view_func)
         else:
             wrapped = _roles_or_grant(cap, view_func)
         if key in DEVELOPER_EXCLUDED_CAPABILITIES:
