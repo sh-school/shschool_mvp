@@ -86,7 +86,7 @@
             <td><span class="qcom-member__name">{{ ms.member.job_title }}</span></td>
             <td>
               <span class="qcom-member__name">{{ ms.member.user.full_name|default:"—" }}</span>
-              {% if ms.member.user %}<span class="qcom-member__job" dir="ltr">{{ ms.member.user.national_id|mask_id }}</span>{% endif %}
+              {% if ms.member.user %}<span class="qcom-member__job" dir="ltr">{{ ms.member.user.employee_number|default:"—" }}</span>{% endif %}
             </td>
             <td class="num"><span class="status-badge status-{{ ms.responsibility_tone }}">{{ ms.member.responsibility }}</span></td>
             <td class="cell-domain">{{ ms.member.domain.name|default:"—" }}</td>

@@ -53,7 +53,6 @@
       {% section_card "البيانات الشخصية" icon="profile" %}
         <dl class="detail-dl">
           <dt>الاسم</dt><dd>{{ student.full_name }}</dd>
-          <dt>الرقم الشخصي</dt><dd dir="ltr">{{ student.national_id|mask_id }}</dd>
           {% if enrollment %}
           <dt>الصف / الشعبة</dt><dd>{% class_label enrollment.class_group.grade enrollment.class_group.section %}</dd>
           {% endif %}

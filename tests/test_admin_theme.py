@@ -197,7 +197,7 @@ def test_the_admin_uses_the_platform_favicon():
     base = pathlib.Path("templates/admin/base_site.html").read_text(encoding="utf-8")
     platform = pathlib.Path("templates/base/base.html").read_text(encoding="utf-8")
 
-    assert "icons/favicon.png" in base and "icons/favicon.png" in platform
+    assert "icons/v3/favicon.png" in base and "icons/v3/favicon.png" in platform
     assert "css/admin_theme.css" in base
 
 
@@ -241,9 +241,8 @@ def test_the_footer_has_one_source_for_the_platform_and_the_admin():
         if "أذكياء للبرمجيات</span>" in path.read_text(encoding="utf-8")
     ]
     assert owners == [BRAND_COMPONENT.as_posix()], owners
-    assert "وزارة التربية والتعليم والتعليم العالي — دولة قطر" in LINE_COMPONENT.read_text(
-        encoding="utf-8"
-    )
+    # عبارةُ الوزارة جُمّدت (D-400م): تأتي من الوسم المركزيّ لا نصّاً حرفيّاً، ويحرسها test_ministry_affiliation.
+    assert "{% ministry_name as ministry %}" in LINE_COMPONENT.read_text(encoding="utf-8")
 
 
 def test_the_admin_footer_is_one_three_section_row_on_desktop_after_the_base_rules():

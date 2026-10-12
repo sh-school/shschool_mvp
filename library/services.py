@@ -43,7 +43,7 @@ class LibraryService:
         if book.available_qty <= 0:
             raise ValueError(f"الكتاب '{book.title}' غير متوفر للإعارة")
 
-        due_date = timezone.now().date() + timedelta(days=days)
+        due_date = timezone.localdate() + timedelta(days=days)
         borrowing = BookBorrowing.objects.create(
             book=book,
             user=user,
@@ -68,7 +68,7 @@ class LibraryService:
         book = LibraryBook.objects.select_for_update().get(pk=borrowing.book_id)
 
         borrowing.status = "RETURNED"
-        borrowing.return_date = timezone.now().date()
+        borrowing.return_date = timezone.localdate()
         borrowing.save(update_fields=["status", "return_date"])
 
         book.available_qty = min(book.available_qty + 1, book.quantity)
@@ -89,7 +89,7 @@ class LibraryService:
         تحديث حالة الكتب المتأخرة — يُشغّل يومياً (Celery beat).
         يُعيد عدد السجلات المحدّثة.
         """
-        today = timezone.now().date()
+        today = timezone.localdate()
         return BookBorrowing.objects.filter(
             status="BORROWED",
             due_date__lt=today,
@@ -109,7 +109,7 @@ class LibraryService:
         """إحصائيات لوحة المكتبة."""
         books = LibraryBook.objects.filter(school=school)
         borrowings = BookBorrowing.objects.filter(book__school=school)
-        today = timezone.now().date()
+        today = timezone.localdate()
 
         total_books = books.count()
         total_copies = books.aggregate(s=models.Sum("quantity"))["s"] or 0
@@ -152,7 +152,7 @@ class LibraryService:
         """
         from django.db.models import Count
 
-        today = timezone.now().date()
+        today = timezone.localdate()
         stats = LibraryService.get_dashboard_stats(school)
 
         recent_books = list(LibraryBook.objects.filter(school=school).order_by("-id")[:5])
@@ -216,7 +216,7 @@ class LibraryService:
         monthly = list(
             BookBorrowing.objects.filter(
                 book__school=school,
-                borrow_date__gte=timezone.now().date() - timedelta(days=180),
+                borrow_date__gte=timezone.localdate() - timedelta(days=180),
             )
             .values(month=TruncMonth("borrow_date"))
             .annotate(count=Count("id"))

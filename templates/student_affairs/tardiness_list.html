@@ -212,7 +212,7 @@
           nameSpan.textContent = s.name;
           var metaSpan = document.createElement('span');
           metaSpan.className = 'sa-late-result__meta';
-          metaSpan.textContent = (s.nid || '') + (already ? ' — مسجّل' : '');
+          metaSpan.textContent = (already ? 'مسجّل' : '');
           row.appendChild(nameSpan);
           row.appendChild(metaSpan);
           resultsBox.appendChild(row);

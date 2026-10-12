@@ -26,7 +26,7 @@
             <option value="">— اختر الطالب —</option>
             {% for student in students %}
             <option value="{{ student.id }}" {% if student_id == student.id|stringformat:"s" %}selected{% endif %}>
-              {{ student.full_name }} ({{ student.national_id|mask_id }})
+              {{ student.full_name }}
             </option>
             {% endfor %}
           </select>

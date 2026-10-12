@@ -50,10 +50,12 @@ def test_rubbish_does_not_crash_the_page(client, teacher):
     response = _save(client, max_consecutive="abc")
 
     assert response.status_code in (200, 302)
-    assert TeacherPreference.objects.get(teacher=teacher).max_consecutive == 3
+    #: يعود إلى الافتراضيّ الجديد: لا سقفَ شخصيّاً = العامّ (W-20261003-037)، لا ٣ القديمة.
+    assert TeacherPreference.objects.get(teacher=teacher).max_consecutive is None
 
 
 def test_a_ceiling_outside_the_week_falls_back(client, teacher):
     _save(client, max_consecutive="99")
 
-    assert TeacherPreference.objects.get(teacher=teacher).max_consecutive == 3
+    #: يعود إلى الافتراضيّ الجديد: لا سقفَ شخصيّاً = العامّ (W-20261003-037)، لا ٣ القديمة.
+    assert TeacherPreference.objects.get(teacher=teacher).max_consecutive is None

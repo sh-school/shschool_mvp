@@ -12,7 +12,6 @@
       <thead>
         <tr>
           {% sort_th sort "student" "الطالب" "text-right" %}
-          <th scope="col" class="text-center">الرقم الشخصيّ</th>
           {% sort_th sort "klass" "الصف/الشعبة" "text-center" %}
           {% sort_th sort "parent" "ولي الأمر" "text-right" %}
           {% sort_th sort "relationship" "صلة القرابة" "text-center" %}
@@ -40,9 +39,6 @@
             <a href="{% url 'student_affairs:student_profile' lnk.student.id %}"
                class="font-semibold text-maroon hover:underline">{{ lnk.student.full_name }}</a>
           </td>
-          {# آخرُ أربعِ خاناتٍ وما قبلها مستور — والرقمُ كاملاً في ملفّ صاحبه. #}
-          <td data-label="الرقم الشخصيّ" class="col-num text-center font-mono cell-sm"
-              title="الرقم كاملاً في ملفّ الطالب">{{ lnk.student.national_id|mask_id|default:"—" }}</td>
           {# «07/2» كما تكتبه الوزارة — ومن غادر لا صفَّ له فيُقال ذلك #}
           <td data-label="الصف/الشعبة" class="text-center">
             {% if lnk.grade_code and lnk.section_code %}
@@ -66,7 +62,7 @@
           </td>
           <td data-label="حذف" class="text-center">
             <form method="post" action="{% url 'remove_parent_link' lnk.id %}"
-                  data-confirm="هل أنت متأكد من حذف ربط {{ lnk.parent.full_name }} بـ {{ lnk.student.full_name }}؟">
+                  data-confirm="هل أنت متأكد من حذف ربط {{ lnk.parent.full_name }} بـ {{ lnk.student.full_name }} ({% if lnk.grade_code and lnk.section_code %}{% class_label lnk.grade_code lnk.section_code %}{% else %}غادر{% endif %})؟">
               {% csrf_token %}
               <button type="submit" class="btn-danger btn-xs">
                 حذف

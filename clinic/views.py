@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from clinic.models import ClinicVisit, HealthRecord
+from clinic.needs_care_services import import_from_request
 from clinic.services import ClinicService
 from core.audit_repr import masked_repr
 from core.capabilities import capability_required, has_capability
@@ -67,6 +68,8 @@ def student_health_record(request, student_id):
         health_record.allergies = request.POST.get("allergies", "")
         health_record.chronic_diseases = request.POST.get("chronic_diseases", "")
         health_record.medications = request.POST.get("medications", "")
+        # العلامةُ صريحةٌ من الممرّض وحدَه: خانةٌ غيرُ مؤشَّرةٍ تعني «لا» (W-045، D-336م).
+        health_record.needs_care = request.POST.get("needs_care") == "1"
         health_record.save()
         # ملاحظة: تدقيق التعديل يتم تلقائياً عبر post_save signal (core/signals.py)
         from django.contrib import messages
@@ -194,3 +197,20 @@ def api_clinic_charts(request):
     # ✅ v5.4: ClinicService.get_chart_data — استعلام واحد بدل 60 (N+1 → O(1))
     data = ClinicService.get_chart_data(school, days=30)
     return JsonResponse(data)
+
+
+@login_required
+@capability_required("clinic.write")
+@require_http_methods(["GET", "POST"])
+def needs_care_import(request):
+    """استيرادُ علامة «يحتاج مراعاةً» من ملف (رقمٌ وطنيّ + صفّ) — للممرّض بـ`clinic.write` (W-045).
+
+    الملفُّ يُقرأ في الذاكرة ولا يُحفظ، والتقريرُ أعدادٌ فقط؛ ولا يمرّ الرقمُ في رسالةٍ ولا سجلّ.
+    والمنطقُ كلُّه في `clinic.needs_care_services.import_from_request`.
+    """
+    report, error = import_from_request(request) if request.method == "POST" else (None, "")
+    return render(
+        request,
+        "clinic/needs_care_import.html",
+        {"report": report, "error": error},
+    )
