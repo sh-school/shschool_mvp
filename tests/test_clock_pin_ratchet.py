@@ -34,6 +34,7 @@ from tests.visual_snapshots import FIXED_NOW
 TESTS = pathlib.Path(__file__).resolve().parent
 
 #: اللحظةُ المقيسةُ 2026-10-10 بهذه الأداة على 631 ملفَّ اختبار: 79 تقرأ الساعةَ بلا تثبيت، و69 بعد تثبيت عشرةٍ أخطرها.
+#: ودخلت على main أربعةُ ملفّاتٍ تقرأ الساعةَ (2026-10-12) فثُبّتت بالعلامة فبقي السقفُ 69 (لا رفعَ للسقف).
 CEILING = 69
 #: من الـ`CEILING` ما يقرأ `date.today()`/`datetime.now()` المباشرتين (لا تصلهما `frozen_clock`).
 DIRECT_TODAY = 21
