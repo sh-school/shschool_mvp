@@ -198,6 +198,16 @@ def registry() -> dict[str, Capability]:
             ),
         ),
         _cap(
+            "staff_affairs.own_leave",
+            "طلبُ إجازةٍ للموظّف نفسه",
+            P.ALL_STAFF_ROLES,
+            scope=(
+                "طلبُ المستخدم نفسِه وحدَه: الموظّفُ يُربط بالحساب الداخل لا بما يُرسَل في الطلب، "
+                "ولا تتّسع به «إدارةُ شؤون الموظّفين» (التقديمُ نيابةً عن غيره)"
+            ),
+            basis="قرارُ المالك D-301م (2026-10-09): «نعم يقدم لنفسه فقط اعتمد»",
+        ),
+        _cap(
             "staff_affairs.attendance_record",
             "رصدُ حضور الموظّفين اليوميّ",
             {"principal", "secretary", "vice_admin", "vice_academic"},
