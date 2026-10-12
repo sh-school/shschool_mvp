@@ -138,7 +138,7 @@ def brand_cell(cell) -> None:
 def add_excel_title_rows(ws, num_cols: int, first: str, second: str, third: str) -> None:
     """الصفوفُ الثلاثةُ الأولى في كلّ ملفّ Excel — ترويسةٌ واحدةٌ للمنصّة.
 
-    ١ عنّابيٌّ بنصٍّ أبيضَ كبير (بلا صورة شعار، D-387م)، ٢ عنّابيٌّ فاتحٌ بنصٍّ أبيض،
+    ١ عنّابيٌّ بنصٍّ أبيضَ كبير وشعارُ المدرسة «ش» صورةً مثبّتةً في A1 (D-404م؛ لا شعارَ وزارة D-387م)، ٢ عنّابيٌّ فاتحٌ بنصٍّ أبيض،
     ٣ عنّابيٌّ خفيفٌ بنصٍّ خافت. وكانت نسختان منها بتصميمين: هذه في شؤون
     الطلبة، وأخرى فاتحةٌ بخطٍّ عنّابيّ في التقارير وتصدير الطلبة — ثلاثَ مرّات.
     """
@@ -157,6 +157,16 @@ def add_excel_title_rows(ws, num_cols: int, first: str, second: str, third: str)
         cell.font = font
         cell.alignment = center
         ws.row_dimensions[row].height = height
+    _add_logo_to_title(ws)
+
+
+def _add_logo_to_title(ws) -> None:
+    """شعارُ المدرسة في A1 بحجمٍ ثابتٍ يسكن ارتفاعَ الصفّ الأوّل (40pt ≈ 53px) — فلا يتغيّر عددُ الصفوف ولا ارتفاعُها."""
+    from core.school_logo import logo_excel_image
+
+    image = logo_excel_image()
+    if image is not None:
+        ws.add_image(image, "A1")
 
 
 def add_excel_header(ws, context: dict, num_cols: int):
