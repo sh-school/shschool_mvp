@@ -394,7 +394,8 @@ def page_header(context, content, title, subtitle="", icon=""):
     """عنوانُ الصفحة وسطرُها الوصفيّ وإجراءاتُها — إطارٌ واحدٌ بدل ثلاثة."""
     _require(title, "page_header", "العنوان")
     content, tips = _split_tips(content)
-    content = _day_picker_html(context) + content
+    # `"" + SafeString` يعيد str عاديّاً فيُهرَّب HTML الإجراءات؛ والمقطعان كلاهما مرسومٌ آمن (قالبٌ وكتلةُ قالب).
+    content = mark_safe(_day_picker_html(context) + content)
     return mark_safe(
         render_to_string(
             "components/ui/page_header.html",

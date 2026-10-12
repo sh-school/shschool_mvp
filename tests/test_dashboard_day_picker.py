@@ -361,3 +361,22 @@ class TestDirectorPhaseFollowsTheShownDay:
         assert resp.context["day"].phase == PHASE_FINAL
         assert resp.context["day_final"] is True
         assert "js/director-live.js" not in resp.content.decode(), "لا استطلاعَ حيّاً ليومٍ مضى"
+
+
+class TestPageHeaderActionsStayHtml:
+    """عيبُ المعاينة 2026-10-12: `"" + SafeString` يعيد str فتظهر وسومُ إجراءات الترويسة نصّاً خامّاً في كلّ صفحةٍ بلا `date_nav`."""
+
+    @staticmethod
+    def _render(context):
+        from django.template import Context, Template
+
+        template = Template(
+            '{% load ui %}{% page_header "المراقبات" %}<a href="/quality/new/" class="btn">إضافة</a>{% endpage_header %}'
+        )
+        return template.render(Context(context))
+
+    def test_actions_are_not_escaped_without_a_day_picker(self):
+        html = self._render({})
+
+        assert "&lt;a href" not in html
+        assert '<a href="/quality/new/" class="btn">' in html
