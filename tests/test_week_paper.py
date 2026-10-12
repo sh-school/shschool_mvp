@@ -101,13 +101,14 @@ class TestThePaperNamesItsWeek:
         assert "الأسبوع" not in head and "وزارة التربية" not in head, "لا سطرَ في الترويسة"
         assert f"الأسبوع {RANGE}" in below.split('<div class="matrix-foot">', 1)[0]
 
-    def test_the_a3_paper_carries_ministry_and_week_in_its_full_header(self, world, client):
+    def test_the_a3_paper_carries_school_and_week_in_its_full_header(self, world, client):
         """A3 (ت1، قرار 2026-09-26): ترويسةٌ كاملةٌ 30مم من المكوّن المركزيّ (طلبُ الترحيل #705، 2026-09-27) — الوزارةُ فالمدرسةُ
         فالعنوانُ فالعامُ والأسبوع؛ والتذييلُ صفٌّ واحدٌ في هوامش الصفحة لا سطرٌ ثانٍ تحت الجدول."""
         body = _paper(client, world, view="all_teachers", source="actual", week=str(SUNDAY))
 
         head = body.split('id="print-header"', 1)[1].split('id="print-footer"', 1)[0]
-        assert "وزارة التربية" in head and world["school"].name in head
+        assert "وزارة التربية" not in head, "سطرُ الوزارة مجمَّد (D-400م)"
+        assert world["school"].name in head
         assert f"الأسبوع {RANGE}" in head
         assert (
             'class="matrix-sub"' not in body

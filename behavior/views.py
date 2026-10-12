@@ -816,9 +816,9 @@ def security_referral(request, infraction_id):
 def _render_behavior_pdf(request, template_name, context, filename, *, kind, student=None):
     """يولّد نموذجَ السلوك ويسجّل توليدَه.
 
-    النماذجُ الفرديّةُ (إنذار، تعهّد، تقرير) تحمل الرقمَ الشخصيَّ كاملاً لأنّها
-    تُسلَّم لصاحبها — والتدقيقُ ثمنُ الكمال (`core/privacy.py`). واللائحةُ
-    وثيقةُ مدرسةٍ بلا طالب فتُسجَّل بلا رقم.
+    النماذجُ الفرديّةُ (إنذار، تعهّد، تقرير) بلا رقمٍ شخصيّ منذ D-386م (W-20261011-014)،
+    فرايةُ التدقيق لا تدّعيه (W-20261012-005)؛ والتوليدُ يُسجَّل لصاحبه مستورَ الاسم.
+    واللائحةُ وثيقةُ مدرسةٍ بلا طالب.
     """
     from django.template.loader import render_to_string
 
@@ -829,7 +829,7 @@ def _render_behavior_pdf(request, template_name, context, filename, *, kind, stu
         request,
         kind,
         rows=1 if student else None,
-        full_national_id=student is not None,
+        full_national_id=False,
         object_id=student.pk if student else "",
         object_repr=f"{kind} — {masked_repr(student)}" if student else kind,
     )

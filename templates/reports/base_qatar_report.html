@@ -362,7 +362,7 @@ body {
   بيانات مدرسةٍ بعينها على وثائق كل مدرسة في منصّةٍ متعدّدة المدارس.
   {% endcomment %}
   <div class="ft-school">{{ school.name }}{% if school.phone %} · هاتف: {{ school.phone }}{% endif %}{% if school.email %} · {{ school.email }}{% endif %}{% if school.city %} · {{ school.city }}، قطر{% endif %}</div>
-  <div class="ft-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر — {% include "components/ministry_vision.html" %} · © {% now "Y" %}</div>
+  {% load ministry %}{% ministry_name as ministry_full %}<div class="ft-ministry">{% if ministry_full %}{{ ministry_full }} — {% endif %}{% include "components/ministry_vision.html" %} · © {% now "Y" %}</div>
 </div>
 
 <!-- الإطار -->
@@ -370,7 +370,7 @@ body {
 
   <div class="doc-header">
     {% comment %} الـPDF يحلّ المسارَ النسبيّ من جذر المشروع، والمتصفّحُ من رابط الصفحة — فنسخةُ الشاشة (`for_screen`) تأخذ رابطَ الملفّات الثابتة. {% endcomment %}
-    <div class="ministry-name">{% block ministry_line %}{{ ministry|default:"وزارة التربية والتعليم والتعليم العالي — دولة قطر" }}{% endblock %}</div>
+    {% ministry_name as ministry_default %}{% if ministry or ministry_default %}<div class="ministry-name">{% block ministry_line %}{{ ministry|default:ministry_default }}{% endblock %}</div>{% endif %}
     <div class="school-name">{% block school_name %}{{ school.name }}{% endblock %}</div>
   </div>
   <div class="ornament-hr"></div>
