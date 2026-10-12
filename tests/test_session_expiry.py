@@ -14,6 +14,7 @@ from django.test import Client
 from django.urls import reverse
 
 from core.models import encrypt_field
+from core.session_policy import limits_for
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
 PASSWORD = "Probe-Passw0rd-2FA!"  # pragma: allowlist secret
@@ -95,14 +96,15 @@ class TestStatusEndpoint:
         assert resp.status_code == 401 and resp["HX-Trigger"] == "session-expired"
         assert resp.json()["authenticated"] is False
 
-    def test_reports_remaining_time_and_user(self, client, teacher_user, settings):
+    def test_reports_remaining_time_and_user(self, client, teacher_user):
         client.force_login(teacher_user)
         body = client.get(STATUS).json()
+        idle = limits_for("teacher").idle
         assert body["authenticated"] is True
         assert body["user_id"] == str(teacher_user.pk)
         assert body["must_change_password"] is False
-        assert body["idle_limit"] == settings.SESSION_COOKIE_AGE
-        assert 0 < body["idle_remaining"] <= settings.SESSION_COOKIE_AGE
+        assert body["idle_limit"] == idle
+        assert 0 < body["idle_remaining"] <= idle
         assert 0 < body["absolute_remaining"] <= 8 * 3600
         assert body["csrf_token"]
 
@@ -123,13 +125,16 @@ class TestStatusEndpoint:
             client.get(STATUS)
         assert client.session["_last_touch"] == stamp
 
-    def test_a_session_from_before_the_stamp_reports_unknown(self, client, teacher_user):
+    def test_a_session_from_before_the_stamp_is_stamped_by_its_first_request(
+        self, client, teacher_user
+    ):
         client.force_login(teacher_user)
         session = client.session
         del session["_login_at"], session["_last_touch"]
         session.save()
         body = client.get(STATUS).json()
-        assert body["idle_remaining"] is None and body["absolute_remaining"] is None
+        assert body["idle_remaining"] > 0 and body["absolute_remaining"] > 0
+        assert "_login_at" in client.session
 
     def test_post_is_not_allowed(self, client, teacher_user):
         client.force_login(teacher_user)
@@ -156,45 +161,45 @@ class TestTouchEndpoint:
         body = client.post(TOUCH).json()
         assert body["renewed"] is False and body["reason"] == "recent"
 
-    def test_renews_the_idle_clock_after_the_minimum_interval(self, client, teacher_user, settings):
+    def test_renews_the_idle_clock_after_the_minimum_interval(self, client, teacher_user):
         client.force_login(teacher_user)
         session = client.session
         session["_last_touch"] -= 600
         session.save()
         body = client.post(TOUCH).json()
         assert body["renewed"] is True and body["reason"] == ""
-        assert body["idle_remaining"] > settings.SESSION_COOKIE_AGE - 5
+        assert body["idle_remaining"] > limits_for("teacher").idle - 5
         assert int(time.time()) - client.session["_last_touch"] <= 2
 
     def test_never_extends_past_the_absolute_limit(self, client, teacher_user):
+        """بعد المطلقة يُنهي الميدلوير الجلسةَ قبل الوصول إلى النبضة: لا تجديدَ ولا جلسة."""
         client.force_login(teacher_user)
         session = client.session
         session["_login_at"] -= 9 * 3600
         session["_last_touch"] -= 600
         session.save()
-        stamp = client.session["_last_touch"]
-        body = client.post(TOUCH).json()
-        assert body["renewed"] is False and body["reason"] == "absolute"
-        assert body["absolute_remaining"] == 0
-        assert client.session["_last_touch"] == stamp
+        resp = client.post(TOUCH)
+        assert resp.status_code == 401 and resp["HX-Trigger"] == "session-expired"
+        assert client.get(STATUS).status_code == 401
 
-    def test_a_parent_hits_the_absolute_limit_after_two_hours(self, client, parent_user):
+    def test_a_parent_is_ended_after_two_hours(self, client, parent_user):
         client.force_login(parent_user)
         session = client.session
         session["_login_at"] -= 3 * 3600
-        session["_last_touch"] -= 600
+        session["_last_touch"] -= 60
         session.save()
-        assert client.post(TOUCH).json()["reason"] == "absolute"
+        assert client.post(TOUCH).status_code == 401
 
-    def test_a_session_from_before_the_stamp_is_stamped_by_its_first_touch(
+    def test_a_session_from_before_the_stamp_is_stamped_by_its_first_request(
         self, client, teacher_user
     ):
+        """الميدلوير يختم الجلسةَ السابقةَ للختم عند أوّل طلب، فيجد النبضُ ختماً حديثاً."""
         client.force_login(teacher_user)
         session = client.session
         del session["_login_at"], session["_last_touch"]
         session.save()
         body = client.post(TOUCH).json()
-        assert body["renewed"] is True
+        assert body["reason"] == "recent"
         assert "_login_at" in client.session and body["idle_remaining"] > 0
 
 
