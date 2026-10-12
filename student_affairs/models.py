@@ -98,6 +98,17 @@ class StudentTransfer(AuditedModel):
         default=default_academic_year,
         verbose_name="العام الدراسي",
     )
+    #: من قرّر الانتقال الداخلي (اعتماداً أو رفضاً أو إتماماً أو نقلاً مباشراً) ومتى — W-20261001-017، D-343م.
+    #: هجرةُ توسيعٍ: عمودان قابلان للإلغاء، ولا يُملآن للطلبات القديمة.
+    decided_by = models.ForeignKey(
+        CustomUser,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="transfer_decisions",
+        verbose_name="قرّره",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت القرار")
 
     class Meta:
         ordering = ["-created_at"]

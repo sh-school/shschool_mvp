@@ -42,8 +42,8 @@
   {% load static %}
 
   {# ── Favicon & PWA ── #}
-  <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/favicon.png' %}">
-  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/apple-touch-icon.png' %}">
+  <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/v3/favicon.png' %}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/v3/apple-touch-icon.png' %}">
   {% if user.is_authenticated %}
   <link rel="manifest" href="{% url 'global_manifest' %}">
   {% comment %}
@@ -92,8 +92,6 @@
     {# ── Logo + اسم المدرسة ── #}
     {% if request.user|can_open:"dashboard" %}
     <a href="{% url 'dashboard' %}" class="nb nav-logo">
-      <img src="{% static 'brand/emblem-white.svg' %}" width="27" height="27"
-           alt="{{ current_school.name|default:'شعار المدرسة' }}" class="nav-logo-img">
       <span class="nav-logo-text">{{ current_school.name|default:"المدرسة" }}</span>
     </a>
     {% endif %}
@@ -1109,7 +1107,6 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
 <div class="sd-menu" id="m-user" role="menu" aria-label="قائمة المستخدم">
   <div class="sd-user-header">
     <p class="sd-user-fullname">{{ request.user.full_name }}</p>
-    <p class="sd-user-nid">{{ request.user.national_id|mask_id }}</p>
     <p class="sd-user-role">{{ request.user.get_role_display }}</p>
   </div>
   {% if request.user.has_multiple_roles %}
@@ -1266,6 +1263,8 @@ window.fitNoscroll();
 window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }}, rum: {% if rum_endpoint %}{ endpoint: "{{ rum_endpoint|escapejs }}", sample: {{ rum_sample }} }{% else %}null{% endif %} };
 </script>
 {# مفردات data-* المعلنة — تحلّ محلّ معالِجات الأحداث الداخلية التي تحجبها CSP #}
+{# بطاقةُ «تغيّرت أيقونة التطبيق» لمن ثبّت قبل التغيير (W-20261011-012) — أوّلَ السكربتات: تقرأ المخزنَ قبل أن يكتب فيه غيرُها (مخزنٌ فارغٌ = تثبيتٌ جديد) #}
+<script src="{% static 'js/icon-update-notice.js' %}" defer></script>
 <script src="{% static 'js/actions.js' %}" defer></script>
 <script src="{% static 'js/base.js' %}" defer></script>
 <script src="{% static 'js/app.js' %}" defer></script>
@@ -1292,6 +1291,7 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
   <button class="pwa-install-btn" data-action="install-pwa">تثبيت</button>
   <button class="pwa-dismiss-btn" data-action="dismiss-pwa" aria-label="إغلاق">{% icon "close" size="sm" %}</button>
 </div>
+{% include "components/icon_update_notice.html" %}
 {% endif %}
 
 
