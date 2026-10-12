@@ -76,6 +76,15 @@ def test_the_supervisor_is_case_scoped_not_school_wide():
 
 
 @pytest.mark.django_db
+def test_the_supervisor_does_not_inherit_school_wide_behavior_statistics(school):
+    """حكمُ 0104: عضويةُ القضيّة الواحدة لا تمنح إحصاءَ سلوك المدرسة كلِّها."""
+    supervisor_user = _user_with(school, "admin_supervisor")
+    assert not has_capability(supervisor_user, "behavior.statistics")
+    assert has_capability(_user_with(school, "psychologist"), "behavior.statistics")
+    assert has_capability(_user_with(school, "principal"), "behavior.statistics")
+
+
+@pytest.mark.django_db
 class TestOneSupervisorPerCase:
     """قرارُ المالك 2026-10-05: يدخل اللجنةَ مشرفُ جناح الطالب المعنيّ وحدَه — واحدٌ لكلّ قضيّة."""
 

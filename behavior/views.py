@@ -696,7 +696,10 @@ def behavior_report(request, student_id):
 
 
 # ── تقرير إحصائي ─────────────────────────────────────────────
-_STATS_ALLOWED_ROLES = BEHAVIOR_COMMITTEE | BEHAVIOR_VIEW_ALL | BEHAVIOR_STATS_TEACHING
+#: المشرفُ الإداريّ عضوُ قضيّةِ جناحه وحدَها (م5.7) فلا يرث إحصاءَ المدرسة كلِّها
+_FULL_STATS_ROLES = (
+    BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL | (BEHAVIOR_COMMITTEE - BEHAVIOR_COMMITTEE_CASE_SCOPED)
+)
 
 
 @login_required
@@ -714,7 +717,7 @@ def behavior_statistics(request):
         stats["is_scoped"] = True
     else:
         # القيادة ولجنة الضبط والأخصائيون → كل طلاب المدرسة
-        _full_access = BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL | BEHAVIOR_COMMITTEE
+        _full_access = _FULL_STATS_ROLES
         if (
             role not in _full_access
             and not request.user.is_superuser
