@@ -52,6 +52,9 @@ class Member:
     last_cap: int = 0
     #: موارد هذا العضو وحده (مادّتُه) — فالمنقسمةُ لا تُدخل موادَّ أحد ساكنيها في موارد الآخر.
     resources: tuple = ()
+    #: سقفُ الفراغ الخاصّ بهذا المعلّم وحدَه (HC10) — `None` لا قيدَ له، والصفرُ قيدٌ صحيح (W-20261012-024).
+    #: سقفُ الفراغ حقُّ صاحبه: المهمّةُ المشتركةُ تقيس كلَّ عضوٍ بسقفه هو لا بأضيق السقوف.
+    gap_cap: int | None = None
 
 
 @dataclass
@@ -121,6 +124,8 @@ class Task:
                     subject_id=self.subject_id,
                     subject_name=self.subject_name,
                     subject_code=self.subject_code,
+                    #: مهمّةٌ بلا أعضاءٍ معلنين معلّمُها واحد: سقفُها سقفُه (W-20261012-024).
+                    gap_cap=self.gap_cap,
                 )
             ]
 
@@ -709,6 +714,7 @@ def _to_tasks(
             subject_code=a.subject.code,
             last_cap=personal_last.get(str(a.teacher_id), 0),
             resources=tuple(resources_by_subject.get(str(a.subject_id), ())),
+            gap_cap=personal_gap.get(str(a.teacher_id)),
         )
 
     resources_by_subject = resources_by_subject or {}
@@ -745,8 +751,8 @@ def _to_tasks(
                 (personal_cap[m.teacher_id] for m in members if m.teacher_id in personal_cap),
                 default=0,
             ),
-            #: وأضيقُ سقفِ فراغٍ كذلك — و`None` غيابُ القيد لا أوسعُه، فلا
-            #: يدخل العدّ أصلاً.
+            #: حقلٌ مشتقٌّ للتوافق وحدَه (الأضيق بين الأعضاء)، ولا يُستعمل في أيّ فحص: السقفُ لكلّ عضوٍ في
+            #: `Member.gap_cap` (W-20261012-024). و`None` غيابُ القيد لا أوسعُه، فلا يدخل العدّ أصلاً.
             gap_cap=min(
                 (personal_gap[m.teacher_id] for m in members if m.teacher_id in personal_gap),
                 default=None,

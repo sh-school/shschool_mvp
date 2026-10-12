@@ -597,11 +597,12 @@ def check_max_gap(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool
     والقياسُ على اليوم كلِّه بعد الوضع، لا على الجارِ وحدَه: خانةٌ تُوضع بين
     حصّتين متباعدتين تُضيّق الفراغَ ولا توسّعه، فلا يصحّ أن تُمنع.
     """
-    if task.gap_cap is None:
-        return True
     slots = list(task.slots(period))
+    # السقفُ لكلّ عضوٍ بحسب سقفه هو (W-20261012-024): فمن لا سقفَ له لا يُقاس، ولا يُفرض عليه سقفُ شريكه
+    # في الحصّة المشتركة. و`Task.gap_cap` مشتقٌّ للتوافق ولا يُقرأ هنا.
     return all(
-        grid.teacher_widest_gap_with(m.teacher_id, day, slots) <= task.gap_cap for m in task.members
+        m.gap_cap is None or grid.teacher_widest_gap_with(m.teacher_id, day, slots) <= m.gap_cap
+        for m in task.members
     )
 
 
