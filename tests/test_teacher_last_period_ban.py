@@ -238,3 +238,39 @@ def test_the_evaluator_flags_a_seventh_for_a_banned_teacher_and_not_for_a_genera
 
     assert "HC8" not in general.hard_breaches
     assert banned.hard_breaches.get("HC8") == 1
+
+
+# ── هجرة البيانات: الأصفار القديمة (= العامّ) تصير NULL قبل أن يتغيّر معنى الصفر ──
+
+
+@pytest.mark.django_db
+def test_the_data_migration_turns_old_zeros_into_general_and_touches_nothing_else(school):
+    from importlib import import_module
+
+    from django.apps import apps
+
+    migration = import_module("operations.migrations.0082_teacherpreference_last_cap_ban_zero")
+    zero, kept, three, blank = (_pref(school, UserFactory().pk) for _ in range(4))
+    for pref, value in ((zero, 0), (kept, 2), (three, 3)):
+        TeacherPreference.objects.filter(pk=pref.pk).update(max_last_periods=value)
+
+    migration.zero_to_general(apps, None)
+    migration.zero_to_general(apps, None)  # idempotent: إعادةٌ لا تجد صفراً
+
+    values = {
+        p.pk: p.max_last_periods
+        for p in TeacherPreference.objects.filter(pk__in=[zero.pk, kept.pk, three.pk, blank.pk])
+    }
+    assert values == {zero.pk: None, kept.pk: 2, three.pk: 3, blank.pk: None}
+    assert admin_last_caps(school, YEAR) == {str(three.teacher_id): 3}
+
+
+@pytest.mark.django_db
+def test_the_data_migration_runs_when_there_are_no_zeros_at_all(school):
+    from importlib import import_module
+
+    from django.apps import apps
+
+    migration = import_module("operations.migrations.0082_teacherpreference_last_cap_ban_zero")
+
+    migration.zero_to_general(apps, None)  # لا صفوف: لا خطأ
