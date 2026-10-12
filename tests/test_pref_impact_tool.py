@@ -291,3 +291,14 @@ def test_teacher_cell_names_breach_owner_for_rejected_schedule():
     text = teacher_cell(row, "rejected")
     assert text.startswith("abcdef01 (12 حصّة) يوم الخميس: الحصص 2 (band-one)، 5 (band-two)")
     assert text.endswith("و1 مخالفةً غيرُها")
+
+
+def test_period_count_wording():
+    from tools.pref_impact_report import _periods
+
+    assert (_periods(1), _periods(4), _periods(10), _periods(14)) == (
+        "1 حصّة",
+        "4 حصص",
+        "10 حصص",
+        "14 حصّة",
+    )

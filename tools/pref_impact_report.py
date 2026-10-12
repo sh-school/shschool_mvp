@@ -171,6 +171,11 @@ def _impact_text(row: Mapping[str, Any], base: Baseline, own: str) -> str:
 
 
 #: أيّامُ الدوام بترتيب المحرّك (0 = الأحد … 4 = الخميس).
+def _periods(count: object) -> str:
+    """العددُ مع تمييزه: من 3 إلى 10 «حصص»، وغيرُها «حصّة»."""
+    return f"{count} حصص" if isinstance(count, int) and 3 <= count <= 10 else f"{count} حصّة"
+
+
 DAY_NAMES = ("الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس")
 
 
@@ -180,7 +185,7 @@ def _breach_text(breach: Mapping[str, Any]) -> str:
     load = (breach.get("loads") or {}).get(teacher, "؟")
     day = DAY_NAMES[breach["day"]] if 0 <= breach["day"] < len(DAY_NAMES) else breach["day"]
     periods = "، ".join(f"{p} ({band})" for p, band in cells)
-    return f"{teacher} ({load} حصّة) يوم {day}: الحصص {periods}"
+    return f"{teacher} ({_periods(load)}) يوم {day}: الحصص {periods}"
 
 
 def teacher_cell(row: Mapping[str, Any], kind: str) -> str:
@@ -195,16 +200,17 @@ def teacher_cell(row: Mapping[str, Any], kind: str) -> str:
         first = diag["teachers"][0]
         more = len(diag["teachers"]) - 1
         tail = f" و{more} غيرُه" if more else ""
-        return f"{first} ({diag.get('loads', {}).get(first, '؟')} حصّة){tail} من {diag.get('teachers_total', '؟')}"
+        load = _periods(diag.get("loads", {}).get(first, "؟"))
+        return f"{first} ({load}){tail} من {diag.get('teachers_total', '؟')}"
     worst = (row.get("stress") or {}).get("worst")
     if worst:
         return (
-            f"{worst['teacher']} ({worst['load']} حصّة): تلاصق {worst['touch']}،"
+            f"{worst['teacher']} ({_periods(worst['load'])}): تلاصق {worst['touch']}،"
             f" فراغ {worst['gaps']}، أثقلُ يوم {worst['max_day']}"
         )
     tight = row.get("tightest")
     if tight:
-        return f"{tight['teacher']} ({tight['load']} حصّة) هامشُه {tight['slack']}"
+        return f"{tight['teacher']} ({_periods(tight['load'])}) هامشُه {tight['slack']}"
     return "لا معلّمَ طُبّق عليه التفضيل" if row.get("field") else "—"
 
 
