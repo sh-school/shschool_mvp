@@ -41,7 +41,7 @@ ALLOWED_WRITERS: dict[tuple[str, str], str] = {
     (
         "operations/attendance_entries.py",
         "_apply_to_effective",
-    ): "اعتمادُ إدخالِ معلّمٍ يكتب الرصدَ المعتمَد (قفلُ صفّ، لا فوق مصدرٍ بشريٍّ آخر، AuditLog) — لا يصله إلّا decide_entry/submit_entry (ESE)",
+    ): "اعتمادُ إدخالِ معلّمٍ يكتب الرصدَ المعتمَد (قفلُ صفّ، لا فوق مصدرٍ بشريٍّ آخر، AuditLog) — لا يصله إلّا submit_entry (ESE)",
     (
         "operations/exit_reflection.py",
         "_flip_unaccounted",
