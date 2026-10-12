@@ -12,8 +12,8 @@
   {% load static %}
 
   {# ── Favicon ── #}
-  <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/favicon.png' %}">
-  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/apple-touch-icon.png' %}">
+  <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/v2/favicon.png' %}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/v2/apple-touch-icon.png' %}">
 
   {# ── الخط العربي: Tajawal محلي ── #}
   <link rel="preload" href="{% static 'fonts/Tajawal-Regular.woff2' %}" as="font" type="font/woff2" crossorigin>
@@ -30,10 +30,6 @@
 
     {# ── Header Strip (maroon) ── #}
     <div class="login-card-header">
-      <div class="login-logo">
-        <img src="{% static 'brand/emblem-white.svg' %}" alt="شعار المدرسة"
-             width="72" height="72" fetchpriority="high">
-      </div>
       <h1 class="login-school-name">{{ current_school.name|default:"المدرسة" }}</h1>
       <p class="login-platform-name">منصة الإدارة المدرسية</p>
       <p class="login-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</p>

@@ -789,7 +789,7 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
                 return os.path.join(static_root, uri[8:].replace("/", os.sep))
             if uri.startswith("file:///"):
                 return uri[8:].replace("/", os.sep)
-            # مسارات نسبية مثل static/brand/logoMaroon.png
+            # مسارات نسبية مثل static/brand/azkia-logo.svg
             if not uri.startswith(("http://", "https://")):
                 candidate = os.path.join(str(Path(settings.BASE_DIR)), uri.replace("/", os.sep))
                 if os.path.exists(candidate):

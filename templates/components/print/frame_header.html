@@ -3,7 +3,6 @@
 الترويسةُ الكاملة للإطار المطبوع المركزيّ (`{% print_frame_header %}`): شعارٌ فوزارةٌ فمدرسةٌ فعنوانٌ فسطرُ السنة، وسطرُ الرؤية حيث ينقلها الإطارُ إليها.
 الشعارُ: في PDF يحلّ WeasyPrint المسارَ النسبيَّ من جذر المشروع، وعلى الشاشة من رابط الملفّات الثابتة (`for_pdf`).
 {% endcomment %}<div id="print-header">
-  <img class="pf-emblem" src="{% if for_pdf %}static/brand/logoMaroon.png{% else %}{% static 'brand/logoMaroon.png' %}{% endif %}" alt="" width="295" height="295">
   <div class="pf-ministry">{{ ministry }}</div>
   <div class="pf-school">{{ school.name }}</div>
   <div class="pf-title">{{ title }}</div>
