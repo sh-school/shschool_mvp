@@ -87,7 +87,7 @@ def test_cropped_icons_are_opaque_and_the_emblem_fits_the_safe_circle(name, safe
 
 @pytest.mark.parametrize("template", ["templates/base/base.html", "templates/auth/login.html"])
 def test_ios_home_screen_uses_the_opaque_icon(template):
-    assert "icons/v2/apple-touch-icon.png" in _read(template)
+    assert "icons/v3/apple-touch-icon.png" in _read(template)
 
 
 @pytest.mark.parametrize("source", ["static/js/base.js", "templates/parents/dashboard.html"])
