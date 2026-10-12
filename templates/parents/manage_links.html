@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
 {% load icons %}
-{% load privacy ui %}
+{% load privacy ui labels %}
 {% block title %}ربط أولياء الأمور — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
 {# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
@@ -60,7 +60,7 @@
         <select name="parent_id" id="parent-select" class="form-control">
           <option value="">— اختر ولي أمر —</option>
           {% for p in parents %}
-          <option value="{{ p.id }}">{{ p.full_name }}</option>
+          <option value="{{ p.id }}">{{ p.full_name }}{% if p.has_namesake %} — {% if p.child_name %}ولي {{ p.child_name }}{% if p.child_grade and p.child_section %} ({% class_label p.child_grade p.child_section %}){% endif %}{% else %}بلا أبناء مرتبطين{% endif %}{% endif %}</option>
           {% endfor %}
         </select>
       </div>
@@ -98,7 +98,7 @@
         <select name="student_id" id="student-select" required class="form-control">
           <option value="">— اختر طالب —</option>
           {% for s in students %}
-          <option value="{{ s.id }}">{{ s.full_name }}</option>
+          <option value="{{ s.id }}">{{ s.full_name }} — {% class_label s.grade_code s.section_code %}</option>
           {% endfor %}
         </select>
       </div>

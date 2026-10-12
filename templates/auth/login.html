@@ -30,9 +30,10 @@
 
     {# ── Header Strip (maroon) ── #}
     <div class="login-card-header">
+      {% load school_logo %}{% school_logo "login" %}
       <h1 class="login-school-name">{{ current_school.name|default:"المدرسة" }}</h1>
       <p class="login-platform-name">منصة الإدارة المدرسية</p>
-      <p class="login-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</p>
+      {% load ministry %}{% ministry_name as ministry %}{% if ministry %}<p class="login-ministry">{{ ministry }}</p>{% endif %}
     </div>
 
     {# ── Card Body ── #}

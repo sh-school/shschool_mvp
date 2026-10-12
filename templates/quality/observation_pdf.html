@@ -1,4 +1,4 @@
-{% load static brand_tags %}
+{% load static brand_tags ministry school_logo %}{% ministry_name as ministry %}
 {% comment %}
 استمارة الإشراف على أداء المعلّم — من نموذج المدرسة (docx)، **بنيتُه الأصليّة مُستعادةً** (قرارُ المالك 2026-09-28، W-20260928-003)
 بعد تجربة التصميم المؤقّت «صفحةٌ واحدة» في طلب الدمج 711 (اعتمده المالكُ بصريّاً بعد أربع تصييرات PDF فعليّة).
@@ -49,6 +49,7 @@
   size: A4;
   /* الهوامشُ: ترويسةٌ 1.2 بوصة (بلا رؤية) وتذييلٌ سطرٌ واحد 0.42 بوصة. الجانبيّان كالأصل. */
   margin: 0.8in 0.5in 0.42in 0.5in;
+  {% if not ministry %}margin-top: 0.56in; /* سطرُ الوزارة مجمَّد (D-400م): الترويسةُ أقصر فلا بياضَ زائداً */{% endif %}
   @top-center { content: element(sheet-header); }
   @bottom-center { content: element(sheet-footer); }
 }
@@ -75,6 +76,7 @@ body {
 #sheet-footer { position: running(sheet-footer); width: 184.6mm; padding-bottom: 0.1in; }
 .doc-header { text-align: center; }
 .doc-header .ministry-name { font-size: 8.5pt; color: {% brand_color "TEXT_PRIMARY" %}; }
+.school-logo--inline { display: inline-block; vertical-align: middle; width: 28px; height: 28px; margin-left: 8px; border-radius: 5px; } /* شعارُ المدرسة «ش» (D-404م) قبل الاسم: في RTL يسبق النصَّ فيقع على يمينه، والفراغُ على يساره */
 .doc-header .school-name { font-size: 15pt; font-weight: 700; color: {% brand_color "MAROON" %}; line-height: 1.25; }
 .ornament-hr { height: 4pt; margin-top: 3pt; border-top: 2pt solid {% brand_color "MAROON" %}; border-bottom: 0.75pt solid {% brand_color "GOLD" %}; }
 .pdf-footer-line {
@@ -164,8 +166,8 @@ td {
 
 <div id="sheet-header">
   <div class="doc-header">
-    <div class="ministry-name">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
-    <div class="school-name">{{ obs.school.name }}</div>
+    {% if ministry %}<div class="ministry-name">{{ ministry }}</div>{% endif %}
+    <div class="school-name">{% school_logo "inline" pdf=True %}{{ obs.school.name }}</div>
   </div>
   <div class="ornament-hr"></div>
 </div>
