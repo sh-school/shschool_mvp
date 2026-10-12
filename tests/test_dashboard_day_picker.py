@@ -194,8 +194,8 @@ class TestViewOnly:
     ):
         from operations.services import provisional_session
 
-        monkeypatch.setattr(provisional_session, "enabled", lambda: False)
-        _freeze(monkeypatch)
+        monkeypatch.setattr(provisional_session, "enabled", lambda school=None: False)
+        _freeze(monkeypatch, (7, 0))  # قبل الحصّة: اللوحةُ تعرض التاليةَ والجاريةَ فقط
         earlier = Session.objects.create(
             school=school,
             class_group=klass,
@@ -218,14 +218,14 @@ class TestViewOnly:
     ):
         from operations.services import provisional_session
 
-        monkeypatch.setattr(provisional_session, "enabled", lambda: True)
+        monkeypatch.setattr(provisional_session, "enabled", lambda school=None: True)
         _freeze(monkeypatch)
 
         today = _get(client_as, teacher).content.decode()
         past = _get(client_as, teacher, PAST).content.decode()
 
-        assert "شُعبي للرصد" in today
-        assert "شُعبي للرصد" not in past and "عرضٌ للقراءة فقط" in past
+        assert "رصدُ الغياب — شُعبي" in today and "عرضٌ للقراءة فقط" not in today
+        assert "رصدُ الغياب — شُعبي" in past and "عرضٌ للقراءة فقط" in past
 
     def test_the_supervisor_gets_no_recording_panels_and_no_generated_sessions(
         self, monkeypatch, client_as, holder, wing, klass, bells
@@ -283,6 +283,11 @@ class TestNextSessionIsTodayOnly:
         self, monkeypatch, client_as, school, klass, teacher, bells
     ):
         """يومٌ غيرُ اليوم الحقيقيّ يعرض حصصَه كلَّها (لا الجاريةَ والتاليةَ فقط) وصفُّها بلا href فلا يفتح رصداً يُحرَّر (W-20261010-056)."""
+        from operations.services import provisional_session
+
+        monkeypatch.setattr(
+            provisional_session, "enabled", lambda school=None: False
+        )  # وإلّا خُفيت كتلةُ الحصص ببابِ الرصد المؤقّت
         _freeze(monkeypatch, (7, 0))
         past = Session.objects.create(
             school=school,

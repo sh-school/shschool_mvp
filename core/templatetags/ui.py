@@ -66,6 +66,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from django import template
 from django.template.loader import render_to_string
@@ -376,7 +377,7 @@ def empty_state(title="لا توجد بيانات", sub="", icon="empty", compac
 # ── 5. ترويسةُ الصفحة ─────────────────────────────────────────────────────
 
 
-def _day_picker_html(context) -> str:
+def _day_picker_html(context: Any) -> str:
     """محدِّدُ يومِ اللوحة (W-20261010-056) داخل أوّل ترويسةٍ في الصفحة — لا صفَّ مستقلّاً يمدّ الارتفاعَ (اللوحةُ تسع 1366×768 بلا تمرير، LAY-03).
 
     يظهر حيث يحمل السياقُ `date_nav` (لوحةُ الأدوار وحدَها) ومرّةً واحدةً لكلّ طلب، فلا ترويسةٌ ثانيةٌ في الصفحة تكرّره.
