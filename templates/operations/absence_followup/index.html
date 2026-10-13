@@ -51,25 +51,25 @@
   {% endkpi_strip %}
 
   {# البطاقتان متجاورتان في صفّ واحد حيث يتّسع المكان، وتتراصّان عموداً على الجوال (ui-grid-2) — ملاحظةُ المالك 2026-10-13 #}
-  <div class="ui-grid-2">
+  <div class="ui-grid-2 tbl-cols">
   {% section_card "١ — التواصلُ مع أولياء الأمور" meta=rows|length icon="call_parent" %}
     {% if rows %}
     <div class="table-wrap table-wrap-scroll">
       <table data-no-sort>
         <thead>
           <tr>
-            <th scope="col" class="num">#</th><th scope="col">الطالب</th><th scope="col">الشعبة</th><th scope="col" class="num">حصصُ الغياب</th><th scope="col">هاتفُ وليّ الأمر</th>
+            <th scope="col" class="num">#</th><th scope="col">الطالب</th><th scope="col">الشعبة</th><th scope="col">غيابُ اليوم</th><th scope="col">هاتفُ وليّ الأمر</th>
             <th scope="col">آخرُ اتّصال</th>{% if can_feedback %}<th scope="col">التغذية الراجعة من وليّ الأمر</th>{% endif %}
             {% if can_record %}<th scope="col">تسجيل</th>{% endif %}
           </tr>
         </thead>
         <tbody>
           {% for row in rows %}
-          <tr>
+          <tr class="grade-tint grade-{{ row.class_group.grade|lower }}">
             <td class="num">{{ forloop.counter }}</td>
             <td>{{ row.student.full_name }}</td>
             <td>{{ row.class_group.short_label }}</td>
-            <td class="num">{{ row.absent_periods }}</td>
+            <td>{% if row.ministry_flag %}<span class="status-badge {% if row.ministry_flag == 'excused' %}status-info{% else %}status-danger{% endif %}">{% if row.ministry_flag == 'excused' %}غائب بعذر{% else %}غائب بلا عذر{% endif %} — يُرفع للوزارة</span>{% else %}<span class="ui-note">غائب بعض الحصص ({{ row.absent_periods }}) — لا يُرفع</span>{% endif %}</td>
             <td>{% for phone in row.phones %}<a href="tel:{{ phone }}" dir="ltr">{{ phone }}</a>{% if not forloop.last %}، {% endif %}{% empty %}<span class="ui-note">لا رقمَ مسجَّل</span>{% endfor %}</td>
             <td>{% if row.contact %}<span class="status-badge status-info">{{ row.contact.get_outcome_display }}</span> {{ row.contact.contacted_at|date:"H:i" }}{% else %}<span class="ui-note">لم يُتّصل</span>{% endif %}</td>
             {% if can_feedback %}<td>{{ row.feedback|default:"—" }}</td>{% endif %}
@@ -114,7 +114,7 @@
         </thead>
         <tbody>
           {% for row in rows %}
-          <tr>
+          <tr class="grade-tint grade-{{ row.class_group.grade|lower }}">
             <td class="num">{{ forloop.counter }}</td>
             <td>{{ row.student.full_name }}</td>
             <td>{{ row.class_group.short_label }}</td>

@@ -107,23 +107,24 @@ class TestContactSheetRoute:
 class TestLayout:
     def test_the_two_cards_sit_in_one_two_column_grid(self, client_as, staff, absent_both):
         body = _get(client_as, staff["principal"]).content.decode()
-        grid = body.index('class="ui-grid-2"')
+        grid = body.index('class="ui-grid-2 tbl-cols"')
         assert (
             grid < body.index("التواصلُ مع أولياء الأمور") < body.index("متابعةُ الإجراءات الإدارية")
         )
-        assert body.count('class="ui-grid-2"') == 1
+        assert body.count('class="ui-grid-2 tbl-cols"') == 1
 
 
 class TestPrintInsidePlatform:
-    def test_preview_is_framed_in_the_platform_and_embed_is_bare(
+    def test_preview_is_a_platform_page_with_a_sticky_table_and_embed_is_bare(
         self, client_as, staff, absent_both
     ):
-        framed = _get(client_as, staff["principal"], "absence_followup_print").content.decode()
-        assert "report-viewer__frame" in framed and "embed=1" in framed and "site-nav" in framed
+        page = _get(client_as, staff["principal"], "absence_followup_print").content.decode()
+        assert "site-nav" in page and "table-wrap table-wrap-scroll" in page
+        assert "report-viewer__frame" not in page
         bare = _get(
             client_as, staff["principal"], "absence_followup_print", embed="1"
         ).content.decode()
-        assert "report-viewer__frame" not in bare and "site-nav" not in bare
+        assert "site-nav" not in bare
 
 
 class TestStickyHeader:
@@ -146,3 +147,12 @@ class TestSerialColumn:
         body = _get(client_as, staff["principal"]).content.decode()
         assert body.count('<th scope="col" class="num">#</th>') == 2
         assert body.count('<td class="num">1</td>') >= 2
+
+
+class TestTodayAbsenceColumn:
+    def test_the_column_says_who_is_raised_to_the_ministry_not_a_period_count(
+        self, client_as, staff, absent_both
+    ):
+        body = _get(client_as, staff["principal"]).content.decode()
+        assert "غيابُ اليوم" in body and "حصصُ الغياب" not in body
+        assert "يُرفع للوزارة" in body

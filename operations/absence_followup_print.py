@@ -148,13 +148,14 @@ def followup_sheet_response(
         return respond_export(request, "operations.absence_followup_pdf")
     title = f"متابعة الغياب — {date_format(day, 'd/m/Y')}"
     if request.GET.get("embed") != "1":
-        query = urlencode({"date": day.isoformat(), "embed": "1"})
         return render(
             request,
             "operations/absence_followup/viewer.html",
             {
                 "report_title": title,
-                "report_url": f"{request.path}?{query}",
+                "subtitle": f"{request.school.name} · {date_format(day, 'l')}",
+                "rows": rows,
+                "can_feedback": can_feedback,
                 "pdf_url": f"{request.path}?{urlencode({'date': day.isoformat(), 'format': 'pdf'})}",
                 "back_url": f"{reverse('daily_report')}?{urlencode({'date': day.isoformat()})}",
             },

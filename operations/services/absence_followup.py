@@ -286,7 +286,7 @@ def followup_rows(user: Any, date: dt.date) -> list[dict]:
     contacts = _heads(AbsenceContactLog, school, date, ids, "contacted_by")
     actions = _heads(AbsenceActionLog, school, date, ids, "acted_by")
     may_feedback = has_capability(user, FEEDBACK)
-    return [
+    rows = [
         {
             "student": r.student,
             "class_group": r.class_group,
@@ -301,3 +301,17 @@ def followup_rows(user: Any, date: dt.date) -> list[dict]:
         }
         for r in absent
     ]
+    rows.sort(key=_class_order)
+    return rows
+
+
+def _class_order(row: dict) -> tuple[int, int, str]:
+    """ترتيبٌ تصاعديٌّ بالصفّ ثمّ الشعبة عدداً (7/1 … 12/4) ثمّ الاسم — لا أبجديّاً فيسبق 10 السابعَ."""
+    group = row["class_group"]
+    grade = (getattr(group, "grade", "") or "").removeprefix("G")
+    section = str(getattr(group, "section", "") or "")
+    return (
+        int(grade) if grade.isdigit() else 99,
+        int(section) if section.isdigit() else 99,
+        row["student"].full_name,
+    )

@@ -9,7 +9,7 @@
 {% endcomment %}
 {% block title %}ملخّص غياب الحصّتين الأولى والثانية{% endblock %}
 
-{% block main_class %}{% page_layout "report" %}{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% url 'daily_report' as daily_url %}
@@ -52,8 +52,9 @@
 
   {% for note in summary.notes %}{% callout "warning" show=True %}{{ note }}{% endcallout %}{% endfor %}
 
+  <div class="ui-grid-2 tbl-cols">
   {% section_card "حسب الصفّ والشعبة" meta=summary.class_rows|length icon="stats" empty="لا شعبَ تطابق الترشيح" flush=True %}{% if summary.grades %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table data-no-sort>
         <thead>
           <tr>
@@ -70,7 +71,7 @@
         <tbody>
         {% for grade_row in summary.grades %}
           {% for item in grade_row.rows %}
-          <tr>
+          <tr class="grade-tint grade-{{ grade_row.key|lower }}">
             <td>{{ item.group.short_code }}{% if not item.has_periods %} <span class="status-badge status-warning">لا حصّتان</span>{% endif %}</td>
             <td class="num">{{ item.counts.enrolled }}</td>
             <td class="num">{% if item.counts.absent_both_unexcused %}<span class="status-badge status-danger">{{ item.counts.absent_both_unexcused }}</span>{% else %}{{ item.counts.absent_both_unexcused }}{% endif %}</td>
@@ -81,7 +82,7 @@
             <td class="num">{% if item.counts.pending %}<span class="status-badge status-warning">{{ item.counts.pending }}</span>{% else %}{{ item.counts.pending }}{% endif %}</td>
           </tr>
           {% endfor %}
-          <tr>
+          <tr class="grade-tint grade-{{ grade_row.key|lower }}">
             <td><strong>مجموع {{ grade_row.label }}</strong></td>
             <td class="num"><strong>{{ grade_row.counts.enrolled }}</strong></td>
             <td class="num"><strong>{{ grade_row.counts.absent_both_unexcused }}</strong></td>
@@ -108,7 +109,7 @@
   {% endif %}{% endsection_card %}
 
   {% section_card "من يُرفعون غائبين — الحصّتان الأولى والثانية" meta=summary.ministered|length icon="status_warning" empty="لا غائبَ في الحصّتين معاً" flush=True %}{% if summary.ministered %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>
@@ -120,7 +121,7 @@
         </thead>
         <tbody>
           {% for item in summary.ministered %}
-          <tr>
+          <tr class="grade-tint grade-{{ item.grade|lower }}">
             <td class="num">{{ forloop.counter }}</td>
             <td>{{ item.name }}</td>
             <td>{{ item.class_code }}</td>
@@ -131,6 +132,7 @@
       </table>
     </div>
   {% endif %}{% endsection_card %}
+  </div>
 
 </div>
 {% endblock %}

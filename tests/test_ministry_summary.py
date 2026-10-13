@@ -256,3 +256,21 @@ def test_a_filtered_export_matches_the_screen(school, klass, class_day, holder, 
     assert narrow(summary) is summary  # بلا ترشيحٍ لا نسخةَ ثانية
     other = narrow(summary, grade="G99")  # صفٌّ لا يضمّ شعبتَه
     assert other.ministered == [] and other.total.enrolled == 0
+
+
+def test_ministered_order_is_numeric_from_7_1_to_12_4():
+    """الترتيبُ التصاعديُّ بالصفّ ثمّ الشعبة عدداً — الأبجديُّ يضع 10/1 قبل 7/1."""
+    from wings.ministry_selectors import Ministered, _ministered_order
+
+    items = [
+        Ministered("ب", "12/4", False, "G12"),
+        Ministered("أ", "10/1", False, "G10"),
+        Ministered("ج", "7/10", False, "G7"),
+        Ministered("د", "7/2", False, "G7"),
+    ]
+    assert [m.class_code for m in sorted(items, key=_ministered_order)] == [
+        "7/2",
+        "7/10",
+        "10/1",
+        "12/4",
+    ]
