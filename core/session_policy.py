@@ -28,10 +28,12 @@ import os
 import time
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import Any
 
 from django.conf import settings
 from django.contrib.auth import logout
 from django.contrib.auth.signals import user_logged_in
+from django.http import HttpRequest
 
 LOGIN_AT_KEY = "_login_at"
 TOUCH_KEY = "_last_touch"
@@ -131,7 +133,7 @@ def _parse_networks(raw: str) -> tuple:
     return tuple(nets)
 
 
-def is_shared_device(request) -> bool:
+def is_shared_device(request: HttpRequest) -> bool:
     """أصادرٌ الطلبُ من شبكةٍ في قائمة الأجهزة المشتركة؟ القائمةُ فارغةٌ حتى يزوّدها المالك."""
     configured = getattr(settings, "SESSION_SHARED_DEVICE_NETWORKS", None)
     raw = (
@@ -151,14 +153,14 @@ def is_shared_device(request) -> bool:
     return any(ip in net for net in nets)
 
 
-def limits_for_request(request) -> Limits:
-    return limits_for(request.user.get_role(), shared_device=is_shared_device(request))
+def limits_for_request(request: HttpRequest) -> Limits:
+    return limits_for(request.user.get_role(), shared_device=is_shared_device(request))  # type: ignore[union-attr]
 
 
 # ── ختمُ الجلسة ──────────────────────────────────────────────────────
 
 
-def stamp_session(sender, request, user, **kwargs) -> None:
+def stamp_session(sender: Any, request: HttpRequest | None, user: Any, **kwargs: Any) -> None:
     """يختم الجلسةَ بلحظة الدخول وآخر تجديد ودورِ صاحبها — منها تُحسب المتبقّياتُ دون استعلام."""
     if request is None or not hasattr(request, "session"):
         return
@@ -171,7 +173,7 @@ def stamp_session(sender, request, user, **kwargs) -> None:
 user_logged_in.connect(stamp_session, dispatch_uid="core.session_policy.stamp_session")
 
 
-def clock(request, *, now: int | None = None) -> dict:
+def clock(request: HttpRequest, *, now: int | None = None) -> dict[str, Any]:
     """المتبقّي للخمول والمطلقة بالثواني — `None` لجلسةٍ سابقةٍ للختم (يُختم عند أوّل طلب).
 
     متحفّظٌ عن قصد: ما يعرضه التحذيرُ لا يتجاوز ما يحكم به الخادم أبداً.
@@ -190,7 +192,7 @@ def clock(request, *, now: int | None = None) -> dict:
     }
 
 
-def _user_initiated(request) -> bool:
+def _user_initiated(request: HttpRequest) -> bool:
     """طلبُ مستخدمٍ حقيقيّ: تصفّحٌ عاديّ أو إرسالٌ يغيّر شيئاً — لا استطلاعَ خلفيّاً (HTMX/fetch GET)."""
     if request.method not in ("GET", "HEAD"):
         return True
@@ -214,7 +216,7 @@ def ended_reason(login_at: int, touched: int, limits: Limits, now: int) -> str:
     return ""
 
 
-def websocket_ended(scope, *, now: int | None = None) -> str:
+def websocket_ended(scope: dict[str, Any], *, now: int | None = None) -> str:
     """يحكم على جلسة مصافحة WebSocket بالمُهلتين نفسيهما — يُستدعى في `connect` قبل `accept`.
 
     المقبسُ ليس نشاطَ مستخدم فلا يجدّد شيئاً ولا يختم؛ وجلسةٌ بلا ختمٍ (سابقةٌ للسياسة) لا تُقطع
@@ -233,7 +235,7 @@ def websocket_ended(scope, *, now: int | None = None) -> str:
     return ended_reason(login_at, touched, limits_for(user.get_role()), now)
 
 
-def enforce(request, *, now: int | None = None) -> str:
+def enforce(request: HttpRequest, *, now: int | None = None) -> str:
     """يحكم على جلسة المستخدم المسجَّل: يُنهيها عند تجاوز مُهلتها، ويجدّد الخمول مخنوقاً.
 
     يعيد "" إن بقيت الجلسةُ، أو «absolute»/«idle» إن أُنهيت (وصار `request.user` مجهولاً).
