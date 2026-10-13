@@ -192,17 +192,17 @@ class TestAppendOnly:
         _post_contact(client_as, staff["principal"], kid, outcome="no_answer")
         first = AbsenceContactLog.objects.get()
         _post_contact(
-            client_as, staff["principal"], kid, outcome="answered", supersedes=str(first.id)
+            client_as, staff["principal"], kid, outcome="answered", corrects=str(first.id)
         )
         second = AbsenceContactLog.objects.exclude(pk=first.pk).get()
-        assert second.supersedes_id == first.id
+        assert second.corrects_id == first.id
         first.refresh_from_db()
         assert first.outcome == "no_answer"
         body = _get(client_as, staff["principal"]).content.decode()
         assert "ردّ" in body
 
         # لا يُصحَّح سجلٌّ صُحِّح قبلُ: السلسلةُ خطٌّ لا شجرة.
-        _post_contact(client_as, staff["principal"], kid, supersedes=str(first.id))
+        _post_contact(client_as, staff["principal"], kid, corrects=str(first.id))
         assert AbsenceContactLog.objects.count() == 2
 
     def test_no_record_for_a_day_the_student_did_not_miss(
@@ -223,7 +223,7 @@ class TestAppendOnly:
             kind="medical",
             granted_by=staff["principal"],
         )
-        _post_action(client_as, staff["principal"], kid, status="sick_leave")
+        _post_action(client_as, staff["principal"], kid, status="sick_leave_received")
         assert AbsenceActionLog.objects.get().excuse_id == excuse.id
 
 

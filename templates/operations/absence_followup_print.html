@@ -44,7 +44,7 @@
         <td dir="ltr">{{ row.phones|join:" ، " }}</td>
         <td>{% if row.contact %}{{ row.contact.get_outcome_display }}{% endif %}</td>
         {% if can_feedback %}<td>{{ row.feedback }}</td>{% endif %}
-        <td>{% if row.action %}{{ row.action.get_status_display }}{% if row.action.action_type %} — {{ row.action.action_type }}{% endif %}{% endif %}</td>
+        <td>{% if row.action %}{{ row.action.get_status_display }} — {{ row.action.get_action_kind_display }}{% endif %}</td>
       </tr>
       {% empty %}
       <tr><td colspan="7" class="no-data">لا غيابَ مرصوداً في هذا اليوم.</td></tr>

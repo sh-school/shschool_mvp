@@ -1,7 +1,7 @@
 """سجلّا «متابعة الغياب» الرسميّان — اتّصالُ وليّ الأمر، والإجراءُ الإداريّ (W-20261013-011).
 
 كانت متابعةُ المدير للغياب ورقيّةً. والسجلُّ هنا رسميٌّ في القاعدة: **مضافٌ إليه فقط** (`AppendOnlyModel`)،
-فلا يُعدَّل سجلٌّ ولا يُحذف؛ وتصحيحُ سجلٍّ يكون **سجلاً جديداً** يشير إلى السابق بـ`supersedes`، فيبقى
+فلا يُعدَّل سجلٌّ ولا يُحذف؛ وتصحيحُ سجلٍّ يكون **سجلاً جديداً** يشير إلى السابق بـ`corrects`، فيبقى
 الأثرُ كاملاً لمن راجع. و«الحالُ الراهنة» لطالبٍ في يومٍ هي آخرُ سجلٍّ لم يُستبدَل بلاحق — مشتقّةٌ لا حقلٌ يُحدَّث.
 
 **ما لا يُخزَّن هنا:** رقمُ وليّ الأمر ولا اسمُه ولا اسمُ الأمّ (قرارُ المالك D-431م): الرقمُ يُقرأ من
@@ -56,12 +56,12 @@ class AbsenceContactLog(AppendOnlyModel):
     #: تغذيةُ الأهل نصٌّ حرٌّ مشفَّر (PII) — لا يظهر إلّا لحاملي قدرة قراءته، وفتحُه يُدقَّق بلا نصّه.
     feedback = EncryptedTextField(blank=True, default="", verbose_name="تغذيةُ الأهل الراجعة")
     #: التصحيحُ سجلٌّ جديدٌ يشير إلى ما صحّحه؛ والسابقُ يبقى كما كُتب.
-    supersedes = models.ForeignKey(
+    corrects = models.ForeignKey(
         "self",
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        related_name="superseded_by",
+        related_name="corrected_by",
         verbose_name="يصحّح سجلاً سابقاً",
     )
 
@@ -81,10 +81,15 @@ class AbsenceContactLog(AppendOnlyModel):
 class AbsenceActionLog(AppendOnlyModel):
     """إجراءٌ إداريٌّ لغيابِ طالبٍ — تمّ، أو لم يتمّ، أو استُلمت إجازتُه المرضيّة."""
 
+    KINDS = [
+        ("guardian_summon", "استدعاءُ وليّ الأمر"),
+        ("written_notice", "إشعارٌ كتابيّ"),
+        ("other", "أخرى"),
+    ]
     STATUSES = [
         ("done", "تمّ"),
         ("not_done", "لم يتمّ"),
-        ("sick_leave", "استلامُ إجازة مرضيّة"),
+        ("sick_leave_received", "استلامُ إجازة مرضيّة"),
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
@@ -101,9 +106,10 @@ class AbsenceActionLog(AppendOnlyModel):
         verbose_name="الطالب",
     )
     absence_date = models.DateField(verbose_name="يومُ الغياب")
-    #: نوعُ الإجراء نصٌّ قصيرٌ حرٌّ (إنذار، استدعاء، إحالة…) — لا يحمل اسماً ولا رقماً.
-    action_type = models.CharField(max_length=60, blank=True, verbose_name="نوعُ الإجراء")
-    status = models.CharField(max_length=10, choices=STATUSES, verbose_name="الحالة")
+    action_kind = models.CharField(
+        max_length=20, choices=KINDS, default="other", verbose_name="نوعُ الإجراء"
+    )
+    status = models.CharField(max_length=20, choices=STATUSES, verbose_name="الحالة")
     note = models.CharField(max_length=200, blank=True, verbose_name="ملاحظة")
     #: استلامُ الإجازة المرضيّة يرتبط بالعذر القائم إن وُجد — لا نسخةً منه.
     excuse = models.ForeignKey(
@@ -122,12 +128,12 @@ class AbsenceActionLog(AppendOnlyModel):
         verbose_name="من نفّذ",
     )
     acted_at = models.DateTimeField(default=timezone.now, verbose_name="وقتُ التنفيذ")
-    supersedes = models.ForeignKey(
+    corrects = models.ForeignKey(
         "self",
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        related_name="superseded_by",
+        related_name="corrected_by",
         verbose_name="يصحّح سجلاً سابقاً",
     )
 

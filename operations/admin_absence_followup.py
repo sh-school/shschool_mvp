@@ -25,7 +25,7 @@ class AbsenceContactLogAdmin(SensitiveFieldsMixin, ReadOnlyAdminMixin, SchoolSco
         "outcome",
         "contacted_by",
         "contacted_at",
-        "supersedes",
+        "corrects",
     )
     list_select_related = ("student", "contacted_by")
     list_filter = ("outcome", "absence_date", "school")
@@ -61,11 +61,11 @@ class AbsenceActionLogAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
         "student",
         "absence_date",
         "status",
-        "action_type",
+        "action_kind",
         "acted_by",
         "acted_at",
         "excuse",
-        "supersedes",
+        "corrects",
     )
     list_select_related = ("student", "acted_by", "excuse")
     list_filter = ("status", "absence_date", "school")

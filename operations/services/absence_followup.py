@@ -4,7 +4,7 @@
 و`correct_contact` و`correct_action`. والخدمةُ **تتحقّق من القدرة وتحصر النطاق بنفسها** — فلا تتّكل على عرضٍ:
 
 - القدرةُ ناقصةٌ = `PermissionDenied`؛ وطالبٌ خارج جناح المشرف = `Http404` (كالعروض).
-- **الإضافةُ فقط:** التصحيحُ سجلٌّ جديدٌ يشير إلى السابق (`supersedes`)، وما صُحِّح لا يُصحَّح ثانيةً.
+- **الإضافةُ فقط:** التصحيحُ سجلٌّ جديدٌ يشير إلى السابق (`corrects`)، وما صُحِّح لا يُصحَّح ثانيةً.
 - **تغذيةُ الأهل** لا تُكتب ولا تُقرأ إلّا لحامل `operations.absence_followup_feedback`؛ وتُحجب من الصفوف عن غيره.
 - **لا اسمَ وليٍّ ولا أمٍّ** في أيّ مخرج (D-431م): `guardian_phone` ترجع أرقاماً وحدَها، ولا يُخزَّن رقمٌ.
 - **التدقيق:** كلُّ إنشاءٍ أو تصحيحٍ سطرٌ في `AuditLog` بلا نصٍّ ولا رقمٍ ولا اسم.
@@ -82,7 +82,7 @@ def _audit(user: Any, action: str, what: str, log: Any) -> None:
 
 
 def _check_unrevised(model: Any, prior: Any) -> None:
-    if model.objects.filter(supersedes=prior).exists():
+    if model.objects.filter(corrects=prior).exists():
         raise FollowupError("صُحِّح هذا السجلُّ من قبلُ — صحّح آخرَ السلسلة.")
 
 
@@ -135,7 +135,7 @@ def correct_contact(user: Any, log_id: Any, **fields: Any) -> AbsenceContactLog:
         feedback=feedback,
         contacted_by=user,
         contacted_at=timezone.now(),
-        supersedes=prior,
+        corrects=prior,
     )
     _audit(user, "update", "تصحيحُ اتّصالٍ بوليّ أمر عن غياب", log)
     return log
@@ -170,15 +170,18 @@ def record_action(
     school = user.get_school()
     if status not in dict(AbsenceActionLog.STATUSES):
         raise FollowupError("حالةُ الإجراء غيرُ معروفة.")
+    action_kind = action_kind or "other"
+    if action_kind not in dict(AbsenceActionLog.KINDS):
+        raise FollowupError("نوعُ الإجراء غيرُ معروف.")
     _require_absent(school, student, absence_date)
-    if status == "sick_leave" and excuse is None:
+    if status == "sick_leave_received" and excuse is None:
         # استلامُ الإجازة يرتبط بالعذر القائم المقبول لليوم إن وُجد — لا نسخةً منه.
         excuse = _sick_leave_excuse(school, student, absence_date)
     log = AbsenceActionLog.objects.create(
         school=school,
         student=student,
         absence_date=absence_date,
-        action_type=(action_kind or "").strip()[:60],
+        action_kind=action_kind,
         status=status,
         note=(note or "").strip()[:200],
         excuse=excuse,
@@ -200,20 +203,22 @@ def correct_action(user: Any, log_id: Any, **fields: Any) -> AbsenceActionLog:
     status = fields.get("status", prior.status)
     if status not in dict(AbsenceActionLog.STATUSES):
         raise FollowupError("حالةُ الإجراء غيرُ معروفة.")
+    if fields.get("action_kind", prior.action_kind) not in dict(AbsenceActionLog.KINDS):
+        raise FollowupError("نوعُ الإجراء غيرُ معروف.")
     excuse = fields.get("excuse", prior.excuse)
-    if status == "sick_leave" and excuse is None:
+    if status == "sick_leave_received" and excuse is None:
         excuse = _sick_leave_excuse(prior.school, student, prior.absence_date)
     log = AbsenceActionLog.objects.create(
         school=prior.school,
         student=student,
         absence_date=prior.absence_date,
-        action_type=(fields.get("action_kind", prior.action_type) or "").strip()[:60],
+        action_kind=fields.get("action_kind", prior.action_kind),
         status=status,
         note=(fields.get("note", prior.note) or "").strip()[:200],
         excuse=excuse,
         acted_by=user,
         acted_at=timezone.now(),
-        supersedes=prior,
+        corrects=prior,
     )
     _audit(user, "update", "تصحيحُ إجراءٍ إداريٍّ عن غياب", log)
     return log
@@ -223,7 +228,7 @@ def _heads(model: Any, school: Any, day: dt.date, student_ids: Any, by_field: st
     """آخرُ سجلٍّ لكلّ طالبٍ في اليوم — الذي لم يُستبدَل بلاحق."""
     rows = (
         model.objects.filter(school=school, absence_date=day, student_id__in=student_ids)
-        .filter(superseded_by__isnull=True)
+        .filter(corrected_by__isnull=True)
         .select_related(by_field)
         .order_by("-pk")
     )

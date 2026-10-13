@@ -76,7 +76,7 @@
                   <input type="hidden" name="student" value="{{ row.student.id }}">
                   <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
                   <input type="hidden" name="grade" value="{{ f_grade }}"><input type="hidden" name="wing" value="{{ f_wing }}"><input type="hidden" name="followup" value="{{ f_followup }}">
-                  {% if row.contact %}<input type="hidden" name="supersedes" value="{{ row.contact.id }}">{% endif %}
+                  {% if row.contact %}<input type="hidden" name="corrects" value="{{ row.contact.id }}">{% endif %}
                   <select name="outcome" class="form-control" aria-label="نتيجةُ الاتّصال" required>
                     {% for value, label in outcomes %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
                   </select>
@@ -111,7 +111,7 @@
           <tr>
             <td>{{ row.student.full_name }}</td>
             <td>{{ row.class_group.short_label }}</td>
-            <td>{% if row.action %}<span class="status-badge {% if row.action.status == 'done' %}status-success{% elif row.action.status == 'sick_leave' %}status-info{% else %}status-warning{% endif %}">{{ row.action.get_status_display }}</span>{% if row.action.action_type %} {{ row.action.action_type }}{% endif %}{% else %}<span class="ui-note">لا إجراءَ مسجَّل</span>{% endif %}</td>
+            <td>{% if row.action %}<span class="status-badge {% if row.action.status == 'done' %}status-success{% elif row.action.status == 'sick_leave_received' %}status-info{% else %}status-warning{% endif %}">{{ row.action.get_status_display }}</span>{{ row.action.get_action_kind_display }}{% else %}<span class="ui-note">لا إجراءَ مسجَّل</span>{% endif %}</td>
             <td>{% if row.action %}{{ row.action.acted_at|date:"H:i" }}{% endif %}</td>
             {% if can_record %}
             <td>
@@ -122,13 +122,11 @@
                   <input type="hidden" name="student" value="{{ row.student.id }}">
                   <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
                   <input type="hidden" name="grade" value="{{ f_grade }}"><input type="hidden" name="wing" value="{{ f_wing }}"><input type="hidden" name="followup" value="{{ f_followup }}">
-                  {% if row.action %}<input type="hidden" name="supersedes" value="{{ row.action.id }}">{% endif %}
+                  {% if row.action %}<input type="hidden" name="corrects" value="{{ row.action.id }}">{% endif %}
                   <select name="status" class="form-control" aria-label="حالةُ الإجراء" required>
                     {% for value, label in statuses %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
                   </select>
-                  <select name="action_type" class="form-control" aria-label="نوعُ الإجراء">
-                    {% for value, label in action_kinds %}<option value="{{ value }}"{% if row.action and row.action.action_type == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
-                  </select>
+                  <select name="action_kind" class="form-control" aria-label="نوعُ الإجراء">{% for value, label in kinds %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
                   <input type="text" name="note" class="form-control" maxlength="200" aria-label="ملاحظة" placeholder="ملاحظة">
                   <button type="submit" class="btn-primary btn-sm">حفظ</button>
                 </form>

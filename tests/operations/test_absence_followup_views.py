@@ -73,8 +73,8 @@ class TestFilters:
 class TestForms:
     def test_the_action_kind_is_a_fixed_list_not_free_text(self, client_as, staff, absent_both):
         body = _get(client_as, staff["principal"]).content.decode()
-        assert 'name="action_type"' in body and "استدعاء وليّ أمر" in body
-        assert 'type="text" name="action_type"' not in body
+        assert '<select name="action_kind"' in body
+        assert 'type="text" name="action_kind"' not in body
 
     def test_saving_returns_to_the_same_filters(self, client_as, staff, absent_both):
         resp = _post_contact(

@@ -51,13 +51,6 @@ def _day(raw: str | None) -> dt.date:
         return timezone.localdate()
 
 
-#: أنواعُ الإجراء الإداريّ المعروضة في النموذج (المواصفة: استدعاء وليّ أمر / إشعار كتابيّ / آخر)؛ والمخزَّنُ نصُّها الحرُّ.
-ACTION_KINDS = [
-    ("استدعاء وليّ أمر", "استدعاء وليّ أمر"),
-    ("إشعار كتابيّ", "إشعار كتابيّ"),
-    ("إجراء آخر", "إجراء آخر"),
-]
-
 #: حالاتُ المتابعة للتصفية: كلُّ الغائبين، من لم يُتّصل بوليّه، من لا إجراءَ له، ومن اكتملت متابعتُه.
 FOLLOWUP_FILTERS = [
     ("", "كلُّ الغائبين"),
@@ -181,7 +174,7 @@ def absence_followup(request: HttpRequest) -> HttpResponse:
             "actioned": sum(1 for r in rows if r["action"]),
             "outcomes": AbsenceContactLog.OUTCOMES,
             "statuses": AbsenceActionLog.STATUSES,
-            "action_kinds": ACTION_KINDS,
+            "kinds": AbsenceActionLog.KINDS,
             "grades": grades,
             "wings": wings,
             "followups": FOLLOWUP_FILTERS,
@@ -219,11 +212,11 @@ def contact_save(request: HttpRequest) -> HttpResponse:
     day = _day_of(request)
     feedback = request.POST.get("feedback", "")
     try:
-        if request.POST.get("supersedes"):
+        if request.POST.get("corrects"):
             fields: dict[str, Any] = {"outcome": request.POST.get("outcome", "")}
             if feedback:
                 fields["feedback"] = feedback
-            service.correct_contact(request.user, request.POST["supersedes"], **fields)
+            service.correct_contact(request.user, request.POST["corrects"], **fields)
         else:
             service.record_contact(
                 request.user,
@@ -245,12 +238,12 @@ def action_save(request: HttpRequest) -> HttpResponse:
     """يسجّل إجراءً إداريّاً (أو يصحّحه بسجلٍّ جديد) — واستلامُ الإجازة المرضيّة حالةٌ منه."""
     day = _day_of(request)
     try:
-        if request.POST.get("supersedes"):
+        if request.POST.get("corrects"):
             service.correct_action(
                 request.user,
-                request.POST["supersedes"],
+                request.POST["corrects"],
                 status=request.POST.get("status", ""),
-                action_kind=request.POST.get("action_type", ""),
+                action_kind=request.POST.get("action_kind", ""),
                 note=request.POST.get("note", ""),
             )
         else:
@@ -258,7 +251,7 @@ def action_save(request: HttpRequest) -> HttpResponse:
                 request.user,
                 request.POST.get("student"),
                 day,
-                request.POST.get("action_type", ""),
+                request.POST.get("action_kind", ""),
                 request.POST.get("status", ""),
                 request.POST.get("note", ""),
             )
