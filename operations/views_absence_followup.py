@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import datetime as dt
 from typing import Any
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -28,7 +29,7 @@ from django.views.decorators.http import require_POST
 from core.audit_export import log_export
 from core.capabilities import capability_required, has_capability
 from core.export_utils import generate_export_filename, get_export_context
-from core.models import AuditLog
+from core.models import AuditLog, Wing
 from core.pdf_utils import render_pdf
 from operations.models import AbsenceActionLog, AbsenceContactLog
 from operations.services import ScheduleService
@@ -48,6 +49,41 @@ def _day(raw: str | None) -> dt.date:
         return dt.date.fromisoformat(raw or "")
     except ValueError:
         return timezone.localdate()
+
+
+#: أنواعُ الإجراء الإداريّ المعروضة في النموذج (المواصفة: استدعاء وليّ أمر / إشعار كتابيّ / آخر)؛ والمخزَّنُ نصُّها الحرُّ.
+ACTION_KINDS = [
+    ("استدعاء وليّ أمر", "استدعاء وليّ أمر"),
+    ("إشعار كتابيّ", "إشعار كتابيّ"),
+    ("إجراء آخر", "إجراء آخر"),
+]
+
+#: حالاتُ المتابعة للتصفية: كلُّ الغائبين، من لم يُتّصل بوليّه، من لا إجراءَ له، ومن اكتملت متابعتُه.
+FOLLOWUP_FILTERS = [
+    ("", "كلُّ الغائبين"),
+    ("no_contact", "لم يُتّصل بوليّهم"),
+    ("no_action", "بلا إجراءٍ مسجَّل"),
+    ("complete", "اكتملت متابعتُهم"),
+]
+
+
+def _filter_rows(rows: list[dict], grade: str, wing: str, followup: str) -> list[dict]:
+    """يصفّي صفوفَ الخدمة بالصفّ والجناح وحالة المتابعة — بعد أن ضيّقت الخدمةُ النطاقَ، فلا يتّسع به شيء."""
+    out = []
+    for row in rows:
+        group = row["class_group"]
+        if grade and group.grade != grade:
+            continue
+        if wing and str(group.wing_id) != wing:
+            continue
+        if followup == "no_contact" and row["contact"]:
+            continue
+        if followup == "no_action" and row["action"]:
+            continue
+        if followup == "complete" and not (row["contact"] and row["action"]):
+            continue
+        out.append(row)
+    return out
 
 
 def _flags(user: Any) -> dict[str, bool]:
@@ -113,8 +149,22 @@ def absence_followup(request: HttpRequest) -> HttpResponse:
     school = request.user.get_school()
     day = _day(request.GET.get("date"))
     flags = _flags(request.user)
-    rows, report, wing_bound = _rows(request, day)
+    all_rows, report, wing_bound = _rows(request, day)
+    grade = request.GET.get("grade", "")
+    wing = request.GET.get("wing", "")
+    followup = request.GET.get("followup", "")
+    if followup not in dict(FOLLOWUP_FILTERS):
+        followup = ""
+    rows = _filter_rows(all_rows, grade, wing, followup)
     _audit_reads(request, rows)
+    grades = sorted(
+        {(r["class_group"].grade, r["class_group"].get_grade_display()) for r in all_rows}
+    )
+    wings = (
+        []
+        if wing_bound
+        else list(Wing.objects.filter(school=school).order_by("code").values_list("id", "name"))
+    )
     subtitle = f"{school.name} · {date_format(day, 'l d/m/Y')}"
     if wing_bound:
         subtitle = f"{subtitle} · طلبةُ جناحك"
@@ -131,6 +181,18 @@ def absence_followup(request: HttpRequest) -> HttpResponse:
             "actioned": sum(1 for r in rows if r["action"]),
             "outcomes": AbsenceContactLog.OUTCOMES,
             "statuses": AbsenceActionLog.STATUSES,
+            "action_kinds": ACTION_KINDS,
+            "grades": grades,
+            "wings": wings,
+            "followups": FOLLOWUP_FILTERS,
+            "f_grade": grade,
+            "f_wing": wing,
+            "f_followup": followup,
+            "empty_title": (
+                "لا غائبَ يطابق التصفية"
+                if (grade or wing or followup)
+                else "لا غيابَ مرصوداً في هذا اليوم"
+            ),
             **flags,
         },
     )
@@ -140,8 +202,13 @@ def _day_of(request: HttpRequest) -> dt.date:
     return _day(request.POST.get("date"))
 
 
-def _back(day: dt.date) -> HttpResponse:
-    return redirect(f"{reverse('daily_report')}?date={day:%Y-%m-%d}")
+def _back(request: HttpRequest, day: dt.date) -> HttpResponse:
+    """يعود إلى الشاشة بيومها وبالفلاتر التي كان عليها صاحبُ الطلب."""
+    query = {"date": f"{day:%Y-%m-%d}"}
+    for key in ("grade", "wing", "followup"):
+        if request.POST.get(key):
+            query[key] = request.POST[key]
+    return redirect(f"{reverse('daily_report')}?{urlencode(query)}")
 
 
 @login_required
@@ -168,7 +235,7 @@ def contact_save(request: HttpRequest) -> HttpResponse:
         messages.success(request, "سُجِّل الاتّصال.")
     except service.FollowupError as exc:
         messages.error(request, str(exc))
-    return _back(day)
+    return _back(request, day)
 
 
 @login_required
@@ -198,7 +265,7 @@ def action_save(request: HttpRequest) -> HttpResponse:
         messages.success(request, "سُجِّل الإجراء.")
     except service.FollowupError as exc:
         messages.error(request, str(exc))
-    return _back(day)
+    return _back(request, day)
 
 
 @login_required

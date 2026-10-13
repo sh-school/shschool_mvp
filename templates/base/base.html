@@ -764,7 +764,7 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% endif %}
   {% comment %} «تسجيل الحضور» القديمة للمعلّم وحدَه («حصصي اليوم» في قائمته) — القيادةُ والمشرفون يرصدون من كشف الأجنحة (قرارُ 2026-09-13). {% endcomment %}
   {% if request.user|can_open:"daily_report" %}
-  <a href="{% url 'daily_report' %}">{% icon "absence" %} غياب اليوم</a>
+  <a href="{% url 'daily_report' %}">{% icon "absence" %} متابعة الغياب</a>
   {% endif %}
   </div>
   <div class="sd-section">
@@ -950,7 +950,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   <div class="sd-section">
   <div class="sd-label">الغياب والتأخّر</div>
   {% if request.user|can_open:"daily_report" %}
-  <a href="{% url 'daily_report' %}">{% icon "absence" %} غياب اليوم</a>
+  <a href="{% url 'daily_report' %}">{% icon "absence" %} متابعة الغياب</a>
   {% endif %}
   {% if request.user|can_open:"student_affairs:attendance_overview" %}
   <a href="{% url 'student_affairs:attendance_overview' %}">{% icon "stats" %} إحصائيات غياب الجناح</a>
