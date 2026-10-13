@@ -446,7 +446,7 @@ window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
   _pwaPrompt = e;
   // داخل إطار إعادة الدخول (`html.is-embedded`) لا يُعرض شريطُ التثبيت.
-  if (_pwaSettled() || document.documentElement.classList.contains('is-embedded')) return;
+  if (_pwaSettled() || document.documentElement.matches('.is-embedded')) return;
   setTimeout(function() {
     var b = document.getElementById('pwa-banner');
     if (b && !_pwaSettled()) b.hidden = false;
