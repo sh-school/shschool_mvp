@@ -220,6 +220,22 @@ def test_the_script_refuses_reset_in_an_unknown_or_hand_edited_tree():
     assert "--untracked-files=no" in guard  # لا تعديلَ يدويّاً على ملفٍّ متتبَّع
 
 
+def test_pin_uses_a_preview_named_db_cloned_from_the_migrated_preview_db_and_seeds_accounts():
+    text = SCRIPT.read_text(encoding="utf-8")
+    pin = text[text.index("deploy_pin() {") : text.index("release_locked() {")]
+
+    assert (
+        "_preview'" in text[text.index("pin_db() {") :].splitlines()[0]
+    )  # الاسمُ يحوي preview فيمرّ حارسُ البذر
+    assert (
+        'SOURCE_DB="$src"' in pin and "$(preview_db)" in pin
+    )  # المصدرُ القاعدةُ المهاجَرة لا الأصل الخام
+    assert "seed_pin_accounts" in pin  # البذرُ النظاميّ بعد إقلاع الخادم
+    assert (
+        "export_env dev" in pin and "ensure_db" not in pin
+    )  # الحارسُ لم يُمسّ ولا قاعدةُ الشجرة القديمة
+
+
 # ── إعداداتُ وضع المعاينة ──────────────────────────────────────
 
 
