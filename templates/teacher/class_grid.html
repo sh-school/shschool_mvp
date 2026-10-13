@@ -85,7 +85,7 @@
                         data-head="{{ cell.head_id }}" data-status="{{ cell.status }}"
                         data-writable="{% if col.writable %}1{% endif %}"
                         {% if not col.writable %}disabled{% endif %}
-                        aria-label="{{ row.student.full_name }} — ح{{ col.number }}">{% if cell.status == "present" %}✓{% elif cell.status == "absent" %}غ{% elif cell.status == "late" %}ت{% else %}·{% endif %}</button>
+                        aria-label="{{ row.student.full_name }} — ح{{ col.number }}">{% if cell.status == "present" %}ح{% elif cell.status == "absent" %}غ{% elif cell.status == "late" %}ت{% else %}·{% endif %}</button>
                 </div>
               </td>
               {% endfor %}
