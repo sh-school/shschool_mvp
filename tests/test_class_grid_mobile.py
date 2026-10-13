@@ -72,3 +72,15 @@ def test_the_student_name_is_one_line_with_an_ellipsis_on_the_phone():
     assert re.search(
         r"\.cg-name__btn\s*\{[^}]*white-space:\s*nowrap;[^}]*text-overflow:\s*ellipsis;", CSS
     )
+
+
+def test_double_click_on_a_cell_opens_nothing_and_history_has_its_own_button():
+    # W-20261013-021: النقرُ المزدوج على خليّةٍ = نقرتان للتبديل لا نافذةُ سجلّ؛ والسجلُّ بزرّه.
+    assert "dblclick" not in JS
+    assert "data-history-open" in JS
+
+
+def test_a_cell_returned_to_its_saved_state_loses_its_dirty_mark_and_draft():
+    assert "saved[col + ':' + student] === status" in JS
+    assert "classList.remove('is-dirty')" in JS
+    assert "delete draft[col][student]" in JS
