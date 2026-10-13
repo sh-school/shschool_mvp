@@ -1,0 +1,131 @@
+{% extends "base/base.html" %}
+{% load ui navigation icons %}
+{% comment %}
+متابعةُ الغياب (W-20261013-011) — تحلّ محلَّ «غياب اليوم» على مساره القديم. جدولان رسميّان:
+التواصلُ الهاتفيّ مع الأولياء، والإجراءاتُ الإداريّة. السجلّان مضافان فقط: التصحيحُ سجلٌّ جديد.
+لا اسمَ وليٍّ ولا أمٍّ في أيّ موضع (D-431م) — الرقمُ وحدَه.
+{% endcomment %}
+{% block title %}متابعة الغياب{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="متابعة الغياب" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "متابعة الغياب" subtitle=subtitle icon="absence" %}
+    <form method="get" class="rec-datebar">
+      <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="form-control" aria-label="التاريخ">
+      <button type="submit" class="btn-secondary btn-sm">اعرض</button>
+    </form>
+    {% if can_print %}
+    <a href="{% url 'absence_followup_print' %}?date={{ day|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% icon "print" %} كشفٌ للطباعة</a>
+    {% endif %}
+    {% if not can_record %}{% callout "hint" %}عرضٌ للمراقبة: لا تسجيلَ لهذا الدور.{% endcallout %}{% endif %}
+  {% endpage_header %}
+
+  {% kpi_strip label="اليوم في رقم" %}
+    {% kpi "طلابٌ غابوا" absent_students tone="red" %}
+    {% kpi "تمّ الاتّصال بأوليائهم" contacted tone="teal" %}
+    {% kpi "لهم إجراءٌ مسجَّل" actioned tone="amber" %}
+    {% kpi "للرفع الوزاريّ" ministry_count sub="غابوا الأولى والثانية" tone="maroon" %}
+  {% endkpi_strip %}
+
+  {% section_card "١ — التواصلُ مع أولياء الأمور" meta=rows|length icon="call_parent" %}
+    {% if rows %}
+    <div class="table-wrap">
+      <table data-no-sort>
+        <thead>
+          <tr>
+            <th scope="col">الطالب</th><th scope="col">الشعبة</th><th scope="col" class="num">حصصُ الغياب</th><th scope="col">هاتفُ وليّ الأمر</th>
+            <th scope="col">آخرُ اتّصال</th>{% if can_feedback %}<th scope="col">تغذيةُ الأهل</th>{% endif %}
+            {% if can_record %}<th scope="col">تسجيل</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>{{ row.student.full_name }}</td>
+            <td>{{ row.class_group.short_label }}</td>
+            <td class="num">{{ row.absent_periods }}</td>
+            <td>{% for phone in row.phones %}<a href="tel:{{ phone }}" dir="ltr">{{ phone }}</a>{% if not forloop.last %}، {% endif %}{% empty %}<span class="ui-note">لا رقمَ مسجَّل</span>{% endfor %}</td>
+            <td>{% if row.contact %}<span class="status-badge status-info">{{ row.contact.get_outcome_display }}</span> {{ row.contact.contacted_at|date:"H:i" }}{% else %}<span class="ui-note">لم يُتّصل</span>{% endif %}</td>
+            {% if can_feedback %}<td>{{ row.feedback|default:"—" }}</td>{% endif %}
+            {% if can_record %}
+            <td>
+              <details>
+                <summary class="btn-secondary btn-sm">{% if row.contact %}تصحيح{% else %}تسجيل اتّصال{% endif %}</summary>
+                <form method="post" action="{% url 'absence_contact_save' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="student" value="{{ row.student.id }}">
+                  <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+                  {% if row.contact %}<input type="hidden" name="corrects" value="{{ row.contact.id }}">{% endif %}
+                  <select name="outcome" class="form-control" aria-label="نتيجةُ الاتّصال" required>
+                    {% for value, label in outcomes %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                  </select>
+                  {% if can_feedback %}<textarea name="feedback" class="form-control" rows="2" maxlength="2000" aria-label="تغذيةُ الأهل الراجعة"></textarea>{% endif %}
+                  <button type="submit" class="btn-primary btn-sm">حفظ</button>
+                </form>
+              </details>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with title="لا غيابَ مرصوداً في هذا اليوم" only %}
+    {% endif %}
+  {% endsection_card %}
+
+  {% section_card "٢ — متابعةُ الإجراءات الإدارية" meta=rows|length icon="checklist" %}
+    {% if rows %}
+    <div class="table-wrap">
+      <table data-no-sort>
+        <thead>
+          <tr>
+            <th scope="col">الطالب</th><th scope="col">الشعبة</th><th scope="col">الإجراءُ الحاليّ</th><th scope="col">وقتُ التنفيذ</th>
+            {% if can_record %}<th scope="col">تسجيل</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>{{ row.student.full_name }}</td>
+            <td>{{ row.class_group.short_label }}</td>
+            <td>{% if row.action %}<span class="status-badge {% if row.action.status == 'done' %}status-success{% elif row.action.status == 'sick_leave_received' %}status-info{% else %}status-warning{% endif %}">{{ row.action.get_status_display }}</span>{{ row.action.get_action_kind_display }}{% else %}<span class="ui-note">لا إجراءَ مسجَّل</span>{% endif %}</td>
+            <td>{% if row.action %}{{ row.action.acted_at|date:"H:i" }}{% endif %}</td>
+            {% if can_record %}
+            <td>
+              <details>
+                <summary class="btn-secondary btn-sm">{% if row.action %}تصحيح{% else %}تسجيل إجراء{% endif %}</summary>
+                <form method="post" action="{% url 'absence_action_save' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="student" value="{{ row.student.id }}">
+                  <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+                  {% if row.action %}<input type="hidden" name="corrects" value="{{ row.action.id }}">{% endif %}
+                  <select name="status" class="form-control" aria-label="حالةُ الإجراء" required>
+                    {% for value, label in statuses %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                  </select>
+                  <select name="action_kind" class="form-control" aria-label="نوعُ الإجراء">{% for value, label in kinds %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+                  <input type="text" name="note" class="form-control" maxlength="200" aria-label="ملاحظة" placeholder="ملاحظة">
+                  <button type="submit" class="btn-primary btn-sm">حفظ</button>
+                </form>
+              </details>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with title="لا غيابَ مرصوداً في هذا اليوم" only %}
+    {% endif %}
+  {% endsection_card %}
+
+</div>
+{% endblock %}
