@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.views.decorators.clickjacking import xframe_options_sameorigin
@@ -211,6 +212,13 @@ def _get_observation(request, obs_id):
         or obs.observer_id == request.user.id
         or obs.teacher_id == request.user.id
     )
+    # المسوّدةُ لا يعلم المُزارُ بوجودها قبل الإرسال: 404 لا 403 (W-20260929-004). والزائرُ والقيادةُ يرونها.
+    if (
+        obs.status == "draft"
+        and obs.observer_id != request.user.id
+        and not _is_leadership(request.user)
+    ):
+        raise Http404
     return obs, allowed
 
 
@@ -539,7 +547,8 @@ def observation_detail(request, obs_id):
 @require_POST
 def observation_acknowledge(request, obs_id):
     obs, _allowed = _get_observation(request, obs_id)
-    if obs.teacher_id != request.user.id:
+    # المُزارُ وحدَه، وليس في التقييم الذاتي (صاحبُه كاتبُه) — المصدرُ الواحد `can_ack`
+    if not _obs_perms(request.user, obs)["can_ack"]:
         return render(request, "403.html", status=403)
     if obs.status == "submitted":
         ObservationService.acknowledge(obs, request.POST.get("teacher_comment", ""))

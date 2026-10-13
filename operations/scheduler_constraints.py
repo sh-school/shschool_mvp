@@ -25,7 +25,7 @@ from .first_period_cap import (  # noqa: F401  (تُصدَّر من هنا لم�
     MAX_FIRST_PERIODS,
     check_first_period_share,
 )
-from .last_period_cap import personal_last_cap
+from .last_period_cap import last_cap_or
 from .scheduler_bell import (  # noqa: F401  (تُصدَّر من هنا لمن استوردها منه)
     DOUBLE_PERIOD_GAP_MINUTES,
     HC5_JOINABLE_GAP_MINUTES,
@@ -486,8 +486,9 @@ def check_last_period_share(grid: ScheduleGrid, period: int, task: Task) -> bool
     for m in task.members:
         #: سقفٌ شخصيٌّ إن كُتب (`TeacherPreference.max_last_periods`) وإلّا العامّ: معلّمٌ نصابُه
         #: يفوق سعتَه بالعدّ (HC5 + HC8) لا يُسَع إلّا بسابعةٍ ثالثة، وسقفٌ عامٌّ لا يعرفه (W-20261003-035).
-        if grid.teacher_periods_at(m.teacher_id, LAST_PERIOD) >= (
-            personal_last_cap(getattr(m, "last_cap", 0)) or MAX_LAST_PERIODS
+        #: والصفرُ منعٌ لا غياب: `>= 0` صادقةٌ دائماً فلا سابعةَ لصاحبه (W-20261004-013).
+        if grid.teacher_periods_at(m.teacher_id, LAST_PERIOD) >= last_cap_or(
+            getattr(m, "last_cap", None), MAX_LAST_PERIODS
         ):
             return False
         #: وطرفا المعلّم لا يقعان على شعبةٍ واحدة: طرفُ اليوم أثقلُ ما فيه،
@@ -1005,7 +1006,9 @@ def calculate_quality_score(
     if max_possible == 0:
         score = 100.0
     else:
-        score = max(0, 100 * (1 - total_penalty / max_possible))
+        # مكافأةُ المزاوجة وزنُها سالب، فقد يصير مجموعُ العقوبات سالباً والدرجةُ فوق المئة؛
+        # فالمقياسُ مقيَّدٌ من الجهتين: [0, 100].
+        score = min(100.0, max(0.0, 100 * (1 - total_penalty / max_possible)))
 
     required = total_required if total_required is not None else placed_periods
     placed_ratio = round(100 * placed_periods / required, 1) if required else 100.0
