@@ -6,6 +6,7 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -18,6 +19,7 @@ from .models import (
     TeacherAbsence,
     TeacherSwap,
 )
+from .schedule_visibility import may_browse_all, may_view_teacher
 from .services import AbsenceSwapService, CompensatoryService, FreeSlotService, SwapService
 
 logger = logging.getLogger(__name__)
@@ -185,6 +187,9 @@ def swap_options_htmx(request, slot_id):
     """HTMX partial — معلمون متاحون للتبديل مع حصة معيّنة."""
     school = request.user.get_school()
     slot = get_object_or_404(ScheduleSlot, pk=slot_id, school=school)
+    # خياراتُ التبديل لحصّةٍ هي حصّةُ طالبها أو من يتصفّح الجداول (W-20261013-022).
+    if slot.teacher_id != request.user.pk and not may_browse_all(request.user):
+        raise Http404
     options = SwapService.get_swap_options(request.user, slot, school)
     return render(
         request, "schedule/partials/swap_options.html", {"options": options, "slot": slot}
@@ -527,6 +532,8 @@ def teacher_free_slots(request, teacher_id):
         memberships__school=school,
         memberships__is_active=True,
     )
+    if not may_view_teacher(school, request.user, teacher.pk):
+        raise Http404
     free = FreeSlotService.get_teacher_free_slots(teacher, school)
 
     grid = {d: [] for d in range(5)}
