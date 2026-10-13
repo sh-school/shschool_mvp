@@ -18,21 +18,23 @@
   <div class="ui-grid-2">
     {% if has_karwa %}
     {% section_card "رقم كروة" icon="document" %}
-      <p class="ui-kpi__value">{{ bus.karwa_id }}</p>
-      <a href="https://www.karwa.com.qa" target="_blank"
-         class="link-maroon">→ فتح بوابة كروة</a>
+      <div class="secret-row">
+        <code class="ui-kpi__value">{{ bus.karwa_id }}</code>
+        <button type="button" data-copy="{{ bus.karwa_id }}" class="btn-secondary btn-sm">نسخ</button>
+      </div>
     {% endsection_card %}
     {% endif %}
     {% if has_gps %}
     {% section_card "تتبع GPS" icon="kpi" %}
-      <a href="{{ bus.gps_link }}" target="_blank" class="btn-success">
-        {% icon "location" %} فتح الخريطة
-      </a>
+      <div class="secret-row">
+        <code>{{ bus.gps_link }}</code>
+        <button type="button" data-copy="{{ bus.gps_link }}" class="btn-secondary btn-sm">نسخ</button>
+      </div>
     {% endsection_card %}
     {% endif %}
   </div>
 
-  {% section_card "الخريطة الحيّة" icon="transport" empty="التكامل الكامل مع كروة يتطلب API رسمي" empty_sub="استخدم الروابط أعلاه للوصول للتتبع المباشر" %}{% endsection_card %}
+  {% section_card "الخريطة الحيّة" icon="transport" empty="التكامل الكامل مع كروة يتطلب API رسمي" empty_sub="انسخ الرقم أو الرابط أعلاه لاستعماله في أداة التتبع" %}{% endsection_card %}
 
   {% else %}
   {% url 'transport:bus_detail' bus.id as bus_detail_url %}
