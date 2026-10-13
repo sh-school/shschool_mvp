@@ -1,0 +1,18 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}{{ report_title }}{% endblock %}
+
+{% block content %}
+{% comment %}
+معاينةُ كشف المتابعة داخل المنصّة (قائمتُها وشريطُها باقيان) بإطارٍ يعرض الوثيقة — كما في عارض التقارير.
+{% endcomment %}
+<div class="report-viewer">
+  {% page_header report_title icon="document" %}
+    <a data-app-file href="{{ pdf_url }}" class="btn-primary btn-sm">{% icon "download" %} تحميل PDF</a>
+    <a href="{{ back_url }}" class="btn-secondary btn-sm">← رجوع للمتابعة</a>
+  {% endpage_header %}
+
+  <iframe class="report-viewer__frame" src="{{ report_url }}" title="{{ report_title }}"></iframe>
+</div>
+{% endblock %}

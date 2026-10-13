@@ -112,3 +112,15 @@ class TestLayout:
             grid < body.index("التواصلُ مع أولياء الأمور") < body.index("متابعةُ الإجراءات الإدارية")
         )
         assert body.count('class="ui-grid-2"') == 1
+
+
+class TestPrintInsidePlatform:
+    def test_preview_is_framed_in_the_platform_and_embed_is_bare(
+        self, client_as, staff, absent_both
+    ):
+        framed = _get(client_as, staff["principal"], "absence_followup_print").content.decode()
+        assert "report-viewer__frame" in framed and "embed=1" in framed and "site-nav" in framed
+        bare = _get(
+            client_as, staff["principal"], "absence_followup_print", embed="1"
+        ).content.decode()
+        assert "report-viewer__frame" not in bare and "site-nav" not in bare

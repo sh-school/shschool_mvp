@@ -241,7 +241,9 @@ class TestPrivacy:
         self, client_as, school, staff, absent_both
     ):
         _family(school, absent_both[0])
-        body = _get(client_as, staff["principal"], "absence_followup_print").content.decode()
+        body = _get(
+            client_as, staff["principal"], "absence_followup_print", embed="1"
+        ).content.decode()
         assert FATHER_PHONE in body
         assert FATHER_NAME not in body and MOTHER_NAME not in body
         trail = " ".join(

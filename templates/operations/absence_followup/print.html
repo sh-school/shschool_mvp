@@ -2,10 +2,10 @@
 {% load brand_tags %}
 {% comment %}
   ورقةُ الاتصال لمتابعة الغياب (W-20261013-017): غائبو اليوم مجموعةً بالصفّ، ورقمُ الوليّ دون اسمه
-  ولا اسم الأمّ (D-431م)، وخانتا «النتيجة» و«التغذية الراجعة» فارغتان للكتابة باليد، وتوقيعٌ واحد
+  ولا اسم الأمّ (D-431م)، وخانتا «النتيجة» و«التغذية الراجعة» تُعبَّآن من المسجَّل (والتغذيةُ لحاملي قدرتها وحدَهم) وتُترك فارغةً حين لا تسجيل، وتوقيعٌ واحد
   (مشرف الجناح، D-385م). من استُلمت إجازتُهم المرضيّة موسومون.
   السياق من `operations/absence_followup_print.py`: `groups` (الصفّ ← `rows`: number · name · phone ·
-  sick_leave)، و`day`، و`exported_by`، و`exporter_role`، و`signatory`.
+  sick_leave · outcome · feedback)، و`day`، و`exported_by`، و`exporter_role`، و`signatory`.
   قالبُ PDF: الأنماطُ في كتلة `extra_styles` وسيلتُه المعتمدة (WeasyPrint لا يرى الأوراقَ الخارجيّة)،
   وبالـpt لأنّ حدَّ الذيل 8pt يُقاس بالـPDF.
 {% endcomment %}
@@ -34,6 +34,7 @@
 .contact .col-leave { width: 24mm; }
 .contact td.name { text-align: right; font-weight: 600; }
 .contact td.phone { direction: ltr; unicode-bidi: embed; font-weight: 600; }
+.contact td { overflow-wrap: anywhere; }
 .contact td.leave-received { background: {% brand_color "STATUS_SUCCESS_BG" %}; color: {% brand_color "STATUS_SUCCESS_DARK" %}; font-weight: 700; }
 .legend { margin-top: 5px; font-size: 8.5pt; color: {% brand_color "TEXT_SECONDARY" %}; }
 .sig-block { margin-top: 8px; padding-top: 4px; }
@@ -75,13 +76,13 @@
         <td class="name">{{ row.name }}</td>
         <td class="phone">{{ row.phone|default:"—" }}</td>
         <td{% if row.sick_leave %} class="leave-received"{% endif %}>{% if row.sick_leave %}استُلمت{% endif %}</td>
-        <td></td>
-        <td></td>
+        <td>{{ row.outcome }}</td>
+        <td>{{ row.feedback }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
-  <p class="legend">«استُلمت»: إجازةٌ مرضيّةٌ استُلمت لهذا الغياب. تُملأ «نتيجة الاتصال» و«التغذية الراجعة» باليد ثمّ تُسجَّلان في المنصّة.</p>
+  <p class="legend">«استُلمت»: إجازةٌ مرضيّةٌ استُلمت لهذا الغياب. ما لم يُسجَّل بعدُ يُترك فارغاً ويُكتب باليد ثمّ يُسجَّل في المنصّة.</p>
   <div class="sig-block">
     <div class="sig-item">
       <div class="sig-title">مشرف الجناح</div>

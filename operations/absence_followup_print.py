@@ -39,6 +39,8 @@ def _groups(rows: list[dict]) -> list[dict]:
                 "name": row["student"].full_name,
                 "phone": " — ".join(row.get("phones") or []),
                 "sick_leave": bool(action and action.status == "sick_leave"),
+                "outcome": row["contact"].get_outcome_display() if row.get("contact") else "",
+                "feedback": row.get("feedback") or "",
             }
         )
     out = []

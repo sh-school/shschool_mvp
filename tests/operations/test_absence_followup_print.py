@@ -23,8 +23,10 @@ GUARDIAN_NAME = "الوليّ المجهول"  # اسمٌ لا يجوز أن ي�
 MOTHER_NAME = "الأمّ المجهولة"
 
 
-def _row(name, klass, phones, status=None):
+def _row(name, klass, phones, status=None, outcome=None, feedback=""):
     return {
+        "contact": NS(get_outcome_display=lambda: outcome) if outcome else None,
+        "feedback": feedback,
         "student": NS(full_name=name),
         "class_group": klass,
         "phones": phones,
@@ -35,7 +37,7 @@ def _row(name, klass, phones, status=None):
 
 
 ROWS = [
-    _row("سالم أحمد", "7/1", ["55123456"], "sick_leave"),
+    _row("سالم أحمد", "7/1", ["55123456"], "sick_leave", "ردّ", "سيحضر غداً"),
     _row("خالد علي", "7/1", ["55987654", "66111222"]),
     _row("ماجد حسن", "7/2", []),
 ]
@@ -129,3 +131,9 @@ def test_denied_without_capability_reads_nothing():
 
 def test_scope_is_delegated_to_service(pdf):
     pdf.service.assert_called_once_with(pdf.user, DAY)
+
+
+def test_recorded_outcome_and_feedback_are_written_in_their_columns(pdf):
+    text = _text(pdf.data)
+    assert unicodedata.normalize("NFKC", "ردّ") in text or "رد" in text
+    assert unicodedata.normalize("NFKC", "سيحضر غداً") in text or "سيحضر" in text

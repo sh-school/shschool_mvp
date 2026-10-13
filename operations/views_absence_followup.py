@@ -290,6 +290,19 @@ def followup_print(request: HttpRequest) -> HttpResponse:
         html = render_to_string("operations/absence_followup_print.html", ctx, request=request)
         filename = generate_export_filename("operations", "absence-followup", "pdf")
         return render_pdf(html, filename, as_attachment=True)
+    if request.GET.get("embed") != "1":
+        # المعاينةُ داخل المنصّة بقائمتها وفتات خبزها — لا وثيقةَ عاريةً في صفحةٍ جديدة (طلب المالك 10-13)
+        query = urlencode({"date": day.isoformat(), "embed": "1"})
+        return render(
+            request,
+            "operations/absence_followup/viewer.html",
+            {
+                "report_title": title,
+                "report_url": f"{request.path}?{query}",
+                "pdf_url": f"{request.path}?{urlencode({'date': day.isoformat(), 'format': 'pdf'})}",
+                "back_url": f"{reverse('daily_report')}?{urlencode({'date': day.isoformat()})}",
+            },
+        )
     ctx["for_screen"] = True
     return render(request, "operations/absence_followup_print.html", ctx)
 
