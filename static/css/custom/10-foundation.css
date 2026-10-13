@@ -276,6 +276,8 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --q-font-ui: inherit;
   --q-radius: 8px;
   --q-transition: 0.2s ease;
+  /* انتقالٌ بخصائصَ محدّدةٍ بدل `all` فلا يحرّك تخطيطاً ولا أبعاداً؛ المدّةُ والمنحنى من `--q-transition`. */
+  --q-transition-ui: background-color var(--q-transition), border-color var(--q-transition), color var(--q-transition), box-shadow var(--q-transition), opacity var(--q-transition), transform var(--q-transition);
 
   /* ══ Typography Scale (7 أحجام يدويّة) ══ */
   --text-xs:   0.75rem;    /* 12px — labels, captions */

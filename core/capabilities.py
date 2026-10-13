@@ -29,7 +29,7 @@ from django.http.response import HttpResponseBase
 
 from core.behavior_committee_roles import BEHAVIOR_COMMITTEE_CASE_SCOPED
 from core.parent_consent import holds_parent_membership
-from core.permissions import expand_roles, role_required
+from core.permissions import SYSTEM_ADMIN, USER_MANAGE, expand_roles, role_required
 from core.unrestricted_role import (
     DEVELOPER_EXCLUDED_CAPABILITIES,
     has_unrestricted_role,
@@ -89,6 +89,63 @@ def _delegated(key: str) -> Callable:
         from core.capability_grants import holds
 
         return holds(user, key)
+
+    return check
+
+
+# ── الإنابة: قدراتُ الوظيفة المُنَابة بتكليفٍ ساري (W-20261001-021، م-43 من النظام الوظيفيّ) ──────
+#: قدرةٌ أعضاؤها هم USER_MANAGE وحدَهم أو SYSTEM_ADMIN وحدَهم — إدارةُ المستخدمين وإدارةُ النظام —
+#: لا تنتقل بالتكليف أبداً (قرارُ المالك 2026-10-04). وما سواها من قدرات الوظيفة المُنَابة ينتقل
+#: مدّةَ التكليف وحدَها، بالمعيار نفسِه الذي يفحص به الحارسُ دورَ صاحبها (``expanded_roles``).
+ACTING_NEVER_TRANSFERS: tuple[frozenset[str], ...] = (
+    frozenset(USER_MANAGE),
+    frozenset(SYSTEM_ADMIN),
+)
+#: وقدرتان بالمفتاح لا تنتقلان كذلك (قرارُ المالك D-413م بعد حكم 0104): بياناتُ الخرق وسجلُّ الصلاحيّات.
+#: دورُهما يضمّ النائبين فكان المُنَابُ يرثهما، وهما من أحسّ ما في المنصّة — فلا تُنَابان إلا بقرارٍ لاحقٍ صريح.
+ACTING_NEVER_KEYS: frozenset[str] = frozenset({"breach.manage", "audit.permissions_log"})
+
+
+def acting_transferable(cap: Capability) -> bool:
+    """أتنتقل هذه القدرةُ بالتكليف؟ — القائمةُ المعلنةُ الواحدة: كلُّ قدرات السجلّ عدا ``ACTING_NEVER_TRANSFERS``
+    و``ACTING_NEVER_KEYS``."""
+    return cap.key not in ACTING_NEVER_KEYS and cap.roles not in ACTING_NEVER_TRANSFERS
+
+
+def acting_capabilities() -> frozenset[str]:
+    """مفاتيحُ القدرات التي تنتقل بالتكليف — للاختبار والعرض."""
+    return frozenset(key for key, cap in registry().items() if acting_transferable(cap))
+
+
+#: قارئُ الوظائف المكلَّفة اليومَ — تسجّله وحدةُ شؤون الموظفين في ``ready()`` فلا تستورد النواةُ منها
+#: استيراداً نازلاً (حارس الطبقات)، على نمط ``register_role_dashboard``.
+_acting_roles_provider: Callable[[Any], frozenset[str]] | None = None
+
+
+def register_acting_roles_provider(provider: Callable[[Any], frozenset[str]]) -> None:
+    """يسجّل دالةَ قراءة الوظائف التي يقوم المستخدمُ بأعبائها بتكليفٍ ساري."""
+    global _acting_roles_provider
+    _acting_roles_provider = provider
+
+
+def acting_holds(user: Any, cap: Capability) -> bool:
+    """أيحمل المستخدمُ ``cap`` اليومَ بتكليفٍ ساري بأعباء وظيفةٍ تحملها؟
+
+    يُقرأ ``StaffAssignment`` (استعلامٌ واحدٌ للطلب) فلا يمسّ ``Capability.granted`` — فذاك منحٌ
+    صريحٌ باسم الشخص يقرؤه ``is_operator`` بحرفه، والتكليفُ مؤقّتٌ بوظيفة.
+    """
+    if not acting_transferable(cap) or _acting_roles_provider is None:
+        return False
+    return bool(_acting_roles_provider(user) & cap.expanded_roles)
+
+
+def _grant_or_acting(cap: Capability) -> Callable | None:
+    """``_grant`` الحارس: المنحُ الصريحُ، ثمّ التكليفُ — لتعدّه القائمةُ الجانبيّةُ كما يمرّره الحارس."""
+    if not acting_transferable(cap):
+        return cap.grant
+
+    def check(user: Any) -> bool:
+        return cap.granted(user) or acting_holds(user, cap)
 
     return check
 
@@ -286,16 +343,19 @@ def registry() -> dict[str, Capability]:
         _cap(
             "staff_affairs.assignments",
             "تكليفُ موظّفٍ بأعباء وظيفة (م-43)",
-            {"principal", "vice_admin", "vice_academic"},
+            {"principal", "vice_admin", "vice_academic", "coordinator"},
             scope=(
                 "كلٌّ عن وظيفته وحدَها: المديرُ يكلّف نائبَيه (وغيرَهما إن غاب النائبان معاً)، "
-                "والنائبُ الأكاديميّ أحدَ المنسّقين، والنائبُ الإداريّ أحدَ من تحت مسؤوليته"
+                "والنائبان كلٌّ أحدَ من تحت مسؤوليته، والمنسّقُ أحدَ معلّمي قسمه"
             ),
             basis=(
                 "النظام الوظيفيّ لموظفي المدارس (قرار مجلس الوزراء 32/2019) م-43: «يجوز لمدير "
                 "المدرسة ندب الموظف للقيام مؤقتاً بأعباء وظيفة أخرى داخل المدرسة»، وقانون "
                 "الموارد البشرية 15/2016 م-53؛ وقرارُ المدرسة 2026-09-19 في توزيع التكليف على "
-                "النائبين (docs/compliance/staff_attendance_spec.md، م-25)"
+                "النائبين (docs/compliance/staff_attendance_spec.md، م-25)؛ وقرارُ المالك "
+                "2026-10-04: النائبان يكلّفان من تحتهما أيّاً كان دورُه، والمنسّقُ معلّمَ قسمه في "
+                "غيابه أو خروجه؛ والمكلَّفُ يحمل قدراتِ الوظيفة المُنَابة مدّةَ التكليف وحدَها "
+                "(``has_capability``) عدا إدارةِ المستخدمين وإدارةِ النظام"
             ),
         ),
         _cap(
@@ -743,7 +803,7 @@ def has_capability(user, key: str) -> bool:
     if user.is_superuser or has_unrestricted_role(user):
         return True
     cap = capability(key)
-    return user.get_role() in cap.expanded_roles or cap.granted(user)
+    return user.get_role() in cap.expanded_roles or cap.granted(user) or acting_holds(user, cap)
 
 
 def capability_required(key: str):
@@ -754,7 +814,7 @@ def capability_required(key: str):
     cap = capability(key)
 
     def decorator(view_func):
-        if cap.grant is None:
+        if cap.grant is None and not acting_transferable(cap):
             wrapped = role_required(cap.roles, not_inherited_by=cap.not_inherited_by)(view_func)
         else:
             wrapped = _roles_or_grant(cap, view_func)
@@ -876,6 +936,7 @@ def _roles_or_grant(cap: Capability, view_func):
             or has_unrestricted_role(user)
             or user.get_role() in expanded
             or cap.granted(user)
+            or acting_holds(user, cap)
         ):
             return view_func(request, *args, **kwargs)
         role = user.get_role()
@@ -883,5 +944,5 @@ def _roles_or_grant(cap: Capability, view_func):
         return _forbidden_response(request, f"ليس لديك صلاحية الوصول — دورك: {role or 'غير محدد'}")
 
     wrapper._required_roles = tuple(expanded)
-    wrapper._grant = cap.grant
+    wrapper._grant = _grant_or_acting(cap)
     return wrapper

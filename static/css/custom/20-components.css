@@ -813,7 +813,7 @@ tr.active {
   background: var(--surface);
   color: var(--text-secondary);
   text-decoration: none;
-  transition: all .12s;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .pagination a:hover {
@@ -2229,7 +2229,7 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
 .dropzone-icon { font-size: 2.5rem; margin-bottom: var(--sp-3); }
 .dropzone-label { font-weight: 700; color: var(--text-primary); margin-bottom: var(--sp-1); }
 .dropzone-hint { color: var(--text-muted); font-size: var(--text-xs); margin-top: var(--sp-2); }
-.dropzone-preview { display: none; margin-top: var(--sp-4); text-align: right; }
+.dropzone-preview { display: none; margin-top: var(--sp-4); text-align: start; }
 .dropzone-preview-inner {
   display: flex; align-items: center; gap: var(--sp-2);
   padding: var(--sp-2); background: var(--dropzone-preview-bg);
@@ -2247,8 +2247,8 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
   position: absolute; inset-inline-start: 12px;
   color: var(--text-muted); pointer-events: none; font-size: var(--text-base);
 }
-.search-wrap input[type="search"] { padding-right: 38px; }
-html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding-left: var(--sp-2); }
+.search-wrap input[type="search"] { padding-inline-start: 38px; }
+html[dir="rtl"] .search-wrap input[type="search"] { padding-inline-start: 38px; padding-inline-end: var(--sp-2); }
 .search-wrap .htmx-indicator { position: absolute; inset-inline-end: 12px; }
 
 /* ── Confirm Dialog ── */
