@@ -64,7 +64,6 @@
   "templates/transport/statistics.html": 1,
   "templates/wings/absence_notices.html": 1,
   "templates/wings/floors.html": 1,
-  "templates/wings/ministry_report.html": 2,
   "templates/wings/partials/contact_card.html": 1,
   "templates/wings/partials/excuse_card.html": 1,
   "templates/wings/partials/student_events.html": 1
