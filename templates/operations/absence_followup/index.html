@@ -56,7 +56,7 @@
         <thead>
           <tr>
             <th scope="col">الطالب</th><th scope="col">الشعبة</th><th scope="col" class="num">حصصُ الغياب</th><th scope="col">هاتفُ وليّ الأمر</th>
-            <th scope="col">آخرُ اتّصال</th>{% if can_feedback %}<th scope="col">تغذيةُ وليّ الأمر</th>{% endif %}
+            <th scope="col">آخرُ اتّصال</th>{% if can_feedback %}<th scope="col">التغذية الراجعة من وليّ الأمر</th>{% endif %}
             {% if can_record %}<th scope="col">تسجيل</th>{% endif %}
           </tr>
         </thead>
@@ -82,7 +82,7 @@
                   <select name="outcome" class="form-control" aria-label="نتيجةُ الاتّصال" required>
                     {% for value, label in outcomes %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
                   </select>
-                  {% if can_feedback %}<textarea name="feedback" class="form-control" rows="2" maxlength="2000" aria-label="تغذيةُ وليّ الأمر الراجعة"></textarea>{% endif %}
+                  {% if can_feedback %}<textarea name="feedback" class="form-control" rows="2" maxlength="2000" aria-label="التغذية الراجعة من وليّ الأمر"></textarea>{% endif %}
                   <button type="submit" class="btn-primary btn-sm">حفظ</button>
                 </form>
               </details>

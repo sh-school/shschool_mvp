@@ -166,7 +166,7 @@ class Migration(migrations.Migration):
                 (
                     "feedback",
                     core.fields.EncryptedTextField(
-                        blank=True, default="", verbose_name="تغذيةُ وليّ الأمر الراجعة"
+                        blank=True, default="", verbose_name="التغذية الراجعة من وليّ الأمر"
                     ),
                 ),
                 (
