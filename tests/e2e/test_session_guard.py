@@ -116,8 +116,13 @@ class TestWarningBeforeExpiry:
         self, page, live_server, login, e2e_teacher
     ):
         login(e2e_teacher)
-        _age_the_session(seconds_left=100)
         page.goto(f"{live_server.url}{FORM_URL}")
+        page.wait_for_load_state("networkidle")
+        # تقديمُ الختم بعد تحميل الصفحة لا قبله: طلبُ التصفّح الحقيقيّ يجدّد الخمول (س٢)،
+        # فتقديمُه قبل `goto` كان يُمحى بالتحميل نفسِه ولا يظهر التحذير. ثمّ نُعيد قراءة الحالة
+        # كما تفعل الصفحةُ عند عودتها للظهور (الحالةُ قراءةٌ لا تجدّد).
+        _age_the_session(seconds_left=100)
+        page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
 
         warning = page.locator("#session-warning")
         expect(warning).to_be_visible(timeout=10000)
