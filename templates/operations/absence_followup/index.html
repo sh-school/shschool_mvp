@@ -35,6 +35,7 @@
     </form>
     {% if can_print %}
     <a href="{% url 'absence_followup_print' %}?date={{ day|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% icon "print" %} كشفٌ للطباعة</a>
+    <a href="{% url 'absence_followup_contact_sheet' %}?date={{ day|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% icon "call_parent" %} ورقةُ الاتّصال PDF</a>
     {% endif %}
     {% if not can_record %}{% callout "hint" %}عرضٌ للمراقبة: لا تسجيلَ لهذا الدور.{% endcallout %}{% endif %}
   {% endpage_header %}

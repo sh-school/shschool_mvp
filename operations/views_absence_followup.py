@@ -299,3 +299,17 @@ def followup_print(request: HttpRequest) -> HttpResponse:
         return render_pdf(html, filename, as_attachment=True)
     ctx["for_screen"] = True
     return render(request, "operations/absence_followup_print.html", ctx)
+
+
+@login_required
+@capability_required("operations.absence_followup_print")
+def contact_sheet(request: HttpRequest) -> HttpResponse:
+    """ورقةُ الاتّصال PDF (W-20261013-017) — القدرةُ والنطاقُ والتدقيقُ في الدالة نفسها فلا `log_export` معها."""
+    from operations.absence_followup_print import render_contact_sheet
+
+    day = _day(request.GET.get("date"))
+    pdf = render_contact_sheet(request.user, day)
+    response = HttpResponse(pdf, content_type="application/pdf")
+    filename = generate_export_filename("operations", "absence-contact-sheet", "pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response

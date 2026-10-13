@@ -41,6 +41,11 @@ urlpatterns = [
     path(
         "reports/daily/print/", views_absence_followup.followup_print, name="absence_followup_print"
     ),
+    path(
+        "reports/daily/contact-sheet/",
+        views_absence_followup.contact_sheet,
+        name="absence_followup_contact_sheet",
+    ),
     # -- المرحلة 2: الجداول الذكية --
     path("weekly-schedule/", views.weekly_schedule, name="weekly_schedule"),
     path("weekly-schedule/print/", views.schedule_print, name="schedule_print"),

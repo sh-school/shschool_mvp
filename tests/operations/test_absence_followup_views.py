@@ -88,3 +88,17 @@ class TestForms:
         body = _get(client_as, staff["principal"]).content.decode()
         assert "متابعة الغياب" in body and ">غياب اليوم<" not in body
         assert reverse("daily_report") in body
+
+
+class TestContactSheetRoute:
+    def test_the_route_returns_a_pdf_for_who_may_print(self, client_as, staff, absent_both):
+        resp = _get(client_as, staff["principal"], "absence_followup_contact_sheet")
+        assert resp.status_code == 200 and resp["Content-Type"] == "application/pdf"
+        assert resp.content[:4] == b"%PDF"
+
+    def test_a_teacher_is_denied(self, client_as, teacher, absent_both):
+        assert _get(client_as, teacher, "absence_followup_contact_sheet").status_code == 403
+
+    def test_the_screen_offers_the_sheet_link(self, client_as, staff, absent_both):
+        body = _get(client_as, staff["principal"]).content.decode()
+        assert reverse("absence_followup_contact_sheet") in body
