@@ -17,7 +17,7 @@ from notifications.models import InAppNotification
 from notifications.tasks import breach_alert_events, check_breach_deadlines_task
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 SECRET_TITLE = "خرقٌ يذكر الطالب فلان بن فلان"
 HOUR = timedelta(hours=1)
