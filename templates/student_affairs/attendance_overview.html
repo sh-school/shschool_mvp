@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
 {% load icons %}
-{% load static ui %}
+{% load static ui navigation %}
 
 {% block title %}إحصائيات الغياب — شؤون الطلاب{% endblock %}
 
@@ -15,7 +15,8 @@
 <div class="exec-dash sa-page">
 
   {% page_header "إحصائيات الغياب" subtitle=page_subtitle icon="stats" %}
-    <a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>
+    {# الرصدُ لمن يفتحه: النائبُ الأكاديميّ يرى الإحصائياتِ ولا يرصد (D-201م، W-20261004-024). #}
+    {% if request.user|can_open:"wings:record_index" %}<a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>{% endif %}
     {# «غياب اليوم» مقيَّدٌ بطلبة الجناح للمقيَّد به (operations.daily_absence) — فرابطُه للجميع. #}
     <a href="{% url 'daily_report' %}" class="btn-secondary btn-sm">{% icon "absence" %} غياب اليوم</a>
     <a data-app-file href="{% url 'student_affairs:attendance_export' %}" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</a>

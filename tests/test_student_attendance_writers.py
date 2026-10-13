@@ -59,9 +59,9 @@ ALLOWED_WRITERS: dict[tuple[str, str], str] = {
         "approve_excuse",
     ): "اعتمادُ عذرٍ بعد المهلة (النائب/المدير)",
     (
-        "student_affairs/views.py",
-        "tardiness_record",
-    ): "تسجيلُ تأخّرٍ صباحيّ — شؤونُ الطلبة والمشرف، لا المعلّم",
+        "student_affairs/morning_tardiness.py",
+        "record_morning_tardiness",
+    ): "تسجيلُ تأخّرٍ صباحيّ — صفٌّ جديدٌ لا فوق رصدٍ قائم، بحكم can_write_grid (W-20261004-022؛ كان في عرض tardiness_record)",
     (
         "student_affairs/views.py",
         "tardiness_delete",

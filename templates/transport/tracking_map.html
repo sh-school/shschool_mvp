@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
   {% page_header page_title subtitle="معلومات التتبع والموقع" icon="transport" %}
     <a href="{% url 'transport:bus_detail' bus.id %}" class="btn-secondary btn-sm">← رجوع</a>
@@ -18,14 +18,14 @@
   <div class="ui-grid-2">
     {% if has_karwa %}
     {% section_card "رقم كروة" icon="document" %}
-      <p class="text-lg font-bold text-status-info mt-1">{{ bus.karwa_id }}</p>
+      <p class="ui-kpi__value">{{ bus.karwa_id }}</p>
       <a href="https://www.karwa.com.qa" target="_blank"
-         class="link-maroon mt-2 inline-block text-sm no-underline">→ فتح بوابة كروة</a>
+         class="link-maroon">→ فتح بوابة كروة</a>
     {% endsection_card %}
     {% endif %}
     {% if has_gps %}
     {% section_card "تتبع GPS" icon="kpi" %}
-      <a href="{{ bus.gps_link }}" target="_blank" class="btn-success mt-2 inline-block">
+      <a href="{{ bus.gps_link }}" target="_blank" class="btn-success">
         {% icon "location" %} فتح الخريطة
       </a>
     {% endsection_card %}

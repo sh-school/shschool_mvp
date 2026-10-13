@@ -27,6 +27,7 @@ from typing import Any
 from django.http import HttpRequest
 from django.http.response import HttpResponseBase
 
+from core.behavior_committee_roles import BEHAVIOR_COMMITTEE_CASE_SCOPED
 from core.parent_consent import holds_parent_membership
 from core.permissions import expand_roles, role_required
 from core.unrestricted_role import (
@@ -417,10 +418,15 @@ def registry() -> dict[str, Capability]:
         _cap(
             "behavior.statistics",
             "إحصاءاتُ السلوك",
-            P.BEHAVIOR_COMMITTEE
+            (P.BEHAVIOR_COMMITTEE - BEHAVIOR_COMMITTEE_CASE_SCOPED)
             | P.BEHAVIOR_VIEW_ALL
             | P.BEHAVIOR_STATS_TEACHING
             | {"student_affairs_coordinator"},
+            scope="المدرسةُ كلُّها",
+            basis=(
+                "المشرفُ الإداريّ عضوٌ في قضيّة جناحه وحدَها (م5.7، D-207م) فلا يرث بعضويّته إحصاءَ "
+                "المدرسة كلِّها — حكمُ 0104 على W-20261001-023"
+            ),
         ),
         _cap("behavior.summon_parent", "استدعاءُ وليّ الأمر", family_callers),
         _cap(
@@ -476,19 +482,7 @@ def registry() -> dict[str, Capability]:
             basis="قرارُ 2026-09-15 (النطاق) وقرارُ المستخدم 2026-09-17 (لا شيءَ آخر من الكنترول)",
         ),
         # ── الحضور والجدول ──────────────────────────────────────────
-        _cap(
-            "attendance.mark",
-            "رصدُ حضور الحصّة",
-            {
-                "principal",
-                "vice_academic",
-                "vice_admin",
-                "coordinator",
-                "teacher",
-                "ese_teacher",
-                "admin_supervisor",
-            },
-        ),
+        _cap("attendance.mark", "رصدُ حضور الحصّة", P.ATTENDANCE_RECORD),
         _cap("operations.reports", "تقاريرُ الجدول والحضور", P.OPERATIONS_REPORTS),
         _cap(
             "operations.daily_absence",

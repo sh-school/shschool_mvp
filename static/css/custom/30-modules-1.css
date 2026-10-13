@@ -724,6 +724,14 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   border: none; cursor: pointer; font-family: inherit;
   transition: background .15s, box-shadow .15s, transform .1s;
 }
+/* داخل نافذة إعادة الدخول (?embed=1): البطاقةُ وحدَها على سطح النافذة، بلا خلفيّةٍ ولا ذيل. */
+.login-page.is-embedded { min-height: 0; padding: var(--sp-2); background: var(--surface); }
+.login-page.is-embedded::before { content: none; }
+.login-page.is-embedded .login-card { box-shadow: none; border: none; padding-bottom: var(--sp-4); }
+.login-page.is-embedded .login-card-header,
+.login-page.is-embedded .login-brand,
+.login-page.is-embedded .login-footer { display: none; }
+.login-page.is-embedded .login-card-body { padding: var(--sp-3) var(--sp-4) 0; }
 .login-btn:hover  { background: var(--maroon-dark); box-shadow: 0 4px 16px color-mix(in srgb, var(--maroon) 32%, transparent); }
 .login-btn:active { transform: translateY(1px); }
 /* أيقونةٌ بحجم سطرها في رسالة الخطأ ورقم الهاتف — وكانت `style=` على كلٍّ منهما. */

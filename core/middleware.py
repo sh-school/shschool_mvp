@@ -47,6 +47,33 @@ def _build_protected_paths() -> dict[str, list[str]]:
     return paths
 
 
+def wants_machine_reply(request: HttpRequest) -> bool:
+    """أطلبٌ تُحيله الصفحةُ بنفسها (HTMX أو fetch/XHR أو تنقّلٌ بلا تحميل) لا متصفّحٌ يعرض ردَّه؟
+
+    مثلُ هذا الطلب لا يصلح معه 302 إلى صفحة الدخول: fetch يتبعه فيُدرَج HTML الدخول في
+    موضع الاستجابة، وHTMX يبدّله في هدفه، ونموذجُ POST يضيع ما أُدخل فيه. فالردُّ 401 يفهمه
+    session-guard.js ويفتح نافذةَ إعادة الدخول ويعيد الإرسال بالبيانات نفسها.
+    """
+    headers = request.headers
+    if headers.get("HX-Request") == "true" or headers.get("X-Page-Nav") == "1":
+        return True
+    if headers.get("X-Requested-With") == "XMLHttpRequest":
+        return True
+    accept = headers.get("Accept", "")
+    return "application/json" in accept and "text/html" not in accept
+
+
+def session_expired_response() -> JsonResponse:
+    """401 بعلامة `HX-Trigger: session-expired` — انتهت الجلسةُ أو لم تكن (W-20261005-003)."""
+    response = JsonResponse(
+        {"error": "انتهت الجلسة", "code": "session_expired", "authenticated": False},
+        status=401,
+    )
+    response["HX-Trigger"] = "session-expired"
+    response["Cache-Control"] = "no-store"
+    return response
+
+
 class SchoolPermissionMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
@@ -69,6 +96,8 @@ class SchoolPermissionMiddleware:
                 return JsonResponse(
                     {"error": "مطلوب تسجيل الدخول", "code": "not_authenticated"}, status=401
                 )
+            if wants_machine_reply(request):
+                return session_expired_response()
             return redirect(reverse("login"))
 
         # ── حساب معطّل — تسجيل خروج فوري ──
