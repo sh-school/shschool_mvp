@@ -36,7 +36,7 @@ from staff_affairs.attendance import AssignmentService, PolicyError
 from staff_affairs.models import StaffAssignment
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 NOW = datetime(2026, 2, 15, 12, 0)
 TODAY = NOW.date()

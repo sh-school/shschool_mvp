@@ -117,17 +117,26 @@ def acting_capabilities() -> frozenset[str]:
     return frozenset(key for key, cap in registry().items() if acting_transferable(cap))
 
 
+#: قارئُ الوظائف المكلَّفة اليومَ — تسجّله وحدةُ شؤون الموظفين في ``ready()`` فلا تستورد النواةُ منها
+#: استيراداً نازلاً (حارس الطبقات)، على نمط ``register_role_dashboard``.
+_acting_roles_provider: Callable[[Any], frozenset[str]] | None = None
+
+
+def register_acting_roles_provider(provider: Callable[[Any], frozenset[str]]) -> None:
+    """يسجّل دالةَ قراءة الوظائف التي يقوم المستخدمُ بأعبائها بتكليفٍ ساري."""
+    global _acting_roles_provider
+    _acting_roles_provider = provider
+
+
 def acting_holds(user: Any, cap: Capability) -> bool:
     """أيحمل المستخدمُ ``cap`` اليومَ بتكليفٍ ساري بأعباء وظيفةٍ تحملها؟
 
     يُقرأ ``StaffAssignment`` (استعلامٌ واحدٌ للطلب) فلا يمسّ ``Capability.granted`` — فذاك منحٌ
     صريحٌ باسم الشخص يقرؤه ``is_operator`` بحرفه، والتكليفُ مؤقّتٌ بوظيفة.
     """
-    if not acting_transferable(cap):
+    if not acting_transferable(cap) or _acting_roles_provider is None:
         return False
-    from staff_affairs.attendance.assignments import acting_roles
-
-    return bool(acting_roles(user) & cap.expanded_roles)
+    return bool(_acting_roles_provider(user) & cap.expanded_roles)
 
 
 def _grant_or_acting(cap: Capability) -> Callable | None:
