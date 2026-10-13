@@ -51,7 +51,7 @@ def _all_hits() -> dict[str, int]:
 def test_no_fixed_width_on_table_columns():
     assert not _all_hits(), (
         "عرضٌ ثابتٌ على عمود جدولٍ يقتطع النصَّ أو يكسره؛ استعمل `min-width`/`max-width` أو نسبةً أو `auto` "
-        f"(.claude/rules/design-system.md «أعمدةُ الجداول مرنة»): {_all_hits()}"
+        f"(.claude/rules/tables.md «أعمدةُ الجداول مرنة»): {_all_hits()}"
     )
 
 
