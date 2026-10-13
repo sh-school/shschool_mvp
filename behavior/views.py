@@ -131,11 +131,12 @@ def _get_scoped_students(request, school):
 from core.academic_calendar import academic_year_for
 
 from .notify import notify_behavior_after_commit
-from .selectors import student_picker
+from .selectors import recordable_student, student_picker
 from .services import (
     PERIOD_CHOICES,
     BehaviorPermissions,
     BehaviorService,
+    audit_infraction_read,
 )
 
 # [B4-PRE3] المساعدُ المؤجَّل — انتقل إلى `behavior/notify.py` ليستدعيه كشفُ الحصص
@@ -275,7 +276,7 @@ def report_infraction(request):
 
     if request.method == "POST":
         # معرّفُ الطالب يُسأل عنه قبل صحّة النموذج: طالبٌ خارج الجناح 404 مهما كان باقيه.
-        _require_in_wing(request, request.POST.get("student_id", "").strip())
+        recordable = recordable_student(request, school, request.POST.get("student_id", "").strip())
         form = InfractionForm(request.POST, role=request.user.get_role())
         if not form.is_valid():
             for field, errs in form.errors.items():
@@ -306,7 +307,7 @@ def report_infraction(request):
                     violation_cat = "INVALID"
 
             if violation_cat != "INVALID":
-                student = get_object_or_404(CustomUser, id=student_id)
+                student = recordable
 
                 try:
                     # [B4-PRE3] المخالفة ونيّة إشعارها في حدٍّ واحد.
@@ -413,7 +414,7 @@ def quick_log(request):
 
     if request.method == "POST":
         student_id = request.POST.get("student_id", "").strip()
-        _require_in_wing(request, student_id)
+        recordable = recordable_student(request, school, student_id)
         violation_cat_id = request.POST.get("violation_category", "").strip()
         description = request.POST.get("description", "").strip()
         action = request.POST.get("action_taken", "").strip()
@@ -452,7 +453,7 @@ def quick_log(request):
                 msg_type="danger",
             )
 
-        student = get_object_or_404(CustomUser, id=student_id)
+        student = recordable
 
         # [B4-PRE3] المخالفة ونيّة إشعارها في حدٍّ واحد — انظر report_infraction.
         with transaction.atomic():
@@ -575,6 +576,7 @@ def student_behavior_profile(request, student_id):
     context["can_summon"] = BehaviorPermissions.can_summon(request.user)
     # نماذجُ الإنذار والتعهّد لإدارة المخالفات — رابطٌ لا يُفتح لصاحبه لا يُعرض له.
     context["can_print_forms"] = has_capability(request.user, "behavior.manage")
+    audit_infraction_read(request, context["infractions"])
     return render(request, "behavior/student_profile.html", context)
 
 
@@ -616,6 +618,7 @@ def committee_decision(request, infraction_id):
         getattr(messages, level)(request, msg)
         return redirect("behavior:committee")
 
+    audit_infraction_read(request, infraction)
     return render(
         request,
         "behavior/committee_decision.html",
@@ -678,6 +681,7 @@ def behavior_report(request, student_id):
             warn_or_frozen(request, "لا يوجد بريد إلكتروني مسجَّل لأولياء الأمور.")
         return _behavior_report_redirect(request, student.id, year, period)
 
+    audit_infraction_read(request, report["infractions"])
     return render(
         request,
         "behavior/behavior_report.html",
@@ -864,6 +868,7 @@ def infraction_warning_pdf(request, infraction_id):
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.school)
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
+    audit_infraction_read(request, inf)
     return _render_behavior_pdf(
         request,
         "behavior/pdf/student_warning.html",
@@ -881,6 +886,7 @@ def infraction_parent_pdf(request, infraction_id):
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.school)
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
+    audit_infraction_read(request, inf)
     return _render_behavior_pdf(
         request,
         "behavior/pdf/parent_undertaking.html",
@@ -898,6 +904,7 @@ def infraction_student_pdf(request, infraction_id):
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.school)
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
+    audit_infraction_read(request, inf)
     return _render_behavior_pdf(
         request,
         "behavior/pdf/student_undertaking.html",
@@ -1113,6 +1120,7 @@ def student_behavior_pdf(request, student_id):
     }
     # [PII-08] لا نضع الرقم الشخصي في اسم الملف (يظهر في سجل التنزيلات والوكيل)
     filename = f"behavior_report_{student.id}_{year}.pdf"
+    audit_infraction_read(request, report["infractions"])
     return _render_behavior_pdf(
         request,
         "behavior/pdf/student_report.html",

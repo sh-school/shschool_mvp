@@ -44,10 +44,6 @@ ALLOWED_WRITERS: dict[tuple[str, str], str] = {
     ): "اعتمادُ إدخالِ معلّمٍ يكتب الرصدَ المعتمَد (قفلُ صفّ، لا فوق مصدرٍ بشريٍّ آخر، AuditLog) — لا يصله إلّا submit_entry (ESE)",
     (
         "operations/exit_reflection.py",
-        "_flip_unaccounted",
-    ): "مهمّةُ Celery: قلبُ حاضرٍ إلى غائبٍ لخروجٍ لم يُحتسب (مشتقٌّ، AuditLog)",
-    (
-        "operations/exit_reflection.py",
         "revert_derived_absence",
     ): "إرجاعُ الغياب المشتقّ من خروجٍ عند العودة/الإلغاء (يصله معلّمُ الحصّة بقيده)",
     (
