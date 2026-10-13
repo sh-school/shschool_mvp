@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import views, views_absence_followup
 from .scheduler_v2.views import v2_progress, v2_stop
 from .views_class_grid import (
     class_grid,
@@ -32,7 +32,15 @@ urlpatterns = [
     ),
     # رابطُ الحصّة القديم يفتح جدولَ شعبتها بتاريخها
     path("attendance/<uuid:session_id>/", views.attendance_view, name="attendance"),
-    path("reports/daily/", views.daily_report, name="daily_report"),
+    # «متابعة الغياب» (W-20261013-011) على المسار القديم لـ«غياب اليوم» كي لا ينكسر رابطٌ محفوظ
+    path("reports/daily/", views_absence_followup.absence_followup, name="daily_report"),
+    path(
+        "reports/daily/contact/", views_absence_followup.contact_save, name="absence_contact_save"
+    ),
+    path("reports/daily/action/", views_absence_followup.action_save, name="absence_action_save"),
+    path(
+        "reports/daily/print/", views_absence_followup.followup_print, name="absence_followup_print"
+    ),
     # -- المرحلة 2: الجداول الذكية --
     path("weekly-schedule/", views.weekly_schedule, name="weekly_schedule"),
     path("weekly-schedule/print/", views.schedule_print, name="schedule_print"),

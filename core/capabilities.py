@@ -103,6 +103,10 @@ def registry() -> dict[str, Capability]:
     from student_info.access import MODULE_ROLES as STUDENT_INFO_ROLES
 
     leadership = P.LEADERSHIP
+    #: كتابةُ «متابعة الغياب» (W-20261013-011): مشرفُ الجناح مقيَّدٌ بجناحه في العرض، والنائبُ الأكاديميّ ومنسّقُ القسم مراقبان.
+    followup_writers = frozenset(
+        {"principal", "vice_admin", "admin_supervisor", "student_affairs_coordinator", "admin"}
+    )
     #: من يتّصل بأسر الطلبة — تعريفٌ واحدٌ لقدرتَي الاستدعاء واسمِ الوليّ فلا تنجرف إحداهما.
     family_callers = P.BEHAVIOR_MANAGE | {"psychologist", "student_affairs_coordinator"}
     caps = [
@@ -489,6 +493,36 @@ def registry() -> dict[str, Capability]:
             "غيابُ اليوم (تقريرُ غياب الطلبة اليوميّ)",
             P.DAILY_STUDENT_ABSENCE_REPORT,
             basis="قرارُ المالك D-273م: إدارةُ شؤون الطلاب كاملةً لمنسّق شؤون الطلبة، دون تقارير المعلّمين",
+        ),
+        # ── متابعة الغياب (W-20261013-011، بلاغ SOS-20261012-AC00) ───────────
+        # الكتابةُ للمدير والنائب الإداريّ ومنسّق شؤون الطلبة على المدرسة، ولمشرف الجناح على جناحه
+        # (النطاقُ في العرض بـ`student_scope_for`)؛ والنائبُ الأكاديميّ ومنسّقُ القسم يراقبان بلا تسجيل.
+        _cap(
+            "operations.absence_followup_view",
+            "شاشةُ متابعة الغياب (مراقبة)",
+            P.DAILY_STUDENT_ABSENCE_REPORT,
+            basis="طلبُ المدير SOS-20261012-AC00؛ والنائبُ الأكاديميّ مراقبٌ فقط",
+        ),
+        _cap(
+            "operations.absence_followup_record",
+            "تسجيلُ الاتّصال والإجراء الإداريّ وتصحيحُهما واستلامُ الإجازة المرضيّة في متابعة الغياب",
+            followup_writers,
+            scope="المدرسة، ولمشرف الجناح جناحُه",
+            basis="طلبُ المدير SOS-20261012-AC00؛ وقرارُ المالك D-431م (الرقمُ بلا اسم)",
+        ),
+        _cap(
+            "operations.absence_followup_feedback",
+            "قراءةُ تغذيةِ الأهل الراجعة (نصٌّ مشفَّر) في متابعة الغياب",
+            followup_writers,
+            scope="المدرسة، ولمشرف الجناح جناحُه",
+            basis="PDPPL — نصٌّ حرٌّ قد يحمل بياناتٍ شخصيّة؛ وفتحُه يُدقَّق بلا نصّه",
+        ),
+        _cap(
+            "operations.absence_followup_print",
+            "طباعةُ كشف متابعة الغياب",
+            followup_writers,
+            scope="المدرسة، ولمشرف الجناح جناحُه",
+            basis="طلبُ المدير SOS-20261012-AC00",
         ),
         _cap(
             "operations.substitutes_manage",
