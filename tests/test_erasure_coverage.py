@@ -185,3 +185,53 @@ def test_followup_logs_are_erased_by_their_named_path(db, school, student_user, 
     assert summary["models"]["AbsenceActionLog"] == 1
     assert not AbsenceContactLog.objects.filter(student=student_user).exists()
     assert not AbsenceActionLog.objects.filter(student=student_user).exists()
+
+
+def test_followup_erasure_writes_counts_only_audit_and_is_called_from_the_service_alone(
+    db, school, student_user, teacher_user
+):
+    """أثرُ المحو أعدادٌ بلا محتوى (حكمُ 0104)، والدالّةُ لا تُستدعى خارج `ErasureService` (حارسٌ نصّيّ)."""
+    import os
+    import pathlib
+
+    from core.models import AuditLog
+    from operations.models import AbsenceContactLog
+
+    AbsenceContactLog.objects.create(
+        school=school,
+        student=student_user,
+        absence_date=date.today(),
+        outcome="answered",
+        feedback="نصٌّ حسّاس",
+    )
+
+    _erase(student_user, school)
+
+    entry = AuditLog.objects.filter(object_repr__startswith="متابعةُ الغياب — محوُ").get()
+    assert entry.changes == {"contacts": 1, "actions": 0}
+    assert "حسّاس" not in str(entry.changes)
+
+    root = pathlib.Path(settings.BASE_DIR)
+    skip = {
+        ".claude",
+        ".git",
+        ".venv",
+        "venv",
+        "node_modules",
+        "staticfiles",
+        "tests",
+        "migrations",
+        "__pycache__",
+    }
+    callers = []
+    for folder, dirs, files in os.walk(root):
+        dirs[:] = [d for d in dirs if d not in skip]
+        for name in files:
+            path = pathlib.Path(folder, name)
+            if name.endswith(".py") and "erase_followup_logs(" in path.read_text(encoding="utf-8"):
+                callers.append(path.relative_to(root).as_posix())
+    callers.sort()
+    assert callers == [
+        "governance/erasure_service.py",
+        "operations/services/absence_followup.py",
+    ], f"erase_followup_logs لا تُستدعى إلا من ErasureService: {callers}"

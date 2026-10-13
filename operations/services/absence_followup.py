@@ -317,13 +317,46 @@ def _class_order(row: dict) -> tuple[int, int, str]:
     )
 
 
-def erase_followup_logs(student: CustomUser) -> dict[str, int]:
-    """يمحو سجلَّي المتابعة لطالبٍ — حقُّ المحو (PDPPL م.18). **يُستدعى من `ErasureService` وحدَه.**
+def erase_followup_logs(
+    student: CustomUser, *, actor: CustomUser | None = None, school: Any = None
+) -> dict[str, int]:
+    """يمحو سجلَّي المتابعة لطالبٍ — حقُّ المحو (PDPPL م.18). **يُستدعى من `ErasureService` وحدَه** (يحرسه اختبار).
 
     السجلّان مضافان فقط فلا يمرّان بالحذف العامّ؛ والمحوُ خامٌّ بلا جامعِ تتابعٍ (`PROTECT` على `corrects` يمنعه
     ولو حُذف الطرفان معاً، والقاعدةُ تتحقّق من قيودها مؤجَّلةً بعد العبارة). لا مشغِّلَ قاعدةٍ يحجب الحذفَ هنا
     (سجلّاتُ الرصد وحدَها لها مشغِّل)، فلا علَمَ محوٍ. وتغذيةُ الأهل المشفَّرة تذهب مع صفّها.
+
+    **لا يفشل صامتاً تحت RLS** كـ`erase_attendance_ledger` (حكمُ 0104): هويّةُ المستأجِر من دور القاعدة، فدورُ
+    مدرسةٍ أخرى يرى صفراً فيُحذف 0 ويُقال «تمّ» والصفوفُ باقية. فيُرفض ابتداءً (`erasure_wrong_tenant`)، ويُتحقَّق
+    بعد الحذف ألّا يبقى شيءٌ (`erasure_incomplete`) — وكلاهما يُلغي المعاملةَ كلَّها. ويُكتب `AuditLog` بالأعداد
+    وحدَها: لا نصَّ ولا رقمَ ولا اسم.
     """
+    from operations.attendance_entries import EntryError, _role_tenant
+
+    tenant = _role_tenant()
+    if tenant is not None and school is not None and str(tenant) != str(school.pk):
+        raise EntryError(
+            "erasure_wrong_tenant",
+            f"دورُ القاعدة الحاليّ لمدرسةٍ غيرِ مدرسة «{school.name}» التي قُدّم فيها طلبُ المحو — يُنفَّذ بدور مدرستها",
+        )
     actions = AbsenceActionLog.objects.filter(student=student)._erase()
     contacts = AbsenceContactLog.objects.filter(student=student)._erase()
-    return {"contacts": contacts, "actions": actions}
+    if (
+        AbsenceActionLog.objects.filter(student=student).exists()
+        or AbsenceContactLog.objects.filter(student=student).exists()
+    ):
+        raise EntryError(
+            "erasure_incomplete", "بقيت صفوفُ متابعة الغياب بعد المحو — أُلغيت المعاملة."
+        )
+    counts = {"contacts": contacts, "actions": actions}
+    if contacts or actions:
+        AuditLog.log(
+            user=actor,
+            action="delete",
+            model_name="other",
+            object_id=student.pk,
+            object_repr="متابعةُ الغياب — محوُ سجلّ طالبٍ (PDPPL م.18)",
+            changes=counts,
+            school=school,
+        )
+    return counts

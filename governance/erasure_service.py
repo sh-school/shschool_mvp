@@ -333,7 +333,9 @@ class ErasureService:
         #     كسجلّ الرصد، فالحلقةُ العامّةُ أدناه تُسقطهما (`PermissionDenied`) — يُمحيان بمسارهما المسمّى وحدَه.
         from operations.services.absence_followup import erase_followup_logs
 
-        followup = erase_followup_logs(student)
+        followup = erase_followup_logs(
+            student, actor=erasure_request.reviewed_by, school=erasure_request.school
+        )
         if followup["contacts"]:
             summary["models"]["AbsenceContactLog"] = followup["contacts"]
         if followup["actions"]:
