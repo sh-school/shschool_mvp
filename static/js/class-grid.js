@@ -49,10 +49,25 @@
     cell.textContent = SYMBOL[status || ''];
   }
 
+  // الحالةُ المحفوظةُ لكلّ خليّةٍ عند التحميل (قبل استعادة المسوّدة) — لمعرفة أنّ الخليّةَ عادت إلى أصلها.
+  var saved = {};
+  Array.prototype.forEach.call(root.querySelectorAll('[data-cell]'), function (c) {
+    saved[c.getAttribute('data-col') + ':' + c.getAttribute('data-student')] = c.getAttribute('data-status') || '';
+  });
+
   function remember(cell) {
     var col = cell.getAttribute('data-col');
+    var student = cell.getAttribute('data-student');
+    var status = cell.getAttribute('data-status') || '';
+    // عادت الخليّةُ إلى حالتها المحفوظة: لا تغييرَ يُحفظ، فتزول علامةُ التعديل وتُحذف من المسوّدة.
+    if (saved[col + ':' + student] === status) {
+      cell.classList.remove('is-dirty');
+      if (draft[col]) { delete draft[col][student]; if (!Object.keys(draft[col]).length) delete draft[col]; }
+      writeDraft(draft);
+      return;
+    }
     draft[col] = draft[col] || {};
-    draft[col][cell.getAttribute('data-student')] = cell.getAttribute('data-status');
+    draft[col][student] = status;
     writeDraft(draft);
   }
 
@@ -127,11 +142,6 @@
   });
   root.addEventListener('mouseout', function (event) {
     if (event.target.closest('[data-exit-tip]') && pop) pop.hidden = true;
-  });
-
-  root.addEventListener('dblclick', function (event) {
-    var cell = event.target.closest('[data-cell]');
-    if (cell) openHistory(cell.getAttribute('data-student'), cell.getAttribute('data-col'));
   });
 
   function currentCol() {
