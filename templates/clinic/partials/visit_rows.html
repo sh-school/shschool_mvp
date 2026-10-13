@@ -32,7 +32,7 @@
           </td>
           <td class="text-secondary">{{ v.treatment|default:"—" }}</td>
           <td>
-            <div class="flex flex-wrap gap-1">
+            <div class="chip-row">
               {% if v.is_sent_home %}
                 <span class="status-badge status-warning">{% icon "dashboard" %} منزل</span>
               {% endif %}
