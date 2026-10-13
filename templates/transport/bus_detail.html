@@ -24,7 +24,7 @@
     {% kpi "نسبة الإشغال" occupancy_label %}
   {% endkpi_strip %}
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="ui-split">
 
     {# ── بيانات الحافلة ── #}
     <div>
@@ -38,7 +38,7 @@
             {% field "capacity" "الطاقة الاستيعابية" type="number" value=bus.capacity %}
             {% field "karwa_id" "رقم كروة" value=bus.karwa_id placeholder="اختياري" %}
             {% field "gps_link" "رابط GPS" value=bus.gps_link placeholder="https://..." %}
-            <button class="btn-primary w-full p-2">{% icon "save" %} حفظ</button>
+            <button class="btn-primary">{% icon "save" %} حفظ</button>
           </div>
         </form>
         {# هدفُ ردّ الحفظ — كان النموذجُ يشير إليه ولا عنصرَ بهذا المعرّف في الصفحة. #}
@@ -47,7 +47,7 @@
     </div>
 
     {# ── خطوط السير والطلاب ── #}
-    <div class="lg:col-span-2 space-y-4">
+    <div class="exec-dash">
 
       {% section_card "خطوط السير" meta=routes|length icon="link" empty="لا توجد خطوط سير" %}{% if routes %}
         <ul class="plain-list">
