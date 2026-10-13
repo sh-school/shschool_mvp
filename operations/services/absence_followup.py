@@ -315,3 +315,15 @@ def _class_order(row: dict) -> tuple[int, int, str]:
         int(section) if section.isdigit() else 99,
         row["student"].full_name,
     )
+
+
+def erase_followup_logs(student: CustomUser) -> dict[str, int]:
+    """يمحو سجلَّي المتابعة لطالبٍ — حقُّ المحو (PDPPL م.18). **يُستدعى من `ErasureService` وحدَه.**
+
+    السجلّان مضافان فقط فلا يمرّان بالحذف العامّ؛ والمحوُ خامٌّ بلا جامعِ تتابعٍ (`PROTECT` على `corrects` يمنعه
+    ولو حُذف الطرفان معاً، والقاعدةُ تتحقّق من قيودها مؤجَّلةً بعد العبارة). لا مشغِّلَ قاعدةٍ يحجب الحذفَ هنا
+    (سجلّاتُ الرصد وحدَها لها مشغِّل)، فلا علَمَ محوٍ. وتغذيةُ الأهل المشفَّرة تذهب مع صفّها.
+    """
+    actions = AbsenceActionLog.objects.filter(student=student)._erase()
+    contacts = AbsenceContactLog.objects.filter(student=student)._erase()
+    return {"contacts": contacts, "actions": actions}

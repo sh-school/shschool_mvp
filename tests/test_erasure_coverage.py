@@ -27,6 +27,8 @@ HANDLED_BY_DEDICATED_STEPS = {
     "core.ParentStudentLink": "الخطوة 5: حذفُ روابط الأولياء",
     "core.ConsentRecord": "الخطوة 4: حذفُ سجلّات الموافقة",
     "core.ErasureRequest": "طلبُ المحو نفسُه — دليلُ الامتثال يبقى (SET_NULL)",
+    "operations.AbsenceContactLog": "سجلٌّ مضافٌ فقط يُمحى بـ`erase_followup_logs` في الخطوة 2.6 (الحذفُ العامّ يرفضه)",
+    "operations.AbsenceActionLog": "سجلٌّ مضافٌ فقط يُمحى بـ`erase_followup_logs` في الخطوة 2.6 (الحذفُ العامّ يرفضه)",
     "operations.AttendanceEntry": "سجلٌّ ملحقٌ يُمحى بـ`erase_attendance_ledger` في ErasureService قبل جمع الملفّات — ولا حذفَ عاديَّ يمرّ من مُشغِّل القاعدة",
 }
 
@@ -156,3 +158,30 @@ def test_dedicated_step_exemptions_still_exist():
     """الاستثناءاتُ لا تتقادم: نموذجٌ حُذف أو غُيّر حقلُه يُزال من القائمة."""
     for label in HANDLED_BY_DEDICATED_STEPS:
         assert apps.get_model(label)._meta.get_field("student")
+
+
+def test_followup_logs_are_erased_by_their_named_path(db, school, student_user, teacher_user):
+    """سجلّا متابعة الغياب مضافان فقط: المحوُ يمرّ بمساره المسمّى (لا PermissionDenied) ولا يبقى منهما ولا تغذيةُ الأهل."""
+    from operations.models import AbsenceActionLog, AbsenceContactLog
+
+    day = date.today()
+    first = AbsenceContactLog.objects.create(
+        school=school,
+        student=student_user,
+        absence_date=day,
+        outcome="answered",
+        feedback="نصٌّ حسّاس",
+    )
+    AbsenceContactLog.objects.create(
+        school=school, student=student_user, absence_date=day, outcome="no_answer", corrects=first
+    )
+    AbsenceActionLog.objects.create(
+        school=school, student=student_user, absence_date=day, status="done", acted_by=teacher_user
+    )
+
+    summary = _erase(student_user, school)
+
+    assert summary["models"]["AbsenceContactLog"] == 2
+    assert summary["models"]["AbsenceActionLog"] == 1
+    assert not AbsenceContactLog.objects.filter(student=student_user).exists()
+    assert not AbsenceActionLog.objects.filter(student=student_user).exists()
