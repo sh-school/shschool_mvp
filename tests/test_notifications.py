@@ -583,10 +583,10 @@ class TestBehaviorHubIntegration:
         assert InAppNotification.objects.filter(event_type="behavior").count() == 0
 
     @patch("notifications.hub._queue_external_after_commit")
-    def test_notify_parents_title_contains_student_name(
+    def test_notify_parents_title_has_no_student_name(
         self, mock_queue, school, student_user, teacher_user, parent_user
     ):
-        """العنوان يحتوي على اسم الطالب"""
+        """العنوان موضوعُ البريد الخارجيّ: بلا اسم الطالب (W-20261012-031)"""
         from behavior.services import BehaviorService
 
         inf = BehaviorInfractionFactory(
@@ -598,7 +598,7 @@ class TestBehaviorHubIntegration:
         BehaviorService.notify_parents(inf, school, teacher_user)
 
         notif = InAppNotification.objects.get(user=parent_user)
-        assert student_user.full_name in notif.title
+        assert student_user.full_name not in notif.title
 
 
 # ══════════════════════════════════════════════════════════
