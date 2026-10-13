@@ -46,6 +46,7 @@ TAG = re.compile(r"<(?:a|button)\b[^>]*>", re.S)
 #: فيهما كان يُسقط مولّدَ PDF الاحتياطيّ.
 STANDALONE_EXEMPT = {
     "templates/auth/login.html",
+    "templates/auth/session_done.html",  # وجهةُ إطار إعادة الدخول: تُغلق نفسَها ولا تُعرض مستقلّةً
     "templates/base/base.html",
     "templates/email/_base.html",
     "templates/errors/_error_page.html",
