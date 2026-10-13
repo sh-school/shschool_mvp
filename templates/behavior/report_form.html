@@ -105,12 +105,7 @@
           <label for="disciplinaryActionType" class="form-label">الإجراء التأديبي <span class="required" aria-hidden="true">*</span></label>
           <select name="disciplinary_action_type" id="disciplinaryActionType" required aria-required="true" class="form-control">
             <option value="">-- اختر الإجراء --</option>
-            <option value="verbal_warning">تنبيه شفهي</option>
-            <option value="written_pledge">تعهد خطي</option>
-            <option value="incident_report">محضر لإثبات المخالفة</option>
-            <option value="parent_pledge">تعهد خطي لولي الأمر</option>
-            <option value="social_specialist_referral">تحويل للأخصائي الاجتماعي</option>
-            <option value="parent_summons">استدعاء ولي الأمر</option>
+            {% for value, label in action_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
           </select>
         </div>
       </div>

@@ -9,7 +9,7 @@
 الكلفةُ التراكميّةُ بصيغتها المغلقة:
 
     extra_edge_period   e أطرافٍ للمعلّم ← 1+2+…+(e−1) = e(e−1)/2
-    daily_load          e فوق السقف     ← 1+2+…+e     = e(e+1)/2 (×2 لمن كُتب تفضيلُه)
+    daily_load          e فوق السقف     ← 1+2+…+e     = e(e+1)/2 (×2 لسقفٍ صريحٍ غيرِ الافتراض)
     first_period_floor  مكافأةٌ متصاعدةٌ: الأولى 2 والثانيةُ 1 (MIN_FIRST_PERIODS=2)
 
 **لا حركةَ عن جدولٍ قائم**: لا يدخل الجدولُ الحاليُّ أيَّ حدٍّ هنا (قرارُ المالك
@@ -35,6 +35,9 @@ from typing import TYPE_CHECKING, Protocol
 
 from ..constraint_registry import SOFT_CONSTRAINTS
 
+# السقفُ الافتراضيُّ وعاملُ الصريح من مصدرهما لا نسخةً: «الصريح» يُقاس بالافتراض نفسِه (W-20261012-025).
+from ..scheduling_limits import DEFAULT_MAX_DAILY, EXPLICIT_PREFERENCE_FACTOR, is_explicit_daily_cap
+
 if TYPE_CHECKING:
     from ortools.sat.python import cp_model
 
@@ -50,8 +53,6 @@ FIRST_PERIOD, LAST_PERIOD = 1, 7
 #: آخرُ حصّةٍ في «النصف الأوّل» (المختبر: `MORNING_LAST`) — الثقيلةُ بعدها تُعاقَب والنشاطُ فيه.
 MORNING_LAST = 4
 MIN_FIRST_PERIODS = 2
-DEFAULT_MAX_DAILY = 5
-EXPLICIT_PREFERENCE_FACTOR = 2
 HIGH_WEEKLY_THRESHOLD = 5
 #: التلاصقُ بالساعة (HC5): فجوةٌ ≤ 10 دقائق بين حصّتين تُعدّ اتّصالاً.
 JOINABLE_GAP_MINUTES = 10
@@ -350,7 +351,7 @@ def subject_spread(ctx: SoftContext):
 
 
 def daily_load(ctx: SoftContext):
-    """الحملُ اليوميُّ فوق السقف يتصاعد: e فوقه ⇒ e(e+1)/2، مضاعفاً لمن كُتب تفضيلُه."""
+    """الحملُ اليوميُّ فوق السقف يتصاعد: e فوقه ⇒ e(e+1)/2، مضاعفاً لمن كُتب سقفُه بغير الافتراض."""
     m = ctx.model
     terms = []
     for teacher in ctx.rows_of_teacher:
@@ -369,8 +370,10 @@ def daily_load(ctx: SoftContext):
 
 def _load_cap(inputs: CpSatInputs, teacher: str) -> tuple[int, int]:
     pref = inputs.prefs.get(teacher)
-    if pref is not None and pref.max_daily_periods is not None:
-        return pref.max_daily_periods, EXPLICIT_PREFERENCE_FACTOR
+    cap = pref.max_daily_periods if pref is not None else None
+    if is_explicit_daily_cap(cap):
+        return cap, EXPLICIT_PREFERENCE_FACTOR
+    # الـ5 المخزَّنةُ (أو لا صفّ) افتراضٌ لا قرار: لا يُضاعَف (W-20261012-025).
     return DEFAULT_MAX_DAILY, 1
 
 

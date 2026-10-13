@@ -58,7 +58,9 @@ def test_the_penalty_grows_with_the_excess():
 
 
 def test_a_written_preference_outweighs_the_default():
-    written = daily_load_weight(DEFAULT_MAX_DAILY, {"max_daily": DEFAULT_MAX_DAILY})
+    """عند التجاوز نفسِه. والمكتوبُ سقفٌ يخالف الافتراض: الـ5 المخزَّنةُ «لم يقرّر» (W-20261012-025)."""
+    cap = DEFAULT_MAX_DAILY - 1
+    written = daily_load_weight(cap, {"max_daily": cap})
     default = daily_load_weight(DEFAULT_MAX_DAILY, None)
 
     assert written == default * EXPLICIT_PREFERENCE_FACTOR

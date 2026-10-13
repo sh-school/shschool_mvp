@@ -24,7 +24,7 @@
   table.asg-guard-table { width: 100%; border-collapse: collapse; font-size: 0.78125rem; color: var(--text-primary); }
   /* `thead th` العامّة تكتب بالأبيض على الخمريّ. وهذه الترويسةُ فاتحةٌ داخل
      بطاقةِ التنبيه، فبلا لونٍ صريحٍ يصير الأبيضُ على الفاتح — نصٌّ لا يُقرأ. */
-  table.asg-guard-table th { position: sticky; top: 0; background: var(--surface-alt); color: var(--text-primary); font-weight: 700; text-align: right; padding: 5px var(--sp-2); border-bottom: 1px solid var(--border); }
+  table.asg-guard-table th { position: sticky; top: 0; background: var(--surface-alt); color: var(--text-primary); font-weight: 700; text-align: start; padding: 5px var(--sp-2); border-bottom: 1px solid var(--border); }
   table.asg-guard-table td { padding: var(--sp-1) var(--sp-2); color: var(--text-primary); border-bottom: 1px solid var(--border); }
   /* أربعةَ عشرَ قسماً عمودان لا عمودٌ واحد بعرض الصفحة (قرارُ 2026-09-18):
      `align-items: start` كي لا يتمدّد العمودُ الأقصر إلى طول جاره. */
@@ -81,8 +81,8 @@
   table.asg { width: 100%; border-collapse: collapse; margin-top: var(--sp-2); font-size: 0.8125rem; }
   /* ترويسةٌ عنابيّةٌ ⇒ نصٌّ أبيض. كان اللونُ هنا `--text-muted` رماديّاً على
      أرضيّة `thead tr` العنابيّة، فالتخصيصُ الأخصُّ يغلب العامَّ ويبهت الرأس. */
-  table.asg thead th { text-align: right; color: var(--on-fill); font-weight: 600; padding: var(--sp-1) var(--sp-1-5); }
-  table.asg tbody th { text-align: right; color: var(--text-muted); font-weight: 600; padding: var(--sp-1) var(--sp-1-5); border-bottom: 1px solid var(--border); }
+  table.asg thead th { text-align: start; color: var(--on-fill); font-weight: 600; padding: var(--sp-1) var(--sp-1-5); }
+  table.asg tbody th { text-align: start; color: var(--text-muted); font-weight: 600; padding: var(--sp-1) var(--sp-1-5); border-bottom: 1px solid var(--border); }
   table.asg td { padding: var(--sp-1) var(--sp-1-5); border-bottom: 1px solid var(--border); vertical-align: middle; }
   table.asg input[type=number] { width: 54px; padding: 3px 5px; border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; text-align: center; }
   table.asg select { padding: 5px var(--sp-2); border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; font-size: 0.8125rem; background: var(--surface); min-width: 170px; }
@@ -972,6 +972,8 @@
     table-layout: fixed; border-collapse: separate; border-spacing: 0;
     font-size: clamp(0.5625rem, 0.58vw, 0.8125rem); line-height: 1.5;
   }
+  /* استثناءٌ مقصودٌ من المنطقيّ: حدودُ المصفوفة (`border-right*`) فيزيائيّةٌ عمداً — خلايا الحصص `.m-cell` بـ`direction: ltr` فتنقلب الحدودُ
+     المنطقيّةُ فيها عن بقيّة الصفّ، والمصفوفةُ تُطبع بـWeasyPrint (دعمُه للحدود المنطقيّة غيرُ مضمون)؛ والخطُّ الفاصلُ بين الأيّام يجب أن يبقى في موضعه. */
   .table-wrap .schedule-matrix th,
   .table-wrap .schedule-matrix td {
     padding: 0; text-align: center; vertical-align: middle; white-space: nowrap; overflow: hidden;
@@ -1470,7 +1472,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  transition: all .2s;
+  transition: color .2s ease, background-color .2s ease, border-bottom-color .2s ease;
 }
 .tab-btn:hover { color: var(--text-primary); background: var(--surface-alt); }
 .tab-btn.active { color: var(--maroon-fg); border-bottom-color: var(--maroon); font-weight: 600; }

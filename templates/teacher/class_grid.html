@@ -90,19 +90,25 @@
               </td>
               {% endfor %}
               {% if page.can_write %}
-              <td class="cg-acts"><div class="cg-acts__box">
-                <button type="button" class="btn-secondary btn-sm" data-late="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>متأخّر</button>
-                {% if row.exit %}
-                <span class="status-badge status-warning">خارج: {{ row.exit.get_destination_display }} · <time data-out-since="{{ row.exit.left_at|date:'U' }}">00:00</time></span>
-                <button type="button" class="btn-secondary btn-sm" data-exit-return="{{ row.student.pk }}">عاد</button>
-                {% else %}
-                <select class="form-select cg-dest" data-exit-dest="{{ row.student.pk }}" aria-label="وجهة خروج {{ row.student.full_name }}"{% if not page.current %} disabled{% endif %}>
-                  {% for code, label in page.destinations %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
-                </select>
-                <button type="button" class="btn-secondary btn-sm" data-exit="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>خروج</button>
-                {% endif %}
-                <a class="btn-secondary btn-sm" href="{% url 'behavior:report_infraction' %}?student={{ row.student.pk }}&next={{ request.path|urlencode }}">مخالفة</a>
-                </div>
+              {# الحاسوب: الإجراءاتُ ظاهرةٌ في الخليّة نفسها (الحوارُ يُرسم مضمَّناً). الهاتف (W-20261012-028): زرٌّ واحدٌ «إجراءات» يفتح الحوارَ ورقةً من الأسفل بدل أربعة أزرارٍ في كلّ صفّ. #}
+              <td class="cg-acts">
+                <button type="button" class="btn-secondary cg-acts__open" data-acts-open="{{ row.student.pk }}" aria-haspopup="dialog">إجراءات{% if row.exit %} · خارج{% endif %}</button>
+                <dialog class="cg-sheet" role="group" data-acts-sheet="{{ row.student.pk }}" aria-label="إجراءات {{ row.student.full_name }}">
+                  <div class="cg-sheet__head"><strong>{{ row.student.full_name }}</strong><button type="button" class="btn-secondary" data-sheet-close>إغلاق</button></div>
+                  <div class="cg-acts__box">
+                    <button type="button" class="btn-secondary btn-sm" data-late="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>متأخّر</button>
+                    {% if row.exit %}
+                    <span class="status-badge status-warning cg-acts__out">خارج: {{ row.exit.get_destination_display }} · <time data-out-since="{{ row.exit.left_at|date:'U' }}">00:00</time></span>
+                    <button type="button" class="btn-secondary btn-sm" data-exit-return="{{ row.student.pk }}">عاد</button>
+                    {% else %}
+                    <select class="form-select cg-dest" data-exit-dest="{{ row.student.pk }}" aria-label="وجهة خروج {{ row.student.full_name }}"{% if not page.current %} disabled{% endif %}>
+                      {% for code, label in page.destinations %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+                    </select>
+                    <button type="button" class="btn-secondary btn-sm" data-exit="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>خروج</button>
+                    {% endif %}
+                    <a class="btn-secondary btn-sm" href="{% url 'behavior:report_infraction' %}?student={{ row.student.pk }}&next={{ request.path|urlencode }}">مخالفة</a>
+                  </div>
+                </dialog>
               </td>
               {% endif %}
             </tr>
@@ -130,6 +136,14 @@
           {% endif %}
         </table>
       </div>
+      {% if page.can_write %}
+      {# شريطُ المفاتيح السفليّ للهاتف: يظهر في وضع الهاتف وحدَه بدل تذييل الجدول، ويتبع التبويبَ المعروض (يضبطه JS). التسميات كاملةٌ لا رموزٌ. #}
+      <div class="cg-keybar" data-keybar role="group" aria-label="مفاتيح الحصّة المعروضة">
+        <button type="button" class="btn-secondary" data-bulk="all_present" data-col="">الكلُّ حاضر</button>
+        <button type="button" class="btn-secondary" data-bulk="all_absent" data-col="">الكلُّ غائب</button>
+        <button type="button" class="btn-primary" data-save-col="">حفظ ح<span data-keybar-col></span></button>
+      </div>
+      {% endif %}
       <p class="ui-note" data-grid-status role="status" aria-live="polite"></p>
       <dialog class="cg-dialog" data-history-dialog aria-label="سجلّ الخليّة"><div data-history-body></div><form method="dialog" class="cg-dialog__foot"><button class="btn-secondary btn-sm">إغلاق</button></form></dialog>
     </div>

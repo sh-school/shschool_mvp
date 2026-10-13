@@ -105,10 +105,7 @@
   },
   "palette_class": {},
   "physical_side": {
-   "static/css/custom/20-components.css": 4,
-   "static/css/custom/30-modules-1.css": 6,
-   "static/css/custom/32-modules-3.css": 10,
-   "static/css/custom/50-utilities.css": 4
+   "static/css/custom/32-modules-3.css": 7
   },
   "style_block": {
    "templates/admin/notifications/purge_confirm.html": 1,
@@ -129,11 +126,7 @@
    "templates/schedule/print_pages.html": 2,
    "templates/schedule/print_schedule.html": 2
   },
-  "transition_all": {
-   "static/css/custom/20-components.css": 1,
-   "static/css/custom/30-modules-1.css": 7,
-   "static/css/custom/32-modules-3.css": 1
-  }
+  "transition_all": {}
  },
  "undefined_classes": []
 }

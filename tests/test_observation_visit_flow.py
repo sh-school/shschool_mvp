@@ -21,6 +21,8 @@ from quality.observation_services import ObservationService
 from quality.observation_views import _pdf_context
 from quality.presentation import signature_stamps
 
+pytestmark = pytest.mark.pin_clock
+
 HOST = "localhost"
 
 
