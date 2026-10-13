@@ -44,7 +44,7 @@ def _excuse(school, student, by, name="secret-medical-report.pdf"):
 
 
 def _url(excuse):
-    return reverse("wings:excuse_document", args=[excuse.pk])
+    return reverse("wings:excuse_document_export", args=[excuse.pk])
 
 
 def _opened():
@@ -193,7 +193,7 @@ class TestNoDirectMediaLinkInTheTemplates:
         for name in ("excuse_requests.html", "partials/excuse_card.html"):
             text = (root / name).read_text(encoding="utf-8")
             assert "document.url" not in text, name
-            assert "wings:excuse_document" in text, name
+            assert "wings:excuse_document_export" in text, name
 
     def test_no_template_anywhere_uses_document_url(self):
         root = pathlib.Path(__file__).resolve().parent.parent / "templates"

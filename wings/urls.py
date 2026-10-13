@@ -58,7 +58,7 @@ urlpatterns = [
     path(
         "excuses/<uuid:pk>/document/",
         views_excuse_document.excuse_document,
-        name="excuse_document",
+        name="excuse_document_export",
     ),
     path(
         "excuses/requests/<uuid:pk>/decide/",
