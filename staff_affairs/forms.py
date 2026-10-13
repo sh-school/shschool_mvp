@@ -70,6 +70,16 @@ class LeaveRequestForm(forms.Form):
         return cleaned
 
 
+class LeaveRequestSelfForm(LeaveRequestForm):
+    """طلبُ الموظّف إجازةً لنفسه — النموذجُ نفسُه بلا حقل الموظّف (W-20261009-023، D-301م).
+
+    الموظّفُ هو الحسابُ الداخل يُربط في العرض؛ ولأنّ الحقلَ غيرُ معرَّفٍ هنا فأيُّ ``staff_id``
+    مُرسَلٍ في الطلب لا يصل إلى ``cleaned_data`` أصلاً.
+    """
+
+    staff_id = None  # type: ignore[assignment]  # يُزال الحقلُ المعرَّف في الأصل
+
+
 class LeaveReviewForm(forms.Form):
     """مراجعة طلب إجازة — موافقة أو رفض."""
 

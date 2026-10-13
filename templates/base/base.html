@@ -92,6 +92,7 @@
     {# ── Logo + اسم المدرسة ── #}
     {% if request.user|can_open:"dashboard" %}
     <a href="{% url 'dashboard' %}" class="nb nav-logo">
+      {% load school_logo %}{% school_logo "nav" %}
       <span class="nav-logo-text">{{ current_school.name|default:"المدرسة" }}</span>
     </a>
     {% endif %}

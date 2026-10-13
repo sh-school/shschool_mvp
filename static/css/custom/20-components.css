@@ -78,6 +78,14 @@
 .nav-logo      { font-weight: 700; font-size: var(--text-sm); gap: 7px; flex-shrink: 0; padding: var(--sp-1) var(--sp-2); }
 .nav-logo-text { white-space: nowrap; }
 
+/* شعارُ المدرسة «ش» (W-20261012-012، D-404م) — الوسمُ `{% school_logo %}` ومصدرُه `core/school_logo.py`.
+   المربّعُ بلون الترويسة العنّابيّ نفسِه، فلولا حلقةٌ فاتحةٌ شفّافةٌ ذاب إطارُه فيها وبقي الحرفُ عائماً بلا حدّ. */
+.school-logo { display: block; flex-shrink: 0; border-radius: var(--radius-md); box-shadow: 0 0 0 1px color-mix(in srgb, var(--on-fill) 55%, transparent); }
+.school-logo--nav { inline-size: var(--sp-8); block-size: var(--sp-8); border-radius: var(--radius-sm); }
+.school-logo--login { inline-size: 3.5rem; block-size: 3.5rem; margin: 0 auto var(--sp-3-5); }
+.school-logo--sheet { inline-size: var(--sp-12); block-size: var(--sp-12); }
+.school-logo--print { inline-size: var(--sp-10); block-size: var(--sp-10); }
+
 /* زر الهامبرغر (الجوال) */
 .nav-hamburger {
   display: none;
@@ -848,16 +856,6 @@ tr.active {
 /* ════════════════════
    مكوّنات الصفحة — Page Layout Components
    ════════════════════ */
-
-/* ── عنوان الصفحة ── */
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-6);
-}
 
 /* ════════════════════
    Detail/Profile Layout (MTG-2026-004-STR)

@@ -254,7 +254,17 @@ class AbsenceExcuseAdmin(SensitiveFieldsMixin, ReadOnlyAdminMixin, SchoolScopedA
     list_filter = ("status", "kind", "after_deadline", "school")
     search_fields = ("student__full_name", "student__national_id")
     date_hierarchy = "date_from"
-    sensitive_fields = ("kind", "notes", "document", "override_reason", "rejection_reason")
+    sensitive_fields = (
+        "kind",
+        "notes",
+        "document",
+        "override_reason",
+        "rejection_reason",
+        "applicant_name",
+        "applicant_relation",
+        "applicant_phone",
+        "pledge_accepted",
+    )
 
 
 @admin.register(GuardianContact)
