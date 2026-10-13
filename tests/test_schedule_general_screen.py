@@ -59,7 +59,8 @@ class TestTheGeneralScheduleIsARealTable:
 
         assert '<table class="schedule-matrix">' in body
         assert "sheet-scroll" in body and "schedule-sheet-frame" not in body
-        assert "<iframe" not in body
+        # إطارُ حارس الجلسة (`data-sg-frame`) مقصودٌ في كلّ صفحة لتسجيل الدخول داخلها عند انتهاء الجلسة، فلا يُعدّ إطاراً للجدول.
+        assert not re.search(r"<iframe(?![^>]*data-sg-frame)", body)
 
     def test_the_toolbar_names_paper_and_orientation_for_export(self, world, client):
         body = _page(client, world)

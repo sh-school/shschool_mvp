@@ -78,43 +78,6 @@
     padding: 24px;
   }
 
-  /* ── Header ── */
-  .schedule-header {
-    text-align: center;
-    margin-bottom: 20px;
-  }
-  .schedule-header .ministry {
-    font-size: 13px;
-    color: {% brand_color "TEXT_SECONDARY" %};
-    margin-bottom: 4px;
-  }
-  .schedule-header .school-name {
-    font-size: 22px;
-    font-weight: 700;
-    color: {% brand_color "MAROON" %};
-    margin: 6px 0;
-  }
-  .schedule-header .title {
-    font-size: 16px;
-    font-weight: 600;
-    color: {% brand_color "TEXT_PRIMARY" %};
-  }
-  .schedule-header .year {
-    font-size: 12px;
-    color: {% brand_color "TEXT_MUTED" %};
-    margin-top: 4px;
-  }
-
-  /* ── Footer ── */
-  .schedule-footer {
-    text-align: center;
-    margin-top: 16px;
-    font-size: 11px;
-    color: {% brand_color "TEXT_MUTED" %};
-    border-top: 1px solid {% brand_color "BORDER" %};
-    padding-top: 10px;
-  }
-
   /* على الشاشة الورقةُ بعرض الإطار كلِّه. وشبكةُ المعلّم والشعبة بأبعاد الورق
      نفسِها (pdf/week_grid_css.html)، فالمعروضُ هو المطبوع. */
   @media screen {
@@ -329,15 +292,10 @@
      فيشغل الجدولُ في الملفّ ثُلثَ الورقة وتحته فراغ (بلاغ 2026-09-14). فالرأسُ
      والذيلُ الآن ثابتا الارتفاع، وارتفاعُ الصفّ ما بقي مقسوماً على الأيّام. */
 {% include "schedule/pdf/week_grid_css.html" %}
-  @page { size: {% if paper == 'a3' %}A3{% else %}A4{% endif %} {{ orient }}; margin: {{ geo.css.margin }}; }
+  {% comment %}هندسةُ الصفحة والترويسةُ والتذييلُ من الإطار المركزيّ (`{% print_frame_css paper orient "sheet" %}` بعد `</style>`) — W-20261010-057.{% endcomment %}
   @media print {
     html, body { height: auto; }
     .schedule-print { padding: 0; }
-    .schedule-header { height: {{ geo.css.header_h }}; margin: 0 0 {{ geo.css.gap }}; overflow: hidden; box-sizing: border-box; }
-    .schedule-header .ministry, .schedule-header .year { font-size: 7.5pt; line-height: 3.2mm; margin: 0; }
-    .schedule-header .school-name { font-size: 12pt; line-height: 5.4mm; margin: 0; }
-    .schedule-header .title { font-size: 10pt; line-height: 4.4mm; margin: 0; }
-    .schedule-footer { height: {{ geo.css.footer_h }}; margin-top: {{ geo.css.gap }}; padding-top: 1.2mm; box-sizing: border-box; overflow: hidden; font-size: 6.5pt; line-height: 1.45; }
   }
   {% endif %}
 
@@ -424,7 +382,7 @@
   }
   {% endif %}
 </style>
-{% if view_type == 'all_teachers' and paper == 'a3' %}{% print_frame_css "a3" "landscape" %}{% endif %}
+{% if view_type == 'all_teachers' and paper == 'a3' %}{% print_frame_css "a3" "landscape" %}{% elif view_type != 'all_teachers' %}{% print_frame_css paper orient "sheet" %}{% endif %}
 {% comment %}
 خطُّ الورقة تجوّل — على الشاشة من `/static/`، وفي PDF من القرص.
 
@@ -578,12 +536,8 @@
   {% endif %}
 
 {% else %}
-  <div class="schedule-header">
-    {% load ministry %}{% ministry_name as ministry %}{% if ministry %}<div class="ministry">{{ ministry }}</div>{% endif %}
-    <div class="school-name">{{ school.name }}</div>
-    <h1 class="title">{{ title }}</h1>
-    <div class="year">العام الدراسي &#8294;{{ year }}&#8297;{% if source == "actual" %} — الأسبوع {{ nav.range }}{% endif %}</div>
-  </div>
+  {% schedule_subtitle year source nav.range as subtitle_text %}
+  {% print_frame_header paper orient school title subtitle=subtitle_text for_pdf=for_pdf %}
 
   {% comment %}
   السطرُ يومٌ والعمودُ حصّة (قرار 2026-09-08، وكان العكس). والسببُ ليس العادةَ
@@ -596,12 +550,7 @@
   {% if view_type == "class" %}{% include "schedule/pdf/week_grid.html" with who="teacher" %}{% else %}{% include "schedule/pdf/week_grid.html" with who="class" %}{% endif %}
   {% if nav.kinds or nav.notes %}{% include "schedule/pdf/week_notes.html" %}{% endif %}
 
-  <div class="schedule-footer">
-    {% load ministry %}{% ministry_name as ministry_footer %}{% if ministry_footer %}{{ ministry_footer }} &nbsp;|&nbsp;
-    {% endif %}{{ school.name }} &nbsp;|&nbsp;
-    تاريخ الطباعة: {% now "Y/m/d" %}<br>
-    {% include "components/ministry_vision.html" %}
-  </div>
+  {% print_frame_footer paper orient school %}
 {% endif %}
 </div>
 

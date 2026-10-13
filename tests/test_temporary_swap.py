@@ -20,7 +20,7 @@ from operations.models import ScheduleSlot, Session, TeacherSwap
 from operations.services import SwapService
 from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, UserFactory
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 
 def _teacher(school, name, department=None, role="teacher"):

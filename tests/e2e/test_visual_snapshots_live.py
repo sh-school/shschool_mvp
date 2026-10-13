@@ -34,18 +34,25 @@ pytestmark = [
 ]
 
 #: Chart.js يرسم على canvas بحركةٍ (≈1s) لا يعطّلها `animations="disabled"` (CSS فقط) — فتُلتقط اللوحةُ في منتصف الرسم. يُعطَّل عند تعريف المكتبة.
+#: ويُسجَّل معه ملحقٌ يضع `data-rendered` على الـcanvas في `afterRender` بعد `requestAnimationFrame` مرّتين: وجودُ `getChart` يسبق أوّلَ رسمٍ فعليّ
+#: (W-20261013-001: لقطة mobile/dark/leadership--dashboard غير حتميّة)، فالعلامةُ هي الدليلُ على أنّ البكسلات رُسمت وعُرضت.
 NO_CHART_ANIMATION = (
-    "(function(){var c;Object.defineProperty(window,'Chart',{configurable:true,"
-    "get:function(){return c},set:function(v){c=v;try{v.defaults.animation=false}catch(e){}}})})();"
+    "(function(){var c;var mark={id:'vsRendered',afterRender:function(ch){"
+    "requestAnimationFrame(function(){requestAnimationFrame(function(){"
+    "try{ch.canvas.setAttribute('data-rendered','1')}catch(e){}})})}};"
+    "Object.defineProperty(window,'Chart',{configurable:true,"
+    "get:function(){return c},set:function(v){c=v;"
+    "try{v.defaults.animation=false}catch(e){}try{v.register(mark)}catch(e){}}})})();"
 )
 LOGIN_PATH = "/auth/login/"
 
 #: الرسومُ البيانيّة (Chart.js 4) تُنشأ بعد `fetch` غير متزامنٍ — لوحةُ القيادة: «الحضور» و«الدرجات» — فلقطةٌ تلي التحميلَ بـ300ms ثابتةً
 #: تسبق الرسمَ أحياناً وتلحقه أحياناً: لقطتان متتاليتان على الصفحة نفسِها تختلفان (0.38% في تشغيلَين متتاليَين على main، 2026-10-08)، والفرقُ
-#: رسمٌ حاضرٌ في إحداهما غائبٌ في الأخرى. فيُنتظر أن يملك كلُّ `canvas` رسمَه (أو تنقضي مهلةٌ قصيرةٌ لصفحةٍ لا يُنشأ لها رسمٌ).
+#: رسمٌ حاضرٌ في إحداهما غائبٌ في الأخرى. فيُنتظر أن يملك كلُّ `canvas` رسمَه ويحمل `data-rendered` (أو تنقضي مهلةٌ قصيرةٌ لصفحةٍ لا يُنشأ لها رسمٌ).
 CHARTS_READY = (
     "() => !window.Chart || !window.Chart.getChart || "
-    "Array.from(document.querySelectorAll('canvas')).every(c => window.Chart.getChart(c))"
+    "Array.from(document.querySelectorAll('canvas')).every("
+    "c => window.Chart.getChart(c) && c.hasAttribute('data-rendered'))"
 )
 CHARTS_READY_TIMEOUT_MS = 4_000
 

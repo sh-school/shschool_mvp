@@ -19,22 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
-    services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          POSTGRES_DB: restore_test
-          POSTGRES_USER: restore_user
-          POSTGRES_PASSWORD: restore_pass
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U restore_user -d restore_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-
     steps:
+      # للإجراء المحلّي native-postgres أدناه (هذه الوظيفةُ لم تكن تسحب المستودع)
+      - uses: actions/checkout@v7
+
       - name: كشف توفّر R2
         id: prep
         run: |
@@ -101,16 +89,16 @@ jobs:
           run-id: ${{ steps.latest.outputs.run_id }}
           github-token: ${{ github.token }}
 
-      - name: تثبيت PostgreSQL 18 وGnuPG
-        run: |
-          set -euo pipefail
-          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc |
-            sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
-          sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-18 gnupg
-          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+      # PostgreSQL 18 الأصليّ (نسخةُ الإنتاج نفسُها) بدل حاويةِ خدمةٍ تُسحب من Docker Hub (سقفُ السحب غيرُ الموثَّق) — W-20261010-016
+      - uses: ./.github/actions/native-postgres
+        with:
+          version: "18"
+          db_user: restore_user
+          db_password: restore_pass
+          db_name: restore_test
+
+      - name: GnuPG جاهز (مثبَّتٌ على صورة الـrunner)
+        run: gpg --version | head -1
 
       - name: فك التشفير دون طباعة البيانات
         env:

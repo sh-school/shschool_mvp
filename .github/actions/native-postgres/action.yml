@@ -1,9 +1,21 @@
-name: Postgres 16 أصليّ على الـrunner (بلا Docker)
+name: Postgres أصليّ على الـrunner (بلا Docker)
 description: >-
-  يشغّل postgres 16 المثبَّت أصلاً على صورة ubuntu-24.04 بمجلّد بياناتٍ على الذاكرة (/dev/shm) وبإعداداتٍ سريعةٍ للاختبار،
-  بدل حاويةِ خدمةٍ تُسحب من Docker Hub (يسقطها سقفُ السحب غيرِ الموثَّق: toomanyrequests). المستخدم test_user وكلمتُه كلمةُ الاختبار المعتادة نفسُها
+  يشغّل postgres المثبَّت أصلاً على صورة ubuntu-24.04 (16) أو المثبَّت من مستودع PGDG (18) بمجلّد بياناتٍ على الذاكرة (/dev/shm) وبإعداداتٍ سريعةٍ للاختبار،
+  بدل حاويةِ خدمةٍ تُسحب من Docker Hub (يسقطها سقفُ السحب غيرِ الموثَّق: toomanyrequests). الافتراضيّ: المستخدم test_user وكلمتُه كلمةُ الاختبار المعتادة نفسُها
   وقاعدتُه test_db على 127.0.0.1:5432 — كما كانت الحاويةُ، فلا يتغيّر إعدادُ أيّ وظيفة.
 inputs:
+  version:
+    description: "الإصدار الرئيس: 16 (مثبَّتٌ على الصورة) أو 18 (يُثبَّت من PGDG — نسخةُ الإنتاج، تحتاجها وظيفةُ الاستعادة)"
+    default: "16"
+  db_user:
+    description: اسم المستخدم المُنشأ (مالكُ القاعدة)
+    default: test_user
+  db_password:
+    description: كلمةُ مرور المستخدم (كلمةُ اختبارٍ لا سرٌّ حقيقيّ)
+    default: test_pass  # pragma: allowlist secret
+  db_name:
+    description: القاعدةُ المُنشأة
+    default: test_db
   redis:
     description: "true ⇒ يُثبَّت redis-server من apt ويُشغَّل على 127.0.0.1:6379 (اختباراتُ طبقة القنوات تحتاج redis حقيقياً)"
     default: "false"
@@ -13,30 +25,48 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: تشغيل postgres 16 على الذاكرة
+    - name: تثبيت postgres من PGDG (للإصدارات غير المثبَّتة على الصورة)
+      if: inputs.version != '16'
+      shell: bash
+      env:
+        PGVER_IN: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+        curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc |
+          sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+        sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq "postgresql-${PGVER_IN}" "postgresql-client-${PGVER_IN}"
+        echo "/usr/lib/postgresql/${PGVER_IN}/bin" >> "$GITHUB_PATH"
+    - name: تشغيل postgres على الذاكرة
       shell: bash
       env:
         PGPORT_IN: ${{ inputs.port }}
+        PGVER_IN: ${{ inputs.version }}
+        PGUSER_IN: ${{ inputs.db_user }}
+        PGPASS_IN: ${{ inputs.db_password }}
+        PGDB_IN: ${{ inputs.db_name }}
       run: |  # pragma: allowlist secret
         set -euo pipefail
-        PGBIN=/usr/lib/postgresql/16/bin
+        PGBIN="/usr/lib/postgresql/${PGVER_IN}/bin"
         if [ ! -x "$PGBIN/postgres" ]; then
-          echo "::error::postgres 16 غير مثبَّت على صورة الـrunner ($PGBIN) — الصورةُ تغيّرت؟ راجع runner-images"
+          echo "::error::postgres ${PGVER_IN} غير مثبَّت ($PGBIN) — الصورةُ تغيّرت؟ راجع runner-images"
           exit 1
         fi
         VER="$("$PGBIN/postgres" --version)"
         case "$VER" in
-          *" 16."*) echo "الإصدار: $VER" ;;
-          *) echo "::error::إصدارٌ غيرُ متوقَّع: $VER (المطلوب 16.x)"; exit 1 ;;
+          *" ${PGVER_IN}."*) echo "الإصدار: $VER" ;;
+          *) echo "::error::إصدارٌ غيرُ متوقَّع: $VER (المطلوب ${PGVER_IN}.x)"; exit 1 ;;
         esac
-        # الخدمةُ المدمجةُ إن كانت تعمل (لا تعمل افتراضاً) تحجز المنفذ
+        # الخدمةُ المدمجةُ إن كانت تعمل (حزمةُ PGDG تشغّل عنقوداً تلقائياً؛ صورةُ الـrunner لا) تحجز المنفذ
         sudo systemctl stop postgresql 2>/dev/null || true
         PGDATA=/dev/shm/pgdata
         rm -rf "$PGDATA"
         install -d -m 700 "$PGDATA"
         PWFILE="$(mktemp)"
-        echo "test_pass" > "$PWFILE"  # pragma: allowlist secret
-        "$PGBIN/initdb" -D "$PGDATA" -U test_user --auth=md5 --pwfile="$PWFILE" -E UTF8 --locale=C.UTF-8 >/dev/null
+        echo "$PGPASS_IN" > "$PWFILE"
+        "$PGBIN/initdb" -D "$PGDATA" -U "$PGUSER_IN" --auth=md5 --pwfile="$PWFILE" -E UTF8 --locale=C.UTF-8 >/dev/null
         rm -f "$PWFILE"
         # /dev/shm على runner ubuntu-24.04 نحو نصف الذاكرة (≈8 غيغا): يكفي قاعدةَ الاختبار
         # سرعةٌ للاختبار فقط: لا متانة مطلوبة على ذاكرةٍ تُمحى بانتهاء الوظيفة
@@ -51,8 +81,10 @@ runs:
         shared_buffers = 256MB
         CONF
         "$PGBIN/pg_ctl" -D "$PGDATA" -l /tmp/pg-native.log -w -t 60 start
-        PGPASSWORD=test_pass "$PGBIN/createdb" -h 127.0.0.1 -p "$PGPORT_IN" -U test_user test_db  # pragma: allowlist secret
-        PGPASSWORD=test_pass "$PGBIN/psql" -h 127.0.0.1 -p "$PGPORT_IN" -U test_user -d test_db -Atc "select version()"  # pragma: allowlist secret
+        export PGPASSWORD="$PGPASS_IN"
+        "$PGBIN/createdb" -h 127.0.0.1 -p "$PGPORT_IN" -U "$PGUSER_IN" "$PGDB_IN"
+        "$PGBIN/psql" -h 127.0.0.1 -p "$PGPORT_IN" -U "$PGUSER_IN" -d "$PGDB_IN" -Atc "select version()"
+        "$PGBIN/psql" -h 127.0.0.1 -p "$PGPORT_IN" -U "$PGUSER_IN" -d "$PGDB_IN" -Atc "show server_version"
     - name: تشغيل redis من apt (اختياريّ)
       if: inputs.redis == 'true'
       shell: bash
