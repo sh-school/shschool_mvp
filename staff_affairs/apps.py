@@ -13,3 +13,10 @@ class StaffAffairsConfig(AppConfig):
         from .dashboard import secretary_context
 
         register_role_dashboard("secretary", secretary_context)
+
+        # قراءةُ التكليف تسجّلها النواةُ كمصدرٍ لا استيراداً نازلاً (W-20261001-021).
+        from core.capabilities import register_acting_roles_provider
+
+        from .attendance.assignments import acting_roles
+
+        register_acting_roles_provider(acting_roles)
