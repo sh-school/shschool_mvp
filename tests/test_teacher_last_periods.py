@@ -57,11 +57,11 @@ def test_another_teachers_cap_does_not_raise_mine():
 
 
 def test_an_out_of_range_cap_is_read_as_absent_not_as_a_waiver():
-    """شرطُ 0105: إدخالٌ مباشرٌ بالـORM (0 أو 99 أو سالب) لا يلغي HC8."""
+    """شرطُ 0105: إدخالٌ مباشرٌ بالـORM (99 أو سالب) لا يلغي HC8. والصفرُ ليس منه: منعٌ لا غياب (W-20261004-013)."""
     from operations.last_period_cap import personal_last_cap
 
-    assert [personal_last_cap(v) for v in (None, 0, -1, 6, 99, True)] == [0] * 6
-    assert [personal_last_cap(v) for v in (1, 3, 5)] == [1, 3, 5]
+    assert [personal_last_cap(v) for v in (None, -1, 6, 99, True)] == [None] * 5
+    assert [personal_last_cap(v) for v in (0, 1, 3, 5)] == [0, 1, 3, 5]
 
     grid = two_sevenths()
     task = lesson("c-3", "s-x", "t-1", weekly=1)

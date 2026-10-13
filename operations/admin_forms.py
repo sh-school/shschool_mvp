@@ -2,12 +2,14 @@
 
 المالكُ حسمها بعد معاينتين: لا إدخالَ حرّ ولا min/max ولا رسائلَ ولا خيارَ فارغ — قائمةٌ منسدلة خياراتُها
 2 و3 و4 و5. و«فارغ» كان يعني السقفَ العامّ (اثنتان) فصارت القيمةُ المحدَّدةُ سلفاً هي 2، والمحرّكُ يحكم
-بالقيمتين حكماً واحداً (الأولى: ما لا يعلو العامَّ لا يُقرأ؛ السابعة: `personal_last_cap(2) or 2`).
+بالقيمتين حكماً واحداً (الأولى: ما لا يعلو العامَّ لا يُقرأ؛ السابعة: `last_cap_or(2, 2)`).
+وللسابعة خيارٌ سادسٌ هو 0: لا سابعةَ إطلاقاً لهذا المعلّم (W-20261004-013)، وهو غيرُ «فارغ/2» العامّ.
 وما خُزّن قبل هذا القرار خارج المدى لا يُلمس: يظهر لصاحبه وحدَه خياراً محدَّداً فلا يُكتب فوقه بحفظٍ عابر.
 """
 
 from django import forms
 
+from .last_period_cap import BAN_PERSONAL_LAST
 from .models import TeacherPreference
 from .models.schedule import MAX_PERSONAL_FIRST, MIN_PERSONAL_FIRST
 
@@ -15,12 +17,14 @@ from .models.schedule import MAX_PERSONAL_FIRST, MIN_PERSONAL_FIRST
 GENERAL_CAP = MIN_PERSONAL_FIRST
 CAP_CHOICES = [(value, str(value)) for value in range(MIN_PERSONAL_FIRST, MAX_PERSONAL_FIRST + 1)]
 CAP_FIELDS = ("max_first_periods", "max_last_periods")
+#: السابعةُ وحدَها تقبل الصفر (منعَها عن المعلّم)؛ والأولى لا منعَ لها.
+BAN_CHOICE = (BAN_PERSONAL_LAST, "0 — لا سابعةَ إطلاقاً")
 #: قيمُ سقف التتالي الشخصيّ المسموحة كما في شاشة المعلّم (حصصُ اليوم سبع).
 RUN_CAP_VALUES = tuple(range(1, 8))
 
 
 def effective_cap(value: int | None) -> int:
-    """القيمةُ التي يحكم بها المحرّك: الفارغُ هو العامّ، فلا يُسجَّل تغييرٌ بين الفارغ و2."""
+    """القيمةُ التي يحكم بها المحرّك: الفارغُ هو العامّ، فلا يُسجَّل تغييرٌ بين الفارغ و2؛ والصفرُ منعٌ يبقى صفراً."""
     return GENERAL_CAP if value is None else value
 
 
@@ -35,6 +39,8 @@ class TeacherPreferenceAdminForm(forms.ModelForm):
             model_field = TeacherPreference._meta.get_field(name)
             stored = self.initial.get(name) if self.instance.pk else None
             choices = list(CAP_CHOICES)
+            if name == "max_last_periods":
+                choices.insert(0, BAN_CHOICE)
             if stored is not None and stored not in dict(CAP_CHOICES):
                 choices.insert(0, (stored, str(stored)))
             self.fields[name] = forms.TypedChoiceField(
