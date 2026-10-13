@@ -20,18 +20,15 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
-from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.formats import date_format
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
-from core.audit_export import log_export
 from core.capabilities import capability_required, has_capability
-from core.export_utils import generate_export_filename, get_export_context
+from core.export_utils import generate_export_filename
 from core.models import AuditLog, Wing
-from core.pdf_utils import render_pdf
 from operations.models import AbsenceActionLog, AbsenceContactLog
 from operations.services import ScheduleService
 from operations.services import absence_followup as service
@@ -89,7 +86,7 @@ def _rows(request: HttpRequest, day: dt.date) -> tuple[list[dict], Any, bool]:
     from core.permissions import get_department_teacher_ids
     from operations.daily_absence import daily_report as build_report
 
-    school = request.user.get_school()
+    school = request.school
     ScheduleService.ensure_sessions_for_date(school, day)
     scope = student_scope_for(request)
     report = build_report(
@@ -108,7 +105,7 @@ def _rows(request: HttpRequest, day: dt.date) -> tuple[list[dict], Any, bool]:
 def _audit_reads(request: HttpRequest, rows: list[dict]) -> None:
     """أثرُ عرضِ أرقام الأولياء والتغذية الراجعة: العددُ والدورُ وحدَهما — لا رقمَ ولا اسمَ ولا نصّ."""
     user = request.user
-    school = user.get_school()  # type: ignore[union-attr]
+    school = request.school
     role = user.get_role()  # type: ignore[union-attr]
     phones = sum(len(r["phones"]) for r in rows)
     if phones:
@@ -140,7 +137,7 @@ def _audit_reads(request: HttpRequest, rows: list[dict]) -> None:
 @capability_required("operations.absence_followup_view")
 def absence_followup(request: HttpRequest) -> HttpResponse:
     """متابعةُ غياب اليوم — جدولا التواصل والإجراء، لأيّ تاريخ."""
-    school = request.user.get_school()
+    school = request.school
     day = _day(request.GET.get("date"))
     flags = _flags(request.user)
     all_rows, report, wing_bound = _rows(request, day)
@@ -267,47 +264,15 @@ def action_save(request: HttpRequest) -> HttpResponse:
 @login_required
 @capability_required("operations.absence_followup_print")
 def followup_print(request: HttpRequest) -> HttpResponse:
-    """كشفُ المتابعة للطباعة — معاينةٌ في المتصفّح، و`?format=pdf` تنزيلاً (Tajawal مضمَّن)."""
-    from wings.register import footer_lines
+    """كشفُ المتابعة للطباعة — معاينةٌ داخل المنصّة، و`?format=pdf` تنزيلاً (Tajawal مضمَّن)."""
+    from operations.absence_followup_print import followup_sheet_response
 
-    school = request.user.get_school()
     day = _day(request.GET.get("date"))
-    flags = _flags(request.user)
     rows, _report, wing_bound = _rows(request, day)
     _audit_reads(request, rows)
-    title = f"متابعة الغياب — {date_format(day, 'd/m/Y')}"
-    ctx = get_export_context(request, title)
-    ctx.update(
-        school=school,
-        footer=footer_lines(school),
-        rows=rows,
-        day=day,
-        wing_bound=wing_bound,
-        orient="landscape",
-        outcomes=dict(AbsenceContactLog.OUTCOMES),
-        statuses=dict(AbsenceActionLog.STATUSES),
-        can_feedback=flags["can_feedback"],
+    return followup_sheet_response(
+        request, day, rows, wing_bound, _flags(request.user)["can_feedback"]
     )
-    if request.GET.get("format") == "pdf":
-        log_export(request, "operations.absence_followup_pdf", object_repr=title)
-        html = render_to_string("operations/absence_followup_print.html", ctx, request=request)
-        filename = generate_export_filename("operations", "absence-followup", "pdf")
-        return render_pdf(html, filename, as_attachment=True)
-    if request.GET.get("embed") != "1":
-        # المعاينةُ داخل المنصّة بقائمتها وفتات خبزها — لا وثيقةَ عاريةً في صفحةٍ جديدة (طلب المالك 10-13)
-        query = urlencode({"date": day.isoformat(), "embed": "1"})
-        return render(
-            request,
-            "operations/absence_followup/viewer.html",
-            {
-                "report_title": title,
-                "report_url": f"{request.path}?{query}",
-                "pdf_url": f"{request.path}?{urlencode({'date': day.isoformat(), 'format': 'pdf'})}",
-                "back_url": f"{reverse('daily_report')}?{urlencode({'date': day.isoformat()})}",
-            },
-        )
-    ctx["for_screen"] = True
-    return render(request, "operations/absence_followup_print.html", ctx)
 
 
 @login_required

@@ -53,7 +53,9 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
         UserNotificationPreference,
     )
     from operations.models import (
+        AbsenceActionLog,
         AbsenceAlert,
+        AbsenceContactLog,
         AbsenceExcuse,
         ClassExit,
         DailyExitTally,
@@ -77,6 +79,12 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
             (StudentAttendance, "student", False),
             (AbsenceAlert, "student", False),
             (AbsenceExcuse, "student", False),  # عذرُ غياب (يحوي مستنداً)
+            (
+                AbsenceContactLog,
+                "student",
+                False,
+            ),  # اتّصالُ متابعة الغياب بوليّ الأمر (W-20261013-011)
+            (AbsenceActionLog, "student", False),  # إجراءُ متابعة الغياب الإداريّ (W-20261013-011)
             (BookBorrowing, "user", False),
             (StudentActivity, "student", False),  # نشاط طلابي (يحوي مرفق PII)
             # [W-20261001-014] كانت مغفَلةً فتبقى بعد المحو (SET_NULL أو CASCADE لا يعمل

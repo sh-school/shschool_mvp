@@ -89,3 +89,87 @@ def render_contact_sheet(user: Any, date: dt.date) -> bytes:
         school=ctx["school"],
     )
     return pdf
+
+
+def build_followup_pdf(school: Any, user: Any, params: Any) -> Any:
+    """بنّاءُ سجلّ التصدير لكشف المتابعة PDF (`operations.absence_followup_pdf`): بلا `request`، والنطاقُ من `followup_rows`."""
+    from django.utils.formats import date_format
+
+    from core.export_utils import generate_export_filename
+    from core.exports.registry import ExportResult
+    from core.pdf_utils import render_pdf_bytes
+    from operations.models import AbsenceActionLog, AbsenceContactLog
+    from operations.services.absence_followup import followup_rows
+    from wings.register import footer_lines
+
+    if not has_capability(user, PRINT):
+        raise PermissionDenied("لا صلاحيةَ لطباعة كشف المتابعة.")
+    try:
+        day = dt.date.fromisoformat(params.get("date") or "")
+    except ValueError:
+        day = dt.date.today()
+    rows = followup_rows(user, day)
+    ctx = get_export_context_for(user, f"متابعة الغياب — {date_format(day, 'd/m/Y')}")
+    ctx.update(
+        school=school,
+        footer=footer_lines(school),
+        rows=rows,
+        day=day,
+        orient="landscape",
+        outcomes=dict(AbsenceContactLog.OUTCOMES),
+        statuses=dict(AbsenceActionLog.STATUSES),
+        can_feedback=has_capability(user, "operations.absence_followup_feedback"),
+    )
+    pdf = render_pdf_bytes(render_to_string("operations/absence_followup_print.html", ctx))
+    return ExportResult(
+        content=pdf,
+        content_type="application/pdf",
+        filename=generate_export_filename("operations", "absence-followup", "pdf"),
+        rows=len(rows),
+    )
+
+
+def followup_sheet_response(
+    request: Any, day: dt.date, rows: list[dict], wing_bound: bool, can_feedback: bool
+):
+    """كشفُ المتابعة: `?format=pdf` مهمّةُ تصديرٍ عبر السجلّ المركزيّ، وإلّا معاينةٌ داخل المنصّة بإطارٍ (`embed=1` هو الوثيقةُ نفسُها)."""
+    from urllib.parse import urlencode
+
+    from django.shortcuts import render
+    from django.urls import reverse
+    from django.utils.formats import date_format
+
+    from core.export_utils import get_export_context
+    from core.exports.services import respond_export
+    from operations.models import AbsenceActionLog, AbsenceContactLog
+    from wings.register import footer_lines
+
+    if request.GET.get("format") == "pdf":
+        return respond_export(request, "operations.absence_followup_pdf")
+    title = f"متابعة الغياب — {date_format(day, 'd/m/Y')}"
+    if request.GET.get("embed") != "1":
+        query = urlencode({"date": day.isoformat(), "embed": "1"})
+        return render(
+            request,
+            "operations/absence_followup/viewer.html",
+            {
+                "report_title": title,
+                "report_url": f"{request.path}?{query}",
+                "pdf_url": f"{request.path}?{urlencode({'date': day.isoformat(), 'format': 'pdf'})}",
+                "back_url": f"{reverse('daily_report')}?{urlencode({'date': day.isoformat()})}",
+            },
+        )
+    ctx = get_export_context(request, title)
+    ctx.update(
+        school=request.school,
+        footer=footer_lines(request.school),
+        rows=rows,
+        day=day,
+        wing_bound=wing_bound,
+        orient="landscape",
+        outcomes=dict(AbsenceContactLog.OUTCOMES),
+        statuses=dict(AbsenceActionLog.STATUSES),
+        can_feedback=can_feedback,
+        for_screen=True,
+    )
+    return render(request, "operations/absence_followup_print.html", ctx)
