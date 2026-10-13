@@ -222,36 +222,12 @@ jobs:
   #  في حماية main، والفشلُ يفتح قضيّةً (أو يُعلّق على المفتوحة) ويُغلقها النجاحُ التالي. وحدُّها: التثبيتُ على `timezone.now` فقط،
   #  فما يقرأ `date.today()`/`datetime.now()` مباشرةً لا يتبعه (يعدّه tests/test_clock_pin_ratchet.py بـDIRECT_TODAY)؛ وفشلٌ هنا
   #  قد يكون من تجميد الساعة (لا تمضي) لا من اليوم نفسه — يُفرَّق بتشغيل الاختبار منفرداً بالمتغيّر ذاته.
-  # الحاوياتُ postgres/redis من Docker Hub كما في وظيفة full-pytest أعلاه عمداً: #927 (W-20261010-007) حوّل البوّابةَ والفحصَ الأمنيّ إلى
-  # Postgres أصليّ واستثنى الليليَّ صراحةً («ما لم يُحوَّل بعد: … والليلي»)، فتبقى الوظيفتان على نمطٍ واحد ويُحوَّلان معاً في المتابعة
-  # الخاصّة به (والإجراءُ .github/actions/native-postgres لا يغطّي redis بعد). والسقفُ يمسّ هذه الوظيفةَ مرّةً ليلاً لا عند كلّ طلب.
+  # postgres/redis أصليّان كما في full-pytest أعلاه: حُوّلت الوظيفتان معاً في W-20261010-016 فلا حاويةَ خدمةٍ من Docker Hub هنا
+  # (يحرسه tests/test_ci_native_postgres.py).
   clock-sensitivity:
     name: pytest — المجموعةُ تحت الجمعة ثمّ الخميس (تُبلغ ولا تحجب)
     runs-on: ubuntu-latest
     timeout-minutes: 120
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: test_db
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_pass
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
@@ -261,6 +237,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+
+      # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub — كما في full-pytest أعلاه (W-20261010-016)
+      - uses: ./.github/actions/native-postgres
+        with:
+          redis: "true"
 
       - uses: actions/setup-python@v7
         with:
