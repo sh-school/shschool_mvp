@@ -51,7 +51,7 @@ from core.models import (
     StudentEnrollment,
 )
 from core.parent_consent import needs_parent_consent
-from core.permissions import LIBRARY_BORROWINGS_ALL
+from core.permissions import LIBRARY_BORROWINGS_ALL, get_teacher_student_ids
 from core.unrestricted_role import has_unrestricted_role
 from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing, LibraryBook
@@ -67,7 +67,7 @@ from .filters import (
     SessionFilter,
 )
 from .pagination import StandardPagination
-from .permissions import IsParentOrAdmin, IsSchoolAdmin, IsTeacherOrAdmin
+from .permissions import CanViewBehavior, IsParentOrAdmin, IsSchoolAdmin, IsTeacherOrAdmin
 from .serializers import (
     AnnualSubjectResultSerializer,
     AttendanceSerializer,
@@ -510,7 +510,7 @@ class BehaviorListView(generics.ListAPIView):
     """
 
     serializer_class = BehaviorInfractionSerializer
-    permission_classes = [IsTeacherOrAdmin]
+    permission_classes = [IsTeacherOrAdmin, CanViewBehavior]
     pagination_class = StandardPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_class = InfractionFilter
@@ -526,7 +526,13 @@ class BehaviorListView(generics.ListAPIView):
 
     def get_queryset(self):
         school = _school(self.request)
-        return BehaviorInfraction.objects.filter(school=school).with_student().order_by("-date")
+        qs = BehaviorInfraction.objects.filter(school=school).with_student().order_by("-date")
+        # نطاقُ الويب نفسُه (W-20261012-032): المعلّمُ والمنسّقُ ومشرفُ الجناح لطلبتهم، والقيادةُ (None) للمدرسة.
+        # و`?student_id` و`?class_id` تُضيَّقان بعده فتُرجعان قائمةً فارغةً لطالبٍ خارج النطاق لا خطأً يكشف وجوده.
+        visible = get_teacher_student_ids(self.request.user)
+        if visible is not None:
+            qs = qs.filter(student_id__in=visible)
+        return qs
 
 
 # للتوافق مع URLs القديمة
@@ -536,7 +542,7 @@ class BehaviorListView(generics.ListAPIView):
     deprecated=True,
 )
 @api_view(["GET"])
-@permission_classes([IsTeacherOrAdmin])
+@permission_classes([IsTeacherOrAdmin, CanViewBehavior])
 def behavior_list(request):
     view = BehaviorListView.as_view()
     return view(request._request)
