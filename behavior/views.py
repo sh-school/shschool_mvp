@@ -6,6 +6,7 @@ Views نحيفة — كل Business Logic في behavior/services.py
 """
 
 import logging
+import uuid
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -104,6 +105,33 @@ def _deny_unreachable(request, student_id, message):
     if not teacher_can_access_student(request.user, student_id):
         return forbidden_page(request, message)
     return None
+
+
+def _recordable_student(request, school, student_id):
+    """الطالبُ الذي يحقّ لصاحب الطلب أن يسجّل عليه مخالفة — وإلّا 404 موحَّد لا يكشف وجودَه.
+
+    يجمع ثلاثةَ شروط في استعلامٍ واحد: عضويةٌ فعّالةٌ في مدرسة الطلب بدور طالب (فمستخدمٌ من مدرسةٍ أخرى
+    أو غيرُ طالبٍ لا يُجلب)، ثمّ نطاقُ الدور: المشرفُ المقيَّد بجناحه، والمعلّمُ والمنسّقُ بجدولهما، والقيادةُ
+    لمدرستها كلِّها. وتُمرَّر `student.id` (UUID) لا النصُّ الخام: مقارنةُ نصٍّ بمجموعة UUID تُرجع False دائماً.
+    الرفضُ 404 لا صفحةَ منع كي لا يُعرف أنّ الطالبَ موجودٌ في مدرسةٍ أخرى أو خارج جدول المعلّم."""
+    try:
+        sid = uuid.UUID(str(student_id))
+    except ValueError:
+        raise Http404("طالبٌ غير موجود") from None
+    student = get_object_or_404(
+        CustomUser.objects.filter(
+            memberships__school=school,
+            memberships__is_active=True,
+            memberships__role__name="student",
+        ).distinct(),
+        id=sid,
+    )
+    scope = student_scope_for(request)
+    if scope.is_wing_bound:
+        scope.require_student(student.id)
+    elif not teacher_can_access_student(request.user, student.id):
+        raise Http404("طالبٌ غير موجود")
+    return student
 
 
 def _get_scoped_students(request, school):
@@ -275,7 +303,12 @@ def report_infraction(request):
 
     if request.method == "POST":
         # معرّفُ الطالب يُسأل عنه قبل صحّة النموذج: طالبٌ خارج الجناح 404 مهما كان باقيه.
-        _require_in_wing(request, request.POST.get("student_id", "").strip())
+        raw_student_id = request.POST.get("student_id", "").strip()
+        _require_in_wing(request, raw_student_id)
+        # الطالبُ يُجلب بنطاقه قبل صحّة النموذج: خارجَ مدرسته أو جدولِه 404 مهما كان باقي النموذج.
+        recordable = (
+            _recordable_student(request, school, raw_student_id) if raw_student_id else None
+        )
         form = InfractionForm(request.POST, role=request.user.get_role())
         if not form.is_valid():
             for field, errs in form.errors.items():
@@ -306,7 +339,7 @@ def report_infraction(request):
                     violation_cat = "INVALID"
 
             if violation_cat != "INVALID":
-                student = get_object_or_404(CustomUser, id=student_id)
+                student = recordable
 
                 try:
                     # [B4-PRE3] المخالفة ونيّة إشعارها في حدٍّ واحد.
@@ -414,6 +447,8 @@ def quick_log(request):
     if request.method == "POST":
         student_id = request.POST.get("student_id", "").strip()
         _require_in_wing(request, student_id)
+        # الجلبُ بالنطاق قبل أيّ شيء: طالبٌ خارج المدرسة أو الجدول 404 ولا تُنشأ مخالفة.
+        recordable = _recordable_student(request, school, student_id) if student_id else None
         violation_cat_id = request.POST.get("violation_category", "").strip()
         description = request.POST.get("description", "").strip()
         action = request.POST.get("action_taken", "").strip()
@@ -452,7 +487,7 @@ def quick_log(request):
                 msg_type="danger",
             )
 
-        student = get_object_or_404(CustomUser, id=student_id)
+        student = recordable
 
         # [B4-PRE3] المخالفة ونيّة إشعارها في حدٍّ واحد — انظر report_infraction.
         with transaction.atomic():
