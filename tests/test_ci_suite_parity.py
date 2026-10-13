@@ -109,15 +109,24 @@ def test_the_deploy_pipeline_does_not_rerun_the_suite():
     assert not rerunners, rerunners
 
 
-def test_the_quality_gate_runs_the_suite_on_every_push_to_main():
-    """شرطُ الحذف أعلاه: من يسأل «هل نجحت اختباراتُ هذا الـcommit؟» يجدها هنا."""
+def test_the_quality_gate_runs_the_whole_suite_before_anything_lands_on_main():
+    """شرطُ الحذف أعلاه: من يسأل «هل نجحت اختباراتُ هذا الـcommit؟» يجدها هنا.
+
+    منذ D-429م (2026-10-13) لا تُجرى المجموعةُ على `push` إلى main بل **قبل** الدمج: طابورُ الدمج يُجريها كاملةً
+    على «main + الطلب» (merge_group)، ولا يصل commit إلى main إلا عبره. فالشرطُ على الوظيفة مسموحٌ به بصيغةٍ واحدةٍ
+    فقط — استثناءُ `push` — ويبقى الطلبُ والطابورُ كاملَين.
+    """
     doc = yaml.safe_load((WORKFLOWS / "quality-gate.yml").read_text(encoding="utf-8"))
     triggers = doc.get("on") or doc.get(True)  # يقرأ YAML 1.1 المفتاحَ `on` قيمةً منطقيّة
 
     assert "main" in triggers["push"]["branches"]
+    assert "merge_group" in triggers and "pull_request" in triggers
     # المجموعةُ مقسومةٌ على shards (W-20261002-034): مصفوفةُ pytest-shards هي من تشغّلها، لا test-coverage (مُجمِّعٌ).
-    assert runs_the_whole_suite(_joined(doc["jobs"]["pytest-shards"]))
-    assert "if" not in doc["jobs"]["pytest-shards"], "شرطٌ على الوظيفة قد يستثني الدفعَ إلى main"
+    shards = doc["jobs"]["pytest-shards"]
+    assert runs_the_whole_suite(_joined(shards))
+    assert (
+        str(shards.get("if", "")).strip() == "github.event_name != 'push'"
+    ), "الشرطُ الوحيدُ المسموح: استثناءُ push وحدَه، فيبقى الطلبُ وطابورُ الدمج كاملَين"
 
 
 def test_the_parallel_runner_is_installed_where_it_is_used():

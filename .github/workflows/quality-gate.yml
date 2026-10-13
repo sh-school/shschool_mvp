@@ -31,8 +31,15 @@ jobs:
   #     تغطيتها `.coverage.shardN` بلا حكم (`--cov-fail-under=0`: التغطيةُ الجزئيّةُ لا تُقاس بالعتبة).
   #   · `test-coverage` («pytest — تغطية» — الاسمُ لم يتغيّر): يتحقّق أنّ الـshards غطّت المجموعةَ بلا فقدٍ
   #     (scripts/ci_shard_verify.py) ثمّ يدمج التغطيةَ ويحكم بعتبة pyproject — الرقمُ الوحيدُ في المستودع.
+  #
+  # **لا تُشغَّل على push إلى main (W-429، D-429م):** الدمجُ لا يصل إلى main إلا عبر طابور الدمج، والطابورُ يُجري هذه
+  # المجموعةَ كاملةً على «main + الطلب» وبالتغطية قبل الدمج (merge_group مطلوبٌ في حماية الفرع — تُحُقّق منه
+  # 2026-10-13)؛ فتكرارُها على commit الدمج نفسِه ربعُ ساعةٍ لا تُثبت جديداً. والدخانُ على push هو الوظائفُ
+  # الرخيصة أدناه (ruff، migration-linter، التعقيد، الأسرار، الحرّاسُ النصّيّة). وpull_request وmerge_group
+  # كاملتان لا تتغيّران، والإعفاءُ مسجَّلٌ في scripts/ci_needs_gate.py بحدثٍ ومهمّةٍ وسبب.
   pytest-shards:
     name: pytest shard ${{ matrix.shard }}/${{ strategy.job-total }}
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -141,8 +148,8 @@ jobs:
   test-coverage:
     name: pytest — تغطية
     needs: [pytest-shards]
-    # دائماً: ليُبلَّغ بنتيجةٍ حتى لو فشل shard (فشلُه يُسقط هذه الوظيفةَ أوّلَ خطوة).
-    if: always()
+    # دائماً: ليُبلَّغ بنتيجةٍ حتى لو فشل shard (فشلُه يُسقط هذه الوظيفةَ أوّلَ خطوة)؛ إلّا على push (انظر pytest-shards).
+    if: always() && github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
