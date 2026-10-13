@@ -48,7 +48,7 @@
   {% for domain_label, rows in grouped %}
   {% section_card domain_label meta=rows|length icon="checklist" flush=True %}
     {# ترتيبُ المعايير كما في الاستمارة المعتمَدة — لا يُفرَز. #}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
     <table class="table" data-no-sort>
       <thead><tr><th class="qobs-col-criterion">المعيار</th><th>التقييم</th><th>التوصية</th></tr></thead>
       <tbody>

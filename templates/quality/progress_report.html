@@ -70,7 +70,7 @@
 
   {% if overdue_procedures %}
   {% section_card "الإجراءات المتأخرة" meta=overdue_count icon="quality" flush=True %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       {# تقريرٌ للطباعة: لا فرزَ على الورق. #}
       <table data-no-sort>
         <thead>
@@ -102,7 +102,7 @@
 
   {% if evidence_requests %}
   {% section_card "طلبات الدليل المعلقة" meta=evidence_requests|length icon="document" flush=True %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       {# تقريرٌ للطباعة: لا فرزَ على الورق. #}
       <table data-no-sort>
         <thead>

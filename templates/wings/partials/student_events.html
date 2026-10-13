@@ -3,7 +3,7 @@
     {% section_card "سجلُّ الأحداث — غيابٌ وتأخّرٌ وخروج" icon="absence" meta=events_count empty="لا غيابَ ولا تأخّرَ ولا خروجاً مسجَّلاً على هذا الطالب" %}{% if attendance_events or exit_events %}
     {% callout "hint" %}رُصد شيءٌ على هذا الطالب بالخطأ؟ احذفه هنا بسبب؛ الحذفُ لا يمحو الأصل. ولتصحيحِ حصّةٍ كاملةٍ أعِد تثبيتَها من الكشف.{% endcallout %}
       {% callout "warning" %}الحذفُ يُسجَّل في سجلّ المراجعة، وتزول معه المخالفةُ المبنيّةُ عليه، وتعود الخانةُ «لم تُرصد» لا «حاضراً».{% endcallout %}
-      <div class="table-wrap">
+      <div class="table-wrap table-wrap-scroll">
         <table data-no-sort class="ev-table">
           <thead><tr><th>التاريخ</th><th>الحصّة</th><th>الحدث</th>{% if can_delete_events %}<th>تصحيح</th>{% endif %}</tr></thead>
           <tbody>
@@ -51,4 +51,3 @@
       </nav>
       {% endif %}
     {% endif %}{% endsection_card %}
-

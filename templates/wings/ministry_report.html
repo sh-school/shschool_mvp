@@ -53,7 +53,7 @@
   {% for note in summary.notes %}{% callout "warning" show=True %}{{ note }}{% endcallout %}{% endfor %}
 
   {% section_card "حسب الصفّ والشعبة" meta=summary.class_rows|length icon="stats" empty="لا شعبَ تطابق الترشيح" flush=True %}{% if summary.grades %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table data-no-sort>
         <thead>
           <tr>
@@ -108,7 +108,7 @@
   {% endif %}{% endsection_card %}
 
   {% section_card "من يُرفعون غائبين — الحصّتان الأولى والثانية" meta=summary.ministered|length icon="status_warning" empty="لا غائبَ في الحصّتين معاً" flush=True %}{% if summary.ministered %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>
