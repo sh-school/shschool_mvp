@@ -13,16 +13,14 @@
 {% if for_screen %}
 .running-footer { display: none; }
 {% endif %}
-.fu-grid { width: 100%; border-collapse: collapse; font-size: 9pt; table-layout: fixed; }
+.fu-grid { width: 100%; border-collapse: collapse; font-size: 9pt; table-layout: auto; }
 .fu-grid th { background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; padding: 4px 3px; border: 1px solid {% brand_color "MAROON" %}; }
 .fu-grid td { padding: 3px 4px; border: 1px solid {% brand_color "BORDER_STRONG" %}; color: {% brand_color "TEXT_PRIMARY" %}; }
 .fu-grid tbody tr:nth-child(even):not([class*="g-"]) td { background: {% brand_color "SURFACE_ALT" %}; }
 {% grade_row_css ".fu-grid tbody" %}
-.fu-grid .fu-c-no { width: 9mm; }
-.fu-grid .fu-c-name { width: 64mm; }
-.fu-grid .fu-c-class { width: 16mm; }
-.fu-grid .fu-c-phone { width: 30mm; }
-.fu-grid .fu-c-result { width: 30mm; }
+/* أعمدةٌ مرنةٌ: القصيرةُ (الرقم والشعبة والهاتف) بقدر محتواها بلا التفاف، والاسمُ سطرٌ واحد، والنصوصُ الحرّةُ تتقاسم الباقي وتلتفّ (قرار المالك 2026-10-13) */
+.fu-grid td.fu-c-no, .fu-grid th.fu-c-no, .fu-grid td.fu-c-class, .fu-grid th.fu-c-class, .fu-grid td.fu-c-phone, .fu-grid th.fu-c-phone { width: 1%; white-space: nowrap; }
+.fu-grid td.fu-c-name { white-space: nowrap; }
 .fu-sign { margin-top: 18px; width: 30%; text-align: center; }
 .fu-sign .fu-line { border-top: 1px solid {% brand_color "TEXT_PRIMARY" %}; padding-top: 3px; }
 {% endblock %}
@@ -40,17 +38,17 @@
     </colgroup>
     <thead>
       <tr>
-        <th scope="col">م</th><th scope="col">الطالب</th><th scope="col">الشعبة</th><th scope="col">هاتفُ وليّ الأمر</th><th scope="col">نتيجةُ الاتّصال</th>
+        <th scope="col" class="fu-c-no">م</th><th scope="col" class="fu-c-name">الطالب</th><th scope="col" class="fu-c-class">الشعبة</th><th scope="col" class="fu-c-phone">هاتفُ وليّ الأمر</th><th scope="col">نتيجةُ الاتّصال</th>
         {% if can_feedback %}<th scope="col">التغذية الراجعة من وليّ الأمر</th>{% endif %}<th scope="col">الإجراءُ الإداريّ</th>
       </tr>
     </thead>
     <tbody>
       {% for row in rows %}
       <tr class="g-{{ row.class_group.grade|lower }}">
-        <td>{{ forloop.counter }}</td>
-        <td>{{ row.student.full_name }}</td>
-        <td>{{ row.class_group.short_label }}</td>
-        <td dir="ltr">{{ row.phones|join:" ، " }}</td>
+        <td class="fu-c-no">{{ forloop.counter }}</td>
+        <td class="fu-c-name">{{ row.student.full_name }}</td>
+        <td class="fu-c-class">{{ row.class_group.short_label }}</td>
+        <td class="fu-c-phone" dir="ltr">{{ row.phones|join:" ، " }}</td>
         <td>{% if row.contact %}{{ row.contact.get_outcome_display }}{% endif %}</td>
         {% if can_feedback %}<td>{{ row.feedback }}</td>{% endif %}
         <td>{% if row.action %}{{ row.action.get_status_display }} — {{ row.action.get_action_kind_display }}{% endif %}</td>
