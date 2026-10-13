@@ -2,7 +2,7 @@
 {% load brand_tags %}
 {% comment %}
   كشفُ متابعة الغياب — PDF ومعاينةُ متصفّح (`for_screen`). رقمُ وليّ الأمر بلا اسمِ وليٍّ ولا أمٍّ (D-431م)،
-  وخانةُ توقيعٍ واحدةٌ لمشرف الجناح (D-385م). تغذيةُ الأهل تظهر لحاملي قدرتها وحدَهم.
+  وخانةُ توقيعٍ واحدةٌ لمشرف الجناح (D-385م). تغذيةُ وليّ الأمر تظهر لحاملي قدرتها وحدَهم.
 {% endcomment %}
 
 {% block extra_styles %}
@@ -32,7 +32,7 @@
     <thead>
       <tr>
         <th scope="col">م</th><th scope="col">الطالب</th><th scope="col">الشعبة</th><th scope="col">هاتفُ وليّ الأمر</th><th scope="col">نتيجةُ الاتّصال</th>
-        {% if can_feedback %}<th scope="col">تغذيةُ الأهل</th>{% endif %}<th scope="col">الإجراءُ الإداريّ</th>
+        {% if can_feedback %}<th scope="col">تغذيةُ وليّ الأمر</th>{% endif %}<th scope="col">الإجراءُ الإداريّ</th>
       </tr>
     </thead>
     <tbody>

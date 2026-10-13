@@ -4,7 +4,7 @@
   والنائبُ الأكاديميّ يرى ولا يسجّل، والمعلّمُ لا يبلغ الشاشة.
 - الإضافةُ فقط: لا تعديلَ ولا حذف، والتصحيحُ سجلٌّ جديدٌ يشير إلى السابق.
 - الخصوصيّة (D-431م): رقمُ وليّ الأمر يظهر لكلّ من بلغ الشاشة، **واسمُ الوليّ واسمُ الأمّ لا يظهران في أيّ مخرج**؛
-  وتغذيةُ الأهل مشفَّرةٌ في القاعدة ولا يقرؤها إلّا حاملُ قدرتها، وفتحُها سطرُ تدقيقٍ بلا نصّ ولا رقم.
+  وتغذيةُ وليّ الأمر مشفَّرةٌ في القاعدة ولا يقرؤها إلّا حاملُ قدرتها، وفتحُها سطرُ تدقيقٍ بلا نصّ ولا رقم.
 """
 
 import io
@@ -297,7 +297,7 @@ class TestFeedback:
         body = _get(client_as, staff["principal"]).content.decode()
         assert FEEDBACK in body
         opened = AuditLog.objects.filter(
-            action="view", object_repr__contains="تغذيةُ الأهل", user=staff["principal"]
+            action="view", object_repr__contains="تغذيةُ وليّ الأمر", user=staff["principal"]
         )
         assert opened.exists()
         assert FEEDBACK not in " ".join(f"{a.object_repr} {a.changes}" for a in opened)

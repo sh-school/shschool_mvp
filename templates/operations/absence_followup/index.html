@@ -47,6 +47,8 @@
     {% kpi "للرفع الوزاريّ" ministry_count sub="غابوا الأولى والثانية" tone="maroon" %}
   {% endkpi_strip %}
 
+  {# البطاقتان متجاورتان في صفّ واحد حيث يتّسع المكان، وتتراصّان عموداً على الجوال (ui-grid-2) — ملاحظةُ المالك 2026-10-13 #}
+  <div class="ui-grid-2">
   {% section_card "١ — التواصلُ مع أولياء الأمور" meta=rows|length icon="call_parent" %}
     {% if rows %}
     <div class="table-wrap">
@@ -54,7 +56,7 @@
         <thead>
           <tr>
             <th scope="col">الطالب</th><th scope="col">الشعبة</th><th scope="col" class="num">حصصُ الغياب</th><th scope="col">هاتفُ وليّ الأمر</th>
-            <th scope="col">آخرُ اتّصال</th>{% if can_feedback %}<th scope="col">تغذيةُ الأهل</th>{% endif %}
+            <th scope="col">آخرُ اتّصال</th>{% if can_feedback %}<th scope="col">تغذيةُ وليّ الأمر</th>{% endif %}
             {% if can_record %}<th scope="col">تسجيل</th>{% endif %}
           </tr>
         </thead>
@@ -80,7 +82,7 @@
                   <select name="outcome" class="form-control" aria-label="نتيجةُ الاتّصال" required>
                     {% for value, label in outcomes %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
                   </select>
-                  {% if can_feedback %}<textarea name="feedback" class="form-control" rows="2" maxlength="2000" aria-label="تغذيةُ الأهل الراجعة"></textarea>{% endif %}
+                  {% if can_feedback %}<textarea name="feedback" class="form-control" rows="2" maxlength="2000" aria-label="تغذيةُ وليّ الأمر الراجعة"></textarea>{% endif %}
                   <button type="submit" class="btn-primary btn-sm">حفظ</button>
                 </form>
               </details>
@@ -142,6 +144,7 @@
     {% include "components/empty_state.html" with title=empty_title only %}
     {% endif %}
   {% endsection_card %}
+  </div>
 
 </div>
 {% endblock %}

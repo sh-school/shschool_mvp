@@ -102,3 +102,13 @@ class TestContactSheetRoute:
     def test_the_screen_offers_the_sheet_link(self, client_as, staff, absent_both):
         body = _get(client_as, staff["principal"]).content.decode()
         assert reverse("absence_followup_contact_sheet") in body
+
+
+class TestLayout:
+    def test_the_two_cards_sit_in_one_two_column_grid(self, client_as, staff, absent_both):
+        body = _get(client_as, staff["principal"]).content.decode()
+        grid = body.index('class="ui-grid-2"')
+        assert (
+            grid < body.index("التواصلُ مع أولياء الأمور") < body.index("متابعةُ الإجراءات الإدارية")
+        )
+        assert body.count('class="ui-grid-2"') == 1
