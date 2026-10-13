@@ -84,15 +84,25 @@ SCHEDULE_SUBSTITUTE_ASSIGN = {
 SCHEDULE_SUBSTITUTE_APPROVE = {"principal", "vice_academic", "vice_admin"}
 
 # ── الحضور والغياب ──────────────────────────────────────────────
-ATTENDANCE_RECORD = {
-    "teacher",
-    "ese_teacher",
-    "coordinator",
-    "admin_supervisor",
-    "teacher_assistant",
-    "ese_assistant",  # v7: يسجّلون تحت إشراف المعلم
-    "e_projects_coordinator",
-}
+#: المصدرُ الوحيد لقدرة «رصدُ حضور الحصّة» (`attendance.mark`) — كانت القدرةُ قائمةً ثانيةً تخالف هذه (W-20261004-022، D-201م أ٢).
+#: القدرةُ تفتح شاشاتِ الرصد وعدّاداتِ اللوحة. أمّا الكتابةُ في جدول الشعبة فيحكمها `grid_roles` (operations/attendance_policy.py):
+#: إسنادُ الشعبة أو تغطيتُها، أو حملُ جناحها، أو القيادةُ الإداريّة — لا الدورُ وحدَه.
+#: والمساعدون صراحةً (`teacher_assistant` و`ese_assistant`): يدخلون الشاشة، ويكتبون جدولَ الشعبة إن أُسندت إليهم كغيرهم.
+#: والنائبُ الأكاديميّ هنا للقراءة (التحويلُ وعدّاداتُ اللوحة)؛ لا يكتب الجدول (D-201م ١، D-239م ١).
+ATTENDANCE_RECORD = frozenset(
+    {
+        "principal",
+        "vice_academic",
+        "vice_admin",
+        "coordinator",
+        "teacher",
+        "ese_teacher",
+        "admin_supervisor",
+        "teacher_assistant",
+        "ese_assistant",
+        "e_projects_coordinator",
+    }
+)
 ATTENDANCE_VIEW_ALL = {
     "principal",
     "vice_academic",
@@ -440,9 +450,16 @@ BEHAVIOR_STATS_TEACHING = frozenset({"teacher", "coordinator", "ese_teacher"})
 ACADEMIC_REPORTS_VIEW = frozenset(ASSESSMENT_VIEW_ALL)
 #: رصدُ حضور اليوم في الجناح: مشرفُ الجناح (أصيلاً أو بديلاً) والقيادة — ولا مطوّرَ المنصّة (D-128م:
 #: لا يُدخل ولا يعتمد رصدَ غياب الطلبة)، حذفه 0105 شرطاً للدمج.
+#: ولا النائبُ الأكاديميّ: يراقب فقط (D-201م، D-239م؛ W-20261004-024) — يرى الغيابَ (`ATTENDANCE_VIEW_ALL`
+#: و`student_affairs.follow_up` وغيابُ اليوم) ويصله تنبيهُ العتبة (`ABSENCE_ALERT_RECIPIENTS`). فهي اليومَ كاتبو جدول الشعبة أنفسُهم
+#: (`GRID_WRITER_ROLES` في operations/attendance_policy.py)، ويحرس تطابقَهما اختبار.
 WING_DAY_RECORD = frozenset(
-    {"admin_supervisor", "vice_admin", "vice_academic", "principal", "student_affairs_coordinator"}
+    {"admin_supervisor", "vice_admin", "principal", "student_affairs_coordinator"}
 )
+
+#: من يصله تنبيهُ عتبة الغياب داخل المنصّة: الأخصائيُّ الاجتماعيّ يتابع الطالب، والنائبُ الأكاديميّ يراقب
+#: (D-201م، W-20261004-024). وإخطارُ وليّ الأمر منفصلٌ ومحجوزٌ (#887) — هذه إشعاراتٌ داخليّة.
+ABSENCE_ALERT_RECIPIENTS = frozenset({"social_worker", "vice_academic"})
 
 #: حاصرُ الغياب العامّ **بالدور**: منسّقُ شؤون الطلبة (D-267م)؛ والمشرفُ الإداريّ يبقى على المنح المفوَّض.
 SCHOOL_WIDE_ABSENCE_ROLES = frozenset({"student_affairs_coordinator"})
