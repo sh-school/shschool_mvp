@@ -17,6 +17,8 @@ from collections import defaultdict
 from typing import Any
 
 from django.core.exceptions import PermissionDenied
+from django.db import models
+from django.db.models.functions import TruncDay
 from django.http import Http404
 from django.utils import timezone
 
@@ -315,3 +317,89 @@ def _class_order(row: dict) -> tuple[int, int, str]:
         int(section) if section.isdigit() else 99,
         row["student"].full_name,
     )
+
+
+def _anonymise(model: Any, student: CustomUser, **blank: Any) -> list[Any]:
+    """يُجهِّل صفوفَ الطالب في `model` ويرجع مفاتيحَها: يُنزَع الربطُ بالطالب وما في `blank` من محتوًى حرٍّ.
+
+    السجلّان مضافان فقط فيرفض `update` على مديرهما؛ والتجهيلُ هو الاستثناءُ الوحيد، فيمرّ بـ`QuerySet` عاديٍّ
+    على النموذج نفسِه (لا يمسّ أيَّ مسارٍ آخر). RLS تقيّده بمدرسة دور القاعدة كباقي الاستعلامات.
+    """
+    plain = models.QuerySet(model, using=model.objects.db).filter(student=student)
+    ids = list(plain.values_list("pk", flat=True))
+    if ids:
+        plain.update(student=None, **blank)
+    return ids
+
+
+def erase_followup_logs(
+    student: CustomUser, *, actor: CustomUser | None = None, school: Any = None
+) -> dict[str, int]:
+    """يُجهِّل سجلَّي المتابعة لطالبٍ — حقُّ المحو (PDPPL م.18) بـ«أثرٍ مجهَّلٍ» (قرارُ المالك). **من `ErasureService` وحدَه.**
+
+    لا حذفَ: يبقى الصفُّ بمدرسته وتاريخ غيابه ونتيجته/حالته ونوعه (للإحصاء)، ويُنزَع منه كلُّ ما يدلّ على الطالب:
+    الربطُ به (`student` ← NULL)، وتغذيةُ الأهل المشفَّرة والملاحظةُ الحرّةُ والعذرُ المرتبطُ بطالبٍ (`excuse`)،
+    وسلسلةُ التصحيح (`corrects` ← NULL: تربط صفوفَ الطالب الواحد فتُعيد تعريفَ الصفّ)، والموظّفُ الكاتب
+    (`contacted_by`/`acted_by` ← NULL: يتذكّر الموظّفُ صفَّه)، ووقتُ الكتابة يُقصّ إلى اليوم (`TruncDay`).
+
+    **لا يفشل صامتاً تحت RLS** كمحوِ سجلّ رصد المعلّم (حكمُ 0104): هويّةُ المستأجِر من دور القاعدة، فدورُ
+    مدرسةٍ أخرى يرى صفراً فيُجهَّل 0 ويُقال «تمّ» والصفوفُ باقية. فيُرفض ابتداءً (`erasure_wrong_tenant`)، ويُتحقَّق
+    بعد التجهيل ألّا يبقى ربطٌ بالطالب ولا نصٌّ في صفوفه (`erasure_incomplete`) — وكلاهما يُلغي المعاملةَ كلَّها.
+    ويُكتب `AuditLog` بالأعداد وحدَها: لا نصَّ ولا رقمَ ولا اسم.
+    """
+    from operations.attendance_entries import EntryError, _role_tenant
+
+    tenant = _role_tenant()
+    if tenant is not None and school is not None and str(tenant) != str(school.pk):
+        raise EntryError(
+            "erasure_wrong_tenant",
+            f"دورُ القاعدة الحاليّ لمدرسةٍ غيرِ مدرسة «{school.name}» التي قُدّم فيها طلبُ المحو — يُنفَّذ بدور مدرستها",
+        )
+    contact_ids = _anonymise(
+        AbsenceContactLog,
+        student,
+        feedback="",
+        corrects=None,
+        contacted_by=None,
+        contacted_at=TruncDay("contacted_at"),
+    )
+    action_ids = _anonymise(
+        AbsenceActionLog,
+        student,
+        note="",
+        excuse=None,
+        corrects=None,
+        acted_by=None,
+        acted_at=TruncDay("acted_at"),
+    )
+    if (
+        AbsenceContactLog.objects.filter(student=student).exists()
+        or AbsenceActionLog.objects.filter(student=student).exists()
+        or AbsenceContactLog.objects.filter(pk__in=contact_ids).exclude(feedback="").exists()
+        or AbsenceContactLog.objects.filter(pk__in=contact_ids)
+        .filter(models.Q(corrects__isnull=False) | models.Q(contacted_by__isnull=False))
+        .exists()
+        or AbsenceActionLog.objects.filter(pk__in=action_ids).exclude(note="").exists()
+        or AbsenceActionLog.objects.filter(pk__in=action_ids)
+        .filter(
+            models.Q(excuse__isnull=False)
+            | models.Q(corrects__isnull=False)
+            | models.Q(acted_by__isnull=False)
+        )
+        .exists()
+    ):
+        raise EntryError(
+            "erasure_incomplete", "بقيت بياناتٌ شخصيّةٌ في سجلّات المتابعة — أُلغيت المعاملة."
+        )
+    counts = {"contacts": len(contact_ids), "actions": len(action_ids)}
+    if contact_ids or action_ids:
+        AuditLog.log(
+            user=actor,
+            action="update",
+            model_name="other",
+            object_id=student.pk,
+            object_repr="متابعةُ الغياب — تجهيلُ سجلّ طالبٍ بالمحو (PDPPL م.18)",
+            changes=counts,
+            school=school,
+        )
+    return counts

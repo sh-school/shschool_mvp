@@ -37,9 +37,12 @@ class AbsenceContactLog(AppendOnlyModel):
         related_name="absence_contact_logs",
         verbose_name="المدرسة",
     )
+    #: يصير `NULL` بالمحو (PDPPL م.18 — «أثرٌ مجهَّلٌ» لا حذف، قرارُ المالك): يبقى الصفُّ للإحصاء بلا هويّة.
     student = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name="absence_contact_logs",
         verbose_name="الطالب",
     )
@@ -101,9 +104,12 @@ class AbsenceActionLog(AppendOnlyModel):
         related_name="absence_action_logs",
         verbose_name="المدرسة",
     )
+    #: يصير `NULL` بالمحو (PDPPL م.18 — «أثرٌ مجهَّلٌ» لا حذف، قرارُ المالك): يبقى الصفُّ للإحصاء بلا هويّة.
     student = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name="absence_action_logs",
         verbose_name="الطالب",
     )
