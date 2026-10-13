@@ -24,17 +24,17 @@
       <table data-no-sort>
         <thead>
           <tr>
-            <th scope="col" class="num">#</th><th scope="col">الطالب</th><th scope="col">الشعبة</th><th scope="col">هاتفُ وليّ الأمر</th><th scope="col">نتيجةُ الاتّصال</th>
+            <th scope="col" class="num fu-seq">#</th><th scope="col" class="fu-name">الطالب</th><th scope="col" class="fu-fit">الشعبة</th><th scope="col" class="fu-fit">هاتفُ وليّ الأمر</th><th scope="col">نتيجةُ الاتّصال</th>
             {% if can_feedback %}<th scope="col">التغذية الراجعة من وليّ الأمر</th>{% endif %}<th scope="col">الإجراءُ الإداريّ</th>
           </tr>
         </thead>
         <tbody>
           {% for row in rows %}
           <tr>
-            <td class="num">{{ forloop.counter }}</td>
-            <td>{{ row.student.full_name }}</td>
-            <td>{{ row.class_group.short_label }}</td>
-            <td dir="ltr">{{ row.phones|join:" ، " }}</td>
+            <td class="num fu-seq">{{ forloop.counter }}</td>
+            <td class="fu-name">{{ row.student.full_name }}</td>
+            <td class="fu-fit">{{ row.class_group.short_label }}</td>
+            <td dir="ltr" class="fu-fit">{{ row.phones|join:" ، " }}</td>
             <td>{% if row.contact %}{{ row.contact.get_outcome_display }}{% endif %}</td>
             {% if can_feedback %}<td>{{ row.feedback }}</td>{% endif %}
             <td>{% if row.action %}{{ row.action.get_status_display }} — {{ row.action.get_action_kind_display }}{% endif %}</td>

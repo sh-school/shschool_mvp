@@ -17,6 +17,11 @@
 .fu-grid th { background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; padding: 4px 3px; border: 1px solid {% brand_color "MAROON" %}; }
 .fu-grid td { padding: 3px 4px; border: 1px solid {% brand_color "BORDER_STRONG" %}; color: {% brand_color "TEXT_PRIMARY" %}; }
 .fu-grid tbody tr:nth-child(even) td { background: {% brand_color "SURFACE_ALT" %}; }
+.fu-grid .fu-c-no { width: 9mm; }
+.fu-grid .fu-c-name { width: 64mm; }
+.fu-grid .fu-c-class { width: 16mm; }
+.fu-grid .fu-c-phone { width: 30mm; }
+.fu-grid .fu-c-result { width: 30mm; }
 .fu-sign { margin-top: 18px; width: 30%; text-align: center; }
 .fu-sign .fu-line { border-top: 1px solid {% brand_color "TEXT_PRIMARY" %}; padding-top: 3px; }
 {% endblock %}
@@ -28,6 +33,10 @@
 {% block content %}
 <div class="doc-body">
   <table class="fu-grid">
+    <colgroup>
+      <col class="fu-c-no"><col class="fu-c-name"><col class="fu-c-class"><col class="fu-c-phone"><col class="fu-c-result">
+      {% if can_feedback %}<col>{% endif %}<col>
+    </colgroup>
     <thead>
       <tr>
         <th scope="col">م</th><th scope="col">الطالب</th><th scope="col">الشعبة</th><th scope="col">هاتفُ وليّ الأمر</th><th scope="col">نتيجةُ الاتّصال</th>
