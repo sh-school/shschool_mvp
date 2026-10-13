@@ -24,6 +24,7 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
+from core.behavior_committee_roles import BEHAVIOR_COMMITTEE  # noqa: F401
 from core.role_inheritance import ROLE_INHERITS, expand_roles  # noqa: F401  (إعادة تصدير)
 from core.unrestricted_role import has_unrestricted_role
 
@@ -145,7 +146,6 @@ BEHAVIOR_RECORD = {
     "e_projects_coordinator",
 }
 BEHAVIOR_MANAGE = {"principal", "vice_admin", "vice_academic", "social_worker"}
-BEHAVIOR_COMMITTEE = {"principal", "vice_admin", "vice_academic", "social_worker", "specialist"}
 BEHAVIOR_VIEW_ALL = {
     "principal",
     "vice_admin",

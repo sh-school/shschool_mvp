@@ -65,9 +65,10 @@ def _behavior_report_redirect(
     )
 
 
-from behavior.committee_services import decide_committee
-from behavior.forms import InfractionForm
+from behavior.committee_services import decide_committee, may_act_on
+from behavior.forms import InfractionForm, action_choices_for
 from behavior.models import BehaviorInfraction, ViolationCategory
+from core.behavior_committee_roles import BEHAVIOR_COMMITTEE_CASE_SCOPED
 from core.capabilities import capability_required, has_capability
 from core.domain.tones import SHARE_KPI, tone_for
 from core.models import CustomUser
@@ -275,7 +276,7 @@ def report_infraction(request):
     if request.method == "POST":
         # معرّفُ الطالب يُسأل عنه قبل صحّة النموذج: طالبٌ خارج الجناح 404 مهما كان باقيه.
         _require_in_wing(request, request.POST.get("student_id", "").strip())
-        form = InfractionForm(request.POST)
+        form = InfractionForm(request.POST, role=request.user.get_role())
         if not form.is_valid():
             for field, errs in form.errors.items():
                 for err in errs:
@@ -287,8 +288,7 @@ def report_infraction(request):
             # REQ-SH-001: structured disciplinary action + conditional textarea
             disciplinary_action_type = form.cleaned_data.get("disciplinary_action_type", "")
             violation_description = form.cleaned_data.get("violation_description", "")
-            # Legacy free-text (kept for backward compat). Mirror the selected label
-            # from the dropdown so legacy readers still see a human-friendly value.
+            # نصٌّ حرٌّ قديم للتوافق: يُنسخ إليه نصُّ الخيار المختار ليقرأه القديمُ مقروءاً.
             _choices_map = dict(form.fields["disciplinary_action_type"].choices)
             action = _choices_map.get(disciplinary_action_type, "") or form.cleaned_data.get(
                 "action_taken", ""
@@ -364,6 +364,7 @@ def report_infraction(request):
             "levels": BehaviorInfraction.LEVELS,
             "violations_by_degree": violations_by_degree,
             "degree_panels": _degree_panels(violations_by_degree),
+            "action_choices": [c for c in action_choices_for(request.user.get_role()) if c[0]],
         },
     )
 
@@ -526,8 +527,11 @@ def _after_record_url(user, student_id, level: int) -> str:
     فتحويلُه إليها كان يُريه «غير مصرّح» بعد حفظٍ ناجح. والإحالةُ نفسُها
     تتمّ في `create_infraction` أيّاً كانت الوجهة.
     """
-    if level >= 3 and can_open(user, "behavior:committee"):
-        return reverse("behavior:committee")
+    # المشرفُ الإداريّ يدخل اللجنةَ لقضايا جناحه فقط (م5.7، W-20261001-023)، لكنّ مسارَه بعد التسجيل يبقى
+    # ملفَّ الطالب كما كان — فلا يتغيّر توجيهُه بدخوله اللجنة.
+    if level >= 3 and user.get_role() not in BEHAVIOR_COMMITTEE_CASE_SCOPED:
+        if can_open(user, "behavior:committee"):
+            return reverse("behavior:committee")
     return reverse("behavior:student_profile", kwargs={"student_id": student_id})
 
 
@@ -575,6 +579,12 @@ def student_behavior_profile(request, student_id):
 
 
 # ── لجنة الضبط السلوكي ───────────────────────────────────────
+def _require_committee_case(request, infraction):
+    """404 لقضيّةٍ خارج ما يحقّ لهذا العضو (م5.7): المشرفُ الإداريّ لا يرى غيرَ قضايا جناحه."""
+    if not may_act_on(request.user, infraction):
+        raise Http404("لا قضيّةَ بهذا المعرّف")
+
+
 @login_required
 @capability_required("behavior.committee")
 def committee_dashboard(request):
@@ -582,7 +592,7 @@ def committee_dashboard(request):
     if not BehaviorPermissions.is_committee(request.user):
         return HttpResponseForbidden("ليس لديك صلاحية الوصول إلى هذه الصفحة.")
     school = request.school
-    context = BehaviorService.get_committee_data(school)
+    context = BehaviorService.get_committee_data(school, scope=student_scope_for(request))
     # القضايا المفتوحة حمراءُ متى وُجدت واحدة، وخضراءُ حين تُحلّ كلُّها.
     context["open_tone"] = "red" if context["stats"]["open_count"] else "green"
     return render(request, "behavior/committee.html", context)
@@ -600,6 +610,7 @@ def committee_decision(request, infraction_id):
     infraction = get_object_or_404(
         BehaviorInfraction, id=infraction_id, level__in=[3, 4], school=school
     )
+    _require_committee_case(request, infraction)
     if request.method == "POST":
         msg, level = decide_committee(infraction, request.user, request.POST)
         getattr(messages, level)(request, msg)
@@ -685,7 +696,10 @@ def behavior_report(request, student_id):
 
 
 # ── تقرير إحصائي ─────────────────────────────────────────────
-_STATS_ALLOWED_ROLES = BEHAVIOR_COMMITTEE | BEHAVIOR_VIEW_ALL | BEHAVIOR_STATS_TEACHING
+#: المشرفُ الإداريّ عضوُ قضيّةِ جناحه وحدَها (م5.7) فلا يرث إحصاءَ المدرسة كلِّها
+_FULL_STATS_ROLES = (
+    BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL | (BEHAVIOR_COMMITTEE - BEHAVIOR_COMMITTEE_CASE_SCOPED)
+)
 
 
 @login_required
@@ -703,7 +717,7 @@ def behavior_statistics(request):
         stats["is_scoped"] = True
     else:
         # القيادة ولجنة الضبط والأخصائيون → كل طلاب المدرسة
-        _full_access = BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL | BEHAVIOR_COMMITTEE
+        _full_access = _FULL_STATS_ROLES
         if (
             role not in _full_access
             and not request.user.is_superuser
@@ -754,6 +768,7 @@ def escalate_infraction(request, infraction_id):
         return HttpResponseForbidden("غير مسموح.")
     school = request.school
     infraction = get_object_or_404(BehaviorInfraction, id=infraction_id, school=school)
+    _require_committee_case(request, infraction)
     if request.method == "POST":
         notes = request.POST.get("notes", "").strip()
         success, msg = BehaviorService.escalate_infraction(
@@ -778,6 +793,7 @@ def security_referral(request, infraction_id):
         return HttpResponseForbidden("غير مسموح.")
     school = request.school
     infraction = get_object_or_404(BehaviorInfraction, id=infraction_id, level=4, school=school)
+    _require_committee_case(request, infraction)
 
     if request.method == "POST":
         agency = request.POST.get("security_agency", "")

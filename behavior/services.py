@@ -16,15 +16,16 @@ from __future__ import annotations
 
 import logging
 from datetime import date
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, QuerySet
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school, default_academic_year
 from core.domain.tones import tone_for
+from core.permissions import BEHAVIOR_COMMITTEE
 from core.unrestricted_role import has_unrestricted_role
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ from core.models import ParentStudentLink, StudentEnrollment
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
+    from wings.scope import StudentScope
 
 # ── ثوابت موحدة من constants.py ────────────────────────────
 # POINTS_BY_LEVEL مُستبعد — نظام النقاط ملغى
@@ -65,7 +67,7 @@ NET_SCORE_STATUS = ((80, "green"), (60, "yellow"), (None, "red"))
 class BehaviorPermissions:
     """صلاحيات وحدة السلوك"""
 
-    COMMITTEE_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "specialist"}
+    COMMITTEE_ROLES = BEHAVIOR_COMMITTEE  # م5.7 — مصدرٌ واحدٌ في core/permissions.py (W-20261001-023)
     SUMMON_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "psychologist"}
     STATS_ROLES = {
         # لجنة الضبط والقيادة
@@ -210,24 +212,34 @@ class BehaviorService:
 
     # ── إحصائيات اللجنة ────────────────────────────────────
     @staticmethod
-    def get_committee_data(school: School) -> dict:
-        """بيانات لوحة لجنة الضبط السلوكي"""
+    def get_committee_data(school: School, scope: StudentScope | None = None) -> dict:
+        """بيانات لوحة لجنة الضبط السلوكي — و`scope` (نطاق الجناح) يضيّق قضايا المشرف الإداريّ بجناحه."""
+
+        def _narrow(qs: QuerySet[Any]) -> QuerySet[Any]:
+            return scope.narrow(qs) if scope is not None else qs
+
         open_cases = (
-            BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=False)
+            _narrow(
+                BehaviorInfraction.objects.filter(
+                    school=school, level__in=[3, 4], is_resolved=False
+                )
+            )
             .select_related("student", "reported_by", "violation_category")
             .order_by("-date")
         )
 
         resolved_cases = (
-            BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=True)
+            _narrow(
+                BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=True)
+            )
             .select_related("student", "reported_by")
             .order_by("-date")[:20]
         )
 
         stats = {
             "open_count": open_cases.count(),
-            "resolved_count": BehaviorInfraction.objects.filter(
-                school=school, level__in=[3, 4], is_resolved=True
+            "resolved_count": _narrow(
+                BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=True)
             ).count(),
             "level3": open_cases.filter(level=3).count(),
             "level4": open_cases.filter(level=4).count(),
