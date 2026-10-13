@@ -25,6 +25,17 @@ description: |
    وإن طُلب أن تطابق صفحةٌ صفحةً قائمة فاتّبع إجراءَ «طبقَ الأصل» في `references/20-layouts-components.md` قبل البناء.
 6. **شغّل الحرّاس** قبل الدفع (من شجرة عملك بأوامر `CLAUDE.md`): `tests/test_css_*.py`، `test_px_tokens`، `test_rtl_logical_properties`، `test_dark_parity`، `test_contrast_ratios`، `test_design_ratchet`، `test_a11y_ratchet`، `test_page_layouts`. وقراءةُ الفاشل منها في مهارة `schoolos-quality-guards`.
 
+## تحديثاتُ الهويّة منذ 2026-09-28 (إلزاميّة)
+- **لا صفحةَ خارج المنصّة ولا في لسانٍ جديد** (قرار المالك 2026-10-13): لا `target="_blank"` ولا `window.open(` ولا `href="http(s)://"` في القوالب وJS؛ الحارس `tests/test_no_external_pages.py` (الجديدُ ممنوع والقديمُ في خطّ أساسٍ يتناقص).
+- **رأسُ الجدول ثابتٌ عند التمرير الرأسيّ** (قرار المالك 2026-10-13): كلُّ جدولٍ بـ`{% for %}` داخل `table-wrap` يحمل `table-wrap-scroll`؛ الحارس `tests/test_sticky_table_header.py`.
+- **الانتقالُ**: لا `transition: all`؛ استعمل `--q-transition-ui` وخصائصَ صريحة، والاتّجاهُ بخصائص منطقيّة (`41dff8110`).
+- **شعارُ المدرسة «ش»** (D-404م): الوسمُ `{% school_logo "nav" %}` من `core/school_logo.py` مصدرٌ واحدٌ للشاشة وPDF وExcel (الأصل `static/icons/v3/icon-192.png`). شعارُ الوزارة أُزيل ولا يعود؛ وسطرُ الانتماء للوزارة مخفيٌّ افتراضًا خلف `MINISTRY_AFFILIATION_VISIBLE` (`core/ministry.py`، الوسم `ministry_name`). تغييرُ الأيقونات يرفع `CACHE_NAME` في عامل الخدمة.
+- **الطباعةُ**: ورقةٌ واحدة بـ`SINGLE_SHEET_BOOST`، وخطّ Tajawal، وإطارٌ مطبوعٌ مركزيّ (W-057)؛ ولا تحديدَ `.nav-inner` بعرض 1280px.
+- **لا صنفَ `text-xs`** في القوالب (استعمل رموزَ الخطّ)، ونماذجُ الدخول هُجّرت.
+- **ألوانُ الأجنحة** من `core/dept_colors.py:WING_KEY_OF_ORDER` (ترويسة الجناح وشريطه)، وأمّا **لونُ الفصل 7/1 … 12/4** فمنفصلٌ (تظليلُ الصفّ وشارتُه) برموز `--class-*` تُضاف بعد اعتماد المالك؛ ولا يتطابق مع لون جناح.
+- **حرّاسُ الهويّة** `test_dead_classes` و`test_design_ratchet` و`test_tailwind_freeze` تعمل في `prepush`، ومرجعُ الهويّة المولَّد يُحمَّل مع الواجهة.
+- **قاعدةٌ دائمة: كلُّ تعديلٍ أو إضافةٍ على الهويّة يحدّث هذه المهارةَ و`CHANGES.md` في الطلب نفسه**، وإلا عُدّ ناقصًا.
+
 ## القواعد وأسبابها
 - **لا لونَ حرفيّاً في CSS ولا في القالب** — الرموزُ تنقلب ليلاً والحرفُ لا ينقلب (`test_css_colours_are_tokens`، وسقّاطةُ الهويّة `hex_colour` = 0). في القالب `{% brand_color "MAROON" %}`، ومرآتُه `core/brand.py`.
 - **نصٌّ فوق حشوٍ ثابتٍ `var(--on-fill)` لا `#fff`**؛ ونصٌّ على سطحٍ `--text-*` أو `--status-*-fg`. السبب: الأبيضُ يساوي السطحَ نهاراً مصادفةً ويُطفئ الترويسةَ ليلاً.
