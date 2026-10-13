@@ -130,7 +130,7 @@ def _portal_url(path: str) -> str:
 
     origins = [o for o in getattr(settings, "CSRF_TRUSTED_ORIGINS", []) if "*" not in o]
     if origins:
-        return origins[0].rstrip("/") + path
+        return str(origins[0]).rstrip("/") + path
     hosts = [h for h in settings.ALLOWED_HOSTS if h and not h.startswith(".") and h != "*"]
     host = next((h for h in hosts if h not in ("localhost", "127.0.0.1", "testserver")), "")
     return f"https://{host}{path}" if host else path
@@ -629,10 +629,8 @@ class BehaviorService:
             # العنوانُ هو موضوعُ البريد إلى مزوّدٍ خارجيّ: لا اسمَ طالبٍ ولا درجةً (W-20261012-031، PDPPL م.8).
             # ولي الأمر يرى التفاصيل داخل بوابته بعد الدخول.
             title = "إشعار جديد في بوابة ولي الأمر"
-            body = (
-                f"{LEVEL_DESC.get(infraction.level, '')}\n"
-                f"التاريخ: {when.strftime('%Y/%m/%d') if when else ''}"
-            )
+            # جسمُ التطبيق/push/واتساب/SMS محايدٌ كالعنوان: لا درجةَ ولا تاريخَ ولا حسمَ (W-20261012-031).
+            body = "يوجد إشعار جديد بخصوص ابنكم، يُرجى الدخول إلى بوابة ولي الأمر للاطّلاع عليه."
 
             NotificationHub.dispatch_to_parents(
                 event_type=event_type,

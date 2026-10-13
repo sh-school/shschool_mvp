@@ -83,3 +83,14 @@ def test_no_channel_text_carries_points_or_deduction(school, student_user, teach
         visible = re.sub(r"<style.*?</style>", "", text, flags=re.S)
         for banned in ("حسم", "خصم", "نقاط", "نقطة", "درجات السلوك"):
             assert banned not in visible, (level, banned)
+
+
+@pytest.mark.parametrize("level", [1, 2, 3, 4])
+def test_push_whatsapp_sms_body_is_neutral(school, student_user, teacher_user, level):
+    """جسمُ التطبيق/push/واتساب/SMS محايدٌ: لا درجةَ ولا تاريخَ ولا وصفَ (W-20261012-031)."""
+    _inf, kwargs = _captured(school, student_user, teacher_user, level=level)
+    body = kwargs["body"]
+    assert "الدرجة" not in body and "مخالفة" not in body
+    assert not re.search(r"\d", body)
+    for secret in SECRETS:
+        assert secret not in body
