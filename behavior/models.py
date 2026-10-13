@@ -3,7 +3,7 @@ behavior/models.py
 نماذج السلوك الطلابي — v6
 ✅ ViolationCategory: 40 مخالفة رسمية × 4 درجات
 ✅ BehaviorInfraction: حقول الإحالة الأمنية + التشهير الرقمي + الإجراء التصاعدي
-✅ BehaviorPointRecovery: استعادة النقاط (التعزيز الإيجابي)
+⚠️ BehaviorPointRecovery: جدولٌ خامل (نظام النقاط ملغى) يُحذف في المرحلة 2 من W-20261013-010
 """
 
 import uuid
@@ -19,7 +19,7 @@ from .constants import (
     SOCIAL_MEDIA_PLATFORMS,
     VIOLATIONS_2025,
 )
-from .querysets import InfractionQuerySet, RecoveryQuerySet
+from .querysets import InfractionQuerySet
 
 
 def _uuid():
@@ -87,7 +87,11 @@ class ViolationCategory(models.Model):
         blank=True,
         verbose_name="الإجراء الافتراضي",
     )
-    points = models.PositiveSmallIntegerField(default=5, verbose_name="النقاط المخصومة")
+    # [W-20261013-010] نظام النقاط ملغى ولا أصل له في دليل السلوك 2026: العمودُ خاملٌ لا يُقرأ ولا يُكتب،
+    # وله قيمةٌ افتراضيةٌ في القاعدة كي لا يفشل الإدراج بعد إزالته من الشيفرة؛ يُحذف في المرحلة 2.
+    points = models.PositiveSmallIntegerField(
+        default=0, db_default=0, verbose_name="(مهمل) نقاط مخصومة"
+    )
     is_active = models.BooleanField(default=True, verbose_name="نشط")
 
     # ── حقول جديدة 2025 ──
@@ -194,13 +198,12 @@ class ViolationCategory(models.Model):
             ("D", "D5", "انتهاك سياسة حماية الطلبة", 25, 4),
         ]
         created = 0
-        for cat, code, name, pts, deg in violations:
+        for cat, code, name, _legacy, deg in violations:
             obj, made = cls.objects.get_or_create(
                 code=code,
                 defaults={
                     "category": cat,
                     "name_ar": name,
-                    "points": pts,
                     "degree": deg,
                 },
             )
@@ -212,13 +215,12 @@ class ViolationCategory(models.Model):
     def seed_2025(cls):
         """حقن 40 مخالفة رسمية وفق لائحة السلوك المُعتمدة (SOS-20260420-1E01)"""
         created = 0
-        for degree, code, name, pts, tag_list in VIOLATIONS_2025:
+        for degree, code, name, tag_list in VIOLATIONS_2025:
             obj, made = cls.objects.get_or_create(
                 code=code,
                 defaults={
                     "degree": degree,
                     "name_ar": name,
-                    "points": pts,
                     "tags": ",".join(tag_list),
                     "requires_security_referral": degree == 4,
                     "requires_parent_summon": degree >= 3,
@@ -347,9 +349,11 @@ class BehaviorInfraction(models.Model):
         help_text="مطلوب فقط عند اختيار 'محضر لإثبات المخالفة' (20-2000 حرف)",
     )
 
+    # [W-20261013-010] خاملٌ كـ`ViolationCategory.points`: لا يُقرأ ولا يُكتب، ويُحذف في المرحلة 2.
     points_deducted = models.PositiveSmallIntegerField(
         default=0,
-        verbose_name="النقاط المخصومة",
+        db_default=0,
+        verbose_name="(مهمل) نقاط مخصومة",
     )
 
     # ── خطوة الإجراء التصاعدي الحالية ──
@@ -463,7 +467,6 @@ class BehaviorInfraction(models.Model):
         return f"{self.student.full_name}{cat} - {self.get_level_display()}"
 
     def save(self, *args, **kwargs):
-        # نظام النقاط ملغى — لا نملأ points_deducted تلقائياً
         # [ARCH-01] تجميد الدرجة عند الإنشاء فقط: تعديل تعريف الفئة (degree) لاحقاً
         # يجب ألا يعيد ختم المخالفات التاريخية بدرجة مختلفة (منع drift في التقارير).
         if self._state.adding and self.violation_category and self.violation_category.degree:
@@ -508,12 +511,10 @@ class BehaviorInfraction(models.Model):
 
 
 # ─────────────────────────────────────────────────────────────────
-# BehaviorPointRecovery — استعادة النقاط (التعزيز الإيجابي)
+# BehaviorPointRecovery — خاملٌ: نظام النقاط ملغى، يُحذف الجدولُ في المرحلة 2 (W-20261013-010)
 # ─────────────────────────────────────────────────────────────────
 class BehaviorPointRecovery(models.Model):
-    """استعادة نقاط السلوك — التعزيز الإيجابي"""
-
-    objects = RecoveryQuerySet.as_manager()
+    """جدولٌ خامل: لا شيءَ يقرؤه ولا يكتب فيه، ويبقى هنا ليبقى مخطّطُ الهجرات متّسقاً حتى المرحلة 2."""
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     infraction = models.OneToOneField(
@@ -523,7 +524,9 @@ class BehaviorPointRecovery(models.Model):
         verbose_name="المخالفة",
     )
     reason = models.TextField(verbose_name="سبب استعادة النقاط (سلوك إيجابي)")
-    points_restored = models.PositiveIntegerField(default=0, verbose_name="النقاط المستعادة")
+    points_restored = models.PositiveIntegerField(
+        default=0, db_default=0, verbose_name="(مهمل) نقاط مستعادة"
+    )
     approved_by = models.ForeignKey(
         "core.CustomUser",
         on_delete=models.SET_NULL,
@@ -538,7 +541,7 @@ class BehaviorPointRecovery(models.Model):
         db_table = "core_behaviorpointrecovery"
 
     def __str__(self):
-        return f"Recovery: {self.infraction.student.full_name} (+{self.points_restored})"
+        return f"Recovery: {self.infraction_id}"
 
 
 # ─────────────────────────────────────────────────────────────────

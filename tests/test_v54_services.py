@@ -208,12 +208,10 @@ class TestBehaviorServiceCreateInfraction:
             reporter=reporter,
             level=1,
             description="تأخر عن الحصة",
-            points_deducted=5,
         )
 
         assert infraction.pk is not None
         assert infraction.level == 1
-        assert infraction.points_deducted == 5
         assert infraction.student == student
         assert infraction.reported_by == reporter
         assert not infraction.is_resolved

@@ -243,7 +243,7 @@ class ParentService:
             today: تاريخ اليوم (افتراضي: اليوم الفعلي)
 
         Returns:
-            children مع إضافة: behavior_score, subjects_count,
+            children مع إضافة: subjects_count,
                                 attendance_pct, week_attendance لكل طالب
         """
         from collections import defaultdict
