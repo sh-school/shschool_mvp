@@ -131,7 +131,7 @@ def _get_scoped_students(request, school):
 from core.academic_calendar import academic_year_for
 
 from .notify import notify_behavior_after_commit
-from .selectors import student_picker
+from .selectors import recordable_student, student_picker
 from .services import (
     PERIOD_CHOICES,
     BehaviorPermissions,
@@ -276,7 +276,7 @@ def report_infraction(request):
 
     if request.method == "POST":
         # معرّفُ الطالب يُسأل عنه قبل صحّة النموذج: طالبٌ خارج الجناح 404 مهما كان باقيه.
-        _require_in_wing(request, request.POST.get("student_id", "").strip())
+        recordable = recordable_student(request, school, request.POST.get("student_id", "").strip())
         form = InfractionForm(request.POST, role=request.user.get_role())
         if not form.is_valid():
             for field, errs in form.errors.items():
@@ -307,7 +307,7 @@ def report_infraction(request):
                     violation_cat = "INVALID"
 
             if violation_cat != "INVALID":
-                student = get_object_or_404(CustomUser, id=student_id)
+                student = recordable
 
                 try:
                     # [B4-PRE3] المخالفة ونيّة إشعارها في حدٍّ واحد.
@@ -414,7 +414,7 @@ def quick_log(request):
 
     if request.method == "POST":
         student_id = request.POST.get("student_id", "").strip()
-        _require_in_wing(request, student_id)
+        recordable = recordable_student(request, school, student_id)
         violation_cat_id = request.POST.get("violation_category", "").strip()
         description = request.POST.get("description", "").strip()
         action = request.POST.get("action_taken", "").strip()
@@ -453,7 +453,7 @@ def quick_log(request):
                 msg_type="danger",
             )
 
-        student = get_object_or_404(CustomUser, id=student_id)
+        student = recordable
 
         # [B4-PRE3] المخالفة ونيّة إشعارها في حدٍّ واحد — انظر report_infraction.
         with transaction.atomic():

@@ -197,7 +197,13 @@ class TestReportInfractionExtended:
         assert resp.status_code == 200
 
     def test_post_missing_description(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self,
+        client_as,
+        teacher_user,
+        school,
+        student_user,
+        enrolled_student,
+        teacher_student_link,
     ):
         client = client_as(teacher_user)
         resp = client.post(
@@ -213,7 +219,13 @@ class TestReportInfractionExtended:
         assert BehaviorInfraction.objects.count() == 0
 
     def test_post_invalid_level(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self,
+        client_as,
+        teacher_user,
+        school,
+        student_user,
+        enrolled_student,
+        teacher_student_link,
     ):
         client = client_as(teacher_user)
         resp = client.post(
@@ -229,7 +241,13 @@ class TestReportInfractionExtended:
         assert resp.status_code == 200
 
     def test_post_invalid_points(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self,
+        client_as,
+        teacher_user,
+        school,
+        student_user,
+        enrolled_student,
+        teacher_student_link,
     ):
         client = client_as(teacher_user)
         resp = client.post(
@@ -244,7 +262,13 @@ class TestReportInfractionExtended:
         assert resp.status_code == 200
 
     def test_post_level2_redirects_to_student_profile(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self,
+        client_as,
+        teacher_user,
+        school,
+        student_user,
+        enrolled_student,
+        teacher_student_link,
     ):
         client = client_as(teacher_user)
         resp = client.post(
@@ -263,7 +287,13 @@ class TestReportInfractionExtended:
         assert f"/behavior/student/{student_user.id}/" in resp.url
 
     def test_post_level3_by_someone_without_committee_access_lands_on_the_profile(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self,
+        client_as,
+        teacher_user,
+        school,
+        student_user,
+        enrolled_student,
+        teacher_student_link,
     ):
         """المخالفةُ تُحال إلى اللجنة دائماً، لكنّ الراصد الذي لا يفتح صفحتها لا يُساق إليها.
 
@@ -289,7 +319,13 @@ class TestReportInfractionExtended:
         # فتحُ الملفّ نفسه فرعٌ آخر (نطاقُ الطالب على المعلّم) — لا تُختبَر هنا.
 
     def test_post_level4_by_someone_without_committee_access_lands_on_the_profile(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self,
+        client_as,
+        teacher_user,
+        school,
+        student_user,
+        enrolled_student,
+        teacher_student_link,
     ):
         client = client_as(teacher_user)
         resp = client.post(
@@ -308,7 +344,13 @@ class TestReportInfractionExtended:
         assert BehaviorInfraction.objects.filter(student=student_user, level=4).exists()
 
     def test_post_level3_by_vice_admin_still_redirects_to_committee(
-        self, client_as, vice_admin_user, school, student_user, enrolled_student
+        self,
+        client_as,
+        vice_admin_user,
+        school,
+        student_user,
+        enrolled_student,
+        teacher_student_link,
     ):
         """من يفتح صفحة اللجنة فعلاً يُساق إليها كما كان — لا تراجع لهذا الجزء."""
         client = client_as(vice_admin_user)
@@ -337,7 +379,13 @@ class TestReportInfractionExtended:
         assert resp.status_code == 200
 
     def test_post_non_numeric_level(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self,
+        client_as,
+        teacher_user,
+        school,
+        student_user,
+        enrolled_student,
+        teacher_student_link,
     ):
         """Non-numeric level/points should be handled gracefully."""
         client = client_as(teacher_user)
