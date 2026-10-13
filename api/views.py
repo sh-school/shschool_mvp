@@ -40,7 +40,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from assessments.models import AnnualSubjectResult
-from behavior.models import BehaviorInfraction
+from behavior.selectors import visible_infractions
 from clinic.models import ClinicVisit
 from core.academic_calendar import academic_year_for
 from core.domain.attendance import attendance_rate
@@ -51,7 +51,7 @@ from core.models import (
     StudentEnrollment,
 )
 from core.parent_consent import needs_parent_consent
-from core.permissions import LIBRARY_BORROWINGS_ALL, get_teacher_student_ids
+from core.permissions import LIBRARY_BORROWINGS_ALL
 from core.unrestricted_role import has_unrestricted_role
 from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing, LibraryBook
@@ -525,14 +525,7 @@ class BehaviorListView(generics.ListAPIView):
         return super().get(*args, **kwargs)
 
     def get_queryset(self):
-        school = _school(self.request)
-        qs = BehaviorInfraction.objects.filter(school=school).with_student().order_by("-date")
-        # نطاقُ الويب نفسُه (W-20261012-032): المعلّمُ والمنسّقُ ومشرفُ الجناح لطلبتهم، والقيادةُ (None) للمدرسة.
-        # و`?student_id` و`?class_id` تُضيَّقان بعده فتُرجعان قائمةً فارغةً لطالبٍ خارج النطاق لا خطأً يكشف وجوده.
-        visible = get_teacher_student_ids(self.request.user)
-        if visible is not None:
-            qs = qs.filter(student_id__in=visible)
-        return qs
+        return visible_infractions(self.request.user, _school(self.request))
 
 
 # للتوافق مع URLs القديمة

@@ -16,6 +16,7 @@ from typing import Any
 
 from core.academic_calendar import academic_year_for_school
 from core.models import ClassGroup, StudentEnrollment
+from core.permissions import get_teacher_student_ids
 
 
 def _section_key(section: str) -> tuple[int, int, str]:
@@ -63,3 +64,17 @@ def student_picker(students: Iterable[Any], school) -> dict[str, Any]:
         },
         "all_sections": sorted({s for found in sections.values() for s in found}, key=_section_key),
     }
+
+
+def visible_infractions(user, school):
+    """مخالفاتُ المدرسة المرئيةُ لصاحب الطلب — بنطاقِ الويب نفسِه (W-20261012-032).
+
+    المعلّمُ والمنسّقُ ومشرفُ الجناح لطلبتهم، والقيادةُ (None) للمدرسة كلِّها. و`?student_id` و`?class_id`
+    تُضيَّقان بعده فتُرجعان قائمةً فارغةً لطالبٍ خارج النطاق لا خطأً يكشف وجوده."""
+    from .models import BehaviorInfraction
+
+    qs = BehaviorInfraction.objects.filter(school=school).with_student().order_by("-date")
+    visible = get_teacher_student_ids(user)
+    if visible is not None:
+        qs = qs.filter(student_id__in=visible)
+    return qs
