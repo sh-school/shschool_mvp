@@ -27,8 +27,8 @@ HANDLED_BY_DEDICATED_STEPS = {
     "core.ParentStudentLink": "الخطوة 5: حذفُ روابط الأولياء",
     "core.ConsentRecord": "الخطوة 4: حذفُ سجلّات الموافقة",
     "core.ErasureRequest": "طلبُ المحو نفسُه — دليلُ الامتثال يبقى (SET_NULL)",
-    "operations.AbsenceContactLog": "سجلٌّ مضافٌ فقط يُمحى بـ`erase_followup_logs` في الخطوة 2.6 (الحذفُ العامّ يرفضه)",
-    "operations.AbsenceActionLog": "سجلٌّ مضافٌ فقط يُمحى بـ`erase_followup_logs` في الخطوة 2.6 (الحذفُ العامّ يرفضه)",
+    "operations.AbsenceContactLog": "سجلٌّ مضافٌ فقط يُجهَّل بـ`erase_followup_logs` في الخطوة 2.6 (الحذفُ العامّ يرفضه)",
+    "operations.AbsenceActionLog": "سجلٌّ مضافٌ فقط يُجهَّل بـ`erase_followup_logs` في الخطوة 2.6 (الحذفُ العامّ يرفضه)",
     "operations.AttendanceEntry": "سجلٌّ ملحقٌ يُمحى بـ`erase_attendance_ledger` في ErasureService قبل جمع الملفّات — ولا حذفَ عاديَّ يمرّ من مُشغِّل القاعدة",
 }
 
@@ -160,8 +160,7 @@ def test_dedicated_step_exemptions_still_exist():
         assert apps.get_model(label)._meta.get_field("student")
 
 
-def test_followup_logs_are_erased_by_their_named_path(db, school, student_user, teacher_user):
-    """سجلّا متابعة الغياب مضافان فقط: المحوُ يمرّ بمساره المسمّى (لا PermissionDenied) ولا يبقى منهما ولا تغذيةُ الأهل."""
+def _seed_followup(school, student_user, teacher_user):
     from operations.models import AbsenceActionLog, AbsenceContactLog
 
     day = date.today()
@@ -171,13 +170,27 @@ def test_followup_logs_are_erased_by_their_named_path(db, school, student_user, 
         absence_date=day,
         outcome="answered",
         feedback="نصٌّ حسّاس",
+        contacted_by=teacher_user,
     )
     AbsenceContactLog.objects.create(
         school=school, student=student_user, absence_date=day, outcome="no_answer", corrects=first
     )
     AbsenceActionLog.objects.create(
-        school=school, student=student_user, absence_date=day, status="done", acted_by=teacher_user
+        school=school,
+        student=student_user,
+        absence_date=day,
+        status="done",
+        note="ملاحظةٌ شخصيّة",
+        acted_by=teacher_user,
     )
+    return day
+
+
+def test_followup_logs_are_anonymised_not_deleted(db, school, student_user, teacher_user):
+    """قرارُ المالك: أثرٌ مجهَّل — الصفوفُ تبقى للإحصاء بلا ربطٍ بالطالب ولا محتوًى حرٍّ ولا عذرٍ مرتبط."""
+    from operations.models import AbsenceActionLog, AbsenceContactLog
+
+    day = _seed_followup(school, student_user, teacher_user)
 
     summary = _erase(student_user, school)
 
@@ -185,53 +198,42 @@ def test_followup_logs_are_erased_by_their_named_path(db, school, student_user, 
     assert summary["models"]["AbsenceActionLog"] == 1
     assert not AbsenceContactLog.objects.filter(student=student_user).exists()
     assert not AbsenceActionLog.objects.filter(student=student_user).exists()
+    contacts = list(AbsenceContactLog.objects.filter(school=school, absence_date=day))
+    actions = list(AbsenceActionLog.objects.filter(school=school, absence_date=day))
+    assert len(contacts) == 2 and len(actions) == 1, "تبقى الصفوفُ للإحصاء"
+    assert {c.outcome for c in contacts} == {"answered", "no_answer"}
+    assert actions[0].status == "done"
+    assert all(c.student_id is None and c.feedback == "" for c in contacts)
+    assert actions[0].student_id is None and actions[0].note == "" and actions[0].excuse_id is None
 
 
-def test_followup_erasure_writes_counts_only_audit_and_is_called_from_the_service_alone(
-    db, school, student_user, teacher_user
-):
-    """أثرُ المحو أعدادٌ بلا محتوى (حكمُ 0104)، والدالّةُ لا تُستدعى خارج `ErasureService` (حارسٌ نصّيّ)."""
-    import os
-    import pathlib
-
+def test_followup_erasure_audits_counts_only(db, school, student_user, teacher_user):
     from core.models import AuditLog
-    from operations.models import AbsenceContactLog
 
-    AbsenceContactLog.objects.create(
-        school=school,
-        student=student_user,
-        absence_date=date.today(),
-        outcome="answered",
-        feedback="نصٌّ حسّاس",
-    )
+    _seed_followup(school, student_user, teacher_user)
 
     _erase(student_user, school)
 
-    entry = AuditLog.objects.filter(object_repr__startswith="متابعةُ الغياب — محوُ").get()
-    assert entry.changes == {"contacts": 1, "actions": 0}
-    assert "حسّاس" not in str(entry.changes)
+    entry = AuditLog.objects.filter(object_repr__startswith="متابعةُ الغياب — تجهيلُ").get()
+    assert entry.changes == {"contacts": 2, "actions": 1}
+    assert "حسّاس" not in str(entry.changes) and "شخصيّة" not in entry.object_repr
 
-    root = pathlib.Path(settings.BASE_DIR)
-    skip = {
-        ".claude",
-        ".git",
-        ".venv",
-        "venv",
-        "node_modules",
-        "staticfiles",
-        "tests",
-        "migrations",
-        "__pycache__",
-    }
-    callers = []
-    for folder, dirs, files in os.walk(root):
-        dirs[:] = [d for d in dirs if d not in skip]
-        for name in files:
-            path = pathlib.Path(folder, name)
-            if name.endswith(".py") and "erase_followup_logs(" in path.read_text(encoding="utf-8"):
-                callers.append(path.relative_to(root).as_posix())
-    callers.sort()
-    assert callers == [
-        "governance/erasure_service.py",
-        "operations/services/absence_followup.py",
-    ], f"erase_followup_logs لا تُستدعى إلا من ErasureService: {callers}"
+
+def test_followup_erasure_refuses_another_schools_role(
+    db, school, student_user, teacher_user, monkeypatch
+):
+    """دورُ مدرسةٍ أخرى يرى صفراً تحت RLS فلا يُقال «تمّ» — يُرفض ابتداءً والصفوفُ على حالها."""
+    import pytest
+
+    from operations.attendance_entries import EntryError
+    from operations.models import AbsenceContactLog
+    from operations.services.absence_followup import erase_followup_logs
+
+    _seed_followup(school, student_user, teacher_user)
+    monkeypatch.setattr("operations.attendance_entries._role_tenant", lambda: "مدرسةٌ-أخرى")
+
+    with pytest.raises(EntryError) as exc:
+        erase_followup_logs(student_user, school=school)
+
+    assert exc.value.code == "erasure_wrong_tenant"
+    assert AbsenceContactLog.objects.filter(student=student_user).exists()

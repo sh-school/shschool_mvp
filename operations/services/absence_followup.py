@@ -17,6 +17,7 @@ from collections import defaultdict
 from typing import Any
 
 from django.core.exceptions import PermissionDenied
+from django.db import models
 from django.http import Http404
 from django.utils import timezone
 
@@ -317,19 +318,32 @@ def _class_order(row: dict) -> tuple[int, int, str]:
     )
 
 
+def _anonymise(model: Any, student: CustomUser, **blank: Any) -> list[Any]:
+    """يُجهِّل صفوفَ الطالب في `model` ويرجع مفاتيحَها: يُنزَع الربطُ بالطالب وما في `blank` من محتوًى حرٍّ.
+
+    السجلّان مضافان فقط فيرفض `update` على مديرهما؛ والتجهيلُ هو الاستثناءُ الوحيد، فيمرّ بـ`QuerySet` عاديٍّ
+    على النموذج نفسِه (لا يمسّ أيَّ مسارٍ آخر). RLS تقيّده بمدرسة دور القاعدة كباقي الاستعلامات.
+    """
+    plain = models.QuerySet(model, using=model.objects.db).filter(student=student)
+    ids = list(plain.values_list("pk", flat=True))
+    if ids:
+        plain.update(student=None, **blank)
+    return ids
+
+
 def erase_followup_logs(
     student: CustomUser, *, actor: CustomUser | None = None, school: Any = None
 ) -> dict[str, int]:
-    """يمحو سجلَّي المتابعة لطالبٍ — حقُّ المحو (PDPPL م.18). **يُستدعى من `ErasureService` وحدَه** (يحرسه اختبار).
+    """يُجهِّل سجلَّي المتابعة لطالبٍ — حقُّ المحو (PDPPL م.18) بـ«أثرٍ مجهَّلٍ» (قرارُ المالك). **من `ErasureService` وحدَه.**
 
-    السجلّان مضافان فقط فلا يمرّان بالحذف العامّ؛ والمحوُ خامٌّ بلا جامعِ تتابعٍ (`PROTECT` على `corrects` يمنعه
-    ولو حُذف الطرفان معاً، والقاعدةُ تتحقّق من قيودها مؤجَّلةً بعد العبارة). لا مشغِّلَ قاعدةٍ يحجب الحذفَ هنا
-    (سجلّاتُ الرصد وحدَها لها مشغِّل)، فلا علَمَ محوٍ. وتغذيةُ الأهل المشفَّرة تذهب مع صفّها.
+    لا حذفَ: يبقى الصفُّ بمدرسته وتاريخ غيابه ونتيجته/حالته ونوعه (للإحصاء)، ويُنزَع منه كلُّ ما يدلّ على الطالب:
+    الربطُ به (`student` ← NULL)، وتغذيةُ الأهل المشفَّرة والملاحظةُ الحرّةُ والعذرُ المرتبطُ بطالبٍ (`excuse`).
+    وكاتبُ الصفّ (موظّفٌ) وسلسلةُ التصحيح (`corrects`) تبقيان — لا هويّةَ طالبٍ فيهما.
 
-    **لا يفشل صامتاً تحت RLS** كـ`erase_attendance_ledger` (حكمُ 0104): هويّةُ المستأجِر من دور القاعدة، فدورُ
-    مدرسةٍ أخرى يرى صفراً فيُحذف 0 ويُقال «تمّ» والصفوفُ باقية. فيُرفض ابتداءً (`erasure_wrong_tenant`)، ويُتحقَّق
-    بعد الحذف ألّا يبقى شيءٌ (`erasure_incomplete`) — وكلاهما يُلغي المعاملةَ كلَّها. ويُكتب `AuditLog` بالأعداد
-    وحدَها: لا نصَّ ولا رقمَ ولا اسم.
+    **لا يفشل صامتاً تحت RLS** كمحوِ سجلّ رصد المعلّم (حكمُ 0104): هويّةُ المستأجِر من دور القاعدة، فدورُ
+    مدرسةٍ أخرى يرى صفراً فيُجهَّل 0 ويُقال «تمّ» والصفوفُ باقية. فيُرفض ابتداءً (`erasure_wrong_tenant`)، ويُتحقَّق
+    بعد التجهيل ألّا يبقى ربطٌ بالطالب ولا نصٌّ في صفوفه (`erasure_incomplete`) — وكلاهما يُلغي المعاملةَ كلَّها.
+    ويُكتب `AuditLog` بالأعداد وحدَها: لا نصَّ ولا رقمَ ولا اسم.
     """
     from operations.attendance_entries import EntryError, _role_tenant
 
@@ -339,23 +353,26 @@ def erase_followup_logs(
             "erasure_wrong_tenant",
             f"دورُ القاعدة الحاليّ لمدرسةٍ غيرِ مدرسة «{school.name}» التي قُدّم فيها طلبُ المحو — يُنفَّذ بدور مدرستها",
         )
-    actions = AbsenceActionLog.objects.filter(student=student)._erase()
-    contacts = AbsenceContactLog.objects.filter(student=student)._erase()
+    contact_ids = _anonymise(AbsenceContactLog, student, feedback="")
+    action_ids = _anonymise(AbsenceActionLog, student, note="", excuse=None)
     if (
-        AbsenceActionLog.objects.filter(student=student).exists()
-        or AbsenceContactLog.objects.filter(student=student).exists()
+        AbsenceContactLog.objects.filter(student=student).exists()
+        or AbsenceActionLog.objects.filter(student=student).exists()
+        or AbsenceContactLog.objects.filter(pk__in=contact_ids).exclude(feedback="").exists()
+        or AbsenceActionLog.objects.filter(pk__in=action_ids).exclude(note="").exists()
+        or AbsenceActionLog.objects.filter(pk__in=action_ids, excuse__isnull=False).exists()
     ):
         raise EntryError(
-            "erasure_incomplete", "بقيت صفوفُ متابعة الغياب بعد المحو — أُلغيت المعاملة."
+            "erasure_incomplete", "بقيت بياناتٌ شخصيّةٌ في سجلّات المتابعة — أُلغيت المعاملة."
         )
-    counts = {"contacts": contacts, "actions": actions}
-    if contacts or actions:
+    counts = {"contacts": len(contact_ids), "actions": len(action_ids)}
+    if contact_ids or action_ids:
         AuditLog.log(
             user=actor,
-            action="delete",
+            action="update",
             model_name="other",
             object_id=student.pk,
-            object_repr="متابعةُ الغياب — محوُ سجلّ طالبٍ (PDPPL م.18)",
+            object_repr="متابعةُ الغياب — تجهيلُ سجلّ طالبٍ بالمحو (PDPPL م.18)",
             changes=counts,
             school=school,
         )

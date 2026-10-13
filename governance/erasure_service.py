@@ -330,7 +330,7 @@ class ErasureService:
         if ledger["decisions"]:
             summary["models"]["AttendanceDecision"] = ledger["decisions"]
         # 2.6 سجلّا متابعة الغياب (اتّصالٌ بالوليّ وتغذيتُه المشفَّرة، وإجراءٌ إداريّ — W-20261013-011): مضافان فقط
-        #     كسجلّ الرصد، فالحلقةُ العامّةُ أدناه تُسقطهما (`PermissionDenied`) — يُمحيان بمسارهما المسمّى وحدَه.
+        #     كسجلّ الرصد، فالحلقةُ العامّةُ أدناه تُسقطهما (`PermissionDenied`) — يُجهَّلان بمسارهما المسمّى وحدَه (أثرٌ مجهَّلٌ لا حذف، قرارُ المالك).
         from operations.services.absence_followup import erase_followup_logs
 
         followup = erase_followup_logs(
