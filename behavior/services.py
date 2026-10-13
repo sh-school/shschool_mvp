@@ -15,7 +15,7 @@ Business logic لوحدة السلوك — مستخلص من views.py
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
@@ -34,6 +34,8 @@ from behavior.models import BehaviorInfraction
 from core.models import ParentStudentLink, StudentEnrollment
 
 if TYPE_CHECKING:
+    from django.http import HttpRequest
+
     from core.models import CustomUser, School
     from wings.scope import StudentScope
 
@@ -117,10 +119,10 @@ class BehaviorPermissions:
 
 
 #: نافذةُ تدقيق القراءة: حدثٌ واحد لكل (مستخدم، مخالفة) في هذه المدّة، فلا يتضخّم السجلّ بالتحديث المتكرّر.
-READ_AUDIT_WINDOW = timezone.timedelta(minutes=10)
+READ_AUDIT_WINDOW = timedelta(minutes=10)
 
 
-def audit_infraction_read(request, infractions) -> None:
+def audit_infraction_read(request: HttpRequest, infractions: Any) -> None:
     """يسجّل في AuditLog قراءةَ النصّ الكامل لمخالفةٍ أو أكثر (W-20261012-033، PDPPL).
 
     للعروض التي تُظهر الوصفَ والإجراءَ كاملَين (القضيّة، ملفّ الطالب، التقرير، نماذج PDF) لا للقوائم. والسجلُّ
