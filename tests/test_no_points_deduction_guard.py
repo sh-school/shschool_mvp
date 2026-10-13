@@ -9,19 +9,25 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SCAN_DIRS = (
-    "behavior",
-    "reports",
-    "academic_management",
-    "parents",
-    "student_affairs",
-    "api",
-    "templates",
-)
+SKIP_TOP = {
+    ".venv",
+    "venv",
+    "node_modules",
+    "tests",
+    "docs",
+    "AAdocs",
+    "static",
+    "staticfiles",
+    ".git",
+    ".claude",
+    "scripts",
+    "locale",
+}
 ALLOWED = {
     "behavior/models.py",  # الأعمدة الخاملة حتى المرحلة 2
     "core/models/__init__.py",
     "core/tenancy.py",
+    "behavior/admin.py",  # عرضٌ للقراءة وحدَها للأعمدة الخاملة حتى المرحلة 2
 }
 FORBIDDEN = re.compile(
     r"POINTS_BY_LEVEL|points_deducted|points_restored|BehaviorPointRecovery|net_score"
@@ -31,10 +37,13 @@ FORBIDDEN = re.compile(
 
 
 def _files():
-    for d in SCAN_DIRS:
-        for p in (ROOT / d).rglob("*"):
-            if p.suffix in {".py", ".html", ".txt", ".js"} and "migrations" not in p.parts:
-                yield p
+    # كلُّ التطبيقات والقوالب لا مجلداتٌ مسمّاة (W-20261013-010): تطبيقٌ جديدٌ لا يفلت.
+    for p in ROOT.rglob("*"):
+        rel_parts = p.relative_to(ROOT).parts
+        if rel_parts[0] in SKIP_TOP or "migrations" in rel_parts or "__pycache__" in rel_parts:
+            continue
+        if p.is_file() and p.suffix in {".py", ".html", ".txt", ".js"}:
+            yield p
 
 
 def test_no_points_deduction_in_code_or_templates():

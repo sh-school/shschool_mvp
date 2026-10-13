@@ -39,7 +39,6 @@ if TYPE_CHECKING:
 # ── ثوابت موحدة من constants.py ────────────────────────────
 from .constants import (  # noqa: E402,F401
     ESCALATION_STEPS,
-    LEVEL_AUTHORITY,
     LEVEL_DESC,
     LEVEL_DISPLAY,
 )
