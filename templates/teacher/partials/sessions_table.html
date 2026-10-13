@@ -48,18 +48,10 @@
       </td>
       <td>
         {% if provisional_door and not is_leadership %}
-        {# الجدولُ غيرُ معتمدٍ بعدُ: الأزرارُ مقفلةٌ بلا رابط (المالك، W-20261005-006) — الرصدُ من «شُعبي للرصد» تحت الجدول #}
-        {% if session.status != 'completed' and session.status != 'cancelled' and is_recorder or session.status != 'completed' and session.status != 'cancelled' and not session.class_group.wing_id %}
-        <span class="btn-primary btn-sm" role="link" aria-disabled="true" tabindex="-1">تسجيل حضور</span>
+        {# الجدولُ غيرُ معتمدٍ بعدُ: الأزرارُ مقفلةٌ بلا رابط — الرصدُ من «شُعبي للرصد» #}
+        <span class="btn-secondary btn-xs" role="link" aria-disabled="true" tabindex="-1">الجدول</span>
         {% else %}
-        <span class="btn-secondary btn-xs" role="link" aria-disabled="true" tabindex="-1">عرض</span>
-        {% endif %}
-        {% elif session.status != 'completed' and session.status != 'cancelled' and is_recorder %}
-        <a href="{% url 'attendance' session.id %}" class="btn-primary btn-sm">تسجيل حضور</a>
-        {% elif session.status != 'completed' and session.status != 'cancelled' and not session.class_group.wing_id %}
-        <a href="{% url 'attendance' session.id %}" class="btn-primary btn-sm">تسجيل حضور</a>
-        {% else %}
-        <a href="{% url 'attendance' session.id %}" class="btn-secondary btn-xs">عرض</a>
+        <a href="{% url 'attendance' session.id %}" class="btn-primary btn-sm">افتح الجدول</a>
         {% endif %}
       </td>
     </tr>

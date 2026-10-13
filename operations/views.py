@@ -4,7 +4,7 @@ operations/views.py — Thin façade
 يستورد من الملفات المقسّمة ويُعيد تصديرها للحفاظ على توافق urls.py.
 
 الملفات الحقيقية:
-  views_attendance.py — الحضور والحصص اليومية (7 دوال)
+  views_attendance.py — الحضور والحصص اليومية
   views_schedule.py   — الجداول والبدلاء والجدولة الذكية (12 دالة)
   views_swap.py       — التبديل والتعويض والحصص الحرة (11 دالة)
 """
@@ -12,17 +12,8 @@ operations/views.py — Thin façade
 # ── Attendance ──────────────────────────────────────────────────
 from .views_attendance import (
     attendance_view,
-    cancel_exit_view,
-    complete_session,
     daily_report,
-    mark_all_present,
-    mark_exit,
-    mark_late_tap,
-    mark_return,
-    mark_single,
     schedule,
-    session_summary,
-    undo_late_tap_view,
 )
 
 # ── Schedule & Substitute ───────────────────────────────────────
@@ -81,16 +72,7 @@ __all__ = [
     # attendance
     "schedule",
     "attendance_view",
-    "mark_single",
-    "mark_all_present",
-    "complete_session",
-    "session_summary",
     "daily_report",
-    "mark_late_tap",
-    "mark_exit",
-    "mark_return",
-    "undo_late_tap_view",
-    "cancel_exit_view",
     # schedule
     "weekly_schedule",
     "schedule_export_excel",

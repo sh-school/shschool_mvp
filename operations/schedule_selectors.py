@@ -52,6 +52,33 @@ SOURCES = ("actual", "plan")
 MAX_WEEKS_AWAY = 60
 
 
+def mark_v2(generation: Any) -> Any:
+    """يضع `is_v2` على صفّ التوليد الجاري (إن وُجد): الصفحةُ تعرض لـV2 الإيقافَ المبكّر لا إيقافَ V1 المُضيِّع (W-20261010-002)."""
+    from .scheduler_v2.progress import is_v2_running
+
+    if generation is not None:
+        generation.is_v2 = is_v2_running(generation)
+    return generation
+
+
+def generation_status_payload(generation: Any) -> dict:
+    """ما تعرضه الصفحةُ عن آخر توليد. V2 لا تحسب «جودةً» مئويّة: تقيسها بحصصٍ متعذّرة ومخالفاتٍ لينة،
+    والصفرُ الافتراضيّ يُقرأ فشلاً — فيُحجب الرقمُ ويُعرض ما تقيسه فعلاً (W-20261010-031)."""
+    snapshot = generation.config_snapshot or {}
+    is_v2 = snapshot.get("engine") == "cpsat_v2" or (generation.is_pending and not snapshot)
+    return {
+        "id": str(generation.id),
+        "status": generation.status,
+        "status_label": generation.get_status_display(),
+        "pending": generation.is_pending,
+        "quality": None if is_v2 else round(generation.quality_score),
+        "soft_violations": generation.soft_violations if is_v2 else None,
+        "slots": generation.total_slots_created,
+        "elapsed_ms": generation.generation_time_ms,
+        "error": generation.error_message,
+    }
+
+
 def browse_lists(school):
     """معلّمو المدرسة وشُعبُها لقائمة الجداول — لمن يتصفّح غيره."""
     from core.models import ClassGroup
@@ -307,10 +334,14 @@ def schedule_print_payload(school, user, get_params, default_source="plan") -> d
     grid, matrix, week_info = _read_sheet(ctx, school, year)
     nav = week_nav(ctx, week_info)
     matrix_totals, week, geometry = None, None, None
-    has_colored_exemptions = False
+    has_colored_exemptions = has_legend = False
     if ctx["view_type"] == "all_teachers":
         matrix_totals = ScheduleService.matrix_totals(matrix, school, year)
         has_colored_exemptions = any(row.get("exempt_map") for row in matrix)
+        # سطرُ المفتاح أسفل الجدول العام يظهر بأيٍّ من هذه — a3_metrics يحسبه فتبقى الورقةُ واحدة.
+        has_legend = bool(
+            has_colored_exemptions or nav["kinds"] or any(row.get("specialty") for row in matrix)
+        )
     else:
         # الفسحةُ والصلاةُ بين الحصص، والورقةُ بالملّيمتر — كورقة الصفحات سواءً.
         days = grid_to_days(grid)
@@ -332,7 +363,7 @@ def schedule_print_payload(school, user, get_params, default_source="plan") -> d
         # وسطرٌ لكلّ ملاحظة. والخطّةُ بلا شريط — فمقاسُ المعلَّق في المدرسة كما كان.
         strip_lines = len(nav["notes"]) + (1 if nav["kinds"] else 0)
         geometry = paper_geometry(
-            ctx["paper"], ctx["orient"], with_who=False, strip_lines=strip_lines
+            ctx["paper"], ctx["orient"], with_who=False, strip_lines=strip_lines, single_sheet=True
         )
 
     # أسماءُ الأيّام من `ScheduleSlot.DAYS` — مصدرٌ واحدٌ يقرؤه المولّدُ والورقة.
@@ -355,6 +386,7 @@ def schedule_print_payload(school, user, get_params, default_source="plan") -> d
         "week_info": week_info,
         "nav": nav,
         "has_colored_exemptions": has_colored_exemptions,
+        "has_legend": has_legend,
         "days": days_names,
         "periods": periods,
         "period_numbers": range(1, 8),
@@ -502,7 +534,7 @@ def pages_payload(school, get_params) -> dict:
         # السطرُ يومٌ والعمودُ حصّة، واسمُ اليوم مقرونٌ بخاناته في `by_day`.
         "period_numbers": ScheduleSlot.PERIODS,
         # الورقةُ بالملّيمتر: الجدولُ يملأ ما بقي بعد الترويسة والذيل (قرار 2026-09-14).
-        "geo": paper_geometry(paper, orient, with_who=True),
+        "geo": paper_geometry(paper, orient, with_who=True, single_sheet=True),
         "selection_query": _pages_selection_query(
             kind, dept, orient, paper, year, wing, teacher_id
         ),

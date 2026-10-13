@@ -1,9 +1,17 @@
+import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import timedelta
 from typing import Any
 
 from django.core.exceptions import PermissionDenied
 from django.db import connection, models, transaction
+from django.db.models import Value
+from django.db.models.functions import Cast, Length, Replace
 from django.utils import timezone
+
+from core.audit_changes_scrub import TooDeepError, scrub_name
+from core.audit_repr import masked_repr
 
 from .school import School, _uuid
 from .user import CustomUser
@@ -26,6 +34,21 @@ class _ImmutableQuerySet(models.QuerySet):
         raise PermissionDenied("AuditLog records are immutable and cannot be updated.")
 
 
+@contextmanager
+def _erasure_flag(flag: str, using: str | None) -> Iterator[None]:
+    """معاملةٌ يُفتح فيها علَمُ استثناءٍ في زناد السجلّ ويُغلق عند النجاح فقط (W-20261012-016).
+
+    العلَمُ محلّيٌّ للمعاملة (`set_config(..., true)`) فيزول بالتثبيت أو بالتراجع، حتى إلى نقطة حفظٍ
+    في معاملةٍ أعلى. فلا يُعاد ضبطُه في `finally`: بعد خطأ SQL داخل الجسم تكون المعاملةُ مُجهَضةً
+    فيفشل أيُّ أمرٍ إضافيّ ويحلّ خطؤه محلّ الخطأ الأصليّ. هنا يخرج الخطأ الأصليّ كما هو ويتراجع الـatomic.
+    وعلى النجاح يُغلق العلَمُ صراحةً كي لا يبقى مفتوحاً لبقيّة معاملةٍ أعلى.
+    """
+    with transaction.atomic(using=using), connection.cursor() as cur:
+        cur.execute("SELECT set_config(%s, 'on', true)", [flag])
+        yield
+        cur.execute("SELECT set_config(%s, '', true)", [flag])
+
+
 class _ImmutableManager(models.Manager):
     def get_queryset(self):
         return _ImmutableQuerySet(self.model, using=self._db)
@@ -44,14 +67,118 @@ class _ImmutableManager(models.Manager):
         )
         # مرشّحُ الفراغ: إعادةُ الاستدعاء لا تكتب شيئاً ولا تُرجع صفوفاً مُفرَّغةً من قبل.
         pending = rows.exclude(ip_address__isnull=True, user_agent="")
-        # علَمٌ محلّيٌّ للمعاملة يفتح الحالةَ الثانيةَ في الزناد ويُغلق في finally: بلاه يُرفض أيُّ
-        # UPDATE لهذين العمودَين حتى بSQL مباشر (دورُ التطبيق لا يمحو أثرَه بلا هذا المسار).
-        with transaction.atomic(using=self._db), connection.cursor() as cur:
-            cur.execute("SELECT set_config('app.auditlog_network_erasure', 'on', true)")
+        # علَمٌ محلّيٌّ للمعاملة يفتح الحالةَ الثانيةَ في الزناد: بلاه يُرفض أيُّ UPDATE لهذين العمودَين
+        # حتى بSQL مباشر (دورُ التطبيق لا يمحو أثرَه بلا هذا المسار).
+        with _erasure_flag("app.auditlog_network_erasure", self._db):
+            return models.QuerySet.update(pending, ip_address=None, user_agent="")
+
+    def anonymize_name_in_repr(self, user: Any, name: str) -> dict[str, int]:
+        """يستبدل اسمَ مستخدمٍ مُحيَ بمعرّفه المقنَّع في `object_repr` — الاستثناءُ الثالث.
+
+        قرارُ المالك بصفته DPO (D-186م ب، W-20261004-002): الاسمُ يُجهَّل في الوصف وحدَه، وتبقى الواقعةُ
+        بكلّ ما عداه. يُستدعى من خدمة المحو وحدَها (حارسٌ معماريّ)، ويقابله استثناءٌ ضيّقٌ في الزناد
+        (الهجرة 0082) بعلَم المعاملة. وتُتخطّى — وتُعدّ للإبلاغ اليدويّ لا للكتابة — ثلاثُ حالات:
+        اسمٌ مشتركٌ أو يحتويه اسمُ مستخدمٍ آخر (لا يُعرف أيُّهما)، واسمٌ من كلمةٍ واحدة (مطابقتُه ضعيفة)، وصفٌ
+        يتجاوز 300 حرفاً بعد الاستبدال. لا يُرجَع اسمٌ، أعدادٌ فقط.
+
+        حدودٌ معروفة (حكم 0104): فحصُ الاسم المشترك يقرأ `CustomUser` وحدَه (يشمل الطلبة والأولياء مستخدمين)،
+        فاسمٌ لشخصٍ ليس مستخدماً قد يحتويه الاسمُ فيُستبدل؛ والمطابقةُ حرفيّةٌ حسّاسةٌ بالاسم الحاليّ قبل المحو،
+        فاسمٌ مكتوبٌ بتشكيلٍ أو همزةٍ مختلفة يفوت ويدخل الإبلاغَ اليدويّ.
+        """
+        name = (name or "").strip()
+        counts = {"anonymized": 0, "skipped_shared": 0, "skipped_short": 0, "skipped_long": 0}
+        if not name:
+            return counts
+        rows = _ImmutableQuerySet(self.model, using=self._db).filter(object_repr__contains=name)
+        if len(name.split()) < 2:
+            counts["skipped_short"] = rows.count()
+            return counts
+        if self._name_is_shared(user, name):
+            counts["skipped_shared"] = rows.count()
+            return counts
+        masked = masked_repr(user)
+        # طولُ الناتج الفعليّ بعد استبدال **كلّ** ظهورٍ للاسم (لا فرقَ ظهورٍ واحد): الوصفُ CharField(300).
+        replaced = Replace("object_repr", Value(name), Value(masked))
+        fits = rows.annotate(_new_len=Length(replaced)).filter(_new_len__lte=300)
+        counts["skipped_long"] = rows.count() - fits.count()
+        # علَمٌ محلّيٌّ للمعاملة يفتح الحالةَ الثالثةَ في الزناد.
+        with _erasure_flag("app.auditlog_name_erasure", self._db):
+            counts["anonymized"] = models.QuerySet.update(fits, object_repr=replaced)
+        return counts
+
+    @staticmethod
+    def _name_is_shared(user: Any, name: str) -> bool:
+        """اسمٌ يحمله أو يحتويه اسمُ مستخدمٍ آخر: لا يُعرف أيُّهما صاحبُه فلا يُجهَّل.
+
+        النطاقُ `CustomUser` وحدَه لأنّه الجدولُ الوحيدُ الذي يحمل اسمَ شخصٍ في عمودٍ مستقلّ (`full_name`)
+        والطلبةُ والأولياءُ والكادرُ كلُّهم مستخدمون؛ ويحرس ذلك اختبارٌ يفشل إن ظهر نموذجٌ آخر بالحقل نفسه
+        فيُوسَّع الفحصُ بقرار (W-20261012-016). أمّا أسماءُ غير المستخدمين داخل نصوصٍ حرّة فخارج الفحص وتدخل
+        الإبلاغَ اليدويّ.
+        """
+        return CustomUser.objects.filter(full_name__contains=name).exclude(pk=user.pk).exists()
+
+    def anonymize_name_in_changes(self, user: Any, name: str) -> dict[str, int]:
+        """يمسح اسمَ مستخدمٍ مُحيَ من `changes` بمعرّفه المقنَّع — الاستثناءُ الرابع.
+
+        قرارُ المالك بصفته DPO (D-342م، W-20261010-053): يكمل `anonymize_name_in_repr` فلا يبقى الاسمُ في أيّ
+        عمودٍ من سجلّ التدقيق. المسحُ في Python على القيمة المفكوكة (`core.audit_changes_scrub`) لا SQL ولا
+        regex؛ ومرشّحُ الصفوف يقرأ `changes::text` تضييقاً للمسح لا حكماً به (وبلا مرشّحٍ للأسماء التي يغيّرها
+        الهروب)، والحكمُ للقيمة المفكوكة. الزنادُ (الهجرة 0083) يسمح بتغيير `changes` وحدَه وبعلَم المعاملة
+        `app.auditlog_changes_erasure` المستقلّ عن علَم `object_repr`؛ وتستدعي الخدمةُ التجهيلَين تحت
+        `transaction.atomic()` واحدةٍ فيكتملان معاً أو لا يكتمل شيء.
+
+        تُتخطّى — وتُعدّ بعدّاداتٍ **منفصلةٍ** عن `skipped_*` للإبلاغ اليدويّ لا للكتابة: اسمٌ مشتركٌ أو محتوًى
+        في اسمٍ آخر (`skipped_changes_shared`)، وكلمةٌ واحدة (`skipped_changes_short`)، وقيمةٌ متداخلةٌ فوق
+        `MAX_DEPTH` (`skipped_changes_deep`). لا يُرجَع اسمٌ، أعدادٌ فقط.
+
+        حدودٌ معلنة (حكم 0104): من محي سابقاً ضاع اسمُه فلا يُمسح؛ والاسمُ الجزئيُّ أو بتشكيلٍ مختلفٍ يفوت
+        ويدخل الإبلاغَ اليدويّ؛ والعلَمُ يحمي من الخطأ لا من شيفرةٍ تعمل بدور التطبيق نفسه.
+        """
+        name = (name or "").strip()
+        counts = {
+            "changes_anonymized": 0,
+            "skipped_changes_shared": 0,
+            "skipped_changes_short": 0,
+            "skipped_changes_deep": 0,
+        }
+        if not name:
+            return counts
+        # مرشّحٌ لتضييق المسح لا حَكَمٌ به: اسمٌ بلا `"` ولا `\` ولا أحرف تحكّم يظهر في `changes::text` حرفيّاً
+        # حيثما يظهر في القيمة المفكوكة (ولا يمتدّ عبر فاصلٍ لأنّ الفواصلَ تحمل علاماتِ اقتباس)، فالتصفيةُ
+        # بالنصّ عندئذٍ لا تُسقط صفّاً. وأيُّ اسمٍ يتغيّر بالهروب يُفحص كلُّ صفٍّ ذي `changes` بعد فك الهروب
+        # (حكم 0104: الحُكم للقيمة المفكوكة لا للنصّ)، فلا يضيع صفٌّ بفرقٍ في صيغة الهروب.
+        candidates = _ImmutableQuerySet(self.model, using=self._db).filter(changes__isnull=False)
+        if json.dumps(name, ensure_ascii=False)[1:-1] == name:
+            candidates = candidates.annotate(
+                _changes_text=Cast("changes", models.TextField())
+            ).filter(_changes_text__contains=name)
+        short = len(name.split()) < 2
+        shared = not short and self._name_is_shared(user, name)
+        masked = masked_repr(user)
+        updates: list[tuple[Any, Any]] = []
+        for pk, changes in candidates.values_list("pk", "changes").iterator():
             try:
-                return models.QuerySet.update(pending, ip_address=None, user_agent="")
-            finally:
-                cur.execute("SELECT set_config('app.auditlog_network_erasure', '', true)")
+                new_changes, changed = scrub_name(changes, name, masked)
+            except TooDeepError:
+                counts["skipped_changes_deep"] += 1
+                continue
+            if not changed:
+                continue
+            if short:
+                counts["skipped_changes_short"] += 1
+            elif shared:
+                counts["skipped_changes_shared"] += 1
+            else:
+                updates.append((pk, new_changes))
+        if not updates:
+            return counts
+        # علَمٌ محلّيٌّ للمعاملة يفتح الحالةَ الرابعةَ في الزناد؛ والتحديثاتُ كلُّها معاً.
+        with _erasure_flag("app.auditlog_changes_erasure", self._db):
+            for pk, new_changes in updates:
+                row = _ImmutableQuerySet(self.model, using=self._db).filter(pk=pk)
+                models.QuerySet.update(row, changes=new_changes)
+                counts["changes_anonymized"] += 1
+        return counts
 
 
 class AuditLog(models.Model):
@@ -237,7 +364,7 @@ class ConsentRecord(models.Model):
 
 
 class BreachReport(models.Model):
-    """تقرير خرق البيانات — PDPPL م.11 / إشعار NCSA خلال 72 ساعة"""
+    """تقرير خرق البيانات — PDPPL م.14 (إعلام الفرد والجهة) / إرشاد NCSA: 72 ساعةً من الاكتشاف"""
 
     SEVERITY = [
         ("low", "منخفضة"),
@@ -307,6 +434,76 @@ class BreachReport(models.Model):
     notification_text = models.TextField(blank=True, verbose_name="نص الإشعار لـ NCSA")
     evidence_notes = models.TextField(blank=True, verbose_name="الأدلة والملاحظات")
 
+    # ── إشعار NCSA على مراحل (دليل NCSA v2.0: ما توفّر خلال 72 ساعةً + أسباب النقص + موعد الاستكمال) ──
+    # `ncsa_notified_at` يُختم عند الإشعار الأوّل (مبدئيّاً كان أو مكتملاً) ولا يتغيّر بالاستكمال،
+    # فلا يوقف التحديثُ اللاحق احتسابَ المهلة الأصليّة (W-20261002-007).
+    NCSA_STAGE = [
+        ("none", "لم يُرسَل"),
+        ("initial", "إشعار مبدئي (ناقص)"),
+        ("complete", "إشعار مكتمل"),
+    ]
+    ncsa_notice_stage = models.CharField(
+        max_length=10, choices=NCSA_STAGE, default="none", verbose_name="مرحلة إشعار NCSA"
+    )
+    ncsa_missing_reasons = models.TextField(
+        blank=True, default="", verbose_name="أسباب نقص معلومات الإشعار المبدئي"
+    )
+    ncsa_completion_due_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="موعد استكمال الإشعار"
+    )
+    ncsa_completed_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت استكمال الإشعار الفعلي"
+    )
+
+    # ── إخطار الأفراد المتأثّرين (PDPPL م.14 + دليل NCSA v2.0) ──
+    INDIVIDUALS_STATUS = [
+        ("not_assessed", "لم يُقيَّم بعد"),
+        ("required", "واجب إخطارهم"),
+        ("not_required", "غير لازم"),
+        ("notified", "أُخطروا"),
+    ]
+    individuals_status = models.CharField(
+        max_length=12,
+        choices=INDIVIDUALS_STATUS,
+        default="not_assessed",
+        verbose_name="حالة إخطار الأفراد",
+    )
+    individuals_deadline = models.DateTimeField(
+        null=True, blank=True, verbose_name="موعد إخطار الأفراد"
+    )
+    individuals_assessed_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت تقييم لزوم الإخطار"
+    )
+    individuals_notified_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت إخطار الأفراد الفعلي"
+    )
+    individuals_assessment_note = models.TextField(
+        blank=True, default="", verbose_name="أساس التقدير أو سبب عدم لزوم الإخطار"
+    )
+    # صاحبُ قرار «واجب/غير لازم» — لا يصحّ «غير لازم» بلا سببٍ وصاحبِ قرار (مواصفة 0104).
+    individuals_decided_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="breach_individuals_decisions",
+        verbose_name="صاحب قرار إخطار الأفراد",
+    )
+    INDIVIDUALS_CHANNELS = [
+        ("sms", "رسالة نصّية"),
+        ("email", "بريد إلكتروني"),
+        ("letter", "خطاب رسمي"),
+        ("portal", "إشعار عبر المنصّة"),
+        ("in_person", "إبلاغ مباشر"),
+    ]
+    individuals_notified_channel = models.CharField(
+        max_length=10,
+        choices=INDIVIDUALS_CHANNELS,
+        blank=True,
+        default="",
+        verbose_name="قناة إخطار الأفراد",
+    )
+
     class Meta:
         verbose_name = "تقرير خرق بيانات"
         verbose_name_plural = "تقارير خرق البيانات"
@@ -337,6 +534,31 @@ class BreachReport(models.Model):
             self.ncsa_deadline
             and timezone.now() > self.ncsa_deadline
             and self.status not in ("notified", "resolved")
+        )
+
+    @property
+    def individuals_hours_remaining(self) -> int | None:
+        """الساعاتُ المتبقّية لإخطار الأفراد — للواجب إخطارُهم ولم يُخطَروا وحدَهم."""
+        if self.individuals_status == "required" and self.individuals_deadline:
+            delta = self.individuals_deadline - timezone.now()
+            return max(0, int(delta.total_seconds() / 3600))
+        return None
+
+    @property
+    def individuals_overdue(self) -> bool:
+        return bool(
+            self.individuals_status == "required"
+            and self.individuals_deadline
+            and timezone.now() > self.individuals_deadline
+        )
+
+    @property
+    def ncsa_completion_overdue(self) -> bool:
+        """إشعارٌ مبدئيٌّ فات موعدُ استكماله المعلَن ولم يكتمل."""
+        return bool(
+            self.ncsa_notice_stage == "initial"
+            and self.ncsa_completion_due_at
+            and timezone.now() > self.ncsa_completion_due_at
         )
 
 

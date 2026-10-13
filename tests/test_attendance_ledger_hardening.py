@@ -6,7 +6,7 @@
   وتتحقّق بعد الحذف أنّه لم يبقَ شيءٌ، وإلّا تُلغى المعاملةُ كلُّها.
 - **سباقُ الكتابة:** اعتمادٌ يجد الصفَّ غائباً ثمّ يسبقه مشرفٌ بكتابته فيصطدم القيدُ الفريد — يصير `EntryConflictError` لا 500.
 - **الصلاحيّات:** دورُ التطبيق لا يملك `TRUNCATE` (مشغّلُ الصفّ لا يمنعه) — فحصٌ ساكنٌ على ملفّ التزويد وآخرُ تشغيليّ.
-- **الوقت:** أيُّ view لا يمرّر `now` من الطلب إلى `submit_entry`/`decide_entry` (معاملُ اختبارٍ لا مدخلُ مستخدم).
+- **الوقت:** أيُّ view لا يمرّر `now` من الطلب إلى `submit_entry` (معاملُ اختبارٍ لا مدخلُ مستخدم).
 """
 
 import ast
@@ -18,13 +18,11 @@ import pytest
 from django.db import connection
 
 from operations.attendance_entries import (
-    EntryConflictError,
     EntryError,
-    decide_entry,
     erase_attendance_ledger,
     submit_entry,
 )
-from operations.models import AttendanceDecision, AttendanceEntry, StudentAttendance
+from operations.models import AttendanceDecision, AttendanceEntry
 from tests.attendance_fixtures import *  # noqa: F401,F403
 from tests.attendance_fixtures import at
 from tests.conftest import SchoolFactory
@@ -81,7 +79,6 @@ def _as_tenant(school_id):
 
 def _ledger_for(kid, session, teacher, holder):
     entry = submit_entry(teacher, session, kid, "absent", now=NOW)
-    decide_entry(holder, entry, approve=True)
     return entry
 
 
@@ -161,30 +158,6 @@ def test_the_ledger_rows_of_another_school_are_invisible_to_a_tenant_role(
 # ══════════════════════════════════════════════════════════════════
 
 
-def test_a_supervisor_row_that_wins_the_race_becomes_a_conflict_not_a_500(
-    monkeypatch, session, teacher, holder, kid
-):
-    entry = submit_entry(teacher, session, kid, "absent", now=NOW)
-    StudentAttendance.objects.create(
-        session=session,
-        student=kid,
-        school=session.school,
-        status="present",
-        source="supervisor",
-        marked_by=holder,
-    )
-    # الاعتمادُ لا يجد الصفَّ عند القفل (سبقه المشرفُ بعده) فيصطدم بالقيد الفريد عند الإنشاء.
-    monkeypatch.setattr(
-        StudentAttendance.objects,
-        "select_for_update",
-        lambda **kw: StudentAttendance.objects.none(),
-    )
-    with pytest.raises(EntryConflictError):
-        decide_entry(holder, entry, approve=True)
-    assert not AttendanceDecision.objects.exists()
-    assert StudentAttendance.objects.get(session=session, student=kid).source == "supervisor"
-
-
 # ══════════════════════════════════════════════════════════════════
 # الصلاحيّات: لا TRUNCATE
 # ══════════════════════════════════════════════════════════════════
@@ -233,13 +206,13 @@ def _calls_with_request_now():
         if set(rel.parts) & skip or path.name.startswith("test_") or path.name == "conftest.py":
             continue
         text = path.read_text(encoding="utf-8")
-        if "submit_entry" not in text and "decide_entry" not in text:
+        if "submit_entry" not in text:
             continue
         for node in ast.walk(ast.parse(text)):
             if not isinstance(node, ast.Call):
                 continue
             name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
-            if name not in {"submit_entry", "decide_entry"}:
+            if name not in {"submit_entry"}:
                 continue
             for keyword in node.keywords:
                 if keyword.arg == "now" and "request" in ast.unparse(keyword.value):

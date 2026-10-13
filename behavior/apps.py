@@ -24,6 +24,8 @@ class BehaviorConfig(AppConfig):
                 "social_worker",
                 "psychologist",
                 "admin_supervisor",
+                # بوابةٌ فقط: تسجيلُ المخالفة من قائمة إدارة شؤون الطلاب (D-273م)، وكلُّ شاشةٍ تقرّر بحارسها.
+                "student_affairs_coordinator",
                 # v7 — مساعدون + منسق أنشطة يبلّغون عن مخالفات
                 "activities_coordinator",
                 "e_projects_coordinator",

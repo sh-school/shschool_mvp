@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from core.models.access import Membership
+from core.models.user import CustomUser
 from core.phone_search import MIN_PHONE_DIGITS, phone_holder_ids
+
+from .models import LeaveRequest
 
 #: الواجهةُ العامّة. `MIN_PHONE_DIGITS` و`phone_holder_ids` تُعاد تصديرُهما من `core.phone_search`: العرضُ والاختبارُ
 #: يستوردانهما من هنا، ونقلُ النداء إلى وحدةٍ خارج `selectors` يرفع عدَّ سقّاطة الطبقات في `staff_list`.
@@ -11,6 +14,8 @@ __all__ = [
     "MIN_PHONE_DIGITS",
     "NON_STAFF_ROLES",
     "active_staff_memberships",
+    "has_active_membership",
+    "own_recent_leaves",
     "phone_holder_ids",
     "staff_memberships",
 ]
@@ -39,4 +44,16 @@ def active_staff_memberships(user, school):
         Membership.objects.filter(user=user, school=school, is_active=True)
         .exclude(role__name__in=NON_STAFF_ROLES)
         .select_related("role")
+    )
+
+
+def has_active_membership(school, user) -> bool:
+    """أللحساب انتسابٌ فعّالٌ في هذه المدرسة؟ — من غادر لا يُقدَّم باسمه طلبُ إجازة (W-20261009-023)."""
+    return CustomUser.objects.in_school(school).filter(pk=user.pk).exists()
+
+
+def own_recent_leaves(school, user, limit: int = 10) -> list[LeaveRequest]:
+    """آخرُ طلبات إجازةِ هذا المستخدم هو — لا طلباتُ غيره مهما كانت صلاحيّتُه."""
+    return list(
+        LeaveRequest.objects.filter(school=school, staff=user).order_by("-created_at")[:limit]
     )

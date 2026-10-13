@@ -13,11 +13,18 @@ import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
-from operations.models import ScheduleSlot, Subject, SubjectClassAssignment, TimeSlotConfig
+from operations.models import (
+    ScheduleRelaxationPolicy,
+    ScheduleSlot,
+    Subject,
+    SubjectClassAssignment,
+    TimeSlotConfig,
+)
 from operations.schedule_evaluator import (
     EvaluatorInputError,
     evaluate_slots,
     generation_slots,
+    relaxations_from_payload,
     slots_from_payload,
 )
 from operations.scheduler import generate_schedule
@@ -34,6 +41,8 @@ NAMES = ("معلّم أوّل", "معلّم ثانٍ")
 @pytest.fixture
 def scene(school):
     """شعبةٌ واحدة، مادّتان بثلاث حصصٍ لكلٍّ منهما، معلّمان — جدولٌ صغيرٌ يولَّد في ثوانٍ."""
+    #: هذه الاختباراتُ تحكم بالتلاصق الصارم؛ والتخفيفُ المدرسيّ الافتراضيّ (D-382م) له ملفُّه: test_schedule_relaxation_policy.
+    ScheduleRelaxationPolicy.objects.create(school=school, relax_touch_for_all=False)
     for period in range(1, 8):
         for day_type in ("regular", "thursday"):
             TimeSlotConfig.objects.create(
@@ -252,3 +261,173 @@ def test_the_fingerprint_is_stable_for_the_same_schedule(generated):
         evaluate_slots(school, YEAR, rows).fingerprint
         == evaluate_slots(school, YEAR, list(reversed(rows))).fingerprint
     )
+
+
+# ── تخفيف HC5 المعلَن: حصّتان متتاليتان لا ثلاث (قرار المالك 2026-10-09) ──────────────
+
+
+@pytest.fixture
+def run_scene(school):
+    """ثلاثُ شعبٍ ومعلّمٌ واحدٌ يدرّس كلاً منها حصّةً، وحصصُ اليوم متلاصقةٌ (فراغ عشر دقائق)."""
+    from types import SimpleNamespace
+
+    ScheduleRelaxationPolicy.objects.create(school=school, relax_touch_for_all=False)
+    for period in range(1, 8):
+        for day_type in ("regular", "thursday"):
+            TimeSlotConfig.objects.create(
+                school=school,
+                period_number=period,
+                start_time=time(6 + period, 0),
+                end_time=time(6 + period, 50),
+                day_type=day_type,
+            )
+    teacher = UserFactory(full_name="معلّم التتابع")
+    other = UserFactory(full_name="معلّم آخر")
+    subject = Subject.objects.create(school=school, name_ar="مادّة التتابع", code="RUN")
+    groups = [
+        ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
+        for _ in range(3)
+    ]
+    for group in groups:
+        SubjectClassAssignment.objects.create(
+            school=school,
+            academic_year=YEAR,
+            teacher=teacher,
+            class_group=group,
+            subject=subject,
+            weekly_periods=1,
+            is_active=True,
+        )
+
+    def slots(*cells):
+        return [
+            SimpleNamespace(
+                class_group_id=str(groups[g].pk),
+                subject_id=str(subject.pk),
+                teacher_id=str(teacher.pk),
+                day_of_week=day,
+                period_number=period,
+            )
+            for g, day, period in cells
+        ]
+
+    return SimpleNamespace(school=school, teacher=str(teacher.pk), other=str(other.pk), slots=slots)
+
+
+def test_without_a_declared_relaxation_two_touching_lessons_stay_a_hard_breach(run_scene):
+    result = evaluate_slots(
+        run_scene.school, YEAR, run_scene.slots((0, 0, 1), (1, 0, 2), (2, 1, 1))
+    )
+
+    assert result.hard_breaches.get("HC5") == 1 and result.eased == {}
+
+
+def test_a_declared_run_cap_2_turns_a_pair_into_a_note_not_a_breach(run_scene):
+    slots = run_scene.slots((0, 0, 1), (1, 0, 2), (2, 1, 1))
+
+    result = evaluate_slots(run_scene.school, YEAR, slots, None, {run_scene.teacher: 2})
+
+    assert "HC5" not in result.hard_breaches and result.eased == {"HC5": 1}
+    assert any("HC5" in note and "حصّتان متتاليتان" in note for note in result.notes)
+
+
+def test_a_run_of_three_stays_a_hard_breach_even_with_the_relaxation(run_scene):
+    slots = run_scene.slots((0, 0, 1), (1, 0, 2), (2, 0, 3))
+
+    result = evaluate_slots(run_scene.school, YEAR, slots, None, {run_scene.teacher: 2})
+
+    assert result.hard_breaches.get("HC5", 0) >= 1
+
+
+def test_a_relaxation_for_another_teacher_eases_nothing(run_scene):
+    slots = run_scene.slots((0, 0, 1), (1, 0, 2), (2, 1, 1))
+
+    result = evaluate_slots(run_scene.school, YEAR, slots, None, {run_scene.other: 2})
+
+    assert result.hard_breaches.get("HC5") == 1 and result.eased == {}
+
+
+def test_the_relaxation_restores_the_task_caps_so_the_next_call_is_strict(run_scene):
+    slots = run_scene.slots((0, 0, 1), (1, 0, 2), (2, 1, 1))
+    evaluate_slots(run_scene.school, YEAR, slots, None, {run_scene.teacher: 2})
+
+    again = evaluate_slots(run_scene.school, YEAR, slots)
+
+    assert again.hard_breaches.get("HC5") == 1
+
+
+def test_relaxations_are_read_from_the_payload_and_anything_else_is_refused():
+    row = {"teacher": "T1", "code": "HC5", "original": "no_touch", "relaxed": "run_cap_2"}
+    assert relaxations_from_payload({"slots": [], "relaxations": [row]}) == {"T1": 2}
+    assert relaxations_from_payload({"slots": []}) == {}
+    slots_from_payload({"slots": [], "relaxations": [row]})  # المفتاحُ معلَنٌ فلا يُرفض
+    for bad in (
+        [{**row, "code": "HC22"}],
+        [{**row, "relaxed": "run_cap_3"}],
+        [{**row, "original": "other"}],
+        [{**row, "extra": 1}],
+        [{"teacher": "T1"}],
+        [{**row, "teacher": ""}],
+        "not a list",
+    ):
+        with pytest.raises(EvaluatorInputError):
+            relaxations_from_payload({"slots": [], "relaxations": bad})
+
+
+# ── سقفُ الأولى (HC22) في المُقيِّم المستقلّ — W-20261003-043 ───────────────
+
+
+def test_three_firsts_for_one_teacher_are_a_hard_breach_and_two_are_not(run_scene):
+    three = evaluate_slots(run_scene.school, YEAR, run_scene.slots((0, 0, 1), (1, 1, 1), (2, 2, 1)))
+    two = evaluate_slots(run_scene.school, YEAR, run_scene.slots((0, 0, 1), (1, 1, 1), (2, 2, 3)))
+
+    assert three.hard_breaches.get("HC22") == 1
+    assert "HC22" not in two.hard_breaches
+
+
+def test_the_evaluator_and_v2_agree_on_the_first_period_cap(run_scene):
+    """المثالُ نفسُه عند V2: ثلاثُ أولياتٍ لمعلّمٍ INFEASIBLE، واثنتان ممكنتان."""
+    from tests.test_scheduler_v2_hard import feasible, make
+
+    rows = [("C1", "S1", "T1", "", 3), ("C2", "S2", "T1", "", 3)]
+    three = [(0, 0, 1), (0, 1, 1), (1, 2, 1)]
+    two = [(0, 0, 1), (1, 1, 1)]
+    assert feasible(make(rows), three) is False
+    assert feasible(make(rows), two) is True
+
+    ours_three = evaluate_slots(
+        run_scene.school, YEAR, run_scene.slots((0, 0, 1), (1, 1, 1), (2, 2, 1))
+    )
+    ours_two = evaluate_slots(run_scene.school, YEAR, run_scene.slots((0, 0, 1), (1, 1, 1)))
+    assert ours_three.hard_breaches.get("HC22") == 1
+    assert "HC22" not in ours_two.hard_breaches
+
+
+def test_a_declared_first_cap_turns_the_breach_into_a_note(run_scene):
+    slots = run_scene.slots((0, 0, 1), (1, 1, 1), (2, 2, 1))
+
+    result = evaluate_slots(
+        run_scene.school, YEAR, slots, None, None, first_caps={run_scene.teacher: 3}
+    )
+
+    assert "HC22" not in result.hard_breaches and result.eased == {"HC22": 1}
+    assert any("HC22" in note and "سقفُ الأولى" in note for note in result.notes)
+
+
+def test_a_first_cap_for_another_teacher_eases_nothing(run_scene):
+    slots = run_scene.slots((0, 0, 1), (1, 1, 1), (2, 2, 1))
+
+    result = evaluate_slots(
+        run_scene.school, YEAR, slots, None, None, first_caps={run_scene.other: 4}
+    )
+
+    assert result.hard_breaches.get("HC22") == 1 and result.eased == {}
+
+
+def test_a_declared_first_cap_does_not_leak_into_the_next_strict_call(run_scene):
+    slots = run_scene.slots((0, 0, 1), (1, 1, 1), (2, 2, 1))
+    evaluate_slots(run_scene.school, YEAR, slots, None, None, first_caps={run_scene.teacher: 3})
+
+    again = evaluate_slots(run_scene.school, YEAR, slots)
+
+    assert again.hard_breaches.get("HC22") == 1

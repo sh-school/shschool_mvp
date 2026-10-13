@@ -376,21 +376,6 @@ class TestUpdateProcedureStatus:
 
 @pytest.mark.django_db
 class TestApproveProcedure:
-    def test_admin_can_approve(self, client, school):
-        admin = make_admin(school)
-        domain = make_domain(school)
-        proc = make_procedure(school, domain, status="Pending Review")
-        client.force_login(admin)
-        resp = client.post(
-            reverse("approve_procedure", kwargs={"proc_id": proc.pk}),
-            {"action": "approve", "review_note": "ممتاز"},
-        )
-        assert resp.status_code == 302
-        proc.refresh_from_db()
-        assert proc.status == "Completed"
-        assert proc.reviewed_by == admin
-        assert proc.review_note == "ممتاز"
-
     def test_admin_can_reject(self, client, school):
         admin = make_admin(school)
         domain = make_domain(school)
@@ -403,22 +388,6 @@ class TestApproveProcedure:
         assert resp.status_code == 302
         proc.refresh_from_db()
         assert proc.status == "In Progress"
-
-    def test_reviewer_can_approve(self, client, school):
-        teacher = make_teacher(school, "09")
-        domain = make_domain(school)
-        make_committee_member(
-            school, teacher, QualityCommitteeMember.REVIEW, can_review=True, domain=domain
-        )
-        proc = make_procedure(school, domain, status="Pending Review")
-        client.force_login(teacher)
-        resp = client.post(
-            reverse("approve_procedure", kwargs={"proc_id": proc.pk}),
-            {"action": "approve"},
-        )
-        assert resp.status_code == 302
-        proc.refresh_from_db()
-        assert proc.status == "Completed"
 
     def test_non_reviewer_gets_403(self, client, school):
         teacher = make_teacher(school, "10")

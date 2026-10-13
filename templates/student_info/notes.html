@@ -32,13 +32,13 @@
         <tbody>
           {% for n in page.object_list %}
           <tr>
-            <td class="col-center text-xs">{{ n.occurred_on|date:"d/m/Y" }}</td>
+            <td class="col-center cell-sm">{{ n.occurred_on|date:"d/m/Y" }}</td>
             <td>
               <a href="{% url 'student_info:student_file' n.student_id %}?year={{ year }}" class="font-semibold text-maroon hover:underline">{{ n.student.full_name }}</a>
             </td>
             <td class="font-semibold">{{ n.title }}</td>
             <td class="sinfo-note-body">{{ n.body }}</td>
-            <td class="col-center text-xs">{{ n.created_by.full_name|default:"—" }}</td>
+            <td class="col-center cell-sm">{{ n.created_by.full_name|default:"—" }}</td>
           </tr>
           {% endfor %}
         </tbody>

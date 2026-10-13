@@ -1,6 +1,6 @@
 """بذرُ حسابات المعاينة الدائمة على 8500 — يعمل في إقلاع حاوية المعاينة بعد migrate (W-20261003-023، D-167م، حكمُ 0105 أ وأ-٢).
 
-    python manage.py preview_accounts --sync     # يبذر/يصحّح التسعةَ (متساوي الأثر)
+    python manage.py preview_accounts --sync     # يبذر/يصحّح العشرةَ (متساوي الأثر)
     python manage.py preview_accounts --check    # يعطّل الحساباتِ إن لم يكن الربطُ على 127.0.0.1، ويُبلغ بالخلل
 
 **لا يعمل إلّا في المعاينة** — وإلّا رفض بـ`CommandError` ولم يمسّ القاعدةَ أصلاً (قد تكون الإنتاج):
@@ -13,7 +13,7 @@
 - `PREVIEW_BIND = 127.0.0.1`: غيرُه (مثلاً `--lan`) **لا يبذر، ويُعطَّل ما بُذر** (`is_active=False`)، ويُرفع خطأٌ.
 
 الإنشاءُ بالـORM بلا تعطيل مدقّقات، والدورُ نفسُه بعضويّةٍ واحدةٍ نشطةٍ في مدرسة المعاينة بلا superuser ولا is_staff، و`must_change_password=False`،
-وسطرُ AuditLog لكلّ إنشاءٍ وتصحيحٍ بلا كلمة. الأدوارُ التسعةُ في `core/preview_accounts.py` وحدَه.
+وسطرُ AuditLog لكلّ إنشاءٍ وتصحيحٍ بلا كلمة. الأدوارُ العشرةُ في `core/preview_accounts.py` وحدَه.
 وحسابُ المشرف الإداريّ يُغطّي جناحاً بتغطيةٍ (`WingCoverage`) لا باستبدال حاملٍ (قرارُ المالك 2026-10-04) — ليراه ويرصد فيه بعد كلّ إعادة بناءٍ للقاعدة؛ متساوي الأثر.
 بذراتُ البيانات الخاصّةُ بكلّ بطاقة (حصصُ اليوم…) ليست هنا.
 """
@@ -33,6 +33,7 @@ from core import preview_accounts as preview_module
 from core.academic_calendar import academic_year_for_school
 from core.models import AuditLog, CustomUser, Membership, Role, School, Wing, WingCoverage
 from core.preview_accounts import (
+    DEPARTMENT_NAMES,
     EMAIL_PREFIX,
     EMPLOYEE_NUMBERS,
     FORBIDDEN_ROLES,
@@ -81,7 +82,7 @@ def bind_is_loopback() -> bool:
 
 
 class Command(BaseCommand):
-    help = "يبذر حساباتِ المعاينة الدائمة (تسعةُ أدوار) في قاعدة المعاينة وحدَها — يرفض أيَّ بيئةٍ أخرى."
+    help = "يبذر حساباتِ المعاينة الدائمة (عشرةُ أدوار) في قاعدة المعاينة وحدَها — يرفض أيَّ بيئةٍ أخرى."
 
     def add_arguments(self, parser):
         mode = parser.add_mutually_exclusive_group(required=True)
@@ -228,12 +229,43 @@ class Command(BaseCommand):
                     )
                 if role_name == "admin_supervisor":
                     wing_note = self._assign_wing(school, user)
+            teacher_note = self._seed_teacher_classes(school)
+            dept_note = self._assign_departments(school)
+            wing_note = "؛ ".join(note for note in (wing_note, teacher_note, dept_note) if note)
         self.stdout.write(
             f"حساباتُ المعاينة: أُنشئ {created}، وصُحّح {fixed}، من {len(ROLES)}"
             + (f"؛ وأُزيل {removed} حساباً من الأداة السابقة" if removed else "")
             + (f"؛ {wing_note}" if wing_note else "")
             + "."
         )
+
+    def _assign_departments(self, school: School) -> str:
+        """يُسند عضويّاتِ المنسّق والمعلّمَين إلى أقسامها (`DEPARTMENT_NAMES`) — قسمٌ غائبٌ يُذكر ولا يُنشأ."""
+        from core.models import Department
+
+        missing = []
+        for role_name, dept_name in DEPARTMENT_NAMES.items():
+            dept = Department.objects.filter(school=school, name=dept_name).first()
+            if dept is None:
+                missing.append(dept_name)
+                continue
+            Membership.objects.filter(
+                user__national_id=ROLES[role_name], school=school, role__name=role_name
+            ).update(department_obj=dept)
+        return f"قسمٌ غائب: {'، '.join(sorted(set(missing)))}" if missing else ""
+
+    def _seed_teacher_classes(self, school: School) -> str:
+        """يُسند المعلّمَ الوهميّ إلى شُعبٍ من جناحٍ واحدٍ يغطّيه المشرفُ الوهميّ (W-20261005-005).
+
+        المنطقُ في أمر `seed_preview_teacher_classes` في operations (نماذجُ الإسناد ملكُها) — يُستدعى باسمه فلا تستورد النواةُ من operations (سقّاطةُ الطبقات).
+        """
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        out = StringIO()
+        call_command("seed_preview_teacher_classes", school=school.code, stdout=out)
+        return out.getvalue().strip()
 
     def _assign_wing(self, school: School, user: CustomUser) -> str:
         """يغطّي جناحاً بحساب المشرف الإداريّ الوهميّ **بتغطيةٍ (`WingCoverage`) لا باستبدال حاملٍ** — متساوي الأثر.

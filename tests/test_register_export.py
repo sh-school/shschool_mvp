@@ -3,7 +3,8 @@
 قراراتُ 2026-09-13 التي تحرسها هذه الاختبارات:
 
 - لا رقمَ شخصيّاً في الكشف، لا في الـPDF ولا في Excel.
-- ثلاثةُ تواقيع بترتيبها: مشرفُ الجناح، والنائبُ الإداريّ، ومديرُ المدرسة.
+- توقيعٌ واحد: مشرفُ الجناح وحدَه، لا النائبُ الإداريّ ولا المدير (D-385م، يُلغي قرارَ الثلاثة تواقيع).
+- الكشفُ يقرأ رصدَ المعلّم من جدول الشعبة (`AttendanceEntry`) كما تقرؤه لوحةُ المشرف، بفرق 0 (W-20261011-011).
 - الكشفُ الجزئيُّ يُطبع موسوماً «كشفٌ جزئيٌّ حتى HH:MM»، لا يُمنع.
 - ملفُّ Excel محميٌّ للقراءة، ولكشف الجناح ورقةُ ملخّصٍ ثمّ ورقةٌ لكلّ شعبة.
 - المشرفُ لجناحه وحدَه، كصلاحيّة الرصد.
@@ -48,63 +49,12 @@ def _wing_url(code, fmt="html"):
     return reverse("wings:wing_register", args=[code]) + f"?date={SUNDAY.isoformat()}&format={fmt}"
 
 
-@pytest.fixture
-def leaders(school):
-    """النائبُ الإداريّ والمدير — خانتا التوقيع الثانية والثالثة."""
-    for name, role, nid in (
-        ("النائب الإداري", "vice_admin", "29300000094"),
-        ("مدير المدرسة", "principal", "29300000095"),
-    ):
-        MembershipFactory(
-            user=UserFactory(full_name=name, national_id=nid),
-            school=school,
-            role=RoleFactory(school=school, name=role),
-        )
-
-
 # ══════════════════════════════════════════════════════════════════
 # البيانات
 # ══════════════════════════════════════════════════════════════════
 
 
 class TestTheSectionRegister:
-    def test_each_cell_says_the_status_and_the_minutes(
-        self, school, seeded_calendar, klass, kids, teacher, supervisor
-    ):
-        periods = _periods(school, klass, teacher, 3)
-        _confirm(
-            klass,
-            periods[0],
-            {
-                kids[0]: "absent",
-                kids[1]: "late",
-                kids[2]: {"status": "absent", "whereabouts": "clinic"},
-            },
-            supervisor,
-            now=at(7, 22),
-        )
-
-        register = section_register(klass, SUNDAY, now=at(9, 0))
-
-        first, second, third = (row.marks[0] for row in register.rows[:3])
-        assert (first.text, second.text, third.text) == ("غ", "م 12", "غ ع")
-        assert register.rows[1].late_minutes == 12
-        assert register.rows[3].marks[1].text == "·", "حصّةٌ لم تُثبَّت نقطة"
-
-    def test_the_column_keeps_its_first_confirmation(
-        self, school, klass, kids, teacher, supervisor
-    ):
-        periods = _periods(school, klass, teacher, 2)
-        _confirm(klass, periods[0], {}, supervisor, now=at(7, 20))
-        _confirm(klass, periods[1], {}, supervisor, now=at(9, 30))
-
-        register = section_register(klass, SUNDAY, now=at(10, 0))
-
-        on_time, late = register.columns
-        assert on_time.first_confirmed_at.strftime("%H:%M") == "07:20"
-        assert (on_time.label, late.label) == ("مثبّتة", "ثُبّتت متأخّرة")
-        assert on_time.confirmed_by == "مشرف الجناح"
-
     def test_a_day_with_unconfirmed_periods_is_partial(
         self, school, klass, kids, teacher, supervisor
     ):
@@ -115,16 +65,132 @@ class TestTheSectionRegister:
         _confirm(klass, periods[1], {}, supervisor)
         assert not section_register(klass, SUNDAY).is_partial
 
-    def test_three_signatures_in_their_order(
-        self, school, klass, kids, teacher, supervisor, leaders
-    ):
+    def test_one_signature_the_wing_supervisor_only(self, school, klass, kids, teacher, supervisor):
         register = section_register(klass, SUNDAY)
 
-        assert [(s.title, s.name) for s in register.signatories] == [
-            ("مشرف الجناح", "مشرف الجناح"),
-            ("النائب الإداري", "النائب الإداري"),
-            ("مدير المدرسة", "مدير المدرسة"),
-        ]
+        assert [(s.title, s.name) for s in register.signatories] == [("مشرف الجناح", "مشرف الجناح")]
+        assert [s.title for s in wing_register(klass.wing, SUNDAY).signatories] == ["مشرف الجناح"]
+
+    def test_no_vice_admin_or_principal_even_when_they_exist(
+        self, school, klass, kids, teacher, supervisor
+    ):
+        for name, role, nid in (
+            ("النائب الإداري", "vice_admin", "29300000094"),
+            ("مدير المدرسة", "principal", "29300000095"),
+        ):
+            MembershipFactory(
+                user=UserFactory(full_name=name, national_id=nid),
+                school=school,
+                role=RoleFactory(school=school, name=role),
+            )
+
+        titles = [s.title for s in section_register(klass, SUNDAY).signatories]
+
+        assert titles == ["مشرف الجناح"]
+
+
+def _enter(session, kid, by, status="absent", minutes=None, hour=8):
+    """رصدُ المعلّم من جدول الشعبة — رأسٌ في دفتر الإدخال لا تثبيتُ مشرف."""
+    from operations.models import AttendanceEntry
+
+    return AttendanceEntry.objects.create(
+        school=session.school,
+        session=session,
+        student=kid,
+        status=status,
+        tardiness_minutes=minutes,
+        entered_by=by,
+        entered_at=at(hour, 5),
+    )
+
+
+class TestTheRegisterReadsTheTeachersEntries:
+    """الكشفُ كان يقرأ التثبيتَ القديم وحدَه فيعرض «لم تُرصد» لكلّ حصّةٍ رصدها المعلّم (W-20261011-011)."""
+
+    def test_an_entered_period_is_not_shown_as_not_recorded(
+        self, school, klass, kids, teacher, supervisor
+    ):
+        periods = _periods(school, klass, teacher, 2)
+        for kid in kids:
+            _enter(periods[0], kid, teacher, "absent" if kid == kids[0] else "present")
+
+        register = section_register(klass, SUNDAY)
+
+        first, second = register.columns
+        assert first.is_confirmed and first.label == "رُصدت"
+        assert first.status != "missed" and first.first_confirmed_at is not None
+        assert not second.is_confirmed, "حصّةٌ بلا إدخالٍ تبقى بلا رصد"
+        assert register.rows[0].marks[0].status == "absent"
+        assert register.rows[1].marks[0].status == "present"
+        assert register.rows[1].marks[1].status == "", "لا خانةَ مخترعة"
+
+    def test_the_numbers_equal_the_supervisor_panels_with_zero_difference(
+        self, school, klass, kids, teacher, supervisor
+    ):
+        from operations.attendance_selectors import entry_tallies_by_start
+
+        periods = _periods(school, klass, teacher, 2)
+        for index, period in enumerate(periods):
+            _enter(period, kids[0], teacher, "absent")
+            _enter(period, kids[1], teacher, "late", minutes=4)
+            _enter(period, kids[2], teacher, "present")
+            if index == 0:
+                _enter(period, kids[3], teacher, "absent")
+
+        panel = entry_tallies_by_start(klass, SUNDAY)
+        register = section_register(klass, SUNDAY)
+
+        for column in register.columns:
+            tally = panel[column.start]
+            assert (column.present, column.absent, column.late) == (
+                tally["present"],
+                tally["absent"],
+                tally["late"],
+            )
+        assert (register.columns[0].absent, register.columns[1].absent) == (2, 1)
+
+    def test_a_correction_counts_by_its_head_only(self, school, klass, kids, teacher, supervisor):
+        from operations.models import AttendanceEntry
+
+        period = _periods(school, klass, teacher, 1)[0]
+        first = _enter(period, kids[0], teacher, "absent")
+        AttendanceEntry.objects.create(
+            school=school,
+            session=period,
+            student=kids[0],
+            status="present",
+            entered_by=teacher,
+            entered_at=at(8, 20),
+            supersedes=first,
+            correction_reason="تصحيح",
+        )
+
+        register = section_register(klass, SUNDAY)
+
+        assert register.rows[0].marks[0].status == "present"
+        assert register.columns[0].absent == 0
+
+    def test_a_day_with_no_entries_still_says_not_recorded(
+        self, school, klass, kids, teacher, supervisor
+    ):
+        _periods(school, klass, teacher, 2)
+
+        register = section_register(klass, SUNDAY)
+
+        assert not any(c.is_confirmed for c in register.columns)
+        assert all(m.status == "" for row in register.rows for m in row.marks)
+        assert all((c.present, c.absent, c.late) == (0, 0, 0) for c in register.columns)
+
+    def test_a_supervisor_confirmation_still_wins_over_entries(
+        self, school, klass, kids, teacher, supervisor
+    ):
+        period = _periods(school, klass, teacher, 1)[0]
+        _confirm(klass, period, {kids[0]: "absent"}, supervisor)
+
+        column = section_register(klass, SUNDAY).columns[0]
+
+        assert column.is_confirmed and column.label != "رُصدت"
+        assert column.confirmed_by == "مشرف الجناح"
 
 
 class TestTheWingRegister:
@@ -153,7 +219,7 @@ class TestTheWingRegister:
 
 class TestTheExports:
     def test_the_print_view_has_no_national_id(
-        self, client_as, school, klass, kids, teacher, supervisor, leaders
+        self, client_as, school, klass, kids, teacher, supervisor
     ):
         _confirm(klass, _periods(school, klass, teacher, 2)[0], {kids[0]: "absent"}, supervisor)
 
@@ -163,7 +229,9 @@ class TestTheExports:
         assert "طالب 0" in body
         for kid in kids:
             assert kid.national_id not in body, "لا رقمَ شخصيّاً في الكشف"
-        assert body.count('class="sig-item"') == 3
+        assert body.count('class="sig-item"') == 1
+        assert "النائب الإداري" not in body and "مدير المدرسة" not in body
+        assert 'class="emblem"' not in body, "كشفُ الحصص بلا شعار (طوارئ D-386م)"
 
     def test_the_excel_is_protected_and_has_no_national_id(
         self, client_as, school, klass, kids, teacher, supervisor
@@ -203,6 +271,35 @@ class TestTheExports:
         if response.status_code == 200:
             assert response["Content-Type"] == "application/pdf"
             assert response["Content-Disposition"].startswith("attachment;")
+
+    def test_the_wing_summary_shows_entered_periods_and_one_signature(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        periods = _periods(school, klass, teacher, 2)
+        _enter(periods[0], kids[0], teacher, "absent")
+        _enter(periods[0], kids[1], teacher, "present")
+
+        body = client_as(supervisor).get(_wing_url(klass.wing.code)).content.decode()
+
+        assert body.count('class="sig-item"') == 2, "توقيعٌ في ملخّص الجناح وآخرُ في كشف الشعبة"
+        assert "غ 1 · م 0" in body, "رقمُ الغياب من الإدخال لا «لم تُرصد» وحدَها"
+
+    def test_the_excel_has_one_signature_and_the_entered_numbers(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        periods = _periods(school, klass, teacher, 1)
+        _enter(periods[0], kids[0], teacher, "absent")
+
+        response = client_as(supervisor).get(_wing_url(klass.wing.code, "xlsx"))
+
+        book = openpyxl.load_workbook(io.BytesIO(response.content))
+        for sheet in book.worksheets:
+            values = [str(c.value) for row in sheet.iter_rows() for c in row if c.value]
+            # المسمّى والاسم: اسمُ المشرف في التجهيز يطابق مسمّاه، فتوقيعٌ واحدٌ = خليّتان.
+            assert values.count("مشرف الجناح") == 2
+            assert not any("النائب الإداري" in v or "مدير المدرسة" in v for v in values)
+        section = book[klass.short_code]
+        assert "رُصدت" in [str(c.value) for row in section.iter_rows() for c in row if c.value]
 
 
 class TestTheOrientation:
@@ -257,7 +354,8 @@ class TestTheFooter:
         book = openpyxl.load_workbook(io.BytesIO(response.content))
         for sheet in book.worksheets:
             last = sheet.cell(row=sheet.max_row, column=1).value or ""
-            assert "وزارة التربية والتعليم" in last
+            assert "مُتَعَلِّمٌ رِيَادِيٌّ لِتَنْمِيَةٍ مُسْتَدَامَةٍ" in last
+            assert "وزارة التربية والتعليم" not in last, "سطرُ الوزارة مجمَّدٌ بقرار D-400م"
             assert sheet.print_area.endswith(f"${sheet.max_row}")
 
 

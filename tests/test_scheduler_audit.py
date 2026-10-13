@@ -211,10 +211,9 @@ SCENES = [scene_empty, scene_partial, scene_doubles_and_split, scene_bells_and_c
 #: كلُّ ما يقبل الرتبةَ يُكسَر في الرخصة الأولى — ليمرّ الاختبارُ بفرع `waived` أيضاً:
 #: HC7 وHC8 وHC11 وHC16 وHC17 لا تلين بنفسها، فكسرُها تخطّيها.
 LENIENT = ConstraintPolicy(
-    breaks={
-        code: RELAXED
-        for code in ("HC5", "HC6", "HC7", "HC8", "HC11", "HC14", "HC16", "HC16B", "HC17", "HC20")
-    },
+    breaks=dict.fromkeys(
+        ("HC5", "HC6", "HC7", "HC8", "HC11", "HC14", "HC16", "HC16B", "HC17", "HC20"), RELAXED
+    ),
     weights=default_policy().weights,
 )
 WAIVED = {"HC7", "HC8", "HC11", "HC16", "HC17"}
@@ -418,7 +417,8 @@ def test_the_summary_is_what_the_generation_snapshot_stores():
 def test_an_empty_day_is_one_breach_for_the_teacher_not_one_per_lesson():
     tasks = [lesson(f"c-{k}", "s-geo", "t-1", weekly=1) for k in range(8)]
     grid = ScheduleGrid(coverage=_day_coverage(tasks, set()))
-    cells = [(0, 1), (0, 3), (1, 1), (1, 3), (2, 1), (2, 3), (3, 1), (3, 3)]
+    #: الثانية والرابعة لا الأولى والثالثة: أربعُ أولياتٍ لمعلّمٍ واحدٍ تخالف HC22 وليست موضوعَ الاختبار.
+    cells = [(0, 2), (0, 4), (1, 2), (1, 4), (2, 2), (2, 4), (3, 2), (3, 4)]
     for task, (day, period) in zip(tasks, cells, strict=True):
         grid.place(day, period, task)
 
@@ -427,7 +427,7 @@ def test_an_empty_day_is_one_breach_for_the_teacher_not_one_per_lesson():
         ("HC16B", ("t-1",)),
     ]
 
-    grid.remove("c-7", 3, 3)
+    grid.remove("c-7", 3, 4)
     grid.place(4, 2, tasks[7])
     assert grid_breaches(grid, tasks) == []
 

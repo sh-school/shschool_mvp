@@ -287,6 +287,11 @@ class ClinicService:
         Returns:
             bool: True إذا أُرسل إشعار بنجاح، False إذا فشل
         """
+        from core.parents_freeze import parents_frozen
+
+        if parents_frozen():
+            return False
+
         try:
             from core.models import ParentStudentLink
             from notifications.services import NotificationService

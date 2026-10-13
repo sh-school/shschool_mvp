@@ -8,40 +8,22 @@ from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils import formats, timezone
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school, academic_year_window
 from core.capabilities import capability_required, has_capability
 from core.models import ClassGroup, CustomUser, Wing, WingCoverage
 from core.user_selectors import school_user_or_none
-from operations.absence_policy import next_gate
-from operations.absence_standing import unexcused_days_for_class
-from operations.attendance_selectors import entry_grid_context
-from operations.day_attendance import enrolled_of
-from operations.guardian_contact import awaiting_contact
 from operations.models import StudentAttendance
-from operations.period_register import (
-    absent_yesterday,
-    cells_of,
-    confirm_period,
-    focus_period,
-    period_end,
-    periods_of,
-    prefill_of,
-    teacher_outs_of,
-    teacher_taps_of,
-    track_note,
-)
 from operations.school_days import SchoolDay, school_day
-from operations.services import ScheduleService, class_grid
+from operations.services import ScheduleService
 from wings.scope import student_scope_for
 
 from .services import (
     bell_tables,
     coverage_rows,
     floors_overview,
-    next_section_awaiting,
     outside_the_wings,
     record_panels,
     student_events_context,
@@ -268,128 +250,15 @@ def _own_class(request, class_id):
 
 @login_required
 @capability_required("wings.record_day")
-@class_grid.opens_the_grid  # مع مفتاح الجدول يفتح المشرفُ جدولَ الشعبة لا الشبكةَ القديمة (أمرُ المالك 2026-10-07)
 def record_section(request, class_id):
-    """كشفُ الشعبة: الطلابُ صفوفاً، والحصصُ أعمدةً، والحصّةُ المفتوحةُ للرصد.
+    """رابطُ الكشف القديم صار تحويلاً إلى جدول الشعبة بتاريخه (أمرُ المالك 2026-10-09: حذفُ الشبكة القديمة بالبطاقات).
 
-    تُفتح الحصّةُ الجارية، وإلّا أوّلُ فائتة، وإلّا أوّلُ قادمة — ويُختار غيرُها
-    بـ`?p=HH:MM`. وكلُّ طالبٍ بجانبه ما يغيّر قرارَ المشرف في لحظته: «غاب أمس»،
-    وأيّامُ غيابه بلا عذرٍ أمام أوّل عتبةٍ لم يتجاوزها.
+    يبقى المسارُ باسمه لروابط الإشعارات والصفحات القديمة فحسب؛ ولا كشفَ هنا ولا تثبيتَ. والشعبةُ من أجنحة المستخدم وإلّا 404.
     """
-    school, klass = _own_class(request, class_id)
+    _own_class(request, class_id)
     day = _day(request.GET.get("date"), timezone.localdate())
-    ScheduleService.ensure_sessions_for_date(school, day)
-
-    now = timezone.now()
-    periods = periods_of(klass, day)
-    wanted = _time(request.GET.get("p"))
-    focus = next((p for p in periods if p.start == wanted), None) or focus_period(periods, day, now)
-    cells = cells_of(klass, day)
-    awaiting = awaiting_contact(klass, day)
-    taps = teacher_taps_of(klass, day)
-    outs = teacher_outs_of(klass, day)
-    # ما يأتي جاهزاً من المعلّم يُحسب في الخدمة؛ والقالبُ يعرض `row.pick` ولا يحكم.
-    prefill = (
-        prefill_of(klass, day, focus, now, cells=cells, taps=taps, outs=outs) if focus else None
-    )
-    ends = {p.start: period_end(day, p) for p in periods}
-    yesterday = absent_yesterday(klass, day)
-    unexcused = unexcused_days_for_class(klass, school, day)
-
-    rows = []
-    for enrollment in enrolled_of(klass):
-        sid = enrollment.student_id
-        days = unexcused.get(sid, 0)
-        gate = next_gate(klass.grade, days)
-        own = cells.get(sid, {})
-        gone = outs.get(sid, {})
-        rows.append(
-            {
-                "student": enrollment.student,
-                # وفي الأعمدة الأخرى شارةُ من خرج ولم يعد — تُفتح حصّتُه برأس عمودها.
-                "track": [
-                    (p, own.get(p.start), track_note(gone.get(p.start), now, ends[p.start]))
-                    for p in periods
-                ],
-                "cell": own.get(focus.start) if focus else None,
-                # حاضر/غائب/متأخّر ومكانُه كما يُفتح — ومعه علامةُ المعلّم وشارتُه.
-                "pick": prefill.of(sid) if prefill else None,
-                "absent_yesterday": sid in yesterday,
-                # غاب أمس ولم يُخطَر وليُّ أمره بعد — الإخطارُ في اليوم نفسِه (م 3.4.1.5).
-                "needs_contact": awaiting.get(sid),
-                "days": days,
-                "gate": gate,
-            }
-        )
-    return render(
-        request,
-        "wings/record_section.html",
-        {
-            "klass": klass,
-            "day": day,
-            # عنوانُ الترويسة وسطرُها يُبنيان هنا: المكوّنُ يأخذ نصّاً لا وسوماً.
-            "heading": klass.short_label,
-            "subtitle": (
-                f"{formats.date_format(day, 'D، d M Y')} · {len(rows)} طالباً · الحصص: {len(periods)}"
-            ),
-            "periods": [(p, p.status(day, now)) for p in periods],
-            "focus": focus,
-            "focus_status": focus.status(day, now) if focus else "",
-            "measured_now": bool(focus and focus.in_window(day, now)),
-            "rows": rows,
-            **entry_grid_context(klass, day, request.user),
-            "whereabouts": [w for w in StudentAttendance.WHEREABOUTS if w[0] != "gate"],
-            # بصمةُ الخانات كما تُفتح في المفتاح: ملءٌ تبدّل يُسقط المسوّدةَ القديمة.
-            "draft_key": (
-                f"rec:{klass.id}:{day.isoformat()}:{focus.key if focus else ''}"
-                f":{prefill.fingerprint if prefill else ''}"
-            ),
-            # «ثبّت وانتقل»: الشعبةُ التي تنتظر الحصّةَ نفسَها بعد هذه — إن بقيت.
-            "following": next_section_awaiting(klass, day, focus.start) if focus else None,
-        },
-    )
-
-
-@login_required
-@capability_required("wings.record_day")
-@require_POST
-def record_period(request, class_id):
-    """تثبيتُ حصّة — ومعه مخالفتا التأخّر والهروب إن استوجبهما الرصد."""
-    school, klass = _own_class(request, class_id)
-    day = _day(request.POST.get("date"), timezone.localdate())
-    start = _time(request.POST.get("start"))
-    back = f"{reverse('wings:record_section', args=[klass.id])}?date={day.isoformat()}"
-
-    marks: dict = {}
-    for key, value in request.POST.items():
-        for prefix, field in (
-            ("s-", "status"),
-            ("w-", "whereabouts"),
-            ("m-", "late_minutes"),
-            ("t-", "tapped_at"),
-            ("o-", "exit"),
-        ):
-            if key.startswith(prefix):
-                marks.setdefault(key.removeprefix(prefix), {})[field] = value
-    try:
-        result = confirm_period(klass, day, start, marks, by=request.user)
-    except ValueError as err:
-        messages.error(request, str(err))
-        return redirect(back)
-
-    (messages.warning if result.conflicts else messages.success)(
-        request, f"ثُبّتت {klass.short_code} — {result.says}."
-    )
-    if request.POST.get("next"):
-        following = next_section_awaiting(klass, day, start)
-        if following is not None:
-            return redirect(
-                f"{reverse('wings:record_section', args=[following.id])}"
-                f"?date={day.isoformat()}&p={start:%H:%M}"
-            )
-        messages.info(request, "لا شعبةَ أخرى في الجناح تنتظر هذه الحصّة.")
-        return redirect(f"{reverse('wings:record_index')}?date={day.isoformat()}")
-    return redirect(back)
+    target = reverse("class_grid", args=[class_id])
+    return redirect(target if day == timezone.localdate() else f"{target}?date={day.isoformat()}")
 
 
 # ═════════════════════════════════════════════════════════════════════

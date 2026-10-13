@@ -12,7 +12,7 @@ import pytest
 from django.urls import reverse
 from django.utils import timezone
 
-from core.models import AcademicYear, CalendarEvent, WingCoverage
+from core.models import AcademicYear, CalendarEvent
 from operations.absence_file import _SchoolDays
 from operations.excuses import _grace_after
 from operations.school_days import (
@@ -25,8 +25,6 @@ from operations.school_days import (
 )
 from tests.conftest import (
     ClassGroupFactory,
-    MembershipFactory,
-    RoleFactory,
     StudentEnrollmentFactory,
     UserFactory,
 )
@@ -109,57 +107,6 @@ class TestTheDay:
         """مهلةُ العذر يومان دراسيّان بعد العودة: عودةُ الإثنين تُغلق الخميسَ لا الأربعاء."""
         assert _grace_after(school, MONDAY) == THURSDAY
         assert _SchoolDays(school, SUNDAY, FRIDAY).grace_after(MONDAY) == THURSDAY
-
-
-class TestTheSupervisorScreens:
-    def test_the_supervisors_home_page_names_the_holiday_and_lists_no_section(
-        self, client_as, school, holiday, klass, kids, teacher, supervisor
-    ):
-        # حصصُ الثلاثاء موجودة — تُولَّد للأسبوع كلِّه دفعةً واحدة.
-        _periods(school, klass, teacher, 7, day=TUESDAY)
-
-        body = client_as(supervisor).get(reverse("dashboard")).content.decode()
-
-        assert f"اليوم — {HOLIDAY}: لا دوامَ فيه، فلا رصد." in body
-        assert reverse("wings:record_section", args=[klass.id]) not in body
-        assert 'class="per-dot' not in body
-        assert "لا جناحَ مُسنَدٌ إليك" not in body
-
-    def test_the_record_index_names_the_holiday_on_its_date_only(
-        self, client_as, school, holiday, klass, kids, teacher, supervisor
-    ):
-        _periods(school, klass, teacher, 7, day=WEDNESDAY)
-        client = client_as(supervisor)
-        index = reverse("wings:record_index")
-        section = reverse("wings:record_section", args=[klass.id])
-
-        closed = client.get(f"{index}?date={TUESDAY.isoformat()}").content.decode()
-        opened = client.get(f"{index}?date={WEDNESDAY.isoformat()}").content.decode()
-
-        assert HOLIDAY in closed
-        assert section not in closed
-        assert HOLIDAY not in opened
-        assert section in opened
-        assert opened.count('class="per-dot') == 7
-
-    def test_the_substitutes_home_page_names_the_holiday(
-        self, client_as, school, holiday, klass, supervisor
-    ):
-        substitute = UserFactory(full_name="ملاحظ الطلبة", national_id="29300000093")
-        MembershipFactory(
-            user=substitute,
-            school=school,
-            role=RoleFactory(school=school, name="student_observer"),
-        )
-        WingCoverage.objects.create(
-            wing=klass.wing, substitute=substitute, assigned_by=supervisor, start_date=TUESDAY
-        )
-
-        body = client_as(substitute).get(reverse("dashboard")).content.decode()
-
-        assert "رصد الغياب — جناحي اليوم" in body
-        assert HOLIDAY in body
-        assert reverse("wings:record_section", args=[klass.id]) not in body
 
 
 class TestTheFloors:

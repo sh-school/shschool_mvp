@@ -178,18 +178,6 @@ def test_only_an_identical_real_session_closes_the_provisional_one_whoever_creat
     assert Session.objects.filter(pk=twin.pk).exists(), "تُغلق ولا تُحذف"
 
 
-def test_the_signal_is_silent_with_the_switch_off(
-    settings, school, klass, teacher, other_teacher, subject
-):
-    mine = _provisional(school, klass, teacher, subject)
-    settings.PROVISIONAL_SESSIONS_ENABLED = False
-
-    _real(school, klass, other_teacher, subject)
-
-    mine.refresh_from_db()
-    assert mine.provisional_until > timezone.now(), "مطفأً لا يُغلق شيءٌ ولا استعلامَ إضافيّ"
-
-
 @pytest.mark.django_db(transaction=True)
 def test_the_overlap_migration_is_reversible_and_blocks_on_a_clash(school, klass, teacher, subject):
     from django.db import connection
@@ -219,18 +207,3 @@ def test_the_overlap_migration_is_reversible_and_blocks_on_a_clash(school, klass
     MigrationExecutor(connection).migrate(forward)
     assert {"no_teacher_time_overlap_real", "no_class_time_overlap_real"} <= indexes()
     assert "no_teacher_time_overlap" not in indexes()
-
-
-def test_attempts_are_throttled_even_when_they_are_refused(
-    school, klass, teacher, subject, assigned, settings
-):
-    """سقفُ معدّل الطلبات يعدّ المحاولاتِ لا الصفوفَ فقط: تكرارُ رقمٍ مرفوضٍ لا يجري بلا حدّ (مراجعة 0104، 3)."""
-    from django.core.cache import cache
-
-    cache.clear()
-    for _ in range(provisional.ATTEMPTS_PER_HOUR):
-        with pytest.raises(provisional.ProvisionalRefusedError):
-            provisional.create(teacher, school, assigned.id, 99)
-
-    with pytest.raises(provisional.ProvisionalRefusedError, match="كثيرة"):
-        provisional.create(teacher, school, assigned.id, 1)

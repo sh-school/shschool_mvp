@@ -109,6 +109,8 @@ AXES_ENABLED = False
 # الإلزامُ بالمصادقة الثنائيّة يُطفأ في الاختبارات كما axes: آلافُ الاختبارات تدخل بحساباتِ
 # كادرٍ بلا TOTP. واختباراتُ الوسيط نفسِه تشغّله بـ`override_settings`.
 TWO_FACTOR_REQUIRED_FOR_STAFF = False
+# الاختباراتُ القائمةُ تفترض السلوكَ السابق؛ واختباراتُ الحصر تُشغّله بـ override_settings.
+SCHEDULE_DEVELOPER_ONLY = False
 
 # ميزانيةُ توليد الجدول في الاختبارات: ثوانٍ لا دقيقة — فاختبارُ «حصّةٍ مستحيلة»
 # كان يبحث دقيقتين كاملتين قبل أن يُقرّ بالعجز.
@@ -134,3 +136,6 @@ MIGRATION_LINTER_OPTIONS = {"ignore_name_contains": "delete_staffevaluation"}
 # ويُختبَر `command_center.refresh` مباشرةً وبإعدادٍ صريح.
 QCC_LAZY_REFRESH = False
 QCC_NOTIFY_ENABLED = False  # تُفعَّل صراحةً في tests/test_command_center_alerts.py
+
+# التجميدُ مطفأٌ في الاختبارات ليبقى سلوكُ الأهل المُختبَر على حاله؛ وملفّاتُ التجميد ترفعه صراحةً (W-20261008-013).
+PARENTS_FROZEN = False

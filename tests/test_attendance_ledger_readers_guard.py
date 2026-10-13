@@ -30,11 +30,11 @@ ALLOWED_READERS = {
     "operations/attendance_entries.py": "الإدخالُ والقرارُ والتقريرُ والمحو — صاحبُ السجلّ",
     "operations/attendance_policy.py": "أهليّةُ التصحيح (`_has_entry_in_session`) — قراءةُ وجودٍ لا حالة",
     "operations/attendance_selectors.py": "شاشاتُ المعلّم والحامل — يعرض المبدئيَّ وسماً «بانتظار الاعتماد» لا حالةً",
-    "operations/services/attendance_teacher.py": "حدُّ الواجهات إلى ما سبق",
-    "operations/teacher_period_sheet.py": "كشفُ المعلّم المشترك مع كشف المشرف: يكتب إدخالاتٍ مبدئيّةً بـ`submit_entry` ويعرض حالتَها وسماً (`student_lines`) — لا يعدّ المبدئيَّ حضوراً",
     "operations/admin.py": "عرضُ قراءةٍ فقط (`ReadOnlyAdminMixin`)",
     "operations/day_attendance.py": "دوكسترنغٌ يصف القرار",
     "governance/erasure_service.py": "محوُ الطالب (PDPPL م.18) يمحو السجلَّ ويحصي ما محا",
+    "student_affairs/morning_tardiness.py": "`_already_marked`: وجودُ إدخالِ معلّمٍ في الحصّة يمنع تسجيلَ التأخّر الصباحيّ فوقه — قراءةُ وجودٍ لا حالة (W-20261004-022)",
+    "notifications/teacher_alerts.py": "تنبيهُ «حصّة بلا رصد»: وجودُ إدخالٍ للحصّة يكفي لإسقاط التنبيه — قراءةُ وجودٍ لا حالة (W-20261010-042)",
 }
 
 #: مواضعُ في خدمات الجداول تذكر العلاقةَ العكسيّةَ لغرضٍ غيرِ الاحتساب — كلُّ سطرٍ باسمه وسببه.

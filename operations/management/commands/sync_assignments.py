@@ -226,7 +226,7 @@ class Command(BaseCommand):
         resolver = Resolver(school, year)
         plan, failed, stale = self._plan(rows, resolver, school, year)
 
-        counts = {kind: 0 for kind in ("create", "update", "same")}
+        counts = dict.fromkeys(("create", "update", "same"), 0)
         for kind, *_ in plan:
             counts[kind] += 1
         self.stderr.write(

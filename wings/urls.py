@@ -1,17 +1,19 @@
 from django.urls import path
 
 from . import views, views_absence_file, views_absence_notices, views_ministry, views_register
+from .views_supervisor_live import supervisor_live
 
 app_name = "wings"
 
 urlpatterns = [
     path("", views.floors, name="floors"),
+    # الاستطلاعُ الحيّ للوحة المشرف وبديله (D-249م القسم 9): JSON بلا أسماء لأجنحته وحدَها.
+    path("live/", supervisor_live, name="supervisor_live"),
     path("coverage/", views.coverage, name="coverage"),
     path("coverage/<slug:code>/assign/", views.coverage_assign, name="coverage_assign"),
     path("coverage/<uuid:pk>/end/", views.coverage_end, name="coverage_end"),
     path("record/", views.record_index, name="record_index"),
     path("record/<uuid:class_id>/", views.record_section, name="record_section"),
-    path("record/<uuid:class_id>/period/", views.record_period, name="record_period"),
     path(
         "record/<uuid:class_id>/student/<uuid:student_id>/",
         views.student_events,

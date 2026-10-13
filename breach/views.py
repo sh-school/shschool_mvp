@@ -9,11 +9,22 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 
 from core.capabilities import capability_required
+from core.models import BreachReport
 
 from . import selectors
-from .forms import BreachEditForm, BreachReportForm
+from .forms import (
+    BreachEditForm,
+    BreachReportForm,
+    IndividualsAssessmentForm,
+    IndividualsNotifiedForm,
+    NcsaNoticeForm,
+)
 from .services import (
     InvalidTransitionError,
+    assess_individuals,
+    complete_ncsa_notice,
+    record_individuals_notified,
+    record_ncsa_notice,
     register_breach,
     transition,
     update_breach,
@@ -34,6 +45,18 @@ def dashboard(request):
             # اللونُ يحمل التنبيه: مهلةٌ فائتةٌ حمراء، وخرقٌ نشطٌ كهرمانيّ، وصفرُهما أخضر.
             "overdue_tone": "red" if stats["overdue"] else "green",
             "active_tone": "amber" if stats["active"] else "green",
+            "individuals_tone": (
+                "red"
+                if stats["individuals_overdue"]
+                else "amber"
+                if stats["individuals_pending"]
+                else "green"
+            ),
+            "individuals_sub": (
+                f"منها {stats['individuals_overdue']} فات موعدُه"
+                if stats["individuals_overdue"]
+                else ""
+            ),
         },
     )
 
@@ -93,6 +116,7 @@ def detail(request, pk):
         "breach/detail.html",
         {
             "breach": breach,
+            "channels": BreachReport.INDIVIDUALS_CHANNELS,
             "history": selectors.history_for(breach),
             # اللونُ يحمل التنبيه كما في اللوحة: 12 ساعةً فأقلّ كهرمانيّ.
             "remaining_tone": "amber" if hours is not None and hours <= 12 else "green",
@@ -126,6 +150,101 @@ def update_status(request, pk):
         messages.error(request, str(exc))
 
     return redirect("breach:detail", pk=pk)
+
+
+def _first_error(form) -> str:
+    """أوّلُ خطأٍ في النموذج نصّاً عربيّاً للرسالة — الإجراءاتُ هنا أزرارٌ في صفحة التفاصيل لا صفحاتٌ."""
+    for errors in form.errors.values():
+        return errors[0]
+    return "بياناتٌ غيرُ صالحة."
+
+
+def _post_action(request, pk, form_cls, apply, ok_message, **form_kwargs):
+    """قالبُ إجراءاتِ POST على الخرق: يتحقّق ثمّ ينفّذ الخدمةَ ويعيد إلى التفاصيل برسالة."""
+    if request.method != "POST":
+        return redirect("breach:detail", pk=pk)
+    breach = selectors.breach_for_school(pk, request.school)
+    form = form_cls(request.POST, **{k: v(breach) for k, v in form_kwargs.items()})
+    if not form.is_valid():
+        messages.error(request, _first_error(form))
+        return redirect("breach:detail", pk=pk)
+    try:
+        apply(breach, form.cleaned_data)
+    except InvalidTransitionError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, ok_message)
+    return redirect("breach:detail", pk=pk)
+
+
+@login_required
+@capability_required("breach.manage")
+def ncsa_notice(request, pk):
+    """تسجيلُ إشعار NCSA الأوّل (مكتملاً أو مبدئيّاً بأسباب النقص وموعد الاستكمال)."""
+    return _post_action(
+        request,
+        pk,
+        NcsaNoticeForm,
+        lambda breach, d: record_ncsa_notice(
+            breach,
+            complete=not d["is_initial"],
+            missing_reasons=d["missing_reasons"],
+            completion_due_at=d["completion_due_at"],
+            user=request.user,
+            request=request,
+        ),
+        "سُجّل إشعارُ NCSA.",
+    )
+
+
+@login_required
+@capability_required("breach.manage")
+def ncsa_complete(request, pk):
+    if request.method != "POST":
+        return redirect("breach:detail", pk=pk)
+    breach = selectors.breach_for_school(pk, request.school)
+    try:
+        complete_ncsa_notice(breach, user=request.user, request=request)
+    except InvalidTransitionError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, "سُجّل استكمالُ إشعار NCSA.")
+    return redirect("breach:detail", pk=pk)
+
+
+@login_required
+@capability_required("breach.manage")
+def individuals_assess(request, pk):
+    """تقديرُ لزوم إخطار الأفراد المتأثّرين وموعدِه، أو سببِ عدم اللزوم."""
+    return _post_action(
+        request,
+        pk,
+        IndividualsAssessmentForm,
+        lambda breach, d: assess_individuals(
+            breach,
+            required=d["required"],
+            note=d["note"],
+            deadline=d["deadline"],
+            user=request.user,
+            request=request,
+        ),
+        "سُجّل تقديرُ إخطار الأفراد.",
+        breach=lambda breach: breach,
+    )
+
+
+@login_required
+@capability_required("breach.manage")
+def individuals_notified(request, pk):
+    return _post_action(
+        request,
+        pk,
+        IndividualsNotifiedForm,
+        lambda breach, d: record_individuals_notified(
+            breach, channel=d["channel"], user=request.user, request=request
+        ),
+        "سُجّل إخطارُ الأفراد المتأثّرين.",
+    )
 
 
 @login_required

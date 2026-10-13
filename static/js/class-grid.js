@@ -17,9 +17,7 @@
   var saveUrl = root.getAttribute('data-save-url');
   var lateUrl = root.getAttribute('data-late-url');
   var exitUrl = root.getAttribute('data-exit-url');
-  var approveUrl = root.getAttribute('data-approve-url');
   var draftKey = root.getAttribute('data-draft-key');
-  var correcting = root.getAttribute('data-correcting') === '1';
   var statusLine = root.querySelector('[data-grid-status]');
   var tokenInput = document.querySelector('input[name=csrfmiddlewaretoken]');
   var SYMBOL = { '': '·', present: '✓', absent: 'غ', late: 'ت' };
@@ -58,16 +56,19 @@
     writeDraft(draft);
   }
 
-  // استعادةُ المسوّدة فوق خلايا لم يتغيّر رأسُها (لا نكتب فوق ما رأيناه جديداً).
-  Object.keys(draft).forEach(function (col) {
-    Object.keys(draft[col]).forEach(function (student) {
-      var cell = root.querySelector('[data-cell][data-col="' + col + '"][data-student="' + student + '"]');
-      if (cell && cell.getAttribute('data-writable') === '1' && !cell.getAttribute('data-head')) {
-        paint(cell, draft[col][student]);
-        cell.classList.add('is-dirty');
-      }
+  // استعادةُ المسوّدة فوق خلايا لم يتغيّر رأسُها (لا نكتب فوق ما رأيناه جديداً)؛ `scope` يحصرها في صفٍّ بُدّل من الخادم.
+  function restoreDraft(scope) {
+    Object.keys(draft).forEach(function (col) {
+      Object.keys(draft[col]).forEach(function (student) {
+        var cell = scope.querySelector('[data-cell][data-col="' + col + '"][data-student="' + student + '"]');
+        if (cell && cell.getAttribute('data-writable') === '1' && !cell.getAttribute('data-head')) {
+          paint(cell, draft[col][student]);
+          cell.classList.add('is-dirty');
+        }
+      });
     });
-  });
+  }
+  restoreDraft(root);
 
   root.addEventListener('click', function (event) {
     var cell = event.target.closest('[data-cell]');
@@ -82,18 +83,50 @@
     if (bulk) return bulkFill(bulk);
     var saveBtn = event.target.closest('[data-save-col]');
     if (saveBtn) return save(saveBtn.getAttribute('data-save-col'));
-    var approve = event.target.closest('[data-approve-col]');
-    if (approve) return approveColumn(approve);
+    var opener = event.target.closest('[data-acts-open]');
+    if (opener) return openSheet(opener.getAttribute('data-acts-open'));
+    if (event.target.closest('[data-sheet-close]')) return closeSheets();
+    // نقرةٌ على حجب الحوار نفسِه (لا على محتواه) تغلق الورقة.
+    if (event.target.matches && event.target.matches('dialog[data-acts-sheet]')) return closeSheets();
     var late = event.target.closest('[data-late]');
-    if (late) return markLate(late);
+    if (late) { closeSheets(); return markLate(late); }
     var exitBtn = event.target.closest('[data-exit]');
-    if (exitBtn) return exitAction(exitBtn.getAttribute('data-exit'), 'leave');
+    if (exitBtn) { closeSheets(); return exitAction(exitBtn.getAttribute('data-exit'), 'leave'); }
     var backBtn = event.target.closest('[data-exit-return]');
-    if (backBtn) return exitAction(backBtn.getAttribute('data-exit-return'), 'return');
+    if (backBtn) { closeSheets(); return exitAction(backBtn.getAttribute('data-exit-return'), 'return'); }
     var hist = event.target.closest('[data-history-open]');
     if (hist) return openHistory(hist.getAttribute('data-student'), currentCol());
     var tab = event.target.closest('[data-tab]');
     if (tab) return showTab(tab.getAttribute('data-tab'));
+  });
+
+  // دائرةُ الخروج: المعلوماتُ (الوجهة والساعة والمدّة) تطفو عند مرور المؤشّر فقط؛ لا نقرَ ولا بقاء، وعلى اللمس يبقى الرقمُ وحدَه.
+  var pop = null;
+  function exitPop() {
+    if (!pop) {
+      pop = document.createElement('div');
+      pop.className = 'cg-exitpop';
+      pop.setAttribute('role', 'tooltip');
+      pop.hidden = true;
+      document.body.appendChild(pop);
+    }
+    return pop;
+  }
+  root.addEventListener('mouseover', function (event) {
+    var dot = event.target.closest('[data-exit-tip]');
+    if (!dot) return;
+    var box = exitPop();
+    box.textContent = dot.getAttribute('data-exit-tip');
+    box.hidden = false;
+    var r = dot.getBoundingClientRect();
+    var w = box.offsetWidth, h = box.offsetHeight;
+    var left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
+    var top = r.top - h - 6 < 8 ? r.bottom + 6 : r.top - h - 6;
+    box.style.left = left + 'px';
+    box.style.top = top + 'px';
+  });
+  root.addEventListener('mouseout', function (event) {
+    if (event.target.closest('[data-exit-tip]') && pop) pop.hidden = true;
   });
 
   root.addEventListener('dblclick', function (event) {
@@ -104,6 +137,8 @@
   function currentCol() {
     var current = root.querySelector('th.cg-col--current');
     if (current) return current.getAttribute('data-col');
+    var next = root.querySelector('th.cg-col--next');
+    if (next) return next.getAttribute('data-col');
     var started = root.querySelectorAll('th.cg-col--past');
     return started.length ? started[started.length - 1].getAttribute('data-col') : '1';
   }
@@ -148,20 +183,8 @@
       return c.getAttribute('data-writable') === '1' && !c.getAttribute('data-status');
     });
     if (!dirty.length && !empties.length) { notify('لا تغييرَ لحفظه في ح' + col, 'info'); return; }
-    var reasonInput = root.querySelector('[data-grid-reason]');
+    var reasonInput = document.querySelector('[data-grid-reason]');
     var reason = reasonInput ? reasonInput.value.trim() : '';
-    var reasonAlways = root.getAttribute('data-reason-always') === '1';
-    var editsExisting = Array.prototype.some.call(dirty, function (c) { return !!c.getAttribute('data-head'); });
-    if (reasonAlways && editsExisting && !reason) {
-      notify('تعديلُ ما كتبه غيرُك يلزمه سببٌ — اكتبه في حقل السبب أعلى الجدول.', 'warning');
-      if (reasonInput) reasonInput.focus();
-      return;
-    }
-    if (correcting && !reason) {
-      notify('نافذةُ المعلّم مغلقة — اكتب سببَ التصحيح في الحقل أعلى الجدول (إلزاميّ).', 'warning');
-      if (reasonInput) reasonInput.focus();
-      return;
-    }
     if (empties.length) {
       confirmThen('يوجد ' + empties.length + ' خليّةٍ فارغةٍ في ح' + col + ' ستُكتب «حاضراً افتراضيّاً». حفظُ العمود؟', function () {
         send(col, dirty, true, reason);
@@ -174,6 +197,7 @@
   function send(col, dirty, fill, reason) {
     var payload = {
       period: parseInt(col, 10),
+      date: root.getAttribute('data-date') || '',
       cells: dirty.map(function (c) {
         return { student: c.getAttribute('data-student'), status: c.getAttribute('data-status'), head: c.getAttribute('data-head') || '' };
       }),
@@ -241,8 +265,13 @@
         var doc = new DOMParser().parseFromString(html, 'text/html');
         var fresh = doc.querySelector('tr[data-student="' + student + '"]');
         var old = root.querySelector('tr[data-student="' + student + '"]');
-        if (fresh && old) { old.replaceWith(document.importNode(fresh, true)); tick(); }
-        else window.location.reload();
+        if (fresh && old) {
+          var node = document.importNode(fresh, true);
+          old.replaceWith(node);
+          restoreDraft(node);
+          tick();
+          showTab(activeCol);
+        } else window.location.reload();
       }).catch(function () { window.location.reload(); });
   }
 
@@ -261,25 +290,6 @@
   tick();
   window.setInterval(tick, 1000);
 
-  // «اعتماد الحصّة» أسفل العمود: تأكيدٌ بنافذة المنصّة ثم اعتمادُ كلّ ما ينتظر في الحصّة (بما فيه الحاضرُ الافتراضيّ) وتحديثُ الجدول وحدَه.
-  function approveColumn(button) {
-    var col = button.getAttribute('data-approve-col');
-    var count = button.getAttribute('data-pending');
-    confirmThen('اعتمادُ ح' + col + ': ' + count + ' خليّةً بما فيها الحاضرُ الافتراضيّ، بقرارٍ باسمك. متابعة؟', function () {
-      var body = new URLSearchParams();
-      body.append('period', col);
-      body.append('csrfmiddlewaretoken', csrf());
-      fetch(approveUrl, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrf() }, body: body })
-        .then(function (response) { return response.json().then(function (d) { return { status: response.status, data: d }; }); })
-        .then(function (result) {
-          if (result.status >= 400) { notify((result.data && result.data.message) || 'تعذّر الاعتماد', 'danger'); return; }
-          var d = result.data;
-          notify('اعتُمدت ح' + col + ' ✓ — ' + d.approved + ' خليّة' + (d.skipped ? ' وتُخطّي ' + d.skipped + ' (تعارضٌ أو نسخةٌ أحدث)' : '') + '.', d.skipped ? 'warning' : 'success');
-          refreshTable();
-        }).catch(function () { notify('تعذّر الاعتماد.', 'danger'); });
-    });
-  }
-
   // يبدّل جسمَ الجدول (الصفوفَ والتذييل) من الخادم بلا إعادة تحميل الصفحة.
   function refreshTable() {
     fetch(window.location.href, { credentials: 'same-origin' })
@@ -288,8 +298,13 @@
         var doc = new DOMParser().parseFromString(html, 'text/html');
         var fresh = doc.querySelector('.cg-wrap');
         var old = root.querySelector('.cg-wrap');
-        if (fresh && old) { old.replaceWith(document.importNode(fresh, true)); tick(); }
-        else window.location.reload();
+        if (fresh && old) {
+          var wrap = document.importNode(fresh, true);
+          old.replaceWith(wrap);
+          restoreDraft(wrap);
+          tick();
+          showTab(activeCol);
+        } else window.location.reload();
       }).catch(function () { window.location.reload(); });
   }
 
@@ -336,11 +351,31 @@
     });
   }
 
-  // الجوالُ: عمودٌ واحدٌ بتبويب ح1–ح7 — تُخفى بقيّةُ الأعمدة بالسمة `hidden` (لا قواعدَ CSS لكلّ رقم).
-  var narrow = window.matchMedia('(max-width: 640px)');
+  // وضعُ الهاتف: عمودٌ واحدٌ بتبويب ح1–ح7 وإجراءاتُ الصفّ في ورقةٍ سفليّة وشريطُ مفاتيح. **عتبتُه في CSS وحدَها**
+  // (`--cg-narrow` على الجذر داخل استعلام الوسائط الوحيد في 33-modules-4.css) فلا يختلف العرضُ عن السلوك؛ ويُعاد التقييمُ عند تدوير الشاشة.
+  function isNarrow() {
+    return window.getComputedStyle(root).getPropertyValue('--cg-narrow').trim() === '1';
+  }
+
+  // الورقةُ السفليّة: حوارٌ أصليٌّ (`showModal`) يحبس التركيزَ ويغلقه Esc؛ وعلى الحاسوب يُرسم مضمَّناً فلا يُفتح قطّ.
+  function openSheet(student) {
+    var sheet = root.querySelector('dialog[data-acts-sheet="' + student + '"]');
+    if (!sheet || !isNarrow() || typeof sheet.showModal !== 'function' || sheet.open) return;
+    sheet.setAttribute('role', 'dialog');
+    sheet.showModal();
+  }
+  function closeSheets() {
+    root.querySelectorAll('dialog[data-acts-sheet][open]').forEach(function (sheet) { sheet.close(); });
+  }
+  // الحدثُ `close` لا يفور: نلتقطه في طور الالتقاط ليعود الدورُ «مجموعةً» على الحاسوب عند الإغلاق بأيّ طريق (Esc أو زرّ).
+  root.addEventListener('close', function (event) {
+    if (event.target.matches && event.target.matches('dialog[data-acts-sheet]')) event.target.setAttribute('role', 'group');
+  }, true);
+
   var activeCol = '';
   function showTab(col) {
     activeCol = col;
+    var narrow = isNarrow();
     root.querySelectorAll('[data-tab]').forEach(function (tab) {
       var on = tab.getAttribute('data-tab') === col;
       tab.classList.toggle('btn-primary', on);
@@ -348,11 +383,38 @@
       tab.setAttribute('aria-selected', on ? 'true' : 'false');
     });
     var tabs = root.querySelector('[data-tabs]');
-    if (tabs) tabs.hidden = !narrow.matches;
+    if (tabs) tabs.hidden = !narrow;
     root.querySelectorAll('th[data-col], td[data-col]').forEach(function (cell) {
-      cell.hidden = narrow.matches && cell.getAttribute('data-col') !== col;
+      cell.hidden = narrow && cell.getAttribute('data-col') !== col;
+    });
+    if (!narrow) closeSheets();
+    syncKeybar(col);
+  }
+
+  // شريطُ المفاتيح يحمل أزرارَ العمود المعروض: يأخذ حالةَ التعطيل وسببَه من مفاتيح التذييل لذلك العمود (مصدرٌ واحدٌ للقاعدة).
+  function syncKeybar(col) {
+    var bar = root.querySelector('[data-keybar]');
+    if (!bar) return;
+    var label = bar.querySelector('[data-keybar-col]');
+    if (label) label.textContent = col;
+    bar.querySelectorAll('[data-bulk], [data-save-col]').forEach(function (button) {
+      var isSave = button.hasAttribute('data-save-col');
+      var source = root.querySelector(isSave
+        ? 'tfoot [data-save-col="' + col + '"]'
+        : 'tfoot [data-bulk="' + button.getAttribute('data-bulk') + '"][data-col="' + col + '"]');
+      if (isSave) button.setAttribute('data-save-col', col); else button.setAttribute('data-col', col);
+      button.disabled = !source || source.disabled;
+      if (source && source.getAttribute('title')) button.setAttribute('title', source.getAttribute('title'));
+      else button.removeAttribute('title');
     });
   }
-  if (narrow.addEventListener) narrow.addEventListener('change', function () { showTab(activeCol); });
+
+  var resizeTimer = 0;
+  function onResize() {
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(function () { showTab(activeCol); }, 120);
+  }
+  window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', onResize);
   showTab(currentCol());
 })();

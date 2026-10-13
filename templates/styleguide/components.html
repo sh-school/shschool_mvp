@@ -468,6 +468,9 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
       {% callout "warning" %}تحذير — تنبيهٌ قبل فعلٍ لا يُتراجع عنه.{% endcallout %}
       {% callout "error" %}خطأ — تعذّر الحفظ؛ راجع الحقول المظلّلة.{% endcallout %}
       {% callout "success" %}نجاح — حُفظت البيانات.{% endcallout %}
+      {% field "sg_code" "رمز التحقق (6 أرقام)" css="ui-field--code" maxlength="7" inputmode="numeric" placeholder="• • • • • •" %}
+      <div class="qr-frame"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="" width="176" height="176"></div>
+      <div class="secret-row"><code>ABCD EFGH IJKL</code><button type="button" class="btn-ghost btn-xs">نسخ</button></div>
       <div class="form-actions">
         <button type="button" class="btn-secondary">إلغاء</button>
         <button type="button" class="btn-primary">حفظ</button>
@@ -476,6 +479,7 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
     <ul class="sg-rules">
       <li><code>ui-switch</code> حقلٌ حقيقيٌّ <code>input[role=switch]</code> يُقرأ ويُضغط بلوحة المفاتيح؛ والمسارُ ظلُّه.</li>
       <li><code>form-actions</code> في نهاية النموذج: الفعلُ الأوّل آخرَ السطر.</li>
+      <li><code>ui-field--code</code> يُمرَّر إلى <code>{% templatetag openblock %} field {% templatetag closeblock %}</code> في <code>css=</code> لرمزٍ من أرقامٍ (توسيطٌ وخطٌّ أحاديّ)؛ و<code>qr-frame</code> إطارُ رمز QR؛ و<code>secret-row</code> صفُّ مفتاحٍ يدويٍّ بزرّ نسخ — كلُّها في المصادقة الثنائية.</li>
     </ul>
   {% endsection_card %}
 

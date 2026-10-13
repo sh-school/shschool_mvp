@@ -23,8 +23,8 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
-from .scheduler import LAST_PERIOD, Task
-from .scheduler_constraints import get_max_periods_for_day
+from .scheduling_inputs import LAST_PERIOD, Task
+from .scheduling_limits import get_max_periods_for_day
 
 #: نوعا اليوم في الجرس — الخميسُ (4) له جرسٌ وحصصٌ أقلّ؛ ما سواه عاديّ.
 DAY_TYPES = ("regular", "thursday")
@@ -47,6 +47,8 @@ class DemandRow:
     n: int
     #: معرّفُ المهمّة المنقسمة التي يشترك فيها هذا الصفُّ مع صفوفٍ أخرى في الخانة نفسها؛ فارغٌ لغيرها.
     joint: str = ""
+    #: عددُ كتل الازدواج (مهامّ span=2) في هذا الصفّ: كلُّ كتلةٍ حصّتان متلاصقتان بقيدٍ صلب (مثل المجدوِل والمُقيِّم).
+    blocks: int = 0
 
 
 @dataclass(frozen=True)
@@ -70,6 +72,10 @@ class CpSatInputs:
     class_band: dict[str, str] = field(default_factory=dict)
     #: مرحلةُ كلّ شعبة («prep»/«sec») — لسقف حصص الخميس.
     class_level: dict[str, str] = field(default_factory=dict)
+    #: صفُّ كلّ شعبة («G7»…«G12») من `ClassGroup.grade` — لـHC17 (G11/G12) وغيره.
+    class_grade: dict[str, str] = field(default_factory=dict)
+    #: طبيعةُ كلّ مادّة (`heavy`/`activity`/`regular`) من `Subject.pedagogy` — للقيود المرنة.
+    subject_pedagogy: dict[str, str] = field(default_factory=dict)
     #: المواد التي لها حصصٌ مزدوجةٌ (مهمّةٌ بخانتين).
     doubles: frozenset[str] = frozenset()
     ex_full: frozenset[tuple[str, int]] = frozenset()
@@ -79,6 +85,8 @@ class CpSatInputs:
     res_cap: dict[str, int] = field(default_factory=dict)
     #: {معرّفُ المورد: موادُّه}
     res_subjects: dict[str, frozenset[str]] = field(default_factory=dict)
+    #: الموارد التي لا تجمع مرحلتين (`same_level_only`، HC11 بالساعة). None = كلُّ الموارد (توافقُ الاختبارات الصغيرة).
+    res_same_level: frozenset[str] | None = None
     subject_names: dict[str, str] = field(default_factory=dict)
     teacher_names: dict[str, str] = field(default_factory=dict)
     class_names: dict[str, str] = field(default_factory=dict)
@@ -143,13 +151,17 @@ def build_inputs(
     inputs = CpSatInputs()
 
     demand: dict[tuple, int] = defaultdict(int)
+    block_count: dict[tuple, int] = defaultdict(int)
     doubles: set[str] = set()
     res_subjects: dict[str, set[str]] = defaultdict(set)
+    same_level_ids: set[str] = set()
     for task in tasks:
         inputs.class_band[task.class_id] = task.band_id or ""
         inputs.class_names[task.class_id] = task.class_name
         if task.level_type:
             inputs.class_level[task.class_id] = task.level_type
+        if task.grade:
+            inputs.class_grade[task.class_id] = task.grade
         joint = ""
         if task.is_split:
             # مهمّةٌ واحدةٌ بخانةٍ واحدةٍ لساكنَيها: معرّفُها يربط صفَّيها (شعبةٌ + مادّتان + معلّمان).
@@ -160,20 +172,44 @@ def build_inputs(
                 (task.class_id, member.subject_id, member.teacher_id, task.parallel_group, joint)
             ] += task.span
             inputs.subject_names[member.subject_id] = member.subject_name
+            inputs.subject_pedagogy.setdefault(member.subject_id, task.pedagogy)
             inputs.teacher_names[member.teacher_id] = member.teacher_name
             if task.span > 1:
                 doubles.add(member.subject_id)
-            # المهمّةُ المنقسمةُ تستهلك مواردَ ساكنيها جميعاً (كما يفعل `_to_tasks`).
-            for resource_id, capacity, *_ in task.resources:
+                block_count[
+                    (
+                        task.class_id,
+                        member.subject_id,
+                        member.teacher_id,
+                        task.parallel_group,
+                        joint,
+                    )
+                ] += 1
+            # لكلّ عضوٍ مواردُ مادّته وحدها؛ فلو أُدخلت موادُّ الساكنين في كلّ موردٍ لاتّسعت
+            # مجموعاتُ المواد واختنق النموذجُ (A1). والعضوُ بلا موارد خاصّة في مهمّةٍ غير منقسمة
+            # يرث موارد المهمّة.
+            member_resources = member.resources or (() if task.is_split else task.resources)
+            for resource_id, capacity, same_level, *_ in member_resources:
                 inputs.res_cap[resource_id] = capacity
                 res_subjects[resource_id].add(member.subject_id)
+                if same_level:
+                    same_level_ids.add(resource_id)
 
     inputs.demand = [
-        DemandRow(cls, subj, teacher, elec, n, joint)
+        DemandRow(
+            cls,
+            subj,
+            teacher,
+            elec,
+            n,
+            joint,
+            block_count.get((cls, subj, teacher, elec, joint), 0),
+        )
         for (cls, subj, teacher, elec, joint), n in sorted(demand.items())
     ]
     inputs.doubles = frozenset(doubles)
     inputs.res_subjects = {rid: frozenset(subs) for rid, subs in res_subjects.items()}
+    inputs.res_same_level = frozenset(same_level_ids)
 
     # التفريغ: يومٌ كاملٌ ← `ex_full`، وغيرُه حصّةً حصّةً ← `ex_period`. ويومٌ مفرَّغةٌ كلُّ حصصه
     # (كما يُوسِّع `load_inputs` التفريغَ الكاملَ) يُعدّ يوماً كاملاً.

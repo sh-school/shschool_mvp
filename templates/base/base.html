@@ -42,8 +42,8 @@
   {% load static %}
 
   {# ── Favicon & PWA ── #}
-  <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/favicon.png' %}">
-  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/apple-touch-icon.png' %}">
+  <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/v3/favicon.png' %}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/v3/apple-touch-icon.png' %}">
   {% if user.is_authenticated %}
   <link rel="manifest" href="{% url 'global_manifest' %}">
   {% comment %}
@@ -92,8 +92,7 @@
     {# ── Logo + اسم المدرسة ── #}
     {% if request.user|can_open:"dashboard" %}
     <a href="{% url 'dashboard' %}" class="nb nav-logo">
-      <img src="{% static 'brand/emblem-white.svg' %}" width="27" height="27"
-           alt="{{ current_school.name|default:'شعار المدرسة' }}" class="nav-logo-img">
+      {% load school_logo %}{% school_logo "nav" %}
       <span class="nav-logo-text">{{ current_school.name|default:"المدرسة" }}</span>
     </a>
     {% endif %}
@@ -365,6 +364,23 @@
       <a href="{% url 'my_procedures' %}" class="nb">{% icon "my_actions" %} إجراءاتي</a>
       {% endif %}
 
+    {% elif role == "student_affairs_coordinator" %}
+      {# منسق شؤون الطلبة (بطاقة 1033) — يدير سجلّ الطلبة ومتابعتهم تحت النائب الإداري، وقوائمُه من القوائم المشتركة نفسها؛ كلُّ رابطٍ بقدرته. #}
+      {% if request.user|can_open:"dashboard" %}
+      <a href="{% url 'dashboard' %}" class="nb">{% icon "dashboard" %} الرئيسية</a>
+      {% endif %}
+      <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% icon "students" %} إدارة شؤون الطلاب <span class="chv">▼</span></button>
+      {% if request.user|can_open:"student_info:sections" %}
+      <button class="nb" id="btn-student-info" data-sd="m-student-info" aria-expanded="false" aria-controls="m-student-info">{% icon "student_info" %} مركز معلومات الطلبة <span class="chv">▼</span></button>
+      {% endif %}
+      <button class="nb" id="btn-services" data-sd="m-services" aria-expanded="false" aria-controls="m-services">{% icon "services" %} الخدمات <span class="chv">▼</span></button>
+      {% if request.user|can_open:"reports_index" %}
+      <a href="{% url 'reports_index' %}" class="nb">{% icon "reports" %} التقارير</a>
+      {% endif %}
+      {% if request.user|can_open:"my_procedures" %}
+      <a href="{% url 'my_procedures' %}" class="nb">{% icon "my_actions" %} إجراءاتي</a>
+      {% endif %}
+
     {% elif role == "activities_coordinator" %}
       {# منسق الأنشطة المدرسية — يُدير الأنشطة اللاصفية ومشاركة الطلاب #}
       {% if request.user|can_open:"dashboard" %}
@@ -492,7 +508,7 @@ role == "secretary": W-20261001-026 — شريطُه يفتح أربعاً من 
 m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفتحها، فتبقى غيرَ
 قابلةٍ للوصول له (قرارُ المالك 2026-10-01).
 {% endcomment %}
-{% if is_admin_role or role == "secretary" %}
+{% if is_admin_role or role == "secretary" or role == "student_affairs_coordinator" %}
 
 {# ✅ REQ-SH-002 — Client 001 menu restructure (11 items، كلُّها باقيةٌ بلا حذف). #}
 {% comment %}
@@ -648,6 +664,9 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"teacher_load_report" %}
   <a href="{% url 'teacher_load_report' %}">{% icon "workload" %} تقرير أعباء المعلمين</a>
   {% endif %}
+  {% if request.user|can_open:"teacher_preferences_overview" %}
+  <a href="{% url 'teacher_preferences_overview' %}">{% icon "settings" %} تفضيلات المعلّمين</a>
+  {% endif %}
   </div>
 </div>
 
@@ -681,16 +700,30 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   </div>
 </div>
 
-<div class="sd-menu" id="m-services" role="menu" aria-label="الخدمات">
-  <div class="sd-label">الخدمات المساندة</div>
+{% comment %}
+أقسامٌ بعناوينها كبقيّة القوائم (m-staff-affairs وm-quality): العيادةُ قسمٌ بروابطها — لوحتُها وعلامةُ المراعاة
+(W-20261010-045: كانت القائمةُ رابطاً واحداً إلى لوحة العيادة فلا يبلغ المديرُ الاستيرادَ منها). عمودان حين يظهر القسمان.
+{% endcomment %}
+<div class="sd-menu{% if request.user|can_open:'clinic:dashboard' and request.user|can_open:'transport:dashboard' or request.user|can_open:'clinic:dashboard' and request.user|can_open:'library:dashboard' %} sd-menu--cols-2{% endif %}" id="m-services" role="menu" aria-label="الخدمات">
   {% if request.user|can_open:"clinic:dashboard" %}
-  <a href="{% url 'clinic:dashboard' %}">{% icon "clinic" %} العيادة المدرسية</a>
+  <div class="sd-section">
+  <div class="sd-label">العيادة المدرسية</div>
+  <a href="{% url 'clinic:dashboard' %}">{% icon "clinic" %} لوحة العيادة</a>
+  {% if request.user|can_open:"clinic:needs_care_import" %}
+  <a href="{% url 'clinic:needs_care_import' %}">{% icon "document" %} علامة المراعاة</a>
   {% endif %}
+  </div>
+  {% endif %}
+  {% if request.user|can_open:"transport:dashboard" or request.user|can_open:"library:dashboard" %}
+  <div class="sd-section">
+  <div class="sd-label">النقل والمكتبة</div>
   {% if request.user|can_open:"transport:dashboard" %}
   <a href="{% url 'transport:dashboard' %}">{% icon "transport" %} النقل المدرسي</a>
   {% endif %}
   {% if request.user|can_open:"library:dashboard" %}
   <a href="{% url 'library:dashboard' %}">{% icon "library" %} المكتبة</a>
+  {% endif %}
+  </div>
   {% endif %}
 </div>
 
@@ -739,7 +772,7 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"wings:floors" %}
   <a href="{% url 'wings:floors' %}">{% icon "wings" %} أجنحة المدرسة والتوقيت</a>
   {% endif %}
-  {% if role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "platform_developer" %}
+  {% if role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "platform_developer" or role == "student_affairs_coordinator" %}
   {% if request.user|can_open:"wings:coverage" %}
   <a href="{% url 'wings:coverage' %}">{% icon "wing_coverage" %} تغطية الأجنحة والإنابة</a>
   {% endif %}
@@ -1075,7 +1108,6 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
 <div class="sd-menu" id="m-user" role="menu" aria-label="قائمة المستخدم">
   <div class="sd-user-header">
     <p class="sd-user-fullname">{{ request.user.full_name }}</p>
-    <p class="sd-user-nid">{{ request.user.national_id|mask_id }}</p>
     <p class="sd-user-role">{{ request.user.get_role_display }}</p>
   </div>
   {% if request.user.has_multiple_roles %}
@@ -1232,6 +1264,8 @@ window.fitNoscroll();
 window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }}, rum: {% if rum_endpoint %}{ endpoint: "{{ rum_endpoint|escapejs }}", sample: {{ rum_sample }} }{% else %}null{% endif %} };
 </script>
 {# مفردات data-* المعلنة — تحلّ محلّ معالِجات الأحداث الداخلية التي تحجبها CSP #}
+{# بطاقةُ «تغيّرت أيقونة التطبيق» لمن ثبّت قبل التغيير (W-20261011-012) — أوّلَ السكربتات: تقرأ المخزنَ قبل أن يكتب فيه غيرُها (مخزنٌ فارغٌ = تثبيتٌ جديد) #}
+<script src="{% static 'js/icon-update-notice.js' %}" defer></script>
 <script src="{% static 'js/actions.js' %}" defer></script>
 <script src="{% static 'js/base.js' %}" defer></script>
 <script src="{% static 'js/app.js' %}" defer></script>
@@ -1258,6 +1292,7 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
   <button class="pwa-install-btn" data-action="install-pwa">تثبيت</button>
   <button class="pwa-dismiss-btn" data-action="dismiss-pwa" aria-label="إغلاق">{% icon "close" size="sm" %}</button>
 </div>
+{% include "components/icon_update_notice.html" %}
 {% endif %}
 
 

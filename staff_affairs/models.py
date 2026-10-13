@@ -70,6 +70,16 @@ LEAVE_STATUS = [
     ("cancelled", "ملغاة"),
 ]
 
+#: مراحلُ نموذج 01 (07_forms_catalog): «المسؤول المباشر ← النائب المسؤول ← السكرتارية (تُثبت
+#: الرصيد) ← مدير المدرسة (الاعتماد النهائي؛ الطلب لا يُعتبر معتمداً إلا بتوقيعه)». وعمودا المسؤول
+#: والنائب بتوقيعٍ واحد كما في نموذج 02 (``PERMIT_STAGES``).
+LEAVE_STAGES = [
+    ("supervisor", "المسؤول المباشر والنائب المسؤول"),
+    ("secretary", "السكرتارية"),
+    ("principal", "مدير المدرسة"),
+    ("closed", "مغلق"),
+]
+
 
 class LeaveBalance(SchoolScopedModel):
     """رصيد الإجازات السنوي لكل موظف — وفق قانون 15/2016."""
@@ -175,6 +185,40 @@ class LeaveRequest(AuditedModel):
         default=default_academic_year,
         verbose_name="العام الدراسي",
     )
+    stage = models.CharField(
+        max_length=12, choices=LEAVE_STAGES, default="supervisor", verbose_name="المرحلة"
+    )
+    #: دورُ «المسؤول المباشر والنائب المسؤول» يومَ التقديم — لقطةٌ كما في ``PermitRequest``؛
+    #: والفارغُ من مسؤولُه المديرُ (أو المديرُ نفسُه) فتُدمج خطوتُه في مربّع المدير.
+    deputy_role = models.CharField(max_length=30, blank=True, verbose_name="دور النائب المسؤول")
+    supervisor_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="supervised_leave_requests",
+        verbose_name="المسؤول المباشر والنائب",
+    )
+    supervisor_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت موافقة المسؤول")
+    secretary_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_leave_requests",
+        verbose_name="موظف السكرتارية",
+    )
+    secretary_at = models.DateTimeField(null=True, blank=True, verbose_name="توقيت تسجيل الرصيد")
+    #: «الرصيد المتوفر والمتبقي» في مربّع السكرتارية: المتبقّي قبل هذا الطلب يومَ سُجّل —
+    #: لقطةٌ لا تتبدّل؛ وفارغٌ لنوعٍ لا سقفَ له.
+    recorded_balance_days = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name="الرصيد المسجّل (أيام)"
+    )
+    rejected_stage = models.CharField(
+        max_length=12, choices=LEAVE_STAGES, blank=True, verbose_name="مرحلة الرفض"
+    )
+    #: قرارُ مربّع المدير بيد المكلَّف بأعبائه لا المدير نفسِه — يُوسم.
+    decided_on_behalf = models.BooleanField(default=False, verbose_name="قُرّر بالإنابة")
 
     class Meta:
         ordering = ["-created_at"]

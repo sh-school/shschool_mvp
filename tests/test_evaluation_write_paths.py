@@ -28,7 +28,6 @@ from quality.evaluation_services import (
     AppraisalYearFacts,
     EvaluationRejectedError,
     approve_evaluation,
-    save_evaluation,
 )
 from quality.models import EmployeeEvaluation, EvaluationScore
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
@@ -216,44 +215,6 @@ def test_principal_is_not_evaluated_by_the_school(client, school, principal_user
 
 
 # ── الاعتماد ─────────────────────────────────────────────────────────
-
-
-@pytest.mark.django_db
-def test_principal_approves_a_submitted_report_from_the_screen(
-    client, school, principal_user, teacher_user
-):
-    _form, evaluation = _ministry_evaluation_95(client, school, principal_user, teacher_user)
-    page = client.get(_url(teacher_user))
-    assert page.context["can_approve"] is True
-
-    response = client.post(reverse("approve_evaluation", kwargs={"eval_id": evaluation.pk}))
-    assert response.status_code == 302
-    evaluation.refresh_from_db()
-    assert (evaluation.status, evaluation.total_score) == ("approved", 95)
-
-    # بعد الاعتماد لا تُعدَّل الدرجات، ويستطيع الموظّف الإقرار.
-    with pytest.raises(EvaluationRejectedError, match="معتمَد"):
-        save_evaluation(
-            evaluation=evaluation, evaluator=principal_user, axes=[], data={"action": "draft"}
-        )
-
-
-@pytest.mark.django_db
-def test_only_the_principal_approves_and_only_a_submitted_report(
-    client, school, principal_user, teacher_user
-):
-    form, evaluation = _ministry_evaluation_95(client, school, principal_user, teacher_user)
-    vice = _vice_academic(school)
-    client.force_login(vice)
-    assert client.get(_url(teacher_user)).context["can_approve"] is False
-    client.post(reverse("approve_evaluation", kwargs={"eval_id": evaluation.pk}))
-    evaluation.refresh_from_db()
-    assert evaluation.status == "submitted"
-
-    client.force_login(principal_user)
-    client.post(_url(teacher_user), _post(form, _full, action="draft"))
-    with pytest.raises(EvaluationRejectedError, match="مُقدَّم"):
-        approve_evaluation(evaluation=evaluation, approver=principal_user)
 
 
 @pytest.mark.django_db

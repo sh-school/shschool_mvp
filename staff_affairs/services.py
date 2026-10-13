@@ -344,8 +344,13 @@ class LeaveService:
         error = missing_document_error(leave_type, bool(attachment))
         if error:
             raise ValueError(error)
+        from staff_affairs.leave_flow import initial_stage
+
+        deputy_role, stage = initial_stage(staff)
         creator = created_by or staff
         leave = LeaveRequest.objects.create(
+            deputy_role=deputy_role,
+            stage=stage,
             school=school,
             staff=staff,
             leave_type=leave_type,
@@ -419,6 +424,9 @@ class LeaveService:
             )
             LeaveService._refuse_if_over_limit(leave, balance)
 
+        if action == "rejected":
+            leave.rejected_stage = leave.stage
+        leave.stage = "closed"
         leave.status = action
         leave.reviewed_by = reviewer
         leave.reviewed_at = timezone.now()
@@ -433,6 +441,8 @@ class LeaveService:
                 "reviewed_by",
                 "reviewed_at",
                 "rejection_reason",
+                "stage",
+                "rejected_stage",
                 "updated_by",
                 "updated_at",
             ]
@@ -458,6 +468,14 @@ class LeaveService:
         return leave
 
     @staticmethod
+    def limit_for(leave_type: str, balance: LeaveBalance) -> int | None:
+        """سقفُ النوع للسنة: رصيدُ السنويّة المخزَّن، وسقفُ القانون لذي السقف، و``None`` لما عداهما."""
+        rule = leave_rule(leave_type)
+        if leave_type == "annual":
+            return balance.total_days
+        return rule.cap_days if rule else None
+
+    @staticmethod
     def _refuse_if_over_limit(leave: LeaveRequest, balance: LeaveBalance) -> None:
         """يرفض الاعتمادَ عند تجاوز السقف أو تكرار ما هو لمرّةٍ واحدة (م65 وم75 وم76).
 
@@ -474,11 +492,8 @@ class LeaveService:
                     f"{leave.get_leave_type_display()} لمرّةٍ واحدةٍ طوال مدة الخدمة ({rule.article}) "
                     "وقد اعتُمدت للموظف سابقاً."
                 )
-        if leave.leave_type == "annual":
-            limit = balance.total_days
-        elif rule and rule.cap_days is not None:
-            limit = rule.cap_days
-        else:
+        limit = LeaveService.limit_for(leave.leave_type, balance)
+        if limit is None:
             return
         if balance.used_days + leave.days_count > limit:
             article = f" ({rule.article})" if rule else ""

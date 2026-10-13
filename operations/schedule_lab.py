@@ -26,6 +26,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from statistics import mean, pstdev
 
+from .schedule_edges import edge_count
 from .schedule_lab_exceptions import exception_load, longest_task_run
 from .scheduler_bell import Interval, longest_run
 
@@ -115,8 +116,8 @@ def load_context(school, academic_year) -> Context:
         TeacherExemption,
         TeacherPreference,
     )
-    from operations.scheduler import load_band_times
-    from operations.scheduler_constraints import MAX_CONSECUTIVE
+    from operations.scheduling_inputs import load_band_times
+    from operations.scheduling_limits import MAX_CONSECUTIVE
 
     ctx = Context(general_run_cap=MAX_CONSECUTIVE)
     for ex in TeacherExemption.objects.filter(
@@ -493,7 +494,7 @@ class ScheduleLab:
         for tid, days in self.by_teacher_day.items():
             if self.load[tid] < MIN_LOAD:
                 continue
-            edges = sum(1 for ps in days.values() for p in ps if p in (1, LAST_PERIOD))
+            edges = sum(edge_count(ps) for ps in days.values())
             ratios[tid] = edges / self.load[tid]
         top = sorted(ratios.items(), key=lambda kv: -kv[1])[:3]
         return {
@@ -601,7 +602,7 @@ class ScheduleLab:
             doubles[key] = s.requires_double
             names[key] = f"{s.class_name} — {s.subject_code or s.subject_id[:6]}"
         hits = [names[k] for k, n in counts.items() if n >= 2 and not doubles[k]]
-        return {"value": len(hits), "detail": {h: 2 for h in hits[:10]}}
+        return {"value": len(hits), "detail": dict.fromkeys(hits[:10], 2)}
 
     def pedagogy_timing(self) -> tuple[dict, dict]:
         heavy = [s for s in self.slots if s.pedagogy == "heavy"]
@@ -780,11 +781,10 @@ def compare(current: dict, baseline: dict | None) -> list[dict]:
 
 
 def store_metrics(generation) -> dict:
-    """يحسب مؤشرات توليدٍ ويحفظها فيه — يُستدعى بعد التوليد وعند الاعتماد."""
-    metrics = ScheduleLab.for_generation(generation).compute()
-    generation.metrics = metrics
-    generation.save(update_fields=["metrics"])
-    return metrics
+    """يحسب مؤشرات توليدٍ ويدمجها في ما حُفظ فيه (لا يستبدل مفاتيح التقدّم) — بعد التوليد وعند الاعتماد."""
+    from operations.scheduler_v2.progress import merge_metrics
+
+    return merge_metrics(generation, ScheduleLab.for_generation(generation).compute())
 
 
 def latest_baseline(school, academic_year):

@@ -86,13 +86,3 @@ def test_the_banner_clears_the_bottom_nav_reserved_by_the_body():
 def test_the_desktop_returns_it_to_the_edge():
     desktop = [d for _s, d, c in _banner_rules() if _in(c, DESKTOP) and "inset-block-end" in d]
     assert [d["inset-block-end"].strip() for d in desktop] == ["var(--sp-4)"]
-
-
-def test_the_sticky_action_bar_keeps_clear_of_the_bottom_nav_like_the_body():
-    """`.per-bar` (رصد الشعبة) يلتصق فوق الشريط السفليّ بحشوة `body` نفسِها لا برقمٍ منفصل."""
-    bottoms = [
-        d["bottom"].strip()
-        for s, d, c in iter_rules(read_css())
-        if s.strip() == ".per-bar" and _in(c, "max-width: 640px") and "bottom" in d
-    ]
-    assert bottoms == [DOCK], bottoms

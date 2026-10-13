@@ -6,6 +6,7 @@
 """
 
 import json
+import subprocess
 
 import pytest
 
@@ -53,6 +54,103 @@ def test_every_accepted_increase_says_why():
         assert set(item) == {"where", "metric", "from", "to", "reason"}, item
         assert item["to"] > item["from"], item
         assert len(item["reason"].strip()) >= ratchet.MIN_REASON, item
+
+
+def _unaccepted_rises(old: dict, new: dict) -> list[str]:
+    """بنودٌ ارتفعت قيمتُها في `new` عن `old` ولا بندَ في `accepted` باسمها وقيمتها الجديدة."""
+    before, now = ratchet._flatten(old), ratchet._flatten(new)
+    accepted = {(i["where"], i["metric"], i["to"]) for i in new.get("accepted", [])}
+    return [
+        f"{where} [{metric}]: {was} ← {value}"
+        for (where, metric), (value, _label) in sorted(now.items())
+        if value > (was := before.get((where, metric), (0, ""))[0])
+        and (where, metric, value) not in accepted
+    ]
+
+
+def _baseline_at_merge_base():
+    """السجلُّ كما كان عند أصل الفرع من origin/main؛ None إن تعذّر (نسخةٌ سطحيّة أو بلا origin)."""
+    try:
+        base = subprocess.run(
+            ["git", "merge-base", "HEAD", "origin/main"], capture_output=True, text=True, check=True
+        ).stdout.strip()
+        shown = subprocess.run(
+            ["git", "show", f"{base}:tests/layering_baseline.json"],
+            capture_output=True,
+            check=True,
+        ).stdout
+        return json.loads(shown.decode("utf-8"))
+    except (OSError, subprocess.CalledProcessError, ValueError):
+        return None
+
+
+def test_a_raised_record_is_named_in_accepted():
+    """رفعُ السجلّ مباشرةً (يدويّاً) يُمرّر مخالفةً بلا بندٍ يراه المراجع — W-20261003-021 (رُفع get_school 176←177 بـ#805)."""
+    old = _baseline_at_merge_base()
+    if old is None:
+        pytest.skip("لا أصلَ من origin/main لمقارنة السجلّ (نسخةٌ سطحيّة أو بلا origin)")
+    rises = _unaccepted_rises(old, _baseline())
+    assert not rises, (
+        "ارتفعت قيمةٌ في السجلّ بلا بندٍ في `accepted` — اقبلها باسمها بـ"
+        '`python -m tests.layering_ratchet --accept "<الموضع>" --reason "…"`:\n  '
+        + "\n  ".join(rises)
+    )
+
+
+class TestTheRaisedRecordGuard:
+    def test_a_manual_rise_without_an_accepted_item_is_caught(self):
+        old = {
+            "views": {},
+            "get_school": {"a/views.py": 2},
+            "core_imports": {},
+            "core_import_sites": {},
+        }
+        new = {**old, "get_school": {"a/views.py": 3}}
+        assert _unaccepted_rises(old, new) == ["a/views.py [get_school]: 2 ← 3"]
+
+    def test_a_rise_named_in_accepted_passes(self):
+        old = {
+            "views": {},
+            "get_school": {"a/views.py": 2},
+            "core_imports": {},
+            "core_import_sites": {},
+        }
+        item = {
+            "where": "a/views.py",
+            "metric": "get_school",
+            "from": 2,
+            "to": 3,
+            "reason": "x" * 20,
+        }
+        new = {**old, "get_school": {"a/views.py": 3}, "accepted": [item]}
+        assert _unaccepted_rises(old, new) == []
+
+    def test_a_drop_or_an_unchanged_record_passes(self):
+        old = {
+            "views": {},
+            "get_school": {"a/views.py": 3},
+            "core_imports": {},
+            "core_import_sites": {},
+        }
+        assert _unaccepted_rises(old, {**old, "get_school": {"a/views.py": 2}}) == []
+        assert _unaccepted_rises(old, old) == []
+
+    def test_an_accepted_value_other_than_the_new_one_does_not_cover_it(self):
+        old = {
+            "views": {},
+            "get_school": {"a/views.py": 2},
+            "core_imports": {},
+            "core_import_sites": {},
+        }
+        item = {
+            "where": "a/views.py",
+            "metric": "get_school",
+            "from": 2,
+            "to": 3,
+            "reason": "x" * 20,
+        }
+        new = {**old, "get_school": {"a/views.py": 4}, "accepted": [item]}
+        assert _unaccepted_rises(old, new) == ["a/views.py [get_school]: 2 ← 4"]
 
 
 class TestTheRatchetItself:

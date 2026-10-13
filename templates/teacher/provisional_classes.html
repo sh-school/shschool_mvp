@@ -1,8 +1,7 @@
 {% extends "base/base.html" %}
 {% load ui %}
 {% comment %}
-شُعبُ إسناد المعلّم للرصد بحصّةٍ مؤقّتة (W-20261005-006): لا شعبةَ هنا غيرُ المُسنَدة إليه، والرصدُ لليوم الدراسيّ الجاري وحدَه.
-تظهر الصفحةُ بمفتاح PROVISIONAL_SESSIONS_ENABLED وحدَه — مطفأً 404.
+شُعبي للجدول (W-20261006-005): شُعبُ إسناد المعلّم وأجنحةُ المشرف، وللقيادة كلُّ الشُّعب؛ ومنها يُفتح جدولُ الشعبة — واجهةُ الرصد الوحيدة.
 {% endcomment %}
 {% block title %}شُعبي للرصد{% endblock %}
 {% block main_class %}{% page_layout "list" %}{% endblock %}
@@ -14,9 +13,9 @@
 
 {% block content %}
 <div class="exec-dash">
-  {% if grid %}{% page_header "شُعبي للرصد" subtitle="افتح جدولَ شعبتك لرصد الغياب، ولمشرف الجناح اعتمادُ الحصص من أسفل الجدول" icon="attendance_register" %}{% endpage_header %}{% else %}{% page_header "شُعبي للرصد" subtitle="اضغط «ارصد» أمامَ شعبتك فتُفتح شبكةُ الرصد مباشرةً" icon="attendance_register" %}{% endpage_header %}{% endif %}
+  {% page_header "شُعبي للرصد" subtitle="افتح جدولَ شعبتك لرصد الغياب" icon="attendance_register" %}{% endpage_header %}
 
-  {% with card_title=grid|yesno:"شُعبك,شُعب إسنادك" %}{% section_card card_title meta=classes|length icon="attendance_register" %}
+  {% section_card "شُعبك" meta=classes|length icon="attendance_register" %}
     {% if classes %}
     <ul class="pp-classes">
       {% for klass in classes %}
@@ -25,20 +24,13 @@
           <b class="pp-class__name">{{ klass.short_label }}</b>
           <span class="pp-class__wing">{{ klass.wing.name|default:"—" }}</span>
         </span>
-        {% comment %}«ارصد» يُنشئ حصّةَ الوقت الجاريّ ويفتح الشبكةَ مباشرةً (أمرُ المالك): لا صفحةَ وسيطة.{% endcomment %}
-        {% if grid %}
         <a href="{% url 'class_grid' klass.id %}" class="btn-primary btn-sm">افتح الجدول</a>
-        {% else %}
-        <form method="post" action="{% url 'provisional_create' klass.id %}">{% csrf_token %}
-          <button type="submit" class="btn-primary btn-sm">ارصد</button>
-        </form>
-        {% endif %}
       </li>
       {% endfor %}
     </ul>
     {% else %}
     {% include "components/empty_state.html" with title="لا شُعبَ مُسنَدةً إليك" only %}
     {% endif %}
-  {% endsection_card %}{% endwith %}
+  {% endsection_card %}
 </div>
 {% endblock %}

@@ -10,6 +10,7 @@ from django.utils import timezone
 from core.models import AuditLog, BreachReport
 
 _STATUS = dict(BreachReport.STATUS)
+_INDIVIDUALS = dict(BreachReport.INDIVIDUALS_STATUS)
 OPEN_STATES = ["discovered", "assessing"]
 
 
@@ -27,6 +28,12 @@ def dashboard_stats(reports) -> dict:
         overdue=Count(
             "id",
             filter=Q(ncsa_deadline__lt=timezone.now()) & Q(status__in=OPEN_STATES),
+        ),
+        # أفرادٌ واجبٌ إخطارُهم ولم يُخطَروا، ومنها ما فات موعدُه — بشرط `BreachReport.individuals_overdue` نفسِه.
+        individuals_pending=Count("id", filter=Q(individuals_status="required")),
+        individuals_overdue=Count(
+            "id",
+            filter=Q(individuals_status="required", individuals_deadline__lt=timezone.now()),
         ),
     )
 
@@ -48,12 +55,22 @@ def history_for(breach: BreachReport, limit: int = 15) -> list[dict]:
         changes = row.changes or {}
         if row.action == "create":
             what = "سُجّل الخرق"
+        elif "individuals_status" in changes:
+            what = f"إخطار الأفراد: {_INDIVIDUALS.get(changes['individuals_status'], '—')}"
+            if changes.get("notified_after_deadline"):
+                what += " (بعد الموعد)"
         elif "to" in changes:
             what = (
                 f"الحالة: {_STATUS.get(changes['from'], '—')} ← {_STATUS.get(changes['to'], '—')}"
             )
             if changes.get("closed_without_ncsa_notice"):
                 what += " (بلا إشعار NCSA)"
+            if changes.get("ncsa_notice_stage") == "initial":
+                what += " (إشعار مبدئي)"
+        elif "ncsa_notice_stage" in changes:
+            what = "استُكمل إشعار NCSA" + (
+                " (بعد الموعد المعلَن)" if changes.get("completed_after_due") else ""
+            )
         else:
             what = "تعديل بيانات الخرق"
         who = getattr(row.user, "full_name", "") or "—"

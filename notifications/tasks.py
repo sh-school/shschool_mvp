@@ -17,7 +17,7 @@ notifications/tasks.py
 import logging
 import re
 from time import monotonic
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
@@ -25,6 +25,19 @@ from django.conf import settings
 
 from core.celery_tasks import TenantRLSTask, school_rls_scope
 from core.mail_backends import provider_configured
+from notifications import frozen
+
+# منطقُ تنبيهات مُهَل الخرق في `breach_alerts.py` (حجمُ هذا الملف)؛ وتُستورد الأسماءُ هنا لمن اعتمد عليها
+# من اختباراتٍ ومراجع: `notifications.tasks.BREACH_ALERT_THRESHOLDS` و`_notify_breach_in_app`.
+from notifications.breach_alerts import (  # noqa: F401
+    BREACH_ALERT_REPEAT_HOURS,
+    BREACH_ALERT_THRESHOLDS,
+    BREACH_INAPP_REPEAT_HOURS,
+    breach_alert_events,
+    send_breach_alert,
+)
+from notifications.breach_alerts import notify_breach_in_app as _notify_breach_in_app  # noqa: F401
+from notifications.breach_alerts import send_breach_alert as _send_breach_alert  # noqa: F401
 from notifications.channels import deliverable_external_channels
 from notifications.delivery_state import (
     budget_exhausted,
@@ -261,6 +274,9 @@ def send_email_task(
     delivery = None
     token = None
 
+    if skipped := frozen.channel_skip("email", email=recipient_email):
+        return skipped
+
     try:
         from core.models import CustomUser, School
         from notifications.services import NotificationService
@@ -387,6 +403,9 @@ def send_sms_task(
     delivery = None
     token = None
 
+    if skipped := frozen.channel_skip("sms", phone=phone_number):
+        return skipped
+
     try:
         from core.models import CustomUser, School
         from notifications.services import NotificationService
@@ -480,6 +499,9 @@ def send_whatsapp_task(
     delivery = None
     token = None
 
+    if skipped := frozen.channel_skip("whatsapp", phone=phone_number):
+        return skipped
+
     try:
         from core.models import School
 
@@ -564,6 +586,9 @@ def notify_absence_task(self, absence_alert_id, sent_by_id=None, school_id=None)
         # ✅ v5: إرسال Push للوالدين المشتركين
         try:
             from core.models import ParentStudentLink
+
+            if frozen.parents_frozen():
+                return {"sent": sent, "total": len(results), "frozen": True}
 
             parents = ParentStudentLink.objects.filter(
                 student=alert.student, school=alert.school
@@ -712,11 +737,16 @@ def notify_behavior_task(self, infraction_id, reporter_id, school_id=None):
 
 
 # ── إشعار خرق البيانات (PDPPL م.11 + NCSA 72h) ──────────────────────
+# المنطقُ (العتبات والمستلمون والنصوص والإرسال) في `notifications/breach_alerts.py`.
 
 
 @shared_task(name="notifications.check_breach_deadlines")
 def check_breach_deadlines_task():
-    """Check breach deadlines inside one school scope at a time."""
+    """مُهَلُ الخرق المفتوحة: إشعارُ NCSA، وإخطارُ الأفراد (م.14)، واستكمالُ الإشعار المبدئي.
+
+    ساعيّةٌ وidempotent: لكلّ (خرق، مرحلة، عتبة) تنبيهٌ واحدٌ لكلّ مستلم، فإعادةُ التشغيل لا تكرّر.
+    لا تغيّر حالةَ الخرق ولا تكتب في سجلّ التدقيق. تعمل داخل نطاق مدرسةٍ واحدةٍ في كلّ مرّة.
+    """
     from django.utils import timezone
 
     from core.models import BreachReport, School
@@ -724,41 +754,30 @@ def check_breach_deadlines_task():
     now = timezone.now()
     warnings = 0
     overdue = 0
+    by_stage: dict[str, int] = {}
 
-    schools = School.objects.all()
-
-    for school in schools.iterator(chunk_size=100):
+    for school in School.objects.all().iterator(chunk_size=100):
         with school_rls_scope(school.id):
-            active = BreachReport.objects.filter(
-                school=school,
-                status__in=["discovered", "assessing"],
-            ).select_related(
-                "school",
-                "reported_by",
-                "assigned_to",
+            active = (
+                BreachReport.objects.filter(school=school)
+                .exclude(status="resolved")
+                .select_related("school", "reported_by", "assigned_to")
             )
-
             for breach in active.iterator(chunk_size=100):
-                if not breach.ncsa_deadline:
-                    continue
-
-                hours_left = breach.hours_remaining
-
-                if hours_left is not None and hours_left <= 12:
-                    _send_breach_alert(
+                for event in breach_alert_events(breach, now):
+                    send_breach_alert(
                         breach,
-                        hours_left,
-                        overdue=False,
+                        event["hours_left"],
+                        overdue=event["overdue"],
+                        stage=event["stage"],
+                        threshold=event["threshold"],
+                        days_late=event["days_late"],
                     )
-                    warnings += 1
-
-                if breach.is_overdue:
-                    _send_breach_alert(
-                        breach,
-                        0,
-                        overdue=True,
-                    )
-                    overdue += 1
+                    by_stage[event["stage"]] = by_stage.get(event["stage"], 0) + 1
+                    if event["overdue"]:
+                        overdue += 1
+                    else:
+                        warnings += 1
 
     logger.warning(
         "Breach check: %d تحذير، %d تجاوز مهلة",
@@ -769,149 +788,8 @@ def check_breach_deadlines_task():
     return {
         "warnings": warnings,
         "overdue": overdue,
+        "by_stage": by_stage,
     }
-
-
-if TYPE_CHECKING:
-    from django.db.models import QuerySet
-
-    from core.models import BreachReport, CustomUser
-
-
-#: لا يُكرَّر تنبيهُ المنصّة لنفس المستلم والبلاغ قبل انقضاء هذه المدّة — والمهمّةُ ساعيّة.
-BREACH_INAPP_REPEAT_HOURS = 12
-
-
-def _breach_inapp_recipients(breach: "BreachReport") -> "QuerySet[CustomUser]":
-    """من يصله تنبيهُ المنصّة: المكلَّف والمُبلِّغ والمدير ومسؤولُ حماية البيانات.
-
-    مسؤولُ حماية البيانات يُعرف بـ`DPO_EMAIL` إن ضُبط، وبدور مطوّر المنصّة في هذه المدرسة
-    (هو من يمارس الدور اليوم). فلا يعتمد الوصولُ على مزوّد بريدٍ لم يُشترَ بعد.
-    """
-    from django.conf import settings
-
-    from core.models import CustomUser
-    from core.models.access import TIER_1_LEADERSHIP, TIER_SYSTEM, Membership
-
-    ids = set(
-        Membership.objects.filter(
-            school=breach.school,
-            is_active=True,
-            role__name__in=TIER_1_LEADERSHIP | TIER_SYSTEM,
-        ).values_list("user_id", flat=True)
-    )
-    if breach.assigned_to_id:
-        ids.add(breach.assigned_to_id)
-    if breach.reported_by_id:
-        ids.add(breach.reported_by_id)
-    dpo_email = getattr(settings, "DPO_EMAIL", "")
-    if dpo_email:
-        ids.update(CustomUser.objects.filter(email__iexact=dpo_email).values_list("pk", flat=True))
-    return CustomUser.objects.filter(pk__in=ids, is_active=True)
-
-
-def _notify_breach_in_app(
-    breach: "BreachReport", hours_left: float | None, overdue: bool = False
-) -> int:
-    """تنبيهُ الخرق داخل المنصّة (الجرس) — لا يعتمد على مزوّد بريد.
-
-    الإنذارُ كان بالبريد وحدَه، و`DPO_EMAIL` ومزوّدُ البريد غيرُ مضبوطَين في الإنتاج
-    (DPIA R8)، فكان مؤقّتُ الـ72 ساعة يعمل ولا يصل أحداً. والنصُّ هنا بلا بياناتٍ
-    شخصيّة ولا عنوانِ البلاغ: رقمٌ ومهلةٌ ورابط.
-    """
-    from datetime import timedelta
-
-    from django.utils import timezone
-
-    from notifications.models import InAppNotification
-
-    since = timezone.now() - timedelta(hours=BREACH_INAPP_REPEAT_HOURS)
-    title = (
-        "🚨 تجاوزتَ مهلةَ إشعار الجهة المختصّة عن خرق بيانات"
-        if overdue
-        else f"⚠️ بقي {hours_left} ساعة على مهلة إشعار الجهة المختصّة عن خرق بيانات"
-    )
-    created = 0
-    for user in _breach_inapp_recipients(breach):
-        already = InAppNotification.objects.filter(
-            user=user,
-            school=breach.school,
-            related_object_id=str(breach.pk),
-            created_at__gte=since,
-        ).exists()
-        if already:
-            continue
-        InAppNotification.objects.create(
-            user=user,
-            school=breach.school,
-            title=title,
-            body=f"الخطورة: {breach.get_severity_display()} — افتح البلاغ لاتّخاذ الإجراء.",
-            event_type="general",
-            priority="urgent",
-            related_object_id=str(breach.pk),
-            related_url=f"/breach/{breach.pk}/",
-        )
-        created += 1
-    return created
-
-
-def _send_breach_alert(breach, hours_left, overdue=False):
-    """تنبيه الخرق: داخل المنصّة أوّلاً (لا يحتاج مزوّداً)، ثمّ بالبريد للمدير والـ DPO"""
-    from django.conf import settings
-    from django.core.mail import send_mail
-
-    try:
-        _notify_breach_in_app(breach, hours_left, overdue=overdue)
-    except Exception:  # noqa: BLE001 — الإنذارُ لا يسقط ببابٍ منه فيُحجب الآخر
-        logger.error("breach in-app alert failed", exc_info=True)
-
-    subject = (
-        f"🚨 [عاجل] تجاوز مهلة إشعار NCSA — {breach.title}"
-        if overdue
-        else f"⚠️ تنبيه: {hours_left} ساعة لإشعار NCSA — {breach.title}"
-    )
-
-    body = f"""
-تقرير خرق البيانات: {breach.title}
-المدرسة: {breach.school.name}
-الخطورة: {breach.get_severity_display()}
-البيانات المتأثرة: {breach.get_data_type_affected_display()}
-عدد الأشخاص: {breach.affected_count}
-وقت الاكتشاف: {breach.discovered_at}
-موعد NCSA: {breach.ncsa_deadline}
-الحالة: {"⛔ تجاوز المهلة" if overdue else f"⚠️ {hours_left} ساعة متبقية"}
-
-الإجراء الفوري: {breach.immediate_action or "—"}
-
-رابط المراجعة: /breach/{breach.pk}/
-
-PDPPL م.11 — يجب إشعار NCSA خلال 72 ساعة من الاكتشاف.
-    """.strip()
-
-    # جمع المستلمين: المسؤول (DPO) + المُبلِّغ
-    recipients = []
-    # مسؤولُ حماية البيانات من الإعدادات (البيئة) — وإن لم يُضبط بقي المُبلِّغُ والمكلَّف.
-    dpo_email = getattr(settings, "DPO_EMAIL", "")
-    if dpo_email:
-        recipients.append(dpo_email)
-    if breach.assigned_to and breach.assigned_to.email:
-        recipients.append(breach.assigned_to.email)
-    if breach.reported_by and breach.reported_by.email:
-        recipients.append(breach.reported_by.email)
-
-    if recipients:
-        try:
-            delivered = send_mail(
-                subject=subject,
-                message=body,
-                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
-                recipient_list=list(set(recipients)),
-                fail_silently=True,
-            )
-            if not delivered:
-                logger.error("تنبيه الخرق لم يُسلَّم بالبريد — مهلة NCSA قائمة، تابِعه يدوياً")
-        except (OSError, RuntimeError, ValueError) as e:
-            logger.error("breach alert email failed error=%s", type(e).__name__, exc_info=True)
 
 
 # ── Push Notification — VAPID (v5) ───────────────────────────────────
@@ -987,8 +865,8 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None, 
                 "title": title,
                 "body": body,
                 "url": url,
-                "icon": "/static/icons/icon-192.png",
-                "badge": "/static/icons/badge-72.png",
+                "icon": "/static/icons/v3/icon-192.png",
+                "badge": "/static/icons/v3/badge-72.png",
             }
         )
 
@@ -1166,7 +1044,7 @@ def send_push_to_school_task(school_id, title, body, url="/parents/"):
 
     from notifications.push_publisher import enqueue_push
 
-    for uid in users:
+    for uid in frozen.drop_frozen_subscribers(users):
         enqueue_push(user_id=uid, school_id=school_id, title=title, body=body, url=url)
 
     return {"queued": len(users)}
@@ -1213,6 +1091,8 @@ def hub_send_notification_task(
 
     try:
         user = CustomUser.objects.get(id=user_id)
+        if frozen.frozen_user(user):
+            return {"user": str(user_id), "skipped": "parents_frozen"}
         school = School.objects.get(id=school_id)
         sender = CustomUser.objects.get(id=sent_by_id) if sent_by_id else None
 
@@ -1517,6 +1397,11 @@ def release_after_quiet_hours_task(
     if plan.action == quiet_hours.SKIP:
         logger.warning("release_after_quiet_hours: no worker to hold — dropped target=%s", target)
         return {"status": "skipped"}
+
+    if user is not None and frozen.frozen_user(user):
+        return frozen.hold_frozen_item(
+            self, school_id=school_id, user_id=user_id, target=target, payload=payload
+        )
 
     task.delay(**payload)
     return {"status": "released", "target": target}

@@ -133,7 +133,7 @@ def test_s5_the_original_teachers_entry_before_the_occupancy_stays_and_the_subst
         world["kid"],
         "present",
         now=at(11, 10, day=SUNDAY),
-        correction_reason="",
+        correction_reason="النائبُ يصحّح",  # رصدُ الأصل نهائيٌّ فتعديلُه يلزمه سببٌ
     )
     assert second.supersedes_id == first.pk
     first.refresh_from_db()

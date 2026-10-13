@@ -63,17 +63,19 @@ MOVED = {
         "secretary",
     },
     "PARENT_PORTAL": {"parent", "principal", "vice_admin", "vice_academic", "admin"},
-    "PARENT_PORTAL_ADMIN": {"principal", "admin"},
+    # ومنسّقُ شؤون الطلبة: ربطُ الأولياء بندٌ في قائمة إدارة شؤون الطلاب المسندة كاملةً (D-273م).
+    "PARENT_PORTAL_ADMIN": {"principal", "admin", "student_affairs_coordinator"},
     "QUALITY_ACCESS": set(permissions.QUALITY_MANAGE)
     | set(permissions.QUALITY_VIEW)
     | {"ese_teacher"},
     "BEHAVIOR_STATS_TEACHING": {"teacher", "coordinator", "ese_teacher"},
     # بلا platform_developer: D-128م (لا يُدخل ولا يعتمد رصدَ غياب الطلبة).
+    # وبلا vice_academic: يراقب فقط (D-201م، W-20261004-024).
     "WING_DAY_RECORD": {
         "admin_supervisor",
         "vice_admin",
-        "vice_academic",
         "principal",
+        "student_affairs_coordinator",  # يرصد الغياب ويصحّحه كقيادته (D-266م)
     },
 }
 

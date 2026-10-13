@@ -70,13 +70,21 @@ def test_the_reducer_keeps_numbers_and_times_only_and_skips_bots_and_unmerged():
     assert sync.reduce_merged([_pull(n, 1) for n in range(100, 200)])["full"] is True
 
 
-def test_numbers_are_read_from_pr_note_and_ref_with_word_boundaries():
-    _item("A-1", pr="#732")
+def test_only_the_pr_field_counts_as_synced_with_word_boundaries():
+    _item("A-1", pr="#732, #733")
     _item("A-2", note="أُغلق بـ#737 و(#742)، وليس #5 ولا a#99999999")
     _item("A-3", ref="طلب #800")
     known = sync.synced_numbers()
-    assert {732, 737, 742, 800} <= known
-    assert 5 not in known
+    assert known == {732, 733}
+
+
+def test_mentions_in_note_and_ref_are_tracked_apart_from_synced():
+    _item("A-1", pr="#732")
+    _item("A-2", note="أُغلق بـ#737 و(#742)، وليس #5 ولا a#99999999")
+    _item("A-3", ref="طلب #800")
+    mentioned = sync.mentioned_numbers()
+    assert {732, 737, 742, 800} <= mentioned
+    assert 5 not in mentioned
 
 
 def test_the_queue_is_ordered_oldest_first_and_excludes_known():
@@ -90,16 +98,34 @@ def test_everything_synced_is_green(monkeypatch):
     sync.collect(NOW)
     panel = _panel()
     assert panel["status"] == contract.OK and panel["gauge"] == 100
-    assert panel["headline"] == "كلُّ المدموج مذكورٌ في الخارطة"
+    assert panel["headline"] == "كلُّ المدموج مُزامَنٌ في حقل الطلب"
 
 
 def test_a_fresh_unsynced_pull_is_within_grace_and_green(monkeypatch):
-    monkeypatch.setattr(github, "fetch", _fetch([_pull(10, 3)]))
+    monkeypatch.setattr(github, "fetch", _fetch([_pull(10, 3), _pull(11, 23)]))
     sync.collect(NOW)
     panel = _panel()
     assert panel["status"] == contract.OK
-    assert {"label": "مدموجٌ لم يُزامَن", "value": "1"} in panel["metrics"]
-    assert {"label": "متأخّرٌ فوق 36 س", "value": "0"} in panel["metrics"]
+    assert {"label": "مدموجٌ لم يُزامَن", "value": "2"} in panel["metrics"]
+    assert {"label": "متأخّرٌ فوق 24 س", "value": "0"} in panel["metrics"]
+
+
+def test_a_pull_past_24_hours_without_a_pr_field_match_turns_amber(monkeypatch):
+    monkeypatch.setattr(github, "fetch", _fetch([_pull(10, 25)]))
+    sync.collect(NOW)
+    panel = _panel()
+    assert panel["status"] == contract.WARN
+    assert {"label": "متأخّرٌ فوق 24 س", "value": "1"} in panel["metrics"]
+    assert {"label": "أقدمُ غيرِ مُزامَن", "value": "منذ 25 س"} in panel["metrics"]
+
+
+def test_a_pull_mentioned_only_in_a_note_is_still_unsynced_and_counted_apart(monkeypatch):
+    _item("A-1", note="أُغلق بـ#10")
+    monkeypatch.setattr(github, "fetch", _fetch([_pull(10, 40)]))
+    sync.collect(NOW)
+    panel = _panel()
+    assert panel["status"] == contract.WARN
+    assert {"label": "مذكورٌ في ملاحظةٍ فقط", "value": "1"} in panel["metrics"]
 
 
 def test_an_old_unsynced_pull_turns_the_panel_amber_never_red(monkeypatch):
@@ -109,7 +135,7 @@ def test_an_old_unsynced_pull_turns_the_panel_amber_never_red(monkeypatch):
     panel = _panel()
     assert panel["status"] == contract.WARN
     assert panel["headline"] == "2 طلباً دُمج ولم يُزامَن"
-    assert {"label": "متأخّرٌ فوق 36 س", "value": "1"} in panel["metrics"]
+    assert {"label": "متأخّرٌ فوق 24 س", "value": "1"} in panel["metrics"]
     assert {"label": "أقدمُ غيرِ مُزامَن", "value": "منذ 40 س"} in panel["metrics"]
     assert panel["gauge"] == pytest.approx(100 / 3, abs=1)
 
@@ -139,9 +165,24 @@ def test_the_command_lists_the_numbers_for_the_roadmap_session(monkeypatch):
     assert text.index("#10") < text.index("#12")  # الأقدمُ أوّلاً
 
 
+def test_the_command_flags_numbers_mentioned_only_in_a_note(monkeypatch):
+    _item("A-1", note="أُغلق بـ#10")
+    monkeypatch.setattr(github, "fetch", _fetch([_pull(10, 40), _pull(12, 2)]))
+    monkeypatch.setattr(roadmap_unsynced.Command, "now", lambda self: NOW)
+    out = io.StringIO()
+    call_command("roadmap_unsynced", stdout=out)
+    lines = {
+        ln.split("—")[0].strip(): ln
+        for ln in out.getvalue().splitlines()
+        if ln.strip().startswith("#")
+    }
+    assert "مذكورٌ في ملاحظةٍ فقط" in lines["#10"]
+    assert "مذكورٌ في ملاحظةٍ فقط" not in lines["#12"]
+
+
 def test_the_command_says_so_when_everything_is_synced(monkeypatch):
     _item("A-1", pr="#10")
     monkeypatch.setattr(github, "fetch", _fetch([_pull(10, 40)]))
     out = io.StringIO()
     call_command("roadmap_unsynced", stdout=out)
-    assert "كلُّ المدموج مذكورٌ" in out.getvalue()
+    assert "كلُّ المدموج مُزامَنٌ" in out.getvalue()

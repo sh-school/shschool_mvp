@@ -79,8 +79,6 @@ class StudentEditForm(forms.Form):
     full_name = forms.CharField(max_length=200, label="الاسم الكامل")
     phone = forms.CharField(max_length=20, required=False, label="الجوال")
     email = forms.EmailField(required=False, label="البريد الإلكتروني")
-    grade = forms.ChoiceField(choices=ClassGroup.GRADES, label="الصف")
-    section = forms.CharField(max_length=10, label="الشعبة")
     birth_date = forms.DateField(
         widget=forms.DateInput(attrs={"type": "date"}),
         required=False,
@@ -91,6 +89,7 @@ class StudentEditForm(forms.Form):
         required=False,
         label="ملاحظات",
     )
+    # لا صفَّ ولا شعبةً هنا: تغيير الشعبة طلبُ انتقالٍ داخليّ يُعتمد (D-343م، W-20261001-017).
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -110,11 +109,12 @@ class TransferForm(forms.Form):
     )
     other_school_name = forms.CharField(
         max_length=200,
+        required=False,
         label="المدرسة الأخرى",
-        error_messages={"required": "اسم المدرسة الأخرى مطلوب."},
     )
     from_grade = forms.CharField(max_length=3, required=False, label="الصف (من)")
     to_grade = forms.CharField(max_length=3, required=False, label="الصف (إلى)")
+    to_class_group_id = forms.UUIDField(required=False, label="الشعبة المنقول إليها")
     transfer_date = forms.DateField(
         widget=forms.DateInput(attrs={"type": "date"}),
         label="تاريخ الانتقال",
@@ -125,13 +125,31 @@ class TransferForm(forms.Form):
         required=False,
         label="السبب",
     )
+    #: نقلٌ مباشرٌ بلا انتظار اعتماد — للمدير والنائب الإداري وحدهما، والعرضُ يتحقّق من القدرة (D-343م).
+    direct = forms.BooleanField(required=False, label="نقل مباشر الآن")
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("direct") and cleaned.get("direction") != "internal":
+            self.add_error("direct", "النقل المباشر للانتقال الداخلي بين الشعب وحده.")
+        if cleaned.get("direction") == "internal":
+            if not cleaned.get("to_class_group_id"):
+                self.add_error("to_class_group_id", "اختر الشعبة المنقول إليها.")
+        elif not cleaned.get("other_school_name"):
+            self.add_error("other_school_name", "اسم المدرسة الأخرى مطلوب.")
+        return cleaned
 
 
 class TransferReviewForm(forms.Form):
     """مراجعة طلب انتقال — موافقة أو رفض."""
 
     action = forms.ChoiceField(
-        choices=[("approved", "موافقة"), ("rejected", "رفض"), ("completed", "مكتمل")],
+        choices=[
+            ("approved", "موافقة"),
+            ("rejected", "رفض"),
+            ("completed", "مكتمل"),
+            ("cancelled", "إلغاء"),
+        ],
         label="القرار",
     )
     notes = forms.CharField(

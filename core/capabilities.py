@@ -27,6 +27,7 @@ from typing import Any
 from django.http import HttpRequest
 from django.http.response import HttpResponseBase
 
+from core.behavior_committee_roles import BEHAVIOR_COMMITTEE_CASE_SCOPED
 from core.parent_consent import holds_parent_membership
 from core.permissions import expand_roles, role_required
 from core.unrestricted_role import (
@@ -49,11 +50,13 @@ class Capability:
     #: منحٌ لا يقرؤه الدور: ``grant(user) -> bool``. لقدرةٍ يملكها المستخدمُ بتكليفٍ ساري
     #: لا بمسمّاه — كبديل الجناح من ملاحظي الطلبة وعمّال الخدمات.
     grant: Callable | None = None
+    #: أدوارٌ لا تَرِث هذه القدرةَ من أصلها في ``ROLE_INHERITS`` — تحملها إن ذُكرت في ``roles`` صراحةً فقط.
+    not_inherited_by: frozenset = frozenset()
 
     @property
     def expanded_roles(self) -> frozenset:
         """الأدوارُ بعد الوراثة — ما يفحصه الحارسُ فعلاً."""
-        return frozenset(expand_roles(set(self.roles)))
+        return frozenset(expand_roles(set(self.roles), not_inherited_by=self.not_inherited_by))
 
     def granted(self, user) -> bool:
         return self.grant is not None and bool(self.grant(user))
@@ -66,8 +69,11 @@ def _cap(
     scope: str = "المدرسة",
     basis: str = PLATFORM_ASSUMPTION,
     grant: Callable | None = None,
+    not_inherited_by: Iterable[str] = (),
 ) -> Capability:
-    return Capability(key, label, frozenset(roles), scope, basis, grant)
+    return Capability(
+        key, label, frozenset(roles), scope, basis, grant, frozenset(not_inherited_by)
+    )
 
 
 def _holds_a_wing(user) -> bool:
@@ -97,6 +103,8 @@ def registry() -> dict[str, Capability]:
     from student_info.access import MODULE_ROLES as STUDENT_INFO_ROLES
 
     leadership = P.LEADERSHIP
+    #: من يتّصل بأسر الطلبة — تعريفٌ واحدٌ لقدرتَي الاستدعاء واسمِ الوليّ فلا تنجرف إحداهما.
+    family_callers = P.BEHAVIOR_MANAGE | {"psychologist", "student_affairs_coordinator"}
     caps = [
         # ── لوحة التحكّم ────────────────────────────────────────────
         _cap("dashboard.open", "فتحُ لوحة التحكّم", P.ALL_STAFF_ROLES | {"student", "parent"}),
@@ -107,6 +115,11 @@ def registry() -> dict[str, Capability]:
             "الاطّلاعُ على سجلّات الطلبة",
             P.STUDENT_REGISTER_READ,
             scope="المدرسة؛ المشرفُ الإداريُّ لشُعب جناحه (wings/scope.py)",
+            basis=(
+                "سجلُّ الطلبة يعرض اسمَ وليّ الأمر وهاتفَه — قاعدةُ الحاجة (PDPPL): منسّقُ الأنشطة يرث المنسّقَ "
+                "ولا يتّصل بالأسر، فلا يرث هذه القدرةَ (ويبقى له ما يرثه من غيرها) — بطاقة W-20261010-012، حكم 0104"
+            ),
+            not_inherited_by={"activities_coordinator"},
         ),
         _cap(
             "student_affairs.follow_up",
@@ -134,6 +147,24 @@ def registry() -> dict[str, Capability]:
             basis="الدليل التنظيميّ 2026 م 3.4.2.2: التأخّرُ الصباحيُّ على المشرف الإداريّ من أوّل مرّة",
         ),
         _cap("student_affairs.deactivate", "إيقافُ قيد طالب", P.STUDENT_DEACTIVATE),
+        _cap(
+            "student_affairs.transfers",
+            "انتقالاتُ الطلبة (طلبٌ ومراجعةٌ وإتمام)",
+            P.STUDENT_AFFAIRS_TRANSFERS,
+            basis=(
+                "إتمامُ الانتقال الصادر يعطّل عضويّةَ الطالب، فلا يُمنح من يملك إدخالَ البيانات وحدَه "
+                "(W-20261001-020)؛ ومنسّقُ شؤون الطلبة منهم بقرار المالك D-265م"
+            ),
+        ),
+        _cap(
+            "student_affairs.transfer_approve",
+            "اعتمادُ الانتقال الداخلي بين الشعب وإتمامُه ونقلُه المباشر",
+            {"principal", "vice_admin"},
+            basis=(
+                "قرار المالك D-343م (2026-10-10): المنسّقُ يقدّم طلبَ النقل والنائبُ الإداريّ أو المدير يعتمده، "
+                "ولهما النقلُ المباشرُ بلا اعتماد أحد؛ والمنسّق لا يدخلها (W-20261001-017)"
+            ),
+        ),
         _cap(
             "student_affairs.activities",
             "إدارةُ الأنشطة الطلابيّة",
@@ -176,6 +207,16 @@ def registry() -> dict[str, Capability]:
                 "07_forms_catalog.md:13 (نموذج 02) و:14 (نموذج 03) — يقدّمه الموظّف ويوقّعه؛ "
                 "وسجلُّ الاستئذانات المدرسيّ (07-نماذج المدرسة/07) أوّلُ صفوفه المدير (B3:C3)"
             ),
+        ),
+        _cap(
+            "staff_affairs.own_leave",
+            "طلبُ إجازةٍ للموظّف نفسه",
+            P.ALL_STAFF_ROLES,
+            scope=(
+                "طلبُ المستخدم نفسِه وحدَه: الموظّفُ يُربط بالحساب الداخل لا بما يُرسَل في الطلب، "
+                "ولا تتّسع به «إدارةُ شؤون الموظّفين» (التقديمُ نيابةً عن غيره)"
+            ),
+            basis="قرارُ المالك D-301م (2026-10-09): «نعم يقدم لنفسه فقط اعتمد»",
         ),
         _cap(
             "staff_affairs.attendance_record",
@@ -323,7 +364,11 @@ def registry() -> dict[str, Capability]:
             "كشوفُ النتائج وشهاداتُ الطلبة",
             {"principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher"},
         ),
-        _cap("reports.school", "تقاريرُ الحضور والسلوك والشهادات للشعبة", leadership),
+        _cap(
+            "reports.school",
+            "تقاريرُ الحضور والسلوك والشهادات للشعبة",
+            leadership | {"student_affairs_coordinator"},
+        ),
         _cap(
             "academic.reports_school",
             "التقاريرُ الأكاديميّةُ على مستوى المدرسة",
@@ -357,21 +402,65 @@ def registry() -> dict[str, Capability]:
             "ملفُّ السلوك ولوحتُه",
             P.BEHAVIOR_MANAGE | P.BEHAVIOR_RECORD | P.BEHAVIOR_VIEW_ALL,
         ),
-        _cap("behavior.record", "تسجيلُ مخالفةٍ وتقريرُها", P.BEHAVIOR_MANAGE | P.BEHAVIOR_RECORD),
+        _cap(
+            "behavior.record",
+            "تسجيلُ مخالفةٍ وتقريرُها",
+            P.BEHAVIOR_MANAGE | P.BEHAVIOR_RECORD,
+            # رصدُ مخالفةٍ تأديبيّةٍ لقاصرٍ كتابةٌ حسّاسة؛ المساعدان يرثان جدولَ المعلّم وحضورَه لا رصدَه (حكم 0104، W-20261010-013).
+            not_inherited_by={"teacher_assistant", "ese_assistant"},
+        ),
         _cap("behavior.manage", "إدارةُ المخالفات والإجراءات", P.BEHAVIOR_MANAGE),
-        _cap("behavior.committee", "لجنةُ الانضباط", P.BEHAVIOR_COMMITTEE),
+        _cap(
+            "behavior.committee",
+            "لجنةُ الانضباط",
+            P.BEHAVIOR_COMMITTEE | {"student_affairs_coordinator"},
+        ),
         _cap(
             "behavior.statistics",
             "إحصاءاتُ السلوك",
-            P.BEHAVIOR_COMMITTEE | P.BEHAVIOR_VIEW_ALL | P.BEHAVIOR_STATS_TEACHING,
+            (P.BEHAVIOR_COMMITTEE - BEHAVIOR_COMMITTEE_CASE_SCOPED)
+            | P.BEHAVIOR_VIEW_ALL
+            | P.BEHAVIOR_STATS_TEACHING
+            | {"student_affairs_coordinator"},
+            scope="المدرسةُ كلُّها",
+            basis=(
+                "المشرفُ الإداريّ عضوٌ في قضيّة جناحه وحدَها (م5.7، D-207م) فلا يرث بعضويّته إحصاءَ "
+                "المدرسة كلِّها — حكمُ 0104 على W-20261001-023"
+            ),
         ),
-        _cap("behavior.summon_parent", "استدعاءُ وليّ الأمر", P.BEHAVIOR_MANAGE | {"psychologist"}),
+        _cap("behavior.summon_parent", "استدعاءُ وليّ الأمر", family_callers),
+        _cap(
+            "behavior.guardian_contact",
+            "اسمُ وليّ الأمر وإرسالُ التقرير السلوكيّ إليه",
+            family_callers | {"admin_supervisor"},
+            scope="طلبةُ صاحب الشاشة (المشرفُ لجناحه)",
+            basis=(
+                "قاعدةُ الحاجة (PDPPL): الاسمُ لمن يتّصل بالأسرة أو يستدعيها أو يتابع — قيادةٌ وأخصائيٌّ "
+                "اجتماعيٌّ ومنسّقُ شؤون الطلبة (قدرةُ الاستدعاء نفسُها) وحاملُ الجناح (قرارُ DPO 2026-09-16)؛ "
+                "ومن يسجّل مخالفةً ولا يتّصل (معلّمٌ ومنسّقٌ ومنسّقُ أنشطةٍ ومشاريع) يرى «وليّ الأمر مسجَّل» بلا اسم "
+                "— بطاقة W-20261005-009"
+            ),
+        ),
         # ── العيادة والمكتبة والنقل ─────────────────────────────────
-        _cap("clinic.access", "وحدةُ العيادة", {"nurse", "principal", "vice_admin"}),
+        _cap(
+            "clinic.access",
+            "وحدةُ العيادة (قراءة)",
+            {"nurse", "principal", "vice_admin", "student_affairs_coordinator"},
+        ),
+        _cap(
+            "clinic.write",
+            "تعديلُ السجلّ الصحّيّ وتسجيلُ الزيارات",
+            {"nurse", "principal", "vice_admin"},
+            basis="بيانات صحّيّة لقاصرين: الكتابةُ سريريّةٌ — حكم 0104 على W-20261001-020 (المنسّقُ قراءةً فقط)",
+        ),
         _cap("library.view", "المكتبةُ والكتب", P.LIBRARY_VIEW | P.LIBRARY_FULL),
         _cap("library.lend", "الإعارةُ والإرجاع", {"librarian", "principal", "vice_admin"}),
         _cap("library.borrowings_all", "سجلُّ استعارات المدرسة", P.LIBRARY_BORROWINGS_ALL),
-        _cap("transport.access", "وحدةُ النقل", P.TRANSPORT_FULL | P.TRANSPORT_MANAGE),
+        _cap(
+            "transport.access",
+            "وحدةُ النقل",
+            P.TRANSPORT_FULL | P.TRANSPORT_MANAGE | {"student_affairs_coordinator"},
+        ),
         # ── الأدوات التقنيّة ─────────────────────────────────────────
         _cap(
             "it_admin.reset_passwords",
@@ -393,20 +482,14 @@ def registry() -> dict[str, Capability]:
             basis="قرارُ 2026-09-15 (النطاق) وقرارُ المستخدم 2026-09-17 (لا شيءَ آخر من الكنترول)",
         ),
         # ── الحضور والجدول ──────────────────────────────────────────
-        _cap(
-            "attendance.mark",
-            "رصدُ حضور الحصّة",
-            {
-                "principal",
-                "vice_academic",
-                "vice_admin",
-                "coordinator",
-                "teacher",
-                "ese_teacher",
-                "admin_supervisor",
-            },
-        ),
+        _cap("attendance.mark", "رصدُ حضور الحصّة", P.ATTENDANCE_RECORD),
         _cap("operations.reports", "تقاريرُ الجدول والحضور", P.OPERATIONS_REPORTS),
+        _cap(
+            "operations.daily_absence",
+            "غيابُ اليوم (تقريرُ غياب الطلبة اليوميّ)",
+            P.DAILY_STUDENT_ABSENCE_REPORT,
+            basis="قرارُ المالك D-273م: إدارةُ شؤون الطلاب كاملةً لمنسّق شؤون الطلبة، دون تقارير المعلّمين",
+        ),
         _cap(
             "operations.substitutes_manage",
             "تسجيلُ غياب معلّمٍ وتعيينُ بديله",
@@ -465,6 +548,16 @@ def registry() -> dict[str, Capability]:
                 "e_projects_coordinator",
             },
             scope="تفضيلاتُه هو",
+        ),
+        _cap(
+            "schedule.preferences_view",
+            "اطّلاعٌ على تفضيلات المعلّمين في الجدول",
+            {"principal", "vice_academic", "coordinator"},
+            scope="المدير والنائب الأكاديميّ: المدرسة؛ منسّق المادّة: قسمُه",
+            basis=(
+                "قرارُ المالك D-330م (W-20261010-026): قراءةٌ بلا تعديل؛ التعديلُ يبقى لصاحب "
+                "التفضيل بـ`schedule.preferences` التي لا تُوسَّع"
+            ),
         ),
         _cap("schedule.settings", "إعداداتُ الجدول والتفريغات", P.SCHEDULE_SETTINGS),
         _cap("schedule.admin", "إعدادُ الجدول الإداريّ", P.SCHEDULE_ADMIN),
@@ -547,7 +640,14 @@ def registry() -> dict[str, Capability]:
         _cap(
             "wings.floors",
             "شاشةُ الأجنحة والطوابق",
-            {"principal", "vice_admin", "vice_academic", "admin_supervisor", "platform_developer"},
+            {
+                "principal",
+                "vice_admin",
+                "vice_academic",
+                "admin_supervisor",
+                "platform_developer",
+                "student_affairs_coordinator",  # بندٌ في قائمة إدارة شؤون الطلاب (D-273م)
+            },
         ),
         _cap("wings.assign_cover", "تكليفُ بديلٍ لجناح", WingCoverage.ASSIGNER_ROLES),
         _cap(
@@ -564,7 +664,7 @@ def registry() -> dict[str, Capability]:
         _cap(
             "wings.school_wide",
             "حاصرُ الغياب العامّ — الأجنحةُ الخمسةُ كلُّها",
-            (),
+            P.SCHOOL_WIDE_ABSENCE_ROLES,
             scope="أجنحةُ المدرسة كلُّها، للغياب وحدَه",
             basis=(
                 "قرارُ المالك 2026-10-06: موظّفٌ إداريٌّ (مشرفٌ إداريّ) يحصر الغيابَ في المدرسة كلِّها، "
@@ -604,6 +704,8 @@ def has_capability(user, key: str) -> bool:
         return False
     if is_excluded_developer(user, key):
         return False
+    if schedule_developer_only_blocks(user, key):
+        return False
     if user.is_superuser or has_unrestricted_role(user):
         return True
     cap = capability(key)
@@ -619,13 +721,78 @@ def capability_required(key: str):
 
     def decorator(view_func):
         if cap.grant is None:
-            wrapped = role_required(cap.roles)(view_func)
+            wrapped = role_required(cap.roles, not_inherited_by=cap.not_inherited_by)(view_func)
         else:
             wrapped = _roles_or_grant(cap, view_func)
         if key in DEVELOPER_EXCLUDED_CAPABILITIES:
             wrapped = _refuse_excluded_developer(key, wrapped)
+        if key in SCHEDULE_DEVELOPER_ONLY_CAPABILITIES:
+            wrapped = schedule_developer_only(key)(wrapped)
         wrapped._capability = key
         return wrapped
+
+    return decorator
+
+
+# ── حصرُ توليد الجدول واعتماده بمطوّر المنصّة (W-20261010-034، أمرُ المالك 2026-10-10) ──────────
+#: القدراتُ التي تولّد الجدولَ أو تعتمده. المنفذُ الواحدُ هنا لا في كلّ عرض: `capability_required` يلفّها،
+#: و`has_capability` يردّها (فتُغلق `approve_v2` والقوالبُ)، و`approve_schedule` — وقدرتُه `schedule.settings`
+#: الأوسعُ من الاعتماد — يلفّه `schedule_developer_only` صراحةً. والقراءةُ (`schedule.view`) لا تمسّ.
+SCHEDULE_DEVELOPER_ONLY_CAPABILITIES = frozenset(
+    {"schedule.admin", "schedule.operator", "schedule.approve"}
+)
+SCHEDULE_DEVELOPER_ONLY_MESSAGE = (
+    "توليدُ الجدول واعتمادُه محصوران الآن بمطوّر المنصّة — أمرُ المالك. ويبقى لك اطّلاعٌ على الجدول."
+)
+
+
+def schedule_developer_only_active() -> bool:
+    """مفتاحُ `SCHEDULE_DEVELOPER_ONLY` (البيئة، الافتراضيّ مشغَّل) — إطفاؤه يعيد السلوكَ السابق بلا شيفرة."""
+    from django.conf import settings
+
+    return bool(getattr(settings, "SCHEDULE_DEVELOPER_ONLY", True))
+
+
+def schedule_developer_only_blocks(user: Any, key: str) -> bool:
+    """أيُحجَب هذا المستخدمُ عن هذه القدرة بالحصر؟ — لغير مطوّر المنصّة، والمفتاحُ مشغَّل."""
+    if key not in SCHEDULE_DEVELOPER_ONLY_CAPABILITIES or not schedule_developer_only_active():
+        return False
+    return bool(user.get_role() != "platform_developer")
+
+
+def schedule_developer_only(key: str) -> Callable:
+    """يلفّ عرضاً برفضٍ ظاهرِ السبب وتدقيقٍ بالدور والمسار (بلا اسم المستخدم) لغير مطوّر المنصّة."""
+    from functools import wraps
+
+    from core.permissions import _forbidden_response, log_denial
+
+    def decorator(
+        view_func: Callable[..., HttpResponseBase],
+    ) -> Callable[..., HttpResponseBase]:
+        @wraps(view_func)
+        def wrapper(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponseBase:
+            user = request.user
+            if user.is_authenticated and schedule_developer_only_blocks(user, key):
+                from core.models import AuditLog
+
+                role = user.get_role()
+                log_denial(request, role=role, source="schedule_developer_only")
+                AuditLog.log(
+                    user=user,
+                    action="view",
+                    model_name="other",
+                    object_repr="رُفض توليدُ/اعتمادُ الجدول: محصورٌ بمطوّر المنصّة",
+                    changes={"role": role, "path": request.path, "capability": key},
+                    school=getattr(request, "school", None),
+                    request=request,
+                )
+                return _forbidden_response(request, SCHEDULE_DEVELOPER_ONLY_MESSAGE)
+            return view_func(request, *args, **kwargs)
+
+        for attr in ("_required_roles", "_grant"):
+            if hasattr(view_func, attr):
+                setattr(wrapper, attr, getattr(view_func, attr))
+        return wrapper
 
     return decorator
 

@@ -151,7 +151,6 @@ html.dark {
   --status-danger-tint:    #1a0a0a;
   --status-warning-tint:        #1c1305;
   --status-warning-tint-strong: #422006;
-  --status-warning-tint-deep:   #451a03;
   --status-warning-badge-bg:    #351c05;
   --status-warning-fg-vivid: var(--status-warning-bright);
   --status-info-fg-vivid:    #60a5fa;
@@ -245,6 +244,9 @@ html.dark .card-qatar, html.dark .kpi-card, html.dark .form-card, html.dark .act
   background: var(--surface);
   border-color: var(--border);
 }
+/* شريطُ مؤشّر العنّابيّ الجانبيُّ ليلاً: `--maroon` على السطح الداكن 1.56:1 (قياسُ 2026-10-08، دون 3:1 من WCAG 1.4.11) فيكاد يختفي؛ ونبرتُه هي المحايدةُ لمؤشّرات
+   لوحتَي المدير والمشرف (W-20261008-004 س٦، إذنُ 0101 لهذا الملفّ وحدَه تحت D-259م). فيأخذ رمزَ `--maroon-fg` (7.99:1) كما يأخذه رقمُه. */
+html.dark .kpi-maroon { --kc: var(--maroon-fg); }
 html.dark .card-qatar:hover, html.dark .kpi-card:hover, html.dark .action-card:hover {
   border-color: var(--maroon-border);
 }
@@ -760,7 +762,6 @@ html.dark .staff-register td:first-child { background: var(--surface); }
 html.dark .free-slots-th { background: var(--surface-alt); border-color: var(--border); }
 html.dark .free-slots-td { border-color: var(--border); }
 html.dark .card-bar { background: var(--maroon-dark); }
-html.dark .tfa-status-badge { background-color: var(--status-success); }
 /* ── Dashboard KPI Colors ─── */
 html.dark .alert-strip { background: color-mix(in srgb, var(--status-danger) 10%, transparent); border-color: var(--border); }
 html.dark .text-status-info    { color: var(--status-info-fg); }

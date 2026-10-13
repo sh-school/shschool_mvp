@@ -16,15 +16,16 @@ from __future__ import annotations
 
 import logging
 from datetime import date
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, QuerySet
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school, default_academic_year
 from core.domain.tones import tone_for
+from core.permissions import BEHAVIOR_COMMITTEE
 from core.unrestricted_role import has_unrestricted_role
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ from core.models import ParentStudentLink, StudentEnrollment
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
+    from wings.scope import StudentScope
 
 # ── ثوابت موحدة من constants.py ────────────────────────────
 # POINTS_BY_LEVEL مُستبعد — نظام النقاط ملغى
@@ -65,20 +67,7 @@ NET_SCORE_STATUS = ((80, "green"), (60, "yellow"), (None, "red"))
 class BehaviorPermissions:
     """صلاحيات وحدة السلوك"""
 
-    REPORTER_ROLES = {
-        "principal",
-        "vice_admin",
-        "vice_academic",
-        "coordinator",
-        "teacher",
-        "ese_teacher",
-        "social_worker",
-        "specialist",
-        "admin_supervisor",
-        "admin",
-        "platform_developer",
-    }
-    COMMITTEE_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "specialist"}
+    COMMITTEE_ROLES = BEHAVIOR_COMMITTEE  # م5.7 — مصدرٌ واحدٌ في core/permissions.py (W-20261001-023)
     SUMMON_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "psychologist"}
     STATS_ROLES = {
         # لجنة الضبط والقيادة
@@ -96,7 +85,10 @@ class BehaviorPermissions:
 
     @staticmethod
     def can_report(user: CustomUser) -> bool:
-        return user.get_role() in BehaviorPermissions.REPORTER_ROLES
+        """يرصد المخالفة من يحمل القدرة ``behavior.record`` — المصدرُ الواحد بدل قائمة أدوار ثابتة (W-20261010-013)."""
+        from core.capabilities import has_capability
+
+        return has_capability(user, "behavior.record")
 
     @staticmethod
     def is_committee(user: CustomUser) -> bool:
@@ -220,24 +212,34 @@ class BehaviorService:
 
     # ── إحصائيات اللجنة ────────────────────────────────────
     @staticmethod
-    def get_committee_data(school: School) -> dict:
-        """بيانات لوحة لجنة الضبط السلوكي"""
+    def get_committee_data(school: School, scope: StudentScope | None = None) -> dict:
+        """بيانات لوحة لجنة الضبط السلوكي — و`scope` (نطاق الجناح) يضيّق قضايا المشرف الإداريّ بجناحه."""
+
+        def _narrow(qs: QuerySet[Any]) -> QuerySet[Any]:
+            return scope.narrow(qs) if scope is not None else qs
+
         open_cases = (
-            BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=False)
+            _narrow(
+                BehaviorInfraction.objects.filter(
+                    school=school, level__in=[3, 4], is_resolved=False
+                )
+            )
             .select_related("student", "reported_by", "violation_category")
             .order_by("-date")
         )
 
         resolved_cases = (
-            BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=True)
+            _narrow(
+                BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=True)
+            )
             .select_related("student", "reported_by")
             .order_by("-date")[:20]
         )
 
         stats = {
             "open_count": open_cases.count(),
-            "resolved_count": BehaviorInfraction.objects.filter(
-                school=school, level__in=[3, 4], is_resolved=True
+            "resolved_count": _narrow(
+                BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=True)
             ).count(),
             "level3": open_cases.filter(level=3).count(),
             "level4": open_cases.filter(level=4).count(),
@@ -487,6 +489,46 @@ class BehaviorService:
             return date(end_year, 2, 1), date(end_year, 6, 30), "الفصل الثاني"
         else:
             return date(start_year, 9, 1), date(end_year, 6, 30), "العام الدراسي كاملاً"
+
+    @staticmethod
+    def email_report_to_guardians(
+        student: CustomUser, school: School, report: dict, year: str, *, sent_by: CustomUser
+    ) -> list[str]:
+        """يرسل التقرير السلوكي بالبريد لأولياء الطالب ذوي البريد؛ يُعيد أسماء من أُرسل إليهم.
+
+        لا يُستدعى إلّا لمن يتّصل بالأسرة (``behavior.guardian_contact``)؛ والتجميدُ يُفرغ القائمة.
+        """
+        from core.parents_freeze import sendable_parent_links
+        from notifications.services import NotificationService
+
+        sent_to: list[str] = []
+        for link in sendable_parent_links(report["parent_links"]):
+            parent = link.parent
+            if not parent.email:
+                continue
+            body = (
+                f"ولي أمر الطالب: {parent.full_name}\n\n"
+                f"التقرير السلوكي للطالب: {student.full_name}\n"
+                f"الفترة: {report['period_label']} — {year}\n\n"
+                f"نقاط السلوك: {report['net_score']}/100 ({report['rating']})\n"
+                f"المخالفات: {report['infractions'].count()}\n\n"
+                f"{school.name}"
+            )
+            try:
+                NotificationService.deliver_email(
+                    user=parent,
+                    school=school,
+                    subject=f"التقرير السلوكي — {student.full_name} — {report['period_label']}",
+                    body_text=body,
+                    student=student,
+                    notif_type="behavior",
+                    sent_by=sent_by,
+                )
+                sent_to.append(parent.full_name)
+            except Exception as e:
+                # [PII-11] سجّل معرّف ولي الأمر لا بريده
+                logger.error("behavior_report: email failed for parent id=%s: %s", parent.id, e)
+        return sent_to
 
     @staticmethod
     def get_student_report_data(

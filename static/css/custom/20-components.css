@@ -45,7 +45,9 @@
   height: 42px;
   gap: var(--sp-0-5);
 }
+/* بلا سقف 1280px كالترويسة فوقه: تسعةُ تبويباتٍ للمدير والمطوّر تحتاج نحو 1301px بحشوتها، فكان السقفُ يُنزل آخرَها إلى سطرٍ ثانٍ في كلّ عرضٍ (W-20261011، قياس 0403). */
 .site-nav .nav-inner {
+  max-width: none;
   justify-content: center;
 }
 /* زر Nav الأساسي — مشترك بين الروابط والأزرار */
@@ -69,13 +71,20 @@
 .nb:hover, .nb.on { background: color-mix(in srgb, var(--on-fill) 16%, transparent); }
 /* القسمُ الذي فيه المستخدم الآن (base.js::markCurrentSection): خطٌّ سفليٌّ ذهبيٌّ بدل شريط القسم الفرعيّ المُلغى. */
 .nb.nb-current { box-shadow: inset 0 -3px 0 var(--nav-mark); }
-.chv { font-size: 0.5rem; opacity: .6; transition: transform .18s; }
+.chv { font-size: var(--text-xs); opacity: .6; transition: transform .18s; }
 .nb.on .chv { transform: rotate(180deg); }
 
 /* الشعار */
 .nav-logo      { font-weight: 700; font-size: var(--text-sm); gap: 7px; flex-shrink: 0; padding: var(--sp-1) var(--sp-2); }
-.nav-logo-img  { flex-shrink: 0; }
 .nav-logo-text { white-space: nowrap; }
+
+/* شعارُ المدرسة «ش» (W-20261012-012، D-404م) — الوسمُ `{% school_logo %}` ومصدرُه `core/school_logo.py`.
+   المربّعُ بلون الترويسة العنّابيّ نفسِه، فلولا حلقةٌ فاتحةٌ شفّافةٌ ذاب إطارُه فيها وبقي الحرفُ عائماً بلا حدّ. */
+.school-logo { display: block; flex-shrink: 0; border-radius: var(--radius-md); box-shadow: 0 0 0 1px color-mix(in srgb, var(--on-fill) 55%, transparent); }
+.school-logo--nav { inline-size: var(--sp-8); block-size: var(--sp-8); border-radius: var(--radius-sm); }
+.school-logo--login { inline-size: 3.5rem; block-size: 3.5rem; margin: 0 auto var(--sp-3-5); }
+.school-logo--sheet { inline-size: var(--sp-12); block-size: var(--sp-12); }
+.school-logo--print { inline-size: var(--sp-10); block-size: var(--sp-10); }
 
 /* زر الهامبرغر (الجوال) */
 .nav-hamburger {
@@ -216,7 +225,6 @@
 /* رأس قائمة المستخدم */
 .sd-user-header    { padding: var(--sp-2-5) var(--sp-4) 9px; border-bottom: 1px solid var(--menu-rule); }
 .sd-user-fullname  { font-size: var(--text-sm); font-weight: 700; color: var(--menu-ink-strong); margin: 0 0 var(--sp-0-5); }
-.sd-user-nid       { font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 3px; }
 .sd-user-role      { font-size: var(--text-xs); color: var(--maroon-fg); font-weight: 600; margin: 0; }
 /* زر تسجيل الخروج */
 .sd-logout-form { margin: 0; }
@@ -369,11 +377,6 @@ tbody tr:nth-child(even):hover {
   background: var(--maroon-bg);
 }
 
-/* ── رأس الصفحة (h1, h2) ─── */
-h1.text-2xl {
-  color: var(--text-primary);
-  font-weight: 800;
-}
 
 /* ── شارات الحالة ─── */
 
@@ -418,6 +421,20 @@ h1.text-2xl {
 .progress-qatar-fill.pf-success { background: var(--status-success); }
 .progress-qatar-fill.pf-warning { background: var(--status-warning); }
 .progress-qatar-fill.pf-danger  { background: var(--status-danger);  }
+
+/* شريطُ تقدّم توليد V2 في الجدولة الذكية: بطاقةٌ تُكدَّس رأسياً، والإحصاءاتُ تلتفّ في الجوّال. */
+.gen-progress { margin-block-start: var(--sp-3); display: grid; gap: var(--sp-2); }
+.gen-progress[hidden] { display: none; }
+.gen-progress__track { display: block; }
+.gen-progress__fill { display: block; }
+.gen-progress__state, .gen-progress__final, .gen-progress__offline { margin: 0; font-size: var(--text-sm); font-weight: 600; }
+.gen-progress__state, .gen-progress__final { color: var(--status-info-fg); }
+.gen-progress__offline { color: var(--status-warning-fg); }
+.gen-progress__stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--sp-2) var(--sp-4); margin: 0; }
+.gen-progress__stats dt { font-size: var(--text-xs); color: var(--text-muted); }
+.gen-progress__stats dd { margin: 0; font-size: var(--text-sm); font-weight: 600; font-variant-numeric: tabular-nums; }
+.gen-progress__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.gen-progress__hint { margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
 
 /* ── Django Admin — تعريب اللون الرئيسي ─── */
 /* Django Admin header — مطلوب لتجاوز admin CSS */
@@ -530,9 +547,6 @@ div#header h1 a {
   .site-footer-text { text-align: start; }
   .site-footer-brand { justify-self: end; }
 }
-
-/* ── PWA Install Banner ─── */
-body:has(.per-bar) .pwa-banner { display: none; }
 .pwa-banner {
   position: fixed;
   inset-block-end: calc(var(--dock-h) + var(--dock-pad) + var(--sp-2));
@@ -553,6 +567,15 @@ body:has(.per-bar) .pwa-banner { display: none; }
 .pwa-text     { flex: 1; min-width: 0; }
 .pwa-title    { display: block; font-size: var(--text-sm); font-weight: 700; }
 .pwa-subtitle { opacity: .8; font-size: var(--text-xs); }
+.pwa-steps {
+  margin: var(--sp-1) 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--sp-1-5);
+  font-size: var(--text-xs);
+}
+.pwa-steps li { display: flex; align-items: center; gap: var(--sp-2); }
 .pwa-install-btn {
   background: var(--surface);
   color: var(--maroon-fg);
@@ -833,28 +856,6 @@ tr.active {
 /* ════════════════════
    مكوّنات الصفحة — Page Layout Components
    ════════════════════ */
-
-/* ── عنوان الصفحة ── */
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-6);
-}
-.page-title {
-  font-size: 1.375rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  margin: 0;
-  line-height: 1.2;
-}
-.page-subtitle {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  margin: var(--sp-1) 0 0;
-}
 
 /* ════════════════════
    Detail/Profile Layout (MTG-2026-004-STR)
@@ -1187,6 +1188,14 @@ main.page-wide {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── نصٌّ صغيرٌ بحسب دوره (W-20261010-010) ───
+   حلَّت محلَّ أداة الحجم `text-xs` التي كانت تُلصق في القوالب بلا دور: الخليّةُ
+   `cell-sm`، والبيانُ الثانويّ الخافت `ui-meta`، والسطرُ الصغير `ui-note`.
+   والحجمُ من الرمز `--text-xs` لا من رقمٍ حرفيّ. */
+/* الارتفاعُ يُورَّث من الجدول (≥ 1.6 للعربيّة بتشكيلها)؛ كان `text-xs` يفرض 1rem فيضيّق السطر. */
+.cell-sm { font-size: var(--text-xs); }
+.ui-meta { font-size: var(--text-xs); color: var(--text-muted); }
+
 .col-actions {
   width: 80px;
   text-align: center;
@@ -1436,6 +1445,32 @@ main.page-wide {
   margin-top: var(--sp-5);
 }
 
+/* ── المصادقة الثنائية: حقلُ الرمز وإطارُ QR والمفتاحُ اليدويّ (بدل أدوات Tailwind في القالب) ── */
+.ui-field--code .form-control {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  letter-spacing: 0.1em;
+}
+.qr-frame {
+  inline-size: fit-content;
+  margin-inline: auto;
+  margin-block: var(--sp-4);
+  padding: var(--sp-3);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.qr-frame img { display: block; inline-size: 11rem; block-size: 11rem; }
+.secret-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+  margin-block-start: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-alt);
+  border-radius: var(--radius-md);
+}
+.secret-row code { font-family: var(--font-mono); letter-spacing: 0.1em; user-select: all; }
+
 /* ── Form Section Grouping (MTG-2026-004-STR) ── */
 .form-row {
   display: grid;
@@ -1497,14 +1532,6 @@ main.page-wide {
 }
 
 /* ── Empty State ── */
-.empty-state .empty-icon { font-size: 3rem; margin-bottom: var(--sp-3); display: block; }
-.empty-state .empty-title {
-  font-size: var(--text-base); font-weight: 700;
-  color: var(--text-secondary); margin: 0 0 var(--sp-1-5);
-}
-.empty-state .empty-sub {
-  font-size: var(--text-sm); color: var(--text-muted); margin: 0;
-}
 
 /* ── تذييل الجدول (إجماليات) ── */
 tfoot tr {
@@ -1538,7 +1565,7 @@ tfoot td {
 .action-card.action-primary:hover { background: var(--maroon-dark); border-color: var(--maroon-dark); }
 .action-card-icon {
   width: 42px; height: 42px;
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   display: flex; align-items: center; justify-content: center;
   font-size: var(--text-xl); flex-shrink: 0;
   background: var(--maroon-bg);
@@ -2068,7 +2095,7 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
 .breadcrumbs .bc-sep {
   /* فاصلٌ يُقرأ لا حدٌّ يُرسم — بلونِ الحدّ كانت نسبتُه 1.30 نهاراً و2.36 ليلاً */
   color: var(--text-muted);
-  font-size: 0.625rem;
+  font-size: var(--text-xs);
   user-select: none;
 }
 .breadcrumbs .bc-current {

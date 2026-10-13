@@ -2,6 +2,7 @@ def school_context(request):
     from django.conf import settings
 
     from core.models import School
+    from core.parents_freeze import parents_frozen
 
     if request.user.is_authenticated:
         school = request.user.get_school()
@@ -31,6 +32,8 @@ def school_context(request):
         "current_year_name": now.year_name if now else "",
         "current_semester": now.semester if now else None,
         "platform_version": getattr(settings, "PLATFORM_VERSION", "5.1"),
+        # تجميدُ التواصل مع الأهل (W-20261008-013): القوالبُ تُخفي ما يخصّ الأهل بهذا المفتاح لا بقراءة الإعدادات.
+        "parents_frozen": parents_frozen(),
         "rum_endpoint": getattr(settings, "RUM_ENDPOINT", ""),
         "rum_sample": max(0, min(100, getattr(settings, "RUM_SAMPLE_PERCENT", 10))),
     }

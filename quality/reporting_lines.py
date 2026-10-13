@@ -67,6 +67,7 @@ DIRECT_SUPERVISOR: dict[str, str] = {
             "nurse",
             "messenger",
             "receptionist",
+            "student_affairs_coordinator",  # بطاقة «منسّق شؤون الطالب» (1033): المسؤول المباشر النائب الإداريّ
         ),
         VICE_ADMIN,
     ),

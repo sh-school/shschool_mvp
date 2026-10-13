@@ -35,52 +35,6 @@ def _audit(request, *, action, model_name, obj, repr_, changes):
 
 
 @transaction.atomic
-def undo_late_tap(request, session, student) -> bool:
-    """المعلّمُ يتراجع عن «دخل الآن» — ما لم يثبّت المشرف."""
-    row = StudentAttendance.objects.filter(
-        session=session, student=student, source="teacher_late"
-    ).first()
-    if row is None:
-        return False
-    _audit(
-        request,
-        action="delete",
-        model_name="other",
-        obj=row,
-        repr_=f"تراجعٌ عن «دخل الآن» — {student.full_name} · {session}",
-        changes={"late_minutes": row.late_minutes, "source": row.source, "by": "teacher_undo"},
-    )
-    row.delete()
-    return True
-
-
-@transaction.atomic
-def cancel_exit(request, session, student) -> bool:
-    """المعلّمُ يلغي «خرج بإذن» المفتوحَ — نقرةٌ على طالبٍ آخر؛ لا أثرَ لها في الدقائق.
-
-    وإن كان المشرفُ قد ثبّته غائباً من هذا الخروج رجع حاضراً (قرارُ 2026-09-16).
-    """
-    from operations.exit_reflection import revert_derived_absence
-
-    current = ClassExit.objects.filter(
-        session=session, student=student, returned_at__isnull=True
-    ).first()
-    if current is None:
-        return False
-    _audit(
-        request,
-        action="delete",
-        model_name="other",
-        obj=current,
-        repr_=f"إلغاءُ «خرج بإذن» — {student.full_name} · {session}",
-        changes={"destination": current.destination, "left_at": current.left_at.isoformat()},
-    )
-    revert_derived_absence(current, by=request.user, why="ألغى المعلّمُ الخروج")
-    current.delete()
-    return True
-
-
-@transaction.atomic
 def delete_attendance_event(request, row: StudentAttendance, reason: str) -> None:
     """حذفُ سجلّ حضورٍ من ملف الطالب (المشرف/النائب) بسبب — ويُعاد حكمُ الكشف على يومه.
 

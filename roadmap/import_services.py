@@ -24,6 +24,7 @@ from roadmap.models import (
     DecisionStatus,
     ItemStatus,
     KpiDirection,
+    ReviewCadence,
     RoadmapChecklistItem,
     RoadmapDecision,
     RoadmapItem,
@@ -62,8 +63,18 @@ _KPI_KNOWN = frozenset(
 #: حقولُ الصفوف المحرَّرة من الواجهة (`ITEM_EDITABLE` وأخواتُها) بأسمائها في النموذج.
 _HAND_EDITED: dict[str, frozenset[str]] = {
     "items": frozenset(
-        {"status", "progress", "start_date", "end_date", "date_basis", "note", "pr"}
-    ),
+        {
+            "status",
+            "progress",
+            "start_date",
+            "end_date",
+            "date_basis",
+            "note",
+            "pr",
+            "review_cadence",
+            "last_reviewed",
+        }
+    ),  # fmt: skip
     "decisions": frozenset({"status", "decision_date"}),
     "checklist": frozenset({"done"}),
 }
@@ -134,6 +145,14 @@ def _item_defaults(rec: Mapping[str, Any], where: str, errors: list[str]) -> dic
     }
     if "pr" in rec:  # لا يمحو استيرادٌ بلا الحقل ما سُجّل من الواجهة
         defaults["pr"] = _text(rec, "pr")
+    if "cadence" in rec:  # وكذا إيقاعُ المراجعة وتاريخُها للبند المستمر
+        cadence = _text(rec, "cadence")
+        if cadence not in {"", *ReviewCadence.values}:
+            errors.append(f"{where}: إيقاعُ مراجعةٍ غيرُ معروف")
+            cadence = ""
+        defaults["review_cadence"] = cadence
+    if "reviewed" in rec:
+        defaults["last_reviewed"] = _snapshot_date(rec, "reviewed", where, errors)
     return defaults
 
 

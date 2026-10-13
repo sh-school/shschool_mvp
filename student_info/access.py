@@ -56,6 +56,7 @@ SCHOOL_WIDE_READERS = LEADERSHIP | {
     "academic_advisor",
     "coordinator",
     "activities_coordinator",
+    "student_affairs_coordinator",  # كلُّ ما يخص الطلاب (ملاحظةُ المالك 2026-10-08)
 }
 
 #: من يدخل المركزَ أصلاً. المعلّمُ داخلٌ، لكنّ ما يراه محدودٌ بمن يُدرّسهم؛

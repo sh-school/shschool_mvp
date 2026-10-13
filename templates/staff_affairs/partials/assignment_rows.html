@@ -15,7 +15,7 @@
       <tr>
         <td><strong>{{ a.assignee.full_name }}</strong><span class="sa-cell-sub">{{ a.get_acting_role_display }}</span></td>
         <td class="col-center sa-nowrap">{{ a.start_date|date:"d/m/Y" }}<span class="sa-cell-sub">{{ a.end_date|date:"d/m/Y" }}</span></td>
-        <td class="text-xs">{{ a.reason }}<span class="sa-cell-sub">{{ a.assigned_by.full_name }}{% if a.reference %} · {{ a.reference }}{% endif %}</span></td>
+        <td class="cell-sm">{{ a.reason }}<span class="sa-cell-sub">{{ a.assigned_by.full_name }}{% if a.reference %} · {{ a.reference }}{% endif %}</span></td>
         <td class="col-actions">
           {% if live %}
           <form method="post" action="{% url 'staff_affairs:assignment_revoke' a.pk %}">{% csrf_token %}
@@ -26,7 +26,7 @@
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="4" class="text-xs">لا سجلَّ.</td></tr>
+      <tr><td colspan="4" class="cell-sm">لا سجلَّ.</td></tr>
       {% endfor %}
     </tbody>
   </table>

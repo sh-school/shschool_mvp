@@ -23,6 +23,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from core.models import AuditLog
+from core.parents_freeze import parents_frozen
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
@@ -156,6 +157,11 @@ def issue(
 
     if not holds_school_wide(user):
         raise IssueRefused("الإصدارُ لحاصر الغياب العامّ وحدَه")
+    if parents_frozen():
+        # قبل أيّ مطالبةٍ أو تغييرِ حالة: التنبيهُ يبقى «محجوزاً» كما هو فيُصدَر عند الفكّ (W-20261008-013).
+        raise IssueRefused(
+            "التواصل مع أولياء الأمور مجمَّد — لا يُصدَر إخطارٌ الآن، ويبقى التنبيهُ محجوزاً"
+        )
     now = now or timezone.now()
     try:
         alert = AbsenceAlert.objects.select_related("student", "school").get(

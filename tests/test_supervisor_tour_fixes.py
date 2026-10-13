@@ -105,22 +105,6 @@ class TestTheFileShowsWhomToCall:
         assert '<details class="af-act" open>' in opened
         assert '<details class="af-act" open>' not in closed
 
-    def test_the_dashboard_says_notify_and_opens_the_panel(
-        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
-    ):
-        from tests.test_period_register import _periods
-
-        _absent_day(school, klass, kids[0], teacher, supervisor, day=SUNDAY)
-        _periods(school, klass, teacher, 7, day=MONDAY)
-
-        from unittest import mock
-
-        with mock.patch("django.utils.timezone.localdate", return_value=MONDAY):
-            body = client_as(supervisor).get(reverse("dashboard")).content.decode()
-
-        assert "?call=2026-09-13#day-2026-09-13" in body
-        assert "أخطِر" in body
-
 
 class TestTheVicePage:
     def test_each_request_is_a_card_with_two_labelled_forms_and_the_file(
@@ -156,34 +140,6 @@ class TestTheVicePage:
 
         assert "لوحة النائب الإداريّ" in body
         assert "لوحة تحكم المدير" not in body
-
-    def test_accepting_counts_periods_as_the_file_does(
-        self, client_as, school, seeded_calendar, klass, kids, teacher, other_teacher, supervisor
-    ):
-        """زوجُ الاختيار حصّتان في خانةٍ واحدة: الرسالةُ تعدّ الخانات (7) كما يعدّها الملفّ، لا السجلّات (8)."""
-        from django.contrib.messages import get_messages
-
-        from operations.models import StudentAttendance
-        from tests.test_period_register import _elective_twin
-
-        _absent_day(school, klass, kids[0], teacher, supervisor)
-        twin = _elective_twin(school, klass, other_teacher)
-        StudentAttendance.objects.create(
-            session=twin, student=kids[0], school=school, status="absent", marked_by=supervisor
-        )
-
-        response = client_as(supervisor).post(
-            reverse("wings:absence_file_excuse", args=[kids[0].id]),
-            {
-                "date_from": "2026-09-13",
-                "date_to": "2026-09-13",
-                "kind": "bereavement",
-                "notes": "الجدّ",
-            },
-        )
-
-        texts = [str(m) for m in get_messages(response.wsgi_request)]
-        assert any("وغُطّي 7 حصّةً" in t for t in texts), texts
 
 
 class TestTheSupervisorsFrame:

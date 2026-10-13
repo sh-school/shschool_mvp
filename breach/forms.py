@@ -171,3 +171,100 @@ class BreachEditForm(BreachReportForm):
         if self.instance.status == "notified":
             self.fields["notification_text"].disabled = True
             self.fields["regenerate_notice"].disabled = True
+
+
+class NcsaNoticeForm(forms.Form):
+    """تسجيلُ إشعار NCSA الأوّل: مكتملاً، أو مبدئيّاً بأسباب النقص وموعد الاستكمال (دليل NCSA v2.0)."""
+
+    is_initial = forms.BooleanField(
+        required=False,
+        label="الإشعارُ مبدئيّ (معلوماتُه ناقصة وسأستكمله لاحقاً)",
+        widget=forms.CheckboxInput(attrs={"id": "ncsaInitial"}),
+    )
+    missing_reasons = forms.CharField(
+        required=False,
+        label="أسبابُ نقص المعلومات",
+        widget=forms.Textarea(attrs={**_AREA, "id": "ncsaMissing", "rows": 2}),
+    )
+    completion_due_at = forms.DateTimeField(
+        required=False,
+        label="موعدُ الاستكمال",
+        input_formats=[DISCOVERED_FORMAT],
+        widget=forms.DateTimeInput(
+            format=DISCOVERED_FORMAT,
+            attrs={**_CONTROL, "type": "datetime-local", "id": "ncsaDue"},
+        ),
+        error_messages={"invalid": "موعدُ الاستكمال غيرُ صالح."},
+    )
+
+    def clean(self):
+        data = super().clean()
+        if data.get("is_initial"):
+            if not (data.get("missing_reasons") or "").strip():
+                self.add_error("missing_reasons", "اذكر أسبابَ نقص المعلومات.")
+            due = data.get("completion_due_at")
+            if due is None:
+                self.add_error("completion_due_at", "حدّد موعدَ الاستكمال.")
+            elif due <= timezone.now():
+                self.add_error("completion_due_at", "موعدُ الاستكمال يكون في المستقبل.")
+        return data
+
+
+class IndividualsNotifiedForm(forms.Form):
+    """تسجيلُ إخطار الأفراد الفعليّ: القناةُ إلزاميّة (مواصفة 0104)."""
+
+    channel = forms.ChoiceField(
+        choices=BreachReport.INDIVIDUALS_CHANNELS,
+        label="قناةُ الإخطار",
+        widget=forms.Select(attrs={**_CONTROL, "id": "indChannel"}),
+        error_messages={
+            "required": "اختر قناةَ إخطار الأفراد.",
+            "invalid_choice": "اختر قناةَ إخطار الأفراد.",
+        },
+    )
+
+
+class IndividualsAssessmentForm(forms.Form):
+    """تقديرُ لزوم إخطار الأفراد المتأثّرين (م.14): واجبٌ بموعد، أو غيرُ لازمٍ بسبب."""
+
+    required = forms.TypedChoiceField(
+        label="هل يجب إخطارُ الأفراد المتأثّرين؟",
+        choices=[("1", "نعم — يجب إخطارُهم"), ("0", "لا — غيرُ لازم")],
+        coerce=lambda v: v == "1",
+        widget=forms.RadioSelect(attrs={"class": "choice-list"}),
+        error_messages={"required": "اختر لزومَ الإخطار."},
+    )
+    deadline = forms.DateTimeField(
+        required=False,
+        label="موعدُ إخطار الأفراد (يُترك فارغاً ليساوي موعدَ إشعار NCSA)",
+        input_formats=[DISCOVERED_FORMAT],
+        widget=forms.DateTimeInput(
+            format=DISCOVERED_FORMAT,
+            attrs={**_CONTROL, "type": "datetime-local", "id": "indDeadline"},
+        ),
+        error_messages={"invalid": "موعدُ الإخطار غيرُ صالح."},
+    )
+    note = forms.CharField(
+        required=False,
+        label="أساسُ التقدير أو سببُ عدم اللزوم",
+        widget=forms.Textarea(attrs={**_AREA, "id": "indNote", "rows": 2}),
+    )
+
+    def __init__(self, *args, breach=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.breach = breach
+
+    def clean(self):
+        data = super().clean()
+        required = data.get("required")
+        if required is False and not (data.get("note") or "").strip():
+            self.add_error("note", "اذكر سببَ عدم لزوم الإخطار.")
+        deadline = data.get("deadline")
+        if (
+            required
+            and deadline
+            and self.breach is not None
+            and deadline <= self.breach.discovered_at
+        ):
+            self.add_error("deadline", "موعدُ الإخطار يلي وقتَ الاكتشاف.")
+        return data

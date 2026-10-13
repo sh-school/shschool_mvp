@@ -23,7 +23,6 @@ from operations.attendance_policy import (
 )
 from operations.models import AttendanceEntry, Session, Subject, SubjectClassAssignment
 from operations.services import class_grid as grid
-from operations.services import provisional_session as provisional
 from tests.attendance_fixtures import *  # noqa: F401,F403
 from tests.attendance_fixtures import ENROLLED, SUNDAY, _staff, at
 from tests.conftest import ClassGroupFactory, StudentEnrollmentFactory, UserFactory
@@ -92,44 +91,6 @@ def _save(client, klass, number, cells, **extra):
 
 
 # ── المفتاح: مطفأً لا شيء ──────────────────────────────────────────────────────
-
-
-def test_with_the_switch_off_every_route_is_404(
-    client_as, settings, assigned, teacher, kids, clock
-):
-    settings.PROVISIONAL_GRID_ENABLED = False
-    client = client_as(teacher)
-    assert client.get(reverse("class_grid", args=[assigned.id])).status_code == 404
-    assert _save(client, assigned, 1, [_cells(kids[0], "absent")]).status_code == 404
-    assert (
-        client.post(
-            reverse("class_grid_late", args=[assigned.id]), {"student": str(kids[0].pk)}
-        ).status_code
-        == 404
-    )
-    url = reverse("class_grid_history", args=[assigned.id, kids[0].pk, 1])
-    assert client.get(url).status_code == 404
-    assert not Session.objects.filter(provisional=True).exists()
-
-
-def test_the_provisional_picker_swaps_with_the_grid(client_as, settings, assigned, teacher, clock):
-    """تبادلٌ: المفتاحُ يشغّل الجدولَ ويُخفي المنتقي (404 للمنتقي)."""
-    client = client_as(teacher)
-    assert client.get(reverse("provisional_class", args=[assigned.id])).status_code == 404
-    assert client.get(reverse("provisional_classes")).status_code == 200
-
-
-def test_the_legacy_key_is_a_temporary_alias_until_the_new_one_is_set(settings):
-    settings.PROVISIONAL_GRID_ENABLED = False
-    settings.PROVISIONAL_GRID_ENABLED_SET = False
-    settings.PROVISIONAL_SESSIONS_ENABLED = True
-    assert (
-        provisional.enabled() is True
-        and provisional.picker_enabled() is True
-        and not provisional.grid_enabled()
-    )
-    settings.PROVISIONAL_GRID_ENABLED_SET = True  # ضُبط الجديدُ صراحةً (ولو بصفر) فلا يُقرأ المهجور
-    assert provisional.enabled() is False
 
 
 # ── العرض: لا حصّةَ عند العرض ──────────────────────────────────────────────────
@@ -324,7 +285,13 @@ def test_a_stale_expected_head_is_a_conflict_and_writes_nothing(
 
     # آخرُ يصحّح الخليّةَ أوّلاً، ثمّ يأتي طلبٌ يحمل الرأسَ القديم
     assert (
-        _save(client_as(other_teacher), assigned, 1, [_cells(kids[0], "present", head)]).status_code
+        _save(
+            client_as(other_teacher),
+            assigned,
+            1,
+            [_cells(kids[0], "present", head)],
+            reason="تصحيحٌ",
+        ).status_code
         == 200
     )
     stale = _save(first, assigned, 1, [_cells(kids[0], "late", head)])
@@ -441,17 +408,34 @@ def test_after_14_00_the_teacher_is_locked_and_the_holder_corrects_with_a_reason
     assert locked.status_code == 403 and locked.json()["reason"] == "after_window"
 
     boss = client_as(holder)
-    no_reason = _save(boss, assigned, 1, [_cells(kids[0], "present", head)])
-    assert no_reason.status_code == 403 and no_reason.json()["reason"] == "reason_required"
-    fixed = _save(
-        boss, assigned, 1, [_cells(kids[0], "present", head)], reason="وصل متأخّراً وأُثبت حضورُه"
-    )
+    # السببُ اختياريّ (قرارُ المالك 2026-10-09): يكفي كاتبُ التصحيح ووقتُه، ويُوضع سببٌ ثابتٌ إن لم يُكتب
+    fixed = _save(boss, assigned, 1, [_cells(kids[0], "present", head)])
     assert fixed.status_code == 200
-    assert AttendanceEntry.objects.filter(entered_by=holder).count() == 1
+    mine = AttendanceEntry.objects.get(entered_by=holder)
+    assert mine.correction_reason == "تعديلٌ من جدول الشعبة" and mine.entered_at
     assert AuditLog.objects.filter(object_repr="جدول الشعبة — تصحيحٌ بعد الإغلاق").exists()
 
 
 # ── الأدوار ────────────────────────────────────────────────────────────────────
+
+
+def test_the_date_is_doha_not_utc_for_the_teacher_write(
+    client_as, assigned, teacher, kids, clock, monkeypatch
+):
+    """يعادل حارسَ ملكيّة الحصّة القديم: 21:30 UTC من الأحد = 00:30 من الاثنين بالدوحة، فيومُ الأحد مضى والمعلّمُ لا يكتبه (W-20261002-026)."""
+    late = dt.datetime(2026, 9, 13, 21, 30, tzinfo=dt.UTC)
+    monkeypatch.setattr(timezone, "now", lambda: late)
+
+    response = _save(
+        client_as(teacher),
+        assigned,
+        1,
+        [_cells(kids[0], "absent")],
+        date=SUNDAY.isoformat(),
+    )
+
+    assert response.status_code == 403
+    assert not AttendanceEntry.objects.exists()
 
 
 def test_the_academic_deputy_reads_but_never_writes(client_as, school, assigned, kids, clock):
@@ -524,7 +508,7 @@ def test_the_cell_history_shows_who_wrote_and_who_corrected(
 ):
     _save(client_as(teacher), assigned, 1, [_cells(kids[0], "absent")])
     head = str(AttendanceEntry.objects.get().pk)
-    _save(client_as(holder), assigned, 1, [_cells(kids[0], "present", head)])
+    _save(client_as(holder), assigned, 1, [_cells(kids[0], "present", head)], reason="تصحيحٌ")
 
     body = (
         client_as(holder)
@@ -537,7 +521,7 @@ def test_the_cell_history_shows_who_wrote_and_who_corrected(
 def test_the_read_query_count_is_flat_in_the_number_of_students(
     client_as, school, assigned, teacher, clock
 ):
-    """عدُّ الاستعلامات ثابتٌ بعدد الطلبة: شعبةٌ بـ30 ثمّ بـ60 تُقرأ بالعدد نفسِه، وتحت حدٍّ مطلق (خطُّ أساسٍ مقيس: 32)."""
+    """عدُّ الاستعلامات ثابتٌ بعدد الطلبة: شعبةٌ بـ30 ثمّ بـ60 تُقرأ بالعدد نفسِه، وتحت حدٍّ مطلق (خطُّ أساسٍ مقيس: 36 بعد استعلام تغطية البديل)."""
 
     def measure():
         with CaptureQueriesContext(connection) as queries:
@@ -556,38 +540,10 @@ def test_the_read_query_count_is_flat_in_the_number_of_students(
     thirty = measure()
     enroll(30, 60)
     sixty = measure()
-    assert thirty == sixty and thirty <= 35, (thirty, sixty)
+    assert thirty == sixty and thirty <= 37, (thirty, sixty)
 
 
 # ── «اطفئ الشبكة»: مع المفتاح لا يُفتح كشفُ الحصّة القديم لمن يملك الجدول ───────────
-
-
-def test_with_the_switch_on_the_old_session_sheet_redirects_to_the_class_grid(
-    client_as, assigned, teacher, session, clock
-):
-    """الكشفُ القديمُ (الشبكة) `/teacher/attendance/<حصّة>/` يُحيل المعلّمَ المُسنَدَ إلى جدول شعبته."""
-    Session.objects.filter(pk=session.pk).update(teacher=teacher, class_group=assigned)
-    response = client_as(teacher).get(reverse("attendance", args=[session.id]))
-    assert response.status_code == 302
-    assert response.url == reverse("class_grid", args=[assigned.id])
-
-
-def test_with_the_switch_off_the_old_sheet_is_untouched(
-    settings, client_as, assigned, teacher, session, clock
-):
-    settings.PROVISIONAL_GRID_ENABLED = False
-    Session.objects.filter(pk=session.pk).update(teacher=teacher, class_group=assigned)
-    response = client_as(teacher).get(reverse("attendance", args=[session.id]))
-    assert response.status_code != 302 or "grid" not in response.url
-
-
-def test_a_substitute_without_an_assignment_keeps_the_old_sheet_as_a_fallback(
-    client_as, school, assigned, other_teacher, session, clock
-):
-    """بديلٌ سُلّمتْه الحصّةُ ولا إسنادَ له في الشعبة: لا جدولَ له فلا يُحال، ويبقى الكشفُ القديمُ بديلاً."""
-    Session.objects.filter(pk=session.pk).update(teacher=other_teacher, class_group=assigned)
-    response = client_as(other_teacher).get(reverse("attendance", args=[session.id]))
-    assert not (response.status_code == 302 and "grid" in response.url)
 
 
 # ── خروجُ الطالب من الفصل: بمسار ClassExit القائم، في الحصّة الجارية وقتَ الضغط ─────────
@@ -696,3 +652,369 @@ def test_a_student_corrected_to_present_can_leave(client_as, assigned, teacher, 
     _save(client, assigned, 1, [_cells(kids[0], "present", str(head))])
     response = _exit(client, assigned, kids[0], action="leave", destination="clinic")
     assert response.status_code == 200, response.content
+
+
+# ── منقولٌ من tests/test_mark_single_ownership.py (حُذف مسارُ mark_single في 21aeeecbd) بالأسماء نفسِها ──────────────
+# الحارسُ كان: «معلّمُ الحصّة وحدَه، داخل النافذة، بتوقيت الدوحة، والمطوّرُ لا يُدخل، والتدقيقُ بالقيمتين». ينتقل إلى الجدول.
+
+
+def test_the_session_teacher_marks_inside_the_window(client_as, assigned, teacher, kids, clock):
+    response = _save(client_as(teacher), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code == 200
+    row = AttendanceEntry.objects.get(student=kids[0])
+    assert (row.status, row.entered_by_id) == ("absent", teacher.id)
+
+
+def test_another_teacher_may_not_mark_a_colleagues_session(
+    client_as, assigned, other_teacher, kids, clock
+):
+    """الثغرةُ بعينها: زميلٌ يحمل attendance.mark يكتب حصّةَ غيره."""
+    response = _save(client_as(other_teacher), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code in (403, 404)
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_a_coordinator_who_is_not_the_session_teacher_may_not_mark(
+    client_as, school, assigned, kids, clock
+):
+    coordinator = _staff(school, "coordinator", "منسّق", "29000004012")
+    response = _save(client_as(coordinator), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code in (403, 404)
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_the_teacher_may_not_mark_before_the_session_starts(
+    client_as, assigned, teacher, kids, clock
+):
+    clock(7, 9)
+    response = _save(client_as(teacher), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code == 403
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_the_teacher_may_not_mark_after_the_window_closes(
+    client_as, assigned, teacher, kids, clock
+):
+    clock(14, 1)
+    response = _save(client_as(teacher), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code == 403
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_the_teacher_may_not_mark_the_next_day(client_as, assigned, teacher, kids, monkeypatch):
+    monkeypatch.setattr(timezone, "now", lambda: at(9, 0, day=SUNDAY + dt.timedelta(days=1)))
+    response = _save(
+        client_as(teacher), assigned, 1, [_cells(kids[0], "absent")], date=SUNDAY.isoformat()
+    )
+    assert response.status_code == 403
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_a_cancelled_session_may_not_be_marked(client_as, assigned, teacher, kids, clock):
+    """الحصّةُ الملغاةُ لا تُرصد: عمودٌ حصّتُه ملغاةٌ يرفضه الخادم."""
+    Session.objects.create(
+        school=assigned.school,
+        class_group=assigned,
+        teacher=teacher,
+        date=SUNDAY,
+        start_time=dt.time(7, 10),
+        end_time=dt.time(7, 55),
+        period_number=1,
+        status="cancelled",
+        provisional=True,
+    )
+    response = _save(client_as(teacher), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code != 200
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_recorders_still_mark_any_wingless_session(client_as, school, assigned, kids, clock):
+    """أهلُ الرصد غيرُ المقيَّدين بجناحٍ (النائبُ الإداريّ والمدير) يكتبون العمودَ بلا قيدِ معلّم الحصّة."""
+    for kid, (role, nid) in zip(
+        kids, (("vice_admin", "29000004021"), ("principal", "29000004023")), strict=False
+    ):
+        recorder = _staff(school, role, role, nid)
+        response = _save(client_as(recorder), assigned, 1, [_cells(kid, "present")])
+        assert response.status_code == 200, role
+
+
+def test_the_developer_may_not_mark_even_as_a_superuser(client_as, school, assigned, kids, clock):
+    """D-128م: المطوّرُ لا يُدخل ولو كان superuser."""
+    developer = _staff(school, "platform_developer", "المطوّر", "29000004030")
+    developer.is_superuser = True
+    developer.save(update_fields=["is_superuser"])
+    response = _save(client_as(developer), assigned, 1, [_cells(kids[0], "absent")])
+    assert response.status_code in (403, 404)
+    assert not AttendanceEntry.objects.exists()
+
+
+def test_the_teachers_changes_are_audited_with_before_and_after(
+    client_as, assigned, teacher, kids, clock
+):
+    """رصدُ المعلّم نهائيٌّ **بتدقيقٍ كامل**: كلُّ تغييرٍ إدخالٌ مُلحَق بالقيمتين، وسجلُّ التدقيق بالمعرّفات لا الأسماء."""
+    client = client_as(teacher)
+    first = _save(client, assigned, 1, [_cells(kids[0], "absent")])
+    assert first.status_code == 200
+    head = str(AttendanceEntry.objects.get(student=kids[0]).pk)
+    _save(client, assigned, 1, [_cells(kids[0], "present", head)])
+    rows = {row.pk: row for row in AttendanceEntry.objects.filter(student=kids[0])}
+    root = next(row for row in rows.values() if row.supersedes_id is None)
+    chain = [root, next(row for row in rows.values() if row.supersedes_id == root.pk)]
+    assert [row.status for row in chain] == ["absent", "present"]
+    assert chain[1].supersedes_id == chain[0].pk
+    assert all(row.entered_by_id == teacher.id for row in chain)
+    lines = list(AuditLog.objects.filter(model_name="other", user=teacher))
+    assert lines
+    assert all(kids[0].full_name not in str(line.changes) for line in lines)
+
+
+def test_a_recorders_marking_is_not_double_audited_by_this_path(
+    client_as, school, assigned, kids, clock
+):
+    """كاتبٌ واحدٌ لكلّ إدخال: أهلُ الرصد يكتبون بإدخالٍ واحدٍ لا بإدخالين."""
+    recorder = _staff(school, "vice_admin", "النائب", "29000004031")
+    _save(client_as(recorder), assigned, 1, [_cells(kids[0], "present")])
+    assert AttendanceEntry.objects.filter(student=kids[0], entered_by=recorder).count() == 1
+
+
+# ── التغطية بالتبديل والتعويض (W-20261002-017، D-125م) ───────────────────────────────────────────
+
+
+@pytest.fixture
+def lesson_slot(school, assigned, teacher, subject):
+    from operations.models import ScheduleSlot
+
+    return ScheduleSlot.objects.create(
+        school=school,
+        teacher=teacher,
+        class_group=assigned,
+        subject=subject,
+        day_of_week=0,
+        period_number=1,
+        start_time=dt.time(7, 10),
+        end_time=dt.time(7, 55),
+        academic_year=assigned.academic_year
+        if isinstance(assigned.academic_year, str)
+        else str(assigned.academic_year),
+    )
+
+
+def _swap(school, lesson_slot, mine, theirs, **extra):
+    from operations.models import TeacherSwap
+
+    return TeacherSwap.objects.create(
+        school=school,
+        teacher_a=mine,
+        teacher_b=theirs,
+        slot_a=lesson_slot,
+        slot_b=lesson_slot,
+        swap_date_a=extra.pop("swap_date_a", SUNDAY),
+        swap_date_b=extra.pop("swap_date_b", SUNDAY),
+        status=extra.pop("status", "executed"),
+        **extra,
+    )
+
+
+def test_a_teacher_a_swapped_in_for_today_writes_the_class_column(
+    client_as, school, assigned, teacher, kids, lesson_slot, clock
+):
+    """`teacher_b` يأخذ حصّةَ `slot_a` يومَ `swap_date_a`: يكتب عمودَ الشعبة، ولا يكتب في غير يومه ولا قبل التنفيذ."""
+    stranger = _staff(school, "teacher", "معلّمٌ بُدِّلت إليه", "29000007001")
+    client = client_as(stranger)
+    assert client.get(reverse("class_grid", args=[assigned.id])).status_code == 404
+    swap = _swap(school, lesson_slot, teacher, stranger, status="approved")
+    assert _save(client, assigned, 1, [_cells(kids[0], "absent")]).status_code == 404
+    swap.status = "executed"
+    swap.save(update_fields=["status"])
+    assert _save(client, assigned, 1, [_cells(kids[0], "absent")]).status_code == 200
+    swap.swap_date_a = SUNDAY + dt.timedelta(days=7)
+    swap.save(update_fields=["swap_date_a"])
+    assert _save(client, assigned, 1, [_cells(kids[1], "absent")]).status_code == 404
+
+
+def test_the_requester_takes_the_payback_slot_on_the_second_date(
+    client_as, school, assigned, teacher, kids, lesson_slot, clock
+):
+    """`teacher_a` يأخذ حصّةَ `slot_b` يومَ `swap_date_b` (وليس يومَ `swap_date_a`)."""
+    away = _staff(school, "teacher", "طالبُ التبديل", "29000007002")
+    _swap(school, lesson_slot, away, teacher, swap_date_a=SUNDAY - dt.timedelta(days=1))
+    client = client_as(away)
+    assert _save(client, assigned, 1, [_cells(kids[0], "absent")]).status_code == 200
+
+
+def test_an_approved_or_completed_compensatory_session_covers_only_its_date(
+    client_as, school, assigned, teacher, kids, subject, clock
+):
+    from operations.models import CompensatorySession, ScheduleSlot, TeacherAbsence
+
+    owner = _staff(school, "teacher", "صاحبُ التعويض", "29000007003")
+    slot = ScheduleSlot.objects.create(
+        school=school,
+        teacher=owner,
+        class_group=assigned,
+        subject=subject,
+        day_of_week=0,
+        period_number=2,
+        start_time=dt.time(8, 0),
+        end_time=dt.time(8, 45),
+        academic_year=str(assigned.academic_year),
+    )
+    absence = TeacherAbsence.objects.create(school=school, teacher=owner, date=SUNDAY)
+    session = CompensatorySession.objects.create(
+        school=school,
+        teacher=owner,
+        original_slot=slot,
+        absence=absence,
+        compensatory_date=SUNDAY,
+        compensatory_period=2,
+        class_group=assigned,
+        subject=subject,
+        status="pending",
+    )
+    client = client_as(owner)
+    for refused in ("colleague", "pending", "cancelled", "expired"):
+        session.status = refused
+        session.save(update_fields=["status"])
+        assert client.get(reverse("class_grid", args=[assigned.id])).status_code == 404, refused
+    for allowed in ("approved", "completed"):
+        session.status = allowed
+        session.save(update_fields=["status"])
+        assert client.get(reverse("class_grid", args=[assigned.id])).status_code == 200, allowed
+    session.compensatory_date = SUNDAY + dt.timedelta(days=7)
+    session.save(update_fields=["compensatory_date"])
+    assert client.get(reverse("class_grid", args=[assigned.id])).status_code == 404
+
+
+def test_a_substitute_still_covers_and_the_other_roles_are_unchanged(
+    client_as, school, assigned, teacher, other_teacher, holder, kids, lesson_slot, clock
+):
+    from operations.models import SubstituteAssignment, TeacherAbsence
+
+    absence = TeacherAbsence.objects.create(school=school, teacher=teacher, date=SUNDAY)
+    SubstituteAssignment.objects.create(
+        school=school,
+        absence=absence,
+        slot=lesson_slot,
+        substitute=other_teacher,
+        status="assigned",
+    )
+    assert (
+        _save(client_as(other_teacher), assigned, 1, [_cells(kids[0], "absent")]).status_code == 200
+    )
+    # الدور الأصليّ باقٍ (D-238م: كلُّ معلّمي الإسناد يكتبون كلَّ الأعمدة)
+    assert _save(client_as(teacher), assigned, 1, [_cells(kids[1], "absent")]).status_code == 200
+    assert can_correct_grid(holder, assigned, SUNDAY, now=at(15, 0))
+    assert not can_correct_grid(other_teacher, assigned, SUNDAY, now=at(15, 0))
+
+
+def test_the_coverage_lookup_adds_a_flat_number_of_queries(
+    school, assigned, teacher, lesson_slot, clock
+):
+    from operations.attendance_policy import is_covering_class
+
+    stranger = _staff(school, "teacher", "غريب", "29000007004")
+    with CaptureQueriesContext(connection) as queries:
+        assert not is_covering_class(stranger, assigned, SUNDAY)
+    assert len(queries) <= 3
+
+
+# ── تمييز الحصّة الفعّالة والتالية في الفسحة (W-20261010-055) ────────────────────
+
+
+def test_the_running_column_is_marked_and_no_column_is_next(assigned, teacher, kids, clock):
+    clock(7, 30)  # داخل ح1 (07:10)
+
+    page = grid.page(teacher, assigned.school, assigned.id, now=at(7, 30))
+
+    assert page.current is not None and page.current.number == 1
+    assert not any(c.is_next for c in page.columns)
+
+
+def test_in_the_break_the_next_column_is_marked(assigned, teacher, kids, clock):
+    page = grid.page(teacher, assigned.school, assigned.id, now=at(10, 0))  # بعد ح2 وقبل ح3 12:45
+
+    assert page.current is None
+    assert [c.number for c in page.columns if c.is_next] == [3]
+
+
+def test_the_page_shows_the_badge_and_the_green_frame_hook(
+    client_as, assigned, teacher, kids, clock
+):
+    clock(7, 30)
+
+    body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
+
+    assert "الحصة الحالية" in body and 'aria-current="true"' in body
+
+
+def test_the_mobile_tab_of_the_live_column_has_a_dot_and_a_reader_text(
+    client_as, assigned, teacher, kids, clock
+):
+    clock(7, 30)
+
+    body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
+    tab = body.split('data-tab="1"', 1)[1].split("</button>", 1)[0]
+
+    assert "cg-tab__dot" in tab and "الحصة الحالية" in tab
+    assert "cg-tab__dot" not in body.split('data-tab="2"', 1)[1].split("</button>", 1)[0]
+    assert "cg-col__badge--short" in body
+
+
+def test_the_next_tab_in_the_break_is_marked_too(client_as, assigned, teacher, kids, clock):
+    clock(10, 0)
+
+    body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
+    tab = body.split('data-tab="3"', 1)[1].split("</button>", 1)[0]
+
+    assert "cg-tab__dot" in tab and "التالية" in tab
+
+
+# ── دائرةُ الخروج على خليّة الحصّة (W-20261010-041) ────────────────────────────────────
+
+
+def _out(session, student, destination, offset, minutes):
+    from operations.models import ClassExit
+
+    left = timezone.make_aware(
+        dt.datetime.combine(session.date, session.start_time)
+    ) + dt.timedelta(minutes=offset)
+    return ClassExit.objects.create(
+        school=session.school,
+        session=session,
+        student=student,
+        destination=destination,
+        left_at=left,
+        returned_at=left + dt.timedelta(minutes=minutes),
+    )
+
+
+def test_the_exit_circle_sits_on_each_period_cell_the_student_left(
+    client_as, assigned, teacher, kids, clock
+):
+    body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
+    assert "data-exit-tip" not in body  # لا خروجَ ⇒ لا دائرة
+    _save(client_as(teacher), assigned, 1, [_cells(kids[0], "present")])
+    first = Session.objects.get(class_group=assigned, period_number=1)
+    _out(first, kids[0], "restroom", 12, 5)
+    _out(first, kids[0], "clinic", 30, 10)
+    body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
+    assert body.count("data-exit-tip") == 1
+    assert 'aria-label="خرج 2 مرّة في هذه الحصّة"' in body
+    assert "دورة المياه — خرج 07:22 — 5 د" in body and "العيادة (بإذن) — خرج 07:40 — 10 د" in body
+
+
+def test_exit_circles_add_no_per_student_queries(client_as, assigned, teacher, kids, clock):
+    _save(client_as(teacher), assigned, 1, [_cells(k, "present") for k in kids])
+    first = Session.objects.get(class_group=assigned, period_number=1)
+
+    def measure():
+        with CaptureQueriesContext(connection) as queries:
+            client_as(teacher).get(reverse("class_grid", args=[assigned.id]))
+        return len(queries)
+
+    measure()
+    before = measure()
+    for kid in kids:
+        _out(first, kid, "restroom", 5, 3)
+    # استعلامُ خروج الحصص الجديدُ يُحسب مرّةً منذ المقياس الأوّل (حتى بلا خروج) فلا يزيد بعدد الطلبة.
+    assert measure() == before

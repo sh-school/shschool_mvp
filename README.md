@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="static/brand/emblem.svg" alt="شعار دولة قطر" width="88" />
-</p>
-
 <h1 align="center">🏫 SchoolOS v5.1 — منصة الشحانية الذكية</h1>
 
 <p align="center">

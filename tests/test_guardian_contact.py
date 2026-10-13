@@ -98,21 +98,6 @@ class TestTheRegisterFlagsWhoWasNotNotified:
 
         assert awaiting_contact(klass, MONDAY) == {}
 
-    def test_the_sheet_shows_the_flag_linking_to_the_students_page(
-        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
-    ):
-        _absent_sunday(school, klass, kids[0], teacher, supervisor)
-        _periods(school, klass, teacher, 7, day=MONDAY)
-
-        body = (
-            client_as(supervisor)
-            .get(reverse("wings:record_section", args=[klass.id]) + f"?date={MONDAY.isoformat()}")
-            .content.decode()
-        )
-
-        assert body.count("لم يُخطَر وليُّ الأمر") == 1
-        assert reverse("wings:student_events", args=[klass.id, kids[0].id]) in body
-
 
 class TestTheCallDoesNotMoveTheDeadline:
     def test_the_deadline_runs_from_the_return_whatever_the_call(

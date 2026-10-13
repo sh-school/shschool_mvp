@@ -136,7 +136,9 @@ def test_line_clamps_are_the_known_previews():
 
 
 def _input_tags(text: str):
-    return re.findall(r"<input\b[^>]*>", text, re.S)
+    # الحقلُ إمّا `<input>` مكتوبٌ باليد أو وسمُ `{% field %}` المركزيّ الذي يُولّده بالسمات نفسِها
+    # (type وautocomplete وmaxlength وinputmode) — فيُفحص الاثنان بالقواعد ذاتها.
+    return re.findall(r"<input\b[^>]*>|\{%\s*field\b.*?%\}", text, re.S)
 
 
 def test_every_password_field_can_be_filled_by_a_password_manager():

@@ -1,4 +1,4 @@
-"""طابورُ مزامنة الخارطة: الطلباتُ المدموجةُ التي لم يُذكر رقمُها في أيِّ بندٍ (MAE-11) — قراءةٌ فقط، لا يكتب شيئاً.
+"""طابورُ مزامنة الخارطة: الطلباتُ المدموجةُ التي لم يرد رقمُها في حقل `pr` لأيِّ بندٍ (MAE-11، W-20260929-010) — قراءةٌ فقط، لا يكتب شيئاً.
 
     python manage.py roadmap_unsynced
 
@@ -30,12 +30,14 @@ class Command(BaseCommand):
         raw = merged.get("prs")
         prs: list[list[float]] = raw if isinstance(raw, list) else []
         missing = sync.unsynced(prs, sync.synced_numbers())
+        mentioned = sync.mentioned_numbers()
         moment = self.now()
         if not missing:
-            self.stdout.write("كلُّ المدموج مذكورٌ في الخارطة.")
+            self.stdout.write("كلُّ المدموج مُزامَنٌ في حقل الطلب.")
             return
-        self.stdout.write(f"{len(missing)} طلباً دُمج ولم يُذكر في الخارطة (من آخر {len(prs)}):")
+        self.stdout.write(f"{len(missing)} طلباً دُمج ولم يرد في حقل الطلب (من آخر {len(prs)}):")
         for number, merged_at in missing:
             hours = (moment - merged_at) / 3600
             mark = "متأخّر" if hours > sync.GRACE_HOURS else "ضمن المهلة"
-            self.stdout.write(f"  #{number} — قبل {hours:.0f} س ({mark})")
+            note = " — مذكورٌ في ملاحظةٍ فقط" if number in mentioned else ""
+            self.stdout.write(f"  #{number} — قبل {hours:.0f} س ({mark}){note}")
