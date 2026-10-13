@@ -87,7 +87,7 @@ class SolverConfig:
 
 
 def options_from_relaxations(spec: dict[str, Any] | None) -> dict[str, Any]:
-    """يحوّل ملفَّ `--relaxations` إلى حقول `ModelOptions`: touch_relaxed وrun_cap وfirst_cap_override وno_6_7 والثلاثيات.
+    """يحوّل ملفَّ `--relaxations` إلى حقول `ModelOptions`: touch_relaxed وrun_cap وfirst_cap_override وrun_cap_override وno_6_7 والثلاثيات.
 
     الشكل: {"touch_relaxed": ["T..."], "run_cap": 2, "first_cap_override": {"T...": 4}, "no_6_7": true,
     "triples_by_number": true, "touch_relaxed_all": true}. مفتاحٌ مجهولٌ يُرفض (لا تخفيفَ صامت).
@@ -102,6 +102,8 @@ def options_from_relaxations(spec: dict[str, Any] | None) -> dict[str, Any]:
         out["touch_relaxed_all"] = bool(spec.pop("touch_relaxed_all"))
     if "first_cap_override" in spec:
         out["first_cap_override"] = tuple(sorted(dict(spec.pop("first_cap_override")).items()))
+    if "run_cap_override" in spec:
+        out["run_cap_override"] = tuple(sorted(dict(spec.pop("run_cap_override")).items()))
     for flag in ("no_6_7", "triples_by_number"):
         if flag in spec:
             out[flag] = bool(spec.pop(flag))
@@ -148,6 +150,34 @@ def with_admin_first_caps(config: SolverConfig, school: Any, academic_year: str)
     for teacher, cap in stored.items():
         merged[teacher] = max(cap, merged.get(teacher, 0))
     spec["first_cap_override"] = merged
+    return replace(config, relaxations=tuple(sorted(spec.items(), key=lambda kv: kv[0])))
+
+
+def personal_run_caps(school: Any, academic_year: str) -> dict[str, int]:
+    """سقوفُ التتابع الشخصيّةُ ({معلّم ← أقصى حصصٍ متتالية}) كما يقرؤها المُقيِّمُ من `TeacherPreference.max_consecutive`.
+
+    ما فوق 1 وحدَه: الواحدُ هو السقفُ العامّ نفسُه (`MAX_CONSECUTIVE`)، فلا يُضاف إلى النموذج شيء.
+    """
+    from operations.models import TeacherPreference
+
+    rows = TeacherPreference.objects.filter(
+        school=school, academic_year=academic_year, max_consecutive__gt=1
+    ).values_list("teacher_id", "max_consecutive")
+    return {str(teacher): cap for teacher, cap in rows}
+
+
+def with_personal_run_caps(config: SolverConfig, school: Any, academic_year: str) -> SolverConfig:
+    """يضمّ سقوفَ التتابع الشخصيّةَ إلى `run_cap_override` ليقرأها الحلّالُ كما يقرؤها المُقيِّمُ؛ والأعلى يغلب ملفَّ التخفيف."""
+    from dataclasses import replace
+
+    stored = personal_run_caps(school, academic_year)
+    if not stored:
+        return config
+    spec = dict(config.relaxations)
+    merged = dict(spec.get("run_cap_override") or {})
+    for teacher, cap in stored.items():
+        merged[teacher] = max(cap, merged.get(teacher, 0))
+    spec["run_cap_override"] = merged
     return replace(config, relaxations=tuple(sorted(spec.items(), key=lambda kv: kv[0])))
 
 
@@ -772,7 +802,11 @@ def run(
 ) -> tuple[RunResult, CpSatInputs]:
     """حلٌّ + تقييمٌ مستقلّ بلا كتابة. يميّز INFEASIBLE (برهان) عن UNKNOWN/المهلة وعن رفض المُقيِّم."""
     inputs = inputs if inputs is not None else load_inputs(school, academic_year)
-    config = with_admin_first_caps(with_school_policy(config, school), school, academic_year)
+    config = with_personal_run_caps(
+        with_admin_first_caps(with_school_policy(config, school), school, academic_year),
+        school,
+        academic_year,
+    )
     note = _rule_note(config)
     with school_solve_lock(school.pk):
         report = solve_inputs(
