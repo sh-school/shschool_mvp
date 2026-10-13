@@ -136,6 +136,7 @@ from .services import (
     PERIOD_CHOICES,
     BehaviorPermissions,
     BehaviorService,
+    audit_infraction_read,
 )
 
 # [B4-PRE3] المساعدُ المؤجَّل — انتقل إلى `behavior/notify.py` ليستدعيه كشفُ الحصص
@@ -575,6 +576,7 @@ def student_behavior_profile(request, student_id):
     context["can_summon"] = BehaviorPermissions.can_summon(request.user)
     # نماذجُ الإنذار والتعهّد لإدارة المخالفات — رابطٌ لا يُفتح لصاحبه لا يُعرض له.
     context["can_print_forms"] = has_capability(request.user, "behavior.manage")
+    audit_infraction_read(request, context["infractions"])
     return render(request, "behavior/student_profile.html", context)
 
 
@@ -616,6 +618,7 @@ def committee_decision(request, infraction_id):
         getattr(messages, level)(request, msg)
         return redirect("behavior:committee")
 
+    audit_infraction_read(request, infraction)
     return render(
         request,
         "behavior/committee_decision.html",
@@ -678,6 +681,7 @@ def behavior_report(request, student_id):
             warn_or_frozen(request, "لا يوجد بريد إلكتروني مسجَّل لأولياء الأمور.")
         return _behavior_report_redirect(request, student.id, year, period)
 
+    audit_infraction_read(request, report["infractions"])
     return render(
         request,
         "behavior/behavior_report.html",
@@ -864,6 +868,7 @@ def infraction_warning_pdf(request, infraction_id):
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.school)
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
+    audit_infraction_read(request, inf)
     return _render_behavior_pdf(
         request,
         "behavior/pdf/student_warning.html",
@@ -881,6 +886,7 @@ def infraction_parent_pdf(request, infraction_id):
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.school)
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
+    audit_infraction_read(request, inf)
     return _render_behavior_pdf(
         request,
         "behavior/pdf/parent_undertaking.html",
@@ -898,6 +904,7 @@ def infraction_student_pdf(request, infraction_id):
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.school)
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
+    audit_infraction_read(request, inf)
     return _render_behavior_pdf(
         request,
         "behavior/pdf/student_undertaking.html",
@@ -1113,6 +1120,7 @@ def student_behavior_pdf(request, student_id):
     }
     # [PII-08] لا نضع الرقم الشخصي في اسم الملف (يظهر في سجل التنزيلات والوكيل)
     filename = f"behavior_report_{student.id}_{year}.pdf"
+    audit_infraction_read(request, report["infractions"])
     return _render_behavior_pdf(
         request,
         "behavior/pdf/student_report.html",

@@ -116,6 +116,43 @@ class BehaviorPermissions:
         )
 
 
+#: نافذةُ تدقيق القراءة: حدثٌ واحد لكل (مستخدم، مخالفة) في هذه المدّة، فلا يتضخّم السجلّ بالتحديث المتكرّر.
+READ_AUDIT_WINDOW = timezone.timedelta(minutes=10)
+
+
+def audit_infraction_read(request, infractions) -> None:
+    """يسجّل في AuditLog قراءةَ النصّ الكامل لمخالفةٍ أو أكثر (W-20261012-033، PDPPL).
+
+    للعروض التي تُظهر الوصفَ والإجراءَ كاملَين (القضيّة، ملفّ الطالب، التقرير، نماذج PDF) لا للقوائم. والسجلُّ
+    معرّفٌ مقنَّع فقط: لا نصَّ مخالفةٍ ولا اسمَ طالب. واستعلامٌ واحدٌ يجلب ما سُجّل حديثاً ثم يُكتب الباقي.
+    """
+    from core.models import AuditLog
+
+    items = [infractions] if isinstance(infractions, BehaviorInfraction) else list(infractions)
+    if not items or not request.user.is_authenticated:
+        return
+    recent = set(
+        AuditLog.objects.filter(
+            user=request.user,
+            action="view",
+            model_name="BehaviorInfraction",
+            object_id__in=[str(i.pk) for i in items],
+            timestamp__gte=timezone.now() - READ_AUDIT_WINDOW,
+        ).values_list("object_id", flat=True)
+    )
+    for inf in items:
+        if str(inf.pk) not in recent:
+            AuditLog.log(
+                user=request.user,
+                action="view",
+                model_name="BehaviorInfraction",
+                object_id=inf.pk,
+                object_repr="مخالفة سلوكية — قراءة النص الكامل",
+                school=inf.school,
+                request=request,
+            )
+
+
 class BehaviorService:
     # ── التقييم السلوكي للطالب (نظام النقاط ملغى — يعتمد على عدد المخالفات) ──
     @staticmethod
