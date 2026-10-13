@@ -30,9 +30,11 @@ KIND = "operations.absence_followup_contact_sheet"
 def _groups(rows: list[dict]) -> list[dict]:
     """الصفوفُ مجموعةً بالصفّ بترتيب الاسم، وكلُّ سطرٍ بما يُطبع وحدَه."""
     by_class: dict[str, list[dict]] = {}
+    grade_of: dict[str, str] = {}
     for row in rows:
         group = row.get("class_group")
         title = str(group) if group else "بلا صفّ"
+        grade_of.setdefault(title, getattr(group, "grade", "") or "")
         action = row.get("action")
         by_class.setdefault(title, []).append(
             {
@@ -51,6 +53,7 @@ def _groups(rows: list[dict]) -> list[dict]:
         out.append(
             {
                 "title": title,
+                "grade": grade_of.get(title, ""),
                 "rows": items,
                 "leave_count": sum(1 for r in items if r["sick_leave"]),
             }

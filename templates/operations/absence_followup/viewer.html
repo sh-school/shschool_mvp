@@ -30,7 +30,7 @@
         </thead>
         <tbody>
           {% for row in rows %}
-          <tr>
+          <tr class="grade-tint grade-{{ row.class_group.grade|lower }}">
             <td class="num fu-seq">{{ forloop.counter }}</td>
             <td class="fu-name">{{ row.student.full_name }}</td>
             <td class="fu-fit">{{ row.class_group.short_label }}</td>

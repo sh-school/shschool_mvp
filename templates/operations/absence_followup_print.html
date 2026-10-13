@@ -16,7 +16,8 @@
 .fu-grid { width: 100%; border-collapse: collapse; font-size: 9pt; table-layout: fixed; }
 .fu-grid th { background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; padding: 4px 3px; border: 1px solid {% brand_color "MAROON" %}; }
 .fu-grid td { padding: 3px 4px; border: 1px solid {% brand_color "BORDER_STRONG" %}; color: {% brand_color "TEXT_PRIMARY" %}; }
-.fu-grid tbody tr:nth-child(even) td { background: {% brand_color "SURFACE_ALT" %}; }
+.fu-grid tbody tr:nth-child(even):not([class*="g-"]) td { background: {% brand_color "SURFACE_ALT" %}; }
+{% grade_row_css ".fu-grid tbody" %}
 .fu-grid .fu-c-no { width: 9mm; }
 .fu-grid .fu-c-name { width: 64mm; }
 .fu-grid .fu-c-class { width: 16mm; }
@@ -45,7 +46,7 @@
     </thead>
     <tbody>
       {% for row in rows %}
-      <tr>
+      <tr class="g-{{ row.class_group.grade|lower }}">
         <td>{{ forloop.counter }}</td>
         <td>{{ row.student.full_name }}</td>
         <td>{{ row.class_group.short_label }}</td>

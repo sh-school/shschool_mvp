@@ -2356,13 +2356,13 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
 
 /* تمييزُ الصفّ الدراسيّ بلونٍ في جداول الغياب (الملخّص الوزاريّ): تظليلٌ خفيفٌ وشريطٌ جانبيّ، لكلّ صفٍّ من السابع إلى الثاني عشر لونُه. */
 .grade-tint > td:first-child { border-inline-start: 4px solid var(--grade-hue, var(--border)); }
-.grade-tint > td { background: color-mix(in srgb, var(--grade-hue, var(--surface)) 11%, var(--surface)); }
-.grade-g7 { --grade-hue: var(--maroon); }
-.grade-g8 { --grade-hue: var(--gold); }
-.grade-g9 { --grade-hue: var(--skyline); }
-.grade-g10 { --grade-hue: var(--palm); }
-.grade-g11 { --grade-hue: var(--sea); }
-.grade-g12 { --grade-hue: var(--status-warning); }
+.grade-tint > td { background: color-mix(in srgb, var(--grade-hue, var(--surface)) 20%, var(--surface)); }
+.grade-g7 { --grade-hue: var(--grade-7); }
+.grade-g8 { --grade-hue: var(--grade-8); }
+.grade-g9 { --grade-hue: var(--grade-9); }
+.grade-g10 { --grade-hue: var(--grade-10); }
+.grade-g11 { --grade-hue: var(--grade-11); }
+.grade-g12 { --grade-hue: var(--grade-12); }
 
 /* أعمدةُ جداول متابعة الغياب: التسلسلُ بقدر رقمَين، والشعبةُ والهاتفُ والوقتُ بقدر محتواها، والاسمُ يأخذ الباقي فلا ينكسر سطرين. */
 .fu-seq { inline-size: 3rem; width: 3rem; text-align: center; }

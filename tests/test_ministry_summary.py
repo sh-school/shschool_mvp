@@ -274,3 +274,14 @@ def test_ministered_order_is_numeric_from_7_1_to_12_4():
         "10/1",
         "12/4",
     ]
+
+
+def test_every_grade_has_its_own_distinct_hue_and_a_light_tint():
+    """لكلّ صفٍّ من السابع إلى الثاني عشر لونٌ يخصّه يتباين عن جاره، وتظليلُه فاتحٌ للطباعة وإكسل."""
+    from core import brand
+
+    assert list(brand.GRADE_HUES) == ["G7", "G8", "G9", "G10", "G11", "G12"]
+    assert len(set(brand.GRADE_HUES.values())) == 6
+    tint = brand.grade_tint("G7")
+    assert tint.startswith("#") and tint != brand.GRADE_HUES["G7"]
+    assert brand.grade_tint("") == "#ffffff"
