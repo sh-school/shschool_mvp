@@ -41,7 +41,7 @@ TABLE_COLUMNS = {
 
 @pytest.fixture
 def deputy(school):
-    return _staff(school, "vice_academic", "النائب الأكاديميّ", "29000024001")
+    return _staff(school, "vice_academic", "النائب الأكاديميّ", "29000000211")
 
 
 # ── لا يرصد ولا يعتمد ──
@@ -114,9 +114,9 @@ def test_the_threshold_alert_reaches_the_deputy_and_the_social_worker_only(
 ):
     from notifications.models import InAppNotification
 
-    worker = _staff(school, "social_worker", "الأخصائيّ", "29000024002")
-    _staff(school, "vice_admin", "النائب الإداريّ", "29000024003")
-    _staff(school, "admin_supervisor", "المشرف", "29000024004")
+    worker = _staff(school, "social_worker", "الأخصائيّ", "29000000221")
+    _staff(school, "vice_admin", "النائب الإداريّ", "29000000231")
+    _staff(school, "admin_supervisor", "المشرف", "29000000241")
     start, _ = year_window
     _absent(school, class_group, teacher_user, subject, student, start, 3)
 
@@ -150,7 +150,7 @@ def test_each_recipient_gets_one_notice_per_gate(
     "role", ["student_affairs_coordinator", "vice_admin", "principal", "admin_supervisor"]
 )
 def test_the_other_recorders_keep_recording(school, role):
-    user = _staff(school, role, role, "29000024010")
+    user = _staff(school, role, role, "29000000250")
     assert has_capability(user, "wings.record_day")
     assert is_recorder(user) is True
 
