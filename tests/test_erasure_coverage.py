@@ -205,6 +205,14 @@ def test_followup_logs_are_anonymised_not_deleted(db, school, student_user, teac
     assert actions[0].status == "done"
     assert all(c.student_id is None and c.feedback == "" for c in contacts)
     assert actions[0].student_id is None and actions[0].note == "" and actions[0].excuse_id is None
+    # لا موظّفَ يعيد تعريفَ الصفّ، ولا سلسلةَ تصحيحٍ تربط صفوفَ الطالب، والوقتُ يومٌ لا ثانية
+    assert all(c.contacted_by_id is None and c.corrects_id is None for c in contacts)
+    assert actions[0].acted_by_id is None and actions[0].corrects_id is None
+    # يُقصّ إلى اليوم (منتصفَ ليل UTC): لا دقيقةَ ولا ثانيةَ تدلّ على لحظة الكتابة
+    import datetime as dt
+
+    stamps = [c.contacted_at for c in contacts] + [actions[0].acted_at]
+    assert all(t.astimezone(dt.UTC).time() == dt.time(0, 0) for t in stamps), stamps
 
 
 def test_followup_erasure_audits_counts_only(db, school, student_user, teacher_user):
