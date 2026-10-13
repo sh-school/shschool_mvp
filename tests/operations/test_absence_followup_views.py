@@ -145,8 +145,8 @@ class TestFrameable:
 class TestSerialColumn:
     def test_each_table_starts_with_a_serial_number_column(self, client_as, staff, absent_both):
         body = _get(client_as, staff["principal"]).content.decode()
-        assert body.count('<th scope="col" class="num">#</th>') == 2
-        assert body.count('<td class="num">1</td>') >= 2
+        assert body.count('<th scope="col" class="num fu-seq">#</th>') == 2
+        assert body.count('<td class="num fu-seq">1</td>') >= 2
 
 
 class TestTodayAbsenceColumn:
