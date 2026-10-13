@@ -24,6 +24,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.formats import date_format
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from core.audit_export import log_export
@@ -261,6 +262,8 @@ def action_save(request: HttpRequest) -> HttpResponse:
     return _back(request, day)
 
 
+# `X_FRAME_OPTIONS = "DENY"` عامٌّ على المشروع فيحجب المعاينةَ داخل إطار صفحة المنصّة؛ والمصدرُ الموقعُ نفسُه فـ sameorigin يكفي.
+@xframe_options_sameorigin
 @login_required
 @capability_required("operations.absence_followup_print")
 def followup_print(request: HttpRequest) -> HttpResponse:

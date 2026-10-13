@@ -124,3 +124,25 @@ class TestPrintInsidePlatform:
             client_as, staff["principal"], "absence_followup_print", embed="1"
         ).content.decode()
         assert "report-viewer__frame" not in bare and "site-nav" not in bare
+
+
+class TestStickyHeader:
+    def test_both_tables_scroll_vertically_under_a_fixed_head(self, client_as, staff, absent_both):
+        body = _get(client_as, staff["principal"]).content.decode()
+        assert body.count("table-wrap table-wrap-scroll") == 2
+
+
+class TestFrameable:
+    def test_the_embedded_sheet_is_not_blocked_from_the_viewer_frame(
+        self, client_as, staff, absent_both
+    ):
+        resp = _get(client_as, staff["principal"], "absence_followup_print", embed="1")
+        assert resp.status_code == 200
+        assert resp["X-Frame-Options"].upper() == "SAMEORIGIN"
+
+
+class TestSerialColumn:
+    def test_each_table_starts_with_a_serial_number_column(self, client_as, staff, absent_both):
+        body = _get(client_as, staff["principal"]).content.decode()
+        assert body.count('<th scope="col" class="num">#</th>') == 2
+        assert body.count('<td class="num">1</td>') >= 2

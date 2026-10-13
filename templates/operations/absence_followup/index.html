@@ -51,11 +51,11 @@
   <div class="ui-grid-2">
   {% section_card "١ — التواصلُ مع أولياء الأمور" meta=rows|length icon="call_parent" %}
     {% if rows %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table data-no-sort>
         <thead>
           <tr>
-            <th scope="col">الطالب</th><th scope="col">الشعبة</th><th scope="col" class="num">حصصُ الغياب</th><th scope="col">هاتفُ وليّ الأمر</th>
+            <th scope="col" class="num">#</th><th scope="col">الطالب</th><th scope="col">الشعبة</th><th scope="col" class="num">حصصُ الغياب</th><th scope="col">هاتفُ وليّ الأمر</th>
             <th scope="col">آخرُ اتّصال</th>{% if can_feedback %}<th scope="col">التغذية الراجعة من وليّ الأمر</th>{% endif %}
             {% if can_record %}<th scope="col">تسجيل</th>{% endif %}
           </tr>
@@ -63,6 +63,7 @@
         <tbody>
           {% for row in rows %}
           <tr>
+            <td class="num">{{ forloop.counter }}</td>
             <td>{{ row.student.full_name }}</td>
             <td>{{ row.class_group.short_label }}</td>
             <td class="num">{{ row.absent_periods }}</td>
@@ -100,17 +101,18 @@
 
   {% section_card "٢ — متابعةُ الإجراءات الإدارية" meta=rows|length icon="checklist" %}
     {% if rows %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table data-no-sort>
         <thead>
           <tr>
-            <th scope="col">الطالب</th><th scope="col">الشعبة</th><th scope="col">الإجراءُ الحاليّ</th><th scope="col">وقتُ التنفيذ</th>
+            <th scope="col" class="num">#</th><th scope="col">الطالب</th><th scope="col">الشعبة</th><th scope="col">الإجراءُ الحاليّ</th><th scope="col">وقتُ التنفيذ</th>
             {% if can_record %}<th scope="col">تسجيل</th>{% endif %}
           </tr>
         </thead>
         <tbody>
           {% for row in rows %}
           <tr>
+            <td class="num">{{ forloop.counter }}</td>
             <td>{{ row.student.full_name }}</td>
             <td>{{ row.class_group.short_label }}</td>
             <td>{% if row.action %}<span class="status-badge {% if row.action.status == 'done' %}status-success{% elif row.action.status == 'sick_leave_received' %}status-info{% else %}status-warning{% endif %}">{{ row.action.get_status_display }}</span>{{ row.action.get_action_kind_display }}{% else %}<span class="ui-note">لا إجراءَ مسجَّل</span>{% endif %}</td>
