@@ -58,7 +58,7 @@
       <table data-no-sort>
         <thead>
           <tr>
-            <th>الصفُّ / الشعبة</th>
+            <th class="fu-name">الصفُّ / الشعبة</th>
             <th class="num">المقيَّدون</th>
             <th class="num">غابوا الحصّتين بلا عذر</th>
             <th class="num">غابوا الحصّتين بعذر</th>
@@ -72,7 +72,7 @@
         {% for grade_row in summary.grades %}
           {% for item in grade_row.rows %}
           <tr class="grade-tint grade-{{ grade_row.key|lower }}">
-            <td>{{ item.group.short_code }}{% if not item.has_periods %} <span class="status-badge status-warning">لا حصّتان</span>{% endif %}</td>
+            <td class="fu-name">{{ item.group.short_code }}{% if not item.has_periods %} <span class="status-badge status-warning">لا حصّتان</span>{% endif %}</td>
             <td class="num">{{ item.counts.enrolled }}</td>
             <td class="num">{% if item.counts.absent_both_unexcused %}<span class="status-badge status-danger">{{ item.counts.absent_both_unexcused }}</span>{% else %}{{ item.counts.absent_both_unexcused }}{% endif %}</td>
             <td class="num">{% if item.counts.absent_both_excused %}<span class="status-badge status-info">{{ item.counts.absent_both_excused }}</span>{% else %}{{ item.counts.absent_both_excused }}{% endif %}</td>
@@ -83,7 +83,7 @@
           </tr>
           {% endfor %}
           <tr class="grade-tint grade-{{ grade_row.key|lower }}">
-            <td><strong>مجموع {{ grade_row.label }}</strong></td>
+            <td class="fu-name"><strong>مجموع {{ grade_row.label }}</strong></td>
             <td class="num"><strong>{{ grade_row.counts.enrolled }}</strong></td>
             <td class="num"><strong>{{ grade_row.counts.absent_both_unexcused }}</strong></td>
             <td class="num"><strong>{{ grade_row.counts.absent_both_excused }}</strong></td>
@@ -94,7 +94,7 @@
           </tr>
         {% endfor %}
           <tr>
-            <td><strong>{% if filtered %}مجموع المعروض{% elif bound %}مجموع جناحك{% else %}مجموع المدرسة{% endif %}</strong></td>
+            <td class="fu-name"><strong>{% if filtered %}مجموع المعروض{% elif bound %}مجموع جناحك{% else %}مجموع المدرسة{% endif %}</strong></td>
             <td class="num"><strong>{{ summary.total.enrolled }}</strong></td>
             <td class="num"><strong>{{ summary.total.absent_both_unexcused }}</strong></td>
             <td class="num"><strong>{{ summary.total.absent_both_excused }}</strong></td>
@@ -114,7 +114,7 @@
         <thead>
           <tr>
             <th class="num">#</th>
-            <th>الطالب</th>
+            <th class="fu-name">الطالب</th>
             <th data-sort="num" data-sort-first="asc">الشعبة</th>
             <th>الحال</th>
           </tr>
@@ -123,7 +123,7 @@
           {% for item in summary.ministered %}
           <tr class="grade-tint grade-{{ item.grade|lower }}">
             <td class="num">{{ forloop.counter }}</td>
-            <td>{{ item.name }}</td>
+            <td class="fu-name">{{ item.name }}</td>
             <td>{{ item.class_code }}</td>
             <td><span class="status-badge {% if item.excused %}status-info{% else %}status-danger{% endif %}">{% if item.excused %}غائب بعذر{% else %}غائب بلا عذر{% endif %}</span></td>
           </tr>
