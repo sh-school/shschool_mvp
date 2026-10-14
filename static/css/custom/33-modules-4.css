@@ -1262,7 +1262,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .beh-quick .ui-field-hint { display: inline; margin: 0; }
 .beh-quick p.ui-field-hint { display: block; margin-block-start: var(--sp-1); }
 .beh-level-pick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); }
-.beh-level-pick__option { cursor: pointer; }
+.beh-level-pick__option { position: relative; cursor: pointer; }
 .beh-level-pick__box {
   min-block-size: 56px;
   display: flex;
