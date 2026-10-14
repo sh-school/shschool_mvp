@@ -2071,6 +2071,20 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
    v5.3 — Sticky Table Headers + Breadcrumbs + Command Palette
    ════════════════════ */
 
+/* ── عمرُ بيانات الصفحة (W-20261012-014) — صفٌّ ثابتُ الارتفاع قرب فتات الخبز فلا يقفز التخطيط ─── */
+.page-fresh {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  min-height: 2.75rem;
+  padding-inline: var(--edge-inline);
+}
+.page-fresh[hidden] { display: none; }
+.page-fresh .btn-xs { min-height: 2.75rem; }
+
 /* ── Breadcrumbs ─── */
 .breadcrumbs {
   display: flex;
