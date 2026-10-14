@@ -563,3 +563,21 @@ def pages_payload(school, get_params) -> dict:
         ),
         "embed": get_params.get("embed") == "1",
     }
+
+
+def teacher_free_slots_grid(school, user, teacher_id) -> tuple[Any, dict[int, list[int]]]:
+    """معلّمٌ مرئيٌّ لهذا المستخدم وشبكةُ حصصه الحرّة (يوم ← أرقام الحصص) — غيرُ المرئيّ 404 (W-20261013-022)."""
+    from .services import FreeSlotService
+
+    teacher = get_object_or_404(
+        CustomUser,
+        pk=teacher_id,
+        memberships__school=school,
+        memberships__is_active=True,
+    )
+    if not may_view_teacher(school, user, teacher.pk):
+        raise Http404
+    grid: dict[int, list[int]] = {d: [] for d in range(5)}
+    for f in FreeSlotService.get_teacher_free_slots(teacher, school):
+        grid[f.day_of_week].append(f.period_number)
+    return teacher, grid

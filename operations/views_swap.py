@@ -19,7 +19,8 @@ from .models import (
     TeacherAbsence,
     TeacherSwap,
 )
-from .schedule_visibility import may_browse_all, may_view_teacher
+from .schedule_selectors import teacher_free_slots_grid
+from .schedule_visibility import may_browse_all
 from .services import AbsenceSwapService, CompensatoryService, FreeSlotService, SwapService
 
 logger = logging.getLogger(__name__)
@@ -523,22 +524,8 @@ def compensatory_approve(request, comp_id):
 @capability_required("schedule.view")
 def teacher_free_slots(request, teacher_id):
     """HTMX partial — الحصص الحرة لمعلم معيّن."""
-    from core.models import CustomUser
-
     school = request.user.get_school()
-    teacher = get_object_or_404(
-        CustomUser,
-        pk=teacher_id,
-        memberships__school=school,
-        memberships__is_active=True,
-    )
-    if not may_view_teacher(school, request.user, teacher.pk):
-        raise Http404
-    free = FreeSlotService.get_teacher_free_slots(teacher, school)
-
-    grid = {d: [] for d in range(5)}
-    for f in free:
-        grid[f.day_of_week].append(f.period_number)
+    teacher, grid = teacher_free_slots_grid(school, request.user, teacher_id)
 
     days = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
     return render(
