@@ -11,9 +11,11 @@ import json
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import render
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.vary import vary_on_cookie
 
 from .services import class_grid as grid
+from .services import class_grid_live as live
 
 
 def _date_or_none(raw):
@@ -53,6 +55,22 @@ def class_grid(request, class_id):
     except grid.GridNotFoundError:
         raise Http404 from None
     return render(request, "teacher/class_grid.html", {"grid_page": context})
+
+
+@login_required
+@require_GET
+@vary_on_cookie
+def class_grid_live(request, class_id):
+    """الاستطلاعُ الحيّ لخلايا الشبكة (W-20261012-015): JSON بلا أسماء؛ غيرُ المخوَّل ← 403 فيتوقّف العميلُ ولا يعيد المحاولة."""
+    try:
+        payload = live.live_payload(
+            request.user, request.school, class_id, on=_date_or_none(request.GET.get("date"))
+        )
+    except grid.GridNotFoundError:
+        return JsonResponse({"error": "forbidden"}, status=403)
+    response = JsonResponse(payload)
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 @login_required
