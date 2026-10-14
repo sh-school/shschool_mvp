@@ -23,7 +23,7 @@ from operations.scheduling_limits import DEFAULT_MAX_DAILY, MAX_SAME_PERIOD
 if TYPE_CHECKING:
     from operations.cpsat_adapter import CpSatInputs, DemandRow
 
-    from .model import BuiltModel
+    from .model import BuiltModel, ModelOptions
 
 DAYS = range(5)
 
@@ -510,7 +510,7 @@ def _band_transition(ctx: _Ctx, cells: list[_Cell], day: int) -> None:
                 ctx.count("HC13")
 
 
-def _teacher_run_rule(opt, t) -> tuple[bool, int, bool]:
+def _teacher_run_rule(opt: ModelOptions, t: str) -> tuple[bool, int, bool]:
     """(مخفَّفٌ؟، أقصى تتابعٍ مسموح، السقفُ شخصيٌّ؟) لمعلّمٍ — 0 = بلا سقف.
 
     السقفُ الشخصيُّ (`run_cap_override`، من `TeacherPreference.max_consecutive`) يقرؤه المُقيِّمُ فيُرخي HC5
@@ -526,7 +526,7 @@ def _teacher_run_rule(opt, t) -> tuple[bool, int, bool]:
     return False, 0, False
 
 
-def _cap_runs(ctx: _Ctx, by_key, occ, cap: int) -> None:
+def _cap_runs(ctx: _Ctx, by_key: dict, occ: dict, cap: int) -> None:
     """بعد تخفيف HC5: تتابعٌ حتى `cap` حصصٍ متلاصقةٍ مسموح، وأكثرُ منه ممنوع (cap=2 ← لا ثلاثٌ متتالية)."""
     gap = ctx.opt.joinable_gap
     keys = sorted(by_key)

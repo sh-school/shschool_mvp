@@ -29,10 +29,9 @@ def test_cap_three_allows_triple_and_forbids_quad():
 
 
 def test_other_teachers_stay_under_hc5():
-    rows = [("C1", "S1", "T1", "", 1), ("C2", "S2", "T2", "", 1)]
-    inp = make(rows)
-    inp2 = make([("C1", "S1", "T2", "", 1), ("C2", "S2", "T2", "", 1)])
-    assert not feasible(inp2, [(0, 0, 1), (1, 0, 2)], run_cap_override=(("T1", 2),))
+    """من لا سقفَ شخصيًّا له يبقى تحت HC5 ولو وُجد سقفٌ لغيره."""
+    inp = make([("C1", "S1", "T2", "", 1), ("C2", "S2", "T2", "", 1)])
+    assert not feasible(inp, [(0, 0, 1), (1, 0, 2)], run_cap_override=(("T1", 2),))
 
 
 def test_personal_cap_is_declared_in_relaxations():
