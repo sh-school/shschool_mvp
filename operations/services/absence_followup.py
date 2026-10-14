@@ -319,6 +319,10 @@ def _class_order(row: dict) -> tuple[int, int, str]:
     )
 
 
+#: `TruncDay` يقبل اسمَ الحقل نصّاً وقتَ التشغيل، وstubs الإصدار المثبَّت تطلب `Expression` — نوعٌ فقط.
+_trunc_day: Any = TruncDay
+
+
 def _anonymise(model: Any, student: CustomUser, **blank: Any) -> list[Any]:
     """يُجهِّل صفوفَ الطالب في `model` ويرجع مفاتيحَها: يُنزَع الربطُ بالطالب وما في `blank` من محتوًى حرٍّ.
 
@@ -361,7 +365,7 @@ def erase_followup_logs(
         feedback="",
         corrects=None,
         contacted_by=None,
-        contacted_at=TruncDay("contacted_at"),
+        contacted_at=_trunc_day("contacted_at"),
     )
     action_ids = _anonymise(
         AbsenceActionLog,
@@ -370,7 +374,7 @@ def erase_followup_logs(
         excuse=None,
         corrects=None,
         acted_by=None,
-        acted_at=TruncDay("acted_at"),
+        acted_at=_trunc_day("acted_at"),
     )
     if (
         AbsenceContactLog.objects.filter(student=student).exists()
