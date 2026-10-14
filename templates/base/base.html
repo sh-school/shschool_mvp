@@ -1,5 +1,6 @@
 {% load privacy brand_tags icons %}
 {% load navigation assets %}
+{% load ux_survey_tags %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -1161,6 +1162,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% endfor %}
 </div>
 {% endif %}
+{% survey_prompt %}
 </div>
 
 

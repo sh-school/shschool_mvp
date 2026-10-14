@@ -1,0 +1,27 @@
+{% extends "base/base.html" %}
+{% load icons ui %}
+{% block title %}مراجعة نصوص الاستبانة{% endblock %}
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/ux-survey/dashboard/" parent_label="نتائج الاستبانة" current="مراجعة النصوص" %}
+{% endblock %}
+{% block content %}
+<div class="exec-dash">
+  {% page_header "مراجعة نصوص الاستبانة" icon="edit_record" %}{% endpage_header %}
+  {% callout "warning" show=True %}يُقبل النصُّ للعرض إن لم يكشف هويةَ كاتبه أو طالبًا أو زميلًا. الصفةُ مجموعةٌ لا اسم. القرارُ يُسجَّل بالعدد دون النص.{% endcallout %}
+  <form method="post">
+    {% csrf_token %}
+    {% for row in rows %}
+    <fieldset>
+      <legend>{% for key, label in groups.items %}{% if key == row.role_group %}{{ label }}{% endif %}{% endfor %}</legend>
+      <p>الأصعب: {{ row.hardest_task }}</p>
+      {% if row.wish %}<p>الأمنية: {{ row.wish }}</p>{% endif %}
+      <label><input type="radio" name="d_{{ row.pk }}" value="1"> يُعرض</label>
+      <label><input type="radio" name="d_{{ row.pk }}" value="2"> يُحجب</label>
+    </fieldset>
+    {% empty %}
+      {% callout "info" %}لا نصوصَ تنتظر المراجعة.{% endcallout %}
+    {% endfor %}
+    {% if rows %}<button type="submit" class="btn-primary">حفظ القرارات</button>{% endif %}
+  </form>
+</div>
+{% endblock %}

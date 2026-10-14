@@ -1,0 +1,61 @@
+{% extends "base/base.html" %}
+{% load icons ui %}
+{% comment %}
+استبانةُ تجربة المستخدم — دقيقتان، مجهولةٌ بالدور: لا يُحفظ معها اسمٌ ولا رقمٌ وظيفيّ ولا وقتٌ دقيق.
+الصفةُ تؤخذ من دورك على الخادم فلا تُسأل عنها.
+{% endcomment %}
+
+{% block title %}استبانة تجربة المستخدم{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/" parent_label="الرئيسية" current="استبانة تجربة المستخدم" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "استبانة تجربة المستخدم" icon="checklist" %}{% endpage_header %}
+
+  <form method="post" novalidate aria-label="استبانة تجربة المستخدم">
+    {% csrf_token %}
+    {% callout "info" show=True %}إجابتُك مجهولةٌ: لا يُحفظ معها اسمُك ولا رقمُك الوظيفيّ ولا وقتٌ دقيق، وتُحذف بعد اثني عشر شهرًا.{% endcallout %}
+    {% if form.errors %}
+      <div class="msg-bar msg-error" role="alert">أكمل الأسئلة المطلوبة قبل الإرسال.</div>
+    {% endif %}
+
+    {% section_card "استخدامك للمنصة" icon="stats" %}
+      <fieldset>
+        <legend>كم مرة تستخدم المنصة أسبوعيًا؟</legend>
+        {% for radio in form.usage_frequency %}<label>{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}
+      </fieldset>
+      <fieldset>
+        <legend>أين تستخدمها غالبًا؟</legend>
+        {% for radio in form.usage_place %}<label>{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}
+      </fieldset>
+      <fieldset>
+        <legend>هل تجد ما تحتاجه في أقل من نصف دقيقة؟</legend>
+        {% for radio in form.find_fast %}<label>{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}
+      </fieldset>
+    {% endsection_card %}
+
+    {% section_card "رأيك (من ١ لا أوافق إطلاقًا إلى ٥ أوافق تمامًا)" icon="edit_record" %}
+      {% for name, label in sus_labels.items %}
+      <fieldset>
+        <legend>{{ label }}</legend>
+        {% for field in form %}{% if field.name == name %}{% for radio in field %}<label>{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}{% endif %}{% endfor %}
+      </fieldset>
+      {% endfor %}
+    {% endsection_card %}
+
+    {% section_card "بكلماتك" icon="messages" %}
+      <label for="{{ form.hardest_task.id_for_label }}">ما المهمة الأصعب عليك الآن؟ (حتى ٢٠٠ حرف)</label>
+      {{ form.hardest_task }}
+      <label for="{{ form.wish.id_for_label }}">أي شيء تتمنى أن يتغير أولًا؟ (اختياري، حتى ٢٠٠ حرف)</label>
+      {{ form.wish }}
+      {% callout "warning" %}لا تكتب أسماءً ولا أرقامًا شخصيةً لطلبة أو زملاء. يُراجع النصَّ إنسانٌ قبل أن يراه أحد.{% endcallout %}
+    {% endsection_card %}
+
+    <button type="submit" class="btn-primary">إرسال الإجابة</button>
+    <a href="{% url 'dashboard' %}" class="btn-secondary">ليس الآن</a>
+  </form>
+</div>
+{% endblock %}

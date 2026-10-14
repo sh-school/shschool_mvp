@@ -386,6 +386,19 @@ def registry() -> dict[str, Capability]:
             {"principal", "vice_admin", "vice_academic", "admin", "platform_developer"},
         ),
         # ── الإشعارات والتحليلات ────────────────────────────────────
+        # ── استبانة تجربة المستخدم (W-20261015-002): الموظفون يجيبون، والمدير والمطوّر المالك يرون التجميع ──
+        _cap(
+            "ux_survey.respond",
+            "الإجابةُ على استبانة تجربة المستخدم (الموظفون فقط)",
+            P.ALL_STAFF_ROLES - {"platform_developer"},
+            basis="قرارُ المالك 2026-10-15 — استبانةٌ مجهولةٌ للموظفين",
+        ),
+        _cap(
+            "ux_survey.dashboard",
+            "لوحةُ تجميع الاستبانة (المدير والمطوّر المالك)",
+            {"principal", "platform_developer"},
+            basis="قرارُ المالك 2026-10-15 — اللوحةُ للإدارة بحجب المجموعات الصغيرة",
+        ),
         _cap("notifications.broadcast", "إدارةُ الإشعارات والإرسالُ الجماعيّ", leadership),
         _cap("analytics.school", "تحليلاتُ المدرسة", leadership),
         # ── التقييم والدرجات ────────────────────────────────────────

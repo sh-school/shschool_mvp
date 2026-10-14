@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "academic_management.apps.AcademicManagementConfig",
     # ✅ SPRINT-DF-001: أرسل إلى المطوّر (Developer Feedback) — PRD-SOS-DEV-FEEDBACK-v1.0
     "developer_feedback.apps.DeveloperFeedbackConfig",
+    "ux_survey.apps.UxSurveyConfig",
     # ✅ مركز معلومات الطلبة — ملفّ الطالب الجامع وملاحظات الجهات الخمس
     "student_info.apps.StudentInfoConfig",
     "wings.apps.WingsConfig",

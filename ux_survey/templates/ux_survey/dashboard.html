@@ -1,0 +1,42 @@
+{% extends "base/base.html" %}
+{% load icons ui %}
+{% block title %}نتائج استبانة تجربة المستخدم{% endblock %}
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/" parent_label="الرئيسية" current="نتائج الاستبانة" %}
+{% endblock %}
+{% block content %}
+<div class="exec-dash">
+  {% page_header "نتائج استبانة تجربة المستخدم" icon="stats" %}
+    {% if is_owner %}<a href="{% url 'ux_survey:review' %}" class="btn-secondary btn-sm">مراجعة النصوص{% if pending %} ({{ pending }}){% endif %}</a>{% endif %}
+  {% endpage_header %}
+  {% if not wave %}
+    {% callout "info" show=True %}لا موجةَ مفتوحةً الآن.{% endcallout %}
+  {% else %}
+    {% callout "info" show=True %}مجموعةٌ دون {{ min_group }} ردودٍ تُحجب، ويُحجب معها أصغرُ المعروض إن حُجبت مجموعةٌ واحدةٌ فقط، فلا يُستنتج المحجوب بالطرح.{% endcallout %}
+    {% if result.total %}<p>عدد الردود الكلي: {{ result.total }}</p>{% endif %}
+    {% if result.hidden %}<p>مجموعاتٌ محجوبةٌ: {{ result.hidden }}</p>{% endif %}
+    {% for group in result.groups %}
+      {% section_card group.label icon="stats" %}
+        <p>عدد الردود: {{ group.n }}</p>
+        <table>
+          <thead><tr><th scope="col">البند</th><th scope="col">المتوسط (من ٥)</th></tr></thead>
+          <tbody>
+            {% for key, label in labels.items %}
+            <tr><td>{{ label }}</td><td>{% for k, v in group.sus.items %}{% if k == key %}{{ v }}{% endif %}{% endfor %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endsection_card %}
+    {% empty %}
+      {% callout "info" show=True %}لا مجموعةَ بلغت حدَّ العرض بعد.{% endcallout %}
+    {% endfor %}
+    {% if is_owner and texts %}
+      {% for label, items in texts.items %}
+        {% section_card label icon="messages" %}
+          <ul>{% for item in items %}<li>{{ item.hardest }}{% if item.wish %} — {{ item.wish }}{% endif %}</li>{% endfor %}</ul>
+        {% endsection_card %}
+      {% endfor %}
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}
