@@ -563,20 +563,59 @@ def _touch_pair(ctx: _Ctx, ca: list[_Cell], cb: list[_Cell], oa, ob, hc5: bool) 
 
 
 def _max_gap(ctx: _Ctx, t: str, day: int, by_key, occ, max_gap: int) -> None:
-    """HC10: الفجواتُ بين أوّل حصّةٍ وآخرِها في اليوم ≤ سقفِ المعلّم (تُعدّ بالفواصل الزمنيّة)."""
-    m = ctx.m
-    keys = sorted(by_key)
-    n = len(keys)
-    if n <= max_gap + 1:
+    """HC10: أوسعُ فراغٍ مفردٍ بين حصّتين مشغولتين في اليوم ≤ سقفِ المعلّم (تُعدّ بالفواصل الزمنيّة).
+
+    والفراغُ يُعدّ داخل نطاق جرسٍ واحد (W-20261012-022): فجوةٌ بين حصّةٍ في نطاقٍ وحصّةٍ في نطاقٍ آخر ليست
+    فراغاً، وإلّا دخلت فواصلُ النطاق الآخر في العدّ فحُسبت فجواتٌ وهميّةٌ لمن يدرّس في أكثر من نطاق.
+    ومعلّمُ نطاقٍ واحدٍ يمرّ بالمسار القديم نفسِه حرفاً بحرف.
+    """
+
+    def band(c: _Cell) -> str:
+        return ctx.inp.class_band.get(ctx.rows[c.i].cls, "")
+
+    bands = sorted({band(c) for cs in by_key.values() for c in cs})
+    if len(bands) <= 1:
+        _gap_within(ctx, sorted(by_key), occ, max_gap)
         return
-    f = m.NewIntVar(0, n, "")
-    l = m.NewIntVar(0, n, "")
-    any_occ = m.NewBoolVar("")
-    m.AddMaxEquality(any_occ, list(occ.values()))
-    for idx, k in enumerate(keys):
-        m.Add(f <= idx).OnlyEnforceIf(occ[k])
-        m.Add(l >= idx).OnlyEnforceIf(occ[k])
-    m.Add(l - f + 1 - sum(occ.values()) <= max_gap).OnlyEnforceIf(any_occ)
+    for bnd in bands:
+        occ_b: dict[tuple[int, int], object] = {}
+        for key, cs in sorted(by_key.items()):
+            mine = [c.var for c in cs if band(c) == bnd]
+            if not mine:
+                continue
+            if len(mine) == len(cs):
+                occ_b[key] = occ[key]
+            elif len(mine) == 1:
+                occ_b[key] = mine[0]
+            else:
+                o = ctx.m.NewBoolVar("")
+                ctx.m.Add(sum(mine) == o)
+                occ_b[key] = o
+        _gap_within(ctx, sorted(occ_b), occ_b, max_gap)
+
+
+def _gap_within(ctx: _Ctx, keys: list, occ, max_gap: int) -> None:
+    """HC10 بتعريف المُقيِّم (`gap_rule.widest_gap`): لا نافذةَ من `max_gap + 1` فاصلاً فارغاً بين مشغولَين.
+
+    ``pre[i]`` يعلو إن شُغل فاصلٌ قبل ``i`` و``suf[j]`` إن شُغل فاصلٌ بعد ``j``؛ والنافذةُ [s..s+max_gap] إمّا أن
+    يُشغل فيها فاصلٌ أو لا يجتمع قبلُ وبعدُ (W-20261012-023). والتقييدُ من جهةٍ واحدةٍ كافٍ: رفعُ ``pre``/``suf``
+    فوق الحقيقة لا يفيد المحلِّلَ بل يضيّق عليه.
+    """
+    m = ctx.m
+    n = len(keys)
+    window = max_gap + 1
+    if n < window + 2:
+        return  # أوسعُ فراغٍ ممكنٍ n-2 فلا يتجاوز السقفَ
+    pre = [m.NewBoolVar("") for _ in range(n)]
+    suf = [m.NewBoolVar("") for _ in range(n)]
+    for i in range(1, n):
+        m.Add(pre[i] >= pre[i - 1])
+        m.Add(pre[i] >= occ[keys[i - 1]])
+    for j in range(n - 2, -1, -1):
+        m.Add(suf[j] >= suf[j + 1])
+        m.Add(suf[j] >= occ[keys[j + 1]])
+    for s in range(1, n - window):
+        m.Add(pre[s] + suf[s + window - 1] <= 1 + sum(occ[keys[k]] for k in range(s, s + window)))
     ctx.count("HC10")
 
 
