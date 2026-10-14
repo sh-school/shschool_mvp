@@ -1002,7 +1002,6 @@ def teacher_preferences(request):
         academic_year=year,
     )
     from operations import period_preferences as pp
-    from operations import preference_capacity as pc
 
     if request.method == "POST":
         # القيمُ من قائمةٍ مغلقة، و`int()` على نصٍّ حرٍّ يُسقط الصفحةَ بـ500

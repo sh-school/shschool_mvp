@@ -129,7 +129,7 @@ def test_a_failed_capacity_check_saves_no_grid(client, teacher):
         teacher=teacher,
         class_group=group,
         subject=subject,
-        weekly_periods=12,
+        weekly_periods=30,
         is_active=True,
     )
 
@@ -137,7 +137,7 @@ def test_a_failed_capacity_check_saves_no_grid(client, teacher):
         URL,
         {
             **BASE,
-            "max_daily_periods": "1",
+            "max_daily_periods": "5",
             "max_consecutive": "1",
             "max_gap": "0",
             "grid_present": "1",
