@@ -138,7 +138,7 @@
         });
       }
     });
-    setText(root, "strip.reds", reds.length ? "✖ خطر: " + reds.join("، ") : "✔ لا لوحةَ في حالة خطر");
+    setText(root, "strip.reds", reds.length ? "خطر: " + reds.join("، ") : "لا لوحةَ في حالة خطر");
     setText(root, "strip.bad", String(reds.length));
     setText(root, "strip.warn", String(warns));
     setText(root, "strip.unknown", String(unknown));

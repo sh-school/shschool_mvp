@@ -1,7 +1,7 @@
 {
   "academic_management/assignment_services.py": 1067,
   "behavior/conduct_2026.py": 1472,
-  "behavior/views.py": 1121,
+  "behavior/views.py": 1154,
   "core/domain/grades.py": 1748,
   "core/permissions.py": 1091,
   "notifications/tasks.py": 1407,

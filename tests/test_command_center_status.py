@@ -173,7 +173,8 @@ def test_the_page_answers_the_owners_four_questions(client_as, developer_user, m
     assert "تعارضاتٌ مع main:" in html and "#11" in html
     assert 'http-equiv="refresh"' in html  # تتجدّد وحدَها
     assert "عنوانٌ لا يُخزَّن" not in html and "اسمٌ-سرّيّ" not in html
-    assert "https://github.com/sh-school/shschool_mvp/pull/10" in html
+    # رقمُ الطلب نصٌّ لا رابطٌ خارجيّ (W-20261013-019: لا صفحةَ خارج المنصّة).
+    assert "#10" in html and "github.com" not in html
 
 
 def test_an_unknown_panel_is_never_read_as_healthy(client_as, developer_user):

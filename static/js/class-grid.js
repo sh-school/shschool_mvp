@@ -3,7 +3,7 @@
  * (W-20261006-005، قرارا المالك D-239م وD-240م)
  *
  * - الضغطةُ: لم تُرصد ← غائب ← حاضر ← غائب… والواجهةُ **ترسل الحالةَ الصريحة** مع `head` (رأسُ الخليّة الذي رأته) لا «تبديلاً».
- * - مفاتيحُ أسفل كلّ عمود: «الكلّ ✓/✗» تعدّل خلايا العمود في الواجهة فقط (بلا تأكيد ولا حفظ، D-247م) و«حفظ» يحفظ ذلك العمودَ وحدَه.
+ * - مفاتيحُ أسفل كلّ عمود: «الكلّ» (حاضر/غائب) تعدّل خلايا العمود في الواجهة فقط (بلا تأكيد ولا حفظ، D-247م) و«حفظ» يحفظ ذلك العمودَ وحدَه.
  * - الحفظُ لعمودٍ واحد: خلايا العمود المتغيّرةُ فقط، وتنبيهٌ بعدد الفارغات (تُكتب «حاضراً افتراضيّاً» لعمودٍ بدأت حصّتُه) يطلب تأكيداً.
  * - تعارضٌ (207): تُبرَز الخليّةُ بقيمتها الحاليّة ومن كتبها ومتى، ويحسم المستخدمُ كلَّ واحدةٍ على حدة.
  * - المسوّدةُ في `localStorage`: **رموزُ الحالة ومعرّفاتُ الطلبة فقط** (بلا أسماء)، وتُمسح عند الحفظ الناجح؛ ولا كتابةَ تلقائيّةَ للخادم.
@@ -20,7 +20,7 @@
   var draftKey = root.getAttribute('data-draft-key');
   var statusLine = root.querySelector('[data-grid-status]');
   var tokenInput = document.querySelector('input[name=csrfmiddlewaretoken]');
-  var SYMBOL = { '': '·', present: '✓', absent: 'غ', late: 'ت' };
+  var SYMBOL = { '': '·', present: 'ح', absent: 'غ', late: 'ت' };
   var CYCLE = { '': 'absent', absent: 'present', present: 'absent', late: 'present' };
 
   function csrf() { return tokenInput ? tokenInput.value : ''; }
@@ -49,10 +49,25 @@
     cell.textContent = SYMBOL[status || ''];
   }
 
+  // الحالةُ المحفوظةُ لكلّ خليّةٍ عند التحميل (قبل استعادة المسوّدة) — لمعرفة أنّ الخليّةَ عادت إلى أصلها.
+  var saved = {};
+  Array.prototype.forEach.call(root.querySelectorAll('[data-cell]'), function (c) {
+    saved[c.getAttribute('data-col') + ':' + c.getAttribute('data-student')] = c.getAttribute('data-status') || '';
+  });
+
   function remember(cell) {
     var col = cell.getAttribute('data-col');
+    var student = cell.getAttribute('data-student');
+    var status = cell.getAttribute('data-status') || '';
+    // عادت الخليّةُ إلى حالتها المحفوظة: لا تغييرَ يُحفظ، فتزول علامةُ التعديل وتُحذف من المسوّدة.
+    if (saved[col + ':' + student] === status) {
+      cell.classList.remove('is-dirty');
+      if (draft[col]) { delete draft[col][student]; if (!Object.keys(draft[col]).length) delete draft[col]; }
+      writeDraft(draft);
+      return;
+    }
     draft[col] = draft[col] || {};
-    draft[col][cell.getAttribute('data-student')] = cell.getAttribute('data-status');
+    draft[col][student] = status;
     writeDraft(draft);
   }
 
@@ -129,11 +144,6 @@
     if (event.target.closest('[data-exit-tip]') && pop) pop.hidden = true;
   });
 
-  root.addEventListener('dblclick', function (event) {
-    var cell = event.target.closest('[data-cell]');
-    if (cell) openHistory(cell.getAttribute('data-student'), cell.getAttribute('data-col'));
-  });
-
   function currentCol() {
     var current = root.querySelector('th.cg-col--current');
     if (current) return current.getAttribute('data-col');
@@ -163,7 +173,7 @@
     gate.requestSubmit();
   }
 
-  // «الكلّ ✓/✗» لعمود الزرّ نفسِه: تغييرٌ في الواجهة فقط (خلايا مكتوبةٌ لا تُحفظ) — لا تأكيدَ هنا؛ التأكيدُ والحفظُ عند «حفظ».
+  // «الكلّ» (حاضر/غائب) لعمود الزرّ نفسِه: تغييرٌ في الواجهة فقط (خلايا مكتوبةٌ لا تُحفظ) — لا تأكيدَ هنا؛ التأكيدُ والحفظُ عند «حفظ».
   function bulkFill(button) {
     var col = button.getAttribute('data-col');
     var status = button.getAttribute('data-bulk') === 'all_absent' ? 'absent' : 'present';
@@ -253,7 +263,7 @@
     } else if ((data.errors || []).length) {
       notify('حُفظ ' + saved + ' وتعذّر ' + data.errors.length + ' — أعِد المحاولة.', 'warning');
     } else {
-      notify('تمّ الحفظ ✓ — ح' + col + ': ' + saved + ' خليّة' + (data.defaults ? ' (منها ' + data.defaults + ' حاضرٌ افتراضيّ)' : '') + '.', 'success');
+      notify('تمّ الحفظ — ح' + col + ': ' + saved + ' خليّة' + (data.defaults ? ' (منها ' + data.defaults + ' حاضرٌ افتراضيّ)' : '') + '.', 'success');
     }
   }
 
@@ -316,7 +326,7 @@
       .then(function (response) { return response.json().then(function (d) { return { status: response.status, data: d }; }); })
       .then(function (result) {
         if (result.status === 403) { notify((result.data && result.data.message) || 'تعذّر تسجيلُ التأخّر', 'danger'); return; }
-        notify('سُجّل التأخّر ✓', 'success');
+        notify('سُجّل التأخّر', 'success');
         refreshRow(button.getAttribute('data-late'));
       }).catch(function () { notify('تعذّر تسجيلُ التأخّر.', 'danger'); });
   }
@@ -335,7 +345,7 @@
         if (result.status === 403) { notify((result.data && result.data.message) || 'تعذّر تسجيلُ الخروج', 'danger'); return; }
         var timer = root.querySelector('tr[data-student="' + student + '"] [data-out-since]');
         var took = timer ? ' — غاب ' + timer.textContent : '';
-        notify(action === 'return' ? 'سُجّلت العودة ✓' + took : 'سُجّل الخروج ✓', 'success');
+        notify(action === 'return' ? 'سُجّلت العودة' + took : 'سُجّل الخروج', 'success');
         refreshRow(student);
       }).catch(function () { notify('تعذّر تسجيلُ الخروج.', 'danger'); });
   }

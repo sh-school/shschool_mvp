@@ -223,6 +223,13 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --accent-sky:       #0284c7;  --accent-sky-fg:    #0369a1;   /* 5.24 */
   --accent-rose:      #e11d48;  --accent-rose-fg:   #be123c;   /* 5.34 */
   --accent-green:     #059669;  --accent-green-fg:  #047857;   /* 4.61 — قيمةٌ غيرُ --status-success عمداً: التصنيفُ لا يحمل حكمَ «نجاح». */
+  /* ── فرزُ الصفوف الدراسيّة: ستُّ درجاتٍ مطفأةٌ متباينةٌ للتمييز بين صفٍّ وجاره (جداول الغياب في الشاشة والطباعة وإكسل) — لا حكمَ فيها ولا تُقرأ نصّاً ── */
+  --grade-7: #5b7fa6;
+  --grade-8: #6f9a7b;
+  --grade-9: #c4a24f;
+  --grade-10: #c27a5a;
+  --grade-11: #8a78b0;
+  --grade-12: #b86b85;
   --skyline-fg:       #0D4261;  /* 9.41 */
   --ring-track:       #e5e7eb;  /* مسارُ الحلقة في مؤشّرات الجودة */
 
@@ -269,6 +276,8 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --q-font-ui: inherit;
   --q-radius: 8px;
   --q-transition: 0.2s ease;
+  /* انتقالٌ بخصائصَ محدّدةٍ بدل `all` فلا يحرّك تخطيطاً ولا أبعاداً؛ المدّةُ والمنحنى من `--q-transition`. */
+  --q-transition-ui: background-color var(--q-transition), border-color var(--q-transition), color var(--q-transition), box-shadow var(--q-transition), opacity var(--q-transition), transform var(--q-transition);
 
   /* ══ Typography Scale (7 أحجام يدويّة) ══ */
   --text-xs:   0.75rem;    /* 12px — labels, captions */

@@ -51,7 +51,8 @@ class BehaviorInfractionAdmin(admin.ModelAdmin):
         "security_agency",
         "social_media_platform",
     ]
-    search_fields = ["student__full_name", "description"]
+    # الوصفُ مشفَّر (W-20261012-033) فلا يُبحث فيه.
+    search_fields = ["student__full_name"]
     autocomplete_fields = ["student", "reported_by", "violation_category"]
     date_hierarchy = "date"
 

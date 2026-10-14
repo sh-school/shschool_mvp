@@ -164,6 +164,12 @@ TOKEN_OF = {
     "ACCENT_SKY": "accent-sky",
     "ACCENT_ROSE": "accent-rose",
     "ACCENT_GREEN": "accent-green",
+    "GRADE_7": "grade-7",
+    "GRADE_8": "grade-8",
+    "GRADE_9": "grade-9",
+    "GRADE_10": "grade-10",
+    "GRADE_11": "grade-11",
+    "GRADE_12": "grade-12",
     "TEXT_MUTED": "text-muted",
     "ON_FILL": "on-fill",
     "MAROON_BG": "maroon-bg",
@@ -215,3 +221,42 @@ TOKEN_OF = {
     "DEPT_OTHER": "dept-other",
     "MAROON_FG": "maroon-fg",
 }
+
+
+#: `--grade-7`
+GRADE_7 = "#5b7fa6"
+
+#: `--grade-8`
+GRADE_8 = "#6f9a7b"
+
+#: `--grade-9`
+GRADE_9 = "#c4a24f"
+
+#: `--grade-10`
+GRADE_10 = "#c27a5a"
+
+#: `--grade-11`
+GRADE_11 = "#8a78b0"
+
+#: `--grade-12`
+GRADE_12 = "#b86b85"
+
+#: لونُ كلّ صفٍّ دراسيٍّ في جداول الغياب (الشاشة والطباعة وإكسل) — درجاتٌ مطفأةٌ متباينةٌ بين صفٍّ وجاره.
+#: الشاشةُ تقرأ رموزَها في `static/css/custom/20-components.css` (`.grade-g7`…).
+GRADE_HUES = {
+    "G7": GRADE_7,
+    "G8": GRADE_8,
+    "G9": GRADE_9,
+    "G10": GRADE_10,
+    "G11": GRADE_11,
+    "G12": GRADE_12,
+}
+
+
+def grade_tint(grade: str, ratio: float = 0.2) -> str:
+    """لونُ الصفّ الدراسيّ مخفَّفاً على الأبيض بنسبة `ratio` — تظليلُ صفوف الجداول المطبوعة وخانات إكسل."""
+    hue = GRADE_HUES.get(grade or "")
+    if not hue:
+        return "#ffffff"
+    parts = [int(hue[i : i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(c * ratio + 255 * (1 - ratio)):02x}" for c in parts)
