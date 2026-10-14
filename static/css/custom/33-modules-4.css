@@ -867,7 +867,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 }
 .plain-list__row:last-child { border-block-end: 0; }
 
-.plain-list__main { display: grid; gap: 1px; min-inline-size: 0; }
+.plain-list__main { display: grid; gap: var(--sp-0-5); min-inline-size: 0; }
 .plain-list__title { font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); }
 .plain-list__sub {
   font-size: var(--text-xs);
@@ -1079,7 +1079,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 
 /* صفُّ القضيّة: نصُّه يلتفّ، وأفعالُه تنزل تحته حين يضيق السطر. */
 .beh-case { flex-wrap: wrap; align-items: flex-start; }
-.beh-case__main { flex: 1 1 320px; gap: 3px; }
+.beh-case__main { flex: 1 1 320px; gap: var(--sp-1); }
 .beh-case__head,
 .beh-badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1-5); }
 .beh-badges { flex-shrink: 0; }
