@@ -13,6 +13,8 @@ from django.http.response import HttpResponseBase
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
+from core import session_policy
+
 if TYPE_CHECKING:
     from core.models import School
 
@@ -87,6 +89,10 @@ class SchoolPermissionMiddleware:
 
     def __call__(self, request):
         path = request.path
+
+        # مُهلةُ الجلسة بحسب الدور (W-20261005-004): قبل الإعفاءات، فيشمل `/auth/` و`/admin/` أيضاً.
+        # إن أُنهيت الجلسةُ صار المستخدمُ مجهولاً فيأخذ ما يأخذه كلُّ منتهي الجلسة أدناه (401 أو 302).
+        session_policy.enforce(request)
 
         if any(path.startswith(p) for p in EXEMPT):
             return self.get_response(request)
