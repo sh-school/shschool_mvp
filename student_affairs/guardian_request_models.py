@@ -187,7 +187,7 @@ class GuardianRequest(AuditedModel):
             models.Index(fields=["school", "academic_year"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         # بلا اسمٍ شخصيّ: يظهر في سجلّ التدقيق وقائمة الأدمن.
         return f"{self.get_kind_display()} {str(self.pk)[:8]}"
 
@@ -257,5 +257,5 @@ class GuardianRequestEvent(models.Model):
     def stage_label(self) -> str:
         return dict(GuardianRequest.STAGE_CHOICES).get(self.stage, self.stage)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.stage} {self.at:%Y-%m-%d}"
