@@ -6,6 +6,10 @@
 و`permissions` (الأذونات المؤقّتة). الاعتماديّةُ باتّجاهٍ واحد:
 `schedule` ← `attendance` ← `attendance_ledger`/`substitution` ← `permissions` بلا دورة."""
 
+from .absence_followup import (  # noqa: F401
+    AbsenceActionLog,
+    AbsenceContactLog,
+)
 from .attendance import (  # noqa: F401
     AbsenceAlert,
     AbsenceExcuse,
@@ -55,6 +59,8 @@ from .substitution import (  # noqa: F401
 )
 
 __all__ = [
+    "AbsenceActionLog",
+    "AbsenceContactLog",
     "AttendanceEntry",
     "AttendanceDecision",
     "Subject",

@@ -15,6 +15,8 @@ from core import brand
 
 register = template.Library()
 
+NL = chr(10)
+
 
 @register.simple_tag
 def brand_color(name: str, theme: str = "light") -> str:
@@ -30,3 +32,19 @@ def brand_color(name: str, theme: str = "light") -> str:
             f"brand_color: لا لونَ اسمُه {name!r} ({theme}) في core.brand"
         )
     return value
+
+
+@register.simple_tag
+def grade_row_css(selector: str, ratio: float = 0.2) -> str:
+    """قواعدُ تظليل صفوف الجدول (على `tr` فلا يطمس خلايا الحالة) بلون صفّها الدراسيّ للـPDF: الصفُّ `tr.g-g7` … `tr.g-g12` تحت `selector`."""
+    from django.utils.safestring import mark_safe
+
+    rules = []
+    for grade, hue in brand.GRADE_HUES.items():
+        key = grade.lower()
+        tint = brand.grade_tint(grade, ratio)
+        rules.append(
+            f"{selector} tr.g-{key} {{ background: {tint}; }} "
+            f"{selector} tr.g-{key} td:first-child {{ border-right: 3px solid {hue}; }}"
+        )
+    return mark_safe(NL.join(rules))  # noqa: S308 — ثوابتُ لونٍ من core.brand لا مدخلُ مستخدم

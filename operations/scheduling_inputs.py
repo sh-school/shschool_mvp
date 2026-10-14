@@ -15,6 +15,7 @@ from datetime import time as dt_time
 
 from core.models import School
 
+from .gap_rule import effective_max_gap, widest_gap_of_positions
 from .last_period_cap import personal_last_cap
 from .models import (
     ScheduleSlot,
@@ -47,10 +48,13 @@ class Member:
     subject_id: str
     subject_name: str
     subject_code: str
-    #: سقفُ السابعة الأسبوعيّ الخاصّ بهذا المعلّم (HC8) — صفرٌ يعني «خُذ العامّ».
-    last_cap: int = 0
+    #: سقفُ السابعة الأسبوعيّ الخاصّ بهذا المعلّم (HC8) — `None` يعني «خُذ العامّ» والصفرُ منعٌ (W-20261004-013).
+    last_cap: int | None = None
     #: موارد هذا العضو وحده (مادّتُه) — فالمنقسمةُ لا تُدخل موادَّ أحد ساكنيها في موارد الآخر.
     resources: tuple = ()
+    #: سقفُ الفراغ الخاصّ بهذا المعلّم وحدَه (HC10) — `None` لا قيدَ له، والصفرُ قيدٌ صحيح (W-20261012-024).
+    #: سقفُ الفراغ حقُّ صاحبه: المهمّةُ المشتركةُ تقيس كلَّ عضوٍ بسقفه هو لا بأضيق السقوف.
+    gap_cap: int | None = None
 
 
 @dataclass
@@ -120,6 +124,8 @@ class Task:
                     subject_id=self.subject_id,
                     subject_name=self.subject_name,
                     subject_code=self.subject_code,
+                    #: مهمّةٌ بلا أعضاءٍ معلنين معلّمُها واحد: سقفُها سقفُه (W-20261012-024).
+                    gap_cap=self.gap_cap,
                 )
             ]
 
@@ -565,10 +571,7 @@ class ScheduleGrid:
         """
         occupied = {p for d, p in self._teacher_slots[teacher_id] if d == day}
         occupied.update(periods)
-        ordered = sorted(occupied)
-        if len(ordered) < 2:
-            return 0
-        return max(b - a - 1 for a, b in zip(ordered, ordered[1:], strict=False))
+        return widest_gap_of_positions(occupied)
 
     def would_create_gap(self, teacher_id: str, day: int, period: int) -> bool:
         """هل إضافة حصة ستخلق فجوة للمعلم؟"""
@@ -619,12 +622,16 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
     personal_cap = {str(p.teacher_id): p.max_consecutive for p in prefs if p.max_consecutive}
     #: سقوفُ الفراغ الخاصّة — `None` لا قيد، والصفرُ قيدٌ صحيح: «لا فراغَ
     #: البتّة». فيُسأل عن العدم لا عن الصدق، وإلّا سقط الأشدُّ من القيدين.
-    personal_gap = {str(p.teacher_id): p.max_gap for p in prefs if p.max_gap is not None}
+    personal_gap = {
+        str(p.teacher_id): effective_max_gap(p.max_gap)
+        for p in prefs
+        if effective_max_gap(p.max_gap) is not None
+    }
     #: سقفُ السابعة الشخصيّ (HC8) — قرارٌ في حقّ معلّمٍ يفوق نصابُه سعتَه بالعدّ (W-20261003-035).
     personal_last = {
         str(p.teacher_id): personal_last_cap(p.max_last_periods)
         for p in prefs
-        if personal_last_cap(p.max_last_periods)
+        if personal_last_cap(p.max_last_periods) is not None
     }
 
     # أيّامُ التفريغ الكاملة لكلّ معلّم — مقامُ القسمة في التوزيع.
@@ -705,8 +712,9 @@ def _to_tasks(
             subject_id=str(a.subject_id),
             subject_name=a.subject.name_ar,
             subject_code=a.subject.code,
-            last_cap=personal_last.get(str(a.teacher_id), 0),
+            last_cap=personal_last.get(str(a.teacher_id)),
             resources=tuple(resources_by_subject.get(str(a.subject_id), ())),
+            gap_cap=personal_gap.get(str(a.teacher_id)),
         )
 
     resources_by_subject = resources_by_subject or {}
@@ -743,8 +751,8 @@ def _to_tasks(
                 (personal_cap[m.teacher_id] for m in members if m.teacher_id in personal_cap),
                 default=0,
             ),
-            #: وأضيقُ سقفِ فراغٍ كذلك — و`None` غيابُ القيد لا أوسعُه، فلا
-            #: يدخل العدّ أصلاً.
+            #: حقلٌ مشتقٌّ للتوافق وحدَه (الأضيق بين الأعضاء)، ولا يُستعمل في أيّ فحص: السقفُ لكلّ عضوٍ في
+            #: `Member.gap_cap` (W-20261012-024). و`None` غيابُ القيد لا أوسعُه، فلا يدخل العدّ أصلاً.
             gap_cap=min(
                 (personal_gap[m.teacher_id] for m in members if m.teacher_id in personal_gap),
                 default=None,

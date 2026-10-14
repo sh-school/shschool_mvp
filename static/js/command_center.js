@@ -138,7 +138,7 @@
         });
       }
     });
-    setText(root, "strip.reds", reds.length ? "✖ خطر: " + reds.join("، ") : "✔ لا لوحةَ في حالة خطر");
+    setText(root, "strip.reds", reds.length ? "خطر: " + reds.join("، ") : "لا لوحةَ في حالة خطر");
     setText(root, "strip.bad", String(reds.length));
     setText(root, "strip.warn", String(warns));
     setText(root, "strip.unknown", String(unknown));
@@ -195,7 +195,11 @@
   function poll() {
     if (inflight) { return; }
     inflight = true;
-    window.fetch(url, { credentials: "same-origin", headers: { Accept: "application/json" } })
+    // الاستطلاعُ ليس نشاطَ مستخدم: الرأسُ الثاني يُخرجه من تجديد مهلة الخمول (core/session_policy.py::_user_initiated)
+    window.fetch(url, {
+      credentials: "same-origin",
+      headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" }
+    })
       .then(function (response) {
         var type = response.headers.get("Content-Type") || "";
         if (!response.ok || type.indexOf("application/json") === -1) { throw new Error("not-json"); }

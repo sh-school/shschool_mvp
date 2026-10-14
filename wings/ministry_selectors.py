@@ -248,6 +248,17 @@ def narrow(summary: MinistrySummary, *, grade: str = "", q: str = "") -> Ministr
     return MinistrySummary(summary.day, grades, total, ministered, _notes(total))
 
 
+def _ministered_order(item: Ministered) -> tuple[int, int, str]:
+    """ترتيبٌ تصاعديٌّ بالصفّ ثمّ الشعبة عدداً (7/1 … 12/4) لا أبجديّاً: الأبجديُّ يضع 10/1 قبل 7/1."""
+    grade = (item.grade or "").removeprefix("G")
+    section = item.class_code.rpartition("/")[2]
+    return (
+        int(grade) if grade.isdigit() else 99,
+        int(section) if section.isdigit() else 99,
+        item.name,
+    )
+
+
 def ministry_summary(school: Any, day: dt.date, *, student_ids: Any = None) -> MinistrySummary:
     """ملخّصُ الحصّتين الأولى والثانية لمدرسةٍ في يوم — للمدرسة كلِّها أو لطلبة جناحٍ بعينهم."""
     year = academic_year_for_school(school)
@@ -284,7 +295,7 @@ def ministry_summary(school: Any, day: dt.date, *, student_ids: Any = None) -> M
         grade.counts.add(counts)
         total.add(counts)
 
-    ministered.sort(key=lambda m: (m.class_code, m.name))
+    ministered.sort(key=_ministered_order)
     return MinistrySummary(day, list(grades.values()), total, ministered, _notes(total))
 
 

@@ -19,7 +19,7 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.utils import timezone
 
-from core import brand
+from core import brand, school_logo
 from core.ministry import ministry_name
 
 logger = logging.getLogger(__name__)
@@ -558,6 +558,10 @@ def _playwright_header_template(school: str, title: str) -> str:
     title_part = f" — {title}" if title else ""
     ministry = ministry_name()  # مجمَّدةٌ مطفأةٌ افتراضاً (D-400م): لا نطاقَ فارغاً في الترويسة
     ministry_span = f'<span class="ph-ministry">{ministry}</span>' if ministry else ""
+    try:  # شعارُ المدرسة «ش» (D-404م) مضمَّناً: ترويسةُ Playwright وثيقةٌ مستقلّةٌ لا ترى ملفّاتِ الموقع
+        logo_img = f'<img class="ph-logo" src="{school_logo.logo_data_uri()}" alt="" width="14" height="14">'
+    except FileNotFoundError:
+        logo_img = ""
     return f"""
 <style>
 * {{ margin:0; padding:0; box-sizing:border-box; }}
@@ -574,6 +578,7 @@ def _playwright_header_template(school: str, title: str) -> str:
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
 }}
+.ph-logo {{ vertical-align: middle; margin-left: 5px; border-radius: 3px; }}
 .ph-school {{
     font-size:   9px;
     font-weight: bold;
@@ -592,7 +597,7 @@ def _playwright_header_template(school: str, title: str) -> str:
 }}
 </style>
 <div class="ph">
-    <span class="ph-school">{school}{title_part}</span>
+    <span class="ph-school">{logo_img}{school}{title_part}</span>
     {ministry_span}
 </div>
 """

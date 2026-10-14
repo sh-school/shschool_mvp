@@ -23,7 +23,7 @@ from staff_affairs.attendance import biometric_services as biometric
 from staff_affairs.models import StaffAttendance, StaffAttendanceExemption
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 DAY = date(2026, 2, 2)
 NOW = datetime(2026, 2, 15, 12, 0)

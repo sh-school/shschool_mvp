@@ -330,6 +330,17 @@ class ErasureService:
             summary["models"]["AttendanceEntry"] = ledger["entries"]
         if ledger["decisions"]:
             summary["models"]["AttendanceDecision"] = ledger["decisions"]
+        # 2.6 سجلّا متابعة الغياب (اتّصالٌ بالوليّ وتغذيتُه المشفَّرة، وإجراءٌ إداريّ — W-20261013-011): مضافان فقط
+        #     كسجلّ الرصد، فالحلقةُ العامّةُ أدناه تُسقطهما (`PermissionDenied`) — يُجهَّلان بمسارهما المسمّى وحدَه (أثرٌ مجهَّلٌ لا حذف، قرارُ المالك).
+        from operations.services.absence_followup import erase_followup_logs
+
+        followup = erase_followup_logs(
+            student, actor=erasure_request.reviewed_by, school=erasure_request.school
+        )
+        if followup["contacts"]:
+            summary["models"]["AbsenceContactLog"] = followup["contacts"]
+        if followup["actions"]:
+            summary["models"]["AbsenceActionLog"] = followup["actions"]
         # حدٌّ معلَن (0105): دورُ هذه المدرسة لا يرى صفوفَ مدرسةٍ سابقةٍ سُجّل فيها الطالب — فلا يُقال «اكتمل» بلا تنبيه.
         if Membership.objects.filter(user=student).exclude(school=erasure_request.school).exists():
             summary["attendance_ledger_note"] = (

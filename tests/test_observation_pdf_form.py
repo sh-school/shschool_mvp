@@ -11,6 +11,7 @@
 """
 
 import pathlib
+import re
 
 import pytest
 from django.template.loader import render_to_string
@@ -224,9 +225,8 @@ def test_the_header_is_local_and_the_footer_is_the_shared_component(db, observat
     assert (
         "SchoolOS" not in html and "SAMM" not in html
     ), "اسمُ المنصّة لا يظهر في تذييل أيّ تصدير (أمرُ المالك 2026-09-27)"
-    assert (
-        html.count("<img") == 0
-    ), "لا صورةَ في الترويسة ولا التذييل (شعارُ الوزارة أُزيل — W-20261011-012)"
+    # شعارُ المدرسة «ش» وحدَه (D-404م): صورةٌ واحدةٌ في الترويسة، لا في التذييل ولا شعارُ الوزارة (أُزيل — W-20261011-012)
+    assert html.count("<img") == 1 and "<img" in header and "<img" not in footer
 
 
 def test_two_planning_domains_sit_on_the_first_page_the_rest_on_the_second(
@@ -673,7 +673,7 @@ def test_the_context_carries_no_logo_key(db, observation):
 
 
 def test_an_uploaded_school_logo_or_letterhead_never_reaches_the_form(db, observation):
-    """صورةٌ مرفوعةٌ (شعارُ مدرسة أو تراثُ ترويسة) لا أثرَ لها: الهويّةُ نصٌّ فقط."""
+    """صورةٌ مرفوعةٌ (شعارُ مدرسة أو تراثُ ترويسة) لا أثرَ لها: الهويّةُ نصٌّ وشعارُ «ش» الثابتُ من الأصل لا من المرفوع (D-404م)."""
     from quality.observation_views import _pdf_context
 
     _save_image(observation.school.logo, "own.png")
@@ -682,7 +682,13 @@ def test_an_uploaded_school_logo_or_letterhead_never_reaches_the_form(db, observ
 
     html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
 
-    assert "<img" not in html and observation.school.name in html
+    images = re.findall(r"<img[^>]*>", html)
+    assert (
+        len(images) == 1
+        and 'class="school-logo' in images[0]
+        and "data:image/png;base64," in images[0]
+    )
+    assert observation.school.name in html
 
 
 def _image_boxes(html):
@@ -703,17 +709,17 @@ def _image_boxes(html):
     return found
 
 
-def test_the_header_draws_no_logo_image(db, observation):
-    """الترويسةُ نصٌّ فقط. يُقاس من تخطيط WeasyPrint نفسِه: لا صندوقَ صورةٍ في الصفحة الأولى."""
+def test_the_header_draws_only_the_school_logo(db, observation):
+    """الترويسةُ نصٌّ وشعارُ المدرسة «ش» (28px) وحدَه. يُقاس من تخطيط WeasyPrint نفسِه: صندوقُ صورةٍ واحدٌ في الصفحة الأولى."""
     from quality.observation_views import _pdf_context
 
     html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
 
-    assert _image_boxes(html) == []
+    assert _image_boxes(html) == [(28.0, 28.0)]
 
 
-def test_the_pdf_carries_no_image(db, school, named):
-    """القبولُ: ملفُّ PDF الناتج بلا صورةٍ في صفحته الأولى."""
+def test_the_pdf_carries_only_the_school_logo_image(db, school, named):
+    """القبولُ: ملفُّ PDF الناتج بصورةٍ واحدةٍ في صفحته الأولى — شعارُ المدرسة «ش» (D-404م)."""
     import io
 
     from core.pdf_utils import render_pdf_bytes
@@ -723,4 +729,4 @@ def test_the_pdf_carries_no_image(db, school, named):
 
     reader = pypdf.PdfReader(io.BytesIO(render_pdf_bytes(_html_of(named))))
 
-    assert len(reader.pages[0].images) == 0
+    assert len(reader.pages[0].images) == 1
