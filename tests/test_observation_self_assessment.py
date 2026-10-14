@@ -207,3 +207,70 @@ def test_outside_schedule_is_visible_in_django_admin():
 
     assert "outside_schedule" in model_admin.list_display
     assert "outside_schedule" in model_admin.list_filter
+
+
+# ── المسار الكامل عبر العروض ────────────────────────────────────────────────
+def _crits(school, n=2):
+    from quality.observation_models import ObservationCriterion
+
+    return [
+        ObservationCriterion.objects.create(
+            school=school, domain="planning", text=f"معيار {i}", order=i, is_active=True
+        )
+        for i in range(n)
+    ]
+
+
+def _post(client_as, teacher, crits, *, action="submit", rate_all=True, **extra):
+    from django.urls import reverse
+
+    data = {"observation_date": TODAY.isoformat(), "action": action, **extra}
+    if rate_all:
+        for c in crits:
+            data[f"rating_{c.id}"] = "complete"
+    return client_as(teacher).post(reverse("observation_self_create"), data)
+
+
+def test_view_rejects_a_slot_outside_my_schedule(client_as, school, teacher_user):
+    r = _post(client_as, teacher_user, _crits(school))
+    assert r.status_code == 200
+    assert not ClassroomObservation.objects.filter(kind="self").exists()
+
+
+def test_view_accepts_outside_schedule_and_stores_the_flag(client_as, school, teacher_user):
+    r = _post(client_as, teacher_user, _crits(school), outside_schedule="on")
+    assert r.status_code == 302
+    assert ClassroomObservation.objects.get(kind="self").outside_schedule is True
+
+
+def test_view_blocks_submit_until_every_criterion_is_rated(client_as, school, teacher_user):
+    crits = _crits(school)
+    r = _post(client_as, teacher_user, crits[:0], rate_all=False, outside_schedule="on")
+    assert r.status_code == 200
+    assert not ClassroomObservation.objects.filter(kind="self").exists()
+    r = _post(client_as, teacher_user, crits, action="draft", rate_all=False, outside_schedule="on")
+    assert r.status_code == 302
+
+
+def test_view_rejects_a_date_outside_the_window(client_as, school, teacher_user):
+    from django.urls import reverse
+
+    old = TODAY - dt.timedelta(days=MAX_SELF_BACKDATE_DAYS + 1)
+    data = {"observation_date": old.isoformat(), "action": "draft", "outside_schedule": "on"}
+    r = client_as(teacher_user).post(reverse("observation_self_create"), data)
+    assert r.status_code == 200
+    assert not ClassroomObservation.objects.filter(kind="self").exists()
+
+
+def test_schedule_endpoint_in_self_mode_ignores_the_teacher_param(
+    client_as, school, class_group, teacher_user, coordinator_user, subject
+):
+    from django.urls import reverse
+
+    _session(school, class_group, coordinator_user, subject)
+    r = client_as(teacher_user).get(
+        reverse("observation_teacher_schedule"),
+        {"self": "1", "teacher": str(coordinator_user.id), "observation_date": TODAY.isoformat()},
+    )
+    assert r.status_code == 200
+    assert list(r.context["periods"]) == []
