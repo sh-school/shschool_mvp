@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime as dt
 from dataclasses import dataclass, field
+from typing import Any
 
 from django.db.models import Q
 
@@ -50,8 +51,8 @@ class Slot:
 
 @dataclass(frozen=True)
 class StudentDay:
-    student: object
-    class_group: object
+    student: Any
+    class_group: Any
     slots: tuple[Slot, ...]
     #: خاناتٌ فارغةٌ تُكمل عرضَ الجدول حين يومُ الشعبة أقصر (الخميسُ ستٌّ لا سبع).
     padding: range = range(0)
@@ -128,7 +129,9 @@ class DailyReport:
         return list(range(1, self.max_periods + 1))
 
 
-def daily_report(school, day: dt.date, *, teacher_ids=None, student_ids=None) -> DailyReport:
+def daily_report(
+    school: Any, day: dt.date, *, teacher_ids: Any = None, student_ids: Any = None
+) -> DailyReport:
     """طلابُ اليوم الذين غابوا أو تأخّروا حصّةً فأكثر — كلٌّ في سطر.
 
     `teacher_ids`: نطاقُ المنسّق (معلّمو قسمه) — `None` للمدرسة كلِّها.

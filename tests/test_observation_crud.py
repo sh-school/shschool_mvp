@@ -152,7 +152,7 @@ def test_edit_by_teacher_denied(client_as, school, coordinator_user, teacher_use
     obs, _ = _make_obs(school, coordinator_user, teacher_user)
     c = client_as(teacher_user)
     r = c.get(reverse("observation_edit", args=[obs.id]))
-    assert r.status_code == 403
+    assert r.status_code == 404  # مسوّدةٌ لم تُرسَل بعدُ: وجودُها لا يُكشف للمُزار (W-20260929-004)
 
 
 @pytest.mark.django_db

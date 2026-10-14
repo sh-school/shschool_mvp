@@ -78,6 +78,14 @@
 .nav-logo      { font-weight: 700; font-size: var(--text-sm); gap: 7px; flex-shrink: 0; padding: var(--sp-1) var(--sp-2); }
 .nav-logo-text { white-space: nowrap; }
 
+/* شعارُ المدرسة «ش» (W-20261012-012، D-404م) — الوسمُ `{% school_logo %}` ومصدرُه `core/school_logo.py`.
+   المربّعُ بلون الترويسة العنّابيّ نفسِه، فلولا حلقةٌ فاتحةٌ شفّافةٌ ذاب إطارُه فيها وبقي الحرفُ عائماً بلا حدّ. */
+.school-logo { display: block; flex-shrink: 0; border-radius: var(--radius-md); box-shadow: 0 0 0 1px color-mix(in srgb, var(--on-fill) 55%, transparent); }
+.school-logo--nav { inline-size: var(--sp-8); block-size: var(--sp-8); border-radius: var(--radius-sm); }
+.school-logo--login { inline-size: 3.5rem; block-size: 3.5rem; margin: 0 auto var(--sp-3-5); }
+.school-logo--sheet { inline-size: var(--sp-12); block-size: var(--sp-12); }
+.school-logo--print { inline-size: var(--sp-10); block-size: var(--sp-10); }
+
 /* زر الهامبرغر (الجوال) */
 .nav-hamburger {
   display: none;
@@ -805,7 +813,7 @@ tr.active {
   background: var(--surface);
   color: var(--text-secondary);
   text-decoration: none;
-  transition: all .12s;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .pagination a:hover {
@@ -1817,6 +1825,26 @@ textarea:focus-visible {
 /* حوارُ التأكيد (base.js، data-confirm): العنوانُ بلون الخطر المقروء، والسؤالُ ثانويّ. */
 .confirm-dlg-message { color: var(--text-secondary); line-height: 1.7; }
 
+/* ── حارس الجلسة (session-guard.js): تحذيرُ الانتهاء ونافذةُ إعادة الدخول في الصفحة نفسها ── */
+.session-guard__lead { margin: 0 0 var(--sp-3); color: var(--text-secondary); line-height: 1.7; }
+.session-guard__countdown { font-variant-numeric: tabular-nums; color: var(--status-danger-fg); }
+.session-guard__frame {
+  display: block;
+  width: 100%;
+  height: min(24rem, 48dvh);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+/* العنوانُ والتذييلُ ثابتان والإطارُ يتمرّر: لا يُقصّ العنوانُ على الشاشات القصيرة. */
+.session-guard .modal-box { display: flex; flex-direction: column; max-height: calc(100dvh - var(--sp-8)); overflow: hidden; }
+.session-guard .modal-body { overflow-y: auto; }
+.session-guard__status { margin: var(--sp-3) 0 0; min-height: 1.5em; color: var(--text-secondary); }
+/* داخل إطار إعادة الدخول (خطوةُ الرمز الثاني ممّا يرثه base.html): لا إطارَ محيطاً ولا تذييل. */
+html.is-embedded .site-footer,
+html.is-embedded #crumbs,
+html.is-embedded .skip-nav { display: none; }
+
 /* ── Mobile Bottom Navigation ─── */
 .mobile-bottom-nav {
   position: fixed;
@@ -2201,7 +2229,7 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
 .dropzone-icon { font-size: 2.5rem; margin-bottom: var(--sp-3); }
 .dropzone-label { font-weight: 700; color: var(--text-primary); margin-bottom: var(--sp-1); }
 .dropzone-hint { color: var(--text-muted); font-size: var(--text-xs); margin-top: var(--sp-2); }
-.dropzone-preview { display: none; margin-top: var(--sp-4); text-align: right; }
+.dropzone-preview { display: none; margin-top: var(--sp-4); text-align: start; }
 .dropzone-preview-inner {
   display: flex; align-items: center; gap: var(--sp-2);
   padding: var(--sp-2); background: var(--dropzone-preview-bg);
@@ -2219,8 +2247,8 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
   position: absolute; inset-inline-start: 12px;
   color: var(--text-muted); pointer-events: none; font-size: var(--text-base);
 }
-.search-wrap input[type="search"] { padding-right: 38px; }
-html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding-left: var(--sp-2); }
+.search-wrap input[type="search"] { padding-inline-start: 38px; }
+html[dir="rtl"] .search-wrap input[type="search"] { padding-inline-start: 38px; padding-inline-end: var(--sp-2); }
 .search-wrap .htmx-indicator { position: absolute; inset-inline-end: 12px; }
 
 /* ── Confirm Dialog ── */
@@ -2325,6 +2353,24 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
   .card-flow { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .card-flow > .is-wide { grid-column: span 2; }
 }
+
+/* تمييزُ الصفّ الدراسيّ بلونٍ في جداول الغياب (الملخّص الوزاريّ): تظليلٌ خفيفٌ وشريطٌ جانبيّ، لكلّ صفٍّ من السابع إلى الثاني عشر لونُه. */
+.grade-tint > td:first-child { border-inline-start: 4px solid var(--grade-hue, var(--border)); }
+.grade-tint > td { background: color-mix(in srgb, var(--grade-hue, var(--surface)) 20%, var(--surface)); }
+.grade-g7 { --grade-hue: var(--grade-7); }
+.grade-g8 { --grade-hue: var(--grade-8); }
+.grade-g9 { --grade-hue: var(--grade-9); }
+.grade-g10 { --grade-hue: var(--grade-10); }
+.grade-g11 { --grade-hue: var(--grade-11); }
+.grade-g12 { --grade-hue: var(--grade-12); }
+
+/* أعمدةُ جداول متابعة الغياب: التسلسلُ بقدر رقمَين، والشعبةُ والهاتفُ والوقتُ بقدر محتواها، والاسمُ يأخذ الباقي فلا ينكسر سطرين. */
+.fu-seq { inline-size: 3rem; width: 3rem; text-align: center; }
+.fu-fit { inline-size: 1%; width: 1%; white-space: nowrap; }
+.fu-name { min-inline-size: 10rem; }
+.tbl-cols table th, .tbl-cols table td { padding-inline: var(--sp-2); text-align: center; }
+.fu-centered th, .fu-centered td { text-align: center; }
+.tbl-cols table th.fu-name, .tbl-cols table td.fu-name, .fu-centered th.fu-name, .fu-centered td.fu-name { text-align: start; }
 }
 
 }

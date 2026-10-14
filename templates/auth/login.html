@@ -25,11 +25,12 @@
   {# Login styles — defined in the modules sheets (static/css/custom/) #}
 </head>
 
-<body class="login-page">
+<body class="login-page{% if request.GET.embed %} is-embedded{% endif %}">
   <div class="login-card">
 
     {# ── Header Strip (maroon) ── #}
     <div class="login-card-header">
+      {% load school_logo %}{% school_logo "login" %}
       <h1 class="login-school-name">{{ current_school.name|default:"المدرسة" }}</h1>
       <p class="login-platform-name">منصة الإدارة المدرسية</p>
       {% load ministry %}{% ministry_name as ministry %}{% if ministry %}<p class="login-ministry">{{ ministry }}</p>{% endif %}
@@ -51,7 +52,7 @@
     {% endif %}
 
     {# ── Login Form ── #}
-    <form method="post" action="/auth/login/" class="space-y-4" autocomplete="on" data-validate>
+    <form method="post" class="space-y-4" autocomplete="on" data-validate>
       {% csrf_token %}
 
       <div>

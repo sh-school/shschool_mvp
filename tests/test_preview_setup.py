@@ -231,6 +231,26 @@ def test_the_script_refuses_reset_in_an_unknown_or_hand_edited_tree():
     assert "--untracked-files=no" in guard  # لا تعديلَ يدويّاً على ملفٍّ متتبَّع
 
 
+def test_pin_uses_a_preview_named_db_cloned_from_the_migrated_preview_db_and_seeds_accounts():
+    text = SCRIPT.read_text(encoding="utf-8")
+    pin = text[text.index("deploy_pin() {") : text.index("release_locked() {")]
+
+    assert (
+        "_preview'" in text[text.index("pin_db() {") :].splitlines()[0]
+    )  # الاسمُ يحوي preview فيمرّ حارسُ البذر
+    assert (
+        'SOURCE_DB="$src"' in pin and "$(preview_db)" in pin
+    )  # المصدرُ القاعدةُ المهاجَرة لا الأصل الخام
+    assert "seed_pin_accounts" in pin  # البذرُ النظاميّ بعد إقلاع الخادم
+    # البذرُ يقرأ الحاويةَ الفعّالةَ (خانة a أو b) لا اسماً ثابتاً؛ وإلا فشل حارسُه بعد النشر الأزرق/الأخضر
+    seed = text[text.index("seed_pin_accounts() {") : text.index("deploy_pin() {")]
+    assert 'PREVIEW_CONTAINER="$(web_container)"' in seed
+    assert "${PROJECT}-web-1" not in seed
+    assert (
+        "export_env dev" in pin and "ensure_db" not in pin
+    )  # الحارسُ لم يُمسّ ولا قاعدةُ الشجرة القديمة
+
+
 # ── إعداداتُ وضع المعاينة ──────────────────────────────────────
 
 
