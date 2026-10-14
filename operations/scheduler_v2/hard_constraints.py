@@ -644,7 +644,18 @@ def _edge_caps(ctx: _Ctx, t, edges: _Edges, hc22: bool, hc8: bool) -> None:
         m.Add(l == sum(edges.last.values()))
         b.vars[("last", t)] = l
         if hc8:
-            m.Add(l <= ctx.opt.last_cap)
+            cap = dict(ctx.opt.last_cap_override).get(t, ctx.opt.last_cap)
+            m.Add(l <= cap)
+            if cap != ctx.opt.last_cap:
+                b.relaxations.append(
+                    {
+                        "teacher": t,
+                        "code": "HC8",
+                        "original": f"last_cap_{ctx.opt.last_cap}",
+                        "relaxed": f"last_cap_{cap}",
+                        "decision": "قرار إداريّ محفوظ في الأدمن",
+                    }
+                )
             ctx.count("HC8")
             # الشرطُ الثاني المستقلّ في HC8: الطرفان لا يقعان على شعبةٍ واحدة.
             for vs in edges.last_by_cls.values() if ctx.opt.last_distinct_class else ():

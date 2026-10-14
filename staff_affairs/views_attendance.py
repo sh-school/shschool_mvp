@@ -404,7 +404,7 @@ def exception_review(request: HttpRequest, pk: UUID) -> HttpResponse:
 @login_required
 @capability_required("staff_affairs.assignments")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
 def staff_assignments(request: HttpRequest) -> HttpResponse:
-    """التكليفات: قرارُ المدير ونائبَيه بندبِ موظّفٍ لأعباء وظيفتهم (م-43) — وسجلُّها."""
+    """التكليفات: قرارُ المدير ونائبَيه والمنسّقين بندبِ موظّفٍ لأعباء وظيفتهم (م-43) — وسجلُّها."""
     school, user = _school(request), _user(request)
     form = AssignmentForm(request.POST if request.method == "POST" else None)
     if request.method == "POST" and form.is_valid():
@@ -440,7 +440,7 @@ def staff_assignments(request: HttpRequest) -> HttpResponse:
             "acting_role": AssignmentService.acting_role_of(user),
             "candidates": AssignmentService.candidates(school, user),
             "today": timezone.localdate(),
-            **AssignmentService.screen(school),
+            **AssignmentService.screen(school, user),
         },
     )
 

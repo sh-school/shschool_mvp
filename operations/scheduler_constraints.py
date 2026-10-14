@@ -25,7 +25,7 @@ from .first_period_cap import (  # noqa: F401  (تُصدَّر من هنا لم�
     MAX_FIRST_PERIODS,
     check_first_period_share,
 )
-from .last_period_cap import personal_last_cap
+from .last_period_cap import last_cap_or
 from .scheduler_bell import (  # noqa: F401  (تُصدَّر من هنا لمن استوردها منه)
     DOUBLE_PERIOD_GAP_MINUTES,
     HC5_JOINABLE_GAP_MINUTES,
@@ -43,6 +43,7 @@ from .scheduling_limits import (  # noqa: F401  (تُصدَّر من هنا لم
     MIN_FIRST_PERIODS,
     THURSDAY,
     get_max_periods_for_day,
+    is_explicit_daily_cap,
 )
 
 if TYPE_CHECKING:
@@ -486,8 +487,9 @@ def check_last_period_share(grid: ScheduleGrid, period: int, task: Task) -> bool
     for m in task.members:
         #: سقفٌ شخصيٌّ إن كُتب (`TeacherPreference.max_last_periods`) وإلّا العامّ: معلّمٌ نصابُه
         #: يفوق سعتَه بالعدّ (HC5 + HC8) لا يُسَع إلّا بسابعةٍ ثالثة، وسقفٌ عامٌّ لا يعرفه (W-20261003-035).
-        if grid.teacher_periods_at(m.teacher_id, LAST_PERIOD) >= (
-            personal_last_cap(getattr(m, "last_cap", 0)) or MAX_LAST_PERIODS
+        #: والصفرُ منعٌ لا غياب: `>= 0` صادقةٌ دائماً فلا سابعةَ لصاحبه (W-20261004-013).
+        if grid.teacher_periods_at(m.teacher_id, LAST_PERIOD) >= last_cap_or(
+            getattr(m, "last_cap", None), MAX_LAST_PERIODS
         ):
             return False
         #: وطرفا المعلّم لا يقعان على شعبةٍ واحدة: طرفُ اليوم أثقلُ ما فيه،
@@ -747,15 +749,16 @@ class SoftPenalty:
 def daily_load_weight(teacher_today: int, pref: dict | None, weight: float | None = None) -> float:
     """وزنُ تجاوز الحمل اليوميّ: صفرٌ دون السقف، ثمّ يتصاعد بمقدار التجاوز.
 
-    والتفضيلُ المكتوب في حقّ معلّمٍ بعينه يُضاعَف — وبوزنه الأصليّ كان يسقط
-    أمام الفراغ (8) والتتابع (10) فلا يُلزم شيئاً.
+    والسقفُ المكتوب في حقّ معلّمٍ بعينه يُضاعَف — وبوزنه الأصليّ كان يسقط
+    أمام الفراغ (8) والتتابع (10) فلا يُلزم شيئاً. والمكتوبُ ما خالف الافتراض:
+    صفُّ تفضيلٍ وحدَه لا يكفي، فالـ5 المخزَّنةُ «لم يقرّر» (W-20261012-025).
     """
     max_daily = (pref or {}).get("max_daily", DEFAULT_MAX_DAILY)
     if teacher_today < max_daily:
         return 0.0
     over = teacher_today - max_daily + 1
     base = WEIGHTS["daily_load"] if weight is None else weight
-    return base * over * (EXPLICIT_PREFERENCE_FACTOR if pref else 1)
+    return base * over * (EXPLICIT_PREFERENCE_FACTOR if is_explicit_daily_cap(max_daily) else 1)
 
 
 def _neighbour_is_same_lesson(grid: ScheduleGrid, task: Task, day: int, period: int) -> bool:
