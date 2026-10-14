@@ -256,8 +256,8 @@ def _junit(tmp_path, cases):
     return path
 
 
-def test_refresh_drops_the_db_build_cost_but_keeps_a_dedicated_files_real_cost(tmp_path):
-    """حالةٌ فوق السقف هي كلفةُ إنشاء القاعدة في أوّل اختبار؛ تُسقَط من العادي وتبقى في المثبَّت."""
+def test_refresh_drops_the_db_build_cost_from_ordinary_and_dedicated_files_alike(tmp_path):
+    """حالةٌ فوق السقف هي كلفةُ إنشاء القاعدة في أوّل اختبار؛ تُسقَط من العادي ومن المثبَّت (قِيس: حالاتُ المثبَّت فوق السقف بناءُ قاعدةٍ لا عمل)."""
     ordinary = "tests.test_ci_sharding"  # ملفّان حقيقيّان في الشجرة ليُحلَّ classname إلى مسار
     dedicated = "tests.test_ci_gate_needs"
     junit = _junit(
@@ -267,7 +267,7 @@ def test_refresh_drops_the_db_build_cost_but_keeps_a_dedicated_files_real_cost(t
         [junit], ["tests/test_ci_gate_needs.py"], root=_ROOT, cap=weights_mod.DB_BUILD_CAP
     )
     assert out["weights"]["tests/test_ci_sharding.py"] == 3.0
-    assert out["weights"]["tests/test_ci_gate_needs.py"] == 354.0
+    assert out["weights"]["tests/test_ci_gate_needs.py"] == 4.0
 
 
 def test_without_a_cap_nothing_is_dropped(tmp_path):
@@ -276,15 +276,15 @@ def test_without_a_cap_nothing_is_dropped(tmp_path):
     assert out["weights"]["tests/test_ci_sharding.py"] == 353.0
 
 
-def test_the_shipped_weights_balance_the_ordinary_shards_within_1_3x():
-    """مقياسُ القبول: أبطأ جزءٍ عاديّ ≤ 1.3 ضعف متوسّط الأجزاء العاديّة (الأخيرُ للمثبَّت وحدَه)."""
+def test_the_shipped_weights_balance_all_five_shards_within_1_3x():
+    """مقياسُ القبول: أبطأ جزءٍ ≤ 1.3 ضعف متوسّط الأجزاء الخمسة (W-429: المثبَّتُ لم يعد يملأ الأخيرَ وحدَه)."""
     data = ci_sharding.load_weights()
     files = set(data["weights"])
     mapping = ci_sharding.assign(files, 5, data)
-    loads = [0.0] * 4
-    for name in files - set(data["dedicated"]):
+    loads = [0.0] * 5
+    for name in files:
         loads[mapping[name] - 1] += data["weights"][name]
-    assert max(loads) <= 1.3 * (sum(loads) / 4), loads
+    assert max(loads) <= 1.3 * (sum(loads) / 5), loads
 
 
 # ── axe: ثلاثُ أرجلٍ متوازية بلا فقد فحص (W-20261009-033) ─────────────────────────────────────

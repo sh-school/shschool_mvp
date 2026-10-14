@@ -32,7 +32,7 @@
     <p class="ui-note" data-live-note role="status" aria-live="polite" hidden></p>
     {% callout "hint" %}الطالبُ يُعدّ مرّةً واحدة بحكم سياسة الغياب نفسِه (حضورُ 4 خاناتٍ فأكثر)، لا بعدد صفوف الحضور. «لم يُحسم» رصدُ شعبته ناقصٌ فلا يُحتسب غياباً، و«غير مرصود» لا يُدمج في الغائب. وبقيّةُ سير اليوم وجدولُ الأجنحة في «تفاصيل اليوم».{% endcallout %}
     {% else %}
-    {% callout "info" show=True %}لا دوامَ اليوم — لا أرقامَ حضورٍ لليوم.{% endcallout %}
+    {% callout "info" show=True %}{% if view_only %}لا دوامَ في هذا اليوم — لا أرقامَ حضورٍ له.{% else %}لا دوامَ اليوم — لا أرقامَ حضورٍ لليوم.{% endif %}{% endcallout %}
     {% endif %}
     {% kpi_strip label="نبض الأقسام" %}
       {% kpi "مخالفات الشهر" behavior_monthly|default:0 sub=behavior_sub tone=behavior_tone href=behavior_url %}

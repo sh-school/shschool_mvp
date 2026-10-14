@@ -62,7 +62,7 @@ from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing
 from operations.absence_standing import standing_for
-from operations.models import AbsenceAlert, ClassExit, Session, StudentAttendance
+from operations.models import AbsenceAlert, ClassExit, StudentAttendance
 from operations.presence import presence_now
 from operations.tardiness import tardiness_now
 from wings.scope import student_scope_for
@@ -2717,10 +2717,8 @@ def _screen_excuse_upload(upload):
 @capability_required("student_affairs.tardiness")
 @require_POST
 def tardiness_record(request):
-    """POST — تسجيل تأخير صباحي لطالب."""
-    school = request.school
-    today = timezone.localdate()
-    now = timezone.localtime()
+    """POST — تسجيل تأخيرٍ صباحيّ لطالب في حصّته الجارية، والقيودُ في `morning_tardiness` (W-20261004-022)."""
+    from .morning_tardiness import record_morning_tardiness
 
     student_id = request.POST.get("student_id")
     excuse_minutes = request.POST.get("excuse_minutes", "").strip()
@@ -2740,93 +2738,25 @@ def tardiness_record(request):
     student = get_object_or_404(
         CustomUser,
         pk=student_id,
-        memberships__school=school,
+        memberships__school=request.school,
         memberships__role__name="student",
         memberships__is_active=True,
     )
-
-    excuse_val = int(excuse_minutes) if excuse_minutes and excuse_minutes.isdigit() else None
-    excuse_notes = f"إذن تأخير {excuse_val} دقيقة" if excuse_val else ""
-
-    session = (
-        scope.narrow_classes(
-            Session.objects.filter(
-                school=school,
-                date=today,
-                class_group__enrollments__student=student,
-                class_group__enrollments__is_active=True,
-            )
-        )
-        .order_by("start_time")
-        .first()
-    )
-
-    # الرجوعُ إلى «أوّل حصّةٍ في المدرسة» يعلّق التأخّرَ على شعبةٍ ليست شعبتَه —
-    # فلا يُنفَّذ للمقيَّد بجناحه: لا حصّةَ لشعبته اليوم يعني لا رصد.
-    if not session and not scope.is_wing_bound:
-        session = (
-            Session.objects.filter(
-                school=school,
-                date=today,
-            )
-            .order_by("start_time")
-            .first()
-        )
-
-    if not session:
-        messages.error(request, "لا توجد حصة مجدولة اليوم لتسجيل التأخير.")
-        return redirect("student_affairs:tardiness_list")
-
-    defaults = {
-        "status": "late",
-        "tardiness_minutes": excuse_val,
-        "excuse_notes": excuse_notes,
-        "tardiness_recorded_at": now,
-        "marked_by": request.user,
-    }
-    if scope.is_wing_bound:
-        # رصدُ المشرف عند البوّابة (م 3.4.2.2) — والمصدرُ يفصله عن نقرة المعلّم في الإحصاء.
-        defaults.update(source="supervisor", whereabouts="gate")
-    attendance, created = StudentAttendance.objects.get_or_create(
-        session=session,
-        student=student,
-        school=school,
-        defaults=defaults,
-    )
-
-    if not created:
-        attendance.status = "late"
-        attendance.tardiness_minutes = excuse_val
-        attendance.excuse_notes = excuse_notes
-        attendance.tardiness_recorded_at = now
-        attendance.marked_by = request.user
-        attendance.save(
-            update_fields=[
-                "status",
-                "tardiness_minutes",
-                "excuse_notes",
-                "tardiness_recorded_at",
-                "marked_by",
-                "updated_at",
-            ]
-        )
-
-    if excuse_file:
-        attendance.excuse_file = excuse_file
-        attendance.save(update_fields=["excuse_file"])
-
-    # ── Audit Trail (PDPPL) ──
-    AuditLog.objects.create(
-        user=request.user,
-        school=school,
-        action="create",
-        model_name="other",
-        object_id=str(attendance.pk),
-        object_repr=_with_wing(f"تسجيل تأخير {masked_repr(student)}", _followup_wing_label(scope)),
+    outcome = record_morning_tardiness(
+        request.user,
+        request.school,
+        student,
+        scope,
+        excuse_minutes=int(excuse_minutes) if excuse_minutes.isdigit() else None,
+        excuse_file=excuse_file,
+        wing_label=_followup_wing_label(scope),
         ip_address=request.META.get("REMOTE_ADDR"),
     )
+    if outcome.attendance is None:
+        messages.error(request, outcome.refusal)
+        return redirect("student_affairs:tardiness_list")
 
-    time_str = now.strftime("%H:%M")
+    time_str = timezone.localtime(outcome.attendance.tardiness_recorded_at).strftime("%H:%M")
     messages.success(request, f"تم تسجيل تأخير {student.full_name} — الساعة {time_str}")
     return redirect("student_affairs:tardiness_list")
 

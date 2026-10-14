@@ -43,6 +43,7 @@ from .scheduling_limits import (  # noqa: F401  (تُصدَّر من هنا لم
     MIN_FIRST_PERIODS,
     THURSDAY,
     get_max_periods_for_day,
+    is_explicit_daily_cap,
 )
 
 if TYPE_CHECKING:
@@ -747,15 +748,16 @@ class SoftPenalty:
 def daily_load_weight(teacher_today: int, pref: dict | None, weight: float | None = None) -> float:
     """وزنُ تجاوز الحمل اليوميّ: صفرٌ دون السقف، ثمّ يتصاعد بمقدار التجاوز.
 
-    والتفضيلُ المكتوب في حقّ معلّمٍ بعينه يُضاعَف — وبوزنه الأصليّ كان يسقط
-    أمام الفراغ (8) والتتابع (10) فلا يُلزم شيئاً.
+    والسقفُ المكتوب في حقّ معلّمٍ بعينه يُضاعَف — وبوزنه الأصليّ كان يسقط
+    أمام الفراغ (8) والتتابع (10) فلا يُلزم شيئاً. والمكتوبُ ما خالف الافتراض:
+    صفُّ تفضيلٍ وحدَه لا يكفي، فالـ5 المخزَّنةُ «لم يقرّر» (W-20261012-025).
     """
     max_daily = (pref or {}).get("max_daily", DEFAULT_MAX_DAILY)
     if teacher_today < max_daily:
         return 0.0
     over = teacher_today - max_daily + 1
     base = WEIGHTS["daily_load"] if weight is None else weight
-    return base * over * (EXPLICIT_PREFERENCE_FACTOR if pref else 1)
+    return base * over * (EXPLICIT_PREFERENCE_FACTOR if is_explicit_daily_cap(max_daily) else 1)
 
 
 def _neighbour_is_same_lesson(grid: ScheduleGrid, task: Task, day: int, period: int) -> bool:

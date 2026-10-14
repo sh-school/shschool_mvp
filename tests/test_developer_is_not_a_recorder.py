@@ -25,7 +25,6 @@ def test_the_group_no_longer_contains_the_developer():
     assert permissions.WING_DAY_RECORD == {
         "admin_supervisor",
         "vice_admin",
-        "vice_academic",
         "principal",
         # منسّقُ شؤون الطلبة يرصد الغيابَ ويصحّحه كقيادته (قرارُ المالك D-266م، 2026-10-08).
         "student_affairs_coordinator",
@@ -50,7 +49,8 @@ def test_a_non_developer_superuser_keeps_the_platforms_general_superuser_behavio
     assert is_recorder(root) is True
 
 
-@pytest.mark.parametrize("role", ["admin_supervisor", "vice_admin", "vice_academic", "principal"])
+#: والنائبُ الأكاديميّ خرج منهم: يراقب فقط (D-201م، W-20261004-024).
+@pytest.mark.parametrize("role", ["admin_supervisor", "vice_admin", "principal"])
 def test_the_legitimate_recorders_still_are(school, role):
     user = _staff(school, role, role, "29000008010")
     assert is_recorder(user) is True
