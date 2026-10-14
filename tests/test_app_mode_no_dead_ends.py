@@ -63,6 +63,7 @@ FILE_VIEWS_OUTSIDE_CONVENTION = {
     "academic_management:exam_results_reports",
     "academic_management:monthly_ba_report",
     "academic_management:quiz_reports",
+    "absence_followup_print",  # صفحةُ معاينةٍ داخل المنصّة؛ الملفُّ بـ`?format=pdf` (نمطٌ أعلاه)
     "observation_pdf_view",  # صفحةٌ عارضة؛ ذكرُ الترويسة في وثيقتها لا في شيفرتها
     "serve_db_file",  # الملفّاتُ المخزَّنة: `.file.url` (نمطٌ أعلاه)
     "docs_viewer:asset",  # صورةٌ مضمَّنةٌ بـ<img src> داخل محتوى md — لا رابطَ نقرٍ ولا طريقَ مسدود

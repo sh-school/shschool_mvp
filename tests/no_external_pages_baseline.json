@@ -1,21 +1,4 @@
 {
  "_شرح": "صفحاتٌ سبقت قاعدة «لا صفحة خارج المنصة» (قرار المالك 2026-10-13)؛ لا يُضاف إليها ولا يزيد عددُها، وتُنقص حين تُرحَّل",
- "files": {
-  "static/js/app-mode.js": 1,
-  "templates/behavior/student_profile.html": 4,
-  "templates/command_center/status.html": 2,
-  "templates/parents/dashboard.html": 1,
-  "templates/quality/modals/review_evaluate.html": 1,
-  "templates/quality/modals/task_update.html": 1,
-  "templates/quality/partials/execution_row.html": 1,
-  "templates/quality/partials/review_row.html": 1,
-  "templates/quality/procedure_detail.html": 1,
-  "templates/staff_affairs/permit_queue.html": 1,
-  "templates/student_affairs/attendance_overview.html": 1,
-  "templates/student_affairs/behavior_overview.html": 1,
-  "templates/student_affairs/student_list.html": 1,
-  "templates/student_affairs/student_profile.html": 1,
-  "templates/student_affairs/tardiness_list.html": 2,
-  "templates/transport/tracking_map.html": 3
- }
+ "files": {}
 }

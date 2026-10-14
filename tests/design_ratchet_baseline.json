@@ -101,7 +101,6 @@
   "inline_style": {},
   "legacy_header": {},
   "max_w": {
-   "templates/base/base.html": 1,
    "templates/core/partials/audit_log_table.html": 1
   },
   "palette_class": {},

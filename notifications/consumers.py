@@ -21,6 +21,7 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.db import DatabaseError
 
+from core import session_policy
 from core.rls import rls_context
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,12 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
         if not user or not user.is_authenticated:
             logger.warning("WS: رُفض اتصال غير مصادق عليه")
+            await self.close()
+            return
+
+        # مُهَلُ الجلسة بالدور (س٢): جلسةٌ انتهت بالخمول أو المطلقة لا تفتح مقبساً بكوكيها
+        if await database_sync_to_async(session_policy.websocket_ended)(self.scope):
+            logger.info("WS: رُفض اتصال بجلسة منتهية المُهلة")
             await self.close()
             return
 

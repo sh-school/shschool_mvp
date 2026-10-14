@@ -1,11 +1,11 @@
-"""[SCHEDULE] تفضيلاتُ الجدول: «حصّةٌ واحدة» سقفٌ مشروعٌ لا خيارٌ ناقص.
+"""[SCHEDULE] تفضيلاتُ الجدول بعد D-418م: المعلّمُ يختار سقفَه اليوميَّ وحدَه.
 
-كانت القائمةُ تبدأ من اثنتين، فمن أراد ألّا تقع له حصّتان متجاورتان البتّة
-لم يجد ما يقوله. والقيدُ قائمٌ في المدرسة فعلاً، والمحرّكُ يقرؤه ولا يرفعه في
-الاسترخاء — فنقصُ الخيار نقصٌ في الواجهة لا في المحرّك.
+كانت الشاشةُ تعرض «أقصى حصص متتالية» (و«حصّةٌ واحدة — لا تجاور» فيها) و«أقصى فجوة». فقرّر المالك
+إخفاءهما (D-418م): الحلّالُ لا يقرأ التتالي، ولا قيمةَ آمنةً للفراغ حتى يُصلح (W-20261012-020..025).
+فيبقيان في النموذج والأدمن — ومعلّمٌ وضع له الأدمنُ «لا تجاور» يبقى له ولو حفظ صفحتَه.
 
 وكان الحفظُ يقرأ `int(request.POST[...])` على نصٍّ حرّ: يُسقط الصفحةَ بـ500
-على حرفٍ واحد، ويقبل تسعةً وتسعين حصّةً متتالية. فصار المدى مغلقاً.
+على حرفٍ واحد، ويقبل تسعةً وتسعين حصّة. فصار المدى مغلقاً، وما بقي في الشاشة منه حقلٌ واحد.
 """
 
 import pytest
@@ -26,36 +26,41 @@ def teacher(client, school):
 
 
 def _save(client, **fields):
-    payload = {"max_daily_periods": "5", "max_consecutive": "3", "free_day": "", "notes": ""}
+    payload = {"max_daily_periods": "5", "free_day": "", "notes": ""}
     payload.update(fields)
     return client.post(reverse("teacher_preferences"), payload)
 
 
-def test_one_is_a_valid_ceiling(client, teacher):
-    """حصّةٌ واحدة — أي لا تجاور — تُحفظ كما هي."""
-    _save(client, max_consecutive="1")
-
-    assert TeacherPreference.objects.get(teacher=teacher).max_consecutive == 1
-
-
-def test_the_form_offers_it(client, teacher):
+def test_the_form_no_longer_offers_the_run_or_the_gap(client, teacher):
     page = client.get(reverse("teacher_preferences")).content.decode()
 
-    assert 'value="1"' in page
-    assert "لا تجاور" in page
+    assert 'name="max_consecutive"' not in page and 'name="max_gap"' not in page
+    assert "لا تجاور" not in page and "أقصى فجوة" not in page
+
+
+def test_an_admin_no_adjacency_cap_and_gap_survive_the_teacher_save(client, teacher):
+    """«حصّةٌ واحدة» قيدٌ قائمٌ لمعلّمٍ في المدرسة: وضعه الأدمن فلا يمحوه حفظُ المعلّم ولا قيمٌ في الطلب."""
+    client.get(reverse("teacher_preferences"))  # الصفُّ بعام الصفحة نفسه
+    pref = TeacherPreference.objects.get(teacher=teacher)
+    pref.max_consecutive, pref.max_gap = 1, 2
+    pref.save()
+
+    _save(client, max_consecutive="7", max_gap="0", notes="ملاحظة")
+
+    pref.refresh_from_db()
+    assert (pref.max_consecutive, pref.max_gap, pref.notes) == (1, 2, "ملاحظة")
 
 
 def test_rubbish_does_not_crash_the_page(client, teacher):
-    """حرفٌ في خانةٍ رقميّة كان يُسقط الصفحةَ بـ500."""
-    response = _save(client, max_consecutive="abc")
+    """حرفٌ في خانةٍ رقميّة كان يُسقط الصفحةَ بـ500 — فيعود إلى الافتراضيّ."""
+    response = _save(client, max_daily_periods="abc")
 
     assert response.status_code in (200, 302)
-    #: يعود إلى الافتراضيّ الجديد: لا سقفَ شخصيّاً = العامّ (W-20261003-037)، لا ٣ القديمة.
-    assert TeacherPreference.objects.get(teacher=teacher).max_consecutive is None
+    assert TeacherPreference.objects.get(teacher=teacher).max_daily_periods == 5
 
 
-def test_a_ceiling_outside_the_week_falls_back(client, teacher):
-    _save(client, max_consecutive="99")
+@pytest.mark.parametrize("posted", ["1", "3", "99"])
+def test_a_daily_cap_outside_the_offered_range_falls_back(client, teacher, posted):
+    _save(client, max_daily_periods=posted)
 
-    #: يعود إلى الافتراضيّ الجديد: لا سقفَ شخصيّاً = العامّ (W-20261003-037)، لا ٣ القديمة.
-    assert TeacherPreference.objects.get(teacher=teacher).max_consecutive is None
+    assert TeacherPreference.objects.get(teacher=teacher).max_daily_periods == 5

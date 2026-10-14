@@ -15,6 +15,7 @@ import pytest
 pytest.importorskip("pytest_playwright")
 from playwright.sync_api import expect  # noqa: E402
 
+from core.session_policy import limits_for  # noqa: E402
 from notifications.models import UserNotificationPreference  # noqa: E402
 
 pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]
@@ -32,13 +33,12 @@ def _end_every_session():
 
 def _age_the_session(seconds_left):
     """يُقدِّم ختمَ آخر تجديدٍ ليبقى للخمول `seconds_left` ثانية."""
-    from django.conf import settings
     from django.contrib.sessions.backends.db import SessionStore
     from django.contrib.sessions.models import Session
 
     for row in Session.objects.all():
         store = SessionStore(session_key=row.session_key)
-        store["_last_touch"] = int(time.time()) - (settings.SESSION_COOKIE_AGE - seconds_left)
+        store["_last_touch"] = int(time.time()) - (limits_for("teacher").idle - seconds_left)
         store.save()
 
 
@@ -116,8 +116,13 @@ class TestWarningBeforeExpiry:
         self, page, live_server, login, e2e_teacher
     ):
         login(e2e_teacher)
-        _age_the_session(seconds_left=100)
         page.goto(f"{live_server.url}{FORM_URL}")
+        page.wait_for_load_state("networkidle")
+        # تقديمُ الختم بعد تحميل الصفحة لا قبله: طلبُ التصفّح الحقيقيّ يجدّد الخمول (س٢)،
+        # فتقديمُه قبل `goto` كان يُمحى بالتحميل نفسِه ولا يظهر التحذير. ثمّ نُعيد قراءة الحالة
+        # كما تفعل الصفحةُ عند عودتها للظهور (الحالةُ قراءةٌ لا تجدّد).
+        _age_the_session(seconds_left=100)
+        page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
 
         warning = page.locator("#session-warning")
         expect(warning).to_be_visible(timeout=10000)
