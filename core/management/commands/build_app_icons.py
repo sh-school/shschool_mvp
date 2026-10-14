@@ -1,19 +1,24 @@
-"""أيقوناتُ التطبيق والتبويب — شعارُ المدرسة «الكوفيّ المربّع» أبيضَ على العنّابيّ (W-20261012-001، قرار المالك D-394م).
+"""أيقوناتُ التطبيق والتبويب والشارة — المشتقُّ «قلمٌ وشعلة» على شريحةٍ داكنةٍ محايدة (W-20261014-009، قرار المالك 10-14).
 
     python manage.py build_app_icons
 
-الرمزُ مرسومٌ هنا من مستطيلاتٍ على شبكةٍ لا من صورة، وهو نفسُه الرمزُ `c2` الذي اختاره المالك من مقترحات الشعار:
-شبكةُ 10×9 خليّةً، كلُّ خليّةٍ 10 وحداتٍ في لوحةٍ 120×120، ونقطةُ الرأس العليا بلونٍ مميَّز (الذهبيّ). وشعارُ الوزارة لا أثرَ له.
+الأصلُ `static/brand/schoolos-pen.svg` (قلمٌ وشعلةٌ، ألوانُه عنّابيّةٌ وذهبيّةٌ تضيع على العنّابيّ) فيُرسم على لون الليل المحايد
+`core.brand.DARK["SURFACE"]` لا على العنّابيّ. وشعارُ الوزارة لا أثرَ له هنا.
 
-- `icon-192/512` و`favicon.png` و`favicon.ico`: الرمزُ أبيضَ ونقطتُه ذهبيّةٌ على مربّعٍ عنّابيّ بلون الهويّة (`core.brand.MAROON`).
-- `icon-maskable-192/512` و`apple-touch-icon`: معتمةٌ كاملةٌ، ويقع **كلُّ ركنٍ من الرمز** داخل الدائرة الآمنة
+- `icon-192/512`: مربّعٌ معتمٌ يقع القلمُ كلُّه داخل الدائرة الآمنة العامّة.
+- `icon-maskable-192/512` و`apple-touch-icon`: معتمةٌ كاملةٌ، ويقع **صندوقُ القلم** داخل الدائرة الآمنة
   (80% من الضلع لأندرويد؛ حاشيةٌ تُبعده عن انحناء الزوايا في iOS) بالمسافة الفعليّة من المركز.
-- `badge-72`: الرمزُ كلُّه (والنقطةُ معه) أبيضَ على شفّاف — شارةُ الإشعار أحاديّةُ اللون يقصّها النظام.
+- `favicon.png` و`favicon.ico`: مربّعٌ بزوايا مدوَّرةٍ شفّافةٍ (22% كما في مرجع المطابقة) والقلمُ يملأ ارتفاعَه تقريباً.
+- `badge-72`: القلمُ كلُّه أبيضَ على شفّاف — شارةُ الإشعار أحاديّةُ اللون يقصّها النظام.
+
+الرسمُ بـ`svglib` و`reportlab` (في `requirements.txt`) لا بمتصفّح: أداةُ مطوّرٍ تُشغَّل عند تغيير الأصل وحدَه، ويُودَع ناتجُها.
 """
 
 from __future__ import annotations
 
+import io
 import math
+import re
 from pathlib import Path
 
 from django.conf import settings
@@ -23,138 +28,145 @@ from PIL import Image, ImageDraw
 from core import brand
 
 #: مجلّدٌ مرقَّم: Chrome 144+ لا يعيد تنزيل أيقونةٍ تغيّر محتواها ورابطُها واحد، فتغييرُ الأيقونة = رقمٌ جديد (v4…) لا استبدالُ ملفّ.
-#: والمجلّدُ السابقُ (`v2`) يبقى كما هو: عامِلُ خدمةٍ قديمٌ أو تطبيقٌ مثبَّتٌ قد يطلبه.
-ICON_VERSION = "v3"
+#: والمجلّداتُ السابقةُ (`v2` و`v3`) تبقى كما هي: عامِلُ خدمةٍ قديمٌ أو تطبيقٌ مثبَّتٌ قد يطلبها.
+ICON_VERSION = "v4"
 ICONS = Path(settings.BASE_DIR) / "static" / "icons" / ICON_VERSION
+PEN_SVG = Path(settings.BASE_DIR) / "static" / "brand" / "schoolos-pen.svg"
 
-#: لوحةُ الرمز بالوحدات، ومركزُها.
-GRID = 120
-CENTRE = GRID / 2
-
-#: مستطيلاتُ الرمز (x, y, عرض, ارتفاع) بوحدات اللوحة — مطابقةٌ للرمز `c2` في ملف مقترحات الشعار.
-BODY_RECTS = (
-    (100, 55, 10, 20),
-    (80, 55, 10, 20),
-    (60, 55, 10, 20),
-    (40, 75, 70, 10),
-    (40, 85, 10, 20),
-    (10, 95, 40, 10),
-    (10, 65, 10, 40),
-    (70, 35, 10, 10),
-    (90, 35, 10, 10),
-)
-#: نقطةُ الرأس العليا — لونُها المميَّز في الأيقونات الملوَّنة، وأبيضُ في الأحاديّة.
-DOT_RECT = (80, 15, 10, 10)
-DOT_COLOUR = brand.GOLD
-
-#: أبعدُ ركنٍ في الرمز عن مركز اللوحة بالوحدات — به تُحسب الدائرةُ الآمنة (ركنُ الساق السفليّ الأيسر).
-FARTHEST_UNITS = max(
-    math.hypot(px - CENTRE, py - CENTRE)
-    for x, y, w, h in (*BODY_RECTS, DOT_RECT)
-    for px in (x, x + w)
-    for py in (y, y + h)
-)
-
-#: نصفُ قطر الدائرة التي يقع الرمزُ فيها في الأيقونات غير القابلة للقصّ، نسبةً إلى الضلع.
-ANY_SAFE_RADIUS = 0.42
-#: التبويبُ: الخليّةُ سُدسَ عشرَ الضلع تماماً (16 خليّةً على الضلع) فتقع حوافُّها على حدود البكسل في 16 و32 و48 و64…
-#: بلا تنعيمٍ يُعتم الرمزَ في المقاسات الصغيرة.
-FAVICON_RADIUS = FARTHEST_UNITS / (GRID + 40)
-#: نصفُ قطر الدائرة الآمنة نسبةً إلى الضلع — مواصفةُ W3C للأيقونة القابلة للقصّ.
+#: لونُ الشريحة الداكنة المحايدة — لا عنّابيّ (قرارُ المالك: الشعارُ على سطحٍ داكنٍ/رماديّ).
+BACKGROUND = brand.DARK["SURFACE"]
+#: نصفُ قطر الدائرة الآمنة نسبةً إلى الضلع للأيقونة العامّة، والقابلةِ للقصّ (W3C 40%)، وآيفون (يقصّ الزوايا وحدَها).
+ANY_SAFE_RADIUS = 0.46
 MASKABLE_SAFE_RADIUS = 0.40
-#: iOS يقصّ الزوايا وحدها، فتكفي حاشيةٌ تُبعد الشعارَ عن انحنائها.
 APPLE_SAFE_RADIUS = 0.46
-#: شفّافيّةٌ دون هذه تُعدّ فراغاً — حوافُّ التنعيم لا تُحسب شعاراً.
-VISIBLE_ALPHA = 8
-#: الرسمُ بمقياسٍ أكبر ثمّ التصغير: حوافُّ الخلايا تُنعَّم بتغطية البكسل لا بالتقريب.
+#: تدويرُ زوايا التبويب نسبةً إلى الضلع — كما في `mockup_logos.html`.
+FAVICON_CORNER = 0.22
+#: القلمُ في التبويب يملأ هذه النسبةَ من الارتفاع (الفاصلُ مع الحافّة المدوَّرة).
+FAVICON_FILL = 0.88
+#: الرسمُ بمقياسٍ أكبر ثمّ التصغير تنعيماً للحواف.
 SUPERSAMPLE = 4
 
-#: (الاسم، الضلع، نصفُ قطر الدائرة الآمنة) — مربّعاتٌ عنّابيّةٌ معتمة.
+#: (الاسم، الضلع، نصفُ قطر الدائرة الآمنة) — مربّعاتٌ معتمةٌ بلا قصٍّ.
 SQUARE_TARGETS = (
     ("icon-192.png", 192, ANY_SAFE_RADIUS),
     ("icon-512.png", 512, ANY_SAFE_RADIUS),
-    ("favicon.png", 256, FAVICON_RADIUS),
     ("icon-maskable-192.png", 192, MASKABLE_SAFE_RADIUS),
     ("icon-maskable-512.png", 512, MASKABLE_SAFE_RADIUS),
     ("apple-touch-icon.png", 180, APPLE_SAFE_RADIUS),
 )
-#: مقاساتُ التبويب في ملفّ `.ico` — كلٌّ منها يُرسم بحجمه لا يُصغَّر من الأكبر فتبقى الخلايا حادّة.
+#: مقاساتُ التبويب في ملفّ `.ico` — كلٌّ منها يُرسم بحجمه لا يُصغَّر من الأكبر.
 ICO_SIZES = (16, 32, 48, 64, 128, 256)
 
 
+def _rgb(hex_colour: str) -> tuple[int, int, int]:
+    return tuple(int(hex_colour.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
+
+
+def _render_svg(svg: str, height_px: int, background: str) -> Image.Image:
+    """يرسم نصَّ SVG بارتفاعٍ معلومٍ فوق لونٍ صلب (النتيجةُ RGB)."""
+    from reportlab.graphics import renderPM
+    from svglib.svglib import svg2rlg
+
+    drawing = svg2rlg(io.StringIO(svg))
+    scale = height_px / drawing.height
+    drawing.scale(scale, scale)
+    drawing.width, drawing.height = drawing.width * scale, drawing.height * scale
+    return renderPM.drawToPIL(drawing, bg=int(background.lstrip("#"), 16), dpi=72).convert("RGB")
+
+
+def _pen_svg() -> str:
+    return PEN_SVG.read_text(encoding="utf-8")
+
+
+def _aspect() -> float:
+    match = re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', _pen_svg())
+    assert match, "viewBox مفقود في الأصل"
+    return float(match.group(1)) / float(match.group(2))
+
+
+def _pen_size(size: int, safe_radius: float) -> tuple[int, int]:
+    """أبعادُ القلم بالبكسل على لوحةٍ ضلعُها `size` بحيث يقع ركنُ صندوقه داخل الدائرة الآمنة."""
+    aspect = _aspect()
+    height = 2 * safe_radius * size / math.sqrt(1 + aspect**2)
+    return round(height * aspect), round(height)
+
+
 def farthest_visible_point(image: Image.Image) -> float:
-    """أبعدُ نقطةٍ مرئيّةٍ عن مركز الصورة، بالبكسل — زوايا البكسل لا مراكزُه."""
-    width, height = image.size
-    cx, cy = width / 2, height / 2
-    alpha = image.getchannel("A").tobytes()  # بايتٌ لكلّ بكسل، صفّاً بعد صفّ
-    farthest = 0.0
-    for y in range(height):
-        dy = max(abs(y - cy), abs(y + 1 - cy))
-        row = y * width
-        for x in range(width):
-            if alpha[row + x] >= VISIBLE_ALPHA:
-                dx = max(abs(x - cx), abs(x + 1 - cx))
-                farthest = max(farthest, math.hypot(dx, dy))
-    return farthest
-
-
-def _to_pixel_edge(position: float) -> float:
-    """الإزاحةُ التي تنقل موضعاً (بوحدات المقياس الأكبر) إلى أقرب حدِّ بكسلٍ في الصورة النهائيّة."""
-    return round(position / SUPERSAMPLE) * SUPERSAMPLE - position
-
-
-def _mask(
-    rects: tuple[tuple[int, int, int, int], ...], size: int, safe_radius: float
-) -> Image.Image:
-    """قناعُ المستطيلات على لوحة `size`، مُوسَّطاً ومُصغَّراً حتى يقع أبعدُ ركنٍ في الرمز داخل الدائرة الآمنة."""
-    big = size * SUPERSAMPLE
-    unit = safe_radius * big / FARTHEST_UNITS
-    offset_x = big / 2 - CENTRE * unit
-    offset_y = offset_x
-    if safe_radius == FAVICON_RADIUS:
-        # خطُّ الشبكة الأوّلُ (x=10، y=15) على حدّ بكسلٍ كاملٍ لا في منتصفه، فلا يتنعّم صفُّ الخلايا ويبقى حادّاً.
-        offset_x += _to_pixel_edge(offset_x + 10 * unit)
-        offset_y += _to_pixel_edge(offset_y + 15 * unit)
-    canvas = Image.new("L", (big, big), 0)
-    draw = ImageDraw.Draw(canvas)
-    for x, y, w, h in rects:
-        draw.rectangle(
-            (
-                round(offset_x + x * unit),
-                round(offset_y + y * unit),
-                round(offset_x + (x + w) * unit) - 1,
-                round(offset_y + (y + h) * unit) - 1,
-            ),
-            fill=255,
-        )
-    return canvas.resize((size, size), Image.Resampling.BOX)
+    """أبعدُ مسافةٍ (بالبكسل) عن مركز الصورة لأيّ بكسلٍ مرئيٍّ (ألفا > 0) — لقياس وقوع الرمز داخل الدائرة الآمنة."""
+    alpha = image.convert("RGBA").getchannel("A")
+    width, height = alpha.size
+    pixels = alpha.load()
+    centre_x, centre_y = (width - 1) / 2, (height - 1) / 2
+    return max(
+        (
+            math.hypot(x - centre_x, y - centre_y)
+            for y in range(height)
+            for x in range(width)
+            if pixels[x, y] > 0
+        ),
+        default=0.0,
+    )
 
 
 def render_square(size: int, safe_radius: float) -> Image.Image:
-    """الرمزُ أبيضَ ونقطتُه ذهبيّةٌ على مربّعٍ عنّابيٍّ معتم."""
-    canvas = Image.new("RGB", (size, size), brand.MAROON)
-    canvas.paste(brand.ON_FILL, mask=_mask(BODY_RECTS, size, safe_radius))
-    canvas.paste(DOT_COLOUR, mask=_mask((DOT_RECT,), size, safe_radius))
+    """القلمُ على مربّعٍ داكنٍ معتم، مُوسَّطاً داخل الدائرة الآمنة."""
+    width, height = _pen_size(size, safe_radius)
+    pen = _render_svg(_pen_svg(), height * SUPERSAMPLE, BACKGROUND).resize(
+        (width, height), Image.Resampling.LANCZOS
+    )
+    canvas = Image.new("RGB", (size, size), _rgb(BACKGROUND))
+    canvas.paste(pen, ((size - width) // 2, (size - height) // 2))
+    return canvas
+
+
+def render_favicon(size: int) -> Image.Image:
+    """التبويبُ: مربّعٌ مدوَّرُ الزوايا شفّافُ الخارج، والقلمُ يملأ ارتفاعَه."""
+    height = round(size * FAVICON_FILL)
+    width = round(height * _aspect())
+    pen = _render_svg(_pen_svg(), height * SUPERSAMPLE, BACKGROUND).resize(
+        (width, height), Image.Resampling.LANCZOS
+    )
+    big = size * SUPERSAMPLE
+    mask = Image.new("L", (big, big), 0)
+    ImageDraw.Draw(mask).rounded_rectangle(
+        (0, 0, big - 1, big - 1), radius=round(big * FAVICON_CORNER), fill=255
+    )
+    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    plate = Image.new("RGBA", (size, size), (*_rgb(BACKGROUND), 255))
+    canvas.paste(plate, mask=mask.resize((size, size), Image.Resampling.LANCZOS))
+    canvas.paste(pen, ((size - width) // 2, (size - height) // 2))
     return canvas
 
 
 def render_badge(size: int) -> Image.Image:
-    """شارةُ الإشعار: الرمزُ كلُّه أبيضُ على شفّاف."""
+    """شارةُ الإشعار: القلمُ كلُّه أبيضَ على شفّاف (قناعُه من رسمه نفسِه بلونٍ واحد)."""
+    width, height = _pen_size(size, ANY_SAFE_RADIUS + 0.04)
+    solid = re.sub(r'fill="#[0-9A-Fa-f]{6}"', f'fill="{brand.ON_FILL}"', _pen_svg())
+    mask = (
+        _render_svg(solid, height * SUPERSAMPLE, brand.PRINT_INK)
+        .convert("L")
+        .resize((width, height), Image.Resampling.LANCZOS)
+    )
     badge = Image.new("RGBA", (size, size), (255, 255, 255, 0))
-    badge.putalpha(_mask((*BODY_RECTS, DOT_RECT), size, ANY_SAFE_RADIUS + 0.05))
+    layer = Image.new("RGBA", (width, height), (255, 255, 255, 255))
+    layer.putalpha(mask)
+    badge.paste(layer, ((size - width) // 2, (size - height) // 2))
     return badge
 
 
 class Command(BaseCommand):
-    help = "يولّد أيقوناتِ التطبيق والتبويب: شعار المدرسة (الكوفيّ المربّع) أبيضَ على العنّابيّ"
+    help = (
+        "يولّد أيقوناتِ التطبيق والتبويب والشارة من الشعار المشتقّ «قلمٌ وشعلة» على شريحةٍ داكنةٍ محايدة"
+    )
 
     def handle(self, *args: object, **options: object) -> None:
         ICONS.mkdir(parents=True, exist_ok=True)
         for name, size, safe_radius in SQUARE_TARGETS:
             render_square(size, safe_radius).save(ICONS / name, optimize=True)
             self.stdout.write(f"كُتبت {name}: {size}×{size}")
+        render_favicon(256).save(ICONS / "favicon.png", optimize=True)
         render_badge(128).save(ICONS / "badge-72.png", optimize=True)
-        frames = [render_square(size, FAVICON_RADIUS) for size in ICO_SIZES]
+        frames = [render_favicon(size) for size in ICO_SIZES]
         frames[-1].save(
             ICONS / "favicon.ico",
             sizes=[(size, size) for size in ICO_SIZES],
