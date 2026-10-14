@@ -16,6 +16,7 @@ description: |
 - لا: قالبُ PDF (له إطارٌ مطبوعٌ مستقلّ)، ولا قرارُ دمجٍ أو نشر (`schoolos-flow`).
 
 ## الإجراء
+0. **ابدأ من مرجع الهويّة المولَّد** `.claude/rules/identity-reference.md` (يُحمَّل تلقائياً حين تلمس `static/` أو `templates/`؛ وإلا اقرأه): رموزُ الألوان نهاراً وليلاً، وقاموسُ الأيقونات بمعانيها، وأنماطُ الصفحات السبعة — فلا تفتح `/styleguide/` (مطوّريّةٌ) ولا تخمّن لوناً أو أيقونة. مولَّدٌ من المصادر ويحرسه `tests/test_identity_reference_fresh.py`.
 1. **اختر نمطَ الصفحة قبل أن تكتبها**: `{% block main_class %}{% page_layout "list" %}{% endblock %}` — أحدُ `dashboard|hub|list|detail|form|sheet|report` (أو `custom` بسطرٍ في جدول الاستثناءات). صفحةٌ جديدةٌ بلا نمطٍ تُسقط `tests/test_page_layouts.py`. ← `references/20-layouts-components.md`
 2. **ابنِ من المكوّنات القائمة**: `page_header`، `section_card`، `kpi`/`kpi_strip`، `callout` (خمسة أنواع)، `empty_state`، `field`، `filter_bar`، `action_tile`، `entity_card`، و`{% icon "…" %}`. صنفٌ جديدٌ آخرُ الحلول.
 3. **الأنماطُ في ملفّ طبقتها**: مكوّنٌ ← `20-components`، شاشةٌ ← `30..33-modules` (آخرُها 33)، ليليٌّ ← `40-themes`، مساعدٌ ← `50-utilities`؛ ولا قاعدةَ خارج `@layer`. ← `references/10-css-architecture.md`
@@ -23,6 +24,19 @@ description: |
 5. **قِس على أربعة أجهزةٍ نهاراً وليلاً**: 1366×768 و1920×1080 ولوحيّ (~768×1024) و375×812 — وما لم يُقَس يُقال «لم يُقَس». طريقةُ القياس على صفحةٍ محميّةٍ في `schoolos-preview-8500` ← `03-measuring-protected-pages.md`؛ ثمّ التحقّقُ البصريُّ بالدور (تداخل، معطَّلٌ بلا سبب، اقتطاع، مصفوفةُ الحالات) **قبل** إعلان «جاهز». ← `references/50-responsive-mobile.md` و`references/55-visual-verification.md`
    وإن طُلب أن تطابق صفحةٌ صفحةً قائمة فاتّبع إجراءَ «طبقَ الأصل» في `references/20-layouts-components.md` قبل البناء.
 6. **شغّل الحرّاس** قبل الدفع (من شجرة عملك بأوامر `CLAUDE.md`): `tests/test_css_*.py`، `test_px_tokens`، `test_rtl_logical_properties`، `test_dark_parity`، `test_contrast_ratios`، `test_design_ratchet`، `test_a11y_ratchet`، `test_page_layouts`. وقراءةُ الفاشل منها في مهارة `schoolos-quality-guards`.
+
+## تحديثاتُ الهويّة منذ 2026-09-28 (إلزاميّة)
+- **لا صفحةَ خارج المنصّة ولا في لسانٍ جديد** (قرار المالك 2026-10-13): لا `target="_blank"` ولا `window.open(` ولا `href="http(s)://"` في القوالب وJS؛ الحارس `tests/test_no_external_pages.py` (الجديدُ ممنوع والقديمُ في خطّ أساسٍ يتناقص).
+- **رأسُ الجدول ثابتٌ عند التمرير الرأسيّ** (قرار المالك 2026-10-13): كلُّ جدولٍ بـ`{% for %}` داخل `table-wrap` يحمل `table-wrap-scroll`؛ الحارس `tests/test_sticky_table_header.py`.
+- **الانتقالُ**: لا `transition: all`؛ استعمل `--q-transition-ui` وخصائصَ صريحة، والاتّجاهُ بخصائص منطقيّة (`41dff8110`).
+- **شعارُ المدرسة «ش»** (D-404م): الوسمُ `{% school_logo "nav" %}` من `core/school_logo.py` مصدرٌ واحدٌ للشاشة وPDF وExcel (الأصل `static/icons/v3/icon-192.png`). شعارُ الوزارة أُزيل ولا يعود؛ وسطرُ الانتماء للوزارة مخفيٌّ افتراضًا خلف `MINISTRY_AFFILIATION_VISIBLE` (`core/ministry.py`، الوسم `ministry_name`). تغييرُ الأيقونات يرفع `CACHE_NAME` في عامل الخدمة.
+- **الطباعةُ**: ورقةٌ واحدة بـ`SINGLE_SHEET_BOOST`، وخطّ Tajawal، وإطارٌ مطبوعٌ مركزيّ (W-057)؛ ولا تحديدَ `.nav-inner` بعرض 1280px.
+- **لا صنفَ `text-xs`** في القوالب (استعمل رموزَ الخطّ)، ونماذجُ الدخول هُجّرت.
+- **ألوانُ الأجنحة** من `core/dept_colors.py:WING_KEY_OF_ORDER` (ترويسة الجناح وشريطه)، وأمّا **لونُ الصفّ الدراسيّ** (7 … 12) فمنفصلٌ: ستّةُ رموز `--grade-7..12` مطفأةٌ مع مرآتها في `core/brand.py` (W-20261013-016)، يُصبّ على تظليل صفّ الفصل 7/1 … 12/4 وشارته ولا يُخلط بلون جناح؛ وتدرّجُ الشعب داخل الصفّ بقرار المالك المنتظر.
+- **أعمدةُ الجداول مرنةٌ تتكيّف مع محتواها** شاشةً وPDF وإكسل (قرار المالك 2026-10-13: «مرنة مرنة»): لا عرضَ ثابتاً يقتطع النصّ ولا `ellipsis` يخفي بيانة؛ لا عرضَ ثابتاً لعمود التسلسل والأسماءُ لا تنكسر؛ الحارس `tests/test_flexible_table_columns.py`، والتفصيلُ في `.claude/rules/tables.md`.
+- **توسيطُ نصوص الجداول وترويستها** (قرار المالك 2026-10-13، للقائم والمستقبليّ وبأثرٍ رجعيّ، شاشةً وPDF وإكسل): الخلايا والترويسةُ `text-align: center` **عدا عمود الأسماء** فيبقى `start`؛ مركزيّاً لا نمطاً محلّيّاً. التفصيلُ في `.claude/rules/tables.md`.
+- **حرّاسُ الهويّة** `test_dead_classes` و`test_design_ratchet` و`test_tailwind_freeze` تعمل في `prepush`، ومرجعُ الهويّة المولَّد يُحمَّل مع الواجهة.
+- **قاعدةٌ دائمة: كلُّ تعديلٍ أو إضافةٍ على الهويّة يحدّث هذه المهارةَ و`CHANGES.md` في الطلب نفسه**، وإلا عُدّ ناقصًا.
 
 ## القواعد وأسبابها
 - **لا لونَ حرفيّاً في CSS ولا في القالب** — الرموزُ تنقلب ليلاً والحرفُ لا ينقلب (`test_css_colours_are_tokens`، وسقّاطةُ الهويّة `hex_colour` = 0). في القالب `{% brand_color "MAROON" %}`، ومرآتُه `core/brand.py`.

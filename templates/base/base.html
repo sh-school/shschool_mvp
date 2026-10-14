@@ -70,16 +70,16 @@
 
 <body class="app-body min-h-screen flex flex-col" data-icon-sprite="{% static 'icons/sprite.svg' %}" data-page-nav>
 
-{# ✅ Skip Navigation — WCAG 2.1 AA #}
+{# Skip Navigation — WCAG 2.1 AA #}
 <a href="#main-content" class="skip-nav">تخطي للمحتوى الرئيسي</a>
 
-{# ✅ HTMX Loading Bar — شريط تحميل أعلى الصفحة #}
+{# HTMX Loading Bar — شريط تحميل أعلى الصفحة #}
 <div id="htmx-loading-bar" aria-hidden="true"></div>
 
-{# ✅ Screen Reader Live Region — يُنبِّه بتحديثات HTMX #}
+{# Screen Reader Live Region — يُنبِّه بتحديثات HTMX #}
 <div id="sr-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
-{# ✅ Toast Container #}
+{# Toast Container #}
 <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
 
 {% if user.is_authenticated %}
@@ -92,6 +92,7 @@
     {# ── Logo + اسم المدرسة ── #}
     {% if request.user|can_open:"dashboard" %}
     <a href="{% url 'dashboard' %}" class="nb nav-logo">
+      {% load school_logo %}{% school_logo "nav" %}
       <span class="nav-logo-text">{{ current_school.name|default:"المدرسة" }}</span>
     </a>
     {% endif %}
@@ -509,7 +510,7 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
 {% endcomment %}
 {% if is_admin_role or role == "secretary" or role == "student_affairs_coordinator" %}
 
-{# ✅ REQ-SH-002 — Client 001 menu restructure (11 items، كلُّها باقيةٌ بلا حذف). #}
+{# REQ-SH-002 — Client 001 menu restructure (11 items، كلُّها باقيةٌ بلا حذف). #}
 {% comment %}
 عمودٌ لكلّ قسمٍ فوق 1025px (sd-menu--cols-4) — كلُّ قسمٍ فيه عنصرٌ واحدٌ على
 الأقلّ متاحٌ لكلّ من يفتح هذه القائمة (can_open وحدَه بلا قيد دورٍ)، فلا يفرغ
@@ -763,7 +764,7 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% endif %}
   {% comment %} «تسجيل الحضور» القديمة للمعلّم وحدَه («حصصي اليوم» في قائمته) — القيادةُ والمشرفون يرصدون من كشف الأجنحة (قرارُ 2026-09-13). {% endcomment %}
   {% if request.user|can_open:"daily_report" %}
-  <a href="{% url 'daily_report' %}">{% icon "absence" %} غياب اليوم</a>
+  <a href="{% url 'daily_report' %}">{% icon "absence" %} متابعة الغياب</a>
   {% endif %}
   {% if request.user|can_open:"excuse_queue" %}
   <a href="{% url 'excuse_queue' %}">{% icon "absence" %} أعذارُ الغياب عن الاختبارات</a>
@@ -952,7 +953,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   <div class="sd-section">
   <div class="sd-label">الغياب والتأخّر</div>
   {% if request.user|can_open:"daily_report" %}
-  <a href="{% url 'daily_report' %}">{% icon "absence" %} غياب اليوم</a>
+  <a href="{% url 'daily_report' %}">{% icon "absence" %} متابعة الغياب</a>
   {% endif %}
   {% if request.user|can_open:"excuse_queue" %}
   <a href="{% url 'excuse_queue' %}">{% icon "absence" %} أعذارُ الغياب عن الاختبارات</a>
@@ -1139,7 +1140,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% if is_admin_role %}
   {% if request.user|can_open:"setup_2fa" %}
   <a href="{% url 'setup_2fa' %}" class="{% if request.user.totp_enabled %}sd-2fa-enabled{% else %}sd-2fa-disabled{% endif %}">
-    {% icon "two_factor" %} المصادقة الثنائية{% if not request.user.totp_enabled %} (غير مفعّلة){% else %} (مفعّلة ✓){% endif %}
+    {% icon "two_factor" %} المصادقة الثنائية{% if not request.user.totp_enabled %} (غير مفعّلة){% else %} (مفعّلة){% endif %}
   </a>
   {% endif %}
   {% endif %}
@@ -1176,7 +1177,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
 <div id="crumbs" class="page-crumbs">{% block breadcrumbs %}{% endblock %}</div>
 
 {# ════════════════ MAIN CONTENT ═════════════════════════════════════════ #}
-<main id="main-content" class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full {% block main_class %}{% endblock %}">
+<main id="main-content" class="py-6 flex-1 w-full {% block main_class %}{% endblock %}">
   {% block page_header %}{% endblock %}
   {% block content %}{% endblock %}
 </main>
@@ -1282,6 +1283,8 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
 <script src="{% static 'js/export-center.js' %}" defer></script>
 {% comment %}التنقّلُ بين الصفحات بتبديل المحتوى وحدَه: الترويسةُ والقائمةُ والفوتر ثابتةٌ لا تُعاد، والمحتوى يتلاشى ثمّ يظهر بسلاسةٍ (قرارُ المالك 2026-09-20). صفحةٌ لها سكربتُها أو أنماطُها الخاصّة تُحمَّل كاملةً كما كانت.{% endcomment %}
 <script src="{% static 'js/page-nav.js' %}" defer></script>
+{# حارسُ الجلسة: نبضٌ وتحذيرٌ ونافذةُ إعادة دخولٍ تحفظ ما أُدخل (W-20261005-003). يُحمَّل لكلّ صفحة: داخل إطار إعادة الدخول يكتفي بإخفاء الإطار المحيط. #}
+<script src="{% static 'js/session-guard.js' %}" defer></script>
 {% if rum_endpoint %}{# قياسُ الأداء الميدانيّ (Q-04): لا يُحمَّل ما دام RUM_ENDPOINT فارغاً #}
 <script src="{% static 'js/rum.js' %}" defer></script>
 {% endif %}
@@ -1301,10 +1304,11 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
   <button class="pwa-dismiss-btn" data-action="dismiss-pwa" aria-label="إغلاق">{% icon "close" size="sm" %}</button>
 </div>
 {% include "components/icon_update_notice.html" %}
+{% include "components/session_guard.html" %}
 {% endif %}
 
 
-{# ✅ Mobile Bottom Navigation ── #}
+{# Mobile Bottom Navigation ── #}
 {% if user.is_authenticated %}
 {% with role=request.user.get_role %}
 <nav class="mobile-bottom-nav" aria-label="التنقل السريع">

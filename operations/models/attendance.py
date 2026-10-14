@@ -5,6 +5,7 @@ import uuid
 from django.db import models
 from django.utils import timezone
 
+from core.fields import EncryptedTextField
 from core.models import ClassGroup, CustomUser, School
 from core.validators import FileTypeValidator
 
@@ -380,6 +381,65 @@ class AbsenceExcuse(models.Model):
     reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ قرار النائب")
     rejection_reason = models.TextField(
         blank=True, default="", db_default="", verbose_name="سببُ الرفض"
+    )
+
+    # ── نموذج 04 «كتاب التماس عذر لغياب طالب» (07c): مقدّمُ الطلب والتعهّد ومراحلُ التنفيذ ──
+    #: وليُّ الأمر الذي التمس العذر، بما كتبه في الورقة: الاسم — صلةُ القرابة — الهاتف — تاريخ الكتاب.
+    #: الهاتفُ مشفَّرٌ (PDPPL) ولا يُستعلَم بمحتواه. وكلُّها فارغةٌ لعذرٍ سُجّل بيد الموظّف بلا ورقة.
+    applicant_name = models.CharField(
+        max_length=150, blank=True, default="", db_default="", verbose_name="اسمُ مقدّم الطلب"
+    )
+    applicant_relation = models.CharField(
+        max_length=40, blank=True, default="", db_default="", verbose_name="صلةُ القرابة"
+    )
+    applicant_phone = EncryptedTextField(
+        blank=True, default="", db_default="", verbose_name="هاتفُ مقدّم الطلب"
+    )
+    letter_date = models.DateField(null=True, blank=True, verbose_name="تاريخُ تقديم الكتاب")
+    #: إقرارُ التعهّد المطبوع في الورقة (الانضباط وإخلاءُ مسؤوليّة المدرسة) — يُحفظ كما أقرّ به وليُّ الأمر.
+    pledge_accepted = models.BooleanField(
+        default=False, db_default=False, verbose_name="إقرارُ التعهّد"
+    )
+
+    #: «عند القبول فقط — استخدام فريق شؤون الطلاب»: ثلاثُ مراحلَ بالترتيب، لكلٍّ منفّذٌ وتاريخ.
+    #: لا تُسجَّل مرحلةٌ على عذرٍ غير مقبول ولا قبل التي سبقتها (`operations.excuses.record_stage`).
+    STAGES = [
+        ("internal", "النظام الداخلي"),
+        ("national", "النظام الوطني"),
+        ("audit", "المتابعة والتدقيق"),
+    ]
+    stage_internal_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="absence_excuse_internal_stages",
+        verbose_name="نفّذ في النظام الداخلي",
+    )
+    stage_internal_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="تاريخُ النظام الداخلي"
+    )
+    stage_national_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="absence_excuse_national_stages",
+        verbose_name="نفّذ في النظام الوطني",
+    )
+    stage_national_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="تاريخُ النظام الوطني"
+    )
+    stage_audit_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="absence_excuse_audit_stages",
+        verbose_name="نفّذ المتابعة والتدقيق",
+    )
+    stage_audit_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="تاريخُ المتابعة والتدقيق"
     )
 
     class Meta:

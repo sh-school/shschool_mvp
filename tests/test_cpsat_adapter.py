@@ -218,6 +218,29 @@ def test_inputs_from_the_live_build_match_the_assignments_and_exemptions(live_sc
     assert inputs.class_names[str(group.id)] == str(group)
 
 
+@pytest.mark.django_db
+@pytest.mark.parametrize(("active", "expected"), [(False, None), (True, 1)])
+def test_the_gap_cap_reaches_the_solver_only_while_the_flag_is_on(
+    live_school, settings, active, expected
+):
+    """W-20261012-023: القارئ الواحد `effective_max_gap`؛ والقيمةُ المحفوظةُ باقيةٌ في القاعدة في الحالتين."""
+    from operations.models import TeacherPreference
+
+    settings.PREF_MAX_GAP_ACTIVE = active
+    school, _group, teachers = live_school
+    pref = TeacherPreference.objects.create(
+        teacher=teachers[0], school=school, academic_year=YEAR, max_gap=1
+    )
+    tasks = build_tasks(school, YEAR)
+    prefs_qs, _prefs, blocked = load_inputs(school, YEAR)
+
+    inputs = build_inputs(tasks, blocked, prefs_qs, bell_lookup(school))
+
+    assert inputs.prefs[str(teachers[0].id)].max_gap == expected
+    pref.refresh_from_db()
+    assert pref.max_gap == 1
+
+
 def test_blocks_follow_the_group_rule_on_a_mixed_parallel_group():
     """W-20261009-001: مجموعةٌ بعضها مزدوجٌ وبعضها لا ← لا كتلة لأحد؛ والمزدوجةُ كلُّها ← كتلةٌ لكلّ عضو."""
     mixed = [

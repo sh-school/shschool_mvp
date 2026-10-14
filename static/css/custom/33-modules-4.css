@@ -745,6 +745,9 @@ button.ui-kpi { font: inherit; inline-size: 100%; text-align: start; cursor: poi
   .ui-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   /* في نصف شاشةٍ لا يتّسع السطرُ للتفصيل — والتلميحُ يحمله. */
   .ui-kpi__sub { display: none; }
+  /* بطاقةٌ بعرض نصف شاشةٍ لا يسع اسمَها ورقمَها معاً («شعب سُجّلت حصصها» و«0 من 0» عند 375px قُصّا يساراً، ملاحظة 0502): يلتفّ الرقمُ إلى سطرٍ ثانٍ ويلتفّ الاسمُ إن طال، ولا شيءَ يخرج من البطاقة. وما اتّسع لسطرٍ واحدٍ يبقى كما كان. */
+  .ui-kpi { flex-wrap: wrap; column-gap: var(--sp-2); row-gap: 0; }
+  .ui-kpi__label { white-space: normal; }
 }
 
 /* ── 2. بطاقةُ القسم: ترويسةٌ عنّابيّةٌ واحدة ──
@@ -1183,6 +1186,12 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
   font-variant-numeric: tabular-nums;
 }
 .beh-degree__list { display: grid; align-content: start; padding: 0; max-block-size: 220px; overflow-y: auto; }
+@media (max-width: 640px) {
+  .beh-degrees { grid-template-columns: minmax(0, 1fr); }
+  .beh-degree__list { max-block-size: none; overflow-y: visible; }
+  .beh-degree__head { min-block-size: var(--control-h); }
+  .beh-vitem { align-items: center; min-block-size: var(--control-h); font-size: var(--text-sm); }
+}
 .beh-vitem {
   display: flex;
   align-items: baseline;
@@ -1271,6 +1280,12 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .beh-level-pick__option:hover .beh-level-pick__box { border-color: var(--border-strong); }
 .beh-level-pick__option input:checked + .beh-level-pick__box { border-color: var(--maroon); background: var(--maroon-bg); color: var(--maroon-fg); }
 .beh-level-pick__option.is-severe input:checked + .beh-level-pick__box { border-color: var(--status-danger); background: var(--status-danger-bg); color: var(--status-danger-fg); }
+.beh-level-pick__name { display: none; }
+@media (max-width: 640px) {
+  .beh-level-pick { grid-template-columns: minmax(0, 1fr); }
+  .beh-level-pick__box { flex-direction: row; justify-content: flex-start; gap: var(--sp-3); min-block-size: var(--control-h); padding-inline: var(--sp-3); }
+  .beh-level-pick__name { display: inline; font-weight: 400; }
+}
 
 /* ── التقارير الأكاديميّة — templates/academic_management/reports/ ── */
 /* صفحةُ التقارير: كلُّ سطرٍ رابطٌ إلى تقريره، والعنوانُ يأخذ لونَ الهويّة عند المرور. */
@@ -1579,13 +1594,61 @@ body:has(.rm-page) .site-footer { flex: none; }
 /* التلميحُ طافٍ بموضعٍ ثابتٍ (fixed) فلا تقصّه حاويةُ الجدول ولا يزيد ارتفاعَ أيّ صفّ؛ يظهر بالمرور فقط. */
 .cg-exitpop { position: fixed; z-index: var(--z-toast); max-inline-size: min(20rem, 90vw); padding: var(--sp-2) var(--sp-3); background: var(--surface); color: var(--text-primary); border: 1px solid var(--status-info); border-radius: var(--radius-md); box-shadow: var(--shadow-modal); font-size: var(--text-sm); line-height: 1.6; white-space: pre-line; pointer-events: none; }
 .cg-exitpop[hidden] { display: none; }
-@media (max-width: 640px) {
-  .cg-table .cg-name { inline-size: 34%; min-inline-size: 6rem; }
-  .cg-table .cg-acts { inline-size: 36%; }
-  /* الهاتف: عمودٌ واحدٌ معروضٌ فمفاتيحُه الثلاثةُ في صفٍّ بعرض الشاشة، وارتفاعُ اللمس من الكتلة المركزيّة. */
-  .cg-keys { grid-template-columns: repeat(3, 1fr); }
-  .cg-keys > :nth-child(3) { grid-column: auto; }
+/* ── الجدولُ على الهاتف (W-20261012-028): الرصدُ من الجوّال كان «صعباً جداً» — سبعةُ أعمدةٍ وأربعةُ أزرارٍ في كلّ صفّ (≈200px للصفّ).
+   عتبةُ الوضع **واحدةٌ هنا**: استعلامُ الوسائط الوحيدُ أدناه يضبط `--cg-narrow` وJS يقرؤه (`class-grid.js`) فلا يختلف العرضُ عن السلوك.
+   الهاتفُ العموديُّ ≤640px، والهاتفُ الأفقيُّ (مؤشّرٌ باللمس حتى 900px) — وكان الأفقيُّ يعرض تسعةَ أعمدةٍ بأهدافٍ صغيرة.
+   الحاسوبُ بلا تغيير (D-240م): الورقةُ تُرسم فيه مضمَّنةً داخل خليّة الإجراءات كما كانت. */
+.cg-acts__open, .cg-sheet__head, .cg-keybar { display: none; }
+.cg-sheet:not([open]) { display: contents; }
+.cg-sheet { border: 0; padding: 0; background: transparent; color: inherit; max-inline-size: none; max-block-size: none; inline-size: auto; overflow: visible; }
+[data-tabs][hidden] { display: none; }
+[data-class-grid] { --cg-narrow: 0; }
+@media (max-width: 640px), (pointer: coarse) and (max-width: 900px) {
+  [data-class-grid] { --cg-narrow: 1; --cg-dock: 0px; --cg-chrome-top: calc(48px + 42px + var(--safe-top, 0px)); }
+  /* الصفحةُ هي التي تتمرّر (لا تمريرَ داخليٌّ متداخل): فتُرفع قيودُ القصّ عن الحاويات حتى يلصق التبويبُ بأعلى الشاشة. */
+  .exec-dash:has(.cg-table), .ui-section:has(.cg-table) { overflow: visible; }
+  .cg-wrap { overflow: visible; max-block-size: none; min-block-size: 0; }
+  [data-class-grid]:has(.cg-keybar) { padding-block-end: calc(var(--control-h) + var(--sp-6)); }
+  /* التبويب: حصّةٌ واحدةٌ ظاهرةٌ ويلصق تحت شريط الموقع؛ العمودُ الظاهرُ يسمّيه التبويب فيُستغنى عن ترويسة الجدول (ارتفاعٌ لصفوفٍ أكثر). */
+  [data-tabs] { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--sp-1); position: sticky; inset-block-start: var(--cg-chrome-top); z-index: 3; padding-block: 0; background: var(--surface); border-block-end: 1px solid var(--border); }
+  [data-tabs] > * { min-inline-size: 0; min-block-size: var(--control-h); padding-inline: 0; }
+  .cg-table { inline-size: min(100%, 36rem); margin-inline: auto; }
+  .cg-table thead, .cg-table tfoot { display: none; }
+  .cg-table .cg-name { inline-size: auto; padding-inline: var(--sp-2); }
+  .cg-table td[data-col] { inline-size: 3.75rem; }
+  .cg-table td.cg-acts { inline-size: 5.75rem; }
+  .cg-table tbody > tr > * { padding-block: 0; border-block-end: 0; box-shadow: inset 0 -1px 0 var(--border); }
+  /* الاسمُ في سطرٍ واحد يُقتطع بثلاث نقاط (أمرُ المالك): الاسمُ الكاملُ في عنوان الورقة وسجلّ الخليّة. */
+  .cg-table .cg-name { overflow: hidden; }
+  .cg-name__btn { font-size: var(--text-sm); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cg-acts__open { display: inline-flex; align-items: center; justify-content: center; inline-size: 100%; min-block-size: var(--control-h); padding-inline: var(--sp-1); font-size: var(--text-sm); }
+  /* الورقةُ السفليّة: حوارٌ أصليٌّ ملتصقٌ بأسفل الشاشة بعرضها، أهدافُ لمسها بارتفاع المنصّة. */
+  .cg-sheet:not([open]) { display: none; }
+  .cg-sheet[open] { position: fixed; inset: auto 0 0 0; margin: 0; inline-size: 100%; max-inline-size: none; padding: var(--sp-4) var(--sp-4) calc(var(--sp-4) + var(--safe-bottom)); background: var(--surface); color: var(--text-primary); border-block-start: 3px solid var(--maroon); border-radius: var(--radius-lg) var(--radius-lg) 0 0; box-shadow: var(--shadow-modal); max-block-size: 85dvh; overflow: auto; z-index: var(--z-modal); }
+  .cg-sheet::backdrop { background: color-mix(in srgb, var(--shadow-ink) 55%, transparent); }
+  .cg-sheet__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-block-end: var(--sp-3); }
+  .cg-sheet__head > button { min-block-size: var(--control-h); }
+  .cg-sheet .cg-acts__box { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+  .cg-sheet .cg-acts__box > * { min-block-size: var(--control-h); inline-size: 100%; max-inline-size: none; display: inline-flex; align-items: center; justify-content: center; font-size: var(--text-base); }
+  .cg-sheet .cg-acts__out { grid-column: 1 / -1; }
+  /* شريطُ المفاتيح: ثابتٌ فوق شريط التنقّل السفليّ (إن وُجد) بتسميات كاملة. */
+  .cg-keybar { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: var(--sp-2); position: fixed; inset-inline: 0; inset-block-end: var(--cg-dock); z-index: var(--z-dropdown); padding: var(--sp-0-5) var(--sp-3) calc(var(--sp-0-5) + var(--safe-bottom)); background: var(--surface); border-block-start: 2px solid var(--maroon); box-shadow: var(--shadow-modal); }
+  .cg-keybar > * { min-inline-size: 0; min-block-size: var(--control-h); padding-inline: var(--sp-1); }
 }
+/* الهاتفُ العموديُّ فيه شريطُ تنقّلٍ سفليّ ثابت: يرتفع الشريطُ فوقه. */
+@media (max-width: 640px) {
+  [data-class-grid] { --cg-dock: calc(var(--dock-h) + var(--dock-pad)); }
+}
+/* الأفقيُّ قصيرٌ (≈360px): التبويبُ يمرّ مع الصفحة كي لا يأكل صفاً من الشاشة. */
+@media (max-height: 500px) {
+  [data-class-grid] [data-tabs] { position: static; }
+}
+
+/* محدِّدُ يوم اللوحة (W-20261010-056): سهما السابق والتالي على جانبَي حقل التاريخ، وشارةُ «للقراءة فقط» في طرفه حين يكون اليومُ غيرَ اليوم الحقيقيّ. */
+.day-picker { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); }
+.day-picker__form { display: flex; align-items: center; gap: var(--sp-1-5); }
+.day-picker__step.is-disabled { opacity: .45; pointer-events: none; }
+.day-picker__ro { margin-inline-start: var(--sp-1); }
 
 /* ── لوحة المعلّم: صفوفُ الحصص (W-20261010-039) ── */
 .sess-list { display: grid; }
@@ -1601,7 +1664,7 @@ body:has(.rm-page) .site-footer { flex: none; }
   text-decoration: none;
 }
 .sess-row:last-child { border-block-end: 0; }
-.sess-row:hover { background: var(--surface-alt); }
+.sess-row[href]:hover { background: var(--surface-alt); } /* صفُّ القراءة فقط (بلا href، W-20261010-056) لا يتلوّن كأنّه يُنقَر */
 .sess-row.is-next { background: var(--status-warning-bg); }
 .sess-main { display: flex; align-items: center; gap: var(--sp-4); min-inline-size: 0; }
 .sess-clock { min-inline-size: 3.25rem; text-align: center; font-size: var(--text-sm); font-weight: 700; color: var(--text-primary); }

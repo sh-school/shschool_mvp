@@ -311,11 +311,13 @@ class BehaviorInfraction(models.Model):
         db_index=True,
         verbose_name="الدرجة",
     )
-    description = models.TextField(
+    # [W-20261012-033] مشفَّران at-rest كحقول الدرجة الفرعية: لا بحثَ ولا تصفيةَ عليهما (التشفيرُ لا يسمح)،
+    # وقراءةُ الصف القديم الصريح تعمل حتى تُشفَّره هجرةُ البيانات في الإصدار الثاني.
+    description = EncryptedTextField(
         verbose_name="وصف المخالفة",
         max_length=2000,
     )
-    action_taken = models.TextField(
+    action_taken = EncryptedTextField(
         blank=True,
         verbose_name="الإجراء المتخذ",
         max_length=2000,
@@ -653,7 +655,9 @@ class BehaviorCommitteeVote(models.Model):
         verbose_name="العضو",
     )
     decision = models.CharField(max_length=10, verbose_name="القرار")
-    action_taken = models.TextField(blank=True, verbose_name="الإجراء المقترح")
+    action_taken = EncryptedTextField(
+        blank=True, verbose_name="الإجراء المقترح"
+    )  # [W-20261012-033]
     suspension_type = models.CharField(max_length=20, blank=True, verbose_name="نوع الإيقاف")
     suspension_days = models.PositiveSmallIntegerField(default=1, verbose_name="أيام الإيقاف")
     status = models.CharField(max_length=8, choices=STATUS, default=OPEN, verbose_name="الحالة")
