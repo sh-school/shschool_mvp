@@ -419,7 +419,7 @@
   "tests/test_print_styles.py": 1.1,
   "tests/test_production_runtime_settings.py": 4.4,
   "tests/test_profile_birth_date_encryption.py": 4.3,
-  "tests/test_provisional_entry_window.py": 0.3,
+  "tests/test_attendance_entry_window_central.py": 0.3,
   "tests/test_provisional_session.py": 0.2,
   "tests/test_provisional_session_junction.py": 24.2,
   "tests/test_prune_local_branches.py": 4.7,
