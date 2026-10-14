@@ -172,14 +172,11 @@ def _has_entry_in_session(student: CustomUser, session: Session) -> bool:
 
 
 def _is_enrolled(student: CustomUser, session: Session) -> bool:
-    """قيدٌ نشطٌ في شعبة الحصّة بدأ في تاريخها أو قبله — فطالبٌ قُيّد بعدها لا تُرصد له."""
+    """قيدٌ في شعبة الحصّة يشمل تاريخَها (`on_roll`) — فطالبٌ قُيّد بعدها أو نُقل منها قبلها لا تُرصد له."""
     return bool(
-        StudentEnrollment.objects.filter(
-            student=student,
-            class_group_id=session.class_group_id,
-            is_active=True,
-            enrolled_at__lte=session.date,
-        ).exists()
+        StudentEnrollment.objects.filter(student=student, class_group_id=session.class_group_id)
+        .on_roll(session.date)
+        .exists()
     )
 
 
