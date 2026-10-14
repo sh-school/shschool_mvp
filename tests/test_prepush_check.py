@@ -46,6 +46,7 @@ def _all_pass(monkeypatch, **overrides):
     monkeypatch.setattr(prepush_check, "check_personal_data", ok)
     monkeypatch.setattr(prepush_check, "check_secrets", overrides.get("secrets", ok))
     monkeypatch.setattr(prepush_check, "check_complexity", overrides.get("complexity", ok))
+    monkeypatch.setattr(prepush_check, "check_types", overrides.get("types", ok))
     # لا واجهةَ تغيّرت افتراضاً: خطوةُ الهويّة تُتخطّى فلا تُشغَّل الحرّاسُ الحقيقيّة في اختبارات الأداة.
     monkeypatch.setattr(prepush_check, "changed_paths_vs_merge_base", lambda: [])
 
@@ -139,3 +140,53 @@ def test_an_unknown_diff_is_treated_as_touching_the_interface(monkeypatch):
 def test_the_identity_step_has_its_own_time_budget_documented():
     assert prepush_check.IDENTITY_TIMEOUT_SECONDS >= 120
     assert "D-376" in Path("scripts/prepush_check.py").read_text(encoding="utf-8")
+
+
+# ── mypy بإصدار CI داخل prepush افتراضياً (W-20261014-002) ────────────────────────────────
+
+
+def test_mypy_runs_by_default_and_a_failure_blocks(monkeypatch):
+    _all_pass(monkeypatch, types=lambda: (prepush_check.FAIL, "خطأ نوع"))
+    assert prepush_check.main([]) == 1
+
+
+def test_no_types_flag_is_reported_as_unmeasured_not_as_pass(monkeypatch):
+    _all_pass(monkeypatch)
+    assert prepush_check.main(["--no-types"]) == 3
+
+
+def test_a_version_skew_fails_the_types_check(monkeypatch):
+    monkeypatch.setattr(
+        prepush_check, "mypy_version_skew", lambda: ["mypy: الثابتُ 1.10.0، والمثبَّتُ عندك 2.3.1"]
+    )
+    status, detail = prepush_check.check_types()
+    assert status == prepush_check.FAIL and "1.10.0" in detail and "requirements-mypy.txt" in detail
+
+
+def test_an_absent_checker_fails_not_passes(monkeypatch):
+    monkeypatch.setattr(
+        prepush_check, "mypy_version_skew", lambda: ["mypy: الثابتُ 1.10.0، والمثبَّتُ عندك غائب"]
+    )
+    assert prepush_check.check_types()[0] == prepush_check.FAIL
+
+
+def test_flow_documents_the_head_freeze_rule():
+    flow = Path("docs/governance/flow.md").read_text(encoding="utf-8")
+    assert "تجميدُ الرأس" in flow and "make prepush" in flow
+
+
+def test_real_mypy_1_10_0_flags_a_known_error_when_installed(tmp_path):
+    """القبول: prepush يسقط على خطأ mypy تعرفه النسخةُ الثابتة؛ يُتخطّى إن لم تكن 1.10.0 مثبَّتة هنا."""
+    import subprocess
+    import sys
+
+    import pytest
+
+    from tests.mypy_ratchet import installed_version, pinned_version
+
+    if installed_version("mypy") != pinned_version("mypy"):
+        pytest.skip("mypy الثابت غير مثبَّت في هذه البيئة")
+    bad = tmp_path / "bad.py"
+    bad.write_text("x: int = 'a'\n", encoding="utf-8")
+    proc = subprocess.run([sys.executable, "-m", "mypy", str(bad)], capture_output=True, text=True)
+    assert proc.returncode == 1 and "Incompatible types" in proc.stdout
