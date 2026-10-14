@@ -22,6 +22,9 @@ from dataclasses import dataclass, field
 
 from django.utils import timezone
 
+from core.ministry import ministry_line, ministry_name
+from operations.attendance_precedence import Mark as PrecedenceMark
+from operations.attendance_precedence import resolve_attendance
 from operations.attendance_selectors import entry_heads_by_start, entry_tallies_by_start
 from operations.day_attendance import enrolled_of
 from operations.period_register import cells_of, periods_of
@@ -213,7 +216,7 @@ def footer_lines(school) -> tuple[str, str]:
     vision = render_to_string("components/ministry_vision.html", {"school": school}).strip()
     return (
         " · ".join(p for p in parts if p),
-        f"وزارة التربية والتعليم والتعليم العالي — دولة قطر — {vision}",
+        ministry_line(ministry_name(), vision),
     )
 
 
@@ -280,13 +283,17 @@ def section_register(class_group, day: dt.date, now: dt.datetime | None = None) 
         marks = []
         for period in periods:
             cell = own.get(period.start) if period.start in confirmed else None
-            head = None if cell else own_entries.get(period.start)
-            if cell:
-                marks.append(Mark(cell.status, cell.late_minutes, cell.whereabouts))
-            elif head and period.start not in confirmed:
-                marks.append(Mark(head.status, head.late_minutes))
-            else:
-                marks.append(Mark(""))
+            head = own_entries.get(period.start)
+            # الأسبقيّةُ من مصدرها الوحيد: إدخالُ المعلّم يغلب تثبيتَ المشرف، والمشرفُ يملأ الفراغ (D-420م).
+            won = resolve_attendance(
+                teacher_entry=PrecedenceMark(head.status, head.late_minutes) if head else None,
+                supervisor=(
+                    PrecedenceMark(cell.status, cell.late_minutes, cell.whereabouts)
+                    if cell
+                    else None
+                ),
+            )
+            marks.append(Mark(won.status, won.late_minutes, won.whereabouts))
         rows.append(Row(index, enrollment.student.full_name, marks))
 
     wing = class_group.wing if class_group.wing_id else None

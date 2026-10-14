@@ -354,7 +354,8 @@ class TestTheFooter:
         book = openpyxl.load_workbook(io.BytesIO(response.content))
         for sheet in book.worksheets:
             last = sheet.cell(row=sheet.max_row, column=1).value or ""
-            assert "وزارة التربية والتعليم" in last
+            assert "مُتَعَلِّمٌ رِيَادِيٌّ لِتَنْمِيَةٍ مُسْتَدَامَةٍ" in last
+            assert "وزارة التربية والتعليم" not in last, "سطرُ الوزارة مجمَّدٌ بقرار D-400م"
             assert sheet.print_area.endswith(f"${sheet.max_row}")
 
 

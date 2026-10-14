@@ -1,0 +1,49 @@
+{% load icons %}
+{% comment %}
+  نافذتا حارس الجلسة (static/js/session-guard.js) — تظهران بالسكربت وحدَه:
+    #session-warning  تحذيرٌ قبل دقيقتين من الانتهاء بزرّ «ابقَ متصلاً» وعدٍّ تنازليّ.
+    #session-relogin  إعادةُ دخولٍ في الصفحة نفسها: إطارٌ لصفحة الدخول ذاتِها (فلا كلمةَ مرور في JS)،
+                      ثمّ يُحدَّث رمزُ CSRF ويُعاد الطلبُ بما أُدخل. خطوةُ الرمز الثاني تظهر داخل الإطار.
+  تُدرج مرّةً في base.html للمستخدم المسجَّل فقط.
+{% endcomment %}
+<div id="session-warning" class="modal-overlay session-guard" hidden
+     role="alertdialog" aria-modal="true" aria-labelledby="sg-warn-title" aria-describedby="sg-warn-text">
+  <div class="modal-box modal-sm" role="document">
+    <div class="modal-header">
+      <span id="sg-warn-title" class="confirm-dlg-title">{% icon "status_warning" %} جلستُك على وشك الانتهاء</span>
+      <button type="button" class="modal-close-btn" data-sg-dismiss aria-label="إغلاق التنبيه">×</button>
+    </div>
+    <div class="modal-body" id="sg-warn-text">
+      <p class="session-guard__lead" data-sg-idle>
+        تنتهي جلستُك بعد <strong class="session-guard__countdown" dir="ltr" data-sg-countdown>2:00</strong>
+        لعدم وجود نشاط. اضغط «ابقَ متصلاً» لتتابع دون أن تفقد ما أدخلتَه.
+      </p>
+      <p class="session-guard__lead" data-sg-absolute hidden>
+        بلغت جلستُك حدَّها الأقصى وتنتهي بعد <strong class="session-guard__countdown" dir="ltr" data-sg-countdown>2:00</strong>.
+        لا يمكن تمديدُها: احفظ عملَك ثم سجّل الدخول من جديد.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-primary" data-sg-stay>ابقَ متصلاً</button>
+      <button type="button" class="btn-primary" data-sg-relogin hidden>سجّل الدخول من جديد</button>
+    </div>
+  </div>
+</div>
+
+<div id="session-relogin" class="modal-overlay session-guard" hidden data-user="{{ request.user.pk }}"
+     role="dialog" aria-modal="true" aria-labelledby="sg-relogin-title">
+  <div class="modal-box modal-md" role="document">
+    <div class="modal-header">
+      <span id="sg-relogin-title">انتهت جلستُك — سجّل الدخول لإكمال عملك</span>
+    </div>
+    <div class="modal-body">
+      <p class="session-guard__lead" data-sg-lead-pending>ما أدخلتَه ما زال في هذه الصفحة ولن يضيع. سجّل الدخول هنا ثم نُكمل طلبَك تلقائياً.</p>
+      <p class="session-guard__lead" data-sg-lead-plain hidden>انتهت جلستُك. سجّل الدخول من جديد لمتابعة عملك في هذه الصفحة.</p>
+      <iframe class="session-guard__frame" data-sg-frame title="تسجيل الدخول" referrerpolicy="same-origin"></iframe>
+      <p class="session-guard__status" data-sg-status role="status"></p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" data-sg-cancel>ليس الآن</button>
+    </div>
+  </div>
+</div>

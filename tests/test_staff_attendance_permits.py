@@ -2742,8 +2742,8 @@ class TestRoundSix:
         assert vice_admin.pk not in _eligible(other)
 
     def test_each_deputy_tasks_only_his_own_people(self, school, principal_user):
-        """قرارُ المدرسة: النائبُ الأكاديميّ يكلّف المنسّقين، والنائبُ الإداريّ من تحته، والمديرُ
-        نائبَيه — ولا يكلّف غيرَهما إلّا إن غاب النائبان معاً."""
+        """قرارُ المدرسة وقرارُ المالك 2026-10-04: كلٌّ من النائبين يكلّف من تحته (LINE_MANAGER)
+        أيّاً كان دورُه، والمديرُ نائبَيه — ولا يكلّف غيرَهما إلّا إن غاب النائبان معاً."""
         from staff_affairs.attendance import AssignmentService
 
         vice_admin, vice_academic = _actor(school, "vice_admin"), _actor(school, "vice_academic")
@@ -2764,8 +2764,9 @@ class TestRoundSix:
 
         assert take(vice_academic, coordinator).acting_role == "vice_academic"
         assert take(vice_admin, supervisor).acting_role == "vice_admin"
-        with pytest.raises(PolicyError, match="المنسّقين"):
-            take(vice_academic, teacher)
+        assert take(vice_academic, teacher).acting_role == "vice_academic"
+        with pytest.raises(PolicyError, match="تحت مسؤوليته"):
+            take(vice_academic, supervisor)  # مسؤولُه المباشرُ النائبُ الإداريّ
         with pytest.raises(PolicyError, match="تحت مسؤوليته"):
             take(vice_admin, teacher)
         with pytest.raises(PolicyError, match="نائبَيه"):

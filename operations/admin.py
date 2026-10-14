@@ -254,7 +254,17 @@ class AbsenceExcuseAdmin(SensitiveFieldsMixin, ReadOnlyAdminMixin, SchoolScopedA
     list_filter = ("status", "kind", "after_deadline", "school")
     search_fields = ("student__full_name", "student__national_id")
     date_hierarchy = "date_from"
-    sensitive_fields = ("kind", "notes", "document", "override_reason", "rejection_reason")
+    sensitive_fields = (
+        "kind",
+        "notes",
+        "document",
+        "override_reason",
+        "rejection_reason",
+        "applicant_name",
+        "applicant_relation",
+        "applicant_phone",
+        "pledge_accepted",
+    )
 
 
 @admin.register(GuardianContact)
@@ -760,3 +770,7 @@ class PermissionAuditLogAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
     list_display = ("temp_permission", "action", "performed_by", "performed_at")
     list_select_related = ("temp_permission__teacher", "performed_by")
     list_filter = ("action",)
+
+
+# سجلّا «متابعة الغياب» (W-20261013-011) في وحدتهما، يُسجَّلان عند استيراد هذه الوحدة.
+from . import admin_absence_followup  # noqa: E402,F401

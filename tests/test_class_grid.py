@@ -521,7 +521,7 @@ def test_the_cell_history_shows_who_wrote_and_who_corrected(
 def test_the_read_query_count_is_flat_in_the_number_of_students(
     client_as, school, assigned, teacher, clock
 ):
-    """عدُّ الاستعلامات ثابتٌ بعدد الطلبة: شعبةٌ بـ30 ثمّ بـ60 تُقرأ بالعدد نفسِه، وتحت حدٍّ مطلق (خطُّ أساسٍ مقيس: 36 بعد استعلام تغطية البديل)."""
+    """عدُّ الاستعلامات ثابتٌ بعدد الطلبة: شعبةٌ بـ30 ثمّ بـ60 تُقرأ بالعدد نفسِه، وتحت حدٍّ مطلق (خطُّ أساسٍ مقيس: 37 = 36 بعد استعلام تغطية البديل + استعلامٌ واحدٌ لتكليف المعلّم بالإنابة لكلّ طلب، W-20261001-021)."""
 
     def measure():
         with CaptureQueriesContext(connection) as queries:
@@ -540,7 +540,7 @@ def test_the_read_query_count_is_flat_in_the_number_of_students(
     thirty = measure()
     enroll(30, 60)
     sixty = measure()
-    assert thirty == sixty and thirty <= 37, (thirty, sixty)
+    assert thirty == sixty and thirty <= 38, (thirty, sixty)
 
 
 # ── «اطفئ الشبكة»: مع المفتاح لا يُفتح كشفُ الحصّة القديم لمن يملك الجدول ───────────

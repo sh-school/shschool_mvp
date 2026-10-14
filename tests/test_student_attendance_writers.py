@@ -41,11 +41,7 @@ ALLOWED_WRITERS: dict[tuple[str, str], str] = {
     (
         "operations/attendance_entries.py",
         "_apply_to_effective",
-    ): "اعتمادُ إدخالِ معلّمٍ يكتب الرصدَ المعتمَد (قفلُ صفّ، لا فوق مصدرٍ بشريٍّ آخر، AuditLog) — لا يصله إلّا decide_entry/submit_entry (ESE)",
-    (
-        "operations/exit_reflection.py",
-        "_flip_unaccounted",
-    ): "مهمّةُ Celery: قلبُ حاضرٍ إلى غائبٍ لخروجٍ لم يُحتسب (مشتقٌّ، AuditLog)",
+    ): "اعتمادُ إدخالِ معلّمٍ يكتب الرصدَ المعتمَد (قفلُ صفّ، لا فوق مصدرٍ بشريٍّ آخر، AuditLog) — لا يصله إلّا submit_entry (ESE)",
     (
         "operations/exit_reflection.py",
         "revert_derived_absence",
@@ -59,9 +55,9 @@ ALLOWED_WRITERS: dict[tuple[str, str], str] = {
         "approve_excuse",
     ): "اعتمادُ عذرٍ بعد المهلة (النائب/المدير)",
     (
-        "student_affairs/views.py",
-        "tardiness_record",
-    ): "تسجيلُ تأخّرٍ صباحيّ — شؤونُ الطلبة والمشرف، لا المعلّم",
+        "student_affairs/morning_tardiness.py",
+        "record_morning_tardiness",
+    ): "تسجيلُ تأخّرٍ صباحيّ — صفٌّ جديدٌ لا فوق رصدٍ قائم، بحكم can_write_grid (W-20261004-022؛ كان في عرض tardiness_record)",
     (
         "student_affairs/views.py",
         "tardiness_delete",

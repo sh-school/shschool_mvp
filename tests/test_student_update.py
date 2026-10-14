@@ -1,6 +1,6 @@
 """
 tests/test_student_update.py
-StudentService.update_student — ذرّية: تحديث المستخدم + الملف + إعادة التسجيل معاً أو لا شيء.
+StudentService.update_student — يحدّث المستخدم والملف معاً، ولا يغيّر الشعبة أبداً (D-343م، W-20261001-017).
 """
 
 import pytest
@@ -42,8 +42,9 @@ def enrolled_student(db, school):
 
 
 @pytest.mark.django_db
-def test_update_reenrolls_and_deactivates_old(enrolled_student, school):
-    _class(school, "G7", "ب")  # الشعبة الجديدة موجودة
+def test_update_changes_the_data_but_never_the_class(enrolled_student, school):
+    """تغييرُ الشعبة طلبُ انتقالٍ داخليّ يُعتمد: ولو وصل الصفُّ والشعبةُ في البيانات لا يُحرَّك التسجيل."""
+    _class(school, "G7", "ب")  # شعبة أخرى موجودة، فلو عُمل بها لانتقل الطالب إليها
     StudentService.update_student(
         enrolled_student,
         school,
@@ -51,26 +52,32 @@ def test_update_reenrolls_and_deactivates_old(enrolled_student, school):
     )
     enrolled_student.refresh_from_db()
     assert enrolled_student.full_name == "اسم محدّث"
-    active = StudentEnrollment.objects.filter(student=enrolled_student, is_active=True)
-    assert active.count() == 1
-    assert active.first().class_group.section == "ب"
-    # التسجيل القديم عُطّل (لا يُحذف)
-    assert StudentEnrollment.objects.filter(
-        student=enrolled_student, class_group__section="أ", is_active=False
-    ).exists()
+    assert StudentEnrollment.objects.filter(student=enrolled_student).count() == 1
+    active = StudentEnrollment.objects.get(student=enrolled_student, is_active=True)
+    assert active.class_group.section == "أ"
 
 
 @pytest.mark.django_db
-def test_update_invalid_section_rolls_back_everything(enrolled_student, school):
-    # الشعبة "ج" غير موجودة → ValueError + تراجع كامل (لا تغيير للاسم ولا للتسجيل)
-    with pytest.raises(ValueError):
-        StudentService.update_student(
-            enrolled_student,
-            school,
-            {"full_name": "اسم لن يُحفظ", "grade": "G7", "section": "ج"},
-        )
+def test_the_edit_form_has_no_class_fields_and_the_edit_page_ignores_a_posted_class(
+    client, school, enrolled_student, principal_user
+):
+    """student_edit لا يغيّر الشعبة مباشرةً حتى بإرسال الحقل في POST."""
+    from django.urls import reverse
+
+    from student_affairs.forms import StudentEditForm
+
+    assert "grade" not in StudentEditForm.base_fields
+    assert "section" not in StudentEditForm.base_fields
+    _class(school, "G7", "ب")
+    client.force_login(principal_user)
+
+    response = client.post(
+        reverse("student_affairs:student_edit", args=[enrolled_student.id]),
+        {"full_name": "اسم بعد التعديل", "grade": "G7", "section": "ب"},
+    )
+
+    assert response.status_code == 302
     enrolled_student.refresh_from_db()
-    assert enrolled_student.full_name == "طالب الاختبار"  # rolled back
-    active = StudentEnrollment.objects.filter(student=enrolled_student, is_active=True)
-    assert active.count() == 1
-    assert active.first().class_group.section == "أ"  # التسجيل الأصلي سليم
+    assert enrolled_student.full_name == "اسم بعد التعديل"
+    active = StudentEnrollment.objects.get(student=enrolled_student, is_active=True)
+    assert active.class_group.section == "أ"

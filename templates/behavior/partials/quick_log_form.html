@@ -47,6 +47,7 @@
     <span class="beh-level-pick__box">
      {% if val == 3 %}{% icon "status_critical" %}{% elif val == 4 %}{% icon "status_blocked" %}{% else %}{% icon "status_warning" %}{% endif %}
      <span>{{ val }}</span>
+     <span class="beh-level-pick__name">{{ label }}</span>
     </span>
    </label>
    {% endfor %}
