@@ -260,7 +260,7 @@ def guardian_phones_for(school: Any, student_ids: Any) -> dict[Any, list[str]]:
 
 def guardian_phone(student: CustomUser) -> list[str]:
     """أرقامُ أولياء أمر طالبٍ — تُقرأ وقتَ العرض من `ParentStudentLink` ولا تُخزَّن، بلا اسمٍ ولا صلة."""
-    school = student.get_school()
+    school = student.get_school()  # type: ignore[no-untyped-call]
     return guardian_phones_for(school, [student.pk]).get(student.pk, [])
 
 
@@ -325,7 +325,7 @@ def _anonymise(model: Any, student: CustomUser, **blank: Any) -> list[Any]:
     السجلّان مضافان فقط فيرفض `update` على مديرهما؛ والتجهيلُ هو الاستثناءُ الوحيد، فيمرّ بـ`QuerySet` عاديٍّ
     على النموذج نفسِه (لا يمسّ أيَّ مسارٍ آخر). RLS تقيّده بمدرسة دور القاعدة كباقي الاستعلامات.
     """
-    plain = models.QuerySet(model, using=model.objects.db).filter(student=student)
+    plain: Any = models.QuerySet(model, using=model.objects.db).filter(student=student)
     ids = list(plain.values_list("pk", flat=True))
     if ids:
         plain.update(student=None, **blank)
