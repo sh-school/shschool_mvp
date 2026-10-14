@@ -32,7 +32,7 @@ ALTER TABLE public.{TABLE} DISABLE ROW LEVEL SECURITY;
 class Migration(migrations.Migration):
     dependencies = [
         ("core", "0081_breach_individuals_and_phased_ncsa"),
-        ("operations", "0085_absence_followup_logs_student_nullable"),
+        ("operations", "0086_absence_followup_options_and_status"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
