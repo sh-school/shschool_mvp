@@ -772,7 +772,7 @@ seed_pin_accounts() {   # seed_pin_accounts
     warn "أداةُ بذر الحسابات غائبة ($tool) — لا حساباتِ 99900001..10 على هذا التثبيت"
     return 0
   fi
-  PREVIEW_CONTAINER="${PROJECT}-web-1" PYTHONUTF8=1 python "$tool" sync \
+  PREVIEW_CONTAINER="$(web_container)" PYTHONUTF8=1 python "$tool" sync \
     || warn "تعذّر بذرُ حسابات المعاينة على هذا التثبيت (راجع رسالةَ الأداة أعلاه)"
 }
 
