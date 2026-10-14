@@ -1528,7 +1528,8 @@ main.page-wide {
   font-size: var(--text-xs);
   font-weight: 400;
   opacity: .85;
-  margin-inline-start: auto;
+  flex: 1 1 auto;
+  text-align: end;
 }
 
 /* ── Empty State ── */

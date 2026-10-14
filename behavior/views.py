@@ -486,11 +486,11 @@ def quick_log(request):
     # GET — نموذج فارغ
     student_id_hint = request.GET.get("student_id", "")
     _require_in_wing(request, student_id_hint)
-    return render(
-        request,
-        "behavior/partials/quick_log_form.html",
-        _quick_log_context(request, school, student_id_hint),
-    )
+    context = _quick_log_context(request, school, student_id_hint)
+    # فتحُ الرابط مباشرةً (لا من النافذة) صفحةٌ كاملةٌ بأنماطها؛ وHTMX يبقى على الجزء
+    if not request.htmx:
+        return render(request, "behavior/quick_log_page.html", context)
+    return render(request, "behavior/partials/quick_log_form.html", context)
 
 
 def _picker_with_prefill(request, students, school) -> dict:
