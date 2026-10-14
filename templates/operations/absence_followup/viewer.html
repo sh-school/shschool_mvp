@@ -1,0 +1,48 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}{{ report_title }}{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url=back_url parent_label="متابعة الغياب" current=report_title %}
+{% endblock %}
+
+{% block content %}
+{% comment %}
+معاينةُ كشف المتابعة داخل المنصّة: صفحةٌ بمكوّنات الهويّة المركزيّة (جدولٌ بترويسةٍ لاصقة)، لا وثيقةُ PDF في إطار.
+الوثيقةُ المطبوعةُ نفسُها تُبنى من `absence_followup_print.html` عند «تحميل PDF».
+{% endcomment %}
+<div class="exec-dash">
+  {% page_header report_title subtitle=subtitle icon="document" %}
+    <a data-app-file href="{{ pdf_url }}" class="btn-primary btn-sm">{% icon "download" %} تحميل PDF</a>
+    <a href="{{ back_url }}" class="btn-secondary btn-sm">← رجوع للمتابعة</a>
+  {% endpage_header %}
+
+  {% section_card "كشفُ المتابعة" meta=rows|length icon="document" empty="لا غيابَ مرصوداً في هذا اليوم." flush=True %}{% if rows %}
+    <div class="table-wrap table-wrap-scroll">
+      <table class="fu-centered" data-no-sort>
+        <thead>
+          <tr>
+            <th scope="col" class="num fu-seq">#</th><th scope="col" class="fu-name">الطالب</th><th scope="col" class="fu-fit">الشعبة</th><th scope="col" class="fu-fit">هاتفُ وليّ الأمر</th><th scope="col">نتيجةُ الاتّصال</th>
+            {% if can_feedback %}<th scope="col">التغذية الراجعة من وليّ الأمر</th>{% endif %}<th scope="col">الإجراءُ الإداريّ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr class="grade-tint grade-{{ row.class_group.grade|lower }}">
+            <td class="num fu-seq">{{ forloop.counter }}</td>
+            <td class="fu-name">{{ row.student.full_name }}</td>
+            <td class="fu-fit">{{ row.class_group.short_label }}</td>
+            <td dir="ltr" class="fu-fit">{{ row.phones|join:" ، " }}</td>
+            <td>{% if row.contact %}{{ row.contact.get_outcome_display }}{% endif %}</td>
+            {% if can_feedback %}<td>{{ row.feedback }}</td>{% endif %}
+            <td>{% if row.action %}{{ row.action.get_status_display }} — {{ row.action.get_action_kind_display }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+</div>
+{% endblock %}

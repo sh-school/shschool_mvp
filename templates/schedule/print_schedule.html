@@ -414,8 +414,8 @@
 <div class="print-controls">
   <span class="print-label">أدوات الجدول</span>
 
-  {# قائمة الاختيار لمن يتصفّح غيره وحده — وعرضُها على المعلّم أداةٌ لا تعمل له #}
-  {% if may_browse %}
+  {# قائمة الاختيار: المتصفّحُ يرى الكلّ، والمعلّمُ يرى جدولَه وجداولَ زملائه وشُعبه فقط (D-432م) #}
+  {% if may_pick %}
   <form id="schedule-view-form" method="get" class="controls-form">
     <input type="hidden" name="view" value="{{ view_type }}">
     <input type="hidden" name="teacher" value="{% if target_teacher %}{{ target_teacher.id }}{% endif %}">

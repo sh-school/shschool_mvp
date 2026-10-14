@@ -6,17 +6,18 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 
 from core import permissions as perm
 from core.capabilities import capability, has_capability
 from staff_affairs.models import LeaveRequest
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 SELF = "staff_affairs:leave_request_self"
 STAFF_ROLES = sorted(perm.ALL_STAFF_ROLES)
@@ -29,7 +30,7 @@ def _user_with_role(school, role_name, name="موظّفٌ اصطناعيّ"):
 
 
 def _monday_after(offset_weeks=1):
-    day = date.today() + timedelta(weeks=offset_weeks)
+    day = timezone.localdate() + timedelta(weeks=offset_weeks)
     return day - timedelta(days=day.weekday())
 
 

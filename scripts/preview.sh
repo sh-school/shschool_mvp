@@ -759,10 +759,29 @@ apply_main() {   # apply_main <sha> — بعد resolve_target (LABEL وINTEG_KIN
   return 1
 }
 
+# قاعدةُ التثبيت: نسخةٌ من قاعدة المعاينة المهاجَرة باسمٍ يحوي «preview» (ss_<شجرة>_preview) — قرار 0101 2026-10-13.
+# فيمرّ حارسُ بذر الحسابات (اسمُ القاعدة يحوي preview) دون المساس بشرطه، وتظهر 99900001..10 على كلّ تثبيت.
+# النسخُ pg_dump قراءةً من القاعدة المصدر فقط (لا قفلَ ولا كتابةَ فيها)؛ وهجراتُ الشجرة تجري عند إقلاعها.
+pin_db() { printf '%s_preview' "$(slug_db "$1")"; }
+
+# بذرُ حسابات المعاينة العشرة بالأداة النظاميّة (تقرأ الكلمةَ الموحَّدة من بيئتها هي ولا تطبعها ولا نمرّرها هنا).
+seed_pin_accounts() {   # seed_pin_accounts
+  local tool="${PREVIEW_ACCOUNTS_TOOL:-$HOME/delivery_manager_work/tools/preview_accounts.py}"
+  if [ "$DRY" = 1 ]; then say "[dry] بذرُ حسابات المعاينة بـ$tool"; return 0; fi
+  if [ ! -f "$tool" ]; then
+    warn "أداةُ بذر الحسابات غائبة ($tool) — لا حساباتِ 99900001..10 على هذا التثبيت"
+    return 0
+  fi
+  PREVIEW_CONTAINER="$(web_container)" PYTHONUTF8=1 python "$tool" sync \
+    || warn "تعذّر بذرُ حسابات المعاينة على هذا التثبيت (راجع رسالةَ الأداة أعلاه)"
+}
+
 deploy_pin() {   # deploy_pin <شجرة> <دقائق>
-  local tree="$1" mins="$2" db
-  db="$(slug_db "$tree")"
-  ensure_db "$tree"
+  local tree="$1" mins="$2" db src
+  db="$(pin_db "$tree")"
+  src="$(preview_db)"
+  if [ "$DRY" = 1 ]; then say "[dry] قاعدةُ $db تُنسخ من $src إن لم توجد"
+  else (cd "$tree" && SOURCE_DB="$src" SESSION_DB_NAME="$db" bash "$SELF_ROOT/scripts/session-db.sh"); fi
   if [ "$DRY" != 1 ] && ! deps_drift "$tree" "$(current_image)" >/dev/null 2>&1; then
     warn "requirements في هذه الشجرة تخالف اعتماديّاتِ الصورة — إن ظهر ImportError فهذا سببُه (لا أبني صورةً لشجرة جلسة)"
   fi
@@ -772,6 +791,7 @@ deploy_pin() {   # deploy_pin <شجرة> <دقائق>
     sset last_error "$(now) الإقلاعُ سقط عند تثبيت $(basename "$tree")"
     return 1
   fi
+  seed_pin_accounts
   sset mode pin
   sset pin_tree "$tree"
   sset pin_until "$(( $(now) + mins * 60 ))"

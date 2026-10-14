@@ -47,7 +47,7 @@ def test_count_reports_the_conflict_in_advance_and_writes_nothing(school, pendin
         student=blocked.student,
         school=school,
         status="present",
-        source="supervisor",
+        source="clinic",
     )
 
     report = settle_pending(school)
@@ -64,7 +64,7 @@ def test_apply_skips_the_conflict_and_settles_the_rest_without_aborting(school, 
         student=blocked.student,
         school=school,
         status="present",
-        source="supervisor",
+        source="clinic",
     )
 
     report = settle_pending(school, apply=True)
@@ -111,7 +111,7 @@ def test_the_command_counts_by_default_and_writes_ids_only_to_the_file(school, p
         student=blocked.student,
         school=school,
         status="present",
-        source="supervisor",
+        source="clinic",
     )
     out = io.StringIO()
     ids = tmp_path / "ids.txt"

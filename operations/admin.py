@@ -770,3 +770,7 @@ class PermissionAuditLogAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
     list_display = ("temp_permission", "action", "performed_by", "performed_at")
     list_select_related = ("temp_permission__teacher", "performed_by")
     list_filter = ("action",)
+
+
+# سجلّا «متابعة الغياب» (W-20261013-011) في وحدتهما، يُسجَّلان عند استيراد هذه الوحدة.
+from . import admin_absence_followup  # noqa: E402,F401

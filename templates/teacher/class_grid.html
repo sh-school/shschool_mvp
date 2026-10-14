@@ -85,7 +85,7 @@
                         data-head="{{ cell.head_id }}" data-status="{{ cell.status }}"
                         data-writable="{% if col.writable %}1{% endif %}"
                         {% if not col.writable %}disabled{% endif %}
-                        aria-label="{{ row.student.full_name }} — ح{{ col.number }}">{% if cell.status == "present" %}✓{% elif cell.status == "absent" %}غ{% elif cell.status == "late" %}ت{% else %}·{% endif %}</button>
+                        aria-label="{{ row.student.full_name }} — ح{{ col.number }}">{% if cell.status == "present" %}ح{% elif cell.status == "absent" %}غ{% elif cell.status == "late" %}ت{% else %}·{% endif %}</button>
                 </div>
               </td>
               {% endfor %}
@@ -123,8 +123,8 @@
                 <div class="cg-keys" role="group" aria-label="مفاتيح ح{{ col.number }}">
                   {% if page.can_write %}
                   {# الكلُّ حاضر/غائب يعدّلان خلايا العمود في الواجهة فقط بلا تأكيد ولا حفظ؛ و«حفظ» يحفظ هذا العمودَ وحدَه. العمودُ المغلقُ معطَّلٌ بسببٍ ظاهرٍ في التلميح. #}
-                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_present" data-col="{{ col.number }}" aria-label="الكلُّ حاضر في ح{{ col.number }}"{% if not col.writable %} disabled title="{% if col.state == 'future' %}تُفتح ح{{ col.number }} عند {{ col.start|time:'H:i' }}{% else %}الرصدُ مغلقٌ لهذا العمود{% endif %}"{% endif %}>الكلّ ✓</button>
-                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_absent" data-col="{{ col.number }}" aria-label="الكلُّ غائب في ح{{ col.number }}"{% if not col.writable %} disabled{% endif %}>الكلّ ✗</button>
+                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_present" data-col="{{ col.number }}" aria-label="الكلُّ حاضر في ح{{ col.number }}"{% if not col.writable %} disabled title="{% if col.state == 'future' %}تُفتح ح{{ col.number }} عند {{ col.start|time:'H:i' }}{% else %}الرصدُ مغلقٌ لهذا العمود{% endif %}"{% endif %}>الكلّ {% icon "status_success" %}</button>
+                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_absent" data-col="{{ col.number }}" aria-label="الكلُّ غائب في ح{{ col.number }}"{% if not col.writable %} disabled{% endif %}>الكلّ {% icon "status_error" %}</button>
                   <button type="button" class="btn-primary btn-sm" data-save-col="{{ col.number }}"{% if not col.writable %} disabled{% endif %}>حفظ</button>
                   {% endif %}
                 </div>

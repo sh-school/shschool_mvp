@@ -43,6 +43,7 @@ from .scheduling_limits import (  # noqa: F401  (تُصدَّر من هنا لم
     MIN_FIRST_PERIODS,
     THURSDAY,
     get_max_periods_for_day,
+    is_explicit_daily_cap,
 )
 
 if TYPE_CHECKING:
@@ -598,11 +599,12 @@ def check_max_gap(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool
     والقياسُ على اليوم كلِّه بعد الوضع، لا على الجارِ وحدَه: خانةٌ تُوضع بين
     حصّتين متباعدتين تُضيّق الفراغَ ولا توسّعه، فلا يصحّ أن تُمنع.
     """
-    if task.gap_cap is None:
-        return True
     slots = list(task.slots(period))
+    # السقفُ لكلّ عضوٍ بحسب سقفه هو (W-20261012-024): فمن لا سقفَ له لا يُقاس، ولا يُفرض عليه سقفُ شريكه
+    # في الحصّة المشتركة. و`Task.gap_cap` مشتقٌّ للتوافق ولا يُقرأ هنا.
     return all(
-        grid.teacher_widest_gap_with(m.teacher_id, day, slots) <= task.gap_cap for m in task.members
+        m.gap_cap is None or grid.teacher_widest_gap_with(m.teacher_id, day, slots) <= m.gap_cap
+        for m in task.members
     )
 
 
@@ -747,15 +749,16 @@ class SoftPenalty:
 def daily_load_weight(teacher_today: int, pref: dict | None, weight: float | None = None) -> float:
     """وزنُ تجاوز الحمل اليوميّ: صفرٌ دون السقف، ثمّ يتصاعد بمقدار التجاوز.
 
-    والتفضيلُ المكتوب في حقّ معلّمٍ بعينه يُضاعَف — وبوزنه الأصليّ كان يسقط
-    أمام الفراغ (8) والتتابع (10) فلا يُلزم شيئاً.
+    والسقفُ المكتوب في حقّ معلّمٍ بعينه يُضاعَف — وبوزنه الأصليّ كان يسقط
+    أمام الفراغ (8) والتتابع (10) فلا يُلزم شيئاً. والمكتوبُ ما خالف الافتراض:
+    صفُّ تفضيلٍ وحدَه لا يكفي، فالـ5 المخزَّنةُ «لم يقرّر» (W-20261012-025).
     """
     max_daily = (pref or {}).get("max_daily", DEFAULT_MAX_DAILY)
     if teacher_today < max_daily:
         return 0.0
     over = teacher_today - max_daily + 1
     base = WEIGHTS["daily_load"] if weight is None else weight
-    return base * over * (EXPLICIT_PREFERENCE_FACTOR if pref else 1)
+    return base * over * (EXPLICIT_PREFERENCE_FACTOR if is_explicit_daily_cap(max_daily) else 1)
 
 
 def _neighbour_is_same_lesson(grid: ScheduleGrid, task: Task, day: int, period: int) -> bool:

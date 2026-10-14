@@ -23,6 +23,7 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
+from .gap_rule import effective_max_gap
 from .scheduling_inputs import LAST_PERIOD, Task
 from .scheduling_limits import get_max_periods_for_day
 
@@ -232,7 +233,7 @@ def build_inputs(
             teacher_id=teacher_id,
             max_daily_periods=pref.max_daily_periods,
             max_consecutive=pref.max_consecutive,
-            max_gap=pref.max_gap,
+            max_gap=effective_max_gap(pref.max_gap),
             free_day=pref.free_day,
         )
 

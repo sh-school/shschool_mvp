@@ -8,6 +8,7 @@
 يُذكر بجانب اسم صاحبه، ولا صفحةَ لمن لا حصّةَ له، ولا فهرسَ في أوّل الورق.
 """
 
+import re
 from datetime import time
 
 import pytest
@@ -223,4 +224,6 @@ def test_the_platform_page_exports_the_paper_with_the_same_selection(
 
     assert "kind=classes" in body and "orient=landscape" in body
     assert reverse("schedule_pages_pdf") in body
-    assert "<iframe" not in body and reverse("schedule_pages_paper") not in body
+    # إطارُ حارس الجلسة (`data-sg-frame`) مقصودٌ في كلّ صفحة، فلا يُعدّ إطاراً للجدول.
+    assert not re.search(r"<iframe(?![^>]*data-sg-frame)", body)
+    assert reverse("schedule_pages_paper") not in body
