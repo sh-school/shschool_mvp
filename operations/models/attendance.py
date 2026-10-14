@@ -450,6 +450,12 @@ class AbsenceExcuse(models.Model):
             models.Index(fields=["school", "student"]),
             models.Index(fields=["student", "date_from"]),
         ]
+        constraints = [
+            models.CheckConstraint(  # type: ignore[call-arg]  # `condition` (Django 5.1+) غيرُ معروفٍ لـdjango-stubs 5.0
+                condition=models.Q(date_from__lte=models.F("date_to")),
+                name="absence_excuse_range_ordered",
+            )
+        ]
 
     def __str__(self) -> str:
         return f"{self.student.full_name} | {self.get_kind_display()} | {self.date_from}–{self.date_to}"
@@ -549,6 +555,15 @@ class AbsenceAlert(models.Model):
         verbose_name = "تنبيه غياب"
         verbose_name_plural = "تنبيهات الغياب"
         ordering = ["-created_at"]
+        constraints = [
+            # تنبيهٌ واحد لكلّ طالبٍ في كلّ عتبةٍ وفترة (W-20261004-021): مفتاحُ `get_or_create` في الخدمة نفسُه.
+            # والشرطُ دائمُ الصدق (`gate` غيرُ فارغٍ بالتعريف): يجعله فهرساً جزئيّاً يُبنى `CONCURRENTLY` بلا قفل (هجرة 0088).
+            models.UniqueConstraint(
+                condition=models.Q(gate__isnull=False),
+                fields=["school", "student", "gate", "period_start", "period_end"],
+                name="unique_absence_alert_per_gate_period",
+            )
+        ]
 
     def __str__(self):
         return f"تنبيه: {self.student.full_name} | {self.absence_count} يوم"
@@ -681,6 +696,20 @@ class ClassExit(models.Model):
         indexes = [
             models.Index(fields=["school", "session"]),
             models.Index(fields=["student", "left_at"]),
+        ]
+        constraints = [
+            # لا عودةَ قبل الخروج، ولا خروجان مفتوحان لطالبٍ في حصّةٍ واحدة (W-20261004-021).
+            # والامتدادُ إلى الحصّة التالية يُغلق أصلَه قبل أن يُنشأ، فلا يصطدم.
+            models.CheckConstraint(  # type: ignore[call-arg]  # `condition` (Django 5.1+) غيرُ معروفٍ لـdjango-stubs 5.0
+                condition=models.Q(returned_at__isnull=True)
+                | models.Q(returned_at__gte=models.F("left_at")),
+                name="class_exit_returned_after_left",
+            ),
+            models.UniqueConstraint(
+                fields=["session", "student"],
+                condition=models.Q(returned_at__isnull=True),
+                name="unique_open_class_exit_per_session_student",
+            ),
         ]
 
     @property
