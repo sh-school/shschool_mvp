@@ -95,7 +95,7 @@ def test_an_excused_absence_is_flagged_excused(
     assert [s.letter for s in row.slots] == ["ع", "ع"]
 
 
-def test_the_page_lists_students_once_and_names_the_ministry_rows(
+def test_the_page_lists_the_student_in_each_followup_table_and_counts_the_ministry_rows(
     client_as, school, seeded_calendar, klass, kids, teacher, supervisor
 ):
     for session in _periods(school, klass, teacher, 2):
@@ -107,6 +107,8 @@ def test_the_page_lists_students_once_and_names_the_ministry_rows(
         .content.decode()
     )
 
-    assert body.count("طالب 0") == 2, "في الجدول وفي قائمة الرفع الوزاريّ"
-    assert "غائب بلا عذر" in body
+    assert (
+        body.count("طالب 0") == 2
+    ), "في جدول التواصل وجدول الإجراءات (متابعة الغياب، W-20261013-011)"
+    assert "للرفع الوزاريّ" in body
     assert "طالب 1" not in body, "من لم يغب ولم يتأخّر لا يُدرج"

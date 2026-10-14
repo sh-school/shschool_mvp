@@ -18,6 +18,10 @@ FLAG_CONSTANT_ALLOWED = {
     "operations/models/attendance_ledger.py": "تعريفُ الثابت",
     "operations/attendance_entries.py": "erase_attendance_ledger: الضبطُ المحلّيّ في معاملة المحو",
 }
+FOLLOWUP_ERASE_CALLERS_ALLOWED = {
+    "operations/services/absence_followup.py": "تعريفُ الدالّة",
+    "governance/erasure_service.py": "ErasureService — المسارُ الوحيد المشروع",
+}
 ERASE_CALLERS_ALLOWED = {
     "operations/attendance_entries.py": "تعريفُ الدالّة",
     "operations/models/attendance_ledger.py": "إشارةٌ في الوثيقة (docstring) لا استدعاء",
@@ -61,3 +65,8 @@ def test_the_raw_eraser_is_only_called_inside_the_erasure_function():
         if "._erase()" in text and rel != "operations/attendance_entries.py"
     )
     assert offenders == []
+
+
+def test_only_the_erasure_service_calls_the_followup_eraser():
+    """تجهيلُ سجلَّي متابعة الغياب (يتجاوز منعَ التعديل) لا يُستدعى إلّا من ErasureService."""
+    assert _offenders("erase_followup_logs", FOLLOWUP_ERASE_CALLERS_ALLOWED) == []
