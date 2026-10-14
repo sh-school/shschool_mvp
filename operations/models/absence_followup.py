@@ -19,16 +19,34 @@ from .attendance import AbsenceExcuse
 from .attendance_ledger import AppendOnlyModel
 from .common import _uuid
 
+#: حالةُ المتابعة لعمودَي «المتابعة» (W-20261014-018، قولُ المالك): تُدخَل وتُعرض للمدير والنائب الإداريّ
+#: ومنسّق شؤون الطلاب وحدَهم (`operations.absence_followup_followup`).
+FOLLOWUP_STATUSES = [
+    ("done", "تمّ"),
+    ("partial", "تمّ جزئياً"),
+    ("not_done", "لم يتمّ"),
+    ("not_followed", "لم تتمّ المتابعة"),
+]
+
 
 class AbsenceContactLog(AppendOnlyModel):
     """اتّصالٌ هاتفيٌّ بوليّ أمر طالبٍ عن يومِ غيابٍ بعينه — ومعه تغذيتُه الراجعة."""
 
+    #: الستّةُ الأولى هي ما تعرضه الشاشةُ للتسجيل (قولُ المالك، بلاغ 6E42، حرفاً بحرف)؛ والأربعةُ بعدها قيمٌ
+    #: سابقةٌ تبقى مقروءةً في السجلّات القديمة ولا تُعرض للتسجيل (توسيعٌ لا حذف — P4-1).
     OUTCOMES = [
+        ("no_excuse", "غياب بدون عذر"),
+        ("medical", "غياب بعذر طبي"),
+        ("int_expel", "مفصول داخليًّا"),
+        ("ext_expel", "مفصول خارجيًّا"),
+        ("no_reply", "ولي الأمر لم يرد"),
+        ("other", "أخرى"),
         ("answered", "ردّ"),
         ("no_answer", "لم يردّ"),
         ("will_excuse", "سيُحضر عذراً"),
         ("wrong_number", "الرقمُ غيرُ صحيح"),
     ]
+    OFFERED_OUTCOMES = OUTCOMES[:6]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(
@@ -56,6 +74,14 @@ class AbsenceContactLog(AppendOnlyModel):
         verbose_name="من اتّصل",
     )
     outcome = models.CharField(max_length=12, choices=OUTCOMES, verbose_name="النتيجة")
+    #: حالةُ المتابعة — فارغةٌ في السجلّات القديمة ولغير الثلاثة (توسيعٌ لا حذف).
+    status = models.CharField(
+        max_length=14,
+        choices=FOLLOWUP_STATUSES,
+        blank=True,
+        default="",
+        verbose_name="حالةُ التواصل",
+    )
     #: التغذية الراجعة من وليّ الأمر نصٌّ حرٌّ مشفَّر (PII) — لا يظهر إلّا لحاملي قدرة قراءته، وفتحُه يُدقَّق بلا نصّه.
     feedback = EncryptedTextField(
         blank=True, default="", verbose_name="التغذية الراجعة من وليّ الأمر"
@@ -86,15 +112,20 @@ class AbsenceContactLog(AppendOnlyModel):
 class AbsenceActionLog(AppendOnlyModel):
     """إجراءٌ إداريٌّ لغيابِ طالبٍ — تمّ، أو لم يتمّ، أو استُلمت إجازتُه المرضيّة."""
 
+    #: `written_notice` يبقى مخزَّناً كما هو ويتبدّل اسمُه المعروض «تعهد خطي» (قولُ المالك) — فلا سجلَّ يُعدَّل.
     KINDS = [
         ("guardian_summon", "استدعاءُ وليّ الأمر"),
-        ("written_notice", "إشعارٌ كتابيّ"),
+        ("written_notice", "تعهد خطي"),
+        ("refer_coordinator", "تحويل لمنسق شؤون الطلاب"),
+        ("refer_social", "تحويل للأخصائي الاجتماعي"),
         ("other", "أخرى"),
     ]
     STATUSES = [
         ("done", "تمّ"),
         ("not_done", "لم يتمّ"),
         ("sick_leave_received", "استلامُ إجازة مرضيّة"),
+        ("partial", "تمّ جزئياً"),
+        ("not_followed", "لم تتمّ المتابعة"),
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)

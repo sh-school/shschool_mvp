@@ -27,6 +27,20 @@ TEMPLATE = "operations/absence_followup/print.html"
 KIND = "operations.absence_followup_contact_sheet"
 
 
+def _shown_rows(rows: list[dict], params: Any) -> list[dict]:
+    """يطبّق تصفيةَ الشاشة وفرزَها (قائمةٌ بيضاء في الخدمة) — بلا `params` يبقى الكلُّ كما كان."""
+    from operations.services.absence_followup import apply_view
+
+    params = params or {}
+    return apply_view(
+        rows,
+        grade=params.get("grade", ""),
+        wing=params.get("wing", ""),
+        followup=params.get("followup", ""),
+        sort=params.get("sort", ""),
+    )
+
+
 def _groups(rows: list[dict]) -> list[dict]:
     """الصفوفُ مجموعةً بالصفّ بترتيب الاسم، وكلُّ سطرٍ بما يُطبع وحدَه."""
     by_class: dict[str, list[dict]] = {}
@@ -61,13 +75,13 @@ def _groups(rows: list[dict]) -> list[dict]:
     return out
 
 
-def render_contact_sheet(user: Any, date: dt.date) -> bytes:
-    """PDF ورقة الاتصال ليوم `date`. بلا قدرة الطباعة = `PermissionDenied`."""
+def render_contact_sheet(user: Any, date: dt.date, params: Any = None) -> bytes:
+    """PDF ورقة الاتصال ليوم `date` بما تعرضه الشاشةُ بعد التصفية. بلا قدرة الطباعة = `PermissionDenied`."""
     if not has_capability(user, PRINT):
         raise PermissionDenied("لا صلاحيةَ لطباعة ورقة الاتصال.")
     from operations.services.absence_followup import followup_rows
 
-    groups = _groups(followup_rows(user, date))
+    groups = _groups(_shown_rows(followup_rows(user, date), params))
     ctx = get_export_context_for(user, "ورقة الاتصال لمتابعة الغياب")
     ctx.update(
         {
@@ -111,7 +125,7 @@ def build_followup_pdf(school: Any, user: Any, params: Any) -> Any:
         day = dt.date.fromisoformat(params.get("date") or "")
     except ValueError:
         day = dt.date.today()
-    rows = followup_rows(user, day)
+    rows = _shown_rows(followup_rows(user, day), params)
     ctx = get_export_context_for(user, f"متابعة الغياب — {date_format(day, 'd/m/Y')}")
     ctx.update(
         school=school,
@@ -122,6 +136,7 @@ def build_followup_pdf(school: Any, user: Any, params: Any) -> Any:
         outcomes=dict(AbsenceContactLog.OUTCOMES),
         statuses=dict(AbsenceActionLog.STATUSES),
         can_feedback=has_capability(user, "operations.absence_followup_feedback"),
+        can_followup=has_capability(user, "operations.absence_followup_followup"),
     )
     pdf = render_pdf_bytes(render_to_string("operations/absence_followup_print.html", ctx))
     return ExportResult(
@@ -133,7 +148,12 @@ def build_followup_pdf(school: Any, user: Any, params: Any) -> Any:
 
 
 def followup_sheet_response(
-    request: Any, day: dt.date, rows: list[dict], wing_bound: bool, can_feedback: bool
+    request: Any,
+    day: dt.date,
+    rows: list[dict],
+    wing_bound: bool,
+    can_feedback: bool,
+    can_followup: bool = False,
 ):
     """كشفُ المتابعة: `?format=pdf` مهمّةُ تصديرٍ عبر السجلّ المركزيّ، وإلّا معاينةٌ داخل المنصّة بإطارٍ (`embed=1` هو الوثيقةُ نفسُها)."""
     from urllib.parse import urlencode
@@ -150,6 +170,8 @@ def followup_sheet_response(
     if request.GET.get("format") == "pdf":
         return respond_export(request, "operations.absence_followup_pdf")
     title = f"متابعة الغياب — {date_format(day, 'd/m/Y')}"
+    # مفاتيحُ التصفية والفرز تُحمَل إلى التنزيل والرجوع فيبقى المطبوعُ على ما عُرض.
+    shown = {k: request.GET[k] for k in ("grade", "wing", "followup", "sort") if request.GET.get(k)}
     if request.GET.get("embed") != "1":
         return render(
             request,
@@ -159,8 +181,9 @@ def followup_sheet_response(
                 "subtitle": f"{request.school.name} · {date_format(day, 'l')}",
                 "rows": rows,
                 "can_feedback": can_feedback,
-                "pdf_url": f"{request.path}?{urlencode({'date': day.isoformat(), 'format': 'pdf'})}",
-                "back_url": f"{reverse('daily_report')}?{urlencode({'date': day.isoformat()})}",
+                "can_followup": can_followup,
+                "pdf_url": f"{request.path}?{urlencode({'date': day.isoformat(), 'format': 'pdf', **shown})}",
+                "back_url": f"{reverse('daily_report')}?{urlencode({'date': day.isoformat(), **shown})}",
             },
         )
     ctx = get_export_context(request, title)
@@ -174,6 +197,7 @@ def followup_sheet_response(
         outcomes=dict(AbsenceContactLog.OUTCOMES),
         statuses=dict(AbsenceActionLog.STATUSES),
         can_feedback=can_feedback,
+        can_followup=can_followup,
         for_screen=True,
     )
     return render(request, "operations/absence_followup_print.html", ctx)

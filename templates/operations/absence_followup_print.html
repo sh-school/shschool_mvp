@@ -35,7 +35,7 @@
     <thead>
       <tr>
         <th scope="col" class="fu-c-no">م</th><th scope="col" class="fu-c-name">الطالب</th><th scope="col" class="fu-c-class">الشعبة</th><th scope="col" class="fu-c-phone">هاتفُ وليّ الأمر</th><th scope="col">نتيجةُ الاتّصال</th>
-        {% if can_feedback %}<th scope="col">التغذية الراجعة من وليّ الأمر</th>{% endif %}<th scope="col">الإجراءُ الإداريّ</th>
+        {% if can_feedback %}<th scope="col">التغذية الراجعة من وليّ الأمر</th>{% endif %}<th scope="col">الإجراءُ الإداريّ</th>{% if can_followup %}<th scope="col">متابعةُ التواصل</th><th scope="col">متابعةُ الإجراء</th>{% endif %}
       </tr>
     </thead>
     <tbody>
@@ -47,7 +47,8 @@
         <td class="fu-c-phone" dir="ltr">{{ row.phones|join:" ، " }}</td>
         <td>{% if row.contact %}{{ row.contact.get_outcome_display }}{% endif %}</td>
         {% if can_feedback %}<td>{{ row.feedback }}</td>{% endif %}
-        <td>{% if row.action %}{{ row.action.get_status_display }} — {{ row.action.get_action_kind_display }}{% endif %}</td>
+        <td>{% if row.action %}{{ row.action.get_action_kind_display }}{% if row.action.note %} — {{ row.action.note }}{% endif %}{% endif %}</td>
+        {% if can_followup %}<td>{{ row.contact_status }}</td><td>{{ row.action_status }}</td>{% endif %}
       </tr>
       {% empty %}
       <tr><td colspan="7" class="no-data">لا غيابَ مرصوداً في هذا اليوم.</td></tr>
