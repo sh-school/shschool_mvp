@@ -9,7 +9,7 @@
 (function () {
   "use strict";
 
-  var root = document.querySelector("[data-director-live]");
+  var root = document.querySelector("[data-director-live], [data-live-root]");
   if (!root) { return; }
 
   var SCHEMA = 1;
@@ -53,8 +53,10 @@
   }
 
   function apply(payload) {
-    if (!payload || payload.schema !== SCHEMA || !payload.school) { throw new Error("schema"); }
-    var school = payload.school;
+    if (!payload || payload.schema !== SCHEMA) { throw new Error("schema"); }
+    // صفحةٌ تطبّق حمولتَها بنفسها (شبكةُ الصفّ): يُطلَق الحدثُ على جذرها وتبقى الأسماءُ والأوقاتُ في صفحتها المرسومة.
+    if (payload.cells) { root.dispatchEvent(new CustomEvent("page-live:payload", { detail: payload })); }
+    var school = payload.school || {};
     Object.keys(school).forEach(function (field) { setText("school." + field, school[field]); });
     if (payload.exits) { setText("exits.students", payload.exits.students); }
     // لوحةُ المشرف: صفُّ كلّ شعبةٍ بمفاتيح `section.<id>.<حقل>` — الأرقامُ والنصوصُ بـtextContent وشارةُ الحالة بصنف الهويّة المركزيّ.
@@ -62,7 +64,8 @@
     if (payload.next_in) { seconds = Number(payload.next_in) || DEFAULT_SECONDS; }
     if (payload.phase === "final") {
       stopped = true;
-      window.location.reload();
+      // الشبكةُ تحمل مسوّداتٍ غيرَ محفوظة: تتوقّف ولا تُعاد تحميلاً.
+      if (!root.hasAttribute("data-live-noreload")) { window.location.reload(); }
     } else if (payload.phase === "closed") {
       stopped = true;
     }
@@ -96,6 +99,7 @@
       })
       .then(function (payload) {
         apply(payload);
+        document.dispatchEvent(new CustomEvent("page-live:updated"));
         failures = 0;
         notice("");
       })

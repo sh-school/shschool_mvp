@@ -472,7 +472,7 @@ class TimeBandAdmin(SchoolScopedAdmin):
 @admin.register(StudentEnrollment)
 class StudentEnrollmentAdmin(SchoolScopedAdmin):
     school_lookup = "class_group__school"
-    list_display = ("student", "class_group", "is_active", "enrolled_at")
+    list_display = ("student", "class_group", "is_active", "enrolled_at", "left_at")
     list_filter = ("is_active", "class_group__grade")
     list_select_related = ("student", "class_group__school")
     search_fields = ("student__full_name", "student__national_id")
