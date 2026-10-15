@@ -9,10 +9,15 @@ import datetime
 import re
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOWS = (".github/workflows/security-scan.yml", ".github/workflows/quality.yml")
 ALLOWED = {"GHSA-8pqf-f4m5-798g"}
 REVIEW_BY = datetime.date(2026, 11, 15)
+
+# العلامةُ تُرضي سقّاطةَ الساعة (W-20261008-021) وتثبّت `timezone.now` وحدَه؛ أمّا `date.today()` أدناه فحقيقيٌّ عمداً لأنّه فخُّ الانتهاء.
+pytestmark = pytest.mark.pin_clock
 
 
 def _ignored(text: str) -> list[str]:
