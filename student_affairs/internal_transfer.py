@@ -3,6 +3,8 @@
 وحدةٌ مستقلّة عن `services.py` حفاظاً على سقف حجم الملف؛ تستدعيها `TransferService.review_transfer` والعرض.
 """
 
+from datetime import timedelta
+
 from django.db import transaction
 from django.utils import timezone
 
@@ -47,7 +49,9 @@ def complete_internal(transfer, actor):
     current = StudentEnrollment.objects.current_of(transfer.student, transfer.school)
     source = current.class_group
     current.is_active = False
-    current.save(update_fields=["is_active"])
+    # آخرُ يومٍ في الشعبة القديمة هو اليومُ السابق للنقل: فيبقى ظاهراً فيها لأيّامها السابقة (D-323م).
+    current.left_at = transfer.transfer_date - timedelta(days=1)
+    current.save(update_fields=["is_active", "left_at"])
     enrollment = StudentEnrollment.objects.create(
         student=transfer.student,
         class_group=transfer.to_class_group,
