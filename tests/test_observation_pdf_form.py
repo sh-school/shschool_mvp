@@ -673,7 +673,7 @@ def test_the_context_carries_no_logo_key(db, observation):
 
 
 def test_an_uploaded_school_logo_or_letterhead_never_reaches_the_form(db, observation):
-    """صورةٌ مرفوعةٌ (شعارُ مدرسة أو تراثُ ترويسة) لا أثرَ لها: الهويّةُ نصٌّ وشعارُ «ش» الثابتُ من الأصل لا من المرفوع (D-404م)."""
+    """صورةٌ مرفوعةٌ (شعارُ مدرسة أو تراثُ ترويسة) لا أثرَ لها: الهويّةُ نصٌّ وشعارُ الوزارة الثابتُ من الأصل لا من المرفوع (W-20261014-009)."""
     from quality.observation_views import _pdf_context
 
     _save_image(observation.school.logo, "own.png")
@@ -685,7 +685,7 @@ def test_an_uploaded_school_logo_or_letterhead_never_reaches_the_form(db, observ
     images = re.findall(r"<img[^>]*>", html)
     assert (
         len(images) == 1
-        and 'class="school-logo' in images[0]
+        and 'class="ministry-logo' in images[0]
         and "data:image/png;base64," in images[0]
     )
     assert observation.school.name in html
@@ -709,13 +709,13 @@ def _image_boxes(html):
     return found
 
 
-def test_the_header_draws_only_the_school_logo(db, observation):
-    """الترويسةُ نصٌّ وشعارُ المدرسة «ش» (28px) وحدَه. يُقاس من تخطيط WeasyPrint نفسِه: صندوقُ صورةٍ واحدٌ في الصفحة الأولى."""
+def test_the_header_draws_only_the_ministry_logo(db, observation):
+    """الترويسةُ شعارُ الوزارة (14 ملم = 52.9px) فوق اسم المدرسة وحدَه. يُقاس من تخطيط WeasyPrint نفسِه: صندوقُ صورةٍ واحدٌ في الصفحة الأولى."""
     from quality.observation_views import _pdf_context
 
     html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
 
-    assert _image_boxes(html) == [(28.0, 28.0)]
+    assert _image_boxes(html) == [(52.9, 52.9)]
 
 
 def test_the_pdf_carries_only_the_school_logo_image(db, school, named):
