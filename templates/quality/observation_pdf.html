@@ -205,9 +205,16 @@ td {
       <tr>
         <td class="key">الموضوع</td>
         <td colspan="6">{{ obs.topic }}</td>
-        <td class="key">الزائر</td>
-        <td colspan="4">{{ observer_short_name }}</td>
+        {% if obs.kind == 'self' %}<td class="key">نوع التقييم</td>
+        <td colspan="4">ذاتي</td>{% else %}<td class="key">الزائر</td>
+        <td colspan="4">{{ observer_short_name }}</td>{% endif %}
       </tr>
+      {% if obs.kind == 'self' %}
+      <tr>
+        <td class="key">المعلّم</td>
+        <td colspan="11">{{ teacher_short_name }} — تقييمٌ ذاتيّ{% if obs.outside_schedule %} (حصّة خارج الجدول){% endif %}</td>
+      </tr>
+      {% else %}
       {# الأصل يجمع الأربعة في صفٍّ واحد، ويُفرد الصفَّ الذي يليه لخياري البثّ #}
       <tr>
         <td class="key" rowspan="2">المعلّم</td>
@@ -229,6 +236,7 @@ td {
         <td class="key center" colspan="3">بث مباشر غير مدمج</td>
         <td class="center tk" colspan="2">{% if obs.broadcast_note == 'بث مباشر غير مدمج' %}✓{% endif %}</td>
       </tr>
+      {% endif %}
     </table>
   {% endif %}
 
@@ -262,8 +270,13 @@ td {
       <tr>
         <td class="band sign" colspan="2">توقيع المعلم</td>
         <td class="sign" colspan="2">{% with stamp=signatures.teacher %}{% include "quality/_pdf_e_sign.html" %}{% endwith %}</td>
+        {% if obs.kind == 'self' %}
+        <td class="band sign" colspan="2">اطّلاع المسؤول المباشر</td>
+        <td class="sign" colspan="2"></td>
+        {% else %}
         <td class="band sign" colspan="2">توقيع الزائر</td>
         <td class="sign" colspan="2">{% with stamp=signatures.visitor %}{% include "quality/_pdf_e_sign.html" %}{% endwith %}</td>
+        {% endif %}
       </tr>
     {% endif %}
   </table>
