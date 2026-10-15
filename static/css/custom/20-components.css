@@ -4,6 +4,7 @@
    الهيدر العلوي — الشعار + المستخدم + الأيقونات
    ════════════════════ */
 .site-header {
+  --on-fill: var(--header-fg); /* نصوصُ الترويسة وأيقوناتُها ولمساتُها تتبع لونَها: داكنةٌ على الرمل نهاراً */
   background: var(--header-bg);
   position: sticky;
   top: 0;
@@ -79,12 +80,13 @@
 .nav-logo-text { white-space: nowrap; }
 
 /* شعارُ المنصّة «الكامل بالكتاب» (W-20261014-009) — الوسمُ `{% school_logo %}` ومصدرُه `core/school_logo.py`.
-   ألوانُه عنّابيّةٌ داكنةٌ فتضيع على الترويسة العنّابيّة: يُرسم دائماً على شريحةٍ داكنةٍ محايدةٍ (رمزُ `--menu-ink-strong`) بحلقةٍ فاتحةٍ شفّافة. */
-.school-logo { display: block; flex-shrink: 0; box-sizing: border-box; padding: var(--sp-1); background: var(--menu-ink-strong); border-radius: var(--radius-md); box-shadow: 0 0 0 1px color-mix(in srgb, var(--on-fill) 55%, transparent); }
+   بلا خلفيّةٍ ولا حلقةٍ (قرارُ المالك): الترويسةُ والذيلُ رملٌ فاتحٌ نهاراً فيُبرز عنّابيَّه وذهبَه، وليلاً هالةٌ بيضاءُ في 40-themes. */
+.school-logo { display: block; flex-shrink: 0; }
 .ministry-logo { display: none; } /* شعارُ الوزارة للمخرجات المطبوعة وحدَها (W-20261014-009): لا يظهر على الشاشة أبداً */
 @media print { .ministry-logo { display: block; inline-size: var(--sp-10); block-size: var(--sp-10); margin: 0 auto; } }
-.school-logo--nav { inline-size: var(--sp-8); block-size: var(--sp-8); border-radius: var(--radius-sm); }
-.school-logo--login { inline-size: 3.5rem; block-size: 3.5rem; margin: 0 auto var(--sp-3-5); }
+.school-logo--nav { inline-size: var(--sp-10); block-size: var(--sp-10); }
+.school-logo--login { inline-size: 5rem; block-size: 5rem; margin: 0 auto var(--sp-3-5); }
+.school-logo--error { inline-size: 4rem; block-size: 4rem; }
 
 /* زر الهامبرغر (الجوال) */
 .nav-hamburger {
@@ -454,7 +456,7 @@ div#header h1 a {
    تتراصّ مركَّزةً كما كانت — السطرُ الواحد لا يتّسع هناك. */
 .site-footer {
   background: var(--footer-bg);
-  border-top: 1px solid var(--gold);
+  border-top: 1px solid var(--nav-mark);
   padding: var(--sp-2) max(var(--sp-4), var(--safe-inline));
   margin-top: auto;
   display: flex;

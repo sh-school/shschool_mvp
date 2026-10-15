@@ -15,4 +15,4 @@ from __future__ import annotations
 LOGO_STATIC_PATH = "brand/schoolos-full.svg"
 
 #: أضلاعُ الشعار بالبكسل على الشاشة بحسب الموضع (مربّعٌ دائماً). تُقرأ في CSS من أصنافٍ لا من هنا؛ وهنا للوسم وحارس الاختبار.
-SIZES_PX = {"nav": 32, "login": 56, "error": 48}
+SIZES_PX = {"nav": 40, "login": 80, "error": 64}

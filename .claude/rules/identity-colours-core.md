@@ -52,15 +52,16 @@ paths:
 | الرمز | نهاراً | ليلاً |
 |---|---|---|
 | `--footer-brand-chip-bg` | `#ffffff` | `#ffffff` |
-| `--header-bg` | `var(--maroon)` | `#1a0a12` |
+| `--header-bg` | `#efe6d2` | `#1a0a12` |
+| `--header-fg` | `var(--maroon-dark)` | `var(--on-fill)` |
 | `--nav-bg` | `#f4f0e7` | `#2c2922` |
 | `--nav-fg` | `var(--maroon-dark)` | `var(--on-fill)` |
 | `--nav-hover` | `color-mix(in srgb, var(--maroon) 12%, transparent)` | `color-mix(in srgb, var(--on-fill) 12%, transparent)` |
 | `--nav-mark` | `var(--maroon)` | `var(--gold)` |
 | `--footer-bg` | `var(--header-bg)` | — |
-| `--footer-fg` | `var(--on-fill)` | — |
-| `--footer-fg-soft` | `#e5cbd3` | `#cbd5e1` |
-| `--footer-line` | `color-mix(in srgb, var(--on-fill) 35%, transparent)` | — |
+| `--footer-fg` | `var(--maroon-dark)` | `var(--on-fill)` |
+| `--footer-fg-soft` | `var(--text-secondary)` | `#cbd5e1` |
+| `--footer-line` | `color-mix(in srgb, var(--maroon-dark) 35%, transparent)` | `color-mix(in srgb, var(--on-fill) 35%, transparent)` |
 | `--menu-ink` | `#1e293b` | `var(--text-primary)` |
 | `--menu-ink-strong` | `#0f172a` | `var(--text-primary)` |
 | `--menu-label` | `#5a3928` | `var(--text-muted)` |

@@ -378,15 +378,16 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --loading-veil:        rgba(255,255,255,.4);
 
   /* الذيلُ بلون الترويسة، والقائمةُ رملٌ بنصٍّ عنّابيّ لا أبيض (قرارُ المالك 2026-09-24) */
-  --header-bg:           var(--maroon);
+  --header-bg:           #efe6d2;   /* رملٌ ذهبيّ يُبرز عنّابيَّ الشعار وذهبَه (W-20261014-009): نصُّ --maroon-dark عليه 9.8 والعنّابيُّ الأدنى للشعار 5.78 */
+  --header-fg:           var(--maroon-dark);
   --nav-bg:              #f4f0e7;
   --nav-fg:              var(--maroon-dark);   /* 10.69 */
   --nav-hover:           color-mix(in srgb, var(--maroon) 12%, transparent);
   --nav-mark:            var(--maroon);        /* 8.22 */
   --footer-bg:           var(--header-bg);
-  --footer-fg:           var(--on-fill);
-  --footer-fg-soft:      #e5cbd3;   /* 6.15 */
-  --footer-line:         color-mix(in srgb, var(--on-fill) 35%, transparent);
+  --footer-fg:           var(--maroon-dark);   /* 9.8 على --header-bg */
+  --footer-fg-soft:      var(--text-secondary);
+  --footer-line:         color-mix(in srgb, var(--maroon-dark) 35%, transparent);
   --admin-header-link:   #ffe0e9;   /* رابطٌ فوق ترويسة لوحة Django العنّابيّة */
   --border-soft:         #e2e8f0;
   --menu-ink:            #1e293b;
