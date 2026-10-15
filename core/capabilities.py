@@ -756,6 +756,14 @@ def registry() -> dict[str, Capability]:
             grant=_holds_a_wing,
         ),
         _cap(
+            "wings.exit_permit_request",
+            "طلبُ إذن خروج طالب",
+            frozenset(P.WING_DAY_RECORD | {"teacher"}),
+            scope="المعلّم لشُعبه، وحاملُ الجناح لأجنحته",
+            basis="مواصفة W-20261005-010: المعلّم يطلب فقط؛ والاعتمادُ لحامل الجناح والنائب الإداريّ (`wings.record_day`)",
+            grant=_holds_a_wing,
+        ),
+        _cap(
             "wings.school_wide",
             "حاصرُ الغياب العامّ — الأجنحةُ الخمسةُ كلُّها",
             P.SCHOOL_WIDE_ABSENCE_ROLES,

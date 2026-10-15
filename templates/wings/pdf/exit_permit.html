@@ -1,0 +1,43 @@
+{% extends "reports/base_qatar_report.html" %}
+{% load brand_tags %}
+{% comment %}
+  استمارةُ الاستئذان والخروج (W-20261005-010): تُسلَّم للحارس. نصُّها وعناوينُها وتعليماتُها وموقّعوها من
+  `wings/exit_permit_form.py` وحدَه (السياق من `wings/exit_permit_print.py`: title · subtitle · rows · instructions · signatories · warning)،
+  فتعديلُ نسخة المدرسة المعتمدة لا يمسّ هذا القالب. لا رقمَ شخصيّاً ولا نسخةَ بطاقة.
+{% endcomment %}
+
+{% block extra_styles %}
+@page { size: A5 landscape; margin: 8mm 9mm 18mm 9mm; }
+.running-footer .ft-school { font-size: 8.5pt; }
+.running-footer .ft-ministry { font-size: 8.5pt; }
+.doc-body { padding: 4px 8px 8px; }
+.report-title-bar { font-size: 13pt; padding: 5px 10px; }
+.permit { width: 100%; border-collapse: collapse; font-size: 10.5pt; line-height: 1.4; }
+.permit th { width: 28%; text-align: right; background: {% brand_color "MAROON_BG" %}; color: {% brand_color "MAROON" %}; padding: 4px 8px; border: 1px solid {% brand_color "BORDER_STRONG" %}; }
+.permit td { padding: 4px 8px; border: 1px solid {% brand_color "BORDER_STRONG" %}; color: {% brand_color "TEXT_PRIMARY" %}; font-weight: 600; }
+.warn { margin: 5px 0; font-size: 9.5pt; font-weight: 700; color: {% brand_color "STATUS_WARNING_DARK" %}; }
+.notes { margin: 6px 0 0; padding-inline-start: 16px; font-size: 9pt; color: {% brand_color "TEXT_SECONDARY" %}; }
+.sigs { display: flex; gap: 10px; margin-top: 10px; }
+.sig { flex: 1; text-align: center; font-size: 9.5pt; }
+.sig-space { height: 18mm; border-bottom: 1px solid {% brand_color "TEXT_PRIMARY" %}; }
+{% endblock %}
+
+{% block emblem %}{% endblock %}
+
+{% block content %}
+<section>
+  <div class="report-title-bar">{{ title }} — {{ subtitle }}</div>
+  <table class="permit">
+    {% for label, value in rows %}
+    <tr><th>{{ label }}</th><td>{% if value.year %}{{ value|date:"d/m/Y H:i" }}{% else %}{{ value }}{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+  {% if warning %}<p class="warn">{{ warning }}</p>{% endif %}
+  <ol class="notes">{% for line in instructions %}<li>{{ line }}</li>{% endfor %}</ol>
+  <div class="sigs">
+    {% for key, label in signatories %}
+    <div class="sig"><div class="sig-space"></div>{{ label }}</div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

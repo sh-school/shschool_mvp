@@ -1,0 +1,54 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% comment %}
+أذوناتُ خروج الطلاب لليوم (W-20261005-010): طلبٌ ثمّ اعتماد بتسجيل حضور وليّ الأمر ثمّ استمارةٌ PDF للحارس.
+النطاقُ والصلاحيةُ يحكمهما الخادم (`wings/exit_permit.py`)؛ وهذه الصفحةُ تعرض ولا تقرّر.
+{% endcomment %}
+{% block title %}أذوناتُ خروج الطلاب{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "أذوناتُ خروج الطلاب" subtitle="الطلبُ من الشعبة، والاعتمادُ بحضور وليّ الأمر ببطاقته، ثمّ الاستمارةُ للحارس" icon="attendance_register" %}{% endpage_header %}
+
+  {% section_card "أذوناتُ اليوم" meta=permits|length icon="attendance_register" %}
+    <form method="get" class="filter-bar">
+      <label for="exit-day">اليوم</label>
+      <input id="exit-day" type="date" name="date" value="{{ day|date:'Y-m-d' }}">
+      <button type="submit" class="btn-secondary btn-sm">عرض</button>
+    </form>
+    {% if permits %}
+    <div class="table-wrap">
+      <table data-no-sort>
+        <thead><tr><th>الرقم</th><th>الطالب</th><th>الشعبة</th><th>السبب</th><th>الخروج</th><th>الحصص</th><th>الحالة</th><th><span class="sr-only">الإجراء</span></th></tr></thead>
+        <tbody>
+          {% for p in permits %}
+          <tr>
+            <td>{{ p.sequence }}</td>
+            <td>{{ p.student.full_name }}</td>
+            <td>{{ p.class_group }}</td>
+            <td>{{ p.get_reason_display }}{% if p.note %} — {{ p.note }}{% endif %}</td>
+            <td>{{ p.exit_at|date:"H:i" }}</td>
+            <td>{{ p.completed_periods }}{% if p.completed_periods < min_periods %} <span class="ui-field-hint">أقلُّ من {{ min_periods }}: لا يُحتسب الحضور</span>{% endif %}</td>
+            <td>{{ p.get_status_display }}</td>
+            <td>
+              {% if p.status == "approved" %}
+              <a class="btn-primary btn-sm" href="{% url 'wings:exit_permit_pdf' p.id %}">الاستمارة PDF</a>
+              {% elif can_approve %}
+              <form method="post" action="{% url 'wings:exit_permit_approve' p.id %}">{% csrf_token %}
+                <label><input type="checkbox" name="guardian_present"> حضر وليّ الأمر ببطاقته</label>
+                <button type="submit" class="btn-primary btn-sm">اعتماد</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with title="لا أذوناتٍ في هذا اليوم" only %}
+    {% endif %}
+  {% endsection_card %}
+</div>
+{% endblock %}
