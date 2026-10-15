@@ -46,3 +46,15 @@ SESSION_DB=$(bash scripts/session-db.sh --name) WEB_PORT=8001 docker compose -p 
 ويبقى شرطٌ واحد: أن تعمل قاعدةُ الحزمة الأصليّة وredis (في `D:\shschool_mvp`)
 والصورةُ المبنيّة منها — أمّا خادمُ الجذر وعاملُه (المنفذ 8000) فلا يلزمان، وقد أُوقفا
 2026-09-25 توفيراً للذاكرة.
+
+### إنهاء الجلسة
+
+عند انتهاء عمل الشجرة أوقف خادمها ولا تتركه يستهلك الذاكرة:
+
+```bash
+docker compose -p schoolos-$(basename $PWD) --project-directory . -f D:/shschool_mvp/docker-compose.session.yml stop
+```
+
+- `stop` وحده، **لا `down -v`** ولا `docker volume prune`: وحداتُ التخزين تحمل قواعدَ بيانات. ويُعاد التشغيل بـ`up -d` أو `start`.
+- `scripts/session-db.sh` لا يوفّر خيارَ حذف (خياراته الوحيدة `--name`، وبلا وسيطٍ ينشئ القاعدة إن لم توجد)؛ فقاعدةُ الشجرة المنسوخة تبقى حتى يحذفها المالك أو جلسةُ التنظيف يدوياً. لا تفترض خيار حذف ولا تنفّذ `DROP DATABASE` من عندك.
+- لا تلمس `shschool-dev-db` ولا `shschool-dev-redis` ولا حاويات `schoolos-main-preview-*`.
