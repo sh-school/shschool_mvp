@@ -514,6 +514,35 @@ def _elective_labels(inputs: CpSatInputs, slots: list[SlotRow]) -> dict[SlotRow,
     return labels
 
 
+INFEASIBLE_BASE = "مستحيلٌ بالبرهان (INFEASIBLE): القيودُ متعارضة"
+
+
+def infeasible_message(inputs: CpSatInputs, config: SolverConfig) -> str:
+    """الرسالةُ مع نواة التعارض بالاسم (`diagnosis`)؛ فإن تعذّر التشخيصُ بقيت الرسالةُ الأساس ولا يسقط التوليد.
+
+    يُنفَّذ بعد ثبوت الاستحالة فقط (نحو عشر ثوانٍ على مدرسة حقيقية) ولا يغيّر الحكم ولا يكتب شيئاً.
+    """
+    import logging
+
+    from operations import constraint_registry
+
+    from .diagnosis import diagnose
+
+    try:
+        options = default_options(inputs, options_from_relaxations(dict(config.relaxations)))
+        found = diagnose(inputs, options, max_seconds=30)
+    except Exception:  # noqa: BLE001 — التشخيصُ زينةٌ فوق الحكم لا شرطٌ له
+        logging.getLogger(__name__).exception("تعذّر تشخيص الاستحالة")
+        return INFEASIBLE_BASE
+    if not found.core:
+        return INFEASIBLE_BASE
+    named = []
+    for code in found.core:
+        entry = constraint_registry.REGISTRY.get(code)
+        named.append(f"{code} ({entry.title})" if entry else code)
+    return f"{INFEASIBLE_BASE} — التعارضُ بين: " + "، ".join(named)
+
+
 def run(
     school: Any,
     academic_year: str,
@@ -533,7 +562,11 @@ def run(
             inputs, config, builder=builder, objective=objective, solver=solver, progress=progress
         )
     if report.status == "INFEASIBLE":
-        message = "مستحيلٌ بالبرهان (INFEASIBLE): القيودُ متعارضة"
+        message = (
+            infeasible_message(inputs, config)
+            if builder is None and solver is None
+            else INFEASIBLE_BASE
+        )
         return RunResult(False, report, None, message, "infeasible"), inputs
     if not report.slots:
         message = f"انقضت المهلةُ ({config.max_seconds:g}ث) بلا حلٍّ (UNKNOWN) — ضيقُ وقتٍ لا استحالة"
