@@ -69,7 +69,11 @@
  </div>
 
  <div class="form-actions">
+  {% if standalone %}
+  <a href="{% url 'behavior:dashboard' %}" class="btn-secondary">إلغاء</a>
+  {% else %}
   <button type="button" class="btn-secondary" data-modal-close="quick-log">إلغاء</button>
+  {% endif %}
   <button type="submit" class="btn-primary">
    <span class="htmx-indicator">{% icon "loading" %}</span>
    تسجيل المخالفة

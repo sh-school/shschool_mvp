@@ -9,7 +9,7 @@ import pytest
 from core.capabilities import has_capability
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 TEACHER_LIKE_ROLES = [
     "teacher",

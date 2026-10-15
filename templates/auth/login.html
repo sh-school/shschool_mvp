@@ -12,8 +12,8 @@
   {% load static %}
 
   {# ── Favicon ── #}
-  <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/v3/favicon.png' %}">
-  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/v3/apple-touch-icon.png' %}">
+  <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/v4/favicon.png' %}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/v4/apple-touch-icon.png' %}">
 
   {# ── الخط العربي: Tajawal محلي ── #}
   <link rel="preload" href="{% static 'fonts/Tajawal-Regular.woff2' %}" as="font" type="font/woff2" crossorigin>
@@ -25,7 +25,7 @@
   {# Login styles — defined in the modules sheets (static/css/custom/) #}
 </head>
 
-<body class="login-page">
+<body class="login-page{% if request.GET.embed %} is-embedded{% endif %}">
   <div class="login-card">
 
     {# ── Header Strip (maroon) ── #}
@@ -52,7 +52,7 @@
     {% endif %}
 
     {# ── Login Form ── #}
-    <form method="post" action="/auth/login/" class="space-y-4" autocomplete="on" data-validate>
+    <form method="post" class="space-y-4" autocomplete="on" data-validate>
       {% csrf_token %}
 
       <div>

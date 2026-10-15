@@ -16,6 +16,7 @@ from datetime import date, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.formats import date_format
@@ -34,6 +35,12 @@ from .schedule_paper import (
     teacher_bands_by_day,
     teacher_exemption_map,
     week_layout,
+)
+from .schedule_visibility import (
+    may_view_class,
+    may_view_teacher,
+    visible_class_ids,
+    visible_teacher_ids,
 )
 from .services import ScheduleService
 from .services.schedule_week import KIND_LABELS
@@ -79,19 +86,23 @@ def generation_status_payload(generation: Any) -> dict:
     }
 
 
-def browse_lists(school):
-    """معلّمو المدرسة وشُعبُها لقائمة الجداول — لمن يتصفّح غيره."""
+def browse_lists(school, teacher_ids=None, class_ids=None):
+    """معلّمو المدرسة وشُعبُها لقائمة الجداول — والمقيَّدُ يُمرَّر له ما يحقّ له وحدَه."""
     from core.models import ClassGroup
 
-    teacher_ids = Membership.objects.filter(
+    member_ids = Membership.objects.filter(
         school=school,
         is_active=True,
         role__name__in=("teacher", "coordinator", "e_projects_coordinator"),
     ).values_list("user_id", flat=True)
-    teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
+    teachers = CustomUser.objects.filter(id__in=member_ids).order_by("full_name")
     classes = ClassGroup.objects.filter(
         school=school, academic_year=academic_year_for_school(school), is_active=True
     ).in_school_order()
+    if teacher_ids is not None:
+        teachers = teachers.filter(id__in=teacher_ids)
+    if class_ids is not None:
+        classes = classes.filter(id__in=class_ids)
     return teachers, classes
 
 
@@ -105,9 +116,32 @@ def _week_start(raw, today) -> date:
     return asked if abs((asked - this).days) <= MAX_WEEKS_AWAY * 7 else this
 
 
+def _resolve_targets(school, user, may_browse, view_type, teacher_id, class_id, year):
+    """(المعلّم، الشعبة، قائمتا الاختيار) — والمعلّمُ المقيَّد (D-432م) يرى جدولَه وجداولَ زملاء
+    مادّته ومن يشاركه شُعبَه وشُعبَه فقط؛ ومعرّفٌ خارج ذلك 404 لا جدولٌ ولا تلميح."""
+    from core.models import ClassGroup
+
+    visible_t = visible_c = None
+    if not may_browse:
+        visible_t = visible_teacher_ids(school, user, year)
+        visible_c = visible_class_ids(school, user, year)
+        if view_type == "teacher" and not teacher_id:
+            teacher_id = str(user.pk)
+    target_teacher = target_class = None
+    if view_type == "teacher" and teacher_id:
+        if not may_view_teacher(school, user, teacher_id, year):
+            raise Http404
+        # ومن غادر يبقى جدولُ عامه منسوباً إليه — فالبحثُ في كلّ من كان منها.
+        target_teacher = get_object_or_404(CustomUser.objects.ever_in_school(school), id=teacher_id)
+    elif view_type == "class" and class_id:
+        if not may_view_class(school, user, class_id, year):
+            raise Http404
+        target_class = get_object_or_404(ClassGroup, id=class_id, school=school)
+    return (target_teacher, target_class, *browse_lists(school, visible_t, visible_c))
+
+
 def schedule_print_selection(school, user, get_params, default_source="plan"):
     """ما يُطبع ولمن — يشترك فيه الورقُ وصفحةُ العرض التي تحتضنه."""
-    from core.models import ClassGroup
 
     year = get_params.get("year") or academic_year_for_school(school)
     # الورقةُ المعلّقة في المدرسة هي «الجدول العام للمعلمين»: المعلّمون
@@ -135,9 +169,6 @@ def schedule_print_selection(school, user, get_params, default_source="plan"):
     teacher_id = get_params.get("teacher")
     class_id = get_params.get("class")
 
-    target_teacher = None
-    target_class = None
-
     # المعلّم يطبع جدوله هو. وكان الاختيار يُقرأ من الرابط بلا نظرٍ إلى
     # طالبه، و`get_object_or_404(CustomUser, id=…)` بلا قيد مدرسة — أي
     # جدولُ معلّمٍ في مدرسةٍ أخرى.
@@ -145,18 +176,9 @@ def schedule_print_selection(school, user, get_params, default_source="plan"):
         user.is_admin() or has_unrestricted_role(user) or user.get_role() in SCHEDULE_BROWSE
     )
 
-    if not may_browse:
-        view_type = "teacher"
-        target_teacher = user
-    elif view_type == "teacher" and teacher_id:
-        # ومن غادر يبقى جدولُ عامه منسوباً إليه — فالبحثُ في كلّ من كان منها.
-        target_teacher = get_object_or_404(CustomUser.objects.ever_in_school(school), id=teacher_id)
-    elif view_type == "class" and class_id:
-        target_class = get_object_or_404(ClassGroup, id=class_id, school=school)
-
-    # قائمتا الاختيار لمن يتصفّح غيره وحده: عرضُهما على المعلّم يُظهر
-    # أسماء زملائه وشُعب المدرسة في أداةٍ لا تعمل له أصلاً.
-    teachers, classes = browse_lists(school) if may_browse else ([], [])
+    target_teacher, target_class, teachers, classes = _resolve_targets(
+        school, user, may_browse, view_type, teacher_id, class_id, year
+    )
 
     # معاينةُ مسودّةِ توليدٍ قبل اعتمادها — لمن يتصفّح الجداول وحدَه، فالمسودّةُ
     # ليست جدولَ أحدٍ بعد. ومن يعتمد جدولاً لم يرَه يعتمد رقماً لا جدولاً.
@@ -215,6 +237,7 @@ def schedule_print_selection(school, user, get_params, default_source="plan"):
         "target_class": target_class,
         "preview": preview,
         "may_browse": may_browse,
+        "may_pick": True,
         "picker_current": picker_current,
         "teachers": teachers,
         "classes": classes,
@@ -540,3 +563,21 @@ def pages_payload(school, get_params) -> dict:
         ),
         "embed": get_params.get("embed") == "1",
     }
+
+
+def teacher_free_slots_grid(school, user, teacher_id) -> tuple[Any, dict[int, list[int]]]:
+    """معلّمٌ مرئيٌّ لهذا المستخدم وشبكةُ حصصه الحرّة (يوم ← أرقام الحصص) — غيرُ المرئيّ 404 (W-20261013-022)."""
+    from .services import FreeSlotService
+
+    teacher = get_object_or_404(
+        CustomUser,
+        pk=teacher_id,
+        memberships__school=school,
+        memberships__is_active=True,
+    )
+    if not may_view_teacher(school, user, teacher.pk):
+        raise Http404
+    grid: dict[int, list[int]] = {d: [] for d in range(5)}
+    for f in FreeSlotService.get_teacher_free_slots(teacher, school):
+        grid[f.day_of_week].append(f.period_number)
+    return teacher, grid

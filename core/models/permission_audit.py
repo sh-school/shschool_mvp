@@ -34,6 +34,8 @@ class PermissionAuditLog(models.Model):
         ("compensatory_approved", "موافقة تعويض"),
         ("capability_granted", "منح قدرة مفوَّضة"),
         ("capability_revoked", "سحب قدرة مفوَّضة"),
+        ("acting_assigned", "تكليف بالإنابة عن وظيفة"),
+        ("acting_revoked", "رفع تكليف الإنابة"),
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)

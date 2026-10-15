@@ -9,7 +9,8 @@
              make prepush
 
   · `--all-files`: مسحُ الأسرار على كلّ المتتبَّع كما في CI (≈170 ثانية)؛ الافتراضيُّ ما تغيّر عن origin/main.
-  · `--types`: يضيف سقّاطةَ mypy (تحتاج بيئةَ المشروع: Django ومكتباتِه، فتُشغَّل داخل الحاوية).
+  · سقّاطةُ mypy تعمل افتراضيّاً بإصدار CI (requirements-mypy.txt): يفشل إن اختلف الإصدارُ المحلّيّ أو غاب الفاحص؛ ثبّت `pip install -r requirements-mypy.txt` (وبيئةُ المشروع: Django ومكتباتُه، فتُشغَّل داخل الحاوية).
+  · `--no-types`: يتخطّى mypy (غير مقيس ← خروج 3).
   · أداةٌ غائبة ← «غير مقيس» ورمزُ خروج 3 (لا نجاحٌ صامت)، إلّا بـ`--allow-missing`.
   · خروج 0 = كلُّ ما قيس نجح، 1 = فحصٌ فشل، 3 = أداةٌ غائبة بلا `--allow-missing`.
 
@@ -232,7 +233,24 @@ def _print_identity_receipt() -> None:
         print(f"identity_ack: {head8()} {_identity_result}")
 
 
+def mypy_version_skew() -> list[str] | None:
+    """أسطرُ ما يخالف الإصداراتِ الثابتة في requirements-mypy.txt؛ None إن تعذّر القراءة (W-20261014-002)."""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+        from tests.mypy_ratchet import version_skew
+
+        return version_skew()
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def check_types():
+    """سقّاطةُ mypy بإصدار CI نفسِه: يفشل إن اختلف الإصدارُ المحلّيّ أو غاب الفاحص (لا «نجح عندي» من إصدارٍ آخر)."""
+    skew = mypy_version_skew()
+    if skew is None:
+        return FAIL, "تعذّرت قراءة إصدارات الفاحص (tests/mypy_ratchet.py أو requirements-mypy.txt)"
+    if skew:
+        return FAIL, "إصداراتُ الفاحص عندك غيرُ ما تحكم به البوّابة:\n" + "\n".join(skew) + "\nثبّتها: pip install -r requirements-mypy.txt"
     proc = _run([sys.executable, "-m", "tests.mypy_ratchet"], env=MYPY_ENV)
     if proc.returncode != 0 and "ModuleNotFoundError" in proc.stderr:
         return MISSING, "بيئة المشروع غير مثبَّتة هنا — شغّله داخل الحاوية"
@@ -242,7 +260,8 @@ def check_types():
 def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="الفحوصُ السريعة لـCI قبل الدفع")
-    parser.add_argument("--types", action="store_true", help="يضيف سقّاطةَ mypy")
+    parser.add_argument("--types", action="store_true", help="(افتراضيّ الآن) سقّاطةُ mypy بإصدار CI")
+    parser.add_argument("--no-types", action="store_true", help="يتخطّى سقّاطةَ mypy (يُسجَّل غيرَ مقيس فيخرج 3)")
     parser.add_argument(
         "--all-files", action="store_true", help="مسحُ الأسرار على كلّ المتتبَّع كـCI (بطيء)"
     )
@@ -257,7 +276,9 @@ def main(argv: list[str] | None = None) -> int:
         ("التعقيد الحلقي (CC ≥ 31)", check_complexity),
     ]
     checks.append(("حرّاس الهويّة النصّيّة", check_identity))
-    if args.types:
+    if args.no_types:
+        checks.append(("mypy ratchet", lambda: (MISSING, "تُخطّيت بـ--no-types — سيحكم بها CI")))
+    else:
         checks.append(("mypy ratchet", check_types))
 
     results = []

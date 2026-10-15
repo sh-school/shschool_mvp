@@ -318,11 +318,11 @@
   },
   "behavior/views.py::quick_log": {
    "lines": 95,
-   "orm": 30
+   "orm": 29
   },
   "behavior/views.py::report_infraction": {
    "lines": 109,
-   "orm": 31
+   "orm": 30
   },
   "behavior/views.py::student_behavior_pdf": {
    "orm": 22
@@ -347,7 +347,7 @@
    "orm": 7
   },
   "core/views_auth.py::login_view": {
-   "lines": 91,
+   "lines": 85,
    "orm": 22
   },
   "core/views_auth.py::verify_2fa": {
@@ -446,7 +446,7 @@
    "orm": 13
   },
   "operations/views_schedule.py::teacher_preferences": {
-   "lines": 89,
+   "lines": 82,
    "orm": 12
   },
   "operations/views_swap.py::compensatory_request": {

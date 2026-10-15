@@ -73,7 +73,7 @@ def test_a_teacher_cannot_read_a_colleagues_schedule(db, person):
     teacher = person("معلّم", "teacher")
     other = person("زميل", "teacher")
 
-    body = _get(teacher, "weekly_schedule", f"?teacher={other.id}").content.decode()
+    body = _get(teacher, "weekly_schedule", f"?view=teacher&teacher={other.id}").content.decode()
 
     assert other.full_name not in body
 
@@ -132,7 +132,7 @@ def test_the_printed_sheet_carries_the_period_times(db, person, school):
         academic_year="2026-2027",
     )
 
-    body = _get(teacher, "schedule_print", "?year=2026-2027").content.decode()
+    body = _get(teacher, "schedule_print", "?view=teacher&year=2026-2027").content.decode()
 
     assert "07:10" in body and "07:55" in body
 
@@ -149,10 +149,10 @@ def test_the_times_come_from_the_data_not_the_code():
     assert "07:10" not in body and "time(7" not in body
 
 
-def test_a_teacher_is_not_offered_a_selector_they_cannot_use(db, person):
+def test_a_teacher_is_offered_the_selector_limited_to_what_they_may_see(db, person):
+    """D-432م: المعلّمُ يتنقّل بين جداول زملائه وشُعبه؛ والقائمةُ مقيَّدةٌ (tests/test_schedule_visibility_idor.py)."""
     teacher = person("معلّم", "teacher")
 
     body = _get(teacher, "schedule_print").content.decode()
 
-    assert '<form id="schedule-view-form"' not in body
-    assert "getElementById('schedule-view-form')" not in body, "ولا سكربتٌ يخدمها"
+    assert '<form id="schedule-view-form"' in body

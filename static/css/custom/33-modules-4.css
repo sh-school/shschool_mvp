@@ -745,6 +745,9 @@ button.ui-kpi { font: inherit; inline-size: 100%; text-align: start; cursor: poi
   .ui-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   /* في نصف شاشةٍ لا يتّسع السطرُ للتفصيل — والتلميحُ يحمله. */
   .ui-kpi__sub { display: none; }
+  /* بطاقةٌ بعرض نصف شاشةٍ لا يسع اسمَها ورقمَها معاً («شعب سُجّلت حصصها» و«0 من 0» عند 375px قُصّا يساراً، ملاحظة 0502): يلتفّ الرقمُ إلى سطرٍ ثانٍ ويلتفّ الاسمُ إن طال، ولا شيءَ يخرج من البطاقة. وما اتّسع لسطرٍ واحدٍ يبقى كما كان. */
+  .ui-kpi { flex-wrap: wrap; column-gap: var(--sp-2); row-gap: 0; }
+  .ui-kpi__label { white-space: normal; }
 }
 
 /* ── 2. بطاقةُ القسم: ترويسةٌ عنّابيّةٌ واحدة ──
@@ -864,7 +867,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 }
 .plain-list__row:last-child { border-block-end: 0; }
 
-.plain-list__main { display: grid; gap: 1px; min-inline-size: 0; }
+.plain-list__main { display: grid; gap: var(--sp-0-5); min-inline-size: 0; }
 .plain-list__title { font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); }
 .plain-list__sub {
   font-size: var(--text-xs);
@@ -1076,7 +1079,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 
 /* صفُّ القضيّة: نصُّه يلتفّ، وأفعالُه تنزل تحته حين يضيق السطر. */
 .beh-case { flex-wrap: wrap; align-items: flex-start; }
-.beh-case__main { flex: 1 1 320px; gap: 3px; }
+.beh-case__main { flex: 1 1 320px; gap: var(--sp-1); }
 .beh-case__head,
 .beh-badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1-5); }
 .beh-badges { flex-shrink: 0; }
@@ -1259,7 +1262,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .beh-quick .ui-field-hint { display: inline; margin: 0; }
 .beh-quick p.ui-field-hint { display: block; margin-block-start: var(--sp-1); }
 .beh-level-pick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); }
-.beh-level-pick__option { cursor: pointer; }
+.beh-level-pick__option { position: relative; cursor: pointer; }
 .beh-level-pick__box {
   min-block-size: 56px;
   display: flex;
@@ -1632,6 +1635,12 @@ body:has(.rm-page) .site-footer { flex: none; }
   [data-class-grid] [data-tabs] { position: static; }
 }
 
+/* محدِّدُ يوم اللوحة (W-20261010-056): سهما السابق والتالي على جانبَي حقل التاريخ، وشارةُ «للقراءة فقط» في طرفه حين يكون اليومُ غيرَ اليوم الحقيقيّ. */
+.day-picker { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); }
+.day-picker__form { display: flex; align-items: center; gap: var(--sp-1-5); }
+.day-picker__step.is-disabled { opacity: .45; pointer-events: none; }
+.day-picker__ro { margin-inline-start: var(--sp-1); }
+
 /* ── لوحة المعلّم: صفوفُ الحصص (W-20261010-039) ── */
 .sess-list { display: grid; }
 .sess-row {
@@ -1646,7 +1655,7 @@ body:has(.rm-page) .site-footer { flex: none; }
   text-decoration: none;
 }
 .sess-row:last-child { border-block-end: 0; }
-.sess-row:hover { background: var(--surface-alt); }
+.sess-row[href]:hover { background: var(--surface-alt); } /* صفُّ القراءة فقط (بلا href، W-20261010-056) لا يتلوّن كأنّه يُنقَر */
 .sess-row.is-next { background: var(--status-warning-bg); }
 .sess-main { display: flex; align-items: center; gap: var(--sp-4); min-inline-size: 0; }
 .sess-clock { min-inline-size: 3.25rem; text-align: center; font-size: var(--text-sm); font-weight: 700; color: var(--text-primary); }

@@ -62,6 +62,12 @@ paths:
 | `--control-border` | `#6b7280` | `#64748b` |
 | `--popover-bg` | `color-mix(in srgb, var(--status-success) 10%, var(--surface))` | — |
 | `--popover-border` | `color-mix(in srgb, var(--status-success) 35%, var(--surface))` | — |
+| `--grade-7` | `#5b7fa6` | — |
+| `--grade-8` | `#6f9a7b` | — |
+| `--grade-9` | `#c4a24f` | — |
+| `--grade-10` | `#c27a5a` | — |
+| `--grade-11` | `#8a78b0` | — |
+| `--grade-12` | `#b86b85` | — |
 | `--form-band` | `#943634` | — |
 | `--form-key-bg` | `#DDD9C3` | — |
 | `--print-ink` | `#000000` | — |

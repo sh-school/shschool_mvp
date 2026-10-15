@@ -764,7 +764,6 @@ html.dark .free-slots-td { border-color: var(--border); }
 html.dark .card-bar { background: var(--maroon-dark); }
 /* ── Dashboard KPI Colors ─── */
 html.dark .alert-strip { background: color-mix(in srgb, var(--status-danger) 10%, transparent); border-color: var(--border); }
-html.dark .text-status-info    { color: var(--status-info-fg); }
 html.dark .radio-pill {
   border-color: var(--border-strong);
   background: var(--surface-alt);

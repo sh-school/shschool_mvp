@@ -219,6 +219,11 @@ MINISTRY_AFFILIATION_VISIBLE = config("MINISTRY_AFFILIATION_VISIBLE", default=Fa
 # يقرآن الجدولَ فقط. المنفذُ المركزيّ في core/capabilities.py. وضبطُه 0/false يعيد السلوكَ السابق بلا شيفرة.
 SCHEDULE_DEVELOPER_ONLY = config("SCHEDULE_DEVELOPER_ONLY", default=True, cast=bool)
 
+# D-418م (W-20261012-023): سقفُ فراغ المعلّم `TeacherPreference.max_gap` مقروءٌ في الحلّال والمُقيِّم عبر
+# `operations/gap_rule.effective_max_gap`، ومطفأٌ افتراضاً: القيمُ المحفوظة تبقى في القاعدة ولا تؤثّر في التوليد.
+# التفعيلُ قرارُ المالك بعد إعادة القياس (tools/pref_impact.py)، وبلا شيفرة: PREF_MAX_GAP_ACTIVE=true.
+PREF_MAX_GAP_ACTIVE = config("PREF_MAX_GAP_ACTIVE", default=False, cast=bool)
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {

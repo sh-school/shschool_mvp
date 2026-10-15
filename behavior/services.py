@@ -15,7 +15,7 @@ Business logic لوحدة السلوك — مستخلص من views.py
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
@@ -33,6 +33,8 @@ from behavior.models import BehaviorInfraction
 from core.models import ParentStudentLink, StudentEnrollment
 
 if TYPE_CHECKING:
+    from django.http import HttpRequest
+
     from core.models import CustomUser, School
     from wings.scope import StudentScope
 
@@ -100,6 +102,43 @@ class BehaviorPermissions:
             or user.is_superuser
             or has_unrestricted_role(user)
         )
+
+
+#: نافذةُ تدقيق القراءة: حدثٌ واحد لكل (مستخدم، مخالفة) في هذه المدّة، فلا يتضخّم السجلّ بالتحديث المتكرّر.
+READ_AUDIT_WINDOW = timedelta(minutes=10)
+
+
+def audit_infraction_read(request: HttpRequest, infractions: Any) -> None:
+    """يسجّل في AuditLog قراءةَ النصّ الكامل لمخالفةٍ أو أكثر (W-20261012-033، PDPPL).
+
+    للعروض التي تُظهر الوصفَ والإجراءَ كاملَين (القضيّة، ملفّ الطالب، التقرير، نماذج PDF) لا للقوائم. والسجلُّ
+    معرّفٌ مقنَّع فقط: لا نصَّ مخالفةٍ ولا اسمَ طالب. واستعلامٌ واحدٌ يجلب ما سُجّل حديثاً ثم يُكتب الباقي.
+    """
+    from core.models import AuditLog
+
+    items = [infractions] if isinstance(infractions, BehaviorInfraction) else list(infractions)
+    if not items or not request.user.is_authenticated:
+        return
+    recent = set(
+        AuditLog.objects.filter(
+            user=request.user,
+            action="view",
+            model_name="BehaviorInfraction",
+            object_id__in=[str(i.pk) for i in items],
+            timestamp__gte=timezone.now() - READ_AUDIT_WINDOW,
+        ).values_list("object_id", flat=True)
+    )
+    for inf in items:
+        if str(inf.pk) not in recent:
+            AuditLog.log(
+                user=request.user,
+                action="view",
+                model_name="BehaviorInfraction",
+                object_id=inf.pk,
+                object_repr="مخالفة سلوكية — قراءة النص الكامل",
+                school=inf.school,
+                request=request,
+            )
 
 
 class BehaviorService:

@@ -25,6 +25,9 @@ class TestBehaviorDashboard:
         assert "critical_unresolved" in response.context
 
 
+from tests.test_behavior_views2 import teacher_student_link  # noqa: E402, F401
+
+
 @pytest.mark.django_db
 class TestReportInfraction:
     def test_get_report_form(self, client_as, teacher_user, school):
@@ -34,7 +37,7 @@ class TestReportInfraction:
         assert "students" in response.context
 
     def test_post_creates_level1_infraction(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self, client_as, teacher_user, school, student_user, enrolled_student, teacher_student_link
     ):
         client = client_as(teacher_user)
         count_before = BehaviorInfraction.objects.count()
@@ -54,7 +57,7 @@ class TestReportInfraction:
         assert BehaviorInfraction.objects.count() > count_before
 
     def test_critical_infraction_redirects_to_committee(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self, client_as, teacher_user, school, student_user, enrolled_student, teacher_student_link
     ):
         """مخالفة درجة 3 تُحال للجنة — التحقق من الإعادة فقط (لا من صفحة اللجنة)"""
         client = client_as(teacher_user)
@@ -75,7 +78,7 @@ class TestReportInfraction:
         assert BehaviorInfraction.objects.count() > count_before
 
     def test_post_succeeds_without_description(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self, client_as, teacher_user, school, student_user, enrolled_student, teacher_student_link
     ):
         """W-20261001-003: وصفُ المخالفة اختياريٌّ لكلّ فئات المخالفات بلا استثناء."""
         client = client_as(teacher_user)
@@ -93,7 +96,7 @@ class TestReportInfraction:
         assert BehaviorInfraction.objects.count() > count_before
 
     def test_post_succeeds_with_description(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self, client_as, teacher_user, school, student_user, enrolled_student, teacher_student_link
     ):
         client = client_as(teacher_user)
         count_before = BehaviorInfraction.objects.count()

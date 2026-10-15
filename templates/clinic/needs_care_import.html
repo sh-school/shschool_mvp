@@ -12,7 +12,7 @@
 <div class="exec-dash">
 
   {% page_header "استيراد علامة «يحتاج مراعاةً»" subtitle="ملفٌّ فيه الرقمُ الوطنيّ والصفّ فقط" icon="clinic" %}
-    <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
+    <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
   {% endpage_header %}
 
   {% if report %}
@@ -32,7 +32,9 @@
         {% field "needs_care_file" "ملف الطلاب (xlsx أو csv)" type="file" accept=".xlsx,.csv" required=True help="عمودان: الرقم الوطنيّ (11 خانة) ثم الصفّ، مثل 10 أو 10/2. يُقرأ في الذاكرة ولا يُحفظ." %}
       </div>
       {% callout "warning" %}الاستيرادُ يضع العلامةَ ولا يُزيلها. والإزالةُ من سجلّ الطالب الصحّيّ. كلُّ استيرادٍ يُسجَّل في سجلّ المراجعة بأعدادٍ فقط.{% endcallout %}
-      <button type="submit" class="btn-primary mt-4 w-full py-2 text-sm font-bold">{% icon "save" %} استيراد</button>
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">{% icon "save" %} استيراد</button>
+      </div>
     </form>
   {% endsection_card %}
 

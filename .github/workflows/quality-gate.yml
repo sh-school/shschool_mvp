@@ -26,18 +26,25 @@ jobs:
   # (`Dockerfile: python:3.12-slim`). إصدارٌ جديد = سطرٌ هنا + Dockerfile + pyproject.
   #
   # **مقسومةٌ على shards (W-20261002-034):** كانت وظيفةً واحدةً ~17 دقيقةً ثمّ ~33 بعد #777. الآن:
-  #   · `pytest-shards`: مصفوفةُ خمسةٍ، كلٌّ تجمع المجموعةَ كلَّها بقواعد pytest نفسِها وتُسقط ما ليس لها
+  #   · `pytest-shards`: مصفوفةُ ستّةٍ (W-20261014-003: موازنةٌ بقياس؛ كانت خمسةً)، كلٌّ تجمع المجموعةَ كلَّها بقواعد pytest نفسِها وتُسقط ما ليس لها
   #     (tests/ci_sharding.py — قسمةٌ حتميّةٌ على ملفّ الاختبار، والملفُّ الثقيلُ مثبَّتٌ على آخرها) وتكتب بياناتِ
   #     تغطيتها `.coverage.shardN` بلا حكم (`--cov-fail-under=0`: التغطيةُ الجزئيّةُ لا تُقاس بالعتبة).
   #   · `test-coverage` («pytest — تغطية» — الاسمُ لم يتغيّر): يتحقّق أنّ الـshards غطّت المجموعةَ بلا فقدٍ
   #     (scripts/ci_shard_verify.py) ثمّ يدمج التغطيةَ ويحكم بعتبة pyproject — الرقمُ الوحيدُ في المستودع.
+  #
+  # **لا تُشغَّل على push إلى main (W-429، D-429م):** الدمجُ لا يصل إلى main إلا عبر طابور الدمج، والطابورُ يُجري هذه
+  # المجموعةَ كاملةً على «main + الطلب» وبالتغطية قبل الدمج (merge_group مطلوبٌ في حماية الفرع — تُحُقّق منه
+  # 2026-10-13)؛ فتكرارُها على commit الدمج نفسِه ربعُ ساعةٍ لا تُثبت جديداً. والدخانُ على push هو الوظائفُ
+  # الرخيصة أدناه (ruff، migration-linter، التعقيد، الأسرار، الحرّاسُ النصّيّة). وpull_request وmerge_group
+  # كاملتان لا تتغيّران، والإعفاءُ مسجَّلٌ في scripts/ci_needs_gate.py بحدثٍ ومهمّةٍ وسبب.
   pytest-shards:
     name: pytest shard ${{ matrix.shard }}/${{ strategy.job-total }}
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5]
+        shard: [1, 2, 3, 4, 5, 6]
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
@@ -64,7 +71,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: python3 scripts/ci_docs_only.py classify "$BASE_SHA" >> "$GITHUB_OUTPUT" || echo "docs_only=false" >> "$GITHUB_OUTPUT"
 
-      # على طلبٍ وثائقيٍّ لا يعمل إلّا shard 1 («قرّاءُ الوثائق»)؛ فلا تُجهَّز البيئةُ في 2–5 هدراً (مراجعة 0105).
+      # على طلبٍ وثائقيٍّ لا يعمل إلّا shard 1 («قرّاءُ الوثائق»)؛ فلا تُجهَّز البيئةُ في 2–6 هدراً (مراجعة 0105).
       # postgres 16 الأصليّ على الـrunner بدل حاويةٍ تُسحب من Docker Hub (سقفُ السحب أسقط الفحوصَ 2026-10-09)
       - uses: ./.github/actions/native-postgres
         if: steps.diff.outputs.docs_only != 'true' || matrix.shard == 1
@@ -141,8 +148,8 @@ jobs:
   test-coverage:
     name: pytest — تغطية
     needs: [pytest-shards]
-    # دائماً: ليُبلَّغ بنتيجةٍ حتى لو فشل shard (فشلُه يُسقط هذه الوظيفةَ أوّلَ خطوة).
-    if: always()
+    # دائماً: ليُبلَّغ بنتيجةٍ حتى لو فشل shard (فشلُه يُسقط هذه الوظيفةَ أوّلَ خطوة)؛ إلّا على push (انظر pytest-shards).
+    if: always() && github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -181,7 +188,7 @@ jobs:
 
       - name: التحقق من أنّ الـshards غطّت المجموعةَ كلَّها
         if: steps.diff.outputs.docs_only != 'true'
-        run: python3 scripts/ci_shard_verify.py shards 5
+        run: python3 scripts/ci_shard_verify.py shards 6
 
       - name: "دمج التغطية + Coverage Gate"
         if: steps.diff.outputs.docs_only != 'true'
