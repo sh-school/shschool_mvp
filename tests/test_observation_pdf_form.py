@@ -710,12 +710,12 @@ def _image_boxes(html):
 
 
 def test_the_header_draws_only_the_ministry_logo(db, observation):
-    """الترويسةُ شعارُ الوزارة (24px) فوق اسم المدرسة وحدَه. يُقاس من تخطيط WeasyPrint نفسِه: صندوقُ صورةٍ واحدٌ في الصفحة الأولى."""
+    """الترويسةُ شعارُ الوزارة (14 ملم = 52.9px) فوق اسم المدرسة وحدَه. يُقاس من تخطيط WeasyPrint نفسِه: صندوقُ صورةٍ واحدٌ في الصفحة الأولى."""
     from quality.observation_views import _pdf_context
 
     html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
 
-    assert _image_boxes(html) == [(24.0, 24.0)]
+    assert _image_boxes(html) == [(52.9, 52.9)]
 
 
 def test_the_pdf_carries_only_the_school_logo_image(db, school, named):

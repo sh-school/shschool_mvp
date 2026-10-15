@@ -559,7 +559,7 @@ def _playwright_header_template(school: str, title: str) -> str:
     ministry = ministry_name()  # مجمَّدةٌ مطفأةٌ افتراضاً (D-400م): لا نطاقَ فارغاً في الترويسة
     ministry_span = f'<span class="ph-ministry">{ministry}</span>' if ministry else ""
     try:  # شعارُ الوزارة الأصليّ مضمَّناً أعلى الوسط: ترويسةُ Playwright وثيقةٌ مستقلّةٌ لا ترى ملفّاتِ الموقع
-        logo_img = f'<img class="ph-logo" src="{ministry_logo.logo_data_uri()}" alt="" width="26" height="26">'
+        logo_img = f'<img class="ph-logo" src="{ministry_logo.logo_data_uri()}" alt="" width="46" height="46">'
     except FileNotFoundError:
         logo_img = ""
     return f"""

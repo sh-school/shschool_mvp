@@ -47,8 +47,8 @@
 <style>
 @page {
   size: A4;
-  /* الهوامشُ: ترويسةٌ 0.74 بوصة (شعارُ الوزارة 24px فوق اسم المدرسة، بلا سطر نصّ الوزارة — W-20261014-009) وتذييلٌ سطرٌ واحد 0.42 بوصة. الجانبيّان كالأصل. */
-  margin: 0.74in 0.5in 0.42in 0.5in;
+  /* الهوامشُ: ترويسةٌ 1.12 بوصة (شعارُ الوزارة 14 ملم وسطاً فوق اسم المدرسة، بلا سطر نصّ الوزارة — W-20261014-009) وتذييلٌ سطرٌ واحد 0.42 بوصة. الجانبيّان كالأصل. */
+  margin: 1.12in 0.5in 0.42in 0.5in;
   @top-center { content: element(sheet-header); }
   @bottom-center { content: element(sheet-footer); }
 }
@@ -76,7 +76,7 @@ body {
 .doc-header { text-align: center; }
 .doc-header .ministry-name { font-size: 8.5pt; color: {% brand_color "TEXT_PRIMARY" %}; }
 .ministry-logo { display: none; } /* شعارُ الوزارة للمطبوع وحدَه: لا يظهر على الشاشة أبداً (W-20261014-009) */
-@media print { .ministry-logo { display: block; width: 24px; height: 24px; margin: 0 auto 1pt; } } /* أعلى وسط الترويسة واسمُ المدرسة تحته */
+@media print { .ministry-logo { display: block; width: 14mm; height: 14mm; margin: 0 auto 1pt; } } /* أعلى وسط الترويسة واسمُ المدرسة تحته */
 .doc-header .school-name { font-size: 15pt; font-weight: 700; color: {% brand_color "MAROON" %}; line-height: 1.25; }
 .ornament-hr { height: 4pt; margin-top: 3pt; border-top: 2pt solid {% brand_color "MAROON" %}; border-bottom: 0.75pt solid {% brand_color "GOLD" %}; }
 .pdf-footer-line {
