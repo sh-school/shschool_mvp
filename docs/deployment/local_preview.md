@@ -180,3 +180,11 @@ tagged = CustomUser.objects.filter(full_name__startswith="[وهميّ")
 print("أرقامٌ وظيفيّةٌ بطول ≥7 أو بادئة 999:", reserved.count())
 print("حساباتٌ باسمٍ يبدأ «[وهميّ»:", tagged.count())
 ```
+
+### ما نُقل من دستور المشروع (حرفياً)
+
+- **يتبع `main` وما أودعته الجلساتُ ولم يُدمج** بوضع الإنتاج ويتحدّث تلقائياً كلَّ 10 دقائق؛ والحالةُ بـ`bash scripts/preview.sh status`، ولِمَ يُتخطّى فرعٌ بـ`bash scripts/preview.sh integrate`.
+
+وحرّاسُ CSS/JS النصّيّة بلا خادم: `docker run --rm --network none …`.
+
+والمعاينةُ لا تعكس الإنتاجَ في التخزين والبريد وSentry وbeat والبيانات.
