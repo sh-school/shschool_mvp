@@ -25,7 +25,13 @@ from core import brand
 from core.academic_calendar import academic_year_for_school
 from core.domain.attendance import attendance_rate
 from core.excel_safety import safe_cell
-from core.export_utils import add_excel_title_rows, brand_cell, excel_table_styles, xl_font
+from core.export_utils import (
+    add_excel_title_rows,
+    autofit_columns,
+    brand_cell,
+    excel_table_styles,
+    xl_font,
+)
 from core.ministry import ministry_line, ministry_name
 from core.models import StudentEnrollment
 from core.privacy import mask_national_id
@@ -798,6 +804,7 @@ class AcademicReportsExcel:
                 )
             ExcelService._style_data_row(ws, styles, row_num, num_cols, idx % 2 == 0)
 
+        autofit_columns(ws, 4)  # بعد كتابة البيانات: العرضُ من أطول قيمةٍ لا من الرأس وحده
         ExcelService._apply_protection(ws, num_cols)
         ExcelService._setup_print_a4_portrait(ws, num_cols, len(data_rows))
         return wb
@@ -1237,6 +1244,7 @@ class ExcelService:
             safe_cell(ws, row=row_num, column=6 + len(subjects), value=rank)
             cls._style_data_row(ws, styles, row_num, num_cols, is_alt)
 
+        autofit_columns(ws, 4)  # بعد كتابة البيانات: العرضُ من أطول قيمةٍ لا من الرأس وحده
         cls._apply_protection(ws, num_cols)
         if is_a3:
             cls._setup_print_a3_landscape(ws, num_cols, len(data["student_rows"]))
@@ -1319,6 +1327,7 @@ class ExcelService:
 
             cls._style_data_row(ws, styles, row_num, num_cols, idx % 2 == 0)
 
+        autofit_columns(ws, 4)  # بعد كتابة البيانات: العرضُ من أطول قيمةٍ لا من الرأس وحده
         cls._apply_protection(ws, num_cols)
         if is_a3:
             cls._setup_print_a3_landscape(ws, num_cols, len(data["student_rows"]))
@@ -1414,6 +1423,7 @@ class ExcelService:
 
             cls._style_data_row(ws, styles, row_num, num_cols, idx % 2 == 0)
 
+        autofit_columns(ws, 4)  # بعد كتابة البيانات: العرضُ من أطول قيمةٍ لا من الرأس وحده
         cls._apply_protection(ws, num_cols)
         if is_a3:
             cls._setup_print_a3_landscape(ws, num_cols, len(data["infractions"]))

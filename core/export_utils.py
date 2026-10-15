@@ -119,6 +119,23 @@ def excel_table_styles() -> ExcelTableStyles:
     )
 
 
+def autofit_columns(ws: Any, header_row: int, max_width: int = 60) -> None:
+    """عرضُ كلّ عمودٍ يتبع أطولَ قيمةٍ فيه (قاعدةُ الأعمدة المرنة، W-20261013-025).
+
+    عرضُ الرأس المكتوب هو الحدّ الأدنى فلا يضيق عمودٌ عن عنوانه، وسقفُه معقولٌ فلا يتّسع عمودٌ
+    لنصٍّ طويلٍ. الأعمدةُ القصيرةُ (التسلسلُ والرقمُ) تبقى بقدر محتواها لا بعرضٍ ثابت.
+    """
+    widths: dict[str, float] = {}
+    for row in ws.iter_rows(min_row=header_row):
+        for cell in row:
+            if cell.value is None or type(cell).__name__ == "MergedCell":
+                continue
+            longest = max(len(line) for line in str(cell.value).split(chr(10)))
+            widths[cell.column_letter] = max(widths.get(cell.column_letter, 0), longest * 1.15 + 2)
+    for letter, width in widths.items():
+        ws.column_dimensions[letter].width = min(max(width, 6), max_width)
+
+
 def brand_cell(cell) -> None:
     """خانةٌ بلا خطٍّ صريحٍ تأخذ خطَّ الهويّة — وما لُوِّن قبلها يبقى لونُه وعرضُه."""
     from openpyxl.styles import Font

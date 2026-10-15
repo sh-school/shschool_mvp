@@ -27,6 +27,7 @@ from core.excel_safety import safe_cell
 from core.export_utils import (
     add_excel_title_rows,
     apply_print_footer,
+    autofit_columns,
     brand_cell,
     excel_table_styles,
     xl_fill,
@@ -345,6 +346,7 @@ def student_export_excel(request):
     num_data_rows = len(memberships)
 
     # ── تجميد + فلاتر ────────────────────────────────────────────────
+    autofit_columns(ws, 4)
     ws.freeze_panes = "A5"
     ws.auto_filter.ref = f"A4:{col_letter}4"
 
