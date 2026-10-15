@@ -66,3 +66,9 @@ def test_the_live_capture_pins_both_clocks():
     source = (ROOT / "tests/e2e/test_visual_snapshots_live.py").read_text(encoding="utf-8")
     assert "vs.frozen_clock()" in source
     assert "context.clock.set_fixed_time(vs.FIXED_NOW)" in source
+
+
+def test_the_page_fresh_time_is_masked_in_snapshots():
+    """وسمُ `{% now %}` يقرأ ساعةَ الجهاز لا `timezone.now` المثبَّتة، فتقلبُ دقيقتُه بين تحميلَين وتكسر فحصَ الحتميّة (W-20261015-022)."""
+    base = (ROOT / "templates/base/base.html").read_text(encoding="utf-8")
+    assert "<time data-fresh-time data-visual-mask>" in base
