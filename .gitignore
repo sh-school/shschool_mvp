@@ -134,3 +134,6 @@ backups/
 /gaps.py
 /tb.py
 /scratch_*.py
+
+# سجلُّ مصدر الحقيقة: لقطتا النصّ الحرفيّ خارج git (قرارُ المالك 2026-10-15)؛ يُتتبَّع الفهرسُ فقط
+AAdocs/ministry_data/2026_2027/sot_verbatim/
