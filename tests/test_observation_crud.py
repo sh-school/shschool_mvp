@@ -9,6 +9,8 @@ from django.urls import reverse
 from quality.observation_models import ClassroomObservation, ObservationCriterion
 from quality.observation_services import ObservationService
 
+pytestmark = pytest.mark.pin_clock  # اختبارا التقييم الذاتي يقرآن «اليوم» لنافذة الأيام السبعة
+
 
 # ── مساعدات ──────────────────────────────────────────────────────────
 def _criteria(school, n=3):
