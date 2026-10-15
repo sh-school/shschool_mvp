@@ -133,6 +133,56 @@ class LeaveBalance(SchoolScopedModel):
         )
 
 
+PROBATION_RESULTS = [
+    ("pending", "قيد الاختبار"),
+    ("passed", "اجتاز بنجاح"),
+    ("failed", "لم يجتز"),
+]
+
+
+class EmploymentContract(AuditedModel):
+    """عقدُ التوظيف وفترةُ الاختبار لموظفٍ في مدرسة — W-20261001-027.
+
+    ``probation_end`` النهايةُ الفعليّة بعد التمديد (م72 للمرض) وبعد استبعاد الوضع والعدّة
+    (م72 فقرة 2)؛ تحسبها ``staff_affairs.probation`` ولا تُدخل يدوياً. ولا سجلَّ لموظفٍ
+    قائمٍ يعني بلا قيدٍ مفروض (بياناتٌ قديمة). هجرةُ توسيعٍ فقط.
+    """
+
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="employment_contracts",
+        verbose_name="المدرسة",
+    )
+    staff = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="employment_contracts",
+        verbose_name="الموظف",
+    )
+    contract_ref = models.CharField(max_length=100, blank=True, verbose_name="مرجع عقد التوظيف")
+    contract_start = models.DateField(verbose_name="بداية العقد وفترة الاختبار")
+    probation_months = models.PositiveSmallIntegerField(verbose_name="مدة الاختبار (أشهر)")
+    base_end = models.DateField(verbose_name="نهاية الاختبار الأصلية")
+    probation_end = models.DateField(verbose_name="نهاية الاختبار الفعلية")
+    extension_days = models.PositiveSmallIntegerField(default=0, verbose_name="أيام التمديد")
+    result = models.CharField(
+        max_length=10, choices=PROBATION_RESULTS, default="pending", verbose_name="نتيجة الاختبار"
+    )
+    result_at = models.DateField(null=True, blank=True, verbose_name="تاريخ تسجيل النتيجة")
+
+    class Meta:
+        ordering = ["-contract_start"]
+        verbose_name = "عقد توظيف"
+        verbose_name_plural = "عقود التوظيف"
+        constraints = [
+            models.UniqueConstraint(fields=["school", "staff"], name="unique_employment_contract")
+        ]
+
+    def __str__(self):
+        return f"{self.staff.full_name} — {self.get_result_display()}"
+
+
 class LeaveRequest(AuditedModel):
     """طلب إجازة مع سير عمل الموافقة — وفق قانون 15/2016."""
 

@@ -1,6 +1,31 @@
 from django.contrib import admin
 
-from .models import LeaveBalance, LeaveRequest
+from .models import EmploymentContract, LeaveBalance, LeaveRequest
+
+
+@admin.register(EmploymentContract)
+class EmploymentContractAdmin(admin.ModelAdmin):
+    list_display = (
+        "staff",
+        "contract_ref",
+        "contract_start",
+        "probation_end",
+        "extension_days",
+        "result",
+    )
+    list_filter = ("result",)
+    search_fields = ("staff__full_name", "contract_ref")
+    # النهايةُ والتمديد تحسبهما خدمةُ الاختبار لا اليد
+    readonly_fields = (
+        "base_end",
+        "probation_end",
+        "extension_days",
+        "result_at",
+        "created_at",
+        "updated_at",
+        "created_by",
+        "updated_by",
+    )
 
 
 @admin.register(LeaveBalance)
