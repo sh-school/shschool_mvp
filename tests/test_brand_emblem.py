@@ -88,10 +88,13 @@ def test_the_badge_is_the_whole_symbol_in_white_on_transparent():
     assert (visible == _rgb(ON_FILL)).all(), "الشارةُ أحاديّةُ اللون"
 
 
-def test_the_favicon_is_a_rounded_transparent_tile():
+def test_the_favicon_has_no_background_plate():
+    """بلا خلفيّة (ملاحظةُ المالك 10-15): الزوايا والحوافُّ شفّافةٌ والقلمُ معتمٌ في الوسط، ولا لونَ لوحٍ صلباً."""
     pixels = np.array(Image.open(ICONS / "favicon.png").convert("RGBA"))
-    assert pixels[0, 0, 3] == 0, "الزاويةُ المدوَّرةُ شفّافة"
-    assert tuple(pixels[pixels.shape[0] // 2, 4][:3]) == _rgb(DARK["SURFACE"])
+    assert pixels[0, 0, 3] == 0 and pixels[0, -1, 3] == 0
+    assert pixels[pixels.shape[0] // 2, 4, 3] == 0, "حافّةُ الوسط شفّافةٌ لا لوحٌ"
+    assert (pixels[:, :, 3] > 250).any(), "القلمُ مرئيّ"
+    assert (pixels[:, :, 3] == 0).mean() > 0.5, "أغلبُ المربّع شفّاف"
 
 
 def test_the_favicon_ico_carries_the_small_tab_sizes():

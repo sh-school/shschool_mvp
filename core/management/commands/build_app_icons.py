@@ -21,9 +21,10 @@ import math
 import re
 from pathlib import Path
 
+import numpy as np
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from PIL import Image, ImageDraw
+from PIL import Image
 
 from core import brand
 
@@ -62,7 +63,7 @@ def _rgb(hex_colour: str) -> tuple[int, int, int]:
     return tuple(int(hex_colour.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
 
 
-def _render_svg(svg: str, height_px: int, background: str) -> Image.Image:
+def _render_svg(svg: str, height_px: int, background: str | int) -> Image.Image:
     """يرسم نصَّ SVG بارتفاعٍ معلومٍ فوق لونٍ صلب (النتيجةُ RGB)."""
     from reportlab.graphics import renderPM
     from svglib.svglib import svg2rlg
@@ -71,7 +72,11 @@ def _render_svg(svg: str, height_px: int, background: str) -> Image.Image:
     scale = height_px / drawing.height
     drawing.scale(scale, scale)
     drawing.width, drawing.height = drawing.width * scale, drawing.height * scale
-    return renderPM.drawToPIL(drawing, bg=int(background.lstrip("#"), 16), dpi=72).convert("RGB")
+    return renderPM.drawToPIL(
+        drawing,
+        bg=background if isinstance(background, int) else int(background.lstrip("#"), 16),
+        dpi=72,
+    ).convert("RGB")
 
 
 def _pen_svg() -> str:
@@ -119,22 +124,26 @@ def render_square(size: int, safe_radius: float) -> Image.Image:
     return canvas
 
 
+def _render_svg_rgba(svg: str, height_px: int) -> Image.Image:
+    """يرسم SVG بخلفيّةٍ شفّافةٍ فعلاً: مرّتان على أسودَ وأبيضَ ثمّ يُستخرج الألفا من فرقهما."""
+    on_black = np.asarray(_render_svg(svg, height_px, 0), dtype=np.float64)
+    on_white = np.asarray(_render_svg(svg, height_px, 0xFFFFFF), dtype=np.float64)
+    alpha = np.clip(1.0 - (on_white - on_black).mean(axis=2) / 255.0, 0.0, 1.0)
+    safe = np.where(alpha[..., None] > 0, alpha[..., None], 1.0)
+    colour = np.clip(on_black / safe, 0, 255)
+    out = np.dstack([colour, alpha * 255.0]).round().astype(np.uint8)
+    return Image.fromarray(out, "RGBA")
+
+
 def render_favicon(size: int) -> Image.Image:
-    """التبويبُ: مربّعٌ مدوَّرُ الزوايا شفّافُ الخارج، والقلمُ يملأ ارتفاعَه."""
+    """التبويبُ: القلمُ والشعلةُ بلا خلفيّةٍ (ألفا) يملآن ارتفاعَ المربّع (ملاحظةُ المالك 10-15)."""
     height = round(size * FAVICON_FILL)
     width = round(height * _aspect())
-    pen = _render_svg(_pen_svg(), height * SUPERSAMPLE, BACKGROUND).resize(
+    pen = _render_svg_rgba(_pen_svg(), height * SUPERSAMPLE).resize(
         (width, height), Image.Resampling.LANCZOS
     )
-    big = size * SUPERSAMPLE
-    mask = Image.new("L", (big, big), 0)
-    ImageDraw.Draw(mask).rounded_rectangle(
-        (0, 0, big - 1, big - 1), radius=round(big * FAVICON_CORNER), fill=255
-    )
     canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    plate = Image.new("RGBA", (size, size), (*_rgb(BACKGROUND), 255))
-    canvas.paste(plate, mask=mask.resize((size, size), Image.Resampling.LANCZOS))
-    canvas.paste(pen, ((size - width) // 2, (size - height) // 2))
+    canvas.alpha_composite(pen, ((size - width) // 2, (size - height) // 2))
     return canvas
 
 
