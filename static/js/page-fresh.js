@@ -87,9 +87,18 @@
   });
 
   if (button) {
+    var gate = box.querySelector("[data-fresh-gate]");
+    // التأكيدُ بنافذة المنصّة (`data-confirm` في base.js) لا بحوارٍ أصليّ: الطلبُ الأوّلُ يعترضه base.js ويعرض النافذة،
+    // وبعد «تأكيد» يعيد إرسالَ النموذج وعلى `_confirmed` فنُحدّث هنا.
+    if (gate) {
+      gate.addEventListener("submit", function (event) {
+        if (gate._confirmed) { event.preventDefault(); window.location.reload(); }
+      });
+    }
     button.addEventListener("click", function () {
-      if (!canLeave() && !window.confirm(CONFIRM_TEXT)) { return; }
-      window.location.reload();
+      if (canLeave() || !gate) { window.location.reload(); return; }
+      gate.setAttribute("data-confirm", CONFIRM_TEXT);
+      gate.requestSubmit();
     });
   }
 

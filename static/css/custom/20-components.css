@@ -2072,6 +2072,7 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
    ════════════════════ */
 
 /* ── عمرُ بيانات الصفحة (W-20261012-014) — صفٌّ ثابتُ الارتفاع قرب فتات الخبز فلا يقفز التخطيط ─── */
+.page-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--sp-2); }
 .page-fresh {
   display: flex;
   align-items: center;
@@ -2079,11 +2080,12 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
   gap: var(--sp-2);
   font-size: var(--text-xs);
   color: var(--text-muted);
-  min-height: 2.75rem;
+  margin-inline-start: auto;
   padding-inline: var(--edge-inline);
 }
 .page-fresh[hidden] { display: none; }
-.page-fresh .btn-xs { min-height: 2.75rem; }
+/* هدفُ لمسٍ 44px على الجوال وحدَه؛ فوق 1024px يشارك سطرَ فتات الخبز بلا ارتفاعٍ زائد فلا تُمرَّر صفحةٌ بلا تمرير (`page-noscroll`). */
+@media (max-width: 1024px) { .page-fresh .btn-xs { min-height: 2.75rem; } }
 
 /* ── Breadcrumbs ─── */
 .breadcrumbs {

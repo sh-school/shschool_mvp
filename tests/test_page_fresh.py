@@ -56,7 +56,21 @@ const listeners = {};
 const box = {
   hidden: false,
   getAttribute: () => String(cfg.serverNow),
-  querySelector: (sel) => sel === "[data-fresh-time]" ? timeNode : (sel === "[data-fresh-refresh]" ? button : null),
+  querySelector: (sel) => sel === "[data-fresh-time]" ? timeNode : (sel === "[data-fresh-refresh]" ? button : (sel === "[data-fresh-gate]" ? gate : null)),
+};
+// نموذجُ التأكيد المخفيّ: يعترضه base.js ويعرض نافذةَ المنصّة (نحاكيها: confirms++ ثم تأكيدٌ بـ_confirmed وإعادةُ إرسال).
+const gate = {
+  attrs: {}, subs: [],
+  setAttribute(k, v) { this.attrs[k] = v; },
+  addEventListener(t, f) { if (t === "submit") { this.subs.push(f); } },
+  requestSubmit() {
+    const run = () => this.subs.forEach((f) => f({ preventDefault() {} }));
+    run();
+    if (!this._confirmed) {
+      confirms++;
+      if (cfg.confirm) { this._confirmed = true; run(); this._confirmed = false; }
+    }
+  },
 };
 const timeNode = { textContent: "" };
 const button = { addEventListener: (t, f) => { handlers.click = f; } };
@@ -74,7 +88,7 @@ const ctx = {
   document, Date: FakeDate, Intl, console,
   location: { pathname: cfg.path, reload: () => { reloads++; } },
   localStorage: { getItem: () => cfg.draft },
-  confirm: () => { confirms++; return cfg.confirm; },
+  confirm: () => { throw new Error('window.confirm ممنوع'); },
 };
 ctx.window = { localStorage: ctx.localStorage, location: ctx.location, confirm: ctx.confirm };
 vm.createContext(ctx);

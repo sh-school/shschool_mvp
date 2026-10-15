@@ -1165,6 +1165,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
 
 
 {# ════════════════ BREADCRUMBS ══════════════════════════════════════════ #}
+<div class="page-top">
 <div id="crumbs" class="page-crumbs">{% block breadcrumbs %}{% endblock %}</div>
 {% comment %}
   عمرُ بيانات الصفحة (W-20261012-014، D-410م): وقتُ الخادم يُرسم من الخادم لا من JS فلا قفزةَ في التخطيط، و`data-now` ساعةُ الخادم
@@ -1173,6 +1174,8 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
 <div class="page-fresh" data-page-fresh data-now="{% now 'U' %}"{% if "/command-center/" in request.path or "/exports/" in request.path %} hidden{% endif %}>
   <span>آخر تحديث <time data-fresh-time>{% now "H:i" %}</time></span>
   <button type="button" class="btn-ghost btn-xs" data-fresh-refresh aria-label="تحديث بيانات الصفحة">تحديث</button>
+  <form data-fresh-gate hidden></form>
+</div>
 </div>
 
 {# ════════════════ MAIN CONTENT ═════════════════════════════════════════ #}
