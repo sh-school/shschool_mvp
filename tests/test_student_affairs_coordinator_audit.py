@@ -12,6 +12,7 @@ from django.urls import reverse
 from core.models import AuditLog, Membership
 from student_affairs.models import StudentTransfer
 from tests.attendance_fixtures import *  # noqa: F401,F403
+from tests.transfer_chain_support import advance
 
 pytestmark = pytest.mark.django_db
 
@@ -50,6 +51,12 @@ def test_every_transfer_decision_leaves_an_audit_trail(
         updated_by=student_affairs_coordinator_user,
     )
     client.force_login(student_affairs_coordinator_user)
+    # الاعتمادُ والرفض بعد التدقيق، والإتمامُ بعد المراحل الأربع (W-20261001-018)
+    advance(
+        transfer, student_affairs_coordinator_user, "enter" if decision == "completed" else "review"
+    )
+    if decision == "completed":
+        transfer.refresh_from_db()
 
     client.post(
         reverse("student_affairs:transfer_review", args=[transfer.pk]),
