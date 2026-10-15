@@ -112,14 +112,11 @@ html.dark {
   --loading-veil:        rgba(15,23,42,.4);
 
   --header-bg:           #1a0a12;
-  --header-fg:           var(--on-fill);
   --nav-bg:              #2c2922;
   --nav-fg:              var(--on-fill);
   --nav-hover:           color-mix(in srgb, var(--on-fill) 12%, transparent);
   --nav-mark:            var(--gold);
-  --footer-fg:           var(--on-fill);
   --footer-fg-soft:      #cbd5e1;   /* 12.9 */
-  --footer-line:         color-mix(in srgb, var(--on-fill) 35%, transparent);
   --admin-header-link:   #ffe0e9;
   --border-soft:         var(--border);
   --menu-ink:            var(--text-primary);
@@ -825,6 +822,4 @@ html.dark .wing-panel { color: var(--text-primary); }
 html.dark .wing-panel__bar { background: var(--maroon-dark); }
 /* رؤيةُ المدرسة: تشكيلُها أزرقُ في الوضع النهاريّ وفاتحٌ في الليليّ (لوحةُ الخطّ `--tashkeel-dark` في 10-foundation) */
 html.dark .vision-text { font-palette: --tashkeel-dark; }
-/* الشعارُ بلا خلفيّة (W-20261014-009): ليلاً تُحيط به هالةٌ بيضاءُ رقيقةٌ فلا يضيع عنّابيُّه على الترويسة الداكنة. */
-html.dark .school-logo { filter: drop-shadow(0 0 1px var(--on-fill)) drop-shadow(0 0 1px var(--on-fill)); }
 }
