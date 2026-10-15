@@ -73,6 +73,7 @@ def test_the_cropped_icon_is_a_separate_file(manifest):
     ],
 )
 def test_cropped_icons_are_opaque_and_the_emblem_fits_the_safe_circle(name, safe_radius):
+    # الأيقونتان `any` شفّافتان عمداً (قرارُ المالك 10-15) فلا تدخلان هنا؛ المقصوصةُ وحدَها تلزمها خلفيّةٌ معتمة.
     icon = Image.open(ROOT / "static" / "icons" / "v4" / name)
     assert icon.mode == "RGB", "الشفّافُ يُملأ بالأسود في iOS وبلونٍ داكنٍ في أندرويد"
 

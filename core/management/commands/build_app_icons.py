@@ -47,10 +47,14 @@ FAVICON_FILL = 0.88
 #: الرسمُ بمقياسٍ أكبر ثمّ التصغير تنعيماً للحواف.
 SUPERSAMPLE = 4
 
-#: (الاسم، الضلع، نصفُ قطر الدائرة الآمنة) — مربّعاتٌ معتمةٌ بلا قصٍّ.
-SQUARE_TARGETS = (
+#: أيقونتا الغرض `any`: القلمُ والشعلةُ بلا خلفيّةٍ (ألفا) — قرارُ المالك 10-15 «أيقونات تطبيق الجوال بلا خلفيّة».
+TRANSPARENT_TARGETS = (
     ("icon-192.png", 192, ANY_SAFE_RADIUS),
     ("icon-512.png", 512, ANY_SAFE_RADIUS),
+)
+#: (الاسم، الضلع، نصفُ قطر الدائرة الآمنة) — مربّعاتٌ معتمةٌ بلا قصٍّ: `maskable` تلزمها خلفيّةٌ بالمواصفة،
+#: و`apple-touch` يملأ iOS شفّافَها بالأسود فتبقى معتمةً (يحرسه tests/test_pwa_install.py).
+SQUARE_TARGETS = (
     ("icon-maskable-192.png", 192, MASKABLE_SAFE_RADIUS),
     ("icon-maskable-512.png", 512, MASKABLE_SAFE_RADIUS),
     ("apple-touch-icon.png", 180, APPLE_SAFE_RADIUS),
@@ -147,6 +151,17 @@ def render_favicon(size: int) -> Image.Image:
     return canvas
 
 
+def render_any(size: int, safe_radius: float) -> Image.Image:
+    """أيقونةُ `any`: القلمُ والشعلةُ بلا خلفيّةٍ داخل الدائرة الآمنة نفسِها للمعتمة (فلا يتغيّر حجمُ الرمز)."""
+    width, height = _pen_size(size, safe_radius)
+    pen = _render_svg_rgba(_pen_svg(), height * SUPERSAMPLE).resize(
+        (width, height), Image.Resampling.LANCZOS
+    )
+    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    canvas.alpha_composite(pen, ((size - width) // 2, (size - height) // 2))
+    return canvas
+
+
 def render_badge(size: int) -> Image.Image:
     """شارةُ الإشعار: القلمُ كلُّه أبيضَ على شفّاف (قناعُه من رسمه نفسِه بلونٍ واحد)."""
     width, height = _pen_size(size, ANY_SAFE_RADIUS + 0.04)
@@ -170,6 +185,9 @@ class Command(BaseCommand):
 
     def handle(self, *args: object, **options: object) -> None:
         ICONS.mkdir(parents=True, exist_ok=True)
+        for name, size, safe_radius in TRANSPARENT_TARGETS:
+            render_any(size, safe_radius).save(ICONS / name, optimize=True)
+            self.stdout.write(f"كُتبت {name}: {size}×{size} (شفّافة)")
         for name, size, safe_radius in SQUARE_TARGETS:
             render_square(size, safe_radius).save(ICONS / name, optimize=True)
             self.stdout.write(f"كُتبت {name}: {size}×{size}")

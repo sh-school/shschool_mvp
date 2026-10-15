@@ -22,9 +22,8 @@ ICONS = ROOT / "static/icons/v4"
 
 REMOVED = ("logoMaroon.png", "logowhite.png", "emblem.svg", "emblem-white.svg", "ministry_logo.png")
 BRAND_FILES = {"azkia-logo.svg", "sufyan-logo.png", "schoolos-full.svg", "schoolos-pen.svg"}
+TRANSPARENT_ICONS = ("icon-192.png", "icon-512.png")
 SQUARE_ICONS = (
-    "icon-192.png",
-    "icon-512.png",
     "icon-maskable-192.png",
     "icon-maskable-512.png",
     "apple-touch-icon.png",
@@ -79,6 +78,15 @@ def test_the_symbol_stays_inside_the_safe_circle(name, safe):
     ys, xs = np.where(np.abs(image - np.array(_rgb(DARK["SURFACE"]))).sum(axis=2) > 24)
     radius = np.sqrt((xs - size / 2) ** 2 + (ys - size / 2) ** 2).max() / size
     assert radius <= safe + 0.02, (name, radius)
+
+
+@pytest.mark.parametrize("name", TRANSPARENT_ICONS)
+def test_the_any_icons_have_no_background_plate(name):
+    """أيقونتا `any` بلا خلفيّةٍ (قرارُ المالك 10-15): الزوايا شفّافةٌ والقلمُ معتمٌ في الوسط."""
+    pixels = np.array(Image.open(ICONS / name).convert("RGBA"))
+    assert pixels[0, 0, 3] == 0 and pixels[-1, -1, 3] == 0
+    assert (pixels[:, :, 3] > 250).any(), "القلمُ مرئيّ"
+    assert (pixels[:, :, 3] == 0).mean() > 0.5, "أغلبُ المربّع شفّاف"
 
 
 def test_the_badge_is_the_whole_symbol_in_white_on_transparent():
