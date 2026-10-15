@@ -341,7 +341,7 @@ SESSION_COOKIE_SAMESITE = "Lax"
 # والاختبار يمرّان بسلوك مختلف، فينكشف أي كاسر بعد النشر لا قبله.
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = "Lax"
-CSRF_FAILURE_VIEW = "django.views.csrf.csrf_failure"
+CSRF_FAILURE_VIEW = "core.views_errors.csrf_failure"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
