@@ -1,3 +1,5 @@
+import datetime
+
 from django.contrib.postgres.constraints import ExclusionConstraint
 from django.contrib.postgres.fields import DateRangeField, RangeBoundary, RangeOperators
 from django.core.exceptions import ValidationError
@@ -710,7 +712,7 @@ class StudentEnrollmentQuerySet(models.QuerySet):
         """
         return self.order_by("-class_group__academic_year", "-enrolled_at", "-id")
 
-    def on_roll(self, day) -> "StudentEnrollmentQuerySet":
+    def on_roll(self, day: datetime.date) -> "StudentEnrollmentQuerySet":
         """قيودُ من يُحسب في الشعبة في يومٍ بعينه (W-20261010-017، D-323م خيار أ).
 
         قيدٌ نشطٌ بدأ في اليوم أو قبله، أو قيدٌ أُغلق بالنقل (`left_at`) وكان اليومُ في مدّته: فيبقى الطالبُ
