@@ -60,9 +60,9 @@ def test_parse_meta_skips_bad_lines():
 
 def test_mask_numbers_emails_and_names():
     out = mask_personal(
-        "الطالب فلان 29876543210 بريد a@b.com جوال +974 55512345 ورقم 123", ("فلان",)
+        "الطالب فلان 29000000031 بريد a@b.com جوال +974 55512345 ورقم 123", ("فلان",)
     )
-    assert "29876543210" not in out and "a@b.com" not in out and "55512345" not in out
+    assert "29000000031" not in out and "a@b.com" not in out and "55512345" not in out
     assert "فلان" not in out and "123" in out and MASK in out
 
 
@@ -118,10 +118,10 @@ def test_duplicate_id_in_file_fails(tmp_path):
 @pytest.mark.django_db
 def test_names_are_masked_before_storing(files):
     md, meta = files
-    md.write_text("- D-1م | d | قرار بشأن فلان 29876543210 | أثر | م\n", encoding="utf-8")
+    md.write_text("- D-1م | d | قرار بشأن فلان 29000000031 | أثر | م\n", encoding="utf-8")
     import_decisions(md, None, names=("فلان",))
     stored = Decision.objects.get(decision_id="D-1م")
-    assert "فلان" not in stored.text and "29876543210" not in stored.text
+    assert "فلان" not in stored.text and "29000000031" not in stored.text
     assert ImportBatch.objects.get().names_masked is True
 
 
