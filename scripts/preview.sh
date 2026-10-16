@@ -77,6 +77,7 @@ APPLY_EVERY="${PREVIEW_APPLY_EVERY_SECONDS:-600}" # تطبيقٌ إجباريٌ�
 MAX_WAIT="${PREVIEW_MAX_WAIT_SECONDS:-900}"       # سقفُ الانتظار الأقصى (احتياطٌ أخيرٌ فوق الإيقاع)
 PIN_MAX="${PREVIEW_PIN_MAX_MINUTES:-30}"          # حدٌّ أقصى للتثبيت بالدقائق (ما زاد يُقصّ)
 PIN_MINUTES="${PREVIEW_PIN_MINUTES:-30}"
+PIN_OVERDUE_ALERT="${PREVIEW_PIN_OVERDUE_ALERT_SECONDS:-900}"   # تثبيتٌ منتهٍ لم يُفكّ بعد هذه المدّة يُنبَّه به 0101
 INTERVAL="${PREVIEW_INTERVAL_SECONDS:-60}"
 PROD_URL="${PRODUCTION_URL:-https://shschoolmvp-production.up.railway.app}"
 COMPOSE_FILE="$SELF_ROOT/docker-compose.preview.yml"
@@ -115,21 +116,45 @@ sset() { [ "$DRY" = 1 ] && return 0; mkdir -p "$(state_dir)"; printf '%s' "$2" >
 sdel() { [ "$DRY" = 1 ] && return 0; rm -f "$(state_dir)/$1"; }
 sappend() { [ "$DRY" = 1 ] && return 0; mkdir -p "$(state_dir)"; printf '%s\n' "$2" >> "$(state_dir)/$1"; }
 
-# قفلٌ بسيط: عمليّتان معاً (حلقةُ watch وأمرٌ يدويّ) تُفسدان إعادةَ الإنشاء. قفلٌ قديمٌ (عمليّةٌ
-# ماتت) يُكسر بعد 20 دقيقة.
+# قفلٌ بسيط: عمليّتان معاً (حلقةُ watch وأمرٌ يدويّ) تُفسدان إعادةَ الإنشاء. يحمل القفلُ pid صاحبه:
+# صاحبٌ ميّتٌ يُكسر قفلُه في الدورة نفسِها (كان يبقى 20 دقيقةً فلا يُفكّ تثبيتٌ منتهٍ ولا يتقدّم الطابور)،
+# وصاحبٌ حيٌّ لا يُكسر قفلُه أبداً مهما طال. وقفلٌ بلا pid (من نسخةٍ قديمة) يُكسر بعد 20 دقيقة كما كان.
+lock_holder_dead() {   # lock_holder_dead <مجلّدُ القفل> — 0 إن كان صاحبُه ميّتاً أو قفلُه قديماً بلا pid
+  local lock="$1" pid
+  pid="$(cat "$lock/pid" 2>/dev/null || true)"
+  case "$pid" in
+    '') [ -n "$(find "$lock" -maxdepth 0 -mmin +20 2>/dev/null)" ] ;;
+    *[!0-9]*) return 0 ;;
+    *) ! kill -0 "$pid" 2>/dev/null ;;
+  esac
+}
+
 acquire_lock() {
   [ "$DRY" = 1 ] && return 0
   local lock; lock="$(state_dir)/lock"
   mkdir -p "$(state_dir)"
   if ! mkdir "$lock" 2>/dev/null; then
-    if [ -n "$(find "$lock" -maxdepth 0 -mmin +20 2>/dev/null)" ]; then
+    if lock_holder_dead "$lock"; then
+      rm -f "$lock/pid" 2>/dev/null || true
       rmdir "$lock" 2>/dev/null || true
       mkdir "$lock" 2>/dev/null || return 1
     else
       return 1
     fi
   fi
-  trap 'rmdir "$(state_dir)/lock" 2>/dev/null || true' EXIT
+  printf '%s' "$$" > "$lock/pid"
+  trap 'rm -f "$(state_dir)/lock/pid" 2>/dev/null; rmdir "$(state_dir)/lock" 2>/dev/null || true' EXIT
+}
+
+# تثبيتٌ انتهى وقتُه ولم يُفكّ منذ PIN_OVERDUE_ALERT ثانيةً: يُكتب علَمٌ مرّةً واحدةً يقرؤه status وwatch_once فيُنبَّه 0101.
+# قراءةٌ وكتابةُ علَمٍ فقط (بلا قفلٍ وبلا docker) فتعمل حتى لو كان القفلُ محجوزاً.
+pin_overdue_check() {
+  [ "$(sget mode)" = "pin" ] || return 0
+  local until_ts over; until_ts="$(sget pin_until)"; over=$(( $(now) - ${until_ts:-0} ))
+  [ "$over" -ge "$PIN_OVERDUE_ALERT" ] || return 0
+  [ -n "$(sget pin_overdue)" ] && return 0
+  sset pin_overdue "$(now) $(basename "$(sget pin_tree)") $(( over / 60 ))"
+  warn "تثبيتُ $(basename "$(sget pin_tree)") انتهى منذ $(( over / 60 )) دقيقةً ولم يُفكّ — يحتاج 0101 (preview.sh status)"
 }
 
 # ── الشجرةُ والقاعدة ────────────────────────────────────────────
@@ -365,6 +390,28 @@ front_point() {   # front_point <منفذُ الخانة>
     nginx:alpine >/dev/null || { warn "تعذّر تشغيلُ الواجهة"; return 1; }
 }
 
+slot_up() {   # slot_up <شجرة> <منفذُ الخانة> — compose up في SLOT_PROJECT؛ مرّةً ثانيةً إن كان السببُ حجزَ المنفذ
+  local tree="$1" port="$2" upargs="$3" out rc
+  if [ "$DRY" = 1 ]; then
+    printf '[dry] docker compose -p %s %s (منفذ %s)\n' "$SLOT_PROJECT" "$upargs" "$port"
+    return 0
+  fi
+  _slot_compose_up() {
+    PREVIEW_PORT="$port" PREVIEW_BIND=127.0.0.1 docker compose -p "$SLOT_PROJECT" --project-directory "$tree" \
+      --env-file "$PREVIEW_DIR/.env" -f "$COMPOSE_FILE" $upargs 2>&1
+  }
+  rc=0; out="$(_slot_compose_up)" || rc=$?
+  printf '%s\n' "$out"
+  if [ "$rc" != 0 ] && grep -q 'port is already allocated' <<<"$out"; then
+    warn "منفذ الخانة $port محجوز — أزيل بقايا الخانة وأعيد المحاولة مرّة (الحاجزُ: $(docker ps --filter "publish=$port" --format '{{.Names}}' 2>/dev/null | paste -sd' ' -))"
+    docker compose -p "$SLOT_PROJECT" down --remove-orphans >/dev/null 2>&1 || true
+    sleep 2
+    rc=0; out="$(_slot_compose_up)" || rc=$?
+    printf '%s\n' "$out"
+  fi
+  return "$rc"
+}
+
 # يبني الشجرةَ في الخانة الفارغة؛ وبعد صحّتها تُحوَّل الواجهةُ إليها وتُزال الخانةُ القديمة. فشلُها يُبقي القائمَ يخدم.
 bluegreen_up() {   # bluegreen_up <شجرة>
   local tree="$1" cur new port
@@ -378,10 +425,10 @@ bluegreen_up() {   # bluegreen_up <شجرة>
   fi
   SLOT_PROJECT="${PROJECT}-${new}"
   say "▸ يُبنى الجديدُ في الخانة $new (منفذ $port) والقائمُ يواصل الخدمة"
-  run env PREVIEW_PORT="$port" PREVIEW_BIND=127.0.0.1 \
-    docker compose -p "$SLOT_PROJECT" --project-directory "$tree" \
-    --env-file "$PREVIEW_DIR/.env" -f "$COMPOSE_FILE" up -d --force-recreate --remove-orphans \
-    || warn "docker compose up أعاد خطأً"
+  # الخانةُ الفارغةُ لا تخدم أحداً: بقايا حاوياتها (متوقّفةٌ أو عالقةٌ) تحجز منفذَها فيسقط البناءُ بـ«port is already allocated»
+  # فيبقى الطابورُ على نسخةٍ قديمة. تُزال أوّلاً، وإن سقط البناءُ بهذا الخطأ بعينه تُزال ثانيةً وتُعاد المحاولةُ مرّةً.
+  run docker compose -p "$SLOT_PROJECT" down --remove-orphans >/dev/null 2>&1 || true
+  slot_up "$tree" "$port" "up -d --force-recreate --remove-orphans" || { warn "docker compose up أعاد خطأً"; true; }
   if ! wait_web; then
     warn "سقط الجديدُ في الخانة $new — يبقى القائمُ يخدم"
     run docker compose -p "$SLOT_PROJECT" down --remove-orphans >/dev/null 2>&1 || true
@@ -608,7 +655,7 @@ deploy_main() {
   sset served_label "$label"
   sset served_report "$INTEG_REPORT"
   sset synced_at "$(now)"
-  sdel pending_sha; sdel pending_since; sdel wait_since; sdel last_error; sdel pin_tree; sdel pin_until
+  sdel pending_sha; sdel pending_since; sdel wait_since; sdel last_error; sdel pin_tree; sdel pin_until; sdel pin_overdue
   say "✔ $label على http://localhost:$PORT — يعلن /health/: commit=$(served_commit)"
 }
 
@@ -821,6 +868,7 @@ cmd_up() {
 cmd_sync() {
   local force=0; [ "${1:-}" = "--now" ] && force=1
   [ -e "$PREVIEW_DIR/.git" ] || die "لا شجرةَ معاينةٍ بعدُ — شغّل: bash scripts/preview.sh up"
+  pin_overdue_check
   acquire_lock || { idle "عمليّةٌ أخرى تعمل الآن — أتخطّى هذه الدورة"; return 0; }
 
   if [ "$(sget mode)" = "pin" ]; then
@@ -986,6 +1034,9 @@ cmd_status() {
   fi
 
   say "الوضع:        ${mode:-—}$pin_note"
+  if [ -n "$(sget pin_overdue)" ]; then
+    warn "تنبيه لـ0101: تثبيتٌ منتهٍ لم يُفكّ ($(sget pin_overdue | awk '{print $2 " — منذ " $3 " دقيقة"}')) — الفكُّ تلقائيّ بدورة watch؛ إن بقي فتفقّد القفلَ والحاويات"
+  fi
   local queued t m qts qn=0
   queued="$(sget pin_queue)"
   if [ -n "$queued" ]; then
