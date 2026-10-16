@@ -169,6 +169,12 @@ def registry() -> dict[str, Capability]:
     caps = [
         # ── لوحة التحكّم ────────────────────────────────────────────
         _cap("dashboard.open", "فتحُ لوحة التحكّم", P.ALL_STAFF_ROLES | {"student", "parent"}),
+        _cap(
+            "decisions.view",
+            "الاطّلاعُ على سجلّ قرارات المالك",
+            {"principal"},
+            basis="قرارُ المالك: يرى نصوصَ القرارات المديرُ و0101 وحدَهما (W-20260928-019)",
+        ),
         # ── شؤون الطلبة ─────────────────────────────────────────────
         _cap("student_affairs.manage", "إدارةُ سجلّات الطلبة", P.STUDENT_AFFAIRS_MANAGE),
         _cap(

@@ -207,6 +207,8 @@ GROUPS: tuple[tuple[str, tuple[tuple[str | None, tuple[str, ...]], ...]], ...] =
                     "roadmap.RoadmapRisk",
                     "roadmap.RoadmapChecklistItem",
                     "roadmap.RoadmapMeta",
+                    "decisions_registry.Decision",
+                    "decisions_registry.ImportBatch",
                 ),
             ),
             (
