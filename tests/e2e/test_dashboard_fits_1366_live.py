@@ -36,8 +36,16 @@ MEASURE = """
 """
 
 
+@pytest.fixture
+def school_day(monkeypatch):
+    """يومَ دوامٍ دائماً: الجمعةُ والسبتُ تُغلقان اليومَ فتستبدل اللوحةُ شريطَ «اليوم» بتنبيه «لا دوام»،
+    فيزيد ارتفاعُها 2px على 1366×768 — وسقط الفحصُ على كلّ الطلبات منذ فجر الجمعة 2026-10-16 (W-20261016-008).
+    القياسُ هنا لتخطيط يومٍ مفتوح؛ ولا يتبع اليومَ الذي يعمل فيه CI."""
+    monkeypatch.setattr("operations.school_days.is_school_day", lambda *args, **kwargs: True)
+
+
 def test_the_leadership_dashboard_fits_a_1366_by_768_window(
-    playwright, live_server, principal_user
+    playwright, live_server, principal_user, school_day
 ):
     browser = playwright.chromium.launch()
     try:
