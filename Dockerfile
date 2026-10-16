@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Python dependencies
-COPY requirements.txt requirements-dev.txt ./
+COPY requirements.txt requirements-dev.txt requirements-mypy.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # أدواتُ التطوير (pytest وruff وmypy) للصورة المحلّيّة وحدها: `docker-compose.yml`
