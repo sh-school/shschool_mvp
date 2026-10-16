@@ -131,3 +131,19 @@ class TestTheFailOpenAlertIsMonitored:
 
         levels = [r.levelname for r in caplog.records]
         assert levels == ["ERROR", "WARNING"]
+
+
+def test_the_first_failure_alerts_even_right_after_the_host_booted(monkeypatch, caplog):
+    """`time.monotonic()` زمنُ تشغيل الجهاز: بحالةٍ ابتدائيّةٍ 0.0 يضيع أوّلُ تنبيهٍ إن سقط Redis خلال 300ث من الإقلاع."""
+    import importlib.util
+    import time as time_module
+
+    spec = importlib.util.spec_from_file_location("ratelimit_safe_fresh", "core/ratelimit_safe.py")
+    fresh = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fresh)  # نسخةٌ جديدة بحالتها الابتدائيّة، لا ما أفسدته اختباراتٌ أخرى
+    monkeypatch.setattr(time_module, "monotonic", lambda: 100.0)  # جهازٌ عمره 100ث
+
+    with caplog.at_level("WARNING", logger="core.ratelimit_safe"):
+        fresh._report_fail_open(redis.exceptions.ConnectionError("redis down"))
+
+    assert [r.levelname for r in caplog.records] == ["ERROR"]
