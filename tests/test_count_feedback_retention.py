@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from developer_feedback.models import DeveloperMessage
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 
 def _make(n: int, age_days: int) -> None:
