@@ -104,7 +104,9 @@ class TestTheFailOpenAlertIsMonitored:
     def test_the_first_failure_is_logged_as_an_error(self, monkeypatch, caplog):
         import core.ratelimit_safe as rl
 
-        monkeypatch.setattr(rl, "_last_alert_at", 0.0)
+        monkeypatch.setattr(
+            rl, "_last_alert_at", float("-inf")
+        )  # لا 0.0: monotonic زمنُ تشغيل الجهاز فيسقط الاختبار على جهاز أقلَّ من 300ث
         _break_cache(monkeypatch)
         decorated = _safe_ratelimit(key="ip", rate="1/m", block=True)(_view)
         request = RequestFactory().post("/x/")
@@ -120,7 +122,9 @@ class TestTheFailOpenAlertIsMonitored:
     def test_a_second_failure_within_the_cooloff_is_only_a_warning(self, monkeypatch, caplog):
         import core.ratelimit_safe as rl
 
-        monkeypatch.setattr(rl, "_last_alert_at", 0.0)
+        monkeypatch.setattr(
+            rl, "_last_alert_at", float("-inf")
+        )  # لا 0.0: monotonic زمنُ تشغيل الجهاز فيسقط الاختبار على جهاز أقلَّ من 300ث
         _break_cache(monkeypatch)
         decorated = _safe_ratelimit(key="ip", rate="1/m", block=True)(_view)
         request = RequestFactory().post("/x/")
