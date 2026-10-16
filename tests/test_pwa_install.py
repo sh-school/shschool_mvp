@@ -48,6 +48,31 @@ def test_installed_app_opens_standalone(manifest):
 
 
 @pytest.mark.parametrize("manifest", MANIFESTS)
+def test_a_launch_reuses_the_open_window(manifest):
+    """W-20261016-002: كلُّ ضغطةٍ على الاختصار كانت تفتح نافذةً جديدة (ثلاثُ نوافذ)؛ `navigate-existing` يُبقي نافذةً واحدةً تُحدَّث."""
+    handler = re.search(
+        r'"launch_handler":\s*\{\s*"client_mode":\s*"([^"]+)"\s*\}', _read(manifest)
+    )
+    assert handler and handler.group(1) == "navigate-existing", manifest
+
+
+def test_no_link_inside_the_app_opens_a_new_window():
+    """لا `target=_blank` ولا `window.open` في القوالب وسكربتات التطبيق (يفتحان نافذةً ثانيةً في التطبيق المثبَّت)؛ والتصديرُ يمرّ بمركز التنزيل."""
+    offenders = []
+    for root, suffixes in (("templates", {".html", ".js"}), ("static/js", {".js"})):
+        for path in (ROOT / root).rglob("*"):
+            if path.suffix not in suffixes or path.name.endswith(".min.js"):
+                continue
+            for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+                code = line.strip()
+                if code.startswith(("*", "//", "#")):
+                    continue
+                if re.search(r"target\s*=\s*[\"']?_blank|window\.open\(", code):
+                    offenders.append(f"{path.relative_to(ROOT)}: {code[:80]}")
+    assert not offenders, offenders
+
+
+@pytest.mark.parametrize("manifest", MANIFESTS)
 def test_screen_rotation_is_not_locked(manifest):
     """الجداولُ العريضة تُقرأ أفقيّاً، والجهازُ اللوحيُّ يُمسك بالعرض."""
     assert '"orientation"' not in _read(manifest)
