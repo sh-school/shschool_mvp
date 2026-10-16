@@ -28,11 +28,9 @@ def has_members(session: Session) -> bool:
 
 def session_enrollments(session: Session) -> QuerySet[StudentEnrollment]:
     """قيودُ من تشملهم الجلسةُ في يومها: أعضاءُ المجموعة إن وُجدوا، وإلا شعبتُها كلُّها."""
-    qs = StudentEnrollment.objects.filter(class_group_id=session.class_group_id).on_roll(
-        session.date
-    )
+    qs: QuerySet[StudentEnrollment] = StudentEnrollment.objects.filter(
+        class_group_id=session.class_group_id
+    ).on_roll(session.date)
     if has_members(session):
-        qs = qs.filter(
-            elective_memberships__group_label=session.elective_group  # type: ignore[misc]
-        )
+        qs = qs.filter(elective_memberships__group_label=session.elective_group)
     return qs

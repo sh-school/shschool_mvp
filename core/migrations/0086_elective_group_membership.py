@@ -5,10 +5,39 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
-class Migration(migrations.Migration):
+TABLE = "core_electivegroupmembership"
 
+#: مدرسةُ العضويّة مدرسةُ شعبة قيدها — لا عمودَ مدرسةٍ ثانياً يُخالفه (كسياسة `core_studentenrollment` في 0038).
+PREDICATE = f"""
+EXISTS (
+    SELECT 1
+    FROM public.core_studentenrollment AS e
+    JOIN public.core_classgroup AS c ON c.id = e.class_group_id
+    WHERE e.id = {TABLE}.enrollment_id
+      AND c.school_id = public.app_rls_school()
+)
+"""
+
+ENABLE_SQL = f"""
+ALTER TABLE public.{TABLE} ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS school_isolation ON public.{TABLE};
+
+CREATE POLICY school_isolation ON public.{TABLE}
+    USING ({PREDICATE})
+    WITH CHECK ({PREDICATE});
+"""
+
+DISABLE_SQL = f"""
+DROP POLICY IF EXISTS school_isolation ON public.{TABLE};
+ALTER TABLE public.{TABLE} DISABLE ROW LEVEL SECURITY;
+"""
+
+
+class Migration(migrations.Migration):
     dependencies = [
         ("core", "0085_studentenrollment_left_at"),
+        ("core", "0037_rls_tenant_identity_from_db_role"),
     ]
 
     operations = [
@@ -34,9 +63,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
-                    ),
+                    models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء"),
                 ),
                 (
                     "enrollment",
@@ -51,9 +78,7 @@ class Migration(migrations.Migration):
             options={
                 "verbose_name": "عضويّة مجموعة اختياريّة",
                 "verbose_name_plural": "عضويّات المجموعات الاختياريّة",
-                "indexes": [
-                    models.Index(fields=["group_label"], name="idx_elective_label")
-                ],
+                "indexes": [models.Index(fields=["group_label"], name="idx_elective_label")],
                 "constraints": [
                     models.UniqueConstraint(
                         fields=("enrollment", "group_label"),
@@ -62,4 +87,5 @@ class Migration(migrations.Migration):
                 ],
             },
         ),
+        migrations.RunSQL(sql=ENABLE_SQL, reverse_sql=DISABLE_SQL),
     ]
