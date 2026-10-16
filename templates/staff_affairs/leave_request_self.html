@@ -1,0 +1,56 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}طلب إجازة لنفسي{% endblock %}
+{% block main_class %}{% page_layout "form" %}{% endblock %}
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="طلب إجازة" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash sa-narrow">
+  {% page_header "طلب إجازة" subtitle="يُقدَّم باسمك أنت، ويمرّ بمراحل الاعتماد المعتادة" icon="leave" %}{% endpage_header %}
+
+  {% if not is_member %}
+    {% section_card "طلب إجازة" icon="leave" empty="لا انتسابَ فعّالاً لك في هذه المدرسة" empty_sub="لا يُقدَّم طلبُ إجازةٍ إلّا لموظّفٍ مسجَّلٍ في المدرسة — راجع السكرتارية" %}{% endsection_card %}
+  {% else %}
+  {% section_card "بيانات الطلب" icon="edit_record" %}
+    <form method="post" enctype="multipart/form-data">{% csrf_token %}
+      {% if form.non_field_errors %}{% callout "error" %}{{ form.non_field_errors|join:" · " }}{% endcallout %}{% endif %}
+      <div class="form-row">
+        {% field "leave_type" "نوع الإجازة" type="select" choices=form.fields.leave_type.choices value=form.data.leave_type required=True error=form.leave_type.errors.0 %}
+        {% field "attachment" "مرفق" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" error=form.attachment.errors.0 %}
+        {% field "start_date" "من" type="date" value=form.data.start_date required=True error=form.start_date.errors.0 %}
+        {% field "end_date" "إلى" type="date" value=form.data.end_date required=True error=form.end_date.errors.0 %}
+        {% field "reason" "السبب" type="textarea" rows=3 value=form.data.reason required=True placeholder="سبب الإجازة..." css="sa-span-2" error=form.reason.errors.0 %}
+      </div>
+
+      {% callout "warning" %}المرفق (كتقرير طبّي) بيانٌ صحّيّ ذو طبيعةٍ خاصّة؛ أرفِق ما يلزم لإثبات الإجازة فقط.{% endcallout %}
+
+      <div class="form-actions sa-form-footer">
+        <button type="submit" class="btn-primary btn-sm">{% icon "status_success" %} تقديم الطلب</button>
+      </div>
+    </form>
+  {% endsection_card %}
+
+  {% section_card "طلباتي الأخيرة" meta=recent|length icon="leave" empty="لم تقدّم طلبَ إجازةٍ بعد" %}{% if recent %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead><tr><th>النوع</th><th>من</th><th>إلى</th><th>الأيّام</th><th>الحالة</th></tr></thead>
+        <tbody>
+          {% for l in recent %}
+          <tr>
+            <td>{{ l.get_leave_type_display }}</td>
+            <td>{{ l.start_date|date:"Y-m-d" }}</td>
+            <td>{{ l.end_date|date:"Y-m-d" }}</td>
+            <td>{{ l.days_count }}</td>
+            <td><span class="status-badge {% if l.status == 'approved' %}status-success{% elif l.status == 'rejected' %}status-danger{% elif l.status == 'pending' %}status-warning{% else %}status-gray{% endif %}">{{ l.get_status_display }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+  {% endif %}
+</div>
+{% endblock %}

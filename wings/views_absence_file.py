@@ -18,7 +18,7 @@ import datetime as dt
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.db.models import F, Q
+from django.db.models import F
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -36,7 +36,6 @@ from core.models import (
     School,
     StudentEnrollment,
 )
-from core.privacy import national_id_search_q
 from core.sorting import arabic_key, normalise_arabic
 
 from .scope import student_scope_for
@@ -105,7 +104,10 @@ def _file_url(student_id: object, day: dt.date | None = None) -> str:
 @login_required
 @capability_required("wings.record_day")
 def student_search(request: HttpRequest) -> HttpResponse:
-    """طلابُ أجنحتي بالاسم أو الرقم الشخصيّ — ونتيجةٌ واحدةٌ تفتح الملفَّ مباشرةً."""
+    """طلابُ أجنحتي بالاسم وحده لكلّ الأدوار (D-396م) — ونتيجةٌ واحدةٌ تفتح الملفَّ مباشرةً.
+
+    لا يُبحث بالرقم الشخصيّ كاملاً ولا جزءاً: جزءٌ منه مع ظهور الاسم يُستخرج به رقمُ طالبٍ خانةً خانةً.
+    """
     school = request.user.get_school()
     query = (request.GET.get("q") or "").strip()
     results = []
@@ -119,10 +121,7 @@ def student_search(request: HttpRequest) -> HttpResponse:
                 class_group__wing__in=wings,
             )
             .annotate(name_key=arabic_key(F("student__full_name")))  # type: ignore[no-untyped-call]
-            .filter(
-                Q(name_key__icontains=shaped)
-                | national_id_search_q("student__national_id", query, user=request.user)
-            )
+            .filter(name_key__icontains=shaped)
             # من قيدُه الجاري في جناحي — لا من بقي له قيدٌ قديمٌ نشطٌ في شعبةٍ منه.
             .filter(student_id__in=_scoped_ids(request))
             .select_related("student", "class_group")

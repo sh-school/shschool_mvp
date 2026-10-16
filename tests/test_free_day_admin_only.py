@@ -104,14 +104,29 @@ def test_the_page_neither_shows_nor_names_the_free_day(client, school, teacher):
 
 
 def test_the_capacity_check_still_counts_the_admin_day(client, school, teacher):
-    """النصابُ 4 على أربعة أيّامٍ مفتوحة يحتاج حصّةً يوميّاً — فسقفٌ يوميّ 1 يسع، ولا يتغيّر بطلب المعلّم."""
+    """النصابُ 17 على أربعة أيّامٍ مفتوحة يحتاج 5 في بعضها: فـ4 — أدنى خيارٍ بعد D-418م — يُردّ، ولولا يومُ
+    الأدمن لكفى (17 على خمسة = 4). و6 تسع، ويبقى اليومُ كما وضعه الأدمن ولو طلب المعلّمُ محوَه."""
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        teacher=teacher,
+        class_group=ClassGroupFactory(
+            school=school, grade="G11", level_type="sec", academic_year=YEAR
+        ),
+        subject=Subject.objects.get(school=school, code="SCI"),
+        weekly_periods=13,
+        is_active=True,
+    )
     client.force_login(teacher)
     pref = _stored(school, teacher, WEDNESDAY)
 
-    _post(client, max_daily_periods="1", free_day="")
-
+    _post(client, max_daily_periods="4", free_day="")
     pref.refresh_from_db()
-    assert (pref.max_daily_periods, pref.free_day) == (1, WEDNESDAY)
+    assert (pref.max_daily_periods, pref.free_day) == (5, WEDNESDAY), "4 لا تسع بعد يوم الأدمن"
+
+    _post(client, max_daily_periods="6", free_day="")
+    pref.refresh_from_db()
+    assert (pref.max_daily_periods, pref.free_day) == (6, WEDNESDAY)
 
 
 def test_the_admin_change_is_audited_without_the_teacher_name(client, superuser, school, teacher):

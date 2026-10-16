@@ -38,6 +38,14 @@ def school(db):
     return School.objects.create(name="مدرسة الشحانية", code="SHH-FEA")
 
 
+@pytest.fixture(autouse=True)
+def strict_touch_policy(school):
+    """قياسُ السعة هنا بالتلاصق الصارم؛ والتخفيفُ المدرسيّ الافتراضيّ (D-382م) يُقاس في test_schedule_relaxation_policy."""
+    from operations.models import ScheduleRelaxationPolicy
+
+    ScheduleRelaxationPolicy.objects.create(school=school, relax_touch_for_all=False)
+
+
 def a_user(school, name, role_name):
     from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
@@ -723,7 +731,7 @@ def test_entry_rejects_the_eighteenth_period_unless_the_teacher_has_a_seventh_ca
 
 
 def test_build_tasks_carries_only_a_written_seventh_cap(school, teacher):
-    """السقفُ يُحمل إلى `Member` لمن كُتب له فقط؛ الصفرُ يعني العامّ."""
+    """السقفُ يُحمل إلى `Member` لمن كُتب له فقط؛ و`None` يعني العامّ (والصفرُ منعٌ، W-20261004-013)."""
     from operations import scheduler
 
     other = a_user(school, "معلّمُ العلوم", "teacher")
@@ -736,21 +744,21 @@ def test_build_tasks_carries_only_a_written_seventh_cap(school, teacher):
         m.teacher_id: m.last_cap for t in scheduler.build_tasks(school, YEAR) for m in t.members
     }
 
-    assert caps == {str(teacher.id): 3, str(other.id): 0}
+    assert caps == {str(teacher.id): 3, str(other.id): None}
 
 
 def test_an_out_of_range_seventh_cap_is_read_as_absent(school, teacher):
-    """شرطُ 0105: إدخالٌ مباشرٌ بالـORM لا يمرّ بالـvalidators (0 أو 99) لا يتحوّل إلى إلغاء HC8."""
+    """شرطُ 0105: إدخالٌ مباشرٌ بالـORM لا يمرّ بالـvalidators (99) لا يتحوّل إلى إلغاء HC8 ولا إلى منعٍ."""
     from operations import scheduler
 
     a_bell(school, None, SEVEN_BACK_TO_BACK)
     assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 2)
     section = a_class(school, section="9")
-    for bad in (0, 99):
+    for bad in (6, 99):
         pref = _pref(school, teacher, max_last_periods=bad)
 
         member = scheduler.build_tasks(school, YEAR)[0].members[0]
-        assert member.last_cap == 0, f"{bad} يُقرأ غيابَ سقف"
+        assert member.last_cap is None, f"{bad} يُقرأ غيابَ سقف"
         assert sf.entry_load_violation(school, YEAR, teacher, section, 18)
         pref.delete()
 

@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -97,6 +98,8 @@ class GridColumn:
     state: str
     #: أيُكتب فيه الآن (بدأت حصّتُه وفي نافذة اليوم وللمستخدم صلاحية)؟
     writable: bool
+    #: التاليةُ في الفسحة: لا حصّةَ جاريةً اليومَ وهذا أوّلُ عمودٍ لم يبدأ — يُميَّز كالجارية (W-20261010-055).
+    is_next: bool = False
 
     @property
     def started(self) -> bool:
@@ -339,6 +342,14 @@ def _state_of(start: dt.time, end: dt.time, now: dt.time) -> str:
     return "current" if now < end else "past"
 
 
+def _mark_next(columns: list[GridColumn], is_today: bool) -> list[GridColumn]:
+    """في الفسحة (لا حصّةَ جاريةً اليومَ) يُوسَم أوّلُ عمودٍ لم يبدأ «التالي» ليُميَّز كالجارية (W-20261010-055)."""
+    if not is_today or any(c.state == "current" for c in columns):
+        return columns
+    upcoming = next((c for c in columns if c.state == "future"), None)
+    return [dataclasses.replace(c, is_next=c is upcoming) for c in columns]
+
+
 def page(
     user: CustomUser,
     school: School,
@@ -390,14 +401,14 @@ def page(
         )
     students = [
         enrollment.student
-        for enrollment in StudentEnrollment.objects.filter(
-            class_group=klass, is_active=True, enrolled_at__lte=day
-        )
+        for enrollment in StudentEnrollment.objects.filter(class_group=klass)
+        .on_roll(day)
         .select_related("student")
         .order_by("student__full_name")
     ]
-    cells = column_heads([c.session_id for c in columns if c.session_id])
+    columns = _mark_next(columns, day == today)
     current = next((c for c in columns if c.state == "current"), None)
+    cells = column_heads([c.session_id for c in columns if c.session_id])
     badges = exit_badges([c.session_id for c in columns if c.session_id])
     open_exits = (
         {
@@ -465,9 +476,8 @@ def _roster_student(klass: ClassGroup, day: dt.date, student_id: Any) -> CustomU
     except ValueError:
         raise GridNotFoundError("طالبٌ غيرُ معروف") from None
     enrollment = (
-        StudentEnrollment.objects.filter(
-            class_group=klass, is_active=True, enrolled_at__lte=day, student_id=wanted
-        )
+        StudentEnrollment.objects.filter(class_group=klass, student_id=wanted)
+        .on_roll(day)
         .select_related("student")
         .first()
     )
@@ -653,9 +663,9 @@ def save_column(
 
     roster = {
         enrollment.student_id: enrollment.student
-        for enrollment in StudentEnrollment.objects.filter(
-            class_group=klass, is_active=True, enrolled_at__lte=day
-        ).select_related("student")
+        for enrollment in StudentEnrollment.objects.filter(class_group=klass)
+        .on_roll(day)
+        .select_related("student")
     }
     with transaction.atomic():
         session = _ensure_session(user, school, klass, day, wanted, times, request)

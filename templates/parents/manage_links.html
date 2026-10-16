@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
 {% load icons %}
-{% load privacy ui %}
+{% load privacy ui labels %}
 {% block title %}ربط أولياء الأمور — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
 {# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
@@ -60,7 +60,7 @@
         <select name="parent_id" id="parent-select" class="form-control">
           <option value="">— اختر ولي أمر —</option>
           {% for p in parents %}
-          <option value="{{ p.id }}">{{ p.full_name }} ({{ p.national_id|mask_id }})</option>
+          <option value="{{ p.id }}">{{ p.full_name }}{% if p.has_namesake %} — {% if p.child_name %}ولي {{ p.child_name }}{% if p.child_grade and p.child_section %} ({% class_label p.child_grade p.child_section %}){% endif %}{% else %}بلا أبناء مرتبطين{% endif %}{% endif %}</option>
           {% endfor %}
         </select>
       </div>
@@ -98,7 +98,7 @@
         <select name="student_id" id="student-select" required class="form-control">
           <option value="">— اختر طالب —</option>
           {% for s in students %}
-          <option value="{{ s.id }}">{{ s.full_name }} ({{ s.national_id|mask_id }})</option>
+          <option value="{{ s.id }}">{{ s.full_name }} — {% class_label s.grade_code s.section_code %}</option>
           {% endfor %}
         </select>
       </div>
@@ -129,7 +129,7 @@
 شاشات المنصّة — والقارئُ يرى ما رشّحه به مجتمعاً.
 {% endcomment %}
 {% filter_bar "ترشيحُ روابط أولياء الأمور" live=True id="links-filters" css="mb-4" %}
-  {% field "q" "بحث" id="links-search" value=search grow=True placeholder="اسمُ الطالب أو وليّ الأمر أو الرقم أو الجوّال أو الصف..." autocomplete="off" hx_get=request.path hx_trigger="input changed delay:300ms, search" hx_target="#links-container" hx_swap="innerHTML" hx_include="#rel-filter,#link-status" hx_push_url="false" %}
+  {% field "q" "بحث" id="links-search" value=search grow=True placeholder="اسمُ الطالب أو وليّ الأمر أو الجوّال أو الصف..." autocomplete="off" hx_get=request.path hx_trigger="input changed delay:300ms, search" hx_target="#links-container" hx_swap="innerHTML" hx_include="#rel-filter,#link-status" hx_push_url="false" %}
   {% field "status" "حالة القيد" id="link-status" type="select" choices=statuses value=status hx_get=request.path hx_trigger="change" hx_target="#links-container" hx_swap="innerHTML" hx_include="#links-search,#rel-filter" hx_push_url="false" %}
   {% field "rel" "صلة القرابة" id="rel-filter" type="select" choices=RELATIONSHIP value=rel_filter blank="كل الصلات" hx_get=request.path hx_trigger="change" hx_target="#links-container" hx_swap="innerHTML" hx_include="#links-search,#link-status" hx_push_url="false" %}
   <div class="filter-actions">

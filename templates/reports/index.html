@@ -17,8 +17,8 @@
       <div class="report-student-dropdown">
         <div class="flex gap-2 mb-2">
           <input type="text" id="student-search-input"
-                 placeholder="ابحث باسم الطالب أو الرقم الشخصي..."
-                 aria-label="ابحث باسم الطالب أو الرقم الشخصي"
+                 placeholder="ابحث باسم الطالب..."
+                 aria-label="ابحث باسم الطالب"
                  class="form-control flex-1"
                  autocomplete="off">
           <button type="button" id="student-search-btn" class="btn-primary btn-sm">بحث</button>
@@ -114,7 +114,7 @@
 {% if tab == "behavior" %}
   {# ── السلوك: بطاقة واحدة فقط ── #}
   {% section_card "كشف المخالفات السلوكية" icon="behavior_violation" %}
-    {% callout "warning" %}الملفُّ يحوي أسماءَ الطلاب ومخالفاتِهم (بيانات شخصيّة، والرقم الشخصيّ فيه مستور)، ويُسجَّل تنزيلُه باسمك في سجلّ التدقيق. لا تُشاركه خارج من يحقّ له.{% endcallout %}
+    {% callout "warning" %}الملفُّ يحوي أسماءَ الطلاب ومخالفاتِهم (بيانات شخصيّة)، ويُسجَّل تنزيلُه باسمك في سجلّ التدقيق. لا تُشاركه خارج من يحقّ له.{% endcallout %}
     <div class="plain-list__row">
       <span class="plain-list__sub">تصدير كامل بيانات السلوك للعام {{ year }}</span>
       <a data-app-file href="{% url 'behavior_excel' %}?year={{ year }}&paper={{ paper }}" class="btn-success btn-sm">
@@ -124,7 +124,7 @@
   {% endsection_card %}
 
 {% elif classes %}
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  <div class="auto-grid">
     {% for cls in classes %}
     <div class="report-class-card">
       <div class="flex items-start justify-between gap-2 mb-2">

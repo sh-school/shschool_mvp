@@ -24,7 +24,7 @@
   table.asg-guard-table { width: 100%; border-collapse: collapse; font-size: 0.78125rem; color: var(--text-primary); }
   /* `thead th` العامّة تكتب بالأبيض على الخمريّ. وهذه الترويسةُ فاتحةٌ داخل
      بطاقةِ التنبيه، فبلا لونٍ صريحٍ يصير الأبيضُ على الفاتح — نصٌّ لا يُقرأ. */
-  table.asg-guard-table th { position: sticky; top: 0; background: var(--surface-alt); color: var(--text-primary); font-weight: 700; text-align: right; padding: 5px var(--sp-2); border-bottom: 1px solid var(--border); }
+  table.asg-guard-table th { position: sticky; top: 0; background: var(--surface-alt); color: var(--text-primary); font-weight: 700; text-align: start; padding: 5px var(--sp-2); border-bottom: 1px solid var(--border); }
   table.asg-guard-table td { padding: var(--sp-1) var(--sp-2); color: var(--text-primary); border-bottom: 1px solid var(--border); }
   /* أربعةَ عشرَ قسماً عمودان لا عمودٌ واحد بعرض الصفحة (قرارُ 2026-09-18):
      `align-items: start` كي لا يتمدّد العمودُ الأقصر إلى طول جاره. */
@@ -81,8 +81,8 @@
   table.asg { width: 100%; border-collapse: collapse; margin-top: var(--sp-2); font-size: 0.8125rem; }
   /* ترويسةٌ عنابيّةٌ ⇒ نصٌّ أبيض. كان اللونُ هنا `--text-muted` رماديّاً على
      أرضيّة `thead tr` العنابيّة، فالتخصيصُ الأخصُّ يغلب العامَّ ويبهت الرأس. */
-  table.asg thead th { text-align: right; color: var(--on-fill); font-weight: 600; padding: var(--sp-1) var(--sp-1-5); }
-  table.asg tbody th { text-align: right; color: var(--text-muted); font-weight: 600; padding: var(--sp-1) var(--sp-1-5); border-bottom: 1px solid var(--border); }
+  table.asg thead th { text-align: start; color: var(--on-fill); font-weight: 600; padding: var(--sp-1) var(--sp-1-5); }
+  table.asg tbody th { text-align: start; color: var(--text-muted); font-weight: 600; padding: var(--sp-1) var(--sp-1-5); border-bottom: 1px solid var(--border); }
   table.asg td { padding: var(--sp-1) var(--sp-1-5); border-bottom: 1px solid var(--border); vertical-align: middle; }
   table.asg input[type=number] { width: 54px; padding: 3px 5px; border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; text-align: center; }
   table.asg select { padding: 5px var(--sp-2); border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; font-size: 0.8125rem; background: var(--surface); min-width: 170px; }
@@ -213,7 +213,7 @@
   align-items: center; justify-content: center; line-height: 1.1;
 }
 .kpi-donut-val { font-size: 0.8125rem; font-weight: 800; }
-.kpi-donut-unit { font-size: 0.5rem; color: var(--text-muted); }
+.kpi-donut-unit { font-size: var(--text-xs); color: var(--text-muted); }
 .kpi-donut-label {
   font-size: var(--text-xs); font-weight: 600; color: var(--text-primary);
   text-align: center; line-height: 1.2;
@@ -820,6 +820,9 @@
 }
 .qobs-schedule-pill:hover { border-color: var(--maroon-border); }
 .qobs-schedule-pill.is-active { border-color: var(--maroon); background: var(--maroon-bg); color: var(--maroon-fg); }
+.qobs-outside { display: flex; align-items: center; gap: var(--sp-2); min-block-size: 2.75rem; }
+.qobs-progress { margin-block: var(--sp-3); font-weight: 700; color: var(--maroon-fg); }
+.qobs-rating-table input[type=radio] { inline-size: 1.5rem; block-size: 1.5rem; }
 .qobs-schedule-pill small { color: var(--text-muted); font-size: var(--text-xs); }
 
 .qobs-lead { display: grid; gap: var(--sp-2); margin-top: var(--sp-3); padding-top: var(--sp-3); border-block-start: 1px dashed var(--border-strong); }
@@ -972,6 +975,8 @@
     table-layout: fixed; border-collapse: separate; border-spacing: 0;
     font-size: clamp(0.5625rem, 0.58vw, 0.8125rem); line-height: 1.5;
   }
+  /* استثناءٌ مقصودٌ من المنطقيّ: حدودُ المصفوفة (`border-right*`) فيزيائيّةٌ عمداً — خلايا الحصص `.m-cell` بـ`direction: ltr` فتنقلب الحدودُ
+     المنطقيّةُ فيها عن بقيّة الصفّ، والمصفوفةُ تُطبع بـWeasyPrint (دعمُه للحدود المنطقيّة غيرُ مضمون)؛ والخطُّ الفاصلُ بين الأيّام يجب أن يبقى في موضعه. */
   .table-wrap .schedule-matrix th,
   .table-wrap .schedule-matrix td {
     padding: 0; text-align: center; vertical-align: middle; white-space: nowrap; overflow: hidden;
@@ -1011,8 +1016,8 @@
   /* نقطةُ تفريغٍ في زاوية الخليّة الفارغة — القراراتُ الثلاثةُ الملوَّنةُ وحدَها، ومفتاحُها أسفل الجدول. */
   .schedule-matrix .m-exempt-dot {
     position: absolute; inset-block-start: 0; inset-inline-start: 0;
-    inline-size: 0.5625rem; block-size: 0.5625rem; line-height: 0.5625rem;
-    font-size: 0.3125rem; font-weight: 700; text-align: center; color: var(--on-fill); border-radius: 0 0 var(--radius-sm) 0;
+    inline-size: 0.9375rem; block-size: 0.9375rem; line-height: 0.9375rem;
+    font-size: var(--text-xs); font-weight: 700; text-align: center; color: var(--on-fill); border-radius: 0 0 var(--radius-sm) 0;
   }
   .schedule-matrix .m-exempt-dot.exempt-ministry   { background: var(--accent-sky); }
   .schedule-matrix .m-exempt-dot.exempt-school     { background: var(--accent-rose); }
@@ -1163,11 +1168,11 @@
   .lab-save .form-group { margin: 0; min-width: 14rem; }
 
   /* بوّابةُ الصلاحية صارت شريطَ أرقام (`kpi_strip`) — كانت لوحاتٍ مصمَتةً بنظامٍ خاصّ. */
-  /* الرادارُ عمودٌ وجدولا الضغط والموارد مكدَّسان في عمودٍ ثانٍ، وينفكّان حين تضيق الحاوية (D-16: شرائطُ فأعمدةٌ مكدَّسة).
-     min-inline-size: 0 وإلّا دفع عرضُ الرسم عمودَ الصفحة. */
-  .lab-main { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: flex-start; min-inline-size: 0; }
-  .lab-main > * { flex: 1 1 20rem; min-inline-size: 0; }
-  .lab-main > * + * { flex: 99999 1 36rem; }
+  /* الرادارُ وجدولا الضغط والموارد ثلاثةُ أعمدةٍ متساويةٍ على السطح، تتراصّ على اللوحيّ والجوّال (D-16: شرائطُ فأعمدةٌ مكدَّسة).
+     كان الرادارُ في عمودٍ ضيّق وجدولان من خليّتين في عمودٍ بعرض ثلثَي الصفحة، فيبقى تحت الرادار فراغٌ أبيض بقدر ما يزيد الجدولان.
+     الحدُّ الأدنى للعمود من شبكةٍ تتجاوب بلا استعلاماتِ عرض؛ min-inline-size: 0 وإلّا دفع عرضُ الرسم عمودَ الصفحة. */
+  .lab-main { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: var(--sp-3); align-items: start; min-inline-size: 0; }
+  .lab-main > * { min-inline-size: 0; }
   .lab-radar { max-height: 18.75rem; font-size: var(--text-xs); }
   .lab-chips { padding: var(--sp-2) var(--sp-3); }
   .lab-res-col { width: 40%; }
@@ -1176,11 +1181,11 @@
   .lab-score-bar { position: relative; height: 0.375rem; background: var(--border); border-radius: var(--radius-sm); overflow: hidden; }
   .lab-score-bar > i { position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: var(--progress-w, 0%); background: var(--maroon); border-radius: var(--radius-sm); }
 
-  /* أقسامُ المؤشرات: عرضُ كلّ قسمٍ بقدر بطاقاته (`--lab-n` من القالب) فلا مسارَ فارغَ داخله،
-     وتتجاور الأقسامُ الصغيرة بدل أن يحتلّ كلٌّ سطراً. وسقفُ العرض (n × 22rem) يمنع بطاقتَين من التمدّد عرضَ الصفحة. */
-  .lab-groups { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: flex-start; }
-  .lab-group { flex: var(--lab-n, 1) 1 calc(var(--lab-n, 1) * 15rem); min-inline-size: min(100%, 15rem); max-inline-size: calc(var(--lab-n, 1) * 22rem + 3rem); }
-  .lab-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: var(--sp-2-5); padding: var(--sp-3); }
+  /* أقسامُ المؤشرات: عمودان مكدَّسان بمواقعَ ثابتةٍ من السياق (`_lab_group_columns`) — قسمٌ بصفٍّ كاملٍ لكلّ قسمٍ
+     كان يترك فراغاً بقدر ما تنقص بطاقاتُه. ويصير عموداً واحداً بالترتيب نفسه حين تضيق الحاوية. */
+  .lab-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 34rem), 1fr)); gap: var(--sp-3); align-items: start; min-inline-size: 0; }
+  .lab-groups__col { display: grid; gap: var(--sp-3); min-inline-size: 0; }
+  .lab-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: var(--sp-2-5); padding: var(--sp-3); }
   .lab-tile { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp-2-5) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-1); background: var(--surface); }
   .lab-tile__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-1); min-height: 2.4em; }
   .lab-tile__label { font-size: var(--text-sm); color: var(--text-secondary); font-weight: 600; }
@@ -1196,10 +1201,9 @@
   .lab-bar--cur > i { background: var(--maroon); }
   .lab-bar--ref > i { background: var(--gold); }
 
-  /* جدولا الضغط والموارد مكدَّسان: بطاقةٌ بقدر محتواها لا مسارٌ يمدّ الفراغ. */
-  .lab-tables { display: grid; gap: var(--sp-3-5); }
-  .lab-tables table { width: 100%; font-size: var(--text-sm); }
-  .lab-tables td.num { direction: ltr; text-align: end; font-weight: 700; }
+  /* جدولا الضغط والموارد: بطاقةٌ بقدر محتواها لا مسارٌ يمدّ الفراغ. */
+  .lab-main table { width: 100%; font-size: var(--text-sm); }
+  .lab-main td.num { direction: ltr; text-align: end; font-weight: 700; }
   .lab-res-bar { height: 0.5rem; background: var(--border); border-radius: var(--radius-sm); overflow: hidden; }
   .lab-res-bar > i { display: block; height: 100%; width: var(--progress-w, 0%); background: var(--maroon); }
   .lab-legend { display: flex; gap: var(--sp-3-5); font-size: var(--text-xs); color: var(--text-secondary); padding: 0 var(--sp-3) var(--sp-2-5); }
@@ -1471,7 +1475,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  transition: all .2s;
+  transition: color .2s ease, background-color .2s ease, border-bottom-color .2s ease;
 }
 .tab-btn:hover { color: var(--text-primary); background: var(--surface-alt); }
 .tab-btn.active { color: var(--maroon-fg); border-bottom-color: var(--maroon); font-weight: 600; }
@@ -1494,7 +1498,6 @@
 .sa-cell-clip { max-inline-size: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sa-block-gap { margin-block-start: var(--sp-3); }
 .sa-flush { padding: 0; }
-.sa-mono { font-family: ui-monospace, monospace; font-size: var(--text-xs); }
 .sa-small { font-size: var(--text-xs); }
 .sa-spinner { font-size: var(--text-xs); color: var(--text-muted); }
 .sa-table-count { padding: var(--sp-2); }

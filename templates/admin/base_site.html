@@ -1,5 +1,5 @@
 {% extends "admin/base.html" %}
-{% load static i18n admin_menu %}
+{% load static i18n admin_menu school_logo %}
 {% comment %}
   لوحةُ الإدارة تَرِث هويّةَ المنصّة: ألوانُها النهاريّةُ والليليّةُ (`static/css/admin_theme.css`)
   وأيقونتُها (favicon)، والوضعُ يُقرأ من `localStorage['theme']` نفسِه الذي تكتبه المنصّة.
@@ -11,8 +11,8 @@
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/admin_theme.css' %}">{% endblock %}
 
 {% block extrahead %}{{ block.super }}
-<link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/favicon.png' %}">
-<link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/apple-touch-icon.png' %}">
+<link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/v4/favicon.png' %}">
+<link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/v4/apple-touch-icon.png' %}">
 {# الخطُّ مسبقاً: بدونه يُرسم نصُّ الترويسة بخطٍّ بديلٍ لحظةً عند كلّ تحميلٍ ثمّ يتبدّل — وميضٌ يراه المستخدمُ في الترويسة والقائمة. #}
 <link rel="preload" href="{% static 'fonts/Tajawal-Regular.woff2' %}" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="{% static 'fonts/Tajawal-Medium.woff2' %}" as="font" type="font/woff2" crossorigin>
@@ -25,7 +25,7 @@
 {% endblock %}
 
 {% block branding %}
-<div id="site-name"><a href="{% url 'admin:index' %}" class="adm-brand"><img src="{% static 'brand/emblem-white.svg' %}" width="27" height="27" alt="" class="adm-brand__logo"><span class="adm-brand__name">{{ current_school.name|default:site_header|default:_('Django administration') }}<span class="adm-brand__suffix">&ensp;-&ensp;لوحة الإدارة</span></span></a></div>
+<div id="site-name"><a href="{% url 'admin:index' %}" class="adm-brand">{% school_logo "nav" %}<span class="adm-brand__name">{{ current_school.name|default:site_header|default:_('Django administration') }}<span class="adm-brand__suffix">&ensp;-&ensp;لوحة الإدارة</span></span></a></div>
 {% if user.is_anonymous %}
   {% include "admin/color_theme_toggle.html" %}
 {% endif %}

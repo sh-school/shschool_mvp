@@ -23,7 +23,7 @@ import datetime as dt
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from django.db.models import Max, Min
+from django.db.models import Max
 from django.utils import timezone
 
 from core.models import StudentEnrollment
@@ -89,39 +89,13 @@ def school_day_end(school: School, day: dt.date, band: TimeBand | None = None) -
     return last
 
 
-def _first_slot_start(session: Session) -> dt.time | None:
-    """بدءُ أوّل خانةٍ (غيرِ استراحةٍ) في جرس **شعبة** الحصّة لنوع يومها — لا جرسِ جناحها كلِّه (جناحٌ يعبر جرسين لكلّ شعبةٍ جرسُها)؛ `None` بلا جرسٍ مضبوط."""
-    day_type = day_type_for(session.date)
-    band = session.class_group.time_band
-    if not day_type or band is None:
-        return None
-    first: dt.time | None = TimeSlotConfig.objects.filter(
-        school=session.school, day_type=day_type, band=band, is_break=False
-    ).aggregate(first=Min("start_time"))["first"]
-    return first
-
-
 def entry_window(session: Session) -> tuple[dt.datetime, dt.datetime]:
-    """نافذةُ إدخال المعلّم: من بدء الحصّة إلى نهاية اليوم الدراسيّ، لحظتان واعيتان بتوقيت الدوحة.
+    """نافذةُ إدخال المعلّم: نافذةُ الشبكة المركزيّة نفسُها لكلّ حصّةٍ في اليوم (W-20261006-004، D-237م).
 
-    وحيث لا جرسَ مضبوطاً تضيق النافذةُ إلى نهاية الحصّة نفسِها — الأضيقُ لا ثابتٌ مخترَع. ولا تُقصَّر
-    أبداً عن نهاية الحصّة (جرسٌ مضبوطٌ خطأً لا يغلق حصّةً جارية).
+    لا حسابَ من الجرس ولا من بدء الحصّة: الإعدادان `ATTENDANCE_GRID_OPENS/CLOSES` مصدرٌ واحد، فحصّةٌ حقيقيّةٌ
+    أو مؤقّتةٌ تفتح وتغلق بالموعدين نفسيهما. والمعاينةُ (اليومُ كلُّه) تُحسم داخل `grid_window`.
     """
-    start = timezone.make_aware(dt.datetime.combine(session.date, session.start_time))
-    day_end = school_day_end(session.school, session.date, band=session.class_group.time_band)
-    last = max(day_end, session.end_time) if day_end else session.end_time
-    if session.provisional:
-        # الحصّةُ **المؤقّتة** وحدَها (W-20261005-006، D-232م): فعّالةٌ للإدخال من بدء **أوّل حصّةٍ في جرس الشعبة** إلى نهاية الدوام لا من بدء حصّتها،
-        # فلا يُقيَّد معلّمٌ يرصد ح5 قبل وقتها. والحقيقيّةُ (D-128م) تبقى من بدء حصّتها كما هي.
-        first = _first_slot_start(session)
-        if first is not None:
-            start = timezone.make_aware(dt.datetime.combine(session.date, first))
-    if in_preview_environment():
-        # المعاينةُ وحدَها (قرارُ المالك 2026-10-04): النافذةُ مفتوحةٌ من أوّل اليوم إلى آخره ليرى الأزرارَ في أيّ ساعةٍ
-        # (فجراً قبل الحصّة وبعد الدوام)؛ والإنتاجُ بنافذته كما هي.
-        start = timezone.make_aware(dt.datetime.combine(session.date, dt.time.min))
-        last = dt.time(23, 59, 59)
-    return start, timezone.make_aware(dt.datetime.combine(session.date, last))
+    return grid_window(session.date)
 
 
 def is_special_education(class_group: ClassGroup) -> bool:
@@ -198,14 +172,11 @@ def _has_entry_in_session(student: CustomUser, session: Session) -> bool:
 
 
 def _is_enrolled(student: CustomUser, session: Session) -> bool:
-    """قيدٌ نشطٌ في شعبة الحصّة بدأ في تاريخها أو قبله — فطالبٌ قُيّد بعدها لا تُرصد له."""
+    """قيدٌ في شعبة الحصّة يشمل تاريخَها (`on_roll`) — فطالبٌ قُيّد بعدها أو نُقل منها قبلها لا تُرصد له."""
     return bool(
-        StudentEnrollment.objects.filter(
-            student=student,
-            class_group_id=session.class_group_id,
-            is_active=True,
-            enrolled_at__lte=session.date,
-        ).exists()
+        StudentEnrollment.objects.filter(student=student, class_group_id=session.class_group_id)
+        .on_roll(session.date)
+        .exists()
     )
 
 

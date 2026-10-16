@@ -24,13 +24,13 @@
     {% if not limited or request.user|can_open:'student_affairs:student_add' %}<a href="{% url 'student_affairs:student_add' %}" class="btn-primary btn-sm">{% icon "student_add" %} إضافة طالب</a>{% endif %}
     {% if not limited or request.user|can_open:'student_import_export' %}<a href="/core/students/import-export/" class="btn-secondary btn-sm">{% icon "export_excel" %} استيراد Excel</a>{% endif %}
     {% if not limited or request.user|can_open:'student_affairs:student_export' %}<a data-app-file href="{% url 'student_affairs:student_export' %}?q={{ q|urlencode }}&grade={{ grade_filter }}&section={{ section_filter }}" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</a>{% endif %}
-    {% if not limited or request.user|can_open:'student_affairs:student_export' %}<a data-app-file href="{% url 'student_affairs:student_list_pdf' %}?q={{ q|urlencode }}&grade={{ grade_filter }}&section={{ section_filter }}" class="btn-secondary btn-sm" target="_blank">{% icon "export_pdf" %} تصدير PDF</a>{% endif %}
+    {% if not limited or request.user|can_open:'student_affairs:student_export' %}<a data-app-file href="{% url 'student_affairs:student_list_pdf' %}?q={{ q|urlencode }}&grade={{ grade_filter }}&section={{ section_filter }}" class="btn-secondary btn-sm">{% icon "export_pdf" %} تصدير PDF</a>{% endif %}
   {% endpage_header %}
 
   {# ── فلتر + بحث ── #}
   {% url 'student_affairs:student_list' as list_url %}
   {% filter_bar "ترشيحُ سجلّ الطلاب" %}
-    {% field "q" "بحث" value=q grow=True placeholder="بحثٌ في كلّ الأعمدة: اسم أو رقم أو جوال أو صف أو شعبة..." autocomplete="off" hx_get=list_url hx_trigger="input changed delay:400ms, search" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='status'],[name='grade'],[name='section'],[name='parent_status']" hx_indicator="#search-spinner" %}
+    {% field "q" "بحث" value=q grow=True placeholder="بحثٌ بالاسم أو الجوال أو الصف أو الشعبة..." autocomplete="off" hx_get=list_url hx_trigger="input changed delay:400ms, search" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='status'],[name='grade'],[name='section'],[name='parent_status']" hx_indicator="#search-spinner" %}
     {# حالةُ القيد — والافتراضُ المقيَّدون، ومن أُغلق قيدُه يُرى بترشيحٍ صريح #}
     {% field "status" "حالة القيد" type="select" choices=statuses value=status hx_get=list_url hx_trigger="change" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='grade'],[name='section'],[name='parent_status']" %}
     {% field "grade" "الصف" type="select" choices=grades value=grade_filter blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='status'],[name='section'],[name='parent_status']" %}

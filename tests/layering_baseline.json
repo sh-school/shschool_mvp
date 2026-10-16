@@ -318,11 +318,11 @@
   },
   "behavior/views.py::quick_log": {
    "lines": 95,
-   "orm": 30
+   "orm": 29
   },
   "behavior/views.py::report_infraction": {
    "lines": 109,
-   "orm": 31
+   "orm": 30
   },
   "behavior/views.py::student_behavior_pdf": {
    "orm": 22
@@ -347,7 +347,7 @@
    "orm": 7
   },
   "core/views_auth.py::login_view": {
-   "lines": 91,
+   "lines": 85,
    "orm": 22
   },
   "core/views_auth.py::verify_2fa": {
@@ -446,7 +446,7 @@
    "orm": 13
   },
   "operations/views_schedule.py::teacher_preferences": {
-   "lines": 89,
+   "lines": 82,
    "orm": 12
   },
   "operations/views_swap.py::compensatory_request": {
@@ -466,8 +466,8 @@
    "orm": 11
   },
   "parents/views.py::manage_parent_links": {
-   "lines": 145,
-   "orm": 51
+   "lines": 135,
+   "orm": 39
   },
   "parents/views.py::parent_all_grades": {
    "orm": 8
@@ -681,8 +681,7 @@
    "lines": 61
   },
   "student_affairs/views.py::student_edit": {
-   "lines": 76,
-   "orm": 9
+   "lines": 63
   },
   "student_affairs/views.py::student_export_excel": {
    "lines": 73
@@ -696,7 +695,7 @@
    "orm": 15
   },
   "student_affairs/views.py::student_profile": {
-   "lines": 182,
+   "lines": 179,
    "orm": 81
   },
   "student_affairs/views.py::student_profile_pdf": {
@@ -719,10 +718,6 @@
   },
   "student_affairs/views.py::tardiness_pdf": {
    "orm": 26
-  },
-  "student_affairs/views.py::tardiness_record": {
-   "lines": 113,
-   "orm": 19
   },
   "student_affairs/views.py::tardiness_search_students": {
    "orm": 7
@@ -803,7 +798,7 @@
    "orm": 9
   },
   "wings/views_absence_file.py::student_search": {
-   "orm": 16
+   "orm": 14
   },
   "wings/views_ministry.py::ministry_report": {
    "orm": 8
@@ -812,10 +807,10 @@
    "orm": 8
   },
   "wings/views_register.py::section_register_export": {
-   "orm": 29
+   "orm": 24
   },
   "wings/views_register.py::wing_register_export": {
-   "orm": 30
+   "orm": 25
   }
  }
 }

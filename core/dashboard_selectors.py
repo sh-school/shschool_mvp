@@ -27,7 +27,7 @@ from core.academic_calendar import academic_year_for_school, academic_year_windo
 from core.capabilities import has_capability
 from core.domain.attendance import attendance_rate
 from core.models.academic import StudentEnrollment, grade_order
-from core.permissions import SCHEDULE_BROWSE, get_department_teacher_ids
+from core.permissions import get_department_teacher_ids
 from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing
 from operations.models import (
@@ -207,22 +207,52 @@ def get_director_ctx(school, today):
     }
 
 
+def _next_session(sessions: Iterable[Any], day: datetime.date) -> Any:
+    """«الحصّة التالية»: أوّلُ حصّةٍ مجدولةٍ لم تبدأ بعدُ، ولليوم الحقيقيّ وحدَه (W-20261010-056).
+
+    وفي يومٍ مضى أو لم يأتِ لا «آنَ» تُقارَن به حصصُه فتبقى فارغة. والمقارنةُ بساعة المدرسة (Asia/Qatar)
+    لا UTC: `now()` يعطي UTC فتنحرف الحصّةُ ثلاثَ ساعات (W-20261010-047)."""
+    if day != timezone.localdate():
+        return None
+    now = timezone.localtime().time()
+    return next((s for s in sessions if s.start_time >= now and s.status == "scheduled"), None)
+
+
+def session_entry_states(session_ids: list[Any]) -> dict[Any, str]:
+    """حالةُ رصد كلّ حصّةٍ في استعلامٍ واحد (شارةُ لوحة المعلّم، W-20261003-038): `none` لم يُدخَل، `approved` تمّ الرصد.
+
+    تُقرأ من `StudentAttendance` — الرصدُ نهائيٌّ فوريٌّ بلا اعتماد (D-245م، أمرُ المالك 2026-10-09)، فوجودُ سجلٍّ للحصّة يعني أنّها رُصدت.
+    وقيمةُ `approved` اسمٌ قديمٌ للحالة «تمّ الرصد» أُبقي لقالبٍ واحد.
+    """
+    states: dict[Any, str] = dict.fromkeys(session_ids, "none")
+    if not session_ids:
+        return states
+    recorded = (
+        StudentAttendance.objects.filter(session_id__in=session_ids)
+        .values_list("session_id", flat=True)
+        .distinct()
+    )
+    for session_id in recorded:
+        states[session_id] = "approved"
+    return states
+
+
 def get_teacher_ctx(user, school, today, role):
     """بيانات لوحة تحكم المعلم والمنسق: حصص اليوم + الإعدادات + طلبات التبديل."""
     year = academic_year_for_school(school)
 
-    sessions = (
+    sessions = list(
         Session.objects.filter(school=school, teacher=user, date=today)
         .select_related("class_group", "subject")
         .order_by("start_time")
+        # حصصُ أعمدة جدول الشعبة مؤقّتةٌ بـ`Session.teacher` مُسنَدٍ حتميّ (W-20261006-005): ليست «حصصي» ولا «حصّتي التالية» لمن نُسبت إليه.
+        .exclude(provisional=True)
     )
-    # حصصُ أعمدة جدول الشعبة مؤقّتةٌ بـ`Session.teacher` مُسنَدٍ حتميّ (W-20261006-005): ليست «حصصي» ولا «حصّتي التالية» لمن نُسبت إليه.
-    sessions = sessions.exclude(provisional=True)
-    # بتوقيت المدرسة (Asia/Qatar) لا UTC: `now()` يعطي UTC فتنحرف «الحصّة التالية» ثلاث ساعات (W-20261010-047).
-    now = timezone.localtime().time()
-    next_session = next(
-        (s for s in sessions if s.start_time >= now and s.status == "scheduled"), None
-    )
+    # شارةُ حالة الرصد لكلّ حصّة (لم يُدخَل / تم الرصد — حالتان لأنّ الرصدَ نهائيٌّ فوريّ، D-245م) — استعلامٌ واحد لا واحدٌ لكلّ صف.
+    entry_states = session_entry_states([s.id for s in sessions])
+    for s in sessions:
+        setattr(s, "entry_state", entry_states[s.id])  # noqa: B010 — وسمٌ للقالب لا حقلُ نموذج (mypy يرفض الإسناد المباشر)
+    next_session = _next_session(sessions, today)
     my_setups = (
         SubjectClassSetup.objects.filter(
             school=school, teacher=user, academic_year=year, is_active=True
@@ -230,9 +260,12 @@ def get_teacher_ctx(user, school, today, role):
         .select_related("subject", "class_group")
         .order_by(grade_order("class_group__grade"), "subject__name_ar")
     )
-    my_pending_swaps = TeacherSwap.objects.filter(
-        school=school, teacher_b=user, status="pending_b"
-    ).count()
+    # الردُّ على التبديل بقدرة swap.respond: من لا يملكها (المتخصّص) لا يُعدّ له ما لا يستطيع فتحه.
+    my_pending_swaps = (
+        TeacherSwap.objects.filter(school=school, teacher_b=user, status="pending_b").count()
+        if has_capability(user, "swap.respond")
+        else 0
+    )
 
     # `weekly_schedule` بلا وسائط تعرض الجدولَ العامّ (كلُّ المعلّمين) لمن
     # يتصفّح غيرَه (`SCHEDULE_BROWSE`، ومنهم المنسّق ومسؤولُ التعليم
@@ -240,7 +273,9 @@ def get_teacher_ctx(user, school, today, role):
     # (`view=teacher&teacher=<هو>`) لا الافتراض، وتبقى «الجدول العامّ» متاحةً
     # منفصلةً لمن يملك حقَّ تصفّح غيره (قرارُ المالك 2026-09-23).
     my_weekly_schedule_url = f"{reverse('weekly_schedule')}?view=teacher&teacher={user.id}"
-    general_schedule_url = reverse("weekly_schedule") if role in SCHEDULE_BROWSE else ""
+    general_schedule_url = (
+        reverse("weekly_schedule") if has_capability(user, "schedule.browse") else ""
+    )
 
     # ملاحظةُ «مؤقّتاً إلى حين اعتماد الجدول» تتبع الجدولَ المعتمَدَ فعلاً (توليدٌ بحالة «معتمد» لعام المدرسة) لا المفتاحَ اليدويَّ وحدَه.
     schedule_approved = ScheduleGeneration.objects.filter(
@@ -261,19 +296,28 @@ def get_teacher_ctx(user, school, today, role):
 
     if role == "coordinator":
         ctx["view_type"] = "coordinator"
-        ctx["coord_pending_swaps"] = TeacherSwap.objects.filter(
-            school=school, status__in=["accepted_b", "pending_coordinator"]
-        ).count()
-        ctx["coord_pending_comp"] = CompensatorySession.objects.filter(
-            school=school, status="pending"
-        ).count()
-        # يعدّ غائبي قسمه وحده: القائمةُ التي تفتحها النقرةُ محصورةٌ في قسمه، وكان
-        # العدّادُ يعدّ المدرسةَ كلَّها فيقول «5» وتفتح صفّين.
-        absent_today = TeacherAbsence.objects.filter(school=school, date=today)
+        # كلُّ عدّادٍ يعدّ ما تفتحه نقرتُه لهذا المنسّق: قسمَه لا المدرسة (W-20261010-043)، بالشرط نفسِه الذي
+        # تُصفّي به القائمةُ (`swap_list` / `CompensatoryService.listing`) — ومن دون قسمٍ (`set()`) لا شيء.
+        # والقدرةُ بجانب كلّ عدّاد: swap.approve لتبديلاتٍ تنتظر اعتماده، compensatory.approve للتعويضات،
+        # operations.reports لغياب معلّمي قسمه (حارسُ absence_list نفسُه). ونطاقُها القسمُ (`get_department_teacher_ids`).
         dept_ids = get_department_teacher_ids(user)
+        swaps = TeacherSwap.objects.filter(
+            school=school, status__in=["accepted_b", "pending_coordinator"]
+        )
+        comps = CompensatorySession.objects.filter(school=school, status="pending")
+        absent_today = TeacherAbsence.objects.filter(school=school, date=today)
         if dept_ids is not None:
+            swaps = swaps.filter(Q(teacher_a_id__in=dept_ids) | Q(teacher_b_id__in=dept_ids))
+            comps = comps.filter(Q(teacher_id__in=dept_ids) | Q(colleague=user))
+            # يعدّ غائبي قسمه وحده: القائمةُ التي تفتحها النقرةُ محصورةٌ في قسمه.
             absent_today = absent_today.filter(teacher_id__in=dept_ids)
-        ctx["coord_absent_today"] = absent_today.count()
+        ctx["coord_pending_swaps"] = swaps.count() if has_capability(user, "swap.approve") else 0
+        ctx["coord_pending_comp"] = (
+            comps.count() if has_capability(user, "compensatory.approve") else 0
+        )
+        ctx["coord_absent_today"] = (
+            absent_today.count() if has_capability(user, "operations.reports") else 0
+        )
 
     return ctx
 
@@ -387,12 +431,7 @@ def get_therapist_ctx(user, school, today):
         .select_related("class_group", "subject")
         .order_by("start_time")
     )
-    # بتوقيت المدرسة (Asia/Qatar) لا UTC: `now()` يعطي UTC فتنحرف «الحصّة التالية» ثلاث ساعات (W-20261010-047).
-    now = timezone.localtime().time()
-    next_session = next(
-        (s for s in sessions_today if s.start_time >= now and s.status == "scheduled"),
-        None,
-    )
+    next_session = _next_session(sessions_today, today)
     total_today = sessions_today.count()
     completed_today = sessions_today.filter(status="completed").count()
 
@@ -544,8 +583,9 @@ def supervisor_record_ctx(user, school, today):
     # عدّادُ العتبات فقط (لا قائمةُ أسماء): الإخطارُ انتقل إلى كاتب الغياب (D-245م/D-246م) — يُعرض عدداً ورابطاً.
     ctx["gates_count"] = len(watchlist["at_gates"])
     ctx.update(dashboard_section_context("supervisor", user, school, today))
-    if day.is_open and not ctx["school_wide"]:
-        # الحصصُ تُولَّد إن لم تكن — وإلّا بدت الشُّعبُ «بلا حصص» صباحاً.
+    if day.is_open and not ctx["school_wide"] and today == timezone.localdate():
+        # الحصصُ تُولَّد إن لم تكن — وإلّا بدت الشُّعبُ «بلا حصص» صباحاً. وللقراءة لا للرصد في غير اليوم الحقيقيّ:
+        # فلا يُولَّد لأمسِ ولا لغدٍ حصصٌ، ولا لوحاتِ رصدٍ تُفتح (W-20261010-056).
         ScheduleService.ensure_sessions_for_date(school, today)
         ctx["record_panels"] = record_panels(user, school, year, today)
     return ctx

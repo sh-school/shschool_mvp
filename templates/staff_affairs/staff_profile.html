@@ -30,7 +30,7 @@
   {# ── البيانات الشخصية — تُحرَّر، وكلُّ حفظٍ يُختم بصاحبه. بعرض الصفحة: حقولُها كثيرة ── #}
   {% section_card "البيانات الشخصية والرخصة المهنية" icon="licences" %}
     <dl class="detail-dl">
-      <dt>الرقم الشخصي</dt><dd dir="ltr">{{ staff_user.national_id|mask_id }}</dd>
+      <dt>الرقم الوظيفي</dt><dd dir="ltr">{{ staff_user.employee_number|default:"—" }}</dd>
       {% if membership %}<dt>الدور في المنصّة</dt><dd>{{ membership.role.get_name_display }}</dd>{% endif %}
     </dl>
     <form method="post" action="{% url 'staff_affairs:staff_profile_save' staff_user.id 'person' %}" class="sa-form">
@@ -172,7 +172,7 @@
   من حفظ وماذا ومتى — يُقرأ من `AuditLog` غيرِ القابل للتعديل ولا للحذف.
   {% endcomment %}
   {% section_card "سجلُّ التعديلات" meta=history|length icon="observation" flush=True empty="لا تعديلاتٍ مسجّلةٌ على هذا الملفّ بعد" %}{% if history %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table data-no-sort>
         <thead><tr><th>متى</th><th>من</th><th>الإجراء</th><th>ما تغيّر</th></tr></thead>
         <tbody>

@@ -10,8 +10,8 @@
 | 3 | نمطُ الـview: `render_to_string` ثمّ `render_pdf` | قديمٌ للجديد | الجديدُ بنّاءٌ مسجَّل + `respond_export` (ADR-0007)؛ و`HEAVY_IN_VIEWS` تمنع زيادته |
 | 4 | «التوليد الثقيل → Celery» | صحيحٌ عامّ | صار محدَّداً: `core/exports/`، `core.export.run_job`، العتبتان |
 | 5 | «ابدأ من `assets/report_template.html`» | **خاطئٌ ضارّ** | القالبُ القديم: `running(pageHeader)` و`@bottom-*` (يُسقط `tests/print_frame_ratchet.py`)، خطوط `NotoSansArabic-*.ttf` غيرُ موجودة في `static/fonts/`، `@font-face` بـ`{% static %}` (يسقط إلى DejaVu بنصّ `core/pdf_utils.py`)، سداسيٌّ حرفيّ (حارسُ الهويّة)، ولا علامة `data-pdf-own-page` (يحقن الإطارَ القديم) |
-| 6 | ترويسة: شعارُ الدولة يميناً، «دولة قطر — وزارة التعليم والتعليم العالي» | خاطئ | «وزارة التربية والتعليم والتعليم العالي — دولة قطر» (`core/templatetags/print_frame.py::MINISTRY`، `reports/services.py`)؛ الشعارُ وسطاً فوق الوزارة |
-| 7 | الشعار `assets/brand/qatar-emblem-2022.svg` | خاطئ | غيرُ موجود؛ `static/brand/logoMaroon.png` و`emblem.svg` |
+| 6 | ترويسة: شعارُ الدولة يميناً، «دولة قطر — وزارة التعليم والتعليم العالي» | خاطئ | «وزارة التربية والتعليم والتعليم العالي — دولة قطر» (`core/templatetags/print_frame.py::MINISTRY`، `reports/services.py`)؛ لا صورةَ شعارٍ فوق الوزارة: أُزيل شعارُ الوزارة بقرار المالك (D-386م/D-387م) |
+| 7 | الشعار `assets/brand/qatar-emblem-2022.svg` | خاطئ | غيرُ موجود؛ وملفّاتُ شعار الوزارة حُذفت كلُّها (D-386م)، وشعارُ المدرسة «الكوفيّ المربّع» (D-394م) أيقونةُ التطبيق في `static/icons/v3/` |
 | 8 | تذييل: سرّيّة · تاريخٌ هجريّ/ميلاديّ · «صفحة X من Y» · بصمةُ المنصّة | خاطئ | الإطار: المدرسة · ص/ص · تاريخُ الطباعة ووقتُها ثمّ الرؤية…؛ «SchoolOS-SAMM» أُخرج بأمر المالك 2026-09-27 (المواصفة v2.3) |
 | 9 | الخطوط Noto Sans Arabic · IBM Plex · Cairo · Sakkal Majalla | خاطئ | `static/fonts/`: Tajawal وAmiri وNoto Naskh Arabic؛ وTraditional Arabic من `StoredFile` |
 | 10 | «≥ 9pt للبيانات»، H1 20pt، جداول 10–11 | قديم | D2 (المواصفة §٤-١): جداول 10pt، عنوان 16 (أدنى 14)، تذييل 10 (أدنى 9) |

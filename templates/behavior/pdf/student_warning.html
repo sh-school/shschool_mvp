@@ -15,9 +15,7 @@
   <table class="data-table">
     <tr>
       <td class="fl">اسم الطالب:</td>
-      <td class="fv">{{ infraction.student.full_name }}</td>
-      <td class="fl">الرقم الشخصي:</td>
-      <td class="fv">{{ infraction.student.national_id }}</td>
+      <td class="fv" colspan="3">{{ infraction.student.full_name }}</td>
     </tr>
     <tr>
       <td class="fl">الصف:</td>
@@ -42,10 +40,10 @@
   {% else %}
   <div class="checkbox-row">
     <div class="checkbox-item">
-      <span class="checkbox-box">{% if 'غياب' in infraction.description %}✓{% endif %}</span> غياب غير مبرر
+      <span class="checkbox-box{% if 'غياب' in infraction.description %} is-checked{% endif %}"></span> غياب غير مبرر
     </div>
     <div class="checkbox-item">
-      <span class="checkbox-box">{% if 'تأخر' in infraction.description %}✓{% endif %}</span> تأخر
+      <span class="checkbox-box{% if 'تأخر' in infraction.description %} is-checked{% endif %}"></span> تأخر
     </div>
     <div class="checkbox-item">
       <span class="checkbox-box"></span> سلوك مسيء
@@ -54,7 +52,7 @@
       <span class="checkbox-box"></span> مخالفة تعليمات الاختبارات
     </div>
     <div class="checkbox-item">
-      <span class="checkbox-box">✓</span> أخرى
+      <span class="checkbox-box is-checked"></span> أخرى
     </div>
   </div>
   {% endif %}

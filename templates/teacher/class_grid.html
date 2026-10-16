@@ -38,7 +38,7 @@
     {% if not page.columns %}
       {% include "components/empty_state.html" with title="لا زمنَ مُعرَّفاً لحصص هذه الشعبة اليوم" only %}
     {% else %}
-    <div data-class-grid data-now="{{ page.now|date:'U' }}"
+    <div data-class-grid data-live-root data-live-noreload data-live-url="{% url 'class_grid_live' page.klass.id %}?date={{ page.day|date:'Y-m-d' }}" data-phase="{% if page.is_today and not page.correction_mode %}live{% else %}final{% endif %}" data-now="{{ page.now|date:'U' }}"
          data-save-url="{% url 'class_grid_save' page.klass.id %}"
          data-late-url="{% url 'class_grid_late' page.klass.id %}"
          data-exit-url="{% url 'class_grid_exit' page.klass.id %}"
@@ -52,7 +52,7 @@
       <form data-grid-confirm hidden></form>
       <div hidden data-tabs role="tablist" aria-label="الحصّة المعروضة">
         {% for col in page.columns %}
-        <button type="button" class="btn-secondary btn-sm" role="tab" data-tab="{{ col.number }}" aria-selected="false">ح{{ col.number }}</button>
+        <button type="button" class="btn-secondary btn-sm" role="tab" data-tab="{{ col.number }}" aria-selected="false">{% if col.state == "current" or col.is_next %}<span class="cg-tab__dot" aria-hidden="true"></span><span class="sr-only">{% if col.is_next %}التالية: {% else %}الحصة الحالية: {% endif %}</span>{% endif %}ح{{ col.number }}</button>
         {% endfor %}
       </div>
       <div class="table-wrap cg-wrap">
@@ -61,8 +61,9 @@
             <tr>
               <th scope="col" class="cg-name">الطالب</th>
               {% for col in page.columns %}
-              <th scope="col" class="cg-col--{{ col.state }}" data-col="{{ col.number }}">
+              <th scope="col" class="cg-col--{{ col.state }}{% if col.is_next %} cg-col--next{% endif %}" data-col="{{ col.number }}"{% if col.state == "current" %} aria-current="true"{% endif %}>
                 <span class="cg-col__title">ح{{ col.number }}</span>
+                {% if col.state == "current" %}<span class="cg-col__badge cg-col__badge--full">الحصة الحالية</span><span class="cg-col__badge cg-col__badge--short" aria-hidden="true">الآن</span>{% elif col.is_next %}<span class="cg-col__badge">التالية</span>{% endif %}
                 <span class="cg-col__time num">{{ col.start|time:"H:i" }}</span>
               </th>
               {% endfor %}
@@ -76,7 +77,7 @@
                 <button type="button" class="cg-name__btn" data-history-open data-student="{{ row.student.pk }}">{{ row.student.full_name }}</button>
               </th>
               {% for col, cell, exitbadge in row.pairs %}
-              <td class="cg-col--{{ col.state }}" data-col="{{ col.number }}">
+              <td class="cg-col--{{ col.state }}{% if col.is_next %} cg-col--next{% endif %}" data-col="{{ col.number }}">
                 <div class="cg-cellbox">
                 {% if exitbadge %}<span class="cg-exitdot" data-exit-tip="{{ exitbadge.tip }}" aria-label="خرج {{ exitbadge.count }} مرّة في هذه الحصّة">{{ exitbadge.count }}</span>{% endif %}
                 <button type="button" class="cg-cell is-{{ cell.status|default:'none' }}{% if cell.default_present %} is-default{% endif %}{% if cell.state == 'pending' %} is-pending{% endif %}"
@@ -84,24 +85,30 @@
                         data-head="{{ cell.head_id }}" data-status="{{ cell.status }}"
                         data-writable="{% if col.writable %}1{% endif %}"
                         {% if not col.writable %}disabled{% endif %}
-                        aria-label="{{ row.student.full_name }} — ح{{ col.number }}">{% if cell.status == "present" %}✓{% elif cell.status == "absent" %}غ{% elif cell.status == "late" %}ت{% else %}·{% endif %}</button>
+                        aria-label="{{ row.student.full_name }} — ح{{ col.number }}">{% if cell.status == "present" %}ح{% elif cell.status == "absent" %}غ{% elif cell.status == "late" %}ت{% else %}·{% endif %}</button>
                 </div>
               </td>
               {% endfor %}
               {% if page.can_write %}
-              <td class="cg-acts"><div class="cg-acts__box">
-                <button type="button" class="btn-secondary btn-sm" data-late="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>متأخّر</button>
-                {% if row.exit %}
-                <span class="status-badge status-warning">خارج: {{ row.exit.get_destination_display }} · <time data-out-since="{{ row.exit.left_at|date:'U' }}">00:00</time></span>
-                <button type="button" class="btn-secondary btn-sm" data-exit-return="{{ row.student.pk }}">عاد</button>
-                {% else %}
-                <select class="form-select cg-dest" data-exit-dest="{{ row.student.pk }}" aria-label="وجهة خروج {{ row.student.full_name }}"{% if not page.current %} disabled{% endif %}>
-                  {% for code, label in page.destinations %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
-                </select>
-                <button type="button" class="btn-secondary btn-sm" data-exit="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>خروج</button>
-                {% endif %}
-                <a class="btn-secondary btn-sm" href="{% url 'behavior:report_infraction' %}?student={{ row.student.pk }}&next={{ request.path|urlencode }}">مخالفة</a>
-                </div>
+              {# الحاسوب: الإجراءاتُ ظاهرةٌ في الخليّة نفسها (الحوارُ يُرسم مضمَّناً). الهاتف (W-20261012-028): زرٌّ واحدٌ «إجراءات» يفتح الحوارَ ورقةً من الأسفل بدل أربعة أزرارٍ في كلّ صفّ. #}
+              <td class="cg-acts">
+                <button type="button" class="btn-secondary cg-acts__open" data-acts-open="{{ row.student.pk }}" aria-haspopup="dialog">إجراءات{% if row.exit %} · خارج{% endif %}</button>
+                <dialog class="cg-sheet" role="group" data-acts-sheet="{{ row.student.pk }}" aria-label="إجراءات {{ row.student.full_name }}">
+                  <div class="cg-sheet__head"><strong>{{ row.student.full_name }}</strong><button type="button" class="btn-secondary" data-sheet-close>إغلاق</button></div>
+                  <div class="cg-acts__box">
+                    <button type="button" class="btn-secondary btn-sm" data-late="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>متأخّر</button>
+                    {% if row.exit %}
+                    <span class="status-badge status-warning cg-acts__out">خارج: {{ row.exit.get_destination_display }} · <time data-out-since="{{ row.exit.left_at|date:'U' }}">00:00</time></span>
+                    <button type="button" class="btn-secondary btn-sm" data-exit-return="{{ row.student.pk }}">عاد</button>
+                    {% else %}
+                    <select class="form-select cg-dest" data-exit-dest="{{ row.student.pk }}" aria-label="وجهة خروج {{ row.student.full_name }}"{% if not page.current %} disabled{% endif %}>
+                      {% for code, label in page.destinations %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+                    </select>
+                    <button type="button" class="btn-secondary btn-sm" data-exit="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>خروج</button>
+                    {% endif %}
+                    <a class="btn-secondary btn-sm" href="{% url 'behavior:report_infraction' %}?student={{ row.student.pk }}&next={{ request.path|urlencode }}">مخالفة</a>
+                  </div>
+                </dialog>
               </td>
               {% endif %}
             </tr>
@@ -116,8 +123,8 @@
                 <div class="cg-keys" role="group" aria-label="مفاتيح ح{{ col.number }}">
                   {% if page.can_write %}
                   {# الكلُّ حاضر/غائب يعدّلان خلايا العمود في الواجهة فقط بلا تأكيد ولا حفظ؛ و«حفظ» يحفظ هذا العمودَ وحدَه. العمودُ المغلقُ معطَّلٌ بسببٍ ظاهرٍ في التلميح. #}
-                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_present" data-col="{{ col.number }}" aria-label="الكلُّ حاضر في ح{{ col.number }}"{% if not col.writable %} disabled title="{% if col.state == 'future' %}تُفتح ح{{ col.number }} عند {{ col.start|time:'H:i' }}{% else %}الرصدُ مغلقٌ لهذا العمود{% endif %}"{% endif %}>الكلّ ✓</button>
-                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_absent" data-col="{{ col.number }}" aria-label="الكلُّ غائب في ح{{ col.number }}"{% if not col.writable %} disabled{% endif %}>الكلّ ✗</button>
+                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_present" data-col="{{ col.number }}" aria-label="الكلُّ حاضر في ح{{ col.number }}"{% if not col.writable %} disabled title="{% if col.state == 'future' %}تُفتح ح{{ col.number }} عند {{ col.start|time:'H:i' }}{% else %}الرصدُ مغلقٌ لهذا العمود{% endif %}"{% endif %}>الكلّ {% icon "status_success" %}</button>
+                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_absent" data-col="{{ col.number }}" aria-label="الكلُّ غائب في ح{{ col.number }}"{% if not col.writable %} disabled{% endif %}>الكلّ {% icon "status_error" %}</button>
                   <button type="button" class="btn-primary btn-sm" data-save-col="{{ col.number }}"{% if not col.writable %} disabled{% endif %}>حفظ</button>
                   {% endif %}
                 </div>
@@ -129,6 +136,14 @@
           {% endif %}
         </table>
       </div>
+      {% if page.can_write %}
+      {# شريطُ المفاتيح السفليّ للهاتف: يظهر في وضع الهاتف وحدَه بدل تذييل الجدول، ويتبع التبويبَ المعروض (يضبطه JS). التسميات كاملةٌ لا رموزٌ. #}
+      <div class="cg-keybar" data-keybar role="group" aria-label="مفاتيح الحصّة المعروضة">
+        <button type="button" class="btn-secondary" data-bulk="all_present" data-col="">الكلُّ حاضر</button>
+        <button type="button" class="btn-secondary" data-bulk="all_absent" data-col="">الكلُّ غائب</button>
+        <button type="button" class="btn-primary" data-save-col="">حفظ ح<span data-keybar-col></span></button>
+      </div>
+      {% endif %}
       <p class="ui-note" data-grid-status role="status" aria-live="polite"></p>
       <dialog class="cg-dialog" data-history-dialog aria-label="سجلّ الخليّة"><div data-history-body></div><form method="dialog" class="cg-dialog__foot"><button class="btn-secondary btn-sm">إغلاق</button></form></dialog>
     </div>
@@ -138,4 +153,4 @@
 {% endwith %}
 {% endblock %}
 
-{% block extra_js %}<script src="{% static 'js/class-grid.js' %}" defer></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/class-grid.js' %}" defer></script><script src="{% static 'js/director-live.js' %}" defer></script>{% endblock %}

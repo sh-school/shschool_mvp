@@ -46,3 +46,30 @@ SESSION_DB=$(bash scripts/session-db.sh --name) WEB_PORT=8001 docker compose -p 
 ويبقى شرطٌ واحد: أن تعمل قاعدةُ الحزمة الأصليّة وredis (في `D:\shschool_mvp`)
 والصورةُ المبنيّة منها — أمّا خادمُ الجذر وعاملُه (المنفذ 8000) فلا يلزمان، وقد أُوقفا
 2026-09-25 توفيراً للذاكرة.
+
+### إنهاء الجلسة
+
+عند انتهاء عمل الشجرة أوقف خادمها ولا تتركه يستهلك الذاكرة:
+
+```bash
+docker compose -p schoolos-$(basename $PWD) --project-directory . -f D:/shschool_mvp/docker-compose.session.yml stop
+```
+
+- `stop` وحده، **لا `down -v`** ولا `docker volume prune`: وحداتُ التخزين تحمل قواعدَ بيانات. ويُعاد التشغيل بـ`up -d` أو `start`.
+- `scripts/session-db.sh` لا يوفّر خيارَ حذف (خياراته الوحيدة `--name`، وبلا وسيطٍ ينشئ القاعدة إن لم توجد)؛ فقاعدةُ الشجرة المنسوخة تبقى حتى يحذفها المالك أو جلسةُ التنظيف يدوياً. لا تفترض خيار حذف ولا تنفّذ `DROP DATABASE` من عندك.
+- لا تلمس `shschool-dev-db` ولا `shschool-dev-redis` ولا حاويات `schoolos-main-preview-*`.
+
+### خلفية القاعدة رقم 1 (مُنقولة حرفياً من CLAUDE.md)
+
+كانت القاعدةُ قبل 2026-09-08 «لا worktree أبداً» لأنّ `docker-compose.yml` يربط `- .:/app`؛ فعالجت
+العَرَضَ بمنع العزل وصار رأسٌ وفهرسٌ واحدٌ لمحادثاتٍ متوازية (تبديلُ فرعٍ يسحب الأرضَ من تحت غيره، و`git add -A`
+يبتلع عملَ غيره). و`docker-compose.session.yml` أزال السبب: خادمٌ لكلّ شجرةٍ على منفذها بقاعدةٍ مشتركة.
+
+### تشغيل الاختبارات (مُنقول حرفياً من CLAUDE.md)
+
+```bash
+docker compose -p schoolos-$(basename $PWD) --project-directory . -f D:/shschool_mvp/docker-compose.session.yml exec -T web sh -c 'DJANGO_SETTINGS_MODULE=shschool.settings.testing TEST_DB_HOST=$DB_HOST TEST_DB_PORT=$DB_PORT TEST_DB_USER=$DB_USER TEST_DB_PASSWORD=$DB_PASSWORD python -m pytest <المسارات> -q -p no:cacheprovider'
+```
+واسمُ قاعدةِ الاختبار يُشتقّ من قاعدةِ جلستك تلقائيّاً (`test_ss_<slug>`)، فلا
+تصطدم جلستان. ولو رأيتَ عشراتِ `ERROR` في **الإعداد** دفعةً واحدة فاقرأ
+الرسالةَ قبل أن تتّهم تعديلك: غالبُها تصادمٌ لا عطب.

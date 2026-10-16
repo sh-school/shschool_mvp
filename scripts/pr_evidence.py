@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -87,6 +88,15 @@ def overall(files: list[str]) -> str:
     return next((t for t in TIERS if t in found), "خفيفة")
 
 
+# اعتمادٌ بتفويضٍ مسجَّل (قرار المالك 2026-10-14، W-20261014-017): يُحتسب إن طابق الرأسُ المكتوب
+# رأسَ الطلب الفعليّ فقط؛ تعليقٌ معلوماتيّ، ولا يمسّ بوّابةَ الدمج الآليّ ولا نافذةَ النشر ولا وسمَ العاجل.
+DELEGATED = re.compile(r"اعتُمد بتفويض (?:0101|0501) على الرأس ([0-9a-f]{8,40}) — \d{4}-\d{2}-\d{2}")
+
+
+def delegated_ok(body: str, head: str) -> bool:
+    return bool(head) and any(head.startswith(m.lower()) for m in DELEGATED.findall(body))
+
+
 def render(data: dict) -> str:
     """نصُّ التعليق من بياناتِ الطلب — أرقامٌ وأسماءُ مساراتٍ وحالاتٌ، لا نصَّ من الوصف."""
     files = [f.get("path", "") for f in data.get("files") or []]
@@ -96,7 +106,8 @@ def render(data: dict) -> str:
     tier = overall(files)
     migrations = [f for f in files if "/migrations/" in f and not f.startswith("roadmap/")]
     blocked = [f for f in files if gate.path_forbidden(f)]
-    approved = bool(gate.APPROVAL.search(data.get("body") or ""))
+    body = data.get("body") or ""
+    approved = bool(gate.APPROVAL.search(body)) or delegated_ok(body, data.get("headRefOid") or "")
     lines = [
         MARKER,
         "### حزمةُ الأدلّة (آليّة، معلوماتيّة)",
@@ -118,7 +129,7 @@ def sh(args: list[str], stdin: str | None = None) -> subprocess.CompletedProcess
 
 
 def read_pr(number: str, repo: str | None) -> dict:
-    cmd = ["gh", "pr", "view", number, "--json", "body,files"] + (["--repo", repo] if repo else [])
+    cmd = ["gh", "pr", "view", number, "--json", "body,files,headRefOid"] + (["--repo", repo] if repo else [])
     out = sh(cmd)
     if out.returncode != 0:
         raise RuntimeError(out.stderr.strip() or "تعذّرت قراءةُ الطلب")

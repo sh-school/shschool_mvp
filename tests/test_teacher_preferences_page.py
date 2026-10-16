@@ -8,6 +8,7 @@
 
 والمدى في الشاشة كان «3456»، فالخياران 1 و2 محجوبان — وضحيّتُهم اثنا عشرَ
 منسّقاً أنصبتُهم ثلاثٌ إلى ثمانٍ عمداً، وهم أحوجُ الناس إلى تجميع حصصهم.
+ثمّ صار المدى من 4 بقرار المالك D-418م: ثلاثٌ فما دونها تجعل التوليدَ مستحيلاً.
 """
 
 import pytest
@@ -74,17 +75,29 @@ def test_the_free_day_outweighs_gap_and_run(school, teacher):
 # ════════════════════ المدى في الشاشة ════════════════════
 
 
-def test_the_screen_offers_every_period_the_view_accepts(client, school, teacher):
-    """الواجهةُ لا تكون أضيقَ من النموذج: العرضُ يقبل 1–7 فتُعرض 1–7."""
+def test_the_screen_offers_exactly_what_the_view_accepts(client, school, teacher):
+    """الواجهةُ والحفظُ مدىً واحد: من 4 إلى 7 (D-418م) — ثلاثٌ فما دونها تجعل التوليدَ مستحيلاً في قياس 0424.
+
+    وكان المدى 1–7 لأجل المنسّقين (أنصبتُهم ثلاثٌ إلى ثمانٍ)؛ فصار قرارُ المالك يقدّم إمكانَ التوليد.
+    """
     from django.urls import reverse
 
-    client.force_login(teacher)
-    body = client.get(
-        reverse("teacher_preferences") + f"?year={YEAR}", HTTP_HOST="localhost"
-    ).content.decode()
+    from operations.models import TeacherPreference
+    from operations.preference_capacity import TEACHER_DAILY_CAPS
 
+    url = reverse("teacher_preferences") + f"?year={YEAR}"
+    client.force_login(teacher)
+    body = client.get(url, HTTP_HOST="localhost").content.decode()
+    select = body.split('name="max_daily_periods"', 1)[1].split("</select>", 1)[0]
+
+    assert list(TEACHER_DAILY_CAPS) == [4, 5, 6, 7]
     for value in ScheduleSlot.PERIODS:
-        assert f'value="{value}"' in body, f"الخيار {value} محجوبٌ عن المنسّقين"
+        shown = f'value="{value}"' in select
+        assert shown is (value in TEACHER_DAILY_CAPS), f"الخيار {value}"
+
+    client.post(url, {"max_daily_periods": "3", "notes": ""}, HTTP_HOST="localhost")
+    pref = TeacherPreference.objects.get(teacher=teacher, academic_year=YEAR)
+    assert pref.max_daily_periods == 5, "3 خارج المدى فتعود إلى الافتراضيّ ولا تُحفظ"
 
 
 def test_a_cap_below_the_share_is_disabled_not_refused_later(client, school, teacher):

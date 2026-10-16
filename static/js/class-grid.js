@@ -3,7 +3,7 @@
  * (W-20261006-005، قرارا المالك D-239م وD-240م)
  *
  * - الضغطةُ: لم تُرصد ← غائب ← حاضر ← غائب… والواجهةُ **ترسل الحالةَ الصريحة** مع `head` (رأسُ الخليّة الذي رأته) لا «تبديلاً».
- * - مفاتيحُ أسفل كلّ عمود: «الكلّ ✓/✗» تعدّل خلايا العمود في الواجهة فقط (بلا تأكيد ولا حفظ، D-247م) و«حفظ» يحفظ ذلك العمودَ وحدَه.
+ * - مفاتيحُ أسفل كلّ عمود: «الكلّ» (حاضر/غائب) تعدّل خلايا العمود في الواجهة فقط (بلا تأكيد ولا حفظ، D-247م) و«حفظ» يحفظ ذلك العمودَ وحدَه.
  * - الحفظُ لعمودٍ واحد: خلايا العمود المتغيّرةُ فقط، وتنبيهٌ بعدد الفارغات (تُكتب «حاضراً افتراضيّاً» لعمودٍ بدأت حصّتُه) يطلب تأكيداً.
  * - تعارضٌ (207): تُبرَز الخليّةُ بقيمتها الحاليّة ومن كتبها ومتى، ويحسم المستخدمُ كلَّ واحدةٍ على حدة.
  * - المسوّدةُ في `localStorage`: **رموزُ الحالة ومعرّفاتُ الطلبة فقط** (بلا أسماء)، وتُمسح عند الحفظ الناجح؛ ولا كتابةَ تلقائيّةَ للخادم.
@@ -20,7 +20,7 @@
   var draftKey = root.getAttribute('data-draft-key');
   var statusLine = root.querySelector('[data-grid-status]');
   var tokenInput = document.querySelector('input[name=csrfmiddlewaretoken]');
-  var SYMBOL = { '': '·', present: '✓', absent: 'غ', late: 'ت' };
+  var SYMBOL = { '': '·', present: 'ح', absent: 'غ', late: 'ت' };
   var CYCLE = { '': 'absent', absent: 'present', present: 'absent', late: 'present' };
 
   function csrf() { return tokenInput ? tokenInput.value : ''; }
@@ -49,23 +49,41 @@
     cell.textContent = SYMBOL[status || ''];
   }
 
+  // الحالةُ المحفوظةُ لكلّ خليّةٍ عند التحميل (قبل استعادة المسوّدة) — لمعرفة أنّ الخليّةَ عادت إلى أصلها.
+  var saved = {};
+  Array.prototype.forEach.call(root.querySelectorAll('[data-cell]'), function (c) {
+    saved[c.getAttribute('data-col') + ':' + c.getAttribute('data-student')] = c.getAttribute('data-status') || '';
+  });
+
   function remember(cell) {
     var col = cell.getAttribute('data-col');
+    var student = cell.getAttribute('data-student');
+    var status = cell.getAttribute('data-status') || '';
+    // عادت الخليّةُ إلى حالتها المحفوظة: لا تغييرَ يُحفظ، فتزول علامةُ التعديل وتُحذف من المسوّدة.
+    if (saved[col + ':' + student] === status) {
+      cell.classList.remove('is-dirty');
+      if (draft[col]) { delete draft[col][student]; if (!Object.keys(draft[col]).length) delete draft[col]; }
+      writeDraft(draft);
+      return;
+    }
     draft[col] = draft[col] || {};
-    draft[col][cell.getAttribute('data-student')] = cell.getAttribute('data-status');
+    draft[col][student] = status;
     writeDraft(draft);
   }
 
-  // استعادةُ المسوّدة فوق خلايا لم يتغيّر رأسُها (لا نكتب فوق ما رأيناه جديداً).
-  Object.keys(draft).forEach(function (col) {
-    Object.keys(draft[col]).forEach(function (student) {
-      var cell = root.querySelector('[data-cell][data-col="' + col + '"][data-student="' + student + '"]');
-      if (cell && cell.getAttribute('data-writable') === '1' && !cell.getAttribute('data-head')) {
-        paint(cell, draft[col][student]);
-        cell.classList.add('is-dirty');
-      }
+  // استعادةُ المسوّدة فوق خلايا لم يتغيّر رأسُها (لا نكتب فوق ما رأيناه جديداً)؛ `scope` يحصرها في صفٍّ بُدّل من الخادم.
+  function restoreDraft(scope) {
+    Object.keys(draft).forEach(function (col) {
+      Object.keys(draft[col]).forEach(function (student) {
+        var cell = scope.querySelector('[data-cell][data-col="' + col + '"][data-student="' + student + '"]');
+        if (cell && cell.getAttribute('data-writable') === '1' && !cell.getAttribute('data-head')) {
+          paint(cell, draft[col][student]);
+          cell.classList.add('is-dirty');
+        }
+      });
     });
-  });
+  }
+  restoreDraft(root);
 
   root.addEventListener('click', function (event) {
     var cell = event.target.closest('[data-cell]');
@@ -80,12 +98,17 @@
     if (bulk) return bulkFill(bulk);
     var saveBtn = event.target.closest('[data-save-col]');
     if (saveBtn) return save(saveBtn.getAttribute('data-save-col'));
+    var opener = event.target.closest('[data-acts-open]');
+    if (opener) return openSheet(opener.getAttribute('data-acts-open'));
+    if (event.target.closest('[data-sheet-close]')) return closeSheets();
+    // نقرةٌ على حجب الحوار نفسِه (لا على محتواه) تغلق الورقة.
+    if (event.target.matches && event.target.matches('dialog[data-acts-sheet]')) return closeSheets();
     var late = event.target.closest('[data-late]');
-    if (late) return markLate(late);
+    if (late) { closeSheets(); return markLate(late); }
     var exitBtn = event.target.closest('[data-exit]');
-    if (exitBtn) return exitAction(exitBtn.getAttribute('data-exit'), 'leave');
+    if (exitBtn) { closeSheets(); return exitAction(exitBtn.getAttribute('data-exit'), 'leave'); }
     var backBtn = event.target.closest('[data-exit-return]');
-    if (backBtn) return exitAction(backBtn.getAttribute('data-exit-return'), 'return');
+    if (backBtn) { closeSheets(); return exitAction(backBtn.getAttribute('data-exit-return'), 'return'); }
     var hist = event.target.closest('[data-history-open]');
     if (hist) return openHistory(hist.getAttribute('data-student'), currentCol());
     var tab = event.target.closest('[data-tab]');
@@ -121,14 +144,11 @@
     if (event.target.closest('[data-exit-tip]') && pop) pop.hidden = true;
   });
 
-  root.addEventListener('dblclick', function (event) {
-    var cell = event.target.closest('[data-cell]');
-    if (cell) openHistory(cell.getAttribute('data-student'), cell.getAttribute('data-col'));
-  });
-
   function currentCol() {
     var current = root.querySelector('th.cg-col--current');
     if (current) return current.getAttribute('data-col');
+    var next = root.querySelector('th.cg-col--next');
+    if (next) return next.getAttribute('data-col');
     var started = root.querySelectorAll('th.cg-col--past');
     return started.length ? started[started.length - 1].getAttribute('data-col') : '1';
   }
@@ -153,7 +173,7 @@
     gate.requestSubmit();
   }
 
-  // «الكلّ ✓/✗» لعمود الزرّ نفسِه: تغييرٌ في الواجهة فقط (خلايا مكتوبةٌ لا تُحفظ) — لا تأكيدَ هنا؛ التأكيدُ والحفظُ عند «حفظ».
+  // «الكلّ» (حاضر/غائب) لعمود الزرّ نفسِه: تغييرٌ في الواجهة فقط (خلايا مكتوبةٌ لا تُحفظ) — لا تأكيدَ هنا؛ التأكيدُ والحفظُ عند «حفظ».
   function bulkFill(button) {
     var col = button.getAttribute('data-col');
     var status = button.getAttribute('data-bulk') === 'all_absent' ? 'absent' : 'present';
@@ -243,7 +263,7 @@
     } else if ((data.errors || []).length) {
       notify('حُفظ ' + saved + ' وتعذّر ' + data.errors.length + ' — أعِد المحاولة.', 'warning');
     } else {
-      notify('تمّ الحفظ ✓ — ح' + col + ': ' + saved + ' خليّة' + (data.defaults ? ' (منها ' + data.defaults + ' حاضرٌ افتراضيّ)' : '') + '.', 'success');
+      notify('تمّ الحفظ — ح' + col + ': ' + saved + ' خليّة' + (data.defaults ? ' (منها ' + data.defaults + ' حاضرٌ افتراضيّ)' : '') + '.', 'success');
     }
   }
 
@@ -255,10 +275,28 @@
         var doc = new DOMParser().parseFromString(html, 'text/html');
         var fresh = doc.querySelector('tr[data-student="' + student + '"]');
         var old = root.querySelector('tr[data-student="' + student + '"]');
-        if (fresh && old) { old.replaceWith(document.importNode(fresh, true)); tick(); }
-        else window.location.reload();
+        if (fresh && old) {
+          var node = document.importNode(fresh, true);
+          old.replaceWith(node);
+          restoreDraft(node);
+          tick();
+          showTab(activeCol);
+        } else window.location.reload();
       }).catch(function () { window.location.reload(); });
   }
+
+  // التحديثُ الحيّ (W-20261012-015): خلايا غيّرها غيرُك تُبدَّل بلا إعادة رسم الصفحة؛ وما عدّلتَه ولم تحفظه (`is-dirty`) لا يُمسّ أبداً.
+  root.addEventListener('page-live:payload', function (event) {
+    ((event.detail && event.detail.cells) || []).forEach(function (item) {
+      var cell = cellOf(item.c, item.s);
+      if (!cell || cell.classList.contains('is-dirty')) return;
+      if ((cell.getAttribute('data-head') || '') === item.h) return;
+      paint(cell, item.st);
+      cell.setAttribute('data-head', item.h);
+      cell.removeAttribute('title');
+      saved[item.c + ':' + item.s] = item.st || '';
+    });
+  });
 
   // عدّادُ الخروج: دقائقُ وثوانٍ من لحظة الضغط حتى «عاد» (الزمنُ من الخادم لا ساعةِ الجهاز وحدَها).
   var skew = Number(root.getAttribute('data-now')) - Date.now() / 1000;
@@ -283,8 +321,13 @@
         var doc = new DOMParser().parseFromString(html, 'text/html');
         var fresh = doc.querySelector('.cg-wrap');
         var old = root.querySelector('.cg-wrap');
-        if (fresh && old) { old.replaceWith(document.importNode(fresh, true)); tick(); }
-        else window.location.reload();
+        if (fresh && old) {
+          var wrap = document.importNode(fresh, true);
+          old.replaceWith(wrap);
+          restoreDraft(wrap);
+          tick();
+          showTab(activeCol);
+        } else window.location.reload();
       }).catch(function () { window.location.reload(); });
   }
 
@@ -296,7 +339,7 @@
       .then(function (response) { return response.json().then(function (d) { return { status: response.status, data: d }; }); })
       .then(function (result) {
         if (result.status === 403) { notify((result.data && result.data.message) || 'تعذّر تسجيلُ التأخّر', 'danger'); return; }
-        notify('سُجّل التأخّر ✓', 'success');
+        notify('سُجّل التأخّر', 'success');
         refreshRow(button.getAttribute('data-late'));
       }).catch(function () { notify('تعذّر تسجيلُ التأخّر.', 'danger'); });
   }
@@ -315,7 +358,7 @@
         if (result.status === 403) { notify((result.data && result.data.message) || 'تعذّر تسجيلُ الخروج', 'danger'); return; }
         var timer = root.querySelector('tr[data-student="' + student + '"] [data-out-since]');
         var took = timer ? ' — غاب ' + timer.textContent : '';
-        notify(action === 'return' ? 'سُجّلت العودة ✓' + took : 'سُجّل الخروج ✓', 'success');
+        notify(action === 'return' ? 'سُجّلت العودة' + took : 'سُجّل الخروج', 'success');
         refreshRow(student);
       }).catch(function () { notify('تعذّر تسجيلُ الخروج.', 'danger'); });
   }
@@ -331,11 +374,31 @@
     });
   }
 
-  // الجوالُ: عمودٌ واحدٌ بتبويب ح1–ح7 — تُخفى بقيّةُ الأعمدة بالسمة `hidden` (لا قواعدَ CSS لكلّ رقم).
-  var narrow = window.matchMedia('(max-width: 640px)');
+  // وضعُ الهاتف: عمودٌ واحدٌ بتبويب ح1–ح7 وإجراءاتُ الصفّ في ورقةٍ سفليّة وشريطُ مفاتيح. **عتبتُه في CSS وحدَها**
+  // (`--cg-narrow` على الجذر داخل استعلام الوسائط الوحيد في 33-modules-4.css) فلا يختلف العرضُ عن السلوك؛ ويُعاد التقييمُ عند تدوير الشاشة.
+  function isNarrow() {
+    return window.getComputedStyle(root).getPropertyValue('--cg-narrow').trim() === '1';
+  }
+
+  // الورقةُ السفليّة: حوارٌ أصليٌّ (`showModal`) يحبس التركيزَ ويغلقه Esc؛ وعلى الحاسوب يُرسم مضمَّناً فلا يُفتح قطّ.
+  function openSheet(student) {
+    var sheet = root.querySelector('dialog[data-acts-sheet="' + student + '"]');
+    if (!sheet || !isNarrow() || typeof sheet.showModal !== 'function' || sheet.open) return;
+    sheet.setAttribute('role', 'dialog');
+    sheet.showModal();
+  }
+  function closeSheets() {
+    root.querySelectorAll('dialog[data-acts-sheet][open]').forEach(function (sheet) { sheet.close(); });
+  }
+  // الحدثُ `close` لا يفور: نلتقطه في طور الالتقاط ليعود الدورُ «مجموعةً» على الحاسوب عند الإغلاق بأيّ طريق (Esc أو زرّ).
+  root.addEventListener('close', function (event) {
+    if (event.target.matches && event.target.matches('dialog[data-acts-sheet]')) event.target.setAttribute('role', 'group');
+  }, true);
+
   var activeCol = '';
   function showTab(col) {
     activeCol = col;
+    var narrow = isNarrow();
     root.querySelectorAll('[data-tab]').forEach(function (tab) {
       var on = tab.getAttribute('data-tab') === col;
       tab.classList.toggle('btn-primary', on);
@@ -343,11 +406,38 @@
       tab.setAttribute('aria-selected', on ? 'true' : 'false');
     });
     var tabs = root.querySelector('[data-tabs]');
-    if (tabs) tabs.hidden = !narrow.matches;
+    if (tabs) tabs.hidden = !narrow;
     root.querySelectorAll('th[data-col], td[data-col]').forEach(function (cell) {
-      cell.hidden = narrow.matches && cell.getAttribute('data-col') !== col;
+      cell.hidden = narrow && cell.getAttribute('data-col') !== col;
+    });
+    if (!narrow) closeSheets();
+    syncKeybar(col);
+  }
+
+  // شريطُ المفاتيح يحمل أزرارَ العمود المعروض: يأخذ حالةَ التعطيل وسببَه من مفاتيح التذييل لذلك العمود (مصدرٌ واحدٌ للقاعدة).
+  function syncKeybar(col) {
+    var bar = root.querySelector('[data-keybar]');
+    if (!bar) return;
+    var label = bar.querySelector('[data-keybar-col]');
+    if (label) label.textContent = col;
+    bar.querySelectorAll('[data-bulk], [data-save-col]').forEach(function (button) {
+      var isSave = button.hasAttribute('data-save-col');
+      var source = root.querySelector(isSave
+        ? 'tfoot [data-save-col="' + col + '"]'
+        : 'tfoot [data-bulk="' + button.getAttribute('data-bulk') + '"][data-col="' + col + '"]');
+      if (isSave) button.setAttribute('data-save-col', col); else button.setAttribute('data-col', col);
+      button.disabled = !source || source.disabled;
+      if (source && source.getAttribute('title')) button.setAttribute('title', source.getAttribute('title'));
+      else button.removeAttribute('title');
     });
   }
-  if (narrow.addEventListener) narrow.addEventListener('change', function () { showTab(activeCol); });
+
+  var resizeTimer = 0;
+  function onResize() {
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(function () { showTab(activeCol); }, 120);
+  }
+  window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', onResize);
   showTab(currentCol());
 })();

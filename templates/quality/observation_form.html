@@ -17,6 +17,12 @@
   <form method="post" class="qobs-form-stack"
         action="{% if mode == 'edit' %}{% url 'observation_edit' obs.id %}{% elif is_peer %}{% url 'observation_peer_create' %}{% elif is_self %}{% url 'observation_self_create' %}{% else %}{% url 'observation_create' %}{% endif %}">
     {% csrf_token %}
+    {% comment %}
+    الإرسالُ للمعلّم بالنقر الصريح على زرّه وحدَه. المتصفّحُ يضغط **أوّلَ زرّ إرسالٍ** عند Enter في حقلٍ نصّيّ، فيُوضع هنا
+    زرُّ «حفظ كمسودة» خفيٌّ بصريّاً (sr-only لا display:none، ومعه tabindex وaria-hidden فلا يدخله التبويب ولا يقرؤه قارئ
+    الشاشة) ليكون هو الافتراضيَّ — W-20260929-004. وبعد الإرسال لا مسوّدةَ: زرُّ «حفظ التعديلات» وحدَه.
+    {% endcomment %}
+    {% if not is_sent_edit %}<button type="submit" name="action" value="draft" class="sr-only" tabindex="-1" aria-hidden="true">حفظ كمسودة</button>{% endif %}
 
     {% section_card "المعلومات الأساسيّة" icon="status_info" %}
       <div class="qobs-fields">
@@ -50,7 +56,10 @@
         {% endif %}
         <label>التاريخ <input type="date" name="observation_date" id="qobs-date" required class="form-control"
           value="{{ default_date|date:'Y-m-d' }}"
-          {% if not is_self %}hx-get="{% url 'observation_teacher_schedule' %}" hx-trigger="change"
+          {% if is_self %}min="{{ min_date|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}" data-window-days="{{ self_window_days }}"
+          hx-get="{% url 'observation_teacher_schedule' %}?self=1" hx-trigger="change"
+          hx-target="#teacher-schedule-row" hx-swap="outerHTML"
+          {% else %}hx-get="{% url 'observation_teacher_schedule' %}" hx-trigger="change"
           hx-target="#teacher-schedule-row" hx-swap="outerHTML" hx-include="#qobs-teacher"{% endif %}></label>
         <label>المادّة
           <select name="subject" id="qobs-subject" class="form-control">
@@ -70,7 +79,12 @@
         </label>
         <label>الحصة <input type="number" inputmode="numeric" name="period" id="qobs-period" min="1" max="8" class="form-control"
           value="{{ obs.period|default_if_none:'' }}"></label>
+        {% if is_self %}
+        <label class="qobs-outside"><input type="checkbox" name="outside_schedule" id="qobs-outside"
+          {% if obs and obs.outside_schedule %}checked{% endif %}> حصّة خارج جدولي</label>
+        {% endif %}
         <label>الموضوع <input type="text" name="topic" class="form-control" value="{{ obs.topic|default:'' }}"></label>
+        {% if not is_self %}
         <label>نوع المتابعة
           <select name="follow_up_mode" class="form-control">
             <option value="">—</option>
@@ -88,8 +102,11 @@
           </select>
         </label>
         <label>ملاحظات البث <input type="text" name="broadcast_note" class="form-control" value="{{ obs.broadcast_note|default:'' }}"></label>
+        {% endif %}
       </div>
-      {% if not is_self %}
+      {% if is_self %}
+      {% include "quality/partials/teacher_schedule_row.html" with periods=schedule_row.periods error=schedule_row.error has_query=schedule_row.has_query self_mode=True %}
+      {% else %}
       {% comment %}
       نافذةٌ عائمة (`modalManager` — نفسُ نظام نوافذ المنصّة في `base.js`،
       لا مكوّنٌ جديد) فيها كلُّ الأقسام معاً بلا طيّ — طلب المالك 2026-09-22:
@@ -196,6 +213,7 @@
       <textarea name="general_notes" rows="3" class="form-control" aria-label="ملاحظات وتوصيات عامّة">{{ obs.general_notes|default:'' }}</textarea>
     {% endsection_card %}
 
+    {% if is_self %}<p class="qobs-progress" id="qobs-progress" aria-live="polite" data-total="{{ total_criteria }}">أنجزتَ <b id="qobs-done">0</b> من {{ total_criteria }}</p>{% endif %}
     <div class="form-actions">
       {% if is_sent_edit %}
         <button type="submit" name="action" value="save" class="btn-primary">حفظ التعديلات</button>
@@ -209,6 +227,40 @@
 
 </div>
 <script nonce="{{ request.csp_nonce }}">
+  // حارسٌ احتياطيٌّ: Enter في حقلٍ مفرد (لا textarea) لا يُرسل شيئاً؛ فالحفظُ والإرسالُ بنقر الزرّ.
+  (function () {
+    var form = document.querySelector('form.qobs-form-stack');
+    if (!form) return;
+    form.addEventListener('keydown', function (event) {
+      var field = event.target;
+      if (event.key === 'Enter' && field.tagName === 'INPUT' && !/^(submit|button|checkbox|radio)$/.test(field.type)) {
+        event.preventDefault();
+      }
+    });
+  })();
+{% if is_self %}
+  // التقييمُ الذاتيّ: عدّادُ الإنجاز، ومنعُ الاعتماد قبل اكتمال المعايير، و«خارج جدولي» تفكّ ارتباط الحقول بالشرائح.
+  (function () {
+    var form = document.querySelector('form.qobs-form-stack');
+    var total = parseInt(document.getElementById('qobs-progress').dataset.total, 10);
+    var out = document.getElementById('qobs-done');
+    function done() {
+      var names = {};
+      form.querySelectorAll('input[type=radio][name^=rating_]:checked').forEach(function (r) { names[r.name] = 1; });
+      return Object.keys(names).length;
+    }
+    function refresh() { out.textContent = done(); }
+    form.addEventListener('change', refresh);
+    refresh();
+    form.addEventListener('submit', function (e) {
+      var btn = e.submitter;
+      if (btn && btn.value === 'submit' && done() < total) {
+        e.preventDefault();
+        window.showToast && window.showToast('أكمل تقييم جميع المعايير قبل الاعتماد.', 'warning');
+      }
+    });
+  })();
+{% endif %}
   // قفلُ عطلة نهاية الأسبوع على حقل التاريخ: الجمعة والسبت بلا استعلامٍ
   // (كـ`is_school_day` في الخادم) — يُرجع القيمةَ السابقة فوراً بدل انتظار
   // ردّ الخادم على يومٍ لا حصصَ فيه أصلاً. أمّا إجازاتُ التقويم فرسالةُ
@@ -230,7 +282,6 @@
     });
   })();
 </script>
-{% if not is_self %}
 <script nonce="{{ request.csp_nonce }}">
   // SOS-20260915: نقرةُ حصّةٍ في صفّ جدول المعلّم تملأ المادّة والشعبة
   // ورقم الحصّة — بدل إدخالها يدويّاً عن ظهر قلب. تفويضٌ من `document`
@@ -248,6 +299,7 @@
     });
   });
 </script>
+{% if not is_self %}
 <script nonce="{{ request.csp_nonce }}">
   // نافذةُ اختيار المعلّم العائمة (2026-09-22): `modalManager` (base.js)
   // يفتحها ويغلقها ويحصر التركيز فيها — نظامُ النوافذ نفسُه في المنصّة، لا

@@ -47,6 +47,7 @@
     <span class="beh-level-pick__box">
      {% if val == 3 %}{% icon "status_critical" %}{% elif val == 4 %}{% icon "status_blocked" %}{% else %}{% icon "status_warning" %}{% endif %}
      <span>{{ val }}</span>
+     <span class="beh-level-pick__name">{{ label }}</span>
     </span>
    </label>
    {% endfor %}
@@ -68,7 +69,11 @@
  </div>
 
  <div class="form-actions">
+  {% if standalone %}
+  <a href="{% url 'behavior:dashboard' %}" class="btn-secondary">إلغاء</a>
+  {% else %}
   <button type="button" class="btn-secondary" data-modal-close="quick-log">إلغاء</button>
+  {% endif %}
   <button type="submit" class="btn-primary">
    <span class="htmx-indicator">{% icon "loading" %}</span>
    تسجيل المخالفة

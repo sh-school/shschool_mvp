@@ -561,6 +561,26 @@ def _quality_gate_kpis(by_key: dict) -> list[dict]:
     ]
 
 
+def _lab_group_columns(groups: list[dict]) -> list[list[dict]]:
+    """يقسم أقسامَ المؤشرات إلى عمودَين مكدّسَين متتابعَين (الأوّلُ يحمل الرأس).
+
+    قسمٌ بصفٍّ كاملٍ لكلّ قسم كان يترك عن جانبه فراغاً بقدر ما تنقص بطاقاتُه، فطالت الصفحةُ
+    وتبعثرت حوافُّها. هنا يُختار موضعُ القطع الذي يقلّل ارتفاعَ العمود الأطول (وزنُ القسم:
+    عددُ بطاقاته مع رأسه)، والترتيبُ المتتابعُ يحفظ ترتيبَ القراءة على الجوّال (عمودٌ واحد).
+    وعددُ الأقسام وأحجامُها من بنية المؤشرات لا من البيانات، فالمواقعُ ثابتةٌ كما تقرّر للّوحات.
+    """
+    if len(groups) < 2:
+        return [groups] if groups else []
+    weights = [len(g["rows"]) + 1 for g in groups]
+    cut = min(range(1, len(groups)), key=lambda i: max(sum(weights[:i]), sum(weights[i:])))
+    return [groups[:cut], groups[cut:]]
+
+
+def _score_label(score) -> str:
+    """تسميةُ درجة القسم: «درجة 87»، أو «درجة —» حين لا درجة له."""
+    return f"درجة {score}" if score is not None else "درجة —"
+
+
 @login_required
 @capability_required("schedule.admin")
 def schedule_quality_lab(request):
@@ -641,8 +661,7 @@ def schedule_quality_lab(request):
     }
     shown_groups = [g for g in groups if g["code"] != "validity"]
     for g in shown_groups:
-        score = scores.get(g["code"])
-        g["score_label"] = f"درجة {score}" if score is not None else "درجة —"
+        g["score_label"] = _score_label(scores.get(g["code"]))
     return render(
         request,
         "schedule/quality_lab.html",
@@ -659,6 +678,7 @@ def schedule_quality_lab(request):
             "generations": generations,
             "baseline": baseline,
             "groups": shown_groups,
+            "group_cols": _lab_group_columns(shown_groups),
             "gate": by_key,
             "by_key": by_key,
             "scores": scores,
@@ -972,6 +992,8 @@ def _mark_teacher_loads(data: dict) -> None:
 @capability_required("schedule.preferences")
 def teacher_preferences(request):
     """صفحة تفضيلات المعلم للجدولة الذكية"""
+    from operations import preference_capacity as pc
+
     school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     pref, _created = TeacherPreference.objects.get_or_create(
@@ -982,24 +1004,17 @@ def teacher_preferences(request):
 
     if request.method == "POST":
         # القيمُ من قائمةٍ مغلقة، و`int()` على نصٍّ حرٍّ يُسقط الصفحةَ بـ500
-        # ويقبل ما لا معنى له. فما خرج عن المدى يعود إلى الافتراضيّ.
-        pref.max_daily_periods = _one_of(request.POST.get("max_daily_periods"), range(1, 8), 5)
-        #: و«حصّةٌ واحدة» سقفٌ مشروع: أي لا حصّتين متجاورتين البتّة — وهو
-        #: قيدٌ قائمٌ لمعلّمٍ في المدرسة، والمحرّكُ يقرؤه ولا يرفعه في الاسترخاء.
-        pref.max_consecutive = _one_of(request.POST.get("max_consecutive"), range(1, 8), None)
-        #: سقفُ الفراغ اختياريّ: الفراغُ لعامّة الكادر ترجيحٌ مرن، ومن اختار
-        #: سقفاً صار في حقّه قيداً صلباً. فالفراغُ نصّاً لا يُقرأ افتراضيّاً
-        #: بل يُقرأ عدماً — و«0» قيمةٌ صحيحةٌ تعني «لا فراغَ البتّة».
-        max_gap = request.POST.get("max_gap", "")
-        pref.max_gap = _one_of(max_gap, range(0, 6), None) if max_gap != "" else None
-        #: يومُ التفريغ قرارٌ إداريّ (W-20261010-025): يُقرأ من الصفّ المحفوظ ولا يُقرأ من الطلب.
+        # ويقبل ما لا معنى له. فما خرج عن المدى يعود إلى الافتراضيّ — والمدى من 4 (D-418م).
+        pref.max_daily_periods = _one_of(
+            request.POST.get("max_daily_periods"), pc.TEACHER_DAILY_CAPS, 5
+        )
+        #: التتالي والفراغ أُخفيا عن المعلّم (D-418م) ويومُ التفريغ قرارٌ إداريّ (W-20261010-025):
+        #: تُقرأ من الصفّ المحفوظ ولا تُقرأ من الطلب، فيبقى ما وضعه الأدمن ويدخل حسابَ السعة أدناه.
         pref.notes = request.POST.get("notes", "")
 
         # قيودٌ لا تسع النصاب تُردّ بحسابها لا تُحفظ: «متتالية 1» مع «فراغ 0»
         # حصّةٌ واحدةٌ في اليوم — ومن حفظها ونصابُه اثنتا عشرةَ رأى سبعاً بلا
         # موضعٍ في التوليد ولم يعرف لماذا.
-        from operations import preference_capacity as pc
-
         load = sum(
             SubjectClassAssignment.objects.filter(
                 school=school, academic_year=year, teacher=request.user, is_active=True
@@ -1028,7 +1043,7 @@ def teacher_preferences(request):
             )
             pref.refresh_from_db()
         else:
-            pc.save_teacher_preferences(request, pref)
+            pc.save_teacher_preferences(pref)
             messages.success(request, "تم حفظ تفضيلاتك للجدولة الذكية")
             # العامُ يبقى في الرابط: الرجوعُ بلا عامٍ يفتح تفضيلاتِ عامٍ آخر.
             return safe_redirect(request, "teacher_preferences", {"year": year})
@@ -1050,10 +1065,8 @@ def teacher_preferences(request):
         {
             "pref": pref,
             "days": ScheduleSlot.DAYS,
-            #: المدى كاملاً — وكان القالبُ يعرض «3456» فيحجب الخيارين 1 و2
-            #: عن اثنَي عشرَ منسّقاً أنصبتُهم ثلاثٌ إلى ثمانٍ عمداً، وهم
-            #: أحوجُ الناس إلى تجميع حصصهم في يومٍ أو يومين.
-            "periods": ScheduleSlot.PERIODS,
+            #: من 4 إلى 7 (D-418م): ما دونها يجعل التوليدَ مستحيلاً في قياس 0424.
+            "daily_caps": pc.TEACHER_DAILY_CAPS,
             "load": load,
             "min_daily": needed,
             "year": year,

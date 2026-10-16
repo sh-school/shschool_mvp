@@ -21,6 +21,7 @@ from .models import (
     ScheduleBaseline,
     ScheduleConstraintOverride,
     ScheduleGeneration,
+    ScheduleRelaxationPolicy,
     ScheduleSlot,
     SchedulingResource,
     SectionDayConfirmation,
@@ -253,7 +254,17 @@ class AbsenceExcuseAdmin(SensitiveFieldsMixin, ReadOnlyAdminMixin, SchoolScopedA
     list_filter = ("status", "kind", "after_deadline", "school")
     search_fields = ("student__full_name", "student__national_id")
     date_hierarchy = "date_from"
-    sensitive_fields = ("kind", "notes", "document", "override_reason", "rejection_reason")
+    sensitive_fields = (
+        "kind",
+        "notes",
+        "document",
+        "override_reason",
+        "rejection_reason",
+        "applicant_name",
+        "applicant_relation",
+        "applicant_phone",
+        "pledge_accepted",
+    )
 
 
 @admin.register(GuardianContact)
@@ -574,6 +585,55 @@ class TeacherPreferenceAdmin(admin.ModelAdmin):
             )
 
 
+@admin.register(ScheduleRelaxationPolicy)
+class ScheduleRelaxationPolicyAdmin(admin.ModelAdmin):
+    """تخفيفاتُ التوليد المدرسيّة (D-382م): يقرؤها زرُّ التوليد وأمرُ الإدارة والمُقيِّمُ وفحصُ الجدوى معاً.
+
+    كل تعديلٍ يُثبَّت قبل/بعد في `AuditLog` بلا أسماء معلّمين — فقرارٌ يغيّر ما يُسمح به في الجدول لا يمرّ صامتاً.
+    """
+
+    list_display = ("school", "relax_touch_for_all", "touch_run_cap", "no_6_7", "triples_by_number")
+    readonly_fields = ("updated_by", "updated_at")
+    FIELDS = ("relax_touch_for_all", "touch_run_cap", "no_6_7", "triples_by_number", "decision_ref")
+
+    def _snapshot(self, obj) -> dict:
+        return {name: getattr(obj, name) for name in self.FIELDS}
+
+    def _audit(self, request, obj, action: str, before, after) -> None:
+        from core.models import AuditLog
+
+        AuditLog.objects.create(
+            school=obj.school,
+            user=request.user,
+            action=action,
+            model_name="other",
+            object_id=str(obj.pk),
+            object_repr="تخفيفات توليد الجدول",
+            changes={
+                "event": "schedule_relaxation_policy_changed",
+                "before": before,
+                "after": after,
+            },
+        )
+
+    def save_model(self, request, obj, form, change):
+        before = self._snapshot(type(obj).objects.get(pk=obj.pk)) if change and obj.pk else None
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+        after = self._snapshot(obj)
+        if before != after:
+            self._audit(request, obj, "update" if change else "create", before, after)
+
+    def delete_model(self, request, obj):
+        self._audit(request, obj, "delete", self._snapshot(obj), None)
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            self._audit(request, obj, "delete", self._snapshot(obj), None)
+        super().delete_queryset(request, queryset)
+
+
 @admin.register(ScheduleGeneration)
 class ScheduleGenerationAdmin(admin.ModelAdmin):
     list_display = (
@@ -710,3 +770,7 @@ class PermissionAuditLogAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
     list_display = ("temp_permission", "action", "performed_by", "performed_at")
     list_select_related = ("temp_permission__teacher", "performed_by")
     list_filter = ("action",)
+
+
+# سجلّا «متابعة الغياب» (W-20261013-011) في وحدتهما، يُسجَّلان عند استيراد هذه الوحدة.
+from . import admin_absence_followup  # noqa: E402,F401
