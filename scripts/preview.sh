@@ -79,6 +79,8 @@ PIN_MAX="${PREVIEW_PIN_MAX_MINUTES:-30}"          # حدٌّ أقصى للتثب
 PIN_MINUTES="${PREVIEW_PIN_MINUTES:-30}"
 PIN_OVERDUE_ALERT="${PREVIEW_PIN_OVERDUE_ALERT_SECONDS:-900}"   # تثبيتٌ منتهٍ لم يُفكّ بعد هذه المدّة يُنبَّه به 0101
 INTERVAL="${PREVIEW_INTERVAL_SECONDS:-60}"
+PIN_START_ALERT="${PREVIEW_PIN_START_ALERT_SECONDS:-600}"   # إقلاعُ تثبيتٍ (أو طلبٌ ينتظر) أطولُ من هذا يُنبَّه به
+WATCH_HB_ALERT="${PREVIEW_WATCH_HB_ALERT_SECONDS:-900}"       # لا نبضَ لـwatch منذ هذه المدّة يُنبَّه به
 PROD_URL="${PRODUCTION_URL:-https://shschoolmvp-production.up.railway.app}"
 COMPOSE_FILE="$SELF_ROOT/docker-compose.preview.yml"
 DRY="${PREVIEW_DRY_RUN:-0}"                       # 1: يطبع ما سيفعله ولا يُغيّر شيئاً
@@ -852,6 +854,85 @@ release_locked() {
   apply_main "$TARGET"
 }
 
+# ── طلبُ التثبيت وتنفيذُه (متابعة W-20261016-011) ─────────────────────────────
+# `pin` لا يبني في عملية الطالب (تقتلها مهلةُ أداته فتبقى الخانةُ نصفَ مبنيّة): يكتب `pin_request`
+# «شجرة<TAB>دقائق<TAB>force<TAB>وقتُ الطلب<TAB>أعيدت» ويرجع، وتنفّذه دورةُ watch (cmd_sync) بـdeploy_pin نفسِه.
+# `pin_in_progress` «pid<TAB>بدء<TAB>شجرة<TAB>دقائق<TAB>force<TAB>أعيدت» يُكتب أثناء الإقلاع؛ وإن مات صاحبُه
+# يُزال مشروعُ الخانة الفارغة وحدَها (القائمةُ تخدم) وتُعاد المحاولةُ مرّةً واحدة.
+pin_request_write() {   # pin_request_write <شجرة> <دقائق> <force> [أعيدت]
+  sset pin_request "$1"$'\t'"$2"$'\t'"$3"$'\t'"$(now)"$'\t'"${4:-0}"
+}
+
+recover_pin_in_progress() {
+  local rec pid ts tree mins force retried slot empty
+  rec="$(sget pin_in_progress)"
+  [ -n "$rec" ] || return 0
+  IFS=$'\t' read -r pid ts tree mins force retried <<<"$rec"
+  if [ "$pid" != "$$" ] && kill -0 "$pid" 2>/dev/null; then return 0; fi
+  sdel pin_in_progress
+  slot="$(sget slot)"
+  if [ "$slot" = a ]; then empty=b; else empty=a; fi
+  warn "إقلاعُ تثبيت $(basename "$tree") مات صاحبُه — أُزيل مشروعُ الخانة الفارغة $empty وحدَها"
+  run docker compose -p "${PROJECT}-${empty}" down --remove-orphans >/dev/null 2>&1 || true
+  if [ "${retried:-0}" = 0 ] && [ -f "$tree/manage.py" ]; then
+    pin_request_write "$tree" "$mins" "${force:-0}" 1
+  else
+    sset last_error "$(now) إقلاعُ تثبيت $(basename "$tree") مات مرّتين — لم يُعَد"
+  fi
+}
+
+run_pin_request() {   # القفلُ مأخوذٌ عند المستدعي
+  local req tree mins force rts retried until_ts left
+  recover_pin_in_progress
+  req="$(sget pin_request)"
+  [ -n "$req" ] || return 0
+  IFS=$'\t' read -r tree mins force rts retried <<<"$req"
+  sdel pin_request
+  if [ ! -f "$tree/manage.py" ]; then
+    sset last_error "$(now) طلبُ تثبيت: لا شجرةَ بهذا المسار ($(basename "$tree"))"
+    return 0
+  fi
+  if [ "${force:-0}" != 1 ] && [ "$(sget mode)" = "pin" ] && [ "$(sget pin_tree)" != "$tree" ]; then
+    until_ts="$(sget pin_until)"; left=$(( ${until_ts:-0} - $(now) ))
+    if [ "$left" -gt 0 ]; then
+      queue_add "$tree" "$mins" >/dev/null
+      say "▸ مثبَّتةٌ على $(basename "$(sget pin_tree)") — دخل $(basename "$tree") طابورَ الانتظار"
+      return 0
+    fi
+  fi
+  sset pin_in_progress "$$"$'\t'"$(now)"$'\t'"$tree"$'\t'"$mins"$'\t'"${force:-0}"$'\t'"${retried:-0}"
+  deploy_pin "$tree" "$mins" || warn "تعذّر تثبيتُ $(basename "$tree")"
+  sdel pin_in_progress
+}
+
+# تنبيهاتُ status: إقلاعٌ/طلبٌ أطولُ من PIN_START_ALERT، ولا نبضَ لـwatch منذ WATCH_HB_ALERT. قراءةٌ فقط.
+pin_start_status() {
+  local rec pid ts tree req rts
+  rec="$(sget pin_in_progress)"
+  if [ -n "$rec" ]; then
+    IFS=$'\t' read -r pid ts tree _ <<<"$rec"
+    say "تثبيت:        قيدَ الإقلاع — $(basename "$tree") منذ $(( ($(now) - ts) / 60 )) دقيقة"
+    if [ $(( $(now) - ts )) -ge "$PIN_START_ALERT" ]; then
+      warn "تنبيه لـ0101: إقلاعُ تثبيت $(basename "$tree") طال أكثر من $(( PIN_START_ALERT / 60 )) دقائق — تفقّد القفلَ والحاويات"
+    fi
+  fi
+  req="$(sget pin_request)"
+  if [ -n "$req" ]; then
+    IFS=$'\t' read -r tree _ _ rts _ <<<"$req"
+    say "تثبيت:        طلبٌ ينتظر watch — $(basename "$tree") منذ $(( ($(now) - rts) / 60 )) دقيقة"
+    if [ $(( $(now) - rts )) -ge "$PIN_START_ALERT" ]; then
+      warn "تنبيه لـ0101: طلبُ تثبيت $(basename "$tree") لم يُنفَّذ منذ أكثر من $(( PIN_START_ALERT / 60 )) دقائق — هل watch يعمل؟"
+    fi
+  fi
+  local hb; hb="$(sget watch_hb)"
+  case "$hb" in
+    '' | *[!0-9]*) warn "تنبيه لـ0101: لم يُسجَّل نبضٌ لـwatch بعد — هل watch يعمل؟ (لا يُنفَّذ تثبيتٌ ولا تحديثٌ بدونه)" ;;
+    *) if [ $(( $(now) - hb )) -ge "$WATCH_HB_ALERT" ]; then
+         warn "تنبيه لـ0101: لا نبضَ لـwatch منذ $(( ($(now) - hb) / 60 )) دقيقة — الحلقةُ متوقّفة؟"
+       fi ;;
+  esac
+}
+
 # ── الأوامر ─────────────────────────────────────────────────────
 cmd_up() {
   local lan=0; [ "${1:-}" = "--lan" ] && lan=1
@@ -868,8 +949,10 @@ cmd_up() {
 cmd_sync() {
   local force=0; [ "${1:-}" = "--now" ] && force=1
   [ -e "$PREVIEW_DIR/.git" ] || die "لا شجرةَ معاينةٍ بعدُ — شغّل: bash scripts/preview.sh up"
+  sset watch_hb "$(now)"
   pin_overdue_check
   acquire_lock || { idle "عمليّةٌ أخرى تعمل الآن — أتخطّى هذه الدورة"; return 0; }
+  run_pin_request
 
   if [ "$(sget mode)" = "pin" ]; then
     local until_ts left; until_ts="$(sget pin_until)"; left=$(( ${until_ts:-0} - $(now) ))
@@ -962,7 +1045,18 @@ cmd_pin() {
       return 0
     fi
   fi
-  deploy_pin "$tree" "$mins"
+  local pending ptree
+  pending="$(sget pin_request)"
+  if [ -n "$pending" ]; then
+    IFS=$'\t' read -r ptree _ <<<"$pending"
+    if [ "$ptree" != "$tree" ]; then
+      local pos; pos="$(queue_add "$tree" "$mins")"
+      say "▸ طلبُ تثبيتٍ آخر ($(basename "$ptree")) ينتظر التنفيذ — سُجّلت $(basename "$tree") في الطابور بالترتيب $pos"
+      return 0
+    fi
+  fi
+  pin_request_write "$tree" "$mins" "$force"
+  say "✔ سُجّل طلبُ تثبيت $(basename "$tree") ($mins دقيقة) — تنفّذه دورةُ watch خلال نحو ${INTERVAL} ثانية؛ تابعه بـ: preview.sh status"
 }
 
 cmd_release() {
@@ -1037,6 +1131,7 @@ cmd_status() {
   if [ -n "$(sget pin_overdue)" ]; then
     warn "تنبيه لـ0101: تثبيتٌ منتهٍ لم يُفكّ ($(sget pin_overdue | awk '{print $2 " — منذ " $3 " دقيقة"}')) — الفكُّ تلقائيّ بدورة watch؛ إن بقي فتفقّد القفلَ والحاويات"
   fi
+  pin_start_status
   local queued t m qts qn=0
   queued="$(sget pin_queue)"
   if [ -n "$queued" ]; then
