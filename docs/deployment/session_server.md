@@ -73,3 +73,7 @@ docker compose -p schoolos-$(basename $PWD) --project-directory . -f D:/shschool
 واسمُ قاعدةِ الاختبار يُشتقّ من قاعدةِ جلستك تلقائيّاً (`test_ss_<slug>`)، فلا
 تصطدم جلستان. ولو رأيتَ عشراتِ `ERROR` في **الإعداد** دفعةً واحدة فاقرأ
 الرسالةَ قبل أن تتّهم تعديلك: غالبُها تصادمٌ لا عطب.
+
+## فحصٌ موحَّدٌ قبل «جاهزٌ للمعاينة» — `make premerge` (W-20261016-020)
+
+يجمع prepush وaffected واختباراتٍ تذكر الملفَّ المعدَّل ومحاكاةَ دمج origin/main وتداخلَ الطلبات المفتوحة، ويطبع «غير مقيس» لما لا يستطيع تشغيله. الأفضلُ داخل حاوية الجلسة (فيها المتطلّبات): `docker compose -p schoolos-$(basename $PWD) --project-directory . -f D:/shschool_mvp/docker-compose.session.yml exec -T web python scripts/premerge.py`. وضعُ الظلّ أسبوعاً: يطبع ويسجّل في `.git/premerge_shadow.jsonl` ولا يحجب؛ والإلزامُ بـ`--enforce` بعد مقارنته بفشل CI الفعليّ. المقيس على ويندوز بلا حاوية: نحو دقيقتين، وفشلُ `test_ci_gates_are_honest` فيه بيئيٌّ (أمر bash).
