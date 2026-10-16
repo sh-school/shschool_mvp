@@ -138,7 +138,7 @@ def render_markdown(report: dict) -> str:
     lines += [
         "",
         f"القوالب المعنيّة بتنسيق `style=`: {report['inline_templates']}.",
-        "ما تعدّه سقّاطةُ الهويّة فعلاً (بلا سياقات الطباعة/الحركة المسموحة ولا `style=\"--x:…\"`): "
+        "ما تعدّه سقّاطةُ الهويّة فعلاً (بلا سياقات الطباعة/الحركة المسموحة ولا التنسيق الحامل لمتغيّرٍ مخصَّص فقط): "
         f"`!important` {report['effective'].get('important', UNMEASURED)}، `style=` {report['effective'].get('inline_style', UNMEASURED)}.",
         f"تفصيل الألوان الحرفيّة: القوالب {report['hex_detail']['templates']}، قواعد CSS {report['hex_detail']['css_rules']}.",
         "",
