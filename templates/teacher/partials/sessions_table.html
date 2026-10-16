@@ -21,7 +21,7 @@
     يعرف أنّها ليست حصّتَه المعتادة قبل أن يدخلها — واللونُ يقول ذلك من
     بعيد، والسطرُ تحت المادّة يقول لمن كانت.
     {% endcomment %}
-    <tr class="{% if session.original_teacher_id %}is-swapped{% elif next_session and session.id == next_session.id %}is-next{% endif %}"
+    <tr class="grade-tint grade-{{ session.class_group.grade|lower }} {% if session.original_teacher_id %}is-swapped{% elif next_session and session.id == next_session.id %}is-next{% endif %}"
         data-filter-row data-text="{{ session.subject.name_ar|default:'' }} {{ session.teacher.full_name|default:'' }} {{ session.class_group.short_label }}">
       <td>
         <div class="sessions-table__subject">{{ session.subject.name_ar|default:"—" }}{% if session.provisional %} <span class="status-badge status-info">حصّة مؤقّتة</span>{% endif %}</div>

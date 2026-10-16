@@ -118,7 +118,7 @@
         </thead>
         <tbody>
           {% for rec in late_records %}
-          <tr>
+          <tr class="grade-tint grade-{{ rec.session.class_group.grade|lower }}">
             <td><a href="{% url 'student_affairs:student_profile' rec.student.id %}" class="sa-link">{{ rec.student.full_name }}</a></td>
             <td data-sort-value="{{ rec.session.class_group.school_order }}">{{ rec.class_text }}</td>
             <td class="num"><span class="status-badge {{ rec.cumulative_badge }}">{{ rec.cumulative_late }}</span></td>

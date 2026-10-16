@@ -54,7 +54,7 @@
         </thead>
         <tbody>
           {% for a in assignments %}
-          <tr>
+          <tr class="grade-tint grade-{{ a.slot.class_group.grade|lower }}">
             <td>{{ a.absence.date }}</td>
             <td>{{ a.absence.teacher.full_name }}</td>
             <td>{{ a.slot.subject|default:"—" }}</td>

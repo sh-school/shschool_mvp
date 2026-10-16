@@ -17,7 +17,7 @@
         <thead><tr><th>الوقت</th><th data-sort="num" data-sort-first="asc">الشعبة</th><th>المادة</th><th>الحالة</th></tr></thead>
         <tbody>
           {% for s in sessions_today %}
-            <tr>
+            <tr class="grade-tint grade-{{ s.class_group.grade|lower }}">
               <td class="num">{{ s.start_time|time:"H:i" }}–{{ s.end_time|time:"H:i" }}</td>
               <td data-sort-value="{{ s.class_group.school_order }}">{{ s.class_group.short_label }}</td>
               <td>{{ s.subject|default:"جلسة" }}</td>
