@@ -42,8 +42,8 @@
   {% load static %}
 
   {# ── Favicon & PWA ── #}
-  <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/v3/favicon.png' %}">
-  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/v3/apple-touch-icon.png' %}">
+  <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/v4/favicon.png' %}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/v4/apple-touch-icon.png' %}">
   {% if user.is_authenticated %}
   <link rel="manifest" href="{% url 'global_manifest' %}">
   {% comment %}
@@ -1165,7 +1165,18 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
 
 
 {# ════════════════ BREADCRUMBS ══════════════════════════════════════════ #}
+<div class="page-top">
 <div id="crumbs" class="page-crumbs">{% block breadcrumbs %}{% endblock %}</div>
+{% comment %}
+  عمرُ بيانات الصفحة (W-20261012-014، D-410م): وقتُ الخادم يُرسم من الخادم لا من JS فلا قفزةَ في التخطيط، و`data-now` ساعةُ الخادم
+  بالثواني لحساب الإزاحة عن ساعة الجهاز. السلوكُ في `page-fresh.js`؛ ويُخفى المؤشّرُ على صفحاتٍ لا تُحدَّث (الإدارة ولوحة القيادة وحالة التصدير).
+{% endcomment %}
+<div class="page-fresh" data-page-fresh data-now="{% now 'U' %}"{% if "/command-center/" in request.path or "/exports/" in request.path %} hidden{% endif %}>
+  <span>آخر تحديث <time data-fresh-time data-visual-mask>{% now "H:i" %}</time></span>
+  <button type="button" class="btn-ghost btn-xs" data-fresh-refresh aria-label="تحديث بيانات الصفحة">تحديث</button>
+  <form data-fresh-gate hidden></form>
+</div>
+</div>
 
 {# ════════════════ MAIN CONTENT ═════════════════════════════════════════ #}
 <main id="main-content" class="py-6 flex-1 w-full {% block main_class %}{% endblock %}">
@@ -1274,6 +1285,7 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
 <script src="{% static 'js/export-center.js' %}" defer></script>
 {% comment %}التنقّلُ بين الصفحات بتبديل المحتوى وحدَه: الترويسةُ والقائمةُ والفوتر ثابتةٌ لا تُعاد، والمحتوى يتلاشى ثمّ يظهر بسلاسةٍ (قرارُ المالك 2026-09-20). صفحةٌ لها سكربتُها أو أنماطُها الخاصّة تُحمَّل كاملةً كما كانت.{% endcomment %}
 <script src="{% static 'js/page-nav.js' %}" defer></script>
+<script src="{% static 'js/page-fresh.js' %}" defer></script>
 {# حارسُ الجلسة: نبضٌ وتحذيرٌ ونافذةُ إعادة دخولٍ تحفظ ما أُدخل (W-20261005-003). يُحمَّل لكلّ صفحة: داخل إطار إعادة الدخول يكتفي بإخفاء الإطار المحيط. #}
 <script src="{% static 'js/session-guard.js' %}" defer></script>
 {% if rum_endpoint %}{# قياسُ الأداء الميدانيّ (Q-04): لا يُحمَّل ما دام RUM_ENDPOINT فارغاً #}

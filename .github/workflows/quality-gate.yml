@@ -105,11 +105,15 @@ jobs:
           pip install pytest pytest-django pytest-cov pytest-asyncio factory-boy \
             pytest-xdist==3.8.0
 
-      # فحوصٌ لا تتغيّر بتغيّر الـshard: مرّةً واحدةً (shard 1) لا خمساً.
-      - name: تطبيق Migrations
-        if: steps.diff.outputs.docs_only != 'true' && matrix.shard == 1
-        run: python manage.py migrate --noinput
+      # هجرةٌ واحدةٌ في كلّ shard ثمّ نسخٌ لقاعدة كلّ عامل (W-20261016-029): كان كلُّ عاملِ xdist يبني قاعدتَه بالهجرات
+      # (~190–400 ث، أربعةٌ معاً على الأنوية نفسِها) فتستهلك نحو 6 دقائق من كلّ shard؛ والآن ~150 ث مرّةً ونسخٌ بثوانٍ.
+      - name: تطبيق Migrations وتجهيز قواعد العمّال من قالبها
+        if: steps.diff.outputs.docs_only != 'true'
+        run: |
+          python manage.py migrate --noinput
+          python scripts/ci_clone_test_dbs.py "$(nproc)"
 
+      # فحوصٌ لا تتغيّر بتغيّر الـshard: مرّةً واحدةً (shard 1) لا خمساً.
       # كانتا في ci.yml وحده، وهو الملفُّ الذي أُزيل لأنّ بقيّته تكرارٌ لهذه البوّابة.
       - name: التحقق من عدم وجود migrations غير مطبّقة
         if: steps.diff.outputs.docs_only != 'true' && matrix.shard == 1
@@ -131,7 +135,7 @@ jobs:
         # `-n auto`: المجموعةُ نفسُها تمرّ في CI على الأنوية لا تسلسلاً. و`-p tests.ci_sharding` يقسمها بحسب
         # CI_SHARD_INDEX/COUNT. و`--cov-report=` بلا تقرير و`--cov-fail-under=0`: هذا shard لا يرى إلّا جزءاً.
         run: |
-          python -m pytest -p tests.ci_sharding -n auto --junit-xml=test-results-${{ matrix.shard }}.xml \
+          python -m pytest -p tests.ci_sharding -n auto --reuse-db --junit-xml=test-results-${{ matrix.shard }}.xml \
             --cov=. --cov-report= --cov-fail-under=0
 
       - name: رفع بيانات الـshard
