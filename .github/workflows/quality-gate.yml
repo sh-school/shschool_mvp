@@ -41,6 +41,7 @@ jobs:
     name: pytest shard ${{ matrix.shard }}/${{ strategy.job-total }}
     if: github.event_name != 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -245,6 +246,7 @@ jobs:
   ruff:
     name: Ruff — lint + format
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
 
@@ -273,6 +275,7 @@ jobs:
   mypy:
     name: mypy — سقّاطة الأنواع
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # push إلى main: يُفحص على الطلب وطابور الدمج قبل الدمج (يُعفى skipped وحدَه في scripts/ci_needs_gate.py)
     if: github.event_name != 'push'
     steps:
@@ -382,6 +385,7 @@ jobs:
   complexity:
     name: Radon — تعقيد CC ≤ 30
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
 
@@ -434,6 +438,7 @@ jobs:
   secrets-scan:
     name: detect-secrets — كشف الأسرار
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read # حارسُ الترقيم يقرأ ملفّاتِ الطلبات المفتوحة (`gh pr list`) — قراءةٌ فقط
@@ -754,6 +759,7 @@ jobs:
   gate-summary:
     name: ملخص بوابة الجودة
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       actions: read  # لقراءة خطوات وظائف التشغيل (تمييز فشل البنية)
