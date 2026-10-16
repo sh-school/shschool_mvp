@@ -36,5 +36,5 @@ class ElectiveGroupMembership(models.Model):
         ]
         indexes = [models.Index(fields=["group_label"], name="idx_elective_label")]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.enrollment.student.full_name} ∈ {self.group_label}"
