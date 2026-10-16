@@ -327,3 +327,57 @@ def test_the_axe_job_keeps_its_id_so_the_summary_gate_and_its_push_exemption_are
     assert not legs["axe"]["webkit"] and not legs["web-vitals"]["webkit"]
     webkit_steps = [s for s in _WF["axe-a11y"]["steps"] if "webkit" in str(s.get("run", ""))]
     assert all(s.get("if") == "matrix.webkit" for s in webkit_steps)
+
+
+# ── قالبُ قاعدة العمّال بدل بنائها في كلّ عاملٍ (W-20261016-029) ────────────────────────────────
+
+_cspec = importlib.util.spec_from_file_location(
+    "ci_clone_test_dbs", _ROOT / "scripts" / "ci_clone_test_dbs.py"
+)
+clone_mod = importlib.util.module_from_spec(_cspec)
+_cspec.loader.exec_module(clone_mod)
+
+
+def test_worker_database_names_match_what_pytest_django_derives():
+    assert clone_mod.worker_names("test_db", 3) == ["test_db_gw0", "test_db_gw1", "test_db_gw2"]
+
+
+def test_clone_recreates_each_worker_database_from_the_migrated_template():
+    executed = []
+
+    class _Cursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def execute(self, query):
+            executed.append(query)
+
+    class _Conn:
+        autocommit = False
+
+        def cursor(self):
+            return _Cursor()
+
+        def close(self):
+            pass
+
+    made = clone_mod.clone("test_db", 2, _Conn)
+    assert made == ["test_db_gw0", "test_db_gw1"]
+    assert len(executed) == 4  # لكلّ عاملٍ: إسقاطُ القديمة ثمّ إنشاؤها من القالب
+
+
+def test_every_non_docs_shard_migrates_once_clones_worker_dbs_and_pytest_reuses_them():
+    """هجرةٌ واحدة ← نسخُ قواعد العمّال ← pytest بـ`--reuse-db`؛ وبلا أحدها يعود بناءُ القاعدة في كلّ عاملٍ (~6 د لكلّ shard)."""
+    steps = _WF["pytest-shards"]["steps"]
+    names = [s.get("run") or "" for s in steps]
+    migrate = next(i for i, r in enumerate(names) if "manage.py migrate" in r)
+    assert "scripts/ci_clone_test_dbs.py" in names[migrate]
+    assert (
+        steps[migrate]["if"] == "steps.diff.outputs.docs_only != 'true'"
+    )  # كلُّ shard لا الأوّلُ وحدَه
+    run = next(i for i, r in enumerate(names) if "-p tests.ci_sharding" in r)
+    assert migrate < run
+    assert "--reuse-db" in names[run]
