@@ -249,3 +249,14 @@ def test_status_alerts_when_no_heartbeat_was_ever_recorded(box, clean):
 def test_status_is_quiet_with_a_fresh_heartbeat_and_nothing_pending(box, clean):
     r = _status(box, watch_hb=str(int(time.time()) - 60))
     assert r.stderr.strip() == "" and "تثبيت:" not in r.stdout
+
+
+def test_without_watch_a_pending_request_is_visible_and_both_alerts_fire(box, clean):
+    """watch ميّت: الطلبُ لا يُنفَّذ، و`status` يقول إنّه ينتظر ويُنبّه على غياب النبض والتأخّر معاً."""
+    now = int(time.time())
+    r = _status(box, pin_request=_req(tree="/x/w3", ts=now - 20 * 60), watch_hb=str(now - 40 * 60))
+    assert "طلبٌ ينتظر watch" in r.stdout and "w3" in r.stdout
+    assert "هل watch يعمل" in r.stderr and "لا نبضَ لـwatch منذ 40 دقيقة" in r.stderr
+    assert (
+        _read(box, "deploys") is None and _read(box, "pin_request") is not None
+    )  # لم يُنفَّذ ولم يُمسح
