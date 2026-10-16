@@ -135,14 +135,15 @@ acquire_lock() {
   mkdir -p "$(state_dir)"
   if ! mkdir "$lock" 2>/dev/null; then
     if lock_holder_dead "$lock"; then
-      rm -rf "$lock" 2>/dev/null || true
+      rm -f "$lock/pid" 2>/dev/null || true
+      rmdir "$lock" 2>/dev/null || true
       mkdir "$lock" 2>/dev/null || return 1
     else
       return 1
     fi
   fi
   printf '%s' "$$" > "$lock/pid"
-  trap 'rm -rf "$(state_dir)/lock" 2>/dev/null || true' EXIT
+  trap 'rm -f "$(state_dir)/lock/pid" 2>/dev/null; rmdir "$(state_dir)/lock" 2>/dev/null || true' EXIT
 }
 
 # تثبيتٌ انتهى وقتُه ولم يُفكّ منذ PIN_OVERDUE_ALERT ثانيةً: يُكتب علَمٌ مرّةً واحدةً يقرؤه status وwatch_once فيُنبَّه 0101.
@@ -390,14 +391,14 @@ front_point() {   # front_point <منفذُ الخانة>
 }
 
 slot_up() {   # slot_up <شجرة> <منفذُ الخانة> — compose up في SLOT_PROJECT؛ مرّةً ثانيةً إن كان السببُ حجزَ المنفذ
-  local tree="$1" port="$2" out rc
+  local tree="$1" port="$2" upargs="$3" out rc
   if [ "$DRY" = 1 ]; then
-    printf '[dry] docker compose -p %s up -d --force-recreate --remove-orphans (منفذ %s)\n' "$SLOT_PROJECT" "$port"
+    printf '[dry] docker compose -p %s %s (منفذ %s)\n' "$SLOT_PROJECT" "$upargs" "$port"
     return 0
   fi
   _slot_compose_up() {
     PREVIEW_PORT="$port" PREVIEW_BIND=127.0.0.1 docker compose -p "$SLOT_PROJECT" --project-directory "$tree" \
-      --env-file "$PREVIEW_DIR/.env" -f "$COMPOSE_FILE" up -d --force-recreate --remove-orphans 2>&1
+      --env-file "$PREVIEW_DIR/.env" -f "$COMPOSE_FILE" $upargs 2>&1
   }
   rc=0; out="$(_slot_compose_up)" || rc=$?
   printf '%s\n' "$out"
@@ -427,7 +428,7 @@ bluegreen_up() {   # bluegreen_up <شجرة>
   # الخانةُ الفارغةُ لا تخدم أحداً: بقايا حاوياتها (متوقّفةٌ أو عالقةٌ) تحجز منفذَها فيسقط البناءُ بـ«port is already allocated»
   # فيبقى الطابورُ على نسخةٍ قديمة. تُزال أوّلاً، وإن سقط البناءُ بهذا الخطأ بعينه تُزال ثانيةً وتُعاد المحاولةُ مرّةً.
   run docker compose -p "$SLOT_PROJECT" down --remove-orphans >/dev/null 2>&1 || true
-  slot_up "$tree" "$port" || { warn "docker compose up أعاد خطأً"; true; }
+  slot_up "$tree" "$port" "up -d --force-recreate --remove-orphans" || { warn "docker compose up أعاد خطأً"; true; }
   if ! wait_web; then
     warn "سقط الجديدُ في الخانة $new — يبقى القائمُ يخدم"
     run docker compose -p "$SLOT_PROJECT" down --remove-orphans >/dev/null 2>&1 || true

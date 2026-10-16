@@ -157,7 +157,10 @@ def test_a_port_conflict_on_the_empty_slot_is_retried_once_after_clearing_it(box
         "esac\n"
         "exit 0\n",
     )
-    result = box.bash('SLOT_PROJECT=schoolos-x-a\nslot_up "$PREVIEW_DIR" 8510\necho rc=$?', **LIVE)
+    result = box.bash(
+        'SLOT_PROJECT=schoolos-x-a\nslot_up "$PREVIEW_DIR" 8510 "up -d --force-recreate --remove-orphans"\necho rc=$?',
+        **LIVE,
+    )
     calls = log.read_text(encoding="utf-8")
     assert "rc=0" in result.stdout, result.stderr
     assert calls.count(" up ") == 2, calls
@@ -173,7 +176,10 @@ def test_any_other_compose_failure_is_not_retried(box, clean):
         'case "$*" in *" up "*) echo "build failed: boom"; exit 1 ;; esac\n'
         "exit 0\n",
     )
-    result = box.bash('SLOT_PROJECT=schoolos-x-a\nslot_up "$PREVIEW_DIR" 8510\necho rc=$?', **LIVE)
+    result = box.bash(
+        'SLOT_PROJECT=schoolos-x-a\nslot_up "$PREVIEW_DIR" 8510 "up -d --force-recreate --remove-orphans"\necho rc=$?',
+        **LIVE,
+    )
     assert "rc=1" in result.stdout, result.stderr
     assert log.read_text(encoding="utf-8").count(" up ") == 1
 
