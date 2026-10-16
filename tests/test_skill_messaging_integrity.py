@@ -53,3 +53,8 @@ def test_flow_rules_v2_13_to_v2_15_present_in_both_skills():
     assert "http://localhost:8500/" in flow and "D-72م" in flow
     assert "http://localhost:8500/" in templates and "D-72م" in templates
     assert "v2.8" not in flow
+
+
+def test_flow_skill_mentions_head_freeze_after_ready():
+    flow = (SKILLS / "schoolos-flow" / "SKILL.md").read_text(encoding="utf-8")
+    assert "جمّد الرأس" in flow and "10-14" in flow
