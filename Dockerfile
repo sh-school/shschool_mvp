@@ -44,6 +44,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 ARG INSTALL_DEV=false
 RUN if [ "$INSTALL_DEV" = "true" ]; then pip install --no-cache-dir -r requirements-dev.txt; fi
 
+# متصفّحُ Chromium لاختبارات المتصفّح في الصورة المحلّيّة وحدَها (W-20261016-014): كان يسقط الإطلاقُ بـlibnspr4.so.
+# المسارُ مشتركٌ ليجده appuser، والإنتاجُ (INSTALL_DEV=false) لا يتأثّر.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN if [ "$INSTALL_DEV" = "true" ]; then playwright install --with-deps chromium && chmod -R a+rX /ms-playwright; fi
+
 # Application code
 COPY . .
 

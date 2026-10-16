@@ -1,7 +1,7 @@
 .PHONY: up down build logs shell migrate seed full-seed test reset \
         quality lint security ci test-cov pre-commit-install minify-js \
         axes-reset health-check ready-check test-v54 pip-audit-check \
-        prepush affected premerge railway-plan preview-up preview-watch preview-status preview-plan preview-pin preview-release
+        prepush affected premerge session-test railway-plan preview-up preview-watch preview-status preview-plan preview-pin preview-release
 
 # ── Docker (Development) ──────────────────────────────
 up:
@@ -292,6 +292,11 @@ COMPOSE_SESSION := docker compose -p $(SESSION) --project-directory . -f $(ROOT)
 session:
 	WEB_PORT=$(PORT) $(COMPOSE_SESSION) up -d
 	@echo "→ http://localhost:$(PORT)"
+
+# اختباراتٌ بقاعدةٍ مهجَّرةٍ تُعاد استعمالها (W-20261016-014): make session-test ARGS="tests/test_x.py"
+ARGS ?= tests/test_ci_sharding.py
+session-test:
+	$(COMPOSE_SESSION) exec -T web bash scripts/session-test.sh $(ARGS)
 
 session-down:
 	$(COMPOSE_SESSION) down
