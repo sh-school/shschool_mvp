@@ -16,7 +16,7 @@ from tests.attendance_fixtures import *  # noqa: F401,F403
 
 pytestmark = pytest.mark.django_db
 
-PAST = dt.date(2026, 10, 1)
+PAST = dt.date.today() - dt.timedelta(days=1)  # النقلُ بتاريخٍ ماضٍ محدودٌ بأسبوع
 
 
 @pytest.fixture
@@ -119,6 +119,31 @@ def test_a_future_date_is_refused(
     assert StudentEnrollment.objects.filter(student=kid).count() == 1
 
 
+def test_a_date_older_than_the_backdate_window_is_refused_and_a_recent_one_passes(
+    school, kid, klass2, student_affairs_coordinator_user
+):
+    """نقلٌ بتاريخٍ ماضٍ يعيد قراءةَ أيّامٍ رُصدت فعلاً، فيُحدّ بأسبوع (W-20261004-027 — سياسةٌ للمالك)."""
+    today = dt.date.today()
+    old = _request(
+        school, kid, klass2, student_affairs_coordinator_user, date=today - dt.timedelta(days=30)
+    )
+    recent = _request(
+        school, kid, klass2, student_affairs_coordinator_user, date=today - dt.timedelta(days=3)
+    )
+
+    assert "أقدمُ" in internal_target_error(old)
+    assert internal_target_error(recent) == ""
+
+
+def test_a_move_between_a_regular_and_a_special_education_section_is_refused(
+    school, kid, klass, special_klass, student_affairs_coordinator_user
+):
+    """عتباتُ الغياب تتبع شعبةَ الطالب؛ فالعبورُ بين العاديّة والتربية الخاصّة يُمنع حتى يحسم المالكُ أثرَه."""
+    into = _request(school, kid, special_klass, student_affairs_coordinator_user)
+
+    assert "تربيةٍ خاصّةٍ" in internal_target_error(into)
+
+
 def test_a_student_without_an_active_enrollment_cannot_move(
     school, student_user, klass2, student_affairs_coordinator_user
 ):
@@ -134,7 +159,7 @@ def test_the_create_form_requires_a_target_for_an_internal_move(
 
     response = client.post(
         reverse("student_affairs:transfer_create"),
-        {"student_id": str(kid.pk), "direction": "internal", "transfer_date": "2026-10-01"},
+        {"student_id": str(kid.pk), "direction": "internal", "transfer_date": PAST.isoformat()},
     )
 
     assert response.status_code == 200
@@ -156,7 +181,7 @@ def test_the_create_form_saves_an_internal_request_and_shows_the_class_beside_th
             "student_id": str(kid.pk),
             "direction": "internal",
             "to_class_group_id": str(klass2.pk),
-            "transfer_date": "2026-10-01",
+            "transfer_date": PAST.isoformat(),
         },
     )
 
@@ -176,7 +201,7 @@ def test_the_create_form_refuses_a_target_of_another_grade(
             "student_id": str(kid.pk),
             "direction": "internal",
             "to_class_group_id": str(other_grade.pk),
-            "transfer_date": "2026-10-01",
+            "transfer_date": PAST.isoformat(),
         },
     )
 

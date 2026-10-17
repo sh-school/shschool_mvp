@@ -263,7 +263,7 @@ def sync_escapes(class_group, day: dt.date, by) -> int:
     cells = cells_of(class_group, day)
     scope = [session for p in periods for session in p.sessions]
     made = 0
-    for enrollment in enrolled_of(class_group):
+    for enrollment in enrolled_of(class_group, day):
         own = cells.get(enrollment.student_id, {})
         track = []
         for p in periods:

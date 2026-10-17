@@ -19,7 +19,7 @@ from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, Us
 
 pytestmark = pytest.mark.django_db
 
-PAST = dt.date(2026, 10, 1)
+PAST = dt.date.today() - dt.timedelta(days=1)  # النقلُ بتاريخٍ ماضٍ محدودٌ بأسبوع
 
 
 @pytest.fixture
@@ -223,7 +223,7 @@ def _direct_post(client, user, kid, target, **extra):
         "student_id": str(kid.pk),
         "direction": "internal",
         "to_class_group_id": str(target.pk),
-        "transfer_date": "2026-10-01",
+        "transfer_date": PAST.isoformat(),
         "direct": "1",
         **extra,
     }

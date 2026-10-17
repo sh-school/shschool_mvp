@@ -44,7 +44,10 @@ def kids(school, klass):
     made = []
     for i in range(4):
         student = UserFactory(full_name=f"طالب {i}", national_id=f"2930000000{i}")
-        StudentEnrollmentFactory(student=student, class_group=klass)
+        # قيدٌ سابقٌ لأيّام الاختبار الثابتة: `on_roll` يشترط بدءَ القيد في اليوم أو قبله.
+        StudentEnrollmentFactory(
+            student=student, class_group=klass, enrolled_at=SUNDAY - dt.timedelta(days=30)
+        )
         made.append(student)
     return made
 
