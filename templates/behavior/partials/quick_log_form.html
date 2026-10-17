@@ -31,7 +31,7 @@
    {% for degree in degree_list %}
    <optgroup label="{{ degree.grouper }}">
     {% for vc in degree.list %}
-    <option value="{{ vc.id }}" data-degree="{{ vc.degree }}" data-points="{{ vc.points }}">[{{ vc.code }}] {{ vc.name_ar }}</option>
+    <option value="{{ vc.id }}" data-degree="{{ vc.degree }}">[{{ vc.code }}] {{ vc.name_ar }}</option>
     {% endfor %}
    </optgroup>
    {% endfor %}

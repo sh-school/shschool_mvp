@@ -8,8 +8,10 @@
 -- يبقى للترحيل/التعبئة (DDL) ويتجاوز RLS؛ بينما runtime يتصل بهذا الدور.
 --
 -- الاستخدام (شغّله بدور المالك/superuser):
---   psql -U <owner> -d <db> -v app_password="'STRONG_PASSWORD'" \
+--   psql -U <owner> -d <db> -v app_password=STRONG_PASSWORD \
 --        -f scripts/provision_rls_app_role.sql
+-- بلا علامات اقتباس حول الكلمة: السكربت يقتبسها بنفسه (:'app_password')، ولو أُضيف
+-- اقتباسٌ هنا لحُفظت الكلمة بعلامتيه. وكلمةٌ بمحارف خاصة تُمرَّر بقواعد قشرتك أنت.
 --
 -- ثم اضبط اتصال runtime على هذا الدور:
 --   DB_USER=shschool_app  DB_PASSWORD=STRONG_PASSWORD
@@ -36,7 +38,11 @@ $do$
 $fmt$, :'app_password', :'app_password')
 \gexec
 
--- 2) الصلاحيات على المخطّط الحالي
+-- 2) الصلاحيات على المخطّط الحالي.
+--    ⚠ يجب تشغيل السكربت بـ -d <DBNAME> (قاعدة الجلسة) لا على postgres:
+--    «ALTER DEFAULT PRIVILEGES» تُحفظ للقاعدة التي تُشغَّل فيها فقط، فتشغيلها على
+--    postgres يترك الجداول اللاحقة بلا صلاحيات (permission denied for table
+--    django_migrations — وقع 2026-10-17). إنشاء الدور (القسم 1) لا يتأثر بالقاعدة.
 GRANT CONNECT ON DATABASE :"DBNAME" TO shschool_app;
 GRANT USAGE ON SCHEMA public TO shschool_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO shschool_app;

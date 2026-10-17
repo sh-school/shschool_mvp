@@ -78,8 +78,8 @@ PROFILE_NAMES = tuple(PROFILES)
 PIXEL_TOLERANCE = 12
 #: نسبةُ البكسلات المتغيّرة التي تُعدّ لقطتَين متطابقتَين — الحتميّة (تُلتقط اللقطةُ مرّتين في التشغيل نفسِه). تُضبط من قياس CI.
 DETERMINISM_MAX = 0.0005
-#: نسبةُ البكسلات المتغيّرة عن `main` التي تُعدّ تغييراً بصريّاً يحتاج اعتماداً. تُضبط من قياس CI.
-CHANGE_MAX = 0.001
+#: نسبةُ البكسلات المتغيّرة عن `main` التي تُعدّ تغييراً بصريّاً يحتاج اعتماداً. 0.25% لا 0.1%: ضجيجُ الرسم بين أجهزة الاستضافة قِيس 0.10–0.18% (W-20261017-008)؛ والصفحةُ الفارغة (~100%) تبقى مكشوفة.
+CHANGE_MAX = 0.0025
 #: أطولُ لقطةٍ (بكسل CSS) — صفحةٌ طويلةٌ تُقصّ لئلّا يكبر الـartifact.
 MAX_HEIGHT = 3200
 
@@ -201,6 +201,39 @@ def save_diff(
     mask = _changed_mask(image_a, image_b, tolerance)
     overlay = Image.new("RGB", image_b.size, (255, 0, 0))
     Image.composite(overlay, image_b, mask).save(out)
+
+
+def stable_height(read, wait, attempts: int = 10) -> int:
+    """ارتفاعُ الصفحة بعد ثباته: قراءتان متتاليتان متطابقتان (W-20261016-013).
+
+    كان الالتقاطُ يقرأ `scrollHeight` مرّةً واحدةً فيسبق تمدّدَ محتوىً متأخّر (خطّ، رسم، قائمة) فيختلف ارتفاعُ اللقطتين
+    ويُعدّ مقاسٌ مختلفٌ تغيّراً كاملاً. `read()` يعيد الارتفاعَ الحاليّ و`wait()` يفصل بين القراءتين؛ وإن لم يثبت في
+    `attempts` قراءةً أُعيدت آخرُ قراءة (والحتميّةُ ستكشف عدمَ الثبات).
+    """
+    last = read()
+    for _ in range(attempts):
+        wait()
+        now = read()
+        if now == last:
+            return now
+        last = now
+    return last
+
+
+#: حكمُ لقطةٍ تجاوزت العتبة (قاعدة W-20261016-013): تُعاد مرّةً واحدة؛ نجحت الإعادةُ = مذبذبةٌ تُوسَم ولا تحجب، فشلت = فشلٌ حقيقيّ.
+OK, FLAKY, FAIL = "ok", "flaky", "fail"
+
+
+def decide_after_retry(first_ratio: float, retry_ratio: float | None, limit: float) -> str:
+    """`ok` إن لم تتجاوز اللقطةُ الأولى العتبة؛ وإلا `flaky` إن لم تتجاوزها الإعادة، و`fail` إن تجاوزتها الإعادةُ أيضاً.
+
+    العتبةُ نفسُها لا تتغيّر هنا (`limit` تُمرَّر كما هي)؛ والقاعدةُ لا تُخفي فرقاً حقيقيّاً لأنّ الفرقَ الحقيقيَّ يتكرّر في الإعادة.
+    """
+    if first_ratio <= limit:
+        return OK
+    if retry_ratio is not None and retry_ratio <= limit:
+        return FLAKY
+    return FAIL
 
 
 def summary_markdown(rows: list[dict]) -> str:

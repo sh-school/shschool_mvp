@@ -75,7 +75,6 @@ def _record_infraction(school, student, reporter):
             level=2,
             description="وصف",
             action_taken="إجراء",
-            points_deducted=0,
         )
         transaction.on_commit(lambda: _notify_behavior_after_commit(infraction, school, reporter))
         return infraction

@@ -4,7 +4,7 @@ behavior/services.py
 Business logic لوحدة السلوك — مستخلص من views.py
 
 يشمل:
-  - حساب النقاط والتقييم السلوكي
+  - العدّ الإجمالي لمخالفات الطالب
   - إحصائيات لوحة التحكم
   - الملف السلوكي للطالب
   - إحصائيات اللجنة
@@ -24,7 +24,6 @@ from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school, default_academic_year
-from core.domain.tones import tone_for
 from core.permissions import BEHAVIOR_COMMITTEE
 from core.unrestricted_role import has_unrestricted_role
 
@@ -40,10 +39,8 @@ if TYPE_CHECKING:
     from wings.scope import StudentScope
 
 # ── ثوابت موحدة من constants.py ────────────────────────────
-# POINTS_BY_LEVEL مُستبعد — نظام النقاط ملغى
 from .constants import (  # noqa: E402,F401
     ESCALATION_STEPS,
-    LEVEL_AUTHORITY,
     LEVEL_DESC,
     LEVEL_DISPLAY,
 )
@@ -53,17 +50,6 @@ PERIOD_CHOICES = [
     ("S1", "الفصل الأول"),
     ("S2", "الفصل الثاني"),
 ]
-
-#: تقديرُ مؤشّر السلوك (من 100) في ملفّ الطالب: (الوصف، اللون).
-NET_SCORE_RATING = (
-    (90, ("ممتاز", "green")),
-    (75, ("جيد جداً", "blue")),
-    (60, ("جيد", "amber")),
-    (None, ("يحتاج تطوير", "red")),
-)
-
-#: لونُ حالة الملفّ السلوكيّ: 80 فأكثر أخضر، و60 فأكثر أصفر، ودونها أحمر.
-NET_SCORE_STATUS = ((80, "green"), (60, "yellow"), (None, "red"))
 
 
 class BehaviorPermissions:
@@ -156,7 +142,10 @@ def audit_infraction_read(request: HttpRequest, infractions: Any) -> None:
 
 
 class BehaviorService:
-    # ── التقييم السلوكي للطالب (نظام النقاط ملغى — يعتمد على عدد المخالفات) ──
+    # ── عدّ مخالفات الطالب ─────────────────────────────────────────────
+    #
+    # [W-20261013-010] كان هنا «مؤشّرُ سلوك» من 100 يُحسب بأوزانٍ ابتدعتها المنصّة (2/5/10/25) ثم يُعرض ويُرسَل
+    # لوليّ الأمر؛ ولا أصلَ له في دليل السلوك 2026 فأُزيل. يبقى العدّ الإجماليُّ وحده.
     @staticmethod
     def get_student_score(
         student: CustomUser,
@@ -164,10 +153,7 @@ class BehaviorService:
         date_from: date | None = None,
         date_to: date | None = None,
     ) -> dict:
-        """
-        يحسب التقييم السلوكي للطالب بناءً على عدد المخالفات ودرجاتها.
-        نظام النقاط ملغى — net_score مشتقّ من عدد/خطورة المخالفات فقط.
-        """
+        """عدد مخالفات الطالب في المدّة (والمدرسة إن حُدّدت)."""
         qs = BehaviorInfraction.objects.filter(student=student)
         if school:
             qs = qs.filter(school=school)
@@ -175,26 +161,7 @@ class BehaviorService:
             qs = qs.filter(date__gte=date_from)
         if date_to:
             qs = qs.filter(date__lte=date_to)
-
-        total_count = qs.count()
-        # عقوبة تقريبية: د1×2 + د2×5 + د3×10 + د4×25 (محدّد بـ30)
-        by_level = {row["level"]: row["c"] for row in qs.values("level").annotate(c=Count("id"))}
-        severity = (
-            by_level.get(1, 0) * 2
-            + by_level.get(2, 0) * 5
-            + by_level.get(3, 0) * 10
-            + by_level.get(4, 0) * 25
-        )
-        net_score = max(0, 100 - min(30, severity))
-        # المؤشّرُ رقمٌ دائماً (لا `None`)، فالحكمُ الافتراضيُّ هو أدنى السُّلَّم.
-        rating, rating_color = tone_for(net_score, NET_SCORE_RATING, empty=NET_SCORE_RATING[-1][1])
-
-        return {
-            "total_count": total_count,
-            "net_score": net_score,
-            "rating": rating,
-            "rating_color": rating_color,
-        }
+        return {"total_count": qs.count()}
 
     # ── إحصائيات لوحة التحكم ────────────────────────────────
     @staticmethod
@@ -236,7 +203,6 @@ class BehaviorService:
         )
 
         score = BehaviorService.get_student_score(student)
-        status_color = tone_for(score["net_score"], NET_SCORE_STATUS)
 
         by_level: dict = {1: 0, 2: 0, 3: 0, 4: 0}
         for inf in infractions:
@@ -245,7 +211,6 @@ class BehaviorService:
         return {
             "infractions": infractions,
             "by_level": by_level,
-            "status_color": status_color,
             **score,
         }
 
@@ -302,8 +267,6 @@ class BehaviorService:
         infraction: BehaviorInfraction,
         decision: str,
         action: str = "",
-        restore_pts: int = 0,
-        reason: str = "",
         approved_by: CustomUser | None = None,
         **kwargs,
     ) -> tuple:
@@ -315,7 +278,6 @@ class BehaviorService:
             infraction.action_taken = (infraction.action_taken + "\n" + action).strip()
 
         if decision == "resolve":
-            # نظام النقاط ملغى — restore_pts/reason مُتجاهلان
             infraction.is_resolved = True
             infraction.save()
             return f"✅ تم حل المخالفة للطالب {infraction.student.full_name}", "success"
@@ -549,7 +511,6 @@ class BehaviorService:
                 f"ولي أمر الطالب: {parent.full_name}\n\n"
                 f"التقرير السلوكي للطالب: {student.full_name}\n"
                 f"الفترة: {report['period_label']} — {year}\n\n"
-                f"نقاط السلوك: {report['net_score']}/100 ({report['rating']})\n"
                 f"المخالفات: {report['infractions'].count()}\n\n"
                 f"{school.name}"
             )
@@ -587,9 +548,7 @@ class BehaviorService:
                 date__gte=date_from,
                 date__lte=date_to,
             )
-            .select_related(
-                "reported_by", "recovery", "recovery__approved_by", "violation_category"
-            )
+            .select_related("reported_by", "violation_category")
             .order_by("date")
         )
 
@@ -700,7 +659,6 @@ class BehaviorService:
                     "description": infraction.description or "",
                     "action_taken": getattr(infraction, "action_taken", "") or "",
                     "reported_by": reporter.full_name if reporter else "",
-                    "points_deducted": getattr(infraction, "points_deducted", 0) or 0,
                 },
                 # كان بريدُ السلوك يخرج نصّاً خاماً بينما يخرج بريدُ الغياب
                 # والرسوب منسَّقاً بترويسة المدرسة — وهو أشدُّ الإشعارات
@@ -901,7 +859,6 @@ class BehaviorService:
         level: int,
         description: str,
         action_taken: str = "",
-        points_deducted: int = 0,
         violation_category=None,
         disciplinary_action_type: str = "",
         violation_description: str = "",
@@ -921,7 +878,6 @@ class BehaviorService:
             level: درجة المخالفة (1-4)
             description: وصف المخالفة
             action_taken: الإجراء المتخذ
-            points_deducted: نقاط الخصم
             violation_category: فئة المخالفة (اختياري)
 
         Returns:
@@ -950,7 +906,6 @@ class BehaviorService:
             escalation_step=escalation_step,
             description=description,
             action_taken=action_taken,
-            points_deducted=points_deducted,
             disciplinary_action_type=disciplinary_action_type,
             violation_description=violation_description,
             session=session,
