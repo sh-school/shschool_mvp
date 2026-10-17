@@ -28,8 +28,15 @@ def test_a_real_difference_repeats_in_the_retry_and_blocks():
 
 def test_the_thresholds_are_unchanged():
     assert vs.DETERMINISM_MAX == 0.0005
-    assert vs.CHANGE_MAX == 0.001
+    assert vs.CHANGE_MAX == 0.0025
     assert vs.PIXEL_TOLERANCE == 12
+
+
+def test_the_change_limit_tolerates_host_render_noise_but_still_catches_a_blank_page():
+    assert vs.decide_after_retry(0.0018, None, vs.CHANGE_MAX) == vs.OK  # أعلى ضجيجٍ قِيس بين المضيفين
+    assert vs.decide_after_retry(0.0025, None, vs.CHANGE_MAX) == vs.OK  # عند الحدّ تماماً
+    assert vs.decide_after_retry(1.0, None, vs.CHANGE_MAX) == vs.FAIL  # صفحةٌ فارغة
+    assert vs.decide_after_retry(1.0, 1.0, vs.CHANGE_MAX) == vs.FAIL  # وتتكرّر في الإعادة
 
 
 def test_height_waits_for_two_equal_consecutive_reads():
