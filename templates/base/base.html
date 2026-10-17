@@ -1172,7 +1172,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   بالثواني لحساب الإزاحة عن ساعة الجهاز. السلوكُ في `page-fresh.js`؛ ويُخفى المؤشّرُ على صفحاتٍ لا تُحدَّث (الإدارة ولوحة القيادة وحالة التصدير).
 {% endcomment %}
 <div class="page-fresh" data-page-fresh data-now="{% now 'U' %}"{% if "/command-center/" in request.path or "/exports/" in request.path %} hidden{% endif %}>
-  <span>آخر تحديث <time data-fresh-time>{% now "H:i" %}</time></span>
+  <span>آخر تحديث <time data-fresh-time data-visual-mask>{% now "H:i" %}</time></span>
   <button type="button" class="btn-ghost btn-xs" data-fresh-refresh aria-label="تحديث بيانات الصفحة">تحديث</button>
   <form data-fresh-gate hidden></form>
 </div>
