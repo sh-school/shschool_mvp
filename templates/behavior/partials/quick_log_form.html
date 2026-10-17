@@ -31,7 +31,7 @@
    {% for degree in degree_list %}
    <optgroup label="{{ degree.grouper }}">
     {% for vc in degree.list %}
-    <option value="{{ vc.id }}" data-degree="{{ vc.degree }}" data-points="{{ vc.points }}">[{{ vc.code }}] {{ vc.name_ar }}</option>
+    <option value="{{ vc.id }}" data-degree="{{ vc.degree }}">[{{ vc.code }}] {{ vc.name_ar }}</option>
     {% endfor %}
    </optgroup>
    {% endfor %}
@@ -69,7 +69,11 @@
  </div>
 
  <div class="form-actions">
+  {% if standalone %}
+  <a href="{% url 'behavior:dashboard' %}" class="btn-secondary">إلغاء</a>
+  {% else %}
   <button type="button" class="btn-secondary" data-modal-close="quick-log">إلغاء</button>
+  {% endif %}
   <button type="submit" class="btn-primary">
    <span class="htmx-indicator">{% icon "loading" %}</span>
    تسجيل المخالفة

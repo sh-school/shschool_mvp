@@ -17,7 +17,7 @@ from core.dept_colors import OTHER, dept_key
 from core.models import CustomUser
 from operations.school_days import is_school_day
 
-from .observation_models import OBSERVATION_DOMAINS
+from .observation_models import MAX_SELF_BACKDATE_DAYS, OBSERVATION_DOMAINS
 from .observation_services import ObservationService
 
 #: أدوارٌ تُعَدّ «معلّماً» عند بناء قوائم الاستمارة (اختيار المعلّم/الزميل).
@@ -128,8 +128,57 @@ def default_observation_date(school):
     return timezone.localdate()
 
 
+# ══════════════════════════ نافذة التقييم الذاتي وتحقّقه الخادميّ ═════
+def self_date_error(selected_date: dt.date, today: dt.date | None = None) -> str:
+    """رسالةُ خطأ إن كان تاريخُ التقييم الذاتي مستقبلاً أو أقدمَ من النافذة، وإلا نصٌّ فارغ (D-417م).
+
+    النافذةُ [اليوم − MAX_SELF_BACKDATE_DAYS ، اليوم]: لا يُقيِّم المعلّمُ حصّةً لم تقع بعد، ولا حصّةً
+    مضى عليها أسبوعٌ فأكثر (يُنسى فيها الأدلّةُ فيفقد التقييمُ الذاتيُّ معناه).
+    """
+    from django.utils import timezone
+
+    today = today or timezone.localdate()
+    if selected_date > today:
+        return "لا يُقيَّم يومٌ لم يأتِ بعد — اختر اليومَ أو يوماً سابقاً."
+    if (today - selected_date).days > MAX_SELF_BACKDATE_DAYS:
+        return f"التقييمُ الذاتيّ لحصّةٍ لا يتجاوز {MAX_SELF_BACKDATE_DAYS} أيّامٍ إلى الوراء."
+    return ""
+
+
+def self_slot_error(school, teacher, header: dict, *, outside_schedule: bool) -> str:
+    """تحقّقُ الخادم من رأس التقييم الذاتي قبل الحفظ — لا يُعتمد على ما رسمه المتصفّح.
+
+    المعلّمُ هنا هو المستخدم الحاليّ دائماً (لا يُقرأ من الطلب). والنافذةُ تُفحص أوّلاً حتى لا يُستدعى
+    `ensure_sessions_for_date` لتاريخٍ خارجها. ثمّ، ما لم يكن «خارج جدولي»، يجب أن تكون الحصّةُ
+    (المادّة، الشعبة، رقم الحصّة) بين حصص هذا المعلّم في ذلك اليوم من المصدر نفسه الذي يعرضه الصفّ (لا نسخة ثانية).
+    """
+    from django.utils import timezone
+
+    raw = header.get("observation_date") or timezone.localdate()
+    try:
+        selected = raw if isinstance(raw, dt.date) else dt.date.fromisoformat(str(raw))
+    except ValueError:
+        return "تاريخٌ غير صالح."
+    window_error = self_date_error(selected)
+    if window_error:
+        return window_error
+    if outside_schedule:
+        return ""
+    ctx = teacher_schedule_context(school, teacher.id, selected, self_mode=True)
+    wanted = (
+        str(header.get("subject_id") or ""),
+        str(header.get("class_group_id") or ""),
+        str(header.get("period") or ""),
+    )
+    for slot in ctx["periods"]:
+        s = slot["session"]
+        if (str(s.subject_id or ""), str(s.class_group_id), str(slot["number"])) == wanted:
+            return ""
+    return "الحصّةُ المختارة ليست في جدولك ذلك اليوم — اخترها من جدولك أو فعّل «حصّة خارج جدولي»."
+
+
 # ══════════════════════════ جدول المعلّم عند إنشاء الزيارة ═══════════
-def teacher_schedule_context(school, teacher_id, raw_date) -> dict:
+def teacher_schedule_context(school, teacher_id, raw_date, *, self_mode: bool = False) -> dict:
     """SOS-20260915: صفٌّ واحد من حصص المعلّم في التاريخ المختار — يُختار
     منه بنقرة بدل إدخال المادّة والشعبة يدويّاً عن ظهر قلب. المصدر Session
     نفسه الذي يقرأه جدولُ المعلّم اليوميّ (`operations.views_attendance.schedule`)
@@ -155,6 +204,9 @@ def teacher_schedule_context(school, teacher_id, raw_date) -> dict:
             selected_date = None
         if selected_date is None:
             error = "تاريخٌ غير صالح."
+        elif self_mode and self_date_error(selected_date):
+            # الوضعُ الذاتيّ: خارج النافذة لا يُستعلَم ولا يُولَّد `Session` لتاريخٍ قديمٍ أو مستقبليّ.
+            error = self_date_error(selected_date)
         elif not is_school_day(school, selected_date):
             # الجمعة والسبت والإجازاتُ من تقويم الوزارة: لا حصصَ فيها أصلاً،
             # فرسالةٌ صريحة بدل صفٍّ فارغٍ صامت (كان المستخدم يظنّه عطلاً).

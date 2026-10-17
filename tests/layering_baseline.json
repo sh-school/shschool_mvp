@@ -317,11 +317,11 @@
    "orm": 17
   },
   "behavior/views.py::quick_log": {
-   "lines": 95,
+   "lines": 93,
    "orm": 29
   },
   "behavior/views.py::report_infraction": {
-   "lines": 109,
+   "lines": 107,
    "orm": 30
   },
   "behavior/views.py::student_behavior_pdf": {
@@ -331,7 +331,7 @@
    "orm": 18
   },
   "behavior/views.py::summon_parent": {
-   "lines": 153,
+   "lines": 146,
    "orm": 34
   },
   "clinic/views.py::student_health_record": {

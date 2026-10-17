@@ -134,3 +134,7 @@ backups/
 /gaps.py
 /tb.py
 /scratch_*.py
+
+# تقاريرُ محلّيّةٌ لا تُودَع (كانت تُفشل detect-secrets في prepush لأنّ الفحص يمسح غيرَ المُتتبَّع)
+/tmp_reports/*
+!/tmp_reports/w008_pref_impact/

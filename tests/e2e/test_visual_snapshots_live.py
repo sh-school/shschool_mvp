@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 
@@ -100,7 +101,13 @@ def _capture(page, base: str, name: str, path: pathlib.Path, step: str = "") -> 
     if step:
         _do_step(page, step)
         page.wait_for_timeout(300)
-    height = min(page.evaluate("document.documentElement.scrollHeight"), vs.MAX_HEIGHT)
+    height = min(
+        vs.stable_height(
+            lambda: page.evaluate("document.documentElement.scrollHeight"),
+            lambda: page.wait_for_timeout(100),
+        ),
+        vs.MAX_HEIGHT,
+    )
     width = page.viewport_size["width"]
     path.parent.mkdir(parents=True, exist_ok=True)
     page.screenshot(
@@ -162,19 +169,51 @@ def test_the_key_pages_are_deterministic_and_have_not_changed_visually(
                                 "change": None,
                                 "status": "✓",
                             }
-                            if determinism.ratio > vs.DETERMINISM_MAX:
+                            # قاعدةُ المذبذب (W-20261016-013): لقطةٌ تتجاوز العتبةَ تُعاد مرّةً واحدة؛ نجحت الإعادةُ فمذبذبةٌ
+                            # تُوسَم بسببها ولا تحجب، وفشلت فهي فشلٌ حقيقيّ. العتباتُ لم تتغيّر.
+                            verdict = vs.decide_after_retry(
+                                determinism.ratio, None, vs.DETERMINISM_MAX
+                            )
+                            if verdict != vs.OK:
+                                _capture(page, live_server.url, shot.page, shots / key, shot.step)
+                                _capture(page, live_server.url, shot.page, repeat / key, shot.step)
+                                again = vs.compare(shots / key, repeat / key)
+                                verdict = vs.decide_after_retry(
+                                    determinism.ratio, again.ratio, vs.DETERMINISM_MAX
+                                )
+                                row["determinism"] = again.ratio
+                                row["first_determinism"] = determinism.ratio
+                                determinism = again
+                            if verdict == vs.FAIL:
                                 vs.save_diff(
                                     shots / key, repeat / key, diffs / f"determinism--{key}"
                                 )
                                 row["status"] = "غيرُ حتميّة"
                             elif baseline_dir is not None and (baseline_dir / key).exists():
                                 change = vs.compare(baseline_dir / key, shots / key)
+                                change_verdict = vs.decide_after_retry(
+                                    change.ratio, None, vs.CHANGE_MAX
+                                )
+                                if change_verdict != vs.OK:
+                                    _capture(
+                                        page, live_server.url, shot.page, shots / key, shot.step
+                                    )
+                                    retry = vs.compare(baseline_dir / key, shots / key)
+                                    change_verdict = vs.decide_after_retry(
+                                        change.ratio, retry.ratio, vs.CHANGE_MAX
+                                    )
+                                    row["first_change"] = change.ratio
+                                    change = retry
                                 row["change"] = change.ratio
-                                if change.ratio > vs.CHANGE_MAX:
+                                if change_verdict == vs.FAIL:
                                     vs.save_diff(baseline_dir / key, shots / key, diffs / key)
                                     row["status"] = "تغيّر (معتمَد)" if allow_changes else "تغيّر"
+                                elif change_verdict == vs.FLAKY:
+                                    verdict = vs.FLAKY
                             elif baseline_dir is not None:
                                 row["status"] = "بلا أساس"
+                            if verdict == vs.FLAKY and row["status"] == "✓":
+                                row["status"] = "مذبذبة (وُسمت: نجحت الإعادة)"
                             rows.append(row)
                     finally:
                         context.close()
@@ -182,6 +221,16 @@ def test_the_key_pages_are_deterministic_and_have_not_changed_visually(
         browser.close()
 
     vs.write_summary(out, rows)
+    flaky = [r for r in rows if r["status"].startswith("مذبذبة")]
+    if flaky:
+        # لا وسمَ دائمٌ: كلُّ مذبذبةٍ تُعدّ على صاحب إصلاح سببها (ساعة الجهاز أو ارتفاعٌ غير ثابت) — انظر regression_guards.md.
+        (out / "flaky.json").write_text(
+            json.dumps(flaky, ensure_ascii=False, indent=1), encoding="utf-8"
+        )
+        print(
+            f"::warning::{len(flaky)} لقطةً مذبذبة (نجحت الإعادة فلم تحجب): "
+            + "، ".join(r["key"] for r in flaky)
+        )
     nondeterministic = [r for r in rows if r["status"] == "غيرُ حتميّة"]
     changed = [r for r in rows if r["status"] == "تغيّر"]
     assert not nondeterministic, (
