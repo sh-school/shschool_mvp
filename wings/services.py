@@ -473,7 +473,7 @@ def supervisor_watchlist(user: CustomUser, school: School, year: str, day: dt.da
             days_of = unexcused_days_for_class(klass, school, day)
             if not awaiting and not days_of:
                 continue
-            for enrollment in enrolled_of(klass):
+            for enrollment in enrolled_of(klass, day):
                 sid = enrollment.student_id
                 if in_scope is not None and sid not in in_scope:
                     continue  # قيدُه الجاري في جناحٍ آخر — لا يُنبَّه عنه هنا

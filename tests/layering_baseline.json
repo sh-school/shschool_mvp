@@ -696,7 +696,7 @@
   },
   "student_affairs/views.py::student_profile": {
    "lines": 179,
-   "orm": 81
+   "orm": 76
   },
   "student_affairs/views.py::student_profile_pdf": {
    "lines": 118,
@@ -807,10 +807,10 @@
    "orm": 8
   },
   "wings/views_register.py::section_register_export": {
-   "orm": 24
+   "orm": 23
   },
   "wings/views_register.py::wing_register_export": {
-   "orm": 25
+   "orm": 24
   }
  }
 }

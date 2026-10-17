@@ -17,7 +17,7 @@ import datetime as dt
 
 from django.utils import timezone
 
-from core.models import ClassGroup, CustomUser, School
+from core.models import ClassGroup, CustomUser, School, StudentEnrollment
 from operations.models import GuardianContact, Session, StudentAttendance
 
 
@@ -82,9 +82,13 @@ def awaiting_contact(class_group: ClassGroup, day: dt.date) -> dict:
     )
     if last is None:
         return {}
+    # طلبةُ الشعبة اليوم لا طلبةُ حصصها فقط: من انتقل إليها بعده غابَ في شعبته القديمة،
+    # وإخطارُ وليّه يرحل معه (D-201م) — وإلا لم تره الشعبتان.
+    roster = StudentEnrollment.objects.filter(class_group=class_group).on_roll(day)
     absent = set(
         StudentAttendance.objects.filter(
-            session__class_group=class_group,
+            student_id__in=roster.values("student_id"),
+            school=class_group.school,
             session__date=last,
             status="absent",
             excuse_type="",

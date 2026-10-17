@@ -99,7 +99,8 @@ def _day_map(student, school, start, end) -> dict:
     والخاناتُ المجدولة تُقرأ من حصص شُعب الطالب ذلك اليوم، لا من سجلّاته وحدَها:
     فالخانةُ التي لم تُرصد لا سجلَّ لها، وبلا حصرها يُقرأ الرصدُ الناقصُ غياباً.
     """
-    from operations.models import Session, StudentAttendance
+    from operations.models import StudentAttendance
+    from operations.selectors import scheduled_slots
 
     days: dict = {}
 
@@ -130,19 +131,8 @@ def _day_map(student, school, start, end) -> dict:
         elif status == "absent":
             day["excused" if excuse else "unexcused"].add(start_time)
 
-    scheduled = (
-        Session.objects.filter(
-            school=school,
-            class_group__enrollments__student=student,
-            class_group__enrollments__is_active=True,
-            date__gte=start,
-            date__lte=end,
-        )
-        .exclude(status="cancelled")
-        .values_list("date", "start_time")
-        .distinct()
-    )
-    for date, start_time in scheduled:
+    # خاناتُ اليوم من الشعبة التي كان فيها الطالبُ **ذلك اليوم** لا شعبتِه الحاليّة (D-201م).
+    for date, start_time in scheduled_slots(student, school, start, end):
         slot_of(date)["scheduled"].add(start_time)
 
     # خانةٌ حضرها في إحدى حصّتَي الزوج حاضرةٌ ولو كُتب في الأخرى غير ذلك.
@@ -218,6 +208,7 @@ def unexcused_days_for_class(class_group, school, on=None) -> dict:
     حصّة. فهنا استعلامان للشعبة كلِّها، والحكمُ نفسُه (`_judge`).
     """
     from core.academic_calendar import academic_year_window
+    from core.models import StudentEnrollment
     from operations.models import Session, StudentAttendance
 
     window = academic_year_window(school, on)
@@ -225,36 +216,54 @@ def unexcused_days_for_class(class_group, school, on=None) -> dict:
         return {}
     start, end = window[0], min(window[1], on or _today())
 
+    # الطلبةُ هم الساريةُ قيودُهم في الشعبة آخرَ المدّة، وسجلُّهم كلُّه يأتي معهم من أيّ شعبةٍ كان
+    # (D-201م): من انتقل إليها منتصفَ الفصل تصل غياباتُه السابقة، فلا يظهر بصفرٍ في الجديدة ولا يختفي من القديمة.
+    roster = StudentEnrollment.objects.filter(class_group=class_group).on_roll(end)
+    rows = list(
+        StudentAttendance.objects.filter(
+            school=school,
+            student_id__in=roster.values("student_id"),
+            session__date__gte=start,
+            session__date__lte=end,
+        ).values_list(
+            "student_id",
+            "session__class_group_id",
+            "session__date",
+            "session__start_time",
+            "status",
+            "excuse_type",
+        )
+    )
+
+    # خاناتُ كلّ يومٍ تُقرأ من شعبة الحصّة المرصودة نفسِها — لا من الشعبة الحاليّة وحدَها.
     scheduled: dict = {}
-    for date, start_time in (
+    for class_id, date, start_time in (
         Session.objects.filter(
-            school=school, class_group=class_group, date__gte=start, date__lte=end
+            school=school,
+            class_group_id__in={row[1] for row in rows},
+            date__gte=start,
+            date__lte=end,
         )
         .exclude(status="cancelled")
-        .values_list("date", "start_time")
+        .values_list("class_group_id", "date", "start_time")
         .distinct()
     ):
-        scheduled.setdefault(date, set()).add(start_time)
+        scheduled.setdefault((class_id, date), set()).add(start_time)
 
     per_student: dict = {}
-    rows = StudentAttendance.objects.filter(
-        school=school,
-        session__class_group=class_group,
-        session__date__gte=start,
-        session__date__lte=end,
-    ).values_list("student_id", "session__date", "session__start_time", "status", "excuse_type")
-    for student_id, date, start_time, status, excuse in rows:
+    for student_id, class_id, date, start_time, status, excuse in rows:
         days = per_student.setdefault(student_id, {})
         day = days.setdefault(
             date,
             {
-                "scheduled": set(scheduled.get(date, ())),
+                "scheduled": set(),
                 "recorded": set(),
                 "attended": set(),
                 "unexcused": set(),
                 "excused": set(),
             },
         )
+        day["scheduled"] |= scheduled.get((class_id, date), set())
         day["scheduled"].add(start_time)
         day["recorded"].add(start_time)
         if status in ATTENDED:

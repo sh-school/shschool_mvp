@@ -100,10 +100,14 @@ class MinistrySummary:
         return self.total.unrecorded > 0
 
 
-def _current_enrollments(groups: list[Any], student_ids: Any) -> dict[Any, list[Any]]:
-    """طلبةُ كلّ شعبة بقيدهم **الجاري**: من حمل قيدين نشطين يُعدّ في أحدثهما وحدَه."""
+def _current_enrollments(groups: list[Any], student_ids: Any, day: dt.date) -> dict[Any, list[Any]]:
+    """طلبةُ كلّ شعبة بقيدهم **الساري في `day`**: من حمل قيدين ساريين يُعدّ في أحدثهما وحدَه.
+
+    والمنقولُ بين شعبتين يُعدّ في القديمة حتى آخر يومٍ فيها (`left_at`) وفي الجديدة من يوم الانتقال (D-201م).
+    """
     rows = (
-        StudentEnrollment.objects.filter(is_active=True, class_group__in=groups)
+        StudentEnrollment.objects.filter(class_group__in=groups)
+        .on_roll(day)
         .select_related("student")
         .order_by("student_id", "-enrolled_at", "-id")
     )
@@ -268,7 +272,7 @@ def ministry_summary(school: Any, day: dt.date, *, student_ids: Any = None) -> M
         .order_by(grade_order("grade"), "section")
     )
     group_ids = [g.id for g in groups]
-    by_class = _current_enrollments(groups, student_ids)
+    by_class = _current_enrollments(groups, student_ids, day)
     slots = _first_slots(school, day, group_ids)
     marks = _marks(school, day, slots)
     pending = pending_marks_by_student(school, day, student_ids=student_ids)
