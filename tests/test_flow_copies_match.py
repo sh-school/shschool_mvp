@@ -9,9 +9,7 @@ import flow_facts  # noqa: E402
 
 #: انحرافٌ معروفٌ قائمٌ اليوم (سقّاطة): تصحيحُه بطاقةٌ منفصلةٌ لأنّ النسخةَ ملفٌّ حاكم (يحتاج اعتماداً بالرأس).
 #: بعد التصحيح يفشل هذا الاختبارُ حتى يُحذف السطرُ من القائمة، فلا يبقى انحرافٌ مسكوتٌ عنه.
-KNOWN_DRIFT = {
-    ".claude/skills/schoolos-flow/SKILL.md": "version",
-}
+KNOWN_DRIFT: dict[str, str] = {}
 
 
 def _drifted(root: Path) -> dict[str, set[str]]:
