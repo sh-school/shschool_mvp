@@ -119,6 +119,19 @@ def test_labelled_hotfix_passes_during_school_hours(window):
     assert allowed
 
 
+@pytest.mark.parametrize(
+    "now",
+    [
+        _utc(2026, 9, 18, 8, 0),  # الجمعة 11:00 قطر
+        _utc(2026, 9, 19, 8, 0),  # السبت 11:00 قطر
+        _utc(2026, 9, 17, 16, 0),  # الخميس 19:00 قطر — الدفعة المسائيّة
+        _utc(2026, 9, 17, 11, 30),  # الخميس 14:30 قطر — بعد الدوام مباشرةً
+    ],
+)
+def test_open_window_allows_merge_queue_outside_school_hours_without_label(window, now):
+    assert window.decide("merge_group", now, [])[0]
+
+
 def test_pull_request_is_never_blocked(window):
     assert window.decide("pull_request", _utc(2026, 9, 17, 6, 15), None)[0]
 
