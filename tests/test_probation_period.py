@@ -178,3 +178,60 @@ def test_admin_add_contract_computes_end_dates(client, setup):
     assert c.contract_ref == "ع-2026/18"
     assert c.base_end == dt.date(2026, 7, 1) == c.probation_end
     assert c.extension_days == 0 and c.created_by == root
+
+
+def _admin_post(client, school, staff, **extra):
+    from django.urls import reverse
+
+    data = {
+        "school": school.pk,
+        "staff": staff.pk,
+        "contract_ref": "ع-2026/19",
+        "contract_start": "2026-01-01",
+        "probation_months": 6,
+        **extra,
+    }
+    return client.post(reverse("admin:staff_affairs_employmentcontract_add"), data)
+
+
+def test_admin_add_with_existing_sick_leave_extends_end(client, setup):
+    school, staff, boss = setup
+    _approve(_leave(school, staff, "sick", dt.date(2026, 3, 1), dt.date(2026, 3, 10), 8), boss)
+    client.force_login(UserFactory(is_staff=True, is_superuser=True))
+    assert _admin_post(client, school, staff).status_code == 302
+    c = EmploymentContract.objects.get(school=school, staff=staff)
+    assert c.base_end == dt.date(2026, 7, 1)
+    assert c.extension_days == 10 and c.probation_end == dt.date(2026, 7, 11)
+
+
+def test_admin_add_ignores_posted_result(client, setup):
+    school, staff, _ = setup
+    client.force_login(UserFactory(is_staff=True, is_superuser=True))
+    assert _admin_post(client, school, staff, result="passed").status_code == 302
+    c = EmploymentContract.objects.get(school=school, staff=staff)
+    assert c.result == "pending" and c.result_at is None
+
+
+def test_admin_change_keeps_computed_dates_and_locks_start_and_months(client, setup):
+    from django.urls import reverse
+
+    school, staff, boss = setup
+    c = open_contract(school, staff, START, 6, boss)
+    _approve(_leave(school, staff, "sick", dt.date(2026, 3, 1), dt.date(2026, 3, 10), 8), boss)
+    client.force_login(UserFactory(is_staff=True, is_superuser=True))
+    resp = client.post(
+        reverse("admin:staff_affairs_employmentcontract_change", args=[c.pk]),
+        {
+            "school": school.pk,
+            "staff": staff.pk,
+            "contract_ref": "ع-معدَّل",
+            "contract_start": "2026-02-01",  # يُتجاهل: للقراءة فقط
+            "probation_months": 3,
+            "result": "pending",
+        },
+    )
+    assert resp.status_code == 302
+    c.refresh_from_db()
+    assert c.contract_ref == "ع-معدَّل"
+    assert c.contract_start == START and c.probation_months == 6
+    assert c.base_end == dt.date(2026, 7, 1) and c.probation_end == dt.date(2026, 7, 11)

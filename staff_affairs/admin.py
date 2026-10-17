@@ -28,6 +28,17 @@ class EmploymentContractAdmin(admin.ModelAdmin):
         "updated_by",
     )
 
+    def get_readonly_fields(self, request, obj=None):
+        # بدايةُ العقد ومدّةُ الاختبار تحدّدان base_end؛ فلا تُعدَّلان بعد الإضافة فيبقى الحسابُ صحيحاً
+        fields = super().get_readonly_fields(request, obj)
+        if obj is not None:
+            fields = (*fields, "contract_start", "probation_months")
+        return fields
+
+    def get_exclude(self, request, obj=None):
+        # النتيجةُ تُسجَّل بخدمة الاختبار (record_result) لا من نموذج الإضافة
+        return ("result",) if obj is None else None
+
     def save_model(self, request, obj, form, change):
         """الإضافةُ تمرّ بخدمة الاختبار لتحسب base_end وprobation_end؛ والتعديلُ يبقى كما هو."""
         if change:
