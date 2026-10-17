@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-16",
+  "previous_date": null,
+  "values": {
+    "hex_outside_tokens": 0,
+    "important": 16,
+    "inline_style": 108,
+    "visual_gate": "غير مقيس"
+  },
+  "inline_templates": 18,
+  "hex_detail": {
+    "templates": 0,
+    "css_rules": 0
+  },
+  "effective": {
+    "important": 6,
+    "inline_style": 0
+  },
+  "rows": [
+    {
+      "key": "hex_outside_tokens",
+      "label": "ألوانٌ حرفيّةٌ خارج الرموز",
+      "meaning": "قيمةُ لونٍ مكتوبةٌ بيدٍ في قالبٍ أو قاعدة CSS بدل رمزٍ يتبع الوضع الداكن.",
+      "value": 0,
+      "previous": null,
+      "trend": "أوّل قياس — بلا اتجاه"
+    },
+    {
+      "key": "important",
+      "label": "‎!important في CSS",
+      "meaning": "فرضٌ للأولويّة يصعّب تعديلَ التنسيق لاحقاً.",
+      "value": 16,
+      "previous": null,
+      "trend": "أوّل قياس — بلا اتجاه"
+    },
+    {
+      "key": "inline_style",
+      "label": "تنسيقٌ داخل الوسم (style=)",
+      "meaning": "تنسيقٌ مكتوبٌ في القالب نفسِه خارج ملفّات التنسيق المركزيّة.",
+      "value": 108,
+      "previous": null,
+      "trend": "أوّل قياس — بلا اتجاه"
+    },
+    {
+      "key": "visual_gate",
+      "label": "مخالفاتُ visual_gate",
+      "meaning": "مخالفاتٌ التقطتها البوّابةُ البصريّة في متصفّحٍ حقيقيّ (مسافات، تداخل، خطٌّ صغير).",
+      "value": "غير مقيس",
+      "previous": null,
+      "trend": "أوّل قياس — بلا اتجاه"
+    }
+  ]
+}
