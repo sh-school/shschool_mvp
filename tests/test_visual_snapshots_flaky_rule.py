@@ -39,6 +39,16 @@ def test_the_change_limit_tolerates_host_render_noise_but_still_catches_a_blank_
     assert vs.decide_after_retry(1.0, 1.0, vs.CHANGE_MAX) == vs.FAIL  # وتتكرّر في الإعادة
 
 
+def test_the_capture_runs_on_a_pinned_host_with_deterministic_render_flags():
+    workflow = (LIVE.parents[2] / ".github" / "workflows" / "visual-snapshots.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "runs-on: ubuntu-24.04" in workflow
+    assert "ubuntu-latest" not in workflow
+    assert "--force-color-profile=srgb" in vs.CHROMIUM_ARGS
+    assert "vs.CHROMIUM_ARGS" in LIVE.read_text(encoding="utf-8")
+
+
 def test_height_waits_for_two_equal_consecutive_reads():
     reads = iter([900, 1000, 1200, 1200])
     waited = []

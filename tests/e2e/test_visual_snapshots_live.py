@@ -131,7 +131,7 @@ def test_the_key_pages_are_deterministic_and_have_not_changed_visually(
     allow_changes = bool(os.environ.get("VISUAL_ALLOW_CHANGES"))
 
     rows: list[dict] = []
-    browser = playwright.chromium.launch()
+    browser = playwright.chromium.launch(args=vs.CHROMIUM_ARGS)
     try:
         plan = vs.matrix()
         for role in sorted({shot.role for shot in plan}):
