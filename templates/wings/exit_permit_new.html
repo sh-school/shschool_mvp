@@ -3,6 +3,10 @@
 {% comment %}طلبُ إذن خروج لطالبٍ بعينه (W-20261005-010): السببُ مصنَّف، والتفصيلُ اختياريّ، ووقتُ الخروج الآن.{% endcomment %}
 {% block title %}طلبُ إذن خروج — {{ student.full_name }}{% endblock %}
 {% block main_class %}{% page_layout "form" %}{% endblock %}
+{% block breadcrumbs %}
+{% url 'wings:exit_permit_list' as list_url %}
+{% include "components/breadcrumbs.html" with parent2_url="/wings/record/" parent2_label="رصد الغياب" parent_url=list_url parent_label="أذونات الخروج" current=student.full_name %}
+{% endblock %}
 
 {% block content %}
 <div class="exec-dash">

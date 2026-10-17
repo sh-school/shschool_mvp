@@ -202,3 +202,30 @@ class TestFormFromConstants:
         ctx = form_context(permit)
         assert ctx["title"] == "عنوانٌ جديد للاستمارة"
         assert ctx["rows"][1][0] == "اسمُ الطالب المعدَّل"
+
+
+class TestWhoMayRequest:
+    """قرارُ المالك 2026-10-17: البوّابةُ تُدخل المعلّمَ وحدَه، ولا يرثه من فوقه من الأدوار الستّة."""
+
+    INHERITING_ROLES = {
+        "teacher_assistant",
+        "ese_teacher",
+        "ese_assistant",
+        "coordinator",
+        "activities_coordinator",
+        "e_projects_coordinator",
+    }
+
+    def test_the_teacher_is_admitted_and_the_six_inheriting_roles_are_not(self):
+        from core.capabilities import registry
+
+        roles = registry()[service.REQUEST_CAP].expanded_roles
+        assert "teacher" in roles
+        assert not (self.INHERITING_ROLES & roles)
+
+    def test_the_wings_gate_admits_the_teacher_only_of_those(self):
+        from core.module_registry import get_protected_paths
+
+        gate = set(get_protected_paths()["/wings/"])
+        assert "teacher" in gate
+        assert not (self.INHERITING_ROLES & gate)

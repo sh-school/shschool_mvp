@@ -762,6 +762,15 @@ def registry() -> dict[str, Capability]:
             scope="المعلّم لشُعبه، وحاملُ الجناح لأجنحته",
             basis="مواصفة W-20261005-010: المعلّم يطلب فقط؛ والاعتمادُ لحامل الجناح والنائب الإداريّ (`wings.record_day`)",
             grant=_holds_a_wing,
+            # قرارُ المالك 2026-10-17: المعلّمُ وحدَه لا من يرثه (المساعدان وأخصائيّو التربية الخاصة والمنسّقون).
+            not_inherited_by={
+                "teacher_assistant",
+                "ese_teacher",
+                "ese_assistant",
+                "coordinator",
+                "activities_coordinator",
+                "e_projects_coordinator",
+            },
         ),
         _cap(
             "wings.school_wide",

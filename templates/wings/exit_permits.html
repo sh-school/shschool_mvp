@@ -6,6 +6,9 @@
 {% endcomment %}
 {% block title %}أذوناتُ خروج الطلاب{% endblock %}
 {% block main_class %}{% page_layout "list" %}{% endblock %}
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/wings/record/" parent_label="رصد الغياب" current="أذونات الخروج" %}
+{% endblock %}
 
 {% block content %}
 <div class="exec-dash">
@@ -18,7 +21,7 @@
       <button type="submit" class="btn-secondary btn-sm">عرض</button>
     </form>
     {% if permits %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table data-no-sort>
         <thead><tr><th>الرقم</th><th>الطالب</th><th>الشعبة</th><th>السبب</th><th>الخروج</th><th>الحصص</th><th>الحالة</th><th><span class="sr-only">الإجراء</span></th></tr></thead>
         <tbody>
