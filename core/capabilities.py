@@ -582,10 +582,10 @@ def registry() -> dict[str, Capability]:
         ),
         _cap(
             "operations.absence_followup_print",
-            "طباعةُ كشف متابعة الغياب",
-            followup_writers,
-            scope="المدرسة، ولمشرف الجناح جناحُه",
-            basis="طلبُ المدير SOS-20261012-AC00",
+            "طباعةُ كشفَي متابعة الغياب (التواصل والإجراءات)",
+            followup_columns,
+            scope="المدرسة",
+            basis="قولُ المالك 2026-10-17 (W-20261017-024): الطباعةُ للمدير والنائب الإداريّ ومنسّق شؤون الطلبة وحدَهم",
         ),
         _cap(
             "operations.absence_followup_followup",

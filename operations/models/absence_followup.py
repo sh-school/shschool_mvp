@@ -167,6 +167,17 @@ class AbsenceActionLog(AppendOnlyModel):
         verbose_name="من نفّذ",
     )
     acted_at = models.DateTimeField(default=timezone.now, verbose_name="وقتُ التنفيذ")
+    #: وقتُ ومسجِّلُ «متابعة الإجراء» (W-20261017-024): يُملآن حين يسجّل أحدُ الثلاثة حالةَ المتابعة؛
+    #: فارغان قبلَ المتابعة وفي السجلّات القديمة (توسيعٌ لا حذف).
+    followed_at = models.DateTimeField(null=True, blank=True, verbose_name="وقتُ المتابعة")
+    followed_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="absence_actions_followed",
+        verbose_name="من تابع",
+    )
     corrects = models.ForeignKey(
         "self",
         on_delete=models.PROTECT,

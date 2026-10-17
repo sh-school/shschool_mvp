@@ -46,7 +46,7 @@ def _pdf_marks(user, school):
     import re
 
     try:
-        result = build_followup_pdf(school, user, {"date": DAY})
+        result = build_followup_pdf(school, user, {"date": DAY, "page": "actions"})
     except PermissionDenied:
         return None
     pages = pdfplumber.open(io.BytesIO(result.content)).pages
@@ -66,20 +66,22 @@ class TestColumnsByRole:
         self, client_as, staff, supervisor, absent_both, school, role
     ):
         _seed_status(client_as, staff["principal"], absent_both[0])
-        body = _get(client_as, staff[role]).content.decode()
-        assert ">متابعةُ التواصل</th>" in body and ">متابعةُ الإجراء</th>" in body
-        assert _pdf_marks(staff[role], school) >= _pdf_marks(supervisor, school) + 2
+        body = _get(client_as, staff[role], "absence_actions").content.decode()
+        assert ">متابعةُ الإجراء</th>" in body and "وقتُ المتابعة ومن سجّلها" in body
+        assert ">متابعةُ التواصل</th>" not in _get(client_as, staff[role]).content.decode()
+        assert _pdf_marks(supervisor, school) is None, "الطباعةُ لثلاثةٍ فقط"
+        assert _pdf_marks(staff[role], school) >= 3
 
     def test_the_wing_supervisor_and_academic_deputy_get_none_of_it(
         self, client_as, staff, supervisor, absent_both, school
     ):
         _seed_status(client_as, staff["principal"], absent_both[0])
         for user in (supervisor, staff["vice_academic"]):
-            body = _get(client_as, user).content.decode()
-            assert ">متابعةُ التواصل</th>" not in body and ">متابعةُ الإجراء</th>" not in body
+            body = _get(client_as, user, "absence_actions").content.decode()
+            assert ">متابعةُ الإجراء</th>" not in body and "وقتُ المتابعة" not in body
             rows = svc.followup_rows(user, SUNDAY)
             assert all(r["contact_status"] == "" and r["action_status"] == "" for r in rows)
-            assert _pdf_marks(user, school) in (None, _pdf_marks(supervisor, school))
+            assert _pdf_marks(user, school) is None
 
     def test_a_non_holder_cannot_write_a_follow_up_only_status(
         self, staff, supervisor, absent_both
@@ -109,7 +111,7 @@ class TestOptions:
         assert not AbsenceContactLog.objects.exists()
 
     def test_the_two_referrals_and_the_pledge_label(self, client_as, staff, absent_both):
-        body = _get(client_as, staff["principal"]).content.decode()
+        body = _get(client_as, staff["principal"], "absence_actions").content.decode()
         assert "تحويل لمنسق شؤون الطلاب" in body and "تحويل للأخصائي الاجتماعي" in body
         assert "إشعار كتابي" not in body and "تعهد خطي" in body
 
@@ -120,7 +122,7 @@ class TestOptions:
         row = AbsenceActionLog.objects.get()
         assert row.action_kind == "written_notice"
         assert row.get_action_kind_display() == "تعهد خطي"
-        assert "تعهد خطي" in _get(client_as, staff["principal"]).content.decode()
+        assert "تعهد خطي" in _get(client_as, staff["principal"], "absence_actions").content.decode()
 
 
 class TestCounting:

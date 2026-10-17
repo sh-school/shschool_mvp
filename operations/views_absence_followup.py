@@ -30,7 +30,6 @@ from core.capabilities import capability_required, has_capability
 from core.export_utils import generate_export_filename
 from core.models import AuditLog
 from operations.models import AbsenceActionLog, AbsenceContactLog
-from operations.models.absence_followup import FOLLOWUP_STATUSES
 from operations.services import ScheduleService
 from operations.services import absence_followup as service
 from wings.scope import student_scope_for
@@ -42,6 +41,9 @@ _FLAGS = {
     "can_print": "operations.absence_followup_print",
     "can_followup": "operations.absence_followup_followup",
 }
+
+
+_TITLES = {"contact": "التواصل مع أولياء الأمور", "actions": "متابعة إجراءات الغياب"}
 
 
 def _day(raw: str | None) -> dt.date:
@@ -128,33 +130,30 @@ def _audit_reads(request: HttpRequest, rows: list[dict]) -> None:
         )
 
 
-@login_required
-@capability_required("operations.absence_followup_view")
-def absence_followup(request: HttpRequest) -> HttpResponse:
-    """متابعةُ غياب اليوم — جدولا التواصل والإجراء، لأيّ تاريخ."""
+def _screen(request: HttpRequest, page: str) -> HttpResponse:
+    """الصفحتان المستقلّتان تتقاسمان التصفيةَ والعدّاداتِ والنطاق، وتختلفان بالقالب وحده."""
     school = request.school
     day = _day(request.GET.get("date"))
     flags = _flags(request.user)
     all_rows, report, wing_bound = _rows(request, day)
-    grade = request.GET.get("grade", "")
-    wing = request.GET.get("wing", "")
-    followup = request.GET.get("followup", "")
-    sort = request.GET.get("sort", "")
-    rows = service.apply_view(all_rows, grade=grade, wing=wing, followup=followup, sort=sort)
+    q = {k: request.GET.get(k, "") for k in ("grade", "wing", "followup", "sort")}
+    rows = service.apply_view(all_rows, **q)
     _audit_reads(request, rows)
-    grades = sorted(
-        {(r["class_group"].grade, r["class_group"].get_grade_display()) for r in all_rows}
-    )
-    wings = [] if wing_bound else service.wing_choices(school)
     subtitle = f"{school.name} · {date_format(day, 'l d/m/Y')}"
     if wing_bound:
         subtitle = f"{subtitle} · طلبةُ جناحك"
+    grades = sorted(
+        {(r["class_group"].grade, r["class_group"].get_grade_display()) for r in all_rows}
+    )
     return render(
         request,
-        "operations/absence_followup/index.html",
+        f"operations/absence_followup/{page}.html",
         {
             "rows": rows,
             "day": day,
+            "page": page,
+            "screen_title": _TITLES[page],
+            "screen_icon": "call_parent" if page == "contact" else "checklist",
             "subtitle": subtitle,
             "absent_students": len(rows),
             "ministry_count": report.ministry_absent_count,
@@ -162,25 +161,38 @@ def absence_followup(request: HttpRequest) -> HttpResponse:
             "actioned": sum(1 for r in rows if r["action"]),
             "outcomes": AbsenceContactLog.OFFERED_OUTCOMES,
             "statuses": _statuses_for(flags["can_followup"]),
-            "contact_statuses": FOLLOWUP_STATUSES,
             "kinds": AbsenceActionLog.KINDS,
             "grades": grades,
-            "wings": wings,
-            "view_query": service.view_query(grade, wing, followup, sort),
+            "wings": [] if wing_bound else service.wing_choices(school),
+            "view_query": service.view_query(**q),
             "followups": service.FOLLOWUP_FILTERS,
             "sorts": service.SORTS,
-            "f_sort": sort if sort in dict(service.SORTS) else "",
-            "f_grade": grade,
-            "f_wing": wing,
-            "f_followup": followup,
+            "f_sort": q["sort"] if q["sort"] in dict(service.SORTS) else "",
+            "f_grade": q["grade"],
+            "f_wing": q["wing"],
+            "f_followup": q["followup"],
             "empty_title": (
                 "لا غائبَ يطابق التصفية"
-                if (grade or wing or followup)
+                if any(q[k] for k in ("grade", "wing", "followup"))
                 else "لا غيابَ مرصوداً في هذا اليوم"
             ),
             **flags,
         },
     )
+
+
+@login_required
+@capability_required("operations.absence_followup_view")
+def absence_followup(request: HttpRequest) -> HttpResponse:
+    """صفحةُ «التواصل مع أولياء الأمور» — وهي المسارُ القديم `/reports/daily/` فلا ينكسر رابطٌ محفوظ."""
+    return _screen(request, "contact")
+
+
+@login_required
+@capability_required("operations.absence_followup_view")
+def absence_actions(request: HttpRequest) -> HttpResponse:
+    """صفحةُ «متابعة إجراءات الغياب» المستقلّة."""
+    return _screen(request, "actions")
 
 
 def _day_of(request: HttpRequest) -> dt.date:
@@ -193,7 +205,8 @@ def _back(request: HttpRequest, day: dt.date) -> HttpResponse:
     for key in ("grade", "wing", "followup", "sort"):
         if request.POST.get(key):
             query[key] = request.POST[key]
-    return redirect(f"{reverse('daily_report')}?{urlencode(query)}")
+    target = "absence_actions" if request.POST.get("page") == "actions" else "daily_report"
+    return redirect(f"{reverse(target)}?{urlencode(query)}")
 
 
 @login_required
@@ -256,22 +269,36 @@ def action_save(request: HttpRequest) -> HttpResponse:
     return _back(request, day)
 
 
-# `X_FRAME_OPTIONS = "DENY"` عامٌّ على المشروع فيحجب المعاينةَ داخل إطار صفحة المنصّة؛ والمصدرُ الموقعُ نفسُه فـ sameorigin يكفي.
-@xframe_options_sameorigin
 @login_required
 @capability_required("operations.absence_followup_print")
 def followup_print(request: HttpRequest) -> HttpResponse:
-    """كشفُ المتابعة للطباعة — معاينةٌ داخل المنصّة، و`?format=pdf` تنزيلاً (Tajawal مضمَّن)."""
-    from operations.absence_followup_print import followup_sheet_response
+    """صفحةُ المنصّة بإطار الكشف (المسارُ القديم `reports/daily/print/` باقٍ) — الفرضُ في الخادم لا في الواجهة."""
+    from operations.absence_followup_print import followup_viewer_response
 
-    day = _day(request.GET.get("date"))
-    rows, _report, wing_bound = _rows(request, day)
-    rows = _shown(request.GET, rows)
-    _audit_reads(request, rows)
-    flags = _flags(request.user)
-    return followup_sheet_response(
-        request, day, rows, wing_bound, flags["can_feedback"], flags["can_followup"]
+    return followup_viewer_response(request, _day(request.GET.get("date")))
+
+
+# `X_FRAME_OPTIONS = "DENY"` عامٌّ على المشروع فيحجب عرضَ الملفّ داخل إطار صفحة المنصّة؛ والمصدرُ الموقعُ نفسُه فـ sameorigin يكفي.
+@xframe_options_sameorigin
+@login_required
+@capability_required("operations.absence_followup_print")
+def followup_pdf(request: HttpRequest) -> HttpResponse:
+    """ملفُّ PDF للصفحة المطلوبة بالاتّجاه المطلوب — inline للإطار، و`download=1` تنزيلاً. التدقيقُ: العددُ لا الأسماء."""
+    from core.audit_export import log_export
+    from operations.absence_followup_print import build_followup_pdf, sheet_options
+
+    result = build_followup_pdf(request.school, request.user, request.GET)
+    page, orient = sheet_options(request.GET)
+    log_export(
+        request,
+        f"operations.absence_followup_{page}_pdf",
+        rows=result.rows,
+        object_repr=f"{page}/{orient}",
     )
+    response = HttpResponse(result.content, content_type=result.content_type)
+    mode = "attachment" if request.GET.get("download") else "inline"
+    response["Content-Disposition"] = f'{mode}; filename="{result.filename}"'
+    return response
 
 
 @login_required

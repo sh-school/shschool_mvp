@@ -239,10 +239,14 @@ class TestPrivacy:
         self, client_as, school, staff, absent_both
     ):
         _family(school, absent_both[0])
-        body = _get(
-            client_as, staff["principal"], "absence_followup_print", embed="1"
-        ).content.decode()
-        assert FATHER_PHONE in body
+        import io
+
+        import pdfplumber
+
+        resp = _get(client_as, staff["principal"], "absence_followup_pdf", page="contact")
+        pages = pdfplumber.open(io.BytesIO(resp.content)).pages
+        body = " ".join(p.extract_text() or "" for p in pages)
+        assert FATHER_PHONE in body or FATHER_PHONE[::-1] in body
         assert FATHER_NAME not in body and MOTHER_NAME not in body
         trail = " ".join(
             f"{a.object_repr} {a.changes}" for a in AuditLog.objects.filter(action="view")

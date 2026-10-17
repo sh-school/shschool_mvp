@@ -108,13 +108,24 @@ def render_contact_sheet(user: Any, date: dt.date, params: Any = None) -> bytes:
     return pdf
 
 
+#: الافتراضيّ: أفقيٌّ في التواصل (أعمدةٌ كثيرة) وعموديٌّ في الإجراءات (قرارُ المالك 2026-10-17).
+DEFAULT_ORIENT = {"contact": "landscape", "actions": "portrait"}
+PAGES = tuple(DEFAULT_ORIENT)
+
+
+def sheet_options(params: Any) -> tuple[str, str]:
+    """(الصفحة، الاتّجاه) من الاستعلام بقائمةٍ بيضاء — قيمةٌ غريبةٌ ترجع إلى الافتراضيّ."""
+    page = params.get("page") if params.get("page") in PAGES else "contact"
+    orient = params.get("orient")
+    return page, orient if orient in ("portrait", "landscape") else DEFAULT_ORIENT[page]
+
+
 def build_followup_pdf(school: Any, user: Any, params: Any) -> Any:
-    """بنّاءُ سجلّ التصدير لكشف المتابعة PDF (`operations.absence_followup_pdf`): بلا `request`، والنطاقُ من `followup_rows`."""
+    """PDF كشف الصفحة المطلوبة (`page`) بالاتّجاه المطلوب (`orient`): القدرةُ أوّلاً والنطاقُ من `followup_rows`."""
     from django.utils.formats import date_format
 
     from core.export_utils import generate_export_filename
     from core.exports.registry import ExportResult
-    from core.pdf_utils import render_pdf_bytes
     from operations.models import AbsenceActionLog, AbsenceContactLog
     from operations.services.absence_followup import followup_rows
     from wings.register import footer_lines
@@ -125,79 +136,53 @@ def build_followup_pdf(school: Any, user: Any, params: Any) -> Any:
         day = dt.date.fromisoformat(params.get("date") or "")
     except ValueError:
         day = dt.date.today()
+    page, orient = sheet_options(params)
     rows = _shown_rows(followup_rows(user, day), params)
-    ctx = get_export_context_for(user, f"متابعة الغياب — {date_format(day, 'd/m/Y')}")
+    name = "التواصل مع أولياء الأمور" if page == "contact" else "متابعة إجراءات الغياب"
+    ctx = get_export_context_for(user, f"{name} — {date_format(day, 'd/m/Y')}")
     ctx.update(
         school=school,
         footer=footer_lines(school),
         rows=rows,
         day=day,
-        orient="landscape",
+        page=page,
+        orient=orient,
         outcomes=dict(AbsenceContactLog.OUTCOMES),
         statuses=dict(AbsenceActionLog.STATUSES),
         can_feedback=has_capability(user, "operations.absence_followup_feedback"),
-        can_followup=has_capability(user, "operations.absence_followup_followup"),
     )
     pdf = render_pdf_bytes(render_to_string("operations/absence_followup_print.html", ctx))
     return ExportResult(
         content=pdf,
         content_type="application/pdf",
-        filename=generate_export_filename("operations", "absence-followup", "pdf"),
+        filename=generate_export_filename("operations", f"absence-{page}", "pdf"),
         rows=len(rows),
     )
 
 
-def followup_sheet_response(
-    request: Any,
-    day: dt.date,
-    rows: list[dict],
-    wing_bound: bool,
-    can_feedback: bool,
-    can_followup: bool = False,
-):
-    """كشفُ المتابعة: `?format=pdf` مهمّةُ تصديرٍ عبر السجلّ المركزيّ، وإلّا معاينةٌ داخل المنصّة بإطارٍ (`embed=1` هو الوثيقةُ نفسُها)."""
+def followup_viewer_response(request: Any, day: dt.date) -> Any:
+    """صفحةُ المنصّة بإطار PDF: رجوعٌ وتحميلٌ وقائمةُ «عمودي / أفقي» — بلا زرّ مشاركة (قرار المالك 2026-10-17)."""
     from urllib.parse import urlencode
 
     from django.shortcuts import render
     from django.urls import reverse
     from django.utils.formats import date_format
 
-    from core.export_utils import get_export_context
-    from core.exports.services import respond_export
-    from operations.models import AbsenceActionLog, AbsenceContactLog
-    from wings.register import footer_lines
-
-    if request.GET.get("format") == "pdf":
-        return respond_export(request, "operations.absence_followup_pdf")
-    title = f"متابعة الغياب — {date_format(day, 'd/m/Y')}"
-    # مفاتيحُ التصفية والفرز تُحمَل إلى التنزيل والرجوع فيبقى المطبوعُ على ما عُرض.
+    page, orient = sheet_options(request.GET)
     shown = {k: request.GET[k] for k in ("grade", "wing", "followup", "sort") if request.GET.get(k)}
-    if request.GET.get("embed") != "1":
-        return render(
-            request,
-            "operations/absence_followup/viewer.html",
-            {
-                "report_title": title,
-                "subtitle": f"{request.school.name} · {date_format(day, 'l')}",
-                "rows": rows,
-                "can_feedback": can_feedback,
-                "can_followup": can_followup,
-                "pdf_url": f"{request.path}?{urlencode({'date': day.isoformat(), 'format': 'pdf', **shown})}",
-                "back_url": f"{reverse('daily_report')}?{urlencode({'date': day.isoformat(), **shown})}",
-            },
-        )
-    ctx = get_export_context(request, title)
-    ctx.update(
-        school=request.school,
-        footer=footer_lines(request.school),
-        rows=rows,
-        day=day,
-        wing_bound=wing_bound,
-        orient="landscape",
-        outcomes=dict(AbsenceContactLog.OUTCOMES),
-        statuses=dict(AbsenceActionLog.STATUSES),
-        can_feedback=can_feedback,
-        can_followup=can_followup,
-        for_screen=True,
+    base = {"date": day.isoformat(), "page": page, "orient": orient, **shown}
+    name = "التواصل مع أولياء الأمور" if page == "contact" else "متابعة إجراءات الغياب"
+    back = "daily_report" if page == "contact" else "absence_actions"
+    return render(
+        request,
+        "operations/absence_followup/viewer.html",
+        {
+            "report_title": f"{name} — {date_format(day, 'd/m/Y')}",
+            "subtitle": f"{request.school.name} · {date_format(day, 'l')}",
+            "orient": orient,
+            "keep": {k: v for k, v in base.items() if k != "orient"},
+            "frame_url": f"{reverse('absence_followup_pdf')}?{urlencode(base)}",
+            "pdf_url": f"{reverse('absence_followup_pdf')}?{urlencode({**base, 'download': 1})}",
+            "back_url": f"{reverse(back)}?{urlencode({'date': day.isoformat(), **shown})}",
+        },
     )
-    return render(request, "operations/absence_followup_print.html", ctx)

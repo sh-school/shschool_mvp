@@ -7,12 +7,9 @@
 
 {% block extra_styles %}
 @page {
-  size: A4 landscape;
+  size: A4 {{ orient|default:'landscape' }};
   margin: 9mm 10mm 22mm 10mm;
 }
-{% if for_screen %}
-.running-footer { display: none; }
-{% endif %}
 .fu-grid { width: 100%; border-collapse: collapse; font-size: 9pt; table-layout: auto; }
 .fu-grid th { background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; padding: 4px 3px; border: 1px solid {% brand_color "MAROON" %}; text-align: center; }
 .fu-grid td { text-align: center; padding: 3px 4px; border: 1px solid {% brand_color "BORDER_STRONG" %}; color: {% brand_color "TEXT_PRIMARY" %}; }
@@ -34,8 +31,12 @@
   <table class="fu-grid">
     <thead>
       <tr>
-        <th scope="col" class="fu-c-no">م</th><th scope="col" class="fu-c-name">الطالب</th><th scope="col" class="fu-c-class">الشعبة</th><th scope="col" class="fu-c-phone">هاتفُ وليّ الأمر</th><th scope="col">نتيجةُ الاتّصال</th>
-        {% if can_feedback %}<th scope="col">التغذية الراجعة من وليّ الأمر</th>{% endif %}<th scope="col">الإجراءُ الإداريّ</th>{% if can_followup %}<th scope="col">متابعةُ التواصل</th><th scope="col">متابعةُ الإجراء</th>{% endif %}
+        <th scope="col" class="fu-c-no">م</th><th scope="col" class="fu-c-name">الطالب</th><th scope="col" class="fu-c-class">الشعبة</th>
+        {% if page == "actions" %}
+        <th scope="col">الإجراءُ الحاليّ</th><th scope="col">وقتُ التنفيذ</th><th scope="col">متابعةُ الإجراء</th><th scope="col">وقتُ المتابعة ومن سجّلها</th>
+        {% else %}
+        <th scope="col">غيابُ اليوم</th><th scope="col" class="fu-c-phone">هاتفُ وليّ الأمر</th><th scope="col">حالةُ التواصل</th><th scope="col">آخرُ اتّصال</th>{% if can_feedback %}<th scope="col">التغذية الراجعة من وليّ الأمر</th>{% endif %}
+        {% endif %}
       </tr>
     </thead>
     <tbody>
@@ -44,18 +45,24 @@
         <td class="fu-c-no">{{ forloop.counter }}</td>
         <td class="fu-c-name">{{ row.student.full_name }}</td>
         <td class="fu-c-class">{{ row.class_group.short_label }}</td>
+        {% if page == "actions" %}
+        <td>{% if row.action %}{{ row.action.get_action_kind_display }}{% if row.action.note %} — {{ row.action.note }}{% endif %}{% endif %}</td>
+        <td>{% if row.action %}{{ row.action.acted_at|date:"d/m H:i" }}{% endif %}</td>
+        <td>{{ row.action_status|default:"لم تتمّ المتابعة" }}</td>
+        <td>{% if row.followed_at %}{{ row.followed_at|date:"d/m/Y H:i" }} · {{ row.followed_by }}{% endif %}</td>
+        {% else %}
+        <td>غاب الأولى والثانية</td>
         <td class="fu-c-phone" dir="ltr">{{ row.phones|join:" ، " }}</td>
         <td>{% if row.contact %}{{ row.contact.get_outcome_display }}{% endif %}</td>
+        <td>{% if row.contact %}{{ row.contact.contacted_at|date:"d/m H:i" }}{% endif %}</td>
         {% if can_feedback %}<td>{{ row.feedback }}</td>{% endif %}
-        <td>{% if row.action %}{{ row.action.get_action_kind_display }}{% if row.action.note %} — {{ row.action.note }}{% endif %}{% endif %}</td>
-        {% if can_followup %}<td>{{ row.contact_status }}</td><td>{{ row.action_status }}</td>{% endif %}
+        {% endif %}
       </tr>
       {% empty %}
-      <tr><td colspan="7" class="no-data">لا غيابَ مرصوداً في هذا اليوم.</td></tr>
+      <tr><td colspan="9" class="no-data">لا غيابَ مرصوداً في هذا اليوم.</td></tr>
       {% endfor %}
     </tbody>
   </table>
   <div class="fu-sign"><div class="fu-line">مشرفُ الجناح</div></div>
-  {% if for_screen %}{% include "wings/pdf/sheet_footer.html" %}{% endif %}
-</div>
+  </div>
 {% endblock %}

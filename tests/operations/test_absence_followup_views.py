@@ -72,7 +72,7 @@ class TestFilters:
 
 class TestForms:
     def test_the_action_kind_is_a_fixed_list_not_free_text(self, client_as, staff, absent_both):
-        body = _get(client_as, staff["principal"]).content.decode()
+        body = _get(client_as, staff["principal"], "absence_actions").content.decode()
         assert '<select name="action_kind"' in body
         assert 'type="text" name="action_kind"' not in body
 
@@ -104,49 +104,28 @@ class TestContactSheetRoute:
         assert reverse("absence_followup_contact_sheet_pdf") in body
 
 
-class TestLayout:
-    def test_the_two_cards_sit_in_one_two_column_grid(self, client_as, staff, absent_both):
-        body = _get(client_as, staff["principal"]).content.decode()
-        grid = body.index('class="ui-grid-2 tbl-cols"')
-        assert (
-            grid < body.index("التواصلُ مع أولياء الأمور") < body.index("متابعةُ الإجراءات الإدارية")
-        )
-        assert body.count('class="ui-grid-2 tbl-cols"') == 1
-
-
-class TestPrintInsidePlatform:
-    def test_preview_is_a_platform_page_with_a_sticky_table_and_embed_is_bare(
-        self, client_as, staff, absent_both
-    ):
-        page = _get(client_as, staff["principal"], "absence_followup_print").content.decode()
-        assert "site-nav" in page and "table-wrap table-wrap-scroll" in page
-        assert "report-viewer__frame" not in page
-        bare = _get(
-            client_as, staff["principal"], "absence_followup_print", embed="1"
-        ).content.decode()
-        assert "site-nav" not in bare
-
-
 class TestStickyHeader:
     def test_both_tables_scroll_vertically_under_a_fixed_head(self, client_as, staff, absent_both):
-        body = _get(client_as, staff["principal"]).content.decode()
-        assert body.count("table-wrap table-wrap-scroll") == 2
+        for name in ("daily_report", "absence_actions"):
+            body = _get(client_as, staff["principal"], name).content.decode()
+            assert body.count("table-wrap table-wrap-scroll") == 1
 
 
 class TestFrameable:
     def test_the_embedded_sheet_is_not_blocked_from_the_viewer_frame(
         self, client_as, staff, absent_both
     ):
-        resp = _get(client_as, staff["principal"], "absence_followup_print", embed="1")
+        resp = _get(client_as, staff["principal"], "absence_followup_pdf")
         assert resp.status_code == 200
         assert resp["X-Frame-Options"].upper() == "SAMEORIGIN"
 
 
 class TestSerialColumn:
     def test_each_table_starts_with_a_serial_number_column(self, client_as, staff, absent_both):
-        body = _get(client_as, staff["principal"]).content.decode()
-        assert body.count('<th scope="col" class="num fu-seq">#</th>') == 2
-        assert body.count('<td class="num fu-seq">1</td>') >= 2
+        for name in ("daily_report", "absence_actions"):
+            body = _get(client_as, staff["principal"], name).content.decode()
+            assert body.count('<th scope="col" class="num fu-seq">#</th>') == 1
+            assert body.count('<td class="num fu-seq">1</td>') >= 1
 
 
 class TestTodayAbsenceColumn:

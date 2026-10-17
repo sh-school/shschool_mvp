@@ -201,13 +201,26 @@ def _action_status(user: Any, status: str, prior: str = "") -> str:
     حالتُه من القيم المحجوبة فهي تبقى كما كانت (ولا يمسّها).
     """
     allowed_all = has_capability(user, FOLLOW)
+    # الفارغُ تسجيلُ إجراءٍ بلا متابعة: «لم تتمّ المتابعة» افتراضيٌّ للنظام لا اختيارٌ ممنوح.
+    explicit = bool(status)
     if not status:
-        status = prior or "done"
+        status = prior or "not_followed"
     if status not in dict(AbsenceActionLog.STATUSES):
         raise FollowupError("حالةُ الإجراء غيرُ معروفة.")
-    if status in _FOLLOW_ONLY_ACTION_STATUSES and not allowed_all and status != prior:
+    if explicit and status in _FOLLOW_ONLY_ACTION_STATUSES and not allowed_all and status != prior:
         raise PermissionDenied("لا صلاحيةَ لهذه الحالة في متابعة الغياب.")
     return status
+
+
+#: نتائجُ «متابعة الإجراء» التي تختم الوقتَ والمسجِّل (لا «لم تتمّ المتابعة» ولا استلامُ الإجازة).
+_FOLLOW_OUTCOMES = ("done", "partial", "not_done")
+
+
+def _follow_stamp(user: Any, status: str, prior: str) -> dict[str, Any]:
+    """ختمُ وقتِ المتابعة ومسجِّلها حين يسجّل حاملُ القدرة نتيجةً جديدة (غيرَ ما كانت)."""
+    if status in _FOLLOW_OUTCOMES and status != prior and has_capability(user, FOLLOW):
+        return {"followed_at": timezone.now(), "followed_by": user}
+    return {}
 
 
 def record_action(
@@ -240,6 +253,7 @@ def record_action(
         excuse=excuse,
         acted_by=user,
         acted_at=timezone.now(),
+        **_follow_stamp(user, status, ""),
     )
     _audit(user, "create", "إجراءٌ إداريٌّ عن غياب", log)
     return log
@@ -254,22 +268,30 @@ def correct_action(user: Any, log_id: Any, **fields: Any) -> AbsenceActionLog:
     student = _student(user, prior.student_id)
     _check_unrevised(AbsenceActionLog, prior)
     status = _action_status(user, fields.get("status", prior.status), prior=prior.status)
-    if fields.get("action_kind", prior.action_kind) not in dict(AbsenceActionLog.KINDS):
+    kind = fields.get("action_kind") or prior.action_kind
+    if kind not in dict(AbsenceActionLog.KINDS):
         raise FollowupError("نوعُ الإجراء غيرُ معروف.")
     excuse = fields.get("excuse", prior.excuse)
     if status == "sick_leave_received" and excuse is None:
         excuse = _sick_leave_excuse(prior.school, student, prior.absence_date)
+    note = (fields.get("note", prior.note) or "").strip()[:200]
+    # تسجيلُ المتابعة وحدَه لا يغيّر «من نفّذ ومتى»: وقتُ التنفيذ ومنفّذُه يبقيان لصاحب الإجراء الأصليّ.
+    same_action = kind == prior.action_kind and note == prior.note
+    stamp = _follow_stamp(user, status, prior.status)
+    if not stamp:
+        stamp = {"followed_at": prior.followed_at, "followed_by": prior.followed_by}
     log = AbsenceActionLog.objects.create(
         school=prior.school,
         student=student,
         absence_date=prior.absence_date,
-        action_kind=fields.get("action_kind", prior.action_kind),
+        action_kind=kind,
         status=status,
-        note=(fields.get("note", prior.note) or "").strip()[:200],
+        note=note,
         excuse=excuse,
-        acted_by=user,
-        acted_at=timezone.now(),
+        acted_by=prior.acted_by if same_action else user,
+        acted_at=prior.acted_at if same_action else timezone.now(),
         corrects=prior,
+        **stamp,
     )
     _audit(user, "update", "تصحيحُ إجراءٍ إداريٍّ عن غياب", log)
     return log
@@ -311,6 +333,15 @@ def guardian_phone(student: CustomUser) -> list[str]:
     """أرقامُ أولياء أمر طالبٍ — تُقرأ وقتَ العرض من `ParentStudentLink` ولا تُخزَّن، بلا اسمٍ ولا صلة."""
     school = student.get_school()  # type: ignore[no-untyped-call]
     return guardian_phones_for(school, [student.pk]).get(student.pk, [])
+
+
+def _followed(action: Any, allowed: bool, part: str) -> Any:
+    """وقتُ المتابعة أو اسمُ من تابع — يُحجب عمّن لا قدرةَ له كعمودَي الحالة."""
+    if not allowed or action is None or action.followed_at is None:
+        return None
+    if part == "at":
+        return action.followed_at
+    return action.followed_by.full_name if action.followed_by else ""
 
 
 def followup_rows(user: Any, date: dt.date) -> list[dict]:
@@ -355,6 +386,8 @@ def followup_rows(user: Any, date: dt.date) -> list[dict]:
             # عمودا «المتابعة»: يُحجبان هنا في الخدمة عمّن لا قدرةَ له، فلا يصل قالبَ الشاشة ولا الكشفَ ولا PDF.
             "contact_status": _status_label(contacts.get(r.student.id), may_follow),
             "action_status": _status_label(actions.get(r.student.id), may_follow),
+            "followed_at": _followed(actions.get(r.student.id), may_follow, "at"),
+            "followed_by": _followed(actions.get(r.student.id), may_follow, "by"),
         }
         for r in absent
     ]

@@ -1,0 +1,55 @@
+{% extends "operations/absence_followup/base.html" %}
+{% load ui navigation icons %}
+{% block title %}التواصل مع أولياء الأمور{% endblock %}
+{% block page_body %}
+  {% section_card "التواصلُ مع أولياء الأمور" meta=rows|length icon="call_parent" %}
+    {% if rows %}
+    <div class="table-wrap table-wrap-scroll">
+      <table data-no-sort>
+        <thead>
+          <tr>
+            <th scope="col" class="num fu-seq">#</th><th scope="col" class="fu-name">الطالب</th><th scope="col" class="fu-fit">الشعبة</th><th scope="col" class="fu-fit">غيابُ اليوم</th><th scope="col" class="fu-fit">هاتفُ وليّ الأمر</th>
+            <th scope="col" class="fu-fit">حالةُ التواصل</th><th scope="col" class="fu-fit">آخرُ اتّصال</th>{% if can_feedback %}<th scope="col">التغذية الراجعة من وليّ الأمر</th>{% endif %}
+            {% if can_record %}<th scope="col">تسجيل</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr class="grade-tint grade-{{ row.class_group.grade|lower }}">
+            <td class="num fu-seq">{{ forloop.counter }}</td>
+            <td class="fu-name">{{ row.student.full_name }}</td>
+            <td class="fu-fit">{{ row.class_group.short_label }}</td>
+            <td class="fu-fit">{% if row.ministry_flag %}<span class="status-badge {% if row.ministry_flag == 'excused' %}status-info{% else %}status-danger{% endif %}">يُرفع للوزارة · {% if row.ministry_flag == 'excused' %}بعذر{% else %}بلا عذر{% endif %}</span>{% else %}<span class="ui-note">بعض الحصص ({{ row.absent_periods }})</span>{% endif %}</td>
+            <td class="fu-fit">{% for phone in row.phones %}<a href="tel:{{ phone }}" dir="ltr">{{ phone }}</a>{% if not forloop.last %}، {% endif %}{% empty %}<span class="ui-note">لا رقمَ مسجَّل</span>{% endfor %}</td>
+            <td class="fu-fit">{% if row.contact %}<span class="status-badge status-info">{{ row.contact.get_outcome_display }}</span>{% else %}<span class="ui-note">لم يُتّصل</span>{% endif %}</td>
+            <td class="fu-fit">{% if row.contact %}{{ row.contact.contacted_at|date:"d/m H:i" }}{% else %}—{% endif %}</td>
+            {% if can_feedback %}<td>{{ row.feedback|default:"—" }}</td>{% endif %}
+            {% if can_record %}
+            <td>
+              <details>
+                <summary class="btn-secondary btn-sm">{% if row.contact %}تصحيح{% else %}تسجيل اتّصال{% endif %}</summary>
+                <form method="post" action="{% url 'absence_contact_save' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="student" value="{{ row.student.id }}">
+                  <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+                  <input type="hidden" name="grade" value="{{ f_grade }}"><input type="hidden" name="wing" value="{{ f_wing }}"><input type="hidden" name="followup" value="{{ f_followup }}"><input type="hidden" name="page" value="contact">
+                  {% if row.contact %}<input type="hidden" name="corrects" value="{{ row.contact.id }}">{% endif %}
+                  <select name="outcome" class="form-control" aria-label="نتيجةُ الاتّصال" required>
+                    {% for value, label in outcomes %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                  </select>
+                  {% if can_feedback %}<textarea name="feedback" class="form-control" rows="2" maxlength="2000" aria-label="التغذية الراجعة من وليّ الأمر — وتُكتب هنا «أخرى»" placeholder="التغذية الراجعة، وتُكتب هنا «أخرى»"></textarea>{% endif %}
+                  <button type="submit" class="btn-primary btn-sm">حفظ</button>
+                </form>
+              </details>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with title=empty_title only %}
+    {% endif %}
+  {% endsection_card %}
+{% endblock %}

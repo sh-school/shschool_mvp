@@ -1,0 +1,56 @@
+{% extends "operations/absence_followup/base.html" %}
+{% load ui navigation icons %}
+{% block title %}متابعة إجراءات الغياب{% endblock %}
+{% block page_body %}
+  {% section_card "متابعةُ إجراءات الغياب" meta=rows|length icon="checklist" %}
+    {% if rows %}
+    <div class="table-wrap table-wrap-scroll">
+      <table data-no-sort>
+        <thead>
+          <tr>
+            <th scope="col" class="num fu-seq">#</th><th scope="col" class="fu-name">الطالب</th><th scope="col" class="fu-fit">الشعبة</th><th scope="col">الإجراءُ الحاليّ</th><th scope="col" class="fu-fit">وقتُ التنفيذ</th>{% if can_followup %}<th scope="col" class="fu-fit">متابعةُ الإجراء</th><th scope="col" class="fu-fit">وقتُ المتابعة ومن سجّلها</th>{% endif %}
+            {% if can_record %}<th scope="col">تسجيل</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr class="grade-tint grade-{{ row.class_group.grade|lower }}">
+            <td class="num fu-seq">{{ forloop.counter }}</td>
+            <td class="fu-name">{{ row.student.full_name }}</td>
+            <td class="fu-fit">{{ row.class_group.short_label }}</td>
+            <td>{% if row.action %}<span class="status-badge status-info">{{ row.action.get_action_kind_display }}</span>{% if row.action.note %} {{ row.action.note }}{% endif %}{% else %}<span class="ui-note">لا إجراءَ مسجَّل</span>{% endif %}</td>
+            <td class="fu-fit">{% if row.action %}{{ row.action.acted_at|date:"d/m H:i" }}{% else %}—{% endif %}</td>
+            {% if can_followup %}
+            <td class="fu-fit"><span class="status-badge {% if row.action.status == 'done' %}status-success{% elif row.action.status == 'partial' %}status-warning{% elif row.action.status == 'not_done' %}status-danger{% else %}status-gray{% endif %}">{{ row.action_status|default:"لم تتمّ المتابعة" }}</span></td>
+            <td class="fu-fit">{% if row.followed_at %}{{ row.followed_at|date:"d/m/Y H:i" }} · {{ row.followed_by }}{% else %}—{% endif %}</td>
+            {% endif %}
+            {% if can_record %}
+            <td>
+              <details>
+                <summary class="btn-secondary btn-sm">{% if row.action %}تصحيح{% else %}تسجيل إجراء{% endif %}</summary>
+                <form method="post" action="{% url 'absence_action_save' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="student" value="{{ row.student.id }}">
+                  <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+                  <input type="hidden" name="grade" value="{{ f_grade }}"><input type="hidden" name="wing" value="{{ f_wing }}"><input type="hidden" name="followup" value="{{ f_followup }}"><input type="hidden" name="page" value="actions">
+                  {% if row.action %}<input type="hidden" name="corrects" value="{{ row.action.id }}">{% endif %}
+                  <select name="status" class="form-control" aria-label="حالةُ الإجراء"{% if can_followup %} required{% endif %}>
+                    {% for value, label in statuses %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                  </select>
+                  <select name="action_kind" class="form-control" aria-label="نوعُ الإجراء">{% for value, label in kinds %}<option value="{{ value }}"{% if row.action.action_kind == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+                  <input type="text" name="note" class="form-control" maxlength="200" aria-label="ملاحظة" placeholder="ملاحظة" value="{{ row.action.note }}">
+                  <button type="submit" class="btn-primary btn-sm">حفظ</button>
+                </form>
+              </details>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with title=empty_title only %}
+    {% endif %}
+  {% endsection_card %}
+{% endblock %}
