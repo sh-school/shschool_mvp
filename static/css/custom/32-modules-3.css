@@ -820,6 +820,9 @@
 }
 .qobs-schedule-pill:hover { border-color: var(--maroon-border); }
 .qobs-schedule-pill.is-active { border-color: var(--maroon); background: var(--maroon-bg); color: var(--maroon-fg); }
+.qobs-outside { display: flex; align-items: center; gap: var(--sp-2); min-block-size: 2.75rem; }
+.qobs-progress { margin-block: var(--sp-3); font-weight: 700; color: var(--maroon-fg); }
+.qobs-rating-table input[type=radio] { inline-size: 1.5rem; block-size: 1.5rem; }
 .qobs-schedule-pill small { color: var(--text-muted); font-size: var(--text-xs); }
 
 .qobs-lead { display: grid; gap: var(--sp-2); margin-top: var(--sp-3); padding-top: var(--sp-3); border-block-start: 1px dashed var(--border-strong); }

@@ -36,7 +36,9 @@ _ViewFn = Callable[..., HttpResponse]
 # واحدة مستمرّة — فتهدئةٌ محليّةٌ (بلا Redis، فهو المُنهار أصلاً) تحدّ التنبيه
 # الحقيقيّ إلى مرّةٍ كلَّ 5 دقائق لكلّ عامل، والباقي يبقى في السجلّ فقط.
 _ALERT_COOLOFF_SECONDS = 300
-_last_alert_at = 0.0
+# `-inf` لا `0.0`: `time.monotonic()` على لينكس زمنُ تشغيل الجهاز، فبـ0.0 يُحسب أوّلُ سقوطٍ خلال 300ث من الإقلاع
+# «داخل التهدئة» فيُسجَّل warning ويضيع تنبيهُ Sentry في أخطر لحظة (انقطاع Redis بعد إقلاع/نشر).
+_last_alert_at = float("-inf")
 
 
 def _report_fail_open(exc: Exception) -> None:
