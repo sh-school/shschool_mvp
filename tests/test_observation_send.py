@@ -265,7 +265,7 @@ def test_a_stranger_cannot_reach_the_viewer(client, school, principal_user, teac
 
     resp = client.get(reverse("observation_pdf_view", args=[obs.id]))
 
-    assert resp.status_code == 403
+    assert resp.status_code in (403, 404)  # مسوّدةٌ لغير صاحبها 404 (W-20260929-004)، والمرسَلةُ 403
 
 
 # ══════════════════════ ترويسة الوثيقة ══════════════════════════════
@@ -302,8 +302,8 @@ def test_the_letterhead_markup_reads_the_school_not_a_hardcoded_name(
     # الهويّةُ نصٌّ موحَّدٌ كباقي ملفّات PDF (ترويسةُ الصور أُلغيت) من اسم المدرسة نفسها،
     # لا ترويسةُ مدرسةٍ أخرى.
     assert "doc-header" in html
-    assert "وزارة التربية والتعليم والتعليم العالي" in html
     assert school.name in html
+    assert "وزارة التربية والتعليم والتعليم العالي" not in html  # مجمَّدة (D-400م)
 
 
 # ══════════════════════ الصفحة تُعرض فعلاً ══════════════════════════

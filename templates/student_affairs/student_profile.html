@@ -24,7 +24,7 @@
     {% if request.user|can_open:'wings:student_search' %}<a href="{% url 'wings:absence_file' student.id %}" class="btn-secondary btn-sm">{% icon "absence" %} ملفُّ الغياب</a>{% endif %}
     {% if not limited or request.user|can_open:'behavior:report_infraction' %}<a href="{% url 'behavior:report_infraction' %}" class="btn-secondary btn-sm">{% icon "behavior_violation" %} تسجيل مخالفة</a>{% endif %}
     {% if can_see_results %}<a data-app-file href="{% url 'student_result_pdf' student.id %}" class="btn-secondary btn-sm">{% icon "grades" %} كشف الدرجات</a>{% endif %}
-    <a data-app-file href="{% url 'student_affairs:student_profile_pdf' student.id %}" class="btn-secondary btn-sm" target="_blank">{% icon "export_pdf" %} تصدير PDF</a>
+    <a data-app-file href="{% url 'student_affairs:student_profile_pdf' student.id %}" class="btn-secondary btn-sm">{% icon "export_pdf" %} تصدير PDF</a>
   {% endpage_header %}
 
   {% kpi_strip label="ملخص الطالب" %}
@@ -53,7 +53,6 @@
       {% section_card "البيانات الشخصية" icon="profile" %}
         <dl class="detail-dl">
           <dt>الاسم</dt><dd>{{ student.full_name }}</dd>
-          <dt>الرقم الشخصي</dt><dd dir="ltr">{{ student.national_id|mask_id }}</dd>
           {% if enrollment %}
           <dt>الصف / الشعبة</dt><dd>{% class_label enrollment.class_group.grade enrollment.class_group.section %}</dd>
           {% endif %}
@@ -106,7 +105,7 @@
         {% if absence_standing.incomplete_days %}<dt>أيام رصدُها ناقص</dt><dd>{{ absence_standing.incomplete_days }} — لا تُحسم حتى تُرصد حصصُها</dd>{% endif %}
       </dl>
 
-      <div class="table-wrap sa-block-gap">
+      <div class="table-wrap table-wrap-scroll sa-block-gap">
         <table>
           <thead>
             <tr><th>الاختبار</th><th class="num">الحدّ</th><th>الموقف</th></tr>
@@ -152,7 +151,7 @@
         {% if tardiness.year.unmeasured %}<dt>تأخّرٌ بلا دقائقَ مقيسة</dt><dd>{{ tardiness.year.unmeasured }}</dd>{% endif %}
       </dl>
       {% if tardiness.year.by_subject %}
-      <div class="table-wrap sa-block-gap">
+      <div class="table-wrap table-wrap-scroll sa-block-gap">
         <table>
           <thead><tr><th>المادّة</th><th class="num">المرّات</th><th class="num">الدقائق</th></tr></thead>
           <tbody>
@@ -171,7 +170,7 @@
     {% endcomment %}
     {% if presence.year and presence.year.by_subject %}
     {% section_card "دقائقُ الحضور الفعليّ بالمادّة" icon="academic" meta=presence.year.total.present_pct|stringformat:"s%%" %}
-      <div class="table-wrap">
+      <div class="table-wrap table-wrap-scroll">
         <table data-no-sort>
           <thead><tr><th>المادّة</th><th class="num">حصص</th><th class="num">دقائق الجدول</th><th class="num">غياب</th><th class="num">تأخّر</th><th class="num">خروج بإذن</th><th class="num">هروب</th><th class="num">حضر (د)</th><th class="num">%</th></tr></thead>
           <tbody>
@@ -228,7 +227,7 @@
   {% if not limited %}
   <div id="tab-grades" class="tab-content">
     {% section_card "الدرجات" meta=year icon="grades" empty="لا توجد نتائج لهذا العام" flush=True %}{% if grades %}
-      <div class="table-wrap">
+      <div class="table-wrap table-wrap-scroll">
         <table>
           <thead>
             <tr>

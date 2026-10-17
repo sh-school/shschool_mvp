@@ -44,6 +44,11 @@
 
 {# ══ فحصُ الجدوى: يعدّ ولا يبحث — فما عجز هنا لا يجده بحثٌ مهما طال ══ #}
 {% section_card "فحصُ الجدوى قبل التوليد" meta=feasibility_verdict icon="checklist" %}
+  {% if not feasibility %}
+  {% comment %}الفحصُ عند الطلب لا عند كلّ فتح (W-20261010-003): يُحسب حين يُضغط الزرّ، والبوّابةُ الخادميّةُ تفحص عند «ولِّد» أيضاً.{% endcomment %}
+  <p class="text-muted">لم يُفحص الطلبُ بعد. الفحصُ يعدّ ولا يبحث: طاقةَ الشُّعب والمعلّمين والموارد وتباعدَ الأيّام.</p>
+  <a href="?year={{ year }}&amp;feasibility=1" class="btn-secondary btn-sm">{% icon "checklist" %} احسب الآن</a>
+  {% else %}
   <div class="smart-notes">
     {% if feasibility.blocking %}
     {% callout "warning" %}<strong>{{ feasibility.minimum_unplaceable }} حصّةً على الأقلّ لن تجد موضعاً مهما طال البحث.</strong>
@@ -66,11 +71,6 @@
     {% else %}
     {% callout "info" %}لا عجزَ في العدّ: الطلبُ يسعه ما في الأسبوع من خانات. وبقيّةُ التعذّر — إن وقع —
       من تشابك القيود لا من ضيق الطاقة.{% endcallout %}
-    {% endif %}
-    {% if constraint_overrides %}
-    {% callout "info" %}قيودٌ خُولف فيها افتراضُ الشيفرة هذا العام:
-      {% for code, title in constraint_overrides %}<strong>{{ code }} · {{ title }}</strong>{% if not forloop.last %}، {% endif %}{% endfor %}.
-      وأثرُ الرتبة لا يكشفه عدٌّ — فوَلِّد وقِس بالمختبر قبل الاعتماد.{% endcallout %}
     {% endif %}
   </div>
 
@@ -104,7 +104,52 @@
     </span>
     {% endfor %}
   </div>
+  {% endif %}
 {% endsection_card %}
+
+{% comment %}
+بطاقةُ القرار (W-20261010-001، D-310م): أحدثُ مسودّةٍ من V2 بخمسة مؤشّرات لكلٍّ معناه واتجاهُه وسقفُه،
+وتحتها الأرقامُ الثلاثةُ للحكم. المصدرُ لقطةُ المُقيِّم لا حسابُ المختبر. وما لم يُقَس بعدُ يُقال «لم يُقَس».
+{% endcomment %}
+{% if decision %}
+{% section_card "قرارُ المسودّة" meta=decision_generation.generated_at|date:"d/m H:i" icon="kpi" %}
+  <p><span class="status-badge {% if decision.accepted %}status-success{% else %}status-danger{% endif %}">{{ decision.verdict }}</span></p>
+  {% kpi_strip label="أرقام الحكم" %}
+    {% kpi "خروق صلبة" decision.hard tone="red" title="قيودٌ صلبةٌ مكسورةٌ في المسودّة؛ المقبولةُ صفر" %}
+    {% kpi "حصص بلا موضع" decision.unplaced tone="red" title="حصصٌ مطلوبةٌ لم تجد موضعاً في الأسبوع؛ المقبولةُ صفر" %}
+    {% kpi "جزاءات القيود المرنة" decision.objective tone="blue" title="مجموعُ جزاءات القيود المرنة؛ الأقلّ أفضل، ويُفهم بالمقارنة بالجدول المعتمَد لا برقمٍ مجرَّد" %}
+  {% endkpi_strip %}
+  <div class="table-wrap">
+    <table class="lab-table">
+      <thead>
+        <tr>
+          <th scope="col">المؤشّر</th>
+          <th scope="col" class="num">القيمة</th>
+          <th scope="col">ماذا يقيس</th>
+          <th scope="col">الاتجاه</th>
+          <th scope="col">السقف / الحالة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ind in decision.indicators %}
+        <tr>
+          <td><b>{{ ind.label }}</b> <span class="ui-meta">{{ ind.code }}</span></td>
+          <td class="num{% if not ind.measured %} text-muted{% endif %}">{{ ind.value }}{% if ind.measured %} <span class="ui-meta">{{ ind.unit }}</span>{% endif %}</td>
+          <td>{{ ind.meaning }}</td>
+          <td>{{ ind.direction }}</td>
+          <td class="text-muted">{{ ind.cap }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if decision.stop_reason %}<p class="ui-note">لماذا توقّف المولّد: {{ decision.stop_reason }}.</p>{% endif %}
+  {% if decision.relaxations.teachers %}
+  <p class="ui-note">تخفيفٌ معلَنٌ بقرار المالك: {{ decision.relaxations.text }} لـ{{ decision.relaxations.teachers }} معلّماً — يظهر ملاحظةً لا خرقاً.</p>
+  {% endif %}
+  <a href="{% url 'schedule_quality_lab' %}?year={{ year }}&amp;schedule={{ decision_generation.id }}" class="btn-secondary btn-sm">{% icon "quality" %} افتح في مختبر الجودة</a>
+{% endsection_card %}
+{% endif %}
 
 {# ── زر التوليد + سجلّه: بطاقةٌ واحدة — لوحةُ التحكّم أعلاها، والسجلُّ أسفلها ── #}
 {% if assignments_count %}
@@ -144,6 +189,8 @@
         {% if pending_generation.is_v2 %}
         {% comment %}الإيقافُ المبكّر (W-20261010-002): POST إلى schedule_v2_stop فيقف الحلّالُ ويُحفظ أفضلُ حلٍّ مسودّةً؛ يُعطَّل حتى يوجد حلّ، ويبقى زرُّ V1 (الذي يُضيّع الحلول) محجوباً عن صفوف V2.{% endcomment %}
         <div class="gen-progress__actions">
+          {# نموذجٌ مخفيٌّ يستدعي نافذةَ التأكيد المركزيّة (`data-confirm` في base.js) من JS الشريط — لا window.confirm (W-20261010-019) #}
+          <form data-gp="stop-confirm" hidden></form>
           <button type="button" class="btn-danger btn-xs" data-gp="stop" data-url="{% url 'schedule_v2_stop' pending_generation.id %}" data-csrf="{{ csrf_token }}" disabled title="لا حلَّ مُوجَداً بعد — لا شيء يُحفظ">إيقاف مبكر (يحتفظ بأفضل حلّ)</button>
           <p class="gen-progress__hint" data-gp="stop-note" role="status" hidden></p>
         </div>
@@ -155,8 +202,8 @@
   </div>
   {% endif %}
 
-  {% if generations %}
-  {% if can_approve %}
+  {% if generations or folded_generations %}
+  {% if generations and can_approve %}
   {% callout "warning" %}اعتماد مسوّدة يؤرشف الجدولَ المعتمَد ويحذف من المؤرشف ما زاد على حدّ الإبقاء، ويصالح جلساتِ الأسبوع الجاري (يحذف ما لا يطابق ولا حضورَ عليه)، ويُشعِر المعلّمين، ولا رجوعَ عنه.{% endcallout %}
   {% endif %}
   {% comment %}
@@ -210,6 +257,63 @@
     {% endif %}
   </div>
   {% endif %}{% endfor %}
+  {% comment %}
+  مقارنةُ المسودّة بالمعتمَد (W-20261010-008): المُقيِّم نفسُه على الجدولين بالمؤشّرات الخمسة — قيمٌ فقط بلا أسماء معلّمين.
+  القرارُ على النشر يحتاج أن يعرف أيُّهما أفضلُ ناعماً، لا المخالفاتِ الصلبةَ وحدَها.
+  {% endcomment %}
+  {% for g in generations %}{% if g.status == "draft" %}
+  <div class="gen-panel" id="gen-compare-{{ g.id }}">
+    <h3 class="section-title">مقارنة مسودّة {{ g.generated_at|date:"d/m H:i" }} بالمعتمَد</h3>
+    {% if g.comparison %}
+    <div class="table-wrap">
+      <table class="gen-log-table">
+        <thead>
+          <tr>
+            <th scope="col">المؤشّر</th>
+            <th scope="col" class="num">المعتمَد</th>
+            <th scope="col" class="num">المسودّة</th>
+            <th scope="col" class="num">الفرق</th>
+            <th scope="col" class="text-center">الحكم</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in g.comparison.rows %}
+          <tr>
+            <td><b>{{ r.code }} · {{ r.name }}</b><div class="text-muted">{{ r.meaning }} ({{ r.unit }}؛ {% if r.better == "high" %}الأعلى أفضل{% else %}الأقلّ أفضل{% endif %})</div></td>
+            <td class="num">{% if g.comparison.has_live and r.live.value is not None %}{{ r.live.value }}{% else %}—{% endif %}{% if r.live.detail %}<div class="text-muted">{{ r.live.detail }}</div>{% endif %}</td>
+            <td class="num">{% if r.draft.value is not None %}{{ r.draft.value }}{% else %}—{% endif %}{% if r.draft.detail %}<div class="text-muted">{{ r.draft.detail }}</div>{% endif %}</td>
+            <td class="num">{% if g.comparison.has_live and r.delta is not None %}{{ r.delta }}{% else %}—{% endif %}</td>
+            <td class="text-center">
+              {% if not g.comparison.has_live or r.delta is None %}<span class="status-badge status-gray">لا معتمَد</span>
+              {% elif r.verdict == "better" %}<span class="status-badge status-success">تحسّن</span>
+              {% elif r.verdict == "worse" %}<span class="status-badge status-danger">تراجع</span>
+              {% else %}<span class="status-badge status-gray">ثبات</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          <tr>
+            <td><b>مخالفات صلبة</b></td>
+            <td class="num">{% if g.comparison.has_live %}{{ g.comparison.live.hard_total }}{% else %}—{% endif %}</td>
+            <td class="num">{{ g.comparison.draft.hard_total }}</td>
+            <td class="num">—</td><td></td>
+          </tr>
+          <tr>
+            <td><b>الحصص المتغيّرة</b><div class="text-muted">ما في المسودّة ولم يكن في المعتمَد، وما كان فيه ولم يبقَ</div></td>
+            <td class="num" colspan="2">{{ g.comparison.changed_slots.added }} مضافة · {{ g.comparison.changed_slots.removed }} محذوفة</td>
+            <td class="num">—</td><td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-muted">
+      {% for n in g.comparison.notes %}{{ n }} {% endfor %}حُسبت في {{ g.comparison.seconds }} ثانية.
+    </p>
+    {% else %}
+    <p class="text-muted" role="status">المقارنةُ قيد الحساب — حدّث الصفحةَ بعد لحظات.</p>
+    {% endif %}
+  </div>
+  {% endif %}{% endfor %}
+  {% if generations %}
   <div class="table-wrap">
     {% comment %}
     سجلُّ التوليد يُفرَز من ترويسته (`base.js`) ويبدأ تصاعديّاً بتاريخ التوليد ووقته، وصفّان
@@ -245,31 +349,27 @@
             {% endif %}
           </td>
           {# الأرقامُ لا تُعرض قبل وجودها: «0%» على توليدٍ لم ينتهِ رقمٌ كاذب. #}
-          <td class="num" data-sort-value="{{ g.quality.sort }}">
+          <td class="num" data-sort-value="{{ g.lab_relative|default_if_none:'' }}">
             {% comment %}
-              الصحّةُ أوّلاً: مسودّةٌ فيها متعذّراتٌ أو مخالفاتٌ لا تُعطى درجةً تُقارَن بجدولٍ سليم
-              (W-20261003-010) — تُوسَم «ناقصة» وتُذكر درجةُ ما وُضع فيها ثانويّة.
-              الدرجةُ منسوبةٌ إلى الأساس المعتمَد: مئةٌ تعني «بمستوى ما اعتمدناه».
-              والمطلقةُ تقيس بُعداً عن كمالٍ لا تبلغه مدرسة — «سابعةٌ واحدةٌ
-              للمعلّم» مستحيلةٌ حين تكون خاناتُ السابعة أكثرَ من عدد المعلّمين —
-              فتُقرأ حكماً بالرداءة وهي ليست كذلك. فإن لم يُثبَّت أساسٌ بعد
-              عُرضت المطلقةُ موسومةً بأنّها مطلقة.
+              الحالةُ بلغةٍ مفهومة أوّلاً (مقبولة / فيها خروق)، ثمّ «% من الأساس» اتجاهاً لا حكماً:
+              منسوبةٌ إلى الأساس المعتمَد، مئةٌ تعني «بمستوى ما اعتمدناه»، وسقفُها {{ relative_cap|floatformat:0 }}%
+              (متوسّطُ نِسَب المؤشّرات إلى أساسها، كلٌّ منها محدودٌ بالسقف). ولا تُقارَن إلا بين جدولين متساويَين صحّةً.
             {% endcomment %}
             {% if g.is_pending or g.status == 'failed' %}<span class="text-muted">—</span>
-            {% elif g.quality.invalid %}
-            <b class="text-status-danger" title="فيها {{ g.unplaced_count }} متعذّرة و{{ g.breaches.count|default:0 }} مخالفة — لا تُقارَن جودتُها بجدولٍ كامل">ناقصة</b>
-            {% if g.quality.value is not None %}<span class="text-xs text-muted" title="جودةُ ما وُضع وحدَه، منسوبةً إلى الأساس">(ما وُضع {{ g.quality.value|floatformat:0 }}%)</span>{% endif %}
-            {% elif g.lab_relative %}
-            <b class="text-status-{{ g.lab_tone }}" title="من الأساس">{{ g.lab_relative|floatformat:0 }}%</b>
-            {% elif g.lab_absolute %}
-            <span class="text-muted" title="مطلقة — لا أساسَ معتمَد">{{ g.lab_absolute|floatformat:0 }}% مطلقة</span>
+            {% elif g.v2 %}
+            <span class="status-badge status-{{ g.v2.tone }}">{{ g.v2.state }}</span>
+            {% if g.lab_relative %}<span class="ui-meta" title="منسوبةً إلى الأساس المعتمَد ({{ baseline.label|default:'—' }}): مئةٌ تعني بمستوى ما اعتمدناه، وسقفُها {{ relative_cap|floatformat:0 }}%">{{ g.lab_relative|floatformat:0 }}% من الأساس</span>{% endif %}
+            {% elif g.gate_total %}
+            <b class="text-status-danger" title="فيها {{ g.unplaced_count }} متعذّرة و{{ g.breaches.count|default:0 }} مخالفة">ناقصة</b>
             {% else %}<span class="text-muted">—</span>
             {% endif %}
           </td>
           <td class="num">
-            {% if g.is_pending or g.status == 'failed' %}<span class="text-muted">—</span>{% else %}
+            {% if g.is_pending or g.status == 'failed' %}<span class="text-muted">—</span>
+            {% elif g.v2 %}<b>{{ g.v2.placed }} من {{ g.v2.required }}</b>
+            {% else %}
             <b>{{ g.placed }}/{{ total_weekly }}</b>
-            <span class="text-xs text-muted">({{ g.placed_ratio }}%)</span>
+            <span class="ui-meta">({{ g.placed_ratio }}%)</span>
             {% endif %}
           </td>
           <td class="num text-muted" data-sort-value="{% if g.is_pending or g.status == 'failed' %}{% else %}{{ g.generation_time_ms }}{% endif %}">{% if g.is_pending or g.status == 'failed' %}—{% else %}{{ g.generation_time_ms|duration_ms }}{% endif %}</td>
@@ -278,7 +378,7 @@
             {% if g.status == "draft" %}
             <a href="{% url 'weekly_schedule' %}?year={{ year }}&amp;generation={{ g.id }}" class="btn-secondary btn-xs">معاينة</a>
             {% include "schedule/partials/discard_generation.html" %}
-            {% if g.budget_cut %}<span class="text-xs text-muted" title="قُطع البحثُ بنفاد الميزانية — قد تكون المتعذّراتُ قابلةً للحلّ بميزانيةٍ أطول">قُطع البحث</span>{% endif %}
+            {% if g.budget_cut %}<span class="ui-meta" title="قُطع البحثُ بنفاد الميزانية — قد تكون المتعذّراتُ قابلةً للحلّ بميزانيةٍ أطول">قُطع البحث</span>{% endif %}
             {% if g.gate_total %}
             <a href="#gen-breaches-{{ g.id }}" class="btn-secondary btn-xs">المخالفات والمتعذّرات ({{ g.gate_total }})</a>
             {% elif can_approve %}
@@ -290,7 +390,7 @@
             {% elif g.status == "approved" %}
             <a href="{% url 'weekly_schedule' %}?year={{ year }}" class="btn-secondary btn-xs">الجدول الحيّ</a>
             {% elif g.is_pending and pending_generation.is_v2 and g.pk == pending_generation.pk %}
-            <span class="text-xs text-muted">الإيقاف المبكر من لوحة التقدّم أعلاه</span>
+            <span class="ui-meta">الإيقاف المبكر من لوحة التقدّم أعلاه</span>
             {% elif g.is_pending %}
             <form method="post" action="{% url 'stop_schedule_generation' g.id %}" data-confirm="إيقافُ التوليد الجاري؟ يقف عند أقرب حدٍّ آمن ولا يُكتب منه شيء، ثمّ تحذفه من السجلّ." class="gen-inline-form">
               {% csrf_token %}
@@ -306,54 +406,43 @@
     </table>
   </div>
   {% endif %}
+  {% if folded_generations %}
+  {% comment %}صفوفُ المحرّك السابق المنتهية: تُطوى بلا أيّ زرّ إجراء ولا حذفَ لبياناتها (W-20261010-001).{% endcomment %}
+  <details class="gen-legacy">
+    <summary>توليداتُ المحرّك السابق ({{ folded_generations|length }}) — للاطّلاع فقط</summary>
+    <div class="table-wrap">
+      <table class="gen-log-table">
+        <thead>
+          <tr data-plain-head>
+            <th scope="col">التاريخ</th>
+            <th scope="col" class="text-center">الحالة</th>
+            <th scope="col" class="num">الحصص</th>
+            <th scope="col" class="num">الزمن</th>
+            <th scope="col">بواسطة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in folded_generations %}
+          <tr>
+            <td data-sort-value="{{ g.generated_at|date:'U' }}">{{ g.generated_at|date:"d/m/Y H:i" }}</td>
+            <td class="text-center"><span class="status-badge status-gray">{{ g.get_status_display }}</span></td>
+            <td class="num">{% if g.status == 'failed' %}<span class="text-muted">—</span>{% else %}{{ g.placed }}/{{ total_weekly }}{% endif %}</td>
+            <td class="num text-muted" data-sort-value="{% if g.status == 'failed' %}{% else %}{{ g.generation_time_ms }}{% endif %}">{% if g.status == 'failed' %}—{% else %}{{ g.generation_time_ms|duration_ms }}{% endif %}</td>
+            <td>{{ g.generated_by.full_name|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% endif %}
+  {% endif %}
 {% endsection_card %}
 {% else %}
 {% section_card "توليد الجدول التلقائي" icon="generate" %}
   {% empty_state "لا توجد توزيعات مواد" sub="لا يمكن التوليد قبل تسجيل توزيعات المواد على الشُّعب: أيّ معلّم يدرّس أيّ مادّة لأيّ شعبة وكم حصّة." icon="stats" %}
   <div class="smart-empty-action">
     <a href="{% url 'academic_management:assignments' %}?year={{ year }}" class="btn-primary btn-sm">{% icon "academic" %} شاشة توزيعات المواد</a>
-  </div>
-{% endsection_card %}
-{% endif %}
-
-{% comment %}
-مؤشّراتُ المختبر: كلُّ مؤشّرٍ بقيمته في كلّ توليدٍ وبقيمة الأساس والفرق — الرقمُ
-الواحدُ لا يقول لماذا. والأفضلُ من الأساس أخضر والأسوأُ أحمر.
-{% endcomment %}
-{% if lab_matrix %}
-{% comment %}قابلٌ للطيّ بالضغط على عنوانه (قرارُ 2026-09-18): جدولٌ بعمود لكلّ
-توليدٍ يطول بطول السجلّ، فيُطوى عمّن لا يقارن الآن — عبر `foldable=True` في
-الوسم نفسِه، لا ببناء الشريط يدويّاً.{% endcomment %}
-{% section_card "مؤشرات التوليد" meta=baseline.label|default:"لا أساسَ معتمَد" icon="kpi" flush=True foldable=True %}
-  <div class="auto-grid">
-    {% for col in lab_matrix_cols %}
-    <div class="table-wrap">
-      <table class="lab-table">
-        <thead>
-          <tr>
-            <th scope="col">المؤشر</th>
-            {% if baseline %}<th scope="col" class="num">الأساس</th>{% endif %}
-            {% for g in lab_columns %}
-            <th scope="col" class="num"><a href="{% url 'schedule_quality_lab' %}?year={{ year }}&amp;schedule={{ g.id }}" title="في المختبر">{{ g.generated_at|date:"d/m H:i" }}</a></th>
-            {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in col %}
-          <tr>
-            <td>{{ row.label }} <span class="text-muted">({{ row.unit }})</span></td>
-            {% if baseline %}<td class="num" dir="ltr">{{ row.baseline|default_if_none:"—" }}</td>{% endif %}
-            {% for cell in row.cells %}
-            <td class="num lab-cell{% if cell.verdict %} is-{{ cell.verdict }}{% endif %}" dir="ltr">
-              {% if cell %}{{ cell.value|default_if_none:"—" }}{% if baseline and cell.delta is not None %} <small>({{ cell.delta }}{% if cell.verdict == 'better' %} ▲{% elif cell.verdict == 'worse' %} ▼{% endif %})</small>{% endif %}{% else %}—{% endif %}
-            </td>
-            {% endfor %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% endfor %}
   </div>
 {% endsection_card %}
 {% endif %}

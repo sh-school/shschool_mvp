@@ -38,6 +38,14 @@ def school(db):
     return School.objects.create(name="مدرسة الشحانية", code="SHH-FEA")
 
 
+@pytest.fixture(autouse=True)
+def strict_touch_policy(school):
+    """قياسُ السعة هنا بالتلاصق الصارم؛ والتخفيفُ المدرسيّ الافتراضيّ (D-382م) يُقاس في test_schedule_relaxation_policy."""
+    from operations.models import ScheduleRelaxationPolicy
+
+    ScheduleRelaxationPolicy.objects.create(school=school, relax_touch_for_all=False)
+
+
 def a_user(school, name, role_name):
     from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
@@ -270,7 +278,11 @@ def test_the_report_is_storable(school, teacher):
 def test_the_smart_schedule_screen_shows_the_verdict(client_as, vice, school, teacher):
     assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 35)
 
-    page = client_as(vice).get(f"{reverse('smart_schedule')}?year={YEAR}").content.decode()
+    page = (
+        client_as(vice)
+        .get(f"{reverse('smart_schedule')}?year={YEAR}&feasibility=1")
+        .content.decode()
+    )
 
     assert "فحصُ الجدوى قبل التوليد" in page
     assert "لن تجد موضعاً" in page
@@ -280,7 +292,11 @@ def test_the_smart_schedule_screen_shows_the_verdict(client_as, vice, school, te
 def test_a_healthy_school_is_told_so(client_as, vice, school, teacher):
     assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 20)
 
-    page = client_as(vice).get(f"{reverse('smart_schedule')}?year={YEAR}").content.decode()
+    page = (
+        client_as(vice)
+        .get(f"{reverse('smart_schedule')}?year={YEAR}&feasibility=1")
+        .content.decode()
+    )
 
     assert "لا عجزَ في العدّ" in page
     assert "عجزٌ يقينيّ" not in page
@@ -296,7 +312,9 @@ def test_a_healthy_school_is_told_so(client_as, vice, school, teacher):
 @pytest.fixture
 def no_op_task(monkeypatch):
     """يعطّل إرسالَ مهمّة التوليد الفعليّة — البوّابةُ تُختبَر لا المولّد."""
-    monkeypatch.setattr("operations.tasks.generate_smart_schedule_task.delay", lambda *a, **k: None)
+    monkeypatch.setattr(
+        "operations.scheduler_v2.tasks.generate_schedule_v2_task.delay", lambda *a, **k: None
+    )
 
 
 def test_infeasible_generation_is_blocked_without_a_reason(
@@ -458,7 +476,11 @@ def test_the_generate_button_hides_when_infeasible_and_the_override_form_appears
     section = a_class(school)
     assign(school, a_subject(school, "الرياضيات", "MAT"), section, teacher, 35)
 
-    page = client_as(vice).get(f"{reverse('smart_schedule')}?year={YEAR}").content.decode()
+    page = (
+        client_as(vice)
+        .get(f"{reverse('smart_schedule')}?year={YEAR}&feasibility=1")
+        .content.decode()
+    )
 
     assert "بدء التوليد" not in page
     assert "ولِّد على أيّ حال" in page
@@ -559,7 +581,9 @@ def test_two_bands_union_caps_below_the_sum_of_their_bells(school, teacher):
     found = finding(sf.check(school, YEAR), "assignment.daily_band")
 
     assert found.status == "fail"
-    assert found.rows[0].capacity == 10, "اتّحادُ الخانات ٢ في اليوم لا مجموعُ سقفَي النطاقين"
+    #: اتّحادُ الخانات ٢ في اليوم لا مجموعُ سقفَي النطاقين (١٠)، ثمّ سقفُ الأولى HC22 يسحب يومَين من الثلاثة
+    #: التي لا أولى فيها إلى خانةٍ واحدة: ٢×٢ + ٣×١ = ٧ (W-20261003-043).
+    assert found.rows[0].capacity == 7
     assert "سقفُ الجرس" in found.rows[0].note
 
 
@@ -675,8 +699,14 @@ def test_the_seventh_period_limit_lowers_a_teachers_real_cap(school, teacher):
     assert "HC8" in found.rows[0].note
 
 
-def test_a_personal_seventh_cap_of_three_lifts_that_teacher_alone(school, teacher):
-    """سقفٌ شخصيٌّ ٣ يجعل سعتَه ١٨ فيحلّ العجز (ويبقى على الحدّ بلا هامش: تحذيرٌ لا رفض)."""
+def test_a_personal_seventh_cap_of_three_no_longer_lifts_the_report_because_the_first_cap_binds(
+    school, teacher
+):
+    """سقفٌ شخصيٌّ ٣ للسابعة كان يجعل السعة ١٨ (D-172م)؛ وبعد HC22 (أولى ≤ ٢) يظلّ ١٧.
+
+    يومُ الأربع خانات (١-٣-٥-٧) يحتاج الأولى والسابعة معاً، فالسابعةُ الثالثة بلا أولى ثالثة لا تضيف خانة.
+    والإدخالُ لا يتأثّر (انظر الاختبار التالي): تخفيفُ المالك لسقف الأولى لمعلّمين مسمَّين لا يُقرأ من القاعدة.
+    """
     a_bell(school, None, SEVEN_BACK_TO_BACK)
     other = a_user(school, "معلّمُ العلوم", "teacher")
     assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 18)
@@ -685,8 +715,8 @@ def test_a_personal_seventh_cap_of_three_lifts_that_teacher_alone(school, teache
 
     rows = {r.name: r for r in finding(sf.check(school, YEAR), "assignment.daily_band").rows}
 
-    assert rows[teacher.full_name].capacity == 18 and "على حدّ" in rows[teacher.full_name].note
-    assert rows[other.full_name].capacity == 17, "غيرُه يبقى على السقف العامّ"
+    assert rows[teacher.full_name].capacity == 17 and "HC22" in rows[teacher.full_name].note
+    assert rows[other.full_name].capacity == 17, "غيرُه على السقفين العامّين"
 
 
 def test_entry_rejects_the_eighteenth_period_unless_the_teacher_has_a_seventh_cap(school, teacher):
@@ -701,7 +731,7 @@ def test_entry_rejects_the_eighteenth_period_unless_the_teacher_has_a_seventh_ca
 
 
 def test_build_tasks_carries_only_a_written_seventh_cap(school, teacher):
-    """السقفُ يُحمل إلى `Member` لمن كُتب له فقط؛ الصفرُ يعني العامّ."""
+    """السقفُ يُحمل إلى `Member` لمن كُتب له فقط؛ و`None` يعني العامّ (والصفرُ منعٌ، W-20261004-013)."""
     from operations import scheduler
 
     other = a_user(school, "معلّمُ العلوم", "teacher")
@@ -714,21 +744,21 @@ def test_build_tasks_carries_only_a_written_seventh_cap(school, teacher):
         m.teacher_id: m.last_cap for t in scheduler.build_tasks(school, YEAR) for m in t.members
     }
 
-    assert caps == {str(teacher.id): 3, str(other.id): 0}
+    assert caps == {str(teacher.id): 3, str(other.id): None}
 
 
 def test_an_out_of_range_seventh_cap_is_read_as_absent(school, teacher):
-    """شرطُ 0105: إدخالٌ مباشرٌ بالـORM لا يمرّ بالـvalidators (0 أو 99) لا يتحوّل إلى إلغاء HC8."""
+    """شرطُ 0105: إدخالٌ مباشرٌ بالـORM لا يمرّ بالـvalidators (99) لا يتحوّل إلى إلغاء HC8 ولا إلى منعٍ."""
     from operations import scheduler
 
     a_bell(school, None, SEVEN_BACK_TO_BACK)
     assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 2)
     section = a_class(school, section="9")
-    for bad in (0, 99):
+    for bad in (6, 99):
         pref = _pref(school, teacher, max_last_periods=bad)
 
         member = scheduler.build_tasks(school, YEAR)[0].members[0]
-        assert member.last_cap == 0, f"{bad} يُقرأ غيابَ سقف"
+        assert member.last_cap is None, f"{bad} يُقرأ غيابَ سقف"
         assert sf.entry_load_violation(school, YEAR, teacher, section, 18)
         pref.delete()
 
@@ -777,3 +807,38 @@ def test_changing_the_seventh_cap_in_admin_leaves_an_audit_trail_without_a_name(
 
     admin.save_model(request, pref, None, True)  # بلا تغيير ⇒ لا سطرَ جديد
     assert AuditLog.objects.filter(changes__event="teacher_last_period_cap_changed").count() == 1
+
+
+# ── سقفُ الأولى (HC22) في سعة المعلّم — W-20261003-043 ────────────────────
+
+
+def test_edge_capacity_shares_days_between_the_two_edges():
+    """قسمةٌ على الأيّام: الأولى والأخيرة تتشاركان اليومَ ولا تُحسبان مستقلّتين."""
+    # يومٌ: بلا طرف ٣، بالأولى وحدَها ٣، بالأخيرة وحدَها ٣، بهما ٤ (١-٣-٥-٧)
+    day = {(0, 0): 3, (1, 0): 3, (0, 1): 3, (1, 1): 4}
+
+    assert sf._edge_capacity([day] * 5, 5, 5) == 20, "بلا سقفٍ فعليّ"
+    assert sf._edge_capacity([day] * 5, 2, 2) == 17, "يومان بالطرفين معاً فقط"
+    assert sf._edge_capacity([day] * 5, 2, 5) == 17, "الأولى ≤ ٢ وحدَها تخفض الثلاثة الباقية"
+    assert sf._edge_capacity([day] * 5, 5, 3) == 18
+
+
+def test_a_load_within_both_edge_caps_is_not_a_blocker(school, teacher):
+    """سليم: ١٧ على السبع المتلاصقة (وعجزُ ١٨ مغطّى في اختبارَي السابعة والجرسين أعلاه)."""
+    a_bell(school, None, SEVEN_BACK_TO_BACK)
+    assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 17)
+
+    assert finding(sf.check(school, YEAR), "assignment.daily_band").status != "fail"
+
+
+def test_the_first_cap_alone_can_bind_and_the_entry_check_ignores_it(school, teacher):
+    """سقف السابعة ٣: التقريرُ يقول ١٧ (HC22)، والإدخالُ لا يرفض ١٨ — تخفيفُ المالك لا يُقرأ من القاعدة."""
+    a_bell(school, None, SEVEN_BACK_TO_BACK)
+    section = a_class(school)
+    _pref(school, teacher, max_last_periods=3)
+
+    strict, source = sf.binding_daily_cap(school, frozenset({""}), (), {}, 7, 3)
+    relaxed, _ = sf.binding_daily_cap(school, frozenset({""}), (), {}, 7, 3, first_cap=None)
+
+    assert (strict, relaxed) == (17, 18) and "HC22" in source
+    assert sf.entry_load_violation(school, YEAR, teacher, section, 18) is None

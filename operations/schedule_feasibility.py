@@ -25,11 +25,14 @@ from typing import Any
 
 from core.models import School
 
-from .last_period_cap import personal_last_cap
+from .last_period_cap import last_cap_or
 from .models import SchedulingResource, SubjectClassAssignment, TeacherExemption, TeacherPreference
+from .schedule_relaxation import STRICT_RUN_CAP, relaxed_run_cap
 from .scheduler_bell import HC5_JOINABLE_GAP_MINUTES
 from .scheduler_constraints import (
+    FIRST_PERIOD,
     LAST_PERIOD,
+    MAX_FIRST_PERIODS,
     MAX_LAST_PERIODS,
     THURSDAY,
     get_max_periods_for_day,
@@ -361,16 +364,44 @@ def _bell_rows(school: School, day_type: str, memo: dict | None) -> dict[str, li
     return grouped
 
 
+def _max_with_runs(ordered: list[tuple[time, time]], run_cap: int) -> int:
+    """أقصى خاناتٍ يُختار منها بحيث لا يزيد المتلاصقُ المتصلُ منها عن `run_cap`.
+
+    الخاناتُ مرتَّبةٌ بالانتهاء؛ متلاصقتان إن كان الفاصلُ بين انتهاء الأولى وبدء الثانية ≤ فاصل HC5،
+    وخانتان متداخلتان لا تُختاران معاً (معلّمٌ واحد). برمجةٌ ديناميكيّةٌ على طول التتابع الحاليّ.
+    """
+    best: list[list[int]] = []  # best[i][r] = أكبرُ عددٍ ينتهي باختيار الخانة i وفي تتابعها r خانة
+    top = 0
+    for i, (start, _finish) in enumerate(ordered):
+        row = [0] * (run_cap + 1)
+        row[1] = 1
+        for j in range(i):
+            gap = _minutes(start) - _minutes(ordered[j][1])
+            if gap < 0:
+                continue
+            joined = gap <= HC5_JOINABLE_GAP_MINUTES
+            for r in range(1, run_cap + 1):
+                if not best[j][r]:
+                    continue
+                nxt = r + 1 if joined else 1
+                if nxt <= run_cap:
+                    row[nxt] = max(row[nxt], best[j][r] + 1)
+        best.append(row)
+        top = max(top, *row)
+    return top
+
+
 def _band_day_cap(
     school: School,
     band_ids: frozenset[str],
     day_type: str,
-    skip_period: int | None = None,
+    skip_period: int | tuple[int, ...] | None = None,
     memo: dict | None = None,
 ) -> int:
     """AS-1/AS-5: أقصى خاناتٍ غيرِ متلاصقةٍ في يومٍ، من اتّحاد خانات نطاقاته.
 
-    و`skip_period` يُسقط خانةَ رقمٍ بعينه (السابعة لحساب HC8): ما تسمح به بلا السابعة.
+    و`skip_period` يُسقط خانةَ رقمٍ بعينه (السابعة لحساب HC8) أو أرقاماً (الأولى والسابعة لـHC22 وHC8):
+    ما تسمح به بلا تلك الخانات.
 
     معلّمٌ يخدم نطاقين قد تتلاصق خانتاهما بالساعة وإن اختلف رقمُ الحصّة —
     فجرسُ النطاقات متداخلٌ بالساعة. فالحسابُ هنا على الأوقات الفعليّة
@@ -378,7 +409,8 @@ def _band_day_cap(
     بل قد يُنقصه؛ وهذا بعينه الفارقُ عن `get_max_periods_for_day` الذي يعدّ
     الحصصَ بلا نظرٍ إلى تلاصقها (`_check_teachers` أعلاه).
     """
-    result_key = (band_ids, day_type, skip_period)
+    skipped = (skip_period,) if isinstance(skip_period, int) else tuple(skip_period or ())
+    result_key = (band_ids, day_type, skipped)
     known: int | None = memo.get(result_key) if memo is not None else None
     if known is not None:
         return known
@@ -386,7 +418,7 @@ def _band_day_cap(
     intervals: set[tuple[time, time]] = set()
     for band_id in band_ids or {""}:
         for start, finish, number in rows.get(band_id, ()):
-            if skip_period is not None and number == skip_period:
+            if number in skipped:
                 continue
             intervals.add((start, finish))
     if not intervals:
@@ -399,15 +431,44 @@ def _band_day_cap(
     #: أقصى مجموعةٍ لا يتلاصق فيها عنصران (HC5: `MAX_CONSECUTIVE = 1`) — لا عدُّ
     #: التكتّلات. الأولى تعطي ٤ لسبعِ حصصٍ متتالية، والثانيةُ ١ فتُرفَض الأنصبةُ
     #: كلُّها. والجشعُ بأبكر انتهاءٍ مثاليٌّ لهذه الهيئة (جدولةُ الفترات بفاصل).
-    count = 0
-    last_end: time | None = None
-    for start, finish in sorted(intervals, key=lambda iv: (iv[1], iv[0])):
-        if last_end is None or _minutes(start) - _minutes(last_end) > HC5_JOINABLE_GAP_MINUTES:
-            count += 1
-            last_end = finish
+    #: ومع تخفيف التلاصق للجميع (D-382م) يتّسع اليومُ لحصّتين متلاصقتين فيُقاس بالسقف المخفَّف نفسِه الذي يقبله النموذج.
+    run_cap = memo.get("run_cap") if memo is not None else None
+    if run_cap is None:
+        run_cap = relaxed_run_cap(school)  # استعلامٌ واحد لكلّ فحصٍ لا لكلّ (معلّم، يوم)
+        if memo is not None:
+            memo["run_cap"] = run_cap
+    if run_cap > STRICT_RUN_CAP:
+        count = _max_with_runs(sorted(intervals, key=lambda iv: (iv[1], iv[0])), run_cap)
+    else:
+        count = 0
+        last_end: time | None = None
+        for start, finish in sorted(intervals, key=lambda iv: (iv[1], iv[0])):
+            if last_end is None or _minutes(start) - _minutes(last_end) > HC5_JOINABLE_GAP_MINUTES:
+                count += 1
+                last_end = finish
     if memo is not None:
         memo[result_key] = count
     return count
+
+
+def _edge_capacity(per_day: list[dict[tuple[int, int], int]], first_cap: int, last_cap: int) -> int:
+    """أقصى خاناتٍ في الأسبوع حين لا يزيد عددُ الأيّام التي تُستعمل فيها الأولى عن `first_cap` ولا الأخيرة عن `last_cap`.
+
+    قسمةٌ على الأيّام بحالتين لكلّ طرف؛ لا نكتفي بترتيب فروقٍ لكلّ طرفٍ على حدة لأن السقفين يتفاعلان في اليوم
+    الواحد (تلاصقُ الأولى بالثانية والسادسة بالسابعة يغيّر عددَ الخانات غير المتلاصقة).
+    """
+    best: dict[tuple[int, int], int] = {(0, 0): 0}
+    for day in per_day:
+        step: dict[tuple[int, int], int] = {}
+        for (used_f, used_l), total in best.items():
+            for (f, l), cap in day.items():
+                key = (used_f + f, used_l + l)
+                if key[0] > first_cap or key[1] > last_cap:
+                    continue
+                if step.get(key, -1) < total + cap:
+                    step[key] = total + cap
+        best = step
+    return max(best.values()) if best else 0
 
 
 def binding_daily_cap(
@@ -418,6 +479,7 @@ def binding_daily_cap(
     personal_max_daily: int | None,
     personal_max_last: int | None = None,
     memo: dict | None = None,
+    first_cap: int | None = MAX_FIRST_PERIODS,
 ) -> tuple[int, str | None]:
     """السقفُ الساري على نصاب معلّمٍ في الأسبوع، واسمُ القيد الذي حكم.
 
@@ -425,6 +487,11 @@ def binding_daily_cap(
     فعليّ، و`None` لمن لا سجلَّ له (لا قيدَ شخصيّاً — لا الافتراضَ ٥).
     والمصدرُ `None` يعني: لا يومَ متاحاً له أصلاً فلا حكمَ هنا.
     وهي مشتركةٌ بين فحص التوليد وفحص الإدخال كي لا يختلف الحكمان.
+
+    **وسقفُ الجرس يشمل HC22 وHC8 (W-20261003-043):** الأولى لا تُسند للمعلّم نفسِه أكثرَ من `MAX_FIRST_PERIODS`
+    أسبوعيّاً كذلك، فتُحسب الأولى والأخيرة معاً بقسمةٍ على الأيّام (`_edge_capacity`). و`first_cap=None`
+    يُسقط سقفَ الأولى (HC22) من الحسبة: يستعمله فحصُ الإدخال لأن تخفيفَ المالك لسقف الأولى لمعلّمين مسمَّين
+    (2026-10-09) محفوظٌ في ملف تخفيفات التوليد لا في القاعدة، فلا يُرفض إدخالٌ لا يرفضه المولّد.
 
     **وسقفُ الجرس يشمل HC8 (W-20261003-035):** بجرسٍ ثانويّ يسع اليومُ ٣ خاناتٍ مستقلّةٍ بلا
     السابعة و٤ معها، والسابعةُ لا تُسند للمعلّم نفسِه أكثرَ من `personal_max_last` (أو العامّ
@@ -434,27 +501,47 @@ def binding_daily_cap(
     days = [d for d in DAYS if d not in full_days]
     if not days:
         return 0, None
-    without_last, with_last = [], []
+    #: سعةُ كلّ يومٍ بحسب ما يُستعمل من طرفيه: (أولى؟، أخيرة؟) ← عددُ الخانات غير المتلاصقة بعد ما يحجزه التفريغ.
+    per_day: list[dict[tuple[int, int], int]] = []
     for d in days:
         day_type = "thursday" if d == THURSDAY else "regular"
         held = blocked.get(d, 0)
-        with_last.append(max(0, _band_day_cap(school, band_ids, day_type, memo=memo) - held))
-        without_last.append(
-            max(
-                0,
-                _band_day_cap(school, band_ids, day_type, skip_period=LAST_PERIOD, memo=memo)
-                - held,
-            )
+        per_day.append(
+            {
+                (f, l): max(
+                    0,
+                    _band_day_cap(
+                        school,
+                        band_ids,
+                        day_type,
+                        skip_period=tuple(
+                            p for p, used in ((FIRST_PERIOD, f), (LAST_PERIOD, l)) if not used
+                        ),
+                        memo=memo,
+                    )
+                    - held,
+                )
+                for f in (0, 1)
+                for l in (0, 1)
+            }
         )
-    allowed_sevenths = personal_last_cap(personal_max_last) or MAX_LAST_PERIODS
-    gains = sorted((w - n for w, n in zip(with_last, without_last, strict=True)), reverse=True)
-    structural = sum(without_last) + sum(g for g in gains[:allowed_sevenths] if g > 0)
-    plain = sum(with_last)
-    bell_source = (
-        "سقفُ الجرس"
-        if structural == plain
-        else f"سقفُ الجرس مع سقف السابعة (HC8: {allowed_sevenths} أسبوعيّاً)"
+    #: الصفرُ منعٌ: لا تدخل السابعةُ في السعة أصلاً (W-20261004-013).
+    allowed_sevenths = last_cap_or(personal_max_last, MAX_LAST_PERIODS)
+    plain = sum(day[(1, 1)] for day in per_day)
+    #: السقفان معاً (HC22 وHC8)؛ وبلا سقف الأولى تعود الحسبةُ إلى HC8 وحدَه كما كانت.
+    structural = _edge_capacity(
+        per_day, len(days) if first_cap is None else first_cap, allowed_sevenths
     )
+    last_only = _edge_capacity(per_day, len(days), allowed_sevenths)
+    if structural == plain:
+        bell_source = "سقفُ الجرس"
+    elif structural == last_only:
+        bell_source = f"سقفُ الجرس مع سقف السابعة (HC8: {allowed_sevenths} أسبوعيّاً)"
+    else:
+        bell_source = (
+            f"سقفُ الجرس مع سقفَي الطرفين (HC22: {first_cap} أولى، "
+            f"HC8: {allowed_sevenths} أخيرة أسبوعيّاً)"
+        )
     #: لا تفضيلَ مسجَّلٌ يعني لا قيدَ شخصيّاً — لا الافتراضَ ٥ من حقل
     #: النموذج. فذاك افتراضُ عرضِ الاستمارة لمن يملأها، وليس قراراً
     #: إداريّاً صدر في حقّ من لم يُفتح له سجلٌّ أصلاً (AS-4 "لمن كُتب له").
@@ -496,6 +583,7 @@ def entry_load_violation(
         blocked.get(tid, {}),
         personal[0] if personal else None,
         personal[1] if personal else None,
+        first_cap=None,
     )
     if source is None or projected_teaching <= binding:
         return None

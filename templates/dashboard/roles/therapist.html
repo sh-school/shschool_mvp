@@ -1,7 +1,7 @@
 {% load ui dict_filters %}
 <div class="exec-dash">
 
-  {% page_header "لوحة جلسات العلاج" subtitle=subtitle icon="stats" %}{% endpage_header %}
+  {% page_header "لوحة جلسات العلاج" subtitle=subtitle icon="stats" %}{% include "dashboard/partials/_leave_self.html" %}{% endpage_header %}
 
   {% kpi_strip label="الجلسات" %}
     {% kpi "جلسات اليوم" total_sessions_today sub=sessions_sub tone="teal" %}

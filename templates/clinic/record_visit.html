@@ -26,7 +26,7 @@
             <option value="">— اختر الطالب —</option>
             {% for student in students %}
             <option value="{{ student.id }}" {% if student_id == student.id|stringformat:"s" %}selected{% endif %}>
-              {{ student.full_name }} ({{ student.national_id|mask_id }})
+              {{ student.full_name }}
             </option>
             {% endfor %}
           </select>
@@ -45,20 +45,20 @@
         </div>
 
         {# ── إرسال للمنزل ── #}
-        <div class="ui-callout ui-callout--warning items-center">
+        <div class="ui-callout ui-callout--warning">
           <input type="checkbox" name="is_sent_home" id="sent_home" class="clinic-check">
-          <label for="sent_home" class="font-medium cursor-pointer m-0">
+          <label for="sent_home">
             {% icon "status_warning" %} تم إرسال الطالب إلى المنزل (يُرسَل إشعارٌ بالبريد إلى وليّ الأمر إن كان له بريدٌ مسجَّل)
           </label>
         </div>
 
       </div>
 
-      <div class="flex gap-3 mt-6">
-        <button type="submit" class="btn-danger flex-1 p-3 text-sm font-bold">
+      <div class="form-actions">
+        <button type="submit" class="btn-danger">
           {% icon "save" %} تسجيل الزيارة
         </button>
-        <a href="{% url 'clinic:dashboard' %}" class="btn-secondary px-6 py-3 no-underline">إلغاء</a>
+        <a href="{% url 'clinic:dashboard' %}" class="btn-secondary">إلغاء</a>
       </div>
     </form>
   </div>

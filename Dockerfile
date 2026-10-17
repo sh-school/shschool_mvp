@@ -61,6 +61,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /opt/venv /opt/venv
 
+# متصفّحُ Chromium لاختبارات المتصفّح في الصورة المحلّيّة وحدَها (W-20261016-014، #1109): كان يسقط الإطلاقُ بـlibnspr4.so.
+# يُثبَّت في المرحلة النهائيّة لأنّ مكتبات النظام (--with-deps) يجب أن تكون في الصورة التي تعمل؛ والمسارُ مشتركٌ ليجده appuser.
+# الإنتاجُ (INSTALL_DEV=false) لا يتأثّر.
+ARG INSTALL_DEV=false
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN if [ "$INSTALL_DEV" = "true" ]; then playwright install --with-deps chromium && chmod -R a+rX /ms-playwright; fi
+
 # المستخدمُ غير الجذر؛ وتُملَّك له مجلّداتُ الكتابة فقط، ويُنسخ الكودُ بـ--chown
 # بدل chown -R على /app كلِّه (كان يكرّر طبقةَ الشيفرة بحجمها).
 RUN groupadd -r appuser && useradd -r -g appuser -d /app appuser \

@@ -62,14 +62,25 @@ SELF_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && (pwd -W 2>/dev/null || pw
 ROOT="${SCHOOLOS_ROOT:-D:/shschool_mvp}"          # الجذرُ الأصليّ: منه .env وحده
 WORKTREES="$ROOT/.claude/worktrees"
 PREVIEW_DIR="${PREVIEW_DIR:-$WORKTREES/main-preview}"
-PROJECT="schoolos-main-preview"
+PROJECT="${PREVIEW_PROJECT:-schoolos-main-preview}"   # قابلٌ للتبديل لاختبارٍ على منفذٍ ومشروعٍ بديلين
 PORT="${PREVIEW_PORT:-8500}"
+# أزرق/أخضر (W-20261010-051): الخادمُ الحيّ على منفذ المالك PORT تحجزه واجهةُ nginx صغيرة ثابتة (FRONT)،
+# وخلفَها «خانتان» تتناوبان على منفذين داخليين؛ فالتطبيقُ يبني الجديدَ في الخانة الفارغة حتى يصحّ
+# ثمّ يحوِّل الواجهةَ إليه بـ`nginx -s reload` (بلا انقطاع)، ويبقى القائم إن سقط الجديد.
+FRONT="${PROJECT}-front"
+SLOT_PORT_A="${PREVIEW_SLOT_PORT_A:-$((PORT + 10))}"
+SLOT_PORT_B="${PREVIEW_SLOT_PORT_B:-$((PORT + 20))}"
+SLOT_PROJECT=""                                   # الخانةُ الجاري البناءُ فيها؛ فارغٌ = المشروعُ القديم المباشر
+RECENT_SECONDS="${PREVIEW_RECENT_SECONDS:-120}"   # طلبٌ على المعاينة أحدثُ من هذا يؤجّل التطبيقَ (حتى MAX_WAIT)
 QUIET="${PREVIEW_QUIET_SECONDS:-0}"               # سكونُ main قبل التطبيق (0 = معطَّل؛ كان 180)
 APPLY_EVERY="${PREVIEW_APPLY_EVERY_SECONDS:-600}" # تطبيقٌ إجباريٌّ كلَّ كذا ثانيةً إن وُجد جديد (0 = معطَّل) — قرارُ المالك 2026-10-02
 MAX_WAIT="${PREVIEW_MAX_WAIT_SECONDS:-900}"       # سقفُ الانتظار الأقصى (احتياطٌ أخيرٌ فوق الإيقاع)
 PIN_MAX="${PREVIEW_PIN_MAX_MINUTES:-30}"          # حدٌّ أقصى للتثبيت بالدقائق (ما زاد يُقصّ)
 PIN_MINUTES="${PREVIEW_PIN_MINUTES:-30}"
+PIN_OVERDUE_ALERT="${PREVIEW_PIN_OVERDUE_ALERT_SECONDS:-900}"   # تثبيتٌ منتهٍ لم يُفكّ بعد هذه المدّة يُنبَّه به 0101
 INTERVAL="${PREVIEW_INTERVAL_SECONDS:-60}"
+PIN_START_ALERT="${PREVIEW_PIN_START_ALERT_SECONDS:-600}"   # إقلاعُ تثبيتٍ (أو طلبٌ ينتظر) أطولُ من هذا يُنبَّه به
+WATCH_HB_ALERT="${PREVIEW_WATCH_HB_ALERT_SECONDS:-900}"       # لا نبضَ لـwatch منذ هذه المدّة يُنبَّه به
 PROD_URL="${PRODUCTION_URL:-https://shschoolmvp-production.up.railway.app}"
 COMPOSE_FILE="$SELF_ROOT/docker-compose.preview.yml"
 DRY="${PREVIEW_DRY_RUN:-0}"                       # 1: يطبع ما سيفعله ولا يُغيّر شيئاً
@@ -107,21 +118,45 @@ sset() { [ "$DRY" = 1 ] && return 0; mkdir -p "$(state_dir)"; printf '%s' "$2" >
 sdel() { [ "$DRY" = 1 ] && return 0; rm -f "$(state_dir)/$1"; }
 sappend() { [ "$DRY" = 1 ] && return 0; mkdir -p "$(state_dir)"; printf '%s\n' "$2" >> "$(state_dir)/$1"; }
 
-# قفلٌ بسيط: عمليّتان معاً (حلقةُ watch وأمرٌ يدويّ) تُفسدان إعادةَ الإنشاء. قفلٌ قديمٌ (عمليّةٌ
-# ماتت) يُكسر بعد 20 دقيقة.
+# قفلٌ بسيط: عمليّتان معاً (حلقةُ watch وأمرٌ يدويّ) تُفسدان إعادةَ الإنشاء. يحمل القفلُ pid صاحبه:
+# صاحبٌ ميّتٌ يُكسر قفلُه في الدورة نفسِها (كان يبقى 20 دقيقةً فلا يُفكّ تثبيتٌ منتهٍ ولا يتقدّم الطابور)،
+# وصاحبٌ حيٌّ لا يُكسر قفلُه أبداً مهما طال. وقفلٌ بلا pid (من نسخةٍ قديمة) يُكسر بعد 20 دقيقة كما كان.
+lock_holder_dead() {   # lock_holder_dead <مجلّدُ القفل> — 0 إن كان صاحبُه ميّتاً أو قفلُه قديماً بلا pid
+  local lock="$1" pid
+  pid="$(cat "$lock/pid" 2>/dev/null || true)"
+  case "$pid" in
+    '') [ -n "$(find "$lock" -maxdepth 0 -mmin +20 2>/dev/null)" ] ;;
+    *[!0-9]*) return 0 ;;
+    *) ! kill -0 "$pid" 2>/dev/null ;;
+  esac
+}
+
 acquire_lock() {
   [ "$DRY" = 1 ] && return 0
   local lock; lock="$(state_dir)/lock"
   mkdir -p "$(state_dir)"
   if ! mkdir "$lock" 2>/dev/null; then
-    if [ -n "$(find "$lock" -maxdepth 0 -mmin +20 2>/dev/null)" ]; then
+    if lock_holder_dead "$lock"; then
+      rm -f "$lock/pid" 2>/dev/null || true
       rmdir "$lock" 2>/dev/null || true
       mkdir "$lock" 2>/dev/null || return 1
     else
       return 1
     fi
   fi
-  trap 'rmdir "$(state_dir)/lock" 2>/dev/null || true' EXIT
+  printf '%s' "$$" > "$lock/pid"
+  trap 'rm -f "$(state_dir)/lock/pid" 2>/dev/null; rmdir "$(state_dir)/lock" 2>/dev/null || true' EXIT
+}
+
+# تثبيتٌ انتهى وقتُه ولم يُفكّ منذ PIN_OVERDUE_ALERT ثانيةً: يُكتب علَمٌ مرّةً واحدةً يقرؤه status وwatch_once فيُنبَّه 0101.
+# قراءةٌ وكتابةُ علَمٍ فقط (بلا قفلٍ وبلا docker) فتعمل حتى لو كان القفلُ محجوزاً.
+pin_overdue_check() {
+  [ "$(sget mode)" = "pin" ] || return 0
+  local until_ts over; until_ts="$(sget pin_until)"; over=$(( $(now) - ${until_ts:-0} ))
+  [ "$over" -ge "$PIN_OVERDUE_ALERT" ] || return 0
+  [ -n "$(sget pin_overdue)" ] && return 0
+  sset pin_overdue "$(now) $(basename "$(sget pin_tree)") $(( over / 60 ))"
+  warn "تثبيتُ $(basename "$(sget pin_tree)") انتهى منذ $(( over / 60 )) دقيقةً ولم يُفكّ — يحتاج 0101 (preview.sh status)"
 }
 
 # ── الشجرةُ والقاعدة ────────────────────────────────────────────
@@ -283,13 +318,13 @@ export_env() {   # export_env <prod|dev> <شجرة> <قاعدة>
 
 compose() {   # compose <شجرة> <أوامر…>: الشجرةُ المعروضة هي المربوطة `.:/app`
   local tree="$1"; shift
-  docker compose -p "$PROJECT" --project-directory "$tree" \
+  docker compose -p "${SLOT_PROJECT:-$PROJECT}" --project-directory "$tree" \
     --env-file "$PREVIEW_DIR/.env" -f "$COMPOSE_FILE" "$@"
 }
 
 wait_web() {
   [ "$DRY" = 1 ] && return 0
-  local c="${PROJECT}-web-1" state i restarts
+  local c="${SLOT_PROJECT:-$PROJECT}-web-1" state i restarts
   for i in $(seq 1 90); do
     state="$(docker inspect -f '{{.State.Health.Status}}' "$c" 2>/dev/null || echo missing)"
     [ "$state" = "healthy" ] && return 0
@@ -302,6 +337,128 @@ wait_web() {
   warn "الخادمُ لم يصحّ — آخرُ سطورِ سجلّه:"
   docker logs --tail 25 "$c" 2>&1 | sed 's/^/    /' >&2 || true
   return 1
+}
+
+# ── أزرق/أخضر: الخانتان والواجهة ─────────────────────────────────────────
+slot_port() { if [ "$1" = a ]; then printf '%s' "$SLOT_PORT_A"; else printf '%s' "$SLOT_PORT_B"; fi; }
+
+# حاويةُ الخادم التي تخدم الآن (الخانةُ الفعّالة، أو المشروعُ القديم المباشر قبل أوّل تبديل).
+web_container() {
+  local s; s="$(sget slot)"
+  if [ -n "$s" ]; then printf '%s-%s-web-1' "$PROJECT" "$s"; else printf '%s-web-1' "$PROJECT"; fi
+}
+
+front_conf() {   # front_conf <منفذُ الخانة> — يكتب إعدادَ nginx إلى مجلّد الواجهة
+  local d; d="$(state_dir)/front"
+  mkdir -p "$d"
+  cat > "$d/default.conf" <<NGINX
+# يُولَّد آليّاً من scripts/preview.sh — لا يُحرَّر يدويّاً.
+map \$http_upgrade \$conn_upgrade { default upgrade; '' close; }
+server {
+  listen 80;
+  client_max_body_size 64m;
+  location / {
+    proxy_pass http://host.docker.internal:$1;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$http_host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection \$conn_upgrade;
+    proxy_read_timeout 300s;
+    proxy_connect_timeout 3s;
+  }
+}
+NGINX
+}
+
+# يضمن واجهةً عاملةً موجِّهةً إلى منفذ الخانة؛ وإن كانت قائمةً تُحوَّل بإعادة تحميلٍ رشيقة (لا إسقاطَ لأيّ اتصال).
+front_point() {   # front_point <منفذُ الخانة>
+  [ "$DRY" = 1 ] && { printf '[dry] واجهة %s → %s\n' "$FRONT" "$1"; return 0; }
+  front_conf "$1"
+  if [ "$(docker inspect -f '{{.State.Running}}' "$FRONT" 2>/dev/null || echo false)" = "true" ]; then
+    docker exec "$FRONT" nginx -s reload >/dev/null 2>&1 || { warn "تعذّرت إعادةُ تحميل الواجهة"; return 1; }
+    return 0
+  fi
+  # أوّلُ مرّة (أو سقطت الواجهة): يُحرَّر المنفذُ من المشروع القديم المباشر إن وُجد ثمّ تقوم الواجهة — ثوانٍ لا دقيقتان.
+  docker rm -f "$FRONT" >/dev/null 2>&1 || true
+  docker compose -p "$PROJECT" down --remove-orphans >/dev/null 2>&1 || true
+  local conf; conf="$(cd "$(state_dir)/front" && (pwd -W 2>/dev/null || pwd))"
+  MSYS_NO_PATHCONV=1 docker run -d --name "$FRONT" --restart unless-stopped \
+    --add-host host.docker.internal:host-gateway \
+    -p "${PREVIEW_BIND:-127.0.0.1}:${PORT}:80" \
+    -v "$conf/default.conf:/etc/nginx/conf.d/default.conf:ro" \
+    nginx:alpine >/dev/null || { warn "تعذّر تشغيلُ الواجهة"; return 1; }
+}
+
+slot_up() {   # slot_up <شجرة> <منفذُ الخانة> — compose up في SLOT_PROJECT؛ مرّةً ثانيةً إن كان السببُ حجزَ المنفذ
+  local tree="$1" port="$2" upargs="$3" out rc
+  if [ "$DRY" = 1 ]; then
+    printf '[dry] docker compose -p %s %s (منفذ %s)\n' "$SLOT_PROJECT" "$upargs" "$port"
+    return 0
+  fi
+  _slot_compose_up() {
+    PREVIEW_PORT="$port" PREVIEW_BIND=127.0.0.1 docker compose -p "$SLOT_PROJECT" --project-directory "$tree" \
+      --env-file "$PREVIEW_DIR/.env" -f "$COMPOSE_FILE" $upargs 2>&1
+  }
+  rc=0; out="$(_slot_compose_up)" || rc=$?
+  printf '%s\n' "$out"
+  if [ "$rc" != 0 ] && grep -q 'port is already allocated' <<<"$out"; then
+    warn "منفذ الخانة $port محجوز — أزيل بقايا الخانة وأعيد المحاولة مرّة (الحاجزُ: $(docker ps --filter "publish=$port" --format '{{.Names}}' 2>/dev/null | paste -sd' ' -))"
+    docker compose -p "$SLOT_PROJECT" down --remove-orphans >/dev/null 2>&1 || true
+    sleep 2
+    rc=0; out="$(_slot_compose_up)" || rc=$?
+    printf '%s\n' "$out"
+  fi
+  return "$rc"
+}
+
+# يبني الشجرةَ في الخانة الفارغة؛ وبعد صحّتها تُحوَّل الواجهةُ إليها وتُزال الخانةُ القديمة. فشلُها يُبقي القائمَ يخدم.
+bluegreen_up() {   # bluegreen_up <شجرة>
+  local tree="$1" cur new port
+  cur="$(sget slot)"
+  if [ "$cur" = a ]; then new=b; else new=a; fi
+  port="$(slot_port "$new")"
+  local net="${PREVIEW_NETWORK:-${PROJECT}-net}"
+  export PREVIEW_NETWORK="$net"
+  if [ "$DRY" != 1 ]; then
+    docker network inspect "$net" >/dev/null 2>&1 || docker network create "$net" >/dev/null       || { warn "تعذّر إنشاءُ شبكة $net"; return 1; }
+  fi
+  SLOT_PROJECT="${PROJECT}-${new}"
+  say "▸ يُبنى الجديدُ في الخانة $new (منفذ $port) والقائمُ يواصل الخدمة"
+  # الخانةُ الفارغةُ لا تخدم أحداً: بقايا حاوياتها (متوقّفةٌ أو عالقةٌ) تحجز منفذَها فيسقط البناءُ بـ«port is already allocated»
+  # فيبقى الطابورُ على نسخةٍ قديمة. تُزال أوّلاً، وإن سقط البناءُ بهذا الخطأ بعينه تُزال ثانيةً وتُعاد المحاولةُ مرّةً.
+  run docker compose -p "$SLOT_PROJECT" down --remove-orphans >/dev/null 2>&1 || true
+  slot_up "$tree" "$port" "up -d --force-recreate --remove-orphans" || { warn "docker compose up أعاد خطأً"; true; }
+  if ! wait_web; then
+    warn "سقط الجديدُ في الخانة $new — يبقى القائمُ يخدم"
+    run docker compose -p "$SLOT_PROJECT" down --remove-orphans >/dev/null 2>&1 || true
+    SLOT_PROJECT=""
+    return 1
+  fi
+  if ! front_point "$port"; then
+    run docker compose -p "$SLOT_PROJECT" down --remove-orphans >/dev/null 2>&1 || true
+    SLOT_PROJECT=""
+    return 1
+  fi
+  sset slot "$new"
+  SLOT_PROJECT=""
+  if [ -n "$cur" ]; then
+    [ "$DRY" = 1 ] || sleep 3   # مهلةٌ لطلباتٍ جارية على الخانة القديمة
+    run docker compose -p "${PROJECT}-${cur}" down --remove-orphans >/dev/null 2>&1 || true
+  fi
+  return 0
+}
+
+# هل يعاين أحدٌ الآن؟ أيُّ طلبٍ غيرِ فحصٍ صحّيٍّ أو ثابتٍ في آخر RECENT_SECONDS يمرّ بالواجهة.
+owner_recent() {
+  [ "$DRY" = 1 ] && return 1
+  [ "$RECENT_SECONDS" -gt 0 ] || return 1
+  [ "$(docker inspect -f '{{.State.Running}}' "$FRONT" 2>/dev/null || echo false)" = "true" ] || return 1
+  local n
+  n="$(docker logs --since "${RECENT_SECONDS}s" "$FRONT" 2>&1 | grep -E '"(GET|POST|PUT|PATCH|DELETE) ' | grep -vE '/health/|/static/' | grep -c . || true)"
+  [ "${n:-0}" -gt 0 ]
 }
 
 served_commit() {
@@ -494,14 +651,13 @@ deploy_main() {
   export_env prod "$tree" "$db"
   label="${LABEL:-main@$PREVIEW_SHA}"
   say "▸ يُعاد إنشاءُ الخادم والعامل على $label (هجرة ← collectstatic ← daphne) — قاعدة $db"
-  run compose "$tree" up -d --force-recreate --remove-orphans || warn "docker compose up أعاد خطأً"
-  wait_web || return 1
+  bluegreen_up "$tree" || return 1
   sset mode follow
   sset served_sha "$(git -C "$tree" rev-parse HEAD)"
   sset served_label "$label"
   sset served_report "$INTEG_REPORT"
   sset synced_at "$(now)"
-  sdel pending_sha; sdel pending_since; sdel wait_since; sdel last_error; sdel pin_tree; sdel pin_until
+  sdel pending_sha; sdel pending_since; sdel wait_since; sdel last_error; sdel pin_tree; sdel pin_until; sdel pin_overdue
   say "✔ $label على http://localhost:$PORT — يعلن /health/: commit=$(served_commit)"
 }
 
@@ -646,7 +802,7 @@ apply_main() {   # apply_main <sha> — بعد resolve_target (LABEL وINTEG_KIN
     if deploy_main; then
       sset last_error "$(now) $msg فتُخدَم ${good:0:7}"
     else
-      warn "وفشلت العودةُ أيضاً — الخادمُ متوقّف؛ راجع: docker logs ${PROJECT}-web-1"
+      warn "وفشلت العودةُ أيضاً — الخادمُ متوقّف؛ راجع: docker logs $(web_container)"
     fi
   fi
   return 1
@@ -665,7 +821,7 @@ seed_pin_accounts() {   # seed_pin_accounts
     warn "أداةُ بذر الحسابات غائبة ($tool) — لا حساباتِ 99900001..10 على هذا التثبيت"
     return 0
   fi
-  PREVIEW_CONTAINER="${PROJECT}-web-1" PYTHONUTF8=1 python "$tool" sync \
+  PREVIEW_CONTAINER="$(web_container)" PYTHONUTF8=1 python "$tool" sync \
     || warn "تعذّر بذرُ حسابات المعاينة على هذا التثبيت (راجع رسالةَ الأداة أعلاه)"
 }
 
@@ -680,8 +836,7 @@ deploy_pin() {   # deploy_pin <شجرة> <دقائق>
   fi
   export_env dev "$tree" "$db"
   say "▸ يُحوَّل الخادمُ إلى $(basename "$tree")@$PREVIEW_SHA (تطوير، قاعدة $db) لمدّة $mins دقيقة"
-  run compose "$tree" up -d --force-recreate --remove-orphans || warn "docker compose up أعاد خطأً"
-  if ! wait_web; then
+  if ! bluegreen_up "$tree"; then
     sset last_error "$(now) الإقلاعُ سقط عند تثبيت $(basename "$tree")"
     return 1
   fi
@@ -697,6 +852,85 @@ release_locked() {
   fetch_ref
   resolve_target
   apply_main "$TARGET"
+}
+
+# ── طلبُ التثبيت وتنفيذُه (متابعة W-20261016-011) ─────────────────────────────
+# `pin` لا يبني في عملية الطالب (تقتلها مهلةُ أداته فتبقى الخانةُ نصفَ مبنيّة): يكتب `pin_request`
+# «شجرة<TAB>دقائق<TAB>force<TAB>وقتُ الطلب<TAB>أعيدت» ويرجع، وتنفّذه دورةُ watch (cmd_sync) بـdeploy_pin نفسِه.
+# `pin_in_progress` «pid<TAB>بدء<TAB>شجرة<TAB>دقائق<TAB>force<TAB>أعيدت» يُكتب أثناء الإقلاع؛ وإن مات صاحبُه
+# يُزال مشروعُ الخانة الفارغة وحدَها (القائمةُ تخدم) وتُعاد المحاولةُ مرّةً واحدة.
+pin_request_write() {   # pin_request_write <شجرة> <دقائق> <force> [أعيدت]
+  sset pin_request "$1"$'\t'"$2"$'\t'"$3"$'\t'"$(now)"$'\t'"${4:-0}"
+}
+
+recover_pin_in_progress() {
+  local rec pid ts tree mins force retried slot empty
+  rec="$(sget pin_in_progress)"
+  [ -n "$rec" ] || return 0
+  IFS=$'\t' read -r pid ts tree mins force retried <<<"$rec"
+  if [ "$pid" != "$$" ] && kill -0 "$pid" 2>/dev/null; then return 0; fi
+  sdel pin_in_progress
+  slot="$(sget slot)"
+  if [ "$slot" = a ]; then empty=b; else empty=a; fi
+  warn "إقلاعُ تثبيت $(basename "$tree") مات صاحبُه — أُزيل مشروعُ الخانة الفارغة $empty وحدَها"
+  run docker compose -p "${PROJECT}-${empty}" down --remove-orphans >/dev/null 2>&1 || true
+  if [ "${retried:-0}" = 0 ] && [ -f "$tree/manage.py" ]; then
+    pin_request_write "$tree" "$mins" "${force:-0}" 1
+  else
+    sset last_error "$(now) إقلاعُ تثبيت $(basename "$tree") مات مرّتين — لم يُعَد"
+  fi
+}
+
+run_pin_request() {   # القفلُ مأخوذٌ عند المستدعي
+  local req tree mins force rts retried until_ts left
+  recover_pin_in_progress
+  req="$(sget pin_request)"
+  [ -n "$req" ] || return 0
+  IFS=$'\t' read -r tree mins force rts retried <<<"$req"
+  sdel pin_request
+  if [ ! -f "$tree/manage.py" ]; then
+    sset last_error "$(now) طلبُ تثبيت: لا شجرةَ بهذا المسار ($(basename "$tree"))"
+    return 0
+  fi
+  if [ "${force:-0}" != 1 ] && [ "$(sget mode)" = "pin" ] && [ "$(sget pin_tree)" != "$tree" ]; then
+    until_ts="$(sget pin_until)"; left=$(( ${until_ts:-0} - $(now) ))
+    if [ "$left" -gt 0 ]; then
+      queue_add "$tree" "$mins" >/dev/null
+      say "▸ مثبَّتةٌ على $(basename "$(sget pin_tree)") — دخل $(basename "$tree") طابورَ الانتظار"
+      return 0
+    fi
+  fi
+  sset pin_in_progress "$$"$'\t'"$(now)"$'\t'"$tree"$'\t'"$mins"$'\t'"${force:-0}"$'\t'"${retried:-0}"
+  deploy_pin "$tree" "$mins" || warn "تعذّر تثبيتُ $(basename "$tree")"
+  sdel pin_in_progress
+}
+
+# تنبيهاتُ status: إقلاعٌ/طلبٌ أطولُ من PIN_START_ALERT، ولا نبضَ لـwatch منذ WATCH_HB_ALERT. قراءةٌ فقط.
+pin_start_status() {
+  local rec pid ts tree req rts
+  rec="$(sget pin_in_progress)"
+  if [ -n "$rec" ]; then
+    IFS=$'\t' read -r pid ts tree _ <<<"$rec"
+    say "تثبيت:        قيدَ الإقلاع — $(basename "$tree") منذ $(( ($(now) - ts) / 60 )) دقيقة"
+    if [ $(( $(now) - ts )) -ge "$PIN_START_ALERT" ]; then
+      warn "تنبيه لـ0101: إقلاعُ تثبيت $(basename "$tree") طال أكثر من $(( PIN_START_ALERT / 60 )) دقائق — تفقّد القفلَ والحاويات"
+    fi
+  fi
+  req="$(sget pin_request)"
+  if [ -n "$req" ]; then
+    IFS=$'\t' read -r tree _ _ rts _ <<<"$req"
+    say "تثبيت:        طلبٌ ينتظر watch — $(basename "$tree") منذ $(( ($(now) - rts) / 60 )) دقيقة"
+    if [ $(( $(now) - rts )) -ge "$PIN_START_ALERT" ]; then
+      warn "تنبيه لـ0101: طلبُ تثبيت $(basename "$tree") لم يُنفَّذ منذ أكثر من $(( PIN_START_ALERT / 60 )) دقائق — هل watch يعمل؟"
+    fi
+  fi
+  local hb; hb="$(sget watch_hb)"
+  case "$hb" in
+    '' | *[!0-9]*) warn "تنبيه لـ0101: لم يُسجَّل نبضٌ لـwatch بعد — هل watch يعمل؟ (لا يُنفَّذ تثبيتٌ ولا تحديثٌ بدونه)" ;;
+    *) if [ $(( $(now) - hb )) -ge "$WATCH_HB_ALERT" ]; then
+         warn "تنبيه لـ0101: لا نبضَ لـwatch منذ $(( ($(now) - hb) / 60 )) دقيقة — الحلقةُ متوقّفة؟"
+       fi ;;
+  esac
 }
 
 # ── الأوامر ─────────────────────────────────────────────────────
@@ -715,7 +949,10 @@ cmd_up() {
 cmd_sync() {
   local force=0; [ "${1:-}" = "--now" ] && force=1
   [ -e "$PREVIEW_DIR/.git" ] || die "لا شجرةَ معاينةٍ بعدُ — شغّل: bash scripts/preview.sh up"
+  sset watch_hb "$(now)"
+  pin_overdue_check
   acquire_lock || { idle "عمليّةٌ أخرى تعمل الآن — أتخطّى هذه الدورة"; return 0; }
+  run_pin_request
 
   if [ "$(sget mode)" = "pin" ]; then
     local until_ts left; until_ts="$(sget pin_until)"; left=$(( ${until_ts:-0} - $(now) ))
@@ -738,7 +975,7 @@ cmd_sync() {
   ts="$(now)"
 
   if same_content "$new" "$served"; then
-    if [ "$(docker inspect -f '{{.State.Running}}' "${PROJECT}-web-1" 2>/dev/null || echo false)" = "true" ]; then
+    if [ "$(docker inspect -f '{{.State.Running}}' "$(web_container)" 2>/dev/null || echo false)" = "true" ]; then
       idle "على $LABEL — لا جديد"
       return 0
     fi
@@ -760,7 +997,9 @@ cmd_sync() {
   since="$(sget pending_since)"; first="$(sget wait_since)"
   age=$(( ts - ${since:-$ts} )); waited=$(( ts - ${first:-$ts} ))
   local since_apply; since_apply="$(apply_age "$ts")"
-  if apply_due "$force" "$age" "$waited" "$since_apply"; then
+  if apply_due "$force" "$age" "$waited" "$since_apply" && [ "$force" = 0 ] && [ "$waited" -lt "$MAX_WAIT" ] && owner_recent; then
+    idle "$LABEL جاهزٌ للتطبيق لكن أحداً يعاين الآن (طلبٌ في آخر $RECENT_SECONDS ثانية) — أؤجّل حتى يسكن أو يبلغ الانتظارُ $MAX_WAIT ثانية"
+  elif apply_due "$force" "$age" "$waited" "$since_apply"; then
     say "▸ $LABEL — يُطبَّق"
     apply_main "$new"
   else
@@ -806,7 +1045,18 @@ cmd_pin() {
       return 0
     fi
   fi
-  deploy_pin "$tree" "$mins"
+  local pending ptree
+  pending="$(sget pin_request)"
+  if [ -n "$pending" ]; then
+    IFS=$'\t' read -r ptree _ <<<"$pending"
+    if [ "$ptree" != "$tree" ]; then
+      local pos; pos="$(queue_add "$tree" "$mins")"
+      say "▸ طلبُ تثبيتٍ آخر ($(basename "$ptree")) ينتظر التنفيذ — سُجّلت $(basename "$tree") في الطابور بالترتيب $pos"
+      return 0
+    fi
+  fi
+  pin_request_write "$tree" "$mins" "$force"
+  say "✔ سُجّل طلبُ تثبيت $(basename "$tree") ($mins دقيقة) — تنفّذه دورةُ watch خلال نحو ${INTERVAL} ثانية؛ تابعه بـ: preview.sh status"
 }
 
 cmd_release() {
@@ -871,13 +1121,17 @@ cmd_status() {
   main="$(git -C "$PREVIEW_DIR" rev-parse --short=7 origin/main)"
   [ "$REF" = "origin/main" ] || say "تتبع المعاينةُ الآن $REF لا main (PREVIEW_REF) — لتجربة شيفرةٍ لم تُدمج"
   prod="$(curl -s -m 8 "$PROD_URL/health/" | sed -n 's/.*"commit": *"\([0-9a-f]*\)".*/\1/p' || true)"
-  running="$(docker inspect -f '{{.State.Status}} ({{.State.Health.Status}})' "${PROJECT}-web-1" 2>/dev/null || echo 'غيرُ موجود')"
+  running="$(docker inspect -f '{{.State.Status}} ({{.State.Health.Status}})' "$(web_container)" 2>/dev/null || echo 'غيرُ موجود')"
   serving="$(served_commit)"
   if [ "$mode" = pin ]; then
     pin_note=" — $(basename "$(sget pin_tree)") (يعود إلى main بعد $(( ($(sget pin_until) - $(now)) / 60 + 1 )) دقيقة)"
   fi
 
   say "الوضع:        ${mode:-—}$pin_note"
+  if [ -n "$(sget pin_overdue)" ]; then
+    warn "تنبيه لـ0101: تثبيتٌ منتهٍ لم يُفكّ ($(sget pin_overdue | awk '{print $2 " — منذ " $3 " دقيقة"}')) — الفكُّ تلقائيّ بدورة watch؛ إن بقي فتفقّد القفلَ والحاويات"
+  fi
+  pin_start_status
   local queued t m qts qn=0
   queued="$(sget pin_queue)"
   if [ -n "$queued" ]; then
@@ -925,7 +1179,7 @@ cmd_status() {
   err="$(sget last_error)"
   if [ -n "$err" ]; then
     err_ts="${err%% *}"   # الحالةُ تُخزَّن «<وقت> <نصّ>»؛ يُعرض الوقتُ مقروءاً
-    warn "آخرُ خطأ ($(date -d "@$err_ts" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "$err_ts")): ${err#* } — راجع: docker logs ${PROJECT}-web-1"
+    warn "آخرُ خطأ ($(date -d "@$err_ts" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "$err_ts")): ${err#* } — راجع: docker logs $(web_container)"
   fi
   err="$(sget db_note)"
   if [ -n "$err" ]; then

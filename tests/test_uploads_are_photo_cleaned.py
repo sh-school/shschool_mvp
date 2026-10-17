@@ -31,6 +31,10 @@ NOT_PHOTOS = {
         "كشفُ CSV من جهاز البصمة (حضورُ الموظّفين) يُحلَّل نصّاً في الذاكرة ولا يُخزَّن، "
         "ويُرفض ما امتدادُه غيرُ .csv — ملفُّ جدولٍ لا صورة"
     ),
+    "clinic/needs_care_services.py::import_from_request": (
+        "ملفُّ xlsx أو csv بعمودَي الرقم الوطنيّ والصفّ (علامةُ المراعاة) يُحلَّل في الذاكرة ولا يُخزَّن "
+        "ويُرفض ما امتدادُه غيرُهما — ملفُّ جدولٍ لا صورة (W-20261010-045)"
+    ),
 }
 
 #: تمرّر الملفَّ إلى خدمةٍ تنظّفه: {الدالّة: (ملفُّ الخدمة، السبب)} — ويتحقّق الحارسُ أنّ ملفَّ الخدمة يستدعي
@@ -58,6 +62,11 @@ DOCUMENTS_ONLY = {
     "staff_affairs/views.py::leave_request_create": (
         "staff_affairs.forms",
         "LeaveRequestForm",
+        "attachment",
+    ),
+    "staff_affairs/views_leave_self.py::leave_request_self": (
+        "staff_affairs.forms",
+        "LeaveRequestSelfForm",
         "attachment",
     ),
     "student_affairs/views.py::activity_add": (

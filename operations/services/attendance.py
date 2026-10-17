@@ -148,16 +148,18 @@ class AttendanceService:
 
             try:
                 from core.models import Membership
+                from core.permissions import ABSENCE_ALERT_RECIPIENTS
                 from notifications.models import InAppNotification
 
-                sw_user_ids = list(
+                # الأخصائيُّ والنائبُ الأكاديميّ (D-201م، W-20261004-024) — ومن جمع الدورين يصله تنبيهٌ واحد.
+                recipient_ids = set(
                     Membership.objects.filter(
-                        school=school, is_active=True, role__name="social_worker"
+                        school=school, is_active=True, role__name__in=ABSENCE_ALERT_RECIPIENTS
                     ).values_list("user_id", flat=True)
                 )
-                for sw_id in sw_user_ids:
+                for recipient_id in recipient_ids:
                     InAppNotification.objects.create(
-                        user_id=sw_id,
+                        user_id=recipient_id,
                         school=school,
                         title=f"{headline}: {student.full_name}",
                         body=f"{detail} {source}",
@@ -167,7 +169,7 @@ class AttendanceService:
                     )
             except Exception as exc:
                 logger.warning(
-                    "raise_absence_alerts: social worker notify failed [student=%s]: %s",
+                    "raise_absence_alerts: alert recipients notify failed [student=%s]: %s",
                     student.pk,
                     exc,
                 )

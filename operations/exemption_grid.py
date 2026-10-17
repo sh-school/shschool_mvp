@@ -118,7 +118,7 @@ def _max_period_for(day: int, level_types: set[str]) -> int:
     الثانويّ. ومن يُدرّس المرحلتين له السابعةُ الخميسيّةُ مشروعةً في شعبةٍ
     ثانويّة — فيُؤخذ الأوسعُ لا الأضيق، وإلّا حُجبت عنه خانةٌ يعمل فيها.
     """
-    from operations.scheduler_constraints import get_max_periods_for_day
+    from operations.scheduling_limits import get_max_periods_for_day
 
     if not level_types:
         return max(PERIODS)

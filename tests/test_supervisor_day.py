@@ -83,7 +83,9 @@ def test_a_wing_holder_gets_only_their_own_wing(
     data = response.json()
     assert [row["code"] for row in data["sections"]] == [klass.short_code]
     assert [row["name"] for row in data["wings"]] == ["جناح 1"]
-    assert section.short_code not in json.dumps(data, ensure_ascii=False)
+    # `generated_at` بالمايكروثانية قد يحمل رمز الشعبة صدفةً («37.1» ⊃ «7.1»)؛ لا شأن له بالجناح.
+    body = {key: value for key, value in data.items() if key != "generated_at"}
+    assert section.short_code not in json.dumps(body, ensure_ascii=False)
     for person in (kid, other_student):
         assert person.full_name not in json.dumps(data, ensure_ascii=False)
 
@@ -141,7 +143,9 @@ def test_the_other_wings_holder_sees_the_other_wing_and_not_this_one(
 
     assert [row["code"] for row in data["sections"]] == [section.short_code]
     assert [row["name"] for row in data["wings"]] == ["جناح 2"]
-    assert klass.short_code not in json.dumps(data, ensure_ascii=False)
+    # `generated_at` بالمايكروثانية يحمل «37.1» صدفةً (≈1% من التشغيلات) فيطابق رمز الشعبة «7.1»؛ لا شأن له بالجناح.
+    body = {key: value for key, value in data.items() if key != "generated_at"}
+    assert klass.short_code not in json.dumps(body, ensure_ascii=False)
 
 
 def test_a_school_wide_holder_gets_403_because_his_screen_is_the_five_wings(

@@ -19,7 +19,8 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.utils import timezone
 
-from core import brand
+from core import brand, ministry_logo
+from core.ministry import ministry_name
 
 logger = logging.getLogger(__name__)
 
@@ -555,6 +556,12 @@ def _reshape_html_for_xhtml2pdf(html_str: str) -> str:
 def _playwright_header_template(school: str, title: str) -> str:
     """هيدر احترافي — يعمل على كل صفحة في Playwright"""
     title_part = f" — {title}" if title else ""
+    ministry = ministry_name()  # مجمَّدةٌ مطفأةٌ افتراضاً (D-400م): لا نطاقَ فارغاً في الترويسة
+    ministry_span = f'<span class="ph-ministry">{ministry}</span>' if ministry else ""
+    try:  # شعارُ الوزارة الأصليّ مضمَّناً أعلى الوسط: ترويسةُ Playwright وثيقةٌ مستقلّةٌ لا ترى ملفّاتِ الموقع
+        logo_img = f'<img class="ph-logo" src="{ministry_logo.logo_data_uri()}" alt="" width="46" height="46">'
+    except FileNotFoundError:
+        logo_img = ""
     return f"""
 <style>
 * {{ margin:0; padding:0; box-sizing:border-box; }}
@@ -564,13 +571,16 @@ def _playwright_header_template(school: str, title: str) -> str:
     width:       100%;
     padding:     5px 26px 5px 26px;
     display:     flex;
-    justify-content: space-between;
+    flex-direction: column;
+    justify-content: center;
     align-items: center;
+    text-align:  center;
     border-bottom: 1.5px solid {brand.MAROON};
     background:  {brand.SURFACE};
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
 }}
+.ph-logo {{ display: block; margin: 0 auto 1px; }}
 .ph-school {{
     font-size:   9px;
     font-weight: bold;
@@ -589,8 +599,9 @@ def _playwright_header_template(school: str, title: str) -> str:
 }}
 </style>
 <div class="ph">
+    {logo_img}
     <span class="ph-school">{school}{title_part}</span>
-    <span class="ph-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</span>
+    {ministry_span}
 </div>
 """
 
@@ -789,7 +800,7 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
                 return os.path.join(static_root, uri[8:].replace("/", os.sep))
             if uri.startswith("file:///"):
                 return uri[8:].replace("/", os.sep)
-            # مسارات نسبية مثل static/brand/logoMaroon.png
+            # مسارات نسبية مثل static/brand/azkia-logo.svg
             if not uri.startswith(("http://", "https://")):
                 candidate = os.path.join(str(Path(settings.BASE_DIR)), uri.replace("/", os.sep))
                 if os.path.exists(candidate):

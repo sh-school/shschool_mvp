@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -97,6 +98,8 @@ class GridColumn:
     state: str
     #: أيُكتب فيه الآن (بدأت حصّتُه وفي نافذة اليوم وللمستخدم صلاحية)؟
     writable: bool
+    #: التاليةُ في الفسحة: لا حصّةَ جاريةً اليومَ وهذا أوّلُ عمودٍ لم يبدأ — يُميَّز كالجارية (W-20261010-055).
+    is_next: bool = False
 
     @property
     def started(self) -> bool:
@@ -104,10 +107,39 @@ class GridColumn:
 
 
 @dataclass(frozen=True)
+class ExitBadge:
+    """دائرةُ خروج الطالب من **هذه الحصّة** على زاوية خليّتها: عددُ مرّاته ونصُّ التلميح (سطرٌ لكلّ خروج: الوجهة والساعة والمدّة)."""
+
+    count: int
+    tip: str
+
+
+def exit_line(exit_: ClassExit) -> str:
+    """«دورة المياه — خرج 09:12 — 5 د»؛ ومن لم يعد: «لم يعد بعد»."""
+    label = "العيادة (بإذن)" if exit_.destination == "clinic" else exit_.get_destination_display()
+    left = timezone.localtime(exit_.left_at).strftime("%H:%M")
+    spent = f"{exit_.minutes_away()} د" if exit_.returned_at else "لم يعد بعد"
+    return f"{label} — خرج {left} — {spent}"
+
+
+def exit_badges(session_ids: list[Any]) -> dict[tuple[Any, Any], ExitBadge]:
+    """استعلامٌ واحدٌ لخروج الحصص المعروضة؛ الامتدادُ (`continued_from`) يزيد المدّةَ ولا يُعدّ مرّةً ثانية."""
+    grouped: dict[tuple[Any, Any], list[ClassExit]] = {}
+    for item in ClassExit.objects.filter(
+        session_id__in=session_ids, continued_from__isnull=True
+    ).order_by("left_at"):
+        grouped.setdefault((item.session_id, item.student_id), []).append(item)
+    return {
+        key: ExitBadge(count=len(items), tip=chr(10).join(exit_line(i) for i in items))
+        for key, items in grouped.items()
+    }
+
+
+@dataclass(frozen=True)
 class GridRow:
     student: CustomUser
-    #: `(العمود، رأسُ خليّته أو None)` بترتيب الأعمدة — للقالب بلا فهرسة.
-    pairs: list[tuple[GridColumn, ColumnCell | None]]
+    #: `(العمود، رأسُ خليّته أو None، دائرةُ الخروج أو None)` بترتيب الأعمدة — للقالب بلا فهرسة.
+    pairs: list[tuple[GridColumn, ColumnCell | None, ExitBadge | None]]
     #: خروجٌ مفتوحٌ لهذا الطالب في الحصّة الجارية (`ClassExit` — لم يعد بعد) أو `None`.
     exit: ClassExit | None = None
 
@@ -310,6 +342,14 @@ def _state_of(start: dt.time, end: dt.time, now: dt.time) -> str:
     return "current" if now < end else "past"
 
 
+def _mark_next(columns: list[GridColumn], is_today: bool) -> list[GridColumn]:
+    """في الفسحة (لا حصّةَ جاريةً اليومَ) يُوسَم أوّلُ عمودٍ لم يبدأ «التالي» ليُميَّز كالجارية (W-20261010-055)."""
+    if not is_today or any(c.state == "current" for c in columns):
+        return columns
+    upcoming = next((c for c in columns if c.state == "future"), None)
+    return [dataclasses.replace(c, is_next=c is upcoming) for c in columns]
+
+
 def page(
     user: CustomUser,
     school: School,
@@ -361,14 +401,15 @@ def page(
         )
     students = [
         enrollment.student
-        for enrollment in StudentEnrollment.objects.filter(
-            class_group=klass, is_active=True, enrolled_at__lte=day
-        )
+        for enrollment in StudentEnrollment.objects.filter(class_group=klass)
+        .on_roll(day)
         .select_related("student")
         .order_by("student__full_name")
     ]
-    cells = column_heads([c.session_id for c in columns if c.session_id])
+    columns = _mark_next(columns, day == today)
     current = next((c for c in columns if c.state == "current"), None)
+    cells = column_heads([c.session_id for c in columns if c.session_id])
+    badges = exit_badges([c.session_id for c in columns if c.session_id])
     open_exits = (
         {
             e.student_id: e
@@ -383,7 +424,11 @@ def page(
         GridRow(
             student=student,
             pairs=[
-                (c, cells.get((c.session_id, student.pk)) if c.session_id else None)
+                (
+                    c,
+                    cells.get((c.session_id, student.pk)) if c.session_id else None,
+                    badges.get((c.session_id, student.pk)),
+                )
                 for c in columns
             ],
             exit=open_exits.get(student.pk),
@@ -431,9 +476,8 @@ def _roster_student(klass: ClassGroup, day: dt.date, student_id: Any) -> CustomU
     except ValueError:
         raise GridNotFoundError("طالبٌ غيرُ معروف") from None
     enrollment = (
-        StudentEnrollment.objects.filter(
-            class_group=klass, is_active=True, enrolled_at__lte=day, student_id=wanted
-        )
+        StudentEnrollment.objects.filter(class_group=klass, student_id=wanted)
+        .on_roll(day)
         .select_related("student")
         .first()
     )
@@ -619,9 +663,9 @@ def save_column(
 
     roster = {
         enrollment.student_id: enrollment.student
-        for enrollment in StudentEnrollment.objects.filter(
-            class_group=klass, is_active=True, enrolled_at__lte=day
-        ).select_related("student")
+        for enrollment in StudentEnrollment.objects.filter(class_group=klass)
+        .on_roll(day)
+        .select_related("student")
     }
     with transaction.atomic():
         session = _ensure_session(user, school, klass, day, wanted, times, request)

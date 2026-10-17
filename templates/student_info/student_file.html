@@ -34,7 +34,7 @@
   <div class="fill-grid" style="--flow: row; --tc: repeat(auto-fit, minmax(24rem, 1fr))">
   {% if shows_grades %}
   {% section_card "التحصيل ومستواه" meta=results|length icon="grades" flush=True empty="لم تُرصد نتائج سنوية لهذا الطالب بعد" %}{% if results %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>
@@ -52,7 +52,7 @@
             <td class="num">{{ r.total|default:"—" }}</td>
             <td class="col-center">{{ r.letter }}</td>
             <td class="col-center"><span class="status-badge status-{{ r.band_tone }}">{{ r.band_label }}</span></td>
-            <td class="col-center text-xs">{{ r.status }}</td>
+            <td class="col-center cell-sm">{{ r.status }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -64,7 +64,7 @@
   {# ── ملاحظات الجهات — ما يقرؤه صاحبُ الطلب منها ── #}
   {% for g in note_groups %}
     {% section_card g.label meta=g.notes|length icon="edit_record" flush=True empty="لا ملاحظات من هذه الجهة" %}{% if g.notes %}
-      <div class="table-wrap">
+      <div class="table-wrap table-wrap-scroll">
         <table>
           <thead>
             <tr>
@@ -77,10 +77,10 @@
           <tbody>
             {% for n in g.notes %}
             <tr>
-              <td class="col-center text-xs">{{ n.occurred_on|date:"d/m/Y" }}</td>
+              <td class="col-center cell-sm">{{ n.occurred_on|date:"d/m/Y" }}</td>
               <td class="font-semibold">{{ n.title }}</td>
               <td class="sinfo-note-body">{{ n.body }}</td>
-              <td class="col-center text-xs">{{ n.created_by.full_name|default:"—" }}</td>
+              <td class="col-center cell-sm">{{ n.created_by.full_name|default:"—" }}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -91,7 +91,7 @@
 
   {# ── الأنشطة ── #}
   {% section_card "الأنشطة" meta=activities|length icon="activities" flush=True empty="لا أنشطة مسجّلة لهذا الطالب هذا العام" %}{% if activities %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>
@@ -104,10 +104,10 @@
         <tbody>
           {% for a in activities %}
           <tr>
-            <td class="col-center text-xs">{{ a.date|date:"d/m/Y" }}</td>
+            <td class="col-center cell-sm">{{ a.date|date:"d/m/Y" }}</td>
             <td>{{ a.title }}</td>
             <td class="col-center"><span class="status-badge status-info">{{ a.get_activity_type_display }}</span></td>
-            <td class="col-center text-xs">{{ a.get_scope_display }}</td>
+            <td class="col-center cell-sm">{{ a.get_scope_display }}</td>
           </tr>
           {% endfor %}
         </tbody>

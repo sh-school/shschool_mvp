@@ -458,20 +458,20 @@ class TestTheProfilePdf:
         )
         return entry.changes["full_national_id"]
 
-    def test_the_supervisor_prints_the_full_number_without_grades(
+    def test_the_supervisor_prints_neither_the_number_nor_grades(
         self, client_as, school, seeded_calendar, klass, supervisor, wing_kid
     ):
-        """الوثيقةُ الفرديّةُ تحمل الرقمَ كاملاً للجميع، ويُسجَّل ذلك في التدقيق."""
+        """الوثيقةُ الفرديّةُ بلا رقمٍ شخصيّ منذ D-386م (W-20261011-014)، ورايةُ التدقيق تقول ذلك (W-20261012-005)."""
         html = self._render(client_as(supervisor), wing_kid)
 
-        assert wing_kid.national_id in html
+        assert wing_kid.national_id not in html
         assert "الدرجات الحالية" not in html
-        assert self._logged(wing_kid) is True
+        assert self._logged(wing_kid) is False
 
-    def test_leadership_keeps_the_full_number(
+    def test_leadership_does_not_see_the_number_either(
         self, client_as, school, seeded_calendar, klass, principal_user, wing_kid
     ):
         html = self._render(client_as(principal_user), wing_kid)
 
-        assert wing_kid.national_id in html
-        assert self._logged(wing_kid) is True
+        assert wing_kid.national_id not in html
+        assert self._logged(wing_kid) is False

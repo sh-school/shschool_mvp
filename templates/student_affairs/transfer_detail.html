@@ -25,18 +25,24 @@
   {% section_card "بيانات الانتقال" icon="swap_requests" %}
     <dl class="detail-dl">
       <dt>الطالب</dt><dd><strong>{{ transfer.student.full_name }}</strong></dd>
-      <dt>الاتجاه</dt><dd>{% if transfer.direction == "in" %}← وارد{% else %}→ صادر{% endif %}</dd>
+      <dt>الاتجاه</dt><dd>{{ transfer.get_direction_display }}</dd>
+      {% if transfer.direction == "internal" %}
+      <dt>الشعبة المنقول إليها</dt><dd>{{ transfer.to_class_group.short_label }}</dd>
+      {% else %}
       <dt>المدرسة الأخرى</dt><dd>{{ transfer.other_school_name }}</dd>
+      {% endif %}
       <dt>تاريخ الانتقال</dt><dd>{{ transfer.transfer_date|date:"d/m/Y" }}</dd>
       {% if transfer.from_grade %}<dt>الصف (من)</dt><dd>{{ transfer.from_grade }}</dd>{% endif %}
       {% if transfer.to_grade %}<dt>الصف (إلى)</dt><dd>{{ transfer.to_grade }}</dd>{% endif %}
       {% if transfer.reason %}<dt>السبب</dt><dd>{{ transfer.reason }}</dd>{% endif %}
       {% if transfer.notes %}<dt>ملاحظات</dt><dd>{{ transfer.notes }}</dd>{% endif %}
       <dt>تاريخ التسجيل</dt><dd>{{ transfer.created_at|date:"d/m/Y H:i" }}</dd>
+      {% if transfer.created_by %}<dt>قدّمه</dt><dd>{{ transfer.created_by.full_name }}</dd>{% endif %}
+      {% if transfer.decided_by %}<dt>قرّره</dt><dd>{{ transfer.decided_by.full_name }} — {{ transfer.decided_at|date:"d/m/Y H:i" }}</dd>{% endif %}
     </dl>
   {% endsection_card %}
 
-  {% if transfer.status == "pending" or transfer.status == "approved" %}
+  {% if can_decide and transfer.status == "pending" or can_decide and transfer.status == "approved" %}
   {% section_card "مراجعة الطلب" icon="checklist" %}
     <form method="post" action="{% url 'student_affairs:transfer_review' transfer.pk %}">
       {% csrf_token %}
@@ -49,8 +55,8 @@
             <option value="approved">موافقة</option>
             <option value="rejected">رفض</option>
             {% endif %}
-            {% if transfer.status == "approved" or transfer.status == "pending" %}
-            <option value="completed">مكتمل (تم الانتقال فعلياً)</option>
+            {% if transfer.status == "approved" or transfer.status == "pending" and transfer.direction != "internal" %}
+            <option value="completed">{% if transfer.direction == "internal" %}تنفيذ النقل الآن{% else %}مكتمل (تم الانتقال فعلياً){% endif %}</option>
             {% endif %}
             <option value="cancelled">إلغاء</option>
           </select>
@@ -66,6 +72,16 @@
       {% endif %}
       <div class="form-actions">
         <button type="submit" class="btn-primary btn-sm">{% icon "status_success" %} تنفيذ القرار</button>
+      </div>
+    </form>
+  {% endsection_card %}
+  {% elif can_cancel_own %}
+  {% section_card "طلبك قيد الانتظار" icon="checklist" %}
+    <form method="post" action="{% url 'student_affairs:transfer_review' transfer.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="cancelled">
+      <div class="form-actions">
+        <button type="submit" class="btn-secondary btn-sm">إلغاء الطلب</button>
       </div>
     </form>
   {% endsection_card %}

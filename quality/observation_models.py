@@ -46,6 +46,10 @@ RATING_CHOICES = [
 ]
 RATING_WEIGHTS = {"complete": 100, "most": 75, "some": 50, "limited": 25}
 
+# أقصى رجوعٍ للخلف (بالأيّام) لتاريخ التقييم الذاتي — لا تقييمَ ذاتيٌّ لحصّةٍ أقدم، ولا لحصّةٍ في المستقبل
+# (D-417م). افتراضٌ بانتظار تأكيد المالك: سبعة أيّام.
+MAX_SELF_BACKDATE_DAYS = 7
+
 FOLLOW_UP_MODE = [("field", "ميدانيّة"), ("remote", "عن بُعد")]
 FOLLOW_UP_SCOPE = [("partial", "جزئيّة"), ("full", "كلّيّة")]
 
@@ -137,6 +141,9 @@ class ClassroomObservation(AuditedModel):
     )
     observation_date = models.DateField(default=timezone.localdate, verbose_name="التاريخ")
     period = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="الحصة")
+    # تقييمٌ ذاتيٌّ لحصّةٍ ليست في جدول المعلّم (بديلٌ، أو حصّةٌ إضافيّة): يُدخلها يدويّاً فتُوسَم بشارةٍ ظاهرة
+    # في القائمة والـPDF ليعرف المسؤولُ أنّها لم تُطابَق على الجدول. وهي توسيعٌ فقط (لا حذفَ ولا إعادة تسمية).
+    outside_schedule = models.BooleanField(default=False, verbose_name="حصّة خارج جدولي")
     topic = models.CharField(max_length=200, blank=True, verbose_name="الموضوع")
 
     follow_up_mode = models.CharField(

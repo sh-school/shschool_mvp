@@ -11,6 +11,7 @@
 """
 
 import pathlib
+import re
 
 import pytest
 from django.template.loader import render_to_string
@@ -99,7 +100,7 @@ def _margin_boxes(html):
 
 
 def test_the_vertical_margins_hold_the_standard_header_and_footer(db, observation):
-    """الهامشان يسعان الترويسةَ والتذييلَ الموحَّدَين (شعارٌ ووزارةٌ ومدرسةٌ وخطٌّ زخرفيّ؛ وسطران) — فلا يفيضان على المتن ولا يبقى بياضٌ كثير.
+    """الهامشان يسعان الترويسةَ والتذييلَ الموحَّدَين (وزارةٌ ومدرسةٌ وخطٌّ زخرفيّ؛ وسطران) — فلا يفيضان على المتن ولا يبقى بياضٌ كثير.
 
     يُقاس المرسومُ فعلاً: ارتفاعُ محتوى كلّ هامشٍ ≤ ارتفاعِه، وما زاد عليه فضلةٌ ≤ 0.35 بوصة (33.6px).
     """
@@ -209,13 +210,12 @@ def test_the_header_is_local_and_the_footer_is_the_shared_component(db, observat
 
     for marker in (
         'class="doc-header"',
-        'class="emblem"',
-        'class="ministry-name"',
         'class="school-name"',
         'class="ornament-hr"',
         'class="pdf-footer-line"',
     ):
         assert marker in html, marker
+    assert 'class="ministry-name"' not in html, "سطرُ الوزارة مجمَّد (D-400م)"
     header = html.split('<div id="sheet-header">', 1)[1].split('<div id="sheet-footer">', 1)[0]
     footer = html.split('<div id="sheet-footer">', 1)[1].split("<h1", 1)[0]
     assert "vision-text" not in header and school.vision not in header, "لا رؤيةَ في الترويسة"
@@ -225,7 +225,8 @@ def test_the_header_is_local_and_the_footer_is_the_shared_component(db, observat
     assert (
         "SchoolOS" not in html and "SAMM" not in html
     ), "اسمُ المنصّة لا يظهر في تذييل أيّ تصدير (أمرُ المالك 2026-09-27)"
-    assert html.count("<img") == 1, "الشعارُ وحده — لا صورةَ ترويسةٍ ولا تذييل"
+    # شعارُ المدرسة «ش» وحدَه (D-404م): صورةٌ واحدةٌ في الترويسة، لا في التذييل ولا شعارُ الوزارة (أُزيل — W-20261011-012)
+    assert html.count("<img") == 1 and "<img" in header and "<img" not in footer
 
 
 def test_two_planning_domains_sit_on_the_first_page_the_rest_on_the_second(
@@ -443,19 +444,22 @@ def test_the_vision_is_included_never_written_here(source):
 
 # ── ختمُ التوقيع الإلكترونيّ في خانتَي التوقيع (F55E) ─────────────────────────
 # التذكرةُ SOS-20260925-F55E: خانتا «توقيع المعلم» و«توقيع الزائر» كانتا فارغتين في نسخة PDF، والنموذجُ يحمل
-# `submitted_at` (إرسال الزائر) و`teacher_acknowledged_at` (اطّلاع المعلّم). الختمُ عند وجود البيانات، وإلّا تبقى
-# الخانةُ فارغةً للتوقيع اليدويّ؛ لا ختمَ على مسودّةٍ أو مسحوبة؛ والوقتُ بتوقيت الدوحة؛ والأسماءُ وحدَها.
+# `submitted_at` (إرسال الزائر) و`teacher_acknowledged_at` (اطّلاع المعلّم). الاسمُ عند وجود البيانات، وإلّا تبقى
+# الخانةُ فارغةً للتوقيع اليدويّ؛ لا اسمَ على مسودّةٍ أو مسحوبة؛ والأسماءُ وحدَها.
+# W-20261005-007 (D-221م): الوثيقةُ طبقُ الأصل الرسميّ فسقطت منها عبارةُ «توقيعٌ إلكترونيّ داخل المنصّة» ووقتُ
+# الختم؛ بقي الاسمُ وحدَه، ووقتُ الإرسال والاطّلاع شرطُ الظهور في القاعدة لا نصٌّ يُعرض.
 
-STAMP = "توقيعٌ إلكترونيّ داخل المنصّة"
+PHRASE = "توقيعٌ إلكترونيّ داخل المنصّة"  # حُذفت من الوثيقة (D-221م): يُفحص غيابُها
+BOX = '<div class="e-sign">'  # الخانةُ المملوءة بالاسم؛ وفي الأنماط `.e-sign {` لا يطابقها
 VISITOR_NAME = "سالم الزائر الأوّل"
 TEACHER_NAME = "ناصر المعلّم الأوّل"
 SENT_AT = "2026-09-01T09:30:00+00:00"  # 12:30 بتوقيت الدوحة
 ACK_AT = "2026-09-02T06:05:00+00:00"  # 09:05 بتوقيت الدوحة
 
 
-def _stamp_of(name, at):
-    """الختمُ كما يخرج: اسمٌ في سطرٍ ووقتٌ في سطرٍ (لا فاصلٌ يتدلّى في الخانة الضيّقة)."""
-    return f"<div>{name}</div><div>{at}</div>"
+def _stamp_of(name):
+    """الخانةُ كما تخرج: صندوقٌ فيه الاسمُ وحدَه — لا عبارةَ ولا وقت."""
+    return f"{BOX}<div>{name}</div></div>"
 
 
 def _moment(iso):
@@ -500,20 +504,18 @@ def _acknowledged(obs):
 def test_a_sent_visit_stamps_the_visitor_and_leaves_the_teacher_cell_empty(db, named):
     html = _html_of(_sent(named))
 
-    assert html.count(STAMP) == 1
-    assert _stamp_of(VISITOR_NAME, "2026/09/01 12:30") in html
-    # الاسمان في ترويسة الاستمارة دائماً؛ الختمُ هو سطرا «الاسم» و«الوقت»
-    assert (
-        f"<div>{TEACHER_NAME}</div>" not in html
-    ), "المعلّمُ لم يطّلع بعدُ — خانتُه فارغةٌ للتوقيع اليدويّ"
+    assert html.count(BOX) == 1
+    assert _stamp_of(VISITOR_NAME) in html
+    # الاسمان في ترويسة الاستمارة دائماً؛ الخانةُ هي سطرُ «الاسم» داخل الصندوق
+    assert _stamp_of(TEACHER_NAME) not in html, "المعلّمُ لم يطّلع بعدُ — خانتُه فارغةٌ للتوقيع اليدويّ"
 
 
 def test_an_acknowledged_visit_stamps_both_cells(db, named):
     html = _html_of(_acknowledged(named))
 
-    assert html.count(STAMP) == 2
-    assert _stamp_of(VISITOR_NAME, "2026/09/01 12:30") in html
-    assert _stamp_of(TEACHER_NAME, "2026/09/02 09:05") in html
+    assert html.count(BOX) == 2
+    assert _stamp_of(VISITOR_NAME) in html
+    assert _stamp_of(TEACHER_NAME) in html
 
 
 def test_a_draft_is_never_stamped_even_with_a_stale_time(db, named):
@@ -525,7 +527,7 @@ def test_a_draft_is_never_stamped_even_with_a_stale_time(db, named):
 
     html = _html_of(named)
 
-    assert STAMP not in html
+    assert BOX not in html
     assert f"<div>{VISITOR_NAME}</div>" not in html and f"<div>{TEACHER_NAME}</div>" not in html
 
 
@@ -538,10 +540,10 @@ def test_a_reopened_visit_keeps_the_visitor_stamp_and_drops_the_teachers(db, nam
 
     html = _html_of(named)
 
-    assert html.count(STAMP) == 1 and f"<div>{TEACHER_NAME}</div>" not in html
+    assert html.count(BOX) == 1 and _stamp_of(TEACHER_NAME) not in html
 
 
-def test_a_resubmitted_visit_shows_the_last_time(db, named):
+def test_a_resubmitted_visit_keeps_the_name_and_shows_no_time(db, named):
     _sent(named, at="2026-09-01T09:30:00+00:00")
     named.submission_count = 2
     named.submitted_at = _moment("2026-09-03T07:15:00+00:00")  # 10:15 بتوقيت الدوحة
@@ -549,19 +551,35 @@ def test_a_resubmitted_visit_shows_the_last_time(db, named):
 
     html = _html_of(named)
 
-    assert "2026/09/03 10:15" in html
-    assert "2026/09/01" not in html
+    assert _stamp_of(VISITOR_NAME) in html
+    assert "2026/09/03" not in html and "10:15" not in html and "2026/09/01" not in html
+    named.refresh_from_db()
+    assert named.submitted_at == _moment("2026-09-03T07:15:00+00:00"), "الإثباتُ في القاعدة لا يُمسّ"
 
 
-def test_the_time_is_doha_whatever_timezone_is_active(db, named):
+def test_no_time_and_no_phrase_whatever_timezone_is_active(db, named):
+    """لا وقتَ في الخانتين ولا عبارةَ ختمٍ، أيّاً كانت المنطقةُ الزمنيّةُ النشطة (D-221م)."""
     from django.utils import timezone
 
-    _sent(named)
+    _acknowledged(named)
 
-    with timezone.override("UTC"):
-        html = _html_of(named)
+    for tz in ("UTC", "Asia/Qatar"):
+        with timezone.override(tz):
+            html = _html_of(named)
+        assert PHRASE not in html
+        for shown in ("12:30", "09:30", "09:05", "06:05", "2026/09/02"):
+            assert shown not in html, (tz, shown)
 
-    assert "12:30" in html and "09:30" not in html
+
+def test_the_proof_fields_in_the_database_are_untouched_by_the_pdf(db, named):
+    """الوقتان في القاعدة دليلُ الإرسال والاطّلاع — عرضُ PDF لا يغيّرهما ولا يحذفهما."""
+    _acknowledged(named)
+
+    _html_of(named)
+    named.refresh_from_db()
+
+    assert named.submitted_at == _moment(SENT_AT)
+    assert named.teacher_acknowledged_at == _moment(ACK_AT)
 
 
 def test_the_stamp_carries_names_only_no_id_and_no_number(db, named):
@@ -581,7 +599,7 @@ def test_a_signer_without_a_name_gets_no_stamp(db, named):
     named.observer.full_name = "  "
     named.observer.save(update_fields=["full_name"])
 
-    assert STAMP not in _html_of(named)
+    assert _stamp_of(VISITOR_NAME) not in _html_of(named)
 
 
 def test_the_signature_labels_stay_and_are_not_replaced_by_the_stamp(db, named):
@@ -634,9 +652,8 @@ def test_a_stamped_form_fits_wherever_the_unstamped_one_fits(db, school, named):
     ), f"الختمان أنزلا الاستمارةَ ({count} معياراً) عن صفحتَيها"
 
 
-# ── الشعارُ في الرأس (بلاغ المالك 2026-09-26) ─────────────────────────────────
-# الترتيب: صورةُ الترويسة المرفوعة إن وُجدت (كما هي) ← `School.logo` إن وُجد ← الشعارُ المعتمد `static/brand/logoMaroon.png` مع الترويسة
-# النصّيّة. فلا تحتاج مدرسةٌ إلى رفع شيءٍ لتظهر الاستمارةُ بشعار، وتبقى الصفحةُ واحدة.
+# ── لا شعارَ في الرأس (W-20261011-012، قرار المالك D-386م) ─────────────────────
+# شعارُ الوزارة أُزيل من الاستمارة كلِّها: الهويّةُ نصٌّ (وزارةٌ ومدرسةٌ) وخطٌّ زخرفيّ، ولا صورةَ لا من المنصّة ولا من رفعِ المدرسة.
 
 PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
 
@@ -649,56 +666,29 @@ def _save_image(field, name):
     field.save(name, ContentFile(base64.b64decode(PNG)), save=True)
 
 
-def test_without_any_upload_the_approved_logo_is_used(db, observation):
-    import base64
-    import pathlib
-
+def test_the_context_carries_no_logo_key(db, observation):
     from quality.observation_views import _pdf_context
 
-    logo = _pdf_context(observation)["logo"]
-
-    assert logo.startswith("data:image/png;base64,")
-    expected = pathlib.Path("static/brand/logoMaroon.png").read_bytes()
-    assert base64.b64decode(logo.split(",", 1)[1]) == expected, "الشعارُ المعتمدُ نفسُه لا نسخةٌ أخرى"
+    assert "logo" not in _pdf_context(observation)
 
 
-def test_the_schools_own_logo_comes_before_the_approved_one(db, observation):
-    from quality.observation_views import _as_data_uri, _pdf_context
-    from quality.pdf_assets import brand_logo_data_uri
+def test_an_uploaded_school_logo_or_letterhead_never_reaches_the_form(db, observation):
+    """صورةٌ مرفوعةٌ (شعارُ مدرسة أو تراثُ ترويسة) لا أثرَ لها: الهويّةُ نصٌّ وشعارُ الوزارة الثابتُ من الأصل لا من المرفوع (W-20261014-009)."""
+    from quality.observation_views import _pdf_context
 
     _save_image(observation.school.logo, "own.png")
-
-    ctx = _pdf_context(observation)
-
-    assert ctx["logo"] == _as_data_uri(observation.school.logo)
-    assert ctx["logo"] != brand_logo_data_uri()
-
-
-def test_an_uploaded_letterhead_no_longer_replaces_anything(db, observation):
-    """صورةٌ مرفوعةٌ في `School.letterhead` (تراثُ رفعٍ قديم) لا أثرَ لها: الهويّةُ نصٌّ والشعارُ المعتمدُ باقٍ."""
-    from quality.observation_views import _pdf_context
-
     _save_image(observation.school.letterhead, "head.png")
     _save_image(observation.school.letterfoot, "foot.png")
 
-    ctx = _pdf_context(observation)
-    html = render_to_string("quality/observation_pdf.html", ctx)
+    html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
 
-    assert ctx["logo"]
-    assert html.count("<img") == 1 and 'class="emblem"' in html
-
-
-def test_a_missing_approved_logo_falls_back_to_the_text_heading(db, observation, tmp_path):
-    from django.test import override_settings
-
-    from quality.observation_views import _pdf_context
-
-    with override_settings(BASE_DIR=tmp_path):
-        ctx = _pdf_context(observation)
-        html = render_to_string("quality/observation_pdf.html", ctx)
-
-    assert ctx["logo"] == ""
-    assert "<img" not in html and observation.school.name in html
+    images = re.findall(r"<img[^>]*>", html)
+    assert (
+        len(images) == 1
+        and 'class="ministry-logo' in images[0]
+        and "data:image/png;base64," in images[0]
+    )
+    assert observation.school.name in html
 
 
 def _image_boxes(html):
@@ -719,65 +709,24 @@ def _image_boxes(html):
     return found
 
 
-def test_the_emblem_is_drawn_small_not_stretched_across_the_header(db, observation):
-    """القاعدةُ العامّة `#sheet-header img` كانت تمدّ صورةَ الترويسة على عرض الشريط — والشعارُ الآن `.emblem` بارتفاع 0.5 بوصة (48px) لا أوسعَ من بوصة.
-
-    يُقاس حجمُه المرسوم فعلاً من تخطيط WeasyPrint.
-    """
+def test_the_header_draws_only_the_ministry_logo(db, observation):
+    """الترويسةُ شعارُ الوزارة (14 ملم = 52.9px) فوق اسم المدرسة وحدَه. يُقاس من تخطيط WeasyPrint نفسِه: صندوقُ صورةٍ واحدٌ في الصفحة الأولى."""
     from quality.observation_views import _pdf_context
 
     html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
-    images = _image_boxes(html)
 
-    assert len(images) == 1, images
-    width, height = images[0]
-    assert width <= 96 and 40 <= height <= 52, images
+    assert _image_boxes(html) == [(52.9, 52.9)]
 
 
-def _images_and_pages(obs):
+def test_the_pdf_carries_only_the_school_logo_image(db, school, named):
+    """القبولُ: ملفُّ PDF الناتج بصورةٍ واحدةٍ في صفحته الأولى — شعارُ المدرسة «ش» (D-404م)."""
     import io
 
     from core.pdf_utils import render_pdf_bytes
 
     pypdf = pytest.importorskip("pypdf")
-    reader = pypdf.PdfReader(io.BytesIO(render_pdf_bytes(_html_of(obs))))
-    return len(reader.pages), len(reader.pages[0].images)
-
-
-def test_the_logo_reaches_the_pdf_as_an_image_and_its_absence_leaves_none(
-    db, school, named, tmp_path
-):
-    """القبولُ: يظهر صورةً في PDF حين يُوجد الشعارُ ولا ترويسة، ولا يظهر حين لا يوجدان."""
-    from django.test import override_settings
-
-    pytest.importorskip("weasyprint")
     _real_criteria(school, 12)
 
-    pages_with, images_with = _images_and_pages(named)
-    with override_settings(BASE_DIR=tmp_path):  # لا شعارَ معتمداً ولا شعارَ مدرسة ولا ترويسة
-        pages_without, images_without = _images_and_pages(named)
+    reader = pypdf.PdfReader(io.BytesIO(render_pdf_bytes(_html_of(named))))
 
-    assert images_with == 1 and images_without == 0
-    assert pages_with == pages_without, "الشعارُ لا يغيّر عددَ الصفحات"
-
-
-def test_the_logo_never_costs_a_page(db, school, named, tmp_path):
-    """صفحتان: أكبرُ عددِ معاييرَ تسعه الصفحتان بلا شعار (حتّى حافّتهما) — والشعارُ عند العدد نفسِه لا يُنزلها إلى ثالثة.
-
-    نسبيّ عمداً كما في ختم F55E: عددُ الصفحات المطلق تحكمه خطوطُ PDF المثبَّتةُ في البيئة.
-    """
-    from django.test import override_settings
-
-    pytest.importorskip("weasyprint")
-    named.general_notes = ""
-    named.save()
-
-    for count in range(23, 8, -1):
-        _real_criteria(school, count)
-        with override_settings(BASE_DIR=tmp_path):
-            if _images_and_pages(named)[0] == 2:
-                break
-    else:
-        pytest.skip("لا عددَ معاييرَ تسعه صفحتان في هذه البيئة (خطوطُ PDF غيرُ مثبَّتة)")
-
-    assert _images_and_pages(named)[0] == 2, f"الشعارُ أنزل الاستمارةَ ({count} معياراً) عن صفحتَيها"
+    assert len(reader.pages[0].images) == 1

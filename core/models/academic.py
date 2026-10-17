@@ -1,3 +1,5 @@
+import datetime
+
 from django.contrib.postgres.constraints import ExclusionConstraint
 from django.contrib.postgres.fields import DateRangeField, RangeBoundary, RangeOperators
 from django.core.exceptions import ValidationError
@@ -710,6 +712,17 @@ class StudentEnrollmentQuerySet(models.QuerySet):
         """
         return self.order_by("-class_group__academic_year", "-enrolled_at", "-id")
 
+    def on_roll(self, day: datetime.date) -> "StudentEnrollmentQuerySet":
+        """قيودُ من يُحسب في الشعبة في يومٍ بعينه (W-20261010-017، D-323م خيار أ).
+
+        قيدٌ نشطٌ بدأ في اليوم أو قبله، أو قيدٌ أُغلق بالنقل (`left_at`) وكان اليومُ في مدّته: فيبقى الطالبُ
+        المنقولُ ظاهراً في شعبته القديمة لأيّامها السابقة للنقل. وقيدٌ معطَّلٌ بلا `left_at` لا يُخمَّن
+        فيبقى غيرَ ظاهر كما كان. و`left_at` آخرُ يومٍ في الشعبة القديمة، فلا يتداخل يومان.
+        """
+        return self.filter(enrolled_at__lte=day).filter(
+            models.Q(is_active=True, left_at__isnull=True) | models.Q(left_at__gte=day)
+        )
+
 
 class StudentEnrollmentManager(models.Manager.from_queryset(StudentEnrollmentQuerySet)):
     """السؤالُ «في أيّ شعبةٍ هذا الطالب؟» يمرّ من هنا وحدَه."""
@@ -736,6 +749,12 @@ class StudentEnrollment(models.Model):
     )
     is_active = models.BooleanField(default=True, verbose_name="نشط")
     enrolled_at = models.DateField(default=timezone.now, verbose_name="تاريخ التسجيل")
+    left_at = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="آخر يوم في الشعبة",
+        help_text="يُكتب عند النقل الداخلي: آخرُ يومٍ يُحسب فيه الطالبُ في هذه الشعبة؛ فارغٌ لمن لم يُنقل.",
+    )
 
     objects = StudentEnrollmentManager()
 

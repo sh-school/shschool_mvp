@@ -521,7 +521,7 @@ def test_the_cell_history_shows_who_wrote_and_who_corrected(
 def test_the_read_query_count_is_flat_in_the_number_of_students(
     client_as, school, assigned, teacher, clock
 ):
-    """عدُّ الاستعلامات ثابتٌ بعدد الطلبة: شعبةٌ بـ30 ثمّ بـ60 تُقرأ بالعدد نفسِه، وتحت حدٍّ مطلق (خطُّ أساسٍ مقيس: 36 بعد استعلام تغطية البديل)."""
+    """عدُّ الاستعلامات ثابتٌ بعدد الطلبة: شعبةٌ بـ30 ثمّ بـ60 تُقرأ بالعدد نفسِه، وتحت حدٍّ مطلق (خطُّ أساسٍ مقيس: 37 = 36 بعد استعلام تغطية البديل + استعلامٌ واحدٌ لتكليف المعلّم بالإنابة لكلّ طلب، W-20261001-021)."""
 
     def measure():
         with CaptureQueriesContext(connection) as queries:
@@ -540,7 +540,7 @@ def test_the_read_query_count_is_flat_in_the_number_of_students(
     thirty = measure()
     enroll(30, 60)
     sixty = measure()
-    assert thirty == sixty and thirty <= 37, (thirty, sixty)
+    assert thirty == sixty and thirty <= 38, (thirty, sixty)
 
 
 # ── «اطفئ الشبكة»: مع المفتاح لا يُفتح كشفُ الحصّة القديم لمن يملك الجدول ───────────
@@ -916,3 +916,105 @@ def test_the_coverage_lookup_adds_a_flat_number_of_queries(
     with CaptureQueriesContext(connection) as queries:
         assert not is_covering_class(stranger, assigned, SUNDAY)
     assert len(queries) <= 3
+
+
+# ── تمييز الحصّة الفعّالة والتالية في الفسحة (W-20261010-055) ────────────────────
+
+
+def test_the_running_column_is_marked_and_no_column_is_next(assigned, teacher, kids, clock):
+    clock(7, 30)  # داخل ح1 (07:10)
+
+    page = grid.page(teacher, assigned.school, assigned.id, now=at(7, 30))
+
+    assert page.current is not None and page.current.number == 1
+    assert not any(c.is_next for c in page.columns)
+
+
+def test_in_the_break_the_next_column_is_marked(assigned, teacher, kids, clock):
+    page = grid.page(teacher, assigned.school, assigned.id, now=at(10, 0))  # بعد ح2 وقبل ح3 12:45
+
+    assert page.current is None
+    assert [c.number for c in page.columns if c.is_next] == [3]
+
+
+def test_the_page_shows_the_badge_and_the_green_frame_hook(
+    client_as, assigned, teacher, kids, clock
+):
+    clock(7, 30)
+
+    body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
+
+    assert "الحصة الحالية" in body and 'aria-current="true"' in body
+
+
+def test_the_mobile_tab_of_the_live_column_has_a_dot_and_a_reader_text(
+    client_as, assigned, teacher, kids, clock
+):
+    clock(7, 30)
+
+    body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
+    tab = body.split('data-tab="1"', 1)[1].split("</button>", 1)[0]
+
+    assert "cg-tab__dot" in tab and "الحصة الحالية" in tab
+    assert "cg-tab__dot" not in body.split('data-tab="2"', 1)[1].split("</button>", 1)[0]
+    assert "cg-col__badge--short" in body
+
+
+def test_the_next_tab_in_the_break_is_marked_too(client_as, assigned, teacher, kids, clock):
+    clock(10, 0)
+
+    body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
+    tab = body.split('data-tab="3"', 1)[1].split("</button>", 1)[0]
+
+    assert "cg-tab__dot" in tab and "التالية" in tab
+
+
+# ── دائرةُ الخروج على خليّة الحصّة (W-20261010-041) ────────────────────────────────────
+
+
+def _out(session, student, destination, offset, minutes):
+    from operations.models import ClassExit
+
+    left = timezone.make_aware(
+        dt.datetime.combine(session.date, session.start_time)
+    ) + dt.timedelta(minutes=offset)
+    return ClassExit.objects.create(
+        school=session.school,
+        session=session,
+        student=student,
+        destination=destination,
+        left_at=left,
+        returned_at=left + dt.timedelta(minutes=minutes),
+    )
+
+
+def test_the_exit_circle_sits_on_each_period_cell_the_student_left(
+    client_as, assigned, teacher, kids, clock
+):
+    body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
+    assert "data-exit-tip" not in body  # لا خروجَ ⇒ لا دائرة
+    _save(client_as(teacher), assigned, 1, [_cells(kids[0], "present")])
+    first = Session.objects.get(class_group=assigned, period_number=1)
+    _out(first, kids[0], "restroom", 12, 5)
+    _out(first, kids[0], "clinic", 30, 10)
+    body = client_as(teacher).get(reverse("class_grid", args=[assigned.id])).content.decode()
+    assert body.count("data-exit-tip") == 1
+    assert 'aria-label="خرج 2 مرّة في هذه الحصّة"' in body
+    assert "دورة المياه — خرج 07:22 — 5 د" in body and "العيادة (بإذن) — خرج 07:40 — 10 د" in body
+
+
+def test_exit_circles_add_no_per_student_queries(client_as, assigned, teacher, kids, clock):
+    _save(client_as(teacher), assigned, 1, [_cells(k, "present") for k in kids])
+    first = Session.objects.get(class_group=assigned, period_number=1)
+
+    def measure():
+        with CaptureQueriesContext(connection) as queries:
+            client_as(teacher).get(reverse("class_grid", args=[assigned.id]))
+        return len(queries)
+
+    measure()
+    before = measure()
+    for kid in kids:
+        _out(first, kid, "restroom", 5, 3)
+    # استعلامُ خروج الحصص الجديدُ يُحسب مرّةً منذ المقياس الأوّل (حتى بلا خروج) فلا يزيد بعدد الطلبة.
+    assert measure() == before
