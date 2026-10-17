@@ -25,6 +25,7 @@
 - `fill-grid` تملأ ارتفاعَ النافذة في `page-noscroll`؛ **`fill-grid is-fit`** لبطاقاتٍ محدودة المحتوى (نماذج، سجلّاتٌ مرقّمة) فتتحاذى من الأعلى بارتفاعها — ولا تمريرَ داخل بطاقةٍ محدودة: السجلُّ يُقسَّم صفحات (`wings/views.py::student_events`).
 - قائمةٌ **ضيّقةُ الصفّ غيرُ محدودة** ← أعمدةٌ متجاورة: `core.dashboard_presentation.chunk_for_grid(items, n)` في الـview ثمّ `<div class="auto-grid">` (أدنى عمودٍ 300px)، وصفٌّ فيه عنصران مرنان يلتفّ (`.auto-grid .plain-list__row { flex-wrap: wrap }`). مثالٌ حيّ: `templates/wings/partials/watchlist.html`.
 - قائمةٌ **عريضةُ الصفّ** (سجلٌّ متعدّد الأعمدة) عمودٌ واحدٌ في `table-wrap` بتمريرٍ أفقيّ؛ وقائمةٌ **محدودةٌ أصلاً** (`[:5]`) لا تُقسَّم.
+- **الجدولُ الطويلُ يمرّر داخلَه لا الصفحة** (أمر المالك 2026-10-09): ترويسةٌ وإجراءاتٌ ثابتةٌ وآخرُ صفٍّ غيرُ مقصوص؛ الخاناتُ الثلاث في `95-checklist.md` وطريقةُ قياسها في `55-visual-verification.md`.
 - لا `max-w-*` ولا `.container` على صفحة: `#main-content { max-width: none }` بهامش `--edge-inline`.
 - أدواتُ الشبكة القائمة: `ui-grid-2`، `auto-grid`، `fill-grid`، `.form-page` — لا شبكةَ محلّيّة.
 
