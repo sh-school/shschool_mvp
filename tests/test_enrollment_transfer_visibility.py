@@ -18,6 +18,14 @@ from tests.attendance_fixtures import at
 pytestmark = pytest.mark.django_db
 
 MOVE = dt.date(2026, 10, 1)
+
+
+@pytest.fixture(autouse=True)
+def _wide_backdate_window(monkeypatch):
+    """أيّامُ الفرضيّة ثابتة في الماضي، فنرفع نافذة الرجوع هنا — والنافذةُ نفسُها مُختبَرةٌ في test_internal_transfer."""
+    monkeypatch.setattr("student_affairs.internal_transfer.MAX_BACKDATE_DAYS", 100_000)
+
+
 BEFORE = MOVE - dt.timedelta(days=1)
 AFTER = MOVE + dt.timedelta(days=1)
 

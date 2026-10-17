@@ -13,10 +13,12 @@ from core.models import StudentEnrollment
 from student_affairs.internal_transfer import internal_target_error
 from student_affairs.models import StudentTransfer
 from tests.attendance_fixtures import *  # noqa: F401,F403
+from tests.visual_snapshots import FIXED_NOW
 
-pytestmark = pytest.mark.django_db
+# الساعةُ مثبَّتةٌ: نافذةُ رجوع التاريخ تقرأ «اليوم»، فيُحسب الماضي من اليوم المثبَّت (W-20261008-021).
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
-PAST = dt.date.today() - dt.timedelta(days=1)  # النقلُ بتاريخٍ ماضٍ محدودٌ بأسبوع
+PAST = FIXED_NOW.date() - dt.timedelta(days=1)  # النقلُ بتاريخٍ ماضٍ محدودٌ بأسبوع
 
 
 @pytest.fixture
@@ -123,7 +125,7 @@ def test_a_date_older_than_the_backdate_window_is_refused_and_a_recent_one_passe
     school, kid, klass2, student_affairs_coordinator_user
 ):
     """نقلٌ بتاريخٍ ماضٍ يعيد قراءةَ أيّامٍ رُصدت فعلاً، فيُحدّ بأسبوع (W-20261004-027 — سياسةٌ للمالك)."""
-    today = dt.date.today()
+    today = FIXED_NOW.date()
     old = _request(
         school, kid, klass2, student_affairs_coordinator_user, date=today - dt.timedelta(days=30)
     )
