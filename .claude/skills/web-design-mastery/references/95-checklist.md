@@ -42,6 +42,12 @@
 - [ ] لا `?v=N` ولا `collectstatic`؛ وعاملُ الخدمة برقمٍ جديدٍ إن تغيّر منطقُه.
 - [ ] `{% static %}` يشير إلى ملفٍّ موجود.
 
+## الجداولُ الطويلة (رصد، شبكات الحصص، السجلّات)
+قاعدةُ المالك: «السكرول الراسي داخل الجدول وليس الصفحة» (أمر المالك المباشر 2026-10-09 في معاينة W-003). ثلاثُ خاناتٍ تُقاس ولا تُفترض:
+- [ ] ترويسةُ الأعمدة وصفُّ الإجراءات ثابتان (`position: sticky`) عند التمرير الرأسيّ.
+- [ ] التمريرُ الرأسيّ داخل حاوية الجدول لا الصفحة: `document.documentElement.scrollHeight == clientHeight`.
+- [ ] آخرُ صفٍّ غيرُ مقصوصٍ عند أقصى تمرير: `getBoundingClientRect().bottom ≤` حاويةِ الجدول.
+
 ## الحرّاسُ قبل الدفع
 شغّل من شجرة عملك (أمرُ الاختبار في `CLAUDE.md`):
 `tests/test_css_split.py tests/test_css_layers.py tests/test_css_colours_are_tokens.py tests/test_px_tokens.py tests/test_rtl_logical_properties.py tests/test_dark_parity.py tests/test_contrast_ratios.py tests/test_design_ratchet.py tests/test_a11y_ratchet.py tests/test_page_layouts.py tests/test_css_budget.py`
