@@ -18,7 +18,7 @@
 {% block report_body %}
   {% if data.class_summary %}
   {% section_card "مقارنة الفصول" meta=data.class_summary|length icon="stats" flush=True %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table aria-label="مقارنة الفصول">
         <thead>
           <tr>
@@ -42,7 +42,7 @@
   {% endif %}
 
   {% section_card "تفاصيل الباقات" meta=data.total_packages icon="wings" empty="لا توجد بيانات باقات للفلاتر المحددة" empty_sub="حدّد نوع الباقة أو الفصل الدراسي لعرض النتائج" flush=True %}{% if data.rows %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table aria-label="تفاصيل الباقات">
         <thead>
           <tr>
