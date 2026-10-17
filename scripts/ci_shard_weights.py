@@ -28,7 +28,7 @@ import argparse
 import json
 import statistics
 import sys
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ElementTree
 from collections import defaultdict
 from pathlib import Path
 
@@ -52,7 +52,8 @@ def per_file_seconds(
 ) -> dict[str, float]:
     """مجموعُ زمن اختبارات كلّ ملفّ. `cap`: تُسقَط الحالةُ الأطول منه (كلفةُ إنشاء القاعدة) إلّا في ملفّات `keep` (افتراضاً لا شيء)."""
     totals: dict[str, float] = defaultdict(float)
-    for case in ET.parse(junit).getroot().iter("testcase"):
+    # S314: ملفّاتُ junit تولّدها pytest في CI نفسه، لا مدخلٌ خارجيّ غير موثوق.
+    for case in ElementTree.parse(junit).getroot().iter("testcase"):  # noqa: S314
         name = resolve_file(case.get("classname", ""), root)
         if not name:
             continue

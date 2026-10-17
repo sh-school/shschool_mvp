@@ -15,7 +15,7 @@
   'use strict';
 
   var KEY = 'schoolos.iconV';
-  var VERSION = '3'; // يطابق مجلّد static/icons/v3/ (شعارُ المدرسة، W-20261012-001)
+  var VERSION = '4'; // يطابق مجلّد static/icons/v4/ (قلمٌ وشعلة، W-20261014-009)
   var STANDALONE = '(display-mode: standalone), (display-mode: fullscreen)';
 
   function read() {

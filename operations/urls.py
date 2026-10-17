@@ -7,6 +7,7 @@ from .views_class_grid import (
     class_grid_exit,
     class_grid_history,
     class_grid_late,
+    class_grid_live,
     class_grid_save,
     grid_classes,
 )
@@ -22,6 +23,7 @@ urlpatterns = [
     path("classes/", grid_classes, name="provisional_classes"),
     # -- جدولُ الشعبة العموديّ لرصد الغياب (W-20261006-005) — الواجهةُ الوحيدةُ لرصد الغياب لكلّ الأدوار ولكلّ التواريخ (أمرُ المالك 2026-10-09) --
     path("classes/<uuid:class_id>/grid/", class_grid, name="class_grid"),
+    path("classes/<uuid:class_id>/grid/live/", class_grid_live, name="class_grid_live"),
     path("classes/<uuid:class_id>/grid/save/", class_grid_save, name="class_grid_save"),
     path("classes/<uuid:class_id>/grid/late/", class_grid_late, name="class_grid_late"),
     path("classes/<uuid:class_id>/grid/exit/", class_grid_exit, name="class_grid_exit"),

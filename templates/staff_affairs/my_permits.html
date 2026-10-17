@@ -60,7 +60,7 @@
 
   {% if exceptions %}
   {% section_card "استثناءاتي (نموذج 03)" meta=exceptions|length icon="checklist" flush=True %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>
@@ -88,7 +88,7 @@
   {% endif %}
 
   {% section_card "طلباتي" meta=permits|length icon="checklist" flush=True empty="لم تقدّم طلبَ إذنٍ بعد" %}{% if permits %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>

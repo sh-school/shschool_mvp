@@ -108,6 +108,23 @@ jobs:
             tests/test_page_nav_htmx_process.py \
             -p no:cacheprovider -v
 
+      # W-20261016-010: الخطوةُ نفسُها بساعةٍ مجمَّدة. فشلُ لوحةٍ على 1366 بسبب «اليوم» حجب سبعةَ طلباتٍ معتمدةٍ ولم يُنذر به ليلٌ قبله،
+      # لأنّ هذه الخطوةَ كانت بالساعة الحيّة وحدَها فلا تفرّق بين تراجعٍ حقيقيّ وحساسيّةٍ لليوم. فإن فشلت الحيّةُ ونجحت المجمَّدةُ فالسببُ اليومُ
+      # لا الشيفرة. اللحظةُ هي أربعاءُ الدوام العاديّ نفسُه (FIXED_NOW في tests/visual_snapshots.py) فتتّسق مع `pin_clock`؛ ويحرس ذلك
+      # tests/test_nightly_playwright_clock.py. والتثبيتُ يشمل الخادمَ الحيَّ (الخيطُ نفسُه في العمليّة) لا ساعةَ المتصفّح.
+      - name: "Playwright — الساعةُ مجمَّدة (SCHOOLOS_TEST_NOW=2026-10-07)"
+        if: always()
+        env:
+          DJANGO_ALLOW_ASYNC_UNSAFE: "1"
+          SCHOOLOS_TEST_NOW: "2026-10-07T07:10:00+03:00"
+        run: |
+          python -m pytest tests/e2e tests/test_a11y_axe_ratchet.py \
+            $(ls tests/test_web_vitals_budget.py 2>/dev/null) \
+            tests/test_mobile_audit.py \
+            tests/test_action_cards_fit_narrow_screens.py \
+            tests/test_page_nav_htmx_process.py \
+            -p no:cacheprovider -v
+
       # Q-03: Lighthouse للجوال على خمس صفحاتٍ رئيسة — ليلاً لا في البوّابة (ثلاثُ دقائق
       # للصفحة، ودرجةُ الأداء تتذبذب)؛ راجع `tests/lighthouse_audit.py`. وNode في المُشغِّل
       # أصلاً لـ`npx lighthouse`، والمتصفّحُ Chromium الذي ثبّته Playwright أعلاه.
