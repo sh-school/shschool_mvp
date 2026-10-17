@@ -237,3 +237,18 @@ def test_admin_change_keeps_computed_dates_and_locks_identity_start_and_months(c
     assert c.contract_start == START and c.probation_months == 6
     assert c.school_id == school.pk and c.staff_id == staff.pk
     assert c.base_end == dt.date(2026, 7, 1) and c.probation_end == dt.date(2026, 7, 11)
+
+
+def test_admin_change_cannot_set_result_bypassing_record_result(client, setup):
+    from django.urls import reverse
+
+    school, staff, boss = setup
+    c = open_contract(school, staff, dt.date(2099, 1, 1), 6, boss)  # الفترة لم تنتهِ
+    client.force_login(UserFactory(is_staff=True, is_superuser=True))
+    resp = client.post(
+        reverse("admin:staff_affairs_employmentcontract_change", args=[c.pk]),
+        {"contract_ref": "x", "result": "passed", "result_at": "2099-01-02"},
+    )
+    assert resp.status_code == 302
+    c.refresh_from_db()
+    assert c.result == "pending" and c.result_at is None and c.contract_ref == "x"
