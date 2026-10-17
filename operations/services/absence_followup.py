@@ -15,6 +15,7 @@ from __future__ import annotations
 import datetime as dt
 from collections import defaultdict
 from typing import Any
+from urllib.parse import urlencode
 
 from django.core.exceptions import PermissionDenied
 from django.db import models
@@ -23,7 +24,7 @@ from django.http import Http404
 from django.utils import timezone
 
 from core.capabilities import has_capability
-from core.models import AuditLog, CustomUser, ParentStudentLink
+from core.models import AuditLog, CustomUser, ParentStudentLink, Wing
 from operations.models import (
     AbsenceActionLog,
     AbsenceContactLog,
@@ -514,3 +515,14 @@ def erase_followup_logs(
             school=school,
         )
     return counts
+
+
+def wing_choices(school: Any) -> list[tuple[Any, str]]:
+    """أجنحةُ المدرسة (المعرّف والاسم) لقائمة التصفية."""
+    return list(Wing.objects.filter(school=school).order_by("code").values_list("id", "name"))
+
+
+def view_query(grade: str, wing: str, followup: str, sort: str) -> str:
+    """سلسلةُ الاستعلام التي تحمل تصفيةَ الشاشة وفرزَها إلى الطباعة والعودة."""
+    pairs = (("grade", grade), ("wing", wing), ("followup", followup), ("sort", sort))
+    return urlencode({k: v for k, v in pairs if v})

@@ -28,7 +28,7 @@ from django.views.decorators.http import require_POST
 
 from core.capabilities import capability_required, has_capability
 from core.export_utils import generate_export_filename
-from core.models import AuditLog, Wing
+from core.models import AuditLog
 from operations.models import AbsenceActionLog, AbsenceContactLog
 from operations.models.absence_followup import FOLLOWUP_STATUSES
 from operations.services import ScheduleService
@@ -145,11 +145,7 @@ def absence_followup(request: HttpRequest) -> HttpResponse:
     grades = sorted(
         {(r["class_group"].grade, r["class_group"].get_grade_display()) for r in all_rows}
     )
-    wings = (
-        []
-        if wing_bound
-        else list(Wing.objects.filter(school=school).order_by("code").values_list("id", "name"))
-    )
+    wings = [] if wing_bound else service.wing_choices(school)
     subtitle = f"{school.name} · {date_format(day, 'l d/m/Y')}"
     if wing_bound:
         subtitle = f"{subtitle} · طلبةُ جناحك"
@@ -170,18 +166,7 @@ def absence_followup(request: HttpRequest) -> HttpResponse:
             "kinds": AbsenceActionLog.KINDS,
             "grades": grades,
             "wings": wings,
-            "view_query": urlencode(
-                {
-                    k: v
-                    for k, v in (
-                        ("grade", grade),
-                        ("wing", wing),
-                        ("followup", followup),
-                        ("sort", sort),
-                    )
-                    if v
-                }
-            ),
+            "view_query": service.view_query(grade, wing, followup, sort),
             "followups": service.FOLLOWUP_FILTERS,
             "sorts": service.SORTS,
             "f_sort": sort if sort in dict(service.SORTS) else "",
