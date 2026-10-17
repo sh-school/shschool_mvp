@@ -118,7 +118,7 @@ def _get(client_as, user, name="daily_report", **params):
 
 
 def _post_contact(client_as, user, student, **extra):
-    data = {"student": str(student.id), "date": DAY, "outcome": "answered", **extra}
+    data = {"student": str(student.id), "date": DAY, "outcome": "no_excuse", **extra}
     return client_as(user).post(reverse("absence_contact_save"), data)
 
 
@@ -181,7 +181,7 @@ class TestAppendOnly:
             with pytest.raises(PermissionDenied):
                 log.delete()
         with pytest.raises(PermissionDenied):
-            AbsenceContactLog.objects.all().update(outcome="no_answer")
+            AbsenceContactLog.objects.all().update(outcome="no_reply")
         with pytest.raises(PermissionDenied):
             AbsenceActionLog.objects.all().delete()
 
@@ -189,17 +189,15 @@ class TestAppendOnly:
         self, client_as, staff, absent_both
     ):
         kid = absent_both[0]
-        _post_contact(client_as, staff["principal"], kid, outcome="no_answer")
+        _post_contact(client_as, staff["principal"], kid, outcome="no_reply")
         first = AbsenceContactLog.objects.get()
-        _post_contact(
-            client_as, staff["principal"], kid, outcome="answered", corrects=str(first.id)
-        )
+        _post_contact(client_as, staff["principal"], kid, outcome="medical", corrects=str(first.id))
         second = AbsenceContactLog.objects.exclude(pk=first.pk).get()
         assert second.corrects_id == first.id
         first.refresh_from_db()
-        assert first.outcome == "no_answer"
+        assert first.outcome == "no_reply"
         body = _get(client_as, staff["principal"]).content.decode()
-        assert "ردّ" in body
+        assert "غياب بعذر طبي" in body
 
         # لا يُصحَّح سجلٌّ صُحِّح قبلُ: السلسلةُ خطٌّ لا شجرة.
         _post_contact(client_as, staff["principal"], kid, corrects=str(first.id))
@@ -346,7 +344,7 @@ class TestServiceContract:
         from operations.services import absence_followup as svc
 
         with pytest.raises(PermissionDenied):
-            svc.record_contact(staff["vice_academic"], absent_both[0].id, SUNDAY, "answered")
+            svc.record_contact(staff["vice_academic"], absent_both[0].id, SUNDAY, "no_excuse")
         with pytest.raises(Http404):
             svc.record_action(supervisor, second_wing["kid"].id, SUNDAY, "إنذار", "done")
         rows = svc.followup_rows(supervisor, SUNDAY)

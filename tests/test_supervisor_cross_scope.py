@@ -116,15 +116,15 @@ def principal(school):
     return _member(school, "principal", "مدير المدرسة", "29400000003")
 
 
-def _session(school, klass, national_id, day=SUNDAY):
+def _session(school, klass, national_id, day=SUNDAY, start=dt.time(7, 10), end=dt.time(7, 55)):
     teacher = _member(school, "teacher", f"معلّم {national_id}", national_id)
     return Session.objects.create(
         school=school,
         class_group=klass,
         teacher=teacher,
         date=day,
-        start_time=dt.time(7, 10),
-        end_time=dt.time(7, 55),
+        start_time=start,
+        end_time=end,
         status="scheduled",
     )
 
@@ -143,8 +143,12 @@ def _absent(session, student):
 class TestDailyAbsenceReport:
     @pytest.fixture
     def absences(self, school, klass, other_klass, mine, theirs):
+        # المتابعةُ تُحتسب بغياب الحصّتين الأولى والثانية معاً (قولُ المالك 2026-10-14)، فنرصد الحصّتين.
+        second = {"start": dt.time(8, 0), "end": dt.time(8, 45)}
         _absent(_session(school, klass, "29400000101"), mine)
+        _absent(_session(school, klass, "29400000104", **second), mine)
         _absent(_session(school, other_klass, "29400000102"), theirs)
+        _absent(_session(school, other_klass, "29400000105", **second), theirs)
 
     def test_the_supervisor_sees_only_his_wing(self, client_as, supervisor, absences):
         body = (

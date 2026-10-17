@@ -164,6 +164,9 @@ def registry() -> dict[str, Capability]:
     followup_writers = frozenset(
         {"principal", "vice_admin", "admin_supervisor", "student_affairs_coordinator", "admin"}
     )
+    #: أعمدةُ «المتابعة» في كشف الغياب (W-20261014-018، قولُ المالك): ثلاثةٌ وحدَهم؛ ومشرفُ الجناح لا يرثها
+    #: وإن كان من كتّاب المتابعة، فالقدرةُ منفصلةٌ عن `followup_writers` عمداً.
+    followup_columns = frozenset({"principal", "vice_admin", "student_affairs_coordinator"})
     #: من يتّصل بأسر الطلبة — تعريفٌ واحدٌ لقدرتَي الاستدعاء واسمِ الوليّ فلا تنجرف إحداهما.
     family_callers = P.BEHAVIOR_MANAGE | {"psychologist", "student_affairs_coordinator"}
     caps = [
@@ -583,6 +586,13 @@ def registry() -> dict[str, Capability]:
             followup_writers,
             scope="المدرسة، ولمشرف الجناح جناحُه",
             basis="طلبُ المدير SOS-20261012-AC00",
+        ),
+        _cap(
+            "operations.absence_followup_followup",
+            "عمودا «المتابعة» (حالةُ التواصل وحالةُ الإجراء) في كشف متابعة الغياب",
+            followup_columns,
+            scope="المدرسة",
+            basis="قولُ المالك 2026-10-14 (بلاغا 6E42 وFFED): المدير والنائبُ الإداريّ ومنسّقُ شؤون الطلاب وحدَهم",
         ),
         _cap(
             "operations.substitutes_manage",

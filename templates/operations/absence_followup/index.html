@@ -31,11 +31,14 @@
       <select name="followup" class="form-control" aria-label="حالة المتابعة">
         {% for value, label in followups %}<option value="{{ value }}"{% if value == f_followup %} selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
+      <select name="sort" class="form-control" aria-label="الفرز">
+        {% for value, label in sorts %}<option value="{{ value }}"{% if value == f_sort or not f_sort and forloop.first %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
       <button type="submit" class="btn-secondary btn-sm">اعرض</button>
     </form>
     {% if can_print %}
-    <a href="{% url 'absence_followup_print' %}?date={{ day|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% icon "print" %} كشفٌ للطباعة</a>
-    <a href="{% url 'absence_followup_contact_sheet_pdf' %}?date={{ day|date:'Y-m-d' }}" data-app-file class="btn-secondary btn-sm">{% icon "call_parent" %} ورقةُ الاتّصال PDF</a>
+    <a href="{% url 'absence_followup_print' %}?date={{ day|date:'Y-m-d' }}{% if view_query %}&amp;{{ view_query }}{% endif %}" class="btn-secondary btn-sm">{% icon "print" %} كشفٌ للطباعة</a>
+    <a href="{% url 'absence_followup_contact_sheet_pdf' %}?date={{ day|date:'Y-m-d' }}{% if view_query %}&amp;{{ view_query }}{% endif %}" data-app-file class="btn-secondary btn-sm">{% icon "call_parent" %} ورقةُ الاتّصال PDF</a>
     {% endif %}
     {% if request.user|can_open:"wings:ministry_report" %}
     <a href="{% url 'wings:ministry_report' %}?date={{ day|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>
@@ -59,7 +62,7 @@
         <thead>
           <tr>
             <th scope="col" class="num fu-seq">#</th><th scope="col" class="fu-name">الطالب</th><th scope="col" class="fu-fit">الشعبة</th><th scope="col" class="fu-fit">غيابُ اليوم</th><th scope="col" class="fu-fit">هاتفُ وليّ الأمر</th>
-            <th scope="col" class="fu-fit">آخرُ اتّصال</th>{% if can_feedback %}<th scope="col">التغذية الراجعة من وليّ الأمر</th>{% endif %}
+            <th scope="col" class="fu-fit">آخرُ اتّصال</th>{% if can_followup %}<th scope="col" class="fu-fit">متابعةُ التواصل</th>{% endif %}{% if can_feedback %}<th scope="col">التغذية الراجعة من وليّ الأمر</th>{% endif %}
             {% if can_record %}<th scope="col">تسجيل</th>{% endif %}
           </tr>
         </thead>
@@ -72,6 +75,7 @@
             <td class="fu-fit">{% if row.ministry_flag %}<span class="status-badge {% if row.ministry_flag == 'excused' %}status-info{% else %}status-danger{% endif %}">يُرفع للوزارة · {% if row.ministry_flag == 'excused' %}بعذر{% else %}بلا عذر{% endif %}</span>{% else %}<span class="ui-note">بعض الحصص ({{ row.absent_periods }})</span>{% endif %}</td>
             <td class="fu-fit">{% for phone in row.phones %}<a href="tel:{{ phone }}" dir="ltr">{{ phone }}</a>{% if not forloop.last %}، {% endif %}{% empty %}<span class="ui-note">لا رقمَ مسجَّل</span>{% endfor %}</td>
             <td class="fu-fit">{% if row.contact %}<span class="status-badge status-info">{{ row.contact.get_outcome_display }}</span> {{ row.contact.contacted_at|date:"H:i" }}{% else %}<span class="ui-note">لم يُتّصل</span>{% endif %}</td>
+            {% if can_followup %}<td class="fu-fit">{{ row.contact_status|default:"—" }}</td>{% endif %}
             {% if can_feedback %}<td>{{ row.feedback|default:"—" }}</td>{% endif %}
             {% if can_record %}
             <td>
@@ -86,7 +90,8 @@
                   <select name="outcome" class="form-control" aria-label="نتيجةُ الاتّصال" required>
                     {% for value, label in outcomes %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
                   </select>
-                  {% if can_feedback %}<textarea name="feedback" class="form-control" rows="2" maxlength="2000" aria-label="التغذية الراجعة من وليّ الأمر"></textarea>{% endif %}
+                  {% if can_followup %}<select name="status" class="form-control" aria-label="حالةُ التواصل"><option value="">حالةُ التواصل —</option>{% for value, label in contact_statuses %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>{% endif %}
+                  {% if can_feedback %}<textarea name="feedback" class="form-control" rows="2" maxlength="2000" aria-label="التغذية الراجعة من وليّ الأمر — وتُكتب هنا «أخرى»" placeholder="التغذية الراجعة، وتُكتب هنا «أخرى»"></textarea>{% endif %}
                   <button type="submit" class="btn-primary btn-sm">حفظ</button>
                 </form>
               </details>
@@ -108,7 +113,7 @@
       <table data-no-sort>
         <thead>
           <tr>
-            <th scope="col" class="num fu-seq">#</th><th scope="col" class="fu-name">الطالب</th><th scope="col" class="fu-fit">الشعبة</th><th scope="col">الإجراءُ الحاليّ</th><th scope="col" class="fu-fit">وقتُ التنفيذ</th>
+            <th scope="col" class="num fu-seq">#</th><th scope="col" class="fu-name">الطالب</th><th scope="col" class="fu-fit">الشعبة</th><th scope="col">الإجراءُ الحاليّ</th>{% if can_followup %}<th scope="col" class="fu-fit">متابعةُ الإجراء</th>{% endif %}<th scope="col" class="fu-fit">وقتُ التنفيذ</th>
             {% if can_record %}<th scope="col">تسجيل</th>{% endif %}
           </tr>
         </thead>
@@ -118,7 +123,8 @@
             <td class="num fu-seq">{{ forloop.counter }}</td>
             <td class="fu-name">{{ row.student.full_name }}</td>
             <td class="fu-fit">{{ row.class_group.short_label }}</td>
-            <td>{% if row.action %}<span class="status-badge {% if row.action.status == 'done' %}status-success{% elif row.action.status == 'sick_leave_received' %}status-info{% else %}status-warning{% endif %}">{{ row.action.get_status_display }}</span>{{ row.action.get_action_kind_display }}{% else %}<span class="ui-note">لا إجراءَ مسجَّل</span>{% endif %}</td>
+            <td>{% if row.action %}<span class="status-badge status-info">{{ row.action.get_action_kind_display }}</span>{% if row.action.note %} {{ row.action.note }}{% endif %}{% else %}<span class="ui-note">لا إجراءَ مسجَّل</span>{% endif %}</td>
+            {% if can_followup %}<td class="fu-fit">{% if row.action_status %}<span class="status-badge {% if row.action.status == 'done' %}status-success{% elif row.action.status == 'sick_leave_received' %}status-info{% else %}status-warning{% endif %}">{{ row.action_status }}</span>{% else %}—{% endif %}</td>{% endif %}
             <td class="fu-fit">{% if row.action %}{{ row.action.acted_at|date:"H:i" }}{% endif %}</td>
             {% if can_record %}
             <td>
@@ -130,7 +136,7 @@
                   <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
                   <input type="hidden" name="grade" value="{{ f_grade }}"><input type="hidden" name="wing" value="{{ f_wing }}"><input type="hidden" name="followup" value="{{ f_followup }}">
                   {% if row.action %}<input type="hidden" name="corrects" value="{{ row.action.id }}">{% endif %}
-                  <select name="status" class="form-control" aria-label="حالةُ الإجراء" required>
+                  <select name="status" class="form-control" aria-label="حالةُ الإجراء"{% if can_followup %} required{% endif %}>
                     {% for value, label in statuses %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
                   </select>
                   <select name="action_kind" class="form-control" aria-label="نوعُ الإجراء">{% for value, label in kinds %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>

@@ -15,6 +15,7 @@ from __future__ import annotations
 import datetime as dt
 from collections import defaultdict
 from typing import Any
+from urllib.parse import urlencode
 
 from django.core.exceptions import PermissionDenied
 from django.db import models
@@ -23,18 +24,23 @@ from django.http import Http404
 from django.utils import timezone
 
 from core.capabilities import has_capability
-from core.models import AuditLog, CustomUser, ParentStudentLink
+from core.models import AuditLog, CustomUser, ParentStudentLink, Wing
 from operations.models import (
     AbsenceActionLog,
     AbsenceContactLog,
     AbsenceExcuse,
     StudentAttendance,
 )
+from operations.models.absence_followup import FOLLOWUP_STATUSES
 
 VIEW = "operations.absence_followup_view"
 RECORD = "operations.absence_followup_record"
 FEEDBACK = "operations.absence_followup_feedback"
 PRINT = "operations.absence_followup_print"
+FOLLOW = "operations.absence_followup_followup"
+
+#: قيمُ «حالة الإجراء» التي لا يضعها إلّا حاملُ قدرة المتابعة (القيمُ السابقةُ مفتوحةٌ لكلّ كاتب).
+_FOLLOW_ONLY_ACTION_STATUSES = frozenset({"partial", "not_followed"})
 
 
 class FollowupError(ValueError):
@@ -88,22 +94,41 @@ def _check_unrevised(model: Any, prior: Any) -> None:
         raise FollowupError("صُحِّح هذا السجلُّ من قبلُ — صحّح آخرَ السلسلة.")
 
 
+def _contact_status(user: Any, status: str) -> str:
+    """حالةُ التواصل: لغير حاملِ قدرة المتابعة لا تُقبل (تُهمَل)، ولحاملها من القائمة المعروفة وحدَها."""
+    if not status:
+        return ""
+    _need(user, FOLLOW)
+    if status not in dict(FOLLOWUP_STATUSES):
+        raise FollowupError("حالةُ التواصل غيرُ معروفة.")
+    return status
+
+
 def record_contact(
-    user: Any, student_id: Any, absence_date: dt.date, outcome: str, feedback: str = ""
+    user: Any,
+    student_id: Any,
+    absence_date: dt.date,
+    outcome: str,
+    feedback: str = "",
+    status: str = "",
 ) -> AbsenceContactLog:
     _need(user, RECORD)
     if feedback:
         _need(user, FEEDBACK)
+    status = _contact_status(user, status)
     student = _student(user, student_id)
     school = user.get_school()
-    if outcome not in dict(AbsenceContactLog.OUTCOMES):
+    if outcome not in dict(AbsenceContactLog.OFFERED_OUTCOMES):
         raise FollowupError("نتيجةُ الاتّصال غيرُ معروفة.")
+    if outcome == "other" and not (feedback or "").strip():
+        raise FollowupError("«أخرى» تُكتب نصّاً: اكتب ما جرى في خانة التغذية الراجعة.")
     _require_absent(school, student, absence_date)
     log = AbsenceContactLog.objects.create(
         school=school,
         student=student,
         absence_date=absence_date,
         outcome=outcome,
+        status=status,
         feedback=(feedback or "").strip()[:2000],
         contacted_by=user,
         contacted_at=timezone.now(),
@@ -121,19 +146,30 @@ def correct_contact(user: Any, log_id: Any, **fields: Any) -> AbsenceContactLog:
     student = _student(user, prior.student_id)
     _check_unrevised(AbsenceContactLog, prior)
     outcome = fields.get("outcome", prior.outcome)
+    # القيمُ السابقةُ تبقى مقبولةً لمن لا يغيّرها؛ والتغييرُ يكون إلى الستّة المعروضة وحدَها.
+    if outcome != prior.outcome and outcome not in dict(AbsenceContactLog.OFFERED_OUTCOMES):
+        raise FollowupError("نتيجةُ الاتّصال غيرُ معروفة.")
     if outcome not in dict(AbsenceContactLog.OUTCOMES):
         raise FollowupError("نتيجةُ الاتّصال غيرُ معروفة.")
+    # من لا يملك قدرةَ المتابعة لا يمسّ الحالةَ ولا ينسخها: تبقى في السابق (وهو لا يراها).
+    if "status" in fields:
+        status = _contact_status(user, fields["status"])
+    else:
+        status = prior.status if has_capability(user, FOLLOW) else ""
     if "feedback" in fields:
         _need(user, FEEDBACK)
         feedback = (fields["feedback"] or "").strip()[:2000]
     else:
         # من لا يملك القدرة لا يمسّ نصَّها ولا ينسخه إلى سجلّه: يبقى في السابق وحدَه.
         feedback = prior.feedback if has_capability(user, FEEDBACK) else ""
+    if outcome == "other" and not feedback.strip():
+        raise FollowupError("«أخرى» تُكتب نصّاً: اكتب ما جرى في خانة التغذية الراجعة.")
     log = AbsenceContactLog.objects.create(
         school=prior.school,
         student=student,
         absence_date=prior.absence_date,
         outcome=outcome,
+        status=status,
         feedback=feedback,
         contacted_by=user,
         contacted_at=timezone.now(),
@@ -158,6 +194,22 @@ def _sick_leave_excuse(school: Any, student: CustomUser, day: dt.date) -> Any:
     )
 
 
+def _action_status(user: Any, status: str, prior: str = "") -> str:
+    """حالةُ الإجراء: غيرُ المسمّاة تُرفض، و«تمّ جزئياً/لم تتمّ المتابعة» لحاملِ قدرة المتابعة وحدَه.
+
+    وكاتبٌ بلا القدرة لا يرى عمودَ الحالة فلا يرسل قيمةً: يُعدّ تسجيلُه إجراءً أنّه «تمّ». وإن صحّح سجلاً
+    حالتُه من القيم المحجوبة فهي تبقى كما كانت (ولا يمسّها).
+    """
+    allowed_all = has_capability(user, FOLLOW)
+    if not status:
+        status = prior or "done"
+    if status not in dict(AbsenceActionLog.STATUSES):
+        raise FollowupError("حالةُ الإجراء غيرُ معروفة.")
+    if status in _FOLLOW_ONLY_ACTION_STATUSES and not allowed_all and status != prior:
+        raise PermissionDenied("لا صلاحيةَ لهذه الحالة في متابعة الغياب.")
+    return status
+
+
 def record_action(
     user: Any,
     student_id: Any,
@@ -170,8 +222,7 @@ def record_action(
     _need(user, RECORD)
     student = _student(user, student_id)
     school = user.get_school()
-    if status not in dict(AbsenceActionLog.STATUSES):
-        raise FollowupError("حالةُ الإجراء غيرُ معروفة.")
+    status = _action_status(user, status)
     action_kind = action_kind or "other"
     if action_kind not in dict(AbsenceActionLog.KINDS):
         raise FollowupError("نوعُ الإجراء غيرُ معروف.")
@@ -202,9 +253,7 @@ def correct_action(user: Any, log_id: Any, **fields: Any) -> AbsenceActionLog:
         raise Http404("السجلُّ غيرُ موجود")
     student = _student(user, prior.student_id)
     _check_unrevised(AbsenceActionLog, prior)
-    status = fields.get("status", prior.status)
-    if status not in dict(AbsenceActionLog.STATUSES):
-        raise FollowupError("حالةُ الإجراء غيرُ معروفة.")
+    status = _action_status(user, fields.get("status", prior.status), prior=prior.status)
     if fields.get("action_kind", prior.action_kind) not in dict(AbsenceActionLog.KINDS):
         raise FollowupError("نوعُ الإجراء غيرُ معروف.")
     excuse = fields.get("excuse", prior.excuse)
@@ -267,7 +316,7 @@ def guardian_phone(student: CustomUser) -> list[str]:
 def followup_rows(user: Any, date: dt.date) -> list[dict]:
     """غائبو اليوم ضمن نطاق صاحب الطلب: لكلٍّ آخرُ اتّصالٍ وآخرُ إجراءٍ وأرقامُ الأولياء.
 
-    مصدرُ الغائبين `daily_absence.daily_report`. ونصُّ التغذية الراجعة يُحجب (`feedback == ""`) عمّن
+    مصدرُ الغائبين `daily_absence.daily_report`، ولا يُحتسب منهم إلّا من غاب الحصّتين الأولى والثانية. ونصُّ التغذية الراجعة يُحجب (`feedback == ""`) عمّن
     لا يملك قدرتها. ومنسّقُ القسم يُحصر بمعلّمي قسمه؛ ومنسّقُ شؤون الطلبة والقيادةُ على المدرسة.
     """
     from core.permissions import get_department_teacher_ids
@@ -282,12 +331,15 @@ def followup_rows(user: Any, date: dt.date) -> list[dict]:
         teacher_ids=get_department_teacher_ids(user) if user.get_role() == "coordinator" else None,
         student_ids=scope.student_ids() if scope.is_wing_bound else None,
     )
-    absent = [r for r in report.rows if r.absent_periods]
+    # يُحتسب الطالبُ في المتابعة إن غاب الحصّتين الأولى والثانية معاً (قولُ المالك 2026-10-14، بلاغ FFED) — وهو
+    # بالضبط «الرفعُ الوزاريّ» (`ministry_flag`): فالعدّادُ والجدولُ وزرُّ الملخّص من مصدرٍ واحد. وغيابُ حصّةٍ واحدة لا يظهر.
+    absent = [r for r in report.rows if r.ministry_flag]
     ids = [r.student.id for r in absent]
     phones = guardian_phones_for(school, ids)
     contacts = _heads(AbsenceContactLog, school, date, ids, "contacted_by")
     actions = _heads(AbsenceActionLog, school, date, ids, "acted_by")
     may_feedback = has_capability(user, FEEDBACK)
+    may_follow = has_capability(user, FOLLOW)
     rows = [
         {
             "student": r.student,
@@ -300,11 +352,67 @@ def followup_rows(user: Any, date: dt.date) -> list[dict]:
                 contacts[r.student.id].feedback if may_feedback and r.student.id in contacts else ""
             ),
             "action": actions.get(r.student.id),
+            # عمودا «المتابعة»: يُحجبان هنا في الخدمة عمّن لا قدرةَ له، فلا يصل قالبَ الشاشة ولا الكشفَ ولا PDF.
+            "contact_status": _status_label(contacts.get(r.student.id), may_follow),
+            "action_status": _status_label(actions.get(r.student.id), may_follow),
         }
         for r in absent
     ]
     rows.sort(key=_class_order)
     return rows
+
+
+#: حالاتُ المتابعة للتصفية: كلُّ الغائبين، من لم يُتّصل بوليّه، من لا إجراءَ له، ومن اكتملت متابعتُه.
+FOLLOWUP_FILTERS = [
+    ("", "كلُّ الغائبين"),
+    ("no_contact", "لم يُتّصل بوليّهم"),
+    ("no_action", "بلا إجراءٍ مسجَّل"),
+    ("complete", "اكتملت متابعتُهم"),
+]
+
+#: مفاتيحُ الفرز المسموحة — قائمةٌ بيضاءُ يتحقّق منها الخادم لا نصٌّ حرٌّ (الافتراضيُّ: الشعبةُ ثمّ الاسم).
+SORTS = [
+    ("class", "الشعبةُ ثمّ الاسم"),
+    ("name", "الاسم"),
+    ("periods", "الأكثرُ حصصَ غياب"),
+]
+
+
+def apply_view(
+    rows: list[dict], *, grade: str = "", wing: str = "", followup: str = "", sort: str = ""
+) -> list[dict]:
+    """يصفّي صفوفَ الخدمة بالصفّ والجناح وحالة المتابعة ويفرزها — بعد أن ضيّقت الخدمةُ النطاقَ، فلا يتّسع به.
+
+    الشاشةُ والكشفُ المطبوع وورقةُ الاتّصال تمرّ بهذه الدالّة نفسِها فيتطابق المطبوعُ مع المعروض. وكلُّ مفتاحٍ
+    خارج القائمة البيضاء يُهمَل فيرجع الافتراضيَّ؛ والصفُّ والجناحُ يُقارَنان بالصفوف في الذاكرة فقط (لا استعلامَ منهما).
+    """
+    followup = followup if followup in dict(FOLLOWUP_FILTERS) else ""
+    out = []
+    for row in rows:
+        group = row["class_group"]
+        if grade and getattr(group, "grade", None) != grade:
+            continue
+        if wing and str(getattr(group, "wing_id", "")) != wing:
+            continue
+        if followup == "no_contact" and row["contact"]:
+            continue
+        if followup == "no_action" and row["action"]:
+            continue
+        if followup == "complete" and not (row["contact"] and row["action"]):
+            continue
+        out.append(row)
+    if sort == "name":
+        out.sort(key=lambda r: r["student"].full_name)
+    elif sort == "periods":
+        out.sort(key=lambda r: (-r["absent_periods"], r["student"].full_name))
+    return out
+
+
+def _status_label(log: Any, allowed: bool) -> str:
+    """الاسمُ المعروض لحالة المتابعة، أو فارغٌ لمن لا قدرةَ له أو لا سجلَّ/حالةَ."""
+    if not allowed or log is None or not log.status:
+        return ""
+    return str(log.get_status_display())
 
 
 def _class_order(row: dict) -> tuple[int, int, str]:
@@ -407,3 +515,14 @@ def erase_followup_logs(
             school=school,
         )
     return counts
+
+
+def wing_choices(school: Any) -> list[tuple[Any, str]]:
+    """أجنحةُ المدرسة (المعرّف والاسم) لقائمة التصفية."""
+    return list(Wing.objects.filter(school=school).order_by("code").values_list("id", "name"))
+
+
+def view_query(grade: str, wing: str, followup: str, sort: str) -> str:
+    """سلسلةُ الاستعلام التي تحمل تصفيةَ الشاشة وفرزَها إلى الطباعة والعودة."""
+    pairs = (("grade", grade), ("wing", wing), ("followup", followup), ("sort", sort))
+    return urlencode({k: v for k, v in pairs if v})
