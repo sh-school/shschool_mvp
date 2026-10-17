@@ -111,7 +111,7 @@
   "shschool/settings/development.py": 2,
   "shschool/settings/production.py": 3,
   "shschool/settings/staging.py": 4,
-  "staff_affairs/models.py": 4,
+  "staff_affairs/models.py": 2,
   "staging/models.py": 1,
   "student_affairs/models.py": 2,
   "student_info/access.py": 8,
@@ -121,5 +121,5 @@
   "wings/scope.py": 1,
   "wings/services.py": 14
  },
- "total": 1167
+ "total": 1165
 }
