@@ -29,10 +29,10 @@ class EmploymentContractAdmin(admin.ModelAdmin):
     )
 
     def get_readonly_fields(self, request, obj=None):
-        # بدايةُ العقد ومدّةُ الاختبار تحدّدان base_end؛ فلا تُعدَّلان بعد الإضافة فيبقى الحسابُ صحيحاً
+        # المدرسةُ والموظفُ والبدايةُ والمدّةُ تحدّد الاحتسابَ؛ فلا تُعدَّل بعد الإضافة فيبقى صحيحاً
         fields = super().get_readonly_fields(request, obj)
         if obj is not None:
-            fields = (*fields, "contract_start", "probation_months")
+            fields = (*fields, "school", "staff", "contract_start", "probation_months")
         return fields
 
     def get_exclude(self, request, obj=None):

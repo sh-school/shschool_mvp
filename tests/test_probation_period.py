@@ -212,18 +212,19 @@ def test_admin_add_ignores_posted_result(client, setup):
     assert c.result == "pending" and c.result_at is None
 
 
-def test_admin_change_keeps_computed_dates_and_locks_start_and_months(client, setup):
+def test_admin_change_keeps_computed_dates_and_locks_identity_start_and_months(client, setup):
     from django.urls import reverse
 
     school, staff, boss = setup
     c = open_contract(school, staff, START, 6, boss)
     _approve(_leave(school, staff, "sick", dt.date(2026, 3, 1), dt.date(2026, 3, 10), 8), boss)
+    other_school, other_staff = SchoolFactory(), UserFactory()
     client.force_login(UserFactory(is_staff=True, is_superuser=True))
     resp = client.post(
         reverse("admin:staff_affairs_employmentcontract_change", args=[c.pk]),
         {
-            "school": school.pk,
-            "staff": staff.pk,
+            "school": other_school.pk,  # يُتجاهل: للقراءة فقط
+            "staff": other_staff.pk,  # يُتجاهل: للقراءة فقط
             "contract_ref": "ع-معدَّل",
             "contract_start": "2026-02-01",  # يُتجاهل: للقراءة فقط
             "probation_months": 3,
@@ -234,4 +235,5 @@ def test_admin_change_keeps_computed_dates_and_locks_start_and_months(client, se
     c.refresh_from_db()
     assert c.contract_ref == "ع-معدَّل"
     assert c.contract_start == START and c.probation_months == 6
+    assert c.school_id == school.pk and c.staff_id == staff.pk
     assert c.base_end == dt.date(2026, 7, 1) and c.probation_end == dt.date(2026, 7, 11)
