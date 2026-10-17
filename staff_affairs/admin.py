@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import EmploymentContract, LeaveBalance, LeaveRequest
+from .probation import open_contract
 
 
 @admin.register(EmploymentContract)
@@ -26,6 +27,22 @@ class EmploymentContractAdmin(admin.ModelAdmin):
         "created_by",
         "updated_by",
     )
+
+    def save_model(self, request, obj, form, change):
+        """الإضافةُ تمرّ بخدمة الاختبار لتحسب base_end وprobation_end؛ والتعديلُ يبقى كما هو."""
+        if change:
+            super().save_model(request, obj, form, change)
+            return
+        saved = open_contract(
+            obj.school,
+            obj.staff,
+            obj.contract_start,
+            obj.probation_months,
+            request.user,
+            contract_ref=obj.contract_ref,
+        )
+        # يُعاد ملءُ الكائن المُدار من النموذج ليكمل admin التسجيلَ والتحويل
+        obj.__dict__.update(saved.__dict__)
 
 
 @admin.register(LeaveBalance)

@@ -127,7 +127,7 @@ class LeaveBalance(SchoolScopedModel):
     def remaining_days(self):
         return max(0, self.total_days - self.used_days)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"{self.staff.full_name} — {self.get_leave_type_display()} ({self.remaining_days} يوم)"
         )
@@ -179,7 +179,7 @@ class EmploymentContract(AuditedModel):
             models.UniqueConstraint(fields=["school", "staff"], name="unique_employment_contract")
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.staff.full_name} — {self.get_result_display()}"
 
 
@@ -285,7 +285,7 @@ class LeaveRequest(AuditedModel):
         if self.end_date and self.start_date and self.end_date < self.start_date:
             raise ValidationError("تاريخ النهاية يجب أن يكون بعد تاريخ البداية.")
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.staff.full_name} — {self.get_leave_type_display()} ({self.days_count} يوم)"
 
 

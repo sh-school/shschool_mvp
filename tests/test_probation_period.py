@@ -153,3 +153,28 @@ def test_annual_after_passing_is_prorated(setup):
     _approve(leave, boss)
     bal = LeaveBalance.objects.get(staff=staff, leave_type="annual")
     assert bal.total_days == 12 and bal.used_days == 3
+
+
+def test_admin_add_contract_computes_end_dates(client, setup):
+    """إضافةُ عقدٍ من Django admin لا تنهار وتُحسب نهايتاه بخدمة الاختبار."""
+    from django.urls import reverse
+
+    school, staff, _ = setup
+    root = UserFactory(is_staff=True, is_superuser=True)
+    client.force_login(root)
+    resp = client.post(
+        reverse("admin:staff_affairs_employmentcontract_add"),
+        {
+            "school": school.pk,
+            "staff": staff.pk,
+            "contract_ref": "ع-2026/18",
+            "contract_start": "2026-01-01",
+            "probation_months": 6,
+            "result": "pending",
+        },
+    )
+    assert resp.status_code == 302, getattr(resp, "context", None) and resp.context["errors"]
+    c = EmploymentContract.objects.get(school=school, staff=staff)
+    assert c.contract_ref == "ع-2026/18"
+    assert c.base_end == dt.date(2026, 7, 1) == c.probation_end
+    assert c.extension_days == 0 and c.created_by == root
