@@ -348,8 +348,18 @@ web_container() {
   if [ -n "$s" ]; then printf '%s-%s-web-1' "$PROJECT" "$s"; else printf '%s-web-1' "$PROJECT"; fi
 }
 
+# عنوانُ IPv4 للمضيف كما تراه الواجهة. الاسمُ host.docker.internal يُحلّ في Docker Desktop إلى IPv4 وIPv6 معاً،
+# وnginx يتناوب بينهما فيسقط نصفُ الطلبات 502 على عنوانٍ لا يُوصَل (الويب منشورٌ على IPv4 فقط). عنوانٌ حرفيّ يقطع التناوب.
+front_host_v4() {
+  local ip=""
+  if [ "$(docker inspect -f '{{.State.Running}}' "$FRONT" 2>/dev/null || echo false)" = "true" ]; then
+    ip="$(docker exec "$FRONT" getent ahostsv4 host.docker.internal 2>/dev/null | awk 'NR==1{print $1}')"
+  fi
+  printf '%s' "${ip:-host.docker.internal}"
+}
+
 front_conf() {   # front_conf <منفذُ الخانة> — يكتب إعدادَ nginx إلى مجلّد الواجهة
-  local d; d="$(state_dir)/front"
+  local d host; d="$(state_dir)/front"; host="$(front_host_v4)"
   mkdir -p "$d"
   cat > "$d/default.conf" <<NGINX
 # يُولَّد آليّاً من scripts/preview.sh — لا يُحرَّر يدويّاً.
@@ -358,7 +368,7 @@ server {
   listen 80;
   client_max_body_size 64m;
   location / {
-    proxy_pass http://host.docker.internal:$1;
+    proxy_pass http://$host:$1;
     proxy_http_version 1.1;
     proxy_set_header Host \$http_host;
     proxy_set_header X-Real-IP \$remote_addr;
@@ -390,6 +400,8 @@ front_point() {   # front_point <منفذُ الخانة>
     -p "${PREVIEW_BIND:-127.0.0.1}:${PORT}:80" \
     -v "$conf/default.conf:/etc/nginx/conf.d/default.conf:ro" \
     nginx:alpine >/dev/null || { warn "تعذّر تشغيلُ الواجهة"; return 1; }
+  # الواجهةُ قامت الآن فيُعرف عنوانُ IPv4 للمضيف: يُعاد التوليد به ويُحمَّل رشيقاً
+  front_conf "$1" && docker exec "$FRONT" nginx -s reload >/dev/null 2>&1 || true
 }
 
 slot_up() {   # slot_up <شجرة> <منفذُ الخانة> — compose up في SLOT_PROJECT؛ مرّةً ثانيةً إن كان السببُ حجزَ المنفذ
