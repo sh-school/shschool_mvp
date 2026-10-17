@@ -1,7 +1,7 @@
 """
 behavior/querysets.py — Custom QuerySets للسلوك الطلابي
 =========================================================
-ملاحظة: نظام النقاط ملغى — at_risk الآن يعتمد على عدد المخالفات.
+ملاحظة: at_risk يعتمد على عدد المخالفات.
 """
 
 from __future__ import annotations
@@ -63,7 +63,6 @@ class InfractionQuerySet(QuerySet):
     def at_risk(self, threshold: int = 5) -> InfractionQuerySet:
         """
         الطلاب المعرّضون للخطر — عدد المخالفات ≥ threshold (افتراضي 5).
-        نظام النقاط ملغى — نعتمد على العدد الإجمالي.
         """
         return (
             self.values("student")
@@ -92,9 +91,3 @@ class InfractionQuerySet(QuerySet):
             .annotate(count=Count("id"))
             .order_by("-count")
         )
-
-
-class RecoveryQuerySet(QuerySet):
-    """DEPRECATED — BehaviorPointRecovery model غير مُستخدم بعد إلغاء نظام النقاط.
-    نُبقي الـ class placeholder لئلا نكسر related_name مرجعية سابقة.
-    """

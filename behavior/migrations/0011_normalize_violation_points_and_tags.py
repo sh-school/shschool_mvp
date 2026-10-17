@@ -9,7 +9,8 @@ SOS-20260420-1E01 (follow-up) — تطبيق طلب المدير حرفياً (�
 """
 from django.db import migrations
 
-from behavior.constants import POINTS_BY_LEVEL
+# نسخةٌ تاريخيّة مجمَّدة (W-20261013-010): أُزيل الثابتُ من behavior.constants ولا يُستورد
+POINTS_BY_LEVEL = {1: 5, 2: 15, 3: 25, 4: 40}
 
 
 def normalize_points_and_tags(apps, schema_editor):
