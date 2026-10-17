@@ -13,7 +13,6 @@ from django.urls import reverse
 from operations.models import AbsenceActionLog
 from operations.services import absence_followup as svc
 from tests.operations.test_absence_followup import (  # noqa: F401
-    DAY,
     _calendar_first,
     _get,
     _post_action,

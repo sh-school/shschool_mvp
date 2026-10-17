@@ -43,6 +43,10 @@ _FLAGS = {
 }
 
 
+_TEMPLATES = {
+    "contact": "operations/absence_followup/contact.html",
+    "actions": "operations/absence_followup/actions.html",
+}
 _TITLES = {"contact": "التواصل مع أولياء الأمور", "actions": "متابعة إجراءات الغياب"}
 
 
@@ -147,7 +151,7 @@ def _screen(request: HttpRequest, page: str) -> HttpResponse:
     )
     return render(
         request,
-        f"operations/absence_followup/{page}.html",
+        _TEMPLATES[page],
         {
             "rows": rows,
             "day": day,
@@ -291,7 +295,7 @@ def followup_pdf(request: HttpRequest) -> HttpResponse:
     page, orient = sheet_options(request.GET)
     log_export(
         request,
-        f"operations.absence_followup_{page}_pdf",
+        "operations.absence_followup_pdf",
         rows=result.rows,
         object_repr=f"{page}/{orient}",
     )
