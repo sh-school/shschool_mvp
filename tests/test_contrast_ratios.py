@@ -19,8 +19,15 @@ tests/test_contrast_ratios.py
 
 import re
 
-from tests.css_contrast import iter_rules, over, ratio, resolve, token_table
-from tests.css_source import read_css
+from tests.css_contrast import (
+    comment_ratio_mismatches,
+    iter_rules,
+    over,
+    ratio,
+    resolve,
+    token_table,
+)
+from tests.css_source import css_paths, read_css
 
 #: حدُّ WCAG AA للنصّ العاديّ، وللكبير.
 AA_NORMAL = 4.5
@@ -252,3 +259,25 @@ def test_conditional_tokens_do_not_pose_as_the_normal_theme():
     css = ":root { --x: #5f6775; }\n@media (prefers-contrast: more) { :root { --x: #555; } }"
     light, dark = token_table(css)
     assert light["--x"] == "#5f6775" and dark["--x"] == "#5f6775"
+
+
+# ══════════════════════════════════════════════════════════════════
+# ٣. تعليقاتُ الرموز لا تكذب (W-20261016-004)
+# ══════════════════════════════════════════════════════════════════
+
+
+def test_token_comments_state_the_ratio_the_values_compute():
+    """رقمُ النسبة في تعليق الرمز يساوي المحسوبَ من قيمه بفارق 0.05 — بعد تغميق `--page-bg` ظلّت تعليقاتٌ تقول 5.03 والفعليُّ 4.21."""
+    found = comment_ratio_mismatches([p.read_text(encoding="utf-8") for p in css_paths()])
+    assert not found, f"{len(found)} تعليقاً يخالف الحساب:\n  " + "\n  ".join(found)
+
+
+def test_the_comment_guard_catches_a_lying_comment():
+    """الحارسُ نفسُه يفشل على تعليقٍ كاذب (يثبت أنه كان سيفشل قبل الإصلاح) ويقبل الصادق وما بعد «كان»."""
+    base = ":root {\n  --surface: #ffffff;  --page-bg: #d7dee8;\n  --text-muted: #58606d;   %s\n}\n"
+    liar = comment_ratio_mismatches([base % "/* 5.03 على خلفيّة الصفحة */"])
+    honest = comment_ratio_mismatches(
+        [base % "/* 4.69 على خلفيّة الصفحة (#5f6775 كان 4.21 عليها) */"]
+    )
+    assert len(liar) == 1 and "5.03" in liar[0]
+    assert honest == []

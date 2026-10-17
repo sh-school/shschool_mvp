@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Python dependencies
-COPY requirements.txt requirements-dev.txt ./
+COPY requirements.txt requirements-dev.txt requirements-mypy.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # أدواتُ التطوير (pytest وruff وmypy) للصورة المحلّيّة وحدها: `docker-compose.yml`
@@ -43,6 +43,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # وبلاها كانت كلُّ حاويةِ جلسةٍ تثبّت pytest بيدها، ويضيع مع إعادة إنشائها.
 ARG INSTALL_DEV=false
 RUN if [ "$INSTALL_DEV" = "true" ]; then pip install --no-cache-dir -r requirements-dev.txt; fi
+
+# متصفّحُ Chromium لاختبارات المتصفّح في الصورة المحلّيّة وحدَها (W-20261016-014): كان يسقط الإطلاقُ بـlibnspr4.so.
+# المسارُ مشتركٌ ليجده appuser، والإنتاجُ (INSTALL_DEV=false) لا يتأثّر.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN if [ "$INSTALL_DEV" = "true" ]; then playwright install --with-deps chromium && chmod -R a+rX /ms-playwright; fi
 
 # Application code
 COPY . .
