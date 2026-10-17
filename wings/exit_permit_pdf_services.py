@@ -10,12 +10,12 @@ from typing import Any
 from django.template.loader import render_to_string
 
 from core.audit_repr import masked_repr
-from core.export_utils import get_export_context_for
+from core.export_utils import generate_export_filename, get_export_context_for
 from core.models import AuditLog
 from core.pdf_utils import render_pdf_bytes
 
 from . import exit_permit_form as form
-from .exit_permit import low_periods
+from .exit_permit_services import PermitDeniedError, low_periods, own_permit
 
 TEMPLATE = "wings/pdf/exit_permit.html"
 KIND = "wings.exit_permit_form"
@@ -67,3 +67,12 @@ def render_permit(user: Any, permit: Any) -> bytes:
         school=permit.school,
     )
     return pdf
+
+
+def permit_pdf(user: Any, school: Any, permit_id: Any) -> tuple[bytes, str]:
+    """(بايتات الاستمارة، اسمُ الملفّ) لإذنٍ معتمَد في نطاق المستخدم؛ وغيرُ ذلك `PermitDeniedError`."""
+    permit = own_permit(user, school, permit_id, approve=False)
+    if permit.status != "approved":
+        raise PermitDeniedError
+    filename = generate_export_filename("wings", f"exit-permit-{permit.sequence}", "pdf")
+    return render_permit(user, permit), filename

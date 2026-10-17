@@ -26,9 +26,9 @@ from tests.test_period_register import (  # noqa: F401
     teacher,
     year,
 )
-from wings import exit_permit as service
 from wings import exit_permit_form as form
-from wings.exit_permit_print import form_context
+from wings import exit_permit_services as service
+from wings.exit_permit_pdf_services import form_context
 
 pytestmark = pytest.mark.django_db
 

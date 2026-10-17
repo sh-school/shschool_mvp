@@ -1,6 +1,6 @@
 """شاشاتُ إذن خروج الطالب — الطلبُ والاعتمادُ والاستمارة (W-20261005-010).
 
-كلُّ ما يخصّ الشعبة خارج نطاق المستخدم 404 لا 403 (وجودُها في غير جناحه ليس شأنَه)؛ والقواعدُ في `wings/exit_permit.py`.
+كلُّ ما يخصّ الشعبة خارج نطاق المستخدم 404 لا 403 (وجودُها في غير جناحه ليس شأنَه)؛ والقواعدُ في `wings/exit_permit_services.py`.
 """
 
 from __future__ import annotations
@@ -15,12 +15,11 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.capabilities import capability_required
-from core.export_utils import generate_export_filename
 from core.models import CustomUser
 
-from . import exit_permit as service
 from . import exit_permit_form as form
-from .exit_permit_print import render_permit
+from . import exit_permit_services as service
+from .exit_permit_pdf_services import permit_pdf
 
 
 def _day(raw: str | None) -> dt.date:
@@ -104,12 +103,9 @@ def exit_permit_approve(request: HttpRequest, pk) -> HttpResponse:
 @capability_required(service.REQUEST_CAP)
 def exit_permit_pdf(request: HttpRequest, pk) -> HttpResponse:
     try:
-        permit = service.own_permit(request.user, request.school, pk, approve=False)
+        content, filename = permit_pdf(request.user, request.school, pk)
     except service.PermitDeniedError:
         raise Http404 from None
-    if permit.status != "approved":
-        raise Http404
-    response = HttpResponse(render_permit(request.user, permit), content_type="application/pdf")
-    filename = generate_export_filename("wings", f"exit-permit-{permit.sequence}", "pdf")
+    response = HttpResponse(content, content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
