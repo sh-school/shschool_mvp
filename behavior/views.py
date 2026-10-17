@@ -33,7 +33,6 @@ from core.permissions import (
 logger = logging.getLogger(__name__)
 
 _VALID_LEVELS = {1, 2, 3, 4}
-_MAX_POINTS = 100
 _MAX_DESC_LEN = 2000
 
 
@@ -317,7 +316,6 @@ def report_infraction(request):
                     # نهاية المعاملة الخارجية. فإن تراجعت، لا مخالفة ولا إشعار.
                     with transaction.atomic():
                         # ✅ v5.4: BehaviorService.create_infraction — atomic + escalation حسابي
-                        # نظام النقاط ملغى — نُمرر 0 لتوافق DB (الحقل NOT NULL)
                         infraction = BehaviorService.create_infraction(
                             school=school,
                             student=student,
@@ -325,7 +323,6 @@ def report_infraction(request):
                             level=level,
                             description=description,
                             action_taken=action,
-                            points_deducted=0,
                             violation_category=violation_cat if violation_cat else None,
                             disciplinary_action_type=disciplinary_action_type,
                             violation_description=violation_description,
@@ -458,7 +455,6 @@ def quick_log(request):
         # [B4-PRE3] المخالفة ونيّة إشعارها في حدٍّ واحد — انظر report_infraction.
         with transaction.atomic():
             # ✅ v5.4: BehaviorService.create_infraction — atomic + escalation حسابي
-            # نظام النقاط ملغى — points_deducted=0 للحفاظ على توافق DB
             infraction = BehaviorService.create_infraction(
                 school=school,
                 student=student,
@@ -466,7 +462,6 @@ def quick_log(request):
                 level=level,
                 description=description,
                 action_taken=action,
-                points_deducted=0,
                 violation_category=violation_cat,
             )
 
@@ -553,7 +548,7 @@ def _quick_log_context(request, school, preselected_student_id=""):
 @login_required
 @capability_required("behavior.view")
 def student_behavior_profile(request, student_id):
-    """الملف السلوكي للطالب — جميع مخالفاته ونقاطه المخصومة والمستعادة."""
+    """الملف السلوكي للطالب — جميع مخالفاته."""
     school = request.school
     student = get_object_or_404(
         CustomUser,
@@ -1021,7 +1016,6 @@ def summon_parent(request, student_id=None):
         selected_student = CustomUser.objects.filter(pk=student_id).first()
     if selected_student:
         # معلومات سياقية عن الطالب
-        score_data = BehaviorService.get_student_score(selected_student)
         parent_links = ParentStudentLink.objects.filter(
             student=selected_student, school=school
         ).select_related("parent")
@@ -1039,13 +1033,7 @@ def summon_parent(request, student_id=None):
                     "is_primary": link.is_primary,
                 }
             )
-        # «مؤشرُ السلوك» ليس نقاطاً مخصومة (النظامُ ملغى): يُحسب في
-        # `get_student_score` من عدد المخالفات ودرجاتها، فيبقى رقماً حقيقيّاً.
-        behavior_score = score_data.get("net_score", 100)
         student_context = {
-            "behavior_score": behavior_score,
-            # العتباتُ التي كانت في القالب: 80 فأكثر أخضر، 50 فأكثر كهرمانيّ.
-            "behavior_score_tone": tone_for(behavior_score, SHARE_KPI),
             "active_infractions": active_infractions,
             "active_infractions_tone": "red" if active_infractions else "green",
             "parents_info": parents_info,

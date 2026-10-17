@@ -37,13 +37,12 @@
       <table aria-label="جدول التقرير الشهري">
         <thead>
           <tr>
-            {# الصفوفُ مرتّبةٌ بالتقييم المدمج تنازليّاً — فالعدّادُ رتبةٌ لا ترقيم. #}
+            {# الصفوفُ مرتّبةٌ بمتوسط الاختبارات تنازليّاً — فالعدّادُ رتبةٌ لا ترقيم. #}
             <th scope="col" class="num">الترتيب</th>
             <th scope="col">اسم الطالب</th>
             <th scope="col" class="num">عدد الاختبارات</th>
             <th scope="col" class="num">متوسط الاختبارات %</th>
             <th scope="col" class="num">عدد المخالفات</th>
-            <th scope="col" class="num" title="(متوسط الاختبارات × 0.7) + ((100 − عقوبة السلوك) × 0.3)، وعقوبة السلوك = min(30، عدد المخالفات × وزنٍ مكافئ للدرجة)">التقييم المدمج</th>
           </tr>
         </thead>
         <tbody>
@@ -54,7 +53,6 @@
             <td class="num">{{ r.quiz_count }}</td>
             <td class="num"><b>{{ r.quiz_avg|default_if_none:"—" }}</b></td>
             <td class="num">{{ r.behavior_count }}</td>
-            <td class="num"><span class="grade-total {{ r.combined_tone }}">{{ r.combined_score|default_if_none:"—" }}</span></td>
           </tr>
           {% endfor %}
         </tbody>
