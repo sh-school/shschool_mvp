@@ -25,10 +25,34 @@ def _step(name_part: str) -> dict:
     return next(s for s in STEPS if name_part in str(s.get("name", "")))
 
 
-def test_a_failure_on_push_does_not_fail_the_job_but_a_pull_request_still_can():
+def _triggers() -> dict:
+    # PyYAML يقرأ المفتاح `on` منطقيّاً True
+    return WORKFLOW.get("on") or WORKFLOW[True]
+
+
+def test_a_failure_off_pull_request_does_not_fail_the_job_but_a_pull_request_still_can():
     snap = _step("اللقطات (حتميّةٌ")
     assert snap["id"] == "snap"
-    assert "github.event_name == 'push'" in str(snap["continue-on-error"])
+    assert "github.event_name != 'pull_request'" in str(snap["continue-on-error"])
+
+
+def test_there_is_no_push_trigger_so_railway_does_not_wait_on_it_after_a_merge():
+    # كلُّ check-run على إيداع main تنتظره Railway («Wait for CI») — W-20261014-003، قرار المالك 2026-10-14.
+    assert "push" not in _triggers()
+    assert "schedule" in _triggers() and "workflow_dispatch" in _triggers()
+
+
+def test_the_pull_request_trigger_stays_and_its_failure_is_not_tolerated():
+    assert "pull_request" in _triggers()
+    assert _triggers()["pull_request"]["branches"] == ["main"]
+    snap = _step("اللقطات (حتميّةٌ")
+    assert str(snap["continue-on-error"]) == "${{ github.event_name != 'pull_request' }}"
+    # على الطلب وحده يُنزَّل الأساس ويُقارَن به
+    assert _step("أساسُ main")["if"] == "github.event_name == 'pull_request'"
+
+
+def test_there_is_no_merge_group_trigger_so_the_queue_is_not_delayed_by_it():
+    assert "merge_group" not in _triggers()
 
 
 def test_the_snapshot_job_itself_is_not_marked_continue_on_error():
@@ -39,6 +63,7 @@ def test_the_snapshot_job_itself_is_not_marked_continue_on_error():
 def test_the_baseline_is_uploaded_only_from_a_real_success_not_from_a_tolerated_failure():
     upload = _step("رفعُ أساس main")
     assert "steps.snap.outcome == 'success'" in upload["if"]
+    assert "github.event_name != 'pull_request'" in upload["if"]
     assert "success()" not in upload["if"]
 
 

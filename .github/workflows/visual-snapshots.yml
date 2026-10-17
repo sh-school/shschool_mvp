@@ -12,8 +12,11 @@ name: لقطات الهويّة البصريّة — قياسٌ استشاريّ
 # ══════════════════════════════════════════════
 
 on:
-  push:
-    branches: [main]
+  # لا `push` إلى main: كلُّ check-run على إيداع main تنتظره Railway («Wait for CI») وهذا الفحصُ أبطؤُها (7–8 د) فكان يؤخّر النشرَ بقدره
+  # (قياس W-20261014-003: 7 د 27 ث من 14 د 05 ث). قرارُ المالك 2026-10-14: غيرُ حاجبٍ للنشر بعد الدمج، ويبقى على طلب الدمج.
+  # الأساسُ يُرفع يومياً (02:00 UTC = 05:00 الدوحة، خارجَ دفعتَي النشر 14:30/19:00) أو يدوياً.
+  schedule:
+    - cron: "0 2 * * *"
   pull_request:
     branches: [main]
     paths:
@@ -90,7 +93,7 @@ jobs:
         run: python manage.py migrate --noinput
 
       - name: أساسُ main (إن وُجد)
-        if: github.event_name != 'push'
+        if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -110,11 +113,11 @@ jobs:
       - name: اللقطات (حتميّةٌ ومقارنة)
         id: snap
         timeout-minutes: 20
-        continue-on-error: ${{ github.event_name == 'push' }}
+        continue-on-error: ${{ github.event_name != 'pull_request' }}
         run: python -m pytest tests/e2e/test_visual_snapshots_live.py -v
 
       - name: "تحذيرٌ — فشلت اللقطاتُ على main (غيرُ حاجبٍ للنشر)"
-        if: github.event_name == 'push' && steps.snap.outcome == 'failure'
+        if: github.event_name != 'pull_request' && steps.snap.outcome == 'failure'
         run: |
           echo "::warning title=VI-13::فشل فحصُ لقطات الهويّة على main — استشاريٌّ لا يحجب النشرَ (D-277م). راجع الملخّصَ وartifact المقارنة."
           {
@@ -145,7 +148,7 @@ jobs:
 
       # الأساس: لقطاتُ main وحدَها (بلا التكرار ولا الفروق) — يُنزَّل في طلباتِ الدمج التالية.
       - name: رفعُ أساس main
-        if: github.event_name == 'push' && steps.snap.outcome == 'success'
+        if: github.event_name != 'pull_request' && steps.snap.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
           name: visual-baseline
