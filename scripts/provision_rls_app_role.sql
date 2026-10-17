@@ -36,7 +36,11 @@ $do$
 $fmt$, :'app_password', :'app_password')
 \gexec
 
--- 2) الصلاحيات على المخطّط الحالي
+-- 2) الصلاحيات على المخطّط الحالي.
+--    ⚠ يجب تشغيل السكربت بـ -d <DBNAME> (قاعدة الجلسة) لا على postgres:
+--    «ALTER DEFAULT PRIVILEGES» تُحفظ للقاعدة التي تُشغَّل فيها فقط، فتشغيلها على
+--    postgres يترك الجداول اللاحقة بلا صلاحيات (permission denied for table
+--    django_migrations — وقع 2026-10-17). إنشاء الدور (القسم 1) لا يتأثر بالقاعدة.
 GRANT CONNECT ON DATABASE :"DBNAME" TO shschool_app;
 GRANT USAGE ON SCHEMA public TO shschool_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO shschool_app;
