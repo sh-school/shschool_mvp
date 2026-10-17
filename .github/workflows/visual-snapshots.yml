@@ -38,7 +38,9 @@ concurrency:
 jobs:
   snapshots:
     name: لقطات الهويّة — حتميّةٌ ومقارنة
-    runs-on: ubuntu-latest
+    # صورةٌ ثابتةٌ باسمها الصريح لا `latest` (W-20261017-015): انتقالُ latest بين إصداراتِ Ubuntu يغيّر الخطوطَ والرسم فيقلب الأساسَ.
+    # إصدارُ Playwright (فـChromium) مثبَّتٌ في requirements.txt (1.63.0)، وأعلامُ الرسم الحتميّ في test_visual_snapshots_live.py.
+    runs-on: ubuntu-24.04
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
