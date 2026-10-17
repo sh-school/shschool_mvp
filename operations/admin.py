@@ -14,6 +14,7 @@ from .models import (
     ClassExit,
     CompensatorySession,
     DailyExitTally,
+    ExitPermit,
     FreeSlotRegistry,
     GuardianContact,
     PeriodConfirmation,
@@ -150,6 +151,27 @@ class ClassExitAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     list_filter = ("destination", "system_closed", "school")
     search_fields = ("student__full_name", "student__national_id")
     date_hierarchy = "left_at"
+
+
+@admin.register(ExitPermit)
+class ExitPermitAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    """أذوناتُ خروج الطلاب (السببُ والوقتُ والحصصُ المكتملة وحضورُ الوليّ والمعتمِد) — للقراءة والتدقيق؛ تُكتب بخدمتها."""
+
+    list_display = (
+        "sequence",
+        "student",
+        "class_group",
+        "reason",
+        "status",
+        "completed_periods",
+        "guardian_present",
+        "approved_by",
+        "exit_at",
+    )
+    list_select_related = ("student", "class_group", "approved_by")
+    list_filter = ("status", "reason", "guardian_present", "school")
+    search_fields = ("student__full_name", "student__national_id")
+    date_hierarchy = "exit_at"
 
 
 @admin.register(DailyExitTally)
