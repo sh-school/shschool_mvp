@@ -725,9 +725,6 @@
   "student_affairs/views.py::transfer_list": {
    "orm": 6
   },
-  "student_affairs/views.py::transfer_review": {
-   "orm": 8
-  },
   "student_info/views.py::activities": {
    "orm": 17
   },

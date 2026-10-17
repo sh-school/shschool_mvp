@@ -110,6 +110,49 @@ class StudentTransfer(AuditedModel):
     )
     decided_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت القرار")
 
+    #: سلسلةُ نموذج 07 للوارد والصادر (W-20261001-018): المستندات المدقَّقة ومراحلُ التدقيق والاعتماد
+    #: والتشعيب والإدخال بمنفّذٍ ووقت. هجرةُ توسيعٍ: أعمدةٌ قابلةٌ للإلغاء أو بقيمةٍ افتراضيّة.
+    documents_checked = models.JSONField(default=list, blank=True, verbose_name="المستندات المدقَّقة")
+    documents_missing_reason = models.CharField(
+        max_length=500, blank=True, verbose_name="سبب نقص المستندات"
+    )
+    reviewed_by = models.ForeignKey(
+        CustomUser,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="transfer_reviews",
+        verbose_name="منفّذ التدقيق",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت التدقيق")
+    approved_by = models.ForeignKey(
+        CustomUser,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="transfer_approvals",
+        verbose_name="معتمد الطلب",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت اعتماد الطلب")
+    placed_by = models.ForeignKey(
+        CustomUser,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="transfer_placements",
+        verbose_name="منفّذ التشعيب",
+    )
+    placed_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت التشعيب")
+    entered_by = models.ForeignKey(
+        CustomUser,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="transfer_entries",
+        verbose_name="مُدخِل البيانات",
+    )
+    entered_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت الإدخال")
+
     class Meta:
         ordering = ["-created_at"]
         verbose_name = "انتقال طالب"
