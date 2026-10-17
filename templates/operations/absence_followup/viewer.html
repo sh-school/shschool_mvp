@@ -10,40 +10,22 @@
 
 {% block content %}
 {% comment %}
-معاينةُ كشف المتابعة داخل المنصّة: صفحةٌ بمكوّنات الهويّة المركزيّة (جدولٌ بترويسةٍ لاصقة)، لا وثيقةُ PDF في إطار.
-الوثيقةُ المطبوعةُ نفسُها تُبنى من `absence_followup_print.html` عند «تحميل PDF».
+عارضُ الكشف بآليّة طباعة الزيارة الصفّية (`quality/observation_pdf_view.html`): ملفُّ PDF يُعاد inline داخل إطار،
+وشريطُ الأدوات لنا — رجوعٌ وتحميلٌ وقائمةُ «عمودي / أفقي». لا زرَّ مشاركة هنا (قرارُ المالك 2026-10-17).
 {% endcomment %}
-<div class="exec-dash">
+<div class="obs-pdf-page">
   {% page_header report_title subtitle=subtitle icon="document" %}
-    <a data-app-file href="{{ pdf_url }}" class="btn-primary btn-sm">{% icon "download" %} تحميل PDF</a>
-    <a href="{{ back_url }}" class="btn-secondary btn-sm">← رجوع للمتابعة</a>
+    <form method="get" class="rec-datebar">
+      {% for key, value in keep.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+      <select name="orient" class="form-control" aria-label="اتّجاه الورقة" data-autosubmit>
+        <option value="portrait"{% if orient == "portrait" %} selected{% endif %}>عمودي</option>
+        <option value="landscape"{% if orient == "landscape" %} selected{% endif %}>أفقي</option>
+      </select>
+      <button type="submit" class="btn-secondary btn-sm">تطبيق</button>
+    </form>
+    <a data-app-file href="{{ pdf_url }}" download class="btn-primary btn-sm">{% icon "download" %} تحميل PDF</a>
+    <a href="{{ back_url }}" class="btn-secondary btn-sm">← رجوع للقائمة</a>
   {% endpage_header %}
-
-  {% section_card "كشفُ المتابعة" meta=rows|length icon="document" empty="لا غيابَ مرصوداً في هذا اليوم." flush=True %}{% if rows %}
-    <div class="table-wrap table-wrap-scroll">
-      <table class="fu-centered" data-no-sort>
-        <thead>
-          <tr>
-            <th scope="col" class="num fu-seq">#</th><th scope="col" class="fu-name">الطالب</th><th scope="col" class="fu-fit">الشعبة</th><th scope="col" class="fu-fit">هاتفُ وليّ الأمر</th><th scope="col">نتيجةُ الاتّصال</th>
-            {% if can_feedback %}<th scope="col">التغذية الراجعة من وليّ الأمر</th>{% endif %}<th scope="col">الإجراءُ الإداريّ</th>{% if can_followup %}<th scope="col">متابعةُ التواصل</th><th scope="col">متابعةُ الإجراء</th>{% endif %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in rows %}
-          <tr class="grade-tint grade-{{ row.class_group.grade|lower }}">
-            <td class="num fu-seq">{{ forloop.counter }}</td>
-            <td class="fu-name">{{ row.student.full_name }}</td>
-            <td class="fu-fit">{{ row.class_group.short_label }}</td>
-            <td dir="ltr" class="fu-fit">{{ row.phones|join:" ، " }}</td>
-            <td>{% if row.contact %}{{ row.contact.get_outcome_display }}{% endif %}</td>
-            {% if can_feedback %}<td>{{ row.feedback }}</td>{% endif %}
-            <td>{% if row.action %}{{ row.action.get_action_kind_display }}{% if row.action.note %} — {{ row.action.note }}{% endif %}{% endif %}</td>
-        {% if can_followup %}<td>{{ row.contact_status }}</td><td>{{ row.action_status }}</td>{% endif %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% endif %}{% endsection_card %}
+  <iframe src="{{ frame_url }}" title="{{ report_title }}" class="obs-pdf-frame"></iframe>
 </div>
 {% endblock %}
