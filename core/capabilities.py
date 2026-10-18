@@ -476,7 +476,15 @@ def registry() -> dict[str, Capability]:
             # رصدُ مخالفةٍ تأديبيّةٍ لقاصرٍ كتابةٌ حسّاسة؛ المساعدان يرثان جدولَ المعلّم وحضورَه لا رصدَه (حكم 0104، W-20261010-013).
             not_inherited_by={"teacher_assistant", "ese_assistant"},
         ),
-        _cap("behavior.manage", "إدارةُ المخالفات والإجراءات", P.BEHAVIOR_MANAGE),
+        _cap(
+            "behavior.manage",
+            "إدارةُ المخالفات والإجراءات",
+            P.BEHAVIOR_MANAGE | {"student_affairs_coordinator"},
+            basis=(
+                "قرارُ المالك 2026-10-18 (بطاقة W-20261018-003): منسّقُ شؤون الطلبة عضوُ لجنة الضبط "
+                "ويدير المخالفاتِ والإجراءات"
+            ),
+        ),
         _cap(
             "behavior.committee",
             "لجنةُ الانضباط",
@@ -798,10 +806,11 @@ def registry() -> dict[str, Capability]:
         _cap(
             "wings.excuse_after_deadline",
             "قبولُ عذرِ غيابٍ بعد مهلة اليومين",
-            P.EXCUSE_AFTER_DEADLINE,
+            P.EXCUSE_AFTER_DEADLINE | {"student_affairs_coordinator"},
             basis=(
                 "الدليل التنظيميّ 2026 م 3.4.1.5: إن لم يردّ وليُّ الأمر خلال يومين حُسب "
-                "الغيابُ بلا عذر — فما بعد المهلة استثناءٌ يقرّره النائبُ الإداريّ بسبب"
+                "الغيابُ بلا عذر — فما بعد المهلة استثناءٌ يقرّره النائبُ الإداريّ بسبب؛ ومنسّقُ شؤون الطلبة يتولّى متابعة الغياب "
+                "(قرارُ المالك 2026-10-18، بطاقة W-20261018-003)"
             ),
         ),
     ]
