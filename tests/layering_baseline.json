@@ -677,9 +677,6 @@
    "lines": 81,
    "orm": 25
   },
-  "student_affairs/views.py::student_dashboard": {
-   "lines": 61
-  },
   "student_affairs/views.py::student_edit": {
    "lines": 63
   },
