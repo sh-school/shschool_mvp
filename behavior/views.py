@@ -632,6 +632,18 @@ def _report_year(request):
     return student_scope_for(request).year_for(requested, "") or academic_year_for(request)
 
 
+def _guardian_phones(request, student, allowed):
+    """أرقامُ أولياء الطالب لمن يتّصل بالأسرة (`behavior.guardian_contact`) — رقمٌ بلا اسم (D-431م)، وأثرُ القراءة عدّادٌ."""
+    if not allowed:
+        return []
+    from operations.services.absence_followup import guardian_phone
+    from student_affairs.coordinator_selectors import audit_phone_read
+
+    phones = guardian_phone(student)
+    audit_phone_read(request, len(phones), "تقرير سلوك الطالب")
+    return phones
+
+
 @login_required
 @capability_required("behavior.record")
 def behavior_report(request, student_id):
@@ -681,6 +693,7 @@ def behavior_report(request, student_id):
         request,
         "behavior/behavior_report.html",
         {
+            "guardian_phones": _guardian_phones(request, student, can_contact_guardian),
             "student": student,
             "year": year,
             "period": period,
