@@ -1,0 +1,33 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% comment %}طلبُ إذن خروج لطالبٍ بعينه (W-20261005-010): السببُ مصنَّف، والتفصيلُ اختياريّ، ووقتُ الخروج الآن.{% endcomment %}
+{% block title %}طلبُ إذن خروج — {{ student.full_name }}{% endblock %}
+{% block main_class %}{% page_layout "form" %}{% endblock %}
+{% block breadcrumbs %}
+{% url 'wings:exit_permit_list' as list_url %}
+{% include "components/breadcrumbs.html" with parent2_url="/wings/record/" parent2_label="رصد الغياب" parent_url=list_url parent_label="أذونات الخروج" current=student.full_name %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "طلبُ إذن خروج" subtitle=class_group icon="attendance_register" %}{% endpage_header %}
+  {% section_card student.full_name icon="attendance_register" %}
+    <form method="post">{% csrf_token %}
+      <div class="ui-field">
+        <label for="exit-reason">سبب الخروج</label>
+        <select id="exit-reason" name="reason" required>
+          {% for key, label in reasons %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="ui-field">
+        <label for="exit-note">تفصيل العذر</label>
+        <input id="exit-note" type="text" name="note" maxlength="200">
+      </div>
+      <div class="ui-actions">
+        <button type="submit" class="btn-primary">إرسال الطلب</button>
+        <a class="btn-secondary" href="{% url 'wings:exit_permit_list' %}">رجوع</a>
+      </div>
+    </form>
+  {% endsection_card %}
+</div>
+{% endblock %}
