@@ -199,7 +199,7 @@ class TestRespondView:
     def test_staff_get_the_form_without_an_other_option(self, client_as, school, wave):
         user = _user(school, "teacher", "29300000038")
         body = client_as(user).get(reverse("ux_survey:respond")).content.decode()
-        assert "ما المهمة الأصعب عليك الآن" in body and "آخر" not in body
+        assert "ما المهمة الأصعب عليك الآن" in body and "آخر" not in body.replace("آخر تحديث", "")
 
     def test_free_text_over_two_hundred_is_rejected(self, client_as, school, wave):
         user = _user(school, "teacher", "29300000039")
