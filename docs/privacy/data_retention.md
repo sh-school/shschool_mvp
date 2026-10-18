@@ -248,6 +248,14 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `roadmap_roadmaprisk` | مخاطرُها |
 | `roadmap_roadmapchecklistitem` | قائمةُ فحص الجهاز فيها |
 | `roadmap_roadmapmeta` | وثيقتُها المفردة: المسارات والمراحل والقواعد |
+| `sot_registry_codelink` | ربطُ الأحكام بمواضع الشيفرة |
+| `sot_registry_conflict` | تعارضاتُ الأحكام بين المصادر |
+| `sot_registry_provision` | أحكامُه المقتبَسة من المصادر |
+| `sot_registry_revision` | سجلُّ مراجعات الأحكام |
+| `sot_registry_source` | مصادرُ السجلّ: وثائقُ وزاريّةٌ ومرجعيّةٌ يُقتبس منها — سجلُّ مصدر الحقيقة وثيقةُ مطوّرٍ عن قواعد الجهات والمنصّة، بلا مدرسةٍ ولا أشخاص |
+| `sot_registry_supersession` | ما نسخ حكمٌ فيه حكماً آخر |
+| `sot_registry_threshold` | عتباتُه الرقميّة |
+| `sot_registry_topic` | مواضيعُه |
 
 ## 5. قراراتٌ معلّقةٌ عند المالك
 
