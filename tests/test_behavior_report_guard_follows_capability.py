@@ -95,4 +95,7 @@ def test_excluding_the_assistants_changes_only_behavior_record_for_only_them():
 
     assert diff.get("behavior.record") == set(ASSISTANTS)
     assert "teacher" in capability("behavior.record").expanded_roles
-    assert not (set(diff) - {"behavior.record", "student_affairs.view"})
+    # wings.exit_permit_request: استثناءٌ بقرار المالك 2026-10-17 (بطاقة W-20261005-010)
+    assert not (
+        set(diff) - {"behavior.record", "student_affairs.view", "wings.exit_permit_request"}
+    )

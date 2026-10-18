@@ -33,7 +33,8 @@ def test_the_only_change_is_one_capability_for_one_role():
     for key, cap in registry().items():
         before = expand_roles(set(cap.roles))  # الوراثةُ كما كانت بلا استثناء
         after = set(cap.expanded_roles)
-        if before != after and key != "behavior.record":  # استثناءُ المساعدين بطاقةُ W-20261010-013
+        # استثناءُ المساعدين بطاقةُ W-20261010-013؛ وإذنُ الخروج بطاقةُ W-20261005-010 (قرار المالك 2026-10-17)
+        if before != after and key not in {"behavior.record", "wings.exit_permit_request"}:
             diff[key] = before - after
     assert diff == {"student_affairs.view": {ACTIVITIES}}
 
@@ -42,8 +43,11 @@ def test_the_only_change_is_one_capability_for_one_role():
     "role", ["coordinator", "vice_academic", "principal", "e_projects_coordinator"]
 )
 def test_every_other_inheriting_role_keeps_its_capabilities(role):
-    held = {k for k, cap in registry().items() if role in cap.expanded_roles}
-    held_before = {k for k, cap in registry().items() if role in expand_roles(set(cap.roles))}
+    skipped = {"wings.exit_permit_request"}  # لا يرثها هؤلاء بقرار المالك (W-20261005-010)
+    held = {k for k, cap in registry().items() if role in cap.expanded_roles} - skipped
+    held_before = {
+        k for k, cap in registry().items() if role in expand_roles(set(cap.roles))
+    } - skipped
     assert held == held_before
 
 
