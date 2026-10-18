@@ -46,13 +46,24 @@ def test_the_pull_request_trigger_stays_and_its_failure_is_not_tolerated():
     assert "pull_request" in _triggers()
     assert _triggers()["pull_request"]["branches"] == ["main"]
     snap = _step("اللقطات (حتميّةٌ")
-    assert str(snap["continue-on-error"]) == "${{ github.event_name != 'pull_request' }}"
+    assert (
+        str(snap["continue-on-error"])
+        == "${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}"
+    )
     # على الطلب وحده يُنزَّل الأساس ويُقارَن به
     assert _step("أساسُ main")["if"] == "github.event_name == 'pull_request'"
 
 
 def test_there_is_no_merge_group_trigger_so_the_queue_is_not_delayed_by_it():
     assert "merge_group" not in _triggers()
+
+
+def test_baseline_upload_warning_and_tolerance_are_confined_to_the_main_branch():
+    # workflow_dispatch من فرعٍ جانبيّ ليس pull_request: بلا تقييد المرجع يرفع أساساً يسمّم أساسَ main (والخطوةُ تأخذ أحدثَ artifact بلا قيد فرع).
+    main_only = "github.ref == 'refs/heads/main'"
+    assert main_only in str(_step("اللقطات (حتميّةٌ")["continue-on-error"])
+    assert main_only in _step("تحذيرٌ — فشلت اللقطاتُ على main")["if"]
+    assert main_only in _step("رفعُ أساس main")["if"]
 
 
 def test_the_snapshot_job_itself_is_not_marked_continue_on_error():

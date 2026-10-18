@@ -115,11 +115,11 @@ jobs:
       - name: اللقطات (حتميّةٌ ومقارنة)
         id: snap
         timeout-minutes: 20
-        continue-on-error: ${{ github.event_name != 'pull_request' }}
+        continue-on-error: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
         run: python -m pytest tests/e2e/test_visual_snapshots_live.py -v
 
       - name: "تحذيرٌ — فشلت اللقطاتُ على main (غيرُ حاجبٍ للنشر)"
-        if: github.event_name != 'pull_request' && steps.snap.outcome == 'failure'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.snap.outcome == 'failure'
         run: |
           echo "::warning title=VI-13::فشل فحصُ لقطات الهويّة على main — استشاريٌّ لا يحجب النشرَ (D-277م). راجع الملخّصَ وartifact المقارنة."
           {
@@ -150,7 +150,7 @@ jobs:
 
       # الأساس: لقطاتُ main وحدَها (بلا التكرار ولا الفروق) — يُنزَّل في طلباتِ الدمج التالية.
       - name: رفعُ أساس main
-        if: github.event_name != 'pull_request' && steps.snap.outcome == 'success'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.snap.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
           name: visual-baseline
