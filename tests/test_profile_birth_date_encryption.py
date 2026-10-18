@@ -249,6 +249,10 @@ class TestNoLossOnDobWriters:
         StudentService.update_student(student, school, {**data, "birth_date": date(2012, 5, 6)})
         assert Profile.objects.get(user=student).date_of_birth == date(2012, 5, 6)
         StudentService.update_student(
+            student, school, {"full_name": "اسم", "notes": "m"}
+        )  # غيابُ المفتاح لا يفرّغ
+        assert Profile.objects.get(user=student).date_of_birth == date(2012, 5, 6)
+        StudentService.update_student(
             student, school, {**data, "birth_date": None}
         )  # تفريغٌ من النموذج
         assert Profile.objects.get(user=student).date_of_birth is None

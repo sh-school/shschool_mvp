@@ -630,7 +630,8 @@ class StudentService:
 
         # ── 2. الملف الشخصي ──
         profile, _created = Profile.objects.get_or_create(user=student)
-        profile.date_of_birth = data.get("birth_date")  # الفراغُ تفريغٌ صريح من النموذج
+        if "birth_date" in data:  # غيابُ المفتاح لا يفرّغ؛ والنموذجُ يرسله دائماً وفراغُه تفريغٌ صريح
+            profile.date_of_birth = data["birth_date"]
         profile.notes = data.get("notes", "")
         profile.save()
 
