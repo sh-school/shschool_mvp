@@ -26,10 +26,10 @@ from typing import TYPE_CHECKING, Any
 from django.db.models import Max
 from django.utils import timezone
 
-from core.models import StudentEnrollment
 from core.preview_accounts import in_preview_environment
 
 from .bells import day_type_for
+from .elective_roster import session_enrollments
 from .models import AttendanceEntry, Session, TimeSlotConfig
 
 if TYPE_CHECKING:
@@ -172,12 +172,11 @@ def _has_entry_in_session(student: CustomUser, session: Session) -> bool:
 
 
 def _is_enrolled(student: CustomUser, session: Session) -> bool:
-    """قيدٌ في شعبة الحصّة يشمل تاريخَها (`on_roll`) — فطالبٌ قُيّد بعدها أو نُقل منها قبلها لا تُرصد له."""
-    return bool(
-        StudentEnrollment.objects.filter(student=student, class_group_id=session.class_group_id)
-        .on_roll(session.date)
-        .exists()
-    )
+    """قيدٌ في شعبة الحصّة يشمل تاريخَها (`on_roll`) — فطالبٌ قُيّد بعدها أو نُقل منها قبلها لا تُرصد له.
+
+    والحصّةُ الاختياريّةُ ذاتُ الأعضاء المسجَّلين لا تُرصد إلا لأعضائها (W-20261002-021).
+    """
+    return bool(session_enrollments(session).filter(student=student).exists())
 
 
 # ══════════════════════════════════════════════════════════════════

@@ -11,6 +11,11 @@ from django.utils import timezone
 from core.audit_repr import masked_repr
 from core.models.academic import StudentEnrollment
 from core.models.audit import AuditLog
+from operations.attendance_policy import is_special_education
+
+#: أقصى رجوعٍ بتاريخ الانتقال إلى الوراء: النقلُ بتاريخٍ ماضٍ يعيد قراءةَ أيّامٍ رُصدت فعلاً (D-201م)،
+#: فلا يتّسع لأكثر من أسبوعٍ بلا اعتماد. سياسةٌ حسمها المالك 2026-10-12 (W-20261004-027) وتبديلُها سطرٌ واحد.
+MAX_BACKDATE_DAYS = 7
 
 
 def internal_target_error(transfer, today=None) -> str:
@@ -31,6 +36,12 @@ def internal_target_error(transfer, today=None) -> str:
         return "الشعبة المنقول إليها هي شعبة الطالب الحالية."
     if target.grade != source.grade or target.academic_year != source.academic_year:
         return "الانتقال الداخلي يكون إلى شعبةٍ من الصفّ نفسه والعام نفسه."
+    # عتباتُ الغياب تتبع شعبةَ الطالب (عاديّة/تربية خاصّة)، فالعبورُ بينهما يغيّر مجموعة العتبات: يبقى ممنوعاً (قرار المالك 10-12).
+    if is_special_education(target) != is_special_education(source):
+        return "الانتقال بين شعبةٍ عاديّةٍ وشعبة تربيةٍ خاصّةٍ غيرُ متاحٍ هنا — تتغيّر به عتباتُ الغياب."
+    oldest = (today or timezone.localdate()) - timedelta(days=MAX_BACKDATE_DAYS)
+    if transfer.transfer_date < oldest:
+        return f"تاريخ الانتقال أقدمُ من {MAX_BACKDATE_DAYS} أيام — يعيد قراءةَ أيّامٍ رُصدت فعلاً ويحتاج اعتماداً."
     return ""
 
 

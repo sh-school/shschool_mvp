@@ -717,27 +717,17 @@ class AcademicReportsService:
             if pct is not None:
                 quiz_buckets[g.student_id].append(pct)
 
-        # نظام النقاط ملغى — نحسب فقط عدد المخالفات بوزن حسب الدرجة
+        # عدد المخالفات فقط. [W-20261013-010] أُزيل «التقييم المدمج» الذي كان يحسم من درجة الطالب
+        # «عقوبةَ سلوكٍ» بأوزانٍ مبتدَعة (2/5/10/25) — لا أصلَ لها في دليل السلوك 2026.
         beh_counts: dict = defaultdict(int)
-        beh_severity: dict = defaultdict(int)
-        _SEVERITY_PER_LEVEL = {1: 2, 2: 5, 3: 10, 4: 25}
         for inf in beh_qs:
             beh_counts[inf.student_id] += 1
-            beh_severity[inf.student_id] += _SEVERITY_PER_LEVEL.get(inf.level, 2)
 
         rows = []
         for st in students:
             pcts = quiz_buckets.get(st.id, [])
             quiz_avg = cls._avg(pcts)
             inf_count = beh_counts.get(st.id, 0)
-            severity = beh_severity.get(st.id, 0)
-
-            # Combined score: quiz% weighted 0.7 minus behavior penalty (severity-based)
-            if quiz_avg is not None:
-                penalty = min(severity, 30) * 0.3
-                combined = round(quiz_avg * 0.7 + (100 - penalty) * 0.3, 2)
-            else:
-                combined = None
 
             rows.append(
                 {
@@ -746,11 +736,10 @@ class AcademicReportsService:
                     "quiz_count": len(pcts),
                     "quiz_avg": quiz_avg,
                     "behavior_count": inf_count,
-                    "combined_score": combined,
                 }
             )
 
-        rows.sort(key=lambda r: r["combined_score"] or 0, reverse=True)
+        rows.sort(key=lambda r: r["quiz_avg"] or 0, reverse=True)
 
         quiz_avg_all = cls._avg([r["quiz_avg"] for r in rows if r["quiz_avg"] is not None])
         total_infractions = sum(r["behavior_count"] for r in rows)
@@ -943,7 +932,6 @@ class AcademicReportsExcel:
             ("عدد الاختبارات", 13),
             ("متوسط الاختبارات %", 17),
             ("عدد المخالفات", 13),
-            ("التقييم المدمج", 14),
         ]
         data_rows = []
         for i, r in enumerate(data.get("rows", []), start=1):
@@ -954,7 +942,6 @@ class AcademicReportsExcel:
                     r["quiz_count"],
                     r["quiz_avg"],
                     r["behavior_count"],
-                    r["combined_score"],
                 ]
             )
         title = f"التقرير السلوكي والتعليمي الشهري — {data.get('period', '')}"

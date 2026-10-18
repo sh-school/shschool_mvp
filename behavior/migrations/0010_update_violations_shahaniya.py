@@ -9,6 +9,9 @@ from django.db import migrations
 
 from behavior.constants import VIOLATIONS_2025
 
+# قيمٌ تاريخيّة مجمَّدة (W-20261013-010): كانت في constants وأُزيلت مع نظام الحسم
+_HISTORICAL_POINTS = {1: 5, 2: 15, 3: 25, 4: 40}
+
 
 def update_violations(apps, schema_editor):
     """حذف المخالفات الرسمية القديمة وحقن الجديدة."""
@@ -17,7 +20,8 @@ def update_violations(apps, schema_editor):
     # حذف المخالفات ذات الترميز الرسمي (n-nn) — القديمة والجديدة معاً
     ViolationCategory.objects.filter(code__regex=r"^\d+-\d+$").delete()
 
-    for degree, code, name_ar, points, tag_list in VIOLATIONS_2025:
+    for degree, code, name_ar, tag_list in VIOLATIONS_2025:
+        points = _HISTORICAL_POINTS[degree]
         ViolationCategory.objects.get_or_create(
             code=code,
             defaults={

@@ -328,12 +328,13 @@ def _sync_student_profile(student: Any, birth_date: Any, profiles_cache: dict[An
         return
     profile = profiles_cache.get(student.id)
     if profile is None:
-        profile = Profile(user=student, birth_date=birth_date)
+        profile = Profile(user=student)
+        profile.date_of_birth = birth_date
         profile.save()
         profiles_cache[student.id] = profile
     elif profile.date_of_birth != birth_date:
-        profile.birth_date = birth_date
-        profile.save(update_fields=["birth_date"])
+        profile.date_of_birth = birth_date
+        profile.save(update_fields=["birth_date_encrypted"])
 
 
 def _ensure_membership(

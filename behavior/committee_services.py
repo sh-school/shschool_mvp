@@ -198,13 +198,10 @@ def decide_committee(infraction: BehaviorInfraction, user, post) -> tuple[str, s
             suspension_type=suspension_type,
             suspension_days=suspension_days,
         )
-    # نظام النقاط ملغى — restore_pts=0 دائماً
     return BehaviorService.apply_committee_decision(
         infraction=infraction,
         decision=decision,
         action=action,
-        restore_pts=0,
-        reason="",
         approved_by=user,
         suspension_type=suspension_type,
         suspension_days=suspension_days,

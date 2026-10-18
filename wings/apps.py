@@ -34,6 +34,9 @@ class WingsConfig(AppConfig):
                 "platform_developer",
                 # حاصرُ الغياب العامّ بدوره (D-267م): المنسّقُ يتابع الغيابَ ويرصده في الأجنحة كلِّها.
                 "student_affairs_coordinator",
+                # المعلّمُ يطلب إذنَ خروج لشُعبه (W-20261005-010، قرارُ المالك 2026-10-17: «وسّع البوابة للمعلّم فقط»):
+                # تُدخله البوّابةُ وحدَه ولا يرثه غيرُه، وكلُّ شاشةٍ أخرى تحجبه بحارسها.
+                "teacher",
                 *WingCoverage.SUBSTITUTE_ROLES,
             },
             sidebar_roles={
