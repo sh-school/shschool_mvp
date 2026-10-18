@@ -45,7 +45,7 @@ ACCENT_ROSE = "#e11d48"
 ACCENT_GREEN = "#059669"
 
 #: `--text-muted` — قيمتُه النهاريّة. الرماديُّ الفاتحُ تحت نصٍّ أبيضَ نسبتُه 3.40.
-TEXT_MUTED = "#5f6775"
+TEXT_MUTED = "#58606d"
 
 #: `--on-fill` — ما يُكتب فوق حشوٍ داكن (ترويسةٌ عنّابيّة).
 ON_FILL = "#ffffff"
@@ -68,7 +68,7 @@ TEXT_SECONDARY = "#4b5563"
 
 #: ألوانُ الحالة للنصّ وأسطحُها — القيمُ النهاريّة المقيسة.
 STATUS_DANGER_BG = "#fef2f2"
-STATUS_DANGER_FG = "#c81e1e"
+STATUS_DANGER_FG = "#ba1c1c"
 STATUS_WARNING_FG = "#92400e"
 STATUS_SUCCESS_FG = "#166534"
 STATUS_INFO_BG = "#dbeafe"

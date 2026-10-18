@@ -213,7 +213,7 @@
   align-items: center; justify-content: center; line-height: 1.1;
 }
 .kpi-donut-val { font-size: 0.8125rem; font-weight: 800; }
-.kpi-donut-unit { font-size: 0.5rem; color: var(--text-muted); }
+.kpi-donut-unit { font-size: var(--text-xs); color: var(--text-muted); }
 .kpi-donut-label {
   font-size: var(--text-xs); font-weight: 600; color: var(--text-primary);
   text-align: center; line-height: 1.2;
@@ -820,6 +820,9 @@
 }
 .qobs-schedule-pill:hover { border-color: var(--maroon-border); }
 .qobs-schedule-pill.is-active { border-color: var(--maroon); background: var(--maroon-bg); color: var(--maroon-fg); }
+.qobs-outside { display: flex; align-items: center; gap: var(--sp-2); min-block-size: 2.75rem; }
+.qobs-progress { margin-block: var(--sp-3); font-weight: 700; color: var(--maroon-fg); }
+.qobs-rating-table input[type=radio] { inline-size: 1.5rem; block-size: 1.5rem; }
 .qobs-schedule-pill small { color: var(--text-muted); font-size: var(--text-xs); }
 
 .qobs-lead { display: grid; gap: var(--sp-2); margin-top: var(--sp-3); padding-top: var(--sp-3); border-block-start: 1px dashed var(--border-strong); }
@@ -1013,8 +1016,8 @@
   /* نقطةُ تفريغٍ في زاوية الخليّة الفارغة — القراراتُ الثلاثةُ الملوَّنةُ وحدَها، ومفتاحُها أسفل الجدول. */
   .schedule-matrix .m-exempt-dot {
     position: absolute; inset-block-start: 0; inset-inline-start: 0;
-    inline-size: 0.5625rem; block-size: 0.5625rem; line-height: 0.5625rem;
-    font-size: 0.3125rem; font-weight: 700; text-align: center; color: var(--on-fill); border-radius: 0 0 var(--radius-sm) 0;
+    inline-size: 0.9375rem; block-size: 0.9375rem; line-height: 0.9375rem;
+    font-size: var(--text-xs); font-weight: 700; text-align: center; color: var(--on-fill); border-radius: 0 0 var(--radius-sm) 0;
   }
   .schedule-matrix .m-exempt-dot.exempt-ministry   { background: var(--accent-sky); }
   .schedule-matrix .m-exempt-dot.exempt-school     { background: var(--accent-rose); }

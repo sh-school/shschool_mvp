@@ -95,20 +95,18 @@ def test_an_excused_absence_is_flagged_excused(
     assert [s.letter for s in row.slots] == ["ع", "ع"]
 
 
-def test_the_page_lists_the_student_in_each_followup_table_and_counts_the_ministry_rows(
+def test_each_followup_page_lists_the_student_once_and_counts_the_ministry_rows(
     client_as, school, seeded_calendar, klass, kids, teacher, supervisor
 ):
     for session in _periods(school, klass, teacher, 2):
         _confirm(klass, session, {kids[0]: "absent"}, supervisor)
 
-    body = (
-        client_as(supervisor)
-        .get(reverse("daily_report") + f"?date={SUNDAY.isoformat()}")
-        .content.decode()
-    )
-
-    assert (
-        body.count("طالب 0") == 2
-    ), "في جدول التواصل وجدول الإجراءات (متابعة الغياب، W-20261013-011)"
-    assert "للرفع الوزاريّ" in body
-    assert "طالب 1" not in body, "من لم يغب ولم يتأخّر لا يُدرج"
+    for name in ("daily_report", "absence_actions"):
+        body = (
+            client_as(supervisor)
+            .get(reverse(name) + f"?date={SUNDAY.isoformat()}")
+            .content.decode()
+        )
+        assert body.count("طالب 0") == 1, "صفحتان مستقلّتان، في كلٍّ جدولٌ واحد (W-20261017-024)"
+        assert "للرفع الوزاريّ" in body
+        assert "طالب 1" not in body, "من لم يغب ولم يتأخّر لا يُدرج"

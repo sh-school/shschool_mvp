@@ -27,6 +27,7 @@ _HEADER_FIELDS = (
     "class_group_id",
     "observation_date",
     "period",
+    "outside_schedule",
     "topic",
     "follow_up_mode",
     "follow_up_scope",
