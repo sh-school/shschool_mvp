@@ -165,6 +165,17 @@ class TestPrompt:
     def test_no_card_without_an_open_wave(self, school):
         assert CARD not in _render_prompt(_user(school, "teacher", "29300000034"))
 
+    @pytest.mark.parametrize("action", ["snooze", "close"])
+    def test_next_redirects_only_inside_the_site(self, client_as, school, wave, action):
+        teacher = _user(school, "teacher", "29300000066")
+        client = client_as(teacher)
+        url = reverse(f"ux_survey:{action}")
+        inside = client.post(url, {"next": "/schedule/"})
+        assert inside.status_code == 302 and inside["Location"] == "/schedule/"
+        for evil in ("https://evil.example/x", "//evil.example/x", "javascript:alert(1)"):
+            resp = client.post(url, {"next": evil})
+            assert resp.status_code == 302 and resp["Location"] == reverse("dashboard")
+
     def test_snooze_hides_it_for_seven_days_and_close_for_good(self, client_as, school, wave):
         teacher = _user(school, "teacher", "29300000035")
         client_as(teacher).post(reverse("ux_survey:snooze"))

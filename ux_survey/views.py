@@ -3,6 +3,7 @@
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from core.capabilities import capability_required
@@ -17,6 +18,16 @@ LABELS = {
     "sus_confident": "أشعر بالثقة وأنا أستخدمها",
     "sus_remember": "لو لم أستخدمها كثيرًا لوجدتُ صعوبة في تذكر خطواتها",
 }
+
+
+def _safe_next(request) -> str:
+    """وجهةُ العودة من `next` إن كانت من المنصّة نفسها، وإلا الرئيسيّة (لا إعادةَ توجيهٍ مفتوحة)."""
+    target = request.POST.get("next", "")
+    if target and url_has_allowed_host_and_scheme(
+        target, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return target
+    return "dashboard"
 
 
 @capability_required(services.RESPOND)
@@ -40,14 +51,14 @@ def respond(request):
 @require_POST
 def snooze(request):
     services.snooze(request.user)
-    return redirect(request.POST.get("next") or "dashboard")
+    return redirect(_safe_next(request))
 
 
 @capability_required(services.RESPOND)
 @require_POST
 def close(request):
     services.close(request.user)
-    return redirect(request.POST.get("next") or "dashboard")
+    return redirect(_safe_next(request))
 
 
 @capability_required(services.DASHBOARD)
