@@ -1,6 +1,6 @@
 """أيقوناتُ التطبيق: المشتقُّ «قلمٌ وشعلة» على شريحةٍ داكنةٍ محايدة (W-20261014-009، قرار المالك 10-14؛ يحلّ محلّ «ش» v3).
 
-- أيقوناتُ `static/icons/v4/` مرسومةٌ من `static/brand/schoolos-pen.svg` على `core.brand.DARK["SURFACE"]` لا على العنّابيّ.
+- أيقوناتُ `static/icons/v5/` مرسومةٌ من `static/brand/schoolos-pen.svg` على `core.brand.DARK["SURFACE"]` لا على العنّابيّ.
 - ما يبقى في `static/brand/` توقيعُ المطوّر وشعارا المنصّة (الكاملُ والمشتقّ)؛ ولا ملفَّ شعارِ وزارةٍ فيه.
 - شارةُ الإشعار أبيضُ على شفّاف يقصّها النظام، وتباينُ الشريحة مع الأيقونة محفوظ.
 - لا مرجعَ في الشيفرة إلى مجلّدٍ سابقٍ (`v2`/`v3`)، وكلُّ أيقونةٍ مذكورةٍ بمسارها موجودة.
@@ -18,13 +18,12 @@ from core.management.commands.build_app_icons import ICON_VERSION
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BRAND = ROOT / "static/brand"
-ICONS = ROOT / "static/icons/v4"
+ICONS = ROOT / "static/icons/v5"
 
 REMOVED = ("logoMaroon.png", "logowhite.png", "emblem.svg", "emblem-white.svg", "ministry_logo.png")
 BRAND_FILES = {"azkia-logo.svg", "sufyan-logo.png", "schoolos-full.svg", "schoolos-pen.svg"}
+TRANSPARENT_ICONS = ("icon-192.png", "icon-512.png")
 SQUARE_ICONS = (
-    "icon-192.png",
-    "icon-512.png",
     "icon-maskable-192.png",
     "icon-maskable-512.png",
     "apple-touch-icon.png",
@@ -39,7 +38,7 @@ def _rgb(hex_colour: str) -> tuple[int, int, int]:
 
 
 def test_the_icon_folder_is_the_current_version():
-    assert ICON_VERSION == "v4" and ICONS.is_dir()
+    assert ICON_VERSION == "v5" and ICONS.is_dir()
 
 
 def test_the_ministry_logo_files_are_not_in_the_static_brand_folder():
@@ -79,6 +78,15 @@ def test_the_symbol_stays_inside_the_safe_circle(name, safe):
     ys, xs = np.where(np.abs(image - np.array(_rgb(DARK["SURFACE"]))).sum(axis=2) > 24)
     radius = np.sqrt((xs - size / 2) ** 2 + (ys - size / 2) ** 2).max() / size
     assert radius <= safe + 0.02, (name, radius)
+
+
+@pytest.mark.parametrize("name", TRANSPARENT_ICONS)
+def test_the_any_icons_have_no_background_plate(name):
+    """أيقونتا `any` بلا خلفيّةٍ (قرارُ المالك 10-15): الزوايا شفّافةٌ والقلمُ معتمٌ في الوسط."""
+    pixels = np.array(Image.open(ICONS / name).convert("RGBA"))
+    assert pixels[0, 0, 3] == 0 and pixels[-1, -1, 3] == 0
+    assert (pixels[:, :, 3] > 250).any(), "القلمُ مرئيّ"
+    assert (pixels[:, :, 3] == 0).mean() > 0.5, "أغلبُ المربّع شفّاف"
 
 
 def test_the_badge_is_the_whole_symbol_in_white_on_transparent():
