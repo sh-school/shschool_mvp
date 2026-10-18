@@ -224,6 +224,19 @@ class TestAppendOnly:
         _post_action(client_as, staff["principal"], kid, status="sick_leave_received")
         assert AbsenceActionLog.objects.get().excuse_id == excuse.id
 
+    def test_coordinator_receipt_shows_actor_and_audits(
+        self, client_as, school, staff, absent_both
+    ):
+        kid = absent_both[0]
+        coord = staff["coordinator"]
+        _post_action(client_as, coord, kid, status="sick_leave_received")
+        log = AbsenceActionLog.objects.get()
+        assert log.status == "sick_leave_received" and log.acted_by_id == coord.id
+        body = _get(client_as, coord, name="absence_actions").content.decode()
+        assert "استلامُ إجازة مرضيّة" in body or log.get_status_display() in body
+        assert coord.full_name in body
+        assert AuditLog.objects.filter(object_repr__contains="إجراءٌ إداريٌّ").exists()
+
 
 class TestPrivacy:
     def test_phones_show_to_every_role_but_never_a_guardian_or_mother_name(
