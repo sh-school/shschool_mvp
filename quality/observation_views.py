@@ -4,6 +4,7 @@ Skinny Views — المنطق في ObservationService. الصلاحيات في _
 """
 
 import logging
+from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -12,6 +13,7 @@ from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
+from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
@@ -34,6 +36,7 @@ from core.unrestricted_role import has_unrestricted_role
 from .observation_models import (
     FOLLOW_UP_MODE,
     FOLLOW_UP_SCOPE,
+    MAX_SELF_BACKDATE_DAYS,
     OBSERVATION_KIND,
     OBSERVATION_STATUS,
     RATING_CHOICES,
@@ -44,6 +47,7 @@ from .observation_selectors import default_observation_date as _default_observat
 from .observation_selectors import form_lists as _form_lists
 from .observation_selectors import grouped_criteria as _grouped_criteria
 from .observation_selectors import groups_with_scores as _groups_with_scores
+from .observation_selectors import self_slot_error as _self_slot_error
 from .observation_selectors import teacher_schedule_context as _teacher_schedule_context
 from .observation_services import ObservationService
 from .presentation import decorate_observation, signature_stamps
@@ -110,6 +114,26 @@ def _collect_post(request, school):
     return header, ratings, recs
 
 
+def _validate_self_post(request, school, header, ratings):
+    """تحقّقُ الخادم من تقييمٍ ذاتيّ قبل الحفظ: النافذةُ والحصّةُ من جدول المعلّم (أو «خارج جدولي»)، واكتمالُ المعايير عند
+    الاعتماد. يُرجع (نصُّ الخطأ أو فارغاً، outside_schedule) — ويكتب الأخيرَ في الرأس."""
+    outside = request.POST.get("outside_schedule") == "on"
+    header["outside_schedule"] = outside
+    error = _self_slot_error(school, request.user, header, outside_schedule=outside)
+    if not error and request.POST.get("action") == "submit":
+        missing = sum(1 for value in ratings.values() if not value)
+        if missing:
+            error = f"أكمل تقييم جميع المعايير قبل الاعتماد — بقي {missing}."
+    return error, outside
+
+
+def _render_self_form(request, school, *, obs=None):
+    """يعيد رسمَ استمارة الذاتيّ بعد خطأ تحقّق، ومعها ما أدخله المستخدم من الرأس."""
+    ctx = _form_context(school, obs=obs, is_self=True)
+    ctx["posted"] = request.POST
+    return render(request, "quality/observation_form.html", ctx)
+
+
 def _obs_perms(user, obs):
     """صلاحيات الإجراءات على زيارة بعينها — مصدر واحد للقوالب والتحقّق الخادمي."""
     role = user.get_role()
@@ -165,8 +189,14 @@ def _form_context(school, *, obs=None, scores_map=None, is_self=False, is_peer=F
             # تعديلُ زيارةٍ محفوظة يفتح ومعه صفُّ جدول تاريخها من أوّل تحميل —
             # لا ينتظر تغيير المعلّم أو التاريخ ليعرضه.
             "schedule_row": _teacher_schedule_context(
-                school, obs.teacher_id if obs else None, obs.observation_date if obs else None
+                school,
+                obs.teacher_id if obs else None,
+                obs.observation_date if obs else None,
+                self_mode=bool(obs and obs.kind == "self"),
             ),
+            "self_window_days": MAX_SELF_BACKDATE_DAYS,
+            "today": timezone.localdate(),
+            "min_date": timezone.localdate() - timedelta(days=MAX_SELF_BACKDATE_DAYS),
         }
     )
     ctx.update(_form_labels(ctx["mode"], ctx["is_self"], ctx["is_peer"], obs))
@@ -262,9 +292,15 @@ def observation_teacher_schedule(request):
     يُرسل الحقولَ بأسمائها كما هي — فسمّيةٌ مختلفة هنا كانت تصل الخادمَ فارغةً
     دائماً مهما اختار المستخدم (SOS-20260915، بلاغ «لم تُحلّ حتى الآن»)."""
     school = request.user.get_school()
+    # الوضعُ الذاتيّ: المعلّمُ هو المستخدم دائماً (لا يُقرأ من الطلب) والنافذةُ مفروضة (D-417م).
+    is_self = request.GET.get("self") == "1"
     ctx = _teacher_schedule_context(
-        school, request.GET.get("teacher"), request.GET.get("observation_date")
+        school,
+        request.user.id if is_self else request.GET.get("teacher"),
+        request.GET.get("observation_date"),
+        self_mode=is_self,
     )
+    ctx["self_mode"] = is_self
     return render(request, "quality/partials/teacher_schedule_row.html", ctx)
 
 
@@ -315,6 +351,10 @@ def observation_self_create(request):
     school = request.user.get_school()
     if request.method == "POST":
         header, ratings, recs = _collect_post(request, school)
+        error, _ = _validate_self_post(request, school, header, ratings)
+        if error:
+            messages.error(request, error)
+            return _render_self_form(request, school)
         obs = ClassroomObservation.objects.create(
             school=school,
             teacher=request.user,
@@ -424,6 +464,11 @@ def observation_edit(request, obs_id):
                 messages.error(request, "لا يمكن للمشرف أن يزور نفسه — استخدم «تقييم ذاتي».")
                 return redirect("observation_edit", obs_id=obs.pk)
             header["teacher"] = teacher
+        else:
+            error, _ = _validate_self_post(request, school, header, ratings)
+            if error:
+                messages.error(request, error)
+                return _render_self_form(request, school, obs=obs)
         ObservationService.update_observation(
             obs, header=header, ratings=ratings, recommendations=recs, by_user=request.user
         )

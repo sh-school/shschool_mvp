@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -165,6 +166,17 @@ IDENTITY_TIMEOUT_SECONDS = 300
 _identity_result: str | None = None
 
 
+RECEIPT_NAME = "prepush_receipt.json"
+
+
+def write_receipt() -> None:
+    """إيصالُ النجاح للرأس الحاليّ في مجلّد git للشجرة (لا يُتتبَّع)؛ يقرؤه ledger.py عند «جاهزٌ للمعاينة» (W-20261017-014)."""
+    gitdir = _run(["git", "rev-parse", "--absolute-git-dir"]).stdout.strip()
+    if not gitdir:
+        return
+    (Path(gitdir) / RECEIPT_NAME).write_text(json.dumps({"head": head8(), "ok": True}), encoding="utf-8")
+
+
 def head8() -> str:
     return _run(["git", "rev-parse", "--short=8", "HEAD"]).stdout.strip() or "unknown"
 
@@ -306,6 +318,8 @@ def main(argv: list[str] | None = None) -> int:
         _print_identity_receipt()
         return 3
     print("\nالفحوصُ السريعةُ ناجحة — الدفعُ مسموح (الاختبارات الكاملة تبقى في CI).")
+    if not missing:
+        write_receipt()
     _print_identity_receipt()
     return 0
 

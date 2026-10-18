@@ -41,6 +41,7 @@ PARENT_DERIVED = {
     "behavior_behaviorcommitteevote": "infraction -> core_behaviorinfraction.school_id",
     # core
     "core_studentenrollment": "class_group -> core_classgroup.school_id",
+    "core_electivegroupmembership": "enrollment -> core_studentenrollment -> class_group -> core_classgroup.school_id",
     "core_wingcoverage": "wing -> core_wing.school_id",
     "core_semester": "academic_year -> core_academicyear.school_id",
     "core_calendarevent": "academic_year -> core_academicyear.school_id",
@@ -124,6 +125,14 @@ GLOBAL_INFRASTRUCTURE = {
     "roadmap_roadmapkpi": "platform-developer planning document about the platform itself, no school or person data",
     "roadmap_roadmapmeta": "platform-developer planning document about the platform itself, no school or person data",
     "roadmap_roadmaprisk": "platform-developer planning document about the platform itself, no school or person data",
+    "sot_registry_codelink": "platform-developer source-of-truth registry about the ministry rules and the platform, no school or person data",
+    "sot_registry_conflict": "platform-developer source-of-truth registry about the ministry rules and the platform, no school or person data",
+    "sot_registry_provision": "platform-developer source-of-truth registry about the ministry rules and the platform, no school or person data",
+    "sot_registry_revision": "platform-developer source-of-truth registry about the ministry rules and the platform, no school or person data",
+    "sot_registry_source": "platform-developer source-of-truth registry about the ministry rules and the platform, no school or person data",
+    "sot_registry_supersession": "platform-developer source-of-truth registry about the ministry rules and the platform, no school or person data",
+    "sot_registry_threshold": "platform-developer source-of-truth registry about the ministry rules and the platform, no school or person data",
+    "sot_registry_topic": "platform-developer source-of-truth registry about the ministry rules and the platform, no school or person data",
     "token_blacklist_blacklistedtoken": "JWT revocation list, keyed on token",
     "token_blacklist_outstandingtoken": "JWT revocation list, keyed on token",
 }

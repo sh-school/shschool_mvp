@@ -118,7 +118,7 @@ def _get(client_as, user, name="daily_report", **params):
 
 
 def _post_contact(client_as, user, student, **extra):
-    data = {"student": str(student.id), "date": DAY, "outcome": "answered", **extra}
+    data = {"student": str(student.id), "date": DAY, "outcome": "no_excuse", **extra}
     return client_as(user).post(reverse("absence_contact_save"), data)
 
 
@@ -181,7 +181,7 @@ class TestAppendOnly:
             with pytest.raises(PermissionDenied):
                 log.delete()
         with pytest.raises(PermissionDenied):
-            AbsenceContactLog.objects.all().update(outcome="no_answer")
+            AbsenceContactLog.objects.all().update(outcome="no_reply")
         with pytest.raises(PermissionDenied):
             AbsenceActionLog.objects.all().delete()
 
@@ -189,17 +189,15 @@ class TestAppendOnly:
         self, client_as, staff, absent_both
     ):
         kid = absent_both[0]
-        _post_contact(client_as, staff["principal"], kid, outcome="no_answer")
+        _post_contact(client_as, staff["principal"], kid, outcome="no_reply")
         first = AbsenceContactLog.objects.get()
-        _post_contact(
-            client_as, staff["principal"], kid, outcome="answered", corrects=str(first.id)
-        )
+        _post_contact(client_as, staff["principal"], kid, outcome="medical", corrects=str(first.id))
         second = AbsenceContactLog.objects.exclude(pk=first.pk).get()
         assert second.corrects_id == first.id
         first.refresh_from_db()
-        assert first.outcome == "no_answer"
+        assert first.outcome == "no_reply"
         body = _get(client_as, staff["principal"]).content.decode()
-        assert "ردّ" in body
+        assert "غياب بعذر طبي" in body
 
         # لا يُصحَّح سجلٌّ صُحِّح قبلُ: السلسلةُ خطٌّ لا شجرة.
         _post_contact(client_as, staff["principal"], kid, corrects=str(first.id))
@@ -226,6 +224,19 @@ class TestAppendOnly:
         _post_action(client_as, staff["principal"], kid, status="sick_leave_received")
         assert AbsenceActionLog.objects.get().excuse_id == excuse.id
 
+    def test_coordinator_receipt_shows_actor_and_audits(
+        self, client_as, school, staff, absent_both
+    ):
+        kid = absent_both[0]
+        coord = staff["coordinator"]
+        _post_action(client_as, coord, kid, status="sick_leave_received")
+        log = AbsenceActionLog.objects.get()
+        assert log.status == "sick_leave_received" and log.acted_by_id == coord.id
+        body = _get(client_as, coord, name="absence_actions").content.decode()
+        assert "استلامُ إجازة مرضيّة" in body or log.get_status_display() in body
+        assert coord.full_name in body
+        assert AuditLog.objects.filter(object_repr__contains="إجراءٌ إداريٌّ").exists()
+
 
 class TestPrivacy:
     def test_phones_show_to_every_role_but_never_a_guardian_or_mother_name(
@@ -241,10 +252,14 @@ class TestPrivacy:
         self, client_as, school, staff, absent_both
     ):
         _family(school, absent_both[0])
-        body = _get(
-            client_as, staff["principal"], "absence_followup_print", embed="1"
-        ).content.decode()
-        assert FATHER_PHONE in body
+        import io
+
+        import pdfplumber
+
+        resp = _get(client_as, staff["principal"], "absence_followup_pdf", page="contact")
+        pages = pdfplumber.open(io.BytesIO(resp.content)).pages
+        body = " ".join(p.extract_text() or "" for p in pages)
+        assert FATHER_PHONE in body or FATHER_PHONE[::-1] in body
         assert FATHER_NAME not in body and MOTHER_NAME not in body
         trail = " ".join(
             f"{a.object_repr} {a.changes}" for a in AuditLog.objects.filter(action="view")
@@ -346,7 +361,7 @@ class TestServiceContract:
         from operations.services import absence_followup as svc
 
         with pytest.raises(PermissionDenied):
-            svc.record_contact(staff["vice_academic"], absent_both[0].id, SUNDAY, "answered")
+            svc.record_contact(staff["vice_academic"], absent_both[0].id, SUNDAY, "no_excuse")
         with pytest.raises(Http404):
             svc.record_action(supervisor, second_wing["kid"].id, SUNDAY, "إنذار", "done")
         rows = svc.followup_rows(supervisor, SUNDAY)

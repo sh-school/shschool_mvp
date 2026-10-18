@@ -269,7 +269,7 @@ html[data-theme="dark"] .vision-text { font-palette: --tashkeel-dark; }
   text-decoration: none;
 }
 /* شعارُ المدرسة «ش» (W-20261012-012): لوحةُ الإدارة لا تحمل أنماطَ المنصّة فتُعاد قاعدتُه هنا بحجمه نفسِه. */
-.adm-brand .school-logo { display: block; flex: none; inline-size: 2rem; block-size: 2rem; border-radius: 0.3rem; box-shadow: 0 0 0 1px color-mix(in srgb, var(--header-link-color) 55%, transparent); }
+.adm-brand .school-logo { display: block; flex: none; inline-size: 2rem; block-size: 2rem; box-sizing: border-box; padding: 0.15rem; background: var(--body-fg); border-radius: 0.3rem; box-shadow: 0 0 0 1px color-mix(in srgb, var(--header-link-color) 55%, transparent); }
 .adm-brand__name { white-space: nowrap; }
 .adm-brand__suffix { font-weight: 400; opacity: 0.9; }
 

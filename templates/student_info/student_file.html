@@ -34,7 +34,7 @@
   <div class="fill-grid" style="--flow: row; --tc: repeat(auto-fit, minmax(24rem, 1fr))">
   {% if shows_grades %}
   {% section_card "التحصيل ومستواه" meta=results|length icon="grades" flush=True empty="لم تُرصد نتائج سنوية لهذا الطالب بعد" %}{% if results %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>
@@ -64,7 +64,7 @@
   {# ── ملاحظات الجهات — ما يقرؤه صاحبُ الطلب منها ── #}
   {% for g in note_groups %}
     {% section_card g.label meta=g.notes|length icon="edit_record" flush=True empty="لا ملاحظات من هذه الجهة" %}{% if g.notes %}
-      <div class="table-wrap">
+      <div class="table-wrap table-wrap-scroll">
         <table>
           <thead>
             <tr>
@@ -91,7 +91,7 @@
 
   {# ── الأنشطة ── #}
   {% section_card "الأنشطة" meta=activities|length icon="activities" flush=True empty="لا أنشطة مسجّلة لهذا الطالب هذا العام" %}{% if activities %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>

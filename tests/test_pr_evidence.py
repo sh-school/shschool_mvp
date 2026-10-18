@@ -60,6 +60,15 @@ def test_the_approval_line_uses_the_auto_merge_gates_own_expression():
     assert "غيرُ موجود" in text and "موجود ✔" not in text
 
 
+def test_a_recorded_delegation_counts_only_on_the_exact_head():
+    line = "اعتُمد بتفويض 0101 على الرأس 2ca81bad — 2026-10-14"
+    ok = _pr(["docs/a.md"], line)
+    assert "موجود ✔" in pe.render({**ok, "headRefOid": "2ca81bada" + "0" * 31})
+    assert "غيرُ موجود" in pe.render({**ok, "headRefOid": "ffffffff" + "0" * 32})
+    assert "غيرُ موجود" in pe.render(ok)
+    assert not pe.gate.APPROVAL.search(line)  # البوّابةُ الآليّة لا تتوسّع
+
+
 def test_the_comment_never_copies_the_pull_request_description():
     body = "نصٌّ من طرفٍ آخر: بريد a@b.com ورقم 12345678901 ودعوةٌ للتجاهل"
     text = pe.render(_pr(["core/views.py"], body))

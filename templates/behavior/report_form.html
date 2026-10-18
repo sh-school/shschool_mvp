@@ -37,7 +37,7 @@
           <div class="beh-degree__list">
             {% for vc in panel.items %}
             <button type="button" class="js-v-item beh-vitem"
-                    data-id="{{ vc.id }}" data-degree="{{ panel.degree }}" data-points="{{ vc.points }}" data-name="[{{ vc.code }}] {{ vc.name_ar }}">
+                    data-id="{{ vc.id }}" data-degree="{{ panel.degree }}" data-name="[{{ vc.code }}] {{ vc.name_ar }}">
               <span class="beh-vitem__code">{{ vc.code }}</span> {{ vc.name_ar }}
             </button>
             {% endfor %}
