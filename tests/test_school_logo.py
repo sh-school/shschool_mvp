@@ -1,10 +1,7 @@
-"""شعارُ المدرسة «ش» (v3) حاضرٌ في الشاشة وPDF وExcel، وشعارُ الوزارة غائب (W-20261012-012، قرار المالك D-404م).
+"""شعارُ المنصّة «الكامل بالكتاب» على الشاشة وشعارُ الوزارة للمخرجات وحدَها (W-20261014-009، قرار المالك 10-14؛ يحلّ محلّ «ش» v3).
 
-الأصلُ الوحيدُ `static/icons/v3/icon-192.png` ومصدرُه `core/school_logo.py`. أمّا شعارُ الوزارة (`logoMaroon` و`logowhite` و`emblem`)
-فأُزيل بقرار D-386م/D-387م ولا يعود: يحرسه `test_no_ministry_emblem_in_templates.py` للقوالب، وهنا للشيفرة كلِّها.
-
-والحرّاسُ ثلاثةٌ: الحضور (شاشةٌ وPDF وExcel)، الغياب (لا مرجعَ لشعار الوزارة في أيّ مصدر)، والقياس (تباينُ الشعار على العنّابيّ ≥3:1
-وخطُّ الـPDF Tajawal مقيساً من الملفّ المولَّد لا من نصّ القالب).
+شاشةً: `static/brand/schoolos-full.svg` على شريحةٍ داكنةٍ محايدة (CSS) لا على العنّابيّ. مخرجاتٍ (PDF وطباعة وExcel): شعارُ الوزارة
+الأصليّ أعلى وسط الترويسة واسمُ المدرسة تحته، بلا سطرِ نصّ الوزارة. وحارسُ «لا شعارَ وزارةٍ في المنصّة» في `test_ministry_logo_exports_only.py`.
 """
 
 import io
@@ -15,7 +12,7 @@ import pytest
 from django.template import Context, Template
 from django.template.loader import render_to_string
 
-from core import brand, school_logo
+from core import brand, ministry_logo, school_logo
 from tests.test_observation_pdf_form import criteria, observation  # noqa: F401 — تجهيزاتٌ مشتركة
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -43,25 +40,18 @@ def _blend(over: str, under: str, alpha: float) -> str:
 # ── الأصلُ والوسم ─────────────────────────────────────────────────────────
 
 
-def test_the_source_is_the_v3_kufi_sheen_on_the_brand_maroon():
-    from PIL import Image
-
-    image = Image.open(io.BytesIO(school_logo.logo_bytes()))
-    assert image.size == (192, 192)
-    red, green, blue = image.convert("RGB").getpixel((2, 2))
-    corner = f"#{red:02x}{green:02x}{blue:02x}"
-    assert corner.lower() == brand.MAROON.lower()
-    assert school_logo.LOGO_STATIC_PATH == "icons/v3/icon-192.png"  # لا maskable: حشوتُه تُصغّر الحرف
+def test_the_source_is_the_full_logo_svg_with_a_viewbox():
+    svg = (ROOT / "static/brand/schoolos-full.svg").read_text(encoding="utf-8")
+    assert school_logo.LOGO_STATIC_PATH == "brand/schoolos-full.svg"
+    assert re.search(r'viewBox="0 0 [\d.]+ [\d.]+"', svg)
 
 
-def test_the_tag_gives_the_static_link_on_screen_and_a_data_uri_for_pdf():
+def test_the_tag_gives_the_static_link_on_screen():
     on_screen = Template('{% load school_logo %}{% school_logo "nav" %}').render(Context())
-    assert 'class="school-logo school-logo--nav"' in on_screen and "icons/v3/icon-192" in on_screen
+    assert 'class="school-logo school-logo--nav"' in on_screen
+    assert "brand/schoolos-full.svg" in on_screen
     assert 'alt=""' in on_screen  # زخرفيٌّ: اسمُ المدرسة نصٌّ يجاوره
-    for_pdf = Template('{% load school_logo %}{% school_logo "inline" pdf=True %}').render(
-        Context()
-    )
-    assert 'src="data:image/png;base64,' in for_pdf
+    assert "data:" not in on_screen
 
 
 def test_the_tag_refuses_an_unknown_size():
@@ -111,7 +101,7 @@ def test_the_platform_header_and_admin_header_carry_the_logo_before_the_school_n
 # ── Excel ─────────────────────────────────────────────────────────────────
 
 
-def test_every_excel_title_carries_the_logo_pinned_in_a1_without_adding_rows():
+def test_every_excel_title_carries_the_ministry_logo_pinned_in_a1_without_adding_rows():
     from openpyxl import Workbook, load_workbook
 
     from core.export_utils import add_excel_title_rows
@@ -123,8 +113,8 @@ def test_every_excel_title_carries_the_logo_pinned_in_a1_without_adding_rows():
     assert len(ws._images) == 1
     image = ws._images[0]
     assert image.anchor == "A1"
-    assert image.width == image.height == school_logo.EXCEL_SIDE_PX
-    assert school_logo.EXCEL_SIDE_PX <= 40 / 0.75, "يسكن ارتفاعَ الصفّ الأوّل (40pt)"
+    assert image.width == image.height == ministry_logo.EXCEL_SIDE_PX
+    assert ministry_logo.EXCEL_SIDE_PX <= 40 / 0.75, "يسكن ارتفاعَ الصفّ الأوّل (40pt)"
 
     buffer = io.BytesIO()
     wb.save(buffer)
@@ -151,10 +141,10 @@ def test_the_observation_pdf_embeds_the_logo_without_changing_its_page_count(obs
     from quality.observation_views import _pdf_context
 
     html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
-    assert "data:image/png;base64," in html and "school-logo--inline" in html
+    assert "data:image/png;base64," in html and 'class="ministry-logo"' in html
     reader = PdfReader(io.BytesIO(render_pdf_bytes(html)))
     assert len(reader.pages[0].images) >= 1, "الشعارُ صورةٌ في الصفحة الأولى"
-    bare = re.sub(r'<img class="school-logo[^>]*>', "", html)
+    bare = re.sub(r'<img class="ministry-logo[^>]*>', "", html)
     assert len(reader.pages) == len(
         PdfReader(io.BytesIO(render_pdf_bytes(bare))).pages
     ), "الشعارُ لم يدفع شيئاً إلى صفحةٍ جديدة"
@@ -184,13 +174,12 @@ def test_the_platform_report_pdf_carries_the_logo_and_is_set_in_tajawal():
 # ── التباين ───────────────────────────────────────────────────────────────
 
 
-def test_the_logo_holds_at_least_3_to_1_on_the_maroon_header():
-    """الحرفُ الأبيضُ على مربّعه العنّابيّ، وحلقةُ المربّع الفاتحةُ الشفّافةُ (55%) على الترويسة العنّابيّة."""
-    assert _contrast(brand.ON_FILL, brand.MAROON) >= 3
-    ring = _blend(brand.ON_FILL, brand.MAROON, 0.55)
-    assert _contrast(ring, brand.MAROON) >= 3, ring
-    ring_dark = _blend(brand.ON_FILL, brand.MAROON_DARK, 0.55)
-    assert _contrast(ring_dark, brand.MAROON_DARK) >= 3, ring_dark  # الوضعُ الليليّ والتدرّج
+def test_the_logo_chip_is_a_neutral_dark_surface_not_maroon():
+    """الشريحةُ `DARK["SURFACE"]` محايدةٌ (الزرقةُ أعلى من الحمرة) وأغمقُ من العنّابيّ فتبرز عليه."""
+    chip = brand.DARK["SURFACE"]
+    red, _, blue = (int(chip.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
+    assert blue > red, chip
+    assert _luminance(chip) < _luminance(brand.MAROON) + 0.05
 
 
 # ── الغياب: لا شعارَ وزارة في أيّ مصدر ────────────────────────────────────

@@ -342,14 +342,15 @@ def test_a_self_assessment_notifies_no_one(db, school, person, criterion, notice
     assert not notices
 
 
-def test_self_assessment_signs_only_in_the_visitor_cell(db, school, person, criterion):
-    """الزائرُ هو المُزار: اسمُه في خانة الزائر بعد الاعتماد، وخانةُ المُزار فارغةٌ دائماً (لا إقرارَ في self)."""
+def test_self_assessment_signs_only_in_the_teacher_cell(db, school, person, criterion):
+    """التقييمُ الذاتيّ (W-027): يوقّعه المعلّمُ وحده، وخانةُ «اطّلاع المسؤول المباشر» فارغةٌ تُملأ بخطّ اليد (لا إقرارَ في self)."""
     me = person("فلان المعلّم")
     obs = _make(school, me, me, "self", criterion, status="submitted")
     html = _printed(obs)
 
-    assert "فلان المعلّم" in " ".join(_cell(html, "توقيع الزائر"))
-    assert _cell(html, "توقيع المعلم") == []
+    assert "فلان المعلّم" in " ".join(_cell(html, "توقيع المعلم"))
+    assert "توقيع الزائر" not in html
+    assert _cell(html, "اطّلاع المسؤول المباشر") == []
     ack = _client(me).post(reverse("observation_acknowledge", args=[obs.id]), HTTP_HOST=HOST)
     assert ack.status_code == 403
     obs.refresh_from_db()

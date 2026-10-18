@@ -25,18 +25,20 @@ def test_no_template_references_the_emblem_image():
     assert offenders == [], f"مراجعُ لصورة الشعار في القوالب: {offenders}"
 
 
-def test_the_shell_shows_the_school_name_as_text_without_an_image():
+def test_the_shell_shows_the_platform_logo_before_the_school_name_text():
+    """W-20261014-009: شعارُ المنصّة (لا الوزارة) في الترويسة، واسمُ المدرسة نصٌّ يجاوره."""
     nav = pathlib.Path("templates/base/base.html").read_text(encoding="utf-8")
     brand = nav.split('class="nb nav-logo"', 1)[1].split("</a>", 1)[0]
-    assert "<img" not in brand and "nav-logo-text" in brand
+    assert '{% school_logo "nav" %}' in brand and "nav-logo-text" in brand
+    assert "ministry_logo" not in brand and "ministry-logo" not in brand
 
 
-def test_the_login_and_error_cards_keep_the_text_and_drop_the_logo():
+def test_the_login_and_error_cards_show_the_platform_logo_and_keep_the_text():
     login = pathlib.Path("templates/auth/login.html").read_text(encoding="utf-8")
     error = pathlib.Path("templates/errors/_error_page.html").read_text(encoding="utf-8")
-    assert "login-logo" not in login and "eh-logo" not in error
+    assert '{% school_logo "login" %}' in login and "ministry_logo" not in login
     assert "login-school-name" in login and "الرقم الشخصي" in login  # النصُّ كما هو
-    assert "eh-school" in error
+    assert "eh-school" in error and "ministry_logo" not in error
 
 
 def test_the_user_menu_hides_the_national_id_line():
@@ -47,7 +49,7 @@ def test_the_user_menu_hides_the_national_id_line():
 def test_the_service_worker_cache_was_bumped_and_no_longer_precaches_the_emblem():
     js = pathlib.Path("templates/pwa/sw_global.js").read_text(encoding="utf-8")
     version = int(re.search(r"schoolos-global-v(\d+)", js).group(1))
-    assert version >= 4, "تغيّرت قائمةُ الذاكرة المسبقة فيُرفع الرقم (v3 → v4)"
+    assert version >= 7, "رفعُ الرقم مع تغيّر الأيقونات (v6 → v7، W-20261014-009)"
     assert "emblem" not in js
 
 

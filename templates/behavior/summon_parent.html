@@ -21,7 +21,6 @@
   {% if selected_student %}
   {# سياقُ الطالب أرقامٌ مضغوطةٌ لا بطاقاتٌ عريضة: قيمتُها أقلُّ من المساحة التي كانت تأخذها. #}
   <ul class="chip-row" aria-label="سياق الطالب">
-    <li class="chip-stat" title="يُحسب من عدد المخالفات ودرجاتها — لا نقاط مخصومة"><span class="chip-stat__key">مؤشر السلوك</span><b class="chip-stat__value">{{ behavior_score }} من 100</b></li>
     <li class="chip-stat"><span class="chip-stat__key">مخالفات نشطة</span><b class="chip-stat__value">{{ active_infractions }}</b></li>
     <li class="chip-stat"><span class="chip-stat__key">أولياء أمور مربوطون</span><b class="chip-stat__value">{{ parents_info|length }}</b></li>
   </ul>
