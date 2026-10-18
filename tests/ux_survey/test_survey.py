@@ -94,7 +94,7 @@ class TestStructurePrivacy:
         assert len(str(first.pk)) == 36 and first.pk != second.pk
 
     def test_free_text_is_encrypted_at_rest_and_the_week_is_a_monday(self, client_as, school, wave):
-        teacher = _user(school, "teacher", "29300001001")
+        teacher = _user(school, "teacher", "29300000030")
         assert client_as(teacher).post(reverse("ux_survey:respond"), ANSWER).status_code == 302
         with connection.cursor() as cur:
             cur.execute("SELECT hardest_task FROM ux_survey_surveyresponse")
@@ -104,7 +104,7 @@ class TestStructurePrivacy:
         assert row.week.weekday() == 0 and row.role_group == "teacher"
 
     def test_answering_leaves_no_audit_row_naming_the_answerer(self, client_as, school, wave):
-        teacher = _user(school, "teacher", "29300001002")
+        teacher = _user(school, "teacher", "29300000031")
         client_as(teacher).post(reverse("ux_survey:respond"), ANSWER)
         pk = str(SurveyResponse.objects.get().pk)
         for row in AuditLog.objects.all():
@@ -154,19 +154,19 @@ class TestSuppression:
 
 class TestPrompt:
     def test_a_teacher_sees_the_card_only_after_a_completed_task(self, school, wave):
-        teacher = _user(school, "teacher", "29300001003")
+        teacher = _user(school, "teacher", "29300000032")
         assert CARD in _render_prompt(teacher)
         assert CARD not in _render_prompt(teacher, success=False)
 
     @pytest.mark.parametrize("role", ["student", "parent"])
     def test_students_and_parents_never_see_it(self, school, wave, role):
-        assert CARD not in _render_prompt(_user(school, role, "29300001004"))
+        assert CARD not in _render_prompt(_user(school, role, "29300000033"))
 
     def test_no_card_without_an_open_wave(self, school):
-        assert CARD not in _render_prompt(_user(school, "teacher", "29300001005"))
+        assert CARD not in _render_prompt(_user(school, "teacher", "29300000034"))
 
     def test_snooze_hides_it_for_seven_days_and_close_for_good(self, client_as, school, wave):
-        teacher = _user(school, "teacher", "29300001006")
+        teacher = _user(school, "teacher", "29300000035")
         client_as(teacher).post(reverse("ux_survey:snooze"))
         part = SurveyParticipation.objects.get()
         assert part.status == "snoozed"
@@ -180,7 +180,7 @@ class TestPrompt:
         assert CARD not in _render_prompt(teacher)
 
     def test_it_never_returns_after_answering(self, client_as, school, wave):
-        teacher = _user(school, "teacher", "29300001007")
+        teacher = _user(school, "teacher", "29300000036")
         client_as(teacher).post(reverse("ux_survey:respond"), ANSWER)
         assert SurveyParticipation.objects.get().status == "answered"
         assert CARD not in _render_prompt(teacher)
@@ -191,18 +191,18 @@ class TestPrompt:
 class TestRespondView:
     @pytest.mark.parametrize("role", ["student", "parent"])
     def test_students_and_parents_are_denied(self, client_as, school, wave, role):
-        user = _user(school, role, "29300001008")
+        user = _user(school, role, "29300000037")
         assert client_as(user).get(reverse("ux_survey:respond")).status_code in (302, 403)
         assert client_as(user).post(reverse("ux_survey:respond"), ANSWER).status_code in (302, 403)
         assert SurveyResponse.objects.count() == 0
 
     def test_staff_get_the_form_without_an_other_option(self, client_as, school, wave):
-        user = _user(school, "teacher", "29300001009")
+        user = _user(school, "teacher", "29300000038")
         body = client_as(user).get(reverse("ux_survey:respond")).content.decode()
         assert "ما المهمة الأصعب عليك الآن" in body and "آخر" not in body
 
     def test_free_text_over_two_hundred_is_rejected(self, client_as, school, wave):
-        user = _user(school, "teacher", "29300001010")
+        user = _user(school, "teacher", "29300000039")
         bad = {**ANSWER, "hardest_task": "أ" * 201}
         resp = client_as(user).post(reverse("ux_survey:respond"), bad)
         assert resp.status_code == 200 and SurveyResponse.objects.count() == 0
@@ -212,10 +212,10 @@ class TestDashboardAndReview:
     @pytest.mark.parametrize(
         ("role", "code", "nid"),
         [
-            ("principal", 200, "29300002101"),
-            ("platform_developer", 200, "29300002102"),
-            ("teacher", 403, "29300002103"),
-            ("vice_academic", 403, "29300002104"),
+            ("principal", 200, "29300000042"),
+            ("platform_developer", 200, "29300000043"),
+            ("teacher", 403, "29300000044"),
+            ("vice_academic", 403, "29300000045"),
         ],
     )
     def test_only_principal_and_developer_open_the_dashboard(
@@ -225,12 +225,12 @@ class TestDashboardAndReview:
         assert client_as(user).get(reverse("ux_survey:dashboard")).status_code == code
 
     def test_the_principal_cannot_review(self, client_as, school, wave):
-        principal = _user(school, "principal", "29300002001")
+        principal = _user(school, "principal", "29300000040")
         assert client_as(principal).get(reverse("ux_survey:review")).status_code == 403
 
     def test_the_owner_review_audits_the_count_without_the_text(self, client_as, school, wave):
         _answers(wave, "teacher", 5)
-        owner = _user(school, "platform_developer", "29300002002")
+        owner = _user(school, "platform_developer", "29300000041")
         pks = [str(p) for p in SurveyResponse.objects.values_list("pk", flat=True)]
         decisions = {"d_" + pks[0]: "1", "d_" + pks[1]: "2"}
         client_as(owner).post(reverse("ux_survey:review"), decisions)
