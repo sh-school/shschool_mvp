@@ -211,7 +211,7 @@ def test_the_zero_threshold_exemption_is_confined_to_the_shard_job():
     assert carriers == ["pytest-shards"], f"استثناءُ العتبة 0 خرج عن وظيفة الـshards: {carriers}"
 
 
-def test_docs_only_prepares_no_environment_in_shards_2_to_5():
+def test_docs_only_prepares_no_environment_in_the_other_shards():
     steps = _WF["pytest-shards"]["steps"]
     setup = [
         s
@@ -232,7 +232,7 @@ def test_each_shard_keeps_native_postgres_and_redis_and_the_job_env():
     assert "services" not in job, "حاويةُ خدمةٍ تعيد الاعتمادَ على سحب Docker Hub"
     native = [s for s in job["steps"] if s.get("uses") == "./.github/actions/native-postgres"]
     assert len(native) == 1 and native[0]["with"]["redis"] == "true"
-    # الشرطُ نفسُه كخطوات التجهيز: طلبٌ وثائقيٌّ لا يشغّل postgres في shards 2–5 هدراً
+    # الشرطُ نفسُه كخطوات التجهيز: طلبٌ وثائقيٌّ لا يشغّل postgres في بقيّة الـshards هدراً
     assert native[0]["if"] == "steps.diff.outputs.docs_only != 'true' || matrix.shard == 1"
     for key in ("DJANGO_SETTINGS_MODULE", "SECRET_KEY", "CI_SHARD_COUNT", "CI_SHARD_INDEX"):
         assert key in job["env"], f"{key} غاب عن بيئة وظيفة الـshards"
@@ -256,8 +256,8 @@ def _junit(tmp_path, cases):
     return path
 
 
-def test_refresh_drops_the_db_build_cost_but_keeps_a_dedicated_files_real_cost(tmp_path):
-    """حالةٌ فوق السقف هي كلفةُ إنشاء القاعدة في أوّل اختبار؛ تُسقَط من العادي وتبقى في المثبَّت."""
+def test_refresh_drops_the_db_build_cost_from_ordinary_and_dedicated_files_alike(tmp_path):
+    """حالةٌ فوق السقف هي كلفةُ إنشاء القاعدة في أوّل اختبار؛ تُسقَط من العادي ومن المثبَّت (قِيس: حالاتُ المثبَّت فوق السقف بناءُ قاعدةٍ لا عمل)."""
     ordinary = "tests.test_ci_sharding"  # ملفّان حقيقيّان في الشجرة ليُحلَّ classname إلى مسار
     dedicated = "tests.test_ci_gate_needs"
     junit = _junit(
@@ -267,7 +267,7 @@ def test_refresh_drops_the_db_build_cost_but_keeps_a_dedicated_files_real_cost(t
         [junit], ["tests/test_ci_gate_needs.py"], root=_ROOT, cap=weights_mod.DB_BUILD_CAP
     )
     assert out["weights"]["tests/test_ci_sharding.py"] == 3.0
-    assert out["weights"]["tests/test_ci_gate_needs.py"] == 354.0
+    assert out["weights"]["tests/test_ci_gate_needs.py"] == 4.0
 
 
 def test_without_a_cap_nothing_is_dropped(tmp_path):
@@ -276,15 +276,26 @@ def test_without_a_cap_nothing_is_dropped(tmp_path):
     assert out["weights"]["tests/test_ci_sharding.py"] == 353.0
 
 
-def test_the_shipped_weights_balance_the_ordinary_shards_within_1_3x():
-    """مقياسُ القبول: أبطأ جزءٍ عاديّ ≤ 1.3 ضعف متوسّط الأجزاء العاديّة (الأخيرُ للمثبَّت وحدَه)."""
+def test_the_shipped_weights_balance_every_workflow_shard_within_1_3x():
+    """مقياسُ القبول: أبطأ جزءٍ ≤ 1.3 ضعف متوسّط الأجزاء، بعددها في مصفوفة الـworkflow نفسِها (W-429، W-20261014-003)."""
+    count = len(_WF["pytest-shards"]["strategy"]["matrix"]["shard"])
     data = ci_sharding.load_weights()
     files = set(data["weights"])
-    mapping = ci_sharding.assign(files, 5, data)
-    loads = [0.0] * 4
-    for name in files - set(data["dedicated"]):
+    mapping = ci_sharding.assign(files, count, data)
+    loads = [0.0] * count
+    for name in files:
         loads[mapping[name] - 1] += data["weights"][name]
-    assert max(loads) <= 1.3 * (sum(loads) / 4), loads
+    assert max(loads) <= 1.3 * (sum(loads) / count), loads
+
+
+def test_the_aggregator_verifies_exactly_the_matrix_shard_count():
+    """عددُ الـshards في أمر التحقّق = طولُ المصفوفة، وإلّا غاب shard عن التحقّق أو فشل التحقّق بلا سبب."""
+    count = len(_WF["pytest-shards"]["strategy"]["matrix"]["shard"])
+    runs = [
+        s.get("run", "") for j in _WF.values() if isinstance(j, dict) for s in j.get("steps", [])
+    ]
+    verify = [r for r in runs if "ci_shard_verify.py shards" in r]
+    assert len(verify) == 1 and verify[0].split()[-1] == str(count), verify
 
 
 # ── axe: ثلاثُ أرجلٍ متوازية بلا فقد فحص (W-20261009-033) ─────────────────────────────────────
@@ -316,3 +327,57 @@ def test_the_axe_job_keeps_its_id_so_the_summary_gate_and_its_push_exemption_are
     assert not legs["axe"]["webkit"] and not legs["web-vitals"]["webkit"]
     webkit_steps = [s for s in _WF["axe-a11y"]["steps"] if "webkit" in str(s.get("run", ""))]
     assert all(s.get("if") == "matrix.webkit" for s in webkit_steps)
+
+
+# ── قالبُ قاعدة العمّال بدل بنائها في كلّ عاملٍ (W-20261016-029) ────────────────────────────────
+
+_cspec = importlib.util.spec_from_file_location(
+    "ci_clone_test_dbs", _ROOT / "scripts" / "ci_clone_test_dbs.py"
+)
+clone_mod = importlib.util.module_from_spec(_cspec)
+_cspec.loader.exec_module(clone_mod)
+
+
+def test_worker_database_names_match_what_pytest_django_derives():
+    assert clone_mod.worker_names("test_db", 3) == ["test_db_gw0", "test_db_gw1", "test_db_gw2"]
+
+
+def test_clone_recreates_each_worker_database_from_the_migrated_template():
+    executed = []
+
+    class _Cursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def execute(self, query):
+            executed.append(query)
+
+    class _Conn:
+        autocommit = False
+
+        def cursor(self):
+            return _Cursor()
+
+        def close(self):
+            pass
+
+    made = clone_mod.clone("test_db", 2, _Conn)
+    assert made == ["test_db_gw0", "test_db_gw1"]
+    assert len(executed) == 4  # لكلّ عاملٍ: إسقاطُ القديمة ثمّ إنشاؤها من القالب
+
+
+def test_every_non_docs_shard_migrates_once_clones_worker_dbs_and_pytest_reuses_them():
+    """هجرةٌ واحدة ← نسخُ قواعد العمّال ← pytest بـ`--reuse-db`؛ وبلا أحدها يعود بناءُ القاعدة في كلّ عاملٍ (~6 د لكلّ shard)."""
+    steps = _WF["pytest-shards"]["steps"]
+    names = [s.get("run") or "" for s in steps]
+    migrate = next(i for i, r in enumerate(names) if "manage.py migrate" in r)
+    assert "scripts/ci_clone_test_dbs.py" in names[migrate]
+    assert (
+        steps[migrate]["if"] == "steps.diff.outputs.docs_only != 'true'"
+    )  # كلُّ shard لا الأوّلُ وحدَه
+    run = next(i for i, r in enumerate(names) if "-p tests.ci_sharding" in r)
+    assert migrate < run
+    assert "--reuse-db" in names[run]

@@ -57,6 +57,7 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
         AbsenceExcuse,
         ClassExit,
         DailyExitTally,
+        ExitPermit,
         GuardianContact,
         StudentAttendance,
     )
@@ -85,6 +86,7 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
             (StudentTransfer, "student", False),  # سجلُّ الانتقال بين المدارس
             (GuardianContact, "student", False),  # اتّصالات وليّ الأمر بالهاتف
             (ClassExit, "student", False),  # خروجُ الطالب من الحصّة
+            (ExitPermit, "student", False),  # إذنُ خروج الطالب من المدرسة (W-20261005-010)
             (DailyExitTally, "student", False),  # ملخّصُ خروجه اليوميّ (مشتقٌّ من ClassExit)
             (ExamIncident, "student", False),  # محضرُ حادثةٍ في اللجنة
             (NotificationLog, "student", False),  # سجلُّ إشعارٍ يحمل المستلمَ ونصَّه
@@ -145,11 +147,15 @@ def _purge_files(files: list[tuple[str, Any]], school: Any, actor: Any) -> None:
 
 
 def _anonymize_audit_name(student: Any, name: str, summary: dict[str, Any]) -> None:
-    """[W-20261004-002] قرارُ DPO D-186م ب: يُجهَّل اسمُ المحوّ في `object_repr` بمعرّفه المقنَّع.
+    """[W-20261004-002، W-20261010-053] قرارُ DPO D-186م ب وD-342م: يُجهَّل اسمُ المحوّ في السجلّ كلِّه.
 
-    ما تُخطّي (اسمٌ مشتركٌ أو قصير أو وصفٌ يطول) لا يُكتب ويُبلَّغ يدوياً في ملاحظةٍ بأعدادٍ لا بأسماء.
+    `object_repr` يُستبدل فيه الاسمُ بمعرّفه المقنَّع، و`changes` يُمسح منه الاسمُ على القيمة المفكوكة؛
+    والتجهيلان في معاملةٍ واحدةٍ فلا يبقى سجلٌّ نصفُه مجهَّل. ما تُخطّي (اسمٌ مشتركٌ أو قصير أو وصفٌ يطول
+    أو قيمةٌ شديدة التداخل) لا يُكتب ويُبلَّغ يدوياً في ملاحظةٍ بأعدادٍ لا بأسماء.
     """
-    named = AuditLog.objects.anonymize_name_in_repr(student, name)
+    with transaction.atomic():
+        named = AuditLog.objects.anonymize_name_in_repr(student, name)
+        scrubbed = AuditLog.objects.anonymize_name_in_changes(student, name)
     if named["anonymized"]:
         summary["models"]["AuditLog_name_anonymized"] = named["anonymized"]
     skipped = {k: v for k, v in named.items() if k.startswith("skipped_") and v}
@@ -158,6 +164,15 @@ def _anonymize_audit_name(student: Any, name: str, summary: dict[str, Any]) -> N
         summary["auditlog_name_note"] = (
             "صفوفٌ في سجلّ التدقيق بقي فيها اسمُ المحوّ لأنّه مشتركٌ أو قصيرٌ أو يطول وصفُها بعد الاستبدال — "
             "يلزم إبلاغٌ يدويّ بها (الأعدادُ في auditlog_name_manual_report)."
+        )
+    if scrubbed["changes_anonymized"]:
+        summary["models"]["AuditLog_changes_anonymized"] = scrubbed["changes_anonymized"]
+    skipped_changes = {k: v for k, v in scrubbed.items() if k.startswith("skipped_") and v}
+    if skipped_changes:
+        summary["auditlog_changes_manual_report"] = skipped_changes
+        summary["auditlog_changes_note"] = (
+            "صفوفٌ في سجلّ التدقيق بقي اسمُ المحوّ في عمود التغييرات لأنّه مشتركٌ أو قصيرٌ أو شديدُ التداخل — "
+            "يلزم إبلاغٌ يدويّ بها (الأعدادُ في auditlog_changes_manual_report)."
         )
 
 
@@ -316,6 +331,17 @@ class ErasureService:
             summary["models"]["AttendanceEntry"] = ledger["entries"]
         if ledger["decisions"]:
             summary["models"]["AttendanceDecision"] = ledger["decisions"]
+        # 2.6 سجلّا متابعة الغياب (اتّصالٌ بالوليّ وتغذيتُه المشفَّرة، وإجراءٌ إداريّ — W-20261013-011): مضافان فقط
+        #     كسجلّ الرصد، فالحلقةُ العامّةُ أدناه تُسقطهما (`PermissionDenied`) — يُجهَّلان بمسارهما المسمّى وحدَه (أثرٌ مجهَّلٌ لا حذف، قرارُ المالك).
+        from operations.services.absence_followup import erase_followup_logs
+
+        followup = erase_followup_logs(
+            student, actor=erasure_request.reviewed_by, school=erasure_request.school
+        )
+        if followup["contacts"]:
+            summary["models"]["AbsenceContactLog"] = followup["contacts"]
+        if followup["actions"]:
+            summary["models"]["AbsenceActionLog"] = followup["actions"]
         # حدٌّ معلَن (0105): دورُ هذه المدرسة لا يرى صفوفَ مدرسةٍ سابقةٍ سُجّل فيها الطالب — فلا يُقال «اكتمل» بلا تنبيه.
         if Membership.objects.filter(user=student).exclude(school=erasure_request.school).exists():
             summary["attendance_ledger_note"] = (

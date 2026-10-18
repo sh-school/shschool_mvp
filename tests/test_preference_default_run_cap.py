@@ -2,6 +2,7 @@
 
 كان `max_consecutive` افتراضُه ٣، فيُنشئ `get_or_create` عند أوّل فتحٍ للشاشة سقفاً شخصيّاً يتقدّم على العامّ.
 صار الافتراضُ `NULL` = العامّ، وما فوق العامّ يُقبل بتنبيهٍ ظاهرٍ وسجلّ تدقيق.
+وبعد D-418م أُخفي الحقلُ عن المعلّم، فلا يضع ما فوق العامّ إلّا الأدمن.
 """
 
 import pytest
@@ -82,61 +83,45 @@ def test_saving_with_the_default_keeps_the_general_cap_in_the_generator(client, 
     }, "الصفرُ يعني العامّ في المهمّة"
 
 
-def test_a_personal_cap_above_the_general_is_saved_with_a_visible_warning_and_an_audit(
-    client, school, teacher
-):
+def test_the_teacher_screen_no_longer_sets_a_run_cap(client, school, teacher):
+    """D-418م: الحقلُ أُخفي، فقيمةٌ وصلت في الطلب لا تُحفظ ولا تكتب أثراً بقناة المعلّم.
+
+    وكانت هنا «فوق العامّ يُقبل بتنبيهٍ وسجلّ» (W-20261003-037) — والتنبيهُ والسجلُّ باقيان في الأدمن أدناه.
+    """
     response = save(client, teacher, max_consecutive="3")
 
-    pref = TeacherPreference.objects.get(teacher=teacher)
-    assert pref.max_consecutive == 3, "قبولٌ لا رفض"
-    body = response.content.decode()
-    assert "أعلى من السقف العامّ" in body and "تم حفظ تفضيلاتك" in body
-    entry = AuditLog.objects.get(changes__event="teacher_run_cap_above_general")
-    assert entry.changes["value"] == 3 and entry.changes["general"] == MAX_CONSECUTIVE
-    assert entry.changes["channel"] == "teacher_preferences"
-    assert entry.object_id == str(pref.pk)
-    assert "معلّمُ الرياضيات" not in str(entry.changes) + entry.object_repr, "لا اسمَ في الأثر"
-
-
-def test_the_page_explains_the_general_cap_and_who_the_page_belongs_to(client, school, teacher):
-    """D-330م: صياغةٌ بلا غموض للمعلّم — نصُّ العامّ كاملاً وفرقُه عن «بدون حدّ» وأن الصفحة لصاحبها."""
-    client.force_login(teacher)
-
-    body = client.get(URL).content.decode()
-
-    assert "السقف العام للمدرسة = حصة واحدة، لا تجاور" in body
-    assert "ليس «بدون حدّ»" in body and "هذه الصفحة تخصّك وحدك" in body
-
-
-def test_the_page_shows_a_persistent_warning_for_a_cap_above_the_general(client, school, teacher):
-    save(client, teacher, max_consecutive="3")
-
-    body = client.get(URL).content.decode()
-
-    assert "سقفُك الشخصي (3) أعلى من السقف العام" in body
-
-
-def test_a_cap_equal_to_the_general_warns_nothing(client, school, teacher):
-    response = save(client, teacher, max_consecutive=str(MAX_CONSECUTIVE))
-
-    assert "أعلى من السقف العامّ" not in response.content.decode()
+    assert "تم حفظ تفضيلاتك" in response.content.decode()
+    assert TeacherPreference.objects.get(teacher=teacher).max_consecutive is None
     assert not AuditLog.objects.filter(changes__event="teacher_run_cap_above_general").exists()
 
 
-def test_leaving_the_field_blank_again_returns_to_the_general(client, school, teacher):
-    save(client, teacher, max_consecutive="3")
-    save(client, teacher, max_consecutive="")
-
-    assert TeacherPreference.objects.get(teacher=teacher).max_consecutive is None
-
-
-def test_the_screen_offers_the_general_cap_as_the_default_option(client, school, teacher):
+def test_the_teacher_page_hides_the_run_cap_field_its_default_and_its_help(client, school, teacher):
+    """D-418م: لا حقلَ ولا خيارَ افتراضيّ ولا تلميح — الحلّالُ لا يقرأ التتالي."""
     client.force_login(teacher)
 
     body = client.get(URL).content.decode()
 
-    assert "السقف العام للمدرسة" in body and "(الافتراضي)" in body
-    assert "3 حصص (الافتراضي)" not in body
+    assert 'name="max_consecutive"' not in body
+    assert "أقصى حصص متتالية" not in body
+    assert "السقف العام (الافتراضي)" not in body and "3 حصص (الافتراضي)" not in body
+    assert "لك وحدك" not in body and "ما فوق السقف العام يُسجَّل." not in body
+
+
+@pytest.mark.parametrize("posted", ["", "1", str(MAX_CONSECUTIVE)])
+def test_an_admin_cap_above_the_general_survives_the_teacher_save(client, school, teacher, posted):
+    """ما وضعه الأدمن يبقى: الحفظُ لا يقرأ الخانةَ من الطلب، فلا الفراغُ يعيده إلى العامّ ولا رقمٌ يبدّله.
+
+    ولا أثرَ بقناة المعلّم عن سقفٍ لم يضعه، ولا تنبيهَ في صفحته عمّا لا يملك تغييره.
+    """
+    TeacherPreference.objects.create(
+        teacher=teacher, school=school, academic_year=YEAR, max_consecutive=3
+    )
+
+    response = save(client, teacher, max_consecutive=posted)
+
+    assert TeacherPreference.objects.get(teacher=teacher).max_consecutive == 3
+    assert not AuditLog.objects.filter(changes__channel="teacher_preferences").exists()
+    assert "أعلى من السقف العام" not in response.content.decode()
 
 
 def test_the_admin_save_of_a_cap_above_the_general_warns_and_audits(

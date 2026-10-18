@@ -20,7 +20,7 @@ from tests.attendance_fixtures import *  # noqa: F401,F403
 from tests.attendance_fixtures import _staff
 from tests.conftest import UserFactory
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 
 @pytest.fixture

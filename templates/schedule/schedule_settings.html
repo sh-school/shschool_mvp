@@ -38,7 +38,7 @@
         <select name="teacher" id="exemption-teacher" class="form-control" required>
           <option value="">— اختر —</option>
           {# مجموعةٌ لا شخص: اجتماعُ المنسّقين تفريغٌ واحدٌ لهم جميعاً. #}
-          <option value="coordinators">★ كلّ منسّقي المواد</option>
+          <option value="coordinators">كلّ منسّقي المواد</option>
           {% if departments %}
           {% comment %}
           تفريغُ قسمٍ كاملٍ لاجتماعه الأسبوعيّ (قرارُ 2026-09-18) — معرّفُه
@@ -47,7 +47,7 @@
           {% endcomment %}
           <optgroup label="اجتماعُ قسمٍ كامل">
             {% for d in departments %}
-            <option value="dept:{{ d.id }}">★ {{ d.name }}</option>
+            <option value="dept:{{ d.id }}">{{ d.name }}</option>
             {% endfor %}
           </optgroup>
           {% endif %}

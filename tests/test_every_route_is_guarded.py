@@ -31,6 +31,7 @@ _NOT_A_ROLE_CHECK = {"IsAuthenticated", "AllowAny"}
 GUARDED_INSIDE = {
     "teacher/classes/": "الخدمةُ: `class_grid.classes_for` (إسنادٌ/جناحٌ/قيادةٌ) أو `attendance.mark` للمنتقي — والمفتاحُ مطفأً 404",
     "teacher/classes/<uuid:class_id>/grid/": "`class_grid.page` — `can_read_grid` من الإسناد والجناح والدور، وغيرُ المخوَّل 404 (W-20261006-005)",
+    "teacher/classes/<uuid:class_id>/grid/live/": "`class_grid_live.live_payload` — `can_read_grid` قبل أيّ قراءةٍ من الذاكرة المشتركة، وغيرُ المخوَّل 403 ليتوقّف الاستطلاع (W-20261012-015)",
     "teacher/classes/<uuid:class_id>/grid/save/": "`class_grid.save_column` — `can_write_grid` لحظةَ الكتابة بتوقيت المدرسة وPOST+CSRF، وغيرُ المخوَّل 404",
     "teacher/classes/<uuid:class_id>/grid/exit/": "`class_grid.exit_action` — `can_read_grid` ثمّ `can_write_grid` للحصّة الجارية، ومسارُ `ClassExit` القائم، وغيرُ المخوَّل 404",
     "teacher/classes/<uuid:class_id>/grid/late/": "`class_grid.mark_late_now` — `can_read_grid` ثمّ `can_write_grid` في `save_column`، وغيرُ المخوَّل 404",

@@ -179,8 +179,6 @@ class TestReportInfractionExtended:
         assert resp.status_code == 200
         assert "students" in resp.context
         assert "levels" in resp.context
-        # POINTS_BY_LEVEL removed — نظام النقاط ملغى
-        assert "POINTS_BY_LEVEL" not in resp.context
 
     def test_post_missing_fields(self, client_as, teacher_user, school):
         client = client_as(teacher_user)
@@ -197,7 +195,13 @@ class TestReportInfractionExtended:
         assert resp.status_code == 200
 
     def test_post_missing_description(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self,
+        client_as,
+        teacher_user,
+        school,
+        student_user,
+        enrolled_student,
+        teacher_student_link,
     ):
         client = client_as(teacher_user)
         resp = client.post(
@@ -213,7 +217,13 @@ class TestReportInfractionExtended:
         assert BehaviorInfraction.objects.count() == 0
 
     def test_post_invalid_level(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self,
+        client_as,
+        teacher_user,
+        school,
+        student_user,
+        enrolled_student,
+        teacher_student_link,
     ):
         client = client_as(teacher_user)
         resp = client.post(
@@ -229,7 +239,13 @@ class TestReportInfractionExtended:
         assert resp.status_code == 200
 
     def test_post_invalid_points(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self,
+        client_as,
+        teacher_user,
+        school,
+        student_user,
+        enrolled_student,
+        teacher_student_link,
     ):
         client = client_as(teacher_user)
         resp = client.post(
@@ -244,7 +260,13 @@ class TestReportInfractionExtended:
         assert resp.status_code == 200
 
     def test_post_level2_redirects_to_student_profile(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self,
+        client_as,
+        teacher_user,
+        school,
+        student_user,
+        enrolled_student,
+        teacher_student_link,
     ):
         client = client_as(teacher_user)
         resp = client.post(
@@ -263,7 +285,13 @@ class TestReportInfractionExtended:
         assert f"/behavior/student/{student_user.id}/" in resp.url
 
     def test_post_level3_by_someone_without_committee_access_lands_on_the_profile(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self,
+        client_as,
+        teacher_user,
+        school,
+        student_user,
+        enrolled_student,
+        teacher_student_link,
     ):
         """المخالفةُ تُحال إلى اللجنة دائماً، لكنّ الراصد الذي لا يفتح صفحتها لا يُساق إليها.
 
@@ -289,7 +317,13 @@ class TestReportInfractionExtended:
         # فتحُ الملفّ نفسه فرعٌ آخر (نطاقُ الطالب على المعلّم) — لا تُختبَر هنا.
 
     def test_post_level4_by_someone_without_committee_access_lands_on_the_profile(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self,
+        client_as,
+        teacher_user,
+        school,
+        student_user,
+        enrolled_student,
+        teacher_student_link,
     ):
         client = client_as(teacher_user)
         resp = client.post(
@@ -308,7 +342,13 @@ class TestReportInfractionExtended:
         assert BehaviorInfraction.objects.filter(student=student_user, level=4).exists()
 
     def test_post_level3_by_vice_admin_still_redirects_to_committee(
-        self, client_as, vice_admin_user, school, student_user, enrolled_student
+        self,
+        client_as,
+        vice_admin_user,
+        school,
+        student_user,
+        enrolled_student,
+        teacher_student_link,
     ):
         """من يفتح صفحة اللجنة فعلاً يُساق إليها كما كان — لا تراجع لهذا الجزء."""
         client = client_as(vice_admin_user)
@@ -337,7 +377,13 @@ class TestReportInfractionExtended:
         assert resp.status_code == 200
 
     def test_post_non_numeric_level(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self,
+        client_as,
+        teacher_user,
+        school,
+        student_user,
+        enrolled_student,
+        teacher_student_link,
     ):
         """Non-numeric level/points should be handled gracefully."""
         client = client_as(teacher_user)
@@ -391,30 +437,6 @@ class TestStudentBehaviorProfileExtended:
         by_level = resp.context["by_level"]
         assert by_level[1] == 1
         assert by_level[2] == 1
-
-    def test_profile_status_color_yellow(
-        self, client_as, principal_user, school, student_user, teacher_user
-    ):
-        """severity = 10 (درجة 3×1) → net=90 → green (نظام النقاط ملغى)"""
-        BehaviorInfractionFactory(
-            school=school, student=student_user, reported_by=teacher_user, level=3
-        )
-        client = client_as(principal_user)
-        resp = client.get(f"/behavior/student/{student_user.id}/")
-        # status_color محسوب بـ net_score الجديد (عدد المخالفات × severity)
-        assert resp.context["status_color"] in ("green", "yellow", "red")
-
-    def test_profile_status_color_red(
-        self, client_as, principal_user, school, student_user, teacher_user
-    ):
-        """severity = 100 (4 × درجة 4) → max penalty → net=70 → red/yellow"""
-        for _ in range(4):
-            BehaviorInfractionFactory(
-                school=school, student=student_user, reported_by=teacher_user, level=4
-            )
-        client = client_as(principal_user)
-        resp = client.get(f"/behavior/student/{student_user.id}/")
-        assert resp.context["status_color"] in ("yellow", "red")
 
     def test_profile_context_permissions(self, client_as, principal_user, school, student_user):
         client = client_as(principal_user)
@@ -661,11 +683,6 @@ class TestBehaviorReport:
         client = client_as(principal_user)
         resp = client.get(f"/behavior/report/student/{student_user.id}/?period=S2")
         assert resp.status_code == 200
-
-    def test_report_net_score_no_infractions(self, client_as, principal_user, school, student_user):
-        client = client_as(principal_user)
-        resp = client.get(f"/behavior/report/student/{student_user.id}/")
-        assert resp.context["net_score"] == 100
 
     def test_report_404_nonexistent_student(self, client_as, principal_user, school):
         import uuid

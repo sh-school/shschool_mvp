@@ -6,6 +6,9 @@ from core.views_auth import (
     force_change_password,
     login_view,
     logout_view,
+    session_done,
+    session_status,
+    session_touch,
     setup_2fa,
     verify_2fa,
 )
@@ -13,6 +16,9 @@ from core.views_auth import (
 urlpatterns = [
     path("login/", login_view, name="login"),
     path("logout/", logout_view, name="logout"),
+    path("session/status/", session_status, name="session_status"),
+    path("session/touch/", session_touch, name="session_touch"),
+    path("session/done/", session_done, name="session_done"),
     path("force_change_password/", force_change_password, name="force_change_password"),
     path("change-password/", change_password, name="change_password"),
     path("2fa/setup/", setup_2fa, name="setup_2fa"),

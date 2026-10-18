@@ -76,26 +76,45 @@ def test_the_generator_names_the_reason(school, maths_teacher):
     assert "تسع 5 حصّةً" in first and "نصابُه 12" in first and "حصّةٌ واحدةٌ في اليوم" in first
 
 
+def _admin_row(school, teacher, consecutive, gap):
+    """التتالي والفراغ يضعهما الأدمن وحده بعد D-418م، ويبقيان في حساب السعة عند حفظ المعلّم."""
+    return TeacherPreference.objects.create(
+        teacher=teacher,
+        school=school,
+        academic_year=YEAR,
+        max_daily_periods=5,
+        max_consecutive=consecutive,
+        max_gap=gap,
+    )
+
+
+#: ما يرسله المعلّم في الخانتين المخفيّتين يُهمل (D-418م): قيمٌ تُرخي القيدَ لو قُرئت.
+HIDDEN = {"max_consecutive": "3", "max_gap": "", "free_day": ""}
+
+
 def test_saving_contradictory_preferences_is_refused(client, school, maths_teacher):
+    _admin_row(school, maths_teacher, consecutive=1, gap=0)
     client.force_login(maths_teacher)
-    payload = {"max_daily_periods": "3", "max_consecutive": "1", "max_gap": "0", "free_day": ""}
+    payload = {"max_daily_periods": "4", **HIDDEN}
 
     response = client.post(reverse("teacher_preferences") + f"?year={YEAR}", payload, follow=True)
 
     body = response.content.decode()
     assert "تسع 5 حصّةً" in body and "نصابُه 12" in body
     pref = TeacherPreference.objects.get(teacher=maths_teacher)
-    assert (pref.max_consecutive, pref.max_gap) == (None, None), "لم يُحفظ المتناقض"
+    kept = (pref.max_daily_periods, pref.max_consecutive, pref.max_gap)
+    assert kept == (5, 1, 0), "لم يُحفظ المتناقض"
 
 
 def test_a_feasible_preference_is_saved(client, school, maths_teacher):
+    _admin_row(school, maths_teacher, consecutive=1, gap=1)
     client.force_login(maths_teacher)
-    payload = {"max_daily_periods": "3", "max_consecutive": "1", "max_gap": "1", "free_day": ""}
+    payload = {"max_daily_periods": "4", **HIDDEN}
 
     client.post(reverse("teacher_preferences") + f"?year={YEAR}", payload, follow=True)
 
     pref = TeacherPreference.objects.get(teacher=maths_teacher, academic_year=YEAR)
-    assert (pref.max_daily_periods, pref.max_consecutive, pref.max_gap) == (3, 1, 1)
+    assert (pref.max_daily_periods, pref.max_consecutive, pref.max_gap) == (4, 1, 1)
     assert (
         TeacherPreference.objects.filter(teacher=maths_teacher).count() == 1
     ), "الرجوعُ يحمل العامَ فلا يُنشئ تفضيلاتِ عامٍ آخر"

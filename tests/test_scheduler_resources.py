@@ -158,7 +158,7 @@ def test_a_personal_consecutive_cap_is_never_relaxed(school):
     ), "وممنوعٌ في الاسترخاء أيضاً"
 
 
-def test_a_personal_gap_cap_is_measured_over_the_whole_day(school):
+def test_a_personal_gap_cap_is_measured_over_the_whole_day(school, settings):
     """فراغُ المعلّم قيدٌ صلبٌ لمن قُرِّر في حقّه سقفٌ — والقياسُ على اليوم كلِّه.
 
     فمن سقفُه فراغٌ واحدٌ تتباعد حصصُه حصّةً حصّة: الثانيةُ فالرابعة، لا
@@ -169,6 +169,9 @@ def test_a_personal_gap_cap_is_measured_over_the_whole_day(school):
     from operations.scheduler import ScheduleGrid
     from operations.scheduler_constraints import check_max_gap
 
+    settings.PREF_MAX_GAP_ACTIVE = (
+        True  # الراية مطفأةٌ افتراضاً (W-20261012-023)؛ هذا اختبارُ سلوكها مفتوحةً
+    )
     maths = Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT")
     group = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
     spaced = teacher(school, "معلّمٌ فراغُه واحد")
@@ -186,6 +189,26 @@ def test_a_personal_gap_cap_is_measured_over_the_whole_day(school):
 
     grid.place(0, 6, tasks[1])
     assert check_max_gap(grid, 0, 4, tasks[2]), "الواقعةُ بينهما تُضيّق الفراغَ لا توسّعه"
+
+
+def test_a_stored_gap_cap_is_dormant_while_the_flag_is_off_and_stays_in_the_database(
+    school, settings
+):
+    """الراية مطفأة (الافتراضيّ): معلّمٌ محفوظٌ له سقفٌ يُبنى جدولُه كأنّه بلا قيمة، والقيمةُ باقيةٌ كما هي."""
+    from operations.models import TeacherPreference
+
+    settings.PREF_MAX_GAP_ACTIVE = False
+    maths = Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT")
+    group = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
+    spaced = teacher(school, "معلّمٌ محفوظٌ له سقف")
+    assign(school, group, spaced, maths, periods=4)
+    pref = TeacherPreference.objects.create(
+        teacher=spaced, school=school, academic_year=YEAR, max_gap=1
+    )
+
+    assert all(t.gap_cap is None for t in build_tasks(school, YEAR))
+    pref.refresh_from_db()
+    assert pref.max_gap == 1, "لا حذفَ ولا تصفير: تبقى القيمة في القاعدة"
 
 
 def test_a_teacher_without_a_gap_preference_keeps_the_soft_weight(school):

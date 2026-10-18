@@ -15,6 +15,14 @@ pytestmark = pytest.mark.django_db
 YEAR = "2026-2027"
 
 
+@pytest.fixture(autouse=True)
+def _search_cap_is_not_wall_clock_bound(monkeypatch):
+    """سقفُ البحث الدقيق 3 ثوانٍ بالساعة الجداريّة، وتحت تتبّع التغطية وازدحام معالجات CI يتجاوزه البحثُ الثابتُ
+    (0.37 ثانية عادةً) فيسقط الاختبارُ بلا علاقةٍ بمنطق الوضع: أُعيد إنتاجُه (4 من 8) بتغطيةٍ وحِملٍ مصطنع.
+    فنرفع السقفَ هنا وحده، والتأكيداتُ كما هي: كلُّ الحصص تُوضع بلا تلاصق وكلُّ المحاولات تامّة."""
+    monkeypatch.setattr("operations.scheduler_tight.TIME_CAP_SECONDS", 120.0)
+
+
 @pytest.fixture
 def tight_school(school):
     """معلّمُ رياضياتٍ لشعبتين، ستٌّ لكلٍّ، مفرَّغٌ من الأولى والسابعة كلَّ يوم ومن

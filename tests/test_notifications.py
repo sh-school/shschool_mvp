@@ -39,6 +39,8 @@ from .conftest import (
     UserFactory,
 )
 
+pytestmark = pytest.mark.pin_clock
+
 # ══════════════════════════════════════════════════════════
 #  1. InAppNotification — النموذج والـ Manager
 # ══════════════════════════════════════════════════════════

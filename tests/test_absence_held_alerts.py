@@ -31,7 +31,7 @@ from tests.test_school_wide_absence_supervisor import (  # noqa: F401
 from wings import absence_notice_services as absence_notices
 from wings.absence_notice_services import IssueRefused
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 DISPATCH = "notifications.hub.NotificationHub.dispatch_to_parents"
 #: المسارُ الحقيقيّ للبذر: يُترجَم به فتجد coverage مصدرَه في جذر المستودع (اسمٌ مجرَّدٌ كان يُسقط بوّابة التغطية: No source for code)

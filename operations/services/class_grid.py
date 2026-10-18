@@ -401,9 +401,8 @@ def page(
         )
     students = [
         enrollment.student
-        for enrollment in StudentEnrollment.objects.filter(
-            class_group=klass, is_active=True, enrolled_at__lte=day
-        )
+        for enrollment in StudentEnrollment.objects.filter(class_group=klass)
+        .on_roll(day)
         .select_related("student")
         .order_by("student__full_name")
     ]
@@ -477,9 +476,8 @@ def _roster_student(klass: ClassGroup, day: dt.date, student_id: Any) -> CustomU
     except ValueError:
         raise GridNotFoundError("طالبٌ غيرُ معروف") from None
     enrollment = (
-        StudentEnrollment.objects.filter(
-            class_group=klass, is_active=True, enrolled_at__lte=day, student_id=wanted
-        )
+        StudentEnrollment.objects.filter(class_group=klass, student_id=wanted)
+        .on_roll(day)
         .select_related("student")
         .first()
     )
@@ -665,9 +663,9 @@ def save_column(
 
     roster = {
         enrollment.student_id: enrollment.student
-        for enrollment in StudentEnrollment.objects.filter(
-            class_group=klass, is_active=True, enrolled_at__lte=day
-        ).select_related("student")
+        for enrollment in StudentEnrollment.objects.filter(class_group=klass)
+        .on_roll(day)
+        .select_related("student")
     }
     with transaction.atomic():
         session = _ensure_session(user, school, klass, day, wanted, times, request)

@@ -1,7 +1,9 @@
 import base64
 import logging
+import time
 from datetime import timedelta
 from io import BytesIO
+from typing import Any
 
 import django.db
 import pyotp
@@ -12,12 +14,17 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import F
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.middleware.csrf import get_token
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.http import url_has_allowed_host_and_scheme
-from django.views.decorators.http import require_POST
+from django.utils.http import url_has_allowed_host_and_scheme, urlencode
+from django.views.decorators.cache import never_cache
+from django.views.decorators.clickjacking import xframe_options_sameorigin
+from django.views.decorators.http import require_GET, require_POST
 
+from core import session_policy
 from core.audit_repr import masked_repr
 from core.auth_identity import identifier_kind, lockout_key, resolve_user
 from core.mfa_session import mark_verified
@@ -218,6 +225,24 @@ def axes_lockout_response(request, credentials=None):
     )
 
 
+def _begin_two_factor(request: HttpRequest, user: Any, kind: str) -> HttpResponse:
+    """يحجز مصدَّقاً بكلمة المرور في الجلسة ويحوّله إلى خطوة الرمز الثاني."""
+    request.session["pending_2fa_user"] = str(user.id)
+    request.session["pending_identifier_kind"] = kind
+    # `authenticate()` يعلّق على المستخدم اسمَ الخلفيّة التي صدّقته، و`login()`
+    # يشترطه حين تتعدّد الخلفيّات. وصفحةُ التحقّق تُحمِّل المستخدمَ من القاعدة
+    # من جديد فلا تجده — فيُحمَل هنا في الجلسة إلى هناك.
+    request.session["pending_2fa_backend"] = getattr(user, "backend", "")
+    # `next` يُحمَل إلى خطوة الرمز، وإلّا ضاعت وجهةُ العودة (نافذة إعادة الدخول).
+    nxt = request.GET.get("next", "")
+    if nxt and url_has_allowed_host_and_scheme(
+        nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return redirect(f"{reverse('verify_2fa')}?{urlencode({'next': nxt})}")
+    return redirect("verify_2fa")
+
+
+@xframe_options_sameorigin  # نافذةُ إعادة الدخول في الصفحة نفسها (session-guard.js) تُدرج هذه الصفحةَ في إطار
 @ratelimit(key="ip", rate="10/m", method="POST", block=True)
 def login_view(request):
     """صفحة تسجيل الدخول — مع حماية من القوة الغاشمة وقفل الحساب."""
@@ -271,13 +296,7 @@ def login_view(request):
                 and requires_two_factor(user)
                 and getattr(settings, "TWO_FACTOR_REQUIRED_FOR_STAFF", True)
             ):
-                request.session["pending_2fa_user"] = str(user.id)
-                request.session["pending_identifier_kind"] = kind
-                # `authenticate()` يعلّق على المستخدم اسمَ الخلفيّة التي صدّقته، و`login()`
-                # يشترطه حين تتعدّد الخلفيّات. وصفحةُ التحقّق تُحمِّل المستخدمَ من القاعدة
-                # من جديد فلا تجده — فيُحمَل هنا في الجلسة إلى هناك.
-                request.session["pending_2fa_backend"] = getattr(user, "backend", "")
-                return redirect("verify_2fa")
+                return _begin_two_factor(request, user, kind)
 
             login(request, user)
 
@@ -312,6 +331,7 @@ def login_view(request):
     return render(request, "auth/login.html")
 
 
+@xframe_options_sameorigin  # خطوةُ الرمز الثاني داخل نافذة إعادة الدخول
 @ratelimit(key="ip", rate="5/m", method="POST", block=True)
 def verify_2fa(request):
     """التحقق من رمز المصادقة الثنائية TOTP عند تسجيل الدخول."""
@@ -467,6 +487,7 @@ def disable_2fa(request):
     return render(request, "auth/disable_2fa.html")
 
 
+@xframe_options_sameorigin  # تظهر داخل نافذة إعادة الدخول لمن عليه تغييرُ كلمة المرور
 @login_required
 @ratelimit(key="user", rate="5/m", method="POST", block=True)
 def force_change_password(request):
@@ -575,3 +596,70 @@ def logout_view(request):
     response = redirect("login")
     response["Clear-Site-Data"] = '"cache"'
     return response
+
+
+# ── حالةُ الجلسة وتجديدُها (W-20261005-003، س١) ───────────────────────────
+# يقرأ session-guard.js هذه النقاطَ ليحذّر المستخدمَ قبل الانتهاء ويجدّد جلستَه
+# ما دام يعمل، ولا يضيع ما أدخله إن انتهت (نافذةُ إعادة الدخول في الصفحة نفسها).
+# جدولُ المُهَل بحسب الدور وحُكمُ الجلسة في `core/session_policy.py` (W-20261005-004، س٢).
+
+
+def _session_payload(request: HttpRequest, **extra: Any) -> dict[str, Any]:
+    """جسمُ الردّ: الساعةُ + مَن المستخدم + رمزُ CSRF الحاليّ.
+
+    الرمزُ هنا لأنّ كوكيه HttpOnly فلا يقرؤه JS، ويدور عند كلّ دخول — فبعد إعادة الدخول
+    تقرؤه الصفحةُ من هذا الردّ وتضعه في حقولها قبل إعادة الإرسال.
+    """
+    return {
+        "authenticated": True,
+        "user_id": str(request.user.pk),
+        "must_change_password": bool(getattr(request.user, "must_change_password", False)),
+        "csrf_token": get_token(request),
+        **session_policy.clock(request),
+        **extra,
+    }
+
+
+@never_cache
+@require_GET
+def session_status(request: HttpRequest) -> HttpResponse:
+    """حالةُ الجلسة — قراءةٌ خالصة، لا تكتب في الجلسة ولا تجدّدها."""
+    from core.middleware import session_expired_response
+
+    if not request.user.is_authenticated:
+        return session_expired_response()
+    return JsonResponse(_session_payload(request))
+
+
+@never_cache
+@require_POST
+def session_touch(request: HttpRequest) -> HttpResponse:
+    """تجديدُ الخمول بنبضة مستخدمٍ فعليّ — ضمن المطلقة فقط، وبكتابةٍ واحدةٍ كلَّ دقيقة."""
+    from core.middleware import session_expired_response
+
+    if not request.user.is_authenticated:
+        return session_expired_response()
+
+    now = int(time.time())
+    session = request.session
+    if session.get(session_policy.LOGIN_AT_KEY) is None:
+        session[session_policy.LOGIN_AT_KEY] = now  # جلسةٌ سابقةٌ للختم: تبدأ مطلقتُها من أوّل تجديد
+    clock = session_policy.clock(request, now=now)
+
+    renewed, reason = False, ""
+    touched = session.get(session_policy.TOUCH_KEY)
+    if clock["absolute_remaining"] == 0:
+        reason = "absolute"
+    elif touched is not None and now - touched < session_policy.MIN_TOUCH_INTERVAL:
+        reason = "recent"
+    else:
+        session[session_policy.TOUCH_KEY] = now
+        renewed = True
+    return JsonResponse(_session_payload(request, renewed=renewed, reason=reason))
+
+
+@xframe_options_sameorigin
+@never_cache
+def session_done(request: HttpRequest) -> HttpResponse:
+    """وجهةُ `next` في نافذة إعادة الدخول: صفحةٌ صغيرةٌ تُغلق بعدها النافذة."""
+    return render(request, "auth/session_done.html")

@@ -9,7 +9,7 @@ import core.models.school
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0084_acting_assignment_audit_and_coordinator"),
+        ("core", "0086_elective_group_membership"),
     ]
 
     operations = [

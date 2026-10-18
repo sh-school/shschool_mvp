@@ -48,8 +48,9 @@ def test_only_the_observer_may_edit_a_visit(
     assert perms["can_submit"] is False
     client = client_as(actor)
     url = reverse("observation_edit", args=[obs.id])
-    assert client.get(url).status_code == 403
-    assert client.post(url, {"topic": "تعديلٌ مرفوض"}).status_code == 403
+    denied = 404 if (who == "teacher" and status == "draft") else 403  # مسوّدةٌ محجوبةٌ عن المُزار
+    assert client.get(url).status_code == denied
+    assert client.post(url, {"topic": "تعديلٌ مرفوض"}).status_code == denied
     obs.refresh_from_db()
     assert obs.topic == topic_before
 

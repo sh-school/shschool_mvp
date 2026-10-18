@@ -34,18 +34,25 @@ GUARDIAN = "وليّ-أمر-اختباري-٧٧"
 REGISTERED = "وليّ الأمر مسجَّل"
 SEND_FIELD = 'name="action" value="send"'
 
-#: من يبلغ التقريرَ السلوكيّ فعلاً (`behavior.record` ثمّ حارسُه الداخليّ `BehaviorPermissions.can_report`):
+#: من يبلغ التقريرَ السلوكيّ فعلاً: كلُّ حاملٍ للقدرة `behavior.record` (الحارسُ الداخليّ يقرأها منذ W-20261010-013).
 #: يتّصل بالأسرة منهم هؤلاء، ويسجّل ولا يتّصل أولئك.
-CONTACT_ROLES = ["principal", "vice_admin", "vice_academic", "social_worker", "admin_supervisor"]
-RECORD_ONLY_ROLES = ["teacher", "ese_teacher", "coordinator"]
-#: يحملون `behavior.record` ويردّهم حارسُ التقرير الداخليُّ أصلاً (سابقٌ لهذه البطاقة) — فلا اسمَ لهم من بابٍ آخر.
-REFUSED_BY_REPORT_GUARD = [
-    "activities_coordinator",
-    "e_projects_coordinator",
+CONTACT_ROLES = [
+    "principal",
+    "vice_admin",
+    "vice_academic",
+    "social_worker",
+    "admin_supervisor",
     "student_affairs_coordinator",
 ]
-#: من تمنحهم القدرةُ الاتّصالَ بالأسرة (والمنسّقُ يتّصل من شاشات شؤون الطلبة لا من هذا التقرير).
-CAPABILITY_CONTACT_ROLES = [*CONTACT_ROLES, "student_affairs_coordinator"]
+RECORD_ONLY_ROLES = [
+    "teacher",
+    "ese_teacher",
+    "coordinator",
+    "activities_coordinator",
+    "e_projects_coordinator",
+]
+#: من تمنحهم القدرةُ الاتّصالَ بالأسرة.
+CAPABILITY_CONTACT_ROLES = list(CONTACT_ROLES)
 
 
 def _staff(school, role, nid):
@@ -122,17 +129,6 @@ def test_a_recording_role_cannot_send_the_report_by_posting_it(
     assert mail.outbox == []
 
 
-@pytest.mark.parametrize("role", REFUSED_BY_REPORT_GUARD)
-def test_roles_the_report_guard_already_refuses_see_no_name(
-    client_as, school, seeded_calendar, supervisor, child, role
-):
-    user = _user_for(school, role, supervisor, 150 + REFUSED_BY_REPORT_GUARD.index(role))
-    response = _report(client_as, user, child)
-
-    assert response.status_code == 403
-    assert GUARDIAN not in response.content.decode()
-
-
 def test_a_student_with_no_guardian_shows_no_guardian_section_to_anyone(
     client_as, school, seeded_calendar, supervisor, klass
 ):
@@ -151,9 +147,7 @@ def test_the_capability_is_exactly_the_contact_roles_among_the_recording_ones(sc
 
     assert contact >= set(CAPABILITY_CONTACT_ROLES)
     assert record & contact >= set(CAPABILITY_CONTACT_ROLES)
-    assert not (
-        set(RECORD_ONLY_ROLES + ["activities_coordinator", "e_projects_coordinator"]) & contact
-    )
+    assert not (set(RECORD_ONLY_ROLES) & contact)
     # وما لا يسجّل المخالفةَ ولا يتّصل لا يحمل القدرة: المعلّمُ مثلاً.
     assert not has_capability(_staff(school, "teacher", "29000009002"), "behavior.guardian_contact")
 
@@ -171,10 +165,9 @@ LIST_ROLES = [
     "social_worker",
     "psychologist",
     "admin_supervisor",
-    # يرث المنسّقَ (`ROLE_INHERITS`) فيفتح السجلَّ بوراثته — قائمٌ قبل هذه البطاقة، رُفع لحكم 0104.
-    "activities_coordinator",
 ]
-NOT_LIST_ROLES = ["teacher", "ese_teacher", "e_projects_coordinator"]
+# منسّق الأنشطة كان يرث المنسّقَ فيفتح السجلّ؛ سُحبت منه القدرةُ وحدَها (W-20261010-012).
+NOT_LIST_ROLES = ["teacher", "ese_teacher", "activities_coordinator", "e_projects_coordinator"]
 
 PROFILE_ROLES = [
     "principal",

@@ -18,7 +18,7 @@ from operations.models import ScheduleSlot, Session, Subject, TeacherAbsence, Te
 from operations.services import AbsenceSwapService, SubstituteService, SwapService
 from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, UserFactory
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 SUNDAY = dt.date(2026, 9, 20)
 MONDAY = SUNDAY + dt.timedelta(days=1)

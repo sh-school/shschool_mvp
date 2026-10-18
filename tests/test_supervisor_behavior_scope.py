@@ -11,6 +11,7 @@
   ويرصد المعلّمُ كما كان.
 """
 
+from datetime import time
 from unittest import mock
 
 import pytest
@@ -213,9 +214,20 @@ class TestRecording:
         assert BehaviorInfraction.objects.filter(student=mine, reported_by=supervisor).exists()
 
     def test_the_teacher_still_records_as_before(
-        self, client_as, school, seeded_calendar, theirs, teacher
+        self, client_as, school, seeded_calendar, theirs, teacher, far_klass
     ):
-        """قاعدةُ المعلّم لم تُمسّ: نموذجُ الرصد لم يكن يسأل عن جدوله، ولا يسأل الآن."""
+        """قاعدةُ المعلّم: يرصد على طلبة جدوله (W-20261012-030) — يُربط هنا بشعبة الطالب."""
+        from operations.models import ScheduleSlot
+
+        ScheduleSlot.objects.create(
+            school=school,
+            teacher=teacher,
+            class_group=far_klass,
+            day_of_week=0,
+            period_number=1,
+            start_time=time(7, 30),
+            end_time=time(8, 15),
+        )
         resp = client_as(teacher).post(
             reverse("behavior:report_infraction"), _record_payload(theirs)
         )

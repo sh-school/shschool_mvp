@@ -1,5 +1,6 @@
 """الجدول الدراسيّ: الموادّ، والحصصُ الأسبوعيّة، وإسنادُ المادّة للشعبة، وتفضيلاتُ المعلّمين وتفريغاتُهم، وخطُّ الأساس وقيودُه، وسجلُّ التوليد، والحصصُ الشاغرة."""
 
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -8,15 +9,28 @@ from core.models import ClassGroup, CustomUser, School
 from core.models.base import AuditedModel
 from core.querysets import YearScopedQuerySet
 
-from ..last_period_cap import MAX_PERSONAL_LAST
+from ..last_period_cap import BAN_PERSONAL_LAST, MAX_PERSONAL_LAST
 
 #: مدى سقف الأولى الشخصيّ (HC22): من العامّ (اثنتان) إلى خمسٍ، أي أولى كلَّ يومٍ في الأسبوع.
 #: وما دون العامّ لا يُقبل: السقفُ الشخصيّ للأولى يرفع ولا يُضيّق (قرارُ المالك 2026-10-09).
 MIN_PERSONAL_FIRST = 2
 MAX_PERSONAL_FIRST = 5
 #: مدى إدخال سقف السابعة الشخصيّ (HC8) في النموذج والأدمن: من العامّ (اثنتان) إلى خمس كسقف الأولى (قرارُ المالك
-#: 2026-10-10). وهو حدٌّ للإدخال وحده: قراءةُ المولّد (`personal_last_cap`) على حالها فما خُزّن قبله لا يتغيّر أثرُه.
+#: 2026-10-10)، أو صفرٌ يمنع السابعةَ عن المعلّم (W-20261004-013). وهو حدٌّ للإدخال وحده: قراءةُ المولّد
+#: (`personal_last_cap`) هي الحَكَم، والصفرُ فيها منعٌ لا غياب.
 MIN_ADMIN_LAST = 2
+
+
+def validate_admin_last_cap(value: int) -> None:
+    """الصفرُ (منع) أو من العامّ إلى خمس؛ و1 لا يُقبل إدخالاً (يبقى يُقرأ سقفاً إن خُزّن قبل القرار)."""
+    if value != BAN_PERSONAL_LAST and not MIN_ADMIN_LAST <= value <= MAX_PERSONAL_LAST:
+        raise ValidationError(
+            "اختر 0 (لا سابعةَ إطلاقاً) أو قيمةً من %(low)s إلى %(high)s.",
+            code="invalid_last_cap",
+            params={"low": MIN_ADMIN_LAST, "high": MAX_PERSONAL_LAST},
+        )
+
+
 from .common import _uuid
 
 
@@ -394,11 +408,11 @@ class TeacherPreference(models.Model):
 
     #: ما تكتبه شاشةُ المعلّم الذاتيّة وحده: `save()` كاملاً يمحو بالقيمة القديمة ما عدّله مديرٌ من الأدمن
     #: بين جلب الصفّ وحفظه — كسقف السابعة الإداريّ (W-20261003-035، شرطُ 0105). ويومُ التفريغ قرارٌ
-    #: إداريّ لا تفضيلٌ شخصيّ (W-20261010-025)، فليس هنا ولو وصل في الطلب.
+    #: إداريّ لا تفضيلٌ شخصيّ (W-20261010-025)، فليس هنا ولو وصل في الطلب. ومثلُه التتالي والفراغ:
+    #: أُخفيا عن المعلّم (D-418م) — الحلّالُ لا يقرأ التتالي، ولا قيمةَ آمنةً للفراغ حتى يُصلح
+    #: (W-20261012-020..025) — فيبقيان في النموذج والأدمن وحدَهما.
     TEACHER_EDITABLE_FIELDS = (
         "max_daily_periods",
-        "max_consecutive",
-        "max_gap",
         "notes",
         "updated_at",
     )
@@ -419,7 +433,8 @@ class TeacherPreference(models.Model):
     max_daily_periods = models.PositiveIntegerField(default=5, verbose_name="أقصى حصص يومية")
     #: `NULL` = السقفُ العامّ (`MAX_CONSECUTIVE`) — لا قرارَ شخصيَّ. كان الافتراضيُّ ٣ فيُنشئ `get_or_create`
     #: في شاشة التفضيلات سقفاً شخصيّاً يتقدّم على العامّ ويُرخي HC5 لمن لم يطلب ذلك (W-20261003-037).
-    #: والقيمةُ الأعلى من العامّ تُقبل بتنبيهٍ ظاهرٍ وسجلّ تدقيقٍ عند الحفظ (`preference_capacity`).
+    #: والقيمةُ الأعلى من العامّ تُقبل بتنبيهٍ ظاهرٍ وسجلّ تدقيقٍ عند حفظ الأدمن (`preference_capacity`)؛
+    #: وشاشةُ المعلّم لا تكتبه بعد D-418م.
     max_consecutive = models.PositiveIntegerField(
         null=True,
         blank=True,
@@ -427,7 +442,7 @@ class TeacherPreference(models.Model):
         verbose_name="أقصى حصص متتالية",
         help_text="فارغٌ يعني السقفَ العامّ للمدرسة — وأيُّ قيمةٍ أعلى منه تُرخي HC5 لهذا المعلّم وتُسجَّل",
     )
-    #: سقفُ السابعة الأسبوعيّ لهذا المعلّم (HC8) — `NULL` يعني السقفَ العامّ (اثنتان).
+    #: سقفُ السابعة الأسبوعيّ لهذا المعلّم (HC8) — `NULL` يعني السقفَ العامّ (اثنتان) و`0` يعني لا سابعةَ إطلاقاً.
     #:
     #: **قرارٌ إداريّ في حقّ معلّمٍ لا تفضيلُه**: معلّمٌ نصابُه ١٨ على جرسٍ ثانويّ سعتُه ١٧ بسابعتين
     #: (٣ خاناتٍ مستقلّةٍ يومياً بلا السابعة و٤ معها) لا يُسَع إلّا بثالثة (D-172م). فلا يظهر في شاشة
@@ -435,9 +450,9 @@ class TeacherPreference(models.Model):
     max_last_periods = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
-        validators=[MinValueValidator(MIN_ADMIN_LAST), MaxValueValidator(MAX_PERSONAL_LAST)],
+        validators=[validate_admin_last_cap],
         verbose_name="أقصى سابعات أسبوعيّاً",
-        help_text="قرارٌ إداريّ في حقّ هذا المعلّم: أقصى عدد حصص السابعة في الأسبوع (2 هو السقفُ العامّ)",
+        help_text="قرارٌ إداريّ في حقّ هذا المعلّم: أقصى عدد حصص السابعة في الأسبوع (2 هو السقفُ العامّ، و0 يمنع السابعة عنه)",
     )
     #: سقفُ الحصّة الأولى الأسبوعيّ لهذا المعلّم (HC22) — `NULL` يعني السقفَ العامّ (اثنتان).
     #:

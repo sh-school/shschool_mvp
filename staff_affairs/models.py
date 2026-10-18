@@ -127,10 +127,60 @@ class LeaveBalance(SchoolScopedModel):
     def remaining_days(self):
         return max(0, self.total_days - self.used_days)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"{self.staff.full_name} — {self.get_leave_type_display()} ({self.remaining_days} يوم)"
         )
+
+
+PROBATION_RESULTS = [
+    ("pending", "قيد الاختبار"),
+    ("passed", "اجتاز بنجاح"),
+    ("failed", "لم يجتز"),
+]
+
+
+class EmploymentContract(AuditedModel):
+    """عقدُ التوظيف وفترةُ الاختبار لموظفٍ في مدرسة — W-20261001-027.
+
+    ``probation_end`` النهايةُ الفعليّة بعد التمديد (م72 للمرض) وبعد استبعاد الوضع والعدّة
+    (م72 فقرة 2)؛ تحسبها ``staff_affairs.probation`` ولا تُدخل يدوياً. ولا سجلَّ لموظفٍ
+    قائمٍ يعني بلا قيدٍ مفروض (بياناتٌ قديمة). هجرةُ توسيعٍ فقط.
+    """
+
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="employment_contracts",
+        verbose_name="المدرسة",
+    )
+    staff = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="employment_contracts",
+        verbose_name="الموظف",
+    )
+    contract_ref = models.CharField(max_length=100, blank=True, verbose_name="مرجع عقد التوظيف")
+    contract_start = models.DateField(verbose_name="بداية العقد وفترة الاختبار")
+    probation_months = models.PositiveSmallIntegerField(verbose_name="مدة الاختبار (أشهر)")
+    base_end = models.DateField(verbose_name="نهاية الاختبار الأصلية")
+    probation_end = models.DateField(verbose_name="نهاية الاختبار الفعلية")
+    extension_days = models.PositiveSmallIntegerField(default=0, verbose_name="أيام التمديد")
+    result = models.CharField(
+        max_length=10, choices=PROBATION_RESULTS, default="pending", verbose_name="نتيجة الاختبار"
+    )
+    result_at = models.DateField(null=True, blank=True, verbose_name="تاريخ تسجيل النتيجة")
+
+    class Meta:
+        ordering = ["-contract_start"]
+        verbose_name = "عقد توظيف"
+        verbose_name_plural = "عقود التوظيف"
+        constraints = [
+            models.UniqueConstraint(fields=["school", "staff"], name="unique_employment_contract")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.staff.full_name} — {self.get_result_display()}"
 
 
 class LeaveRequest(AuditedModel):
@@ -235,7 +285,7 @@ class LeaveRequest(AuditedModel):
         if self.end_date and self.start_date and self.end_date < self.start_date:
             raise ValidationError("تاريخ النهاية يجب أن يكون بعد تاريخ البداية.")
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.staff.full_name} — {self.get_leave_type_display()} ({self.days_count} يوم)"
 
 
@@ -646,6 +696,7 @@ ASSIGNABLE_ROLES = [
     ("principal", "مدير المدرسة"),
     ("vice_admin", "نائب المدير للشؤون الإدارية وشؤون الطلاب"),
     ("vice_academic", "نائب المدير للشؤون الأكاديمية"),
+    ("coordinator", "منسق مادة"),
 ]
 
 
@@ -657,7 +708,9 @@ class StaffAssignment(AuditedModel):
     مماثلة أو لوظيفة أعلى منها مباشرة، لمدة لا تجاوز عام أكاديمي» — وقانون الموارد البشرية،
     المادّة 53. وقرارُ المدرسة (2026-09-19): المديرُ يكلّف النائبَ الإداريّ أو الأكاديميّ
     (وغيرَهما من الإداريّين والأكاديميّين إن غابا معاً) بأعباء وظيفته، والنائبُ الأكاديميّ
-    يكلّف أحدَ المنسّقين، والنائبُ الإداريّ أحدَ من تحت مسؤوليته.
+    والنائبُ الإداريّ يكلّف كلٌّ منهما أحدَ من تحت مسؤوليته؛ وبقرار المالك (2026-10-04) يكلّف
+    المنسّقُ أحدَ معلّمي قسمه في غيابه أو خروجه. والمكلَّفُ يحمل قدراتِ الوظيفة المُنَابة
+    مدّةَ التكليف وحدَها (``core/capabilities.py::has_capability``) عدا ما لا يُنَاب.
 
     فالتكليفُ قرارٌ صريحٌ لا يقوم بغياب أحد: لا رصدُ غيابٍ يُنيب ولا أقدميّة. ولا يُحذف
     ولا يُعدَّل: رفعُه يكتب ``revoked_at``/``revoked_by``، فيبقى من كُلّف ومن كلّفه وبأيّ

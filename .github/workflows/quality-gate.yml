@@ -26,18 +26,26 @@ jobs:
   # (`Dockerfile: python:3.12-slim`). إصدارٌ جديد = سطرٌ هنا + Dockerfile + pyproject.
   #
   # **مقسومةٌ على shards (W-20261002-034):** كانت وظيفةً واحدةً ~17 دقيقةً ثمّ ~33 بعد #777. الآن:
-  #   · `pytest-shards`: مصفوفةُ خمسةٍ، كلٌّ تجمع المجموعةَ كلَّها بقواعد pytest نفسِها وتُسقط ما ليس لها
+  #   · `pytest-shards`: مصفوفةُ ستّةٍ (W-20261014-003: موازنةٌ بقياس؛ كانت خمسةً)، كلٌّ تجمع المجموعةَ كلَّها بقواعد pytest نفسِها وتُسقط ما ليس لها
   #     (tests/ci_sharding.py — قسمةٌ حتميّةٌ على ملفّ الاختبار، والملفُّ الثقيلُ مثبَّتٌ على آخرها) وتكتب بياناتِ
   #     تغطيتها `.coverage.shardN` بلا حكم (`--cov-fail-under=0`: التغطيةُ الجزئيّةُ لا تُقاس بالعتبة).
   #   · `test-coverage` («pytest — تغطية» — الاسمُ لم يتغيّر): يتحقّق أنّ الـshards غطّت المجموعةَ بلا فقدٍ
   #     (scripts/ci_shard_verify.py) ثمّ يدمج التغطيةَ ويحكم بعتبة pyproject — الرقمُ الوحيدُ في المستودع.
+  #
+  # **لا تُشغَّل على push إلى main (W-429، D-429م):** الدمجُ لا يصل إلى main إلا عبر طابور الدمج، والطابورُ يُجري هذه
+  # المجموعةَ كاملةً على «main + الطلب» وبالتغطية قبل الدمج (merge_group مطلوبٌ في حماية الفرع — تُحُقّق منه
+  # 2026-10-13)؛ فتكرارُها على commit الدمج نفسِه ربعُ ساعةٍ لا تُثبت جديداً. والدخانُ على push هو الوظائفُ
+  # الرخيصة أدناه (ruff، migration-linter، التعقيد، الأسرار، الحرّاسُ النصّيّة). وpull_request وmerge_group
+  # كاملتان لا تتغيّران، والإعفاءُ مسجَّلٌ في scripts/ci_needs_gate.py بحدثٍ ومهمّةٍ وسبب.
   pytest-shards:
     name: pytest shard ${{ matrix.shard }}/${{ strategy.job-total }}
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5]
+        shard: [1, 2, 3, 4, 5, 6]
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
@@ -64,7 +72,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: python3 scripts/ci_docs_only.py classify "$BASE_SHA" >> "$GITHUB_OUTPUT" || echo "docs_only=false" >> "$GITHUB_OUTPUT"
 
-      # على طلبٍ وثائقيٍّ لا يعمل إلّا shard 1 («قرّاءُ الوثائق»)؛ فلا تُجهَّز البيئةُ في 2–5 هدراً (مراجعة 0105).
+      # على طلبٍ وثائقيٍّ لا يعمل إلّا shard 1 («قرّاءُ الوثائق»)؛ فلا تُجهَّز البيئةُ في 2–6 هدراً (مراجعة 0105).
       # postgres 16 الأصليّ على الـrunner بدل حاويةٍ تُسحب من Docker Hub (سقفُ السحب أسقط الفحوصَ 2026-10-09)
       - uses: ./.github/actions/native-postgres
         if: steps.diff.outputs.docs_only != 'true' || matrix.shard == 1
@@ -97,11 +105,15 @@ jobs:
           pip install pytest pytest-django pytest-cov pytest-asyncio factory-boy \
             pytest-xdist==3.8.0
 
-      # فحوصٌ لا تتغيّر بتغيّر الـshard: مرّةً واحدةً (shard 1) لا خمساً.
-      - name: تطبيق Migrations
-        if: steps.diff.outputs.docs_only != 'true' && matrix.shard == 1
-        run: python manage.py migrate --noinput
+      # هجرةٌ واحدةٌ في كلّ shard ثمّ نسخٌ لقاعدة كلّ عامل (W-20261016-029): كان كلُّ عاملِ xdist يبني قاعدتَه بالهجرات
+      # (~190–400 ث، أربعةٌ معاً على الأنوية نفسِها) فتستهلك نحو 6 دقائق من كلّ shard؛ والآن ~150 ث مرّةً ونسخٌ بثوانٍ.
+      - name: تطبيق Migrations وتجهيز قواعد العمّال من قالبها
+        if: steps.diff.outputs.docs_only != 'true'
+        run: |
+          python manage.py migrate --noinput
+          python scripts/ci_clone_test_dbs.py "$(nproc)"
 
+      # فحوصٌ لا تتغيّر بتغيّر الـshard: مرّةً واحدةً (shard 1) لا خمساً.
       # كانتا في ci.yml وحده، وهو الملفُّ الذي أُزيل لأنّ بقيّته تكرارٌ لهذه البوّابة.
       - name: التحقق من عدم وجود migrations غير مطبّقة
         if: steps.diff.outputs.docs_only != 'true' && matrix.shard == 1
@@ -123,7 +135,7 @@ jobs:
         # `-n auto`: المجموعةُ نفسُها تمرّ في CI على الأنوية لا تسلسلاً. و`-p tests.ci_sharding` يقسمها بحسب
         # CI_SHARD_INDEX/COUNT. و`--cov-report=` بلا تقرير و`--cov-fail-under=0`: هذا shard لا يرى إلّا جزءاً.
         run: |
-          python -m pytest -p tests.ci_sharding -n auto --junit-xml=test-results-${{ matrix.shard }}.xml \
+          python -m pytest -p tests.ci_sharding -n auto --reuse-db --junit-xml=test-results-${{ matrix.shard }}.xml \
             --cov=. --cov-report= --cov-fail-under=0
 
       - name: رفع بيانات الـshard
@@ -141,8 +153,8 @@ jobs:
   test-coverage:
     name: pytest — تغطية
     needs: [pytest-shards]
-    # دائماً: ليُبلَّغ بنتيجةٍ حتى لو فشل shard (فشلُه يُسقط هذه الوظيفةَ أوّلَ خطوة).
-    if: always()
+    # دائماً: ليُبلَّغ بنتيجةٍ حتى لو فشل shard (فشلُه يُسقط هذه الوظيفةَ أوّلَ خطوة)؛ إلّا على push (انظر pytest-shards).
+    if: always() && github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -181,7 +193,7 @@ jobs:
 
       - name: التحقق من أنّ الـshards غطّت المجموعةَ كلَّها
         if: steps.diff.outputs.docs_only != 'true'
-        run: python3 scripts/ci_shard_verify.py shards 5
+        run: python3 scripts/ci_shard_verify.py shards 6
 
       - name: "دمج التغطية + Coverage Gate"
         if: steps.diff.outputs.docs_only != 'true'
@@ -234,6 +246,7 @@ jobs:
   ruff:
     name: Ruff — lint + format
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
 
@@ -262,6 +275,7 @@ jobs:
   mypy:
     name: mypy — سقّاطة الأنواع
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # push إلى main: يُفحص على الطلب وطابور الدمج قبل الدمج (يُعفى skipped وحدَه في scripts/ci_needs_gate.py)
     if: github.event_name != 'push'
     steps:
@@ -371,6 +385,7 @@ jobs:
   complexity:
     name: Radon — تعقيد CC ≤ 30
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
 
@@ -423,6 +438,7 @@ jobs:
   secrets-scan:
     name: detect-secrets — كشف الأسرار
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read # حارسُ الترقيم يقرأ ملفّاتِ الطلبات المفتوحة (`gh pr list`) — قراءةٌ فقط
@@ -515,29 +531,6 @@ jobs:
             tests: tests/test_mobile_audit.py
             webkit: true
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB:       test_db
-          POSTGRES_USER:     test_user
-          POSTGRES_PASSWORD: test_pass
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
       SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
@@ -550,6 +543,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+
+      # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub (سقفُ السحب غيرُ الموثَّق: toomanyrequests) — W-20261010-016
+      - uses: ./.github/actions/native-postgres
+        with:
+          redis: "true"
 
       - uses: actions/setup-python@v7
         with:
@@ -611,29 +609,6 @@ jobs:
     # push إلى main: يُفحص على الطلب وطابور الدمج قبل الدمج (يُعفى skipped وحدَه في scripts/ci_needs_gate.py)
     if: github.event_name != 'push'
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB:       test_db
-          POSTGRES_USER:     test_user
-          POSTGRES_PASSWORD: test_pass
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
       SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
@@ -643,6 +618,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+
+      # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub (سقفُ السحب غيرُ الموثَّق: toomanyrequests) — W-20261010-016
+      - uses: ./.github/actions/native-postgres
+        with:
+          redis: "true"
 
       - uses: actions/setup-python@v7
         with:
@@ -779,6 +759,7 @@ jobs:
   gate-summary:
     name: ملخص بوابة الجودة
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       actions: read  # لقراءة خطوات وظائف التشغيل (تمييز فشل البنية)

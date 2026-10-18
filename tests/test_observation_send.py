@@ -265,7 +265,7 @@ def test_a_stranger_cannot_reach_the_viewer(client, school, principal_user, teac
 
     resp = client.get(reverse("observation_pdf_view", args=[obs.id]))
 
-    assert resp.status_code == 403
+    assert resp.status_code in (403, 404)  # مسوّدةٌ لغير صاحبها 404 (W-20260929-004)، والمرسَلةُ 403
 
 
 # ══════════════════════ ترويسة الوثيقة ══════════════════════════════

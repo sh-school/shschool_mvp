@@ -80,7 +80,8 @@ def test_exempt_job_still_fails_when_cancelled_or_failed(result):
 def test_cheap_security_and_core_jobs_are_never_exempt():
     # مراجعةُ 0105: secrets-scan وmigration-linter رخيصان ويفحصان ما دخل main فعلاً — دفاعُ عمق.
     exempt_jobs = {job for (_, job) in gate.EXEMPT}
-    assert not exempt_jobs & {"secrets-scan", "migration-linter", "test-coverage", "fast-guards"}
+    # (test-coverage خرجت من القائمة بقرار المالك D-429م: المجموعةُ والتغطيةُ تُحكمان في طابور الدمج لا على commit الدمج.)
+    assert not exempt_jobs & {"secrets-scan", "migration-linter", "fast-guards"}
 
 
 def test_only_push_is_ever_exempted():
@@ -151,7 +152,12 @@ def test_exempt_jobs_depend_only_on_non_exempt_jobs_and_are_event_gated():
         assert job in jobs, f"إعفاءٌ لمهمّةٍ غيرِ موجودة: {job}"
         deps = jobs[job].get("needs") or []
         deps = [deps] if isinstance(deps, str) else deps
-        assert not set(deps) & exempt_jobs, f"{job} يعتمد على مهمّةٍ معفاة فيُخفي إعفاؤها فشلَها"
+        # اعتمادُ معفاةٍ على معفاةٍ مقبولٌ حين تُتخطّيان معاً بشرط الحدث نفسِه (W-429: test-coverage ← pytest-shards)،
+        # أمّا على غيرها فلا — وإلّا تُخفي إعفاءُ إحداهما فشلَ الأخرى.
+        for dep in set(deps) & exempt_jobs:
+            assert "github.event_name != 'push'" in str(
+                jobs[dep].get("if", "")
+            ), f"{job} يعتمد على المعفاة {dep} وهذه لا تُتخطّى بشرط الحدث نفسِه"
         assert "github.event_name" in str(
             jobs[job].get("if", "")
         ), f"{job}: يُعفى skipped بسبب شرط الحدث وحدَه، فلا بدّ أن يُتخطّى بـ`if` على الحدث"
@@ -172,10 +178,25 @@ def test_security_scan_keeps_its_triggers():
 def test_quality_gate_keeps_pull_request_and_merge_group_full():
     assert {"push", "pull_request", "merge_group"} <= set(_triggers("quality-gate.yml"))
     jobs = _load("quality-gate.yml")
-    for job in ("mypy", "axe-a11y", "e2e"):
+    for job in ("mypy", "axe-a11y", "e2e", "pytest-shards"):
         assert (
             str(jobs[job]["if"]).strip() == "github.event_name != 'push'"
         ), f"{job}: لا يُتخطّى إلا على push"
+    # التغطيةُ تُبلِّغ دائماً على الطلب والطابور (always) وتُتخطّى على push وحدَه
+    assert str(jobs["test-coverage"]["if"]).strip() == "always() && github.event_name != 'push'"
+
+
+def test_push_to_main_keeps_the_cheap_smoke_jobs_unexempted():
+    # دخانُ push: كلُّ ما ليس ثقيلاً يبقى يعمل ولا يُعفى (ruff، migration-linter، التعقيد، الأسرار، الحرّاس، نافذة النشر).
+    exempt_jobs = {job for (_, job) in gate.EXEMPT}
+    assert not exempt_jobs & {
+        "ruff",
+        "migration-linter",
+        "complexity",
+        "secrets-scan",
+        "fast-guards",
+        "deploy-window",
+    }
 
 
 def test_run_with_no_exempt_never_excuses_a_skip():

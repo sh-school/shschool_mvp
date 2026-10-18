@@ -105,7 +105,7 @@ def global_search(request):
         {"title": "الجدول الأسبوعي", "url": "/schedule/weekly/", "icon": "schedule"},
         {"title": "التقييمات", "url": "/assessments/", "icon": "assessments"},
         {"title": "حصصي اليوم", "url": "/teacher/schedule/", "icon": "periods_today"},
-        {"title": "غياب اليوم", "url": "/teacher/reports/daily/", "icon": "attendance_register"},
+        {"title": "متابعة الغياب", "url": "/teacher/reports/daily/", "icon": "attendance_register"},
         {"title": "الإشعارات", "url": "/notifications/inbox/", "icon": "notifications"},
         {"title": "التقارير", "url": "/reports/", "icon": "reports"},
         {"title": "العيادة", "url": "/clinic/", "icon": "clinic"},

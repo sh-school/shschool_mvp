@@ -416,6 +416,22 @@ class TestTardinessSearch:
         assert self._found(client_as(principal_user)) == {OWN, OTHER}
 
 
+@pytest.fixture
+def clock_at(world, monkeypatch):
+    """ساعةٌ مثبَّتةٌ اليومَ 07:20 — داخل حصّة الشعبة الأولى (07:10–07:55)، وتتحرّك بـ`move(ساعة، دقيقة)`.
+
+    الرصدُ الصباحيُّ في حصّة الطالب الجارية وحدَها وفي نافذة اليوم (W-20261004-022)، فلا يُترك لساعة التشغيل.
+    """
+
+    def move(hour, minute=0):
+        moment = timezone.make_aware(dt.datetime.combine(world["today"], dt.time(hour, minute)))
+        monkeypatch.setattr(timezone, "now", lambda: moment)
+
+    move(7, 20)
+    return move
+
+
+@pytest.mark.usefixtures("clock_at")
 class TestTardinessRecord:
     def _record(self, client, student):
         return client.post(
@@ -459,14 +475,26 @@ class TestTardinessRecord:
         assert response.status_code == 302
         assert not StudentAttendance.objects.exists()
 
-    def test_leadership_keeps_the_school_fallback(self, client_as, principal_user, world):
-        world["own_session"].delete()
-
+    def test_leadership_records_on_his_class_without_the_gate_mark(
+        self, client_as, principal_user, world
+    ):
         self._record(client_as(principal_user), world["own"])
 
         row = StudentAttendance.objects.get(student=world["own"])
-        assert row.session_id == world["other_session"].id
+        assert row.session_id == world["own_session"].id
         assert (row.source, row.whereabouts) == ("teacher", "")
+
+    def test_leadership_has_no_school_fallback_any_more(
+        self, client_as, principal_user, world, clock_at
+    ):
+        """كان للقيادة رجوعٌ إلى «أوّل حصّةٍ في المدرسة» — شعبةٌ ليست شعبتَه؛ سدّه W-20261004-022 (D-201م أ٢)."""
+        world["own_session"].delete()
+        clock_at(8, 20)  # حصّةُ الشعبة الأخرى جاريةٌ الآن
+
+        response = self._record(client_as(principal_user), world["own"])
+
+        assert response.status_code == 302
+        assert not StudentAttendance.objects.exists()
 
 
 class TestTardinessDelete:
@@ -498,6 +526,7 @@ class TestTardinessDelete:
         assert self._delete(client_as(world["supervisor"]), row).status_code == 404
         assert self._unchanged(row)
 
+    @pytest.mark.usefixtures("clock_at")
     def test_his_morning_lateness_today_is_cancelled(self, client_as, world):
         client = client_as(world["supervisor"])
         client.post(

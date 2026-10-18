@@ -220,6 +220,29 @@ def test_placed_and_required_share_one_unit(school, teachers, subjects):
     assert quality["placed_ratio"] == 100.0
 
 
+def test_the_quality_score_never_leaves_zero_to_one_hundred(school):
+    """مكافأةُ المزاوجة وزنُها سالب، فمجموعُ العقوبات قد يصير سالباً والدرجةُ فوق المئة.
+    ومقياسٌ من مئةٍ لا يُعلَن بـ«104%»: الدرجةُ تُقيَّد في [0, 100] من الجهتين (W-20261009-014)."""
+    from operations.scheduler_constraints import calculate_quality_score
+
+    grid = ScheduleGrid()
+    # نُبقي المكافأةَ وحدَها فاعلةً: العقوباتُ الأخرى تتبع تفاصيلَ الشبكة، ونريد الحدَّ لا الصدفة.
+    weights = grid.policy.weights
+    for code in weights:
+        if code != "double_bonus":
+            weights[code] = 0
+    for period in (1, 2):
+        double = task(teacher="t1", klass="c1", subject="s1", weekly=2)
+        double.prefers_double = True
+        grid.place(0, period, double)
+
+    quality = calculate_quality_score(grid)
+
+    assert quality["total_penalty"] < 0, "الحالةُ المقصودة: مكافآتٌ تفوق العقوبات"
+    assert 0 <= quality["score"] <= 100
+    assert quality["score"] == 100.0
+
+
 def test_generation_time_reads_in_seconds_or_minutes():
     from core.templatetags.schedule_filters import duration_ms
 

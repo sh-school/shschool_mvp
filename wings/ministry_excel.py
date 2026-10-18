@@ -81,11 +81,13 @@ def ministry_workbook(
         for item in grade.rows:
             row += 1
             label = item.group.short_code + ("" if item.has_periods else "  (لا حصّتان)")
-            _write_row(ws, row, _values(label, item.counts), table)
+            _write_row(
+                ws, row, _values(label, item.counts), table, fill=brand.grade_tint(grade.key)
+            )
         row += 1
         _write_row(
             ws, row, _values(f"مجموع {grade.label}", grade.counts), table, bold=True,
-            fill=brand.MAROON_BG,
+            fill=brand.grade_tint(grade.key, 0.4),
         )  # fmt: skip
     row += 1
     _write_row(
@@ -131,6 +133,7 @@ def ministry_workbook(
             cell.border = table.border
             cell.alignment = START if col == 1 else CENTER
             cell.font = table.cell_font
+            cell.fill = xl_fill(brand.grade_tint(item.grade))
     _setup_page(names, 3, last, school_name, orientation)
     ExcelService._apply_protection(names, 3)
     return wb

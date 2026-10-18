@@ -64,6 +64,11 @@ DOCUMENTS_ONLY = {
         "LeaveRequestForm",
         "attachment",
     ),
+    "staff_affairs/views_leave_self.py::leave_request_self": (
+        "staff_affairs.forms",
+        "LeaveRequestSelfForm",
+        "attachment",
+    ),
     "student_affairs/views.py::activity_add": (
         "student_affairs.forms",
         "ActivityForm",

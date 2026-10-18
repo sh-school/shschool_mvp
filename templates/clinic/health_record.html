@@ -13,15 +13,15 @@
   {# ── ترويسةُ الصفحة: اسمُ الطالب في السطر الوصفيّ ── #}
   {% page_header "السجل الصحي" subtitle=student.full_name icon="clinic" %}
     {% if can_write %}
-    <a href="{% url 'clinic:record_visit_student' student.id %}" class="btn-primary btn-sm no-underline">+ تسجيل زيارة جديدة</a>
+    <a href="{% url 'clinic:record_visit_student' student.id %}" class="btn-primary btn-sm">+ تسجيل زيارة جديدة</a>
     {% endif %}
-    <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
+    <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
   {% endpage_header %}
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="ui-split">
 
     {# ── البيانات الصحية ── #}
-    <div class="lg:col-span-1">
+    <div>
       {% section_card "البيانات الصحية" icon="clinic" %}
         <form method="post" action="">
           {% csrf_token %}
@@ -36,22 +36,24 @@
           </div>
           {% callout "warning" %}بياناتٌ صحّيّةٌ ذاتُ طبيعةٍ خاصّة، وكلُّ اطّلاعٍ عليها وتعديلٍ فيها يُسجَّل باسمك في سجلّ المراجعة.{% endcallout %}
           {% if can_write %}
-          <button type="submit" class="btn-danger mt-4 w-full py-2 text-sm font-bold">
+          <div class="form-actions">
+            <button type="submit" class="btn-danger">
             {% icon "save" %} حفظ السجل الصحي
           </button>
+          </div>
           {% else %}
           {% callout "info" %}اطّلاعٌ فقط: التعديلُ للتمريض والإدارة.{% endcallout %}
           {% endif %}
         </form>
 
         {% if health_record.updated_at %}
-        <p class="ui-field-hint text-center">آخر تحديث: {{ health_record.updated_at|date:"d/m/Y H:i" }}</p>
+        <p class="ui-field-hint">آخر تحديث: {{ health_record.updated_at|date:"d/m/Y H:i" }}</p>
         {% endif %}
       {% endsection_card %}
     </div>
 
     {# ── سجل الزيارات ── #}
-    <div class="lg:col-span-2">
+    <div>
       {% section_card "سجل الزيارات" meta=visits|length icon="observation" empty="لا توجد زيارات مسجلة لهذا الطالب" %}{% if visits %}
         {% filter_bar "بحثٌ في الزيارات" live=True %}
           {% field "visit_q" "بحث في الزيارات" type="search" id="visit-search" hide_label=True grow=True placeholder="بحث في الزيارات..." autocomplete="off" %}

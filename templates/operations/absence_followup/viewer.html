@@ -1,0 +1,31 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}{{ report_title }}{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url=back_url parent_label="متابعة الغياب" current=report_title %}
+{% endblock %}
+
+{% block content %}
+{% comment %}
+عارضُ الكشف بآليّة طباعة الزيارة الصفّية (`quality/observation_pdf_view.html`): ملفُّ PDF يُعاد inline داخل إطار،
+وشريطُ الأدوات لنا — رجوعٌ وتحميلٌ وقائمةُ «عمودي / أفقي». لا زرَّ مشاركة هنا (قرارُ المالك 2026-10-17).
+{% endcomment %}
+<div class="obs-pdf-page">
+  {% page_header report_title subtitle=subtitle icon="document" %}
+    <form method="get" class="rec-datebar">
+      {% for key, value in keep.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+      <select name="orient" class="form-control" aria-label="اتّجاه الورقة" data-autosubmit>
+        <option value="portrait"{% if orient == "portrait" %} selected{% endif %}>عمودي</option>
+        <option value="landscape"{% if orient == "landscape" %} selected{% endif %}>أفقي</option>
+      </select>
+      <button type="submit" class="btn-secondary btn-sm">تطبيق</button>
+    </form>
+    <a data-app-file href="{{ pdf_url }}" download class="btn-primary btn-sm">{% icon "download" %} تحميل PDF</a>
+    <a href="{{ back_url }}" class="btn-secondary btn-sm">← رجوع للقائمة</a>
+  {% endpage_header %}
+  <iframe src="{{ frame_url }}" title="{{ report_title }}" class="obs-pdf-frame"></iframe>
+</div>
+{% endblock %}

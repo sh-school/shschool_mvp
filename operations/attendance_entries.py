@@ -29,6 +29,9 @@ from .attendance_policy import (
     can_enter,
     is_special_education,
 )
+
+# مصادرُ يجوز لإدخال المعلّم أن يحلّ محلَّها: معلّمٌ ومشرف (D-420م). وما سواها (عيادة، بوّابة، نظام) لا يُكتب فوقه.
+from .attendance_precedence import OVERWRITABLE_SOURCES
 from .models import Session, StudentAttendance
 from .models.attendance_ledger import ERASURE_FLAG, AttendanceDecision, AttendanceEntry
 
@@ -39,10 +42,6 @@ logger = logging.getLogger(__name__)
 
 #: مصدرُ ما يُكتب في `StudentAttendance` عند اعتماد إدخالِ معلّم.
 SOURCE = "teacher"
-
-#: مصادرُ يجوز لاعتمادِ المعلّم أن يحلّ محلَّها — نقرةُ التأخّر ورصدُ المعلّم نفسُه. وما سواها (مشرف، عيادة،
-#: بوّابة، نظام/خروج) رصدٌ بشريٌّ أو مشتقٌّ آخر فلا يُكتب فوقه: يبقى الإدخالُ معلَّقاً ويُحلّ بالرفض بسبب.
-OVERWRITABLE_SOURCES = {"teacher", "teacher_late"}
 
 ENTERABLE_STATUSES = {code for code, _ in AttendanceEntry.STATUS}
 
@@ -277,6 +276,10 @@ def _apply_to_effective(entry: AttendanceEntry, actor: CustomUser) -> None:
     before = {"status": row.status, "source": row.source, "late_minutes": row.late_minutes}
     for field, value in values.items():
         setattr(row, field, value)
+    if before["source"] == "supervisor":
+        # إدخالُ المعلّم يغلب رصدَ المشرف السابق (D-420م): يسقط معه أثرُه من موضعٍ وخروج.
+        row.whereabouts = ""
+        row.exit = None
     if entry.status != "absent":
         row.excuse = None
         row.excuse_type = ""

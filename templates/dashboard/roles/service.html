@@ -1,7 +1,7 @@
 {% load ui %}
 <div class="exec-dash">
 
-  {% page_header "مرحباً، "|add:request.user.full_name subtitle=subtitle icon="dashboard" %}{% endpage_header %}
+  {% page_header "مرحباً، "|add:request.user.full_name subtitle=subtitle icon="dashboard" %}{% include "dashboard/partials/_leave_self.html" %}{% endpage_header %}
 
   {% if service_role == "nurse" %}
     {% kpi_strip label="العيادة اليوم" %}

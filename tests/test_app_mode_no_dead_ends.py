@@ -46,6 +46,7 @@ TAG = re.compile(r"<(?:a|button)\b[^>]*>", re.S)
 #: فيهما كان يُسقط مولّدَ PDF الاحتياطيّ.
 STANDALONE_EXEMPT = {
     "templates/auth/login.html",
+    "templates/auth/session_done.html",  # وجهةُ إطار إعادة الدخول: تُغلق نفسَها ولا تُعرض مستقلّةً
     "templates/base/base.html",
     "templates/email/_base.html",
     "templates/errors/_error_page.html",
@@ -62,6 +63,7 @@ FILE_VIEWS_OUTSIDE_CONVENTION = {
     "academic_management:exam_results_reports",
     "academic_management:monthly_ba_report",
     "academic_management:quiz_reports",
+    "absence_followup_print",  # صفحةُ معاينةٍ داخل المنصّة؛ الملفُّ بـ`?format=pdf` (نمطٌ أعلاه)
     "observation_pdf_view",  # صفحةٌ عارضة؛ ذكرُ الترويسة في وثيقتها لا في شيفرتها
     "serve_db_file",  # الملفّاتُ المخزَّنة: `.file.url` (نمطٌ أعلاه)
     "docs_viewer:asset",  # صورةٌ مضمَّنةٌ بـ<img src> داخل محتوى md — لا رابطَ نقرٍ ولا طريقَ مسدود

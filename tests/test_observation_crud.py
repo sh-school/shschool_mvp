@@ -9,6 +9,8 @@ from django.urls import reverse
 from quality.observation_models import ClassroomObservation, ObservationCriterion
 from quality.observation_services import ObservationService
 
+pytestmark = pytest.mark.pin_clock  # اختبارا التقييم الذاتي يقرآن «اليوم» لنافذة الأيام السبعة
+
 
 # ── مساعدات ──────────────────────────────────────────────────────────
 def _criteria(school, n=3):
@@ -152,7 +154,7 @@ def test_edit_by_teacher_denied(client_as, school, coordinator_user, teacher_use
     obs, _ = _make_obs(school, coordinator_user, teacher_user)
     c = client_as(teacher_user)
     r = c.get(reverse("observation_edit", args=[obs.id]))
-    assert r.status_code == 403
+    assert r.status_code == 404  # مسوّدةٌ لم تُرسَل بعدُ: وجودُها لا يُكشف للمُزار (W-20260929-004)
 
 
 @pytest.mark.django_db
@@ -220,7 +222,13 @@ def test_list_filter_by_status(client_as, school, coordinator_user, teacher_user
 def test_self_create_by_teacher(client_as, school, teacher_user):
     crits = _criteria(school)
     c = client_as(teacher_user)
-    data = {"observation_date": "2026-06-21", "action": "submit"}
+    from django.utils import timezone
+
+    data = {
+        "observation_date": timezone.localdate().isoformat(),
+        "outside_schedule": "on",
+        "action": "submit",
+    }
     for cc in crits:
         data[f"rating_{cc.id}"] = "complete"
     r = c.post(reverse("observation_self_create"), data)
@@ -273,7 +281,14 @@ def test_self_assessment_edit_by_teacher_no_teacher_field(client_as, school, tea
     crits = _criteria(school)
     obs, _ = _make_obs(school, teacher_user, teacher_user, kind="self")
     c = client_as(teacher_user)
-    data = {"observation_date": "2026-06-22", "topic": "تأمل ذاتي", "action": "draft"}
+    from django.utils import timezone
+
+    data = {
+        "observation_date": timezone.localdate().isoformat(),
+        "outside_schedule": "on",
+        "topic": "تأمل ذاتي",
+        "action": "draft",
+    }
     for cc in crits:  # بلا حقل «teacher» — كما في استمارة التقييم الذاتي
         data[f"rating_{cc.id}"] = "most"
     r = c.post(reverse("observation_edit", args=[obs.id]), data)

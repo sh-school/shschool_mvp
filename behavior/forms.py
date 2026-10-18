@@ -14,6 +14,31 @@ DISCIPLINARY_ACTION_CHOICES = [
     ("parent_summons", "استدعاء ولي الأمر"),
 ]
 
+#: الإجراءاتُ التي يملك دورٌ بعينه اختيارَها عند تسجيل المخالفة (W-20261001-022). دورٌ غيرُ مذكور هنا
+#: يرى القائمةَ كاملةً كما كان. والمشرفُ الإداريّ — بطاقتُه «رصد المخالفات وتحويلها للأخصائي الاجتماعي»
+#: وسياسةُ السلوك (08_conduct_policy_2026.md) تُسند التعهّدَ الخطّيّ لمنسّق شؤون الطلبة والاستدعاءَ للجنة —
+#: لا يفرض جزاءً: تنبيهٌ شفهيّ (يُشعَر وليُّ الأمر بتسجيل المخالفة تلقائياً) وتحويلٌ للأخصائيّ.
+ROLE_ACTION_LIMITS: dict[str, frozenset[str]] = {
+    "admin_supervisor": frozenset({"verbal_warning", "social_specialist_referral"}),
+}
+
+NOT_YOUR_ACTION = (
+    "هذا الإجراء التأديبي ليس من صلاحية دورك — يمكنك التنبيه الشفهي أو التحويل للأخصائي الاجتماعي."
+)
+
+
+def action_choices_for(role: str | None) -> list[tuple[str, str]]:
+    """قائمةُ الإجراءات المتاحة لهذا الدور — الخادمُ والقالبُ يقرآن منها معاً."""
+    allowed = ROLE_ACTION_LIMITS.get(role or "")
+    if allowed is None:
+        return list(DISCIPLINARY_ACTION_CHOICES)
+    return [
+        (value, label)
+        for value, label in DISCIPLINARY_ACTION_CHOICES
+        if not value or value in allowed
+    ]
+
+
 _VIOLATION_DESC_MIN = 20
 _VIOLATION_DESC_MAX = 2000
 
@@ -49,6 +74,13 @@ class InfractionForm(forms.Form):
     # legacy free-text (backward compat with quick_log_form & committee view)
     action_taken = forms.CharField(required=False, max_length=1000)
     level = forms.IntegerField(initial=1, min_value=1, max_value=4)
+
+    def __init__(self, *args, role: str | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        field = self.fields["disciplinary_action_type"]
+        field.choices = action_choices_for(role)
+        if role in ROLE_ACTION_LIMITS:
+            field.error_messages["invalid_choice"] = NOT_YOUR_ACTION
 
     def clean_level(self):
         level = self.cleaned_data["level"]

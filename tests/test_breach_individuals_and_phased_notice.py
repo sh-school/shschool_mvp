@@ -7,7 +7,7 @@ W-20261002-007: إشعار NCSA على مراحل (مبدئي بأسباب ال�
 لا أسماءَ حقيقيّة ولا أرقامَ هويّة: بياناتٌ اصطناعيّة فقط.
 """
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from django.utils import timezone
@@ -15,6 +15,8 @@ from django.utils import timezone
 from breach import services
 from breach.services import InvalidTransitionError
 from core.models import AuditLog, BreachReport
+
+pytestmark = pytest.mark.pin_clock
 
 
 @pytest.fixture
@@ -171,7 +173,8 @@ class TestIndividualsNotification:
         assert done.individuals_assessed_at is not None
         row = _audit(breach)[-1]
         assert row.changes["individuals_status"] == "required"
-        assert row.changes["individuals_deadline"] == breach.ncsa_deadline.isoformat()
+        # تُقارَن اللحظةُ لا نصُّها: الساعةُ المثبّتة تحمل +03:00 والمحفوظةُ تعود UTC، واللحظةُ واحدة.
+        assert datetime.fromisoformat(row.changes["individuals_deadline"]) == breach.ncsa_deadline
 
     def test_explicit_deadline_wins(self, breach, principal_user):
         custom = timezone.now() + timedelta(hours=20)

@@ -27,6 +27,7 @@ _HEADER_FIELDS = (
     "class_group_id",
     "observation_date",
     "period",
+    "outside_schedule",
     "topic",
     "follow_up_mode",
     "follow_up_scope",
@@ -36,6 +37,8 @@ _HEADER_FIELDS = (
 
 
 class ObservationService:
+    LIST_URL = "/quality/observations/"
+
     # ── المعايير + التقييمات ────────────────────────────────────────
     @staticmethod
     def criteria_for(school):
@@ -114,8 +117,8 @@ class ObservationService:
                 "updated_at",
             ]
         )
-        # التقييم الذاتي: المعلّم هو المُنشئ — لا إشعار له
-        if observation.kind == "supervision":
+        # التقييم الذاتي: المعلّم هو المُنشئ — لا إشعار له؛ وزيارةُ الزميل تُشعِر المُزارَ كالإشراف (W-20260929-004)
+        if observation.kind in ("supervision", "peer"):
             ObservationService._notify_teacher(
                 observation, updated=observation.submission_count > 1
             )
@@ -142,11 +145,13 @@ class ObservationService:
                 "updated_at",
             ]
         )
+        # المسوّدةُ محجوبةٌ عن المُزار، فالإشعارُ يقود إلى القائمة لا إلى تفصيلٍ صار 404 (W-20260929-004)
         ObservationService._dispatch(
             observation,
             observation.teacher,
             "سُحبت ملاحظة صفّية مؤقتاً",
             f"سحب {observation.observer.full_name} الملاحظة الصفّية على أدائك مؤقتاً للمراجعة.",
+            url=ObservationService.LIST_URL,
         )
         return observation
 
@@ -241,7 +246,8 @@ class ObservationService:
         role = user.get_role()
         if user.is_superuser or has_unrestricted_role(user) or role in OBSERVATION_VIEW_ALL:
             return qs  # رؤيةٌ فقط؛ التعديلُ للزائر وحده حتى للمطوّر (D-122م)
-        cond = Q(observer=user) | Q(teacher=user)
+        # المسوّدةُ للزائر والقيادة وحدَهما: المُزارُ يراها بعد الإرسال لا قبله (W-20260929-004)
+        cond = Q(observer=user) | (Q(teacher=user) & ~Q(status="draft"))
         if role in OBSERVATION_CREATE:
             cond |= Q(kind="self")
         return qs.filter(cond)
@@ -346,7 +352,7 @@ class ObservationService:
 
     # ── الإشعارات (لا تُسقط العملية الأساسية أبداً) ──────────────────
     @staticmethod
-    def _dispatch(observation, recipient, title, body):
+    def _dispatch(observation, recipient, title, body, url=None):
         try:
             from notifications.hub import NotificationHub
 
@@ -356,7 +362,7 @@ class ObservationService:
                 recipients=[recipient],
                 title=title,
                 body=body,
-                related_url=f"/quality/observations/{observation.id}/",
+                related_url=url or f"/quality/observations/{observation.id}/",
                 related_object_id=str(observation.id),
             )
         except Exception:  # noqa: BLE001 — الإشعار لا يُسقط العملية
@@ -366,13 +372,23 @@ class ObservationService:
 
     @staticmethod
     def _notify_teacher(observation, updated=False):
+        observer = observation.observer.full_name
+        if observation.kind == "peer":
+            # زيارةُ الزميل: اسمُ الزائر وعنوانُ الزيارة فقط — لا درجاتٍ ولا محتوى تقييم في نصّ الإشعار (W-20260929-004)
+            title = "تحديث على زيارة زميل" if updated else "زيارة زميل جديدة لك"
+            topic = (observation.topic or "").strip()
+            body = f"{'حدّث' if updated else 'أرسل'} {observer} زيارتَه لحصّتك"
+            body += f" «{topic}»" if topic else ""
+            body += ". يُرجى الاطّلاع والإقرار."
+            ObservationService._dispatch(observation, observation.teacher, title, body)
+            return
         pct = observation.score_percent
         if updated:
             title = "تحديث على ملاحظة صفّية"
-            body = f"حدّث {observation.observer.full_name} الملاحظة الصفّية على أدائك"
+            body = f"حدّث {observer} الملاحظة الصفّية على أدائك"
         else:
             title = "ملاحظة صفّية جديدة على أدائك"
-            body = f"أجرى {observation.observer.full_name} زيارة إشرافية على أدائك"
+            body = f"أجرى {observer} زيارة إشرافية على أدائك"
         if pct is not None:
             body += f" — النسبة الإجماليّة {pct}%"
         body += ". يُرجى الاطّلاع والإقرار."

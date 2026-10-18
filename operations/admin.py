@@ -14,6 +14,7 @@ from .models import (
     ClassExit,
     CompensatorySession,
     DailyExitTally,
+    ExitPermit,
     FreeSlotRegistry,
     GuardianContact,
     PeriodConfirmation,
@@ -152,6 +153,27 @@ class ClassExitAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     date_hierarchy = "left_at"
 
 
+@admin.register(ExitPermit)
+class ExitPermitAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    """أذوناتُ خروج الطلاب (السببُ والوقتُ والحصصُ المكتملة وحضورُ الوليّ والمعتمِد) — للقراءة والتدقيق؛ تُكتب بخدمتها."""
+
+    list_display = (
+        "sequence",
+        "student",
+        "class_group",
+        "reason",
+        "status",
+        "completed_periods",
+        "guardian_present",
+        "approved_by",
+        "exit_at",
+    )
+    list_select_related = ("student", "class_group", "approved_by")
+    list_filter = ("status", "reason", "guardian_present", "school")
+    search_fields = ("student__full_name", "student__national_id")
+    date_hierarchy = "exit_at"
+
+
 @admin.register(DailyExitTally)
 class DailyExitTallyAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     """ملخّصُ خروج كلّ طالبٍ في كلّ يوم: عددُ المرّات ومجموعُ الثواني والتفصيلُ بالوجهة — مشتقٌّ من «خروجٌ من الفصل»."""
@@ -254,7 +276,17 @@ class AbsenceExcuseAdmin(SensitiveFieldsMixin, ReadOnlyAdminMixin, SchoolScopedA
     list_filter = ("status", "kind", "after_deadline", "school")
     search_fields = ("student__full_name", "student__national_id")
     date_hierarchy = "date_from"
-    sensitive_fields = ("kind", "notes", "document", "override_reason", "rejection_reason")
+    sensitive_fields = (
+        "kind",
+        "notes",
+        "document",
+        "override_reason",
+        "rejection_reason",
+        "applicant_name",
+        "applicant_relation",
+        "applicant_phone",
+        "pledge_accepted",
+    )
 
 
 @admin.register(GuardianContact)
@@ -760,3 +792,7 @@ class PermissionAuditLogAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
     list_display = ("temp_permission", "action", "performed_by", "performed_at")
     list_select_related = ("temp_permission__teacher", "performed_by")
     list_filter = ("action",)
+
+
+# سجلّا «متابعة الغياب» (W-20261013-011) في وحدتهما، يُسجَّلان عند استيراد هذه الوحدة.
+from . import admin_absence_followup  # noqa: E402,F401

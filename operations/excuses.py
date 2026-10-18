@@ -24,6 +24,7 @@ from __future__ import annotations
 import datetime as dt
 from collections.abc import Iterable
 
+from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 from django.utils import timezone
@@ -174,6 +175,11 @@ def grant_excuse(
     override_reason: str = "",
     forward_if_late: bool = False,
     ip: str | None = None,
+    applicant_name: str = "",
+    applicant_relation: str = "",
+    applicant_phone: str = "",
+    letter_date: dt.date | None = None,
+    pledge_accepted: bool = False,
 ) -> AbsenceExcuse:
     """يقبل عذراً من القائمة المغلقة لغياب `student` بين التاريخين — ويكتبه على صفوفه.
 
@@ -182,10 +188,16 @@ def grant_excuse(
 
     يرفع `ExcuseError` برسالةٍ للمستخدم إن خالف القائمةَ أو المستندَ أو المهلةَ أو
     لم يجد غياباً بلا عذرٍ في المدّة.
+
+    وبيانات «كتاب التماس العذر» (نموذج 04) اختياريّةٌ للعذر المسجَّل بيد الموظّف؛ فإن جاءت
+    بإقرار التعهّد فالاسمُ والصلةُ والتاريخُ شرطٌ، فلا تعهّدَ بلا من تعهّد (`_applicant`).
     """
     today = today or timezone.localdate()
     notes = (notes or "").strip()
     override_reason = (override_reason or "").strip()
+    applicant = _applicant(
+        applicant_name, applicant_relation, applicant_phone, letter_date, pledge_accepted, today
+    )
 
     if kind not in CLOSED_LIST:
         raise ExcuseError("العذرُ من القائمة المغلقة في الدليل (م 3.4.1.4) وحدَها.")
@@ -241,6 +253,7 @@ def grant_excuse(
         override_reason=override_reason if decided else "",
         reviewed_by=by if decided else None,
         reviewed_at=timezone.now() if decided else None,
+        **applicant,
     )
     covered = 0 if forward else rows.update(excuse=excuse, excuse_type=kind)
     _audit(
@@ -257,9 +270,80 @@ def grant_excuse(
             "after_deadline": late,
             "override_reason": excuse.override_reason,
             "document": bool(document),
+            # من التمس العذر وأقرّ بالتعهّد: الصلةُ والإقرارُ وحدَهما، لا اسمٌ ولا هاتف.
+            "applicant_relation": excuse.applicant_relation,
+            "pledge_accepted": excuse.pledge_accepted,
         },
         ip=ip,
     )
+    return excuse
+
+
+#: أقصى أطوال بيانات مقدّم الطلب: اسمُه وصلتُه بحدّ حقليهما في النموذج، والهاتفُ رقماً دوليّاً.
+APPLICANT_NAME_MAX = 150
+APPLICANT_RELATION_MAX = 40
+APPLICANT_PHONE_MAX = 20
+
+
+def _applicant(
+    name: str,
+    relation: str,
+    phone: str,
+    letter_date: dt.date | None,
+    pledge: bool,
+    today: dt.date,
+) -> dict:
+    """بيانات مقدّم الطلب منقّاةً — وارداتُ نموذج 04: الاسم والصلة والهاتف وتاريخ الكتاب والتعهّد."""
+    # الأطوالُ بحدود الحقول قبل الحفظ (حكمُ 0104): لا خطأَ قاعدةٍ ولا قيمةٌ مبتورةٌ بصمت.
+    name = (name or "").strip()[:APPLICANT_NAME_MAX]
+    relation = (relation or "").strip()[:APPLICANT_RELATION_MAX]
+    phone = "".join(ch for ch in (phone or "") if ch.isdigit() or ch == "+")
+    if len(phone) > APPLICANT_PHONE_MAX:
+        raise ExcuseError("رقمُ الهاتف أطولُ من المسموح.")
+    if phone and not getattr(settings, "FERNET_KEY", ""):
+        # لا يُخزَّن هاتفٌ نصّاً خامّاً أبداً: غيابُ المفتاح يرفضه برسالةٍ مضبوطة، والعذرُ بلا هاتفٍ سليم.
+        raise ExcuseError("تعذّر حفظُ رقم الهاتف الآن؛ سجّل العذرَ بلا هاتفٍ أو أبلغ المسؤول.")
+    if pledge and not (name and relation and letter_date):
+        raise ExcuseError("إقرارُ التعهّد يلزمه اسمُ مقدّم الطلب وصلتُه وتاريخُ الكتاب.")
+    if letter_date and letter_date > today:
+        raise ExcuseError("تاريخُ الكتاب بعد اليوم.")
+    return {
+        "applicant_name": name,
+        "applicant_relation": relation,
+        "applicant_phone": phone,
+        "letter_date": letter_date,
+        "pledge_accepted": pledge,
+    }
+
+
+#: ترتيبُ مراحل التنفيذ بعد القبول (نموذج 04): الداخليُّ ثمّ الوطنيُّ ثمّ المتابعةُ والتدقيق.
+STAGE_KEYS = tuple(key for key, _ in AbsenceExcuse.STAGES)
+
+
+@transaction.atomic
+def record_stage(
+    excuse: AbsenceExcuse, stage: str, *, by: CustomUser, ip: str | None = None
+) -> AbsenceExcuse:
+    """يسجّل مرحلةَ تنفيذٍ على عذرٍ مقبول بمنفّذها وتاريخها — بالترتيب ومرّةً واحدة.
+
+    «عند القبول فقط — استخدام فريق شؤون الطلاب»: لا مرحلةَ على عذرٍ معلَّقٍ أو مرفوض،
+    ولا الوطنيُّ قبل الداخليّ ولا المتابعةُ قبل الوطنيّ. وكلُّ تسجيلٍ في سجلّ المراجعة.
+    """
+    if stage not in STAGE_KEYS:
+        raise ExcuseError("مرحلةٌ غيرُ معروفة.")
+    excuse = AbsenceExcuse.objects.select_for_update().get(pk=excuse.pk)
+    if excuse.status != "accepted":
+        raise ExcuseError("مراحلُ التنفيذ بعد قبول العذر فقط.")
+    if getattr(excuse, f"stage_{stage}_at"):
+        raise ExcuseError("سُجّلت هذه المرحلةُ من قبل.")
+    index = STAGE_KEYS.index(stage)
+    if index and not getattr(excuse, f"stage_{STAGE_KEYS[index - 1]}_at"):
+        raise ExcuseError("سجّل المرحلةَ التي قبلها أوّلاً.")
+    now = timezone.now()
+    setattr(excuse, f"stage_{stage}_by", by)
+    setattr(excuse, f"stage_{stage}_at", now)
+    excuse.save(update_fields=[f"stage_{stage}_by", f"stage_{stage}_at"])
+    _audit(by, excuse.school, "update", excuse, {"stage": stage, "at": now.isoformat()}, ip=ip)
     return excuse
 
 

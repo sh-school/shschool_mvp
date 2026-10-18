@@ -33,6 +33,15 @@ def test_the_wait_is_about_the_charts_themselves_not_a_longer_sleep():
     assert "wait_for_function(CHARTS_READY" in SOURCE
 
 
+def test_readiness_requires_the_first_paint_mark_not_only_getchart():
+    # getChart يمرّ قبل أوّل رسمٍ (W-20261013-001)؛ فالعلامةُ من ملحق afterRender بعد rAF مرّتين هي الشرط.
+    assert "c.hasAttribute('data-rendered')" in SOURCE
+    assert "afterRender" in SOURCE
+    assert SOURCE.count("requestAnimationFrame(function") == 2
+    assert "setAttribute('data-rendered'" in SOURCE
+    assert "v.register(mark)" in SOURCE
+
+
 def test_a_page_whose_chart_never_arrives_does_not_fail_the_capture():
     # الرسمُ الفاشلُ يبقى فارغاً في اللقطتين معاً (حتميّ)؛ فالمهلةُ تُبتلع لا تُسقط الاختبار.
     assert "except PlaywrightTimeout" in SOURCE

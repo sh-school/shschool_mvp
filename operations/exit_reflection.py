@@ -4,10 +4,8 @@
 والمشرفُ يثبّت الحصصَ من الثانية في **بدئها**، فخروجٌ يقع بعد تثبيته لا يراه. فهنا:
 
 - **عند نهاية الحصّة** (`finalize_exits_for_day`، مهمّةٌ كلَّ خمس دقائق): يُغلق كلُّ
-  خروجٍ بقي مفتوحاً بلحظة الجرس، ومن لم يعد في حصّةٍ **مثبّتةٍ** وخانتُه حاضرٌ أو
-  متأخّرٌ لا تحسب هذا الخروج تُكتب «غائب · مكانُه» بسطرٍ في سجلّ المراجعة، وتُعاد
-  مخالفاتُ اليوم الآليّة (تزول مخالفةُ التأخّر، ولا هروبَ مع الإذن). والحصّةُ غيرُ
-  المثبّتة لا يُكتب فيها شيء: الكشفُ يعرض الخروجَ حين يثبّتها المشرف.
+  خروجٍ بقي مفتوحاً بلحظة الجرس **ولا يقلب حالةً** (D-420م، W-20261004-025): الخروجُ عرضٌ
+  فوق الحالة، والأسبقيّةُ في `attendance_precedence`.
 - **عند العودة قبل الجرس أو إلغاء الخروج** (`revert_derived_absence`): الغيابُ الذي
   اشتُقّ من **هذا** الخروج (`StudentAttendance.exit`) يرجع حاضراً. وغيابٌ قاله المشرفُ
   بنفسه (بلا خروجٍ محسوب) لا يُمسّ أبداً.
@@ -22,30 +20,16 @@ import logging
 from typing import Any
 
 from django.db import transaction
-from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
 from core.audit_repr import masked_repr
 from core.models import AuditLog
-from operations.class_exit import WHEREABOUTS_OF, close_unreturned, is_unreturned, session_end
+from operations.class_exit import close_unreturned, is_unreturned, session_end
 from operations.day_attendance import SOURCE
 from operations.models import ClassExit, PeriodConfirmation, StudentAttendance
-from operations.period_register import (
-    ATTENDED,
-    Period,
-    _sync_rule,
-    _warn_of_gates,
-    period_end,
-    periods_of,
-    sync_escapes,
-)
+from operations.period_register import Period, period_end, periods_of, sync_escapes
 
 logger = logging.getLogger(__name__)
-
-
-def exit_overrides(status: str, cell_exit_id: Any, exit_: ClassExit) -> bool:
-    """خانةٌ حاضرةٌ أو متأخّرةٌ لم تحسب هذا الخروج — فيقلبها الخروجُ غياباً بإذن."""
-    return status in ATTENDED and cell_exit_id != exit_.pk
 
 
 def audit_cell_change(
@@ -118,82 +102,16 @@ def resync_escapes(class_group: Any, day: dt.date, reporter: Any) -> None:
 
 
 def reflect_period_exits(class_group: Any, day: dt.date, period: Period, now: dt.datetime) -> int:
-    """نهايةُ حصّةٍ واحدة: يُغلق خروجَها المفتوح، ويقلب الحاضرَ الذي لم يحسبه — ويُرجع عددَ ما قُلب.
+    """نهايةُ حصّةٍ واحدة: يُغلق خروجَها المفتوح بلحظة الجرس ولا يقلب حالةً — ويُرجع 0 دائماً.
 
-    الإغلاقُ في معاملته قبل القلب: عطبٌ في القلب لا يُبقي الخروجَ مفتوحاً فيُعاد كلَّ دورة.
+    الخروجُ عرضٌ لا يغيّر الحالة (قرار 2026-10-04، D-420م): الحاضرُ يبقى حاضراً ويُعرض معه أنّه خرج،
+    والغائبُ بقوله وحدَه. فلا قلبَ ولا مخالفةَ آليّةً هنا.
     """
     if now < period_end(day, period):
         return 0
     for session in period.sessions:
         close_unreturned(session, now=now)
-    if period.confirmation is None:
-        return 0
-    return _flip_unaccounted(class_group, day, period, now)
-
-
-@transaction.atomic
-def _flip_unaccounted(class_group: Any, day: dt.date, period: Period, now: dt.datetime) -> int:
-    latest: dict = {}
-    for exit_ in (
-        ClassExit.objects.filter(session__in=period.sessions)
-        .select_related("session", "student", "allowed_by")
-        .order_by("left_at")
-    ):
-        if is_unreturned(exit_):
-            latest[exit_.student_id] = exit_
-    if not latest:
-        return 0
-
-    rows_of: dict = {}
-    for row in StudentAttendance.objects.filter(
-        session__in=period.sessions, student_id__in=latest, source=SOURCE
-    ).select_related("session"):
-        rows_of.setdefault(row.student_id, []).append(row)
-
-    flipped = []
-    for student_id, exit_ in latest.items():
-        rows = rows_of.get(student_id)
-        if not rows or not exit_overrides(rows[0].status, rows[0].exit_id, exit_):
-            continue
-        where = WHEREABOUTS_OF.get(exit_.destination, "out_permit")
-        was_late = any(row.status == "late" for row in rows)
-        audit_cell_change(
-            None,
-            class_group.school,
-            exit_.student,
-            rows[0].session,
-            before={"status": rows[0].status, "whereabouts": rows[0].whereabouts},
-            after={"status": "absent", "whereabouts": where},
-            why="خرج بإذن المعلّم ولم يعد حتى نهاية الحصّة",
-            exit_=exit_,
-        )
-        StudentAttendance.objects.filter(pk__in=[row.pk for row in rows]).update(
-            status="absent",
-            whereabouts=where,
-            late_minutes=None,
-            exit=exit_,
-            updated_at=now,
-        )
-        if was_late:
-            _sync_rule(
-                class_group.school,
-                exit_.student,
-                "period_tardy",
-                set(),
-                {period.start: period},
-                None,
-                scope=period.sessions,
-            )
-        flipped.append(exit_.student)
-
-    if flipped:
-        # المخالفةُ الآليّةُ تحتاج راصداً: من ثبّت الحصّة، وإلّا المعلّمُ الذي أذن.
-        resync_escapes(
-            class_group, day, reporter_for(period, *(e.allowed_by for e in latest.values()))
-        )
-        refresh_counts(class_group, day, period)
-        _warn_of_gates(class_group.school, flipped, day)
-    return len(flipped)
+    return 0
 
 
 def finalize_exits_for_day(school: Any, day: dt.date, now: dt.datetime | None = None) -> int:
@@ -203,19 +121,11 @@ def finalize_exits_for_day(school: Any, day: dt.date, now: dt.datetime | None = 
     معاملتها، فعطبُ واحدةٍ لا يُسقط غيرَها.
     """
     now = now or timezone.now()
-    # ما بقي عمله وحدَه، باستعلامٍ واحد: خروجٌ مفتوح، أو خروجٌ أُغلق وفي حصّته خانةٌ
-    # حاضرةٌ لا تحسبه. وما أُنهي في دورةٍ سابقةٍ لا يُعاد كلَّ خمس دقائق.
-    pending = StudentAttendance.objects.filter(
-        session=OuterRef("session"),
-        student=OuterRef("student"),
-        source=SOURCE,
-        status__in=ATTENDED,
-    ).exclude(exit=OuterRef("pk"))
     slots: dict = {}
     for exit_ in (
         ClassExit.objects.filter(school=school, session__date=day)
         .exclude(session__status="cancelled")
-        .filter(Q(returned_at__isnull=True) | Exists(pending))
+        .filter(returned_at__isnull=True)
         .select_related("session", "session__class_group")
     ):
         if session_end(exit_.session) > now or not is_unreturned(exit_):

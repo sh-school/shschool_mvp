@@ -6,7 +6,7 @@ tests/test_views_behavior.py
 
 import pytest
 
-from behavior.models import BehaviorInfraction, BehaviorPointRecovery
+from behavior.models import BehaviorInfraction
 
 from .conftest import BehaviorInfractionFactory
 
@@ -25,6 +25,9 @@ class TestBehaviorDashboard:
         assert "critical_unresolved" in response.context
 
 
+from tests.test_behavior_views2 import teacher_student_link  # noqa: E402, F401
+
+
 @pytest.mark.django_db
 class TestReportInfraction:
     def test_get_report_form(self, client_as, teacher_user, school):
@@ -34,7 +37,7 @@ class TestReportInfraction:
         assert "students" in response.context
 
     def test_post_creates_level1_infraction(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self, client_as, teacher_user, school, student_user, enrolled_student, teacher_student_link
     ):
         client = client_as(teacher_user)
         count_before = BehaviorInfraction.objects.count()
@@ -54,7 +57,7 @@ class TestReportInfraction:
         assert BehaviorInfraction.objects.count() > count_before
 
     def test_critical_infraction_redirects_to_committee(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self, client_as, teacher_user, school, student_user, enrolled_student, teacher_student_link
     ):
         """مخالفة درجة 3 تُحال للجنة — التحقق من الإعادة فقط (لا من صفحة اللجنة)"""
         client = client_as(teacher_user)
@@ -75,7 +78,7 @@ class TestReportInfraction:
         assert BehaviorInfraction.objects.count() > count_before
 
     def test_post_succeeds_without_description(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self, client_as, teacher_user, school, student_user, enrolled_student, teacher_student_link
     ):
         """W-20261001-003: وصفُ المخالفة اختياريٌّ لكلّ فئات المخالفات بلا استثناء."""
         client = client_as(teacher_user)
@@ -93,7 +96,7 @@ class TestReportInfraction:
         assert BehaviorInfraction.objects.count() > count_before
 
     def test_post_succeeds_with_description(
-        self, client_as, teacher_user, school, student_user, enrolled_student
+        self, client_as, teacher_user, school, student_user, enrolled_student, teacher_student_link
     ):
         client = client_as(teacher_user)
         count_before = BehaviorInfraction.objects.count()
@@ -130,31 +133,7 @@ class TestStudentBehaviorProfile:
         response = client.get(f"/behavior/student/{student_user.id}/")
         assert response.status_code == 200
         assert "infractions" in response.context
-        assert "net_score" in response.context
-
-    def test_net_score_calculation(
-        self, client_as, principal_user, school, student_user, teacher_user
-    ):
-        """100 - 15 (مخصوم) + 10 (مسترد) = 95"""
-        inf = BehaviorInfractionFactory(
-            school=school,
-            student=student_user,
-            reported_by=teacher_user,
-            level=2,
-            points_deducted=15,
-        )
-        BehaviorPointRecovery.objects.create(
-            infraction=inf, reason="سلوك إيجابي", points_restored=10, approved_by=principal_user
-        )
-        client = client_as(principal_user)
-        response = client.get(f"/behavior/student/{student_user.id}/")
-        assert response.context["net_score"] == 95
-
-    def test_status_green_for_high_score(self, client_as, principal_user, student_user, school):
-        client = client_as(principal_user)
-        response = client.get(f"/behavior/student/{student_user.id}/")
-        # بدون مخالفات → net_score = 100 → green
-        assert response.context["status_color"] == "green"
+        assert "net_score" not in response.context
 
 
 @pytest.mark.django_db

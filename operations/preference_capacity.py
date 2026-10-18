@@ -18,6 +18,10 @@ if TYPE_CHECKING:
 
 LAST_PERIOD = 7
 WEEK_DAYS = 5
+#: أدنى سقفٍ يوميٍّ يختاره المعلّم (D-418م): ثلاثٌ فما دونها تجعل التوليدَ مستحيلاً في قياس 0424.
+MIN_DAILY_CAP = 4
+#: خياراتُ السقف اليوميّ في شاشة المعلّم — ويقبل الحفظُ منها وحدَها.
+TEACHER_DAILY_CAPS = range(MIN_DAILY_CAP, LAST_PERIOD + 1)
 
 
 def effective_run_cap(max_consecutive: int | None) -> int:
@@ -81,11 +85,13 @@ def record_free_day_change(
     )
 
 
-def save_teacher_preferences(request: HttpRequest, pref: Any) -> None:
-    """حفظُ شاشة المعلّم: الحقولُ التي يحرّرها وحدَها، وسقفٌ فوق العامّ يُنبَّه إليه ويُسجَّل."""
+def save_teacher_preferences(pref: Any) -> None:
+    """حفظُ شاشة المعلّم: الحقولُ التي يحرّرها وحدَها.
+
+    ولا أثرَ لسقف التتالي هنا: أُخفي عن المعلّم (D-418م)، فما فوق العامّ يضعه الأدمن ويُسجَّل هناك —
+    ولو بقي هنا لكتب كلُّ حفظٍ أثراً بقناة المعلّم عن سقفٍ لم يضعه.
+    """
     pref.save(update_fields=pref.TEACHER_EDITABLE_FIELDS)
-    if exceeds_general_run_cap(pref.max_consecutive):
-        record_run_cap_above_general(request, pref, "teacher_preferences")
 
 
 def daily_capacity(

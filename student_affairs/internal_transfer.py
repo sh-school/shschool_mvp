@@ -3,12 +3,19 @@
 وحدةٌ مستقلّة عن `services.py` حفاظاً على سقف حجم الملف؛ تستدعيها `TransferService.review_transfer` والعرض.
 """
 
+from datetime import timedelta
+
 from django.db import transaction
 from django.utils import timezone
 
 from core.audit_repr import masked_repr
 from core.models.academic import StudentEnrollment
 from core.models.audit import AuditLog
+from operations.attendance_policy import is_special_education
+
+#: أقصى رجوعٍ بتاريخ الانتقال إلى الوراء: النقلُ بتاريخٍ ماضٍ يعيد قراءةَ أيّامٍ رُصدت فعلاً (D-201م)،
+#: فلا يتّسع لأكثر من أسبوعٍ بلا اعتماد. سياسةٌ حسمها المالك 2026-10-12 (W-20261004-027) وتبديلُها سطرٌ واحد.
+MAX_BACKDATE_DAYS = 7
 
 
 def internal_target_error(transfer, today=None) -> str:
@@ -29,6 +36,12 @@ def internal_target_error(transfer, today=None) -> str:
         return "الشعبة المنقول إليها هي شعبة الطالب الحالية."
     if target.grade != source.grade or target.academic_year != source.academic_year:
         return "الانتقال الداخلي يكون إلى شعبةٍ من الصفّ نفسه والعام نفسه."
+    # عتباتُ الغياب تتبع شعبةَ الطالب (عاديّة/تربية خاصّة)، فالعبورُ بينهما يغيّر مجموعة العتبات: يبقى ممنوعاً (قرار المالك 10-12).
+    if is_special_education(target) != is_special_education(source):
+        return "الانتقال بين شعبةٍ عاديّةٍ وشعبة تربيةٍ خاصّةٍ غيرُ متاحٍ هنا — تتغيّر به عتباتُ الغياب."
+    oldest = (today or timezone.localdate()) - timedelta(days=MAX_BACKDATE_DAYS)
+    if transfer.transfer_date < oldest:
+        return f"تاريخ الانتقال أقدمُ من {MAX_BACKDATE_DAYS} أيام — يعيد قراءةَ أيّامٍ رُصدت فعلاً ويحتاج اعتماداً."
     return ""
 
 
@@ -47,7 +60,9 @@ def complete_internal(transfer, actor):
     current = StudentEnrollment.objects.current_of(transfer.student, transfer.school)
     source = current.class_group
     current.is_active = False
-    current.save(update_fields=["is_active"])
+    # آخرُ يومٍ في الشعبة القديمة هو اليومُ السابق للنقل: فيبقى ظاهراً فيها لأيّامها السابقة (D-323م).
+    current.left_at = transfer.transfer_date - timedelta(days=1)
+    current.save(update_fields=["is_active", "left_at"])
     enrollment = StudentEnrollment.objects.create(
         student=transfer.student,
         class_group=transfer.to_class_group,

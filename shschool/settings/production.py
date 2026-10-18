@@ -155,8 +155,11 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_AGE = 3600
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+# مُهَلُ الخمول والمطلقة بحسب الدور في `core/session_policy.py` (W-20261005-004، D-222م): هنا سقفُ
+# عمر الكوكي والمخزن فقط = أطولُ مطلقة (8 ساعات)، والميدلوير يُنهي الجلسةَ عند مُهلة دورها.
+# ولا إنهاءَ بإغلاق المتصفّح: المعلّمُ يفتح المتصفّحَ بعد استراحته فيجد جلستَه ضمن مُهلتها.
+SESSION_COOKIE_AGE = 8 * 3600
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_SAVE_EVERY_REQUEST = False  # MTG-2026-005: saves 1 DB write per request
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True

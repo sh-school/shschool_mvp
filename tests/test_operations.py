@@ -319,19 +319,17 @@ class TestGeneralTeachersSchedule:
         assert thursday[6]["expected"] == 0  # السابعة — ولا يبلغها
         assert thursday[6]["short"] is False
 
-    def test_teacher_gets_own_sheet_not_the_general_one(
+    def test_teacher_sees_the_general_schedule_but_not_every_teacher(
         self, client_as, teacher_user, schedule_slot
     ):
-        """الجدولُ العام يكشف جداول الزملاء — فمن لا يتصفّح غيره يُصرف إلى جدوله."""
+        """قرارُ المالك D-432م: الجدولُ العام مرئيٌّ للمعلّم؛ والمحجوب جداولُ من ليسوا زملاءه (tests/test_schedule_visibility_idor.py)."""
         c = client_as(teacher_user)
         resp = c.get(
             f"/teacher/weekly-schedule/print/?view=all_teachers&year={schedule_slot.academic_year}"
         )
 
         assert resp.status_code == 200
-        assert resp.context["view_type"] == "teacher"
-        assert resp.context["matrix"] == []
-        assert resp.context["target_teacher"] == teacher_user
+        assert resp.context["view_type"] == "all_teachers"
 
 
 # ══════════════════════════════════════════════════

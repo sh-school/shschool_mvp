@@ -55,7 +55,8 @@ def test_nobody_but_the_observer_archives_a_draft(
     obs, _ = _make_obs(school, coordinator_user, teacher_user, status="draft")
 
     assert _obs_perms(actors[who], obs)["can_archive"] is False
-    assert _post(client_as, actors[who], obs).status_code == 403
+    # المُزارُ لا يعلم بوجود المسوّدة (404)، وغيرُه من غير الزائر 403 (W-20260929-004)
+    assert _post(client_as, actors[who], obs).status_code == (404 if who == "teacher" else 403)
     assert not _archived(obs)
 
 

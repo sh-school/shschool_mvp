@@ -40,10 +40,10 @@
   {% else %}
   <div class="checkbox-row">
     <div class="checkbox-item">
-      <span class="checkbox-box">{% if 'غياب' in infraction.description %}✓{% endif %}</span> غياب غير مبرر
+      <span class="checkbox-box{% if 'غياب' in infraction.description %} is-checked{% endif %}"></span> غياب غير مبرر
     </div>
     <div class="checkbox-item">
-      <span class="checkbox-box">{% if 'تأخر' in infraction.description %}✓{% endif %}</span> تأخر
+      <span class="checkbox-box{% if 'تأخر' in infraction.description %} is-checked{% endif %}"></span> تأخر
     </div>
     <div class="checkbox-item">
       <span class="checkbox-box"></span> سلوك مسيء
@@ -52,7 +52,7 @@
       <span class="checkbox-box"></span> مخالفة تعليمات الاختبارات
     </div>
     <div class="checkbox-item">
-      <span class="checkbox-box">✓</span> أخرى
+      <span class="checkbox-box is-checked"></span> أخرى
     </div>
   </div>
   {% endif %}

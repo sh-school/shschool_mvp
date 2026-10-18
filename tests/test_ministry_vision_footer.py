@@ -30,9 +30,10 @@ PARTIAL = pathlib.Path("templates/components/ministry_vision.html")
 #: `base_form.html` رُحِّل إلى الإطار المطبوع المركزيّ (core/print_frame.py، #713) فخرج من هذه القائمة —
 #: انظر `test_the_migrated_form_footer_carries_the_vision` أدناه. و`observation_pdf.html` رُحِّل مثلَه إلى
 #: المكوّن المركزيّ الأبسط `components/pdf_footer.html` (قرارُ المالك 2026-09-28، W-20260928-003) — انظر
-#: `test_the_shared_footer_component_carries_the_vision` أدناه.
+#: `test_the_shared_footer_component_carries_the_vision` أدناه. و`print_schedule.html` (والجدول الفرديّ
+#: `print_pages.html`) رُحِّلا كذلك إلى الإطار المركزيّ (W-20261010-057) — انظر
+#: `test_the_migrated_schedule_footer_carries_the_vision` أدناه.
 STANDALONE_DOCS = [
-    "templates/schedule/print_schedule.html",
     "templates/reports/base_qatar_report.html",
 ]
 
@@ -81,6 +82,36 @@ def test_every_standalone_document_footer_carries_the_vision(doc):
     assert 'include "components/ministry_vision.html"' in pathlib.Path(doc).read_text(
         encoding="utf-8"
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "doc", ["templates/schedule/print_schedule.html", "templates/schedule/print_pages.html"]
+)
+@pytest.mark.parametrize(
+    ("paper", "orient"), [("a4", "landscape"), ("a4", "portrait"), ("a3", "landscape")]
+)
+def test_the_migrated_schedule_footer_carries_the_vision(school, doc, paper, orient):
+    """قالبا الجدول رُحِّلا إلى الإطار المركزيّ: الرؤيةُ تصلهما عبر الإطار لا نصّاً في القالب، فيُقاس المُخرَجُ
+    المُصيَّر ويُقاس أنّ القالبَ ما زال يستعمل وسمَ التذييل المركزيّ. والرؤيةُ في التذييل حيث يسعها الصفُّ،
+    وفي الورق العمودي في الترويسة عمداً (`VISION_IN_HEADER`، D1) فلا تُطلب منه في التذييل."""
+    from django.template import Context, Template
+
+    from core.print_frame import VISION_IN_HEADER
+
+    assert "{% print_frame_footer" in pathlib.Path(doc).read_text(encoding="utf-8")
+    context = Context({"paper": paper, "orient": orient, "school": school})
+    footer = Template("{% load print_frame %}{% print_frame_footer paper orient school %}").render(
+        context
+    )
+    header = Template(
+        '{% load print_frame %}{% print_frame_header paper orient school "عنوان" %}'
+    ).render(context)
+
+    if (paper, orient) in VISION_IN_HEADER:
+        assert VISION in _plain(header) and VISION not in _plain(footer)
+    else:
+        assert VISION in _plain(footer) and VISION not in _plain(header)
 
 
 @pytest.mark.django_db

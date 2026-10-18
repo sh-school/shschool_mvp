@@ -9,7 +9,7 @@
 {% endcomment %}
 {% block title %}ملخّص غياب الحصّتين الأولى والثانية{% endblock %}
 
-{% block main_class %}{% page_layout "report" %}{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% url 'daily_report' as daily_url %}
@@ -52,12 +52,13 @@
 
   {% for note in summary.notes %}{% callout "warning" show=True %}{{ note }}{% endcallout %}{% endfor %}
 
+  <div class="ui-grid-2 tbl-cols">
   {% section_card "حسب الصفّ والشعبة" meta=summary.class_rows|length icon="stats" empty="لا شعبَ تطابق الترشيح" flush=True %}{% if summary.grades %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table data-no-sort>
         <thead>
           <tr>
-            <th>الصفُّ / الشعبة</th>
+            <th class="fu-name">الصفُّ / الشعبة</th>
             <th class="num">المقيَّدون</th>
             <th class="num">غابوا الحصّتين بلا عذر</th>
             <th class="num">غابوا الحصّتين بعذر</th>
@@ -70,8 +71,8 @@
         <tbody>
         {% for grade_row in summary.grades %}
           {% for item in grade_row.rows %}
-          <tr>
-            <td>{{ item.group.short_code }}{% if not item.has_periods %} <span class="status-badge status-warning">لا حصّتان</span>{% endif %}</td>
+          <tr class="grade-tint grade-{{ grade_row.key|lower }}">
+            <td class="fu-name">{{ item.group.short_code }}{% if not item.has_periods %} <span class="status-badge status-warning">لا حصّتان</span>{% endif %}</td>
             <td class="num">{{ item.counts.enrolled }}</td>
             <td class="num">{% if item.counts.absent_both_unexcused %}<span class="status-badge status-danger">{{ item.counts.absent_both_unexcused }}</span>{% else %}{{ item.counts.absent_both_unexcused }}{% endif %}</td>
             <td class="num">{% if item.counts.absent_both_excused %}<span class="status-badge status-info">{{ item.counts.absent_both_excused }}</span>{% else %}{{ item.counts.absent_both_excused }}{% endif %}</td>
@@ -81,8 +82,8 @@
             <td class="num">{% if item.counts.pending %}<span class="status-badge status-warning">{{ item.counts.pending }}</span>{% else %}{{ item.counts.pending }}{% endif %}</td>
           </tr>
           {% endfor %}
-          <tr>
-            <td><strong>مجموع {{ grade_row.label }}</strong></td>
+          <tr class="grade-tint grade-{{ grade_row.key|lower }}">
+            <td class="fu-name"><strong>مجموع {{ grade_row.label }}</strong></td>
             <td class="num"><strong>{{ grade_row.counts.enrolled }}</strong></td>
             <td class="num"><strong>{{ grade_row.counts.absent_both_unexcused }}</strong></td>
             <td class="num"><strong>{{ grade_row.counts.absent_both_excused }}</strong></td>
@@ -93,7 +94,7 @@
           </tr>
         {% endfor %}
           <tr>
-            <td><strong>{% if filtered %}مجموع المعروض{% elif bound %}مجموع جناحك{% else %}مجموع المدرسة{% endif %}</strong></td>
+            <td class="fu-name"><strong>{% if filtered %}مجموع المعروض{% elif bound %}مجموع جناحك{% else %}مجموع المدرسة{% endif %}</strong></td>
             <td class="num"><strong>{{ summary.total.enrolled }}</strong></td>
             <td class="num"><strong>{{ summary.total.absent_both_unexcused }}</strong></td>
             <td class="num"><strong>{{ summary.total.absent_both_excused }}</strong></td>
@@ -108,21 +109,21 @@
   {% endif %}{% endsection_card %}
 
   {% section_card "من يُرفعون غائبين — الحصّتان الأولى والثانية" meta=summary.ministered|length icon="status_warning" empty="لا غائبَ في الحصّتين معاً" flush=True %}{% if summary.ministered %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>
             <th class="num">#</th>
-            <th>الطالب</th>
+            <th class="fu-name">الطالب</th>
             <th data-sort="num" data-sort-first="asc">الشعبة</th>
             <th>الحال</th>
           </tr>
         </thead>
         <tbody>
           {% for item in summary.ministered %}
-          <tr>
+          <tr class="grade-tint grade-{{ item.grade|lower }}">
             <td class="num">{{ forloop.counter }}</td>
-            <td>{{ item.name }}</td>
+            <td class="fu-name">{{ item.name }}</td>
             <td>{{ item.class_code }}</td>
             <td><span class="status-badge {% if item.excused %}status-info{% else %}status-danger{% endif %}">{% if item.excused %}غائب بعذر{% else %}غائب بلا عذر{% endif %}</span></td>
           </tr>
@@ -131,6 +132,7 @@
       </table>
     </div>
   {% endif %}{% endsection_card %}
+  </div>
 
 </div>
 {% endblock %}

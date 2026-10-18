@@ -1,4 +1,4 @@
-{% load brand_tags %}
+{% load brand_tags print_frame week_tags %}
 {% load static %}
 {% comment %}
 ورقةُ الصفحات — صفحةٌ لكلّ معلّمٍ (مرتّبةً بالأقسام) أو لكلّ شعبة (بترتيب المدرسة).
@@ -8,6 +8,10 @@
 
 القالبُ واحدٌ للشاشة والورق وملفّ PDF. و`data-pdf-own-page`: الورقةُ تحمل
 @page بنفسها — اتّجاهاً وترقيماً — فلا يحقن مولّدُ PDF ترويستَه وذيلَه عليها.
+
+الترويسةُ والتذييلُ من **الإطار المركزيّ** (`core/print_frame.py`، `{% print_frame_css/header/footer %}`) كالجدول العامّ A3 — لا نسخةَ محلّيّةً
+(W-20261010-057، قرارُ المالك 2026-10-12): ترويسةٌ واحدةٌ فيها المدرسةُ والعنوانُ والعام، وتذييلٌ صفٌّ واحدٌ فيه المدرسةُ وص/ص وتاريخُ الطباعة.
+ولا نصَّ للوزارة مكتوباً هنا: يُعرض من الإطار حيث تتحكّم به W-20261012-008 من موضعٍ واحد.
 {% endcomment %}
 <meta charset="utf-8">
 <title>{{ title }}</title>
@@ -20,17 +24,6 @@
 </style>
 {% endif %}
 <style>
-  @page {
-    size: {% if paper == 'a3' %}A3{% else %}A4{% endif %} {{ orient }};
-    margin: {{ geo.css.margin }};
-    @bottom-center {
-      content: "{{ school.name }} — \002066{{ year }}\002069 — " counter(page) " / " counter(pages);
-      font-family: "Tajawal", sans-serif;
-      font-size: 8pt;
-      color: {% brand_color "TEXT_MUTED" %};
-    }
-  }
-
   body {
     font-family: "Tajawal", "Segoe UI", Tahoma, sans-serif;
     direction: rtl;
@@ -54,12 +47,6 @@
     box-shadow: 0 2px 10px rgba(0,0,0,.08);
   }
 
-  .page-header { text-align: center; height: {{ geo.css.header_h }}; margin-bottom: {{ geo.css.gap }}; overflow: hidden; box-sizing: border-box; }
-  .ministry { font-size: 7.5pt; line-height: 3.2mm; color: {% brand_color "TEXT_MUTED" %}; }
-  .school-name { font-size: 12pt; line-height: 5.4mm; font-weight: 700; color: {% brand_color "MAROON" %}; }
-  .doc-title { font-size: 9.75pt; line-height: 4.2mm; color: {% brand_color "TEXT_SECONDARY" %}; }
-  .year { font-size: 7.5pt; line-height: 3.2mm; color: {% brand_color "TEXT_MUTED" %}; }
-
   .who {
     display: flex;
     justify-content: space-between;
@@ -75,33 +62,22 @@
     border-radius: 6px;
     padding: 0 10px;
     margin-bottom: {{ geo.css.gap }};
-    font-size: 9pt;
+    font-size: 10pt;
+    font-weight: 400;
+    color: {% brand_color "TEXT_SECONDARY" %};
   }
   /* السطرُ لا يلتفّ (ارتفاعُه محسوب)، فالعنصرُ الطويلُ يُختصر بنقاطٍ ولا يركب جارَه —
      والمنسّقُ أوّلُ ما يُختصر: اسمُ المعلّم والنصابُ ألزمُ لقارئ الورقة. */
   .who > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
   .who > span.who-dept { flex-shrink: 1; }
   .who > span.who-head { flex-shrink: 1; }
-  {% if orient == 'portrait' %}.who { font-size: 7.5pt; gap: 5px; padding: 0 6px; }{% endif %}
-  .who b { color: {% brand_color "MAROON" %}; }
-  .who .specialty { color: {% brand_color "MAROON_DARK" %}; font-weight: 500; }
+  {% if orient == 'portrait' %}.who { gap: 5px; padding: 0 6px; }{% endif %}
+  {% comment %}العنوانُ 400 ثانويّاً والقيمةُ 500 أساسيّاً (Tajawal بلا 600؛ والبولد 700 للترويسة وحدَها).{% endcomment %}
+  .who b { color: {% brand_color "TEXT_PRIMARY" %}; font-weight: 500; }
+  .who .specialty { color: {% brand_color "TEXT_SECONDARY" %}; font-weight: 400; }
 
 {% include "schedule/pdf/week_grid_css.html" %}
 
-  /* ذيلُ كلّ صفحة: المحتوى من المكوّن المركزيّ `components/pdf_footer.html` (قرارُ المالك 2026-09-28 — نفسُه في استمارة الزيارة الصفّيّة)؛ هذا الصندوقُ ارتفاعُه وإطارُه فقط. */
-  .page-footer {
-    height: {{ geo.css.footer_h }};
-    margin-top: {{ geo.css.gap }};
-    padding-top: 1.2mm;
-    box-sizing: border-box;
-    overflow: hidden;
-    border-top: 1px solid {% brand_color "BORDER" %};
-    font-size: 6.5pt;
-    color: {% brand_color "TEXT_MUTED" %};
-    text-align: center;
-    line-height: 1.45;
-  }
-  .pdf-footer-date { direction: ltr; unicode-bidi: embed; }
   .empty-note { text-align: center; color: {% brand_color "TEXT_MUTED" %}; padding: 20mm 0; font-size: 13px; }
 
   @media print {
@@ -117,24 +93,20 @@
     .sheet:last-child { page-break-after: auto; break-after: auto; }
   }
 </style>
+{% print_frame_css paper orient "sheet" %}
 <body data-pdf-own-page>
 {% include "components/app_back_bar.html" %}
 
 {% for row in pages %}
 <section class="sheet">
-  <div class="page-header">
-    {% load ministry %}{% ministry_name as ministry %}{% if ministry %}<div class="ministry">{{ ministry }}</div>{% endif %}
-    <div class="school-name">{{ school.name }}</div>
-    <div class="doc-title">{% include "schedule/partials/page_doc_title.html" %}</div>
-    {% comment %}العامُ بين عازلَي اتّجاه: «2026-2027» في سطرٍ عربيٍّ كان يُقرأ «2027-2026».{% endcomment %}
-    <div class="year">العام الدراسي &#8294;{{ year }}&#8297;</div>
-  </div>
+  {% schedule_subtitle year "" "" as subtitle_text %}
+  {% if kind == 'classes' %}{% print_frame_header paper orient school "الجدول الأسبوعي للشعبة" subtitle=subtitle_text for_pdf=for_pdf %}{% else %}{% print_frame_header paper orient school "الجدول الأسبوعي للمعلّم" subtitle=subtitle_text for_pdf=for_pdf %}{% endif %}
 
   {% include "schedule/partials/page_who.html" with row=row %}
 
   {% if kind == 'classes' %}{% include "schedule/pdf/week_grid.html" with week=row.week who="teacher" %}{% else %}{% include "schedule/pdf/week_grid.html" with week=row.week who="class" %}{% endif %}
 
-  <div class="page-footer">{% include "components/pdf_footer.html" with school=school show_date=True %}</div>
+  {% print_frame_footer paper orient school %}
 </section>
 {% empty %}
 <section class="sheet"><p class="empty-note">لا جداول في هذا النطاق.</p></section>
