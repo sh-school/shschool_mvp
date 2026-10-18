@@ -13,6 +13,7 @@ from core.models import StudentEnrollment
 from student_affairs.internal_transfer import internal_target_error
 from student_affairs.models import StudentTransfer
 from tests.attendance_fixtures import *  # noqa: F401,F403
+from tests.transfer_chain_support import run_full_chain
 from tests.visual_snapshots import FIXED_NOW
 
 # الساعةُ مثبَّتةٌ: نافذةُ رجوع التاريخ تقرأ «اليوم»، فيُحسب الماضي من اليوم المثبَّت (W-20261008-021).
@@ -225,6 +226,6 @@ def test_an_external_outgoing_transfer_still_deactivates_as_before(
         updated_by=student_affairs_coordinator_user,
     )
 
-    _complete(client, student_affairs_coordinator_user, transfer)
+    run_full_chain(transfer, student_affairs_coordinator_user)
 
     assert not StudentEnrollment.objects.get(student=kid, class_group=klass).is_active
