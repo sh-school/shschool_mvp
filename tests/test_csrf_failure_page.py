@@ -8,6 +8,7 @@ from core.views_errors import DEFAULT_RELOAD_URL
 
 pytestmark = pytest.mark.django_db
 
+HTML = "text/html,application/xhtml+xml"
 RAW_MARKERS = ("CSRF verification failed", "Forbidden (403)", "Reason given for failure")
 
 
@@ -32,9 +33,9 @@ def test_csrf_failure_is_a_branded_arabic_page_with_reload_button():
 
 def test_reload_button_returns_to_same_site_referer_only():
     client = Client(enforce_csrf_checks=True)
-    own = _failing_post(client, HTTP_REFERER="http://testserver/schedule/")
+    own = _failing_post(client, HTTP_ACCEPT=HTML, HTTP_REFERER="http://testserver/schedule/")
     assert 'href="http://testserver/schedule/"' in own.content.decode()
-    foreign = _failing_post(client, HTTP_REFERER="https://evil.example/phish")
+    foreign = _failing_post(client, HTTP_ACCEPT=HTML, HTTP_REFERER="https://evil.example/phish")
     assert "evil.example" not in foreign.content.decode()
     assert f'href="{DEFAULT_RELOAD_URL}"' in foreign.content.decode()
 
@@ -52,7 +53,7 @@ def _signed_in_client(school):
 def test_signed_in_user_is_redirected_home_not_403_from_login_form(school):
     """الرجوعُ إلى /auth/login/ بعد الدخول ثم الإرسال: يُعاد المسجَّلُ إلى الرئيسيّة بتنبيهٍ لا بـ403."""
     client = _signed_in_client(school)
-    response = _failing_post(client, HTTP_REFERER="http://testserver/auth/login/")
+    response = _failing_post(client, HTTP_ACCEPT=HTML, HTTP_REFERER="http://testserver/auth/login/")
     assert response.status_code == 302
     assert response["Location"] == DEFAULT_RELOAD_URL
     follow = client.get(response["Location"], follow=True)
@@ -61,7 +62,23 @@ def test_signed_in_user_is_redirected_home_not_403_from_login_form(school):
 
 def test_signed_in_user_returns_to_internal_referer_only(school):
     client = _signed_in_client(school)
-    inside = _failing_post(client, HTTP_REFERER="http://testserver/schedule/")
+    inside = _failing_post(client, HTTP_ACCEPT=HTML, HTTP_REFERER="http://testserver/schedule/")
     assert inside.status_code == 302 and inside["Location"] == "http://testserver/schedule/"
-    outside = _failing_post(client, HTTP_REFERER="https://evil.example/x")
+    outside = _failing_post(client, HTTP_ACCEPT=HTML, HTTP_REFERER="https://evil.example/x")
     assert outside["Location"] == DEFAULT_RELOAD_URL
+
+
+def test_signed_in_non_page_requests_still_get_403_not_a_silent_redirect(school):
+    """fetch/XHR/HTMX وما لا يطلب HTML يحتاج رمزَ الحالة 403 لا تحويلاً يتبعه المتصفّح فيظنّه نجاحًا."""
+    client = _signed_in_client(school)
+    plain = _failing_post(client, HTTP_REFERER="http://testserver/schedule/")
+    assert plain.status_code == 403
+    xhr = _failing_post(
+        client,
+        HTTP_ACCEPT=HTML,
+        HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        HTTP_REFERER="http://testserver/schedule/",
+    )
+    assert xhr.status_code == 403
+    htmx = _failing_post(client, HTTP_ACCEPT=HTML, HTTP_HX_REQUEST="true")
+    assert htmx.status_code == 403

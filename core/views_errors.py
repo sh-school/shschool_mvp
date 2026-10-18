@@ -37,13 +37,24 @@ def _signed_in_target(request: HttpRequest) -> str:
     return referer
 
 
+def _is_page_navigation(request: HttpRequest) -> bool:
+    """نموذجُ صفحةٍ يرسله المتصفّح (Accept: text/html) لا استدعاءَ fetch/XHR/HTMX الذي ينتظر رمزَ الحالة."""
+    if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.headers.get(
+        "hx-request"
+    ):
+        return False
+    return "text/html" in request.headers.get("accept", "")
+
+
 def csrf_failure(request: HttpRequest, reason: str = "") -> HttpResponse:
     """`CSRF_FAILURE_VIEW`: انتهت صلاحيةُ الصفحة (غالبًا بزرّ الرجوع) — بلا تفاصيلَ تقنيّةٍ للمستخدم.
 
-    المسجَّلُ يُعاد إلى صفحته مع تنبيهٍ بأنّ طلبَه لم يُنفَّذ بدل 403 (الدخولُ يدوِّر الرمزَ فيُرسل الرجوعُ نموذجًا قديمًا)؛
+    المسجَّلُ الذي أرسل نموذجَ صفحةٍ يُعاد إلى صفحته مع تنبيهٍ بأنّ طلبَه لم يُنفَّذ بدل 403 (الدخولُ يدوِّر الرمزَ
+    فيُرسل الرجوعُ نموذجًا قديمًا)؛ وطلباتُ fetch/XHR/HTMX وكلُّ ما لا يطلب HTML يبقى 403 فلا يتبع الراجعُ تحويلاً صامتًا؛
     وغيرُ المسجَّل يرى صفحةَ الخطأ بزرّ إعادة التحميل.
     """
-    if getattr(request, "user", None) is not None and request.user.is_authenticated:
+    user = getattr(request, "user", None)
+    if user is not None and user.is_authenticated and _is_page_navigation(request):
         messages.warning(request, "انتهت صلاحيةُ الصفحة فلم يُنفَّذ طلبُك. أعِد المحاولة من هذه الصفحة.")
         return redirect(_signed_in_target(request))
     return render(
