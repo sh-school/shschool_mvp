@@ -25,6 +25,7 @@ from core.permissions import (
     BEHAVIOR_MANAGE,
     BEHAVIOR_STATS_TEACHING,
     BEHAVIOR_VIEW_ALL,
+    SCHOOL_WIDE_ABSENCE_ROLES,
     forbidden_page,
     get_teacher_student_ids,
     teacher_can_access_student,
@@ -94,8 +95,13 @@ def _require_in_wing(request, student_id):
         student_scope_for(request).require_student(student_id)
 
 
-def _deny_unreachable(request, student_id, message):
-    """المقيَّدُ بجناحه: 404 خارجَه. وغيرُه على «طلابُك فقط» بصفحة المنع كما كان."""
+def _deny_unreachable(request, student_id, message, school_wide=False):
+    """المقيَّدُ بجناحه: 404 خارجَه. وغيرُه على «طلابُك فقط» بصفحة المنع كما كان.
+
+    `school_wide`: تقريرُ السلوك وحدَه يفتحه المنسّقُ لكلّ طلاب المدرسة (قرار المالك 2026-10-18).
+    """
+    if school_wide and request.user.get_role() in SCHOOL_WIDE_ABSENCE_ROLES:
+        return None
     scope = student_scope_for(request)
     if scope.is_wing_bound:
         scope.require_student(student_id)
@@ -660,7 +666,7 @@ def behavior_report(request, student_id):
     )
 
     # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط، والمشرفُ طلبةَ جناحه ──
-    denied = _deny_unreachable(request, student.id, "هذا الطالب ليس من طلابك.")
+    denied = _deny_unreachable(request, student.id, "هذا الطالب ليس من طلابك.", school_wide=True)
     if denied:
         return denied
     year = _report_year(request)

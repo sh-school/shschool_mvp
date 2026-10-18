@@ -108,7 +108,7 @@ class TestCoordinatorPanels:
 
 
 class TestBehaviorReportPhone:
-    def test_a_family_caller_with_the_report_sees_the_number_and_the_teacher_does_not(
+    def test_the_coordinator_opens_any_students_report_with_the_number_and_the_teacher_stays_scoped(
         self, client_as, staff, teacher, school, kids, absent_both
     ):
         from tests.conftest import MembershipFactory, RoleFactory
@@ -119,7 +119,8 @@ class TestBehaviorReportPhone:
         )
         _family(school, kids[0])
         url = reverse("behavior:behavior_report", args=[kids[0].id])
-        seen = client_as(staff["principal"]).get(url)
+        seen = client_as(staff["coordinator"]).get(url)
         assert seen.status_code == 200 and FATHER_PHONE in seen.content.decode()
         other = client_as(teacher).get(url)
         assert other.status_code != 200 or FATHER_PHONE not in other.content.decode()
+        assert client_as(staff["principal"]).get(url).status_code == 200
