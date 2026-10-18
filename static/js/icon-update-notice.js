@@ -15,7 +15,7 @@
   'use strict';
 
   var KEY = 'schoolos.iconV';
-  var VERSION = '4'; // يطابق مجلّد static/icons/v4/ (قلمٌ وشعلة، W-20261014-009)
+  var VERSION = '5'; // يطابق مجلّد static/icons/v5/ (قلمٌ وشعلة، W-20261014-009)
   var STANDALONE = '(display-mode: standalone), (display-mode: fullscreen)';
 
   function read() {

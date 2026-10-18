@@ -24,6 +24,8 @@
 
 from __future__ import annotations
 
+import datetime as dt
+
 from django.db.models import QuerySet
 
 from core.models import ClassGroup, StudentEnrollment
@@ -67,9 +69,7 @@ def recorded_by_supervisor(session, student) -> bool:
     ).exists()
 
 
-def enrolled_of(class_group: ClassGroup) -> QuerySet[StudentEnrollment]:
-    return (
-        StudentEnrollment.objects.filter(class_group=class_group, is_active=True)
-        .select_related("student")
-        .order_by("student__full_name")
-    )
+def enrolled_of(class_group: ClassGroup, day: dt.date | None = None) -> QuerySet[StudentEnrollment]:
+    """طلبةُ الشعبة — القائمون الآن، أو الساريةُ قيودُهم في `day` (`on_roll`: المنقولُ يبقى في شعبته القديمة حتى آخر يومٍ فيها)."""
+    rows = StudentEnrollment.objects.roster_of(class_group, day)
+    return rows.select_related("student").order_by("student__full_name")

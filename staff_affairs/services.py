@@ -17,9 +17,14 @@ from typing import TYPE_CHECKING
 from django.db import transaction
 from django.utils import timezone
 
-from core.academic_calendar import academic_year_for_school
+from core.academic_calendar import academic_year_for_school, academic_year_window
 from staff_affairs.leave_rules import default_total_days, leave_rule, missing_document_error
-from staff_affairs.models import LeaveBalance, LeaveRequest
+from staff_affairs.models import EmploymentContract, LeaveBalance, LeaveRequest
+from staff_affairs.probation import (
+    probation_block_error,
+    prorated_annual_days,
+    refresh_for_leave,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -344,6 +349,9 @@ class LeaveService:
         error = missing_document_error(leave_type, bool(attachment))
         if error:
             raise ValueError(error)
+        error = probation_block_error(school, staff, leave_type)
+        if error:
+            raise ValueError(error)
         from staff_affairs.leave_flow import initial_stage
 
         deputy_role, stage = initial_stage(staff)
@@ -410,6 +418,9 @@ class LeaveService:
 
         balance = None
         if action == "approved":
+            error = probation_block_error(leave.school, leave.staff, leave.leave_type)
+            if error:
+                raise ValueError(error)
             # select_for_update: يمنع race condition على balance.used_days
             balance, _ = LeaveBalance.objects.select_for_update().get_or_create(
                 school=leave.school,
@@ -422,6 +433,7 @@ class LeaveService:
                     )
                 },
             )
+            LeaveService._sync_prorated_annual(leave, balance)
             LeaveService._refuse_if_over_limit(leave, balance)
 
         if action == "rejected":
@@ -448,6 +460,9 @@ class LeaveService:
             ]
         )
 
+        if action == "approved":
+            refresh_for_leave(leave)  # المرضُ/الوضع/العدّة تمدّد الاختبار (م72)
+
         # ── تحديث رصيد الإجازات عند الموافقة ──────────────────
         if balance is not None:
             balance.used_days += leave.days_count
@@ -466,6 +481,24 @@ class LeaveService:
             reviewer.pk,
         )
         return leave
+
+    @staticmethod
+    def _sync_prorated_annual(leave: LeaveRequest, balance: LeaveBalance) -> None:
+        """دوريّةُ من اجتاز الاختبار نسبيّةٌ لمدته بعده في سنة الرصيد (م62)؛ بلا عقدٍ يبقى الرصيدُ كما هو."""
+        if leave.leave_type != "annual":
+            return
+        contract = EmploymentContract.objects.filter(school=leave.school, staff=leave.staff).first()
+        if contract is None or contract.result != "passed":
+            return
+        window = academic_year_window(leave.school, leave.start_date)
+        if window is None:
+            return
+        days = prorated_annual_days(
+            contract, window[0], window[1], LeaveService.DEFAULT_ANNUAL_DAYS
+        )
+        if balance.total_days != days:
+            balance.total_days = days
+            balance.save(update_fields=["total_days"])
 
     @staticmethod
     def limit_for(leave_type: str, balance: LeaveBalance) -> int | None:

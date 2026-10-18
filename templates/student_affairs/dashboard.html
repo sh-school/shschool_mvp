@@ -37,6 +37,49 @@
     {% kpi "مخالفات اليوم" today_behavior_count tone=behavior_tone href=behavior_url %}
   {% endkpi_strip %}
 
+  {# أقسام المنسّق (W-20261018-001): تظهر لمن يملك قدرتَها وحدَه، ورقمُ الوليّ بلا اسمٍ لحامل behavior.guardian_contact (D-431م). #}
+  {% if panels %}
+  <div class="fill-grid">
+    {% if panels.absence %}
+    {% section_card "متابعة الغياب والتواصل" meta=panels.absence.absent_count icon="call_parent" %}
+      <p class="ui-note">غابوا الحصّتين الأولى والثانية معاً · تمّ الاتّصال بأوليائهم: {{ panels.absence.contacted }}</p>
+      {% if panels.absence.action_counts %}
+      <ul class="plain-list">
+        {% for label, count in panels.absence.action_counts %}
+        <li class="plain-list__row"><span class="plain-list__title">{{ label }}</span><span class="status-badge status-gray">{{ count }}</span></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      <div class="ui-actions">
+        <a href="{% url 'daily_report' %}" class="btn-primary btn-sm">{% icon "call_parent" %} التواصل مع أولياء الأمور</a>
+        <a href="{% url 'absence_actions' %}" class="btn-secondary btn-sm">{% icon "checklist" %} متابعة إجراءات الغياب</a>
+      </div>
+    {% endsection_card %}
+
+    {% section_card "استلام الإجازات المرضية" meta=panels.absence.sick_leave|length icon="clinic" empty="لا إجازةَ مرضيّةً مستلمة اليوم" %}{% if panels.absence.sick_leave %}
+      <ul class="plain-list is-scroll">
+        {% for s in panels.absence.sick_leave %}
+        <li class="plain-list__row"><span class="plain-list__title">{{ s.name }}</span><span class="status-badge status-gray">{{ s.klass }}</span></li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
+    {% endif %}
+
+    {% if panels.pledges is not None %}
+    {% section_card "المستدعون للتعهّد" meta=panels.pledges|length icon="behavior" empty="لا مستدعَين للتعهّد الآن" %}{% if panels.pledges %}
+      <ul class="plain-list is-scroll">
+        {% for p in panels.pledges %}
+        <li class="plain-list__row">
+          <span class="plain-list__main"><b class="plain-list__title">{{ p.name }}</b><span class="plain-list__sub">{{ p.when }} · {{ p.status }}{% for phone in p.phones %} · <a href="tel:{{ phone }}" dir="ltr">{{ phone }}</a>{% endfor %}</span></span>
+          <span class="status-badge {% if p.level == 4 %}status-danger{% else %}status-warning{% endif %}" title="درجة المخالفة">د{{ p.level }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
+    {% endif %}
+  </div>
+  {% endif %}
+
   {# القوائم اليومية (SOS-20260420-9A91) #}
   <div class="fill-grid">
     {% section_card "الغائبون اليوم" meta=absent_today icon="absence" empty="لا غياب اليوم" %}{% if absent_list %}
