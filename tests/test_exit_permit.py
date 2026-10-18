@@ -190,6 +190,20 @@ class TestScreens:
         assert response["Content-Type"] == "application/pdf"
         assert response.content[:4] == b"%PDF"
 
+    def test_the_form_is_one_portrait_page(self, client_as, school, klass, kids, supervisor):
+        """أمر المالك 2026-10-18: الاستمارةُ صفحةٌ واحدةٌ راسيّةٌ فقط."""
+        from io import BytesIO
+
+        from pypdf import PdfReader
+
+        # أسوأ حالة طولاً: ملاحظةٌ بأقصى طولها (200) وتحذيرُ الحصص القليلة (لا حصصَ مكتملة هنا)
+        permit = _request(supervisor, school, kids[0], note=("ملاحظة طويلة " * 20)[:200])
+        service.approve_permit(supervisor, school, permit.pk, guardian_present=True)
+        pdf = client_as(supervisor).get(reverse("wings:exit_permit_pdf", args=[permit.id])).content
+        pages = PdfReader(BytesIO(pdf)).pages
+        assert len(pages) == 1
+        assert pages[0].mediabox.height > pages[0].mediabox.width
+
 
 class TestFormFromConstants:
     def test_changing_a_constant_changes_the_form_without_the_template(

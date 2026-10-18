@@ -29,7 +29,7 @@ ALTER TABLE public.{table} DISABLE ROW LEVEL SECURITY;
 class Migration(migrations.Migration):
     dependencies = [
         ("core", "0037_rls_tenant_identity_from_db_role"),
-        ("operations", "0086_exit_permit"),
+        ("operations", "0088_exit_permit"),
     ]
 
     operations = [migrations.RunSQL(sql=_enable(t), reverse_sql=_disable(t)) for t in TABLES]

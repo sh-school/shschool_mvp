@@ -28,7 +28,7 @@ from django.views.decorators.http import require_POST
 
 from core.capabilities import capability_required, has_capability
 from core.export_utils import generate_export_filename
-from core.models import AuditLog, Wing
+from core.models import AuditLog
 from operations.models import AbsenceActionLog, AbsenceContactLog
 from operations.services import ScheduleService
 from operations.services import absence_followup as service
@@ -39,7 +39,15 @@ _FLAGS = {
     "can_record": "operations.absence_followup_record",
     "can_feedback": "operations.absence_followup_feedback",
     "can_print": "operations.absence_followup_print",
+    "can_followup": "operations.absence_followup_followup",
 }
+
+
+_TEMPLATES = {
+    "contact": "operations/absence_followup/contact.html",
+    "actions": "operations/absence_followup/actions.html",
+}
+_TITLES = {"contact": "التواصل مع أولياء الأمور", "actions": "متابعة إجراءات الغياب"}
 
 
 def _day(raw: str | None) -> dt.date:
@@ -49,32 +57,25 @@ def _day(raw: str | None) -> dt.date:
         return timezone.localdate()
 
 
-#: حالاتُ المتابعة للتصفية: كلُّ الغائبين، من لم يُتّصل بوليّه، من لا إجراءَ له، ومن اكتملت متابعتُه.
-FOLLOWUP_FILTERS = [
-    ("", "كلُّ الغائبين"),
-    ("no_contact", "لم يُتّصل بوليّهم"),
-    ("no_action", "بلا إجراءٍ مسجَّل"),
-    ("complete", "اكتملت متابعتُهم"),
-]
+def _statuses_for(can_followup: bool) -> list[tuple[str, str]]:
+    """خياراتُ «حالة الإجراء» في نموذج التسجيل: كاملةٌ لحاملِ قدرة المتابعة، ولغيره إجراءٌ مُنفَّذٌ أو استلامُ إجازة.
+
+    كاتبٌ بلا القدرة لا يرى عمودَ الحالة ولا يختارها؛ والفارغُ يُعدّ في الخدمة «تمّ» (إجراءٌ سُجِّل).
+    """
+    if can_followup:
+        return list(AbsenceActionLog.STATUSES)
+    return [("", "إجراءٌ مُنفَّذ"), ("sick_leave_received", "استلامُ إجازة مرضيّة")]
 
 
-def _filter_rows(rows: list[dict], grade: str, wing: str, followup: str) -> list[dict]:
-    """يصفّي صفوفَ الخدمة بالصفّ والجناح وحالة المتابعة — بعد أن ضيّقت الخدمةُ النطاقَ، فلا يتّسع به شيء."""
-    out = []
-    for row in rows:
-        group = row["class_group"]
-        if grade and group.grade != grade:
-            continue
-        if wing and str(group.wing_id) != wing:
-            continue
-        if followup == "no_contact" and row["contact"]:
-            continue
-        if followup == "no_action" and row["action"]:
-            continue
-        if followup == "complete" and not (row["contact"] and row["action"]):
-            continue
-        out.append(row)
-    return out
+def _shown(params: Any, rows: list[dict]) -> list[dict]:
+    """ما تعرضه الشاشةُ بتصفيتها وفرزها — تُطبَّق نفسُها على الكشف والورقة، فيطابق المطبوعُ المعروض."""
+    return service.apply_view(
+        rows,
+        grade=params.get("grade", ""),
+        wing=params.get("wing", ""),
+        followup=params.get("followup", ""),
+        sort=params.get("sort", ""),
+    )
 
 
 def _flags(user: Any) -> dict[str, bool]:
@@ -133,60 +134,69 @@ def _audit_reads(request: HttpRequest, rows: list[dict]) -> None:
         )
 
 
-@login_required
-@capability_required("operations.absence_followup_view")
-def absence_followup(request: HttpRequest) -> HttpResponse:
-    """متابعةُ غياب اليوم — جدولا التواصل والإجراء، لأيّ تاريخ."""
+def _screen(request: HttpRequest, page: str) -> HttpResponse:
+    """الصفحتان المستقلّتان تتقاسمان التصفيةَ والعدّاداتِ والنطاق، وتختلفان بالقالب وحده."""
     school = request.school
     day = _day(request.GET.get("date"))
     flags = _flags(request.user)
     all_rows, report, wing_bound = _rows(request, day)
-    grade = request.GET.get("grade", "")
-    wing = request.GET.get("wing", "")
-    followup = request.GET.get("followup", "")
-    if followup not in dict(FOLLOWUP_FILTERS):
-        followup = ""
-    rows = _filter_rows(all_rows, grade, wing, followup)
+    q = {k: request.GET.get(k, "") for k in ("grade", "wing", "followup", "sort")}
+    rows = service.apply_view(all_rows, **q)
     _audit_reads(request, rows)
-    grades = sorted(
-        {(r["class_group"].grade, r["class_group"].get_grade_display()) for r in all_rows}
-    )
-    wings = (
-        []
-        if wing_bound
-        else list(Wing.objects.filter(school=school).order_by("code").values_list("id", "name"))
-    )
     subtitle = f"{school.name} · {date_format(day, 'l d/m/Y')}"
     if wing_bound:
         subtitle = f"{subtitle} · طلبةُ جناحك"
+    grades = sorted(
+        {(r["class_group"].grade, r["class_group"].get_grade_display()) for r in all_rows}
+    )
     return render(
         request,
-        "operations/absence_followup/index.html",
+        _TEMPLATES[page],
         {
             "rows": rows,
             "day": day,
+            "page": page,
+            "screen_title": _TITLES[page],
+            "screen_icon": "call_parent" if page == "contact" else "checklist",
             "subtitle": subtitle,
             "absent_students": len(rows),
             "ministry_count": report.ministry_absent_count,
             "contacted": sum(1 for r in rows if r["contact"]),
             "actioned": sum(1 for r in rows if r["action"]),
-            "outcomes": AbsenceContactLog.OUTCOMES,
-            "statuses": AbsenceActionLog.STATUSES,
+            "outcomes": AbsenceContactLog.OFFERED_OUTCOMES,
+            "statuses": _statuses_for(flags["can_followup"]),
             "kinds": AbsenceActionLog.KINDS,
             "grades": grades,
-            "wings": wings,
-            "followups": FOLLOWUP_FILTERS,
-            "f_grade": grade,
-            "f_wing": wing,
-            "f_followup": followup,
+            "wings": [] if wing_bound else service.wing_choices(school),
+            "view_query": service.view_query(**q),
+            "followups": service.FOLLOWUP_FILTERS,
+            "sorts": service.SORTS,
+            "f_sort": q["sort"] if q["sort"] in dict(service.SORTS) else "",
+            "f_grade": q["grade"],
+            "f_wing": q["wing"],
+            "f_followup": q["followup"],
             "empty_title": (
                 "لا غائبَ يطابق التصفية"
-                if (grade or wing or followup)
+                if any(q[k] for k in ("grade", "wing", "followup"))
                 else "لا غيابَ مرصوداً في هذا اليوم"
             ),
             **flags,
         },
     )
+
+
+@login_required
+@capability_required("operations.absence_followup_view")
+def absence_followup(request: HttpRequest) -> HttpResponse:
+    """صفحةُ «التواصل مع أولياء الأمور» — وهي المسارُ القديم `/reports/daily/` فلا ينكسر رابطٌ محفوظ."""
+    return _screen(request, "contact")
+
+
+@login_required
+@capability_required("operations.absence_followup_view")
+def absence_actions(request: HttpRequest) -> HttpResponse:
+    """صفحةُ «متابعة إجراءات الغياب» المستقلّة."""
+    return _screen(request, "actions")
 
 
 def _day_of(request: HttpRequest) -> dt.date:
@@ -196,10 +206,11 @@ def _day_of(request: HttpRequest) -> dt.date:
 def _back(request: HttpRequest, day: dt.date) -> HttpResponse:
     """يعود إلى الشاشة بيومها وبالفلاتر التي كان عليها صاحبُ الطلب."""
     query = {"date": f"{day:%Y-%m-%d}"}
-    for key in ("grade", "wing", "followup"):
+    for key in ("grade", "wing", "followup", "sort"):
         if request.POST.get(key):
             query[key] = request.POST[key]
-    return redirect(f"{reverse('daily_report')}?{urlencode(query)}")
+    target = "absence_actions" if request.POST.get("page") == "actions" else "daily_report"
+    return redirect(f"{reverse(target)}?{urlencode(query)}")
 
 
 @login_required
@@ -212,6 +223,8 @@ def contact_save(request: HttpRequest) -> HttpResponse:
     try:
         if request.POST.get("corrects"):
             fields: dict[str, Any] = {"outcome": request.POST.get("outcome", "")}
+            if "status" in request.POST:
+                fields["status"] = request.POST["status"]
             if feedback:
                 fields["feedback"] = feedback
             service.correct_contact(request.user, request.POST["corrects"], **fields)
@@ -222,6 +235,7 @@ def contact_save(request: HttpRequest) -> HttpResponse:
                 day,
                 request.POST.get("outcome", ""),
                 feedback,
+                request.POST.get("status", ""),
             )
         messages.success(request, "سُجِّل الاتّصال.")
     except service.FollowupError as exc:
@@ -259,20 +273,36 @@ def action_save(request: HttpRequest) -> HttpResponse:
     return _back(request, day)
 
 
-# `X_FRAME_OPTIONS = "DENY"` عامٌّ على المشروع فيحجب المعاينةَ داخل إطار صفحة المنصّة؛ والمصدرُ الموقعُ نفسُه فـ sameorigin يكفي.
-@xframe_options_sameorigin
 @login_required
 @capability_required("operations.absence_followup_print")
 def followup_print(request: HttpRequest) -> HttpResponse:
-    """كشفُ المتابعة للطباعة — معاينةٌ داخل المنصّة، و`?format=pdf` تنزيلاً (Tajawal مضمَّن)."""
-    from operations.absence_followup_print import followup_sheet_response
+    """صفحةُ المنصّة بإطار الكشف (المسارُ القديم `reports/daily/print/` باقٍ) — الفرضُ في الخادم لا في الواجهة."""
+    from operations.absence_followup_print import followup_viewer_response
 
-    day = _day(request.GET.get("date"))
-    rows, _report, wing_bound = _rows(request, day)
-    _audit_reads(request, rows)
-    return followup_sheet_response(
-        request, day, rows, wing_bound, _flags(request.user)["can_feedback"]
+    return followup_viewer_response(request, _day(request.GET.get("date")))
+
+
+# `X_FRAME_OPTIONS = "DENY"` عامٌّ على المشروع فيحجب عرضَ الملفّ داخل إطار صفحة المنصّة؛ والمصدرُ الموقعُ نفسُه فـ sameorigin يكفي.
+@xframe_options_sameorigin
+@login_required
+@capability_required("operations.absence_followup_print")
+def followup_pdf(request: HttpRequest) -> HttpResponse:
+    """ملفُّ PDF للصفحة المطلوبة بالاتّجاه المطلوب — inline للإطار، و`download=1` تنزيلاً. التدقيقُ: العددُ لا الأسماء."""
+    from core.audit_export import log_export
+    from operations.absence_followup_print import build_followup_pdf, sheet_options
+
+    result = build_followup_pdf(request.school, request.user, request.GET)
+    page, orient = sheet_options(request.GET)
+    log_export(
+        request,
+        "operations.absence_followup_pdf",
+        rows=result.rows,
+        object_repr=f"{page}/{orient}",
     )
+    response = HttpResponse(result.content, content_type=result.content_type)
+    mode = "attachment" if request.GET.get("download") else "inline"
+    response["Content-Disposition"] = f'{mode}; filename="{result.filename}"'
+    return response
 
 
 @login_required
@@ -282,7 +312,7 @@ def contact_sheet(request: HttpRequest) -> HttpResponse:
     from operations.absence_followup_print import render_contact_sheet
 
     day = _day(request.GET.get("date"))
-    pdf = render_contact_sheet(request.user, day)
+    pdf = render_contact_sheet(request.user, day, request.GET)
     response = HttpResponse(pdf, content_type="application/pdf")
     filename = generate_export_filename("operations", "absence-contact-sheet", "pdf")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'

@@ -80,6 +80,14 @@ PIXEL_TOLERANCE = 12
 DETERMINISM_MAX = 0.0005
 #: نسبةُ البكسلات المتغيّرة عن `main` التي تُعدّ تغييراً بصريّاً يحتاج اعتماداً. 0.25% لا 0.1%: ضجيجُ الرسم بين أجهزة الاستضافة قِيس 0.10–0.18% (W-20261017-008)؛ والصفحةُ الفارغة (~100%) تبقى مكشوفة.
 CHANGE_MAX = 0.0025
+#: أعلامُ Chromium للرسم الحتميّ عبر أجهزة الاستضافة (W-20261017-015): بلا GPU ولا تلميحِ خطوطٍ ولا LCD ولا موضعِ بكسلٍ فرعيّ، ولونٌ sRGB ثابت.
+CHROMIUM_ARGS = (
+    "--disable-gpu",
+    "--font-render-hinting=none",
+    "--disable-lcd-text",
+    "--disable-font-subpixel-positioning",
+    "--force-color-profile=srgb",
+)
 #: أطولُ لقطةٍ (بكسل CSS) — صفحةٌ طويلةٌ تُقصّ لئلّا يكبر الـartifact.
 MAX_HEIGHT = 3200
 

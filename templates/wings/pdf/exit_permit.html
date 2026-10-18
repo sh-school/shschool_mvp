@@ -7,19 +7,19 @@
 {% endcomment %}
 
 {% block extra_styles %}
-@page { size: A5 landscape; margin: 8mm 9mm 18mm 9mm; }
+@page { size: A5 portrait; margin: 7mm 8mm 15mm 8mm; }
 .running-footer .ft-school { font-size: 8.5pt; }
 .running-footer .ft-ministry { font-size: 8.5pt; }
 .doc-body { padding: 4px 8px 8px; }
-.report-title-bar { font-size: 13pt; padding: 5px 10px; }
-.permit { width: 100%; border-collapse: collapse; font-size: 10.5pt; line-height: 1.4; }
-.permit th { width: 28%; text-align: right; background: {% brand_color "MAROON_BG" %}; color: {% brand_color "MAROON" %}; padding: 4px 8px; border: 1px solid {% brand_color "BORDER_STRONG" %}; }
-.permit td { padding: 4px 8px; border: 1px solid {% brand_color "BORDER_STRONG" %}; color: {% brand_color "TEXT_PRIMARY" %}; font-weight: 600; }
+.report-title-bar { font-size: 12pt; padding: 4px 8px; }
+.permit { width: 100%; border-collapse: collapse; font-size: 9pt; line-height: 1.25; }
+.permit th { width: 30%; text-align: right; background: {% brand_color "MAROON_BG" %}; color: {% brand_color "MAROON" %}; padding: 2px 6px; border: 1px solid {% brand_color "BORDER_STRONG" %}; }
+.permit td { padding: 2px 6px; border: 1px solid {% brand_color "BORDER_STRONG" %}; color: {% brand_color "TEXT_PRIMARY" %}; font-weight: 600; }
 .warn { margin: 5px 0; font-size: 9.5pt; font-weight: 700; color: {% brand_color "STATUS_WARNING_DARK" %}; }
-.notes { margin: 6px 0 0; padding-inline-start: 16px; font-size: 9pt; color: {% brand_color "TEXT_SECONDARY" %}; }
-.sigs { display: flex; gap: 10px; margin-top: 10px; }
+.notes { margin: 4px 0 0; padding-inline-start: 14px; font-size: 8pt; color: {% brand_color "TEXT_SECONDARY" %}; }
+.sigs { display: flex; gap: 8px; margin-top: 10px; }
 .sig { flex: 1; text-align: center; font-size: 9.5pt; }
-.sig-space { height: 18mm; border-bottom: 1px solid {% brand_color "TEXT_PRIMARY" %}; }
+.sig-space { height: 12mm; border-bottom: 1px solid {% brand_color "TEXT_PRIMARY" %}; }
 {% endblock %}
 
 {% block emblem %}{% endblock %}

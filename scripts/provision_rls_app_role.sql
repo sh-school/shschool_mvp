@@ -8,8 +8,10 @@
 -- يبقى للترحيل/التعبئة (DDL) ويتجاوز RLS؛ بينما runtime يتصل بهذا الدور.
 --
 -- الاستخدام (شغّله بدور المالك/superuser):
---   psql -U <owner> -d <db> -v app_password="'STRONG_PASSWORD'" \
+--   psql -U <owner> -d <db> -v app_password=STRONG_PASSWORD \
 --        -f scripts/provision_rls_app_role.sql
+-- بلا علامات اقتباس حول الكلمة: السكربت يقتبسها بنفسه (:'app_password')، ولو أُضيف
+-- اقتباسٌ هنا لحُفظت الكلمة بعلامتيه. وكلمةٌ بمحارف خاصة تُمرَّر بقواعد قشرتك أنت.
 --
 -- ثم اضبط اتصال runtime على هذا الدور:
 --   DB_USER=shschool_app  DB_PASSWORD=STRONG_PASSWORD

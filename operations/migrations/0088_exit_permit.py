@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("core", "0085_studentenrollment_left_at"),
-        ("operations", "0085_absence_followup_logs_student_nullable"),
+        ("operations", "0087_absence_action_follow_time_and_by"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
