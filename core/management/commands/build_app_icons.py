@@ -30,7 +30,7 @@ from core import brand
 
 #: مجلّدٌ مرقَّم: Chrome 144+ لا يعيد تنزيل أيقونةٍ تغيّر محتواها ورابطُها واحد، فتغييرُ الأيقونة = رقمٌ جديد (v4…) لا استبدالُ ملفّ.
 #: والمجلّداتُ السابقةُ (`v2` و`v3`) تبقى كما هي: عامِلُ خدمةٍ قديمٌ أو تطبيقٌ مثبَّتٌ قد يطلبها.
-ICON_VERSION = "v4"
+ICON_VERSION = "v5"
 ICONS = Path(settings.BASE_DIR) / "static" / "icons" / ICON_VERSION
 PEN_SVG = Path(settings.BASE_DIR) / "static" / "brand" / "schoolos-pen.svg"
 

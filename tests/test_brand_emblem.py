@@ -1,6 +1,6 @@
 """أيقوناتُ التطبيق: المشتقُّ «قلمٌ وشعلة» على شريحةٍ داكنةٍ محايدة (W-20261014-009، قرار المالك 10-14؛ يحلّ محلّ «ش» v3).
 
-- أيقوناتُ `static/icons/v4/` مرسومةٌ من `static/brand/schoolos-pen.svg` على `core.brand.DARK["SURFACE"]` لا على العنّابيّ.
+- أيقوناتُ `static/icons/v5/` مرسومةٌ من `static/brand/schoolos-pen.svg` على `core.brand.DARK["SURFACE"]` لا على العنّابيّ.
 - ما يبقى في `static/brand/` توقيعُ المطوّر وشعارا المنصّة (الكاملُ والمشتقّ)؛ ولا ملفَّ شعارِ وزارةٍ فيه.
 - شارةُ الإشعار أبيضُ على شفّاف يقصّها النظام، وتباينُ الشريحة مع الأيقونة محفوظ.
 - لا مرجعَ في الشيفرة إلى مجلّدٍ سابقٍ (`v2`/`v3`)، وكلُّ أيقونةٍ مذكورةٍ بمسارها موجودة.
@@ -18,7 +18,7 @@ from core.management.commands.build_app_icons import ICON_VERSION
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BRAND = ROOT / "static/brand"
-ICONS = ROOT / "static/icons/v4"
+ICONS = ROOT / "static/icons/v5"
 
 REMOVED = ("logoMaroon.png", "logowhite.png", "emblem.svg", "emblem-white.svg", "ministry_logo.png")
 BRAND_FILES = {"azkia-logo.svg", "sufyan-logo.png", "schoolos-full.svg", "schoolos-pen.svg"}
@@ -38,7 +38,7 @@ def _rgb(hex_colour: str) -> tuple[int, int, int]:
 
 
 def test_the_icon_folder_is_the_current_version():
-    assert ICON_VERSION == "v4" and ICONS.is_dir()
+    assert ICON_VERSION == "v5" and ICONS.is_dir()
 
 
 def test_the_ministry_logo_files_are_not_in_the_static_brand_folder():

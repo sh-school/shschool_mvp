@@ -105,8 +105,8 @@ self.addEventListener('push', event => {
   const title = data.title || 'SchoolOS';
   const options = {
     body:    data.body || 'لديك إشعار جديد من المدرسة',
-    icon:    '/static/icons/v4/icon-192.png',
-    badge:   '/static/icons/v4/badge-72.png',
+    icon:    '/static/icons/v5/icon-192.png',
+    badge:   '/static/icons/v5/badge-72.png',
     dir:     'rtl',
     lang:    'ar',
     vibrate: [200, 100, 200],
