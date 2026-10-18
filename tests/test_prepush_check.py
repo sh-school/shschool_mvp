@@ -53,7 +53,34 @@ def _all_pass(monkeypatch, **overrides):
 
 def test_all_green_exits_zero(monkeypatch):
     _all_pass(monkeypatch)
+    monkeypatch.setattr(prepush_check, "write_receipt", lambda: None)
     assert prepush_check.main([]) == 0
+
+
+def test_receipt_written_only_on_full_success(monkeypatch):
+    calls = []
+    monkeypatch.setattr(prepush_check, "write_receipt", lambda: calls.append(1))
+    _all_pass(monkeypatch)
+    assert prepush_check.main([]) == 0 and calls == [1]
+    _all_pass(monkeypatch, complexity=lambda: (prepush_check.MISSING, "radon غائب"))
+    assert prepush_check.main(["--allow-missing"]) == 0 and calls == [1]
+
+
+def test_receipt_carries_the_current_head(monkeypatch, tmp_path):
+    import json
+
+    monkeypatch.setattr(prepush_check, "head8", lambda: "abcd1234")
+    monkeypatch.setattr(prepush_check, "_run", lambda cmd, **k: subprocess_result(str(tmp_path)))
+    prepush_check.write_receipt()
+    data = json.loads((tmp_path / prepush_check.RECEIPT_NAME).read_text(encoding="utf-8"))
+    assert data == {"head": "abcd1234", "ok": True}
+
+
+def subprocess_result(out):
+    class R:
+        stdout = out
+
+    return R()
 
 
 def test_one_failing_check_exits_one_even_if_another_is_missing(monkeypatch):
@@ -67,6 +94,7 @@ def test_one_failing_check_exits_one_even_if_another_is_missing(monkeypatch):
 
 def test_a_missing_tool_exits_three_unless_allowed(monkeypatch):
     _all_pass(monkeypatch, complexity=lambda: (prepush_check.MISSING, "radon غائب"))
+    monkeypatch.setattr(prepush_check, "write_receipt", lambda: None)
     assert prepush_check.main([]) == 3
     assert prepush_check.main(["--allow-missing"]) == 0
 
