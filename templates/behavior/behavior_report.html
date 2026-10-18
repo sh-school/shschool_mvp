@@ -56,6 +56,12 @@
     <div id="no-results-msg" hidden>{% empty_state "لا توجد نتائج مطابقة" sub="غيّر كلمة البحث أو وسّع التاريخ" icon="search" %}</div>
   {% endif %}{% endsection_card %}
 
+  {% if guardian_phones %}
+  {% section_card "هاتف التواصل مع وليّ الأمر" meta=guardian_phones|length icon="call_parent" %}
+    <p>{% for phone in guardian_phones %}<a href="tel:{{ phone }}" dir="ltr">{{ phone }}</a>{% if not forloop.last %}، {% endif %}{% endfor %}</p>
+  {% endsection_card %}
+  {% endif %}
+
   {% if parent_links %}
   {% section_card "إرسال التقرير لوليّ الأمر" meta="بالبريد الإلكتروني" icon="parents" %}
     <ul class="chip-row beh-parents" aria-label="أولياء الأمور">

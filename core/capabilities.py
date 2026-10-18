@@ -164,6 +164,9 @@ def registry() -> dict[str, Capability]:
     followup_writers = frozenset(
         {"principal", "vice_admin", "admin_supervisor", "student_affairs_coordinator", "admin"}
     )
+    #: أعمدةُ «المتابعة» في كشف الغياب (W-20261014-018، قولُ المالك): ثلاثةٌ وحدَهم؛ ومشرفُ الجناح لا يرثها
+    #: وإن كان من كتّاب المتابعة، فالقدرةُ منفصلةٌ عن `followup_writers` عمداً.
+    followup_columns = frozenset({"principal", "vice_admin", "student_affairs_coordinator"})
     #: من يتّصل بأسر الطلبة — تعريفٌ واحدٌ لقدرتَي الاستدعاء واسمِ الوليّ فلا تنجرف إحداهما.
     family_callers = P.BEHAVIOR_MANAGE | {"psychologist", "student_affairs_coordinator"}
     caps = [
@@ -579,10 +582,17 @@ def registry() -> dict[str, Capability]:
         ),
         _cap(
             "operations.absence_followup_print",
-            "طباعةُ كشف متابعة الغياب",
-            followup_writers,
-            scope="المدرسة، ولمشرف الجناح جناحُه",
-            basis="طلبُ المدير SOS-20261012-AC00",
+            "طباعةُ كشفَي متابعة الغياب (التواصل والإجراءات)",
+            followup_columns,
+            scope="المدرسة",
+            basis="قولُ المالك 2026-10-17 (W-20261017-024): الطباعةُ للمدير والنائب الإداريّ ومنسّق شؤون الطلبة وحدَهم",
+        ),
+        _cap(
+            "operations.absence_followup_followup",
+            "عمودا «المتابعة» (حالةُ التواصل وحالةُ الإجراء) في كشف متابعة الغياب",
+            followup_columns,
+            scope="المدرسة",
+            basis="قولُ المالك 2026-10-14 (بلاغا 6E42 وFFED): المدير والنائبُ الإداريّ ومنسّقُ شؤون الطلاب وحدَهم",
         ),
         _cap(
             "operations.substitutes_manage",
@@ -754,6 +764,23 @@ def registry() -> dict[str, Capability]:
                 "مشرفٌ إداريٌّ أو ملاحظُ طلبةٍ أو عاملُ خدمات، فيرصد بتكليفه لا بدوره"
             ),
             grant=_holds_a_wing,
+        ),
+        _cap(
+            "wings.exit_permit_request",
+            "طلبُ إذن خروج طالب",
+            frozenset(P.WING_DAY_RECORD | {"teacher"}),
+            scope="المعلّم لشُعبه، وحاملُ الجناح لأجنحته",
+            basis="مواصفة W-20261005-010: المعلّم يطلب فقط؛ والاعتمادُ لحامل الجناح والنائب الإداريّ (`wings.record_day`)",
+            grant=_holds_a_wing,
+            # قرارُ المالك 2026-10-17: المعلّمُ وحدَه لا من يرثه (المساعدان وأخصائيّو التربية الخاصة والمنسّقون).
+            not_inherited_by={
+                "teacher_assistant",
+                "ese_teacher",
+                "ese_assistant",
+                "coordinator",
+                "activities_coordinator",
+                "e_projects_coordinator",
+            },
         ),
         _cap(
             "wings.school_wide",

@@ -16,10 +16,12 @@ from operations.models import StudentAttendance
 from student_affairs.models import StudentTransfer
 from tests.attendance_fixtures import *  # noqa: F401,F403
 from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, UserFactory
+from tests.visual_snapshots import FIXED_NOW
 
-pytestmark = pytest.mark.django_db
+# الساعةُ مثبَّتةٌ: نافذةُ رجوع التاريخ تقرأ «اليوم»، فيُحسب الماضي من اليوم المثبَّت (W-20261008-021).
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
-PAST = dt.date(2026, 10, 1)
+PAST = FIXED_NOW.date() - dt.timedelta(days=1)  # النقلُ بتاريخٍ ماضٍ محدودٌ بأسبوع
 
 
 @pytest.fixture
@@ -223,7 +225,7 @@ def _direct_post(client, user, kid, target, **extra):
         "student_id": str(kid.pk),
         "direction": "internal",
         "to_class_group_id": str(target.pk),
-        "transfer_date": "2026-10-01",
+        "transfer_date": PAST.isoformat(),
         "direct": "1",
         **extra,
     }

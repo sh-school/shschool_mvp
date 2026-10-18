@@ -2387,8 +2387,7 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-inline-start: 38px; 
 .fu-fit { inline-size: 1%; width: 1%; white-space: nowrap; }
 .fu-name { min-inline-size: 10rem; }
 .tbl-cols table th, .tbl-cols table td { padding-inline: var(--sp-2); text-align: center; }
-.fu-centered th, .fu-centered td { text-align: center; }
-.tbl-cols table th.fu-name, .tbl-cols table td.fu-name, .fu-centered th.fu-name, .fu-centered td.fu-name { text-align: start; }
+.tbl-cols table th.fu-name, .tbl-cols table td.fu-name { text-align: start; }
 }
 
 }

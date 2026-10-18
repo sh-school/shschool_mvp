@@ -67,6 +67,7 @@ from operations.presence import presence_now
 from operations.tardiness import tardiness_now
 from wings.scope import student_scope_for
 
+from .coordinator_selectors import coordinator_panels
 from .models import StudentActivity, StudentTransfer
 from .selectors import attach_guardian_phones, guardian_ids_by_phone, student_register
 from .transfer_decision import detail_flags, may_decide
@@ -124,8 +125,6 @@ def student_dashboard(request):
     behavior_today = ctx.get("today_behavior_count", 0)
     stage_map = ctx.get("stage_map", {})
 
-    # ملاحظة: حُذفت أقسام "آخر المخالفات" / "آخر الانتقالات" / "التأخر الصباحي" /
-    # "آخر الأنشطة" / "طلاب بدون ولي أمر" بطلب المدير — لا نمرّر context keys لها
     return render(
         request,
         "student_affairs/dashboard.html",
@@ -165,6 +164,7 @@ def student_dashboard(request):
                 for inf in ctx.get("today_infraction_list", [])
             ],
             "grade_rows": _grade_share(ctx["grade_distribution"], total_students),
+            **coordinator_panels(request, today),
         },
     )
 

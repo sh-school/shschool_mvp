@@ -723,6 +723,13 @@ class StudentEnrollmentQuerySet(models.QuerySet):
             models.Q(is_active=True, left_at__isnull=True) | models.Q(left_at__gte=day)
         )
 
+    def roster_of(
+        self, class_group: "ClassGroup", day: datetime.date | None = None
+    ) -> "StudentEnrollmentQuerySet":
+        """قيودُ شعبةٍ: القائمةُ الآن (`day` فارغ)، أو الساريةُ في ذلك اليوم بدلالة `on_roll` (W-20261004-027)."""
+        rows = self.filter(class_group=class_group)
+        return rows.filter(is_active=True) if day is None else rows.on_roll(day)
+
 
 class StudentEnrollmentManager(models.Manager.from_queryset(StudentEnrollmentQuerySet)):
     """السؤالُ «في أيّ شعبةٍ هذا الطالب؟» يمرّ من هنا وحدَه."""

@@ -36,6 +36,7 @@ urlpatterns = [
     path("attendance/<uuid:session_id>/", views.attendance_view, name="attendance"),
     # «متابعة الغياب» (W-20261013-011) على المسار القديم لـ«غياب اليوم» كي لا ينكسر رابطٌ محفوظ
     path("reports/daily/", views_absence_followup.absence_followup, name="daily_report"),
+    path("reports/daily/actions/", views_absence_followup.absence_actions, name="absence_actions"),
     path(
         "reports/daily/contact/", views_absence_followup.contact_save, name="absence_contact_save"
     ),
@@ -43,6 +44,7 @@ urlpatterns = [
     path(
         "reports/daily/print/", views_absence_followup.followup_print, name="absence_followup_print"
     ),
+    path("reports/daily/pdf/", views_absence_followup.followup_pdf, name="absence_followup_pdf"),
     path(
         "reports/daily/contact-sheet/",
         views_absence_followup.contact_sheet,
