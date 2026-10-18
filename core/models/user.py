@@ -1,6 +1,6 @@
 import datetime
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.validators import RegexValidator
@@ -483,9 +483,9 @@ class Profile(models.Model):
             fields |= {"birth_date", "birth_date_encrypted"}
         if not explicit and not self.birth_date_encrypted and not self._state.adding:
             if fields is None:
-                fields = {f.name for f in self._meta.concrete_fields if not f.primary_key} - {
-                    "birth_date_encrypted"
-                }
+                fields = {
+                    f.name for f in cast(Any, self._meta).concrete_fields if not f.primary_key
+                } - {"birth_date_encrypted"}
             else:
                 fields.discard("birth_date_encrypted")
         if fields is not None:
