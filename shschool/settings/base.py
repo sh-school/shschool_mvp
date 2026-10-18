@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "operations.apps.OperationsConfig",
     "staging.apps.StagingConfig",
     "quality.apps.QualityConfig",
+    "sot_registry.apps.SotRegistryConfig",
     "assessments.apps.AssessmentsConfig",
     "parents.apps.ParentsConfig",
     "reports.apps.ReportsConfig",

@@ -28,6 +28,7 @@ from django.http import HttpRequest
 from django.http.response import HttpResponseBase
 
 from core.behavior_committee_roles import BEHAVIOR_COMMITTEE_CASE_SCOPED
+from core.capabilities_ux_survey import ux_survey_capabilities
 from core.parent_consent import holds_parent_membership
 from core.permissions import SYSTEM_ADMIN, USER_MANAGE, expand_roles, role_required
 from core.unrestricted_role import (
@@ -389,18 +390,25 @@ def registry() -> dict[str, Capability]:
             {"principal", "vice_admin", "vice_academic", "admin", "platform_developer"},
         ),
         # ── الإشعارات والتحليلات ────────────────────────────────────
-        # ── استبانة تجربة المستخدم (W-20261015-002): الموظفون يجيبون، والمدير والمطوّر المالك يرون التجميع ──
+        *ux_survey_capabilities(_cap, P),
+        # ── سجلُّ مصدر الحقيقة (W-20261015-007): القراءةُ للكادر، والاقتراحُ للمشرفين فأعلى، والاعتمادُ للمالك وحده ──
         _cap(
-            "ux_survey.respond",
-            "الإجابةُ على استبانة تجربة المستخدم (الموظفون فقط)",
-            P.ALL_STAFF_ROLES - {"platform_developer"},
-            basis="قرارُ المالك 2026-10-15 — استبانةٌ مجهولةٌ للموظفين",
+            "sot.read",
+            "قراءةُ سجلِّ مصدر الحقيقة (الأحكامُ النافذةُ فقط لغير الإدارة)",
+            P.ALL_STAFF_ROLES,
+            basis="قرارُ المالك 2026-10-15 — القراءةُ لكل الأدوار",
         ),
         _cap(
-            "ux_survey.dashboard",
-            "لوحةُ تجميع الاستبانة (المدير والمطوّر المالك)",
-            {"principal", "platform_developer"},
-            basis="قرارُ المالك 2026-10-15 — اللوحةُ للإدارة بحجب المجموعات الصغيرة",
+            "sot.propose",
+            "اقتراحُ تصحيحٍ أو حكمٍ في سجلِّ مصدر الحقيقة",
+            P.TIER_1_LEADERSHIP | P.TIER_2_DEPUTIES | P.TIER_3_SUPERVISORS,
+            basis="قرارُ المالك 2026-10-15 — الاقتراحُ للمشرفين",
+        ),
+        _cap(
+            "sot.approve",
+            "اعتمادُ الأحكام وتغييرُ حالتها وحذفُها ناعمًا (المالكُ وحده)",
+            {"platform_developer"},
+            basis="قرارُ المالك 2026-10-15 — الاعتمادُ للمالك وحده",
         ),
         _cap("notifications.broadcast", "إدارةُ الإشعارات والإرسالُ الجماعيّ", leadership),
         _cap("analytics.school", "تحليلاتُ المدرسة", leadership),
