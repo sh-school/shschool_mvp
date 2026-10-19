@@ -13,7 +13,7 @@ from django.contrib.messages.storage.fallback import FallbackStorage
 from django.core.management import call_command
 
 from core.management.commands.import_staff_register import role_for
-from core.models import Membership, Role
+from core.models import AuditLog, Membership, Role
 from tests.conftest import MembershipFactory, RoleFactory, SchoolFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -160,3 +160,26 @@ def test_admin_is_silent_for_a_single_membership_or_a_parent_second_role(school)
     assert none == []
     _obj, still_none = _save_through_admin(school, user, "parent")
     assert still_none == []
+
+
+def test_the_switch_is_audited_with_both_memberships_user_and_time(client, school):
+    user, old, new = _staff_with_two_roles(school)
+    client.force_login(user)
+    client.post(URL, {"membership_id": str(new.pk)})
+    entry = AuditLog.objects.get(model_name="Membership", user=user, action="update")
+    assert entry.changes["event"] == "role_switch"
+    assert entry.changes["from_membership"] == str(old.pk)
+    assert entry.changes["to_membership"] == str(new.pk)
+    assert (entry.changes["from_role"], entry.changes["to_role"]) == (
+        "teacher",
+        "student_affairs_coordinator",
+    )
+    assert entry.timestamp is not None
+
+
+def test_a_refused_switch_leaves_no_audit_entry(client, school):
+    user, _old, _new = _staff_with_two_roles(school)
+    stranger = MembershipFactory(school=school, user=UserFactory())
+    client.force_login(user)
+    client.post(URL, {"membership_id": str(stranger.pk)})
+    assert not AuditLog.objects.filter(model_name="Membership", user=user).exists()

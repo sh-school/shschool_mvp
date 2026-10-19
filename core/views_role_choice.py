@@ -12,6 +12,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 
 from core.active_role import SESSION_KEY
+from core.models import AuditLog
 
 
 @never_cache
@@ -25,7 +26,25 @@ def choose_role(request):
         if chosen is None:
             messages.error(request, "العضويّة المختارة غير متاحة لك.")
             return redirect("choose_role")
+        before = request.user.active_membership
         request.session[SESSION_KEY] = str(chosen.pk)
+        # أثرٌ للتبديل: تغيّرُ الدور الحاكم يغيّر ما يراه الموظّف، فيُدقَّق بمعرّفَي العضويّتين (قبل/بعد).
+        AuditLog.log(
+            user=request.user,
+            action="update",
+            model_name="Membership",
+            object_id=chosen.pk,
+            object_repr=f"تبديل الدور العامل إلى {chosen.role.name}",
+            changes={
+                "event": "role_switch",
+                "from_membership": str(before.pk) if before else "",
+                "to_membership": str(chosen.pk),
+                "from_role": before.role.name if before else "",
+                "to_role": chosen.role.name,
+            },
+            school=chosen.school,
+            request=request,
+        )
         messages.success(request, f"تمّ التبديل إلى: {chosen.role.get_name_display()}")
         return redirect("dashboard")
     current = request.user.active_membership
