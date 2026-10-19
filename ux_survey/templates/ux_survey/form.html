@@ -25,15 +25,15 @@
     {% section_card "استخدامك للمنصة" icon="stats" %}
       <fieldset>
         <legend>كم مرة تستخدم المنصة أسبوعيًا؟</legend>
-        {% for radio in form.usage_frequency %}<label>{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}
+        {% for radio in form.usage_frequency %}<label for="{{ radio.id_for_label }}">{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}
       </fieldset>
       <fieldset>
         <legend>أين تستخدمها غالبًا؟</legend>
-        {% for radio in form.usage_place %}<label>{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}
+        {% for radio in form.usage_place %}<label for="{{ radio.id_for_label }}">{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}
       </fieldset>
       <fieldset>
         <legend>هل تجد ما تحتاجه في أقل من نصف دقيقة؟</legend>
-        {% for radio in form.find_fast %}<label>{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}
+        {% for radio in form.find_fast %}<label for="{{ radio.id_for_label }}">{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}
       </fieldset>
     {% endsection_card %}
 
@@ -41,7 +41,7 @@
       {% for name, label in sus_labels.items %}
       <fieldset>
         <legend>{{ label }}</legend>
-        {% for field in form %}{% if field.name == name %}{% for radio in field %}<label>{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}{% endif %}{% endfor %}
+        {% for field in form %}{% if field.name == name %}{% for radio in field %}<label for="{{ radio.id_for_label }}">{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}{% endif %}{% endfor %}
       </fieldset>
       {% endfor %}
     {% endsection_card %}
