@@ -21,7 +21,7 @@
     <form method="post" class="form-stack">
       {% csrf_token %}
       {% for m in memberships %}
-      <label class="radio-pill">
+      <label class="radio-pill role-pill">
         <input type="radio" name="membership_id" value="{{ m.pk }}" {% if m.pk == current_id %}checked{% endif %} required>
         <span>{{ m.role.get_name_display }} — {{ m.school.name }}{% if m.pk == current_id %} (الحالي){% endif %}</span>
       </label>
