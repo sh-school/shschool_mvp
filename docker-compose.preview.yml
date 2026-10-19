@@ -88,12 +88,12 @@ services:
     env_file:
       - ${PREVIEW_ENV_FILE:-.env}
     healthcheck:
-      # الإقلاعُ يهاجر ويجمع الثابتَ قبل daphne، فتُمنح فترةُ البدء أطولَ ممّا في الصورة.
+      # الإقلاعُ يهاجر ويجمع الثابتَ قبل daphne، فتُمنح فترةُ البدء أطولَ ممّا في الصورة: البارد (قاعدةُ جيلٍ جديدٍ) ~271ث.
       test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health/ >/dev/null || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 8
-      start_period: 90s
+      start_period: 300s
     volumes:
       - .:/app                          # الشجرةُ المعروضة (main، أو شجرةُ جلسةٍ مثبَّتة)
       - /app/.venv                      # لا تُظلِّل بيئة الصورة بأيّ venv محلّي
