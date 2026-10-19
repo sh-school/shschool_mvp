@@ -10,7 +10,7 @@ from django.utils import timezone
 from core.capabilities import capability_required
 
 from .ministry_response import respond
-from .ministry_selectors import grade_choices, narrow, summary_for_request
+from .ministry_selectors import grade_choices, narrow, summary_for_request, wing_choices
 from .views import _day
 from .views_register import _format, _orientation
 
@@ -25,13 +25,17 @@ def ministry_report(request):
     grade = request.GET.get("grade", "")
     if grade not in {key for key, _ in grades}:
         grade = ""
+    wings = [] if bound else wing_choices(summary)
+    wing = request.GET.get("wing", "")
+    if wing not in {key for key, _ in wings}:
+        wing = ""
     q = request.GET.get("q", "").strip()[:60]
     return respond(
         request,
         request.school,
-        narrow(summary, grade=grade, q=q),
+        narrow(summary, grade=grade, q=q, wing=wing),
         fmt=_format(request),
         orient=_orientation(request),
         bound=bound,
-        screen={"grades": grades, "grade": grade, "q": q},
+        screen={"grades": grades, "grade": grade, "q": q, "wings": wings, "wing": wing},
     )

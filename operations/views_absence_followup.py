@@ -75,6 +75,7 @@ def _shown(params: Any, rows: list[dict]) -> list[dict]:
         wing=params.get("wing", ""),
         followup=params.get("followup", ""),
         sort=params.get("sort", ""),
+        search=params.get("q", "").strip()[:60],
     )
 
 
@@ -141,6 +142,7 @@ def _screen(request: HttpRequest, page: str) -> HttpResponse:
     flags = _flags(request.user)
     all_rows, report, wing_bound = _rows(request, day)
     q = {k: request.GET.get(k, "") for k in ("grade", "wing", "followup", "sort")}
+    q["search"] = request.GET.get("q", "").strip()[:60]
     rows = service.apply_view(all_rows, **q)
     _audit_reads(request, rows)
     subtitle = f"{school.name} · {date_format(day, 'l d/m/Y')}"
@@ -174,10 +176,11 @@ def _screen(request: HttpRequest, page: str) -> HttpResponse:
             "f_sort": q["sort"] if q["sort"] in dict(service.SORTS) else "",
             "f_grade": q["grade"],
             "f_wing": q["wing"],
+            "f_search": q["search"],
             "f_followup": q["followup"],
             "empty_title": (
                 "لا غائبَ يطابق التصفية"
-                if any(q[k] for k in ("grade", "wing", "followup"))
+                if any(q[k] for k in ("grade", "wing", "followup", "search"))
                 else "لا غيابَ مرصوداً في هذا اليوم"
             ),
             **flags,
@@ -206,7 +209,7 @@ def _day_of(request: HttpRequest) -> dt.date:
 def _back(request: HttpRequest, day: dt.date) -> HttpResponse:
     """يعود إلى الشاشة بيومها وبالفلاتر التي كان عليها صاحبُ الطلب."""
     query = {"date": f"{day:%Y-%m-%d}"}
-    for key in ("grade", "wing", "followup", "sort"):
+    for key in ("grade", "wing", "followup", "sort", "q"):
         if request.POST.get(key):
             query[key] = request.POST[key]
     target = "absence_actions" if request.POST.get("page") == "actions" else "daily_report"
