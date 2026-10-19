@@ -102,6 +102,15 @@ def test_staff_who_is_a_parent_is_skipped_for_manual_linking(school, roles, staf
     assert CustomUser.objects.filter(national_id=NEW_NID).exists()
 
 
+@pytest.mark.parametrize("flag", ["is_superuser", "is_staff"])
+def test_admin_account_without_membership_is_skipped(school, roles, path, flag):
+    admin = UserFactory(national_id=OTHER_STAFF_NID, full_name="حساب إدارة", **{flag: True})
+    before = _snapshot(admin)
+    result = process_student_import(path([(OTHER_STAFF_NID, "اسم من الملف")]), school, "2026-2027")
+    assert _snapshot(admin) == before
+    assert result["staff_skipped"] == 1
+
+
 def test_any_staff_role_blocks_even_with_student_membership(school, roles, staff, path):
     MembershipFactory(user=staff, school=school, role=roles[0])
     before = _snapshot(staff)
