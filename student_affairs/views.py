@@ -67,6 +67,7 @@ from operations.presence import presence_now
 from operations.tardiness import tardiness_now
 from wings.scope import student_scope_for
 
+from .coordinator_selectors import coordinator_panels
 from .models import StudentActivity, StudentTransfer
 from .selectors import attach_guardian_phones, guardian_ids_by_phone, student_register
 from .transfer_decision import detail_flags, may_decide
@@ -124,8 +125,6 @@ def student_dashboard(request):
     behavior_today = ctx.get("today_behavior_count", 0)
     stage_map = ctx.get("stage_map", {})
 
-    # ملاحظة: حُذفت أقسام "آخر المخالفات" / "آخر الانتقالات" / "التأخر الصباحي" /
-    # "آخر الأنشطة" / "طلاب بدون ولي أمر" بطلب المدير — لا نمرّر context keys لها
     return render(
         request,
         "student_affairs/dashboard.html",
@@ -165,6 +164,7 @@ def student_dashboard(request):
                 for inf in ctx.get("today_infraction_list", [])
             ],
             "grade_rows": _grade_share(ctx["grade_distribution"], total_students),
+            **coordinator_panels(request, today),
         },
     )
 
@@ -1036,11 +1036,24 @@ def transfer_detail(request, pk):
     """تفاصيل طلب انتقال."""
     school = request.school
     transfer = get_object_or_404(StudentTransfer, pk=pk, school=school)
+    from .transfer_chain import available_actions, document_rows, is_chain, stage_rows
+
+    chain = (
+        {
+            "is_chain": True,
+            "stages": stage_rows(transfer),
+            "documents": document_rows(transfer),
+            "actions": available_actions(transfer),
+        }
+        if is_chain(transfer)
+        else {}
+    )
     return render(
         request,
         "student_affairs/transfer_detail.html",
         {
             "transfer": transfer,
+            **chain,
             "page_subtitle": f"{transfer.student.full_name} — {transfer.get_direction_display()}",
             **detail_flags(transfer, request.user),
         },
@@ -1075,31 +1088,26 @@ def transfer_review(request, pk):
             messages.success(request, f"تم تحديث حالة الانتقال إلى: {label}")
             return redirect("student_affairs:transfer_detail", pk=pk)
 
-        transfer.status = action
-        transfer.notes = notes
-        transfer.updated_by = request.user
-        transfer.save()
+        # الوارد والصادر: سلسلة نموذج 07 بترتيبها (W-20261001-018)
+        from .transfer_chain import apply_chain_action
 
-        StudentService.audit_student_event(
-            school, request.user, transfer.student, f"transfer_{action}"
-        )
-
-        # إذا اكتمل الانتقال الصادر → تعطيل الطالب
-        if action == "completed" and transfer.direction == "out":
-            Membership.objects.filter(
-                user=transfer.student,
-                school=school,
-                role__name="student",
-                is_active=True,
-            ).update(is_active=False)
-            StudentEnrollment.objects.filter(
-                student=transfer.student,
-                class_group__school=school,
-                is_active=True,
-            ).update(is_active=False)
-
-        status_label = dict(StudentTransfer.STATUS_CHOICES).get(action, action)
-        messages.success(request, f"تم تحديث حالة الانتقال إلى: {status_label}")
+        try:
+            event = apply_chain_action(
+                transfer,
+                action,
+                notes,
+                request.user,
+                documents=form.cleaned_data.get("documents"),
+                missing_reason=form.cleaned_data.get("missing_reason", ""),
+            )
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("student_affairs:transfer_detail", pk=pk)
+        StudentService.audit_student_event(school, request.user, transfer.student, event)
+        messages.success(request, "تم تنفيذ الإجراء على الطلب.")
+    else:
+        for errors in form.errors.values():
+            messages.error(request, errors[0])
 
     return redirect("student_affairs:transfer_detail", pk=pk)
 

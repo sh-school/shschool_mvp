@@ -1677,3 +1677,9 @@ body:has(.rm-page) .site-footer { flex: none; }
   .shobi-pick { display: flex; align-items: center; justify-content: center; min-inline-size: 3.5rem; min-block-size: var(--control-h); padding-inline: var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--text-primary); font-size: var(--text-lg); font-weight: 700; text-decoration: none; }
   .shobi-pick:hover, .shobi-pick:focus-visible { border-color: var(--maroon); background: var(--maroon-bg); }
 }
+
+/* ── استبانة تجربة المستخدم (W-20261015-002): خياراتُ الراديو تلتفّ بمسافةٍ رأسيّةٍ فلا تتراكب عند 375px ── */
+@layer modules {
+  .survey-choices { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); }
+  .survey-choices > label { display: inline-flex; align-items: center; gap: var(--sp-1); min-block-size: var(--control-h); }
+}

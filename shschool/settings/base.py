@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "operations.apps.OperationsConfig",
     "staging.apps.StagingConfig",
     "quality.apps.QualityConfig",
+    "sot_registry.apps.SotRegistryConfig",
     "assessments.apps.AssessmentsConfig",
     "parents.apps.ParentsConfig",
     "reports.apps.ReportsConfig",
@@ -58,6 +59,7 @@ INSTALLED_APPS = [
     "academic_management.apps.AcademicManagementConfig",
     # ✅ SPRINT-DF-001: أرسل إلى المطوّر (Developer Feedback) — PRD-SOS-DEV-FEEDBACK-v1.0
     "developer_feedback.apps.DeveloperFeedbackConfig",
+    "ux_survey.apps.UxSurveyConfig",
     # ✅ مركز معلومات الطلبة — ملفّ الطالب الجامع وملاحظات الجهات الخمس
     "student_info.apps.StudentInfoConfig",
     "wings.apps.WingsConfig",
@@ -341,7 +343,7 @@ SESSION_COOKIE_SAMESITE = "Lax"
 # والاختبار يمرّان بسلوك مختلف، فينكشف أي كاسر بعد النشر لا قبله.
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = "Lax"
-CSRF_FAILURE_VIEW = "django.views.csrf.csrf_failure"
+CSRF_FAILURE_VIEW = "core.views_errors.csrf_failure"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
