@@ -55,6 +55,22 @@
       </ul>
       {% endif %}
     {% endsection_card %}
+    {% elif import_result.nothing_registered %}
+    {% section_card "لم يُسجَّل أي طالب في شعبة" icon="status_warning" %}
+      {% callout "warning" show=True %}قُرئ الملف لكن لم يُسجَّل أي طالب في شعبة؛ راجع الأخطاء أدناه ثم أعد المحاولة.{% endcallout %}
+      {% kpi_strip label="نتيجة الاستيراد" %}
+        {% kpi "إجمالي الصفوف" import_result.total_rows %}
+        {% kpi "طلاب جدد" import_result.students_created tone="green" %}
+        {% kpi "تسجيلات" import_result.enrollments_created tone="teal" %}
+        {% kpi "أخطاء" import_result.error_count tone=errors_tone %}
+      {% endkpi_strip %}
+      {% if import_result.errors %}
+      <ul class="plain-list is-scroll import-errors" aria-label="الأخطاء">
+        {% for err in import_result.errors %}<li class="plain-list__row">{{ err }}</li>{% endfor %}
+        {% if errors_more %}<li class="plain-list__row plain-list__sub">… و{{ errors_more }} خطأ آخر</li>{% endif %}
+      </ul>
+      {% endif %}
+    {% endsection_card %}
     {% else %}
     {% section_card "فشل الاستيراد" icon="status_error" %}
       {% callout "warning" %}يُرجى مراجعة الملف والمحاولة مجدداً.{% endcallout %}

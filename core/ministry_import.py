@@ -52,6 +52,20 @@ _MINISTRY_HEADER_MAP: dict[str, tuple[int, str]] = {
 #: الرأسُ الذي يحدّد بداية جدول البيانات — يُفتَّش عنه في أوّل عشرة صفوف لأنّ
 #: الملف الوزاريّ يسبقه سطرُ عنوانٍ وسطرٌ فارغ (رأى ذلك فحصُ الملف الحقيقيّ).
 _MINISTRY_HEADER_MARKER = "الرقم"
+#: الحقولُ التي لا استيرادَ بدونها؛ أسماؤها تُشتقّ من `_MINISTRY_HEADER_MAP` فلا تتكرّر هنا (W-20261004-016).
+_MINISTRY_REQUIRED_FIELDS = ("student_nid", "full_name", "class_combined")
+
+
+def ministry_missing_columns(cols: dict[str, int]) -> list[str]:
+    """أسماءُ الأعمدة الإلزاميّة الغائبة عن رأس الملف بنصّها كما في الملف الوزاريّ (فارغةٌ إن اكتملت)."""
+    names = {field: name for name, (_, field) in _MINISTRY_HEADER_MAP.items()}
+    return [names[field] for field in _MINISTRY_REQUIRED_FIELDS if field not in cols]
+
+
+def import_outcome(registered: int, error_count: int) -> dict[str, Any]:
+    """«نجاحٌ» لا يُقال حين لم يُسجَّل أيُّ طالبٍ في شعبةٍ ومعه أخطاء: تُرجع حالةَ «لم يُسجَّل شيء» بدله."""
+    nothing = registered == 0 and error_count > 0
+    return {"success": not nothing, "nothing_registered": nothing}
 
 
 def _locate_ministry_header(ws: Any) -> tuple[int, dict[str, int]] | None:
@@ -596,6 +610,15 @@ def process_ministry_registry_import(
             "errors": ["الأدوار الأساسية (student/parent) غير موجودة — شغّل seed_data أولاً."],
         }
 
+    # تحقّقٌ مسبقٌ من الأعمدة قبل أيّ قراءةٍ للصفوف أو كتابةٍ في القاعدة.
+    missing = ministry_missing_columns(cols)
+    if missing:
+        return {
+            "success": False,
+            "missing_columns": missing,
+            "errors": ["الأعمدة الناقصة في الملف: " + "، ".join(missing)],
+        }
+
     rows = _read_ministry_rows(uploaded_file, header_row, cols)
 
     all_nids: set[str] = set()
@@ -643,7 +666,9 @@ def process_ministry_registry_import(
             )
 
     return {
-        "success": True,
+        **import_outcome(
+            stats["enrollments_created"] + stats["enrollments_transferred"], len(stats["errors"])
+        ),
         "total_rows": stats["students_created"] + stats["students_existed"],
         "students_created": stats["students_created"],
         "students_existed": stats["students_existed"],

@@ -233,7 +233,11 @@ def process_student_import(uploaded_file: Any, school: Any, year: Any) -> dict[s
     """
     import openpyxl
 
-    from core.ministry_import import _locate_ministry_header, process_ministry_registry_import
+    from core.ministry_import import (
+        _locate_ministry_header,
+        import_outcome,
+        process_ministry_registry_import,
+    )
     from core.models import Membership, Role
 
     detect_wb = openpyxl.load_workbook(uploaded_file, read_only=True, data_only=True)
@@ -338,7 +342,7 @@ def process_student_import(uploaded_file: Any, school: Any, year: Any) -> dict[s
                     stats["links_created"] += 1
 
     return {
-        "success": True,
+        **import_outcome(stats["enrollments_created"], len(stats["errors"])),
         "total_rows": len(data_rows),
         "students_created": stats["students_created"],
         "students_existed": stats["students_existed"],
