@@ -33,11 +33,16 @@ jobs:
 
       - name: فحص CVEs في المكتبات
         run: |
+          # تجاهلٌ موثَّق لمشورةٍ واحدةٍ وحدها (GHSA-8pqf-f4m5-798g، أمر المالك 2026-10-15، W-20261015-011):
+          # ReDoS في twisted.mail.imap4 ولا نستورد الوحدة ولا منفذَ IMAP عندنا، وTwisted عبر daphne لـHTTP/WebSocket فقط.
+          # مراجعةٌ أقصاها 2026-11-15 (يفشل tests/test_vuln_ignore_expiry.py بعدها)، وإعادةُ الفحص كلَّ أحد.
           pip-audit -r requirements.txt \
+            --ignore-vuln GHSA-8pqf-f4m5-798g \
             --format json \
             --output pip-audit-report.json || true
           pip-audit -r requirements.txt \
             --vulnerability-service pypi \
+            --ignore-vuln GHSA-8pqf-f4m5-798g \
             --desc
 
       - name: رفع تقرير pip-audit

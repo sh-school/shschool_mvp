@@ -573,11 +573,9 @@ class StudentService:
         user.initial_password = password  # ذاكرةٌ فقط — ليس حقلاً ولا يُحفظ
 
         # ── 2. الملف الشخصي ──
-        Profile.objects.create(
-            user=user,
-            gender=data.get("gender", ""),
-            birth_date=data.get("birth_date"),
-        )
+        profile = Profile(user=user, gender=data.get("gender", ""))
+        profile.date_of_birth = data.get("birth_date")
+        profile.save()
 
         # ── 3. العضوية (دور طالب) ──
         student_role, _ = Role.objects.get_or_create(
@@ -631,13 +629,11 @@ class StudentService:
         student.save(update_fields=["full_name", "phone", "email"])
 
         # ── 2. الملف الشخصي ──
-        Profile.objects.update_or_create(
-            user=student,
-            defaults={
-                "birth_date": data.get("birth_date"),
-                "notes": data.get("notes", ""),
-            },
-        )
+        profile, _created = Profile.objects.get_or_create(user=student)
+        if "birth_date" in data:  # غيابُ المفتاح لا يفرّغ؛ والنموذجُ يرسله دائماً وفراغُه تفريغٌ صريح
+            profile.date_of_birth = data["birth_date"]
+        profile.notes = data.get("notes", "")
+        profile.save()
 
         logger.info("تم تحديث الطالب: user=%s (school=%s)", student.pk, school.code)
         return student

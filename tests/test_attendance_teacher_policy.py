@@ -110,12 +110,12 @@ def test_e4b_exactly_at_the_start_is_accepted(session, teacher, kid):
     assert can_enter(teacher, session, kid, now=at(7, 10)).allowed
 
 
-def test_e4c_the_last_moment_of_the_school_day_is_accepted(session, teacher, kid):
-    assert can_enter(teacher, session, kid, now=at(13, 30)).allowed
+def test_e4c_the_last_moment_of_the_window_is_accepted(session, teacher, kid):
+    assert can_enter(teacher, session, kid, now=at(14, 0)).allowed
 
 
-def test_e4c_a_second_after_the_school_day_ends_is_refused(session, teacher, kid):
-    verdict = can_enter(teacher, session, kid, now=at(13, 30, 1))
+def test_e4c_a_second_after_the_window_closes_is_refused(session, teacher, kid):
+    verdict = can_enter(teacher, session, kid, now=at(14, 0, 1))
     assert not verdict.allowed
     assert verdict.reason == "after_window"
 
@@ -133,8 +133,10 @@ def test_e4e_the_date_is_doha_not_utc(session, teacher, kid):
     assert not verdict.allowed
 
 
-def test_e4_without_a_configured_bell_the_window_is_the_session_itself(school, klass, teacher, kid):
-    """لا جرسَ مضبوطاً: الأضيقُ لا ثابتٌ مخترَع — نهايةُ الحصّة نفسِها."""
+def test_e4_without_a_configured_bell_the_window_is_still_the_central_one(
+    school, klass, teacher, kid
+):
+    """لا جرسَ مضبوطاً: النافذةُ المركزيّةُ نفسُها (W-20261006-004) لا نهايةُ الحصّة."""
     lone = Session.objects.create(
         school=school,
         class_group=klass,
@@ -144,8 +146,8 @@ def test_e4_without_a_configured_bell_the_window_is_the_session_itself(school, k
         end_time=dt.time(9, 45),
         status="scheduled",
     )
-    assert can_enter(teacher, lone, kid, now=at(9, 45)).allowed
-    assert not can_enter(teacher, lone, kid, now=at(9, 46)).allowed
+    assert can_enter(teacher, lone, kid, now=at(9, 46)).allowed
+    assert not can_enter(teacher, lone, kid, now=at(14, 1)).allowed
 
 
 def test_e5_a_cancelled_session_is_refused(session, teacher, kid):

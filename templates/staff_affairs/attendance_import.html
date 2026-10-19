@@ -18,7 +18,7 @@
 
   {% if result %}
     {% section_card "تعذّر رصدُ بعض الموظّفين" meta=failed|length icon="checklist" flush=True %}
-      <div class="table-wrap">
+      <div class="table-wrap table-wrap-scroll">
         <table>
           <thead><tr><th>الموظّف</th><th>السبب</th></tr></thead>
           <tbody>
@@ -64,7 +64,7 @@
     {% for day, people in plan.absent_from_file %}
     {% section_card "في المنصّة ولم يظهروا في الكشف" meta=people|length icon="staff" flush=True %}
       {% callout "info" show=True %}كادرٌ نشطٌ في المنصّة لا سطرَ له في كشف {{ day|date:"d/m/Y" }}: غالباً منقولون لم تُسجَّل مغادرتُهم (تُسجَّل من ملفّ الموظّف بمرجع القرار فيخرجون من الرصد)، أو لم يبصموا — ولا يُرصد لهم غيابٌ تلقائيّاً.{% endcallout %}
-      <div class="table-wrap">
+      <div class="table-wrap table-wrap-scroll">
         <table>
           <thead><tr><th>الموظّف</th><th class="col-center">الرقم الوظيفي</th><th class="col-center">ملفّه</th></tr></thead>
           <tbody>
@@ -76,7 +76,7 @@
     {% endfor %}
 
     {% section_card "تفصيلُ الكشف" meta=plan.items|length icon="checklist" flush=True %}
-      <div class="table-wrap">
+      <div class="table-wrap table-wrap-scroll">
         <table>
           <thead>
             <tr>

@@ -137,6 +137,11 @@ def signature_stamps(obs) -> dict[str, dict[str, str] | None]:
     اليدويّ. **الاسمُ وحدَه** — لا رقمَ وظيفيّاً ولا هويّةً ولا عبارةَ ختمٍ ولا وقتاً؛ ووجودُ وقت الإرسال أو الاطّلاع
     شرطٌ للظهور (لا اسمَ على مسودّةٍ) دون أن يُعرض.
     """
+    if obs.kind == "self":
+        # التقييمُ الذاتيّ: لا زائرَ فلا اسمَ في خانته، وصاحبُه يوقّع بالاعتماد (لا إقرارَ يتبعه) — فيُختم اسمُه
+        # بعد الإرسال. والمسؤولُ المباشر يطّلع بخانةٍ مطبوعةٍ فارغة في القالب لا باسمٍ هنا.
+        signed = _stamp(obs.teacher, obs.submitted_at) if obs.status in _SIGNED_BY_VISITOR else None
+        return {"visitor": None, "teacher": signed}
     visitor = _stamp(obs.observer, obs.submitted_at) if obs.status in _SIGNED_BY_VISITOR else None
     teacher = (
         _stamp(obs.teacher, obs.teacher_acknowledged_at) if obs.status == "acknowledged" else None

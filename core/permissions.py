@@ -877,6 +877,7 @@ def get_teacher_student_ids(user, scope=None):
         "occupational_therapist",  # يُحال إليهم طلاب من مختلف الفصول
         "transport_officer",  # يحتاج كل طلاب النقل لإسناد الحافلات
         "activities_coordinator",  # يُنسّق أنشطة لكل الطلاب
+        "student_affairs_coordinator",  # منسق شؤون الطلبة: نطاقُ المدرسة كلِّها (قرار المالك، W-20261018-002)، لا قدرةٌ تُمنح هنا
     }
     if role in ALL_STUDENTS_ROLES:
         return None

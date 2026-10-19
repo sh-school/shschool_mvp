@@ -285,6 +285,19 @@
       }).catch(function () { window.location.reload(); });
   }
 
+  // التحديثُ الحيّ (W-20261012-015): خلايا غيّرها غيرُك تُبدَّل بلا إعادة رسم الصفحة؛ وما عدّلتَه ولم تحفظه (`is-dirty`) لا يُمسّ أبداً.
+  root.addEventListener('page-live:payload', function (event) {
+    ((event.detail && event.detail.cells) || []).forEach(function (item) {
+      var cell = cellOf(item.c, item.s);
+      if (!cell || cell.classList.contains('is-dirty')) return;
+      if ((cell.getAttribute('data-head') || '') === item.h) return;
+      paint(cell, item.st);
+      cell.setAttribute('data-head', item.h);
+      cell.removeAttribute('title');
+      saved[item.c + ':' + item.s] = item.st || '';
+    });
+  });
+
   // عدّادُ الخروج: دقائقُ وثوانٍ من لحظة الضغط حتى «عاد» (الزمنُ من الخادم لا ساعةِ الجهاز وحدَها).
   var skew = Number(root.getAttribute('data-now')) - Date.now() / 1000;
   function elapsed(sinceSec) {

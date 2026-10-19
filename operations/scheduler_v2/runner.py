@@ -28,7 +28,11 @@ from django.utils import timezone
 
 from operations.cpsat_adapter import CpSatInputs, build_inputs
 from operations.schedule_evaluator import VERDICTS, Evaluation, evaluate_slots
-from operations.scheduler_v2.admin_caps import with_admin_first_caps, with_admin_last_caps
+from operations.scheduler_v2.admin_caps import (
+    with_admin_first_caps,
+    with_admin_last_caps,
+    with_personal_run_caps,
+)
 from operations.scheduler_v2.limits import LAYER_AFTER_FIRST_SOLUTION_SECONDS, SOLVER_MAX_SECONDS
 from operations.scheduler_v2.progress import STOPPED_EMPTY_LABEL
 
@@ -88,7 +92,7 @@ class SolverConfig:
 
 
 def options_from_relaxations(spec: dict[str, Any] | None) -> dict[str, Any]:
-    """يحوّل ملفَّ `--relaxations` إلى حقول `ModelOptions`: touch_relaxed وrun_cap وfirst_cap_override وno_6_7 والثلاثيات.
+    """يحوّل ملفَّ `--relaxations` إلى حقول `ModelOptions`: touch_relaxed وrun_cap وfirst_cap_override وrun_cap_override وno_6_7 والثلاثيات.
 
     الشكل: {"touch_relaxed": ["T..."], "run_cap": 2, "first_cap_override": {"T...": 4}, "no_6_7": true,
     "triples_by_number": true, "touch_relaxed_all": true}. مفتاحٌ مجهولٌ يُرفض (لا تخفيفَ صامت).
@@ -103,6 +107,8 @@ def options_from_relaxations(spec: dict[str, Any] | None) -> dict[str, Any]:
         out["touch_relaxed_all"] = bool(spec.pop("touch_relaxed_all"))
     if "first_cap_override" in spec:
         out["first_cap_override"] = tuple(sorted(dict(spec.pop("first_cap_override")).items()))
+    if "run_cap_override" in spec:
+        out["run_cap_override"] = tuple(sorted(dict(spec.pop("run_cap_override")).items()))
     if "last_cap_override" in spec:
         out["last_cap_override"] = tuple(sorted(dict(spec.pop("last_cap_override")).items()))
     for flag in ("no_6_7", "triples_by_number"):
@@ -754,8 +760,12 @@ def run(
 ) -> tuple[RunResult, CpSatInputs]:
     """حلٌّ + تقييمٌ مستقلّ بلا كتابة. يميّز INFEASIBLE (برهان) عن UNKNOWN/المهلة وعن رفض المُقيِّم."""
     inputs = inputs if inputs is not None else load_inputs(school, academic_year)
-    config = with_admin_last_caps(
-        with_admin_first_caps(with_school_policy(config, school), school, academic_year),
+    config = with_personal_run_caps(
+        with_admin_last_caps(
+            with_admin_first_caps(with_school_policy(config, school), school, academic_year),
+            school,
+            academic_year,
+        ),
         school,
         academic_year,
     )

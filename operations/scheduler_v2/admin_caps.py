@@ -1,4 +1,4 @@
-"""سقوفُ الأولى والسابعة المقرَّرةُ إدارياً (الأدمن) تُضمّ إلى إعداد الحلّال.
+"""سقوفُ الأولى والسابعة والتتابع المقرَّرةُ إدارياً (الأدمن) تُضمّ إلى إعداد الحلّال.
 
 نُقلت من `runner.py` حين تجاوز حدَّ حجم الملفّ (اختبار `test_file_size`)؛ والمسؤوليّةُ واحدة: ما قرّرته
 الإدارةُ في تفضيلات المعلّمين يدخل خيارات النموذج قبل الحلّ فلا يولَّد جدولٌ بقاعدةٍ لا يقرؤها المُقيِّم.
@@ -52,4 +52,30 @@ def with_admin_last_caps(config: SolverConfig, school: Any, academic_year: str) 
     merged = dict(spec.get("last_cap_override") or {})
     merged.update(stored)
     spec["last_cap_override"] = merged
+    return _with_spec(config, spec)
+
+
+def personal_run_caps(school: Any, academic_year: str) -> dict[str, int]:
+    """سقوفُ التتابع الشخصيّةُ ({معلّم ← أقصى حصصٍ متتالية}) كما يقرؤها المُقيِّمُ من `TeacherPreference.max_consecutive`.
+
+    ما فوق 1 وحدَه: الواحدُ هو السقفُ العامّ نفسُه (`MAX_CONSECUTIVE`)، فلا يُضاف إلى النموذج شيء.
+    """
+    from operations.models import TeacherPreference
+
+    rows = TeacherPreference.objects.filter(
+        school=school, academic_year=academic_year, max_consecutive__gt=1
+    ).values_list("teacher_id", "max_consecutive")
+    return {str(teacher): cap for teacher, cap in rows}
+
+
+def with_personal_run_caps(config: SolverConfig, school: Any, academic_year: str) -> SolverConfig:
+    """يضمّ سقوفَ التتابع الشخصيّةَ إلى `run_cap_override` ليقرأها الحلّالُ كما يقرؤها المُقيِّمُ؛ والأعلى يغلب ملفَّ التخفيف."""
+    stored = personal_run_caps(school, academic_year)
+    if not stored:
+        return config
+    spec = dict(config.relaxations)
+    merged = dict(spec.get("run_cap_override") or {})
+    for teacher, cap in stored.items():
+        merged[teacher] = max(cap, merged.get(teacher, 0))
+    spec["run_cap_override"] = merged
     return _with_spec(config, spec)

@@ -36,7 +36,7 @@ paths:
 |---|---|---|
 | `--text-primary` | `#111827` | `#f1f5f9` |
 | `--text-secondary` | `#4b5563` | `#cbd5e1` |
-| `--text-muted` | `#5f6775` | `#94a3b8` |
+| `--text-muted` | `#58606d` | `#94a3b8` |
 | `--border` | `#e5e7eb` | `#334155` |
 | `--border-strong` | `#d1d5db` | `#475569` |
 | `--surface` | `#ffffff` | `#1e293b` |
@@ -90,7 +90,7 @@ paths:
 | `--status-info-bg` | `#dbeafe` | `#10233f` |
 | `--status-info-border` | `#93c5fd` | `#1e40af` |
 | `--neutral-solid` | `#4b5563` | — |
-| `--status-danger-fg` | `#c81e1e` | `#fca5a5` |
+| `--status-danger-fg` | `#ba1c1c` | `#fca5a5` |
 | `--status-warning-fg` | `#92400e` | `#fbbf24` |
 | `--status-success-fg` | `#166534` | `#86efac` |
 | `--status-info-fg` | `#1d4ed8` | `#93c5fd` |

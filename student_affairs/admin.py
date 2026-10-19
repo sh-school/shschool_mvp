@@ -27,6 +27,14 @@ class StudentTransferAdmin(admin.ModelAdmin):
         "updated_by",
         "decided_by",
         "decided_at",
+        "reviewed_by",
+        "reviewed_at",
+        "approved_by",
+        "approved_at",
+        "placed_by",
+        "placed_at",
+        "entered_by",
+        "entered_at",
     )
 
 

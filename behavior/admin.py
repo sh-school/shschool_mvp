@@ -1,6 +1,11 @@
 from django.contrib import admin
 
-from .models import AutoInfractionNotice, BehaviorInfraction, ViolationCategory
+from .models import (
+    AutoInfractionNotice,
+    BehaviorInfraction,
+    BehaviorPointRecovery,
+    ViolationCategory,
+)
 
 
 @admin.register(ViolationCategory)
@@ -16,6 +21,8 @@ class ViolationCategoryAdmin(admin.ModelAdmin):
     list_filter = ["degree", "is_active", "requires_security_referral"]
     search_fields = ["code", "name_ar"]
     ordering = ["degree", "code"]
+    # [W-20261013-010] عمودٌ خاملٌ يُحذف في المرحلة 2: ظاهرٌ للقراءة وحدَها فلا يُعدَّل.
+    readonly_fields = ["points"]
     actions = ["seed_2025_action", "seed_abcd_action"]
 
     def seed_2025_action(self, request, queryset):
@@ -55,6 +62,8 @@ class BehaviorInfractionAdmin(admin.ModelAdmin):
     search_fields = ["student__full_name"]
     autocomplete_fields = ["student", "reported_by", "violation_category"]
     date_hierarchy = "date"
+    # [W-20261013-010] عمودٌ خاملٌ يُحذف في المرحلة 2: ظاهرٌ للقراءة وحدَها فلا يُعدَّل.
+    readonly_fields = ["points_deducted"]
 
     fieldsets = (
         (
@@ -77,6 +86,7 @@ class BehaviorInfractionAdmin(admin.ModelAdmin):
                     "action_taken",
                     "escalation_step",
                     "is_resolved",
+                    "points_deducted",
                 ),
             },
         ),
@@ -142,6 +152,23 @@ class AutoInfractionNoticeAdmin(admin.ModelAdmin):
     def student_ref(self, obj):
         # `student_id` مباشرةً: الحقلُ نفسُه في `list_display` يجلب الطالبَ لكلّ صفّ.
         return obj.student_id
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(BehaviorPointRecovery)
+class BehaviorPointRecoveryAdmin(admin.ModelAdmin):
+    """[W-20261013-010] جدولٌ خاملٌ يُحذف في المرحلة 2: للقراءة وحدَها حتى ذلك."""
+
+    list_display = ["infraction", "points_restored", "approved_by"]
+    readonly_fields = ["infraction", "reason", "points_restored", "approved_by"]
 
     def has_add_permission(self, request):
         return False

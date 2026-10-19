@@ -1,0 +1,8 @@
+{% if show %}
+<aside class="msg-bar msg-info" role="complementary" aria-label="دعوة إلى استبانة تجربة المستخدم">
+  <span>هل تساعدنا بدقيقتين؟ استبانةٌ مجهولةٌ عن تجربتك مع المنصة.</span>
+  <a href="{% url 'ux_survey:respond' %}" class="btn-primary btn-sm">أجيب الآن</a>
+  <form method="post" action="{% url 'ux_survey:snooze' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button type="submit" class="btn-secondary btn-sm">لاحقًا</button></form>
+  <form method="post" action="{% url 'ux_survey:close' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button type="submit" class="btn-secondary btn-sm" aria-label="لا أرغب في الإجابة">لا أرغب</button></form>
+</aside>
+{% endif %}

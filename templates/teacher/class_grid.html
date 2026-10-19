@@ -38,7 +38,7 @@
     {% if not page.columns %}
       {% include "components/empty_state.html" with title="لا زمنَ مُعرَّفاً لحصص هذه الشعبة اليوم" only %}
     {% else %}
-    <div data-class-grid data-now="{{ page.now|date:'U' }}"
+    <div data-class-grid data-live-root data-live-noreload data-live-url="{% url 'class_grid_live' page.klass.id %}?date={{ page.day|date:'Y-m-d' }}" data-phase="{% if page.is_today and not page.correction_mode %}live{% else %}final{% endif %}" data-now="{{ page.now|date:'U' }}"
          data-save-url="{% url 'class_grid_save' page.klass.id %}"
          data-late-url="{% url 'class_grid_late' page.klass.id %}"
          data-exit-url="{% url 'class_grid_exit' page.klass.id %}"
@@ -153,4 +153,4 @@
 {% endwith %}
 {% endblock %}
 
-{% block extra_js %}<script src="{% static 'js/class-grid.js' %}" defer></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/class-grid.js' %}" defer></script><script src="{% static 'js/director-live.js' %}" defer></script>{% endblock %}

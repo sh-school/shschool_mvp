@@ -152,22 +152,6 @@ def old_behavior_share_tone(pct):
     return "green" if pct >= 80 else ("amber" if pct >= 50 else "red")
 
 
-def old_net_score_rating(net_score):
-    """`behavior/services.py:137-144` قبل الترحيل."""
-    if net_score >= 90:
-        return "ممتاز", "green"
-    if net_score >= 75:
-        return "جيد جداً", "blue"
-    if net_score >= 60:
-        return "جيد", "amber"
-    return "يحتاج تطوير", "red"
-
-
-def old_net_score_status(net_score):
-    """`behavior/services.py:193-197` قبل الترحيل."""
-    return "green" if net_score >= 80 else ("yellow" if net_score >= 60 else "red")
-
-
 def old_report_grade_tone(total):
     """`reports/views.py:146-156` قبل الترحيل."""
     if not total:
@@ -201,17 +185,6 @@ def old_attendance_report(pct):
     if pct >= 80:
         return "مقبول", "orange"
     return "منخفض", "red"
-
-
-def old_combined_tone(score):
-    """`academic_management/views.py:124-132` قبل الترحيل."""
-    if score is None:
-        return "is-muted"
-    if score >= 75:
-        return "is-success"
-    if score >= 50:
-        return "is-warning"
-    return "is-danger"
 
 
 def old_bar_tone(pct, green_at=70, amber_at=40):
@@ -398,14 +371,6 @@ def test_grade_cell_tone_unchanged():
         assert tone_for(total, GRADE_CELL) == old_grade_cell_tone(total), total
 
 
-def test_behavior_service_scales_unchanged():
-    from behavior.services import NET_SCORE_RATING, NET_SCORE_STATUS
-
-    for score in SCORES:
-        assert tone_for(score, NET_SCORE_RATING) == old_net_score_rating(score), score
-        assert tone_for(score, NET_SCORE_STATUS) == old_net_score_status(score), score
-
-
 def test_reports_scales_unchanged():
     from reports.views import (
         ANNUAL_GRADE_CLASSES,
@@ -426,11 +391,9 @@ def test_reports_scales_unchanged():
 
 
 def test_academic_and_quality_scales_unchanged():
-    from academic_management.views import _combined_tone
     from quality.presentation import bar_tone, observation_score_tone
 
     for score in SCORES + [None]:
-        assert _combined_tone(score) == old_combined_tone(score), score
         assert observation_score_tone(score) == old_observation_score_tone(score), score
     for pct in SCORES:
         assert bar_tone(pct) == old_bar_tone(pct), pct

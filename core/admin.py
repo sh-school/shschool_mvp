@@ -11,6 +11,7 @@ from .models import (
     ClassGroup,
     CustomUser,
     Department,
+    ElectiveGroupMembership,
     Membership,
     ParentStudentLink,
     Profile,
@@ -472,7 +473,7 @@ class TimeBandAdmin(SchoolScopedAdmin):
 @admin.register(StudentEnrollment)
 class StudentEnrollmentAdmin(SchoolScopedAdmin):
     school_lookup = "class_group__school"
-    list_display = ("student", "class_group", "is_active", "enrolled_at")
+    list_display = ("student", "class_group", "is_active", "enrolled_at", "left_at")
     list_filter = ("is_active", "class_group__grade")
     list_select_related = ("student", "class_group__school")
     search_fields = ("student__full_name", "student__national_id")
@@ -819,3 +820,13 @@ class CapabilityGrantAdmin(SchoolScopedAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(ElectiveGroupMembership)
+class ElectiveGroupMembershipAdmin(SchoolScopedAdmin):
+    school_lookup = "enrollment__class_group__school"
+    list_display = ("enrollment", "group_label", "created_at")
+    list_filter = ("group_label", "enrollment__class_group__grade")
+    list_select_related = ("enrollment__student", "enrollment__class_group")
+    search_fields = ("enrollment__student__full_name", "group_label")
+    autocomplete_fields = ("enrollment",)
