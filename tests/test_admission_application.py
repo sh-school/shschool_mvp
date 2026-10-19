@@ -9,10 +9,17 @@ import pytest
 from django.db import connection
 from django.urls import reverse
 
+from core.academic_calendar import academic_year_for_school
 from core.models import CustomUser, StudentEnrollment
-from student_affairs.admission import apply_action, create_application
 from student_affairs.admission_models import AdmissionApplication
-from tests.attendance_fixtures import *  # noqa: F401,F403
+from student_affairs.admission_services import apply_action, create_application
+from tests.conftest import (
+    ClassGroupFactory,
+    MembershipFactory,
+    RoleFactory,
+    SchoolFactory,
+    UserFactory,
+)
 from tests.transfer_chain_support import ALL_DOCS
 
 pytestmark = pytest.mark.django_db
@@ -40,6 +47,24 @@ FORM = {
     "applicant_phone": "55550000",
     "declaration_accepted": "on",
 }
+
+
+@pytest.fixture
+def klass(school):
+    return ClassGroupFactory(
+        school=school,
+        grade="G7",
+        section="1",
+        level_type="prep",
+        academic_year=academic_year_for_school(school),
+    )
+
+
+@pytest.fixture
+def teacher(school):
+    user = UserFactory(full_name="معلّمٌ للاختبار", national_id="29000001010")
+    MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name="teacher"))
+    return user
 
 
 def _raw(application, column):
@@ -123,8 +148,6 @@ def test_a_role_without_the_transfers_capability_is_refused(client, school, teac
 
 
 def test_another_schools_application_is_not_reachable(client, principal_user, school):
-    from tests.conftest import SchoolFactory
-
     other = SchoolFactory()
     application = _application(other, principal_user)
     client.force_login(principal_user)
@@ -165,8 +188,6 @@ def test_the_order_of_stages_is_enforced(principal_user, school, klass):
 
 
 def test_placing_needs_a_class_of_the_requested_grade(principal_user, school, klass):
-    from tests.conftest import ClassGroupFactory
-
     application = _application(school, principal_user)
     apply_action(application, "review", "", principal_user, documents=ALL_DOCS)
     apply_action(application, "approved", "", principal_user)

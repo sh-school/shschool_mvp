@@ -254,4 +254,6 @@ class StudentActivity(SchoolScopedModel):
         return f"{self.student.full_name} — {self.title}"
 
 
-from .admission_models import AdmissionApplication  # noqa: E402,F401  (طلب الالتحاق W-20261001-033)
+from .admission_models import (
+    AdmissionApplication as AdmissionApplication,  # noqa: E402  (طلب الالتحاق W-20261001-033)
+)

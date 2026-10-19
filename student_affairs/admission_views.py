@@ -1,23 +1,31 @@
 """عروضُ طلب الالتحاق (نموذج 07، المرحلة 1) — وحدةٌ مستقلّة عن `views.py` (W-20261001-033).
 
-تُحجب الرقمُ الشخصيّ والحالةُ الصحّيّة عن القائمة؛ وتظهر الحالةُ الصحّيّة في التفاصيل لمن يملك قدرةَ الانتقالات فقط.
+العرضُ يقرأ الطلبَ ويمرّره: القراءةُ في `admission_selectors` والكتابةُ في `admission_services`.
+الرقمُ الشخصيّ مستورٌ في الصفحات؛ والحالةُ الصحّيّة تظهر في التفاصيل لمن يملك قدرةَ الانتقالات وحدَه.
 """
 
 import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for
 from core.capabilities import capability_required
-from core.models.academic import ClassGroup
 from core.privacy import mask_national_id
 
-from .admission import apply_action, create_application
 from .admission_forms import AdmissionApplicationForm
 from .admission_models import AdmissionApplication
+from .admission_selectors import (
+    admission_list as list_admissions,
+)
+from .admission_selectors import (
+    admission_or_404,
+    class_group_in,
+    placement_classes,
+)
+from .admission_services import apply_action, create_application
 from .transfer_chain import STAGES, available_actions, document_rows
 
 logger = logging.getLogger(__name__)
@@ -39,14 +47,11 @@ def _stage_rows(application):
 def admission_list(request):
     """قائمةُ طلبات الالتحاق، وتصفيةٌ بالحالة؛ بلا رقمٍ شخصيّ ولا حالةٍ صحّيّة."""
     status_filter = request.GET.get("status", "")
-    applications = AdmissionApplication.objects.filter(school=request.school)
-    if status_filter:
-        applications = applications.filter(status=status_filter)
     return render(
         request,
         "student_affairs/admission_list.html",
         {
-            "applications": applications.order_by("-created_at")[:100],
+            "applications": list_admissions(request.school, status_filter),
             "status_filter": status_filter,
             "status_choices": AdmissionApplication.STATUS_CHOICES,
         },
@@ -74,7 +79,7 @@ def admission_create(request):
 @login_required
 @capability_required("student_affairs.transfers")
 def admission_detail(request, pk):
-    application = get_object_or_404(AdmissionApplication, pk=pk, school=request.school)
+    application = admission_or_404(request.school, pk)
     return render(
         request,
         "student_affairs/admission_detail.html",
@@ -85,12 +90,7 @@ def admission_detail(request, pk):
             "stages": _stage_rows(application),
             "documents": document_rows(application),
             "actions": available_actions(application),
-            "classes": ClassGroup.objects.filter(
-                school=request.school,
-                grade=application.grade,
-                academic_year=application.academic_year,
-                is_active=True,
-            ).order_by("section"),
+            "classes": placement_classes(application),
         },
     )
 
@@ -100,17 +100,14 @@ def admission_detail(request, pk):
 @require_POST
 def admission_action(request, pk):
     """إجراءٌ من السلسلة: تدقيقٌ أو اعتمادٌ أو رفضٌ أو تشعيبٌ أو إدخالٌ أو إلغاء."""
-    application = get_object_or_404(AdmissionApplication, pk=pk, school=request.school)
-    action = request.POST.get("action", "")
+    application = admission_or_404(request.school, pk)
     class_group = None
     if request.POST.get("class_group"):
-        class_group = ClassGroup.objects.filter(
-            pk=request.POST["class_group"], school=request.school
-        ).first()
+        class_group = class_group_in(request.school, request.POST["class_group"])
     try:
         student = apply_action(
             application,
-            action,
+            request.POST.get("action", ""),
             request.POST.get("notes", "").strip(),
             request.user,
             documents=request.POST.getlist("documents"),
