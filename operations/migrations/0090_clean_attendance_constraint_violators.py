@@ -40,7 +40,7 @@ def clean(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("operations", "0085_absence_followup_logs_student_nullable"),
+        ("operations", "0089_rls_exit_permit"),
     ]
 
     operations = [migrations.RunPython(clean, migrations.RunPython.noop)]

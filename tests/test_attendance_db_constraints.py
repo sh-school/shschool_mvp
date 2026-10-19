@@ -85,7 +85,7 @@ def test_the_data_cleanup_fixes_every_violator_and_is_idempotent(school, session
     from django.apps import apps as django_apps
 
     migration = importlib.import_module(
-        "operations.migrations.0088_clean_attendance_constraint_violators"
+        "operations.migrations.0090_clean_attendance_constraint_violators"
     )
     now = timezone.now()
     # المخالفُ لا يُنشأ عبر الـORM (القيدُ يمنعه) فنُسقط القيدَين مؤقتاً داخل معاملة الاختبار (تُتراجع معها)

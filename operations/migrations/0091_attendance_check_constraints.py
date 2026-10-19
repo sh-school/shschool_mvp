@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("operations", "0088_clean_attendance_constraint_violators"),
+        ("operations", "0090_clean_attendance_constraint_violators"),
     ]
 
     operations = [

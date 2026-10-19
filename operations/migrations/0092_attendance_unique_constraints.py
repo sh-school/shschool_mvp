@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     atomic = False
 
     dependencies = [
-        ("operations", "0089_attendance_check_constraints"),
+        ("operations", "0091_attendance_check_constraints"),
     ]
 
     operations = [
