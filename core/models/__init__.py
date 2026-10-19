@@ -39,6 +39,7 @@ from .base import (  # noqa: F401
 from .capability_grant import DELEGABLE_CAPABILITIES, CapabilityGrant  # noqa: F401
 from .crypto import _get_fernet, decrypt_field, encrypt_field, hmac_field  # noqa: F401
 from .department import Department  # noqa: F401
+from .elective import ElectiveGroupMembership  # noqa: F401
 from .export_job import ExportJob  # noqa: F401
 from .permission_audit import PermissionAuditLog  # noqa: F401
 from .school import School, _uuid  # noqa: F401
@@ -75,6 +76,7 @@ __all__ = [
     "WingCoverage",
     "ClassGroup",
     "StudentEnrollment",
+    "ElectiveGroupMembership",
     "ParentStudentLink",
     "AuditLog",
     "ConsentRecord",

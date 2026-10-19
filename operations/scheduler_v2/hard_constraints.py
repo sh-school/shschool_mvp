@@ -23,7 +23,7 @@ from operations.scheduling_limits import DEFAULT_MAX_DAILY, MAX_SAME_PERIOD
 if TYPE_CHECKING:
     from operations.cpsat_adapter import CpSatInputs, DemandRow
 
-    from .model import BuiltModel
+    from .model import BuiltModel, ModelOptions
 
 DAYS = range(5)
 
@@ -330,7 +330,7 @@ class _Edges:
 def _touch_rules(ctx: _Ctx, t, day: int, cells: list[_Cell], by_key, occ) -> None:
     """HC5 (أو تخفيفُه المعلَن) مع HC13 وقيد 6-7 وسقف التتابع، لمعلّمٍ في يوم."""
     opt, m = ctx.opt, ctx.m
-    relaxed = (opt.touch_relaxed_all or t in opt.touch_relaxed) and opt.enabled("HC5")
+    relaxed, limit, personal = _teacher_run_rule(opt, t)
     _day_pairs(ctx, by_key, occ, opt.enabled("HC5") and not relaxed)
     if relaxed and day == 0:
         ctx.b.relaxations.append(
@@ -338,8 +338,8 @@ def _touch_rules(ctx: _Ctx, t, day: int, cells: list[_Cell], by_key, occ) -> Non
                 "teacher": t,
                 "code": "HC5",
                 "original": "no_touch",
-                "relaxed": f"run_cap_{opt.touch_relaxed_run_cap}",
-                "decision": "قرار المالك 2026-10-09",
+                "relaxed": f"run_cap_{limit}",
+                "decision": "سقف المعلّم الشخصيّ" if personal else "قرار المالك 2026-10-09",
             }
         )
     if opt.no_6_7:
@@ -350,8 +350,8 @@ def _touch_rules(ctx: _Ctx, t, day: int, cells: list[_Cell], by_key, occ) -> Non
             ctx.count("NO_6_7")
     if relaxed:
         _band_transition(ctx, cells, day)
-    if relaxed and opt.touch_relaxed_run_cap == 2:
-        _no_triples(ctx, by_key, occ)
+    if relaxed and limit:
+        _cap_runs(ctx, by_key, occ, limit)
     if opt.triples_by_number:
         by_p: dict[int, list] = {}
         for c in cells:
@@ -510,19 +510,39 @@ def _band_transition(ctx: _Ctx, cells: list[_Cell], day: int) -> None:
                 ctx.count("HC13")
 
 
-def _no_triples(ctx: _Ctx, by_key, occ) -> None:
-    """بعد تخفيف HC5: حصتان متتاليتان مسموحتان، وثلاثٌ متتاليةٌ ممنوعة."""
+def _teacher_run_rule(opt: ModelOptions, t: str) -> tuple[bool, int, bool]:
+    """(مخفَّفٌ؟، أقصى تتابعٍ مسموح، السقفُ شخصيٌّ؟) لمعلّمٍ — 0 = بلا سقف.
+
+    السقفُ الشخصيُّ (`run_cap_override`، من `TeacherPreference.max_consecutive`) يقرؤه المُقيِّمُ فيُرخي HC5
+    لصاحبه إلى سقفه؛ ومن خُفِّف عنه بقرار المالك يبقى الأوسعُ من السقفين (المُقيِّم: `_ease_runs`).
+    """
+    wide = (opt.touch_relaxed_all or t in opt.touch_relaxed) and opt.enabled("HC5")
+    personal = dict(opt.run_cap_override).get(t) if opt.enabled("HC5") else None
+    base = 2 if opt.touch_relaxed_run_cap == 2 else 0
+    if wide:
+        return True, (max(base, personal or 0) if base else 0), personal is not None
+    if personal:
+        return True, personal, True
+    return False, 0, False
+
+
+def _cap_runs(ctx: _Ctx, by_key: dict, occ: dict, cap: int) -> None:
+    """بعد تخفيف HC5: تتابعٌ حتى `cap` حصصٍ متلاصقةٍ مسموح، وأكثرُ منه ممنوع (cap=2 ← لا ثلاثٌ متتالية)."""
     gap = ctx.opt.joinable_gap
     keys = sorted(by_key)
     touch = lambda a, b: 0 <= b[0] - a[1] <= gap  # noqa: E731
-    for a, ka in enumerate(keys):
-        for b in range(a + 1, len(keys)):
-            if not touch(ka, keys[b]):
-                continue
-            for c in range(b + 1, len(keys)):
-                if touch(keys[b], keys[c]):
-                    ctx.m.Add(occ[ka] + occ[keys[b]] + occ[keys[c]] <= 2)
-                    ctx.count("HC5")
+
+    def chains(chain: list) -> None:
+        if len(chain) == cap + 1:
+            ctx.m.Add(sum(occ[k] for k in chain) <= cap)
+            ctx.count("HC5")
+            return
+        for nxt in keys:
+            if nxt > chain[-1] and touch(chain[-1], nxt):
+                chains([*chain, nxt])
+
+    for first in keys:
+        chains([first])
 
 
 def _any(ctx: _Ctx, vs: list):

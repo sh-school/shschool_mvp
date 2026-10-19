@@ -49,7 +49,7 @@
   <div class="schedule-head{% if prov_off %} prov-off{% endif %}"{% if prov_off %} inert aria-disabled="true"{% endif %}>
     <div class="schedule-tools">
       {# القائمةُ الواحدة لمن يتصفّح غيره وحده — وعرضُها على المعلّم أداةٌ لا تعمل له #}
-      {% if may_browse %}{% include "schedule/partials/schedule_picker.html" %}{% endif %}
+      {% if may_pick %}{% include "schedule/partials/schedule_picker.html" %}{% endif %}
 
       {# الورقُ والاتّجاهُ للطباعة والتصدير وحدَهما — لا أثرَ لهما على ما يُعرض هنا. #}
       <form method="get">

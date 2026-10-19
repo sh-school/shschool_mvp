@@ -226,6 +226,17 @@ class TestBehaviorQuickLog:
             # يُعيد partial — لا full page
             assert "<html" not in content
 
+    def test_direct_get_returns_full_page_with_styles(self, client_as, behavior_recorder):
+        """فتحُ الرابط مباشرةً صفحةٌ كاملة (أنماطٌ وقالب) لا جزءٌ عارٍ — W-20261014-019."""
+        client = client_as(behavior_recorder)
+        response = client.get("/behavior/quick-log/")
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "<html" in content
+        assert 'id="quick-log-form"' in content
+        # في الصفحة الكاملة الإلغاءُ رابطٌ لا زرُّ إغلاق نافذة
+        assert "data-modal-close" not in content
+
     def test_post_invalid_returns_form(self, client_as, behavior_recorder):
         """POST بدون بيانات → يعيد النموذج مع خطأ."""
         client = client_as(behavior_recorder)

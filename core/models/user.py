@@ -1,6 +1,6 @@
 import datetime
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.validators import RegexValidator
@@ -450,12 +450,46 @@ class Profile(models.Model):
                 _logger.warning("Profile %s: birth_date_encrypted غير قابلٍ للقراءة", self.pk)
         return self.birth_date
 
+    @date_of_birth.setter
+    def date_of_birth(self, value: datetime.date | None) -> None:
+        """الكتابةُ الوحيدةُ المعتمدة لتاريخ الميلاد (W-20261002-041): تكتب المشفَّرَ.
+
+        يُرآى القديمُ بالقيمة نفسها حتى لا يختلف `backfill_birth_date_encrypted --verify` ولا تفقد نسخةٌ قديمةٌ من الكود
+        التاريخَ أثناء النشر؛ وتُحذف المرآةُ مع هجرة حذف `birth_date`. والتفريغُ (None) فعلٌ صريحٌ يُحفظ ولو فارغاً.
+        """
+        self.birth_date_encrypted = value.isoformat() if value else ""
+        self.birth_date = value or None
+        self._dob_explicit = True
+
     def save(self, *args: Any, **kwargs: Any) -> None:
-        """كتابةٌ مزدوجة: كلُّ من يضبط `birth_date` يُحدِّث المشفَّرَ تلقائياً."""
-        self.birth_date_encrypted = self.birth_date.isoformat() if self.birth_date else ""
+        """يملأ المشفَّرَ من القديم عند الحاجة، ولا يصفّره أبداً بحفظٍ عاديّ.
+
+        - القديمُ غيرُ فارغٍ ويخالف المشفَّرَ (أو المشفَّرُ فارغ): يُكتب المشفَّرُ منه (كاتبٌ قديمٌ أو تعبئة).
+        - المشفَّرُ فارغٌ في الذاكرة بلا تفريغٍ صريحٍ (`date_of_birth = None`): لا يُكتب في القاعدة أصلاً،
+          فكائنٌ قُرئ قبل ضبطه أو حفظٌ لا يمسّ التاريخَ لا يمسح تاريخَ قاصر.
+        """
+        explicit = self.__dict__.pop("_dob_explicit", False)
         update_fields = kwargs.get("update_fields")
-        if update_fields is not None and "birth_date" in update_fields:
-            kwargs["update_fields"] = {*update_fields, "birth_date_encrypted"}
+        fields = None if update_fields is None else set(update_fields)
+        if fields is not None and {"birth_date", "date_of_birth"} & fields:
+            fields -= {"date_of_birth"}
+            fields.add("birth_date_encrypted")
+        touches_dob = fields is None or "birth_date_encrypted" in fields
+        if touches_dob and not explicit and self.birth_date:
+            iso = self.birth_date.isoformat()
+            if iso != self.birth_date_encrypted:
+                self.birth_date_encrypted = iso
+        if explicit and fields is not None:
+            fields |= {"birth_date", "birth_date_encrypted"}
+        if not explicit and not self.birth_date_encrypted and not self._state.adding:
+            if fields is None:
+                fields = {
+                    f.name for f in cast(Any, self._meta).concrete_fields if not f.primary_key
+                } - {"birth_date_encrypted"}
+            else:
+                fields.discard("birth_date_encrypted")
+        if fields is not None:
+            kwargs["update_fields"] = fields
         super().save(*args, **kwargs)
 
     def __str__(self):

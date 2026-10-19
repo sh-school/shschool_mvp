@@ -6,7 +6,7 @@ tests/test_views_behavior.py
 
 import pytest
 
-from behavior.models import BehaviorInfraction, BehaviorPointRecovery
+from behavior.models import BehaviorInfraction
 
 from .conftest import BehaviorInfractionFactory
 
@@ -133,31 +133,7 @@ class TestStudentBehaviorProfile:
         response = client.get(f"/behavior/student/{student_user.id}/")
         assert response.status_code == 200
         assert "infractions" in response.context
-        assert "net_score" in response.context
-
-    def test_net_score_calculation(
-        self, client_as, principal_user, school, student_user, teacher_user
-    ):
-        """100 - 15 (مخصوم) + 10 (مسترد) = 95"""
-        inf = BehaviorInfractionFactory(
-            school=school,
-            student=student_user,
-            reported_by=teacher_user,
-            level=2,
-            points_deducted=15,
-        )
-        BehaviorPointRecovery.objects.create(
-            infraction=inf, reason="سلوك إيجابي", points_restored=10, approved_by=principal_user
-        )
-        client = client_as(principal_user)
-        response = client.get(f"/behavior/student/{student_user.id}/")
-        assert response.context["net_score"] == 95
-
-    def test_status_green_for_high_score(self, client_as, principal_user, student_user, school):
-        client = client_as(principal_user)
-        response = client.get(f"/behavior/student/{student_user.id}/")
-        # بدون مخالفات → net_score = 100 → green
-        assert response.context["status_color"] == "green"
+        assert "net_score" not in response.context
 
 
 @pytest.mark.django_db

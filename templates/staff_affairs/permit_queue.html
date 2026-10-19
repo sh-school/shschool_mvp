@@ -21,7 +21,7 @@
 
   {% if is_principal or exceptions %}
   {% section_card "طلبات الاستثناء (نموذج 03)" meta=exceptions|length icon="leave" flush=True empty="لا طلباتِ استثناءٍ تنتظر قرارك" %}{% if exceptions %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>
@@ -63,7 +63,7 @@
   {% endif %}
 
   {% section_card "بانتظار مرحلتك" meta=permits|length icon="leave" flush=True empty="لا طلباتِ أذوناتٍ تنتظر مرحلتك" %}{% if permits %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>

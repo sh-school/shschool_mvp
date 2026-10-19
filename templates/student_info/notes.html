@@ -17,7 +17,7 @@
   {% endpage_header %}
 
   {% section_card "الملاحظات" meta=page.paginator.count icon="edit_record" flush=True empty="لا ملاحظات من هذه الجهة هذا العام" %}{% if page.object_list %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       {# القائمةُ مقسَّمةٌ صفحاتٍ: الفرزُ من الخادم على كلّ البيانات لا على الصفحة. #}
       <table data-no-sort>
         <thead>

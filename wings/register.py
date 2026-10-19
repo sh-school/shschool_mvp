@@ -277,7 +277,7 @@ def section_register(class_group, day: dt.date, now: dt.datetime | None = None) 
 
     confirmed = {p.start for p in periods if p.confirmation is not None}
     rows = []
-    for index, enrollment in enumerate(enrolled_of(class_group), start=1):
+    for index, enrollment in enumerate(enrolled_of(class_group, day), start=1):
         own = cells.get(enrollment.student_id, {})
         own_entries = entry_heads.get(enrollment.student_id, {})
         marks = []

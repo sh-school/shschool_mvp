@@ -349,3 +349,81 @@ def ratio(fg, bg) -> float:
     b = luminance(bg[:3])
     hi, lo = (f, b) if f > b else (b, f)
     return (hi + 0.05) / (lo + 0.05)
+
+
+# ── ٥) تعليقاتُ الرموز مقابل الحساب ─────────────────────────────────
+
+#: (كلمةٌ بعد الرقم ← الأرضيّات المقصودة) — الأطولُ أوّلاً: «السطح البديل» قبل «السطح».
+_LABELS = (
+    ("السطح البديل", ("--surface-alt",)),
+    ("الصفحة", ("--page-bg",)),
+    ("السطح", ("--surface",)),
+    ("سطحه", ("--surface",)),
+    ("الأبيض", ("--on-fill",)),
+)
+_NUMBER = re.compile(r"(?<![\d.#\w])(\d{1,2}\.\d{1,2})(?![\d.])")
+_BLOCK_OPEN = re.compile(r"^(:root|html\.dark)\s*\{")
+
+
+def _grounds_for(token: str, tail: str, whole: str) -> list[str]:
+    """أرضيّاتُ رقمٍ في تعليق رمز: المسمّاةُ بعده، وإلا الطبيعيّةُ لاسم الرمز (القائمةُ والذيلُ بلونَيهما، والنصُّ بالسطوح وقرينِه `-bg`)."""
+    for word, names in _LABELS:
+        if word in tail[:30]:
+            return list(names)
+    if token.startswith("--nav-"):
+        return ["--nav-bg"]
+    if token.startswith("--footer-"):
+        return ["--footer-bg"]
+    stem = token[: -len("-fg")] if token.endswith("-fg") else token
+    return [
+        "--surface",
+        "--surface-alt",
+        "--page-bg",
+        f"{stem}-bg",
+        *(["--on-fill"] if "الأبيض" in whole else []),
+    ]
+
+
+def comment_ratio_mismatches(css_by_file: list[str], tolerance: float = 0.05) -> list[str]:
+    """أسطرُ ما يكذب فيه تعليقُ رمزٍ على حسابه.
+
+    كلُّ رقمٍ في تعليقِ رمزٍ (`/* 6.35 على السطح و4.69 على خلفيّة الصفحة */`) يجب أن يساوي نسبتَه المحسوبةَ من القيم في الوضع
+    الذي يُعلَن فيه الرمز (`:root` نهاراً، `html.dark` ليلاً) بفارق `tolerance`. ما بعد «كان» تاريخٌ لا حالٌ فيُترك؛
+    وما سُمّيت أرضيّتُه (الصفحة، السطح، السطح البديل، الأبيض) يُقاس عليها وحدَها؛ وغيرُ المسمّى يكفيه أيُّ أرضيّةٍ معروفة.
+    """
+    css = "\n".join(css_by_file)
+    light, dark = token_table(css)
+    out: list[str] = []
+    for text in css_by_file:
+        mode = None
+        for line in text.splitlines():
+            m_open = _BLOCK_OPEN.match(line)
+            if m_open:
+                mode = "html.dark" if m_open.group(1) == "html.dark" else ":root"
+                continue
+            if line.startswith("}"):
+                mode = None
+                continue
+            if mode is None or "/*" not in line:
+                continue
+            decls, comment = line.split("/*", 1)
+            names = re.findall(r"(--[\w-]+)\s*:", decls)
+            if not names:
+                continue
+            token, comment = names[-1], comment.split("*/")[0].split("كان")[0]
+            tokens = dark if mode == "html.dark" else light
+            fg = resolve(f"var({token})", tokens)
+            if fg is None:
+                continue
+            for m in _NUMBER.finditer(comment):
+                claimed = float(m.group(1))
+                got = []
+                for ground in _grounds_for(token, comment[m.end() :], comment):
+                    bg = resolve(f"var({ground})", tokens)
+                    if bg is not None:
+                        got.append(round(ratio(fg, bg), 2))
+                if not any(abs(claimed - g) <= tolerance for g in got):
+                    out.append(
+                        f"{token} ({mode}): التعليقُ يقول {claimed} والحسابُ {sorted(set(got))}"
+                    )
+    return out

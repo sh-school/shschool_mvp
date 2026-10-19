@@ -27,7 +27,7 @@ description: |
 
 ## تحديثاتُ الهويّة منذ 2026-09-28 (إلزاميّة)
 - **لا صفحةَ خارج المنصّة ولا في لسانٍ جديد** (قرار المالك 2026-10-13): لا `target="_blank"` ولا `window.open(` ولا `href="http(s)://"` في القوالب وJS؛ الحارس `tests/test_no_external_pages.py` (الجديدُ ممنوع والقديمُ في خطّ أساسٍ يتناقص).
-- **رأسُ الجدول ثابتٌ عند التمرير الرأسيّ** (قرار المالك 2026-10-13): كلُّ جدولٍ بـ`{% for %}` داخل `table-wrap` يحمل `table-wrap-scroll`؛ الحارس `tests/test_sticky_table_header.py`.
+- **رأسُ الجدول ثابتٌ عند التمرير الرأسيّ** (قرار المالك 2026-10-13): كلُّ جدولٍ بـ`{% for %}` داخل `table-wrap` يحمل `table-wrap-scroll`؛ الحارس `tests/test_sticky_table_header.py`. ويمرّر الجدولُ الطويلُ داخلَه لا الصفحة (خاناتُ `95-checklist.md` الثلاث، W-20261009-019).
 - **الانتقالُ**: لا `transition: all`؛ استعمل `--q-transition-ui` وخصائصَ صريحة، والاتّجاهُ بخصائص منطقيّة (`41dff8110`).
 - **شعارُ المدرسة «ش»** (D-404م): الوسمُ `{% school_logo "nav" %}` من `core/school_logo.py` مصدرٌ واحدٌ للشاشة وPDF وExcel (الأصل `static/icons/v3/icon-192.png`). شعارُ الوزارة أُزيل ولا يعود؛ وسطرُ الانتماء للوزارة مخفيٌّ افتراضًا خلف `MINISTRY_AFFILIATION_VISIBLE` (`core/ministry.py`، الوسم `ministry_name`). تغييرُ الأيقونات يرفع `CACHE_NAME` في عامل الخدمة.
 - **الطباعةُ**: ورقةٌ واحدة بـ`SINGLE_SHEET_BOOST`، وخطّ Tajawal، وإطارٌ مطبوعٌ مركزيّ (W-057)؛ ولا تحديدَ `.nav-inner` بعرض 1280px.
@@ -52,7 +52,7 @@ description: |
 ## فخاخٌ حقيقيّة
 - خطأ: `{% if request.htmx %}…{% else %}{% extends "base.html" %}{% endif %}` — `extends` يجب أن يكون أوّلَ وسمٍ فلا يُشرَط. الصواب: الـview تختار: `core.htmx_utils.htmx_or_full(request, partial, full, ctx)`.
 - خطأ: `.data-table` و`.card-header` و`.card-qatar` في صفحةٍ جديدة. الصواب: الأوّلان غيرُ معرَّفين، والثالثُ «بنيةٌ باليد» تعدّها سقّاطةُ الهويّة؛ استعمل `section_card` و`table-wrap`.
-- خطأ: «النصُّ الخافت `#6b7280` بتباين 4.63». الصواب: `--text-muted` صار `#5f6775` (5.70 على السطح)؛ اكتب الرمزَ لا القيمة.
+- خطأ: «النصُّ الخافت `#6b7280` بتباين 4.63». الصواب: `--text-muted` صار `#58606d` (6.35 على السطح)؛ اكتب الرمزَ لا القيمة.
 - خطأ: «Amiri للجداول على الويب». الصواب: الويب Tajawal (و`Tajawal Tashkeel` للمشكول)؛ Amiri للـPDF وحدَه.
 - خطأ: `templates/base.html`. الصواب: القالبُ الأساس `templates/base/base.html`.
 - خطأ: «mobile-first بـ`min-width` فقط». الصواب: المنصّةُ تكتب `@media (max-width: 640px)` للجوال و`min-width: 641px`/`1025px` للأوسع — اتبع الملفَّ الذي تعمل فيه، وضع قاعدةَ `@media` **بعد** القاعدة الأساسيّة (الأخيرةُ تغلب).

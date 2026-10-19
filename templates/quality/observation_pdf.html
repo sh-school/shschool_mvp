@@ -1,4 +1,4 @@
-{% load static brand_tags ministry school_logo %}{% ministry_name as ministry %}
+{% load static brand_tags ministry ministry_logo %}{% ministry_name as ministry %}
 {% comment %}
 استمارة الإشراف على أداء المعلّم — من نموذج المدرسة (docx)، **بنيتُه الأصليّة مُستعادةً** (قرارُ المالك 2026-09-28، W-20260928-003)
 بعد تجربة التصميم المؤقّت «صفحةٌ واحدة» في طلب الدمج 711 (اعتمده المالكُ بصريّاً بعد أربع تصييرات PDF فعليّة).
@@ -47,9 +47,8 @@
 <style>
 @page {
   size: A4;
-  /* الهوامشُ: ترويسةٌ 1.2 بوصة (بلا رؤية) وتذييلٌ سطرٌ واحد 0.42 بوصة. الجانبيّان كالأصل. */
-  margin: 0.8in 0.5in 0.42in 0.5in;
-  {% if not ministry %}margin-top: 0.56in; /* سطرُ الوزارة مجمَّد (D-400م): الترويسةُ أقصر فلا بياضَ زائداً */{% endif %}
+  /* الهوامشُ: ترويسةٌ 1.12 بوصة (شعارُ الوزارة 14 ملم وسطاً فوق اسم المدرسة، بلا سطر نصّ الوزارة — W-20261014-009) وتذييلٌ سطرٌ واحد 0.42 بوصة. الجانبيّان كالأصل. */
+  margin: 1.12in 0.5in 0.42in 0.5in;
   @top-center { content: element(sheet-header); }
   @bottom-center { content: element(sheet-footer); }
 }
@@ -76,7 +75,8 @@ body {
 #sheet-footer { position: running(sheet-footer); width: 184.6mm; padding-bottom: 0.1in; }
 .doc-header { text-align: center; }
 .doc-header .ministry-name { font-size: 8.5pt; color: {% brand_color "TEXT_PRIMARY" %}; }
-.school-logo--inline { display: inline-block; vertical-align: middle; width: 28px; height: 28px; margin-left: 8px; border-radius: 5px; } /* شعارُ المدرسة «ش» (D-404م) قبل الاسم: في RTL يسبق النصَّ فيقع على يمينه، والفراغُ على يساره */
+.ministry-logo { display: none; } /* شعارُ الوزارة للمطبوع وحدَه: لا يظهر على الشاشة أبداً (W-20261014-009) */
+@media print { .ministry-logo { display: block; width: 14mm; height: 14mm; margin: 0 auto 1pt; } } /* أعلى وسط الترويسة واسمُ المدرسة تحته */
 .doc-header .school-name { font-size: 15pt; font-weight: 700; color: {% brand_color "MAROON" %}; line-height: 1.25; }
 .ornament-hr { height: 4pt; margin-top: 3pt; border-top: 2pt solid {% brand_color "MAROON" %}; border-bottom: 0.75pt solid {% brand_color "GOLD" %}; }
 .pdf-footer-line {
@@ -167,8 +167,8 @@ td {
 
 <div id="sheet-header">
   <div class="doc-header">
-    {% if ministry %}<div class="ministry-name">{{ ministry }}</div>{% endif %}
-    <div class="school-name">{% school_logo "inline" pdf=True %}{{ obs.school.name }}</div>
+    {% ministry_logo %}
+    <div class="school-name">{{ obs.school.name }}</div>
   </div>
   <div class="ornament-hr"></div>
 </div>
@@ -205,9 +205,16 @@ td {
       <tr>
         <td class="key">الموضوع</td>
         <td colspan="6">{{ obs.topic }}</td>
-        <td class="key">الزائر</td>
-        <td colspan="4">{{ observer_short_name }}</td>
+        {% if obs.kind == 'self' %}<td class="key">نوع التقييم</td>
+        <td colspan="4">ذاتي</td>{% else %}<td class="key">الزائر</td>
+        <td colspan="4">{{ observer_short_name }}</td>{% endif %}
       </tr>
+      {% if obs.kind == 'self' %}
+      <tr>
+        <td class="key">المعلّم</td>
+        <td colspan="11">{{ teacher_short_name }} — تقييمٌ ذاتيّ{% if obs.outside_schedule %} (حصّة خارج الجدول){% endif %}</td>
+      </tr>
+      {% else %}
       {# الأصل يجمع الأربعة في صفٍّ واحد، ويُفرد الصفَّ الذي يليه لخياري البثّ #}
       <tr>
         <td class="key" rowspan="2">المعلّم</td>
@@ -229,6 +236,7 @@ td {
         <td class="key center" colspan="3">بث مباشر غير مدمج</td>
         <td class="center tk" colspan="2">{% if obs.broadcast_note == 'بث مباشر غير مدمج' %}✓{% endif %}</td>
       </tr>
+      {% endif %}
     </table>
   {% endif %}
 
@@ -262,8 +270,13 @@ td {
       <tr>
         <td class="band sign" colspan="2">توقيع المعلم</td>
         <td class="sign" colspan="2">{% with stamp=signatures.teacher %}{% include "quality/_pdf_e_sign.html" %}{% endwith %}</td>
+        {% if obs.kind == 'self' %}
+        <td class="band sign" colspan="2">اطّلاع المسؤول المباشر</td>
+        <td class="sign" colspan="2"></td>
+        {% else %}
         <td class="band sign" colspan="2">توقيع الزائر</td>
         <td class="sign" colspan="2">{% with stamp=signatures.visitor %}{% include "quality/_pdf_e_sign.html" %}{% endwith %}</td>
+        {% endif %}
       </tr>
     {% endif %}
   </table>
