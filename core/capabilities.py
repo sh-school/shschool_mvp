@@ -28,6 +28,7 @@ from django.http import HttpRequest
 from django.http.response import HttpResponseBase
 
 from core.behavior_committee_roles import BEHAVIOR_COMMITTEE_CASE_SCOPED
+from core.capabilities_exam_excuse import exam_excuse_capabilities
 from core.capabilities_ux_survey import ux_survey_capabilities
 from core.parent_consent import holds_parent_membership
 from core.permissions import SYSTEM_ADMIN, USER_MANAGE, expand_roles, role_required
@@ -433,12 +434,7 @@ def registry() -> dict[str, Capability]:
             },
         ),
         _cap("assessments.oversee", "إعدادُ الموادّ ومتابعةُ المتعثّرين", leadership),
-        _cap(
-            "assessments.decide_excuse",
-            "قرارُ عذر الغياب عن الاختبار",
-            P.ASSESSMENT_DECIDE_EXCUSE,
-            basis="قرار المالك D-402م؛ الدليل 04b ص. 28: تقديرُ الأعذار والقائمةُ المغلقة",
-        ),
+        *exam_excuse_capabilities(_cap, P),
         _cap(
             "grades.import",
             "استيرادُ الدرجات من ملفّ",
