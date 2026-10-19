@@ -47,6 +47,7 @@ def _all_pass(monkeypatch, **overrides):
     monkeypatch.setattr(prepush_check, "check_secrets", overrides.get("secrets", ok))
     monkeypatch.setattr(prepush_check, "check_complexity", overrides.get("complexity", ok))
     monkeypatch.setattr(prepush_check, "check_types", overrides.get("types", ok))
+    monkeypatch.setattr(prepush_check, "check_migration_collisions", ok)
     # لا واجهةَ تغيّرت افتراضاً: خطوةُ الهويّة تُتخطّى فلا تُشغَّل الحرّاسُ الحقيقيّة في اختبارات الأداة.
     monkeypatch.setattr(prepush_check, "changed_paths_vs_merge_base", lambda: [])
 
@@ -218,3 +219,17 @@ def test_real_mypy_1_10_0_flags_a_known_error_when_installed(tmp_path):
     bad.write_text("x: int = 'a'\n", encoding="utf-8")
     proc = subprocess.run([sys.executable, "-m", "mypy", str(bad)], capture_output=True, text=True)
     assert proc.returncode == 1 and "Incompatible types" in proc.stdout
+
+
+def test_the_migration_collision_check_maps_exit_codes(monkeypatch):
+    class Proc:
+        def __init__(self, code):
+            self.returncode, self.stdout, self.stderr = code, "x", ""
+
+    for code, expected in (
+        (0, prepush_check.OK),
+        (1, prepush_check.FAIL),
+        (3, prepush_check.MISSING),
+    ):
+        monkeypatch.setattr(prepush_check, "_run", lambda cmd, c=code: Proc(c))
+        assert prepush_check.check_migration_collisions()[0] == expected

@@ -269,6 +269,14 @@ def check_types():
     return (OK, "") if proc.returncode == 0 else (FAIL, _tail(proc))
 
 
+def check_migration_collisions():
+    """تصادمُ أرقام الهجرات مع الطلبات المفتوحة (W-20261019-002): 0 نجاح، 1 فشل، 3 غير مقيس."""
+    proc = _run([sys.executable, "scripts/check_migration_collisions.py"])
+    out = (proc.stdout or "").strip() or _tail(proc)
+    status = {0: OK, 1: FAIL, 3: MISSING}.get(proc.returncode, FAIL)
+    return status, out
+
+
 def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="الفحوصُ السريعة لـCI قبل الدفع")
@@ -288,6 +296,7 @@ def main(argv: list[str] | None = None) -> int:
         ("التعقيد الحلقي (CC ≥ 31)", check_complexity),
     ]
     checks.append(("حرّاس الهويّة النصّيّة", check_identity))
+    checks.append(("تصادم أرقام الهجرات", check_migration_collisions))
     if args.no_types:
         checks.append(("mypy ratchet", lambda: (MISSING, "تُخطّيت بـ--no-types — سيحكم بها CI")))
     else:

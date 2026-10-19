@@ -13,7 +13,7 @@
 | النائب الإداريّ | `vice_admin` | نعم | نعم | نعم | لا | نعم |
 | النائب الأكاديميّ | `vice_academic` | لا | لا | نعم | نعم | لا |
 | المشرف الإداريّ | `admin_supervisor` | نعم | نعم | نعم | لا | لا |
-| منسّق شؤون الطلبة | `student_affairs_coordinator` | نعم | نعم | نعم | لا | لا |
+| منسّق شؤون الطلبة | `student_affairs_coordinator` | نعم | نعم | نعم | لا | نعم |
 | الأخصائيّ الاجتماعيّ | `social_worker` | لا | لا | لا | نعم | لا |
 | مطوّر المنصّة | `platform_developer` | لا | لا | نعم | لا | لا |
 <!-- roles-table:end -->

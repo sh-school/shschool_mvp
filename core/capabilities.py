@@ -498,7 +498,7 @@ def registry() -> dict[str, Capability]:
             # رصدُ مخالفةٍ تأديبيّةٍ لقاصرٍ كتابةٌ حسّاسة؛ المساعدان يرثان جدولَ المعلّم وحضورَه لا رصدَه (حكم 0104، W-20261010-013).
             not_inherited_by={"teacher_assistant", "ese_assistant"},
         ),
-        _cap("behavior.manage", "إدارةُ المخالفات والإجراءات", P.BEHAVIOR_MANAGE),
+        _cap("behavior.manage", "إدارةُ المخالفات والإجراءات", P.BEHAVIOR_MANAGE_HOLDERS),
         _cap(
             "behavior.committee",
             "لجنةُ الانضباط",
