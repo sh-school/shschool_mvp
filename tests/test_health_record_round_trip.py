@@ -236,8 +236,12 @@ def test_backfill_moves_values_encrypts_and_wipes_legacy(db, student, fernet):
     """الهجرةُ 0008: صفٌّ قديمٌ عارٍ ← مشفَّرٌ، والقديمُ يُفرَّغ، ومُعاوِد، وقابلٌ للعكس."""
     import importlib
 
-    from django.apps import apps as real_apps
+    from django.db.migrations.loader import MigrationLoader
 
+    # حالةُ ما قبل 0011: النموذجُ الحاليّ بلا الحقل القديم فلا تصلح له الهجرةُ 0008.
+    real_apps = (
+        MigrationLoader(connection).project_state(("clinic", "0010_healthrecord_needs_care")).apps
+    )
     mig = importlib.import_module("clinic.migrations.0008_backfill_blood_type_encrypted")
     rec = HealthRecord.objects.create(student=student)
     with connection.cursor() as cur:  # صفٌّ بصيغة ما قبل الإصلاح: عارٍ في العمود القديم

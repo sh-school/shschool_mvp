@@ -248,6 +248,17 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `roadmap_roadmaprisk` | مخاطرُها |
 | `roadmap_roadmapchecklistitem` | قائمةُ فحص الجهاز فيها |
 | `roadmap_roadmapmeta` | وثيقتُها المفردة: المسارات والمراحل والقواعد |
+| `ux_survey_surveywave` | جولةُ استبانة تجربة المستخدم — تعريفٌ بلا بياناتٍ شخصيّة |
+| `ux_survey_surveyresponse` | إجاباتٌ مجهولةٌ للموظفين غيرُ مرتبطةٍ بشخصٍ بنيةً؛ تُحذف الفرديّةُ منها بعد 12 شهرًا بأمر `purge_survey_responses` (`docs/privacy/ux_survey.md`) لا بقاعدة هذا الباب |
+| `ux_survey_surveyparticipation` | أنّ الموظّف أجاب الجولة دون إجابته؛ تُحذف مع حذف المستخدم (محو PDPPL) |
+| `sot_registry_codelink` | ربطُ الأحكام بمواضع الشيفرة |
+| `sot_registry_conflict` | تعارضاتُ الأحكام بين المصادر |
+| `sot_registry_provision` | أحكامُه المقتبَسة من المصادر |
+| `sot_registry_revision` | سجلُّ مراجعات الأحكام |
+| `sot_registry_source` | مصادرُ السجلّ: وثائقُ وزاريّةٌ ومرجعيّةٌ يُقتبس منها — سجلُّ مصدر الحقيقة وثيقةُ مطوّرٍ عن قواعد الجهات والمنصّة، بلا مدرسةٍ ولا أشخاص |
+| `sot_registry_supersession` | ما نسخ حكمٌ فيه حكماً آخر |
+| `sot_registry_threshold` | عتباتُه الرقميّة |
+| `sot_registry_topic` | مواضيعُه |
 
 ## 5. قراراتٌ معلّقةٌ عند المالك
 

@@ -55,6 +55,10 @@ STAFF_OR_SYSTEM = {
     ("quality.ExecutorMapping", "user"): "خريطةُ منفّذي الجودة (كادر)",
     ("quality.QualityCommitteeMember", "user"): "عضويّةُ لجنة الجودة (كادر)",
     (
+        "ux_survey.SurveyParticipation",
+        "user",
+    ): "مشاركةُ موظفٍ في استبانة (كادر، بلا أيّ حقلٍ من الإجابة)",
+    (
         "developer_feedback.DeveloperMessageNotification",
         "recipient",
     ): "مستلمو إشعارات المطوّر (المطوّر)",
