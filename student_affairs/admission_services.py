@@ -14,7 +14,6 @@ from .transfer_chain import _check_rules, _stamp
 APPLICATION_FIELDS = (
     "student_name",
     "student_national_id",
-    "birth_date",
     "nationality",
     "current_school",
     "grade",
@@ -37,6 +36,8 @@ def create_application(school, data: dict, actor, academic_year: str) -> Admissi
     if not data.get("declaration_accepted"):
         raise ValueError("لا يُسجَّل الطلب قبل إقرار مقدِّمه.")
     values = {k: data[k] for k in APPLICATION_FIELDS if k in data}
+    if "birth_date" in data:  # مفتاحُ النموذج؛ والحقلُ date_of_birth كما في Profile
+        values["date_of_birth"] = data["birth_date"]
     return AdmissionApplication.objects.create(
         school=school,
         academic_year=academic_year,
@@ -58,7 +59,7 @@ def _enter_into_system(application, school, class_group, gender: str):
             "national_id": application.student_national_id,
             "full_name": application.student_name,
             "gender": gender,
-            "birth_date": application.birth_date,
+            "birth_date": application.date_of_birth,
             "nationality": application.nationality,
             "class_group_id": class_group.pk,
         },

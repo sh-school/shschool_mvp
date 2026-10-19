@@ -70,7 +70,7 @@ class AdmissionApplication(AuditedModel):
     # ── بياناتُ الطالب ──
     student_name = models.CharField(max_length=200, verbose_name="اسم الطالب")
     student_national_id = EncryptedTextField(blank=True, verbose_name="الرقم الشخصي للطالب")
-    birth_date = models.DateField(null=True, blank=True, verbose_name="تاريخ الميلاد")
+    date_of_birth = models.DateField(null=True, blank=True, verbose_name="تاريخ الميلاد")
     nationality = models.CharField(max_length=100, blank=True, verbose_name="الجنسية")
     current_school = models.CharField(max_length=200, blank=True, verbose_name="المدرسة الحالية")
     grade = models.CharField(max_length=3, choices=ClassGroup.GRADES, verbose_name="الصف المطلوب")

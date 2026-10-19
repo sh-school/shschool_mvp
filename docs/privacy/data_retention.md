@@ -131,6 +131,7 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `core_clinicvisit` | زياراتُ العيادة |
 | `student_affairs_studentactivity` | الأنشطةُ الطلّابيّة |
 | `student_affairs_studenttransfer` | الانتقالُ بين الشعب |
+| `student_affairs_admissionapplication` | طلباتُ الالتحاق قبل التسجيل — لا حسابَ للطالب فيها؛ يُحتفَظ بها بقرار 0105/DPO |
 | `student_info_studentnote` | ملاحظاتُ الجهات الخمس |
 | `core_bookborrowing` | الإعاراتُ — تُطالَب المكتبةُ بها |
 | `core_libraryactivity_participants` | المشاركةُ في أنشطة المكتبة |

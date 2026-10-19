@@ -2,6 +2,8 @@
 {% load icons %}
 {% load ui %}
 
+{% block main_class %}{% page_layout "detail" %}{% endblock %}
+
 {% block title %}طلب التحاق — {{ application.student_name }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -26,7 +28,7 @@
     <dl class="detail-dl">
       <dt>الاسم</dt><dd><strong>{{ application.student_name }}</strong></dd>
       <dt>الرقم الشخصي</dt><dd>{{ masked_student_id|default:"—" }}</dd>
-      <dt>تاريخ الميلاد</dt><dd>{{ application.birth_date|date:"d/m/Y"|default:"—" }}</dd>
+      <dt>تاريخ الميلاد</dt><dd>{{ application.date_of_birth|date:"d/m/Y"|default:"—" }}</dd>
       <dt>الجنسية</dt><dd>{{ application.nationality|default:"—" }}</dd>
       <dt>المدرسة الحالية</dt><dd>{{ application.current_school|default:"—" }}</dd>
       <dt>الصف المطلوب</dt><dd>{{ application.get_grade_display }}</dd>
