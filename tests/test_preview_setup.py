@@ -385,6 +385,28 @@ def test_the_front_switches_with_a_graceful_reload_and_a_failed_new_slot_keeps_t
     assert "down --remove-orphans" in body
 
 
+def test_the_cold_boot_window_covers_the_measured_cold_start(compose):
+    """الإقلاعُ البارد (قاعدةُ جيلٍ جديدٍ تُهاجَر كاملةً) ~271ث بقياس 2026-10-20؛ والنافذةُ كانت 210ث
+    فأُعلن الفشلُ والإقلاعُ سليم (W-20261020-004)."""
+    health = compose["services"]["web"]["healthcheck"]
+    start_period = int(str(health["start_period"]).rstrip("s"))
+    assert start_period >= 300
+
+    body = _function_body("wait_web")
+    cycles = int(re.search(r"seq 1 (\d+)", body).group(1))
+    sleep = int(re.search(r"sleep (\d+)", body).group(1))
+    assert cycles * sleep > start_period  # المهلةُ أطولُ من فترة البدء كلِّها
+
+
+def test_wait_web_does_not_treat_unhealthy_during_startup_as_a_failure():
+    body = _function_body("wait_web")
+    assert "unhealthy" not in body  # غيرُ صحّيٍّ أثناء البدء ليس فشلاً
+    # الفشلُ الحقيقيّ: توقّفُ الحاويةِ أو إعادةُ تشغيلها مرّتين
+    assert "State.Running" in body
+    assert "RestartCount" in body and "-ge 2" in body
+    assert "return 0" in body and "return 1" in body
+
+
 def test_the_apply_is_deferred_while_someone_is_viewing():
     sync = _function_body("cmd_sync")
 
