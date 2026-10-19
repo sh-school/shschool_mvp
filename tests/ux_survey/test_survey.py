@@ -15,7 +15,7 @@ from ux_survey import services
 from ux_survey.groups import group_of
 from ux_survey.models import SurveyParticipation, SurveyResponse, SurveyWave
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 SECRET = "تعذّر عليّ إيجاد كشف الغياب بسرعة"
 ANSWER = {
