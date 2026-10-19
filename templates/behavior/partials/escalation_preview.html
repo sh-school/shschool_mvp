@@ -4,6 +4,6 @@
   <p><b>الخطوة التالية:</b> {{ preview.step }} — {{ preview.next_text|default:"ما بعد السلّم" }}</p>
   <p>عدّادُ المخالفات السابقة لهذه الفئة في الفصل: <b>{{ preview.prior }}</b></p>
   <ol class="plain-list" aria-label="خطوات السلّم">
-    {% for number, text in preview.steps %}<li class="plain-list__row{% if number == preview.step %} is-current{% endif %}">{{ number }}. {{ text }}</li>{% endfor %}
+    {% for number, text in preview.steps %}<li class="plain-list__row{% if number == preview.step %} is-current{% endif %}">{{ number }}. {{ text }}</li>{% empty %}<li class="plain-list__row">لا خطوات معرّفة لهذه الفئة.</li>{% endfor %}
   </ol>
 {% endcallout %}

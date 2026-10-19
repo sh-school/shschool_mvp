@@ -6,14 +6,13 @@ Views نحيفة — كل Business Logic في behavior/services.py
 """
 
 import logging
-import uuid
 from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden
+from django.http import FileResponse, Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone as _tz
@@ -85,11 +84,6 @@ from wings.scope import student_scope_for
 # كما كانت: القيادةُ للمدرسة، والمعلّمُ والمنسّقُ لطلبة جدولهما.
 
 
-def _visible_student_ids(request):
-    """طلبةُ صاحب الطلب — `None` للمدرسة كلِّها، ومجموعةٌ للمقيَّد بجدولٍ أو جناح."""
-    return get_teacher_student_ids(request.user, scope=student_scope_for(request))
-
-
 def _require_in_wing(request, student_id):
     """404 لطالبٍ خارج جناح المقيَّد — ولا شيءَ لغيره (قاعدتُه في موضعها لم تتغيّر)."""
     if student_id:
@@ -112,32 +106,15 @@ def _deny_unreachable(request, student_id, message, school_wide=False):
     return None
 
 
-def _get_scoped_students(request, school):
-    """
-    يُعيد QuerySet طلاب مرئيّ حسب دور المستخدم:
-    - القيادة/الأخصائيون → كل طلاب المدرسة
-    - المشرف الإداري → طلبة جناحه
-    - المعلم/المنسق → طلاب فصوله فقط
-    """
-    student_ids = _visible_student_ids(request)
-    if student_ids is None:
-        # admin/leadership — all students
-        return (
-            CustomUser.objects.filter(
-                memberships__school=school,
-                memberships__role__name="student",
-                memberships__is_active=True,
-            )
-            .order_by("full_name")
-            .distinct()
-        )
-    return CustomUser.objects.filter(id__in=student_ids).order_by("full_name")
-
-
 from core.academic_calendar import academic_year_for
 
 from .notify import notify_behavior_after_commit
-from .selectors import recordable_student, student_picker
+from .selectors import (
+    _get_scoped_students,
+    _visible_student_ids,
+    recordable_student,
+    student_picker,
+)
 from .services import (
     PERIOD_CHOICES,
     BehaviorPermissions,
@@ -395,28 +372,6 @@ def _degree_panels(violations_by_degree: dict) -> list[dict]:
         }
         for degree, label, tone, color in _DEGREE_PANELS
     ]
-
-
-# ── معاينةُ الخطوة التصعيديّة قبل الحفظ (W-20260928-007) ─────
-@login_required
-@capability_required("behavior.record")
-def escalation_preview(request):
-    """خطوةُ التصعيد التي ستُحسب عند الحفظ — قراءةٌ فقط، تُطلب عند اختيار الطالب والفئة.
-
-    لا تكتب شيئاً، ولا تعرض طالباً خارج نطاق المستخدم (`_get_scoped_students`).
-    """
-    school = request.school
-    try:
-        student_id = uuid.UUID(request.GET.get("student_id", ""))
-        category_id = uuid.UUID(request.GET.get("violation_category", ""))
-    except (ValueError, TypeError):
-        return HttpResponse("")
-    student = _get_scoped_students(request, school).filter(pk=student_id).first()
-    category = ViolationCategory.objects.filter(pk=category_id, is_active=True).first()
-    if student is None or category is None or category.degree is None:
-        return HttpResponse("")
-    preview = BehaviorService.preview_escalation(student, school, category.degree, category)
-    return render(request, "behavior/partials/escalation_preview.html", {"preview": preview})
 
 
 # ── تسجيل مخالفة سريعة (HTMX Modal) ────────────────────────
