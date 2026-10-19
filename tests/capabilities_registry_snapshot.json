@@ -46,6 +46,17 @@
   "not_inherited_by": []
  },
  {
+  "key": "decisions.view",
+  "label": "الاطّلاعُ على سجلّ قرارات المالك",
+  "roles": [
+   "principal"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك: يرى نصوصَ القرارات المديرُ و0101 وحدَهما (W-20260928-019)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
   "key": "student_affairs.manage",
   "label": "إدارةُ سجلّات الطلبة",
   "roles": [

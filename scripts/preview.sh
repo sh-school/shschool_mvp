@@ -427,6 +427,26 @@ slot_up() {   # slot_up <شجرة> <منفذُ الخانة> — compose up في
 }
 
 # يبني الشجرةَ في الخانة الفارغة؛ وبعد صحّتها تُحوَّل الواجهةُ إليها وتُزال الخانةُ القديمة. فشلُها يُبقي القائمَ يخدم.
+# يحفظ سجلَّ حاوياتِ الخانة الفاشلة قبل هدمها: بعدها يضيع السببُ (تشخيص 2026-10-19: أُعيد إنشاءُ القاعدة
+# فلم يبقَ ما يُفسّر لماذا لم يُقلع main). يُكتب في مجلّد الحالة ويُستبدل عند كلّ فشل؛ لا يُفشل النشرَ أبداً.
+capture_boot_failure() {   # capture_boot_failure <خانة>
+  [ "$DRY" = 1 ] && return 0
+  local out ids c
+  out="$(state_dir)/last_boot_failure.log"
+  mkdir -p "$(state_dir)" 2>/dev/null || return 0
+  ids="$(docker ps -a --filter "label=com.docker.compose.project=$SLOT_PROJECT" -q 2>/dev/null || true)"
+  {
+    printf '== %s — خانة %s — %s ==
+' "$(now)" "$1" "${LABEL:-main@$PREVIEW_SHA}"
+    for c in $ids; do
+      printf '
+-- %s (%s) --
+' "$(docker inspect -f '{{.Name}}' "$c" 2>/dev/null)" "$(docker inspect -f '{{.State.Status}} exit={{.State.ExitCode}}' "$c" 2>/dev/null)"
+      docker logs --tail 150 "$c" 2>&1
+    done
+  } > "$out" 2>&1 || true
+}
+
 bluegreen_up() {   # bluegreen_up <شجرة>
   local tree="$1" cur new port
   cur="$(sget slot)"
@@ -445,11 +465,13 @@ bluegreen_up() {   # bluegreen_up <شجرة>
   slot_up "$tree" "$port" "up -d --force-recreate --remove-orphans" || { warn "docker compose up أعاد خطأً"; true; }
   if ! wait_web; then
     warn "سقط الجديدُ في الخانة $new — يبقى القائمُ يخدم"
+    capture_boot_failure "$new"
     run docker compose -p "$SLOT_PROJECT" down --remove-orphans >/dev/null 2>&1 || true
     SLOT_PROJECT=""
     return 1
   fi
   if ! front_point "$port"; then
+    capture_boot_failure "$new"
     run docker compose -p "$SLOT_PROJECT" down --remove-orphans >/dev/null 2>&1 || true
     SLOT_PROJECT=""
     return 1

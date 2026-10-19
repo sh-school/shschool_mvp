@@ -18,6 +18,7 @@ from typing import Any
 
 from django.db import transaction
 
+from core.import_staff_guard import record_skip
 from core.services import _IMPORT_GRADE_NORMALIZE, _IMPORT_RELATION_MAP
 
 # ── رؤوسُ الأعمدة الوزاريّة ──────────────────────────────────────────
@@ -391,6 +392,7 @@ def _load_ministry_caches(school: Any, year: str, all_nids: set[str]) -> dict[st
     """يحمّل كلَّ ما يُحتمل تكرارُه عبر صفوف الاستيراد في فهارس ذاكرةٍ مرّةً
     واحدة — راجع تعليق الأداء في `process_ministry_registry_import`."""
     from clinic.models import HealthRecord
+    from core.import_staff_guard import find_staff_nids
     from core.models import (
         ClassGroup,
         CustomUser,
@@ -401,6 +403,8 @@ def _load_ministry_caches(school: Any, year: str, all_nids: set[str]) -> dict[st
     )
 
     return {
+        # حسابات الموظّفين لا يمسّها الاستيراد (W-20261008-024) — تُحسب قبل أيّ كتابة.
+        "staff_nids": find_staff_nids(all_nids),
         "users": {u.national_id: u for u in CustomUser.objects.filter(national_id__in=all_nids)},
         "class_groups": {
             (cg.grade, cg.section): cg
@@ -459,6 +463,10 @@ def _process_ministry_student_row(
         stats["errors"].append(f"سطر {row_num}: اسم الطالب {student_nid} فارغ — تجاوز")
         return None
 
+    if student_nid in caches["staff_nids"]:
+        record_skip(stats, row_num, student_nid, as_parent=False)
+        return None
+
     birth_date = _parse_ministry_date(cell["birth_date_raw"])
     uses_bus_raw = cell["uses_bus_raw"]
     student, s_created = _upsert_user_from_registry(
@@ -508,6 +516,7 @@ def _process_ministry_student_row(
 
 
 def _process_ministry_parent_row(
+    row_num: int,
     cell: dict[str, str],
     *,
     student: Any,
@@ -523,6 +532,9 @@ def _process_ministry_parent_row(
 
     parent_nid = cell["parent_nid"]
     if not parent_nid:
+        return
+    if parent_nid in caches["staff_nids"]:
+        record_skip(stats, row_num, parent_nid, as_parent=True)
         return
 
     parent, p_created = _upsert_user_from_registry(
@@ -614,6 +626,7 @@ def process_ministry_registry_import(
         "enrollments_created": 0,
         "enrollments_transferred": 0,
         "links_created": 0,
+        "staff_skipped": 0,
         "errors": [],
     }
     issued: list[dict] = []
@@ -633,6 +646,7 @@ def process_ministry_registry_import(
             if student is None:
                 continue
             _process_ministry_parent_row(
+                row_num,
                 cell,
                 student=student,
                 school=school,
@@ -652,6 +666,7 @@ def process_ministry_registry_import(
         "enrollments_created": stats["enrollments_created"],
         "enrollments_transferred": stats["enrollments_transferred"],
         "links_created": stats["links_created"],
+        "staff_skipped": stats["staff_skipped"],
         "error_count": len(stats["errors"]),
         "errors": stats["errors"][:20],
         "credentials": issued,

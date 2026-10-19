@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from core.capabilities.base import Capability, Shared, _cap
+from core.capabilities.decisions import decisions_capabilities
 
 
 def dashboard_capabilities(shared: Shared) -> list[Capability]:
@@ -11,4 +12,5 @@ def dashboard_capabilities(shared: Shared) -> list[Capability]:
     return [
         # ── لوحة التحكّم ────────────────────────────────────────────
         _cap("dashboard.open", "فتحُ لوحة التحكّم", P.ALL_STAFF_ROLES | {"student", "parent"}),
+        *decisions_capabilities(_cap),
     ]

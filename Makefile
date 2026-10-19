@@ -290,6 +290,7 @@ SESSION := schoolos-$(notdir $(CURDIR))
 COMPOSE_SESSION := docker compose -p $(SESSION) --project-directory . -f $(ROOT)/docker-compose.session.yml
 
 session:
+	@python scripts/session_cap.py --project $(SESSION)
 	WEB_PORT=$(PORT) $(COMPOSE_SESSION) up -d
 	@echo "→ http://localhost:$(PORT)"
 
@@ -297,6 +298,10 @@ session:
 ARGS ?= tests/test_ci_sharding.py
 session-test:
 	$(COMPOSE_SESSION) exec -T web bash scripts/session-test.sh $(ARGS)
+
+# إطفاءُ الجلسات الخاملة 30 دقيقةً (stop فقط؛ لا تُمَسّ المعاينةُ المركزيّة): أضف --dry-run للعرض
+session-reap:
+	@python scripts/session_cap.py --reap
 
 session-down:
 	$(COMPOSE_SESSION) down
