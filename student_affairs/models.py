@@ -252,3 +252,6 @@ class StudentActivity(SchoolScopedModel):
 
     def __str__(self):
         return f"{self.student.full_name} — {self.title}"
+
+
+from .admission_models import AdmissionApplication  # noqa: E402,F401  (طلب الالتحاق W-20261001-033)
