@@ -1,6 +1,13 @@
 from django.urls import path
 
-from . import views, views_attendance, views_biometric, views_exemptions, views_leave_self
+from . import (
+    views,
+    views_attendance,
+    views_biometric,
+    views_exemptions,
+    views_leave_self,
+    views_probation,
+)
 
 app_name = "staff_affairs"
 
@@ -54,6 +61,12 @@ urlpatterns = [
         "assignments/<uuid:pk>/revoke/",
         views_attendance.staff_assignment_revoke,
         name="assignment_revoke",
+    ),
+    path("probation/", views_probation.probation_results, name="probation_results"),
+    path(
+        "probation/<uuid:pk>/result/",
+        views_probation.probation_result_record,
+        name="probation_result_record",
     ),
     path("exemptions/", views_exemptions.staff_exemptions, name="exemptions"),
     path(

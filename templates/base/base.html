@@ -630,6 +630,9 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"staff_affairs:attendance_report" %}
   <a href="{% url 'staff_affairs:attendance_report' %}">{% icon "reports" %} تقرير الحضور الشهري</a>
   {% endif %}
+  {% if request.user|can_open:"staff_affairs:probation_results" %}
+  <a href="{% url 'staff_affairs:probation_results' %}">{% icon "checklist" %} نتائج فترة الاختبار</a>
+  {% endif %}
   {% if request.user|can_open:"staff_affairs:exemptions" %}
   <a href="{% url 'staff_affairs:exemptions' %}">{% icon "staff" %} الإعفاء من الرصد</a>
   {% endif %}
