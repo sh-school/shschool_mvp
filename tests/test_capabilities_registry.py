@@ -43,7 +43,7 @@ def test_every_guard_in_the_platform_matches_a_capability():
             name = f"{callback.__module__}.{getattr(callback, '__qualname__', '')}"
             unmatched[name] = sorted(roles)
 
-    assert not unmatched, "حارسٌ لا قدرةَ تطابقه في core/capabilities.py:\n  " + "\n  ".join(
+    assert not unmatched, "حارسٌ لا قدرةَ تطابقه في core/capabilities/:\n  " + "\n  ".join(
         f"{k}: {v}" for k, v in sorted(unmatched.items())
     )
 

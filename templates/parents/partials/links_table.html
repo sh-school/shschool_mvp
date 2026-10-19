@@ -4,7 +4,7 @@
 {# partial: جدول ارتباطات أولياء الأمور — يُحدَّث بـ HTMX #}
 {% load sorting %}
 
-<div class="table-wrap">
+<div class="table-wrap table-wrap-scroll">
 {% if page_obj.object_list %}
   <div class="overflow-x-auto">
     {# القائمةُ مقسَّمةٌ صفحاتٍ: الفرزُ من الخادم على الارتباطات كلِّها. #}
