@@ -87,7 +87,7 @@
  ],
  "core_import_sites": {
   "academic_management": [
-   "core/capabilities.py"
+   "core/capabilities/workload.py"
   ],
   "assessments": [
    "core/dashboard_selectors.py",
@@ -125,7 +125,7 @@
    "core/management/commands/import_enrolment_register.py"
   ],
   "student_info": [
-   "core/capabilities.py"
+   "core/capabilities/student_affairs.py"
   ],
   "transport": [
    "core/dashboard_selectors.py"

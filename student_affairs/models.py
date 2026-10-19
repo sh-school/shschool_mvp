@@ -259,3 +259,7 @@ from student_affairs.guardian_request_models import (  # noqa: E402,F401
     GuardianRequest,
     GuardianRequestEvent,
 )
+
+from .admission_models import (
+    AdmissionApplication as AdmissionApplication,  # noqa: E402  (طلب الالتحاق W-20261001-033)
+)

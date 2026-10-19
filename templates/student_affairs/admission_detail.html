@@ -1,0 +1,127 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+
+{% block main_class %}{% page_layout "detail" %}{% endblock %}
+
+{% block title %}طلب التحاق — {{ application.student_name }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/admissions/" parent_label="طلبات الالتحاق" current=application.student_name %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash sa-page sa-form-page">
+
+  {% page_header "تفاصيل طلب الالتحاق" subtitle=application.student_name icon="swap_requests" %}
+    <span class="status-badge
+      {% if application.status == 'pending' %}status-warning
+      {% elif application.status == 'approved' %}status-info
+      {% elif application.status == 'completed' %}status-success
+      {% elif application.status == 'rejected' %}status-danger
+      {% else %}status-gray{% endif %}">
+      {{ application.get_status_display }}
+    </span>
+  {% endpage_header %}
+
+  {% section_card "بياناتُ الطالب" icon="swap_requests" %}
+    <dl class="detail-dl">
+      <dt>الاسم</dt><dd><strong>{{ application.student_name }}</strong></dd>
+      <dt>الرقم الشخصي</dt><dd>{{ masked_student_id|default:"—" }}</dd>
+      <dt>تاريخ الميلاد</dt><dd>{{ application.date_of_birth|date:"d/m/Y"|default:"—" }}</dd>
+      <dt>الجنسية</dt><dd>{{ application.nationality|default:"—" }}</dd>
+      <dt>المدرسة الحالية</dt><dd>{{ application.current_school|default:"—" }}</dd>
+      <dt>الصف المطلوب</dt><dd>{{ application.get_grade_display }}</dd>
+      <dt>يعيش مع</dt><dd>{{ application.get_living_with_display|default:"—" }}</dd>
+      <dt>وسيلة النقل</dt><dd>{{ application.get_transport_display|default:"—" }}</dd>
+      <dt>السكن</dt><dd>{{ application.housing_area }} {{ application.housing_street }} {{ application.housing_house }}</dd>
+      <dt>الحالة الصحية</dt><dd>{{ application.health_status|default:"—" }}</dd>
+    </dl>
+  {% endsection_card %}
+
+  {% section_card "مقدِّمُ الطلب" icon="swap_requests" %}
+    <dl class="detail-dl">
+      <dt>الاسم</dt><dd>{{ application.applicant_name }}</dd>
+      <dt>الرقم الشخصي</dt><dd>{{ masked_applicant_id|default:"—" }}</dd>
+      <dt>صلة القرابة</dt><dd>{{ application.applicant_relationship }}</dd>
+      <dt>الهاتف</dt><dd>{{ application.applicant_phone }}</dd>
+      <dt>الإقرار</dt><dd>{% if application.declaration_accepted %}مُقرّ{% else %}—{% endif %}</dd>
+      {% if application.notes %}<dt>ملاحظات</dt><dd>{{ application.notes }}</dd>{% endif %}
+      {% if application.to_class_group %}<dt>الشعبة</dt><dd>{{ application.to_class_group.short_label }}</dd>{% endif %}
+      {% if application.linked_student %}<dt>حساب الطالب</dt><dd>{{ application.linked_student.full_name }}</dd>{% endif %}
+    </dl>
+  {% endsection_card %}
+
+  {% section_card "مستندات التسجيل" icon="checklist" %}
+    <ul>
+      {% for doc in documents %}
+      <li>{% if doc.checked %}{% icon "status_success" %} مكتمل{% else %}{% icon "status_warning" %} غير مكتمل{% endif %} — {{ doc.key }}. {{ doc.label }}</li>
+      {% endfor %}
+    </ul>
+    {% if application.documents_missing_reason %}
+    {% callout "warning" show=True %}سبب نقص المستندات: {{ application.documents_missing_reason }}{% endcallout %}
+    {% endif %}
+  {% endsection_card %}
+
+  {% section_card "مراحل الاعتماد" icon="swap_requests" %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead><tr><th scope="col">المرحلة</th><th scope="col">المنفّذ</th><th scope="col" class="col-center">التاريخ</th></tr></thead>
+        <tbody>
+          {% for stage in stages %}
+          <tr>
+            <td>{{ stage.label }}</td>
+            <td>{% if stage.by %}{{ stage.by.full_name }}{% else %}—{% endif %}</td>
+            <td class="col-center">{% if stage.at %}{{ stage.at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endsection_card %}
+
+  {% if actions %}
+  {% section_card "الإجراء التالي" icon="checklist" %}
+    <form method="post" action="{% url 'student_affairs:admission_action' application.pk %}">
+      {% csrf_token %}
+      <div class="form-row">
+        <div class="ui-field">
+          <label for="f-action" class="ui-field__label">الإجراء</label>
+          <select id="f-action" name="action" class="form-control" required>
+            {% for value, label in actions %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        {% field "notes" "ملاحظات" placeholder="ملاحظات (سبب الرفض مطلوب)" %}
+      </div>
+      {% if not application.reviewed_at %}
+      <fieldset>
+        <legend>المستندات المكتملة (عند التدقيق)</legend>
+        {% for doc in documents %}
+        {% field "documents" doc.label type="checkbox" value=doc.key id=doc.id %}
+        {% endfor %}
+      </fieldset>
+      {% field "missing_reason" "سبب نقص المستندات" placeholder="مطلوب إن لم تكتمل المستندات الأحد عشر" %}
+      {% elif application.status == "approved" and not application.placed_at %}
+      <div class="ui-field">
+        <label for="f-class_group" class="ui-field__label">الشعبة (عند التشعيب)</label>
+        <select id="f-class_group" name="class_group" class="form-control">
+          <option value="">— اختر الشعبة —</option>
+          {% for c in classes %}<option value="{{ c.pk }}">{{ c.short_label }}</option>{% endfor %}
+        </select>
+      </div>
+      {% elif application.placed_at and not application.entered_at %}
+      {% field "gender" "الجنس (عند الإدخال)" type="select" choices="M=ذكر|F=أنثى" blank="— اختر —" %}
+      {% callout "info" show=True %}«الإدخال» ينشئ حسابَ الطالب ويعرض بياناتِ دخوله مرّةً واحدةً فقط.{% endcallout %}
+      {% endif %}
+      <div class="form-actions">
+        <button type="submit" class="btn-primary btn-sm">{% icon "status_success" %} تنفيذ الإجراء</button>
+      </div>
+    </form>
+  {% endsection_card %}
+  {% endif %}
+
+  <div class="form-actions">
+    <a href="{% url 'student_affairs:admission_list' %}" class="btn-secondary btn-sm">رجوع للقائمة</a>
+  </div>
+</div>
+{% endblock %}
