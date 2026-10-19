@@ -6,13 +6,14 @@ Views نحيفة — كل Business Logic في behavior/services.py
 """
 
 import logging
+import uuid
 from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import FileResponse, Http404, HttpResponseForbidden
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone as _tz
@@ -394,6 +395,28 @@ def _degree_panels(violations_by_degree: dict) -> list[dict]:
         }
         for degree, label, tone, color in _DEGREE_PANELS
     ]
+
+
+# ── معاينةُ الخطوة التصعيديّة قبل الحفظ (W-20260928-007) ─────
+@login_required
+@capability_required("behavior.record")
+def escalation_preview(request):
+    """خطوةُ التصعيد التي ستُحسب عند الحفظ — قراءةٌ فقط، تُطلب عند اختيار الطالب والفئة.
+
+    لا تكتب شيئاً، ولا تعرض طالباً خارج نطاق المستخدم (`_get_scoped_students`).
+    """
+    school = request.school
+    try:
+        student_id = uuid.UUID(request.GET.get("student_id", ""))
+        category_id = uuid.UUID(request.GET.get("violation_category", ""))
+    except (ValueError, TypeError):
+        return HttpResponse("")
+    student = _get_scoped_students(request, school).filter(pk=student_id).first()
+    category = ViolationCategory.objects.filter(pk=category_id, is_active=True).first()
+    if student is None or category is None or category.degree is None:
+        return HttpResponse("")
+    preview = BehaviorService.preview_escalation(student, school, category.degree, category)
+    return render(request, "behavior/partials/escalation_preview.html", {"preview": preview})
 
 
 # ── تسجيل مخالفة سريعة (HTMX Modal) ────────────────────────

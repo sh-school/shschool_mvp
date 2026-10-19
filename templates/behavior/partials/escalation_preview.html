@@ -1,0 +1,9 @@
+{% load ui %}
+{% comment %}معاينةُ الخطوة التصعيديّة قبل الحفظ (W-20260928-007) — قراءةٌ فقط؛ يطابق ما يُكتب بعد الحفظ.{% endcomment %}
+{% callout "info" %}
+  <p><b>الخطوة التالية:</b> {{ preview.step }} — {{ preview.next_text|default:"ما بعد السلّم" }}</p>
+  <p>عدّادُ المخالفات السابقة لهذه الفئة في الفصل: <b>{{ preview.prior }}</b></p>
+  <ol class="plain-list" aria-label="خطوات السلّم">
+    {% for number, text in preview.steps %}<li class="plain-list__row{% if number == preview.step %} is-current{% endif %}">{{ number }}. {{ text }}</li>{% endfor %}
+  </ol>
+{% endcallout %}

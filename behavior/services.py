@@ -834,6 +834,43 @@ class BehaviorService:
         return min(prior + 1, max_step)
 
     @staticmethod
+    def preview_escalation(
+        student: CustomUser,
+        school: School,
+        level: int,
+        violation_category: Any = None,
+        session: Any = None,
+    ) -> dict[str, Any]:
+        """ما سيُحسب قبل الحفظ — قراءةٌ فقط بلا كتابة (W-20260928-007).
+
+        تستعمل الاقتراحَ نفسه الذي يكتب `create_infraction`، فما يظهر للمسجِّل
+        قبل الحفظ هو ما يُخزَّن بعده. الخطوةُ المعادة 0 إن لم تكن للدرجة سلّم.
+        """
+        from .conduct_2026 import BY_CODE
+
+        prior = BehaviorService.get_prior_infraction_count(
+            student, school, level, violation_category, session=session
+        )
+        step = BehaviorService.suggest_escalation_step(
+            student, school, level, violation_category, session=session
+        )
+        if violation_category and violation_category.code in BY_CODE:
+            raw = violation_category.get_escalation_steps()
+        else:
+            raw = ESCALATION_STEPS.get(level, [])
+        steps = [
+            (number, item[1] if isinstance(item, tuple | list) else item)
+            for number, item in enumerate(raw, start=1)
+        ]
+        texts = dict(steps)
+        return {
+            "prior": prior,
+            "step": step,
+            "steps": steps,
+            "next_text": texts.get(step, ""),
+        }
+
+    @staticmethod
     @transaction.atomic
     def create_infraction(
         school: School,

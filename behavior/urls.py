@@ -7,6 +7,7 @@ app_name = "behavior"
 urlpatterns = [
     path("dashboard/", views.behavior_dashboard, name="dashboard"),
     path("quick-log/", views.quick_log, name="quick_log"),
+    path("escalation-preview/", views.escalation_preview, name="escalation_preview"),
     path("report/", views.report_infraction, name="report_infraction"),
     path("student/<uuid:student_id>/", views.student_behavior_profile, name="student_profile"),
     # ✅ لجنة الضبط السلوكي
