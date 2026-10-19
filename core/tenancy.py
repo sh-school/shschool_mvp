@@ -110,6 +110,8 @@ GLOBAL_INFRASTRUCTURE = {
     "core_customuser_user_permissions": "join table between a global user and a global permission",
     "core_profile": "extends core_customuser one-to-one; inherits its platform-wide scope",
     "core_school": "the tenant itself; scoping it to itself is meaningless",
+    "decisions_registry_decision": "owner-decisions register (read-only import of the platform owner's decisions): platform-wide, no school or student data",
+    "decisions_registry_importbatch": "owner-decisions register (read-only import of the platform owner's decisions): platform-wide, no school or student data",
     "developer_feedback_auditlog": "developer channel, deliberately cross-school",
     "developer_feedback_developermessage": "developer channel, deliberately cross-school",
     "developer_feedback_developermessagenotification": "developer channel, deliberately cross-school",
