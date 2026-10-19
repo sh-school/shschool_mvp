@@ -42,7 +42,67 @@
     </dl>
   {% endsection_card %}
 
-  {% if can_decide and transfer.status == "pending" or can_decide and transfer.status == "approved" %}
+  {% if is_chain %}
+  {% section_card "مستندات التسجيل" icon="checklist" %}
+    <ul>
+      {% for doc in documents %}
+      <li>{% if doc.checked %}{% icon "status_success" %} مكتمل{% else %}{% icon "status_warning" %} غير مكتمل{% endif %} — {{ doc.key }}. {{ doc.label }}</li>
+      {% endfor %}
+    </ul>
+    {% if transfer.documents_missing_reason %}
+    {% callout "warning" show=True %}سبب نقص المستندات: {{ transfer.documents_missing_reason }}{% endcallout %}
+    {% endif %}
+  {% endsection_card %}
+
+  {% section_card "مراحل الاعتماد" icon="swap_requests" %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead><tr><th scope="col">المرحلة</th><th scope="col">المنفّذ</th><th scope="col" class="col-center">التاريخ</th></tr></thead>
+        <tbody>
+          {% for stage in stages %}
+          <tr>
+            <td>{{ stage.label }}</td>
+            <td>{% if stage.by %}{{ stage.by.full_name }}{% else %}—{% endif %}</td>
+            <td class="col-center">{% if stage.at %}{{ stage.at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endsection_card %}
+
+  {% if actions %}
+  {% section_card "الإجراء التالي" icon="checklist" %}
+    <form method="post" action="{% url 'student_affairs:transfer_review' transfer.pk %}">
+      {% csrf_token %}
+      <div class="form-row">
+        <div class="ui-field">
+          <label for="f-action" class="ui-field__label">الإجراء</label>
+          <select id="f-action" name="action" class="form-control" required>
+            {% for value, label in actions %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        {% field "notes" "ملاحظات" placeholder="ملاحظات (سبب الرفض مطلوب)" %}
+      </div>
+      {% if not transfer.reviewed_at %}
+      <fieldset>
+        <legend>المستندات المكتملة (عند التدقيق)</legend>
+        {% for doc in documents %}
+        {% field "documents" doc.label type="checkbox" value=doc.key id=doc.id %}
+        {% endfor %}
+      </fieldset>
+      {% field "missing_reason" "سبب نقص المستندات" placeholder="مطلوب إن لم تكتمل المستندات الأحد عشر" %}
+      {% endif %}
+      {% if transfer.direction == "out" %}
+      {% callout "warning" show=True %}«إتمام الانتقال» الصادر يعطّل قيدَ الطالب وعضويّتَه فوراً، ولا يُستردّ من هذه الصفحة.{% endcallout %}
+      {% endif %}
+      <div class="form-actions">
+        <button type="submit" class="btn-primary btn-sm">{% icon "status_success" %} تنفيذ الإجراء</button>
+      </div>
+    </form>
+  {% endsection_card %}
+  {% endif %}
+  {% elif can_decide and transfer.status == "pending" or can_decide and transfer.status == "approved" %}
   {% section_card "مراجعة الطلب" icon="checklist" %}
     <form method="post" action="{% url 'student_affairs:transfer_review' transfer.pk %}">
       {% csrf_token %}

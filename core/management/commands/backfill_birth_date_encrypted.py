@@ -46,7 +46,8 @@ class Command(BaseCommand):
             if not batch:
                 break
             for profile in batch:
-                profile.save(update_fields=["birth_date"])  # save() يملأ المشفَّر
+                profile.date_of_birth = profile.birth_date
+                profile.save(update_fields=["birth_date_encrypted"])
             done += len(batch)
         self.stdout.write(self.style.SUCCESS(f"عُبّئ {done} صفّاً"))
 
