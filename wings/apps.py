@@ -45,6 +45,7 @@ class WingsConfig(AppConfig):
                 "vice_academic",
                 "admin_supervisor",
                 "platform_developer",
+                "student_affairs_coordinator",  # W-20261018-003
             },
             sort_order=22,
         )

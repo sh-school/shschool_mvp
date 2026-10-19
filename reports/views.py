@@ -101,6 +101,7 @@ def _teacher_can_access_class(request, school, class_grp, year) -> bool:
             "vice_academic",
             "vice_admin",
             "coordinator",
+            "student_affairs_coordinator",  # نطاقه المدرسة كلُّها (W-20261018-003)
         )
     ):
         return True
