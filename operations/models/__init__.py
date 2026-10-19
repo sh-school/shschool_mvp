@@ -30,6 +30,7 @@ from .common import (  # noqa: F401
     _uuid,
 )
 from .exit_permit import ExitPermit  # noqa: F401
+from .period_preference import TeacherPeriodPreference  # noqa: F401
 from .permissions import (  # noqa: F401
     PermissionAuditLog,
     TemporaryPermission,
@@ -45,7 +46,6 @@ from .schedule import (  # noqa: F401
     Subject,
     SubjectClassAssignment,
     TeacherExemption,
-    TeacherPeriodPreference,
     TeacherPreference,
     TimeSlotConfig,
 )
