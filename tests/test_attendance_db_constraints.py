@@ -10,7 +10,7 @@ from operations.models import AbsenceAlert, AbsenceExcuse, ClassExit
 from tests.attendance_fixtures import *  # noqa: F401,F403
 from tests.attendance_fixtures import SUNDAY, at
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 
 def _exit(school, session, kid, **kw):

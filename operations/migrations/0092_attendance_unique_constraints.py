@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
                     sql="CREATE UNIQUE INDEX CONCURRENTLY unique_absence_alert_per_gate_period "
                     "ON operations_absencealert (school_id, student_id, gate, period_start, period_end) "
                     "WHERE gate IS NOT NULL",
-                    reverse_sql="DROP INDEX CONCURRENTLY IF EXISTS unique_absence_alert_per_gate_period",
+                    reverse_sql="DROP INDEX IF EXISTS unique_absence_alert_per_gate_period",
                 ),
             ],
             state_operations=[
@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
                 migrations.RunSQL(
                     sql="CREATE UNIQUE INDEX CONCURRENTLY unique_open_class_exit_per_session_student "
                     "ON operations_classexit (session_id, student_id) WHERE returned_at IS NULL",
-                    reverse_sql="DROP INDEX CONCURRENTLY IF EXISTS unique_open_class_exit_per_session_student",
+                    reverse_sql="DROP INDEX IF EXISTS unique_open_class_exit_per_session_student",
                 ),
             ],
             state_operations=[
