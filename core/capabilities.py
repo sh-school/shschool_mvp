@@ -28,6 +28,7 @@ from django.http import HttpRequest
 from django.http.response import HttpResponseBase
 
 from core.behavior_committee_roles import BEHAVIOR_COMMITTEE_CASE_SCOPED
+from core.capabilities_decisions import decisions_capabilities
 from core.capabilities_ux_survey import ux_survey_capabilities
 from core.parent_consent import holds_parent_membership
 from core.permissions import SYSTEM_ADMIN, USER_MANAGE, expand_roles, role_required
@@ -173,12 +174,7 @@ def registry() -> dict[str, Capability]:
     caps = [
         # ── لوحة التحكّم ────────────────────────────────────────────
         _cap("dashboard.open", "فتحُ لوحة التحكّم", P.ALL_STAFF_ROLES | {"student", "parent"}),
-        _cap(
-            "decisions.view",
-            "الاطّلاعُ على سجلّ قرارات المالك",
-            {"principal"},
-            basis="قرارُ المالك: يرى نصوصَ القرارات المديرُ و0101 وحدَهما (W-20260928-019)",
-        ),
+        *decisions_capabilities(_cap),
         # ── شؤون الطلبة ─────────────────────────────────────────────
         _cap("student_affairs.manage", "إدارةُ سجلّات الطلبة", P.STUDENT_AFFAIRS_MANAGE),
         _cap(
