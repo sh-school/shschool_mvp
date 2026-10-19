@@ -49,16 +49,27 @@ def wanted_from_post(post: Mapping[str, str]) -> dict[tuple[int, int], str]:
     return wanted
 
 
-def save_grid(teacher: Any, school: Any, academic_year: str, post: Mapping[str, str]) -> bool:
-    """يحفظ شبكةَ المعلّم من الطلب: يُضاف الجديدُ ويُعدَّل المتغيّرُ ويُحذف ما صار محايداً. يُرجع هل كانت في الطلب."""
+def save_grid(
+    teacher: Any,
+    school: Any,
+    academic_year: str,
+    post: Mapping[str, str],
+    free_day: int | None = None,
+) -> bool:
+    """يحفظ شبكةَ المعلّم من الطلب: يُضاف الجديدُ ويُعدَّل المتغيّرُ ويُحذف ما صار محايداً. يُرجع هل كانت في الطلب.
+
+    يوم التفريغ (قرارُ الإدارة D-341م) لا يُعرض للمعلّم ولا يُكتب فيه، وما خُزِّن عليه قبل ذلك يبقى كما هو.
+    """
     if GRID_MARKER not in post:
         return False
-    wanted = wanted_from_post(post)
+    wanted = {key: state for key, state in wanted_from_post(post).items() if key[0] != free_day}
     with transaction.atomic():
         mine = TeacherPeriodPreference.objects.filter(
             teacher=teacher, school=school, academic_year=academic_year
         )
         for row in mine:
+            if row.day_of_week == free_day:
+                continue
             state = wanted.pop((row.day_of_week, row.period_number), None)
             if state is None:
                 row.delete()
@@ -79,8 +90,13 @@ def save_grid(teacher: Any, school: Any, academic_year: str, post: Mapping[str, 
     return True
 
 
-def grid_for_template(teacher: Any, school: Any, academic_year: str) -> list[dict[str, Any]]:
-    """أيامُ الأسبوع بحصصها وحالةِ كلٍّ منها، جاهزةً للقالب: [{اليوم، الحصص: [{الرقم، الاسم، الحالة}]}]."""
+def grid_for_template(
+    teacher: Any, school: Any, academic_year: str, free_day: int | None = None
+) -> list[dict[str, Any]]:
+    """أيامُ الأسبوع بحصصها وحالةِ كلٍّ منها، جاهزةً للقالب: [{اليوم، الحصص: [{الرقم، الاسم، الحالة}]}].
+
+    يوم التفريغ يُخفى عن المعلّم كلّياً (D-341م): لا عمودَ له ولا اسمَه في الصفحة.
+    """
     stored = stored_grid(teacher, school, academic_year)
     return [
         {
@@ -96,4 +112,5 @@ def grid_for_template(teacher: Any, school: Any, academic_year: str) -> list[dic
             ],
         }
         for day, label in ScheduleSlot.DAYS
+        if day != free_day
     ]

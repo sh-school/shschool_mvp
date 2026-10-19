@@ -170,6 +170,7 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `operations_temporarypermission` | الصلاحيّاتُ المؤقّتة — مع سجلّها |
 | `operations_teacherexemption` | التفريغات |
 | `operations_teacherpreference` | تفضيلاتُ الجدول |
+| `operations_teacherperiodpreference` | تفضيلاتُ مواضع الحصص (أفضّلها/أتجنّبها) — تُمحى مع المعلّم أو المدرسة |
 | `exam_control_examsupervisor` | إشرافُ الكنترول |
 | `academic_management_teacherworkloadplan` | خطّةُ النصاب |
 | `academic_management_teacherworkloadallocation` | توزيعُه |
