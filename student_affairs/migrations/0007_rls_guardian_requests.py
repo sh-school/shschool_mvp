@@ -41,7 +41,7 @@ ALTER TABLE public.{table} DISABLE ROW LEVEL SECURITY;
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("student_affairs", "0005_guardian_requests"),
+        ("student_affairs", "0006_guardian_requests"),
         ("core", "0037_rls_tenant_identity_from_db_role"),
     ]
 

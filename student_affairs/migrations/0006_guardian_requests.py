@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("core", "0081_breach_individuals_and_phased_ncsa"),
-        ("student_affairs", "0004_transfer_decision_record"),
+        ("student_affairs", "0005_transfer_chain_form07"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
