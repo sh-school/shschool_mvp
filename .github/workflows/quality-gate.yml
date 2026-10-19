@@ -512,8 +512,8 @@ jobs:
   axe-a11y:
     name: axe-core — وصوليّةٌ حيّة (${{ matrix.leg }})
     runs-on: ubuntu-latest
-    # push إلى main: يُفحص على الطلب وطابور الدمج قبل الدمج (يُعفى skipped وحدَه في scripts/ci_needs_gate.py)
-    if: github.event_name != 'push'
+    # push إلى main وmerge_group: يُفحص على الطلب قبل الدخول فلا يُعاد في الطابور (W-20261019-006، ازدحام السقف 20)؛ يُعفى skipped وحدَه في scripts/ci_needs_gate.py
+    if: github.event_name != 'push' && github.event_name != 'merge_group'
 
     strategy:
       # كلُّ رجلٍ تُبلِّغ فشلَها مستقلّةً (لا يُلغي فشلُ إحداها الأخريَين فيُضيع تشخيصُهما).
@@ -606,8 +606,8 @@ jobs:
   e2e:
     name: Playwright — e2e (مصادقة، تنقّل، صلاحيات)
     runs-on: ubuntu-latest
-    # push إلى main: يُفحص على الطلب وطابور الدمج قبل الدمج (يُعفى skipped وحدَه في scripts/ci_needs_gate.py)
-    if: github.event_name != 'push'
+    # push إلى main وmerge_group: يُفحص على الطلب قبل الدخول فلا يُعاد في الطابور (W-20261019-006، ازدحام السقف 20)؛ يُعفى skipped وحدَه في scripts/ci_needs_gate.py
+    if: github.event_name != 'push' && github.event_name != 'merge_group'
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
