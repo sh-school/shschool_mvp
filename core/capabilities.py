@@ -28,6 +28,7 @@ from django.http import HttpRequest
 from django.http.response import HttpResponseBase
 
 from core.behavior_committee_roles import BEHAVIOR_COMMITTEE_CASE_SCOPED
+from core.capabilities_ux_survey import ux_survey_capabilities
 from core.parent_consent import holds_parent_membership
 from core.permissions import SYSTEM_ADMIN, USER_MANAGE, expand_roles, role_required
 from core.unrestricted_role import (
@@ -389,6 +390,7 @@ def registry() -> dict[str, Capability]:
             {"principal", "vice_admin", "vice_academic", "admin", "platform_developer"},
         ),
         # ── الإشعارات والتحليلات ────────────────────────────────────
+        *ux_survey_capabilities(_cap, P),
         # ── سجلُّ مصدر الحقيقة (W-20261015-007): القراءةُ للكادر، والاقتراحُ للمشرفين فأعلى، والاعتمادُ للمالك وحده ──
         _cap(
             "sot.read",
