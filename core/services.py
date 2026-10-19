@@ -274,20 +274,30 @@ def process_student_import(uploaded_file: Any, school: Any, year: Any) -> dict[s
         "parents_existed": 0,
         "enrollments_created": 0,
         "links_created": 0,
+        "staff_skipped": 0,
         "errors": [],
     }
+    # حسابات الموظّفين لا يمسّها الاستيراد (W-20261008-024) — قبل أيّ كتابة.
+    from core.import_staff_guard import find_staff_nids, record_skip
+
+    parsed_rows = [_parse_import_row(r) for r in data_rows]
+    staff_nids = find_staff_nids(
+        n for f in parsed_rows for n in (f["student_nid"], f["parent_nid"])
+    )
     # ورقةُ الاعتماد: في الذاكرة وحدَها، تُعرض في استجابة هذا الطلب ثمّ تزول.
     issued: list[dict] = []
 
     with transaction.atomic():
-        for i, raw_row in enumerate(data_rows, start=2):
-            fields = _parse_import_row(raw_row)
-
+        for i, fields in enumerate(parsed_rows, start=2):
             if not fields["student_nid"]:
                 stats["errors"].append(f"سطر {i}: الرقم الشخصي فارغ — تجاوز")
                 continue
             if not fields["full_name"]:
                 stats["errors"].append(f"سطر {i}: اسم الطالب {fields['student_nid']} فارغ — تجاوز")
+                continue
+
+            if fields["student_nid"] in staff_nids:
+                record_skip(stats, i, fields["student_nid"], as_parent=False)
                 continue
 
             # ── الطالب ──────────────────────────────────────────────
@@ -315,6 +325,10 @@ def process_student_import(uploaded_file: Any, school: Any, year: Any) -> dict[s
 
             # ── ولي الأمر (اختياري) ──────────────────────────────────
             if not fields["parent_nid"]:
+                continue
+
+            if fields["parent_nid"] in staff_nids:
+                record_skip(stats, i, fields["parent_nid"], as_parent=True)
                 continue
 
             parent, p_created = _upsert_user(
@@ -346,6 +360,7 @@ def process_student_import(uploaded_file: Any, school: Any, year: Any) -> dict[s
         "parents_existed": stats["parents_existed"],
         "enrollments_created": stats["enrollments_created"],
         "links_created": stats["links_created"],
+        "staff_skipped": stats["staff_skipped"],
         "error_count": len(stats["errors"]),
         "errors": stats["errors"][:20],
         # كلماتُ مرورٍ نصّيّةٌ — للعرض في استجابةٍ واحدةٍ فقط؛ لا تُخزَّن ولا تُسجَّل.
@@ -385,6 +400,13 @@ def import_result_context(user: Any, school: Any, result: dict[str, Any]) -> dic
             _audit_credentials_issued(user, school, len(result["credentials"]))
         except Exception:  # noqa: BLE001 — فشلُ الأثر لا يُضيّع ورقةً لا تُعاد
             logger.exception("تعذّر تسجيل أثر إصدار كلمات المرور")
+    if result.get("staff_skipped"):
+        try:
+            from core.import_staff_guard import audit_staff_skipped
+
+            audit_staff_skipped(user, school, result["staff_skipped"])
+        except Exception:  # noqa: BLE001 — فشلُ الأثر لا يُسقط عرضَ النتيجة
+            logger.exception("تعذّر تسجيل أثر تخطّي حسابات الموظّفين")
     # الأخطاءُ تُعرض عشرين، وما بقي يُقال عدداً؛ والكهرمانيُّ حين يوجد خطأ
     # (العتبةُ التي كانت في القالب: أكبرُ من صفر).
     error_count = result.get("error_count", len(result.get("errors", [])))
