@@ -13,10 +13,18 @@ from .views_class_grid import (
 )
 from .views_director_live import director_live
 from .views_schedule_drafts import discard_schedule, stop_schedule_generation
+from .views_tardiness_excuse import tardiness_excuse_decide, tardiness_excuses
 from .views_teacher_preferences import teacher_preferences_overview
 
 urlpatterns = [
     path("schedule/", views.schedule, name="teacher_schedule"),
+    # عذرُ التأخّر لمعلّم الحصّة في يومها (W-20261002-028).
+    path("tardiness-excuses/", tardiness_excuses, name="tardiness_excuses"),
+    path(
+        "tardiness-excuses/<uuid:attendance_id>/",
+        tardiness_excuse_decide,
+        name="tardiness_excuse_decide",
+    ),
     # الاستطلاعُ الحيّ للوحة المدير (W-20261008-004، D-249م القسم 9): JSON بلا أسماء، للمدير ونائبيه.
     path("director-live/", director_live, name="director_live"),
     # -- شُعبي للرصد: قائمةُ شُعب المستخدم، ومنها يُفتح جدولُ الشعبة --

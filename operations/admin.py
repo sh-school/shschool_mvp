@@ -31,6 +31,7 @@ from .models import (
     Subject,
     SubjectClassAssignment,
     SubstituteAssignment,
+    TardinessExcuse,
     TeacherAbsence,
     TeacherExemption,
     TeacherPreference,
@@ -287,6 +288,17 @@ class AbsenceExcuseAdmin(SensitiveFieldsMixin, ReadOnlyAdminMixin, SchoolScopedA
         "applicant_phone",
         "pledge_accepted",
     )
+
+
+@admin.register(TardinessExcuse)
+class TardinessExcuseAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    """عذرُ التأخّر يعتمده معلّمُ الحصّة بخدمته (`operations/tardiness_excuse.py`) — يُقرأ هنا ولا يُكتب."""
+
+    list_display = ("attendance", "granted_by", "granted_at")
+    list_select_related = ("attendance__student", "granted_by")
+    list_filter = ("school",)
+    search_fields = ("attendance__student__full_name",)
+    date_hierarchy = "granted_at"
 
 
 @admin.register(GuardianContact)

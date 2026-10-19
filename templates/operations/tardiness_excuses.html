@@ -1,0 +1,55 @@
+{% extends "base/base.html" %}
+{% load ui icons %}
+{% comment %}
+أعذارُ التأخّر (W-20261002-028، قرارُ المالك 2026-10-20): معلّمُ الحصّة يعتمد عذرَ المتأخّر في يوم الحصّة نفسِه،
+فيسقط التأخّرُ من عدّادَي المرّات والدقائق. لا يُنشأ ولا يُعدَّل سجلُّ الحضور.
+{% endcomment %}
+{% block title %}أعذار التأخّر{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="أعذار التأخّر" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "أعذار التأخّر" subtitle=day|date:"j F Y" icon="absence" %}{% endpage_header %}
+
+  {% callout "hint" %}متأخّرو حصصك اليوم. اعتمادُ العذر يُسقط التأخّرَ من عدّاد الطالب، ولا يُعتمد بعد يوم الحصّة.{% endcallout %}
+
+  {% section_card "المتأخّرون في حصصك" meta=rows|length icon="absence" %}
+    {% if rows %}
+    <div class="table-wrap">
+      <table data-no-sort>
+        <thead><tr><th>الطالب</th><th>الشعبة</th><th>الحصّة</th><th>الدقائق</th><th>العذر</th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>{{ row.student.full_name }}</td>
+            <td>{{ row.session.class_group.short_label }}</td>
+            <td>{{ row.session.subject.name_ar|default:"حصّة" }} · {{ row.session.start_time|time:"H:i" }}</td>
+            <td>{{ row.late_minutes|default:"—" }}</td>
+            <td>
+              <form method="post" action="{% url 'tardiness_excuse_decide' row.pk %}" class="inline-form">
+                {% csrf_token %}
+                {% if row.tardiness_excuse %}
+                <span class="status-badge status-info">معذور</span>
+                <input type="hidden" name="action" value="revoke">
+                <button type="submit" class="btn-secondary btn-sm">إلغاء العذر</button>
+                {% else %}
+                <label class="sr-only" for="reason-{{ row.pk }}">بيان العذر</label>
+                <input type="text" id="reason-{{ row.pk }}" name="reason" maxlength="300" class="form-control" placeholder="بيان العذر (اختياري)">
+                <button type="submit" class="btn-primary btn-sm">اعتماد العذر</button>
+                {% endif %}
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted">لا متأخّرين في حصصك اليوم.</p>
+    {% endif %}
+  {% endsection_card %}
+</div>
+{% endblock %}
