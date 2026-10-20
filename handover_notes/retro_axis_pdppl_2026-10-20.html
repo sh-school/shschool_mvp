@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تدقيق رجعي PDPPL</title>
+<style>
+:root{--bg:#fafaf7;--fg:#1d1d1b;--mut:#5c5c58;--card:#fff;--line:#dcdcd4;--hi:#b3261e;--md:#a8620a;--lo:#2e6b4f;--info:#2b5d8a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161615;--fg:#ecece6;--mut:#a5a59d;--card:#1f1f1d;--line:#38382f;--hi:#ff8a80;--md:#f3b25c;--lo:#7fd1a5;--info:#8dbbe6}}
+:root[data-theme="dark"]{--bg:#161615;--fg:#ecece6;--mut:#a5a59d;--card:#1f1f1d;--line:#38382f;--hi:#ff8a80;--md:#f3b25c;--lo:#7fd1a5;--info:#8dbbe6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:Tajawal,"Segoe UI",Tahoma,sans-serif;line-height:1.8}
+main{max-width:980px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:1.6rem;margin:0 0 4px}
+h2{font-size:1.2rem;margin:32px 0 12px;border-inline-start:4px solid var(--info);padding-inline-start:10px}
+.sub{color:var(--mut);margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:0 0 14px}
+.card h3{margin:0 0 8px;font-size:1.05rem}
+.tag{display:inline-block;font-size:.8rem;padding:1px 9px;border-radius:99px;border:1px solid currentColor;margin-inline-end:6px}
+.hi{color:var(--hi)}.md{color:var(--md)}.lo{color:var(--lo)}.info{color:var(--info)}
+dl{margin:8px 0 0;display:grid;grid-template-columns:max-content 1fr;gap:4px 12px}
+dt{color:var(--mut)}dd{margin:0}
+code{direction:ltr;unicode-bidi:embed;font-family:Consolas,monospace;font-size:.88rem;background:rgba(127,127,127,.15);padding:0 4px;border-radius:4px}
+blockquote{margin:6px 0;padding:2px 12px;border-inline-start:3px solid var(--line);color:var(--mut)}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{border:1px solid var(--line);padding:6px 8px;text-align:start;vertical-align:top}
+th{background:rgba(127,127,127,.12)}
+.wrap{overflow-x:auto}
+@media (max-width:600px){dl{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<h1>تدقيق امتثال رجعي: حماية البيانات الشخصية (PDPPL)</h1>
+<p class="sub">المحور: <code>clinic/</code> و<code>breach/</code> و<code>library/</code> و<code>exam_control/</code> و<code>notifications/</code> و<code>security/</code> — 2026-10-20 — قراءة فقط، الفرع <code>claude/w20261002-005-sensitive-paths</code></p>
+
+<div class="card">
+<h3>المنهج وحدوده</h3>
+<p>قُرئ الكود فعلاً وكلُّ بندٍ أدناه يشير إلى ملف:سطر. لم يُشغَّل شيءٌ على قاعدة بيانات ولا أمرٌ إداري، فكلُّ استنتاجٍ عن سلوك وقت التشغيل مبنيٌّ على قراءة الشيفرة. لم أكرر المحاور الستة في <code>AAdocs/ministry_data/2026_2027/compliance_audit_report.md</code> (2026-09-10) ولا تدقيق <code>docs/privacy/pdppl_audit_2026-10-05.md</code>.</p>
+<p><strong>ملاحظة جوهرية عن اللوائح:</strong> لم أجد في ملفات <code>AAdocs/ministry_data/2026_2027/</code> نصَّ أيِّ مادة من قانون 13/2016؛ ورد القانون إحالاتٍ فقط (<code>01e_school_files_guide.md:121</code>، <code>02_staff_affairs.md:549,565</code>، <code>09_raw_data_schema.md:3</code>، <code>01g_annual_operational_plan.md:126</code>). والملف <code>05b_health_safety_deep.md</code> لا يذكر PDPPL إطلاقاً (بحثتُ عن «PDPPL» و«حماية البيانات» و«خصوصية» فلم يظهر). فالمقارنة أدناه بين الكود ومتطلباتٍ لائحيّةٍ صحّيّةٍ تشغيليّة (فصلُ الملف الصحي وسرّيتُه)، وبين الكود وأرقام المواد التي كتبها المطوّرون في تعليقاتهم، ولم أتحقق من أرقام المواد ضد النص القانوني نفسه.</p>
+</div>
+
+<h2>الحصيلة</h2>
+<div class="wrap"><table>
+<tr><th>#</th><th>الموضوع</th><th>الحالة</th><th>الخطورة</th></tr>
+<tr><td>1</td><td>تدوير مفتاح Fernet يتجاوز أربعة حقول صحية مشفّرة</td><td>جزئي</td><td class="hi">عالية</td></tr>
+<tr><td>2</td><td>سبب الزيارة الصحي يُرسل نصاً بالبريد ويُخزَّن نصاً صريحاً في سجل الإشعارات</td><td>جزئي</td><td class="md">متوسطة</td></tr>
+<tr><td>3</td><td>عرض زيارات العيادة (قائمة ولوحة) بلا تسجيل وصول</td><td>جزئي</td><td class="md">متوسطة</td></tr>
+<tr><td>4</td><td>السجل الصحي خارج عزل الصفوف على مستوى القاعدة</td><td>جزئي</td><td class="md">متوسطة</td></tr>
+<tr><td>5</td><td>مدة احتفاظ البيانات الصحية بلا أجل زمني، ومدة 730 يوماً غير معتمدة</td><td>جزئي (قرار معلّق)</td><td class="md">متوسطة</td></tr>
+<tr><td>6</td><td>نصوص حرة غير مشفّرة في الخرق وحوادث الاختبارات؛ وقراءة الخرق بلا تدقيق</td><td>جزئي</td><td class="lo">منخفضة</td></tr>
+<tr><td>7</td><td>تناقض في رقم مادة إخطار الخرق (م.11 / م.14) داخل الكود</td><td>متعارض</td><td class="lo">منخفضة</td></tr>
+<tr><td>8</td><td>أمر <code>verify_encryption</code> مذكور في خطوات التدوير وغير موجود</td><td>غير مطبّق</td><td class="lo">منخفضة</td></tr>
+</table></div>
+
+<h2>المخالفات والفجوات</h2>
+
+<div class="card">
+<h3><span class="tag hi">عالية</span>1) تدوير المفتاح لا يعيد تشفير أربعة حقول صحية</h3>
+<dl>
+<dt>الحالة</dt><dd>جزئي</dd>
+<dt>الكود</dt><dd><code>governance/management/commands/rotate_fernet_key.py:93-101</code> يقتصر <code>update_fields</code> على: allergies وchronic_diseases وmedications وemergency_contact_name وemergency_contact_phone. أما <code>blood_type_encrypted</code> (<code>clinic/models.py:45</code>) و<code>health_center_name</code> (<code>:69</code>) و<code>health_card_number</code> (<code>:72</code>) و<code>hamad_hospital_number</code> (<code>:75</code>) فكلُّها <code>EncryptedTextField</code> ولا ذكر لها في الأمر (بحثتُ عن أسمائها فيه فلم أجدها).</dd>
+<dt>الادعاء المخالف</dt><dd>رأس الملف <code>rotate_fernet_key.py:5-6</code> يقول إن النسخة الحالية «تشمل كل الحقول المشفّرة».</dd>
+<dt>الأثر (استنتاج من القراءة)</dt><dd>بعد التدوير وإزالة المفتاح القديم من <code>FERNET_OLD_KEYS</code> تبقى هذه الأعمدة مشفّرة بالمفتاح القديم؛ و<code>decrypt_field</code> (<code>core/models/crypto.py:91-115</code>) عند الفشل يُعيد النص المشفّر كما هو مع تحذير فقط، فيظهر الرمز المشفّر في الواجهة، وأيُّ حفظٍ لاحق قد يشفّره طبقةً ثانية. وهذا هو العيب الذي وثّقه <code>clinic/encryption_audit.py</code> لحقول أخرى.</dd>
+<dt>اللائحة</dt><dd>لا نصَّ لائحيّاً عن تدوير المفاتيح. المتطلب ذو الصلة: بنية الملف الصحي (فصيلة الدم والأمراض والأدوية ضمن الأقسام الثمانية) في <code>05_admin_behavioral_health.md:392-396</code>، وسرّيتها في <code>:23</code>: «يُعزل صلاحياته عن الوصول العام».</dd>
+<dt>ملاحظة</dt><dd>الخطوة 5 في <code>rotate_fernet_key.py:13</code> تطلب «التحقق بـ verify_encryption» ولا يوجد هذا الأمر في <code>governance/management/commands/</code> ولا <code>core/management/commands/</code> (انظر البند 8)، فلا شبكة أمان تكشف الفجوة.</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="tag md">متوسطة</span>2) سبب الزيارة الصحي يخرج نصاً صريحاً بالبريد ويُخزَّن غير مشفّر</h3>
+<dl>
+<dt>الحالة</dt><dd>جزئي</dd>
+<dt>الكود</dt><dd><code>clinic/services.py:307-311</code> يبني رسالة تتضمن <code>visit.reason</code> (حقل مشفّر عند الحفظ، <code>clinic/models.py</code> عمود reason) مفكوكاً، ثم <code>NotificationService.deliver_email</code> (<code>clinic/services.py:312-320</code>). في <code>notifications/services.py:241-250</code> يُنشأ <code>NotificationLog</code> بـ<code>body=body_text</code>، والحقل <code>notifications/models.py:153</code> هو <code>models.TextField</code> عادي لا <code>EncryptedTextField</code>.</dd>
+<dt>أثر ثانٍ</dt><dd>المسار يتجاوز <code>NotificationHub</code> ومرشّح الموافقة (<code>notifications/hub.py:517-560</code>). لكن حدث «إرسال للمنزل» مُدرج ضمن الإخطارات الإلزامية (<code>hub.py:401</code>)، فتجاوز الموافقة نفسه مقبول بحسب تصميمهم؛ المشكلة في إدراج <em>السبب الصحي</em> داخل الرسالة وتخزينه نصاً. بحسب <code>docs/privacy/data_retention.md</code> يُحذف <code>NotificationLog</code> بعد N يوماً (730 افتراضاً) ما يعني بقاء نص صحي غير مشفّر عامين في قاعدة البيانات.</dd>
+<dt>اللائحة</dt><dd><code>05b_health_safety_deep.md:998</code> (استمارة العيادة، بند 6): «يتم الاحتفاظ بالطلاب الأمراض المزمنة وبياناتها بصورة منفصلة حسب حالة كل طالب»؛ و<code>05_admin_behavioral_health.md:23</code> عزل الملف الصحي. نسخ سبب الزيارة إلى جدول إشعارات عام يخالف روح الفصل.</dd>
+<dt>ملاحظة</dt><dd>إخطار ولي الأمر بحد ذاته مشروع؛ والاقتراح أن يخلو النص من السبب أو يُشفَّر الجسم في السجل. لم أتحقق إن كانت قنوات أخرى (SMS وواتساب) تُرسل السبب نفسه.</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="tag md">متوسطة</span>3) قائمة الزيارات ولوحة العيادة تعرضان بيانات مفكوكة بلا تسجيل وصول</h3>
+<dl>
+<dt>الحالة</dt><dd>جزئي</dd>
+<dt>الكود</dt><dd>تسجيل الوصول موجود في مسار واحد فقط: <code>clinic/views.py:91-99</code> (تعليق «PDPPL م.19: تدقيق الوصول للسجل الصحي الحساس») وهو الاستدعاء الوحيد لـ<code>AuditLog.log</code> في الملف. في المقابل <code>visits_list</code> (<code>clinic/views.py:147-180</code>) يعرض عبر <code>templates/clinic/partials/visit_rows.html:27,33</code> حقلي <code>reason</code> و<code>treatment</code> المفكوكين، ولوحة العيادة تعرض <code>visit.reason</code> في <code>templates/clinic/dashboard.html:43,56</code>؛ ولا تسجيل في أيٍّ منهما.</dd>
+<dt>أثر ثانوي</dt><dd><code>clinic/views.py:162</code> يستقبل اسم الطالب في معامل GET (<code>?student=</code>)، فيظهر الاسم في سجلات الوصول للخادم والمتصفح (لم أتحقق من إعدادات تلك السجلات).</dd>
+<dt>اللائحة</dt><dd>الصلاحيات سليمة: <code>core/capabilities/clinic_library_transport.py:12-22</code> تحصر <code>clinic.access</code> بالممرض والمدير ونائب الإدارة ومنسق شؤون الطلبة (قراءة)، وتحصر الكتابة بثلاثة أدوار. المعلمون لا يرون شيئاً، وهذا يطابق <code>01e_school_files_guide.md:121</code> و<code>05_admin_behavioral_health.md:23</code>. الفجوة في أثر الوصول لا في من يصل.</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="tag md">متوسطة</span>4) السجل الصحي خارج عزل الصفوف (RLS)</h3>
+<dl>
+<dt>الحالة</dt><dd>جزئي</dd>
+<dt>الكود</dt><dd><code>core/tenancy.py:148-157</code> يصنّف <code>core_healthrecord</code> «SPECIAL_UNRESOLVED» لغياب <code>school_id</code> ويقول إن عرضه لكل مدرسة يسجَّل فيها الطالب سؤال ملكية بيانات لم يُحسم. الحماية الفعلية على مستوى التطبيق: <code>clinic/views.py:46</code> يقيّد الطالب بـ<code>memberships__school=school</code>. ويذكر التعليق نفسه أن «تشفير مسار الكتابة بند مفتوح»، وهذا قديم: التشفير نُفِّذ عبر <code>EncryptedTextField</code> (<code>clinic/models.py:56-58</code>، وسم PII-11)، فالتعليق مضلِّل.</dd>
+<dt>أثر ثالث</dt><dd><code>clinic/admin.py:6-35</code> يستخدم <code>ModelAdmin</code> عادياً لا <code>SchoolScopedAdmin</code> (<code>core/admin.py:29</code>) ويعرض الحقول المفكوكة، لكن <code>core/admin_access.py</code> (وصفه في رأس الملف) يستثني العيادة من صلاحيات مجموعة المدير، فالوصول عملياً للمشرف الأعلى فقط. لم أتحقق من قائمة المشرفين الفعلية. وعرض الإدارة للقراءة لا يُسجَّل في <code>AuditLog</code> (التسجيل يتم بإشارات <code>post_save</code> فقط، <code>core/signals.py:54-85</code>).</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="tag md">متوسطة</span>5) الاحتفاظ بالبيانات الصحية</h3>
+<dl>
+<dt>الحالة</dt><dd>جزئي (قرار معلّق عند DPO والمالك)</dd>
+<dt>الكود والوثيقة</dt><dd><code>governance/retention.py</code> ينفّذ الحذف الزمني لجلسات الدخول وسجلات التسليم والإشعارات فقط. <code>core_healthrecord</code> و<code>core_clinicvisit</code> مصنّفان «احتفاظ وزاري» (<code>docs/privacy/data_retention.md:99-101,130-131</code>) أي لا حذف بالزمن، ويُحذفان بطلب محو (<code>governance/erasure_service.py:69-70</code>). والبند 4 في <code>data_retention.md:266-</code> (§5) يقول إن 730 يوماً «افتراضٌ هندسيّ لا رقمٌ وزاريّ» ويحتاج قرار مسؤول حماية البيانات.</dd>
+<dt>اللائحة</dt><dd><code>05b_health_safety_deep.md:1712</code>: استمارات تحديث البيانات الصحية «والاحتفاظ بها في سجل خاص وفق المستويات الدراسية». لا نصَّ بمدة احتفاظ، فلا أستطيع القول إن الكود يخالف مدة لائحية. أصف فقط أن الغرض والمدة غير محسومين في الوثيقة.</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="tag lo">منخفضة</span>6) نصوص حرة غير مشفّرة، وقراءة الخرق بلا تدقيق</h3>
+<dl>
+<dt>الحالة</dt><dd>جزئي</dd>
+<dt>الكود</dt><dd>حوادث الاختبار: <code>exam_control/models.py:216-217</code> (<code>description</code> و<code>injuries</code>) حقلان <code>TextField</code> عاديان قد يحملان اسم طالبٍ ووصف إصابة؛ والوصول مقيّد بنطاق الطالب (<code>exam_control/views.py:202-211</code>) وتصدير PDF مسجَّل (<code>:304</code>). الخرق: <code>core/models/audit.py:394,435</code> (<code>description</code> و<code>evidence_notes</code>) نص عادي؛ <code>breach/views.py:109-137</code> (<code>detail</code>) لا تسجّل القراءة، بينما <code>breach_pdf</code> يسجّل التصدير (<code>:250-274</code>).</dd>
+<dt>مقابل ذلك</dt><dd>حقول السلوك المشابهة مشفّرة (<code>behavior/models.py:318,346,378,405</code>)، فالفجوة تفاوت داخلي لا غياب سياسة.</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="tag lo">منخفضة</span>7) تناقض رقم المادة في إخطار الخرق</h3>
+<dl>
+<dt>الحالة</dt><dd>متعارض (توثيقي)</dd>
+<dt>الكود</dt><dd>قالب الإشعار يقول «PDPPL م.11» (<code>breach/services.py:17</code>) ورأس الملف يقول «م.14» (<code>:1</code>)، والنموذج «م.14» (<code>core/models/audit.py:367</code>)، وإشعار المكلّف «م.11» (<code>breach/services.py:68</code>)، ووثيقة الاحتفاظ «م.11» (<code>data_retention.md:90</code>). نص الإشعار الموجَّه إلى الجهة المختصة يخرج بالرقم المقتبس في القالب، فإن كان الرقم خاطئاً ظهر في وثيقة رسمية. لم أتحقق من أيِّ الرقمين صحيح لأن نص القانون ليس في اللوائح المتاحة.</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="tag lo">منخفضة</span>8) أمر <code>verify_encryption</code> غير موجود</h3>
+<dl>
+<dt>الحالة</dt><dd>غير مطبّق</dd>
+<dt>الكود</dt><dd>مذكور في <code>rotate_fernet_key.py:13</code> وفي وثيقتي <code>docs/MASTER_REMEDIATION_PLAN_2026-07-06.md</code> و<code>docs/REMEDIATION_PLAN_2026.md</code>؛ بحثتُ في كل ملفات <code>.py</code> فلم أجد تعريفاً له. الموجود في <code>core/management/commands/</code>: <code>backfill_birth_date_encrypted</code> و<code>populate_phone_encryption</code> فقط ضمن ما يخص التشفير.</dd>
+<dt>ملاحظة</dt><dd><code>clinic/encryption_audit.py:1-35</code> وصفُه (نمط <code>save_encrypted()</code> اليدوي) قديم بعد PII-11، لكن الوحدة ما زالت تصلح لتصنيف القيم الخام.</dd>
+</dl>
+</div>
+
+<h2>ما تحققتُ منه وهو مطبّق</h2>
+<div class="wrap"><table>
+<tr><th>الموضوع</th><th>الموضع</th></tr>
+<tr><td>تشفير حقول السجل الصحي وزيارات العيادة at-rest بـ<code>EncryptedTextField</code> مع فشل مغلق في الإنتاج عند غياب المفتاح أو عدم صلاحيته</td><td><code>core/fields.py:23-41</code>، <code>core/models/crypto.py:31-74</code>، <code>clinic/models.py</code></td></tr>
+<tr><td>دعم تدوير المفاتيح (MultiFernet) للفك بالقديم</td><td><code>core/models/crypto.py:55-62</code></td></tr>
+<tr><td>إخطار الخرق: موعد 72 ساعة آلي، انتقالات حالة مقفلة تحت قفل الصف، إشعار مبدئي/مكتمل، تقدير إخطار الأفراد قبل الإغلاق، تدقيق كل انتقال، وتنبيهات مهل</td><td><code>core/models/audit.py:519-523</code>، <code>breach/services.py:111-440</code>، <code>notifications/breach_alerts.py:20-60</code></td></tr>
+<tr><td>صلاحية الخرق محصورة بـ<code>breach.manage</code> وممنوعة على التفويض المؤقت، وعزل الخرق بالمدرسة</td><td><code>breach/views.py</code> (كل الدوال)، <code>core/capabilities/acting.py:21</code>، <code>breach/selectors.py:41-43</code></td></tr>
+<tr><td>إشعار المكلّف بالخرق بلا بيانات شخصية</td><td><code>breach/services.py:67-100</code></td></tr>
+<tr><td>تسجيل الوصول إلى السجل الصحي (عرض) والتعديل عبر الإشارات، مع إخفاء الاسم</td><td><code>clinic/views.py:91-99</code>، <code>core/signals.py:54-85</code></td></tr>
+<tr><td>مرشّح موافقة ولي الأمر بالنوع (صحة، سلوك، درجات) وسحب الموافقة يغلب</td><td><code>notifications/hub.py:385-400,517-560</code></td></tr>
+<tr><td>سجلات الإشعارات والمهام تكتب المعرّفات لا الأسماء (تعليقات B4-7O)</td><td><code>notifications/tasks.py:577-583,686-692</code></td></tr>
+<tr><td>محو الطالب يغطي العيادة والمكتبة والكنترول والإشعارات</td><td><code>governance/erasure_service.py:45-97</code></td></tr>
+<tr><td>محرك احتفاظ بالحذف الدفعي مع تدقيق بالأعداد لا الأسماء، وجدولة أسبوعية</td><td><code>governance/retention.py</code>، <code>shschool/celery.py:118-121</code></td></tr>
+<tr><td>قائمة المسارات الحساسة تفرض مراجعة أمنية عند لمس <code>breach/**</code> و<code>clinic/encryption_audit.py</code> والتشفير والمحو</td><td><code>security/sensitive_paths.json</code> (قسم <code>encryption_and_personal_data</code>)</td></tr>
+<tr><td>ملفات تعريف الارتباط آمنة وHSTS في الإنتاج</td><td><code>shschool/settings/production.py:149-161</code></td></tr>
+<tr><td>المكتبة: لا بيانات صحية؛ الإعارة مرتبطة بالمستخدم فقط، ومحوُها مغطّى، وسجل كل الاستعارات بقدرة مستقلة</td><td><code>library/models.py:66-101</code>، <code>clinic_library_transport.py:23-24</code></td></tr>
+</table></div>
+
+<h2>ما لم أتحقق منه</h2>
+<ul>
+<li>نص مواد PDPPL نفسه، وصحة أرقام المواد المقتبسة في الكود والوثائق.</li>
+<li>محتوى رسائل SMS وواتساب المتعلقة بالعيادة، وإن كانت تتضمن سبب الزيارة (فحصتُ مسار البريد فقط).</li>
+<li>هل تتضمن رسائل الاستثناء في <code>notifications/hub.py:950</code> و<code>tasks.py:342,443,525</code> أرقام هواتف من مزوّد الإرسال.</li>
+<li>الحالة الفعلية لبيانات الإنتاج (أي الصفوف مشفّرة وبأي مفتاح) وقيمة <code>PDPPL_DATA_RETENTION_DAYS</code> في Railway.</li>
+<li>مجلد <code>security/</code> يحوي ملفاً واحداً (<code>sensitive_paths.json</code>) ولا شيفرة تشغيلية؛ فلا مادة تدقيق فيه سوى ما ذُكر.</li>
+</ul>
+</main>
+</body>
+</html>
