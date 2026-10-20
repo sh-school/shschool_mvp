@@ -1683,3 +1683,10 @@ body:has(.rm-page) .site-footer { flex: none; }
   .survey-choices { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); }
   .survey-choices > label { display: inline-flex; align-items: center; gap: var(--sp-1); min-block-size: var(--control-h); }
 }
+
+/* ── إحصاءُ الغياب بالطلبة (W-20261020-005): السطرُ الفرعيّ (شعبة أو مرحلة داخل جناح) أخفُّ وأقلُّ بروزاً ── */
+@layer modules {
+  .abs-stats .abs-stats__sub > td { color: var(--text-secondary); font-size: var(--text-sm); }
+  .abs-stats .abs-stats__sub > td.fu-name { padding-inline-start: var(--sp-6); }
+  .abs-stats .progress-qatar { min-inline-size: var(--sp-16); }
+}

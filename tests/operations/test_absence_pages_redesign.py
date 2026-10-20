@@ -99,3 +99,10 @@ def test_pdf_footer_names_the_issuer_and_has_a_class_column(staff, school, absen
     both = flat + " " + flat[::-1]
     assert unicodedata.normalize("NFKC", "أصدر الملف") in both
     assert unicodedata.normalize("NFKC", "الصف") in both
+
+
+def test_the_ministry_page_shows_the_student_based_rate_table(client_as, staff, absent_both):
+    resp = client_as(staff["principal"]).get(reverse("wings:ministry_report"), {"date": DAY})
+    body = resp.content.decode()
+    assert "abs-stats" in body and "نسبُ الغياب بالطلبة" in body
+    assert 'role="meter"' in body
