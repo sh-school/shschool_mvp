@@ -200,3 +200,9 @@ app.autodiscover_tasks(["notifications"], related_name="teacher_alerts")
 from notifications.teacher_alerts_beat import teacher_alerts_beat  # noqa: E402
 
 app.conf.beat_schedule.update(teacher_alerts_beat())
+
+# تقاريرُ الغياب الدوريّة (W-20261020-005): مهمّتُها في `operations/absence_reports_tasks.py` وجدولتُها معطَّلةٌ حتى `ABSENCE_REPORTS_BEAT=1`.
+app.autodiscover_tasks(["operations"], related_name="absence_reports_tasks")
+from operations.absence_reports_beat import absence_reports_beat  # noqa: E402
+
+app.conf.beat_schedule.update(absence_reports_beat())

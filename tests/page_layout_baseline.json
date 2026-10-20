@@ -35,7 +35,6 @@
  "clinic/visits_list.html",
  "core/it_admin/password_reset.html",
  "core/student_import_export.html",
- "dashboard/main.html",
  "library/book_list.html",
  "library/borrow_form.html",
  "library/dashboard.html",

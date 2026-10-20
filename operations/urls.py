@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_absence_followup
+from . import views, views_absence_followup, views_absence_reports
 from .scheduler_v2.views import v2_progress, v2_stop
 from .views_class_grid import (
     class_grid,
@@ -53,6 +53,22 @@ urlpatterns = [
         "reports/daily/print/", views_absence_followup.followup_print, name="absence_followup_print"
     ),
     path("reports/daily/pdf/", views_absence_followup.followup_pdf, name="absence_followup_pdf"),
+    path(
+        "reports/daily/archive/",
+        views_absence_reports.reports_archive,
+        name="absence_reports_archive",
+    ),
+    path(
+        "reports/daily/archive/<uuid:pk>/",
+        views_absence_reports.report_detail,
+        name="absence_report_detail",
+    ),
+    path(
+        "reports/daily/archive/<uuid:pk>/recompute/",
+        views_absence_reports.report_recompute,
+        name="absence_report_recompute",
+    ),
+    path("reports/daily/xlsx/", views_absence_followup.followup_xlsx, name="absence_followup_xlsx"),
     path(
         "reports/daily/contact-sheet/",
         views_absence_followup.contact_sheet,
