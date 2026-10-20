@@ -14,7 +14,7 @@ _spec = importlib.util.spec_from_file_location(
 chk = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(chk)
 
-HEAD = "f5321cac03d0a2fedd8edbe82257480d07e752c5"
+HEAD = "f5321cac03d0a2fedd8edbe82257480d07e752c5"  # pragma: allowlist secret
 LINE = "اعتُمد من المالك على 8500 — 2026-10-20 — الرأس f5321cac"
 
 
