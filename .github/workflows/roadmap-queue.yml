@@ -1,0 +1,36 @@
+name: قائمةُ الخارطة المعلَّقة بعد النشر
+
+# W-20261010-021 (قاعدة المالك D-50م: الأتمتة داخل كود المنصّة لا سكربتاتٍ محلّيّة).
+# عند نجاح نشر `shschool_mvp / production` من railway-app[bot] (الشرطُ نفسُه في post-deploy-canary.yml):
+# scripts/ci_roadmap_queue.py يضع الوسمَ roadmap-pending على الطلبات المدموجة منذ النشر السابق ويلحق تعليقاً مجمَّعاً
+# واحداً بـissue «قائمة الخارطة المعلَّقة». متساوي الأثر، وبلا سرٍّ غيرِ GITHUB_TOKEN. والفشلُ لا يسقط خطَّ النشر.
+
+on:
+  deployment_status:
+
+concurrency:
+  group: roadmap-queue
+  cancel-in-progress: false
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  queue:
+    name: قائمةُ الخارطة المعلَّقة
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.environment == 'shschool_mvp / production' &&
+      github.event.deployment_status.creator.login == 'railway-app[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.deployment.sha }}
+      - name: "وسمُ الطلبات وتعليقُ القائمة"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
+        run: python scripts/ci_roadmap_queue.py --repo "$GITHUB_REPOSITORY" --sha "$DEPLOY_SHA"
