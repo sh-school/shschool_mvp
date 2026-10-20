@@ -1,0 +1,38 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}تبديل الدور — {{ current_school.name|default:"المدرسة" }}{% endblock %}
+{% block main_class %}{% page_layout "form" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="تبديل الدور" %}
+{% endblock %}
+
+{% block content %}
+<div class="form-page">
+
+  {% page_header "تبديل الدور" subtitle="اختر الصفة التي تعمل بها الآن — لا يتغيّر دورك إلا باختيارك" icon="role_switch" %}{% endpage_header %}
+
+  <div class="form-card">
+    {% for message in messages %}
+    {% if message.tags == 'error' %}{% callout "error" %}{{ message }}{% endcallout %}{% else %}{% callout "success" %}{{ message }}{% endcallout %}{% endif %}
+    {% endfor %}
+
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+      {% for m in memberships %}
+      <label class="radio-pill role-pill">
+        <input type="radio" name="membership_id" value="{{ m.pk }}" {% if m.pk == current_id %}checked{% endif %} required>
+        <span>{{ m.role.get_name_display }} — {{ m.school.name }}{% if m.pk == current_id %} (الحالي){% endif %}</span>
+      </label>
+      {% endfor %}
+
+      <div class="form-footer">
+        <button type="submit" class="btn-primary">{% icon "role_switch" %} تبديل</button>
+        <a href="{% url 'dashboard' %}" class="btn-ghost">إلغاء</a>
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

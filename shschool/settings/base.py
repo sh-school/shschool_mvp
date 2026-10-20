@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "wings.apps.WingsConfig",
     # خارطة تجويد المنصّة — لمطوّر المنصّة وحدَه (أدوات المطوّر)
     "roadmap.apps.RoadmapConfig",
+    "decisions_registry.apps.DecisionsRegistryConfig",
     # مركز قيادة الجودة — عرضٌ حيٌّ لصحّة المنصّة لمطوّرها وحدَه في /command-center/ بالمنصّة (بلا نماذج)
     "command_center.apps.CommandCenterConfig",
     # الحوكمة وحماية البيانات: المحو والاحتفاظ وتدوير المفاتيح ووصول الملفّات (ADR-0004)
@@ -95,6 +96,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # ✅ v5.4: axes يجب أن يكون بعد AuthenticationMiddleware مباشرةً
     "axes.middleware.AxesMiddleware",
+    # اختيارُ الدور العامل (W-20261019-008): قبل RLS كي يرى كلُّ وسيطٍ بعده العضويّةَ المختارة.
+    "core.active_role.ActiveRoleChoiceMiddleware",
     # ✅ v5.6: RLS — يجب أن يضبط السياق قبل أي middleware يستعلم جداول محميّة
     "core.middleware_rls.RLSMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
@@ -220,6 +223,10 @@ MINISTRY_AFFILIATION_VISIBLE = config("MINISTRY_AFFILIATION_VISIBLE", default=Fa
 # أمر المالك 2026-10-10 (W-20261010-034): توليدُ الجدول واعتمادُه لمطوّر المنصّة وحدَه من الآن؛ المديرُ والنائبُ
 # يقرآن الجدولَ فقط. المنفذُ المركزيّ في core/capabilities.py. وضبطُه 0/false يعيد السلوكَ السابق بلا شيفرة.
 SCHEDULE_DEVELOPER_ONLY = config("SCHEDULE_DEVELOPER_ONLY", default=True, cast=bool)
+
+# W-20261003-020: القائمةُ المغلقةُ المؤقّتةُ لمعرّفات القرارات التي تُقبل مرجعَ إذنٍ لاعتماد جدول V2 قبل ملء سجلّ القرارات؛
+# فارغةٌ افتراضاً (مغلقٌ بالافتراض): فلا اعتمادَ إلّا بقرارٍ موجودٍ في `decisions_registry`.
+SCHEDULE_APPROVAL_DECISIONS: tuple[str, ...] = ()
 
 # D-418م (W-20261012-023): سقفُ فراغ المعلّم `TeacherPreference.max_gap` مقروءٌ في الحلّال والمُقيِّم عبر
 # `operations/gap_rule.effective_max_gap`، ومطفأٌ افتراضاً: القيمُ المحفوظة تبقى في القاعدة ولا تؤثّر في التوليد.

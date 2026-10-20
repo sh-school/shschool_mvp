@@ -1,0 +1,65 @@
+{% extends "base/base.html" %}
+{% load icons static %}
+{% load ui %}
+
+{% block main_class %}{% page_layout "form" %}{% endblock %}
+
+{% block title %}طلب التحاق جديد{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/admissions/" parent_label="طلبات الالتحاق" current="طلب جديد" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash sa-page sa-form-page">
+  {% page_header "طلب التحاق جديد" subtitle="نموذج 07 — بياناتُ الطالب ومقدِّم الطلب" icon="edit_record" %}{% endpage_header %}
+
+  <div class="form-card">
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% if form.errors %}
+      <div class="msg-bar msg-error sa-form-errors" role="alert">
+        {% for field_errors in form.errors.values %}{% for err in field_errors %}<span class="msg-text">{{ err }}</span>{% endfor %}{% endfor %}
+      </div>
+      {% endif %}
+
+      <h2 class="section-title">بياناتُ الطالب</h2>
+      <div class="form-row">
+        {% field "student_name" "اسم الطالب" value=form.student_name.value required=True css="sa-span-full" %}
+        {% field "student_national_id" "الرقم الشخصي للطالب" value=form.student_national_id.value inputmode="numeric" %}
+        {% field "birth_date" "تاريخ الميلاد" type="date" value=form.birth_date.value %}
+        {% field "nationality" "الجنسية" value=form.nationality.value %}
+        {% field "current_school" "المدرسة الحالية" value=form.current_school.value %}
+        {% field "grade" "الصف المطلوب" type="select" choices="G7=السابع|G8=الثامن|G9=التاسع|G10=العاشر|G11=الحادي عشر|G12=الثاني عشر" value=form.grade.value required=True %}
+        {% field "health_status" "الحالة الصحية" type="textarea" rows=2 value=form.health_status.value help="بيانٌ حسّاس: يُشفَّر ولا يظهر في القائمة." css="sa-span-full" %}
+        {% field "living_with" "يعيش مع" type="select" choices="both=الأب والأم|father=الأب|mother=الأم|relative=أحد الأقارب|guardian=ولي أمر آخر|other=غير ذلك" value=form.living_with.value blank="— اختر —" %}
+        {% field "transport" "وسيلة النقل" type="select" choices="private=سيارة خاصة|bus=حافلة" value=form.transport.value blank="— اختر —" %}
+        {% field "housing_area" "المنطقة" value=form.housing_area.value %}
+        {% field "housing_street" "الشارع" value=form.housing_street.value %}
+        {% field "housing_house" "رقم المنزل" value=form.housing_house.value %}
+      </div>
+
+      <h2 class="section-title">مقدِّمُ الطلب</h2>
+      <div class="form-row">
+        {% field "applicant_name" "الاسم" value=form.applicant_name.value required=True css="sa-span-full" %}
+        {% field "applicant_national_id" "الرقم الشخصي" value=form.applicant_national_id.value inputmode="numeric" %}
+        {% field "applicant_relationship" "صلة القرابة" value=form.applicant_relationship.value required=True %}
+        {% field "applicant_phone" "الهاتف" type="tel" value=form.applicant_phone.value required=True %}
+      </div>
+
+      <div class="ui-field">
+        <label class="ui-field__label" for="f-declaration_accepted">
+          <input type="checkbox" id="f-declaration_accepted" name="declaration_accepted" value="on" {% if form.declaration_accepted.value %}checked{% endif %} required>
+          {{ form.declaration_accepted.label }} <span class="req-star" aria-hidden="true">*</span>
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">{% icon "status_success" %} تسجيل الطلب</button>
+        <a href="{% url 'student_affairs:admission_list' %}" class="btn-secondary">إلغاء</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

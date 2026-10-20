@@ -42,7 +42,6 @@
    "templates/behavior/behavior_report.html": 1,
    "templates/behavior/committee.html": 1,
    "templates/behavior/dashboard.html": 1,
-   "templates/behavior/partials/quick_log_form.html": 1,
    "templates/behavior/report_form.html": 1,
    "templates/behavior/statistics.html": 1,
    "templates/behavior/student_profile.html": 1,

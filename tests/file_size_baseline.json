@@ -1,13 +1,13 @@
 {
-  "academic_management/assignment_services.py": 1067,
+  "academic_management/assignment_services.py": 1081,
   "behavior/conduct_2026.py": 1472,
-  "behavior/views.py": 1154,
+  "behavior/views.py": 1053,
   "core/domain/grades.py": 1748,
-  "core/permissions.py": 1091,
+  "core/permissions.py": 1100,
   "notifications/tasks.py": 1407,
-  "operations/scheduler_constraints.py": 1020,
-  "operations/views_schedule.py": 1432,
-  "reports/services.py": 1443,
-  "student_affairs/services.py": 1069,
-  "student_affairs/views.py": 2815
+  "operations/scheduler_constraints.py": 1026,
+  "operations/views_schedule.py": 1430,
+  "reports/services.py": 1429,
+  "student_affairs/services.py": 1058,
+  "student_affairs/views.py": 2823
 }

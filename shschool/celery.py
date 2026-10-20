@@ -75,6 +75,11 @@ app.conf.beat_schedule = {
         "task": "notifications.check_breach_deadlines",
         "schedule": crontab(minute=0),  # كل ساعة عند الدقيقة صفر
     },
+    # فحصُ انجراف بصمات سجلّ القرارات محلّيّاً — يوميّاً 5:00 (W-20260928-019)
+    "decisions-registry-drift-check": {
+        "task": "decisions_registry.check_drift",
+        "schedule": crontab(hour=5, minute=0),
+    },
     # ✅ v6: تقرير KPIs الشهري — أول يوم من كل شهر الساعة 6:00 صباحاً
     "send-monthly-kpi-report": {
         "task": "analytics.send_monthly_kpi_report",
@@ -195,3 +200,9 @@ app.autodiscover_tasks(["notifications"], related_name="teacher_alerts")
 from notifications.teacher_alerts_beat import teacher_alerts_beat  # noqa: E402
 
 app.conf.beat_schedule.update(teacher_alerts_beat())
+
+# تقاريرُ الغياب الدوريّة (W-20261020-005): مهمّتُها في `operations/absence_reports_tasks.py` وجدولتُها معطَّلةٌ حتى `ABSENCE_REPORTS_BEAT=1`.
+app.autodiscover_tasks(["operations"], related_name="absence_reports_tasks")
+from operations.absence_reports_beat import absence_reports_beat  # noqa: E402
+
+app.conf.beat_schedule.update(absence_reports_beat())

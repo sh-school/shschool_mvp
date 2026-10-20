@@ -66,7 +66,11 @@ def test_skipped_is_exempt_only_for_the_listed_event_and_job():
     needs = {**_ok("a"), "e2e": {"result": "skipped"}}
     assert gate.judge(needs, "push")[1] == []
     assert gate.judge(needs, "pull_request")[1], "skipped على الطلب فشلٌ"
-    assert gate.judge(needs, "merge_group")[1], "skipped على الطابور فشلٌ"
+    assert (
+        gate.judge(needs, "merge_group")[1] == []
+    ), "e2e يُعفى skipped على الطابور (W-20261019-006)"
+    heavy_only = {**_ok("a"), "mypy": {"result": "skipped"}}
+    assert gate.judge(heavy_only, "merge_group")[1], "غيرُ axe/e2e يبقى skipped فيه فشلاً على الطابور"
     other = {**_ok("a"), "ruff": {"result": "skipped"}}
     assert gate.judge(other, "push")[1], "ruff غيرُ معفًى على push"
 
@@ -84,8 +88,10 @@ def test_cheap_security_and_core_jobs_are_never_exempt():
     assert not exempt_jobs & {"secrets-scan", "migration-linter", "fast-guards"}
 
 
-def test_only_push_is_ever_exempted():
-    assert {event for (event, _) in gate.EXEMPT} == {"push"}
+def test_only_push_and_merge_group_are_ever_exempted():
+    assert {event for (event, _) in gate.EXEMPT} == {"push", "merge_group"}
+    # الطابور لا يُعفى فيه سوى الأرجل غير الحارسة التي سبق أن اجتازها الطلب نفسُه (W-20261019-006)
+    assert {job for (event, job) in gate.EXEMPT if event == "merge_group"} == {"axe-a11y", "e2e"}
 
 
 # ── الفشلُ المغلق ───────────────────────────────────────────────────────────────
@@ -178,10 +184,15 @@ def test_security_scan_keeps_its_triggers():
 def test_quality_gate_keeps_pull_request_and_merge_group_full():
     assert {"push", "pull_request", "merge_group"} <= set(_triggers("quality-gate.yml"))
     jobs = _load("quality-gate.yml")
-    for job in ("mypy", "axe-a11y", "e2e", "pytest-shards"):
+    for job in ("mypy", "pytest-shards"):
         assert (
             str(jobs[job]["if"]).strip() == "github.event_name != 'push'"
         ), f"{job}: لا يُتخطّى إلا على push"
+    for job in ("axe-a11y", "e2e"):  # W-20261019-006: تُخطّى على الطابور أيضاً (تُجرى على الطلب)
+        assert (
+            str(jobs[job]["if"]).strip()
+            == "github.event_name != 'push' && github.event_name != 'merge_group'"
+        ), f"{job}: لا يُتخطّى إلا على push وmerge_group"
     # التغطيةُ تُبلِّغ دائماً على الطلب والطابور (always) وتُتخطّى على push وحدَه
     assert str(jobs["test-coverage"]["if"]).strip() == "always() && github.event_name != 'push'"
 
