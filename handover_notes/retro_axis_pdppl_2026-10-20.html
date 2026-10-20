@@ -37,7 +37,7 @@ th{background:rgba(127,127,127,.12)}
 <div class="card">
 <h3>المنهج وحدوده</h3>
 <p>قُرئ الكود فعلاً وكلُّ بندٍ أدناه يشير إلى ملف:سطر. لم يُشغَّل شيءٌ على قاعدة بيانات ولا أمرٌ إداري، فكلُّ استنتاجٍ عن سلوك وقت التشغيل مبنيٌّ على قراءة الشيفرة. لم أكرر المحاور الستة في <code>AAdocs/ministry_data/2026_2027/compliance_audit_report.md</code> (2026-09-10) ولا تدقيق <code>docs/privacy/pdppl_audit_2026-10-05.md</code>.</p>
-<p><strong>ملاحظة جوهرية عن اللوائح:</strong> لم أجد في ملفات <code>AAdocs/ministry_data/2026_2027/</code> نصَّ أيِّ مادة من قانون 13/2016؛ ورد القانون إحالاتٍ فقط (<code>01e_school_files_guide.md:121</code>، <code>02_staff_affairs.md:549,565</code>، <code>09_raw_data_schema.md:3</code>، <code>01g_annual_operational_plan.md:126</code>). والملف <code>05b_health_safety_deep.md</code> لا يذكر PDPPL إطلاقاً (بحثتُ عن «PDPPL» و«حماية البيانات» و«خصوصية» فلم يظهر). فالمقارنة أدناه بين الكود ومتطلباتٍ لائحيّةٍ صحّيّةٍ تشغيليّة (فصلُ الملف الصحي وسرّيتُه)، وبين الكود وأرقام المواد التي كتبها المطوّرون في تعليقاتهم، ولم أتحقق من أرقام المواد ضد النص القانوني نفسه.</p>
+<p><strong>مراجعة 2026-10-20 (تصحيح):</strong> مرجع القانون موجود في المنصة: <code>.claude/skills/pdppl-pii-audit/references/00-pdppl-articles.md</code> (النص الرسمي من بوّابة الميزان LawID=7121، روجع 2026-09-28)، وقد رُوجعت عليه أرقام المواد. نصوص اللوائح الوزارية في <code>AAdocs/ministry_data/2026_2027/</code> تحيل إلى القانون ولا تنقل نصّه، و<code>05b_health_safety_deep.md</code> لا يذكر PDPPL. مواد هذا المحور: م.13 (الاحتياطات الأمنية والتشفير)، م.14 (إخطار الخرق)، م.16 (الأطفال والصحة صنف خاص)، م.10 (الاحتفاظ)، م.5 (المحو)، م.11 (التدقيق الداخلي).</p>
 </div>
 
 <h2>الحصيلة</h2>
@@ -49,7 +49,7 @@ th{background:rgba(127,127,127,.12)}
 <tr><td>4</td><td>السجل الصحي خارج عزل الصفوف على مستوى القاعدة</td><td>جزئي</td><td class="md">متوسطة</td></tr>
 <tr><td>5</td><td>مدة احتفاظ البيانات الصحية بلا أجل زمني، ومدة 730 يوماً غير معتمدة</td><td>جزئي (قرار معلّق)</td><td class="md">متوسطة</td></tr>
 <tr><td>6</td><td>نصوص حرة غير مشفّرة في الخرق وحوادث الاختبارات؛ وقراءة الخرق بلا تدقيق</td><td>جزئي</td><td class="lo">منخفضة</td></tr>
-<tr><td>7</td><td>تناقض في رقم مادة إخطار الخرق (م.11 / م.14) داخل الكود</td><td>متعارض</td><td class="lo">منخفضة</td></tr>
+<tr><td>7</td><td>تناقض في رقم مادة إخطار الخرق (م.11 / م.14) داخل الكود — الصحيح م.14</td><td>متعارض</td><td class="lo">منخفضة</td></tr>
 <tr><td>8</td><td>أمر <code>verify_encryption</code> مذكور في خطوات التدوير وغير موجود</td><td>غير مطبّق</td><td class="lo">منخفضة</td></tr>
 </table></div>
 
@@ -82,7 +82,7 @@ th{background:rgba(127,127,127,.12)}
 <h3><span class="tag md">متوسطة</span>3) قائمة الزيارات ولوحة العيادة تعرضان بيانات مفكوكة بلا تسجيل وصول</h3>
 <dl>
 <dt>الحالة</dt><dd>جزئي</dd>
-<dt>الكود</dt><dd>تسجيل الوصول موجود في مسار واحد فقط: <code>clinic/views.py:91-99</code> (تعليق «PDPPL م.19: تدقيق الوصول للسجل الصحي الحساس») وهو الاستدعاء الوحيد لـ<code>AuditLog.log</code> في الملف. في المقابل <code>visits_list</code> (<code>clinic/views.py:147-180</code>) يعرض عبر <code>templates/clinic/partials/visit_rows.html:27,33</code> حقلي <code>reason</code> و<code>treatment</code> المفكوكين، ولوحة العيادة تعرض <code>visit.reason</code> في <code>templates/clinic/dashboard.html:43,56</code>؛ ولا تسجيل في أيٍّ منهما.</dd>
+<dt>الكود</dt><dd>تسجيل الوصول موجود في مسار واحد فقط: <code>clinic/views.py:91-99</code> (تعليق «PDPPL م.19: تدقيق الوصول للسجل الصحي الحساس» — رقم المادة خاطئ: م.19 إعفاءات، والأقرب م.11/م.13 بحسب المرجع المتحقَّق) وهو الاستدعاء الوحيد لـ<code>AuditLog.log</code> في الملف. في المقابل <code>visits_list</code> (<code>clinic/views.py:147-180</code>) يعرض عبر <code>templates/clinic/partials/visit_rows.html:27,33</code> حقلي <code>reason</code> و<code>treatment</code> المفكوكين، ولوحة العيادة تعرض <code>visit.reason</code> في <code>templates/clinic/dashboard.html:43,56</code>؛ ولا تسجيل في أيٍّ منهما.</dd>
 <dt>أثر ثانوي</dt><dd><code>clinic/views.py:162</code> يستقبل اسم الطالب في معامل GET (<code>?student=</code>)، فيظهر الاسم في سجلات الوصول للخادم والمتصفح (لم أتحقق من إعدادات تلك السجلات).</dd>
 <dt>اللائحة</dt><dd>الصلاحيات سليمة: <code>core/capabilities/clinic_library_transport.py:12-22</code> تحصر <code>clinic.access</code> بالممرض والمدير ونائب الإدارة ومنسق شؤون الطلبة (قراءة)، وتحصر الكتابة بثلاثة أدوار. المعلمون لا يرون شيئاً، وهذا يطابق <code>01e_school_files_guide.md:121</code> و<code>05_admin_behavioral_health.md:23</code>. الفجوة في أثر الوصول لا في من يصل.</dd>
 </dl>
@@ -119,7 +119,7 @@ th{background:rgba(127,127,127,.12)}
 <h3><span class="tag lo">منخفضة</span>7) تناقض رقم المادة في إخطار الخرق</h3>
 <dl>
 <dt>الحالة</dt><dd>متعارض (توثيقي)</dd>
-<dt>الكود</dt><dd>قالب الإشعار يقول «PDPPL م.11» (<code>breach/services.py:17</code>) ورأس الملف يقول «م.14» (<code>:1</code>)، والنموذج «م.14» (<code>core/models/audit.py:367</code>)، وإشعار المكلّف «م.11» (<code>breach/services.py:68</code>)، ووثيقة الاحتفاظ «م.11» (<code>data_retention.md:90</code>). نص الإشعار الموجَّه إلى الجهة المختصة يخرج بالرقم المقتبس في القالب، فإن كان الرقم خاطئاً ظهر في وثيقة رسمية. لم أتحقق من أيِّ الرقمين صحيح لأن نص القانون ليس في اللوائح المتاحة.</dd>
+<dt>الكود</dt><dd>قالب الإشعار يقول «PDPPL م.11» (<code>breach/services.py:17</code>) ورأس الملف يقول «م.14» (<code>:1</code>)، والنموذج «م.14» (<code>core/models/audit.py:367</code>)، وإشعار المكلّف «م.11» (<code>breach/services.py:68</code>)، ووثيقة الاحتفاظ «م.11» (<code>data_retention.md:90</code>). نص الإشعار الموجَّه إلى الجهة المختصة يخرج بالرقم المقتبس في القالب، فإن كان الرقم خاطئاً ظهر في وثيقة رسمية. بالتحقق من المرجع: إخطار الخرق هو م.14، فالرقم «م.11» في القالب (<code>breach/services.py:17</code>) وإشعار المكلّف (<code>:68</code>) ووثيقة الاحتفاظ (<code>data_retention.md:90</code>) خاطئ؛ م.11 هي إجراءات المراجعة والتدقيق الداخلي.</dd>
 </dl>
 </div>
 
