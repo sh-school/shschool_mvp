@@ -938,40 +938,26 @@ def is_displayable(generation: Any) -> bool:
     return generation.status == "draft" and bool((snap.get("evaluation") or {}).get("accepted"))
 
 
-def approve_v2(generation: Any, *, user: Any, request: Any = None) -> dict:
-    """اعتمادُ مسودّة V2: بقدرة `schedule.approve`، وبإعادة تقييمٍ مستقلّةٍ تطابق بصمةَ المقبول، ومسجَّلٌ في Audit."""
-    from core.capabilities import has_capability
-    from core.models.audit import AuditLog
-    from operations.schedule_evaluator import generation_slots
-    from operations.services.schedule import ScheduleService
+def approve_v2(
+    generation: Any,
+    *,
+    user: Any,
+    request: Any = None,
+    authorization: Any = None,
+    presented_fingerprint: str = "",
+) -> dict:
+    """اعتمادُ مسودّة V2 عبر البوّابة الذرّيّة `approval_gate` (W-20261003-020): قدرةٌ ودورٌ ومرجعُ إذنٍ وبصمةُ المعروض
+    ومعاملةٌ واحدةٌ بقفل؛ ويحوّل رفضَها إلى `ApprovalRefusedError` كما كان."""
+    from .approval_gate import ApprovalGateError
+    from .approval_gate import approve as gate_approve
 
-    if not has_capability(user, "schedule.approve"):
-        raise ApprovalRefusedError("لا تملك قدرة اعتماد الجدول")
-    if generation.status != "draft" or not is_displayable(generation):
-        raise ApprovalRefusedError("ليست مسودّةً مقبولةً من المُقيِّم — لا تُعتمد")
-    snap = generation.config_snapshot or {}
-    fresh = evaluate_slots(
-        generation.school,
-        generation.academic_year,
-        generation_slots(generation),
-        snap.get("solver"),
-    )
-    if not fresh.accepted or fresh.fingerprint != (snap.get("evaluation") or {}).get("fingerprint"):
-        raise ApprovalRefusedError("تغيّرت المسودّةُ بعد قبولها أو لم تعد مقبولة — أعد التوليد")
-    result = ScheduleService.approve_generation(generation, acknowledged=False)
-    AuditLog.log(
-        user=user,
-        action="update",
-        model_name="other",
-        object_id=generation.pk,
-        object_repr=f"اعتمادُ جدول V2 {generation.academic_year}",
-        changes={
-            "event": "schedule_v2_approved",
-            "fingerprint": fresh.fingerprint,
-            "solver": snap.get("solver"),
-            "objective_value": fresh.objective_value,
-        },
-        school=generation.school,
-        request=request,
-    )
-    return result
+    try:
+        return gate_approve(
+            generation,
+            user=user,
+            request=request,
+            authorization=authorization,
+            presented_fingerprint=presented_fingerprint,
+        )
+    except ApprovalGateError as exc:
+        raise ApprovalRefusedError(str(exc)) from exc
