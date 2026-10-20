@@ -32,6 +32,13 @@ if [ -z "$APP_DB_PASSWORD" ] && [ "$_IS_PROD" = "1" ]; then
 fi
 
 if [ -n "$APP_DB_PASSWORD" ]; then
+  # يتحقّق من دور القاعدة الفعليّ بمتغيّرات daphne نفسها (كما يفعل railway-worker.sh) قبل exec: دورٌ غير آمن
+  # (superuser أو bypassrls أو لا يدخل) يُنهي الإقلاعَ برمزٍ غير صفريّ بدل أن يعمل daphne بصمتٍ بلا عزل RLS (W-20261004-007).
+  echo "🔎 التحقق من دور قاعدة البيانات في وقت التشغيل (verify_runtime_db_role)..."
+  if ! env -u DATABASE_URL DB_USER=shschool_app DB_PASSWORD="$APP_DB_PASSWORD" python manage.py verify_runtime_db_role; then
+    echo "::error:: دورُ قاعدة البيانات غير آمن أو غير صالح — الإقلاع مرفوض (fail-closed)."
+    exit 1
+  fi
   echo "🔐 RLS مفعّل: تشغيل daphne بدور shschool_app (غير-superuser) — الدورُ مُوفَّرٌ في preDeploy"
   exec env -u DATABASE_URL DB_USER=shschool_app DB_PASSWORD="$APP_DB_PASSWORD" \
     daphne -b 0.0.0.0 -p "${PORT:-8080}" --access-log - shschool.asgi:application
