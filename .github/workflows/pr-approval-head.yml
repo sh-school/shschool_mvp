@@ -1,0 +1,37 @@
+name: سطرُ الاعتماد يطابق رأسَ الطلب (W-20261003-003)
+
+# ══════════════════════════════════════════════════════
+#  يُسقط الطلبَ إن لم يكن في وصفه سطرُ اعتمادٍ على رأسه الحاليّ (docs/governance/flow.md الخطوة 7). المنطقُ كلُّه في
+#  scripts/pr_approval_head_check.py (وتحرسه tests/test_pr_approval_head_check.py) وهو يعيد استعمالَ تعبيرَي الاعتماد
+#  في auto_merge_gate.py وpr_evidence.py فلا منطقَ ثانياً.
+#  **مرحلةُ المراقبة**: الوظيفةُ تفشل فعلاً لكنها ليست في `needs` بوّابةِ الجودة ولا في الفحوص المطلوبة؛ يراقب 0601 الإيجابيات
+#  الكاذبة أسبوعاً ثمّ يقرّر المالكُ جعلَها مطلوبة. يُعاد عند تعديل الوصف (edited) فيمرّ متى أُصلح السطر.
+#  المؤلّفُ الآليّ ([bot]) مستثنى. الطلباتُ من fork رمزُها للقراءة وحدَها وهذا يكفي هنا (قراءةٌ فقط).
+# ══════════════════════════════════════════════════════
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    branches: [main]
+
+concurrency:
+  group: pr-approval-head-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  approval-head:
+    name: سطرُ الاعتماد مطابقٌ للرأس
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: فحصُ السطر
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: python3 scripts/pr_approval_head_check.py "$PR_NUMBER" --repo "$REPO"
