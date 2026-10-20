@@ -9,8 +9,9 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from core import preview_school_seed as service
 from core.management.commands.preview_accounts import bind_is_loopback, environment_problems
@@ -22,10 +23,10 @@ PASSWORD_ENV = "PREVIEW_ACCOUNTS_PASSWORD"  # pragma: allowlist secret — اس�
 class Command(BaseCommand):
     help = "بذرُ مدرسة المعاينة الثانية (اثنا عشر دوراً) — المعاينةُ وحدَها"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--check", action="store_true")
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         if options["check"]:
             if preview_school_in_wrong_environment():
                 raise CommandError("مدرسةُ المعاينة الثانيةُ موجودةٌ خارج بيئة المعاينة")

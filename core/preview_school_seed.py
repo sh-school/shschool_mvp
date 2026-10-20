@@ -71,10 +71,9 @@ def _seed_accounts(school: School, password: str, result: SeedResult) -> None:
         )
         if holder is not None:
             raise ValueError("رقمٌ وظيفيٌّ من نطاق المدرسة الثانية ممسوكٌ لحسابٍ آخر")
-        user = CustomUser.objects.filter(national_id=nid).first()
-        is_new = user is None
-        if is_new:
-            user = CustomUser(national_id=nid)
+        existing = CustomUser.objects.filter(national_id=nid).first()
+        is_new = existing is None
+        user = existing if existing is not None else CustomUser(national_id=nid)
         wanted = {
             "full_name": f"{FULL_NAME_PREFIX}{role_name} (مدرسة 2)",
             "employee_number": EMPLOYEE_NUMBERS[role_name],
