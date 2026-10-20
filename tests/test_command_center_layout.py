@@ -233,7 +233,7 @@ def test_status_badge_and_bar_use_the_central_identity_classes_and_no_local_colo
     html = _page(client_as, developer_user)
     assert html.count("status-badge status-") >= len(contract.PANELS)
     css = (ROOT / "static" / "css" / "custom" / "33-modules-4.css").read_text(encoding="utf-8")
-    block = css[css.index("/* مركز قيادة الجودة (QCC-01b") : css.index("/* نافذةُ التسجيل السريع")]
+    block = css[css.index("/* مركز قيادة الجودة (QCC-01b") : css.index("/* ── التقارير الأكاديميّة")]
     assert not re.search(
         r"#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(", block
     ), "لونٌ حرفيّ — الهويّةُ رموزٌ var(--…) وحدَها"
