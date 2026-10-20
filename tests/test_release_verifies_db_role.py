@@ -48,7 +48,7 @@ def _run(tmp_path: Path, *, verify_rc: int = 0, env_extra: dict | None = None):
         "FAKE_VERIFY_RC": str(verify_rc),
         "DJANGO_SETTINGS_MODULE": "shschool.settings.production",
         "APP_DB_PASSWORD": APP_PASSWORD,
-        "DATABASE_URL": "postgres://owner:owner@db/shschool",
+        "DATABASE_URL": "postgres://db.invalid/shschool",
         **(env_extra or {}),
     }
     proc = subprocess.run(
