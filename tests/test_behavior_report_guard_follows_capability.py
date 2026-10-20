@@ -75,7 +75,7 @@ def test_the_assistants_stay_refused_on_the_report_and_the_recording_forms(
     with patch("behavior.views._deny_unreachable", return_value=None):
         report = client_as(user).get(reverse("behavior:behavior_report", args=[child.pk]))
     form = client_as(user).get(reverse("behavior:report_infraction"))
-    quick = client_as(user).get(reverse("behavior:quick_log"))
+    quick = client_as(user).get(reverse("behavior:quick_log"))  # الرفضُ قبل التحويل
 
     assert report.status_code == 403
     assert form.status_code == 403
