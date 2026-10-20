@@ -35,3 +35,30 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: python3 scripts/pr_evidence.py "$PR_NUMBER" --repo "$REPO" --post
+
+  # المسارات الحسّاسة (W-20261002-005): وسمٌ وتعليقٌ حين يمسّ الطلبُ ما في security/sensitive_paths.json.
+  # القائمةُ تُقرأ من فرع الأساس لا من رأس الطلب (وإلا أفرغها طلبٌ)، ولا pull_request_target.
+  # غيابُ القائمة أو فسادُها أو فشلُ نشر الوسم يُفشل الخطوة بصوتٍ عالٍ؛ ومسٌّ حسّاسٌ وحدَه لا يُفشلها (لا حجبَ آليّ).
+  sensitive-paths:
+    name: المسارات الحسّاسة
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: وسمُ الطلب الذي يمسّ مساراً حسّاساً
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          git fetch --no-tags origin "$BASE_REF"
+          if [ "$FORK" = "true" ]; then
+            # نسخةٌ شقيقةٌ رمزُها للقراءة وحدَها: يُفحص ويُطبع ولا يُنشر
+            python3 scripts/ci_sensitive_paths.py scan --base "origin/$BASE_REF"
+          else
+            python3 scripts/ci_sensitive_paths.py scan --base "origin/$BASE_REF" --post "$PR_NUMBER" --repo "$REPO"
+          fi
