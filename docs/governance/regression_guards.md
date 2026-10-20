@@ -58,6 +58,7 @@
 | **Lighthouse للجوال (Q-03)** — ليليٌّ لا حاجب | خمسُ صفحاتٍ رئيسة بمِلفّ الجوال (Slow 4G + معالجٌ ×4): الوصوليّةُ لا تنزل أبداً، والأداءُ لا ينزل أكثر من **15** نقطةً عن الأساس (تذبذبُه المقيس 14 نقطة على لوحة المدير). ليس رقمَ الإنتاج: `live_server` يخدم الأصولَ خاماً | `tests/lighthouse_audit.py` ← `lighthouse_baseline.json` · `LIGHTHOUSE_RUN=1 LIGHTHOUSE_UPDATE=1 pytest tests/test_lighthouse_mobile.py -s` | `nightly.yml` — يفتح قضيّةَ الفشل الليليّ |
 | **قيمُ px خارجَ السلّم** | تباعدٌ ≤ **79** (كان 86 ثمّ 80 ثمّ 79 بتقليص LAY-03)، تقوّسٌ ≤ **31** — والصفرُ على السلّم | `tests/test_px_tokens.py` | `pytest — تغطية` |
 | **`font-size` بـpx** | صفرٌ (يُكتب rem) | `tests/test_px_tokens.py` | `pytest — تغطية` |
+| **`?v=` يدويّ في روابط الأصول المحليّة** (كسرُ الذاكرة بالمحتوى لا بالرقم) | صفرٌ (قيس 2026-10-20: 0 في templates وstatic)؛ الروابطُ الخارجيّة مستثناة | `tests/test_no_manual_cache_bust.py` | `pytest — تغطية` |
 | **نظائرُ ليليّةٌ تكرّر قيمتَها النهاريّة** (`html.dark X` بقيمة `X` نفسِها، والرمزُ يقلب نفسَه) | ≤ **11** (كانت 40؛ حُذف 29 بلا أثرٍ مقيس) — لا يزيد إلّا لقاعدةٍ ثالثةٍ تغلب النهاريّةَ فتتسرّب ليلاً لو حُذف النظير | `tests/test_css_dead_overrides.py` | `pytest — تغطية` |
 | **حواراتُ المتصفّح الأصليّة** | `confirm(` الأصليّ صفرٌ في `static/js` و`templates` (التأكيدُ نافذةُ المنصّة عبر `data-confirm`، ومن JS بنموذجٍ مخفيٍّ كما في `confirmThen`)؛ و`alert(` الأصليّ ≤ **2** سقّاطةٌ لا تزيد (W-20261010-019) | `tests/test_no_native_dialogs.py` | `pytest — تغطية` |
 
