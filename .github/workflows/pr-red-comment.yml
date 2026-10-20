@@ -1,0 +1,40 @@
+name: تعليقُ الأحمر الحقيقيّ على الطلب
+
+# W-20261003-009 (قاعدة المالك D-50م: الأتمتة داخل كود المنصّة). بعد اكتمال بوّابة الجودة على طلب:
+# scripts/ci_pr_red_comment.py يعلّق **تعليقاً واحداً محدَّثاً** باسم الفحص الأحمر الحقيقيّ وأوّل سطر خطأ وبطاقة الطلب.
+# الملغى ليس أحمر. والتعليقُ معلوماتيّ: لا يدمج ولا يعتمد ولا يفشل.
+# أمان: `workflow_run` يعمل من commit فرع الأساس الافتراضيّ (لا يُنفَّذ شيءٌ من رأس الطلب)، وأذونات دنيا بلا أسرار؛
+# والطلباتُ من نسخٍ شقيقة (fork) يأتي حقلُ pull_requests فيها فارغاً فلا يُعلَّق عليها.
+
+on:
+  workflow_run:
+    workflows: ["Quality Gate — بوابة الجودة الإلزامية"]
+    types: [completed]
+
+concurrency:
+  group: pr-red-comment-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: read
+  actions: read
+
+jobs:
+  comment:
+    name: تعليقُ الأحمر
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: تعليقُ الفحص الأحمر على كلّ طلبٍ مرتبط
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBERS: ${{ join(github.event.workflow_run.pull_requests.*.number, ' ') }}
+        run: |
+          for pr in $PR_NUMBERS; do
+            python scripts/ci_pr_red_comment.py --repo "$GITHUB_REPOSITORY" --pr "$pr" --sha "$HEAD_SHA"
+          done
