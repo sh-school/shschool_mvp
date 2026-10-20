@@ -2,6 +2,7 @@
 {% load icons %}
 {% load ui %}
 {% block title %}إدخال درجات — {{ assessment.title }}{% endblock %}
+{% block main_class %}{% page_layout "sheet" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/assessments/" parent_label="التقييمات" current="إدخال الدرجات" %}
