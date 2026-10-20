@@ -258,9 +258,13 @@ SINGLE_SOURCE = {
 
 
 def _cap_roles_argument(key: str) -> str:
-    tree = ast.parse((ROOT / "core/capabilities.py").read_text(encoding="utf-8"))
+    trees = [
+        ast.parse(path.read_text(encoding="utf-8"))
+        for path in sorted((ROOT / "core/capabilities").glob("*.py"))
+    ]
     found = [
         node.args[2]
+        for tree in trees
         for node in ast.walk(tree)
         if isinstance(node, ast.Call)
         and getattr(node.func, "id", "") == "_cap"
@@ -268,7 +272,7 @@ def _cap_roles_argument(key: str) -> str:
         and isinstance(node.args[0], ast.Constant)
         and node.args[0].value == key
     ]
-    assert len(found) == 1, f"{key}: لا تعريفَ واحداً في core/capabilities.py"
+    assert len(found) == 1, f"{key}: لا تعريفَ واحداً في core/capabilities/"
     return ast.unparse(found[0])
 
 

@@ -28,6 +28,11 @@ urlpatterns = [
     # ── حضورُ الموظّفين (1.1) والأذونات القصيرة (1.3) ──
     path("attendance/", views_attendance.attendance_board, name="attendance_board"),
     path("attendance/mark/", views_attendance.attendance_mark, name="attendance_mark"),
+    path(
+        "attendance/daily/xlsx/",
+        views_attendance.attendance_daily_xlsx,
+        name="attendance_daily_xlsx",
+    ),
     path("attendance/report/", views_attendance.attendance_report, name="attendance_report"),
     path(
         "attendance/report/xlsx/",

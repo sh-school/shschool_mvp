@@ -75,6 +75,11 @@ app.conf.beat_schedule = {
         "task": "notifications.check_breach_deadlines",
         "schedule": crontab(minute=0),  # كل ساعة عند الدقيقة صفر
     },
+    # فحصُ انجراف بصمات سجلّ القرارات محلّيّاً — يوميّاً 5:00 (W-20260928-019)
+    "decisions-registry-drift-check": {
+        "task": "decisions_registry.check_drift",
+        "schedule": crontab(hour=5, minute=0),
+    },
     # ✅ v6: تقرير KPIs الشهري — أول يوم من كل شهر الساعة 6:00 صباحاً
     "send-monthly-kpi-report": {
         "task": "analytics.send_monthly_kpi_report",

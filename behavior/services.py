@@ -56,20 +56,6 @@ class BehaviorPermissions:
     """صلاحيات وحدة السلوك"""
 
     COMMITTEE_ROLES = BEHAVIOR_COMMITTEE  # م5.7 — مصدرٌ واحدٌ في core/permissions.py (W-20261001-023)
-    SUMMON_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "psychologist"}
-    STATS_ROLES = {
-        # لجنة الضبط والقيادة
-        "principal",
-        "vice_admin",
-        "vice_academic",
-        "social_worker",
-        "specialist",
-        "psychologist",
-        # المعلمون — يرون إحصائيات طلابهم فقط
-        "teacher",
-        "coordinator",
-        "ese_teacher",
-    }
 
     @staticmethod
     def can_report(user: CustomUser) -> bool:
@@ -88,20 +74,17 @@ class BehaviorPermissions:
 
     @staticmethod
     def can_summon(user: CustomUser) -> bool:
-        return (
-            user.get_role() in BehaviorPermissions.SUMMON_ROLES
-            or user.is_superuser
-            or has_unrestricted_role(user)
-        )
+        """يستدعي وليَّ الأمر من يحمل القدرة ``behavior.summon_parent`` — مصدرٌ واحد (W-20261018-003)."""
+        from core.capabilities import has_capability
+
+        return has_capability(user, "behavior.summon_parent")
 
     @staticmethod
     def can_view_stats(user: CustomUser) -> bool:
-        """يُعيد True إذا كان المستخدم مسموحاً له برؤية صفحة الإحصائيات."""
-        return (
-            user.get_role() in BehaviorPermissions.STATS_ROLES
-            or user.is_superuser
-            or has_unrestricted_role(user)
-        )
+        """يرى صفحة الإحصاء من يحمل القدرة ``behavior.statistics`` — مصدرٌ واحد (W-20261018-003)."""
+        from core.capabilities import has_capability
+
+        return has_capability(user, "behavior.statistics")
 
 
 #: نافذةُ تدقيق القراءة: حدثٌ واحد لكل (مستخدم، مخالفة) في هذه المدّة، فلا يتضخّم السجلّ بالتحديث المتكرّر.
@@ -849,6 +832,43 @@ class BehaviorService:
         max_step = len(steps)
         # المخالفة الأولى = الخطوة 1, الثانية = 2, ...
         return min(prior + 1, max_step)
+
+    @staticmethod
+    def preview_escalation(
+        student: CustomUser,
+        school: School,
+        level: int,
+        violation_category: Any = None,
+        session: Any = None,
+    ) -> dict[str, Any]:
+        """ما سيُحسب قبل الحفظ — قراءةٌ فقط بلا كتابة (W-20260928-007).
+
+        تستعمل الاقتراحَ نفسه الذي يكتب `create_infraction`، فما يظهر للمسجِّل
+        قبل الحفظ هو ما يُخزَّن بعده. الخطوةُ المعادة 0 إن لم تكن للدرجة سلّم.
+        """
+        from .conduct_2026 import BY_CODE
+
+        prior = BehaviorService.get_prior_infraction_count(
+            student, school, level, violation_category, session=session
+        )
+        step = BehaviorService.suggest_escalation_step(
+            student, school, level, violation_category, session=session
+        )
+        if violation_category and violation_category.code in BY_CODE:
+            raw = violation_category.get_escalation_steps()
+        else:
+            raw = ESCALATION_STEPS.get(level, [])
+        steps = [
+            (number, item[1] if isinstance(item, tuple | list) else item)
+            for number, item in enumerate(raw, start=1)
+        ]
+        texts = dict(steps)
+        return {
+            "prior": prior,
+            "step": step,
+            "steps": steps,
+            "next_text": texts.get(step, ""),
+        }
 
     @staticmethod
     @transaction.atomic

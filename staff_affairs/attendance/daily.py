@@ -774,3 +774,61 @@ class StaffAttendanceService:
                 ]
             )
         return wb
+
+    @staticmethod
+    def daily_workbook(day: date, board: dict[str, Any]) -> Any:
+        """ورقةُ Excel لكشف اليوم: حالةُ كلّ موظّفٍ ووقتا حضورِه وانصرافِه بالرقم الوظيفيّ.
+
+        ونصُّ العذر المقبول لا يُكتب أصلاً (قد يحمل بيانةً صحّيّة — م-7)؛ يُكتب نوعُ الغياب وحدَه.
+        """
+        from openpyxl import Workbook
+
+        absence_labels = dict(ABSENCE_TYPES)
+        wb = Workbook()
+        ws = wb.active
+        ws.title = f"{day:%Y-%m-%d}"
+        ws.sheet_view.rightToLeft = True
+        ws.append(
+            [
+                "الرقم الوظيفي",
+                "الاسم",
+                "الحالة",
+                "وقت الحضور",
+                "وقت الانصراف",
+                "دقائق التأخّر",
+                "دقائق الانصراف المبكر بلا إذن",
+                "دقائق الإذن المعتمد",
+                "نوع الغياب",
+            ]
+        )
+        for row in board["rows"]:
+            staff, record = row["staff"], row["record"]
+            if record is None:
+                ws.append(
+                    [
+                        staff.employee_number or "",
+                        staff.full_name,
+                        "لم يُرصد",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                    ]
+                )
+                continue
+            ws.append(
+                [
+                    staff.employee_number or "",
+                    staff.full_name,
+                    STATUS_LABELS.get(record.status, record.status),
+                    f"{record.check_in:%H:%M}" if record.check_in else "",
+                    f"{record.check_out:%H:%M}" if record.check_out else "",
+                    record.late_minutes,
+                    record.early_leave_minutes,
+                    record.permit_minutes,
+                    absence_labels.get(record.absence_type, "") if record.absence_type else "",
+                ]
+            )
+        return wb

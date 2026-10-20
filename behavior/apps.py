@@ -43,6 +43,7 @@ class BehaviorConfig(AppConfig):
                 "social_worker",
                 "psychologist",
                 "admin_supervisor",
+                "student_affairs_coordinator",  # قرارُ المالك 2026-10-18 (W-20261018-003)
             },
             sort_order=30,
         )

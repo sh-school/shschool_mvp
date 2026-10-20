@@ -131,6 +131,7 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `core_clinicvisit` | زياراتُ العيادة |
 | `student_affairs_studentactivity` | الأنشطةُ الطلّابيّة |
 | `student_affairs_studenttransfer` | الانتقالُ بين الشعب |
+| `student_affairs_admissionapplication` | طلباتُ الالتحاق قبل التسجيل — لا حسابَ للطالب فيها؛ يُحتفَظ بها بقرار 0105/DPO |
 | `student_info_studentnote` | ملاحظاتُ الجهات الخمس |
 | `core_bookborrowing` | الإعاراتُ — تُطالَب المكتبةُ بها |
 | `core_libraryactivity_participants` | المشاركةُ في أنشطة المكتبة |
@@ -242,6 +243,8 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `developer_feedback_developermessage` | رسائلُ المطوّر — قناةٌ عابرةٌ للمدارس، ولها محوٌ داخلها |
 | `developer_feedback_developermessagenotification` | إشعاراتُها |
 | `developer_feedback_outboundmessage` | سجلُّ ما بثّه المطوّر لمستخدمين («ما أرسلتُه») — قناةٌ عابرةٌ للمدارس؛ والتسليمُ الفعليّ في `notifications_inappnotification` ولها حكمُها |
+| `decisions_registry_decision` | سجلُّ قرارات المالك: استيرادٌ باتجاهٍ واحدٍ للقراءة فقط، بعد حجب الأسماء الشخصيّة من النصّ — وثيقةُ حوكمةٍ عن المنصّة نفسها بلا مدرسةٍ ولا بيانات طلبة؛ تُحفظ ما دامت المنصّةُ قائمةً |
+| `decisions_registry_importbatch` | دفعاتُ استيراده: بصمةُ الملفّين وأعدادٌ فقط، لا بيانات؛ تُحفظ أثرَ تدقيقٍ (حذفُها بعد سنةٍ مقترحٌ يحتاج قاعدةً في `RULES` وقرارَ المالك فلا يُنفَّذ الآن) |
 | `roadmap_roadmapitem` | بنودُ خارطة تجويد المنصّة — وثيقةُ مطوّرٍ عن المنصّة نفسها، بلا مدرسةٍ ولا أشخاص؛ تُحرَّر من واجهةِ المطوّر وتُدقَّق في `core_auditlog` |
 | `roadmap_roadmapkpi` | مؤشّراتُها |
 | `roadmap_roadmapdecision` | قراراتُها |
