@@ -35,6 +35,7 @@ from core.domain.grades import (
     default_has_pass_mark,
     letter_of,
 )
+from core.fields import EncryptedTextField
 from core.models import ClassGroup, CustomUser, School
 from core.models.academic import grade_number
 from operations.models import Subject
@@ -381,7 +382,9 @@ class StudentAssessmentGrade(models.Model):
     excuse_type = models.CharField(
         max_length=20, blank=True, default="", choices=EXCUSE_TYPES, verbose_name="نوع العذر"
     )
-    excuse_reference = models.CharField(
+    # [W-20261001-012] مشفَّر at-rest (قرار المالك 2026-10-20): قد يقترن بنوع «مرض» فهو بيانٌ صحّيّ عن قاصر؛
+    # لا بحثَ ولا تصفيةَ عليه، والحدُّ 200 حرف يُفرض في الخدمة.
+    excuse_reference = EncryptedTextField(
         max_length=200, blank=True, default="", verbose_name="مرجع العذر (رقم الشهادة أو جهتها)"
     )
     # تاريخُ تقديم الطالب أو وليّه إثباتَ العذر (D-403م): يُقاس به آخرُ موعد؛ فارغٌ لما قُبل قبل المهلة

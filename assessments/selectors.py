@@ -12,6 +12,7 @@ def _absence_rows(school: Any) -> Any:
         "student",
         "assessment__package__setup__class_group",
         "assessment__package__setup__subject",
+        "assessment__school",
     )
 
 

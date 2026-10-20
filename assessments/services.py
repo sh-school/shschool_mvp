@@ -175,16 +175,23 @@ class GradeService:
     # ── قرار العذر (D-402م) ────────────────────────────────
 
     @staticmethod
-    def excuse_deadline(assessment: Assessment) -> tuple[date, date] | None:
+    def excuse_deadline(
+        assessment: Assessment, cache: dict[Any, Any] | None = None
+    ) -> tuple[date, date] | None:
         """(آخرُ موعدٍ لتقديم العذر، نهايةُ جدول الاختبار) أو None إن لم يُعرف الجدول.
 
         الجدولُ يُقرأ من `exam_control.ExamSession` بلا نسخةٍ محلّيّة: دورةُ المدرسة والعام التي يقع
         تاريخُ التقييم داخل مدّتها. والمهلةُ اليومُ الثالث التقويميّ بعد انتهاء الجدول لا تُستثنى
-        فيه عطلةٌ (04b السطر 1949، D-403م). ولا تاريخَ للتقييم أو لا دورةَ مسجَّلة: لا مهلةَ تُحسب."""
+        فيه عطلةٌ (04b السطر 1949، D-403م). ولا تاريخَ للتقييم أو لا دورةَ مسجَّلة: لا مهلةَ تُحسب.
+
+        `cache` قاموسٌ اختياريّ يُمرَّر عند الحساب لقائمةٍ فيُستعلم عن كلّ (مدرسة، عام، تاريخ) مرّةً واحدة."""
         from exam_control.models import ExamSession
 
         if assessment.date is None:
             return None
+        key = (assessment.school_id, assessment.package.setup.academic_year, assessment.date)
+        if cache is not None and key in cache:
+            return cache[key]
         session = (
             ExamSession.objects.filter(
                 school=assessment.school,
@@ -195,9 +202,14 @@ class GradeService:
             .order_by("-start_date")
             .first()
         )
-        if session is None:
-            return None
-        return session.end_date + timedelta(days=EXCUSE_GRACE_DAYS), session.end_date
+        found = (
+            None
+            if session is None
+            else (session.end_date + timedelta(days=EXCUSE_GRACE_DAYS), session.end_date)
+        )
+        if cache is not None:
+            cache[key] = found
+        return found
 
     @staticmethod
     def decide_excuse(
@@ -224,6 +236,8 @@ class GradeService:
 
         if not has_capability(decided_by, "assessments.decide_excuse"):
             raise PermissionDenied("قرارُ العذر لأصحاب القدرة وحدَهم")
+        if not any(m.school_id == assessment.school_id for m in decided_by.active_memberships):
+            raise PermissionDenied("القرارُ لعضوٍ في مدرسة هذا التقييم وحدَه")
         if excuse_type not in dict(EXCUSE_TYPES):
             raise ValidationError("نوعُ العذر خارج القائمة المغلقة")
         reference = (reference or "").strip()
@@ -258,12 +272,17 @@ class GradeService:
         """محاولةٌ مرفوضةٌ بسببها في سجلّ المراجعة (خارج أيّ معاملةٍ تُلغى بالرفض) — تاريخُها لا يضيع."""
         from core.models import AuditLog
 
+        # الأثرُ يُنسب إلى صفّ الطالب الغائب نفسِه إن وُجد (يربط المحاولةَ بصاحبها)، وإلّا إلى التقييم.
+        row = StudentAssessmentGrade.objects.filter(
+            assessment=assessment, student=student, school=assessment.school
+        ).first()
+        target = row if row is not None else assessment
         AuditLog.log(
             user=decided_by,
             action="update",
-            model_name="StudentAssessmentGrade",
-            object_id=assessment.pk,
-            object_repr=masked_repr(assessment),
+            model_name="StudentAssessmentGrade" if row is not None else "Assessment",
+            object_id=target.pk,
+            object_repr=masked_repr(target),
             changes={
                 "excuse_attempt": "rejected_after_deadline",
                 "submitted_on": submitted_on.isoformat(),

@@ -818,8 +818,9 @@ def excuse_queue(request):
     """غياباتُ الاختبار التي رصدها المعلّمون وتنتظر قرارَ العذر، ثمّ آخرُ الأعذار المقرَّرة."""
     pending = Paginator(selectors.pending_excuse_rows(request.school), 25)
     page_obj = pending.get_page(request.GET.get("page"))
+    deadlines: dict = {}  # استعلامٌ واحد لكلّ (مدرسة، عام، تاريخ) لا لكلّ صفّ
     for row in page_obj:  # آخرُ موعدٍ لتقديم العذر لكلّ غياب (D-403م) — يُقرأ من جدول الاختبار لا يُنسخ
-        found = GradeService.excuse_deadline(row.assessment)
+        found = GradeService.excuse_deadline(row.assessment, deadlines)
         row.excuse_deadline = found[0] if found else None
     return render(
         request,

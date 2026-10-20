@@ -4,6 +4,8 @@ import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
 
+import core.fields
+
 
 class Migration(migrations.Migration):
 
@@ -35,7 +37,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="studentassessmentgrade",
             name="excuse_reference",
-            field=models.CharField(
+            field=core.fields.EncryptedTextField(
                 blank=True,
                 default="",
                 max_length=200,
