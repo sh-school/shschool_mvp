@@ -42,6 +42,11 @@ SYNC_ONLY_KINDS = frozenset(
         "student_affairs.tardiness_pdf",
         "student_affairs.tardiness_xlsx",
         # ملخّصُ الحصّتين: صفحةٌ واحدةٌ بعددٍ ثابتٍ من الصفوف (شعبٌ لا طلبة) — متزامنٌ بلا قياس p95 بعدُ؛ يُقاس ويُحوَّل إن لزم.
+        # جدولٌ واحدٌ بعددٍ محدودٍ من الصفوف (غائبو يومٍ واحد) — متزامنٌ بلا قياس p95 بعدُ؛ يُقاس ويُحوَّل إن لزم.
+        "operations.absence_followup_xlsx",
+        # أثرُ تدقيقٍ لعرض لقطةٍ أو إعادةِ حسابها (لا ملفَّ يُولَّد): بلا ثِقلٍ يستحقّ مهمّةً خلفيّة.
+        "operations.absence_report_recompute",
+        "operations.absence_report_view",
         "wings.ministry_pdf",
         "wings.ministry_xlsx",
     }
