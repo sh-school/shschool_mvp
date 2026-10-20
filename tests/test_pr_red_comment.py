@@ -13,15 +13,17 @@ pr = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(pr)
 
 REPO, SHA = "o/r", "a" * 40
+BOT = {"login": "github-actions[bot]"}
 
 
-def cr(name, conclusion="success", status="completed", at="2026-10-20T10:00:00Z", run=1):
+def cr(name, conclusion="success", status="completed", at="2026-10-20T10:00:00Z", run=1, job=9):
     return {
         "name": name,
         "status": status,
         "conclusion": conclusion,
         "completed_at": at,
-        "details_url": f"https://github.com/o/r/actions/runs/{run}/job/9",
+        "details_url": f"https://github.com/o/r/actions/runs/{run}/job/{job}",
+        "app": {"slug": "github-actions"},
     }
 
 
@@ -77,20 +79,21 @@ def test_real_red_posts_one_comment_with_check_error_and_card():
 
 
 def test_second_run_updates_the_same_comment_and_never_duplicates():
-    existing = [{"id": 77, "body": pr.MARKER + "\nقديم"}]
+    existing = [{"id": 77, "user": BOT, "body": pr.MARKER + "\nقديم"}]
     api = FakeApi([cr("tests", "failure")], comments=existing)
     assert "حُدِّث" in pr.run(api, logs(), REPO, 5, SHA)
     assert [w[0] for w in api.writes()] == ["PATCH"]
     # تكرارُ التشغيل نفسِه بالنصّ نفسِه لا يكتب
     same = FakeApi(
-        [cr("tests", "failure")], comments=[{"id": 77, "body": api.writes()[0][2]["body"]}]
+        [cr("tests", "failure")],
+        comments=[{"id": 77, "user": BOT, "body": api.writes()[0][2]["body"]}],
     )
     assert "لا تكرار" in pr.run(same, logs(), REPO, 5, SHA)
     assert same.writes() == []
 
 
 def test_recovery_updates_existing_comment_but_waits_for_pending():
-    existing = [{"id": 77, "body": pr.MARKER + "\n⛔"}]
+    existing = [{"id": 77, "user": BOT, "body": pr.MARKER + "\n⛔"}]
     green = FakeApi([cr("tests", "success")], comments=existing)
     assert "حُدِّث" in pr.run(green, logs(), REPO, 5, SHA)
     assert "تعافى" in green.writes()[0][2]["body"]
@@ -130,4 +133,46 @@ def test_workflow_runs_from_base_with_minimal_permissions_and_no_pr_code():
     job = wf["jobs"]["comment"]
     assert "pull_request" in job["if"]
     checkout = job["steps"][0]
-    assert "with" not in checkout, "لا ref لرأس الطلب: يُفحص فرعُ الأساس وحدَه"
+    assert not {"ref", "repository"} & set(
+        checkout.get("with", {})
+    ), "لا ref لرأس الطلب: يُفحص فرعُ الأساس وحدَه"
+    assert checkout["with"]["persist-credentials"] is False
+
+
+def test_human_comment_with_marker_is_never_edited():
+    human = [{"id": 5, "user": {"login": "attacker"}, "body": pr.MARKER + " x"}]
+    api = FakeApi([cr("tests", "failure")], comments=human)
+    pr.run(api, logs(), REPO, 5, SHA)
+    assert [w[0] for w in api.writes()] == ["POST"]
+
+
+def test_log_is_read_only_for_own_repo_github_actions_job_and_per_job():
+    seen = []
+
+    def reader(job_id):
+        seen.append(job_id)
+        return f"x	s	2026 error: in job {job_id}"
+
+    foreign = cr("a", "failure")
+    foreign["details_url"] = "https://evil.example/o/r/actions/runs/1/job/7"
+    other_repo = cr("b", "failure")
+    other_repo["details_url"] = "https://github.com/x/y/actions/runs/1/job/8"
+    other_app = cr("c", "failure")
+    other_app["app"] = {"slug": "evil"}
+    api = FakeApi(
+        [foreign, other_repo, other_app, cr("d", "failure", job=11), cr("e", "failure", job=12)]
+    )
+    pr.run(api, reader, REPO, 5, SHA)
+    assert seen == ["11", "12"]
+    body = api.writes()[0][2]["body"]
+    assert "in job 11" in body and "in job 12" in body
+
+
+def test_check_name_is_inline_code_and_secrets_are_redacted():
+    api = FakeApi([cr("[click](https://evil.example)", "failure")])
+    url = "postgres://u:S3cr3t@db"  # pragma: allowlist secret
+    line = "x	s	2026 error: " + url + " ghp_" + "a" * 24
+    pr.run(api, logs(line), REPO, 5, SHA)
+    body = api.writes()[0][2]["body"]
+    assert "`[click](https://evil.example)`" in body
+    assert "S3cr3t" not in body and "ghp_" not in body

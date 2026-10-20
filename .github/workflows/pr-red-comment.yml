@@ -12,8 +12,8 @@ on:
     types: [completed]
 
 concurrency:
-  group: pr-red-comment-${{ github.event.workflow_run.head_sha }}
-  cancel-in-progress: true
+  group: pr-red-comment-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.id }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -28,10 +28,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts
       - name: تعليقُ الفحص الأحمر على كلّ طلبٍ مرتبط
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           PR_NUMBERS: ${{ join(github.event.workflow_run.pull_requests.*.number, ' ') }}
         run: |

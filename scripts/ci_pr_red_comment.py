@@ -24,7 +24,15 @@ MARKER = "<!-- pr-red -->"
 REAL_FAIL = {"failure", "timed_out", "startup_failure", "action_required"}
 CARD_RE = re.compile(r"W-\d{8}-\d{3}")
 ERR_LINE = re.compile(r"(error|failed|assert|traceback|exception|✘|خطأ)", re.I)
-RUN_ID = re.compile(r"/actions/runs/(\d+)")
+BOT_LOGIN = "github-actions[bot]"
+BOT_APP = "github-actions"
+SECRETS = (
+    re.compile(r"://[^/\s:@]+:[^/\s@]+@"),
+    re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"),
+    re.compile(r"AKIA[0-9A-Z]{16}"),
+    re.compile(r"eyJ[\w-]+\.[\w-]+\.[\w-]+"),
+    re.compile(r"(?i)(password|passwd|secret|token|api[_-]?key)\s*[=:]\s*\S+"),
+)
 MAX_ERR = 160
 
 
@@ -57,9 +65,22 @@ def card_of(pr: dict) -> str | None:
     return m.group(0) if m else None
 
 
+def job_id_of(check: dict, repo: str) -> str | None:
+    """رقمُ الوظيفة من `details_url` بتطابقٍ تامٍّ مع مستودعنا، ومن تطبيق github-actions وحدَه؛ وإلا None (لا قراءةَ سجلٍّ غريب)."""
+    if (check.get("app") or {}).get("slug") != BOT_APP:
+        return None
+    m = re.fullmatch(
+        rf"https://github\.com/{re.escape(repo)}/actions/runs/\d+/job/(\d+)",
+        check.get("details_url") or "",
+    )
+    return m.group(1) if m else None
+
+
 def sanitize(text: str) -> str:
-    """سطرُ الخطأ بيانات: بلا حروفِ تحكّمٍ ولا أسوارِ شيفرة ولا إشاراتٍ تُنبّه أحداً ولا وسومَ HTML."""
+    """سطرُ الخطأ بيانات: بلا حروفِ تحكّمٍ ولا أسوارِ شيفرة ولا إشاراتٍ تُنبّه أحداً ولا وسومَ HTML ولا أسرارٍ ظاهرة."""
     s = "".join(ch for ch in text if ch.isprintable())
+    for pat in SECRETS:
+        s = pat.sub("***", s)
     s = s.replace("`", "'").replace("<", "‹").replace(">", "›").replace("@", "@​").replace("|", "¦")
     return s.strip()[:MAX_ERR]
 
@@ -80,7 +101,7 @@ def build_comment(sha: str, failed: list[dict], card: str | None, errors: dict[s
     for c in sorted(failed, key=lambda x: x.get("name", "")):
         name = sanitize(c.get("name", "؟"))
         err = errors.get(c.get("name", ""), "")
-        lines.append(f"- «{name}»" + (f" — `{err}`" if err else " — (تعذّرت قراءةُ سطر الخطأ)"))
+        lines.append(f"- `{name}`" + (f" — `{err}`" if err else " — (تعذّرت قراءةُ سطر الخطأ)"))
     lines += ["", "الملغى ليس أحمر. يُحدَّث هذا التعليقُ في مكانه عند كلّ تشغيلٍ جديد."]
     return "\n".join(lines)
 
@@ -90,7 +111,7 @@ def build_recovered(sha: str) -> str:
 
 
 def run(api, log_reader, repo: str, pr_number: int, sha: str) -> str:
-    """`api(method, path, payload=None)` ← JSON؛ و`log_reader(run_id)` ← نصّ السجلّ. تُحقنان في الاختبار."""
+    """`api(method, path, payload=None)` ← JSON؛ و`log_reader(job_id)` ← نصّ سجلّ الوظيفة. تُحقنان في الاختبار."""
     pr = api("GET", f"repos/{repo}/pulls/{pr_number}") or {}
     if pr.get("state") != "open":
         return "الطلبُ غيرُ مفتوح: لا شيء"
@@ -101,12 +122,19 @@ def run(api, log_reader, repo: str, pr_number: int, sha: str) -> str:
     )
     cls = classify(runs)
     comments = api("GET", f"repos/{repo}/issues/{pr_number}/comments?per_page=100") or []
-    mine = next((c for c in comments if MARKER in (c.get("body") or "")), None)
+    mine = next(
+        (
+            c
+            for c in comments
+            if (c.get("user") or {}).get("login") == BOT_LOGIN and MARKER in (c.get("body") or "")
+        ),
+        None,
+    )
     if cls["failed"]:
         errors = {}
         for c in cls["failed"]:
-            m = RUN_ID.search(c.get("details_url") or "")
-            errors[c.get("name", "")] = first_error(log_reader(m.group(1))) if m else ""
+            job = job_id_of(c, repo)
+            errors[c.get("name", "")] = first_error(log_reader(job)) if job else ""
         body = build_comment(sha, cls["failed"], card_of(pr), errors)
     elif mine:
         if cls["pending"]:
@@ -138,9 +166,9 @@ def gh_api(method: str, path: str, payload: dict | None = None):
     return json.loads(r.stdout) if r.stdout.strip() else None
 
 
-def gh_log(run_id: str) -> str:
+def gh_log(job_id: str, repo: str = "") -> str:
     p = subprocess.run(  # noqa: S603
-        ["gh", "run", "view", run_id, "--log-failed"],  # noqa: S607
+        ["gh", "run", "view", "--job", job_id, "--log-failed", "-R", repo],  # noqa: S607
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -159,7 +187,7 @@ def main(argv=None) -> int:
     ap.add_argument("--sha", required=True)
     a = ap.parse_args(argv)
     try:
-        print(run(gh_api, gh_log, a.repo, a.pr, a.sha))
+        print(run(gh_api, lambda j: gh_log(j, a.repo), a.repo, a.pr, a.sha))
     except (subprocess.CalledProcessError, KeyError, ValueError, subprocess.TimeoutExpired) as exc:
         print(f"::warning::تعذّر تعليقُ الأحمر: {type(exc).__name__}: {exc}")
     return 0
