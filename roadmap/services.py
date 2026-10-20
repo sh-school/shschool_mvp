@@ -223,6 +223,7 @@ def page_context() -> dict[str, Any]:
     """كلُّ ما تحتاجه الصفحةُ في استعلاماتٍ ست، والتقدّمُ العامّ محسوباً هنا لا في القالب."""
     item_rows = list(selectors.items())
     decision_rows = list(selectors.decisions())
+    risk_rows = list(selectors.risks())
     meta = selectors.meta_data()
     return {
         "overall_progress": _progress_of(item_rows),
@@ -233,9 +234,11 @@ def page_context() -> dict[str, Any]:
             "items": [serialize_item(o) for o in item_rows],
             "kpis": [serialize_kpi(o) for o in selectors.kpis()],
             "decisions": [serialize_decision(o) for o in decision_rows],
-            "risks": [serialize_risk(o) for o in selectors.risks()],
+            "risks": [serialize_risk(o) for o in risk_rows],
             "checklist": [serialize_checklist(o) for o in selectors.checklist()],
-            "health": health.page_health(item_rows, decision_rows, meta, timezone.localdate()),
+            "health": health.page_health(
+                item_rows, decision_rows, meta, timezone.localdate(), risk_rows
+            ),
             "glossary": health.glossary_payload(),
             "definitions": health.definitions_payload(),
         },
@@ -305,6 +308,19 @@ def _reject_unknown(payload: object, allowed: frozenset[str]) -> Mapping[str, An
 
 
 # ── التدقيق ───────────────────────────────────────────────────────────────
+
+
+def audit_page_view(user: Any, request: HttpRequest | None) -> None:
+    """فتحُ صفحة الخارطة (وفيها المخاطرُ والفحصُ الأمنيّ) يُسجَّل في AuditLog: من فتح ومتى، لا محتوى."""
+    AuditLog.log(  # type: ignore[no-untyped-call]
+        user=user,
+        action="view",
+        model_name="other",
+        object_id="roadmap",
+        object_repr="خارطة التجويد: فتح الصفحة (المخاطر والفحص)",
+        changes={"event": "page_view"},
+        request=request,
+    )
 
 
 def _audit(
