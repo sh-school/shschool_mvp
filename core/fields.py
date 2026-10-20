@@ -47,4 +47,4 @@ def encrypted_field_names(model: type[models.Model]) -> list[str]:
     مصدرٌ واحدٌ لتدوير المفتاح (`rotate_fernet_key`): حقلٌ مشفَّرٌ يُضاف للنموذج يدخل التدويرَ تلقائيّاً،
     فلا يبقى بالمفتاح القديم حين يُسحب (W-20261020-024).
     """
-    return [f.name for f in model._meta.concrete_fields if isinstance(f, EncryptedTextField)]
+    return [f.name for f in model._meta.get_fields() if isinstance(f, EncryptedTextField)]
