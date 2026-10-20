@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from core.models import AuditLog, ConsentRecord, ParentStudentLink
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 
 @pytest.fixture
