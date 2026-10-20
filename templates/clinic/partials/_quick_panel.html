@@ -1,4 +1,6 @@
 {% load ui %}
+{# يفرّغ نتائجَ البحث بعد اختيار الطالب فلا تبقى فوق اللوح #}
+<div id="quick-results" hx-swap-oob="true"></div>
 <div class="form-card">
   <p class="clinic-quick__who">{{ visit.student.full_name }}</p>
 

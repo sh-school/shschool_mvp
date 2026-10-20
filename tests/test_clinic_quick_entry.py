@@ -111,6 +111,7 @@ def test_nurse_flow_search_start_service_close(school, nurse_user, student_user)
 
     started = c.post(reverse("clinic:quick_start"), {"student_id": str(student_user.id)})
     assert started.status_code == 200 and "clinic-visit-changed" in started["HX-Trigger"]
+    assert 'id="quick-results" hx-swap-oob="true"' in started.content.decode()
     visit = ClinicVisit.objects.get()
 
     ok = c.post(
