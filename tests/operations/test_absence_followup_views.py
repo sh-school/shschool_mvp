@@ -93,17 +93,18 @@ class TestForms:
 
 
 class TestContactSheetRoute:
-    def test_the_route_returns_a_pdf_for_who_may_print(self, client_as, staff, absent_both):
-        resp = _get(client_as, staff["principal"], "absence_followup_contact_sheet_pdf")
-        assert resp.status_code == 200 and resp["Content-Type"] == "application/pdf"
-        assert resp.content[:4] == b"%PDF"
+    def test_the_old_sheet_link_redirects_to_the_contact_viewer(
+        self, client_as, staff, absent_both
+    ):
+        resp = _get(client_as, staff["principal"], "absence_followup_contact_sheet_pdf", q="س")
+        assert resp.status_code == 302
+        assert resp["Location"].startswith(reverse("absence_followup_print"))
+        assert "page=contact" in resp["Location"] and "q=" in resp["Location"]
 
-    def test_a_teacher_is_denied(self, client_as, teacher, absent_both):
-        assert _get(client_as, teacher, "absence_followup_contact_sheet_pdf").status_code == 403
-
-    def test_the_screen_offers_the_sheet_link(self, client_as, staff, absent_both):
+    def test_the_screen_no_longer_offers_the_separate_sheet(self, client_as, staff, absent_both):
         body = _get(client_as, staff["principal"]).content.decode()
-        assert reverse("absence_followup_contact_sheet_pdf") in body
+        assert reverse("absence_followup_contact_sheet_pdf") not in body
+        assert "ورقةُ الاتّصال" not in body
 
 
 class TestStickyHeader:

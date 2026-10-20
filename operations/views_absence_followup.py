@@ -27,7 +27,6 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from core.capabilities import capability_required, has_capability
-from core.export_utils import generate_export_filename
 from core.models import AuditLog
 from operations.models import AbsenceActionLog, AbsenceContactLog
 from operations.services import ScheduleService
@@ -310,13 +309,29 @@ def followup_pdf(request: HttpRequest) -> HttpResponse:
 
 @login_required
 @capability_required("operations.absence_followup_print")
-def contact_sheet(request: HttpRequest) -> HttpResponse:
-    """ورقةُ الاتّصال PDF (W-20261013-017) — القدرةُ والنطاقُ والتدقيقُ في الدالة نفسها فلا `log_export` معها."""
-    from operations.absence_followup_print import render_contact_sheet
+def followup_xlsx(request: HttpRequest) -> HttpResponse:
+    """Excel مباشر بأعمدة الصفحة المعروضة وصفوفها بعد الترشيح — التدقيقُ: من وكم صفّاً وبأي ترشيح، لا الأسماء."""
+    from core.audit_export import log_export
+    from operations.absence_followup_print import build_followup_xlsx
 
-    day = _day(request.GET.get("date"))
-    pdf = render_contact_sheet(request.user, day, request.GET)
-    response = HttpResponse(pdf, content_type="application/pdf")
-    filename = generate_export_filename("operations", "absence-contact-sheet", "pdf")
-    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    result = build_followup_xlsx(request.school, request.user, request.GET)
+    filters = {
+        k: request.GET[k] for k in ("date", "wing", "grade", "followup", "q") if request.GET.get(k)
+    }
+    log_export(
+        request,
+        "operations.absence_followup_xlsx",
+        rows=result.rows,
+        object_repr=urlencode(filters),
+    )
+    response = HttpResponse(result.content, content_type=result.content_type)
+    response["Content-Disposition"] = f'attachment; filename="{result.filename}"'
     return response
+
+
+@login_required
+def contact_sheet(request: HttpRequest) -> HttpResponse:
+    """ورقةُ الاتصال المستقلّة أُلغيت (قرار المالك): الرابطُ القديم يحوَّل إلى صفحة عرض التواصل لا 404."""
+    query = request.GET.copy()
+    query["page"] = "contact"
+    return redirect(f"{reverse('absence_followup_print')}?{query.urlencode()}")

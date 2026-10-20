@@ -45,6 +45,7 @@ urlpatterns = [
         "reports/daily/print/", views_absence_followup.followup_print, name="absence_followup_print"
     ),
     path("reports/daily/pdf/", views_absence_followup.followup_pdf, name="absence_followup_pdf"),
+    path("reports/daily/xlsx/", views_absence_followup.followup_xlsx, name="absence_followup_xlsx"),
     path(
         "reports/daily/contact-sheet/",
         views_absence_followup.contact_sheet,
