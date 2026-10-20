@@ -15,6 +15,8 @@ from operations.models import ScheduleGeneration
 from operations.scheduler_v2.limits import GENERATION_STALE_AFTER_SECONDS
 from operations.tasks import reap_stuck_schedule_generations_task
 
+pytestmark = pytest.mark.pin_clock
+
 YEAR = "2026-2027"
 
 

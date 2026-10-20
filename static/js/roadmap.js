@@ -191,7 +191,7 @@
   }
   var TAB_KEYS = {
     ov: ['lanes', 'next', 'phases'], gt: ['gantt'], kp: ['kpU', 'kpM', 'kpV'], dc: ['dcOpen', 'dcDone', 'dcDef'],
-    rk: ['rkHigh', 'rkOther', 'cks'], st: ['stds'], ru: ['rules']
+    rk: ['rkHigh', 'rkOther', 'sec', 'cks'], st: ['stds'], ru: ['rules']
   };
   function fitTab() {
     if (S.tab === 'gt') { renderGanttView(); return; }
@@ -650,11 +650,24 @@
       h('div', { class: 'rm-inline' }, sel, date),
       d.due ? h('small', { class: 'rm-clamp', text: d.due }) : null);
   }
+  // عمرُ الخطر يحسبه الخادم من آخر تعديل؛ فوق RISK_IDLE_DAYS يُوسَم «بلا حركة»
   function mkRisk(r) {
+    var age = (HL.riskAges || {})[r.id];
+    var idle = age != null && age >= (HL.riskIdleDays || 30);
     return h('article', { class: 'rm-tile' },
-      h('header', { class: 'rm-tile__head' }, h('b', { class: 'rm-code', text: r.id }), pill('warn', 'احتمال ' + r.prob, 'risk_prob'), pill('bad', 'أثر ' + r.impact, 'risk_impact')),
+      h('header', { class: 'rm-tile__head' }, h('b', { class: 'rm-code', text: r.id }), pill('warn', 'احتمال ' + r.prob, 'risk_prob'), pill('bad', 'أثر ' + r.impact, 'risk_impact'),
+        age == null ? null : pill(idle ? 'warn' : 'idle', idle ? 'بلا حركة · ' + ago(age) : ago(age), idle ? 'risk_idle' : 'risk_age')),
       h('h3', { class: 'rm-tile__title rm-clamp', title: r.risk }, bidi(r.risk)),
       h('p', { class: 'rm-clamp rm-muted', title: r.mitigation }, 'التخفيف: ', bidi(r.mitigation)));
+  }
+  // الفحصُ الأمنيّ: عددٌ بتاريخه ومصدره، أو «غير مقيس» لا صفراً حين لا لقطةَ (لا نصَّ تنبيه ولا مساراً ولا اسمَ حزمة)
+  function mkSec(s) {
+    var none = s.count == null;
+    return h('article', { class: 'rm-tile' },
+      h('header', { class: 'rm-tile__head' }, h('b', { class: 'rm-code', text: s.name }),
+        none ? pill('idle', 'غير مقيس', 'sec_unmeasured') : (s.stale ? pill('warn', 'قياسٌ قديم', 'sec_stale') : pill('ok', 'عددٌ مفتوح', 'sec_count'))),
+      h('p', { class: 'rm-clamp' }, h('b', null, none ? '–' : String(s.count))),
+      h('small', { class: 'rm-clamp', title: s.source || '' }, none ? 'لا مصدرَ آليّاً بعد' : s.asOf + (s.source ? ' — ' + s.source : '')));
   }
   function mkCheck(c) {
     var box = h('input', { type: 'checkbox', id: 'rm-ck-' + c.id, 'data-rm-id': c.id, 'data-rm-field': 'done', onchange: function (e) { save('checklist', c.id, { done: e.target.checked }, 'done'); } });
@@ -717,6 +730,7 @@
   mountScroll('dcDef', function () { return decGroup('deferred'); }, mkDec);
   mountScroll('rkHigh', function () { return riskGroup(true); }, mkRisk);
   mountScroll('rkOther', function () { return riskGroup(false); }, mkRisk);
+  mountScroll('sec', function () { return HL.security || []; }, mkSec);
   mountScroll('cks', function () { return S.cks; }, mkCheck);
   mount('stds', function () { return S.meta.standards || []; }, mkStd);
   mount('rules', ruleItems, mkRule);
