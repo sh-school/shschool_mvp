@@ -241,11 +241,26 @@ def draft(known_good):
     return school, generation
 
 
+def _gate_args(generation, decision="D-TEST"):
+    """وسيطاتُ البوّابة: مرجعُ إذنٍ (قرارٌ + رأس) وبصمةُ المسوّدة كما عُرضت."""
+    from operations.scheduler_v2.approval_gate import ApprovalAuthorization
+
+    return {
+        "authorization": ApprovalAuthorization(decision, "abcdef12"),
+        "presented_fingerprint": generation.config_snapshot["evaluation"]["fingerprint"],
+    }
+
+
+@pytest.fixture(autouse=True)
+def _allow_test_decision(settings):
+    settings.SCHEDULE_APPROVAL_DECISIONS = ("D-TEST",)
+
+
 def test_approval_requires_the_capability(draft, monkeypatch):
     school, generation = draft
     monkeypatch.setattr("core.capabilities.has_capability", lambda user, key: False)
     with pytest.raises(runner.ApprovalRefusedError, match="قدرة"):
-        runner.approve_v2(generation, user=UserFactory())
+        runner.approve_v2(generation, user=UserFactory(), **_gate_args(generation))
     generation.refresh_from_db()
     assert generation.status == "draft"
 
@@ -257,7 +272,7 @@ def test_approval_publishes_and_is_audited(draft, monkeypatch):
     )
     user = UserFactory()
 
-    runner.approve_v2(generation, user=user)
+    runner.approve_v2(generation, user=user, **_gate_args(generation))
 
     generation.refresh_from_db()
     assert generation.status == "approved"
@@ -271,7 +286,98 @@ def test_approval_refuses_a_draft_edited_after_acceptance(draft, monkeypatch):
     monkeypatch.setattr("core.capabilities.has_capability", lambda user, key: True)
     ScheduleSlot.objects.filter(generation=generation).first().delete()
     with pytest.raises(runner.ApprovalRefusedError):
-        runner.approve_v2(generation, user=UserFactory())
+        runner.approve_v2(generation, user=UserFactory(), **_gate_args(generation))
+
+
+# ── بوّابةُ الاعتماد الذرّيّة (W-20261003-020) ───────────────────────────
+
+
+@pytest.fixture
+def allowed(monkeypatch):
+    monkeypatch.setattr(
+        "core.capabilities.has_capability", lambda user, key: key == "schedule.approve"
+    )
+
+
+def test_gate_refuses_a_stale_presented_fingerprint(draft, allowed):
+    _, generation = draft
+    args = _gate_args(generation)
+    args["presented_fingerprint"] = "0" * 64
+    with pytest.raises(runner.ApprovalRefusedError, match="المعروضة"):
+        runner.approve_v2(generation, user=UserFactory(), **args)
+    generation.refresh_from_db()
+    assert generation.status == "draft"
+    assert not AuditLog.objects.filter(changes__event="schedule_v2_approved").exists()
+
+
+def test_gate_refuses_an_empty_presented_fingerprint(draft, allowed):
+    _, generation = draft
+    args = _gate_args(generation)
+    args["presented_fingerprint"] = ""
+    with pytest.raises(runner.ApprovalRefusedError):
+        runner.approve_v2(generation, user=UserFactory(), **args)
+
+
+@pytest.mark.parametrize("auth", [None, ("", "abcdef12"), ("D-TEST", ""), ("D-TEST", "zz-not-hex")])
+def test_gate_refuses_a_missing_or_malformed_authorization(draft, allowed, auth):
+    from operations.scheduler_v2.approval_gate import ApprovalAuthorization
+
+    _, generation = draft
+    args = _gate_args(generation)
+    args["authorization"] = ApprovalAuthorization(*auth) if auth else None
+    with pytest.raises(runner.ApprovalRefusedError):
+        runner.approve_v2(generation, user=UserFactory(), **args)
+    generation.refresh_from_db()
+    assert generation.status == "draft"
+
+
+def test_gate_refuses_an_unknown_decision_and_accepts_a_registry_decision(draft, allowed):
+    from decisions_registry.models import Decision, ImportBatch
+
+    _, generation = draft
+    args = _gate_args(generation, decision="D-NOPE")
+    with pytest.raises(runner.ApprovalRefusedError, match="القرار"):
+        runner.approve_v2(generation, user=UserFactory(), **args)
+    batch = ImportBatch.objects.create(file_fingerprint="f", row_count=1, created_count=1)
+    Decision.objects.create(decision_id="D-NOPE", text="ت", fingerprint="f", batch=batch)
+    runner.approve_v2(generation, user=UserFactory(), **args)
+    generation.refresh_from_db()
+    assert generation.status == "approved"
+
+
+def test_audit_records_the_authorization_reference(draft, allowed):
+    _, generation = draft
+    runner.approve_v2(generation, user=UserFactory(), **_gate_args(generation))
+    log = AuditLog.objects.filter(changes__event="schedule_v2_approved").get()
+    assert log.changes["decision_id"] == "D-TEST" and log.changes["approved_head"] == "abcdef12"
+
+
+def test_superuser_without_the_capability_is_refused(draft, monkeypatch):
+    _, generation = draft
+    monkeypatch.setattr("core.capabilities.has_capability", lambda user, key: False)
+    user = UserFactory(is_superuser=True, is_staff=True)
+    with pytest.raises(runner.ApprovalRefusedError, match="قدرة"):
+        runner.approve_v2(generation, user=user, **_gate_args(generation))
+
+
+def test_developer_only_blocks_a_non_developer_even_with_the_capability(draft, allowed, settings):
+    _, generation = draft
+    settings.SCHEDULE_DEVELOPER_ONLY = True
+    user = UserFactory()  # دورُه ليس platform_developer
+    with pytest.raises(runner.ApprovalRefusedError, match="قدرة"):
+        runner.approve_v2(generation, user=user, **_gate_args(generation))
+
+
+def test_a_second_approval_of_the_same_draft_is_refused_under_the_lock(draft, allowed):
+    """التسابقُ المتسلسل: الاعتمادُ الثاني يقرأ الحالةَ تحت القفل فيجدها اعتُمدت ويُرفض بلا آثارٍ مضاعفة."""
+    _, generation = draft
+    args = _gate_args(generation)
+    runner.approve_v2(generation, user=UserFactory(), **args)
+    stale = ScheduleGeneration.objects.get(pk=generation.pk)
+    stale.status = "draft"  # نسخةٌ قديمةٌ في ذاكرة المتسابق الثاني
+    with pytest.raises(runner.ApprovalRefusedError, match="اعتُمدت للتوّ"):
+        runner.approve_v2(stale, user=UserFactory(), **args)
+    assert AuditLog.objects.filter(changes__event="schedule_v2_approved").count() == 1
 
 
 # ── أمر الإدارة ────────────────────────────────────────────────────────────

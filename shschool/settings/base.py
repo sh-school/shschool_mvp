@@ -224,6 +224,10 @@ MINISTRY_AFFILIATION_VISIBLE = config("MINISTRY_AFFILIATION_VISIBLE", default=Fa
 # يقرآن الجدولَ فقط. المنفذُ المركزيّ في core/capabilities.py. وضبطُه 0/false يعيد السلوكَ السابق بلا شيفرة.
 SCHEDULE_DEVELOPER_ONLY = config("SCHEDULE_DEVELOPER_ONLY", default=True, cast=bool)
 
+# W-20261003-020: القائمةُ المغلقةُ المؤقّتةُ لمعرّفات القرارات التي تُقبل مرجعَ إذنٍ لاعتماد جدول V2 قبل ملء سجلّ القرارات؛
+# فارغةٌ افتراضاً (مغلقٌ بالافتراض): فلا اعتمادَ إلّا بقرارٍ موجودٍ في `decisions_registry`.
+SCHEDULE_APPROVAL_DECISIONS: tuple[str, ...] = ()
+
 # D-418م (W-20261012-023): سقفُ فراغ المعلّم `TeacherPreference.max_gap` مقروءٌ في الحلّال والمُقيِّم عبر
 # `operations/gap_rule.effective_max_gap`، ومطفأٌ افتراضاً: القيمُ المحفوظة تبقى في القاعدة ولا تؤثّر في التوليد.
 # التفعيلُ قرارُ المالك بعد إعادة القياس (tools/pref_impact.py)، وبلا شيفرة: PREF_MAX_GAP_ACTIVE=true.
