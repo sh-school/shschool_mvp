@@ -112,3 +112,48 @@ def recordable_student(request, school, student_id):
     elif not teacher_can_access_student(request.user, student.id):
         raise Http404("طالبٌ غير موجود")
     return student
+
+
+def escalation_preview_targets(students, student_id: str, category_id: str):
+    """(الطالب، الفئة) لمعاينة التصعيد، أو None إن لم يصحّ المعرّفان أو خرج الطالب عن النطاق أو الفئةُ بلا درجة.
+
+    `students` استعلامُ الطلبة المرئيّين لصاحب الطلب — فلا يُعرض طالبٌ خارج نطاقه.
+    """
+    from behavior.models import ViolationCategory
+
+    try:
+        sid, cid = uuid.UUID(student_id), uuid.UUID(category_id)
+    except (ValueError, TypeError):
+        return None
+    student = students.filter(pk=sid).first()
+    category = ViolationCategory.objects.filter(pk=cid, is_active=True).first()
+    if student is None or category is None or category.degree is None:
+        return None
+    return student, category
+
+
+def _visible_student_ids(request):
+    """طلبةُ صاحب الطلب — `None` للمدرسة كلِّها، ومجموعةٌ للمقيَّد بجدولٍ أو جناح."""
+    return get_teacher_student_ids(request.user, scope=student_scope_for(request))
+
+
+def _get_scoped_students(request, school):
+    """
+    يُعيد QuerySet طلاب مرئيّ حسب دور المستخدم:
+    - القيادة/الأخصائيون → كل طلاب المدرسة
+    - المشرف الإداري → طلبة جناحه
+    - المعلم/المنسق → طلاب فصوله فقط
+    """
+    student_ids = _visible_student_ids(request)
+    if student_ids is None:
+        # admin/leadership — all students
+        return (
+            CustomUser.objects.filter(
+                memberships__school=school,
+                memberships__role__name="student",
+                memberships__is_active=True,
+            )
+            .order_by("full_name")
+            .distinct()
+        )
+    return CustomUser.objects.filter(id__in=student_ids).order_by("full_name")

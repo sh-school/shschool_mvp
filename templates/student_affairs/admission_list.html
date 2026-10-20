@@ -1,0 +1,55 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+
+{% block title %}طلبات الالتحاق{% endblock %}
+
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="طلبات الالتحاق" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash sa-page">
+  {% page_header "طلبات الالتحاق" icon="swap_requests" %}
+    <a href="{% url 'student_affairs:admission_create' %}" class="btn-primary btn-sm">{% icon "edit_record" %} طلب التحاق جديد</a>
+  {% endpage_header %}
+
+  {% filter_bar "ترشيحُ الطلبات" %}
+    {% field "status" "الحالة" type="select" choices=status_choices value=status_filter blank="— الكل —" data_autosubmit=True %}
+    <div class="filter-actions">
+      <a href="{% url 'student_affairs:admission_list' %}" class="btn-secondary btn-xs">إعادة ضبط</a>
+    </div>
+  {% endfilter_bar %}
+
+  <div class="table-wrap table-wrap-scroll">
+    {% if applications %}
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">الطالب</th>
+          <th scope="col" class="col-center">الصف</th>
+          <th scope="col">مقدِّم الطلب</th>
+          <th scope="col" class="col-center">التاريخ</th>
+          <th scope="col" class="col-center">الحالة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for app in applications %}
+        <tr>
+          <td><a href="{% url 'student_affairs:admission_detail' app.pk %}">{{ app.student_name }}</a></td>
+          <td class="col-center">{{ app.get_grade_display }}</td>
+          <td>{{ app.applicant_name }} — {{ app.applicant_relationship }}</td>
+          <td class="col-center">{{ app.created_at|date:"d/m/Y" }}</td>
+          <td class="col-center">{{ app.get_status_display }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    {% empty_state "لا توجد طلبات التحاق" icon="swap_requests" %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
