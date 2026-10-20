@@ -62,6 +62,8 @@ def test_a_too_short_head_never_matches():
 
 def test_an_automation_author_is_exempt():
     assert chk.verdict("", HEAD, "dependabot[bot]")[0] == "exempt"
+    assert chk.verdict("", HEAD, "app/dependabot")[0] == "exempt"  # الصيغةُ الفعليّة من gh (طلب 1149)
+    assert chk.verdict("", HEAD, "x", is_bot=True)[0] == "exempt"
     assert chk.verdict("", HEAD, "mesuef1974")[0] == "no_line"
 
 

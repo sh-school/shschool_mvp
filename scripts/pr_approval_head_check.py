@@ -51,9 +51,14 @@ def same_head(written: str, head: str) -> bool:
     )
 
 
-def verdict(body: str, head: str, author: str = "") -> tuple[str, str]:
+def is_automation(author: str, is_bot: bool = False) -> bool:
+    """gh يعيد الآليَّ بـ`is_bot` واسمٍ مثل `app/dependabot` (وفي REST `dependabot[bot]`)."""
+    return is_bot or author.startswith("app/") or author.endswith("[bot]")
+
+
+def verdict(body: str, head: str, author: str = "", is_bot: bool = False) -> tuple[str, str]:
     """(الحالة، الرسالة) — حكمٌ نقيٌّ بلا شبكة."""
-    if author.endswith("[bot]"):
+    if is_automation(author, is_bot):
         return "exempt", f"مؤلّفٌ آليّ ({author}): خارجَ فلو الاعتماد البشريّ"
     owner = list(OWNER_HEAD.finditer(body or ""))
     delegated = ev.DELEGATED.findall(body or "")
