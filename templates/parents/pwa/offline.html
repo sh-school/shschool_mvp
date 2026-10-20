@@ -1,38 +1,33 @@
-{% load brand_tags %}
-{% load static %}
-<!DOCTYPE html>
+{% load brand_tags assets static %}<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="{% brand_color 'MAROON' %}">
   <title>غير متصل — SchoolOS</title>
-  <style>
-    {% comment %}
-    كانت صفحةُ «غير متصل» في تطبيق الوليّ كحليّةً (0F2347) — لونٌ لا أثرَ له في
-    المنصّة، وملفُّ تثبيت التطبيق نفسُه عنّابيّ. فصارت على العلامة.
-    {% endcomment %}
-    body { font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif; background: {% brand_color "MAROON" %};
-           color: {% brand_color "ON_FILL" %}; display: flex; align-items: center; justify-content: center;
-           min-height: 100vh; min-height: 100dvh; margin: 0; text-align: center; padding: 24px; }
-    .card { background: {% brand_color "MAROON_DARK" %}; border-radius: 20px; padding: 48px 32px; max-width: 360px; width: 100%; }
-    .icon { font-size: 64px; margin-bottom: 16px; }
-    h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-    p  { color: {% brand_color "MAROON_BORDER" %}; font-size: 14px; line-height: 1.7; margin-bottom: 24px; }
-    button { background: {% brand_color "SURFACE" %}; color: {% brand_color "MAROON" %}; border: none; border-radius: 12px;
-             padding: 12px 28px; font-size: 15px; font-weight: 600; cursor: pointer;
-             font-family: inherit; }
-    button:active { opacity: 0.8; }
-  </style>
+  {% comment %}
+  كانت صفحةُ «غير متصل» في تطبيق الوليّ كتلةَ أنماطٍ مكتوبةً باليد (ولوناً حرفيّاً
+  وأيقونةً تعبيريّة). فصارت على أصناف المنصّة نفسِها كصفحة الانقطاع العامّة
+  `pwa/offline_global.html`: أنماطُ المنصّة المبصومة يخزّنها عاملُ الخدمة أوّلَ
+  مرّةٍ تُطلب، والأيقونةُ SVG مضمَّنةٌ فتظهر بلا طلبٍ إضافيّ حين لا شبكة.
+  {% endcomment %}
+  {% custom_css %}
 </head>
-<body>
-  <div class="card">
-    <div class="icon">📶</div>
-    <h1>لا يوجد اتصال بالإنترنت</h1>
-    <p>
-      يبدو أنك غير متصل بالإنترنت.<br>
-      تحقق من اتصالك وحاول مجدداً.
-    </p>
-    <button data-action="reload">إعادة المحاولة</button>
+<body class="login-page">
+  <div class="login-card">
+    <div class="login-card-body">
+      <div class="empty-state-v2">
+        <div class="es-icon"><svg class="icon icon-2xl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg></div>
+        <h1 class="es-title">لا يوجد اتصال بالإنترنت</h1>
+        <p class="es-sub">
+          يبدو أنك غير متصل بالإنترنت.<br>
+          تحقق من اتصالك وحاول مجدداً.
+        </p>
+      </div>
+      <div class="login-submit-wrap">
+        <button type="button" class="login-btn" data-action="reload">إعادة المحاولة</button>
+      </div>
+    </div>
   </div>
   <script nonce="{{ request.csp_nonce }}">
     window.addEventListener('online', () => window.location.reload());
