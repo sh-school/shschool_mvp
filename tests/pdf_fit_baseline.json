@@ -2,10 +2,9 @@
  "_doc": "خطُّ أساس ملاءمة PDF (المواصفة §٨-٤): engine = سيناريوهاتُ أسوأ المحتوى المرسومةُ بالمحرّك (min_font_pt لا ينزل، pages لا تزيد، continuation_used للقديم وحدَه)؛ legacy = القوالبُ القديمةُ بقيمها المقيسة 2026-09-26 (تُرفع عند كلّ ترحيلٍ إلى المحرّك، لا تُخفض)؛ clipping_sites = مواضعُ القصّ الصامت في قوالب PDF (تنزل ولا تزيد: python -m tests.print_fit_ratchet --update).",
  "clipping_sites": {
   "templates/behavior/pdf/student_report.html": 2,
-  "templates/quality/observation_pdf.html": 1,
   "templates/schedule/pdf/week_grid_css.html": 4,
-  "templates/schedule/print_pages.html": 4,
-  "templates/schedule/print_schedule.html": 5,
+  "templates/schedule/print_pages.html": 2,
+  "templates/schedule/print_schedule.html": 3,
   "templates/student_affairs/student_profile_pdf.html": 1
  },
  "engine": {
