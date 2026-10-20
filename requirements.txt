@@ -16,7 +16,7 @@ brotli==1.2.0
 cbor2==6.1.5
 celery==5.6.3
 celery-types==0.26.0
-certifi==2026.7.22
+certifi==2026.10.19
 cffi==2.1.1
 channels==4.3.2
 channels-redis==4.3.0
@@ -75,7 +75,7 @@ pandas==3.0.6
 pathspec==1.1.1
 pdfminer.six==20260107
 pdfplumber==0.11.10
-pillow==12.3.0
+pillow==13.0.0
 # صورُ آيفون (HEIC) في أعذار الغياب — تُحوَّل JPEG في الخادم (core/photo_privacy.py)
 pillow-heif==1.8.1
 platformdirs==4.13.2
