@@ -12,10 +12,12 @@ from core.views_auth import (
     setup_2fa,
     verify_2fa,
 )
+from core.views_role_choice import choose_role
 
 urlpatterns = [
     path("login/", login_view, name="login"),
     path("logout/", logout_view, name="logout"),
+    path("choose-role/", choose_role, name="choose_role"),
     path("session/status/", session_status, name="session_status"),
     path("session/touch/", session_touch, name="session_touch"),
     path("session/done/", session_done, name="session_done"),
