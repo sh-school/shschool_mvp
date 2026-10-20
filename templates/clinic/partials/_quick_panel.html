@@ -1,0 +1,47 @@
+{% load ui %}
+<div class="form-card">
+  <p class="clinic-quick__who">{{ visit.student.full_name }}</p>
+
+  <fieldset class="clinic-quick__fieldset">
+    <legend>الشكوى</legend>
+    <div class="clinic-quick__btns">
+      {% for code, label in complaints %}
+      <form hx-post="{% url 'clinic:quick_service' visit.id %}" hx-target="#quick-panel" hx-swap="innerHTML">
+        {% csrf_token %}
+        <input type="hidden" name="complaint_code" value="{{ code }}">
+        <button type="submit" class="clinic-tap btn-secondary{% if visit.complaint_code == code %} is-on{% endif %}"
+                aria-pressed="{% if visit.complaint_code == code %}true{% else %}false{% endif %}">{{ label }}</button>
+      </form>
+      {% endfor %}
+    </div>
+  </fieldset>
+
+  {% for group_label, items in service_groups %}
+  <fieldset class="clinic-quick__fieldset">
+    <legend>{{ group_label }}</legend>
+    <div class="clinic-quick__btns">
+      {% for code, label in items %}
+      <form hx-post="{% url 'clinic:quick_service' visit.id %}" hx-target="#quick-panel" hx-swap="innerHTML">
+        {% csrf_token %}
+        <input type="hidden" name="service_code" value="{{ code }}">
+        <button type="submit" class="clinic-tap btn-secondary{% if visit.service_code == code %} is-on{% endif %}"
+                aria-pressed="{% if visit.service_code == code %}true{% else %}false{% endif %}">{{ label }}</button>
+      </form>
+      {% endfor %}
+    </div>
+  </fieldset>
+  {% endfor %}
+
+  <fieldset class="clinic-quick__fieldset">
+    <legend>إغلاق الزيارة</legend>
+    <div class="clinic-quick__btns">
+      {% for code, label in outcomes %}
+      <form hx-post="{% url 'clinic:quick_close' visit.id %}" hx-target="#quick-panel" hx-swap="innerHTML">
+        {% csrf_token %}
+        <input type="hidden" name="outcome" value="{{ code }}">
+        <button type="submit" class="clinic-tap btn-primary">{{ label }}</button>
+      </form>
+      {% endfor %}
+    </div>
+  </fieldset>
+</div>
