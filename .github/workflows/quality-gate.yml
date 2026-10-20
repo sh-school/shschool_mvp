@@ -156,6 +156,7 @@ jobs:
     # دائماً: ليُبلَّغ بنتيجةٍ حتى لو فشل shard (فشلُه يُسقط هذه الوظيفةَ أوّلَ خطوة)؛ إلّا على push (انظر pytest-shards).
     if: always() && github.event_name != 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 10  # test-coverage: p95 0.8 دقيقة (قياس 28 تشغيلاً) ×2 بحدٍّ أدنى 10
     steps:
       - uses: actions/checkout@v7
         with:
@@ -319,6 +320,7 @@ jobs:
   migration-linter:
     name: مدقّق الهجرات — Expand/Contract
     runs-on: ubuntu-latest
+    timeout-minutes: 10  # migration-linter: p95 4.3 دقيقة (39 تشغيلاً) ×2
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
@@ -512,8 +514,9 @@ jobs:
   axe-a11y:
     name: axe-core — وصوليّةٌ حيّة (${{ matrix.leg }})
     runs-on: ubuntu-latest
-    # push إلى main: يُفحص على الطلب وطابور الدمج قبل الدمج (يُعفى skipped وحدَه في scripts/ci_needs_gate.py)
-    if: github.event_name != 'push'
+    timeout-minutes: 20  # axe-a11y: p95 8.4 دقيقة (69 تشغيلاً) ×2
+    # push إلى main وmerge_group: يُفحص على الطلب قبل الدخول فلا يُعاد في الطابور (W-20261019-006، ازدحام السقف 20)؛ يُعفى skipped وحدَه في scripts/ci_needs_gate.py
+    if: github.event_name != 'push' && github.event_name != 'merge_group'
 
     strategy:
       # كلُّ رجلٍ تُبلِّغ فشلَها مستقلّةً (لا يُلغي فشلُ إحداها الأخريَين فيُضيع تشخيصُهما).
@@ -606,8 +609,9 @@ jobs:
   e2e:
     name: Playwright — e2e (مصادقة، تنقّل، صلاحيات)
     runs-on: ubuntu-latest
-    # push إلى main: يُفحص على الطلب وطابور الدمج قبل الدمج (يُعفى skipped وحدَه في scripts/ci_needs_gate.py)
-    if: github.event_name != 'push'
+    timeout-minutes: 20  # e2e: p95 9.6 دقيقة (22 تشغيلاً) ×2
+    # push إلى main وmerge_group: يُفحص على الطلب قبل الدخول فلا يُعاد في الطابور (W-20261019-006، ازدحام السقف 20)؛ يُعفى skipped وحدَه في scripts/ci_needs_gate.py
+    if: github.event_name != 'push' && github.event_name != 'merge_group'
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing

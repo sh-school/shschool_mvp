@@ -168,6 +168,8 @@ BEHAVIOR_RECORD = {
     "e_projects_coordinator",
 }
 BEHAVIOR_MANAGE = {"principal", "vice_admin", "vice_academic", "social_worker"}
+#: قدرةُ behavior.manage وحدَها تضمّ المنسّق (لجنة الضبط)؛ أمّا الثابتُ أعلاه فلا يتغيّر لأنّ غيرها يقرؤه (W-20261018-003).
+BEHAVIOR_MANAGE_HOLDERS = BEHAVIOR_MANAGE | {"student_affairs_coordinator"}
 BEHAVIOR_VIEW_ALL = {
     "principal",
     "vice_admin",
@@ -477,7 +479,8 @@ ABSENCE_ALERT_RECIPIENTS = frozenset({"social_worker", "vice_academic"})
 SCHOOL_WIDE_ABSENCE_ROLES = frozenset({"student_affairs_coordinator"})
 
 #: قبولُ عذرِ غيابٍ بعد مهلة اليومين (الدليل 2026 م 3.4.1.5) — النائبُ الإداريّ لا المشرف.
-EXCUSE_AFTER_DEADLINE = frozenset({"vice_admin", "principal"})
+# منسّقُ شؤون الطلبة يتولّى متابعة الغياب فيقبل العذرَ بعد المهلة: قرارُ المالك 2026-10-18، بطاقة W-20261018-003.
+EXCUSE_AFTER_DEADLINE = frozenset({"vice_admin", "principal", "student_affairs_coordinator"})
 
 #: من يُحصر في طلبة جناحه متى بلغ شاشةَ طلبة (قرارا 2026-09-14/15: «المشرفُ لجناحه فقط»).
 #: تُقارَن بالدور **الخامّ** ولا تمرّ على `expand_roles`: النائبُ الإداريّ يرث المشرفَ في

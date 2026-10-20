@@ -277,6 +277,12 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             .select_related("school", "role")
             .order_by(role_rank(), "joined_at", "id")
         )
+        preferred = self.__dict__.get("_preferred_membership_id")
+        if preferred:
+            # اختيارُ الموظّف من «تبديل الدور»: يتقدّم إن كان عضويّةً نشطةً له، وإلا بقي الترتيبُ كما هو.
+            chosen = [m for m in result if str(m.pk) == preferred]
+            if chosen:
+                result = chosen + [m for m in result if m is not chosen[0]]
         self.__dict__["_active_memberships"] = result
         return result
 

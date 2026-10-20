@@ -36,7 +36,7 @@ def _looks_like_a_path(token: str) -> bool:
     التمييز بالشكل لا بالموضع: `-n auto` يضع `auto` موضعَ المسار، فمَن عدّ
     كلَّ ما لا يبدأ بشرطةٍ مساراً ظنّ المجموعةَ الكاملة مقيَّدةً بملفّ.
     """
-    return token == "." or token.endswith(".py") or "/" in token
+    return token == "." or token.endswith(".py") or "/" in token or token.startswith("${{")
 
 
 def runs_the_whole_suite(text: str) -> bool:
@@ -46,7 +46,13 @@ def runs_the_whole_suite(text: str) -> bool:
     الحارس يمسح لا شيء وهو يبدو أخضر. والمعنى أثبتُ من النصّ.
     """
     joined = text.replace("\\\n", " ")
+    # سطرُ `pip install pytest pytest-django …` تثبيتٌ لا تشغيل: اسمُ الحزمة ليس نداءً بلا مسار (W-20261019-022:
+    # ظهر حين أُعلنت مهلةٌ على وظائف تثبّت pytest ولا تجمع المجموعة)
     for m in _CALL.finditer(joined):
+        line_start = joined.rfind("\n", 0, m.start()) + 1
+        command = re.split(r"&&|;|\|\|", joined[line_start : m.start()])[-1]
+        if "pip install" in command:
+            continue
         if not any(_looks_like_a_path(t) for t in m.group("rest").split()):
             return True
     return False
@@ -72,7 +78,9 @@ def test_the_sweep_finds_the_suite_runners():
     """حارسٌ يمسح لا شيء يمرّ دائماً."""
     runners = {w for w, _, run in _steps() if runs_the_whole_suite(run)}
 
-    assert len(runners) >= 3, f"لم يُعثر إلّا على {runners}"
+    # كان العتبةُ ثلاثةً ويبلغها العدُّ بسطور `pip install pytest …` وبمسارٍ مصفوفيٍّ `${{ matrix.tests }}` ظُنّت مجموعةً كاملة
+    # (W-20261019-022: حين أُعلنت مهلةٌ على تلك الوظائف ظهر الخطأ)؛ والمجموعةُ الكاملةُ الفعليّةُ اليوم وظيفةُ pytest-shards.
+    assert "quality-gate.yml:pytest-shards" in runners, f"لم يُعثر إلّا على {runners}"
 
 
 def test_a_full_suite_job_that_declares_a_budget_runs_in_parallel():

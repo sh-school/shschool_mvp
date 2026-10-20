@@ -84,6 +84,11 @@
   transition: border-color .12s, background .12s;
 }
 
+/* ── خيارُ الدور في صفحة تبديل الدور: الدائرةُ بحجمها لا تتمدّد في عرض 375 ─── */
+.role-pill { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-md); cursor: pointer; }
+.role-pill input { accent-color: var(--maroon-fg); inline-size: auto; flex: none; }
+.role-pill span { min-inline-size: 0; overflow-wrap: anywhere; }
+
 /* ── Status Background Cards (light tint + border) ─── */
 
 

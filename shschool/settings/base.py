@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "wings.apps.WingsConfig",
     # خارطة تجويد المنصّة — لمطوّر المنصّة وحدَه (أدوات المطوّر)
     "roadmap.apps.RoadmapConfig",
+    "decisions_registry.apps.DecisionsRegistryConfig",
     # مركز قيادة الجودة — عرضٌ حيٌّ لصحّة المنصّة لمطوّرها وحدَه في /command-center/ بالمنصّة (بلا نماذج)
     "command_center.apps.CommandCenterConfig",
     # الحوكمة وحماية البيانات: المحو والاحتفاظ وتدوير المفاتيح ووصول الملفّات (ADR-0004)
@@ -95,6 +96,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # ✅ v5.4: axes يجب أن يكون بعد AuthenticationMiddleware مباشرةً
     "axes.middleware.AxesMiddleware",
+    # اختيارُ الدور العامل (W-20261019-008): قبل RLS كي يرى كلُّ وسيطٍ بعده العضويّةَ المختارة.
+    "core.active_role.ActiveRoleChoiceMiddleware",
     # ✅ v5.6: RLS — يجب أن يضبط السياق قبل أي middleware يستعلم جداول محميّة
     "core.middleware_rls.RLSMiddleware",
     "django_htmx.middleware.HtmxMiddleware",

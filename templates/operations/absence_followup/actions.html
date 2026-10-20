@@ -32,7 +32,7 @@
                   {% csrf_token %}
                   <input type="hidden" name="student" value="{{ row.student.id }}">
                   <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
-                  <input type="hidden" name="grade" value="{{ f_grade }}"><input type="hidden" name="wing" value="{{ f_wing }}"><input type="hidden" name="followup" value="{{ f_followup }}"><input type="hidden" name="page" value="actions">
+                  <input type="hidden" name="grade" value="{{ f_grade }}"><input type="hidden" name="wing" value="{{ f_wing }}"><input type="hidden" name="followup" value="{{ f_followup }}"><input type="hidden" name="q" value="{{ f_search }}"><input type="hidden" name="page" value="actions">
                   {% if row.action %}<input type="hidden" name="corrects" value="{{ row.action.id }}">{% endif %}
                   <select name="status" class="form-control" aria-label="حالةُ الإجراء"{% if can_followup %} required{% endif %}>
                     {% for value, label in statuses %}<option value="{{ value }}">{{ label }}</option>{% endfor %}

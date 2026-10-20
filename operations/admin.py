@@ -9,6 +9,7 @@ from .admin_forms import TeacherPreferenceAdminForm, effective_cap
 from .models import (
     AbsenceAlert,
     AbsenceExcuse,
+    AbsenceReportSnapshot,
     AttendanceDecision,
     AttendanceEntry,
     ClassExit,
@@ -191,6 +192,13 @@ class AttendanceDecisionAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     list_select_related = ("entry", "decided_by")
     list_filter = ("decision", "basis", "school")
     date_hierarchy = "decided_at"
+
+
+@admin.register(AbsenceReportSnapshot)
+class AbsenceReportSnapshotAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ("kind", "grade_scope", "period_start", "period_end", "revision", "generated_at")
+    list_filter = ("kind", "grade_scope", "school")
+    date_hierarchy = "generated_at"
 
 
 @admin.register(AbsenceAlert)

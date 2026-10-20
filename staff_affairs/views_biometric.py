@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import secrets
 import time
+from dataclasses import replace
 from typing import Any, cast
 
 from django.contrib import messages
@@ -54,6 +55,10 @@ def attendance_import(request: HttpRequest) -> HttpResponse:
             except biometric.BiometricFileError as exc:
                 ctx["error"] = str(exc)
             else:
+                # يومٌ مختارٌ يفرض نفسَه على كلّ الأسطر؛ والمكرَّرُ بعده يُرفض في المعاينة كما هو.
+                forced = form.cleaned_data.get("day")
+                if forced:
+                    parsed.rows[:] = [replace(row, day=forced) for row in parsed.rows]
                 plan = biometric.preview(ctx["school"], request.user, parsed.rows, parsed.issues)  # type: ignore[arg-type]
                 token = secrets.token_urlsafe(16)
                 request.session[SESSION_KEY] = {
