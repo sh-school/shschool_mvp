@@ -11,7 +11,9 @@ from tests.operations.test_absence_followup import (  # noqa: F401
     second_wing,
     staff,
 )
+from tests.test_absence_excuses import MONDAY, _absent_day  # noqa: F401
 from tests.test_period_register import (  # noqa: F401
+    SUNDAY,
     kids,
     klass,
     other_teacher,

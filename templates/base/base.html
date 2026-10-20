@@ -1126,7 +1126,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
     <p class="sd-user-role">{{ request.user.get_role_display }}</p>
   </div>
   {% if request.user.has_multiple_roles %}
-  <a href="/auth/choose-role/">{% icon "role_switch" %} تبديل الدور</a>
+  <a href="{% url 'choose_role' %}">{% icon "role_switch" %} تبديل الدور</a>
   {% endif %}
   {% if request.user|can_open:"notification_inbox" %}
   <a href="{% url 'notification_inbox' %}">{% icon "notifications" %} الإشعارات</a>
