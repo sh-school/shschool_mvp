@@ -330,6 +330,7 @@ def followup_xlsx(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+@capability_required("operations.absence_followup_print")
 def contact_sheet(request: HttpRequest) -> HttpResponse:
     """ورقةُ الاتصال المستقلّة أُلغيت (قرار المالك): الرابطُ القديم يحوَّل إلى صفحة عرض التواصل لا 404."""
     query = request.GET.copy()
