@@ -103,14 +103,22 @@ def match_paths(paths: list[str], rules: dict) -> dict[str, list[str]]:
 
 
 def added_lines_by_file(diff: str) -> dict[str, list[str]]:
-    """الأسطرُ المضافة لكلّ ملفٍّ من فرقٍ موحَّد؛ تُحفظ ببادئة «+»."""
+    """الأسطرُ المضافة لكلّ ملفٍّ من فرقٍ موحَّد؛ تُحفظ ببادئة «+».
+
+    ترويسةُ الملف (`+++ `) لا تُقبل إلا داخل ترويسة `diff --git` قبل أوّل `@@`؛ فسطرٌ مضافٌ نصُّه «++ b/x»
+    لا يحوّل نسبةَ ما بعده إلى ملفٍّ آخر فيفلت من مرشّح الملفات."""
     files: dict[str, list[str]] = {}
     current: str | None = None
+    in_header = False
     for line in diff.splitlines():
-        if line.startswith("+++ "):
+        if line.startswith("diff --git "):
+            in_header, current = True, None
+        elif in_header and line.startswith("+++ "):
             name = line[4:]
             current = None if name == "/dev/null" else name.removeprefix("b/")
-        elif line.startswith("+") and current is not None:
+        elif line.startswith("@@"):
+            in_header = False
+        elif not in_header and line.startswith("+") and current is not None:
             files.setdefault(current, []).append(line)
     return files
 

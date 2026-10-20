@@ -117,6 +117,19 @@ class TestContent:
     def test_removed_lines_do_not_count(self, rules):
         assert sp.match_content(DIFF_REMOVED, rules) == {}
 
+    def test_added_line_that_looks_like_header_does_not_switch_file(self, rules):
+        lines = [
+            "diff --git a/x.py b/x.py",
+            "--- a/x.py",
+            "+++ b/x.py",
+            "@@ -1 +1,2 @@",
+            "+++ b/operations/urls.py",
+            "+path('a/', v)",
+        ]
+        diff = "\n".join(lines) + "\n"
+        assert set(sp.added_lines_by_file(diff)) == {"x.py"}
+        assert sp.match_content(diff, rules) == {}
+
     def test_deleted_file_header_ignored(self, rules):
         diff = "diff --git a/a.py b/a.py\n--- a/a.py\n+++ /dev/null\n@@ -1 +0,0 @@\n-x\n"
         assert sp.added_lines_by_file(diff) == {}
