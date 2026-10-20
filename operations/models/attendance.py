@@ -317,6 +317,41 @@ class StudentAttendance(models.Model):
         return f"{self.student.full_name} | {self.get_status_display()} | {self.session}"
 
 
+class TardinessExcuse(models.Model):
+    """عذرُ تأخّرٍ عن حصّة — سجلٌّ جديدٌ يعتمده معلّمُ الحصّة في يومها (قرارُ المالك 2026-10-20، W-20261002-028).
+
+    لا يعدّل سطرَ الحضور: يُسقط التأخّرَ من عدّادَي المرّات والدقائق (`operations/tardiness.py`
+    و`operations/presence.py`) بوجوده، ويُلغى بحذفه فيعود التأخّرُ كما رُصد.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="tardiness_excuses", verbose_name="المدرسة"
+    )
+    attendance = models.OneToOneField(
+        "operations.StudentAttendance",
+        on_delete=models.CASCADE,
+        related_name="tardiness_excuse",
+        verbose_name="سجلُّ التأخّر",
+    )
+    reason = models.CharField(max_length=300, blank=True, verbose_name="بيان العذر")
+    granted_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="tardiness_excuses_granted",
+        verbose_name="اعتمده المعلّم",
+    )
+    granted_at = models.DateTimeField(auto_now_add=True, verbose_name="وقتُ الاعتماد")
+
+    class Meta:
+        verbose_name = "عذرُ تأخّر"
+        verbose_name_plural = "أعذارُ التأخّر"
+
+    def __str__(self) -> str:
+        return f"عذرُ تأخّر {self.attendance_id}"
+
+
 class AbsenceExcuse(models.Model):
     """عذرٌ لغياب طالبٍ في مدّة — قرارُ المشرف في المهلة، أو طلبٌ ينتظر النائبَ بعدها.
 
