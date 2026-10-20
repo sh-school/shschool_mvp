@@ -283,3 +283,19 @@ def test_tool_blob_is_the_running_file_not_the_repo_path(tmp_path):
         check=True,
     ).stdout.strip()
     assert body["tool_blob"] == running and running != repo_copy
+
+
+def test_map_is_generated_from_rules_and_covers_every_rule_and_tool():
+    assert set(at.RULE_PATHS) == {name for name, _m, _g in at.RULES}
+    assert set(at.TOOL_PATHS) == {"mypy_ratchet", "actionlint"}
+    text = at.render_map(exists=lambda p: p != "tests/test_table_classification.py")
+    for name, _m, guards in at.RULES:
+        assert name in text
+        assert all(f"`{g}`" in text for g in guards)
+    assert "`tests/test_table_classification.py` (غيرُ موجود)" in text
+
+
+def test_for_paths_main_prints_guards_without_git(capsys):
+    assert at.main(["--for", "templates/x.html", "docs/other.md"]) == 0
+    out = capsys.readouterr().out
+    assert "tests/test_page_layouts.py" in out and "docs/other.md" in out
