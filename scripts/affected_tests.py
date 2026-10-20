@@ -104,6 +104,7 @@ RULES: tuple[tuple[str, object, tuple[str, ...]], ...] = (
     (
         "خريطةُ الحرّاس",
         lambda p: p == "docs/governance/regression_guards.md"
+        or p.startswith("docs/governance/guards/")
         or (p.startswith("tests/") and "ratchet" in p),
         ("tests/test_regression_guards_doc.py",),
     ),
