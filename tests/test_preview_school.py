@@ -45,3 +45,26 @@ def test_guard_flags_school_outside_preview():
     assert second.preview_school_in_wrong_environment() is False
     School.objects.create(code=second.SCHOOL_CODE, name=second.SCHOOL_NAME, is_active=True)
     assert second.preview_school_in_wrong_environment() is True
+
+
+def test_injection_rejects_every_row_of_the_second_school_range():
+    from academic_management import preview_reconciliation as recon
+
+    rows = [
+        {"teacher_hmac": "", "teacher_employee_number": number}
+        for number in second.EMPLOYEE_NUMBERS.values()
+    ]
+    problems = recon.injection_violations({"assignments": rows, "workload_plans": rows})
+    assert len(problems) == 2 * len(rows)
+
+
+def test_injection_does_not_reject_a_number_just_outside_the_range():
+    from academic_management import preview_reconciliation as recon
+
+    problems = recon.injection_violations(
+        {
+            "assignments": [{"teacher_hmac": "", "teacher_employee_number": "99800013"}],
+            "workload_plans": [],
+        }
+    )
+    assert problems == []
