@@ -216,17 +216,38 @@ def grade_choices(summary: MinistrySummary) -> list[tuple[str, str]]:
     return [(grade.key, grade.label) for grade in summary.grades if grade.key]
 
 
-def narrow(summary: MinistrySummary, *, grade: str = "", q: str = "") -> MinistrySummary:
-    """ملخّصٌ مضيَّقٌ بصفٍّ و/أو بحثٍ في الشعبة أو اسم الطالب — والمجاميعُ تُعاد من الصفوف الباقية.
+def wing_choices(summary: MinistrySummary) -> list[tuple[str, str]]:
+    """(معرّفُ الجناح، اسمُه) لأجنحة الشُّعب في الملخّص — بترتيب ظهورها، وبلا جناحٍ لا يُعرض."""
+    seen: dict[str, str] = {}
+    for row in summary.class_rows:
+        wing = getattr(row.group, "wing", None)
+        if wing is not None:
+            seen.setdefault(str(wing.pk), str(wing.name))
+    return list(seen.items())
+
+
+def _in_wing(row: ClassRow, wing: str) -> bool:
+    return not wing or str(row.group.wing_id or "") == wing
+
+
+def _matches_search(row: ClassRow, needle: str, by_name: set[str]) -> bool:
+    code = row.group.short_code
+    return not needle or needle in code or code in by_name
+
+
+def narrow(
+    summary: MinistrySummary, *, grade: str = "", q: str = "", wing: str = ""
+) -> MinistrySummary:
+    """ملخّصٌ مضيَّقٌ بصفٍّ و/أو جناحٍ و/أو بحثٍ في الشعبة أو اسم الطالب — والمجاميعُ تُعاد من الصفوف الباقية.
 
     فما يراه المستخدمُ في الجدول والأرقام والتصدير شيءٌ واحد: ترشيحٌ لا يطابق مجموعَه. والبحثُ باسمِ طالبٍ
     يُبقي شعبتَه وحدَها، وبرمز شعبةٍ يُبقي الشعبةَ وأسماءَ من يُرفعون منها.
     """
     needle = (q or "").strip()
-    if not grade and not needle:
+    if not grade and not needle and not wing:
         return summary
     in_scope = [g for g in summary.grades if not grade or g.key == grade]
-    scope_codes = {row.group.short_code for g in in_scope for row in g.rows}
+    scope_codes = {row.group.short_code for g in in_scope for row in g.rows if _in_wing(row, wing)}
     by_name = {m.class_code for m in summary.ministered if needle and needle in m.name}
     ministered = [
         m
@@ -240,7 +261,7 @@ def narrow(summary: MinistrySummary, *, grade: str = "", q: str = "") -> Ministr
         rows = [
             row
             for row in source.rows
-            if not needle or needle in row.group.short_code or row.group.short_code in by_name
+            if _in_wing(row, wing) and _matches_search(row, needle, by_name)
         ]
         if not rows:
             continue

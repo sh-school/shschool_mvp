@@ -31,6 +31,22 @@ RETAINED = {
         "core.AuditLog",
         "user",
     ): "سجلُّ التدقيق ملحقٌ لا يُعدَّل؛ المستخدمُ مجهَّلٌ فيه (ip وuser_agent بطاقةٌ مستقلّة بقرار المالك/DPO)",
+    (
+        "student_affairs.AdmissionApplication",
+        "applicant_national_id",
+    ): "طلبُ التحاقٍ قبل التسجيل لا حسابَ فيه؛ مدّةُ الاحتفاظ بقرار 0105/DPO",
+    (
+        "student_affairs.AdmissionApplication",
+        "applicant_phone",
+    ): "طلبُ التحاقٍ قبل التسجيل لا حسابَ فيه؛ مدّةُ الاحتفاظ بقرار 0105/DPO",
+    (
+        "student_affairs.AdmissionApplication",
+        "student_name",
+    ): "طلبُ التحاقٍ قبل التسجيل لا حسابَ فيه؛ مدّةُ الاحتفاظ بقرار 0105/DPO",
+    (
+        "student_affairs.AdmissionApplication",
+        "student_national_id",
+    ): "طلبُ التحاقٍ قبل التسجيل لا حسابَ فيه؛ مدّةُ الاحتفاظ بقرار 0105/DPO",
     ("core.Membership", "user"): "ربطُ مجهَّلٍ بالمدرسة لا يحمل بياناً؛ يُبقي سلامةَ العدّ والإحصاء",
     ("core.CapabilityGrant", "user"): "صلاحيّاتُ كادرٍ لا طلبة",
     ("token_blacklist.OutstandingToken", "user"): (

@@ -412,7 +412,13 @@ SORTS = [
 
 
 def apply_view(
-    rows: list[dict], *, grade: str = "", wing: str = "", followup: str = "", sort: str = ""
+    rows: list[dict],
+    *,
+    grade: str = "",
+    wing: str = "",
+    followup: str = "",
+    sort: str = "",
+    search: str = "",
 ) -> list[dict]:
     """يصفّي صفوفَ الخدمة بالصفّ والجناح وحالة المتابعة ويفرزها — بعد أن ضيّقت الخدمةُ النطاقَ، فلا يتّسع به.
 
@@ -420,9 +426,12 @@ def apply_view(
     خارج القائمة البيضاء يُهمَل فيرجع الافتراضيَّ؛ والصفُّ والجناحُ يُقارَنان بالصفوف في الذاكرة فقط (لا استعلامَ منهما).
     """
     followup = followup if followup in dict(FOLLOWUP_FILTERS) else ""
+    needle = (search or "").strip()
     out = []
     for row in rows:
         group = row["class_group"]
+        if needle and needle not in row["student"].full_name and needle not in group.short_code:
+            continue
         if grade and getattr(group, "grade", None) != grade:
             continue
         if wing and str(getattr(group, "wing_id", "")) != wing:
@@ -555,7 +564,13 @@ def wing_choices(school: Any) -> list[tuple[Any, str]]:
     return list(Wing.objects.filter(school=school).order_by("code").values_list("id", "name"))
 
 
-def view_query(grade: str, wing: str, followup: str, sort: str) -> str:
+def view_query(grade: str, wing: str, followup: str, sort: str, search: str = "") -> str:
     """سلسلةُ الاستعلام التي تحمل تصفيةَ الشاشة وفرزَها إلى الطباعة والعودة."""
-    pairs = (("grade", grade), ("wing", wing), ("followup", followup), ("sort", sort))
+    pairs = (
+        ("grade", grade),
+        ("wing", wing),
+        ("followup", followup),
+        ("sort", sort),
+        ("q", search),
+    )
     return urlencode({k: v for k, v in pairs if v})

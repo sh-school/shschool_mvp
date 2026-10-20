@@ -127,7 +127,7 @@ def audit_infraction_read(request: HttpRequest, infractions: Any) -> None:
 class BehaviorService:
     # ── عدّ مخالفات الطالب ─────────────────────────────────────────────
     #
-    # [W-20261013-010] كان هنا «مؤشّرُ سلوك» من 100 يُحسب بأوزانٍ ابتدعتها المنصّة (2/5/10/25) ثم يُعرض ويُرسَل
+    # [W-20261013-010] كان هنا «مؤشّرُ سلوك» (ملغى) من 100 يُحسب بأوزانٍ ابتدعتها المنصّة (2/5/10/25) ثم يُعرض ويُرسَل
     # لوليّ الأمر؛ ولا أصلَ له في دليل السلوك 2026 فأُزيل. يبقى العدّ الإجماليُّ وحده.
     @staticmethod
     def get_student_score(
@@ -832,6 +832,43 @@ class BehaviorService:
         max_step = len(steps)
         # المخالفة الأولى = الخطوة 1, الثانية = 2, ...
         return min(prior + 1, max_step)
+
+    @staticmethod
+    def preview_escalation(
+        student: CustomUser,
+        school: School,
+        level: int,
+        violation_category: Any = None,
+        session: Any = None,
+    ) -> dict[str, Any]:
+        """ما سيُحسب قبل الحفظ — قراءةٌ فقط بلا كتابة (W-20260928-007).
+
+        تستعمل الاقتراحَ نفسه الذي يكتب `create_infraction`، فما يظهر للمسجِّل
+        قبل الحفظ هو ما يُخزَّن بعده. الخطوةُ المعادة 0 إن لم تكن للدرجة سلّم.
+        """
+        from .conduct_2026 import BY_CODE
+
+        prior = BehaviorService.get_prior_infraction_count(
+            student, school, level, violation_category, session=session
+        )
+        step = BehaviorService.suggest_escalation_step(
+            student, school, level, violation_category, session=session
+        )
+        if violation_category and violation_category.code in BY_CODE:
+            raw = violation_category.get_escalation_steps()
+        else:
+            raw = ESCALATION_STEPS.get(level, [])
+        steps = [
+            (number, item[1] if isinstance(item, tuple | list) else item)
+            for number, item in enumerate(raw, start=1)
+        ]
+        texts = dict(steps)
+        return {
+            "prior": prior,
+            "step": step,
+            "steps": steps,
+            "next_text": texts.get(step, ""),
+        }
 
     @staticmethod
     @transaction.atomic

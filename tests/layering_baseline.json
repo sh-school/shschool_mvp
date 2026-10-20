@@ -87,7 +87,7 @@
  ],
  "core_import_sites": {
   "academic_management": [
-   "core/capabilities.py"
+   "core/capabilities/workload.py"
   ],
   "assessments": [
    "core/dashboard_selectors.py",
@@ -125,7 +125,7 @@
    "core/management/commands/import_enrolment_register.py"
   ],
   "student_info": [
-   "core/capabilities.py"
+   "core/capabilities/student_affairs.py"
   ],
   "transport": [
    "core/dashboard_selectors.py"
@@ -297,18 +297,9 @@
   "behavior/views.py::_deny_unreachable": {
    "orm": 17
   },
-  "behavior/views.py::_get_scoped_students": {
-   "orm": 24
-  },
-  "behavior/views.py::_quick_log_context": {
-   "orm": 27
-  },
-  "behavior/views.py::_visible_student_ids": {
-   "orm": 17
-  },
   "behavior/views.py::behavior_dashboard": {
    "lines": 77,
-   "orm": 36
+   "orm": 19
   },
   "behavior/views.py::behavior_report": {
    "orm": 18
@@ -316,13 +307,9 @@
   "behavior/views.py::behavior_statistics": {
    "orm": 17
   },
-  "behavior/views.py::quick_log": {
-   "lines": 93,
-   "orm": 29
-  },
   "behavior/views.py::report_infraction": {
    "lines": 107,
-   "orm": 30
+   "orm": 6
   },
   "behavior/views.py::student_behavior_pdf": {
    "orm": 22
@@ -332,7 +319,7 @@
   },
   "behavior/views.py::summon_parent": {
    "lines": 146,
-   "orm": 34
+   "orm": 10
   },
   "clinic/views.py::student_health_record": {
    "orm": 7

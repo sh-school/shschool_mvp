@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import admission_views, views
 
 app_name = "student_affairs"
 
@@ -21,6 +21,11 @@ urlpatterns = [
     path("transfers/create/", views.transfer_create, name="transfer_create"),
     path("transfers/<uuid:pk>/", views.transfer_detail, name="transfer_detail"),
     path("transfers/<uuid:pk>/review/", views.transfer_review, name="transfer_review"),
+    # ── طلبات الالتحاق (نموذج 07) ──
+    path("admissions/", admission_views.admission_list, name="admission_list"),
+    path("admissions/create/", admission_views.admission_create, name="admission_create"),
+    path("admissions/<uuid:pk>/", admission_views.admission_detail, name="admission_detail"),
+    path("admissions/<uuid:pk>/action/", admission_views.admission_action, name="admission_action"),
     # ── الحضور والسلوك (ملخصات) ──
     path("attendance/", views.attendance_overview, name="attendance_overview"),
     path("attendance/export/", views.attendance_export_excel, name="attendance_export"),

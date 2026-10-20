@@ -18,7 +18,8 @@
 /* أعمدةٌ مرنةٌ: القصيرةُ (الرقم والشعبة والهاتف) بقدر محتواها بلا التفاف، والاسمُ سطرٌ واحد، والنصوصُ الحرّةُ تتقاسم الباقي وتلتفّ (قرار المالك 2026-10-13) */
 .fu-grid td.fu-c-no, .fu-grid th.fu-c-no, .fu-grid td.fu-c-class, .fu-grid th.fu-c-class, .fu-grid td.fu-c-phone, .fu-grid th.fu-c-phone { width: 1%; white-space: nowrap; }
 .fu-grid td.fu-c-name, .fu-grid th.fu-c-name { white-space: nowrap; text-align: right; }
-.fu-sign { margin-top: 18px; width: 30%; text-align: center; }
+.fu-grid tr.fu-wing th { background: {% brand_color "SURFACE_ALT" %}; color: {% brand_color "TEXT_PRIMARY" %}; text-align: right; border: 1px solid {% brand_color "BORDER_STRONG" %}; }
+.fu-sign { margin-top: 18px; width: 45%; text-align: center; }
 .fu-sign .fu-line { border-top: 1px solid {% brand_color "TEXT_PRIMARY" %}; padding-top: 3px; }
 {% endblock %}
 
@@ -31,7 +32,7 @@
   <table class="fu-grid">
     <thead>
       <tr>
-        <th scope="col" class="fu-c-no">م</th><th scope="col" class="fu-c-name">الطالب</th><th scope="col" class="fu-c-class">الشعبة</th>
+        <th scope="col" class="fu-c-no">م</th><th scope="col" class="fu-c-name">الطالب</th><th scope="col" class="fu-c-class">الصف</th>
         {% if page == "actions" %}
         <th scope="col">الإجراءُ الحاليّ</th><th scope="col">وقتُ التنفيذ</th><th scope="col">متابعةُ الإجراء</th><th scope="col">وقتُ المتابعة ومن سجّلها</th>
         {% else %}
@@ -41,6 +42,7 @@
     </thead>
     <tbody>
       {% for row in rows %}
+      {% ifchanged row.wing_title %}<tr class="fu-wing"><th colspan="9" scope="colgroup">{{ row.wing_title }}</th></tr>{% endifchanged %}
       <tr class="g-{{ row.class_group.grade|lower }}">
         <td class="fu-c-no">{{ forloop.counter }}</td>
         <td class="fu-c-name">{{ row.student.full_name }}</td>
@@ -63,6 +65,6 @@
       {% endfor %}
     </tbody>
   </table>
-  <div class="fu-sign"><div class="fu-line">مشرفُ الجناح</div></div>
+  <div class="fu-sign"><div class="fu-line">أصدر الملف: {{ issuer }} — {{ issued_at|date:"d/m/Y H:i" }}</div></div>
   </div>
 {% endblock %}

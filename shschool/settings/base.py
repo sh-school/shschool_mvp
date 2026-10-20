@@ -96,6 +96,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # ✅ v5.4: axes يجب أن يكون بعد AuthenticationMiddleware مباشرةً
     "axes.middleware.AxesMiddleware",
+    # اختيارُ الدور العامل (W-20261019-008): قبل RLS كي يرى كلُّ وسيطٍ بعده العضويّةَ المختارة.
+    "core.active_role.ActiveRoleChoiceMiddleware",
     # ✅ v5.6: RLS — يجب أن يضبط السياق قبل أي middleware يستعلم جداول محميّة
     "core.middleware_rls.RLSMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
