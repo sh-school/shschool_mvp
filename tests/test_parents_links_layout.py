@@ -4,6 +4,7 @@
 فتتقاطع مع حشوٍ ثانٍ إن تغيّر أحدهما. والآن الهامشُ من رموز الحشو نفسِها فيتبعها.
 """
 
+import pathlib
 import re
 
 from tests.css_contrast import iter_rules
@@ -39,3 +40,10 @@ def test_a_closed_card_drops_its_bottom_padding_instead_of_a_negative_bar_margin
     card = rules.get(".links-add:not([open])", {})
     assert bar.get("margin-block-end") == "0"
     assert card.get("padding-block-end") == "0"
+
+
+def test_the_submit_row_wraps_without_a_pixel_margin_on_the_hint():
+    """الزرُّ والتلميحُ في سطرٍ مرنٍ يلتفّ؛ فلا `mr-3` على التلميح يتراكب مع الزرّ عند 375."""
+    html = pathlib.Path("templates/parents/manage_links.html").read_text(encoding="utf-8")
+    assert "links-add__actions" in html
+    assert "ui-field-hint mr-3" not in html
