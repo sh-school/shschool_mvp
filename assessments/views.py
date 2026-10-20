@@ -29,6 +29,7 @@ from core.privacy import mask_national_id
 from core.user_selectors import school_user_or_404
 from operations.models import Subject
 
+from . import selectors
 from .forms import CreateAssessmentForm
 from .models import (
     EXCUSE_TYPES,
@@ -815,27 +816,18 @@ def failing_students(request):
 @capability_required("assessments.decide_excuse")
 def excuse_queue(request):
     """غياباتُ الاختبار التي رصدها المعلّمون وتنتظر قرارَ العذر، ثمّ آخرُ الأعذار المقرَّرة."""
-    rows = StudentAssessmentGrade.objects.filter(school=request.school, is_absent=True)
-    rows = rows.select_related(
-        "student",
-        "assessment__package__setup__class_group",
-        "assessment__package__setup__subject",
-    )
-    pending = Paginator(rows.filter(is_excused=False).order_by("-entered_at"), 25)
+    pending = Paginator(selectors.pending_excuse_rows(request.school), 25)
     page_obj = pending.get_page(request.GET.get("page"))
     for row in page_obj:  # آخرُ موعدٍ لتقديم العذر لكلّ غياب (D-403م) — يُقرأ من جدول الاختبار لا يُنسخ
         found = GradeService.excuse_deadline(row.assessment)
         row.excuse_deadline = found[0] if found else None
-    decided = rows.filter(is_excused=True, excuse_decided_at__isnull=False).select_related(
-        "excuse_decided_by"
-    )
     return render(
         request,
         "assessments/excuse_queue.html",
         {
             "page_obj": page_obj,
             "today": timezone.localdate(),
-            "decided": decided.order_by("-excuse_decided_at")[:20],
+            "decided": selectors.decided_excuse_rows(request.school),
             "EXCUSE_TYPES": EXCUSE_TYPES,
             "subtitle": f"الغياباتُ التي تنتظر القرار: {pending.count}",
         },

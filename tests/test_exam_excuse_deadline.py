@@ -17,7 +17,7 @@ from exam_control.models import ExamSession
 from tests.test_exam_excuse_decision import _decide, _row, _staff, absent  # noqa: F401
 from tests.test_grade_save_all import assessment  # noqa: F401
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 SCHEDULE_END = date(2026, 1, 10)  # السبت
 LAST_DAY = SCHEDULE_END + timedelta(days=3)  # الثلاثاء 13 — آخرُ يوم مقبول

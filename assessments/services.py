@@ -19,6 +19,7 @@ from django.db import transaction
 from django.db.models import Avg, Count, Q, QuerySet
 
 from core.academic_calendar import academic_year_for_school
+from core.audit_repr import masked_repr
 from core.domain.grades import GRADE_BANDS, band_of
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
@@ -262,7 +263,7 @@ class GradeService:
             action="update",
             model_name="StudentAssessmentGrade",
             object_id=assessment.pk,
-            object_repr=f"{student.full_name} — {assessment.title}",
+            object_repr=masked_repr(assessment),
             changes={
                 "excuse_attempt": "rejected_after_deadline",
                 "submitted_on": submitted_on.isoformat(),
@@ -320,7 +321,7 @@ class GradeService:
             action="update",
             model_name="StudentAssessmentGrade",
             object_id=row.pk,
-            object_repr=f"{student.full_name} — {assessment.title}",
+            object_repr=masked_repr(row),
             changes={"excuse": "decided"},
             school=assessment.school,
         )
