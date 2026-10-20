@@ -232,3 +232,54 @@ def test_the_docstring_states_it_is_not_a_gate_or_an_approval_reference():
     assert "ليست حاجزاً ولا مرجعاً للاعتماد" in doc and "نسخة main" in doc
     assert "لا يعني السلامة" in doc
     assert "ليس حاجزاً ولا مرجعاً للاعتماد" in (_ROOT / "Makefile").read_text(encoding="utf-8")
+
+
+# ── W-20261004-009: رفضُ اتّصال القاعدة غيرُ مقيس، وبصمةُ الأداة من الملفّ الجاري ─────────────
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        'psycopg2.OperationalError: connection to server at "localhost" (::1), port 5432 failed: Connection refused',
+        "django.db.utils.OperationalError: could not connect to server: Connection refused",
+        "sqlalchemy: connection refused (port 5433)",
+    ],
+)
+def test_a_refused_database_connection_is_unmeasured_not_a_failure(monkeypatch, text):
+    """بيئةٌ بلا قاعدةٍ ليست فشلَ اختبار: تُصنَّف «غير مقيس» (رمزُ الخروج 3) لا تمنعُ دفعاً كاذباً."""
+    monkeypatch.setattr(at, "_run", lambda *a, **k: subprocess.CompletedProcess(a, 1, "", text))
+    status, detail = at.run_pytest(["tests/test_x.py"])
+    assert status == at.MISSING and "قاعدة" in detail
+
+
+def test_a_real_test_failure_stays_a_failure(monkeypatch):
+    out = "FAILED tests/test_x.py::test_a - AssertionError: assert 1 == 2"
+    monkeypatch.setattr(at, "_run", lambda *a, **k: subprocess.CompletedProcess(a, 1, out, ""))
+    assert at.run_pytest(["tests/test_x.py"])[0] == at.FAIL
+
+
+def test_tool_blob_is_the_running_file_not_the_repo_path(tmp_path):
+    """`--verify` من نسخة main في مجلّدٍ مؤقّت: البصمةُ تُكتب من الملفّ المنفَّذ لا من نسخة الفرع في المستودع."""
+    copy = tmp_path / "affected_tests_main.py"
+    copy.write_text(
+        (_ROOT / "scripts" / "affected_tests.py").read_text(encoding="utf-8") + "\n# نسخةٌ مغايرة\n",
+        encoding="utf-8",
+    )
+    spec = importlib.util.spec_from_file_location("affected_tests_copy", copy)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    plan = {"tests": [], "absent": [], "tools": [], "unmatched": []}
+
+    body = mod.build_fingerprint("a" * 40, "b" * 40, [], plan, {}, [])
+
+    running = subprocess.run(
+        ["git", "hash-object", str(copy)], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    repo_copy = subprocess.run(
+        ["git", "hash-object", "scripts/affected_tests.py"],
+        capture_output=True,
+        text=True,
+        cwd=_ROOT,
+        check=True,
+    ).stdout.strip()
+    assert body["tool_blob"] == running and running != repo_copy
