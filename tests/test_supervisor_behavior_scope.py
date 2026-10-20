@@ -167,10 +167,9 @@ class TestRecording:
         assert client.get(resp.url).status_code == 200
 
         resp = client.post(
-            reverse("behavior:quick_log"),
-            {"student_id": str(mine.id), "description": "شجار", "level": 4},
+            reverse("behavior:report_infraction"), {**_record_payload(mine), "level": 4}
         )
-        assert resp.headers["HX-Redirect"] == profile
+        assert resp.url == profile
         assert BehaviorInfraction.objects.filter(student=mine, level__gte=3).count() == 2
 
     def test_the_principal_still_lands_on_the_committee(
@@ -191,27 +190,17 @@ class TestRecording:
             client.post(reverse("behavior:report_infraction"), _record_payload(theirs)).status_code
             == 404
         )
-        assert (
-            client.post(
-                reverse("behavior:quick_log"),
-                {"student_id": str(theirs.id), "description": "x", "level": 1},
-            ).status_code
-            == 404
-        )
         assert not BehaviorInfraction.objects.filter(student=theirs).exists()
 
-    def test_quick_log_lists_and_accepts_his_wing_only(
-        self, client_as, school, seeded_calendar, mine, theirs, supervisor
+    def test_quick_log_only_redirects_to_the_full_report(
+        self, client_as, school, seeded_calendar, mine, supervisor
     ):
-        client = client_as(supervisor)
-        url = reverse("behavior:quick_log")
+        resp = client_as(supervisor).get(
+            reverse("behavior:quick_log"), {"student_id": str(mine.id)}
+        )
 
-        assert list(client.get(url).context["students"]) == [mine]
-        assert client.get(url, {"student_id": str(theirs.id)}).status_code == 404
-        assert client.get(url, {"student_id": str(mine.id)}).status_code == 200
-
-        client.post(url, {"student_id": str(mine.id), "description": "إزعاج", "level": 1})
-        assert BehaviorInfraction.objects.filter(student=mine, reported_by=supervisor).exists()
+        assert resp.status_code == 301
+        assert resp["Location"].startswith(reverse("behavior:report_infraction"))
 
     def test_the_teacher_still_records_as_before(
         self, client_as, school, seeded_calendar, theirs, teacher, far_klass

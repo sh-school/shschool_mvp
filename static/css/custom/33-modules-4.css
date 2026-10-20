@@ -243,8 +243,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .att-btn:focus-visible,
 .rec-pick input:focus-visible + span,
 .ui-kpi.is-link:focus-visible,
-.ui-switch__input:focus-visible + .ui-switch__track,
-.beh-level-pick__option input:focus-visible + .beh-level-pick__box { outline: 2px solid var(--focus-color); outline-offset: 2px; }
+.ui-switch__input:focus-visible + .ui-switch__track { outline: 2px solid var(--focus-color); outline-offset: 2px; }
 
 /* الشبكة: خليّةٌ لكلّ طالب، وأزرارُها مربّعاتٌ لا تقلّ عن 44px لمسًا. */
 .att-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--sp-3); }
@@ -1258,35 +1257,6 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .qc-panel__more { flex: 1 0 100%; font-size: var(--text-xs); }
 .qc-panel .plain-list__row { padding-block: var(--sp-0-5); justify-content: flex-start; gap: var(--sp-3); }   /* التسميةُ والقيمةُ متجاورتان لا في طرفَي البطاقة (طلبُ المالك 2026-10-02) */
 
-/* نافذةُ التسجيل السريع: أربعُ درجاتٍ أزرارٌ كبيرة، والمختارةُ بلون الهويّة. */
-.beh-quick .ui-field-hint { display: inline; margin: 0; }
-.beh-quick p.ui-field-hint { display: block; margin-block-start: var(--sp-1); }
-.beh-level-pick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); }
-.beh-level-pick__option { position: relative; cursor: pointer; }
-.beh-level-pick__box {
-  min-block-size: 56px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-0-5);
-  border: 2px solid var(--border);
-  border-radius: var(--radius-lg);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--text-muted);
-  transition: border-color var(--transition-base), background var(--transition-base);
-}
-.beh-level-pick__option:hover .beh-level-pick__box { border-color: var(--border-strong); }
-.beh-level-pick__option input:checked + .beh-level-pick__box { border-color: var(--maroon); background: var(--maroon-bg); color: var(--maroon-fg); }
-.beh-level-pick__option.is-severe input:checked + .beh-level-pick__box { border-color: var(--status-danger); background: var(--status-danger-bg); color: var(--status-danger-fg); }
-.beh-level-pick__name { display: none; }
-@media (max-width: 640px) {
-  .beh-level-pick { grid-template-columns: minmax(0, 1fr); }
-  .beh-level-pick__box { flex-direction: row; justify-content: flex-start; gap: var(--sp-3); min-block-size: var(--control-h); padding-inline: var(--sp-3); }
-  .beh-level-pick__name { display: inline; font-weight: 400; }
-}
-
 /* ── التقارير الأكاديميّة — templates/academic_management/reports/ ── */
 /* صفحةُ التقارير: كلُّ سطرٍ رابطٌ إلى تقريره، والعنوانُ يأخذ لونَ الهويّة عند المرور. */
 .report-link { color: inherit; text-decoration: none; }
@@ -1676,4 +1646,17 @@ body:has(.rm-page) .site-footer { flex: none; }
   .shobi-picks { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-2); }
   .shobi-pick { display: flex; align-items: center; justify-content: center; min-inline-size: 3.5rem; min-block-size: var(--control-h); padding-inline: var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--text-primary); font-size: var(--text-lg); font-weight: 700; text-decoration: none; }
   .shobi-pick:hover, .shobi-pick:focus-visible { border-color: var(--maroon); background: var(--maroon-bg); }
+}
+
+/* ── استبانة تجربة المستخدم (W-20261015-002): خياراتُ الراديو تلتفّ بمسافةٍ رأسيّةٍ فلا تتراكب عند 375px ── */
+@layer modules {
+  .survey-choices { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); }
+  .survey-choices > label { display: inline-flex; align-items: center; gap: var(--sp-1); min-block-size: var(--control-h); }
+}
+
+/* ── إحصاءُ الغياب بالطلبة (W-20261020-005): السطرُ الفرعيّ (شعبة أو مرحلة داخل جناح) أخفُّ وأقلُّ بروزاً ── */
+@layer modules {
+  .abs-stats .abs-stats__sub > td { color: var(--text-secondary); font-size: var(--text-sm); }
+  .abs-stats .abs-stats__sub > td.fu-name { padding-inline-start: var(--sp-6); }
+  .abs-stats .progress-qatar { min-inline-size: var(--sp-16); }
 }

@@ -34,6 +34,8 @@ TITLE_ROLES = {
     "نائب المدير للشؤون الاكاديمية": "vice_academic",
     "النائب الإداري": "vice_admin",
     "النائب الاداري": "vice_admin",
+    "منسق شؤون الطلاب": "student_affairs_coordinator",
+    "منسق شؤون الطلبة": "student_affairs_coordinator",
     "مشرف اداري": "admin_supervisor",
     "مشرف إداري": "admin_supervisor",
     "الاخصائي الاجتماعي": "social_worker",

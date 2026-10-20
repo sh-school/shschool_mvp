@@ -419,7 +419,6 @@ def _encloses_in_atomic(module_path, function_name):
     ("module_path", "function_name"),
     [
         ("behavior/views.py", "report_infraction"),
-        ("behavior/views.py", "quick_log"),
         ("behavior/views.py", "summon_parent"),
         ("behavior/services.py", "apply_committee_decision"),
         ("behavior/services.py", "escalate_infraction"),
@@ -466,7 +465,7 @@ def _defers_to(module_path, function_name, target_name):
     raise AssertionError(f"{module_path}::{function_name} غير موجودة")
 
 
-@pytest.mark.parametrize("view_name", ["report_infraction", "quick_log"])
+@pytest.mark.parametrize("view_name", ["report_infraction"])
 def test_the_infraction_views_defer_their_own_enqueue(view_name):
     """
     [B4-PRE3] الشاشتان تُسجّلان التأجيل بأنفسهما.
@@ -568,11 +567,10 @@ def test_without_robust_the_same_failure_would_escape():
             db_transaction.on_commit(_explode)  # بلا robust
 
 
-def test_both_behavior_registrations_are_robust():
-    """كلا موضعي التسجيل — لا أحدهما.
+def test_the_behavior_registration_is_robust():
+    """موضعُ التسجيل الوحيد (بعد توحيد الشاشتين W-20261001-042) يجب أن يبقى robust.
 
-    موضعٌ واحد بلا `robust` يكفي لإعادة العطب من الباب الآخر، والاثنان يسجّلان
-    نفس الـcallback من مسارَي طلبٍ مختلفين.
+    موضعٌ بلا `robust` يكفي لإعادة العطب.
     """
     import ast
     import inspect
@@ -590,7 +588,7 @@ def test_both_behavior_registrations_are_robust():
         and node.func.attr == "on_commit"
     ]
 
-    assert len(registrations) == 2, f"تغيّر عدد مواضع التسجيل: {len(registrations)}"
+    assert len(registrations) == 1, f"تغيّر عدد مواضع التسجيل: {len(registrations)}"
 
     for call in registrations:
         robust = next((k for k in call.keywords if k.arg == "robust"), None)

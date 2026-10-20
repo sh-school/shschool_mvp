@@ -30,9 +30,9 @@
 
 ## السلوك (`behavior/`)
 - **الدليلُ 2026 = 41 مخالفة:** الأولى 9، الثانية 7، الثالثة 10، الرابعة 15 (والتنمّرُ 17 منها). المصدر: `behavior/conduct_2026.py` (جدولُ ص84؛ كان الاستخراجُ الأوّل 44 خطأً، ودليلُ 2025 القديم 40). الحقنُ: `python manage.py seed_violations_2026`.
-- `ViolationCategory(degree 1..4, code "1-01".."4-15", name_ar, points, ladder_key, ladder_json, requires_security_referral, requires_parent_summon, tags)`؛ و`category` A–D حقلٌ قديمٌ لما قبل 2025.
-- `BehaviorInfraction(student, violation_category, level, escalation_step, points_deducted, session, ...)` — حقولُ الدرجة الثالثة (`social_media_platform`، `digital_evidence_notes`) والرابعة (`security_referral_date`، `security_agency`، `security_reference_number`)؛ والنصوصُ الحسّاسة `EncryptedTextField` (`violation_description`، `digital_evidence_notes`، `security_notes`). جدولُه `core_behaviorinfraction`.
-- `BehaviorPointRecovery` (استعادةُ النقاط بموافقة اللجنة)، `AutoInfractionNotice`.
+- `ViolationCategory(degree 1..4, code "1-01".."4-15", name_ar, points (عمودٌ خاملٌ)، ladder_key, ladder_json, requires_security_referral, requires_parent_summon, tags)`؛ و`category` A–D حقلٌ قديمٌ لما قبل 2025.
+- `BehaviorInfraction(student, violation_category, level, escalation_step, session, ...)` — حقولُ الدرجة الثالثة (`social_media_platform`، `digital_evidence_notes`) والرابعة (`security_referral_date`، `security_agency`، `security_reference_number`)؛ والنصوصُ الحسّاسة `EncryptedTextField` (`violation_description`، `digital_evidence_notes`، `security_notes`). جدولُه `core_behaviorinfraction`.
+- `AutoInfractionNotice`. **لا نقاطَ ولا حسمَ ولا «مؤشّرَ سلوك»** (قرار المالك 2026-10-13): أعمدةُ `points` و`points_deducted` و`points_restored` وجدولُ `BehaviorPointRecovery` خاملةٌ في النماذج والهجرات وحدَها حتى المرحلة 2 (حذفها بقول المالك)، ويحرسها `tests/test_no_points_deduction_guard.py`.
 - **السلّمُ مشترك** بين مخالفاتٍ، والتكرارُ يُعدّ **لكلّ مخالفةٍ على حدة** لا لكلّ سلّم. **قراراتُ المدرسة** (2026-09-13؛ الدليلُ صامت): العدّادُ يُصفَّر كلَّ فصل، والمخالفةُ مرّتين في اليوم نفسه تكراران. التنفيذ: `BehaviorService.suggest_escalation_step` و`get_prior_infraction_count` (`behavior/services.py`).
 - ما بعد السلّم: الإحالةُ كما ينصّ جدولُ المخالفة، وما لا ينصّ عليه يبقى فارغاً ولا يُخترع.
 - **الأسماءُ تُنسخ إلى القاعدة مرّةً** (هجرة `0015_conduct_catalog_2026`): تصحيحُ `name_ar` أو `points` في `CATALOG` وحده لا يصل الإنتاج — يلزمه هجرةُ بياناتٍ خفيفة؛ أمّا السلالمُ فتُقرأ من الشيفرة. المصدر: ذاكرة `project_conduct_catalog_db_names_need_migration.md`.

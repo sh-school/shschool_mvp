@@ -59,11 +59,13 @@ INSTALLED_APPS = [
     "academic_management.apps.AcademicManagementConfig",
     # ✅ SPRINT-DF-001: أرسل إلى المطوّر (Developer Feedback) — PRD-SOS-DEV-FEEDBACK-v1.0
     "developer_feedback.apps.DeveloperFeedbackConfig",
+    "ux_survey.apps.UxSurveyConfig",
     # ✅ مركز معلومات الطلبة — ملفّ الطالب الجامع وملاحظات الجهات الخمس
     "student_info.apps.StudentInfoConfig",
     "wings.apps.WingsConfig",
     # خارطة تجويد المنصّة — لمطوّر المنصّة وحدَه (أدوات المطوّر)
     "roadmap.apps.RoadmapConfig",
+    "decisions_registry.apps.DecisionsRegistryConfig",
     # مركز قيادة الجودة — عرضٌ حيٌّ لصحّة المنصّة لمطوّرها وحدَه في /command-center/ بالمنصّة (بلا نماذج)
     "command_center.apps.CommandCenterConfig",
     # الحوكمة وحماية البيانات: المحو والاحتفاظ وتدوير المفاتيح ووصول الملفّات (ADR-0004)
@@ -94,6 +96,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # ✅ v5.4: axes يجب أن يكون بعد AuthenticationMiddleware مباشرةً
     "axes.middleware.AxesMiddleware",
+    # اختيارُ الدور العامل (W-20261019-008): قبل RLS كي يرى كلُّ وسيطٍ بعده العضويّةَ المختارة.
+    "core.active_role.ActiveRoleChoiceMiddleware",
     # ✅ v5.6: RLS — يجب أن يضبط السياق قبل أي middleware يستعلم جداول محميّة
     "core.middleware_rls.RLSMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
@@ -342,7 +346,7 @@ SESSION_COOKIE_SAMESITE = "Lax"
 # والاختبار يمرّان بسلوك مختلف، فينكشف أي كاسر بعد النشر لا قبله.
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = "Lax"
-CSRF_FAILURE_VIEW = "django.views.csrf.csrf_failure"
+CSRF_FAILURE_VIEW = "core.views_errors.csrf_failure"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

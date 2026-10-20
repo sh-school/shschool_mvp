@@ -108,6 +108,8 @@ GLOBAL_INFRASTRUCTURE = {
     "core_customuser_user_permissions": "join table between a global user and a global permission",
     "core_profile": "extends core_customuser one-to-one; inherits its platform-wide scope",
     "core_school": "the tenant itself; scoping it to itself is meaningless",
+    "decisions_registry_decision": "owner-decisions register (read-only import of the platform owner's decisions): platform-wide, no school or student data",
+    "decisions_registry_importbatch": "owner-decisions register (read-only import of the platform owner's decisions): platform-wide, no school or student data",
     "developer_feedback_auditlog": "developer channel, deliberately cross-school",
     "developer_feedback_developermessage": "developer channel, deliberately cross-school",
     "developer_feedback_developermessagenotification": "developer channel, deliberately cross-school",
@@ -133,6 +135,9 @@ GLOBAL_INFRASTRUCTURE = {
     "sot_registry_supersession": "platform-developer source-of-truth registry about the ministry rules and the platform, no school or person data",
     "sot_registry_threshold": "platform-developer source-of-truth registry about the ministry rules and the platform, no school or person data",
     "sot_registry_topic": "platform-developer source-of-truth registry about the ministry rules and the platform, no school or person data",
+    "ux_survey_surveyparticipation": "records that a staff person answered a wave, with no link to the answers; a person is held once across schools",
+    "ux_survey_surveyresponse": "anonymous staff answers about the platform, structurally unlinked to any person or school",
+    "ux_survey_surveywave": "platform-wide survey round definition, no school or person data",
     "token_blacklist_blacklistedtoken": "JWT revocation list, keyed on token",
     "token_blacklist_outstandingtoken": "JWT revocation list, keyed on token",
 }

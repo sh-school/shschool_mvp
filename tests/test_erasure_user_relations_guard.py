@@ -31,6 +31,22 @@ RETAINED = {
         "core.AuditLog",
         "user",
     ): "سجلُّ التدقيق ملحقٌ لا يُعدَّل؛ المستخدمُ مجهَّلٌ فيه (ip وuser_agent بطاقةٌ مستقلّة بقرار المالك/DPO)",
+    (
+        "student_affairs.AdmissionApplication",
+        "applicant_national_id",
+    ): "طلبُ التحاقٍ قبل التسجيل لا حسابَ فيه؛ مدّةُ الاحتفاظ بقرار 0105/DPO",
+    (
+        "student_affairs.AdmissionApplication",
+        "applicant_phone",
+    ): "طلبُ التحاقٍ قبل التسجيل لا حسابَ فيه؛ مدّةُ الاحتفاظ بقرار 0105/DPO",
+    (
+        "student_affairs.AdmissionApplication",
+        "student_name",
+    ): "طلبُ التحاقٍ قبل التسجيل لا حسابَ فيه؛ مدّةُ الاحتفاظ بقرار 0105/DPO",
+    (
+        "student_affairs.AdmissionApplication",
+        "student_national_id",
+    ): "طلبُ التحاقٍ قبل التسجيل لا حسابَ فيه؛ مدّةُ الاحتفاظ بقرار 0105/DPO",
     ("core.Membership", "user"): "ربطُ مجهَّلٍ بالمدرسة لا يحمل بياناً؛ يُبقي سلامةَ العدّ والإحصاء",
     ("core.CapabilityGrant", "user"): "صلاحيّاتُ كادرٍ لا طلبة",
     ("token_blacklist.OutstandingToken", "user"): (
@@ -54,6 +70,10 @@ STAFF_OR_SYSTEM = {
     ("admin.LogEntry", "user"): "سجلُّ إجراءات الأدمن (كادر)",
     ("quality.ExecutorMapping", "user"): "خريطةُ منفّذي الجودة (كادر)",
     ("quality.QualityCommitteeMember", "user"): "عضويّةُ لجنة الجودة (كادر)",
+    (
+        "ux_survey.SurveyParticipation",
+        "user",
+    ): "مشاركةُ موظفٍ في استبانة (كادر، بلا أيّ حقلٍ من الإجابة)",
     (
         "developer_feedback.DeveloperMessageNotification",
         "recipient",

@@ -15,6 +15,7 @@ jobs:
   pip-audit:
     name: pip-audit — فحص CVEs
     runs-on: ubuntu-latest
+    timeout-minutes: 10  # pip-audit: p95 1.2 دقيقة (30 تشغيلاً) ×2 بحدٍّ أدنى 10
     steps:
       - uses: actions/checkout@v7
 
@@ -58,6 +59,7 @@ jobs:
   radon:
     name: radon — تعقيد الكود
     runs-on: ubuntu-latest
+    timeout-minutes: 10  # radon: p95 0.8 دقيقة (30 تشغيلاً) ×2 بحدٍّ أدنى 10
     steps:
       - uses: actions/checkout@v7
 
@@ -142,6 +144,7 @@ jobs:
   coverage-report:
     name: تقرير التغطية الأسبوعي
     runs-on: ubuntu-latest
+    timeout-minutes: 60  # coverage-report: p95 39.6 وأقصى 43.7 دقيقة (28 تشغيلاً) ← سقفٌ 60 كالطفرات
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
@@ -310,6 +313,7 @@ jobs:
   api-contracts:
     name: اختبار عقود API
     runs-on: ubuntu-latest
+    timeout-minutes: 15  # api-contracts: p95 6.7 دقيقة (30 تشغيلاً) ×2
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
