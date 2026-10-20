@@ -57,3 +57,52 @@ def test_the_ministry_page_has_the_wing_filter_for_the_wide_role(client_as, staf
     resp = client_as(staff["principal"]).get(reverse("wings:ministry_report"), {"date": DAY})
     assert resp.status_code == 200
     assert 'name="wing"' in resp.content.decode()
+
+
+def test_the_export_buttons_are_pdf_and_excel_only(client_as, staff, absent_both):
+    body = _get(client_as, staff["principal"]).content.decode()
+    assert "تصدير PDF" in body and "تصدير Excel" in body
+    assert reverse("absence_followup_xlsx") in body
+
+
+def test_excel_export_matches_the_filtered_screen(client_as, staff, absent_both):
+    import io
+
+    from openpyxl import load_workbook
+
+    resp = _get(
+        client_as, staff["principal"], "absence_followup_xlsx", page="contact", q="الجناح الثاني"
+    )
+    assert resp.status_code == 200 and "spreadsheetml" in resp["Content-Type"]
+    ws = load_workbook(io.BytesIO(resp.content)).active
+    cells = " ".join(str(c.value) for row in ws.iter_rows() for c in row if c.value)
+    assert "طالب الجناح الثاني" in cells and "طالب 0" not in cells
+    assert "أصدر الملف" in cells
+
+
+def test_excel_export_is_denied_to_a_teacher(client_as, teacher, absent_both):
+    assert _get(client_as, teacher, "absence_followup_xlsx").status_code == 403
+
+
+def test_pdf_footer_names_the_issuer_and_has_a_class_column(staff, school, absent_both):
+    from operations.absence_followup_print import build_followup_pdf
+
+    user = staff["principal"]
+    pdf = build_followup_pdf(school, user, {"date": DAY, "page": "contact"}).content
+    import io
+    import unicodedata
+
+    import pdfplumber
+
+    text = " ".join(p.extract_text() or "" for p in pdfplumber.open(io.BytesIO(pdf)).pages)
+    flat = unicodedata.normalize("NFKC", text)
+    both = flat + " " + flat[::-1]
+    assert unicodedata.normalize("NFKC", "أصدر الملف") in both
+    assert unicodedata.normalize("NFKC", "الصف") in both
+
+
+def test_the_ministry_page_shows_the_student_based_rate_table(client_as, staff, absent_both):
+    resp = client_as(staff["principal"]).get(reverse("wings:ministry_report"), {"date": DAY})
+    body = resp.content.decode()
+    assert "abs-stats" in body and "نسبُ الغياب بالطلبة" in body
+    assert 'role="meter"' in body
