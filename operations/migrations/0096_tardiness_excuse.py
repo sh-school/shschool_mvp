@@ -25,7 +25,7 @@ ALTER TABLE public.{TABLE} DISABLE ROW LEVEL SECURITY;
 class Migration(migrations.Migration):
     dependencies = [
         ("core", "0037_rls_tenant_identity_from_db_role"),
-        ("operations", "0092_attendance_unique_constraints"),
+        ("operations", "0095_rls_absence_report_snapshot"),
     ]
 
     operations = [
