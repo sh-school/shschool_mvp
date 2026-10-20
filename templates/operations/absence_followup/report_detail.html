@@ -1,0 +1,88 @@
+{% extends "base/base.html" %}
+{% load ui icons %}
+{% block title %}تقرير الغياب الدوري{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% url 'absence_reports_archive' as archive_url %}
+{% include "components/breadcrumbs.html" with parent_url=archive_url parent_label="التقارير الدورية" current="تقرير الغياب" %}
+{% endblock %}
+
+{% block content %}
+{% comment %}
+  لقطةٌ واحدةٌ من تقارير الغياب الدوريّة: المدرسة ← مرحلة ← جناح ← شعبة. الأرقامُ مخزَّنةٌ وقتَ التوليد (لا إعادةَ قراءة للحضور الحيّ).
+{% endcomment %}
+<div class="exec-dash">
+  {% page_header "تقرير الغياب الدوري" subtitle=snap.get_kind_display icon="reports" %}
+    <form method="post" action="{% url 'absence_report_recompute' snap.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn-secondary btn-sm">{% icon "refresh" %} أعد الحساب الآن</button>
+    </form>
+    <a href="{% url 'absence_reports_archive' %}" class="btn-secondary btn-sm">← الأرشيف</a>
+    {% callout "info" %}ختمُ التوليد: {{ snap.generated_at|date:"d/m/Y H:i" }} · النسخة {{ snap.revision }}{% if snap.generated_by %} · أعاد حسابَها {{ snap.generated_by.full_name }}{% endif %} · {{ snap.school_days }} يومَ دراسة · الفترة {{ snap.period_start|date:"d/m/Y" }} ← {{ snap.period_end|date:"d/m/Y" }}{% if snap.grade_scope %} · {{ snap.get_grade_scope_display }}{% endif %}{% endcallout %}
+    {% if not is_latest %}{% callout "warning" show=True %}هذه نسخةٌ أقدم؛ توجد نسخةٌ أحدث من التقرير نفسه في جدول النسخ أدناه.{% endcallout %}{% endif %}
+  {% endpage_header %}
+
+  {% section_card "نسبُ الغياب بالطلبة: مرحلة ← جناح ← شعبة" meta=lines|length icon="stats" empty="لا بياناتَ محسوبةً في هذه الفترة" flush=True %}{% if lines %}
+    <div class="table-wrap table-wrap-scroll">
+      <table data-no-sort class="abs-stats">
+        <thead>
+          <tr>
+            <th class="fu-name">البند</th>
+            <th class="num">مجموعُ المقيَّدين (طالب·يوم)</th>
+            <th class="num">مجموعُ من غابوا الحصّتين (طالب·يوم)</th>
+            <th class="num">النسبة</th>
+            <th>الرسم</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for line in lines %}
+          <tr>
+            <td class="fu-name"><strong>{{ line.label }}</strong></td>
+            <td class="num">{{ line.enrolled }}</td>
+            <td class="num">{{ line.absent }}</td>
+            <td class="num">{{ line.rate }}%</td>
+            <td><span class="progress-qatar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ line.rate }}" aria-label="نسبةُ غياب {{ line.label }}"><span class="progress-qatar-fill" style="--progress-w:{{ line.rate }}%"></span></span></td>
+          </tr>
+          {% for sub in line.children %}
+          <tr class="abs-stats__sub">
+            <td class="fu-name">{{ sub.label }}</td>
+            <td class="num">{{ sub.enrolled }}</td>
+            <td class="num">{{ sub.absent }}</td>
+            <td class="num">{{ sub.rate }}%</td>
+            <td><span class="progress-qatar" aria-hidden="true"><span class="progress-qatar-fill pf-warning" style="--progress-w:{{ sub.rate }}%"></span></span></td>
+          </tr>
+          {% endfor %}
+        {% endfor %}
+        {% if school_line %}
+          <tr>
+            <td class="fu-name"><strong>مجموع المدرسة</strong></td>
+            <td class="num"><strong>{{ school_line.enrolled }}</strong></td>
+            <td class="num"><strong>{{ school_line.absent }}</strong></td>
+            <td class="num"><strong>{{ school_line.rate }}%</strong></td>
+            <td></td>
+          </tr>
+        {% endif %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+
+  {% section_card "نسخُ هذا التقرير" meta=revisions|length icon="document" flush=True %}
+    <div class="table-wrap table-wrap-scroll">
+      <table data-no-sort>
+        <thead><tr><th class="num">النسخة</th><th>وقتُ التوليد</th><th>من ولّدها</th></tr></thead>
+        <tbody>
+        {% for rev in revisions %}
+          <tr>
+            <td class="num"><a href="{% url 'absence_report_detail' rev.pk %}">{{ rev.revision }}</a></td>
+            <td>{{ rev.generated_at|date:"d/m/Y H:i" }}</td>
+            <td>{% if rev.generated_by %}{{ rev.generated_by.full_name }}{% else %}المجدوِل{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endsection_card %}
+</div>
+{% endblock %}

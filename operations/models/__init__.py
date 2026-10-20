@@ -10,6 +10,7 @@ from .absence_followup import (  # noqa: F401
     AbsenceActionLog,
     AbsenceContactLog,
 )
+from .absence_reports import AbsenceReportSnapshot  # noqa: F401
 from .attendance import (  # noqa: F401
     AbsenceAlert,
     AbsenceExcuse,

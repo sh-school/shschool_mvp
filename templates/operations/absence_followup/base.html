@@ -31,10 +31,9 @@
     {% endif %}
     {# الزرُّ يُخفى عمّن لا قدرةَ له، والخادمُ يرفض الطلبَ المباشر (403) #}
     {% if can_print %}
-    <a href="{% url 'absence_followup_print' %}?date={{ day|date:'Y-m-d' }}&amp;page={{ page }}{% if view_query %}&amp;{{ view_query }}{% endif %}" class="btn-secondary btn-sm">{% icon "print" %} PDF</a>
-    {% if page == "contact" %}
-    <a href="{% url 'absence_followup_contact_sheet_pdf' %}?date={{ day|date:'Y-m-d' }}{% if view_query %}&amp;{{ view_query }}{% endif %}" data-app-file class="btn-secondary btn-sm">{% icon "call_parent" %} ورقةُ الاتّصال PDF</a>
-    {% endif %}
+    <a href="{% url 'absence_followup_print' %}?date={{ day|date:'Y-m-d' }}&amp;page={{ page }}{% if view_query %}&amp;{{ view_query }}{% endif %}" class="btn-secondary btn-sm">{% icon "print" %} تصدير PDF</a>
+    <a href="{% url 'absence_followup_xlsx' %}?date={{ day|date:'Y-m-d' }}&amp;page={{ page }}{% if view_query %}&amp;{{ view_query }}{% endif %}" data-app-file class="btn-secondary btn-sm">{% icon "download" %} تصدير Excel</a>
+    <a href="{% url 'absence_reports_archive' %}" class="btn-secondary btn-sm">{% icon "reports" %} التقارير الدورية</a>
     {% endif %}
     {% if request.user|can_open:"wings:ministry_report" %}
     <a href="{% url 'wings:ministry_report' %}?date={{ day|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>
