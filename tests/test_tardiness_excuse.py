@@ -11,7 +11,7 @@ import datetime as dt
 import pytest
 
 from behavior.models import BehaviorInfraction
-from operations import tardiness_excuse as service
+from operations import tardiness_excuse_services as service
 from operations.models import Session, StudentAttendance, Subject, TardinessExcuse
 from operations.presence import presence_for
 from operations.tardiness import tardiness_for

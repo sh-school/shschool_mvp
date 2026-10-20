@@ -300,7 +300,7 @@ class AbsenceExcuseAdmin(SensitiveFieldsMixin, ReadOnlyAdminMixin, SchoolScopedA
 
 @admin.register(TardinessExcuse)
 class TardinessExcuseAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
-    """عذرُ التأخّر يعتمده معلّمُ الحصّة بخدمته (`operations/tardiness_excuse.py`) — يُقرأ هنا ولا يُكتب."""
+    """عذرُ التأخّر يعتمده معلّمُ الحصّة بخدمته (`operations/tardiness_excuse_services.py`) — يُقرأ هنا ولا يُكتب."""
 
     list_display = ("attendance", "granted_by", "granted_at")
     list_select_related = ("attendance__student", "granted_by")

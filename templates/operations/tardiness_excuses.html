@@ -5,6 +5,7 @@
 فيسقط التأخّرُ من عدّادَي المرّات والدقائق. لا يُنشأ ولا يُعدَّل سجلُّ الحضور.
 {% endcomment %}
 {% block title %}أعذار التأخّر{% endblock %}
+{% block main_class %}{% page_layout "hub" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with current="أعذار التأخّر" %}
@@ -18,7 +19,7 @@
 
   {% section_card "المتأخّرون في حصصك" meta=rows|length icon="absence" %}
     {% if rows %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table data-no-sort>
         <thead><tr><th>الطالب</th><th>الشعبة</th><th>الحصّة</th><th>الدقائق</th><th>العذر</th></tr></thead>
         <tbody>

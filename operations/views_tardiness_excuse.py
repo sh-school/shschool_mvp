@@ -1,6 +1,6 @@
 """صفحةُ «أعذار التأخّر» لمعلّم الحصّة: متأخّرو حصصه اليوم، واعتمادُ العذر وإلغاؤه (W-20261002-028).
 
-الحكمُ كلُّه في `operations/tardiness_excuse.py`؛ هنا ترجمةٌ إلى HTTP فقط.
+الحكمُ كلُّه في `operations/tardiness_excuse_services.py`؛ هنا ترجمةٌ إلى HTTP فقط.
 """
 
 from django.contrib import messages
@@ -11,13 +11,13 @@ from django.views.decorators.http import require_POST
 
 from core.capabilities import capability_required
 
-from . import tardiness_excuse as service
+from . import tardiness_excuse_services as service
 
 
 @login_required
 @capability_required("attendance.mark")
 def tardiness_excuses(request):
-    school = request.user.get_school()
+    school = request.school
     day = timezone.localdate()
     return render(
         request,
@@ -30,7 +30,7 @@ def tardiness_excuses(request):
 @capability_required("attendance.mark")
 @require_POST
 def tardiness_excuse_decide(request, attendance_id):
-    school = request.user.get_school()
+    school = request.school
     try:
         if request.POST.get("action") == "revoke":
             service.revoke(school, request.user, attendance_id)
