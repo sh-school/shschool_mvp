@@ -764,8 +764,15 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   <a href="{% url 'student_affairs:student_movements' %}">{% icon "sent_home" %} تحركات الطلبة</a>
   {% endif %}
   {% comment %} «تسجيل الحضور» القديمة للمعلّم وحدَه («حصصي اليوم» في قائمته) — القيادةُ والمشرفون يرصدون من كشف الأجنحة (قرارُ 2026-09-13). {% endcomment %}
+  {% comment %} «متابعة الغياب» ثلاثةُ بنودٍ مباشرة بلا مستوى ثالث (W-20261020-005، قرارُ المالك). {% endcomment %}
+  {% if request.user|can_open:"wings:ministry_report" %}
+  <a href="{% url 'wings:ministry_report' %}">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>
+  {% endif %}
   {% if request.user|can_open:"daily_report" %}
-  <a href="{% url 'daily_report' %}">{% icon "absence" %} متابعة الغياب</a>
+  <a href="{% url 'daily_report' %}">{% icon "call_parent" %} التواصل مع أولياء الأمور</a>
+  {% endif %}
+  {% if request.user|can_open:"absence_actions" %}
+  <a href="{% url 'absence_actions' %}">{% icon "checklist" %} إجراءات الغياب</a>
   {% endif %}
   </div>
   <div class="sd-section">
@@ -950,8 +957,15 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   </div>
   <div class="sd-section">
   <div class="sd-label">الغياب والتأخّر</div>
+  {% comment %} «متابعة الغياب» ثلاثةُ بنودٍ مباشرة بلا مستوى ثالث (W-20261020-005، قرارُ المالك). {% endcomment %}
+  {% if request.user|can_open:"wings:ministry_report" %}
+  <a href="{% url 'wings:ministry_report' %}">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>
+  {% endif %}
   {% if request.user|can_open:"daily_report" %}
-  <a href="{% url 'daily_report' %}">{% icon "absence" %} متابعة الغياب</a>
+  <a href="{% url 'daily_report' %}">{% icon "call_parent" %} التواصل مع أولياء الأمور</a>
+  {% endif %}
+  {% if request.user|can_open:"absence_actions" %}
+  <a href="{% url 'absence_actions' %}">{% icon "checklist" %} إجراءات الغياب</a>
   {% endif %}
   {% if request.user|can_open:"student_affairs:attendance_overview" %}
   <a href="{% url 'student_affairs:attendance_overview' %}">{% icon "stats" %} إحصائيات غياب الجناح</a>

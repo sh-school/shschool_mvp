@@ -44,7 +44,11 @@ def respond(
             html, generate_export_filename("wings", "ministry_p1p2", "pdf"), as_attachment=True
         )
     ctx.update(screen or {})
-    ctx.update(day=summary.day, bound=bound, filtered=bool(ctx.get("grade") or ctx.get("q")))
+    ctx.update(
+        day=summary.day,
+        bound=bound,
+        filtered=bool(ctx.get("grade") or ctx.get("q") or ctx.get("wing")),
+    )
     ctx["subtitle"] = f"للرفع في نظام الوزارة · {summary.day:%d/%m/%Y} · " + (
         "طلبةُ جناحك" if bound else "المدرسةُ كلُّها"
     )

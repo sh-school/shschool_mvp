@@ -23,6 +23,7 @@
     <form method="get" class="per-exports" aria-label="تصدير الملخّص">
       <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
       <input type="hidden" name="grade" value="{{ grade }}">
+      <input type="hidden" name="wing" value="{{ wing }}">
       <input type="hidden" name="q" value="{{ q }}">
       <select name="orient" class="form-select per-orient" aria-label="اتّجاه الصفحة">
         <option value="landscape">أفقي</option>
@@ -36,6 +37,7 @@
 
   {% filter_bar "ترشيحُ الملخّص" %}
     {% field "date" "التاريخ" type="date" value=day|date:"Y-m-d" data_autosubmit=True %}
+    {% if wings %}{% field "wing" "الجناح" type="select" choices=wings value=wing blank="— كل الأجنحة —" data_autosubmit=True %}{% endif %}
     {% field "grade" "الصفّ" type="select" choices=grades value=grade blank="— كل الصفوف —" data_autosubmit=True %}
     {% field "q" "بحث" type="search" value=q grow=True placeholder="رمزُ شعبةٍ أو اسمُ طالب" autocomplete="off" %}
     <button type="submit" class="btn-primary btn-sm">{% icon "search" %} بحث</button>

@@ -86,8 +86,10 @@ class TestForms:
 
     def test_the_menu_calls_the_screen_follow_up(self, client_as, staff, absent_both):
         body = _get(client_as, staff["principal"]).content.decode()
-        assert "متابعة الغياب" in body and ">غياب اليوم<" not in body
-        assert reverse("daily_report") in body
+        # القائمةُ ثلاثةُ بنودٍ مباشرة (W-20261020-005): ملخّص الحصّتين، التواصل، الإجراءات — لا بندٌ واحدٌ «متابعة الغياب»
+        assert ">غياب اليوم<" not in body
+        for name in ("wings:ministry_report", "daily_report", "absence_actions"):
+            assert reverse(name) in body
 
 
 class TestContactSheetRoute:
