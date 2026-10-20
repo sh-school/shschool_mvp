@@ -15,8 +15,7 @@ from operations.models import AbsenceAlert
 from tests.attendance_fixtures import *  # noqa: F401,F403
 from tests.attendance_fixtures import _staff
 
-pytestmark = pytest.mark.django_db
-
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 #: عددُ أيّام الغياب مفتاحُ التمييز بين الحالات في الصفحة (لكلّ حالةٍ رقمٌ فريد).
 COUNTS = {"held": 11, "issuing": 12, "pending": 13, "notified": 14, "resolved": 15}
 
