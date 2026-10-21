@@ -644,7 +644,6 @@ def student_edit(request, student_id):
     )
     year = academic_year_for(request)
     profile = getattr(student, "profile", None)
-
     from .forms import StudentEditForm
 
     if request.method == "POST":
