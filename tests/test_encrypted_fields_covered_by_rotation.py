@@ -25,7 +25,8 @@ from django.utils import timezone
 from clinic.models import ClinicVisit, HealthRecord
 from core.fields import EncryptedTextField, encrypted_field_names
 
-pytestmark = pytest.mark.django_db
+# الساعةُ مثبَّتةٌ: `_filler` يقرأ «الآن» لأعمدة التاريخ (سقّاطة test_clock_pin_ratchet).
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 
 def _discovered(model):
