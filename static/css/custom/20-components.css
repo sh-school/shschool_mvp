@@ -1017,6 +1017,20 @@ tr.active {
   border-bottom: none;
 }
 
+/* توسيطُ نصوص الجداول (قرارُ المالك 2026-10-13، W-20261013-026): الخلايا والترويسةُ
+   في المنتصف، ويُستثنى عمودُ الأسماء بالصنف `cell-name` فيبقى بمحاذاة البداية.
+   الترويسةُ موسَّطةٌ دائماً حتى فوق عمود الأسماء، فلا يحمل `th` الصنفَ. */
+.table-wrap thead th,
+.table-wrap-scroll thead th,
+.table-wrap tbody td,
+.table-wrap-scroll tbody td {
+  text-align: center;
+}
+.table-wrap tbody td.cell-name,
+.table-wrap-scroll tbody td.cell-name {
+  text-align: start;
+}
+
 /* ── Table Enhancements (MTG-2026-004-STR) ──
    كانت هذه القاعدةُ تُفتِح أرضيّةَ الترويسة (`--surface-alt`) بينما القاعدةُ
    العامّة تكتب نصَّها أبيضَ على العنابيّ — فاجتمع أبيضُ على أبيضَ مائلٍ
