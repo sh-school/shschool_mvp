@@ -690,6 +690,21 @@
   "not_inherited_by": []
  },
  {
+  "key": "assessments.decide_excuse",
+  "label": "قرارُ عذر الغياب عن الاختبار",
+  "roles": [
+   "admin_supervisor",
+   "psychologist",
+   "social_worker",
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرار المالك D-402م؛ الدليل 04b ص. 28: تقديرُ الأعذار والقائمةُ المغلقة",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
   "key": "grades.import",
   "label": "استيرادُ الدرجات من ملفّ",
   "roles": [

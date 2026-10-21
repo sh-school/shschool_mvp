@@ -56,7 +56,7 @@ jobs:
       CI_SHARD_INDEX: ${{ matrix.shard }}
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # حسابُ BASE...HEAD يلزمه التاريخُ (على الطلب وحدَه؛ ما سواه لا يحسب فروقاً)
           fetch-depth: ${{ github.event_name == 'pull_request' && '0' || '1' }}
@@ -79,7 +79,7 @@ jobs:
         with:
           redis: "true"  # tests/test_channel_layer_redis_integration.py يحتاج redis حقيقياً
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         if: steps.diff.outputs.docs_only != 'true' || matrix.shard == 1
         with:
           python-version: "3.12"
@@ -139,7 +139,7 @@ jobs:
             --cov=. --cov-report= --cov-fail-under=0
 
       - name: رفع بيانات الـshard
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always() && steps.diff.outputs.docs_only != 'true'
         with:
           name: shard-data-${{ matrix.shard }}
@@ -158,7 +158,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10  # test-coverage: p95 0.8 دقيقة (قياس 28 تشغيلاً) ×2 بحدٍّ أدنى 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: ${{ github.event_name == 'pull_request' && '0' || '1' }}
 
@@ -178,7 +178,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         if: steps.diff.outputs.docs_only != 'true'
         with:
           python-version: "3.12"
@@ -186,7 +186,7 @@ jobs:
 
       - name: تنزيل بيانات الـshards
         if: steps.diff.outputs.docs_only != 'true'
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: shard-data-*
           path: shards
@@ -209,7 +209,7 @@ jobs:
           coverage report
 
       - name: رفع تقارير التغطية
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always() && steps.diff.outputs.docs_only != 'true'
         with:
           name: coverage-report
@@ -249,9 +249,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -280,9 +280,9 @@ jobs:
     # push إلى main: يُفحص على الطلب وطابور الدمج قبل الدمج (يُعفى skipped وحدَه في scripts/ci_needs_gate.py)
     if: github.event_name != 'push'
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -309,6 +309,20 @@ jobs:
           EXCEL_PROTECTION_PASSWORD: ci-testing-only
         run: python -m tests.mypy_ratchet
 
+      # سطرٌ واحدٌ بأرقام الجودة (W-20261003-008): نفسُ السطر الذي يطبعه `bash scripts/ci_parity.sh` محلّيّاً فتُقارَن الأرقام حرفيّاً.
+      # لا يحكم ولا يغيّر نتيجة الوظيفة: السكربتُ يخرج بصفرٍ دائماً بلا `--strict` (قراءةٌ فقط)؛ الحكمُ لخطواتها الأصليّة.
+      # ولا `continue-on-error` هنا: يرفضه اختبارُ صدق البوّابات (tests/test_ci_gates_are_honest.py) على كلّ وظيفةٍ مُبلَّغة.
+      - name: أرقام الجودة في سطر واحد
+        if: always()
+        env:
+          DJANGO_SETTINGS_MODULE: shschool.settings.testing
+          SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
+          FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
+          EXCEL_PROTECTION_PASSWORD: ci-testing-only
+        run: |
+          pip install -q ruff==0.4.4 radon==6.0.1
+          python scripts/quality_numbers.py
+
   # ══════════════════════════════════════════════════════
   #  3b. migration-linter — لا هجرةَ هدّامةً بلا توسيعٍ ثمّ تقليص (P4-1)
   # ══════════════════════════════════════════════════════
@@ -329,7 +343,7 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # التاريخُ كاملاً: `--git-commit-id` يقارن بفرع الأساس، وهو أسلافُ
           # رأس الفرع أصلاً (طلبُ الدمج/طابورُ الدمج) — لا حاجةَ لجلبٍ إضافيّ.
@@ -338,7 +352,7 @@ jobs:
       # postgres 16 الأصليّ على الـrunner بدل حاويةٍ تُسحب من Docker Hub (سقفُ السحب أسقط الفحوصَ 2026-10-09)
       - uses: ./.github/actions/native-postgres
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -389,9 +403,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
 
@@ -445,9 +459,9 @@ jobs:
       contents: read
       pull-requests: read # حارسُ الترقيم يقرأ ملفّاتِ الطلبات المفتوحة (`gh pr list`) — قراءةٌ فقط
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
 
@@ -545,14 +559,14 @@ jobs:
       DJANGO_ALLOW_ASYNC_UNSAFE: "1"
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub (سقفُ السحب غيرُ الموثَّق: toomanyrequests) — W-20261010-016
       - uses: ./.github/actions/native-postgres
         with:
           redis: "true"
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -621,14 +635,14 @@ jobs:
       DJANGO_ALLOW_ASYNC_UNSAFE: "1"
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub (سقفُ السحب غيرُ الموثَّق: toomanyrequests) — W-20261010-016
       - uses: ./.github/actions/native-postgres
         with:
           redis: "true"
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -672,7 +686,7 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: الأحد–الخميس 07:00–14:00 بتوقيت قطر ممنوع إلّا «نشر-عاجل»
         env:
           GH_TOKEN: ${{ github.token }}
@@ -695,7 +709,7 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: مقارنةُ ملفّات هذا الطلب بالطلبات المفتوحة الأخرى
         env:
           GH_TOKEN: ${{ github.token }}
@@ -720,9 +734,9 @@ jobs:
       FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -770,7 +784,7 @@ jobs:
     needs: [pytest-shards, test-coverage, fast-guards, ruff, mypy, migration-linter, complexity, secrets-scan, deploy-window, axe-a11y, e2e]
     if: always()
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # أحدُ سياقَين مطلوبَين في حماية `main`. الحكمُ في scripts/ci_needs_gate.py: كلُّ مهمّةٍ في needs يجب أن
       # تنتهي `success` — `skipped` و`cancelled` فشلٌ إلّا الإعفاءَ المعلَّلَ في جدول السكربت (حدثٌ + مهمّةٌ +

@@ -32,8 +32,10 @@ from .models import (
     Subject,
     SubjectClassAssignment,
     SubstituteAssignment,
+    TardinessExcuse,
     TeacherAbsence,
     TeacherExemption,
+    TeacherPeriodPreference,
     TeacherPreference,
     TeacherSwap,
     TemporaryPermission,
@@ -295,6 +297,17 @@ class AbsenceExcuseAdmin(SensitiveFieldsMixin, ReadOnlyAdminMixin, SchoolScopedA
         "applicant_phone",
         "pledge_accepted",
     )
+
+
+@admin.register(TardinessExcuse)
+class TardinessExcuseAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    """عذرُ التأخّر يعتمده معلّمُ الحصّة بخدمته (`operations/tardiness_excuse_services.py`) — يُقرأ هنا ولا يُكتب."""
+
+    list_display = ("attendance", "granted_by", "granted_at")
+    list_select_related = ("attendance__student", "granted_by")
+    list_filter = ("school",)
+    search_fields = ("attendance__student__full_name",)
+    date_hierarchy = "granted_at"
 
 
 @admin.register(GuardianContact)
@@ -662,6 +675,16 @@ class ScheduleRelaxationPolicyAdmin(admin.ModelAdmin):
         for obj in queryset:
             self._audit(request, obj, "delete", self._snapshot(obj), None)
         super().delete_queryset(request, queryset)
+
+
+@admin.register(TeacherPeriodPreference)
+class TeacherPeriodPreferenceAdmin(admin.ModelAdmin):
+    """شبكةُ تفضيل موضع الحصّة (المرحلة أ، W-20261010-032): يكتبها المعلّمُ من صفحته ويراجعها الأدمن."""
+
+    list_display = ("teacher", "day_of_week", "period_number", "preference", "academic_year")
+    list_filter = ("school", "academic_year", "preference", "day_of_week")
+    search_fields = ("teacher__full_name",)
+    autocomplete_fields = ("teacher",)
 
 
 @admin.register(ScheduleGeneration)

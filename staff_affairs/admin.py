@@ -1,7 +1,8 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.utils import timezone
 
 from .models import EmploymentContract, LeaveBalance, LeaveRequest
-from .probation import open_contract
+from .probation import open_contract, record_result_audited
 
 
 @admin.register(EmploymentContract)
@@ -16,6 +17,7 @@ class EmploymentContractAdmin(admin.ModelAdmin):
     )
     list_filter = ("result",)
     search_fields = ("staff__full_name", "contract_ref")
+    actions = ("mark_passed", "mark_failed")
     # النهايةُ والتمديد تحسبهما خدمةُ الاختبار لا اليد
     readonly_fields = (
         "base_end",
@@ -38,6 +40,31 @@ class EmploymentContractAdmin(admin.ModelAdmin):
     def get_exclude(self, request, obj=None):
         # النتيجةُ تُسجَّل بخدمة الاختبار (record_result) لا من نموذج الإضافة
         return ("result",) if obj is None else None
+
+    def _record(self, request, queryset, result: str) -> None:
+        # الخدمةُ وحدَها تتحقّق (قبل الانتهاء/المكرَّر) وتكتب التدقيق؛ ويُرفض كلُّ عقدٍ برسالته
+        done = 0
+        for contract in queryset.select_related("staff", "school"):
+            try:
+                record_result_audited(
+                    contract, result, request.user, timezone.localdate(), request=request
+                )
+            except ValueError as exc:
+                self.message_user(
+                    request, f"{contract.staff.full_name}: {exc}", level=messages.ERROR
+                )
+            else:
+                done += 1
+        if done:
+            self.message_user(request, f"سُجّلت النتيجةُ لـ{done} عقد.", level=messages.SUCCESS)
+
+    @admin.action(description="تسجيل النتيجة: اجتاز فترة الاختبار")
+    def mark_passed(self, request, queryset):
+        self._record(request, queryset, "passed")
+
+    @admin.action(description="تسجيل النتيجة: لم يجتز فترة الاختبار")
+    def mark_failed(self, request, queryset):
+        self._record(request, queryset, "failed")
 
     def save_model(self, request, obj, form, change):
         """الإضافةُ تمرّ بخدمة الاختبار لتحسب base_end وprobation_end؛ والتعديلُ يبقى كما هو."""

@@ -12,12 +12,15 @@ import re
 import uuid
 from pathlib import Path
 
+import pytest
 from django.template.loader import render_to_string
 from django.utils import timezone
 
 from notifications.models import InAppNotification
 from tests.css_contrast import iter_rules
 from tests.css_source import read_css
+
+pytestmark = pytest.mark.pin_clock
 
 ROOT = Path(__file__).resolve().parent.parent
 PARTIAL = (ROOT / "templates/notifications/partials/notif_item.html").read_text(encoding="utf-8")

@@ -65,7 +65,7 @@ form:has(#parent-mode-existing:checked) .mode-pane--new { display: none; }
   background: var(--maroon);
   color: var(--on-fill);
   padding: var(--sp-2-5) var(--sp-4);
-  margin: -18px -20px var(--sp-4);
+  margin: calc(-1 * var(--sp-4-5)) calc(-1 * var(--sp-5)) var(--sp-4);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   font-size: var(--text-sm); font-weight: 700;
   line-height: 1.4;
@@ -73,7 +73,9 @@ form:has(#parent-mode-existing:checked) .mode-pane--new { display: none; }
 }
 .links-add__bar::-webkit-details-marker { display: none; }
 .links-add__chevron { font-size: var(--text-xs); font-weight: 400; opacity: .85; margin-inline-start: auto; }
-.links-add:not([open]) > .links-add__bar { margin-block-end: -18px; border-radius: var(--radius-lg); }
+.links-add:not([open]) { padding-block-end: 0; }
+.links-add__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+.links-add:not([open]) > .links-add__bar { margin-block-end: 0; border-radius: var(--radius-lg); }
 
 /* ── الحصّةُ المبدَّلة: لونٌ يقول إنّها ليست حصّةَ صاحبها المعتاد ───
    التبديلُ مؤقّتٌ ينقضي بانتهاء الحصّة الأبعد، فالخانةُ تعود من نفسها. وحتّى
@@ -297,7 +299,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   background: var(--maroon);
   color: var(--on-fill);
   padding: var(--sp-2-5) var(--sp-4);
-  margin: -18px -20px var(--sp-4);
+  margin: calc(-1 * var(--sp-4-5)) calc(-1 * var(--sp-5)) var(--sp-4);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   font-size: var(--text-sm); font-weight: 700;
   line-height: 1.4;
@@ -1302,6 +1304,17 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .asm-save-bar .ui-callout { flex: 1 1 280px; padding: var(--sp-2) var(--sp-3); }
 .ui-section.is-flush > .ui-section__body > .ui-callout { border-radius: 0; border-block-start: 1px solid var(--border); }
 
+/* ── أعذارُ الغياب عن الاختبارات — بطاقةٌ لكلّ غياب لا جدولٌ عريض (يُقرأ ويُحرَّر على الجوّال) ── */
+.asm-excuse-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.asm-excuse { display: grid; gap: var(--sp-2); padding: var(--sp-3); border-block-end: 1px solid var(--border); }
+.asm-excuse:last-child { border-block-end: 0; }
+.asm-excuse__who { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); }
+.asm-excuse__ctx { color: var(--text-muted); font-size: var(--text-sm); }
+.asm-excuse__form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.asm-excuse__form .form-control { flex: 1 1 14rem; min-inline-size: 0; }
+.asm-excuse__date { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--text-sm); color: var(--text-muted); flex: 1 1 14rem; }
+.asm-excuse__date .form-control { flex: 1 1 auto; }
+
 /* ── مركز معلومات الطلبة — templates/student_info ──
    عرضُ الأعمدة الثابتة، ونصُّ الملاحظة بأسطره كما كُتب، وعددُ كلّ شريحةٍ
    بنغمة حالتها (`ACHIEVEMENT_BANDS` في student_info/services.py) — كانت
@@ -1454,7 +1467,7 @@ body:has(.rm-page) .site-footer { flex: none; }
   .rm-seg > button { flex: 1; min-inline-size: 0; }
   .rm-fill { display: flex; flex-direction: column; }
   .rm-fill > .ui-section { display: none; }
-  .rm-fill[data-active="0"] > .ui-section:nth-child(1), .rm-fill[data-active="1"] > .ui-section:nth-child(2), .rm-fill[data-active="2"] > .ui-section:nth-child(3) { display: flex; }
+  .rm-fill[data-active="0"] > .ui-section:nth-child(1), .rm-fill[data-active="1"] > .ui-section:nth-child(2), .rm-fill[data-active="2"] > .ui-section:nth-child(3), .rm-fill[data-active="3"] > .ui-section:nth-child(4) { display: flex; }
   .rm-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); inline-size: 100%; }
   .rm-filter > span { display: none; }
   .rm-filters > .rm-subtabs { grid-column: 1 / -1; }

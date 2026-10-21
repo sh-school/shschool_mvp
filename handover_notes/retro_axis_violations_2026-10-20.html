@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تدقيق رجعي — المخالفات السلوكية وسير إجراءاتها</title>
+<style>
+:root{--bg:#fff;--fg:#1d1d1f;--mut:#666;--bd:#ddd;--hd:#f3eef0;--hi:#b3261e;--md:#b26a00;--lo:#2e6b34}
+@media (prefers-color-scheme:dark){:root{--bg:#18181a;--fg:#eee;--mut:#aaa;--bd:#3a3a3e;--hd:#2a2527;--hi:#ff8a80;--md:#ffb74d;--lo:#81c784}}
+body{background:var(--bg);color:var(--fg);font-family:Tajawal,"Segoe UI",Tahoma,sans-serif;line-height:1.8;margin:0;padding:1rem;max-width:1000px;margin-inline:auto}
+h1{font-size:1.5rem}h2{font-size:1.15rem;margin-top:2rem;border-block-end:2px solid var(--bd);padding-block-end:.3rem}
+.card{border:1px solid var(--bd);border-radius:8px;padding:.8rem 1rem;margin:1rem 0}
+.card h3{margin:.1rem 0 .5rem;font-size:1.02rem}
+.tag{display:inline-block;padding:0 .5rem;border-radius:4px;border:1px solid currentColor;font-size:.85rem;margin-inline-end:.4rem}
+.hi{color:var(--hi)}.md{color:var(--md)}.lo{color:var(--lo)}
+dl{margin:0;display:grid;grid-template-columns:7rem 1fr;gap:.2rem .8rem}dt{color:var(--mut)}dd{margin:0}
+code{direction:ltr;unicode-bidi:embed;font-size:.85rem;background:var(--hd);padding:0 .25rem;border-radius:3px}
+table{border-collapse:collapse;width:100%}th,td{border:1px solid var(--bd);padding:.35rem .5rem;text-align:start;vertical-align:top}th{background:var(--hd)}
+.wrap{overflow-x:auto}.mut{color:var(--mut)}
+@media(max-width:600px){dl{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<h1>تدقيق رجعي: المخالفات السلوكية وسير إجراءاتها (<code>behavior/</code>)</h1>
+<p class="mut">تاريخ التقرير 2026-10-20 · للقراءة فقط · المرجع: <code>08_conduct_policy_2026.md</code> و<code>conduct_rules_2026.md</code> في <code>AAdocs/ministry_data/2026_2027/</code>. تدقيق 2026-09-10 (<code>compliance_audit_report.md</code>) غطّى «سلوك الطلبة» بحكمٍ عامّ (سجلّ المخالفات مطبَّق بنيوياً، والتصعيد جزئي 45%)؛ فهذا التقرير لا يكرّر ذلك بل يفحص السير والتدقيق والإشعار على الكود الحالي.</p>
+
+<h2>الخلاصة</h2>
+<div class="wrap"><table>
+<tr><th>#</th><th>الفجوة</th><th>الحالة</th><th>الخطورة</th></tr>
+<tr><td>1</td><td>سقف الفصل المؤقت (3 أيام للدرجتين 1–2، و5 للدرجتين 3–4) غير مفروض</td><td>غير مطبّق</td><td class="hi">عالية</td></tr>
+<tr><td>2</td><td>خطوات «فريق إدارة السلوك» للدرجتين 1–2 (فصل داخلي، تعهّد) بلا مسار تسجيل</td><td>جزئي</td><td class="md">متوسطة</td></tr>
+<tr><td>3</td><td>الاستدعاء والتعهّد الخطّي لا يُربطان بالمخالفة ولا يُوثَّقان</td><td>جزئي</td><td class="hi">عالية</td></tr>
+<tr><td>4</td><td>الشكوى (بند التنمر 7) لا أثر لها في الكود، ولا استئناف عام في اللائحة</td><td>غير مطبّق</td><td class="md">متوسطة</td></tr>
+<tr><td>5</td><td>إجراءات التنمر الخاصة: علامة <code>bullying</code> معرَّفة ولا تُستعمل</td><td>غير مطبّق</td><td class="md">متوسطة</td></tr>
+<tr><td>6</td><td>سجلّ التدقيق يحفظ «الدرجة» فقط، والتعديل من لوحة Django يتجاوز النصاب</td><td>جزئي / متعارض</td><td class="hi">عالية</td></tr>
+<tr><td>7</td><td>إشعار وليّ الأمر: فشل النشر يُفقد الإشعار بلا تعويض ولا أثر على المخالفة</td><td>جزئي</td><td class="md">متوسطة</td></tr>
+<tr><td>8</td><td>التصعيد خطوةً بخطوة بعضوٍ واحد، بينما قرار التصعيد الجماعي يحتاج أغلبية</td><td>جزئي</td><td class="md">متوسطة</td></tr>
+</table></div>
+
+<h2>التفاصيل</h2>
+
+<div class="card"><h3><span class="tag hi">عالية</span><span class="tag">غير مطبّق</span>1. سقف الفصل المؤقت</h3>
+<dl>
+<dt>اللائحة</dt><dd>«لا تتجاوز خمسة أيام في المرة الواحدة لمخالفات الدرجة الثالثة والرابعة، وثلاثة أيام لمخالفات الدرجة الأولى والثانية» — <code>08_conduct_policy_2026.md</code> السطر 44.</dd>
+<dt>الكود</dt><dd><code>behavior/committee_services.py:188</code> يحصر الأيام بين 1 و365؛ و<code>templates/behavior/committee_decision.html:47</code> يضع <code>max="15"</code>؛ و<code>behavior/services.py:282</code> يحفظ القيمة كما وردت. الحقل <code>suspension_days</code> (<code>behavior/models.py:428</code>) بلا مدقّق، والدرجة لا تدخل في الحساب.</dd>
+<dt>الأثر</dt><dd>تصويت اللجنة يأخذ «الأخفّ» بين الأصوات لكنه لا يطبّق السقف الرسمي؛ فيمكن حفظ فصل 15 يوماً (واجهة) أو 365 (طلب مباشر).</dd>
+</dl></div>
+
+<div class="card"><h3><span class="tag md">متوسطة</span><span class="tag">جزئي</span>2. خطوات الفريق للدرجتين 1–2 بلا مسار قرار</h3>
+<dl>
+<dt>اللائحة</dt><dd>السادسة: «فصل مؤقت من الحضور يوماً واحداً (فصل داخلي)»، فاعلها «فريق إدارة سلوك الطلبة» — السطران 321 و355.</dd>
+<dt>الكود</dt><dd>السلّم نصّاً صحيح في <code>behavior/conduct_2026.py:201</code>، لكن شاشة قرار اللجنة تقبل الدرجتين 3 و4 فقط: <code>behavior/views.py:592</code> (<code>level__in=[3, 4]</code>). و<code>escalate_infraction</code> (<code>services.py:673</code>) يزيد رقم الخطوة ويضيف سطراً نصّياً ولا يكتب <code>suspension_days</code> ولا <code>suspension_type</code>.</dd>
+<dt>الأثر</dt><dd>فصل الدرجتين 1–2 لا يُسجَّل في الحقول البنيوية إلا يدوياً من لوحة الإدارة.</dd>
+</dl></div>
+
+<div class="card"><h3><span class="tag hi">عالية</span><span class="tag">جزئي</span>3. الاستدعاء والتعهّد</h3>
+<dl>
+<dt>اللائحة</dt><dd>«اجتماع فريق إدارة سلوك الطلبة مع ولي الأمر + انذاره خطياً + تعهد الطالب خطياً» — السطر 321؛ «توقيع ولي الأمر على تعهد خلال الاجتماع» — السطر 355.</dd>
+<dt>الكود</dt><dd><code>summon_parent</code> (<code>behavior/views.py:912</code>) يرسل إشعاراً فقط عبر <code>NotificationHub</code> ولا يتلقّى معرّف مخالفة ولا يكتب <code>parent_summoned</code>. هذا الحقل لا يُضبط إلا في <code>services.py:699</code> (عند التصعيد لخطوة 2 فأعلى، دون فعل استدعاء). و<code>parent_undertaking_signed</code> (<code>models.py:422</code>) لا يُكتب إلا من <code>behavior/admin.py:99</code>. لم أجد سجلّ حضور الاجتماع ولا نسخة تعهّد موقَّعة.</dd>
+<dt>الأثر</dt><dd>قد يظهر «تم الاستدعاء» دون استدعاء فعلي، ويحدث الاستدعاء الفعلي دون أن يظهر على المخالفة.</dd>
+</dl></div>
+
+<div class="card"><h3><span class="tag md">متوسطة</span><span class="tag">غير مطبّق</span>4. الاستئناف والشكوى</h3>
+<dl>
+<dt>اللائحة</dt><dd>لم أجد في <code>08_conduct_policy_2026.md</code> مسار استئناف للقرار التأديبي. أقرب نص: بند التنمر 7 (السطر 391): «ينبغي على الطالب أو ولي أمره الاتصال بمدير المدرسة». وكلمة «تظلم» ترد في سياسة ذوي الإعاقة فقط (<code>05d_educational_support_policy.md</code> السطر 227).</dd>
+<dt>الكود</dt><dd>لم أجد في <code>behavior/</code> أي كيان أو شاشة للشكوى أو التظلم (بحث عن appeal/تظلم/استئناف: صفر نتائج).</dd>
+<dt>القراءة</dt><dd>اللائحة لا تفرض استئنافاً عاماً، فالفجوة محصورة في شكوى التنمر.</dd>
+</dl></div>
+
+<div class="card"><h3><span class="tag md">متوسطة</span><span class="tag">غير مطبّق</span>5. إجراءات التنمر</h3>
+<dl>
+<dt>اللائحة</dt><dd>3.6.2 (السطران 384–391): مراقبة حالات التنمر «من حيث طبيعتها وشدّتها»، والتحقيق «بصورة شاملة وتراعٍ السرية».</dd>
+<dt>الكود</dt><dd>الحقل <code>bullying</code> معرَّف في <code>behavior/conduct_2026.py:1329</code> ويُعلَّم على مخالفات التنمر، لكني لم أجد أي قراءة له خارج هذا الملف (بحث في الشيفرة والقوالب): لا فلتر ولا تقرير ولا قيد سرّية ولا مسار تحقيق.</dd>
+</dl></div>
+
+<div class="card"><h3><span class="tag hi">عالية</span><span class="tag">جزئي / متعارض</span>6. التدقيق وتجاوز النصاب</h3>
+<dl>
+<dt>اللائحة</dt><dd>«ضمان سرية سجلات ومعلومات الطلبة» — السطر 528 (م7.1)؛ والقرارات التأديبية من «فريق إدارة سلوك الطلبة» (م5.7، السطر 502).</dd>
+<dt>الكود</dt><dd>مطبّق: تدقيق قراءة النص الكامل (<code>services.py:94</code>)، ونصاب الأغلبية مع استبعاد المُبلِّغ (<code>committee_services.py:64-90</code>). لكن: (أ) إشارة الحفظ تسجّل <code>{"level": ...}</code> فقط (<code>core/signals.py:66</code>)، فلا يُعرف ما تغيّر في الإيقاف أو الإجراء المتخذ أو الحلّ؛ (ب) <code>BehaviorInfractionAdmin</code> (<code>behavior/admin.py:41</code>) قابل للتعديل (القفل <code>has_change_permission=False</code> في الملف يخصّ <code>AutoInfractionNoticeAdmin</code> وحده)، فيمكن لمن يملك صلاحية الإدارة ضبط الإيقاف والحلّ دون تصويت.</dd>
+</dl></div>
+
+<div class="card"><h3><span class="tag md">متوسطة</span><span class="tag">جزئي</span>7. إشعار وليّ الأمر</h3>
+<dl>
+<dt>اللائحة</dt><dd>«إشعار ولي الأمر» خطوة محدّدة في السلالم (مثل المرة الخامسة، السطر 320).</dd>
+<dt>الكود</dt><dd><code>behavior/notify.py:54</code>: عند سقوط الوسيط «الفشل يُرصد ولا يُعوَّض» (خيار موثَّق لمنع التكرار)؛ <code>services.py:331</code> و<code>:660</code> يبتلعان كل استثناء بتسجيل فقط. لم أجد علامة «أُبلِغ/تعذّر الإبلاغ» على المخالفة ولا إعادة محاولة لها. والإشعار يخرج عند كل مخالفة بغض النظر عن خطوة السلّم، فلا ربط بالخطوات.</dd>
+</dl></div>
+
+<div class="card"><h3><span class="tag md">متوسطة</span><span class="tag">جزئي</span>8. التصعيد خطوةً بخطوة</h3>
+<dl>
+<dt>الكود</dt><dd><code>escalate_infraction</code> (<code>behavior/views.py:761</code>) يعمل بعضوٍ واحد من اللجنة، بينما التصعيد عبر <code>decision=escalate</code> يحتاج أغلبية (D-116م، <code>committee_services.py:36</code>)؛ مساران بأثر متقارب ونصاب مختلف. ولا تحقق من فاعل الخطوة في السلّم (معلم/مشرف/أخصائي/فريق)، فهي نصوص. وقرار «تصعيد إلى الدرجة 4» (<code>services.py:269</code>) لم أجد له أصلاً في السلالم التي قرأتها.</dd>
+<dt>ملاحظة</dt><dd>لم أجد نصّاً يحدّد من ينفّذ الانتقال بين الخطوات؛ فالحكم هنا على اتساق المسارين داخلياً لا على مخالفة نصّ.</dd>
+</dl></div>
+
+<h2>ما لم أجده أو لم أتحقق منه</h2>
+<ul>
+<li>لم أجد مهلة زمنية لإشعار الأسرة في اللائحة، فلا حكم على التأخير.</li>
+<li>لم أشغّل التطبيق ولا الاختبارات؛ كل ما سبق قراءة كود.</li>
+<li>لم أراجع السلالم الواحد والأربعين كاملةً؛ قرأت مقاطع منها وبحثت في جداول الإيقاف.</li>
+</ul>
+</body>
+</html>
