@@ -23,7 +23,7 @@
     {% kpi "زيارات الشهر" month_total|default_if_none:"—" tone="teal" %}
   {% endkpi_strip %}
 
-  <p class="muted" role="note">أعدادٌ مجمَّعةٌ بلا أسماءٍ ولا تفاصيلَ صحّيّة. الخانةُ «—» عددُها أقلُّ من {{ suppress_below }} فلا يُعرض حمايةً للخصوصيّة.</p>
+  <p class="text-muted" role="note">أعدادٌ مجمَّعةٌ بلا أسماءٍ ولا تفاصيلَ صحّيّة. الخانةُ «—» عددُها أقلُّ من {{ suppress_below }} فلا يُعرض حمايةً للخصوصيّة.</p>
 
   <div class="ui-grid-2">
     {% section_card "اليوم حسب مجموعة الخدمة" icon="clinic_visit" empty="لا زياراتٍ اليوم" %}
