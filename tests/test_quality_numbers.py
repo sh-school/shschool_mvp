@@ -44,7 +44,9 @@ def test_ci_step_is_non_blocking_and_pins_match_the_gate():
     )
     steps = wf["jobs"]["mypy"]["steps"]
     step = next(s for s in steps if "quality_numbers" in s.get("run", ""))
-    assert step.get("continue-on-error") is True, "خطوةُ الأرقام لا تحكم"
+    # لا continue-on-error (يرفضه test_ci_gates_are_honest)؛ عدمُ الحكم مضمونٌ بأنّ السكربت بلا --strict يخرج بصفر.
+    assert "continue-on-error" not in step, "خطوةٌ تبتلع الفشل تُسقط اختبار صدق البوّابات"
+    assert "--strict" not in step["run"], "خطوةُ الأرقام لا تحكم"
     pins = dict(re.findall(r"(ruff|radon)==([\d.]+)", step["run"]))
     gate = (ROOT / ".github" / "workflows" / "quality-gate.yml").read_text(encoding="utf-8")
     for tool, ver in pins.items():
