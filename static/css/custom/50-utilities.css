@@ -84,6 +84,11 @@
   transition: border-color .12s, background .12s;
 }
 
+/* ── خيارُ الدور في صفحة تبديل الدور: الدائرةُ بحجمها لا تتمدّد في عرض 375 ─── */
+.role-pill { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-md); cursor: pointer; }
+.role-pill input { accent-color: var(--maroon-fg); inline-size: auto; flex: none; }
+.role-pill span { min-inline-size: 0; overflow-wrap: anywhere; }
+
 /* ── Status Background Cards (light tint + border) ─── */
 
 
@@ -301,8 +306,7 @@ input[type="checkbox"], input[type="radio"] { min-inline-size: 24px; min-block-s
   #main-content.page-noscroll > .exec-dash > .ui-section:last-child { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; }
   #main-content.page-noscroll > .exec-dash > .ui-section:last-child > .ui-section__body { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; overflow: auto; }
   /* ربط الأولياء: الجدولُ يُمرَّر وحده والترقيمُ ثابتٌ أسفل البطاقة. */
-  #main-content.page-noscroll #links-container > .table-wrap { display: flex; flex-direction: column; overflow: hidden; }
-  #main-content.page-noscroll #links-container > .table-wrap > .overflow-x-auto { flex: 1; min-height: 0; overflow: auto; }
+  #main-content.page-noscroll #links-container > .table-wrap { display: flex; flex-direction: column; overflow: auto; }
   /* استدعاء ولي أمر */
   #main-content.page-noscroll .beh-summon-cards { flex: 0 1 auto; min-height: 0; }
   #main-content.page-noscroll .beh-summon-cards .form-group { margin-block-end: var(--sp-2); }
@@ -485,13 +489,11 @@ input[type="checkbox"], input[type="radio"] { min-inline-size: 24px; min-block-s
   .mb-2 { margin-bottom: .5rem; }
   .mb-3 { margin-bottom: .75rem; }
   .mb-4 { margin-bottom: 1rem; }
-  .mr-3 { margin-inline-start: .75rem; }
   .mt-1 { margin-top: .25rem; }
   .mt-16 { margin-top: 4rem; }
   .mt-20 { margin-top: 5rem; }
   .mt-3 { margin-top: .75rem; }
   .mt-4 { margin-top: 1rem; }
-  .mt-6 { margin-top: 1.5rem; }
   .block { display: block; }
   .inline-block { display: inline-block; }
   .flex { display: flex; }
@@ -523,23 +525,18 @@ input[type="checkbox"], input[type="radio"] { min-inline-size: 24px; min-block-s
   .justify-between { justify-content: space-between; }
   .gap-2 { gap: .5rem; }
   .gap-2\.5 { gap: .625rem; }
-  .gap-3 { gap: .75rem; }
   .gap-4 { gap: 1rem; }
   .space-y-2>:not([hidden])~:not([hidden]) { margin-top: .5rem; margin-bottom: 0; }
   .space-y-4>:not([hidden])~:not([hidden]) { margin-top: 1rem; margin-bottom: 0; }
-  .overflow-x-auto { overflow-x: auto; }
   .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rounded-lg { border-radius: var(--radius-lg); }
   .border-t { border-top-width: 1px; }
   .border-\[var\(--border\)\] { border-color: var(--border); }
-  .p-3 { padding: .75rem; }
   .p-4 { padding: 1rem; }
-  .p-5 { padding: 1.25rem; }
   .py-6 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
   .py-8 { padding-top: 2rem; padding-bottom: 2rem; }
   .pt-2 { padding-top: .5rem; }
   .text-center { text-align: center; }
-  .text-right { text-align: start; }
   .font-mono { font-family: var(--font-mono); }
   .text-sm { line-height: 1.25rem; }
   .font-bold { font-weight: 700; }

@@ -15,7 +15,7 @@ from tests.test_behavior_views2 import teacher_student_link  # noqa: F401
 
 pytestmark = pytest.mark.django_db
 
-URLS = ["behavior:report_infraction", "behavior:quick_log"]
+URLS = ["behavior:report_infraction"]
 
 
 def _post(client_as, user, name, student_id):

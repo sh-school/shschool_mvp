@@ -18,6 +18,7 @@ import re
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DOC = ROOT / "docs" / "governance" / "regression_guards.md"
+GUARDS_DIR = ROOT / "docs" / "governance" / "guards"
 TESTS = ROOT / "tests"
 
 SPAN_RE = re.compile(r"`([^`\n]+)`")
@@ -30,6 +31,13 @@ BASELINE_RE = re.compile(r"\b([a-z0-9_]+_baseline\.json)\b")
 #: أقلُّ ما يجب أن يراه الحارسُ — قيسَ 121 اسمَ اختبارٍ ومسارٍ وخطَّ أساسٍ يومَ كتابته. إن سقط تحته فقد عطب القارئُ
 #: فصار الحارسُ يمرّ بلا أن يفحص شيئاً (الفحصُ الذي لا يستطيع أن يفشل ليس فحصاً).
 MIN_REFERENCES = 100
+
+
+def doc_text() -> str:
+    """الفهرسُ ومقاطعُه (`guards/**/*.md`) نصّاً واحداً — W-20261020-018: كلُّ حارسٍ ملفٌّ فلا يتصادم طلبان."""
+    parts = [DOC.read_text(encoding="utf-8")]
+    parts += [p.read_text(encoding="utf-8") for p in sorted(GUARDS_DIR.rglob("*.md"))]
+    return "\n".join(parts)
 
 
 def _test_files(tests: pathlib.Path) -> list[pathlib.Path]:
@@ -74,7 +82,7 @@ def missing(
 
 
 def test_every_reference_in_the_guards_document_exists():
-    doc = DOC.read_text(encoding="utf-8")
+    doc = doc_text()
     lost_names, lost_paths, lost_baselines = missing(doc)
     problems = [f"اختبارٌ غيرُ موجود: {n}" for n in lost_names]
     problems += [f"ملفٌّ غيرُ موجود: {p}" for p in lost_paths]
@@ -86,7 +94,7 @@ def test_every_reference_in_the_guards_document_exists():
 
 
 def test_the_guard_reads_enough_references_to_mean_something():
-    names, paths, baselines = references(DOC.read_text(encoding="utf-8"))
+    names, paths, baselines = references(doc_text())
     assert len(names) + len(paths) + len(baselines) >= MIN_REFERENCES
 
 
@@ -117,3 +125,19 @@ def test_the_detector_sees_what_it_claims_to_see(tmp_path):
 
 def _sources_of(tests_dir: pathlib.Path) -> str:
     return "\n".join(p.read_text(encoding="utf-8") for p in _test_files(tests_dir))
+
+
+def test_the_index_points_to_every_guard_file():
+    """الفهرسُ يذكر كلَّ مجلّد مقاطع؛ وكلُّ ملفّ ثوابتٍ صفٌّ واحدٌ بترويسته (لا يتصادم طلبان)."""
+    index = DOC.read_text(encoding="utf-8")
+    for name in (
+        "ratchets.md",
+        "ceilings.md",
+        "identity_prepush.md",
+        "migration_collisions.md",
+        "guards/invariants/",
+    ):
+        assert name in index, f"الفهرسُ لا يشير إلى {name}"
+    for f in sorted((GUARDS_DIR / "invariants").glob("*.md")):
+        rows = [ln for ln in f.read_text(encoding="utf-8").splitlines() if ln.startswith("| **")]
+        assert len(rows) == 1, f"{f.name}: صفٌّ واحدٌ لكلّ ملفّ (وُجد {len(rows)})"

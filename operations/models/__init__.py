@@ -10,6 +10,7 @@ from .absence_followup import (  # noqa: F401
     AbsenceActionLog,
     AbsenceContactLog,
 )
+from .absence_reports import AbsenceReportSnapshot  # noqa: F401
 from .attendance import (  # noqa: F401
     AbsenceAlert,
     AbsenceExcuse,
@@ -20,6 +21,7 @@ from .attendance import (  # noqa: F401
     SectionDayConfirmation,
     Session,
     StudentAttendance,
+    TardinessExcuse,
     _excuse_upload_path,
 )
 from .attendance_ledger import (  # noqa: F401
@@ -82,6 +84,7 @@ __all__ = [
     "Session",
     "StudentAttendance",
     "AbsenceExcuse",
+    "TardinessExcuse",
     "GuardianContact",
     "AbsenceAlert",
     "SectionDayConfirmation",

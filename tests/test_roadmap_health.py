@@ -17,7 +17,13 @@ from django.core.management import CommandError, call_command
 from django.urls import reverse
 
 from roadmap import health, ledger_health
-from roadmap.models import DecisionStatus, RoadmapDecision, RoadmapItem, RoadmapMeta
+from roadmap.models import (
+    DecisionStatus,
+    RoadmapDecision,
+    RoadmapItem,
+    RoadmapMeta,
+    RoadmapRisk,
+)
 from roadmap.services import page_context
 
 pytestmark = pytest.mark.django_db
@@ -373,3 +379,79 @@ class TestGlossaryAgreesWithTheScript:
 
         assert {f"st_{v}" for v in ItemStatus.values} <= set(health.GLOSSARY)
         assert {f"dc_{v}" for v in DecisionStatus.values} <= set(health.GLOSSARY)
+
+
+# ── المخاطرُ والفحص الأمنيّ (W-20261009-028) ────────────────────────────────
+
+
+def _risk(code: str, days_old: int) -> RoadmapRisk:
+    row = RoadmapRisk.objects.create(code=code, risk=f"خطر {code}", impact="مرتفع")
+    stamp = datetime(2026, 10, 10, 12, tzinfo=UTC) - timedelta(days=days_old)
+    RoadmapRisk.objects.filter(pk=row.pk).update(updated_at=stamp)  # auto_now لا يُمرَّر عند الإنشاء
+    return RoadmapRisk.objects.get(pk=row.pk)
+
+
+class TestRiskAndSecurityHealth:
+    def test_a_risk_age_counts_days_since_the_last_edit(self):
+        fresh, old = _risk("R-1", 2), _risk("R-2", 45)
+        ages = health.risk_ages([fresh, old], TODAY)
+        assert ages == {"R-1": 2, "R-2": 45}
+        assert ages["R-2"] >= health.RISK_IDLE_DAYS > ages["R-1"]
+
+    def test_security_sources_are_unmeasured_without_a_snapshot_never_zero(self):
+        rows = health.security_snapshot({}, TODAY)
+        assert [r["key"] for r in rows] == ["codeScanning", "secrets", "dependabot"]
+        assert all(r["count"] is None and r["asOf"] is None for r in rows)
+
+    def test_a_valid_snapshot_shows_the_count_its_date_and_its_source(self):
+        meta = {"security": {"secrets": {"count": 0, "asOf": "2026-10-09", "source": "GitHub"}}}
+        by_key = {r["key"]: r for r in health.security_snapshot(meta, TODAY)}
+        assert by_key["secrets"]["count"] == 0 and by_key["secrets"]["stale"] is False
+        assert by_key["secrets"]["source"] == "GitHub"
+        assert by_key["dependabot"]["count"] is None
+
+    def test_an_old_snapshot_is_flagged_stale_and_a_bad_one_is_unmeasured(self):
+        meta = {
+            "security": {
+                "secrets": {"count": 3, "asOf": "2026-09-01", "source": "GitHub"},
+                "dependabot": {"count": True, "asOf": "2026-10-09"},
+                "codeScanning": {"count": -1, "asOf": "2026-10-09"},
+            }
+        }
+        by_key = {r["key"]: r for r in health.security_snapshot(meta, TODAY)}
+        assert by_key["secrets"]["stale"] is True
+        assert by_key["dependabot"]["count"] is None
+        assert by_key["codeScanning"]["count"] is None
+
+    def test_no_alert_text_path_or_package_name_can_reach_the_page(self):
+        entry = {"count": 1, "asOf": "2026-10-09", "source": "S", "alert": "مفتاح", "path": "a/b"}
+        row = next(
+            r
+            for r in health.security_snapshot({"security": {"secrets": entry}}, TODAY)
+            if r["key"] == "secrets"
+        )
+        assert set(row) == {"key", "name", "count", "asOf", "source", "stale"}
+
+    def test_the_page_context_carries_risk_ages_and_security(self):
+        _risk("R-9", 5)
+        health_data = page_context()["roadmap_data"]["health"]
+        assert "R-9" in health_data["riskAges"]
+        assert health_data["riskIdleDays"] == health.RISK_IDLE_DAYS
+        assert len(health_data["security"]) == 3
+
+    def test_opening_the_page_is_recorded_in_the_audit_log(self, client_as, developer_user):
+        from core.models import AuditLog
+
+        before = AuditLog.objects.filter(object_id="roadmap", action="view").count()
+        assert client_as(developer_user).get(reverse("improvement_roadmap")).status_code == 200
+        entries = AuditLog.objects.filter(object_id="roadmap", action="view")
+        assert entries.count() == before + 1
+        assert entries.latest("pk").user_id == developer_user.pk
+
+    def test_the_page_stays_closed_to_non_developers_and_leaves_no_trace(
+        self, client_as, teacher_user
+    ):
+        from core.models import AuditLog
+
+        assert client_as(teacher_user).get(reverse("improvement_roadmap")).status_code == 403
+        assert not AuditLog.objects.filter(object_id="roadmap", action="view").exists()

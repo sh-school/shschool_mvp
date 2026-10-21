@@ -9,6 +9,7 @@ from .admin_forms import TeacherPreferenceAdminForm, effective_cap
 from .models import (
     AbsenceAlert,
     AbsenceExcuse,
+    AbsenceReportSnapshot,
     AttendanceDecision,
     AttendanceEntry,
     ClassExit,
@@ -31,6 +32,7 @@ from .models import (
     Subject,
     SubjectClassAssignment,
     SubstituteAssignment,
+    TardinessExcuse,
     TeacherAbsence,
     TeacherExemption,
     TeacherPreference,
@@ -193,6 +195,13 @@ class AttendanceDecisionAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     date_hierarchy = "decided_at"
 
 
+@admin.register(AbsenceReportSnapshot)
+class AbsenceReportSnapshotAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ("kind", "grade_scope", "period_start", "period_end", "revision", "generated_at")
+    list_filter = ("kind", "grade_scope", "school")
+    date_hierarchy = "generated_at"
+
+
 @admin.register(AbsenceAlert)
 class AbsenceAlertAdmin(SchoolScopedAdmin):
     """تنبيهُ الغياب يُنشئه النظامُ بعتبةٍ وفترة — فلا يُضاف ولا يُحذف ولا يُعدَّل منه إلا الحلُّ (D-201م)."""
@@ -287,6 +296,17 @@ class AbsenceExcuseAdmin(SensitiveFieldsMixin, ReadOnlyAdminMixin, SchoolScopedA
         "applicant_phone",
         "pledge_accepted",
     )
+
+
+@admin.register(TardinessExcuse)
+class TardinessExcuseAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    """عذرُ التأخّر يعتمده معلّمُ الحصّة بخدمته (`operations/tardiness_excuse_services.py`) — يُقرأ هنا ولا يُكتب."""
+
+    list_display = ("attendance", "granted_by", "granted_at")
+    list_select_related = ("attendance__student", "granted_by")
+    list_filter = ("school",)
+    search_fields = ("attendance__student__full_name",)
+    date_hierarchy = "granted_at"
 
 
 @admin.register(GuardianContact)

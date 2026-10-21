@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_absence_followup
+from . import views, views_absence_followup, views_absence_reports
 from .scheduler_v2.views import v2_progress, v2_stop
 from .views_class_grid import (
     class_grid,
@@ -13,10 +13,18 @@ from .views_class_grid import (
 )
 from .views_director_live import director_live
 from .views_schedule_drafts import discard_schedule, stop_schedule_generation
+from .views_tardiness_excuse import tardiness_excuse_decide, tardiness_excuses
 from .views_teacher_preferences import teacher_preferences_overview
 
 urlpatterns = [
     path("schedule/", views.schedule, name="teacher_schedule"),
+    # عذرُ التأخّر لمعلّم الحصّة في يومها (W-20261002-028).
+    path("tardiness-excuses/", tardiness_excuses, name="tardiness_excuses"),
+    path(
+        "tardiness-excuses/<uuid:attendance_id>/",
+        tardiness_excuse_decide,
+        name="tardiness_excuse_decide",
+    ),
     # الاستطلاعُ الحيّ للوحة المدير (W-20261008-004، D-249م القسم 9): JSON بلا أسماء، للمدير ونائبيه.
     path("director-live/", director_live, name="director_live"),
     # -- شُعبي للرصد: قائمةُ شُعب المستخدم، ومنها يُفتح جدولُ الشعبة --
@@ -45,6 +53,22 @@ urlpatterns = [
         "reports/daily/print/", views_absence_followup.followup_print, name="absence_followup_print"
     ),
     path("reports/daily/pdf/", views_absence_followup.followup_pdf, name="absence_followup_pdf"),
+    path(
+        "reports/daily/archive/",
+        views_absence_reports.reports_archive,
+        name="absence_reports_archive",
+    ),
+    path(
+        "reports/daily/archive/<uuid:pk>/",
+        views_absence_reports.report_detail,
+        name="absence_report_detail",
+    ),
+    path(
+        "reports/daily/archive/<uuid:pk>/recompute/",
+        views_absence_reports.report_recompute,
+        name="absence_report_recompute",
+    ),
+    path("reports/daily/xlsx/", views_absence_followup.followup_xlsx, name="absence_followup_xlsx"),
     path(
         "reports/daily/contact-sheet/",
         views_absence_followup.contact_sheet,
