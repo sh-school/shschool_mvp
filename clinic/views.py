@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
 
@@ -194,11 +195,17 @@ def visits_list(request):
         "student_filter": student_filter,
     }
 
+    is_htmx = bool(getattr(request, "htmx", None) or request.headers.get("HX-Request"))
     # القائمةُ تعرض اسمَ الطالب وreason وtreatment: تُدقَّق (أعدادٌ فقط، لا نصوص ولا ترشيح بحث).
-    _audit_health_screen(request, "قائمة الزيارات", model_name="ClinicVisit", rows=visits.count())
+    # البحثُ الحيّ (HTMX) يُطلق طلباً لكلّ ضغطة مفتاح: سطرٌ واحد لكلّ مستخدمٍ في الدقيقة (قرار 0101)،
+    # أمّا فتحُ الصفحة الكاملة فيُدقَّق دائماً.
+    if not is_htmx or cache.add(f"clinic_audit_live:{request.user.pk}:visits_list", 1, 60):
+        _audit_health_screen(
+            request, "قائمة الزيارات", model_name="ClinicVisit", rows=visits.count()
+        )
 
     # HTMX: أعد الجزء فقط (بحث حي + ترشيح)
-    if getattr(request, "htmx", None) or request.headers.get("HX-Request"):
+    if is_htmx:
         return render(request, "clinic/partials/visit_rows.html", context)
 
     return render(request, "clinic/visits_list.html", context)
