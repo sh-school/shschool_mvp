@@ -15,8 +15,9 @@ SECRETS = ("سببٌ-صحّيٌّ-سرّيٌّ-71", "عَرَضٌ-سرّيٌّ-7
 
 
 def _record_sent_home(school, student, nurse):
+    """زيارةُ إحالةٍ للمنزل بعد تأكيد الممرّض (الإرسالُ لم يعد آليّاً عند التسجيل — W-20261020-034)."""
     reason, symptoms, treatment = SECRETS
-    return ClinicService.record_visit(
+    visit = ClinicService.record_visit(
         school=school,
         student=student,
         nurse=nurse,
@@ -25,6 +26,9 @@ def _record_sent_home(school, student, nurse):
         treatment=treatment,
         is_sent_home=True,
     )
+    ClinicService.confirm_referral_notice(visit, school, nurse)
+    visit.refresh_from_db()
+    return visit
 
 
 @pytest.mark.django_db

@@ -71,6 +71,12 @@
               <span class="status-badge status-success">{% icon "confirm" %} أُبلغ ولي الأمر</span>
               {% elif visit.is_sent_home %}
               <span class="status-badge status-danger">لم يُبلَّغ ولي الأمر</span>
+              {% if can_write %}
+              <form method="post" action="{% url 'clinic:confirm_referral_notice' visit.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-secondary btn-sm">أكّد الإحالة وأشعِر وليَّ الأمر</button>
+              </form>
+              {% endif %}
               {% endif %}
               {% if visit.temperature %}
               <span class="clinic-temp{% if visit.is_feverish %} is-fever{% endif %}">{{ visit.temperature }}°</span>
