@@ -111,3 +111,18 @@ def test_a_cap_below_the_share_is_disabled_not_refused_later(client, school, tea
 
     # نصابٌ 4 على 5 أيّامٍ = حصّةٌ واحدةٌ في اليوم على الأقلّ — فلا يُطفأ شيء.
     assert "نصابُك" in body, "النصابُ يُعرض قبل الاختيار لا بعده"
+
+
+def test_the_daily_cap_is_described_as_a_hard_limit_not_a_best_effort(client, school, teacher):
+    """السقفُ اليوميّ قيدٌ صلبٌ في الحلّال؛ فلا وعدَ «نحاول ولا نضمن» فوق حقله (W-20261012-021)."""
+    from django.urls import reverse
+
+    client.force_login(teacher)
+    body = client.get(
+        reverse("teacher_preferences") + f"?year={YEAR}", HTTP_HOST="localhost"
+    ).content.decode()
+
+    assert "دون ضمان" not in body
+    assert "نحاول ولا نضمن" not in body
+    assert "قيد صلب" in body
+    assert 'name="max_daily_periods"' in body

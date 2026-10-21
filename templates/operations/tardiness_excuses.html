@@ -24,7 +24,7 @@
         <thead><tr><th>الطالب</th><th>الشعبة</th><th>الحصّة</th><th>الدقائق</th><th>العذر</th></tr></thead>
         <tbody>
           {% for row in rows %}
-          <tr>
+          <tr class="grade-tint grade-{{ row.session.class_group.grade|lower }}">
             <td>{{ row.student.full_name }}</td>
             <td>{{ row.session.class_group.short_label }}</td>
             <td>{{ row.session.subject.name_ar|default:"حصّة" }} · {{ row.session.start_time|time:"H:i" }}</td>

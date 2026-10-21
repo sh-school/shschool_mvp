@@ -19,9 +19,9 @@
   .asg-guard-head { display: flex; gap: var(--sp-2-5); align-items: baseline; flex-wrap: wrap; }
   .asg-guard-head strong { font-size: var(--text-sm); }
   .asg-guard details { margin-top: var(--sp-2); }
-  .asg-guard summary { cursor: pointer; font-weight: 700; font-size: 0.78125rem; }
+  .asg-guard summary { cursor: pointer; font-weight: 700; font-size: var(--text-xs-plus); }
   .asg-guard-scroll { max-height: 280px; overflow: auto; margin-top: var(--sp-1-5); background: var(--surface); border-radius: var(--radius-md); }
-  table.asg-guard-table { width: 100%; border-collapse: collapse; font-size: 0.78125rem; color: var(--text-primary); }
+  table.asg-guard-table { width: 100%; border-collapse: collapse; font-size: var(--text-xs-plus); color: var(--text-primary); }
   /* `thead th` العامّة تكتب بالأبيض على الخمريّ. وهذه الترويسةُ فاتحةٌ داخل
      بطاقةِ التنبيه، فبلا لونٍ صريحٍ يصير الأبيضُ على الفاتح — نصٌّ لا يُقرأ. */
   table.asg-guard-table th { position: sticky; top: 0; background: var(--surface-alt); color: var(--text-primary); font-weight: 700; text-align: start; padding: 5px var(--sp-2); border-bottom: 1px solid var(--border); }
@@ -70,12 +70,12 @@
   .asg-chip-submitted { background: var(--status-warning-bg); color: var(--status-warning-fg); border-color: var(--asg-warning-border); }
   .asg-chip-reviewed { background: var(--status-info-bg); color: var(--status-info-fg); border-color: var(--status-info-border); }
   .asg-chip-approved, .asg-chip-locked { background: var(--status-success-bg); color: var(--status-success-fg); border-color: var(--asg-success-border); }
-  .asg-load { font-size: 0.78125rem; color: var(--text-secondary); margin-inline-start: auto; }
+  .asg-load { font-size: var(--text-xs-plus); color: var(--text-secondary); margin-inline-start: auto; }
   .asg-load.over { color: var(--status-danger-fg); font-weight: 700; }
   .asg-load.exact { color: var(--status-success-fg); font-weight: 700; }
   .asg-dept-pick select { padding: 3px var(--sp-1-5); border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; font-size: var(--text-xs); background: var(--surface); max-width: 190px; }
   .asg-dept-pick select.empty { border-color: var(--status-warning-border); background: var(--status-warning-bg); }
-  .asg-quota { display: inline-flex; align-items: center; gap: var(--sp-1-5); font-size: 0.78125rem; }
+  .asg-quota { display: inline-flex; align-items: center; gap: var(--sp-1-5); font-size: var(--text-xs-plus); }
   .asg-quota input { width: 62px; padding: var(--sp-1) var(--sp-1-5); border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; text-align: center; }
   .asg-inline { display: inline; }
   table.asg { width: 100%; border-collapse: collapse; margin-top: var(--sp-2); font-size: 0.8125rem; }
@@ -88,18 +88,18 @@
   table.asg select { padding: 5px var(--sp-2); border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; font-size: 0.8125rem; background: var(--surface); min-width: 170px; }
   .asg-add td { background: var(--surface-alt); }
   .asg-addform { display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; }
-  .asg-plus { padding: 5px var(--sp-3-5); border-radius: var(--radius-md); border: 1.5px solid var(--maroon); background: var(--maroon); color: var(--on-fill); font-family: inherit; font-size: 0.78125rem; font-weight: 700; cursor: pointer; }
-  .asg-check { display: inline-flex; gap: var(--sp-1); align-items: center; font-size: 0.78125rem; }
+  .asg-plus { padding: 5px var(--sp-3-5); border-radius: var(--radius-md); border: 1.5px solid var(--maroon); background: var(--maroon); color: var(--on-fill); font-family: inherit; font-size: var(--text-xs-plus); font-weight: 700; cursor: pointer; }
+  .asg-check { display: inline-flex; gap: var(--sp-1); align-items: center; font-size: var(--text-xs-plus); }
   .asg-x { border: 0; background: transparent; color: var(--status-danger-fg); font-size: 0.9375rem; cursor: pointer; padding: 0 var(--sp-1-5); }
-  .asg-confirm { margin-top: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius); background: var(--status-warning-bg); border: 1px solid var(--asg-warning-border); color: var(--status-warning-fg); font-size: 0.78125rem; display: flex; gap: var(--sp-2-5); align-items: center; flex-wrap: wrap; }
+  .asg-confirm { margin-top: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius); background: var(--status-warning-bg); border: 1px solid var(--asg-warning-border); color: var(--status-warning-fg); font-size: var(--text-xs-plus); display: flex; gap: var(--sp-2-5); align-items: center; flex-wrap: wrap; }
   .asg-confirm p { margin: 0; flex: 1 1 320px; }
-  .asg-err { margin-top: var(--sp-2); padding: var(--sp-1-5) var(--sp-2-5); border-radius: var(--radius-md); background: var(--status-danger-bg); color: var(--status-danger-fg); border: 1px solid var(--status-danger-border); font-size: 0.78125rem; }
+  .asg-err { margin-top: var(--sp-2); padding: var(--sp-1-5) var(--sp-2-5); border-radius: var(--radius-md); background: var(--status-danger-bg); color: var(--status-danger-fg); border: 1px solid var(--status-danger-border); font-size: var(--text-xs-plus); }
   .asg-note { margin-top: var(--sp-1-5); font-size: var(--text-xs); color: var(--status-warning-fg); }
-  .asg-empty { color: var(--text-muted); font-size: 0.78125rem; padding: var(--sp-1-5) 0; }
+  .asg-empty { color: var(--text-muted); font-size: var(--text-xs-plus); padding: var(--sp-1-5) 0; }
   .asg-hint { color: var(--text-muted); font-size: var(--text-xs); }
   .asg-flow { display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; margin-top: var(--sp-2-5); padding-top: var(--sp-2); border-top: 1px dashed var(--border); }
-  .asg-comment { flex: 1 1 220px; min-width: 160px; padding: 5px var(--sp-2); border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; font-size: 0.78125rem; }
-  .asg-btn { padding: 5px var(--sp-3-5); border-radius: var(--radius-md); font-family: inherit; font-size: 0.78125rem; font-weight: 700; cursor: pointer; border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text-primary); }
+  .asg-comment { flex: 1 1 220px; min-width: 160px; padding: 5px var(--sp-2); border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; font-size: var(--text-xs-plus); }
+  .asg-btn { padding: 5px var(--sp-3-5); border-radius: var(--radius-md); font-family: inherit; font-size: var(--text-xs-plus); font-weight: 700; cursor: pointer; border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text-primary); }
   .asg-btn-primary { background: var(--maroon); border-color: var(--maroon); color: var(--on-fill); }
   .asg-btn-approve { background: var(--status-success-dark); border-color: var(--status-success-dark); color: var(--on-fill); }
   .asg-btn-ghost { background: transparent; }
@@ -588,7 +588,7 @@
 .pr-dom__pct {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.78rem; font-weight: 800; color: var(--text-primary);
+  font-size: var(--text-xs-plus); font-weight: 800; color: var(--text-primary);
 }
 
 .pr-dom__info { min-width: 0; }
@@ -973,7 +973,7 @@
   .table-wrap .schedule-matrix {
     --mx-head-h: 1.75rem; /* سطرُ الأيّام: عليه إزاحةُ سطر الحصص اللاصق */
     table-layout: fixed; border-collapse: separate; border-spacing: 0;
-    font-size: clamp(0.5625rem, 0.58vw, 0.8125rem); line-height: 1.5;
+    font-size: clamp(var(--text-xs), 0.58vw, 0.8125rem); line-height: 1.5;
   }
   /* استثناءٌ مقصودٌ من المنطقيّ: حدودُ المصفوفة (`border-right*`) فيزيائيّةٌ عمداً — خلايا الحصص `.m-cell` بـ`direction: ltr` فتنقلب الحدودُ
      المنطقيّةُ فيها عن بقيّة الصفّ، والمصفوفةُ تُطبع بـWeasyPrint (دعمُه للحدود المنطقيّة غيرُ مضمون)؛ والخطُّ الفاصلُ بين الأيّام يجب أن يبقى في موضعه. */
@@ -984,7 +984,7 @@
   }
   /* الترويسةُ لاصقةٌ: سطرُ الأيّام عنّابيٌّ كترويسة المنصّة، وسطرُ الحصص أغمقُ تحته. */
   .table-wrap .schedule-matrix thead th { font-size: inherit; border-color: color-mix(in srgb, var(--on-fill) 32%, transparent); }
-  .table-wrap .schedule-matrix thead .m-day { font-size: clamp(0.6875rem, 0.7vw, 1rem); block-size: var(--mx-head-h); }
+  .table-wrap .schedule-matrix thead .m-day { font-size: clamp(var(--text-xs), 0.7vw, 1rem); block-size: var(--mx-head-h); }
   .table-wrap .schedule-matrix thead tr:nth-child(2) { background: var(--maroon-dark); }
   .table-wrap .schedule-matrix thead tr:nth-child(2) th { inset-block-start: calc(var(--mx-head-h) - 1px); }
   .table-wrap .schedule-matrix thead .m-dept,
@@ -993,9 +993,9 @@
   .table-wrap .schedule-matrix .m-dept { inline-size: 5%; padding: var(--sp-0-5) var(--sp-1); font-weight: 700; line-height: 1.2; white-space: normal; border-right: 0; }
   .table-wrap .schedule-matrix .m-name {
     inline-size: 7.5%; padding-inline: var(--sp-1); text-align: start; font-weight: 600;
-    font-size: clamp(0.5625rem, 0.62vw, 0.8125rem); text-overflow: ellipsis; border-right-width: 2px;
+    font-size: clamp(var(--text-xs), 0.62vw, 0.8125rem); text-overflow: ellipsis; border-right-width: 2px;
   }
-  .table-wrap .schedule-matrix .m-name.m-name-tagged { font-size: clamp(0.5rem, 0.5vw, 0.6875rem); }
+  .table-wrap .schedule-matrix .m-name.m-name-tagged { font-size: var(--text-xs); }
   .schedule-matrix .m-specialty { color: var(--maroon-fg); font-weight: 500; font-size: 0.875em; }
   .table-wrap .schedule-matrix .m-total { inline-size: 3%; font-weight: 700; border-right-width: 2px; }
   .table-wrap .schedule-matrix .m-cell { direction: ltr; position: relative; }
@@ -1069,7 +1069,7 @@
     .table-wrap .schedule-matrix .m-dept { position: sticky; inset-inline-start: 0; z-index: 2; inline-size: 60px; min-inline-size: 60px; max-inline-size: 60px; font-size: 0.75rem; }
     .table-wrap .schedule-matrix .m-name {
       position: sticky; inset-inline-start: 60px; z-index: 2; inline-size: 150px; min-inline-size: 150px; max-inline-size: 150px;
-      font-size: 0.78125rem; white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.35;
+      font-size: var(--text-xs-plus); white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.35;
       box-shadow: inset 1px 0 0 var(--border-strong);
     }
     .table-wrap .schedule-matrix .m-name.m-name-tagged { font-size: 0.75rem; }
@@ -1225,6 +1225,18 @@
   .prefs-form select.form-control { max-width: 20rem; }
   .prefs-form .ui-field-hint { max-width: 46rem; }
   .prefs-form textarea.form-control { max-width: 46rem; }
+  /* شبكةُ مواضع الحصص (W-20261010-032): لكلّ يومٍ بطاقةٌ فيها حصصُه — `auto-fit` يجعلها خمسةَ أعمدةٍ على الحاسوب
+     وعموداً واحداً على الجوال بلا استعلامات نافذة. والحالةُ نصٌّ في القائمة نفسِها (محايدة/أفضّلها/أتجنّبها) فلا يُعتمد
+     على اللون وحدَه، واللونُ تعزيزٌ بـ`:has` حيث يدعمه المتصفّح. */
+  .period-pref { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: var(--sp-3); }
+  .period-pref__day { margin: 0; min-inline-size: 0; padding: var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+  .period-pref__day legend { padding-inline: var(--sp-2); font-weight: 700; }
+  .period-pref__cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: var(--sp-2); }
+  .period-pref__row { display: flex; align-items: center; gap: var(--sp-1-5); min-inline-size: 0; }
+  .period-pref__no { flex: none; inline-size: 1.25rem; text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); }
+  .period-pref__row select.form-control { flex: 1; min-inline-size: 0; max-width: none; padding-inline: var(--sp-1); }
+  .period-pref__row:has(option[value="prefer"]:checked) select { background: var(--status-success-bg); border-color: var(--status-success-border); }
+  .period-pref__row:has(option[value="avoid"]:checked) select { background: var(--status-warning-bg); border-color: var(--status-warning-border); }
 
 /* ── templates/schedule/schedule_settings.html ── */
   /* استمارةُ التفريغ: `flex-wrap` على عرض الحاوية الفعليّ لا استعلامات نافذةٍ
@@ -1394,10 +1406,10 @@
      فيقف على حافّة الشاشة اليمنى ويبقى نصفُها فارغاً. التوسيطُ بـ margin. */
   .ap-form { max-width: 1040px; margin-inline: auto; }
   .ap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-3-5) var(--sp-4-5); }
-  .ap-field label { display: block; font-size: 0.78125rem; font-weight: 600; margin-bottom: var(--sp-1); color: var(--text-secondary); }
+  .ap-field label { display: block; font-size: var(--text-xs-plus); font-weight: 600; margin-bottom: var(--sp-1); color: var(--text-secondary); }
   .ap-field .form-control { width: 100%; }
   .ap-field .req { color: var(--status-danger-fg); }
-  .ap-note { margin-top: var(--sp-3-5); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius); background: var(--surface-alt); border: 1px solid var(--border); font-size: 0.78125rem; color: var(--text-secondary); }
+  .ap-note { margin-top: var(--sp-3-5); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius); background: var(--surface-alt); border: 1px solid var(--border); font-size: var(--text-xs-plus); color: var(--text-secondary); }
   .ap-err { margin-top: var(--sp-1-5); font-size: var(--text-xs); color: var(--status-danger-fg); }
   .ap-actions { margin-top: var(--sp-4); display: flex; gap: var(--sp-2-5); }
 

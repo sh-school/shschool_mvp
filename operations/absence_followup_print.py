@@ -16,6 +16,7 @@ from django.core.exceptions import PermissionDenied
 from django.template.loader import render_to_string
 
 from core.capabilities import has_capability
+from core.excel_safety import safe_cell
 from core.export_utils import get_export_context_for
 from core.pdf_utils import render_pdf_bytes
 
@@ -129,7 +130,8 @@ def build_followup_xlsx(school: Any, user: Any, params: Any) -> Any:
     title, columns, data = _xlsx_table(page, rows, can_feedback)
     wb = AcademicReportsExcel._build(title, f"{title} — {day:%d/%m/%Y}", columns, data, school)
     ws = wb.active
-    ws.cell(
+    safe_cell(
+        ws,
         row=len(data) + 6,
         column=2,
         value=f"أصدر الملف: {user.full_name} — {dt.datetime.now():%d/%m/%Y %H:%M}",

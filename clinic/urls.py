@@ -17,6 +17,11 @@ urlpatterns = [
     path("quick/<uuid:visit_id>/close/", quick_views.quick_close, name="quick_close"),
     path("visit/new/<uuid:student_id>/", views.record_visit, name="record_visit_student"),
     path("visits/", views.visits_list, name="visits_list"),
+    path(
+        "visit/<uuid:visit_id>/confirm-referral/",
+        views.confirm_referral_notice,
+        name="confirm_referral_notice",
+    ),
     path("statistics/", views.health_statistics, name="statistics"),
     path("api/charts/", views.api_clinic_charts, name="api_clinic_charts"),
 ]

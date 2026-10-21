@@ -1,7 +1,9 @@
 import logging
 from datetime import datetime
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
 
@@ -19,6 +21,28 @@ from core.capabilities import capability_required, has_capability
 from core.models import AuditLog, CustomUser
 
 
+def _audit_health_screen(request, screen, *, model_name, object_id="", rows=None):
+    """يكتب سطرَ تدقيقٍ لفتح شاشةٍ تعرض بياناً صحيّاً (PDPPL م.11 وم.13: سجلُّ الوصول).
+
+    معرّفاتٌ فقط: نوعُ الشاشة وعددُ الصفوف ومعرّفُ السجلّ — لا اسمَ طالبٍ ولا نصَّ صحّيّاً
+    (reason/treatment/تشخيص)؛ فسجلُّ التدقيق ملحقٌ لا يُعدَّل ويبقى بعد محو صاحبه.
+    كلُّ شاشةٍ صحّيّةٍ جديدةٍ في العيادة تستدعيه، ويفرض ذلك tests/test_clinic_audit_every_screen.py.
+    """
+    changes = {"screen": screen}
+    if rows is not None:
+        # قائمة الاستعلام تُعدّ هنا لا في العرض فلا يزيد عدّ الطبقات فيه
+        changes["rows"] = rows if isinstance(rows, int) else rows.count()
+    AuditLog.log(
+        user=request.user,
+        action="view",
+        model_name=model_name,
+        object_id=object_id,
+        object_repr=f"عرض شاشة صحية — {screen}",
+        changes=changes,
+        request=request,
+    )
+
+
 @login_required
 @capability_required("clinic.access")
 def clinic_dashboard(request):
@@ -34,6 +58,8 @@ def clinic_dashboard(request):
         sent_home_tone="red" if context.get("sent_home_today") else "green",
         frequent_tone="amber" if context.get("frequent") else "green",
     )
+    # اللوحةُ تعرض أسماءَ الطلاب وسببَ الزيارة: وصولٌ إلى بيانٍ صحّيّ يُدقَّق.
+    _audit_health_screen(request, "لوحة العيادة", model_name="ClinicVisit")
     return render(request, "clinic/dashboard.html", context)
 
 
@@ -89,7 +115,7 @@ def student_health_record(request, student_id):
         "can_write": can_write,
     }
 
-    # PDPPL م.19: تدقيق الوصول للسجل الصحي الحساس (يُفكّ تشفير الحساسية/الأمراض/الأدوية)
+    # PDPPL م.11 وم.13: تدقيق الوصول للسجل الصحي الحساس (يُفكّ تشفير الحساسية/الأمراض/الأدوية)
     AuditLog.log(
         user=request.user,
         action="view",
@@ -149,6 +175,27 @@ def record_visit(request, student_id=None):
 
 
 @login_required
+@capability_required("clinic.write")
+@require_http_methods(["POST"])
+def confirm_referral_notice(request, visit_id):
+    """تأكيدُ الممرّض إحالةَ الطالب للمنزل فيُشعَر وليُّ الأمر بالحدث (بلا السبب) — W-20261020-034."""
+    school = request.school
+    visit = get_object_or_404(ClinicVisit, id=visit_id, school=school)
+    notified = ClinicService.confirm_referral_notice(visit, school, request.user)
+    if request.headers.get("HX-Request"):
+        return render(
+            request, "clinic/visit_card.html", {"visit": visit, "confirm_attempted": True}
+        )
+    if notified:
+        messages.success(request, "أُشعر وليُّ الأمر بالحدث.")
+    else:
+        messages.warning(
+            request, "لم يُرسَل الإشعار: لا بريدَ لوليّ الأمر أو التواصل مجمَّد. تواصل معه مباشرةً."
+        )
+    return redirect("clinic:health_record", student_id=visit.student_id)
+
+
+@login_required
 @capability_required("clinic.access")
 def visits_list(request):
     """قائمة الزيارات بالعيادة"""
@@ -175,8 +222,15 @@ def visits_list(request):
         "student_filter": student_filter,
     }
 
+    is_htmx = bool(getattr(request, "htmx", None) or request.headers.get("HX-Request"))
+    # القائمةُ تعرض اسمَ الطالب وreason وtreatment: تُدقَّق (أعدادٌ فقط، لا نصوص ولا ترشيح بحث).
+    # البحثُ الحيّ (HTMX) يُطلق طلباً لكلّ ضغطة مفتاح: سطرٌ واحد لكلّ مستخدمٍ في الدقيقة (قرار 0101)،
+    # أمّا فتحُ الصفحة الكاملة فيُدقَّق دائماً.
+    if not is_htmx or cache.add(f"clinic_audit_live:{request.user.pk}:visits_list", 1, 60):
+        _audit_health_screen(request, "قائمة الزيارات", model_name="ClinicVisit", rows=visits)
+
     # HTMX: أعد الجزء فقط (بحث حي + ترشيح)
-    if getattr(request, "htmx", None) or request.headers.get("HX-Request"):
+    if is_htmx:
         return render(request, "clinic/partials/visit_rows.html", context)
 
     return render(request, "clinic/visits_list.html", context)
