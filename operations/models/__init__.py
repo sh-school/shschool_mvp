@@ -10,6 +10,7 @@ from .absence_followup import (  # noqa: F401
     AbsenceActionLog,
     AbsenceContactLog,
 )
+from .absence_reports import AbsenceReportSnapshot  # noqa: F401
 from .attendance import (  # noqa: F401
     AbsenceAlert,
     AbsenceExcuse,
@@ -20,6 +21,7 @@ from .attendance import (  # noqa: F401
     SectionDayConfirmation,
     Session,
     StudentAttendance,
+    TardinessExcuse,
     _excuse_upload_path,
 )
 from .attendance_ledger import (  # noqa: F401
@@ -30,6 +32,7 @@ from .common import (  # noqa: F401
     _uuid,
 )
 from .exit_permit import ExitPermit  # noqa: F401
+from .period_preference import TeacherPeriodPreference  # noqa: F401
 from .permissions import (  # noqa: F401
     PermissionAuditLog,
     TemporaryPermission,
@@ -73,6 +76,7 @@ __all__ = [
     "SubjectClassAssignment",
     "SchedulingResource",
     "TeacherPreference",
+    "TeacherPeriodPreference",
     "TeacherExemption",
     "ScheduleBaseline",
     "ScheduleConstraintOverride",
@@ -82,6 +86,7 @@ __all__ = [
     "Session",
     "StudentAttendance",
     "AbsenceExcuse",
+    "TardinessExcuse",
     "GuardianContact",
     "AbsenceAlert",
     "SectionDayConfirmation",

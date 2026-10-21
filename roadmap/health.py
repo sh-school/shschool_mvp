@@ -22,10 +22,12 @@ from typing import Any
 
 from django.utils import timezone
 
-from roadmap.models import DecisionStatus, ItemStatus, RoadmapDecision, RoadmapItem
+from roadmap.models import DecisionStatus, ItemStatus, RoadmapDecision, RoadmapItem, RoadmapRisk
 
 #: قرارٌ مفتوحٌ مضى على ظهوره في الخارطة هذا العددُ من الأيّام فأكثر يُلوَّن (قرارُ المالك 10-09).
 DECISION_STALE_DAYS = 7
+#: مخاطرةٌ لم تُعدَّل في الخارطة منذ هذا العددِ من الأيّام فأكثر تُوسَم «بلا حركة» (W-20261009-028، تعريفٌ ثابت).
+RISK_IDLE_DAYS = 30
 #: لقطةُ الدفتر الأقدمُ من هذا تُوسَم «قياسٌ قديم» ولا تُعرض كأنّها حيّة.
 SNAPSHOT_STALE_DAYS = 3
 ARCHIVE_SRC = "DONE"
@@ -111,6 +113,20 @@ GLOSSARY: dict[str, tuple[str, str]] = {
     "dc_deferred": ("مؤجَّل", "أُجّل حسمُ القرار."),
     "risk_prob": ("احتمال", "احتمالُ وقوع الخطر كما قدّره صاحبُه."),
     "risk_impact": ("أثر", "أثرُ الخطر إن وقع كما قدّره صاحبُه."),
+    "risk_age": (
+        "عمر الخطر",
+        "أيّامٌ منذ آخر تعديلٍ للمخاطرة في الخارطة؛ التعديلُ يُحرّك العمر ولو لم يتغيّر التخفيف.",
+    ),
+    "risk_idle": (
+        "بلا حركة",
+        f"مخاطرةٌ لم تُعدَّل منذ {RISK_IDLE_DAYS} يوماً فأكثر؛ تحتاج مراجعةً أو إقراراً بأنّها ما زالت كما هي.",
+    ),
+    "sec_unmeasured": (
+        "غير مقيس",
+        "لا مصدرَ آليّاً لهذا العدد داخل المنصّة بعد؛ يُعرض «غير مقيس» لا صفراً حتى تُغذّيه لقطةٌ بتاريخها ومصدرها.",
+    ),
+    "sec_count": ("عددٌ مفتوح", "عددُ التنبيهات المفتوحة من هذا المصدر كما في آخر لقطة، بتاريخها."),
+    "sec_stale": ("قياسٌ قديم", "لقطةُ هذا المصدر أقدمُ من أسبوع فلا تُعرض كأنّها حيّة."),
 }
 
 
@@ -140,6 +156,56 @@ def open_decision_ages(decisions: Iterable[RoadmapDecision], today: date) -> dic
         for d in decisions
         if d.status == DecisionStatus.OPEN
     }
+
+
+def risk_ages(risks: Iterable[RoadmapRisk], today: date) -> dict[str, int]:
+    """رمزُ كلّ مخاطرةٍ ← أيّامُ ما مضى على آخر تعديلٍ لها (لا سالب)."""
+    return {r.code: max(0, (today - timezone.localtime(r.updated_at).date()).days) for r in risks}
+
+
+#: مصادرُ الفحص الأمنيّ الثلاثة (المفتاح ← الاسم). لا يُقرأ GitHub من التطبيق: قرارُ المالك 2026-10-20 «غير مقيس حتى يوجد مصدر».
+SECURITY_SOURCES: tuple[tuple[str, str], ...] = (
+    ("codeScanning", "فحص الشيفرة (code scanning)"),
+    ("secrets", "الأسرار المسرَّبة (secret scanning)"),
+    ("dependabot", "اعتماديّاتٌ مصابة (Dependabot)"),
+)
+SECURITY_STALE_DAYS = 7
+
+
+def security_snapshot(meta: Mapping[str, Any], today: date) -> list[dict[str, Any]]:
+    """بطاقةُ كلّ مصدرٍ: `count`/`asOf`/`source` من `meta['security'][key]` إن صحّ شكلُه، وإلّا `count=None` (غير مقيس).
+
+    لا نصَّ تنبيهٍ ولا مسارَ ملفٍّ ولا اسمَ حزمة: الأعدادُ والتاريخُ والمصدرُ فقط (قاعدةُ العرض في بطاقة W-20261009-028).
+    """
+    raw = meta.get("security")
+    raw = raw if isinstance(raw, Mapping) else {}
+    out: list[dict[str, Any]] = []
+    for key, name in SECURITY_SOURCES:
+        entry = raw.get(key)
+        row: dict[str, Any] = {
+            "key": key,
+            "name": name,
+            "count": None,
+            "asOf": None,
+            "source": "",
+            "stale": False,
+        }
+        if isinstance(entry, Mapping):
+            count, as_of = entry.get("count"), entry.get("asOf")
+            if isinstance(count, int) and not isinstance(count, bool) and count >= 0:
+                try:
+                    age = (today - date.fromisoformat(str(as_of))).days
+                except ValueError:
+                    age = None
+                if age is not None:
+                    row.update(
+                        count=count,
+                        asOf=str(as_of),
+                        source=str(entry.get("source", ""))[:120],
+                        stale=age > SECURITY_STALE_DAYS,
+                    )
+        out.append(row)
+    return out
 
 
 def ledger_snapshot(meta: Mapping[str, Any], today: date) -> dict[str, Any] | None:
@@ -175,6 +241,7 @@ def page_health(
     decisions: list[RoadmapDecision],
     meta: Mapping[str, Any],
     today: date,
+    risks: Iterable[RoadmapRisk] = (),
 ) -> dict[str, Any]:
     """كلُّ ما تحتاجه الواجهةُ مما لا يُشتقّ من الصفوف في المتصفّح."""
     red, archived = closed_without_reference(items)
@@ -184,6 +251,9 @@ def page_health(
         "closedNoRef": [o.code for o in red],
         "closedNoRefArchived": archived,
         "ledger": ledger_snapshot(meta, today),
+        "riskAges": risk_ages(risks, today),
+        "riskIdleDays": RISK_IDLE_DAYS,
+        "security": security_snapshot(meta, today),
     }
 
 

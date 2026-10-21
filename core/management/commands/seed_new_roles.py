@@ -1,7 +1,8 @@
 """
 seed_new_roles.py
 ══════════════════════════════════════════════════════════════════════
-ينشئ الأدوار الجديدة (5+2) لكل مدرسة موجودة.
+ينشئ الأدوار الجديدة لكل مدرسة موجودة، ثم **كلَّ اسمٍ في ``Role.ROLES``** (W-20261019-008):
+دورٌ جديدٌ في القائمة بلا صفٍّ للمدرسة يُسقط تعيينَه على دورٍ قريبٍ فتفرغ صفحاتُ صاحبه.
 يُشغَّل مرة واحدة بعد تطبيق الـ migration.
 
 Usage:
@@ -25,8 +26,13 @@ NEW_ROLES = [
 ]
 
 
+def all_role_names() -> list[str]:
+    """الأدوارُ الجديدة ثمّ كلُّ اسمٍ في ``Role.ROLES`` بلا تكرار وبترتيبٍ ثابت."""
+    return list(dict.fromkeys([*NEW_ROLES, *(name for name, _label in Role.ROLES)]))
+
+
 class Command(BaseCommand):
-    help = "ينشئ الأدوار الوظيفية الجديدة (7 أدوار) لكل مدرسة"
+    help = "ينشئ الأدوار الوظيفية الجديدة (كلّ أسماء Role.ROLES) لكل مدرسة"
 
     def handle(self, *args, **options):
         schools = School.objects.all()
@@ -36,7 +42,7 @@ class Command(BaseCommand):
 
         created_count = 0
         for school in schools:
-            for role_name in NEW_ROLES:
+            for role_name in all_role_names():
                 _, created = Role.objects.get_or_create(
                     school=school,
                     name=role_name,

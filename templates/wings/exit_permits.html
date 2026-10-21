@@ -26,7 +26,7 @@
         <thead><tr><th>الرقم</th><th>الطالب</th><th>الشعبة</th><th>السبب</th><th>الخروج</th><th>الحصص</th><th>الحالة</th><th><span class="sr-only">الإجراء</span></th></tr></thead>
         <tbody>
           {% for p in permits %}
-          <tr>
+          <tr class="grade-tint grade-{{ p.class_group.grade|lower }}">
             <td>{{ p.sequence }}</td>
             <td>{{ p.student.full_name }}</td>
             <td>{{ p.class_group }}</td>

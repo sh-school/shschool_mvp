@@ -198,7 +198,8 @@ def test_the_absence_register_page_links_to_the_summary_and_lists_every_wing_for
 
     assert reverse("wings:ministry_report") in body
     assert "لا جناحَ مُسنَدٌ إليك" not in body
-    assert reverse("wings:ministry_report") not in home  # الرئيسيّةُ بلا إضافةٍ لهذا الملخّص
+    # الرابطُ صار بنداً مباشراً في القائمة الرئيسيّة (W-20261020-005، قرارُ المالك) فيظهر في كلّ صفحة؛ والرئيسيّةُ بلا بطاقةٍ له
+    assert "ministry-card" not in home
     assert "wing-panel" in body  # الأجنحةُ في «رصد الغياب»
     assert "wing-panel" not in home  # لا بطاقاتِ أجنحةٍ مكدّسةً في رئيسيّة حاصر الغياب العامّ
     assert "لا جناحَ مُسنَدٌ إليك" not in home
@@ -285,3 +286,36 @@ def test_every_grade_has_its_own_distinct_hue_and_a_light_tint():
     tint = brand.grade_tint("G7")
     assert tint.startswith("#") and tint != brand.GRADE_HUES["G7"]
     assert brand.grade_tint("") == "#ffffff"
+
+
+def test_the_wing_filter_keeps_only_that_wings_classes_and_names(
+    school, year, band, klass, class_day, holder
+):
+    """مرشّحُ الجناح (W-20261020-005): الجدولُ والأرقامُ وأسماءُ من يُرفعون من الجناح المختار وحدَه."""
+    from wings.ministry_selectors import narrow, wing_choices
+
+    other_holder = _staff(school, "admin_supervisor", "حاملُ الثاني", "29000003020")
+    other_wing = Wing.objects.create(
+        school=school, code="w2", name="جناح 2", academic_year=year, supervisor=other_holder
+    )
+    other_class = ClassGroupFactory(
+        school=school,
+        grade="G8",
+        section="1",
+        level_type="prep",
+        academic_year=year,
+        wing=other_wing,
+    )
+    pupil(school, other_class, "طالبُ الجناح الثاني", "29000003021")
+
+    summary = ministry_summary(school, SUNDAY)
+    assert str(other_wing.pk) in dict(wing_choices(summary))
+
+    only_other = narrow(summary, wing=str(other_wing.pk))
+    assert [row.group.pk for row in only_other.class_rows] == [other_class.pk]
+    assert only_other.total.enrolled == 1
+
+    only_own = narrow(summary, wing=str(klass.wing_id))
+    assert other_class.pk not in [row.group.pk for row in only_own.class_rows]
+    assert "غائبٌ بعذر" in [m.name for m in only_own.ministered]
+    assert narrow(summary, wing="") is summary

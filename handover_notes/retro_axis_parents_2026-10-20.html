@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تدقيق رجعي: بوابة أولياء الأمور</title>
+<style>
+:root{--bg:#fafaf7;--fg:#1d1d1b;--mut:#5f5f5a;--card:#fff;--bd:#dcdcd2;--hi:#9b1c1c;--md:#b45309;--lo:#3a6b35;--ok:#1f6f4a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17171a;--fg:#ececea;--mut:#a5a59f;--card:#1f1f23;--bd:#34343a;--hi:#f08a8a;--md:#f0b86a;--lo:#8fcf86;--ok:#7fd4a8}}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:Tajawal,"Segoe UI",Tahoma,sans-serif;line-height:1.8}
+main{max-width:980px;margin:0 auto;padding:24px 16px}
+h1{font-size:1.5rem;margin:0 0 4px}h2{font-size:1.15rem;margin:28px 0 10px;border-inline-start:4px solid var(--bd);padding-inline-start:10px}
+.meta{color:var(--mut);font-size:.9rem}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px 16px;margin:12px 0}
+.card h3{margin:0 0 6px;font-size:1rem}
+.tag{display:inline-block;padding:0 8px;border-radius:999px;border:1px solid var(--bd);font-size:.8rem;margin-inline-end:6px}
+.hi{color:var(--hi);border-color:var(--hi)}.md{color:var(--md);border-color:var(--md)}.lo{color:var(--lo);border-color:var(--lo)}.ok{color:var(--ok);border-color:var(--ok)}
+blockquote{margin:6px 0;padding:4px 10px;border-inline-start:3px solid var(--bd);color:var(--mut)}
+code{direction:ltr;unicode-bidi:embed;font-family:Consolas,monospace;font-size:.85rem}
+table{width:100%;border-collapse:collapse;font-size:.92rem}th,td{border:1px solid var(--bd);padding:6px 8px;text-align:start;vertical-align:top}
+.scroll{overflow-x:auto}
+p{margin:4px 0}
+</style>
+</head>
+<body>
+<main>
+<h1>تدقيق رجعي: بوابة أولياء الأمور مقابل لوائح الوزارة وPDPPL</h1>
+<p class="meta">التاريخ 2026-10-20 · للقراءة فقط · النطاق: <code>parents/</code> وما يتصل به (<code>core/parent_consent.py</code>، <code>notifications/hub.py</code>، <code>api/views.py</code> قسم Parent Portal، <code>core/signals.py</code>، <code>governance/</code>). المحاور الستة في <code>compliance_audit_report.md</code> (2026-09-10) لم تُكرَّر.</p>
+
+<h2>حدود التحقق</h2>
+<div class="card">
+<p><b>مراجعة 2026-10-20 (تصحيح):</b> مرجع قانون 13/2016 موجود في المنصة: <code>.claude/skills/pdppl-pii-audit/references/00-pdppl-articles.md</code> (النص الرسمي من بوّابة الميزان LawID=7121، روجع 2026-09-28). رُوجعت أرقام المواد عليه. الأحكام ذات الصلة بالبوابة: م.4 (الموافقة)، م.5 (سحب الموافقة والاعتراض والمحو)، م.9 (إخطار الفرد قبل المعالجة)، م.10 (عدم الاحتفاظ أطول من الغرض)، م.16 (الأطفال صنف خاص لا يُعالَج إلا بتصريح الإدارة المختصة)، م.17 (موافقة وليّ الأمر ومواقع الأطفال). وما لم أجده في الكود أقول فيه «لم أجد».</p>
+</div>
+
+<h2>ما هو مطبّق (للتوازن)</h2>
+<div class="scroll"><table>
+<tr><th>البند</th><th>الموضع</th><th>الحالة</th></tr>
+<tr><td>عدم ظهور بيانات ابنٍ لغير وليّه (IDOR): فحص <code>ParentStudentLink</code> بالمدرسة</td><td><code>parents/views.py:102-108</code> و<code>152-158</code>؛ <code>api/views.py:717-722</code></td><td><span class="tag ok">مطبّق</span></td></tr>
+<tr><td>احترام <code>can_view_grades/attendance/behavior</code> في العروض</td><td><code>parents/views.py:107,157,212,264,305</code></td><td><span class="tag ok">مطبّق</span></td></tr>
+<tr><td>الموافقة صريحة: لا سجلّ يعني لم يوافق؛ والسحب يغلب الموافقة؛ وإخطارات الخدمة الإلزامية (غياب، استدعاء، إرسال للمنزل) معفاة</td><td><code>notifications/hub.py:517-559</code>؛ <code>parents/services.py:332-346</code></td><td><span class="tag ok">مطبّق</span></td></tr>
+<tr><td>بوابة الموافقة الأولى قبل دخول الوليّ الخالص (وسيط + API)</td><td><code>core/parent_consent.py:96-112</code>؛ <code>api/permissions.py:135</code></td><td><span class="tag ok">مطبّق</span></td></tr>
+<tr><td>تدقيق منح الموافقة وسحبها</td><td><code>core/signals.py:110-117</code> (post_save)</td><td><span class="tag ok">مطبّق</span></td></tr>
+<tr><td>تدقيق إنشاء الربط وحذفه</td><td><code>core/signals.py:86-95</code></td><td><span class="tag ok">مطبّق</span></td></tr>
+<tr><td>عامل الخدمة لا يخزّن صفحات شخصية</td><td><code>templates/parents/pwa/sw.js</code> (ترويسة الملف، <code>CACHE_NAME=v7</code>)</td><td><span class="tag ok">مطبّق</span></td></tr>
+<tr><td>محو الموافقات والربط عند طلب المحو</td><td><code>governance/erasure_service.py:383-392</code></td><td><span class="tag ok">مطبّق</span></td></tr>
+<tr><td>حسابات الأولياء الجديدة بلا كلمة مرور صالحة</td><td><code>parents/views.py:506-530</code></td><td><span class="tag ok">مطبّق</span></td></tr>
+</table></div>
+
+<h2>المخالفات والفجوات</h2>
+
+<div class="card">
+<h3><span class="tag hi">عالية</span><span class="tag">غير مطبّق</span> 1. لا تسجيل وصول لقراءات بوابة الأولياء</h3>
+<p><b>اللائحة (وثيقة المنصّة نفسها):</b></p>
+<blockquote><code>docs/privacy/privacy_notice_ar.md</code> سطر 30: «وكلُّ اطّلاعٍ على أرقام الأولياء يُسجَّل»، وسطر 47: «سجلُّ تدقيقٍ ... لعرض أرقام أولياء الأمور».</blockquote>
+<p><b>الكود:</b> لم أجد أي استدعاء <code>AuditLog</code> داخل <code>parents/</code>؛ عروض الدرجات والغياب والسلوك (<code>parents/views.py:60-350</code>) ونقاط API (<code>api/views.py:672-780</code>) لا تكتب أثراً. النموذج يدعم الإجراء <code>view</code> (<code>core/models/audit.py:189</code>)، ويُستعمل في <code>behavior/services.py:106-118</code> وفي <code>wings/views_absence_file.py</code> فقط. جدول الربط يعرض جوّال الوليّ مفكوكاً (<code>templates/parents/partials/links_table.html:59-60</code>) لحامل <code>parents.admin</code> دون أي أثر، وهذا يخالف وعد الإشعار صراحة. المدير والمشرف يقرآن عبر <code>IsParentOrAdmin</code> أي طالب (<code>api/permissions.py</code> بعد سطر 145) بلا أثر.</p>
+<p><b>الأثر:</b> لا دليل على من اطّلع على بيانات الأبناء، ولا إمكان لكشف وصول غير مشروع أو الإجابة عن طلب «من اطّلع على بياناتي».</p>
+</div>
+
+<div class="card">
+<h3><span class="tag hi">عالية</span><span class="tag">جزئي / متعارض</span> 2. سحب الموافقة لا يوقف عرض البيانات في البوابة</h3>
+<p><b>اللائحة:</b></p>
+<blockquote><code>docs/privacy/data_retention.md</code> سطر 89: «core_consentrecord: الموافقةُ وسحبُها — دليلُ المشروعيّة (م.4 — مطابق للمرجع المتحقَّق)». و<code>01e_school_files_guide.md</code> قسم «قواعد الوصول»: م6 (التقييم) «المعلم + الإدارة + ولي الأمر (نتائج ابنه فقط)» حق اطلاع.</blockquote>
+<p><b>الكود:</b> الموافقة تُقرأ في موضع واحد فقط هو تصفية الإشعارات (<code>notifications/hub.py:370,517</code>). عروض البوابة والـAPI لا تقرأ <code>ConsentRecord</code> إطلاقاً. والواجهة تقرّ بذلك: <code>templates/parents/consent.html:38</code> «سحبُ الموافقة يوقفها، ولا يحجب عنك الاطّلاعَ عليه في البوّابة». وأنواع <code>health</code> و<code>transport</code> و<code>photo</code> تُجمع موافقاتها (<code>parents/views.py:265-271</code>، <code>core/models/audit.py:298-306</code>) بينما لم أجد في البوابة بياناتٍ من هذه الأنواع تُعرض.</p>
+<p><b>التقدير:</b> وصول الوليّ لبيانات ابنه له أساس غير الموافقة (حق اطلاع، مادة 6 أعلاه)، فالسلوك مفهوم، لكن صفحة الموافقة تعنون نفسها بالقانون وتعرض مفاتيح لا أثر لبعضها؛ وهذا التباس قانوني يستحق قراراً موثّقاً بالأساس القانوني لكل نوع. لم أستطع التحقق من نصّ القانون.</p>
+</div>
+
+<div class="card">
+<h3><span class="tag md">متوسطة</span><span class="tag">غير مطبّق</span> 3. إشعار الخصوصية غير موصول بالواجهة</h3>
+<blockquote><code>docs/privacy/privacy_notice_ar.md</code> سطر 4: «يُعرض هذا النصُّ لوليّ الأمر قبل أوّل جمعٍ لبياناته في <code>parents/</code>».</blockquote>
+<p><b>الكود:</b> بحثت عن <code>privacy_notice</code> في كل <code>.py</code> و<code>.html</code> خارج <code>docs</code> والاختبارات فلم أجد أي إحالة. صفحة الموافقة (<code>templates/parents/consent.html:13</code>) تذكر القانون في العنوان الفرعي فقط، وبوابة الدخول الأولى (<code>core/parent_consent.py</code>) تحوّل إلى صفحة المفاتيح لا إلى نصّ الإشعار. لم أجد مفتاحاً يسجّل أن الوليّ اطّلع على الإشعار.</p>
+</div>
+
+<div class="card">
+<h3><span class="tag md">متوسطة</span><span class="tag">غير مطبّق</span> 4. لا نموذج للحضانة ولا توثيق لصفة الوليّ عند الربط</h3>
+<blockquote><code>08_conduct_policy_2026.md</code> سطر 167: «يجب على ولي الأمر إبلاغ المدرسة عند انتقال الحضانة (حالات الانفصال)».</blockquote>
+<p><b>الكود:</b> <code>ParentStudentLink</code> (<code>core/models/academic.py:787-824</code>) يحمل <code>relationship</code> و<code>is_primary</code> وثلاثة أعلام عرض بقيمة افتراضية True، دون حقل حضانة أو وثيقة إثبات أو تاريخ انتهاء. <code>add_parent_link</code> (<code>parents/views.py:557-609</code>) يُنشئ الربط بتحقق شكلي من الرقم الشخصي (5 إلى 20 رقماً) ويمنح الدرجات والغياب فوراً، والسلوك افتراضياً. لم أجد أي شاشة لتعديل الأعلام <code>can_view_*</code>: تظهر اثنان منها فقط في <code>core/admin.py:556-572</code> (والسلوك لا يظهر في القائمة ولا في التصفية)، فعملياً لا يمكن حجب بيانات عن وليٍّ فقد الحضانة إلا بحذف الربط.</p>
+</div>
+
+<div class="card">
+<h3><span class="tag md">متوسطة</span><span class="tag">جزئي</span> 5. تعديل صلاحيات الربط غير مدقَّق</h3>
+<p><code>core/signals.py:86-90</code>: المستقبِل يكتب أثراً <code>if created</code> فقط. تغيير <code>can_view_grades/attendance/behavior</code> أو <code>relationship</code> (من لوحة Django) لا يترك أثراً، رغم أن <code>core_permissionauditlog</code> موجود لتدقيق الصلاحيات (<code>docs/privacy/data_retention.md:86</code>). الحذف والإنشاء مغطّيان.</p>
+</div>
+
+<div class="card">
+<h3><span class="tag md">متوسطة</span><span class="tag">جزئي</span> 6. الاحتفاظ: ارتباطات من غادروا تبقى فاعلة في صفحات التجميع</h3>
+<blockquote><code>governance/retention.py</code> سطر 3 إلى 5: القانون يُلزم «ألّا تُحفظ البياناتُ أطولَ ممّا يقتضيه غرضُها (المادّتان 7 و10)».</blockquote>
+<p><b>الكود:</b> <code>docs/privacy/data_retention.md:89,113</code> تصنّف <code>core_consentrecord</code> و<code>core_parentstudentlink</code> «تُحفظ»، ولا قاعدة حذف لهما في <code>governance/retention.py</code> (الحذف فيه لآثار التشغيل فقط). والكود نفسه يقرّ ببقاء الارتباط بعد المغادرة (تعليق <code>parents/views.py</code> قسم manage_parent_links: «الارتباطُ يبقى بعد أن يغادر صاحبُه»). صفحات التجميع <code>parent_all_grades</code> و<code>parent_all_attendance</code> و<code>parent_behavior</code> (<code>parents/views.py:206,258,305</code>) و<code>get_children_data</code> (<code>parents/services.py:62-67</code>) تقرأ الروابط دون التحقق من أن الطالب لا يزال عضواً فعّالاً في المدرسة. صفحتا الطالب الفرديتان فقط تتحققان من العضوية (<code>views.py:94-99,144-149</code>). لم أتحقق بالتشغيل مما يظهر لوليّ طالبٍ منقول؛ هذا من قراءة الاستعلامات.</p>
+</div>
+
+<div class="card">
+<h3><span class="tag lo">منخفضة</span><span class="tag">جزئي</span> 7. أثر الموافقة: إعادة المنح لا تحدّث <code>given_at</code></h3>
+<p><code>parents/services.py:316-326</code>: <code>given_at</code> هو <code>auto_now_add</code> (<code>core/models/audit.py:332</code>)، فمنحٌ جديد بعد سحب يغيّر <code>is_given</code> ويمحو <code>withdrawn_at</code> دون تاريخ منح جديد؛ والتاريخ الصحيح لا يُستعاد إلا من <code>AuditLog</code>. وإنشاء سجل أول بقيمة «غير موافق» لا يختم <code>withdrawn_at</code>. و<code>consent_given_at</code> (بوابة الدخول) يُختم عند أول حفظ حتى لو رفض الوليّ كل الأنواع (<code>services.py:327-329</code>) وهذا مقصود لكنه يعني أن «موافقة» البوابة هي «اطّلاع» لا قبول.</p>
+</div>
+
+<div class="card">
+<h3><span class="tag lo">منخفضة</span> 8. تباين مسار API مع البوابة</h3>
+<p><code>api/views.py:708-725</code> و<code>758-770</code>: <code>get_object_or_404(CustomUser, id=student_id)</code> بلا قيد مدرسة (القيد على الربط فقط)، بينما صفحات البوابة تقيّد بعضوية المدرسة. المخاطرة محدودة لأن الربط مقيّد بالمدرسة، لكن المدير يمرّ بلا فحص ملكية (انظر البند 1).</p>
+</div>
+
+<h2>تداخل مع التدقيق السابق</h2>
+<p>التقرير السابق (<code>AAdocs/ministry_data/2026_2027/compliance_audit_report.md</code>) لم يتناول بوابة الأولياء ولا PDPPL؛ ولم أجد فيه ما يتداخل مع هذا المحور إلا بند الغياب (سطر 86: التماس العذر من ولي الأمر) وهو خارج نطاق البوابة هنا.</p>
+
+<h2>الأولويات المقترحة</h2>
+<table>
+<tr><th>#</th><th>الإجراء</th><th>الخطورة</th></tr>
+<tr><td>1</td><td>تسجيل <code>view</code> مجمَّعاً بنافذة زمنية (على نمط <code>behavior/services.py</code>) لعروض البوابة وAPI الأولياء وجوّال الأولياء</td><td>عالية</td></tr>
+<tr><td>2</td><td>قرار موثّق بالأساس القانوني لكل نوع بيانات، وإخفاء المفاتيح التي لا يستهلكها كود</td><td>عالية</td></tr>
+<tr><td>3</td><td>عرض <code>privacy_notice_ar.md</code> قبل أول جمع وتسجيل الاطّلاع</td><td>متوسطة</td></tr>
+<tr><td>4</td><td>شاشة تعديل أعلام الربط، وحقل حضانة/تاريخ انتهاء، وتدقيق التعديل</td><td>متوسطة</td></tr>
+<tr><td>5</td><td>حجب روابط الطلبة غير المقيّدين عن صفحات التجميع، وقاعدة احتفاظ للروابط القديمة</td><td>متوسطة</td></tr>
+</table>
+</main>
+</body>
+</html>
