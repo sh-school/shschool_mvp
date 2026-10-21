@@ -165,6 +165,22 @@ def build_monthly_export(school: Any, user: Any, params: Any):
     """بنّاءُ سجلّ التصدير المركزيّ: `params` فيه `year` و`month` (الافتراضيّ الشهرُ الماضي)."""
     from core.exports.registry import ExportResult
 
+    year, month = resolve_month(params)
+    content = build_workbook(school, year, month)
+    return ExportResult(
+        content=content,
+        content_type=XLSX_TYPE,
+        filename=f"clinic_monthly_{year}{month:02d}.xlsx",
+        rows=monthly_counts(school, year, month)["total"],
+        object_id=f"{year}-{month:02d}",
+    )
+
+
+MONTHS_AR = "يناير فبراير مارس أبريل مايو يونيو يوليو أغسطس سبتمبر أكتوبر نوفمبر ديسمبر".split()
+
+
+def resolve_month(params: Any) -> tuple[int, int]:
+    """الشهرُ من `params` وإلا الشهرُ الماضي."""
     today = timezone.localdate()
     prev = today.replace(day=1) - dt.timedelta(days=1)
     try:
@@ -173,12 +189,39 @@ def build_monthly_export(school: Any, user: Any, params: Any):
         if not 1 <= month <= 12:
             raise ValueError
     except (TypeError, ValueError):
-        year, month = prev.year, prev.month
-    content = build_workbook(school, year, month)
+        return prev.year, prev.month
+    return year, month
+
+
+def build_monthly_pdf(school: Any, user: Any, params: Any):
+    """التقريرُ الشهريّ PDF بالهويّة الموحَّدة (W-20261020-037): غلافٌ وجدولُ الخدمات وتذييلُ سرّيّةٍ وتوقيعُ اعتماد المدير."""
+    from django.template.loader import render_to_string
+
+    from core.export_utils import get_export_context_for
+    from core.exports.registry import ExportResult
+    from core.pdf_utils import render_pdf_bytes
+
+    year, month = resolve_month(params)
+    counts = monthly_counts(school, year, month)
+    month_label = f"{MONTHS_AR[month - 1]} {year}"
+    ctx = get_export_context_for(user, f"التقرير الشهري للعيادة — {month_label}")
+    html = render_to_string(
+        "reports/clinic_monthly.html",
+        {
+            **ctx,
+            "school": school,
+            "month_label": month_label,
+            "total": counts["total"],
+            "uncoded": counts["uncoded"],
+            "service_rows": service_rows(counts),
+            "dashboard_rows": dashboard_rows(counts),
+            "for_pdf": True,
+        },
+    )
     return ExportResult(
-        content=content,
-        content_type=XLSX_TYPE,
-        filename=f"clinic_monthly_{year}{month:02d}.xlsx",
-        rows=monthly_counts(school, year, month)["total"],
+        content=render_pdf_bytes(html, paper_size="A4"),
+        content_type="application/pdf",
+        filename=f"clinic_monthly_{year}{month:02d}.pdf",
+        rows=counts["total"],
         object_id=f"{year}-{month:02d}",
     )

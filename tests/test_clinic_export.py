@@ -100,3 +100,39 @@ def test_builder_returns_audit_row_count(school, student_user, nurse_user):
     _visit(school, student_user, nurse_user, _in_month(), service_code="bandage")
     res = ce.build_monthly_export(school, nurse_user, {"year": "2026", "month": "9"})
     assert res.rows == 1 and res.object_id == "2026-09" and not res.full_national_id
+
+
+def test_pdf_kind_shares_the_export_capability():
+    assert registry.get("clinic.monthly_pdf").capability == "clinic.export"
+
+
+def test_monthly_pdf_is_landscape_with_confidentiality_and_manager_approval(
+    school, student_user, nurse_user
+):
+    from django.template.loader import render_to_string
+    from weasyprint import HTML
+
+    _visit(school, student_user, nurse_user, _in_month(), service_code="bandage")
+    res = ce.build_monthly_pdf(school, nurse_user, {"year": "2026", "month": "9"})
+    assert res.content.startswith(b"%PDF") and res.content_type == "application/pdf"
+    assert res.rows == 1 and res.object_id == "2026-09"
+
+    html = render_to_string(
+        "reports/clinic_monthly.html",
+        {
+            "school": school,
+            "month_label": "سبتمبر 2026",
+            "total": 1,
+            "uncoded": 0,
+            "service_rows": ce.service_rows(ce.monthly_counts(school, 2026, 9)),
+            "dashboard_rows": [],
+            "exported_by": "-",
+            "exporter_role_ar": "-",
+            "export_datetime": "-",
+            "academic_year": "-",
+        },
+    )
+    page = HTML(string=html).render().pages[0]
+    assert page.width > page.height
+    assert "سرّي" in html and "اعتماد مدير المدرسة" in html
+    assert student_user.full_name not in html

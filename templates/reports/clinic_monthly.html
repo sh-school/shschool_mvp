@@ -1,0 +1,85 @@
+{% extends "reports/base_qatar_report.html" %}
+{% block extra_styles %}@page { size: A4 landscape; @bottom-center { content: "سرّي — بياناتٌ صحّيّةٌ مجمَّعة للاستعمال الداخليّ فقط — صفحة " counter(page) " من " counter(pages); font-size: 8pt; } } /* كشفٌ بأعمدة: أفقيّ بسياسة الطباعة (core/print_policy.py) */{% endblock %}
+
+{% block report_title_bar %}
+<h1 class="report-title-bar">التقرير الشهري للعيادة المدرسية — {{ month_label }}</h1>
+{% endblock %}
+
+{% block report_meta %}
+<table class="report-meta">
+  <tr>
+    <td>العام الدراسي: <strong>{{ academic_year }}</strong></td>
+    <td>التاريخ: <strong>{{ export_datetime }}</strong></td>
+    <td>صدر بواسطة: <strong>{{ exported_by }}</strong> — {{ exporter_role_ar }}</td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block content %}
+<div class="kpi-strip">
+  <div class="kpi-item"><span class="kpi-num">{{ total }}</span><span class="kpi-label">إجمالي الزيارات</span></div>
+  <div class="kpi-item"><span class="kpi-num c-orange">{{ uncoded }}</span><span class="kpi-label">زيارات غير مرمَّزة</span></div>
+</div>
+
+<div class="section-head">الخدمات المقدَّمة</div>
+<table class="report-table">
+  <thead>
+    <tr>
+      <th>المجموعة</th>
+      <th>الخدمة</th>
+      <th class="col-w-12">قطري</th>
+      <th class="col-w-12">غير قطري</th>
+      <th class="col-w-12">المجموع</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for group, service, qa, non, tot in service_rows %}
+    <tr>
+      <td>{{ group }}</td>
+      <td class="cell-name">{{ service }}</td>
+      <td class="cell-num">{{ qa }}</td>
+      <td class="cell-num">{{ non }}</td>
+      <td class="cell-num">{{ tot }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="section-head mt-16">ملخّص الشهر</div>
+<table class="report-table">
+  <thead>
+    <tr><th class="col-w-25">القسم</th><th>البند</th><th class="col-w-15">العدد</th></tr>
+  </thead>
+  <tbody>
+    {% for section, item, n in dashboard_rows %}
+    <tr>
+      <td>{{ section }}</td>
+      <td class="cell-name">{{ item }}</td>
+      <td class="cell-num">{{ n }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p class="no-data">الأعدادُ من 1 إلى 4 تظهر «&lt;5» حمايةً للخصوصية، والجنسيةُ الفارغة تُعدّ غيرَ قطريّ. لا أسماءَ ولا بياناتٍ فرديّة في هذا التقرير.</p>
+{% endblock %}
+
+{% block signatures %}
+<div class="sig-block no-break">
+  <div class="sig-item">
+    <div class="sig-title">أعدّه</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-name">{{ exported_by }}</div>
+    <div class="sig-role">{{ exporter_role_ar }}</div>
+    <div class="sig-stamp">{{ export_datetime }}</div>
+  </div>
+  <div class="sig-item">
+    <div class="sig-title">اعتماد مدير المدرسة</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-name">&nbsp;</div>
+    <div class="sig-role">التوقيع والختم</div>
+    <div class="sig-stamp">الختم</div>
+  </div>
+</div>
+{% endblock %}
