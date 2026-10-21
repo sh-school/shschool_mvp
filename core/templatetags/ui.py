@@ -660,3 +660,65 @@ def filter_bar(content, label, action="", id="", css="", live=False, **attrs):
         attrs=_extra_attrs(f"filter_bar «{label}»", attrs),
         content=content,
     )
+
+
+# ── زرّ التصدير الموحَّد (W-20261021-006) ────────────────────────────────
+#: الأسماءُ الثلاثةُ المعتمدة بقرار المالك 2026-10-21؛ «تحميل» للمرفقات المرفوعة وحدَها فلا مكانَ له هنا.
+EXPORT_KINDS: dict[str, tuple[str, str]] = {
+    "pdf": ("export_pdf", "تصدير PDF"),
+    "xlsx": ("export_excel", "تصدير Excel"),
+    "print": ("print", "طباعة"),
+}
+
+
+@register.simple_block_tag
+def export_button(
+    content: str,
+    kind: str,
+    url_name: str = "",
+    *args: Any,
+    primary: bool = False,
+    id: str = "",  # noqa: A002
+) -> str:
+    """زرُّ تصديرٍ بالاسم والأيقونة والفئة المعتمدة — الصفحةُ تمرّر **الرابطَ** والوسمُ يملك **الشكل**.
+
+        {% export_button "pdf" "student_affairs:student_list_pdf" %}?q={{ q|urlencode }}{% endexport_button %}
+        {% export_button "xlsx" "breach:xlsx" breach.pk primary=True %}{% endexport_button %}
+        {% export_button "print" %}{% endexport_button %}
+
+    ما بين الوسمين يُلحَق بالرابط حرفياً (سلسلةُ الاستعلام). والرابطُ يمرّ على مركز التصدير
+    (`data-app-file`) فتظهر حالةُ التحميل؛ و«طباعة» زرٌّ يستدعي نافذةَ الطباعة ولا رابطَ له.
+    نوعٌ خارج الثلاثة `TemplateSyntaxError`.
+    """
+    from django.urls import reverse
+    from django.utils.html import escape
+
+    from core.templatetags.icons import icon
+
+    if kind not in EXPORT_KINDS:
+        raise template.TemplateSyntaxError(
+            f"export_button: نوعٌ {kind!r} غيرُ معتمد — المتاح: {', '.join(EXPORT_KINDS)}"
+        )
+    icon_key, label = EXPORT_KINDS[kind]
+    css = "btn-primary btn-sm" if primary else "btn-secondary btn-sm"
+    ident = f' id="{escape(id)}"' if id else ""
+    glyph = icon(icon_key)
+    if kind == "print":
+        return format_html(
+            '<button type="button"{} class="{} no-print" hx-on:click="window.print()">{} {}</button>',
+            mark_safe(ident),
+            css,
+            glyph,
+            label,
+        )
+    if not url_name:
+        raise template.TemplateSyntaxError("export_button: اسمُ المسار مطلوب لـ pdf وxlsx")
+    href = format_html("{}{}", reverse(url_name, args=args), content.strip())
+    return format_html(
+        '<a data-app-file{} href="{}" class="{}">{} {}</a>',
+        mark_safe(ident),
+        href,
+        css,
+        glyph,
+        label,
+    )

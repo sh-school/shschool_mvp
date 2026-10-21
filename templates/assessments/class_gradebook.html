@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% load icons %}
 {% load ui dict_filters %}
 {% block title %}كشف الدرجات — {{ setup.subject.name_ar }}{% endblock %}
@@ -17,7 +18,7 @@
       {% endfor %}
       <a href="?semester=annual" class="period-switch__item{% if show_annual %} is-current{% endif %}"{% if show_annual %} aria-current="page"{% endif %}>السنوي (100)</a>
     </nav>
-    <a data-app-file href="{% url 'export_gradebook' setup.id %}{% if not show_annual %}?semester={{ semester }}{% endif %}" class="btn-primary btn-sm">{% icon "export_excel" %} تصدير Excel</a>
+    {% export_button "xlsx" "export_gradebook" setup.id primary=True %}{% if not show_annual %}?semester={{ semester }}{% endif %}{% endexport_button %}
     <form method="post" action="{% url 'recalculate_class' setup.id %}" data-confirm="إعادة حساب جميع الدرجات؟">
       {% csrf_token %}
       <button type="submit" class="btn-secondary btn-sm">{% icon "refresh" %} إعادة الحساب</button>
