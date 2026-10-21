@@ -3,7 +3,12 @@ rotate_fernet_key — إعادة تشفير كل الحقول المشفّرة �
 
 [PII-01] مُصحَّح: كان الأمر السابق (أ) يقرأ حقول HealthRecord بأسماء خاطئة
 (`_allergies`) فلا يعيد تشفير أي سجل صحي، (ب) يُهمل `phone_encrypted`، (ج) يُهمل
-`ClinicVisit` كلياً (أخطر بيانات م.16). النسخة الحالية تشمل كل الحقول المشفّرة.
+`ClinicVisit` كلياً (أخطر بيانات م.16).
+
+[W-20261020-024] الشمولُ هنا لـ`CustomUser` (أعمدةٌ محدَّدة) و`NotificationSettings` و`HealthRecord` و`ClinicVisit`.
+وحقولُ الأخيرَين تُكتشف بالانعكاس (`core.fields.encrypted_field_names`) لا بقائمةٍ مكتوبة، فحقلٌ مشفَّرٌ جديدٌ فيهما
+يدخل التدويرَ تلقائياً ويحرس ذلك `tests/test_encrypted_fields_covered_by_rotation.py`. أمّا الحقولُ المشفَّرة في
+نماذجَ أخرى (مثل `behavior` و`operations` وحقلَي `CustomUser` الإضافيَّين) فخارجَ هذا الأمر بعدُ — قرارٌ مستقلّ.
 
 الاستخدام:
   1. أنشئ مفتاحاً جديداً: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
@@ -19,6 +24,7 @@ from typing import Any
 from cryptography.fernet import InvalidToken
 from django.core.management.base import BaseCommand
 
+from core.fields import encrypted_field_names
 from core.models.crypto import decrypt_field, encrypt_field
 
 logger = logging.getLogger(__name__)
@@ -82,23 +88,16 @@ class Command(BaseCommand):
                 errors += 1
                 self.stderr.write(f"  خطأ NotificationSettings {ns.id}: {e}")
 
-        # ── 3. HealthRecord — صار كله EncryptedTextField ([PII-11]) ──
+        # ── 3. HealthRecord — كلُّه EncryptedTextField ([PII-11])، وحقولُه بالانعكاس ──
         # كانت الحقولُ الطبّيّةُ الثلاثة تُشفَّر يدوياً فتحتاج فكّاً وإعادةَ
         # تشفيرٍ صريحين. وبعد توحيدها على الحقل الشفّاف صارت كـ`ClinicVisit`:
         # القراءةُ تفكّ بأيّ مفتاحٍ من المفاتيح، والحفظُ يشفّر بالحالي.
         from clinic.models import HealthRecord
 
+        health_fields = encrypted_field_names(HealthRecord)
         for hr in HealthRecord.objects.all().iterator():
             try:
-                hr.save(
-                    update_fields=[
-                        "allergies",
-                        "chronic_diseases",
-                        "medications",
-                        "emergency_contact_name",
-                        "emergency_contact_phone",
-                    ]
-                )
+                hr.save(update_fields=health_fields)
                 total += 1
             except (InvalidToken, ValueError, OSError) as e:
                 errors += 1
@@ -107,9 +106,10 @@ class Command(BaseCommand):
         # ── 4. ClinicVisit — EncryptedTextField: القراءة تفكّ والحفظ يعيد التشفير ──
         from clinic.models import ClinicVisit
 
+        visit_fields = encrypted_field_names(ClinicVisit)
         for cv in ClinicVisit.objects.all().iterator():
             try:
-                cv.save(update_fields=["reason", "symptoms", "treatment"])
+                cv.save(update_fields=visit_fields)
                 total += 1
             except (InvalidToken, ValueError, OSError) as e:
                 errors += 1
