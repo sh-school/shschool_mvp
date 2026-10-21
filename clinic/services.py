@@ -38,6 +38,7 @@ class ClinicService:
         is_sent_home: bool = False,
         service_code: str = "",
         complaint_code: str = "",
+        draft_started_at=None,
     ):
         """
         تسجيل زيارة عيادة جديدة.
@@ -56,6 +57,7 @@ class ClinicService:
             is_sent_home: هل أُرسل الطالب للمنزل
             service_code: رمز الخدمة من `clinic.choices` (اختياري)
             complaint_code: رمز الشكوى من `clinic.choices` (اختياري)
+            draft_started_at: لحظة اختيار الطالب (بدء المسودة) لقياس زمن التسجيل (اختياري، وقتٌ فقط)
 
         Raises:
             ValueError: رمزُ خدمةٍ أو شكوى خارج القائمة المعتمدة
@@ -80,6 +82,7 @@ class ClinicService:
             service_code=service_code,
             service_group=group_of_service(service_code),
             complaint_code=complaint_code,
+            draft_started_at=draft_started_at,
             period_number=ClinicService.derive_period_number(school, student, timezone.now()),
             reason=reason,
             symptoms=symptoms,

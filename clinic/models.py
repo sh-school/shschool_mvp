@@ -152,6 +152,13 @@ class ClinicVisit(models.Model):
         help_text="يُشتقّ من الجدول قراءةً فقط عند التسجيل؛ لا يُدخله الممرّض.",
     )
 
+    # ── [W-20261020-035] قياس زمن التسجيل ────────────────────────────────
+    # لحظةُ اختيار الطالب (بدء المسودة)؛ تُسجَّل وقتاً فقط بلا أيّ بيانٍ صحيّ، وتُترك فارغةً حين
+    # لا مسودةَ (إدخالٌ مباشر) فلا تدخل في p50/p90. زمنُ التسجيل = visit_date − draft_started_at.
+    draft_started_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت بدء المسودة (للقياس)"
+    )
+
     class Meta:
         verbose_name = "زيارة عيادة"
         verbose_name_plural = "زيارات العيادة"

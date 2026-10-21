@@ -1,0 +1,28 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% block title %}مؤشرات قياس العيادة{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/clinic/" parent_label="العيادة" current="المؤشرات" %}
+{% endblock %}
+
+{% block content %}
+{% page_layout "dashboard" %}
+<div class="exec-dash">
+
+  {% page_header "مؤشرات قياس العيادة" subtitle="خمسة مؤشرات مجمَّعة على مستوى العيادة" icon="clinic" %}
+    <a href="{% url 'clinic:statistics' %}" class="btn-secondary btn-sm">← الإحصائيات</a>
+  {% endpage_header %}
+
+  {% filter_bar "الشهر" %}
+    {% field "month" "الشهر" type="month" id="month" value=month_value %}
+    <div class="filter-actions"><button type="submit" class="btn-secondary btn-sm">عرض</button></div>
+  {% endfilter_bar %}
+
+  {% kpi_strip label="مؤشرات العيادة" %}
+    {% for c in cards %}{% kpi c.label c.value sub=c.sub %}{% endfor %}
+  {% endkpi_strip %}
+
+  <p class="ui-field-hint">أعدادٌ ونسبٌ مجمَّعة للمدرسة؛ لا أسماءَ طلبةٍ ولا ممرّضين ولا نصوصَ صحية. صيغُ الحساب في docs/clinic_metrics.md.</p>
+</div>
+{% endblock %}
