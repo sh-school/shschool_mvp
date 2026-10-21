@@ -36,7 +36,7 @@ def _party_label(code: str) -> str:
 @_protected
 @require_GET
 def referrals_list(request):
-    school = request.user.get_school()
+    school = request.school
     rows = list(
         ClinicReferral.objects.filter(school=school).select_related("visit__student", "closed_by")
     )
@@ -59,7 +59,7 @@ def referrals_list(request):
 @_protected
 @require_POST
 def referral_close(request, referral_id):
-    referral = get_object_or_404(ClinicReferral, id=referral_id, school=request.user.get_school())
+    referral = get_object_or_404(ClinicReferral, id=referral_id, school=request.school)
     try:
         close_referral(referral, request.POST.get("result", ""), request.user)
     except ValueError:
@@ -70,7 +70,7 @@ def referral_close(request, referral_id):
 @_protected
 @require_GET
 def referral_receipt(request, referral_id):
-    school = request.user.get_school()
+    school = request.school
     referral = get_object_or_404(
         ClinicReferral.objects.select_related("visit__student"), id=referral_id, school=school
     )
