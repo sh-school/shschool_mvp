@@ -1,6 +1,7 @@
 {% extends "base/base.html" %}
 {% load ui %}
 {% block title %}ربط مادة بفصل{% endblock %}
+{% block main_class %}{% page_layout "form" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/assessments/" parent_label="التقييمات" current="ربط مادة بفصل" %}

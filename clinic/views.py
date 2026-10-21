@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
@@ -167,6 +168,27 @@ def record_visit(request, student_id=None):
         "student_id": student_id,
     }
     return render(request, "clinic/record_visit.html", context)
+
+
+@login_required
+@capability_required("clinic.write")
+@require_http_methods(["POST"])
+def confirm_referral_notice(request, visit_id):
+    """تأكيدُ الممرّض إحالةَ الطالب للمنزل فيُشعَر وليُّ الأمر بالحدث (بلا السبب) — W-20261020-034."""
+    school = request.school
+    visit = get_object_or_404(ClinicVisit, id=visit_id, school=school)
+    notified = ClinicService.confirm_referral_notice(visit, school, request.user)
+    if request.headers.get("HX-Request"):
+        return render(
+            request, "clinic/visit_card.html", {"visit": visit, "confirm_attempted": True}
+        )
+    if notified:
+        messages.success(request, "أُشعر وليُّ الأمر بالحدث.")
+    else:
+        messages.warning(
+            request, "لم يُرسَل الإشعار: لا بريدَ لوليّ الأمر أو التواصل مجمَّد. تواصل معه مباشرةً."
+        )
+    return redirect("clinic:health_record", student_id=visit.student_id)
 
 
 @login_required

@@ -18,6 +18,7 @@ from assessments.services import GradeService
 from core import brand
 from core.academic_calendar import academic_year_for
 from core.capabilities import capability_required
+from core.excel_safety import safe_cell
 from core.export_utils import apply_print_footer, excel_table_styles, xl_fill, xl_font
 from core.models import CustomUser, StudentEnrollment
 
@@ -153,14 +154,14 @@ def download_grade_template(request, assessment_id):
         ("الدرجة القصوى", str(assessment.max_grade)),
     ]
     for i, (label, val) in enumerate(info_rows, start=1):
-        ws.cell(i, 1, label).font = xl_font(bold=True)
-        ws.cell(i, 2, val).fill = info_fill
+        safe_cell(ws, i, 1, label).font = xl_font(bold=True)
+        safe_cell(ws, i, 2, val).fill = info_fill
         ws.cell(i, 2).font = xl_font()
 
     # ── رأس الجدول (صف 6) ──
     headers = ["الرقم الشخصي", "اسم الطالب", "الدرجة", "غائب (1/0)", "ملاحظة"]
     for col, h in enumerate(headers, start=1):
-        cell = ws.cell(6, col, h)
+        cell = safe_cell(ws, 6, col, h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = center_align
@@ -175,11 +176,11 @@ def download_grade_template(request, assessment_id):
     # ── بيانات الطلاب (صف 7 فصاعداً) ──
     for row_idx, enr in enumerate(enrollments, start=7):
         st = enr.student
-        ws.cell(row_idx, 1, st.national_id).alignment = center_align
-        ws.cell(row_idx, 2, st.full_name).alignment = right_align
-        ws.cell(row_idx, 3, "").alignment = center_align  # الدرجة يملؤها المستخدم
-        ws.cell(row_idx, 4, 0).alignment = center_align  # غائب
-        ws.cell(row_idx, 5, "").alignment = right_align  # ملاحظة
+        safe_cell(ws, row_idx, 1, st.national_id).alignment = center_align
+        safe_cell(ws, row_idx, 2, st.full_name).alignment = right_align
+        safe_cell(ws, row_idx, 3, "").alignment = center_align  # الدرجة يملؤها المستخدم
+        safe_cell(ws, row_idx, 4, 0).alignment = center_align  # غائب
+        safe_cell(ws, row_idx, 5, "").alignment = right_align  # ملاحظة
 
         for col in range(1, 6):
             ws.cell(row_idx, col).border = border
