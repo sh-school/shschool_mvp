@@ -18,6 +18,27 @@ from core.capabilities import capability_required, has_capability
 from core.models import AuditLog, CustomUser
 
 
+def _audit_health_screen(request, screen, *, model_name, object_id="", rows=None):
+    """يكتب سطرَ تدقيقٍ لفتح شاشةٍ تعرض بياناً صحيّاً (PDPPL م.11 وم.13: سجلُّ الوصول).
+
+    معرّفاتٌ فقط: نوعُ الشاشة وعددُ الصفوف ومعرّفُ السجلّ — لا اسمَ طالبٍ ولا نصَّ صحّيّاً
+    (reason/treatment/تشخيص)؛ فسجلُّ التدقيق ملحقٌ لا يُعدَّل ويبقى بعد محو صاحبه.
+    كلُّ شاشةٍ صحّيّةٍ جديدةٍ في العيادة تستدعيه، ويفرض ذلك tests/test_clinic_audit_every_screen.py.
+    """
+    changes = {"screen": screen}
+    if rows is not None:
+        changes["rows"] = rows
+    AuditLog.log(
+        user=request.user,
+        action="view",
+        model_name=model_name,
+        object_id=object_id,
+        object_repr=f"عرض شاشة صحية — {screen}",
+        changes=changes,
+        request=request,
+    )
+
+
 @login_required
 @capability_required("clinic.access")
 def clinic_dashboard(request):
@@ -33,6 +54,8 @@ def clinic_dashboard(request):
         sent_home_tone="red" if context.get("sent_home_today") else "green",
         frequent_tone="amber" if context.get("frequent") else "green",
     )
+    # اللوحةُ تعرض أسماءَ الطلاب وسببَ الزيارة: وصولٌ إلى بيانٍ صحّيّ يُدقَّق.
+    _audit_health_screen(request, "لوحة العيادة", model_name="ClinicVisit")
     return render(request, "clinic/dashboard.html", context)
 
 
@@ -88,7 +111,7 @@ def student_health_record(request, student_id):
         "can_write": can_write,
     }
 
-    # PDPPL م.19: تدقيق الوصول للسجل الصحي الحساس (يُفكّ تشفير الحساسية/الأمراض/الأدوية)
+    # PDPPL م.11 وم.13: تدقيق الوصول للسجل الصحي الحساس (يُفكّ تشفير الحساسية/الأمراض/الأدوية)
     AuditLog.log(
         user=request.user,
         action="view",
@@ -170,6 +193,9 @@ def visits_list(request):
         "date_filter": date_filter,
         "student_filter": student_filter,
     }
+
+    # القائمةُ تعرض اسمَ الطالب وreason وtreatment: تُدقَّق (أعدادٌ فقط، لا نصوص ولا ترشيح بحث).
+    _audit_health_screen(request, "قائمة الزيارات", model_name="ClinicVisit", rows=visits.count())
 
     # HTMX: أعد الجزء فقط (بحث حي + ترشيح)
     if getattr(request, "htmx", None) or request.headers.get("HX-Request"):
