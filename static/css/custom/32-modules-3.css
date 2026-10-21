@@ -1225,6 +1225,18 @@
   .prefs-form select.form-control { max-width: 20rem; }
   .prefs-form .ui-field-hint { max-width: 46rem; }
   .prefs-form textarea.form-control { max-width: 46rem; }
+  /* شبكةُ مواضع الحصص (W-20261010-032): لكلّ يومٍ بطاقةٌ فيها حصصُه — `auto-fit` يجعلها خمسةَ أعمدةٍ على الحاسوب
+     وعموداً واحداً على الجوال بلا استعلامات نافذة. والحالةُ نصٌّ في القائمة نفسِها (محايدة/أفضّلها/أتجنّبها) فلا يُعتمد
+     على اللون وحدَه، واللونُ تعزيزٌ بـ`:has` حيث يدعمه المتصفّح. */
+  .period-pref { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: var(--sp-3); }
+  .period-pref__day { margin: 0; min-inline-size: 0; padding: var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+  .period-pref__day legend { padding-inline: var(--sp-2); font-weight: 700; }
+  .period-pref__cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: var(--sp-2); }
+  .period-pref__row { display: flex; align-items: center; gap: var(--sp-1-5); min-inline-size: 0; }
+  .period-pref__no { flex: none; inline-size: 1.25rem; text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); }
+  .period-pref__row select.form-control { flex: 1; min-inline-size: 0; max-width: none; padding-inline: var(--sp-1); }
+  .period-pref__row:has(option[value="prefer"]:checked) select { background: var(--status-success-bg); border-color: var(--status-success-border); }
+  .period-pref__row:has(option[value="avoid"]:checked) select { background: var(--status-warning-bg); border-color: var(--status-warning-border); }
 
 /* ── templates/schedule/schedule_settings.html ── */
   /* استمارةُ التفريغ: `flex-wrap` على عرض الحاوية الفعليّ لا استعلامات نافذةٍ

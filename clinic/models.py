@@ -127,11 +127,43 @@ class ClinicVisit(models.Model):
     is_sent_home = models.BooleanField(default=False, verbose_name="تم إرساله للمنزل")
     parent_notified = models.BooleanField(default=False, verbose_name="تم إبلاغ ولي الأمر")
 
+    # ── [W-20261020-029] ترميز الزيارة ───────────────────────────────────
+    # رموزٌ من القوائم المغلقة في `clinic/choices.py` (بلا `choices` هنا عمداً: تعديلُ قائمةٍ
+    # قيماً لا يولّد هجرةً)، وكلُّها غيرُ مشفَّرٍ لأنّها قيمٌ مصنَّفةٌ بلا نصٍّ حرّ ولا تشخيص؛
+    # والنصُّ الحرُّ (reason/symptoms/treatment) يبقى مشفَّراً للممرّض وخارجَ كلّ تجميع.
+    # `db_default` لازمةٌ لأنّ الجدولَ فيه صفوف (حارسُ migration-linter).
+    service_code = models.CharField(
+        max_length=40, blank=True, default="", db_default="", verbose_name="الخدمة"
+    )
+    service_group = models.CharField(
+        max_length=20, blank=True, default="", db_default="", verbose_name="مجموعة الخدمة"
+    )
+    complaint_code = models.CharField(
+        max_length=40, blank=True, default="", db_default="", verbose_name="الشكوى"
+    )
+    outcome = models.CharField(
+        max_length=20, blank=True, default="", db_default="", verbose_name="حالة الخروج"
+    )
+    closed_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت إغلاق الزيارة")
+    period_number = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="رقم الحصة (مشتقّ)",
+        help_text="يُشتقّ من الجدول قراءةً فقط عند التسجيل؛ لا يُدخله الممرّض.",
+    )
+
     class Meta:
         verbose_name = "زيارة عيادة"
         verbose_name_plural = "زيارات العيادة"
         ordering = ["-visit_date"]
         db_table = "core_clinicvisit"  # يبقي نفس الجدول الموجود
+
+    @property
+    def duration_seconds(self) -> int | None:
+        """مدّةُ المكث بالثواني من البدء حتى الإغلاق؛ None لزيارةٍ مفتوحة."""
+        if self.closed_at is None or self.visit_date is None:
+            return None
+        return max(0, int((self.closed_at - self.visit_date).total_seconds()))
 
     #: حرارةٌ تُعدّ حُمّى — كانت عتبةً مكتوبةً في قالب سجلّ الزيارات (≥ 38).
     FEVER_THRESHOLD = 38

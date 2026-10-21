@@ -367,7 +367,7 @@
     var dialog = root.querySelector('[data-history-dialog]');
     var holder = root.querySelector('[data-history-body]');
     if (!dialog || !holder) return;
-    var url = saveUrl.replace(/save\/$/, 'history/') + student + '/' + col + '/';
+    var url = saveUrl.replace(/save\/$/, 'history/') + student + '/' + col + '/' + (root.getAttribute('data-date') ? '?date=' + encodeURIComponent(root.getAttribute('data-date')) : '');
     fetch(url, { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (html) {
       holder.innerHTML = html;
       if (typeof dialog.showModal === 'function') dialog.showModal();

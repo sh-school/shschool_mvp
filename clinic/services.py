@@ -36,6 +36,8 @@ class ClinicService:
         temperature=None,
         treatment: str = "",
         is_sent_home: bool = False,
+        service_code: str = "",
+        complaint_code: str = "",
     ):
         """
         تسجيل زيارة عيادة جديدة.
@@ -52,16 +54,33 @@ class ClinicService:
             temperature: درجة الحرارة (اختياري)
             treatment: العلاج المُعطى (اختياري)
             is_sent_home: هل أُرسل الطالب للمنزل
+            service_code: رمز الخدمة من `clinic.choices` (اختياري)
+            complaint_code: رمز الشكوى من `clinic.choices` (اختياري)
+
+        Raises:
+            ValueError: رمزُ خدمةٍ أو شكوى خارج القائمة المعتمدة
 
         Returns:
             ClinicVisit: سجل الزيارة المنشأ
         """
+        from django.utils import timezone
+
+        from clinic.choices import group_of_service, is_valid_complaint, is_valid_service
         from clinic.models import ClinicVisit
+
+        if service_code and not is_valid_service(service_code):
+            raise ValueError(f"رمز خدمة غير معتمد: {service_code}")
+        if complaint_code and not is_valid_complaint(complaint_code):
+            raise ValueError(f"رمز شكوى غير معتمد: {complaint_code}")
 
         visit = ClinicVisit.objects.create(
             school=school,
             student=student,
             nurse=nurse,
+            service_code=service_code,
+            service_group=group_of_service(service_code),
+            complaint_code=complaint_code,
+            period_number=ClinicService.derive_period_number(school, student, timezone.now()),
             reason=reason,
             symptoms=symptoms,
             temperature=temperature,
@@ -77,12 +96,102 @@ class ClinicService:
                 visit.parent_notified = notified
                 visit.save(update_fields=["parent_notified"])
 
+        if is_sent_home:
+            ClinicService._propose_excuse(visit, school, student, nurse)
+
         logger.info(
             "زيارة عيادة جديدة: طالب=%s مدرسة=%s منزل=%s",
             student.pk,
             school.code,
             is_sent_home,
         )
+        return visit
+
+    @staticmethod
+    def _propose_excuse(visit, school: School, student: CustomUser, nurse: CustomUser) -> None:
+        """يقترح عذراً طبّيّاً معلّقاً لغياب يوم الزيارة في مسار الأعذار القائم (W-20261020-041).
+
+        لا يغيّر الحضور ولا يحمل نصّاً صحّيّاً؛ وفشلُه لا يُفشل تسجيلَ الزيارة.
+        """
+        from django.utils import timezone
+
+        from operations.excuses import propose_medical_excuse_from_clinic
+
+        try:
+            propose_medical_excuse_from_clinic(
+                student=student,
+                school=school,
+                day=timezone.localtime(visit.visit_date).date(),
+                by=nurse,
+            )
+        except Exception:  # noqa: BLE001 — الاقتراحُ ثانويٌّ، والزيارةُ محفوظةٌ
+            logger.exception("تعذّر اقتراح العذر الطبّي للزيارة %s", visit.pk)
+
+    @staticmethod
+    def derive_period_number(school: School, student: CustomUser, moment) -> int | None:
+        """
+        رقمُ الحصة التي يقع فيها `moment` لشعبة الطالب — قراءةً من ScheduleSlot فقط.
+
+        لا يُدخلها الممرّض ولا تُغيَّر بها الجدولُ ولا الحضور؛ وإن لم يُسجَّل الطالبُ في شعبةٍ
+        أو وقع الوقتُ خارج الحصص (الفسحة، قبل الدوام) أُعيد None.
+        """
+        from django.utils import timezone
+
+        from core.models import StudentEnrollment
+        from operations.models import ScheduleSlot
+
+        class_group_id = (
+            StudentEnrollment.objects.filter(
+                student=student, is_active=True, class_group__school=school
+            )
+            .values_list("class_group_id", flat=True)
+            .first()
+        )
+        if class_group_id is None:
+            return None
+        local = timezone.localtime(moment)
+        # يوم الأسبوع في الجدول: الأحد 0 (Python: الاثنين 0)
+        qatar_day = (local.weekday() + 1) % 7
+        return (
+            ScheduleSlot.objects.live(school, on=local.date())
+            .filter(
+                class_group_id=class_group_id,
+                day_of_week=qatar_day,
+                start_time__lte=local.time(),
+                end_time__gt=local.time(),
+            )
+            .order_by("period_number")
+            .values_list("period_number", flat=True)
+            .first()
+        )
+
+    @staticmethod
+    @transaction.atomic
+    def close_visit(visit, outcome: str):
+        """
+        إغلاقُ الزيارة بحالة خروج (عودة للصف / استئذان / إحالة) ووقتِ إغلاقٍ للمدّة.
+
+        الاستئذانُ يضبط `is_sent_home` فقط؛ إشعارُ الوليّ يبقى كما في `record_visit`
+        ولا يُرسَل هنا (قرارٌ مستقلّ للمالك).
+
+        Raises:
+            ValueError: حالةُ خروج خارج القائمة، أو زيارةٌ مُغلقةٌ سلفاً
+        """
+        from django.utils import timezone
+
+        from clinic.choices import OUTCOME_LEAVE, is_valid_outcome
+
+        if not is_valid_outcome(outcome):
+            raise ValueError(f"حالة خروج غير معتمدة: {outcome}")
+        if visit.closed_at is not None:
+            raise ValueError("الزيارة مُغلقة سلفاً")
+        visit.outcome = outcome
+        visit.closed_at = timezone.now()
+        fields = ["outcome", "closed_at"]
+        if outcome == OUTCOME_LEAVE and not visit.is_sent_home:
+            visit.is_sent_home = True
+            fields.append("is_sent_home")
+        visit.save(update_fields=fields)
         return visit
 
     @staticmethod
