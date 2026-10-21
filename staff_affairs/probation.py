@@ -125,6 +125,44 @@ def record_result(
     return contract
 
 
+def record_result_audited(
+    contract: EmploymentContract, result: str, actor, on: dt.date, request=None
+) -> EmploymentContract:
+    """تسجيلُ النتيجة بخدمة ``record_result`` مع أثرٍ في سجلّ التدقيق (معرّفاتٌ فقط بلا أسماء — PDPPL)."""
+    from core.models.audit import AuditLog
+
+    with transaction.atomic():
+        record_result(contract, result, actor, on)
+        AuditLog.log(  # type: ignore[no-untyped-call]
+            user=actor,
+            action="update",
+            model_name="other",
+            object_id=contract.pk,
+            object_repr=f"EmploymentContract نتيجة الاختبار {on:%Y-%m-%d}",
+            changes={
+                "staff": str(contract.staff_id),
+                "result": result,
+                "result_at": on.isoformat(),
+            },
+            school=contract.school,
+            request=request,
+        )
+    return contract
+
+
+def pending_results(school) -> list[EmploymentContract]:
+    """العقودُ التي انتهت فترتُها الفعليّة (قبل اليوم) وتنتظر نتيجة، الأقدمُ انتهاءً أوّلاً."""
+    from django.utils import timezone
+
+    return list(
+        EmploymentContract.objects.filter(
+            school=school, result="pending", probation_end__lt=timezone.localdate()
+        )
+        .select_related("staff")
+        .order_by("probation_end")
+    )
+
+
 def probation_block_error(school, staff, leave_type: str) -> str | None:
     """رسالةُ الرفض إن كان النوعُ ممنوعاً على موظفٍ لم يجتز اختباره بنجاح، وإلا ``None``."""
     reason = BLOCKED_UNDER_PROBATION.get(leave_type)

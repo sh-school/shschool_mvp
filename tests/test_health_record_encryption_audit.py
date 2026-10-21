@@ -222,7 +222,7 @@ def test_the_report_never_carries_medical_text(db, school, key):
 
     assert ARABIC not in text
     assert "البنسلين" not in text
-    assert json.loads(text)["total_values"] == 3
+    assert json.loads(text)["models"]["HealthRecord"]["total_records"] == 1
 
 
 def test_the_command_writes_nothing_to_the_database(db, school, key):
@@ -394,3 +394,95 @@ def test_the_migration_does_nothing_without_a_key(monkeypatch):
     _migration()._peel_to_one_layer(_Apps([row]), None)
 
     assert row.saved_fields is None
+
+
+# ── القراءةُ من الأعمدة الخام (W-20261020-028) ─────────────────────────
+
+
+def _raw_set(model, pk, column, value):
+    from django.db import connection
+
+    with connection.cursor() as cur:
+        cur.execute(
+            f'UPDATE "{model._meta.db_table}" SET "{column}" = %s WHERE "{model._meta.pk.column}" = %s',
+            [value, pk],
+        )
+
+
+def test_raw_classification_sees_what_is_in_the_database_not_what_the_field_decrypts(
+    db, school, key, settings
+):
+    """الحقلُ الشفّاف يفكّ عند القراءة فيُرى كلُّ شيءٍ نصّاً عارياً؛ التصنيفُ الخامُّ يرى الطبقات الفعليّة."""
+    from clinic.encryption_audit import classify_raw
+    from clinic.models import HealthRecord
+    from core.models import CustomUser
+
+    student = CustomUser.objects.create(
+        must_change_password=False, national_id="28800000058", full_name="طالب"
+    )
+    record = HealthRecord.objects.create(
+        student=student, allergies=ARABIC, chronic_diseases=ARABIC, medications=ARABIC
+    )
+    once = key.encrypt(ARABIC.encode()).decode()
+    _raw_set(HealthRecord, record.pk, "allergies", ARABIC)  # عارٍ
+    _raw_set(HealthRecord, record.pk, "chronic_diseases", once)  # طبقة
+    _raw_set(HealthRecord, record.pk, "medications", key.encrypt(once.encode()).decode())  # طبقتان
+
+    rows = classify_raw(HealthRecord, ["allergies", "chronic_diseases", "medications"], key)
+    verdicts = {field: v.verdict for _pk, field, v in rows}
+
+    assert verdicts == {
+        "allergies": PLAINTEXT,
+        "chronic_diseases": ENCRYPTED_ONCE,
+        "medications": ENCRYPTED_MULTIPLE,
+    }
+
+
+def test_the_command_covers_every_encrypted_field_of_both_clinic_models_with_counts_only(
+    db, school, key
+):
+    import io
+
+    from django.core.management import call_command
+
+    from clinic.models import ClinicVisit, HealthRecord
+    from core.fields import encrypted_field_names
+
+    out = io.StringIO()
+    call_command("classify_health_record_encryption", stdout=out)
+    text = out.getvalue()
+
+    for model in (HealthRecord, ClinicVisit):
+        for name in encrypted_field_names(model):
+            assert name in text, name
+    assert "قراءةٌ فقط" in text
+
+
+def test_default_output_has_no_record_ids_and_detail_adds_only_ids_never_text(
+    db, school, key, tmp_path
+):
+    import io
+    import json
+
+    from django.core.management import call_command
+
+    from clinic.models import HealthRecord
+    from core.models import CustomUser
+
+    student = CustomUser.objects.create(
+        must_change_password=False, national_id="28800000059", full_name="طالب"
+    )
+    record = HealthRecord.objects.create(student=student, allergies=ARABIC)
+    _raw_set(HealthRecord, record.pk, "allergies", ARABIC)  # عارٍ فيصير شاذّاً
+
+    plain, detailed = io.StringIO(), io.StringIO()
+    out = tmp_path / "r.json"
+    call_command("classify_health_record_encryption", stdout=plain)
+    call_command(
+        "classify_health_record_encryption", "--detail", "--out", str(out), stdout=detailed
+    )
+
+    assert str(record.pk) not in plain.getvalue()
+    assert str(record.pk) in detailed.getvalue()
+    assert ARABIC not in plain.getvalue() + detailed.getvalue() + out.read_text(encoding="utf-8")
+    assert json.loads(out.read_text(encoding="utf-8"))["notable"]
