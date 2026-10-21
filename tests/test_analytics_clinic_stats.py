@@ -12,6 +12,9 @@ from django.utils import timezone
 from analytics.services import AnalyticsService
 from clinic.models import ClinicVisit
 
+# الساعةُ مثبَّتةٌ: الاختبارُ يحسب أيّاماً مضت من «اليوم» فلا يتبع الشهرَ الجاري (سقّاطة test_clock_pin_ratchet).
+pytestmark = pytest.mark.pin_clock
+
 
 def _visit(school, student, nurse, days_ago, **kw):
     visit = ClinicVisit.objects.create(
