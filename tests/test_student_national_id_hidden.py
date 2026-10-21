@@ -98,6 +98,12 @@ def student(school, seeded_calendar):
     return pupil
 
 
+def _without_uuids(text):
+    return re.sub(
+        r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", "", text
+    )
+
+
 @pytest.mark.parametrize(
     "name,args",
     [
@@ -113,6 +119,7 @@ def test_pages_do_not_print_the_stored_number(admin_client, student, name, args)
 
     assert response.status_code == 200
     body = response.content.decode()
+    body = _without_uuids(body)  # الذيل قد يقع صدفةً داخل UUID عشوائيّ في رابط
     assert NID not in body and NID[-4:] not in body  # لا كاملاً ولا مستوراً بذيله
     assert "طالبٌ تجريبيّ" in body
 
@@ -122,6 +129,6 @@ def test_the_tardiness_search_json_carries_no_part_of_the_number(admin_client, s
     response = admin_client.get(reverse("student_affairs:tardiness_search") + "?q=طالب")
 
     assert response.status_code == 200
-    payload = response.content.decode()
+    payload = _without_uuids(response.content.decode())  # المعرّفات عشوائيّة فقد تحوي الذيل صدفةً
     assert "nid" not in payload and NID[-4:] not in payload
     assert "طالبٌ تجريبيّ" in response.json()["results"][0]["name"]
