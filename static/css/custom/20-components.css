@@ -57,7 +57,7 @@
   gap: 5px;
   padding: var(--sp-1-5) var(--sp-2-5);
   border-radius: 7px;
-  font-size: 0.78125rem;
+  font-size: var(--text-xs-plus);
   color: var(--on-fill);
   background: none;
   border: none;

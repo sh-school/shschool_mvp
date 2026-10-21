@@ -68,7 +68,7 @@
   border-bottom: 1px solid var(--q-silver);
   border-inline-end: 1px solid var(--q-silver-light);
   vertical-align: middle;
-  font-size: 0.78125rem;
+  font-size: var(--text-xs-plus);
   line-height: 1.65;
   font-weight: 400;
   color: var(--text-secondary);
@@ -182,7 +182,7 @@
 
 .quality-pagination .page-info {
   padding: 0.45rem 1.1rem;
-  font-size: 0.78rem;
+  font-size: var(--text-xs-plus);
   font-weight: 700;
   font-family: var(--q-font-ui);
   color: var(--text-secondary);
@@ -426,7 +426,7 @@
   grid-column: 1 / -1;
 }
 .q-modal-field label {
-  font-size: 0.78rem;
+  font-size: var(--text-xs-plus);
   font-weight: 700;
   color: var(--maroon-fg);
   margin: 0;
@@ -683,7 +683,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   line-height: 1.5;
 }
 .login-platform-name {
-  font-size: 0.78125rem;
+  font-size: var(--text-xs-plus);
   color: color-mix(in srgb, var(--on-fill) 75%, transparent);
   margin: 0;
 }

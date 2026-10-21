@@ -178,3 +178,38 @@ class TestPageWidthClasses:
             f"max-w-xs|sm|md|lg في القوالب: نقص إلى {count} — أحسنت؛ اخفض "
             "NARROW_MAX_W_IN_TEMPLATES في tests/test_px_tokens.py إلى الرقم الجديد"
         )
+
+
+def test_the_dense_secondary_text_size_has_one_token():
+    """W-20261016-005: `0.78rem` و`0.78125rem` (≈20 موضعاً) صارا رمزاً واحداً `--text-xs-plus`؛ لا قيمةَ حرفيّةً خارج تعريفه."""
+    import re
+
+    css = read_css()
+    literals = re.findall(r"font-size:\s*0\.78(?:125)?rem", css)
+    assert not literals, f"{len(literals)} موضعاً بحجمٍ حرفيّ 0.78rem — استعمل var(--text-xs-plus)"
+    assert re.search(r"--text-xs-plus:\s*0\.78125rem", css)
+
+
+def test_no_font_size_falls_below_twelve_px():
+    """W-20261016-005: لا حجمَ خطٍّ حرفيّاً دون 12px (0.75rem)، ولا حدَّ أدنى لـ`clamp` تحته."""
+    import re
+
+    css = read_css()
+    small = re.findall(r"font-size:\s*(?:clamp\(\s*)?(0?\.[0-6]\d*|0?\.7[0-4]\d*)rem", css)
+    assert not small, f"{len(small)} موضعاً بحجم دون 12px: {sorted(set(small))}"
+
+
+def test_the_schedule_screen_view_never_drops_below_twelve_px():
+    """W-20261016-005: كتلةُ `@media screen` في `print_schedule.html` (مصفوفة الجدول على الشاشة) خطُّها px لا rem، فلا يلتقطه حارسُ CSS؛ حدُّها الأدنى 12px (الطباعةُ A3 على قياسها المحسوب لا تُمَسّ)."""
+    import pathlib
+    import re
+
+    html = (
+        pathlib.Path(__file__).resolve().parent.parent
+        / "templates"
+        / "schedule"
+        / "print_schedule.html"
+    ).read_text(encoding="utf-8")
+    block = html.rsplit("@media screen {", 1)[1].split("\n  }\n", 1)[0]
+    sizes = [int(n) for n in re.findall(r"font-size:\s*(?:clamp\()?(\d+)px", block)]
+    assert sizes and min(sizes) >= 12, f"خطٌّ دون 12px في مصفوفة الشاشة: {sorted(sizes)}"
