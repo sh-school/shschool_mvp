@@ -178,3 +178,13 @@ class TestPageWidthClasses:
             f"max-w-xs|sm|md|lg في القوالب: نقص إلى {count} — أحسنت؛ اخفض "
             "NARROW_MAX_W_IN_TEMPLATES في tests/test_px_tokens.py إلى الرقم الجديد"
         )
+
+
+def test_the_dense_secondary_text_size_has_one_token():
+    """W-20261016-005: `0.78rem` و`0.78125rem` (≈20 موضعاً) صارا رمزاً واحداً `--text-xs-plus`؛ لا قيمةَ حرفيّةً خارج تعريفه."""
+    import re
+
+    css = read_css()
+    literals = re.findall(r"font-size:\s*0\.78(?:125)?rem", css)
+    assert not literals, f"{len(literals)} موضعاً بحجمٍ حرفيّ 0.78rem — استعمل var(--text-xs-plus)"
+    assert re.search(r"--text-xs-plus:\s*0\.78125rem", css)
