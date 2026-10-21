@@ -87,6 +87,23 @@ OUTCOME_CHOICES: tuple[tuple[str, str], ...] = (
 )
 
 
+# ── الحالة المعدية والعزل (W-20261020-042) — وسمٌ منضبط بلا تشخيص ولا اسمِ مرض ──────────
+INFECTIOUS_SUSPECTED = "suspected"
+INFECTIOUS_ISOLATION = "isolation"
+INFECTIOUS_CHOICES: tuple[tuple[str, str], ...] = (
+    (INFECTIOUS_SUSPECTED, "اشتباه حالة معدية"),
+    (INFECTIOUS_ISOLATION, "عزلٌ مؤقّت موصى به"),
+)
+
+# ── قرار الإبلاغ الخارجي: يسجّله إنسانٌ ولا يُرسَل شيءٌ آليّاً ───────────────────────────
+REPORT_DONE = "reported"
+REPORT_NOT_REQUIRED = "not_required"
+EXTERNAL_REPORT_CHOICES: tuple[tuple[str, str], ...] = (
+    (REPORT_DONE, "أُبلغت الجهةُ المختصّة"),
+    (REPORT_NOT_REQUIRED, "لا حاجةَ للإبلاغ"),
+)
+
+
 def group_of_service(code: str) -> str:
     """مجموعةُ الخدمة، أو سلسلةٌ فارغة لرمزٍ غير معتمد."""
     return _GROUP_OF_SERVICE.get(code, "")
@@ -102,3 +119,11 @@ def is_valid_complaint(code: str) -> bool:
 
 def is_valid_outcome(code: str) -> bool:
     return any(code == c for c, _ in OUTCOME_CHOICES)
+
+
+def is_valid_infectious(code: str) -> bool:
+    return any(code == c for c, _ in INFECTIOUS_CHOICES)
+
+
+def is_valid_external_report(code: str) -> bool:
+    return any(code == c for c, _ in EXTERNAL_REPORT_CHOICES)
