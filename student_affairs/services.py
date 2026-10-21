@@ -625,7 +625,8 @@ class StudentService:
         """
         # ── 1. تحديث المستخدم ──
         student.full_name = data["full_name"]
-        student.phone = hold_phone_change(student, school, data.get("actor"), data.get("phone", ""))
+        if "phone" in data:  # غيابُ المفتاح لا يمسّ الرقم؛ وتغييرُه طلبٌ يدقّقه النائب لا تعديلٌ مباشر
+            student.phone = hold_phone_change(student, school, data.get("actor"), data["phone"])
         student.email = data.get("email", "")
         student.save(update_fields=["full_name", "phone", "email"])
 
