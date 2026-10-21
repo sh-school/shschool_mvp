@@ -96,6 +96,9 @@ class ClinicService:
                 visit.parent_notified = notified
                 visit.save(update_fields=["parent_notified"])
 
+        if is_sent_home:
+            ClinicService._propose_excuse(visit, school, student, nurse)
+
         logger.info(
             "زيارة عيادة جديدة: طالب=%s مدرسة=%s منزل=%s",
             student.pk,
@@ -103,6 +106,26 @@ class ClinicService:
             is_sent_home,
         )
         return visit
+
+    @staticmethod
+    def _propose_excuse(visit, school: School, student: CustomUser, nurse: CustomUser) -> None:
+        """يقترح عذراً طبّيّاً معلّقاً لغياب يوم الزيارة في مسار الأعذار القائم (W-20261020-041).
+
+        لا يغيّر الحضور ولا يحمل نصّاً صحّيّاً؛ وفشلُه لا يُفشل تسجيلَ الزيارة.
+        """
+        from django.utils import timezone
+
+        from operations.excuses import propose_medical_excuse_from_clinic
+
+        try:
+            propose_medical_excuse_from_clinic(
+                student=student,
+                school=school,
+                day=timezone.localtime(visit.visit_date).date(),
+                by=nurse,
+            )
+        except Exception:  # noqa: BLE001 — الاقتراحُ ثانويٌّ، والزيارةُ محفوظةٌ
+            logger.exception("تعذّر اقتراح العذر الطبّي للزيارة %s", visit.pk)
 
     @staticmethod
     def derive_period_number(school: School, student: CustomUser, moment) -> int | None:
