@@ -11,7 +11,7 @@ from uuid import UUID
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpRequest, HttpResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -20,8 +20,8 @@ from core.middleware import SchoolRequest
 from core.models.school import School
 from core.models.user import CustomUser
 
-from .models import EmploymentContract
 from .probation import pending_results, record_result_audited
+from .selectors import decided_probation_results, school_contract
 
 
 def _school(request: HttpRequest) -> School:
@@ -36,16 +36,10 @@ def _school(request: HttpRequest) -> School:
 def probation_results(request: HttpRequest) -> HttpResponse:
     """العقودُ المنتهيةُ فترتُها وتنتظر نتيجةً، وآخرُ النتائج الصادرة."""
     school = _school(request)
-    decided = (
-        EmploymentContract.objects.filter(school=school)
-        .exclude(result="pending")
-        .select_related("staff")
-        .order_by("-result_at")[:30]
-    )
     return render(
         request,
         "staff_affairs/probation_results.html",
-        {"pending": pending_results(school), "decided": decided},
+        {"pending": pending_results(school), "decided": decided_probation_results(school)},
     )
 
 
@@ -54,7 +48,9 @@ def probation_results(request: HttpRequest) -> HttpResponse:
 @require_POST
 def probation_result_record(request: HttpRequest, pk: UUID) -> HttpResponse:
     """يسجّل نجاحَ الموظف أو رسوبَه في الاختبار؛ ترفض الخدمةُ المبكّرَ والمكرَّر برسالةٍ عربيّة."""
-    contract = get_object_or_404(EmploymentContract, pk=pk, school=_school(request))
+    contract = school_contract(_school(request), pk)
+    if contract is None:
+        raise Http404("لا عقدَ بهذا المعرّف")
     try:
         record_result_audited(
             contract,
