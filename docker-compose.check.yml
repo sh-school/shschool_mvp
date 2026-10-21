@@ -1,0 +1,48 @@
+# ══════════════════════════════════════════════════════════════
+# SchoolOS — بيئةُ فحصٍ محلّيّةٌ مطابقةٌ لـCI (W-20261003-008).
+#
+# الأمرُ الواحد:   bash scripts/ci_parity.sh        (أو: make ci-parity)
+#
+# ما تطابقه مع quality-gate.yml: إصدارُ فاحص الأنواع من requirements-mypy.txt وحدَه (OWN-30)، وruff==0.4.4،
+# وradon==6.0.1، وpostgres 16 بقاعدةٍ test_db تُعاد فارغةً بكلّ تشغيل (tmpfs)، وبيئةُ الاختبار نفسُها (testing).
+# لا يبني صورةً: يستعمل صورةَ الحزمة الأصليّة (shschool_mvp-web) المحمّلةَ بمتطلبات المشروع، ويربط الشجرةَ التي تشغّله منها.
+# ما لا يطابقه (يُطبع «غير مقيس»): نظامُ التشغيل (Debian لا Ubuntu) ومكتباتُ النظام لغير Cairo، وتوازيُ الشظايا الستّ.
+# ══════════════════════════════════════════════════════════════
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass  # pragma: allowlist secret
+      POSTGRES_DB: test_db
+    tmpfs:
+      - /var/lib/postgresql/data  # قاعدةٌ تُعاد فارغةً بكلّ تشغيل
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d test_db"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  check:
+    image: ${SCHOOLOS_IMAGE:-shschool_mvp-web}
+    depends_on:
+      db:
+        condition: service_healthy
+    user: root  # لتثبيت git وأدوات البوّابة داخل الحاوية؛ لا يُكتب بايت-كود على الشجرة المربوطة (PYTHONDONTWRITEBYTECODE)
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      DJANGO_SETTINGS_MODULE: shschool.settings.testing
+      SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6  # pragma: allowlist secret
+      FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=  # pragma: allowlist secret
+      EXCEL_PROTECTION_PASSWORD: ci-testing-only
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: test_db
+      DB_USER: test_user
+      DB_PASSWORD: test_pass  # pragma: allowlist secret
+      TEST_DB_HOST: db
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    command: ["bash", "scripts/ci_check_inside.sh"]
