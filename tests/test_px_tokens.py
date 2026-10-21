@@ -188,3 +188,12 @@ def test_the_dense_secondary_text_size_has_one_token():
     literals = re.findall(r"font-size:\s*0\.78(?:125)?rem", css)
     assert not literals, f"{len(literals)} موضعاً بحجمٍ حرفيّ 0.78rem — استعمل var(--text-xs-plus)"
     assert re.search(r"--text-xs-plus:\s*0\.78125rem", css)
+
+
+def test_no_font_size_falls_below_twelve_px():
+    """W-20261016-005: لا حجمَ خطٍّ حرفيّاً دون 12px (0.75rem)، ولا حدَّ أدنى لـ`clamp` تحته."""
+    import re
+
+    css = read_css()
+    small = re.findall(r"font-size:\s*(?:clamp\(\s*)?(0?\.[0-6]\d*|0?\.7[0-4]\d*)rem", css)
+    assert not small, f"{len(small)} موضعاً بحجم دون 12px: {sorted(set(small))}"

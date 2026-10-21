@@ -973,7 +973,7 @@
   .table-wrap .schedule-matrix {
     --mx-head-h: 1.75rem; /* سطرُ الأيّام: عليه إزاحةُ سطر الحصص اللاصق */
     table-layout: fixed; border-collapse: separate; border-spacing: 0;
-    font-size: clamp(0.5625rem, 0.58vw, 0.8125rem); line-height: 1.5;
+    font-size: clamp(var(--text-xs), 0.58vw, 0.8125rem); line-height: 1.5;
   }
   /* استثناءٌ مقصودٌ من المنطقيّ: حدودُ المصفوفة (`border-right*`) فيزيائيّةٌ عمداً — خلايا الحصص `.m-cell` بـ`direction: ltr` فتنقلب الحدودُ
      المنطقيّةُ فيها عن بقيّة الصفّ، والمصفوفةُ تُطبع بـWeasyPrint (دعمُه للحدود المنطقيّة غيرُ مضمون)؛ والخطُّ الفاصلُ بين الأيّام يجب أن يبقى في موضعه. */
@@ -984,7 +984,7 @@
   }
   /* الترويسةُ لاصقةٌ: سطرُ الأيّام عنّابيٌّ كترويسة المنصّة، وسطرُ الحصص أغمقُ تحته. */
   .table-wrap .schedule-matrix thead th { font-size: inherit; border-color: color-mix(in srgb, var(--on-fill) 32%, transparent); }
-  .table-wrap .schedule-matrix thead .m-day { font-size: clamp(0.6875rem, 0.7vw, 1rem); block-size: var(--mx-head-h); }
+  .table-wrap .schedule-matrix thead .m-day { font-size: clamp(var(--text-xs), 0.7vw, 1rem); block-size: var(--mx-head-h); }
   .table-wrap .schedule-matrix thead tr:nth-child(2) { background: var(--maroon-dark); }
   .table-wrap .schedule-matrix thead tr:nth-child(2) th { inset-block-start: calc(var(--mx-head-h) - 1px); }
   .table-wrap .schedule-matrix thead .m-dept,
@@ -993,9 +993,9 @@
   .table-wrap .schedule-matrix .m-dept { inline-size: 5%; padding: var(--sp-0-5) var(--sp-1); font-weight: 700; line-height: 1.2; white-space: normal; border-right: 0; }
   .table-wrap .schedule-matrix .m-name {
     inline-size: 7.5%; padding-inline: var(--sp-1); text-align: start; font-weight: 600;
-    font-size: clamp(0.5625rem, 0.62vw, 0.8125rem); text-overflow: ellipsis; border-right-width: 2px;
+    font-size: clamp(var(--text-xs), 0.62vw, 0.8125rem); text-overflow: ellipsis; border-right-width: 2px;
   }
-  .table-wrap .schedule-matrix .m-name.m-name-tagged { font-size: clamp(0.5rem, 0.5vw, 0.6875rem); }
+  .table-wrap .schedule-matrix .m-name.m-name-tagged { font-size: var(--text-xs); }
   .schedule-matrix .m-specialty { color: var(--maroon-fg); font-weight: 500; font-size: 0.875em; }
   .table-wrap .schedule-matrix .m-total { inline-size: 3%; font-weight: 700; border-right-width: 2px; }
   .table-wrap .schedule-matrix .m-cell { direction: ltr; position: relative; }
