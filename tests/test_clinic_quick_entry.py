@@ -30,6 +30,9 @@ def _client(user):
     return c
 
 
+pytestmark = pytest.mark.pin_clock
+
+
 @pytest.mark.django_db
 def test_queue_has_three_states_derived_from_the_coded_fields(school, nurse_user, student_user):
     v = ClinicService.start_visit(school, student_user, nurse_user)

@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -22,6 +23,7 @@ from clinic.models import ClinicVisit
 from clinic.queue import todays_queue
 from clinic.selectors import search_students
 from clinic.services import ClinicService
+from clinic.views import _audit_health_screen
 from core.capabilities import capability_required
 from core.models import CustomUser
 
@@ -54,6 +56,10 @@ def _panel_ctx(visit: ClinicVisit) -> dict:
     }
 
 
+def _queue_rows(queue) -> int:
+    return len(queue.waiting) + len(queue.in_care) + len(queue.done)
+
+
 def _changed(response: HttpResponse) -> HttpResponse:
     """يُعلم الطابورَ بالتحديث فيُعيد جلب نفسه."""
     response["HX-Trigger"] = json.dumps({"clinic-visit-changed": True})
@@ -65,6 +71,10 @@ def _changed(response: HttpResponse) -> HttpResponse:
 def quick_entry(request):
     school = request.school
     queue = todays_queue(school, timezone.localdate())
+    # الطابورُ يعرض أسماءَ طلبةٍ وحالتَهم الصحّيّة: وصولٌ إلى بيانٍ صحّيّ يُدقَّق بمعرّفاتٍ فقط.
+    _audit_health_screen(
+        request, "الإدخال السريع", model_name="ClinicVisit", rows=_queue_rows(queue)
+    )
     return render(request, "clinic/quick_entry.html", {"queue": queue})
 
 
@@ -126,4 +136,10 @@ def quick_close(request, visit_id):
 def quick_queue(request):
     school = request.school
     queue = todays_queue(school, timezone.localdate())
+    # الجلبُ الدوريّ بـHTMX يُخفَّف إلى سطرٍ في الدقيقة كقائمة الزيارات؛ والفتحُ الكاملُ يُدقَّق دائماً.
+    is_htmx = bool(getattr(request, "htmx", None) or request.headers.get("HX-Request"))
+    if not is_htmx or cache.add(f"clinic_audit_live:{request.user.pk}:quick_queue", 1, 60):
+        _audit_health_screen(
+            request, "طابور الإدخال السريع", model_name="ClinicVisit", rows=_queue_rows(queue)
+        )
     return render(request, "clinic/partials/_quick_queue.html", {"queue": queue})

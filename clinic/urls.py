@@ -26,6 +26,11 @@ urlpatterns = [
         referral_views.referral_receipt,
         name="referral_receipt",
     ),
+    path(
+        "visit/<uuid:visit_id>/confirm-referral/",
+        views.confirm_referral_notice,
+        name="confirm_referral_notice",
+    ),
     path("statistics/", views.health_statistics, name="statistics"),
     path("api/charts/", views.api_clinic_charts, name="api_clinic_charts"),
 ]

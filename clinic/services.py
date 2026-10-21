@@ -89,12 +89,11 @@ class ClinicService:
             parent_notified=False,
         )
 
+        # الإحالةُ للمنزل لا يُرسَل بها إشعارٌ آليّاً (W-20261020-034): يؤكّدها الممرّضُ أولاً
+        # بـ`confirm_referral_notice`، فتبقى الزيارةُ في `needs_notification()` إلى حينه.
+
         if is_sent_home:
-            notified = ClinicService._notify_parents_sent_home(visit, school, nurse)
-            # update_fields لتجنّب حفظ الكائن كاملاً مرتين
-            if notified != visit.parent_notified:
-                visit.parent_notified = notified
-                visit.save(update_fields=["parent_notified"])
+            ClinicService._propose_excuse(visit, school, student, nurse)
 
         logger.info(
             "زيارة عيادة جديدة: طالب=%s مدرسة=%s منزل=%s",
@@ -103,6 +102,26 @@ class ClinicService:
             is_sent_home,
         )
         return visit
+
+    @staticmethod
+    def _propose_excuse(visit, school: School, student: CustomUser, nurse: CustomUser) -> None:
+        """يقترح عذراً طبّيّاً معلّقاً لغياب يوم الزيارة في مسار الأعذار القائم (W-20261020-041).
+
+        لا يغيّر الحضور ولا يحمل نصّاً صحّيّاً؛ وفشلُه لا يُفشل تسجيلَ الزيارة.
+        """
+        from django.utils import timezone
+
+        from operations.excuses import propose_medical_excuse_from_clinic
+
+        try:
+            propose_medical_excuse_from_clinic(
+                student=student,
+                school=school,
+                day=timezone.localtime(visit.visit_date).date(),
+                by=nurse,
+            )
+        except Exception:  # noqa: BLE001 — الاقتراحُ ثانويٌّ، والزيارةُ محفوظةٌ
+            logger.exception("تعذّر اقتراح العذر الطبّي للزيارة %s", visit.pk)
 
     @staticmethod
     def derive_period_number(school: School, student: CustomUser, moment) -> int | None:
@@ -443,6 +462,24 @@ class ClinicService:
         }
 
     @staticmethod
+    def confirm_referral_notice(visit, school, nurse) -> bool:
+        """تأكيدُ الممرّض لإحالة الطالب للمنزل ثمّ إشعارُ وليّ الأمر بالحدث وحدَه.
+
+        لا يُرسَل إلا لزيارةٍ أُحيل بها الطالبُ للمنزل ولم يُبلَّغ وليُّ أمرها، وفي مدرسة الممرّض نفسِها.
+        يحترم تجميدَ الأولياء: مجمَّدٌ فلا إرسالَ وتبقى الزيارةُ بانتظار التأكيد.
+
+        Returns:
+            bool: True إن أُرسل إشعارٌ وعُلّمت الزيارةُ مُبلَّغة؛ False خلاف ذلك.
+        """
+        if visit.school_id != school.id or not visit.is_sent_home or visit.parent_notified:
+            return False
+        if not ClinicService._notify_parents_sent_home(visit, school, nurse):
+            return False
+        visit.parent_notified = True
+        visit.save(update_fields=["parent_notified"])
+        return True
+
+    @staticmethod
     def _notify_parents_sent_home(visit, school, nurse) -> bool:
         """
         يُرسل إشعار لأولياء أمور الطالب عند إرساله للمنزل.
@@ -467,9 +504,12 @@ class ClinicService:
                 parent = link.parent
                 if not parent.email:
                     continue
+                # الإشعارُ بالحدث لا بالسبب (قرار المالك W-20261020-025): السببُ والأعراضُ والإجراءُ
+                # بياناتٌ صحيّةٌ لقاصر، لا تخرج في بريدٍ ولا تُخزَّن نصّاً في سجلّ الإشعارات؛
+                # يطلبها وليُّ الأمر من الممرّض مباشرةً.
                 msg = (
                     f"{school.name}: تم إرسال ابنكم/ابنتكم {visit.student.full_name} "
-                    f"إلى المنزل من العيادة المدرسية بسبب: {visit.reason}. "
+                    f"إلى المنزل من العيادة المدرسية. "
                     f"يُرجى التواصل مع المدرسة للاستفسار."
                 )
                 NotificationService.deliver_email(

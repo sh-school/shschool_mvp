@@ -453,10 +453,16 @@ def page(
 
 
 def history(
-    user: CustomUser, school: School, class_id: Any, student_id: Any, number: Any
+    user: CustomUser,
+    school: School,
+    class_id: Any,
+    student_id: Any,
+    number: Any,
+    *,
+    on: dt.date | None = None,
 ) -> tuple[ClassGroup, CustomUser, list[CellHistoryRow]]:
-    """سجلُّ خليّةٍ: من كتب ومتى ومن صحّح. الطالبُ من كشف الشعبة وإلّا 404."""
-    klass, day, _roles = _readable_class(user, school, class_id)
+    """سجلُّ خليّةٍ: من كتب ومتى ومن صحّح. الطالبُ من كشف الشعبة وإلّا 404؛ و`on` هو التاريخُ المعروضُ في الصفحة (كان يُهمَل فيُقرأ اليومُ ويسقط سجلُّ أيّ يومٍ مضى)."""
+    klass, day, _roles = _readable_class(user, school, class_id, on)
     student = _roster_student(klass, day, student_id)
     try:
         wanted = int(number)

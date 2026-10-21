@@ -17,6 +17,7 @@ from django.views.decorators.http import require_GET, require_POST
 from clinic import choices
 from clinic.models import ClinicReferral
 from clinic.referrals import close_referral, mask_person_name
+from clinic.views import _audit_health_screen
 from core.capabilities import capability_required
 from core.models.audit import AuditLog
 
@@ -45,6 +46,8 @@ def referrals_list(request):
     for r in rows:
         r.party_label = labels.get(r.follow_up_party, "")
         r.result_label = results.get(r.result_code, "")
+    # القائمةُ تعرض أسماءَ طلبةٍ مع إحالاتهم الصحّيّة: وصولٌ يُدقَّق بمعرّفاتٍ فقط.
+    _audit_health_screen(request, "قائمة الإحالات", model_name="ClinicReferral", rows=len(rows))
     return render(
         request,
         "clinic/referrals.html",

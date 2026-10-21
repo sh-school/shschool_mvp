@@ -574,6 +574,18 @@ html.dark select option {
 html.dark .asg-dept-pick select.empty {
   border-color: var(--status-warning);
 }
+/* قوائمُ «مواضع الحصص» (W-20261010-032): القاعدةُ المركزيّةُ فوقها (`html.dark select`) تغلب ألوانَ الحالة في `modules`
+   فكانت «أفضّلها» و«أتجنّبها» تُرى كالمحايدة ليلاً؛ فتُعاد ألوانُها هنا بالموضع نفسِه (ملاحظةُ 0420 من فحصها البصريّ). */
+html.dark .period-pref__row:has(option[value="prefer"]:checked) select {
+  background: var(--status-success-bg);
+  border-color: var(--status-success-fg);
+  color: var(--status-success-fg);
+}
+html.dark .period-pref__row:has(option[value="avoid"]:checked) select {
+  background: var(--status-warning-bg);
+  border-color: var(--status-warning-fg);
+  color: var(--status-warning-fg);
+}
 
 /* ── 35b. ALL Tables — مركزي ─── */
 html.dark table {

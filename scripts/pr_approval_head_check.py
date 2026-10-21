@@ -40,6 +40,12 @@ import pr_evidence as ev  # noqa: E402
 
 MIN_HEAD = 7
 
+#: سطرُ التكليف المسجَّل لطلبٍ لم يُعرض على 8500 (قرار المالك D-443م): «اعتُمد بتكليف المالك D-443م عبر 0101 — <التاريخ> — الرأس <sha>».
+#: يُربط بالرأس كسطر المالك؛ ولا يكتب أحدٌ «على 8500» لطلبٍ لم يُعرض عليها.
+MANDATE = re.compile(
+    r"اعتُمد بتكليف المالك D-\d+م عبر (?:0101|0501) — \d{4}-\d{2}-\d{2} — الرأس ([0-9a-f]{7,40})"
+)
+
 #: سطرُ المالك بصيغتي gate.APPROVAL مع «— الرأس <sha>» اختياريّاً (غيابُه فشلُ ربطٍ لا غيابُ سطر).
 OWNER_HEAD = re.compile(
     gate.APPROVAL.pattern + r"(?: — الرأس ([0-9a-f]{7,40}))?",
@@ -66,7 +72,7 @@ def verdict(body: str, head: str, author: str = "", is_bot: bool = False) -> tup
     if is_automation(author, is_bot):
         return "exempt", f"مؤلّفٌ آليّ ({author}): خارجَ فلو الاعتماد البشريّ"
     owner = list(OWNER_HEAD.finditer(body or ""))
-    delegated = ev.DELEGATED.findall(body or "")
+    delegated = ev.DELEGATED.findall(body or "") + MANDATE.findall(body or "")
     if not owner and not delegated:
         return "no_line", "لا سطرَ اعتمادٍ في وصف الطلب"
     written = [m.group(1) for m in owner if m.group(1)] + delegated
