@@ -14,7 +14,7 @@ from core.models import AuditLog, BreachReport
 logger = logging.getLogger(__name__)
 
 NCSA_TEMPLATE = """إلى: المركز الوطني للأمن السيبراني (NCSA)
-الموضوع: إشعار بخرق بيانات — PDPPL م.11
+الموضوع: إشعار بخرق بيانات — PDPPL م.14
 
 المؤسسة: {organization}
 التاريخ: {date}
@@ -65,7 +65,7 @@ ASSIGNED_TITLE = "أُسنِد إليك بلاغُ خرقِ بيانات"
 
 
 def notify_assignee(breach: BreachReport, *, assignee, by=None) -> bool:
-    """يُنبّه المكلَّفَ بالبلاغ عبر `NotificationHub` — يُعيد: أأُرسل؟ (DBT-24، PDPPL م.11).
+    """يُنبّه المكلَّفَ بالبلاغ عبر `NotificationHub` — يُعيد: أأُرسل؟ (DBT-24، PDPPL م.14).
 
     لا إشعارَ لمن أسند نفسَه (`assignee == by`) ولا لحسابٍ معطَّل. **والنصُّ بلا بياناتٍ شخصيّة ولا عنوانِ البلاغ**:
     خطورةٌ ومهلةٌ ورابط، كتنبيه المهلة القائم (`notifications.tasks._notify_breach_in_app`). وعطلُ الإشعار **لا يُسقط**

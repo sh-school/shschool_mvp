@@ -116,6 +116,40 @@ def classify_records(records, fernet):
     return rows
 
 
+def raw_values(model, fields):
+    """القيمُ **الخام** كما هي في أعمدة القاعدة: `[(المعرّف, {حقل: قيمة})]` — لا كما يفكّها الحقلُ.
+
+    بعد توحيد الحقول على `EncryptedTextField` (clinic/0005) يفكّ `getattr(record, field)` الطبقةَ ويعيد النصَّ
+    الصريح، فيُصنَّف كلُّ شيءٍ «نصاً عارياً» ولو كان مشفَّراً. فالقراءةُ للتصنيف من العمود نفسه بـSQL (قراءةً فقط).
+    """
+    from django.db import connection
+
+    quote = connection.ops.quote_name
+    quoted = ", ".join(quote(model._meta.get_field(name).column) for name in fields)
+    table, pk = quote(model._meta.db_table), quote(model._meta.pk.column)
+    with connection.cursor() as cursor:
+        # الأسماءُ كلُّها من `_meta` ومقتبَسةٌ بـquote_name — لا مدخلَ مستخدمٍ فيها.
+        cursor.execute(f"SELECT {pk}, {quoted} FROM {table} ORDER BY {pk}")  # noqa: S608
+        return [(row[0], dict(zip(fields, row[1:], strict=True))) for row in cursor.fetchall()]
+
+
+def classify_raw(model, fields, fernet):
+    """تصنيفُ كلّ قيمةٍ خامٍّ في جدول النموذج: قائمةُ (معرّف، حقل، حكم). قراءةً فقط."""
+    return [
+        (pk, field, classify_value(raw, fernet))
+        for pk, values in raw_values(model, fields)
+        for field, raw in values.items()
+    ]
+
+
+def summarise_by_field(rows):
+    """`{حقل: {تصنيف: عدد}}` — كلُّ التصنيفات حاضرةٌ ولو بصفر. أعدادٌ فقط، بلا نصٍّ ولا معرّف."""
+    result: dict = {}
+    for _pk, field, verdict in rows:
+        result.setdefault(field, dict.fromkeys(CLASSIFICATIONS, 0))[verdict.verdict] += 1
+    return result
+
+
 def summarise(rows):
     """عدّادٌ لكلّ تصنيف — وكلُّ التصنيفات حاضرةٌ ولو بصفر."""
     counts = dict.fromkeys(CLASSIFICATIONS, 0)
