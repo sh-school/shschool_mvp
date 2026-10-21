@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Prefetch
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -20,10 +19,10 @@ from django.views.decorators.http import require_GET, require_POST
 
 from clinic import choices
 from clinic.models import ClinicVisit
-from clinic.queue import todays_queue
+from clinic.queue import search_students, todays_queue
 from clinic.services import ClinicService
 from core.capabilities import capability_required
-from core.models import CustomUser, StudentEnrollment
+from core.models import CustomUser
 
 #: أقلّ حروفٍ للبحث وأقصى نتائج — قائمةٌ قصيرةٌ تُلمس، لا جدولٌ يُمرَّر.
 MIN_QUERY = 2
@@ -62,7 +61,7 @@ def _changed(response: HttpResponse) -> HttpResponse:
 @_protected
 @require_GET
 def quick_entry(request):
-    school = request.user.get_school()
+    school = request.school
     queue = todays_queue(school, timezone.localdate())
     return render(request, "clinic/quick_entry.html", {"queue": queue})
 
@@ -70,36 +69,16 @@ def quick_entry(request):
 @_protected
 @require_GET
 def quick_search(request):
-    school = request.user.get_school()
+    school = request.school
     q = (request.GET.get("q") or "").strip()
-    students = []
-    if len(q) >= MIN_QUERY:
-        students = list(
-            CustomUser.objects.filter(
-                memberships__school=school,
-                memberships__role__name="student",
-                memberships__is_active=True,
-                full_name__icontains=q,
-            )
-            .distinct()
-            .prefetch_related(
-                Prefetch(
-                    "enrollments",
-                    queryset=StudentEnrollment.objects.filter(is_active=True).select_related(
-                        "class_group"
-                    ),
-                    to_attr="active_enrollments",
-                )
-            )
-            .order_by("full_name")[:MAX_RESULTS]
-        )
+    students = search_students(school, q, MAX_RESULTS) if len(q) >= MIN_QUERY else []
     return render(request, "clinic/partials/_quick_results.html", {"students": students, "q": q})
 
 
 @_protected
 @require_POST
 def quick_start(request):
-    school = request.user.get_school()
+    school = request.school
     student = get_object_or_404(
         CustomUser,
         id=request.POST.get("student_id"),
@@ -113,7 +92,7 @@ def quick_start(request):
 @_protected
 @require_POST
 def quick_service(request, visit_id):
-    school = request.user.get_school()
+    school = request.school
     visit = get_object_or_404(ClinicVisit, id=visit_id, school=school)
     try:
         ClinicService.set_coding(
@@ -129,7 +108,7 @@ def quick_service(request, visit_id):
 @_protected
 @require_POST
 def quick_close(request, visit_id):
-    school = request.user.get_school()
+    school = request.school
     visit = get_object_or_404(ClinicVisit, id=visit_id, school=school)
     try:
         ClinicService.close_visit(visit, request.POST.get("outcome", ""))
@@ -141,6 +120,6 @@ def quick_close(request, visit_id):
 @_protected
 @require_GET
 def quick_queue(request):
-    school = request.user.get_school()
+    school = request.school
     queue = todays_queue(school, timezone.localdate())
     return render(request, "clinic/partials/_quick_queue.html", {"queue": queue})
