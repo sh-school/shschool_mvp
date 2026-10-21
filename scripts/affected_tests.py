@@ -36,6 +36,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -103,8 +104,11 @@ RULES: tuple[tuple[str, object, tuple[str, ...]], ...] = (
     ("سكربتاتُ CI", lambda p: p.startswith("scripts/ci_") and p.endswith(".py"), CI_GUARDS),
     (
         "خريطةُ الحرّاس",
-        lambda p: p == "docs/governance/regression_guards.md"
-        or (p.startswith("tests/") and "ratchet" in p),
+        lambda p: (
+            p == "docs/governance/regression_guards.md"
+            or p.startswith("docs/governance/guards/")
+            or (p.startswith("tests/") and "ratchet" in p)
+        ),
         ("tests/test_regression_guards_doc.py",),
     ),
     (
@@ -118,6 +122,45 @@ RULES: tuple[tuple[str, object, tuple[str, ...]], ...] = (
         ),
     ),
 )
+
+
+#: وصفُ المسار الذي تطابقه كلُّ قاعدةٍ في `RULES` (لخريطة `--map`)؛ يحرس اتّفاقَ المفاتيح مع أسماء القواعد `tests/test_affected_tests.py`.
+RULE_PATHS: dict[str, str] = {
+    "حجمُ الملفّات والطبقات": "كلُّ `*.py` خارج `tests/`",
+    "حراسةُ المسارات": "`urls.py` و`views*.py`",
+    "CSS": "`static/css/**` و`core/css_files.py`",
+    "القوالب والهويّة": "`templates/**`",
+    "سير العمل": "`.github/workflows/**`",
+    "سكربتاتُ CI": "`scripts/ci_*.py`",
+    "خريطةُ الحرّاس": "`docs/governance/regression_guards.md` وملفّاتُ `tests/*ratchet*`",
+    "النماذجُ والهجرات": "`*/models.py` و`*/models/**` و`*/migrations/**`",
+}
+TOOL_PATHS = {
+    "mypy_ratchet": "`*.py` تحت " + "، ".join(f"`{r}`" for r in MYPY_ROOTS),
+    "actionlint": "`.github/workflows/**`",
+}
+
+
+def render_map(exists=lambda p: Path(p).is_file()) -> str:
+    """خريطةُ «مسارٌ معدَّل ← حرّاسُه» مولَّدةً من `RULES` نفسِها فلا تنجرف عنها (W-20261003-007)."""
+    out = [
+        "# خريطةُ الحرّاس المتأثّرة بالتعديل",
+        "",
+        "مولَّدةٌ بـ`scripts/affected_tests.py --map`؛ لا تُحرَّر يدويّاً.",
+        "",
+    ]
+    out += ["| القاعدة | المسارُ المعدَّل | الاختبارات |", "|---|---|---|"]
+    for name, _matches, guards in RULES:
+        cells = "<br>".join(f"`{g}`" + ("" if exists(g) else " (غيرُ موجود)") for g in guards)
+        out.append(f"| {name} | {RULE_PATHS.get(name, '؟')} | {cells} |")
+    out.append("| اختبارٌ معدَّل | `tests/test_*.py` | الملفُّ نفسُه |")
+    out += ["", "| الأداة | المسار |", "|---|---|"]
+    out += [f"| `{tool}` | {where} |" for tool, where in TOOL_PATHS.items()]
+    out += [
+        "",
+        "ملفٌّ لا تطابقه قاعدةٌ يُطبع «لا حارسَ مطابق — لا يعني السلامة». السؤالُ عن ملفٍّ بعينه: `--for <مسارات>`.",
+    ]
+    return "\n".join(out)
 
 
 def parse_z(output: str) -> list[str]:
@@ -201,12 +244,19 @@ def _tail(proc: subprocess.CompletedProcess, lines: int = 12) -> str:
 
 OK, FAIL, MISSING = "ok", "fail", "missing"
 
+#: رفضُ اتّصال القاعدة (لا خطأُ استعلامٍ) — بيئةٌ بلا قاعدة، لا فشلُ اختبار (W-20261004-009).
+DB_UNREACHABLE = re.compile(
+    r"connection refused|could not connect to server|connection to server at .* failed", re.I
+)
+
 
 def run_pytest(tests: list[str]) -> tuple[str, str]:
     proc = _run([sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-q", *tests], CI_ENV)
     text = proc.stdout + proc.stderr
     if proc.returncode != 0 and ("ModuleNotFoundError" in text or "No module named" in text):
         return MISSING, "بيئة المشروع غير مثبَّتة هنا — شغّله داخل الحاوية أو بيئةٍ فيها المتطلّبات"
+    if proc.returncode != 0 and DB_UNREACHABLE.search(text):
+        return MISSING, "قاعدة البيانات غير متاحة (رُفض الاتّصال) — شغّلها ثمّ أعِد؛ غيرُ مقيس لا فشل"
     return (OK, "") if proc.returncode == 0 else (FAIL, _tail(proc))
 
 
@@ -242,7 +292,8 @@ def build_fingerprint(
         "unmatched": plan["unmatched"],
         "results": results,
         "dirty": dirty,
-        "tool_blob": _git("hash-object", TOOL_PATH).stdout.strip(),
+        # الملفُّ المنفَّذ لا مسارُ المستودع: من نسخة main في مجلّدٍ مؤقّتٍ تُكتب بصمةُ main فيتحقّق --verify على أيّ فرع
+        "tool_blob": _git("hash-object", str(Path(__file__).resolve())).stdout.strip(),
     }
     body["digest"] = digest_of(body)
     body["created"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -283,7 +334,32 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="يعرض المطلوبَ ولا يشغّل")
     parser.add_argument("--allow-dirty", action="store_true", help="لا يفشل على شجرةٍ غيرِ نظيفة")
     parser.add_argument("--verify", metavar="FILE", help="يتحقّق من بصمةٍ سبق كتابتُها")
+    parser.add_argument(
+        "--map", action="store_true", help="يطبع خريطةَ مسارٍ ← حرّاسه (Markdown) ويخرج"
+    )
+    parser.add_argument(
+        "--for",
+        dest="paths",
+        nargs="+",
+        metavar="PATH",
+        help="الحرّاسُ لمساراتٍ بعينها بلا git ولا تشغيل",
+    )
     args = parser.parse_args(argv)
+
+    if args.map:
+        print(render_map())
+        return 0
+    if args.paths:
+        plan = select(sorted(args.paths))
+        for guard in plan["tests"]:
+            print(f"  · {guard}  ← {'، '.join(plan['reasons'].get(guard, []))}")
+        for guard in plan["absent"]:
+            print(f"  ؟ {guard}  ← غيرُ موجودٍ في هذه الشجرة")
+        for tool in plan["tools"]:
+            print(f"  · أداة {tool}")
+        if plan["unmatched"]:
+            print(f"؟ لا حارسَ مطابق لـ: {'، '.join(plan['unmatched'])} — لا يعني السلامة")
+        return 0
 
     if args.verify:
         return verify(Path(args.verify))
@@ -294,7 +370,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"✘ لا أساسَ للمقارنة ({args.base}): git fetch origin main أوّلاً")
         return 3
     base = merge_base.stdout.strip()
-    changed = parse_z(_git("diff", "-z", "--name-only", "--diff-filter=ACMRD", f"{base}...HEAD").stdout)
+    changed = parse_z(
+        _git("diff", "-z", "--name-only", "--diff-filter=ACMRD", f"{base}...HEAD").stdout
+    )
     plan = select(changed)
     dirty = dirty_entries(_git("status", "--porcelain").stdout)
 
@@ -350,7 +428,11 @@ def main(argv: list[str] | None = None) -> int:
     if missing:
         print("غيرُ مقيس: ما قيس لا يكفي حكماً — شغّله ببيئةٍ فيها المتطلّبات.")
         return 3
-    note = " (لا يعني السلامة: لا حارسَ مطابقاً لبعض الملفّات)" if plan["unmatched"] or not plan["tests"] else ""
+    note = (
+        " (لا يعني السلامة: لا حارسَ مطابقاً لبعض الملفّات)"
+        if plan["unmatched"] or not plan["tests"]
+        else ""
+    )
     print(f"كلُّ المطلوب نجح{note}. مساعدٌ للمطوِّر لا حاجزٌ ولا مرجعٌ للاعتماد.")
     return 0
 

@@ -18,7 +18,7 @@ from tests.conftest import (
     UserFactory,
 )
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 URL = "/api/v1/library/borrowings/"
 
 

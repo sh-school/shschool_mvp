@@ -67,8 +67,8 @@
       </div>
     {% endsection_card %}
 
-    {% section_card "إعدادات البريد الإلكتروني" icon="settings" flush=True %}
-      <div class="p-3 notif-settings">
+    {% section_card "إعدادات البريد الإلكتروني" icon="settings" %}
+      <div class="notif-settings">
         <label class="ui-switch">
         <span class="ui-switch__label">تفعيل البريد الإلكتروني</span>
         <input form="notif-settings-form" type="checkbox" role="switch" class="ui-switch__input" name="email_enabled" {% if cfg.email_enabled %}checked{% endif %}>
@@ -97,8 +97,8 @@
       </div>
     {% endsection_card %}
 
-    {% section_card "قوالب الرسائل وحدّ الغياب" icon="settings" flush=True %}
-      <div class="p-3 notif-settings">
+    {% section_card "قوالب الرسائل وحدّ الغياب" icon="settings" %}
+      <div class="notif-settings">
         <div class="form-group">
         <label class="form-label" for="cfg-threshold">حد الغياب (عدد الحصص)</label>
         <input form="notif-settings-form" type="number" inputmode="numeric" id="cfg-threshold" name="absence_threshold" value="{{ cfg.absence_threshold }}" min="1" max="20" class="form-control">
@@ -116,8 +116,8 @@
       </div>
     {% endsection_card %}
 
-    {% section_card "إعدادات SMS (Twilio)" icon="settings" flush=True %}
-      <div class="p-3 notif-settings">
+    {% section_card "إعدادات SMS (Twilio)" icon="settings" %}
+      <div class="notif-settings">
         <label class="ui-switch">
         <span class="ui-switch__label">تفعيل SMS</span>
         <input form="notif-settings-form" type="checkbox" role="switch" class="ui-switch__input" name="sms_enabled" {% if cfg.sms_enabled %}checked{% endif %}>
