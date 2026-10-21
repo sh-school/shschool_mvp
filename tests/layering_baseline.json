@@ -434,7 +434,7 @@
   },
   "operations/views_schedule.py::teacher_preferences": {
    "lines": 82,
-   "orm": 12
+   "orm": 9
   },
   "operations/views_swap.py::compensatory_request": {
    "orm": 9

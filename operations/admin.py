@@ -35,6 +35,7 @@ from .models import (
     TardinessExcuse,
     TeacherAbsence,
     TeacherExemption,
+    TeacherPeriodPreference,
     TeacherPreference,
     TeacherSwap,
     TemporaryPermission,
@@ -674,6 +675,16 @@ class ScheduleRelaxationPolicyAdmin(admin.ModelAdmin):
         for obj in queryset:
             self._audit(request, obj, "delete", self._snapshot(obj), None)
         super().delete_queryset(request, queryset)
+
+
+@admin.register(TeacherPeriodPreference)
+class TeacherPeriodPreferenceAdmin(admin.ModelAdmin):
+    """شبكةُ تفضيل موضع الحصّة (المرحلة أ، W-20261010-032): يكتبها المعلّمُ من صفحته ويراجعها الأدمن."""
+
+    list_display = ("teacher", "day_of_week", "period_number", "preference", "academic_year")
+    list_filter = ("school", "academic_year", "preference", "day_of_week")
+    search_fields = ("teacher__full_name",)
+    autocomplete_fields = ("teacher",)
 
 
 @admin.register(ScheduleGeneration)
