@@ -18,6 +18,8 @@ HEALTH_VIEWS = {
     "dashboard",
     "health_record",
     "visits_list",
+    "quick_entry",
+    "quick_queue",
 }
 
 # مستثناةٌ مسمّاةٌ بسببها: لا تعرض بياناً صحّيّاً فرديّاً من الطالب.
@@ -28,6 +30,10 @@ NON_HEALTH_VIEWS = {
     "confirm_referral_notice": "كتابةٌ بـPOST تُدقَّق بإشارة post_save على الزيارة ولا تعرض بياناً صحّيّاً",
     "statistics": "أعدادٌ مجمَّعةٌ لا سجلٌّ فرديّ",
     "api_clinic_charts": "أعدادٌ يوميّةٌ مجمَّعةٌ بصيغة JSON",
+    "quick_search": "نتائجُ بحثٍ بأسماء الطلبة فقط دون حالةٍ صحّيّةٍ، ولا يُسجَّل المصطلح",
+    "quick_start": "كتابةٌ بـPOST تُدقَّق بإشارة post_save على الزيارة",
+    "quick_service": "كتابةٌ بـPOST برمزٍ معتمدٍ تُدقَّق بإشارة post_save على الزيارة",
+    "quick_close": "كتابةٌ بـPOST تُدقَّق بإشارة post_save على الزيارة",
 }
 
 
