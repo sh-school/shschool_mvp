@@ -86,9 +86,7 @@ def test_defaults_in_code_match_the_table():
     from operations.absence_followup_print import DEFAULT_ORIENT
 
     assert DEFAULT_ORIENT["contact"] == "landscape"
-    assert (
-        DEFAULT_ORIENT["actions"] == "portrait"
-    )  # استثناءٌ بقرار 2026-10-17 (core.print_policy.ACTION_SHEET_NOTE)
+    assert DEFAULT_ORIENT["actions"] == "landscape"  # D-449م: الإجراءات أفقيّة كالقوائم
     from wings.views_register import _orientation
 
     class R:

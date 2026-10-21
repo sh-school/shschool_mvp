@@ -10,7 +10,7 @@
 |---|---|---|---|---|
 | `wings/register_pdf.html` | كشف | أفقي | مطابق | من `base_qatar_report` |
 | `wings/ministry_pdf.html` | كشف | أفقي | مطابق | من `base_qatar_report` |
-| `operations/absence_followup_print.html` | كشف | أفقي (التواصل)، عمودي (الإجراءات) | «الإجراءات» استثناءٌ بقرار 2026-10-17 يعارض هذه القاعدة | من `base_qatar_report` |
+| `operations/absence_followup_print.html` | كشف | أفقي (التواصل والإجراءات) | مطابق — «الإجراءات» صارت أفقيّةً بقرار المالك D-449م | من `base_qatar_report` |
 | `breach/pdf_report.html` | خطاب | عمودي | مطابق | من `base_qatar_report` |
 | `quality/pdf/progress_report.html` | خطاب | عمودي | مطابق | من `base_qatar_report` |
 | `schedule/print_schedule.html` وَ`print_pages.html` | كشف | أفقي | مطابق | الإطار المركزيّ |
@@ -29,6 +29,6 @@
 
 `schedule/print_view.html` وَ`quality/observation_pdf_view.html` (عرضا شاشةٍ لا PDF مستقلّ على الأرجح) وقوالبُ `exam_control` و`wings/pdf/*` و`schedule/pdf/*`: لم تُقرأ في هذه البطاقة. تُصنَّف في W-20261021-012 (دَين الإطار).
 
-## قرارٌ للمالك
+## قرارٌ محسوم
 
-«الإجراءات» في متابعة الغياب كشفٌ بأعمدة، وقاعدةُ اليوم تقتضي أفقيّاً، بينما قرارُ 2026-10-17 جعلها عموديّة. لم أغيّرها: هل تنقلب إلى أفقيّ؟
+«الإجراءات» في متابعة الغياب كشفٌ بأعمدة؛ قرّر المالك (D-449م) أن تُطبع أفقيّةً كالقوائم، فنُسخ قرارُ 2026-10-17 وصار `DEFAULT_ORIENT["actions"] = "landscape"`.

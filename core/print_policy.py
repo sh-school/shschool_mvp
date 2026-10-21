@@ -53,7 +53,7 @@ DOCUMENTS: dict[str, PrintDocument] = {
         "landscape",
         CONFORMS,
         LOGO_BASE,
-        "صفحةُ «التواصل» أفقيّة؛ صفحةُ «الإجراءات» عموديّةٌ بقرار المالك 2026-10-17 (انظر `ACTION_SHEET_NOTE`).",
+        "صفحتا «التواصل» و«الإجراءات» أفقيّتان (قرار المالك D-449م، ينسخ قرار 2026-10-17).",
     ),
     "templates/breach/pdf_report.html": PrintDocument(LETTER, "portrait", CONFORMS, LOGO_BASE),
     "templates/quality/pdf/progress_report.html": PrintDocument(
@@ -90,11 +90,6 @@ DOCUMENTS: dict[str, PrintDocument] = {
         "استمارةُ الإشراف خارج الإطار عمداً (قرار المالك 2026-10-21)",
     ),
 }
-
-#: صفحةُ «الإجراءات» في متابعة الغياب: عموديّةٌ بقرار المالك 2026-10-17 رغم أنّها كشف؛ تعارضُ قاعدةَ 2026-10-21 فتُرفع للمالك.
-ACTION_SHEET_NOTE = (
-    "operations/absence_followup_print.py:DEFAULT_ORIENT['actions'] = portrait (قرار 2026-10-17)"
-)
 
 
 def debt() -> list[str]:

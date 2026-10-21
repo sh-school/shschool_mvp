@@ -144,7 +144,10 @@ def build_followup_xlsx(school: Any, user: Any, params: Any) -> Any:
 
 
 #: الافتراضيّ: أفقيٌّ في التواصل (أعمدةٌ كثيرة) وعموديٌّ في الإجراءات (قرارُ المالك 2026-10-17).
-DEFAULT_ORIENT = {"contact": "landscape", "actions": "portrait"}
+DEFAULT_ORIENT = {
+    "contact": "landscape",
+    "actions": "landscape",
+}  # D-449م: «الإجراءات» أفقيّة كالقوائم
 PAGES = tuple(DEFAULT_ORIENT)
 
 
