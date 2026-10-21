@@ -19,7 +19,8 @@ from django.views.decorators.http import require_GET, require_POST
 
 from clinic import choices
 from clinic.models import ClinicVisit
-from clinic.queue import search_students, todays_queue
+from clinic.queue import todays_queue
+from clinic.selectors import search_students
 from clinic.services import ClinicService
 from core.capabilities import capability_required
 from core.models import CustomUser
