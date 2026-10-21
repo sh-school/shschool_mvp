@@ -11,6 +11,8 @@
       </button>
     </form>
   </li>
+  {% empty %}
+  <li class="text-secondary">لا طالبَ بهذا الاسم.</li>
   {% endfor %}
 </ul>
 {% elif q|length >= 2 %}
