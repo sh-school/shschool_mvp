@@ -368,6 +368,49 @@ def pending_for_vice(school: School) -> list[AbsenceExcuse]:
     )
 
 
+#: بيانُ الاقتراح الآتي من العيادة: عبارةٌ ثابتةٌ بلا سببٍ صحّيٍّ ولا تشخيص (W-20261020-041).
+CLINIC_PROPOSAL_NOTE = "اقتراح من العيادة المدرسية — يُراجَع المستند الطبّي"
+
+
+@transaction.atomic
+def propose_medical_excuse_from_clinic(
+    *, student: CustomUser, school: School, day: dt.date, by: CustomUser
+) -> AbsenceExcuse | None:
+    """اقتراحُ عذرٍ طبّيٍّ لغياب `day` من زيارة عيادةٍ — حالةٌ «بانتظار النائب» في المسار القائم.
+
+    لا يمسّ الحضورَ (`covered` صفرٌ كما في العذر المُرسَل للنائب) ولا يحمل سبباً صحّيّاً؛
+    وقرارُ القبول أو الرفض يبقى في `approve_excuse`/`reject_excuse` بيد صاحب القدرة.
+    يُعيد None إن لم يكن للطالب غيابٌ بلا عذرٍ في اليوم أو كان عذرٌ ينتظر في المدّة نفسها.
+    """
+    has_absence = StudentAttendance.objects.filter(
+        student=student,
+        school=school,
+        status="absent",
+        excuse_type="",
+        session__date=day,
+    ).exists()
+    if not has_absence or _awaiting_vice(student, school, day, day):
+        return None
+    excuse = AbsenceExcuse.objects.create(
+        school=school,
+        student=student,
+        date_from=day,
+        date_to=day,
+        kind="medical",
+        notes=CLINIC_PROPOSAL_NOTE,
+        granted_by=by,
+        status="pending",
+    )
+    _audit(
+        by,
+        school,
+        "create",
+        excuse,
+        {"kind": "medical", "status": "pending", "source": "clinic_visit", "day": day.isoformat()},
+    )
+    return excuse
+
+
 @transaction.atomic
 def approve_excuse(
     excuse: AbsenceExcuse, *, by: CustomUser, reason: str, ip: str | None = None
