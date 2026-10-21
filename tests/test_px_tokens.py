@@ -197,3 +197,19 @@ def test_no_font_size_falls_below_twelve_px():
     css = read_css()
     small = re.findall(r"font-size:\s*(?:clamp\(\s*)?(0?\.[0-6]\d*|0?\.7[0-4]\d*)rem", css)
     assert not small, f"{len(small)} موضعاً بحجم دون 12px: {sorted(set(small))}"
+
+
+def test_the_schedule_screen_view_never_drops_below_twelve_px():
+    """W-20261016-005: كتلةُ `@media screen` في `print_schedule.html` (مصفوفة الجدول على الشاشة) خطُّها px لا rem، فلا يلتقطه حارسُ CSS؛ حدُّها الأدنى 12px (الطباعةُ A3 على قياسها المحسوب لا تُمَسّ)."""
+    import pathlib
+    import re
+
+    html = (
+        pathlib.Path(__file__).resolve().parent.parent
+        / "templates"
+        / "schedule"
+        / "print_schedule.html"
+    ).read_text(encoding="utf-8")
+    block = html.rsplit("@media screen {", 1)[1].split("\n  }\n", 1)[0]
+    sizes = [int(n) for n in re.findall(r"font-size:\s*(?:clamp\()?(\d+)px", block)]
+    assert sizes and min(sizes) >= 12, f"خطٌّ دون 12px في مصفوفة الشاشة: {sorted(sizes)}"
