@@ -35,6 +35,7 @@ from core.domain.grades import (
     default_has_pass_mark,
     letter_of,
 )
+from core.fields import EncryptedTextField
 from core.models import ClassGroup, CustomUser, School
 from core.models.academic import grade_number
 from operations.models import Subject
@@ -340,6 +341,14 @@ class Assessment(models.Model):
 # ─────────────────────────────────────────────────────────────
 
 
+#: أنواعُ العذر المقبول عن غياب الاختبار — قائمةٌ مغلقةٌ كما وردت في الدليل (04b، ص. 28، السطر 1944).
+EXCUSE_TYPES = [
+    ("illness", "المرض — بشهادة طبية معتمدة من الجهات الحكومية المختصة"),
+    ("force_majeure", "الحوادث الطارئة والظروف القهرية التي لا يمكن دفعها"),
+    ("official_mission", "المهمة الرسمية — بشهادة من جهة العمل"),
+]
+
+
 class StudentAssessmentGrade(models.Model):
     """درجة طالب في تقييم خام"""
 
@@ -368,6 +377,28 @@ class StudentAssessmentGrade(models.Model):
     )
     is_absent = models.BooleanField(default=False, verbose_name="غائب")
     is_excused = models.BooleanField(default=False, verbose_name="معذور")
+    # قرارُ العذر (D-402م): من قرّر ومتى وبأيّ نوعٍ من القائمة المغلقة (04b السطر 1944) وبأيّ مرجع.
+    # حقولٌ فارغةٌ لمن ثبت عذرُه قبل هذا القرار؛ لا تُملأ بأثرٍ رجعيّ.
+    excuse_type = models.CharField(
+        max_length=20, blank=True, default="", choices=EXCUSE_TYPES, verbose_name="نوع العذر"
+    )
+    # [W-20261001-012] مشفَّر at-rest (قرار المالك 2026-10-20): قد يقترن بنوع «مرض» فهو بيانٌ صحّيّ عن قاصر؛
+    # لا بحثَ ولا تصفيةَ عليه، والحدُّ 200 حرف يُفرض في الخدمة.
+    excuse_reference = EncryptedTextField(
+        max_length=200, blank=True, default="", verbose_name="مرجع العذر (رقم الشهادة أو جهتها)"
+    )
+    # تاريخُ تقديم الطالب أو وليّه إثباتَ العذر (D-403م): يُقاس به آخرُ موعد؛ فارغٌ لما قُبل قبل المهلة
+    # فلا يُرفض بأثرٍ رجعيّ.
+    excuse_submitted_on = models.DateField(null=True, blank=True, verbose_name="تاريخ تقديم العذر")
+    excuse_decided_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="excuses_decided",
+        verbose_name="قرّر العذر",
+    )
+    excuse_decided_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت قرار العذر")
     notes = models.CharField(max_length=200, blank=True, verbose_name="ملاحظة")
     entered_by = models.ForeignKey(
         CustomUser,

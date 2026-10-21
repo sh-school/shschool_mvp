@@ -103,7 +103,7 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 
 | الجدول | ما فيه |
 |---|---|
-| `assessments_studentassessmentgrade` | درجاتُ التقييمات |
+| `assessments_studentassessmentgrade` | درجاتُ التقييمات؛ وقرارُ عذر الغياب عن الاختبار (`excuse_type`، و`excuse_reference` **مشفَّرٌ at-rest** لأنّه قد يقترن بمرضٍ فهو بيانٌ صحّيّ عن قاصر، و`excuse_decided_by/at`) يُحذف مع الصفّ بالمحو |
 | `assessments_studentsubjectresult` | نتائجُ الفصول |
 | `assessments_annualsubjectresult` | النتائجُ السنويّة |
 | `assessments_examdeprivation` | قراراتُ فريق السلوك في أهليّة الطالب لاختبار (الحرمان) |

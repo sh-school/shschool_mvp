@@ -133,12 +133,10 @@ document.addEventListener('DOMContentLoaded', function(){
       var sid = tr.id.slice(4);
       var g = tr.querySelector('input[name="grade"]');
       var a = tr.querySelector('input[name="is_absent"]');
-      var e = tr.querySelector('input[name="is_excused"]');
       var n = tr.querySelector('input[name="notes"]');
-      if (!g || !a || !e || !n) return;
+      if (!g || !a || !n) return;
       add('grade_' + sid, g.value);
       add('absent_' + sid, a.checked ? '1' : '0');
-      add('excused_' + sid, e.checked ? '1' : '0');
       add('notes_' + sid, n.value);
     });
   });
