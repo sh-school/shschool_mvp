@@ -6,6 +6,7 @@ from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
 
 logger = logging.getLogger(__name__)
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
@@ -114,18 +115,21 @@ def record_visit(request, student_id=None):
 
         # ✅ v5.4: ClinicService.record_visit — atomic + notification منفصلة عن الإنشاء
         # يُحلّ مشكلة double save() وإشعار مدمج في الـ view
-        visit = ClinicService.record_visit(
-            school=school,
-            student=student,
-            nurse=nurse,
-            reason=request.POST.get("reason", ""),
-            symptoms=request.POST.get("symptoms", ""),
-            temperature=request.POST.get("temperature") or None,
-            treatment=request.POST.get("treatment", ""),
-            is_sent_home=request.POST.get("is_sent_home") == "on",
-            service_code=request.POST.get("service_code", ""),
-            complaint_code=request.POST.get("complaint_code", ""),
-        )
+        try:
+            visit = ClinicService.record_visit(
+                school=school,
+                student=student,
+                nurse=nurse,
+                reason=request.POST.get("reason", ""),
+                symptoms=request.POST.get("symptoms", ""),
+                temperature=request.POST.get("temperature") or None,
+                treatment=request.POST.get("treatment", ""),
+                is_sent_home=request.POST.get("is_sent_home") == "on",
+                service_code=request.POST.get("service_code", ""),
+                complaint_code=request.POST.get("complaint_code", ""),
+            )
+        except ValueError:
+            return HttpResponse("رمزٌ غير معتمد في الطلب", status=400)
         # ملاحظة: تدقيق إنشاء الزيارة يتم تلقائياً عبر post_save signal (core/signals.py)
 
         if request.headers.get("HX-Request"):
