@@ -1,0 +1,93 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}إحالات العيادة{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/clinic/" parent_label="العيادة" current="الإحالات" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "إحالات العيادة" subtitle="المفتوحة تنتظر متابعة؛ المغلقة نتيجتها مسجّلة" icon="clinic" %}
+    <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
+  {% endpage_header %}
+
+  <section aria-labelledby="open-h">
+    <h2 id="open-h" class="clinic-quick__h">مفتوحة ({{ open_rows|length }})</h2>
+    {% if open_rows %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col" class="num">الرقم</th>
+            <th scope="col">الطالب</th>
+            <th scope="col">جهة المتابعة</th>
+            <th scope="col">تاريخ الإحالة</th>
+            <th scope="col">إغلاق</th>
+            <th scope="col">الإيصال</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in open_rows %}
+          <tr>
+            <td class="num">{{ r.serial_no }}</td>
+            <td>{{ r.visit.student.full_name }}</td>
+            <td>{{ r.party_label }}</td>
+            <td>{{ r.created_at|date:"Y-m-d" }}</td>
+            <td>
+              <form method="post" action="{% url 'clinic:referral_close' r.id %}" class="clinic-quick__btns">
+                {% csrf_token %}
+                <select name="result" class="form-control" aria-label="نتيجة الإغلاق" required>
+                  {% for code, label in result_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+                </select>
+                <button type="submit" class="btn-primary btn-sm">إغلاق</button>
+              </form>
+            </td>
+            <td><a href="{% url 'clinic:referral_receipt' r.id %}" class="btn-secondary btn-sm">إيصال</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p>لا إحالاتٍ مفتوحة.</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="closed-h">
+    <h2 id="closed-h" class="clinic-quick__h">مغلقة ({{ closed_rows|length }})</h2>
+    {% if closed_rows %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col" class="num">الرقم</th>
+            <th scope="col">الطالب</th>
+            <th scope="col">جهة المتابعة</th>
+            <th scope="col">النتيجة</th>
+            <th scope="col">تاريخ الإغلاق</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in closed_rows %}
+          <tr>
+            <td class="num">{{ r.serial_no }}</td>
+            <td>{{ r.visit.student.full_name }}</td>
+            <td>{{ r.party_label }}</td>
+            <td>{{ r.result_label }}</td>
+            <td>{{ r.closed_on|date:"Y-m-d" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p>لا إحالاتٍ مغلقة بعد.</p>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}

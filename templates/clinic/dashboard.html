@@ -19,6 +19,7 @@
     {% endif %}
     <a href="{% url 'clinic:statistics' %}" class="btn-secondary btn-sm">{% icon "stats" %} الإحصائيات</a>
     <a href="{% url 'clinic:visits_list' %}" class="btn-secondary btn-sm">{% icon "document" %} السجلات</a>
+    <a href="{% url 'clinic:referrals' %}" class="btn-secondary btn-sm">{% icon "document" %} الإحالات</a>
   {% endpage_header %}
 
   {% kpi_strip label="أرقام العيادة" %}

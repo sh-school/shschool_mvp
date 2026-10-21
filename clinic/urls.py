@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import quick_views, views
+from . import quick_views, referral_views, views
 
 app_name = "clinic"
 
@@ -17,6 +17,15 @@ urlpatterns = [
     path("quick/<uuid:visit_id>/close/", quick_views.quick_close, name="quick_close"),
     path("visit/new/<uuid:student_id>/", views.record_visit, name="record_visit_student"),
     path("visits/", views.visits_list, name="visits_list"),
+    path("referrals/", referral_views.referrals_list, name="referrals"),
+    path(
+        "referrals/<uuid:referral_id>/close/", referral_views.referral_close, name="referral_close"
+    ),
+    path(
+        "referrals/<uuid:referral_id>/receipt/",
+        referral_views.referral_receipt,
+        name="referral_receipt",
+    ),
     path("statistics/", views.health_statistics, name="statistics"),
     path("api/charts/", views.api_clinic_charts, name="api_clinic_charts"),
 ]
