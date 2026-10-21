@@ -52,6 +52,7 @@ def _apply(
 @developer_only
 @require_GET
 def improvement_roadmap(request: HttpRequest) -> HttpResponse:
+    services.audit_page_view(request.user, request)
     return render(request, "roadmap/roadmap.html", services.page_context())
 
 

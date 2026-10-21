@@ -32,6 +32,12 @@ def assessment_capabilities(shared: Shared) -> list[Capability]:
         ),
         _cap("assessments.oversee", "إعدادُ الموادّ ومتابعةُ المتعثّرين", leadership),
         _cap(
+            "assessments.decide_excuse",
+            "قرارُ عذر الغياب عن الاختبار",
+            P.ASSESSMENT_DECIDE_EXCUSE,
+            basis="قرار المالك D-402م؛ الدليل 04b ص. 28: تقديرُ الأعذار والقائمةُ المغلقة",
+        ),
+        _cap(
             "grades.import",
             "استيرادُ الدرجات من ملفّ",
             {

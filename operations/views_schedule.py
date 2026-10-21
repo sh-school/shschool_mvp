@@ -1001,6 +1001,7 @@ def teacher_preferences(request):
         school=school,
         academic_year=year,
     )
+    from operations import period_preferences as pp
 
     if request.method == "POST":
         # القيمُ من قائمةٍ مغلقة، و`int()` على نصٍّ حرٍّ يُسقط الصفحةَ بـ500
@@ -1044,6 +1045,7 @@ def teacher_preferences(request):
             pref.refresh_from_db()
         else:
             pc.save_teacher_preferences(pref)
+            pp.save_grid(request.user, school, year, request.POST, free_day=pref.free_day)
             messages.success(request, "تم حفظ تفضيلاتك للجدولة الذكية")
             # العامُ يبقى في الرابط: الرجوعُ بلا عامٍ يفتح تفضيلاتِ عامٍ آخر.
             return safe_redirect(request, "teacher_preferences", {"year": year})
@@ -1051,11 +1053,7 @@ def teacher_preferences(request):
     #: نصابُ صاحب الصفحة وأدنى سقفٍ يومّيٍّ يسعه — يُعرضان قبل الاختيار لا
     #: بعده. وكانت الصفحةُ تفتح على قوائمَ بلا سياق، فيختار المعلّمُ سقفاً
     #: لا يسع نصابَه ثمّ يُردّ عند الحفظ برسالةٍ حسنةِ الصياغةِ جاءت متأخّرة.
-    load = sum(
-        SubjectClassAssignment.objects.filter(
-            school=school, academic_year=year, teacher=request.user, is_active=True
-        ).values_list("weekly_periods", flat=True)
-    )
+    load = pc.teacher_load(school, year, request.user)
     open_days = 5 - (1 if pref.free_day is not None else 0)
     needed = -(-load // open_days) if load else 0
 
@@ -1070,6 +1068,8 @@ def teacher_preferences(request):
             "load": load,
             "min_daily": needed,
             "year": year,
+            "period_grid": pp.grid_for_template(request.user, school, year, free_day=pref.free_day),
+            "period_states": pp.STATES,
         },
     )
 
