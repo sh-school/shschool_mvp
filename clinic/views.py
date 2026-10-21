@@ -64,6 +64,17 @@ def clinic_dashboard(request):
 
 
 @login_required
+@capability_required("clinic.counts")
+def clinic_counts(request):
+    """اللوحةُ العدديّةُ للعيادة: أعدادٌ بلا أسماء وبقمع الخلايا الأقلّ من 5 (W-20261020-031)."""
+    school = request.user.get_school()
+    today = timezone.now().date()
+    context = ClinicService.get_counts_board(school, today=today)
+    context["today_label"] = f"{today:%d/%m/%Y} · أعدادٌ مجمَّعةٌ بلا أسماء"
+    return render(request, "clinic/dashboard_counts.html", context)
+
+
+@login_required
 @capability_required("clinic.access")
 @require_http_methods(["GET", "POST"])
 def student_health_record(request, student_id):

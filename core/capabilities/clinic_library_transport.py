@@ -21,6 +21,12 @@ def clinic_library_transport_capabilities(shared: Shared) -> list[Capability]:
             {"nurse", "principal", "vice_admin"},
             basis="بيانات صحّيّة لقاصرين: الكتابةُ سريريّةٌ — حكم 0104 على W-20261001-020 (المنسّقُ قراءةً فقط)",
         ),
+        _cap(
+            "clinic.counts",
+            "اللوحةُ العدديّةُ للعيادة (أعدادٌ بلا أسماء)",
+            {"nurse", "principal", "vice_admin", "student_affairs_coordinator"},
+            basis="أعدادٌ مجمَّعةٌ بقمع الخلايا الأقلّ من 5 وبلا أسماءٍ ولا نصٍّ صحّيّ — والمنسّقُ يراها بالقدرة لا بدورٍ جديد (W-20261020-031)",
+        ),
         _cap("library.view", "المكتبةُ والكتب", P.LIBRARY_VIEW | P.LIBRARY_FULL),
         _cap("library.lend", "الإعارةُ والإرجاع", {"librarian", "principal", "vice_admin"}),
         _cap("library.borrowings_all", "سجلُّ استعارات المدرسة", P.LIBRARY_BORROWINGS_ALL),

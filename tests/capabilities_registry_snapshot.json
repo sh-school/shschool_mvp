@@ -977,6 +977,20 @@
   "not_inherited_by": []
  },
  {
+  "key": "clinic.counts",
+  "label": "اللوحةُ العدديّةُ للعيادة (أعدادٌ بلا أسماء)",
+  "roles": [
+   "nurse",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "أعدادٌ مجمَّعةٌ بقمع الخلايا الأقلّ من 5 وبلا أسماءٍ ولا نصٍّ صحّيّ — والمنسّقُ يراها بالقدرة لا بدورٍ جديد (W-20261020-031)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
   "key": "library.view",
   "label": "المكتبةُ والكتب",
   "roles": [
