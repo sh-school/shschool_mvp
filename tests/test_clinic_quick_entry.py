@@ -162,3 +162,19 @@ def test_the_auto_close_beat_is_off_unless_explicitly_enabled():
 
     assert clinic_autoclose_beat({}) == {}
     assert "clinic-auto-close-stale-visits" in clinic_autoclose_beat({"CLINIC_AUTOCLOSE_BEAT": "1"})
+
+
+@pytest.mark.django_db
+def test_full_form_rejects_an_unapproved_code_with_400_not_500(school, nurse_user, student_user):
+    resp = _client(nurse_user).post(
+        reverse("clinic:record_visit"),
+        {"student_id": str(student_user.id), "reason": "x", "service_code": "bogus"},
+    )
+    assert resp.status_code == 400 and not ClinicVisit.objects.exists()
+
+
+def test_admin_hides_the_service_group_from_lists():
+    from clinic.admin import ClinicVisitAdmin
+
+    assert "service_group" not in ClinicVisitAdmin.list_display
+    assert "service_group" not in ClinicVisitAdmin.list_filter
