@@ -28,7 +28,8 @@ def _audit_health_screen(request, screen, *, model_name, object_id="", rows=None
     """
     changes = {"screen": screen}
     if rows is not None:
-        changes["rows"] = rows
+        # قائمة الاستعلام تُعدّ هنا لا في العرض فلا يزيد عدّ الطبقات فيه
+        changes["rows"] = rows if isinstance(rows, int) else rows.count()
     AuditLog.log(
         user=request.user,
         action="view",
@@ -200,9 +201,7 @@ def visits_list(request):
     # البحثُ الحيّ (HTMX) يُطلق طلباً لكلّ ضغطة مفتاح: سطرٌ واحد لكلّ مستخدمٍ في الدقيقة (قرار 0101)،
     # أمّا فتحُ الصفحة الكاملة فيُدقَّق دائماً.
     if not is_htmx or cache.add(f"clinic_audit_live:{request.user.pk}:visits_list", 1, 60):
-        _audit_health_screen(
-            request, "قائمة الزيارات", model_name="ClinicVisit", rows=visits.count()
-        )
+        _audit_health_screen(request, "قائمة الزيارات", model_name="ClinicVisit", rows=visits)
 
     # HTMX: أعد الجزء فقط (بحث حي + ترشيح)
     if is_htmx:
