@@ -40,13 +40,13 @@
             <td>
               <form method="post" action="{% url 'clinic:referral_close' r.id %}" class="clinic-quick__btns">
                 {% csrf_token %}
-                <select name="result" class="form-control" aria-label="نتيجة الإغلاق" required>
+                <select name="result" class="form-control clinic-tap" aria-label="نتيجة الإغلاق" required>
                   {% for code, label in result_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
                 </select>
-                <button type="submit" class="btn-primary btn-sm">إغلاق</button>
+                <button type="submit" class="clinic-tap btn-primary">إغلاق</button>
               </form>
             </td>
-            <td><a href="{% url 'clinic:referral_receipt' r.id %}" class="btn-secondary btn-sm">إيصال</a></td>
+            <td><a href="{% url 'clinic:referral_receipt' r.id %}" class="clinic-tap btn-secondary">إيصال</a></td>
           </tr>
           {% endfor %}
         </tbody>
