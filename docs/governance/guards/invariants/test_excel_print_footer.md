@@ -1,0 +1,7 @@
+# حارسُ الثوابت: رؤيةُ الوزارة في ذيل الطباعة لكلّ Excel مصدَّرٍ بلا استثناء (قرارُ المالك 2026-09-27)
+
+> صفٌّ من جدول «ج. حرّاسُ الثوابت» — مقطعٌ من `docs/governance/regression_guards.md` (الفهرس)؛ النصُّ منقولٌ حرفيّاً (W-20261020-018).
+
+| المجال | الحرّاس | ما يفرضونه |
+|---|---|---|
+| **رؤيةُ الوزارة في ذيل الطباعة لكلّ Excel مصدَّرٍ بلا استثناء (قرارُ المالك 2026-09-27)** | `test_excel_print_footer` | كانت ملفّاتُ Excel تُطبع بذيلٍ «صفحة/عدد» والتاريخ فقط بلا الرؤية (التي يحملها الـPDF عبر `components/ministry_vision.html`)؛ فصار مساعدٌ واحد `core.export_utils.apply_print_footer(wb, school)` يضع الرؤيةَ (من `core.ministry_vision.ministry_vision_text` — المصدرُ الواحد نفسُه) مندمجةً مع «&P / &N» في **سطرٍ واحدٍ دائماً** («رؤية — &P / &N»، قرارُ المالك 2026-09-27: لا سطران لها في أيّ مخرَج). **يستدعيه كلُّ مسارِ حفظِ مصنّفٍ**: `excel_to_response`، `core.views_students._wb_to_response`، `reports.services.ExcelService.to_response`، وبنّاءُ التصدير الخلفيّ `operations.schedule_export_builders.build_schedule_xlsx`، وثلاثُ نقاط حفظٍ مباشرة (`assessments/views.py`، `staging/views.py`) بلا مساعدٍ وسيط. **سقّاطةٌ نصّيّةٌ**: أيّ سطرٍ فيه `.save(buf|buffer|output)` بلا `apply_print_footer(` في الملفّ نفسه يُسقط الاختبار، وأيّ `Workbook()` جديدةٍ لا تُحفظ عبر مساعدٍ يستدعيه يُسقطه كذلك (استثناءٌ واحد موثَّقٌ: `staff_affairs/attendance/daily.py` يُحفظ عبر `staff_affairs/views_attendance.py`) |

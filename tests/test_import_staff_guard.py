@@ -37,7 +37,14 @@ def _upload(rows, header) -> SimpleUploadedFile:
 
 
 LEGACY_HEADER = ["رأس"] * 11
-MINISTRY_HEADER = ["الرقم", "الاسم", "رقم الهاتف", "رقم ولي الامر", "اسم ولي الامر"]
+MINISTRY_HEADER = [
+    "الرقم",
+    "الاسم",
+    "رقم الهاتف",
+    "رقم ولي الامر",
+    "اسم ولي الامر",
+    "الشعبة الصفية",
+]
 
 
 def _legacy_row(nid, name, parent_nid="", parent_name=""):
@@ -45,7 +52,7 @@ def _legacy_row(nid, name, parent_nid="", parent_name=""):
 
 
 def _ministry_row(nid, name, parent_nid="", parent_name=""):
-    return [nid, name, "55500000", parent_nid, parent_name]
+    return [nid, name, "55500000", parent_nid, parent_name, "07/1"]
 
 
 def _snapshot(user):

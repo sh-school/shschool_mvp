@@ -112,13 +112,14 @@
   {% if not plan and not result %}
     {% section_card "رفعُ الكشف" icon="upload" %}
       {% callout "info" %}صدِّر كشفَ «حضور وانصراف المدرسة» من جهاز البصمة بصيغة CSV وارفعه كما هو. يُقرأ الملفُّ في الذاكرة ولا يُخزَّن، ويحمل أسماءَ وأرقامَ موظّفين فلا يُرسَل خارج المنصّة.{% endcallout %}
-      {% if form.errors %}{% callout "error" %}{{ form.file.errors|join:" · " }}{% endcallout %}{% endif %}
+      {% if form.errors %}{% callout "error" %}{{ form.file.errors|join:" · " }}{{ form.day.errors|join:" · " }}{% endcallout %}{% endif %}
       <form method="post" enctype="multipart/form-data" action="{% url 'staff_affairs:attendance_import' %}">{% csrf_token %}
         <div class="form-row">
           <div class="ui-field">
             <label for="f-file" class="ui-field__label">ملفّ الكشف (CSV) <span class="req-star" aria-hidden="true">*</span></label>
             <input id="f-file" type="file" name="file" accept=".csv,text/csv" class="form-control" required>
           </div>
+          {% field "day" "يوم الكشف (اختياريّ)" type="date" value=form.day.value|default:"" max=today|date:"Y-m-d" help="يفرض هذا اليومَ على كلّ أسطر الملفّ؛ وبلا اختياره يُقرأ يومُ كلّ سطرٍ من الملفّ نفسِه." %}
           <div class="form-actions"><button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} معاينة</button></div>
         </div>
       </form>

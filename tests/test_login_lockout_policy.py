@@ -8,10 +8,13 @@
 
 from datetime import timedelta
 
+import pytest
 from django.conf import settings
 from django.utils import timezone
 
 from core import views_auth
+
+pytestmark = pytest.mark.pin_clock
 
 
 def _login(client, user, password="wrong", identifier=None):  # pragma: allowlist secret

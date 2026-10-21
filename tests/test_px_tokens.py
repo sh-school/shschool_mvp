@@ -125,3 +125,56 @@ class TestFontSizeInRem:
         assert not re.search(
             r"(^|[\s,}])(html|:root)\s*\{[^}]*font-size", read_css()
         ), "ضُبط font-size على الجذر — rem لم يعد 16px، فراجع ترحيل font-size كلَّه"
+
+
+class TestPageWidthClasses:
+    """عرضُ الصفحة الكامل معتمَدٌ (قرار 2026-09-17): `max-w-7xl` يحبس المحتوى في 1280px فلا يُكتب في قالب.
+
+    وأصنافُ `max-w-xs|sm|md|lg` المعرَّفةُ يدويّاً في `50-utilities.css` سقّاطةُ عدٍّ لا تزيد: كان ثمّة
+    ادّعاءُ «7 مواضع» عند فتح البطاقة، والقياسُ اليومَ (2026-10-19) موضعٌ واحد (W-20260928-024/032).
+    وبطاقاتُ الدخول الضيّقةُ مشروعةٌ بأصنافها الخاصّة (`.auth-*`) ولا تُعدّ هنا.
+    """
+
+    #: استعمالاتُ max-w-xs|sm|md|lg في القوالب. تُخفَّض ولا تُرفع؛ وإن نقصت فسجّل النقص.
+    NARROW_MAX_W_IN_TEMPLATES = 1
+
+    @staticmethod
+    def _templates():
+        import pathlib
+
+        root = pathlib.Path(__file__).resolve().parent.parent / "templates"
+        return sorted(root.rglob("*.html"))
+
+    def test_no_template_uses_max_w_7xl(self):
+        import re
+
+        offenders = [
+            path.name
+            for path in self._templates()
+            if re.search(r"max-w-7xl", path.read_text(encoding="utf-8"))
+        ]
+        assert not offenders, "max-w-7xl يبطل عرضَ الشاشة الكامل المعتمَد — احذفه من: " + "، ".join(
+            offenders
+        )
+
+    def test_no_stylesheet_defines_a_max_w_7xl_class(self):
+        import re
+
+        assert not re.search(
+            r"\.max-w-7xl\b", read_css()
+        ), "عُرِّف صنف .max-w-7xl في الأنماط — العرضُ الكاملُ بـ#main-content لا بصنفٍ"
+
+    def test_narrow_max_w_classes_do_not_grow_and_a_drop_is_recorded(self):
+        import re
+
+        pattern = re.compile(r"\bmax-w-(?:xs|sm|md|lg)\b")
+        count = sum(len(pattern.findall(p.read_text(encoding="utf-8"))) for p in self._templates())
+        ceiling = self.NARROW_MAX_W_IN_TEMPLATES
+        assert count <= ceiling, (
+            f"max-w-xs|sm|md|lg في القوالب: {count} > {ceiling} — استعمالٌ جديدٌ يحبس عرضَ الصفحة؛ "
+            "استعمل تخطيطَ الصفحة المعتمَد (page_layout) أو سمِّ صنفاً دلاليّاً"
+        )
+        assert count >= ceiling, (
+            f"max-w-xs|sm|md|lg في القوالب: نقص إلى {count} — أحسنت؛ اخفض "
+            "NARROW_MAX_W_IN_TEMPLATES في tests/test_px_tokens.py إلى الرقم الجديد"
+        )

@@ -123,6 +123,8 @@ def record_visit(request, student_id=None):
             temperature=request.POST.get("temperature") or None,
             treatment=request.POST.get("treatment", ""),
             is_sent_home=request.POST.get("is_sent_home") == "on",
+            service_code=request.POST.get("service_code", ""),
+            complaint_code=request.POST.get("complaint_code", ""),
         )
         # ملاحظة: تدقيق إنشاء الزيارة يتم تلقائياً عبر post_save signal (core/signals.py)
 

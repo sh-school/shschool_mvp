@@ -36,14 +36,14 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub (سقفُ السحب غيرُ الموثَّق: toomanyrequests) — W-20261010-016
       - uses: ./.github/actions/native-postgres
         with:
           redis: "true"
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -136,7 +136,7 @@ jobs:
         run: python -m pytest tests/test_lighthouse_mobile.py -p no:cacheprovider -v -s
 
       - name: رفع نتائج الاختبارات
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: nightly-test-results
@@ -170,7 +170,7 @@ jobs:
       # التي في `deploy-railway.yml` (ليست PR، من github-actions[bot]، بالبادئة).
       - name: "الفشل: فتحُ قضيّةٍ أو التعليقُ على المفتوحة"
         if: failure()
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const prefix = '🌙 NIGHTLY FAILED';
@@ -210,7 +210,7 @@ jobs:
 
       - name: "النجاح: إغلاقُ قضايا الفشل المفتوحة"
         if: success()
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const prefix = '🌙 NIGHTLY FAILED';
@@ -253,14 +253,14 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub — كما في full-pytest أعلاه (W-20261010-016)
       - uses: ./.github/actions/native-postgres
         with:
           redis: "true"
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -316,7 +316,7 @@ jobs:
 
       - name: "الفشل: فتحُ قضيّةٍ أو التعليقُ على المفتوحة"
         if: failure()
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const prefix = '🕒 CLOCK-SENSITIVITY';
@@ -354,7 +354,7 @@ jobs:
 
       - name: "النجاح: إغلاقُ قضايا الحساسيّة المفتوحة"
         if: success()
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const prefix = '🕒 CLOCK-SENSITIVITY';
