@@ -87,7 +87,6 @@ runs:
         "$PGBIN/psql" -h 127.0.0.1 -p "$PGPORT_IN" -U "$PGUSER_IN" -d "$PGDB_IN" -Atc "show server_version"
     - name: تشغيل redis من apt (اختياريّ)
       if: inputs.redis == 'true'
-      timeout-minutes: 10
       shell: bash
       run: |
         set -euo pipefail

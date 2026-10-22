@@ -57,5 +57,16 @@ def test_the_redis_step_of_native_postgres_cannot_hang_forever():
         (_ROOT / ".github/actions/native-postgres/action.yml").read_text(encoding="utf-8")
     )
     step = next(s for s in doc["runs"]["steps"] if "redis-server" in s.get("run", ""))
-    assert isinstance(step.get("timeout-minutes"), int)
     assert "timeout 240" in step["run"]
+    assert "for attempt in 1 2" in step["run"]
+
+
+def test_composite_action_steps_never_declare_timeout_minutes():
+    """`timeout-minutes` يجوز في خطوات الوظيفة لا داخل إجراءٍ مركّب: يُسقط تحميلَ الملفّ كلَّه (#1239: Unexpected value)."""
+    offenders = []
+    for path in sorted((_ROOT / ".github/actions").glob("*/action.yml")):
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        for i, step in enumerate((doc.get("runs") or {}).get("steps") or []):
+            if "timeout-minutes" in step:
+                offenders.append(f"{path.parent.name}:step[{i}]")
+    assert not offenders, offenders
