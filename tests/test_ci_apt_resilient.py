@@ -27,6 +27,7 @@ def test_the_apt_config_sets_retries_and_a_connection_timeout():
     )
     run = doc["runs"]["steps"][0]["run"]
     assert "Acquire::Retries" in run and "Acquire::http::Timeout" in run
+    assert "DPkg::Lock::Timeout" in run, "انتظارُ قفل dpkg بدل الاصطدام به"
 
 
 def test_browser_jobs_write_the_apt_config_before_any_install():
@@ -50,6 +51,9 @@ def test_heavy_install_steps_have_a_step_timeout_and_a_retry():
         for step in heavy:
             assert isinstance(step.get("timeout-minutes"), int), f"{job}: {step.get('name')}"
             assert "for attempt in 1 2" in step["run"], f"{job}: {step.get('name')}"
+            assert (
+                "pkill -x apt-get" in step["run"]
+            ), f"{job}: {step.get('name')} بلا إنهاء apt اليتيم قبل الإعادة"
 
 
 def test_the_redis_step_of_native_postgres_cannot_hang_forever():
@@ -59,6 +63,7 @@ def test_the_redis_step_of_native_postgres_cannot_hang_forever():
     step = next(s for s in doc["runs"]["steps"] if "redis-server" in s.get("run", ""))
     assert "timeout 240" in step["run"]
     assert "for attempt in 1 2" in step["run"]
+    assert "pkill -x apt-get" in step["run"]
 
 
 def test_composite_action_steps_never_declare_timeout_minutes():
