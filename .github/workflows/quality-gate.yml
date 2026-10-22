@@ -46,7 +46,7 @@ jobs:
             ui=false
             while IFS= read -r f; do
               case "$f" in
-                templates/*|*/templates/*|static/*|*/static/*|tests/e2e/*|                tests/test_a11y_axe_ratchet.py|tests/test_web_vitals_budget.py|                tests/test_action_cards_fit_narrow_screens.py|tests/test_mobile_audit.py|                requirements*.txt|.github/workflows/quality-gate.yml|.github/actions/*|                scripts/ci_needs_gate.py|*.html|*.css|*.js|*.ts) ui=true; break ;;
+                templates/*|*/templates/*|static/*|*/static/*|tests/e2e/*|                tests/test_a11y_axe_ratchet.py|tests/test_web_vitals_budget.py|                tests/test_action_cards_fit_narrow_screens.py|tests/test_mobile_audit.py|                requirements*.txt|.github/workflows/quality-gate.yml|.github/actions/*|                scripts/ci_needs_gate.py|*views*.py|*forms*.py|*serializers*.py|\n                *.html|*.css|*.js|*.ts) ui=true; break ;;
               esac
             done <<< "$files"
           fi
