@@ -7,7 +7,6 @@ import json
 import logging
 import os
 from datetime import timedelta
-from urllib.parse import quote
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -55,7 +54,7 @@ from core.models.academic import (
 from core.models.access import Membership
 from core.models.audit import AuditLog
 from core.models.user import CustomUser
-from core.pdf_utils import render_pdf
+from core.pdf_utils import content_disposition, render_pdf
 from core.photo_privacy import clean_photo
 from core.privacy import mask_national_id, may_search_id_partially, national_id_search_q
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
@@ -1978,11 +1977,9 @@ def protected_media(request, path):
         school, request.user, record.student, "excuse_file_opened", action="view"
     )
 
-    # F-001-b: Content-Disposition RFC 5987 encoding
-    safe_name = quote(os.path.basename(path))
     response = HttpResponse()
     response["X-Accel-Redirect"] = f"/media/{path}"
-    response["Content-Disposition"] = f'attachment; filename="{safe_name}"'
+    response["Content-Disposition"] = content_disposition(os.path.basename(path))
     del response["Content-Type"]  # دع Nginx يحدد النوع تلقائياً
     return response
 

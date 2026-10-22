@@ -174,10 +174,8 @@ def _respond_direct(
 
 
 def file_response(content: bytes, content_type: str, filename: str) -> HttpResponse:
-    from urllib.parse import quote
+    from core.pdf_utils import content_disposition
 
     response = HttpResponse(content, content_type=content_type)
-    response["Content-Disposition"] = (
-        f"attachment; filename=export; filename*=UTF-8''{quote(filename)}"
-    )
+    response["Content-Disposition"] = content_disposition(filename)
     return response

@@ -84,3 +84,52 @@ def heavy_calls_in_views() -> set[str]:
                     found.add(f"{rel}::{func.name}")
                     break
     return found
+
+
+#: ملفّاتُ مساعدةٍ تُنتج الاستجابةَ لمن يستدعيها؛ التسجيلُ على المستدعي لا عليها.
+_RESPONSE_HELPERS = {
+    "core/pdf_utils.py",
+    "core/export_utils.py",
+    "reports/services.py",
+    "core/exports/services.py",
+}
+_RESPONSE_CALLS = {"FileResponse", "render_pdf", "to_response"}
+
+
+def _produces_file(func: ast.AST) -> bool:
+    for node in ast.walk(func):
+        if isinstance(node, ast.Call) and _call_name(node) in _RESPONSE_CALLS:
+            return True
+        if (
+            isinstance(node, ast.Subscript)
+            and isinstance(node.slice, ast.Constant)
+            and node.slice.value == "Content-Disposition"
+        ):
+            return True
+    return False
+
+
+def file_responses_without_log_export() -> set[str]:
+    """{"ملفّ::دالّة"} لكلّ دالّةٍ تُخرج ملفّاً (FileResponse/render_pdf/Content-Disposition) ولا تنادي `log_export`.
+
+    مسحٌ بالدالّة لا بالملفّ: وجودُ `log_export` في ملفٍّ لا يغطّي دالّةً أخرى فيه. وحدُّه: نداءٌ عبر دالّةٍ مساعدةٍ تسجّل
+    بدلاً عنها لا يُلتقط، فتُدرج الدالّةُ في القائمة الصريحة بسببها.
+    """
+    found: set[str] = set()
+    for path, rel in _py_files():
+        if rel in _RESPONSE_HELPERS or rel.endswith("/tests.py"):
+            continue
+        tree = _parse(path)
+        if tree is None:
+            continue
+        for func in ast.walk(tree):
+            if not isinstance(func, ast.FunctionDef | ast.AsyncFunctionDef):
+                continue
+            if not _produces_file(func):
+                continue
+            if any(
+                isinstance(n, ast.Call) and _call_name(n) == "log_export" for n in ast.walk(func)
+            ):
+                continue
+            found.add(f"{rel}::{func.name}")
+    return found
