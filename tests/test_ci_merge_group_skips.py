@@ -29,6 +29,8 @@ def _jobs() -> dict:
 def _runs(condition: str, event: str) -> bool:
     """يقيّم شرطَ `if` المؤلَّفَ من `github.event_name != '<حدث>'` مربوطاً بـ&& على حدثٍ معيّن."""
     for clause in (c.strip() for c in condition.split("&&")):
+        if clause == "needs.changes.outputs.ui == 'true'":
+            continue  # W-20261022-018: على الطلب تعمل الوظيفتان إن مسّ واجهةً؛ هذا الحارسُ يقيس الأحداثَ فقط
         left, op, right = clause.partition("!=")
         assert op and left.strip() == "github.event_name", f"شرطٌ غيرُ مدعوم: {clause!r}"
         if event == right.strip().strip("'"):
@@ -50,11 +52,12 @@ def test_merge_group_exemption_is_exactly_the_lightened_pair():
     assert pairs == {("merge_group", job) for job in LIGHTENED}
 
 
-def test_no_pull_request_pair_is_ever_exempt():
-    assert not [pair for pair in gate.EXEMPT if pair[0] == "pull_request"]
-    for job in LIGHTENED:
-        needs = {"a": {"result": "success"}, job: {"result": "skipped"}}
-        assert gate.judge(needs, "pull_request")[1], f"{job} skipped على الطلب فشلٌ"
+def test_pull_request_exemption_is_exactly_the_lightened_pair():
+    """W-20261022-018: الطلبُ بلا واجهةٍ يتخطّى الوظيفتين (وظيفة changes)؛ لا إعفاءَ لغيرهما على pull_request."""
+    pairs = {pair for pair in gate.EXEMPT if pair[0] == "pull_request"}
+    assert pairs == {("pull_request", job) for job in LIGHTENED}
+    needs = {"a": {"result": "success"}, "pytest-shards": {"result": "skipped"}}
+    assert gate.judge(needs, "pull_request")[1], "skipped لوظيفةٍ غيرِ معفاةٍ على الطلب فشلٌ"
 
 
 def test_a_failed_or_cancelled_light_job_still_fails_on_merge_group():
