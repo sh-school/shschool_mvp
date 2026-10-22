@@ -87,12 +87,17 @@ runs:
         "$PGBIN/psql" -h 127.0.0.1 -p "$PGPORT_IN" -U "$PGUSER_IN" -d "$PGDB_IN" -Atc "show server_version"
     - name: تشغيل redis من apt (اختياريّ)
       if: inputs.redis == 'true'
+      timeout-minutes: 10
       shell: bash
       run: |
         set -euo pipefail
         sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
-        sudo apt-get update -qq
-        sudo apt-get install -y --no-install-recommends redis-server
+        # W-20261022-024: مرآةٌ بطيئةٌ علّقت هذه الخطوةَ 20 دقيقة؛ مهلةٌ وإعادةٌ بدل الانتظار المفتوح
+        for attempt in 1 2; do
+          sudo apt-get update -qq && timeout 240 sudo apt-get install -y --no-install-recommends redis-server && break
+          [ "$attempt" = 2 ] && exit 1
+          echo "::warning::apt بطيء أو فشل — إعادة المحاولة"
+        done
         sudo systemctl stop redis-server 2>/dev/null || true
         redis-server --port 6379 --bind 127.0.0.1 --save "" --appendonly no --daemonize yes
         for _ in $(seq 1 20); do redis-cli -h 127.0.0.1 ping 2>/dev/null | grep -q PONG && break; sleep 0.5; done
