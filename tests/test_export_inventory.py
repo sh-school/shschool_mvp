@@ -57,3 +57,23 @@ def test_absence_followup_pdf_button_goes_through_the_export_centre():
     ).read_text(encoding="utf-8")
     line = next(ln for ln in html.splitlines() if "تصدير PDF" in ln)
     assert "absence_followup_pdf" in line and "data-app-file" in line and "download=1" in line
+
+
+def test_excuse_document_exception_still_audits_every_open():
+    """استثناءُ excuse_document من log_export سببُه تدقيقٌ بديل: يسقط الاستثناءُ إن زال نداءُ `_log` بـOPENED وDENIED."""
+    import ast
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parent.parent / "wings/views_excuse_document.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    func = next(
+        n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "excuse_document"
+    )
+    events = {
+        a.id
+        for c in ast.walk(func)
+        if isinstance(c, ast.Call) and getattr(c.func, "id", "") == "_log"
+        for a in c.args
+        if isinstance(a, ast.Name)
+    }
+    assert {"OPENED", "DENIED"} <= events
