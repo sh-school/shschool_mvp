@@ -19,6 +19,41 @@ concurrency:
 
 jobs:
   # ══════════════════════════════════════════════════════
+  #  0. هل مسّ الطلبُ واجهةً؟ (W-20261022-018: تخفيفُ التفريخ — سقفُ 20 وظيفةً متزامنة)
+  # ══════════════════════════════════════════════════════
+  #  axe-a11y (ثلاث أرجل) وe2e متصفّحيّتان ثقيلتان؛ لا تعملان إلّا إن مسّ الطلبُ واجهةً أو ما يقرؤه اختباراتُهما.
+  #  على غير الطلب (workflow_dispatch) تعملان دائماً، وعند أيّ خطأٍ في الحساب ⇒ ui=true (مغلقٌ عند الشكّ).
+  #  تخطّيهما على طلبٍ غير واجهيٍّ معفًى معلَّلاً في scripts/ci_needs_gate.py (pull_request + skipped فقط)؛
+  #  وفشلُ هذه الوظيفة نفسِها فشلٌ للبوابة لأنّها في needs الملخّص.
+  changes:
+    name: تصنيف الطلب — هل مسّ واجهة؟
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ui: ${{ steps.classify.outputs.ui }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: ${{ github.event_name == 'pull_request' && '0' || '1' }}
+      - name: classify
+        id: classify
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          ui=true
+          if [ "$EVENT" = "pull_request" ] && files=$(git diff --name-only "$BASE_SHA"...HEAD); then
+            ui=false
+            while IFS= read -r f; do
+              case "$f" in
+                templates/*|*/templates/*|static/*|*/static/*|tests/e2e/*|                tests/test_a11y_axe_ratchet.py|tests/test_web_vitals_budget.py|                tests/test_action_cards_fit_narrow_screens.py|tests/test_mobile_audit.py|                requirements*.txt|.github/workflows/quality-gate.yml|.github/actions/*|                scripts/ci_needs_gate.py|*.html|*.css|*.js|*.ts) ui=true; break ;;
+              esac
+            done <<< "$files"
+          fi
+          echo "ui=$ui" >> "$GITHUB_OUTPUT"
+          echo "مسّ الطلبُ واجهةً: $ui"
+
+  # ══════════════════════════════════════════════════════
   #  1. pytest + عتبةُ التغطية (الرقمُ في pyproject.toml وحدَه)
   # ══════════════════════════════════════════════════════
   #
@@ -45,7 +80,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4]  # W-20261022-018: أربعٌ بدل ستٍّ (سقف 20 وظيفةً متزامنة)
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
@@ -530,7 +565,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # axe-a11y: p95 8.4 دقيقة (69 تشغيلاً) ×2
     # push إلى main وmerge_group: يُفحص على الطلب قبل الدخول فلا يُعاد في الطابور (W-20261019-006، ازدحام السقف 20)؛ يُعفى skipped وحدَه في scripts/ci_needs_gate.py
-    if: github.event_name != 'push' && github.event_name != 'merge_group'
+    needs: [changes]
+    if: github.event_name != 'push' && github.event_name != 'merge_group' && needs.changes.outputs.ui == 'true'
 
     strategy:
       # كلُّ رجلٍ تُبلِّغ فشلَها مستقلّةً (لا يُلغي فشلُ إحداها الأخريَين فيُضيع تشخيصُهما).
@@ -625,7 +661,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # e2e: p95 9.6 دقيقة (22 تشغيلاً) ×2
     # push إلى main وmerge_group: يُفحص على الطلب قبل الدخول فلا يُعاد في الطابور (W-20261019-006، ازدحام السقف 20)؛ يُعفى skipped وحدَه في scripts/ci_needs_gate.py
-    if: github.event_name != 'push' && github.event_name != 'merge_group'
+    needs: [changes]
+    if: github.event_name != 'push' && github.event_name != 'merge_group' && needs.changes.outputs.ui == 'true'
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
@@ -781,7 +818,7 @@ jobs:
     permissions:
       contents: read
       actions: read  # لقراءة خطوات وظائف التشغيل (تمييز فشل البنية)
-    needs: [pytest-shards, test-coverage, fast-guards, ruff, mypy, migration-linter, complexity, secrets-scan, deploy-window, axe-a11y, e2e]
+    needs: [changes, pytest-shards, test-coverage, fast-guards, ruff, mypy, migration-linter, complexity, secrets-scan, deploy-window, axe-a11y, e2e]
     if: always()
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
