@@ -83,6 +83,7 @@ class TestCategories:
             ("core/pdf_utils.py", "file_io_and_rendering"),
             ("shschool/settings/prod.py", "production_config_and_deploy"),
             (".github/workflows/quality-gate.yml", "production_config_and_deploy"),
+            (".railway/railway.ts", "production_config_and_deploy"),
             ("scripts/ci_sensitive_paths.py", "automation"),
             ("security/sensitive_paths.json", "automation"),
             ("operations/migrations/0093_x.py", "security_tables_migrations"),
