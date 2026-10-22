@@ -1,4 +1,4 @@
-"""[W-20261010-050] تلميحاتُ صفحة تفضيلات المعلّم سطرٌ واحدٌ قصير يحفظ معنى «لا يُخرق» مقابل «نحاول ولا نضمن»."""
+"""[W-20261010-050] تلميحاتُ صفحة تفضيلات المعلّم سطرٌ واحدٌ قصير؛ والسقفُ اليوميّ يُقال قيداً صلباً (W-20261012-021)."""
 
 import re
 
@@ -74,10 +74,12 @@ def test_the_hidden_hard_constraints_leave_neither_a_field_nor_a_help_line(body,
     assert "قيود صلبة" not in body
 
 
-def test_the_daily_hint_says_it_is_a_preference_not_a_guarantee(body):
+def test_the_daily_hint_says_it_is_a_hard_limit_not_a_best_effort(body):
+    """السقفُ اليوميّ قيدٌ صلبٌ في الحلّال (W-20261012-021) فيُقال صلباً لا «نحاول ولا نضمن»."""
     hint = _hint_after(body, "max_daily")
 
-    assert "نحاول ولا نضمن" in hint
+    assert "قيد صلب" in hint
+    assert "نحاول ولا نضمن" not in hint and "دون ضمان" not in hint
     assert "لا يُخرق" not in hint
 
 

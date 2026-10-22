@@ -35,7 +35,7 @@
         </thead>
         <tbody>
           {% for a in assessments %}
-          <tr id="row-{{ a.id }}">
+          <tr id="row-{{ a.id }}" class="grade-tint grade-{{ a.class_group.grade|lower }}">
             <td><b>{{ a.package.setup.subject.name_ar }}</b></td>
             <td>{{ a.class_group.short_label }}</td>
             <td>{{ a.title }}</td>

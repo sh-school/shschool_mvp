@@ -64,6 +64,17 @@ def record_run_cap_above_general(request: HttpRequest, pref: Any, channel: str) 
     )
 
 
+def teacher_load(school: Any, academic_year: str, teacher: Any) -> int:
+    """نصابُ المعلّم الأسبوعيّ: مجموعُ حصص إسنادِه النشط في العامّ."""
+    from operations.models import SubjectClassAssignment
+
+    return sum(
+        SubjectClassAssignment.objects.filter(
+            school=school, academic_year=academic_year, teacher=teacher, is_active=True
+        ).values_list("weekly_periods", flat=True)
+    )
+
+
 def record_free_day_change(
     request: HttpRequest, pref: Any, before: int | None, change: bool
 ) -> None:

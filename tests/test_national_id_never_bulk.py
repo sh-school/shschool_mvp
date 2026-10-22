@@ -246,7 +246,16 @@ EXCEL_FULL_NUMBER = frozenset(
 )
 
 #: ما يدلّ على أنّ الدالّةَ تبني ورقةَ Excel.
-EXCEL_HINTS = ("openpyxl", "Workbook(", ".cell(", "ExcelService.", "excel_to_response(")
+EXCEL_HINTS = (
+    "openpyxl",
+    "Workbook(",
+    ".cell(",
+    "safe_cell(",
+    "safe_set(",
+    "safe_append(",
+    "ExcelService.",
+    "excel_to_response(",
+)
 XLSX_EXPORT = re.compile(r'log_export\(\s*request,\s*"[^"]*xlsx"')
 FULL_FLAG = re.compile(r"full_national_id\s*=\s*True")
 
@@ -313,10 +322,9 @@ class TestExcelCarriesTheNumberOnlyWhereItIsMatched:
     def test_the_function_declares_its_classification(self, name):
         body, _node = EXCEL_FUNCTIONS[name]
         marks = (FULL_MARK in body) + (MASKED_MARK in body)
-        assert marks == 1, (
-            f"{name}: تصنيفٌ واحدٌ مكتوبٌ في الدالّة — «{FULL_MARK}» أو «{MASKED_MARK}» "
-            f"(وُجد {marks})"
-        )
+        assert (
+            marks == 1
+        ), f"{name}: تصنيفٌ واحدٌ مكتوبٌ في الدالّة — «{FULL_MARK}» أو «{MASKED_MARK}» (وُجد {marks})"
 
     @pytest.mark.parametrize("name", sorted(EXCEL_FUNCTIONS))
     def test_a_full_number_is_named_and_a_masked_one_is_masked(self, name):
