@@ -87,6 +87,16 @@ OUTCOME_CHOICES: tuple[tuple[str, str], ...] = (
 )
 
 
+#: يضعها الإغلاقُ التلقائيّ وحده بعد انقضاء المهلة؛ لا تُعرض للممرّض ولا يقبلها `is_valid_outcome`.
+OUTCOME_AUTO = "auto_closed"
+#: ساعاتُ الزيارة المفتوحة قبل أن تُغلق آلياً (قرار المالك 2026-10-20).
+AUTO_CLOSE_HOURS = 3
+
+STATE_WAITING = "waiting"
+STATE_IN_CARE = "in_care"
+STATE_DONE = "done"
+
+
 def group_of_service(code: str) -> str:
     """مجموعةُ الخدمة، أو سلسلةٌ فارغة لرمزٍ غير معتمد."""
     return _GROUP_OF_SERVICE.get(code, "")

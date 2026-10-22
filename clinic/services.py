@@ -162,6 +162,79 @@ class ClinicService:
         )
 
     @staticmethod
+    def start_visit(school: School, student: CustomUser, nurse: CustomUser):
+        """
+        مسوّدةُ زيارةٍ تُنشأ عند اختيار الطالب، فلا يضيع ما أُدخل عند انقطاع الاتصال.
+
+        ثابتةُ التكرار: إن كان للطالب زيارةٌ مفتوحةٌ اليوم أُعيدت هي ولا تُنشأ ثانية.
+        لا إشعارَ لوليّ الأمر هنا؛ الاستئذانُ يُقرَّر عند الإغلاق.
+        """
+        from django.utils import timezone
+
+        from clinic.models import ClinicVisit
+
+        existing = ClinicVisit.objects.filter(
+            school=school,
+            student=student,
+            closed_at__isnull=True,
+            visit_date__date=timezone.localdate(),
+        ).first()
+        if existing is not None:
+            return existing
+        return ClinicService.record_visit(school=school, student=student, nurse=nurse, reason="")
+
+    @staticmethod
+    @transaction.atomic
+    def set_coding(visit, service_code: str = "", complaint_code: str = ""):
+        """
+        يضبط رمزَ الخدمة (ومجموعتها) و/أو الشكوى على زيارةٍ مفتوحة؛ الفارغُ يبقى كما هو.
+
+        Raises:
+            ValueError: رمزٌ خارج القائمة المعتمدة، أو زيارةٌ مُغلقة
+        """
+        from clinic.choices import group_of_service, is_valid_complaint, is_valid_service
+
+        if visit.closed_at is not None:
+            raise ValueError("الزيارة مُغلقة")
+        fields: list[str] = []
+        if service_code:
+            if not is_valid_service(service_code):
+                raise ValueError(f"رمز خدمة غير معتمد: {service_code}")
+            visit.service_code = service_code
+            visit.service_group = group_of_service(service_code)
+            fields += ["service_code", "service_group"]
+        if complaint_code:
+            if not is_valid_complaint(complaint_code):
+                raise ValueError(f"رمز شكوى غير معتمد: {complaint_code}")
+            visit.complaint_code = complaint_code
+            fields.append("complaint_code")
+        if fields:
+            visit.save(update_fields=fields)
+        return visit
+
+    @staticmethod
+    def auto_close_stale(school: School, now=None, hours: int | None = None) -> int:
+        """
+        يُغلق الزيارات المفتوحة منذ أكثر من `hours` (3 افتراضاً) بحالة «أُغلقت تلقائياً».
+
+        وقتُ الإغلاق = وقتُ الزيارة + المهلة لا لحظةُ التشغيل، فلا تنتفخ المدّةُ المقيسة لمجرّد تأخّر المهمّة.
+        ثابتةُ التكرار: ما أُغلق لا يُغلق ثانية. تُعيد عددَ ما أُغلق.
+        """
+        from datetime import timedelta
+
+        from django.db.models import F
+        from django.utils import timezone
+
+        from clinic.choices import AUTO_CLOSE_HOURS, OUTCOME_AUTO
+        from clinic.models import ClinicVisit
+
+        limit = timedelta(hours=hours if hours is not None else AUTO_CLOSE_HOURS)
+        now = now or timezone.now()
+        return ClinicVisit.objects.filter(
+            school=school, closed_at__isnull=True, visit_date__lte=now - limit
+        ).update(closed_at=F("visit_date") + limit, outcome=OUTCOME_AUTO)
+
+    @staticmethod
     @transaction.atomic
     def close_visit(visit, outcome: str):
         """
