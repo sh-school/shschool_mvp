@@ -19,6 +19,7 @@ from command_center.collectors import (
     compliance,
     database,
     delivery,
+    flow_merge_stall,
     guards,
     messaging,
     production,
@@ -72,5 +73,7 @@ def run(collectors: dict[str, Collector]) -> dict[str, bool]:
         except Exception:  # noqa: BLE001 — مجمِّعٌ معطوبٌ لا يوقف اللوحاتِ الأخرى
             logger.exception("command center: collector %s failed", panel)
             outcome[panel] = False
+    if collectors is REMOTE:  # كشفُ الدمج المتعطّل يقرأ GitHub مع مجمِّعاته (W-20261022-011)
+        flow_merge_stall.safe_collect()
     alerts.safe_evaluate()  # التنبيهُ الحيّ عند الأحمر بعد كلّ دورة جمع (command_center/alerts.py)
     return outcome
