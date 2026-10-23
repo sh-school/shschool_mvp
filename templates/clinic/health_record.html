@@ -2,6 +2,7 @@
 {% load icons %}
 {% load privacy ui %}
 {% block title %}السجل الصحي — {{ student.full_name }}{% endblock %}
+{% block main_class %}{% page_layout "detail" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/clinic/" parent_label="العيادة" current="السجل الصحي" %}
@@ -71,6 +72,12 @@
               <span class="status-badge status-success">{% icon "confirm" %} أُبلغ ولي الأمر</span>
               {% elif visit.is_sent_home %}
               <span class="status-badge status-danger">لم يُبلَّغ ولي الأمر</span>
+              {% if can_write %}
+              <form method="post" action="{% url 'clinic:confirm_referral_notice' visit.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-secondary btn-sm">أكّد الإحالة وأشعِر وليَّ الأمر</button>
+              </form>
+              {% endif %}
               {% endif %}
               {% if visit.temperature %}
               <span class="clinic-temp{% if visit.is_feverish %} is-fever{% endif %}">{{ visit.temperature }}°</span>

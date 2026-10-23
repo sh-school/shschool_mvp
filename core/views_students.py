@@ -23,6 +23,7 @@ from django.utils import timezone
 from core import brand
 from core.academic_calendar import academic_year_for_school, default_academic_year
 from core.capabilities import capability_required
+from core.excel_safety import safe_cell
 from core.export_utils import (
     add_excel_title_rows,
     apply_print_footer,
@@ -75,6 +76,14 @@ TEMPLATE_COLUMNS = [
 # ══════════════════════════════════════════════════════════════════════
 
 
+TEMPLATE_NOTE = (
+    "تعليمات: لا تحذف هذا الصف — ابدأ البيانات من الصف الثالث — "
+    "الحقول الإلزامية: الرقم الشخصي + الاسم الكامل — "
+    "الصفوف المقبولة: G7 G8 G9 G10 G11 G12 — "
+    "كلمة المرور الافتراضية = الرقم الشخصي"
+)
+
+
 def _make_styles():
     """يُعيد قاموس ستايلات openpyxl مشتركة."""
     import openpyxl  # noqa: F401 — imported for side-effects check
@@ -95,7 +104,7 @@ def _make_styles():
 def _add_header_row(ws, styles, row_num, columns):
     """يرسم صف الرأس باللون الكستنائي."""
     for col_idx, (header, width) in enumerate(columns, start=1):
-        cell = ws.cell(row=row_num, column=col_idx, value=header)
+        cell = safe_cell(ws, row=row_num, column=col_idx, value=header)
         cell.font = styles["header_font"]
         cell.fill = styles["header_fill"]
         cell.alignment = styles["header_align"]
@@ -322,12 +331,12 @@ def student_export_excel(request):
             grade_display = grade_digits.zfill(2) if grade_digits else enr.class_group.grade
             section_display = enr.class_group.section
 
-        ws.cell(row=row_num, column=1, value=st.national_id or "")
-        ws.cell(row=row_num, column=2, value=st.full_name)
-        ws.cell(row=row_num, column=3, value=grade_display)
-        ws.cell(row=row_num, column=4, value=section_display)
-        ws.cell(row=row_num, column=5, value=st.get_phone_decrypted() or "")
-        ws.cell(row=row_num, column=6, value=st.email or "")
+        safe_cell(ws, row=row_num, column=1, value=st.national_id or "")
+        safe_cell(ws, row=row_num, column=2, value=st.full_name)
+        safe_cell(ws, row=row_num, column=3, value=grade_display)
+        safe_cell(ws, row=row_num, column=4, value=section_display)
+        safe_cell(ws, row=row_num, column=5, value=st.get_phone_decrypted() or "")
+        safe_cell(ws, row=row_num, column=6, value=st.email or "")
 
         _style_data_row(ws, styles, row_num, num_cols, idx % 2 == 0)
 
@@ -391,13 +400,7 @@ def student_import_template(request):
 
     # ── صف 1: تعليمات ──────────────────────────────────────────────
     ws.merge_cells(f"A1:{col_letter}1")
-    c = ws["A1"]
-    c.value = (
-        "تعليمات: لا تحذف هذا الصف — ابدأ البيانات من الصف الثالث — "
-        "الحقول الإلزامية: الرقم الشخصي + الاسم الكامل — "
-        "الصفوف المقبولة: G7 G8 G9 G10 G11 G12 — "
-        "كلمة المرور الافتراضية = الرقم الشخصي"
-    )
+    c = safe_cell(ws, 1, 1, TEMPLATE_NOTE)
     c.font = styles["note_font"]
     c.fill = styles["note_fill"]
     c.alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
@@ -437,7 +440,7 @@ def student_import_template(request):
     ]
     for idx, row_data in enumerate(examples, start=3):
         for col_idx, val in enumerate(row_data, start=1):
-            cell = ws.cell(row=idx, column=col_idx, value=val)
+            cell = safe_cell(ws, row=idx, column=col_idx, value=val)
             cell.border = styles["thin_border"]
             cell.alignment = styles["data_align"]
             # تمييز لوني خفيف للأمثلة
