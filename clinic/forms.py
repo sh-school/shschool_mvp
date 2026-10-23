@@ -3,7 +3,7 @@
 from django import forms
 
 from .choices import COMPLAINT_CHOICES, SERVICE_CHOICES
-from .models import HealthRecord, MedicationCatalogItem
+from .models import ClinicSupplyItem, HealthRecord, MedicationCatalogItem
 
 
 class HealthRecordForm(forms.Form):
@@ -102,3 +102,10 @@ class MedicationDispenseForm(forms.Form):
         self.fields["catalog_item"].queryset = MedicationCatalogItem.objects.filter(
             school=school, is_active=True, approved_at__isnull=False
         )
+
+
+class ClinicSupplyItemForm(forms.ModelForm):
+    class Meta:
+        model = ClinicSupplyItem
+        fields = ["name", "expiry_date", "quantity"]
+        widgets = {"expiry_date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")}

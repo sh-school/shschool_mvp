@@ -38,7 +38,7 @@ ALTER TABLE public.{table} DISABLE ROW LEVEL SECURITY;
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("clinic", "0014_rls_clinic_referral"),
+        ("clinic", "0016_rls_clinic_supply_item"),
         ("core", "0086_elective_group_membership"),
         ("core", "0037_rls_tenant_identity_from_db_role"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

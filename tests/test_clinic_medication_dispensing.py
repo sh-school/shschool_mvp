@@ -228,7 +228,7 @@ def test_every_dispensing_is_audited_with_ids_only(school, student_user, nurse_u
 
 
 def test_the_migration_only_creates():
-    source = (ROOT / "clinic/migrations/0015_medication_catalog_consent_dispensing.py").read_text(
+    source = (ROOT / "clinic/migrations/0017_medication_catalog_consent_dispensing.py").read_text(
         encoding="utf-8"
     )
     assert not re.search(r"RemoveField|DeleteModel|RenameField|RenameModel|AlterField", source)
