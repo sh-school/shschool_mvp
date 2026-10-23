@@ -30,6 +30,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from core import preview_accounts as preview_module
+from core import preview_school as second_school
 from core.academic_calendar import academic_year_for_school
 from core.models import AuditLog, CustomUser, Membership, Role, School, Wing, WingCoverage
 from core.preview_accounts import (
@@ -135,7 +136,11 @@ class Command(BaseCommand):
             )
             if roles != {role_name}:
                 issues.append(f"{role_name}: عضويّاتٌ نشطةٌ {sorted(roles)}")
-        extra = [n for n in present if n not in ROLES.values()]
+        extra = [
+            n
+            for n in present
+            if n not in ROLES.values() and not n.startswith(second_school.ID_PREFIX)
+        ]
         if extra:
             issues.append(f"حساباتٌ موسومةٌ خارج القائمة المغلقة: {len(extra)}")
         if issues:

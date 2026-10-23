@@ -87,6 +87,32 @@ OUTCOME_CHOICES: tuple[tuple[str, str], ...] = (
 )
 
 
+# ── الإحالات (W-20261020-038) ────────────────────────────────────────
+#: جهةُ المتابعة وحالةُ الإحالة ونتيجةُ إغلاقها رموزٌ ثابتة؛ لا نصَّ حرّاً ولا تشخيصَ فيها.
+FOLLOWUP_CHOICES: tuple[tuple[str, str], ...] = (
+    ("health_center", "المركز الصحي"),
+    ("hospital", "المستشفى"),
+    ("parent", "ولي الأمر"),
+    ("counselor", "المرشد الاجتماعي"),
+)
+REFERRAL_OPEN = "open"
+REFERRAL_CLOSED = "closed"
+REFERRAL_RESULT_CHOICES: tuple[tuple[str, str], ...] = (
+    ("treated", "تمّت المعالجة"),
+    ("follow_up_scheduled", "حُدّد موعد متابعة"),
+    ("no_show", "لم يراجع"),
+    ("transferred", "حُوّل إلى جهة أخرى"),
+)
+
+
+def is_valid_followup(code: str) -> bool:
+    return any(code == c for c, _ in FOLLOWUP_CHOICES)
+
+
+def is_valid_referral_result(code: str) -> bool:
+    return any(code == c for c, _ in REFERRAL_RESULT_CHOICES)
+
+
 #: يضعها الإغلاقُ التلقائيّ وحده بعد انقضاء المهلة؛ لا تُعرض للممرّض ولا يقبلها `is_valid_outcome`.
 OUTCOME_AUTO = "auto_closed"
 #: ساعاتُ الزيارة المفتوحة قبل أن تُغلق آلياً (قرار المالك 2026-10-20).
