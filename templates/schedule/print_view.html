@@ -75,8 +75,8 @@
       {% endif %}
 
       {# التصديرُ للورقة المعروضة نفسها: الاختيارُ محمولٌ في `selection_query`. #}
-      <a data-app-file data-export-job="pdf" href="{% url 'schedule_export_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير PDF</a>
-      <a data-app-file data-export-job="excel" href="{% url 'schedule_export_excel' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير Excel</a>
+      {% export_button "pdf" "schedule_export_pdf" job="pdf" %}?{{ selection_query }}{% endexport_button %}
+      {% export_button "xlsx" "schedule_export_excel" job="excel" %}?{{ selection_query }}{% endexport_button %}
     </div>
   </div>
 

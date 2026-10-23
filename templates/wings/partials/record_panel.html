@@ -20,8 +20,8 @@
             <option value="landscape">أفقي</option>
             <option value="portrait">عمودي</option>
           </select>
-          <button data-app-file type="submit" name="format" value="xlsx" class="btn-secondary btn-sm">{% icon "export_excel" %} Excel</button>
-          <button data-app-file type="submit" name="format" value="pdf" class="btn-secondary btn-sm">{% icon "export_pdf" %} PDF</button>
+          {% export_button "xlsx" name="format" value="xlsx" %}{% endexport_button %}
+          {% export_button "pdf" name="format" value="pdf" %}{% endexport_button %}
         </form>
       </details>
     </div>
