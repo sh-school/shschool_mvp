@@ -15,6 +15,9 @@ from clinic.services import ClinicService
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
+# تثبيتُ الساعة على أربعاءِ دوام: القياسُ يقرأ «اليوم» وشهرَه (حارس الساعة).
+pytestmark = pytest.mark.pin_clock
+
 
 def _visit(school, student, nurse, **kw):
     return ClinicVisit.objects.create(school=school, student=student, nurse=nurse, reason="ص", **kw)
