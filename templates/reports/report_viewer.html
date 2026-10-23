@@ -14,7 +14,7 @@
 {% endcomment %}
 <div class="report-viewer">
   {% page_header report_title icon="document" %}
-    <a data-app-file href="{{ report_url }}&download=1" class="btn-primary btn-sm">{% icon "download" %} تحميل</a>
+    {% export_button "pdf" href=report_url primary=True %}&download=1{% endexport_button %}
     <a href="{% url 'reports_index' %}{{ back_query }}" class="btn-secondary btn-sm">← رجوع للتقارير</a>
   {% endpage_header %}
 

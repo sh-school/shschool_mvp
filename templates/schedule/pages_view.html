@@ -12,7 +12,7 @@
 {% comment %}
 عرضٌ مستقلٌّ عن التصدير (قرارُ 2026-09-18، نفسُ فصل جدول المعلم المفرد؛ ولا طباعةَ مباشرةً —
 قرارُ المالك 2026-09-28): بطاقةٌ عاديّةٌ لكلّ معلّمٍ أو شعبةٍ بجدولها — لا ورقةٌ بالملّيمتر في إطارٍ.
-والتنزيلُ من ورقتهما الحقيقيّة (زرُّ تصدير PDF أعلاه).
+والتنزيلُ من ورقتهما الحقيقيّة (زرُّ التصدير أعلاه).
 {% endcomment %}
 {% page_header title icon="document" %}{% endpage_header %}
 {# بطاقةٌ عاريةٌ بشريط أدواتٍ فقط — لا ترويسةَ عنّابيّةَ لها فليست `section_card`. #}
@@ -36,7 +36,7 @@
         </select>
       </form>
 
-      <a data-app-file href="{% url 'schedule_pages_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير PDF</a>
+      {% export_button "pdf" "schedule_pages_pdf" %}?{{ selection_query }}{% endexport_button %}
       <span class="text-sm text-secondary">{{ pages|length }} صفحة</span>
       {% if pages %}<button type="button" id="pages-fold-all" class="btn-secondary btn-sm" aria-controls="pages-list" aria-expanded="{{ start_open|yesno:'true,false' }}">{% if start_open %}طيّ الكلّ{% else %}فتح الكلّ{% endif %}</button>{% endif %}
     </div>
