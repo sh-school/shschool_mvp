@@ -90,6 +90,8 @@ DEFAULT_CHANNELS = {
     "exit_not_returned": ["in_app", "push"],
     "session_unmarked": ["in_app"],
     "breach_assigned": ["in_app", "push"],  # DBT-24: داخلَ المنصّة والهاتف فقط
+    # صلاحيةُ مستلزمات العيادة (W-20261020-040): للممرّض داخل المنصّة وحدَها.
+    "clinic_expiry": ["in_app"],
     "general": ["in_app", "push", "email"],
 }
 
@@ -117,6 +119,7 @@ DEFAULT_PRIORITY = {
     "exit_not_returned": "high",
     "session_unmarked": "medium",
     "breach_assigned": "urgent",
+    "clinic_expiry": "medium",
     "general": "low",
 }
 

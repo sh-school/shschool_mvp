@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import quick_views, referral_views, views
+from . import quick_views, referral_views, supply_views, views
 
 app_name = "clinic"
 
@@ -31,6 +31,9 @@ urlpatterns = [
         views.confirm_referral_notice,
         name="confirm_referral_notice",
     ),
+    path("supplies/", supply_views.supplies_list, name="supplies"),
+    path("supplies/add/", supply_views.supply_add, name="supply_add"),
+    path("supplies/<uuid:item_id>/delete/", supply_views.supply_delete, name="supply_delete"),
     path("statistics/", views.health_statistics, name="statistics"),
     path("api/charts/", views.api_clinic_charts, name="api_clinic_charts"),
 ]

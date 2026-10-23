@@ -3,7 +3,7 @@
 from django import forms
 
 from .choices import COMPLAINT_CHOICES, SERVICE_CHOICES
-from .models import HealthRecord
+from .models import ClinicSupplyItem, HealthRecord
 
 
 class HealthRecordForm(forms.Form):
@@ -86,3 +86,10 @@ class ClinicVisitForm(forms.Form):
         if not data.get("reason") and not data.get("complaint_code"):
             raise forms.ValidationError("اختر الشكوى أو اكتب سبب الزيارة.")
         return data
+
+
+class ClinicSupplyItemForm(forms.ModelForm):
+    class Meta:
+        model = ClinicSupplyItem
+        fields = ["name", "expiry_date", "quantity"]
+        widgets = {"expiry_date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")}
