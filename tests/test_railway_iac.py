@@ -119,3 +119,32 @@ def test_every_service_can_read_rotated_ciphertext(iac):
         assert re.search(
             r"variables: keep\((SHARED|WEB|WORKER)_VARIABLES\)", _service_block(iac, name)
         )
+
+
+def _env_names_read_by_settings(prefix: str) -> set[str]:
+    """أسماءُ متغيّرات البيئة التي تقرؤها الإعداداتُ بـ`config("NAME"`، بالبادئة المطلوبة."""
+    names: set[str] = set()
+    for rel in ("shschool/settings/base.py", "shschool/settings/production.py"):
+        text = (ROOT / rel).read_text(encoding="utf-8")
+        names |= set(re.findall(rf'config\(\s*"({re.escape(prefix)}[A-Z0-9_]*)"', text))
+    return names
+
+
+def test_every_s3_variable_the_settings_read_is_declared_for_every_service(iac):
+    """W-20261023-009: متغيّرُ AWS_* تقرؤه الإعداداتُ ولا يذكره railway.ts يحذفه `apply` فينهار الإقلاع.
+
+    المقارنةُ مع الشيفرة لا مع قائمةٍ مكتوبةٍ بيد: متغيّرٌ جديدٌ يُقرأ غداً يُسقط الاختبارَ حتى يُذكر.
+    """
+    read = _env_names_read_by_settings("AWS_")
+    assert {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_STORAGE_BUCKET_NAME"} <= read
+    shared = re.search(r"const SHARED_VARIABLES = \[(.*?)\] as const;", iac, re.DOTALL).group(1)
+    declared = set(re.findall(r'"([A-Z0-9_]+)"', shared))
+    assert (
+        read <= declared
+    ), f"متغيّراتٌ تقرؤها الإعداداتُ وغائبةٌ عن railway.ts: {sorted(read - declared)}"
+    # الأسماءُ الستة التي طلبتها البطاقة، ولو لم تقرأها الإعداداتُ يوماً بعينها (CUSTOM_DOMAIN في production.py)
+    assert {
+        "AWS_S3_REGION_NAME",
+        "AWS_S3_ENDPOINT_URL",
+        "AWS_S3_CUSTOM_DOMAIN",
+    } <= declared

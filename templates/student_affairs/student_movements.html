@@ -75,7 +75,7 @@
         </thead>
         <tbody>
           {% for e in exits %}
-          <tr>
+          <tr class="grade-tint grade-{{ e.session.class_group.grade|lower }}">
             <td><a href="{% url 'student_affairs:student_profile' e.student.id %}" class="sa-link">{{ e.student.full_name }}</a></td>
             <td data-sort-value="{{ e.session.class_group.school_order }}">{{ e.class_text }}</td>
             <td>{{ e.session.subject.name_ar|default:"—" }}</td>

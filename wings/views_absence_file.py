@@ -36,6 +36,7 @@ from core.models import (
     School,
     StudentEnrollment,
 )
+from core.parents_freeze import parents_frozen
 from core.sorting import arabic_key, normalise_arabic
 
 from .scope import student_scope_for
@@ -165,6 +166,7 @@ def absence_file(request: HttpRequest, student_id: object) -> HttpResponse:
         for link in ParentStudentLink.objects.filter(student=student, school=school)
         .select_related("parent")
         .order_by("-is_primary", "created_at")[:3]
+        if not parents_frozen()  # تجميدُ أولياء الأمور: لا اسمَ ولا هاتفَ للطاقم (D-268م)
     ]
     _audit_guardian_phones(request, school, student, guardians)
     start = window[0] if window else today.replace(month=9, day=1)

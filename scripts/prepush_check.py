@@ -174,7 +174,9 @@ def write_receipt() -> None:
     gitdir = _run(["git", "rev-parse", "--absolute-git-dir"]).stdout.strip()
     if not gitdir:
         return
-    (Path(gitdir) / RECEIPT_NAME).write_text(json.dumps({"head": head8(), "ok": True}), encoding="utf-8")
+    (Path(gitdir) / RECEIPT_NAME).write_text(
+        json.dumps({"head": head8(), "ok": True}), encoding="utf-8"
+    )
 
 
 def head8() -> str:
@@ -262,11 +264,64 @@ def check_types():
     if skew is None:
         return FAIL, "تعذّرت قراءة إصدارات الفاحص (tests/mypy_ratchet.py أو requirements-mypy.txt)"
     if skew:
-        return FAIL, "إصداراتُ الفاحص عندك غيرُ ما تحكم به البوّابة:\n" + "\n".join(skew) + "\nثبّتها: pip install -r requirements-mypy.txt"
+        return FAIL, "إصداراتُ الفاحص عندك غيرُ ما تحكم به البوّابة:\n" + "\n".join(
+            skew
+        ) + "\nثبّتها: pip install -r requirements-mypy.txt"
     proc = _run([sys.executable, "-m", "tests.mypy_ratchet"], env=MYPY_ENV)
     if proc.returncode != 0 and "ModuleNotFoundError" in proc.stderr:
         return MISSING, "بيئة المشروع غير مثبَّتة هنا — شغّله داخل الحاوية"
     return (OK, "") if proc.returncode == 0 else (FAIL, _tail(proc))
+
+
+#: حرّاسُ البنية التي أسقطت CI بعد 3 إلى 7 دقائق ولم يلتقطها prepush (#1204 #1216 #1217 #1218):
+#: سقف الطبقات، وتثبيت الساعة، وسقّاطتا الوصوليّة؛ لا قاعدةَ بيانات لها فتعمل محلّياً.
+STRUCTURE_GUARDS = (
+    "tests/test_layering.py",
+    "tests/test_clock_pin_ratchet.py",
+    "tests/test_a11y_ratchet.py",
+    "tests/test_a11y_axe_ratchet.py",
+)
+#: تحتاج قاعدةَ بياناتٍ؛ تُشغَّل إن كانت متاحةً وإلا تُسجَّل «غير مقيس» فلا تُعدّ نجاحاً.
+STRUCTURE_DB_GUARDS = ("tests/test_clinic_audit_every_screen.py",)
+STRUCTURE_TIMEOUT_SECONDS = 420
+#: يمنع التداخل: حرّاسُ البنية تشغّل pytest، وفيها اختباراتٌ تستدعي main() فتعيد تشغيلَها بلا نهاية (علّقت shard 5 في #1221).
+NESTED_ENV = "PREPUSH_STRUCTURE_NESTED"
+
+
+def _pytest_guards(files, deselect=()):
+    cmd = [sys.executable, "-m", "pytest", *files, "-q", "-p", "no:cacheprovider", "--no-header"]
+    for item in deselect:
+        cmd += ["--deselect", item]
+    try:
+        return _run(cmd, env={NESTED_ENV: "1"}, timeout=STRUCTURE_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        return None
+
+
+def check_structure():
+    """سقف الطبقات وسقّاطات الساعة والوصوليّة وتدقيق العيادة: كانت تسقط في CI وحدَه."""
+    if os.environ.get(NESTED_ENV):
+        return OK, "داخل حرّاس البنية — تخطّي منعاً للتداخل"
+    proc = _pytest_guards(STRUCTURE_GUARDS)
+    if proc is None:
+        return FAIL, f"حرّاسُ البنية تجاوزت المهلة ({STRUCTURE_TIMEOUT_SECONDS} ثانية)"
+    if proc.returncode != 0 and "No module named" in proc.stderr:
+        return MISSING, "بيئة المشروع غير مثبَّتة هنا — شغّله داخل الحاوية"
+    db_down = "Connection refused" in proc.stdout or "OperationalError" in proc.stdout
+    last = (proc.stdout.strip().splitlines() or [""])[-1]
+    only_db = proc.returncode != 0 and db_down and " failed" not in last
+    if proc.returncode != 0 and not only_db:
+        return FAIL, _tail(proc, 25)
+    if only_db:
+        return MISSING, "قاعدةُ البيانات غير متاحة لاختباراتٍ ضمن الحرّاس — شغّلها داخل الحاوية"
+    db = _pytest_guards(STRUCTURE_DB_GUARDS)
+    if db is None:
+        return FAIL, "تدقيق العيادة تجاوز المهلة"
+    if db.returncode != 0:
+        if "OperationalError" in db.stdout or "Connection refused" in db.stdout:
+            return MISSING, "قاعدةُ البيانات غير متاحة لتدقيق العيادة — شغّله داخل الحاوية"
+        return FAIL, _tail(db, 25)
+    return OK, ""
 
 
 def check_migration_collisions():
@@ -281,7 +336,9 @@ def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="الفحوصُ السريعة لـCI قبل الدفع")
     parser.add_argument("--types", action="store_true", help="(افتراضيّ الآن) سقّاطةُ mypy بإصدار CI")
-    parser.add_argument("--no-types", action="store_true", help="يتخطّى سقّاطةَ mypy (يُسجَّل غيرَ مقيس فيخرج 3)")
+    parser.add_argument(
+        "--no-types", action="store_true", help="يتخطّى سقّاطةَ mypy (يُسجَّل غيرَ مقيس فيخرج 3)"
+    )
     parser.add_argument(
         "--all-files", action="store_true", help="مسحُ الأسرار على كلّ المتتبَّع كـCI (بطيء)"
     )
@@ -296,6 +353,7 @@ def main(argv: list[str] | None = None) -> int:
         ("التعقيد الحلقي (CC ≥ 31)", check_complexity),
     ]
     checks.append(("حرّاس الهويّة النصّيّة", check_identity))
+    checks.append(("حرّاس البنية (طبقات/ساعة/وصوليّة/عيادة)", check_structure))
     checks.append(("تصادم أرقام الهجرات", check_migration_collisions))
     if args.no_types:
         checks.append(("mypy ratchet", lambda: (MISSING, "تُخطّيت بـ--no-types — سيحكم بها CI")))

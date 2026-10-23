@@ -174,3 +174,70 @@ class ClinicVisit(models.Model):
     @property
     def is_feverish(self) -> bool:
         return self.temperature is not None and self.temperature >= self.FEVER_THRESHOLD
+
+
+class ClinicReferral(models.Model):
+    """إحالةٌ صادرةٌ من زيارة (W-20261020-038): جهةُ متابعةٍ وحالةٌ ورقمٌ تسلسليّ للإيصال.
+
+    رموزٌ ثابتةٌ فقط (جهة/حالة/نتيجة)؛ لا تشخيصَ ولا سببَ ولا نصَّ حرّاً هنا: الإيصالُ يُبنى من هذه
+    الحقول واسمِ الطالب المخفيّ جزئياً، والنصُّ الصحّيّ يبقى مشفَّراً في الزيارة.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey("core.School", on_delete=models.CASCADE, verbose_name="المدرسة")
+    visit = models.OneToOneField(
+        ClinicVisit, on_delete=models.CASCADE, related_name="referral", verbose_name="الزيارة"
+    )
+    serial_no = models.PositiveIntegerField(verbose_name="الرقم التسلسلي")
+    follow_up_party = models.CharField(max_length=20, verbose_name="جهة المتابعة")
+    status = models.CharField(max_length=10, default="open", verbose_name="الحالة")
+    result_code = models.CharField(
+        max_length=24, blank=True, default="", verbose_name="نتيجة الإغلاق"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإحالة")
+    closed_on = models.DateField(null=True, blank=True, verbose_name="تاريخ الإغلاق")
+    closed_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="أغلقها",
+    )
+
+    class Meta:
+        verbose_name = "إحالة عيادة"
+        verbose_name_plural = "إحالات العيادة"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "serial_no"], name="uniq_clinic_referral_serial"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"إحالة {self.serial_no}"
+
+
+class ClinicSupplyItem(models.Model):
+    """صنفُ مستلزماتٍ في مخزون العيادة (W-20261020-040): اسمٌ وتاريخُ انتهاءٍ وكمّيّة.
+
+    لا بياناتَ شخصيّةً هنا. والكمّيّةُ يدويّةٌ تماماً: انقضاءُ الصلاحية لا يخصم منها ولا يحذف الصنفَ تلقائياً،
+    فالممرّضُ هو من يقرّر الإتلافَ ويُحدّث الكمّيّة.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey("core.School", on_delete=models.CASCADE, verbose_name="المدرسة")
+    name = models.CharField(max_length=120, verbose_name="اسم الصنف")
+    expiry_date = models.DateField(verbose_name="تاريخ انتهاء الصلاحية")
+    quantity = models.PositiveIntegerField(default=0, verbose_name="الكمّيّة")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإدخال")
+
+    class Meta:
+        verbose_name = "صنف مستلزمات عيادة"
+        verbose_name_plural = "مستلزمات العيادة"
+        ordering = ["expiry_date", "name"]
+        indexes = [models.Index(fields=["school", "expiry_date"], name="clinic_supply_expiry_idx")]
+
+    def __str__(self) -> str:
+        return self.name

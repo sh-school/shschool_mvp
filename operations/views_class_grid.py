@@ -118,7 +118,12 @@ def class_grid_history(request, class_id, student_id, number):
     """سجلُّ خليّةٍ: من كتب ومتى ومن صحّح — جزءٌ يُحمَّل في نافذةٍ."""
     try:
         klass, student, rows = grid.history(
-            request.user, request.school, class_id, student_id, number
+            request.user,
+            request.school,
+            class_id,
+            student_id,
+            number,
+            on=_date_or_none(request.GET.get("date")),
         )
     except grid.GridNotFoundError:
         raise Http404 from None

@@ -1,0 +1,38 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}الإدخال السريع{% endblock %}
+{% block main_class %}{% page_layout "form" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/clinic/" parent_label="العيادة" current="الإدخال السريع" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "الإدخال السريع" subtitle="ابحث عن الطالب ثم المس الخدمة" icon="clinic" %}
+    <a href="{% url 'clinic:record_visit' %}" class="btn-secondary btn-sm">النموذج الكامل</a>
+  {% endpage_header %}
+
+  <div class="clinic-quick__grid">
+    <div>
+      <div class="ui-field">
+        <label for="quick-q" class="ui-field__label">الطالب</label>
+        <input id="quick-q" name="q" type="search" class="form-control" autocomplete="off"
+               autofocus placeholder="اكتب حرفين من الاسم"
+               hx-get="{% url 'clinic:quick_search' %}" hx-trigger="input changed delay:250ms, search"
+               hx-target="#quick-results" hx-swap="innerHTML">
+      </div>
+      <div id="quick-results" aria-live="polite"></div>
+      <div id="quick-panel"></div>
+    </div>
+
+    <div id="quick-queue" hx-get="{% url 'clinic:quick_queue' %}"
+         hx-trigger="load, every 30s, clinic-visit-changed from:body" hx-swap="innerHTML">
+      {% include "clinic/partials/_quick_queue.html" %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
