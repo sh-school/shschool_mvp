@@ -236,7 +236,7 @@ class ClinicService:
 
     @staticmethod
     @transaction.atomic
-    def close_visit(visit, outcome: str):
+    def close_visit(visit, outcome: str, follow_up_party: str = ""):
         """
         إغلاقُ الزيارة بحالة خروج (عودة للصف / استئذان / إحالة) ووقتِ إغلاقٍ للمدّة.
 
@@ -248,7 +248,7 @@ class ClinicService:
         """
         from django.utils import timezone
 
-        from clinic.choices import OUTCOME_LEAVE, is_valid_outcome
+        from clinic.choices import OUTCOME_LEAVE, OUTCOME_REFERRAL, is_valid_outcome
 
         if not is_valid_outcome(outcome):
             raise ValueError(f"حالة خروج غير معتمدة: {outcome}")
@@ -260,6 +260,10 @@ class ClinicService:
         if outcome == OUTCOME_LEAVE and not visit.is_sent_home:
             visit.is_sent_home = True
             fields.append("is_sent_home")
+        if outcome == OUTCOME_REFERRAL:
+            from clinic.referrals import open_referral
+
+            open_referral(visit, follow_up_party)
         visit.save(update_fields=fields)
         return visit
 
