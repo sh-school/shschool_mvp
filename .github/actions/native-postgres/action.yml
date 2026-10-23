@@ -95,7 +95,7 @@ runs:
         for attempt in 1 2; do
           sudo apt-get update -qq && timeout 240 sudo apt-get install -y --no-install-recommends redis-server && break
           [ "$attempt" = 2 ] && exit 1
-          sudo pkill -x apt-get || true; sudo pkill -x dpkg || true; sudo dpkg --configure -a || true
+          { sudo pkill -x apt-get; sudo pkill -x dpkg; sudo dpkg --configure -a; } || echo "::notice::تنظيف apt اليتيم لم يجد ما يُنهى"
           echo "::warning::apt بطيء أو فشل — إعادة المحاولة"
         done
         sudo systemctl stop redis-server 2>/dev/null || true
