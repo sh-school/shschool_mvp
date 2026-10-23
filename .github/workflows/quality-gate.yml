@@ -627,6 +627,7 @@ jobs:
               shared-mime-info \
               pkg-config && break
             [ "$attempt" = 2 ] && exit 1
+            { sudo pkill -x apt-get; sudo pkill -x dpkg; sudo dpkg --configure -a; } || echo "::notice::تنظيف apt اليتيم لم يجد ما يُنهى"  # يتيمُ apt يمسك قفل dpkg فتصطدم به المحاولةُ الثانية (#1239)
             echo "::warning::apt بطيء أو فشل — إعادة المحاولة"
           done
 
@@ -647,6 +648,7 @@ jobs:
           for attempt in 1 2; do
             timeout 360 playwright install --with-deps chromium && break
             [ "$attempt" = 2 ] && exit 1
+            { sudo pkill -x apt-get; sudo pkill -x dpkg; sudo dpkg --configure -a; } || echo "::notice::تنظيف apt اليتيم لم يجد ما يُنهى"  # يتيمُ apt يمسك قفل dpkg فتصطدم به المحاولةُ الثانية (#1239)
             echo "::warning::تنزيل المتصفّح بطيء أو فشل — إعادة المحاولة"
           done
 
@@ -657,6 +659,7 @@ jobs:
           for attempt in 1 2; do
             timeout 360 playwright install --with-deps webkit && break
             [ "$attempt" = 2 ] && exit 1
+            { sudo pkill -x apt-get; sudo pkill -x dpkg; sudo dpkg --configure -a; } || echo "::notice::تنظيف apt اليتيم لم يجد ما يُنهى"  # يتيمُ apt يمسك قفل dpkg فتصطدم به المحاولةُ الثانية (#1239)
             echo "::warning::تنزيل المتصفّح بطيء أو فشل — إعادة المحاولة"
           done
 
@@ -722,6 +725,7 @@ jobs:
               shared-mime-info \
               pkg-config && break
             [ "$attempt" = 2 ] && exit 1
+            { sudo pkill -x apt-get; sudo pkill -x dpkg; sudo dpkg --configure -a; } || echo "::notice::تنظيف apt اليتيم لم يجد ما يُنهى"  # يتيمُ apt يمسك قفل dpkg فتصطدم به المحاولةُ الثانية (#1239)
             echo "::warning::apt بطيء أو فشل — إعادة المحاولة"
           done
 
@@ -736,6 +740,7 @@ jobs:
           for attempt in 1 2; do
             timeout 360 playwright install --with-deps chromium && break
             [ "$attempt" = 2 ] && exit 1
+            { sudo pkill -x apt-get; sudo pkill -x dpkg; sudo dpkg --configure -a; } || echo "::notice::تنظيف apt اليتيم لم يجد ما يُنهى"  # يتيمُ apt يمسك قفل dpkg فتصطدم به المحاولةُ الثانية (#1239)
             echo "::warning::تنزيل المتصفّح بطيء أو فشل — إعادة المحاولة"
           done
 

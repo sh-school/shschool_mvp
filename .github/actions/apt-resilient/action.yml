@@ -9,5 +9,5 @@ runs:
     - name: إعداد apt
       shell: bash
       run: |
-        printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "20";' 'Acquire::https::Timeout "20";' |
+        printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "20";' 'Acquire::https::Timeout "20";' 'DPkg::Lock::Timeout "300";' |
           sudo tee /etc/apt/apt.conf.d/99ci-resilient > /dev/null
