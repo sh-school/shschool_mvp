@@ -1,0 +1,18 @@
+# خدمة النسخ الاحتياطي داخل Railway (W-20261023-018) — صورةٌ صغيرةٌ مستقلّةٌ عن صورة التطبيق:
+# عميل PostgreSQL 18 (مطابقٌ لخادم الإنتاج) + gpg + aws-cli فقط. لا شيفرة تطبيق ولا أسرار.
+FROM postgres:18-bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gnupg \
+    awscli \
+    && apt-get clean && find /var/lib/apt/lists -type f -delete
+
+WORKDIR /app
+COPY --chown=postgres:postgres scripts/railway-backup.sh /app/scripts/railway-backup.sh
+
+# مستخدمٌ غير جذر (دور postgres في الصورة الرسميّة)؛ الكتابة في /tmp فقط.
+USER postgres
+
+# تعطيلُ ENTRYPOINT الخاصّ بصورة postgres (يشغّل الخادم) — الخدمةُ تنفّذ سكربتاً وتخرج.
+ENTRYPOINT []
+CMD ["bash", "/app/scripts/railway-backup.sh"]
