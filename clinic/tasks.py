@@ -30,3 +30,20 @@ def auto_close_stale_visits_task() -> dict[str, int]:
             failed += 1
             logger.exception("auto_close_stale_visits: تعذّر في المدرسة %s", school.pk)
     return {"closed": closed, "failed_schools": failed}
+
+
+@shared_task(name="clinic.alert_supply_expiry")
+def alert_supply_expiry_task() -> dict[str, int]:
+    """تنبيهُ الممرّضين بصلاحية المستلزمات (W-20261020-040): مدرسةً مدرسةً بنطاق RLS، وثابتُ التكرار."""
+    from clinic.supplies import alert_nurses
+    from core.models import School
+
+    created = failed = 0
+    for school in School.objects.filter(is_active=True).iterator(chunk_size=100):
+        try:
+            with school_rls_scope(school.id):
+                created += alert_nurses(school)
+        except Exception:  # noqa: BLE001 — مدرسةٌ معطوبةٌ لا تُسقط غيرَها
+            failed += 1
+            logger.exception("alert_supply_expiry: تعذّر في المدرسة %s", school.pk)
+    return {"created": created, "failed_schools": failed}
