@@ -39,6 +39,16 @@ const keep = (names: readonly string[]) =>
 const SHARED_VARIABLES = [
   "ALLOWED_HOSTS",
   "APP_DB_PASSWORD",
+  // تخزينُ S3 للملفات المرفوعة (البند 11): `production.py` يتطلّبه عند الإقلاع ويرفض
+  // الإقلاعَ دونه (`ImproperlyConfigured`)، وكلُّ خدمةٍ تحمّل إعدادات الإنتاج نفسَها —
+  // فلولا ذكرُها هنا لحذفها `railway config apply` فسقط الإنتاج. الأسرارُ مرجعيّةٌ بلا قيم.
+  // الثلاثةُ الأولى إلزاميّة؛ والإقليمُ ونقطةُ النهاية والنطاقُ المخصّص اختياريّة (لها افتراضات).
+  "AWS_ACCESS_KEY_ID",
+  "AWS_SECRET_ACCESS_KEY",
+  "AWS_STORAGE_BUCKET_NAME",
+  "AWS_S3_REGION_NAME",
+  "AWS_S3_ENDPOINT_URL",
+  "AWS_S3_CUSTOM_DOMAIN",
   "CELERY_ASYNC_ENABLED",
   "DB_HOST",
   "DB_NAME",

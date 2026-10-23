@@ -5,10 +5,10 @@ rotate_fernet_key — إعادة تشفير كل الحقول المشفّرة �
 (`_allergies`) فلا يعيد تشفير أي سجل صحي، (ب) يُهمل `phone_encrypted`، (ج) يُهمل
 `ClinicVisit` كلياً (أخطر بيانات م.16).
 
-[W-20261020-024] الشمولُ هنا لـ`CustomUser` (أعمدةٌ محدَّدة) و`NotificationSettings` و`HealthRecord` و`ClinicVisit`.
-وحقولُ الأخيرَين تُكتشف بالانعكاس (`core.fields.encrypted_field_names`) لا بقائمةٍ مكتوبة، فحقلٌ مشفَّرٌ جديدٌ فيهما
-يدخل التدويرَ تلقائياً ويحرس ذلك `tests/test_encrypted_fields_covered_by_rotation.py`. أمّا الحقولُ المشفَّرة في
-نماذجَ أخرى (مثل `behavior` و`operations` وحقلَي `CustomUser` الإضافيَّين) فخارجَ هذا الأمر بعدُ — قرارٌ مستقلّ.
+[W-20261020-024، W-20261021-003] الشمولُ بالاستقراء: كلُّ نموذجٍ في المشروع فيه `EncryptedTextField` يُدوَّر
+(`core.fields.encrypted_field_names` على `apps.get_models()`) لا بقائمةٍ مكتوبة، وحقلا `CustomUser` الإضافيّان
+(كهرماء وتاريخ الميلاد) معهما. ويحرس ذلك `tests/test_encrypted_fields_covered_by_rotation.py`: يسقط إن أُضيف
+حقلٌ مشفَّر لا يُدوَّر. و`NotificationSettings` (حقولُ Twilio بأسماءٍ خاصّة) يبقى بمساره اليدويّ.
 
 الاستخدام:
   1. أنشئ مفتاحاً جديداً: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
@@ -44,6 +44,19 @@ class Command(BaseCommand):
             return True
         return False
 
+    @staticmethod
+    def rotated_models() -> list[Any]:
+        """النماذجُ الحقيقيّة (لا الوكيلة) ذاتُ حقلٍ مشفَّر، عدا `CustomUser` فمساره الأوّل أدناه يعيد حسابَ الهاش."""
+        from django.apps import apps
+
+        from core.models import CustomUser
+
+        return [
+            m
+            for m in apps.get_models()
+            if not m._meta.proxy and m is not CustomUser and encrypted_field_names(m)
+        ]
+
     def handle(self, *args: Any, **options: Any) -> None:
         total = 0
         errors = 0
@@ -53,20 +66,21 @@ class Command(BaseCommand):
         # بالمفتاح الحالي؛ totp_secret يُعاد تشفيره يدوياً لأنه غير محسوب في save().
         from core.models import CustomUser
 
+        # أعمدةُ `EncryptedTextField` في المستخدم (كهرماء وتاريخ الميلاد) تُستقرأ ولا تُكتب بالاسم.
+        user_fields = [
+            "national_id_encrypted",
+            "national_id_hmac",
+            "phone_encrypted",
+            "phone_hmac",
+            "totp_secret",
+            *[n for n in encrypted_field_names(CustomUser) if n != "national_id_encrypted"],
+        ]
         users = CustomUser.objects.all()
         self.stdout.write(f"  CustomUser: {users.count()}")
         for user in users.iterator():
             try:
                 self._reencrypt_attr(user, "totp_secret")
-                user.save(
-                    update_fields=[
-                        "national_id_encrypted",
-                        "national_id_hmac",
-                        "phone_encrypted",
-                        "phone_hmac",
-                        "totp_secret",
-                    ]
-                )
+                user.save(update_fields=list(dict.fromkeys(user_fields)))
                 total += 1
             except (InvalidToken, ValueError, OSError) as e:
                 errors += 1
@@ -88,32 +102,21 @@ class Command(BaseCommand):
                 errors += 1
                 self.stderr.write(f"  خطأ NotificationSettings {ns.id}: {e}")
 
-        # ── 3. HealthRecord — كلُّه EncryptedTextField ([PII-11])، وحقولُه بالانعكاس ──
-        # كانت الحقولُ الطبّيّةُ الثلاثة تُشفَّر يدوياً فتحتاج فكّاً وإعادةَ
-        # تشفيرٍ صريحين. وبعد توحيدها على الحقل الشفّاف صارت كـ`ClinicVisit`:
-        # القراءةُ تفكّ بأيّ مفتاحٍ من المفاتيح، والحفظُ يشفّر بالحالي.
-        from clinic.models import HealthRecord
-
-        health_fields = encrypted_field_names(HealthRecord)
-        for hr in HealthRecord.objects.all().iterator():
-            try:
-                hr.save(update_fields=health_fields)
-                total += 1
-            except (InvalidToken, ValueError, OSError) as e:
-                errors += 1
-                self.stderr.write(f"  خطأ HealthRecord {hr.id}: {e}")
-
-        # ── 4. ClinicVisit — EncryptedTextField: القراءة تفكّ والحفظ يعيد التشفير ──
-        from clinic.models import ClinicVisit
-
-        visit_fields = encrypted_field_names(ClinicVisit)
-        for cv in ClinicVisit.objects.all().iterator():
-            try:
-                cv.save(update_fields=visit_fields)
-                total += 1
-            except (InvalidToken, ValueError, OSError) as e:
-                errors += 1
-                self.stderr.write(f"  خطأ ClinicVisit {cv.id}: {e}")
+        # ── 3. كلُّ نموذجٍ فيه EncryptedTextField — بالاستقراء من سجلّ التطبيقات لا بقائمةٍ مكتوبة ──
+        # القراءةُ تفكّ بأيّ مفتاحٍ من المفاتيح، و`update()` يشفّر بالحالي عبر `get_prep_value`؛ فلا يمرّ
+        # التدويرُ بـ`save()` ولا إشاراته ولا قيوده (سجلّاتٌ مُحصَّنةٌ كالمخالفات)، ولا يلمس `updated_at`.
+        # (W-20261021-003: كان يقتصر على HealthRecord وClinicVisit فتبقى behavior وoperations وغيرُها بالقديم.)
+        for model in self.rotated_models():
+            names = encrypted_field_names(model)
+            for obj in model._base_manager.all().iterator():
+                try:
+                    values = {n: v for n in names if (v := getattr(obj, n))}
+                    if values:
+                        model._base_manager.filter(pk=obj.pk).update(**values)
+                        total += 1
+                except (InvalidToken, ValueError, OSError) as e:
+                    errors += 1
+                    self.stderr.write(f"  خطأ {model.__name__} {obj.pk}: {e}")
 
         self.stdout.write(
             self.style.SUCCESS(f"\n✅ تم تدوير المفاتيح: {total} سجل محدّث، {errors} خطأ")

@@ -1,8 +1,8 @@
 @layer components {
 
-/* ════════════════════
+/* ════════
    الهيدر العلوي — الشعار + المستخدم + الأيقونات
-   ════════════════════ */
+   ════════ */
 .site-header {
   background: var(--header-bg);
   position: sticky;
@@ -26,9 +26,9 @@
 .site-header .nav-logo { padding-inline-start: 0; }
 .site-header .nav-user-btn { padding-inline-end: 0; }
 
-/* ════════════════════
+/* ════════
    شريط التنقل — القوائم (السطر الثاني)
-   ════════════════════ */
+   ════════ */
 .site-nav {
   background: var(--nav-bg);
   position: sticky;
@@ -57,7 +57,7 @@
   gap: 5px;
   padding: var(--sp-1-5) var(--sp-2-5);
   border-radius: 7px;
-  font-size: 0.78125rem;
+  font-size: var(--text-xs-plus);
   color: var(--on-fill);
   background: none;
   border: none;
@@ -854,13 +854,13 @@ tr.active {
 
 }
 
-/* ════════════════════
+/* ════════
    مكوّنات الصفحة — Page Layout Components
-   ════════════════════ */
+   ════════ */
 
-/* ════════════════════
+/* ════════
    Detail/Profile Layout (MTG-2026-004-STR)
-   ════════════════════ */
+   ════════ */
 
 /* ── Definition List (key-value pairs) ── */
 .detail-dl {
@@ -1286,9 +1286,9 @@ main.page-wide {
   background: var(--surface);
 }
 .form-control::placeholder { color: var(--placeholder); }
-/* ════════════════════
+/* ════════
    التنبيهات — الوسمُ `{% callout %}` (قرارُ المالك 2026-09-20)
-   ════════════════════
+   ════════
    نوعان: أيقونةٌ تُظهر نصَّها (تلميح ومعلومة) فلا تزحم البطاقة، وسطرٌ ظاهرٌ دائماً
    (تحذير وخطأ ونجاح) لأنّ من لا يمرّ فوقه لا يقرأ ما يغيّر فعلَه. وكلُّ لونٍ رمزٌ من
    رموز الحالة، فيتبع الوضعَ الليليّ. وما كان `form-note` و`bell-note` و`wing-warn`
@@ -1497,10 +1497,10 @@ main.page-wide {
   gap: var(--sp-1);
 }
 
-/* ════════════════════
+/* ════════
    شريط ماروني — الهوية البصرية الموحدة لدولة قطر
    يُستخدم كعنوان للبطاقات والأقسام في كل صفحات المنصة
-   ════════════════════ */
+   ════════ */
 .card-bar {
   display: flex; align-items: center; gap: var(--sp-2-5);
   background: var(--maroon);
@@ -1585,9 +1585,9 @@ tfoot td {
 }
 .action-card.action-primary .action-desc { color: color-mix(in srgb, var(--on-fill) 70%, transparent); }
 
-/* ════════════════════
+/* ════════
  * ✅ v5.1 — Design Tokens & Component Extensions
- * ════════════════════ */
+ * ════════ */
 
 /* ── WCAG 2.1 AA — Focus Rings ─── */
 a:focus-visible,
@@ -1962,9 +1962,9 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
 }
 .empty-state-v2 .es-sub { font-size: .9rem; margin-bottom: var(--sp-5); }
 
-/* ════════════════════
+/* ════════
    Mobile Navigation — Hamburger Menu (v5.2)
-   ════════════════════ */
+   ════════ */
 
 /* على الديسكتوب: nb-bar شريط أفقي عادي */
 .nb-bar {
@@ -2069,9 +2069,9 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
   .scroll-x-hint { display: none; }
 }
 
-/* ════════════════════
+/* ════════
    v5.3 — Sticky Table Headers + Breadcrumbs + Command Palette
-   ════════════════════ */
+   ════════ */
 
 /* ── عمرُ بيانات الصفحة (W-20261012-014) — صفٌّ ثابتُ الارتفاع قرب فتات الخبز فلا يقفز التخطيط ─── */
 .page-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--sp-2); }
