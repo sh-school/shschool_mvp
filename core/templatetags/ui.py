@@ -671,7 +671,7 @@ EXPORT_KINDS: dict[str, tuple[str, str]] = {
 }
 
 
-@register.simple_block_tag
+@register.simple_block_tag  # type: ignore[attr-defined,misc]
 def export_button(
     content: str,
     kind: str,
