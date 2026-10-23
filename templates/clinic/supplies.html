@@ -1,0 +1,75 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}مستلزمات العيادة{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/clinic/" parent_label="العيادة" current="المستلزمات" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "مستلزمات العيادة" subtitle="مرتّبةً بأقرب تاريخ انتهاء؛ التنبيه عند 60 ثم 30 يوماً" icon="clinic" %}
+    <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
+  {% endpage_header %}
+
+  {% callout "info" %}الحالةُ مكتوبةٌ بالنصّ لا باللون وحده. انتهاءُ الصلاحية لا يخصم من الكمّيّة ولا يحذف الصنف: القرارُ لك.{% endcallout %}
+
+  <section aria-labelledby="items-h">
+    <h2 id="items-h" class="clinic-quick__h">الأصناف ({{ items|length }})</h2>
+    {% if items %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">الصنف</th>
+            <th scope="col">تاريخ الانتهاء</th>
+            <th scope="col" class="num">المتبقّي (يوم)</th>
+            <th scope="col" class="num">الكمّيّة</th>
+            <th scope="col">الحالة</th>
+            <th scope="col">حذف</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for i in items %}
+          <tr>
+            <td>{{ i.name }}</td>
+            <td>{{ i.expiry_date|date:"Y-m-d" }}</td>
+            <td class="num">{{ i.days_left }}</td>
+            <td class="num">{{ i.quantity }}</td>
+            <td><span class="badge {{ i.state_class }}">{{ i.state_label }}</span></td>
+            <td>
+              <form method="post" action="{% url 'clinic:supply_delete' i.id %}">
+                {% csrf_token %}
+                <button type="submit" class="clinic-tap btn-secondary" aria-label="حذف {{ i.name }}">حذف</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p>لا أصنافَ مسجّلة بعد.</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="add-h">
+    <h2 id="add-h" class="clinic-quick__h">إضافة صنف</h2>
+    <form method="post" action="{% url 'clinic:supply_add' %}" novalidate>
+      {% csrf_token %}
+      <div class="form-stack">
+        {% field "name" "اسم الصنف" required=True maxlength="120" value=form.name.value error=form.name.errors.0 %}
+        {% field "expiry_date" "تاريخ انتهاء الصلاحية" type="date" required=True value=form.expiry_date.value error=form.expiry_date.errors.0 %}
+        {% field "quantity" "الكمّيّة" type="number" required=True min="0" step="1" value=form.quantity.value error=form.quantity.errors.0 %}
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">{% icon "add" %} إضافة</button>
+      </div>
+    </form>
+  </section>
+
+</div>
+{% endblock %}

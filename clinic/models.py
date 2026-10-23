@@ -217,3 +217,27 @@ class ClinicReferral(models.Model):
 
     def __str__(self) -> str:
         return f"إحالة {self.serial_no}"
+
+
+class ClinicSupplyItem(models.Model):
+    """صنفُ مستلزماتٍ في مخزون العيادة (W-20261020-040): اسمٌ وتاريخُ انتهاءٍ وكمّيّة.
+
+    لا بياناتَ شخصيّةً هنا. والكمّيّةُ يدويّةٌ تماماً: انقضاءُ الصلاحية لا يخصم منها ولا يحذف الصنفَ تلقائياً،
+    فالممرّضُ هو من يقرّر الإتلافَ ويُحدّث الكمّيّة.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey("core.School", on_delete=models.CASCADE, verbose_name="المدرسة")
+    name = models.CharField(max_length=120, verbose_name="اسم الصنف")
+    expiry_date = models.DateField(verbose_name="تاريخ انتهاء الصلاحية")
+    quantity = models.PositiveIntegerField(default=0, verbose_name="الكمّيّة")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإدخال")
+
+    class Meta:
+        verbose_name = "صنف مستلزمات عيادة"
+        verbose_name_plural = "مستلزمات العيادة"
+        ordering = ["expiry_date", "name"]
+        indexes = [models.Index(fields=["school", "expiry_date"], name="clinic_supply_expiry_idx")]
+
+    def __str__(self) -> str:
+        return self.name
