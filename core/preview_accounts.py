@@ -85,7 +85,7 @@ DEPARTMENT_NAMES = {
     "teacher": "الرياضيات",
     "ese_teacher": "اللغة العربية",
 }
-RESERVED_EMPLOYEE_REGEX = r"^(9990000[1-9]|99900010)$"
+RESERVED_EMPLOYEE_REGEX = r"^(9990000[1-9]|99900010|998000(0[1-9]|1[0-2]))$"
 #: أدوارٌ محظورةٌ على هذه الحسابات مهما كان السبب.
 FORBIDDEN_ROLES = frozenset({"platform_developer"})
 

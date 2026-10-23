@@ -254,6 +254,12 @@ class StudentActivity(SchoolScopedModel):
         return f"{self.student.full_name} — {self.title}"
 
 
+# طلبات الأولياء وشكاواهم (W-20261001-019) — في وحدةٍ مستقلّة، وتُسجَّل هنا لتراها Django.
+from student_affairs.guardian_request_models import (  # noqa: E402,F401
+    GuardianRequest,
+    GuardianRequestEvent,
+)
+
 from .admission_models import (
     AdmissionApplication as AdmissionApplication,  # noqa: E402  (طلب الالتحاق W-20261001-033)
 )

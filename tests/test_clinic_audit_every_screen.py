@@ -18,6 +18,9 @@ HEALTH_VIEWS = {
     "dashboard",
     "health_record",
     "visits_list",
+    "quick_entry",
+    "quick_queue",
+    "referrals",
 }
 
 # مستثناةٌ مسمّاةٌ بسببها: لا تعرض بياناً صحّيّاً فرديّاً من الطالب.
@@ -25,8 +28,15 @@ NON_HEALTH_VIEWS = {
     "needs_care_import": "رفعُ ملفٍّ فقط؛ الصفحةُ لا تعرض سجلّاً، والتقريرُ أعدادٌ",
     "record_visit": "نموذجُ إدخالٍ فيه أسماءُ الطلاب دون بيانٍ صحّيّ؛ والإنشاءُ يُدقَّق بإشارة post_save",
     "record_visit_student": "كسابقه بمعرّف طالبٍ في الرابط",
+    "confirm_referral_notice": "كتابةٌ بـPOST تُدقَّق بإشارة post_save على الزيارة ولا تعرض بياناً صحّيّاً",
     "statistics": "أعدادٌ مجمَّعةٌ لا سجلٌّ فرديّ",
     "api_clinic_charts": "أعدادٌ يوميّةٌ مجمَّعةٌ بصيغة JSON",
+    "quick_search": "نتائجُ بحثٍ بأسماء الطلبة فقط دون حالةٍ صحّيّةٍ، ولا يُسجَّل المصطلح",
+    "quick_start": "كتابةٌ بـPOST تُدقَّق بإشارة post_save على الزيارة",
+    "quick_service": "كتابةٌ بـPOST برمزٍ معتمدٍ تُدقَّق بإشارة post_save على الزيارة",
+    "quick_close": "كتابةٌ بـPOST تُدقَّق بإشارة post_save على الزيارة",
+    "referral_close": "كتابةٌ بـPOST تُدقَّق بإشارة post_save على الإحالة",
+    "referral_receipt": "إيصالٌ يُدقَّق بسطر export عند كلّ فتحٍ بمعرّفاتٍ فقط",
 }
 
 

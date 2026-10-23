@@ -25,7 +25,7 @@ from django.utils import timezone as _tz
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from core.audit_repr import masked_repr
-from core.parents_freeze import warn_or_frozen
+from core.parents_freeze import parents_frozen, warn_or_frozen
 from core.permissions import (
     BEHAVIOR_COMMITTEE,
     BEHAVIOR_MANAGE,
@@ -532,7 +532,7 @@ def _report_year(request):
 
 def _guardian_phones(request, student, allowed):
     """أرقامُ أولياء الطالب لمن يتّصل بالأسرة (`behavior.guardian_contact`) — رقمٌ بلا اسم (D-431م)، وأثرُ القراءة عدّادٌ."""
-    if not allowed:
+    if not allowed or parents_frozen():  # تجميدُ أولياء الأمور: لا هاتفَ للطاقم (D-268م)
         return []
     from operations.services.absence_followup import guardian_phone
     from student_affairs.coordinator_selectors import audit_phone_read
@@ -570,7 +570,7 @@ def behavior_report(request, student_id):
     # من يسجّل المخالفةَ ولا يستدعي لا يُحمَّل اسمَ والدة طالب. فلا يصل القالبَ اسمٌ لغيره أصلاً.
     can_contact_guardian = has_capability(request.user, "behavior.guardian_contact")
     guardian_registered = report["parent_links"].exists()
-    if not can_contact_guardian:
+    if not can_contact_guardian or parents_frozen():  # تحت التجميد لا اسمَ ولا إرسال (D-268م)
         report["parent_links"] = []
 
     sent_to = []
@@ -792,6 +792,8 @@ def infraction_parent_pdf(request, infraction_id):
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.school)
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
+    if parents_frozen():  # الاستمارةُ تُملأ بخطّ اليد: لا اسمَ ولا هاتفَ مطبوعين تحت التجميد
+        ctx.update(parent_name=None, parent_id=None, parent_phone=None, parent_email=None)
     audit_infraction_read(request, inf)
     return _render_behavior_pdf(
         request,
@@ -933,9 +935,9 @@ def summon_parent(request, student_id=None):
         active_infractions = BehaviorInfraction.objects.filter(
             student=selected_student, is_resolved=False
         ).count()
-        # بيانات أولياء الأمور مع أرقام الهواتف
+        # بيانات أولياء الأمور وهواتفهم — وتحت التجميد لا شيء للطاقم (D-268م)
         parents_info = []
-        for link in parent_links:
+        for link in [] if parents_frozen() else parent_links:
             parents_info.append(
                 {
                     "name": link.parent.full_name,

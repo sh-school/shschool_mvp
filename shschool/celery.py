@@ -206,3 +206,8 @@ app.autodiscover_tasks(["operations"], related_name="absence_reports_tasks")
 from operations.absence_reports_beat import absence_reports_beat  # noqa: E402
 
 app.conf.beat_schedule.update(absence_reports_beat())
+
+# الإغلاقُ التلقائيّ لزيارات العيادة بعد 3 ساعات (W-20261020-030): معطَّلٌ حتى `CLINIC_AUTOCLOSE_BEAT=1`.
+from clinic.autoclose_beat import clinic_autoclose_beat  # noqa: E402
+
+app.conf.beat_schedule.update(clinic_autoclose_beat())
