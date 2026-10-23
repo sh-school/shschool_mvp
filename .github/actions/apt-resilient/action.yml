@@ -1,0 +1,13 @@
+name: apt بإعادة محاولة ومهلة اتصال
+description: >-
+  W-20261022-024: يكتب إعدادَ apt يعيد المحاولةَ (3) ويقطع الاتصالَ الواقفَ بعد 20 ثانيةً. سببُ وجوده: مرآةُ azure.archive.ubuntu.com
+  تبطؤ على بعض الـrunners (35 كيلوبايت/ث مقابل 4600) فتأكل مهلةَ الوظيفة (20 دقيقة) قبل الاختبارات. يغطّي كلَّ استدعاءِ apt لاحقٍ في الوظيفة
+  ومنه ما يشغّله `playwright install --with-deps`.
+runs:
+  using: composite
+  steps:
+    - name: إعداد apt
+      shell: bash
+      run: |
+        printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "20";' 'Acquire::https::Timeout "20";' |
+          sudo tee /etc/apt/apt.conf.d/99ci-resilient > /dev/null

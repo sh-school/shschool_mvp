@@ -602,6 +602,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      - uses: ./.github/actions/apt-resilient
+
       # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub (سقفُ السحب غيرُ الموثَّق: toomanyrequests) — W-20261010-016
       - uses: ./.github/actions/native-postgres
         with:
@@ -613,16 +615,20 @@ jobs:
           cache: pip
 
       - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
+        timeout-minutes: 10  # W-20261022-024: يفشل البطيءُ سريعاً بدل أكل مهلة الوظيفة كلّها
         run: |
           sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            libcairo2-dev \
-            libpango1.0-dev \
-            libgdk-pixbuf2.0-dev \
-            libffi-dev \
-            shared-mime-info \
-            pkg-config
+          for attempt in 1 2; do
+            sudo apt-get update -qq && timeout 240 sudo apt-get install -y --no-install-recommends \
+              libcairo2-dev \
+              libpango1.0-dev \
+              libgdk-pixbuf2.0-dev \
+              libffi-dev \
+              shared-mime-info \
+              pkg-config && break
+            [ "$attempt" = 2 ] && exit 1
+            echo "::warning::apt بطيء أو فشل — إعادة المحاولة"
+          done
 
       - name: تثبيت المتطلبات
         # حزمٌ محدّدة لا `requirements-dev.txt` كاملاً — فيه مسافةٌ لتعارضٍ
@@ -636,11 +642,23 @@ jobs:
       # WebKit (محرّكُ iOS Safari) لسقّاطة الجوال وحدها (Q-02)؛ وaxe وCore Web Vitals على Chromium. فيُثبَّت
       # WebKit في رجل الجوال وحدَها ولا تدفع الرجلان الأخريان كلفتَه.
       - name: تثبيت متصفّح Chromium (مع مكتبات النظام)
-        run: playwright install --with-deps chromium
+        timeout-minutes: 12  # W-20261022-024
+        run: |
+          for attempt in 1 2; do
+            timeout 360 playwright install --with-deps chromium && break
+            [ "$attempt" = 2 ] && exit 1
+            echo "::warning::تنزيل المتصفّح بطيء أو فشل — إعادة المحاولة"
+          done
 
       - name: تثبيت متصفّح WebKit (رجل الجوال)
         if: matrix.webkit
-        run: playwright install --with-deps webkit
+        timeout-minutes: 12  # W-20261022-024
+        run: |
+          for attempt in 1 2; do
+            timeout 360 playwright install --with-deps webkit && break
+            [ "$attempt" = 2 ] && exit 1
+            echo "::warning::تنزيل المتصفّح بطيء أو فشل — إعادة المحاولة"
+          done
 
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
@@ -679,6 +697,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      - uses: ./.github/actions/apt-resilient
+
       # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub (سقفُ السحب غيرُ الموثَّق: toomanyrequests) — W-20261010-016
       - uses: ./.github/actions/native-postgres
         with:
@@ -690,16 +710,20 @@ jobs:
           cache: pip
 
       - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
+        timeout-minutes: 10  # W-20261022-024: يفشل البطيءُ سريعاً بدل أكل مهلة الوظيفة كلّها
         run: |
           sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            libcairo2-dev \
-            libpango1.0-dev \
-            libgdk-pixbuf2.0-dev \
-            libffi-dev \
-            shared-mime-info \
-            pkg-config
+          for attempt in 1 2; do
+            sudo apt-get update -qq && timeout 240 sudo apt-get install -y --no-install-recommends \
+              libcairo2-dev \
+              libpango1.0-dev \
+              libgdk-pixbuf2.0-dev \
+              libffi-dev \
+              shared-mime-info \
+              pkg-config && break
+            [ "$attempt" = 2 ] && exit 1
+            echo "::warning::apt بطيء أو فشل — إعادة المحاولة"
+          done
 
       - name: تثبيت المتطلبات
         run: |
@@ -707,7 +731,13 @@ jobs:
           pip install pytest pytest-django factory-boy pytest-playwright==0.9.0
 
       - name: تثبيت متصفّح Chromium (مع مكتبات النظام)
-        run: playwright install --with-deps chromium
+        timeout-minutes: 12  # W-20261022-024
+        run: |
+          for attempt in 1 2; do
+            timeout 360 playwright install --with-deps chromium && break
+            [ "$attempt" = 2 ] && exit 1
+            echo "::warning::تنزيل المتصفّح بطيء أو فشل — إعادة المحاولة"
+          done
 
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
