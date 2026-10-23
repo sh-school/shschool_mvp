@@ -20,6 +20,7 @@
  *   PATH="$APPDATA/npm/node_modules/@railway/cli/bin:$PATH" env -u _ railway.exe config plan
  */
 import {
+  bucket,
   defineRailway,
   github,
   postgres,
@@ -98,6 +99,17 @@ const WORKER_VARIABLES = [
   "SENTRY_PERFORMANCE_ENABLED",
 ] as const;
 
+/** متغيّراتُ خدمة النسخ (أسماءٌ فقط): الرابطُ الداخليّ للقاعدة، وعبارةُ التشفير، ومراجعُ الحاوية. */
+const BACKUP_VARIABLES = [
+  "DATABASE_URL",
+  "BACKUP_PASSPHRASE",
+  "BACKUP_S3_ENDPOINT",
+  "BACKUP_S3_BUCKET",
+  "BACKUP_S3_ACCESS_KEY_ID",
+  "BACKUP_S3_SECRET_ACCESS_KEY",
+  "BACKUP_S3_REGION",
+] as const;
+
 /** البناءُ من Dockerfile الجذر، وإعادةُ التشغيل عند الفشل ثلاثَ مرّات. */
 const DOCKER_BUILD = { builder: "DOCKERFILE", dockerfilePath: "Dockerfile" } as const;
 const RESTART_ON_FAILURE = { restartPolicyMaxRetries: 3 } as const;
@@ -134,9 +146,20 @@ export default defineRailway(() => {
     variables: keep(SHARED_VARIABLES),
   });
 
+  // نسخٌ احتياطيٌّ يوميٌّ مشفّرٌ داخل Railway (W-20261023-018): pg_dump عبر الشبكة الخاصّة إلى حاوية `db-backups`.
+  // خدمةُ cron تخرج بعد الإنجاز. الجدولُ 01:00 UTC. تنبيه: مفتاحُ `cronSchedule` تحت `deploy` لم يُتحقَّق منه
+  // بتشغيل `railway config plan` بعد — راجع docs/deployment/railway_backup.md قبل أيّ `apply`.
+  const backup = service("db-backup", {
+    source: github(REPO),
+    build: { builder: "DOCKERFILE", dockerfilePath: "Dockerfile.backup" },
+    deploy: { restartPolicyMaxRetries: 0, cronSchedule: "0 1 * * *" },
+    variables: keep(BACKUP_VARIABLES),
+  });
+
   // قواعدُ البيانات والحاوية تُدار من Railway نفسِه؛ ذكرُها هنا يمنع `apply` من حذفها.
   const db = postgres("Postgres");
   const cache = redis("Redis");
+  const backups = bucket("db-backups", { region: "sjc" });
 
-  return project("shschool_mvp", { resources: [web, worker, beat, db, cache] });
+  return project("shschool_mvp", { resources: [web, worker, beat, backup, db, cache, backups] });
 });

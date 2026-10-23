@@ -39,7 +39,7 @@ def test_iac_manages_the_whole_project_not_a_partial(iac):
     for resource in ('postgres("Postgres")', 'redis("Redis")'):
         assert resource in iac, f"موردٌ غيرُ مذكورٍ سيحذفه apply: {resource}"
     # سلّةُ Postgres-PITR حذفها المالكُ عمداً (W-20261023-019): عودتُها تعيد إنشاءها وتُحاسَب.
-    assert "pitr" not in iac.lower() and "bucket(" not in iac
+    assert "pitr" not in iac.lower()
 
 
 def test_web_service_is_declared_as_deployed(iac):

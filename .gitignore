@@ -95,6 +95,7 @@ ZZZZ.zip
 *.dump
 *.bak
 *.backup
+!Dockerfile.backup
 
 # Temp/scratch scripts
 _*.py

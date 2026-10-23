@@ -425,6 +425,13 @@
   border-radius: var(--radius);
   padding: 1.25rem;
 }
+/* إيقاعُ قرار اللجنة: رمزُ تباعدٍ بين كتلِه بدل أداةٍ مرصوفةٍ في القالب (W-20261013-004)؛
+   القياسُ نفسُه 0.75rem = --sp-3 فلا يتغيّر المظهر. */
+.q-modal-decision .q-modal-form-grid,
+.q-modal-decision .q-modal-field.full-width,
+.q-evidence-request .q-modal-field {
+  margin-block-start: var(--sp-3);
+}
 .q-modal-decision label {
   color: color-mix(in srgb, var(--on-fill) 90%, transparent);
 }
