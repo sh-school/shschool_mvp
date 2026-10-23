@@ -643,7 +643,6 @@ def student_edit(request, student_id):
     )
     year = academic_year_for(request)
     profile = getattr(student, "profile", None)
-
     from .forms import StudentEditForm
 
     if request.method == "POST":
@@ -660,6 +659,7 @@ def student_edit(request, student_id):
                     {
                         "full_name": cd["full_name"],
                         "phone": cd.get("phone", ""),
+                        "actor": request.user,
                         "email": cd.get("email", ""),
                         "birth_date": cd.get("birth_date"),
                         "notes": cd.get("notes", ""),

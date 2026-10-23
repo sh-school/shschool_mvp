@@ -45,6 +45,11 @@
       <form hx-post="{% url 'clinic:quick_close' visit.id %}" hx-target="#quick-panel" hx-swap="innerHTML">
         {% csrf_token %}
         <input type="hidden" name="outcome" value="{{ code }}">
+        {% if code == "referral" %}
+        <select name="follow_up_party" class="form-control" aria-label="جهة المتابعة" required>
+          {% for pcode, plabel in followups %}<option value="{{ pcode }}">{{ plabel }}</option>{% endfor %}
+        </select>
+        {% endif %}
         <button type="submit" class="clinic-tap btn-primary">{{ label }}</button>
       </form>
       {% empty %}

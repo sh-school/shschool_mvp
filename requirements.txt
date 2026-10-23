@@ -12,7 +12,7 @@ autobahn==26.7.1
 Automat==25.4.16
 billiard==4.3.1
 boto3==1.43.114
-brotli==1.2.0
+brotli==1.2.1
 cbor2==6.1.5
 celery==5.6.3
 celery-types==0.26.0

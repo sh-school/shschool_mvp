@@ -84,7 +84,7 @@ def test_the_daily_hint_says_it_is_a_hard_limit_not_a_best_effort(body):
 
 
 def test_the_daily_hint_keeps_its_computed_capacity_sentence(body):
-    assert re.search(r"نصابُك\s*<b>4</b>\s*حصة", body)
+    assert re.search(r"نصابُك\s*<b>4 حصص</b>", body)
 
 
 def test_the_floor_sentence_is_silent_when_the_first_option_fits(body):
