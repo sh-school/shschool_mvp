@@ -492,7 +492,6 @@ input[type="checkbox"], input[type="radio"] { min-inline-size: 24px; min-block-s
   .mt-1 { margin-top: .25rem; }
   .mt-16 { margin-top: 4rem; }
   .mt-20 { margin-top: 5rem; }
-  .mt-3 { margin-top: .75rem; }
   .mt-4 { margin-top: 1rem; }
   .block { display: block; }
   .inline-block { display: inline-block; }
@@ -521,7 +520,6 @@ input[type="checkbox"], input[type="radio"] { min-inline-size: 24px; min-block-s
   .flex-col { flex-direction: column; }
   .flex-wrap { flex-wrap: wrap; }
   .items-start { align-items: flex-start; }
-  .items-center { align-items: center; }
   .justify-between { justify-content: space-between; }
   .gap-2 { gap: .5rem; }
   .gap-2\.5 { gap: .625rem; }

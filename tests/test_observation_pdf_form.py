@@ -280,7 +280,8 @@ def test_the_chosen_rating_is_the_only_ticked_box(db, observation, criteria):
 
     # ثلاث علاماتٍ لا واحدة: تقديرُ المعيار، ومعهما «ميدانيّة» و«كلّيّة»
     # في جدول المعلومات — وكلاهما مُدخَلٌ في الزيارة نفسها.
-    assert html.count("✓") == 3
+    assert html.count(">نعم</td>") == 3
+    assert "✓" not in html, "علامةُ الصحّ كلمةٌ من الخطّ المضمَّن لا رمزٌ من خطٍّ احتياطيّ"
     assert "توصيةٌ محدّدة." in html
 
 
