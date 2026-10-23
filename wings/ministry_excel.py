@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from core import brand
+from core.excel_safety import safe_cell
 from core.export_utils import add_excel_title_rows, excel_table_styles, xl_fill, xl_font
 from core.ministry import ministry_line, ministry_name
 from reports.services import ExcelService
@@ -37,7 +38,7 @@ def _values(label: str, counts) -> list:
 
 def _write_row(ws, row: int, values: list, table, *, bold: bool = False, fill: str | None = None):
     for col, value in enumerate(values, start=1):
-        cell = ws.cell(row=row, column=col, value=value)
+        cell = safe_cell(ws, row=row, column=col, value=value)
         cell.border = table.border
         cell.alignment = START if col == 1 else CENTER
         cell.font = xl_font(brand.MAROON, bold=True) if bold else table.cell_font
@@ -96,7 +97,7 @@ def ministry_workbook(
     for note in summary.notes:
         row += 1
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
-        cell = ws.cell(row=row, column=1, value=note)
+        cell = safe_cell(ws, row=row, column=1, value=note)
         cell.font = xl_font(brand.STATUS_WARNING_DARK, size=9, bold=True)
         cell.alignment = START
     ws.freeze_panes = ws.cell(row=HEADER_ROW + 1, column=2)
@@ -129,7 +130,7 @@ def ministry_workbook(
         for col, value in enumerate(
             (item.name, item.class_code, "غائب بعذر" if item.excused else "غائب بلا عذر"), start=1
         ):
-            cell = names.cell(row=last, column=col, value=value)
+            cell = safe_cell(names, row=last, column=col, value=value)
             cell.border = table.border
             cell.alignment = START if col == 1 else CENTER
             cell.font = table.cell_font

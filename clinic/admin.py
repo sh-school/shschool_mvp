@@ -23,13 +23,34 @@ class HealthRecordAdmin(admin.ModelAdmin):
 
 @admin.register(ClinicVisit)
 class ClinicVisitAdmin(admin.ModelAdmin):
-    list_display = ("student", "visit_date", "nurse", "is_sent_home", "parent_notified")
-    list_filter = ("visit_date", "is_sent_home", "parent_notified")
+    list_display = (
+        "student",
+        "visit_date",
+        "nurse",
+        "outcome",
+        "is_sent_home",
+        "parent_notified",
+    )
+    # مجموعةُ الخدمة لا تُعرض في القوائم (قرار المالك: وسمٌ محايد، وأسماؤها قد توحي بحالةٍ مزمنة)
+    list_filter = ("visit_date", "outcome", "is_sent_home", "parent_notified")
     search_fields = ("student__full_name", "student__national_id")
     autocomplete_fields = ("student", "nurse")
-    readonly_fields = ("visit_date",)
+    readonly_fields = ("visit_date", "period_number")
     fieldsets = (
         ("بيانات الزيارة", {"fields": ("school", "student", "nurse", "visit_date")}),
+        (
+            "الترميز",
+            {
+                "fields": (
+                    "service_code",
+                    "service_group",
+                    "complaint_code",
+                    "outcome",
+                    "closed_at",
+                    "period_number",
+                )
+            },
+        ),
         ("الأعراض والعلاج", {"fields": ("reason", "symptoms", "temperature", "treatment")}),
         ("الإجراءات", {"fields": ("is_sent_home", "parent_notified")}),
     )

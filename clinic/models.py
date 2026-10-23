@@ -127,11 +127,43 @@ class ClinicVisit(models.Model):
     is_sent_home = models.BooleanField(default=False, verbose_name="تم إرساله للمنزل")
     parent_notified = models.BooleanField(default=False, verbose_name="تم إبلاغ ولي الأمر")
 
+    # ── [W-20261020-029] ترميز الزيارة ───────────────────────────────────
+    # رموزٌ من القوائم المغلقة في `clinic/choices.py` (بلا `choices` هنا عمداً: تعديلُ قائمةٍ
+    # قيماً لا يولّد هجرةً)، وكلُّها غيرُ مشفَّرٍ لأنّها قيمٌ مصنَّفةٌ بلا نصٍّ حرّ ولا تشخيص؛
+    # والنصُّ الحرُّ (reason/symptoms/treatment) يبقى مشفَّراً للممرّض وخارجَ كلّ تجميع.
+    # `db_default` لازمةٌ لأنّ الجدولَ فيه صفوف (حارسُ migration-linter).
+    service_code = models.CharField(
+        max_length=40, blank=True, default="", db_default="", verbose_name="الخدمة"
+    )
+    service_group = models.CharField(
+        max_length=20, blank=True, default="", db_default="", verbose_name="مجموعة الخدمة"
+    )
+    complaint_code = models.CharField(
+        max_length=40, blank=True, default="", db_default="", verbose_name="الشكوى"
+    )
+    outcome = models.CharField(
+        max_length=20, blank=True, default="", db_default="", verbose_name="حالة الخروج"
+    )
+    closed_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت إغلاق الزيارة")
+    period_number = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="رقم الحصة (مشتقّ)",
+        help_text="يُشتقّ من الجدول قراءةً فقط عند التسجيل؛ لا يُدخله الممرّض.",
+    )
+
     class Meta:
         verbose_name = "زيارة عيادة"
         verbose_name_plural = "زيارات العيادة"
         ordering = ["-visit_date"]
         db_table = "core_clinicvisit"  # يبقي نفس الجدول الموجود
+
+    @property
+    def duration_seconds(self) -> int | None:
+        """مدّةُ المكث بالثواني من البدء حتى الإغلاق؛ None لزيارةٍ مفتوحة."""
+        if self.closed_at is None or self.visit_date is None:
+            return None
+        return max(0, int((self.closed_at - self.visit_date).total_seconds()))
 
     #: حرارةٌ تُعدّ حُمّى — كانت عتبةً مكتوبةً في قالب سجلّ الزيارات (≥ 38).
     FEVER_THRESHOLD = 38
@@ -142,3 +174,46 @@ class ClinicVisit(models.Model):
     @property
     def is_feverish(self) -> bool:
         return self.temperature is not None and self.temperature >= self.FEVER_THRESHOLD
+
+
+class ClinicReferral(models.Model):
+    """إحالةٌ صادرةٌ من زيارة (W-20261020-038): جهةُ متابعةٍ وحالةٌ ورقمٌ تسلسليّ للإيصال.
+
+    رموزٌ ثابتةٌ فقط (جهة/حالة/نتيجة)؛ لا تشخيصَ ولا سببَ ولا نصَّ حرّاً هنا: الإيصالُ يُبنى من هذه
+    الحقول واسمِ الطالب المخفيّ جزئياً، والنصُّ الصحّيّ يبقى مشفَّراً في الزيارة.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey("core.School", on_delete=models.CASCADE, verbose_name="المدرسة")
+    visit = models.OneToOneField(
+        ClinicVisit, on_delete=models.CASCADE, related_name="referral", verbose_name="الزيارة"
+    )
+    serial_no = models.PositiveIntegerField(verbose_name="الرقم التسلسلي")
+    follow_up_party = models.CharField(max_length=20, verbose_name="جهة المتابعة")
+    status = models.CharField(max_length=10, default="open", verbose_name="الحالة")
+    result_code = models.CharField(
+        max_length=24, blank=True, default="", verbose_name="نتيجة الإغلاق"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإحالة")
+    closed_on = models.DateField(null=True, blank=True, verbose_name="تاريخ الإغلاق")
+    closed_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="أغلقها",
+    )
+
+    class Meta:
+        verbose_name = "إحالة عيادة"
+        verbose_name_plural = "إحالات العيادة"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "serial_no"], name="uniq_clinic_referral_serial"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"إحالة {self.serial_no}"

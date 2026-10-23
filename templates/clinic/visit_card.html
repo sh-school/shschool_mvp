@@ -12,7 +12,16 @@
       عرض السجل الصحي الكامل →
     </a>
     {% if visit.is_sent_home and not visit.parent_notified %}
-    {% callout "warning" show=True %}لم يُبلَّغ وليُّ الأمر: لا بريدَ مسجَّلاً له أو تعذّر الإرسال. تواصل معه مباشرةً.{% endcallout %}
+    {% if confirm_attempted %}
+    {% callout "warning" show=True %}لم يُرسَل الإشعار: لا بريدَ مسجَّلاً لوليّ الأمر أو التواصل مجمَّد. تواصل معه مباشرةً.{% endcallout %}
+    {% else %}
+    {% callout "info" show=True %}الإحالةُ للمنزل بانتظار تأكيدك: لا يُشعَر وليُّ الأمر قبله، والإشعارُ بالحدث دون السبب.{% endcallout %}
+    {% endif %}
+    <form method="post" action="{% url 'clinic:confirm_referral_notice' visit.pk %}"
+          hx-post="{% url 'clinic:confirm_referral_notice' visit.pk %}" hx-target="closest .clinic-done" hx-swap="outerHTML">
+      {% csrf_token %}
+      <button type="submit" class="btn-primary btn-sm">{% icon "call_parent" %} أكّد الإحالة وأشعِر وليَّ الأمر</button>
+    </form>
     {% endif %}
   </div>
 </div>

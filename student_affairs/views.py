@@ -31,7 +31,7 @@ from core.audit_repr import masked_repr
 from core.capabilities import capability_required, has_capability
 from core.domain.attendance import attendance_rate
 from core.domain.tones import ATTENDANCE_SUMMARY, tone_for
-from core.excel_safety import neutralize_formula_value
+from core.excel_safety import safe_cell
 from core.export_utils import (
     add_excel_footer,
     add_excel_header,
@@ -508,7 +508,7 @@ def student_export_excel(request):
     thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=data_start, column=col, value=h)
+        cell = safe_cell(ws, row=data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -527,9 +527,8 @@ def student_export_excel(request):
             m.user.get_phone_decrypted() or "—",
             m.user.email or "—",
         ]
-        row_data = [neutralize_formula_value(v) for v in row_data]
         for col, val in enumerate(row_data, 1):
-            cell = ws.cell(row=data_start + i, column=col, value=val)
+            cell = safe_cell(ws, row=data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
@@ -644,7 +643,6 @@ def student_edit(request, student_id):
     )
     year = academic_year_for(request)
     profile = getattr(student, "profile", None)
-
     from .forms import StudentEditForm
 
     if request.method == "POST":
@@ -661,6 +659,7 @@ def student_edit(request, student_id):
                     {
                         "full_name": cd["full_name"],
                         "phone": cd.get("phone", ""),
+                        "actor": request.user,
                         "email": cd.get("email", ""),
                         "birth_date": cd.get("birth_date"),
                         "notes": cd.get("notes", ""),
@@ -1439,7 +1438,7 @@ def attendance_export_excel(request):
     s1_data_start = add_excel_header(ws1, ctx, s1_num_cols)
 
     for col, h in enumerate(s1_headers, 1):
-        cell = ws1.cell(row=s1_data_start, column=col, value=h)
+        cell = safe_cell(ws1, row=s1_data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -1456,7 +1455,7 @@ def attendance_export_excel(request):
             rec["absence_count"],
         ]
         for col, val in enumerate(row_data, 1):
-            cell = ws1.cell(row=s1_data_start + i, column=col, value=val)
+            cell = safe_cell(ws1, row=s1_data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
@@ -1480,7 +1479,7 @@ def attendance_export_excel(request):
     s2_data_start = add_excel_header(ws2, ctx, s2_num_cols)
 
     for col, h in enumerate(s2_headers, 1):
-        cell = ws2.cell(row=s2_data_start, column=col, value=h)
+        cell = safe_cell(ws2, row=s2_data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -1498,7 +1497,7 @@ def attendance_export_excel(request):
             status_map.get(rec.status, rec.status),
         ]
         for col, val in enumerate(row_data, 1):
-            cell = ws2.cell(row=s2_data_start + i, column=col, value=val)
+            cell = safe_cell(ws2, row=s2_data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if rec.status == "absent":
@@ -2200,7 +2199,7 @@ def behavior_export_excel(request):
     thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=data_start, column=col, value=h)
+        cell = safe_cell(ws, row=data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -2215,9 +2214,8 @@ def behavior_export_excel(request):
             mask_national_id(rec["student__national_id"]),
             rec["count"],
         ]
-        row_data = [neutralize_formula_value(v) for v in row_data]
         for col, val in enumerate(row_data, 1):
-            cell = ws.cell(row=data_start + i, column=col, value=val)
+            cell = safe_cell(ws, row=data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
@@ -2293,7 +2291,7 @@ def tardiness_export_excel(request):
     thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=data_start, column=col, value=h)
+        cell = safe_cell(ws, row=data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -2318,7 +2316,7 @@ def tardiness_export_excel(request):
             has_file,
         ]
         for col, val in enumerate(row_data, 1):
-            cell = ws.cell(row=data_start + i, column=col, value=val)
+            cell = safe_cell(ws, row=data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
@@ -2379,7 +2377,7 @@ def activities_export_excel(request):
     thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=data_start, column=col, value=h)
+        cell = safe_cell(ws, row=data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -2396,7 +2394,7 @@ def activities_export_excel(request):
             act.date.strftime("%d/%m/%Y") if act.date else "—",
         ]
         for col, val in enumerate(row_data, 1):
-            cell = ws.cell(row=data_start + i, column=col, value=val)
+            cell = safe_cell(ws, row=data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:

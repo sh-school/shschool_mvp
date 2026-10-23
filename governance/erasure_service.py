@@ -61,7 +61,7 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
         GuardianContact,
         StudentAttendance,
     )
-    from student_affairs.models import StudentActivity, StudentTransfer
+    from student_affairs.models import GuardianRequest, StudentActivity, StudentTransfer
     from student_info.models import StudentNote
 
     _STUDENT_FK_MODELS.extend(
@@ -84,6 +84,7 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
             # لأنّ المستخدم يُجهَّل ولا يُحذف). tests/test_erasure_coverage.py يحرس القائمة.
             (StudentNote, "student", False),  # ملاحظاتٌ نفسيّةٌ وصحّيّةٌ عن قاصر (م.16)
             (StudentTransfer, "student", False),  # سجلُّ الانتقال بين المدارس
+            (GuardianRequest, "student", False),  # طلباتُ وليّ الأمر وشكاواه (جوّالات مشفّرة)
             (GuardianContact, "student", False),  # اتّصالات وليّ الأمر بالهاتف
             (ClassExit, "student", False),  # خروجُ الطالب من الحصّة
             (ExitPermit, "student", False),  # إذنُ خروج الطالب من المدرسة (W-20261005-010)

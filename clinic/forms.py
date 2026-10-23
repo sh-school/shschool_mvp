@@ -2,6 +2,7 @@
 
 from django import forms
 
+from .choices import COMPLAINT_CHOICES, SERVICE_CHOICES
 from .models import HealthRecord
 
 
@@ -40,8 +41,19 @@ class HealthRecordForm(forms.Form):
 
 class ClinicVisitForm(forms.Form):
     student_id = forms.UUIDField(label="الطالب")
+    service_code = forms.ChoiceField(
+        choices=[("", "— الخدمة —")] + list(SERVICE_CHOICES),
+        required=False,
+        label="الخدمة",
+    )
+    complaint_code = forms.ChoiceField(
+        choices=[("", "— الشكوى —")] + list(COMPLAINT_CHOICES),
+        required=False,
+        label="الشكوى",
+    )
     reason = forms.CharField(
         max_length=500,
+        required=False,
         label="سبب الزيارة",
         widget=forms.TextInput(attrs={"placeholder": "وصف موجز لسبب المراجعة"}),
     )
@@ -67,3 +79,10 @@ class ClinicVisitForm(forms.Form):
         required=False,
         label="تم إرسال الطالب للمنزل",
     )
+
+    def clean(self):
+        """الشكوى المرمَّزة أو النصُّ الحرّ — أحدُهما على الأقلّ."""
+        data = super().clean()
+        if not data.get("reason") and not data.get("complaint_code"):
+            raise forms.ValidationError("اختر الشكوى أو اكتب سبب الزيارة.")
+        return data

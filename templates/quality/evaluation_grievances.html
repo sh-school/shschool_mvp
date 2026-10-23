@@ -1,4 +1,6 @@
 {% extends "base/base.html" %}
+{% load static %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/custom/35-quality.css' %}">{% endblock %}
 {% load icons %}
 {% load ui %}
 {% block title %}تظلّمات تقييم الأداء — {{ current_school.name|default:"المدرسة" }}{% endblock %}
