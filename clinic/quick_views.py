@@ -95,6 +95,7 @@ def quick_start(request):
         id=request.POST.get("student_id"),
         memberships__school=school,
         memberships__role__name="student",
+        memberships__is_active=True,
     )
     visit = ClinicService.start_visit(school, student, request.user)
     return _changed(render(request, "clinic/partials/_quick_panel.html", _panel_ctx(visit)))
