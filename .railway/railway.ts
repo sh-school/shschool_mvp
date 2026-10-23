@@ -20,7 +20,6 @@
  *   PATH="$APPDATA/npm/node_modules/@railway/cli/bin:$PATH" env -u _ railway.exe config plan
  */
 import {
-  bucket,
   defineRailway,
   github,
   postgres,
@@ -138,7 +137,6 @@ export default defineRailway(() => {
   // قواعدُ البيانات والحاوية تُدار من Railway نفسِه؛ ذكرُها هنا يمنع `apply` من حذفها.
   const db = postgres("Postgres");
   const cache = redis("Redis");
-  const pitr = bucket("Postgres-PITR", { region: "sjc" });
 
-  return project("shschool_mvp", { resources: [web, worker, beat, db, cache, pitr] });
+  return project("shschool_mvp", { resources: [web, worker, beat, db, cache] });
 });

@@ -36,8 +36,10 @@ def test_config_as_code_files_are_gone():
 def test_iac_manages_the_whole_project_not_a_partial(iac):
     # `partial` يحصر الخطّة في خدمةٍ واحدة ويترك الباقي بلا حماية — ممنوع هنا.
     assert "export const partial" not in iac
-    for resource in ('postgres("Postgres")', 'redis("Redis")', 'bucket("Postgres-PITR"'):
+    for resource in ('postgres("Postgres")', 'redis("Redis")'):
         assert resource in iac, f"موردٌ غيرُ مذكورٍ سيحذفه apply: {resource}"
+    # سلّةُ Postgres-PITR حذفها المالكُ عمداً (W-20261023-019): عودتُها تعيد إنشاءها وتُحاسَب.
+    assert "pitr" not in iac.lower() and "bucket(" not in iac
 
 
 def test_web_service_is_declared_as_deployed(iac):
