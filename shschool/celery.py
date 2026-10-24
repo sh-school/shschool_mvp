@@ -211,3 +211,8 @@ app.conf.beat_schedule.update(absence_reports_beat())
 from clinic.autoclose_beat import clinic_autoclose_beat  # noqa: E402
 
 app.conf.beat_schedule.update(clinic_autoclose_beat())
+
+# تنبيهُ الممرّضين بصلاحية مستلزمات العيادة (W-20261020-040): معطَّلٌ حتى `CLINIC_SUPPLY_BEAT=1`.
+from clinic.supply_beat import clinic_supply_beat  # noqa: E402
+
+app.conf.beat_schedule.update(clinic_supply_beat())

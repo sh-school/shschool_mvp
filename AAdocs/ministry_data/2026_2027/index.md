@@ -31,6 +31,7 @@
 | الملف | الرابط | تاريخ الجلب | النوع | الثقة | حرفي/ملخص |
 |---|---|---|---|---|---|
 | [ext_delegation_hr_law_art53_2026-10-23.md](ext_delegation_hr_law_art53_2026-10-23.md) | http://www.almeezan.qa/LawView.aspx?opt&LawID=7102 | 2026-10-23 | نصٌّ نظاميّ (المادة 53 الندب) | متوسطة — لم يُفحص تعديل 2025 ولا اللائحة | حرفيٌّ بالمعنى بإعادة ترتيب كلمات الاستخراج؛ يُطابَق على الميزان |
+| [ext_hr_law_2025_amendment_secondment_2026-10-23.md](ext_hr_law_2025_amendment_secondment_2026-10-23.md) | https://www.qu.edu.qa/en-us/Colleges/health/clinical-operations-and-engagement/Documents/Law_2025_25.pdf + Cabinet%20Decision_2025_34.pdf | 2026-10-23 | نصٌّ نظاميّ (قانون 25/2025 وقرار 34/2025) + تحليل ثانوي | متوسطة إلى عالية للاستنتاج السلبي؛ اللائحة الأصلية لم تُقرأ | ملخّص؛ يُطابَق على الميزان |
 
 ## ⚠️ تعارضات وفجوات تحتاج قراراً هندسياً قبل الترميز
 

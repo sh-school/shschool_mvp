@@ -15,7 +15,7 @@
 {% block content %}
 <div class="exec-dash">
   {% page_header "تقرير حضور الموظفين الشهري" subtitle="يحسب ولا يخصم: الخصمُ (البند 5) قرارٌ إداريّ على هذا التقرير" icon="reports" %}
-    <a data-app-file href="{% url 'staff_affairs:attendance_report_xlsx' %}?month={{ month_value }}" class="btn-primary btn-sm">{% icon "export_excel" %} تنزيل Excel</a>
+    {% export_button "xlsx" "staff_affairs:attendance_report_xlsx" primary=True %}?month={{ month_value }}{% endexport_button %}
   {% endpage_header %}
 
   {% filter_bar "اختيار شهر التقرير" %}
