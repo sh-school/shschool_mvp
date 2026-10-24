@@ -134,9 +134,7 @@ jobs:
           python manage.py migrate --noinput
           VISUAL_BASELINE_DIR="" VISUAL_OUT="$GITHUB_WORKSPACE/visual-main" python -m pytest tests/e2e/test_visual_snapshots_live.py -v
           echo "VISUAL_BASELINE_DIR=$GITHUB_WORKSPACE/visual-main/shots" >> "$GITHUB_ENV"
-          # القاعدةُ مشتركةٌ بين الشجرتين: يُعاد ترحيلُها لمخطّط الطلب قبل لقطاته.
-          cd "$GITHUB_WORKSPACE"
-          python manage.py migrate --noinput
+          # لا ترحيلَ بعد البناء: pytest-django يهدم القاعدةَ عند ختام الجلسة، واختبارُ اللقطات يبنيها من جديدٍ لمخطّط الطلب.
 
       # المهلةُ على الخطوة لا الوظيفة: `test_ci_suite_parity` يقرأ مهلةَ الوظيفة ميزانيّةَ مجموعةٍ كاملةٍ تلزمها الموازاة، وهذه مساراتٌ محدَّدة.
       # D-277م (أمر المالك المباشر، 2026-10-08): الفحصُ استشاريٌّ بنصّه فلا يحجب النشر. على `push` إلى main يفشل الاختبارُ ولا يُحمّر المهمّةَ

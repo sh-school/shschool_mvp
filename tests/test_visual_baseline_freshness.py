@@ -54,6 +54,5 @@ def test_download_exports_baseline_sha_and_refresh_compares_to_main_head():
     assert "docs/" in run, "دمجُ الوثائق وحدَها لا يُقادم الأساس"
     assert "git worktree add" in run
     assert "VISUAL_BASELINE_DIR=" in run
-    assert run.rstrip().endswith(
-        "python manage.py migrate --noinput"
-    ), "إعادةُ ترحيل القاعدة لمخطّط الطلب"
+    # pytest-django يهدم القاعدةَ عند ختام الجلسة (تشغيل 40067227792): لا ترحيلَ بعد البناء.
+    assert not run.rstrip().endswith("migrate --noinput")
