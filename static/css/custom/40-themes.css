@@ -835,14 +835,17 @@ html.dark .wing-panel__bar { background: var(--maroon-dark); }
 /* رؤيةُ المدرسة: تشكيلُها أزرقُ في الوضع النهاريّ وفاتحٌ في الليليّ (لوحةُ الخطّ `--tashkeel-dark` في 10-foundation) */
 html.dark .vision-text { font-palette: --tashkeel-dark; }
 /* وضعُ الألوان القسريّ (Windows عالي التباين): تُهمَل الخلفيّاتُ والظلالُ وتُفرض ألوانُ النظام، فيضيع حدُّ الأزرار والحقول والبطاقات
-   وتغيّرُ لون الحدّ عند التركيز. نعيد حدّاً بألوان النظام وحلقةَ تركيزٍ Highlight؛ لا إخفاءَ ولا تغييرَ تخطيطٍ (W-20261016-006). */
+   وتغيّرُ لون الحدّ عند التركيز. نعيد حدّاً بألوان النظام وحلقةَ تركيزٍ برمز `--focus-color` معرَّفاً Highlight هنا؛ لا إخفاءَ ولا تغييرَ تخطيطٍ (W-20261016-006). */
 @media (forced-colors: active) {
+  :root {
+    --focus-color: Highlight;
+  }
   .btn, button, .nb, .card-qatar, .ui-section, .form-control, .form-select, .filter-bar input, .filter-bar select {
     border: 1px solid ButtonText;
   }
   :focus-visible,
   .form-control:focus, .form-select:focus, .filter-bar input:focus, .filter-bar select:focus, .cmd-input:focus {
-    outline: 2px solid Highlight;
+    outline: 2px solid var(--focus-color);
     outline-offset: 2px;
   }
 }
