@@ -24,7 +24,7 @@ def clinic_library_transport_capabilities(shared: Shared) -> list[Capability]:
         _cap(
             "clinic.export",
             "تصديرُ التقرير الشهريّ للعيادة (أعدادٌ بلا أسماء)",
-            {"nurse", "principal", "vice_admin"},
+            {"nurse", "principal"},
             basis="قدرةُ تصديرٍ مستقلّةٌ عن القراءة (W-20261020-032): ملفٌّ عدديٌّ يغادر المنصّة فيُسجَّل في سجلّ التدقيق",
         ),
         _cap("library.view", "المكتبةُ والكتب", P.LIBRARY_VIEW | P.LIBRARY_FULL),

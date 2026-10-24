@@ -1,5 +1,5 @@
 {% extends "reports/base_qatar_report.html" %}
-{% block extra_styles %}@page { size: A4 landscape; @bottom-center { content: "سرّي — بياناتٌ صحّيّةٌ مجمَّعة للاستعمال الداخليّ فقط — صفحة " counter(page) " من " counter(pages); font-size: 8pt; } } /* كشفٌ بأعمدة: أفقيّ بسياسة الطباعة (core/print_policy.py) */{% endblock %}
+{% block extra_styles %}@page { size: A4 landscape; } /* كشفٌ بأعمدة: أفقيّ بسياسة الطباعة (core/print_policy.py)؛ والتذييلُ من إطار القالب الأساس لا من هنا */{% endblock %}
 
 {% block report_title_bar %}
 <h1 class="report-title-bar">التقرير الشهري للعيادة المدرسية — {{ month_label }}</h1>
@@ -16,6 +16,7 @@
 {% endblock %}
 
 {% block content %}
+<p class="section-head">سرّي — بياناتٌ صحّيّةٌ مجمَّعة للاستعمال الداخليّ فقط</p>
 <div class="kpi-strip">
   <div class="kpi-item"><span class="kpi-num">{{ total }}</span><span class="kpi-label">إجمالي الزيارات</span></div>
   <div class="kpi-item"><span class="kpi-num c-orange">{{ uncoded }}</span><span class="kpi-label">زيارات غير مرمَّزة</span></div>

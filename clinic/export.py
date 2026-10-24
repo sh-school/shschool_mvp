@@ -115,6 +115,7 @@ def dashboard_rows(counts: dict[str, Any]) -> list[tuple[str, str, Any]]:
 def build_workbook(school: Any, year: int, month: int) -> bytes:
     from io import BytesIO
 
+    from core.export_utils import apply_print_footer
     from reports.services import ExcelService
 
     counts = monthly_counts(school, year, month)
@@ -156,6 +157,7 @@ def build_workbook(school: Any, year: int, month: int) -> bytes:
         r += 1
     ws2.freeze_panes = "A5"
 
+    apply_print_footer(wb, school)  # رؤيةُ الوزارة في ذيل الطباعة (قرار المالك 2026-09-27)
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()

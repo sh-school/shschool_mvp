@@ -96,6 +96,13 @@ def test_export_capability_is_independent_of_read_access(nurse_user, teacher_use
     assert not has_capability(teacher_user, "clinic.export")
 
 
+def test_export_capability_is_for_nurse_and_principal_only():
+    """قرارُ المالك: تصديرُ العيادة للممرضة والمدير فقط — لا نائبَ إداريّ."""
+    from core.capabilities import registry as caps
+
+    assert caps()["clinic.export"].roles == {"nurse", "principal"}
+
+
 def test_builder_returns_audit_row_count(school, student_user, nurse_user):
     _visit(school, student_user, nurse_user, _in_month(), service_code="bandage")
     res = ce.build_monthly_export(school, nurse_user, {"year": "2026", "month": "9"})
