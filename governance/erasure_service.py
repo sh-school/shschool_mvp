@@ -42,7 +42,7 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
         StudentSubjectResult,
     )
     from behavior.models import AutoInfractionNotice, BehaviorInfraction
-    from clinic.models import ClinicVisit, HealthRecord
+    from clinic.models import ClinicVisit, GuardianMedicationConsent, HealthRecord
     from developer_feedback.models import DeveloperMessage
     from exam_control.models import ExamIncident
     from library.models import BookBorrowing
@@ -61,13 +61,14 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
         GuardianContact,
         StudentAttendance,
     )
-    from student_affairs.models import StudentActivity, StudentTransfer
+    from student_affairs.models import GuardianRequest, StudentActivity, StudentTransfer
     from student_info.models import StudentNote
 
     _STUDENT_FK_MODELS.extend(
         [
             (HealthRecord, "student", True),  # OneToOne
             (ClinicVisit, "student", False),
+            (GuardianMedicationConsent, "student", False),  # موافقةُ وليّ الأمر على دواءٍ للطالب
             (StudentAssessmentGrade, "student", False),
             (StudentSubjectResult, "student", False),
             (AnnualSubjectResult, "student", False),
@@ -84,6 +85,7 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
             # لأنّ المستخدم يُجهَّل ولا يُحذف). tests/test_erasure_coverage.py يحرس القائمة.
             (StudentNote, "student", False),  # ملاحظاتٌ نفسيّةٌ وصحّيّةٌ عن قاصر (م.16)
             (StudentTransfer, "student", False),  # سجلُّ الانتقال بين المدارس
+            (GuardianRequest, "student", False),  # طلباتُ وليّ الأمر وشكاواه (جوّالات مشفّرة)
             (GuardianContact, "student", False),  # اتّصالات وليّ الأمر بالهاتف
             (ClassExit, "student", False),  # خروجُ الطالب من الحصّة
             (ExitPermit, "student", False),  # إذنُ خروج الطالب من المدرسة (W-20261005-010)

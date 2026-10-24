@@ -29,8 +29,8 @@
         <option value="landscape">أفقي</option>
         <option value="portrait">عمودي</option>
       </select>
-      <button data-app-file type="submit" name="format" value="xlsx" class="btn-secondary btn-sm">{% icon "export_excel" %} Excel</button>
-      <button data-app-file type="submit" name="format" value="pdf" class="btn-secondary btn-sm">{% icon "export_pdf" %} PDF</button>
+      {% export_button "xlsx" name="format" value="xlsx" %}{% endexport_button %}
+      {% export_button "pdf" name="format" value="pdf" %}{% endexport_button %}
     </form>
     {% callout "hint" %}للقراءة فقط: يُرفع الطالبُ غائباً إن غاب الحصّتين الأولى والثانية معاً ورصدُه كاملٌ في الاثنتين. ومن لم تُرصد إحداهما «بلا رصد» ولا يُحسب غائباً، ورصدُ المعلّم بانتظار الاعتماد وسمٌ لا يدخل في أيّ عدّ. والرفعُ في نظام الوزارة يدويٌّ خارجَ المنصّة.{% endcallout %}
   {% endpage_header %}

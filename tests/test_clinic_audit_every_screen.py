@@ -20,6 +20,7 @@ HEALTH_VIEWS = {
     "visits_list",
     "quick_entry",
     "quick_queue",
+    "referrals",
 }
 
 # مستثناةٌ مسمّاةٌ بسببها: لا تعرض بياناً صحّيّاً فرديّاً من الطالب.
@@ -34,6 +35,11 @@ NON_HEALTH_VIEWS = {
     "quick_start": "كتابةٌ بـPOST تُدقَّق بإشارة post_save على الزيارة",
     "quick_service": "كتابةٌ بـPOST برمزٍ معتمدٍ تُدقَّق بإشارة post_save على الزيارة",
     "quick_close": "كتابةٌ بـPOST تُدقَّق بإشارة post_save على الزيارة",
+    "referral_close": "كتابةٌ بـPOST تُدقَّق بإشارة post_save على الإحالة",
+    "supplies": "قائمةُ مستلزماتٍ (اسمٌ وتاريخٌ وكمّيّة) لا بيانَ شخصيّاً فيها",
+    "supply_add": "كتابةٌ بـPOST لصنف مخزونٍ لا بيانَ شخصيّاً فيه",
+    "supply_delete": "حذفٌ بـPOST لصنف مخزونٍ لا بيانَ شخصيّاً فيه",
+    "referral_receipt": "إيصالٌ يُدقَّق بسطر export عند كلّ فتحٍ بمعرّفاتٍ فقط",
 }
 
 

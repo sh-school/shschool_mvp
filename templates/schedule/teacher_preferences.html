@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load ui %}
+{% load ui schedule_filters %}
 {% block title %}تفضيلاتي للجدولة — {{ year }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -44,7 +44,7 @@
         </select>
         <p class="ui-field-hint">
           أكبر عدد حصص في يومك؛ قيد صلب لا يتجاوزه المولّد.
-          {% if load %}نصابُك <b>{{ load }}</b> حصة{% if min_daily > daily_caps.0 %} — فأدنى رقمٍ يحتمله نصابُك عادةً <b>{{ min_daily }}</b>{% endif %}.{% endif %}
+          {% if load %}نصابُك <b>{{ load|periods_phrase }}</b>{% if min_daily > daily_caps.0 %} — فأدنى رقمٍ يحتمله نصابُك عادةً <b>{{ min_daily }}</b>{% endif %}.{% endif %}
         </p>
       </div>
     {% endsection_card %}

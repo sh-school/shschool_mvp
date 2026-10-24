@@ -52,6 +52,7 @@ def _panel_ctx(visit: ClinicVisit) -> dict:
         ],
         "complaints": choices.COMPLAINT_CHOICES,
         "outcomes": choices.OUTCOME_CHOICES,
+        "followups": choices.FOLLOWUP_CHOICES,
     }
 
 
@@ -95,6 +96,7 @@ def quick_start(request):
         id=request.POST.get("student_id"),
         memberships__school=school,
         memberships__role__name="student",
+        memberships__is_active=True,
     )
     visit = ClinicService.start_visit(school, student, request.user)
     return _changed(render(request, "clinic/partials/_quick_panel.html", _panel_ctx(visit)))
@@ -122,7 +124,9 @@ def quick_close(request, visit_id):
     school = request.school
     visit = get_object_or_404(ClinicVisit, id=visit_id, school=school)
     try:
-        ClinicService.close_visit(visit, request.POST.get("outcome", ""))
+        ClinicService.close_visit(
+            visit, request.POST.get("outcome", ""), request.POST.get("follow_up_party", "")
+        )
     except ValueError:
         return HttpResponse("طلبٌ غير صالح", status=400)
     return _changed(render(request, "clinic/partials/_quick_closed.html", {"visit": visit}))

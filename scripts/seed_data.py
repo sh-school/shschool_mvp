@@ -142,6 +142,7 @@ def run():
         ]
 
         cg_7_1 = class_groups["G7-1"]
+        cg_8_1 = class_groups["G8-1"]
         students = []
         for i, name in enumerate(student_names):
             nid = f"3136{34000 + i:05d}"

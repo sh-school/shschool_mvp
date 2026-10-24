@@ -221,20 +221,20 @@ td {
         <td colspan="2" rowspan="2">{{ teacher_short_name }}</td>
         <td class="key">نوع المتابعة</td>
         <td class="key center">ميدانيّة</td>
-        <td class="center tk">{% if obs.follow_up_mode == 'field' %}✓{% endif %}</td>
+        <td class="center tk">{% if obs.follow_up_mode == 'field' %}نعم{% endif %}</td>
         <td class="key center">عن بُعد</td>
-        <td class="center tk">{% if obs.follow_up_mode == 'remote' %}✓{% endif %}</td>
+        <td class="center tk">{% if obs.follow_up_mode == 'remote' %}نعم{% endif %}</td>
         <td class="key center">جزئيّة</td>
-        <td class="center tk">{% if obs.follow_up_scope == 'partial' %}✓{% endif %}</td>
+        <td class="center tk">{% if obs.follow_up_scope == 'partial' %}نعم{% endif %}</td>
         <td class="key center">كلّيّة</td>
-        <td class="center tk">{% if obs.follow_up_scope == 'full' %}✓{% endif %}</td>
+        <td class="center tk">{% if obs.follow_up_scope == 'full' %}نعم{% endif %}</td>
       </tr>
       <tr>
         <td class="key">ملاحظات</td>
         <td class="key center" colspan="2">بث مباشر مدمج</td>
-        <td class="center tk">{% if obs.broadcast_note == 'بث مباشر مدمج' %}✓{% endif %}</td>
+        <td class="center tk">{% if obs.broadcast_note == 'بث مباشر مدمج' %}نعم{% endif %}</td>
         <td class="key center" colspan="3">بث مباشر غير مدمج</td>
-        <td class="center tk" colspan="2">{% if obs.broadcast_note == 'بث مباشر غير مدمج' %}✓{% endif %}</td>
+        <td class="center tk" colspan="2">{% if obs.broadcast_note == 'بث مباشر غير مدمج' %}نعم{% endif %}</td>
       </tr>
       {% endif %}
     </table>
@@ -258,7 +258,7 @@ td {
           {% endif %}
           <td class="crit">{{ row.criterion.text }}</td>
           {% for value, label in ratings %}
-            <td class="rate">{% if row.score and row.score.rating == value %}✓{% endif %}</td>
+            <td class="rate">{% if row.score and row.score.rating == value %}نعم{% endif %}</td>
           {% endfor %}
           <td class="rec">{% if row.score %}{{ row.score.recommendation }}{% endif %}</td>
         </tr>
