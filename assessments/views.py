@@ -25,6 +25,7 @@ from core.excel_safety import safe_cell
 from core.export_utils import apply_print_footer, excel_table_styles, xl_font
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_order
+from core.pdf_utils import content_disposition
 from core.permissions import teacher_can_access_student
 from core.privacy import mask_national_id
 from core.user_selectors import school_user_or_404
@@ -680,7 +681,7 @@ def export_gradebook(request, setup_id):
         buf.read(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    resp["Content-Disposition"] = content_disposition(filename)
     return resp
 
 
