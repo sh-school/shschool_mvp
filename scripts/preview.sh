@@ -155,11 +155,40 @@ guard_tree() {
 }
 
 slug_db() { (cd "$1" && bash "$SELF_ROOT/scripts/session-db.sh" --name); }
+# الأصلُ الذي تُنسخ منه أجيالُ المعاينة: قاعدةٌ فيها مدرسةٌ نشطةٌ وحساباتُ المعاينة العشرة وصفُّ دور التطبيق
+# (تُبنى مرّةً بـ`bash scripts/preview.sh base`). نسخُ shschool_db الحيّة كانت فارغةً من المدارس، فخرج الجيلُ 72 بلا مدرسة.
+PREVIEW_SOURCE_DB="${PREVIEW_SOURCE_DB:-ss_preview_base}"
+
 ensure_db() {   # ensure_db <شجرة> [اسمٌ صريح]: الاسمُ الصريحُ لأجيال قاعدة المعاينة (انظر preview_db)
   local name="${2:-}"
   [ -n "$name" ] || name="$(slug_db "$1")"
   if [ "$DRY" = 1 ]; then say "[dry] قاعدةُ $name تُنشأ إن لم توجد"; return 0; fi
-  (cd "$1" && SESSION_DB_NAME="$name" bash "$SELF_ROOT/scripts/session-db.sh")
+  (cd "$1" && SOURCE_DB="$PREVIEW_SOURCE_DB" SESSION_DB_NAME="$name" bash "$SELF_ROOT/scripts/session-db.sh") || return 1
+  guard_db "$name"
+}
+
+guard_db() {   # guard_db <قاعدة>: يرفض جيلاً بلا مدرسةٍ نشطةٍ أو بلا صفِّ دور التطبيق shschool_app في app_rls_role_school
+  local counts schools maps
+  counts="$(docker exec "${DB_CONTAINER:-shschool-dev-db}" psql -U shschool_user -d "$1" -tAc "select (select count(*) from core_school where is_active), (select count(*) from app_rls_role_school where db_role = 'shschool_app')" 2>/dev/null)" \
+    || { warn "تعذّر فحصُ القاعدة $1 — يُرفض النشرُ احتياطاً"; return 1; }
+  schools="${counts%%|*}"; maps="${counts##*|}"
+  if [ "${schools:-0}" -lt 1 ] || [ "${maps:-0}" -lt 1 ]; then
+    warn "القاعدة $1 بلا مدرسةٍ نشطةٍ ($schools) أو بلا صفِّ shschool_app ($maps) — يُرفض النشر (الأصلُ: $PREVIEW_SOURCE_DB، شغّل: bash scripts/preview.sh base)"
+    sset last_error "$(now) رُفض نشرُ الجيل: $1 بلا مدرسةٍ نشطةٍ أو بلا ربطِ shschool_app"
+    return 1
+  fi
+}
+
+base_db() {   # base_db: يبني أصلَ المعاينة مرّةً (idempotent): نسخةٌ من shschool_db، ثمّ هجراتٌ، ثمّ مدرسةٌ نشطةٌ وحساباتٌ وربطُ الدور
+  local tree="$PREVIEW_DIR" img school='from core.models import School; School.objects.get_or_create(code="SHH", defaults={"name": "مدرسة المعاينة (SHH)", "is_active": True})'
+  (cd "$tree" && SOURCE_DB="shschool_db" SESSION_DB_NAME="$PREVIEW_SOURCE_DB" bash "$SELF_ROOT/scripts/session-db.sh") || return 1
+  img="$(current_image)"
+  run docker run --rm --network host -e DB_HOST=host.docker.internal -e DB_PORT="${DB_HOST_PORT:-5433}" \
+    -e DB_NAME="$PREVIEW_SOURCE_DB" -e DB_USER=shschool_user --env-file "$PREVIEW_DIR/.env" \
+    -e PREVIEW_DB_NAME="$PREVIEW_SOURCE_DB" -e PREVIEW_MODE=dev -e DJANGO_SETTINGS_MODULE=shschool.settings.development \
+    "$img" sh -c "python manage.py migrate --noinput && python manage.py shell -c '$school' && python manage.py preview_accounts --sync" \
+    || return 1
+  guard_db "$PREVIEW_SOURCE_DB"
 }
 
 # ── قاعدةُ المعاينة: لا تحمل هجرةً ليست في الشجرة المعروضة ─────────────────────────
@@ -289,7 +318,7 @@ compose() {   # compose <شجرة> <أوامر…>: الشجرةُ المعرو�
 
 wait_web() {
   [ "$DRY" = 1 ] && return 0
-  local c="${PROJECT}-web-1" state i restarts
+  local c="$(web_container)" state i restarts
   for i in $(seq 1 90); do
     state="$(docker inspect -f '{{.State.Health.Status}}' "$c" 2>/dev/null || echo missing)"
     [ "$state" = "healthy" ] && return 0
@@ -306,6 +335,12 @@ wait_web() {
 
 served_commit() {
   curl -s -m 5 "http://127.0.0.1:$PORT/health/" | sed -n 's/.*"commit": *"\([0-9a-f]*\)".*/\1/p' || true
+}
+
+# حاويةُ الويب الفعليّة: اسمُها `${PROJECT}-web-1` أو `${PROJECT}-b-web-1` (المشروعُ البديل بعد تبديل الحاويات).
+# الاسمُ الثابتُ وحده جعل الحالةَ تقول «غيرُ موجود» وصفحةُ /health/ تعلن الإصدار نفسَه (W-20261024، تناقضُ status).
+web_container() {
+  docker ps --filter "name=${PROJECT}" --format '{{.Names}}' 2>/dev/null | grep -m1 -- '-web-1$' || echo "${PROJECT}-web-1"
 }
 
 # ── التكامل: main + ما أودعته الجلساتُ ولم يُدمج ─────────────────────────────
@@ -489,13 +524,19 @@ same_content() {
 deploy_main() {
   local tree="$PREVIEW_DIR" db label
   db="$(preview_db)"
-  ensure_db "$tree" "$db"
+  ensure_db "$tree" "$db" || { warn "لم يُنشر الجيل: قاعدةُ $db لم تجتز الحارس"; return 1; }
   ensure_image "$tree"
   export_env prod "$tree" "$db"
   label="${LABEL:-main@$PREVIEW_SHA}"
   say "▸ يُعاد إنشاءُ الخادم والعامل على $label (هجرة ← collectstatic ← daphne) — قاعدة $db"
   run compose "$tree" up -d --force-recreate --remove-orphans || warn "docker compose up أعاد خطأً"
   wait_web || return 1
+  # التحقّقُ قبل الإعلان: الصحّةُ تنجح ببقاء الإصدار القديم، فنقارن ما يعلنه الخادمُ بالرأس المطلوب
+  if [ "$DRY" != 1 ] && [ "$(served_commit)" != "$(git -C "$tree" rev-parse --short=7 HEAD)" ]; then
+    sset last_error "$(now) الخادمُ يعلن $(served_commit) لا $(git -C "$tree" rev-parse --short=7 HEAD) — لم يُعتمد النشر"
+    warn "الخادمُ يعلن $(served_commit) لا $(git -C "$tree" rev-parse --short=7 HEAD) — لم يُعتمد النشر"
+    return 1
+  fi
   sset mode follow
   sset served_sha "$(git -C "$tree" rev-parse HEAD)"
   sset served_label "$label"
@@ -655,7 +696,7 @@ apply_main() {   # apply_main <sha> — بعد resolve_target (LABEL وINTEG_KIN
 deploy_pin() {   # deploy_pin <شجرة> <دقائق>
   local tree="$1" mins="$2" db
   db="$(slug_db "$tree")"
-  ensure_db "$tree"
+  ensure_db "$tree" || { warn "لم يُثبَّت $(basename "$tree"): قاعدتُه لم تجتز الحارس"; return 1; }
   if [ "$DRY" != 1 ] && ! deps_drift "$tree" "$(current_image)" >/dev/null 2>&1; then
     warn "requirements في هذه الشجرة تخالف اعتماديّاتِ الصورة — إن ظهر ImportError فهذا سببُه (لا أبني صورةً لشجرة جلسة)"
   fi
@@ -718,7 +759,7 @@ cmd_sync() {
   ts="$(now)"
 
   if same_content "$new" "$served"; then
-    if [ "$(docker inspect -f '{{.State.Running}}' "${PROJECT}-web-1" 2>/dev/null || echo false)" = "true" ]; then
+    if [ "$(docker inspect -f '{{.State.Running}}' "$(web_container)" 2>/dev/null || echo false)" = "true" ]; then
       idle "على $LABEL — لا جديد"
       return 0
     fi
@@ -751,6 +792,7 @@ cmd_sync() {
 cmd_watch() {
   say "مراقبةُ main وما أودعته الجلساتُ كلّ ${INTERVAL} ثانية — Ctrl+C يوقف المراقبةَ ويبقى الخادمُ"
   while :; do
+    sset watch_hb "$(now)"   # نبضُ الحلقة: يُقرأ لمعرفة هل تعمل المراقبةُ (وتوقّفُها يعني أنّ main لا يُتبَع)
     PREVIEW_QUIET_OUTPUT=1 bash "${BASH_SOURCE[0]}" sync || warn "دورةٌ فاشلة — تُعاد بعد $INTERVAL ثانية"
     sleep "$INTERVAL"
   done
@@ -851,7 +893,7 @@ cmd_status() {
   main="$(git -C "$PREVIEW_DIR" rev-parse --short=7 origin/main)"
   [ "$REF" = "origin/main" ] || say "تتبع المعاينةُ الآن $REF لا main (PREVIEW_REF) — لتجربة شيفرةٍ لم تُدمج"
   prod="$(curl -s -m 8 "$PROD_URL/health/" | sed -n 's/.*"commit": *"\([0-9a-f]*\)".*/\1/p' || true)"
-  running="$(docker inspect -f '{{.State.Status}} ({{.State.Health.Status}})' "${PROJECT}-web-1" 2>/dev/null || echo 'غيرُ موجود')"
+  running="$(docker inspect -f '{{.State.Status}} ({{.State.Health.Status}})' "$(web_container)" 2>/dev/null || echo 'غيرُ موجود')"
   serving="$(served_commit)"
   if [ "$mode" = pin ]; then
     pin_note=" — $(basename "$(sget pin_tree)") (يعود إلى main بعد $(( ($(sget pin_until) - $(now)) / 60 + 1 )) دقيقة)"
