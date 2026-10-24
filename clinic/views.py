@@ -67,7 +67,7 @@ def clinic_dashboard(request):
 @capability_required("clinic.counts")
 def clinic_counts(request):
     """اللوحةُ العدديّةُ للعيادة: أعدادٌ بلا أسماء وبقمع الخلايا الأقلّ من 5 (W-20261020-031)."""
-    school = request.user.get_school()
+    school = request.school
     today = timezone.now().date()
     context = ClinicService.get_counts_board(school, today=today)
     context["today_label"] = f"{today:%d/%m/%Y} · أعدادٌ مجمَّعةٌ بلا أسماء"
