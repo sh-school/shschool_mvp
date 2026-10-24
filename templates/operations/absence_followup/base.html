@@ -32,7 +32,7 @@
     {% endif %}
     {# الزرُّ يُخفى عمّن لا قدرةَ له، والخادمُ يرفض الطلبَ المباشر (403) #}
     {% if can_print %}
-    {% export_button "pdf" "absence_followup_print" %}?date={{ day|date:'Y-m-d' }}&amp;page={{ page }}{% if view_query %}&amp;{{ view_query }}{% endif %}{% endexport_button %}
+    {% export_button "pdf" "absence_followup_pdf" %}?date={{ day|date:'Y-m-d' }}&amp;page={{ page }}{% if view_query %}&amp;{{ view_query }}{% endif %}&amp;download=1{% endexport_button %}
     {% export_button "xlsx" "absence_followup_xlsx" %}?date={{ day|date:'Y-m-d' }}&amp;page={{ page }}{% if view_query %}&amp;{{ view_query }}{% endif %}{% endexport_button %}
     <a href="{% url 'absence_reports_archive' %}" class="btn-secondary btn-sm">{% icon "reports" %} التقارير الدورية</a>
     {% endif %}

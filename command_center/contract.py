@@ -67,6 +67,7 @@ PANELS: tuple[Panel, ...] = (
     Panel("today", "ما نُشر اليوم", 240),
     Panel("queue", "الطابورُ والنشر", 120),
     Panel("sync", "مزامنةُ الخارطة", 240),
+    Panel("card_flow", "مسارُ البطاقات", 180),
 )
 
 

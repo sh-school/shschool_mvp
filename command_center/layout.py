@@ -20,7 +20,7 @@ from roadmap.admin_monitor import BACKUP_OK_HOURS
 GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("prod", "الإنتاجُ وجاهزيّته", ("production", "latency", "database", "messaging", "ux")),
     ("security", "الأمانُ والامتثال", ("security", "supply", "compliance")),
-    ("shipping", "التسليمُ والنشر", ("queue", "pulls", "today", "delivery", "sync")),
+    ("shipping", "التسليمُ والنشر", ("queue", "pulls", "today", "delivery", "sync", "card_flow")),
     ("quality", "جودةُ الشيفرة", ("ci", "quality", "guards")),
     ("plan", "الخطّة", ("roadmap",)),
 )
@@ -40,6 +40,7 @@ FEATURED: dict[str, int] = {
     "today": 1,
     "delivery": 1,
     "sync": 1,
+    "card_flow": 2,  # متأخّرة
     "ci": 1,
     "quality": 1,
     "roadmap": 3,  # قراراتٌ بانتظارك
@@ -54,6 +55,7 @@ TARGETS: dict[str, str] = {
     "compliance": "0",
     "pulls": "0",
     "sync": "0",
+    "card_flow": "0",
     "guards": f"هامشٌ ≥ {guards.BAD_MARGIN} بايتاً",
 }
 

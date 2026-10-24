@@ -28,6 +28,7 @@ from django.views.decorators.http import require_POST
 
 from core.capabilities import capability_required, has_capability
 from core.models import AuditLog
+from core.pdf_utils import content_disposition
 from operations.models import AbsenceActionLog, AbsenceContactLog
 from operations.services import ScheduleService
 from operations.services import absence_followup as service
@@ -302,8 +303,9 @@ def followup_pdf(request: HttpRequest) -> HttpResponse:
         object_repr=f"{page}/{orient}",
     )
     response = HttpResponse(result.content, content_type=result.content_type)
-    mode = "attachment" if request.GET.get("download") else "inline"
-    response["Content-Disposition"] = f'{mode}; filename="{result.filename}"'
+    response["Content-Disposition"] = content_disposition(
+        result.filename, as_attachment=bool(request.GET.get("download"))
+    )
     return response
 
 
@@ -325,7 +327,7 @@ def followup_xlsx(request: HttpRequest) -> HttpResponse:
         object_repr=urlencode(filters),
     )
     response = HttpResponse(result.content, content_type=result.content_type)
-    response["Content-Disposition"] = f'attachment; filename="{result.filename}"'
+    response["Content-Disposition"] = content_disposition(result.filename)
     return response
 
 

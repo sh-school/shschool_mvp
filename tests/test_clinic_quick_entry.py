@@ -181,3 +181,23 @@ def test_admin_hides_the_service_group_from_lists():
 
     assert "service_group" not in ClinicVisitAdmin.list_display
     assert "service_group" not in ClinicVisitAdmin.list_filter
+
+
+@pytest.mark.django_db
+def test_quick_start_refuses_an_inactive_or_foreign_student(school, nurse_user):
+    from tests.conftest import MembershipFactory, RoleFactory, SchoolFactory, UserFactory
+
+    role = RoleFactory(school=school, name="student")
+    inactive = UserFactory(full_name="طالب منقطع")
+    MembershipFactory(user=inactive, school=school, role=role, is_active=False)
+
+    other = SchoolFactory()
+    other_role = RoleFactory(school=other, name="student")
+    foreign = UserFactory(full_name="طالب مدرسة أخرى")
+    MembershipFactory(user=foreign, school=other, role=other_role, is_active=True)
+
+    c = _client(nurse_user)
+    for student in (inactive, foreign):
+        resp = c.post(reverse("clinic:quick_start"), {"student_id": str(student.id)})
+        assert resp.status_code == 404
+    assert not ClinicVisit.objects.exists()
