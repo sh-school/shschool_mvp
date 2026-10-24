@@ -24,6 +24,7 @@ from .services import (
     bell_tables,
     coverage_rows,
     floors_overview,
+    no_wing_notice,
     outside_the_wings,
     record_panels,
     student_events_context,
@@ -52,6 +53,7 @@ def floors(request):
         request,
         "wings/floors.html",
         {
+            "no_wing": no_wing_notice(request.user, school, year, now.date()),
             "panels": panels,
             "tables": bell_tables(school),
             "now": now,
@@ -208,6 +210,7 @@ def record_index(request):
     opened = school_day(school, day)
 
     panels = []
+    no_wing = None
     if opened.is_open:
         # الحصصُ تُولَّد إن لم تكن — فشعبةٌ بلا حصصٍ لا تُرصد. ويومُ الإجازة لا يُعرض،
         # وإلّا ظهرت شُعبُه كلُّها «لم تُرصد» تحت «فلا رصد».
@@ -215,11 +218,14 @@ def record_index(request):
         # العدُّ في الخدمة لا في القالب: `add` في جانغو لا تطرح، فحسابُ
         # «المتبقّية» هناك كان يُخرج صفراً دائماً.
         panels = record_panels(request.user, school, year, day)
+        if not panels:
+            no_wing = no_wing_notice(request.user, school, year, timezone.localdate())
     return render(
         request,
         "wings/record_index.html",
         {
             "panels": panels,
+            "no_wing": no_wing,
             "day": day,
             "today": timezone.localdate(),
             "school_day": opened,
@@ -255,6 +261,13 @@ def record_section(request, class_id):
 
     يبقى المسارُ باسمه لروابط الإشعارات والصفحات القديمة فحسب؛ ولا كشفَ هنا ولا تثبيتَ. والشعبةُ من أجنحة المستخدم وإلّا 404.
     """
+    school = request.school
+    notice = no_wing_notice(
+        request.user, school, academic_year_for_school(school), timezone.localdate()
+    )
+    if notice:
+        messages.warning(request, notice)
+        return redirect("wings:record_index")
     _own_class(request, class_id)
     day = _day(request.GET.get("date"), timezone.localdate())
     target = reverse("class_grid", args=[class_id])
