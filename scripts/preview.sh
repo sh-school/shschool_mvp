@@ -689,6 +689,11 @@ deploy_main() {
   label="${LABEL:-main@$PREVIEW_SHA}"
   say "▸ يُعاد إنشاءُ الخادم والعامل على $label (هجرة ← collectstatic ← daphne) — قاعدة $db"
   bluegreen_up "$tree" || return 1
+  # الخادمُ يجب أن يعلن الرأسَ الذي بُنيَ منه (RAILWAY_GIT_COMMIT_SHA=PREVIEW_SHA في compose) قبل أن يُسجَّل خادماً خادماً
+  if [ "$DRY" != 1 ] && [ "$(served_commit)" != "$PREVIEW_SHA" ]; then
+    warn "الخادمُ يعلن commit=$(served_commit) لا $PREVIEW_SHA — لم تُسجَّل الخدمةُ"
+    return 1
+  fi
   sset mode follow
   sset served_sha "$(git -C "$tree" rev-parse HEAD)"
   sset served_label "$label"
