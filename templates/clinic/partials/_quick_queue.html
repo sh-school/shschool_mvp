@@ -1,0 +1,12 @@
+{% load ui %}
+{% if queue.auto_closed %}
+{% callout "warning" show=True %}أُغلقت {{ queue.auto_closed|length }} زيارةٍ تلقائياً بعد ثلاث ساعاتٍ دون إغلاق — راجعها.{% endcallout %}
+{% endif %}
+<div class="clinic-quick__cols">
+  <section aria-labelledby="q-waiting"><h2 id="q-waiting" class="clinic-quick__h">بانتظار <span class="num">{{ queue.waiting|length }}</span></h2>
+    <ul role="list">{% for v in queue.waiting %}<li>{{ v.student.full_name }}</li>{% empty %}<li class="text-secondary">لا أحد</li>{% endfor %}</ul></section>
+  <section aria-labelledby="q-care"><h2 id="q-care" class="clinic-quick__h">تحت الرعاية <span class="num">{{ queue.in_care|length }}</span></h2>
+    <ul role="list">{% for v in queue.in_care %}<li>{{ v.student.full_name }}</li>{% empty %}<li class="text-secondary">لا أحد</li>{% endfor %}</ul></section>
+  <section aria-labelledby="q-done"><h2 id="q-done" class="clinic-quick__h">انتهت <span class="num">{{ queue.done|length }}</span></h2>
+    <ul role="list">{% for v in queue.done %}<li>{{ v.student.full_name }}</li>{% empty %}<li class="text-secondary">لا أحد</li>{% endfor %}</ul></section>
+</div>

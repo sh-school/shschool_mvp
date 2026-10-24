@@ -1,4 +1,6 @@
 {% extends "base/base.html" %}
+{% load static %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/custom/35-quality.css' %}">{% endblock %}
 {% load icons %}
 {% load static %}
 {% load sorting %}
@@ -15,26 +17,24 @@
 
   {# ══ Header ══════════════════════════════════════════════ #}
   {% page_header "لجنة المراجعة الذاتية" subtitle=page_subtitle icon="review_committee" %}
-    <div class="flex flex-wrap gap-2 items-center">
-      <form method="GET" class="quality-per-page">
-        {% for key, val in request.GET.items %}
-          {% if key != 'per_page' and key != 'page' %}
-            <input type="hidden" name="{{ key }}" value="{{ val }}">
-          {% endif %}
-        {% endfor %}
-        <label for="per-page">عرض:</label>
-        <select id="per-page" name="per_page" data-autosubmit>
-          <option value="25" {% if current_per_page == 25 %}selected{% endif %}>25</option>
-          <option value="50" {% if current_per_page == 50 %}selected{% endif %}>50</option>
-          <option value="100" {% if current_per_page == 100 %}selected{% endif %}>100</option>
-          <option value="all" {% if current_per_page == "all" %}selected{% endif %}>الكل</option>
-        </select>
-      </form>
-      {% if request.user.is_admin %}
-      <a href="{% url 'executor_committee' %}" class="btn-secondary btn-sm">لجنة المنفذين</a>
-      <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
-      {% endif %}
-    </div>
+    <form method="GET" class="quality-per-page">
+      {% for key, val in request.GET.items %}
+        {% if key != 'per_page' and key != 'page' %}
+          <input type="hidden" name="{{ key }}" value="{{ val }}">
+        {% endif %}
+      {% endfor %}
+      <label for="per-page">عرض:</label>
+      <select id="per-page" name="per_page" data-autosubmit>
+        <option value="25" {% if current_per_page == 25 %}selected{% endif %}>25</option>
+        <option value="50" {% if current_per_page == 50 %}selected{% endif %}>50</option>
+        <option value="100" {% if current_per_page == 100 %}selected{% endif %}>100</option>
+        <option value="all" {% if current_per_page == "all" %}selected{% endif %}>الكل</option>
+      </select>
+    </form>
+    {% if request.user.is_admin %}
+    <a href="{% url 'executor_committee' %}" class="btn-secondary btn-sm">لجنة المنفذين</a>
+    <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
+    {% endif %}
   {% endpage_header %}
 
   {# ══ Filters ═════════════════════════════════════════════ #}

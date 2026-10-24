@@ -65,7 +65,11 @@ def test_anything_but_success_fails_on_pull_request(result):
 def test_skipped_is_exempt_only_for_the_listed_event_and_job():
     needs = {**_ok("a"), "e2e": {"result": "skipped"}}
     assert gate.judge(needs, "push")[1] == []
-    assert gate.judge(needs, "pull_request")[1], "skipped على الطلب فشلٌ"
+    assert (
+        gate.judge(needs, "pull_request")[1] == []
+    ), "e2e يُعفى skipped على الطلب غير الواجهيّ (W-20261022-018)"
+    other_pr = {**_ok("a"), "pytest-shards": {"result": "skipped"}}
+    assert gate.judge(other_pr, "pull_request")[1], "skipped على الطلب فشلٌ لغير axe/e2e"
     assert (
         gate.judge(needs, "merge_group")[1] == []
     ), "e2e يُعفى skipped على الطابور (W-20261019-006)"
@@ -89,7 +93,9 @@ def test_cheap_security_and_core_jobs_are_never_exempt():
 
 
 def test_only_push_and_merge_group_are_ever_exempted():
-    assert {event for (event, _) in gate.EXEMPT} == {"push", "merge_group"}
+    assert {event for (event, _) in gate.EXEMPT} == {"push", "merge_group", "pull_request"}
+    # الطلب (W-20261022-018): الأرجلُ المتصفّحيّةُ وحدَها، وبشرط changes في needs الملخّص
+    assert {job for (event, job) in gate.EXEMPT if event == "pull_request"} == {"axe-a11y", "e2e"}
     # الطابور لا يُعفى فيه سوى الأرجل غير الحارسة التي سبق أن اجتازها الطلب نفسُه (W-20261019-006)
     assert {job for (event, job) in gate.EXEMPT if event == "merge_group"} == {"axe-a11y", "e2e"}
 
@@ -191,8 +197,10 @@ def test_quality_gate_keeps_pull_request_and_merge_group_full():
     for job in ("axe-a11y", "e2e"):  # W-20261019-006: تُخطّى على الطابور أيضاً (تُجرى على الطلب)
         assert (
             str(jobs[job]["if"]).strip()
-            == "github.event_name != 'push' && github.event_name != 'merge_group'"
-        ), f"{job}: لا يُتخطّى إلا على push وmerge_group"
+            == "github.event_name != 'push' && github.event_name != 'merge_group' && needs.changes.outputs.ui == 'true'"
+        ), f"{job}: لا يُتخطّى إلا على push وmerge_group أو طلبٍ غير واجهيّ (changes)"
+        assert jobs[job]["needs"] == ["changes"], f"{job}: يعتمد على تصنيف changes"
+    assert "changes" in jobs["gate-summary"]["needs"], "فشلُ التصنيف يُفشل البوابة"
     # التغطيةُ تُبلِّغ دائماً على الطلب والطابور (always) وتُتخطّى على push وحدَه
     assert str(jobs["test-coverage"]["if"]).strip() == "always() && github.event_name != 'push'"
 

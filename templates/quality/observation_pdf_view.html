@@ -1,4 +1,6 @@
 {% extends "base/base.html" %}
+{% load static %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/custom/35-quality.css' %}">{% endblock %}
 {% load ui %}
 {% block title %}استمارة {{ obs.teacher.full_name }} — PDF{% endblock %}
 
@@ -22,7 +24,7 @@
       مشاركةُ نسخةٍ للاطّلاع
     </button>
     {% endif %}
-    <a data-app-file href="{% url 'observation_pdf' obs.id %}" download class="btn-secondary btn-sm">تحميل</a>
+    {% export_button "pdf" "observation_pdf" obs.id download=True %}{% endexport_button %}
     {% comment %}
     الرجوع إلى القائمة لا إلى التفصيل: من يفتح الاستمارة يكون قد فرغ منها،
     ووجهتُه التالية زيارةٌ أخرى — لا الصفحة التي جاء منها.

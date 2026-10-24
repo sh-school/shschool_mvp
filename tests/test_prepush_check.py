@@ -8,6 +8,8 @@ import importlib.util
 import re
 from pathlib import Path
 
+import pytest
+
 _spec = importlib.util.spec_from_file_location("prepush_check", Path("scripts/prepush_check.py"))
 prepush_check = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(prepush_check)
@@ -48,6 +50,7 @@ def _all_pass(monkeypatch, **overrides):
     monkeypatch.setattr(prepush_check, "check_complexity", overrides.get("complexity", ok))
     monkeypatch.setattr(prepush_check, "check_types", overrides.get("types", ok))
     monkeypatch.setattr(prepush_check, "check_migration_collisions", ok)
+    monkeypatch.setattr(prepush_check, "check_structure", ok)
     # لا واجهةَ تغيّرت افتراضاً: خطوةُ الهويّة تُتخطّى فلا تُشغَّل الحرّاسُ الحقيقيّة في اختبارات الأداة.
     monkeypatch.setattr(prepush_check, "changed_paths_vs_merge_base", lambda: [])
 
@@ -233,3 +236,10 @@ def test_the_migration_collision_check_maps_exit_codes(monkeypatch):
     ):
         monkeypatch.setattr(prepush_check, "_run", lambda cmd, c=code: Proc(c))
         assert prepush_check.check_migration_collisions()[0] == expected
+
+
+def test_structure_guards_do_not_nest(monkeypatch):
+    """حرّاسُ البنية تشغّل pytest الذي يشغّل هذا الملف؛ فداخلها تُتخطّى بدل التداخل اللانهائي (تعليق shard 5 في #1221)."""
+    monkeypatch.setenv(prepush_check.NESTED_ENV, "1")
+    monkeypatch.setattr(prepush_check, "_run", lambda *a, **k: pytest.fail("لا تشغيل متداخل"))
+    assert prepush_check.check_structure()[0] == prepush_check.OK
