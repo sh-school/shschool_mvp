@@ -101,12 +101,42 @@ jobs:
         run: |
           # أحدثُ artifact أساسٍ غيرِ منتهٍ — لا «أحدثُ تشغيلٍ ناجح»: التشغيلُ الذي فشلت لقطاتُه على main يصير الآن «ناجحاً» (D-277م) ولا أساسَ فيه.
           run_id=$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=visual-baseline&per_page=20" --jq '[.artifacts[] | select(.expired == false)][0].workflow_run.id // empty')
+          base_sha=$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=visual-baseline&per_page=20" --jq '[.artifacts[] | select(.expired == false)][0].workflow_run.head_sha // empty')
           if [ -n "$run_id" ] && gh run download "$run_id" --name visual-baseline --dir visual-baseline; then
             echo "VISUAL_BASELINE_DIR=visual-baseline" >> "$GITHUB_ENV"
+            echo "VISUAL_BASELINE_SHA=${base_sha}" >> "$GITHUB_ENV"
             echo "أساسُ main من التشغيل $run_id"
           else
             echo "::notice::لا أساسَ من main بعدُ (أو انتهى احتفاظُه) — تُقاس الحتميّةُ وحدَها"
           fi
+
+      # تقادمُ الأساس (W-20261024-003): الأساسُ يُرفع يومياً فقط، فبعد دمجٍ يمسّ الصفحات يقارن الطلبُ بأساسٍ قديمٍ فيرى فرقَ main لا فرقَه (#1255: 6 لقطاتٍ زائفة).
+      # الحلّ دون `push` إلى main (قرارُ المالك 2026-10-14: لا check-run إضافياً يؤخّر Railway): إن كان في main ما يتجاوز الأساسَ بغير الوثائق، يُبنى الأساسُ من رأس main داخل تشغيل الطلب.
+      # فشلُ البناء لا يُفشل التشغيل: يبقى الأساسُ المنزَّلُ كما كان.
+      - name: تجديدُ الأساس من main إن تقادم
+        if: github.event_name == 'pull_request' && env.VISUAL_BASELINE_SHA != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          main_sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq .sha)
+          if [ "$main_sha" = "$VISUAL_BASELINE_SHA" ]; then
+            echo "الأساسُ حديثٌ (يطابق رأس main)"; exit 0
+          fi
+          changed=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/compare/${VISUAL_BASELINE_SHA}...${main_sha}" --jq '.files[].filename' | grep -vE '^(docs/|AAdocs/)|\.md$' || true)
+          if [ -z "$changed" ]; then
+            echo "main تجاوز الأساسَ بوثائقَ فقط — الأساسُ صالح"; exit 0
+          fi
+          echo "::notice::الأساسُ (${VISUAL_BASELINE_SHA:0:8}) أقدمُ من main (${main_sha:0:8}) — يُبنى أساسٌ جديدٌ من رأس main"
+          git fetch --depth=1 origin "$main_sha"
+          git worktree add ../main-base "$main_sha"
+          cd ../main-base
+          python manage.py migrate --noinput
+          VISUAL_BASELINE_DIR="" VISUAL_OUT="$GITHUB_WORKSPACE/visual-main" python -m pytest tests/e2e/test_visual_snapshots_live.py -v
+          echo "VISUAL_BASELINE_DIR=$GITHUB_WORKSPACE/visual-main/shots" >> "$GITHUB_ENV"
+          # القاعدةُ مشتركةٌ بين الشجرتين: يُعاد ترحيلُها لمخطّط الطلب قبل لقطاته.
+          cd "$GITHUB_WORKSPACE"
+          python manage.py migrate --noinput
 
       # المهلةُ على الخطوة لا الوظيفة: `test_ci_suite_parity` يقرأ مهلةَ الوظيفة ميزانيّةَ مجموعةٍ كاملةٍ تلزمها الموازاة، وهذه مساراتٌ محدَّدة.
       # D-277م (أمر المالك المباشر، 2026-10-08): الفحصُ استشاريٌّ بنصّه فلا يحجب النشر. على `push` إلى main يفشل الاختبارُ ولا يُحمّر المهمّةَ
