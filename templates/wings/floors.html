@@ -28,6 +28,8 @@
 
   {% comment %}كلُّ بطاقةٍ سطرٌ واحد: الاسمُ فالعددُ فالتفصيل — والشُّعبُ المستثناة
      بأسمائها في التلميح، بعد أن كانت فقرةً بين البطاقات. والتفصيلُ يُبنى في العرض.{% endcomment %}
+  {% if no_wing %}{% callout "info" show=True %}{{ no_wing }}{% endcallout %}{% endif %}
+
   {% kpi_strip label="أرقام الأجنحة" %}
     {% kpi "الأجنحة" wing_count sub="طابقان" %}
     {% kpi "شُعبُ الأجنحة" section_count sub=kpis.sections_sub title=kpis.sections_title tone="blue" %}

@@ -159,8 +159,7 @@ export default defineRailway(() => {
   // قواعدُ البيانات والحاوية تُدار من Railway نفسِه؛ ذكرُها هنا يمنع `apply` من حذفها.
   const db = postgres("Postgres");
   const cache = redis("Redis");
-  const pitr = bucket("Postgres-PITR", { region: "sjc" });
   const backups = bucket("db-backups", { region: "sjc" });
 
-  return project("shschool_mvp", { resources: [web, worker, beat, backup, db, cache, pitr, backups] });
+  return project("shschool_mvp", { resources: [web, worker, beat, backup, db, cache, backups] });
 });
