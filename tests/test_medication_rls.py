@@ -19,7 +19,7 @@ from clinic.models import (
 )
 from tests.conftest import SchoolFactory, UserFactory
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 PROBE_ROLE = "w036_medication_probe"
 TABLES = {
