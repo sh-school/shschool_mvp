@@ -55,8 +55,9 @@ def test_absence_followup_pdf_button_goes_through_the_export_centre():
     html = (
         Path(__file__).resolve().parent.parent / "templates/operations/absence_followup/base.html"
     ).read_text(encoding="utf-8")
-    line = next(ln for ln in html.splitlines() if "تصدير PDF" in ln)
-    assert "absence_followup_pdf" in line and "data-app-file" in line and "download=1" in line
+    # الوسمُ الموحَّد يملك الشكل (الاسم و`data-app-file`)؛ والقالبُ يمرّر المسارَ وdownload=1 وحدَهما
+    line = next(ln for ln in html.splitlines() if 'export_button "pdf"' in ln)
+    assert "absence_followup_pdf" in line and "download=1" in line
 
 
 def test_excuse_document_exception_still_audits_every_open():
