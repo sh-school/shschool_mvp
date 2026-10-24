@@ -42,7 +42,7 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
         StudentSubjectResult,
     )
     from behavior.models import AutoInfractionNotice, BehaviorInfraction
-    from clinic.models import ClinicVisit, HealthRecord
+    from clinic.models import ClinicVisit, GuardianMedicationConsent, HealthRecord
     from developer_feedback.models import DeveloperMessage
     from exam_control.models import ExamIncident
     from library.models import BookBorrowing
@@ -68,6 +68,7 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
         [
             (HealthRecord, "student", True),  # OneToOne
             (ClinicVisit, "student", False),
+            (GuardianMedicationConsent, "student", False),  # موافقةُ وليّ الأمر على دواءٍ للطالب
             (StudentAssessmentGrade, "student", False),
             (StudentSubjectResult, "student", False),
             (AnnualSubjectResult, "student", False),
