@@ -220,7 +220,9 @@ def test_the_pages_view_offers_one_pdf_button_on_touch_screens():
     الطباعة) جدولٌ عاديٌّ في الصفحة على كلّ شاشة — فلا حاجةَ لزرٍّ ثانٍ يظهر
     على اللمس وحدَه ولا لإخفاء أحدهما بصنفٍ خاصّ باللمس."""
     src = (TEMPLATES / "schedule/pages_view.html").read_text(encoding="utf-8")
-    pdf_links = re.findall(r"<a[^>]*schedule_pages_pdf[^>]*>", src)
+    pdf_links = re.findall(
+        r"<a[^>]*schedule_pages_pdf[^>]*>|\{% export_button \"pdf\" \"schedule_pages_pdf\"", src
+    )
 
     assert len(pdf_links) == 1
 

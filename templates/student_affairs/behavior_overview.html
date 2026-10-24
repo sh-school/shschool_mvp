@@ -21,9 +21,9 @@
     {% if not wing_bound or request.user|can_open:'behavior:committee' %}
     <a href="{% url 'behavior:committee' %}" class="btn-secondary btn-sm">{% icon "behavior_team" %} فريق السلوك</a>
     {% endif %}
-    <a data-app-file href="{% url 'behavior:policy_pdf' %}" class="btn-secondary btn-sm">{% icon "export_pdf" %} لائحة السلوك PDF</a>
-    <a data-app-file href="{% url 'student_affairs:behavior_export' %}" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</a>
-    <a data-app-file href="{% url 'student_affairs:behavior_pdf' %}" class="btn-secondary btn-sm">{% icon "export_pdf" %} تصدير PDF</a>
+    {% export_button "pdf" "behavior:policy_pdf" title="لائحة السلوك PDF" %}{% endexport_button %}
+    {% export_button "xlsx" "student_affairs:behavior_export" %}{% endexport_button %}
+    {% export_button "pdf" "student_affairs:behavior_pdf" %}{% endexport_button %}
   {% endpage_header %}
 
   {% kpi_strip label="أرقام السلوك هذا العام" %}
