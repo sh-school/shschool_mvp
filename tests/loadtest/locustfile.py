@@ -27,6 +27,7 @@ tests/loadtest/locustfile.py
 
 import os
 import random
+import re
 
 from locust import HttpUser, between, events, task
 
@@ -47,6 +48,36 @@ def refuse_remote_host(environment, **_kwargs):
         f"رُفض الحمل على المضيف {host!r}: مسموحٌ به محلياً فقط. "
         "الإنتاج لا يُختبر بالحمل (انظر .claude/skills/schoolos-load-test/SKILL.md)."
     )
+
+
+SHARED_COOKIES = {}
+
+
+@events.test_start.add_listener
+def login_once(environment, **_kwargs):
+    """يسجّل الدخول مرّةً واحدة ويشارك الكوكيز بين المستخدمين الافتراضيين.
+
+    تسجيل الدخول لكلّ مستخدم في لحظة واحدة من عنوان IP واحد يُفعّل محدِّد معدّل الدخول
+    (django_ratelimit فيردّ 403)، فيُقاس المحدِّد لا الحضور والدرجات. والسيناريوهان قراءةٌ فقط.
+    """
+    import requests
+
+    session = requests.Session()
+    page = session.get(f"{environment.host}/auth/login/")
+    match = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', page.text)
+    session.post(
+        f"{environment.host}/auth/login/",
+        data={
+            "identifier": os.environ.get("LOCUST_NATIONAL_ID", "12345678901"),
+            "password": os.environ.get("LOCUST_PASSWORD", "TestPass123!"),
+            "csrfmiddlewaretoken": match.group(1) if match else "",
+        },
+        headers={"Referer": f"{environment.host}/auth/login/"},
+        allow_redirects=False,
+    )
+    SHARED_COOKIES.update(session.cookies.get_dict())
+    if "sessionid" not in "".join(SHARED_COOKIES):
+        print("تنبيه: لم تُحفظ جلسة الدخول المشتركة؛ ستفشل مسارات الحضور والدرجات بـ401/403")
 
 
 ACCEPTANCE_SCOPES = ("attendance", "/grades", "/assessments")
@@ -212,17 +243,8 @@ class _LoadScenarioUser(HttpUser):
     password = os.environ.get("LOCUST_PASSWORD", "TestPass123!")
 
     def on_start(self):
-        resp = self.client.get("/auth/login/")
-        csrftoken = resp.cookies.get("csrftoken", "")
-        self.client.post(
-            "/auth/login/",
-            data={
-                "national_id": self.national_id,
-                "password": self.password,
-                "csrfmiddlewaretoken": csrftoken,
-            },
-            headers={"Referer": f"{self.host}/auth/login/"},
-        )
+        for name, value in SHARED_COOKIES.items():
+            self.client.cookies.set(name, value)
         self.student_ids = self._load_student_ids()
 
     def _load_student_ids(self):
@@ -269,7 +291,7 @@ class AttendanceLoadUser(_LoadScenarioUser):
 
 
 class GradesLoadUser(_LoadScenarioUser):
-    """سيناريو الدرجات: لوحة التقييمات والرسوم ودرجات طالبٍ بعينه."""
+    """سيناريو الدرجات: لوحة التقييمات والرسوم ودرجات طالبٍ بعينه (صفحة ولي الأمر خارج النطاق)."""
 
     @task(4)
     def assessments_dashboard(self):
@@ -292,7 +314,3 @@ class GradesLoadUser(_LoadScenarioUser):
             f"/api/v1/students/{student_id}/grades/",
             name="/api/v1/students/[id]/grades/",
         )
-
-    @task(1)
-    def parent_grades_page(self):
-        self.client.get("/parents/grades/", name="/parents/grades/")
