@@ -51,6 +51,25 @@ def test_small_counts_and_small_service_totals_are_suppressed(school, student_us
     assert row[3] == ce.SUPPRESSED and row[4] == ce.SUPPRESSED
 
 
+def test_secondary_suppression_blocks_inference_by_subtraction():
+    assert ce._shown_group([3, 7, 10]) == [ce.SUPPRESSED, ce.SUPPRESSED, 10]
+    assert ce._shown_group([3, 0, 3]) == [ce.SUPPRESSED, 0, ce.SUPPRESSED]
+    assert ce._shown_group([6, 7, 13]) == [6, 7, 13]
+    assert ce._shown_group([3, 2, 5]) == [ce.SUPPRESSED, ce.SUPPRESSED, 5]
+
+
+def test_dashboard_sections_hide_the_smallest_visible_when_one_is_hidden(
+    school, student_user, nurse_user
+):
+    for _ in range(3):
+        _visit(school, student_user, nurse_user, _in_month(), service_code="insulin")
+    for _ in range(8):
+        _visit(school, student_user, nurse_user, _in_month(), service_code="bandage")
+    rows = ce.dashboard_rows(ce.monthly_counts(school, 2026, 9))
+    groups = [v for sec, _l, v in rows if sec == "مجموعة الخدمة"]
+    assert groups.count(ce.SUPPRESSED) >= 2
+
+
 def test_other_months_and_other_schools_are_excluded(school, student_user, nurse_user):
     _visit(
         school,

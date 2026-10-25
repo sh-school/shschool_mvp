@@ -80,14 +80,28 @@ def monthly_counts(school: Any, year: int, month: int) -> dict[str, Any]:
     }
 
 
+def _shown_group(values: list[int]) -> list[int | str]:
+    """أعدادُ مجموعةٍ مترابطة (صفٌّ أو قسمٌ) للعرض مع الإخفاء الثانويّ.
+
+    إن أُخفي عددٌ واحدٌ فقط وبقي غيرُه ظاهراً أمكن استنتاجُه بالطرح من مجموعٍ معروف،
+    فيُخفى معه أصغرُ عددٍ موجبٍ ظاهر (قرار المالك 2026-10-25)؛ فيبقى المخفيّان بلا تعيين.
+    """
+    shown = [_shown(n) for n in values]
+    if sum(1 for v in shown if v == SUPPRESSED) == 1:
+        visible = [i for i, v in enumerate(shown) if isinstance(v, int) and v > 0]
+        if visible:
+            shown[min(visible, key=lambda i: shown[i])] = SUPPRESSED
+    return shown
+
+
 def service_rows(counts: dict[str, Any]) -> list[tuple[str, str, Any, Any, Any]]:
-    """(المجموعة، الخدمة، قطريّ، غيرُ قطريّ، المجموع) بترتيب `SERVICES`؛ والمجموعُ دون 5 يُخفى (قرار المالك 2026-10-25)."""
+    """(المجموعة، الخدمة، قطريّ، غيرُ قطريّ، المجموع) بترتيب `SERVICES`؛ والمجموعُ دون 5 يُخفى، ويُخفى ثانوياً ما يكشفه بالطرح."""
     group_label = dict(choices.SERVICE_GROUPS)
     out = []
     for code, label, group in choices.SERVICES:
         c = counts["by_service"].get(code, Counter())
         qa, non = c["qa"], c["non"]
-        out.append((group_label[group], label, _shown(qa), _shown(non), _shown(qa + non)))
+        out.append((group_label[group], label, *_shown_group([qa, non, qa + non])))
     return out
 
 
@@ -97,18 +111,22 @@ def dashboard_rows(counts: dict[str, Any]) -> list[tuple[str, str, Any]]:
     per_group: Counter = Counter()
     for code, c in counts["by_service"].items():
         per_group[choices.group_of_service(code)] += c["qa"] + c["non"]
-    out: list[tuple[str, str, Any]] = [
-        ("مجموعة الخدمة", group_label[g], _shown(per_group[g])) for g, _ in choices.SERVICE_GROUPS
+    sections: list[tuple[str, list[tuple[str, int]]]] = [
+        ("مجموعة الخدمة", [(group_label[g], per_group[g]) for g, _ in choices.SERVICE_GROUPS]),
+        (
+            "حالة الخروج",
+            [(label, counts["outcomes"][code]) for code, label in choices.OUTCOME_CHOICES],
+        ),
+        (
+            "الشكوى",
+            [(label, counts["complaints"][code]) for code, label in choices.COMPLAINT_CHOICES],
+        ),
+        ("الحصة", [(f"الحصة {p}", n) for p, n in sorted(counts["periods"].items())]),
     ]
-    out += [
-        ("حالة الخروج", label, _shown(counts["outcomes"][code]))
-        for code, label in choices.OUTCOME_CHOICES
-    ]
-    out += [
-        ("الشكوى", label, _shown(counts["complaints"][code]))
-        for code, label in choices.COMPLAINT_CHOICES
-    ]
-    out += [("الحصة", f"الحصة {p}", _shown(n)) for p, n in sorted(counts["periods"].items())]
+    out: list[tuple[str, str, Any]] = []
+    for section, items in sections:
+        shown = _shown_group([n for _label, n in items])
+        out += [(section, label, v) for (label, _n), v in zip(items, shown, strict=True)]
     return out
 
 
