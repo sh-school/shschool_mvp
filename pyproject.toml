@@ -201,6 +201,7 @@ ignore_missing_imports = true
 # ── pyright ───────────────────────────────────────────
 # أداةُ تنقّلٍ بين الرموز (تعريفٌ/مراجع) لجلسات Claude: تقلّل قراءةَ الملفّات كاملةً.
 # ليست بوّابةَ CI: نمطٌ basic بلا حجب، ولا تُغني عن mypy ratchet. (W-20261025-011)
+# التثبيتُ في بيئة التطوير فقط بإصدارٍ مثبّت: pip install pyright==1.1.403 (إذن المالك 2026-10-25)؛ يعمل بـPYRIGHT_PYTHON_FORCE_VERSION=1.1.403.
 [tool.pyright]
 pythonVersion          = "3.12"
 typeCheckingMode       = "basic"
