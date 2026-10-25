@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("clinic", "0014_rls_clinic_referral"),
+        ("clinic", "0017_medication_catalog_consent_dispensing"),
     ]
 
     operations = [
