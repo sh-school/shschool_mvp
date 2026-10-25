@@ -200,7 +200,9 @@ def _wb_to_response(wb, filename, school=None):
         buf.read(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    from core.pdf_utils import content_disposition
+
+    resp["Content-Disposition"] = content_disposition(filename)
     return resp
 
 

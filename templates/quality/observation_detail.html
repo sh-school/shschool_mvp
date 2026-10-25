@@ -24,7 +24,7 @@
     </form>
     {% endif %}
     {% if can_edit %}<a href="{% url 'observation_edit' obs.id %}" class="btn-secondary btn-sm">تعديل</a>{% endif %}
-    <a href="{% url 'observation_pdf_view' obs.id %}" class="btn-secondary btn-sm">PDF</a>
+    {% export_button "pdf" "observation_pdf_view" obs.id inline=True %}{% endexport_button %}
     {% if can_archive and obs.status == "draft" %}
     <form method="post" action="{% url 'observation_delete' obs.id %}" class="form-inline" data-confirm="أرشفة هذه المسودة؟ تُحفظ في الأرشيف ويمكن استرجاعها.">
       {% csrf_token %}<button type="submit" class="btn-danger btn-sm">أرشفة</button>

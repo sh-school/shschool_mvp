@@ -1155,9 +1155,9 @@ class ExcelService:
         )
         # الاسمُ العربيّ في `filename="…"` يُرمّزه Django بـRFC 2047 فلا يفهمه المتصفّح —
         # الترويسةُ المشتركةُ تبقى ASCII وتحمل العربيّ في `filename*`.
-        from core.pdf_utils import _content_disposition
+        from core.pdf_utils import content_disposition
 
-        resp["Content-Disposition"] = _content_disposition(filename, True)
+        resp["Content-Disposition"] = content_disposition(filename, True)
         return resp
 
     # ── التقارير ──────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% load ui navigation icons %}
 {% comment %}
 متابعةُ الغياب (W-20261017-024): صفحتان مستقلّتان تتقاسمان هذا الهيكلَ — «التواصل مع أولياء الأمور» و«متابعة إجراءات الغياب».
@@ -31,8 +32,8 @@
     {% endif %}
     {# الزرُّ يُخفى عمّن لا قدرةَ له، والخادمُ يرفض الطلبَ المباشر (403) #}
     {% if can_print %}
-    <a href="{% url 'absence_followup_print' %}?date={{ day|date:'Y-m-d' }}&amp;page={{ page }}{% if view_query %}&amp;{{ view_query }}{% endif %}" class="btn-secondary btn-sm">{% icon "print" %} تصدير PDF</a>
-    <a href="{% url 'absence_followup_xlsx' %}?date={{ day|date:'Y-m-d' }}&amp;page={{ page }}{% if view_query %}&amp;{{ view_query }}{% endif %}" data-app-file class="btn-secondary btn-sm">{% icon "download" %} تصدير Excel</a>
+    {% export_button "pdf" "absence_followup_pdf" %}?date={{ day|date:'Y-m-d' }}&amp;page={{ page }}{% if view_query %}&amp;{{ view_query }}{% endif %}&amp;download=1{% endexport_button %}
+    {% export_button "xlsx" "absence_followup_xlsx" %}?date={{ day|date:'Y-m-d' }}&amp;page={{ page }}{% if view_query %}&amp;{{ view_query }}{% endif %}{% endexport_button %}
     <a href="{% url 'absence_reports_archive' %}" class="btn-secondary btn-sm">{% icon "reports" %} التقارير الدورية</a>
     {% endif %}
     {% if request.user|can_open:"wings:ministry_report" %}

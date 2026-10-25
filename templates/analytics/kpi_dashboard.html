@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% load icons %}
 {% load static ui %}
 {% block title %}مؤشرات الأداء{% endblock %}
@@ -23,9 +24,7 @@
       <option value="A4" selected>A4</option>
       <option value="A3">A3</option>
     </select>
-    <a data-app-file id="kpiPdfLink" href="{% url 'kpi_monthly_pdf' %}?year={{ year }}&paper=A4" class="btn-secondary btn-sm">
-      {% icon "export_pdf" %} تقرير PDF
-    </a>
+    {% export_button "pdf" "kpi_monthly_pdf" id="kpiPdfLink" %}?year={{ year }}&paper=A4{% endexport_button %}
   {% endpage_header %}
 
   {# ثلاثةُ أعمدةٍ على الحاسوب فتسع البطاقاتُ كاملةً النافذةَ بلا تمريرٍ رأسيّ (1366×768)؛ وتتكدّس دونه. #}

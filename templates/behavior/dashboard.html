@@ -11,7 +11,7 @@
 <div class="exec-dash">
 
   {% page_header "لوحة السلوك" subtitle=today_label icon="behavior" %}
-    <a data-app-file href="{% url 'behavior:policy_pdf' %}" class="btn-secondary btn-sm">{% icon "export_pdf" %} لائحة السلوك (PDF)</a>
+    {% export_button "pdf" "behavior:policy_pdf" title="لائحة السلوك (PDF)" %}{% endexport_button %}
   {% endpage_header %}
 
   {# نظامُ النقاط ملغى — الأرقامُ عددُ مخالفات. #}

@@ -107,8 +107,14 @@ class TestPrintIsServerSide:
     ):
         for user in (supervisor, staff["vice_academic"]):
             for name in ("daily_report", "absence_actions"):
-                assert reverse(PRINT_URL) not in _get(client_as, user, name).content.decode()
-        assert reverse(PRINT_URL) in _get(client_as, staff["principal"]).content.decode()
+                body = _get(client_as, user, name).content.decode()
+                assert (
+                    reverse(PRINT_URL) not in body and reverse("absence_followup_pdf") not in body
+                )
+        # زرُّ PDF يمرّ بنقطة الملفّ (تنزيلٌ مسجَّل) لا بصفحة المعاينة (W-20261021-005)
+        assert (
+            reverse("absence_followup_pdf") in _get(client_as, staff["principal"]).content.decode()
+        )
 
     @pytest.mark.parametrize(
         ("page", "default"), [("contact", "landscape"), ("actions", "portrait")]
