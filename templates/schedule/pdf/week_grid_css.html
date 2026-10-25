@@ -3,6 +3,10 @@
 `geo.css` (operations/schedule_paper.py): صفٌّ بارتفاعٍ صريحٍ بالملّيمتر يحترمه
 مولّدُ PDF، ومحتوىً لا يطيل صفَّه (`wg-fit`) — فالجدولُ يملأ الورقة ولا يفيض عنها.
 {% endcomment %}
+  {% comment %}
+  الأوزانُ (قرارُ المالك 2026-10-12: «البولد قويٌّ جدّاً على الخطّ»): Tajawal بلا 600، فتُكتب 400 أو 500 أو 700 صراحةً —
+  اسمُ المادّة 500، والشعبةُ أو المعلّمُ والتوقيتُ 400، واسمُ اليوم 500، ولا 700 إلّا لترويسة الجدول (والمدرسةُ وعنوانُ الوثيقة في الإطار المركزيّ).
+  {% endcomment %}
   .week-grid { width: 100%; border-collapse: collapse; table-layout: fixed; break-inside: avoid; page-break-inside: avoid; }
   .week-grid th, .week-grid td {
     border: 1px solid {% brand_color "BORDER_STRONG" %};
@@ -25,22 +29,22 @@
   .week-grid td.wg-day {
     background: {% brand_color "MAROON_BG" %};
     color: {% brand_color "MAROON" %};
-    font-weight: 700;
+    font-weight: 500;
     font-size: {{ geo.css.day_pt }};
   }
   .week-grid .wg-fit { max-height: {{ geo.css.cell_h }}; overflow: hidden; }
   .week-grid td.wg-break { background: {% brand_color "SURFACE_ALT" %}; padding: 0.4mm 0.3mm; }
   .week-grid td.wg-break.is-empty { background: {% brand_color "BORDER" %}; }
-  .week-grid .slot-subject { font-size: {{ geo.css.subject_pt }}; font-weight: 700; color: {% brand_color "MAROON" %}; line-height: 1.2; }
-  .week-grid .slot-meta { font-size: {{ geo.css.meta_pt }}; color: {% brand_color "TEXT_SECONDARY" %}; line-height: 1.2; }
-  .week-grid .slot-time { font-size: {{ geo.css.time_pt }}; color: {% brand_color "TEXT_MUTED" %}; line-height: 1.2; direction: ltr; unicode-bidi: embed; }
+  .week-grid .slot-subject { font-size: {{ geo.css.subject_pt }}; font-weight: 500; color: {% brand_color "TEXT_PRIMARY" %}; line-height: 1.2; }
+  .week-grid .slot-meta { font-size: {{ geo.css.meta_pt }}; font-weight: 400; color: {% brand_color "TEXT_SECONDARY" %}; line-height: 1.2; }
+  .week-grid .slot-time { font-size: {{ geo.css.time_pt }}; font-weight: 400; color: {% brand_color "TEXT_MUTED" %}; line-height: 1.2; direction: ltr; unicode-bidi: embed; }
   {% comment %}عمودُ الفسحة/الصلاة ضيّقٌ بالملّيمتر — «10:25 – 10:45» في سطرٍ واحد يفيض عنه، فيبقى سطرين هنا وحده.{% endcomment %}
   .week-grid .wg-break .slot-time-sep { display: none; }
   .week-grid .wg-break .slot-time-start,
   .week-grid .wg-break .slot-time-end { display: block; }
   .week-grid .slot-empty { color: {% brand_color "TEXT_MUTED" %}; }
   .week-grid .slot-time + .slot-subject { margin-top: 0.8mm; padding-top: 0.8mm; border-top: 1px dashed {% brand_color "BORDER_STRONG" %}; }
-  .week-grid .break-label { font-size: {{ geo.css.break_pt }}; font-weight: 700; color: {% brand_color "TEXT_SECONDARY" %}; line-height: 1.15; }
+  .week-grid .break-label { font-size: {{ geo.css.break_pt }}; font-weight: 500; color: {% brand_color "TEXT_SECONDARY" %}; line-height: 1.15; }
   .week-grid .break-band { font-weight: 400; color: {% brand_color "TEXT_MUTED" %}; }
   .week-grid .wg-break .slot-time + .break-label { margin-top: 0.8mm; }
   /* الخانةُ المشتركةُ (حصّتان متوازيتان) أصغرُ خطّاً: ستّةُ أسطرٍ في صفٍّ واحد — كان
@@ -56,7 +60,7 @@
   .week-grid td.wg-cover { background: {% brand_color "STATUS_WARNING_BG" %}; }
   .week-grid td.wg-swap  { background: {% brand_color "STATUS_INFO_BG" %}; }
   .week-grid td.wg-comp  { background: {% brand_color "STATUS_SUCCESS_BG" %}; }
-  .week-grid .slot-from { font-size: {{ geo.css.meta_pt }}; font-weight: 700; color: {% brand_color "TEXT_PRIMARY" %}; line-height: 1.2; }
+  .week-grid .slot-from { font-size: {{ geo.css.meta_pt }}; font-weight: 500; color: {% brand_color "TEXT_PRIMARY" %}; line-height: 1.2; }
   .week-grid td.wg-multi .slot-from { font-size: {{ geo.css.multi_pt }}; line-height: 1.1; }
   .week-notes { height: {{ geo.css.notes_h }}; margin-top: {{ geo.css.gap }}; overflow: hidden; font-size: 6.5pt; line-height: 3.4mm; color: {% brand_color "TEXT_SECONDARY" %}; text-align: right; box-sizing: border-box; }
   .week-notes .week-note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

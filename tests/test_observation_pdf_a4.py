@@ -141,7 +141,8 @@ def test_the_signatures_are_the_last_row_of_the_last_domain_table(db, school, na
     assert html.count('class="grid"') == 2, "جدولا معاييرَ — أحدُهما لكلّ صفحة"
     last_grid = html.rsplit('<table class="grid">', 1)[1]
     assert last_grid.count('<td class="sign"') == 2
-    assert "توقيعٌ إلكترونيّ داخل المنصّة" in last_grid
+    assert last_grid.count('<div class="e-sign">') == 2, "الخانتان مملوءتان بالاسم بعد الاطّلاع"
+    assert "توقيعٌ إلكترونيّ داخل المنصّة" not in last_grid, "العبارةُ محذوفةٌ من الوثيقة (D-221م)"
 
 
 # ── الأحجام: لا صغيرَ جدّاً، وقد كبرت بأمر المالك 2026-09-28 ────────────────
@@ -150,7 +151,7 @@ def test_the_signatures_are_the_last_row_of_the_last_domain_table(db, school, na
 def test_the_font_sizes_meet_the_owners_new_minimums(db, observation):
     """متنٌ 13.5pt (بدل 12) وعنوانٌ 16pt (بدل 15) واسمُ مدرسةٍ 15pt (بدل 14) — تكبيرٌ عامّ بأمر المالك 2026-09-28.
 
-    خارجَ الشعارِ والوزارة في الترويسة (8.5pt) وخانةِ الختم (9pt): بياناتٌ آليّةٌ لا نصٌّ يُقرأ. والفحصُ على CSS المُخرَج.
+    خارجَ الشعارِ والوزارة في الترويسة (8.5pt) وخانةِ الاسم المختومة (9pt): بياناتٌ آليّةٌ لا نصٌّ يُقرأ. والفحصُ على CSS المُخرَج.
     """
     css = re.sub(r"/\*.*?\*/", "", _html_of(observation).split("</style>", 1)[0], flags=re.S)
     css_no_frame = re.sub(r"\.doc-header[^{]*\{[^}]*\}|\.pdf-footer-line[^{]*\{[^}]*\}", "", css)

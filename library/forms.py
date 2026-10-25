@@ -1,8 +1,7 @@
 """library/forms.py — نماذج المكتبة المدرسية"""
 
-import datetime
-
 from django import forms
+from django.utils import timezone
 
 
 class BookBorrowForm(forms.Form):
@@ -15,7 +14,7 @@ class BookBorrowForm(forms.Form):
 
     def clean_due_date(self):
         due = self.cleaned_data["due_date"]
-        if due <= datetime.date.today():
+        if due <= timezone.localdate():
             raise forms.ValidationError("يجب أن يكون تاريخ الإعادة بعد اليوم.")
         return due
 

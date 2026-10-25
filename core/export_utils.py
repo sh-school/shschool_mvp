@@ -4,14 +4,14 @@ core/export_utils.py — أدوات تصدير موحّدة لكل المنصة
 """
 
 import uuid
-from pathlib import Path
 from typing import Any, NamedTuple
 
-from django.conf import settings
 from django.utils import timezone
 
 from core import brand
 from core.academic_calendar import academic_year_for_school
+from core.excel_safety import safe_cell
+from core.ministry import ministry_line, ministry_name
 
 
 def generate_export_filename(module: str, report_type: str, ext: str) -> str:
@@ -29,7 +29,7 @@ def generate_export_filename(module: str, report_type: str, ext: str) -> str:
 def get_export_context(request, title: str) -> dict:
     """
     context موحّد لجميع التصديرات (Excel + PDF):
-    - school_name, school_logo_path
+    - school_name
     - exported_by (الاسم), exporter_role (الدور)
     - export_date, export_time, export_datetime
     - title, academic_year
@@ -49,12 +49,9 @@ def get_export_context_for(user: Any, title: str) -> dict[str, Any]:
     # نفسُه يُطبع رمزاً في ترويسة Excel وذيله وستّةِ قوالبِ PDF.
     role_code = user.get_role() or ""
     role_ar = dict(Role.ROLES).get(role_code, role_code) or "—"
-    logo_path = str(Path(settings.BASE_DIR) / "static" / "brand" / "logoMaroon.png")
 
     return {
         "school_name": school.name if school else "المدرسة",
-        "school_logo_path": str(Path(settings.BASE_DIR) / "static" / "brand" / "logowhite.png"),
-        "logo_path": logo_path,
         "exported_by": user.full_name,
         "exporter_role": role_ar,
         "exporter_role_code": role_code,
@@ -64,7 +61,7 @@ def get_export_context_for(user: Any, title: str) -> dict[str, Any]:
         "export_datetime": now.strftime("%d/%m/%Y %H:%M"),
         "title": title,
         "academic_year": academic_year_for_school(school),
-        "ministry": "وزارة التربية والتعليم والتعليم العالي — دولة قطر",
+        "ministry": ministry_name(),
     }
 
 
@@ -142,11 +139,10 @@ def brand_cell(cell) -> None:
 def add_excel_title_rows(ws, num_cols: int, first: str, second: str, third: str) -> None:
     """الصفوفُ الثلاثةُ الأولى في كلّ ملفّ Excel — ترويسةٌ واحدةٌ للمنصّة.
 
-    ١ عنّابيٌّ بنصٍّ أبيضَ كبير وشعارِ المدرسة، ٢ عنّابيٌّ فاتحٌ بنصٍّ أبيض،
+    ١ عنّابيٌّ بنصٍّ أبيضَ كبير وشعارُ الوزارة الأصليّ صورةً مثبّتةً في A1 (W-20261014-009؛ ينهي D-409م)، ٢ عنّابيٌّ فاتحٌ بنصٍّ أبيض،
     ٣ عنّابيٌّ خفيفٌ بنصٍّ خافت. وكانت نسختان منها بتصميمين: هذه في شؤون
     الطلبة، وأخرى فاتحةٌ بخطٍّ عنّابيّ في التقارير وتصدير الطلبة — ثلاثَ مرّات.
     """
-    from openpyxl.drawing.image import Image as XLImage
     from openpyxl.styles import Alignment
 
     center = Alignment(horizontal="center", vertical="center")
@@ -157,27 +153,27 @@ def add_excel_title_rows(ws, num_cols: int, first: str, second: str, third: str)
     )
     for row, (value, fill, font, height) in enumerate(rows, start=1):
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
-        cell = ws.cell(row=row, column=1, value=value)
+        cell = safe_cell(ws, row=row, column=1, value=value)
         cell.fill = fill
         cell.font = font
         cell.alignment = center
         ws.row_dimensions[row].height = height
+    _add_logo_to_title(ws)
 
-    logo = Path(settings.BASE_DIR) / "static" / "brand" / "logowhite.png"
-    if logo.exists():
-        try:
-            img = XLImage(str(logo))
-            img.width = 36
-            img.height = 36
-            ws.add_image(img, "A1")
-        except (OSError, ValueError):
-            pass
+
+def _add_logo_to_title(ws: Any) -> None:
+    """شعارُ الوزارة الأصليّ في A1 بحجمٍ ثابتٍ يسكن ارتفاعَ الصفّ الأوّل (40pt ≈ 53px) — فلا يتغيّر عددُ الصفوف ولا ارتفاعُها."""
+    from core.ministry_logo import logo_excel_image
+
+    image = logo_excel_image()
+    if image is not None:
+        ws.add_image(image, "A1")
 
 
 def add_excel_header(ws, context: dict, num_cols: int):
     """
     هيدر Excel احترافي موحّد:
-    صف 1: [شعار] اسم المدرسة — الوزارة (merged)
+    صف 1: اسم المدرسة — الوزارة (merged)
     صف 2: عنوان التقرير — العام الدراسي (merged)
     صف 3: صدر بواسطة: الاسم — الدور — التاريخ (merged)
     صف 4: (فارغ)
@@ -187,7 +183,7 @@ def add_excel_header(ws, context: dict, num_cols: int):
     add_excel_title_rows(
         ws,
         num_cols,
-        f"{context['school_name']}  —  {context['ministry']}",
+        ministry_line(context["school_name"], context["ministry"], sep="  —  "),
         f"{context['title']}  —  العام الدراسي {context['academic_year']}",
         f"صدر بواسطة: {context['exported_by']} — {context['exporter_role']}  |  {context['export_datetime']}",
     )
@@ -210,7 +206,8 @@ def add_excel_footer(ws, context: dict, row: int, num_cols: int):
 
     # توقيع المُصدِّر
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
-    cell = ws.cell(
+    cell = safe_cell(
+        ws,
         row=row,
         column=1,
         value=f"صدر بواسطة: {context['exported_by']}  —  {context['exporter_role']}",
@@ -221,14 +218,14 @@ def add_excel_footer(ws, context: dict, row: int, num_cols: int):
 
     row += 1
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
-    cell = ws.cell(row=row, column=1, value=f"التاريخ: {context['export_datetime']}")
+    cell = safe_cell(ws, row=row, column=1, value=f"التاريخ: {context['export_datetime']}")
     cell.font = footer_font
     cell.alignment = Alignment(horizontal="right")
 
     row += 1
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
-    cell = ws.cell(
-        row=row, column=1, value=f"{context['school_name']}  —  وثيقة رسمية  —  SchoolOS"
+    cell = safe_cell(
+        ws, row=row, column=1, value=f"{context['school_name']}  —  وثيقة رسمية  —  SchoolOS"
     )
     cell.font = footer_font
     cell.alignment = Alignment(horizontal="center")
@@ -240,6 +237,10 @@ def get_pdf_header_html(context: dict) -> str:
     """
     HTML هيدر PDF موحّد — يُدرج في أعلى كل template PDF
     """
+    # سطرُ الوزارة مجمَّدٌ مطفأٌ افتراضاً (D-400م) — فلا فقرةَ فارغةً تحجز مكاناً.
+    ministry_p = (
+        f'<p class="xp-head-ministry">{context["ministry"]}</p>' if context["ministry"] else ""
+    )
     return f"""
     <style>
       .xp-head {{ text-align:center; border-bottom:3px solid {brand.MAROON}; padding-bottom:12px; margin-bottom:20px; }}
@@ -250,7 +251,7 @@ def get_pdf_header_html(context: dict) -> str:
     </style>
     <div class="xp-head">
       <h1>{context["school_name"]}</h1>
-      <p class="xp-head-ministry">{context["ministry"]}</p>
+      {ministry_p}
       <p class="xp-head-title">{context["title"]}</p>
       <p class="xp-head-year">العام الدراسي {context["academic_year"]}</p>
     </div>
@@ -317,7 +318,7 @@ def excel_to_response(wb: Any, filename: str, school: Any = None) -> Any:
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
     # ترويسةُ الـPDF نفسُها: ASCII دائماً، والاسمُ العربيّ في `filename*`.
-    from core.pdf_utils import _content_disposition
+    from core.pdf_utils import content_disposition
 
-    response["Content-Disposition"] = _content_disposition(filename, True)
+    response["Content-Disposition"] = content_disposition(filename, True)
     return response

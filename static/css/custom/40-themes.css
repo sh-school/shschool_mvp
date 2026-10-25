@@ -1,20 +1,20 @@
  /* end @layer modules */
 
-/* ════════════════════
+/* ════════
    @layer themes — الثيمُ الليليّ
-   ════════════════════
+   ════════
    كانت هذه الكتلةُ خارجَ كلّ طبقة، وغيرُ المطبَّق يغلب المطبَّقَ مهما علا
    وزنُه — فكانت تحكم الملفَّ بالصدفة لا بالترتيب. وهي آخرُ الطبقات
    فتغلب ما قبلها كما كانت تغلبه، والفرقُ أنّ الغلبةَ صارت مكتوبةً
    في سطرِ `@layer` أعلى الملفّ، يقرؤها من يضيف قاعدةً غداً.
-   ════════════════════ */
+   ════════ */
 @layer themes {
 
-/* ════════════════════
+/* ════════
    DARK MODE — الثيم الليلي الشامل
    يُفعَّل بإضافة class="dark" على <html>
    جميع الألوان مركزية عبر CSS Variables
-   ════════════════════ */
+   ════════ */
 
 /* ── 1. Dark Mode Variables ─── */
 html.dark {
@@ -69,8 +69,8 @@ html.dark {
   --accent-orange-fg: #fdba74;   /* 8.67 */
   --accent-purple-fg: #c4b5fd;   /* 7.92 */
   --accent-sky-fg:    #7dd3fc;   /* 8.77 */
-  --accent-rose-fg:   #fda4af;   /* 8.02 */
-  --accent-green-fg:  #6ee7b7;   /* 9.85 */
+  --accent-rose-fg:   #fda4af;   /* 7.74 */
+  --accent-green-fg:  #6ee7b7;   /* 9.60 */
   --skyline-fg:       #93c5fd;   /* 8.11 */
   --ring-track:       #374151;
 
@@ -151,7 +151,6 @@ html.dark {
   --status-danger-tint:    #1a0a0a;
   --status-warning-tint:        #1c1305;
   --status-warning-tint-strong: #422006;
-  --status-warning-tint-deep:   #451a03;
   --status-warning-badge-bg:    #351c05;
   --status-warning-fg-vivid: var(--status-warning-bright);
   --status-info-fg-vivid:    #60a5fa;
@@ -534,9 +533,9 @@ html.dark [style*="color: #8A1538"] {
   color: var(--maroon-fg) !important;
 }
 
-/* ════════════════════
+/* ════════
    35. GLOBAL DARK MODE FIXES — إصلاح شامل لكل التباينات
-   ════════════════════ */
+   ════════ */
 
 /* ── 35a. ALL Inputs, Selects, Textareas — مركزي ─── */
 html.dark input[type="text"],
@@ -574,6 +573,18 @@ html.dark select option {
    ليلاً — فلا تُميَّز القائمةُ الفارغةُ من الممتلئة. */
 html.dark .asg-dept-pick select.empty {
   border-color: var(--status-warning);
+}
+/* قوائمُ «مواضع الحصص» (W-20261010-032): القاعدةُ المركزيّةُ فوقها (`html.dark select`) تغلب ألوانَ الحالة في `modules`
+   فكانت «أفضّلها» و«أتجنّبها» تُرى كالمحايدة ليلاً؛ فتُعاد ألوانُها هنا بالموضع نفسِه (ملاحظةُ 0420 من فحصها البصريّ). */
+html.dark .period-pref__row:has(option[value="prefer"]:checked) select {
+  background: var(--status-success-bg);
+  border-color: var(--status-success-fg);
+  color: var(--status-success-fg);
+}
+html.dark .period-pref__row:has(option[value="avoid"]:checked) select {
+  background: var(--status-warning-bg);
+  border-color: var(--status-warning-fg);
+  color: var(--status-warning-fg);
 }
 
 /* ── 35b. ALL Tables — مركزي ─── */
@@ -737,9 +748,9 @@ html.dark .login-page::before {
                     radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--skyline) 10%, transparent) 0%, transparent 50%);
 }
 
-/* ════════════════════
+/* ════════
    قاعدةٌ عامّة: كلُّ ترويسةٍ عنابيّةٍ نصُّها أبيض
-   ════════════════════
+   ════════
    `thead tr` عنابيٌّ في المنصّة كلِّها، فأيُّ قاعدةٍ أخصَّ تُلوّن `th`
    بلونِ نصٍّ عاديٍّ تبهته على أرضيّته — وقد وقع ذلك في جدول الإسناد
    (`table.asg th` بـ`--text-muted`) فصار الرأسُ رماديّاً على عنابيّ.
@@ -752,7 +763,7 @@ html.dark .login-page::before {
    لا غير — وزنُهما واحدٌ (0,1,4). فلمّا صار لكلٍّ طبقةٌ كان لا بدّ من
    موضعٍ يُبقي الغلبةَ مقصودةً بدل أن تكون أثرَ سطرٍ يسبق سطراً. وهي
    في `themes` لأنّها حكمٌ على الثيم: الأبيضُ لا ينقلب مع الوضع.
-   ──────────────────── */
+   ──────── */
 table thead tr:not([data-plain-head]) th,
 table thead tr:not([data-plain-head]) th a { color: var(--on-fill); }
 
@@ -765,7 +776,6 @@ html.dark .free-slots-td { border-color: var(--border); }
 html.dark .card-bar { background: var(--maroon-dark); }
 /* ── Dashboard KPI Colors ─── */
 html.dark .alert-strip { background: color-mix(in srgb, var(--status-danger) 10%, transparent); border-color: var(--border); }
-html.dark .text-status-info    { color: var(--status-info-fg); }
 html.dark .radio-pill {
   border-color: var(--border-strong);
   background: var(--surface-alt);
@@ -824,4 +834,19 @@ html.dark .wing-panel { color: var(--text-primary); }
 html.dark .wing-panel__bar { background: var(--maroon-dark); }
 /* رؤيةُ المدرسة: تشكيلُها أزرقُ في الوضع النهاريّ وفاتحٌ في الليليّ (لوحةُ الخطّ `--tashkeel-dark` في 10-foundation) */
 html.dark .vision-text { font-palette: --tashkeel-dark; }
+/* وضعُ الألوان القسريّ (Windows عالي التباين): تُهمَل الخلفيّاتُ والظلالُ وتُفرض ألوانُ النظام، فيضيع حدُّ الأزرار والحقول والبطاقات
+   وتغيّرُ لون الحدّ عند التركيز. نعيد حدّاً بألوان النظام وحلقةَ تركيزٍ برمز `--focus-color` معرَّفاً Highlight هنا؛ لا إخفاءَ ولا تغييرَ تخطيطٍ (W-20261016-006). */
+@media (forced-colors: active) {
+  :root {
+    --focus-color: Highlight;
+  }
+  .btn, button, .nb, .card-qatar, .ui-section, .form-control, .form-select, .filter-bar input, .filter-bar select {
+    border: 1px solid ButtonText;
+  }
+  :focus-visible,
+  .form-control:focus, .form-select:focus, .filter-bar input:focus, .filter-bar select:focus, .cmd-input:focus {
+    outline: 2px solid var(--focus-color);
+    outline-offset: 2px;
+  }
+}
 }

@@ -94,16 +94,23 @@ class TestEveryScreenMasks:
         ), f"{path}: «{expr}» يُعرض خاماً — أضِف |mask_id (و{{% load privacy %}})"
 
     def test_the_sweep_actually_found_screens(self):
-        """حارسٌ يمسح صفراً يمرّ دائماً."""
-        assert len(list(_screens())) > 15
+        """حارسٌ يمسح صفراً يمرّ دائماً — فالمسحُ يُثبَت على عيّنةٍ لا على عدّ الشاشات.
+
+        منذ إخفاء رقم الموظف كاملاً (D-386م، W-20261011-013) لا شاشةَ تعرض `national_id` أصلاً فعدّها صفر،
+        وهذا المطلوب؛ فيُثبَت أنّ النمطَ ما زال يلتقط رقماً خاماً ويُميّز المستورَ منه.
+        """
+        assert RENDER.findall("{{ s.national_id }}") == [("s.national_id", "")]
+        assert RENDER.findall("{{ s.national_id|mask_id }}") == [("s.national_id", "|mask_id")]
 
 
 class TestPrintingKeepsTheFullNumber:
-    """قرارُ المستخدم: الوثيقةُ الفرديّةُ تحمل الرقمَ كاملاً — والتدقيقُ ثمنُه."""
+    """كانت الوثيقةُ الفرديّةُ تحمل الرقمَ كاملاً؛ ومنذ D-386م (W-20261011-014) لا وثيقةَ تحمله وقائمتُها فارغة."""
 
     @pytest.mark.parametrize(("path", "expr", "filters"), list(_printed()), ids=lambda v: str(v))
     def test_the_document_is_not_masked(self, path, expr, filters):
         assert "mask_id" not in filters, f"{path}: وثيقةٌ رسميّةٌ برقمٍ مستورٍ لا تُغني عن صاحبها"
 
     def test_there_are_printed_documents_to_protect(self):
-        assert len(list(_printed())) > 3
+        assert not list(
+            _printed()
+        ), "وثيقةٌ مسمّاةٌ تحمل الرقمَ: قراراتُ D-386م تُخفيه من الوثائق الفرديّة"

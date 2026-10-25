@@ -1,26 +1,37 @@
 from django.urls import path
 
-from . import views
+from . import views, views_absence_followup, views_absence_reports
 from .scheduler_v2.views import v2_progress, v2_stop
 from .views_class_grid import (
     class_grid,
     class_grid_exit,
     class_grid_history,
     class_grid_late,
+    class_grid_live,
     class_grid_save,
     grid_classes,
 )
 from .views_director_live import director_live
 from .views_schedule_drafts import discard_schedule, stop_schedule_generation
+from .views_tardiness_excuse import tardiness_excuse_decide, tardiness_excuses
+from .views_teacher_preferences import teacher_preferences_overview
 
 urlpatterns = [
     path("schedule/", views.schedule, name="teacher_schedule"),
+    # عذرُ التأخّر لمعلّم الحصّة في يومها (W-20261002-028).
+    path("tardiness-excuses/", tardiness_excuses, name="tardiness_excuses"),
+    path(
+        "tardiness-excuses/<uuid:attendance_id>/",
+        tardiness_excuse_decide,
+        name="tardiness_excuse_decide",
+    ),
     # الاستطلاعُ الحيّ للوحة المدير (W-20261008-004، D-249م القسم 9): JSON بلا أسماء، للمدير ونائبيه.
     path("director-live/", director_live, name="director_live"),
     # -- شُعبي للرصد: قائمةُ شُعب المستخدم، ومنها يُفتح جدولُ الشعبة --
     path("classes/", grid_classes, name="provisional_classes"),
     # -- جدولُ الشعبة العموديّ لرصد الغياب (W-20261006-005) — الواجهةُ الوحيدةُ لرصد الغياب لكلّ الأدوار ولكلّ التواريخ (أمرُ المالك 2026-10-09) --
     path("classes/<uuid:class_id>/grid/", class_grid, name="class_grid"),
+    path("classes/<uuid:class_id>/grid/live/", class_grid_live, name="class_grid_live"),
     path("classes/<uuid:class_id>/grid/save/", class_grid_save, name="class_grid_save"),
     path("classes/<uuid:class_id>/grid/late/", class_grid_late, name="class_grid_late"),
     path("classes/<uuid:class_id>/grid/exit/", class_grid_exit, name="class_grid_exit"),
@@ -31,7 +42,38 @@ urlpatterns = [
     ),
     # رابطُ الحصّة القديم يفتح جدولَ شعبتها بتاريخها
     path("attendance/<uuid:session_id>/", views.attendance_view, name="attendance"),
-    path("reports/daily/", views.daily_report, name="daily_report"),
+    # «متابعة الغياب» (W-20261013-011) على المسار القديم لـ«غياب اليوم» كي لا ينكسر رابطٌ محفوظ
+    path("reports/daily/", views_absence_followup.absence_followup, name="daily_report"),
+    path("reports/daily/actions/", views_absence_followup.absence_actions, name="absence_actions"),
+    path(
+        "reports/daily/contact/", views_absence_followup.contact_save, name="absence_contact_save"
+    ),
+    path("reports/daily/action/", views_absence_followup.action_save, name="absence_action_save"),
+    path(
+        "reports/daily/print/", views_absence_followup.followup_print, name="absence_followup_print"
+    ),
+    path("reports/daily/pdf/", views_absence_followup.followup_pdf, name="absence_followup_pdf"),
+    path(
+        "reports/daily/archive/",
+        views_absence_reports.reports_archive,
+        name="absence_reports_archive",
+    ),
+    path(
+        "reports/daily/archive/<uuid:pk>/",
+        views_absence_reports.report_detail,
+        name="absence_report_detail",
+    ),
+    path(
+        "reports/daily/archive/<uuid:pk>/recompute/",
+        views_absence_reports.report_recompute,
+        name="absence_report_recompute",
+    ),
+    path("reports/daily/xlsx/", views_absence_followup.followup_xlsx, name="absence_followup_xlsx"),
+    path(
+        "reports/daily/contact-sheet/",
+        views_absence_followup.contact_sheet,
+        name="absence_followup_contact_sheet_pdf",
+    ),
     # -- المرحلة 2: الجداول الذكية --
     path("weekly-schedule/", views.weekly_schedule, name="weekly_schedule"),
     path("weekly-schedule/print/", views.schedule_print, name="schedule_print"),
@@ -119,6 +161,11 @@ urlpatterns = [
         name="save_subject_scheduling",
     ),
     path("teacher-preferences/", views.teacher_preferences, name="teacher_preferences"),
+    path(
+        "teacher-preferences/all/",
+        teacher_preferences_overview,
+        name="teacher_preferences_overview",
+    ),
     # ══ المرحلة 6: التبديل والتعويض ══
     path("schedule/swaps/", views.swap_list, name="swap_list"),
     path("schedule/swap/request/", views.swap_request, name="swap_request"),

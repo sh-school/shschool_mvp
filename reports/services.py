@@ -25,7 +25,9 @@ from assessments.models import (
 from core import brand
 from core.academic_calendar import academic_year_for_school
 from core.domain.attendance import attendance_rate
+from core.excel_safety import safe_cell
 from core.export_utils import add_excel_title_rows, brand_cell, excel_table_styles, xl_font
+from core.ministry import ministry_line, ministry_name
 from core.models import StudentEnrollment
 from core.privacy import mask_national_id
 from core.verdict_read import failing_statuses, passing_statuses
@@ -716,27 +718,17 @@ class AcademicReportsService:
             if pct is not None:
                 quiz_buckets[g.student_id].append(pct)
 
-        # نظام النقاط ملغى — نحسب فقط عدد المخالفات بوزن حسب الدرجة
+        # عدد المخالفات فقط. [W-20261013-010] أُزيل «التقييم المدمج» الذي كان يحسم من درجة الطالب
+        # «عقوبةَ سلوكٍ» بأوزانٍ مبتدَعة (2/5/10/25) — لا أصلَ لها في دليل السلوك 2026.
         beh_counts: dict = defaultdict(int)
-        beh_severity: dict = defaultdict(int)
-        _SEVERITY_PER_LEVEL = {1: 2, 2: 5, 3: 10, 4: 25}
         for inf in beh_qs:
             beh_counts[inf.student_id] += 1
-            beh_severity[inf.student_id] += _SEVERITY_PER_LEVEL.get(inf.level, 2)
 
         rows = []
         for st in students:
             pcts = quiz_buckets.get(st.id, [])
             quiz_avg = cls._avg(pcts)
             inf_count = beh_counts.get(st.id, 0)
-            severity = beh_severity.get(st.id, 0)
-
-            # Combined score: quiz% weighted 0.7 minus behavior penalty (severity-based)
-            if quiz_avg is not None:
-                penalty = min(severity, 30) * 0.3
-                combined = round(quiz_avg * 0.7 + (100 - penalty) * 0.3, 2)
-            else:
-                combined = None
 
             rows.append(
                 {
@@ -745,11 +737,10 @@ class AcademicReportsService:
                     "quiz_count": len(pcts),
                     "quiz_avg": quiz_avg,
                     "behavior_count": inf_count,
-                    "combined_score": combined,
                 }
             )
 
-        rows.sort(key=lambda r: r["combined_score"] or 0, reverse=True)
+        rows.sort(key=lambda r: r["quiz_avg"] or 0, reverse=True)
 
         quiz_avg_all = cls._avg([r["quiz_avg"] for r in rows if r["quiz_avg"] is not None])
         total_infractions = sum(r["behavior_count"] for r in rows)
@@ -818,7 +809,9 @@ class AcademicReportsExcel:
         for idx, row in enumerate(data_rows, start=1):
             row_num = idx + 4
             for col_idx, value in enumerate(row, start=1):
-                ws.cell(row=row_num, column=col_idx, value=value if value is not None else "—")
+                safe_cell(
+                    ws, row=row_num, column=col_idx, value=value if value is not None else "—"
+                )
             ExcelService._style_data_row(ws, styles, row_num, num_cols, idx % 2 == 0)
 
         ExcelService._apply_protection(ws, num_cols)
@@ -942,7 +935,6 @@ class AcademicReportsExcel:
             ("عدد الاختبارات", 13),
             ("متوسط الاختبارات %", 17),
             ("عدد المخالفات", 13),
-            ("التقييم المدمج", 14),
         ]
         data_rows = []
         for i, r in enumerate(data.get("rows", []), start=1):
@@ -953,7 +945,6 @@ class AcademicReportsExcel:
                     r["quiz_count"],
                     r["quiz_avg"],
                     r["behavior_count"],
-                    r["combined_score"],
                 ]
             )
         title = f"التقرير السلوكي والتعليمي الشهري — {data.get('period', '')}"
@@ -1024,7 +1015,7 @@ class ExcelService:
             num_cols,
             school_name,
             f"{report_title}  —  السنة الدراسية {year}",
-            f"وزارة التربية والتعليم والتعليم العالي — دولة قطر  |  {today_str}",
+            ministry_line(ministry_name(), today_str, sep="  |  "),
         )
         # رأسُ الصفحة المطبوعة باسم المدرسة التي صدر عنها الملفّ — لا باسمٍ ثابت.
         cls._print_header(ws, school_name)
@@ -1037,7 +1028,7 @@ class ExcelService:
     def _add_header_row(cls, ws: object, styles: dict, row_num: int, columns: list) -> None:
         """رأس الجدول: قائمة من (عنوان، عرض)"""
         for col_idx, (header, width) in enumerate(columns, start=1):
-            cell = ws.cell(row=row_num, column=col_idx, value=header)
+            cell = safe_cell(ws, row=row_num, column=col_idx, value=header)
             cell.font = styles["header_font"]
             cell.fill = styles["header_fill"]
             cell.alignment = styles["header_align"]
@@ -1164,9 +1155,9 @@ class ExcelService:
         )
         # الاسمُ العربيّ في `filename="…"` يُرمّزه Django بـRFC 2047 فلا يفهمه المتصفّح —
         # الترويسةُ المشتركةُ تبقى ASCII وتحمل العربيّ في `filename*`.
-        from core.pdf_utils import _content_disposition
+        from core.pdf_utils import content_disposition
 
-        resp["Content-Disposition"] = _content_disposition(filename, True)
+        resp["Content-Disposition"] = content_disposition(filename, True)
         return resp
 
     # ── التقارير ──────────────────────────────────────────────────────
@@ -1233,32 +1224,33 @@ class ExcelService:
             is_alt = rank % 2 == 0
             st = row["student"]
 
-            ws.cell(row=row_num, column=1, value=rank)
-            ws.cell(row=row_num, column=2, value=st.full_name)
-            ws.cell(row=row_num, column=3, value=mask_national_id(st.national_id))
+            safe_cell(ws, row=row_num, column=1, value=rank)
+            safe_cell(ws, row=row_num, column=2, value=st.full_name)
+            safe_cell(ws, row=row_num, column=3, value=mask_national_id(st.national_id))
 
             for col_off, subj in enumerate(subjects, start=4):
                 ann = row["grades"].get(subj.name_ar)
                 grade = float(ann.annual_total) if ann and ann.annual_total else None
-                cell = ws.cell(
-                    row=row_num, column=col_off, value=grade if grade is not None else "—"
+                cell = safe_cell(
+                    ws, row=row_num, column=col_off, value=grade if grade is not None else "—"
                 )
                 if grade is not None and grade < 50:
                     cell.font = xl_font(brand.STATUS_DANGER_FG, bold=True)
 
-            ws.cell(
+            safe_cell(
+                ws,
                 row=row_num,
                 column=4 + len(subjects),
                 value=row["avg"] if row["avg"] is not None else "—",
             )
 
-            status_cell = ws.cell(row=row_num, column=5 + len(subjects), value=row["status"])
+            status_cell = safe_cell(ws, row=row_num, column=5 + len(subjects), value=row["status"])
             if row["status"] == "ناجح":
                 status_cell.font = xl_font(brand.STATUS_SUCCESS_FG, bold=True)
             elif row["status"] == "راسب":
                 status_cell.font = xl_font(brand.STATUS_DANGER_FG, bold=True)
 
-            ws.cell(row=row_num, column=6 + len(subjects), value=rank)
+            safe_cell(ws, row=row_num, column=6 + len(subjects), value=rank)
             cls._style_data_row(ws, styles, row_num, num_cols, is_alt)
 
         cls._apply_protection(ws, num_cols)
@@ -1323,19 +1315,19 @@ class ExcelService:
             st = row["student"]
             pct = row["attendance_pct"]
 
-            ws.cell(row=row_num, column=1, value=idx)
-            ws.cell(row=row_num, column=2, value=st.full_name)
-            ws.cell(row=row_num, column=3, value=mask_national_id(st.national_id))
-            ws.cell(row=row_num, column=4, value=row["total_sessions"])
-            ws.cell(row=row_num, column=5, value=row["present"])
+            safe_cell(ws, row=row_num, column=1, value=idx)
+            safe_cell(ws, row=row_num, column=2, value=st.full_name)
+            safe_cell(ws, row=row_num, column=3, value=mask_national_id(st.national_id))
+            safe_cell(ws, row=row_num, column=4, value=row["total_sessions"])
+            safe_cell(ws, row=row_num, column=5, value=row["present"])
 
-            absent_cell = ws.cell(row=row_num, column=6, value=row["absent"])
+            absent_cell = safe_cell(ws, row=row_num, column=6, value=row["absent"])
             if row["absent"] > 10:
                 absent_cell.font = xl_font(brand.STATUS_DANGER_FG, bold=True)
 
-            ws.cell(row=row_num, column=7, value=row["late"])
+            safe_cell(ws, row=row_num, column=7, value=row["late"])
 
-            pct_cell = ws.cell(row=row_num, column=8, value=pct)
+            pct_cell = safe_cell(ws, row=row_num, column=8, value=pct)
             if pct < 80:
                 pct_cell.font = xl_font(brand.STATUS_DANGER_FG, bold=True)
             elif pct >= 95:
@@ -1413,22 +1405,28 @@ class ExcelService:
         for idx, inf in enumerate(data["infractions"], start=1):
             row_num = idx + 4  # البيانات تبدأ من الصف 5
 
-            ws.cell(row=row_num, column=1, value=idx)
-            ws.cell(row=row_num, column=2, value=inf.student.full_name)
-            ws.cell(row=row_num, column=3, value=mask_national_id(inf.student.national_id))
-            ws.cell(row=row_num, column=4, value=inf.date.strftime("%Y/%m/%d") if inf.date else "")
+            safe_cell(ws, row=row_num, column=1, value=idx)
+            safe_cell(ws, row=row_num, column=2, value=inf.student.full_name)
+            safe_cell(ws, row=row_num, column=3, value=mask_national_id(inf.student.national_id))
+            safe_cell(
+                ws, row=row_num, column=4, value=inf.date.strftime("%Y/%m/%d") if inf.date else ""
+            )
 
-            level_cell = ws.cell(
+            level_cell = safe_cell(
+                ws,
                 row=row_num,
                 column=5,
                 value=LEVEL_LABELS.get(inf.level, str(inf.level)),
             )
             level_cell.font = xl_font(LEVEL_COLORS.get(inf.level, brand.TEXT_PRIMARY), bold=True)
 
-            ws.cell(
-                row=row_num, column=6, value=inf.reported_by.full_name if inf.reported_by else "—"
+            safe_cell(
+                ws,
+                row=row_num,
+                column=6,
+                value=inf.reported_by.full_name if inf.reported_by else "—",
             )
-            ws.cell(row=row_num, column=7, value=inf.description or "")
+            safe_cell(ws, row=row_num, column=7, value=inf.description or "")
 
             cls._style_data_row(ws, styles, row_num, num_cols, idx % 2 == 0)
 

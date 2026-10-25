@@ -15,10 +15,9 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 
 from core import print_frame as pf
+from core.ministry import ministry_name
 
 register = template.Library()
-
-MINISTRY = "وزارة التربية والتعليم والتعليم العالي — دولة قطر"
 
 _TAGS = re.compile(r"<[^>]+>")
 
@@ -40,11 +39,19 @@ def _contact(school: Any) -> str:
 
 
 @register.simple_tag
-def print_frame_css(paper: str, orient: str) -> str:
-    """كتلةُ `<style>` للصفحة والإطار: `@page` بحجم الورق والهوامش ومربّعَي الترويسة والتذييل، وأنماطُهما بألوان الهويّة."""
+def print_frame_css(paper: str, orient: str, variant: str = "") -> str:
+    """كتلةُ `<style>` للصفحة والإطار: `@page` بحجم الورق والهوامش ومربّعَي الترويسة والتذييل، وأنماطُهما بألوان الهويّة.
+
+    `variant="sheet"`: ورقةُ المعلّم/الشعبة المفردة (W-20261010-057) — خطوطُ الترويسة أكبرُ (المدرسةُ 16pt والعنوانُ 13pt وما دونهما 10pt) حدّاً أدنى
+    قرّره المالكُ؛ والهندسةُ **مضغوطةٌ** (`pf.frame(..., compact=True)`: ترويسةٌ على قدر محتواها وتذييلٌ ملاصق) فلا فراغَ تحت الترويسة ولا فوق التذييل؛
+    وبلا متغيّرٍ يبقى الإطارُ العامُّ بحاله فلا يتبدّل جدولٌ عامٌّ يستعمله."""
     return render_to_string(
         "components/print/frame_css.html",
-        {"fr": pf.frame(paper, orient), "footer_pt": pf.FOOTER_PT},
+        {
+            "fr": pf.frame(paper, orient, compact=variant == "sheet"),
+            "footer_pt": pf.FOOTER_PT,
+            "variant": variant,
+        },
     )
 
 
@@ -59,7 +66,7 @@ def print_frame_header(
         "title": title,
         "subtitle": subtitle,
         "for_pdf": for_pdf,
-        "ministry": MINISTRY,
+        "ministry": ministry_name(),
         "vision": _vision_text(school) if fr.vision_in_header else "",
     }
 
@@ -83,7 +90,7 @@ def print_frame_footer(
         fr,
         school=school.name,
         vision=vision,
-        ministry=MINISTRY,
+        ministry=ministry_name(),
         contact=contact,
         stats=stats,
         date_text=date_text,
@@ -94,7 +101,7 @@ def print_frame_footer(
         "date": f"تاريخ الطباعة: ⁦{date_text}⁩",
         "stats": stats,
         "vision": vision,
-        "ministry": MINISTRY,
+        "ministry": ministry_name(),
         "contact": contact,
     }
     return {

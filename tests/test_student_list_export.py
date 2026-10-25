@@ -171,8 +171,9 @@ class TestTheWorkerBuildsTheSameList:
         _run(school, principal_user)
 
         html = captured_html[0]
-        assert MASKED in html
-        assert STUDENT_ID not in html, "كشفٌ جماعيّ — يُستر وإن طُبع"
+        assert (
+            MASKED not in html and STUDENT_ID not in html
+        ), "كشفٌ جماعيّ — لا رقمَ فيه مستوراً ولا كاملاً (W-20261011-014)"
 
     def test_it_renders_under_a_strict_manifest_like_the_worker_has(
         self, school, principal_user, pupils, captured_html, settings

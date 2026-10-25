@@ -1,4 +1,6 @@
 {% extends "base/base.html" %}
+{% load static %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/custom/35-quality.css' %}">{% endblock %}
 {% load ui %}
 {% block title %}زيارة صفّية — {{ obs.teacher.full_name }}{% endblock %}
 
@@ -22,7 +24,7 @@
     </form>
     {% endif %}
     {% if can_edit %}<a href="{% url 'observation_edit' obs.id %}" class="btn-secondary btn-sm">تعديل</a>{% endif %}
-    <a href="{% url 'observation_pdf_view' obs.id %}" class="btn-secondary btn-sm">PDF</a>
+    {% export_button "pdf" "observation_pdf_view" obs.id inline=True %}{% endexport_button %}
     {% if can_archive and obs.status == "draft" %}
     <form method="post" action="{% url 'observation_delete' obs.id %}" class="form-inline" data-confirm="أرشفة هذه المسودة؟ تُحفظ في الأرشيف ويمكن استرجاعها.">
       {% csrf_token %}<button type="submit" class="btn-danger btn-sm">أرشفة</button>
@@ -48,7 +50,7 @@
   {% for domain_label, rows in grouped %}
   {% section_card domain_label meta=rows|length icon="checklist" flush=True %}
     {# ترتيبُ المعايير كما في الاستمارة المعتمَدة — لا يُفرَز. #}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
     <table class="table" data-no-sort>
       <thead><tr><th class="qobs-col-criterion">المعيار</th><th>التقييم</th><th>التوصية</th></tr></thead>
       <tbody>

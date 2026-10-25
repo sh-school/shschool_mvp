@@ -13,6 +13,7 @@
 import datetime as dt
 
 import pytest
+from django.utils import timezone
 
 from core.models import ClassGroup
 from operations.models import (
@@ -33,6 +34,14 @@ YEAR = "2026-2027"
 #: أحدٌ من أيّام الدراسة في التقويم المبذور، في أسبوعٍ لا يولّده شيءٌ غير الاختبار.
 SUNDAY = dt.date(2026, 10, 11)
 NEXT_SUNDAY = SUNDAY + dt.timedelta(days=7)
+#: «اليوم» المثبَّت: يومٌ قبل الأحد، فلا يصير تاريخُ التعويض ماضياً (`_not_past`) مهما تقدّمت الساعةُ الحقيقيّة
+#: (سقط الملفّ كلَّه في طابور الدمج منذ منتصف ليل 2026-10-12 بتوقيت الدوحة، W-20261012-003).
+TODAY = SUNDAY - dt.timedelta(days=1)
+
+
+@pytest.fixture(autouse=True)
+def _pinned_today(monkeypatch):
+    monkeypatch.setattr(timezone, "localdate", lambda *a, **k: TODAY)
 
 
 def _teacher(school, name):

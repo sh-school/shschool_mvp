@@ -14,7 +14,6 @@ pytestmark = pytest.mark.django_db
 COLUMNS = (
     "الاسم",
     "الرقم الوظيفي",
-    "الرقم الشخصي",
     "المسمّى الوظيفي",
     "القسم",
     "الجوال",
@@ -95,10 +94,9 @@ class TestColumns:
 
         for value in ("123456", "معلم رياضيات", "k@education.qa", "الريان", "قطري"):
             assert value in body, value
-        # والرقمُ الشخصيُّ مستورٌ في الشاشة (قرارُ المستخدم 2026-09-11):
-        # آخرُ أربعِ خاناتٍ تكفي للتمييز، والكاملُ في وثائق الطباعة وحدَها.
-        assert "*******0011" in body
+        # والرقمُ الشخصيُّ مخفيٌّ كلُّه لا بعضُه (D-386م، W-20261011-013): لا كاملاً ولا ذيلَه.
         assert "29000000011" not in body
+        assert "*******0011" not in body
 
     def test_the_departure_column_shows_only_for_those_who_left(self, client_as, school, principal):
         """عمودٌ فارغٌ على رأس العمل حشوٌ — ويُعرض حين يعني شيئاً."""

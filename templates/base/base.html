@@ -1,5 +1,6 @@
 {% load privacy brand_tags icons %}
 {% load navigation assets %}
+{% load ux_survey_tags %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -42,8 +43,8 @@
   {% load static %}
 
   {# ── Favicon & PWA ── #}
-  <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/favicon.png' %}">
-  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/apple-touch-icon.png' %}">
+  <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/v5/favicon.png' %}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/v5/apple-touch-icon.png' %}">
   {% if user.is_authenticated %}
   <link rel="manifest" href="{% url 'global_manifest' %}">
   {% comment %}
@@ -70,16 +71,16 @@
 
 <body class="app-body min-h-screen flex flex-col" data-icon-sprite="{% static 'icons/sprite.svg' %}" data-page-nav>
 
-{# ✅ Skip Navigation — WCAG 2.1 AA #}
+{# Skip Navigation — WCAG 2.1 AA #}
 <a href="#main-content" class="skip-nav">تخطي للمحتوى الرئيسي</a>
 
-{# ✅ HTMX Loading Bar — شريط تحميل أعلى الصفحة #}
+{# HTMX Loading Bar — شريط تحميل أعلى الصفحة #}
 <div id="htmx-loading-bar" aria-hidden="true"></div>
 
-{# ✅ Screen Reader Live Region — يُنبِّه بتحديثات HTMX #}
+{# Screen Reader Live Region — يُنبِّه بتحديثات HTMX #}
 <div id="sr-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
-{# ✅ Toast Container #}
+{# Toast Container #}
 <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
 
 {% if user.is_authenticated %}
@@ -92,8 +93,7 @@
     {# ── Logo + اسم المدرسة ── #}
     {% if request.user|can_open:"dashboard" %}
     <a href="{% url 'dashboard' %}" class="nb nav-logo">
-      <img src="{% static 'brand/emblem-white.svg' %}" width="27" height="27"
-           alt="{{ current_school.name|default:'شعار المدرسة' }}" class="nav-logo-img">
+      {% load school_logo %}{% school_logo "nav" %}
       <span class="nav-logo-text">{{ current_school.name|default:"المدرسة" }}</span>
     </a>
     {% endif %}
@@ -511,7 +511,7 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
 {% endcomment %}
 {% if is_admin_role or role == "secretary" or role == "student_affairs_coordinator" %}
 
-{# ✅ REQ-SH-002 — Client 001 menu restructure (11 items، كلُّها باقيةٌ بلا حذف). #}
+{# REQ-SH-002 — Client 001 menu restructure (11 items، كلُّها باقيةٌ بلا حذف). #}
 {% comment %}
 عمودٌ لكلّ قسمٍ فوق 1025px (sd-menu--cols-4) — كلُّ قسمٍ فيه عنصرٌ واحدٌ على
 الأقلّ متاحٌ لكلّ من يفتح هذه القائمة (can_open وحدَه بلا قيد دورٍ)، فلا يفرغ
@@ -630,6 +630,9 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"staff_affairs:attendance_report" %}
   <a href="{% url 'staff_affairs:attendance_report' %}">{% icon "reports" %} تقرير الحضور الشهري</a>
   {% endif %}
+  {% if request.user|can_open:"staff_affairs:probation_results" %}
+  <a href="{% url 'staff_affairs:probation_results' %}">{% icon "checklist" %} نتائج فترة الاختبار</a>
+  {% endif %}
   {% if request.user|can_open:"staff_affairs:exemptions" %}
   <a href="{% url 'staff_affairs:exemptions' %}">{% icon "staff" %} الإعفاء من الرصد</a>
   {% endif %}
@@ -665,6 +668,9 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"teacher_load_report" %}
   <a href="{% url 'teacher_load_report' %}">{% icon "workload" %} تقرير أعباء المعلمين</a>
   {% endif %}
+  {% if request.user|can_open:"teacher_preferences_overview" %}
+  <a href="{% url 'teacher_preferences_overview' %}">{% icon "settings" %} تفضيلات المعلّمين</a>
+  {% endif %}
   </div>
 </div>
 
@@ -698,16 +704,30 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   </div>
 </div>
 
-<div class="sd-menu" id="m-services" role="menu" aria-label="الخدمات">
-  <div class="sd-label">الخدمات المساندة</div>
+{% comment %}
+أقسامٌ بعناوينها كبقيّة القوائم (m-staff-affairs وm-quality): العيادةُ قسمٌ بروابطها — لوحتُها وعلامةُ المراعاة
+(W-20261010-045: كانت القائمةُ رابطاً واحداً إلى لوحة العيادة فلا يبلغ المديرُ الاستيرادَ منها). عمودان حين يظهر القسمان.
+{% endcomment %}
+<div class="sd-menu{% if request.user|can_open:'clinic:dashboard' and request.user|can_open:'transport:dashboard' or request.user|can_open:'clinic:dashboard' and request.user|can_open:'library:dashboard' %} sd-menu--cols-2{% endif %}" id="m-services" role="menu" aria-label="الخدمات">
   {% if request.user|can_open:"clinic:dashboard" %}
-  <a href="{% url 'clinic:dashboard' %}">{% icon "clinic" %} العيادة المدرسية</a>
+  <div class="sd-section">
+  <div class="sd-label">العيادة المدرسية</div>
+  <a href="{% url 'clinic:dashboard' %}">{% icon "clinic" %} لوحة العيادة</a>
+  {% if request.user|can_open:"clinic:needs_care_import" %}
+  <a href="{% url 'clinic:needs_care_import' %}">{% icon "document" %} علامة المراعاة</a>
   {% endif %}
+  </div>
+  {% endif %}
+  {% if request.user|can_open:"transport:dashboard" or request.user|can_open:"library:dashboard" %}
+  <div class="sd-section">
+  <div class="sd-label">النقل والمكتبة</div>
   {% if request.user|can_open:"transport:dashboard" %}
   <a href="{% url 'transport:dashboard' %}">{% icon "transport" %} النقل المدرسي</a>
   {% endif %}
   {% if request.user|can_open:"library:dashboard" %}
   <a href="{% url 'library:dashboard' %}">{% icon "library" %} المكتبة</a>
+  {% endif %}
+  </div>
   {% endif %}
 </div>
 
@@ -747,8 +767,18 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   <a href="{% url 'student_affairs:student_movements' %}">{% icon "sent_home" %} تحركات الطلبة</a>
   {% endif %}
   {% comment %} «تسجيل الحضور» القديمة للمعلّم وحدَه («حصصي اليوم» في قائمته) — القيادةُ والمشرفون يرصدون من كشف الأجنحة (قرارُ 2026-09-13). {% endcomment %}
+  {% comment %} «متابعة الغياب» ثلاثةُ بنودٍ مباشرة بلا مستوى ثالث (W-20261020-005، قرارُ المالك). {% endcomment %}
+  {% if request.user|can_open:"wings:ministry_report" %}
+  <a href="{% url 'wings:ministry_report' %}">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>
+  {% endif %}
   {% if request.user|can_open:"daily_report" %}
-  <a href="{% url 'daily_report' %}">{% icon "absence" %} غياب اليوم</a>
+  <a href="{% url 'daily_report' %}">{% icon "call_parent" %} التواصل مع أولياء الأمور</a>
+  {% endif %}
+  {% if request.user|can_open:"absence_actions" %}
+  <a href="{% url 'absence_actions' %}">{% icon "checklist" %} إجراءات الغياب</a>
+  {% endif %}
+  {% if request.user|can_open:"excuse_queue" %}
+  <a href="{% url 'excuse_queue' %}">{% icon "absence" %} أعذارُ الغياب عن الاختبارات</a>
   {% endif %}
   </div>
   <div class="sd-section">
@@ -933,8 +963,18 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   </div>
   <div class="sd-section">
   <div class="sd-label">الغياب والتأخّر</div>
+  {% comment %} «متابعة الغياب» ثلاثةُ بنودٍ مباشرة بلا مستوى ثالث (W-20261020-005، قرارُ المالك). {% endcomment %}
+  {% if request.user|can_open:"wings:ministry_report" %}
+  <a href="{% url 'wings:ministry_report' %}">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>
+  {% endif %}
   {% if request.user|can_open:"daily_report" %}
-  <a href="{% url 'daily_report' %}">{% icon "absence" %} غياب اليوم</a>
+  <a href="{% url 'daily_report' %}">{% icon "call_parent" %} التواصل مع أولياء الأمور</a>
+  {% endif %}
+  {% if request.user|can_open:"absence_actions" %}
+  <a href="{% url 'absence_actions' %}">{% icon "checklist" %} إجراءات الغياب</a>
+  {% endif %}
+  {% if request.user|can_open:"excuse_queue" %}
+  <a href="{% url 'excuse_queue' %}">{% icon "absence" %} أعذارُ الغياب عن الاختبارات</a>
   {% endif %}
   {% if request.user|can_open:"student_affairs:attendance_overview" %}
   <a href="{% url 'student_affairs:attendance_overview' %}">{% icon "stats" %} إحصائيات غياب الجناح</a>
@@ -1086,17 +1126,19 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% if request.user|can_open:"failing_students" %}
   <a href="{% url 'failing_students' %}">{% icon "failing_students" %} الطلاب المتعثرون</a>
   {% endif %}
+  {% if request.user|can_open:"excuse_queue" %}
+  <a href="{% url 'excuse_queue' %}">{% icon "absence" %} أعذارُ الغياب عن الاختبارات</a>
+  {% endif %}
 </div>
 {% endif %}
 
 <div class="sd-menu" id="m-user" role="menu" aria-label="قائمة المستخدم">
   <div class="sd-user-header">
     <p class="sd-user-fullname">{{ request.user.full_name }}</p>
-    <p class="sd-user-nid">{{ request.user.national_id|mask_id }}</p>
-    <p class="sd-user-role">{{ request.user.get_role_display }}</p>
+    <p class="sd-user-role">{{ request.user.role_label }}</p>
   </div>
   {% if request.user.has_multiple_roles %}
-  <a href="/auth/choose-role/">{% icon "role_switch" %} تبديل الدور</a>
+  <a href="{% url 'choose_role' %}">{% icon "role_switch" %} تبديل الدور</a>
   {% endif %}
   {% if request.user|can_open:"notification_inbox" %}
   <a href="{% url 'notification_inbox' %}">{% icon "notifications" %} الإشعارات</a>
@@ -1104,6 +1146,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   <a href="#" id="theme-toggle-menu" data-click="#theme-toggle">
     <span id="theme-menu-icon"><span data-theme-icon="dark">{% icon "theme_dark" %}</span><span data-theme-icon="light" hidden>{% icon "theme_light" %}</span></span> <span id="theme-menu-text">الوضع الليلي</span>
   </a>
+  {% if request.user|can_open:"staff_affairs:leave_request_self" %}
+  <a href="{% url 'staff_affairs:leave_request_self' %}">{% icon "leave" %} طلب إجازة</a>
+  {% endif %}
   {% if request.user|can_open:"staff_affairs:my_permits" %}
   <a href="{% url 'staff_affairs:my_permits' %}">{% icon "leave" %} أذوناتي</a>
   {% endif %}
@@ -1116,7 +1161,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% if is_admin_role %}
   {% if request.user|can_open:"setup_2fa" %}
   <a href="{% url 'setup_2fa' %}" class="{% if request.user.totp_enabled %}sd-2fa-enabled{% else %}sd-2fa-disabled{% endif %}">
-    {% icon "two_factor" %} المصادقة الثنائية{% if not request.user.totp_enabled %} (غير مفعّلة){% else %} (مفعّلة ✓){% endif %}
+    {% icon "two_factor" %} المصادقة الثنائية{% if not request.user.totp_enabled %} (غير مفعّلة){% else %} (مفعّلة){% endif %}
   </a>
   {% endif %}
   {% endif %}
@@ -1146,14 +1191,26 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% endfor %}
 </div>
 {% endif %}
+{% survey_prompt %}
 </div>
 
 
 {# ════════════════ BREADCRUMBS ══════════════════════════════════════════ #}
+<div class="page-top">
 <div id="crumbs" class="page-crumbs">{% block breadcrumbs %}{% endblock %}</div>
+{% comment %}
+  عمرُ بيانات الصفحة (W-20261012-014، D-410م): وقتُ الخادم يُرسم من الخادم لا من JS فلا قفزةَ في التخطيط، و`data-now` ساعةُ الخادم
+  بالثواني لحساب الإزاحة عن ساعة الجهاز. السلوكُ في `page-fresh.js`؛ ويُخفى المؤشّرُ على صفحاتٍ لا تُحدَّث (الإدارة ولوحة القيادة وحالة التصدير).
+{% endcomment %}
+<div class="page-fresh" data-page-fresh data-now="{% now 'U' %}"{% if "/command-center/" in request.path or "/exports/" in request.path %} hidden{% endif %}>
+  <span>آخر تحديث <time data-fresh-time data-visual-mask>{% now "H:i" %}</time></span>
+  <button type="button" class="btn-ghost btn-xs" data-fresh-refresh aria-label="تحديث بيانات الصفحة">تحديث</button>
+  <form data-fresh-gate hidden></form>
+</div>
+</div>
 
 {# ════════════════ MAIN CONTENT ═════════════════════════════════════════ #}
-<main id="main-content" class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full {% block main_class %}{% endblock %}">
+<main id="main-content" class="py-6 flex-1 w-full {% block main_class %}{% endblock %}">
   {% block page_header %}{% endblock %}
   {% block content %}{% endblock %}
 </main>
@@ -1249,6 +1306,8 @@ window.fitNoscroll();
 window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }}, rum: {% if rum_endpoint %}{ endpoint: "{{ rum_endpoint|escapejs }}", sample: {{ rum_sample }} }{% else %}null{% endif %} };
 </script>
 {# مفردات data-* المعلنة — تحلّ محلّ معالِجات الأحداث الداخلية التي تحجبها CSP #}
+{# بطاقةُ «تغيّرت أيقونة التطبيق» لمن ثبّت قبل التغيير (W-20261011-012) — أوّلَ السكربتات: تقرأ المخزنَ قبل أن يكتب فيه غيرُها (مخزنٌ فارغٌ = تثبيتٌ جديد) #}
+<script src="{% static 'js/icon-update-notice.js' %}" defer></script>
 <script src="{% static 'js/actions.js' %}" defer></script>
 <script src="{% static 'js/base.js' %}" defer></script>
 <script src="{% static 'js/app.js' %}" defer></script>
@@ -1257,6 +1316,9 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
 <script src="{% static 'js/export-center.js' %}" defer></script>
 {% comment %}التنقّلُ بين الصفحات بتبديل المحتوى وحدَه: الترويسةُ والقائمةُ والفوتر ثابتةٌ لا تُعاد، والمحتوى يتلاشى ثمّ يظهر بسلاسةٍ (قرارُ المالك 2026-09-20). صفحةٌ لها سكربتُها أو أنماطُها الخاصّة تُحمَّل كاملةً كما كانت.{% endcomment %}
 <script src="{% static 'js/page-nav.js' %}" defer></script>
+<script src="{% static 'js/page-fresh.js' %}" defer></script>
+{# حارسُ الجلسة: نبضٌ وتحذيرٌ ونافذةُ إعادة دخولٍ تحفظ ما أُدخل (W-20261005-003). يُحمَّل لكلّ صفحة: داخل إطار إعادة الدخول يكتفي بإخفاء الإطار المحيط. #}
+<script src="{% static 'js/session-guard.js' %}" defer></script>
 {% if rum_endpoint %}{# قياسُ الأداء الميدانيّ (Q-04): لا يُحمَّل ما دام RUM_ENDPOINT فارغاً #}
 <script src="{% static 'js/rum.js' %}" defer></script>
 {% endif %}
@@ -1275,10 +1337,12 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
   <button class="pwa-install-btn" data-action="install-pwa">تثبيت</button>
   <button class="pwa-dismiss-btn" data-action="dismiss-pwa" aria-label="إغلاق">{% icon "close" size="sm" %}</button>
 </div>
+{% include "components/icon_update_notice.html" %}
+{% include "components/session_guard.html" %}
 {% endif %}
 
 
-{# ✅ Mobile Bottom Navigation ── #}
+{# Mobile Bottom Navigation ── #}
 {% if user.is_authenticated %}
 {% with role=request.user.get_role %}
 <nav class="mobile-bottom-nav" aria-label="التنقل السريع">

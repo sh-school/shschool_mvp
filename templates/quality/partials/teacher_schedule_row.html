@@ -28,7 +28,7 @@ observation_form.html على صنف `.qobs-schedule-pill` نفسِه — يعم�
         <small>{{ p.session.start_time|time:"H:i" }}</small>
       </button>
       {% empty %}
-      <p class="pr-muted">لا حصص لهذا المعلّم في هذا التاريخ — أدخل المادّة والشعبة والحصّة يدويّاً.</p>
+      <p class="pr-muted">{% if self_mode %}لا حصص في جدولك هذا اليوم — فعّل «حصّة خارج جدولي» وأدخل بياناتها.{% else %}لا حصص لهذا المعلّم في هذا التاريخ — أدخل المادّة والشعبة والحصّة يدويّاً.{% endif %}</p>
       {% endfor %}
     </div>
   {% endif %}

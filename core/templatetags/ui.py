@@ -66,6 +66,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from django import template
 from django.template.loader import render_to_string
@@ -376,11 +377,26 @@ def empty_state(title="لا توجد بيانات", sub="", icon="empty", compac
 # ── 5. ترويسةُ الصفحة ─────────────────────────────────────────────────────
 
 
-@register.simple_block_tag
-def page_header(content, title, subtitle="", icon=""):
+def _day_picker_html(context: Any) -> str:
+    """محدِّدُ يومِ اللوحة (W-20261010-056) داخل أوّل ترويسةٍ في الصفحة — لا صفَّ مستقلّاً يمدّ الارتفاعَ (اللوحةُ تسع 1366×768 بلا تمرير، LAY-03).
+
+    يظهر حيث يحمل السياقُ `date_nav` (لوحةُ الأدوار وحدَها) ومرّةً واحدةً لكلّ طلب، فلا ترويسةٌ ثانيةٌ في الصفحة تكرّره.
+    """
+    request = context.get("request")
+    if not context.get("date_nav") or getattr(request, "_day_picker_done", False):
+        return ""
+    if request is not None:
+        request._day_picker_done = True
+    return render_to_string("dashboard/partials/_day_picker.html", context.flatten())
+
+
+@register.simple_block_tag(takes_context=True)
+def page_header(context, content, title, subtitle="", icon=""):
     """عنوانُ الصفحة وسطرُها الوصفيّ وإجراءاتُها — إطارٌ واحدٌ بدل ثلاثة."""
     _require(title, "page_header", "العنوان")
     content, tips = _split_tips(content)
+    # `"" + SafeString` يعيد str عاديّاً فيُهرَّب HTML الإجراءات؛ والمقطعان كلاهما مرسومٌ آمن (قالبٌ وكتلةُ قالب).
+    content = mark_safe(_day_picker_html(context) + content)
     return mark_safe(
         render_to_string(
             "components/ui/page_header.html",
@@ -643,4 +659,108 @@ def filter_bar(content, label, action="", id="", css="", live=False, **attrs):
         action=format_html(' action="{}"', action) if action and not live else "",
         attrs=_extra_attrs(f"filter_bar «{label}»", attrs),
         content=content,
+    )
+
+
+# ── زرّ التصدير الموحَّد (W-20261021-006) ────────────────────────────────
+#: الأسماءُ الثلاثةُ المعتمدة بقرار المالك 2026-10-21؛ «تحميل» للمرفقات المرفوعة وحدَها فلا مكانَ له هنا.
+EXPORT_KINDS: dict[str, tuple[str, str]] = {
+    "pdf": ("export_pdf", "تصدير PDF"),
+    "xlsx": ("export_excel", "تصدير Excel"),
+    "print": ("print", "طباعة"),
+}
+
+
+@register.simple_block_tag  # type: ignore[attr-defined,misc]
+def export_button(
+    content: str,
+    kind: str,
+    url_name: str = "",
+    *args: Any,
+    primary: bool = False,
+    size: str = "sm",
+    id: str = "",  # noqa: A002
+    title: str = "",
+    href: str = "",
+    job: str = "",
+    download: bool = False,
+    inline: bool = False,
+    name: str = "",
+    value: str = "",
+) -> str:
+    """زرُّ تصديرٍ بالاسم والأيقونة والفئة المعتمدة — الصفحةُ تمرّر **الرابطَ** والوسمُ يملك **الشكل**.
+
+        {% export_button "pdf" "student_affairs:student_list_pdf" %}?q={{ q|urlencode }}{% endexport_button %}
+        {% export_button "xlsx" "breach:xlsx" breach.pk primary=True %}{% endexport_button %}
+        {% export_button "pdf" href="?export=pdf" title="لائحة السلوك" %}{% endexport_button %}
+        {% export_button "xlsx" name="format" value="xlsx" %}{% endexport_button %}
+        {% export_button "print" %}{% endexport_button %}
+
+    ما بين الوسمين يُلحَق بالرابط حرفياً (سلسلةُ الاستعلام). والرابطُ يمرّ على مركز التصدير
+    (`data-app-file`) فتظهر حالةُ التحميل؛ و«طباعة» زرٌّ يستدعي نافذةَ الطباعة ولا رابطَ له.
+
+    * `title`: ما يميّز الزرَّ حين تحمل الصفحةُ أكثرَ من تصدير (يُعلَن للقارئ ويظهر تلميحاً) — النصُّ المرئيّ يبقى
+      من الأسماء الثلاثة وحدَها.
+    * `href`: رابطٌ نسبيٌّ لا يُعكَس باسم مسار (`?export=pdf` على الصفحة الحاليّة).
+    * `name`/`value`: زرُّ إرسالٍ داخل نموذجٍ بدل رابط (`format=xlsx`).
+    * `job`: يُكتب `data-export-job` الذي يقرؤه مركزُ التصدير لطلب الإنتاج في الخلفية.
+    * `inline`: الرابطُ يفتح صفحةَ عرضٍ (لا ملفاً) فلا يمرّ على مركز التصدير.
+    * `size`: `sm` (الافتراضيّ) أو `xs` داخل صفوف الجداول.
+
+    نوعٌ خارج الثلاثة `TemplateSyntaxError`.
+    """
+    from django.urls import reverse
+    from django.utils.html import escape
+
+    from core.templatetags.icons import icon
+
+    if kind not in EXPORT_KINDS:
+        raise template.TemplateSyntaxError(
+            f"export_button: نوعٌ {kind!r} غيرُ معتمد — المتاح: {', '.join(EXPORT_KINDS)}"
+        )
+    if size not in ("sm", "xs"):
+        raise template.TemplateSyntaxError(f"export_button: size {size!r} غيرُ معتمد — sm أو xs")
+    icon_key, label = EXPORT_KINDS[kind]
+    css = f"{'btn-primary' if primary else 'btn-secondary'} btn-{size}"
+    ident = f' id="{escape(id)}"' if id else ""
+    hint = (
+        f' title="{escape(title)}" aria-label="{escape(label)} — {escape(title)}"' if title else ""
+    )
+    glyph = icon(icon_key)
+    if kind == "print":
+        return format_html(
+            '<button type="button"{}{} class="{} no-print" hx-on:click="window.print()">{} {}</button>',
+            mark_safe(ident),
+            mark_safe(hint),
+            css,
+            glyph,
+            label,
+        )
+    if name:
+        return format_html(
+            '<button data-app-file type="submit"{}{} name="{}" value="{}" class="{}">{} {}</button>',
+            mark_safe(ident),
+            mark_safe(hint),
+            name,
+            value,
+            css,
+            glyph,
+            label,
+        )
+    if not (url_name or href):
+        raise template.TemplateSyntaxError("export_button: اسمُ المسار (أو href) مطلوب لـ pdf وxlsx")
+    base = reverse(url_name, args=args) if url_name else href
+    link = format_html("{}{}", base, content.strip())
+    extra = format_html(' data-export-job="{}"', job) if job else ""
+    return format_html(
+        '<a{}{}{}{}{} href="{}" class="{}">{} {}</a>',
+        mark_safe("" if inline else " data-app-file"),
+        extra,
+        mark_safe(" download" if download else ""),
+        mark_safe(ident),
+        mark_safe(hint),
+        link,
+        css,
+        glyph,
+        label,
     )

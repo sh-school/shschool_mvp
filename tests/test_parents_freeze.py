@@ -347,14 +347,41 @@ def test_the_frozen_recheck_never_exceeds_the_quiet_hours_hop():
     assert FROZEN_RECHECK_SECONDS <= MAX_HOLD_HOP.total_seconds()
 
 
-def test_the_setting_thaws_only_on_an_explicit_off_value():
-    """الصيغةُ المكتوبةُ في base.py (تُقارَن مضغوطةً: ruff يلفّ الأسطر ويُضيف فاصلةً أخيرة)."""
-    import re
-    from pathlib import Path
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (None, True),
+        ("", True),
+        ("1", True),
+        ("true", True),
+        ("garbage", True),
+        ("0", False),
+        ("false", False),
+        ("no", False),
+        ("off", False),
+        (" OFF ", False),
+        ("False", False),
+    ],
+)
+def test_the_setting_thaws_only_on_an_explicit_off_value(raw, expected):
+    """تحليلٌ فعليٌّ لـ`PARENTS_FROZEN` في base.py بعمليّةٍ مستقلّة (لا مقارنةُ نصّ): لا فكَّ إلا بـ0/false/no/off."""
+    import os
+    import subprocess
+    import sys
 
-    src = re.sub(r"\s+", "", Path("shschool/settings/base.py").read_text(encoding="utf-8"))
-    assert 'PARENTS_FROZEN=os.environ.get("PARENTS_FROZEN","1").strip().lower()notin(' in src
-    assert '"0","false","no","off"' in src
+    env = {k: v for k, v in os.environ.items() if k != "PARENTS_FROZEN"}
+    env["DJANGO_SETTINGS_MODULE"] = "shschool.settings.base"
+    if raw is not None:
+        env["PARENTS_FROZEN"] = raw
+    out = subprocess.run(
+        [sys.executable, "-c", "from shschool.settings import base; print(base.PARENTS_FROZEN)"],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=True,
+    ).stdout.strip()
+    assert out == str(expected)
 
 
 def test_the_email_task_skips_a_parent_address_queued_before_the_freeze(
@@ -386,3 +413,18 @@ def test_the_email_task_still_reaches_staff_while_frozen(frozen, school, teacher
     teacher_user.email = "t@example.test"
     teacher_user.save(update_fields=["email"])
     assert frozen_recipient(email=teacher_user.email) is False
+
+
+def test_a_skipped_channel_task_logs_the_channel_and_reason_but_no_personal_data(
+    frozen, school, parent_with_email, caplog
+):
+    from notifications.tasks import send_email_task
+
+    with caplog.at_level("INFO", logger="notifications.frozen"):
+        send_email_task.run(school.id, parent_with_email.email, "s", "b")
+    lines = [r.getMessage() for r in caplog.records if r.name == "notifications.frozen"]
+    assert len(lines) == 1
+    assert "email" in lines[0] and "parents_frozen" in lines[0]
+    assert parent_with_email.email not in lines[0]
+    assert "@" not in lines[0]
+    assert parent_with_email.full_name not in lines[0]

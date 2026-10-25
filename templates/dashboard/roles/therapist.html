@@ -1,7 +1,7 @@
 {% load ui dict_filters %}
 <div class="exec-dash">
 
-  {% page_header "لوحة جلسات العلاج" subtitle=subtitle icon="stats" %}{% endpage_header %}
+  {% page_header "لوحة جلسات العلاج" subtitle=subtitle icon="stats" %}{% include "dashboard/partials/_leave_self.html" %}{% endpage_header %}
 
   {% kpi_strip label="الجلسات" %}
     {% kpi "جلسات اليوم" total_sessions_today sub=sessions_sub tone="teal" %}
@@ -17,7 +17,7 @@
         <thead><tr><th>الوقت</th><th data-sort="num" data-sort-first="asc">الشعبة</th><th>المادة</th><th>الحالة</th></tr></thead>
         <tbody>
           {% for s in sessions_today %}
-            <tr>
+            <tr class="grade-tint grade-{{ s.class_group.grade|lower }}">
               <td class="num">{{ s.start_time|time:"H:i" }}–{{ s.end_time|time:"H:i" }}</td>
               <td data-sort-value="{{ s.class_group.school_order }}">{{ s.class_group.short_label }}</td>
               <td>{{ s.subject|default:"جلسة" }}</td>

@@ -25,7 +25,7 @@ WORKTREES="$ROOT/.claude/worktrees"
 PREVIEW_DIR="${PREVIEW_DIR:-$WORKTREES/main-preview}"
 PORT="${PREVIEW_PORT:-8500}"
 HEALTH_URL="${PREVIEW_HEALTH_URL:-http://127.0.0.1:$PORT/health/}"
-WEB_CONTAINER="${PREVIEW_WEB_CONTAINER:-schoolos-main-preview-web-1}"
+WEB_CONTAINER="${PREVIEW_WEB_CONTAINER:-}"
 NOW="${PREVIEW_NOW:-$(date +%s)}"
 
 say()  { printf '%s\n' "$*"; }
@@ -51,6 +51,11 @@ fi
 # ملفّاتُ الحالة داخل .git لشجرة المعاينة (كما يكتبها scripts/preview.sh)
 STATE="${PREVIEW_STATE_DIR:-$(git -C "$PREVIEW_DIR" rev-parse --absolute-git-dir)/preview-state}"
 sget() { if [ -f "$STATE/$1" ]; then cat "$STATE/$1"; fi; }
+# الحاويةُ الفعّالة بعد النشر الأزرق/الأخضر: schoolos-main-preview-<خانة>-web-1، وقبل أوّل تبديل الاسمُ المباشر.
+if [ -z "$WEB_CONTAINER" ]; then
+  slot="$(sget slot)"
+  if [ -n "$slot" ]; then WEB_CONTAINER="schoolos-main-preview-$slot-web-1"; else WEB_CONTAINER="schoolos-main-preview-web-1"; fi
+fi
 short() { printf '%s' "${1:0:7}"; }
 norm()  { printf '%s' "${1//\\//}"; }   # مساراتُ ويندوز بشرطةٍ مائلةٍ أماميّة كما يطبعها git
 

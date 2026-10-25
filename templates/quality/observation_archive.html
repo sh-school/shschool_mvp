@@ -1,4 +1,6 @@
 {% extends "base/base.html" %}
+{% load static %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/custom/35-quality.css' %}">{% endblock %}
 {% load sorting ui %}
 {% block title %}أرشيف الزيارات الصفية{% endblock %}
 
@@ -19,7 +21,7 @@
 
   {% section_card "الزيارات المؤرشفة" meta=total icon="observation" empty="لا زيارات مؤرشَفة." flush=True %}{% if page_obj.object_list %}
     {# الأرشيفُ مقسَّمٌ صفحاتٍ: الفرزُ من الخادم على الأرشيف كلِّه. #}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
     <table class="table" data-no-sort>
       <thead>
         <tr>

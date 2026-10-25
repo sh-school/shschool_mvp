@@ -7,7 +7,6 @@ import json
 import logging
 import os
 from datetime import timedelta
-from urllib.parse import quote
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -31,7 +30,7 @@ from core.audit_repr import masked_repr
 from core.capabilities import capability_required, has_capability
 from core.domain.attendance import attendance_rate
 from core.domain.tones import ATTENDANCE_SUMMARY, tone_for
-from core.excel_safety import neutralize_formula_value
+from core.excel_safety import safe_cell
 from core.export_utils import (
     add_excel_footer,
     add_excel_header,
@@ -55,20 +54,22 @@ from core.models.academic import (
 from core.models.access import Membership
 from core.models.audit import AuditLog
 from core.models.user import CustomUser
-from core.pdf_utils import render_pdf
+from core.pdf_utils import content_disposition, render_pdf
 from core.photo_privacy import clean_photo
 from core.privacy import mask_national_id, may_search_id_partially, national_id_search_q
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing
 from operations.absence_standing import standing_for
-from operations.models import AbsenceAlert, ClassExit, Session, StudentAttendance
+from operations.models import AbsenceAlert, ClassExit, StudentAttendance
 from operations.presence import presence_now
 from operations.tardiness import tardiness_now
 from wings.scope import student_scope_for
 
+from .coordinator_selectors import coordinator_panels
 from .models import StudentActivity, StudentTransfer
 from .selectors import attach_guardian_phones, guardian_ids_by_phone, student_register
+from .transfer_decision import detail_flags, may_decide
 
 logger = logging.getLogger(__name__)
 
@@ -123,8 +124,6 @@ def student_dashboard(request):
     behavior_today = ctx.get("today_behavior_count", 0)
     stage_map = ctx.get("stage_map", {})
 
-    # ملاحظة: حُذفت أقسام "آخر المخالفات" / "آخر الانتقالات" / "التأخر الصباحي" /
-    # "آخر الأنشطة" / "طلاب بدون ولي أمر" بطلب المدير — لا نمرّر context keys لها
     return render(
         request,
         "student_affairs/dashboard.html",
@@ -164,6 +163,7 @@ def student_dashboard(request):
                 for inf in ctx.get("today_infraction_list", [])
             ],
             "grade_rows": _grade_share(ctx["grade_distribution"], total_students),
+            **coordinator_panels(request, today),
         },
     )
 
@@ -507,7 +507,7 @@ def student_export_excel(request):
     thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=data_start, column=col, value=h)
+        cell = safe_cell(ws, row=data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -526,9 +526,8 @@ def student_export_excel(request):
             m.user.get_phone_decrypted() or "—",
             m.user.email or "—",
         ]
-        row_data = [neutralize_formula_value(v) for v in row_data]
         for col, val in enumerate(row_data, 1):
-            cell = ws.cell(row=data_start + i, column=col, value=val)
+            cell = safe_cell(ws, row=data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
@@ -643,16 +642,6 @@ def student_edit(request, student_id):
     )
     year = academic_year_for(request)
     profile = getattr(student, "profile", None)
-    enrollment = (
-        StudentEnrollment.objects.filter(
-            student=student,
-            class_group__academic_year=year,
-            is_active=True,
-        )
-        .select_related("class_group")
-        .first()
-    )
-
     from .forms import StudentEditForm
 
     if request.method == "POST":
@@ -669,11 +658,10 @@ def student_edit(request, student_id):
                     {
                         "full_name": cd["full_name"],
                         "phone": cd.get("phone", ""),
+                        "actor": request.user,
                         "email": cd.get("email", ""),
                         "birth_date": cd.get("birth_date"),
                         "notes": cd.get("notes", ""),
-                        "grade": cd["grade"],
-                        "section": cd["section"],
                     },
                 )
                 messages.success(request, f"تم تحديث بيانات {student.full_name} بنجاح.")
@@ -689,8 +677,6 @@ def student_edit(request, student_id):
                 "full_name": student.full_name,
                 "phone": student.get_phone_decrypted(),
                 "email": student.email,
-                "grade": enrollment.class_group.grade if enrollment else "",
-                "section": enrollment.class_group.section if enrollment else "",
                 "birth_date": profile.date_of_birth if profile else None,
                 "notes": profile.notes if profile else "",
             }
@@ -907,9 +893,6 @@ def student_profile(request, student_id):
         subtitle_parts.append(
             class_label(enrollment.class_group.grade, enrollment.class_group.section)
         )
-    if student.national_id:
-        # معزولُ الاتّجاه: «****0289» داخل سطرٍ عربيّ كان يُقرأ «0289****».
-        subtitle_parts.append(f"\u2066****{mask_national_id(student.national_id)[-4:]}\u2069")
     if profile and profile.gender:
         subtitle_parts.append("ذكر" if profile.gender == "M" else "أنثى")
 
@@ -1000,39 +983,47 @@ def transfer_create(request):
                 memberships__school=school,
                 memberships__is_active=True,
             )
-            StudentTransfer.objects.create(
-                school=school,
-                student=student,
-                direction=cd["direction"],
-                other_school_name=cd["other_school_name"],
-                from_grade=cd.get("from_grade", ""),
-                to_grade=cd.get("to_grade", ""),
-                transfer_date=cd["transfer_date"],
-                reason=cd.get("reason", ""),
-                academic_year=academic_year_for(request),
-                created_by=request.user,
-                updated_by=request.user,
-            )
+            from .internal_transfer import build_request
             from .services import StudentService
+            from .transfer_decision import move_directly
+
+            transfer, error = build_request(
+                school, student, cd, academic_year_for(request), request.user
+            )
+            if error:
+                form.add_error(None, error)
+                return _transfer_form_response(request, school, form)
+            if cd.get("direct"):
+                try:
+                    move_directly(transfer, request.user, school)
+                except ValueError as exc:
+                    form.add_error(None, str(exc))
+                    return _transfer_form_response(request, school, form)
+                messages.success(request, f"نُقل {student.full_name} إلى شعبته الجديدة مباشرةً.")
+                return redirect("student_affairs:transfer_detail", pk=transfer.pk)
+            transfer.save()
 
             StudentService.audit_student_event(school, request.user, student, "transfer_requested")
             messages.success(request, f"تم تسجيل طلب انتقال {student.full_name} بنجاح.")
             return redirect("student_affairs:transfer_list")
     else:
         form = TransferForm()
+    return _transfer_form_response(request, school, form)
 
-    # قائمة الطلاب للاختيار
-    students = (
-        Membership.objects.filter(school=school, role__name="student", is_active=True)
-        .select_related("user")
-        .order_by("user__full_name")
-    )
+
+def _transfer_form_response(request, school, form):
+    """عرضُ نموذج الطلب: كلُّ طالبٍ بصفّه وشعبته، وكلُّ شعبةٍ نشطةٍ هدفاً للانتقال الداخليّ."""
+    from .selectors import transfer_form_options
+
+    students, classes = transfer_form_options(school)
     return render(
         request,
         "student_affairs/transfer_form.html",
         {
             "form": form,
             "students": students,
+            "classes": classes,
+            "can_direct": may_decide(request.user),
         },
     )
 
@@ -1043,12 +1034,26 @@ def transfer_detail(request, pk):
     """تفاصيل طلب انتقال."""
     school = request.school
     transfer = get_object_or_404(StudentTransfer, pk=pk, school=school)
+    from .transfer_chain import available_actions, document_rows, is_chain, stage_rows
+
+    chain = (
+        {
+            "is_chain": True,
+            "stages": stage_rows(transfer),
+            "documents": document_rows(transfer),
+            "actions": available_actions(transfer),
+        }
+        if is_chain(transfer)
+        else {}
+    )
     return render(
         request,
         "student_affairs/transfer_detail.html",
         {
             "transfer": transfer,
+            **chain,
             "page_subtitle": f"{transfer.student.full_name} — {transfer.get_direction_display()}",
+            **detail_flags(transfer, request.user),
         },
     )
 
@@ -1068,33 +1073,39 @@ def transfer_review(request, pk):
         action = form.cleaned_data["action"]
         notes = form.cleaned_data.get("notes", "")
 
-        transfer.status = action
-        transfer.notes = notes
-        transfer.updated_by = request.user
-        transfer.save()
-
         from .services import StudentService
+        from .transfer_decision import decide_and_audit
 
-        StudentService.audit_student_event(
-            school, request.user, transfer.student, f"transfer_{action}"
-        )
+        if transfer.direction == "internal":
+            # الاعتمادُ والإتمام للمدير والنائب الإداري، وبحالاتٍ صارمة، وسجلُّ من قرّر ومتى (D-343م).
+            try:
+                label = decide_and_audit(transfer, action, notes, request.user, school)
+            except ValueError as exc:
+                messages.error(request, str(exc))
+                return redirect("student_affairs:transfer_detail", pk=pk)
+            messages.success(request, f"تم تحديث حالة الانتقال إلى: {label}")
+            return redirect("student_affairs:transfer_detail", pk=pk)
 
-        # إذا اكتمل الانتقال الصادر → تعطيل الطالب
-        if action == "completed" and transfer.direction == "out":
-            Membership.objects.filter(
-                user=transfer.student,
-                school=school,
-                role__name="student",
-                is_active=True,
-            ).update(is_active=False)
-            StudentEnrollment.objects.filter(
-                student=transfer.student,
-                class_group__school=school,
-                is_active=True,
-            ).update(is_active=False)
+        # الوارد والصادر: سلسلة نموذج 07 بترتيبها (W-20261001-018)
+        from .transfer_chain import apply_chain_action
 
-        status_label = dict(StudentTransfer.STATUS_CHOICES).get(action, action)
-        messages.success(request, f"تم تحديث حالة الانتقال إلى: {status_label}")
+        try:
+            event = apply_chain_action(
+                transfer,
+                action,
+                notes,
+                request.user,
+                documents=form.cleaned_data.get("documents"),
+                missing_reason=form.cleaned_data.get("missing_reason", ""),
+            )
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("student_affairs:transfer_detail", pk=pk)
+        StudentService.audit_student_event(school, request.user, transfer.student, event)
+        messages.success(request, "تم تنفيذ الإجراء على الطلب.")
+    else:
+        for errors in form.errors.values():
+            messages.error(request, errors[0])
 
     return redirect("student_affairs:transfer_detail", pk=pk)
 
@@ -1426,7 +1437,7 @@ def attendance_export_excel(request):
     s1_data_start = add_excel_header(ws1, ctx, s1_num_cols)
 
     for col, h in enumerate(s1_headers, 1):
-        cell = ws1.cell(row=s1_data_start, column=col, value=h)
+        cell = safe_cell(ws1, row=s1_data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -1443,7 +1454,7 @@ def attendance_export_excel(request):
             rec["absence_count"],
         ]
         for col, val in enumerate(row_data, 1):
-            cell = ws1.cell(row=s1_data_start + i, column=col, value=val)
+            cell = safe_cell(ws1, row=s1_data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
@@ -1467,7 +1478,7 @@ def attendance_export_excel(request):
     s2_data_start = add_excel_header(ws2, ctx, s2_num_cols)
 
     for col, h in enumerate(s2_headers, 1):
-        cell = ws2.cell(row=s2_data_start, column=col, value=h)
+        cell = safe_cell(ws2, row=s2_data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -1485,7 +1496,7 @@ def attendance_export_excel(request):
             status_map.get(rec.status, rec.status),
         ]
         for col, val in enumerate(row_data, 1):
-            cell = ws2.cell(row=s2_data_start + i, column=col, value=val)
+            cell = safe_cell(ws2, row=s2_data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if rec.status == "absent":
@@ -1902,13 +1913,13 @@ def student_profile_pdf(request, student_id):
     ).select_related("parent")
 
     ctx = get_export_context(request, "ملف الطالب الشامل")
-    # ملفُّ طالبٍ واحدٍ وثيقةٌ فرديّة: الرقمُ كاملاً — للمشرف كما للقيادة، فالوثيقةُ المستورةُ
-    # لا تُغني عن صاحبها (test_national_id_masking) — والتدقيقُ ثمنُه.
+    # ملفُّ طالبٍ واحدٍ بلا رقمٍ شخصيّ منذ D-386م (W-20261011-014) — لا للطالب ولا لأوليائه —
+    # فرايةُ التدقيق تقول ما في الملفّ (W-20261012-005).
     log_export(
         request,
         "student_affairs.student_profile_pdf",
         rows=1,
-        full_national_id=True,
+        full_national_id=False,
         object_id=student.pk,
         object_repr=(
             f"ملف الطالب {masked_repr(student)} — {year}" + (" — طلبة الجناح" if limited else "")
@@ -1966,11 +1977,9 @@ def protected_media(request, path):
         school, request.user, record.student, "excuse_file_opened", action="view"
     )
 
-    # F-001-b: Content-Disposition RFC 5987 encoding
-    safe_name = quote(os.path.basename(path))
     response = HttpResponse()
     response["X-Accel-Redirect"] = f"/media/{path}"
-    response["Content-Disposition"] = f'attachment; filename="{safe_name}"'
+    response["Content-Disposition"] = content_disposition(os.path.basename(path))
     del response["Content-Type"]  # دع Nginx يحدد النوع تلقائياً
     return response
 
@@ -2187,7 +2196,7 @@ def behavior_export_excel(request):
     thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=data_start, column=col, value=h)
+        cell = safe_cell(ws, row=data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -2202,9 +2211,8 @@ def behavior_export_excel(request):
             mask_national_id(rec["student__national_id"]),
             rec["count"],
         ]
-        row_data = [neutralize_formula_value(v) for v in row_data]
         for col, val in enumerate(row_data, 1):
-            cell = ws.cell(row=data_start + i, column=col, value=val)
+            cell = safe_cell(ws, row=data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
@@ -2280,7 +2288,7 @@ def tardiness_export_excel(request):
     thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=data_start, column=col, value=h)
+        cell = safe_cell(ws, row=data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -2305,7 +2313,7 @@ def tardiness_export_excel(request):
             has_file,
         ]
         for col, val in enumerate(row_data, 1):
-            cell = ws.cell(row=data_start + i, column=col, value=val)
+            cell = safe_cell(ws, row=data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
@@ -2366,7 +2374,7 @@ def activities_export_excel(request):
     thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=data_start, column=col, value=h)
+        cell = safe_cell(ws, row=data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -2383,7 +2391,7 @@ def activities_export_excel(request):
             act.date.strftime("%d/%m/%Y") if act.date else "—",
         ]
         for col, val in enumerate(row_data, 1):
-            cell = ws.cell(row=data_start + i, column=col, value=val)
+            cell = safe_cell(ws, row=data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
@@ -2677,8 +2685,6 @@ def tardiness_search_students(request):
             {
                 "id": str(s["id"]),
                 "name": s["full_name"],
-                # ردُّ بحثٍ يضمّ خمسةَ عشرَ طالباً كشفٌ جماعيّ — يميّز ولا يعرّف.
-                "nid": mask_national_id(s["national_id"]),
                 "already_late": s["id"] in already_late_ids,
             }
         )
@@ -2714,10 +2720,8 @@ def _screen_excuse_upload(upload):
 @capability_required("student_affairs.tardiness")
 @require_POST
 def tardiness_record(request):
-    """POST — تسجيل تأخير صباحي لطالب."""
-    school = request.school
-    today = timezone.localdate()
-    now = timezone.localtime()
+    """POST — تسجيل تأخيرٍ صباحيّ لطالب في حصّته الجارية، والقيودُ في `morning_tardiness` (W-20261004-022)."""
+    from .morning_tardiness import record_morning_tardiness
 
     student_id = request.POST.get("student_id")
     excuse_minutes = request.POST.get("excuse_minutes", "").strip()
@@ -2737,93 +2741,25 @@ def tardiness_record(request):
     student = get_object_or_404(
         CustomUser,
         pk=student_id,
-        memberships__school=school,
+        memberships__school=request.school,
         memberships__role__name="student",
         memberships__is_active=True,
     )
-
-    excuse_val = int(excuse_minutes) if excuse_minutes and excuse_minutes.isdigit() else None
-    excuse_notes = f"إذن تأخير {excuse_val} دقيقة" if excuse_val else ""
-
-    session = (
-        scope.narrow_classes(
-            Session.objects.filter(
-                school=school,
-                date=today,
-                class_group__enrollments__student=student,
-                class_group__enrollments__is_active=True,
-            )
-        )
-        .order_by("start_time")
-        .first()
-    )
-
-    # الرجوعُ إلى «أوّل حصّةٍ في المدرسة» يعلّق التأخّرَ على شعبةٍ ليست شعبتَه —
-    # فلا يُنفَّذ للمقيَّد بجناحه: لا حصّةَ لشعبته اليوم يعني لا رصد.
-    if not session and not scope.is_wing_bound:
-        session = (
-            Session.objects.filter(
-                school=school,
-                date=today,
-            )
-            .order_by("start_time")
-            .first()
-        )
-
-    if not session:
-        messages.error(request, "لا توجد حصة مجدولة اليوم لتسجيل التأخير.")
-        return redirect("student_affairs:tardiness_list")
-
-    defaults = {
-        "status": "late",
-        "tardiness_minutes": excuse_val,
-        "excuse_notes": excuse_notes,
-        "tardiness_recorded_at": now,
-        "marked_by": request.user,
-    }
-    if scope.is_wing_bound:
-        # رصدُ المشرف عند البوّابة (م 3.4.2.2) — والمصدرُ يفصله عن نقرة المعلّم في الإحصاء.
-        defaults.update(source="supervisor", whereabouts="gate")
-    attendance, created = StudentAttendance.objects.get_or_create(
-        session=session,
-        student=student,
-        school=school,
-        defaults=defaults,
-    )
-
-    if not created:
-        attendance.status = "late"
-        attendance.tardiness_minutes = excuse_val
-        attendance.excuse_notes = excuse_notes
-        attendance.tardiness_recorded_at = now
-        attendance.marked_by = request.user
-        attendance.save(
-            update_fields=[
-                "status",
-                "tardiness_minutes",
-                "excuse_notes",
-                "tardiness_recorded_at",
-                "marked_by",
-                "updated_at",
-            ]
-        )
-
-    if excuse_file:
-        attendance.excuse_file = excuse_file
-        attendance.save(update_fields=["excuse_file"])
-
-    # ── Audit Trail (PDPPL) ──
-    AuditLog.objects.create(
-        user=request.user,
-        school=school,
-        action="create",
-        model_name="other",
-        object_id=str(attendance.pk),
-        object_repr=_with_wing(f"تسجيل تأخير {masked_repr(student)}", _followup_wing_label(scope)),
+    outcome = record_morning_tardiness(
+        request.user,
+        request.school,
+        student,
+        scope,
+        excuse_minutes=int(excuse_minutes) if excuse_minutes.isdigit() else None,
+        excuse_file=excuse_file,
+        wing_label=_followup_wing_label(scope),
         ip_address=request.META.get("REMOTE_ADDR"),
     )
+    if outcome.attendance is None:
+        messages.error(request, outcome.refusal)
+        return redirect("student_affairs:tardiness_list")
 
-    time_str = now.strftime("%H:%M")
+    time_str = timezone.localtime(outcome.attendance.tardiness_recorded_at).strftime("%H:%M")
     messages.success(request, f"تم تسجيل تأخير {student.full_name} — الساعة {time_str}")
     return redirect("student_affairs:tardiness_list")
 

@@ -48,9 +48,9 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -155,8 +155,8 @@ jobs:
   # ══════════════════════════════════════════════════════
   #
   # كانت هنا وظيفةُ `test` تُجري المجموعةَ كاملةً مرّةً ثانيةً على كلّ دفعٍ إلى
-  # `main` — و`quality-gate.yml` يُجريها على الدفع نفسِه، بالمجموعة نفسِها،
-  # ومعها التغطية. ولا وظيفةَ هنا تنتظر نتيجتَها (الكناري مفصولٌ عنها عمداً،
+  # `main` — وكان `quality-gate.yml` يُجريها على الدفع نفسِه، بالمجموعة نفسِها،
+  # ومعها التغطية (منذ D-429م تُجرى في طابور الدمج على «main + الطلب» قبل الدمج لا على push). ولا وظيفةَ هنا تنتظر نتيجتَها (الكناري مفصولٌ عنها عمداً،
   # انظر أدناه)، فلم تكن تمنع شيئاً ولا تُثبت شيئاً جديداً — تكرارٌ يُنفق ربعَ
   # ساعةٍ في كلّ دمج.
   #
@@ -257,7 +257,7 @@ jobs:
       # وأغرقت لوحة القضايا حتى صار الحقيقي منها غير مرئي.
       - name: "Rollback: Open or update the deploy-failure issue"
         if: steps.canary.outputs.canary_passed == 'false'
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const detail = [
@@ -331,7 +331,7 @@ jobs:
       # v5.7: نشر ناجح ⇒ إغلاق أي قضية فشل مفتوحة (شفاء ذاتي).
       - name: "Rollback: Close stale deploy-failure issues"
         if: steps.canary.outputs.canary_passed == 'true'
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const open = await github.rest.issues.listForRepo({
@@ -371,7 +371,7 @@ jobs:
 
       - name: Create GitHub deployment status
         if: steps.canary.outputs.canary_passed == 'true'
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const deployment = await github.rest.repos.createDeployment({

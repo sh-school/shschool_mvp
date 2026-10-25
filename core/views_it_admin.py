@@ -21,7 +21,6 @@ from django.views.decorators.http import require_http_methods
 
 from core.capabilities import capability_required
 from core.models.access import Role
-from core.privacy import may_search_id_partially
 from core.services import reset_user_password, school_users
 
 PAGE_SIZE = 25
@@ -35,7 +34,7 @@ def _role_label(name: str) -> str:
 @capability_required("it_admin.reset_passwords")
 def password_reset_list(request):
     q = request.GET.get("q", "").strip()
-    people = school_users(request.school, q, partial_id=may_search_id_partially(request.user))
+    people = school_users(request.school, q)
 
     paginator = Paginator(people, PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page"))
@@ -44,7 +43,6 @@ def password_reset_list(request):
         {
             "id": user.id,
             "full_name": user.full_name,
-            "national_id": user.national_id,
             "role_display": _role_label(user.get_role()),
             "is_active": user.is_active,
         }

@@ -252,6 +252,31 @@ def attendance_report_xlsx(request: HttpRequest) -> HttpResponse:
     )
 
 
+@login_required
+@capability_required("staff_affairs.attendance_record")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
+def attendance_daily_xlsx(request: HttpRequest) -> HttpResponse:
+    """كشفُ اليوم Excel: ملخّصُ الحضور والانصراف لمن تراهم اللوحةُ نفسُها — بالرقم الوظيفيّ."""
+    day = _day(request.GET.get("date"))
+    if not StaffAttendanceService.can_open_board(_school(request), _user(request)):
+        raise PermissionDenied("كشفُ اليوم لمن تفتح له لوحةُ الرصد")
+    board = StaffAttendanceService.daily_board(_school(request), day, viewer=_user(request))
+    workbook = StaffAttendanceService.daily_workbook(day, board)
+    log_export(
+        request,
+        "staff_affairs.attendance_day_xlsx",
+        rows=len(board["rows"]),
+        object_repr=f"حضور الموظفين يوم {day:%Y-%m-%d}",
+    )
+    return cast(
+        HttpResponse,
+        excel_to_response(
+            workbook,
+            f"حضور_الموظفين_{day:%Y_%m_%d}.xlsx",
+            school=getattr(request, "school", None),
+        ),
+    )
+
+
 def _submit_exception(request: HttpRequest, form: ExceptionRequestForm) -> bool:
     """يقدّم استثناءَ نموذج 03 من نموذجٍ صحيح؛ ويُعيد نجاحَه، وإلّا يعلّق سببَ الرفض بالنموذج."""
     data = form.cleaned_data
@@ -404,7 +429,7 @@ def exception_review(request: HttpRequest, pk: UUID) -> HttpResponse:
 @login_required
 @capability_required("staff_affairs.assignments")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
 def staff_assignments(request: HttpRequest) -> HttpResponse:
-    """التكليفات: قرارُ المدير ونائبَيه بندبِ موظّفٍ لأعباء وظيفتهم (م-43) — وسجلُّها."""
+    """التكليفات: قرارُ المدير ونائبَيه والمنسّقين بندبِ موظّفٍ لأعباء وظيفتهم (م-43) — وسجلُّها."""
     school, user = _school(request), _user(request)
     form = AssignmentForm(request.POST if request.method == "POST" else None)
     if request.method == "POST" and form.is_valid():
@@ -440,7 +465,7 @@ def staff_assignments(request: HttpRequest) -> HttpResponse:
             "acting_role": AssignmentService.acting_role_of(user),
             "candidates": AssignmentService.candidates(school, user),
             "today": timezone.localdate(),
-            **AssignmentService.screen(school),
+            **AssignmentService.screen(school, user),
         },
     )
 

@@ -29,13 +29,30 @@ VALIDITY = dt.timedelta(days=14)
 LABEL = "حصّة مؤقّتة"
 
 
-def enabled() -> bool:
-    """هل «بابُ الجدول» مشغَّلٌ؟ — يُطفئ للمعلّم والمنسّق جدولَ المنصّة غيرَ المعتمَد (وسمُ القوالب `provisional_door`، D-228م).
+def has_live_schedule(school: School | None) -> bool:
+    """هل للمدرسة جدولٌ حيٌّ؟ — أي `ScheduleSlot` نشطةٌ للسنة الجارية، وهو ما يعرضه المعلّمُ فعلاً (W-20261010-055، 0301).
 
-    لا يخصّ جدولَ الشعبة العموديَّ: هو يعمل دائماً بلا مفتاح (W-20261009-003). المفتاحُ الباقي `PROVISIONAL_GRID_ENABLED` في البيئة
-    يقرّر وحدَه إخفاءَ روابط جدول الحصص للمعلّم؛ وبقاؤه أو حذفُه قرارُ المالك.
+    المعيارُ الوحيد: `status == "approved"` وحدَها قد توجد بلا حصصٍ حيّةٍ بعد الإخلاء، فلا تُعدّ اعتماداً.
     """
-    return bool(getattr(settings, "PROVISIONAL_GRID_ENABLED", False))
+    if school is None:
+        return False
+    from core.academic_calendar import academic_year_for_school
+    from operations.models import ScheduleSlot
+
+    return ScheduleSlot.objects.filter(
+        school=school, academic_year=academic_year_for_school(school), is_active=True
+    ).exists()
+
+
+def enabled(school: School | None = None) -> bool:
+    """هل «بابُ الجدول» مشغَّلٌ؟ — تلقائيٌّ: يعمل ما دام لا جدولَ حيَّ للمدرسة، ويسقط باعتماده (قرارُ المالك 10-10: لا مفتاحَ طوارئ يدويّ).
+
+    يُطفئ للمعلّم والمنسّق جدولَ المنصّة غيرَ المعتمَد (وسمُ القوالب `provisional_door`، D-228م). بلا مدرسةٍ معروفةٍ يبقى المفتاحُ القديمُ
+    `PROVISIONAL_GRID_ENABLED` هو القرار (مسارٌ غيرُ قوالب). لا يخصّ جدولَ الشعبة العموديَّ: هو يعمل دائماً بلا مفتاح (W-20261009-003).
+    """
+    if school is None:
+        return bool(getattr(settings, "PROVISIONAL_GRID_ENABLED", False))
+    return not has_live_schedule(school)
 
 
 def _bell(school: School, klass: ClassGroup, day: dt.date) -> dict[int, tuple[dt.time, dt.time]]:

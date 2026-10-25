@@ -262,3 +262,106 @@ class TestTheCoordinatorCountsHisDepartment:
         ctx = get_teacher_ctx(people["coordinator"], school, SUNDAY, membership.role.name)
 
         assert ctx["coord_absent_today"] == 1
+
+
+class TestTheCoordinatorCountersMatchTheirLists:
+    """W-20261010-043: عدّادا التبديل والتعويض بالقسم كالغياب، ويساويان صفوفَ القائمة التي تفتحها نقرتُهما."""
+
+    @staticmethod
+    def _ctx(user, school):
+        from core.dashboard_selectors import get_teacher_ctx
+
+        return get_teacher_ctx(user, school, SUNDAY, user.get_role())
+
+    @staticmethod
+    def _science_pair(school, science, people):
+        return people["science_free"], _member(school, "teacher", "علومٌ ثانٍ", science)
+
+    @staticmethod
+    def _swap(school, a, b, class_group, period, status="accepted_b"):
+        from operations.models import TeacherSwap
+
+        class_group = ClassGroupFactory(school=school)  # شعبةٌ لكلّ تبديل: لا يتصادم قيدُ الحصّة
+        return TeacherSwap.objects.create(
+            school=school,
+            teacher_a=a,
+            teacher_b=b,
+            slot_a=_slot(school, a, class_group, period),
+            slot_b=_slot(school, b, class_group, period + 1),
+            swap_date_a=SUNDAY,
+            swap_date_b=SUNDAY,
+            status=status,
+        )
+
+    @staticmethod
+    def _comp(school, teacher, class_group, period, status="pending"):
+        from operations.models import CompensatorySession
+
+        class_group = ClassGroupFactory(school=school)
+        absence = TeacherAbsence.objects.create(school=school, teacher=teacher, date=SUNDAY)
+        return CompensatorySession.objects.create(
+            school=school,
+            teacher=teacher,
+            original_slot=_slot(school, teacher, class_group, period),
+            absence=absence,
+            compensatory_date=SUNDAY,
+            compensatory_period=period,
+            class_group=class_group,
+            status=status,
+        )
+
+    def test_two_coordinators_of_two_departments_get_different_numbers(
+        self, school, class_group, people, science
+    ):
+        science_coord = _member(school, "coordinator", "منسّق العلوم", science)
+        self._swap(school, people["absent"], people["math_free"], class_group, 1)
+        self._swap(school, people["math_free"], people["math_busy"], class_group, 3)
+        sci_a, sci_b = self._science_pair(school, science, people)
+        self._swap(school, sci_a, sci_b, class_group, 5)
+        self._comp(school, people["absent"], class_group, 2)
+
+        math_ctx = self._ctx(people["coordinator"], school)
+        science_ctx = self._ctx(science_coord, school)
+
+        assert (math_ctx["coord_pending_swaps"], math_ctx["coord_pending_comp"]) == (2, 1)
+        assert (science_ctx["coord_pending_swaps"], science_ctx["coord_pending_comp"]) == (1, 0)
+
+    def test_a_coordinator_without_a_department_counts_nothing(self, school, class_group, people):
+        orphan = _member(school, "coordinator", "منسّقٌ بلا قسم")
+        self._swap(school, people["absent"], people["math_free"], class_group, 1)
+
+        ctx = self._ctx(orphan, school)
+
+        assert (ctx["coord_pending_swaps"], ctx["coord_pending_comp"]) == (0, 0)
+
+    def test_the_numbers_equal_the_rows_of_the_lists_the_click_opens(
+        self, client_as, school, class_group, people, science
+    ):
+        from operations.models import CompensatorySession, TeacherSwap
+
+        self._swap(school, people["absent"], people["math_free"], class_group, 1)
+        sci_a, sci_b = self._science_pair(school, science, people)
+        self._swap(school, sci_a, sci_b, class_group, 3)
+        self._swap(school, people["math_busy"], people["math_free"], class_group, 5, "approved")
+        self._comp(school, people["absent"], class_group, 2)
+        self._comp(school, people["science_free"], class_group, 4)
+        ctx = self._ctx(people["coordinator"], school)
+        client = client_as(people["coordinator"])
+
+        listed_swaps = client.get(reverse("swap_list")).context["swaps"]
+        listed_comps = client.get(reverse("compensatory_list")).context["compensatory_sessions"]
+
+        assert ctx["coord_pending_swaps"] == len(
+            [s for s in listed_swaps if s.status in ("accepted_b", "pending_coordinator")]
+        )
+        assert ctx["coord_pending_comp"] == len([c for c in listed_comps if c.status == "pending"])
+        assert TeacherSwap.objects.count() == 3 and CompensatorySession.objects.count() == 2
+
+    def test_the_principal_does_not_enter_the_coordinator_branch(self, school, class_group, people):
+        principal = _member(school, "principal", "المدير")
+        self._swap(school, people["absent"], people["math_free"], class_group, 1)
+
+        from core.dashboard_selectors import get_teacher_ctx
+
+        # المديرُ لا يدخل فرعَ المنسّق، فالعدّادان للمنسّق وحده؛ ويبقى حصرُ القسم لمن له قسم.
+        assert "coord_pending_swaps" not in get_teacher_ctx(principal, school, SUNDAY, "principal")

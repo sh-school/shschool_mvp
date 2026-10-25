@@ -23,7 +23,6 @@ def test_monthly_excel_with_rows_opens_and_has_no_points_column(school):
                 "quiz_count": 2,
                 "quiz_avg": 80.0,
                 "behavior_count": 1,
-                "combined_score": 77.5,
             }
         ],
     }
@@ -31,5 +30,5 @@ def test_monthly_excel_with_rows_opens_and_has_no_points_column(school):
     ws = load_workbook(io.BytesIO(response.content)).active
     cells = [str(c.value) for row in ws.iter_rows() for c in row if c.value is not None]
     assert "النقاط المخصومة" not in cells
-    assert "عدد المخالفات" in cells and "التقييم المدمج" in cells
+    assert "عدد المخالفات" in cells and "التقييم المدمج" not in cells
     assert "طالب تجريبي" in cells

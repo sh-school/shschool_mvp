@@ -37,12 +37,10 @@ class HealthRecord(models.Model):
         related_name="health_record",
         verbose_name="الطالب",
     )
-    # [W-029] القديمُ `blood_type` عمودٌ نصٌّ صريحٌ (مرحلة التوسيع): لا يُقرأ ولا
-    # يُكتب من الشيفرة بعد الآن، وتنقل الهجرةُ 0008 قيمَه إلى الحقل المشفَّر
-    # وتفرّغه. حذفُه طلبٌ لاحقٌ منفصل (التقليص) بعد استقرار الإصدار.
-    blood_type = models.CharField(
-        max_length=3, choices=BLOOD_TYPES, blank=True, verbose_name="فصيلة الدم (قديم)"
-    )
+    # [W-029] العمودُ القديم `blood_type` بقي في القاعدة وحدها (مرحلة التوسيع):
+    # لا حقلَ له هنا، فلا قراءةَ ولا كتابة. وهجرة 0011 جعلت له افتراضاً فارغاً
+    # على مستوى القاعدة ليعمل النموذجُ القديمُ أثناء النشر المتدحرج. والحذفُ
+    # الفعليّ طلبٌ منفصلٌ بعد استقرار الإصدار. ويمنع عودتَه حارسُ الاختبار.
     # القراءةُ والكتابةُ من هذا الحقل وحده. لا فلترةَ عليه (التشفير غير حتمي).
     blood_type_encrypted = EncryptedTextField(
         blank=True,
@@ -76,6 +74,16 @@ class HealthRecord(models.Model):
     )
     hamad_hospital_number = EncryptedTextField(
         blank=True, default="", db_default="", verbose_name="رقم مستشفى حمد"
+    )
+    # [W-045، D-336م] علامةٌ محايدةٌ «يحتاج مراعاةً» يضعها الممرّض صراحةً وحده (لا تلقائيّاً من
+    # أيّ تشخيص). منطقيٌّ غيرُ مشفَّر عمداً: لا يكشف سبباً، ويُستخرج برقم الطالب فقط
+    # (`clinic.selectors.students_needing_care_ids`) دون فكّ أيّ حقلٍ مشفَّر. و`db_default`
+    # لازمةٌ لأنّ الجدولَ فيه صفوفٌ (حارسُ migration-linter).
+    needs_care = models.BooleanField(
+        default=False,
+        db_default=False,
+        verbose_name="يحتاج مراعاةً",
+        help_text="علامةٌ محايدةٌ تظهر للمعلّم في جدول رصد شعبته فقط، بلا سبب. يضعها الممرّض صراحةً.",
     )
     updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
@@ -119,11 +127,43 @@ class ClinicVisit(models.Model):
     is_sent_home = models.BooleanField(default=False, verbose_name="تم إرساله للمنزل")
     parent_notified = models.BooleanField(default=False, verbose_name="تم إبلاغ ولي الأمر")
 
+    # ── [W-20261020-029] ترميز الزيارة ───────────────────────────────────
+    # رموزٌ من القوائم المغلقة في `clinic/choices.py` (بلا `choices` هنا عمداً: تعديلُ قائمةٍ
+    # قيماً لا يولّد هجرةً)، وكلُّها غيرُ مشفَّرٍ لأنّها قيمٌ مصنَّفةٌ بلا نصٍّ حرّ ولا تشخيص؛
+    # والنصُّ الحرُّ (reason/symptoms/treatment) يبقى مشفَّراً للممرّض وخارجَ كلّ تجميع.
+    # `db_default` لازمةٌ لأنّ الجدولَ فيه صفوف (حارسُ migration-linter).
+    service_code = models.CharField(
+        max_length=40, blank=True, default="", db_default="", verbose_name="الخدمة"
+    )
+    service_group = models.CharField(
+        max_length=20, blank=True, default="", db_default="", verbose_name="مجموعة الخدمة"
+    )
+    complaint_code = models.CharField(
+        max_length=40, blank=True, default="", db_default="", verbose_name="الشكوى"
+    )
+    outcome = models.CharField(
+        max_length=20, blank=True, default="", db_default="", verbose_name="حالة الخروج"
+    )
+    closed_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت إغلاق الزيارة")
+    period_number = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="رقم الحصة (مشتقّ)",
+        help_text="يُشتقّ من الجدول قراءةً فقط عند التسجيل؛ لا يُدخله الممرّض.",
+    )
+
     class Meta:
         verbose_name = "زيارة عيادة"
         verbose_name_plural = "زيارات العيادة"
         ordering = ["-visit_date"]
         db_table = "core_clinicvisit"  # يبقي نفس الجدول الموجود
+
+    @property
+    def duration_seconds(self) -> int | None:
+        """مدّةُ المكث بالثواني من البدء حتى الإغلاق؛ None لزيارةٍ مفتوحة."""
+        if self.closed_at is None or self.visit_date is None:
+            return None
+        return max(0, int((self.closed_at - self.visit_date).total_seconds()))
 
     #: حرارةٌ تُعدّ حُمّى — كانت عتبةً مكتوبةً في قالب سجلّ الزيارات (≥ 38).
     FEVER_THRESHOLD = 38
@@ -134,3 +174,211 @@ class ClinicVisit(models.Model):
     @property
     def is_feverish(self) -> bool:
         return self.temperature is not None and self.temperature >= self.FEVER_THRESHOLD
+
+
+# ── [W-20261020-036] صرف الدواء: كتالوجٌ معتمَدٌ وموافقةُ وليّ الأمر ─────────────────
+# لا صرفَ من نصٍّ حرّ: الصرفُ سطرٌ يربط زيارةً ببندٍ من كتالوجٍ اعتمدته جهةٌ طبّيّة، وبموافقةٍ سارية لوليّ أمر
+# الطالب. وكلُّ ما هنا قيمٌ مصنَّفةٌ بلا نصٍّ حرّ ولا تشخيص (كأعمدة الترميز في `ClinicVisit`)، فلا يلزمها التشفير؛
+# والنصُّ الحرُّ الصحّيّ يبقى مشفَّراً في مكانه. والقواعدُ في `clinic/medication_services.py` لا هنا.
+
+
+class MedicationCatalogItem(models.Model):
+    """بندٌ في كتالوج الأدوية المعتمَد سريرياً للمدرسة — لا يُصرف دواءٌ خارجه."""
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        "core.School",
+        on_delete=models.PROTECT,
+        related_name="medication_catalog",
+        verbose_name="المدرسة",
+    )
+    name = models.CharField(max_length=120, verbose_name="اسم الدواء")
+    standard_dose = models.CharField(max_length=80, verbose_name="الجرعة المعتمَدة")
+    is_active = models.BooleanField(default=True, verbose_name="مفعَّل")
+    approved_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="اعتمده",
+    )
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="وقت الاعتماد السريري",
+        help_text="فارغٌ = لم يُعتمد بعدُ فلا يُصرف.",
+    )
+
+    class Meta:
+        verbose_name = "دواءٌ في الكتالوج"
+        verbose_name_plural = "كتالوج الأدوية المعتمَد"
+        constraints = [
+            models.UniqueConstraint(fields=["school", "name"], name="uniq_medication_per_school")
+        ]
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return f"{self.name} — {self.standard_dose}"
+
+    @property
+    def is_dispensable(self) -> bool:
+        """يُصرف إن كان مفعَّلاً ومعتمَداً سريرياً."""
+        return self.is_active and self.approved_at is not None
+
+
+class GuardianMedicationConsent(models.Model):
+    """موافقةُ وليّ الأمر على صرف بندٍ من الكتالوج لطالبه — مدّتُها محدودة وتُسحَب."""
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey("core.School", on_delete=models.PROTECT, verbose_name="المدرسة")
+    student = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.CASCADE,
+        related_name="medication_consents",
+        verbose_name="الطالب",
+    )
+    catalog_item = models.ForeignKey(
+        MedicationCatalogItem,
+        on_delete=models.PROTECT,
+        related_name="consents",
+        verbose_name="الدواء",
+    )
+    granted_at = models.DateTimeField(verbose_name="وقت الموافقة")
+    expires_at = models.DateTimeField(verbose_name="ينتهي في")
+    revoked_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت السحب")
+    recorded_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="سجّلها",
+    )
+
+    class Meta:
+        verbose_name = "موافقة وليّ أمر على دواء"
+        verbose_name_plural = "موافقات أولياء الأمور على الأدوية"
+        constraints = [
+            models.CheckConstraint(  # type: ignore[call-arg]  # Django 5.1+: condition
+                condition=models.Q(expires_at__gt=models.F("granted_at")),
+                name="medication_consent_expires_after_grant",
+            )
+        ]
+        indexes = [models.Index(fields=["student", "catalog_item"])]
+
+    def __str__(self) -> str:
+        return f"موافقة {self.pk}"
+
+
+class VisitMedication(models.Model):
+    """صرفُ دواءٍ في زيارة: بندُ كتالوجٍ وجرعتُه المعتمَدة والموافقةُ التي استند إليها. لا نصَّ حرّاً."""
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey("core.School", on_delete=models.PROTECT, verbose_name="المدرسة")
+    visit = models.ForeignKey(
+        ClinicVisit,
+        on_delete=models.CASCADE,
+        related_name="medications",
+        verbose_name="الزيارة",
+    )
+    catalog_item = models.ForeignKey(
+        MedicationCatalogItem,
+        on_delete=models.PROTECT,
+        related_name="dispensings",
+        verbose_name="الدواء",
+    )
+    dose = models.CharField(
+        max_length=80,
+        verbose_name="الجرعة المصروفة",
+        help_text="نسخةٌ من الجرعة المعتمَدة وقتَ الصرف، فتعديلُ الكتالوج لاحقاً لا يغيّر ما صُرف.",
+    )
+    consent = models.ForeignKey(
+        GuardianMedicationConsent,
+        on_delete=models.PROTECT,
+        related_name="dispensings",
+        verbose_name="الموافقة المستند إليها",
+    )
+    dispensed_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="+",
+        verbose_name="صرفه",
+    )
+    dispensed_at = models.DateTimeField(verbose_name="وقت الصرف")
+
+    class Meta:
+        verbose_name = "صرف دواء"
+        verbose_name_plural = "صرف الأدوية"
+        ordering = ["-dispensed_at"]
+
+    def __str__(self) -> str:
+        return f"صرف {self.pk}"
+
+
+class ClinicReferral(models.Model):
+    """إحالةٌ صادرةٌ من زيارة (W-20261020-038): جهةُ متابعةٍ وحالةٌ ورقمٌ تسلسليّ للإيصال.
+
+    رموزٌ ثابتةٌ فقط (جهة/حالة/نتيجة)؛ لا تشخيصَ ولا سببَ ولا نصَّ حرّاً هنا: الإيصالُ يُبنى من هذه
+    الحقول واسمِ الطالب المخفيّ جزئياً، والنصُّ الصحّيّ يبقى مشفَّراً في الزيارة.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey("core.School", on_delete=models.CASCADE, verbose_name="المدرسة")
+    visit = models.OneToOneField(
+        ClinicVisit, on_delete=models.CASCADE, related_name="referral", verbose_name="الزيارة"
+    )
+    serial_no = models.PositiveIntegerField(verbose_name="الرقم التسلسلي")
+    follow_up_party = models.CharField(max_length=20, verbose_name="جهة المتابعة")
+    status = models.CharField(max_length=10, default="open", verbose_name="الحالة")
+    result_code = models.CharField(
+        max_length=24, blank=True, default="", verbose_name="نتيجة الإغلاق"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإحالة")
+    closed_on = models.DateField(null=True, blank=True, verbose_name="تاريخ الإغلاق")
+    closed_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="أغلقها",
+    )
+
+    class Meta:
+        verbose_name = "إحالة عيادة"
+        verbose_name_plural = "إحالات العيادة"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "serial_no"], name="uniq_clinic_referral_serial"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"إحالة {self.serial_no}"
+
+
+class ClinicSupplyItem(models.Model):
+    """صنفُ مستلزماتٍ في مخزون العيادة (W-20261020-040): اسمٌ وتاريخُ انتهاءٍ وكمّيّة.
+
+    لا بياناتَ شخصيّةً هنا. والكمّيّةُ يدويّةٌ تماماً: انقضاءُ الصلاحية لا يخصم منها ولا يحذف الصنفَ تلقائياً،
+    فالممرّضُ هو من يقرّر الإتلافَ ويُحدّث الكمّيّة.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey("core.School", on_delete=models.CASCADE, verbose_name="المدرسة")
+    name = models.CharField(max_length=120, verbose_name="اسم الصنف")
+    expiry_date = models.DateField(verbose_name="تاريخ انتهاء الصلاحية")
+    quantity = models.PositiveIntegerField(default=0, verbose_name="الكمّيّة")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإدخال")
+
+    class Meta:
+        verbose_name = "صنف مستلزمات عيادة"
+        verbose_name_plural = "مستلزمات العيادة"
+        ordering = ["expiry_date", "name"]
+        indexes = [models.Index(fields=["school", "expiry_date"], name="clinic_supply_expiry_idx")]
+
+    def __str__(self) -> str:
+        return self.name

@@ -1,0 +1,19 @@
+{% load icons %}
+{% comment %}
+بطاقةُ «تغيّرت أيقونة التطبيق» — لمرّةٍ واحدة، وللتطبيق المثبَّت وحده (W-20261011-012). ظاهرُها وإخفاؤها بسمة `hidden`
+يديرهما `static/js/icon-update-notice.js`؛ والنصُّ يتبدّل بالمنصّة: أندرويد والحاسوب سطرٌ واحد، وآيفون ثلاثُ خطواتٍ مصوَّرة.
+تستعير مكوّنَ `.pwa-banner` فلا لافتةَ ثانيةً ولا أنماطَ جديدةً غيرَ قائمة الخطوات.
+{% endcomment %}
+<div id="icon-update-notice" class="pwa-banner" role="status" hidden>
+  <span class="pwa-icon" aria-hidden="true">{% icon "status_info" size="lg" %}</span>
+  <div class="pwa-text">
+    <strong class="pwa-title">تغيّرت أيقونة التطبيق</strong>
+    <span class="pwa-subtitle" data-icon-notice="default">افتح القائمة ⋮ ثم «مراجعة تحديث التطبيق» ثم «تحديث».</span>
+    <ol class="pwa-steps" data-icon-notice="ios" hidden>
+      <li>{% icon "delete" size="sm" %}<span>احذف الأيقونة من الشاشة الرئيسية</span></li>
+      <li>{% icon "link" size="sm" %}<span>افتح المنصّة في Safari</span></li>
+      <li>{% icon "upload" size="sm" %}<span>مشاركة ثمّ «إضافة إلى الشاشة الرئيسية»</span></li>
+    </ol>
+  </div>
+  <button type="button" class="pwa-dismiss-btn" data-icon-notice-dismiss aria-label="إغلاق">{% icon "close" size="sm" %}</button>
+</div>

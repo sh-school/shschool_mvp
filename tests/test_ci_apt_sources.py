@@ -18,17 +18,24 @@
 
 import pathlib
 
-import pytest
 import yaml
 
 WORKFLOWS = pathlib.Path(".github/workflows")
+ACTIONS = pathlib.Path(".github/actions")
 
 #: إسقاط المستودعات التي تشحنها الصورة ولا نستعملها.
 HARDENING = "rm -f /etc/apt/sources.list.d/*microsoft*"
 
 
 def _run_blocks():
-    """كل نصّ `run` في كل خطوة من كل وظيفة، مع موضعه."""
+    """كل نصّ `run` في كل خطوة من كل وظيفة وكلّ إجراءٍ مركّب، مع موضعه."""
+    # الإجراءاتُ المركّبة المحلّيّة (native-postgres يثبّت redis وpostgres 18 بـapt) — خطواتُها ليست تحت `jobs`
+    for f in sorted(ACTIONS.glob("*/action.yml")):
+        doc = yaml.safe_load(f.read_text(encoding="utf-8"))
+        for i, step in enumerate((doc.get("runs") or {}).get("steps") or []):
+            run = step.get("run")
+            if isinstance(run, str):
+                yield f"{f.parent.name}/action.yml:step[{i}]", run
     for f in sorted(WORKFLOWS.glob("*.yml")):
         doc = yaml.safe_load(f.read_text(encoding="utf-8"))
         for job_name, job in (doc.get("jobs") or {}).items():
@@ -73,10 +80,9 @@ def test_the_postgres_repository_is_not_dropped():
             assert "pgdg" not in run.split(HARDENING)[1].split("\n")[0], where
 
 
-@pytest.mark.parametrize("name", ["backup.yml", "backup-restore-test.yml"])
-def test_the_backup_workflows_are_hardened_too(name):
-    """تُجدوَلان بلا مراجعةٍ بشرية — فسقوطهما لا يراه أحد حتى تُطلب نسخة."""
-    doc = yaml.safe_load((WORKFLOWS / name).read_text(encoding="utf-8"))
+def test_the_backup_workflow_is_hardened_too():
+    """تُجدوَل بلا مراجعةٍ بشرية — فسقوطها لا يراه أحد حتى تُطلب نسخة."""
+    doc = yaml.safe_load((WORKFLOWS / "backup.yml").read_text(encoding="utf-8"))
     runs = [
         s.get("run", "")
         for job in doc["jobs"].values()
@@ -84,5 +90,22 @@ def test_the_backup_workflows_are_hardened_too(name):
         if "apt-get update" in (s.get("run") or "")
     ]
 
-    assert runs, f"{name}: لا خطوة apt — تحقّق قبل حذف هذا الحارس"
+    assert runs, "backup.yml: لا خطوة apt — تحقّق قبل حذف هذا الحارس"
+    assert all(HARDENING in r for r in runs)
+
+
+def test_the_restore_drill_gets_its_apt_from_the_hardened_local_action():
+    """الاستعادةُ الأسبوعيّةُ تُجدوَل بلا مراجعةٍ أيضاً. كان تثبيتُ PostgreSQL 18 بـapt في خطوتها؛ وصار في الإجراء
+    المحلّيّ native-postgres (W-20261010-016) — فيلزم أن يبقى apt هناك محصَّناً وأن تستدعيه الاستعادة."""
+    restore = yaml.safe_load((WORKFLOWS / "backup-restore-test.yml").read_text(encoding="utf-8"))
+    steps = [s for job in restore["jobs"].values() for s in job.get("steps") or []]
+    assert any(s.get("uses") == "./.github/actions/native-postgres" for s in steps)
+
+    action = yaml.safe_load((ACTIONS / "native-postgres/action.yml").read_text(encoding="utf-8"))
+    runs = [
+        s.get("run", "")
+        for s in action["runs"]["steps"]
+        if "apt-get update" in (s.get("run") or "")
+    ]
+    assert runs, "native-postgres بلا apt — تحقّق قبل حذف هذا الحارس"
     assert all(HARDENING in r for r in runs)

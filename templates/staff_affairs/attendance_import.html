@@ -18,7 +18,7 @@
 
   {% if result %}
     {% section_card "تعذّر رصدُ بعض الموظّفين" meta=failed|length icon="checklist" flush=True %}
-      <div class="table-wrap">
+      <div class="table-wrap table-wrap-scroll">
         <table>
           <thead><tr><th>الموظّف</th><th>السبب</th></tr></thead>
           <tbody>
@@ -64,7 +64,7 @@
     {% for day, people in plan.absent_from_file %}
     {% section_card "في المنصّة ولم يظهروا في الكشف" meta=people|length icon="staff" flush=True %}
       {% callout "info" show=True %}كادرٌ نشطٌ في المنصّة لا سطرَ له في كشف {{ day|date:"d/m/Y" }}: غالباً منقولون لم تُسجَّل مغادرتُهم (تُسجَّل من ملفّ الموظّف بمرجع القرار فيخرجون من الرصد)، أو لم يبصموا — ولا يُرصد لهم غيابٌ تلقائيّاً.{% endcallout %}
-      <div class="table-wrap">
+      <div class="table-wrap table-wrap-scroll">
         <table>
           <thead><tr><th>الموظّف</th><th class="col-center">الرقم الوظيفي</th><th class="col-center">ملفّه</th></tr></thead>
           <tbody>
@@ -76,7 +76,7 @@
     {% endfor %}
 
     {% section_card "تفصيلُ الكشف" meta=plan.items|length icon="checklist" flush=True %}
-      <div class="table-wrap">
+      <div class="table-wrap table-wrap-scroll">
         <table>
           <thead>
             <tr>
@@ -112,13 +112,14 @@
   {% if not plan and not result %}
     {% section_card "رفعُ الكشف" icon="upload" %}
       {% callout "info" %}صدِّر كشفَ «حضور وانصراف المدرسة» من جهاز البصمة بصيغة CSV وارفعه كما هو. يُقرأ الملفُّ في الذاكرة ولا يُخزَّن، ويحمل أسماءَ وأرقامَ موظّفين فلا يُرسَل خارج المنصّة.{% endcallout %}
-      {% if form.errors %}{% callout "error" %}{{ form.file.errors|join:" · " }}{% endcallout %}{% endif %}
+      {% if form.errors %}{% callout "error" %}{{ form.file.errors|join:" · " }}{{ form.day.errors|join:" · " }}{% endcallout %}{% endif %}
       <form method="post" enctype="multipart/form-data" action="{% url 'staff_affairs:attendance_import' %}">{% csrf_token %}
         <div class="form-row">
           <div class="ui-field">
             <label for="f-file" class="ui-field__label">ملفّ الكشف (CSV) <span class="req-star" aria-hidden="true">*</span></label>
             <input id="f-file" type="file" name="file" accept=".csv,text/csv" class="form-control" required>
           </div>
+          {% field "day" "يوم الكشف (اختياريّ)" type="date" value=form.day.value|default:"" max=today|date:"Y-m-d" help="يفرض هذا اليومَ على كلّ أسطر الملفّ؛ وبلا اختياره يُقرأ يومُ كلّ سطرٍ من الملفّ نفسِه." %}
           <div class="form-actions"><button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} معاينة</button></div>
         </div>
       </form>

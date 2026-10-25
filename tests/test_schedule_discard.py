@@ -45,10 +45,15 @@ def assignment(school):
     )
 
 
-def _generation(school, status, assignment=None, *, live=False, periods=2):
+def _generation(school, status, assignment=None, *, live=False, periods=2, v2=False):
     from operations.models import ScheduleGeneration, ScheduleSlot
 
-    gen = ScheduleGeneration.objects.create(school=school, academic_year=YEAR, status=status)
+    gen = ScheduleGeneration.objects.create(
+        school=school,
+        academic_year=YEAR,
+        status=status,
+        config_snapshot={"engine": "cpsat_v2"} if v2 else {},
+    )
     for period in range(1, periods + 1 if assignment else 1):
         ScheduleSlot.objects.create(
             school=school,
@@ -172,7 +177,7 @@ def test_stopping_marks_the_generation_failed_and_then_it_can_be_deleted(
     from operations.models import ScheduleGeneration
     from operations.scheduler import GENERATION_STOPPED
 
-    gen = _generation(school, status)
+    gen = _generation(school, status, v2=True)
     client = client_as(principal)
 
     _stop(client, gen)

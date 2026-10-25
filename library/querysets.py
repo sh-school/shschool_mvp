@@ -82,12 +82,12 @@ class BorrowingQuerySet(QuerySet):
         """تجاوز تاريخ الإعادة ولم يُعاد بعد."""
         return self.filter(
             status="BORROWED",
-            due_date__lt=timezone.now().date(),
+            due_date__lt=timezone.localdate(),
         )
 
     def due_soon(self, days: int = 3) -> BorrowingQuerySet:
         """تنتهي مهلتها خلال n أيام."""
-        today = timezone.now().date()
+        today = timezone.localdate()
         deadline = today + timezone.timedelta(days=days)
         return self.filter(
             status="BORROWED",

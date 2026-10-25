@@ -1,4 +1,6 @@
 {% extends "base/base.html" %}
+{% load static %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/custom/35-quality.css' %}">{% endblock %}
 {% load icons %}
 {% load privacy static ui %}
 
@@ -66,7 +68,7 @@
   </div>
 
   {% section_card "الأعضاء الحاليون" meta=members|length icon="staff" empty="لا يوجد أعضاء في اللجنة حتى الآن" empty_sub="ابدأ بزرّ «إضافة عضو» في رأس الصفحة" flush=True %}{% if member_review_stats %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>
@@ -86,7 +88,7 @@
             <td><span class="qcom-member__name">{{ ms.member.job_title }}</span></td>
             <td>
               <span class="qcom-member__name">{{ ms.member.user.full_name|default:"—" }}</span>
-              {% if ms.member.user %}<span class="qcom-member__job" dir="ltr">{{ ms.member.user.national_id|mask_id }}</span>{% endif %}
+              {% if ms.member.user %}<span class="qcom-member__job" dir="ltr">{{ ms.member.user.employee_number|default:"—" }}</span>{% endif %}
             </td>
             <td class="num"><span class="status-badge status-{{ ms.responsibility_tone }}">{{ ms.member.responsibility }}</span></td>
             <td class="cell-domain">{{ ms.member.domain.name|default:"—" }}</td>

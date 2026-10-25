@@ -1,0 +1,7 @@
+# حارسُ الثوابت: بريدٌ بلا مزوّدٍ ليس عطلاً + حمولةُ DLQ قائمةٌ بيضاء (DBT-11)
+
+> صفٌّ من جدول «ج. حرّاسُ الثوابت» — مقطعٌ من `docs/governance/regression_guards.md` (الفهرس)؛ النصُّ منقولٌ حرفيّاً (W-20261020-018).
+
+| المجال | الحرّاس | ما يفرضونه |
+|---|---|---|
+| **بريدٌ بلا مزوّدٍ ليس عطلاً + حمولةُ DLQ قائمةٌ بيضاء (DBT-11)** | `test_no_provider_email`، `test_dlq_payload_whitelist` | عند `EMAIL_BACKEND = UndeliveredEmailBackend` (يعلن `delivers = False`، و`provider_configured()` في `core/mail_backends.py`) يُوسَم التسليمُ `undeliverable` بـ`mark_undeliverable` القائم قبل الاستحواذ (لا `in_progress`) بتحذيرٍ واحدٍ فقط — **لا `logger.error` ولا استثناءَ مُسجَّل (Sentry) ولا إعادةَ ولا صفَّ DLQ**، ويبقى سطرُ `NotificationLog` «failed» بسببه **مُنقًّى: لا عنوانَ (`recipient` = «—») ولا موضوعَ ولا نصّ** (الجدولُ يحفظها 730 يوماً وفي النسخ الاحتياطيّة) — في `NotificationService.send_email` نفسِها فيشمل كلَّ المستدعين (المهمّةَ و`deliver_email` وإخطارَ الخرق والـhub المتزامن) ولا يُركَّب النصُّ ولا يُستدعى الـbackend؛ وتخزينُ الجسم عند النجاح الحقيقيّ خارجُ النطاق؛ ورسالةٌ مكرَّرةٌ في الطابور لا تُنتج سجلّاً ثانياً؛ وأعطالُ مزوّدٍ **حقيقيّ** (ومنه ردُّ الصفر منه) تبقى إعادةً فـDLQ فخطأً يُبلَّغ. وحمولةُ DLQ قائمةٌ بيضاء `DLQ_PAYLOAD_KEYS` (`notifications/no_provider.py`): معرّفاتٌ ونوعٌ وسببٌ فقط، ولا مفتاحَ محتوىً أبداً — `_to_dlq` تُنقّي بها وقتَ الكتابة، وفحصُ AST يفرض أنّ كلَّ نداء `_to_dlq` و`_tracked_failure` يمرّر قاموساً حرفيّاً داخلها ولا كاتبَ ثانياً لـ`DeadLetterMessage` |

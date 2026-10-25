@@ -4,18 +4,16 @@
 {# partial: جدول ارتباطات أولياء الأمور — يُحدَّث بـ HTMX #}
 {% load sorting %}
 
-<div class="table-wrap">
+<div class="table-wrap table-wrap-scroll">
 {% if page_obj.object_list %}
-  <div class="overflow-x-auto">
     {# القائمةُ مقسَّمةٌ صفحاتٍ: الفرزُ من الخادم على الارتباطات كلِّها. #}
-    <table class="w-full text-sm" data-no-sort>
+    <table data-no-sort>
       <thead>
         <tr>
-          {% sort_th sort "student" "الطالب" "text-right" %}
-          <th scope="col" class="text-center">الرقم الشخصيّ</th>
-          {% sort_th sort "klass" "الصف/الشعبة" "text-center" %}
-          {% sort_th sort "parent" "ولي الأمر" "text-right" %}
-          {% sort_th sort "relationship" "صلة القرابة" "text-center" %}
+          {% sort_th sort "student" "الطالب" %}
+          {% sort_th sort "klass" "الصف/الشعبة" "col-center" %}
+          {% sort_th sort "parent" "ولي الأمر" %}
+          {% sort_th sort "relationship" "صلة القرابة" "col-center" %}
           {% comment %}
           «جوّالُ وليّ الأمر» هو الفعلُ المقصودُ من هذه الشاشة — والاتّصالُ
           بالأسرة سببُ الربط. وكان غائباً والجدولُ يعرف الرقمَ لكلّ وليّ أمر.
@@ -24,8 +22,8 @@
           الارتباطات كلِّها بلا استثناء — عمودان يكتبان «مفعّل» في كلّ صفّ لا
           يفرّقان شيئاً، ويأخذان عرضاً يحتاجه ما يُقرأ.
           {% endcomment %}
-          <th scope="col" class="text-center">جوّال ولي الأمر</th>
-          <th scope="col" class="text-center">حذف</th>
+          <th scope="col" class="col-center">جوّال ولي الأمر</th>
+          <th scope="col" class="col-center">حذف</th>
         </tr>
       </thead>
       <tbody>
@@ -38,17 +36,14 @@
           {% endcomment %}
           <td data-label="الطالب">
             <a href="{% url 'student_affairs:student_profile' lnk.student.id %}"
-               class="font-semibold text-maroon hover:underline">{{ lnk.student.full_name }}</a>
+               class="link-maroon">{{ lnk.student.full_name }}</a>
           </td>
-          {# آخرُ أربعِ خاناتٍ وما قبلها مستور — والرقمُ كاملاً في ملفّ صاحبه. #}
-          <td data-label="الرقم الشخصيّ" class="col-num text-center font-mono text-xs"
-              title="الرقم كاملاً في ملفّ الطالب">{{ lnk.student.national_id|mask_id|default:"—" }}</td>
           {# «07/2» كما تكتبه الوزارة — ومن غادر لا صفَّ له فيُقال ذلك #}
-          <td data-label="الصف/الشعبة" class="text-center">
+          <td data-label="الصف/الشعبة" class="col-center">
             {% if lnk.grade_code and lnk.section_code %}
               <span class="status-badge status-info">{% class_label lnk.grade_code lnk.section_code %}</span>
             {% else %}
-              <span class="text-xs text-muted">غادر</span>
+              <span class="ui-meta">غادر</span>
             {% endif %}
           </td>
           {% comment %}
@@ -56,17 +51,17 @@
           عمودٌ قائم. ورقمُه كاملاً في ملفّه — كما لا يعرضه سجلُّ الطلاب.
           {% endcomment %}
           <td data-label="ولي الأمر">{{ lnk.parent.full_name }}</td>
-          <td data-label="صلة القرابة" class="text-center">
+          <td data-label="صلة القرابة" class="col-center">
             <span class="status-badge status-maroon">{{ lnk.get_relationship_display }}</span>
           </td>
-          <td data-label="جوّال ولي الأمر" class="text-center col-num text-xs">
+          <td data-label="جوّال ولي الأمر" class="col-center col-num cell-sm">
             {% if lnk.parent.get_phone_decrypted %}
               <a href="tel:{{ lnk.parent.get_phone_decrypted }}" class="text-maroon">{{ lnk.parent.get_phone_decrypted }}</a>
             {% else %}—{% endif %}
           </td>
-          <td data-label="حذف" class="text-center">
+          <td data-label="حذف" class="col-center">
             <form method="post" action="{% url 'remove_parent_link' lnk.id %}"
-                  data-confirm="هل أنت متأكد من حذف ربط {{ lnk.parent.full_name }} بـ {{ lnk.student.full_name }}؟">
+                  data-confirm="هل أنت متأكد من حذف ربط {{ lnk.parent.full_name }} بـ {{ lnk.student.full_name }} ({% if lnk.grade_code and lnk.section_code %}{% class_label lnk.grade_code lnk.section_code %}{% else %}غادر{% endif %})؟">
               {% csrf_token %}
               <button type="submit" class="btn-danger btn-xs">
                 حذف
@@ -77,7 +72,6 @@
         {% endfor %}
       </tbody>
     </table>
-  </div>
 
   {# Pagination #}
   {% if page_obj.paginator.num_pages > 1 %}
@@ -85,7 +79,7 @@
   {% endif %}
 
 {% else %}
-  <div class="empty-state-v2 py-8">
+  <div class="empty-state-v2">
     <div class="es-icon">{% icon "link" size="2xl" %}</div>
     <div class="es-title">لا توجد ارتباطات</div>
     <div class="es-sub">

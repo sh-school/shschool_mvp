@@ -103,6 +103,7 @@ GROUPS: tuple[tuple[str, tuple[tuple[str | None, tuple[str, ...]], ...]], ...] =
                     "core.StudentEnrollment",
                     "core.ParentStudentLink",
                     "student_affairs.StudentTransfer",
+                    "student_affairs.GuardianRequest",
                 ),
             ),
             (
@@ -207,6 +208,8 @@ GROUPS: tuple[tuple[str, tuple[tuple[str | None, tuple[str, ...]], ...]], ...] =
                     "roadmap.RoadmapRisk",
                     "roadmap.RoadmapChecklistItem",
                     "roadmap.RoadmapMeta",
+                    "decisions_registry.Decision",
+                    "decisions_registry.ImportBatch",
                 ),
             ),
             (
@@ -220,6 +223,7 @@ GROUPS: tuple[tuple[str, tuple[tuple[str | None, tuple[str, ...]], ...]], ...] =
                     "core.AuditLog",
                     "developer_feedback.AuditLog",
                     "core.ConsentRecord",
+                    "core.BreachReport",
                 ),
             ),
         ),

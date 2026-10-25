@@ -7,6 +7,7 @@ api/permissions.py
 
 from rest_framework.permissions import BasePermission
 
+from core.capabilities import has_capability
 from core.models import ParentStudentLink
 from core.models.access import ALL_STAFF_ROLES, LEADERSHIP
 from core.parent_consent import needs_parent_consent
@@ -15,6 +16,25 @@ from core.unrestricted_role import has_unrestricted_role
 
 #: نصُّ الرفض نفسُه الذي يردّ به وسيطُ الموافقة.
 CONSENT_REQUIRED_MESSAGE = "يجب الموافقة على سياسة البيانات أولاً"
+
+
+class HasCapability(BasePermission):
+    """قدرةٌ مسمّاة من سجلّ `core/capabilities.py` — فحصُها هو فحصُ الويب نفسُه (`has_capability`).
+
+    تُشتقّ منها فئةٌ لكلّ قدرة (`capability_key`)، فلا يُكرَّر منطقُ الوراثة والمنح ولا يُخترع للـAPI فحصٌ ثانٍ.
+    """
+
+    capability_key = ""
+    message = "ليست لديك صلاحية لهذه البيانات."
+
+    def has_permission(self, request, view):
+        return has_capability(request.user, self.capability_key)
+
+
+class CanViewBehavior(HasCapability):
+    """مشاهدةُ المخالفات السلوكية (`behavior.view`)."""
+
+    capability_key = "behavior.view"
 
 
 class IsSchoolAdmin(BasePermission):

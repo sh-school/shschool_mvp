@@ -1385,7 +1385,12 @@ class TestAPIViewsCoverage:
 
     def test_kpi_list(self, api_as_principal):
         with patch("analytics.services.KPIService") as mock_kpi:
-            mock_kpi.compute.return_value = {"attendance_rate": 95}
+            # عقدُ KPIService.compute: يردّ دائماً school وkpis وsummary (يقرأ العرضُ school مباشرةً)
+            mock_kpi.compute.return_value = {
+                "school": "مدرسة الاختبار",
+                "kpis": {"attendance_rate": 95},
+                "summary": {},
+            }
             resp = api_as_principal.get("/api/v1/kpis/")
         assert resp.status_code == 200
 

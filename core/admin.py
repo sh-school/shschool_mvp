@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin
 from django.db.models import Prefetch
 from django.utils.html import format_html
@@ -11,6 +11,7 @@ from .models import (
     ClassGroup,
     CustomUser,
     Department,
+    ElectiveGroupMembership,
     Membership,
     ParentStudentLink,
     Profile,
@@ -22,6 +23,7 @@ from .models import (
     Wing,
     WingCoverage,
 )
+from .models.access import ALL_STAFF_ROLES
 from .models.user import role_rank
 
 
@@ -388,6 +390,29 @@ class MembershipAdmin(SchoolScopedAdmin):
     search_fields = ("user__full_name", "user__national_id")
     autocomplete_fields = ("user",)
 
+    def save_model(self, request, obj, form, change):
+        """يحفظ ثمّ يحذّر إن صار للمستخدم عضويّتا كادرٍ نشطتان — تحذيرٌ لا منع (W-20261019-008).
+
+        الدورُ الحاكمُ عند التعدّد أقدمُ عضويّةِ كادر، لا أحدثُها؛ فمن أُعطي دوراً جديداً وبقيت عضويّتُه
+        القديمة نشطةً يدخل بدوره القديم وتفرغ صفحاتُ الجديد. فيُنبَّه المديرُ ليطفئ القديمةَ أو يوجّه
+        الموظّفَ إلى «تبديل الدور».
+        """
+        super().save_model(request, obj, form, change)
+        if not obj.is_active or obj.role.name not in ALL_STAFF_ROLES:
+            return
+        others = (
+            Membership.objects.filter(user=obj.user, is_active=True, role__name__in=ALL_STAFF_ROLES)
+            .exclude(pk=obj.pk)
+            .select_related("role")
+        )
+        names = [m.role.get_name_display() for m in others]
+        if names:
+            messages.warning(
+                request,
+                f"لهذا المستخدم عضويّةُ كادرٍ نشطةٌ أخرى ({'، '.join(names)}): يحكم الدورَ الأقدمُ انضماماً، "
+                "فأطفئ العضويّة القديمة إن كان الدورُ قد تغيّر، أو اطلب منه «تبديل الدور».",
+            )
+
 
 @admin.register(ClassGroup)
 class ClassGroupAdmin(SchoolScopedAdmin):
@@ -472,7 +497,7 @@ class TimeBandAdmin(SchoolScopedAdmin):
 @admin.register(StudentEnrollment)
 class StudentEnrollmentAdmin(SchoolScopedAdmin):
     school_lookup = "class_group__school"
-    list_display = ("student", "class_group", "is_active", "enrolled_at")
+    list_display = ("student", "class_group", "is_active", "enrolled_at", "left_at")
     list_filter = ("is_active", "class_group__grade")
     list_select_related = ("student", "class_group__school")
     search_fields = ("student__full_name", "student__national_id")
@@ -574,7 +599,7 @@ class ParentStudentLinkAdmin(SchoolScopedAdmin):
 
 
 # ── AuditLog Admin ─────────────────────────────────────────────
-from core.models import AuditLog, ConsentRecord
+from core.models import AuditLog, BreachReport, ConsentRecord
 
 
 @admin.register(AuditLog)
@@ -635,6 +660,145 @@ class ConsentRecordAdmin(SchoolScopedAdmin):
     readonly_fields = ("given_at", "withdrawn_at")
 
 
+@admin.register(BreachReport)
+class BreachReportAdmin(SchoolScopedAdmin):
+    """بلاغاتُ خرق البيانات (م.11/م.14) — القراءةُ والمراجعةُ هنا، والتسجيلُ والانتقالاتُ من صفحة `/breach/`.
+
+    حقولُ الإشعارات والمواعيد للقراءة فقط: تُختم عبر الخدمات التي تدقّق في `AuditLog`، فلا تُعدَّل بيدٍ
+    خارج المسار المدقَّق. ولا حذفَ إلا للمشرف الأعلى (سجلٌّ قانونيّ).
+    """
+
+    list_display = (
+        "title",
+        "school",
+        "severity",
+        "status",
+        "ncsa_notice_stage",
+        "individuals_status",
+        "discovered_at",
+        "ncsa_deadline",
+        "individuals_deadline",
+    )
+    list_filter = ("status", "severity", "ncsa_notice_stage", "individuals_status", "school")
+    list_select_related = ("school", "assigned_to")
+    search_fields = ("title", "description")
+    date_hierarchy = "discovered_at"
+    autocomplete_fields = ("assigned_to",)
+    readonly_fields = (
+        "id",
+        "created_at",
+        "reported_by",
+        "discovered_at",
+        "ncsa_deadline",
+        "ncsa_notified_at",
+        "ncsa_notice_stage",
+        "ncsa_missing_reasons",
+        "ncsa_completion_due_at",
+        "ncsa_completed_at",
+        "individuals_status",
+        "individuals_deadline",
+        "individuals_assessed_at",
+        "individuals_notified_at",
+        "individuals_notified_channel",
+        "individuals_decided_by",
+        "individuals_assessment_note",
+        "resolved_at",
+        "status",
+    )
+    fieldsets = (
+        (
+            "الخرق",
+            {
+                "fields": (
+                    "id",
+                    "school",
+                    "title",
+                    "description",
+                    "severity",
+                    "data_type_affected",
+                    "affected_count",
+                    "discovered_at",
+                    "created_at",
+                    "status",
+                    "resolved_at",
+                    "reported_by",
+                    "assigned_to",
+                )
+            },
+        ),
+        (
+            "إشعار NCSA (72 ساعة)",
+            {
+                "fields": (
+                    "ncsa_deadline",
+                    "ncsa_notified_at",
+                    "ncsa_notice_stage",
+                    "ncsa_missing_reasons",
+                    "ncsa_completion_due_at",
+                    "ncsa_completed_at",
+                    "notification_text",
+                )
+            },
+        ),
+        (
+            "إخطار الأفراد المتأثّرين (م.14)",
+            {
+                "fields": (
+                    "individuals_status",
+                    "individuals_deadline",
+                    "individuals_assessed_at",
+                    "individuals_notified_at",
+                    "individuals_notified_channel",
+                    "individuals_decided_by",
+                    "individuals_assessment_note",
+                )
+            },
+        ),
+        (
+            "الإجراءات والأدلة",
+            {"fields": ("immediate_action", "containment_action", "evidence_notes")},
+        ),
+    )
+
+    #: الحدُّ الأدنى لإشعارٍ مكتمل وما يحدّد خطورتَه: يُقفل بعد «مكتمل» أو الإغلاق فلا يُفرَّغ بعد ختمه.
+    _LOCKED_AFTER_COMPLETE = (
+        "notification_text",
+        "immediate_action",
+        "containment_action",
+        "affected_count",
+        "severity",
+        "data_type_affected",
+        "title",
+        "description",
+    )
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = tuple(super().get_readonly_fields(request, obj))
+        if obj is not None and (obj.ncsa_notice_stage == "complete" or obj.status == "resolved"):
+            return fields + self._LOCKED_AFTER_COMPLETE
+        return fields
+
+    def has_add_permission(self, request):
+        return False  # يُسجَّل الخرقُ من `/breach/create/` فتُحسب المهلةُ ويُدقَّق
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if change and form.changed_data:
+            AuditLog.log(
+                user=request.user,
+                action="update",
+                model_name="other",
+                object_id=str(obj.pk),
+                object_repr=f"BreachReport admin edit: {obj.title}",
+                changes={"edited_fields": list(form.changed_data)},
+                school=obj.school,
+                request=request,
+            )
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+
 # ── منحُ القدرات المفوَّضة (مُشغِّل الجدول) ─────────────────────────
 @admin.register(CapabilityGrant)
 class CapabilityGrantAdmin(SchoolScopedAdmin):
@@ -680,3 +844,13 @@ class CapabilityGrantAdmin(SchoolScopedAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(ElectiveGroupMembership)
+class ElectiveGroupMembershipAdmin(SchoolScopedAdmin):
+    school_lookup = "enrollment__class_group__school"
+    list_display = ("enrollment", "group_label", "created_at")
+    list_filter = ("group_label", "enrollment__class_group__grade")
+    list_select_related = ("enrollment__student", "enrollment__class_group")
+    search_fields = ("enrollment__student__full_name", "group_label")
+    autocomplete_fields = ("enrollment",)

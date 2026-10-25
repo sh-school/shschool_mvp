@@ -386,7 +386,8 @@ class TestTheDocumentLink:
     ):
         """الرابطُ كان يمرّ على صفحةٍ تبحث في جدول الحضور القديم فيُرجع 404 — حتى للنائب."""
         excuse = _forward(school, late_absence, supervisor)
-        url = excuse.document.url
+        # الرابطُ عبر عرضٍ محروسٍ يتحقّق من الدور والجناح ويسجّل الفتح (W-20261008-012)، لا مسارُ التخزين المباشر.
+        url = reverse("wings:excuse_document_export", args=[excuse.pk])
 
         assert url in client_as(vice_admin).get(reverse("wings:excuse_requests")).content.decode()
         assert client_as(supervisor).get(url).status_code == 200

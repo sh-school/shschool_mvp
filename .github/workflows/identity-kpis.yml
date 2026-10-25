@@ -11,6 +11,8 @@ on:
   schedule:
     # الأحد 03:00 UTC = 06:00 بتوقيت قطر، قبل بدء الدوام
     - cron: "0 3 * * 0"
+    # أوّلُ كلّ شهرٍ: تقريرُ التزام الهويّة بالأرقام الأربعة والاتجاه (W-20261016-017) — معلوماتيٌّ لا يحجب
+    - cron: "0 3 1 * *"
   workflow_dispatch:
 
 concurrency:
@@ -25,8 +27,8 @@ jobs:
     name: قياس مؤشّرات الهويّة
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
       - name: القياس
@@ -42,8 +44,33 @@ jobs:
             cat identity_kpis.json
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: identity-kpis-${{ github.sha }}
           path: identity_kpis.json
+          retention-days: 90
+
+  monthly:
+    name: تقريرُ التزام الهويّة الشهريّ
+    if: github.event.schedule == '0 3 1 * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      # لا يفشل العملُ بسبب رقم: الاتجاهُ عن آخر تقريرٍ محفوظٍ في docs/identity، ومخالفاتُ visual_gate «غير مقيس» هنا.
+      - name: التقرير
+        continue-on-error: true
+        run: python scripts/identity_monthly_report.py --out report_out
+      - name: ملخّص في صفحة التشغيل
+        if: always()
+        run: |
+          if [ -f report_out/monthly_report.md ]; then cat report_out/monthly_report.md >> "$GITHUB_STEP_SUMMARY"; fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: identity-monthly-${{ github.sha }}
+          path: report_out
+          if-no-files-found: ignore
           retention-days: 90

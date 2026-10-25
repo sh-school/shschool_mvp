@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تدقيق رجعي: محور الجدول المدرسي</title>
+<style>
+  :root { --bg:#fafaf7; --fg:#1d1d1b; --muted:#5b5b57; --line:#d9d6cc; --card:#fff; --hi:#a4262c; --mid:#b45f06; --lo:#2e6b3a; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#16161a; --fg:#ece9e0; --muted:#a8a69d; --line:#3a3a40; --card:#1f1f25; --hi:#ff7b7f; --mid:#f0a35c; --lo:#7fd18d; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font-family:Tajawal,"Segoe UI",Tahoma,sans-serif; line-height:1.8; }
+  main { max-width:62rem; margin-inline:auto; padding:1.5rem 1rem 3rem; }
+  h1 { font-size:1.6rem; margin-block:0 .25rem; }
+  h2 { font-size:1.25rem; margin-block:2rem .5rem; border-block-end:2px solid var(--line); padding-block-end:.25rem; }
+  .meta { color:var(--muted); font-size:.9rem; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:1rem 1.1rem; margin-block:1rem; }
+  .card h3 { margin:0 0 .4rem; font-size:1.05rem; }
+  .tag { display:inline-block; padding:0 .55rem; border-radius:999px; border:1px solid currentColor; font-size:.8rem; margin-inline-end:.4rem; }
+  .hi { color:var(--hi); } .mid { color:var(--mid); } .lo { color:var(--lo); }
+  blockquote { margin:.4rem 0; padding-inline-start:.8rem; border-inline-start:3px solid var(--line); color:var(--muted); }
+  code { direction:ltr; unicode-bidi:isolate; background:rgba(127,127,127,.15); padding:0 .3rem; border-radius:4px; font-size:.85rem; }
+  table { width:100%; border-collapse:collapse; display:block; overflow-x:auto; }
+  th, td { border:1px solid var(--line); padding:.4rem .6rem; text-align:start; vertical-align:top; }
+  th { background:rgba(127,127,127,.12); }
+  ul { padding-inline-start:1.3rem; }
+</style>
+</head>
+<body>
+<main>
+<h1>تدقيق امتثال رجعي: محور الجدول المدرسي</h1>
+<p class="meta">التاريخ: 2026-10-20 · للقراءة فقط (لا تعديل كود ولا بطاقات) · النطاق: <code>academic_management/</code> و<code>operations/</code> (الجدولة) مقابل لوائح الأنصبة والحصص والجدول الأسبوعي والتقويم في <code>AAdocs/ministry_data/2026_2027/</code>.</p>
+
+<h2>الخلاصة</h2>
+<div class="card">
+<ul>
+  <li>النتيجة المنهجية الأهم: <b>الأدلة المستخرجة لا تتضمن نصاً لائحياً ينظّم نصاب المعلم ولا مدة الحصة ولا عدد الحصص اليومية ولا توقيت الجرس.</b> بحثتُ بالكلمات (نصاب، حصة، حصص أسبوعي، دقيقة، الأحد، الطابور، الفسحة) في كل ملفات الفهرس، ولم أجد. لذلك فأغلب قيود الجدولة (HC1..HC22) مستندة إلى قرارات المالك وقياسات داخلية لا إلى لائحة، وهذا موثّق في الكود نفسه.</li>
+  <li>اللوائح ذات الصلة الفعلية قليلة: دوام الموظفين 7:00–14:00، جدول رمضان المخفف، جدول المناوبة، ومتابعة النائب الأكاديمي للجدول، وتقويم الوزارة.</li>
+  <li>أخطر فجوة مؤكدة: جدول رمضان مبذور كبيانات لكن لا مسار في الكود يختاره (جزئي).</li>
+  <li>جدول المناوبة المنصوص عليه في الوصف الوظيفي غير مطبّق (مقترح DUT-01 في الخارطة فقط).</li>
+  <li>الأنصبة المنهجية (34 حصة إعدادي، 35 ثانوي) تأتي من «دليل الخطط الدراسية 2025-2026» وهو غير موجود في مجلد الأدلة المستخرجة لـ2026/27، فلا يمكن التحقق منها من هنا.</li>
+  <li>التداخل مع <code>compliance_audit_report.md</code> (2026-09-10): محور «التقويم والأنصبة» مغطى هناك بنسبة 97% (الأسطر 60–70) ولا أكرره.</li>
+</ul>
+</div>
+
+<h2>المخالفات والفجوات</h2>
+
+<div class="card">
+<h3><span class="tag mid">متوسطة</span><span class="tag">جزئي</span>1. جدول رمضان المخفف مبذور ولا يُستعمل</h3>
+<p><b>اللائحة:</b></p>
+<blockquote><code>02_staff_affairs.md:550</code> (جدول أنواع الأذونات): «رمضان | إذن مدارس-رمضان | جدول رمضان المخفَّف»؛ و<code>:568</code>: «الجدول يُطبَّق على المدرسة كلها … إن كان النظام يدعم الجداول الموسمية».</blockquote>
+<p><b>الكود:</b></p>
+<ul>
+  <li><code>operations/models/schedule.py:183-187</code>: <code>ramadan</code> أحد خيارات <code>DAY_TYPES</code>.</li>
+  <li><code>operations/management/commands/seed_schedule_data.py:38-44</code>: خمس حصص رمضانية (9:00–12:20) تُبذر بلا <code>band</code>.</li>
+  <li><code>operations/bells.py:39-40</code>: التعليق يقول إن رمضان «لم يُبذَر بعد»؛ و<code>:46</code> الخريطة <code>_DAY_TYPE</code> تعيد <code>regular</code> أو <code>thursday</code> فقط؛ و<code>:143</code> <code>bells_for</code> يطرح كل صف بلا نطاق (<code>band__isnull=False</code>).</li>
+</ul>
+<p><b>الحكم:</b> لا مسار في الكود يعيد نوع اليوم «رمضان» أصلاً، والصفوف المبذورة بلا نطاق فتُطرح أيضاً. فأيام رمضان تظهر بجرس عادي (حصة أولى 7:10) مخالفاً للجدول المخفف. لم أتحقق من وجود تجاوز يدوي في الإنتاج، وهذا خارج قدرة القراءة الساكنة. التقويم الوزاري يعطي إجازة رمضان (يومان) ويغطيها محور التقويم السابق.</p>
+</div>
+
+<div class="card">
+<h3><span class="tag mid">متوسطة</span><span class="tag">غير مطبّق</span>2. جدول المناوبة (الطابور، الفسحة، الانصراف)</h3>
+<blockquote><code>03_job_descriptions_rbac.md:207</code> (المشرف الإداري): «المناوبة في بداية الدوام وأثناء الفسحة وفي نهاية الدوام لضبط النظام وفق جدول المناوبة».</blockquote>
+<p><b>الكود:</b> لا نموذج ولا شاشة ولا خدمة للمناوبة. الورود الوحيد للمصطلح في المستودع هو <code>roadmap/migrations/0038_school_clock_and_duty_2026_09_26.py:86-104</code> كبند مقترح <code>DUT-01</code> «بعد ردّ مدير المدرسة» على ثمانية أسئلة. الجرس نفسه (<code>bells.py</code>) موجود، والمناوبة المرتبطة به غير موجودة.</p>
+</div>
+
+<div class="card">
+<h3><span class="tag lo">منخفضة</span><span class="tag">لم أجد</span>3. دور «مسؤول الجدول» وإبلاغ تأخر معلم الحصة الأولى</h3>
+<blockquote><code>06c_attendance_policy_verbatim.md</code> البند 2.3: «المعلمين الذين لديهم حصص أولى في حال تأخرهم يجب ابلاغ منسق المادة قبل الساعة 6:30 صباحاً … مع وضع مسؤول الجدول، النائب الأكاديمي والإدارة المدرسية».</blockquote>
+<p>(سياسة مدرسية لا وزارية بحسب <code>index.md</code> التعارض 4.) بحثتُ في <code>*.py</code> عن «مسؤول الجدول» و<code>schedule_officer</code> و<code>timetable_officer</code> و<code>schedule_manager</code> فلم أجد شيئاً. ولم أجد ربطاً بين غياب/تأخر معلم وحصته الأولى في الجدول ضمن ما فحصتُه (<code>operations/first_period_cap.py</code> سقف توزيع لا إبلاغ). الحكم: غير مطبّق، وأثره تشغيلي.</p>
+</div>
+
+<div class="card">
+<h3><span class="tag mid">متوسطة</span><span class="tag">لا يمكن التحقق</span>4. أنصبة الخطة الدراسية مبنية على دليل خارج مجلد 2026/27</h3>
+<p><b>الكود:</b> <code>academic_management/management/commands/seed_curriculum.py:39</code> <code>GUIDE = "دليل الخطط الدراسية 2025-2026"</code>، ومجموع الإعدادي 34 (سطر 42 وسطر 403) والثانوي 35، مع إحالات صفحات (ص14، ص18–20).</p>
+<p><b>اللائحة:</b> لم أجد في ملفات <code>2026_2027/</code> أي جدول أنصبة للمواد؛ وفهرس الأدلة يشير للدليل فقط عبر ذاكرة المشروع. والمجلد المصدر <code>data/2026-2027</code> غير موجود في شجرة العمل هذه.</p>
+<p><b>الحكم:</b> لا أستطيع تأكيد المطابقة ولا نفيها هنا. وتدقيق 2026-09-10 (<code>compliance_audit_report.md:67-70</code>) يعطيها 100% بلا اقتباس نصي، فنسبته صحيحة ما دامت قراءة الدليل صحيحة. الخطر: دليل 2025/26 قد لا يكون ساري 2026/27.</p>
+</div>
+
+<div class="card">
+<h3><span class="tag mid">متوسطة</span><span class="tag">جزئي</span>5. صف العاشر (تجربة العلوم الموحدة) بلا مرجع تعميم</h3>
+<p><b>اللائحة:</b> <code>index.md</code> التعارض 5: لم يُعثر على المدارس المشاركة ولا تعميم التجربة.</p>
+<p><b>الكود:</b> <code>seed_curriculum.py:40</code> <code>PILOT_REFERENCE = ""</code> ثم <code>:174</code> يستعملها مصدراً لعاشر <code>FROM_PILOT</code>. أي أن أنصبة العاشر مسجلة بمصدر «تجربة وزارية» دون مرجع. وهذا ما أشار له التدقيق السابق (90%، لا خطة عاشر بديلة).</p>
+</div>
+
+<div class="card">
+<h3><span class="tag lo">منخفضة</span><span class="tag">لم أجد</span>6. نصاب المعلم الأسبوعي</h3>
+<p><b>اللائحة:</b> لم أجد في أي ملف مستخرج نصاً يحدد نصاب المعلم (نتائج «نصاب» الوحيدة عن نصاب اجتماعات المجالس في <code>01_policies_general.md:474-493</code>). المادة 73 في <code>02d_hr_law_leaves_verbatim.md:159</code> تخفض ساعات العمل لذوي الإعاقة ساعة، ولم أجد في الكود ربطاً بالجدولة.</p>
+<p><b>الكود:</b> <code>academic_management/models.py:481-495</code> يعلن صراحة أنه «لم نجد نصاً وزارياً ساري المفعول» ويترك <code>reference_load</code> فارغاً (لا مقارنة بدل رقم مخترع)، و<code>load.py:19-21</code> يكرر «ولا يُخترع رقم». هذا سلوك سليم أمام غياب اللائحة. وقرار الإدارة (<code>load.py</code> الخاصية <code>total</code>) أن التحضير لا يدخل في النصاب؛ لا لائحة تؤيده أو تخالفه.</p>
+</div>
+
+<div class="card">
+<h3><span class="tag lo">منخفضة</span><span class="tag">متعارض محتمل</span>7. قيود الحصص اليومية والخميس من قرارات لا من لائحة</h3>
+<p><b>الكود:</b> <code>operations/scheduling_limits.py:78-90</code> (<code>get_max_periods_for_day</code>): الخميس 6 للإعدادي و7 للثانوي، وباقي الأيام 7؛ ومصدره في <code>constraint_registry.py</code> HC4 «قرار: المالك 2026-10-02». بينما <code>seed_schedule_data.py</code> (الخميس: ست حصص) والتقويم الوزاري لا ينصّان على ذلك.</p>
+<p><b>الحكم:</b> لا نص وزاري للمقارنة. التعارض الوحيد داخلي: بذر الخميس ست حصص مقابل سقف سبع للثانوي في HC4، والمرجع الفعلي جرس النطاق (<code>TimeBand</code>) لا البذر، ولم أفحص بيانات الإنتاج.</p>
+</div>
+
+<div class="card">
+<h3><span class="tag lo">منخفضة</span><span class="tag">مطبّق</span>8. دوام الموظفين 7:00–14:00 مقابل الجرس</h3>
+<blockquote><code>06c_attendance_policy_verbatim.md:17</code> (1.1): «يبدأ الدوام الرسمي لموظفي المدرسة من السابعة صباحاً وينتهي في تمام الثانية ظهراً».</blockquote>
+<p>جرس البذر: الحصة الأولى 7:10 والسابعة تنتهي 13:20 (<code>seed_schedule_data.py:14-24</code>)، أي ضمن الدوام. متوافق. أما جرس الطابقين الفعلي (نطاقات الأرضي والأول) فمخزن في قاعدة البيانات ولم أقرأه.</p>
+</div>
+
+<div class="card">
+<h3><span class="tag lo">منخفضة</span><span class="tag">مطبّق</span>9. أسبوع الدراسة وتقويم الوزارة</h3>
+<p>الدراسة أحد–خميس والجمعة والسبت عطلة (<code>operations/bells.py:46</code>)، وبدء الدوام ونهايته والإجازات من التقويم لكل صف (<code>operations/school_days.py:165-179</code>). لم أجد في الأدلة نصاً صريحاً عن أيام الأسبوع الدراسي، لكنه ثابت التقويم المدرج ويغطيه التدقيق السابق.</p>
+</div>
+
+<h2>جدول موجز</h2>
+<table>
+<thead><tr><th>#</th><th>البند</th><th>الحالة</th><th>الخطورة</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>جدول رمضان المخفف</td><td>جزئي</td><td>متوسطة</td></tr>
+<tr><td>2</td><td>جدول المناوبة</td><td>غير مطبّق</td><td>متوسطة</td></tr>
+<tr><td>3</td><td>مسؤول الجدول وإبلاغ تأخر الحصة الأولى</td><td>لم أجد</td><td>منخفضة</td></tr>
+<tr><td>4</td><td>أنصبة الخطة (دليل 2025/26)</td><td>لا يمكن التحقق</td><td>متوسطة</td></tr>
+<tr><td>5</td><td>العاشر بلا مرجع تعميم</td><td>جزئي</td><td>متوسطة</td></tr>
+<tr><td>6</td><td>نصاب المعلم</td><td>لا لائحة (الكود حذر)</td><td>منخفضة</td></tr>
+<tr><td>7</td><td>سقف الخميس واليوم</td><td>قرار لا لائحة</td><td>منخفضة</td></tr>
+<tr><td>8</td><td>الدوام 7–14</td><td>مطبّق</td><td>منخفضة</td></tr>
+<tr><td>9</td><td>أسبوع الدراسة والتقويم</td><td>مطبّق</td><td>منخفضة</td></tr>
+</tbody>
+</table>
+
+<h2>حدود التدقيق</h2>
+<ul>
+  <li>قراءة ساكنة للكود والأدلة؛ لم أشغّل شيئاً ولم أقرأ قاعدة بيانات.</li>
+  <li>لم أراجع حل CP-SAT ولا المقيّم (<code>scheduler.py</code> و<code>scheduler_v2/</code>) سطراً بسطر؛ اكتفيتُ بالسجل <code>constraint_registry.py</code> ومصادر قيوده.</li>
+  <li>ملفات الأدلة الأصلية (PDF) غير متاحة في هذه الشجرة، فالاقتباسات من الاستخراج المكتوب.</li>
+</ul>
+</main>
+</body>
+</html>

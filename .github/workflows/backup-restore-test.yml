@@ -19,22 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
-    services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          POSTGRES_DB: restore_test
-          POSTGRES_USER: restore_user
-          POSTGRES_PASSWORD: restore_pass
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U restore_user -d restore_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-
     steps:
+      # للإجراء المحلّي native-postgres أدناه (هذه الوظيفةُ لم تكن تسحب المستودع)
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
       - name: كشف توفّر R2
         id: prep
         run: |
@@ -44,11 +32,31 @@ jobs:
           else
             echo "r2=false" >> "$GITHUB_OUTPUT"
           fi
+          # حاويةُ Railway (W-20261023-018): الأولويةُ لها متى ضُبطت أسرارُها؛ egress الحاويةِ مجّاني بنصّ وثائق Railway.
+          if [ -n "${{ secrets.RAILWAY_BACKUP_S3_ENDPOINT }}" ] && [ -n "${{ secrets.RAILWAY_BACKUP_S3_BUCKET }}" ]; then
+            echo "rw=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rw=false" >> "$GITHUB_OUTPUT"
+          fi
 
       # حين يكون R2 مضبوطاً لا تُرفع artifacts أصلاً (المستودعُ عامّ)، فالنسخةُ
       # الأحدثُ تُجلب من الحاوية الخاصّة.
+      - name: تنزيل أحدث نسخة من حاوية Railway
+        if: steps.prep.outputs.rw == 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.RAILWAY_BACKUP_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.RAILWAY_BACKUP_S3_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          set -euo pipefail
+          LATEST="$(aws s3 ls "s3://${{ secrets.RAILWAY_BACKUP_S3_BUCKET }}/db-backups/"             --endpoint-url "${{ secrets.RAILWAY_BACKUP_S3_ENDPOINT }}" | sort | tail -1 | awk '{print $4}')"
+          [ -n "$LATEST" ] || { echo "::error::لا نسخَ في حاوية Railway"; exit 1; }
+          mkdir -p backup
+          aws s3 cp "s3://${{ secrets.RAILWAY_BACKUP_S3_BUCKET }}/db-backups/$LATEST" "backup/$LATEST"             --endpoint-url "${{ secrets.RAILWAY_BACKUP_S3_ENDPOINT }}" --only-show-errors
+          echo "سيتم اختبار النسخة $LATEST من Railway"
+
       - name: تنزيل أحدث نسخة من Cloudflare R2
-        if: steps.prep.outputs.r2 == 'true'
+        if: steps.prep.outputs.r2 == 'true' && steps.prep.outputs.rw != 'true'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -65,7 +73,7 @@ jobs:
 
       - name: تحديد أحدث تشغيل ناجح للنسخ الاحتياطي
         id: latest
-        if: steps.prep.outputs.r2 != 'true'
+        if: steps.prep.outputs.r2 != 'true' && steps.prep.outputs.rw != 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
@@ -92,8 +100,8 @@ jobs:
           echo "سيتم اختبار النسخة من التشغيل ${RUN_ID}"
 
       - name: تنزيل أحدث Artifact للنسخة الاحتياطية
-        if: steps.prep.outputs.r2 != 'true'
-        uses: actions/download-artifact@v8
+        if: steps.prep.outputs.r2 != 'true' && steps.prep.outputs.rw != 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: db-backup-*
           path: backup
@@ -101,16 +109,16 @@ jobs:
           run-id: ${{ steps.latest.outputs.run_id }}
           github-token: ${{ github.token }}
 
-      - name: تثبيت PostgreSQL 18 وGnuPG
-        run: |
-          set -euo pipefail
-          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc |
-            sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
-          sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-18 gnupg
-          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+      # PostgreSQL 18 الأصليّ (نسخةُ الإنتاج نفسُها) بدل حاويةِ خدمةٍ تُسحب من Docker Hub (سقفُ السحب غيرُ الموثَّق) — W-20261010-016
+      - uses: ./.github/actions/native-postgres
+        with:
+          version: "18"
+          db_user: restore_user
+          db_password: restore_pass
+          db_name: restore_test
+
+      - name: GnuPG جاهز (مثبَّتٌ على صورة الـrunner)
+        run: gpg --version | head -1
 
       - name: فك التشفير دون طباعة البيانات
         env:

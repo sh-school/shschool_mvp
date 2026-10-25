@@ -1,7 +1,7 @@
 {% load ui %}
 <div class="exec-dash">
 
-  {% page_header "لوحة الأخصائي الاجتماعي والنفسي" subtitle=subtitle icon="psychology" %}{% endpage_header %}
+  {% page_header "لوحة الأخصائي الاجتماعي والنفسي" subtitle=subtitle icon="psychology" %}{% include "dashboard/partials/_leave_self.html" %}{% endpage_header %}
 
   {% kpi_strip label="هذا الشهر" %}
     {% kpi "غيابٌ متكرّر" chronic_absent sub="أكثر من 3 أيّام" tone=chronic_tone %}

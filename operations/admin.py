@@ -5,14 +5,17 @@ from django.http import HttpRequest
 
 from core.admin import SchoolScopedAdmin
 
+from .admin_forms import TeacherPreferenceAdminForm, effective_cap
 from .models import (
     AbsenceAlert,
     AbsenceExcuse,
+    AbsenceReportSnapshot,
     AttendanceDecision,
     AttendanceEntry,
     ClassExit,
     CompensatorySession,
     DailyExitTally,
+    ExitPermit,
     FreeSlotRegistry,
     GuardianContact,
     PeriodConfirmation,
@@ -20,6 +23,7 @@ from .models import (
     ScheduleBaseline,
     ScheduleConstraintOverride,
     ScheduleGeneration,
+    ScheduleRelaxationPolicy,
     ScheduleSlot,
     SchedulingResource,
     SectionDayConfirmation,
@@ -28,8 +32,10 @@ from .models import (
     Subject,
     SubjectClassAssignment,
     SubstituteAssignment,
+    TardinessExcuse,
     TeacherAbsence,
     TeacherExemption,
+    TeacherPeriodPreference,
     TeacherPreference,
     TeacherSwap,
     TemporaryPermission,
@@ -150,6 +156,27 @@ class ClassExitAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     date_hierarchy = "left_at"
 
 
+@admin.register(ExitPermit)
+class ExitPermitAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    """أذوناتُ خروج الطلاب (السببُ والوقتُ والحصصُ المكتملة وحضورُ الوليّ والمعتمِد) — للقراءة والتدقيق؛ تُكتب بخدمتها."""
+
+    list_display = (
+        "sequence",
+        "student",
+        "class_group",
+        "reason",
+        "status",
+        "completed_periods",
+        "guardian_present",
+        "approved_by",
+        "exit_at",
+    )
+    list_select_related = ("student", "class_group", "approved_by")
+    list_filter = ("status", "reason", "guardian_present", "school")
+    search_fields = ("student__full_name", "student__national_id")
+    date_hierarchy = "exit_at"
+
+
 @admin.register(DailyExitTally)
 class DailyExitTallyAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     """ملخّصُ خروج كلّ طالبٍ في كلّ يوم: عددُ المرّات ومجموعُ الثواني والتفصيلُ بالوجهة — مشتقٌّ من «خروجٌ من الفصل»."""
@@ -167,6 +194,13 @@ class AttendanceDecisionAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     list_select_related = ("entry", "decided_by")
     list_filter = ("decision", "basis", "school")
     date_hierarchy = "decided_at"
+
+
+@admin.register(AbsenceReportSnapshot)
+class AbsenceReportSnapshotAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ("kind", "grade_scope", "period_start", "period_end", "revision", "generated_at")
+    list_filter = ("kind", "grade_scope", "school")
+    date_hierarchy = "generated_at"
 
 
 @admin.register(AbsenceAlert)
@@ -252,7 +286,28 @@ class AbsenceExcuseAdmin(SensitiveFieldsMixin, ReadOnlyAdminMixin, SchoolScopedA
     list_filter = ("status", "kind", "after_deadline", "school")
     search_fields = ("student__full_name", "student__national_id")
     date_hierarchy = "date_from"
-    sensitive_fields = ("kind", "notes", "document", "override_reason", "rejection_reason")
+    sensitive_fields = (
+        "kind",
+        "notes",
+        "document",
+        "override_reason",
+        "rejection_reason",
+        "applicant_name",
+        "applicant_relation",
+        "applicant_phone",
+        "pledge_accepted",
+    )
+
+
+@admin.register(TardinessExcuse)
+class TardinessExcuseAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    """عذرُ التأخّر يعتمده معلّمُ الحصّة بخدمته (`operations/tardiness_excuse_services.py`) — يُقرأ هنا ولا يُكتب."""
+
+    list_display = ("attendance", "granted_by", "granted_at")
+    list_select_related = ("attendance__student", "granted_by")
+    list_filter = ("school",)
+    search_fields = ("attendance__student__full_name",)
+    date_hierarchy = "granted_at"
 
 
 @admin.register(GuardianContact)
@@ -505,6 +560,7 @@ class TeacherPreferenceAdmin(admin.ModelAdmin):
         "max_consecutive",
         "max_gap",
         "max_last_periods",
+        "max_first_periods",
         "free_day",
         "academic_year",
     )
@@ -512,18 +568,49 @@ class TeacherPreferenceAdmin(admin.ModelAdmin):
     search_fields = ("teacher__full_name",)
     autocomplete_fields = ("teacher",)
 
+    form = TeacherPreferenceAdminForm
+
     def save_model(self, request, obj, form, change):
-        """تغييرُ سقف السابعة الإداريّ يُثبَّت أثرُه: قيمتان قبل وبعد ومعرّفُ الصفّ — لا اسمُ المعلّم.
+        """القراراتُ الإداريّة (سقفا السابعة والأولى ويومُ التفريغ) يُثبَّت أثرُها: قيمتان قبل وبعد ومعرّفُ الصفّ — لا اسمُ المعلّم.
 
         ثمرةُ قرار المالك D-172م، فيُراد أثرُه أبعدَ من `LogEntry` (W-20261003-035، توصيةُ 0105).
         """
-        before = (
-            type(obj).objects.filter(pk=obj.pk).values_list("max_last_periods", flat=True).first()
+        before, before_run, before_free, before_first = (
+            type(obj)
+            .objects.filter(pk=obj.pk)
+            .values_list("max_last_periods", "max_consecutive", "free_day", "max_first_periods")
+            .first()
             if change
             else None
-        )
+        ) or (None, None, None, None)
         super().save_model(request, obj, form, change)
-        if before != obj.max_last_periods:
+        from operations.preference_capacity import (
+            exceeds_general_run_cap,
+            record_free_day_change,
+            record_run_cap_above_general,
+        )
+
+        if before_free != obj.free_day:
+            record_free_day_change(request, obj, before_free, change)
+        if before_run != obj.max_consecutive and exceeds_general_run_cap(obj.max_consecutive):
+            record_run_cap_above_general(request, obj, "admin")
+        if effective_cap(before_first) != effective_cap(obj.max_first_periods):
+            from core.models import AuditLog
+
+            AuditLog.objects.create(
+                school=obj.school,
+                user=request.user,
+                action="update" if change else "create",
+                model_name="other",
+                object_id=str(obj.pk),
+                object_repr=f"سقفُ الأولى الشخصيّ {obj.academic_year}",
+                changes={
+                    "event": "teacher_first_period_cap_changed",
+                    "before": before_first,
+                    "after": obj.max_first_periods,
+                },
+            )
+        if effective_cap(before) != effective_cap(obj.max_last_periods):
             from core.models import AuditLog
 
             AuditLog.objects.create(
@@ -539,6 +626,65 @@ class TeacherPreferenceAdmin(admin.ModelAdmin):
                     "after": obj.max_last_periods,
                 },
             )
+
+
+@admin.register(ScheduleRelaxationPolicy)
+class ScheduleRelaxationPolicyAdmin(admin.ModelAdmin):
+    """تخفيفاتُ التوليد المدرسيّة (D-382م): يقرؤها زرُّ التوليد وأمرُ الإدارة والمُقيِّمُ وفحصُ الجدوى معاً.
+
+    كل تعديلٍ يُثبَّت قبل/بعد في `AuditLog` بلا أسماء معلّمين — فقرارٌ يغيّر ما يُسمح به في الجدول لا يمرّ صامتاً.
+    """
+
+    list_display = ("school", "relax_touch_for_all", "touch_run_cap", "no_6_7", "triples_by_number")
+    readonly_fields = ("updated_by", "updated_at")
+    FIELDS = ("relax_touch_for_all", "touch_run_cap", "no_6_7", "triples_by_number", "decision_ref")
+
+    def _snapshot(self, obj) -> dict:
+        return {name: getattr(obj, name) for name in self.FIELDS}
+
+    def _audit(self, request, obj, action: str, before, after) -> None:
+        from core.models import AuditLog
+
+        AuditLog.objects.create(
+            school=obj.school,
+            user=request.user,
+            action=action,
+            model_name="other",
+            object_id=str(obj.pk),
+            object_repr="تخفيفات توليد الجدول",
+            changes={
+                "event": "schedule_relaxation_policy_changed",
+                "before": before,
+                "after": after,
+            },
+        )
+
+    def save_model(self, request, obj, form, change):
+        before = self._snapshot(type(obj).objects.get(pk=obj.pk)) if change and obj.pk else None
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+        after = self._snapshot(obj)
+        if before != after:
+            self._audit(request, obj, "update" if change else "create", before, after)
+
+    def delete_model(self, request, obj):
+        self._audit(request, obj, "delete", self._snapshot(obj), None)
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            self._audit(request, obj, "delete", self._snapshot(obj), None)
+        super().delete_queryset(request, queryset)
+
+
+@admin.register(TeacherPeriodPreference)
+class TeacherPeriodPreferenceAdmin(admin.ModelAdmin):
+    """شبكةُ تفضيل موضع الحصّة (المرحلة أ، W-20261010-032): يكتبها المعلّمُ من صفحته ويراجعها الأدمن."""
+
+    list_display = ("teacher", "day_of_week", "period_number", "preference", "academic_year")
+    list_filter = ("school", "academic_year", "preference", "day_of_week")
+    search_fields = ("teacher__full_name",)
+    autocomplete_fields = ("teacher",)
 
 
 @admin.register(ScheduleGeneration)
@@ -677,3 +823,7 @@ class PermissionAuditLogAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
     list_display = ("temp_permission", "action", "performed_by", "performed_at")
     list_select_related = ("temp_permission__teacher", "performed_by")
     list_filter = ("action",)
+
+
+# سجلّا «متابعة الغياب» (W-20261013-011) في وحدتهما، يُسجَّلان عند استيراد هذه الوحدة.
+from . import admin_absence_followup  # noqa: E402,F401

@@ -28,13 +28,13 @@ description: |
 - **الإطارُ في مكوّنٍ واحد**: لا `running(` ولا `@bottom-` ولا أصنافُ `*-footer` في قالب — `tests/print_frame_ratchet.py` (ملفٌّ جديدٌ رقمُه صفر). السبب: خمسُ نسخٍ متباينةٍ أخرجت تذييلاً بسطرين وخطّاً 6–8pt.
 - **`data-pdf-own-page` إلزاميٌّ مع وسوم الإطار**: بدونه يحقن `core/pdf_utils.py` إطارَه القديم (يغلب الترويسةَ المركزيّةَ أو يضيف «SchoolOS v6» والتاريخ في الزاويتين). مقيسٌ بتصيير WeasyPrint في 2026-09-28.
 - **الرؤيةُ سطرٌ واحدٌ في كلّ تذييل** (PDF وExcel)، ونصُّها من `components/ministry_vision.html` لا حرفيّاً. السبب: أمرُ المالك 2026-09-27 (المواصفة v2.4، D1).
-- **لا `@font-face` ولا `{% static %}` للخطّ في قالب PDF**: `_inject_fonts` يحقن Tajawal/Amiri/Noto Naskh بمساراتٍ مطلقة؛ والرابطُ النسبيّ يسقط صامتاً إلى DejaVu. وفي العامل لا manifest: الشعارُ بمسارٍ نسبيٍّ (`for_pdf=True`).
+- **لا `@font-face` ولا `{% static %}` للخطّ في قالب PDF**: `_inject_fonts` يحقن Tajawal/Amiri/Noto Naskh بمساراتٍ مطلقة؛ والرابطُ النسبيّ يسقط صامتاً إلى DejaVu. وفي العامل لا manifest: مساراتُ الثابت بمسارٍ نسبيٍّ (`for_pdf=True`).
 - **لا قصَّ للنصّ الحرّ في المطبوع** (لا `line-clamp` ولا `truncatechars`) — رفضه المالك؛ والطويلُ يأخذ صفحةً أخرى.
 - **الألوانُ `{% brand_color "…" %}`** لا سداسيّاً — حارسُ الهويّة يعدّ السداسيَّ في القوالب.
 
 ## فخاخٌ حقيقيّة
 - خطأ: نسخُ ترويسة `reports/base_qatar_report.html` أو `@page { @top-center … }` إلى قالبٍ جديد. الصواب: `{% print_frame_css %}` + `{% print_frame_header %}` + `{% print_frame_footer %}` قبل المحتوى.
-- خطأ: «وزارة التعليم والتعليم العالي» و`assets/brand/qatar-emblem-2022.svg`. الصواب: «وزارة التربية والتعليم والتعليم العالي — دولة قطر» (`core/templatetags/print_frame.py::MINISTRY`) و`static/brand/logoMaroon.png` — والإطارُ يكتبهما عنك.
+- خطأ: «وزارة التعليم والتعليم العالي» و`assets/brand/qatar-emblem-2022.svg`. الصواب: «وزارة التربية والتعليم والتعليم العالي — دولة قطر» (`core/templatetags/print_frame.py::MINISTRY`) نصّاً بلا صورةِ شعار — شعارُ الوزارة أُزيل من المنصّة كلِّها (D-386م)، والإطارُ يكتب السطرَ عنك.
 - خطأ: خطوط Noto Sans Arabic أو Cairo أو IBM Plex. الصواب: غيرُ موجودةٍ في `static/fonts/`؛ المتاح Tajawal وAmiri وNoto Naskh Arabic (وTraditional Arabic من `StoredFile` إن ثُبّت).
 - خطأ: «≥ 9pt للبيانات يكفي». الصواب: D2: 10pt للقوائم والجداول؛ الاستثناءُ الوحيد الجدولُ العامّ 7.9pt بقرارٍ خاصّ.
 - خطأ: `ws.oddFooter.center.text = "صفحة &P من &N"` بعد البناء. الصواب: `apply_print_footer` (عبر `excel_to_response`) يكتب الصفحةَ والرؤيةَ سطراً واحداً — والكتابةُ فوقه تُسقط الرؤية.

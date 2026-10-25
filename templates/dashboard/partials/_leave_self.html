@@ -1,0 +1,2 @@
+{% comment %}رابطُ «طلب إجازة» في رأس كلّ لوحةِ كادر — للمسار الذاتيّ لا لمسار الإدارة (D-301م، W-20261009-023). القدرةُ لكلّ الكادر، فلا يظهر لوليّ أمرٍ ولا طالب.{% endcomment %}
+{% load icons schedule_filters %}{% if request.user|has_capability:"staff_affairs.own_leave" %}<a href="{% url 'staff_affairs:leave_request_self' %}" class="btn-secondary btn-sm">{% icon "leave" %} طلب إجازة</a>{% endif %}

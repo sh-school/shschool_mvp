@@ -21,7 +21,7 @@
 
   {% url 'staff_affairs:staff_list' as list_url %}
   {% filter_bar "ترشيحُ سجلّ الكادر" %}
-    {% field "q" "بحث" value=q grow=True placeholder="بحثٌ في كلّ الأعمدة: اسم أو رقم أو مسمّى أو قسم أو سكن..." autocomplete="off" hx_get=list_url hx_trigger="input changed delay:400ms, search" hx_target="#staff-table-container" hx_swap="outerHTML" hx_include="[name='role'],[name='dept']" %}
+    {% field "q" "بحث" value=q grow=True placeholder="الاسم أو الرقم الوظيفي" autocomplete="off" hx_get=list_url hx_trigger="input changed delay:400ms, search" hx_target="#staff-table-container" hx_swap="outerHTML" hx_include="[name='role'],[name='dept']" %}
     {% field "status" "الحالة" type="select" choices=statuses value=status hx_get=list_url hx_trigger="change" hx_target="#staff-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='role'],[name='dept']" %}
     {% field "role" "الدور" type="select" choices=roles value=role_filter blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#staff-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='dept']" %}
     {% field "dept" "القسم" type="select" choices=dept_choices value=dept_filter blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#staff-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='role']" %}

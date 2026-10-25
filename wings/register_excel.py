@@ -11,7 +11,9 @@ from openpyxl.styles import Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 from core import brand
+from core.excel_safety import safe_cell, safe_set
 from core.export_utils import add_excel_title_rows, excel_table_styles, xl_fill, xl_font
+from core.ministry import ministry_line, ministry_name
 from reports.services import ExcelService
 
 from .register import LETTER, UNRECORDED, WHERE_CODE
@@ -47,7 +49,7 @@ LEGEND = (
 
 def _merge_line(ws, row: int, num_cols: int, value: str, *, font=None, fill=None, align=START):
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
-    cell = ws.cell(row=row, column=1, value=value)
+    cell = safe_cell(ws, row=row, column=1, value=value)
     cell.font = font or xl_font(brand.TEXT_SECONDARY, size=9)
     cell.alignment = align
     if fill is not None:
@@ -61,13 +63,14 @@ def _stamp(register) -> str:
 
 
 def _signatures(ws, row: int, num_cols: int, signatories) -> int:
-    """ثلاثُ خاناتِ توقيعٍ متجاورة: المسمّى، ثمّ الاسم، ثمّ سطرُ التوقيع."""
+    """خانةُ توقيعِ مشرف الجناح وحدَه (D-385م) في وسط الصفّ: المسمّى، ثمّ الاسم، ثمّ سطرُ التوقيع."""
     row += 1
-    third = max(1, num_cols // 3)
+    width = max(1, num_cols // 3)
+    start = 1 + max(0, (num_cols - width * len(signatories)) // 2)
     line = Border(bottom=Side(style="thin", color=brand.excel(brand.TEXT_PRIMARY)))
     for index, person in enumerate(signatories):
-        first = 1 + index * third
-        last = num_cols if index == len(signatories) - 1 else first + third - 1
+        first = start + index * width
+        last = min(num_cols, first + width - 1)
         for offset, (value, font, height) in enumerate(
             (
                 (person.title, xl_font(brand.MAROON, size=10, bold=True), 20),
@@ -77,7 +80,7 @@ def _signatures(ws, row: int, num_cols: int, signatories) -> int:
         ):
             r = row + offset
             ws.merge_cells(start_row=r, start_column=first, end_row=r, end_column=last)
-            cell = ws.cell(row=r, column=first, value=value)
+            cell = safe_cell(ws, row=r, column=first, value=value)
             cell.font = font
             cell.alignment = CENTER
             ws.row_dimensions[r].height = height
@@ -105,7 +108,7 @@ def write_section_sheet(
     add_excel_title_rows(
         ws,
         num_cols,
-        f"{school_name}  —  وزارة التربية والتعليم والتعليم العالي",
+        ministry_line(school_name, ministry_name(short=True), sep="  —  "),
         f"{register.title}  —  {register.day:%Y/%m/%d}",
         f"{wing}  |  {_stamp(register)}  |  صدر بواسطة: {exported_by}",
     )
@@ -133,7 +136,7 @@ def write_section_sheet(
         values += [mark.text for mark in student.marks]
         values += [student.absent_periods, student.late_count, student.late_minutes]
         for col, value in enumerate(values, start=1):
-            cell = ws.cell(row=row, column=col, value=value)
+            cell = safe_cell(ws, row=row, column=col, value=value)
             cell.border = table.border
             cell.alignment = START if col == 2 else CENTER
             cell.font = table.cell_font
@@ -160,12 +163,12 @@ def write_section_sheet(
     )
     for label, value_of in period_foot:
         row += 1
-        head = ws.cell(row=row, column=2, value=label)
+        head = safe_cell(ws, row=row, column=2, value=label)
         head.font = xl_font(brand.MAROON, size=9, bold=True)
         head.alignment = START
         head.fill = xl_fill(brand.MAROON_BG)
         for offset, column in enumerate(columns):
-            cell = ws.cell(row=row, column=3 + offset, value=value_of(column))
+            cell = safe_cell(ws, row=row, column=3 + offset, value=value_of(column))
             cell.font = xl_font(
                 brand.STATUS_WARNING_DARK
                 if column.status == "confirmed_late"
@@ -205,7 +208,7 @@ def write_wing_summary(
     add_excel_title_rows(
         ws,
         num_cols,
-        f"{school_name}  —  وزارة التربية والتعليم والتعليم العالي",
+        ministry_line(school_name, ministry_name(short=True), sep="  —  "),
         f"{register.title}  —  {register.day:%Y/%m/%d}",
         f"ملخّصُ رصد الحصص  |  {_stamp(register)}  |  صدر بواسطة: {exported_by}",
     )
@@ -226,7 +229,7 @@ def write_wing_summary(
     row = HEADER_ROW
     for section, cells in register.matrix:
         row += 1
-        head = ws.cell(row=row, column=1, value=section.class_group.short_code)
+        head = safe_cell(ws, row=row, column=1, value=section.class_group.short_code)
         head.font = xl_font(brand.TEXT_PRIMARY, bold=True)
         head.alignment = CENTER
         head.border = table.border
@@ -235,18 +238,21 @@ def write_wing_summary(
             cell.border = table.border
             cell.alignment = CENTER
             if column is None:
-                cell.value = ""
+                safe_set(cell, "")
                 continue
             if column.is_confirmed:
                 late = column.status == "confirmed_late"
-                cell.value = f"{'متأخّرة ' if late else ''}{column.first_confirmed_at:%H:%M}\nغ {column.absent} · م {column.late}"
+                safe_set(
+                    cell,
+                    f"{'متأخّرة ' if late else ''}{column.first_confirmed_at:%H:%M}\nغ {column.absent} · م {column.late}",
+                )
                 bg, fg = (
                     (brand.STATUS_WARNING_BG, brand.STATUS_WARNING_DARK)
                     if late
                     else (brand.STATUS_SUCCESS_BG, brand.STATUS_SUCCESS_DARK)
                 )
             else:
-                cell.value = column.label
+                safe_set(cell, column.label)
                 bg, fg = (
                     (brand.STATUS_DANGER_BG, brand.STATUS_DANGER_DARK)
                     if column.status == "missed"
@@ -258,7 +264,7 @@ def write_wing_summary(
         late = section.late_confirmations
         missed = sum(c.status == "missed" for c in section.columns)
         for offset, value in enumerate((confirmed, late, missed)):
-            cell = ws.cell(row=row, column=2 + width + offset, value=value)
+            cell = safe_cell(ws, row=row, column=2 + width + offset, value=value)
             cell.border = table.border
             cell.alignment = CENTER
             cell.font = xl_font(bold=True)

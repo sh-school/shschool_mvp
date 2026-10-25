@@ -1,0 +1,23 @@
+{
+ "_شرح": "قوالب سبقت قاعدة رأس الجدول الثابت (قرار المالك 2026-10-13)؛ دون ترحيل: لا يزيد عددٌ ولا يُضاف قالب، وتُنقَص الأعداد عند الترحيل",
+ "files": {
+  "templates/admin/app_list.html": 1,
+  "templates/admin/edit_inline/tabular.html": 1,
+  "templates/command_center/status.html": 1,
+  "templates/core/it_admin/password_reset.html": 1,
+  "templates/core/partials/audit_log_table.html": 1,
+  "templates/dashboard/roles/director.html": 1,
+  "templates/dashboard/roles/therapist.html": 1,
+  "templates/operations/daily_absence.html": 3,
+  "templates/schedule/quality_lab.html": 3,
+  "templates/schedule/schedule_settings.html": 2,
+  "templates/schedule/smart_schedule.html": 4,
+  "templates/staging/import_grades.html": 1,
+  "templates/staging/import_log.html": 1,
+  "templates/staging/import_result.html": 1,
+  "templates/substitute/report.html": 2,
+  "templates/teacher/class_grid.html": 1,
+  "templates/teacher/partials/class_grid_history.html": 1,
+  "templates/transport/statistics.html": 1
+ }
+}

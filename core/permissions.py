@@ -24,6 +24,8 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
+from core.behavior_committee_roles import BEHAVIOR_COMMITTEE  # noqa: F401
+from core.role_inheritance import ROLE_INHERITS, expand_roles  # noqa: F401  (إعادة تصدير)
 from core.unrestricted_role import has_unrestricted_role
 
 from .models.access import (
@@ -37,46 +39,8 @@ from .models.access import (
 logger = logging.getLogger(__name__)
 
 # ══════════════════════════════════════════════════════════════════════
-# 0. ROLE INHERITANCE — وراثة الأدوار التلقائية (v6)
+# 0. ROLE INHERITANCE — وراثة الأدوار: في core/role_inheritance.py (مستورَدةٌ هنا لمن يعتمد عليها)
 # ══════════════════════════════════════════════════════════════════════
-
-ROLE_INHERITS = {
-    # child → parent (يرث كل صلاحياته الأكاديمية)
-    "coordinator": "teacher",  # المنسق يرث المعلم
-    "ese_teacher": "teacher",  # معلم ESE يرث المعلم
-    "vice_academic": "coordinator",  # النائب الأكاديمي يرث المنسق
-    "vice_admin": "admin_supervisor",  # النائب الإداري يرث المشرف الإداري
-    "principal": "vice_academic",  # المدير يرث النائب الأكاديمي
-    # v7 — مساعدون يرثون من أساتذتهم
-    "teacher_assistant": "teacher",  # مساعد المعلم يرث المعلم (جدول + حضور)
-    "ese_assistant": "ese_teacher",  # مساعد ESE يرث معلم ESE
-    "activities_coordinator": "coordinator",  # منسق أنشطة يرث المنسق
-    "e_projects_coordinator": "teacher",  # منسّق المشاريع الإلكترونية معلّمٌ بنصابٍ مخفَّض
-    "transport_officer": "bus_supervisor",  # مسؤول نقل يرث مشرف النقل
-}
-
-
-def expand_roles(roles: set) -> set:
-    """
-    يوسّع مجموعة أدوار لتشمل كل دور يرث منها.
-
-    مثال:
-        expand_roles({"teacher"})
-        → {"teacher", "ese_teacher", "coordinator", "vice_academic", "principal"}
-
-    ملاحظة: تُستخدم فقط للصلاحيات ذات الطبيعة الوراثية (الأكاديمية).
-    الصلاحيات المتخصصة (nurse, librarian...) تبقى صريحة.
-    """
-    expanded = set(roles)
-    changed = True
-    while changed:
-        changed = False
-        for child, parent in ROLE_INHERITS.items():
-            if parent in expanded and child not in expanded:
-                expanded.add(child)
-                changed = True
-    return expanded
-
 
 # ══════════════════════════════════════════════════════════════════════
 # 1. PERMISSION CONSTANTS — ثوابت الصلاحيات لكل نظام فرعي
@@ -105,6 +69,7 @@ SCHEDULE_VIEW = {
     "transport_officer",  # توقيت الدراسة للنقل
 }
 SCHEDULE_MANAGE = {"principal", "vice_academic"}
+TEACHING_STAFF_ROLES = ("teacher", "coordinator", "ese_teacher", "e_projects_coordinator")
 SCHEDULE_SWAP_REQUEST = {
     "teacher",
     "ese_teacher",
@@ -119,15 +84,25 @@ SCHEDULE_SUBSTITUTE_ASSIGN = {
 SCHEDULE_SUBSTITUTE_APPROVE = {"principal", "vice_academic", "vice_admin"}
 
 # ── الحضور والغياب ──────────────────────────────────────────────
-ATTENDANCE_RECORD = {
-    "teacher",
-    "ese_teacher",
-    "coordinator",
-    "admin_supervisor",
-    "teacher_assistant",
-    "ese_assistant",  # v7: يسجّلون تحت إشراف المعلم
-    "e_projects_coordinator",
-}
+#: المصدرُ الوحيد لقدرة «رصدُ حضور الحصّة» (`attendance.mark`) — كانت القدرةُ قائمةً ثانيةً تخالف هذه (W-20261004-022، D-201م أ٢).
+#: القدرةُ تفتح شاشاتِ الرصد وعدّاداتِ اللوحة. أمّا الكتابةُ في جدول الشعبة فيحكمها `grid_roles` (operations/attendance_policy.py):
+#: إسنادُ الشعبة أو تغطيتُها، أو حملُ جناحها، أو القيادةُ الإداريّة — لا الدورُ وحدَه.
+#: والمساعدون صراحةً (`teacher_assistant` و`ese_assistant`): يدخلون الشاشة، ويكتبون جدولَ الشعبة إن أُسندت إليهم كغيرهم.
+#: والنائبُ الأكاديميّ هنا للقراءة (التحويلُ وعدّاداتُ اللوحة)؛ لا يكتب الجدول (D-201م ١، D-239م ١).
+ATTENDANCE_RECORD = frozenset(
+    {
+        "principal",
+        "vice_academic",
+        "vice_admin",
+        "coordinator",
+        "teacher",
+        "ese_teacher",
+        "admin_supervisor",
+        "teacher_assistant",
+        "ese_assistant",
+        "e_projects_coordinator",
+    }
+)
 ATTENDANCE_VIEW_ALL = {
     "principal",
     "vice_academic",
@@ -163,6 +138,18 @@ ASSESSMENT_EDIT = {
     "vice_academic",
     "e_projects_coordinator",
 }
+#: من يقرّر عذرَ الغياب عن الاختبار (D-402م، 04b السطر 1944): خمسةُ أدوارٍ بأسمائها لا بالوراثة الأكاديميّة.
+#: المدير والنائبُ الأكاديميّ والمعلّمُ خارجَها عمداً؛ والمدير يرث الأكاديميَّ عبر ROLE_INHERITS فلا يدخل
+#: من هنا ما دام أصلُ الوراثة (المنسّق/المعلّم) ليس في القائمة — ويحرسه اختبارُ رفضٍ لكلّ دور.
+ASSESSMENT_DECIDE_EXCUSE = frozenset(
+    {
+        "student_affairs_coordinator",
+        "vice_admin",
+        "admin_supervisor",
+        "social_worker",
+        "psychologist",
+    }
+)
 ASSESSMENT_VIEW_ALL = {"principal", "vice_academic", "vice_admin"}
 ASSESSMENT_VIEW_DEPT = {"coordinator"}
 ASSESSMENT_VIEW_OWN = {"teacher", "ese_teacher", "e_projects_coordinator"}
@@ -181,7 +168,8 @@ BEHAVIOR_RECORD = {
     "e_projects_coordinator",
 }
 BEHAVIOR_MANAGE = {"principal", "vice_admin", "vice_academic", "social_worker"}
-BEHAVIOR_COMMITTEE = {"principal", "vice_admin", "vice_academic", "social_worker", "specialist"}
+#: قدرةُ behavior.manage وحدَها تضمّ المنسّق (لجنة الضبط)؛ أمّا الثابتُ أعلاه فلا يتغيّر لأنّ غيرها يقرؤه (W-20261018-003).
+BEHAVIOR_MANAGE_HOLDERS = BEHAVIOR_MANAGE | {"student_affairs_coordinator"}
 BEHAVIOR_VIEW_ALL = {
     "principal",
     "vice_admin",
@@ -362,6 +350,9 @@ STUDENT_AFFAIRS_VIEW = frozenset(
 #: ولا يدخلها منسّقُ شؤون الطلبة: لا نصَّ يمنحه إدارةَ الأنشطة (الحدُّ الأدنى من الصلاحيات؛ D-266م).
 ACTIVITIES_MANAGE = _STUDENT_AFFAIRS_LEADERSHIP | frozenset({"activities_coordinator"})
 
+# تدقيقُ طلب تغيير رقم التواصل (نموذج 05، W-20261001-019): النائبُ الإداريّ والمديرُ بقاعدة القيادة.
+CONTACT_VERIFY = frozenset({"principal", "vice_admin"})
+
 STUDENT_DEACTIVATE = frozenset(
     {
         "principal",
@@ -476,15 +467,23 @@ BEHAVIOR_STATS_TEACHING = frozenset({"teacher", "coordinator", "ese_teacher"})
 ACADEMIC_REPORTS_VIEW = frozenset(ASSESSMENT_VIEW_ALL)
 #: رصدُ حضور اليوم في الجناح: مشرفُ الجناح (أصيلاً أو بديلاً) والقيادة — ولا مطوّرَ المنصّة (D-128م:
 #: لا يُدخل ولا يعتمد رصدَ غياب الطلبة)، حذفه 0105 شرطاً للدمج.
+#: ولا النائبُ الأكاديميّ: يراقب فقط (D-201م، D-239م؛ W-20261004-024) — يرى الغيابَ (`ATTENDANCE_VIEW_ALL`
+#: و`student_affairs.follow_up` وغيابُ اليوم) ويصله تنبيهُ العتبة (`ABSENCE_ALERT_RECIPIENTS`). فهي اليومَ كاتبو جدول الشعبة أنفسُهم
+#: (`GRID_WRITER_ROLES` في operations/attendance_policy.py)، ويحرس تطابقَهما اختبار.
 WING_DAY_RECORD = frozenset(
-    {"admin_supervisor", "vice_admin", "vice_academic", "principal", "student_affairs_coordinator"}
+    {"admin_supervisor", "vice_admin", "principal", "student_affairs_coordinator"}
 )
+
+#: من يصله تنبيهُ عتبة الغياب داخل المنصّة: الأخصائيُّ الاجتماعيّ يتابع الطالب، والنائبُ الأكاديميّ يراقب
+#: (D-201م، W-20261004-024). وإخطارُ وليّ الأمر منفصلٌ ومحجوزٌ (#887) — هذه إشعاراتٌ داخليّة.
+ABSENCE_ALERT_RECIPIENTS = frozenset({"social_worker", "vice_academic"})
 
 #: حاصرُ الغياب العامّ **بالدور**: منسّقُ شؤون الطلبة (D-267م)؛ والمشرفُ الإداريّ يبقى على المنح المفوَّض.
 SCHOOL_WIDE_ABSENCE_ROLES = frozenset({"student_affairs_coordinator"})
 
 #: قبولُ عذرِ غيابٍ بعد مهلة اليومين (الدليل 2026 م 3.4.1.5) — النائبُ الإداريّ لا المشرف.
-EXCUSE_AFTER_DEADLINE = frozenset({"vice_admin", "principal"})
+# منسّقُ شؤون الطلبة يتولّى متابعة الغياب فيقبل العذرَ بعد المهلة: قرارُ المالك 2026-10-18، بطاقة W-20261018-003.
+EXCUSE_AFTER_DEADLINE = frozenset({"vice_admin", "principal", "student_affairs_coordinator"})
 
 #: من يُحصر في طلبة جناحه متى بلغ شاشةَ طلبة (قرارا 2026-09-14/15: «المشرفُ لجناحه فقط»).
 #: تُقارَن بالدور **الخامّ** ولا تمرّ على `expand_roles`: النائبُ الإداريّ يرث المشرفَ في
@@ -592,7 +591,7 @@ def _forbidden_response(request: HttpRequest, message: str) -> HttpResponseBase:
     return forbidden_page(request, message)
 
 
-def role_required(*roles):
+def role_required(*roles, not_inherited_by: frozenset | set = frozenset()):
     """
     ديكوريتور أساسي — يتحقق من أن المستخدم لديه أحد الأدوار المعطاة.
     superuser يمر دائماً.
@@ -606,7 +605,7 @@ def role_required(*roles):
         roles = tuple(roles[0])
 
     # توسيع الأدوار لتشمل الأدوار الوارثة (coordinator ← teacher، إلخ)
-    expanded_roles = expand_roles(set(roles))
+    expanded_roles = expand_roles(set(roles), not_inherited_by=not_inherited_by)
 
     def decorator(view_func):
         @wraps(view_func)
@@ -884,6 +883,7 @@ def get_teacher_student_ids(user, scope=None):
         "occupational_therapist",  # يُحال إليهم طلاب من مختلف الفصول
         "transport_officer",  # يحتاج كل طلاب النقل لإسناد الحافلات
         "activities_coordinator",  # يُنسّق أنشطة لكل الطلاب
+        "student_affairs_coordinator",  # منسق شؤون الطلبة: نطاقُ المدرسة كلِّها (قرار المالك، W-20261018-002)، لا قدرةٌ تُمنح هنا
     }
     if role in ALL_STUDENTS_ROLES:
         return None

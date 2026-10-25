@@ -1,6 +1,14 @@
 from django.urls import path
 
-from . import views, views_absence_file, views_absence_notices, views_ministry, views_register
+from . import (
+    views,
+    views_absence_file,
+    views_absence_notices,
+    views_excuse_document,
+    views_exit_permit,
+    views_ministry,
+    views_register,
+)
 from .views_supervisor_live import supervisor_live
 
 app_name = "wings"
@@ -49,6 +57,11 @@ urlpatterns = [
     ),
     path("excuses/requests/", views.excuse_requests, name="excuse_requests"),
     path(
+        "excuses/<uuid:pk>/document/",
+        views_excuse_document.excuse_document,
+        name="excuse_document_export",
+    ),
+    path(
         "excuses/requests/<uuid:pk>/decide/",
         views.excuse_request_decide,
         name="excuse_request_decide",
@@ -69,6 +82,18 @@ urlpatterns = [
         name="wing_register",
     ),
     path("ministry/", views_ministry.ministry_report, name="ministry_report"),
+    path("exit-permits/", views_exit_permit.exit_permit_list, name="exit_permit_list"),
+    path(
+        "exit-permits/new/<uuid:student_id>/",
+        views_exit_permit.exit_permit_new,
+        name="exit_permit_new",
+    ),
+    path(
+        "exit-permits/<uuid:pk>/approve/",
+        views_exit_permit.exit_permit_approve,
+        name="exit_permit_approve",
+    ),
+    path("exit-permits/<uuid:pk>/pdf/", views_exit_permit.exit_permit_pdf, name="exit_permit_pdf"),
     path("absence-notices/", views_absence_notices.absence_notice_list, name="absence_notices"),
     path(
         "absence-notices/<uuid:alert_id>/issue/",

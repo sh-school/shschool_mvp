@@ -5,6 +5,7 @@ import uuid
 from django.db import models
 from django.utils import timezone
 
+from core.fields import EncryptedTextField
 from core.models import ClassGroup, CustomUser, School
 from core.validators import FileTypeValidator
 
@@ -316,6 +317,41 @@ class StudentAttendance(models.Model):
         return f"{self.student.full_name} | {self.get_status_display()} | {self.session}"
 
 
+class TardinessExcuse(models.Model):
+    """عذرُ تأخّرٍ عن حصّة — سجلٌّ جديدٌ يعتمده معلّمُ الحصّة في يومها (قرارُ المالك 2026-10-20، W-20261002-028).
+
+    لا يعدّل سطرَ الحضور: يُسقط التأخّرَ من عدّادَي المرّات والدقائق (`operations/tardiness.py`
+    و`operations/presence.py`) بوجوده، ويُلغى بحذفه فيعود التأخّرُ كما رُصد.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="tardiness_excuses", verbose_name="المدرسة"
+    )
+    attendance = models.OneToOneField(
+        "operations.StudentAttendance",
+        on_delete=models.CASCADE,
+        related_name="tardiness_excuse",
+        verbose_name="سجلُّ التأخّر",
+    )
+    reason = models.CharField(max_length=300, blank=True, verbose_name="بيان العذر")
+    granted_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="tardiness_excuses_granted",
+        verbose_name="اعتمده المعلّم",
+    )
+    granted_at = models.DateTimeField(auto_now_add=True, verbose_name="وقتُ الاعتماد")
+
+    class Meta:
+        verbose_name = "عذرُ تأخّر"
+        verbose_name_plural = "أعذارُ التأخّر"
+
+    def __str__(self) -> str:
+        return f"عذرُ تأخّر {self.attendance_id}"
+
+
 class AbsenceExcuse(models.Model):
     """عذرٌ لغياب طالبٍ في مدّة — قرارُ المشرف في المهلة، أو طلبٌ ينتظر النائبَ بعدها.
 
@@ -382,6 +418,65 @@ class AbsenceExcuse(models.Model):
         blank=True, default="", db_default="", verbose_name="سببُ الرفض"
     )
 
+    # ── نموذج 04 «كتاب التماس عذر لغياب طالب» (07c): مقدّمُ الطلب والتعهّد ومراحلُ التنفيذ ──
+    #: وليُّ الأمر الذي التمس العذر، بما كتبه في الورقة: الاسم — صلةُ القرابة — الهاتف — تاريخ الكتاب.
+    #: الهاتفُ مشفَّرٌ (PDPPL) ولا يُستعلَم بمحتواه. وكلُّها فارغةٌ لعذرٍ سُجّل بيد الموظّف بلا ورقة.
+    applicant_name = models.CharField(
+        max_length=150, blank=True, default="", db_default="", verbose_name="اسمُ مقدّم الطلب"
+    )
+    applicant_relation = models.CharField(
+        max_length=40, blank=True, default="", db_default="", verbose_name="صلةُ القرابة"
+    )
+    applicant_phone = EncryptedTextField(
+        blank=True, default="", db_default="", verbose_name="هاتفُ مقدّم الطلب"
+    )
+    letter_date = models.DateField(null=True, blank=True, verbose_name="تاريخُ تقديم الكتاب")
+    #: إقرارُ التعهّد المطبوع في الورقة (الانضباط وإخلاءُ مسؤوليّة المدرسة) — يُحفظ كما أقرّ به وليُّ الأمر.
+    pledge_accepted = models.BooleanField(
+        default=False, db_default=False, verbose_name="إقرارُ التعهّد"
+    )
+
+    #: «عند القبول فقط — استخدام فريق شؤون الطلاب»: ثلاثُ مراحلَ بالترتيب، لكلٍّ منفّذٌ وتاريخ.
+    #: لا تُسجَّل مرحلةٌ على عذرٍ غير مقبول ولا قبل التي سبقتها (`operations.excuses.record_stage`).
+    STAGES = [
+        ("internal", "النظام الداخلي"),
+        ("national", "النظام الوطني"),
+        ("audit", "المتابعة والتدقيق"),
+    ]
+    stage_internal_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="absence_excuse_internal_stages",
+        verbose_name="نفّذ في النظام الداخلي",
+    )
+    stage_internal_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="تاريخُ النظام الداخلي"
+    )
+    stage_national_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="absence_excuse_national_stages",
+        verbose_name="نفّذ في النظام الوطني",
+    )
+    stage_national_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="تاريخُ النظام الوطني"
+    )
+    stage_audit_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="absence_excuse_audit_stages",
+        verbose_name="نفّذ المتابعة والتدقيق",
+    )
+    stage_audit_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="تاريخُ المتابعة والتدقيق"
+    )
+
     class Meta:
         verbose_name = "عذرُ غياب"
         verbose_name_plural = "أعذارُ الغياب"
@@ -389,6 +484,12 @@ class AbsenceExcuse(models.Model):
         indexes = [
             models.Index(fields=["school", "student"]),
             models.Index(fields=["student", "date_from"]),
+        ]
+        constraints = [
+            models.CheckConstraint(  # type: ignore[call-arg]  # `condition` (Django 5.1+) غيرُ معروفٍ لـdjango-stubs 5.0
+                condition=models.Q(date_from__lte=models.F("date_to")),
+                name="absence_excuse_range_ordered",
+            )
         ]
 
     def __str__(self) -> str:
@@ -489,6 +590,15 @@ class AbsenceAlert(models.Model):
         verbose_name = "تنبيه غياب"
         verbose_name_plural = "تنبيهات الغياب"
         ordering = ["-created_at"]
+        constraints = [
+            # تنبيهٌ واحد لكلّ طالبٍ في كلّ عتبةٍ وفترة (W-20261004-021): مفتاحُ `get_or_create` في الخدمة نفسُه.
+            # والشرطُ دائمُ الصدق (`gate` غيرُ فارغٍ بالتعريف): يجعله فهرساً جزئيّاً يُبنى `CONCURRENTLY` بلا قفل (هجرة 0088).
+            models.UniqueConstraint(
+                condition=models.Q(gate__isnull=False),
+                fields=["school", "student", "gate", "period_start", "period_end"],
+                name="unique_absence_alert_per_gate_period",
+            )
+        ]
 
     def __str__(self):
         return f"تنبيه: {self.student.full_name} | {self.absence_count} يوم"
@@ -621,6 +731,20 @@ class ClassExit(models.Model):
         indexes = [
             models.Index(fields=["school", "session"]),
             models.Index(fields=["student", "left_at"]),
+        ]
+        constraints = [
+            # لا عودةَ قبل الخروج، ولا خروجان مفتوحان لطالبٍ في حصّةٍ واحدة (W-20261004-021).
+            # والامتدادُ إلى الحصّة التالية يُغلق أصلَه قبل أن يُنشأ، فلا يصطدم.
+            models.CheckConstraint(  # type: ignore[call-arg]  # `condition` (Django 5.1+) غيرُ معروفٍ لـdjango-stubs 5.0
+                condition=models.Q(returned_at__isnull=True)
+                | models.Q(returned_at__gte=models.F("left_at")),
+                name="class_exit_returned_after_left",
+            ),
+            models.UniqueConstraint(
+                fields=["session", "student"],
+                condition=models.Q(returned_at__isnull=True),
+                name="unique_open_class_exit_per_session_student",
+            ),
         ]
 
     @property

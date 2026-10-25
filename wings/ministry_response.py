@@ -8,6 +8,7 @@ from core.export_utils import generate_export_filename, get_export_context
 from core.pdf_utils import render_pdf
 from reports.services import ExcelService
 
+from .absence_stats import absence_stats
 from .ministry_excel import ministry_workbook
 from .ministry_selectors import MinistrySummary
 from .register import footer_lines
@@ -44,7 +45,12 @@ def respond(
             html, generate_export_filename("wings", "ministry_p1p2", "pdf"), as_attachment=True
         )
     ctx.update(screen or {})
-    ctx.update(day=summary.day, bound=bound, filtered=bool(ctx.get("grade") or ctx.get("q")))
+    ctx["stats"] = absence_stats(summary)
+    ctx.update(
+        day=summary.day,
+        bound=bound,
+        filtered=bool(ctx.get("grade") or ctx.get("q") or ctx.get("wing")),
+    )
     ctx["subtitle"] = f"للرفع في نظام الوزارة · {summary.day:%d/%m/%Y} · " + (
         "طلبةُ جناحك" if bound else "المدرسةُ كلُّها"
     )

@@ -686,3 +686,17 @@ def test_hc16_day_with_a_single_period_cannot_exceed_share_even_with_a_double():
     ok = [(0, 0, 1), (0, 0, 2)]  # المزدوجةُ وحدها: 2 ≤ 2+1
     assert feasible(inp, ok, derived_day_cap=True)
     assert not feasible(inp, ok + [(1, 0, 4)], derived_day_cap=True)
+
+
+def test_derive_blocks_doubles_a_parallel_group_only_when_every_member_is_double():
+    """W-20261009-001: عضوٌ مزدوجٌ في مجموعةٍ شريكُه فيها غير مزدوج يبقى حصصاً مفردة (كما `build_tasks`)."""
+    inp = CpSatInputs()
+    inp.demand = [
+        DemandRow("C1", "S1", "T1", "G", 2),  # مزدوجة، شريكتها S2 ليست كذلك
+        DemandRow("C1", "S2", "T2", "G", 2),
+        DemandRow("C1", "S3", "T3", "H", 2),  # مجموعةٌ مزدوجةٌ كلُّها
+        DemandRow("C1", "S4", "T4", "H", 2),
+        DemandRow("C1", "S1", "T5", "", 4),  # غير متوازية: n//2
+    ]
+    _derive_blocks(inp, frozenset({"S1", "S3", "S4"}))
+    assert [r.blocks for r in inp.demand] == [0, 0, 1, 1, 2]

@@ -40,7 +40,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from assessments.models import AnnualSubjectResult
-from behavior.models import BehaviorInfraction
+from behavior.selectors import visible_infractions
 from clinic.models import ClinicVisit
 from core.academic_calendar import academic_year_for
 from core.domain.attendance import attendance_rate
@@ -67,7 +67,7 @@ from .filters import (
     SessionFilter,
 )
 from .pagination import StandardPagination
-from .permissions import IsParentOrAdmin, IsSchoolAdmin, IsTeacherOrAdmin
+from .permissions import CanViewBehavior, IsParentOrAdmin, IsSchoolAdmin, IsTeacherOrAdmin
 from .serializers import (
     AnnualSubjectResultSerializer,
     AttendanceSerializer,
@@ -510,7 +510,7 @@ class BehaviorListView(generics.ListAPIView):
     """
 
     serializer_class = BehaviorInfractionSerializer
-    permission_classes = [IsTeacherOrAdmin]
+    permission_classes = [IsTeacherOrAdmin, CanViewBehavior]
     pagination_class = StandardPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_class = InfractionFilter
@@ -525,8 +525,7 @@ class BehaviorListView(generics.ListAPIView):
         return super().get(*args, **kwargs)
 
     def get_queryset(self):
-        school = _school(self.request)
-        return BehaviorInfraction.objects.filter(school=school).with_student().order_by("-date")
+        return visible_infractions(self.request.user, _school(self.request))
 
 
 # للتوافق مع URLs القديمة
@@ -536,7 +535,7 @@ class BehaviorListView(generics.ListAPIView):
     deprecated=True,
 )
 @api_view(["GET"])
-@permission_classes([IsTeacherOrAdmin])
+@permission_classes([IsTeacherOrAdmin, CanViewBehavior])
 def behavior_list(request):
     view = BehaviorListView.as_view()
     return view(request._request)
@@ -654,7 +653,9 @@ def kpi_list(request):
 
     school = _school(request)
     year = _year(request)
-    return Response(KPIService.compute(school=school, year=year))
+    data = KPIService.compute(school=school, year=year)
+    # كائنُ School لا يُسلسَل في JSON (كان يردّ 500 لكلّ مستدعٍ) — كما يعالجه `analytics.views.api_kpis_all`: اسمُ المدرسة نصّاً
+    return Response({**data, "school": str(data["school"])})
 
 
 # ══════════════════════════════════════════════════════════════════════

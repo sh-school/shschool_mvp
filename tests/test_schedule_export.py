@@ -176,8 +176,8 @@ def test_pdf_export_returns_a_document_or_a_clean_failure_page(db, principal, te
         assert "تعذّر" in resp.content.decode()
 
 
-def test_a_teacher_exports_only_their_own_schedule(db, teaching_school):
-    """قيدُ التصفّح نفسُه على المخرجين — وإلّا فُتح بابٌ من خلف الورقة."""
+def test_a_teacher_exports_a_colleague_who_shares_their_class(db, teaching_school):
+    """D-432م: من يشاركه شُعبتَه يُصدَّر جدولُه؛ وغيرُه 404 على المخرجين (tests/test_schedule_visibility_idor.py)."""
     from io import BytesIO
 
     import openpyxl
@@ -194,7 +194,7 @@ def test_a_teacher_exports_only_their_own_schedule(db, teaching_school):
     assert response.status_code == 200
     sheet = openpyxl.load_workbook(BytesIO(response.content)).active
     printed = "\n".join(str(cell.value or "") for row in sheet.iter_rows() for cell in row)
-    assert colleague.full_name not in printed
+    assert colleague.full_name in printed
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -220,8 +220,8 @@ def test_the_teacher_schedule_opens_the_school_schedule_page(client_as, school, 
     assert "view=teacher" in response.url
 
 
-def test_a_teacher_reaching_the_page_sees_their_own_schedule(client_as, school, teacher_user):
-    """ومن لا يتصفّح جداولَ غيره يرى جدولَه هو، مهما كُتب في الرابط."""
+def test_a_teacher_asking_for_an_unknown_teacher_gets_404(client_as, school, teacher_user):
+    """ومن لا يتصفّح جداولَ غيره لا يفتح جدولَ من لا يخصّه: 404 لا جدولٌ ولا تلميح (D-432م)."""
     from django.urls import reverse
 
     response = client_as(teacher_user).get(
@@ -229,5 +229,4 @@ def test_a_teacher_reaching_the_page_sees_their_own_schedule(client_as, school, 
         {"view": "teacher", "teacher": "00000000-0000-0000-0000-000000000001"},
     )
 
-    assert response.status_code == 200
-    assert teacher_user.full_name in response.content.decode()
+    assert response.status_code == 404

@@ -18,7 +18,7 @@ from quality.models import EmployeeEvaluation
 from tests.test_evaluation_review_round1 import _seed, _staff, _url
 from tests.test_evaluation_review_round3 import _post_total
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 
 def _started(employee, on):

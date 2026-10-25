@@ -28,13 +28,16 @@ CSS_FILES = (
     "32-modules-3.css",
     "33-modules-4.css",
     "34-docs-viewer.css",
+    "35-quality.css",
     "40-themes.css",
     "50-utilities.css",
 )
 
 #: ما يُحمَّل على كلّ صفحةٍ عبر `{% custom_css %}` ويدخل في `shipped_size()` —
 #: كلُّ شيءٍ عدا `34-docs-viewer.css` (انظر الشرح أعلاه).
-ALWAYS_LOADED_CSS_FILES = tuple(name for name in CSS_FILES if name != "34-docs-viewer.css")
+#: أنماطُ وحداتٍ لا تراها إلّا صفحاتُها فتحمّلها قوالبُها صراحةً عبر `{% block extra_css %}` (W-20261020-030).
+PAGE_LOADED_CSS_FILES = ("34-docs-viewer.css", "35-quality.css")
+ALWAYS_LOADED_CSS_FILES = tuple(name for name in CSS_FILES if name not in PAGE_LOADED_CSS_FILES)
 
 
 def static_names() -> list[str]:

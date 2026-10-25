@@ -111,6 +111,20 @@ class TestTrackingMap:
         response = client.get(f"/transport/bus/{school_bus.id}/tracking/")
         assert response.context["has_karwa"] is True
 
+    def test_tracking_map_shows_values_as_text_without_external_links(
+        self, client_as, bus_supervisor_user, school_bus
+    ):
+        """كروة وGPS نصٌّ مع زر نسخ داخل المنصّة — لا رابطَ خارجيّ ولا لسانَ جديد (W-20261013-019)."""
+        school_bus.karwa_id = "KW-001"
+        school_bus.gps_link = "https://gps.example.test/track/42"
+        school_bus.save()
+        client = client_as(bus_supervisor_user)
+        html = client.get(f"/transport/bus/{school_bus.id}/tracking/").content.decode()
+        assert "KW-001" in html and "https://gps.example.test/track/42" in html
+        assert 'data-copy="KW-001"' in html
+        assert 'data-copy="https://gps.example.test/track/42"' in html
+        assert 'href="https://' not in html and 'target="_blank"' not in html
+
 
 @pytest.mark.django_db
 class TestStudentAssignments:

@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "operations.apps.OperationsConfig",
     "staging.apps.StagingConfig",
     "quality.apps.QualityConfig",
+    "sot_registry.apps.SotRegistryConfig",
     "assessments.apps.AssessmentsConfig",
     "parents.apps.ParentsConfig",
     "reports.apps.ReportsConfig",
@@ -58,11 +59,13 @@ INSTALLED_APPS = [
     "academic_management.apps.AcademicManagementConfig",
     # ✅ SPRINT-DF-001: أرسل إلى المطوّر (Developer Feedback) — PRD-SOS-DEV-FEEDBACK-v1.0
     "developer_feedback.apps.DeveloperFeedbackConfig",
+    "ux_survey.apps.UxSurveyConfig",
     # ✅ مركز معلومات الطلبة — ملفّ الطالب الجامع وملاحظات الجهات الخمس
     "student_info.apps.StudentInfoConfig",
     "wings.apps.WingsConfig",
     # خارطة تجويد المنصّة — لمطوّر المنصّة وحدَه (أدوات المطوّر)
     "roadmap.apps.RoadmapConfig",
+    "decisions_registry.apps.DecisionsRegistryConfig",
     # مركز قيادة الجودة — عرضٌ حيٌّ لصحّة المنصّة لمطوّرها وحدَه في /command-center/ بالمنصّة (بلا نماذج)
     "command_center.apps.CommandCenterConfig",
     # الحوكمة وحماية البيانات: المحو والاحتفاظ وتدوير المفاتيح ووصول الملفّات (ADR-0004)
@@ -93,6 +96,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # ✅ v5.4: axes يجب أن يكون بعد AuthenticationMiddleware مباشرةً
     "axes.middleware.AxesMiddleware",
+    # اختيارُ الدور العامل (W-20261019-008): قبل RLS كي يرى كلُّ وسيطٍ بعده العضويّةَ المختارة.
+    "core.active_role.ActiveRoleChoiceMiddleware",
     # ✅ v5.6: RLS — يجب أن يضبط السياق قبل أي middleware يستعلم جداول محميّة
     "core.middleware_rls.RLSMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
@@ -209,6 +214,24 @@ PASSWORD_ROTATION_DAYS = config("PASSWORD_ROTATION_DAYS", default=90, cast=int)
 # الأمور). من لم يفعّلها لا يبلغ صفحةً غيرَ صفحة الإعداد. وإطفاءُ الرايةِ **تجميدٌ كامل**:
 # لا إلزامَ ولا سؤالَ عن رمزٍ حتى للمفعِّل (سرُّه يبقى)، فالدخولُ بكلمة المرور وحدَها.
 TWO_FACTOR_REQUIRED_FOR_STAFF = config("TWO_FACTOR_REQUIRED_FOR_STAFF", default=True, cast=bool)
+
+# قرار المالك D-399م ثمّ D-400م (W-20261012-008): عبارةُ الانتماء للوزارة «وزارة التربية والتعليم والتعليم العالي — دولة قطر»
+# **مجمَّدةٌ لا محذوفة** — مطفأةٌ افتراضاً في كلّ ترويسةٍ وتذييلٍ وPDF وExcel؛ وتشغيلُ المتغيّر يعيدها كلَّها بلا كود.
+# مصدرُ النصّ ووسمُه في `core/ministry.py`. ولا هجرةَ ولا جدول: متغيّرُ بيئةٍ فقط.
+MINISTRY_AFFILIATION_VISIBLE = config("MINISTRY_AFFILIATION_VISIBLE", default=False, cast=bool)
+
+# أمر المالك 2026-10-10 (W-20261010-034): توليدُ الجدول واعتمادُه لمطوّر المنصّة وحدَه من الآن؛ المديرُ والنائبُ
+# يقرآن الجدولَ فقط. المنفذُ المركزيّ في core/capabilities.py. وضبطُه 0/false يعيد السلوكَ السابق بلا شيفرة.
+SCHEDULE_DEVELOPER_ONLY = config("SCHEDULE_DEVELOPER_ONLY", default=True, cast=bool)
+
+# W-20261003-020: القائمةُ المغلقةُ المؤقّتةُ لمعرّفات القرارات التي تُقبل مرجعَ إذنٍ لاعتماد جدول V2 قبل ملء سجلّ القرارات؛
+# فارغةٌ افتراضاً (مغلقٌ بالافتراض): فلا اعتمادَ إلّا بقرارٍ موجودٍ في `decisions_registry`.
+SCHEDULE_APPROVAL_DECISIONS: tuple[str, ...] = ()
+
+# D-418م (W-20261012-023): سقفُ فراغ المعلّم `TeacherPreference.max_gap` مقروءٌ في الحلّال والمُقيِّم عبر
+# `operations/gap_rule.effective_max_gap`، ومطفأٌ افتراضاً: القيمُ المحفوظة تبقى في القاعدة ولا تؤثّر في التوليد.
+# التفعيلُ قرارُ المالك بعد إعادة القياس (tools/pref_impact.py)، وبلا شيفرة: PREF_MAX_GAP_ACTIVE=true.
+PREF_MAX_GAP_ACTIVE = config("PREF_MAX_GAP_ACTIVE", default=False, cast=bool)
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -327,7 +350,7 @@ SESSION_COOKIE_SAMESITE = "Lax"
 # والاختبار يمرّان بسلوك مختلف، فينكشف أي كاسر بعد النشر لا قبله.
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = "Lax"
-CSRF_FAILURE_VIEW = "django.views.csrf.csrf_failure"
+CSRF_FAILURE_VIEW = "core.views_errors.csrf_failure"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

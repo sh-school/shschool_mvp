@@ -1,4 +1,6 @@
 {% extends "base/base.html" %}
+{% load static %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/custom/35-quality.css' %}">{% endblock %}
 {% load icons %}
 {% load ui %}
 {% block title %}تقرير التقدم — الخطة التشغيلية{% endblock %}
@@ -11,7 +13,7 @@
 <div class="pr-page">
 
   {% page_header "تقرير التقدم الكلي" subtitle=report_subtitle icon="trend" %}
-    <a data-app-file href="{% url 'quality_report_pdf' %}?year={{ year }}" class="btn-primary btn-sm">{% icon "export_pdf" %} تصدير PDF</a>
+    {% export_button "pdf" "quality_report_pdf" primary=True %}?year={{ year }}{% endexport_button %}
     <a href="{% url 'quality_dashboard' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
   {% endpage_header %}
 
@@ -70,7 +72,7 @@
 
   {% if overdue_procedures %}
   {% section_card "الإجراءات المتأخرة" meta=overdue_count icon="quality" flush=True %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       {# تقريرٌ للطباعة: لا فرزَ على الورق. #}
       <table data-no-sort>
         <thead>
@@ -102,7 +104,7 @@
 
   {% if evidence_requests %}
   {% section_card "طلبات الدليل المعلقة" meta=evidence_requests|length icon="document" flush=True %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       {# تقريرٌ للطباعة: لا فرزَ على الورق. #}
       <table data-no-sort>
         <thead>

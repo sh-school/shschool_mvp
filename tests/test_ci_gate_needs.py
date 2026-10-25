@@ -65,8 +65,16 @@ def test_anything_but_success_fails_on_pull_request(result):
 def test_skipped_is_exempt_only_for_the_listed_event_and_job():
     needs = {**_ok("a"), "e2e": {"result": "skipped"}}
     assert gate.judge(needs, "push")[1] == []
-    assert gate.judge(needs, "pull_request")[1], "skipped على الطلب فشلٌ"
-    assert gate.judge(needs, "merge_group")[1], "skipped على الطابور فشلٌ"
+    assert (
+        gate.judge(needs, "pull_request")[1] == []
+    ), "e2e يُعفى skipped على الطلب غير الواجهيّ (W-20261022-018)"
+    other_pr = {**_ok("a"), "pytest-shards": {"result": "skipped"}}
+    assert gate.judge(other_pr, "pull_request")[1], "skipped على الطلب فشلٌ لغير axe/e2e"
+    assert (
+        gate.judge(needs, "merge_group")[1] == []
+    ), "e2e يُعفى skipped على الطابور (W-20261019-006)"
+    heavy_only = {**_ok("a"), "mypy": {"result": "skipped"}}
+    assert gate.judge(heavy_only, "merge_group")[1], "غيرُ axe/e2e يبقى skipped فيه فشلاً على الطابور"
     other = {**_ok("a"), "ruff": {"result": "skipped"}}
     assert gate.judge(other, "push")[1], "ruff غيرُ معفًى على push"
 
@@ -80,11 +88,16 @@ def test_exempt_job_still_fails_when_cancelled_or_failed(result):
 def test_cheap_security_and_core_jobs_are_never_exempt():
     # مراجعةُ 0105: secrets-scan وmigration-linter رخيصان ويفحصان ما دخل main فعلاً — دفاعُ عمق.
     exempt_jobs = {job for (_, job) in gate.EXEMPT}
-    assert not exempt_jobs & {"secrets-scan", "migration-linter", "test-coverage", "fast-guards"}
+    # (test-coverage خرجت من القائمة بقرار المالك D-429م: المجموعةُ والتغطيةُ تُحكمان في طابور الدمج لا على commit الدمج.)
+    assert not exempt_jobs & {"secrets-scan", "migration-linter", "fast-guards"}
 
 
-def test_only_push_is_ever_exempted():
-    assert {event for (event, _) in gate.EXEMPT} == {"push"}
+def test_only_push_and_merge_group_are_ever_exempted():
+    assert {event for (event, _) in gate.EXEMPT} == {"push", "merge_group", "pull_request"}
+    # الطلب (W-20261022-018): الأرجلُ المتصفّحيّةُ وحدَها، وبشرط changes في needs الملخّص
+    assert {job for (event, job) in gate.EXEMPT if event == "pull_request"} == {"axe-a11y", "e2e"}
+    # الطابور لا يُعفى فيه سوى الأرجل غير الحارسة التي سبق أن اجتازها الطلب نفسُه (W-20261019-006)
+    assert {job for (event, job) in gate.EXEMPT if event == "merge_group"} == {"axe-a11y", "e2e"}
 
 
 # ── الفشلُ المغلق ───────────────────────────────────────────────────────────────
@@ -151,7 +164,12 @@ def test_exempt_jobs_depend_only_on_non_exempt_jobs_and_are_event_gated():
         assert job in jobs, f"إعفاءٌ لمهمّةٍ غيرِ موجودة: {job}"
         deps = jobs[job].get("needs") or []
         deps = [deps] if isinstance(deps, str) else deps
-        assert not set(deps) & exempt_jobs, f"{job} يعتمد على مهمّةٍ معفاة فيُخفي إعفاؤها فشلَها"
+        # اعتمادُ معفاةٍ على معفاةٍ مقبولٌ حين تُتخطّيان معاً بشرط الحدث نفسِه (W-429: test-coverage ← pytest-shards)،
+        # أمّا على غيرها فلا — وإلّا تُخفي إعفاءُ إحداهما فشلَ الأخرى.
+        for dep in set(deps) & exempt_jobs:
+            assert "github.event_name != 'push'" in str(
+                jobs[dep].get("if", "")
+            ), f"{job} يعتمد على المعفاة {dep} وهذه لا تُتخطّى بشرط الحدث نفسِه"
         assert "github.event_name" in str(
             jobs[job].get("if", "")
         ), f"{job}: يُعفى skipped بسبب شرط الحدث وحدَه، فلا بدّ أن يُتخطّى بـ`if` على الحدث"
@@ -172,10 +190,32 @@ def test_security_scan_keeps_its_triggers():
 def test_quality_gate_keeps_pull_request_and_merge_group_full():
     assert {"push", "pull_request", "merge_group"} <= set(_triggers("quality-gate.yml"))
     jobs = _load("quality-gate.yml")
-    for job in ("mypy", "axe-a11y", "e2e"):
+    for job in ("mypy", "pytest-shards"):
         assert (
             str(jobs[job]["if"]).strip() == "github.event_name != 'push'"
         ), f"{job}: لا يُتخطّى إلا على push"
+    for job in ("axe-a11y", "e2e"):  # W-20261019-006: تُخطّى على الطابور أيضاً (تُجرى على الطلب)
+        assert (
+            str(jobs[job]["if"]).strip()
+            == "github.event_name != 'push' && github.event_name != 'merge_group' && needs.changes.outputs.ui == 'true'"
+        ), f"{job}: لا يُتخطّى إلا على push وmerge_group أو طلبٍ غير واجهيّ (changes)"
+        assert jobs[job]["needs"] == ["changes"], f"{job}: يعتمد على تصنيف changes"
+    assert "changes" in jobs["gate-summary"]["needs"], "فشلُ التصنيف يُفشل البوابة"
+    # التغطيةُ تُبلِّغ دائماً على الطلب والطابور (always) وتُتخطّى على push وحدَه
+    assert str(jobs["test-coverage"]["if"]).strip() == "always() && github.event_name != 'push'"
+
+
+def test_push_to_main_keeps_the_cheap_smoke_jobs_unexempted():
+    # دخانُ push: كلُّ ما ليس ثقيلاً يبقى يعمل ولا يُعفى (ruff، migration-linter، التعقيد، الأسرار، الحرّاس، نافذة النشر).
+    exempt_jobs = {job for (_, job) in gate.EXEMPT}
+    assert not exempt_jobs & {
+        "ruff",
+        "migration-linter",
+        "complexity",
+        "secrets-scan",
+        "fast-guards",
+        "deploy-window",
+    }
 
 
 def test_run_with_no_exempt_never_excuses_a_skip():
@@ -188,3 +228,74 @@ def test_security_summary_runs_without_exemptions():
     steps = _load("security-scan.yml")["summary"]["steps"]
     run = next(step["run"] for step in steps if "ci_needs_gate.py" in step.get("run", ""))
     assert "--no-exempt" in run, "Security Summary لا تُعفى فيه مهمّةٌ على أيّ حدث"
+
+
+# ── تمييز فشل البنية التحتية من فشل الشيفرة (W-20261010-007): تسميةٌ لا تخفيف ───────────────
+def _jobs(*specs) -> str:
+    return json.dumps(
+        {
+            "jobs": [
+                {
+                    "name": name,
+                    "conclusion": conclusion,
+                    "steps": [{"name": s, "conclusion": c} for s, c in steps],
+                }
+                for name, conclusion, steps in specs
+            ]
+        }
+    )
+
+
+def test_infra_failure_is_named_when_only_infra_steps_failed():
+    payload = _jobs(
+        ("pytest shard 4/5", "failure", [("Initialize containers", "failure")]),
+        ("ruff", "failure", [("Run ruff", "failure")]),
+        ("axe", "success", [("Run axe", "success")]),
+    )
+    assert gate.infra_failures(payload) == ["pytest shard 4/5"]
+
+
+def test_a_job_that_also_failed_a_code_step_is_not_infra():
+    payload = _jobs(
+        ("e2e", "failure", [("Initialize containers", "failure"), ("Run tests", "failure")])
+    )
+    assert gate.infra_failures(payload) == []
+
+
+@pytest.mark.parametrize("bad", [None, "", "   ", "{not json", "[]", '{"jobs": "x"}'])
+def test_infra_detection_is_silent_without_valid_data(bad):
+    assert gate.infra_failures(bad) == []
+
+
+def test_infra_label_never_loosens_the_verdict(capsys):
+    needs = json.dumps({"pytest-shards": {"result": "failure"}})
+    code = gate.run(needs, "pull_request", "t", None, infra=["pytest shard 4/5"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "فشلُ بنيةٍ تحتيّة" in out and "pytest shard 4/5" in out
+
+
+def test_gate_summary_job_can_read_actions_for_the_infra_label():
+    job = _load("quality-gate.yml")["gate-summary"]
+    assert job["permissions"]["actions"] == "read"
+    steps = [s.get("name", "") for s in job["steps"]]
+    assert steps.index("بيانُ خطوات الوظائف (لتمييز فشل البنية)") < steps.index("حكمُ بوابة الجودة")
+
+
+def test_infra_file_is_read_and_silent_when_missing_or_huge(tmp_path):
+    payload = _jobs(("pytest shard 4/5", "failure", [("Initialize containers", "failure")]))
+    f = tmp_path / "jobs.json"
+    f.write_text(payload, encoding="utf-8")
+    assert gate.infra_failures_from_file(str(f)) == ["pytest shard 4/5"]
+    assert gate.infra_failures_from_file(str(tmp_path / "absent.json")) == []
+    assert gate.infra_failures_from_file(None) == []
+    big = tmp_path / "big.json"
+    big.write_bytes(b" " * (gate.MAX_JOBS_FILE_BYTES + 1))
+    assert gate.infra_failures_from_file(str(big)) == []
+
+
+def test_jobs_payload_goes_through_a_file_not_the_environment():
+    steps = _load("quality-gate.yml")["gate-summary"]["steps"]
+    step = next(s for s in steps if s.get("id") == "jobs")
+    assert "INFRA_JOBS_FILE" in step["run"] and "EOF_JOBS" not in step["run"]
+    assert "INFRA_JOBS_JSON" not in step["run"]

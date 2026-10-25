@@ -28,6 +28,7 @@ class StudentTransfer(AuditedModel):
     DIRECTION_CHOICES = [
         ("in", "وارد"),
         ("out", "صادر"),
+        ("internal", "داخلي (بين شعب المدرسة)"),
     ]
 
     STATUS_CHOICES = [
@@ -51,7 +52,7 @@ class StudentTransfer(AuditedModel):
         verbose_name="الطالب",
     )
     direction = models.CharField(
-        max_length=3,
+        max_length=10,
         choices=DIRECTION_CHOICES,
         verbose_name="اتجاه الانتقال",
     )
@@ -68,6 +69,15 @@ class StudentTransfer(AuditedModel):
         max_length=3,
         blank=True,
         verbose_name="الصف (إلى)",
+    )
+    #: الشعبة المنقول إليها في الانتقال الداخلي وحده (W-20261005-008) — فارغةٌ في الوارد والصادر.
+    to_class_group = models.ForeignKey(
+        "core.ClassGroup",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="incoming_internal_transfers",
+        verbose_name="الشعبة المنقول إليها",
     )
     transfer_date = models.DateField(verbose_name="تاريخ الانتقال")
     reason = models.TextField(
@@ -88,6 +98,60 @@ class StudentTransfer(AuditedModel):
         default=default_academic_year,
         verbose_name="العام الدراسي",
     )
+    #: من قرّر الانتقال الداخلي (اعتماداً أو رفضاً أو إتماماً أو نقلاً مباشراً) ومتى — W-20261001-017، D-343م.
+    #: هجرةُ توسيعٍ: عمودان قابلان للإلغاء، ولا يُملآن للطلبات القديمة.
+    decided_by = models.ForeignKey(
+        CustomUser,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="transfer_decisions",
+        verbose_name="قرّره",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت القرار")
+
+    #: سلسلةُ نموذج 07 للوارد والصادر (W-20261001-018): المستندات المدقَّقة ومراحلُ التدقيق والاعتماد
+    #: والتشعيب والإدخال بمنفّذٍ ووقت. هجرةُ توسيعٍ: أعمدةٌ قابلةٌ للإلغاء أو بقيمةٍ افتراضيّة.
+    documents_checked = models.JSONField(default=list, blank=True, verbose_name="المستندات المدقَّقة")
+    documents_missing_reason = models.CharField(
+        max_length=500, blank=True, verbose_name="سبب نقص المستندات"
+    )
+    reviewed_by = models.ForeignKey(
+        CustomUser,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="transfer_reviews",
+        verbose_name="منفّذ التدقيق",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت التدقيق")
+    approved_by = models.ForeignKey(
+        CustomUser,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="transfer_approvals",
+        verbose_name="معتمد الطلب",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت اعتماد الطلب")
+    placed_by = models.ForeignKey(
+        CustomUser,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="transfer_placements",
+        verbose_name="منفّذ التشعيب",
+    )
+    placed_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت التشعيب")
+    entered_by = models.ForeignKey(
+        CustomUser,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="transfer_entries",
+        verbose_name="مُدخِل البيانات",
+    )
+    entered_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت الإدخال")
 
     class Meta:
         ordering = ["-created_at"]
@@ -99,7 +163,7 @@ class StudentTransfer(AuditedModel):
         ]
 
     def __str__(self):
-        direction_label = "← وارد" if self.direction == "in" else "→ صادر"
+        direction_label = {"in": "← وارد", "out": "→ صادر"}.get(self.direction, "⇄ داخلي")
         return f"{self.student.full_name} {direction_label} — {self.other_school_name}"
 
 
@@ -188,3 +252,14 @@ class StudentActivity(SchoolScopedModel):
 
     def __str__(self):
         return f"{self.student.full_name} — {self.title}"
+
+
+# طلبات الأولياء وشكاواهم (W-20261001-019) — في وحدةٍ مستقلّة، وتُسجَّل هنا لتراها Django.
+from student_affairs.guardian_request_models import (  # noqa: E402,F401
+    GuardianRequest,
+    GuardianRequestEvent,
+)
+
+from .admission_models import (
+    AdmissionApplication as AdmissionApplication,  # noqa: E402  (طلب الالتحاق W-20261001-033)
+)

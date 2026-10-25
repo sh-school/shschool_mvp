@@ -2,6 +2,7 @@
 {% load icons navigation %}
 {% load static ui %}
 {% block title %}العيادة المدرسية — {{ current_school.name|default:"المدرسة" }}{% endblock %}
+{% block main_class %}{% page_layout "dashboard" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/clinic/" parent_label="العيادة" current="لوحة العيادة" %}
@@ -14,8 +15,15 @@
     {% if request.user|can_open:"clinic:record_visit" %}
     <a href="{% url 'clinic:record_visit' %}" class="btn-primary btn-sm">{% icon "add" %} تسجيل زيارة</a>
     {% endif %}
+    {% if request.user|can_open:"clinic:needs_care_import" %}
+    <a href="{% url 'clinic:needs_care_import' %}" class="btn-secondary btn-sm">{% icon "document" %} علامة المراعاة</a>
+    {% endif %}
     <a href="{% url 'clinic:statistics' %}" class="btn-secondary btn-sm">{% icon "stats" %} الإحصائيات</a>
     <a href="{% url 'clinic:visits_list' %}" class="btn-secondary btn-sm">{% icon "document" %} السجلات</a>
+    <a href="{% url 'clinic:referrals' %}" class="btn-secondary btn-sm">{% icon "document" %} الإحالات</a>
+    {% if request.user|can_open:"clinic:supplies" %}
+    <a href="{% url 'clinic:supplies' %}" class="btn-secondary btn-sm">{% icon "document" %} المستلزمات</a>
+    {% endif %}
   {% endpage_header %}
 
   {% kpi_strip label="أرقام العيادة" %}

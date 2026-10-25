@@ -32,6 +32,9 @@ def breach(db, school, principal_user):
         discovered_at=timezone.now(),
         immediate_action="إغلاق المنفذ الخارجي فوراً",
         containment_action="مراجعة سجلات الوصول",
+        notification_text="نصّ إشعارٍ اصطناعي",
+        individuals_status="not_required",
+        individuals_assessment_note="لا ضرر جسيم (اختبار)",
         reported_by=principal_user,
     )
 
@@ -48,6 +51,10 @@ def overdue_breach(db, school, principal_user):
         affected_count=10,
         discovered_at=timezone.now() - timedelta(hours=80),
         immediate_action="لم يتخذ إجراء",
+        containment_action="لا احتواء بعد",
+        notification_text="نصّ إشعارٍ اصطناعي",
+        individuals_status="not_required",
+        individuals_assessment_note="لا ضرر جسيم (اختبار)",
         reported_by=principal_user,
     )
 
@@ -223,7 +230,8 @@ class TestBreachViews:
         deadline = timezone.localtime(breach.ncsa_deadline)
         assert f"{deadline:%Y/%m/%d %H:%M}" in html
         assert "ساعات متبقية" in html
-        assert 'name="status" value="notified"' in html
+        # زرُّ «تم إشعار NCSA» صار نموذجَ إشعارٍ (مكتملٍ أو مبدئيّ) — W-20261002-007.
+        assert f"/breach/{breach.pk}/ncsa-notice/" in html
         assert "لا رجعةَ فيه" in html
         assert f"/breach/{breach.pk}/status/" in html
         assert "style=" not in html.split('class="exec-dash"', 1)[1]
@@ -232,7 +240,7 @@ class TestBreachViews:
         c = client_as(principal_user)
         html = c.get(f"/breach/{overdue_breach.pk}/").content.decode()
         assert "فاتت" in html
-        assert 'name="status" value="notified"' in html
+        assert f"/breach/{overdue_breach.pk}/ncsa-notice/" in html
 
     def test_detail_hides_notify_button_once_notified(self, client_as, principal_user, breach):
         """الإشعارُ المختوم لا يُعاد ختمُه من الواجهة."""

@@ -25,6 +25,8 @@ repos:
         name: فحص صحة YAML
       - id: check-json
         name: فحص صحة JSON
+        # مانيفستا PWA قالبان في `templates/` (`{% load %}` و`{% static %}`) لا JSONاً خالصاً قبل التصيير
+        exclude: ^templates/.*\.json$
       - id: check-merge-conflict
         name: كشف علامات merge conflict
       - id: check-added-large-files

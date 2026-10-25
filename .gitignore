@@ -41,6 +41,7 @@ AAdocs/ministry_data/*
 !AAdocs/ministry_data/2026_2027/
 AAdocs/ministry_data/2026_2027/*
 !AAdocs/ministry_data/2026_2027/index.md
+!AAdocs/ministry_data/2026_2027/ext_*.md
 !AAdocs/ministry_data/2026_2027/rbac_permissions_matrix.md
 !AAdocs/ministry_data/2026_2027/rbac_roles.json
 !AAdocs/ministry_data/2026_2027/compliance_audit_report.md
@@ -94,6 +95,7 @@ ZZZZ.zip
 *.dump
 *.bak
 *.backup
+!Dockerfile.backup
 
 # Temp/scratch scripts
 _*.py
@@ -134,3 +136,9 @@ backups/
 /gaps.py
 /tb.py
 /scratch_*.py
+
+# سجلُّ مصدر الحقيقة: لقطتا النصّ الحرفيّ خارج git (قرارُ المالك 2026-10-15)؛ يُتتبَّع الفهرسُ فقط
+AAdocs/ministry_data/2026_2027/sot_verbatim/
+# تقاريرُ محلّيّةٌ لا تُودَع (كانت تُفشل detect-secrets في prepush لأنّ الفحص يمسح غيرَ المُتتبَّع)
+/tmp_reports/*
+!/tmp_reports/w008_pref_impact/

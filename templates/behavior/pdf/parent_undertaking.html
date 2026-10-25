@@ -15,15 +15,11 @@
   <table class="data-table">
     <tr>
       <td class="fl">اسم ولي الأمر:</td>
-      <td class="fv">{{ parent_name|default:"_______________________________" }}</td>
-      <td class="fl">الرقم الشخصي:</td>
-      <td class="fv">{{ parent_id|default:"______________" }}</td>
+      <td class="fv" colspan="3">{{ parent_name|default:"_______________________________" }}</td>
     </tr>
     <tr>
       <td class="fl">اسم الطالب:</td>
-      <td class="fv">{{ infraction.student.full_name }}</td>
-      <td class="fl">الرقم الشخصي:</td>
-      <td class="fv">{{ infraction.student.national_id }}</td>
+      <td class="fv" colspan="3">{{ infraction.student.full_name }}</td>
     </tr>
     <tr>
       <td class="fl">الصف:</td>

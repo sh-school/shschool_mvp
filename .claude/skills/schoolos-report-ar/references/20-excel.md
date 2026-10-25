@@ -8,7 +8,7 @@
 | الأداة | الموضع | ما تفعله |
 |---|---|---|
 | `ExcelService._make_workbook(title)` | `reports/services.py` | مصنّفٌ بورقةٍ `rightToLeft = True` وأنماطُ الجدول الموحّدة |
-| `ExcelService._add_professional_header(ws, school_name, title, year, num_cols)` | `reports/services.py` | ثلاثةُ صفوف عنوان (المدرسة وشعارُها ← العنوان والسنة ← الوزارة وتاريخ الطباعة) + رأسُ صفحة الطباعة باسم المدرسة |
+| `ExcelService._add_professional_header(ws, school_name, title, year, num_cols)` | `reports/services.py` | ثلاثةُ صفوف عنوان (اسمُ المدرسة ← العنوان والسنة ← الوزارة وتاريخ الطباعة) + رأسُ صفحة الطباعة باسم المدرسة |
 | `add_excel_title_rows(ws, num_cols, first, second, third)` | `core/export_utils.py` | الصفوفُ الثلاثة نفسُها لمن لا يستعمل `ExcelService` |
 | `excel_table_styles()` / `brand_cell(cell)` | `core/export_utils.py` | رأسٌ عنّابيٌّ بنصٍّ أبيض، شبكةٌ بلون الحدود، صفٌّ متناوبٌ `MAROON_BG`، خطُّ Tajawal |
 | `ExcelService._setup_print(ws, num_cols, num_rows, paper="a4", orientation="portrait")` | `reports/services.py` | مقاسُ الورق، ملاءمةُ العرض في صفحة، هوامش، `print_title_rows = "1:4"`، منطقةُ الطباعة |

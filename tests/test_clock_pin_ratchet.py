@@ -34,7 +34,9 @@ from tests.visual_snapshots import FIXED_NOW
 TESTS = pathlib.Path(__file__).resolve().parent
 
 #: اللحظةُ المقيسةُ 2026-10-10 بهذه الأداة على 631 ملفَّ اختبار: 79 تقرأ الساعةَ بلا تثبيت، و69 بعد تثبيت عشرةٍ أخطرها.
-CEILING = 69
+#: ودخلت على main أربعةُ ملفّاتٍ تقرأ الساعةَ (2026-10-12) فثُبّتت بالعلامة فبقي السقفُ 69 (لا رفعَ للسقف).
+#: ثُبّتت سبعةُ ملفّاتٍ بلا اختبارٍ يشترط تاريخاً فعلياً (W-20261020-015، الدفعة 1) فنزل السقفُ من 69 إلى 62 (قياس 2026-10-20).
+CEILING = 62
 #: من الـ`CEILING` ما يقرأ `date.today()`/`datetime.now()` المباشرتين (لا تصلهما `frozen_clock`).
 DIRECT_TODAY = 21
 
@@ -181,6 +183,21 @@ FRIDAY = FIXED_NOW + dt.timedelta(days=2)
 def test_the_marker_accepts_another_instant():
     assert timezone.localdate() == dt.date(2026, 10, 9)
     assert timezone.localtime().weekday() == 4
+
+
+@pytest.fixture
+def _clock_patched_under_the_pin(monkeypatch):
+    """مرفقٌ يبدّل `timezone.now` وقد ثُبّتت الساعةُ قبله (كـ`clock` المستورد من test_class_grid في test_wing_panel_reads_entries)."""
+    monkeypatch.setattr(timezone, "now", lambda: FRIDAY)
+
+
+@pytest.mark.pin_clock
+def test_a_fixture_that_patches_now_under_the_pin_does_not_leave_the_freeze_behind(
+    _clock_patched_under_the_pin,
+):
+    # كان فكُّ تبديله يعيد الدالّةَ المجمَّدة بعد خروج التثبيت فتبقى في العامل (الشريحة 4 من #940)؛
+    # والاختبارُ التالي في الملفّ يتحقّق أنّ الساعة عادت حقيقيّة.
+    assert timezone.now() == FRIDAY
 
 
 @pytest.mark.skipif(

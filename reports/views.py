@@ -101,6 +101,7 @@ def _teacher_can_access_class(request, school, class_grp, year) -> bool:
             "vice_academic",
             "vice_admin",
             "coordinator",
+            "student_affairs_coordinator",  # نطاقه المدرسة كلُّها (W-20261018-003)
         )
     ):
         return True
@@ -460,12 +461,13 @@ def student_result_pdf(request, student_id):
     ctx = ReportDataService.get_student_report(student, school, year)
     ctx["paper_size"] = paper
     _student_result_presentation(ctx)
-    # وثيقةٌ فرديّةٌ تُسلَّم لصاحبها: الرقمُ كاملاً — والتدقيقُ ثمنُه.
+    # الوثائقُ الفرديّةُ بلا رقمٍ شخصيّ منذ D-386م (W-20261011-014)، فرايةُ التدقيق تقول ما في
+    # الملفّ لا ما كان فيه (W-20261012-005): هنا وفي الكشف السنويّ والشهادة أدناه.
     log_export(
         request,
         "reports.student_result",
         rows=1,
-        full_national_id=True,
+        full_national_id=False,
         object_id=student.pk,
         object_repr=f"نتيجة {masked_repr(student)} — {year}",
     )
@@ -509,7 +511,7 @@ def student_annual_result_pdf(request, student_id):
         request,
         "reports.student_annual_result",
         rows=1,
-        full_national_id=True,
+        full_national_id=False,
         object_id=student.pk,
         object_repr=f"كشف نتائج {masked_repr(student)} — {year}",
     )
@@ -554,7 +556,7 @@ def student_certificate_pdf(request, student_id):
         request,
         "reports.certificate",
         rows=1,
-        full_national_id=True,
+        full_national_id=False,
         object_id=student.pk,
         object_repr=f"شهادة {masked_repr(student)} — {year}",
     )

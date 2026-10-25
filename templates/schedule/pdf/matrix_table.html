@@ -39,7 +39,7 @@
           {# رقمُ العمود في الأسبوع كلِّه (0–34) — اليومُ سبعُ حصص. #}
           {% widthratio forloop.parentloop.counter0 1 7 as day_offset %}
           {% with kind=cell|cell_kind %}
-          <td class="m-cell{% if forloop.first %} m-day-start{% endif %}{% if kind %} mk-{{ kind }}{% endif %}" data-col="{{ day_offset|add:forloop.counter0 }}"{% if cell %} data-c="{% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}" data-s="{% for slot in cell %}{{ slot.cell_subject|default:slot.subject.name_ar|default:"—" }} — {{ slot.class_group.short_label }}{% if slot.note %} — {{ slot.note }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}"{% endif %}>
+          <td class="m-cell{% if forloop.first %} m-day-start{% endif %}{% if kind %} mk-{{ kind }}{% endif %}" data-col="{{ day_offset|add:forloop.counter0 }}"{% if cell %} data-c="{% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}" data-s="{% for slot in cell %}{% if slot.cell_subject %}{{ slot.cell_subject }}{% elif slot.subject %}{{ slot.subject.name_ar|default:"—" }}{% else %}—{% endif %} — {{ slot.class_group.short_label }}{% if slot.note %} — {{ slot.note }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}"{% endif %}>
             {% if cell %}{% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}{% else %}{% exempt_dot row.exempt_map forloop.parentloop.counter0 forloop.counter0|add:1 %}{% endif %}
           </td>
           {% endwith %}

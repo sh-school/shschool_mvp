@@ -53,7 +53,7 @@
 
       <div class="cert-header">
         <div class="school-name">{{ ctx.school.name }}</div>
-        <div>دولة قطر — وزارة التربية والتعليم والتعليم العالي</div>
+        {% load ministry %}{% ministry_name short=True as ministry %}{% if ministry %}<div>دولة قطر — {{ ministry }}</div>{% endif %}
       </div>
 
       <div class="cert-title">شهادة نتيجة دراسية</div>
@@ -61,8 +61,6 @@
       <div class="cert-body">
         يُشهد بأن الطالب/ة:
         <span class="cert-student">{{ ctx.student.full_name }}</span>
-        &nbsp;—&nbsp;
-        الرقم الشخصي: <strong dir="ltr">{{ ctx.student.national_id|mask_id|default:"—" }}</strong>
         <br>
         المنتسب/ة إلى: <strong>{{ class_group.short_label }}</strong>
         &nbsp;&nbsp;|&nbsp;&nbsp;

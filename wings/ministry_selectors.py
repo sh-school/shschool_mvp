@@ -100,10 +100,14 @@ class MinistrySummary:
         return self.total.unrecorded > 0
 
 
-def _current_enrollments(groups: list[Any], student_ids: Any) -> dict[Any, list[Any]]:
-    """طلبةُ كلّ شعبة بقيدهم **الجاري**: من حمل قيدين نشطين يُعدّ في أحدثهما وحدَه."""
+def _current_enrollments(groups: list[Any], student_ids: Any, day: dt.date) -> dict[Any, list[Any]]:
+    """طلبةُ كلّ شعبة بقيدهم **الساري في `day`**: من حمل قيدين ساريين يُعدّ في أحدثهما وحدَه.
+
+    والمنقولُ بين شعبتين يُعدّ في القديمة حتى آخر يومٍ فيها (`left_at`) وفي الجديدة من يوم الانتقال (D-201م).
+    """
     rows = (
-        StudentEnrollment.objects.filter(is_active=True, class_group__in=groups)
+        StudentEnrollment.objects.filter(class_group__in=groups)
+        .on_roll(day)
         .select_related("student")
         .order_by("student_id", "-enrolled_at", "-id")
     )
@@ -212,17 +216,38 @@ def grade_choices(summary: MinistrySummary) -> list[tuple[str, str]]:
     return [(grade.key, grade.label) for grade in summary.grades if grade.key]
 
 
-def narrow(summary: MinistrySummary, *, grade: str = "", q: str = "") -> MinistrySummary:
-    """ملخّصٌ مضيَّقٌ بصفٍّ و/أو بحثٍ في الشعبة أو اسم الطالب — والمجاميعُ تُعاد من الصفوف الباقية.
+def wing_choices(summary: MinistrySummary) -> list[tuple[str, str]]:
+    """(معرّفُ الجناح، اسمُه) لأجنحة الشُّعب في الملخّص — بترتيب ظهورها، وبلا جناحٍ لا يُعرض."""
+    seen: dict[str, str] = {}
+    for row in summary.class_rows:
+        wing = getattr(row.group, "wing", None)
+        if wing is not None:
+            seen.setdefault(str(wing.pk), str(wing.name))
+    return list(seen.items())
+
+
+def _in_wing(row: ClassRow, wing: str) -> bool:
+    return not wing or str(row.group.wing_id or "") == wing
+
+
+def _matches_search(row: ClassRow, needle: str, by_name: set[str]) -> bool:
+    code = row.group.short_code
+    return not needle or needle in code or code in by_name
+
+
+def narrow(
+    summary: MinistrySummary, *, grade: str = "", q: str = "", wing: str = ""
+) -> MinistrySummary:
+    """ملخّصٌ مضيَّقٌ بصفٍّ و/أو جناحٍ و/أو بحثٍ في الشعبة أو اسم الطالب — والمجاميعُ تُعاد من الصفوف الباقية.
 
     فما يراه المستخدمُ في الجدول والأرقام والتصدير شيءٌ واحد: ترشيحٌ لا يطابق مجموعَه. والبحثُ باسمِ طالبٍ
     يُبقي شعبتَه وحدَها، وبرمز شعبةٍ يُبقي الشعبةَ وأسماءَ من يُرفعون منها.
     """
     needle = (q or "").strip()
-    if not grade and not needle:
+    if not grade and not needle and not wing:
         return summary
     in_scope = [g for g in summary.grades if not grade or g.key == grade]
-    scope_codes = {row.group.short_code for g in in_scope for row in g.rows}
+    scope_codes = {row.group.short_code for g in in_scope for row in g.rows if _in_wing(row, wing)}
     by_name = {m.class_code for m in summary.ministered if needle and needle in m.name}
     ministered = [
         m
@@ -236,7 +261,7 @@ def narrow(summary: MinistrySummary, *, grade: str = "", q: str = "") -> Ministr
         rows = [
             row
             for row in source.rows
-            if not needle or needle in row.group.short_code or row.group.short_code in by_name
+            if _in_wing(row, wing) and _matches_search(row, needle, by_name)
         ]
         if not rows:
             continue
@@ -248,6 +273,17 @@ def narrow(summary: MinistrySummary, *, grade: str = "", q: str = "") -> Ministr
     return MinistrySummary(summary.day, grades, total, ministered, _notes(total))
 
 
+def _ministered_order(item: Ministered) -> tuple[int, int, str]:
+    """ترتيبٌ تصاعديٌّ بالصفّ ثمّ الشعبة عدداً (7/1 … 12/4) لا أبجديّاً: الأبجديُّ يضع 10/1 قبل 7/1."""
+    grade = (item.grade or "").removeprefix("G")
+    section = item.class_code.rpartition("/")[2]
+    return (
+        int(grade) if grade.isdigit() else 99,
+        int(section) if section.isdigit() else 99,
+        item.name,
+    )
+
+
 def ministry_summary(school: Any, day: dt.date, *, student_ids: Any = None) -> MinistrySummary:
     """ملخّصُ الحصّتين الأولى والثانية لمدرسةٍ في يوم — للمدرسة كلِّها أو لطلبة جناحٍ بعينهم."""
     year = academic_year_for_school(school)
@@ -257,7 +293,7 @@ def ministry_summary(school: Any, day: dt.date, *, student_ids: Any = None) -> M
         .order_by(grade_order("grade"), "section")
     )
     group_ids = [g.id for g in groups]
-    by_class = _current_enrollments(groups, student_ids)
+    by_class = _current_enrollments(groups, student_ids, day)
     slots = _first_slots(school, day, group_ids)
     marks = _marks(school, day, slots)
     pending = pending_marks_by_student(school, day, student_ids=student_ids)
@@ -284,7 +320,7 @@ def ministry_summary(school: Any, day: dt.date, *, student_ids: Any = None) -> M
         grade.counts.add(counts)
         total.add(counts)
 
-    ministered.sort(key=lambda m: (m.class_code, m.name))
+    ministered.sort(key=_ministered_order)
     return MinistrySummary(day, list(grades.values()), total, ministered, _notes(total))
 
 

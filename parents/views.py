@@ -37,7 +37,7 @@ from core.privacy import national_id_search_q
 from core.sorting import apply_sort, arabic_key
 from core.unrestricted_role import has_unrestricted_role
 
-from .selectors import parent_ids_by_phone
+from .selectors import link_form_parents, link_form_students, parent_ids_by_phone
 from .services import (
     ParentService,
     consent_state,
@@ -496,19 +496,9 @@ def manage_parent_links(request):
     if request.headers.get("HX-Request"):
         return render(request, "parents/partials/links_table.html", ctx)
 
-    # قائمة الطلاب للـ dropdown
-    student_ids = StudentEnrollment.objects.filter(
-        class_group__school=school,
-        class_group__academic_year=year,
-        is_active=True,
-    ).values_list("student_id", flat=True)
-    ctx["students"] = CustomUser.objects.filter(id__in=student_ids).order_by("full_name")
-
-    # قائمة أولياء الأمور
-    parent_ids = Membership.objects.filter(
-        school=school, is_active=True, role__name="parent"
-    ).values_list("user_id", flat=True)
-    ctx["parents"] = CustomUser.objects.filter(id__in=parent_ids).order_by("full_name")
+    # قائمتا الاستمارة — كلٌّ مميَّزةٌ بما يفرّق المتشابه دون رقمٍ شخصيّ (W-20261012-006).
+    ctx["students"] = link_form_students(school, year)
+    ctx["parents"] = link_form_parents(school, year)
 
     return render(request, "parents/manage_links.html", ctx)
 

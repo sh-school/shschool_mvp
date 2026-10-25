@@ -76,3 +76,83 @@ def test_cannot_reset_a_user_from_another_school(client_as, it_tech):
     response = client_as(it_tech).post(f"/core/it-admin/password-reset/{stranger.id}/")
 
     assert response.status_code == 404
+
+
+# ── البحث: الاسم أو الرقم الوظيفيّ وحدَهما (W-20261012-007، D-386م) ─────────────
+
+URL = "/core/it-admin/password-reset/"
+
+
+def _staff(school, name, employee_number):
+    user = UserFactory(full_name=name, employee_number=employee_number)
+    MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name="teacher"))
+    return user
+
+
+def _found(client_as, it_tech, q):
+    response = client_as(it_tech).get(URL, {"q": q})
+    assert response.status_code == 200
+    return response, [row["full_name"] for row in response.context["rows"]]
+
+
+def test_the_employee_number_finds_the_employee(client_as, school, it_tech):
+    _staff(school, "المقصود", "EMP-48151")
+    _staff(school, "غيره", "EMP-99002")
+
+    _response, names = _found(client_as, it_tech, "EMP-48151")
+
+    assert names == ["المقصود"]
+
+
+def test_a_part_of_the_employee_number_finds_the_employee(client_as, school, it_tech):
+    _staff(school, "المقصود", "EMP-48151")
+
+    _response, names = _found(client_as, it_tech, "4815")
+
+    assert names == ["المقصود"]
+
+
+def test_the_name_search_works_as_before(client_as, school, it_tech):
+    _staff(school, "عبدالله الكواري", "EMP-1")
+    _staff(school, "سالم المري", "EMP-2")
+
+    _response, names = _found(client_as, it_tech, "الكواري")
+
+    assert names == ["عبدالله الكواري"]
+
+
+def test_the_personal_number_finds_nobody_whole_or_in_part(client_as, school, it_tech):
+    target = _staff(school, "المقصود", "EMP-48151")
+    nid = target.national_id
+
+    for q in (nid, nid[:6], nid[-5:]):
+        response, names = _found(client_as, it_tech, q)
+        assert names == [], q
+        # صدى الاستعلام في حقل البحث مقبول؛ المحظور أن يعود بالموظف أو يظهر رقمُه في جدول النتائج.
+        assert "المقصود" not in response.content.decode()
+    # وبلا استعلامٍ يظهر الموظف في القائمة ولا يظهر رقمه الشخصيّ في الصفحة أبداً.
+    response, names = _found(client_as, it_tech, "")
+    assert "المقصود" in names
+    assert nid not in response.content.decode()
+
+
+def test_a_single_character_does_not_filter(client_as, school, it_tech):
+    """حدٌّ أدنى حرفان: حرفٌ واحد لا يضيّق (فلا يطابق رقمٌ من خانةٍ واحدة الجميع بل يعرض القائمة كاملةً كبلا استعلام)."""
+    _staff(school, "ألف", "EMP-1")
+    _staff(school, "باء", "EMP-2")
+
+    _response, names = _found(client_as, it_tech, "1")
+
+    assert {"ألف", "باء"} <= set(names)
+
+
+def test_the_rows_carry_no_personal_number(client_as, school, it_tech):
+    _staff(school, "المقصود", "EMP-48151")
+
+    response, _names = _found(client_as, it_tech, "")
+
+    assert all("national_id" not in row for row in response.context["rows"])
+
+
+def test_the_search_is_still_refused_to_a_teacher(client_as, teacher):
+    assert client_as(teacher).get(URL, {"q": "اختبار"}).status_code == 403

@@ -7,7 +7,7 @@ tests/test_htmx_patterns.py
   - library book_list: partial عند HX-Request
   - clinic visits_list: partial عند HX-Request
   - notifications mark_as_read: outerHTML + HX-Trigger badge update
-  - behavior quick_log: GET partial form, POST creates + redirects
+  - behavior quick_log: تحويلٌ دائم إلى نموذج التقرير
   - operations attendance: ?view=grid يعرض attendance_grid.html
 """
 
@@ -209,6 +209,8 @@ class TestMarkNotificationReadHtmx:
 
 @pytest.mark.django_db
 class TestBehaviorQuickLog:
+    """التسجيل السريع صار تحويلاً دائماً إلى نموذج التقرير الكامل (W-20261001-042)."""
+
     @pytest.fixture
     def behavior_recorder(self, db, school):
         """مستخدم بدور social_worker — ضمن BEHAVIOR_RECORD"""
@@ -217,33 +219,26 @@ class TestBehaviorQuickLog:
         MembershipFactory(user=user, school=school, role=role)
         return user
 
-    def test_get_returns_partial_form(self, client_as, behavior_recorder):
-        client = client_as(behavior_recorder)
-        response = client.get("/behavior/quick-log/", **HTMX_HEADERS)
-        assert response.status_code in (200, 302)
-        if response.status_code == 200:
-            content = response.content.decode()
-            # يُعيد partial — لا full page
-            assert "<html" not in content
+    def test_get_redirects_permanently_to_the_full_report(self, client_as, behavior_recorder):
+        response = client_as(behavior_recorder).get("/behavior/quick-log/")
+        assert response.status_code == 301
+        assert response["Location"] == "/behavior/report/"
 
-    def test_post_invalid_returns_form(self, client_as, behavior_recorder):
-        """POST بدون بيانات → يعيد النموذج مع خطأ."""
-        client = client_as(behavior_recorder)
-        response = client.post(
-            "/behavior/quick-log/",
-            data={},
-            **HTMX_HEADERS,
-        )
-        # إما 200 (عرض النموذج مرة أخرى) أو 422
-        assert response.status_code in (200, 422, 400)
+    def test_the_student_choice_survives_the_redirect(self, client_as, behavior_recorder):
+        response = client_as(behavior_recorder).get("/behavior/quick-log/", {"student_id": "7"})
+        assert response.status_code == 301
+        assert response["Location"] == "/behavior/report/?student=7"
+
+    def test_post_is_refused_and_writes_nothing(self, client_as, behavior_recorder):
+        response = client_as(behavior_recorder).post("/behavior/quick-log/", data={})
+        assert response.status_code == 405
 
     def test_specialist_cannot_quick_log(self, client_as, db, school):
-        """الأخصائي ليس ضمن BEHAVIOR_RECORD — لا يسجل مخالفات مباشرة"""
+        """الأخصائي ليس ضمن BEHAVIOR_RECORD — يبقى مرفوضاً قبل التحويل."""
         role = RoleFactory(school=school, name="specialist")
         user = UserFactory(full_name="أخصائي")
         MembershipFactory(user=user, school=school, role=role)
-        client = client_as(user)
-        response = client.get("/behavior/quick-log/", **HTMX_HEADERS)
+        response = client_as(user).get("/behavior/quick-log/", **HTMX_HEADERS)
         assert response.status_code == 403
 
     def test_unauthenticated_redirected(self, client):
@@ -327,7 +322,7 @@ class TestBehaviorCommitContract:
     الاستجابة نجاحاً. واختبار `on_commit` المباشر لا يُثبت ذلك: يُثبت دلالة
     Django لا سلسلة الطلب/الاستجابة كاملةً بوسائطها ومعالج الاستثناءات فيها.
 
-    فالدخول من مسار طلبٍ حقيقي — `quick_log` — هو ما يجعل الادّعاء ادّعاءً عن
+    فالدخول من مسار طلبٍ حقيقي — `report_infraction` — هو ما يجعل الادّعاء ادّعاءً عن
     المستخدم لا عن دالّة.
     """
 
@@ -347,12 +342,12 @@ class TestBehaviorCommitContract:
 
     def _post(self, client, student):
         return client.post(
-            "/behavior/quick-log/",
+            "/behavior/report/",
             data={
                 "student_id": str(student.id),
                 "level": "2",
                 "description": "وصف مخالفة اختبارية كافٍ الطول",
-                "action_taken": "تنبيه",
+                "disciplinary_action_type": "verbal_warning",
             },
             **HTMX_HEADERS,
         )

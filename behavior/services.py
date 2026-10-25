@@ -4,7 +4,7 @@ behavior/services.py
 Business logic لوحدة السلوك — مستخلص من views.py
 
 يشمل:
-  - حساب النقاط والتقييم السلوكي
+  - العدّ الإجمالي لمخالفات الطالب
   - إحصائيات لوحة التحكم
   - الملف السلوكي للطالب
   - إحصائيات اللجنة
@@ -15,16 +15,16 @@ Business logic لوحدة السلوك — مستخلص من views.py
 from __future__ import annotations
 
 import logging
-from datetime import date
-from typing import TYPE_CHECKING
+from datetime import date, timedelta
+from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, QuerySet
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school, default_academic_year
-from core.domain.tones import tone_for
+from core.permissions import BEHAVIOR_COMMITTEE
 from core.unrestricted_role import has_unrestricted_role
 
 logger = logging.getLogger(__name__)
@@ -33,13 +33,14 @@ from behavior.models import BehaviorInfraction
 from core.models import ParentStudentLink, StudentEnrollment
 
 if TYPE_CHECKING:
+    from django.http import HttpRequest
+
     from core.models import CustomUser, School
+    from wings.scope import StudentScope
 
 # ── ثوابت موحدة من constants.py ────────────────────────────
-# POINTS_BY_LEVEL مُستبعد — نظام النقاط ملغى
 from .constants import (  # noqa: E402,F401
     ESCALATION_STEPS,
-    LEVEL_AUTHORITY,
     LEVEL_DESC,
     LEVEL_DISPLAY,
 )
@@ -50,53 +51,18 @@ PERIOD_CHOICES = [
     ("S2", "الفصل الثاني"),
 ]
 
-#: تقديرُ مؤشّر السلوك (من 100) في ملفّ الطالب: (الوصف، اللون).
-NET_SCORE_RATING = (
-    (90, ("ممتاز", "green")),
-    (75, ("جيد جداً", "blue")),
-    (60, ("جيد", "amber")),
-    (None, ("يحتاج تطوير", "red")),
-)
-
-#: لونُ حالة الملفّ السلوكيّ: 80 فأكثر أخضر، و60 فأكثر أصفر، ودونها أحمر.
-NET_SCORE_STATUS = ((80, "green"), (60, "yellow"), (None, "red"))
-
 
 class BehaviorPermissions:
     """صلاحيات وحدة السلوك"""
 
-    REPORTER_ROLES = {
-        "principal",
-        "vice_admin",
-        "vice_academic",
-        "coordinator",
-        "teacher",
-        "ese_teacher",
-        "social_worker",
-        "specialist",
-        "admin_supervisor",
-        "admin",
-        "platform_developer",
-    }
-    COMMITTEE_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "specialist"}
-    SUMMON_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "psychologist"}
-    STATS_ROLES = {
-        # لجنة الضبط والقيادة
-        "principal",
-        "vice_admin",
-        "vice_academic",
-        "social_worker",
-        "specialist",
-        "psychologist",
-        # المعلمون — يرون إحصائيات طلابهم فقط
-        "teacher",
-        "coordinator",
-        "ese_teacher",
-    }
+    COMMITTEE_ROLES = BEHAVIOR_COMMITTEE  # م5.7 — مصدرٌ واحدٌ في core/permissions.py (W-20261001-023)
 
     @staticmethod
     def can_report(user: CustomUser) -> bool:
-        return user.get_role() in BehaviorPermissions.REPORTER_ROLES
+        """يرصد المخالفة من يحمل القدرة ``behavior.record`` — المصدرُ الواحد بدل قائمة أدوار ثابتة (W-20261010-013)."""
+        from core.capabilities import has_capability
+
+        return has_capability(user, "behavior.record")
 
     @staticmethod
     def is_committee(user: CustomUser) -> bool:
@@ -108,24 +74,73 @@ class BehaviorPermissions:
 
     @staticmethod
     def can_summon(user: CustomUser) -> bool:
-        return (
-            user.get_role() in BehaviorPermissions.SUMMON_ROLES
-            or user.is_superuser
-            or has_unrestricted_role(user)
-        )
+        """يستدعي وليَّ الأمر من يحمل القدرة ``behavior.summon_parent`` — مصدرٌ واحد (W-20261018-003)."""
+        from core.capabilities import has_capability
+
+        return has_capability(user, "behavior.summon_parent")
 
     @staticmethod
     def can_view_stats(user: CustomUser) -> bool:
-        """يُعيد True إذا كان المستخدم مسموحاً له برؤية صفحة الإحصائيات."""
-        return (
-            user.get_role() in BehaviorPermissions.STATS_ROLES
-            or user.is_superuser
-            or has_unrestricted_role(user)
-        )
+        """يرى صفحة الإحصاء من يحمل القدرة ``behavior.statistics`` — مصدرٌ واحد (W-20261018-003)."""
+        from core.capabilities import has_capability
+
+        return has_capability(user, "behavior.statistics")
+
+
+#: نافذةُ تدقيق القراءة: حدثٌ واحد لكل (مستخدم، مخالفة) في هذه المدّة، فلا يتضخّم السجلّ بالتحديث المتكرّر.
+READ_AUDIT_WINDOW = timedelta(minutes=10)
+
+
+def audit_infraction_read(request: HttpRequest, infractions: Any) -> None:
+    """يسجّل في AuditLog قراءةَ النصّ الكامل لمخالفةٍ أو أكثر (W-20261012-033، PDPPL).
+
+    للعروض التي تُظهر الوصفَ والإجراءَ كاملَين (القضيّة، ملفّ الطالب، التقرير، نماذج PDF) لا للقوائم. والسجلُّ
+    معرّفٌ مقنَّع فقط: لا نصَّ مخالفةٍ ولا اسمَ طالب. واستعلامٌ واحدٌ يجلب ما سُجّل حديثاً ثم يُكتب الباقي.
+    """
+    from core.models import AuditLog
+
+    items = [infractions] if isinstance(infractions, BehaviorInfraction) else list(infractions)
+    if not items or not request.user.is_authenticated:
+        return
+    recent = set(
+        AuditLog.objects.filter(
+            user=request.user,
+            action="view",
+            model_name="BehaviorInfraction",
+            object_id__in=[str(i.pk) for i in items],
+            timestamp__gte=timezone.now() - READ_AUDIT_WINDOW,
+        ).values_list("object_id", flat=True)
+    )
+    for inf in items:
+        if str(inf.pk) not in recent:
+            AuditLog.log(
+                user=request.user,
+                action="view",
+                model_name="BehaviorInfraction",
+                object_id=inf.pk,
+                object_repr="مخالفة سلوكية — قراءة النص الكامل",
+                school=inf.school,
+                request=request,
+            )
+
+
+def _portal_url(path: str) -> str:
+    """رابطُ البوابة مطلقاً إن عُرف نطاقُ المنصّة من الإعدادات، وإلا المسارُ وحدَه (بلا معرّفٍ في كلتا الحالتين)."""
+    from django.conf import settings
+
+    origins = [o for o in getattr(settings, "CSRF_TRUSTED_ORIGINS", []) if "*" not in o]
+    if origins:
+        return str(origins[0]).rstrip("/") + path
+    hosts = [h for h in settings.ALLOWED_HOSTS if h and not h.startswith(".") and h != "*"]
+    host = next((h for h in hosts if h not in ("localhost", "127.0.0.1", "testserver")), "")
+    return f"https://{host}{path}" if host else path
 
 
 class BehaviorService:
-    # ── التقييم السلوكي للطالب (نظام النقاط ملغى — يعتمد على عدد المخالفات) ──
+    # ── عدّ مخالفات الطالب ─────────────────────────────────────────────
+    #
+    # [W-20261013-010] كان هنا «مؤشّرُ سلوك» (ملغى) من 100 يُحسب بأوزانٍ ابتدعتها المنصّة (2/5/10/25) ثم يُعرض ويُرسَل
+    # لوليّ الأمر؛ ولا أصلَ له في دليل السلوك 2026 فأُزيل. يبقى العدّ الإجماليُّ وحده.
     @staticmethod
     def get_student_score(
         student: CustomUser,
@@ -133,10 +148,7 @@ class BehaviorService:
         date_from: date | None = None,
         date_to: date | None = None,
     ) -> dict:
-        """
-        يحسب التقييم السلوكي للطالب بناءً على عدد المخالفات ودرجاتها.
-        نظام النقاط ملغى — net_score مشتقّ من عدد/خطورة المخالفات فقط.
-        """
+        """عدد مخالفات الطالب في المدّة (والمدرسة إن حُدّدت)."""
         qs = BehaviorInfraction.objects.filter(student=student)
         if school:
             qs = qs.filter(school=school)
@@ -144,26 +156,7 @@ class BehaviorService:
             qs = qs.filter(date__gte=date_from)
         if date_to:
             qs = qs.filter(date__lte=date_to)
-
-        total_count = qs.count()
-        # عقوبة تقريبية: د1×2 + د2×5 + د3×10 + د4×25 (محدّد بـ30)
-        by_level = {row["level"]: row["c"] for row in qs.values("level").annotate(c=Count("id"))}
-        severity = (
-            by_level.get(1, 0) * 2
-            + by_level.get(2, 0) * 5
-            + by_level.get(3, 0) * 10
-            + by_level.get(4, 0) * 25
-        )
-        net_score = max(0, 100 - min(30, severity))
-        # المؤشّرُ رقمٌ دائماً (لا `None`)، فالحكمُ الافتراضيُّ هو أدنى السُّلَّم.
-        rating, rating_color = tone_for(net_score, NET_SCORE_RATING, empty=NET_SCORE_RATING[-1][1])
-
-        return {
-            "total_count": total_count,
-            "net_score": net_score,
-            "rating": rating,
-            "rating_color": rating_color,
-        }
+        return {"total_count": qs.count()}
 
     # ── إحصائيات لوحة التحكم ────────────────────────────────
     @staticmethod
@@ -205,7 +198,6 @@ class BehaviorService:
         )
 
         score = BehaviorService.get_student_score(student)
-        status_color = tone_for(score["net_score"], NET_SCORE_STATUS)
 
         by_level: dict = {1: 0, 2: 0, 3: 0, 4: 0}
         for inf in infractions:
@@ -214,30 +206,39 @@ class BehaviorService:
         return {
             "infractions": infractions,
             "by_level": by_level,
-            "status_color": status_color,
             **score,
         }
 
     # ── إحصائيات اللجنة ────────────────────────────────────
     @staticmethod
-    def get_committee_data(school: School) -> dict:
-        """بيانات لوحة لجنة الضبط السلوكي"""
+    def get_committee_data(school: School, scope: StudentScope | None = None) -> dict:
+        """بيانات لوحة لجنة الضبط السلوكي — و`scope` (نطاق الجناح) يضيّق قضايا المشرف الإداريّ بجناحه."""
+
+        def _narrow(qs: QuerySet[Any]) -> QuerySet[Any]:
+            return scope.narrow(qs) if scope is not None else qs
+
         open_cases = (
-            BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=False)
+            _narrow(
+                BehaviorInfraction.objects.filter(
+                    school=school, level__in=[3, 4], is_resolved=False
+                )
+            )
             .select_related("student", "reported_by", "violation_category")
             .order_by("-date")
         )
 
         resolved_cases = (
-            BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=True)
+            _narrow(
+                BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=True)
+            )
             .select_related("student", "reported_by")
             .order_by("-date")[:20]
         )
 
         stats = {
             "open_count": open_cases.count(),
-            "resolved_count": BehaviorInfraction.objects.filter(
-                school=school, level__in=[3, 4], is_resolved=True
+            "resolved_count": _narrow(
+                BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=True)
             ).count(),
             "level3": open_cases.filter(level=3).count(),
             "level4": open_cases.filter(level=4).count(),
@@ -261,8 +262,6 @@ class BehaviorService:
         infraction: BehaviorInfraction,
         decision: str,
         action: str = "",
-        restore_pts: int = 0,
-        reason: str = "",
         approved_by: CustomUser | None = None,
         **kwargs,
     ) -> tuple:
@@ -274,7 +273,6 @@ class BehaviorService:
             infraction.action_taken = (infraction.action_taken + "\n" + action).strip()
 
         if decision == "resolve":
-            # نظام النقاط ملغى — restore_pts/reason مُتجاهلان
             infraction.is_resolved = True
             infraction.save()
             return f"✅ تم حل المخالفة للطالب {infraction.student.full_name}", "success"
@@ -489,6 +487,45 @@ class BehaviorService:
             return date(start_year, 9, 1), date(end_year, 6, 30), "العام الدراسي كاملاً"
 
     @staticmethod
+    def email_report_to_guardians(
+        student: CustomUser, school: School, report: dict, year: str, *, sent_by: CustomUser
+    ) -> list[str]:
+        """يرسل التقرير السلوكي بالبريد لأولياء الطالب ذوي البريد؛ يُعيد أسماء من أُرسل إليهم.
+
+        لا يُستدعى إلّا لمن يتّصل بالأسرة (``behavior.guardian_contact``)؛ والتجميدُ يُفرغ القائمة.
+        """
+        from core.parents_freeze import sendable_parent_links
+        from notifications.services import NotificationService
+
+        sent_to: list[str] = []
+        for link in sendable_parent_links(report["parent_links"]):
+            parent = link.parent
+            if not parent.email:
+                continue
+            body = (
+                f"ولي أمر الطالب: {parent.full_name}\n\n"
+                f"التقرير السلوكي للطالب: {student.full_name}\n"
+                f"الفترة: {report['period_label']} — {year}\n\n"
+                f"المخالفات: {report['infractions'].count()}\n\n"
+                f"{school.name}"
+            )
+            try:
+                NotificationService.deliver_email(
+                    user=parent,
+                    school=school,
+                    subject=f"التقرير السلوكي — {student.full_name} — {report['period_label']}",
+                    body_text=body,
+                    student=student,
+                    notif_type="behavior",
+                    sent_by=sent_by,
+                )
+                sent_to.append(parent.full_name)
+            except Exception as e:
+                # [PII-11] سجّل معرّف ولي الأمر لا بريده
+                logger.error("behavior_report: email failed for parent id=%s: %s", parent.id, e)
+        return sent_to
+
+    @staticmethod
     def get_student_report_data(
         student: CustomUser,
         school: School,
@@ -506,9 +543,7 @@ class BehaviorService:
                 date__gte=date_from,
                 date__lte=date_to,
             )
-            .select_related(
-                "reported_by", "recovery", "recovery__approved_by", "violation_category"
-            )
+            .select_related("reported_by", "violation_category")
             .order_by("date")
         )
 
@@ -591,14 +626,11 @@ class BehaviorService:
             # و`date` يومُ الكتابة لا يومُ الواقعة.
             session = infraction.session if infraction.session_id else None
             when = session.date if session is not None else infraction.date
-            title = (
-                f"⚠️ مخالفة سلوكية — {infraction.student.full_name} "
-                f"({LEVEL_DISPLAY.get(infraction.level, '')})"
-            )
-            body = (
-                f"{LEVEL_DESC.get(infraction.level, '')}\n"
-                f"التاريخ: {when.strftime('%Y/%m/%d') if when else ''}"
-            )
+            # العنوانُ هو موضوعُ البريد إلى مزوّدٍ خارجيّ: لا اسمَ طالبٍ ولا درجةً (W-20261012-031، PDPPL م.8).
+            # ولي الأمر يرى التفاصيل داخل بوابته بعد الدخول.
+            title = "إشعار جديد في بوابة ولي الأمر"
+            # جسمُ التطبيق/push/واتساب/SMS محايدٌ كالعنوان: لا درجةَ ولا تاريخَ ولا حسمَ (W-20261012-031).
+            body = "يوجد إشعار جديد بخصوص ابنكم، يُرجى الدخول إلى بوابة ولي الأمر للاطّلاع عليه."
 
             NotificationHub.dispatch_to_parents(
                 event_type=event_type,
@@ -607,19 +639,10 @@ class BehaviorService:
                 title=title,
                 body=body,
                 context={
-                    "infraction": infraction,
-                    "reporter": reporter,
-                    "level": infraction.level,
-                    # ما يطلبه قالبُ البريد المنسَّق — أسماءٌ مقروءةٌ لا كائنات،
-                    # فالسياقُ يعبر Celery مُسلسَلاً.
-                    "student_name": infraction.student.full_name,
+                    # بريدٌ مقتضبٌ: التاريخُ ورابطُ البوابة فقط — لا اسمَ ولا وصفَ ولا إجراءَ ولا مُبلِّغَ ولا درجة.
+                    # والسياقُ يعبر Celery مُسلسَلاً فهو نصوصٌ لا كائنات.
                     "infraction_date": when.strftime("%Y/%m/%d") if when else "",
-                    "level_display": LEVEL_DISPLAY.get(infraction.level, ""),
-                    "level_description": LEVEL_DESC.get(infraction.level, ""),
-                    "description": infraction.description or "",
-                    "action_taken": getattr(infraction, "action_taken", "") or "",
-                    "reported_by": reporter.full_name if reporter else "",
-                    "points_deducted": getattr(infraction, "points_deducted", 0) or 0,
+                    "portal_url": _portal_url(reverse("parent_behavior")),
                 },
                 # كان بريدُ السلوك يخرج نصّاً خاماً بينما يخرج بريدُ الغياب
                 # والرسوب منسَّقاً بترويسة المدرسة — وهو أشدُّ الإشعارات
@@ -812,6 +835,43 @@ class BehaviorService:
         return min(prior + 1, max_step)
 
     @staticmethod
+    def preview_escalation(
+        student: CustomUser,
+        school: School,
+        level: int,
+        violation_category: Any = None,
+        session: Any = None,
+    ) -> dict[str, Any]:
+        """ما سيُحسب قبل الحفظ — قراءةٌ فقط بلا كتابة (W-20260928-007).
+
+        تستعمل الاقتراحَ نفسه الذي يكتب `create_infraction`، فما يظهر للمسجِّل
+        قبل الحفظ هو ما يُخزَّن بعده. الخطوةُ المعادة 0 إن لم تكن للدرجة سلّم.
+        """
+        from .conduct_2026 import BY_CODE
+
+        prior = BehaviorService.get_prior_infraction_count(
+            student, school, level, violation_category, session=session
+        )
+        step = BehaviorService.suggest_escalation_step(
+            student, school, level, violation_category, session=session
+        )
+        if violation_category and violation_category.code in BY_CODE:
+            raw = violation_category.get_escalation_steps()
+        else:
+            raw = ESCALATION_STEPS.get(level, [])
+        steps = [
+            (number, item[1] if isinstance(item, tuple | list) else item)
+            for number, item in enumerate(raw, start=1)
+        ]
+        texts = dict(steps)
+        return {
+            "prior": prior,
+            "step": step,
+            "steps": steps,
+            "next_text": texts.get(step, ""),
+        }
+
+    @staticmethod
     @transaction.atomic
     def create_infraction(
         school: School,
@@ -820,7 +880,6 @@ class BehaviorService:
         level: int,
         description: str,
         action_taken: str = "",
-        points_deducted: int = 0,
         violation_category=None,
         disciplinary_action_type: str = "",
         violation_description: str = "",
@@ -840,7 +899,6 @@ class BehaviorService:
             level: درجة المخالفة (1-4)
             description: وصف المخالفة
             action_taken: الإجراء المتخذ
-            points_deducted: نقاط الخصم
             violation_category: فئة المخالفة (اختياري)
 
         Returns:
@@ -869,7 +927,6 @@ class BehaviorService:
             escalation_step=escalation_step,
             description=description,
             action_taken=action_taken,
-            points_deducted=points_deducted,
             disciplinary_action_type=disciplinary_action_type,
             violation_description=violation_description,
             session=session,

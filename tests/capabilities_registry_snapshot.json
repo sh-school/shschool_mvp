@@ -1,0 +1,1706 @@
+[
+ {
+  "key": "dashboard.open",
+  "label": "فتحُ لوحة التحكّم",
+  "roles": [
+   "academic_advisor",
+   "accountant",
+   "activities_coordinator",
+   "admin",
+   "admin_supervisor",
+   "bus_supervisor",
+   "canteen_supervisor",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_assistant",
+   "ese_teacher",
+   "it_technician",
+   "lab_technician",
+   "librarian",
+   "messenger",
+   "nurse",
+   "occupational_therapist",
+   "parent",
+   "platform_developer",
+   "principal",
+   "psychologist",
+   "receptionist",
+   "secretary",
+   "services_worker",
+   "social_worker",
+   "speech_therapist",
+   "storekeeper",
+   "student",
+   "student_affairs_coordinator",
+   "student_observer",
+   "support_companion",
+   "teacher",
+   "teacher_assistant",
+   "transport_officer",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "decisions.view",
+  "label": "الاطّلاعُ على سجلّ قرارات المالك",
+  "roles": [
+   "principal"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك: يرى نصوصَ القرارات المديرُ و0101 وحدَهما (W-20260928-019)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "student_affairs.manage",
+  "label": "إدارةُ سجلّات الطلبة",
+  "roles": [
+   "platform_developer",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "student_affairs.view",
+  "label": "الاطّلاعُ على سجلّات الطلبة",
+  "roles": [
+   "admin_supervisor",
+   "coordinator",
+   "platform_developer",
+   "principal",
+   "psychologist",
+   "social_worker",
+   "student_affairs_coordinator",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة؛ المشرفُ الإداريُّ لشُعب جناحه (wings/scope.py)",
+  "basis": "سجلُّ الطلبة يعرض اسمَ وليّ الأمر وهاتفَه — قاعدةُ الحاجة (PDPPL): منسّقُ الأنشطة يرث المنسّقَ ولا يتّصل بالأسر، فلا يرث هذه القدرةَ (ويبقى له ما يرثه من غيرها) — بطاقة W-20261010-012، حكم 0104",
+  "grant": null,
+  "not_inherited_by": [
+   "activities_coordinator"
+  ]
+ },
+ {
+  "key": "student_affairs.follow_up",
+  "label": "متابعةُ حضور الطلبة وتأخّرهم وسلوكهم",
+  "roles": [
+   "admin_supervisor",
+   "platform_developer",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسةُ للقيادة؛ المشرفُ الإداريُّ لشُعب جناحه (wings/scope.py)",
+  "basis": "الدليل التنظيميّ 2026: متابعةُ الغياب اليوميّ والتأخّر الصباحيّ؛ وقرارُ المستخدم 2026-09-14: المشرفُ لجناحه فقط",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "dashboard.absence_alert_names",
+  "label": "أسماءُ تنبيهات الغياب في لوحة الإداريّين",
+  "roles": [
+   "admin",
+   "admin_supervisor",
+   "platform_developer",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسةُ للقيادة وadmin؛ المشرفُ الإداريُّ لشُعب جناحه (wings/scope.py)",
+  "basis": "قرارُ المالك 2026-10-03 (W-20261003-030): يبقى admin يرى أسماءَ قائمة التنبيهات بقدرةٍ مخصّصةٍ لها وحدَها، لا بمنح student_affairs.follow_up الذي يفتح ملفّاتِ الطلبة وحركاتِهم وسلوكَهم وتصديرَها والوسائطَ المحمية",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "student_affairs.tardiness",
+  "label": "رصدُ التأخّر الصباحيّ وإلغاؤه",
+  "roles": [
+   "admin_supervisor",
+   "platform_developer",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسةُ للقيادة؛ المشرفُ الإداريُّ لشُعب جناحه (wings/scope.py)",
+  "basis": "الدليل التنظيميّ 2026 م 3.4.2.2: التأخّرُ الصباحيُّ على المشرف الإداريّ من أوّل مرّة",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "student_affairs.deactivate",
+  "label": "إيقافُ قيد طالب",
+  "roles": [
+   "platform_developer",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "student_affairs.verify_contact",
+  "label": "تدقيقُ تغيير رقم التواصل",
+  "roles": [
+   "principal",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "student_affairs.transfers",
+  "label": "انتقالاتُ الطلبة (طلبٌ ومراجعةٌ وإتمام)",
+  "roles": [
+   "platform_developer",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "إتمامُ الانتقال الصادر يعطّل عضويّةَ الطالب، فلا يُمنح من يملك إدخالَ البيانات وحدَه (W-20261001-020)؛ ومنسّقُ شؤون الطلبة منهم بقرار المالك D-265م",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "student_affairs.transfer_approve",
+  "label": "اعتمادُ الانتقال الداخلي بين الشعب وإتمامُه ونقلُه المباشر",
+  "roles": [
+   "principal",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرار المالك D-343م (2026-10-10): المنسّقُ يقدّم طلبَ النقل والنائبُ الإداريّ أو المدير يعتمده، ولهما النقلُ المباشرُ بلا اعتماد أحد؛ والمنسّق لا يدخلها (W-20261001-017)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "student_affairs.activities",
+  "label": "إدارةُ الأنشطة الطلابيّة",
+  "roles": [
+   "activities_coordinator",
+   "platform_developer",
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "ضوابط البرامج والأنشطة ص3: الدخولُ للنائب الأكاديميّ وأخصائيّ الأنشطة",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "students.import_export",
+  "label": "استيرادُ الطلبة وتصديرُهم",
+  "roles": [
+   "admin",
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "student_info.read",
+  "label": "مركزُ معلومات الطالب",
+  "roles": [
+   "academic_advisor",
+   "activities_coordinator",
+   "admin_supervisor",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_assistant",
+   "ese_teacher",
+   "nurse",
+   "platform_developer",
+   "principal",
+   "psychologist",
+   "social_worker",
+   "student_affairs_coordinator",
+   "teacher",
+   "teacher_assistant",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة للقيادة والجهات؛ المعلّمُ لطلبة شُعبه؛ المشرفُ الإداريُّ لشُعب جناحه",
+  "basis": "قرارُ المستخدم: القراءةُ لكلّ من يُدرّس الطالب",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "students.search",
+  "label": "البحثُ السريعُ عن الطلبة",
+  "roles": [
+   "academic_advisor",
+   "accountant",
+   "activities_coordinator",
+   "admin",
+   "admin_supervisor",
+   "bus_supervisor",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_assistant",
+   "ese_teacher",
+   "it_technician",
+   "librarian",
+   "nurse",
+   "occupational_therapist",
+   "platform_developer",
+   "principal",
+   "psychologist",
+   "receptionist",
+   "secretary",
+   "services_worker",
+   "social_worker",
+   "speech_therapist",
+   "student_affairs_coordinator",
+   "student_observer",
+   "support_companion",
+   "teacher",
+   "teacher_assistant",
+   "transport_officer",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "عشرُ نتائجَ بحدٍّ أقصى",
+  "basis": "قرارُ المالك D-192م: تُسحب من المندوب وأمين المخزن ومحضّر المختبر ومشرف المقصف",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "staff_affairs.manage",
+  "label": "إدارةُ شؤون الموظّفين",
+  "roles": [
+   "platform_developer",
+   "principal",
+   "secretary",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "staff_affairs.own_permits",
+  "label": "طلبُ إذنٍ قصيرٍ للموظّف نفسه",
+  "roles": [
+   "academic_advisor",
+   "accountant",
+   "activities_coordinator",
+   "admin",
+   "admin_supervisor",
+   "bus_supervisor",
+   "canteen_supervisor",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_assistant",
+   "ese_teacher",
+   "it_technician",
+   "lab_technician",
+   "librarian",
+   "messenger",
+   "nurse",
+   "occupational_therapist",
+   "platform_developer",
+   "principal",
+   "psychologist",
+   "receptionist",
+   "secretary",
+   "services_worker",
+   "social_worker",
+   "speech_therapist",
+   "storekeeper",
+   "student_affairs_coordinator",
+   "student_observer",
+   "support_companion",
+   "teacher",
+   "teacher_assistant",
+   "transport_officer",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "طلباتُ المستخدم نفسِه ورصيدُه، واستثناءاتُه (نموذج 03) لغير المدير — وإذنُ المدير تُثبت السكرتاريةُ اعتمادَ رئيسه",
+  "basis": "07_forms_catalog.md:13 (نموذج 02) و:14 (نموذج 03) — يقدّمه الموظّف ويوقّعه؛ وسجلُّ الاستئذانات المدرسيّ (07-نماذج المدرسة/07) أوّلُ صفوفه المدير (B3:C3)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "staff_affairs.own_leave",
+  "label": "طلبُ إجازةٍ للموظّف نفسه",
+  "roles": [
+   "academic_advisor",
+   "accountant",
+   "activities_coordinator",
+   "admin",
+   "admin_supervisor",
+   "bus_supervisor",
+   "canteen_supervisor",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_assistant",
+   "ese_teacher",
+   "it_technician",
+   "lab_technician",
+   "librarian",
+   "messenger",
+   "nurse",
+   "occupational_therapist",
+   "platform_developer",
+   "principal",
+   "psychologist",
+   "receptionist",
+   "secretary",
+   "services_worker",
+   "social_worker",
+   "speech_therapist",
+   "storekeeper",
+   "student_affairs_coordinator",
+   "student_observer",
+   "support_companion",
+   "teacher",
+   "teacher_assistant",
+   "transport_officer",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "طلبُ المستخدم نفسِه وحدَه: الموظّفُ يُربط بالحساب الداخل لا بما يُرسَل في الطلب، ولا تتّسع به «إدارةُ شؤون الموظّفين» (التقديمُ نيابةً عن غيره)",
+  "basis": "قرارُ المالك D-301م (2026-10-09): «نعم يقدم لنفسه فقط اعتمد»",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "staff_affairs.attendance_record",
+  "label": "رصدُ حضور الموظّفين اليوميّ",
+  "roles": [
+   "principal",
+   "secretary",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "السكرتيرُ والمديرُ ومن كُلّف بأعباء المدير للكادر كلِّه؛ والنائبان لمن تحت مسؤوليتهما وحدَهم (النائبُ الإداريّ للإداريّين، والأكاديميّ للأكاديميّين): يرصدون ويقبلون العذر لهم لا لغيرهم — قرارُ المالك 2026-09-19",
+  "basis": "03_job_descriptions_rbac.md:101 السكرتير «متابعة الحضور والانصراف للموظفين»؛ rbac_permissions_matrix.md:55 كتابة ATTENDANCE؛ والمديرُ مالكُ الوحدات (:45)؛ وبطاقةُ نائب الشؤون الإدارية «الإنابة عن المدير في مهامه في حال غيابه»، ومنها قبولُ العذر (م-7 وم-24 من docs/compliance/staff_attendance_spec.md)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "staff_affairs.attendance_import",
+  "label": "استيرادُ كشف البصمة اليوميّ",
+  "roles": [
+   "principal",
+   "secretary"
+  ],
+  "scope": "السكرتيرُ والمديرُ للكادر كلِّه: الكشفُ يحوي المدرسةَ كلَّها فلا يستورده النائبُ المحصورُ بمن تحته؛ ومن ينوب عن المدير بتكليفٍ يرصد يدويّاً من لوحة الرصد",
+  "basis": "السكرتير «متابعة الحضور والانصراف للموظفين» (03_job_descriptions_rbac.md:101)؛ والاستيرادُ يكتب عبر StaffAttendanceService.mark نفسِها فيحمل قيودَ الرصد كلَّها؛ طلبُ المالك 2026-10-02 (W-20261002-011)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "staff_affairs.attendance_report",
+  "label": "تقريرُ حضور الموظّفين الشهريّ",
+  "roles": [
+   "principal",
+   "secretary",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المديرُ والسكرتيرُ للمدرسة؛ والنائبُ لمن يتبعه في «reports_to» وحدَهم",
+  "basis": "السكرتير «متابعة الحضور والانصراف للموظفين» (03_job_descriptions_rbac.md:101)؛ والمديرُ رأسُ الهيكل (rbac_permissions_matrix.md:45)؛ والنائبُ الإداريّ «متابعة وتقييم أداء من يندرج تحت مسؤولياته» (:48) والأكاديميّ «تقييم المنسقين والمعلمين» (:50)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "staff_affairs.permits_review",
+  "label": "مراحلُ اعتماد الأذونات القصيرة",
+  "roles": [
+   "coordinator",
+   "principal",
+   "secretary",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "الطلباتُ في مربّع المستخدم وحدَها: السكرتاريةُ للرصيد، ومنسّقُ المادّة لإذن معلّمي قسمه قبل النائب (قرارُ المدرسة)، والنائبُ المختصُّ لمربّعَي المسؤول المباشر والنائب المسؤول، والمديرُ للاعتماد ولنموذج 03 — ونائبُ الشؤون الإدارية فيهما حين تقوم الإنابة بغياب المدير المرصود (م-25)",
+  "basis": "نموذج 02 (أصل PDF ص1) بترتيب مربّعاته: السكرتارية ← المسؤول المباشر والنائب المسؤول ← الإدارة ← مدير المدرسة (م-19 من docs/compliance/staff_attendance_spec.md)؛ والمسؤولُ المباشرُ نائبُ المدير المختصُّ بنصّ ترويسة بطاقات الوصف الوظيفيّ لا منسّقُ القسم (م-21)؛ ونموذج 03 «استخدام مدير المدرسة»؛ والإنابةُ «عن المدير في مهامه في حال غيابه» (بطاقة نائب الشؤون الإدارية 1034، م-24 وم-25)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "staff_affairs.assignments",
+  "label": "تكليفُ موظّفٍ بأعباء وظيفة (م-43)",
+  "roles": [
+   "coordinator",
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "كلٌّ عن وظيفته وحدَها: المديرُ يكلّف نائبَيه (وغيرَهما إن غاب النائبان معاً)، والنائبان كلٌّ أحدَ من تحت مسؤوليته، والمنسّقُ أحدَ معلّمي قسمه",
+  "basis": "النظام الوظيفيّ لموظفي المدارس (قرار مجلس الوزراء 32/2019) م-43: «يجوز لمدير المدرسة ندب الموظف للقيام مؤقتاً بأعباء وظيفة أخرى داخل المدرسة»، وقانون الموارد البشرية 15/2016 م-53؛ وقرارُ المدرسة 2026-09-19 في توزيع التكليف على النائبين (docs/compliance/staff_attendance_spec.md، م-25)؛ وقرارُ المالك 2026-10-04: النائبان يكلّفان من تحتهما أيّاً كان دورُه، والمنسّقُ معلّمَ قسمه في غيابه أو خروجه؛ والمكلَّفُ يحمل قدراتِ الوظيفة المُنَابة مدّةَ التكليف وحدَها (``has_capability``) عدا إدارةِ المستخدمين وإدارةِ النظام",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "staff_affairs.exemptions",
+  "label": "الإعفاءُ من رصد الحضور اليوميّ",
+  "roles": [
+   "principal",
+   "vice_admin"
+  ],
+  "scope": "المديرُ ونائبُه الإداريّ: يعفيان موظّفاً أو أكثر من الرصد اليوميّ لمدّةٍ أو بلا نهاية، فلا يدخل لوحةَ الرصد ولا تقريرَ الغياب الشهريّ ولا إخطارَ الخصم",
+  "basis": "قرارُ المالك 2026-09-21 (docs/compliance/staff_attendance_spec.md، ق-16): موظّفٌ لا يداوم بحكم وضعه الوظيفيّ يبقى حسابُه، ولا يُرصد غائباً فيُخصم منه (سياسة الحضور ت/د 2027/01، البند 5.1). ولا يُخزَّن سببُ الإعفاء: بيانةٌ صحّيّةٌ محتملة (قانون 13/2016)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "audit.permissions_log",
+  "label": "سجلُّ تغييرات الصلاحيّات",
+  "roles": [
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "breach.manage",
+  "label": "تقاريرُ خرق البيانات",
+  "roles": [
+   "admin",
+   "platform_developer",
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "ux_survey.respond",
+  "label": "الإجابةُ على استبانة تجربة المستخدم (الموظفون فقط)",
+  "roles": [
+   "academic_advisor",
+   "accountant",
+   "activities_coordinator",
+   "admin",
+   "admin_supervisor",
+   "bus_supervisor",
+   "canteen_supervisor",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_assistant",
+   "ese_teacher",
+   "it_technician",
+   "lab_technician",
+   "librarian",
+   "messenger",
+   "nurse",
+   "occupational_therapist",
+   "principal",
+   "psychologist",
+   "receptionist",
+   "secretary",
+   "services_worker",
+   "social_worker",
+   "speech_therapist",
+   "storekeeper",
+   "student_affairs_coordinator",
+   "student_observer",
+   "support_companion",
+   "teacher",
+   "teacher_assistant",
+   "transport_officer",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك 2026-10-15 — استبانةٌ مجهولةٌ للموظفين",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "ux_survey.dashboard",
+  "label": "لوحةُ تجميع الاستبانة (المدير والمطوّر المالك)",
+  "roles": [
+   "platform_developer",
+   "principal"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك 2026-10-15 — اللوحةُ للإدارة بحجب المجموعات الصغيرة",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "sot.read",
+  "label": "قراءةُ سجلِّ مصدر الحقيقة (الأحكامُ النافذةُ فقط لغير الإدارة)",
+  "roles": [
+   "academic_advisor",
+   "accountant",
+   "activities_coordinator",
+   "admin",
+   "admin_supervisor",
+   "bus_supervisor",
+   "canteen_supervisor",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_assistant",
+   "ese_teacher",
+   "it_technician",
+   "lab_technician",
+   "librarian",
+   "messenger",
+   "nurse",
+   "occupational_therapist",
+   "platform_developer",
+   "principal",
+   "psychologist",
+   "receptionist",
+   "secretary",
+   "services_worker",
+   "social_worker",
+   "speech_therapist",
+   "storekeeper",
+   "student_affairs_coordinator",
+   "student_observer",
+   "support_companion",
+   "teacher",
+   "teacher_assistant",
+   "transport_officer",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك 2026-10-15 — القراءةُ لكل الأدوار",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "sot.propose",
+  "label": "اقتراحُ تصحيحٍ أو حكمٍ في سجلِّ مصدر الحقيقة",
+  "roles": [
+   "activities_coordinator",
+   "admin_supervisor",
+   "coordinator",
+   "e_projects_coordinator",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك 2026-10-15 — الاقتراحُ للمشرفين",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "sot.approve",
+  "label": "اعتمادُ الأحكام وتغييرُ حالتها وحذفُها ناعمًا (المالكُ وحده)",
+  "roles": [
+   "platform_developer"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك 2026-10-15 — الاعتمادُ للمالك وحده",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "notifications.broadcast",
+  "label": "إدارةُ الإشعارات والإرسالُ الجماعيّ",
+  "roles": [
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "analytics.school",
+  "label": "تحليلاتُ المدرسة",
+  "roles": [
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "assessments.enter_grades",
+  "label": "إنشاءُ التقييمات وإدخالُ الدرجات",
+  "roles": [
+   "coordinator",
+   "ese_teacher",
+   "principal",
+   "teacher",
+   "vice_academic"
+  ],
+  "scope": "بحسب الشُّعب والموادّ داخلَ الشاشة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "assessments.view_results",
+  "label": "لوحةُ التقييم وسجلُّ درجات الشعبة",
+  "roles": [
+   "academic_advisor",
+   "coordinator",
+   "ese_teacher",
+   "principal",
+   "teacher",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "assessments.oversee",
+  "label": "إعدادُ الموادّ ومتابعةُ المتعثّرين",
+  "roles": [
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "assessments.decide_excuse",
+  "label": "قرارُ عذر الغياب عن الاختبار",
+  "roles": [
+   "admin_supervisor",
+   "psychologist",
+   "social_worker",
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرار المالك D-402م؛ الدليل 04b ص. 28: تقديرُ الأعذار والقائمةُ المغلقة",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "grades.import",
+  "label": "استيرادُ الدرجات من ملفّ",
+  "roles": [
+   "admin",
+   "coordinator",
+   "ese_teacher",
+   "principal",
+   "secretary",
+   "teacher",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "reports.results",
+  "label": "كشوفُ النتائج وشهاداتُ الطلبة",
+  "roles": [
+   "coordinator",
+   "ese_teacher",
+   "principal",
+   "teacher",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "reports.school",
+  "label": "تقاريرُ الحضور والسلوك والشهادات للشعبة",
+  "roles": [
+   "principal",
+   "student_affairs_coordinator",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "academic.reports_school",
+  "label": "التقاريرُ الأكاديميّةُ على مستوى المدرسة",
+  "roles": [
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "مراجعةُ الصلاحيّات 2026-09-13 (#222)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "workload.edit",
+  "label": "إدخالُ خطط الأنصبة",
+  "roles": [
+   "coordinator",
+   "platform_developer",
+   "principal",
+   "vice_academic"
+  ],
+  "scope": "قسمُ المنسّق — وكلُّ الأقسام لمُشغِّل الجدول",
+  "basis": "افتراضٌ موصى به — تُبدّله المدرسة (WorkloadGovernance)؛ ومُشغِّلُ الجدول (`schedule.operator`) يُدخل بمنحه",
+  "grant": "_delegated.<locals>.check[schedule.operator]",
+  "not_inherited_by": []
+ },
+ {
+  "key": "workload.review",
+  "label": "مراجعةُ خطط الأنصبة",
+  "roles": [
+   "platform_developer",
+   "principal",
+   "vice_academic"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضٌ موصى به — تُبدّله المدرسة (WorkloadGovernance)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "workload.approve",
+  "label": "اعتمادُ خطط الأنصبة",
+  "roles": [
+   "platform_developer",
+   "principal"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضٌ موصى به — تُبدّله المدرسة (WorkloadGovernance)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "behavior.view",
+  "label": "ملفُّ السلوك ولوحتُه",
+  "roles": [
+   "activities_coordinator",
+   "admin_supervisor",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_teacher",
+   "principal",
+   "psychologist",
+   "social_worker",
+   "student_affairs_coordinator",
+   "teacher",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "behavior.record",
+  "label": "تسجيلُ مخالفةٍ وتقريرُها",
+  "roles": [
+   "activities_coordinator",
+   "admin_supervisor",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_teacher",
+   "principal",
+   "social_worker",
+   "student_affairs_coordinator",
+   "teacher",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": [
+   "ese_assistant",
+   "teacher_assistant"
+  ]
+ },
+ {
+  "key": "behavior.manage",
+  "label": "إدارةُ المخالفات والإجراءات",
+  "roles": [
+   "principal",
+   "social_worker",
+   "student_affairs_coordinator",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "behavior.committee",
+  "label": "لجنةُ الانضباط",
+  "roles": [
+   "admin_supervisor",
+   "principal",
+   "psychologist",
+   "social_worker",
+   "specialist",
+   "student_affairs_coordinator",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "behavior.statistics",
+  "label": "إحصاءاتُ السلوك",
+  "roles": [
+   "activities_coordinator",
+   "coordinator",
+   "ese_teacher",
+   "principal",
+   "psychologist",
+   "social_worker",
+   "specialist",
+   "student_affairs_coordinator",
+   "teacher",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسةُ كلُّها",
+  "basis": "المشرفُ الإداريّ عضوٌ في قضيّة جناحه وحدَها (م5.7، D-207م) فلا يرث بعضويّته إحصاءَ المدرسة كلِّها — حكمُ 0104 على W-20261001-023",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "behavior.summon_parent",
+  "label": "استدعاءُ وليّ الأمر",
+  "roles": [
+   "principal",
+   "psychologist",
+   "social_worker",
+   "student_affairs_coordinator",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "behavior.guardian_contact",
+  "label": "اسمُ وليّ الأمر وإرسالُ التقرير السلوكيّ إليه",
+  "roles": [
+   "admin_supervisor",
+   "principal",
+   "psychologist",
+   "social_worker",
+   "student_affairs_coordinator",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "طلبةُ صاحب الشاشة (المشرفُ لجناحه)",
+  "basis": "قاعدةُ الحاجة (PDPPL): الاسمُ لمن يتّصل بالأسرة أو يستدعيها أو يتابع — قيادةٌ وأخصائيٌّ اجتماعيٌّ ومنسّقُ شؤون الطلبة (قدرةُ الاستدعاء نفسُها) وحاملُ الجناح (قرارُ DPO 2026-09-16)؛ ومن يسجّل مخالفةً ولا يتّصل (معلّمٌ ومنسّقٌ ومنسّقُ أنشطةٍ ومشاريع) يرى «وليّ الأمر مسجَّل» بلا اسم — بطاقة W-20261005-009",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "clinic.access",
+  "label": "وحدةُ العيادة (قراءة)",
+  "roles": [
+   "nurse",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "clinic.write",
+  "label": "تعديلُ السجلّ الصحّيّ وتسجيلُ الزيارات",
+  "roles": [
+   "nurse",
+   "principal",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "بيانات صحّيّة لقاصرين: الكتابةُ سريريّةٌ — حكم 0104 على W-20261001-020 (المنسّقُ قراءةً فقط)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "library.view",
+  "label": "المكتبةُ والكتب",
+  "roles": [
+   "coordinator",
+   "e_projects_coordinator",
+   "librarian",
+   "principal",
+   "student",
+   "teacher",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "library.lend",
+  "label": "الإعارةُ والإرجاع",
+  "roles": [
+   "librarian",
+   "principal",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "library.borrowings_all",
+  "label": "سجلُّ استعارات المدرسة",
+  "roles": [
+   "librarian",
+   "principal",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "transport.access",
+  "label": "وحدةُ النقل",
+  "roles": [
+   "bus_supervisor",
+   "principal",
+   "student_affairs_coordinator",
+   "transport_officer",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "it_admin.reset_passwords",
+  "label": "إعادةُ تعيين كلمات مرور المستخدمين",
+  "roles": [
+   "it_technician"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك 2026-09-22",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "exam_control.access",
+  "label": "نظامُ الكنترول",
+  "roles": [
+   "admin",
+   "coordinator",
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — والنصُّ الوزاريُّ يجعله لجنةً موقوتة (الدراسة، ملحق د)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "exam_control.report_incident",
+  "label": "تسجيلُ حادثةِ اختبارٍ ومراجعتُها",
+  "roles": [
+   "admin",
+   "admin_supervisor",
+   "coordinator",
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ 2026-09-15 (النطاق) وقرارُ المستخدم 2026-09-17 (لا شيءَ آخر من الكنترول)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "attendance.mark",
+  "label": "رصدُ حضور الحصّة",
+  "roles": [
+   "admin_supervisor",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_assistant",
+   "ese_teacher",
+   "principal",
+   "teacher",
+   "teacher_assistant",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "operations.reports",
+  "label": "تقاريرُ الجدول والحضور",
+  "roles": [
+   "admin",
+   "admin_supervisor",
+   "coordinator",
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "operations.daily_absence",
+  "label": "غيابُ اليوم (تقريرُ غياب الطلبة اليوميّ)",
+  "roles": [
+   "admin",
+   "admin_supervisor",
+   "coordinator",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك D-273م: إدارةُ شؤون الطلاب كاملةً لمنسّق شؤون الطلبة، دون تقارير المعلّمين",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "operations.absence_followup_view",
+  "label": "شاشةُ متابعة الغياب (مراقبة)",
+  "roles": [
+   "admin",
+   "admin_supervisor",
+   "coordinator",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "طلبُ المدير SOS-20261012-AC00؛ والنائبُ الأكاديميّ مراقبٌ فقط",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "operations.absence_followup_record",
+  "label": "تسجيلُ الاتّصال والإجراء الإداريّ وتصحيحُهما واستلامُ الإجازة المرضيّة في متابعة الغياب",
+  "roles": [
+   "admin",
+   "admin_supervisor",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة، ولمشرف الجناح جناحُه",
+  "basis": "طلبُ المدير SOS-20261012-AC00؛ وقرارُ المالك D-431م (الرقمُ بلا اسم)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "operations.absence_followup_feedback",
+  "label": "قراءةُ التغذية الراجعة من وليّ الأمر (نصٌّ مشفَّر) في متابعة الغياب",
+  "roles": [
+   "admin",
+   "admin_supervisor",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة، ولمشرف الجناح جناحُه",
+  "basis": "PDPPL — نصٌّ حرٌّ قد يحمل بياناتٍ شخصيّة؛ وفتحُه يُدقَّق بلا نصّه",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "operations.absence_followup_print",
+  "label": "طباعةُ كشفَي متابعة الغياب (التواصل والإجراءات)",
+  "roles": [
+   "principal",
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "قولُ المالك 2026-10-17 (W-20261017-024): الطباعةُ للمدير والنائب الإداريّ ومنسّق شؤون الطلبة وحدَهم",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "operations.absence_followup_followup",
+  "label": "عمودا «المتابعة» (حالةُ التواصل وحالةُ الإجراء) في كشف متابعة الغياب",
+  "roles": [
+   "principal",
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "قولُ المالك 2026-10-14 (بلاغا 6E42 وFFED): المدير والنائبُ الإداريّ ومنسّقُ شؤون الطلاب وحدَهم",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "operations.substitutes_manage",
+  "label": "تسجيلُ غياب معلّمٍ وتعيينُ بديله",
+  "roles": [
+   "admin",
+   "coordinator",
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "schedule.day",
+  "label": "جدولُ اليوم",
+  "roles": [
+   "academic_advisor",
+   "admin_supervisor",
+   "coordinator",
+   "ese_teacher",
+   "parent",
+   "principal",
+   "student",
+   "teacher",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "جدولُ المستخدم نفسِه لغير القيادة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "schedule.weekly",
+  "label": "الجدولُ الأسبوعيّ",
+  "roles": [
+   "academic_advisor",
+   "admin",
+   "admin_supervisor",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_teacher",
+   "principal",
+   "teacher",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "جدولُ المستخدم لغير من يتصفّح",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "schedule.view",
+  "label": "عرضُ الجدول والتبديلات",
+  "roles": [
+   "academic_advisor",
+   "activities_coordinator",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_assistant",
+   "ese_teacher",
+   "occupational_therapist",
+   "parent",
+   "platform_developer",
+   "principal",
+   "speech_therapist",
+   "student",
+   "teacher",
+   "teacher_assistant",
+   "transport_officer",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "schedule.browse",
+  "label": "تصفّحُ جداول الآخرين",
+  "roles": [
+   "admin",
+   "admin_supervisor",
+   "coordinator",
+   "e_projects_coordinator",
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "schedule.print",
+  "label": "طباعةُ الجدول وتصديرُه",
+  "roles": [
+   "academic_advisor",
+   "admin",
+   "admin_supervisor",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_teacher",
+   "principal",
+   "teacher",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "جدولُ المستخدم لغير من يتصفّح",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "schedule.preferences",
+  "label": "تفضيلاتُ المعلّم في الجدول",
+  "roles": [
+   "activities_coordinator",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_teacher",
+   "teacher"
+  ],
+  "scope": "تفضيلاتُه هو",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "schedule.preferences_view",
+  "label": "اطّلاعٌ على تفضيلات المعلّمين في الجدول",
+  "roles": [
+   "coordinator",
+   "principal",
+   "vice_academic"
+  ],
+  "scope": "المدير والنائب الأكاديميّ: المدرسة؛ منسّق المادّة: قسمُه",
+  "basis": "قرارُ المالك D-330م (W-20261010-026): قراءةٌ بلا تعديل؛ التعديلُ يبقى لصاحب التفضيل بـ`schedule.preferences` التي لا تُوسَّع",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "schedule.settings",
+  "label": "إعداداتُ الجدول والتفريغات",
+  "roles": [
+   "platform_developer",
+   "principal",
+   "vice_academic"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "schedule.admin",
+  "label": "إعدادُ الجدول الإداريّ",
+  "roles": [
+   "admin",
+   "principal",
+   "vice_academic"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "schedule.manage",
+  "label": "توزيعاتُ الموادّ",
+  "roles": [
+   "principal",
+   "vice_academic"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "schedule.operator",
+  "label": "مُشغِّلُ الجدول العامّ — إسنادُ الموادّ وتوليدُ الجدول",
+  "roles": [
+   "admin",
+   "principal",
+   "vice_academic"
+  ],
+  "scope": "المدرسة (كلُّ الأقسام)",
+  "basis": "قرارُ المالك 2026-09-25 (التذكرة SOS-20260924-1CFE): قدرةٌ مفوَّضةٌ باسم المستخدم يمنحها ويسحبها المديرُ والنائبُ الأكاديميّ ومطوّرُ المنصّة — إدخالُ الإسناد لكلّ الأقسام بلا وقفِ المنسّقين، وتوليدُ الجدول؛ لا اعتمادَ ولا مراجعةَ ولا إعداداتٍ. الأدوارُ هنا من يولّد الجدولَ اليوم (`schedule.admin`) فلا يفقد أحدٌ ما يملك",
+  "grant": "_delegated.<locals>.check[schedule.operator]",
+  "not_inherited_by": []
+ },
+ {
+  "key": "schedule.approve",
+  "label": "اعتمادُ الجدول",
+  "roles": [
+   "platform_developer",
+   "principal",
+   "vice_academic"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك 2026-09-25 (جلسةُ الجدول): المديرُ والنائبُ الأكاديميّ، والمطوّرُ استثناءً في أيّام الدوام بسببٍ إلزاميٍّ وتدقيق — ولا النائبُ الإداريّ. تُعرَّف هنا ويربطها بواجهة الاعتماد مسارُ الجدول",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "swap.request",
+  "label": "طلبُ تبديل حصّة",
+  "roles": [
+   "ese_teacher",
+   "principal",
+   "teacher",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "swap.respond",
+  "label": "الردُّ على طلب تبديل",
+  "roles": [
+   "coordinator",
+   "ese_teacher",
+   "principal",
+   "teacher",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "swap.approve",
+  "label": "اعتمادُ التبديل",
+  "roles": [
+   "coordinator",
+   "platform_developer",
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "منسّقا المادّتين",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "compensatory.request",
+  "label": "طلبُ حصّةٍ تعويضيّة",
+  "roles": [
+   "ese_teacher",
+   "principal",
+   "teacher",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "compensatory.approve",
+  "label": "اعتمادُ الحصّة التعويضيّة",
+  "roles": [
+   "coordinator",
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "quality.access",
+  "label": "وحدةُ الجودة",
+  "roles": [
+   "academic_advisor",
+   "activities_coordinator",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_teacher",
+   "occupational_therapist",
+   "principal",
+   "psychologist",
+   "social_worker",
+   "specialist",
+   "speech_therapist",
+   "teacher",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "quality.manage",
+  "label": "إدارةُ الخطّة التشغيليّة",
+  "roles": [
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "quality.evaluations",
+  "label": "تقييمُ أداء الموظّفين",
+  "roles": [
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — والنصُّ يجعل الرئيسَ المباشرَ كاتبَ التقييم (م16)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "observation.create",
+  "label": "الزيارةُ الإشرافيّة",
+  "roles": [
+   "academic_advisor",
+   "coordinator",
+   "principal",
+   "vice_academic"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "observation.self",
+  "label": "التقييمُ الذاتيّ",
+  "roles": [
+   "activities_coordinator",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_teacher",
+   "specialist",
+   "teacher"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "observation.peer",
+  "label": "تبادلُ الزيارات",
+  "roles": [
+   "activities_coordinator",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_teacher",
+   "specialist",
+   "teacher"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "parents.portal",
+  "label": "بوّابةُ وليّ الأمر",
+  "roles": [
+   "admin",
+   "parent",
+   "principal",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "أبناؤه وحدَهم",
+  "basis": "قرارُ المالك 2026-09-16: الكادرُ الذي له عضويّةُ وليّ أمرٍ يدخل بوّابتَه ليرى أبناءه وحدَهم، بعد الموافقة على سياسة البيانات",
+  "grant": "holds_parent_membership",
+  "not_inherited_by": []
+ },
+ {
+  "key": "parents.admin",
+  "label": "إدارةُ ربط أولياء الأمور",
+  "roles": [
+   "admin",
+   "principal",
+   "student_affairs_coordinator"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "wings.floors",
+  "label": "شاشةُ الأجنحة والطوابق",
+  "roles": [
+   "admin_supervisor",
+   "platform_developer",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "wings.assign_cover",
+  "label": "تكليفُ بديلٍ لجناح",
+  "roles": [
+   "platform_developer",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_academic",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "wings.record_day",
+  "label": "رصدُ يوم الشعبة في الجناح",
+  "roles": [
+   "admin_supervisor",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "أجنحةُ المشرف (أصيلاً أو بديلاً)",
+  "basis": "قرارُ 2026-09-12: المشرفُ الإداريّ يحصر الغياب — وقرارُ المدير: البديلُ مشرفٌ إداريٌّ أو ملاحظُ طلبةٍ أو عاملُ خدمات، فيرصد بتكليفه لا بدوره",
+  "grant": "_holds_a_wing",
+  "not_inherited_by": []
+ },
+ {
+  "key": "wings.exit_permit_request",
+  "label": "طلبُ إذن خروج طالب",
+  "roles": [
+   "admin_supervisor",
+   "principal",
+   "student_affairs_coordinator",
+   "teacher",
+   "vice_admin"
+  ],
+  "scope": "المعلّم لشُعبه، وحاملُ الجناح لأجنحته",
+  "basis": "مواصفة W-20261005-010: المعلّم يطلب فقط؛ والاعتمادُ لحامل الجناح والنائب الإداريّ (`wings.record_day`)",
+  "grant": "_holds_a_wing",
+  "not_inherited_by": [
+   "activities_coordinator",
+   "coordinator",
+   "e_projects_coordinator",
+   "ese_assistant",
+   "ese_teacher",
+   "teacher_assistant"
+  ]
+ },
+ {
+  "key": "wings.school_wide",
+  "label": "حاصرُ الغياب العامّ — الأجنحةُ الخمسةُ كلُّها",
+  "roles": [
+   "student_affairs_coordinator"
+  ],
+  "scope": "أجنحةُ المدرسة كلُّها، للغياب وحدَه",
+  "basis": "قرارُ المالك 2026-10-06: موظّفٌ إداريٌّ (مشرفٌ إداريّ) يحصر الغيابَ في المدرسة كلِّها، فيرى الأجنحةَ الخمسةَ ويعتمد رصدَ المعلّمين ويصحّحه ويحوّل العذرَ بمهلته، ويرفع ملخّصَ الحصّتين الأولى والثانية للوزارة يدويّاً. قدرةٌ مفوَّضةٌ باسمه (يمنحها المديرُ أو النائبُ الأكاديميّ) لا دورٌ جديد؛ ويبقى عنه ما يُحجب عن مشرف الجناح (الدرجاتُ وملاحظاتُ الأخصائيّين وسببُ العيادة)",
+  "grant": "_delegated.<locals>.check[wings.school_wide]",
+  "not_inherited_by": []
+ },
+ {
+  "key": "wings.excuse_after_deadline",
+  "label": "قبولُ عذرِ غيابٍ بعد مهلة اليومين",
+  "roles": [
+   "principal",
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "الدليل التنظيميّ 2026 م 3.4.1.5: إن لم يردّ وليُّ الأمر خلال يومين حُسب الغيابُ بلا عذر — فما بعد المهلة استثناءٌ يقرّره النائبُ الإداريّ بسبب",
+  "grant": null,
+  "not_inherited_by": []
+ }
+]

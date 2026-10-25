@@ -35,9 +35,9 @@ jobs:
     name: pip-audit — PyPI advisories
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -52,15 +52,29 @@ jobs:
 
       - name: Scan for known CVEs
         run: |
+          # تجاهلٌ موثَّق لست مشوراتٍ وحدها (أمر المالك: GHSA-8pqf-f4m5-798g في 2026-10-15 W-20261015-011، والخمس الأخرى في 2026-10-24 W-20261021-002):
+          # GHSA-8pqf-f4m5-798g: ReDoS في twisted.mail.imap4 — لا نستورد الوحدة ولا منفذَ IMAP عندنا.
+          # GHSA-cwm5-jh59-mwxr: telnet في twisted.conch — لا نستورده ولا منفذَ Telnet.
+          # GHSA-2qrf-pqgx-qh9v: IMAP4 SEARCH في twisted.mail — لا نستورده.
+          # GHSA-3476-c5c2-fr73: twisted.words.xish (domish) — لا نستورده.
+          # GHSA-53xc-49m8-p798: twisted.words.protocols.irc — لا نستورده ولا منفذَ IRC.
+          # GHSA-q7qq-6mhp-9rc4: تهريبُ طلبات في twisted.web.http — تستوردها daphne فعلاً (http_protocol وserver)، فهي الوحيدةُ المستعملة؛ التخفيفُ بالوكيل الأمامي (Railway) الذي يعيد كتابة الترويسات، ولم يُقَس هنا.
+          # الإصلاحُ 26.10.0rc1 تمهيديٌّ فقط. مراجعةٌ أقصاها 2026-11-14 (يفشل tests/test_vuln_ignore_expiry.py بعدها)، وإعادةُ الفحص كلَّ أحد.
           pip-audit -r requirements.txt \
             --vulnerability-service pypi \
+            --ignore-vuln GHSA-8pqf-f4m5-798g \
+            --ignore-vuln GHSA-cwm5-jh59-mwxr \
+            --ignore-vuln GHSA-2qrf-pqgx-qh9v \
+            --ignore-vuln GHSA-3476-c5c2-fr73 \
+            --ignore-vuln GHSA-53xc-49m8-p798 \
+            --ignore-vuln GHSA-q7qq-6mhp-9rc4 \
             --format json \
             --output pip-audit-pypi-report.json \
             --desc \
             --progress-spinner off
 
       - name: Upload pip-audit Report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: pip-audit-pypi-report
@@ -74,9 +88,9 @@ jobs:
     name: Bandit — SAST Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -105,7 +119,7 @@ jobs:
             -f html -o bandit-full-report.html
 
       - name: Upload Bandit Reports
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: bandit-reports
@@ -135,9 +149,9 @@ jobs:
     name: pip-audit — OSV advisories
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -152,15 +166,29 @@ jobs:
 
       - name: Scan against OSV
         run: |
+          # تجاهلٌ موثَّق لست مشوراتٍ وحدها (أمر المالك: GHSA-8pqf-f4m5-798g في 2026-10-15 W-20261015-011، والخمس الأخرى في 2026-10-24 W-20261021-002):
+          # GHSA-8pqf-f4m5-798g: ReDoS في twisted.mail.imap4 — لا نستورد الوحدة ولا منفذَ IMAP عندنا.
+          # GHSA-cwm5-jh59-mwxr: telnet في twisted.conch — لا نستورده ولا منفذَ Telnet.
+          # GHSA-2qrf-pqgx-qh9v: IMAP4 SEARCH في twisted.mail — لا نستورده.
+          # GHSA-3476-c5c2-fr73: twisted.words.xish (domish) — لا نستورده.
+          # GHSA-53xc-49m8-p798: twisted.words.protocols.irc — لا نستورده ولا منفذَ IRC.
+          # GHSA-q7qq-6mhp-9rc4: تهريبُ طلبات في twisted.web.http — تستوردها daphne فعلاً (http_protocol وserver)، فهي الوحيدةُ المستعملة؛ التخفيفُ بالوكيل الأمامي (Railway) الذي يعيد كتابة الترويسات، ولم يُقَس هنا.
+          # الإصلاحُ 26.10.0rc1 تمهيديٌّ فقط. مراجعةٌ أقصاها 2026-11-14 (يفشل tests/test_vuln_ignore_expiry.py بعدها)، وإعادةُ الفحص كلَّ أحد.
           pip-audit -r requirements.txt \
             --vulnerability-service osv \
+            --ignore-vuln GHSA-8pqf-f4m5-798g \
+            --ignore-vuln GHSA-cwm5-jh59-mwxr \
+            --ignore-vuln GHSA-2qrf-pqgx-qh9v \
+            --ignore-vuln GHSA-3476-c5c2-fr73 \
+            --ignore-vuln GHSA-53xc-49m8-p798 \
+            --ignore-vuln GHSA-q7qq-6mhp-9rc4 \
             --format json \
             --output pip-audit-osv-report.json \
             --desc \
             --progress-spinner off
 
       - name: Upload OSV Report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: pip-audit-osv-report
@@ -173,20 +201,6 @@ jobs:
   django-check:
     name: Django — Deployment Security Check
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: test_db
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_pass
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.production
@@ -204,9 +218,12 @@ jobs:
       AWS_STORAGE_BUCKET_NAME: "test-only-bucket"
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      # postgres 16 الأصليّ على الـrunner بدل حاويةٍ تُسحب من Docker Hub (سقفُ السحب أسقط الفحوصَ 2026-10-09)
+      - uses: ./.github/actions/native-postgres
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -231,7 +248,7 @@ jobs:
           python manage.py check --deploy --fail-level WARNING 2>&1 | tee django-deploy-check.txt
 
       - name: Upload Django Check Report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: django-deploy-check
@@ -247,7 +264,7 @@ jobs:
     needs: [pip-audit-pypi, pip-audit-osv, bandit, django-check]
     if: always()
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # أحدُ سياقَين مطلوبَين في حماية `main` — بوابةُ دمجٍ فعليّةٌ لا تقرير. الحكمُ في scripts/ci_needs_gate.py
       # (المصدرُ نفسُه لبوابة الجودة): النجاحُ وحدَه نجاح؛ `cancelled` (مهلةٌ أو إلغاءُ concurrency، وقع فعلاً

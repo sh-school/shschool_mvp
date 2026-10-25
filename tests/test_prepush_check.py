@@ -8,6 +8,8 @@ import importlib.util
 import re
 from pathlib import Path
 
+import pytest
+
 _spec = importlib.util.spec_from_file_location("prepush_check", Path("scripts/prepush_check.py"))
 prepush_check = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(prepush_check)
@@ -46,11 +48,43 @@ def _all_pass(monkeypatch, **overrides):
     monkeypatch.setattr(prepush_check, "check_personal_data", ok)
     monkeypatch.setattr(prepush_check, "check_secrets", overrides.get("secrets", ok))
     monkeypatch.setattr(prepush_check, "check_complexity", overrides.get("complexity", ok))
+    monkeypatch.setattr(prepush_check, "check_types", overrides.get("types", ok))
+    monkeypatch.setattr(prepush_check, "check_migration_collisions", ok)
+    monkeypatch.setattr(prepush_check, "check_structure", ok)
+    # لا واجهةَ تغيّرت افتراضاً: خطوةُ الهويّة تُتخطّى فلا تُشغَّل الحرّاسُ الحقيقيّة في اختبارات الأداة.
+    monkeypatch.setattr(prepush_check, "changed_paths_vs_merge_base", lambda: [])
 
 
 def test_all_green_exits_zero(monkeypatch):
     _all_pass(monkeypatch)
+    monkeypatch.setattr(prepush_check, "write_receipt", lambda: None)
     assert prepush_check.main([]) == 0
+
+
+def test_receipt_written_only_on_full_success(monkeypatch):
+    calls = []
+    monkeypatch.setattr(prepush_check, "write_receipt", lambda: calls.append(1))
+    _all_pass(monkeypatch)
+    assert prepush_check.main([]) == 0 and calls == [1]
+    _all_pass(monkeypatch, complexity=lambda: (prepush_check.MISSING, "radon غائب"))
+    assert prepush_check.main(["--allow-missing"]) == 0 and calls == [1]
+
+
+def test_receipt_carries_the_current_head(monkeypatch, tmp_path):
+    import json
+
+    monkeypatch.setattr(prepush_check, "head8", lambda: "abcd1234")
+    monkeypatch.setattr(prepush_check, "_run", lambda cmd, **k: subprocess_result(str(tmp_path)))
+    prepush_check.write_receipt()
+    data = json.loads((tmp_path / prepush_check.RECEIPT_NAME).read_text(encoding="utf-8"))
+    assert data == {"head": "abcd1234", "ok": True}
+
+
+def subprocess_result(out):
+    class R:
+        stdout = out
+
+    return R()
 
 
 def test_one_failing_check_exits_one_even_if_another_is_missing(monkeypatch):
@@ -64,5 +98,148 @@ def test_one_failing_check_exits_one_even_if_another_is_missing(monkeypatch):
 
 def test_a_missing_tool_exits_three_unless_allowed(monkeypatch):
     _all_pass(monkeypatch, complexity=lambda: (prepush_check.MISSING, "radon غائب"))
+    monkeypatch.setattr(prepush_check, "write_receipt", lambda: None)
     assert prepush_check.main([]) == 3
     assert prepush_check.main(["--allow-missing"]) == 0
+
+
+# ── حرّاسُ الهويّة في prepush (W-20261011-002، D-376م) ─────────────────────────────────────
+
+
+def test_only_templates_and_static_count_as_touching_the_interface():
+    assert prepush_check.touches_interface(["templates/dashboard/a.html"])
+    assert prepush_check.touches_interface(["core/views.py", "static/css/custom/x.css"])
+    assert not prepush_check.touches_interface(["core/views.py", "tests/test_x.py", "docs/a.md"])
+    # بادئةٌ لا اسمُ مجلّدٍ يشبهها: `templates_old/` و`staticfiles/` ليسا الواجهة.
+    assert not prepush_check.touches_interface(["templates_old/a.html", "staticfiles/a.css"])
+
+
+def test_the_three_identity_guards_of_d376_are_among_those_prepush_runs():
+    added = {
+        "tests/test_dead_classes.py",
+        "tests/test_design_ratchet.py",
+        "tests/test_tailwind_freeze.py",
+    }
+    assert added <= set(prepush_check.IDENTITY_GUARDS)
+    for path in prepush_check.IDENTITY_GUARDS:
+        assert Path(path).exists(), f"حارسٌ مذكورٌ في الأداة وغيرُ موجود: {path}"
+
+
+def _stub_other_checks(monkeypatch):
+    _all_pass(monkeypatch)
+
+
+def test_a_commit_without_interface_files_skips_the_identity_guards(monkeypatch, capsys):
+    _stub_other_checks(monkeypatch)
+    monkeypatch.setattr(prepush_check, "changed_paths_vs_merge_base", lambda: ["core/views.py"])
+    ran = []
+    monkeypatch.setattr(
+        prepush_check, "_run_identity_guards", lambda: ran.append(1) or (prepush_check.OK, "")
+    )
+    assert prepush_check.main([]) == 0
+    assert not ran, "الحرّاس شُغّلت على إيداعٍ لا يمسّ الواجهة"
+    assert "identity_ack" not in capsys.readouterr().out
+
+
+def test_an_interface_commit_runs_the_guards_and_a_pass_prints_the_receipt_last(
+    monkeypatch, capsys
+):
+    _stub_other_checks(monkeypatch)
+    monkeypatch.setattr(prepush_check, "changed_paths_vs_merge_base", lambda: ["templates/a.html"])
+    monkeypatch.setattr(prepush_check, "_run_identity_guards", lambda: (prepush_check.OK, ""))
+    monkeypatch.setattr(prepush_check, "head8", lambda: "abcd1234")
+    assert prepush_check.main([]) == 0
+    assert capsys.readouterr().out.strip().splitlines()[-1] == "identity_ack: abcd1234 نجح"
+
+
+def test_a_failing_identity_guard_blocks_and_the_last_line_says_failed(monkeypatch, capsys):
+    _stub_other_checks(monkeypatch)
+    monkeypatch.setattr(prepush_check, "changed_paths_vs_merge_base", lambda: ["static/css/x.css"])
+    monkeypatch.setattr(
+        prepush_check, "_run_identity_guards", lambda: (prepush_check.FAIL, "صنفٌ بلا تعريف")
+    )
+    monkeypatch.setattr(prepush_check, "head8", lambda: "abcd1234")
+    assert prepush_check.main([]) == 1
+    assert capsys.readouterr().out.strip().splitlines()[-1] == "identity_ack: abcd1234 سقط"
+
+
+def test_an_unknown_diff_is_treated_as_touching_the_interface(monkeypatch):
+    # لا merge-base (فرعٌ وحيد/سجلٌّ مبتور): الأحوط تشغيلُ الحرّاس لا تخطّيها.
+    monkeypatch.setattr(prepush_check, "changed_paths_vs_merge_base", lambda: None)
+    assert prepush_check.interface_touched() is True
+
+
+def test_the_identity_step_has_its_own_time_budget_documented():
+    assert prepush_check.IDENTITY_TIMEOUT_SECONDS >= 120
+    assert "D-376" in Path("scripts/prepush_check.py").read_text(encoding="utf-8")
+
+
+# ── mypy بإصدار CI داخل prepush افتراضياً (W-20261014-002) ────────────────────────────────
+
+
+def test_mypy_runs_by_default_and_a_failure_blocks(monkeypatch):
+    _all_pass(monkeypatch, types=lambda: (prepush_check.FAIL, "خطأ نوع"))
+    assert prepush_check.main([]) == 1
+
+
+def test_no_types_flag_is_reported_as_unmeasured_not_as_pass(monkeypatch):
+    _all_pass(monkeypatch)
+    assert prepush_check.main(["--no-types"]) == 3
+
+
+def test_a_version_skew_fails_the_types_check(monkeypatch):
+    monkeypatch.setattr(
+        prepush_check, "mypy_version_skew", lambda: ["mypy: الثابتُ 1.10.0، والمثبَّتُ عندك 2.3.1"]
+    )
+    status, detail = prepush_check.check_types()
+    assert status == prepush_check.FAIL and "1.10.0" in detail and "requirements-mypy.txt" in detail
+
+
+def test_an_absent_checker_fails_not_passes(monkeypatch):
+    monkeypatch.setattr(
+        prepush_check, "mypy_version_skew", lambda: ["mypy: الثابتُ 1.10.0، والمثبَّتُ عندك غائب"]
+    )
+    assert prepush_check.check_types()[0] == prepush_check.FAIL
+
+
+def test_flow_documents_the_head_freeze_rule():
+    flow = Path("docs/governance/flow.md").read_text(encoding="utf-8")
+    assert "تجميدُ الرأس" in flow and "make prepush" in flow
+
+
+def test_real_mypy_1_10_0_flags_a_known_error_when_installed(tmp_path):
+    """القبول: prepush يسقط على خطأ mypy تعرفه النسخةُ الثابتة؛ يُتخطّى إن لم تكن 1.10.0 مثبَّتة هنا."""
+    import subprocess
+    import sys
+
+    import pytest
+
+    from tests.mypy_ratchet import installed_version, pinned_version
+
+    if installed_version("mypy") != pinned_version("mypy"):
+        pytest.skip("mypy الثابت غير مثبَّت في هذه البيئة")
+    bad = tmp_path / "bad.py"
+    bad.write_text("x: int = 'a'\n", encoding="utf-8")
+    proc = subprocess.run([sys.executable, "-m", "mypy", str(bad)], capture_output=True, text=True)
+    assert proc.returncode == 1 and "Incompatible types" in proc.stdout
+
+
+def test_the_migration_collision_check_maps_exit_codes(monkeypatch):
+    class Proc:
+        def __init__(self, code):
+            self.returncode, self.stdout, self.stderr = code, "x", ""
+
+    for code, expected in (
+        (0, prepush_check.OK),
+        (1, prepush_check.FAIL),
+        (3, prepush_check.MISSING),
+    ):
+        monkeypatch.setattr(prepush_check, "_run", lambda cmd, c=code: Proc(c))
+        assert prepush_check.check_migration_collisions()[0] == expected
+
+
+def test_structure_guards_do_not_nest(monkeypatch):
+    """حرّاسُ البنية تشغّل pytest الذي يشغّل هذا الملف؛ فداخلها تُتخطّى بدل التداخل اللانهائي (تعليق shard 5 في #1221)."""
+    monkeypatch.setenv(prepush_check.NESTED_ENV, "1")
+    monkeypatch.setattr(prepush_check, "_run", lambda *a, **k: pytest.fail("لا تشغيل متداخل"))
+    assert prepush_check.check_structure()[0] == prepush_check.OK

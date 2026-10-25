@@ -87,7 +87,7 @@
  ],
  "core_import_sites": {
   "academic_management": [
-   "core/capabilities.py"
+   "core/capabilities/workload.py"
   ],
   "assessments": [
    "core/dashboard_selectors.py",
@@ -125,7 +125,7 @@
    "core/management/commands/import_enrolment_register.py"
   ],
   "student_info": [
-   "core/capabilities.py"
+   "core/capabilities/student_affairs.py"
   ],
   "transport": [
    "core/dashboard_selectors.py"
@@ -297,33 +297,19 @@
   "behavior/views.py::_deny_unreachable": {
    "orm": 17
   },
-  "behavior/views.py::_get_scoped_students": {
-   "orm": 24
-  },
-  "behavior/views.py::_quick_log_context": {
-   "orm": 27
-  },
-  "behavior/views.py::_visible_student_ids": {
-   "orm": 17
-  },
   "behavior/views.py::behavior_dashboard": {
    "lines": 77,
-   "orm": 36
+   "orm": 19
   },
   "behavior/views.py::behavior_report": {
-   "lines": 70,
    "orm": 18
   },
   "behavior/views.py::behavior_statistics": {
    "orm": 17
   },
-  "behavior/views.py::quick_log": {
-   "lines": 95,
-   "orm": 30
-  },
   "behavior/views.py::report_infraction": {
-   "lines": 109,
-   "orm": 31
+   "lines": 107,
+   "orm": 6
   },
   "behavior/views.py::student_behavior_pdf": {
    "orm": 22
@@ -332,8 +318,8 @@
    "orm": 18
   },
   "behavior/views.py::summon_parent": {
-   "lines": 153,
-   "orm": 34
+   "lines": 146,
+   "orm": 10
   },
   "clinic/views.py::student_health_record": {
    "orm": 7
@@ -348,7 +334,7 @@
    "orm": 7
   },
   "core/views_auth.py::login_view": {
-   "lines": 91,
+   "lines": 85,
    "orm": 22
   },
   "core/views_auth.py::verify_2fa": {
@@ -367,7 +353,7 @@
    "orm": 14
   },
   "core/views_students.py::student_import_template": {
-   "lines": 95
+   "lines": 89
   },
   "developer_feedback/views.py::DeveloperInboxListView.get_queryset": {
    "orm": 9
@@ -440,15 +426,15 @@
    "orm": 14
   },
   "operations/views_schedule.py::smart_schedule_view": {
-   "lines": 96,
+   "lines": 81,
    "orm": 24
   },
   "operations/views_schedule.py::teacher_load_report": {
    "orm": 13
   },
   "operations/views_schedule.py::teacher_preferences": {
-   "lines": 90,
-   "orm": 13
+   "lines": 82,
+   "orm": 9
   },
   "operations/views_swap.py::compensatory_request": {
    "orm": 9
@@ -467,8 +453,8 @@
    "orm": 11
   },
   "parents/views.py::manage_parent_links": {
-   "lines": 145,
-   "orm": 51
+   "lines": 135,
+   "orm": 39
   },
   "parents/views.py::parent_all_grades": {
    "orm": 8
@@ -629,7 +615,7 @@
    "orm": 10
   },
   "staging/views.py::download_grade_template": {
-   "lines": 106
+   "lines": 102
   },
   "staging/views.py::import_grades_select": {
    "orm": 15
@@ -667,7 +653,7 @@
    "orm": 26
   },
   "student_affairs/views.py::behavior_export_excel": {
-   "lines": 73,
+   "lines": 72,
    "orm": 12
   },
   "student_affairs/views.py::behavior_overview": {
@@ -678,15 +664,11 @@
    "lines": 81,
    "orm": 25
   },
-  "student_affairs/views.py::student_dashboard": {
-   "lines": 61
-  },
   "student_affairs/views.py::student_edit": {
-   "lines": 76,
-   "orm": 9
+   "lines": 63
   },
   "student_affairs/views.py::student_export_excel": {
-   "lines": 73
+   "lines": 72
   },
   "student_affairs/views.py::student_list": {
    "lines": 224,
@@ -697,8 +679,8 @@
    "orm": 15
   },
   "student_affairs/views.py::student_profile": {
-   "lines": 182,
-   "orm": 81
+   "lines": 179,
+   "orm": 76
   },
   "student_affairs/views.py::student_profile_pdf": {
    "lines": 118,
@@ -721,21 +703,11 @@
   "student_affairs/views.py::tardiness_pdf": {
    "orm": 26
   },
-  "student_affairs/views.py::tardiness_record": {
-   "lines": 113,
-   "orm": 19
-  },
   "student_affairs/views.py::tardiness_search_students": {
    "orm": 7
   },
-  "student_affairs/views.py::transfer_create": {
-   "orm": 11
-  },
   "student_affairs/views.py::transfer_list": {
    "orm": 6
-  },
-  "student_affairs/views.py::transfer_review": {
-   "orm": 8
   },
   "student_info/views.py::activities": {
    "orm": 17
@@ -807,7 +779,7 @@
    "orm": 9
   },
   "wings/views_absence_file.py::student_search": {
-   "orm": 16
+   "orm": 14
   },
   "wings/views_ministry.py::ministry_report": {
    "orm": 8
@@ -816,10 +788,10 @@
    "orm": 8
   },
   "wings/views_register.py::section_register_export": {
-   "orm": 29
+   "orm": 23
   },
   "wings/views_register.py::wing_register_export": {
-   "orm": 30
+   "orm": 24
   }
  }
 }

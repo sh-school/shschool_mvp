@@ -10,7 +10,7 @@ import requests
 from django.core.cache import cache
 from django.db import connection
 
-from command_center import collectors, contract, webstats
+from command_center import collectors, contract, refresh, webstats
 from command_center.collectors import database, delivery, github, quality, supply
 
 pytestmark = pytest.mark.django_db
@@ -143,6 +143,9 @@ def test_the_web_sample_is_locked_thirty_seconds_and_never_raises(monkeypatch, s
 def test_opening_the_page_takes_a_web_sample(client_as, developer_user, monkeypatch, settings):
     settings.QCC_LAZY_REFRESH = True
     calls = []
+    # فتحُ الصفحة مع الجمع الكسول يطلق خيطَ جمعٍ حقيقيّاً يكتب لوحاتِ cache العمليّةِ متأخّراً فيطمس قيمَ اختباراتٍ لاحقة في العامل نفسِه
+    # (فشلُ #1033/#1049 وNightly)؛ والاختبارُ يحرس العيّنة وحدَها فلا خيط.
+    monkeypatch.setattr(refresh, "_in_thread", lambda group: None)
     monkeypatch.setattr(webstats, "sample", lambda: calls.append(1))
     client_as(developer_user).get("/command-center/")
     assert calls == [1]

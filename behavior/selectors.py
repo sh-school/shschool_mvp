@@ -11,11 +11,17 @@
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Iterable
 from typing import Any
 
+from django.http import Http404
+from django.shortcuts import get_object_or_404
+
 from core.academic_calendar import academic_year_for_school
-from core.models import ClassGroup, StudentEnrollment
+from core.models import ClassGroup, CustomUser, StudentEnrollment
+from core.permissions import get_teacher_student_ids, teacher_can_access_student
+from wings.scope import student_scope_for
 
 
 def _section_key(section: str) -> tuple[int, int, str]:
@@ -63,3 +69,91 @@ def student_picker(students: Iterable[Any], school) -> dict[str, Any]:
         },
         "all_sections": sorted({s for found in sections.values() for s in found}, key=_section_key),
     }
+
+
+def visible_infractions(user, school):
+    """مخالفاتُ المدرسة المرئيةُ لصاحب الطلب — بنطاقِ الويب نفسِه (W-20261012-032).
+
+    المعلّمُ والمنسّقُ ومشرفُ الجناح لطلبتهم، والقيادةُ (None) للمدرسة كلِّها. و`?student_id` و`?class_id`
+    تُضيَّقان بعده فتُرجعان قائمةً فارغةً لطالبٍ خارج النطاق لا خطأً يكشف وجوده."""
+    from .models import BehaviorInfraction
+
+    qs = BehaviorInfraction.objects.filter(school=school).with_student().order_by("-date")
+    visible = get_teacher_student_ids(user)
+    if visible is not None:
+        qs = qs.filter(student_id__in=visible)
+    return qs
+
+
+def recordable_student(request, school, student_id):
+    """الطالبُ الذي يحقّ لصاحب الطلب أن يسجّل عليه مخالفة — وإلّا 404 موحَّد لا يكشف وجودَه.
+
+    يجمع ثلاثةَ شروط في استعلامٍ واحد: عضويةٌ فعّالةٌ في مدرسة الطلب بدور طالب (فمستخدمٌ من مدرسةٍ أخرى
+    أو غيرُ طالبٍ لا يُجلب)، ثمّ نطاقُ الدور: المشرفُ المقيَّد بجناحه، والمعلّمُ والمنسّقُ بجدولهما، والقيادةُ
+    لمدرستها كلِّها. وتُمرَّر `student.id` (UUID) لا النصُّ الخام: مقارنةُ نصٍّ بمجموعة UUID تُرجع False دائماً.
+    يُجلب الطالبُ بنطاقه قبل صحّة النموذج، ومعرّفٌ فارغ يُرجع None. الرفضُ 404 لا صفحةَ منع كي لا يُعرف أنّ الطالبَ موجودٌ في مدرسةٍ أخرى أو خارج جدول المعلّم."""
+    if not student_id:
+        return None
+    try:
+        sid = uuid.UUID(str(student_id))
+    except ValueError:
+        raise Http404("طالبٌ غير موجود") from None
+    student = get_object_or_404(
+        CustomUser.objects.filter(
+            memberships__school=school,
+            memberships__is_active=True,
+            memberships__role__name="student",
+        ).distinct(),
+        id=sid,
+    )
+    scope = student_scope_for(request)
+    if scope.is_wing_bound:
+        scope.require_student(student.id)
+    elif not teacher_can_access_student(request.user, student.id):
+        raise Http404("طالبٌ غير موجود")
+    return student
+
+
+def escalation_preview_targets(students, student_id: str, category_id: str):
+    """(الطالب، الفئة) لمعاينة التصعيد، أو None إن لم يصحّ المعرّفان أو خرج الطالب عن النطاق أو الفئةُ بلا درجة.
+
+    `students` استعلامُ الطلبة المرئيّين لصاحب الطلب — فلا يُعرض طالبٌ خارج نطاقه.
+    """
+    from behavior.models import ViolationCategory
+
+    try:
+        sid, cid = uuid.UUID(student_id), uuid.UUID(category_id)
+    except (ValueError, TypeError):
+        return None
+    student = students.filter(pk=sid).first()
+    category = ViolationCategory.objects.filter(pk=cid, is_active=True).first()
+    if student is None or category is None or category.degree is None:
+        return None
+    return student, category
+
+
+def _visible_student_ids(request):
+    """طلبةُ صاحب الطلب — `None` للمدرسة كلِّها، ومجموعةٌ للمقيَّد بجدولٍ أو جناح."""
+    return get_teacher_student_ids(request.user, scope=student_scope_for(request))
+
+
+def _get_scoped_students(request, school):
+    """
+    يُعيد QuerySet طلاب مرئيّ حسب دور المستخدم:
+    - القيادة/الأخصائيون → كل طلاب المدرسة
+    - المشرف الإداري → طلبة جناحه
+    - المعلم/المنسق → طلاب فصوله فقط
+    """
+    student_ids = _visible_student_ids(request)
+    if student_ids is None:
+        # admin/leadership — all students
+        return (
+            CustomUser.objects.filter(
+                memberships__school=school,
+                memberships__role__name="student",
+                memberships__is_active=True,
+            )
+            .order_by("full_name")
+            .distinct()
+        )
+    return CustomUser.objects.filter(id__in=student_ids).order_by("full_name")

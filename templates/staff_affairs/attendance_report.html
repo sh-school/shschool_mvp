@@ -3,6 +3,7 @@
 {% load ui %}
 {% load navigation %}
 {% block title %}تقرير حضور الموظفين{% endblock %}
+{% block main_class %}{% page_layout "report" %}{% endblock %}
 {% block breadcrumbs %}
 {% if request.user|can_open:"staff_affairs:attendance_board" %}
 {% url 'staff_affairs:attendance_board' as board_url %}{% include "components/breadcrumbs.html" with parent_url=board_url parent_label="رصد الحضور" current="تقرير الشهر" %}
@@ -14,7 +15,7 @@
 {% block content %}
 <div class="exec-dash">
   {% page_header "تقرير حضور الموظفين الشهري" subtitle="يحسب ولا يخصم: الخصمُ (البند 5) قرارٌ إداريّ على هذا التقرير" icon="reports" %}
-    <a data-app-file href="{% url 'staff_affairs:attendance_report_xlsx' %}?month={{ month_value }}" class="btn-primary btn-sm">{% icon "export_excel" %} تنزيل Excel</a>
+    {% export_button "xlsx" "staff_affairs:attendance_report_xlsx" primary=True %}?month={{ month_value }}{% endexport_button %}
   {% endpage_header %}
 
   {% filter_bar "اختيار شهر التقرير" %}
@@ -31,7 +32,7 @@
   {% endkpi_strip %}
 
   {% section_card "الكادر" meta=first|date:"F Y" icon="staff" flush=True empty="لا موظّفين في نطاق تقريرك لهذا الشهر" %}{% if rows %}
-    <div class="table-wrap">
+    <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>

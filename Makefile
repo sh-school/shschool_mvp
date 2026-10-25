@@ -1,7 +1,7 @@
 .PHONY: up down build logs shell migrate seed full-seed test reset \
         quality lint security ci test-cov pre-commit-install minify-js \
         axes-reset health-check ready-check test-v54 pip-audit-check \
-        prepush affected railway-plan preview-up preview-watch preview-status preview-plan preview-pin preview-release
+        prepush ci-parity affected premerge session-test railway-plan preview-up preview-watch preview-status preview-plan preview-pin preview-release
 
 # ── Docker (Development) ──────────────────────────────
 up:
@@ -87,10 +87,19 @@ test-cov:
 prepush:
 	python scripts/prepush_check.py
 
+# فحصٌ بأدوات البوّابة وإصداراتها نفسِها داخل حاويةٍ بقاعدةٍ تُعاد (W-20261003-008): docker-compose.check.yml
+ci-parity:
+	bash scripts/ci_parity.sh
+
 # الحرّاسُ والاختباراتُ المتأثّرةُ بما عدّلتَه + بصمةٌ للبطاقة (W-20261003-004)؛ يفشل على شجرةٍ فيها تعديلٌ غيرُ مودَع.
 # مساعدٌ للمطوِّر: ليس حاجزاً ولا مرجعاً للاعتماد (حكم 0105)؛ و«كلُّ المطلوب نجح» لا يعني السلامة
 affected:
 	python scripts/affected_tests.py
+
+# فحصٌ موحَّدٌ قبل «جاهزٌ للمعاينة» (W-20261016-020): prepush وaffected ومراجعُ الملفّ ومحاكاةُ دمج main وتداخلُ الطلبات.
+# وضعُ الظلّ أسبوعاً: يطبع ولا يحجب؛ والإلزامُ بـPREMERGE_ENFORCE=1 بعد مقارنته بفشل CI الفعليّ.
+premerge:
+	python scripts/premerge.py
 
 lint:
 	ruff check . --fix
@@ -285,8 +294,18 @@ SESSION := schoolos-$(notdir $(CURDIR))
 COMPOSE_SESSION := docker compose -p $(SESSION) --project-directory . -f $(ROOT)/docker-compose.session.yml
 
 session:
+	@python scripts/session_cap.py --project $(SESSION)
 	WEB_PORT=$(PORT) $(COMPOSE_SESSION) up -d
 	@echo "→ http://localhost:$(PORT)"
+
+# اختباراتٌ بقاعدةٍ مهجَّرةٍ تُعاد استعمالها (W-20261016-014): make session-test ARGS="tests/test_x.py"
+ARGS ?= tests/test_ci_sharding.py
+session-test:
+	$(COMPOSE_SESSION) exec -T web bash scripts/session-test.sh $(ARGS)
+
+# إطفاءُ الجلسات الخاملة 30 دقيقةً (stop فقط؛ لا تُمَسّ المعاينةُ المركزيّة): أضف --dry-run للعرض
+session-reap:
+	@python scripts/session_cap.py --reap
 
 session-down:
 	$(COMPOSE_SESSION) down

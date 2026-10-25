@@ -20,13 +20,30 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from .last_period_cap import personal_last_cap
+from .first_period_cap import (  # noqa: F401  (تُصدَّر من هنا لمن استوردها منه)
+    FIRST_PERIOD,
+    MAX_FIRST_PERIODS,
+    check_first_period_share,
+)
+from .last_period_cap import last_cap_or
 from .scheduler_bell import (  # noqa: F401  (تُصدَّر من هنا لمن استوردها منه)
     DOUBLE_PERIOD_GAP_MINUTES,
     HC5_JOINABLE_GAP_MINUTES,
     cells_joined,
     joinable_pairs,
     joinable_pairs_cached,
+)
+from .scheduling_inputs import LAST_PERIOD  # noqa: F401
+from .scheduling_limits import (  # noqa: F401  (تُصدَّر من هنا لمن استوردها منه)
+    DEFAULT_MAX_DAILY,
+    EXPLICIT_PREFERENCE_FACTOR,
+    MAX_CONSECUTIVE,
+    MAX_LAST_PERIODS,
+    MAX_SAME_PERIOD,
+    MIN_FIRST_PERIODS,
+    THURSDAY,
+    get_max_periods_for_day,
+    is_explicit_daily_cap,
 )
 
 if TYPE_CHECKING:
@@ -470,8 +487,9 @@ def check_last_period_share(grid: ScheduleGrid, period: int, task: Task) -> bool
     for m in task.members:
         #: سقفٌ شخصيٌّ إن كُتب (`TeacherPreference.max_last_periods`) وإلّا العامّ: معلّمٌ نصابُه
         #: يفوق سعتَه بالعدّ (HC5 + HC8) لا يُسَع إلّا بسابعةٍ ثالثة، وسقفٌ عامٌّ لا يعرفه (W-20261003-035).
-        if grid.teacher_periods_at(m.teacher_id, LAST_PERIOD) >= (
-            personal_last_cap(getattr(m, "last_cap", 0)) or MAX_LAST_PERIODS
+        #: والصفرُ منعٌ لا غياب: `>= 0` صادقةٌ دائماً فلا سابعةَ لصاحبه (W-20261004-013).
+        if grid.teacher_periods_at(m.teacher_id, LAST_PERIOD) >= last_cap_or(
+            getattr(m, "last_cap", None), MAX_LAST_PERIODS
         ):
             return False
         #: وطرفا المعلّم لا يقعان على شعبةٍ واحدة: طرفُ اليوم أثقلُ ما فيه،
@@ -519,52 +537,6 @@ def check_subject_distribution(
         if d != day and grid.subject_on_day(task.class_id, task.subject_id, d) >= cap
     )
     return at_cap + 1 <= task.days_allowed_at_cap
-
-
-#: أقصى ما يُقبل من حصصٍ متلاصقةٍ للمعلّم الواحد — واحدةٌ أي: لا تلاصقَ.
-#:
-#: كان ثلاثاً، فأخرج المولّدُ إحدى وعشرين ثلاثيّةً بينما في الجدول المستورد —
-#: الذي وضعه بشرٌ — أربع. فصار اثنتين فسقطت الثلاثيّاتُ كلُّها، ثمّ قرّرت
-#: الإدارةُ ألّا تلاصقَ أصلاً فصار واحدة.
-#:
-#: والاستثناءُ الوحيد الحصّةُ المزدوجةُ المقصودة — أي مادّةٌ وُسِمت بالازدواج
-#: في إعدادات الجدول: المعلّمُ باقٍ مع شعبته في غرفته، وذلك هو الغرضُ لا
-#: عَرَضٌ يُتعب.
-MAX_CONSECUTIVE = 1
-
-#: سقفُ الحمل اليوميّ لمن لا تفضيلَ مكتوباً له.
-DEFAULT_MAX_DAILY = 5
-
-#: تفضيلٌ كتبته الإدارةُ في حقّ معلّمٍ بعينه يُضاعَف وزنُه على الافتراض العامّ:
-#: بوزنه الأصليّ (5) كان يسقط أمام الفراغ (8) والتتابع (10) فلا يُلزم شيئاً.
-EXPLICIT_PREFERENCE_FACTOR = 2
-#: الخميسُ — آخرُ الأسبوع وأقصرُه.
-THURSDAY = 4
-
-#: أكثرُ ما تتكرّر المادّةُ الواحدةُ في الموضع نفسِه من اليوم خلال الأسبوع.
-MAX_SAME_PERIOD = 2
-
-#: آخرُ حصّةٍ في اليوم.
-LAST_PERIOD = 7
-
-#: أكثرُ ما يُقبل من حصص طرفِ اليوم الواحد للمعلّم في الأسبوع — للأولى سقفُها
-#: وللسابعة سقفُها.
-#:
-#: المطلوبُ واحدة، وهي مستحيلةٌ حسابيّاً في هذه المدرسة: مئةٌ واثنتا عشرةَ
-#: خانةً سابعةً وثلاثةٌ وسبعون معلّماً — أي سابعةٌ ونصفٌ لكلٍّ في المتوسّط.
-#: فالحدُّ اثنتان، والوزنُ المتصاعدُ يدفع نحو الواحدة ما أمكن.
-MAX_LAST_PERIODS = 2
-
-#: أقلُّ ما يُطلب من حصص الأولى للمعلّم في الأسبوع، ترجيحاً لا منعاً (2026-09-17).
-#:
-#: حدٌّ أدنى صلبٌ (`never`) مستحيلٌ حسابيّاً هنا: مئةٌ وخمسٌ وعشرون خانةَ أولى
-#: على ثلاثةٍ وسبعين معلّماً (راجع `check_last_period_share`) — يلزم مئةٌ
-#: وستٌّ وأربعون لضمان اثنتين للجميع، فجوةُ إحدى وعشرين خانةً على الأقلّ. وقد
-#: جُرِّب فعلاً قيدٌ أخفّ من هذا (سقفٌ لا حدٌّ أدنى) على الأولى فأنتج خمسَ
-#: حصصٍ بلا موضع. فوزنٌ متصاعدٌ يقارب الاثنتين «ما أمكن» — لا يضمنهما — ولا
-#: يُصادم `extra_edge_period` الذي يعاقب من عنده طرفٌ فعلاً: هذا يكافئ من
-#: عنده أقلُّ من اثنتين، وذاك يعاقب من زاد عليهما.
-MIN_FIRST_PERIODS = 2
 
 
 def _wants_adjacency(grid: ScheduleGrid, task: Task, day: int, period: int) -> bool:
@@ -627,11 +599,12 @@ def check_max_gap(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool
     والقياسُ على اليوم كلِّه بعد الوضع، لا على الجارِ وحدَه: خانةٌ تُوضع بين
     حصّتين متباعدتين تُضيّق الفراغَ ولا توسّعه، فلا يصحّ أن تُمنع.
     """
-    if task.gap_cap is None:
-        return True
     slots = list(task.slots(period))
+    # السقفُ لكلّ عضوٍ بحسب سقفه هو (W-20261012-024): فمن لا سقفَ له لا يُقاس، ولا يُفرض عليه سقفُ شريكه
+    # في الحصّة المشتركة. و`Task.gap_cap` مشتقٌّ للتوافق ولا يُقرأ هنا.
     return all(
-        grid.teacher_widest_gap_with(m.teacher_id, day, slots) <= task.gap_cap for m in task.members
+        m.gap_cap is None or grid.teacher_widest_gap_with(m.teacher_id, day, slots) <= m.gap_cap
+        for m in task.members
     )
 
 
@@ -660,33 +633,6 @@ def _run_length(
             at, at_band = neighbour, band
             neighbour += step
     return count
-
-
-#: سقفُ حصص الشعبة في اليوم مصونٌ بهذا المدى وحده.
-#:
-#: وكانت هنا أيضاً `check_high_weekly_daily_limit` تحرس سقفَ حصّتين لمادّةِ
-#: خمسٍ فأكثر، ولا تُستدعى من موضع. وحُذفت لأنّ `check_subject_distribution`
-#: (HC6) يحسب السقفَ من القسمة لكلّ مادّةٍ لا لعاليةِ النصاب وحدَها، وأدقَّ:
-#: مادّةُ خمسٍ سقفُها واحدةٌ لا اثنتان.
-#:
-#: وكانت قبلَهما `check_day_capacity` تعدّ حصصَ الشعبة وتقارنها بالسقف، ولم تكن
-#: تُستدعى من أيّ موضع. وحُذفت لأنّها لا تضيف ثابتاً مستقلّاً: الشعبةُ لا تشغل
-#: خانتين في الحصّة الواحدة (`check_class_conflict`)، والحصصُ محدودةٌ بالمدى
-#: أدناه — فعددُها في اليوم لا يتجاوزه بحال. ودالّةٌ تبدو حارساً وليست في
-#: المسار فخٌّ لمن يقرأ بعدنا.
-def get_max_periods_for_day(day: int, level_type: str = "") -> int:
-    """
-    HC4 (تحديث): الحد الأقصى لحصص اليوم.
-    الخميس (day=4): إعدادي=6, ثانوي=7.
-    باقي الأيام: 7 دائماً.
-    """
-    if day != 4:
-        return 7
-    if level_type == "prep":
-        return 6
-    if level_type == "sec":
-        return 7
-    return 6  # default = 6 (الأكثر تقييداً)
 
 
 def is_slot_valid(
@@ -770,6 +716,8 @@ def _refusals(
         yield "HC7"
     if not waived("HC8") and not check_last_period_share(grid, period, task):
         yield "HC8"
+    if not waived("HC22") and not check_first_period_share(grid, period, task):
+        yield "HC22"
     if not check_resource_capacity(grid, day, period, task):
         yield "HC9"
     if not waived("HC11") and not check_resource_level_homogeneity(grid, day, period, task):
@@ -801,15 +749,16 @@ class SoftPenalty:
 def daily_load_weight(teacher_today: int, pref: dict | None, weight: float | None = None) -> float:
     """وزنُ تجاوز الحمل اليوميّ: صفرٌ دون السقف، ثمّ يتصاعد بمقدار التجاوز.
 
-    والتفضيلُ المكتوب في حقّ معلّمٍ بعينه يُضاعَف — وبوزنه الأصليّ كان يسقط
-    أمام الفراغ (8) والتتابع (10) فلا يُلزم شيئاً.
+    والسقفُ المكتوب في حقّ معلّمٍ بعينه يُضاعَف — وبوزنه الأصليّ كان يسقط
+    أمام الفراغ (8) والتتابع (10) فلا يُلزم شيئاً. والمكتوبُ ما خالف الافتراض:
+    صفُّ تفضيلٍ وحدَه لا يكفي، فالـ5 المخزَّنةُ «لم يقرّر» (W-20261012-025).
     """
     max_daily = (pref or {}).get("max_daily", DEFAULT_MAX_DAILY)
     if teacher_today < max_daily:
         return 0.0
     over = teacher_today - max_daily + 1
     base = WEIGHTS["daily_load"] if weight is None else weight
-    return base * over * (EXPLICIT_PREFERENCE_FACTOR if pref else 1)
+    return base * over * (EXPLICIT_PREFERENCE_FACTOR if is_explicit_daily_cap(max_daily) else 1)
 
 
 def _neighbour_is_same_lesson(grid: ScheduleGrid, task: Task, day: int, period: int) -> bool:
@@ -1060,7 +1009,9 @@ def calculate_quality_score(
     if max_possible == 0:
         score = 100.0
     else:
-        score = max(0, 100 * (1 - total_penalty / max_possible))
+        # مكافأةُ المزاوجة وزنُها سالب، فقد يصير مجموعُ العقوبات سالباً والدرجةُ فوق المئة؛
+        # فالمقياسُ مقيَّدٌ من الجهتين: [0, 100].
+        score = min(100.0, max(0.0, 100 * (1 - total_penalty / max_possible)))
 
     required = total_required if total_required is not None else placed_periods
     placed_ratio = round(100 * placed_periods / required, 1) if required else 100.0

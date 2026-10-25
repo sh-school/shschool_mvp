@@ -329,8 +329,9 @@ def test_the_lab_names_who_is_off_the_pattern(school, teacher_user):
 
 
 def test_a_daily_cap_below_the_share_is_rejected(client, school, teacher_user):
+    """نصابُ 24 على خمسة أيّامٍ يحتاج 5 في بعضها، فـ4 — أدنى ما تعرضه الشاشةُ بعد D-418م — يُردّ."""
     maths = Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT")
-    for periods in (6, 6, 6):
+    for periods in (6, 6, 6, 6):
         SubjectClassAssignment.objects.create(
             school=school,
             academic_year=YEAR,
@@ -346,7 +347,7 @@ def test_a_daily_cap_below_the_share_is_rejected(client, school, teacher_user):
 
     response = client.post(
         reverse("teacher_preferences") + f"?year={YEAR}",
-        {"max_daily_periods": "3", "max_consecutive": "2", "max_gap": "", "free_day": ""},
+        {"max_daily_periods": "4", "notes": ""},
         follow=True,
     )
 

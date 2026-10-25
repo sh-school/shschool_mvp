@@ -17,9 +17,10 @@ from PIL import Image
 
 from core.photo_privacy import MAX_SIDE
 from operations.models import StudentAttendance
-from tests.test_supervisor_student_affairs_followup import world  # noqa: F401  (fixture)
+from tests.test_supervisor_student_affairs_followup import clock_at, world  # noqa: F401  (fixtures)
 
-pytestmark = pytest.mark.django_db
+#: الرصدُ في حصّة الطالب الجارية (W-20261004-022) — فالساعةُ داخل حصّة شعبته الأولى لا ساعةُ التشغيل.
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("clock_at")]
 
 
 def _gps_photo(size=(4000, 3000)):

@@ -12,29 +12,32 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import FileResponse, Http404, HttpResponseForbidden
+from django.http import (
+    FileResponse,
+    Http404,
+    HttpResponseForbidden,
+    HttpResponseNotAllowed,
+    HttpResponsePermanentRedirect,
+)
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone as _tz
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from core.audit_repr import masked_repr
-from core.parents_freeze import sendable_parent_links, warn_or_frozen
+from core.parents_freeze import parents_frozen, warn_or_frozen
 from core.permissions import (
     BEHAVIOR_COMMITTEE,
     BEHAVIOR_MANAGE,
     BEHAVIOR_STATS_TEACHING,
     BEHAVIOR_VIEW_ALL,
+    SCHOOL_WIDE_ABSENCE_ROLES,
     forbidden_page,
     get_teacher_student_ids,
     teacher_can_access_student,
 )
 
 logger = logging.getLogger(__name__)
-
-_VALID_LEVELS = {1, 2, 3, 4}
-_MAX_POINTS = 100
-_MAX_DESC_LEN = 2000
 
 
 def _behavior_report_redirect(
@@ -65,9 +68,10 @@ def _behavior_report_redirect(
     )
 
 
-from behavior.committee_services import decide_committee
-from behavior.forms import InfractionForm
+from behavior.committee_services import decide_committee, may_act_on
+from behavior.forms import InfractionForm, action_choices_for
 from behavior.models import BehaviorInfraction, ViolationCategory
+from core.behavior_committee_roles import BEHAVIOR_COMMITTEE_CASE_SCOPED
 from core.capabilities import capability_required, has_capability
 from core.domain.tones import SHARE_KPI, tone_for
 from core.models import CustomUser
@@ -83,19 +87,19 @@ from wings.scope import student_scope_for
 # كما كانت: القيادةُ للمدرسة، والمعلّمُ والمنسّقُ لطلبة جدولهما.
 
 
-def _visible_student_ids(request):
-    """طلبةُ صاحب الطلب — `None` للمدرسة كلِّها، ومجموعةٌ للمقيَّد بجدولٍ أو جناح."""
-    return get_teacher_student_ids(request.user, scope=student_scope_for(request))
-
-
 def _require_in_wing(request, student_id):
     """404 لطالبٍ خارج جناح المقيَّد — ولا شيءَ لغيره (قاعدتُه في موضعها لم تتغيّر)."""
     if student_id:
         student_scope_for(request).require_student(student_id)
 
 
-def _deny_unreachable(request, student_id, message):
-    """المقيَّدُ بجناحه: 404 خارجَه. وغيرُه على «طلابُك فقط» بصفحة المنع كما كان."""
+def _deny_unreachable(request, student_id, message, school_wide=False):
+    """المقيَّدُ بجناحه: 404 خارجَه. وغيرُه على «طلابُك فقط» بصفحة المنع كما كان.
+
+    `school_wide`: تقريرُ السلوك وحدَه يفتحه المنسّقُ لكلّ طلاب المدرسة (قرار المالك 2026-10-18).
+    """
+    if school_wide and request.user.get_role() in SCHOOL_WIDE_ABSENCE_ROLES:
+        return None
     scope = student_scope_for(request)
     if scope.is_wing_bound:
         scope.require_student(student_id)
@@ -105,36 +109,20 @@ def _deny_unreachable(request, student_id, message):
     return None
 
 
-def _get_scoped_students(request, school):
-    """
-    يُعيد QuerySet طلاب مرئيّ حسب دور المستخدم:
-    - القيادة/الأخصائيون → كل طلاب المدرسة
-    - المشرف الإداري → طلبة جناحه
-    - المعلم/المنسق → طلاب فصوله فقط
-    """
-    student_ids = _visible_student_ids(request)
-    if student_ids is None:
-        # admin/leadership — all students
-        return (
-            CustomUser.objects.filter(
-                memberships__school=school,
-                memberships__role__name="student",
-                memberships__is_active=True,
-            )
-            .order_by("full_name")
-            .distinct()
-        )
-    return CustomUser.objects.filter(id__in=student_ids).order_by("full_name")
-
-
 from core.academic_calendar import academic_year_for
 
 from .notify import notify_behavior_after_commit
-from .selectors import student_picker
+from .selectors import (
+    _get_scoped_students,
+    _visible_student_ids,
+    recordable_student,
+    student_picker,
+)
 from .services import (
     PERIOD_CHOICES,
     BehaviorPermissions,
     BehaviorService,
+    audit_infraction_read,
 )
 
 # [B4-PRE3] المساعدُ المؤجَّل — انتقل إلى `behavior/notify.py` ليستدعيه كشفُ الحصص
@@ -274,8 +262,8 @@ def report_infraction(request):
 
     if request.method == "POST":
         # معرّفُ الطالب يُسأل عنه قبل صحّة النموذج: طالبٌ خارج الجناح 404 مهما كان باقيه.
-        _require_in_wing(request, request.POST.get("student_id", "").strip())
-        form = InfractionForm(request.POST)
+        recordable = recordable_student(request, school, request.POST.get("student_id", "").strip())
+        form = InfractionForm(request.POST, role=request.user.get_role())
         if not form.is_valid():
             for field, errs in form.errors.items():
                 for err in errs:
@@ -287,8 +275,7 @@ def report_infraction(request):
             # REQ-SH-001: structured disciplinary action + conditional textarea
             disciplinary_action_type = form.cleaned_data.get("disciplinary_action_type", "")
             violation_description = form.cleaned_data.get("violation_description", "")
-            # Legacy free-text (kept for backward compat). Mirror the selected label
-            # from the dropdown so legacy readers still see a human-friendly value.
+            # نصٌّ حرٌّ قديم للتوافق: يُنسخ إليه نصُّ الخيار المختار ليقرأه القديمُ مقروءاً.
             _choices_map = dict(form.fields["disciplinary_action_type"].choices)
             action = _choices_map.get(disciplinary_action_type, "") or form.cleaned_data.get(
                 "action_taken", ""
@@ -306,7 +293,7 @@ def report_infraction(request):
                     violation_cat = "INVALID"
 
             if violation_cat != "INVALID":
-                student = get_object_or_404(CustomUser, id=student_id)
+                student = recordable
 
                 try:
                     # [B4-PRE3] المخالفة ونيّة إشعارها في حدٍّ واحد.
@@ -316,7 +303,6 @@ def report_infraction(request):
                     # نهاية المعاملة الخارجية. فإن تراجعت، لا مخالفة ولا إشعار.
                     with transaction.atomic():
                         # ✅ v5.4: BehaviorService.create_infraction — atomic + escalation حسابي
-                        # نظام النقاط ملغى — نُمرر 0 لتوافق DB (الحقل NOT NULL)
                         infraction = BehaviorService.create_infraction(
                             school=school,
                             student=student,
@@ -324,7 +310,6 @@ def report_infraction(request):
                             level=level,
                             description=description,
                             action_taken=action,
-                            points_deducted=0,
                             violation_category=violation_cat if violation_cat else None,
                             disciplinary_action_type=disciplinary_action_type,
                             violation_description=violation_description,
@@ -364,6 +349,7 @@ def report_infraction(request):
             "levels": BehaviorInfraction.LEVELS,
             "violations_by_degree": violations_by_degree,
             "degree_panels": _degree_panels(violations_by_degree),
+            "action_choices": [c for c in action_choices_for(request.user.get_role()) if c[0]],
         },
     )
 
@@ -391,104 +377,26 @@ def _degree_panels(violations_by_degree: dict) -> list[dict]:
     ]
 
 
-# ── تسجيل مخالفة سريعة (HTMX Modal) ────────────────────────
+# ── التسجيل السريع: شاشةٌ واحدة (W-20261001-042) ──────────────
 @login_required
 @capability_required("behavior.record")
 def quick_log(request):
+    """مسارٌ قديمٌ للتسجيل السريع صار تحويلاً دائماً إلى شاشة تسجيل المخالفة الواحدة.
+
+    كانت شاشتان لقدرةٍ واحدة (`behavior.record`، 11 دوراً): التقريرُ الكامل والتسجيلُ السريع بنموذجٍ مختصر
+    يتجاوز حدودَ الإجراء لكلّ دور. فبقيت `report_infraction` وحدها؛ والرابطُ القديم لا ينكسر
+    (`?student_id=` يصير `?student=` ويُحفظ `next`)، والكتابةُ عليه مرفوضة 405 لأنّ النافذةَ التي كانت تُرسل إليه حُذفت.
     """
-    تسجيل مخالفة سريعة عبر HTMX Modal.
-
-    GET  → نموذج HTML (partial) لعرضه داخل modal
-    POST → إنشاء المخالفة + HX-Trigger showToast + HX-Redirect للملف السلوكي
-    """
-    from core.htmx_utils import htmx_redirect, htmx_toast
-
-    if not BehaviorPermissions.can_report(request.user):
-        from django.http import HttpResponse
-
-        return HttpResponse("ليس لديك صلاحية", status=403)
-
-    school = request.school
-
-    if request.method == "POST":
-        student_id = request.POST.get("student_id", "").strip()
-        _require_in_wing(request, student_id)
-        violation_cat_id = request.POST.get("violation_category", "").strip()
-        description = request.POST.get("description", "").strip()
-        action = request.POST.get("action_taken", "").strip()
-
-        try:
-            level = int(request.POST.get("level", 1))
-        except (ValueError, TypeError):
-            level = 1
-
-        # جلب فئة المخالفة
-        violation_cat = None
-        if violation_cat_id:
-            try:
-                violation_cat = ViolationCategory.objects.get(id=violation_cat_id)
-                level = violation_cat.degree
-            except ViolationCategory.DoesNotExist:
-                pass
-
-        # Validation
-        errors = []
-        if not student_id:
-            errors.append("يرجى اختيار الطالب.")
-        if len(description) > _MAX_DESC_LEN:
-            errors.append(f"الوصف لا يتجاوز {_MAX_DESC_LEN} حرف.")
-        if level not in _VALID_LEVELS:
-            errors.append("درجة المخالفة يجب أن تكون بين 1 و 4.")
-
-        if errors:
-            return htmx_toast(
-                render(
-                    request,
-                    "behavior/partials/quick_log_form.html",
-                    _quick_log_context(request, school, student_id),
-                ),
-                msg=" | ".join(errors),
-                msg_type="danger",
-            )
-
-        student = get_object_or_404(CustomUser, id=student_id)
-
-        # [B4-PRE3] المخالفة ونيّة إشعارها في حدٍّ واحد — انظر report_infraction.
-        with transaction.atomic():
-            # ✅ v5.4: BehaviorService.create_infraction — atomic + escalation حسابي
-            # نظام النقاط ملغى — points_deducted=0 للحفاظ على توافق DB
-            infraction = BehaviorService.create_infraction(
-                school=school,
-                student=student,
-                reporter=request.user,
-                level=level,
-                description=description,
-                action_taken=action,
-                points_deducted=0,
-                violation_category=violation_cat,
-            )
-
-            transaction.on_commit(
-                lambda infraction=infraction, school=school, reporter=request.user: (
-                    _notify_behavior_after_commit(infraction, school, reporter)
-                ),
-                robust=True,
-            )
-
-        redirect_url = _after_record_url(request.user, student.id, level)
-        msg = f"تم تسجيل مخالفة درجة {level} للطالب {student.full_name}"
-        if level >= 3:
-            msg += " — تم إحالتها للجنة الضبط"
-        return htmx_redirect(redirect_url, msg=msg, msg_type="success")
-
-    # GET — نموذج فارغ
-    student_id_hint = request.GET.get("student_id", "")
-    _require_in_wing(request, student_id_hint)
-    return render(
-        request,
-        "behavior/partials/quick_log_form.html",
-        _quick_log_context(request, school, student_id_hint),
-    )
+    if request.method not in ("GET", "HEAD"):
+        return HttpResponseNotAllowed(["GET", "HEAD"])
+    params = {}
+    student = (request.GET.get("student_id") or request.GET.get("student") or "").strip()
+    if student:
+        params["student"] = student
+    if request.GET.get("next"):
+        params["next"] = request.GET["next"]
+    target = reverse("behavior:report_infraction")
+    return HttpResponsePermanentRedirect(f"{target}?{urlencode(params)}" if params else target)
 
 
 def _picker_with_prefill(request, students, school) -> dict:
@@ -526,29 +434,19 @@ def _after_record_url(user, student_id, level: int) -> str:
     فتحويلُه إليها كان يُريه «غير مصرّح» بعد حفظٍ ناجح. والإحالةُ نفسُها
     تتمّ في `create_infraction` أيّاً كانت الوجهة.
     """
-    if level >= 3 and can_open(user, "behavior:committee"):
-        return reverse("behavior:committee")
+    # المشرفُ الإداريّ يدخل اللجنةَ لقضايا جناحه فقط (م5.7، W-20261001-023)، لكنّ مسارَه بعد التسجيل يبقى
+    # ملفَّ الطالب كما كان — فلا يتغيّر توجيهُه بدخوله اللجنة.
+    if level >= 3 and user.get_role() not in BEHAVIOR_COMMITTEE_CASE_SCOPED:
+        if can_open(user, "behavior:committee"):
+            return reverse("behavior:committee")
     return reverse("behavior:student_profile", kwargs={"student_id": student_id})
-
-
-def _quick_log_context(request, school, preselected_student_id=""):
-    """Context مشترك لنموذج التسجيل السريع — يُظهر طلاب المعلم فقط، وطلبةَ جناح المشرف."""
-    students = _get_scoped_students(request, school)
-    return {
-        "students": students,
-        "levels": BehaviorInfraction.LEVELS,
-        "violation_categories": ViolationCategory.objects.filter(
-            is_active=True, code__regex=r"^\d+-\d+$"
-        ).order_by("degree", "code"),
-        "preselected_student_id": str(preselected_student_id),
-    }
 
 
 # ── الملف السلوكي للطالب ─────────────────────────────────────
 @login_required
 @capability_required("behavior.view")
 def student_behavior_profile(request, student_id):
-    """الملف السلوكي للطالب — جميع مخالفاته ونقاطه المخصومة والمستعادة."""
+    """الملف السلوكي للطالب — جميع مخالفاته."""
     school = request.school
     student = get_object_or_404(
         CustomUser,
@@ -571,10 +469,17 @@ def student_behavior_profile(request, student_id):
     context["can_summon"] = BehaviorPermissions.can_summon(request.user)
     # نماذجُ الإنذار والتعهّد لإدارة المخالفات — رابطٌ لا يُفتح لصاحبه لا يُعرض له.
     context["can_print_forms"] = has_capability(request.user, "behavior.manage")
+    audit_infraction_read(request, context["infractions"])
     return render(request, "behavior/student_profile.html", context)
 
 
 # ── لجنة الضبط السلوكي ───────────────────────────────────────
+def _require_committee_case(request, infraction):
+    """404 لقضيّةٍ خارج ما يحقّ لهذا العضو (م5.7): المشرفُ الإداريّ لا يرى غيرَ قضايا جناحه."""
+    if not may_act_on(request.user, infraction):
+        raise Http404("لا قضيّةَ بهذا المعرّف")
+
+
 @login_required
 @capability_required("behavior.committee")
 def committee_dashboard(request):
@@ -582,7 +487,7 @@ def committee_dashboard(request):
     if not BehaviorPermissions.is_committee(request.user):
         return HttpResponseForbidden("ليس لديك صلاحية الوصول إلى هذه الصفحة.")
     school = request.school
-    context = BehaviorService.get_committee_data(school)
+    context = BehaviorService.get_committee_data(school, scope=student_scope_for(request))
     # القضايا المفتوحة حمراءُ متى وُجدت واحدة، وخضراءُ حين تُحلّ كلُّها.
     context["open_tone"] = "red" if context["stats"]["open_count"] else "green"
     return render(request, "behavior/committee.html", context)
@@ -600,11 +505,13 @@ def committee_decision(request, infraction_id):
     infraction = get_object_or_404(
         BehaviorInfraction, id=infraction_id, level__in=[3, 4], school=school
     )
+    _require_committee_case(request, infraction)
     if request.method == "POST":
         msg, level = decide_committee(infraction, request.user, request.POST)
         getattr(messages, level)(request, msg)
         return redirect("behavior:committee")
 
+    audit_infraction_read(request, infraction)
     return render(
         request,
         "behavior/committee_decision.html",
@@ -623,6 +530,18 @@ def _report_year(request):
     return student_scope_for(request).year_for(requested, "") or academic_year_for(request)
 
 
+def _guardian_phones(request, student, allowed):
+    """أرقامُ أولياء الطالب لمن يتّصل بالأسرة (`behavior.guardian_contact`) — رقمٌ بلا اسم (D-431م)، وأثرُ القراءة عدّادٌ."""
+    if not allowed or parents_frozen():  # تجميدُ أولياء الأمور: لا هاتفَ للطاقم (D-268م)
+        return []
+    from operations.services.absence_followup import guardian_phone
+    from student_affairs.coordinator_selectors import audit_phone_read
+
+    phones = guardian_phone(student)
+    audit_phone_read(request, len(phones), "تقرير سلوك الطالب")
+    return phones
+
+
 @login_required
 @capability_required("behavior.record")
 def behavior_report(request, student_id):
@@ -639,7 +558,7 @@ def behavior_report(request, student_id):
     )
 
     # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط، والمشرفُ طلبةَ جناحه ──
-    denied = _deny_unreachable(request, student.id, "هذا الطالب ليس من طلابك.")
+    denied = _deny_unreachable(request, student.id, "هذا الطالب ليس من طلابك.", school_wide=True)
     if denied:
         return denied
     year = _report_year(request)
@@ -647,49 +566,38 @@ def behavior_report(request, student_id):
 
     report = BehaviorService.get_student_report_data(student, school, period, year)
 
+    # اسمُ وليّ الأمر وإرسالُ التقرير إليه لمن يتّصل بالأسرة وحدَه (قاعدة الحاجة، W-20261005-009):
+    # من يسجّل المخالفةَ ولا يستدعي لا يُحمَّل اسمَ والدة طالب. فلا يصل القالبَ اسمٌ لغيره أصلاً.
+    can_contact_guardian = has_capability(request.user, "behavior.guardian_contact")
+    guardian_registered = report["parent_links"].exists()
+    if not can_contact_guardian or parents_frozen():  # تحت التجميد لا اسمَ ولا إرسال (D-268م)
+        report["parent_links"] = []
+
     sent_to = []
     if request.method == "POST" and request.POST.get("action") == "send":
-        from notifications.services import NotificationService
-
-        for link in sendable_parent_links(report["parent_links"]):
-            parent = link.parent
-            if parent.email:
-                body = (
-                    f"ولي أمر الطالب: {parent.full_name}\n\n"
-                    f"التقرير السلوكي للطالب: {student.full_name}\n"
-                    f"الفترة: {report['period_label']} — {year}\n\n"
-                    f"نقاط السلوك: {report['net_score']}/100 ({report['rating']})\n"
-                    f"المخالفات: {report['infractions'].count()}\n\n"
-                    f"{school.name}"
-                )
-                try:
-                    NotificationService.deliver_email(
-                        user=parent,
-                        school=school,
-                        subject=f"التقرير السلوكي — {student.full_name} — {report['period_label']}",
-                        body_text=body,
-                        student=student,
-                        notif_type="behavior",
-                        sent_by=request.user,
-                    )
-                    sent_to.append(parent.full_name)
-                except Exception as e:
-                    # [PII-11] سجّل معرّف ولي الأمر لا بريده
-                    logger.error("behavior_report: email failed for parent id=%s: %s", parent.id, e)
+        if not can_contact_guardian:
+            return forbidden_page(request, "إرسال التقرير لوليّ الأمر ليس من صلاحيّتك.")
+        sent_to = BehaviorService.email_report_to_guardians(
+            student, school, report, year, sent_by=request.user
+        )
         if sent_to:
             messages.success(request, f"تم إرسال التقرير لـ: {', '.join(sent_to)}")
         else:
             warn_or_frozen(request, "لا يوجد بريد إلكتروني مسجَّل لأولياء الأمور.")
         return _behavior_report_redirect(request, student.id, year, period)
 
+    audit_infraction_read(request, report["infractions"])
     return render(
         request,
         "behavior/behavior_report.html",
         {
+            "guardian_phones": _guardian_phones(request, student, can_contact_guardian),
             "student": student,
             "year": year,
             "period": period,
             "sent_to": sent_to,
+            "can_contact_guardian": can_contact_guardian,
+            "guardian_registered": guardian_registered,
             "period_choices": PERIOD_CHOICES,
             "report_subtitle": f"{student.full_name} · {report['period_label']} · {year}",
             **report,
@@ -698,7 +606,10 @@ def behavior_report(request, student_id):
 
 
 # ── تقرير إحصائي ─────────────────────────────────────────────
-_STATS_ALLOWED_ROLES = BEHAVIOR_COMMITTEE | BEHAVIOR_VIEW_ALL | BEHAVIOR_STATS_TEACHING
+#: المشرفُ الإداريّ عضوُ قضيّةِ جناحه وحدَها (م5.7) فلا يرث إحصاءَ المدرسة كلِّها
+_FULL_STATS_ROLES = (
+    BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL | (BEHAVIOR_COMMITTEE - BEHAVIOR_COMMITTEE_CASE_SCOPED)
+)
 
 
 @login_required
@@ -716,7 +627,7 @@ def behavior_statistics(request):
         stats["is_scoped"] = True
     else:
         # القيادة ولجنة الضبط والأخصائيون → كل طلاب المدرسة
-        _full_access = BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL | BEHAVIOR_COMMITTEE
+        _full_access = _FULL_STATS_ROLES
         if (
             role not in _full_access
             and not request.user.is_superuser
@@ -767,6 +678,7 @@ def escalate_infraction(request, infraction_id):
         return HttpResponseForbidden("غير مسموح.")
     school = request.school
     infraction = get_object_or_404(BehaviorInfraction, id=infraction_id, school=school)
+    _require_committee_case(request, infraction)
     if request.method == "POST":
         notes = request.POST.get("notes", "").strip()
         success, msg = BehaviorService.escalate_infraction(
@@ -791,6 +703,7 @@ def security_referral(request, infraction_id):
         return HttpResponseForbidden("غير مسموح.")
     school = request.school
     infraction = get_object_or_404(BehaviorInfraction, id=infraction_id, level=4, school=school)
+    _require_committee_case(request, infraction)
 
     if request.method == "POST":
         agency = request.POST.get("security_agency", "")
@@ -829,9 +742,9 @@ def security_referral(request, infraction_id):
 def _render_behavior_pdf(request, template_name, context, filename, *, kind, student=None):
     """يولّد نموذجَ السلوك ويسجّل توليدَه.
 
-    النماذجُ الفرديّةُ (إنذار، تعهّد، تقرير) تحمل الرقمَ الشخصيَّ كاملاً لأنّها
-    تُسلَّم لصاحبها — والتدقيقُ ثمنُ الكمال (`core/privacy.py`). واللائحةُ
-    وثيقةُ مدرسةٍ بلا طالب فتُسجَّل بلا رقم.
+    النماذجُ الفرديّةُ (إنذار، تعهّد، تقرير) بلا رقمٍ شخصيّ منذ D-386م (W-20261011-014)،
+    فرايةُ التدقيق لا تدّعيه (W-20261012-005)؛ والتوليدُ يُسجَّل لصاحبه مستورَ الاسم.
+    واللائحةُ وثيقةُ مدرسةٍ بلا طالب.
     """
     from django.template.loader import render_to_string
 
@@ -842,7 +755,7 @@ def _render_behavior_pdf(request, template_name, context, filename, *, kind, stu
         request,
         kind,
         rows=1 if student else None,
-        full_national_id=student is not None,
+        full_national_id=False,
         object_id=student.pk if student else "",
         object_repr=f"{kind} — {masked_repr(student)}" if student else kind,
     )
@@ -861,6 +774,7 @@ def infraction_warning_pdf(request, infraction_id):
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.school)
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
+    audit_infraction_read(request, inf)
     return _render_behavior_pdf(
         request,
         "behavior/pdf/student_warning.html",
@@ -878,6 +792,9 @@ def infraction_parent_pdf(request, infraction_id):
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.school)
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
+    if parents_frozen():  # الاستمارةُ تُملأ بخطّ اليد: لا اسمَ ولا هاتفَ مطبوعين تحت التجميد
+        ctx.update(parent_name=None, parent_id=None, parent_phone=None, parent_email=None)
+    audit_infraction_read(request, inf)
     return _render_behavior_pdf(
         request,
         "behavior/pdf/parent_undertaking.html",
@@ -895,6 +812,7 @@ def infraction_student_pdf(request, infraction_id):
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.school)
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
+    audit_infraction_read(request, inf)
     return _render_behavior_pdf(
         request,
         "behavior/pdf/student_undertaking.html",
@@ -1011,16 +929,15 @@ def summon_parent(request, student_id=None):
         selected_student = CustomUser.objects.filter(pk=student_id).first()
     if selected_student:
         # معلومات سياقية عن الطالب
-        score_data = BehaviorService.get_student_score(selected_student)
         parent_links = ParentStudentLink.objects.filter(
             student=selected_student, school=school
         ).select_related("parent")
         active_infractions = BehaviorInfraction.objects.filter(
             student=selected_student, is_resolved=False
         ).count()
-        # بيانات أولياء الأمور مع أرقام الهواتف
+        # بيانات أولياء الأمور وهواتفهم — وتحت التجميد لا شيء للطاقم (D-268م)
         parents_info = []
-        for link in parent_links:
+        for link in [] if parents_frozen() else parent_links:
             parents_info.append(
                 {
                     "name": link.parent.full_name,
@@ -1029,13 +946,7 @@ def summon_parent(request, student_id=None):
                     "is_primary": link.is_primary,
                 }
             )
-        # «مؤشرُ السلوك» ليس نقاطاً مخصومة (النظامُ ملغى): يُحسب في
-        # `get_student_score` من عدد المخالفات ودرجاتها، فيبقى رقماً حقيقيّاً.
-        behavior_score = score_data.get("net_score", 100)
         student_context = {
-            "behavior_score": behavior_score,
-            # العتباتُ التي كانت في القالب: 80 فأكثر أخضر، 50 فأكثر كهرمانيّ.
-            "behavior_score_tone": tone_for(behavior_score, SHARE_KPI),
             "active_infractions": active_infractions,
             "active_infractions_tone": "red" if active_infractions else "green",
             "parents_info": parents_info,
@@ -1110,6 +1021,7 @@ def student_behavior_pdf(request, student_id):
     }
     # [PII-08] لا نضع الرقم الشخصي في اسم الملف (يظهر في سجل التنزيلات والوكيل)
     filename = f"behavior_report_{student.id}_{year}.pdf"
+    audit_infraction_read(request, report["infractions"])
     return _render_behavior_pdf(
         request,
         "behavior/pdf/student_report.html",

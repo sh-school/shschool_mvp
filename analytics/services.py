@@ -230,8 +230,8 @@ class AnalyticsService:
 
         since = timezone.now().date() - timedelta(days=months * 30)
         qs = (
-            ClinicVisit.objects.filter(school=school, created_at__date__gte=since)
-            .annotate(month=TruncMonth("created_at"))
+            ClinicVisit.objects.filter(school=school, visit_date__date__gte=since)
+            .annotate(month=TruncMonth("visit_date"))
             .values("month")
             .annotate(
                 total=Count("id"),

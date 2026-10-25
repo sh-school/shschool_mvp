@@ -5,13 +5,17 @@
 {% endcomment %}{% localize off %}<style>
 {{ fr.page_css|safe }}
 #print-header { position: running(print-header); width: {{ fr.body_width }}mm; height: {{ fr.header_h }}mm; text-align: center; padding-top: {{ fr.margin_top|add:"-2" }}mm; font-family: 'Tajawal', 'Amiri', sans-serif; direction: rtl; }
-#print-header .pf-emblem { height: 11mm; width: auto; display: block; margin: 0 auto 0.5mm; }
+#print-header .ministry-logo { display: none; }
+@media print { #print-header .ministry-logo { display: block; width: {% if variant == "sheet" %}10{% else %}11{% endif %}mm; height: {% if variant == "sheet" %}10{% else %}11{% endif %}mm; margin: 0 auto 0.6mm; } }
 #print-header .pf-ministry { font-size: 9pt; line-height: 3.6mm; color: {% brand_color "TEXT_MUTED" %}; }
 #print-header .pf-school { font-size: 14pt; font-weight: 700; line-height: 5.6mm; color: {% brand_color "MAROON" %}; }
 #print-header .pf-title { font-size: 12pt; font-weight: 700; line-height: 4.8mm; color: {% brand_color "TEXT_PRIMARY" %}; }
 #print-header .pf-sub { font-size: 9pt; line-height: 3.6mm; color: {% brand_color "TEXT_MUTED" %}; }
 #print-header .pf-vision { font-size: 10pt; line-height: 4.4mm; color: {% brand_color "MAROON_DARK" %}; }
-#print-footer { position: running(print-footer); width: {{ fr.body_width }}mm; height: {{ fr.footer_h }}mm; box-sizing: border-box; border-top: 0.4mm solid {% brand_color "MAROON" %}; padding-top: 1.4mm; text-align: center; white-space: nowrap; overflow: hidden; font-family: 'Tajawal', 'Amiri', sans-serif; direction: rtl; font-size: {{ footer_pt }}pt; line-height: 1.25; color: {% brand_color "TEXT_PRIMARY" %}; }
+{% if variant == "sheet" %}#print-header .pf-ministry, #print-header .pf-sub { font-size: 10pt; line-height: 4mm; }
+#print-header .pf-school { font-size: 16pt; line-height: 6.4mm; }
+#print-header .pf-title { font-size: 13pt; line-height: 5.2mm; }
+{% endif %}#print-footer { position: running(print-footer); width: {{ fr.body_width }}mm; height: {{ fr.footer_h }}mm; box-sizing: border-box; border-top: 0.4mm solid {% brand_color "MAROON" %}; padding-top: 1.4mm; text-align: center; white-space: nowrap; overflow: hidden; font-family: 'Tajawal', 'Amiri', sans-serif; direction: rtl; font-size: {{ footer_pt }}pt; line-height: 1.25; color: {% brand_color "TEXT_PRIMARY" %}; }
 #print-footer .pf-sep { color: {% brand_color "TEXT_MUTED" %}; padding: 0 1mm; }
 #print-footer .pf-item, #print-footer .pf-date { white-space: nowrap; }
 #print-footer .pf-page::after { content: "\2066" counter(page) " / " counter(pages) "\2069"; }

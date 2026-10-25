@@ -356,6 +356,9 @@ class InAppNotification(models.Model):
         ("swap_response", "رد على طلب تبديل"),
         ("swap_approved", "موافقة على تبديل"),
         ("compensatory", "حصة تعويضية"),
+        # ── تنبيها المعلّم الصباحيّان (W-20261010-042) ──
+        ("exit_not_returned", "طالب خرج ولم يعد"),
+        ("session_unmarked", "حصة بلا رصد"),
         ("general", "إشعار عام"),
         ("developer_message", "رسالة من المطوّر"),
     ]

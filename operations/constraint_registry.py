@@ -66,7 +66,15 @@ class ConstraintSpec:
     source: str = ""
 
 
-def _hard(code, title, break_at=NEVER, tunable=True, relaxes_in_place=False, note="", source=""):
+def _hard(
+    code: str,
+    title: str,
+    break_at: str = NEVER,
+    tunable: bool = True,
+    relaxes_in_place: bool = False,
+    note: str = "",
+    source: str = "",
+) -> ConstraintSpec:
     return ConstraintSpec(
         code,
         title,
@@ -166,6 +174,10 @@ HARD_CONSTRAINTS = (
         relaxes_in_place=True,
         source="قياس: موثَّق",
     ),
+    #: توأمُ HC8: سقفُ الحصّة الأولى لكلّ معلّمٍ في الأسبوع (`MAX_FIRST_PERIODS = 2`)، وكان مرمَّزاً في V2
+    #: وحدَه (`scheduler_v2/hard_constraints.py::_edge_caps`) فلا يراه المُقيِّمُ المستقلّ ولا فحصُ الجدوى.
+    #: ورتبتُه `never` كأخيه، ويُخفَّف لمعلّمٍ بعينه بقرار المالك المعلَن (`first_cap_override`) لا برخصة جولة.
+    _hard("HC22", "لا تتكدّس الأولى على معلّم", source="قرار: D-166م وD-183م"),
 )
 
 #: القيودُ المرنة — أوزانُها هي مفاتيحُ `scheduler_constraints.WEIGHTS`.

@@ -27,6 +27,15 @@ class OperationsConfig(AppConfig):
             capability="schedule.browse",
         )
 
+        # كشفُ متابعة الغياب PDF (W-20261013-011): خلفيٌّ افتراضاً؛ البنّاءُ بلا `request` والنطاقُ من الخدمة.
+        from .absence_followup_print import build_followup_pdf
+
+        export_registry.register(
+            "operations.absence_followup_pdf",
+            build=build_followup_pdf,
+            capability="operations.absence_followup_print",
+        )
+
         # غيابُ اليوم في لوحة المدير بطلابٍ مميَّزين (W-20261008-004): النواةُ تُرسل والوحدةُ تقرأ بياناتِها.
         from .day_selectors import director_day_section
 

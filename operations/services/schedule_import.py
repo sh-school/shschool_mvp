@@ -117,7 +117,7 @@ def import_rows(
 
     الأوقاتُ من الجرس لا من الصفوف. وترفض الدالّةُ (`ScheduleImportError`) قبل أيّ كتابة إن عابت الصفوف.
     """
-    from operations.scheduler import bell_lookup
+    from operations.scheduling_inputs import bell_lookup
     from operations.services.schedule import ScheduleService
 
     rows = list(rows)

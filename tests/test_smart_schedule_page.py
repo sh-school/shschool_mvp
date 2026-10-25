@@ -154,16 +154,23 @@ def test_an_already_approved_generation_is_refused_politely(client_as, principal
 # ── الرسالةُ تقول ما وقع ─────────────────────────────────────────────
 
 
-def test_the_message_reports_what_was_actually_placed(client_as, principal, school, teachers_pool):
-    """كانت تقول «0/0 حصة» على جدولٍ وُلِّد — لأنّها تقرأ مفاتيحَ لا يُرجعها المحرّك."""
-    from operations.models import SubjectClassAssignment
+def test_the_message_reports_what_was_actually_placed(
+    client_as, principal, school, teachers_pool, monkeypatch
+):
+    """الزرّ يضع صفَّ توليدٍ في الطابور فقط، والأرقامُ تُكتب عند الانتهاء (إشعارُ المهمّة).
 
+    كان الاختبارُ يتوقّع «12/12» فوراً لأنّ المسارَ القديم متزامن؛ والمسارُ V2 غيرُ متزامن
+    فلا يُقال في الصفحة رقمٌ لم يقع بعد، وأرقامُ الإنجاز مغطّاةٌ في `test_v2_generate_button.py`.
+    """
+    from operations.models import ScheduleGeneration, Subject, SubjectClassAssignment
+
+    monkeypatch.setattr(
+        "operations.scheduler_v2.tasks.generate_schedule_v2_task.delay", lambda *a, **k: None
+    )
     groups = [
         ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
         for _ in range(2)
     ]
-    from operations.models import Subject
-
     subjects = [
         Subject.objects.create(school=school, name_ar=f"مادّة {i}", code=f"X{i}") for i in range(2)
     ]
@@ -182,11 +189,10 @@ def test_the_message_reports_what_was_actually_placed(client_as, principal, scho
     response = client_as(principal).post(reverse("smart_generate"), {"year": YEAR}, follow=True)
     body = response.content.decode()
 
-    # الخانةُ نفسُها لا النصُّ كلُّه: الصفحةُ تطبع تاريخَ التوليد `d/m/Y`، وفي
-    # العاشر من أيلول يقرأ «10/09» فيحوي «0/0» — فكان التأكيدُ الخامُ يفشل
-    # ثلاثةَ أيّامٍ في كلّ شهر.
+    generation = ScheduleGeneration.objects.get(school=school, academic_year=YEAR)
+    assert generation.status == "queued", "يُطلَق V2 ويبقى الصفُّ في الطابور حتى يلتقطه العامل"
+    # الخانةُ نفسُها لا النصُّ كلُّه: الصفحةُ تطبع تاريخَ التوليد `d/m/Y` فقد يحوي «0/0».
     assert ">0/0<" not in body, "لا رقمَ يصف ما لم يقع"
-    assert ">12/12<" in body and "100.0%" in body
     assert "م1:" not in body, "ولا ذكرَ لمراحلَ لا وجودَ لها"
 
 

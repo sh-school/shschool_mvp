@@ -36,7 +36,7 @@ def _looks_like_a_path(token: str) -> bool:
     التمييز بالشكل لا بالموضع: `-n auto` يضع `auto` موضعَ المسار، فمَن عدّ
     كلَّ ما لا يبدأ بشرطةٍ مساراً ظنّ المجموعةَ الكاملة مقيَّدةً بملفّ.
     """
-    return token == "." or token.endswith(".py") or "/" in token
+    return token == "." or token.endswith(".py") or "/" in token or token.startswith("${{")
 
 
 def runs_the_whole_suite(text: str) -> bool:
@@ -46,7 +46,13 @@ def runs_the_whole_suite(text: str) -> bool:
     الحارس يمسح لا شيء وهو يبدو أخضر. والمعنى أثبتُ من النصّ.
     """
     joined = text.replace("\\\n", " ")
+    # سطرُ `pip install pytest pytest-django …` تثبيتٌ لا تشغيل: اسمُ الحزمة ليس نداءً بلا مسار (W-20261019-022:
+    # ظهر حين أُعلنت مهلةٌ على وظائف تثبّت pytest ولا تجمع المجموعة)
     for m in _CALL.finditer(joined):
+        line_start = joined.rfind("\n", 0, m.start()) + 1
+        command = re.split(r"&&|;|\|\|", joined[line_start : m.start()])[-1]
+        if "pip install" in command:
+            continue
         if not any(_looks_like_a_path(t) for t in m.group("rest").split()):
             return True
     return False
@@ -72,7 +78,9 @@ def test_the_sweep_finds_the_suite_runners():
     """حارسٌ يمسح لا شيء يمرّ دائماً."""
     runners = {w for w, _, run in _steps() if runs_the_whole_suite(run)}
 
-    assert len(runners) >= 3, f"لم يُعثر إلّا على {runners}"
+    # كان العتبةُ ثلاثةً ويبلغها العدُّ بسطور `pip install pytest …` وبمسارٍ مصفوفيٍّ `${{ matrix.tests }}` ظُنّت مجموعةً كاملة
+    # (W-20261019-022: حين أُعلنت مهلةٌ على تلك الوظائف ظهر الخطأ)؛ والمجموعةُ الكاملةُ الفعليّةُ اليوم وظيفةُ pytest-shards.
+    assert "quality-gate.yml:pytest-shards" in runners, f"لم يُعثر إلّا على {runners}"
 
 
 def test_a_full_suite_job_that_declares_a_budget_runs_in_parallel():
@@ -109,15 +117,24 @@ def test_the_deploy_pipeline_does_not_rerun_the_suite():
     assert not rerunners, rerunners
 
 
-def test_the_quality_gate_runs_the_suite_on_every_push_to_main():
-    """شرطُ الحذف أعلاه: من يسأل «هل نجحت اختباراتُ هذا الـcommit؟» يجدها هنا."""
+def test_the_quality_gate_runs_the_whole_suite_before_anything_lands_on_main():
+    """شرطُ الحذف أعلاه: من يسأل «هل نجحت اختباراتُ هذا الـcommit؟» يجدها هنا.
+
+    منذ D-429م (2026-10-13) لا تُجرى المجموعةُ على `push` إلى main بل **قبل** الدمج: طابورُ الدمج يُجريها كاملةً
+    على «main + الطلب» (merge_group)، ولا يصل commit إلى main إلا عبره. فالشرطُ على الوظيفة مسموحٌ به بصيغةٍ واحدةٍ
+    فقط — استثناءُ `push` — ويبقى الطلبُ والطابورُ كاملَين.
+    """
     doc = yaml.safe_load((WORKFLOWS / "quality-gate.yml").read_text(encoding="utf-8"))
     triggers = doc.get("on") or doc.get(True)  # يقرأ YAML 1.1 المفتاحَ `on` قيمةً منطقيّة
 
     assert "main" in triggers["push"]["branches"]
+    assert "merge_group" in triggers and "pull_request" in triggers
     # المجموعةُ مقسومةٌ على shards (W-20261002-034): مصفوفةُ pytest-shards هي من تشغّلها، لا test-coverage (مُجمِّعٌ).
-    assert runs_the_whole_suite(_joined(doc["jobs"]["pytest-shards"]))
-    assert "if" not in doc["jobs"]["pytest-shards"], "شرطٌ على الوظيفة قد يستثني الدفعَ إلى main"
+    shards = doc["jobs"]["pytest-shards"]
+    assert runs_the_whole_suite(_joined(shards))
+    assert (
+        str(shards.get("if", "")).strip() == "github.event_name != 'push'"
+    ), "الشرطُ الوحيدُ المسموح: استثناءُ push وحدَه، فيبقى الطلبُ وطابورُ الدمج كاملَين"
 
 
 def test_the_parallel_runner_is_installed_where_it_is_used():

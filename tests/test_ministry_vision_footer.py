@@ -30,9 +30,10 @@ PARTIAL = pathlib.Path("templates/components/ministry_vision.html")
 #: `base_form.html` رُحِّل إلى الإطار المطبوع المركزيّ (core/print_frame.py، #713) فخرج من هذه القائمة —
 #: انظر `test_the_migrated_form_footer_carries_the_vision` أدناه. و`observation_pdf.html` رُحِّل مثلَه إلى
 #: المكوّن المركزيّ الأبسط `components/pdf_footer.html` (قرارُ المالك 2026-09-28، W-20260928-003) — انظر
-#: `test_the_shared_footer_component_carries_the_vision` أدناه.
+#: `test_the_shared_footer_component_carries_the_vision` أدناه. و`print_schedule.html` (والجدول الفرديّ
+#: `print_pages.html`) رُحِّلا كذلك إلى الإطار المركزيّ (W-20261010-057) — انظر
+#: `test_the_migrated_schedule_footer_carries_the_vision` أدناه.
 STANDALONE_DOCS = [
-    "templates/schedule/print_schedule.html",
     "templates/reports/base_qatar_report.html",
 ]
 
@@ -81,6 +82,36 @@ def test_every_standalone_document_footer_carries_the_vision(doc):
     assert 'include "components/ministry_vision.html"' in pathlib.Path(doc).read_text(
         encoding="utf-8"
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "doc", ["templates/schedule/print_schedule.html", "templates/schedule/print_pages.html"]
+)
+@pytest.mark.parametrize(
+    ("paper", "orient"), [("a4", "landscape"), ("a4", "portrait"), ("a3", "landscape")]
+)
+def test_the_migrated_schedule_footer_carries_the_vision(school, doc, paper, orient):
+    """قالبا الجدول رُحِّلا إلى الإطار المركزيّ: الرؤيةُ تصلهما عبر الإطار لا نصّاً في القالب، فيُقاس المُخرَجُ
+    المُصيَّر ويُقاس أنّ القالبَ ما زال يستعمل وسمَ التذييل المركزيّ. والرؤيةُ في التذييل حيث يسعها الصفُّ،
+    وفي الورق العمودي في الترويسة عمداً (`VISION_IN_HEADER`، D1) فلا تُطلب منه في التذييل."""
+    from django.template import Context, Template
+
+    from core.print_frame import VISION_IN_HEADER
+
+    assert "{% print_frame_footer" in pathlib.Path(doc).read_text(encoding="utf-8")
+    context = Context({"paper": paper, "orient": orient, "school": school})
+    footer = Template("{% load print_frame %}{% print_frame_footer paper orient school %}").render(
+        context
+    )
+    header = Template(
+        '{% load print_frame %}{% print_frame_header paper orient school "عنوان" %}'
+    ).render(context)
+
+    if (paper, orient) in VISION_IN_HEADER:
+        assert VISION in _plain(header) and VISION not in _plain(footer)
+    else:
+        assert VISION in _plain(footer) and VISION not in _plain(header)
 
 
 @pytest.mark.django_db
@@ -186,22 +217,33 @@ def _matrix_sub(**extra):
     return " ".join(text.split())
 
 
-def test_the_general_schedule_sub_line_carries_the_vision_between_two_vertical_bars():
-    """بلاغُ المالك (2026-09-25): في سطر الجدول العامّ بعد «دولة قطر» بين خطّين رأسيّين."""
+def test_the_general_schedule_sub_line_carries_the_vision_between_two_vertical_bars(settings):
+    """بلاغُ المالك (2026-09-25): في سطر الجدول العامّ بعد «دولة قطر» بين خطّين رأسيّين (والعبارةُ مُفعَّلةٌ)."""
+    settings.MINISTRY_AFFILIATION_VISIBLE = True
     assert _matrix_sub() == (
         f"وزارة التربية والتعليم والتعليم العالي — دولة قطر | {VISION} | العام الدراسي 2026-2027 | الأسبوع 27/9 – 1/10"
     )
 
 
-def test_the_general_schedule_sub_line_reads_the_schools_own_vision():
+def test_the_general_schedule_sub_line_starts_with_the_vision_while_the_ministry_is_frozen(
+    settings,
+):
+    """D-400م: العبارةُ مجمَّدة ← يبدأ السطرُ بالرؤية بلا خطٍّ رأسيٍّ يتيم."""
+    settings.MINISTRY_AFFILIATION_VISIBLE = False
+    assert _matrix_sub() == f"{VISION} | العام الدراسي 2026-2027 | الأسبوع 27/9 – 1/10"
+
+
+def test_the_general_schedule_sub_line_reads_the_schools_own_vision(settings):
     from types import SimpleNamespace
 
+    settings.MINISTRY_AFFILIATION_VISIBLE = True
     line = _matrix_sub(school=SimpleNamespace(vision="رؤيةٌ اعتمدتها هذه المدرسة"))
     assert "دولة قطر | رؤيةٌ اعتمدتها هذه المدرسة | العام الدراسي" in line
     assert VISION not in line
 
 
-def test_the_general_schedule_sub_line_keeps_the_year_only_for_a_planned_week():
+def test_the_general_schedule_sub_line_keeps_the_year_only_for_a_planned_week(settings):
+    settings.MINISTRY_AFFILIATION_VISIBLE = True
     line = _matrix_sub(source="plan")
     assert line.endswith(f"| {VISION} | العام الدراسي 2026-2027") and "الأسبوع" not in line
 

@@ -25,7 +25,7 @@
           <span class="af-day__meta">أرسله {{ x.granted_by.full_name|default:"—" }} · {{ x.granted_at|date:"j/n H:i" }}</span>
         </div>
         <div class="af-day__actions">
-          {% if x.document %}<a data-app-file href="{{ x.document.url }}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-sm">{% icon "document" %} المستند</a>{% endif %}
+          {% if x.document %}<a data-app-file href="{% url 'wings:excuse_document_export' x.pk %}" class="btn-secondary btn-sm">{% icon "document" %} المستند</a>{% endif %}
           <a href="{% url 'wings:absence_file' x.student_id %}" class="btn-secondary btn-sm">{% icon "absence" %} ملفُّ غيابه</a>
         </div>
         {# نموذجان لا نموذجٌ بزرّين: Enter في خانة سبب الرفض لا يقبل العذر. #}
