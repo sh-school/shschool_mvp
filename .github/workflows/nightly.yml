@@ -297,12 +297,18 @@ jobs:
 
       # الخطوتان تشغّلان المجموعةَ نفسَها وكلٌّ منهما تُكمل ولو فشلت الأخرى (`if: always()`)، فيظهر فشلُ اليومين معاً.
       # القائمةُ تُستثنى كما في الخطوة الرئيسيّة أعلاه (اختباراتُ المتصفّح تُشغَّل منفصلةً هناك).
-      - name: "الجمعة — المجموعةُ بلا المتصفّح (SCHOOLOS_TEST_NOW=2026-10-09)"
+      # آخرُ جمعةٍ وآخرُ خميسٍ يُحسبان عند كلّ تشغيل بتوقيت الدوحة (W-20261022-004): لا تواريخَ مثبّتةً تتقادم.
+      - name: حساب آخر جمعة وآخر خميس (توقيت الدوحة)
+        run: |
+          echo "FRIDAY_NOW=$(TZ=Asia/Qatar date -d 'last friday' +%Y-%m-%dT07:10:00+03:00)" >> "$GITHUB_ENV"
+          echo "THURSDAY_NOW=$(TZ=Asia/Qatar date -d 'last thursday' +%Y-%m-%dT07:10:00+03:00)" >> "$GITHUB_ENV"
+
+      - name: "الجمعة — المجموعةُ بلا المتصفّح (آخر جمعة)"
         id: fri
         # W-20261022-006: الفشل يُبلَّغ بقضيّةٍ لا بحمرة check run على رأس main (فيحجب Wait for CI في Railway)
         continue-on-error: true
         env:
-          SCHOOLOS_TEST_NOW: "2026-10-09T07:10:00+03:00"
+          SCHOOLOS_TEST_NOW: ${{ env.FRIDAY_NOW }}
         run: |
           python -m pytest \
             --ignore=tests/e2e \
@@ -314,13 +320,13 @@ jobs:
             --ignore=tests/test_page_nav_htmx_process.py \
             -p no:cacheprovider -q
 
-      - name: "الخميس — المجموعةُ بلا المتصفّح (SCHOOLOS_TEST_NOW=2026-10-08)"
+      - name: "الخميس — المجموعةُ بلا المتصفّح (آخر خميس)"
         id: thu
         # W-20261022-006: الفشل يُبلَّغ بقضيّةٍ لا بحمرة check run على رأس main (فيحجب Wait for CI في Railway)
         continue-on-error: true
         if: always()
         env:
-          SCHOOLOS_TEST_NOW: "2026-10-08T07:10:00+03:00"
+          SCHOOLOS_TEST_NOW: ${{ env.THURSDAY_NOW }}
         run: |
           python -m pytest \
             --ignore=tests/e2e \
@@ -342,7 +348,7 @@ jobs:
               `**Commit**: \`${context.sha}\``,
               `**Time**: ${new Date().toISOString()}`,
               `**Run**: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-              `**Result**: فشلت المجموعةُ حين ثُبّتت الساعةُ على جمعةٍ أو خميس — اختبارٌ حسّاسٌ لليوم لم يُعلَّم \`pin_clock\`. شغّل الاختبارَ منفرداً بـ\`SCHOOLOS_TEST_NOW=2026-10-09T07:10:00+03:00\` (جمعة) أو \`2026-10-08T07:10:00+03:00\` (خميس) وأضِف \`pytestmark = pytest.mark.pin_clock\`. هذا إبلاغٌ لا حجب.`,
+              `**Result**: فشلت المجموعةُ حين ثُبّتت الساعةُ على جمعةٍ أو خميس — اختبارٌ حسّاسٌ لليوم لم يُعلَّم \`pin_clock\`. شغّل الاختبارَ منفرداً بـ\`SCHOOLOS_TEST_NOW=${{ env.FRIDAY_NOW }}\` (جمعة) أو \`${{ env.THURSDAY_NOW }}\` (خميس) وأضِف \`pytestmark = pytest.mark.pin_clock\`. هذا إبلاغٌ لا حجب.`,
             ].join('\n');
             const isOurs = (item) =>
               !item.pull_request &&
