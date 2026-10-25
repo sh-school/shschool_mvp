@@ -28,7 +28,9 @@ def _in_month(day=10):
     return timezone.make_aware(dt.datetime(2026, 9, day, 9, 0))
 
 
-def test_service_rows_follow_the_owner_order_and_totals_are_exact(school, student_user, nurse_user):
+def test_service_rows_follow_the_owner_order_and_large_totals_are_exact(
+    school, student_user, nurse_user
+):
     student_user.nationality = "قطري"
     student_user.save()
     for _ in range(7):
@@ -41,14 +43,12 @@ def test_service_rows_follow_the_owner_order_and_totals_are_exact(school, studen
     assert counts["total"] == 7
 
 
-def test_small_counts_are_suppressed_but_service_total_stays_exact(
-    school, student_user, nurse_user
-):
+def test_small_counts_and_small_service_totals_are_suppressed(school, student_user, nurse_user):
     for _ in range(3):
         _visit(school, student_user, nurse_user, _in_month(), service_code="insulin")
     counts = ce.monthly_counts(school, 2026, 9)
     row = next(r for r in ce.service_rows(counts) if r[1] == "إنسولين")
-    assert row[3] == ce.SUPPRESSED and row[4] == 3
+    assert row[3] == ce.SUPPRESSED and row[4] == ce.SUPPRESSED
 
 
 def test_other_months_and_other_schools_are_excluded(school, student_user, nurse_user):

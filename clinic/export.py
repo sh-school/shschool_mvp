@@ -81,13 +81,13 @@ def monthly_counts(school: Any, year: int, month: int) -> dict[str, Any]:
 
 
 def service_rows(counts: dict[str, Any]) -> list[tuple[str, str, Any, Any, Any]]:
-    """(المجموعة، الخدمة، قطريّ، غيرُ قطريّ، المجموع) بترتيب `SERVICES`؛ المجموعُ دقيق."""
+    """(المجموعة، الخدمة، قطريّ، غيرُ قطريّ، المجموع) بترتيب `SERVICES`؛ والمجموعُ دون 5 يُخفى (قرار المالك 2026-10-25)."""
     group_label = dict(choices.SERVICE_GROUPS)
     out = []
     for code, label, group in choices.SERVICES:
         c = counts["by_service"].get(code, Counter())
         qa, non = c["qa"], c["non"]
-        out.append((group_label[group], label, _shown(qa), _shown(non), qa + non))
+        out.append((group_label[group], label, _shown(qa), _shown(non), _shown(qa + non)))
     return out
 
 
