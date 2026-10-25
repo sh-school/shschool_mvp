@@ -281,6 +281,9 @@ body {
   color: {% brand_color "TEXT_PRIMARY" %};
   text-align: center !important;
 }
+/* خانةُ الختم اليدويّة الفارغة (components/print/stamp_box.html — قرار المالك 2026-10-21): مربّعٌ منقَّطٌ يُختم عليه بعد الطباعة */
+.pf-stamp-box { display: block; box-sizing: border-box; width: 32mm; height: 22mm; margin: 4px auto 0; border: 0.3mm dashed {% brand_color "TEXT_MUTED" %}; text-align: center !important; break-inside: avoid; }
+.pf-stamp-box__label { display: block; font-size: 8px; line-height: 4mm; color: {% brand_color "TEXT_MUTED" %}; text-align: center !important; }
 .sig-stamp {
   font-size: 8.5px;
   color: {% brand_color "MAROON_DARK" %};

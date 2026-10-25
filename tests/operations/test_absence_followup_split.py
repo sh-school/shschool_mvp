@@ -117,7 +117,7 @@ class TestPrintIsServerSide:
         )
 
     @pytest.mark.parametrize(
-        ("page", "default"), [("contact", "landscape"), ("actions", "portrait")]
+        ("page", "default"), [("contact", "landscape"), ("actions", "landscape")]
     )
     def test_the_pdf_follows_the_orientation_with_a_per_page_default(
         self, client_as, staff, absent_both, page, default

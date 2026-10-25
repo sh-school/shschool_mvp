@@ -1,4 +1,5 @@
 {% extends "reports/base_qatar_report.html" %}
+{% block extra_styles %}@page { size: A4 landscape; } /* كشفٌ بأعمدة: أفقيّ بسياسة الطباعة (core/print_policy.py، قرار المالك 2026-10-21) */{% endblock %}
 
 {% block report_title_bar %}
 <h1 class="report-title-bar">{{ title|default:"تقرير السلوك الطلابي" }}</h1>
@@ -87,6 +88,7 @@
     <div class="sig-line"></div>
     <div class="sig-name">&nbsp;</div>
     <div class="sig-role">التوقيع والختم</div>
+    {% include "components/print/stamp_box.html" %}
   </div>
 </div>
 {% endblock %}
