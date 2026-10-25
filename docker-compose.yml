@@ -16,7 +16,7 @@ services:
     volumes:
       - shschool_pgdata18:/var/lib/postgresql
     ports:
-      - "5433:5432"          # 5432 محجوز لـ schoolos-template — نستخدم 5433 على المضيف
+      - "127.0.0.1:5433:5432"          # 5432 محجوز لـ schoolos-template — نستخدم 5433 على المضيف
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
@@ -60,7 +60,7 @@ services:
       - .:/app                # كود حيّ مع auto-reload للتطوير
       - /app/.venv            # لا تُظلِّل بيئة الصورة بأي venv محلي
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
