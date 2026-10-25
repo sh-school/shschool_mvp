@@ -184,7 +184,13 @@ class ClinicService:
         ).first()
         if existing is not None:
             return existing
-        return ClinicService.record_visit(school=school, student=student, nurse=nurse, reason="")
+        return ClinicService.record_visit(
+            school=school,
+            student=student,
+            nurse=nurse,
+            reason="",
+            draft_started_at=timezone.now(),
+        )
 
     @staticmethod
     @transaction.atomic

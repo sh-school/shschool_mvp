@@ -30,12 +30,24 @@ class TestRegistrationTime:
     ):
         for secs in (10, 20, 30, 40, 100):
             v = _visit(school, student_user, nurse_user)
+            now = timezone.now()
             ClinicVisit.objects.filter(pk=v.pk).update(
-                draft_started_at=v.visit_date - dt.timedelta(seconds=secs)
+                draft_started_at=now - dt.timedelta(seconds=secs), closed_at=now
             )
         _visit(school, student_user, nurse_user)  # بلا مسودة: خارج القياس
         out = metrics.registration_time(ClinicVisit.objects.filter(school=school))
         assert out == {"n": 5, "p50": 30, "p90": 100}
+
+    def test_start_visit_fills_the_draft_start_so_closing_gives_a_duration(
+        self, school, student_user, nurse_user
+    ):
+        visit = ClinicService.start_visit(school, student_user, nurse_user)
+        assert visit.draft_started_at is not None
+        ClinicVisit.objects.filter(pk=visit.pk).update(
+            closed_at=visit.draft_started_at + dt.timedelta(seconds=15)
+        )
+        out = metrics.registration_time(ClinicVisit.objects.filter(school=school))
+        assert out == {"n": 1, "p50": 15, "p90": 15}
 
     def test_the_service_stores_the_draft_start_without_any_health_text(
         self, school, student_user, nurse_user
@@ -86,6 +98,15 @@ class TestAuditAndReconciliation:
         out = metrics.monthly_reconciliation(ClinicVisit.objects.filter(school=school))
         assert out["rate"] == 1.0
         assert all(out["dimensions"].values())
+
+    def test_reconciliation_catches_a_stored_group_that_disagrees_with_the_code(
+        self, school, student_user, nurse_user
+    ):
+        _visit(school, student_user, nurse_user, service_code="bandage", service_group="vitals")
+        out = metrics.monthly_reconciliation(ClinicVisit.objects.filter(school=school))
+        assert out["dimensions"]["service_group"] is False
+        assert out["mismatches"]["service_group"] == 1
+        assert out["rate"] < 1.0
 
 
 @pytest.mark.django_db

@@ -4,14 +4,15 @@
 (reason/symptoms/treatment مشفّرةٌ ولا تُقرأ هنا أصلاً)، ولا قياسَ على مستوى الفرد.
 
 الصيغ (يطابقها `docs/clinic_metrics.md`):
-  1. زمن التسجيل  = visit_date − draft_started_at بالثواني، p50/p90 (أقرب رتبة) على زيارات لها مسودة.
+  1. زمن التسجيل  = closed_at − draft_started_at بالثواني، p50/p90 (أقرب رتبة) على زياراتٍ مغلقةٍ لها مسودة.
   2. ربط الاستئذان = استئذاناتٌ صحية (reason=medical) لها زيارةٌ لنفس الطالب في اليوم نفسه قبل وقت
      الخروج أو عنده ÷ كلُّ الاستئذانات الصحية. ربطٌ منطقيّ بلا مفتاحٍ أجنبيّ.
   3. تغطية الترميز = زياراتٌ فيها خدمةٌ وشكوى (وحالةُ خروجٍ إن أُغلقت) ÷ كلُّ الزيارات.
   4. تدقيق الفتح  = زياراتٌ لها سطرُ تدقيق إنشاءٍ ÷ كلُّ الزيارات؛ وفتحُ الملف الصحي يُدقَّق داخل
      العرض نفسه (`student_health_record`) ويحرسه اختبار.
-  5. التطابق الشهري = أبعادُ التقرير (الخدمة، المجموعة، الشكوى، الحالة) التي يساوي مجموعُها عددَ
-     الزيارات ÷ عددُ الأبعاد.
+  5. التطابق الشهري = أبعادٌ (الخدمة، المجموعة، الشكوى، الحالة) لا تخالف فيها القيمةُ المخزَّنةُ
+     في الزيارة ما تشتقّه القائمةُ المعتمدة (`clinic.choices`) ÷ عددُ الأبعاد. مصدران مستقلّان:
+     الأعمدةُ المخزَّنة ضدّ الاشتقاق من القائمة.
 """
 
 from __future__ import annotations
@@ -20,13 +21,10 @@ import datetime as dt
 import math
 from collections import defaultdict
 
-from django.db.models import Count
 from django.utils import timezone
 
+from clinic import choices
 from clinic.models import ClinicVisit
-
-#: الأبعادُ التي يجب أن يساوي مجموعُ كلٍّ منها (مع «غير مرمَّز/مفتوحة») عددَ الزيارات.
-_RECONCILED_DIMENSIONS = ("service_code", "service_group", "complaint_code", "outcome")
 
 
 def month_bounds(year: int, month: int) -> tuple[dt.datetime, dt.datetime]:
@@ -51,10 +49,10 @@ def _percentile(sorted_values: list[int], pct: int) -> int | None:
 
 def registration_time(visits) -> dict:
     deltas = sorted(
-        max(0, int((v - d).total_seconds()))
-        for v, d in visits.exclude(draft_started_at=None).values_list(
-            "visit_date", "draft_started_at"
-        )
+        max(0, int((closed - d).total_seconds()))
+        for closed, d in visits.exclude(draft_started_at=None)
+        .exclude(closed_at=None)
+        .values_list("closed_at", "draft_started_at")
     )
     return {"n": len(deltas), "p50": _percentile(deltas, 50), "p90": _percentile(deltas, 90)}
 
@@ -107,13 +105,30 @@ def audit_coverage(visits) -> dict:
 
 
 def monthly_reconciliation(visits) -> dict:
-    total = visits.count()
-    dims: dict[str, bool] = {}
-    for field in _RECONCILED_DIMENSIONS:
-        grouped = visits.values(field).annotate(n=Count("pk")).values_list("n", flat=True)
-        dims[field] = sum(grouped) == total
-    matched = sum(dims.values())
-    return {"visits": total, "dimensions": dims, "rate": matched / len(dims)}
+    """يقارن ما خُزّن في كلّ زيارةٍ بما تشتقّه القائمةُ المعتمدة؛ بُعدٌ يخالف فيه أيُّ سطرٍ يسقط."""
+    mismatches = {"service_code": 0, "service_group": 0, "complaint_code": 0, "outcome": 0}
+    total = 0
+    for code, group, complaint, outcome, closed_at in visits.values_list(
+        "service_code", "service_group", "complaint_code", "outcome", "closed_at"
+    ):
+        total += 1
+        if code and not choices.is_valid_service(code):
+            mismatches["service_code"] += 1
+        if group != choices.group_of_service(code):
+            mismatches["service_group"] += 1
+        if complaint and not choices.is_valid_complaint(complaint):
+            mismatches["complaint_code"] += 1
+        if (closed_at is not None) != bool(outcome) or (
+            outcome and not choices.is_valid_outcome(outcome)
+        ):
+            mismatches["outcome"] += 1
+    dims = {field: n == 0 for field, n in mismatches.items()}
+    return {
+        "visits": total,
+        "dimensions": dims,
+        "mismatches": mismatches,
+        "rate": sum(dims.values()) / len(dims),
+    }
 
 
 def clinic_indicators(school, year: int, month: int) -> dict:
