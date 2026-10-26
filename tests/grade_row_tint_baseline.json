@@ -1,0 +1,11 @@
+{
+  "files": {
+    "templates/academic_management/reports/exam_results.html": 2,
+    "templates/academic_management/reports/quiz_reports.html": 1,
+    "templates/schedule/pdf/matrix_table.html": 1,
+    "templates/schedule/pdf/week_grid.html": 1,
+    "templates/staging/import_result.html": 1,
+    "templates/student_affairs/student_list_pdf.html": 1,
+    "templates/wings/pdf/wing_summary.html": 1
+  }
+}

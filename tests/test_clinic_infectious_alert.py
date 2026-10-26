@@ -141,7 +141,7 @@ def test_no_alert_outside_lessons_or_without_enrollment(
 
 
 def test_the_migration_only_adds_columns_with_safe_defaults():
-    src = (ROOT / "clinic" / "migrations" / "0013_clinicvisit_infectious_alert.py").read_text(
+    src = (ROOT / "clinic" / "migrations" / "0018_clinicvisit_infectious_alert.py").read_text(
         encoding="utf-8"
     )
     assert src.count("migrations.AddField") == 5

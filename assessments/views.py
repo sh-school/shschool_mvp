@@ -21,9 +21,11 @@ from core import brand
 from core.academic_calendar import academic_year_for, academic_year_for_school
 from core.capabilities import capability_required
 from core.domain.tones import GRADE_CELL, tone_for
+from core.excel_safety import safe_cell
 from core.export_utils import apply_print_footer, excel_table_styles, xl_font
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_order
+from core.pdf_utils import content_disposition
 from core.permissions import teacher_can_access_student
 from core.privacy import mask_national_id
 from core.user_selectors import school_user_or_404
@@ -579,7 +581,7 @@ def export_gradebook(request, setup_id):
         f"{setup.academic_year}"
     )
     ws.merge_cells("A1:H1")
-    ws["A1"] = title
+    safe_cell(ws, 1, 1, title)
     ws["A1"].font = xl_font(brand.MAROON, size=13, bold=True)
     ws["A1"].alignment = CENTER
     ws.row_dimensions[1].height = 28
@@ -593,7 +595,7 @@ def export_gradebook(request, setup_id):
     )
 
     for col_idx, header in enumerate(headers, start=1):
-        cell = ws.cell(row=2, column=col_idx, value=header)
+        cell = safe_cell(ws, row=2, column=col_idx, value=header)
         cell.fill = HEADER_FILL
         cell.font = HEADER_FONT
         cell.alignment = CENTER
@@ -641,7 +643,7 @@ def export_gradebook(request, setup_id):
         )
 
         for col_idx, value in enumerate(row_data, start=1):
-            cell = ws.cell(row=excel_row, column=col_idx, value=value)
+            cell = safe_cell(ws, row=excel_row, column=col_idx, value=value)
             cell.border = THIN_BORDER
             cell.font = table.cell_font
             cell.alignment = CENTER if col_idx != 2 else RIGHT_ALIGN
@@ -679,7 +681,7 @@ def export_gradebook(request, setup_id):
         buf.read(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    resp["Content-Disposition"] = content_disposition(filename)
     return resp
 
 

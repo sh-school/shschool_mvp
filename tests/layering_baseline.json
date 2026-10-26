@@ -353,7 +353,7 @@
    "orm": 14
   },
   "core/views_students.py::student_import_template": {
-   "lines": 95
+   "lines": 89
   },
   "developer_feedback/views.py::DeveloperInboxListView.get_queryset": {
    "orm": 9
@@ -434,7 +434,7 @@
   },
   "operations/views_schedule.py::teacher_preferences": {
    "lines": 82,
-   "orm": 12
+   "orm": 9
   },
   "operations/views_swap.py::compensatory_request": {
    "orm": 9
@@ -615,7 +615,7 @@
    "orm": 10
   },
   "staging/views.py::download_grade_template": {
-   "lines": 106
+   "lines": 102
   },
   "staging/views.py::import_grades_select": {
    "orm": 15
@@ -653,7 +653,7 @@
    "orm": 26
   },
   "student_affairs/views.py::behavior_export_excel": {
-   "lines": 73,
+   "lines": 72,
    "orm": 12
   },
   "student_affairs/views.py::behavior_overview": {
@@ -668,7 +668,7 @@
    "lines": 63
   },
   "student_affairs/views.py::student_export_excel": {
-   "lines": 73
+   "lines": 72
   },
   "student_affairs/views.py::student_list": {
    "lines": 224,

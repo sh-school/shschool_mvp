@@ -89,3 +89,10 @@ def test_the_workflow_runs_the_script_and_is_not_a_merge_gate_need():
     assert (
         "approval-head" not in needs
     ), "الدخولُ في شروط البوّابة قرارُ المالك بعد أسبوع مراقبةٍ للإيجابيات الكاذبة"
+
+
+def test_mandate_line_bound_to_head_is_accepted():
+    line = "اعتُمد بتكليف المالك D-443م عبر 0101 — 2026-10-21 — الرأس " + HEAD[:8]
+    assert chk.verdict(line, HEAD)[0] == "ok"
+    assert chk.verdict(line, "ffffffff" + HEAD[8:])[0] == "stale_head"
+    assert chk.verdict("اعتُمد بتكليف المالك D-443م عبر 0101 — 2026-10-21", HEAD)[0] == "no_line"

@@ -23,7 +23,7 @@
       </select>
       <button type="submit" class="btn-secondary btn-sm">تطبيق</button>
     </form>
-    <a data-app-file href="{{ pdf_url }}" download class="btn-primary btn-sm">{% icon "download" %} تحميل PDF</a>
+    {% export_button "pdf" href=pdf_url primary=True download=True %}{% endexport_button %}
     <a href="{{ back_url }}" class="btn-secondary btn-sm">← رجوع للقائمة</a>
   {% endpage_header %}
   <iframe src="{{ frame_url }}" title="{{ report_title }}" class="obs-pdf-frame"></iframe>

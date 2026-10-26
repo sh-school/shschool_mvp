@@ -49,6 +49,7 @@ def student_affairs_capabilities(shared: Shared) -> list[Capability]:
             basis="الدليل التنظيميّ 2026 م 3.4.2.2: التأخّرُ الصباحيُّ على المشرف الإداريّ من أوّل مرّة",
         ),
         _cap("student_affairs.deactivate", "إيقافُ قيد طالب", P.STUDENT_DEACTIVATE),
+        _cap("student_affairs.verify_contact", "تدقيقُ تغيير رقم التواصل", P.CONTACT_VERIFY),
         _cap(
             "student_affairs.transfers",
             "انتقالاتُ الطلبة (طلبٌ ومراجعةٌ وإتمام)",

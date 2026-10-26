@@ -189,6 +189,11 @@ class TestScreens:
         assert response.status_code == 200
         assert response["Content-Type"] == "application/pdf"
         assert response.content[:4] == b"%PDF"
+        # كلُّ تصديرٍ يُدوَّن (W-20261021-005): الاستمارةُ تحمل بياناتِ طالب.
+        from core.models.audit import AuditLog
+
+        log = AuditLog.objects.get(action="export", changes__kind="wings.exit_permit_pdf")
+        assert log.object_id == str(permit.id)
 
     def test_the_form_is_one_portrait_page(self, client_as, school, klass, kids, supervisor):
         """أمر المالك 2026-10-18: الاستمارةُ صفحةٌ واحدةٌ راسيّةٌ فقط."""

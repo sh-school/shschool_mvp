@@ -15,6 +15,7 @@ HUB_TO_STORED_EVENT = {
     "grade": "grade",
     "fail": "fail",
     "clinic": "clinic",
+    "clinic_expiry": "clinic",
     "sent_home": "sent_home",
     "meeting": "meeting",
     "parent_summon": "parent_summon",

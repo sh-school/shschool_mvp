@@ -10,7 +10,7 @@ import pytest
 from staff_affairs.models import EmploymentContract, LeaveBalance, LeaveRequest
 from staff_affairs.probation import open_contract, record_result
 from staff_affairs.services import LeaveService
-from tests.conftest import MembershipFactory, SchoolFactory, UserFactory
+from tests.conftest import MembershipFactory, RoleFactory, SchoolFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -252,3 +252,91 @@ def test_admin_change_cannot_set_result_bypassing_record_result(client, setup):
     assert resp.status_code == 302
     c.refresh_from_db()
     assert c.result == "pending" and c.result_at is None and c.contract_ref == "x"
+
+
+# ── تسجيل النتيجة: إجراء admin وشاشة المنصة (W-20261020-009) ──
+
+
+def _expired_contract(school, staff, boss):
+    return open_contract(school, staff, dt.date(2025, 1, 1), 3, boss)  # انتهت في 2025-04-01
+
+
+def _login_role(client, school, role):
+    user = UserFactory()
+    MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name=role))
+    client.force_login(user)
+    return user
+
+
+def test_screen_records_result_with_audit(client, setup):
+    from django.urls import reverse
+
+    from core.models.audit import AuditLog
+
+    school, staff, boss = setup
+    c = _expired_contract(school, staff, boss)
+    actor = _login_role(client, school, "principal")
+    url = reverse("staff_affairs:probation_result_record", args=[c.pk])
+    assert client.post(url, {"result": "passed"}).status_code == 302
+    c.refresh_from_db()
+    assert c.result == "passed" and c.result_at is not None and c.updated_by == actor
+    log = AuditLog.objects.get(object_id=str(c.pk))
+    assert log.user == actor and log.changes["result"] == "passed"
+    assert "full_name" not in str(log.changes)
+    page = client.get(reverse("staff_affairs:probation_results"))
+    assert page.status_code == 200 and staff.full_name in page.content.decode()
+
+
+def test_screen_refuses_before_end_and_after_result(client, setup):
+    from django.contrib.messages import get_messages
+    from django.urls import reverse
+
+    school, staff, boss = setup
+    early = open_contract(school, staff, dt.date(2099, 1, 1), 6, boss)
+    _login_role(client, school, "principal")
+    resp = client.post(
+        reverse("staff_affairs:probation_result_record", args=[early.pk]), {"result": "passed"}
+    )
+    early.refresh_from_db()
+    assert early.result == "pending"
+    assert "قبل انتهاء فترة الاختبار" in "".join(str(m) for m in get_messages(resp.wsgi_request))
+    done = _expired_contract(school, staff, boss)  # العقدُ نفسُه (واحدٌ للموظف) فنهايته الآن في الماضي
+    url = reverse("staff_affairs:probation_result_record", args=[done.pk])
+    client.post(url, {"result": "passed"})
+    resp = client.post(url, {"result": "failed"})
+    done.refresh_from_db()
+    assert done.result == "passed"
+    assert "سُجّلت نتيجة الاختبار سابقاً" in "".join(str(m) for m in get_messages(resp.wsgi_request))
+
+
+def test_screen_denied_for_unauthorized_role_and_other_school(client, setup):
+    from django.urls import reverse
+
+    school, staff, boss = setup
+    c = _expired_contract(school, staff, boss)
+    _login_role(client, school, "teacher")
+    url = reverse("staff_affairs:probation_result_record", args=[c.pk])
+    assert client.post(url, {"result": "passed"}).status_code in (302, 403)
+    assert client.get(reverse("staff_affairs:probation_results")).status_code in (302, 403)
+    c.refresh_from_db()
+    assert c.result == "pending"
+    other = SchoolFactory()
+    _login_role(client, other, "principal")
+    assert client.post(url, {"result": "passed"}).status_code in (302, 403, 404)
+    c.refresh_from_db()
+    assert c.result == "pending"
+
+
+def test_admin_actions_record_and_refuse(client, setup):
+    from django.urls import reverse
+
+    school, staff, boss = setup
+    c = _expired_contract(school, staff, boss)
+    client.force_login(UserFactory(is_staff=True, is_superuser=True))
+    url = reverse("admin:staff_affairs_employmentcontract_changelist")
+    client.post(url, {"action": "mark_failed", "_selected_action": [c.pk]})
+    c.refresh_from_db()
+    assert c.result == "failed" and c.result_at is not None
+    client.post(url, {"action": "mark_passed", "_selected_action": [c.pk]})  # مكرَّر: يُرفض
+    c.refresh_from_db()
+    assert c.result == "failed"

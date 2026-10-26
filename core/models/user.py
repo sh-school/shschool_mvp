@@ -326,6 +326,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def get_role(self) -> str:
         return self.role or ""
 
+    @property
+    def role_label(self) -> str:
+        """الاسمُ العربيّ للدور الفعليّ من العضويّة — فارغٌ لمن لا عضويّةَ نشطةً له."""
+        from .access import Role
+
+        return dict(Role.ROLES).get(self.role or "", "")
+
     def has_role(self, role_name):
         return self.memberships.filter(is_active=True, role__name=role_name).exists()
 

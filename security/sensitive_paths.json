@@ -59,6 +59,7 @@
       "Dockerfile",
       "docker-compose*.yml",
       "nginx/**",
+      ".railway/**",
       ".env.railway.example",
       "DEPLOYMENT-RAILWAY.md",
       ".github/workflows/**",
