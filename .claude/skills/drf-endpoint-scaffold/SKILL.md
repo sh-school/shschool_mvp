@@ -1,9 +1,6 @@
 ---
 name: drf-endpoint-scaffold
-description: |
-  Use when adding or reshaping a REST endpoint under /api/v1/ in SchoolOS (DRF 3.18 + drf-spectacular, session auth): ListAPIView/ListCreateAPIView/APIView, serializer, selector, service, route in api/urls.py, RBAC from api/permissions.py, school (tenant) isolation, StandardPagination, idempotent create, and the endpoint tests (401/403, other-school isolation, flat query count). scripts/scaffold_endpoint.py generates the layers and a failing-until-filled test. Trigger on: DRF, endpoint, REST API, /api/v1/, serializer, APIView, ViewSet, permission_classes, api/urls.py, "new API for ...".
-  استخدمها عند: إضافة نقطةٍ تحت /api/v1/، أو كتابة serializer أو view في api/، أو توسيع نقطةٍ بالإنشاء، أو مراجعة طلبٍ يضيف مساراً في api/urls.py — ولو لم تُذكر كلمة DRF: أيُّ JSON يخرج لتطبيقٍ من /api/v1/ يمرّ بها.
-  ليست لـ: شاشات HTML وHTMX، ولا تحسينِ استعلامٍ وحده (nplus1-hunter)، ولا قرارِ عرض حقلٍ شخصيّ (pdppl-pii-audit)، ولا هجرةِ قيدٍ فريد (schoolos-migration-guard)، ولا الدفعِ والدمج (schoolos-flow).
+description: "DRF endpoints under /api/v1/: serializer, view, selector, RBAC, tests. Trigger: DRF, endpoint, REST API, APIView. نقطة API جديدة، serializer، api/urls.py"
 ---
 
 # بناءُ نقطة REST في SchoolOS
