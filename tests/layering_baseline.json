@@ -615,7 +615,7 @@
    "orm": 10
   },
   "staging/views.py::download_grade_template": {
-   "lines": 106
+   "lines": 102
   },
   "staging/views.py::import_grades_select": {
    "orm": 15

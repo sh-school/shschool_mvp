@@ -27,6 +27,12 @@ def clinic_library_transport_capabilities(shared: Shared) -> list[Capability]:
             {"nurse", "principal", "vice_admin", "student_affairs_coordinator"},
             basis="أعدادٌ مجمَّعةٌ بقمع الخلايا الأقلّ من 5 وبلا أسماءٍ ولا نصٍّ صحّيّ — والمنسّقُ يراها بالقدرة لا بدورٍ جديد (W-20261020-031)",
         ),
+        _cap(
+            "clinic.export",
+            "تصديرُ التقرير الشهريّ للعيادة (أعدادٌ بلا أسماء)",
+            {"nurse", "principal"},
+            basis="قدرةُ تصديرٍ مستقلّةٌ عن القراءة (W-20261020-032): ملفٌّ عدديٌّ يغادر المنصّة فيُسجَّل في سجلّ التدقيق",
+        ),
         _cap("library.view", "المكتبةُ والكتب", P.LIBRARY_VIEW | P.LIBRARY_FULL),
         _cap("library.lend", "الإعارةُ والإرجاع", {"librarian", "principal", "vice_admin"}),
         _cap("library.borrowings_all", "سجلُّ استعارات المدرسة", P.LIBRARY_BORROWINGS_ALL),

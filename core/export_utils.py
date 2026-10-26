@@ -318,7 +318,7 @@ def excel_to_response(wb: Any, filename: str, school: Any = None) -> Any:
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
     # ترويسةُ الـPDF نفسُها: ASCII دائماً، والاسمُ العربيّ في `filename*`.
-    from core.pdf_utils import _content_disposition
+    from core.pdf_utils import content_disposition
 
-    response["Content-Disposition"] = _content_disposition(filename, True)
+    response["Content-Disposition"] = content_disposition(filename, True)
     return response

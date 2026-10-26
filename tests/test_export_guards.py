@@ -48,6 +48,8 @@ SYNC_ONLY_KINDS = frozenset(
         # أثرُ تدقيقٍ لعرض لقطةٍ أو إعادةِ حسابها (لا ملفَّ يُولَّد): بلا ثِقلٍ يستحقّ مهمّةً خلفيّة.
         "operations.absence_report_recompute",
         "operations.absence_report_view",
+        # استمارةُ إذنٍ واحدة (صفحةٌ واحدة) — متزامنةٌ بلا قياس p95 بعدُ.
+        "wings.exit_permit_pdf",
         "wings.ministry_pdf",
         "wings.ministry_xlsx",
     }

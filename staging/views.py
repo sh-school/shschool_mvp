@@ -208,17 +208,13 @@ def download_grade_template(request, assessment_id):
     buf.seek(0)
 
     filename_ar = f"grades_{assessment.package.setup.subject.name_ar}_{assessment.class_group}.xlsx"
-    filename_ascii = f"grades_{assessment_id}.xlsx"
     resp = HttpResponse(
         buf.getvalue(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-    # ── MED-003 Fix: RFC 6266 encoding لأسماء الملفات العربية ──
-    from urllib.parse import quote
+    from core.pdf_utils import content_disposition
 
-    resp["Content-Disposition"] = (
-        f"attachment; filename=\"{filename_ascii}\"; filename*=UTF-8''{quote(filename_ar)}"
-    )
+    resp["Content-Disposition"] = content_disposition(filename_ar)
     return resp
 
 

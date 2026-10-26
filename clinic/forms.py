@@ -3,7 +3,7 @@
 from django import forms
 
 from .choices import COMPLAINT_CHOICES, SERVICE_CHOICES
-from .models import ClinicSupplyItem, HealthRecord
+from .models import ClinicSupplyItem, HealthRecord, MedicationCatalogItem
 
 
 class HealthRecordForm(forms.Form):
@@ -86,6 +86,22 @@ class ClinicVisitForm(forms.Form):
         if not data.get("reason") and not data.get("complaint_code"):
             raise forms.ValidationError("اختر الشكوى أو اكتب سبب الزيارة.")
         return data
+
+
+class MedicationDispenseForm(forms.Form):
+    """اختيارُ دواءٍ من الكتالوج المعتمَد وحده — لا حقلَ نصٍّ حرّ، فلا صرفَ خارج القائمة."""
+
+    catalog_item = forms.ModelChoiceField(
+        queryset=MedicationCatalogItem.objects.none(),
+        label="الدواء",
+        empty_label="— اختر دواءً من الكتالوج —",
+    )
+
+    def __init__(self, *args, school, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["catalog_item"].queryset = MedicationCatalogItem.objects.filter(
+            school=school, is_active=True, approved_at__isnull=False
+        )
 
 
 class ClinicSupplyItemForm(forms.ModelForm):
