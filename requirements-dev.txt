@@ -10,7 +10,7 @@ pytest-django==4.14.0
 pytest-asyncio==1.4.0
 pytest-xdist==3.8.0          # Parallel test execution across CPU cores
 pytest-testmon==2.2.0        # Incremental testing — only run tests affected by changes
-coverage==7.16.2
+coverage==7.17.0
 factory-boy==3.3.3
 Faker==40.43.0
 
@@ -23,7 +23,7 @@ ruff==0.4.4  # ثابتٌ عمداً — يطابق CI (quality-gate.yml) وpre-
 -r requirements-mypy.txt
 
 # Load testing
-locust==2.46.7
+locust==2.47.0
 
 # Mutation testing (quality.yml الأسبوعيّ + make test-mutmut)
 mutmut==3.8.0
