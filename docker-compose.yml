@@ -28,7 +28,7 @@ services:
     container_name: shschool-dev-redis
     restart: unless-stopped
     ports:
-      - "6380:6379"          # 6379 محجوز لـ schoolos-template — نستخدم 6380 على المضيف
+      - "127.0.0.1:6380:6379"          # 6379 محجوز لـ schoolos-template — نستخدم 6380 على المضيف
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
