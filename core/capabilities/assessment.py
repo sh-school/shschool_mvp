@@ -57,6 +57,13 @@ def assessment_capabilities(shared: Shared) -> list[Capability]:
             {"principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher"},
         ),
         _cap(
+            "reports.own_results",
+            "كشفُ الطالب لنتيجته هو",
+            {"student"},
+            scope="ذاتُه فقط (بلا معاملِ مسار)",
+            basis="سواط 017 توصية 4: بلاطة «درجاتي» كانت تنتهي بـ403 (W-20261027-031)",
+        ),
+        _cap(
             "reports.school",
             "تقاريرُ الحضور والسلوك والشهادات للشعبة",
             leadership | {"student_affairs_coordinator"},

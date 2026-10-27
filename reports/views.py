@@ -439,6 +439,27 @@ def attendance_report_pdf(request, class_id):
 
 
 @login_required
+@capability_required("reports.own_results")
+@xframe_options_sameorigin
+def my_result(request):
+    """كشفُ الطالب لنتيجته هو — بلا معاملِ مسار فلا يفتح كشفَ غيره (W-20261027-031)."""
+    student = request.user
+    year = request.GET.get("year") or academic_year_for(request)
+    ctx = ReportDataService.get_student_report(student, request.school, year)
+    ctx["paper_size"] = _get_paper_size(request)
+    _student_result_presentation(ctx)
+    log_export(
+        request,
+        "reports.student_result",
+        rows=1,
+        full_national_id=False,
+        object_id=student.pk,
+        object_repr=f"نتيجة {masked_repr(student)} — {year}",
+    )
+    return render(request, "reports/student_result.html", ctx)
+
+
+@login_required
 @capability_required("reports.results")
 @xframe_options_sameorigin
 def student_result_pdf(request, student_id):
