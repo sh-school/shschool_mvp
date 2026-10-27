@@ -15,6 +15,7 @@ from collections.abc import Callable
 
 from command_center import alerts, webstats
 from command_center.collectors import (
+    card_flow,
     ci,
     compliance,
     database,
@@ -58,6 +59,7 @@ REMOTE: dict[str, Collector] = {
     "today": today.collect,
     "queue": queue.collect,
     "sync": sync.collect,
+    "card_flow": card_flow.collect,
 }
 #: لوحاتٌ تقرؤها **عمليّةُ الويب** لا العامل (مقاييسُ في ذاكرتها) — تُؤخذ عيّنتُها عند فتح الصفحة أو استطلاعها (`webstats.sample_safe`).
 WEB: dict[str, Collector] = {"latency": webstats.sample}

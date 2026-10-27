@@ -14,8 +14,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from core.audit_export import log_export
 from core.capabilities import capability_required
 from core.models import CustomUser
+from core.pdf_utils import content_disposition
 
 from . import exit_permit_form as form
 from . import exit_permit_services as service
@@ -107,5 +109,6 @@ def exit_permit_pdf(request: HttpRequest, pk) -> HttpResponse:
     except service.PermitDeniedError:
         raise Http404 from None
     response = HttpResponse(content, content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["Content-Disposition"] = content_disposition(filename)
+    log_export(request, "wings.exit_permit_pdf", rows=1, object_id=str(pk))
     return response

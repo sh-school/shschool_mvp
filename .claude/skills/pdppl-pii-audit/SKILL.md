@@ -1,9 +1,6 @@
 ---
 name: pdppl-pii-audit
-description: |
-  Use for PDPPL (Qatar Law 13/2016) personal-data audits of SchoolOS code: plaintext PII without Fernet/HMAC, PII leaking via serializers, templates, bulk lists, exports, logs, Sentry or uploaded photos, consent (ConsentRecord, parent gate), erasure (ErasureRequest + ErasureService), breach notice (BreachReport, 72h), retention, children's and health data. Trigger on: PDPPL, PII, privacy, encryption, national_id, phone, health record, masking, mask_id, log_export, erasure, consent, breach, "is this field safe to store/show/log?".
-  استخدمها عند: إضافة حقلٍ يحمل بياناً شخصيّاً (طالب، وليّ أمر، موظّف، صحّة)، أو بناء API أو قائمةٍ أو تصديرٍ يعرض أشخاصاً، أو سطر logger فيه قيمة، أو رفع صورة، أو سؤال «هل يجوز أن أخزّن/أعرض/أسجّل هذا؟» ولو لم تُذكر كلمة PDPPL.
-  ليست لـ: استشارةٍ قانونيّةٍ عامّة (pdppl-qatar-advisor)، ولا مراجعةٍ أمنيّةٍ شاملة (security-review)، ولا أمانِ الهجرات، ولا تنسيقِ التقارير (schoolos-report-ar).
+description: "PDPPL personal-data audit: PII encryption, leaks, consent, erasure, breach. Trigger: PDPPL, PII, privacy, national_id. بيانات شخصية، خصوصية، تشفير"
 ---
 
 # مدقّق PDPPL لـ SchoolOS

@@ -24,5 +24,10 @@
         ]
       }
     ]
+  },
+  "permissions": {
+    "deny": [
+      "Artifact"
+    ]
   }
 }
