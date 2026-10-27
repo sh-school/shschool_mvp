@@ -138,6 +138,18 @@ ASSESSMENT_EDIT = {
     "vice_academic",
     "e_projects_coordinator",
 }
+#: من يقرّر عذرَ الغياب عن الاختبار (D-402م، 04b السطر 1944): خمسةُ أدوارٍ بأسمائها لا بالوراثة الأكاديميّة.
+#: المدير والنائبُ الأكاديميّ والمعلّمُ خارجَها عمداً؛ والمدير يرث الأكاديميَّ عبر ROLE_INHERITS فلا يدخل
+#: من هنا ما دام أصلُ الوراثة (المنسّق/المعلّم) ليس في القائمة — ويحرسه اختبارُ رفضٍ لكلّ دور.
+ASSESSMENT_DECIDE_EXCUSE = frozenset(
+    {
+        "student_affairs_coordinator",
+        "vice_admin",
+        "admin_supervisor",
+        "social_worker",
+        "psychologist",
+    }
+)
 ASSESSMENT_VIEW_ALL = {"principal", "vice_academic", "vice_admin"}
 ASSESSMENT_VIEW_DEPT = {"coordinator"}
 ASSESSMENT_VIEW_OWN = {"teacher", "ese_teacher", "e_projects_coordinator"}
@@ -337,6 +349,9 @@ STUDENT_AFFAIRS_VIEW = frozenset(
 #: الأنشطة** أو من ينوب عنه» (ضوابط البرامج والأنشطة، ص3).
 #: ولا يدخلها منسّقُ شؤون الطلبة: لا نصَّ يمنحه إدارةَ الأنشطة (الحدُّ الأدنى من الصلاحيات؛ D-266م).
 ACTIVITIES_MANAGE = _STUDENT_AFFAIRS_LEADERSHIP | frozenset({"activities_coordinator"})
+
+# تدقيقُ طلب تغيير رقم التواصل (نموذج 05، W-20261001-019): النائبُ الإداريّ والمديرُ بقاعدة القيادة.
+CONTACT_VERIFY = frozenset({"principal", "vice_admin"})
 
 STUDENT_DEACTIVATE = frozenset(
     {

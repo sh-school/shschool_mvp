@@ -1,0 +1,20 @@
+{% if students %}
+<ul class="clinic-quick__results" role="list">
+  {% for s in students %}
+  <li>
+    <form hx-post="{% url 'clinic:quick_start' %}" hx-target="#quick-panel" hx-swap="innerHTML">
+      {% csrf_token %}
+      <input type="hidden" name="student_id" value="{{ s.id }}">
+      <button type="submit" class="clinic-tap btn-secondary">
+        <span>{{ s.full_name }}</span>
+        {% for e in s.active_enrollments %}<span class="text-secondary">{{ e.class_group }}</span>{% endfor %}
+      </button>
+    </form>
+  </li>
+  {% empty %}
+  <li class="text-secondary">لا طالبَ بهذا الاسم.</li>
+  {% endfor %}
+</ul>
+{% elif q|length >= 2 %}
+<p class="text-secondary">لا طالبَ بهذا الاسم.</p>
+{% endif %}

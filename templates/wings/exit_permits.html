@@ -26,7 +26,7 @@
         <thead><tr><th>الرقم</th><th>الطالب</th><th>الشعبة</th><th>السبب</th><th>الخروج</th><th>الحصص</th><th>الحالة</th><th><span class="sr-only">الإجراء</span></th></tr></thead>
         <tbody>
           {% for p in permits %}
-          <tr>
+          <tr class="grade-tint grade-{{ p.class_group.grade|lower }}">
             <td>{{ p.sequence }}</td>
             <td>{{ p.student.full_name }}</td>
             <td>{{ p.class_group }}</td>
@@ -36,7 +36,7 @@
             <td>{{ p.get_status_display }}</td>
             <td>
               {% if p.status == "approved" %}
-              <a data-app-file class="btn-primary btn-sm" href="{% url 'wings:exit_permit_pdf' p.id %}">الاستمارة PDF</a>
+              {% export_button "pdf" "wings:exit_permit_pdf" p.id primary=True %}{% endexport_button %}
               {% elif can_approve %}
               <form method="post" action="{% url 'wings:exit_permit_approve' p.id %}">{% csrf_token %}
                 <label><input type="checkbox" name="guardian_present"> حضر وليّ الأمر ببطاقته</label>

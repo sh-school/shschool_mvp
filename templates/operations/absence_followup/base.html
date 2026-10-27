@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% load ui navigation icons %}
 {% comment %}
 متابعةُ الغياب (W-20261017-024): صفحتان مستقلّتان تتقاسمان هذا الهيكلَ — «التواصل مع أولياء الأمور» و«متابعة إجراءات الغياب».
@@ -14,26 +15,16 @@
 <div class="exec-dash">
 
   {% page_header screen_title subtitle=subtitle icon=screen_icon %}
-    <form method="get" class="rec-datebar">
-      <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="form-control" aria-label="التاريخ">
-      <select name="grade" class="form-control" aria-label="الصف">
-        <option value="">كلُّ الصفوف</option>
-        {% for value, label in grades %}<option value="{{ value }}"{% if value == f_grade %} selected{% endif %}>{{ label }}</option>{% endfor %}
-      </select>
-      {% if wings %}
-      <select name="wing" class="form-control" aria-label="الجناح">
-        <option value="">كلُّ الأجنحة</option>
-        {% for value, label in wings %}<option value="{{ value }}"{% if value|stringformat:"s" == f_wing %} selected{% endif %}>{{ label }}</option>{% endfor %}
-      </select>
-      {% endif %}
-      <select name="followup" class="form-control" aria-label="حالة المتابعة">
-        {% for value, label in followups %}<option value="{{ value }}"{% if value == f_followup %} selected{% endif %}>{{ label }}</option>{% endfor %}
-      </select>
-      <select name="sort" class="form-control" aria-label="الفرز">
-        {% for value, label in sorts %}<option value="{{ value }}"{% if value == f_sort or not f_sort and forloop.first %} selected{% endif %}>{{ label }}</option>{% endfor %}
-      </select>
-      <button type="submit" class="btn-secondary btn-sm">اعرض</button>
-    </form>
+    {# الترويسةُ وأدواتُ الترشيح موحَّدةٌ بين صفحات متابعة الغياب الثلاث (التاريخ، الجناح، الصفّ، البحث) — W-20261020-005 #}
+    {% filter_bar "ترشيحُ الغائبين" %}
+      {% field "date" "التاريخ" type="date" value=day|date:"Y-m-d" data_autosubmit=True %}
+      {% if wings %}{% field "wing" "الجناح" type="select" choices=wings value=f_wing blank="— كل الأجنحة —" data_autosubmit=True %}{% endif %}
+      {% field "grade" "الصفّ" type="select" choices=grades value=f_grade blank="— كل الصفوف —" data_autosubmit=True %}
+      {% field "followup" "حالة المتابعة" type="select" choices=followups value=f_followup data_autosubmit=True %}
+      {% field "sort" "الفرز" type="select" choices=sorts value=f_sort data_autosubmit=True %}
+      {% field "q" "بحث" type="search" value=f_search grow=True placeholder="اسمُ طالبٍ أو رمزُ شعبة" autocomplete="off" %}
+      <button type="submit" class="btn-primary btn-sm">{% icon "search" %} بحث</button>
+    {% endfilter_bar %}
     {% if page == "contact" %}
     <a href="{% url 'absence_actions' %}?date={{ day|date:'Y-m-d' }}{% if view_query %}&amp;{{ view_query }}{% endif %}" class="btn-secondary btn-sm">{% icon "checklist" %} متابعةُ الإجراءات</a>
     {% else %}
@@ -41,10 +32,9 @@
     {% endif %}
     {# الزرُّ يُخفى عمّن لا قدرةَ له، والخادمُ يرفض الطلبَ المباشر (403) #}
     {% if can_print %}
-    <a href="{% url 'absence_followup_print' %}?date={{ day|date:'Y-m-d' }}&amp;page={{ page }}{% if view_query %}&amp;{{ view_query }}{% endif %}" class="btn-secondary btn-sm">{% icon "print" %} PDF</a>
-    {% if page == "contact" %}
-    <a href="{% url 'absence_followup_contact_sheet_pdf' %}?date={{ day|date:'Y-m-d' }}{% if view_query %}&amp;{{ view_query }}{% endif %}" data-app-file class="btn-secondary btn-sm">{% icon "call_parent" %} ورقةُ الاتّصال PDF</a>
-    {% endif %}
+    {% export_button "pdf" "absence_followup_pdf" %}?date={{ day|date:'Y-m-d' }}&amp;page={{ page }}{% if view_query %}&amp;{{ view_query }}{% endif %}&amp;download=1{% endexport_button %}
+    {% export_button "xlsx" "absence_followup_xlsx" %}?date={{ day|date:'Y-m-d' }}&amp;page={{ page }}{% if view_query %}&amp;{{ view_query }}{% endif %}{% endexport_button %}
+    <a href="{% url 'absence_reports_archive' %}" class="btn-secondary btn-sm">{% icon "reports" %} التقارير الدورية</a>
     {% endif %}
     {% if request.user|can_open:"wings:ministry_report" %}
     <a href="{% url 'wings:ministry_report' %}?date={{ day|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>

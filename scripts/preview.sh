@@ -324,12 +324,15 @@ compose() {   # compose <شجرة> <أوامر…>: الشجرةُ المعرو�
 
 wait_web() {
   [ "$DRY" = 1 ] && return 0
-  local c="${SLOT_PROJECT:-$PROJECT}-web-1" state i restarts
-  for i in $(seq 1 90); do
+  local c="${SLOT_PROJECT:-$PROJECT}-web-1" state i restarts running
+  # الإقلاعُ البارد (قاعدةُ جيلٍ جديدٍ تُهاجَر كاملةً) ~271ث بقياس 0502 2026-10-20 والفحصُ الصحّيّ يعلن
+  # «غيرَ صحّيّ» بعد start_period+8×15ث؛ فغيرُ الصحّيّ أثناء البدء ليس فشلاً: تُنتظر المهلةُ كاملةً
+  # (140 دورةً × 3ث = 420ث > start_period=300). والفشلُ الحقيقيّ: توقّفُ الحاويةِ أو إعادةُ تشغيلها مرّتين.
+  for i in $(seq 1 140); do
     state="$(docker inspect -f '{{.State.Health.Status}}' "$c" 2>/dev/null || echo missing)"
     [ "$state" = "healthy" ] && return 0
-    [ "$state" = "unhealthy" ] && break
-    # حاويةٌ تُعاد تشغيلُها = الإقلاعُ يسقط (هجرةٌ مثلاً)، فلا ننتظر الأربعَ دقائق كلَّها.
+    running="$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null || echo false)"
+    [ "$running" = "true" ] || break
     restarts="$(docker inspect -f '{{.RestartCount}}' "$c" 2>/dev/null || echo 0)"
     [ "$restarts" -ge 2 ] && break
     sleep 3
@@ -686,6 +689,11 @@ deploy_main() {
   label="${LABEL:-main@$PREVIEW_SHA}"
   say "▸ يُعاد إنشاءُ الخادم والعامل على $label (هجرة ← collectstatic ← daphne) — قاعدة $db"
   bluegreen_up "$tree" || return 1
+  # الخادمُ يجب أن يعلن الرأسَ الذي بُنيَ منه (RAILWAY_GIT_COMMIT_SHA=PREVIEW_SHA في compose) قبل أن يُسجَّل خادماً خادماً
+  if [ "$DRY" != 1 ] && [ "$(served_commit)" != "$PREVIEW_SHA" ]; then
+    warn "الخادمُ يعلن commit=$(served_commit) لا $PREVIEW_SHA — لم تُسجَّل الخدمةُ"
+    return 1
+  fi
   sset mode follow
   sset served_sha "$(git -C "$tree" rev-parse HEAD)"
   sset served_label "$label"

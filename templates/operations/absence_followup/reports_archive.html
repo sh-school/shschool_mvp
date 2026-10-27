@@ -1,0 +1,55 @@
+{% extends "base/base.html" %}
+{% load ui icons %}
+{% block title %}التقارير الدورية للغياب{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% url 'daily_report' as daily_url %}
+{% include "components/breadcrumbs.html" with parent_url=daily_url parent_label="التواصل مع أولياء الأمور" current="التقارير الدورية" %}
+{% endblock %}
+
+{% block content %}
+{% comment %}
+  أرشيفُ لقطات تقارير الغياب (W-20261020-005 الخطوة 5): يومي وأسبوعي وشهري وربع سنوي لكلّ نطاق صفوف.
+  كلُّ لقطةٍ مختومةٌ بوقت توليدها؛ وإعادةُ الحساب نسخةٌ جديدةٌ تبقى القديمةُ بجانبها. أعدادٌ ونسبٌ بلا أسماءٍ.
+{% endcomment %}
+<div class="exec-dash">
+  {% page_header "التقارير الدورية للغياب" subtitle="لقطاتٌ ثابتة بالطلبة: يومي بعد الحصّة الثانية، أسبوعي، شهري، وربع سنوي لكلّ نطاق صفوف" icon="reports" %}
+    {% callout "hint" %}كلُّ تقرير لقطةٌ مختومةٌ بوقت توليدها ولا تتغيّر. والإجازاتُ المتأخّرة تُقبل حتى يومين، فبعدها اضغط «أعد الحساب الآن» داخل التقرير لنسخةٍ جديدةٍ تبقى القديمةُ في الأرشيف.{% endcallout %}
+  {% endpage_header %}
+
+  {% filter_bar "ترشيحُ التقارير" %}
+    {% field "kind" "النوع" type="select" choices=kinds value=f_kind data_autosubmit=True %}
+    <button type="submit" class="btn-primary btn-sm">{% icon "search" %} عرض</button>
+  {% endfilter_bar %}
+
+  {% section_card "اللقطات" meta=snapshots|length icon="reports" empty="لم يُولَّد تقريرٌ دوريٌّ بعد" flush=True %}{% if snapshots %}
+    <div class="table-wrap table-wrap-scroll">
+      <table data-no-sort>
+        <thead>
+          <tr>
+            <th class="fu-name">التقرير</th>
+            <th>الفترة</th>
+            <th class="num">أيامُ الدراسة</th>
+            <th class="num">نسبةُ الغياب</th>
+            <th>وقتُ التوليد</th>
+            <th class="num">النسخة</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for snap in snapshots %}
+          <tr>
+            <td class="fu-name"><a href="{% url 'absence_report_detail' snap.pk %}">{{ snap.get_kind_display }}{% if snap.grade_scope %} — {{ snap.get_grade_scope_display }}{% endif %}</a></td>
+            <td>{{ snap.period_start|date:"d/m/Y" }}{% if snap.period_start != snap.period_end %} ← {{ snap.period_end|date:"d/m/Y" }}{% endif %}</td>
+            <td class="num">{{ snap.school_days }}</td>
+            <td class="num">{{ snap.payload.school.rate|default:"0" }}%</td>
+            <td>{{ snap.generated_at|date:"d/m/Y H:i" }}</td>
+            <td class="num">{{ snap.revision }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+</div>
+{% endblock %}

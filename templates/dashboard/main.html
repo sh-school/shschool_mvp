@@ -1,5 +1,6 @@
 {% extends "base/base.html" %}
-{% load static %}
+{% load static ui %}
+{% block main_class %}{% page_layout "dashboard" %}{% endblock %}
 {% block title %}لوحة التحكم — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
 {% block breadcrumbs %}

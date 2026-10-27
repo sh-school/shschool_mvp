@@ -127,10 +127,20 @@ def presence_for(student, school, start: dt.date, end: dt.date) -> Presence:
     # 2) الحضورُ المرصود بالخانة: أفضلُ حالٍ في الخانة (حاضرٌ في إحدى حصّتَي الزوج حاضر)
     rows = StudentAttendance.objects.filter(
         student=student, school=school, session__date__gte=start, session__date__lte=end
-    ).values_list("session__date", "session__start_time", "status", "excuse_type", "late_minutes")
+    ).values_list(
+        "session__date",
+        "session__start_time",
+        "status",
+        "excuse_type",
+        "late_minutes",
+        "tardiness_excuse__id",
+    )
     RANK = {"present": 3, "late": 2, "excused": 1, "absent": 0}
     marks: dict = {}
-    for day, st, status, excuse, minutes in rows:
+    for day, st, status, excuse, minutes, tardy_excuse_id in rows:
+        if status == "late" and tardy_excuse_id is not None:
+            # تأخّرٌ معذور (W-20261002-028): حاضرٌ بلا مرّةٍ ولا دقائق.
+            status, minutes = "present", None
         key = (day, st)
         cur = marks.get(key)
         if cur is None or RANK.get(status, 0) > RANK.get(cur[0], 0):

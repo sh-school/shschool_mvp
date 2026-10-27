@@ -156,6 +156,18 @@
   "not_inherited_by": []
  },
  {
+  "key": "student_affairs.verify_contact",
+  "label": "تدقيقُ تغيير رقم التواصل",
+  "roles": [
+   "principal",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "افتراضُ المنصّة — لم يُراجَع مقابل نصّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
   "key": "student_affairs.transfers",
   "label": "انتقالاتُ الطلبة (طلبٌ ومراجعةٌ وإتمام)",
   "roles": [
@@ -690,6 +702,21 @@
   "not_inherited_by": []
  },
  {
+  "key": "assessments.decide_excuse",
+  "label": "قرارُ عذر الغياب عن الاختبار",
+  "roles": [
+   "admin_supervisor",
+   "psychologist",
+   "social_worker",
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرار المالك D-402م؛ الدليل 04b ص. 28: تقديرُ الأعذار والقائمةُ المغلقة",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
   "key": "grades.import",
   "label": "استيرادُ الدرجات من ملفّ",
   "roles": [
@@ -946,6 +973,18 @@
   ],
   "scope": "المدرسة",
   "basis": "بيانات صحّيّة لقاصرين: الكتابةُ سريريّةٌ — حكم 0104 على W-20261001-020 (المنسّقُ قراءةً فقط)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "clinic.export",
+  "label": "تصديرُ التقرير الشهريّ للعيادة (أعدادٌ بلا أسماء)",
+  "roles": [
+   "nurse",
+   "principal"
+  ],
+  "scope": "المدرسة",
+  "basis": "قدرةُ تصديرٍ مستقلّةٌ عن القراءة (W-20261020-032): ملفٌّ عدديٌّ يغادر المنصّة فيُسجَّل في سجلّ التدقيق",
   "grant": null,
   "not_inherited_by": []
  },

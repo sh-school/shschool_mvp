@@ -19,6 +19,13 @@ def collect_local() -> dict[str, bool]:
 
 
 @shared_task(
+    name="command_center.collect_card_flow", ignore_result=True, soft_time_limit=60, time_limit=90
+)
+def collect_card_flow() -> dict[str, bool]:
+    return collectors.run({"card_flow": collectors.REMOTE["card_flow"]})
+
+
+@shared_task(
     name="command_center.collect_remote", ignore_result=True, soft_time_limit=60, time_limit=90
 )
 def collect_remote() -> dict[str, bool]:

@@ -10,6 +10,7 @@ from core.models.base import AuditedModel
 from core.querysets import YearScopedQuerySet
 
 from ..last_period_cap import BAN_PERSONAL_LAST, MAX_PERSONAL_LAST
+from .common import _uuid
 
 #: مدى سقف الأولى الشخصيّ (HC22): من العامّ (اثنتان) إلى خمسٍ، أي أولى كلَّ يومٍ في الأسبوع.
 #: وما دون العامّ لا يُقبل: السقفُ الشخصيّ للأولى يرفع ولا يُضيّق (قرارُ المالك 2026-10-09).
@@ -29,9 +30,6 @@ def validate_admin_last_cap(value: int) -> None:
             code="invalid_last_cap",
             params={"low": MIN_ADMIN_LAST, "high": MAX_PERSONAL_LAST},
         )
-
-
-from .common import _uuid
 
 
 class Subject(models.Model):

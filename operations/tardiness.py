@@ -75,6 +75,7 @@ def tardiness_for(student, school, start: dt.date, end: dt.date) -> Tardiness:
             student=student,
             school=school,
             status="late",
+            tardiness_excuse__isnull=True,
             session__date__gte=start,
             session__date__lte=end,
         )

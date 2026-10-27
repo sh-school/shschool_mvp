@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10  # pip-audit: p95 1.2 دقيقة (30 تشغيلاً) ×2 بحدٍّ أدنى 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -34,20 +34,35 @@ jobs:
 
       - name: فحص CVEs في المكتبات
         run: |
-          # تجاهلٌ موثَّق لمشورةٍ واحدةٍ وحدها (GHSA-8pqf-f4m5-798g، أمر المالك 2026-10-15، W-20261015-011):
-          # ReDoS في twisted.mail.imap4 ولا نستورد الوحدة ولا منفذَ IMAP عندنا، وTwisted عبر daphne لـHTTP/WebSocket فقط.
-          # مراجعةٌ أقصاها 2026-11-15 (يفشل tests/test_vuln_ignore_expiry.py بعدها)، وإعادةُ الفحص كلَّ أحد.
+          # تجاهلٌ موثَّق لست مشوراتٍ وحدها (أمر المالك: GHSA-8pqf-f4m5-798g في 2026-10-15 W-20261015-011، والخمس الأخرى في 2026-10-24 W-20261021-002):
+          # GHSA-8pqf-f4m5-798g: ReDoS في twisted.mail.imap4 — لا نستورد الوحدة ولا منفذَ IMAP عندنا.
+          # GHSA-cwm5-jh59-mwxr: telnet في twisted.conch — لا نستورده ولا منفذَ Telnet.
+          # GHSA-2qrf-pqgx-qh9v: IMAP4 SEARCH في twisted.mail — لا نستورده.
+          # GHSA-3476-c5c2-fr73: twisted.words.xish (domish) — لا نستورده.
+          # GHSA-53xc-49m8-p798: twisted.words.protocols.irc — لا نستورده ولا منفذَ IRC.
+          # GHSA-q7qq-6mhp-9rc4: تهريبُ طلبات في twisted.web.http — تستوردها daphne فعلاً (http_protocol وserver)، فهي الوحيدةُ المستعملة؛ التخفيفُ بالوكيل الأمامي (Railway) الذي يعيد كتابة الترويسات، ولم يُقَس هنا.
+          # الإصلاحُ 26.10.0rc1 تمهيديٌّ فقط. مراجعةٌ أقصاها 2026-11-14 (يفشل tests/test_vuln_ignore_expiry.py بعدها)، وإعادةُ الفحص كلَّ أحد.
           pip-audit -r requirements.txt \
             --ignore-vuln GHSA-8pqf-f4m5-798g \
+            --ignore-vuln GHSA-cwm5-jh59-mwxr \
+            --ignore-vuln GHSA-2qrf-pqgx-qh9v \
+            --ignore-vuln GHSA-3476-c5c2-fr73 \
+            --ignore-vuln GHSA-53xc-49m8-p798 \
+            --ignore-vuln GHSA-q7qq-6mhp-9rc4 \
             --format json \
             --output pip-audit-report.json || true
           pip-audit -r requirements.txt \
             --vulnerability-service pypi \
             --ignore-vuln GHSA-8pqf-f4m5-798g \
+            --ignore-vuln GHSA-cwm5-jh59-mwxr \
+            --ignore-vuln GHSA-2qrf-pqgx-qh9v \
+            --ignore-vuln GHSA-3476-c5c2-fr73 \
+            --ignore-vuln GHSA-53xc-49m8-p798 \
+            --ignore-vuln GHSA-q7qq-6mhp-9rc4 \
             --desc
 
       - name: رفع تقرير pip-audit
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: pip-audit-report
@@ -61,9 +76,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10  # radon: p95 0.8 دقيقة (30 تشغيلاً) ×2 بحدٍّ أدنى 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: "3.12"
 
@@ -119,9 +134,9 @@ jobs:
     continue-on-error: true  # تقرير فقط
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: "3.12"
 
@@ -152,14 +167,14 @@ jobs:
       FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub (سقفُ السحب غيرُ الموثَّق: toomanyrequests) — W-20261010-016
       - uses: ./.github/actions/native-postgres
         with:
           redis: "true"
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -221,7 +236,7 @@ jobs:
             -p no:cacheprovider -v
 
       - name: رفع تقرير HTML
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: weekly-coverage-html
           path: htmlcov/
@@ -260,14 +275,14 @@ jobs:
       FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub (سقفُ السحب غيرُ الموثَّق: toomanyrequests) — W-20261010-016
       - uses: ./.github/actions/native-postgres
         with:
           redis: "true"
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -321,14 +336,14 @@ jobs:
       FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub (سقفُ السحب غيرُ الموثَّق: toomanyrequests) — W-20261010-016
       - uses: ./.github/actions/native-postgres
         with:
           redis: "true"
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: "3.12"
           cache: pip

@@ -306,6 +306,29 @@ class BiometricUploadForm(forms.Form):
     """رفعُ كشف البصمة اليوميّ — CSV من جهاز الحضور، يُقرأ في الذاكرة ولا يُخزَّن."""
 
     file = forms.FileField(label="كشف البصمة (CSV)")
+    day = forms.DateField(
+        required=False,
+        label="يوم الكشف (اختياريّ)",
+        help_text="يفرض هذا اليومَ على كلّ أسطر الملفّ؛ وبلا اختياره يُقرأ يومُ كلّ سطرٍ من الملفّ نفسِه.",
+    )
+
+    def clean_day(self) -> Any:
+        """اليومُ المفروض ضمن النافذة نفسِها التي يقبلها الاستيراد: لا مستقبلَ ولا أقدمَ من شهر."""
+        from django.utils import timezone
+
+        from .attendance.biometric_services import window_start
+
+        day = self.cleaned_data.get("day")
+        if day is None:
+            return None
+        today = timezone.localdate()
+        if day > today:
+            raise forms.ValidationError("اليومُ لم يأتِ بعد.")
+        if day < window_start(today):
+            raise forms.ValidationError(
+                f"أقدمُ من نافذة الاستيراد (شهر) — أقدمُ يومٍ مقبول {window_start(today):%d/%m/%Y}."
+            )
+        return day
 
     def clean_file(self) -> Any:
         upload = self.cleaned_data["file"]

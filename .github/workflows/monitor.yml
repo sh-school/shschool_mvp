@@ -34,9 +34,12 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: فحصٌ بمحاولتين
+        id: probe
+        # W-20261022-006: الفشل يُبلَّغ بقضيّةٍ لا بحمرة check run على رأس main (فيحجب Wait for CI في Railway)
+        continue-on-error: true
         env:
           PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
         run: |
@@ -49,8 +52,8 @@ jobs:
           ./scripts/smoke-test.sh ${PRODUCTION_URL:+"$PRODUCTION_URL"}
 
       - name: "الفشل: فتحُ قضيّةٍ أو التعليقُ على المفتوحة"
-        if: failure()
-        uses: actions/github-script@v9
+        if: steps.probe.outcome == 'failure'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const prefix = '🔴 UPTIME FAILED';
@@ -88,8 +91,8 @@ jobs:
             }
 
       - name: "النجاح: إغلاقُ قضايا الفشل المفتوحة"
-        if: success()
-        uses: actions/github-script@v9
+        if: steps.probe.outcome == 'success'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const prefix = '🔴 UPTIME FAILED';

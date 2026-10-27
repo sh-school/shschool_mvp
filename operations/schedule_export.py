@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from core import brand
 from core.dept_colors import dept_key
+from core.excel_safety import safe_cell
 from operations.schedule_paper import cell_kind
 
 #: عرضُ خانة الحصّة: رمزُ الشعبة أربعةُ محارف («11/2») لا أكثر.
@@ -105,13 +106,13 @@ def _legend_rows(ws, ctx: dict, first_row: int, num_cols: int) -> int:
     row = first_row
     for kind, label in nav.get("kinds") or []:
         _mark_moved(ws, row, 1, kind)
-        ws.cell(row=row, column=1, value=label).alignment = Alignment(
+        safe_cell(ws, row=row, column=1, value=label).alignment = Alignment(
             horizontal="center", vertical="center"
         )
         row += 1
     for note in nav.get("notes") or []:
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
-        ws.cell(row=row, column=1, value=note).alignment = Alignment(
+        safe_cell(ws, row=row, column=1, value=note).alignment = Alignment(
             horizontal="right", vertical="center", wrap_text=True
         )
         ws.row_dimensions[row].height = 16
@@ -139,23 +140,24 @@ def _matrix_row(
             ws.merge_cells(
                 start_row=row_num, start_column=1, end_row=row_num + span - 1, end_column=1
             )
-        ws.cell(row=row_num, column=1, value=row_data["department"]["name"])
+        safe_cell(ws, row=row_num, column=1, value=row_data["department"]["name"])
     teacher = row_data.get("teacher")
-    name_cell = ws.cell(row=row_num, column=2, value=getattr(teacher, "full_name", "") or "")
+    name_cell = safe_cell(ws, row=row_num, column=2, value=getattr(teacher, "full_name", "") or "")
     name_cell.alignment = Alignment(horizontal="right", vertical="center")
 
     moved = []  # (عمود، نوع) لحصصٍ حُوّل معلّمُها — تُلوَّن بعد لون القسم لتغلبه
     for day_index, day in enumerate(row_data.get("days") or []):
         for period_index, cell in enumerate(day):
             column = first_period_col + day_index * per_day + period_index
-            ws.cell(
+            safe_cell(
+                ws,
                 row=row_num,
                 column=column,
                 value=" ".join(slot.class_group.short_code for slot in cell),
             )
             if kind := cell_kind(cell):
                 moved.append((column, kind))
-    ws.cell(row=row_num, column=num_cols, value=row_data.get("total") or 0)
+    safe_cell(ws, row=row_num, column=num_cols, value=row_data.get("total") or 0)
 
     ExcelService._style_data_row(ws, styles, row_num, num_cols, False)
     ws.row_dimensions[row_num].height = 17
@@ -198,15 +200,15 @@ def _matrix_workbook(ctx: dict):
     for column, header in ((1, "القسم"), (2, "المعلّم"), (num_cols, "النصاب")):
         letter = get_column_letter(column)
         ws.merge_cells(f"{letter}4:{letter}5")
-        _head_cell(ws.cell(row=4, column=column, value=header), styles)
+        _head_cell(safe_cell(ws, row=4, column=column, value=header), styles)
 
     column = first_period_col
     for _, day_name in days:
         span = len(periods)
         ws.merge_cells(start_row=4, start_column=column, end_row=4, end_column=column + span - 1)
-        _head_cell(ws.cell(row=4, column=column, value=day_name), styles)
+        _head_cell(safe_cell(ws, row=4, column=column, value=day_name), styles)
         for offset, number in enumerate(periods):
-            _head_cell(ws.cell(row=5, column=column + offset, value=number), styles)
+            _head_cell(safe_cell(ws, row=5, column=column + offset, value=number), styles)
         column += span
 
     ws.row_dimensions[4].height = 22
@@ -221,15 +223,15 @@ def _matrix_workbook(ctx: dict):
     last_row = 6 + len(matrix)
     if totals:
         ws.merge_cells(start_row=last_row, start_column=1, end_row=last_row, end_column=2)
-        ws.cell(row=last_row, column=1, value="مجموع الحصص")
+        safe_cell(ws, row=last_row, column=1, value="مجموع الحصص")
         short_columns = set()
         for day_index, day in enumerate(totals.get("days") or []):
             for period_index, column_totals in enumerate(day):
                 column = first_period_col + day_index * len(periods) + period_index
-                ws.cell(row=last_row, column=column, value=column_totals["count"])
+                safe_cell(ws, row=last_row, column=column, value=column_totals["count"])
                 if column_totals.get("short"):
                     short_columns.add(column)
-        ws.cell(row=last_row, column=num_cols, value=totals.get("total") or 0)
+        safe_cell(ws, row=last_row, column=num_cols, value=totals.get("total") or 0)
         ExcelService._style_data_row(ws, styles, last_row, num_cols, False)
         # سطرُ المجموع عريضٌ كلُّه، وعمودٌ فيه شعبةٌ بلا درسٍ أحمر — كالورقة
         # المطبوعة: العلامةُ هناك لونٌ وخطٌّ تحته، وهنا لونٌ وعرضٌ في خانةٍ
@@ -289,7 +291,7 @@ def _grid_workbook(ctx: dict):
         row_num = 5 + index
         # اسمُ اليوم في العمود الأوّل — والتوقيتُ في كلّ خانة، كالورقة: جرسُ
         # الخميس يخالف غيرَه، فترويسةُ عمودٍ واحدةٌ تكذب على أحدهما.
-        ws.cell(row=row_num, column=1, value=line["day"])
+        safe_cell(ws, row=row_num, column=1, value=line["day"])
         for position, entry in enumerate(line["entries"]):
             if entry["kind"] == "period":
                 value = "\n".join(_slot_text(slot, view_type) for slot in entry["slots"]) or "—"
@@ -299,7 +301,7 @@ def _grid_workbook(ctx: dict):
                     f"{item.start:%H:%M} – {item.end:%H:%M}"
                     for item in entry["items"]
                 )
-            ws.cell(row=row_num, column=2 + position, value=value)
+            safe_cell(ws, row=row_num, column=2 + position, value=value)
         ExcelService._style_data_row(ws, styles, row_num, num_cols, index % 2 == 1)
         for position, entry in enumerate(line["entries"]):
             _mark_moved(ws, row_num, 2 + position, entry.get("change", ""))

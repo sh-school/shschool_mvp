@@ -21,17 +21,10 @@ TEXT_TEMPLATE = "notifications/email/behavior_text.txt"
 #: المفاتيحُ التي يبنيها `BehaviorService.notify_parents` — أسماءٌ مقروءة
 #: لا كائنات، فالسياقُ يعبر Celery مُسلسَلاً.
 CALL_SITE_CONTEXT = {
-    "student_name": "أحمد عبدالله",
     "parent_name": "عبدالله أحمد",
     "school_name": "مدرسة الشحانية",
     "infraction_date": "2026/09/11",
-    "level": 2,
-    "level_display": "الدرجة الثانية",
-    "level_description": "مخالفة متوسّطة",
-    "description": "تأخّر متكرّر",
-    "action_taken": "إنذار خطّي",
-    "reported_by": "سفيان مسيف",
-    "points_deducted": 5,
+    "portal_url": "https://schoolos.qa/parents/behavior/",
 }
 
 
@@ -51,7 +44,7 @@ def test_the_text_part_renders_too():
     """نظيرُ الـHTML النصّيُّ — بديلُ البريد حين لا يُعرض المنسَّق."""
     text = render_to_string(TEXT_TEMPLATE, CALL_SITE_CONTEXT)
     assert "{{" not in text and "{%" not in text
-    assert CALL_SITE_CONTEXT["student_name"] in text
+    assert CALL_SITE_CONTEXT["portal_url"] in text
     # نظامُ الخصم ملغى (أقرّ المالك حذفَ السطر، W-20261008-001): لا نقاطَ في بريد وليّ الأمر.
     assert "النقاط" not in text and "نقطة" not in text
 

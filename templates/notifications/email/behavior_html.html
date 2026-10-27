@@ -13,43 +13,12 @@
   <div class="mail-body">
     <p class="mail-greeting">
       {{ parent_name }} الكريم / الكريمة،<br>
-      نودّ إعلامكم بتسجيل مخالفة سلوكية لابنكم / ابنتكم:
+      لديكم إشعار جديد في بوابة ولي الأمر بتاريخ {{ infraction_date }}.
     </p>
 
-    <!-- مستوى المخالفة -->
-    <div class="mail-level level-{{ level }}">
-      <span class="mail-level__label">المخالفة من {{ level_display }}</span>
-      <span class="mail-level__sub">{{ level_description }}</span>
-    </div>
-
-    <!-- بيانات الطالب -->
-    <div class="mail-rows is-roomy">
-      <div class="mail-row"><span>الطالب</span><span>{{ student_name }}</span></div>
-      <div class="mail-row"><span>التاريخ</span><span>{{ infraction_date }}</span></div>
-      <div class="mail-row"><span>المُبلِّغ</span><span>{{ reported_by }}</span></div>
-    </div>
-
-    <!-- وصف المخالفة -->
-    <p class="mail-label is-strong">وصف المخالفة:</p>
-    <div class="mail-desc">{{ description }}</div>
-
-    <!-- الإجراء المتخذ -->
-    {% if action_taken %}
-    <p class="mail-label is-strong">الإجراء المتخذ:</p>
-    <div class="mail-action">{{ action_taken }}</div>
-    {% endif %}
-
-    <!-- تحذير للمخالفات الجسيمة -->
-    {% if level >= 3 %}
-    <div class="mail-warning">
-      ⚠️ نظراً لجسامة المخالفة، تم إحالة الأمر للجنة الضبط السلوكي.
-      يُرجى التواصل مع إدارة المدرسة في أقرب وقت ممكن.
-    </div>
-    {% endif %}
-
     <p class="mail-text is-closing">
-      نأمل منكم متابعة ابنكم / ابنتكم وتوجيهه نحو الالتزام بالنظام المدرسي.
-      نحن شركاء في تربية جيل صالح بإذن الله.
+      يُرجى الدخول إلى البوابة للاطلاع على التفاصيل:
+      <a href="{{ portal_url }}">{{ portal_url }}</a>
     </p>
   </div>
 

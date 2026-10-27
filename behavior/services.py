@@ -124,10 +124,22 @@ def audit_infraction_read(request: HttpRequest, infractions: Any) -> None:
             )
 
 
+def _portal_url(path: str) -> str:
+    """رابطُ البوابة مطلقاً إن عُرف نطاقُ المنصّة من الإعدادات، وإلا المسارُ وحدَه (بلا معرّفٍ في كلتا الحالتين)."""
+    from django.conf import settings
+
+    origins = [o for o in getattr(settings, "CSRF_TRUSTED_ORIGINS", []) if "*" not in o]
+    if origins:
+        return str(origins[0]).rstrip("/") + path
+    hosts = [h for h in settings.ALLOWED_HOSTS if h and not h.startswith(".") and h != "*"]
+    host = next((h for h in hosts if h not in ("localhost", "127.0.0.1", "testserver")), "")
+    return f"https://{host}{path}" if host else path
+
+
 class BehaviorService:
     # ── عدّ مخالفات الطالب ─────────────────────────────────────────────
     #
-    # [W-20261013-010] كان هنا «مؤشّرُ سلوك» من 100 يُحسب بأوزانٍ ابتدعتها المنصّة (2/5/10/25) ثم يُعرض ويُرسَل
+    # [W-20261013-010] كان هنا «مؤشّرُ سلوك» (ملغى) من 100 يُحسب بأوزانٍ ابتدعتها المنصّة (2/5/10/25) ثم يُعرض ويُرسَل
     # لوليّ الأمر؛ ولا أصلَ له في دليل السلوك 2026 فأُزيل. يبقى العدّ الإجماليُّ وحده.
     @staticmethod
     def get_student_score(
@@ -614,14 +626,11 @@ class BehaviorService:
             # و`date` يومُ الكتابة لا يومُ الواقعة.
             session = infraction.session if infraction.session_id else None
             when = session.date if session is not None else infraction.date
-            title = (
-                f"⚠️ مخالفة سلوكية — {infraction.student.full_name} "
-                f"({LEVEL_DISPLAY.get(infraction.level, '')})"
-            )
-            body = (
-                f"{LEVEL_DESC.get(infraction.level, '')}\n"
-                f"التاريخ: {when.strftime('%Y/%m/%d') if when else ''}"
-            )
+            # العنوانُ هو موضوعُ البريد إلى مزوّدٍ خارجيّ: لا اسمَ طالبٍ ولا درجةً (W-20261012-031، PDPPL م.8).
+            # ولي الأمر يرى التفاصيل داخل بوابته بعد الدخول.
+            title = "إشعار جديد في بوابة ولي الأمر"
+            # جسمُ التطبيق/push/واتساب/SMS محايدٌ كالعنوان: لا درجةَ ولا تاريخَ ولا حسمَ (W-20261012-031).
+            body = "يوجد إشعار جديد بخصوص ابنكم، يُرجى الدخول إلى بوابة ولي الأمر للاطّلاع عليه."
 
             NotificationHub.dispatch_to_parents(
                 event_type=event_type,
@@ -630,18 +639,10 @@ class BehaviorService:
                 title=title,
                 body=body,
                 context={
-                    "infraction": infraction,
-                    "reporter": reporter,
-                    "level": infraction.level,
-                    # ما يطلبه قالبُ البريد المنسَّق — أسماءٌ مقروءةٌ لا كائنات،
-                    # فالسياقُ يعبر Celery مُسلسَلاً.
-                    "student_name": infraction.student.full_name,
+                    # بريدٌ مقتضبٌ: التاريخُ ورابطُ البوابة فقط — لا اسمَ ولا وصفَ ولا إجراءَ ولا مُبلِّغَ ولا درجة.
+                    # والسياقُ يعبر Celery مُسلسَلاً فهو نصوصٌ لا كائنات.
                     "infraction_date": when.strftime("%Y/%m/%d") if when else "",
-                    "level_display": LEVEL_DISPLAY.get(infraction.level, ""),
-                    "level_description": LEVEL_DESC.get(infraction.level, ""),
-                    "description": infraction.description or "",
-                    "action_taken": getattr(infraction, "action_taken", "") or "",
-                    "reported_by": reporter.full_name if reporter else "",
+                    "portal_url": _portal_url(reverse("parent_behavior")),
                 },
                 # كان بريدُ السلوك يخرج نصّاً خاماً بينما يخرج بريدُ الغياب
                 # والرسوب منسَّقاً بترويسة المدرسة — وهو أشدُّ الإشعارات

@@ -12,11 +12,11 @@ SVG/HTML لا يُعرَض inline (دفاع XSS مخزّن).
 """
 
 import mimetypes
-from urllib.parse import quote
 
 from django.contrib.auth.views import redirect_to_login
 from django.http import Http404, HttpResponse
 
+from core.pdf_utils import content_disposition
 from core.permissions import expand_roles
 from governance.media_selectors import resolve_file_access, stored_file_named
 
@@ -74,7 +74,9 @@ def serve_db_file(request, name):
 
     response = HttpResponse(bytes(sf.content), content_type=content_type)
     filename = name.rsplit("/", 1)[-1]
-    response["Content-Disposition"] = f"{disposition}; filename*=UTF-8''{quote(filename)}"
+    response["Content-Disposition"] = content_disposition(
+        filename, as_attachment=(disposition == "attachment")
+    )
     response["Content-Length"] = sf.size or len(bytes(sf.content))
     response["X-Content-Type-Options"] = "nosniff"
     return response

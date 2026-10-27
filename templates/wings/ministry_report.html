@@ -23,19 +23,21 @@
     <form method="get" class="per-exports" aria-label="تصدير الملخّص">
       <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
       <input type="hidden" name="grade" value="{{ grade }}">
+      <input type="hidden" name="wing" value="{{ wing }}">
       <input type="hidden" name="q" value="{{ q }}">
       <select name="orient" class="form-select per-orient" aria-label="اتّجاه الصفحة">
         <option value="landscape">أفقي</option>
         <option value="portrait">عمودي</option>
       </select>
-      <button data-app-file type="submit" name="format" value="xlsx" class="btn-secondary btn-sm">{% icon "export_excel" %} Excel</button>
-      <button data-app-file type="submit" name="format" value="pdf" class="btn-secondary btn-sm">{% icon "export_pdf" %} PDF</button>
+      {% export_button "xlsx" name="format" value="xlsx" %}{% endexport_button %}
+      {% export_button "pdf" name="format" value="pdf" %}{% endexport_button %}
     </form>
     {% callout "hint" %}للقراءة فقط: يُرفع الطالبُ غائباً إن غاب الحصّتين الأولى والثانية معاً ورصدُه كاملٌ في الاثنتين. ومن لم تُرصد إحداهما «بلا رصد» ولا يُحسب غائباً، ورصدُ المعلّم بانتظار الاعتماد وسمٌ لا يدخل في أيّ عدّ. والرفعُ في نظام الوزارة يدويٌّ خارجَ المنصّة.{% endcallout %}
   {% endpage_header %}
 
   {% filter_bar "ترشيحُ الملخّص" %}
     {% field "date" "التاريخ" type="date" value=day|date:"Y-m-d" data_autosubmit=True %}
+    {% if wings %}{% field "wing" "الجناح" type="select" choices=wings value=wing blank="— كل الأجنحة —" data_autosubmit=True %}{% endif %}
     {% field "grade" "الصفّ" type="select" choices=grades value=grade blank="— كل الصفوف —" data_autosubmit=True %}
     {% field "q" "بحث" type="search" value=q grow=True placeholder="رمزُ شعبةٍ أو اسمُ طالب" autocomplete="off" %}
     <button type="submit" class="btn-primary btn-sm">{% icon "search" %} بحث</button>
@@ -51,6 +53,50 @@
   {% endkpi_strip %}
 
   {% for note in summary.notes %}{% callout "warning" show=True %}{{ note }}{% endcallout %}{% endfor %}
+
+  {% section_card "نسبُ الغياب بالطلبة: مرحلة ← جناح ← شعبة" meta=stats.bars|length icon="stats" empty="لا بياناتَ للمقارنة" flush=True %}{% if stats.bars %}
+    <div class="table-wrap table-wrap-scroll">
+      <table data-no-sort class="abs-stats">
+        <caption class="sr-only">نسبةُ الطلبة الذين غابوا الحصّتين الأولى والثانية إلى كلّ المقيَّدين</caption>
+        <thead>
+          <tr>
+            <th class="fu-name">البند</th>
+            <th class="num">المقيَّدون</th>
+            <th class="num">غابوا الحصّتين</th>
+            <th class="num">النسبة</th>
+            <th>الرسم</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for line in stats.bars %}
+          <tr>
+            <td class="fu-name"><strong>{{ line.label }}</strong></td>
+            <td class="num">{{ line.enrolled }}</td>
+            <td class="num">{{ line.absent_both }}</td>
+            <td class="num">{{ line.rate }}%</td>
+            <td><span class="progress-qatar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ line.rate }}" aria-label="نسبةُ غياب {{ line.label }}"><span class="progress-qatar-fill" style="--progress-w:{{ line.rate }}%"></span></span></td>
+          </tr>
+          {% for sub in line.children %}
+          <tr class="abs-stats__sub">
+            <td class="fu-name">{{ sub.label }}</td>
+            <td class="num">{{ sub.enrolled }}</td>
+            <td class="num">{{ sub.absent_both }}</td>
+            <td class="num">{{ sub.rate }}%</td>
+            <td><span class="progress-qatar" aria-hidden="true"><span class="progress-qatar-fill pf-warning" style="--progress-w:{{ sub.rate }}%"></span></span></td>
+          </tr>
+          {% endfor %}
+        {% endfor %}
+          <tr>
+            <td class="fu-name"><strong>{% if filtered %}مجموع المعروض{% else %}مجموع المدرسة{% endif %}</strong></td>
+            <td class="num"><strong>{{ stats.school.enrolled }}</strong></td>
+            <td class="num"><strong>{{ stats.school.absent_both }}</strong></td>
+            <td class="num"><strong>{{ stats.school.rate }}%</strong></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
 
   <div class="ui-grid-2 tbl-cols">
   {% section_card "حسب الصفّ والشعبة" meta=summary.class_rows|length icon="stats" empty="لا شعبَ تطابق الترشيح" flush=True %}{% if summary.grades %}
