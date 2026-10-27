@@ -40,6 +40,22 @@ if _statement_timeout_ms > 0:
         f"{_existing_options} -c statement_timeout={_statement_timeout_ms}"
     ).strip()
 
+# ── مجمّع اتّصالات Django الأصليّ: علمٌ صريح من البيئة (W-20261027-026) ──
+# تحت CONN_MAX_AGE=0 يفتح كلُّ طلبٍ اتّصالاً جديداً بالقاعدة. المجمّع يعيد استعمال
+# اتّصالاتٍ مفتوحةً دون أن يعيد Django اتّصالاً «مستمرّاً» إلى خيطٍ آخر (علّة
+# التعليق أعلاه)، فيبقى CONN_MAX_AGE=0 كما هو. يحتاج psycopg3 (`psycopg[pool]`)؛
+# ولهذا هو مطفأٌ افتراضاً، ويُفعَّل على خدمة الويب وحدها: `DB_POOL_ENABLED=true`
+# مع `DB_POOL_MIN_SIZE` و`DB_POOL_MAX_SIZE`. لا فحصَ لاسم العملية (انظر أعلاه).
+if config("DB_POOL_ENABLED", default=False, cast=bool):
+    _pool_min = config("DB_POOL_MIN_SIZE", default=2, cast=int)
+    _pool_max = config("DB_POOL_MAX_SIZE", default=10, cast=int)
+    if not 0 < _pool_min <= _pool_max:
+        raise ImproperlyConfigured("DB_POOL_MIN_SIZE must be > 0 and <= DB_POOL_MAX_SIZE")
+    DATABASES["default"].setdefault("OPTIONS", {})["pool"] = {
+        "min_size": _pool_min,
+        "max_size": _pool_max,
+    }
+
 # ✅ v5.1.1: IPs المسموحة للوصول إلى /metrics (Prometheus)
 METRICS_ALLOWED_IPS = config("METRICS_ALLOWED_IPS", default="127.0.0.1,::1,10.0.0.1").split(",")
 # Railway يكتب X-Forwarded-For «العميل، قفزةُ الحافّة» — قفزةٌ واحدةٌ موثوقة.
