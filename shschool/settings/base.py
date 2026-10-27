@@ -112,6 +112,8 @@ MIDDLEWARE = [
     "core.middleware.SentryScopeMiddleware",  # ✅ v5.5: Sentry context (school_id + role)
     "operations.middleware.SessionAutoGenerateMiddleware",  # ✅ توليد الحصص تلقائياً — بدون Celery
     "csp.middleware.CSPMiddleware",
+    # ترويسة Permissions-Policy (سواط 017 توصية 3) — القيمة في PERMISSIONS_POLICY
+    "core.middleware.PermissionsPolicyMiddleware",
     # الإلزامُ بتغيير كلمة المرور قبل موافقة وليّ الأمر: من لم يُبدّل كلمتَه لا يوافق بها.
     "core.middleware.ForcePasswordChangeMiddleware",
     "core.middleware.TwoFactorEnforcementMiddleware",
@@ -459,22 +461,17 @@ DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@schoolos.qa")
 # مستقلّ يسبق إزالتها.
 from csp.constants import NONCE, SELF
 
+# كاميرا وميكروفون وموقع ودفع وUSB مغلقةٌ؛ يطبّقها core.middleware.PermissionsPolicyMiddleware.
+PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+
 CSP_BASE_DIRECTIVES = {
     "default-src": [SELF],
-    "script-src": [
-        SELF,
-        NONCE,
-        "https://cdn.jsdelivr.net",
-        "https://cdnjs.cloudflare.com",
-        "https://unpkg.com",
-    ],
-    "style-src": [
-        SELF,
-        "'unsafe-inline'",
-        "https://fonts.googleapis.com",
-        "https://cdn.jsdelivr.net",
-    ],
-    "font-src": [SELF, "https://fonts.gstatic.com"],
+    # لا سماحاتٍ لشبكات توصيل خارجيّة: كلُّ السكربتات والخطوط تُخدَم من الأصل نفسه
+    # (`static/js/vendor`، وخطّ Tajawal محلّيّ)؛ وصفرُ مرجعٍ لـjsdelivr وunpkg وcdnjs
+    # وخطوط Google في القوالب والثابت — يحرسه tests/test_csp_policy.py.
+    "script-src": [SELF, NONCE],
+    "style-src": [SELF, "'unsafe-inline'"],
+    "font-src": [SELF],
     "img-src": [SELF, "data:", "blob:"],
     "connect-src": [SELF, "wss:", "ws:"],  # wss: مطلوب للـWebSocket
     # 'self' لا 'none': صفحة استمارة الزيارة تعرض ملفّ الـPDF في إطارٍ من الأصل نفسه.

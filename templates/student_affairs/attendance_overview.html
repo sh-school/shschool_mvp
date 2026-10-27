@@ -98,14 +98,17 @@
 
 {% block extra_js %}
 <script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
+{{ chart_labels|json_script:"attendance-chart-labels" }}
+{{ chart_present|json_script:"attendance-chart-present" }}
+{{ chart_absent|json_script:"attendance-chart-absent" }}
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
   var ctx = document.getElementById('attendanceChart');
   if (!ctx) return;
 
-  var labels = {{ chart_labels_json|safe }};
-  var presentData = {{ chart_present_json|safe }};
-  var absentData = {{ chart_absent_json|safe }};
+  var labels = JSON.parse(document.getElementById('attendance-chart-labels').textContent);
+  var presentData = JSON.parse(document.getElementById('attendance-chart-present').textContent);
+  var absentData = JSON.parse(document.getElementById('attendance-chart-absent').textContent);
 
   var gridColor = chartColor('border');
   var textColor = chartColor('text-secondary');

@@ -65,6 +65,8 @@
 
 {% block extra_js %}
 <script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
+{{ chart_labels|json_script:"behavior-chart-labels" }}
+{{ chart_data|json_script:"behavior-chart-data" }}
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
   Chart.defaults.font.family = 'Tajawal, sans-serif';
@@ -75,10 +77,10 @@ document.addEventListener('DOMContentLoaded', function() {
   new Chart(ctx.getContext('2d'), {
     type: 'bar',
     data: {
-      labels: {{ chart_labels_json|safe }},
+      labels: JSON.parse(document.getElementById('behavior-chart-labels').textContent),
       datasets: [{
         label: 'عدد المخالفات',
-        data: {{ chart_data_json|safe }},
+        data: JSON.parse(document.getElementById('behavior-chart-data').textContent),
         backgroundColor: chartColor('chart-1'),
         borderRadius: 6,
         maxBarThickness: 48,

@@ -8,6 +8,7 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, cast
 
+from django.conf import settings
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.http.response import HttpResponseBase
 from django.shortcuts import redirect, render
@@ -390,6 +391,27 @@ class ParentConsentMiddleware:
             return redirect(reverse("parent_consent"))
 
         return self.get_response(request)
+
+
+class PermissionsPolicyMiddleware:
+    """`Permissions-Policy` على كلّ استجابة — يغلق ميزاتِ الجهاز التي لا تستعملها المنصّة.
+
+    كانت الترويسة غائبةً (سواط 017 توصية 3). والقائمةُ هي ما لا يقرؤه أيُّ
+    سكربتٍ في `static/js` ولا قالب: كاميرا وميكروفون وموقع ودفع وUSB. أمّا
+    الحافظة والمشاركة (`clipboard-write`، `web-share`) فتستعملهما أزرارُ النسخ
+    والتصدير، وافتراضُهما الأصلُ نفسُه فلا تُذكران هنا. والقيمةُ من الإعداد
+    `PERMISSIONS_POLICY`؛ فارغةً لا تُضاف ترويسة. ومن ضبط ترويستَه بنفسه يُترك.
+    """
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponseBase]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponseBase:
+        response = self.get_response(request)
+        value = getattr(settings, "PERMISSIONS_POLICY", "")
+        if value and not response.has_header("Permissions-Policy"):
+            response["Permissions-Policy"] = value
+        return response
 
 
 class PrivateHtmlNoStoreMiddleware:

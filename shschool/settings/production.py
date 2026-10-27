@@ -167,11 +167,8 @@ X_FRAME_OPTIONS = "DENY"
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
-# ── Permissions-Policy (set via reverse proxy or django-permissions-policy) ──
-# Recommended header for Nginx/Caddy/Cloudflare:
-#   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
-# To enforce in Django: pip install django-permissions-policy, add to MIDDLEWARE,
-# then set PERMISSIONS_POLICY dict here.
+# ── Permissions-Policy ──
+# القيمةُ `PERMISSIONS_POLICY` في base.py، وتضيفها `core.middleware.PermissionsPolicyMiddleware`.
 
 # ── Redis / Cache ─────────────────────────────────────────────
 REDIS_URL = config("REDIS_URL", default="")
@@ -363,11 +360,14 @@ LOGGING = {
 # لا يُغنّي عنها nonce.
 #
 # الترتيب: نقل المعالِجات إلى `addEventListener` → حارسٌ يمنع عودتها → الفرض.
+# الاتّصالات (fetch وXHR وWebSocket) إلى الأصل ومضيفِ المنصّة وحدَه: `wss:` المجرَّدة كانت
+# تسمح بمقبسٍ إلى أيّ مضيف (سواط 017 توصية 3). المضيفاتُ من ALLOWED_HOSTS؛ والنقطةُ البادئة
+# والنجمةُ وفراغُها لا تُشتقّ منها مقابس.
+_CSP_CONNECT_HOSTS = [h.strip() for h in ALLOWED_HOSTS if h.strip() and h.strip()[0] not in ".*"]
 _CSP_PRODUCTION = {
     "DIRECTIVES": {
         **CSP_BASE_DIRECTIVES,
-        "script-src": [SELF, NONCE, "https://cdn.jsdelivr.net", "https://unpkg.com"],
-        "style-src": [SELF, "'unsafe-inline'", "https://fonts.googleapis.com"],
+        "connect-src": [SELF, *(f"wss://{h}" for h in _CSP_CONNECT_HOSTS)],
     }
 }
 

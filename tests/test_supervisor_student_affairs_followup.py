@@ -10,7 +10,6 @@
 """
 
 import datetime as dt
-import json
 from io import BytesIO
 
 import openpyxl
@@ -220,7 +219,7 @@ class TestAttendanceIsTheWing:
         assert _names(ctx["worst_students"]) == {OWN}
         assert {a.student.full_name for a in ctx["alerts"]} == {OWN}
         assert [row["session__class_group__grade"] for row in ctx["class_breakdown"]] == ["G7"]
-        assert json.loads(ctx["chart_absent_json"])[-1] == 100
+        assert ctx["chart_absent"][-1] == 100
         assert "جناح 1" in ctx["page_subtitle"]
         assert OTHER not in response.content.decode()
 
@@ -305,7 +304,7 @@ class TestBehaviourIsTheWing:
         assert ctx["total_students"] == 1
         assert ctx["infraction_pct"] == 100
         assert _names(ctx["worst_students"]) == {OWN}
-        assert sum(json.loads(ctx["chart_data_json"])) == 1
+        assert sum(ctx["chart_data"]) == 1
         assert "جناح 1" in ctx["wing_subtitle"]
 
     def test_leadership_counts_the_school(self, client_as, principal_user, world, infractions):
@@ -313,7 +312,7 @@ class TestBehaviourIsTheWing:
 
         assert ctx["total_infractions"] == 2
         assert _names(ctx["worst_students"]) == {OWN, OTHER}
-        assert sum(json.loads(ctx["chart_data_json"])) == 2
+        assert sum(ctx["chart_data"]) == 2
         assert ctx["wing_subtitle"] == ""
 
     def test_the_excel_and_pdf_carry_only_the_wing(
