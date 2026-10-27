@@ -396,7 +396,11 @@ def _assert_rejected_by_rls(error):
     والاعتماد على صنف الاستثناء هشّ عبر psycopg2/psycopg3 — فنأخذ الرمز حين
     يكون متاحاً ونرجع إلى النصّ حين لا يكون.
     """
-    sqlstate = getattr(error.__cause__, "pgcode", None) or getattr(error, "pgcode", None)
+    sqlstate = (
+        getattr(error.__cause__, "sqlstate", None)
+        or getattr(error.__cause__, "pgcode", None)
+        or getattr(error, "pgcode", None)
+    )
 
     if sqlstate is not None:
         assert sqlstate == "42501", f"expected insufficient_privilege, got {sqlstate}"
