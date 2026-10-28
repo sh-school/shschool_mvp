@@ -14,6 +14,9 @@ tests/loadtest/locustfile.py
 المتغيرات البيئية:
     LOCUST_NATIONAL_ID   — الرقم الشخصي لتسجيل الدخول (افتراضي: 12345678901)
     LOCUST_PASSWORD      — كلمة المرور (افتراضي: TestPass123!)
+    LOCUST_ACCOUNTS      — عدد الحسابات (افتراضي 1)؛ >1 يسجّل جلسةً لكلّ حساب `<LOCUST_ACCOUNT_PREFIX>001..`
+    LOCUST_ACCOUNT_PREFIX — بادئة أرقام الحسابات المتعدّدة (افتراضي LT-u-؛ ينتجها `seed_loadtest`)
+    LOCUST_LOGIN_GAP_S   — فاصل الدخول بين الحسابات بالثواني (افتراضي 7)
     LOCUST_ALLOW_REMOTE  — "1" يسمح بمضيف غير محلي (لا يُستعمل إلا بإذن المالك)
 
 السيناريوهات المضافة (الحضور والدرجات فقط):
@@ -25,9 +28,11 @@ tests/loadtest/locustfile.py
     نسبة الأخطاء ≤ LOCUST_MAX_FAIL_RATIO (افتراضي 0.01)
 """
 
+import itertools
 import os
 import random
 import re
+import time
 
 from locust import HttpUser, between, events, task
 
@@ -51,32 +56,59 @@ def refuse_remote_host(environment, **_kwargs):
 
 
 SHARED_COOKIES = {}
+#: جلساتُ حساباتٍ متعدّدة (LOCUST_ACCOUNTS>1): كلُّ مستخدمٍ افتراضيّ يأخذ جلسةً بالتناوب لقياس السعة بحساباتٍ منفصلة.
+SESSION_POOL = []
+_pool_cursor = itertools.count()
+
+
+def _login(host, national_id, password):
+    """يسجّل الدخول بحسابٍ ويعيد كوكيز الجلسة؛ فارغةٌ إن لم تُحفظ جلسة."""
+    import requests
+
+    session = requests.Session()
+    page = session.get(f"{host}/auth/login/")
+    match = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', page.text)
+    session.post(
+        f"{host}/auth/login/",
+        data={
+            "identifier": national_id,
+            "password": password,
+            "csrfmiddlewaretoken": match.group(1) if match else "",
+        },
+        headers={"Referer": f"{host}/auth/login/"},
+        allow_redirects=False,
+    )
+    cookies = session.cookies.get_dict()
+    return cookies if any(name.startswith("sessionid") for name in cookies) else {}
 
 
 @events.test_start.add_listener
 def login_once(environment, **_kwargs):
-    """يسجّل الدخول مرّةً واحدة ويشارك الكوكيز بين المستخدمين الافتراضيين.
+    """يسجّل الدخول مرّةً واحدة لكلّ حساب قبل الحمل ويشارك الكوكيز بين المستخدمين الافتراضيين.
 
     تسجيل الدخول لكلّ مستخدم في لحظة واحدة من عنوان IP واحد يُفعّل محدِّد معدّل الدخول
     (django_ratelimit فيردّ 403)، فيُقاس المحدِّد لا الحضور والدرجات. والسيناريوهان قراءةٌ فقط.
+    حسابٌ واحد افتراضاً (LOCUST_NATIONAL_ID)؛ ومع LOCUST_ACCOUNTS=N وLOCUST_ACCOUNT_PREFIX تُسجَّل N جلسةً
+    بأرقام `<prefix>001..` بالتتابع وبينها LOCUST_LOGIN_GAP_S ثانية (افتراضاً 7: حدُّ الدخول 10 في الدقيقة لكلّ IP) تفادياً للمحدِّد.
     """
-    import requests
-
-    session = requests.Session()
-    page = session.get(f"{environment.host}/auth/login/")
-    match = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', page.text)
-    session.post(
-        f"{environment.host}/auth/login/",
-        data={
-            "identifier": os.environ.get("LOCUST_NATIONAL_ID", "12345678901"),
-            "password": os.environ.get("LOCUST_PASSWORD", "TestPass123!"),
-            "csrfmiddlewaretoken": match.group(1) if match else "",
-        },
-        headers={"Referer": f"{environment.host}/auth/login/"},
-        allow_redirects=False,
+    password = os.environ.get("LOCUST_PASSWORD", "TestPass123!")
+    accounts = int(os.environ.get("LOCUST_ACCOUNTS", "1"))
+    if accounts > 1:
+        prefix = os.environ.get("LOCUST_ACCOUNT_PREFIX", "LT-u-")
+        gap = float(os.environ.get("LOCUST_LOGIN_GAP_S", "7"))
+        for number in range(1, accounts + 1):
+            cookies = _login(environment.host, f"{prefix}{number:03d}", password)
+            if cookies:
+                SESSION_POOL.append(cookies)
+            time.sleep(gap)
+        print(f"جلسات الحسابات المتعدّدة: {len(SESSION_POOL)} من {accounts}")
+        if SESSION_POOL:
+            return
+    cookies = _login(
+        environment.host, os.environ.get("LOCUST_NATIONAL_ID", "12345678901"), password
     )
-    SHARED_COOKIES.update(session.cookies.get_dict())
-    if "sessionid" not in "".join(SHARED_COOKIES):
+    SHARED_COOKIES.update(cookies)
+    if not cookies:
         print("تنبيه: لم تُحفظ جلسة الدخول المشتركة؛ ستفشل مسارات الحضور والدرجات بـ401/403")
 
 
@@ -243,7 +275,10 @@ class _LoadScenarioUser(HttpUser):
     password = os.environ.get("LOCUST_PASSWORD", "TestPass123!")
 
     def on_start(self):
-        for name, value in SHARED_COOKIES.items():
+        cookies = (
+            SESSION_POOL[next(_pool_cursor) % len(SESSION_POOL)] if SESSION_POOL else SHARED_COOKIES
+        )
+        for name, value in cookies.items():
             self.client.cookies.set(name, value)
         self.student_ids = self._load_student_ids()
 
