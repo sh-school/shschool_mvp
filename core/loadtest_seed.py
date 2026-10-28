@@ -11,12 +11,23 @@ from __future__ import annotations
 import math
 import os
 from dataclasses import dataclass
+from datetime import date
 
 from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
-from core.models import ClassGroup, CustomUser, Membership, Role, School, StudentEnrollment, Wing
+from core.models import (
+    AcademicYear,
+    ClassGroup,
+    CustomUser,
+    Membership,
+    Role,
+    School,
+    StudentEnrollment,
+    Wing,
+)
 from core.preview_accounts import PRODUCTION_SETTINGS_MODULES
 
 SCHOOL_CODE = "LDT"
@@ -65,6 +76,7 @@ def seed(
         school, _ = School.objects.get_or_create(
             code=SCHOOL_CODE, defaults={"name": SCHOOL_NAME, "is_active": True}
         )
+        _ensure_calendar(school)
         year = academic_year_for_school(school)
         wing, _ = Wing.objects.get_or_create(
             school=school, code="ldt", academic_year=year, defaults={"name": "[حمل] جناح"}
@@ -74,7 +86,22 @@ def seed(
     return result
 
 
-def _seed_students(school: School, wing: Wing, year, count: int, result: SeedResult) -> None:
+def _ensure_calendar(school: School) -> None:
+    """عامٌ دراسيّ يغطّي اليوم للمدرسة: بدونه يرتدّ الزمنُ إلى الثابت المجمَّد فتخرج قوائمُ الطلبة فارغة."""
+    today = timezone.localdate()
+    start_year = today.year if today.month >= 9 else today.year - 1
+    AcademicYear.objects.get_or_create(
+        school=school,
+        name=f"{start_year}-{start_year + 1}",
+        defaults={
+            "start_date": date(start_year, 9, 1),
+            "end_date": date(start_year + 1, 6, 30),
+            "is_current": True,
+        },
+    )
+
+
+def _seed_students(school: School, wing: Wing, year: str, count: int, result: SeedResult) -> None:
     student_role, _ = Role.objects.get_or_create(school=school, name="student")
     class_count = math.ceil(count / STUDENTS_PER_CLASS)
     groups = []
@@ -89,6 +116,8 @@ def _seed_students(school: School, wing: Wing, year, count: int, result: SeedRes
             defaults={"academic_year": year, "wing": wing},
         )
         result.classes += int(created)
+        if not created and (group.academic_year != year or group.wing_id != wing.pk):
+            ClassGroup.objects.filter(pk=group.pk).update(academic_year=year, wing=wing)
         groups.append(group)
     for number in range(1, count + 1):
         student, created = CustomUser.objects.get_or_create(
@@ -121,9 +150,10 @@ def _seed_accounts(school: School, password: str, count: int, result: SeedResult
             defaults={"full_name": f"[حمل] موظّف {number}", "must_change_password": False},
         )
         if created:
+            result.accounts += 1
+        if created or not user.check_password(password):
             user.set_password(password)
             user.save()
-            result.accounts += 1
         Membership.objects.get_or_create(
             user=user, school=school, role=role, defaults={"is_active": True}
         )

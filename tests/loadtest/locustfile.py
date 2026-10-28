@@ -292,7 +292,12 @@ class _LoadScenarioUser(HttpUser):
                 return []
             payload = resp.json()
             rows = payload.get("results", payload) if isinstance(payload, dict) else payload
-            return [row["id"] for row in rows[:50] if isinstance(row, dict) and "id" in row]
+            # الصفّ تسجيلٌ (StudentEnrollment): معرّف الطالب في `student.id` لا في `id`.
+            return [
+                row["student"]["id"]
+                for row in rows[:50]
+                if isinstance(row, dict) and isinstance(row.get("student"), dict)
+            ]
 
 
 class AttendanceLoadUser(_LoadScenarioUser):

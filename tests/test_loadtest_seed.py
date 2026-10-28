@@ -5,7 +5,8 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 
 from core import loadtest_seed as seed_module
-from core.models import ClassGroup, CustomUser, Membership, School, StudentEnrollment
+from core.academic_calendar import academic_year_for_school
+from core.models import AcademicYear, ClassGroup, CustomUser, Membership, School, StudentEnrollment
 
 PASSWORD = "Lt-Pass-123!"  # pragma: allowlist secret — كلمةٌ اصطناعيّةٌ للاختبار
 
@@ -87,3 +88,22 @@ def test_command_seeds_with_password_from_environment(monkeypatch):
     assert (
         CustomUser.objects.filter(national_id__startswith=seed_module.STUDENT_PREFIX).count() == 5
     )
+
+
+@pytest.mark.django_db
+def test_seed_gives_the_school_a_calendar_so_enrollments_match_the_current_year():
+    seed_module.seed(PASSWORD, students=3, accounts=1)
+    school = School.objects.get(code=seed_module.SCHOOL_CODE)
+    assert AcademicYear.objects.filter(school=school).count() == 1
+    year = academic_year_for_school(school)
+    assert set(
+        ClassGroup.objects.filter(school=school).values_list("academic_year", flat=True)
+    ) == {year}
+
+
+@pytest.mark.django_db
+def test_rerun_resets_staff_password():
+    seed_module.seed(PASSWORD, students=1, accounts=1)
+    seed_module.seed("Another-Pass-456!", students=1, accounts=1)  # pragma: allowlist secret
+    user = CustomUser.objects.get(national_id=f"{seed_module.STAFF_PREFIX}001")
+    assert user.check_password("Another-Pass-456!")  # pragma: allowlist secret
