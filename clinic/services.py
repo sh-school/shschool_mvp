@@ -22,6 +22,27 @@ if TYPE_CHECKING:
     from core.models import CustomUser, School
 
 
+#: أصغرُ عددٍ يُعرض في اللوحة العددية؛ ما دونه (1..4) يُقمع لأنّ خليّةً صغيرةً تدلّ على طالبٍ بعينه (W-20261020-031).
+SUPPRESS_BELOW = 5
+
+
+def suppress_small(count: int) -> int | None:
+    """قمعُ الخليّة الصغيرة: 1..4 ← None. الصفرُ يبقى صفراً (لا أحدَ فيه ليُعرَف)."""
+    return None if 0 < count < SUPPRESS_BELOW else count
+
+
+def suppress_breakdown(cells: dict[str, int]) -> dict[str, int | None]:
+    """تقسيمٌ يُعرض مع مجموعه: إن قُمعت خليّةٌ واحدةٌ فقط أمكن استنتاجُها بطرح المعروض من المجموع،
+    فتُقمع معها أصغرُ خليّةٍ غيرِ صفريّةٍ أخرى (قمعٌ ثانويّ). كلُّ خليّةٍ تخرج مقموعةً أو ≥ 5 أو صفراً."""
+    out: dict[str, int | None] = {k: suppress_small(v) for k, v in cells.items()}
+    hidden = [k for k, v in out.items() if v is None]
+    if len(hidden) == 1:
+        rest = [k for k, v in out.items() if v]  # غير None وغير صفر
+        if rest:
+            out[min(rest, key=lambda k: cells[k])] = None
+    return out
+
+
 class ClinicService:
     """خدمات العيادة المدرسية — تسجيل الزيارات + الإشعارات."""
 
@@ -359,6 +380,57 @@ class ClinicService:
             "peak_hours": peak_hours,
             "frequent": frequent,
             "month_total": month_total,
+        }
+
+    @staticmethod
+    def get_counts_board(school, today=None) -> dict:
+        """
+        اللوحةُ العدديّةُ للإدارة — أعدادٌ فقط، بلا أسماءٍ ولا معرّفاتٍ ولا نصٍّ صحّيّ، وكلُّ خليّةٍ بين 1 و4 مقموعة
+        (`None`)، والتقسيماتُ بقمعٍ ثانويّ (W-20261020-031). لا يقرأ الحقولَ المشفَّرة إطلاقاً.
+        """
+        from django.db.models import Count, Q
+        from django.utils import timezone
+
+        from clinic import choices
+        from clinic.models import ClinicVisit
+
+        today = today or timezone.now().date()
+        month_start = today.replace(day=1)
+        base = ClinicVisit.objects.filter(school=school)
+        day = base.filter(visit_date__date=today)
+        month = base.filter(visit_date__date__gte=month_start, visit_date__date__lte=today)
+
+        day_counts = day.aggregate(
+            total=Count("id"),
+            present=Count("id", filter=Q(closed_at__isnull=True)),
+            sent_home=Count("id", filter=Q(is_sent_home=True) | Q(outcome=choices.OUTCOME_LEAVE)),
+            referral=Count("id", filter=Q(outcome=choices.OUTCOME_REFERRAL)),
+        )
+        month_total = month.count()
+
+        def _by(qs, field: str, labels: dict[str, str]) -> list[dict]:
+            raw = {r[field]: r["n"] for r in qs.values(field).annotate(n=Count("id"))}
+            unknown = raw.pop("", 0)
+            cells = {code: raw.get(code, 0) for code in labels}
+            cells["__other__"] = unknown + sum(v for k, v in raw.items() if k not in labels)
+            shown = suppress_breakdown(cells)
+            names = {**labels, "__other__": "غير مرمَّز"}
+            return [
+                {"label": names[k], "count": shown[k]} for k in cells if cells[k] or k in labels
+            ]
+
+        groups = dict(choices.SERVICE_GROUPS)
+        outcomes = dict(choices.OUTCOME_CHOICES)
+        return {
+            "today": suppress_small(day_counts["total"]),
+            "present_now": suppress_small(day_counts["present"]),
+            "sent_home_today": suppress_small(day_counts["sent_home"]),
+            "referral_today": suppress_small(day_counts["referral"]),
+            "month_total": suppress_small(month_total),
+            "by_group_today": _by(day, "service_group", groups),
+            "by_group_month": _by(month, "service_group", groups),
+            "by_outcome_month": _by(month, "outcome", outcomes),
+            "suppress_below": SUPPRESS_BELOW,
         }
 
     @staticmethod
