@@ -19,7 +19,6 @@ from core.views_health import (
 from core.views_pwa import global_manifest, global_sw, offline_global
 from core.views_search import global_search
 from governance.views_media import serve_db_file
-from reports import views as report_views
 
 urlpatterns = [
     path("health/", health_check),
@@ -49,7 +48,7 @@ urlpatterns = [
     path("parents/", include("parents.urls")),
     path("reports/", include("reports.urls")),
     # كشفُ الطالب لنفسه خارج بوّابة /reports/ (قدرةُ المعلّمين لفهرس الشعب) — W-20261027-031
-    path("my-results/", report_views.my_result, name="my_result"),
+    path("my-results/", include("reports.urls_own")),
     # عارضُ md المركزيّ — لمطوّر المنصّة وحدَه (W-20260930-002)
     path("docs/", include("docs_viewer.urls")),
     path("analytics/", include("analytics.urls")),
