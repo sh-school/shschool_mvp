@@ -215,7 +215,8 @@ def _assert_rejected_by_rls(statement, params):
                 cursor.execute(statement, params)
 
     cause = caught.value.__cause__
-    assert getattr(cause, "pgcode", None) == "42501", f"رُفض لسبب آخر: {caught.value}"
+    state = getattr(cause, "sqlstate", None) or getattr(cause, "pgcode", None)
+    assert state == "42501", f"رُفض لسبب آخر: {caught.value}"
 
 
 def _visible_ids(table):

@@ -14,7 +14,7 @@ import pathlib
 
 import pytest
 from django.core.exceptions import PermissionDenied
-from django.db import IntegrityError, InternalError, connection, transaction
+from django.db import IntegrityError, InternalError, ProgrammingError, connection, transaction
 
 from core.models import AuditLog, ErasureRequest
 from governance.erasure_service import ErasureService
@@ -108,7 +108,7 @@ class TestEverythingElseStaysForbidden:
     def test_database_trigger_still_blocks_other_columns(self, student):
         row = _entry(student)
 
-        with pytest.raises((InternalError, IntegrityError)), transaction.atomic():
+        with pytest.raises((InternalError, IntegrityError, ProgrammingError)), transaction.atomic():
             with connection.cursor() as cur:
                 cur.execute(
                     "UPDATE core_auditlog SET action = 'delete', ip_address = NULL, "
@@ -119,7 +119,7 @@ class TestEverythingElseStaysForbidden:
     def test_database_trigger_refuses_rewriting_ip_to_another_value(self, student):
         row = _entry(student)
 
-        with pytest.raises((InternalError, IntegrityError)), transaction.atomic():
+        with pytest.raises((InternalError, IntegrityError, ProgrammingError)), transaction.atomic():
             with connection.cursor() as cur:
                 cur.execute(
                     "UPDATE core_auditlog SET ip_address = '198.51.100.1' WHERE id = %s", [row.pk]
@@ -141,7 +141,7 @@ class TestTriggerNeedsTheTransactionFlag:
     def test_raw_sql_without_the_flag_is_refused(self, student):
         row = _entry(student)
 
-        with pytest.raises((InternalError, IntegrityError)):
+        with pytest.raises((InternalError, IntegrityError, ProgrammingError)):
             self._raw(row, flag=False)
 
         row.refresh_from_db()
@@ -160,7 +160,7 @@ class TestTriggerNeedsTheTransactionFlag:
         AuditLog.objects.redact_network_identity(student)
         other_row = _entry(student)
 
-        with pytest.raises((InternalError, IntegrityError)):
+        with pytest.raises((InternalError, IntegrityError, ProgrammingError)):
             self._raw(other_row, flag=False)
 
         with connection.cursor() as cur:

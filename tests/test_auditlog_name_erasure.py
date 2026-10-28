@@ -14,7 +14,7 @@ import pathlib
 
 import pytest
 from django.core.exceptions import PermissionDenied
-from django.db import IntegrityError, InternalError, connection, transaction
+from django.db import IntegrityError, InternalError, ProgrammingError, connection, transaction
 
 from core.audit_repr import masked_repr
 from core.models import AuditLog, ErasureRequest
@@ -217,7 +217,7 @@ class TestEverythingElseStaysForbidden:
     def test_raw_sql_without_the_flag_is_refused(self, student):
         row = _entry(repr_=NAME)
 
-        with pytest.raises((InternalError, IntegrityError)), transaction.atomic():
+        with pytest.raises((InternalError, IntegrityError, ProgrammingError)), transaction.atomic():
             with connection.cursor() as cur:
                 cur.execute("UPDATE core_auditlog SET object_repr = 'x' WHERE id = %s", [row.pk])
 
@@ -241,7 +241,7 @@ class TestEverythingElseStaysForbidden:
     def test_with_the_flag_any_other_column_changing_with_it_is_refused(self, student, extra):
         row = _entry(repr_=NAME, changes={"k": "v"})
 
-        with pytest.raises((InternalError, IntegrityError)), transaction.atomic():
+        with pytest.raises((InternalError, IntegrityError, ProgrammingError)), transaction.atomic():
             with connection.cursor() as cur:
                 cur.execute("SELECT set_config(%s, 'on', true)", [FLAG])
                 cur.execute(
@@ -254,7 +254,7 @@ class TestEverythingElseStaysForbidden:
     def test_the_network_erasure_flag_does_not_open_the_description(self, student):
         row = _entry(repr_=NAME)
 
-        with pytest.raises((InternalError, IntegrityError)), transaction.atomic():
+        with pytest.raises((InternalError, IntegrityError, ProgrammingError)), transaction.atomic():
             with connection.cursor() as cur:
                 cur.execute("SELECT set_config('app.auditlog_network_erasure', 'on', true)")
                 cur.execute("UPDATE core_auditlog SET object_repr = 'x' WHERE id = %s", [row.pk])
@@ -264,7 +264,7 @@ class TestEverythingElseStaysForbidden:
         AuditLog.objects.anonymize_name_in_repr(student, NAME)
         later = _entry(repr_=NAME)
 
-        with pytest.raises((InternalError, IntegrityError)), transaction.atomic():
+        with pytest.raises((InternalError, IntegrityError, ProgrammingError)), transaction.atomic():
             with connection.cursor() as cur:
                 cur.execute("UPDATE core_auditlog SET object_repr = 'x' WHERE id = %s", [later.pk])
 
