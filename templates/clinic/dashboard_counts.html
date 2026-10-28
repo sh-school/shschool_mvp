@@ -1,0 +1,70 @@
+{% extends "base/base.html" %}
+{% load icons navigation %}
+{% load ui %}
+{% block title %}اللوحة العدديّة للعيادة — {{ current_school.name|default:"المدرسة" }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/clinic/" parent_label="العيادة" current="اللوحة العدديّة" %}
+{% endblock %}
+
+{% block main_class %}{% page_layout "dashboard" %}{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "اللوحة العدديّة للعيادة" subtitle=today_label icon="stats" %}
+  {% endpage_header %}
+
+  {% kpi_strip label="أرقام العيادة اليوم" %}
+    {% kpi "زيارات اليوم" today|default_if_none:"—" tone="blue" %}
+    {% kpi "في العيادة الآن" present_now|default_if_none:"—" tone="teal" title="زياراتٌ اليومَ لم تُغلَق بعد" %}
+    {% kpi "استئذانات اليوم" sent_home_today|default_if_none:"—" tone="amber" %}
+    {% kpi "إحالات اليوم" referral_today|default_if_none:"—" tone="amber" %}
+    {% kpi "زيارات الشهر" month_total|default_if_none:"—" tone="teal" %}
+  {% endkpi_strip %}
+
+  <p class="text-muted" role="note">أعدادٌ مجمَّعةٌ بلا أسماءٍ ولا تفاصيلَ صحّيّة. الخانةُ «—» عددُها أقلُّ من {{ suppress_below }} فلا يُعرض حمايةً للخصوصيّة.</p>
+
+  <div class="ui-grid-2">
+    {% section_card "اليوم حسب مجموعة الخدمة" icon="clinic_visit" empty="لا زياراتٍ اليوم" %}
+      <div class="table-wrap table-wrap-scroll">
+        <table data-no-sort>
+          <thead><tr><th scope="col">المجموعة</th><th scope="col">العدد</th></tr></thead>
+          <tbody>
+            {% for row in by_group_today %}
+            <tr><td>{{ row.label }}</td><td>{{ row.count|default_if_none:"—" }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endsection_card %}
+
+    {% section_card "هذا الشهر حسب مجموعة الخدمة" icon="clinic_visit" empty="لا زياراتٍ هذا الشهر" %}
+      <div class="table-wrap table-wrap-scroll">
+        <table data-no-sort>
+          <thead><tr><th scope="col">المجموعة</th><th scope="col">العدد</th></tr></thead>
+          <tbody>
+            {% for row in by_group_month %}
+            <tr><td>{{ row.label }}</td><td>{{ row.count|default_if_none:"—" }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endsection_card %}
+  </div>
+
+  {% section_card "هذا الشهر حسب حالة الخروج" icon="sent_home" empty="لا زياراتٍ هذا الشهر" %}
+    <div class="table-wrap table-wrap-scroll">
+      <table data-no-sort>
+        <thead><tr><th scope="col">الحالة</th><th scope="col">العدد</th></tr></thead>
+        <tbody>
+          {% for row in by_outcome_month %}
+          <tr><td>{{ row.label }}</td><td>{{ row.count|default_if_none:"—" }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endsection_card %}
+
+</div>
+{% endblock %}

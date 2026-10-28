@@ -20,6 +20,7 @@ ALLOWED = {
     "GHSA-3476-c5c2-fr73",
     "GHSA-53xc-49m8-p798",
     "GHSA-q7qq-6mhp-9rc4",
+    "GHSA-jj36-9pvh-vj5r",
 }
 REVIEW_BY = datetime.date(2026, 11, 14)
 
