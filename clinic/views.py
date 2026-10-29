@@ -285,3 +285,24 @@ def needs_care_import(request):
         "clinic/needs_care_import.html",
         {"report": report, "error": error},
     )
+
+
+@login_required
+@capability_required("clinic.access")
+def clinic_metrics(request):
+    """مؤشرات قياس العيادة الخمسة لشهرٍ واحد (W-20261020-035) — مجمَّعةٌ على مستوى العيادة بلا أسماء."""
+    from clinic.metrics import cards, clinic_indicators
+
+    school = request.school
+    today = timezone.localdate()
+    try:
+        year, month = (int(part) for part in request.GET.get("month", "").split("-"))
+        if not (2000 <= year <= 2100 and 1 <= month <= 12):
+            raise ValueError
+    except ValueError:
+        year, month = today.year, today.month
+    context = {
+        "cards": cards(clinic_indicators(school, year, month)),
+        "month_value": f"{year:04d}-{month:02d}",
+    }
+    return render(request, "clinic/metrics.html", context)

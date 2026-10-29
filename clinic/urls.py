@@ -36,5 +36,6 @@ urlpatterns = [
     path("supplies/add/", supply_views.supply_add, name="supply_add"),
     path("supplies/<uuid:item_id>/delete/", supply_views.supply_delete, name="supply_delete"),
     path("statistics/", views.health_statistics, name="statistics"),
+    path("metrics/", views.clinic_metrics, name="metrics"),
     path("api/charts/", views.api_clinic_charts, name="api_clinic_charts"),
 ]
