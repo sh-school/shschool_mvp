@@ -41,7 +41,13 @@ class ClinicVisitAdmin(admin.ModelAdmin):
     list_filter = ("visit_date", "outcome", "is_sent_home", "parent_notified")
     search_fields = ("student__full_name", "student__national_id")
     autocomplete_fields = ("student", "nurse")
-    readonly_fields = ("visit_date", "period_number")
+    readonly_fields = (
+        "visit_date",
+        "period_number",
+        "external_report_by",
+        "external_report_at",
+        "teacher_alerted_at",
+    )
     fieldsets = (
         ("بيانات الزيارة", {"fields": ("school", "student", "nurse", "visit_date")}),
         (
@@ -59,6 +65,18 @@ class ClinicVisitAdmin(admin.ModelAdmin):
         ),
         ("الأعراض والعلاج", {"fields": ("reason", "symptoms", "temperature", "treatment")}),
         ("الإجراءات", {"fields": ("is_sent_home", "parent_notified")}),
+        (
+            "الحالة المعدية وتنبيه المعلّم",
+            {
+                "fields": (
+                    "infectious_status",
+                    "external_report_decision",
+                    "external_report_by",
+                    "external_report_at",
+                    "teacher_alerted_at",
+                )
+            },
+        ),
     )
 
 
