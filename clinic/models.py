@@ -159,6 +159,29 @@ class ClinicVisit(models.Model):
         null=True, blank=True, verbose_name="وقت بدء المسودة (للقياس)"
     )
 
+    # ── [W-20261020-042] الحالة المعدية والعزل وتنبيه المعلّم — توسيعٌ فقط ─────────────────
+    # وسمٌ من قائمةٍ مغلقةٍ بلا تشخيص؛ وقرارُ الإبلاغ الخارجيّ إنسانيٌّ مسجَّل (من وحين) ولا إرسالَ آليّ.
+    infectious_status = models.CharField(
+        max_length=20, blank=True, default="", db_default="", verbose_name="الحالة المعدية"
+    )
+    external_report_decision = models.CharField(
+        max_length=20, blank=True, default="", db_default="", verbose_name="قرار الإبلاغ الخارجي"
+    )
+    external_report_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="clinic_report_decisions",
+        verbose_name="قرّر الإبلاغ",
+    )
+    external_report_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت قرار الإبلاغ"
+    )
+    teacher_alerted_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت تنبيه معلّم الحصة"
+    )
+
     class Meta:
         verbose_name = "زيارة عيادة"
         verbose_name_plural = "زيارات العيادة"

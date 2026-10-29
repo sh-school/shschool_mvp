@@ -5,7 +5,7 @@
 <h1 class="report-title-bar">{{ title|default:"تقرير التأخر الصباحي" }}</h1>
 {% endblock %}
 
-{% block extra_styles %}{% grade_row_css ".report-table tbody" %}{% endblock %}
+{% block extra_styles %}@page { size: A4 landscape; } /* كشفٌ بأعمدة: أفقيّ بسياسة الطباعة (core/print_policy.py، قرار المالك 2026-10-21) */{% grade_row_css ".report-table tbody" %}{% endblock %}
 
 {% block report_meta %}
 <table class="report-meta">
@@ -75,6 +75,7 @@
     <div class="sig-line"></div>
     <div class="sig-name">&nbsp;</div>
     <div class="sig-role">التوقيع والختم</div>
+    {% include "components/print/stamp_box.html" %}
   </div>
 </div>
 {% endblock %}

@@ -14,11 +14,124 @@ tests/loadtest/locustfile.py
 المتغيرات البيئية:
     LOCUST_NATIONAL_ID   — الرقم الشخصي لتسجيل الدخول (افتراضي: 12345678901)
     LOCUST_PASSWORD      — كلمة المرور (افتراضي: TestPass123!)
+    LOCUST_ACCOUNTS      — عدد الحسابات (افتراضي 1)؛ >1 يسجّل جلسةً لكلّ حساب `<LOCUST_ACCOUNT_PREFIX>001..`
+    LOCUST_ACCOUNT_PREFIX — بادئة أرقام الحسابات المتعدّدة (افتراضي LT-u-؛ ينتجها `seed_loadtest`)
+    LOCUST_LOGIN_GAP_S   — فاصل الدخول بين الحسابات بالثواني (افتراضي 7)
+    LOCUST_ALLOW_REMOTE  — "1" يسمح بمضيف غير محلي (لا يُستعمل إلا بإذن المالك)
+
+السيناريوهات المضافة (الحضور والدرجات فقط):
+    AttendanceLoadUser — قراءات الحضور: القوائم، الحصص، وحضور طالبٍ بعينه.
+    GradesLoadUser     — قراءات الدرجات: لوحة التقييمات، الرسوم، ودرجات طالبٍ بعينه.
+
+حدود القبول (تُفحص عند الإنهاء، ويخرج الاختبار برمز 1 عند تجاوزها):
+    p95 لكلّ سيناريو ≤ LOCUST_P95_MS  (افتراضي 800 ميلي ثانية)
+    نسبة الأخطاء ≤ LOCUST_MAX_FAIL_RATIO (افتراضي 0.01)
 """
 
+import itertools
 import os
+import random
+import re
+import time
 
-from locust import HttpUser, between, task
+from locust import HttpUser, between, events, task
+
+LOCAL_HOSTS = ("localhost", "127.0.0.1", "[::1]")
+P95_LIMIT_MS = float(os.environ.get("LOCUST_P95_MS", "800"))
+MAX_FAIL_RATIO = float(os.environ.get("LOCUST_MAX_FAIL_RATIO", "0.01"))
+
+
+@events.test_start.add_listener
+def refuse_remote_host(environment, **_kwargs):
+    """يمنع الحمل على أيّ مضيف غير محلي: الإنتاج خطٌّ أحمر لا يُختبر بالحمل."""
+    host = environment.host or ""
+    if any(local in host for local in LOCAL_HOSTS):
+        return
+    if os.environ.get("LOCUST_ALLOW_REMOTE") == "1":
+        return
+    raise SystemExit(
+        f"رُفض الحمل على المضيف {host!r}: مسموحٌ به محلياً فقط. "
+        "الإنتاج لا يُختبر بالحمل (انظر .claude/skills/schoolos-load-test/SKILL.md)."
+    )
+
+
+SHARED_COOKIES = {}
+#: جلساتُ حساباتٍ متعدّدة (LOCUST_ACCOUNTS>1): كلُّ مستخدمٍ افتراضيّ يأخذ جلسةً بالتناوب لقياس السعة بحساباتٍ منفصلة.
+SESSION_POOL = []
+_pool_cursor = itertools.count()
+
+
+def _login(host, national_id, password):
+    """يسجّل الدخول بحسابٍ ويعيد كوكيز الجلسة؛ فارغةٌ إن لم تُحفظ جلسة."""
+    import requests
+
+    session = requests.Session()
+    page = session.get(f"{host}/auth/login/")
+    match = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', page.text)
+    session.post(
+        f"{host}/auth/login/",
+        data={
+            "identifier": national_id,
+            "password": password,
+            "csrfmiddlewaretoken": match.group(1) if match else "",
+        },
+        headers={"Referer": f"{host}/auth/login/"},
+        allow_redirects=False,
+    )
+    cookies = session.cookies.get_dict()
+    return cookies if any(name.startswith("sessionid") for name in cookies) else {}
+
+
+@events.test_start.add_listener
+def login_once(environment, **_kwargs):
+    """يسجّل الدخول مرّةً واحدة لكلّ حساب قبل الحمل ويشارك الكوكيز بين المستخدمين الافتراضيين.
+
+    تسجيل الدخول لكلّ مستخدم في لحظة واحدة من عنوان IP واحد يُفعّل محدِّد معدّل الدخول
+    (django_ratelimit فيردّ 403)، فيُقاس المحدِّد لا الحضور والدرجات. والسيناريوهان قراءةٌ فقط.
+    حسابٌ واحد افتراضاً (LOCUST_NATIONAL_ID)؛ ومع LOCUST_ACCOUNTS=N وLOCUST_ACCOUNT_PREFIX تُسجَّل N جلسةً
+    بأرقام `<prefix>001..` بالتتابع وبينها LOCUST_LOGIN_GAP_S ثانية (افتراضاً 7: حدُّ الدخول 10 في الدقيقة لكلّ IP) تفادياً للمحدِّد.
+    """
+    password = os.environ.get("LOCUST_PASSWORD", "TestPass123!")
+    accounts = int(os.environ.get("LOCUST_ACCOUNTS", "1"))
+    if accounts > 1:
+        prefix = os.environ.get("LOCUST_ACCOUNT_PREFIX", "LT-u-")
+        gap = float(os.environ.get("LOCUST_LOGIN_GAP_S", "7"))
+        for number in range(1, accounts + 1):
+            cookies = _login(environment.host, f"{prefix}{number:03d}", password)
+            if cookies:
+                SESSION_POOL.append(cookies)
+            time.sleep(gap)
+        print(f"جلسات الحسابات المتعدّدة: {len(SESSION_POOL)} من {accounts}")
+        if SESSION_POOL:
+            return
+    cookies = _login(
+        environment.host, os.environ.get("LOCUST_NATIONAL_ID", "12345678901"), password
+    )
+    SHARED_COOKIES.update(cookies)
+    if not cookies:
+        print("تنبيه: لم تُحفظ جلسة الدخول المشتركة؛ ستفشل مسارات الحضور والدرجات بـ401/403")
+
+
+ACCEPTANCE_SCOPES = ("attendance", "/grades", "/assessments")
+
+
+@events.quitting.add_listener
+def enforce_acceptance_limits(environment, **_kwargs):
+    """يجعل رمز الخروج 1 إذا تجاوز مسارٌ من مسارات الحضور والدرجات حدَّ p95 أو حدَّ الأخطاء.
+
+    الفحص لكلّ مسار على حدة (لا معدّلٌ عام)، فمسارٌ بطيءٌ لا تُخفيه المسارات السريعة.
+    """
+    failed = []
+    for (name, method), entry in environment.stats.entries.items():
+        if not any(scope in name for scope in ACCEPTANCE_SCOPES) or entry.num_requests == 0:
+            continue
+        p95 = entry.get_response_time_percentile(0.95) or 0
+        fail_ratio = entry.num_failures / entry.num_requests
+        if p95 > P95_LIMIT_MS or fail_ratio > MAX_FAIL_RATIO:
+            failed.append(f"{method} {name}: p95={p95:.0f}ms fail={fail_ratio:.2%}")
+    if failed:
+        print("تجاوز حدود القبول:", "; ".join(failed))
+        environment.process_exit_code = 1
 
 
 class SchoolOSUser(HttpUser):
@@ -151,3 +264,93 @@ class ParentUser(HttpUser):
     @task(3)
     def api_children(self):
         self.client.get("/api/v1/parent/children/", name="/api/v1/parent/children/")
+
+
+class _LoadScenarioUser(HttpUser):
+    """قاعدة مشتركة للسيناريوهات المركّزة: تسجيل دخول واحد، ثم طلب بيانات طالبٍ عشوائيّ."""
+
+    abstract = True
+    wait_time = between(1, 3)
+    national_id = os.environ.get("LOCUST_NATIONAL_ID", "12345678901")
+    password = os.environ.get("LOCUST_PASSWORD", "TestPass123!")
+
+    def on_start(self):
+        cookies = (
+            SESSION_POOL[next(_pool_cursor) % len(SESSION_POOL)] if SESSION_POOL else SHARED_COOKIES
+        )
+        for name, value in cookies.items():
+            self.client.cookies.set(name, value)
+        self.student_ids = self._load_student_ids()
+
+    def _load_student_ids(self):
+        """يقرأ معرّفات الطلاب من القائمة؛ قائمةٌ فارغة تعني أن السيناريو يكتفي بالقوائم."""
+        with self.client.get(
+            "/api/v1/students/", name="/api/v1/students/ [setup]", catch_response=True
+        ) as resp:
+            if resp.status_code != 200:
+                resp.failure(f"HTTP {resp.status_code}")
+                return []
+            payload = resp.json()
+            rows = payload.get("results", payload) if isinstance(payload, dict) else payload
+            # الصفّ تسجيلٌ (StudentEnrollment): معرّف الطالب في `student.id` لا في `id`.
+            return [
+                row["student"]["id"]
+                for row in rows[:50]
+                if isinstance(row, dict) and isinstance(row.get("student"), dict)
+            ]
+
+
+class AttendanceLoadUser(_LoadScenarioUser):
+    """سيناريو الحضور: القوائم والحصص وحضور طالبٍ بعينه."""
+
+    @task(5)
+    def attendance_api_list(self):
+        self.client.get("/api/v1/attendance/", name="/api/v1/attendance/")
+
+    @task(3)
+    def sessions_api_list(self):
+        self.client.get("/api/v1/sessions/", name="/api/v1/sessions/ [attendance]")
+
+    @task(2)
+    def attendance_overview_page(self):
+        self.client.get("/student-affairs/attendance/", name="/student-affairs/attendance/")
+
+    @task(2)
+    def attendance_board_page(self):
+        self.client.get("/staff-affairs/attendance/", name="/staff-affairs/attendance/")
+
+    @task(4)
+    def student_attendance(self):
+        if not self.student_ids:
+            return
+        student_id = random.choice(self.student_ids)
+        self.client.get(
+            f"/api/v1/students/{student_id}/attendance/",
+            name="/api/v1/students/[id]/attendance/",
+        )
+
+
+class GradesLoadUser(_LoadScenarioUser):
+    """سيناريو الدرجات: لوحة التقييمات والرسوم ودرجات طالبٍ بعينه (صفحة ولي الأمر خارج النطاق)."""
+
+    @task(4)
+    def assessments_dashboard(self):
+        self.client.get("/assessments/", name="/assessments/")
+
+    @task(3)
+    def assessment_charts(self):
+        self.client.get("/assessments/api/charts/", name="/assessments/api/charts/")
+
+    @task(2)
+    def failing_students(self):
+        self.client.get("/assessments/failing/", name="/assessments/failing/")
+
+    @task(5)
+    def student_grades(self):
+        if not self.student_ids:
+            return
+        student_id = random.choice(self.student_ids)
+        self.client.get(
+            f"/api/v1/students/{student_id}/grades/",
+            name="/api/v1/students/[id]/grades/",
+        )

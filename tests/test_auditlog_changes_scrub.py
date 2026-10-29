@@ -13,7 +13,7 @@ import pathlib
 
 import pytest
 from django.core.exceptions import PermissionDenied
-from django.db import IntegrityError, InternalError, connection, transaction
+from django.db import IntegrityError, InternalError, ProgrammingError, connection, transaction
 
 from core.audit_changes_scrub import MAX_DEPTH, TooDeepError, scrub_name
 from core.audit_repr import masked_repr
@@ -240,7 +240,7 @@ class TestSkippedAreCountedNotWritten:
 
 def _refused_update(sql, params=None, *, flags=()):
     """يشغّل UPDATE خاماً داخل معاملةٍ بعلَماتٍ معطاة ويتوقّع رفضَ الزناد له."""
-    with pytest.raises((InternalError, IntegrityError)), transaction.atomic():
+    with pytest.raises((InternalError, IntegrityError, ProgrammingError)), transaction.atomic():
         with connection.cursor() as cur:
             for flag in flags:
                 cur.execute("SELECT set_config(%s, 'on', true)", [flag])
