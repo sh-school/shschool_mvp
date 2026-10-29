@@ -26,7 +26,12 @@ from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_number
 from core.pdf_utils import render_pdf
 
-from .selectors import class_certificates_context, paper_size, set_final_status
+from .selectors import (
+    class_certificates_context,
+    paper_size,
+    set_final_status,
+    teacher_can_access_class,
+)
 from .services import ExcelService, ReportDataService
 
 
@@ -90,24 +95,7 @@ def _has_parent_access(request, student, school) -> bool:
 
 def _teacher_can_access_class(request, school, class_grp, year) -> bool:
     """[SEC-04] القيادة/الإدارة/المنسّق: وصول إشرافي مبرّر. المعلّم: فصوله فقط."""
-    user = request.user
-    role = user.get_role()
-    if (
-        user.is_superuser
-        or user.is_admin()
-        or role
-        in (
-            "principal",
-            "vice_academic",
-            "vice_admin",
-            "coordinator",
-            "student_affairs_coordinator",  # نطاقه المدرسة كلُّها (W-20261018-003)
-        )
-    ):
-        return True
-    return SubjectClassSetup.objects.filter(
-        school=school, teacher=user, class_group=class_grp, academic_year=year
-    ).exists()
+    return teacher_can_access_class(request.user, school, class_grp, year)
 
 
 def _wants_download(request) -> bool:
@@ -439,6 +427,27 @@ def attendance_report_pdf(request, class_id):
 
 
 @login_required
+@capability_required("reports.own_results")
+@xframe_options_sameorigin
+def my_result(request):
+    """كشفُ الطالب لنتيجته هو — بلا معاملِ مسار فلا يفتح كشفَ غيره (W-20261027-031)."""
+    student = request.user
+    year = request.GET.get("year") or academic_year_for(request)
+    ctx = ReportDataService.get_student_report(student, request.school, year)
+    ctx["paper_size"] = _get_paper_size(request)
+    _student_result_presentation(ctx)
+    log_export(
+        request,
+        "reports.student_result",
+        rows=1,
+        full_national_id=False,
+        object_id=student.pk,
+        object_repr=f"نتيجة {masked_repr(student)} — {year}",
+    )
+    return render(request, "reports/student_result.html", ctx)
+
+
+@login_required
 @capability_required("reports.results")
 @xframe_options_sameorigin
 def student_result_pdf(request, student_id):
@@ -593,17 +602,12 @@ def class_results_excel(request, class_id):
         from django.core.exceptions import PermissionDenied
 
         raise PermissionDenied("لا تملك صلاحية الوصول إلى تقارير هذا الفصل")
-    paper = _get_paper_size(request).lower()
-    # الرقم الشخصيّ: مستور — `ExcelService.class_results_excel` يستره، والسجلُّ يقولها.
-    log_export(
-        request,
-        "reports.class_results_xlsx",
-        rows=StudentEnrollment.objects.filter(class_group=class_grp, is_active=True).count(),
-        full_national_id=False,
-        object_id=class_grp.pk,
-        object_repr=f"Excel نتائج {class_grp} — {year}",
-    )
-    return ExcelService.class_results_excel(class_grp, school, year, paper=paper)
+    # خلفيٌّ عبر سجلّ التصدير (W-20261027-029): الأعلى استعمالاً بين الكشوف؛ سطرُ التدقيق يكتبه العاملُ (`<kind>:built`).
+    params = request.GET.copy()
+    params["class_id"] = str(class_grp.pk)
+    params["year"] = year
+    params["paper"] = _get_paper_size(request).lower()
+    return respond_export(request, "reports.class_results_xlsx", params=params)
 
 
 @login_required

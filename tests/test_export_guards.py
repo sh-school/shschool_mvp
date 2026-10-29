@@ -27,7 +27,6 @@ SYNC_ONLY_KINDS = frozenset(
         "reports.behavior_xlsx",
         "reports.certificate",
         "reports.class_results",
-        "reports.class_results_xlsx",
         "reports.student_annual_result",
         "reports.student_result",
         "staff_affairs.attendance_day_xlsx",

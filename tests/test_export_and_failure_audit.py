@@ -219,14 +219,19 @@ class TestExcelRegistersMaskTheNumber:
         trail = _exports(kind).get()
         assert trail.changes["full_national_id"] is False
 
-    def test_the_class_results_sheet_is_masked(self, client_as, principal_user, klass, pupil):
-        resp = client_as(principal_user).get(reverse("class_results_excel", args=[klass.pk]))
+    def test_the_class_results_sheet_is_masked(self, principal_user, school, klass, pupil):
+        """خلفيٌّ منذ W-20261027-029: الورقةُ من البنّاء، وسطرُ التدقيق من العامل (`<kind>:built`)."""
+        from django.http import QueryDict
 
-        assert resp.status_code == 200
-        cells = _cells(resp)
+        from reports.export_builders import build_class_results_xlsx
+
+        result = build_class_results_xlsx(
+            school, principal_user, QueryDict(f"class_id={klass.pk}&year={klass.academic_year}")
+        )
+
+        cells = _cells(result)
         assert MASKED in cells and STUDENT_ID not in cells
-        trail = _exports("reports.class_results_xlsx").get()
-        assert trail.changes["rows"] == 1 and trail.changes["full_national_id"] is False
+        assert result.rows == 1 and result.full_national_id is False
 
 
 class TestJsonAndApiMaskTheNumber:

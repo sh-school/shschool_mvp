@@ -751,6 +751,17 @@
   "not_inherited_by": []
  },
  {
+  "key": "reports.own_results",
+  "label": "كشفُ الطالب لنتيجته هو",
+  "roles": [
+   "student"
+  ],
+  "scope": "ذاتُه فقط (بلا معاملِ مسار)",
+  "basis": "سواط 017 توصية 4: بلاطة «درجاتي» كانت تنتهي بـ403 (W-20261027-031)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
   "key": "reports.school",
   "label": "تقاريرُ الحضور والسلوك والشهادات للشعبة",
   "roles": [

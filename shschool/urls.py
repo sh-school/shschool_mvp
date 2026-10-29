@@ -47,6 +47,8 @@ urlpatterns = [
     path("import/", include("staging.urls")),
     path("parents/", include("parents.urls")),
     path("reports/", include("reports.urls")),
+    # كشفُ الطالب لنفسه خارج بوّابة /reports/ (قدرةُ المعلّمين لفهرس الشعب) — W-20261027-031
+    path("my-results/", include("reports.urls_own")),
     # عارضُ md المركزيّ — لمطوّر المنصّة وحدَه (W-20260930-002)
     path("docs/", include("docs_viewer.urls")),
     path("analytics/", include("analytics.urls")),

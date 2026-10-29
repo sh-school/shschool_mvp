@@ -25,7 +25,7 @@
   {% endif %}{% endsection_card %}
 
   <nav class="ui-actions" aria-label="إجراءات سريعة">
-    {% url 'reports_index' as u %}{% action_tile "درجاتي" desc="النتائج والشهادات" icon="grades" href=u primary=True %}
+    {% url 'my_result' as u %}{% action_tile "درجاتي" desc="النتائج والشهادات" icon="grades" href=u primary=True %}
     {% url 'library:dashboard' as u %}{% action_tile "المكتبة" desc="الكتب والإعارة" icon="library" href=u %}
     {% url 'notification_inbox' as u %}{% action_tile "الإشعارات" desc="رسائل المدرسة" icon="notifications" href=u %}
   </nav>

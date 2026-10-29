@@ -189,8 +189,8 @@ class TestReportsViews:
     def test_class_results_excel(self, client_as, principal_user, class_group):
         c = client_as(principal_user)
         resp = c.get(f"/reports/class/{class_group.id}/results/excel/")
-        assert resp.status_code == 200
-        assert "spreadsheet" in resp["Content-Type"] or "excel" in resp["Content-Type"].lower()
+        # خلفيٌّ عبر سجلّ التصدير (W-20261027-029): يُحوَّل إلى صفحة المهمّة لا ملفٍّ مباشر
+        assert resp.status_code == 302 and resp["Location"].startswith("/exports/")
 
     def test_attendance_excel(self, client_as, principal_user, class_group):
         c = client_as(principal_user)

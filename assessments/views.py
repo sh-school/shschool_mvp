@@ -43,6 +43,7 @@ from .models import (
     SubjectClassSetup,
 )
 from .services import GradeService
+from .tasks import dispatch_recalculate_class, is_recalculating
 from .verdict_engine import ClosedYearError
 
 # ── ألوانُ العرض — الحكمُ هنا مرّةً لا شرطاً في القالب ─────────
@@ -456,10 +457,9 @@ def class_gradebook(request, setup_id):
 
     # ── Batch-fetch package scores to avoid N+1 queries ──
     pkg_list = list(packages)
-    if not show_annual and pkg_list:
-        batch_scores = GradeService.calc_package_scores_batch(student_ids, pkg_list)
-    else:
-        batch_scores = {}
+    batch_scores = (
+        {} if show_annual else GradeService.calc_package_scores_batch(student_ids, pkg_list)
+    )
 
     # الباقاتُ ذاتُ الوزن وحدَها أعمدة — كان القالبُ يرشّحها في حلقتين.
     weighted_packages = [pkg for pkg in pkg_list if pkg.weight > 0]
@@ -517,6 +517,7 @@ def class_gradebook(request, setup_id):
             "subtitle": f"{setup.subject.name_ar} · {setup.class_group} · {setup.academic_year}",
             "failed_tone": "red" if summary.get("failed") else "green",
             "status_tones": ANNUAL_STATUS_BADGE,
+            "recalculating": is_recalculating(setup.pk),
         },
     )
 
@@ -696,10 +697,14 @@ def recalculate_class(request, setup_id):
     if not request.user.is_admin() and setup.teacher != request.user:
         return HttpResponse("غير مسموح", status=403)
 
-    GradeService.recalculate_full_class(setup)
-    messages.success(
-        request, f"تم إعادة حساب درجات {setup.class_group} في {setup.subject.name_ar} بنجاح."
-    )
+    # خلفيّاً (W-20261027-029): الحسابُ يتجاوز 300ms؛ الكشفُ يعرض «قيد الحساب» حتى ينتهي العامل.
+    if not dispatch_recalculate_class(setup.pk, request.user.pk):
+        messages.info(request, "إعادة الحساب جارية لهذا الفصل — حدّث الصفحة بعد لحظات.")
+    else:
+        messages.success(
+            request,
+            f"بدأت إعادة حساب درجات {setup.class_group} في {setup.subject.name_ar}؛ تظهر النتائج بعد لحظات.",
+        )
     return redirect("class_gradebook", setup_id=setup_id)
 
 

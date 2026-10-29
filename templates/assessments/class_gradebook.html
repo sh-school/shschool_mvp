@@ -26,6 +26,8 @@
     </form>
   {% endpage_header %}
 
+  {% callout "info" show=recalculating %}إعادة الحساب جارية — حدّث الصفحة بعد لحظات لترى النتائج المحدَّثة.{% endcallout %}
+
   {% kpi_strip label="أرقام الكشف" %}
     {% kpi "النتائج" summary.total tone="blue" title="النتائج السنويّة المحسوبة لهذه المادة" %}
     {% kpi "ناجح" summary.passed tone="green" %}

@@ -6,6 +6,7 @@ from typing import Any
 
 from django.utils import timezone
 
+from assessments.models import SubjectClassSetup
 from core.models import StudentEnrollment
 
 from .services import ReportDataService
@@ -15,6 +16,27 @@ def paper_size(params: Any) -> str:
     """مقاسُ الورق من معاملات الرابط: A4 أو A3 وما سواهما A4."""
     paper = params.get("paper", "A4").upper()
     return paper if paper in {"A3", "A4"} else "A4"
+
+
+def teacher_can_access_class(user: Any, school: Any, class_grp: Any, year: str) -> bool:
+    """[SEC-04] القيادة/الإدارة/المنسّق: وصول إشرافي مبرّر. المعلّم: فصوله فقط. (بلا request: يعمل في العامل)"""
+    role = user.get_role()
+    if (
+        user.is_superuser
+        or user.is_admin()
+        or role
+        in (
+            "principal",
+            "vice_academic",
+            "vice_admin",
+            "coordinator",
+            "student_affairs_coordinator",  # نطاقه المدرسة كلُّها (W-20261018-003)
+        )
+    ):
+        return True
+    return SubjectClassSetup.objects.filter(
+        school=school, teacher=user, class_group=class_grp, academic_year=year
+    ).exists()
 
 
 def set_final_status(ctx: dict) -> None:

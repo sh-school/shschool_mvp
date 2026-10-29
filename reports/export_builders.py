@@ -18,7 +18,7 @@ from core.academic_calendar import academic_year_for_school
 from core.exports.registry import ExportResult
 from core.models import ClassGroup
 
-from .selectors import class_certificates_context, paper_size
+from .selectors import class_certificates_context, paper_size, teacher_can_access_class
 
 
 def build_class_certificates_pdf(school: Any, user: Any, params: Any) -> ExportResult:
@@ -41,6 +41,32 @@ def build_class_certificates_pdf(school: Any, user: Any, params: Any) -> ExportR
         "application/pdf",
         f"شهادات_{class_grp.grade.removeprefix('G')}_{class_grp.section}_{year}.pdf",
         rows=len(page_ctx["students_ctx"]),
+        full_national_id=False,
+        object_id=str(class_grp.pk),
+    )
+
+
+def build_class_results_xlsx(school: Any, user: Any, params: Any) -> ExportResult:
+    """كشف نتائج الفصل Excel — خلفيّ (W-20261027-029). الرقمُ الشخصيُّ مستور (كشفٌ جماعيّ)."""
+    from .services import ExcelService
+
+    if not (
+        user.is_admin() or user.is_teacher()
+    ):  # كما في الـview؛ القدرةُ وحدَها يفحصها العاملُ ثانيةً
+        raise PermissionDenied
+    class_grp = ClassGroup.objects.get(id=params["class_id"], school=school)
+    year = params.get("year") or academic_year_for_school(school)
+    # [SEC-04] المعلّم لا يصدّر إلا فصوله — يُعاد الفحصُ هنا لأنّ الصلاحيّةَ قد تتغيّر بين الطلب والتنفيذ.
+    if not teacher_can_access_class(user, school, class_grp, year):
+        raise PermissionDenied
+    resp = ExcelService.class_results_excel(
+        class_grp, school, year, paper=paper_size(params).lower()
+    )
+    return ExportResult(
+        resp.content,
+        resp["Content-Type"],
+        f"نتائج_{class_grp.grade.removeprefix('G')}_{class_grp.section}_{year}.xlsx",
+        rows=class_grp.enrollments.filter(is_active=True).count(),
         full_national_id=False,
         object_id=str(class_grp.pk),
     )
