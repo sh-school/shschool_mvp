@@ -97,10 +97,10 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
 {{ chart_labels|json_script:"attendance-chart-labels" }}
 {{ chart_present|json_script:"attendance-chart-present" }}
 {{ chart_absent|json_script:"attendance-chart-absent" }}
+<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
   var ctx = document.getElementById('attendanceChart');
