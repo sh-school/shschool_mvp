@@ -1072,6 +1072,17 @@
   "not_inherited_by": []
  },
  {
+  "key": "developer.linked_accounts",
+  "label": "إدارةُ الحسابات المرتبطة بالمطوّر",
+  "roles": [
+   "platform_developer"
+  ],
+  "scope": "المنصّة",
+  "basis": "D-305م وD-306م وشروطُ 0104 (W-20261009-032): جدولُ الربط لمطوّر المنصّة والمشرف الأعلى وحدَهما، بقدرةٍ منفصلةٍ لا بأدوات المطوّر العامّة",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
   "key": "exam_control.access",
   "label": "نظامُ الكنترول",
   "roles": [

@@ -14,4 +14,14 @@ def technical_tools_capabilities(shared: Shared) -> list[Capability]:
             {"it_technician"},
             basis="قرارُ المالك 2026-09-22",
         ),
+        _cap(
+            "developer.linked_accounts",
+            "إدارةُ الحسابات المرتبطة بالمطوّر",
+            {"platform_developer"},
+            scope="المنصّة",
+            basis=(
+                "D-305م وD-306م وشروطُ 0104 (W-20261009-032): جدولُ الربط لمطوّر المنصّة والمشرف الأعلى وحدَهما، "
+                "بقدرةٍ منفصلةٍ لا بأدوات المطوّر العامّة"
+            ),
+        ),
     ]
