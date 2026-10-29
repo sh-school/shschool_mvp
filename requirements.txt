@@ -8,7 +8,7 @@ arabic-reshaper==3.0.1
 asgiref==3.12.1
 asn1crypto==1.5.1
 attrs==26.1.0
-autobahn==26.7.1
+autobahn==26.10.1
 Automat==25.4.16
 billiard==4.3.1
 boto3==1.43.114
