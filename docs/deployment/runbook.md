@@ -109,6 +109,14 @@ The `smoke-test` job in `deploy-railway.yml` checks:
 - `/health/` returns HTTP 200
 - `/` returns HTML content
 
+### Scheduled checks (W-20261022-006):
+
+The scheduled workflows `monitor.yml`, `worker-heartbeat.yml`, `post-deploy-canary.yml` and `nightly.yml` never turn the head of `main` red. A failing probe opens (or comments on) one issue with the `uptime-failure` label or its workflow's equivalent, and the first passing run closes it. Failures therefore appear as issues, not as failed check runs, so Railway's "Wait for CI" does not block a fix behind them.
+
+- Noise limit: a probe is retried once after 60 seconds, and only a failure that survives both attempts opens an issue. Repeated failures comment on the open issue instead of creating another.
+- Regression guard: `tests/test_ci_gate_needs.py::test_scheduled_failures_open_an_issue_not_a_red_check` fails if a step read by a failure condition loses `continue-on-error`.
+- Manual check: trigger the workflow with `workflow_dispatch` and confirm that `main` stays green while an issue is opened. Do this only after the owner approves it, because it runs against production.
+
 ### Manual verification:
 
 Run the full smoke test script:

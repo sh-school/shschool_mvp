@@ -35,7 +35,7 @@
         </thead>
         <tbody>
           {% for a in assessments %}
-          <tr id="row-{{ a.id }}">
+          <tr id="row-{{ a.id }}" class="grade-tint grade-{{ a.class_group.grade|lower }}">
             <td><b>{{ a.package.setup.subject.name_ar }}</b></td>
             <td>{{ a.class_group.short_label }}</td>
             <td>{{ a.title }}</td>
@@ -44,7 +44,7 @@
             <td>
               <div class="import-actions">
                 {% if openpyxl_ok %}
-                <a data-app-file href="{% url 'download_grade_template' a.id %}" class="btn-secondary btn-xs">{% icon "export_excel" %} قالب Excel</a>
+                {% export_button "xlsx" "download_grade_template" a.id size="xs" title="قالب الدرجات" %}{% endexport_button %}
                 {% else %}
                 <span class="btn-secondary btn-xs" aria-disabled="true">{% icon "export_excel" %} قالب Excel</span>
                 {% endif %}

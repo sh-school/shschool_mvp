@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from core import brand
 from core.academic_calendar import academic_year_for_school
+from core.excel_safety import safe_cell
 from core.ministry import ministry_line, ministry_name
 
 
@@ -152,7 +153,7 @@ def add_excel_title_rows(ws, num_cols: int, first: str, second: str, third: str)
     )
     for row, (value, fill, font, height) in enumerate(rows, start=1):
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
-        cell = ws.cell(row=row, column=1, value=value)
+        cell = safe_cell(ws, row=row, column=1, value=value)
         cell.fill = fill
         cell.font = font
         cell.alignment = center
@@ -205,7 +206,8 @@ def add_excel_footer(ws, context: dict, row: int, num_cols: int):
 
     # توقيع المُصدِّر
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
-    cell = ws.cell(
+    cell = safe_cell(
+        ws,
         row=row,
         column=1,
         value=f"صدر بواسطة: {context['exported_by']}  —  {context['exporter_role']}",
@@ -216,14 +218,14 @@ def add_excel_footer(ws, context: dict, row: int, num_cols: int):
 
     row += 1
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
-    cell = ws.cell(row=row, column=1, value=f"التاريخ: {context['export_datetime']}")
+    cell = safe_cell(ws, row=row, column=1, value=f"التاريخ: {context['export_datetime']}")
     cell.font = footer_font
     cell.alignment = Alignment(horizontal="right")
 
     row += 1
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
-    cell = ws.cell(
-        row=row, column=1, value=f"{context['school_name']}  —  وثيقة رسمية  —  SchoolOS"
+    cell = safe_cell(
+        ws, row=row, column=1, value=f"{context['school_name']}  —  وثيقة رسمية  —  SchoolOS"
     )
     cell.font = footer_font
     cell.alignment = Alignment(horizontal="center")
@@ -316,7 +318,7 @@ def excel_to_response(wb: Any, filename: str, school: Any = None) -> Any:
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
     # ترويسةُ الـPDF نفسُها: ASCII دائماً، والاسمُ العربيّ في `filename*`.
-    from core.pdf_utils import _content_disposition
+    from core.pdf_utils import content_disposition
 
-    response["Content-Disposition"] = _content_disposition(filename, True)
+    response["Content-Disposition"] = content_disposition(filename, True)
     return response

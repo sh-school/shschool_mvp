@@ -18,6 +18,7 @@ from typing import Any
 
 from django.db import transaction
 
+from core.import_staff_guard import record_skip
 from core.services import _IMPORT_GRADE_NORMALIZE, _IMPORT_RELATION_MAP
 
 # ── رؤوسُ الأعمدة الوزاريّة ──────────────────────────────────────────
@@ -52,6 +53,20 @@ _MINISTRY_HEADER_MAP: dict[str, tuple[int, str]] = {
 #: الرأسُ الذي يحدّد بداية جدول البيانات — يُفتَّش عنه في أوّل عشرة صفوف لأنّ
 #: الملف الوزاريّ يسبقه سطرُ عنوانٍ وسطرٌ فارغ (رأى ذلك فحصُ الملف الحقيقيّ).
 _MINISTRY_HEADER_MARKER = "الرقم"
+#: الحقولُ التي لا استيرادَ بدونها؛ أسماؤها تُشتقّ من `_MINISTRY_HEADER_MAP` فلا تتكرّر هنا (W-20261004-016).
+_MINISTRY_REQUIRED_FIELDS = ("student_nid", "full_name", "class_combined")
+
+
+def ministry_missing_columns(cols: dict[str, int]) -> list[str]:
+    """أسماءُ الأعمدة الإلزاميّة الغائبة عن رأس الملف بنصّها كما في الملف الوزاريّ (فارغةٌ إن اكتملت)."""
+    names = {field: name for name, (_, field) in _MINISTRY_HEADER_MAP.items()}
+    return [names[field] for field in _MINISTRY_REQUIRED_FIELDS if field not in cols]
+
+
+def import_outcome(registered: int, error_count: int) -> dict[str, Any]:
+    """«نجاحٌ» لا يُقال حين لم يُسجَّل أيُّ طالبٍ في شعبةٍ ومعه أخطاء: تُرجع حالةَ «لم يُسجَّل شيء» بدله."""
+    nothing = registered == 0 and error_count > 0
+    return {"success": not nothing, "nothing_registered": nothing}
 
 
 def _locate_ministry_header(ws: Any) -> tuple[int, dict[str, int]] | None:
@@ -328,12 +343,13 @@ def _sync_student_profile(student: Any, birth_date: Any, profiles_cache: dict[An
         return
     profile = profiles_cache.get(student.id)
     if profile is None:
-        profile = Profile(user=student, birth_date=birth_date)
+        profile = Profile(user=student)
+        profile.date_of_birth = birth_date
         profile.save()
         profiles_cache[student.id] = profile
     elif profile.date_of_birth != birth_date:
-        profile.birth_date = birth_date
-        profile.save(update_fields=["birth_date"])
+        profile.date_of_birth = birth_date
+        profile.save(update_fields=["birth_date_encrypted"])
 
 
 def _ensure_membership(
@@ -390,6 +406,7 @@ def _load_ministry_caches(school: Any, year: str, all_nids: set[str]) -> dict[st
     """يحمّل كلَّ ما يُحتمل تكرارُه عبر صفوف الاستيراد في فهارس ذاكرةٍ مرّةً
     واحدة — راجع تعليق الأداء في `process_ministry_registry_import`."""
     from clinic.models import HealthRecord
+    from core.import_staff_guard import find_staff_nids
     from core.models import (
         ClassGroup,
         CustomUser,
@@ -400,6 +417,8 @@ def _load_ministry_caches(school: Any, year: str, all_nids: set[str]) -> dict[st
     )
 
     return {
+        # حسابات الموظّفين لا يمسّها الاستيراد (W-20261008-024) — تُحسب قبل أيّ كتابة.
+        "staff_nids": find_staff_nids(all_nids),
         "users": {u.national_id: u for u in CustomUser.objects.filter(national_id__in=all_nids)},
         "class_groups": {
             (cg.grade, cg.section): cg
@@ -458,6 +477,10 @@ def _process_ministry_student_row(
         stats["errors"].append(f"سطر {row_num}: اسم الطالب {student_nid} فارغ — تجاوز")
         return None
 
+    if student_nid in caches["staff_nids"]:
+        record_skip(stats, row_num, student_nid, as_parent=False)
+        return None
+
     birth_date = _parse_ministry_date(cell["birth_date_raw"])
     uses_bus_raw = cell["uses_bus_raw"]
     student, s_created = _upsert_user_from_registry(
@@ -507,6 +530,7 @@ def _process_ministry_student_row(
 
 
 def _process_ministry_parent_row(
+    row_num: int,
     cell: dict[str, str],
     *,
     student: Any,
@@ -522,6 +546,9 @@ def _process_ministry_parent_row(
 
     parent_nid = cell["parent_nid"]
     if not parent_nid:
+        return
+    if parent_nid in caches["staff_nids"]:
+        record_skip(stats, row_num, parent_nid, as_parent=True)
         return
 
     parent, p_created = _upsert_user_from_registry(
@@ -595,6 +622,15 @@ def process_ministry_registry_import(
             "errors": ["الأدوار الأساسية (student/parent) غير موجودة — شغّل seed_data أولاً."],
         }
 
+    # تحقّقٌ مسبقٌ من الأعمدة قبل أيّ قراءةٍ للصفوف أو كتابةٍ في القاعدة.
+    missing = ministry_missing_columns(cols)
+    if missing:
+        return {
+            "success": False,
+            "missing_columns": missing,
+            "errors": ["الأعمدة الناقصة في الملف: " + "، ".join(missing)],
+        }
+
     rows = _read_ministry_rows(uploaded_file, header_row, cols)
 
     all_nids: set[str] = set()
@@ -613,6 +649,7 @@ def process_ministry_registry_import(
         "enrollments_created": 0,
         "enrollments_transferred": 0,
         "links_created": 0,
+        "staff_skipped": 0,
         "errors": [],
     }
     issued: list[dict] = []
@@ -632,6 +669,7 @@ def process_ministry_registry_import(
             if student is None:
                 continue
             _process_ministry_parent_row(
+                row_num,
                 cell,
                 student=student,
                 school=school,
@@ -642,7 +680,9 @@ def process_ministry_registry_import(
             )
 
     return {
-        "success": True,
+        **import_outcome(
+            stats["enrollments_created"] + stats["enrollments_transferred"], len(stats["errors"])
+        ),
         "total_rows": stats["students_created"] + stats["students_existed"],
         "students_created": stats["students_created"],
         "students_existed": stats["students_existed"],
@@ -651,6 +691,7 @@ def process_ministry_registry_import(
         "enrollments_created": stats["enrollments_created"],
         "enrollments_transferred": stats["enrollments_transferred"],
         "links_created": stats["links_created"],
+        "staff_skipped": stats["staff_skipped"],
         "error_count": len(stats["errors"]),
         "errors": stats["errors"][:20],
         "credentials": issued,

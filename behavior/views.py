@@ -12,14 +12,20 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import FileResponse, Http404, HttpResponseForbidden
+from django.http import (
+    FileResponse,
+    Http404,
+    HttpResponseForbidden,
+    HttpResponseNotAllowed,
+    HttpResponsePermanentRedirect,
+)
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone as _tz
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from core.audit_repr import masked_repr
-from core.parents_freeze import warn_or_frozen
+from core.parents_freeze import parents_frozen, warn_or_frozen
 from core.permissions import (
     BEHAVIOR_COMMITTEE,
     BEHAVIOR_MANAGE,
@@ -32,9 +38,6 @@ from core.permissions import (
 )
 
 logger = logging.getLogger(__name__)
-
-_VALID_LEVELS = {1, 2, 3, 4}
-_MAX_DESC_LEN = 2000
 
 
 def _behavior_report_redirect(
@@ -84,11 +87,6 @@ from wings.scope import student_scope_for
 # كما كانت: القيادةُ للمدرسة، والمعلّمُ والمنسّقُ لطلبة جدولهما.
 
 
-def _visible_student_ids(request):
-    """طلبةُ صاحب الطلب — `None` للمدرسة كلِّها، ومجموعةٌ للمقيَّد بجدولٍ أو جناح."""
-    return get_teacher_student_ids(request.user, scope=student_scope_for(request))
-
-
 def _require_in_wing(request, student_id):
     """404 لطالبٍ خارج جناح المقيَّد — ولا شيءَ لغيره (قاعدتُه في موضعها لم تتغيّر)."""
     if student_id:
@@ -111,32 +109,15 @@ def _deny_unreachable(request, student_id, message, school_wide=False):
     return None
 
 
-def _get_scoped_students(request, school):
-    """
-    يُعيد QuerySet طلاب مرئيّ حسب دور المستخدم:
-    - القيادة/الأخصائيون → كل طلاب المدرسة
-    - المشرف الإداري → طلبة جناحه
-    - المعلم/المنسق → طلاب فصوله فقط
-    """
-    student_ids = _visible_student_ids(request)
-    if student_ids is None:
-        # admin/leadership — all students
-        return (
-            CustomUser.objects.filter(
-                memberships__school=school,
-                memberships__role__name="student",
-                memberships__is_active=True,
-            )
-            .order_by("full_name")
-            .distinct()
-        )
-    return CustomUser.objects.filter(id__in=student_ids).order_by("full_name")
-
-
 from core.academic_calendar import academic_year_for
 
 from .notify import notify_behavior_after_commit
-from .selectors import recordable_student, student_picker
+from .selectors import (
+    _get_scoped_students,
+    _visible_student_ids,
+    recordable_student,
+    student_picker,
+)
 from .services import (
     PERIOD_CHOICES,
     BehaviorPermissions,
@@ -396,102 +377,26 @@ def _degree_panels(violations_by_degree: dict) -> list[dict]:
     ]
 
 
-# ── تسجيل مخالفة سريعة (HTMX Modal) ────────────────────────
+# ── التسجيل السريع: شاشةٌ واحدة (W-20261001-042) ──────────────
 @login_required
 @capability_required("behavior.record")
 def quick_log(request):
+    """مسارٌ قديمٌ للتسجيل السريع صار تحويلاً دائماً إلى شاشة تسجيل المخالفة الواحدة.
+
+    كانت شاشتان لقدرةٍ واحدة (`behavior.record`، 11 دوراً): التقريرُ الكامل والتسجيلُ السريع بنموذجٍ مختصر
+    يتجاوز حدودَ الإجراء لكلّ دور. فبقيت `report_infraction` وحدها؛ والرابطُ القديم لا ينكسر
+    (`?student_id=` يصير `?student=` ويُحفظ `next`)، والكتابةُ عليه مرفوضة 405 لأنّ النافذةَ التي كانت تُرسل إليه حُذفت.
     """
-    تسجيل مخالفة سريعة عبر HTMX Modal.
-
-    GET  → نموذج HTML (partial) لعرضه داخل modal
-    POST → إنشاء المخالفة + HX-Trigger showToast + HX-Redirect للملف السلوكي
-    """
-    from core.htmx_utils import htmx_redirect, htmx_toast
-
-    if not BehaviorPermissions.can_report(request.user):
-        from django.http import HttpResponse
-
-        return HttpResponse("ليس لديك صلاحية", status=403)
-
-    school = request.school
-
-    if request.method == "POST":
-        student_id = request.POST.get("student_id", "").strip()
-        recordable = recordable_student(request, school, student_id)
-        violation_cat_id = request.POST.get("violation_category", "").strip()
-        description = request.POST.get("description", "").strip()
-        action = request.POST.get("action_taken", "").strip()
-
-        try:
-            level = int(request.POST.get("level", 1))
-        except (ValueError, TypeError):
-            level = 1
-
-        # جلب فئة المخالفة
-        violation_cat = None
-        if violation_cat_id:
-            try:
-                violation_cat = ViolationCategory.objects.get(id=violation_cat_id)
-                level = violation_cat.degree
-            except ViolationCategory.DoesNotExist:
-                pass
-
-        # Validation
-        errors = []
-        if not student_id:
-            errors.append("يرجى اختيار الطالب.")
-        if len(description) > _MAX_DESC_LEN:
-            errors.append(f"الوصف لا يتجاوز {_MAX_DESC_LEN} حرف.")
-        if level not in _VALID_LEVELS:
-            errors.append("درجة المخالفة يجب أن تكون بين 1 و 4.")
-
-        if errors:
-            return htmx_toast(
-                render(
-                    request,
-                    "behavior/partials/quick_log_form.html",
-                    _quick_log_context(request, school, student_id),
-                ),
-                msg=" | ".join(errors),
-                msg_type="danger",
-            )
-
-        student = recordable
-
-        # [B4-PRE3] المخالفة ونيّة إشعارها في حدٍّ واحد — انظر report_infraction.
-        with transaction.atomic():
-            # ✅ v5.4: BehaviorService.create_infraction — atomic + escalation حسابي
-            infraction = BehaviorService.create_infraction(
-                school=school,
-                student=student,
-                reporter=request.user,
-                level=level,
-                description=description,
-                action_taken=action,
-                violation_category=violation_cat,
-            )
-
-            transaction.on_commit(
-                lambda infraction=infraction, school=school, reporter=request.user: (
-                    _notify_behavior_after_commit(infraction, school, reporter)
-                ),
-                robust=True,
-            )
-
-        redirect_url = _after_record_url(request.user, student.id, level)
-        msg = f"تم تسجيل مخالفة درجة {level} للطالب {student.full_name}"
-        if level >= 3:
-            msg += " — تم إحالتها للجنة الضبط"
-        return htmx_redirect(redirect_url, msg=msg, msg_type="success")
-
-    # GET — نموذج فارغ
-    student_id_hint = request.GET.get("student_id", "")
-    _require_in_wing(request, student_id_hint)
-    context = _quick_log_context(request, school, student_id_hint)
-    # فتحُ الرابط مباشرةً (لا من النافذة) صفحةٌ كاملةٌ بأنماطها؛ وHTMX يبقى على الجزء
-    if not request.htmx:
-        return render(request, "behavior/quick_log_page.html", context)
-    return render(request, "behavior/partials/quick_log_form.html", context)
+    if request.method not in ("GET", "HEAD"):
+        return HttpResponseNotAllowed(["GET", "HEAD"])
+    params = {}
+    student = (request.GET.get("student_id") or request.GET.get("student") or "").strip()
+    if student:
+        params["student"] = student
+    if request.GET.get("next"):
+        params["next"] = request.GET["next"]
+    target = reverse("behavior:report_infraction")
+    return HttpResponsePermanentRedirect(f"{target}?{urlencode(params)}" if params else target)
 
 
 def _picker_with_prefill(request, students, school) -> dict:
@@ -535,19 +440,6 @@ def _after_record_url(user, student_id, level: int) -> str:
         if can_open(user, "behavior:committee"):
             return reverse("behavior:committee")
     return reverse("behavior:student_profile", kwargs={"student_id": student_id})
-
-
-def _quick_log_context(request, school, preselected_student_id=""):
-    """Context مشترك لنموذج التسجيل السريع — يُظهر طلاب المعلم فقط، وطلبةَ جناح المشرف."""
-    students = _get_scoped_students(request, school)
-    return {
-        "students": students,
-        "levels": BehaviorInfraction.LEVELS,
-        "violation_categories": ViolationCategory.objects.filter(
-            is_active=True, code__regex=r"^\d+-\d+$"
-        ).order_by("degree", "code"),
-        "preselected_student_id": str(preselected_student_id),
-    }
 
 
 # ── الملف السلوكي للطالب ─────────────────────────────────────
@@ -640,7 +532,7 @@ def _report_year(request):
 
 def _guardian_phones(request, student, allowed):
     """أرقامُ أولياء الطالب لمن يتّصل بالأسرة (`behavior.guardian_contact`) — رقمٌ بلا اسم (D-431م)، وأثرُ القراءة عدّادٌ."""
-    if not allowed:
+    if not allowed or parents_frozen():  # تجميدُ أولياء الأمور: لا هاتفَ للطاقم (D-268م)
         return []
     from operations.services.absence_followup import guardian_phone
     from student_affairs.coordinator_selectors import audit_phone_read
@@ -678,7 +570,7 @@ def behavior_report(request, student_id):
     # من يسجّل المخالفةَ ولا يستدعي لا يُحمَّل اسمَ والدة طالب. فلا يصل القالبَ اسمٌ لغيره أصلاً.
     can_contact_guardian = has_capability(request.user, "behavior.guardian_contact")
     guardian_registered = report["parent_links"].exists()
-    if not can_contact_guardian:
+    if not can_contact_guardian or parents_frozen():  # تحت التجميد لا اسمَ ولا إرسال (D-268م)
         report["parent_links"] = []
 
     sent_to = []
@@ -900,6 +792,8 @@ def infraction_parent_pdf(request, infraction_id):
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.school)
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
+    if parents_frozen():  # الاستمارةُ تُملأ بخطّ اليد: لا اسمَ ولا هاتفَ مطبوعين تحت التجميد
+        ctx.update(parent_name=None, parent_id=None, parent_phone=None, parent_email=None)
     audit_infraction_read(request, inf)
     return _render_behavior_pdf(
         request,
@@ -1041,9 +935,9 @@ def summon_parent(request, student_id=None):
         active_infractions = BehaviorInfraction.objects.filter(
             student=selected_student, is_resolved=False
         ).count()
-        # بيانات أولياء الأمور مع أرقام الهواتف
+        # بيانات أولياء الأمور وهواتفهم — وتحت التجميد لا شيء للطاقم (D-268م)
         parents_info = []
-        for link in parent_links:
+        for link in [] if parents_frozen() else parent_links:
             parents_info.append(
                 {
                     "name": link.parent.full_name,

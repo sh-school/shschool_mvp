@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin
 from django.db.models import Prefetch
 from django.utils.html import format_html
@@ -23,6 +23,7 @@ from .models import (
     Wing,
     WingCoverage,
 )
+from .models.access import ALL_STAFF_ROLES
 from .models.user import role_rank
 
 
@@ -388,6 +389,29 @@ class MembershipAdmin(SchoolScopedAdmin):
 
     search_fields = ("user__full_name", "user__national_id")
     autocomplete_fields = ("user",)
+
+    def save_model(self, request, obj, form, change):
+        """يحفظ ثمّ يحذّر إن صار للمستخدم عضويّتا كادرٍ نشطتان — تحذيرٌ لا منع (W-20261019-008).
+
+        الدورُ الحاكمُ عند التعدّد أقدمُ عضويّةِ كادر، لا أحدثُها؛ فمن أُعطي دوراً جديداً وبقيت عضويّتُه
+        القديمة نشطةً يدخل بدوره القديم وتفرغ صفحاتُ الجديد. فيُنبَّه المديرُ ليطفئ القديمةَ أو يوجّه
+        الموظّفَ إلى «تبديل الدور».
+        """
+        super().save_model(request, obj, form, change)
+        if not obj.is_active or obj.role.name not in ALL_STAFF_ROLES:
+            return
+        others = (
+            Membership.objects.filter(user=obj.user, is_active=True, role__name__in=ALL_STAFF_ROLES)
+            .exclude(pk=obj.pk)
+            .select_related("role")
+        )
+        names = [m.role.get_name_display() for m in others]
+        if names:
+            messages.warning(
+                request,
+                f"لهذا المستخدم عضويّةُ كادرٍ نشطةٌ أخرى ({'، '.join(names)}): يحكم الدورَ الأقدمُ انضماماً، "
+                "فأطفئ العضويّة القديمة إن كان الدورُ قد تغيّر، أو اطلب منه «تبديل الدور».",
+            )
 
 
 @admin.register(ClassGroup)

@@ -19,4 +19,6 @@
 #print-footer .pf-sep { color: {% brand_color "TEXT_MUTED" %}; padding: 0 1mm; }
 #print-footer .pf-item, #print-footer .pf-date { white-space: nowrap; }
 #print-footer .pf-page::after { content: "\2066" counter(page) " / " counter(pages) "\2069"; }
+.pf-stamp-box { display: inline-block; box-sizing: border-box; width: 32mm; height: 24mm; border: 0.3mm dashed {% brand_color "TEXT_MUTED" %}; text-align: center; font-family: 'Tajawal', 'Amiri', sans-serif; direction: rtl; break-inside: avoid; }
+.pf-stamp-box__label { display: block; font-size: 8pt; line-height: 4mm; color: {% brand_color "TEXT_MUTED" %}; }
 </style>{% endlocalize %}

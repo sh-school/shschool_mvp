@@ -281,6 +281,7 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
 
   /* ══ Typography Scale (7 أحجام يدويّة) ══ */
   --text-xs:   0.75rem;    /* 12px — labels, captions */
+  --text-xs-plus: 0.78125rem; /* 12.5px — نصٌّ ثانويٌّ كثيف (بطاقات الإسناد والجداول)؛ رمزٌ واحدٌ بدل 0.78 و0.78125 المتفرّقة */
   --text-sm:   0.875rem;   /* 14px — secondary text */
   --text-base: 1rem;       /* 16px — body */
   --text-lg:   1.125rem;   /* 18px — emphasized */

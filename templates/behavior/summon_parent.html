@@ -118,7 +118,7 @@
     <div class="beh-side">
       {% if selected_student %}
       {% section_card "أولياء الأمور — سيستلمون الإشعار" icon="parents" flush=True empty="لا يوجد أولياء أمور مربوطون بهذا الطالب" empty_sub="لن يُرسَل إشعار" %}{% if parents_info %}
-        <div class="table-wrap">
+        <div class="table-wrap table-wrap-scroll">
           <table>
             <thead>
               <tr>
@@ -147,7 +147,7 @@
         <ul class="plain-list">
           <li class="plain-list__row">
             <span class="plain-list__title">{{ sender.full_name }}</span>
-            {% if sender.get_role_display %}<span class="status-badge status-maroon">{{ sender.get_role_display }}</span>{% endif %}
+            {% if sender.role_label %}<span class="status-badge status-maroon">{{ sender.role_label }}</span>{% endif %}
           </li>
           {% if sender.get_phone_decrypted %}
           <li class="plain-list__row">

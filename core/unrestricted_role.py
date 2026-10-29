@@ -34,6 +34,7 @@ DEVELOPER_EXCLUDED_CAPABILITIES = frozenset(
         "wings.record_day",
         "wings.excuse_after_deadline",
         "student_affairs.tardiness",
+        "assessments.decide_excuse",
     }
 )
 

@@ -147,8 +147,12 @@ class TestConfirmingAPeriod:
         got = InAppNotification.objects.get(user=parent, event_type="behavior")
         assert got.related_object_id == str(escape.pk)
         assert got.related_url == reverse("parent_behavior")
-        assert kids[0].full_name in got.title
-        assert "2026/09/13" in got.body
+        # العنوان محايد: لا يحمل اسم الطالب (أُخرج من الإشعار الخارجي في W-20261012-031)
+        assert got.title == "إشعار جديد في بوابة ولي الأمر"
+        assert kids[0].full_name not in got.title
+        # النصّ محايد أيضاً: لا اسم طالب ولا تاريخ ولا تفاصيل، والتفصيل داخل البوابة فقط
+        assert kids[0].full_name not in got.body
+        assert "2026/09/13" not in got.body
         # حجبت المدرسةُ السلوكَ عنه — فلا يبلغه الرصدُ من باب الإشعار.
         assert not InAppNotification.objects.filter(user=hidden).exists()
         notice = AutoInfractionNotice.objects.get()

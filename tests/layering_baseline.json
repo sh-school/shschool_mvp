@@ -87,7 +87,7 @@
  ],
  "core_import_sites": {
   "academic_management": [
-   "core/capabilities.py"
+   "core/capabilities/workload.py"
   ],
   "assessments": [
    "core/dashboard_selectors.py",
@@ -125,7 +125,7 @@
    "core/management/commands/import_enrolment_register.py"
   ],
   "student_info": [
-   "core/capabilities.py"
+   "core/capabilities/student_affairs.py"
   ],
   "transport": [
    "core/dashboard_selectors.py"
@@ -297,18 +297,9 @@
   "behavior/views.py::_deny_unreachable": {
    "orm": 17
   },
-  "behavior/views.py::_get_scoped_students": {
-   "orm": 24
-  },
-  "behavior/views.py::_quick_log_context": {
-   "orm": 27
-  },
-  "behavior/views.py::_visible_student_ids": {
-   "orm": 17
-  },
   "behavior/views.py::behavior_dashboard": {
    "lines": 77,
-   "orm": 36
+   "orm": 19
   },
   "behavior/views.py::behavior_report": {
    "orm": 18
@@ -316,13 +307,9 @@
   "behavior/views.py::behavior_statistics": {
    "orm": 17
   },
-  "behavior/views.py::quick_log": {
-   "lines": 93,
-   "orm": 29
-  },
   "behavior/views.py::report_infraction": {
    "lines": 107,
-   "orm": 30
+   "orm": 6
   },
   "behavior/views.py::student_behavior_pdf": {
    "orm": 22
@@ -332,7 +319,7 @@
   },
   "behavior/views.py::summon_parent": {
    "lines": 146,
-   "orm": 34
+   "orm": 10
   },
   "clinic/views.py::student_health_record": {
    "orm": 7
@@ -366,7 +353,7 @@
    "orm": 14
   },
   "core/views_students.py::student_import_template": {
-   "lines": 95
+   "lines": 89
   },
   "developer_feedback/views.py::DeveloperInboxListView.get_queryset": {
    "orm": 9
@@ -447,7 +434,7 @@
   },
   "operations/views_schedule.py::teacher_preferences": {
    "lines": 82,
-   "orm": 12
+   "orm": 9
   },
   "operations/views_swap.py::compensatory_request": {
    "orm": 9
@@ -628,7 +615,7 @@
    "orm": 10
   },
   "staging/views.py::download_grade_template": {
-   "lines": 106
+   "lines": 102
   },
   "staging/views.py::import_grades_select": {
    "orm": 15
@@ -666,7 +653,7 @@
    "orm": 26
   },
   "student_affairs/views.py::behavior_export_excel": {
-   "lines": 73,
+   "lines": 72,
    "orm": 12
   },
   "student_affairs/views.py::behavior_overview": {
@@ -681,7 +668,7 @@
    "lines": 63
   },
   "student_affairs/views.py::student_export_excel": {
-   "lines": 73
+   "lines": 72
   },
   "student_affairs/views.py::student_list": {
    "lines": 224,
@@ -721,9 +708,6 @@
   },
   "student_affairs/views.py::transfer_list": {
    "orm": 6
-  },
-  "student_affairs/views.py::transfer_review": {
-   "orm": 8
   },
   "student_info/views.py::activities": {
    "orm": 17

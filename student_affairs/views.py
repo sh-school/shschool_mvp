@@ -7,7 +7,6 @@ import json
 import logging
 import os
 from datetime import timedelta
-from urllib.parse import quote
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -31,7 +30,7 @@ from core.audit_repr import masked_repr
 from core.capabilities import capability_required, has_capability
 from core.domain.attendance import attendance_rate
 from core.domain.tones import ATTENDANCE_SUMMARY, tone_for
-from core.excel_safety import neutralize_formula_value
+from core.excel_safety import safe_cell
 from core.export_utils import (
     add_excel_footer,
     add_excel_header,
@@ -55,7 +54,7 @@ from core.models.academic import (
 from core.models.access import Membership
 from core.models.audit import AuditLog
 from core.models.user import CustomUser
-from core.pdf_utils import render_pdf
+from core.pdf_utils import content_disposition, render_pdf
 from core.photo_privacy import clean_photo
 from core.privacy import mask_national_id, may_search_id_partially, national_id_search_q
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
@@ -508,7 +507,7 @@ def student_export_excel(request):
     thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=data_start, column=col, value=h)
+        cell = safe_cell(ws, row=data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -527,9 +526,8 @@ def student_export_excel(request):
             m.user.get_phone_decrypted() or "—",
             m.user.email or "—",
         ]
-        row_data = [neutralize_formula_value(v) for v in row_data]
         for col, val in enumerate(row_data, 1):
-            cell = ws.cell(row=data_start + i, column=col, value=val)
+            cell = safe_cell(ws, row=data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
@@ -644,7 +642,6 @@ def student_edit(request, student_id):
     )
     year = academic_year_for(request)
     profile = getattr(student, "profile", None)
-
     from .forms import StudentEditForm
 
     if request.method == "POST":
@@ -661,6 +658,7 @@ def student_edit(request, student_id):
                     {
                         "full_name": cd["full_name"],
                         "phone": cd.get("phone", ""),
+                        "actor": request.user,
                         "email": cd.get("email", ""),
                         "birth_date": cd.get("birth_date"),
                         "notes": cd.get("notes", ""),
@@ -1036,11 +1034,24 @@ def transfer_detail(request, pk):
     """تفاصيل طلب انتقال."""
     school = request.school
     transfer = get_object_or_404(StudentTransfer, pk=pk, school=school)
+    from .transfer_chain import available_actions, document_rows, is_chain, stage_rows
+
+    chain = (
+        {
+            "is_chain": True,
+            "stages": stage_rows(transfer),
+            "documents": document_rows(transfer),
+            "actions": available_actions(transfer),
+        }
+        if is_chain(transfer)
+        else {}
+    )
     return render(
         request,
         "student_affairs/transfer_detail.html",
         {
             "transfer": transfer,
+            **chain,
             "page_subtitle": f"{transfer.student.full_name} — {transfer.get_direction_display()}",
             **detail_flags(transfer, request.user),
         },
@@ -1075,31 +1086,26 @@ def transfer_review(request, pk):
             messages.success(request, f"تم تحديث حالة الانتقال إلى: {label}")
             return redirect("student_affairs:transfer_detail", pk=pk)
 
-        transfer.status = action
-        transfer.notes = notes
-        transfer.updated_by = request.user
-        transfer.save()
+        # الوارد والصادر: سلسلة نموذج 07 بترتيبها (W-20261001-018)
+        from .transfer_chain import apply_chain_action
 
-        StudentService.audit_student_event(
-            school, request.user, transfer.student, f"transfer_{action}"
-        )
-
-        # إذا اكتمل الانتقال الصادر → تعطيل الطالب
-        if action == "completed" and transfer.direction == "out":
-            Membership.objects.filter(
-                user=transfer.student,
-                school=school,
-                role__name="student",
-                is_active=True,
-            ).update(is_active=False)
-            StudentEnrollment.objects.filter(
-                student=transfer.student,
-                class_group__school=school,
-                is_active=True,
-            ).update(is_active=False)
-
-        status_label = dict(StudentTransfer.STATUS_CHOICES).get(action, action)
-        messages.success(request, f"تم تحديث حالة الانتقال إلى: {status_label}")
+        try:
+            event = apply_chain_action(
+                transfer,
+                action,
+                notes,
+                request.user,
+                documents=form.cleaned_data.get("documents"),
+                missing_reason=form.cleaned_data.get("missing_reason", ""),
+            )
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("student_affairs:transfer_detail", pk=pk)
+        StudentService.audit_student_event(school, request.user, transfer.student, event)
+        messages.success(request, "تم تنفيذ الإجراء على الطلب.")
+    else:
+        for errors in form.errors.values():
+            messages.error(request, errors[0])
 
     return redirect("student_affairs:transfer_detail", pk=pk)
 
@@ -1431,7 +1437,7 @@ def attendance_export_excel(request):
     s1_data_start = add_excel_header(ws1, ctx, s1_num_cols)
 
     for col, h in enumerate(s1_headers, 1):
-        cell = ws1.cell(row=s1_data_start, column=col, value=h)
+        cell = safe_cell(ws1, row=s1_data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -1448,7 +1454,7 @@ def attendance_export_excel(request):
             rec["absence_count"],
         ]
         for col, val in enumerate(row_data, 1):
-            cell = ws1.cell(row=s1_data_start + i, column=col, value=val)
+            cell = safe_cell(ws1, row=s1_data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
@@ -1472,7 +1478,7 @@ def attendance_export_excel(request):
     s2_data_start = add_excel_header(ws2, ctx, s2_num_cols)
 
     for col, h in enumerate(s2_headers, 1):
-        cell = ws2.cell(row=s2_data_start, column=col, value=h)
+        cell = safe_cell(ws2, row=s2_data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -1490,7 +1496,7 @@ def attendance_export_excel(request):
             status_map.get(rec.status, rec.status),
         ]
         for col, val in enumerate(row_data, 1):
-            cell = ws2.cell(row=s2_data_start + i, column=col, value=val)
+            cell = safe_cell(ws2, row=s2_data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if rec.status == "absent":
@@ -1971,11 +1977,9 @@ def protected_media(request, path):
         school, request.user, record.student, "excuse_file_opened", action="view"
     )
 
-    # F-001-b: Content-Disposition RFC 5987 encoding
-    safe_name = quote(os.path.basename(path))
     response = HttpResponse()
     response["X-Accel-Redirect"] = f"/media/{path}"
-    response["Content-Disposition"] = f'attachment; filename="{safe_name}"'
+    response["Content-Disposition"] = content_disposition(os.path.basename(path))
     del response["Content-Type"]  # دع Nginx يحدد النوع تلقائياً
     return response
 
@@ -2192,7 +2196,7 @@ def behavior_export_excel(request):
     thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=data_start, column=col, value=h)
+        cell = safe_cell(ws, row=data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -2207,9 +2211,8 @@ def behavior_export_excel(request):
             mask_national_id(rec["student__national_id"]),
             rec["count"],
         ]
-        row_data = [neutralize_formula_value(v) for v in row_data]
         for col, val in enumerate(row_data, 1):
-            cell = ws.cell(row=data_start + i, column=col, value=val)
+            cell = safe_cell(ws, row=data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
@@ -2285,7 +2288,7 @@ def tardiness_export_excel(request):
     thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=data_start, column=col, value=h)
+        cell = safe_cell(ws, row=data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -2310,7 +2313,7 @@ def tardiness_export_excel(request):
             has_file,
         ]
         for col, val in enumerate(row_data, 1):
-            cell = ws.cell(row=data_start + i, column=col, value=val)
+            cell = safe_cell(ws, row=data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
@@ -2371,7 +2374,7 @@ def activities_export_excel(request):
     thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=data_start, column=col, value=h)
+        cell = safe_cell(ws, row=data_start, column=col, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
@@ -2388,7 +2391,7 @@ def activities_export_excel(request):
             act.date.strftime("%d/%m/%Y") if act.date else "—",
         ]
         for col, val in enumerate(row_data, 1):
-            cell = ws.cell(row=data_start + i, column=col, value=val)
+            cell = safe_cell(ws, row=data_start + i, column=col, value=val)
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:

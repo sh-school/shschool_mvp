@@ -570,6 +570,36 @@ def wings_of(user: CustomUser, school: School, year: str) -> list[Wing]:
     return [w for w in all_wings if w.current_supervisor() == user]
 
 
+def no_wing_notice(user: CustomUser, school: School, year: str, day: dt.date) -> str | None:
+    """نصٌّ عربيٌّ يفسّر لِمَ لا جناحَ يحمله هذا المستخدمُ اليوم ومن يُراجَع، وإلّا ``None``.
+
+    القيادةُ ومن يرى الأجنحةَ كلَّها لا يُفسَّر لهم شيء. والسببُ أحدُ ثلاثة: تكليفُ بديلٍ
+    انتهى، أو لا جناحَ مُسنَداً له في العام (الجناحُ يُسنده مديرُ المدرسة من لوحة الإدارة)،
+    أو دورٌ لا يحمل جناحاً إلّا بتكليف. النصُّ بلا أسماءٍ ولا أرقامٍ شخصيّة.
+    """
+    if wings_of(user, school, year):
+        return None
+    ended = (
+        WingCoverage.objects.filter(substitute=user, wing__school=school, end_date__lt=day)
+        .order_by("-end_date")
+        .first()
+    )
+    if ended is not None:
+        return (
+            f"انتهى تكليفُك بديلاً لجناحٍ بتاريخ {ended.end_date:%Y-%m-%d}، فلا جناحَ مُسنَدٌ إليك الآن. "
+            "راجع مدير المدرسة إن لزم تمديدُ التكليف."
+        )
+    if user.get_role() == "admin_supervisor":
+        return (
+            f"لا جناحَ مُسنَدٌ إليك في العام الدراسيّ {year}. يُسنِد مديرُ المدرسة الجناحَ من لوحة "
+            "الإدارة — راجع مدير المدرسة."
+        )
+    return (
+        "حسابُك لا يحمل جناحاً إلّا بتكليفٍ بديلاً، ولا تكليفَ ساريَ اليوم. "
+        "راجع مدير المدرسة لإسناد تكليف."
+    )
+
+
 def record_panels(user, school, year, day) -> list[dict]:
     """ألواحُ الرصد: لكلّ جناحٍ يحمله المستخدمُ شُعبُه وحالُ رصدِها.
 

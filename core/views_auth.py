@@ -128,7 +128,13 @@ def _safe_redirect(url, request, fallback="dashboard"):
 
 #: كانت الثنائيّةُ للقيادة وحدَها — وقرارُ 2026-09-14: لكلّ الكادر. الاسمُ باقٍ
 #: لمن يستورده، ومعناه اليوم في `requires_two_factor`.
-ROLES_REQUIRING_2FA = {"principal", "vice_admin", "vice_academic", "admin"}
+ROLES_REQUIRING_2FA = {
+    "principal",
+    "vice_admin",
+    "vice_academic",
+    "admin",
+    "student_affairs_coordinator",  # يرى بيانات الطلبة كلَّها: قرار المالك 2026-10-18 (W-20261018-003)
+}
 
 
 def requires_two_factor(user) -> bool:

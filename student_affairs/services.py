@@ -30,6 +30,7 @@ from core.models.access import Membership, Role
 from core.models.audit import AuditLog
 from core.models.user import CustomUser, Profile
 from core.privacy import mask_national_id
+from student_affairs.guardian_requests import hold_phone_change
 
 logger = logging.getLogger(__name__)
 
@@ -573,11 +574,9 @@ class StudentService:
         user.initial_password = password  # ذاكرةٌ فقط — ليس حقلاً ولا يُحفظ
 
         # ── 2. الملف الشخصي ──
-        Profile.objects.create(
-            user=user,
-            gender=data.get("gender", ""),
-            birth_date=data.get("birth_date"),
-        )
+        profile = Profile(user=user, gender=data.get("gender", ""))
+        profile.date_of_birth = data.get("birth_date")
+        profile.save()
 
         # ── 3. العضوية (دور طالب) ──
         student_role, _ = Role.objects.get_or_create(
@@ -619,25 +618,24 @@ class StudentService:
         Args:
             student: كائن الطالب (CustomUser)
             school: كائن المدرسة
-            data: dict يحتوي full_name, phone, email, birth_date, notes
+            data: dict يحتوي full_name, phone, email, birth_date, notes, actor
 
         Returns:
             CustomUser: الطالب بعد التحديث
         """
         # ── 1. تحديث المستخدم ──
         student.full_name = data["full_name"]
-        student.phone = data.get("phone", "")
+        if "phone" in data:  # غيابُ المفتاح لا يمسّ الرقم؛ وتغييرُه طلبٌ يدقّقه النائب لا تعديلٌ مباشر
+            student.phone = hold_phone_change(student, school, data.get("actor"), data["phone"])
         student.email = data.get("email", "")
         student.save(update_fields=["full_name", "phone", "email"])
 
         # ── 2. الملف الشخصي ──
-        Profile.objects.update_or_create(
-            user=student,
-            defaults={
-                "birth_date": data.get("birth_date"),
-                "notes": data.get("notes", ""),
-            },
-        )
+        profile, _created = Profile.objects.get_or_create(user=student)
+        if "birth_date" in data:  # غيابُ المفتاح لا يفرّغ؛ والنموذجُ يرسله دائماً وفراغُه تفريغٌ صريح
+            profile.date_of_birth = data["birth_date"]
+        profile.notes = data.get("notes", "")
+        profile.save()
 
         logger.info("تم تحديث الطالب: user=%s (school=%s)", student.pk, school.code)
         return student

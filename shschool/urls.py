@@ -74,6 +74,7 @@ urlpatterns = [
     ),
     # Developer Feedback — SPRINT-DF-001 — MTG-2026-014/015/016/017/018
     path("developer-feedback/", include("developer_feedback.urls")),
+    path("ux-survey/", include("ux_survey.urls")),
     # خارطة تجويد المنصّة — لمطوّر المنصّة وحدَه (تحت «دليل الهويّة» في أدوات المطوّر)
     path("roadmap/", include("roadmap.urls")),
     # مركز قيادة الجودة — صفحةٌ في المنصّة لمطوّرها وحدَه، بجانب خارطة التجويد (QCC-01b: لا في /admin/)

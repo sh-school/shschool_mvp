@@ -6,6 +6,7 @@
   "id": "/parents/",
   "scope": "/parents/",
   "display": "standalone",
+  "launch_handler": {"client_mode": "navigate-existing"},
   "background_color": "{% brand_color 'MAROON' %}",
   "theme_color": "{% brand_color 'MAROON' %}",
   "lang": "ar",

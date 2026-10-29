@@ -1,5 +1,6 @@
 {% load privacy brand_tags icons %}
 {% load navigation assets view_as %}
+{% load ux_survey_tags %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -650,6 +651,9 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"staff_affairs:attendance_report" %}
   <a href="{% url 'staff_affairs:attendance_report' %}">{% icon "reports" %} تقرير الحضور الشهري</a>
   {% endif %}
+  {% if request.user|can_open:"staff_affairs:probation_results" %}
+  <a href="{% url 'staff_affairs:probation_results' %}">{% icon "checklist" %} نتائج فترة الاختبار</a>
+  {% endif %}
   {% if request.user|can_open:"staff_affairs:exemptions" %}
   <a href="{% url 'staff_affairs:exemptions' %}">{% icon "staff" %} الإعفاء من الرصد</a>
   {% endif %}
@@ -784,8 +788,18 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   <a href="{% url 'student_affairs:student_movements' %}">{% icon "sent_home" %} تحركات الطلبة</a>
   {% endif %}
   {% comment %} «تسجيل الحضور» القديمة للمعلّم وحدَه («حصصي اليوم» في قائمته) — القيادةُ والمشرفون يرصدون من كشف الأجنحة (قرارُ 2026-09-13). {% endcomment %}
+  {% comment %} «متابعة الغياب» ثلاثةُ بنودٍ مباشرة بلا مستوى ثالث (W-20261020-005، قرارُ المالك). {% endcomment %}
+  {% if request.user|can_open:"wings:ministry_report" %}
+  <a href="{% url 'wings:ministry_report' %}">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>
+  {% endif %}
   {% if request.user|can_open:"daily_report" %}
-  <a href="{% url 'daily_report' %}">{% icon "absence" %} متابعة الغياب</a>
+  <a href="{% url 'daily_report' %}">{% icon "call_parent" %} التواصل مع أولياء الأمور</a>
+  {% endif %}
+  {% if request.user|can_open:"absence_actions" %}
+  <a href="{% url 'absence_actions' %}">{% icon "checklist" %} إجراءات الغياب</a>
+  {% endif %}
+  {% if request.user|can_open:"excuse_queue" %}
+  <a href="{% url 'excuse_queue' %}">{% icon "absence" %} أعذارُ الغياب عن الاختبارات</a>
   {% endif %}
   </div>
   <div class="sd-section">
@@ -970,8 +984,18 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   </div>
   <div class="sd-section">
   <div class="sd-label">الغياب والتأخّر</div>
+  {% comment %} «متابعة الغياب» ثلاثةُ بنودٍ مباشرة بلا مستوى ثالث (W-20261020-005، قرارُ المالك). {% endcomment %}
+  {% if request.user|can_open:"wings:ministry_report" %}
+  <a href="{% url 'wings:ministry_report' %}">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>
+  {% endif %}
   {% if request.user|can_open:"daily_report" %}
-  <a href="{% url 'daily_report' %}">{% icon "absence" %} متابعة الغياب</a>
+  <a href="{% url 'daily_report' %}">{% icon "call_parent" %} التواصل مع أولياء الأمور</a>
+  {% endif %}
+  {% if request.user|can_open:"absence_actions" %}
+  <a href="{% url 'absence_actions' %}">{% icon "checklist" %} إجراءات الغياب</a>
+  {% endif %}
+  {% if request.user|can_open:"excuse_queue" %}
+  <a href="{% url 'excuse_queue' %}">{% icon "absence" %} أعذارُ الغياب عن الاختبارات</a>
   {% endif %}
   {% if request.user|can_open:"student_affairs:attendance_overview" %}
   <a href="{% url 'student_affairs:attendance_overview' %}">{% icon "stats" %} إحصائيات غياب الجناح</a>
@@ -1123,16 +1147,19 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% if request.user|can_open:"failing_students" %}
   <a href="{% url 'failing_students' %}">{% icon "failing_students" %} الطلاب المتعثرون</a>
   {% endif %}
+  {% if request.user|can_open:"excuse_queue" %}
+  <a href="{% url 'excuse_queue' %}">{% icon "absence" %} أعذارُ الغياب عن الاختبارات</a>
+  {% endif %}
 </div>
 {% endif %}
 
 <div class="sd-menu" id="m-user" role="menu" aria-label="قائمة المستخدم">
   <div class="sd-user-header">
     <p class="sd-user-fullname">{{ request.user.full_name }}</p>
-    <p class="sd-user-role">{{ request.user.get_role_display }}</p>
+    <p class="sd-user-role">{{ request.user.role_label }}</p>
   </div>
   {% if request.user.has_multiple_roles and not va.current %}
-  <a href="/auth/choose-role/">{% icon "role_switch" %} تبديل الدور</a>
+  <a href="{% url 'choose_role' %}">{% icon "role_switch" %} تبديل الدور</a>
   {% endif %}
   {% if va.can %}
   <a href="{% url 'view_as_picker' %}">{% icon "role_switch" %} عرض بصفة دور…</a>
@@ -1143,6 +1170,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   <a href="#" id="theme-toggle-menu" data-click="#theme-toggle">
     <span id="theme-menu-icon"><span data-theme-icon="dark">{% icon "theme_dark" %}</span><span data-theme-icon="light" hidden>{% icon "theme_light" %}</span></span> <span id="theme-menu-text">الوضع الليلي</span>
   </a>
+  {% if request.user|can_open:"staff_affairs:leave_request_self" %}
+  <a href="{% url 'staff_affairs:leave_request_self' %}">{% icon "leave" %} طلب إجازة</a>
+  {% endif %}
   {% if request.user|can_open:"staff_affairs:my_permits" %}
   <a href="{% url 'staff_affairs:my_permits' %}">{% icon "leave" %} أذوناتي</a>
   {% endif %}
@@ -1221,6 +1251,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% endfor %}
 </div>
 {% endif %}
+{% survey_prompt %}
 </div>
 
 

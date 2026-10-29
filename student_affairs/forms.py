@@ -11,6 +11,7 @@ from core.models.academic import ClassGroup
 from core.validators import FileTypeValidator
 
 from .models import StudentActivity, StudentTransfer
+from .transfer_chain import REQUIRED_DOCUMENTS
 
 # ═════════════════════════════════════════════════════════════════════
 # إضافة طالب جديد
@@ -145,13 +146,24 @@ class TransferReviewForm(forms.Form):
 
     action = forms.ChoiceField(
         choices=[
+            ("review", "تدقيق المستندات"),
             ("approved", "موافقة"),
             ("rejected", "رفض"),
+            ("place", "تشعيب"),
+            ("enter", "إدخال"),
             ("completed", "مكتمل"),
             ("cancelled", "إلغاء"),
         ],
         label="القرار",
     )
+    #: قائمةُ مستندات التسجيل الـ11 (للتدقيق في الوارد والصادر)
+    documents = forms.MultipleChoiceField(
+        choices=REQUIRED_DOCUMENTS,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label="المستندات المكتملة",
+    )
+    missing_reason = forms.CharField(max_length=500, required=False, label="سبب نقص المستندات")
     notes = forms.CharField(
         widget=forms.Textarea(attrs={"rows": 2}),
         max_length=500,

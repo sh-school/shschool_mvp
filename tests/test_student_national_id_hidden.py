@@ -76,7 +76,24 @@ def test_the_student_form_edit_mode_has_no_national_id_field():
 # عرضٌ فعليّ: الرقمُ المحفوظ لا يخرج في HTML الصفحات الرئيسيّة.
 # ---------------------------------------------------------------------------
 pytestmark = pytest.mark.django_db
-NID = "9990000" + "0917"  # رقمٌ اصطناعيٌّ من النطاق المحجوز؛ ذيلُه 0917 لا يقع في صفحةٍ بالصدفة
+NID = "9990000" + "0917"  # رقمٌ اصطناعيٌّ من النطاق المحجوز
+
+# ذيلُ الرقم يُطلب مستقلّاً لا داخل كلمةٍ أو معرّفٍ: روابطُ الصفحة تحمل UUID عشوائيّاً (مفاتيح الطالب والصفّ)،
+# وأربعةُ أرقامٍ عشريّةٍ قد تقع في أيّ منها صدفةً (سقط الاختبار مرّةً في طابور #1240: «…e091752ef8»، W-20261023-001).
+TAIL = re.compile(r"(?<![0-9A-Za-z])" + NID[-4:] + r"(?![0-9A-Za-z])")
+
+
+def leaks_the_number(text: str) -> bool:
+    """الرقمُ كاملاً (أيّ موضع) أو ذيلُه مستقلّاً؛ لا ذيلَه داخل UUID أو رمز."""
+    return NID in text or bool(TAIL.search(text))
+
+
+def test_the_leak_check_ignores_a_tail_inside_a_uuid_but_not_a_standalone_one():
+    uuid_with_tail = "/student-affairs/profile/264637cc-79e7-4f1f-9b22-e8e091752ef8/"
+    assert not leaks_the_number(uuid_with_tail)
+    assert leaks_the_number("الرقم ••••0917 ظاهر")
+    assert leaks_the_number(f"<td>{NID}</td>")
+    assert leaks_the_number(">0917<")
 
 
 @pytest.fixture
@@ -113,7 +130,7 @@ def test_pages_do_not_print_the_stored_number(admin_client, student, name, args)
 
     assert response.status_code == 200
     body = response.content.decode()
-    assert NID not in body and NID[-4:] not in body  # لا كاملاً ولا مستوراً بذيله
+    assert not leaks_the_number(body)  # لا كاملاً ولا مستوراً بذيله
     assert "طالبٌ تجريبيّ" in body
 
 
@@ -123,5 +140,5 @@ def test_the_tardiness_search_json_carries_no_part_of_the_number(admin_client, s
 
     assert response.status_code == 200
     payload = response.content.decode()
-    assert "nid" not in payload and NID[-4:] not in payload
+    assert "nid" not in payload and not leaks_the_number(payload)
     assert "طالبٌ تجريبيّ" in response.json()["results"][0]["name"]

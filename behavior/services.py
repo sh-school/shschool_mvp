@@ -56,20 +56,6 @@ class BehaviorPermissions:
     """صلاحيات وحدة السلوك"""
 
     COMMITTEE_ROLES = BEHAVIOR_COMMITTEE  # م5.7 — مصدرٌ واحدٌ في core/permissions.py (W-20261001-023)
-    SUMMON_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "psychologist"}
-    STATS_ROLES = {
-        # لجنة الضبط والقيادة
-        "principal",
-        "vice_admin",
-        "vice_academic",
-        "social_worker",
-        "specialist",
-        "psychologist",
-        # المعلمون — يرون إحصائيات طلابهم فقط
-        "teacher",
-        "coordinator",
-        "ese_teacher",
-    }
 
     @staticmethod
     def can_report(user: CustomUser) -> bool:
@@ -88,20 +74,17 @@ class BehaviorPermissions:
 
     @staticmethod
     def can_summon(user: CustomUser) -> bool:
-        return (
-            user.get_role() in BehaviorPermissions.SUMMON_ROLES
-            or user.is_superuser
-            or has_unrestricted_role(user)
-        )
+        """يستدعي وليَّ الأمر من يحمل القدرة ``behavior.summon_parent`` — مصدرٌ واحد (W-20261018-003)."""
+        from core.capabilities import has_capability
+
+        return has_capability(user, "behavior.summon_parent")
 
     @staticmethod
     def can_view_stats(user: CustomUser) -> bool:
-        """يُعيد True إذا كان المستخدم مسموحاً له برؤية صفحة الإحصائيات."""
-        return (
-            user.get_role() in BehaviorPermissions.STATS_ROLES
-            or user.is_superuser
-            or has_unrestricted_role(user)
-        )
+        """يرى صفحة الإحصاء من يحمل القدرة ``behavior.statistics`` — مصدرٌ واحد (W-20261018-003)."""
+        from core.capabilities import has_capability
+
+        return has_capability(user, "behavior.statistics")
 
 
 #: نافذةُ تدقيق القراءة: حدثٌ واحد لكل (مستخدم، مخالفة) في هذه المدّة، فلا يتضخّم السجلّ بالتحديث المتكرّر.
@@ -141,10 +124,22 @@ def audit_infraction_read(request: HttpRequest, infractions: Any) -> None:
             )
 
 
+def _portal_url(path: str) -> str:
+    """رابطُ البوابة مطلقاً إن عُرف نطاقُ المنصّة من الإعدادات، وإلا المسارُ وحدَه (بلا معرّفٍ في كلتا الحالتين)."""
+    from django.conf import settings
+
+    origins = [o for o in getattr(settings, "CSRF_TRUSTED_ORIGINS", []) if "*" not in o]
+    if origins:
+        return str(origins[0]).rstrip("/") + path
+    hosts = [h for h in settings.ALLOWED_HOSTS if h and not h.startswith(".") and h != "*"]
+    host = next((h for h in hosts if h not in ("localhost", "127.0.0.1", "testserver")), "")
+    return f"https://{host}{path}" if host else path
+
+
 class BehaviorService:
     # ── عدّ مخالفات الطالب ─────────────────────────────────────────────
     #
-    # [W-20261013-010] كان هنا «مؤشّرُ سلوك» من 100 يُحسب بأوزانٍ ابتدعتها المنصّة (2/5/10/25) ثم يُعرض ويُرسَل
+    # [W-20261013-010] كان هنا «مؤشّرُ سلوك» (ملغى) من 100 يُحسب بأوزانٍ ابتدعتها المنصّة (2/5/10/25) ثم يُعرض ويُرسَل
     # لوليّ الأمر؛ ولا أصلَ له في دليل السلوك 2026 فأُزيل. يبقى العدّ الإجماليُّ وحده.
     @staticmethod
     def get_student_score(
@@ -631,14 +626,11 @@ class BehaviorService:
             # و`date` يومُ الكتابة لا يومُ الواقعة.
             session = infraction.session if infraction.session_id else None
             when = session.date if session is not None else infraction.date
-            title = (
-                f"⚠️ مخالفة سلوكية — {infraction.student.full_name} "
-                f"({LEVEL_DISPLAY.get(infraction.level, '')})"
-            )
-            body = (
-                f"{LEVEL_DESC.get(infraction.level, '')}\n"
-                f"التاريخ: {when.strftime('%Y/%m/%d') if when else ''}"
-            )
+            # العنوانُ هو موضوعُ البريد إلى مزوّدٍ خارجيّ: لا اسمَ طالبٍ ولا درجةً (W-20261012-031، PDPPL م.8).
+            # ولي الأمر يرى التفاصيل داخل بوابته بعد الدخول.
+            title = "إشعار جديد في بوابة ولي الأمر"
+            # جسمُ التطبيق/push/واتساب/SMS محايدٌ كالعنوان: لا درجةَ ولا تاريخَ ولا حسمَ (W-20261012-031).
+            body = "يوجد إشعار جديد بخصوص ابنكم، يُرجى الدخول إلى بوابة ولي الأمر للاطّلاع عليه."
 
             NotificationHub.dispatch_to_parents(
                 event_type=event_type,
@@ -647,18 +639,10 @@ class BehaviorService:
                 title=title,
                 body=body,
                 context={
-                    "infraction": infraction,
-                    "reporter": reporter,
-                    "level": infraction.level,
-                    # ما يطلبه قالبُ البريد المنسَّق — أسماءٌ مقروءةٌ لا كائنات،
-                    # فالسياقُ يعبر Celery مُسلسَلاً.
-                    "student_name": infraction.student.full_name,
+                    # بريدٌ مقتضبٌ: التاريخُ ورابطُ البوابة فقط — لا اسمَ ولا وصفَ ولا إجراءَ ولا مُبلِّغَ ولا درجة.
+                    # والسياقُ يعبر Celery مُسلسَلاً فهو نصوصٌ لا كائنات.
                     "infraction_date": when.strftime("%Y/%m/%d") if when else "",
-                    "level_display": LEVEL_DISPLAY.get(infraction.level, ""),
-                    "level_description": LEVEL_DESC.get(infraction.level, ""),
-                    "description": infraction.description or "",
-                    "action_taken": getattr(infraction, "action_taken", "") or "",
-                    "reported_by": reporter.full_name if reporter else "",
+                    "portal_url": _portal_url(reverse("parent_behavior")),
                 },
                 # كان بريدُ السلوك يخرج نصّاً خاماً بينما يخرج بريدُ الغياب
                 # والرسوب منسَّقاً بترويسة المدرسة — وهو أشدُّ الإشعارات
@@ -849,6 +833,43 @@ class BehaviorService:
         max_step = len(steps)
         # المخالفة الأولى = الخطوة 1, الثانية = 2, ...
         return min(prior + 1, max_step)
+
+    @staticmethod
+    def preview_escalation(
+        student: CustomUser,
+        school: School,
+        level: int,
+        violation_category: Any = None,
+        session: Any = None,
+    ) -> dict[str, Any]:
+        """ما سيُحسب قبل الحفظ — قراءةٌ فقط بلا كتابة (W-20260928-007).
+
+        تستعمل الاقتراحَ نفسه الذي يكتب `create_infraction`، فما يظهر للمسجِّل
+        قبل الحفظ هو ما يُخزَّن بعده. الخطوةُ المعادة 0 إن لم تكن للدرجة سلّم.
+        """
+        from .conduct_2026 import BY_CODE
+
+        prior = BehaviorService.get_prior_infraction_count(
+            student, school, level, violation_category, session=session
+        )
+        step = BehaviorService.suggest_escalation_step(
+            student, school, level, violation_category, session=session
+        )
+        if violation_category and violation_category.code in BY_CODE:
+            raw = violation_category.get_escalation_steps()
+        else:
+            raw = ESCALATION_STEPS.get(level, [])
+        steps = [
+            (number, item[1] if isinstance(item, tuple | list) else item)
+            for number, item in enumerate(raw, start=1)
+        ]
+        texts = dict(steps)
+        return {
+            "prior": prior,
+            "step": step,
+            "steps": steps,
+            "next_text": texts.get(step, ""),
+        }
 
     @staticmethod
     @transaction.atomic

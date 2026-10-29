@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import admission_views, guardian_views, views
 
 app_name = "student_affairs"
 
@@ -21,6 +21,11 @@ urlpatterns = [
     path("transfers/create/", views.transfer_create, name="transfer_create"),
     path("transfers/<uuid:pk>/", views.transfer_detail, name="transfer_detail"),
     path("transfers/<uuid:pk>/review/", views.transfer_review, name="transfer_review"),
+    # ── طلبات الالتحاق (نموذج 07) ──
+    path("admissions/", admission_views.admission_list, name="admission_list"),
+    path("admissions/create/", admission_views.admission_create, name="admission_create"),
+    path("admissions/<uuid:pk>/", admission_views.admission_detail, name="admission_detail"),
+    path("admissions/<uuid:pk>/action/", admission_views.admission_action, name="admission_action"),
     # ── الحضور والسلوك (ملخصات) ──
     path("attendance/", views.attendance_overview, name="attendance_overview"),
     path("attendance/export/", views.attendance_export_excel, name="attendance_export"),
@@ -34,6 +39,15 @@ urlpatterns = [
     path("activities/<uuid:pk>/edit/", views.activity_edit, name="activity_edit"),
     path("activities/<uuid:pk>/delete/", views.activity_delete, name="activity_delete"),
     # ── إضافة ولي أمر ──
+    # ── طلبات الأولياء وشكاواهم (W-20261001-019) ──
+    path("requests/", guardian_views.request_list, name="request_list"),
+    path("requests/new/<str:kind>/", guardian_views.request_create, name="request_create"),
+    path("requests/<uuid:pk>/", guardian_views.request_detail, name="request_detail"),
+    path("requests/<uuid:pk>/refer/", guardian_views.request_refer, name="request_refer"),
+    path("requests/<uuid:pk>/feedback/", guardian_views.request_feedback, name="request_feedback"),
+    path("requests/<uuid:pk>/contact/", guardian_views.request_contact, name="request_contact"),
+    path("requests/<uuid:pk>/close/", guardian_views.request_close, name="request_close"),
+    path("requests/<uuid:pk>/verify/", guardian_views.request_verify, name="request_verify"),
     # ── ملفات محمية (F-001) ──
     path("media/<path:path>", views.protected_media, name="protected_media"),
     # ── التأخر الصباحي ──

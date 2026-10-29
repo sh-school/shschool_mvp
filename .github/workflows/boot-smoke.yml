@@ -1,0 +1,95 @@
+name: فحص الإقلاع
+
+# ══════════════════════════════════════════════
+#  W-20261022-022: يقلع التطبيقَ بإعدادات production (daphne كما في Procfile) على postgres وredis اصطناعيَّين،
+#  ثم يطلب /health/ ويتوقّع 200، وينتهي. يلتقط ما لا تلتقطه الاختباراتُ (إعدادات testing): خللَ إعداد production،
+#  وغيابَ بيان الثابت (حادثة 2026-09-17)، وفشلَ الإقلاع بعد النشر.
+#  وظيفةٌ مستقلّةٌ خارج المسار الحرج: لا تدخل needs: في quality-gate.yml ولا تحجب دمجاً ولا نشراً.
+#  لا أسرارَ حقيقيّة: كلُّ القيم أدناه قيمُ اختبارٍ لا تفتح شيئاً.
+# ══════════════════════════════════════════════
+
+on:
+  pull_request:
+    paths:
+      - "shschool/settings/**"
+      - "shschool/asgi.py"
+      - "core/views_health.py"
+      - "requirements.txt"
+      - "scripts/railway-release.sh"
+      - ".github/workflows/boot-smoke.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: boot-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  boot:
+    name: فحص الإقلاع
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      DJANGO_SETTINGS_MODULE: shschool.settings.production
+      SECRET_KEY: ci-boot-smoke-only-not-a-real-secret-q9w8e7r6t5  # pragma: allowlist secret
+      FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=  # pragma: allowlist secret
+      EXCEL_PROTECTION_PASSWORD: ci-boot-smoke  # pragma: allowlist secret
+      DATABASE_URL: postgres://test_user:test_pass@127.0.0.1:5432/test_db  # pragma: allowlist secret
+      REDIS_URL: redis://127.0.0.1:6379/0
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      # الإنتاجُ يشترط S3 عند الإقلاع؛ قيمٌ اصطناعيّةٌ لا تتّصل بأيّ خدمة (الفحصُ لا يرفع ملفاً)
+      AWS_ACCESS_KEY_ID: ci-boot-smoke  # pragma: allowlist secret
+      AWS_SECRET_ACCESS_KEY: ci-boot-smoke-not-real  # pragma: allowlist secret
+      AWS_STORAGE_BUCKET_NAME: ci-boot-smoke
+      AWS_S3_ENDPOINT_URL: http://127.0.0.1:9
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: ./.github/actions/native-postgres
+        with:
+          version: "18"
+          redis: "true"
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: تثبيت مكتبات النظام
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev libpango1.0-dev libgdk-pixbuf2.0-dev \
+            libffi-dev shared-mime-info pkg-config
+
+      - name: تثبيت المتطلبات
+        run: pip install -r requirements.txt
+
+      - name: تجهيز القاعدة والثابت (كما يفعل النشر)
+        run: |
+          python manage.py migrate --noinput
+          python manage.py collectstatic --noinput
+
+      - name: إقلاع daphne وفحص /health/
+        run: |
+          daphne -b 127.0.0.1 -p 8080 shschool.asgi:application > daphne.log 2>&1 &
+          pid=$!
+          code=000
+          for _ in $(seq 1 60); do
+            kill -0 "$pid" 2>/dev/null || break
+            code=$(curl -s -o health.json -w '%{http_code}' http://127.0.0.1:8080/health/ || true)
+            [ "$code" = "200" ] && break
+            sleep 1
+          done
+          echo "رمز /health/: $code"
+          cat health.json 2>/dev/null || true
+          kill "$pid" 2>/dev/null || true
+          if [ "$code" != "200" ]; then
+            echo "::error::فشل الإقلاع أو /health/ ليس 200 — سجلّ daphne:"
+            tail -n 60 daphne.log
+            exit 1
+          fi

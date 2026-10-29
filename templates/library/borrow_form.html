@@ -42,12 +42,12 @@
           </select>
         </div>
         {% field "due_date" "تاريخ الإرجاع المتوقع" type="date" required=True %}
-      </div>
-      <div class="flex gap-3 mt-6">
-        <button type="submit" class="btn-primary flex-1">
-          {% icon "library" %} تسجيل الإعارة
-        </button>
-        <a href="{% url 'library:dashboard' %}" class="btn-secondary">إلغاء</a>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">
+            {% icon "library" %} تسجيل الإعارة
+          </button>
+          <a href="{% url 'library:dashboard' %}" class="btn-secondary">إلغاء</a>
+        </div>
       </div>
     </form>
   </div>

@@ -138,3 +138,14 @@ def test_a_substitute_covering_the_class_today_opens_and_writes_the_grid(
     assert _save(client, assigned, 1, [_cells(kids[0], "absent")]).status_code == 200
     tomorrow = SUNDAY + dt.timedelta(days=1)
     assert client.get(url, {"date": tomorrow.isoformat()}).status_code == 404
+
+
+def test_the_cell_history_follows_the_displayed_date(client_as, school, assigned, kids, clock):
+    """سجلُّ الخليّة يقرأ التاريخَ المعروضَ لا اليوم: كان يُهمَله فيعود 404 في يومٍ بلا دراسةٍ أو بيانٍ مختلف."""
+    url = reverse("class_grid_history", args=[assigned.id, kids[0].id, 1])
+    response = client_as(_principal(school)).get(url, {"date": THURSDAY_BEFORE.isoformat()})
+    assert response.status_code == 200
+    assert (
+        client_as(_principal(school)).get(url, {"date": FRIDAY_BEFORE.isoformat()}).status_code
+        == 404
+    )

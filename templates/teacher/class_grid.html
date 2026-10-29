@@ -25,6 +25,7 @@
         <a class="btn-secondary btn-sm" href="?date={{ page.prev_day|date:'Y-m-d' }}">‹ اليومُ السابق</a>
         {% if not page.is_today %}<a class="btn-secondary btn-sm" href="{% url 'class_grid' page.klass.id %}">اليوم</a>{% endif %}
         <a class="btn-secondary btn-sm" href="?date={{ page.next_day|date:'Y-m-d' }}">اليومُ التالي ›</a>
+        {% if page.can_write %}<a class="btn-secondary btn-sm" href="{% url 'tardiness_excuses' %}">أعذار التأخّر</a>{% endif %}
       </nav>
       {% if page.correction_mode or page.reason_always %}
       <div class="cg-reasonbar">{% field "reason" "سببُ التصحيح (اختياريّ)" maxlength="300" data_grid_reason=True %}</div>

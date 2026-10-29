@@ -61,7 +61,7 @@
     </thead>
     <tbody>
       {% for row in card.rows %}
-      <tr>
+      <tr class="grade-tint grade-{{ row.class_group.grade|lower }}">
         <td>{{ row.level_label }}</td>
         <td>{{ row.class_group.short_label }}</td>
         <td>{{ row.subject.name_ar }}</td>

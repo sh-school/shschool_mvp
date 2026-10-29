@@ -48,7 +48,7 @@ class TestBirthDateEncrypted:
 
     def test_clearing_clears_the_encrypted_column(self):
         profile = Profile.objects.create(user=UserFactory(), birth_date=DOB)
-        profile.birth_date = None
+        profile.date_of_birth = None  # التفريغُ فعلٌ صريح؛ حفظٌ عاديّ لا يصفّر (W-20261002-041)
         profile.save()
 
         assert _raw(profile, "birth_date_encrypted") in ("", None)
@@ -168,3 +168,120 @@ def test_verify_fails_on_unreadable_encrypted_value():
 
     with pytest.raises(CommandError):
         call_command("backfill_birth_date_encrypted", "--verify")
+
+
+# ── W-20261002-041: لا فقدانَ لتاريخ قاصر عند تحويل الكتّاب إلى date_of_birth ──
+
+
+@pytest.mark.django_db
+class TestNoLossOnDobWriters:
+    def _profile(self):
+        p = Profile.objects.create(user=UserFactory())
+        p.date_of_birth = DOB
+        p.save()
+        return Profile.objects.get(pk=p.pk)
+
+    def test_setter_writes_the_encrypted_column(self):
+        p = self._profile()
+        assert "2011" not in _raw(p, "birth_date_encrypted")
+        assert p.date_of_birth == DOB
+
+    def test_update_fields_save_without_the_date_keeps_it(self):
+        p = self._profile()
+        p.notes = "ملاحظة"
+        p.save(update_fields=["notes"])
+        assert Profile.objects.get(pk=p.pk).date_of_birth == DOB
+
+    def test_save_with_empty_legacy_and_filled_encrypted_never_zeroes(self):
+        """مسحُ حفظٍ قديمٍ تاريخَ قاصرٍ: القديمُ فارغ والمشفَّرُ مملوء."""
+        p = self._profile()
+        Profile.objects.filter(pk=p.pk).update(birth_date=None)
+        stale = Profile.objects.get(pk=p.pk)
+        stale.notes = "x"
+        stale.save()
+        assert Profile.objects.get(pk=p.pk).date_of_birth == DOB
+
+    def test_save_from_an_object_read_before_the_encrypted_value_was_set(self):
+        stale = Profile.objects.create(user=UserFactory())  # لا تاريخ بعد
+        other = Profile.objects.get(pk=stale.pk)
+        other.date_of_birth = DOB
+        other.save()
+        stale.notes = "لا يمسّ التاريخ"
+        stale.save()
+        assert Profile.objects.get(pk=stale.pk).date_of_birth == DOB
+
+    def test_explicit_change_goes_through_the_setter_and_keeps_verify_clean(self):
+        p = self._profile()
+        p.date_of_birth = date(2012, 3, 4)
+        p.save(update_fields=["birth_date_encrypted"])
+        assert Profile.objects.get(pk=p.pk).date_of_birth == date(2012, 3, 4)
+        call_command("backfill_birth_date_encrypted", "--verify")  # 0/0
+
+    def test_ministry_import_creates_and_updates(self):
+        from core.ministry_import import _sync_student_profile
+
+        student, cache = UserFactory(), {}
+        _sync_student_profile(student, DOB, cache)
+        assert Profile.objects.get(user=student).date_of_birth == DOB
+        _sync_student_profile(student, date(2012, 1, 2), cache)
+        assert Profile.objects.get(user=student).date_of_birth == date(2012, 1, 2)
+        call_command("backfill_birth_date_encrypted", "--verify")
+
+    def test_ministry_import_unchanged_date_leaves_encrypted_alone(self):
+        from core.ministry_import import _sync_student_profile
+
+        student = UserFactory()
+        cache = {}
+        _sync_student_profile(student, DOB, cache)
+        before = _raw(Profile.objects.get(user=student), "birth_date_encrypted")
+        _sync_student_profile(student, DOB, cache)
+        assert _raw(Profile.objects.get(user=student), "birth_date_encrypted") == before
+
+    def test_student_update_service_sets_changes_and_clears_explicitly(self):
+        from types import SimpleNamespace
+
+        from student_affairs.services import StudentService
+
+        student, school = UserFactory(), SimpleNamespace(code="T")
+        data = {"full_name": "اسم", "birth_date": DOB, "notes": "n"}
+        StudentService.update_student(student, school, data)
+        assert Profile.objects.get(user=student).date_of_birth == DOB
+        StudentService.update_student(student, school, {**data, "birth_date": date(2012, 5, 6)})
+        assert Profile.objects.get(user=student).date_of_birth == date(2012, 5, 6)
+        StudentService.update_student(
+            student, school, {"full_name": "اسم", "notes": "m"}
+        )  # غيابُ المفتاح لا يفرّغ
+        assert Profile.objects.get(user=student).date_of_birth == date(2012, 5, 6)
+        StudentService.update_student(
+            student, school, {**data, "birth_date": None}
+        )  # تفريغٌ من النموذج
+        assert Profile.objects.get(user=student).date_of_birth is None
+
+
+def test_no_direct_birth_date_write_outside_profile():
+    """حارسٌ نصّيّ: لا `profile.birth_date` ولا `Profile(... birth_date=)` خارج Profile وأمرِ التعبئة والهجرات."""
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    allowed = {
+        "core/models/user.py",
+        "core/management/commands/backfill_birth_date_encrypted.py",
+    }
+    skipped = {"tests", "migrations", "scripts", "node_modules", "worktrees", "staticfiles", "docs"}
+    pat = re.compile(r"\.birth_date\b|Profile[^\n]*\bbirth_date\s*=")
+    offenders = []
+    for path in root.rglob("*.py"):
+        rel = path.relative_to(root)
+        if skipped & set(rel.parts) or any(part.startswith(".") for part in rel.parts):
+            continue
+        if rel.as_posix() in allowed:
+            continue
+        for no, line in enumerate(
+            path.read_text(encoding="utf-8", errors="ignore").splitlines(), 1
+        ):
+            if pat.search(line.split("#", 1)[0]):
+                offenders.append(f"{rel}:{no}")
+    assert (
+        offenders == []
+    ), f"كتابةٌ أو قراءةٌ لـbirth_date خارج Profile — استعمل date_of_birth: {offenders}"

@@ -857,8 +857,10 @@ def _strip_page_rules(html: str) -> str:
     return "".join(out)
 
 
-def _content_disposition(filename: str, as_attachment: bool) -> str:
-    """يبني الترويسة بترميز RFC 5987 حين يحمل الاسم محارف غير ASCII.
+def content_disposition(filename: str, as_attachment: bool = True) -> str:
+    """الدالّةُ الواحدةُ لترويسة `Content-Disposition` في المنصّة (W-20261021-005): لا يكتبها عرضٌ بيده.
+
+    يبني الترويسة بترميز RFC 5987 حين يحمل الاسم محارف غير ASCII.
 
     Django يُرمّز قيمة الترويسة كاملةً بـRFC 2047 (`=?utf-8?b?…?=`) إن حوت
     محارف عربية — والمتصفّحات **لا تفهم ذلك الترميز في `Content-Disposition`**،
@@ -883,6 +885,9 @@ def _content_disposition(filename: str, as_attachment: bool) -> str:
     return f"{disposition}; filename=\"{ascii_name}\"; filename*=UTF-8''{encoded}"
 
 
+_content_disposition = content_disposition  # الاسمُ القديم لمن يستورده (اختباراتٌ ومساعدات)
+
+
 def render_pdf(
     html_str: str,
     filename: str,
@@ -900,7 +905,7 @@ def render_pdf(
     try:
         pdf_bytes = _generate_pdf_bytes(html_str, paper_size=paper_size)
         resp = HttpResponse(pdf_bytes, content_type="application/pdf")
-        resp["Content-Disposition"] = _content_disposition(filename, as_attachment)
+        resp["Content-Disposition"] = content_disposition(filename, as_attachment)
         return resp
     except Exception as e:  # noqa: BLE001 — تدهور لطيف بدل انهيار 500 غير مُعالَج
         logger.error("render_pdf فشل نهائياً: %s", e)

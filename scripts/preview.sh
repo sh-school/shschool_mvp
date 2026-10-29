@@ -324,12 +324,15 @@ compose() {   # compose <شجرة> <أوامر…>: الشجرةُ المعرو�
 
 wait_web() {
   [ "$DRY" = 1 ] && return 0
-  local c="${SLOT_PROJECT:-$PROJECT}-web-1" state i restarts
-  for i in $(seq 1 90); do
+  local c="${SLOT_PROJECT:-$PROJECT}-web-1" state i restarts running
+  # الإقلاعُ البارد (قاعدةُ جيلٍ جديدٍ تُهاجَر كاملةً) ~271ث بقياس 0502 2026-10-20 والفحصُ الصحّيّ يعلن
+  # «غيرَ صحّيّ» بعد start_period+8×15ث؛ فغيرُ الصحّيّ أثناء البدء ليس فشلاً: تُنتظر المهلةُ كاملةً
+  # (140 دورةً × 3ث = 420ث > start_period=300). والفشلُ الحقيقيّ: توقّفُ الحاويةِ أو إعادةُ تشغيلها مرّتين.
+  for i in $(seq 1 140); do
     state="$(docker inspect -f '{{.State.Health.Status}}' "$c" 2>/dev/null || echo missing)"
     [ "$state" = "healthy" ] && return 0
-    [ "$state" = "unhealthy" ] && break
-    # حاويةٌ تُعاد تشغيلُها = الإقلاعُ يسقط (هجرةٌ مثلاً)، فلا ننتظر الأربعَ دقائق كلَّها.
+    running="$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null || echo false)"
+    [ "$running" = "true" ] || break
     restarts="$(docker inspect -f '{{.RestartCount}}' "$c" 2>/dev/null || echo 0)"
     [ "$restarts" -ge 2 ] && break
     sleep 3
@@ -427,6 +430,26 @@ slot_up() {   # slot_up <شجرة> <منفذُ الخانة> — compose up في
 }
 
 # يبني الشجرةَ في الخانة الفارغة؛ وبعد صحّتها تُحوَّل الواجهةُ إليها وتُزال الخانةُ القديمة. فشلُها يُبقي القائمَ يخدم.
+# يحفظ سجلَّ حاوياتِ الخانة الفاشلة قبل هدمها: بعدها يضيع السببُ (تشخيص 2026-10-19: أُعيد إنشاءُ القاعدة
+# فلم يبقَ ما يُفسّر لماذا لم يُقلع main). يُكتب في مجلّد الحالة ويُستبدل عند كلّ فشل؛ لا يُفشل النشرَ أبداً.
+capture_boot_failure() {   # capture_boot_failure <خانة>
+  [ "$DRY" = 1 ] && return 0
+  local out ids c
+  out="$(state_dir)/last_boot_failure.log"
+  mkdir -p "$(state_dir)" 2>/dev/null || return 0
+  ids="$(docker ps -a --filter "label=com.docker.compose.project=$SLOT_PROJECT" -q 2>/dev/null || true)"
+  {
+    printf '== %s — خانة %s — %s ==
+' "$(now)" "$1" "${LABEL:-main@$PREVIEW_SHA}"
+    for c in $ids; do
+      printf '
+-- %s (%s) --
+' "$(docker inspect -f '{{.Name}}' "$c" 2>/dev/null)" "$(docker inspect -f '{{.State.Status}} exit={{.State.ExitCode}}' "$c" 2>/dev/null)"
+      docker logs --tail 150 "$c" 2>&1
+    done
+  } > "$out" 2>&1 || true
+}
+
 bluegreen_up() {   # bluegreen_up <شجرة>
   local tree="$1" cur new port
   cur="$(sget slot)"
@@ -445,11 +468,13 @@ bluegreen_up() {   # bluegreen_up <شجرة>
   slot_up "$tree" "$port" "up -d --force-recreate --remove-orphans" || { warn "docker compose up أعاد خطأً"; true; }
   if ! wait_web; then
     warn "سقط الجديدُ في الخانة $new — يبقى القائمُ يخدم"
+    capture_boot_failure "$new"
     run docker compose -p "$SLOT_PROJECT" down --remove-orphans >/dev/null 2>&1 || true
     SLOT_PROJECT=""
     return 1
   fi
   if ! front_point "$port"; then
+    capture_boot_failure "$new"
     run docker compose -p "$SLOT_PROJECT" down --remove-orphans >/dev/null 2>&1 || true
     SLOT_PROJECT=""
     return 1
@@ -664,6 +689,11 @@ deploy_main() {
   label="${LABEL:-main@$PREVIEW_SHA}"
   say "▸ يُعاد إنشاءُ الخادم والعامل على $label (هجرة ← collectstatic ← daphne) — قاعدة $db"
   bluegreen_up "$tree" || return 1
+  # الخادمُ يجب أن يعلن الرأسَ الذي بُنيَ منه (RAILWAY_GIT_COMMIT_SHA=PREVIEW_SHA في compose) قبل أن يُسجَّل خادماً خادماً
+  if [ "$DRY" != 1 ] && [ "$(served_commit)" != "$PREVIEW_SHA" ]; then
+    warn "الخادمُ يعلن commit=$(served_commit) لا $PREVIEW_SHA — لم تُسجَّل الخدمةُ"
+    return 1
+  fi
   sset mode follow
   sset served_sha "$(git -C "$tree" rev-parse HEAD)"
   sset served_label "$label"

@@ -1,12 +1,10 @@
-"""ورقةُ الاتصال المطبوعة لمتابعة الغياب (W-20261013-017).
+"""تصديرُ كشف متابعة الغياب: PDF وExcel بما تعرضه الشاشةُ بعد الترشيح حرفياً (W-20261020-005).
 
-`render_contact_sheet(user, date)` ترجع بايتات PDF لغائبي اليوم ضمن نطاق صاحب الطلب، مجموعةً بالصفّ:
-
-- القدرةُ `operations.absence_followup_print` شرطٌ هنا قبل أيّ قراءة، والنطاقُ يحصره `followup_rows`
+- القدرةُ `operations.absence_followup_print` شرطٌ قبل أيّ قراءة، والنطاقُ يحصره `followup_rows`
   (الجناحُ والقسم) فلا يظهر خارجَه أحد.
-- رقمُ الوليّ وحدَه بلا اسمه ولا اسم الأمّ (D-431م)، وتوقيعٌ واحدٌ هو مشرف الجناح (D-385م).
-- من استُلمت إجازتُه المرضيّة (آخرُ إجراءٍ حالتُه `sick_leave`) يُوسَم.
-- كلُّ توليدٍ سطرُ `AuditLog` بنوع الوثيقة وعدد الصفوف فقط — لا اسمَ ولا رقمَ ولا طالب.
+- رقمُ الوليّ وحدَه بلا اسمه ولا اسم الأمّ (D-431م).
+- ورقةُ الاتصال المستقلّة أُلغيت (قرار المالك): رابطُها القديم يحوَّل إلى صفحة العرض.
+- التدقيقُ في العرض: العددُ لا الأسماء.
 """
 
 from __future__ import annotations
@@ -18,13 +16,11 @@ from django.core.exceptions import PermissionDenied
 from django.template.loader import render_to_string
 
 from core.capabilities import has_capability
+from core.excel_safety import safe_cell
 from core.export_utils import get_export_context_for
-from core.models import AuditLog
 from core.pdf_utils import render_pdf_bytes
 
 PRINT = "operations.absence_followup_print"
-TEMPLATE = "operations/absence_followup/print.html"
-KIND = "operations.absence_followup_contact_sheet"
 
 
 def _shown_rows(rows: list[dict], params: Any) -> list[dict]:
@@ -36,80 +32,124 @@ def _shown_rows(rows: list[dict], params: Any) -> list[dict]:
         rows,
         grade=params.get("grade", ""),
         wing=params.get("wing", ""),
+        search=(params.get("q") or "")[:60],
         followup=params.get("followup", ""),
         sort=params.get("sort", ""),
     )
 
 
-def _groups(rows: list[dict]) -> list[dict]:
-    """الصفوفُ مجموعةً بالصفّ بترتيب الاسم، وكلُّ سطرٍ بما يُطبع وحدَه."""
-    by_class: dict[str, list[dict]] = {}
-    grade_of: dict[str, str] = {}
-    for row in rows:
+def _by_wing(rows: list[dict]) -> list[dict]:
+    """يجمّع الصفوفَ بالجناح فالصفّ فالشعبة فالاسم، وكلُّ صفٍّ يحمل `wing_title` لعنوان المجموعة."""
+
+    def key(row: dict) -> tuple:
         group = row.get("class_group")
-        title = str(group) if group else "بلا صفّ"
-        grade_of.setdefault(title, getattr(group, "grade", "") or "")
-        action = row.get("action")
-        by_class.setdefault(title, []).append(
-            {
-                "name": row["student"].full_name,
-                "phone": " — ".join(row.get("phones") or []),
-                "sick_leave": bool(action and action.status == "sick_leave"),
-                "outcome": row["contact"].get_outcome_display() if row.get("contact") else "",
-                "feedback": row.get("feedback") or "",
-            }
+        wing = getattr(group, "wing", None)
+        return (
+            wing.name if wing else "\uffff",
+            getattr(group, "grade", ""),
+            getattr(group, "section", ""),
+            row["student"].full_name,
         )
-    out = []
-    for title in sorted(by_class):
-        items = sorted(by_class[title], key=lambda r: r["name"])
-        for i, item in enumerate(items, 1):
-            item["number"] = i
-        out.append(
-            {
-                "title": title,
-                "grade": grade_of.get(title, ""),
-                "rows": items,
-                "leave_count": sum(1 for r in items if r["sick_leave"]),
-            }
-        )
-    return out
+
+    ordered = sorted(rows, key=key)
+    for row in ordered:
+        wing = getattr(row.get("class_group"), "wing", None)
+        row["wing_title"] = wing.name if wing else "خارج الأجنحة"
+    return ordered
 
 
-def render_contact_sheet(user: Any, date: dt.date, params: Any = None) -> bytes:
-    """PDF ورقة الاتصال ليوم `date` بما تعرضه الشاشةُ بعد التصفية. بلا قدرة الطباعة = `PermissionDenied`."""
-    if not has_capability(user, PRINT):
-        raise PermissionDenied("لا صلاحيةَ لطباعة ورقة الاتصال.")
+def _action_text(row: dict) -> str:
+    action = row.get("action")
+    if not action:
+        return ""
+    return action.get_action_kind_display() + (f" — {action.note}" if action.note else "")
+
+
+def _followed_text(row: dict) -> str:
+    if not row.get("followed_at"):
+        return ""
+    return f"{row['followed_at']:%d/%m/%Y %H:%M} · {row.get('followed_by', '')}"
+
+
+def _xlsx_table(page: str, rows: list[dict], can_feedback: bool) -> tuple[str, list, list]:
+    """(العنوان، الأعمدة، الصفوف) للصفحة المطلوبة — الأعمدةُ نفسُها المعروضة على الشاشة."""
+    base = [("م", 5), ("الطالب", 28), ("الجناح", 16), ("الصف", 10)]
+    if page == "actions":
+        columns = base + [
+            ("الإجراء الحالي", 30),
+            ("وقت التنفيذ", 16),
+            ("متابعة الإجراء", 22),
+            ("وقت المتابعة ومن سجّلها", 30),
+        ]
+    else:
+        columns = base + [("هاتف ولي الأمر", 18), ("حالة التواصل", 18), ("آخر اتصال", 16)]
+        if can_feedback:
+            columns.append(("التغذية الراجعة من ولي الأمر", 34))
+    data = []
+    for i, r in enumerate(rows, 1):
+        group = r.get("class_group")
+        line = [i, r["student"].full_name, r["wing_title"], group.short_label if group else ""]
+        if page == "actions":
+            action = r.get("action")
+            line += [
+                _action_text(r),
+                f"{action.acted_at:%d/%m %H:%M}" if action else "",
+                r.get("action_status") or "لم تتمّ المتابعة",
+                _followed_text(r),
+            ]
+        else:
+            contact = r.get("contact")
+            line += [
+                " ، ".join(r.get("phones") or []),
+                contact.get_outcome_display() if contact else "",
+                f"{contact.contacted_at:%d/%m %H:%M}" if contact else "",
+            ]
+            if can_feedback:
+                line.append(r.get("feedback") or "")
+        data.append(line)
+    title = "التواصل مع أولياء الأمور" if page == "contact" else "متابعة إجراءات الغياب"
+    return title, columns, data
+
+
+def build_followup_xlsx(school: Any, user: Any, params: Any) -> Any:
+    """Excel مباشر بأعمدة الصفحة المعروضة وصفوفها بعد الترشيح، وسطرُ «أصدر الملف» في آخره."""
+    from core.export_utils import generate_export_filename
+    from core.exports.registry import ExportResult
     from operations.services.absence_followup import followup_rows
+    from reports.services import AcademicReportsExcel, ExcelService
 
-    groups = _groups(_shown_rows(followup_rows(user, date), params))
-    ctx = get_export_context_for(user, "ورقة الاتصال لمتابعة الغياب")
-    ctx.update(
-        {
-            "school": user.get_school(),
-            "groups": groups,
-            "day": date,
-            "signatory": "",
-        }
+    if not has_capability(user, PRINT):
+        raise PermissionDenied("لا صلاحيةَ لتصدير كشف المتابعة.")
+    try:
+        day = dt.date.fromisoformat(params.get("date") or "")
+    except ValueError:
+        day = dt.date.today()
+    page, _ = sheet_options(params)
+    rows = _by_wing(_shown_rows(followup_rows(user, day), params))
+    can_feedback = has_capability(user, "operations.absence_followup_feedback")
+    title, columns, data = _xlsx_table(page, rows, can_feedback)
+    wb = AcademicReportsExcel._build(title, f"{title} — {day:%d/%m/%Y}", columns, data, school)
+    ws = wb.active
+    safe_cell(
+        ws,
+        row=len(data) + 6,
+        column=2,
+        value=f"أصدر الملف: {user.full_name} — {dt.datetime.now():%d/%m/%Y %H:%M}",
     )
-    pdf = render_pdf_bytes(render_to_string(TEMPLATE, ctx))
-    AuditLog.log(
-        user=user,
-        action="export",
-        model_name="other",
-        object_id="",
-        object_repr=KIND,
-        changes={
-            "kind": KIND,
-            "rows": sum(len(g["rows"]) for g in groups),
-            "full_national_id": False,
-        },
-        school=ctx["school"],
+    response = ExcelService.to_response(wb, "x.xlsx", school)
+    return ExportResult(
+        content=response.content,
+        content_type=response["Content-Type"],
+        filename=generate_export_filename("operations", f"absence-{page}", "xlsx"),
+        rows=len(rows),
     )
-    return pdf
 
 
 #: الافتراضيّ: أفقيٌّ في التواصل (أعمدةٌ كثيرة) وعموديٌّ في الإجراءات (قرارُ المالك 2026-10-17).
-DEFAULT_ORIENT = {"contact": "landscape", "actions": "portrait"}
+DEFAULT_ORIENT = {
+    "contact": "landscape",
+    "actions": "landscape",
+}  # D-449م: «الإجراءات» أفقيّة كالقوائم
 PAGES = tuple(DEFAULT_ORIENT)
 
 
@@ -137,7 +177,7 @@ def build_followup_pdf(school: Any, user: Any, params: Any) -> Any:
     except ValueError:
         day = dt.date.today()
     page, orient = sheet_options(params)
-    rows = _shown_rows(followup_rows(user, day), params)
+    rows = _by_wing(_shown_rows(followup_rows(user, day), params))
     name = "التواصل مع أولياء الأمور" if page == "contact" else "متابعة إجراءات الغياب"
     ctx = get_export_context_for(user, f"{name} — {date_format(day, 'd/m/Y')}")
     ctx.update(
@@ -150,6 +190,8 @@ def build_followup_pdf(school: Any, user: Any, params: Any) -> Any:
         outcomes=dict(AbsenceContactLog.OUTCOMES),
         statuses=dict(AbsenceActionLog.STATUSES),
         can_feedback=has_capability(user, "operations.absence_followup_feedback"),
+        issuer=user.full_name,
+        issued_at=dt.datetime.now(),
     )
     pdf = render_pdf_bytes(render_to_string("operations/absence_followup_print.html", ctx))
     return ExportResult(
@@ -169,7 +211,9 @@ def followup_viewer_response(request: Any, day: dt.date) -> Any:
     from django.utils.formats import date_format
 
     page, orient = sheet_options(request.GET)
-    shown = {k: request.GET[k] for k in ("grade", "wing", "followup", "sort") if request.GET.get(k)}
+    shown = {
+        k: request.GET[k] for k in ("grade", "wing", "followup", "sort", "q") if request.GET.get(k)
+    }
     base = {"date": day.isoformat(), "page": page, "orient": orient, **shown}
     name = "التواصل مع أولياء الأمور" if page == "contact" else "متابعة إجراءات الغياب"
     back = "daily_report" if page == "contact" else "absence_actions"

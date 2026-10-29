@@ -75,6 +75,11 @@ app.conf.beat_schedule = {
         "task": "notifications.check_breach_deadlines",
         "schedule": crontab(minute=0),  # كل ساعة عند الدقيقة صفر
     },
+    # فحصُ انجراف بصمات سجلّ القرارات محلّيّاً — يوميّاً 5:00 (W-20260928-019)
+    "decisions-registry-drift-check": {
+        "task": "decisions_registry.check_drift",
+        "schedule": crontab(hour=5, minute=0),
+    },
     # ✅ v6: تقرير KPIs الشهري — أول يوم من كل شهر الساعة 6:00 صباحاً
     "send-monthly-kpi-report": {
         "task": "analytics.send_monthly_kpi_report",
@@ -137,6 +142,11 @@ app.conf.beat_schedule = {
         "task": "command_center.collect_remote",
         "schedule": crontab(minute="*/4"),
     },
+    # مسارُ البطاقات (W-20261020-012): عتباتُ المراحل من لقطة الدفتر كلَّ ثلاث دقائق (تنبيهٌ واحدٌ لكلّ حادثة).
+    "qcc-collect-card-flow": {
+        "task": "command_center.collect_card_flow",
+        "schedule": crontab(minute="*/3"),
+    },
     # صفوفُ تصدير PDF/Excel الخلفيّة (البند 5، P4-6؛ VI-30ب) مؤقّتة — حدٌّ صلبٌ 24 ساعةً من الإنشاء لكلّ الصفوف؛
     # وكلَّ ساعةٍ لا يومياً: اليوميّةُ كانت تترك أسوأَ حالةٍ ≈ 48 ساعةً، والمحتوى ثنائيٌّ في القاعدة (`data_retention.md`).
     "purge-expired-export-jobs": {
@@ -195,3 +205,19 @@ app.autodiscover_tasks(["notifications"], related_name="teacher_alerts")
 from notifications.teacher_alerts_beat import teacher_alerts_beat  # noqa: E402
 
 app.conf.beat_schedule.update(teacher_alerts_beat())
+
+# تقاريرُ الغياب الدوريّة (W-20261020-005): مهمّتُها في `operations/absence_reports_tasks.py` وجدولتُها معطَّلةٌ حتى `ABSENCE_REPORTS_BEAT=1`.
+app.autodiscover_tasks(["operations"], related_name="absence_reports_tasks")
+from operations.absence_reports_beat import absence_reports_beat  # noqa: E402
+
+app.conf.beat_schedule.update(absence_reports_beat())
+
+# الإغلاقُ التلقائيّ لزيارات العيادة بعد 3 ساعات (W-20261020-030): معطَّلٌ حتى `CLINIC_AUTOCLOSE_BEAT=1`.
+from clinic.autoclose_beat import clinic_autoclose_beat  # noqa: E402
+
+app.conf.beat_schedule.update(clinic_autoclose_beat())
+
+# تنبيهُ الممرّضين بصلاحية مستلزمات العيادة (W-20261020-040): معطَّلٌ حتى `CLINIC_SUPPLY_BEAT=1`.
+from clinic.supply_beat import clinic_supply_beat  # noqa: E402
+
+app.conf.beat_schedule.update(clinic_supply_beat())

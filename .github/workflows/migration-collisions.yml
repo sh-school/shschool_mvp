@@ -1,0 +1,36 @@
+name: تصادم أرقام الهجرات
+
+# ══════════════════════════════════════════════
+#  وظيفةٌ خفيفةٌ مستقلّة (W-20261019-002): تفشل مبكّراً إذا أضاف الطلبُ هجرةً برقمٍ أضافه طلبٌ مفتوحٌ آخر
+#  أو دخل main بعد الأساس. لا تعدّل quality-gate.yml؛ وجعلُها شرطاً في needs: قرارُ 0101/المالك.
+# ══════════════════════════════════════════════
+
+on:
+  pull_request:
+    paths:
+      - "**/migrations/*.py"
+
+concurrency:
+  group: migration-collisions-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  collisions:
+    name: تصادم أرقام الهجرات
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.12"
+      - name: مقارنة أرقام الهجرات بالطلبات المفتوحة
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/check_migration_collisions.py --base origin/${{ github.base_ref }}

@@ -11,7 +11,7 @@ from tests import px_tokens as px
 from tests.css_source import read_css
 
 #: خارجَ السلّم يومَ الترحيل (2026-09-19). تُخفَّض ولا تُرفع. 80 ← 79 (2026-09-25): حذفُ التصريحات الميّتة
-#: بالتتالي أسقط `padding: … 28px` من `.form-card` (لا تُرسم أصلاً — يمحوها لاحقٌ بالمُحدِّد نفسِه). 75 ← 74 (2026-10-10): فجوة tile-bars صارت على السلّم (W-20261010-031). والزوايا 30 ← 25: أبعادُ مختبر الجودة صارت بالرموز (W-20261010-023).
+#: بالتتالي أسقط `padding: … 28px` من `.form-card` (لا تُرسم أصلاً — يمحوها لاحقٌ بالمُحدِّد نفسِه). 75 ← 74 (2026-10-10): فجوة tile-bars صارت على السلّم (W-20261010-031). والزوايا 30 ← 25: أبعادُ مختبر الجودة صارت بالرموز (W-20261010-023). 71 ← 70 (2026-10-17): فجوة `.beh-case__main` صارت `--sp-1` (W-20261013-020).
 OFF_SCALE_SPACING = 70
 OFF_SCALE_RADIUS = 24
 
@@ -125,3 +125,91 @@ class TestFontSizeInRem:
         assert not re.search(
             r"(^|[\s,}])(html|:root)\s*\{[^}]*font-size", read_css()
         ), "ضُبط font-size على الجذر — rem لم يعد 16px، فراجع ترحيل font-size كلَّه"
+
+
+class TestPageWidthClasses:
+    """عرضُ الصفحة الكامل معتمَدٌ (قرار 2026-09-17): `max-w-7xl` يحبس المحتوى في 1280px فلا يُكتب في قالب.
+
+    وأصنافُ `max-w-xs|sm|md|lg` المعرَّفةُ يدويّاً في `50-utilities.css` سقّاطةُ عدٍّ لا تزيد: كان ثمّة
+    ادّعاءُ «7 مواضع» عند فتح البطاقة، والقياسُ اليومَ (2026-10-19) موضعٌ واحد (W-20260928-024/032).
+    وبطاقاتُ الدخول الضيّقةُ مشروعةٌ بأصنافها الخاصّة (`.auth-*`) ولا تُعدّ هنا.
+    """
+
+    #: استعمالاتُ max-w-xs|sm|md|lg في القوالب. تُخفَّض ولا تُرفع؛ وإن نقصت فسجّل النقص.
+    NARROW_MAX_W_IN_TEMPLATES = 1
+
+    @staticmethod
+    def _templates():
+        import pathlib
+
+        root = pathlib.Path(__file__).resolve().parent.parent / "templates"
+        return sorted(root.rglob("*.html"))
+
+    def test_no_template_uses_max_w_7xl(self):
+        import re
+
+        offenders = [
+            path.name
+            for path in self._templates()
+            if re.search(r"max-w-7xl", path.read_text(encoding="utf-8"))
+        ]
+        assert not offenders, "max-w-7xl يبطل عرضَ الشاشة الكامل المعتمَد — احذفه من: " + "، ".join(
+            offenders
+        )
+
+    def test_no_stylesheet_defines_a_max_w_7xl_class(self):
+        import re
+
+        assert not re.search(
+            r"\.max-w-7xl\b", read_css()
+        ), "عُرِّف صنف .max-w-7xl في الأنماط — العرضُ الكاملُ بـ#main-content لا بصنفٍ"
+
+    def test_narrow_max_w_classes_do_not_grow_and_a_drop_is_recorded(self):
+        import re
+
+        pattern = re.compile(r"\bmax-w-(?:xs|sm|md|lg)\b")
+        count = sum(len(pattern.findall(p.read_text(encoding="utf-8"))) for p in self._templates())
+        ceiling = self.NARROW_MAX_W_IN_TEMPLATES
+        assert count <= ceiling, (
+            f"max-w-xs|sm|md|lg في القوالب: {count} > {ceiling} — استعمالٌ جديدٌ يحبس عرضَ الصفحة؛ "
+            "استعمل تخطيطَ الصفحة المعتمَد (page_layout) أو سمِّ صنفاً دلاليّاً"
+        )
+        assert count >= ceiling, (
+            f"max-w-xs|sm|md|lg في القوالب: نقص إلى {count} — أحسنت؛ اخفض "
+            "NARROW_MAX_W_IN_TEMPLATES في tests/test_px_tokens.py إلى الرقم الجديد"
+        )
+
+
+def test_the_dense_secondary_text_size_has_one_token():
+    """W-20261016-005: `0.78rem` و`0.78125rem` (≈20 موضعاً) صارا رمزاً واحداً `--text-xs-plus`؛ لا قيمةَ حرفيّةً خارج تعريفه."""
+    import re
+
+    css = read_css()
+    literals = re.findall(r"font-size:\s*0\.78(?:125)?rem", css)
+    assert not literals, f"{len(literals)} موضعاً بحجمٍ حرفيّ 0.78rem — استعمل var(--text-xs-plus)"
+    assert re.search(r"--text-xs-plus:\s*0\.78125rem", css)
+
+
+def test_no_font_size_falls_below_twelve_px():
+    """W-20261016-005: لا حجمَ خطٍّ حرفيّاً دون 12px (0.75rem)، ولا حدَّ أدنى لـ`clamp` تحته."""
+    import re
+
+    css = read_css()
+    small = re.findall(r"font-size:\s*(?:clamp\(\s*)?(0?\.[0-6]\d*|0?\.7[0-4]\d*)rem", css)
+    assert not small, f"{len(small)} موضعاً بحجم دون 12px: {sorted(set(small))}"
+
+
+def test_the_schedule_screen_view_never_drops_below_twelve_px():
+    """W-20261016-005: كتلةُ `@media screen` في `print_schedule.html` (مصفوفة الجدول على الشاشة) خطُّها px لا rem، فلا يلتقطه حارسُ CSS؛ حدُّها الأدنى 12px (الطباعةُ A3 على قياسها المحسوب لا تُمَسّ)."""
+    import pathlib
+    import re
+
+    html = (
+        pathlib.Path(__file__).resolve().parent.parent
+        / "templates"
+        / "schedule"
+        / "print_schedule.html"
+    ).read_text(encoding="utf-8")
+    block = html.rsplit("@media screen {", 1)[1].split("\n  }\n", 1)[0]
+    sizes = [int(n) for n in re.findall(r"font-size:\s*(?:clamp\()?(\d+)px", block)]
+    assert sizes and min(sizes) >= 12, f"خطٌّ دون 12px في مصفوفة الشاشة: {sorted(sizes)}"
