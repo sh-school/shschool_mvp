@@ -202,6 +202,4 @@ class TestStudentAffairsForTheSupervisor:
         with mock.patch("django.utils.timezone.localdate", return_value=THURSDAY):
             response = client_as(supervisor).get(reverse("student_affairs:attendance_overview"))
 
-        import json
-
-        assert json.loads(response.context["chart_labels_json"]) == ["13/9"]
+        assert response.context["chart_labels"] == ["13/9"]

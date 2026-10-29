@@ -3,7 +3,6 @@ student_affairs/views.py — شؤون الطلاب
 16 view — يتبع أنماط المشروع الموجودة بالضبط.
 """
 
-import json
 import logging
 import os
 from datetime import timedelta
@@ -1373,9 +1372,9 @@ def attendance_overview(request):
             "pct_tone": pct_tone,
             "worst_students": worst_students,
             "class_breakdown": class_rows,
-            "chart_labels_json": json.dumps(chart_labels),
-            "chart_present_json": json.dumps(chart_present),
-            "chart_absent_json": json.dumps(chart_absent),
+            "chart_labels": chart_labels,
+            "chart_present": chart_present,
+            "chart_absent": chart_absent,
             "alerts": alerts,
             "grades": grades,
             "grade_filter": grade_filter,
@@ -1651,8 +1650,8 @@ def behavior_overview(request):
             "today_infractions": today_infractions,
             "degree_map": degree_map,
             "worst_students": worst_students,
-            "chart_labels_json": json.dumps(chart_labels),
-            "chart_data_json": json.dumps(chart_data),
+            "chart_labels": chart_labels,
+            "chart_data": chart_data,
             "grades": grades,
             "grade_filter": grade_filter,
             "wing_bound": scope.is_wing_bound,
