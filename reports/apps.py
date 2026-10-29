@@ -19,6 +19,13 @@ class ReportsConfig(AppConfig):
             capability="reports.school",
         )
 
+        # كشفُ نتائج الفصل Excel: خلفيٌّ (W-20261027-029) — الأعلى استعمالاً؛ الزرُّ يمرّ على مركز التصدير (`data-app-file`).
+        export_registry.register(
+            "reports.class_results_xlsx",
+            build=builders.build_class_results_xlsx,
+            capability="reports.results",
+        )
+
         register_module(
             name="reports",
             label="التقارير والشهادات",
