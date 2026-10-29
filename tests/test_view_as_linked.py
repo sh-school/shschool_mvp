@@ -309,6 +309,14 @@ def test_account_pages_are_closed_in_the_linked_account(dev_client, link, develo
     assert _rows("view_as_denied", user=developer).last().changes["why"] == "account_page"
 
 
+def test_bearer_header_is_refused_in_the_linked_account(dev_client, link, developer):
+    """ترويسةُ Bearer لا تتجاوز التقنيعَ حين يُفعَّل JWT: تُرفض بسطر تدقيقٍ."""
+    _enter(dev_client, link)
+    response = dev_client.get(PICKER, HTTP_AUTHORIZATION="Bearer x.y.z")
+    assert response.status_code == 403
+    assert _rows("view_as_denied", user=developer).last().changes["why"] == "bearer_token"
+
+
 def test_exit_returns_the_developer_with_a_new_key(dev_client, link, developer, target):
     _enter(dev_client, link)
     before = dev_client.session.session_key

@@ -99,14 +99,15 @@ class ViewAsMiddleware:
 
         view_as: state.ViewAs | None = request.view_as  # type: ignore[attr-defined]
         actor = request.view_as_actor  # type: ignore[attr-defined]
-        if view_as is not None and request.path.startswith(ACCOUNT_PREFIXES):
+        bearer = request.headers.get("Authorization", "").lower().startswith("bearer ")
+        if view_as is not None and (bearer or request.path.startswith(ACCOUNT_PREFIXES)):
             record(
                 request,
                 "view_as_denied",
                 actor=actor,
                 acting=view_as.acting(),
                 label=f"صفحةُ حسابٍ محظورةٌ أثناء العرض بصفة: {request.path}",
-                why="account_page",
+                why="bearer_token" if bearer else "account_page",
             )
             raise PermissionDenied(ACCOUNT_PAGE_DENIED)
 
