@@ -8,7 +8,7 @@ from django.conf import settings
 from django.urls import reverse
 
 TEMPLATES = pathlib.Path("templates")
-_SCRIPT_BODY = re.compile(r"<script\b(?![^>]*\bsrc=)[^>]*>(.*?)</script>", re.S | re.I)
+_SCRIPT_BODY = re.compile(r"<script\b(?![^>]*\bsrc=)[^>]*>(.*?)</script[^>]*>", re.S | re.I)
 
 
 def test_no_safe_filter_inside_inline_scripts():

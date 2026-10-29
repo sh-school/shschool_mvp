@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -185,6 +186,25 @@ def test_security_scan_keeps_its_triggers():
     assert {"push", "pull_request", "merge_group", "schedule", "workflow_dispatch"} <= set(
         _triggers("security-scan.yml")
     )
+
+
+# W-20261022-006: الفحوص المجدولة تُبلِّغ بقضيّةٍ لا بحمرة check run على رأس main.
+_SCHEDULED = ("monitor.yml", "worker-heartbeat.yml", "post-deploy-canary.yml", "nightly.yml")
+
+
+def test_scheduled_failures_open_an_issue_not_a_red_check():
+    for name in _SCHEDULED:
+        for job_name, job in _load(name).items():
+            steps = job.get("steps", [])
+            for step in steps:
+                for ref in re.findall(
+                    r"steps\.(\w[\w-]*)\.outcome == 'failure'", str(step.get("if", ""))
+                ):
+                    producers = [s for s in steps if s.get("id") == ref]
+                    assert producers, f"{name}:{job_name} يقرأ فشل {ref} ولا خطوة بهذا المعرّف"
+                    assert (
+                        producers[0].get("continue-on-error") is True
+                    ), f"{name}:{job_name}: فشلُ {ref} يُحمِّر check run على main؛ يلزم continue-on-error"
 
 
 def test_quality_gate_keeps_pull_request_and_merge_group_full():

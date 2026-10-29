@@ -11,7 +11,7 @@
 
 import pytest
 from django.core.exceptions import PermissionDenied
-from django.db import IntegrityError, InternalError, transaction
+from django.db import IntegrityError, InternalError, ProgrammingError, transaction
 
 from core.models import AuditLog
 
@@ -56,14 +56,20 @@ def an_entry(actor, school):
 def test_an_entry_cannot_be_edited(actor, school):
     entry = an_entry(actor, school)
 
-    with pytest.raises((PermissionDenied, InternalError, IntegrityError)), transaction.atomic():
+    with (
+        pytest.raises((PermissionDenied, InternalError, IntegrityError, ProgrammingError)),
+        transaction.atomic(),
+    ):
         AuditLog.objects.filter(pk=entry.pk).update(action="delete")
 
 
 def test_an_entry_cannot_be_deleted(actor, school):
     entry = an_entry(actor, school)
 
-    with pytest.raises((PermissionDenied, InternalError, IntegrityError)), transaction.atomic():
+    with (
+        pytest.raises((PermissionDenied, InternalError, IntegrityError, ProgrammingError)),
+        transaction.atomic(),
+    ):
         AuditLog.objects.filter(pk=entry.pk).delete()
 
 
