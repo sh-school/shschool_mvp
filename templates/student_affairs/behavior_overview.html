@@ -42,31 +42,38 @@
   {% endsection_card %}
 
   {% section_card "المخالفات حسب الشعبة" meta=class_cards|length|stringformat:"d"|add:" شعبة" icon="students" empty="لا شُعب في العام الجاري" %}{% if class_cards %}
-    <div class="card-flow" data-testid="class-cards">
-      {% for card in class_cards %}
-        <div class="is-full" data-class-card="{{ card.group.short_label }}">
-          {% section_card card.group.short_label meta=card.offenders|stringformat:"d"|add:" مخالف" icon="students" %}
-            <ul class="chip-row" aria-label="مخالفات الشعبة {{ card.group.short_label }} بالدرجات">
-              <li class="chip-stat"><span class="chip-stat__key">المخالفات</span>{% if card.total %}<b class="chip-stat__value">{{ card.total }}</b>{% else %}<span class="status-badge status-info">0</span>{% endif %}</li>
-              {% for degree, count in card.degree_rows %}
-                <li class="chip-stat"><span class="chip-stat__key">د{{ degree }}</span><b class="chip-stat__value">{{ count }}</b></li>
-              {% endfor %}
-            </ul>
-          {% endsection_card %}
-        </div>
-      {% endfor %}
-      {% if unassigned_card.total %}
-        <div class="is-full" data-class-card="unassigned">
-          {% section_card "بلا شعبة حاليّة" meta=unassigned_card.offenders|stringformat:"d"|add:" مخالف" icon="students" %}
-            <ul class="chip-row" aria-label="مخالفات طلبة بلا قيدٍ جارٍ">
-              <li class="chip-stat"><span class="chip-stat__key">المخالفات</span><b class="chip-stat__value">{{ unassigned_card.total }}</b></li>
-              {% for degree, count in unassigned_card.degree_rows %}
-                <li class="chip-stat"><span class="chip-stat__key">د{{ degree }}</span><b class="chip-stat__value">{{ count }}</b></li>
-              {% endfor %}
-            </ul>
-          {% endsection_card %}
-        </div>
-      {% endif %}
+    <div class="table-wrap table-wrap-scroll" data-testid="class-cards">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">الشعبة</th>
+            <th scope="col">المخالفون</th>
+            <th scope="col">المخالفات</th>
+            <th scope="col">د1</th>
+            <th scope="col">د2</th>
+            <th scope="col">د3</th>
+            <th scope="col">د4</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for card in class_cards %}
+          <tr data-class-card="{{ card.group.short_label }}">
+            <th scope="row">{{ card.group.short_label }}</th>
+            <td>{{ card.offenders }}</td>
+            <td>{{ card.total }}</td>
+            {% for degree, count in card.degree_rows %}<td>{{ count }}</td>{% endfor %}
+          </tr>
+          {% endfor %}
+          {% if unassigned_card.total %}
+          <tr data-class-card="unassigned">
+            <th scope="row">بلا شعبة حاليّة</th>
+            <td>{{ unassigned_card.offenders }}</td>
+            <td>{{ unassigned_card.total }}</td>
+            {% for degree, count in unassigned_card.degree_rows %}<td>{{ count }}</td>{% endfor %}
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
     </div>
   {% endif %}{% endsection_card %}
 
