@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 def generate_conduct_proposals_task() -> dict[str, int]:
     """مدرسةً مدرسةً بنطاق RLS؛ مدرسةٌ معطوبةٌ تُسجَّل ولا تُسقط غيرَها."""
     from core.models import School
-    from wings.conduct_proposals import generate_due
+    from wings.conduct_services import generate_due
 
     today = timezone.localdate()
     created = failed = 0

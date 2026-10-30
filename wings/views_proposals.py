@@ -11,14 +11,14 @@ from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
 from core.capabilities import capability_required
-from wings import conduct_proposals as service
+from wings import conduct_services as service
 from wings.scope import StudentScope
 from wings.services import wings_of
 
 
 def _scope(request):
     """نطاقُ المشرف بأجنحته هو (أصيلاً أو بديلاً) وحدَها؛ ومن لا جناحَ يحمله — راصدُ الغياب العامّ والقيادةُ — لا صفحةَ له ولا اعتماد."""
-    school = request.user.get_school()
+    school = request.school
     year = academic_year_for_school(school)
     own = [
         w for w in wings_of(request.user, school, year) if w.current_supervisor() == request.user
@@ -32,7 +32,7 @@ def _scope(request):
 @capability_required("wings.record_day")
 def conduct_proposals(request):
     scope = _scope(request)
-    queue = service.queue_for(request.user.get_school(), scope)
+    queue = service.queue_for(request.school, scope)
     return render(request, "wings/conduct_proposals.html", {"proposals": queue})
 
 

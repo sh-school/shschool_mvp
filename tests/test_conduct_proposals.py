@@ -19,7 +19,7 @@ from tests.test_period_register import (  # noqa: F401
     year,
 )
 from tests.test_school_wide_absence_supervisor import _staff, general, principal  # noqa: F401
-from wings import conduct_proposals as service
+from wings import conduct_services as service
 from wings.models import ConductProposal
 from wings.scope import student_scope
 
