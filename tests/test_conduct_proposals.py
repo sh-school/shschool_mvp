@@ -25,9 +25,9 @@ from wings.scope import student_scope
 
 pytestmark = pytest.mark.django_db
 
-#: ثاني يومٍ دراسيٍّ بعد الأحد 13/9 هو الثلاثاء 15/9؛ فالظهور من الأربعاء 16/9.
-BEFORE = dt.date(2026, 9, 15)
-AFTER = dt.date(2026, 9, 16)
+#: الظهور في يوم الواقعة نفسه (قرارُ المالك 2026-10-30): قبله لا شيء.
+BEFORE = dt.date(2026, 9, 12)
+AFTER = SUNDAY
 
 
 @pytest.fixture
@@ -61,7 +61,7 @@ def test_a_regular_student_missing_two_early_periods_gets_one_proposal(
     assert ConductProposal.objects.count() == 1
 
 
-def test_it_appears_after_the_excuse_grace_not_before(school, klass, kids, supervisor, teacher):
+def test_it_appears_on_the_day_itself_not_before(school, klass, kids, supervisor, teacher):
     _day(klass, supervisor, teacher, school, {0: {kids[0]: "absent"}})
     service.generate_for_day(school, SUNDAY)
     scope = student_scope(supervisor, school)
@@ -138,9 +138,30 @@ def test_approval_makes_one_first_degree_infraction_without_notice_and_is_idempo
     assert BehaviorInfraction.objects.count() == 1
 
 
-def test_approval_before_the_grace_ends_is_refused(
+def test_an_excuse_accepted_after_it_appeared_blocks_the_approval(
     school, klass, kids, supervisor, teacher, category
 ):
+    from operations.models import AbsenceExcuse
+
+    a = kids[0]
+    _day(klass, supervisor, teacher, school, {0: {a: "absent"}})
+    service.generate_for_day(school, SUNDAY)
+    AbsenceExcuse.objects.create(
+        school=school,
+        student=a,
+        date_from=SUNDAY,
+        date_to=SUNDAY,
+        kind="medical",
+        status="accepted",
+        granted_by=supervisor,
+    )
+    scope = student_scope(supervisor, school)
+    with pytest.raises(service.ProposalError):
+        service.approve(ConductProposal.objects.get().pk, supervisor, scope, AFTER)
+    assert BehaviorInfraction.objects.count() == 0
+
+
+def test_approval_before_the_day_is_refused(school, klass, kids, supervisor, teacher, category):
     _day(klass, supervisor, teacher, school, {0: {kids[0]: "absent"}})
     service.generate_for_day(school, SUNDAY)
     scope = student_scope(supervisor, school)

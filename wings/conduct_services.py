@@ -4,7 +4,8 @@
   أو دخل متأخّراً أكثر من خمس دقائق بعد أن حضر حصّةً سبقتها. وما يُنشئه الرصدُ آلياً (2-02 و3-10) يُستثنى، ولا يُمسّ
   التأخّرُ الصباحيّ: الحصّةُ الأولى الحاضرة ليست «بين الحصص».
 - **اقتراحٌ واحدٌ لكلّ طالبٍ في اليوم** (القيدُ الفريد طالب+يوم+نوع)، تُجمع فيه الحصصُ في ملاحظته.
-- **الظهور**: بعد انقضاء مهلة العذر (`GRACE_DAYS` أيامٍ دراسيّة من يوم الواقعة، فلا «عودة» للمداوم) لا فور الرصد.
+- **الظهور**: في يوم الواقعة نفسه (قرارُ المالك 2026-10-30 بدل مهلة اليومين)؛ فقد يظهر قبل انتهاء مهلة العذر، ومن قُبل له عذرٌ بعدها
+  يُسحب مقترحُه عند التوليد التالي ويُحجب اعتمادُه (`_lock`).
 - **السحب**: يُعاد الحكمُ على غير المعتمَد مع كلّ توليد؛ فعذرٌ قُبل (في المهلة أو بعدها) أو تصحيحٌ للرصد يسحب المقترحَ،
   وما اعتُمد أو رُدَّ لا يُمسّ.
 - **الاعتماد**: مخالفةٌ 1-01 عبر `BehaviorService.create_infraction` وحدَها — بلا نقاطٍ ولا قرارٍ ولا إرسالٍ لوليّ الأمر (D-272م).
@@ -23,10 +24,9 @@ from core.audit_repr import masked_repr
 from core.models import AuditLog, ClassGroup, CustomUser, School
 from operations.absence_policy import MIN_PERIODS_FOR_PRESENCE
 from operations.day_attendance import SOURCE, enrolled_of
-from operations.excuses import GRACE_DAYS
 from operations.models import StudentAttendance
 from operations.period_register import ATTENDED, AWAY_WITH_LEAVE, escapes_for, periods_of
-from operations.school_days import SchoolDays, is_school_day, student_grade
+from operations.school_days import is_school_day
 from operations.tardiness import is_period_tardy
 
 from .models import ConductProposal
@@ -47,12 +47,6 @@ class _Day:
     absent: set = field(default_factory=set)
     tardy: set = field(default_factory=set)
     labels: dict = field(default_factory=dict)
-
-
-def visible_after(school: School, day: dt.date, grade: str | None) -> dt.date:
-    """آخرُ يومٍ تُقبل فيه الأعذارُ للمداوم: ثاني يومٍ دراسيٍّ بعد يوم الواقعة. يظهر الاقتراحُ بعده."""
-    window = SchoolDays(school, day, day + dt.timedelta(days=60), grade)
-    return window.grace_after(day, GRACE_DAYS)
 
 
 def _rows(klass: ClassGroup, day: dt.date) -> dict:
@@ -186,15 +180,12 @@ def generate_for_day(school: School, day: dt.date) -> dict[str, int]:
 
 
 def generate_due(school: School, today: dt.date | None = None) -> dict[str, int]:
-    """كلُّ الأيام الدراسيّة الأخيرة التي انقضت مهلتُها ولم يمض عليها `LOOKBACK_DAYS` — يوماً يوماً."""
+    """اليومُ وأيامُ الدراسة الأخيرة (`LOOKBACK_DAYS`) — يوماً يوماً؛ يلتقط تصحيحاتِ الرصد والأعذارَ المتأخّرة."""
     today = today or timezone.localdate()
     total = {"created": 0, "updated": 0, "withdrawn": 0, "days": 0}
-    for back in range(1, LOOKBACK_DAYS + 1):
+    for back in range(0, LOOKBACK_DAYS + 1):
         day = today - dt.timedelta(days=back)
         if not is_school_day(school, day):
-            continue
-        # المهلةُ هنا عامّةٌ على الصفوف؛ ومهلةُ صفٍّ بإجازةٍ خاصّةٍ تُعاد في العرض (`is_visible`) لا هنا.
-        if visible_after(school, day, None) >= today:
             continue
         for key, value in generate_for_day(school, day).items():
             total[key] += value
@@ -202,23 +193,16 @@ def generate_due(school: School, today: dt.date | None = None) -> dict[str, int]
     return total
 
 
-def is_visible(proposal: ConductProposal, today: dt.date | None = None) -> bool:
-    """هل انقضت مهلةُ العذر بحساب صفّ الطالب؟ قبلها لا يراه المشرفُ ولا يعتمده."""
-    today = today or timezone.localdate()
-    grade = student_grade(proposal.student, proposal.school)
-    return today > visible_after(proposal.school, proposal.date, grade)
-
-
 def queue_for(school: School, scope, today: dt.date | None = None) -> list[ConductProposal]:
     """اقتراحاتُ طلبة جناح المشرف التي حلّ وقتُها، الأقدمُ أولاً."""
     today = today or timezone.localdate()
     qs = scope.narrow(
         ConductProposal.objects.filter(
-            school=school, status="proposed", date__lt=today
+            school=school, status="proposed", date__lte=today
         ).select_related("student", "school"),
         "student_id",
     ).order_by("date", "student__full_name")
-    return [p for p in qs if is_visible(p, today)]
+    return list(qs)
 
 
 def _category():
@@ -282,6 +266,19 @@ def reject(proposal_id, by: CustomUser, scope, today: dt.date | None = None) -> 
     return proposal
 
 
+def _excused(proposal: ConductProposal) -> bool:
+    """عذرٌ مقبولٌ يغطّي يومَ الواقعة — قُبل بعد ظهور الاقتراح؛ يُحجب به الاعتماد."""
+    from operations.models import AbsenceExcuse
+
+    return AbsenceExcuse.objects.filter(
+        school=proposal.school,
+        student=proposal.student,
+        status="accepted",
+        date_from__lte=proposal.date,
+        date_to__gte=proposal.date,
+    ).exists()
+
+
 def _lock(proposal_id, by: CustomUser, scope, today: dt.date | None) -> ConductProposal:
     proposal = (
         ConductProposal.objects.select_for_update(of=("self",))
@@ -295,8 +292,11 @@ def _lock(proposal_id, by: CustomUser, scope, today: dt.date | None) -> ConductP
         return proposal
     if proposal.status != "proposed":
         raise ProposalError("سُحب هذا الاقتراحُ لزوال سببه.")
-    if not is_visible(proposal, today):
-        raise ProposalError("لم تنقضِ مهلةُ العذر بعد.")
+    if (today or timezone.localdate()) < proposal.date:
+        raise ProposalError("لم يحلّ يومُ الواقعة بعد.")
+    if _excused(proposal):
+        # لا حفظَ هنا: الاستثناءُ يتراجع بالمعاملة؛ والتوليدُ التالي يسحبه لأنّ العذر يكتب «معذور» على الصفوف.
+        raise ProposalError("قُبل للطالب عذرٌ عن هذا اليوم فلا يُعتمد الاقتراح.")
     return proposal
 
 
