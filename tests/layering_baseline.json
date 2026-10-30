@@ -654,8 +654,8 @@
    "orm": 12
   },
   "student_affairs/views.py::behavior_overview": {
-   "lines": 124,
-   "orm": 30
+   "lines": 118,
+   "orm": 28
   },
   "student_affairs/views.py::behavior_overview_pdf": {
    "lines": 81,
