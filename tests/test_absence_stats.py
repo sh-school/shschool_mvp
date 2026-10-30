@@ -20,7 +20,7 @@ def _summary(rows):
     total = Counts()
     for row in rows:
         total.add(row.counts)
-    grade = NS(rows=rows)
+    grade = NS(rows=rows, label="الصف", key="G", counts=total)
     return MinistrySummary(dt.date(2026, 10, 20), [grade], total, [])
 
 
@@ -58,3 +58,24 @@ def test_outside_wings_is_its_own_line_and_the_total_matches_the_school():
 def test_no_outside_line_when_every_class_has_a_wing():
     stats = absence_stats(_summary([_row("7/1", "prep", W1, 10, 1)]))
     assert stats.outside is None and len(stats.bars) == 2
+
+
+def test_grade_lines_match_hand_computed_rates_and_school_total():
+    """الصفُّ والجناحُ والمدرسةُ بمقامٍ واحد (المقيَّدون): ما يُحسب يدوياً هو ما يظهر."""
+    rows7 = [_row("7/1", "prep", W1, 10, 1), _row("7/2", "prep", W1, 10, 3)]
+    rows10 = [_row("10/1", "sec", W3, 20, 5)]
+    g7 = NS(
+        label="السابع", key="G7", counts=Counts(enrolled=20, absent_both_unexcused=4), rows=rows7
+    )
+    g10 = NS(
+        label="العاشر", key="G10", counts=Counts(enrolled=20, absent_both_unexcused=5), rows=rows10
+    )
+    total = Counts()
+    for row in rows7 + rows10:
+        total.add(row.counts)
+    stats = absence_stats(MinistrySummary(dt.date(2026, 10, 20), [g7, g10], total, []))
+    assert [(g.key, g.enrolled, g.absent_both, g.rate) for g in stats.grades] == [
+        ("G7", 20, 4, 20.0),
+        ("G10", 20, 5, 25.0),
+    ]
+    assert stats.school.enrolled == 40 and stats.school.rate == 22.5

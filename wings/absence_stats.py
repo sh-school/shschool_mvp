@@ -49,6 +49,8 @@ class AbsenceStats:
     stages: list[StatLine]
     wings: list[StatLine]
     outside: StatLine | None
+    #: نسبُ الصفوف (السابع…الثاني عشر) من `summary.grades` نفسِه — للمقارنة، خارج `bars` فلا يتغيّر الرسم.
+    grades: list[StatLine] = field(default_factory=list)
 
     @property
     def bars(self) -> list[StatLine]:
@@ -121,4 +123,9 @@ def absence_stats(summary: MinistrySummary) -> AbsenceStats:
         if outside_rows
         else None
     )
-    return AbsenceStats(school, stages, wings, outside)
+    grades: list[StatLine] = []
+    for grade in summary.grades:
+        line = StatLine(grade.label, key=grade.key)
+        line.add(grade.counts)
+        grades.append(line)
+    return AbsenceStats(school, stages, wings, outside, grades)
