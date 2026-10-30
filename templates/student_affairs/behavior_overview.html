@@ -41,6 +41,35 @@
     </ul>
   {% endsection_card %}
 
+  {% section_card "المخالفات حسب الشعبة" meta=class_cards|length|stringformat:"d"|add:" شعبة" icon="students" empty="لا شُعب في العام الجاري" %}{% if class_cards %}
+    <div class="card-flow" data-testid="class-cards">
+      {% for card in class_cards %}
+        <div class="is-full" data-class-card="{{ card.group.short_label }}">
+          {% section_card card.group.short_label meta=card.offenders|stringformat:"d"|add:" مخالف" icon="students" %}
+            <ul class="chip-row" aria-label="مخالفات الشعبة {{ card.group.short_label }} بالدرجات">
+              <li class="chip-stat"><span class="chip-stat__key">المخالفات</span>{% if card.total %}<b class="chip-stat__value">{{ card.total }}</b>{% else %}<span class="status-badge status-info">0</span>{% endif %}</li>
+              {% for degree, count in card.degree_rows %}
+                <li class="chip-stat"><span class="chip-stat__key">د{{ degree }}</span><b class="chip-stat__value">{{ count }}</b></li>
+              {% endfor %}
+            </ul>
+          {% endsection_card %}
+        </div>
+      {% endfor %}
+      {% if unassigned_card.total %}
+        <div class="is-full" data-class-card="unassigned">
+          {% section_card "بلا شعبة حاليّة" meta=unassigned_card.offenders|stringformat:"d"|add:" مخالف" icon="students" %}
+            <ul class="chip-row" aria-label="مخالفات طلبة بلا قيدٍ جارٍ">
+              <li class="chip-stat"><span class="chip-stat__key">المخالفات</span><b class="chip-stat__value">{{ unassigned_card.total }}</b></li>
+              {% for degree, count in unassigned_card.degree_rows %}
+                <li class="chip-stat"><span class="chip-stat__key">د{{ degree }}</span><b class="chip-stat__value">{{ count }}</b></li>
+              {% endfor %}
+            </ul>
+          {% endsection_card %}
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}{% endsection_card %}
+
   <div class="fill-grid">
     {% section_card "اتجاه المخالفات الشهري" meta="آخر 6 أشهر" icon="trend" %}
       <div class="dash-chart-wrap">
