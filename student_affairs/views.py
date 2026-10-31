@@ -21,6 +21,7 @@ from django.views.decorators.http import require_POST
 
 from assessments.models import AnnualSubjectResult
 from behavior.models import BehaviorInfraction
+from behavior.selectors import infractions_by_class, monthly_infraction_trend
 from clinic.models import ClinicVisit, HealthRecord
 from core import brand
 from core.academic_calendar import academic_year_for, academic_year_window
@@ -1572,20 +1573,12 @@ def behavior_overview(request):
     )
 
     # ── اتجاه المخالفات الشهري (آخر 6 أشهر) ──
-    chart_labels = []
-    chart_data = []
-    for i in range(5, -1, -1):
-        month_start = (today.replace(day=1) - timedelta(days=30 * i)).replace(day=1)
-        if i > 0:
-            next_month = (month_start + timedelta(days=32)).replace(day=1)
-        else:
-            next_month = today + timedelta(days=1)
-        count = school_infractions.filter(
-            date__gte=month_start,
-            date__lt=next_month,
-        ).count()
-        chart_labels.append(date_format(month_start, "F"))
-        chart_data.append(count)
+    chart_labels, chart_data = monthly_infraction_trend(school_infractions, today)
+
+    # ── بطاقة لكلّ شعبة (W-20261008-026) ──
+    class_cards, unassigned_card = infractions_by_class(
+        year_infractions, scope, school, scope.year or academic_year_for(request)
+    )
 
     # ── مخالفات اليوم ──
     today_infractions = year_infractions.filter(date=today).count()
@@ -1630,6 +1623,8 @@ def behavior_overview(request):
             "worst_students": worst_students,
             "chart_labels": chart_labels,
             "chart_data": chart_data,
+            "class_cards": class_cards,
+            "unassigned_card": unassigned_card,
             "grades": grades,
             "grade_filter": grade_filter,
             "wing_bound": scope.is_wing_bound,

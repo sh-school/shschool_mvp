@@ -15,6 +15,7 @@ import uuid
 from collections.abc import Iterable
 from typing import Any
 
+from django.db.models import Count
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 
@@ -157,3 +158,78 @@ def _get_scoped_students(request, school):
             .distinct()
         )
     return CustomUser.objects.filter(id__in=student_ids).order_by("full_name")
+
+
+#: الدرجاتُ الأربع على بطاقة الشعبة (قرار المالك 10-09: النوعُ = الدرجة، واسمُ الفئة عند الضغط).
+DEGREES = (1, 2, 3, 4)
+
+
+def infractions_by_class(
+    year_infractions, scope, school, year: str
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """بطاقةٌ لكلّ شعبة: عددُ المخالفين وعددُ المخالفات بالدرجات 1–4 (W-20261008-026).
+
+    الشعبةُ = **قيدُ الطالب الجاري** في العام الجاري لا شعبتُه وقتَ المخالفة (D-201م: الطالبُ يرحّل مخالفاتِه معه)،
+    والأحدثُ إن تعدّدت قيودُه النشطة. ثلاثةُ استعلاماتٍ ثابتةٌ مهما كثرت الشُّعب: الشُّعب، ومخالفاتُ الطلبة بالدرجة،
+    وقيودُهم الجارية؛ و`year` عامُ الطلب يمرّره المستدعي فلا استعلامَ تقويمٍ هنا. الشعبةُ بلا مخالفاتٍ تُعرض بصفر. والمقيَّدُ بجناحه لا يرى غيرَ شُعب جناحه.
+    ومخالفاتُ من لا قيدَ جاريَ له تُعاد في `unassigned` فيبقى المجموعُ مساوياً لإجمالي الشاشة.
+    """
+    groups = ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
+    groups = scope.class_groups() if scope.is_wing_bound else groups
+
+    per_student: dict[Any, dict[int, int]] = {}
+    for row in year_infractions.values("student_id", "violation_category__degree").annotate(
+        n=Count("id")
+    ):
+        per_student.setdefault(row["student_id"], {})[row["violation_category__degree"]] = row["n"]
+
+    enrollments = (
+        StudentEnrollment.objects.filter(
+            student_id__in=per_student,
+            is_active=True,
+            class_group__school=school,
+            class_group__academic_year=year,
+        )
+        .newest_first()
+        .values_list("student_id", "class_group_id")
+    )
+    current: dict[Any, Any] = {}
+    for student_id, class_id in enrollments:
+        current.setdefault(student_id, class_id)
+
+    def blank() -> dict[str, Any]:
+        return {"offenders": 0, "total": 0, "degrees": {d: 0 for d in DEGREES}}
+
+    cards = {group.pk: {"group": group, **blank()} for group in groups}
+    unassigned = blank()
+    for student_id, degrees in per_student.items():
+        card = cards.get(current.get(student_id)) or unassigned
+        card["offenders"] += 1
+        for degree, n in degrees.items():
+            card["total"] += n
+            if degree in card["degrees"]:
+                card["degrees"][degree] += n
+    for card in [*cards.values(), unassigned]:
+        card["degree_rows"] = [(d, card["degrees"][d]) for d in DEGREES]
+    ordered = sorted(cards.values(), key=lambda c: c["group"].school_order)
+    return ordered, unassigned
+
+
+def monthly_infraction_trend(school_infractions, today) -> tuple[list[str], list[int]]:
+    """اتجاهُ المخالفات الشهريّ لآخر ستّة أشهر: (التسميات، الأعداد) — كان حلقةً داخل العرض."""
+    from datetime import timedelta
+
+    from django.utils.formats import date_format
+
+    labels: list[str] = []
+    counts: list[int] = []
+    for i in range(5, -1, -1):
+        month_start = (today.replace(day=1) - timedelta(days=30 * i)).replace(day=1)
+        next_month = (
+            (month_start + timedelta(days=32)).replace(day=1)
+            if i > 0
+            else today + timedelta(days=1)
+        )
+        labels.append(date_format(month_start, "F"))
+        counts.append(school_infractions.filter(date__gte=month_start, date__lt=next_month).count())
+    return labels, counts
