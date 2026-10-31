@@ -255,10 +255,10 @@ def test_the_body_sizes_never_drop_below_the_owners_minimums(
     subject = max(size for text, _x, _y, size in chunks if "الحاسب" in text)
     time = min(size for text, _x, _y, size in chunks if "07:10" in text)
 
-    assert subject >= 10.5 * scale - 0.1, subject
-    assert time >= 9.0 * scale - 0.1, time
+    assert subject >= 11.5 * scale - 0.1, subject
+    assert time >= 10.0 * scale - 0.1, time
     # لا سطرَ في الصفحة (الشعبةُ والتوقيتُ والتذييلُ وما بينها) بأقلّ من 9pt: الحدُّ الأدنى المرسوم.
-    assert min(size for _t, _x, _y, size in chunks) >= 8.9
+    assert min(size for _t, _x, _y, size in chunks) >= 9.9
 
 
 def test_the_template_has_no_local_header_footer_and_no_literal_ministry_text():
