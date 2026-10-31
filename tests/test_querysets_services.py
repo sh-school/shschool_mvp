@@ -438,6 +438,7 @@ class TestNotificationLogQuerySet:
         assert log in result
         assert log2 not in result
 
+    @pytest.mark.pin_clock
     def test_this_month(self):
         log = self._log()
         result = self.qs.this_month()
