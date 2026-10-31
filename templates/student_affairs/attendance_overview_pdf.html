@@ -36,10 +36,44 @@
     <div class="kpi-label">معذورون</div>
   </div>
   <div class="kpi-item">
-    <div class="kpi-num c-maroon">{{ summary.pct }}%</div>
+    <div class="kpi-num c-maroon">{{ pct_label }}</div>
     <div class="kpi-label">نسبة الحضور</div>
   </div>
 </div>
+
+<div class="section-head">الحاضر من حضر إحدى الحصّتين الأولى أو الثانية؛ والغائب من غاب عنهما معاً (طلابٌ لا سجلّات).</div>
+
+{% if wings %}
+<div class="section-head">الحضور حسب الجناح والشعبة</div>
+<table class="report-table">
+  <thead>
+    <tr>
+      <th>الجناح / الشعبة</th>
+      <th class="col-w-12">الطلبة</th>
+      <th class="col-w-12">حاضرون</th>
+      <th class="col-w-12">غائبون</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for wing in wings %}
+    <tr>
+      <td class="cell-name"><strong>{{ wing.name }}</strong></td>
+      <td class="cell-num">{{ wing.counts.total }}</td>
+      <td class="cell-num">{{ wing.counts.present }}</td>
+      <td class="cell-num">{{ wing.counts.absent }}</td>
+    </tr>
+    {% for sec in wing.sections %}
+    <tr>
+      <td class="cell-name">{{ sec.grade_label }} / {{ sec.code }}</td>
+      <td class="cell-num">{{ sec.counts.total }}</td>
+      <td class="cell-num">{{ sec.counts.present }}</td>
+      <td class="cell-num">{{ sec.counts.absent }}</td>
+    </tr>
+    {% endfor %}
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
 
 <!-- جدول الغياب -->
 <div class="section-head">أكثر الطلاب غياباً — آخر 30 يوم</div>

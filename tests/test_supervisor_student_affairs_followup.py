@@ -104,6 +104,7 @@ def _session(school, klass, teacher, day, hour):
         date=day,
         start_time=dt.time(hour, 10),
         end_time=dt.time(hour, 55),
+        period_number=1,  # حصّةٌ أولى: العدّادُ يقرأ الأولى والثانية وحدَهما (W-20261008-027)
         status="scheduled",
     )
 
@@ -218,7 +219,7 @@ class TestAttendanceIsTheWing:
         assert ctx["summary"]["absent"] == 1
         assert _names(ctx["worst_students"]) == {OWN}
         assert {a.student.full_name for a in ctx["alerts"]} == {OWN}
-        assert [row["session__class_group__grade"] for row in ctx["class_breakdown"]] == ["G7"]
+        assert [s["grade"] for w in ctx["wing_rows"] for s in w["sections"]] == ["G7"]
         assert ctx["chart_absent"][-1] == 100
         assert "جناح 1" in ctx["page_subtitle"]
         assert OTHER not in response.content.decode()

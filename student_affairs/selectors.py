@@ -7,6 +7,7 @@ from typing import Any
 from django.db.models import Exists, OuterRef, Q
 
 from core.academic_calendar import academic_year_for_school
+from core.domain.attendance import attendance_rate
 from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment
 from core.models.access import Membership
 from core.models.user import CustomUser
@@ -140,3 +141,100 @@ def transfer_form_options(school: Any) -> tuple[list, Any]:
 def active_class(school: Any, class_id: Any) -> Any:
     """الشعبةُ النشطة في المدرسة بمعرّفها، أو `None`."""
     return ClassGroup.objects.filter(id=class_id, school=school, is_active=True).first()
+
+
+#: حصّتا الجرس الأولى والثانية — العدّادُ والنسبةُ ومعهما راصدُ الغياب من تعريفٍ واحد.
+EARLY_PERIODS = (1, 2)
+
+
+def early_attendance_counts(school: Any, day: Any, scope: Any) -> dict[str, Any]:
+    """حاضرو اليوم وغائبوه من حضور الحصّتين الأولى والثانية، مجمَّعين بالجناح ثمّ الشعبة.
+
+    من حضر إحدى الحصّتين (حاضرٌ أو متأخّر) فهو حاضر، والغائبُ من غاب عنهما معاً
+    (قرار المالك 2026-10-09)؛ والطالبُ يُعدّ مرّةً واحدةً لا بعدد سجلّاته. المصدر:
+    `Session.period_number` لليوم، والمقيَّدُ بجناحه يمرّ على `scope.narrow` قبل التجميع.
+    قبل رصد أيّ من الحصّتين: `pct` فارغة (None) لا صفر. الجدولُ المعتمدُ لا يُقرأ هنا
+    ولا يُحكم بـ`_judge` — هذه قراءةُ عرضٍ لا حكمُ حرمان.
+    """
+    from operations.absence_standing import ATTENDED
+    from operations.models import StudentAttendance
+
+    rows = (
+        scope.narrow(
+            StudentAttendance.objects.filter(
+                school=school,
+                session__date=day,
+                session__period_number__in=EARLY_PERIODS,
+            )
+        )
+        .values_list(
+            "student_id",
+            "status",
+            "excuse_type",
+            "session__class_group_id",
+            "session__class_group__wing_id",
+            "session__class_group__wing__name",
+            "session__class_group__grade",
+            "session__class_group__section",
+        )
+        .order_by()
+    )
+    students: dict[Any, dict[str, Any]] = {}
+    for student, status, excuse, section, wing, wing_name, grade, code in rows:
+        entry = students.setdefault(
+            student,
+            {
+                "section": section,
+                "wing": wing,
+                "wing_name": wing_name or "",
+                "grade": grade,
+                "code": code,
+                "attended": False,
+                "late": False,
+                "unexcused": False,
+            },
+        )
+        if status in ATTENDED:
+            entry["attended"] = True
+            entry["late"] = entry["late"] or status == "late"
+        elif status == "absent" and not excuse:
+            entry["unexcused"] = True
+
+    def blank() -> dict[str, int]:
+        return {"total": 0, "present": 0, "absent": 0, "late": 0, "excused": 0}
+
+    total = blank()
+    wings: dict[Any, dict[str, Any]] = {}
+    for entry in students.values():
+        wing = wings.setdefault(
+            entry["wing"],
+            {"name": entry["wing_name"] or "بلا جناح", "counts": blank(), "sections": {}},
+        )
+        section = wing["sections"].setdefault(
+            entry["section"],
+            {
+                "grade": entry["grade"],
+                "code": entry["code"],
+                "counts": blank(),
+            },
+        )
+        for target in (total, wing["counts"], section["counts"]):
+            target["total"] += 1
+            if entry["attended"]:
+                target["present"] += 1
+                target["late"] += int(entry["late"])
+            else:
+                target["absent"] += 1
+                target["excused"] += int(not entry["unexcused"])
+    for counts in [total, *(w["counts"] for w in wings.values())]:
+        counts["pct"] = attendance_rate(counts["present"], counts["total"], empty=None)
+    grade_names = dict(ClassGroup.GRADES)
+    out_wings = []
+    for wing in sorted(wings.values(), key=lambda w: w["name"]):
+        sections = sorted(wing["sections"].values(), key=lambda s: (s["grade"], s["code"]))
+        for section in sections:
+            section["grade_label"] = grade_names.get(section["grade"], section["grade"])
+            c = section["counts"]
+            c["pct"] = attendance_rate(c["present"], c["total"], empty=None)
+        out_wings.append({"name": wing["name"], "counts": wing["counts"], "sections": sections})
+    return {"summary": total, "wings": out_wings}
