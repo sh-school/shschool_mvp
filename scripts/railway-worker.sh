@@ -30,8 +30,21 @@ python manage.py verify_runtime_db_role
 echo "Collecting static files (نسخةٌ محليّةٌ لحاوية العامل)..."
 python manage.py collectstatic --noinput --clear
 
+# W-20261031-004: Beat مضمَّنٌ في العامل (-B) بدل خدمةٍ مستقلّةٍ تحجز ~186MB لإرسال الجدول وحدَه.
+# العلمُ افتراضيُّه مُطفأ: تشغيلُه والخدمةُ المستقلّةُ قائمتان يُرسل كلَّ مهمّةٍ مجدولةٍ مرّتين.
+# التسلسل: أوقف خدمة celery-beat ثمّ اضبط CELERY_WORKER_EMBED_BEAT=true على العامل (docs/railway_usage_2026-10-31.md).
+# نسخةٌ واحدةٌ فقط من العامل مع هذا العلم، وإلّا تكرّر الإرسال.
+BEAT_ARGS=""
+if [ "${CELERY_WORKER_EMBED_BEAT:-false}" = "true" ]; then
+    [ "${CELERY_ASYNC_ENABLED:-false}" = "true" ] || fail "CELERY_ASYNC_ENABLED=true is required to embed Beat in the worker."
+    echo "Embedding Celery Beat in the worker (-B, state file in /tmp)..."
+    BEAT_ARGS="--beat --schedule=/tmp/celerybeat-schedule"
+fi
+
 echo "Starting Celery worker as shschool_app..."
+# shellcheck disable=SC2086 — BEAT_ARGS كلماتٌ مقصودةُ التقسيم أو فارغة
 exec celery -A shschool worker \
     --loglevel="${CELERY_LOG_LEVEL:-info}" \
     --concurrency="${CELERY_WORKER_CONCURRENCY:-2}" \
-    --max-tasks-per-child="${CELERY_WORKER_MAX_TASKS_PER_CHILD:-100}"
+    --max-tasks-per-child="${CELERY_WORKER_MAX_TASKS_PER_CHILD:-100}" \
+    $BEAT_ARGS
