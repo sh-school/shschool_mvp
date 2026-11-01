@@ -16,13 +16,23 @@ from wings.scope import StudentScope
 from wings.services import wings_of
 
 
-def _scope(request):
-    """نطاقُ المشرف بأجنحته هو (أصيلاً أو بديلاً) وحدَها؛ ومن لا جناحَ يحمله — راصدُ الغياب العامّ والقيادةُ — لا صفحةَ له ولا اعتماد."""
+def _own_wings(request):
     school = request.school
     year = academic_year_for_school(school)
     own = [
         w for w in wings_of(request.user, school, year) if w.current_supervisor() == request.user
     ]
+    return school, year, own
+
+
+def holds_wing(request) -> bool:
+    """هل يحمل المستخدمُ جناحاً بنفسه؟ — شرطُ ظهور رابط الاقتراحات (وإلّا وصل إلى 403)."""
+    return bool(_own_wings(request)[2])
+
+
+def _scope(request):
+    """نطاقُ المشرف بأجنحته هو (أصيلاً أو بديلاً) وحدَها؛ ومن لا جناحَ يحمله — راصدُ الغياب العامّ والقيادةُ — لا صفحةَ له ولا اعتماد."""
+    school, year, own = _own_wings(request)
     if not own:
         raise PermissionDenied
     return StudentScope(school, frozenset(w.pk for w in own), year)

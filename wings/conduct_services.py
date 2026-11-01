@@ -3,7 +3,7 @@
 - **المقترَح**: مداومٌ (أتمّ `MIN_PERIODS_FOR_PRESENCE` حصصٍ مثبَّتةً حضوراً) غاب حصّةً بلا عذرٍ ولا إذن،
   أو دخل متأخّراً أكثر من خمس دقائق بعد أن حضر حصّةً سبقتها. وما يُنشئه الرصدُ آلياً (2-02 و3-10) يُستثنى، ولا يُمسّ
   التأخّرُ الصباحيّ: الحصّةُ الأولى الحاضرة ليست «بين الحصص».
-- **اقتراحٌ واحدٌ لكلّ طالبٍ في اليوم** (القيدُ الفريد طالب+يوم+نوع)، تُجمع فيه الحصصُ في ملاحظته.
+- **اقتراحٌ واحدٌ لكلّ طالبٍ في اليوم** (القيدُ الفريد مدرسة+طالب+يوم)، تُجمع فيه الحصصُ في ملاحظته.
 - **الظهور**: في يوم الواقعة نفسه (قرارُ المالك 2026-10-30 بدل مهلة اليومين)؛ فقد يظهر قبل انتهاء مهلة العذر، ومن قُبل له عذرٌ بعدها
   يُسحب مقترحُه عند التوليد التالي ويُحجب اعتمادُه (`_lock`).
 - **السحب**: يُعاد الحكمُ على غير المعتمَد مع كلّ توليد؛ فعذرٌ قُبل (في المهلة أو بعدها) أو تصحيحٌ للرصد يسحب المقترحَ،
@@ -84,6 +84,9 @@ def _judge(track: list, tardy_minutes: dict) -> tuple[set, set]:
         return set(), set()
     in_class, in_school = escapes_for(track)
     taken = in_class | in_school
+    if in_school:
+        # الهروبُ من المدرسة مخالفةٌ واحدةٌ عند أوّل حصّةٍ غابها، لكنّ السلسلةَ كلَّها حتى آخر اليوم له (3-10).
+        taken |= {start for start, _, _ in track if start >= min(in_school)}
     absent = {
         start
         for start, status, where in track
@@ -99,38 +102,68 @@ def _judge(track: list, tardy_minutes: dict) -> tuple[set, set]:
     return absent, tardy
 
 
+def _evaluate_class(klass: ClassGroup, day: dt.date, found: dict, only: int | None = None) -> None:
+    """يضيف إلى `found` من يستحقّ اقتراحاً في شعبةٍ؛ و`only` يحصر الحكمَ بطالبٍ واحد."""
+    periods = periods_of(klass, day)
+    confirmed = {p.start for p in periods if p.confirmation is not None}
+    if len(confirmed) < MIN_PERIODS_FOR_PRESENCE:
+        return
+    cells = _rows(klass, day)
+    by_start = {p.start: p for p in periods}
+    roster = enrolled_of(klass, day)
+    if only is not None:
+        roster = roster.filter(student_id=only)
+    for enrollment in roster:
+        own = cells.get(enrollment.student_id, {})
+        track = []
+        for p in periods:
+            cell = own.get(p.start) if p.start in confirmed else None
+            track.append((p.start, cell[0] if cell else "", cell[1] if cell else ""))
+        minutes = {start: cell[2] for start, cell in own.items()}
+        absent, tardy = _judge(track, minutes)
+        if not absent and not tardy:
+            continue
+        entry = found.setdefault(enrollment.student_id, _Day())
+        entry.absent |= absent
+        entry.tardy |= tardy
+        for start in absent | tardy:
+            entry.labels[start] = by_start[start].subjects
+
+
+def _active_groups(school: School, day: dt.date):
+    # شعبُ عام اليوم وحدَها: عامان لا يختلطان عند الترفيع
+    year = academic_year_for_school(school, day)
+    return ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
+
+
 def evaluate_day(school: School, day: dt.date) -> dict:
     """`{student_id: _Day}` لمن يستحقّ اقتراحاً في `day`، من الرصد المثبَّت وحدَه."""
     found: dict = {}
-    year = academic_year_for_school(
-        school, day
-    )  # شعبُ عام اليوم وحدَها: عامان لا يختلطان عند الترفيع
-    groups = ClassGroup.objects.filter(school=school, academic_year=year, is_active=True).order_by(
-        "grade", "section"
-    )
-    for klass in groups:
-        periods = periods_of(klass, day)
-        confirmed = {p.start for p in periods if p.confirmation is not None}
-        if len(confirmed) < MIN_PERIODS_FOR_PRESENCE:
-            continue
-        cells = _rows(klass, day)
-        by_start = {p.start: p for p in periods}
-        for enrollment in enrolled_of(klass, day):
-            own = cells.get(enrollment.student_id, {})
-            track = []
-            for p in periods:
-                cell = own.get(p.start) if p.start in confirmed else None
-                track.append((p.start, cell[0] if cell else "", cell[1] if cell else ""))
-            minutes = {start: cell[2] for start, cell in own.items()}
-            absent, tardy = _judge(track, minutes)
-            if not absent and not tardy:
-                continue
-            entry = found.setdefault(enrollment.student_id, _Day())
-            entry.absent |= absent
-            entry.tardy |= tardy
-            for start in absent | tardy:
-                entry.labels[start] = by_start[start].subjects
+    for klass in _active_groups(school, day).order_by("grade", "section"):
+        _evaluate_class(klass, day, found)
     return found
+
+
+def _still_qualifies(proposal: ConductProposal) -> bool:
+    """يعيد الحكمَ على طالب الاقتراح وحدَه من الرصد الآن — عذرُ تأخّرٍ أو تصحيحُ حضورٍ بعد الظهور يُسقطه."""
+    from core.models import StudentEnrollment
+
+    found: dict = {}
+    enrollments = (
+        StudentEnrollment.objects.filter(
+            student_id=proposal.student_id,
+            class_group__in=_active_groups(proposal.school, proposal.date),
+        )
+        .on_roll(proposal.date)
+        .select_related("class_group")
+    )
+    for klass in {e.class_group for e in enrollments}:
+        _evaluate_class(klass, proposal.date, found, only=proposal.student_id)
+    entry = found.get(proposal.student_id)
+    if entry is None:
+        return False
+    kind, starts, _ = _shape(entry)
+    return kind == proposal.kind and bool(set(starts) & set(proposal.periods))
 
 
 def _note(entry: _Day) -> str:
@@ -154,34 +187,38 @@ def _shape(entry: _Day) -> tuple[str, list[str], str]:
 
 
 def generate_for_day(school: School, day: dt.date) -> dict[str, int]:
-    """يجعل اقتراحات `day` غيرَ المقرَّرة مطابقةً للرصد الآن — يُنشئ الناقصَ ويحدّث ويسحب. ثابتُ التكرار."""
+    """يجعل اقتراحات `day` غيرَ المقرَّرة مطابقةً للرصد الآن — يُنشئ الناقصَ ويحدّث ويسحب. ثابتُ التكرار.
+
+    اقتراحٌ واحدٌ لكلّ طالبٍ في اليوم: تبدّلُ النوع (غيابٌ ↔ تأخّر) يحدّث الصفَّ نفسَه، وما اعتُمد أو رُدَّ
+    يبقى قرارُه نهائيّاً فلا يُنشأ له بديل. والتحديثُ مشروطٌ بحالةٍ غيرِ مقرَّرة فلا يطغى على قرار مشرفٍ جرى بين القراءة والكتابة.
+    """
     found = evaluate_day(school, day)
     stats = {"created": 0, "updated": 0, "withdrawn": 0}
-    existing = {
-        (p.student_id, p.kind): p for p in ConductProposal.objects.filter(school=school, date=day)
-    }
-    wanted: set = set()
+    existing = {p.student_id: p for p in ConductProposal.objects.filter(school=school, date=day)}
+    open_states = ("proposed", "withdrawn")
     students = {u.pk: u for u in CustomUser.objects.filter(pk__in=found.keys())}
     for sid, entry in found.items():
         kind, starts, note = _shape(entry)
-        wanted.add((sid, kind))
-        current = existing.get((sid, kind))
+        current = existing.get(sid)
         if current is None:
             ConductProposal.objects.create(
                 school=school, student=students[sid], date=day, kind=kind, periods=starts, note=note
             )
             stats["created"] += 1
-        elif current.status in ("proposed", "withdrawn") and (
-            current.periods != starts or current.note != note or current.status == "withdrawn"
+        elif current.status in open_states and (
+            current.kind != kind
+            or current.periods != starts
+            or current.note != note
+            or current.status == "withdrawn"
         ):
-            current.periods, current.note, current.status = starts, note, "proposed"
-            current.save(update_fields=["periods", "note", "status"])
-            stats["updated"] += 1
-    for key, proposal in existing.items():
-        if key not in wanted and proposal.status == "proposed":
-            proposal.status = "withdrawn"
-            proposal.save(update_fields=["status"])
-            stats["withdrawn"] += 1
+            stats["updated"] += ConductProposal.objects.filter(
+                pk=current.pk, status__in=open_states
+            ).update(kind=kind, periods=starts, note=note, status="proposed")
+    for sid, proposal in existing.items():
+        if sid not in found and proposal.status == "proposed":
+            stats["withdrawn"] += ConductProposal.objects.filter(
+                pk=proposal.pk, status="proposed"
+            ).update(status="withdrawn")
     return stats
 
 
@@ -308,6 +345,9 @@ def _lock(proposal_id, by: CustomUser, scope, today: dt.date | None) -> ConductP
     if _excused(proposal):
         # لا حفظَ هنا: الاستثناءُ يتراجع بالمعاملة؛ والتوليدُ التالي يسحبه لأنّ العذر يكتب «معذور» على الصفوف.
         raise ProposalError("قُبل للطالب عذرٌ عن هذا اليوم فلا يُعتمد الاقتراح.")
+    if not _still_qualifies(proposal):
+        # لا حفظَ هنا أيضاً: السببُ زال بعد الظهور (عذرُ تأخّرٍ أو تصحيحُ حضور)، والتوليدُ التالي يسحبه.
+        raise ProposalError("زال سببُ هذا الاقتراح بعد ظهوره (تصحيحُ رصدٍ أو عذرُ تأخّر) فلا يُعتمد.")
     return proposal
 
 

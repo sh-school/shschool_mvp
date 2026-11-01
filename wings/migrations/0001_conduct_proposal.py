@@ -128,8 +128,8 @@ class Migration(migrations.Migration):
                 ],
                 "constraints": [
                     models.UniqueConstraint(
-                        fields=("student", "date", "kind"),
-                        name="uniq_conduct_proposal_student_day_kind",
+                        fields=("school", "student", "date"),
+                        name="uniq_conduct_proposal_student_day",
                     )
                 ],
             },

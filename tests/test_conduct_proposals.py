@@ -193,3 +193,103 @@ def test_the_supervisor_sees_the_page_but_the_school_wide_observer_does_not(
     )
     assert post.status_code in (302, 403)
     assert ConductProposal.objects.get().status == "proposed"
+
+
+def test_a_whole_trailing_streak_is_the_school_escape_and_proposes_nothing(
+    school, klass, kids, supervisor, teacher
+):
+    """غيابُ آخر اليوم متّصلاً: هروبٌ من المدرسة (3-10) يُنشئه الرصد، فلا يُقترح لأيٍّ من حصصه (مراجعة Copilot)."""
+    a = kids[0]
+    _day(klass, supervisor, teacher, school, {i: {a: "absent"} for i in (4, 5, 6)})
+    assert _auto(a, "school_escape").count() == 1
+    assert service.generate_for_day(school, SUNDAY)["created"] == 0
+
+
+def test_a_changed_kind_updates_the_same_row_instead_of_adding_another(
+    school, klass, kids, supervisor, teacher
+):
+    a = kids[0]
+    sessions = _day(klass, supervisor, teacher, school, {0: {a: "absent"}})
+    service.generate_for_day(school, SUNDAY)
+    StudentAttendance.objects.filter(student=a, session=sessions[0]).update(status="present")
+    StudentAttendance.objects.filter(student=a, session=sessions[2]).update(
+        status="late", late_minutes=10
+    )
+    assert service.generate_for_day(school, SUNDAY)["updated"] == 1
+    proposal = ConductProposal.objects.get()
+    assert (proposal.kind, proposal.status) == ("tardy", "proposed")
+
+
+def test_a_decided_proposal_is_final_even_if_the_kind_changes(
+    school, klass, kids, supervisor, teacher
+):
+    a = kids[0]
+    sessions = _day(klass, supervisor, teacher, school, {0: {a: "absent"}})
+    service.generate_for_day(school, SUNDAY)
+    scope = student_scope(supervisor, school)
+    service.reject(ConductProposal.objects.get().pk, supervisor, scope, AFTER)
+    StudentAttendance.objects.filter(student=a, session=sessions[0]).update(status="present")
+    StudentAttendance.objects.filter(student=a, session=sessions[2]).update(
+        status="late", late_minutes=10
+    )
+    assert service.generate_for_day(school, SUNDAY) == {"created": 0, "updated": 0, "withdrawn": 0}
+    proposal = ConductProposal.objects.get()
+    assert (proposal.kind, proposal.status) == ("absence", "rejected")
+
+
+def test_a_supervisor_decision_between_read_and_write_is_not_overwritten(
+    school, klass, kids, supervisor, teacher, monkeypatch
+):
+    _day(klass, supervisor, teacher, school, {0: {kids[0]: "absent"}})
+    service.generate_for_day(school, SUNDAY)
+    real = service.evaluate_day
+
+    def decided_meanwhile(*args):
+        found = real(*args)
+        ConductProposal.objects.update(status="rejected")  # قرارُ مشرفٍ بعد قراءة الحالة
+        return found
+
+    ConductProposal.objects.update(note="قديمة")
+    monkeypatch.setattr(service, "evaluate_day", decided_meanwhile)
+    stats = service.generate_for_day(school, SUNDAY)
+    assert stats["updated"] == 0
+    assert ConductProposal.objects.get().status == "rejected"
+
+
+def test_approval_is_refused_when_the_attendance_was_corrected_after_it_appeared(
+    school, klass, kids, supervisor, teacher, category
+):
+    a = kids[0]
+    sessions = _day(klass, supervisor, teacher, school, {0: {a: "absent"}})
+    service.generate_for_day(school, SUNDAY)
+    StudentAttendance.objects.filter(student=a, session=sessions[0]).update(status="present")
+    scope = student_scope(supervisor, school)
+    with pytest.raises(service.ProposalError):
+        service.approve(ConductProposal.objects.get().pk, supervisor, scope, AFTER)
+    assert BehaviorInfraction.objects.count() == 0
+
+
+def test_approval_is_refused_when_the_tardy_was_corrected_after_it_appeared(
+    school, klass, kids, supervisor, teacher, category
+):
+    a = kids[0]
+    marks = {2: {a: {"status": "late", "late_minutes": 10}}}
+    sessions = _day(klass, supervisor, teacher, school, marks)
+    service.generate_for_day(school, SUNDAY)
+    StudentAttendance.objects.filter(student=a, session=sessions[2]).update(
+        status="present", late_minutes=None
+    )
+    scope = student_scope(supervisor, school)
+    with pytest.raises(service.ProposalError):
+        service.approve(ConductProposal.objects.get().pk, supervisor, scope, AFTER)
+    assert BehaviorInfraction.objects.count() == 0
+
+
+def test_the_proposals_link_shows_only_to_whoever_holds_a_wing(
+    client_as, school, klass, kids, supervisor, teacher, general
+):
+    link = reverse("wings:conduct_proposals")
+    mine = client_as(supervisor).get(reverse("wings:record_index"))
+    assert mine.status_code == 200 and link in mine.content.decode()
+    other = client_as(general).get(reverse("wings:record_index"))
+    assert link not in other.content.decode()
