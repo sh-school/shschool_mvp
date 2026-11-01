@@ -277,4 +277,6 @@
 .sg-chrome__link.is-hover { background: var(--menu-hover); color: var(--maroon-fg); }
 .sg-chrome__footer { justify-content: space-between; background: var(--footer-bg); color: var(--footer-fg); border-top: 1px solid var(--gold); font-weight: 600; }
 .sg-chrome__soft { color: var(--footer-fg-soft); font-weight: 400; }
+/* ── مثالُ الجدول ذي الرأس اللاصق (القسم 25): ارتفاعٌ يقصّ فيظهر التمرير والرأسُ ثابت ── */
+.sg-sticky-demo { max-block-size: 12rem; }
 } /* end @layer modules */

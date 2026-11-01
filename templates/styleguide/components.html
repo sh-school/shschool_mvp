@@ -648,6 +648,56 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
     </ul>
   {% endsection_card %}
 
+  {# ══ 24 ══ #}
+  {% section_card "24 · ألوانُ الصفوف الدراسيّة" meta="--grade-7…12 · grade-tint" icon="students" span="wide" %}
+    <ul class="sg-swatches">
+      {% for n in grade_numbers %}
+        <li class="sg-swatch" style="--swatch:var(--grade-{{ n }})">
+          <span class="sg-swatch__chip" aria-hidden="true"></span>
+          <span class="sg-swatch__text">
+            <code class="sg-swatch__name"><bdi dir="ltr">--grade-{{ n }}</bdi></code>
+            <span class="sg-swatch__value"><bdi dir="ltr" data-token="--grade-{{ n }}"></bdi></span>
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+    <div class="table-wrap table-wrap-scroll">
+      <table data-no-sort>
+        <thead><tr><th>الطالب</th><th>الشعبة</th><th class="num">الغياب</th></tr></thead>
+        <tbody>
+          {% for row in grade_rows %}
+          <tr class="grade-tint grade-g{{ row.grade }}"><td class="cell-name">{{ row.name }}</td><td>{{ row.grade }}/{{ row.section }}</td><td class="num">{{ row.absent }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <pre class="sg-code" dir="ltr">&lt;tr class="grade-tint grade-{% templatetag openvariable %} row.class_group.grade|lower {% templatetag closevariable %}"&gt;   ← grade-g7 … grade-g12</pre>
+    <ul class="sg-rules">
+      <li>لكلّ صفٍّ من السابع إلى الثاني عشر لونٌ مطفأٌ متباين: رمزُه <code><bdi dir="ltr">--grade-N</bdi></code> في <code>:root</code>، والقيمةُ أعلاه مقروءةٌ منه لا منسوخة.</li>
+      <li>الصفُّ المظلَّل: <code>grade-tint</code> مع <code>grade-gN</code> على <code>tr</code> — تظليلٌ بنسبة 20% مع شريطٍ جانبيٍّ بلون الصفّ. وفي PDF يُكتب <code>tr.g-gN</code> بالوسم <code>grade_row_css</code>، وفي إكسل <code>brand.grade_tint(grade)</code>.</li>
+      <li>الأسماءُ في الأمثلة وهميّة؛ ولا لونٌ سداسيٌّ في القالب.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 25 ══ #}
+  {% section_card "25 · الجدولُ المرن والموسَّط والرأسُ اللاصق" meta="table-wrap-scroll · cell-name · tbl-cols" icon="checklist" span="wide" %}
+    <div class="table-wrap table-wrap-scroll sg-sticky-demo tbl-cols">
+      <table data-no-sort>
+        <thead><tr><th class="fu-seq">م</th><th class="fu-name">الطالب</th><th class="fu-fit">الشعبة</th><th>الملاحظة</th></tr></thead>
+        <tbody>
+          {% for row in grade_rows %}
+          <tr><td class="fu-seq">{{ forloop.counter }}</td><td class="cell-name fu-name">{{ row.name }}</td><td class="fu-fit">{{ row.grade }}/{{ row.section }}</td><td>ملاحظةٌ نصّيّةٌ تتقاسم الباقي وتلتفّ داخل خليّتها</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <ul class="sg-rules">
+      <li><b>أعمدةٌ مرنة:</b> العرضُ يتبع المحتوى — الأعمدةُ القصيرة (الرقم، الشعبة، الهاتف) بقدر محتواها بلا التفاف، والاسمُ سطرٌ واحد، والنصوصُ الحرّة تتقاسم الباقي؛ ولا عرضَ ثابتاً على <code>th</code>/<code>td</code>/<code>col</code> (<code>test_flexible_table_columns</code>).</li>
+      <li><b>توسيطٌ إلّا الأسماء:</b> خلايا الجدول والترويسةُ موسَّطةٌ مركزيّاً في طبقة المكوّنات، وعمودُ الأسماء وحدَه يحمل <code>cell-name</code> فيبقى بمحاذاة البداية.</li>
+      <li><b>رأسٌ لاصق:</b> الجدولُ الطويل غلافُه <code>table-wrap table-wrap-scroll</code> فيبقى <code>thead th</code> ظاهراً أثناء التمرير (<code>test_sticky_table_header</code>).</li>
+    </ul>
+  {% endsection_card %}
+
   </div>
 </div>
 {% endblock %}

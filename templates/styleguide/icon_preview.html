@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static icons ui %}
+{% load static icons ui school_logo %}
 
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/styleguide.css' %}">{% endblock %}
 
@@ -48,6 +48,20 @@
       <li>الاسمُ تحت الأيقونة هو المعنى المُمرَّر إلى <code>{% templatetag openblock %} icon "..." {% templatetag closeblock %}</code> — لا اسمَ رسمٍ ولا شكلَه؛ والمعنى يختار الرسم.</li>
       <li>الأيقونةُ ترث لونَ النصّ (<code>currentColor</code>)؛ ولونُها الدلاليُّ صنفٌ على أبيها: <code>icon-maroon · icon-success · icon-danger · icon-warning · icon-info · icon-muted</code>.</li>
       <li>لا إيموجي ولا اسمَ رسمٍ خامٍّ في الواجهة: الأيقوناتُ من <code>core/icons.py</code> وحدَه، ومعنًى جديدٌ يُضاف هناك فيظهر هنا.</li>
+    </ul>
+  {% endsection_card %}
+
+  {% section_card "شعارُ المدرسة" meta="school_logo · nav · login · error" icon="school_building" span="wide" %}
+    <div class="sg-sizes">
+      {% for size in logo_sizes %}
+      <div class="sg-size">{% school_logo size.0 %}<code class="sg-icon__name" dir="ltr">{{ size.0 }} · {{ size.1 }}</code></div>
+      {% endfor %}
+    </div>
+    <pre class="sg-code" dir="ltr">{% templatetag openblock %} load school_logo {% templatetag closeblock %}
+{% templatetag openblock %} school_logo "nav" {% templatetag closeblock %}</pre>
+    <ul class="sg-rules">
+      <li>الوسمُ <code>school_logo</code> مصدرٌ واحدٌ للشعار على الشاشة (<code>core/school_logo.py</code>)، يُرسم على شريحةٍ داكنةٍ محايدةٍ فلا يضيع على الترويسة العنّابيّة؛ والأحجامُ <code>nav · login · error</code> وحدَها.</li>
+      <li>شعارُ الوزارة أُزيل من المنصّة ولا يعود؛ وهو للتصدير والطباعة وحدَها (<code>core/ministry_logo.py</code>). والأيقونةُ الصغرى (فايكون وPWA) مشتقّةٌ من الأصل نفسِه.</li>
     </ul>
   {% endsection_card %}
 
