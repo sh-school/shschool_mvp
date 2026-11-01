@@ -21,6 +21,8 @@ from tests.conftest import (
 pytestmark = pytest.mark.django_db
 
 CERTIFICATES_MAX_QUERIES = 12
+#: 15 في الإنتاج (≤15 بالبطاقة) + 4 عبارات SAVEPOINT/RELEASE تضيفها معاملةُ الاختبار؛ وكانت 542 لاثنين وعشرين طالباً.
+SAVE_ALL_MAX_QUERIES = 19
 
 
 def _class_with_pupils(school, year, count):
@@ -104,16 +106,19 @@ def _assessment_world(school, year, pupils_count):
         teacher=UserFactory(),
         academic_year=year,
     )
-    package = AssessmentPackage.objects.create(
-        setup=setup,
-        school=school,
-        package_type="P1",
-        semester="S1",
-        weight=Decimal("50"),
-        semester_max_grade=Decimal("40"),
-    )
+    packages = [
+        AssessmentPackage.objects.create(
+            setup=setup,
+            school=school,
+            package_type=ptype,
+            semester=sem,
+            weight=Decimal("50"),
+            semester_max_grade=Decimal("40") if sem == "S1" else Decimal("60"),
+        )
+        for ptype, sem in (("P1", "S1"), ("P4", "S1"), ("P1", "S2"))
+    ]
     assessment = Assessment.objects.create(
-        package=package,
+        package=packages[0],
         school=school,
         title="اختبار قصير",
         assessment_type="exam",
@@ -153,3 +158,150 @@ def test_academic_progress_report_does_not_query_the_assessment_per_grade(
         counts[size] = len(ctx)
         assert report["rows"] if "rows" in report else True
     assert counts[2] == counts[10], counts
+
+
+def _post(pupils):
+    post = {f"grade_{pupil.id}": str(40 + i * 7 % 70) for i, pupil in enumerate(pupils)}
+    post[f"absent_{pupils[1].id}"] = "1"
+    post[f"grade_{pupils[2].id}"] = "250"  # يُقصّ إلى الأقصى
+    post[f"notes_{pupils[3].id}"] = "ملاحظة"
+    del post[f"grade_{pupils[3].id}"]  # المفتاحُ غائبٌ: تبقى الدرجةُ المحفوظة
+    return post
+
+
+def _legacy_recalculate_class(setup):
+    """المسارُ القديم حرفيّاً: كتابةٌ مفردةٌ لكلّ طالبٍ وفصلٍ ثمّ السنويُّ لكلّ طالب — مرجعُ المقارنة."""
+    from assessments.models import AssessmentPackage
+    from assessments.services import GradeService
+    from core.models import StudentEnrollment
+
+    students = [
+        enr.student
+        for enr in StudentEnrollment.objects.filter(
+            class_group=setup.class_group, is_active=True
+        ).select_related("student")
+    ]
+    ids = [s.id for s in students]
+    for sem in ("S1", "S2"):
+        packages = list(AssessmentPackage.objects.filter(setup=setup, semester=sem, is_active=True))
+        batch = GradeService.calc_package_scores_batch(ids, packages)
+        for student in students:
+            scores = {p.package_type: batch.get((student.id, p.package_type)) for p in packages}
+            GradeService._write_semester_result(student, setup, sem, packages, scores)
+    for student in students:
+        GradeService.recalculate_annual_result(student, setup)
+
+
+def _snapshot(assessment):
+    from assessments.models import StudentAssessmentGrade
+    from core.models import AuditLog
+
+    setup = assessment.package.setup
+    grades = [
+        (g.student.full_name, g.grade, g.is_absent, g.notes, g.is_excused)
+        for g in StudentAssessmentGrade.objects.filter(assessment=assessment)
+        .select_related("student")
+        .order_by("student__full_name")
+    ]
+    semesters = [
+        (r.student.full_name, r.semester, r.total, r.p1_score, r.p4_score, r.semester_max)
+        for r in StudentSubjectResult.objects.filter(setup=setup)
+        .select_related("student")
+        .order_by("student__full_name", "semester")
+    ]
+    annuals = [
+        (a.student.full_name, a.s1_total, a.s2_total, a.annual_total, a.status)
+        for a in AnnualSubjectResult.objects.filter(setup=setup)
+        .select_related("student")
+        .order_by("student__full_name")
+    ]
+    audit = sorted(
+        (a.action, a.model_name, a.object_repr.split()[0], str(a.changes), a.school_id is not None)
+        for a in AuditLog.objects.filter(
+            model_name__in=("StudentAssessmentGrade", "StudentSubjectResult"),
+            school=setup.school,
+        )
+    )
+    return grades, semesters, annuals, audit
+
+
+def test_batched_save_all_equals_the_rowwise_path_including_the_audit_trail(
+    seeded_calendar, settings
+):
+    """الحفظُ الدفعيُّ يطابق المسارَ المفرد القديم: الدرجاتُ والنتائجُ الفصليّةُ والسنويّةُ، وصفوفُ التدقيق عدداً ومحتوى."""
+    from assessments.models import StudentAssessmentGrade
+    from assessments.services import GradeService
+    from core.models import StudentEnrollment
+
+    settings.VERDICT_ENGINE_ENABLED = False
+    school_a, school_b = SchoolFactory(), SchoolFactory()
+    assessment_a, pupils_a = _assessment_world(school_a, seeded_calendar, 6)
+    assessment_b, pupils_b = _assessment_world(school_b, seeded_calendar, 6)
+    for assessment, pupils in ((assessment_a, pupils_a), (assessment_b, pupils_b)):
+        # صفٌّ قائمٌ يُحدَّث، وآخرُ معذورٌ يبقى مقفلاً
+        for index in (0, 4):
+            StudentAssessmentGrade.objects.create(
+                assessment=assessment,
+                student=pupils[index],
+                school=assessment.school,
+                grade=Decimal("10"),
+                is_excused=index == 4,
+            )
+
+    saved_a = GradeService.save_all_from_post(assessment_a, _post(pupils_a), UserFactory())
+
+    # المرجع: حلقةُ save_grade المفردة + إعادةُ الحساب القديمة لكلّ طالب
+    post_b = _post(pupils_b)
+    saved_b = 0
+    for enr in StudentEnrollment.objects.filter(
+        class_group=assessment_b.class_group, is_active=True
+    ).select_related("student"):
+        sid = str(enr.student.id)
+        current = StudentAssessmentGrade.objects.filter(
+            assessment=assessment_b, student=enr.student
+        ).first()
+        if not any(f"{prefix}{sid}" in post_b for prefix in ("grade_", "absent_", "notes_")):
+            continue
+        if current is not None and current.is_excused:
+            continue
+        is_absent = post_b.get(f"absent_{sid}") == "1"
+        notes = post_b.get(f"notes_{sid}", "")
+        grade, skip = GradeService._grade_from_post(post_b, sid, current, is_absent, notes)
+        if skip:
+            continue
+        GradeService.save_grade(
+            assessment=assessment_b,
+            student=enr.student,
+            grade=grade,
+            is_absent=is_absent,
+            notes=notes,
+            entered_by=None,
+            recalc=False,
+        )
+        saved_b += 1
+    _legacy_recalculate_class(assessment_b.package.setup)
+
+    assert saved_a == saved_b == 5
+    snapshot = _snapshot(assessment_a)
+    assert snapshot == _snapshot(assessment_b)
+    audit = snapshot[3]
+    assert ("update", "StudentAssessmentGrade") in {(row[0], row[1]) for row in audit}
+    assert ("create", "StudentAssessmentGrade") in {(row[0], row[1]) for row in audit}
+    assert "StudentSubjectResult" in {row[1] for row in audit}
+
+
+def test_save_all_grades_uses_a_constant_number_of_queries(
+    seeded_calendar, settings, django_assert_max_num_queries
+):
+    from assessments.services import GradeService
+
+    settings.VERDICT_ENGINE_ENABLED = False
+    school = SchoolFactory()
+    assessment, pupils = _assessment_world(school, seeded_calendar, 22)
+    post = {f"grade_{p.id}": str(50 + i) for i, p in enumerate(pupils)}
+
+    teacher = UserFactory()
+    with django_assert_max_num_queries(SAVE_ALL_MAX_QUERIES):
+        saved = GradeService.save_all_from_post(assessment, post, teacher)
+
+    assert saved == 22

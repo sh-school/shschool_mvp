@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
 from django.db.models import Avg, Count, Q, QuerySet
+from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
 from core.domain.grades import GRADE_BANDS, band_of
@@ -49,6 +50,70 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _ROW_KEYS = ("grade_", "absent_", "notes_")
+
+_SEMESTER_WRITE_FIELDS = (
+    "school",
+    "p1_score",
+    "p2_score",
+    "p3_score",
+    "p4_score",
+    "p_aw_score",
+    "total",
+    "semester_max",
+)
+_ANNUAL_WRITE_FIELDS = ("school", "s1_total", "s2_total", "annual_total", "status")
+_GRADE_WRITE_FIELDS = ("school", "grade", "is_absent", "notes", "entered_by", "entered_at")
+
+
+def _audit_row_factory():
+    """مصنعُ صفوف `AuditLog` بمحتوى إشارة `core.signals._log` نفسِه، للكتابة الدفعيّة.
+
+    `bulk_create` لا يُطلق `post_save` فيسقط أثرُ التدقيق (PDPPL)، فتُبنى الصفوفُ هنا صفّاً بصفٍّ
+    كما تبنيها الإشارةُ وتُكتب دفعةً واحدة (`_bulk_audit`). والمستخدمُ والعنوانُ والمتصفّحُ تُقرأ مرّةً.
+    ويثبّت `tests/test_hot_paths_queries_w008.py` تساوي الصفوف ومحتواها مع المسار المفرد.
+    """
+    from core.audit_repr import masked_repr
+    from core.middleware import get_current_request, get_current_user
+    from core.models import AuditLog
+    from core.request_utils import get_client_ip
+
+    user = get_current_user()
+    request = get_current_request()
+    ip = ua = ""
+    if request:
+        ip = get_client_ip(request)
+        ua = request.META.get("HTTP_USER_AGENT", "")[:300]
+
+    def make(model_name: str, instance: Any, created: bool, changes: dict | None):
+        return AuditLog(
+            user=user,
+            action="create" if created else "update",
+            model_name=model_name,
+            object_id=str(instance.pk),
+            object_repr=masked_repr(instance),
+            changes=changes,
+            school=instance.school if hasattr(instance, "school_id") else None,
+            ip_address=ip or None,
+            user_agent=ua,
+        )
+
+    return make
+
+
+def _bulk_audit(rows: list) -> None:
+    if rows:
+        from core.models import AuditLog
+
+        AuditLog.objects.bulk_create(rows)
+
+
+def _subject_result_changes(instance: Any) -> dict:
+    """محتوى `changes` كما تكتبه إشارةُ `audit_subject_result` تماماً."""
+    return {
+        "semester": instance.semester,
+        "total": str(getattr(instance, "total_score", "")),
+        "status": getattr(instance, "status", ""),
+    }
 
 
 class GradeService(ExcuseServiceMixin):
@@ -177,9 +242,13 @@ class GradeService(ExcuseServiceMixin):
     def calc_package_scores_batch(
         student_ids: list,
         packages: list[AssessmentPackage],
+        assessments_by_package: dict | None = None,
     ) -> dict:
         """
         يحسب درجات كل الطلاب في كل الباقات بـ استعلام واحد بدل N×M.
+
+        `assessments_by_package` (اختياريّ): {pkg.pk: [Assessment منشورة]} جُلبت دفعةً لكلّ باقات الشعبة،
+        فلا يُستعلم عنها باقةً باقة (إعادةُ حساب الفصل تحسبُ الفصلين معاً).
 
         Returns: {(student_id, package_type): Decimal | None}
         """
@@ -190,7 +259,12 @@ class GradeService(ExcuseServiceMixin):
         pkg_assessments: dict[str, list] = {}  # package_type → [Assessment]
         all_assessment_ids = []
         for pkg in packages:
-            assessments = list(pkg.assessments.filter(status__in=["published", "graded", "closed"]))
+            if assessments_by_package is not None:
+                assessments = assessments_by_package.get(pkg.pk, [])
+            else:
+                assessments = list(
+                    pkg.assessments.filter(status__in=["published", "graded", "closed"])
+                )
             pkg_assessments[pkg.package_type] = assessments
             all_assessment_ids.extend(a.id for a in assessments)
 
@@ -413,20 +487,7 @@ class GradeService(ExcuseServiceMixin):
         except StudentSubjectResult.DoesNotExist:
             s2_total = None
 
-        # نحسب السنوي فقط لو عندنا نتيجة واحدة على الأقل
-        if s1_total is None and s2_total is None:
-            annual_total = None
-            status = "incomplete"
-        else:
-            annual_total = (s1_total or Decimal("0")) + (s2_total or Decimal("0"))
-            annual_total = annual_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-            if s1_total is None or s2_total is None:
-                status = "incomplete"
-            elif annual_total >= Decimal("50"):
-                status = "pass"
-            else:
-                status = "fail"
+        annual_total, status = GradeService._annual_values(s1_total, s2_total)
 
         # Lock existing row to prevent concurrent recalculation races
         existing = (
@@ -453,11 +514,8 @@ class GradeService(ExcuseServiceMixin):
         return annual
 
     @staticmethod
-    @transaction.atomic
-    def _write_semester_result(student, setup, semester, packages, scores):
-        """[PERF-01] يكتب StudentSubjectResult من قاموس درجات الباقات.
-        منطق الكتابة مطابق تماماً لـ recalculate_semester_result لضمان تطابق النتائج
-        بين المسار المفرد (calc_package_score) والمسار الدُّفعي (calc_package_scores_batch)."""
+    def _semester_defaults(setup, semester, packages, scores) -> dict:
+        """قيمُ صفّ `StudentSubjectResult` من درجات الباقات — دالةٌ نقيّةٌ تشاركها الكتابةُ المفردةُ والدفعيّة."""
         total = Decimal("0")
         semester_max = AssessmentPackage.SEMESTER_MAX.get(semester, Decimal("40"))
         has_score = False
@@ -467,13 +525,7 @@ class GradeService(ExcuseServiceMixin):
                 total += score
                 has_score = True
                 semester_max = pkg.semester_max_grade
-
-        existing = (
-            StudentSubjectResult.objects.select_for_update()
-            .filter(student=student, setup=setup, semester=semester)
-            .first()
-        )
-        defaults = {
+        return {
             "school": setup.school,
             "p1_score": scores.get("P1"),
             "p2_score": scores.get("P2"),
@@ -483,6 +535,19 @@ class GradeService(ExcuseServiceMixin):
             "total": total if has_score else None,
             "semester_max": semester_max,
         }
+
+    @staticmethod
+    @transaction.atomic
+    def _write_semester_result(student, setup, semester, packages, scores):
+        """[PERF-01] يكتب StudentSubjectResult من قاموس درجات الباقات.
+        منطق الكتابة مطابق تماماً لـ recalculate_semester_result لضمان تطابق النتائج
+        بين المسار المفرد (calc_package_score) والمسار الدُّفعي (calc_package_scores_batch)."""
+        defaults = GradeService._semester_defaults(setup, semester, packages, scores)
+        existing = (
+            StudentSubjectResult.objects.select_for_update()
+            .filter(student=student, setup=setup, semester=semester)
+            .first()
+        )
         if existing:
             for attr, val in defaults.items():
                 setattr(existing, attr, val)
@@ -491,6 +556,19 @@ class GradeService(ExcuseServiceMixin):
         return StudentSubjectResult.objects.create(
             student=student, setup=setup, semester=semester, **defaults
         )
+
+    @staticmethod
+    def _annual_values(s1_total, s2_total) -> tuple:
+        """(المجموعُ السنويّ، الحالة) من مجموعَي الفصلين — الحسابُ القديمُ نفسُه للمسارين."""
+        # نحسب السنوي فقط لو عندنا نتيجة واحدة على الأقل
+        if s1_total is None and s2_total is None:
+            return None, "incomplete"
+        annual_total = ((s1_total or Decimal("0")) + (s2_total or Decimal("0"))).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+        if s1_total is None or s2_total is None:
+            return annual_total, "incomplete"
+        return annual_total, ("pass" if annual_total >= Decimal("50") else "fail")
 
     @staticmethod
     def _grade_from_post(
@@ -521,6 +599,91 @@ class GradeService(ExcuseServiceMixin):
     @staticmethod
     def save_all_from_post(assessment: Assessment, post: Any, entered_by: CustomUser | None) -> int:
         """حفظ كل درجات تقييمٍ دفعةً واحدة من POST، ثمّ إعادة الحساب مرّةً وتحديث الحالة.
+
+        صفٌّ لم يُرسَل منه شيءٌ لا يُلمس أبداً — الغيابُ ليس «مسحاً». يُرجع عددَ المحفوظ.
+        المحرّكُ مطفأ (الافتراضيّ): كتابةٌ دفعيّةٌ بعددِ استعلاماتٍ ثابت؛ ومرفوعاً: المسارُ الصفّيّ."""
+        if verdict_engine_enabled():
+            return GradeService._save_all_rowwise(assessment, post, entered_by)
+        return GradeService._save_all_batched(assessment, post, entered_by)
+
+    @staticmethod
+    @transaction.atomic
+    def _save_all_batched(assessment: Assessment, post: Any, entered_by: CustomUser | None) -> int:
+        """نفسُ حكم `save_grade` لكلّ صفّ (قصُّ الدرجة على [0، الأقصى]، العذرُ المقرَّر مقفل) لكنّ الصفوف
+        القائمةَ تُقفل وتُجلب دفعةً وتُكتب بـ`bulk_create`/`bulk_update`، وأثرُ التدقيق صفٌّ بصفٍّ دفعةً."""
+        enrollments = list(
+            StudentEnrollment.objects.filter(
+                class_group=assessment.class_group, is_active=True
+            ).select_related("student")
+        )
+        existing = {
+            g.student_id: g
+            for g in StudentAssessmentGrade.objects.select_for_update().filter(
+                assessment=assessment
+            )
+        }
+        now = timezone.now()
+        to_create: list = []
+        to_update: list = []
+        for enr in enrollments:
+            sid = str(enr.student.id)
+            if not any(f"{p}{sid}" in post for p in _ROW_KEYS):
+                continue
+            current = existing.get(enr.student.id)
+            is_absent = post.get(f"absent_{sid}") == "1"
+            if current is not None and current.is_excused:
+                continue  # عذرٌ مقرَّر: الصفُّ مقفلٌ على راصد الدرجات
+            notes = post.get(f"notes_{sid}", "")
+            grade, skip = GradeService._grade_from_post(post, sid, current, is_absent, notes)
+            if skip:
+                continue
+            if grade is not None:
+                grade = max(Decimal("0"), min(Decimal(str(grade)), assessment.max_grade))
+            if current is not None:
+                current.school = assessment.school
+                current.grade = grade
+                current.is_absent = is_absent
+                current.notes = notes
+                current.entered_by = entered_by
+                current.entered_at = now
+                to_update.append(current)
+            else:
+                to_create.append(
+                    StudentAssessmentGrade(
+                        assessment=assessment,
+                        student=enr.student,
+                        school=assessment.school,
+                        grade=grade,
+                        is_absent=is_absent,
+                        is_excused=False,
+                        notes=notes,
+                        entered_by=entered_by,
+                    )
+                )
+        StudentAssessmentGrade.objects.bulk_create(to_create)
+        if to_update:
+            StudentAssessmentGrade.objects.bulk_update(to_update, list(_GRADE_WRITE_FIELDS))
+        make_audit = _audit_row_factory()
+        audit_rows = []
+        for created, rows in ((True, to_create), (False, to_update)):
+            audit_rows += [
+                make_audit(
+                    "StudentAssessmentGrade", r, created, {"grade": str(getattr(r, "grade", ""))}
+                )
+                for r in rows
+            ]
+        _bulk_audit(audit_rows)
+        # [PERF-02] إعادة حساب الفصل كاملاً مرة واحدة (batch) بدل مرة لكل طالب
+        GradeService.recalculate_full_class(
+            assessment.package.setup, students=[enr.student for enr in enrollments]
+        )
+        assessment.status = "graded"
+        assessment.save(update_fields=["status"])
+        return len(to_create) + len(to_update)
+
+    @staticmethod
+    def _save_all_rowwise(assessment: Assessment, post: Any, entered_by: CustomUser | None) -> int:
+        """المسارُ الصفّيُّ (محرّكُ الحكم مرفوع): `save_grade` لكلّ صفّ ثمّ إعادةُ حسابٍ واحدة.
 
         صفٌّ لم يُرسَل منه شيءٌ لا يُلمس أبداً — الغيابُ ليس «مسحاً». يُرجع عددَ المحفوظ."""
         enrollments = StudentEnrollment.objects.filter(
@@ -559,7 +722,11 @@ class GradeService(ExcuseServiceMixin):
         return saved
 
     @staticmethod
-    def recalculate_full_class(setup: SubjectClassSetup, actor: CustomUser | None = None) -> None:
+    def recalculate_full_class(
+        setup: SubjectClassSetup,
+        actor: CustomUser | None = None,
+        students: list | None = None,
+    ) -> None:
         """إعادة حساب كامل — كل طلاب الفصل، كلا الفصلين، والسنوي.
         [PERF-01] يستخدم calc_package_scores_batch (استعلام واحد للدرجات لكل فصل) بدل
         الحساب لكل طالب × باقة — نفس النتائج بعدد استعلامات ثابت مهما زاد عدد الطلاب.
@@ -577,29 +744,119 @@ class GradeService(ExcuseServiceMixin):
                 trigger=f"recalculate_full_class:{setup.pk}",
             )
             return
-        enrollments = list(
-            StudentEnrollment.objects.filter(
-                class_group=setup.class_group, is_active=True
-            ).select_related("student")
-        )
-        students = [e.student for e in enrollments]
-        student_ids = [s.id for s in students]
-        if not student_ids:
+        if students is None:  # المستدعي الذي جلب طلبةَ الشعبة لتوّه يمرّرهم فلا يُجلبون ثانيةً
+            students = [
+                e.student
+                for e in StudentEnrollment.objects.filter(
+                    class_group=setup.class_group, is_active=True
+                ).select_related("student")
+            ]
+        if not students:
             return
 
+        GradeService._recalculate_class_batched(setup, students)
+
+    @staticmethod
+    @transaction.atomic
+    def _recalculate_class_batched(setup: SubjectClassSetup, students: list) -> None:
+        """المسارُ القديم (المحرّكُ مطفأ) بعددِ استعلاماتٍ ثابت: الصفوفُ القائمةُ تُجلب وتُقفل دفعةً،
+        وتُكتب بـ`bulk_create`/`bulk_update`، وأثرُ التدقيق صفٌّ بصفٍّ بمحتوى الإشارة نفسِه (`_bulk_audit`)."""
+        student_ids = [s.id for s in students]
+        quantum = Decimal("0.01")
+        totals: dict = {"S1": {}, "S2": {}}
+        audit_rows: list = []
+        make_audit = _audit_row_factory()
+        now = timezone.now()
+
+        # باقاتُ الفصلين وتقييماتُها المنشورة دفعةً واحدة بدل استعلامٍ لكلّ فصلٍ وباقة
+        all_packages = list(AssessmentPackage.objects.filter(setup=setup, is_active=True))
+        assessments_by_package: dict = {pkg.pk: [] for pkg in all_packages}
+        for assessment in Assessment.objects.filter(
+            package__in=all_packages, status__in=["published", "graded", "closed"]
+        ):
+            assessments_by_package[assessment.package_id].append(assessment)
+
         for sem in ("S1", "S2"):
-            packages = list(
-                AssessmentPackage.objects.filter(setup=setup, semester=sem, is_active=True)
+            packages = [pkg for pkg in all_packages if pkg.semester == sem]
+            batch = GradeService.calc_package_scores_batch(
+                student_ids, packages, assessments_by_package
             )
-            batch = GradeService.calc_package_scores_batch(student_ids, packages)
+            existing = {
+                r.student_id: r
+                for r in StudentSubjectResult.objects.select_for_update().filter(
+                    setup=setup, semester=sem, student_id__in=student_ids
+                )
+            }
+            to_create: list = []
+            to_update: list = []
             for student in students:
                 scores = {
                     pkg.package_type: batch.get((student.id, pkg.package_type)) for pkg in packages
                 }
-                GradeService._write_semester_result(student, setup, sem, packages, scores)
+                defaults = GradeService._semester_defaults(setup, sem, packages, scores)
+                row = existing.get(student.id)
+                if row is None:
+                    row = StudentSubjectResult(
+                        student=student, setup=setup, semester=sem, **defaults
+                    )
+                    to_create.append(row)
+                else:
+                    for attr, val in defaults.items():
+                        setattr(row, attr, val)
+                    row.updated_at = now
+                    to_update.append(row)
+                # كما يقرؤه المسارُ المفرد من القاعدة: numeric(5,2) يقرّب نصفاً للأعلى
+                total = defaults["total"]
+                totals[sem][student.id] = (
+                    total.quantize(quantum, rounding=ROUND_HALF_UP) if total is not None else None
+                )
+            StudentSubjectResult.objects.bulk_create(to_create)
+            if to_update:
+                StudentSubjectResult.objects.bulk_update(
+                    to_update, [*_SEMESTER_WRITE_FIELDS, "updated_at"]
+                )
+            for created, rows in ((True, to_create), (False, to_update)):
+                audit_rows += [
+                    make_audit("StudentSubjectResult", r, created, _subject_result_changes(r))
+                    for r in rows
+                ]
 
+        year = setup.academic_year
+        existing_annual = {
+            a.student_id: a
+            for a in AnnualSubjectResult.objects.select_for_update().filter(
+                setup=setup, academic_year=year, student_id__in=student_ids
+            )
+        }
+        annual_create: list = []
+        annual_update: list = []
         for student in students:
-            GradeService.recalculate_annual_result(student, setup)
+            s1_total = totals["S1"][student.id]
+            s2_total = totals["S2"][student.id]
+            annual_total, status = GradeService._annual_values(s1_total, s2_total)
+            values = {
+                "school": setup.school,
+                "s1_total": s1_total,
+                "s2_total": s2_total,
+                "annual_total": annual_total,
+                "status": status,
+            }
+            row = existing_annual.get(student.id)
+            if row is None:
+                annual_create.append(
+                    AnnualSubjectResult(student=student, setup=setup, academic_year=year, **values)
+                )
+            else:
+                for attr, val in values.items():
+                    setattr(row, attr, val)
+                row.updated_at = now
+                annual_update.append(row)
+        AnnualSubjectResult.objects.bulk_create(annual_create)
+        if annual_update:
+            AnnualSubjectResult.objects.bulk_update(
+                annual_update, [*_ANNUAL_WRITE_FIELDS, "updated_at"]
+            )
+        _bulk_audit(audit_rows)
 
     # ── إحصائيات ───────────────────────────────────────────
 
