@@ -619,7 +619,7 @@ class AcademicReportsService:
                 school=school,
                 student_id__in=student_ids,
                 assessment__package__setup__class_group=class_group,
-            )
+            ).select_related("assessment")  # grade_pct يقرأ max_grade: لا استعلامَ لكلّ درجة
             if d_from:
                 grade_qs = grade_qs.filter(assessment__date__gte=d_from)
             if d_to:
@@ -728,7 +728,7 @@ class AcademicReportsService:
             assessment__assessment_type="quiz",
             assessment__date__gte=start_date,
             assessment__date__lte=end_date,
-        )
+        ).select_related("assessment")  # grade_pct يقرأ max_grade: لا استعلامَ لكلّ درجة
         if students:
             quiz_qs = quiz_qs.filter(student__in=students)
 

@@ -10,7 +10,7 @@ import pytest
 
 from assessments.models import AnnualSubjectResult, StudentSubjectResult, Subject, SubjectClassSetup
 from reports.selectors import class_certificates_context
-from reports.services import ReportDataService
+from reports.services import AcademicReportsService, ReportDataService
 from tests.conftest import (
     ClassGroupFactory,
     SchoolFactory,
@@ -91,3 +91,65 @@ def test_the_bulk_report_matches_the_single_student_report(seeded_calendar):
             == ["الرياضيات", "العلوم"]
         )
     assert bulk[0]["passed"] == 2 and bulk[1]["failed"] == 2
+
+
+def _assessment_world(school, year, pupils_count):
+    from assessments.models import Assessment, AssessmentPackage
+
+    group = ClassGroupFactory(school=school, grade="G8", section="ب", academic_year=year)
+    setup = SubjectClassSetup.objects.create(
+        school=school,
+        subject=Subject.objects.create(school=school, name_ar="الفيزياء", code="PH1"),
+        class_group=group,
+        teacher=UserFactory(),
+        academic_year=year,
+    )
+    package = AssessmentPackage.objects.create(
+        setup=setup,
+        school=school,
+        package_type="P1",
+        semester="S1",
+        weight=Decimal("50"),
+        semester_max_grade=Decimal("40"),
+    )
+    assessment = Assessment.objects.create(
+        package=package,
+        school=school,
+        title="اختبار قصير",
+        assessment_type="exam",
+        max_grade=Decimal("100"),
+        weight_in_package=Decimal("100"),
+        status="published",
+    )
+    pupils = []
+    for i in range(pupils_count):
+        pupil = UserFactory(full_name=f"طالب {i:02d}")
+        StudentEnrollmentFactory(student=pupil, class_group=group)
+        pupils.append(pupil)
+    return assessment, pupils
+
+
+def test_academic_progress_report_does_not_query_the_assessment_per_grade(
+    seeded_calendar,
+):
+    """`grade_pct` يقرأ `assessment.max_grade` — بلا `select_related` كان استعلاماً لكلّ درجة (≈600 لفصلٍ كامل)."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from assessments.models import StudentAssessmentGrade
+
+    counts = {}
+    for size in (2, 10):
+        school = SchoolFactory()
+        assessment, pupils = _assessment_world(school, seeded_calendar, size)
+        for i, pupil in enumerate(pupils):
+            StudentAssessmentGrade.objects.create(
+                assessment=assessment, student=pupil, school=school, grade=Decimal(50 + i)
+            )
+        with CaptureQueriesContext(connection) as ctx:
+            report = AcademicReportsService.get_academic_progress_reports(
+                school, class_group_id=str(assessment.package.setup.class_group_id)
+            )
+        counts[size] = len(ctx)
+        assert report["rows"] if "rows" in report else True
+    assert counts[2] == counts[10], counts
