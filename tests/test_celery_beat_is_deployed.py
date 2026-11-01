@@ -15,15 +15,30 @@ IAC = pathlib.Path(".railway/railway.ts")
 SCRIPT = pathlib.Path("scripts/railway-beat.sh")
 
 
-def test_the_iac_declares_a_beat_service_that_runs_the_beat_script():
+WORKER = pathlib.Path("scripts/railway-worker.sh")
+
+
+def test_beat_is_embedded_in_the_worker_not_a_separate_service():
+    """W-20261031-004: لا خدمةَ celery-beat مستقلّة؛ الجدولُ يُرسله العاملُ بـ-B حين يُضبط العلم، وإلّا لا مُرسِلَ."""
     text = IAC.read_text(encoding="utf-8")
-    beat = re.search(r'service\("celery-beat",\s*\{(.*?)\}\);', text, re.S)
-    assert beat, "لا خدمةَ `celery-beat` في railway.ts — الجدولُ بلا مُرسِل"
-    assert 'start: "bash scripts/railway-beat.sh"' in beat.group(1)
-    assert re.search(r"resources:\s*\[[^\]]*\bbeat\b", text), "الخدمةُ معرَّفةٌ ولا تدخل المشروع"
+    assert not re.search(r'service\("celery-beat"', text), "خدمةٌ مستقلّة وعلمٌ مضمَّن معاً = إرسالٌ مزدوج"
+    assert not re.search(r"resources:\s*\[[^\]]*beat", text)
+    assert '"CELERY_WORKER_EMBED_BEAT"' in text, "علمُ التضمين لا يصل العاملَ (WORKER_VARIABLES)"
 
 
-def test_the_beat_script_starts_beat_and_refuses_to_run_blind():
+def test_worker_script_embeds_beat_only_when_flagged_and_refuses_to_run_blind():
+    text = WORKER.read_text(encoding="utf-8")
+    assert re.search(
+        r'CELERY_WORKER_EMBED_BEAT:-false\}" = "true"', text
+    ), "الافتراضيُّ يجب أن يكون مُطفأً"
+    assert "--beat" in text and "--schedule=/tmp/celerybeat-schedule" in text
+    assert "CELERY_ASYNC_ENABLED" in text, "Beat بلا CELERY_ASYNC_ENABLED يرسل إلى الفراغ"
+    assert text.index("BEAT_ARGS=") < text.index(
+        "exec celery -A shschool worker"
+    ), "تحديدُ الوسائط يسبق exec"
+
+
+def test_legacy_beat_script_still_guards_itself():
     text = SCRIPT.read_text(encoding="utf-8")
     assert re.search(r"celery -A shschool beat", text)
     for guard in ("REDIS_URL", "CELERY_ASYNC_ENABLED", "APP_DB_PASSWORD"):

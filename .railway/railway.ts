@@ -97,6 +97,9 @@ const WORKER_VARIABLES = [
   // فالمدّةُ تُقرأ هنا — وإلّا سرى افتراضُ الإعدادات (730) مهما ضُبط على الويب.
   "PDPPL_DATA_RETENTION_DAYS",
   "SENTRY_PERFORMANCE_ENABLED",
+  // Beat مضمَّنٌ في العامل (W-20261031-004): العلمُ يُضبط true بعد إيقاف خدمة celery-beat.
+  "CELERY_WORKER_EMBED_BEAT",
+  "CELERY_WORKER_CONCURRENCY",
 ] as const;
 
 /** متغيّراتُ خدمة النسخ (أسماءٌ فقط): الرابطُ الداخليّ للقاعدة، وعبارةُ التشفير، ومراجعُ الحاوية. */
@@ -136,15 +139,8 @@ export default defineRailway(() => {
     variables: keep(WORKER_VARIABLES),
   });
 
-  // Beat يرسل الجدولَ (`shschool/celery.py: beat_schedule`) إلى الوسيط والعاملُ ينفّذه.
-  // كان غائباً منذ الإنشاء فكانت كلُّ المهامّ المجدولة ميتةً في الإنتاج. نسخةٌ واحدةٌ فقط.
-  const beat = service("celery-beat", {
-    source: github(REPO),
-    build: DOCKER_BUILD,
-    start: "bash scripts/railway-beat.sh",
-    deploy: RESTART_ON_FAILURE,
-    variables: keep(SHARED_VARIABLES),
-  });
+  // Beat مضمَّنٌ في العامل (`celery worker -B` عند CELERY_WORKER_EMBED_BEAT=true، W-20261031-004): لا خدمةَ celery-beat
+  // مستقلّة (كانت تحجز ~186MB لإرسال الجدول وحدَه). الجدولُ `shschool/celery.py: beat_schedule`. نسخةٌ واحدةٌ من العامل فقط.
 
   // نسخٌ احتياطيٌّ يوميٌّ مشفّرٌ داخل Railway (W-20261023-018): pg_dump عبر الشبكة الخاصّة إلى حاوية `db-backups`.
   // خدمةُ cron تخرج بعد الإنجاز. الجدولُ 01:00 UTC. تنبيه: مفتاحُ `cronSchedule` تحت `deploy` لم يُتحقَّق منه
@@ -161,5 +157,5 @@ export default defineRailway(() => {
   const cache = redis("Redis");
   const backups = bucket("db-backups", { region: "sjc" });
 
-  return project("shschool_mvp", { resources: [web, worker, beat, backup, db, cache, backups] });
+  return project("shschool_mvp", { resources: [web, worker, backup, db, cache, backups] });
 });

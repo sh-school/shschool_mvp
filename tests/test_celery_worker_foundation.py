@@ -253,7 +253,8 @@ def test_worker_script_is_fail_closed_and_not_a_web_release_process():
         assert fragment not in script
 
     # Creating a worker must not activate async producers in the web app.
-    assert "CELERY_ASYNC_ENABLED" not in script
+    # القراءةُ مسموحة (حارسُ beat المدمج يشترطه)، والتفعيلُ بإسنادٍ أو export ممنوع.
+    assert not re.search(r"^\s*(export\s+)?CELERY_ASYNC_ENABLED=", script, re.M)
 
 
 def test_worker_railway_config_is_worker_only():

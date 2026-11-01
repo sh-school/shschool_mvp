@@ -117,7 +117,7 @@ def test_every_service_can_read_rotated_ciphertext(iac):
     for block_name in ("WEB_VARIABLES", "WORKER_VARIABLES"):
         block = re.search(rf"const {block_name} = \[(.*?)\] as const;", iac, re.DOTALL).group(1)
         assert "...SHARED_VARIABLES" in block, block_name
-    for name in ("shschool_mvp", "celery-worker", "celery-beat"):
+    for name in ("shschool_mvp", "celery-worker"):
         assert re.search(
             r"variables: keep\((SHARED|WEB|WORKER)_VARIABLES\)", _service_block(iac, name)
         )
