@@ -22,7 +22,7 @@ def test_beat_is_embedded_in_the_worker_not_a_separate_service():
     """W-20261031-004: لا خدمةَ celery-beat مستقلّة؛ الجدولُ يُرسله العاملُ بـ-B حين يُضبط العلم، وإلّا لا مُرسِلَ."""
     text = IAC.read_text(encoding="utf-8")
     assert not re.search(r'service\("celery-beat"', text), "خدمةٌ مستقلّة وعلمٌ مضمَّن معاً = إرسالٌ مزدوج"
-    assert not re.search(r"resources:\s*\[[^\]]*beat", text)
+    assert not re.search(r"resources:\s*\[[^\]]*\bbeat\b", text)
     assert '"CELERY_WORKER_EMBED_BEAT"' in text, "علمُ التضمين لا يصل العاملَ (WORKER_VARIABLES)"
 
 

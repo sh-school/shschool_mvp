@@ -69,7 +69,7 @@ railway variables --service celery-worker --set CELERY_WORKER_EMBED_BEAT=true
 railway variables --service celery-worker --set CELERY_WORKER_CONCURRENCY=1
 ```
 
-التراجع: اضبط `CELERY_WORKER_EMBED_BEAT=false` وأعد إنشاء خدمة celery-beat من `.railway/railway.ts` (السكربت `scripts/railway-beat.sh` باقٍ للتراجع). لا تُشغَّل beat المدمجة مع خدمة beat معاً (تُرسل كلُّ مهمّةٍ مرّتين).
+التراجع، بهذا الترتيب: (1) اضبط `CELERY_WORKER_EMBED_BEAT=false` على celery-worker وتحقّق من توقّف Beat المضمَّن في سجلّه؛ (2) استعد خدمة celery-beat من الإعداد السابق (الدمج السابق لهذا الفرع في `.railway/railway.ts`) وأدخل مواردها ومتغيّراتها كما كانت؛ (3) شغّلها بعد التحقّق من (1) فقط (السكربت `scripts/railway-beat.sh` باقٍ لهذا). لا تُشغَّل beat المدمجة مع خدمة beat معاً (تُرسل كلُّ مهمّةٍ مرّتين).
 
 ## ما لم أقِسه
 
