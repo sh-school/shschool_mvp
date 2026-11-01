@@ -93,6 +93,12 @@ def respond_export(request: Any, kind_name: str, *, params: Any = None) -> HttpR
     return _start_job(request, spec, query)
 
 
+def _audit_repr(kind: str, query: str) -> str:
+    """اسمُ النوع وأسماءُ معاملات الاستعلام بلا قيمها: القيمةُ قد تكون رقماً شخصيّاً (PDPPL، W-20261101-007)."""
+    names = sorted({pair.split("=", 1)[0] for pair in query.split("&") if pair})
+    return f"{kind}?{'&'.join(names)}" if names else kind
+
+
 def _start_job(request: Any, spec: registry.ExportKind, query: str) -> HttpResponse:
     now = timezone.now()
     mine = ExportJob.objects.filter(school=request.school, requested_by=request.user)
@@ -117,7 +123,7 @@ def _start_job(request: Any, spec: registry.ExportKind, query: str) -> HttpRespo
     if active >= MAX_ACTIVE_PER_USER:
         return error_response(request, 429, messages.BUSY)
 
-    log_export(request, spec.kind, object_repr=f"{spec.kind}?{query}")
+    log_export(request, spec.kind, object_repr=_audit_repr(spec.kind, query))
     job = ExportJob.objects.create(
         school=request.school, requested_by=request.user, kind=spec.kind, query_string=query
     )
@@ -169,7 +175,7 @@ def _respond_direct(
         logger.warning("export_direct_too_large kind=%s ms=%d", spec.kind, ms)
         return error_response(request, 413, messages.TOO_LARGE)
     logger.info("export_direct kind=%s ms=%d bytes=%d", spec.kind, ms, len(result.content))
-    log_export(request, spec.kind, object_repr=f"{spec.kind}?{query}")
+    log_export(request, spec.kind, object_repr=_audit_repr(spec.kind, query))
     return file_response(result.content, result.content_type, result.filename)
 
 

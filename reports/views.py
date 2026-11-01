@@ -28,6 +28,8 @@ from core.pdf_utils import render_pdf
 
 from .selectors import (
     class_certificates_context,
+    may_open_student_certificate,
+    may_open_student_report,
     paper_size,
     set_final_status,
     teacher_can_access_class,
@@ -463,9 +465,10 @@ def student_result_pdf(request, student_id):
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
-    if not (request.user.is_admin() or request.user.is_teacher() or request.user == student):
-        if not _has_parent_access(request, student, school):
-            return HttpResponse("غير مسموح", status=403)
+    if not may_open_student_report(
+        request.user, student, lambda: _has_parent_access(request, student, school)
+    ):
+        return HttpResponse("غير مسموح", status=403)
 
     ctx = ReportDataService.get_student_report(student, school, year)
     ctx["paper_size"] = paper
@@ -508,9 +511,10 @@ def student_annual_result_pdf(request, student_id):
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
-    if not (request.user.is_admin() or request.user.is_teacher() or request.user == student):
-        if not _has_parent_access(request, student, school):
-            return HttpResponse("غير مسموح", status=403)
+    if not may_open_student_report(
+        request.user, student, lambda: _has_parent_access(request, student, school)
+    ):
+        return HttpResponse("غير مسموح", status=403)
 
     ctx = ReportDataService.get_student_report(student, school, year)
     set_final_status(ctx)
@@ -553,9 +557,10 @@ def student_certificate_pdf(request, student_id):
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
-    if not (request.user.is_admin() or request.user.is_teacher()):
-        if not _has_parent_access(request, student, school):
-            return HttpResponse("غير مسموح", status=403)
+    if not may_open_student_certificate(
+        request.user, student, lambda: _has_parent_access(request, student, school)
+    ):
+        return HttpResponse("غير مسموح", status=403)
 
     ctx = ReportDataService.get_student_report(student, school, year)
     set_final_status(ctx)

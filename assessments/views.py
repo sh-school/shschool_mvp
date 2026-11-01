@@ -42,7 +42,7 @@ from .models import (
     StudentSubjectResult,
     SubjectClassSetup,
 )
-from .services import GradeService
+from .services import AssessmentClosedError, GradeService
 from .tasks import dispatch_recalculate_class, is_recalculating
 from .verdict_engine import ClosedYearError
 
@@ -365,14 +365,17 @@ def save_single_grade(request, assessment_id):
                 logger.warning("فشل تحويل الدرجة إلى Decimal: %r — %s", raw, e)
                 return HttpResponse("درجة غير صالحة", status=400)
 
-    grade_obj, _ = GradeService.save_grade(
-        assessment=assessment,
-        student=student,
-        grade=grade,
-        is_absent=is_absent,
-        notes=notes,
-        entered_by=request.user,
-    )
+    try:
+        grade_obj, _ = GradeService.save_grade(
+            assessment=assessment,
+            student=student,
+            grade=grade,
+            is_absent=is_absent,
+            notes=notes,
+            entered_by=request.user,
+        )
+    except AssessmentClosedError as e:
+        return HttpResponse(" ".join(e.messages), status=409)
 
     stats = GradeService.get_assessment_stats(assessment)
 
@@ -399,7 +402,11 @@ def save_all_grades(request, assessment_id):
     if not request.user.is_admin() and assessment.package.setup.teacher != request.user:
         return HttpResponse("غير مسموح", status=403)
 
-    saved = GradeService.save_all_from_post(assessment, request.POST, request.user)
+    try:
+        saved = GradeService.save_all_from_post(assessment, request.POST, request.user)
+    except AssessmentClosedError as e:
+        messages.error(request, " ".join(e.messages))
+        return redirect("grade_entry", assessment_id=assessment_id)
 
     messages.success(request, f"تم حفظ {saved} درجة بنجاح")
     return redirect("grade_entry", assessment_id=assessment_id)

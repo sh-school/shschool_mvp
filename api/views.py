@@ -68,6 +68,7 @@ from .filters import (
 )
 from .pagination import StandardPagination
 from .permissions import CanViewBehavior, IsParentOrAdmin, IsSchoolAdmin, IsTeacherOrAdmin
+from .selectors import school_student_or_404
 from .serializers import (
     AnnualSubjectResultSerializer,
     AttendanceSerializer,
@@ -190,7 +191,7 @@ student_list = StudentListView.as_view()
 def student_grades(request, student_id):
     school = _school(request)
     year = _year(request)
-    student = get_object_or_404(CustomUser, id=student_id)
+    student = school_student_or_404(school, student_id)
 
     # ── VULN-002 Fix: IDOR Protection — المعلم يرى طلابه فقط ──────
     if not request.user.is_admin():
@@ -255,7 +256,7 @@ def student_attendance(request, student_id):
     from django.utils import timezone
 
     school = _school(request)
-    student = get_object_or_404(CustomUser, id=student_id)
+    student = school_student_or_404(school, student_id)
 
     # ── VULN-002 Fix: IDOR Protection — المعلم يرى طلابه فقط ──────
     if not request.user.is_admin():

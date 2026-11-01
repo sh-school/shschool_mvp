@@ -14,6 +14,7 @@ import logging
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, Any
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Avg, Count, Q, QuerySet
 
@@ -49,6 +50,18 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _ROW_KEYS = ("grade_", "absent_", "notes_")
+
+
+class AssessmentClosedError(ValidationError):
+    """تقييمٌ مغلق: لا درجةَ تُكتب بعد الإقفال (W-20261101-007)."""
+
+    def __init__(self, assessment):
+        super().__init__(f"التقييم «{assessment.title}» مغلق — لا تُعدَّل درجاتُه.")
+
+
+def ensure_assessment_open(assessment) -> None:
+    if assessment.status == "closed":
+        raise AssessmentClosedError(assessment)
 
 
 class GradeService(ExcuseServiceMixin):
@@ -103,6 +116,7 @@ class GradeService(ExcuseServiceMixin):
         Uses select_for_update() to prevent race conditions when two
         teachers attempt to record the same student's grade simultaneously.
         """
+        ensure_assessment_open(assessment)
         engine = verdict_engine_enabled()
         if engine:
             # الأعوامُ المغلقة مجمَّدة — رفضٌ صريحٌ قبل أيّ كتابة (محرّك الحكم الواحد).
@@ -523,6 +537,7 @@ class GradeService(ExcuseServiceMixin):
         """حفظ كل درجات تقييمٍ دفعةً واحدة من POST، ثمّ إعادة الحساب مرّةً وتحديث الحالة.
 
         صفٌّ لم يُرسَل منه شيءٌ لا يُلمس أبداً — الغيابُ ليس «مسحاً». يُرجع عددَ المحفوظ."""
+        ensure_assessment_open(assessment)  # وإلا أعاد آخرُ السطور حالتَه «graded» فيفتح المغلق
         enrollments = StudentEnrollment.objects.filter(
             class_group=assessment.class_group, is_active=True
         ).select_related("student")

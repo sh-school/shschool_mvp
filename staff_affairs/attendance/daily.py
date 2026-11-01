@@ -15,6 +15,7 @@ from django.http import HttpRequest
 from django.utils import timezone
 
 import staff_affairs.attendance as _pkg
+from core.excel_safety import safe_append
 from core.models.access import Membership
 from core.models.school import School
 from core.models.user import CustomUser
@@ -713,7 +714,7 @@ class StaffAttendanceService:
                     "permit_minutes": used,
                     "permit_remaining": max(0, MONTHLY_PERMIT_CAP - used),
                     "exception_days": len(exception_days.get(person.pk, ())),
-                }
+                },
             )
         keys = (
             *STATUSES,
@@ -742,7 +743,8 @@ class StaffAttendanceService:
         ws = wb.active
         ws.title = f"{report['first']:%Y-%m}"
         ws.sheet_view.rightToLeft = True
-        ws.append(
+        safe_append(
+            ws,
             [
                 "الرقم الوظيفي",
                 "الاسم",
@@ -755,10 +757,11 @@ class StaffAttendanceService:
                 "دقائق الإذن المعتمد",
                 "المتبقّي من سقف الأذونات",
                 "أيام الاستثناء (نموذج 03)",
-            ]
+            ],
         )
         for r in report["rows"]:
-            ws.append(
+            safe_append(
+                ws,
                 [
                     r["employee_number"],
                     r["full_name"],
@@ -771,7 +774,7 @@ class StaffAttendanceService:
                     r["permit_minutes"],
                     r["permit_remaining"],
                     r["exception_days"],
-                ]
+                ],
             )
         return wb
 
@@ -788,7 +791,8 @@ class StaffAttendanceService:
         ws = wb.active
         ws.title = f"{day:%Y-%m-%d}"
         ws.sheet_view.rightToLeft = True
-        ws.append(
+        safe_append(
+            ws,
             [
                 "الرقم الوظيفي",
                 "الاسم",
@@ -799,12 +803,13 @@ class StaffAttendanceService:
                 "دقائق الانصراف المبكر بلا إذن",
                 "دقائق الإذن المعتمد",
                 "نوع الغياب",
-            ]
+            ],
         )
         for row in board["rows"]:
             staff, record = row["staff"], row["record"]
             if record is None:
-                ws.append(
+                safe_append(
+                    ws,
                     [
                         staff.employee_number or "",
                         staff.full_name,
@@ -815,10 +820,11 @@ class StaffAttendanceService:
                         "",
                         "",
                         "",
-                    ]
+                    ],
                 )
                 continue
-            ws.append(
+            safe_append(
+                ws,
                 [
                     staff.employee_number or "",
                     staff.full_name,
@@ -829,6 +835,6 @@ class StaffAttendanceService:
                     record.early_leave_minutes,
                     record.permit_minutes,
                     absence_labels.get(record.absence_type, "") if record.absence_type else "",
-                ]
+                ],
             )
         return wb
