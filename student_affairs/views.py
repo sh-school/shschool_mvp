@@ -21,6 +21,7 @@ from django.views.decorators.http import require_POST
 
 from assessments.models import AnnualSubjectResult
 from behavior.models import BehaviorInfraction
+from behavior.selectors import infractions_by_class, monthly_infraction_trend
 from clinic.models import ClinicVisit, HealthRecord
 from core import brand
 from core.academic_calendar import academic_year_for, academic_year_window
@@ -67,7 +68,12 @@ from wings.scope import student_scope_for
 
 from .coordinator_selectors import coordinator_panels
 from .models import StudentActivity, StudentTransfer
-from .selectors import attach_guardian_phones, guardian_ids_by_phone, student_register
+from .selectors import (
+    attach_guardian_phones,
+    early_attendance_counts,
+    guardian_ids_by_phone,
+    student_register,
+)
 from .transfer_decision import detail_flags, may_decide
 
 logger = logging.getLogger(__name__)
@@ -1238,27 +1244,11 @@ def attendance_overview(request):
     year = scope.year_for(request.GET.get("year"), "") or academic_year_for(request)
     grade_filter = request.GET.get("grade", "")
 
-    # ── إحصائيات اليوم — استعلامٌ واحدٌ بدل خمسة ──
-    today_counts = scope.narrow(
-        StudentAttendance.objects.filter(school=school, session__date=today)
-    ).aggregate(
-        total=Count("id"),
-        present=Count("id", filter=Q(status="present")),
-        absent=Count("id", filter=Q(status="absent")),
-        late=Count("id", filter=Q(status="late")),
-        excused=Count("id", filter=Q(status="excused")),
-    )
+    # ── حضور اليوم من الحصّتين الأولى والثانية — الحاضرُ من حضر إحداهما ──
+    early = early_attendance_counts(school, today, scope)
+    summary = early["summary"]
     # قبل أيّ رصدٍ لا نسبة: «0%» بالأحمر كانت توحي بغياب الجميع.
-    pct = attendance_rate(today_counts["present"], today_counts["total"], empty=None)
-
-    summary = {
-        "present": today_counts["present"],
-        "absent": today_counts["absent"],
-        "late": today_counts["late"],
-        "excused": today_counts["excused"],
-        "total": today_counts["total"],
-        "pct": pct,
-    }
+    pct = summary["pct"]
 
     # ── أكثر 20 طالب غياباً (آخر 30 يوم) ──
     thirty_days_ago = today - timedelta(days=30)
@@ -1274,19 +1264,6 @@ def attendance_overview(request):
         .values("student__id", "student__full_name")
         .annotate(absence_count=_absent_days())
         .order_by("-absence_count")[:20]
-    )
-
-    # ── توزيع حسب الصف (الحضور اليوم) ──
-    class_breakdown = (
-        scope.narrow(StudentAttendance.objects.filter(school=school, session__date=today))
-        .values("session__class_group__grade")
-        .annotate(
-            total=Count("id"),
-            present_count=Count("id", filter=Q(status="present")),
-            absent_count=Count("id", filter=Q(status="absent")),
-            late_count=Count("id", filter=Q(status="late")),
-        )
-        .order_by(grade_order("session__class_group__grade"))
     )
 
     # ── بيانات Chart (آخر 14 يوم) — استعلامٌ واحدٌ مجمَّعٌ باليوم بدل 42 ──
@@ -1330,19 +1307,21 @@ def attendance_overview(request):
     # ── ما يُرسم: الألوانُ بعتباتها هنا لا شروطاً في القالب ──
     # بلا رصدٍ لا لونَ حكم: «muted» ليس من ألوان بطاقة الرقم، فالسماويُّ المحايد.
     pct_tone = _share_tone(pct)[0] if pct is not None else "sky"
-    class_rows = []
-    for row in class_breakdown:
-        row_pct = attendance_rate(row["present_count"], row["total"])
-        class_rows.append(
-            {
-                **row,
-                "label": _GRADE_NAMES.get(
-                    row["session__class_group__grade"], row["session__class_group__grade"]
-                ),
-                "pct": row_pct,
-                "badge": _share_tone(row_pct)[1],
-            }
-        )
+    wing_rows = [
+        {
+            **wing,
+            "badge": _share_tone(wing["counts"]["pct"])[1],
+            "sections": [
+                {
+                    **sec,
+                    "label": f"{sec['grade_label']} / {sec['code']}",
+                    "badge": _share_tone(sec["counts"]["pct"])[1],
+                }
+                for sec in wing["sections"]
+            ],
+        }
+        for wing in early["wings"]
+    ]
     # الغيابُ المتكرّر: عشرةُ أيّامٍ فأكثر خطر، وخمسةٌ تحذير — عتبتا القالب.
     worst_students = [
         {
@@ -1371,7 +1350,7 @@ def attendance_overview(request):
             "pct_label": f"{pct}%" if pct is not None else "—",
             "pct_tone": pct_tone,
             "worst_students": worst_students,
-            "class_breakdown": class_rows,
+            "wing_rows": wing_rows,
             "chart_labels": chart_labels,
             "chart_present": chart_present,
             "chart_absent": chart_absent,
@@ -1594,20 +1573,12 @@ def behavior_overview(request):
     )
 
     # ── اتجاه المخالفات الشهري (آخر 6 أشهر) ──
-    chart_labels = []
-    chart_data = []
-    for i in range(5, -1, -1):
-        month_start = (today.replace(day=1) - timedelta(days=30 * i)).replace(day=1)
-        if i > 0:
-            next_month = (month_start + timedelta(days=32)).replace(day=1)
-        else:
-            next_month = today + timedelta(days=1)
-        count = school_infractions.filter(
-            date__gte=month_start,
-            date__lt=next_month,
-        ).count()
-        chart_labels.append(date_format(month_start, "F"))
-        chart_data.append(count)
+    chart_labels, chart_data = monthly_infraction_trend(school_infractions, today)
+
+    # ── بطاقة لكلّ شعبة (W-20261008-026) ──
+    class_cards, unassigned_card = infractions_by_class(
+        year_infractions, scope, school, scope.year or academic_year_for(request)
+    )
 
     # ── مخالفات اليوم ──
     today_infractions = year_infractions.filter(date=today).count()
@@ -1652,6 +1623,8 @@ def behavior_overview(request):
             "worst_students": worst_students,
             "chart_labels": chart_labels,
             "chart_data": chart_data,
+            "class_cards": class_cards,
+            "unassigned_card": unassigned_card,
             "grades": grades,
             "grade_filter": grade_filter,
             "wing_bound": scope.is_wing_bound,
@@ -2430,22 +2403,8 @@ def attendance_overview_pdf(request):
     # ── إحصائيات اليوم ──
     scope = _followup_scope(request)
     wing = _followup_wing_label(scope)
-    today_qs = scope.narrow(StudentAttendance.objects.filter(school=school, session__date=today))
-    total_today = today_qs.count()
-    present = today_qs.filter(status="present").count()
-    absent = today_qs.filter(status="absent").count()
-    late = today_qs.filter(status="late").count()
-    excused = today_qs.filter(status="excused").count()
-    pct = attendance_rate(present, total_today)
-
-    summary = {
-        "present": present,
-        "absent": absent,
-        "late": late,
-        "excused": excused,
-        "total": total_today,
-        "pct": pct,
-    }
+    early = early_attendance_counts(school, today, scope)
+    summary = early["summary"]
 
     # ── أكثر 20 طالب غياباً (آخر 30 يوم) ──
     thirty_days_ago = today - timedelta(days=30)
@@ -2470,6 +2429,8 @@ def attendance_overview_pdf(request):
         "student_affairs/attendance_overview_pdf.html",
         {
             "summary": summary,
+            "pct_label": f"{summary['pct']}%" if summary["pct"] is not None else "—",
+            "wings": early["wings"],
             "today": today,
             "worst_students": worst_students,
             "pdf_header": pdf_header,

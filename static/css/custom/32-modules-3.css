@@ -571,6 +571,31 @@
   /* لا شريطَ صفوفٍ متناوباً هنا — لون الخليّة يقوله نوعُ عمودها (يومٌ،
      استراحةٌ، تفريغٌ) لا زوجيّةُ صفّها، كما في ورقة الطباعة تماماً. */
   .week-grid tbody tr:nth-child(even) { background: transparent; }
+  /* ── الهاتف: لا تمريرَ أفقيّاً في جدول المعلّم/الشعبة المفرد (ملاحظة المالك على W-20260929-002) ──
+     ثماني أعمدةٍ لا تسع 300px بخطٍّ مقروء، فكلُّ يومٍ بطاقةٌ والحصصُ شبكةٌ من عمودين بتسميةٍ `data-label`
+     بدل ترويسة الأعمدة. وهذا للجدول المفرد وحدَه (`.week-grid`)؛ مصفوفةُ المعلّمين العامّة (`.schedule-matrix`) لا تُمسّ. */
+  @media (max-width: 640px) {
+    .table-wrap .week-grid,
+    .table-wrap .week-grid tbody { display: block; inline-size: 100%; }
+    .table-wrap .week-grid thead { display: none; }
+    .table-wrap .week-grid tbody tr {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--sp-1);
+      margin-block-end: var(--sp-2);
+    }
+    .table-wrap .week-grid td { min-inline-size: 0; overflow-wrap: anywhere; }
+    .table-wrap .week-grid td.wg-day { grid-column: 1 / -1; text-align: start; padding-inline: var(--sp-2); }
+    .table-wrap .week-grid td.wg-break { grid-column: 1 / -1; }
+    .table-wrap .week-grid td.wg-break.is-empty { display: none; }
+    .table-wrap .week-grid td[data-label]::before {
+      content: attr(data-label);
+      display: block;
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      margin-block-end: var(--sp-0-5);
+    }
+  }
   /* عمودُ اليوم مصبوغٌ كخانة اليوم في ورقة الطباعة — مرساةٌ بصريّةٌ لكلّ
      سطرٍ، لا خطٌّ جانبيٌّ وحده. و`td` وحدَها: `th.wg-day` («اليوم» في
      الترويسة) تبقى عنّابيّةً كبقيّة الترويسة — نفسُ الخطأ الذي وقع في

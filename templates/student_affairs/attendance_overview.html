@@ -24,9 +24,9 @@
   {% endpage_header %}
 
   {% kpi_strip label="حضور اليوم" %}
-    {% kpi "نسبة الحضور" pct_label tone=pct_tone title="الحاضرون من سجلّات حضور اليوم" %}
-    {% kpi "حاضرون" summary.present tone="green" %}
-    {% kpi "غائبون" summary.absent tone="red" %}
+    {% kpi "نسبة الحضور" pct_label tone=pct_tone title="الحاضر من حضر إحدى الحصّتين الأولى أو الثانية؛ والغائب من غاب عنهما معاً" %}
+    {% kpi "حاضرون" summary.present tone="green" title="طلابٌ حضروا إحدى الحصّتين الأولى أو الثانية" %}
+    {% kpi "غائبون" summary.absent tone="red" title="طلابٌ غابوا عن الحصّتين الأولى والثانية معاً" %}
     {% kpi "متأخرون" summary.late tone="orange" %}
     {% kpi "معذورون" summary.excused tone="blue" %}
   {% endkpi_strip %}
@@ -38,29 +38,36 @@
     </div>
   {% endsection_card %}
 
-  {% section_card "توزيع الحضور حسب الصف" meta="اليوم" icon="stats" empty="لا بيانات حضور لليوم" flush=True %}{% if class_breakdown %}
+  {% section_card "الحضور حسب الجناح والشعبة" meta="الحصّتان الأولى والثانية" icon="stats" empty="لا بيانات حضور لليوم" flush=True %}{% if wing_rows %}
     <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>
-            <th>الصف</th>
-            <th class="num">إجمالي</th>
+            <th>الجناح / الشعبة</th>
+            <th class="num">الطلبة</th>
             <th class="num">حاضرون</th>
             <th class="num">غائبون</th>
-            <th class="num">متأخرون</th>
             <th class="num">نسبة الحضور</th>
           </tr>
         </thead>
         <tbody>
-          {% for row in class_breakdown %}
+          {% for wing in wing_rows %}
           <tr>
-            <td>{{ row.label }}</td>
-            <td class="num">{{ row.total }}</td>
-            <td class="num">{{ row.present_count }}</td>
-            <td class="num">{{ row.absent_count }}</td>
-            <td class="num">{{ row.late_count }}</td>
-            <td class="num"><span class="status-badge {{ row.badge }}">{{ row.pct }}%</span></td>
+            <td><strong>{{ wing.name }}</strong></td>
+            <td class="num">{{ wing.counts.total }}</td>
+            <td class="num">{{ wing.counts.present }}</td>
+            <td class="num">{{ wing.counts.absent }}</td>
+            <td class="num"><span class="status-badge {{ wing.badge }}">{{ wing.counts.pct }}%</span></td>
           </tr>
+          {% for sec in wing.sections %}
+          <tr>
+            <td>{{ sec.label }}</td>
+            <td class="num">{{ sec.counts.total }}</td>
+            <td class="num">{{ sec.counts.present }}</td>
+            <td class="num">{{ sec.counts.absent }}</td>
+            <td class="num"><span class="status-badge {{ sec.badge }}">{{ sec.counts.pct }}%</span></td>
+          </tr>
+          {% endfor %}
           {% endfor %}
         </tbody>
       </table>

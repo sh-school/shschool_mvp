@@ -41,6 +41,42 @@
     </ul>
   {% endsection_card %}
 
+  {% section_card "المخالفات حسب الشعبة" meta=class_cards|length|stringformat:"d"|add:" شعبة" icon="students" empty="لا شُعب في العام الجاري" %}{% if class_cards %}
+    <div class="table-wrap table-wrap-scroll" data-testid="class-cards">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">الشعبة</th>
+            <th scope="col">المخالفون</th>
+            <th scope="col">المخالفات</th>
+            <th scope="col">د1</th>
+            <th scope="col">د2</th>
+            <th scope="col">د3</th>
+            <th scope="col">د4</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for card in class_cards %}
+          <tr data-class-card="{{ card.group.short_label }}">
+            <th scope="row">{{ card.group.short_label }}</th>
+            <td>{{ card.offenders }}</td>
+            <td>{{ card.total }}</td>
+            {% for degree, count in card.degree_rows %}<td>{{ count }}</td>{% endfor %}
+          </tr>
+          {% endfor %}
+          {% if unassigned_card.total %}
+          <tr data-class-card="unassigned">
+            <th scope="row">بلا شعبة حاليّة</th>
+            <td>{{ unassigned_card.offenders }}</td>
+            <td>{{ unassigned_card.total }}</td>
+            {% for degree, count in unassigned_card.degree_rows %}<td>{{ count }}</td>{% endfor %}
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+
   <div class="fill-grid">
     {% section_card "اتجاه المخالفات الشهري" meta="آخر 6 أشهر" icon="trend" %}
       <div class="dash-chart-wrap">

@@ -13,6 +13,9 @@ from clinic.models import ClinicVisit
 from clinic.services import SUPPRESS_BELOW, ClinicService, suppress_breakdown, suppress_small
 from core.capabilities import has_capability
 
+# اللوحةُ تعدّ «اليومَ» و«الشهر»: بلا تثبيتٍ تسقط بين منتصف ليل الدوحة وUTC في أول الشهر (W-20261101-001).
+pytestmark = pytest.mark.pin_clock
+
 # ── القمع النقيّ ─────────────────────────────────────────────────────
 
 

@@ -38,6 +38,10 @@ MOVED = [
         ".claude/rules/deploy-window.md",
         "الاسمُ الحاليّ جزءٌ من مفتاح الذاكرة\n  (`CACHE_NAME`؛ مثلاً `schoolos-global-v2`، `schoolos-parents-v3`)، فرفعُ\n  الرقم يُبطل النسخةَ القديمة على أجهزة المستخدمين دون انتظار Ctrl+Shift+R.",
     ),
+    (
+        "docs/deployment/local_preview.md",
+        "عملٌ لم يُودَع يُعرض بتثبيتٍ مؤقّت (حدُّ 30 دقيقة)، و0501 وحدَها تثبّت. وفي هذا الملف حرّاسُ CSS/JS ومحدوديّةُ مطابقتها للإنتاج.",
+    ),
 ]
 
 
