@@ -145,6 +145,7 @@ def _attendance_day(school, class_group, teacher, students, day, statuses):
         date=day,
         start_time=time(7, 10),
         end_time=time(7, 55),
+        period_number=1,
     )
     for student, status in zip(students, statuses, strict=True):
         StudentAttendance.objects.create(
