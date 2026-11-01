@@ -326,7 +326,12 @@ def add_row(request, teacher_id):
 @require_POST
 def update_periods(request, assignment_id):
     """تعديلُ الحصص في مكانها — وما خالف الخطّةَ يُكتب سببُه."""
-    obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, is_active=True)
+    obj = get_object_or_404(
+        SubjectClassAssignment,
+        id=assignment_id,
+        is_active=True,
+        school=request.user.get_school(),
+    )
     teacher = obj.teacher
     school, caps, _scope, _year = _guard(request, teacher)
     year = obj.academic_year
@@ -379,7 +384,12 @@ def cancel_transfer(request, teacher_id):
 @login_required
 @require_POST
 def remove_row(request, assignment_id):
-    obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, is_active=True)
+    obj = get_object_or_404(
+        SubjectClassAssignment,
+        id=assignment_id,
+        is_active=True,
+        school=request.user.get_school(),
+    )
     teacher = obj.teacher
     school, caps, _scope, _year = _guard(request, teacher)
     year = obj.academic_year
@@ -426,7 +436,12 @@ def set_parallel(request, assignment_id):
     والوسمُ يخصّ هذا الزوجَ وحدَه (`assignment_service.set_parallel`، D-04) — لا يُطلب من أحدٍ أن يتذكّر
     حروفاً يطابقها.
     """
-    obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, is_active=True)
+    obj = get_object_or_404(
+        SubjectClassAssignment,
+        id=assignment_id,
+        is_active=True,
+        school=request.user.get_school(),
+    )
     teacher = obj.teacher
     school, caps, _scope, _year = _guard(request, teacher)
     year = obj.academic_year
@@ -475,7 +490,12 @@ def toggle_double(request, assignment_id):
     ويُكتب صريحاً — `True` أو `False` — لا يُترك `None` («اتبع المادّة»):
     المستخدمُ يرى مربّعاً مشعلاً أو مطفأً، فيجب أن يكون ما يراه هو ما يُقرأ.
     """
-    obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, is_active=True)
+    obj = get_object_or_404(
+        SubjectClassAssignment,
+        id=assignment_id,
+        is_active=True,
+        school=request.user.get_school(),
+    )
     teacher = obj.teacher
     school, caps, _scope, _year = _guard(request, teacher)
     year = obj.academic_year

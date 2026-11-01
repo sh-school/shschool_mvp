@@ -182,9 +182,10 @@ class TestReportsViews:
         assert resp.status_code == 200
 
     def test_student_result_pdf(self, client_as, teacher_user, student_user):
+        # معلّمٌ لا يدرّس الطالب: 403 (كان 200 — فجوةٌ قنّنها هذا الاختبار، W-20261101-007)
         c = client_as(teacher_user)
         resp = c.get(f"/reports/student/{student_user.id}/result/")
-        assert resp.status_code == 200
+        assert resp.status_code == 403
 
     def test_class_results_excel(self, client_as, principal_user, class_group):
         c = client_as(principal_user)
