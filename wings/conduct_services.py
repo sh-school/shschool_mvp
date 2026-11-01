@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from django.db import transaction
 from django.utils import timezone
 
+from core.academic_calendar import academic_year_for_school
 from core.audit_repr import masked_repr
 from core.models import AuditLog, ClassGroup, CustomUser, School
 from operations.absence_policy import MIN_PERIODS_FOR_PRESENCE
@@ -101,7 +102,12 @@ def _judge(track: list, tardy_minutes: dict) -> tuple[set, set]:
 def evaluate_day(school: School, day: dt.date) -> dict:
     """`{student_id: _Day}` لمن يستحقّ اقتراحاً في `day`، من الرصد المثبَّت وحدَه."""
     found: dict = {}
-    groups = ClassGroup.objects.filter(school=school, is_active=True).order_by("grade", "section")
+    year = academic_year_for_school(
+        school, day
+    )  # شعبُ عام اليوم وحدَها: عامان لا يختلطان عند الترفيع
+    groups = ClassGroup.objects.filter(school=school, academic_year=year, is_active=True).order_by(
+        "grade", "section"
+    )
     for klass in groups:
         periods = periods_of(klass, day)
         confirmed = {p.start for p in periods if p.confirmation is not None}
@@ -211,6 +217,22 @@ def _category():
     return ViolationCategory.objects.filter(code=RULE_CODE, is_active=True).first()
 
 
+def _session_of(proposal: ConductProposal):
+    """حصّةُ الواقعة (أوّلُ فترةٍ مسجَّلة) لربط المخالفة بها؛ None إن لا فترات. قراءةٌ فقط — لا كتابةَ على الرصد."""
+    if not proposal.periods:
+        return None
+    row = (
+        StudentAttendance.objects.filter(
+            student=proposal.student,
+            session__date=proposal.date,
+            session__start_time=dt.time.fromisoformat(proposal.periods[0]),
+        )
+        .select_related("session")
+        .first()
+    )
+    return row.session if row else None
+
+
 @transaction.atomic
 def approve(proposal_id, by: CustomUser, scope, today: dt.date | None = None) -> ConductProposal:
     """اعتمادُ المشرف: مخالفةٌ 1-01 بلا نقاطٍ ولا قرارٍ ولا إرسال؛ والاعتمادُ الثاني يُرجع الأولَ بلا تكرار."""
@@ -225,17 +247,6 @@ def approve(proposal_id, by: CustomUser, scope, today: dt.date | None = None) ->
     category = _category()
     if category is None:
         raise ProposalError("بندُ المخالفة 1-01 غيرُ مفعَّلٍ في هذه المدرسة.")
-    row = None
-    if proposal.periods:
-        row = (
-            StudentAttendance.objects.filter(
-                student=proposal.student,
-                session__date=proposal.date,
-                session__start_time=dt.time.fromisoformat(proposal.periods[0]),
-            )
-            .select_related("session")
-            .first()
-        )
     kind = dict(ConductProposal.KINDS)[proposal.kind]
     infraction = BehaviorService.create_infraction(
         school=proposal.school,
@@ -244,7 +255,7 @@ def approve(proposal_id, by: CustomUser, scope, today: dt.date | None = None) ->
         level=BY_CODE[RULE_CODE].degree,
         description=f"{kind} بتاريخ {proposal.date:%Y-%m-%d} — {proposal.note}",
         violation_category=category,
-        session=row.session if row else None,
+        session=_session_of(proposal),
     )
     proposal.status, proposal.decided_by, proposal.decided_at = "approved", by, timezone.now()
     proposal.infraction = infraction
