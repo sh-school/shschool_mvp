@@ -19,7 +19,7 @@ from django.db.models import Avg, Count, Q, QuerySet
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
-from core.domain.grades import GRADE_BANDS, band_of
+from core.domain.grades import GRADE_BANDS, PASS_MARK, band_of
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
 from core.verdict_read import (
@@ -487,13 +487,14 @@ class GradeService(ExcuseServiceMixin):
         except StudentSubjectResult.DoesNotExist:
             s2_total = None
 
-        annual_total, status = GradeService._annual_values(s1_total, s2_total)
-
         # Lock existing row to prevent concurrent recalculation races
         existing = (
             AnnualSubjectResult.objects.select_for_update()
             .filter(student=student, setup=setup, academic_year=year)
             .first()
+        )
+        annual_total, status = GradeService._annual_values(
+            s1_total, s2_total, existing.pass_grade if existing else PASS_MARK
         )
         defaults = {
             "school": setup.school,
@@ -558,8 +559,10 @@ class GradeService(ExcuseServiceMixin):
         )
 
     @staticmethod
-    def _annual_values(s1_total, s2_total) -> tuple:
-        """(المجموعُ السنويّ، الحالة) من مجموعَي الفصلين — الحسابُ القديمُ نفسُه للمسارين."""
+    def _annual_values(s1_total, s2_total, pass_mark: Decimal = PASS_MARK) -> tuple:
+        """(المجموعُ السنويّ، الحالة) من مجموعَي الفصلين — الحسابُ القديمُ نفسُه للمسارين.
+
+        عتبةُ النجاح `pass_mark` من `AnnualSubjectResult.pass_grade` للصفّ لا ثابتٌ في الشيفرة."""
         # نحسب السنوي فقط لو عندنا نتيجة واحدة على الأقل
         if s1_total is None and s2_total is None:
             return None, "incomplete"
@@ -568,7 +571,7 @@ class GradeService(ExcuseServiceMixin):
         )
         if s1_total is None or s2_total is None:
             return annual_total, "incomplete"
-        return annual_total, ("pass" if annual_total >= Decimal("50") else "fail")
+        return annual_total, ("pass" if annual_total >= pass_mark else "fail")
 
     @staticmethod
     def _grade_from_post(
@@ -587,6 +590,8 @@ class GradeService(ExcuseServiceMixin):
             if raw:
                 try:
                     grade = Decimal(raw)
+                    if not grade.is_finite():  # «nan» و«inf» يُقبلان decimal فيسقط الحفظُ بـ500
+                        raise ValueError(raw)
                 except (ValueError, TypeError, ArithmeticError) as e:
                     logger.warning("فشل تحويل درجة الطالب %s إلى Decimal: %r — %s", sid, raw, e)
                     return None, True
@@ -833,7 +838,10 @@ class GradeService(ExcuseServiceMixin):
         for student in students:
             s1_total = totals["S1"][student.id]
             s2_total = totals["S2"][student.id]
-            annual_total, status = GradeService._annual_values(s1_total, s2_total)
+            row = existing_annual.get(student.id)
+            annual_total, status = GradeService._annual_values(
+                s1_total, s2_total, row.pass_grade if row else PASS_MARK
+            )
             values = {
                 "school": setup.school,
                 "s1_total": s1_total,
@@ -841,7 +849,6 @@ class GradeService(ExcuseServiceMixin):
                 "annual_total": annual_total,
                 "status": status,
             }
-            row = existing_annual.get(student.id)
             if row is None:
                 annual_create.append(
                     AnnualSubjectResult(student=student, setup=setup, academic_year=year, **values)

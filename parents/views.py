@@ -46,6 +46,18 @@ from .services import (
 )
 
 
+def _current_enrollments(student_ids: list) -> dict:
+    """قيدُ كلّ طالبٍ القائم باستعلامٍ واحد — كما `current_of` (الأحدثُ عاماً) بلا استعلامٍ لكلّ ابن."""
+    found: dict = {}
+    for enr in (
+        StudentEnrollment.objects.filter(student_id__in=student_ids, is_active=True)
+        .select_related("class_group")
+        .newest_first()
+    ):
+        found.setdefault(enr.student_id, enr)
+    return found
+
+
 def _get_parent_school(request):
     """يُعيد school لولي الأمر أو None"""
     if request.user.is_superuser or has_unrestricted_role(request.user):
@@ -207,11 +219,13 @@ def parent_all_grades(request):
         "student"
     )
 
+    links = list(links)
+    enrollments = _current_enrollments([link.student_id for link in links])
     children_grades = []
     for link in links:
         if not link.can_view_grades:
             continue
-        enrollment = StudentEnrollment.objects.current_of(link.student)
+        enrollment = enrollments.get(link.student_id)
         data = ParentService.get_student_grades(link.student, school, year)
         avg = data.get("avg") or 0
         children_grades.append(
@@ -259,11 +273,13 @@ def parent_all_attendance(request):
         "student"
     )
 
+    links = list(links)
+    enrollments = _current_enrollments([link.student_id for link in links])
     children_attendance = []
     for link in links:
         if not link.can_view_attendance:
             continue
-        enrollment = StudentEnrollment.objects.current_of(link.student)
+        enrollment = enrollments.get(link.student_id)
         data = ParentService.get_student_attendance(link.student, school, days)
         alerts = recent_absence_alerts_for_parent(link.student, school, 3)
         pct = data["att_pct"]

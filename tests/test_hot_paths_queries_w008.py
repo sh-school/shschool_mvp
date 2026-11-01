@@ -305,3 +305,80 @@ def test_save_all_grades_uses_a_constant_number_of_queries(
         saved = GradeService.save_all_from_post(assessment, post, teacher)
 
     assert saved == 22
+
+
+# ── أخطاء الصحّة (بند 5-6) ────────────────────────────────────────────
+
+
+def test_a_zero_annual_total_counts_in_the_average(seeded_calendar):
+    school = SchoolFactory()
+    group, pupils = _class_with_pupils(school, seeded_calendar, 1)
+    AnnualSubjectResult.objects.filter(student=pupils[0]).update(annual_total=Decimal("0"))
+    first = AnnualSubjectResult.objects.filter(student=pupils[0]).order_by(
+        "setup__subject__name_ar"
+    )[1]
+    first.annual_total = Decimal("100")
+    first.save()
+
+    report = ReportDataService.get_student_report(pupils[0], school, seeded_calendar)
+
+    assert report["avg"] == 50.0  # الصفرُ درجةٌ لا غيابُ درجة
+
+
+def test_the_annual_verdict_reads_the_rows_pass_grade_not_a_constant():
+    from assessments.services import GradeService
+
+    total = (Decimal("30"), Decimal("25"))
+    assert GradeService._annual_values(*total)[1] == "pass"  # 55 ≥ 50 الافتراضيّة
+    assert GradeService._annual_values(*total, Decimal("60")) == (Decimal("55.00"), "fail")
+
+
+@pytest.mark.parametrize("raw", ["nan", "NaN", "inf", "-Infinity"])
+def test_a_non_finite_grade_is_skipped_not_a_crash(raw):
+    from assessments.services import GradeService
+
+    post = {"grade_x": raw}
+
+    assert GradeService._grade_from_post(post, "x", None, False, "") == (None, True)
+
+
+def test_the_monthly_report_lists_the_schools_classes(seeded_calendar):
+    from core.academic_calendar import academic_year_for_school
+
+    school = SchoolFactory()
+    group, _ = _class_with_pupils(school, academic_year_for_school(school), 1)
+
+    report = AcademicReportsService.get_monthly_behavior_academic_report(
+        school, month=1, year=2026, scope="section", class_group_id=str(group.pk)
+    )
+
+    assert [cid for cid, _label in report["classes"]] == [group.pk]
+
+
+def test_student_attendance_counts_only_the_requested_year(seeded_calendar):
+    """كان الحضورُ يُجمَّع عبر كلّ الأعوام فتتراكم أرقامُ الغياب."""
+    import datetime as dt
+
+    from operations.models import Session, StudentAttendance
+
+    school = SchoolFactory()
+    old_group = ClassGroupFactory(school=school, grade="G7", section="ج", academic_year="2020-2021")
+    group, pupils = _class_with_pupils(school, seeded_calendar, 1)
+    subject = Subject.objects.create(school=school, name_ar="تاريخ", code="HX")
+    for klass, day in ((old_group, dt.date(2020, 10, 4)), (group, dt.date(2026, 10, 4))):
+        session = Session.objects.create(
+            school=school,
+            class_group=klass,
+            teacher=UserFactory(),
+            subject=subject,
+            date=day,
+            start_time=dt.time(8),
+            end_time=dt.time(9),
+        )
+        StudentAttendance.objects.create(
+            session=session, student=pupils[0], school=school, status="absent"
+        )
+
+    report = ReportDataService.get_student_report(pupils[0], school, seeded_calendar)
+
+    assert report["absent_total"] == 1

@@ -45,6 +45,20 @@ logger = logging.getLogger(__name__)
 # ══════════════════════════════════════════════════════════════════════
 
 
+def _year_bounds(school, year: str):
+    """(بدايةُ العام ونهايتُه) لاسم العام «2025-2026»: نافذةُ التقويم إن كان العامَ الجاريَ، وإلّا سبتمبر–يونيو من الاسم."""
+    from datetime import date
+
+    from core.academic_calendar import academic_year_window
+
+    if year == academic_year_for_school(school):
+        window = academic_year_window(school)
+        if window:
+            return window
+    start, end = (int(part) for part in str(year).split("-"))
+    return date(start, 9, 1), date(end, 6, 30)
+
+
 class ReportDataService:
     """تجميع بيانات التقارير — بدون أي HTTP logic"""
 
@@ -99,7 +113,9 @@ class ReportDataService:
         attendance = {
             row["student_id"]: row
             for row in StudentAttendance.objects.filter(
-                student_id__in=student_ids, session__school=school
+                student_id__in=student_ids,
+                session__school=school,
+                session__class_group__academic_year=year,
             )
             .values("student_id")
             .annotate(
@@ -115,7 +131,7 @@ class ReportDataService:
             annual = annuals_by_student[student.pk]
             s1_map = semester_maps[student.pk]["S1"]
             s2_map = semester_maps[student.pk]["S2"]
-            grades = [float(r.annual_total) for r in annual if r.annual_total]
+            grades = [float(r.annual_total) for r in annual if r.annual_total is not None]
             counts = attendance.get(student.pk, {})
             reports.append(
                 {
@@ -187,7 +203,7 @@ class ReportDataService:
                 annual = annual_map.get((enr.student_id, setup.id))
                 row["grades"][setup.subject.name_ar] = annual
                 if annual:
-                    if annual.annual_total:
+                    if annual.annual_total is not None:
                         grades.append(float(annual.annual_total))
                     if annual.status in passing_statuses():
                         passed += 1
@@ -243,6 +259,7 @@ class ReportDataService:
         all_att = StudentAttendance.objects.filter(
             student_id__in=student_ids,
             session__school=school,
+            session__class_group__academic_year=year,
         ).values("student_id", "status")
 
         # تجميع الإحصائيات لكل طالب في Python
@@ -292,7 +309,7 @@ class ReportDataService:
         from behavior.models import BehaviorInfraction
 
         infractions = (
-            BehaviorInfraction.objects.filter(school=school)
+            BehaviorInfraction.objects.filter(school=school, date__range=_year_bounds(school, year))
             .select_related("student", "reported_by")
             .order_by("-date")
         )
@@ -781,7 +798,9 @@ class AcademicReportsService:
         classes = [
             (c.id, c.short_label)
             for c in ClassGroup.objects.filter(
-                school=school, academic_year=year, is_active=True
+                school=school,
+                academic_year=academic_year_for_school(school),
+                is_active=True,
             ).order_by("grade", "section")
         ]
 
@@ -1262,11 +1281,11 @@ class ExcelService:
 
             for col_off, subj in enumerate(subjects, start=4):
                 ann = row["grades"].get(subj.name_ar)
-                grade = float(ann.annual_total) if ann and ann.annual_total else None
+                grade = float(ann.annual_total) if ann and ann.annual_total is not None else None
                 cell = safe_cell(
                     ws, row=row_num, column=col_off, value=grade if grade is not None else "—"
                 )
-                if grade is not None and grade < 50:
+                if grade is not None and grade < float(ann.pass_grade):
                     cell.font = xl_font(brand.STATUS_DANGER_FG, bold=True)
 
             safe_cell(
