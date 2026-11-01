@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from assessments.models import SubjectClassSetup
 from core.models import StudentEnrollment
+from core.permissions import teacher_can_access_student
 
 from .services import ReportDataService
 
@@ -76,3 +77,25 @@ def class_certificates_context(school: Any, class_grp: Any, year: str, paper: st
         "print_date": timezone.now().date(),
         "paper_size": paper,
     }
+
+
+def may_open_student_report(user: Any, student: Any, parent_access: Any) -> bool:
+    """من يفتح كشفَ طالبٍ فردياً: الإدارة، والطالبُ نفسُه، ومعلّمٌ يدرّسه، ووليُّ أمرٍ موافِق.
+
+    المعلّمُ مقيَّدٌ بنطاق طلبته (`teacher_can_access_student`) لا بدوره وحده: كان أيُّ معلّمٍ يفتح
+    PDF أيّ طالبٍ في المدرسة (W-20261101-007). `parent_access` استدعاءٌ كسول لفحص وليّ الأمر.
+    """
+    if user.is_admin() or user == student:
+        return True
+    if user.is_teacher():
+        return teacher_can_access_student(user, student.id)
+    return bool(parent_access())
+
+
+def may_open_student_certificate(user: Any, student: Any, parent_access: Any) -> bool:
+    """الشهادة: الإدارة ومعلّمٌ يدرّس الطالب ووليُّ أمرٍ موافِق (الطالبُ نفسُه لا يفتحها كما كان)."""
+    if user.is_admin():
+        return True
+    if user.is_teacher():
+        return teacher_can_access_student(user, student.id)
+    return bool(parent_access())

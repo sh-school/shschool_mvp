@@ -25,10 +25,11 @@ from core.exports.services import respond_export
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_number
 from core.pdf_utils import render_pdf
-from core.permissions import teacher_can_access_student
 
 from .selectors import (
     class_certificates_context,
+    may_open_student_certificate,
+    may_open_student_report,
     paper_size,
     set_final_status,
     teacher_can_access_class,
@@ -92,20 +93,6 @@ def _has_parent_access(request, student, school) -> bool:
     return ParentStudentLink.objects.filter(
         parent=request.user, student=student, school=school
     ).exists()
-
-
-def _may_open_student_report(request, student, school) -> bool:
-    """من يفتح كشفَ طالبٍ فردياً: الإدارة، والطالبُ نفسُه، ومعلّمٌ يدرّسه، ووليُّ أمرٍ موافِق.
-
-    المعلّمُ مقيَّدٌ بنطاق طلبته (`teacher_can_access_student`) لا بدوره وحده: كان أيُّ معلّمٍ يفتح
-    PDF أيّ طالبٍ في المدرسة (W-20261101-007).
-    """
-    user = request.user
-    if user.is_admin() or user == student:
-        return True
-    if user.is_teacher():
-        return teacher_can_access_student(user, student.id)
-    return _has_parent_access(request, student, school)
 
 
 def _teacher_can_access_class(request, school, class_grp, year) -> bool:
@@ -478,7 +465,9 @@ def student_result_pdf(request, student_id):
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
-    if not _may_open_student_report(request, student, school):
+    if not may_open_student_report(
+        request.user, student, lambda: _has_parent_access(request, student, school)
+    ):
         return HttpResponse("غير مسموح", status=403)
 
     ctx = ReportDataService.get_student_report(student, school, year)
@@ -522,7 +511,9 @@ def student_annual_result_pdf(request, student_id):
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
-    if not _may_open_student_report(request, student, school):
+    if not may_open_student_report(
+        request.user, student, lambda: _has_parent_access(request, student, school)
+    ):
         return HttpResponse("غير مسموح", status=403)
 
     ctx = ReportDataService.get_student_report(student, school, year)
@@ -566,11 +557,9 @@ def student_certificate_pdf(request, student_id):
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
-    if request.user.is_teacher() and not request.user.is_admin():
-        allowed = teacher_can_access_student(request.user, student.id)
-    else:
-        allowed = request.user.is_admin() or _has_parent_access(request, student, school)
-    if not allowed:
+    if not may_open_student_certificate(
+        request.user, student, lambda: _has_parent_access(request, student, school)
+    ):
         return HttpResponse("غير مسموح", status=403)
 
     ctx = ReportDataService.get_student_report(student, school, year)

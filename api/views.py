@@ -68,6 +68,7 @@ from .filters import (
 )
 from .pagination import StandardPagination
 from .permissions import CanViewBehavior, IsParentOrAdmin, IsSchoolAdmin, IsTeacherOrAdmin
+from .selectors import school_student_or_404
 from .serializers import (
     AnnualSubjectResultSerializer,
     AttendanceSerializer,
@@ -180,16 +181,6 @@ class StudentListView(generics.ListAPIView):
 student_list = StudentListView.as_view()
 
 
-def _school_student_or_404(school, student_id):
-    """طالبٌ من عضويّة مدرسة الطلب النشطة — وإلا 404؛ فلا يُقرأ مستخدمُ مدرسةٍ أخرى بمعرّفه (W-20261101-007)."""
-    return get_object_or_404(
-        CustomUser.objects.filter(
-            memberships__school=school, memberships__is_active=True
-        ).distinct(),
-        id=student_id,
-    )
-
-
 @extend_schema(
     summary="درجات طالب",
     parameters=[OpenApiParameter("year", str, description="السنة الدراسية")],
@@ -200,7 +191,7 @@ def _school_student_or_404(school, student_id):
 def student_grades(request, student_id):
     school = _school(request)
     year = _year(request)
-    student = _school_student_or_404(school, student_id)
+    student = school_student_or_404(school, student_id)
 
     # ── VULN-002 Fix: IDOR Protection — المعلم يرى طلابه فقط ──────
     if not request.user.is_admin():
@@ -265,7 +256,7 @@ def student_attendance(request, student_id):
     from django.utils import timezone
 
     school = _school(request)
-    student = _school_student_or_404(school, student_id)
+    student = school_student_or_404(school, student_id)
 
     # ── VULN-002 Fix: IDOR Protection — المعلم يرى طلابه فقط ──────
     if not request.user.is_admin():

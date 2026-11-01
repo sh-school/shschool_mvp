@@ -330,7 +330,7 @@ def update_periods(request, assignment_id):
         SubjectClassAssignment,
         id=assignment_id,
         is_active=True,
-        school=request.user.get_school(),
+        school=request.school,
     )
     teacher = obj.teacher
     school, caps, _scope, _year = _guard(request, teacher)
@@ -388,7 +388,7 @@ def remove_row(request, assignment_id):
         SubjectClassAssignment,
         id=assignment_id,
         is_active=True,
-        school=request.user.get_school(),
+        school=request.school,
     )
     teacher = obj.teacher
     school, caps, _scope, _year = _guard(request, teacher)
@@ -440,7 +440,7 @@ def set_parallel(request, assignment_id):
         SubjectClassAssignment,
         id=assignment_id,
         is_active=True,
-        school=request.user.get_school(),
+        school=request.school,
     )
     teacher = obj.teacher
     school, caps, _scope, _year = _guard(request, teacher)
@@ -494,7 +494,7 @@ def toggle_double(request, assignment_id):
         SubjectClassAssignment,
         id=assignment_id,
         is_active=True,
-        school=request.user.get_school(),
+        school=request.school,
     )
     teacher = obj.teacher
     school, caps, _scope, _year = _guard(request, teacher)
