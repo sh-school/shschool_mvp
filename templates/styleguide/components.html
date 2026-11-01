@@ -683,10 +683,10 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
   {% section_card "25 · الجدولُ المرن والموسَّط والرأسُ اللاصق" meta="table-wrap-scroll · cell-name · tbl-cols" icon="checklist" span="wide" %}
     <div class="table-wrap table-wrap-scroll sg-sticky-demo tbl-cols" role="region" tabindex="0" aria-label="مثالُ جدولٍ طويلٍ بترويسةٍ لاصقة">
       <table data-no-sort>
-        <thead><tr><th class="fu-seq">م</th><th class="fu-name">الطالب</th><th class="fu-fit">الشعبة</th><th>الملاحظة</th></tr></thead>
+        <thead><tr><th class="fu-fit">م</th><th>الطالب</th><th class="fu-fit">الشعبة</th><th>الملاحظة</th></tr></thead>
         <tbody>
           {% for row in grade_rows %}
-          <tr><td class="fu-seq">{{ forloop.counter }}</td><td class="cell-name fu-name">{{ row.name }}</td><td class="fu-fit">{{ row.grade }}/{{ row.section }}</td><td>ملاحظةٌ نصّيّةٌ تتقاسم الباقي وتلتفّ داخل خليّتها</td></tr>
+          <tr><td class="fu-fit">{{ forloop.counter }}</td><td class="cell-name fu-name">{{ row.name }}</td><td class="fu-fit">{{ row.grade }}/{{ row.section }}</td><td>ملاحظةٌ نصّيّةٌ تتقاسم الباقي وتلتفّ داخل خليّتها</td></tr>
           {% endfor %}
         </tbody>
       </table>
