@@ -308,3 +308,54 @@ def test_each_guide_page_links_the_guide_sheet(client, developer_user, name):
     client.force_login(developer_user)
 
     assert "styleguide" in client.get(reverse(name)).content.decode().split("</head>")[0]
+
+
+@pytest.mark.django_db
+def test_the_guide_shows_the_six_grade_colours_read_from_root(client, developer_user):
+    """W-20261013-027: ألوانُ الصفوف 7..12 تُقرأ من `:root` لا تُنسخ، ومثالُ الجدول بأصناف المنصّة."""
+    client.force_login(developer_user)
+
+    html = client.get(reverse("ui_components")).content.decode()
+
+    for grade in range(7, 13):
+        assert f'style="--swatch:var(--grade-{grade})"' in html, grade
+        assert f'data-token="--grade-{grade}"' in html, grade
+        assert f"grade-tint grade-g{grade}" in html, grade
+    assert not re.search(r"--grade-\d+\s*:\s*#", html), "قيمةٌ سداسيّةٌ منسوخةٌ بدل القراءة من :root"
+    assert {"grade-7", "grade-12"} <= set(_tokens())
+
+
+@pytest.mark.django_db
+def test_the_guide_table_example_is_flexible_centred_and_sticky(client, developer_user):
+    client.force_login(developer_user)
+
+    html = client.get(reverse("ui_components")).content.decode()
+
+    assert "25 · الجدولُ المرن والموسَّط والرأسُ اللاصق</h2>" in html
+    assert 'class="table-wrap table-wrap-scroll sg-sticky-demo tbl-cols"' in html
+    assert 'class="cell-name fu-name"' in html
+    assert not re.search(r"<(?:th|td|col)\b[^>]*\bwidth\s*=", html)
+    assert not re.search(r'<(?:th|td|col)\b[^>]*style="[^"]*\bwidth\s*:', html)
+
+
+@pytest.mark.django_db
+def test_the_icon_page_shows_the_school_logo_in_every_approved_size(client, developer_user):
+    from core.school_logo import SIZES_PX
+
+    client.force_login(developer_user)
+
+    html = client.get(reverse("icon_preview")).content.decode()
+
+    for size in SIZES_PX:
+        assert f"school-logo school-logo--{size}" in html, size
+
+
+@pytest.mark.django_db
+def test_the_layouts_page_states_the_table_rules_in_list_and_report(client, developer_user):
+    client.force_login(developer_user)
+
+    html = client.get(reverse("ui_layouts")).content.decode()
+
+    assert html.count("cell-name") >= 1
+    assert "grade-tint grade-gN" in html
+    assert "جداولُ التقرير بقواعد المنصّة نفسِها" in html
