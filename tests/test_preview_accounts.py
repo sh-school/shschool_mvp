@@ -43,6 +43,7 @@ EXPECTED_ROLES = {
     "coordinator",
     "specialist",
     "student_affairs_coordinator",
+    "nurse",
 }
 
 
@@ -90,7 +91,7 @@ def test_no_forbidden_role_is_in_the_list_and_every_role_is_a_platform_role():
 
 def test_the_synthetic_ids_are_unique_and_carry_the_prefix():
     ids = list(pa.ROLES.values())
-    assert len(set(ids)) == len(ids) == 10
+    assert len(set(ids)) == len(ids) == 11
     assert all(i.startswith(pa.ID_PREFIX) for i in ids)
 
 
@@ -138,19 +139,19 @@ def test_a_non_loopback_bind_seeds_nothing_and_deactivates_what_was_seeded(
 ):
     with PREVIEW:
         _sync()
-        assert _fakes().filter(is_active=True).count() == 10
+        assert _fakes().filter(is_active=True).count() == 11
         monkeypatch.setenv("PREVIEW_BIND", "0.0.0.0")
         with pytest.raises(CommandError, match="PREVIEW_BIND"):
             _sync()
     assert _fakes().filter(is_active=True).count() == 0
-    assert _fakes().count() == 10
+    assert _fakes().count() == 11
 
 
 def test_sync_creates_the_ten_accounts_with_safe_flags(school, preview_env):
     with PREVIEW:
         _sync()
     users = list(_fakes())
-    assert len(users) == 10
+    assert len(users) == 11
     for user in users:
         assert user.full_name.startswith(pa.FULL_NAME_PREFIX)
         assert user.email.startswith(pa.EMAIL_PREFIX)
@@ -174,14 +175,15 @@ def test_the_student_affairs_coordinator_account_follows_absence_across_all_wing
     assert has_capability(user, "wings.school_wide")
     assert has_capability(user, "wings.record_day")
     assert pa.EMPLOYEE_NUMBERS["student_affairs_coordinator"] == "99900010"
+    assert pa.EMPLOYEE_NUMBERS["nurse"] == "99900011"
 
 
 def test_sync_is_idempotent(school, preview_env):
     with PREVIEW:
         _sync()
         _sync()
-    assert _fakes().count() == 10
-    assert Membership.objects.filter(user__in=_fakes()).count() == 10
+    assert _fakes().count() == 11
+    assert Membership.objects.filter(user__in=_fakes()).count() == 11
 
 
 def test_sync_corrects_a_drifted_role_membership_and_flags(school, preview_env):
@@ -495,7 +497,7 @@ def test_sync_removes_legacy_accounts_and_seeds_each_role_once(school, preview_e
     with PREVIEW:
         _sync()
     assert not CustomUser.objects.filter(pa.legacy_accounts_q()).exists()
-    assert _fakes().count() == 10
+    assert _fakes().count() == 11
     for role in EXPECTED_ROLES:
         assert (
             Membership.objects.filter(user__in=_fakes(), role__name=role, is_active=True).count()
@@ -608,7 +610,7 @@ def test_b_development_with_matching_variables_and_a_preview_named_db_is_a_previ
     with DEVELOPMENT:
         assert pa.in_preview_environment()
         _sync()
-    assert _fakes().filter(is_active=True).count() == 10
+    assert _fakes().filter(is_active=True).count() == 11
 
 
 def test_b2_the_tagged_account_logs_in_under_the_pinned_development_preview(
@@ -673,12 +675,12 @@ def test_the_testing_settings_are_never_a_preview(monkeypatch, preview_env, scho
 
 def test_the_reserved_employee_numbers_are_eight_digits_apart_from_real_5_6_and_11_digit_numbers():
     numbers = list(pa.EMPLOYEE_NUMBERS.values())
-    assert len(set(numbers)) == len(numbers) == 10
+    assert len(set(numbers)) == len(numbers) == 11
     assert set(pa.EMPLOYEE_NUMBERS) == set(pa.ROLES)
     for number in numbers:
         assert len(number) == 8 and number.isdigit()
         assert pa.is_reserved_employee_number(number)
-    for real in ("12345", "123456", "29000001234", "99900000", "99900011", "999000010", ""):
+    for real in ("12345", "123456", "29000001234", "99900000", "99900012", "999000010", ""):
         assert not pa.is_reserved_employee_number(real), real
 
 
