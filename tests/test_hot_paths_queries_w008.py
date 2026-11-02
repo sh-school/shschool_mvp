@@ -215,8 +215,29 @@ def _snapshot(assessment):
         .select_related("student")
         .order_by("student__full_name")
     ]
+    # معرّفُ الصفّ يختلف بين العالمين، فيُستبدل بمفتاحٍ ثابت (الطالب/الفصل) ويُقارَن كلُّ ما عداه حرفيّاً
+    keys = {
+        ("StudentAssessmentGrade", str(g.pk)): g.student.full_name
+        for g in StudentAssessmentGrade.objects.filter(assessment=assessment).select_related(
+            "student"
+        )
+    }
+    keys.update(
+        {
+            ("StudentSubjectResult", str(r.pk)): f"{r.student.full_name}/{r.semester}"
+            for r in StudentSubjectResult.objects.filter(setup=setup).select_related("student")
+        }
+    )
     audit = sorted(
-        (a.action, a.model_name, a.object_repr.split()[0], str(a.changes), a.school_id is not None)
+        (
+            a.action,
+            a.model_name,
+            keys.get((a.model_name, str(a.object_id)), "؟"),
+            a.object_repr.replace(str(a.object_id)[:8], "‹pk›"),
+            repr(sorted((a.changes or {}).items(), key=str)),
+            a.school_id is not None,
+            a.user_id is not None,
+        )
         for a in AuditLog.objects.filter(
             model_name__in=("StudentAssessmentGrade", "StudentSubjectResult"),
             school=setup.school,
@@ -288,6 +309,87 @@ def test_batched_save_all_equals_the_rowwise_path_including_the_audit_trail(
     assert ("update", "StudentAssessmentGrade") in {(row[0], row[1]) for row in audit}
     assert ("create", "StudentAssessmentGrade") in {(row[0], row[1]) for row in audit}
     assert "StudentSubjectResult" in {row[1] for row in audit}
+
+
+def test_batched_recalculate_full_class_equals_the_legacy_loop_with_existing_rows(
+    seeded_calendar, settings
+):
+    """إعادةُ الحساب وحدَها: صفوفٌ قائمةٌ وعتبةُ نجاحٍ مخصّصة؛ النتيجةُ وأثرُ التدقيق مطابقان للحلقة القديمة."""
+    from assessments.models import Assessment, AssessmentPackage, StudentAssessmentGrade
+    from assessments.services import GradeService
+
+    settings.VERDICT_ENGINE_ENABLED = False
+    worlds = []
+    for _ in range(2):
+        school = SchoolFactory()
+        assessment, pupils = _assessment_world(school, seeded_calendar, 5)
+        setup = assessment.package.setup
+        # كلُّ باقةٍ بتقييمٍ مُدرجٍ فيه درجاتٌ للجميع ليكتمل الفصلان فيصدر حكمٌ سنويّ
+        for package in AssessmentPackage.objects.filter(setup=setup):
+            target = assessment
+            if package.pk != assessment.package_id:
+                target = Assessment.objects.create(
+                    package=package,
+                    school=school,
+                    title=f"تقييم {package.package_type}{package.semester}",
+                    assessment_type="exam",
+                    max_grade=Decimal("100"),
+                    weight_in_package=Decimal("100"),
+                    status="published",
+                )
+            for i, pupil in enumerate(pupils):
+                StudentAssessmentGrade.objects.create(
+                    assessment=target, student=pupil, school=school, grade=Decimal(20 + i * 15)
+                )
+        # صفوفٌ قائمةٌ بقيمٍ قديمة وعتبةٍ مخصّصة (70) لبعضها
+        for i, pupil in enumerate(pupils):
+            for sem in ("S1", "S2"):
+                StudentSubjectResult.objects.create(
+                    student=pupil, setup=setup, school=school, semester=sem, total=Decimal("1")
+                )
+            AnnualSubjectResult.objects.create(
+                student=pupil,
+                setup=setup,
+                school=school,
+                academic_year=seeded_calendar,
+                annual_total=Decimal("1"),
+                status="fail",
+                pass_grade=Decimal("70") if i % 2 == 0 else Decimal("50"),
+            )
+        worlds.append((assessment, setup))
+
+    GradeService.recalculate_full_class(worlds[0][1])
+    _legacy_recalculate_class(worlds[1][1])
+
+    snap_a, snap_b = _snapshot(worlds[0][0]), _snapshot(worlds[1][0])
+    assert snap_a == snap_b
+    assert {row[4] for row in snap_a[2]} <= {"pass", "fail"}
+    assert snap_a[3], "يجب أن يكتب أثرَ تدقيقٍ للنتائج المحدَّثة"
+
+
+def test_recalculate_full_class_query_count_does_not_grow_with_pupils(seeded_calendar, settings):
+    """عدُّ الاستعلامات (يشمل ما تلمسه `object_repr` من علاقاتٍ كسولة) ثابتٌ بين فصلٍ صغيرٍ وكبير."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from assessments.models import StudentAssessmentGrade
+    from assessments.services import GradeService
+
+    settings.VERDICT_ENGINE_ENABLED = False
+    counts = {}
+    for size in (2, 12):
+        school = SchoolFactory()
+        assessment, pupils = _assessment_world(school, seeded_calendar, size)
+        setup = assessment.package.setup
+        for i, pupil in enumerate(pupils):
+            StudentAssessmentGrade.objects.create(
+                assessment=assessment, student=pupil, school=school, grade=Decimal(30 + i)
+            )
+        GradeService.recalculate_full_class(setup)  # أوّلُ مرّةٍ تُنشئ الصفوف
+        with CaptureQueriesContext(connection) as ctx:
+            GradeService.recalculate_full_class(setup)  # الثانيةُ تحدّث صفوفاً قائمة
+        counts[size] = len(ctx)
+    assert counts[2] == counts[12], counts
 
 
 def test_save_all_grades_uses_a_constant_number_of_queries(
