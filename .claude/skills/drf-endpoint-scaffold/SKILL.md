@@ -1,7 +1,8 @@
 ---
 name: drf-endpoint-scaffold
-description: "DRF endpoints under /api/v1/: serializer, view, selector, RBAC, tests. Trigger: DRF, endpoint, REST API, APIView. نقطة API جديدة، serializer، api/urls.py"
 ---
+
+> متى تُستعمل: "DRF endpoints under /api/v1/: serializer, view, selector, RBAC, tests. Trigger: DRF, endpoint, REST API, APIView. نقطة API جديدة، serializer، api/urls.py"
 
 # بناءُ نقطة REST في SchoolOS
 

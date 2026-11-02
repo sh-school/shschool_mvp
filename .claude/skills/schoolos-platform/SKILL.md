@@ -1,7 +1,8 @@
 ---
 name: schoolos-platform
-description: "SchoolOS codebase map: apps, models, services, roles, grading, scoping. Trigger: where is X, request.school, models/services/views. أين أجد، الأدوار، التقييم"
 ---
+
+> متى تُستعمل: "SchoolOS codebase map: apps, models, services, roles, grading, scoping. Trigger: where is X, request.school, models/services/views. أين أجد، الأدوار، التقييم"
 
 # SchoolOS — خريطةُ الشيفرة
 
