@@ -1,7 +1,8 @@
 ---
 name: schoolos-migration-guard
-description: "Django migration safety: expand/contract, NOT NULL, indexes, RunPython. Trigger: migration, makemigrations, schema change. هجرة، تعديل models.py"
 ---
+
+> متى تُستعمل: "Django migration safety: expand/contract, NOT NULL, indexes, RunPython. Trigger: migration, makemigrations, schema change. هجرة، تعديل models.py"
 
 # حارس هجرات SchoolOS
 

@@ -1,7 +1,8 @@
 ---
 name: web-design-mastery
-description: "SchoolOS web UI: CSS layers, tokens, dark mode, RTL, HTMX, a11y. Trigger: CSS, template, component, layout, mobile. واجهة، قالب، الوضع الليلي، الجوال"
 ---
+
+> متى تُستعمل: "SchoolOS web UI: CSS layers, tokens, dark mode, RTL, HTMX, a11y. Trigger: CSS, template, component, layout, mobile. واجهة، قالب، الوضع الليلي، الجوال"
 
 # معاييرُ الواجهة في SchoolOS
 

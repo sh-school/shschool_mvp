@@ -1,7 +1,8 @@
 ---
 name: pdppl-pii-audit
-description: "PDPPL personal-data audit: PII encryption, leaks, consent, erasure, breach. Trigger: PDPPL, PII, privacy, national_id. بيانات شخصية، خصوصية، تشفير"
 ---
+
+> متى تُستعمل: "PDPPL personal-data audit: PII encryption, leaks, consent, erasure, breach. Trigger: PDPPL, PII, privacy, national_id. بيانات شخصية، خصوصية، تشفير"
 
 # مدقّق PDPPL لـ SchoolOS
 

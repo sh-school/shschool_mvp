@@ -1,7 +1,8 @@
 ---
 name: write-spec-ar
-description: "Use to draft an Arabic feature spec (PRD) from an owner's request, report or idea: problem, goals, explicit non-goals, user stories, P0/P1/P2 requirements with acceptance criteria, measurable success, open questions. Output is a DRAFT only. استخدمها عند «اكتب مواصفة»، «حوّل هذا البلاغ/الفكرة إلى مواصفة»، «ما خارج النطاق؟»، «معايير القبول» — ولو لم تُذكر. ليست لـ: إنشاء بطاقة (ledger.py)، التنفيذ، الخارطة، القرارات الحاكمة."
 ---
+
+> متى تُستعمل: "Use to draft an Arabic feature spec (PRD) from an owner's request, report or idea: problem, goals, explicit non-goals, user stories, P0/P1/P2 requirements with acceptance criteria, measurable success, open questions. Output is a DRAFT only. استخدمها عند «اكتب مواصفة»، «حوّل هذا البلاغ/الفكرة إلى مواصفة»، «ما خارج النطاق؟»، «معايير القبول» — ولو لم تُذكر. ليست لـ: إنشاء بطاقة (ledger.py)، التنفيذ، الخارطة، القرارات الحاكمة."
 
 # كتابة مواصفة بالعربية (مسوّدة)
 

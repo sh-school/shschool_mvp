@@ -1,7 +1,8 @@
 ---
 name: owner-digest
-description: "Use to draft a short Arabic status digest for the owner or another audience (leadership, engineers, partners): status color, TL;DR, progress, risks with mitigation, specific decisions needed, next milestones. Output is a DRAFT only. استخدمها عند «اكتب موجز المالك»، «ملخّص الأسبوع»، «حالة المشروع»، «صعّد هذا الخطر»، «موجز 14:00» — ولو لم تُذكر. ليست لـ: إنشاء بطاقة، قرارٍ حاكم، تقرير حيّ من بيانات الإنتاج."
 ---
+
+> متى تُستعمل: "Use to draft a short Arabic status digest for the owner or another audience (leadership, engineers, partners): status color, TL;DR, progress, risks with mitigation, specific decisions needed, next milestones. Output is a DRAFT only. استخدمها عند «اكتب موجز المالك»، «ملخّص الأسبوع»، «حالة المشروع»، «صعّد هذا الخطر»، «موجز 14:00» — ولو لم تُذكر. ليست لـ: إنشاء بطاقة، قرارٍ حاكم، تقرير حيّ من بيانات الإنتاج."
 
 # موجز المالك وتحديثات أصحاب المصلحة (مسوّدة)
 

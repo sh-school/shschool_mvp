@@ -1,7 +1,8 @@
 ---
 name: nplus1-hunter
-description: "N+1 and slow queries: select_related, prefetch_related, query count. Trigger: N+1, slow page, query count. بطء صفحة، استعلامات كثيرة، ليش بطيئة"
 ---
+
+> متى تُستعمل: "N+1 and slow queries: select_related, prefetch_related, query count. Trigger: N+1, slow page, query count. بطء صفحة، استعلامات كثيرة، ليش بطيئة"
 
 # صيّاد N+1 في SchoolOS
 

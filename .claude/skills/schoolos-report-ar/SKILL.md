@@ -1,7 +1,8 @@
 ---
 name: schoolos-report-ar
-description: "Arabic RTL PDF and Excel exports: render_pdf, ExcelService, print frame. Trigger: PDF, Excel, export, WeasyPrint, A3. تقرير، كشف، شهادة، تصدير، طباعة"
 ---
+
+> متى تُستعمل: "Arabic RTL PDF and Excel exports: render_pdf, ExcelService, print frame. Trigger: PDF, Excel, export, WeasyPrint, A3. تقرير، كشف، شهادة، تصدير، طباعة"
 
 # التقارير الرسميّة PDF وExcel — SchoolOS
 
