@@ -19,6 +19,7 @@ from operations.models import StudentAttendance
 from operations.school_days import SchoolDay, school_day
 from operations.services import ScheduleService
 from wings.scope import student_scope_for
+from wings.views_proposals import holds_wing
 
 from .services import (
     bell_tables,
@@ -229,6 +230,7 @@ def record_index(request):
             "day": day,
             "today": timezone.localdate(),
             "school_day": opened,
+            "can_review_proposals": holds_wing(request),
         },
     )
 

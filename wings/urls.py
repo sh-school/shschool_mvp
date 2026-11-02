@@ -7,6 +7,7 @@ from . import (
     views_excuse_document,
     views_exit_permit,
     views_ministry,
+    views_proposals,
     views_register,
 )
 from .views_supervisor_live import supervisor_live
@@ -54,6 +55,12 @@ urlpatterns = [
         "students/<uuid:student_id>/absences/contact/",
         views_absence_file.absence_file_contact,
         name="absence_file_contact",
+    ),
+    path("proposals/", views_proposals.conduct_proposals, name="conduct_proposals"),
+    path(
+        "proposals/<uuid:pk>/decide/",
+        views_proposals.conduct_proposal_decide,
+        name="conduct_proposal_decide",
     ),
     path("excuses/requests/", views.excuse_requests, name="excuse_requests"),
     path(
