@@ -35,9 +35,9 @@
   </tr>
   <tr>
     <th>الجوال</th>
-    <td>{{ student.get_phone_decrypted|default:"—" }}</td>
+    <td><bdi dir="ltr">{{ student.get_phone_decrypted|default:"—" }}</bdi></td>
     <th>البريد الإلكتروني</th>
-    <td>{{ student.email|default:"—" }}</td>
+    <td><bdi dir="ltr">{{ student.email|default:"—" }}</bdi></td>
   </tr>
 </table>
 
@@ -53,7 +53,7 @@
     <tr>
       <td class="cell-name">{{ link.parent.full_name }}</td>
       <td>{{ link.get_relationship_display }}</td>
-      <td>{{ link.parent.get_phone_decrypted|default:"—" }}</td>
+      <td><bdi dir="ltr">{{ link.parent.get_phone_decrypted|default:"—" }}</bdi></td>
     </tr>
     {% endfor %}
   </tbody>

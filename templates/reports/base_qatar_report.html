@@ -25,7 +25,7 @@
   -webkit-print-color-adjust: exact;
 }
 html, body, div, p, span, td, th, h1, h2, h3 {
-  direction: rtl; text-align: right; unicode-bidi: embed;
+  direction: rtl; text-align: start; unicode-bidi: isolate;
 }
 table { direction: rtl; border-collapse: collapse; }
 
@@ -193,7 +193,7 @@ body {
   padding: 6px;
 }
 .doc-body > table:not([class]) tbody th {
-  text-align: right;
+  text-align: start;
   font-weight: 600;
   min-width: 130px;
 }
@@ -202,7 +202,7 @@ body {
 .doc-body > table:not([class]) tbody tr:nth-child(even) th {
   background: {% brand_color "SURFACE_ALT" %};
 }
-.cell-name { text-align: right; font-weight: 600; color: {% brand_color "TEXT_PRIMARY" %}; }
+.cell-name { text-align: start; font-weight: 600; color: {% brand_color "TEXT_PRIMARY" %}; }
 .cell-num { text-align: center; font-weight: 700; color: {% brand_color "TEXT_PRIMARY" %}; }
 .cell-danger { text-align: center; font-weight: 700; color: {% brand_color "STATUS_DANGER_DARK" %}; }
 
@@ -219,7 +219,7 @@ body {
   font-weight: 700;
   padding: 7px 14px;
   border-bottom: 1px solid {% brand_color "BORDER" %};
-  text-align: right;
+  text-align: start;
   width: 20%;
   font-size: 10.5px;
 }
@@ -367,7 +367,7 @@ body {
   الخدمة تُعيد `school` — فكان البديل المُثبَّت هو المسار الوحيد دائماً، وتُطبع
   بيانات مدرسةٍ بعينها على وثائق كل مدرسة في منصّةٍ متعدّدة المدارس.
   {% endcomment %}
-  <div class="ft-school">{{ school.name }}{% if school.phone %} · هاتف: {{ school.phone }}{% endif %}{% if school.email %} · {{ school.email }}{% endif %}{% if school.city %} · {{ school.city }}، قطر{% endif %}</div>
+  <div class="ft-school">{{ school.name }}{% if school.phone %} · هاتف: <bdi dir="ltr">{{ school.phone }}</bdi>{% endif %}{% if school.email %} · <bdi dir="ltr">{{ school.email }}</bdi>{% endif %}{% if school.city %} · {{ school.city }}، قطر{% endif %}</div>
   {% load ministry %}{% ministry_name as ministry_full %}<div class="ft-ministry">{% if ministry_full %}{{ ministry_full }} — {% endif %}{% include "components/ministry_vision.html" %} · © {% now "Y" %}</div>
 </div>
 
