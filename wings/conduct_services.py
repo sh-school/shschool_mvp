@@ -1,0 +1,363 @@
+"""توليدُ اقتراحات المخالفة 1-01 واعتمادُها وردُّها (W-20261013-034، قراراتُ المالك 1–5 في 2026-10-13).
+
+- **المقترَح**: مداومٌ (أتمّ `MIN_PERIODS_FOR_PRESENCE` حصصٍ مثبَّتةً حضوراً) غاب حصّةً بلا عذرٍ ولا إذن،
+  أو دخل متأخّراً أكثر من خمس دقائق بعد أن حضر حصّةً سبقتها. وما يُنشئه الرصدُ آلياً (2-02 و3-10) يُستثنى، ولا يُمسّ
+  التأخّرُ الصباحيّ: الحصّةُ الأولى الحاضرة ليست «بين الحصص».
+- **اقتراحٌ واحدٌ لكلّ طالبٍ في اليوم** (القيدُ الفريد مدرسة+طالب+يوم)، تُجمع فيه الحصصُ في ملاحظته.
+- **الظهور**: في يوم الواقعة نفسه (قرارُ المالك 2026-10-30 بدل مهلة اليومين)؛ فقد يظهر قبل انتهاء مهلة العذر، ومن قُبل له عذرٌ بعدها
+  يُسحب مقترحُه عند التوليد التالي ويُحجب اعتمادُه (`_lock`).
+- **السحب**: يُعاد الحكمُ على غير المعتمَد مع كلّ توليد؛ فعذرٌ قُبل (في المهلة أو بعدها) أو تصحيحٌ للرصد يسحب المقترحَ،
+  وما اعتُمد أو رُدَّ لا يُمسّ.
+- **الاعتماد**: مخالفةٌ 1-01 عبر `BehaviorService.create_infraction` وحدَها — بلا نقاطٍ ولا قرارٍ ولا إرسالٍ لوليّ الأمر (D-272م).
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import logging
+from dataclasses import dataclass, field
+
+from django.db import transaction
+from django.utils import timezone
+
+from core.academic_calendar import academic_year_for_school
+from core.audit_repr import masked_repr
+from core.models import AuditLog, ClassGroup, CustomUser, School
+from operations.absence_policy import MIN_PERIODS_FOR_PRESENCE
+from operations.day_attendance import SOURCE, enrolled_of
+from operations.models import StudentAttendance
+from operations.period_register import ATTENDED, AWAY_WITH_LEAVE, escapes_for, periods_of
+from operations.school_days import is_school_day
+from operations.tardiness import is_period_tardy
+
+from .models import ConductProposal
+
+logger = logging.getLogger(__name__)
+
+#: كم يوماً تقويميّاً يُنظر إليه إلى الوراء عند التوليد — ما قبله لا يُقترح له (مخالفةٌ متقادمة).
+LOOKBACK_DAYS = 21
+RULE_CODE = "1-01"
+
+
+class ProposalError(ValueError):
+    """رفضٌ بسببٍ يُعرض للمشرف كما هو."""
+
+
+@dataclass
+class _Day:
+    absent: set = field(default_factory=set)
+    tardy: set = field(default_factory=set)
+    labels: dict = field(default_factory=dict)
+
+
+def _rows(klass: ClassGroup, day: dt.date) -> dict:
+    """ما رصده المشرفُ: `{student_id: {start: (status, where, late_minutes)}}` — الأفضلُ في خانتَي الزوج."""
+    rank = {"present": 3, "late": 2, "excused": 1, "absent": 0}
+    rows = StudentAttendance.objects.filter(
+        session__class_group=klass, session__date=day, source=SOURCE
+    ).values_list(
+        "student_id",
+        "session__start_time",
+        "status",
+        "whereabouts",
+        "late_minutes",
+        "excuse_type",
+        "excuse_id",
+        "tardiness_excuse__id",
+    )
+    cells: dict = {}
+    for sid, start, status, where, minutes, excuse_type, excuse_id, tardy_excuse in rows:
+        if status == "absent" and (excuse_type or excuse_id):
+            status = "excused"
+        if status == "late" and tardy_excuse is not None:
+            status, minutes = "present", None
+        own = cells.setdefault(sid, {})
+        cur = own.get(start)
+        if cur is None or rank.get(status, 0) > rank.get(cur[0], 0):
+            own[start] = (status, where, minutes)
+    return cells
+
+
+def _judge(track: list, tardy_minutes: dict) -> tuple[set, set]:
+    """(خاناتُ الغياب، خاناتُ التأخّر) المقترحةُ ليومٍ واحد — فارغتان لمن لم يُتمّ حصصَ الحضور."""
+    if sum(1 for _, status, _ in track if status in ATTENDED) < MIN_PERIODS_FOR_PRESENCE:
+        return set(), set()
+    in_class, in_school = escapes_for(track)
+    taken = in_class | in_school
+    if in_school:
+        # الهروبُ من المدرسة مخالفةٌ واحدةٌ عند أوّل حصّةٍ غابها، لكنّ السلسلةَ كلَّها حتى آخر اليوم له (3-10).
+        taken |= {start for start, _, _ in track if start >= min(in_school)}
+    absent = {
+        start
+        for start, status, where in track
+        if status == "absent" and where not in AWAY_WITH_LEAVE and start not in taken
+    }
+    tardy: set = set()
+    seen = False
+    for start, status, _ in track:
+        if status == "late" and seen and is_period_tardy(tardy_minutes.get(start)):
+            tardy.add(start)
+        if status in ATTENDED:
+            seen = True
+    return absent, tardy
+
+
+def _evaluate_class(klass: ClassGroup, day: dt.date, found: dict, only: int | None = None) -> None:
+    """يضيف إلى `found` من يستحقّ اقتراحاً في شعبةٍ؛ و`only` يحصر الحكمَ بطالبٍ واحد."""
+    periods = periods_of(klass, day)
+    confirmed = {p.start for p in periods if p.confirmation is not None}
+    if len(confirmed) < MIN_PERIODS_FOR_PRESENCE:
+        return
+    cells = _rows(klass, day)
+    by_start = {p.start: p for p in periods}
+    roster = enrolled_of(klass, day)
+    if only is not None:
+        roster = roster.filter(student_id=only)
+    for enrollment in roster:
+        own = cells.get(enrollment.student_id, {})
+        track = []
+        for p in periods:
+            cell = own.get(p.start) if p.start in confirmed else None
+            track.append((p.start, cell[0] if cell else "", cell[1] if cell else ""))
+        minutes = {start: cell[2] for start, cell in own.items()}
+        absent, tardy = _judge(track, minutes)
+        if not absent and not tardy:
+            continue
+        entry = found.setdefault(enrollment.student_id, _Day())
+        entry.absent |= absent
+        entry.tardy |= tardy
+        for start in absent | tardy:
+            entry.labels[start] = by_start[start].subjects
+
+
+def _active_groups(school: School, day: dt.date):
+    # شعبُ عام اليوم وحدَها: عامان لا يختلطان عند الترفيع
+    year = academic_year_for_school(school, day)
+    return ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
+
+
+def evaluate_day(school: School, day: dt.date) -> dict:
+    """`{student_id: _Day}` لمن يستحقّ اقتراحاً في `day`، من الرصد المثبَّت وحدَه."""
+    found: dict = {}
+    for klass in _active_groups(school, day).order_by("grade", "section"):
+        _evaluate_class(klass, day, found)
+    return found
+
+
+def _still_qualifies(proposal: ConductProposal) -> bool:
+    """يعيد الحكمَ على طالب الاقتراح وحدَه من الرصد الآن — عذرُ تأخّرٍ أو تصحيحُ حضورٍ بعد الظهور يُسقطه."""
+    from core.models import StudentEnrollment
+
+    found: dict = {}
+    enrollments = (
+        StudentEnrollment.objects.filter(
+            student_id=proposal.student_id,
+            class_group__in=_active_groups(proposal.school, proposal.date),
+        )
+        .on_roll(proposal.date)
+        .select_related("class_group")
+    )
+    for klass in {e.class_group for e in enrollments}:
+        _evaluate_class(klass, proposal.date, found, only=proposal.student_id)
+    entry = found.get(proposal.student_id)
+    if entry is None:
+        return False
+    kind, starts, _ = _shape(entry)
+    return kind == proposal.kind and bool(set(starts) & set(proposal.periods))
+
+
+def _note(entry: _Day) -> str:
+    parts = []
+    if entry.absent:
+        parts.append(
+            "غياب: " + "، ".join(f"{s:%H:%M} {entry.labels[s]}" for s in sorted(entry.absent))
+        )
+    if entry.tardy:
+        parts.append(
+            "تأخّر: " + "، ".join(f"{s:%H:%M} {entry.labels[s]}" for s in sorted(entry.tardy))
+        )
+    return " — ".join(parts)
+
+
+def _shape(entry: _Day) -> tuple[str, list[str], str]:
+    """النوعُ والخاناتُ والملاحظة؛ اليومُ بغيابٍ ينتمي إلى «غياب» ويحمل تأخّرَه في الملاحظة (مخالفةٌ واحدةٌ لليوم)."""
+    kind = "absence" if entry.absent else "tardy"
+    starts = sorted(entry.absent | entry.tardy)
+    return kind, [f"{s:%H:%M}" for s in starts], _note(entry)
+
+
+def generate_for_day(school: School, day: dt.date) -> dict[str, int]:
+    """يجعل اقتراحات `day` غيرَ المقرَّرة مطابقةً للرصد الآن — يُنشئ الناقصَ ويحدّث ويسحب. ثابتُ التكرار.
+
+    اقتراحٌ واحدٌ لكلّ طالبٍ في اليوم: تبدّلُ النوع (غيابٌ ↔ تأخّر) يحدّث الصفَّ نفسَه، وما اعتُمد أو رُدَّ
+    يبقى قرارُه نهائيّاً فلا يُنشأ له بديل. والتحديثُ مشروطٌ بحالةٍ غيرِ مقرَّرة فلا يطغى على قرار مشرفٍ جرى بين القراءة والكتابة.
+    """
+    found = evaluate_day(school, day)
+    stats = {"created": 0, "updated": 0, "withdrawn": 0}
+    existing = {p.student_id: p for p in ConductProposal.objects.filter(school=school, date=day)}
+    open_states = ("proposed", "withdrawn")
+    students = {u.pk: u for u in CustomUser.objects.filter(pk__in=found.keys())}
+    for sid, entry in found.items():
+        kind, starts, note = _shape(entry)
+        current = existing.get(sid)
+        if current is None:
+            ConductProposal.objects.create(
+                school=school, student=students[sid], date=day, kind=kind, periods=starts, note=note
+            )
+            stats["created"] += 1
+        elif current.status in open_states and (
+            current.kind != kind
+            or current.periods != starts
+            or current.note != note
+            or current.status == "withdrawn"
+        ):
+            stats["updated"] += ConductProposal.objects.filter(
+                pk=current.pk, status__in=open_states
+            ).update(kind=kind, periods=starts, note=note, status="proposed")
+    for sid, proposal in existing.items():
+        if sid not in found and proposal.status == "proposed":
+            stats["withdrawn"] += ConductProposal.objects.filter(
+                pk=proposal.pk, status="proposed"
+            ).update(status="withdrawn")
+    return stats
+
+
+def generate_due(school: School, today: dt.date | None = None) -> dict[str, int]:
+    """اليومُ وأيامُ الدراسة الأخيرة (`LOOKBACK_DAYS`) — يوماً يوماً؛ يلتقط تصحيحاتِ الرصد والأعذارَ المتأخّرة."""
+    today = today or timezone.localdate()
+    total = {"created": 0, "updated": 0, "withdrawn": 0, "days": 0}
+    for back in range(0, LOOKBACK_DAYS + 1):
+        day = today - dt.timedelta(days=back)
+        if not is_school_day(school, day):
+            continue
+        for key, value in generate_for_day(school, day).items():
+            total[key] += value
+        total["days"] += 1
+    return total
+
+
+def queue_for(school: School, scope, today: dt.date | None = None) -> list[ConductProposal]:
+    """اقتراحاتُ طلبة جناح المشرف التي حلّ وقتُها، الأقدمُ أولاً."""
+    today = today or timezone.localdate()
+    qs = scope.narrow(
+        ConductProposal.objects.filter(
+            school=school, status="proposed", date__lte=today
+        ).select_related("student", "school"),
+        "student_id",
+    ).order_by("date", "student__full_name")
+    return list(qs)
+
+
+def _category():
+    from behavior.models import ViolationCategory
+
+    return ViolationCategory.objects.filter(code=RULE_CODE, is_active=True).first()
+
+
+def _session_of(proposal: ConductProposal):
+    """حصّةُ الواقعة (أوّلُ فترةٍ مسجَّلة) لربط المخالفة بها؛ None إن لا فترات. قراءةٌ فقط — لا كتابةَ على الرصد."""
+    if not proposal.periods:
+        return None
+    row = (
+        StudentAttendance.objects.filter(
+            student=proposal.student,
+            session__date=proposal.date,
+            session__start_time=dt.time.fromisoformat(proposal.periods[0]),
+        )
+        .select_related("session")
+        .first()
+    )
+    return row.session if row else None
+
+
+@transaction.atomic
+def approve(proposal_id, by: CustomUser, scope, today: dt.date | None = None) -> ConductProposal:
+    """اعتمادُ المشرف: مخالفةٌ 1-01 بلا نقاطٍ ولا قرارٍ ولا إرسال؛ والاعتمادُ الثاني يُرجع الأولَ بلا تكرار."""
+    from behavior.conduct_2026 import BY_CODE
+    from behavior.services import BehaviorService
+
+    proposal = _lock(proposal_id, by, scope, today)
+    if proposal.status == "approved":
+        return proposal
+    if proposal.status == "rejected":
+        raise ProposalError("رُدَّ هذا الاقتراحُ من قبل.")
+    category = _category()
+    if category is None:
+        raise ProposalError("بندُ المخالفة 1-01 غيرُ مفعَّلٍ في هذه المدرسة.")
+    kind = dict(ConductProposal.KINDS)[proposal.kind]
+    infraction = BehaviorService.create_infraction(
+        school=proposal.school,
+        student=proposal.student,
+        reporter=by,
+        level=BY_CODE[RULE_CODE].degree,
+        description=f"{kind} بتاريخ {proposal.date:%Y-%m-%d} — {proposal.note}",
+        violation_category=category,
+        session=_session_of(proposal),
+    )
+    proposal.status, proposal.decided_by, proposal.decided_at = "approved", by, timezone.now()
+    proposal.infraction = infraction
+    proposal.save(update_fields=["status", "decided_by", "decided_at", "infraction"])
+    _audit(by, proposal, "approved")
+    return proposal
+
+
+@transaction.atomic
+def reject(proposal_id, by: CustomUser, scope, today: dt.date | None = None) -> ConductProposal:
+    proposal = _lock(proposal_id, by, scope, today)
+    if proposal.status == "rejected":
+        return proposal
+    if proposal.status == "approved":
+        raise ProposalError("اعتُمد هذا الاقتراحُ من قبل.")
+    proposal.status, proposal.decided_by, proposal.decided_at = "rejected", by, timezone.now()
+    proposal.save(update_fields=["status", "decided_by", "decided_at"])
+    _audit(by, proposal, "rejected")
+    return proposal
+
+
+def _excused(proposal: ConductProposal) -> bool:
+    """عذرٌ مقبولٌ يغطّي يومَ الواقعة — قُبل بعد ظهور الاقتراح؛ يُحجب به الاعتماد."""
+    from operations.models import AbsenceExcuse
+
+    return AbsenceExcuse.objects.filter(
+        school=proposal.school,
+        student=proposal.student,
+        status="accepted",
+        date_from__lte=proposal.date,
+        date_to__gte=proposal.date,
+    ).exists()
+
+
+def _lock(proposal_id, by: CustomUser, scope, today: dt.date | None) -> ConductProposal:
+    proposal = (
+        ConductProposal.objects.select_for_update(of=("self",))
+        .select_related("student", "school")
+        .filter(pk=proposal_id, school=by.get_school())
+        .first()
+    )
+    if proposal is None or not scope.covers_student(proposal.student_id):
+        raise ProposalError("الاقتراحُ غيرُ موجودٍ في جناحك.")
+    if proposal.status in ("approved", "rejected"):
+        return proposal
+    if proposal.status != "proposed":
+        raise ProposalError("سُحب هذا الاقتراحُ لزوال سببه.")
+    if (today or timezone.localdate()) < proposal.date:
+        raise ProposalError("لم يحلّ يومُ الواقعة بعد.")
+    if _excused(proposal):
+        # لا حفظَ هنا: الاستثناءُ يتراجع بالمعاملة؛ والتوليدُ التالي يسحبه لأنّ العذر يكتب «معذور» على الصفوف.
+        raise ProposalError("قُبل للطالب عذرٌ عن هذا اليوم فلا يُعتمد الاقتراح.")
+    if not _still_qualifies(proposal):
+        # لا حفظَ هنا أيضاً: السببُ زال بعد الظهور (عذرُ تأخّرٍ أو تصحيحُ حضور)، والتوليدُ التالي يسحبه.
+        raise ProposalError("زال سببُ هذا الاقتراح بعد ظهوره (تصحيحُ رصدٍ أو عذرُ تأخّر) فلا يُعتمد.")
+    return proposal
+
+
+def _audit(user: CustomUser, proposal: ConductProposal, action: str) -> None:
+    AuditLog.log(
+        user=user,
+        action="update",
+        model_name="other",
+        object_id=proposal.pk,
+        object_repr=masked_repr(proposal),
+        changes={"conduct_proposal": action, "kind": proposal.kind},
+        school=proposal.school,
+    )

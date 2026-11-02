@@ -9,6 +9,7 @@ from uuid import UUID
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import Http404
@@ -20,7 +21,7 @@ from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
 from core.audit_repr import masked_repr
-from core.capabilities import capability_required
+from core.capabilities import capability_required, has_capability
 from core.models import AuditLog, CustomUser
 from core.pdf_utils import render_pdf
 from core.permissions import (
@@ -285,6 +286,24 @@ def _pdf_context(obs):
     }
 
 
+def _may_read_teacher_schedule(user, school, teacher_id) -> bool:
+    """مشرفُ الزيارات يقرأ أيَّ معلّمٍ من مدرسته؛ ومن له «تبادل الزيارات» وحدَه يقرأ المرئيَّ له."""
+    from operations.schedule_visibility import may_view_teacher
+
+    in_school = (
+        CustomUser.objects.filter(
+            id=teacher_id, memberships__school=school, memberships__is_active=True
+        )
+        .distinct()
+        .exists()
+    )
+    if not in_school:
+        return False
+    if has_capability(user, "observation.create"):
+        return True
+    return has_capability(user, "observation.peer") and may_view_teacher(school, user, teacher_id)
+
+
 @login_required
 def observation_teacher_schedule(request):
     """HTMX partial: `?teacher=<id>&observation_date=YYYY-MM-DD` — بلا
@@ -295,12 +314,21 @@ def observation_teacher_schedule(request):
     school = request.user.get_school()
     # الوضعُ الذاتيّ: المعلّمُ هو المستخدم دائماً (لا يُقرأ من الطلب) والنافذةُ مفروضة (D-417م).
     is_self = request.GET.get("self") == "1"
-    teacher_id = request.user.id if is_self else request.GET.get("teacher")
-    if teacher_id:
-        try:  # نصٌّ غيرُ UUID كان يرفع ValidationError من الاستعلام فيعود 500
-            teacher_id = UUID(str(teacher_id))
-        except ValueError:
-            raise Http404("معرّفُ معلّمٍ غيرُ صالح") from None
+    # كان `login_required` وحده: أيُّ مستخدمٍ يقرأ حصصَ أيّ معلّمٍ ويولّد جلساته بـGET. صار بقدرة
+    # الاستمارة التي تستعمله، والمعلّمُ المطلوبُ من مدرسة الطالب ومرئيٌّ له (W-20261101-007).
+    if is_self:
+        if not has_capability(request.user, "observation.self"):
+            raise PermissionDenied
+        teacher_id = request.user.id
+    else:
+        teacher_id = request.GET.get("teacher")
+        if teacher_id:
+            try:  # نصٌّ غيرُ UUID كان يرفع ValidationError من الاستعلام فيعود 500
+                teacher_id = UUID(str(teacher_id))
+            except ValueError:
+                raise Http404("معرّفُ معلّمٍ غيرُ صالح") from None
+            if not _may_read_teacher_schedule(request.user, school, teacher_id):
+                raise Http404
     ctx = _teacher_schedule_context(
         school,
         teacher_id,

@@ -1,0 +1,61 @@
+{% extends "base/base.html" %}
+{% load ui icons %}
+{% comment %}اقتراحاتُ المخالفة 1-01 لغيابٍ أو تأخّرٍ بين الحصص (W-20261013-034): جدولٌ واحد: صفٌّ لكلّ طالب، اعتمادٌ أو ردّ.
+تظهر بعد مهلة العذر فقط؛ والاعتمادُ يسجّل المخالفةَ بلا نقاطٍ ولا قرارٍ ولا إرسالٍ لوليّ الأمر.{% endcomment %}
+{% block title %}اقتراحاتُ المخالفات{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/wings/record/" parent_label="رصد الغياب" current="اقتراحاتُ المخالفات" %}
+{% endblock %}
+{% block content %}
+<div class="exec-dash">
+  {% page_header "اقتراحاتُ المخالفات" subtitle="غيابٌ أو تأخّرٌ بين الحصص لمداومين، بعد انقضاء مهلة العذر" icon="checklist" %}{% endpage_header %}
+
+  {% section_card "بانتظار قرارك" meta=proposals|length icon="checklist" empty="لا اقتراحَ ينتظرك." %}
+    {% if proposals %}
+    {% callout "info" show=True %}الاعتمادُ يسجّل مخالفةً واحدةً من الدرجة الأولى (1-01) لهذا اليوم، بلا نقاطٍ ولا حسمٍ ولا إشعارٍ لوليّ الأمر.{% endcallout %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">الطالب</th>
+            <th scope="col">النوع</th>
+            <th scope="col">التاريخ</th>
+            <th scope="col">الملاحظة</th>
+            <th scope="col">ملفّ الغياب</th>
+            <th scope="col">اعتماد</th>
+            <th scope="col">ردّ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in proposals %}
+          <tr>
+            <th scope="row">{{ p.student.full_name }}</th>
+            <td><span class="status-badge {% if p.kind == 'absence' %}status-danger{% else %}status-warning{% endif %}">{{ p.get_kind_display }}</span></td>
+            <td>{{ p.date|date:"j/n" }}</td>
+            <td>{{ p.note }}</td>
+            <td><a href="{% url 'wings:absence_file' p.student_id %}" class="btn-secondary btn-sm">{% icon "absence" %} ملفُّ غيابه</a></td>
+            <td>
+              <form method="post" action="{% url 'wings:conduct_proposal_decide' p.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="decision" value="approve">
+                <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} اعتماد</button>
+              </form>
+            </td>
+            <td>
+              <form method="post" action="{% url 'wings:conduct_proposal_decide' p.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="decision" value="reject">
+                <button type="submit" class="btn-secondary btn-sm">ردّ</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  {% endsection_card %}
+</div>
+{% endblock %}
