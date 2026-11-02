@@ -1,0 +1,28 @@
+{# مكوّنُ اختيار الطالب الموحّد (W-20261102-001): ثلاثةُ مداخل — اسمٌ أو رقم، وصفٌّ ثمّ شعبة، وزوّارُ آخر ٧ أيام. #}
+{# المتغيّرات: mode ("quick" | "form")، classes، recent. #}
+<div class="clinic-pick-root" data-student-picker data-mode="{{ mode }}">
+  <div class="ui-field">
+    <label for="pick-q" class="ui-field__label">الطالب: اسمٌ أو رقمُ الطالب</label>
+    <input id="pick-q" name="q" type="search" class="form-control" autocomplete="off"
+           {% if mode == "quick" %}autofocus{% endif %}
+           placeholder="اكتب بدايةَ الاسم أو الرقم الكامل"
+           hx-get="{% url 'clinic:quick_search' %}?mode={{ mode }}" hx-trigger="input changed delay:250ms, search"
+           hx-target="#pick-results" hx-swap="innerHTML" data-pick-input>
+  </div>
+  <div class="ui-field">
+    <label for="pick-class" class="ui-field__label">أو اختر الصفّ ثمّ الشعبة</label>
+    <select id="pick-class" name="cls" class="form-control"
+            hx-get="{% url 'clinic:quick_class' %}?mode={{ mode }}" hx-trigger="change"
+            hx-target="#pick-results" hx-swap="innerHTML">
+      <option value="">— الصفّ والشعبة —</option>
+      {% for code, label, sections in classes %}
+      <optgroup label="{{ label }}">
+        {% for sec in sections %}<option value="{{ code }}|{{ sec }}">{{ label }} / {{ sec }}</option>{% endfor %}
+      </optgroup>
+      {% endfor %}
+    </select>
+  </div>
+  <div id="pick-results" aria-live="polite">
+    {% include "clinic/partials/_student_results.html" with students=recent recent=True %}
+  </div>
+</div>
