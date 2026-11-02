@@ -513,3 +513,24 @@ def test_behavior_report_with_a_garbage_year_is_empty_not_a_crash(seeded_calenda
     report = ReportDataService.get_behavior_report(school, "abc")
 
     assert list(report["infractions"]) == []
+
+
+def test_bulk_save_on_a_closed_assessment_is_refused_on_the_batched_path(seeded_calendar, settings):
+    """المحرّكُ مطفأ (المسار الدفعيّ): التقييمُ المغلق يرفض الكتابةَ ولا يُعاد فتحُه ولا يُكتب فيه شيء."""
+    from assessments.models import StudentAssessmentGrade
+    from assessments.services import AssessmentClosedError, GradeService
+
+    settings.VERDICT_ENGINE_ENABLED = False
+    school = SchoolFactory()
+    assessment, pupils = _assessment_world(school, seeded_calendar, 3)
+    assessment.status = "closed"
+    assessment.save(update_fields=["status"])
+
+    with pytest.raises(AssessmentClosedError):
+        GradeService.save_all_from_post(
+            assessment, {f"grade_{p.id}": "50" for p in pupils}, UserFactory()
+        )
+
+    assessment.refresh_from_db()
+    assert assessment.status == "closed"
+    assert not StudentAssessmentGrade.objects.filter(assessment=assessment).exists()
