@@ -5,6 +5,7 @@ Skinny Views — المنطق في ObservationService. الصلاحيات في _
 
 import logging
 from datetime import timedelta
+from uuid import UUID
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -294,9 +295,15 @@ def observation_teacher_schedule(request):
     school = request.user.get_school()
     # الوضعُ الذاتيّ: المعلّمُ هو المستخدم دائماً (لا يُقرأ من الطلب) والنافذةُ مفروضة (D-417م).
     is_self = request.GET.get("self") == "1"
+    teacher_id = request.user.id if is_self else request.GET.get("teacher")
+    if teacher_id:
+        try:  # نصٌّ غيرُ UUID كان يرفع ValidationError من الاستعلام فيعود 500
+            teacher_id = UUID(str(teacher_id))
+        except ValueError:
+            raise Http404("معرّفُ معلّمٍ غيرُ صالح") from None
     ctx = _teacher_schedule_context(
         school,
-        request.user.id if is_self else request.GET.get("teacher"),
+        teacher_id,
         request.GET.get("observation_date"),
         self_mode=is_self,
     )
