@@ -189,7 +189,9 @@ class TestExcelServiceReports:
         book = openpyxl.load_workbook(io.BytesIO(resp.content))
         _assert_no_live_formula(_texts(book), "HYPERLINK")
 
-    def test_behavior_report_neutralizes_the_description(self, school, kids, teacher):
+    def test_behavior_report_neutralizes_the_description(
+        self, school, kids, teacher, seeded_calendar
+    ):
         from reports.services import ExcelService
 
         BehaviorInfractionFactory(
