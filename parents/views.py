@@ -37,25 +37,18 @@ from core.privacy import national_id_search_q
 from core.sorting import apply_sort, arabic_key
 from core.unrestricted_role import has_unrestricted_role
 
-from .selectors import link_form_parents, link_form_students, parent_ids_by_phone
+from .selectors import (
+    current_enrollments_by_student,
+    link_form_parents,
+    link_form_students,
+    parent_ids_by_phone,
+)
 from .services import (
     ParentService,
     consent_state,
     recent_absence_alerts_for_parent,
     save_consents,
 )
-
-
-def _current_enrollments(student_ids: list) -> dict:
-    """قيدُ كلّ طالبٍ القائم باستعلامٍ واحد — كما `current_of` (الأحدثُ عاماً) بلا استعلامٍ لكلّ ابن."""
-    found: dict = {}
-    for enr in (
-        StudentEnrollment.objects.filter(student_id__in=student_ids, is_active=True)
-        .select_related("class_group")
-        .newest_first()
-    ):
-        found.setdefault(enr.student_id, enr)
-    return found
 
 
 def _get_parent_school(request):
@@ -220,7 +213,7 @@ def parent_all_grades(request):
     )
 
     links = list(links)
-    enrollments = _current_enrollments([link.student_id for link in links])
+    enrollments = current_enrollments_by_student([link.student_id for link in links])
     children_grades = []
     for link in links:
         if not link.can_view_grades:
@@ -274,7 +267,7 @@ def parent_all_attendance(request):
     )
 
     links = list(links)
-    enrollments = _current_enrollments([link.student_id for link in links])
+    enrollments = current_enrollments_by_student([link.student_id for link in links])
     children_attendance = []
     for link in links:
         if not link.can_view_attendance:

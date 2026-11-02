@@ -46,17 +46,29 @@ logger = logging.getLogger(__name__)
 
 
 def _year_bounds(school, year: str):
-    """(بدايةُ العام ونهايتُه) لاسم العام «2025-2026»: نافذةُ التقويم إن كان العامَ الجاريَ، وإلّا سبتمبر–يونيو من الاسم."""
+    """(بدايةُ العام ونهايتُه) لاسم العام «2025-2026»: تقويمُ المدرسة المخزَّن لذلك الاسم أولاً،
+    وإلّا سبتمبر–يونيو من الاسم. اسمٌ غيرُ صالح (`?year=abc`) يعطي `None` فيبقى التقريرُ فارغاً لا 500."""
     from datetime import date
 
-    from core.academic_calendar import academic_year_window
+    from core.models import AcademicYear
 
-    if year == academic_year_for_school(school):
-        window = academic_year_window(school)
-        if window:
-            return window
-    start, end = (int(part) for part in str(year).split("-"))
-    return date(start, 9, 1), date(end, 6, 30)
+    stored = (
+        AcademicYear.objects.filter(school=school, name=year)
+        .values_list("start_date", "end_date")
+        .first()
+    )
+    if stored:
+        return stored
+    try:
+        start, end = (int(part) for part in str(year).split("-"))
+        return date(start, 9, 1), date(end, 6, 30)
+    except (ValueError, OverflowError):
+        return None
+
+
+def _date_range_filter(school, year: str) -> dict:
+    bounds = _year_bounds(school, year)
+    return {"date__range": bounds} if bounds else {"pk__in": []}
 
 
 class ReportDataService:
@@ -309,7 +321,7 @@ class ReportDataService:
         from behavior.models import BehaviorInfraction
 
         infractions = (
-            BehaviorInfraction.objects.filter(school=school, date__range=_year_bounds(school, year))
+            BehaviorInfraction.objects.filter(school=school, **_date_range_filter(school, year))
             .select_related("student", "reported_by")
             .order_by("-date")
         )

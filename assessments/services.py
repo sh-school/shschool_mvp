@@ -781,6 +781,9 @@ class GradeService(ExcuseServiceMixin):
     def _recalculate_class_batched(setup: SubjectClassSetup, students: list) -> None:
         """المسارُ القديم (المحرّكُ مطفأ) بعددِ استعلاماتٍ ثابت: الصفوفُ القائمةُ تُجلب وتُقفل دفعةً،
         وتُكتب بـ`bulk_create`/`bulk_update`، وأثرُ التدقيق صفٌّ بصفٍّ بمحتوى الإشارة نفسِه (`_bulk_audit`)."""
+        # قفلٌ واحدٌ على إسناد المادّة قبل قراءة أيّ درجة: حفظان متزامنان لشعبةٍ واحدة يتسلسلان،
+        # فلا يحسب أحدُهما من درجاتٍ سبقه الآخر بتعديلها (كان القفلُ لكلّ طالبٍ في المسار المفرد).
+        list(SubjectClassSetup.objects.select_for_update().filter(pk=setup.pk).values_list("pk"))
         student_ids = [s.id for s in students]
         quantum = Decimal("0.01")
         totals: dict = {"S1": {}, "S2": {}}

@@ -21,8 +21,8 @@ from tests.conftest import (
 pytestmark = pytest.mark.django_db
 
 CERTIFICATES_MAX_QUERIES = 12
-#: 15 في الإنتاج (≤15 بالبطاقة) + 4 عبارات SAVEPOINT/RELEASE تضيفها معاملةُ الاختبار؛ وكانت 542 لاثنين وعشرين طالباً.
-SAVE_ALL_MAX_QUERIES = 19
+#: 16 في الإنتاج (15 + قفل إسناد المادّة) + 4 عبارات SAVEPOINT/RELEASE تضيفها معاملةُ الاختبار؛ وكانت 542 لاثنين وعشرين طالباً.
+SAVE_ALL_MAX_QUERIES = 20
 
 
 def _class_with_pupils(school, year, count):
@@ -484,3 +484,32 @@ def test_student_attendance_counts_only_the_requested_year(seeded_calendar):
     report = ReportDataService.get_student_report(pupils[0], school, seeded_calendar)
 
     assert report["absent_total"] == 1
+
+
+def test_year_bounds_prefer_the_stored_calendar_and_survive_a_bad_name(seeded_calendar):
+    """حدودُ السنة من تقويم المدرسة المخزَّن لذلك الاسم، وإلّا سبتمبر–يونيو؛ واسمٌ تالفٌ لا يرفع 500."""
+    import datetime as dt
+
+    from core.models import AcademicYear
+    from reports.services import _year_bounds
+
+    school = SchoolFactory()
+    AcademicYear.objects.create(
+        school=school,
+        name="2031-2032",
+        start_date=dt.date(2031, 8, 20),
+        end_date=dt.date(2032, 5, 31),
+    )
+
+    assert _year_bounds(school, "2031-2032") == (dt.date(2031, 8, 20), dt.date(2032, 5, 31))
+    assert _year_bounds(school, "2040-2041") == (dt.date(2040, 9, 1), dt.date(2041, 6, 30))
+    assert _year_bounds(school, "abc") is None
+    assert _year_bounds(school, "99999-99999") is None
+
+
+def test_behavior_report_with_a_garbage_year_is_empty_not_a_crash(seeded_calendar):
+    school = SchoolFactory()
+
+    report = ReportDataService.get_behavior_report(school, "abc")
+
+    assert list(report["infractions"]) == []

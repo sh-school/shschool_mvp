@@ -75,3 +75,15 @@ def link_form_parents(school: Any, year: str) -> list:
     for parent in parents:
         setattr(parent, "has_namesake", name_counts[parent.full_name] > 1)  # noqa: B010 — وسمٌ للقالب لا حقلُ نموذج
     return parents
+
+
+def current_enrollments_by_student(student_ids: list) -> dict:
+    """قيدُ كلّ طالبٍ القائم باستعلامٍ واحد — كما `current_of` (الأحدثُ عاماً) بلا استعلامٍ لكلّ ابن."""
+    found: dict = {}
+    for enr in (
+        StudentEnrollment.objects.filter(student_id__in=student_ids, is_active=True)
+        .select_related("class_group")
+        .newest_first()
+    ):
+        found.setdefault(enr.student_id, enr)
+    return found
