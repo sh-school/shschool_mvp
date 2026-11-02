@@ -575,7 +575,7 @@ class SwapService:
         stale = TeacherSwap.objects.filter(
             status="pending_b",
             created_at__lt=cutoff,
-        )
+        ).select_related("teacher_a", "teacher_b")
         count = stale.count()
         for swap in stale:
             # [B4-PRE3] معاملة لكل طلب لا للدفعة كلّها.

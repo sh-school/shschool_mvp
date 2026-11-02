@@ -264,3 +264,15 @@ def test_the_day_the_form_opens_on_shows_that_days_sessions(
 
     assert 'data-period="1"' in row
     assert "الرياضيات" in row
+
+
+def test_a_non_uuid_teacher_is_a_404_not_a_500(client, coordinator_user):
+    """معرّفٌ نصٌّ غيرُ UUID كان يرفع ValidationError من الاستعلام فيعود 500 (حكم 0104 على 007)."""
+    client.force_login(coordinator_user)
+
+    response = client.get(
+        reverse("observation_teacher_schedule"),
+        {"teacher": "not-a-uuid", "observation_date": DAY.isoformat()},
+    )
+
+    assert response.status_code == 404

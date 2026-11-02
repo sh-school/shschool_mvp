@@ -19,7 +19,6 @@ from django.utils import timezone
 
 from assessments.models import (
     AnnualSubjectResult,
-    StudentSubjectResult,
     SubjectClassSetup,
 )
 from core import brand
@@ -44,6 +43,32 @@ logger = logging.getLogger(__name__)
 # ══════════════════════════════════════════════════════════════════════
 
 
+def _year_bounds(school, year: str):
+    """(بدايةُ العام ونهايتُه) لاسم العام «2025-2026»: تقويمُ المدرسة المخزَّن لذلك الاسم أولاً،
+    وإلّا سبتمبر–يونيو من الاسم. اسمٌ غيرُ صالح (`?year=abc`) يعطي `None` فيبقى التقريرُ فارغاً لا 500."""
+    from datetime import date
+
+    from core.models import AcademicYear
+
+    stored = (
+        AcademicYear.objects.filter(school=school, name=year)
+        .values_list("start_date", "end_date")
+        .first()
+    )
+    if stored:
+        return stored
+    try:
+        start, end = (int(part) for part in str(year).split("-"))
+        return date(start, 9, 1), date(end, 6, 30)
+    except (ValueError, OverflowError):
+        return None
+
+
+def _date_range_filter(school, year: str) -> dict:
+    bounds = _year_bounds(school, year)
+    return {"date__range": bounds} if bounds else {"pk__in": []}
+
+
 class ReportDataService:
     """تجميع بيانات التقارير — بدون أي HTTP logic"""
 
@@ -54,62 +79,18 @@ class ReportDataService:
         year: str | None = None,
     ) -> dict:
         """بيانات تقرير الطالب السنوي الكاملة"""
-        year = year or academic_year_for_school(school)
-        annual = (
-            AnnualSubjectResult.objects.filter(student=student, school=school, academic_year=year)
-            .select_related("setup__subject")
-            .order_by("setup__subject__name_ar")
-        )
+        return ReportDataService.get_students_reports([student], school, year)[0]
 
-        s1_map = {
-            r.setup_id: r
-            for r in StudentSubjectResult.objects.filter(
-                student=student, school=school, semester="S1"
-            )
-        }
-        s2_map = {
-            r.setup_id: r
-            for r in StudentSubjectResult.objects.filter(
-                student=student, school=school, semester="S2"
-            )
-        }
+    @staticmethod
+    def get_students_reports(
+        students: list[CustomUser],
+        school: School,
+        year: str | None = None,
+    ) -> list[dict]:
+        """تقريرُ كلّ طالبٍ بالترتيب نفسِه بعددِ استعلاماتٍ ثابت (`reports/student_reports.py`)."""
+        from .student_reports import build_students_reports
 
-        rows = [
-            {
-                "subject": ann.setup.subject.name_ar,
-                "s1": s1_map.get(ann.setup_id),
-                "s2": s2_map.get(ann.setup_id),
-                "annual": ann,
-            }
-            for ann in annual
-        ]
-
-        total = annual.count()
-        passed = annual.filter(status__in=passing_statuses()).count()
-        failed = annual.filter(status__in=failing_statuses()).count()
-        grades = [float(r.annual_total) for r in annual if r.annual_total]
-        avg = round(sum(grades) / len(grades), 2) if grades else None
-
-        enrollment = StudentEnrollment.objects.current_of(student)
-
-        att = StudentAttendance.objects.filter(student=student, session__school=school)
-        absent_total = att.filter(status="absent").count()
-        late_total = att.filter(status="late").count()
-
-        return {
-            "student": student,
-            "school": school,
-            "year": year,
-            "enrollment": enrollment,
-            "rows": rows,
-            "total": total,
-            "passed": passed,
-            "failed": failed,
-            "avg": avg,
-            "absent_total": absent_total,
-            "late_total": late_total,
-            "print_date": timezone.now().date(),
-        }
+        return build_students_reports(students, school, year)
 
     @staticmethod
     def get_class_results(
@@ -155,7 +136,7 @@ class ReportDataService:
                 annual = annual_map.get((enr.student_id, setup.id))
                 row["grades"][setup.subject.name_ar] = annual
                 if annual:
-                    if annual.annual_total:
+                    if annual.annual_total is not None:
                         grades.append(float(annual.annual_total))
                     if annual.status in passing_statuses():
                         passed += 1
@@ -211,6 +192,7 @@ class ReportDataService:
         all_att = StudentAttendance.objects.filter(
             student_id__in=student_ids,
             session__school=school,
+            session__class_group__academic_year=year,
         ).values("student_id", "status")
 
         # تجميع الإحصائيات لكل طالب في Python
@@ -260,7 +242,7 @@ class ReportDataService:
         from behavior.models import BehaviorInfraction
 
         infractions = (
-            BehaviorInfraction.objects.filter(school=school)
+            BehaviorInfraction.objects.filter(school=school, **_date_range_filter(school, year))
             .select_related("student", "reported_by")
             .order_by("-date")
         )
@@ -587,7 +569,7 @@ class AcademicReportsService:
                 school=school,
                 student_id__in=student_ids,
                 assessment__package__setup__class_group=class_group,
-            )
+            ).select_related("assessment")  # grade_pct يقرأ max_grade: لا استعلامَ لكلّ درجة
             if d_from:
                 grade_qs = grade_qs.filter(assessment__date__gte=d_from)
             if d_to:
@@ -696,7 +678,7 @@ class AcademicReportsService:
             assessment__assessment_type="quiz",
             assessment__date__gte=start_date,
             assessment__date__lte=end_date,
-        )
+        ).select_related("assessment")  # grade_pct يقرأ max_grade: لا استعلامَ لكلّ درجة
         if students:
             quiz_qs = quiz_qs.filter(student__in=students)
 
@@ -749,7 +731,9 @@ class AcademicReportsService:
         classes = [
             (c.id, c.short_label)
             for c in ClassGroup.objects.filter(
-                school=school, academic_year=year, is_active=True
+                school=school,
+                academic_year=academic_year_for_school(school),
+                is_active=True,
             ).order_by("grade", "section")
         ]
 
@@ -1230,11 +1214,11 @@ class ExcelService:
 
             for col_off, subj in enumerate(subjects, start=4):
                 ann = row["grades"].get(subj.name_ar)
-                grade = float(ann.annual_total) if ann and ann.annual_total else None
+                grade = float(ann.annual_total) if ann and ann.annual_total is not None else None
                 cell = safe_cell(
                     ws, row=row_num, column=col_off, value=grade if grade is not None else "—"
                 )
-                if grade is not None and grade < 50:
+                if grade is not None and grade < float(ann.pass_grade):
                     cell.font = xl_font(brand.STATUS_DANGER_FG, bold=True)
 
             safe_cell(
