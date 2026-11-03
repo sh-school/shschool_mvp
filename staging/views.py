@@ -19,7 +19,13 @@ from core import brand
 from core.academic_calendar import academic_year_for
 from core.capabilities import capability_required
 from core.excel_safety import safe_cell
-from core.export_utils import apply_print_footer, excel_table_styles, xl_fill, xl_font
+from core.export_utils import (
+    apply_print_footer,
+    autofit_columns,
+    excel_table_styles,
+    xl_fill,
+    xl_font,
+)
 from core.models import CustomUser, StudentEnrollment
 
 from .models import ImportLog
@@ -167,12 +173,6 @@ def download_grade_template(request, assessment_id):
         cell.alignment = center_align
         cell.border = border
 
-    ws.column_dimensions["A"].width = 18
-    ws.column_dimensions["B"].width = 32
-    ws.column_dimensions["C"].width = 12
-    ws.column_dimensions["D"].width = 14
-    ws.column_dimensions["E"].width = 28
-
     # ── بيانات الطلاب (صف 7 فصاعداً) ──
     for row_idx, enr in enumerate(enrollments, start=7):
         st = enr.student
@@ -185,6 +185,8 @@ def download_grade_template(request, assessment_id):
         for col in range(1, 6):
             ws.cell(row_idx, col).border = border
             ws.cell(row_idx, col).font = table.cell_font
+
+    autofit_columns(ws, 6)  # عرضُ العمود من أطول قيمةٍ فيه لا رقماً ثابتاً
 
     # ── قفل العمودين A وB ──
     ws.protection.sheet = False  # يظل قابلاً للتعديل على C:E

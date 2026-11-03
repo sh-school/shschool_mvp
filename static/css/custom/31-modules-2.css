@@ -37,7 +37,7 @@ a.th-sort { text-decoration: none; }
   border-radius: var(--radius-sm);
 }
 th.col-center .th-sort, th.col-center > .th-sort { justify-content: center; }
-.th-sort-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.th-sort-label { overflow-wrap: break-word; }
 /* إلّا في سجلّ الكادر: أعمدتُه اثنا عشرَ في عرض النافذة، فقطعُ العنوان
    بنقاطٍ يجعله لا يُقرأ («الرقم الـ…» و«الرخصة الـ…»). فينكسر على سطرين. */
 .staff-register th.is-sortable .th-sort-label {

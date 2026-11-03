@@ -1212,7 +1212,7 @@ main.page-wide {
 .ui-meta { font-size: var(--text-xs); color: var(--text-muted); }
 
 .col-actions {
-  width: 80px;
+  min-width: 80px; width: 1%;
   text-align: center;
   white-space: nowrap;
 }
