@@ -10,7 +10,7 @@ import re
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 _BLOCK = re.compile(r"([^{}@][^{}]*)\{([^{}]*)\}")
-_CELL = re.compile(r"(?<![\w-])(th|td|col)(?![\w-])")
+_CELL = re.compile(r"(?<![\w-])(th|td|col)(?![\w-])|\.col-[\w-]+")
 _FIXED = re.compile(r"(?<![\w-])width\s*:\s*[0-9.]+(px|rem|em|ch|mm|cm|pt)\b")
 _ATTR = re.compile(
     r"""<(th|td|col)\b[^>]*?(?<![\w-])(width\s*=\s*["']?\d"""
@@ -60,6 +60,8 @@ def test_the_detector_sees_fixed_widths_and_accepts_flexible_ones():
     assert _css_hits("td, .x { width: 3rem }") == 1
     assert _css_hits("th { min-width: 40px; max-width: 9rem; width: auto; }") == 0
     assert _css_hits(".card { width: 40px; }") == 0
+    assert _css_hits(".grid .col-name { width: 230px; }") == 1
+    assert _css_hits(".grid .col-name { width: 22%; }") == 0
     assert _template_hits('<th width="60">') == 1
     assert _template_hits('<col style="width: 20mm">') == 1
     assert _template_hits('<th style="min-width: 60px">') == 0
