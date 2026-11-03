@@ -1005,7 +1005,7 @@
 .sa-link { color: var(--maroon-fg); font-weight: 600; text-decoration: none; }
 .sa-inline-form { display: inline; }
 .sa-row-actions { display: flex; gap: var(--sp-1); justify-content: center; flex-wrap: nowrap; }
-.sa-cell-clip { max-inline-size: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sa-cell-clip { max-inline-size: 200px; overflow-wrap: anywhere; }
 .sa-block-gap { margin-block-start: var(--sp-3); }
 .sa-flush { padding: 0; }
 .sa-small { font-size: var(--text-xs); }
