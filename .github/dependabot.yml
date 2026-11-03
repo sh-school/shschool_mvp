@@ -51,6 +51,10 @@ updates:
       # له، لا اقتراحاً أسبوعياً متكرّراً (أُغلق PR #355 لهذا السبب).
       - dependency-name: "Django"
         versions: [">=6"]
+      # playwright 1.64.1 يشترط pyee<15,>=13 (حكم 0104، 2026-11-03): ترقيةُ pyee الرئيسيّة إلى 16
+      # تكسر حلّ التبعيات (أُغلق #1317). تبقى pyee==13.0.1 حتى يرفع playwright سقفه.
+      - dependency-name: "pyee"
+        update-types: ["version-update:semver-major"]
 
   # جافاسكربت — package-lock.json (أداةُ نشرٍ وحيدة: `railway`، لا أثر runtime؛ أُزيل Tailwind
   # وخطُّ بنائه في VI-12، فلا `tailwindcss` ولا `postcss` بعد الآن).
