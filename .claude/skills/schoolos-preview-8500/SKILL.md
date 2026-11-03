@@ -1,7 +1,8 @@
 ---
 name: schoolos-preview-8500
-description: "Use for the SchoolOS central preview on port 8500 (scripts/preview.sh): integration vs pin, pinning and releasing a tree, what 8500 really serves (/health/, SHA), an owner review item, and binding the approval line to what the owner saw. Trigger on: 8500, preview.sh, pin, release, --force, approval line. استخدمها عند تثبيت شجرةٍ أو تحريرها، و«ليش فرعي ما يطلع؟»، واستلام «جاهزٌ للمعاينة»، و«هل المعروض هو المعتمَد؟». ليست لـ: الدمج والنشر (schoolos-deploy)، متى تدفع (schoolos-flow)، غيت (schoolos-git-safety)."
 ---
+
+> متى تُستعمل: "Use for the SchoolOS central preview on port 8500 (scripts/preview.sh): integration vs pin, pinning and releasing a tree, what 8500 really serves (/health/, SHA), an owner review item, and binding the approval line to what the owner saw. Trigger on: 8500, preview.sh, pin, release, --force, approval line. استخدمها عند تثبيت شجرةٍ أو تحريرها، و«ليش فرعي ما يطلع؟»، واستلام «جاهزٌ للمعاينة»، و«هل المعروض هو المعتمَد؟». ليست لـ: الدمج والنشر (schoolos-deploy)، متى تدفع (schoolos-flow)، غيت (schoolos-git-safety)."
 
 # المعاينةُ المركزيّة 8500 — التثبيتُ والتحقّقُ وبندُ المراجعة
 

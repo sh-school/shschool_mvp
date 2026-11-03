@@ -19,7 +19,7 @@ from django.db import transaction
 from django.db.models import Avg, Count, Q, QuerySet
 
 from core.academic_calendar import academic_year_for_school
-from core.domain.grades import GRADE_BANDS, band_of
+from core.domain.grades import GRADE_BANDS, PASS_MARK, band_of
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
 from core.verdict_read import (
@@ -33,6 +33,7 @@ from .excuse_service import (  # noqa: F401  (EXCUSE_GRACE_DAYS يُستورد �
     EXCUSE_GRACE_DAYS,
     ExcuseServiceMixin,
 )
+from .grading_batch import _ROW_KEYS, recalculate_class_batched, save_all_batched
 from .models import (
     AnnualSubjectResult,
     Assessment,
@@ -48,8 +49,6 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
-
-_ROW_KEYS = ("grade_", "absent_", "notes_")
 
 
 class AssessmentClosedError(ValidationError):
@@ -191,9 +190,13 @@ class GradeService(ExcuseServiceMixin):
     def calc_package_scores_batch(
         student_ids: list,
         packages: list[AssessmentPackage],
+        assessments_by_package: dict | None = None,
     ) -> dict:
         """
         يحسب درجات كل الطلاب في كل الباقات بـ استعلام واحد بدل N×M.
+
+        `assessments_by_package` (اختياريّ): {pkg.pk: [Assessment منشورة]} جُلبت دفعةً لكلّ باقات الشعبة،
+        فلا يُستعلم عنها باقةً باقة (إعادةُ حساب الفصل تحسبُ الفصلين معاً).
 
         Returns: {(student_id, package_type): Decimal | None}
         """
@@ -204,7 +207,12 @@ class GradeService(ExcuseServiceMixin):
         pkg_assessments: dict[str, list] = {}  # package_type → [Assessment]
         all_assessment_ids = []
         for pkg in packages:
-            assessments = list(pkg.assessments.filter(status__in=["published", "graded", "closed"]))
+            if assessments_by_package is not None:
+                assessments = assessments_by_package.get(pkg.pk, [])
+            else:
+                assessments = list(
+                    pkg.assessments.filter(status__in=["published", "graded", "closed"])
+                )
             pkg_assessments[pkg.package_type] = assessments
             all_assessment_ids.extend(a.id for a in assessments)
 
@@ -427,26 +435,14 @@ class GradeService(ExcuseServiceMixin):
         except StudentSubjectResult.DoesNotExist:
             s2_total = None
 
-        # نحسب السنوي فقط لو عندنا نتيجة واحدة على الأقل
-        if s1_total is None and s2_total is None:
-            annual_total = None
-            status = "incomplete"
-        else:
-            annual_total = (s1_total or Decimal("0")) + (s2_total or Decimal("0"))
-            annual_total = annual_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-            if s1_total is None or s2_total is None:
-                status = "incomplete"
-            elif annual_total >= Decimal("50"):
-                status = "pass"
-            else:
-                status = "fail"
-
         # Lock existing row to prevent concurrent recalculation races
         existing = (
             AnnualSubjectResult.objects.select_for_update()
             .filter(student=student, setup=setup, academic_year=year)
             .first()
+        )
+        annual_total, status = GradeService._annual_values(
+            s1_total, s2_total, existing.pass_grade if existing else PASS_MARK
         )
         defaults = {
             "school": setup.school,
@@ -467,11 +463,8 @@ class GradeService(ExcuseServiceMixin):
         return annual
 
     @staticmethod
-    @transaction.atomic
-    def _write_semester_result(student, setup, semester, packages, scores):
-        """[PERF-01] يكتب StudentSubjectResult من قاموس درجات الباقات.
-        منطق الكتابة مطابق تماماً لـ recalculate_semester_result لضمان تطابق النتائج
-        بين المسار المفرد (calc_package_score) والمسار الدُّفعي (calc_package_scores_batch)."""
+    def _semester_defaults(setup, semester, packages, scores) -> dict:
+        """قيمُ صفّ `StudentSubjectResult` من درجات الباقات — دالةٌ نقيّةٌ تشاركها الكتابةُ المفردةُ والدفعيّة."""
         total = Decimal("0")
         semester_max = AssessmentPackage.SEMESTER_MAX.get(semester, Decimal("40"))
         has_score = False
@@ -481,13 +474,7 @@ class GradeService(ExcuseServiceMixin):
                 total += score
                 has_score = True
                 semester_max = pkg.semester_max_grade
-
-        existing = (
-            StudentSubjectResult.objects.select_for_update()
-            .filter(student=student, setup=setup, semester=semester)
-            .first()
-        )
-        defaults = {
+        return {
             "school": setup.school,
             "p1_score": scores.get("P1"),
             "p2_score": scores.get("P2"),
@@ -497,6 +484,19 @@ class GradeService(ExcuseServiceMixin):
             "total": total if has_score else None,
             "semester_max": semester_max,
         }
+
+    @staticmethod
+    @transaction.atomic
+    def _write_semester_result(student, setup, semester, packages, scores):
+        """[PERF-01] يكتب StudentSubjectResult من قاموس درجات الباقات.
+        منطق الكتابة مطابق تماماً لـ recalculate_semester_result لضمان تطابق النتائج
+        بين المسار المفرد (calc_package_score) والمسار الدُّفعي (calc_package_scores_batch)."""
+        defaults = GradeService._semester_defaults(setup, semester, packages, scores)
+        existing = (
+            StudentSubjectResult.objects.select_for_update()
+            .filter(student=student, setup=setup, semester=semester)
+            .first()
+        )
         if existing:
             for attr, val in defaults.items():
                 setattr(existing, attr, val)
@@ -505,6 +505,21 @@ class GradeService(ExcuseServiceMixin):
         return StudentSubjectResult.objects.create(
             student=student, setup=setup, semester=semester, **defaults
         )
+
+    @staticmethod
+    def _annual_values(s1_total, s2_total, pass_mark: Decimal = PASS_MARK) -> tuple:
+        """(المجموعُ السنويّ، الحالة) من مجموعَي الفصلين — الحسابُ القديمُ نفسُه للمسارين.
+
+        عتبةُ النجاح `pass_mark` من `AnnualSubjectResult.pass_grade` للصفّ لا ثابتٌ في الشيفرة."""
+        # نحسب السنوي فقط لو عندنا نتيجة واحدة على الأقل
+        if s1_total is None and s2_total is None:
+            return None, "incomplete"
+        annual_total = ((s1_total or Decimal("0")) + (s2_total or Decimal("0"))).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+        if s1_total is None or s2_total is None:
+            return annual_total, "incomplete"
+        return annual_total, ("pass" if annual_total >= pass_mark else "fail")
 
     @staticmethod
     def _grade_from_post(
@@ -523,6 +538,8 @@ class GradeService(ExcuseServiceMixin):
             if raw:
                 try:
                     grade = Decimal(raw)
+                    if not grade.is_finite():  # «nan» و«inf» يُقبلان decimal فيسقط الحفظُ بـ500
+                        raise ValueError(raw)
                 except (ValueError, TypeError, ArithmeticError) as e:
                     logger.warning("فشل تحويل درجة الطالب %s إلى Decimal: %r — %s", sid, raw, e)
                     return None, True
@@ -536,8 +553,18 @@ class GradeService(ExcuseServiceMixin):
     def save_all_from_post(assessment: Assessment, post: Any, entered_by: CustomUser | None) -> int:
         """حفظ كل درجات تقييمٍ دفعةً واحدة من POST، ثمّ إعادة الحساب مرّةً وتحديث الحالة.
 
-        صفٌّ لم يُرسَل منه شيءٌ لا يُلمس أبداً — الغيابُ ليس «مسحاً». يُرجع عددَ المحفوظ."""
+        صفٌّ لم يُرسَل منه شيءٌ لا يُلمس أبداً — الغيابُ ليس «مسحاً». يُرجع عددَ المحفوظ.
+        المحرّكُ مطفأ (الافتراضيّ): كتابةٌ دفعيّةٌ بعددِ استعلاماتٍ ثابت؛ ومرفوعاً: المسارُ الصفّيّ."""
         ensure_assessment_open(assessment)  # وإلا أعاد آخرُ السطور حالتَه «graded» فيفتح المغلق
+        if verdict_engine_enabled():
+            return GradeService._save_all_rowwise(assessment, post, entered_by)
+        return save_all_batched(assessment, post, entered_by)
+
+    @staticmethod
+    def _save_all_rowwise(assessment: Assessment, post: Any, entered_by: CustomUser | None) -> int:
+        """المسارُ الصفّيُّ (محرّكُ الحكم مرفوع): `save_grade` لكلّ صفّ ثمّ إعادةُ حسابٍ واحدة.
+
+        صفٌّ لم يُرسَل منه شيءٌ لا يُلمس أبداً — الغيابُ ليس «مسحاً». يُرجع عددَ المحفوظ."""
         enrollments = StudentEnrollment.objects.filter(
             class_group=assessment.class_group, is_active=True
         ).select_related("student")
@@ -574,7 +601,11 @@ class GradeService(ExcuseServiceMixin):
         return saved
 
     @staticmethod
-    def recalculate_full_class(setup: SubjectClassSetup, actor: CustomUser | None = None) -> None:
+    def recalculate_full_class(
+        setup: SubjectClassSetup,
+        actor: CustomUser | None = None,
+        students: list | None = None,
+    ) -> None:
         """إعادة حساب كامل — كل طلاب الفصل، كلا الفصلين، والسنوي.
         [PERF-01] يستخدم calc_package_scores_batch (استعلام واحد للدرجات لكل فصل) بدل
         الحساب لكل طالب × باقة — نفس النتائج بعدد استعلامات ثابت مهما زاد عدد الطلاب.
@@ -592,29 +623,17 @@ class GradeService(ExcuseServiceMixin):
                 trigger=f"recalculate_full_class:{setup.pk}",
             )
             return
-        enrollments = list(
-            StudentEnrollment.objects.filter(
-                class_group=setup.class_group, is_active=True
-            ).select_related("student")
-        )
-        students = [e.student for e in enrollments]
-        student_ids = [s.id for s in students]
-        if not student_ids:
+        if students is None:  # المستدعي الذي جلب طلبةَ الشعبة لتوّه يمرّرهم فلا يُجلبون ثانيةً
+            students = [
+                e.student
+                for e in StudentEnrollment.objects.filter(
+                    class_group=setup.class_group, is_active=True
+                ).select_related("student")
+            ]
+        if not students:
             return
 
-        for sem in ("S1", "S2"):
-            packages = list(
-                AssessmentPackage.objects.filter(setup=setup, semester=sem, is_active=True)
-            )
-            batch = GradeService.calc_package_scores_batch(student_ids, packages)
-            for student in students:
-                scores = {
-                    pkg.package_type: batch.get((student.id, pkg.package_type)) for pkg in packages
-                }
-                GradeService._write_semester_result(student, setup, sem, packages, scores)
-
-        for student in students:
-            GradeService.recalculate_annual_result(student, setup)
+        recalculate_class_batched(setup, students)
 
     # ── إحصائيات ───────────────────────────────────────────
 

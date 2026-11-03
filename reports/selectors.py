@@ -63,11 +63,11 @@ def class_certificates_context(school: Any, class_grp: Any, year: str, paper: st
         .order_by("student__full_name")
     )
 
-    students_ctx = []
-    for enr in enrollments:
-        ctx = ReportDataService.get_student_report(enr.student, school, year)
+    students_ctx = ReportDataService.get_students_reports(
+        [enr.student for enr in enrollments], school, year
+    )
+    for ctx in students_ctx:
         set_final_status(ctx)
-        students_ctx.append(ctx)
 
     return {
         "students_ctx": students_ctx,

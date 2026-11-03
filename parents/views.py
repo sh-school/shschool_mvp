@@ -37,7 +37,12 @@ from core.privacy import national_id_search_q
 from core.sorting import apply_sort, arabic_key
 from core.unrestricted_role import has_unrestricted_role
 
-from .selectors import link_form_parents, link_form_students, parent_ids_by_phone
+from .selectors import (
+    current_enrollments_by_student,
+    link_form_parents,
+    link_form_students,
+    parent_ids_by_phone,
+)
 from .services import (
     ParentService,
     consent_state,
@@ -207,11 +212,13 @@ def parent_all_grades(request):
         "student"
     )
 
+    links = list(links)
+    enrollments = current_enrollments_by_student([link.student_id for link in links])
     children_grades = []
     for link in links:
         if not link.can_view_grades:
             continue
-        enrollment = StudentEnrollment.objects.current_of(link.student)
+        enrollment = enrollments.get(link.student_id)
         data = ParentService.get_student_grades(link.student, school, year)
         avg = data.get("avg") or 0
         children_grades.append(
@@ -259,11 +266,13 @@ def parent_all_attendance(request):
         "student"
     )
 
+    links = list(links)
+    enrollments = current_enrollments_by_student([link.student_id for link in links])
     children_attendance = []
     for link in links:
         if not link.can_view_attendance:
             continue
-        enrollment = StudentEnrollment.objects.current_of(link.student)
+        enrollment = enrollments.get(link.student_id)
         data = ParentService.get_student_attendance(link.student, school, days)
         alerts = recent_absence_alerts_for_parent(link.student, school, 3)
         pct = data["att_pct"]

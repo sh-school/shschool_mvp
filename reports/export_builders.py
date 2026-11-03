@@ -31,7 +31,7 @@ def build_class_certificates_pdf(school: Any, user: Any, params: Any) -> ExportR
     if not user.is_admin():  # كما في الـview؛ القدرةُ وحدَها يفحصها العاملُ ثانيةً
         raise PermissionDenied
     class_grp = ClassGroup.objects.get(id=params["class_id"], school=school)
-    year = params.get("year") or academic_year_for_school(user.get_school())
+    year = params.get("year") or academic_year_for_school(school)
     paper = paper_size(params)
 
     page_ctx = class_certificates_context(school, class_grp, year, paper)

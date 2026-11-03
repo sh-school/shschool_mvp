@@ -457,7 +457,7 @@
    "orm": 39
   },
   "parents/views.py::parent_all_grades": {
-   "orm": 8
+   "orm": 7
   },
   "parents/views.py::parent_behavior": {
    "orm": 8

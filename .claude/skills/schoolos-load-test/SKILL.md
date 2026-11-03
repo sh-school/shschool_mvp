@@ -1,7 +1,8 @@
 ---
 name: schoolos-load-test
-description: "Use for SchoolOS Locust load tests (tests/loadtest/locustfile.py): read-only attendance and grades scenarios on a local session server, p95 and error-rate limits, the production refusal guard, and recording results in tests/loadtest/README.md. Trigger on: locust, load test, اختبار الحمل, p95, LOCUST_ALLOW_REMOTE. استخدمها عند «جرّب الحمل على الحضور» أو «p95 تجاوز». ليست لـ: pytest، الحمل على الإنتاج (ممنوع)، بطء الاستعلامات (nplus1-hunter)."
 ---
+
+> متى تُستعمل: "Use for SchoolOS Locust load tests (tests/loadtest/locustfile.py): read-only attendance and grades scenarios on a local session server, p95 and error-rate limits, the production refusal guard, and recording results in tests/loadtest/README.md. Trigger on: locust, load test, اختبار الحمل, p95, LOCUST_ALLOW_REMOTE. استخدمها عند «جرّب الحمل على الحضور» أو «p95 تجاوز». ليست لـ: pytest، الحمل على الإنتاج (ممنوع)، بطء الاستعلامات (nplus1-hunter)."
 
 # اختبار الحمل — الحضور والدرجات
 
