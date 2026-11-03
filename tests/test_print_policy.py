@@ -9,8 +9,9 @@ from core import print_policy as pp
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-#: قوالبُ طباعةٍ لم تُصنَّف بعد (لم تُقرأ في W-20261021-007) — سقّاطةٌ تنقص ولا تزيد.
-UNCLASSIFIED = {
+#: عرضا شاشةٍ لا PDF مستقلّ (W-20261021-012): يمتدّان من `base/base.html` ويُدمجان في صفحة المنصّة؛ والـPDF الفعليّ
+#: لكلٍّ منهما قالبٌ آخر مصنَّفٌ في `core/print_policy.py`. يتحقّق الاختبارُ أدناه من الادّعاء.
+SCREEN_VIEWS = {
     "templates/schedule/print_view.html",
     "templates/quality/observation_pdf_view.html",
 }
@@ -35,8 +36,13 @@ def test_every_print_template_is_classified():
         if (p.stem.endswith("_pdf") or p.stem.startswith(("print_", "pdf_")))
         and "components" not in p.parts
     }
-    unknown = sorted(found - set(pp.DOCUMENTS) - UNCLASSIFIED)
+    unknown = sorted(found - set(pp.DOCUMENTS) - SCREEN_VIEWS)
     assert not unknown, f"قوالبُ طباعةٍ بلا سطرٍ في core/print_policy.py: {unknown}"
+
+
+def test_screen_views_are_really_screen_pages():
+    for path in SCREEN_VIEWS:
+        assert 'extends "base/base.html"' in _text(path), path
 
 
 def test_kind_decides_the_expected_orientation():
