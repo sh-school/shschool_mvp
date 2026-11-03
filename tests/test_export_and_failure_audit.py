@@ -178,11 +178,15 @@ class TestTheTrailSaysWhatTheFileCarries:
         self, client_as, principal_user, klass, pupil
     ):
         """كشفُ الطلبة الكامل يعود بالاستيراد فيُطابَق على الرقم — كاملٌ بقرارٍ مسمّى."""
-        resp = client_as(principal_user).get(reverse("student_export_excel"))
+        from django.http import QueryDict
 
-        assert resp.status_code == 200
-        assert STUDENT_ID in _cells(resp)
-        assert _exports("core.students_xlsx").get().changes["full_national_id"] is True
+        from core.student_export_builder import build_students_xlsx
+
+        # خلفيٌّ منذ W-20261021-011: الورقةُ من البنّاء، والرايةُ تكتبها سطرُ العامل (`<kind>:built`).
+        result = build_students_xlsx(klass.school, principal_user, QueryDict(""))
+
+        assert STUDENT_ID in _cells(result)
+        assert result.full_national_id is True
 
 
 def _cells(resp) -> set[str]:

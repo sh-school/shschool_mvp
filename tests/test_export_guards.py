@@ -14,10 +14,8 @@ from tests import export_scan
 SYNC_ONLY_KINDS = frozenset(
     {
         "analytics.kpi_monthly_pdf",
-        "assessments.gradebook_xlsx",
         "breach.report_pdf",
         "core.students_import_template_xlsx",
-        "core.students_xlsx",
         "exam_control.incident_pdf",
         "exam_control.session_report_pdf",
         "quality.observation_pdf",
@@ -60,11 +58,9 @@ HEAVY_IN_VIEWS = frozenset(
     {
         "academic_management/views.py::_export_response",
         "analytics/views.py::kpi_monthly_pdf",
-        "assessments/views.py::export_gradebook",
         "behavior/views.py::_render_behavior_pdf",
         "breach/views.py::breach_pdf",
         "core/views_students.py::_setup_workbook",
-        "core/views_students.py::student_export_excel",
         "core/views_students.py::student_import_template",
         "exam_control/views.py::incident_pdf",
         "exam_control/views.py::session_report_pdf",

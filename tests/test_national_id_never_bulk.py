@@ -239,7 +239,7 @@ MASKED_MARK = "الرقم الشخصيّ: مستور"
 EXCEL_FULL_NUMBER = frozenset(
     {
         # كشفُ الطلبة الكامل: أعمدتُه أعمدةُ قالب الاستيراد، و`students_import` يطابق على الرقم.
-        "core.views_students.student_export_excel",
+        "core.student_export_builder.build_students_xlsx",
         # قالبُ الدرجات: يعود بالرفع و`_validate_student` يطابق صفَّه على الرقم.
         "staging.views.download_grade_template",
     }

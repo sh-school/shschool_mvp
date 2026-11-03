@@ -277,10 +277,6 @@
    "lines": 110,
    "orm": 13
   },
-  "assessments/views.py::export_gradebook": {
-   "lines": 160,
-   "orm": 11
-  },
   "assessments/views.py::grade_entry": {
    "orm": 8
   },
@@ -347,10 +343,6 @@
   "core/views_search.py::global_search": {
    "lines": 113,
    "orm": 19
-  },
-  "core/views_students.py::student_export_excel": {
-   "lines": 119,
-   "orm": 14
   },
   "core/views_students.py::student_import_template": {
    "lines": 89
