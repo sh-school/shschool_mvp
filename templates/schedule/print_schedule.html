@@ -157,7 +157,7 @@
     line-height: 1.2;
     white-space: normal;
     vertical-align: middle;
-    border-inline-start-width: 2px;
+    border-right-width: 2px;
   }
   /* عرضُ الخانة نقص من 2.328% إلى 2.214% ليُفسح لعمود القسم: تسعةُ
      ملّيمتراتٍ تسعُ «11/2» في ثمانية — والورقةُ لم تزدد عرضاً ولا سطراً. */
@@ -169,7 +169,7 @@
   أعلاه)، ولونُها من `core.brand` لا `var()` — القاعدةُ نفسُها في هذا الملفّ.
   {% endcomment %}
   .m-exempt-dot {
-    position: absolute; top: 0; inset-inline-end: 0;
+    position: absolute; top: 0; left: 0;
     inline-size: 6.5px; block-size: 6.5px; line-height: 6.5px;
     font-size: 5px; font-weight: 700; text-align: center;
     color: {% brand_color "ON_FILL" %};
@@ -203,7 +203,7 @@
      `direction: ltr` كي لا يقلب المحرّكُ رمز الشعبة، و`inline-start`
      تنقلب معها فيقع حدُّ اليوم بين الحصّة الأولى والثانية — أي خارج
      اليوم الذي يحدّه. */
-  .schedule-matrix .m-day-start { border-inline-start-width: 2px; }
+  .schedule-matrix .m-day-start { border-right-width: 2px; }
   /* ترويسةُ الجدول عنّابيّةٌ ونصُّها `ON_FILL` كسائر جداول المنصّة وورقتَي A4 (حكمُ 0419 على W-20261010-049: كانت بيضاءَ بنصٍّ أسود). */
   .schedule-matrix thead th, .schedule-matrix thead .m-day {
     border-bottom-width: 2px;
@@ -213,7 +213,7 @@
     print-color-adjust: exact;
   }
   .schedule-matrix .m-name,
-  .schedule-matrix .m-total { border-inline-start-width: 2px; }
+  .schedule-matrix .m-total { border-right-width: 2px; }
   /* ── فرزُ الأقسام لوناً ──
      السطورُ مرتّبةٌ بالقسم أصلاً، واللونُ يفصل بينها بلا شريطِ عنوانٍ يأكل
      سطراً ولا عمودٍ يأكل عرضاً. والألوانُ فاتحةٌ كي يبقى الأسودُ مقروءاً
