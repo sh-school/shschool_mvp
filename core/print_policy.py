@@ -82,6 +82,13 @@ DOCUMENTS: dict[str, PrintDocument] = {
     ),
     "templates/schedule/print_pages.html": PrintDocument(SHEET, "landscape", CONFORMS, LOGO_FRAME),
     "templates/behavior/pdf/base_form.html": PrintDocument(FORM, "portrait", CONFORMS, LOGO_FRAME),
+    "templates/wings/pdf/exit_permit.html": PrintDocument(
+        FORM,
+        "portrait",
+        CONFORMS,
+        LOGO_BASE,
+        "إذنُ خروج بورقة A5 عموديّة (@page في القالب)؛ يُبنى بـ`wings/exit_permit_pdf_services.py`.",
+    ),
     "templates/quality/observation_pdf.html": PrintDocument(
         FORM,
         "portrait",

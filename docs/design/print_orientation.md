@@ -25,9 +25,19 @@
 
 الشعارُ يرثه كلُّ قالبٍ يمتدّ من `reports/base_qatar_report.html` (وسمُ `ministry_logo` فيه)؛ فكلُّ الوثائق الإداريّة بشعار، واستمارةُ الإشراف بوسمها المحلّيّ. والدَّينُ المسجَّل صفر.
 
-## ما لم يُصنَّف بعد (غيرُ مقروء)
+## ما صُنِّف في W-20261021-012
 
-`schedule/print_view.html` وَ`quality/observation_pdf_view.html` (عرضا شاشةٍ لا PDF مستقلّ على الأرجح) وقوالبُ `exam_control` و`wings/pdf/*` و`schedule/pdf/*`: لم تُقرأ في هذه البطاقة. تُصنَّف في W-20261021-012 (دَين الإطار).
+- `schedule/print_view.html` وَ`quality/observation_pdf_view.html`: **عرضا شاشة** يمتدّان من `base/base.html` (يحرس ذلك `test_screen_views_are_really_screen_pages`)، لا PDF مستقلّ.
+- `wings/pdf/exit_permit.html`: نموذجٌ A5 عموديّ يرث `base_qatar_report` — سطرٌ في الجدول أعلاه.
+- `wings/pdf/*` الباقية (`section_sheet`، `sheet_footer`، `signatures`، `wing_summary`) وَ`schedule/pdf/*`: جزئيّاتٌ تُدمج في قوالبَ مصنَّفةٍ لا وثائقُ مطبوعةٌ قائمةٌ بذاتها.
+- قوالبُ `exam_control` (`incident_pdf`، `session_report_pdf`) تُبنى في `exam_control/views.py` عبر `core.pdf_utils.render_pdf`؛ **لم تُقرأ بعد** وتبقى لبطاقةٍ لاحقة.
+
+## مساراتُ الطباعة الأربعة
+
+1. **`base_qatar_report`** — القالبُ الأمّ للوثائق الإداريّة (الشعارُ والتذييلُ منه): كشوفُ الأجنحة والحضور وشؤون الطلاب والخطابات.
+2. **الإطارُ المركزيّ** `core/print_frame.py` + وسوم `print_frame_*` — الجدول الدراسي ونموذج السلوك (ترقيمُ صفحاتٍ «صفحة س من ص»).
+3. **`components/pdf_footer.html`** — تذييلُ سطرٍ واحد بلا ترقيم، لاستمارة الزيارة الصفّيّة وحدَها (خارج الإطار عمداً).
+4. **`core/pdf_utils.render_pdf`** بقوالبَ تصوغ أنماطها محلّيّاً (مثل `exam_control`) — الدَّينُ غيرُ المصنَّف أعلاه.
 
 ## قرارٌ محسوم
 
