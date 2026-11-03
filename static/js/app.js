@@ -158,16 +158,7 @@
     }
   });
 
-  /* ── HTMX Global Error Handler ────────────────────────────── */
-  document.addEventListener('htmx:responseError', function (e) {
-    var status = e.detail.xhr ? e.detail.xhr.status : 0;
-    var msg = '\u062d\u062f\u062b \u062e\u0637\u0623 \u063a\u064a\u0631 \u0645\u062a\u0648\u0642\u0639';
-    if (status === 403) msg = '\u0644\u064a\u0633 \u0644\u062f\u064a\u0643 \u0635\u0644\u0627\u062d\u064a\u0629 \u0644\u0647\u0630\u0627 \u0627\u0644\u0625\u062c\u0631\u0627\u0621';
-    else if (status === 404) msg = '\u0627\u0644\u0635\u0641\u062d\u0629 \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629 \u063a\u064a\u0631 \u0645\u0648\u062c\u0648\u062f\u0629';
-    else if (status >= 500) msg = '\u062e\u0637\u0623 \u0641\u064a \u0627\u0644\u062e\u0627\u062f\u0645 \u2014 \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649';
-    else if (status === 0) msg = '\u062e\u0637\u0623 \u0641\u064a \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u2014 \u062a\u062d\u0642\u0642 \u0645\u0646 \u0627\u0644\u0634\u0628\u0643\u0629';
-    window.showToast(msg, 'danger');
-  });
+  /* معالجُ أخطاء HTMX العامّ واحدٌ في base.js (W-20261027-028) — لا نسخةَ ثانية هنا فتتكرّر الرسالة. */
 
   /* ── Client-side Form Validation ────────────────────────── */
   function showFieldError(input, msg) {

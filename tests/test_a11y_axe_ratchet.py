@@ -60,6 +60,17 @@ def _seed_evaluations(request) -> None:
     _evaluation_case(school, _staff(school, "teacher", "زميل"), principal, grievance=True)
 
 
+#: رحلاتُ الأدوار الخمسة (W-20261027-028): لوحةُ كلّ دورٍ غيرِ المدير كما يراها بعد الدخول؛ `PAGES` كلُّها بحساب
+#: المدير فكانت أدوارُ المعلّم والممرّض والوليّ والطالب وأمينِ المكتبة بلا قياس. المفتاحُ في الخطّ الأساس «صفحة@حساب».
+ROLE_JOURNEYS = [
+    ("dashboard", "teacher_user"),
+    ("dashboard", "nurse_user"),
+    ("dashboard", "parent_user"),
+    ("dashboard", "student_user"),
+    ("dashboard", "librarian_user"),
+]
+
+
 def _measure_all(request, page, live_server) -> dict[str, dict[str, int]]:
     """
     كلُّ صفحات `PAGES` ثمّ صفحاتِ التقييم. يُسجَّل الدخولُ عند كلّ تبديلِ حساب، **بعد مسح الكوكيز**:
@@ -67,7 +78,7 @@ def _measure_all(request, page, live_server) -> dict[str, dict[str, int]]:
     """
     results: dict[str, dict[str, int]] = {}
     logged_in_as = None
-    for name, who in [*PAGES, *EVALUATION_PAGES]:
+    for name, who in [*PAGES, *EVALUATION_PAGES, *ROLE_JOURNEYS]:
         user = request.getfixturevalue(who)
         if logged_in_as != who:
             page.context.clear_cookies()
@@ -77,7 +88,7 @@ def _measure_all(request, page, live_server) -> dict[str, dict[str, int]]:
         page.wait_for_load_state("networkidle")
         counts = ratchet.measure_page(page)
         if counts:
-            results[name] = counts
+            results[f"{name}@{who}" if (name, who) in ROLE_JOURNEYS else name] = counts
     return results
 
 
