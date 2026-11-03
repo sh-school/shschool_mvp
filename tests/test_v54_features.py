@@ -166,6 +166,7 @@ class TestAdminPDPPLMasking:
 # ══════════════════════════════════════════════════════════════
 
 
+@pytest.mark.django_db
 class TestAxesReset:
     """اختبارات _axes_reset() helper في views_auth.py."""
 
@@ -188,3 +189,19 @@ class TestAxesReset:
         factory = RequestFactory()
         request = factory.post("/auth/login/")
         _axes_reset(request, "")  # يجب أن لا تُثير استثناء
+
+    def test_axes_reset_actually_clears_the_counter(self):
+        """✅ إعادةُ التعيين الصريحة تمسح محاولاتِ المعرّف (كانت ImportError مبتلعاً فلا تعمل)."""
+        from axes.models import AccessAttempt
+
+        from core.views_auth import _axes_reset
+
+        AccessAttempt.objects.create(
+            username="12345678901", ip_address="10.0.0.1", failures_since_start=3
+        )
+        AccessAttempt.objects.create(
+            username="99999999999", ip_address="10.0.0.1", failures_since_start=2
+        )
+        _axes_reset(RequestFactory().post("/auth/login/"), "12345678901")
+        assert not AccessAttempt.objects.filter(username="12345678901").exists()
+        assert AccessAttempt.objects.filter(username="99999999999").exists()
