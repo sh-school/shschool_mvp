@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
 from core.excel_safety import safe_cell
-from core.export_utils import add_excel_title_rows, apply_print_footer
+from core.export_utils import add_excel_title_rows, apply_print_footer, autofit_columns
 from core.exports.registry import ExportResult
 from core.ministry import ministry_line, ministry_name
 from core.models import Membership, Role, StudentEnrollment
@@ -94,6 +94,7 @@ def build_students_xlsx(school: Any, user: Any, params: Any) -> ExportResult:
     num_data_rows = len(memberships)
 
     # ── تجميد + فلاتر ────────────────────────────────────────────────
+    autofit_columns(ws, 4)  # تجميد + فلاتر: العرضُ من أطول قيمةٍ لا رقماً ثابتاً
     ws.freeze_panes = "A5"
     ws.auto_filter.ref = f"A4:{col_letter}4"
 

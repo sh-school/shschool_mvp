@@ -131,16 +131,12 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 
 /* عذرُ الغياب — نموذجٌ قصيرٌ في بطاقة (wings/partials/excuse_card.html) */
 /* سجلُّ أحداث الطالب: أسطرٌ مضغوطةٌ (سطرٌ واحد لكلّ حدث) وصفحاتٌ بدل تمريرٍ داخل البطاقة. */
-/* الجدولُ بأعمدةٍ ثابتةِ النِّسَب لا يتجاوز عرضَ البطاقة أيّاً كان: النصُّ الطويلُ يُقتطع بنقطتين، وحقلُ السبب يتقلّص. */
-.ev-table { table-layout: fixed; width: 100%; }
-.ev-table td, .ev-table th { padding-block: var(--sp-1); }
+/* أعمدةُ الجدول تتبع محتواها (قاعدةُ الأعمدة المرنة): النصُّ الطويل يلتفّ داخل خليّته لا يُقتطع، وحقلُ السبب يتقلّص. */
+.ev-table { inline-size: 100%; }
+.ev-table td, .ev-table th { padding-block: var(--sp-1); overflow-wrap: anywhere; }
+.ev-table td:first-child { white-space: nowrap; }
 /* تسميةُ الحقل وتلميحُها سطرٌ واحد: الطويلُ يُقتطع بنقطتين. */
 .exc-form__grid .form-label > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ev-table td, .ev-table th { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ev-table th:nth-child(1) { inline-size: 13%; }
-.ev-table th:nth-child(2) { inline-size: 27%; }
-.ev-table th:nth-child(3) { inline-size: 30%; }
-.ev-table th:nth-child(4) { inline-size: 30%; }
 .ev-table .sa-undo { display: flex; inline-size: 100%; min-inline-size: 0; }
 .ev-table .sa-undo .form-control { flex: 1 1 0; inline-size: auto; min-inline-size: 0; }
 .ev-table .sa-undo .btn-xs { flex: 0 0 auto; }
