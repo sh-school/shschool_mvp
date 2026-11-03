@@ -1,0 +1,15 @@
+{# تأكيدٌ قبل فتح الزيارة — لا يكتب شيئاً؛ الفتحُ بزرّ التأكيد وحدَه (quick_start). #}
+<div class="form-card clinic-confirm" role="group" aria-label="تأكيد الطالب">
+  <p class="clinic-quick__who">{{ s.full_name }}</p>
+  <p class="text-secondary">
+    {% if s.class_label %}الصفّ والشعبة: {{ s.class_label }}{% endif %}
+    {% if s.birth_year %} · مواليد {{ s.birth_year }}{% endif %}
+  </p>
+  {% if s.needs_care %}<p class="clinic-pick__care">يحتاج مراعاةً</p>{% endif %}
+  <form hx-post="{% url 'clinic:quick_start' %}" hx-target="#quick-panel" hx-swap="innerHTML" class="clinic-quick__btns">
+    {% csrf_token %}
+    <input type="hidden" name="student_id" value="{{ s.id }}">
+    <button type="submit" class="clinic-tap btn-primary" data-pick-confirm autofocus>تأكيد فتح الزيارة</button>
+    <button type="button" class="clinic-tap btn-secondary" data-pick-cancel>إلغاء</button>
+  </form>
+</div>

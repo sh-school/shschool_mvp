@@ -1,0 +1,29 @@
+{# نتائجُ اختيار الطالب — مشتركةٌ بين الإدخال السريع (mode=quick) والنموذج الكامل (mode=form). الاسمُ والشعبةُ وسنةُ الميلاد والعلامةُ المحايدة فقط. #}
+{% if students %}
+{% if recent %}<p class="text-secondary clinic-pick__hint">زوّار آخر ٧ أيام</p>{% endif %}
+<ul class="clinic-quick__results" role="list" data-pick-list>
+  {% for s in students %}
+  <li>
+    {% if mode == "form" %}
+    <button type="button" class="clinic-tap clinic-pick btn-secondary"
+            data-pick-id="{{ s.id }}" data-pick-label="{{ s.full_name }}{% if s.class_label %} — {{ s.class_label }}{% endif %}">
+    {% else %}
+    <button type="button" class="clinic-tap clinic-pick btn-secondary"
+            hx-get="{% url 'clinic:quick_pick' %}" hx-vals='{"student_id": "{{ s.id }}"}'
+            hx-target="#quick-panel" hx-swap="innerHTML">
+    {% endif %}
+      <span class="clinic-pick__name">{{ s.full_name }}</span>
+      {% if s.class_label %}<span class="text-secondary">{{ s.class_label }}</span>{% endif %}
+      {% if s.similar and s.birth_year %}<span class="text-secondary">مواليد {{ s.birth_year }}</span>{% endif %}
+      {% if s.needs_care %}<span class="clinic-pick__care">يحتاج مراعاةً</span>{% endif %}
+    </button>
+  </li>
+  {% empty %}
+  <li class="text-secondary">لا نتائج.</li>
+  {% endfor %}
+</ul>
+{% elif browsing %}
+<p class="text-secondary">لا طلبةَ في هذه الشعبة.</p>
+{% elif q %}
+<p class="text-secondary">لا طالبَ بهذا الاسم أو الرقم.</p>
+{% endif %}

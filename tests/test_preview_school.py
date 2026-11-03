@@ -7,7 +7,7 @@ from core import preview_school as second
 
 
 def test_roles_are_first_ten_plus_two():
-    assert list(second.ROLES)[:10] == list(first.ROLES)
+    assert list(second.ROLES)[:10] == [r for r in first.ROLES if r != "nurse"]
     assert list(second.ROLES)[10:] == ["social_worker", "psychologist"]
     assert not set(second.ROLES) & second.FORBIDDEN_ROLES
 

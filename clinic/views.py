@@ -15,6 +15,7 @@ from django.views.decorators.http import require_http_methods
 
 from clinic.models import ClinicVisit, HealthRecord
 from clinic.needs_care_services import import_from_request
+from clinic.selectors import class_options, recent_visitors, student_choice
 from clinic.services import ClinicService
 from core.audit_repr import masked_repr
 from core.capabilities import capability_required, has_capability
@@ -148,7 +149,13 @@ def record_visit(request, student_id=None):
 
     if request.method == "POST":
         student_id = request.POST.get("student_id")
-        student = get_object_or_404(CustomUser, id=student_id, memberships__school=school)
+        student = get_object_or_404(
+            CustomUser,
+            id=student_id,
+            memberships__school=school,
+            memberships__role__name="student",
+            memberships__is_active=True,
+        )
 
         # ✅ v5.4: ClinicService.record_visit — atomic + notification منفصلة عن الإنشاء
         # يُحلّ مشكلة double save() وإشعار مدمج في الـ view
@@ -174,13 +181,14 @@ def record_visit(request, student_id=None):
 
         return redirect("clinic:health_record", student_id=student_id)
 
-    students = CustomUser.objects.filter(
-        memberships__school=school, memberships__role__name="student", memberships__is_active=True
-    ).distinct()
-
+    # اختيارُ الطالب بمكوّنٍ واحدٍ مع الإدخال السريع — لا قائمةَ بكلّ الطلبة (W-20261102-001).
+    chosen = student_choice(school, student_id) if student_id else None
     context = {
-        "students": students,
         "student_id": student_id,
+        "chosen": chosen,
+        "classes": class_options(school),
+        "recent": recent_visitors(school, timezone.localdate()),
+        "mode": "form",
     }
     return render(request, "clinic/record_visit.html", context)
 

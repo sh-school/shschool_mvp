@@ -7,7 +7,7 @@
 2. **اثنا عشر دوراً** `ROLES`: العشرةُ القائمةُ في `preview_accounts.ROLES` + `social_worker` + `psychologist` (الدوران الإضافيّان
    بقرار التنفيذ، بطاقة 006 افتراضٌ 4: لا platform_developer ولا superuser ولا is_staff).
 3. **رقمُ الدخول** `PV-s2-<الدور>` (فيبقى الوسمُ المركَّب فتُحجب الحساباتُ خارج المعاينة)، والرقمُ الوظيفيّ ثمانُ خاناتٍ من نطاقٍ
-   مخصَّصٍ `99800001–99800012` يفترق عن نطاق المدرسة الأولى (`99900001–99900010`) وعن الحقيقيّ.
+   مخصَّصٍ `99800001–99800012` يفترق عن نطاق المدرسة الأولى (`99900001–99900011`) وعن الحقيقيّ.
 4. **ما يُحجب**: يدخل النطاقُ في `core.preview_accounts.RESERVED_EMPLOYEE_REGEX` فيرفض الحقنُ 8500←الإنتاج كلَّ صفٍّ منه.
 
 كلمةُ المرور من `PREVIEW_ACCOUNTS_PASSWORD` (كحسابات المدرسة الأولى) — لا كلمةَ في كودٍ ولا اختبار.
@@ -26,11 +26,13 @@ SCHOOL_NAME = f"{FULL_NAME_PREFIX}مدرسة المعاينة الثانية"
 ID_PREFIX = "PV-s2-"
 
 #: الدورُ ← رقمُ الدخول. العشرةُ الأولى من قائمة المدرسة الأولى المغلقة، والاثنان الإضافيّان بقرارٍ مسجَّل.
+#: وممرّضُ المدرسة الأولى (الحاديَ عشر، 2026-11-02) ليس منها: قرارُ المالك خصّ المدرسةَ الأولى فلا يتغيّر نطاقُ الثانية.
+FIRST_SCHOOL_ROLES_SHARED = tuple(role for role in FIRST_SCHOOL_ROLES if role != "nurse")
 EXTRA_ROLES = ("social_worker", "psychologist")
 #: حقلُ national_id حدُّه 20 خانة: «PV-s2-» + رقمُ الدور بخانتين (اسمُ الدور الطويل لا يتّسع).
 ROLES: dict[str, str] = {
     role: f"{ID_PREFIX}{index:02d}"
-    for index, role in enumerate((*FIRST_SCHOOL_ROLES, *EXTRA_ROLES), start=1)
+    for index, role in enumerate((*FIRST_SCHOOL_ROLES_SHARED, *EXTRA_ROLES), start=1)
 }
 #: الرقمُ الوظيفيّ (ما يُكتب في حقل الدخول): ثمانُ خاناتٍ `99800001–99800012` بترتيب `ROLES`.
 EMPLOYEE_NUMBERS: dict[str, str] = {

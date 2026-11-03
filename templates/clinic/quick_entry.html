@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
 {% load icons %}
-{% load ui %}
+{% load static ui %}
 {% block title %}الإدخال السريع{% endblock %}
 {% block main_class %}{% page_layout "form" %}{% endblock %}
 
@@ -11,20 +11,13 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "الإدخال السريع" subtitle="ابحث عن الطالب ثم المس الخدمة" icon="clinic" %}
+  {% page_header "الإدخال السريع" subtitle="اختر الطالب ثم المس الخدمة" icon="clinic" %}
     <a href="{% url 'clinic:record_visit' %}" class="btn-secondary btn-sm">النموذج الكامل</a>
   {% endpage_header %}
 
   <div class="clinic-quick__grid">
     <div>
-      <div class="ui-field">
-        <label for="quick-q" class="ui-field__label">الطالب</label>
-        <input id="quick-q" name="q" type="search" class="form-control" autocomplete="off"
-               autofocus placeholder="اكتب حرفين من الاسم"
-               hx-get="{% url 'clinic:quick_search' %}" hx-trigger="input changed delay:250ms, search"
-               hx-target="#quick-results" hx-swap="innerHTML">
-      </div>
-      <div id="quick-results" aria-live="polite"></div>
+      {% include "clinic/partials/_student_picker.html" %}
       <div id="quick-panel"></div>
     </div>
 
@@ -35,4 +28,8 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/clinic-student-picker.js' %}" defer></script>
 {% endblock %}
