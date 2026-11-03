@@ -4,7 +4,7 @@
 -r requirements.txt
 
 # Testing
-pytest==9.1.1
+pytest==9.2.0
 pytest-cov==7.1.0
 pytest-django==4.14.0
 pytest-asyncio==1.4.1
@@ -12,7 +12,7 @@ pytest-xdist==3.8.0          # Parallel test execution across CPU cores
 pytest-testmon==2.2.0        # Incremental testing — only run tests affected by changes
 coverage==7.17.0
 factory-boy==3.3.3
-Faker==40.43.0
+Faker==40.44.0
 
 # Code quality
 black==26.10.1
@@ -26,7 +26,7 @@ ruff==0.4.4  # ثابتٌ عمداً — يطابق CI (quality-gate.yml) وpre-
 locust==2.47.0
 
 # Mutation testing (quality.yml الأسبوعيّ + make test-mutmut)
-mutmut==3.8.0
+mutmut==3.8.1
 
 # تنظيف تاريخ git (أداةُ مالكٍ، لا تدخل صورةَ الإنتاج)
 git-filter-repo==2.47.0
