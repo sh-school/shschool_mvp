@@ -4,6 +4,7 @@ core/export_utils.py — أدوات تصدير موحّدة لكل المنصة
 """
 
 import uuid
+from datetime import datetime
 from typing import Any, NamedTuple
 
 from django.utils import timezone
@@ -153,7 +154,21 @@ def brand_cell(cell) -> None:
     )
 
 
-def add_excel_title_rows(ws, num_cols: int, first: str, second: str, third: str) -> None:
+DATA_AS_OF_LABEL = "آخر تحديث للبيانات"
+
+
+def with_data_as_of(line: str, as_of: datetime | None = None) -> str:
+    """يلحق بسطرٍ نصيٍّ «آخر تحديث للبيانات: التاريخ والوقت» (قرارُ المالك 2026-10-21، W-20261021-009) ما لم يحمله.
+    الوقتُ وقتُ توليد الملفّ (لقطةُ البيانات لحظةَ التصدير)؛ ومن يملك زمنَ آخر تعديلٍ حقيقيٍّ لبياناته يمرّره `as_of`."""
+    if DATA_AS_OF_LABEL in line:
+        return line
+    stamp = timezone.localtime(as_of).strftime("%Y/%m/%d %H:%M")
+    return f"{line}  |  {DATA_AS_OF_LABEL}: {stamp}"
+
+
+def add_excel_title_rows(
+    ws, num_cols: int, first: str, second: str, third: str, data_as_of=None
+) -> None:
     """الصفوفُ الثلاثةُ الأولى في كلّ ملفّ Excel — ترويسةٌ واحدةٌ للمنصّة.
 
     ١ عنّابيٌّ بنصٍّ أبيضَ كبير وشعارُ الوزارة الأصليّ صورةً مثبّتةً في A1 (W-20261014-009؛ ينهي D-409م)، ٢ عنّابيٌّ فاتحٌ بنصٍّ أبيض،
@@ -166,7 +181,12 @@ def add_excel_title_rows(ws, num_cols: int, first: str, second: str, third: str)
     rows = (
         (first, xl_fill(brand.MAROON), xl_font(brand.ON_FILL, size=14, bold=True), 40),
         (second, xl_fill(brand.MAROON_LIGHT), xl_font(brand.ON_FILL, size=11, bold=True), 28),
-        (third, xl_fill(brand.MAROON_BG), xl_font(brand.TEXT_MUTED, size=9), 22),
+        (
+            with_data_as_of(third, data_as_of),
+            xl_fill(brand.MAROON_BG),
+            xl_font(brand.TEXT_MUTED, size=9),
+            22,
+        ),
     )
     for row, (value, fill, font, height) in enumerate(rows, start=1):
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
