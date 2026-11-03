@@ -595,7 +595,10 @@ document.addEventListener('htmx:responseError', function(e) {
     500: '\u062e\u0637\u0623 \u0641\u064a \u0627\u0644\u062e\u0627\u062f\u0645 \u2014 \u062a\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u062f\u0639\u0645',
     503: '\u0627\u0644\u062e\u062f\u0645\u0629 \u063a\u064a\u0631 \u0645\u062a\u0627\u062d\u0629 \u0645\u0624\u0642\u062a\u0627\u064b'
   };
-  if (window.showToast) window.showToast(msgs[status] || '\u062d\u062f\u062b \u062e\u0637\u0623 (' + status + ')', 'danger');
+  var msg = msgs[status];
+  if (!msg && status >= 500) msg = msgs[500];
+  if (!msg && status === 0) msg = '\u062e\u0637\u0623 \u0641\u064a \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u2014 \u062a\u062d\u0642\u0642 \u0645\u0646 \u0627\u0644\u0634\u0628\u0643\u0629';
+  if (window.showToast) window.showToast(msg || '\u062d\u062f\u062b \u062e\u0637\u0623 (' + status + ')', 'danger');
 });
 
 document.addEventListener('htmx:timeout', function() {
@@ -605,6 +608,25 @@ document.addEventListener('htmx:timeout', function() {
 document.addEventListener('htmx:sendError', function() {
   if (window.showToast) window.showToast('\u062a\u0639\u0630\u0651\u0631 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0628\u0627\u0644\u062e\u0627\u062f\u0645', 'danger');
 });
+
+/* ── عنوانٌ مركزيٌّ لكلّ جدول (W-20261027-028، WCAG 1.3.1) ─────────────
+   جدولٌ داخل `.table-wrap` بلا <caption> ولا aria-label/labelledby يأخذ <caption class="sr-only"> من أقرب عنوانٍ
+   سابق (عنوان البطاقة ثمّ عنوان الصفحة) — مرّةً هنا بدل لمس 150 قالباً؛ وما كتب caption بيده لا يُمَسّ. */
+function captionTables(root) {
+  (root || document).querySelectorAll('.table-wrap table').forEach(function(t) {
+    if (t.caption || t.hasAttribute('aria-label') || t.hasAttribute('aria-labelledby') || t.getAttribute('role') === 'presentation') return;
+    var scope = t.closest('.ui-section, section, article, main') || document;
+    var h = scope.querySelector('.ui-section__title, h2, h3') || document.querySelector('main h1, h1');
+    var text = h && h.textContent.trim();
+    if (!text) return;
+    var cap = document.createElement('caption');
+    cap.className = 'sr-only';
+    cap.textContent = text;
+    t.insertBefore(cap, t.firstChild);
+  });
+}
+document.addEventListener('DOMContentLoaded', function() { captionTables(document); });
+document.addEventListener('htmx:afterSwap', function(e) { captionTables(e.target); });
 
 /* ── HTMX Screen Reader Announcements ────────────────────── */
 document.addEventListener('htmx:afterSwap', function() {
