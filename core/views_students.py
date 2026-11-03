@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 from io import BytesIO
+from typing import Any
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
@@ -85,7 +86,7 @@ TEMPLATE_NOTE = (
 )
 
 
-def _make_styles():
+def _make_styles() -> dict[str, Any]:
     """يُعيد قاموس ستايلات openpyxl مشتركة."""
     import openpyxl  # noqa: F401 — imported for side-effects check
 
@@ -102,7 +103,7 @@ def _make_styles():
     }
 
 
-def _add_header_row(ws, styles, row_num, columns):
+def _add_header_row(ws: Any, styles: dict[str, Any], row_num: int, columns: Any) -> None:
     """يرسم صف الرأس باللون الكستنائي."""
     for col_idx, (header, width) in enumerate(columns, start=1):
         cell = safe_cell(ws, row=row_num, column=col_idx, value=header)
@@ -114,7 +115,9 @@ def _add_header_row(ws, styles, row_num, columns):
     ws.row_dimensions[row_num].height = 26
 
 
-def _style_data_row(ws, styles, row_num, num_cols, is_alt=False):
+def _style_data_row(
+    ws: Any, styles: dict[str, Any], row_num: int, num_cols: int, is_alt: bool = False
+) -> None:
     """يطبق ستايل على صف بيانات."""
     for col_idx in range(1, num_cols + 1):
         cell = ws.cell(row=row_num, column=col_idx)

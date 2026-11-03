@@ -6,7 +6,7 @@ class CoreConfig(AppConfig):
     name = "core"
     verbose_name = "النواة"
 
-    def ready(self):
+    def ready(self) -> None:
         import core.signals  # noqa
         from django.db.models.signals import post_migrate
 
@@ -23,7 +23,7 @@ class CoreConfig(AppConfig):
         )
 
     @staticmethod
-    def _register_exports():
+    def _register_exports() -> None:
         from core.exports import registry as export_registry
 
         from . import student_export_builder as builders
