@@ -88,8 +88,9 @@
 
 </div>
 
-<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/vendor/chart.umd.min.js' %}" defer></script>
 <script nonce="{{ request.csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function(){
 const YEAR = "{{ year }}";
 
 // ── Compact chart defaults ──
@@ -190,5 +191,6 @@ const OPTS = { responsive: true, maintainAspectRatio: false };
     }
   });
 })();
+});
 </script>
 {% endblock %}

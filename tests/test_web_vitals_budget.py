@@ -61,8 +61,8 @@ def _table(results: dict[str, dict]) -> str:
     return "\n".join(rows)
 
 
-def test_the_pages_stay_within_the_web_vitals_budget(browser, live_server, principal_user):
-    base = live_server.url
+def _login_state(browser, base: str, user):
+    """يسخّن الخادم ويعيد جلسةً محفوظة من تسجيل دخولٍ واحد (انظر وصف الملفّ)."""
     warm = browser.new_context()
     warm.new_page().goto(f"{base}/auth/login/")
     warm.close()
@@ -70,12 +70,18 @@ def test_the_pages_stay_within_the_web_vitals_budget(browser, live_server, princ
     login_ctx = browser.new_context()
     login_page = login_ctx.new_page()
     login_page.goto(f"{base}/auth/login/")
-    login_page.fill('input[name="identifier"]', principal_user.national_id)
+    login_page.fill('input[name="identifier"]', user.national_id)
     login_page.fill('input[name="password"]', "testpass123")  # pragma: allowlist secret
     login_page.click('button[type="submit"]')
     login_page.wait_for_load_state("networkidle")
     state = login_ctx.storage_state()
     login_ctx.close()
+    return state
+
+
+def test_the_pages_stay_within_the_web_vitals_budget(browser, live_server, principal_user):
+    base = live_server.url
+    state = _login_state(browser, base, principal_user)
 
     results = {
         "login": web_vitals.median_of(
@@ -122,6 +128,70 @@ def test_the_login_card_has_no_entrance_animation():
     ), "`.login-card` تحمل خاصّيّةَ animation من جديد رغم قرار إلغائها"
 
 
+def _measure_mobile(browser, url: str, state) -> dict:
+    """جوّالٌ مُحاكى: 375×812، شبكة 1.6Mbps/150ms، معالجٌ أبطأ 4×."""
+    context = browser.new_context(
+        storage_state=state,
+        viewport={"width": 375, "height": 812},
+        device_scale_factor=2,
+        is_mobile=True,
+        has_touch=True,
+    )
+    try:
+        page = context.new_page()
+        cdp = context.new_cdp_session(page)
+        cdp.send("Network.enable")
+        cdp.send(
+            "Network.emulateNetworkConditions",
+            {
+                "offline": False,
+                "latency": 150,
+                "downloadThroughput": web_vitals.MOBILE_DOWNLOAD_BPS,
+                "uploadThroughput": 750 * 1024 / 8,
+            },
+        )
+        cdp.send("Emulation.setCPUThrottlingRate", {"rate": 4})
+        load = web_vitals.install(page)
+        page.goto(url)
+        page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(800)
+        return web_vitals.read(page, load)
+    finally:
+        context.close()
+
+
+def test_the_dashboard_stays_within_the_mobile_lcp_ceiling(browser, live_server, principal_user):
+    """W-20261027-030: LCP الجوال على لوحة التحكّم تحت سقفٍ مقيس لا مرجوّ.
+
+    الخادمُ المحلّيّ لا يضغط (إنتاجُنا WhiteNoise بـBrotli/GZip)، فالرقمُ هنا مرجعُ
+    انحدارٍ نسبيّ لا قيمةَ RUM إنتاجيّة؛ سقفُه `web_vitals.MOBILE_LCP_MS`.
+    """
+    base = live_server.url
+    state = _login_state(browser, base, principal_user)
+    runs = [_measure_mobile(browser, f"{base}/dashboard/", state) for _ in range(RUNS)]
+    metrics = web_vitals.median_of(runs)
+    print("\nmobile dashboard:", metrics)
+    assert 0 < metrics["lcp_ms"] <= web_vitals.MOBILE_LCP_MS, (
+        f"LCP الجوال {metrics['lcp_ms']}ms > {web_vitals.MOBILE_LCP_MS}ms "
+        f"(العنصر: {metrics['lcp_element']})"
+    )
+
+
+def test_chartjs_is_never_a_parser_blocking_script():
+    """Chart.js (205KB) مؤجَّلٌ في كلّ قالب: السكربتُ المتزامن يعطّل التحليل ويؤخّر `defer` كلَّه."""
+    import re
+    from pathlib import Path
+
+    tag = re.compile(r"<script[^>]*chart\.umd\.min\.js[^>]*>")
+    offenders = [
+        str(path)
+        for path in Path("templates").rglob("*.html")
+        for match in tag.findall(path.read_text(encoding="utf-8"))
+        if " defer" not in match
+    ]
+    assert not offenders, "Chart.js بلا defer في: " + ", ".join(offenders)
+
+
 class TestTheBudgetItself:
     """الميزانيةُ تحرس ما تقول — منطقُها لا يحتاج متصفّحاً."""
 
@@ -131,7 +201,7 @@ class TestTheBudgetItself:
         assert not any("requests" in line for line in found)
 
     def test_a_value_exactly_at_the_ceiling_passes(self):
-        assert not web_vitals.violations("p", {"lcp_ms": 2500, "css_kb": 460})
+        assert not web_vitals.violations("p", {"lcp_ms": 2500, "css_kb": 440})
 
     def test_an_unreported_lcp_or_inp_is_not_a_violation(self):
         assert not web_vitals.violations("login", {"lcp_ms": 0, "inp_ms": 0})
