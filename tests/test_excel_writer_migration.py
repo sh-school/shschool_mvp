@@ -223,9 +223,12 @@ class TestStudentExports:
 
     def test_core_student_export_neutralizes_the_name(self, client_as, principal_user, school):
         self._student(school, EVIL_EQ, "99900000701")
-        resp = client_as(principal_user).get(reverse("student_export_excel"))
-        assert resp.status_code == 200
-        book = openpyxl.load_workbook(io.BytesIO(resp.content))
+        from django.http import QueryDict
+
+        from core.student_export_builder import build_students_xlsx
+
+        result = build_students_xlsx(school, principal_user, QueryDict(""))
+        book = openpyxl.load_workbook(io.BytesIO(result.content))
         _assert_no_live_formula(_texts(book), "HYPERLINK")
 
     def test_student_affairs_export_neutralizes_the_name(

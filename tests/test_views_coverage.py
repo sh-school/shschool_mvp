@@ -265,17 +265,15 @@ class TestAssessmentViewsCoverage:
     def test_export_gradebook_basic(self, client_as, teacher_user, setup, enrolled_student):
         c = client_as(teacher_user)
         resp = c.get(f"/assessments/setup/{setup.id}/export/")
-        assert resp.status_code == 200
-        assert "spreadsheetml" in resp["Content-Type"]
-        assert resp.has_header("Content-Disposition")
+        # خلفيٌّ عبر سجلّ التصدير (W-20261021-011): صفحةُ المهمّة لا ملفٌّ مباشر؛ والملفُّ من البنّاء (اختبارُه أدناه)
+        assert resp.status_code == 302 and resp["Location"].startswith("/exports/")
 
     def test_export_gradebook_as_principal(
         self, client_as, principal_user, setup, enrolled_student
     ):
         c = client_as(principal_user)
         resp = c.get(f"/assessments/setup/{setup.id}/export/?semester=S1")
-        assert resp.status_code == 200
-        assert "spreadsheetml" in resp["Content-Type"]
+        assert resp.status_code == 302 and resp["Location"].startswith("/exports/")
 
     def test_export_gradebook_forbidden_other_teacher(self, client_as, setup, school):
         role = RoleFactory(school=school, name="teacher")
@@ -308,10 +306,8 @@ class TestAssessmentViewsCoverage:
             student=student_user,
             grade=Decimal("35"),
         )
-        c = client_as(teacher_user)
-        resp = c.get(f"/assessments/setup/{setup.id}/export/?semester=S1")
-        assert resp.status_code == 200
-        assert len(resp.content) > 0
+        result = self._build_gradebook(setup, teacher_user)
+        assert len(result.content) > 0 and result.rows == 1
 
     def test_export_gradebook_multiple_students(
         self,
@@ -336,9 +332,18 @@ class TestAssessmentViewsCoverage:
                 grade=Decimal(str(10 + i)),
             )
             students.append(st)
-        c = client_as(teacher_user)
-        resp = c.get(f"/assessments/setup/{setup.id}/export/?semester=S1")
-        assert resp.status_code == 200
+        result = self._build_gradebook(setup, teacher_user)
+        assert result.rows >= 3 and result.filename.endswith(".xlsx")
+
+    @staticmethod
+    def _build_gradebook(setup, user):
+        from django.http import QueryDict
+
+        from assessments.export_builders import build_gradebook_xlsx
+
+        return build_gradebook_xlsx(
+            setup.school, user, QueryDict(f"setup_id={setup.pk}&semester=S1")
+        )
 
     # ── recalculate_class ────────────────────────────────────
 
