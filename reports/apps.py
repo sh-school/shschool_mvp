@@ -26,6 +26,18 @@ class ReportsConfig(AppConfig):
             capability="reports.results",
         )
 
+        # كشفا الغياب والمخالفات Excel: خلفيّان (W-20261021-011) — بلا قياس p95 يثبت أنّهما سريعان فالافتراضُ job.
+        export_registry.register(
+            "reports.attendance_xlsx",
+            build=builders.build_attendance_xlsx,
+            capability="reports.school",
+        )
+        export_registry.register(
+            "reports.behavior_xlsx",
+            build=builders.build_behavior_xlsx,
+            capability="reports.school",
+        )
+
         register_module(
             name="reports",
             label="التقارير والشهادات",

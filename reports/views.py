@@ -22,7 +22,7 @@ from core.audit_repr import masked_repr
 from core.capabilities import capability_required
 from core.domain.tones import tone_for
 from core.exports.services import respond_export
-from core.models import ClassGroup, CustomUser, StudentEnrollment
+from core.models import ClassGroup, CustomUser
 from core.models.academic import grade_number
 from core.pdf_utils import render_pdf
 
@@ -34,7 +34,7 @@ from .selectors import (
     set_final_status,
     teacher_can_access_class,
 )
-from .services import ExcelService, ReportDataService
+from .services import ReportDataService
 
 
 @login_required
@@ -624,18 +624,12 @@ def attendance_excel(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    paper = _get_paper_size(request).lower()
-    year = request.GET.get("year") or academic_year_for(request)
-    # الرقم الشخصيّ: مستور — `ExcelService.attendance_excel` يستره.
-    log_export(
-        request,
-        "reports.attendance_xlsx",
-        rows=StudentEnrollment.objects.filter(class_group=class_grp, is_active=True).count(),
-        full_national_id=False,
-        object_id=class_grp.pk,
-        object_repr=f"Excel حضور {class_grp} — {year}",
-    )
-    return ExcelService.attendance_excel(class_grp, school, year, paper=paper)
+    # خلفيٌّ عبر سجلّ التصدير (W-20261021-011)؛ سطرُ التدقيق يكتبه العاملُ (`<kind>:built`).
+    params = request.GET.copy()
+    params["class_id"] = str(class_grp.pk)
+    params["year"] = request.GET.get("year") or academic_year_for(request)
+    params["paper"] = _get_paper_size(request).lower()
+    return respond_export(request, "reports.attendance_xlsx", params=params)
 
 
 @login_required
@@ -645,14 +639,7 @@ def behavior_excel(request):
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
 
-    school = request.user.get_school()
-    paper = _get_paper_size(request).lower()
-    year = request.GET.get("year") or academic_year_for(request)
-    # الرقم الشخصيّ: مستور — `ExcelService.behavior_excel` يستره.
-    log_export(
-        request,
-        "reports.behavior_xlsx",
-        full_national_id=False,
-        object_repr=f"Excel سلوك — {year}",
-    )
-    return ExcelService.behavior_excel(school, year, paper=paper)
+    params = request.GET.copy()
+    params["year"] = request.GET.get("year") or academic_year_for(request)
+    params["paper"] = _get_paper_size(request).lower()
+    return respond_export(request, "reports.behavior_xlsx", params=params)

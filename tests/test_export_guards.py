@@ -23,8 +23,6 @@ SYNC_ONLY_KINDS = frozenset(
         "quality.observation_pdf",
         "quality.progress_report_pdf",
         "reports.attendance",
-        "reports.attendance_xlsx",
-        "reports.behavior_xlsx",
         "reports.certificate",
         "reports.class_results",
         "reports.student_annual_result",

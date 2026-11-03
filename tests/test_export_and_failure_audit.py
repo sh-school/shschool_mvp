@@ -233,6 +233,29 @@ class TestExcelRegistersMaskTheNumber:
         assert MASKED in cells and STUDENT_ID not in cells
         assert result.rows == 1 and result.full_national_id is False
 
+    def test_the_attendance_and_behavior_sheets_are_built_by_the_worker_and_masked(
+        self, principal_user, school, klass, pupil
+    ):
+        """خلفيّان منذ W-20261021-011: الورقةُ من البنّاء بلا رقمٍ شخصيٍّ كامل، وغيرُ المدير يُرفض في العامل."""
+        from django.core.exceptions import PermissionDenied
+        from django.http import QueryDict
+
+        from reports.export_builders import build_attendance_xlsx, build_behavior_xlsx
+
+        attendance = build_attendance_xlsx(
+            school, principal_user, QueryDict(f"class_id={klass.pk}&year={klass.academic_year}")
+        )
+        behavior = build_behavior_xlsx(
+            school, principal_user, QueryDict(f"year={klass.academic_year}")
+        )
+
+        for result in (attendance, behavior):
+            assert STUDENT_ID not in _cells(result) and result.full_national_id is False
+            assert result.filename.endswith(".xlsx")
+        assert attendance.rows == 1 and attendance.object_id == str(klass.pk)
+        with pytest.raises(PermissionDenied):
+            build_behavior_xlsx(school, pupil, QueryDict(""))
+
 
 class TestJsonAndApiMaskTheNumber:
     def test_the_tardiness_search_carries_no_number(self, client_as, principal_user, klass, pupil):

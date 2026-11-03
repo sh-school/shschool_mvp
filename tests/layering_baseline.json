@@ -174,7 +174,7 @@
   "quality/views_committee.py": 5,
   "quality/views_executor.py": 3,
   "quality/views_reports.py": 2,
-  "reports/views.py": 10,
+  "reports/views.py": 9,
   "staging/views.py": 4,
   "student_info/views.py": 7,
   "transport/views.py": 7,
@@ -559,9 +559,6 @@
    "orm": 20
   },
   "quality/views_reports.py::progress_report_pdf": {
-   "orm": 8
-  },
-  "reports/views.py::attendance_excel": {
    "orm": 8
   },
   "reports/views.py::attendance_report_pdf": {

@@ -70,3 +70,38 @@ def build_class_results_xlsx(school: Any, user: Any, params: Any) -> ExportResul
         full_national_id=False,
         object_id=str(class_grp.pk),
     )
+
+
+def build_attendance_xlsx(school: Any, user: Any, params: Any) -> ExportResult:
+    """كشف الغياب Excel لفصلٍ — خلفيّ (W-20261021-011). الرقمُ الشخصيُّ مستور (كشفٌ جماعيّ)."""
+    from .services import ExcelService
+
+    if not user.is_admin():  # كما في الـview؛ القدرةُ وحدَها يفحصها العاملُ ثانيةً
+        raise PermissionDenied
+    class_grp = ClassGroup.objects.get(id=params["class_id"], school=school)
+    year = params.get("year") or academic_year_for_school(school)
+    resp = ExcelService.attendance_excel(class_grp, school, year, paper=paper_size(params).lower())
+    return ExportResult(
+        resp.content,
+        resp["Content-Type"],
+        f"غياب_{class_grp.grade.removeprefix('G')}_{class_grp.section}_{year}.xlsx",
+        rows=class_grp.enrollments.filter(is_active=True).count(),
+        full_national_id=False,
+        object_id=str(class_grp.pk),
+    )
+
+
+def build_behavior_xlsx(school: Any, user: Any, params: Any) -> ExportResult:
+    """كشف المخالفات السلوكيّة Excel للمدرسة — خلفيّ (W-20261021-011). الرقمُ الشخصيُّ مستور."""
+    from .services import ExcelService
+
+    if not user.is_admin():
+        raise PermissionDenied
+    year = params.get("year") or academic_year_for_school(school)
+    resp = ExcelService.behavior_excel(school, year, paper=paper_size(params).lower())
+    return ExportResult(
+        resp.content,
+        resp["Content-Type"],
+        f"مخالفات_سلوكية_{year}.xlsx",
+        full_national_id=False,
+    )
