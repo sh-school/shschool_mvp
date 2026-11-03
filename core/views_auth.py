@@ -110,9 +110,9 @@ def _axes_reset(request, key: str) -> None:
     `auth_identity.lockout_key` — وإلّا بقي عدّادُ المعرّف الآخر قائماً.
     """
     try:
-        from axes.helpers import reset_request
+        from axes.utils import reset
 
-        reset_request(request=request, username=key)
+        reset(username=key)
     except ImportError:
         pass  # axes غير مثبّت — لا مشكلة
 
