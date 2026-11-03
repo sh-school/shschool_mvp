@@ -345,8 +345,7 @@ def student_export_excel(request):
 
     num_data_rows = len(memberships)
 
-    # ── تجميد + فلاتر ────────────────────────────────────────────────
-    autofit_columns(ws, 4)
+    autofit_columns(ws, 4)  # تجميد + فلاتر: العرضُ من أطول قيمةٍ
     ws.freeze_panes = "A5"
     ws.auto_filter.ref = f"A4:{col_letter}4"
 
