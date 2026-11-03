@@ -206,3 +206,23 @@ def test_record_visit_post_requires_a_school_student(school, nurse_user, student
         reverse("clinic:record_visit"), {"student_id": str(nurse_user.id), "reason": "x"}
     )
     assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_class_choices_are_scoped_to_the_current_academic_year(school, student_role):
+    from clinic.selectors import class_options, students_of_class
+    from core.academic_calendar import academic_year_for_school
+
+    year = academic_year_for_school(school)
+    ClassGroupFactory(school=school, grade="G9", section="1", academic_year=year)
+    ClassGroupFactory(school=school, grade="G10", section="9", academic_year="2019-2020")
+    assert [(g, s) for g, _, s in class_options(school)] == [("G9", ["1"])]
+    old = UserFactory(full_name="طالب عام قديم")
+    MembershipFactory(user=old, school=school, role=student_role)
+    StudentEnrollmentFactory(
+        student=old,
+        class_group=ClassGroupFactory(
+            school=school, grade="G9", section="1", academic_year="2019-2020"
+        ),
+    )
+    assert students_of_class(school, "G9", "1") == []

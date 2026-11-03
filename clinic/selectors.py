@@ -19,6 +19,8 @@ from django.core.exceptions import ValidationError
 from django.db.models import Exists, OuterRef, Prefetch, Q, Value
 from django.db.models.functions import Lower, Replace
 
+from core.academic_calendar import academic_year_for_school
+
 #: أقصى نتائج القائمة — قائمةٌ قصيرةٌ تُلمس لا جدولٌ يُمرَّر.
 MAX_RESULTS = 12
 #: أقلُّ حروفٍ للبحث بالاسم.
@@ -162,6 +164,7 @@ def students_of_class(school, grade: str, section: str, limit: int = 60) -> list
         enrollments__class_group__school=school,
         enrollments__class_group__grade=grade,
         enrollments__class_group__section=section,
+        enrollments__class_group__academic_year=academic_year_for_school(school),
     )
     return _to_choices(list(qs.order_by("full_name")[:limit]))
 
@@ -171,9 +174,9 @@ def class_options(school) -> list[tuple[str, str, list[str]]]:
     from core.models import ClassGroup
 
     out: dict[str, set[str]] = {}
-    for grade, section in ClassGroup.objects.filter(school=school, is_active=True).values_list(
-        "grade", "section"
-    ):
+    for grade, section in ClassGroup.objects.filter(
+        school=school, is_active=True, academic_year=academic_year_for_school(school)
+    ).values_list("grade", "section"):
         out.setdefault(grade, set()).add(section)
     return [(g, label, sorted(out[g])) for g, label in ClassGroup.GRADES if g in out]
 
