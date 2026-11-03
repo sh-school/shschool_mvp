@@ -12,7 +12,7 @@ import json
 
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -21,15 +21,18 @@ from django.views.decorators.http import require_GET, require_POST
 from clinic import choices
 from clinic.models import ClinicVisit
 from clinic.queue import todays_queue
-from clinic.selectors import search_students
+from clinic.selectors import (
+    MIN_QUERY,
+    class_options,
+    recent_visitors,
+    search_students,
+    student_choice,
+    students_of_class,
+)
 from clinic.services import ClinicService
 from clinic.views import _audit_health_screen
 from core.capabilities import capability_required
 from core.models import CustomUser
-
-#: أقلّ حروفٍ للبحث وأقصى نتائج — قائمةٌ قصيرةٌ تُلمس، لا جدولٌ يُمرَّر.
-MIN_QUERY = 2
-MAX_RESULTS = 5
 
 _guard = (login_required, capability_required("clinic.write"), never_cache)
 
@@ -75,16 +78,62 @@ def quick_entry(request):
     _audit_health_screen(
         request, "الإدخال السريع", model_name="ClinicVisit", rows=_queue_rows(queue)
     )
-    return render(request, "clinic/quick_entry.html", {"queue": queue})
+    return render(
+        request,
+        "clinic/quick_entry.html",
+        {
+            "queue": queue,
+            "classes": class_options(school),
+            "recent": recent_visitors(school, timezone.localdate()),
+            "mode": "quick",
+        },
+    )
+
+
+def _picker_mode(request) -> str:
+    """«form»: يملأ حقلَ نموذجٍ؛ وما سواه: الإدخالُ السريع (تأكيدٌ ثمّ فتحُ زيارة)."""
+    return "form" if request.GET.get("mode") == "form" else "quick"
+
+
+def _results(request, students, **extra) -> HttpResponse:
+    ctx = {"students": students, "mode": _picker_mode(request), **extra}
+    return render(request, "clinic/partials/_student_results.html", ctx)
 
 
 @_protected
 @require_GET
 def quick_search(request):
-    school = request.school
     q = (request.GET.get("q") or "").strip()
-    students = search_students(school, q, MAX_RESULTS) if len(q) >= MIN_QUERY else []
-    return render(request, "clinic/partials/_quick_results.html", {"students": students, "q": q})
+    students = search_students(request.school, q, user=request.user)
+    # دون الحدّ الأدنى لا بحثَ جرى فلا «لا نتائج» (الممرّضُ ما زال يكتب).
+    return _results(request, students, q=q if len(q) >= MIN_QUERY else "")
+
+
+@_protected
+@require_GET
+def quick_class(request):
+    """صفٌّ ثمّ شعبة: قيمةُ الخيار `G9|1`."""
+    grade, _, section = (request.GET.get("cls") or "").partition("|")
+    students = students_of_class(request.school, grade, section) if section else []
+    return _results(request, students, browsing=True)
+
+
+@_protected
+@require_GET
+def quick_recent(request):
+    """زوّارُ آخر 7 أيام — يملأون القائمةَ قبل أن يكتب الممرّضُ شيئاً."""
+    students = recent_visitors(request.school, timezone.localdate())
+    return _results(request, students, recent=True)
+
+
+@_protected
+@require_GET
+def quick_pick(request):
+    """تأكيدٌ قبل الفتح: يعرض الطالبَ بصفّه وسنةِ ميلاده، ولا يكتب شيئاً — الفتحُ في `quick_start` وحدَه."""
+    choice = student_choice(request.school, request.GET.get("student_id"))
+    if choice is None:
+        raise Http404
+    return render(request, "clinic/partials/_quick_confirm.html", {"s": choice})
 
 
 @_protected

@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
 {% load icons %}
-{% load privacy ui %}
+{% load privacy static ui %}
 {% block title %}تسجيل زيارة جديدة{% endblock %}
 {% block main_class %}{% page_layout "form" %}{% endblock %}
 
@@ -20,17 +20,14 @@
       {% csrf_token %}
       <div class="form-stack">
 
-        {# ── الطالب — تسميةُ الخيار مركّبةٌ بمرشِّح الستر، فالقائمةُ تبقى باليد بتسميةٍ مربوطة ── #}
+        {# ── الطالب: المكوّنُ الموحّد مع الإدخال السريع؛ الاختيارُ يملأ الحقلَ المخفيّ ── #}
+        {% include "clinic/partials/_student_picker.html" %}
+        <input type="hidden" id="f-student_id" name="student_id" value="{{ student_id|default:'' }}">
         <div class="ui-field">
-          <label for="f-student_id" class="ui-field__label">الطالب <span class="req-star" aria-hidden="true">*</span></label>
-          <select id="f-student_id" name="student_id" required class="form-control">
-            <option value="">— اختر الطالب —</option>
-            {% for student in students %}
-            <option value="{{ student.id }}" {% if student_id == student.id|stringformat:"s" %}selected{% endif %}>
-              {{ student.full_name }}
-            </option>
-            {% endfor %}
-          </select>
+          <label for="f-student_label" class="ui-field__label">الطالبُ المختار <span class="req-star" aria-hidden="true">*</span></label>
+          <input id="f-student_label" type="text" class="form-control" readonly required
+                 value="{% if chosen %}{{ chosen.full_name }}{% if chosen.class_label %} — {{ chosen.class_label }}{% endif %}{% endif %}"
+                 placeholder="اختر طالباً من القائمة أعلاه" data-pick-label-field>
         </div>
 
         {# ── السبب ── #}
@@ -66,4 +63,8 @@
 
   <div id="visit-result"></div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/clinic-student-picker.js' %}" defer></script>
 {% endblock %}

@@ -2402,6 +2402,14 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-inline-start: 38px; 
 .fu-name { min-inline-size: 10rem; }
 .tbl-cols table th, .tbl-cols table td { padding-inline: var(--sp-2); text-align: center; }
 .tbl-cols table th.fu-name, .tbl-cols table td.fu-name { text-align: start; }
+
+/* ── اختيارُ الطالب في العيادة (W-20261102-001) ── */
+.clinic-pick { flex-wrap: wrap; inline-size: 100%; justify-content: flex-start; text-align: start; }
+.clinic-pick__name { font-weight: 700; }
+.clinic-pick__hint { margin-block: var(--sp-2); }
+.clinic-pick__care { color: var(--maroon-fg); font-weight: 700; }
+.clinic-pick-root { display: grid; gap: var(--sp-2); }
+.clinic-confirm { display: grid; gap: var(--sp-2); }
 }
 
 }
