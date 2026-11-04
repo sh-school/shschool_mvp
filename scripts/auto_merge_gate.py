@@ -47,6 +47,22 @@ FORBIDDEN_GLOBS = (
     "*Role*",
 )
 
+# (D-521م) «يمسّ:» سطرٌ في وصف الطلب يكتبه المشغّل من نصّ المهمّة نفسِه (لا النموذج): فئةٌ مذكورةٌ تُفتح مساراتُها لهذا الطلب وحده،
+# بشرط فحصٍ إضافيّ أخضر؛ وفئةٌ غيرُ مذكورةٍ تبقى محظورةً كما كانت.
+TOUCH_CATEGORIES = {
+    "الأمن": ("*/security/*", "security/*"),
+    "الصلاحيات": ("*permissions*",),
+    "الأدوار": ("*rbac*", "*roles*", "*Role*"),
+    "الهجرات": ("*/migrations/*",),
+}
+TOUCH_LINE = re.compile(r"^يمسّ:\s*(.+)$", re.MULTILINE)
+TOUCH_REQUIRED_CHECK = {
+    "الهجرات": "مدقّق الهجرات",
+    "الأمن": "المسارات الحسّاسة",
+    "الصلاحيات": "المسارات الحسّاسة",
+    "الأدوار": "المسارات الحسّاسة",
+}
+
 REQUIRED_FAILING_STATES = {"FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED"}
 PENDING_STATES = {"PENDING", "IN_PROGRESS", "QUEUED", "EXPECTED", "REQUESTED", "WAITING"}
 
@@ -56,10 +72,21 @@ def sh_json(args: list[str]) -> object:
     return json.loads(out.stdout)
 
 
-def path_forbidden(path: str) -> str | None:
+def declared_touches(body: str) -> set[str]:
+    """الفئاتُ المذكورةُ في سطر «يمسّ:» (ما عُرف منها فقط)."""
+    m = TOUCH_LINE.search(body or "")
+    if not m:
+        return set()
+    return {t.strip() for t in re.split(r"[،,]", m.group(1)) if t.strip() in TOUCH_CATEGORIES}
+
+
+def path_forbidden(path: str, allowed: set[str] | frozenset[str] = frozenset()) -> str | None:
     import fnmatch
 
+    allowed_globs = {g for cat in allowed for g in TOUCH_CATEGORIES.get(cat, ())}
     for pattern in FORBIDDEN_GLOBS:
+        if pattern in allowed_globs:
+            continue
         if fnmatch.fnmatch(path, pattern) or fnmatch.fnmatch(path.lower(), pattern.lower()):
             return pattern
     return None
@@ -81,14 +108,22 @@ def evaluate(pr_number: str, repo: str | None) -> tuple[bool, list[str]]:
 
     files = [f.get("path", "") for f in data.get("files") or []]
     blocked = []
+    touches = declared_touches(body)
     for path in files:
-        pattern = path_forbidden(path)
+        pattern = path_forbidden(path, touches)
         if pattern:
             blocked.append(f"{path} (يطابق {pattern})")
     if blocked:
         reasons.append("مساراتٌ محظورةٌ على الدمج الآليّ: " + "، ".join(blocked))
 
     checks = data.get("statusCheckRollup") or []
+    for cat in sorted(touches):  # فئةٌ مذكورة ← فحصُها الإضافيّ لازمٌ وأخضر
+        need = TOUCH_REQUIRED_CHECK[cat]
+        hits = [c for c in checks if need in (c.get("name") or c.get("context") or "")]
+        if not hits or any(
+            (c.get("conclusion") or c.get("state") or "").upper() != "SUCCESS" for c in hits
+        ):
+            reasons.append(f"«يمسّ: {cat}» يلزمه فحصٌ أخضر «{need}»")
     if not checks:
         reasons.append("لا فحوصَ CI مسجَّلةٌ بعدُ على الطلب")
     else:
