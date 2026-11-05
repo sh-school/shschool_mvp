@@ -221,3 +221,8 @@ app.conf.beat_schedule.update(clinic_autoclose_beat())
 from clinic.supply_beat import clinic_supply_beat  # noqa: E402
 
 app.conf.beat_schedule.update(clinic_supply_beat())
+
+# الذكاءُ المحلّيّ: مسحُ الفهرسة كلَّ ساعة وإعادةُ المحاولة ليلاً (local_ai/tasks.py)
+from local_ai.beat import local_ai_beat  # noqa: E402
+
+app.conf.beat_schedule.update(local_ai_beat())
