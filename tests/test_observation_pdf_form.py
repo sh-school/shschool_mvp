@@ -150,7 +150,12 @@ def test_the_template_asks_for_no_font_by_relative_url(source):
     وقد خرجت الاستمارة من الإنتاج بـDejaVu فعلاً — والخطوط تُحقن من
     `pdf_utils` بمسارات مطلقة.
     """
-    assert "@font-face" not in source.split("{% endcomment %}", 1)[-1]
+    styles = source.split("{% endcomment %}", 1)[-1]
+    # الاستثناءُ الوحيد: خطُّ العلامة ✓ مضمَّنٌ بـdata: لا برابطٍ نسبيّ (قرار المالك 2026-11-05)
+    assert styles.count("@font-face") == 1
+    face = styles.split("@font-face", 1)[1].split("}", 1)[0]
+    assert "'SchoolOS Tick'" in face and "url(data:font/ttf;base64," in face
+    assert "{% static" not in face
 
 
 def test_the_pdf_toolchain_provides_the_free_naskh():
@@ -222,8 +227,10 @@ def test_the_header_is_local_and_the_footer_is_the_shared_component(db, observat
     assert footer.count('class="pdf-footer-line"') == 1 and observation.school.name in footer
     assert 'class="vision-text"' in footer and school.vision in footer, "الرؤيةُ في السطر نفسِه"
     assert "ft-school" not in html and "ft-ministry" not in html
+    # اسمُ عائلة الخطّ المضمَّن «SchoolOS Tick» تقنيٌّ في الأنماط لا يراه القارئ، فلا يُحسب
+    visible = html.replace("SchoolOS Tick", "")
     assert (
-        "SchoolOS" not in html and "SAMM" not in html
+        "SchoolOS" not in visible and "SAMM" not in visible
     ), "اسمُ المنصّة لا يظهر في تذييل أيّ تصدير (أمرُ المالك 2026-09-27)"
     # شعارُ المدرسة «ش» وحدَه (D-404م): صورةٌ واحدةٌ في الترويسة، لا في التذييل ولا شعارُ الوزارة (أُزيل — W-20261011-012)
     assert html.count("<img") == 1 and "<img" in header and "<img" not in footer
@@ -280,11 +287,11 @@ def test_the_chosen_rating_is_the_only_ticked_box(db, observation, criteria):
 
     # ثلاث علاماتٍ لا واحدة: تقديرُ المعيار، ومعهما «ميدانيّة» و«كلّيّة»
     # في جدول المعلومات — وكلاهما مُدخَلٌ في الزيارة نفسها.
-    assert html.count('<span class="tick"></span>') == 3
-    # الكلمة لم تعد في الخانات، والعلامة قالبٌ جزئيٌّ لا صورة
+    assert html.count('<span class="tick">✓</span>') == 3
+    # الكلمة لم تعد في الخانات، والعلامة قالبٌ جزئيٌّ بحرفها الحقيقيّ من خطٍّ مضمَّن لا صورة
     assert "نعم" not in html
-    assert "<svg" not in html
-    assert "✓" not in html, "علامةُ الصحّ كلمةٌ من الخطّ المضمَّن لا رمزٌ من خطٍّ احتياطيّ"
+    assert "<svg" not in html and '<img class="tick"' not in html
+    assert "font-family: 'SchoolOS Tick'" in html and "src: url(data:font/ttf;base64," in html
     assert "توصيةٌ محدّدة." in html
 
 
@@ -451,20 +458,21 @@ def test_the_vision_is_included_never_written_here(source):
 # التذكرةُ SOS-20260925-F55E: خانتا «توقيع المعلم» و«توقيع الزائر» كانتا فارغتين في نسخة PDF، والنموذجُ يحمل
 # `submitted_at` (إرسال الزائر) و`teacher_acknowledged_at` (اطّلاع المعلّم). الاسمُ عند وجود البيانات، وإلّا تبقى
 # الخانةُ فارغةً للتوقيع اليدويّ؛ لا اسمَ على مسودّةٍ أو مسحوبة؛ والأسماءُ وحدَها.
-# عادت العبارةُ والوقتُ (طلبُ المالك، W-20261105-001): الختمُ «توقيعٌ إلكترونيّ داخل المنصّة» ثم الاسم ثم الوقت
-# بتوقيت الدوحة — كما في F55E. وكان D-221م قد حذفهما، فأُلغي ذلك القرارُ بأمر المالك.
+# W-20261005-007 (D-221م): الوثيقةُ طبقُ الأصل الرسميّ فسقطت منها عبارةُ «توقيعٌ إلكترونيّ داخل المنصّة» ووقتُ
+# الختم؛ بقي الاسمُ وحدَه، ووقتُ الإرسال والاطّلاع شرطُ الظهور في القاعدة لا نصٌّ يُعرض.
+# أُعيد هذا السلوكُ بقرار المالك 2026-11-05 (W-20261105-017) بعد أن أُعيدت العبارةُ والوقتُ في #1338.
 
-PHRASE = "توقيعٌ إلكترونيّ داخل المنصّة"
-BOX = '<div class="e-sign">'  # الخانةُ المملوءة بالختم؛ وفي الأنماط `.e-sign {` لا يطابقها
+PHRASE = "توقيعٌ إلكترونيّ داخل المنصّة"  # حُذفت من الوثيقة (D-221م): يُفحص غيابُها
+BOX = '<div class="e-sign">'  # الخانةُ المملوءة بالاسم؛ وفي الأنماط `.e-sign {` لا يطابقها
 VISITOR_NAME = "سالم الزائر الأوّل"
 TEACHER_NAME = "ناصر المعلّم الأوّل"
 SENT_AT = "2026-09-01T09:30:00+00:00"  # 12:30 بتوقيت الدوحة
 ACK_AT = "2026-09-02T06:05:00+00:00"  # 09:05 بتوقيت الدوحة
 
 
-def _stamp_of(name, time):
-    """الخانةُ كما تخرج: العبارةُ، ثم الاسمُ، ثم الوقتُ بتوقيت الدوحة."""
-    return f"{BOX}<div>{PHRASE}</div><div>{name}</div><div>{time}</div></div>"
+def _stamp_of(name):
+    """الخانةُ كما تخرج: صندوقٌ فيه الاسمُ وحدَه — لا عبارةَ ولا وقت."""
+    return f"{BOX}<div>{name}</div></div>"
 
 
 def _moment(iso):
@@ -510,19 +518,17 @@ def test_a_sent_visit_stamps_the_visitor_and_leaves_the_teacher_cell_empty(db, n
     html = _html_of(_sent(named))
 
     assert html.count(BOX) == 1
-    assert _stamp_of(VISITOR_NAME, "2026/09/01 12:30") in html
+    assert _stamp_of(VISITOR_NAME) in html
     # الاسمان في ترويسة الاستمارة دائماً؛ الخانةُ هي سطرُ «الاسم» داخل الصندوق
-    assert (
-        _stamp_of(TEACHER_NAME, "2026/09/02 09:05") not in html
-    ), "المعلّمُ لم يطّلع بعدُ — خانتُه فارغةٌ للتوقيع اليدويّ"
+    assert _stamp_of(TEACHER_NAME) not in html, "المعلّمُ لم يطّلع بعدُ — خانتُه فارغةٌ للتوقيع اليدويّ"
 
 
 def test_an_acknowledged_visit_stamps_both_cells(db, named):
     html = _html_of(_acknowledged(named))
 
     assert html.count(BOX) == 2
-    assert _stamp_of(VISITOR_NAME, "2026/09/01 12:30") in html
-    assert _stamp_of(TEACHER_NAME, "2026/09/02 09:05") in html
+    assert _stamp_of(VISITOR_NAME) in html
+    assert _stamp_of(TEACHER_NAME) in html
 
 
 def test_a_draft_is_never_stamped_even_with_a_stale_time(db, named):
@@ -548,10 +554,10 @@ def test_a_reopened_visit_keeps_the_visitor_stamp_and_drops_the_teachers(db, nam
 
     html = _html_of(named)
 
-    assert html.count(BOX) == 1 and _stamp_of(TEACHER_NAME, "2026/09/02 09:05") not in html
+    assert html.count(BOX) == 1 and _stamp_of(TEACHER_NAME) not in html
 
 
-def test_a_resubmitted_visit_shows_the_latest_send_time(db, named):
+def test_a_resubmitted_visit_keeps_the_name_and_shows_no_time(db, named):
     _sent(named, at="2026-09-01T09:30:00+00:00")
     named.submission_count = 2
     named.submitted_at = _moment("2026-09-03T07:15:00+00:00")  # 10:15 بتوقيت الدوحة
@@ -559,23 +565,24 @@ def test_a_resubmitted_visit_shows_the_latest_send_time(db, named):
 
     html = _html_of(named)
 
-    assert _stamp_of(VISITOR_NAME, "2026/09/03 10:15") in html
-    assert "2026/09/01 12:30" not in html
+    assert _stamp_of(VISITOR_NAME) in html
+    assert "2026/09/03" not in html and "10:15" not in html and "2026/09/01" not in html
     named.refresh_from_db()
     assert named.submitted_at == _moment("2026-09-03T07:15:00+00:00"), "الإثباتُ في القاعدة لا يُمسّ"
 
 
-def test_the_time_is_doha_whatever_timezone_is_active(db, named):
-    """الوقتُ بتوقيت الدوحة أيّاً كانت المنطقةُ الزمنيّةُ النشطة للطلب."""
+def test_no_time_and_no_phrase_whatever_timezone_is_active(db, named):
+    """لا وقتَ في الخانتين ولا عبارةَ ختمٍ، أيّاً كانت المنطقةُ الزمنيّةُ النشطة (D-221م)."""
     from django.utils import timezone
 
     _acknowledged(named)
 
-    for tz in ("UTC", "Asia/Qatar", "America/New_York"):
+    for tz in ("UTC", "Asia/Qatar"):
         with timezone.override(tz):
             html = _html_of(named)
-        assert _stamp_of(VISITOR_NAME, "2026/09/01 12:30") in html, tz
-        assert _stamp_of(TEACHER_NAME, "2026/09/02 09:05") in html, tz
+        assert PHRASE not in html
+        for shown in ("12:30", "09:30", "09:05", "06:05", "2026/09/02"):
+            assert shown not in html, (tz, shown)
 
 
 def test_the_proof_fields_in_the_database_are_untouched_by_the_pdf(db, named):
@@ -589,8 +596,7 @@ def test_the_proof_fields_in_the_database_are_untouched_by_the_pdf(db, named):
     assert named.teacher_acknowledged_at == _moment(ACK_AT)
 
 
-def test_the_stamp_carries_no_id_and_no_number(db, named):
-    """الختمُ: العبارةُ والاسمُ والوقتُ — لا رقمَ وظيفيّاً ولا هويّة."""
+def test_the_stamp_carries_names_only_no_id_and_no_number(db, named):
     _acknowledged(named)
     for user in (named.observer, named.teacher):
         assert user.national_id, "الفرضيّةُ: للمستخدمَين هويّةٌ في القاعدة، ولا تظهر في الختم"
@@ -607,7 +613,7 @@ def test_a_signer_without_a_name_gets_no_stamp(db, named):
     named.observer.full_name = "  "
     named.observer.save(update_fields=["full_name"])
 
-    assert _stamp_of(VISITOR_NAME, "2026/09/01 12:30") not in _html_of(named)
+    assert _stamp_of(VISITOR_NAME) not in _html_of(named)
 
 
 def test_the_signature_labels_stay_and_are_not_replaced_by_the_stamp(db, named):

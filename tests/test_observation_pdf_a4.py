@@ -142,7 +142,7 @@ def test_the_signatures_are_the_last_row_of_the_last_domain_table(db, school, na
     last_grid = html.rsplit('<table class="grid">', 1)[1]
     assert last_grid.count('<td class="sign"') == 2
     assert last_grid.count('<div class="e-sign">') == 2, "الخانتان مملوءتان بالاسم بعد الاطّلاع"
-    assert "توقيعٌ إلكترونيّ داخل المنصّة" in last_grid, "العبارةُ في الختم كما في F55E"
+    assert "توقيعٌ إلكترونيّ داخل المنصّة" not in last_grid, "العبارةُ محذوفةٌ من الوثيقة (D-221م)"
 
 
 # ── الأحجام: لا صغيرَ جدّاً، وقد كبرت بأمر المالك 2026-09-28 ────────────────

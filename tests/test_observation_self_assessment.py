@@ -166,7 +166,7 @@ def test_a_self_assessment_has_no_visitor_stamp_but_keeps_the_teachers(school, t
     stamps = signature_stamps(obs)
 
     assert stamps["visitor"] is None
-    assert stamps["teacher"]["name"] == teacher_user.full_name and stamps["teacher"]["time"]
+    assert stamps["teacher"] == {"name": teacher_user.full_name}
 
 
 def test_a_self_draft_stamps_nobody(school, teacher_user):
@@ -189,7 +189,7 @@ def test_a_supervision_visit_still_stamps_the_visitor(school, teacher_user, coor
 
     stamps = signature_stamps(obs)
 
-    assert stamps["visitor"]["name"] == coordinator_user.full_name and stamps["visitor"]["time"]
+    assert stamps["visitor"] == {"name": coordinator_user.full_name}
     assert stamps["teacher"] is None
 
 
