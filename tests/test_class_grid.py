@@ -543,6 +543,35 @@ def test_the_read_query_count_is_flat_in_the_number_of_students(
     assert thirty == sixty and thirty <= 40, (thirty, sixty)
 
 
+def test_saving_a_column_computes_the_heads_once_not_per_cell(
+    client_as, school, assigned, teacher, kids, clock
+):
+    """حفظُ عمودٍ: رؤوسُ الخلايا تُحسب مرّةً واحدةً بعد الحلقة، فيقلّ عددُ الاستعلامات عن خطّ الأساس بعدد الخلايا (W-20261105-008)."""
+    for index in range(3, 30):
+        student = UserFactory(full_name=f"ط{index:03d}", national_id=f"2900{index:07d}")
+        StudentEnrollmentFactory(student=student, class_group=assigned, enrolled_at=ENROLLED)
+    from core.models import StudentEnrollment
+
+    roster = list(
+        StudentEnrollment.objects.filter(class_group=assigned).values_list("student_id", flat=True)
+    )
+    cells = [{"student": str(pk), "status": "present", "head": ""} for pk in roster]
+    client = client_as(teacher)
+    assert _save(client, assigned, 1, cells[:1]).status_code == 200  # تسخين: ينشئ الحصّة
+    with CaptureQueriesContext(connection) as queries:
+        response = _save(client, assigned, 1, cells[1:])
+    assert response.status_code == 200
+    head_reads = [
+        q["sql"]
+        for q in queries
+        if "operations_attendanceentry" in q["sql"]
+        and "superseded_by_id" in q["sql"]
+        and "JOIN" in q["sql"]
+    ]
+    # استعلامُ رؤوس العمود (بالربط على القرار والكاتب) واحدٌ لا واحدٌ لكلّ خليّة
+    assert len(head_reads) <= 2, len(head_reads)
+
+
 # ── «اطفئ الشبكة»: مع المفتاح لا يُفتح كشفُ الحصّة القديم لمن يملك الجدول ───────────
 
 
