@@ -150,3 +150,9 @@ AAdocs/ministry_data/2026_2027/sot_verbatim/
 /page_6*.png
 /pages_tail.txt
 /.plugin-build/
+
+# أرشيف وحزم تصميم كبيرة (تبقى على القرص ولا تُودَع)
+/docs/1-x20/
+/static/brand/Shahaniya_Full_Brand_Identity_Complete_v3/
+/static/brand/Shahaniya_Official_Logo_Brand_System_v4/
+/SchoolOS-local-archive/
