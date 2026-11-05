@@ -115,6 +115,7 @@ jobs:
       # على طلبٍ وثائقيٍّ لا يعمل إلّا shard 1 («قرّاءُ الوثائق»)؛ فلا تُجهَّز البيئةُ في 2–6 هدراً (مراجعة 0105).
       # postgres 16 الأصليّ على الـrunner بدل حاويةٍ تُسحب من Docker Hub (سقفُ السحب أسقط الفحوصَ 2026-10-09)
       - uses: ./.github/actions/native-postgres
+        timeout-minutes: 5
         if: steps.diff.outputs.docs_only != 'true' || matrix.shard == 1
         with:
           redis: "true"  # tests/test_channel_layer_redis_integration.py يحتاج redis حقيقياً
@@ -391,6 +392,7 @@ jobs:
 
       # postgres 16 الأصليّ على الـrunner بدل حاويةٍ تُسحب من Docker Hub (سقفُ السحب أسقط الفحوصَ 2026-10-09)
       - uses: ./.github/actions/native-postgres
+        timeout-minutes: 5
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
@@ -606,6 +608,7 @@ jobs:
 
       # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub (سقفُ السحب غيرُ الموثَّق: toomanyrequests) — W-20261010-016
       - uses: ./.github/actions/native-postgres
+        timeout-minutes: 5
         with:
           redis: "true"
 
@@ -704,6 +707,7 @@ jobs:
 
       # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub (سقفُ السحب غيرُ الموثَّق: toomanyrequests) — W-20261010-016
       - uses: ./.github/actions/native-postgres
+        timeout-minutes: 5
         with:
           redis: "true"
 
