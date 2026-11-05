@@ -72,6 +72,8 @@ INSTALLED_APPS = [
     "governance.apps.GovernanceConfig",
     # عارضُ md المركزيّ — لمطوّر المنصّة وحدَه، في /docs/ (W-20260930-002)
     "docs_viewer.apps.DocsViewerConfig",
+    # الذكاءُ المحلّيّ (LM Studio على جهاز المدرسة): مساعدٌ وRAG وأتمتةٌ — لا يغادر البيانُ الجهاز
+    "local_ai.apps.LocalAiConfig",
     # ✅ فلترة احترافية
     "django_filters",
     # ✅ [SEC-02] قائمة حظر توكنات التحديث بعد التدوير (JWT) — تتطلب migrate
@@ -234,6 +236,15 @@ SCHEDULE_APPROVAL_DECISIONS: tuple[str, ...] = ()
 # `operations/gap_rule.effective_max_gap`، ومطفأٌ افتراضاً: القيمُ المحفوظة تبقى في القاعدة ولا تؤثّر في التوليد.
 # التفعيلُ قرارُ المالك بعد إعادة القياس (tools/pref_impact.py)، وبلا شيفرة: PREF_MAX_GAP_ACTIVE=true.
 PREF_MAX_GAP_ACTIVE = config("PREF_MAX_GAP_ACTIVE", default=False, cast=bool)
+
+# ── الذكاءُ المحلّيّ (local_ai) — خادمُ LM Studio على جهاز المدرسة ───────────
+# معطَّلٌ افتراضاً؛ فعّله في .env حيث يعمل LM Studio. لا مزوِّدَ خارجيّاً ولا مفتاحَ API.
+LOCAL_AI_ENABLED = config("LOCAL_AI_ENABLED", default=False, cast=bool)
+LOCAL_AI_BASE_URL = config("LOCAL_AI_BASE_URL", default="http://127.0.0.1:1234/v1")
+LOCAL_AI_CHAT_MODEL = config("LOCAL_AI_CHAT_MODEL", default="qwen/qwen3-8b")
+LOCAL_AI_EMBED_MODEL = config("LOCAL_AI_EMBED_MODEL", default="text-embedding-bge-m3")
+LOCAL_AI_TIMEOUT = config("LOCAL_AI_TIMEOUT", default=120, cast=int)
+LOCAL_AI_MAX_UPLOAD_MB = config("LOCAL_AI_MAX_UPLOAD_MB", default=20, cast=int)
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

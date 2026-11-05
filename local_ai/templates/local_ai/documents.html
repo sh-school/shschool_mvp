@@ -1,0 +1,69 @@
+{% extends "base/base.html" %}
+{% load icons ui %}
+{% comment %}
+وثائقُ المعرفة (القيادة): رفعُ تعميمٍ/سياسةٍ/خطّةٍ تُفهرَس تلقائيّاً في الخلفيّة (Celery)،
+وقائمةٌ بحالة كلّ وثيقة وملخّصها المستخرَج تلقائيّاً، مع إعادة الفهرسة والإيقاف.
+{% endcomment %}
+
+{% block title %}وثائق المساعد{% endblock %}
+{% block main_class %}{% page_layout "detail" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/ai/" parent_label="مساعد المدرسة" current="وثائق المعرفة" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "وثائق المساعد" subtitle="ما يرفعه القيادةُ هنا يصير مرجعَ المساعد لكلّ الموظّفين" icon="checklist" %}
+    <a href="{% url 'local_ai:assistant' %}" class="btn-secondary btn-sm">{% icon "messages" %} المساعد</a>
+  {% endpage_header %}
+
+  {% if not ai_ok %}
+    {% callout "warning" show=True %}خادمُ النموذج المحلّيّ غيرُ متاح؛ ما تُرفع الآن يبقى «بانتظار الفهرسة» ويُفهرَس تلقائيّاً حين يعود (مسحٌ كلَّ ساعة).{% endcallout %}
+  {% endif %}
+
+  {% section_card "رفع وثيقة" icon="edit_record" %}
+    <form method="post" enctype="multipart/form-data" novalidate aria-label="رفع وثيقة معرفة">
+      {% csrf_token %}
+      {% if form.errors %}<div class="msg-bar msg-error" role="alert">{{ form.errors }}</div>{% endif %}
+      <label for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
+      {{ form.title }}
+      <label for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>
+      {{ form.file }}
+      {% callout "warning" %}وثائقُ عامّةٌ فقط (تعميمات، سياسات، خطط، أدلّة). لا ترفع كشوفَ طلبة أو ملفّاتٍ فيها بياناتٌ شخصيّة.{% endcallout %}
+      <button type="submit" class="btn-primary">{% icon "upload" %} رفع وفهرسة</button>
+    </form>
+  {% endsection_card %}
+
+  {% section_card "الوثائق" icon="checklist" %}
+    {% if documents %}
+      <div class="table-wrap table-wrap-scroll">
+        <table>
+          <thead>
+            <tr><th>العنوان</th><th>الحالة</th><th>المقاطع</th><th>الملخّص التلقائيّ</th><th>إجراءات</th></tr>
+          </thead>
+          <tbody>
+            {% for doc in documents %}
+            <tr>
+              <td><strong>{{ doc.title }}</strong><br><small class="text-muted">{{ doc.filename }} · {{ doc.created_at|date:"Y-m-d" }}{% if doc.uploaded_by %} · {{ doc.uploaded_by.full_name }}{% endif %}</small></td>
+              <td>
+                {{ doc.get_status_display }}{% if not doc.is_active %} · موقوفة{% endif %}
+                {% if doc.status == "failed" and doc.error_message %}<br><small class="text-muted">{{ doc.error_message }}</small>{% endif %}
+              </td>
+              <td>{{ doc.chunk_count }}</td>
+              <td>{% if doc.summary %}{{ doc.summary }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td>
+                <form method="post" action="{% url 'local_ai:document_reindex' doc.pk %}">{% csrf_token %}<button type="submit" class="btn-secondary btn-sm">{% icon "refresh" %} إعادة الفهرسة</button></form>
+                <form method="post" action="{% url 'local_ai:document_toggle' doc.pk %}">{% csrf_token %}<button type="submit" class="btn-secondary btn-sm">{% if doc.is_active %}إيقاف{% else %}تفعيل{% endif %}</button></form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {% empty_state title="لا وثائق بعد" sub="ارفع أوّل تعميمٍ أو سياسةٍ ليبدأ المساعدُ الإجابةَ منها." icon="empty" %}
+    {% endif %}
+  {% endsection_card %}
+</div>
+{% endblock %}

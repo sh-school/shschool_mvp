@@ -1,0 +1,22 @@
+{% comment %}
+دورٌ واحد من المحادثة (يُلحَق بـ#chat-log عبر HTMX): رسالةُ الموظّف ثمّ ردُّ المساعد مع مراجعه.
+عند خطأ الخدمة يُعرض التنبيهُ وحدَه ولا يُحفظ الدورُ في الجلسة.
+{% endcomment %}
+{% if error_text %}
+  <div class="msg-bar msg-error" role="alert"><span class="msg-text">{{ error_text }}</span></div>
+{% else %}
+  <div class="msg-bar msg-info"><span class="msg-text">{{ user_text|linebreaksbr }}</span></div>
+  <div class="ui-note">
+    {{ reply.text|linebreaks }}
+    {% if reply.sources %}
+      <details>
+        <summary>المراجع ({{ reply.sources|length }})</summary>
+        <ol>
+          {% for hit in reply.sources %}
+            <li><strong>{{ hit.title }}</strong> — مقطع {{ hit.ordinal|add:1 }} <span class="text-muted">(تشابه {{ hit.score }})</span></li>
+          {% endfor %}
+        </ol>
+      </details>
+    {% endif %}
+  </div>
+{% endif %}

@@ -1,0 +1,58 @@
+{% extends "base/base.html" %}
+{% load icons ui %}
+{% comment %}
+مساعدُ المدرسة (الذكاء المحلّيّ) — بطاقتان: سجلُّ المحادثة، وصندوقُ السؤال.
+الردُّ يُلحَق بالسجلّ عبر HTMX (`_turn.html`)؛ وبلا JS تعمل الصفحةُ بالتحويل العاديّ.
+لا أنماطَ خاصّة: رسالةُ الموظّف `msg-bar msg-info` وردُّ المساعد `ui-note` من المكوّنات القائمة.
+{% endcomment %}
+
+{% block title %}مساعد المدرسة{% endblock %}
+{% block main_class %}{% page_layout "detail" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/" parent_label="الرئيسية" current="مساعد المدرسة" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "مساعد المدرسة" subtitle="يجيب من وثائق المدرسة المفهرَسة — على جهاز المدرسة، لا يغادر البيانُ الجهازَ" icon="messages" %}
+    <form method="post" action="{% url 'local_ai:assistant_clear' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn-secondary btn-sm">{% icon "refresh" %} محادثة جديدة</button>
+    </form>
+  {% endpage_header %}
+
+  {% if not ai_ok %}
+    {% callout "warning" show=True %}خادمُ النموذج المحلّيّ غيرُ متاحٍ الآن{% if ai_error %} ({{ ai_error }}){% endif %}. يمكنك الكتابة، وسيُجاب حين يعود.{% endcallout %}
+  {% elif documents_count == 0 %}
+    {% callout "info" show=True %}لا وثائقَ مفهرَسةً بعد؛ سيجيب المساعدُ معرفةً عامّةً فقط حتى ترفع القيادةُ تعميماتِ المدرسة وسياساتِها.{% endcallout %}
+  {% endif %}
+
+  {% section_card "المحادثة" icon="messages" %}
+    <div id="chat-log" aria-live="polite" aria-label="سجلّ المحادثة">
+      {% for turn in history %}
+        {% if turn.role == "user" %}
+          <div class="msg-bar msg-info"><span class="msg-text">{{ turn.content|linebreaksbr }}</span></div>
+        {% else %}
+          <div class="ui-note">{{ turn.content|linebreaks }}</div>
+        {% endif %}
+      {% empty %}
+        {% empty_state title="ابدأ بسؤال" sub="مثال: ما موعد تسليم خطط الفصل الأوّل؟ أو: لخّص تعميم الحضور الأخير." icon="messages" %}
+      {% endfor %}
+    </div>
+  {% endsection_card %}
+
+  {% section_card "اسأل" icon="edit_record" %}
+    <form method="post" action="{% url 'local_ai:assistant_message' %}"
+          hx-post="{% url 'local_ai:assistant_message' %}" hx-target="#chat-log" hx-swap="beforeend"
+          hx-disabled-elt="find button" hx-on::after-request="if(event.detail.successful){this.reset();}"
+          aria-label="سؤال المساعد">
+      {% csrf_token %}
+      <label for="{{ form.message.id_for_label }}">{{ form.message.label }}</label>
+      {{ form.message }}
+      {% callout "hint" %}لا تكتب أسماءَ طلبة أو أرقامَ هويّة؛ المساعدُ لا يطّلع على سجلّاتهم ويحيلك إلى صفحة الطالب في المنصّة.{% endcallout %}
+      <button type="submit" class="btn-primary">{% icon "messages" %} إرسال</button>
+    </form>
+  {% endsection_card %}
+</div>
+{% endblock %}

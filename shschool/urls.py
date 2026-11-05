@@ -51,6 +51,8 @@ urlpatterns = [
     path("my-results/", include("reports.urls_own")),
     # عارضُ md المركزيّ — لمطوّر المنصّة وحدَه (W-20260930-002)
     path("docs/", include("docs_viewer.urls")),
+    # الذكاءُ المحلّيّ: المساعدُ لكلّ موظّف، ووثائقُ المعرفة للقيادة (local_ai)
+    path("ai/", include("local_ai.urls", namespace="local_ai")),
     path("analytics/", include("analytics.urls")),
     path("notifications/", include("notifications.urls")),
     path("clinic/", include("clinic.urls")),
