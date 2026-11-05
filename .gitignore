@@ -142,3 +142,11 @@ AAdocs/ministry_data/2026_2027/sot_verbatim/
 # تقاريرُ محلّيّةٌ لا تُودَع (كانت تُفشل detect-secrets في prepush لأنّ الفحص يمسح غيرَ المُتتبَّع)
 /tmp_reports/*
 !/tmp_reports/w008_pref_impact/
+
+# ملفات عمل مؤقتة (لا تُودَع)
+/.venv403/
+/tmp_pages/
+/tmp_pdfimg/
+/page_6*.png
+/pages_tail.txt
+/.plugin-build/
