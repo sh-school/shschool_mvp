@@ -274,14 +274,14 @@
    "orm": 22
   },
   "assessments/views.py::class_gradebook": {
-   "lines": 110,
+   "lines": 109,
    "orm": 13
   },
   "assessments/views.py::grade_entry": {
    "orm": 8
   },
   "assessments/views.py::setup_detail": {
-   "lines": 73,
+   "lines": 71,
    "orm": 17
   },
   "assessments/views.py::setup_subject": {
