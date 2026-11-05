@@ -15,6 +15,14 @@ from core.excel_safety import safe_cell
 from core.ministry import ministry_line, ministry_name
 
 
+def parse_uuid(value: Any) -> uuid.UUID | None:
+    """معرّفٌ نصّيّ ← UUID، أو None إن لم يكن UUID صالحاً — فيُعامَل كغير موجود لا خطأ خادم."""
+    try:
+        return value if isinstance(value, uuid.UUID) else uuid.UUID(str(value))
+    except (ValueError, AttributeError, TypeError):
+        return None
+
+
 def generate_export_filename(module: str, report_type: str, ext: str) -> str:
     """
     اسم ملف موحّد: SchoolOS_{module}_{type}_{YYYYMMDD}_{HHMMSS}_{6hex}.{ext}

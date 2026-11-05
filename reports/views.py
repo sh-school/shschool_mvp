@@ -16,7 +16,7 @@ from django.utils.http import urlencode
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from assessments.models import SubjectClassSetup
-from core.academic_calendar import academic_year_for
+from core.academic_calendar import resolve_year
 from core.audit_export import log_export
 from core.audit_repr import masked_repr
 from core.capabilities import capability_required
@@ -243,7 +243,7 @@ def _get_paper_size(request) -> str:
 def reports_index(request):
     """فهرس التقارير — تبويبات + فلاتر + بطاقات فصول."""
     school = request.user.get_school()
-    year = request.GET.get("year") or academic_year_for(request)
+    year = resolve_year(request)
     tab = request.GET.get("tab", "results")
     grade_filter = request.GET.get("grade", "")
     level_filter = request.GET.get("level", "")
@@ -304,7 +304,7 @@ def class_results_pdf(request, class_id):
     """PDF: كشف نتائج كامل لجميع طلاب فصل"""
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    year = request.GET.get("year") or academic_year_for(request)
+    year = resolve_year(request)
     # [SEC-04] المعلّم لا يصدّر إلا فصوله — المدرسة وحدها لا تكفي كنطاق
     if not _teacher_can_access_class(request, school, class_grp, year):
         from django.core.exceptions import PermissionDenied
@@ -356,7 +356,7 @@ def class_certificates_pdf(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    year = request.GET.get("year") or academic_year_for(request)
+    year = resolve_year(request)
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
@@ -397,7 +397,7 @@ def attendance_report_pdf(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    year = request.GET.get("year") or academic_year_for(request)
+    year = resolve_year(request)
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
@@ -434,7 +434,7 @@ def attendance_report_pdf(request, class_id):
 def my_result(request):
     """كشفُ الطالب لنتيجته هو — بلا معاملِ مسار فلا يفتح كشفَ غيره (W-20261027-031)."""
     student = request.user
-    year = request.GET.get("year") or academic_year_for(request)
+    year = resolve_year(request)
     ctx = ReportDataService.get_student_report(student, request.school, year)
     ctx["paper_size"] = _get_paper_size(request)
     _student_result_presentation(ctx)
@@ -461,7 +461,7 @@ def student_result_pdf(request, student_id):
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year") or academic_year_for(request)
+    year = resolve_year(request)
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
@@ -507,7 +507,7 @@ def student_annual_result_pdf(request, student_id):
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year") or academic_year_for(request)
+    year = resolve_year(request)
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
@@ -553,7 +553,7 @@ def student_certificate_pdf(request, student_id):
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year") or academic_year_for(request)
+    year = resolve_year(request)
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
@@ -601,7 +601,7 @@ def class_results_excel(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    year = request.GET.get("year") or academic_year_for(request)
+    year = resolve_year(request)
     # [SEC-04] المعلّم لا يصدّر إلا فصوله — المدرسة وحدها لا تكفي كنطاق
     if not _teacher_can_access_class(request, school, class_grp, year):
         from django.core.exceptions import PermissionDenied
@@ -627,7 +627,7 @@ def attendance_excel(request, class_id):
     # خلفيٌّ عبر سجلّ التصدير (W-20261021-011)؛ سطرُ التدقيق يكتبه العاملُ (`<kind>:built`).
     params = request.GET.copy()
     params["class_id"] = str(class_grp.pk)
-    params["year"] = request.GET.get("year") or academic_year_for(request)
+    params["year"] = resolve_year(request)
     params["paper"] = _get_paper_size(request).lower()
     return respond_export(request, "reports.attendance_xlsx", params=params)
 
@@ -640,6 +640,6 @@ def behavior_excel(request):
         return HttpResponse("غير مسموح", status=403)
 
     params = request.GET.copy()
-    params["year"] = request.GET.get("year") or academic_year_for(request)
+    params["year"] = resolve_year(request)
     params["paper"] = _get_paper_size(request).lower()
     return respond_export(request, "reports.behavior_xlsx", params=params)
