@@ -267,7 +267,9 @@ def test_reopening_removes_the_teacher_signature_only(db, school, person, criter
     obs.refresh_from_db()
 
     stamps = signature_stamps(obs)
-    assert stamps["visitor"] == {"name": "الزائر"} and stamps["teacher"] is None
+    # الختمُ اسمٌ ووقتٌ (F55E): الزائرُ يبقى بعد إعادة الفتح، والمعلّمُ يُمحى لأنّ اطّلاعه أُلغي
+    assert stamps["visitor"]["name"] == "الزائر" and stamps["visitor"]["time"]
+    assert stamps["teacher"] is None
 
 
 def test_a_stale_time_on_a_draft_stamps_nothing(db, school, person, criterion):
