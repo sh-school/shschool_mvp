@@ -17,9 +17,10 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 
-from core.academic_calendar import academic_year_for, academic_year_for_school
+from core.academic_calendar import academic_year_for, academic_year_for_school, resolve_year
 from core.capabilities import capability_required
 from core.domain.tones import GRADE_CELL, tone_for
+from core.export_utils import parse_uuid
 from core.exports.services import respond_export
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_order
@@ -62,6 +63,19 @@ def _half_tone(score, out_of) -> str:
     return tone_for(score, ((float(out_of) * 0.5, "success"), (None, "danger")))
 
 
+def _deny_non_owner(request, setup):
+    """403 نصّيّ إن لم يكن المستخدم مديراً ولا معلّمَ هذا الإعداد، وإلا None — فحصُ الملكية الواحد."""
+    if request.user.is_admin() or setup.teacher == request.user:
+        return None
+    return HttpResponse("غير مسموح", status=403)
+
+
+def setup_for_user(request, setup_id):
+    """إعدادُ المادة في مدرسة الطلب مع فحص الملكية: يعيد (الإعداد، None) أو (الإعداد، استجابة 403)."""
+    setup = get_object_or_404(SubjectClassSetup, id=setup_id, school=request.school)
+    return setup, _deny_non_owner(request, setup)
+
+
 #: شارةُ حالة التقييم — ما كان سلسلةَ `{% if %}` في القالب. وما لم يُذكر «مسودّة» تحذيراً.
 ASSESSMENT_STATUS_BADGE = {
     "graded": "status-success",
@@ -86,7 +100,7 @@ def assessments_dashboard(request):
     """لوحة تحكم التقييمات — نتائج الفصول والمواد حسب دور المستخدم."""
     school = request.school
     semester = request.GET.get("semester", "S1")
-    year = request.GET.get("year") or academic_year_for(request)
+    year = resolve_year(request)
 
     if request.user.is_admin():
         # المدير: كل الفصول
@@ -169,11 +183,9 @@ def api_assessment_charts(request):
 def setup_detail(request, setup_id):
     """تفاصيل إعداد مادة — الباقات الأربع"""
     school = request.school
-    setup = get_object_or_404(SubjectClassSetup, id=setup_id, school=school)
-
-    # التحقق من الصلاحية
-    if not request.user.is_admin() and setup.teacher != request.user:
-        return HttpResponse("غير مسموح", status=403)
+    setup, denied = setup_for_user(request, setup_id)
+    if denied:
+        return denied
 
     semester = request.GET.get("semester", "S1")
 
@@ -249,8 +261,8 @@ def create_assessment(request, package_id):
     school = request.school
     package = get_object_or_404(AssessmentPackage, id=package_id, school=school)
 
-    if not request.user.is_admin() and package.setup.teacher != request.user:
-        return HttpResponse("غير مسموح", status=403)
+    if denied := _deny_non_owner(request, package.setup):
+        return denied
 
     form = CreateAssessmentForm(request.POST)
     if not form.is_valid():
@@ -288,8 +300,8 @@ def grade_entry(request, assessment_id):
     school = request.school
     assessment = get_object_or_404(Assessment, id=assessment_id, school=school)
 
-    if not request.user.is_admin() and assessment.package.setup.teacher != request.user:
-        return HttpResponse("غير مسموح", status=403)
+    if denied := _deny_non_owner(request, assessment.package.setup):
+        return denied
 
     # طلاب الفصل
     enrollments = (
@@ -343,10 +355,10 @@ def save_single_grade(request, assessment_id):
     school = request.school
     assessment = get_object_or_404(Assessment, id=assessment_id, school=school)
 
-    if not request.user.is_admin() and assessment.package.setup.teacher != request.user:
-        return HttpResponse("غير مسموح", status=403)
+    if denied := _deny_non_owner(request, assessment.package.setup):
+        return denied
 
-    student_id = request.POST.get("student_id")
+    student_id = parse_uuid(request.POST.get("student_id"))
     student = GradeService.enrolled_student_or_404(assessment, student_id)
     is_absent = request.POST.get("is_absent") == "1"
     # العذرُ لا يُقرأ من هذا النموذج أبداً (D-402م): المعلّم يرصد «غائباً» فقط، والعذرُ في `decide_excuse`.
@@ -396,8 +408,8 @@ def save_all_grades(request, assessment_id):
     school = request.school
     assessment = get_object_or_404(Assessment, id=assessment_id, school=school)
 
-    if not request.user.is_admin() and assessment.package.setup.teacher != request.user:
-        return HttpResponse("غير مسموح", status=403)
+    if denied := _deny_non_owner(request, assessment.package.setup):
+        return denied
 
     try:
         saved = GradeService.save_all_from_post(assessment, request.POST, request.user)
@@ -417,10 +429,9 @@ def save_all_grades(request, assessment_id):
 def class_gradebook(request, setup_id):
     """كشف الدرجات الكامل للفصل في مادة — يدعم عرض فصل أو السنوي"""
     school = request.school
-    setup = get_object_or_404(SubjectClassSetup, id=setup_id, school=school)
-
-    if not request.user.is_admin() and setup.teacher != request.user:
-        return HttpResponse("غير مسموح", status=403)
+    setup, denied = setup_for_user(request, setup_id)
+    if denied:
+        return denied
 
     semester = request.GET.get("semester", "S1")
 
@@ -530,10 +541,9 @@ def class_gradebook(request, setup_id):
 @capability_required("assessments.view_results")
 def export_gradebook(request, setup_id):
     """تصدير كشف الدرجات إلى Excel — خلفيٌّ عبر سجلّ التصدير (W-20261021-011)؛ سطرُ التدقيق يكتبه العاملُ."""
-    setup = get_object_or_404(SubjectClassSetup, id=setup_id, school=request.school)
-
-    if not request.user.is_admin() and setup.teacher != request.user:
-        return HttpResponse("غير مسموح", status=403)
+    setup, denied = setup_for_user(request, setup_id)
+    if denied:
+        return denied
 
     params = request.GET.copy()
     params["setup_id"] = str(setup.pk)
@@ -547,10 +557,9 @@ def export_gradebook(request, setup_id):
 def recalculate_class(request, setup_id):
     """إعادة حساب درجات كل طلاب الفصل — Admin أو المعلم المسؤول فقط"""
     school = request.school
-    setup = get_object_or_404(SubjectClassSetup, id=setup_id, school=school)
-
-    if not request.user.is_admin() and setup.teacher != request.user:
-        return HttpResponse("غير مسموح", status=403)
+    setup, denied = setup_for_user(request, setup_id)
+    if denied:
+        return denied
 
     # خلفيّاً (W-20261027-029): الحسابُ يتجاوز 300ms؛ الكشفُ يعرض «قيد الحساب» حتى ينتهي العامل.
     if not dispatch_recalculate_class(setup.pk, request.user.pk):
@@ -574,7 +583,7 @@ def student_report(request, student_id):
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year") or academic_year_for(request)
+    year = resolve_year(request)
 
     # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط ──
     if not teacher_can_access_student(request.user, student.id) and request.user != student:
@@ -630,7 +639,7 @@ def failing_students(request):
 
     school = request.school
     semester = request.GET.get("semester", "S1")
-    year = request.GET.get("year") or academic_year_for(request)
+    year = resolve_year(request)
 
     failing = GradeService.get_failing_students(school, year)
 
@@ -705,7 +714,9 @@ def decide_excuse(request, assessment_id):
     from django.core.exceptions import ValidationError
 
     assessment = get_object_or_404(Assessment, id=assessment_id, school=request.school)
-    student = GradeService.enrolled_student_or_404(assessment, request.POST.get("student_id"))
+    student = GradeService.enrolled_student_or_404(
+        assessment, parse_uuid(request.POST.get("student_id"))
+    )
     raw_date = request.POST.get("submitted_on", "").strip()
     submitted_on = parse_date(raw_date) if raw_date else None
     if raw_date and submitted_on is None:

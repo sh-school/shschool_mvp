@@ -38,6 +38,8 @@ _REPORTED: set[str] = set()
 if TYPE_CHECKING:  # النماذج تستورد هذه الوحدة لقيمها الافتراضية — فلا نستوردها هنا وقت التشغيل
     import datetime as dt
 
+    from django.http import HttpRequest
+
     from core.models import AcademicYear, School, Semester
 
 
@@ -147,6 +149,11 @@ def academic_year_for(request) -> str:
         return _frozen("request-without-user")
 
     return academic_year_for_school(user.get_school())
+
+
+def resolve_year(request: HttpRequest) -> str:
+    """العام المطلوب في `?year=` وإلا العام الجاري — القاعدة المشتركة لشاشات التقارير والتقييمات."""
+    return request.GET.get("year") or academic_year_for(request)
 
 
 def academic_year_for_school(school, on=None) -> str:
