@@ -7,10 +7,6 @@
 
 from __future__ import annotations
 
-from zoneinfo import ZoneInfo
-
-from django.utils import timezone
-
 from core.domain.tones import tone_for
 
 #: شارةُ حالة الإجراء — لاحقةُ `status-badge status-…`.
@@ -122,31 +118,28 @@ def decorate_observation(obs) -> None:
 _SIGNED_BY_VISITOR = ("submitted", "acknowledged")
 
 
-#: منطقةُ المدرسة الزمنيّةُ للختم: الوقتُ يُعرض بتوقيت الدوحة أيّاً كانت المنطقةُ النشطةُ للطلب.
-DOHA = ZoneInfo("Asia/Qatar")
-
-
 def _stamp(user, moment) -> dict[str, str] | None:
-    """{الاسم، الوقت} أو None إن غاب الاسمُ أو وقتُ الإثبات — فالوقتُ شرطُ الظهور ويُعرض معه (F55E، D-221م).
+    """{الاسم} أو None إن غاب الاسمُ أو وقتُ الإثبات — الوقتُ شرطُ الظهور لا نصٌّ يُعرض (D-221م).
 
-    الوقتُ من القاعدة (`submitted_at` للزائر و`teacher_acknowledged_at` للمعلّم) بتوقيت الدوحة، بصيغة
-    `YYYY/MM/DD HH:MM`. ووقتُ الإرسال الأخير يُعرض عند إعادة الإرسال، والإثباتُ في القاعدة لا يُمسّ.
+    الوقتُ باقٍ في القاعدة (`submitted_at` و`teacher_acknowledged_at`) دليلاً على الإرسال والاطّلاع؛ والوثيقةُ طبقُ
+    الأصل الرسميّ فلا تحمل إلّا الاسم، والتاريخُ أعلى الاستمارة يكفي.
     """
     name = (getattr(user, "full_name", "") or "").strip()
     if not name or moment is None:
         return None
-    return {"name": name, "time": timezone.localtime(moment, DOHA).strftime("%Y/%m/%d %H:%M")}
+    return {"name": name}
 
 
 def signature_stamps(obs) -> dict[str, dict[str, str] | None]:
-    """ختمُ الموقِّع في خانتَي التوقيع من PDF استمارة الزيارة الصفّيّة: «توقيعٌ إلكترونيّ داخل المنصّة» ثم الاسم ثم الوقت.
+    """اسمُ الموقِّع في خانتَي التوقيع من PDF استمارة الزيارة الصفّيّة (F55E، وقرارُ المالك D-221م).
 
-    الزائرُ: يُختم بعد الإرسال. والمعلّمُ: بعد اطّلاعه. فإن لم يُرسَل أو لم يطّلع بقيت الخانةُ فارغةً للتوقيع
-    اليدويّ. المسودّةُ والمسحوبةُ بلا ختم. ولا رقمَ وظيفيّاً ولا هويّةً في الختم.
+    الزائرُ: يُكتب اسمُه بعد الإرسال. والمعلّمُ: بعد اطّلاعه. فإن لم يُرسَل أو لم يطّلع بقيت الخانةُ فارغةً للتوقيع
+    اليدويّ. **الاسمُ وحدَه** — لا رقمَ وظيفيّاً ولا هويّةً ولا عبارةَ ختمٍ ولا وقتاً؛ ووجودُ وقت الإرسال أو الاطّلاع
+    شرطٌ للظهور (لا اسمَ على مسودّةٍ) دون أن يُعرض.
     """
     if obs.kind == "self":
-        # التقييمُ الذاتيّ: لا زائرَ فلا ختمَ في خانته، وصاحبُه يوقّع بالاعتماد (لا إقرارَ يتبعه) — فيُختم اسمُه
-        # بعد الإرسال. والمسؤولُ المباشر يطّلع بخانةٍ مطبوعةٍ فارغة في القالب لا بختمٍ هنا.
+        # التقييمُ الذاتيّ: لا زائرَ فلا اسمَ في خانته، وصاحبُه يوقّع بالاعتماد (لا إقرارَ يتبعه) — فيُختم اسمُه
+        # بعد الإرسال. والمسؤولُ المباشر يطّلع بخانةٍ مطبوعةٍ فارغة في القالب لا باسمٍ هنا.
         signed = _stamp(obs.teacher, obs.submitted_at) if obs.status in _SIGNED_BY_VISITOR else None
         return {"visitor": None, "teacher": signed}
     visitor = _stamp(obs.observer, obs.submitted_at) if obs.status in _SIGNED_BY_VISITOR else None

@@ -133,15 +133,12 @@ td {
 .rate { text-align: center; font-weight: 700; }
 /* علامةُ الصحّ من خطٍّ احتياطيّ أطولَ مقاساً من خطّ المتن فتُطيل السطر — ارتفاعُ سطرها دون سطر المتن لتبقى الصفوفُ بارتفاع نصّها */
 .rate, .tk { line-height: 0.8; }
-/* علامةُ الصحّ مرسومةٌ بحدَّين مدوَّرَين 45° لا بحرفٍ ولا صورة (الخطّ المضمّن لا يحوي رمز الصحّ) */
-.tick {
-  display: inline-block;
-  width: 4pt;
-  height: 8pt;
-  border-inline-end: 1.6pt solid currentColor;
-  border-block-end: 1.6pt solid currentColor;
-  transform: rotate(45deg);
+/* علامةُ الصحّ حرفُ ✓ الحقيقيّ من خطٍّ مضمَّن بحرفٍ واحد (U+2713) — لا الخطّ المضمّن ولا خطُّ الإنتاج يحويانه (قرارُ المالك 2026-11-05) */
+@font-face {
+  font-family: 'Visit Tick';
+  src: url(data:font/ttf;base64,AAEAAAAKAIAAAwAgT1MvMuvyaxsAAAEoAAAAYGNtYXAADCdmAAABkAAAADRnbHlm5iez6AAAAcwAAADGaGVhZC/0SOwAAACsAAAANmhoZWEF2gJpAAAA5AAAACRobXR4BNgAHgAAAYgAAAAIbG9jYQBjAAAAAAHEAAAABm1heHAABQBSAAABCAAAACBuYW1l7GvP4wAAApQAAABycG9zdGppb3QAAAMIAAAAKwABAAAAAQAA3YT3nl8PPPUAAwPoAAAAAOcSgqsAAAAA5xKCqwAe/+ACmgLWAAAAAwACAAAAAAAAAAEAAAMg/zgAAALkAB4ASgKaAAEAAAAAAAAAAAAAAAAAAAACAAEAAAACAFAAAgAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAwJsAZAABQAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAPz8/PwAAJxMnEwMg/zgAAAMgAMgAAAAAAAAAAAAAAAAAAAAgAAAB9AAAAuQAHgAAAAIAAAADAAAAFAADAAEAAAAUAAQAIAAAAAQABAABAAAnE///AAAnE///2O4AAQAAAAAAAAAAAGMAAAACAB7/4AKaAtYAHwBPAAATHwkPAy8LPwMXEz8SHwMPEy8DVRobGxwcHR4dCAEGCw4RDwwcGxoaGRgYGAcCAwcKDAyjERITFBUVFxcYGRobHB0dHwYKCgkIBAEEHBwbGhkYFxYVFRMTEREQDgoOEBANCQMBHBgbHB8gIiMmDhEPDAgBBgsmJCMhHh4bGgoMDAsHAgP++CQmJicoKSoqLCwtLi4wMDEIBAEEBgoKCTIxMS8uLi0rKyopKScmJiUNCQMDCg4QAAAAAAAABAA2AAEAAAAAAAEADQAAAAEAAAAAAAIABwANAAMAAQQJAAEAGgAUAAMAAQQJAAIADgAuU2Nob29sT1MgVGlja1JlZ3VsYXIAUwBjAGgAbwBvAGwATwBTACAAVABpAGMAawBSAGUAZwB1AGwAYQByAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAABAgR0aWNrAA==) format('truetype');
 }
+.tick { font-family: 'Visit Tick'; font-weight: 400; }
 .crit { line-height: 1.1; }
 
 /* جدولُ المعايير: عرضٌ مثبَّت — المجالُ 8%، المعاييرُ 26%، خمسةُ أعمدةِ تقديرٍ 8.4% لكلٍّ، والتوصياتُ 24% (طبق الأصل) */
