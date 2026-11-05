@@ -678,6 +678,9 @@ def save_column(
         existing = column_heads([session.pk])
         result = SaveResult(session_id=session.pk)
         seen: set[Any] = set()
+        # ما كُتب وما تعارض: تُجمع معرّفاتُهم ثم تُحسب رؤوسُهم **مرةً واحدة** بعد الحلقة (لا استعلامَ لكلّ خليّة)
+        written: list[Any] = []
+        conflicted: list[tuple[Any, bool]] = []
         for item in posted:
             student = roster.get(_uuid_or_none(item.get("student")))
             if student is None or student.pk in seen:
@@ -694,12 +697,22 @@ def save_column(
                 result,
                 correcting=correcting,
                 reason=reason,
+                written=written,
+                conflicted=conflicted,
             )
         if fill_empty:
             for student_id, student in roster.items():
                 if student_id in seen or (session.pk, student_id) in existing:
                     continue
-                _write_default(user, session, student, result)
+                _write_default(user, session, student, result, written)
+        # استعلامٌ واحدٌ لرؤوس العمود بعد كلّ الكتابات
+        if written or conflicted:
+            heads = column_heads([session.pk])
+            result.saved = [_cell_payload(pk, heads.get((session.pk, pk))) for pk in written]
+            result.conflicts = [
+                _cell_payload(pk, heads.get((session.pk, pk)) if has_current else None)
+                for pk, has_current in conflicted
+            ]
         AuditLog.log(
             user=user,
             action="update",
@@ -737,6 +750,8 @@ def _write_one(
     *,
     correcting: bool,
     reason: str,
+    written: list[Any],
+    conflicted: list[tuple[Any, bool]],
 ) -> None:
     status = str(item.get("status", ""))
     minutes = _minutes(item.get("minutes"))
@@ -757,17 +772,12 @@ def _write_one(
                 correction_reason=reason if (overriding or correcting) else "",
             )
     except GridConflictError as conflict:
-        current = (
-            column_heads([session.pk]).get((session.pk, student.pk)) if conflict.current else None
-        )
-        result.conflicts.append(_cell_payload(student.pk, current))
+        conflicted.append((student.pk, bool(conflict.current)))
         return
     except (EntryConflictError, EntryError) as error:
         result.errors.append({"student": str(student.pk), "code": getattr(error, "code", "error")})
         return
-    result.saved.append(
-        _cell_payload(student.pk, column_heads([session.pk]).get((session.pk, student.pk)))
-    )
+    written.append(student.pk)
     if correcting:
         AuditLog.log(
             user=user,
@@ -782,7 +792,11 @@ def _write_one(
 
 
 def _write_default(
-    user: CustomUser, session: Session, student: CustomUser, result: SaveResult
+    user: CustomUser,
+    session: Session,
+    student: CustomUser,
+    result: SaveResult,
+    written: list[Any],
 ) -> None:
     try:
         with transaction.atomic():
@@ -793,9 +807,7 @@ def _write_default(
     except (EntryConflictError, EntryError):
         return
     result.defaults += 1
-    result.saved.append(
-        _cell_payload(student.pk, column_heads([session.pk]).get((session.pk, student.pk)))
-    )
+    written.append(student.pk)
 
 
 def _late_minutes(session: Session) -> int:
