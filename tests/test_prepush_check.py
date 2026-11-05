@@ -17,6 +17,38 @@ _spec.loader.exec_module(prepush_check)
 WORKFLOW = Path(".github/workflows/quality-gate.yml").read_text(encoding="utf-8")
 PRE_COMMIT = Path(".pre-commit-config.yaml").read_text(encoding="utf-8")
 
+# كلُّ مواضع تثبيت ruff في المستودع (W-20261105-014): تثبيتُ pip في كلّ workflow وكلّ requirements*.txt،
+# وrev في pre-commit. الاختبارُ القديمُ أعلاه يقرأ أوّلَ تثبيتٍ في quality-gate.yml فقط.
+RUFF_PIP_PIN = re.compile(r"(?<![\w-])ruff==([\d.]+)")
+RUFF_HOOK_PIN = re.compile(r"ruff-pre-commit\s+rev:\s*v([\d.]+)")
+PRE_COMMIT_NAME = ".pre-commit-config.yaml"
+
+
+def repo_ruff_sources() -> dict[str, str]:
+    """نصوصُ كلّ ملفٍّ قد يثبّت ruff، مفهرسةً باسم الملف."""
+    paths = [
+        *sorted(Path(".github/workflows").glob("*.yml")),
+        *sorted(Path(".").glob("requirements*.txt")),
+    ]
+    sources = {p.as_posix(): p.read_text(encoding="utf-8") for p in paths}
+    sources[PRE_COMMIT_NAME] = PRE_COMMIT
+    return sources
+
+
+def ruff_pins_in(sources: dict[str, str]) -> list[tuple[str, str]]:
+    """(اسم المصدر، رقم النسخة) لكلّ تثبيتٍ لـ ruff؛ rev في pre-commit يُقرأ بصيغته الخاصّة."""
+    pins = []
+    for name, text in sources.items():
+        rx = RUFF_HOOK_PIN if name == PRE_COMMIT_NAME else RUFF_PIP_PIN
+        pins += [(name, version) for version in rx.findall(text)]
+    return pins
+
+
+def assert_one_ruff_version(sources: dict[str, str]) -> None:
+    pins = ruff_pins_in(sources)
+    assert pins, "لم يوجد أيُّ تثبيتٍ لـ ruff في المستودع"
+    assert len({version for _, version in pins}) == 1, f"ruff بأكثر من نسخة: {sorted(pins)}"
+
 
 def test_the_radon_excludes_match_the_ci_complexity_step():
     assert prepush_check.RADON_EXCLUDE in WORKFLOW, "استثناءات radon محلّيّاً غير استثناءات CI"
@@ -27,6 +59,27 @@ def test_the_pre_commit_ruff_pin_matches_the_ci_pin():
     local = re.search(r"ruff-pre-commit\s+rev:\s*v([\d.]+)", PRE_COMMIT)
     assert ci and local, "لم يوجد تثبيتُ ruff في أحد المصدرين"
     assert ci.group(1) == local.group(1), "ruff المحلّيّ (pre-commit) غير ruff الذي يشغّله CI"
+
+
+def test_every_ruff_pin_in_the_repo_is_one_version():
+    sources = repo_ruff_sources()
+    assert_one_ruff_version(sources)
+    # الحارسُ يرى المصدرين المعروفين فعلاً: CI (quality-gate.yml) وpre-commit، لا مجرّدَ ملفٍّ مفقود.
+    names = {name for name, _ in ruff_pins_in(sources)}
+    assert ".github/workflows/quality-gate.yml" in names and PRE_COMMIT_NAME in names
+
+
+def test_a_drifted_ruff_pin_in_another_workflow_fails_the_single_version_check():
+    # نصٌّ مصطنَعٌ بنسخةٍ مخالفة (0.4.5) في workflow ثانٍ: يجب أن يسقط الحارس.
+    fake = {".github/workflows/fake-drift.yml": "steps:\n  - run: pip install ruff==0.4.5\n"}
+    with pytest.raises(AssertionError, match="ruff بأكثر من نسخة"):
+        assert_one_ruff_version({**repo_ruff_sources(), **fake})
+
+
+def test_a_drifted_ruff_pin_in_requirements_fails_the_single_version_check():
+    fake = {"requirements-fake.txt": "ruff==0.5.0\n"}
+    with pytest.raises(AssertionError, match="ruff بأكثر من نسخة"):
+        assert_one_ruff_version({**repo_ruff_sources(), **fake})
 
 
 def test_the_mypy_env_matches_the_ci_step():
