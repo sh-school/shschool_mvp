@@ -34,7 +34,6 @@ from operations.attendance_entries import (
     EntryConflictError,
     EntryError,
     GridConflictError,
-    head_of,
     write_grid_cell,
 )
 from operations.attendance_policy import (
@@ -52,7 +51,7 @@ from operations.attendance_policy import (
     is_developer,
 )
 from operations.attendance_selectors import CellHistoryRow, ColumnCell, cell_history, column_heads
-from operations.models import ClassExit, Session, SubjectClassAssignment
+from operations.models import AttendanceEntry, ClassExit, Session, SubjectClassAssignment
 from operations.school_days import school_day
 
 from . import provisional_session
@@ -676,7 +675,15 @@ def save_column(
     with transaction.atomic():
         session = _ensure_session(user, school, klass, day, wanted, times, request)
         existing = column_heads([session.pk])
+        # كاتبُ رأسِ كلّ خليّةٍ قبل الحفظ باستعلامٍ واحد (بدل `head_of` لكلّ خليّة)
+        head_writers = dict(
+            AttendanceEntry.objects.filter(session=session, superseded_by__isnull=True).values_list(
+                "student_id", "entered_by_id"
+            )
+        )
         result = SaveResult(session_id=session.pk)
+        # حمولاتُ الخلايا تُملأ برؤوسها بعد الكتابة كلّها باستعلامٍ واحد لا باستعلامٍ لكلّ خليّة
+        fills: list[tuple[dict[str, Any], Any]] = []
         seen: set[Any] = set()
         for item in posted:
             student = roster.get(_uuid_or_none(item.get("student")))
@@ -694,12 +701,18 @@ def save_column(
                 result,
                 correcting=correcting,
                 reason=reason,
+                head_writers=head_writers,
+                fills=fills,
             )
         if fill_empty:
             for student_id, student in roster.items():
                 if student_id in seen or (session.pk, student_id) in existing:
                     continue
-                _write_default(user, session, student, result)
+                _write_default(user, session, student, result, fills)
+        if fills:
+            final = column_heads([session.pk])
+            for payload, student_id in fills:
+                payload.update(_cell_payload(student_id, final.get((session.pk, student_id))))
         AuditLog.log(
             user=user,
             action="update",
@@ -737,14 +750,16 @@ def _write_one(
     *,
     correcting: bool,
     reason: str,
+    head_writers: dict[Any, Any],
+    fills: list[tuple[dict[str, Any], Any]],
 ) -> None:
     status = str(item.get("status", ""))
     minutes = _minutes(item.get("minutes"))
     if status == "late" and minutes is None:
         minutes = _late_minutes(session)
     # رصدُ المعلّم نهائيٌّ: من يعدّل ما كتبه غيرُه (المشرفُ) يُسجَّل مع التصحيح كاتبُه ووقتُه، والسببُ اختياريّ (قرارُ المالك 2026-10-09)
-    head = head_of(session, student)
-    overriding = head is not None and head.entered_by_id != user.id
+    writer_id = head_writers.get(student.pk)
+    overriding = writer_id is not None and writer_id != user.id
     try:
         with transaction.atomic():  # نقطةُ حفظٍ لكلّ خليّة
             entry, _created = write_grid_cell(
@@ -757,17 +772,17 @@ def _write_one(
                 correction_reason=reason if (overriding or correcting) else "",
             )
     except GridConflictError as conflict:
-        current = (
-            column_heads([session.pk]).get((session.pk, student.pk)) if conflict.current else None
-        )
-        result.conflicts.append(_cell_payload(student.pk, current))
+        payload = _cell_payload(student.pk, None)
+        result.conflicts.append(payload)
+        if conflict.current:
+            fills.append((payload, student.pk))
         return
     except (EntryConflictError, EntryError) as error:
         result.errors.append({"student": str(student.pk), "code": getattr(error, "code", "error")})
         return
-    result.saved.append(
-        _cell_payload(student.pk, column_heads([session.pk]).get((session.pk, student.pk)))
-    )
+    payload = _cell_payload(student.pk, None)
+    result.saved.append(payload)
+    fills.append((payload, student.pk))
     if correcting:
         AuditLog.log(
             user=user,
@@ -782,7 +797,11 @@ def _write_one(
 
 
 def _write_default(
-    user: CustomUser, session: Session, student: CustomUser, result: SaveResult
+    user: CustomUser,
+    session: Session,
+    student: CustomUser,
+    result: SaveResult,
+    fills: list[tuple[dict[str, Any], Any]],
 ) -> None:
     try:
         with transaction.atomic():
@@ -793,9 +812,9 @@ def _write_default(
     except (EntryConflictError, EntryError):
         return
     result.defaults += 1
-    result.saved.append(
-        _cell_payload(student.pk, column_heads([session.pk]).get((session.pk, student.pk)))
-    )
+    payload = _cell_payload(student.pk, None)
+    result.saved.append(payload)
+    fills.append((payload, student.pk))
 
 
 def _late_minutes(session: Session) -> int:

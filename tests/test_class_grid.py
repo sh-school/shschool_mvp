@@ -6,6 +6,7 @@
 
 import datetime as dt
 import json
+from uuid import UUID
 
 import pytest
 from django.db import IntegrityError, connection
@@ -541,6 +542,43 @@ def test_the_read_query_count_is_flat_in_the_number_of_students(
     enroll(30, 60)
     sixty = measure()
     assert thirty == sixty and thirty <= 40, (thirty, sixty)
+
+
+def test_save_column_computes_heads_once_not_per_cell(
+    school, assigned, teacher, clock, monkeypatch
+):
+    """W-20261105-004: حفظُ عمودٍ بـ65 طالباً يحسب الرؤوس مرّتين على الأكثر (قبل الكتابة وبعدها) لا بعدد الخلايا، والحمولةُ تحمل الرأس الحقيقيّ."""
+    students = []
+    for index in range(65):
+        student = UserFactory(full_name=f"ط{index:03d}", national_id=f"2800{index:07d}")
+        StudentEnrollmentFactory(student=student, class_group=assigned, enrolled_at=ENROLLED)
+        students.append(student)
+    calls = []
+    real = grid.column_heads
+
+    def counting(session_ids):
+        calls.append(session_ids)
+        return real(session_ids)
+
+    monkeypatch.setattr(grid, "column_heads", counting)
+    result = grid.save_column(
+        teacher,
+        school,
+        assigned.id,
+        1,
+        [_cells(s, "absent") for s in students],
+        now=at(9, 0),
+    )
+
+    assert len(result.saved) == 65 and not result.conflicts and not result.errors
+    assert len(calls) <= 2, calls
+    heads = {
+        e.student_id: str(e.pk) for e in AttendanceEntry.objects.filter(superseded_by__isnull=True)
+    }
+    assert all(
+        row["head"] == heads[UUID(row["student"])] and row["status"] == "absent"
+        for row in result.saved
+    )
 
 
 # ── «اطفئ الشبكة»: مع المفتاح لا يُفتح كشفُ الحصّة القديم لمن يملك الجدول ───────────
