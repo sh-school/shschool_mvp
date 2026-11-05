@@ -1,0 +1,66 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+
+{% block title %}قيد الطلبة ونقلهم وانسحابهم — شؤون الطلاب{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="قيد ونقل وانسحاب" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash sa-page">
+
+  {% page_header "قيد الطلبة ونقلهم وانسحابهم" subtitle="قيدٌ ونقلٌ وانسحابٌ وتغيير شعبة — المدرسةُ كلُّها" icon="student" %}
+    <form method="get" class="sa-filter">
+      <input type="date" name="from" value="{{ date_from }}" class="form-control" aria-label="من تاريخ">
+      <input type="date" name="to" value="{{ date_to }}" class="form-control" aria-label="إلى تاريخ">
+      <select name="class_group" class="form-control" aria-label="الشعبة">
+        <option value="">كل الشعب</option>
+        {% for c in classes %}
+        <option value="{{ c.pk }}" {% if class_group == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.short_label }}</option>
+        {% endfor %}
+      </select>
+      <select name="kind" class="form-control" aria-label="نوع التحرّك">
+        <option value="">كل الأنواع</option>
+        {% for val, label in kinds %}
+        <option value="{{ val }}" {% if kind == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn-primary btn-sm">{% icon "search" %} بحث</button>
+      {% export_button "xlsx" "student_affairs:enrollment_movements_export" %}?{{ query_string }}{% endexport_button %}
+    </form>
+  {% endpage_header %}
+
+  {% kpi_strip label="أرقام التحرّكات" %}
+    {% kpi "التحرّكات" total_count title="عددُ التحرّكات المطابقة للمرشِّحات" %}
+  {% endkpi_strip %}
+
+  {% section_card "سجلّ التحرّكات" icon="student" empty="لا تحرّكات بهذه المرشِّحات" flush=True %}{% if rows %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="num">التاريخ</th>
+            <th>الطالب</th>
+            <th>نوع التحرّك</th>
+            <th>التفصيل</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td class="num">{{ r.date|date:"Y-m-d" }}</td>
+            <td><a href="{% url 'student_affairs:student_profile' r.student.id %}" class="sa-link">{{ r.student.full_name }}</a></td>
+            <td>{{ r.kind_label }}</td>
+            <td>{{ r.detail }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if truncated %}<p class="text-muted">يُعرض أحدثُ ٥٠٠ تحرّكٍ من {{ total_count }} — ضيّق المرشِّحات أو صدِّر الكلَّ.</p>{% endif %}
+  {% endif %}{% endsection_card %}
+
+</div>
+{% endblock %}

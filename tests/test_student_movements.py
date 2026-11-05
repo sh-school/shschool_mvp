@@ -188,3 +188,157 @@ def test_open_status_filter_shows_only_those_who_have_not_returned(
 
     assert "لم يعد بعد" in html
     assert "عاد بالفعل" not in html
+
+
+# ═════════════════════════════════════════════════════════════════════
+# W-20261105-009: قيدٌ ونقلٌ وانسحابٌ وتغيير شعبة بنطاق المدرسة
+# ═════════════════════════════════════════════════════════════════════
+
+
+def _student(school, name, nid):
+    user = UserFactory(full_name=name, national_id=nid)
+    MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name="student"))
+    return user
+
+
+@pytest.fixture
+def movement_data(school, year):
+    """قيدٌ في أ، وتغييرُ شعبةٍ أ←ب، ونقلٌ صادر، وانسحاب، وطالبٌ في مدرسةٍ أخرى."""
+    from core.models import School
+    from student_affairs.models import StudentTransfer
+
+    a = ClassGroupFactory(school=school, academic_year=year, grade="G10", section="1")
+    b = ClassGroupFactory(school=school, academic_year=year, grade="G10", section="2")
+    enrolled = _student(school, "طالب مقيَّد", "29500000001")
+    StudentEnrollmentFactory(student=enrolled, class_group=a, enrolled_at=dt.date(2026, 9, 1))
+
+    mover = _student(school, "طالب تغيّرت شعبته", "29500000002")
+    StudentEnrollmentFactory(
+        student=mover,
+        class_group=a,
+        is_active=False,
+        enrolled_at=dt.date(2026, 9, 1),
+        left_at=dt.date(2026, 10, 9),
+    )
+    StudentEnrollmentFactory(student=mover, class_group=b, enrolled_at=dt.date(2026, 10, 10))
+    StudentTransfer.objects.create(
+        school=school,
+        student=mover,
+        direction="internal",
+        other_school_name=school.name,
+        to_class_group=b,
+        transfer_date=dt.date(2026, 10, 10),
+        status="completed",
+        academic_year=year,
+    )
+
+    out = _student(school, "طالب منقول", "29500000003")
+    StudentEnrollmentFactory(student=out, class_group=b, enrolled_at=dt.date(2026, 9, 1))
+    StudentTransfer.objects.create(
+        school=school,
+        student=out,
+        direction="out",
+        other_school_name="مدرسة الأمل",
+        transfer_date=dt.date(2026, 11, 1),
+        status="completed",
+        academic_year=year,
+    )
+
+    gone = _student(school, "طالب منسحب", "29500000004")
+    StudentEnrollmentFactory(student=gone, class_group=a, enrolled_at=dt.date(2026, 9, 1))
+    membership = gone.memberships.first()
+    # الالتحاق الافتراضيّ اليوم؛ والانسحابُ قبله لا يستقيم — فنقدِّم الالتحاق إلى بداية العام
+    membership.joined_at = dt.date(2026, 9, 1)
+    membership.save(update_fields=["joined_at"])
+    membership.record_departure(on=dt.date(2026, 10, 20), reason="other", reference="قرار 5")
+
+    # مدرسةٌ أخرى: لا يجوز أن يظهر طالبُها
+    other = School.objects.create(name="مدرسة أخرى", code="OTH1")
+    foreign = _student(other, "طالب مدرسة أخرى", "29500000005")
+    foreign_class = ClassGroupFactory(school=other, academic_year=year)
+    StudentEnrollmentFactory(student=foreign, class_group=foreign_class)
+    return a, b
+
+
+URL = "student_affairs:enrollment_movements"
+
+
+def test_movements_list_has_all_four_kinds_school_scoped(client, principal_user, movement_data):
+    client.force_login(principal_user)
+    html = client.get(reverse(URL)).content.decode()
+
+    for label in ("قيد", "نقل صادر", "انسحاب", "تغيير شعبة"):
+        assert label in html
+    assert "طالب تغيّرت شعبته" in html
+    assert "مدرسة الأمل" in html
+    assert "طالب مدرسة أخرى" not in html
+
+
+def test_internal_transfer_enrolment_is_not_counted_as_enrol(school, movement_data):
+    from student_affairs.selectors import enrollment_movements
+
+    rows = enrollment_movements(school)
+    mover_kinds = [r["kind"] for r in rows if r["student"].full_name == "طالب تغيّرت شعبته"]
+    assert sorted(mover_kinds) == ["enrol", "section_change"]  # القيدُ الأوّل فقط
+
+
+def test_filter_by_class_and_period(client, principal_user, movement_data):
+    _, b = movement_data
+    client.force_login(principal_user)
+
+    html = client.get(reverse(URL), {"class_group": str(b.pk)}).content.decode()
+    assert "طالب منقول" in html
+    assert "طالب مقيَّد" not in html
+
+    html = client.get(reverse(URL), {"from": "2026-10-15", "to": "2026-10-31"}).content.decode()
+    assert "طالب منسحب" in html
+    assert "طالب منقول" not in html
+
+    html = client.get(reverse(URL), {"kind": "withdraw"}).content.decode()
+    assert "طالب منسحب" in html
+    assert "طالب مقيَّد" not in html
+
+
+def test_bad_filters_do_not_break_the_page(client, principal_user, movement_data):
+    client.force_login(principal_user)
+    resp = client.get(reverse(URL), {"from": "xx", "class_group": "not-a-uuid"})
+    assert resp.status_code == 200
+
+
+def test_export_respects_filters_and_hides_national_id(client, principal_user, movement_data):
+    import io
+
+    import openpyxl
+    from django.http import QueryDict
+
+    from core.exports.runner import run_job
+    from core.models import ExportJob
+
+    client.force_login(principal_user)
+    resp = client.get(reverse("student_affairs:enrollment_movements_export"), {"kind": "withdraw"})
+
+    # التصديرُ مهمّةٌ خلفيّة: الطلبُ يُنشئها ثمّ يبنيها العامل بالمرشِّحات المحفوظة
+    assert resp.status_code == 302
+    job = ExportJob.objects.get(kind="student_affairs.movements_xlsx")
+    assert QueryDict(job.query_string)["kind"] == "withdraw"
+    run_job(str(job.id))
+    job.refresh_from_db()
+    assert job.status == "done"
+    ws = openpyxl.load_workbook(io.BytesIO(bytes(job.content))).active
+    cells = [str(c.value) for row in ws.iter_rows() for c in row]
+    assert "طالب منسحب" in cells
+    assert "طالب مقيَّد" not in cells
+    assert not any("29500000004" in c for c in cells)
+
+
+def test_coordinator_allowed_teacher_and_supervisor_denied(
+    client, student_affairs_coordinator_user, teacher_user, admin_supervisor_user, movement_data
+):
+    client.force_login(student_affairs_coordinator_user)
+    assert client.get(reverse(URL)).status_code == 200
+
+    for user in (teacher_user, admin_supervisor_user):
+        client.force_login(user)
+        assert client.get(reverse(URL)).status_code in (302, 403)
+        export = client.get(reverse("student_affairs:enrollment_movements_export"))
+        assert export.status_code in (302, 403)

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from typing import Any
 
+from django.core.exceptions import ValidationError
 from django.db.models import Exists, OuterRef, Q
 
 from core.academic_calendar import academic_year_for_school
@@ -238,3 +240,164 @@ def early_attendance_counts(school: Any, day: Any, scope: Any) -> dict[str, Any]
             c["pct"] = attendance_rate(c["present"], c["total"], empty=None)
         out_wings.append({"name": wing["name"], "counts": wing["counts"], "sections": sections})
     return {"summary": total, "wings": out_wings}
+
+
+# ═════════════════════════════════════════════════════════════════════
+# تحرّكات الطلبة: قيدٌ ونقلٌ وانسحابٌ وتغيير شعبة (W-20261105-009)
+# ═════════════════════════════════════════════════════════════════════
+
+#: أنواعُ التحرّك بالترتيب الذي تُعرض به في المرشِّح.
+MOVEMENT_KINDS = [
+    ("enrol", "قيد"),
+    ("transfer_in", "نقل وارد"),
+    ("transfer_out", "نقل صادر"),
+    ("withdraw", "انسحاب"),
+    ("section_change", "تغيير شعبة"),
+]
+_KIND_LABELS = dict(MOVEMENT_KINDS)
+
+
+def _class_label(group: Any) -> str:
+    return group.short_label if group is not None else "—"
+
+
+def enrollment_movements(
+    school: Any,
+    *,
+    start: Any = None,
+    end: Any = None,
+    class_group_id: Any = None,
+    kind: str = "",
+) -> list[dict[str, Any]]:
+    """التحرّكاتُ الزمنيّةُ لطلبة المدرسة كلِّها، الأحدثُ أوّلاً — بلا `request` فتصلح للتصدير.
+
+    لا جدولَ جديداً: القيدُ من `StudentEnrollment`، والنقلُ الوارد والصادر وتغييرُ الشعبة
+    (الانتقال الداخلي) من `StudentTransfer` المكتمل، والانسحابُ من مغادرة عضويّة الطالب
+    (`Membership.left_at`). والتسجيلُ الذي ينشئه الانتقالُ الداخليُّ نفسُه لا يُعدّ «قيداً» ثانيةً.
+    المرشِّحُ بالشعبة يطابق كلَّ تحرّكٍ مسّ الشعبةَ: القيدُ فيها، والتغييرُ منها أو إليها.
+    """
+    from .models import StudentTransfer
+
+    rows: list[dict[str, Any]] = []
+
+    transfers = list(
+        StudentTransfer.objects.filter(school=school, status="completed").select_related(
+            "student", "to_class_group"
+        )
+    )
+    # قيدٌ ينشئه الانتقالُ الداخليّ يوم نفاذه: يُستبعد من «القيد» ويُقرأ تغييرَ شعبة.
+    internal_keys = {
+        (t.student_id, t.to_class_group_id, t.transfer_date)
+        for t in transfers
+        if t.direction == "internal" and t.to_class_group_id
+    }
+
+    enrollments = list(
+        StudentEnrollment.objects.filter(class_group__school=school)
+        .select_related("student", "class_group")
+        .order_by("student_id", "enrolled_at", "id")
+    )
+    for e in enrollments:
+        if (e.student_id, e.class_group_id, e.enrolled_at) in internal_keys:
+            continue
+        rows.append(
+            {
+                "kind": "enrol",
+                "date": e.enrolled_at,
+                "student": e.student,
+                "class_ids": {e.class_group_id},
+                "detail": f"قيدٌ في الشعبة {_class_label(e.class_group)}",
+            }
+        )
+
+    # الشعبةُ التي غادرها الطالبُ بالنقل الداخلي: تسجيلٌ أُغلق في اليوم السابق للنقل (internal_transfer).
+    left_on = {(e.student_id, e.left_at): e for e in enrollments if e.left_at is not None}
+    # آخرُ شعبةٍ للطالب — لإسناد النقل الوارد/الصادر والانسحاب إلى شعبةٍ في مرشِّح الشعبة.
+    last_class = {e.student_id: e.class_group for e in enrollments}
+    for t in transfers:
+        if t.direction == "internal":
+            source = left_on.get((t.student_id, t.transfer_date - dt.timedelta(days=1)))
+            ids = {t.to_class_group_id} | ({source.class_group_id} if source else set())
+            src_label = _class_label(source.class_group if source else None)
+            detail = f"من {src_label} إلى {_class_label(t.to_class_group)}"
+            row_kind = "section_change"
+        else:
+            group = last_class.get(t.student_id)
+            ids = {group.pk} if group is not None else set()
+            detail = t.other_school_name
+            row_kind = "transfer_in" if t.direction == "in" else "transfer_out"
+        rows.append(
+            {
+                "kind": row_kind,
+                "date": t.transfer_date,
+                "student": t.student,
+                "class_ids": ids,
+                "detail": detail,
+            }
+        )
+
+    departed = Membership.objects.filter(
+        school=school, role__name="student", left_at__isnull=False
+    ).select_related("user")
+    for m in departed:
+        group = last_class.get(m.user_id)
+        reason = m.get_departure_reason_display() or "—"
+        rows.append(
+            {
+                "kind": "withdraw",
+                "date": m.left_at,
+                "student": m.user,
+                "class_ids": {group.pk} if group is not None else set(),
+                "detail": f"{reason} — {m.departure_reference}"
+                if m.departure_reference
+                else reason,
+            }
+        )
+
+    wanted = str(class_group_id) if class_group_id else ""
+    out = []
+    for r in rows:
+        if kind and r["kind"] != kind:
+            continue
+        if (start is not None and r["date"] < start) or (end is not None and r["date"] > end):
+            continue
+        if wanted and wanted not in {str(i) for i in r["class_ids"]}:
+            continue
+        r["kind_label"] = _KIND_LABELS[r["kind"]]
+        out.append(r)
+    out.sort(key=lambda r: (r["date"], r["student"].full_name), reverse=True)
+    return out
+
+
+def movement_filters(params: Any, school: Any) -> dict[str, Any]:
+    """مرشِّحاتُ التحرّكات من معاملات الرابط — تاريخٌ غيرُ صالحٍ يُهمَل، والشعبةُ تُقبل من شعب هذه المدرسة وحدَها."""
+
+    def day(name: str) -> dt.date | None:
+        try:
+            return dt.date.fromisoformat(params.get(name, ""))
+        except ValueError:
+            return None
+
+    group_id = params.get("class_group") or None
+    try:
+        if group_id and not ClassGroup.objects.filter(pk=group_id, school=school).exists():
+            group_id = None
+    except (ValueError, ValidationError):
+        group_id = None
+    return {
+        "start": day("from"),
+        "end": day("to"),
+        "class_group_id": group_id,
+        "kind": params.get("kind", ""),
+    }
+
+
+def movements_for_params(school: Any, params: Any) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """`(التحرّكات، المرشِّحات)` من معاملات الرابط — للشاشة وللتصدير معاً."""
+    filters = movement_filters(params, school)
+    return enrollment_movements(school, **filters), filters
+
+
+def active_classes(school: Any) -> Any:
+    """شعبُ المدرسة الفعّالة لقائمة المرشِّح."""
+    return ClassGroup.objects.filter(school=school, is_active=True).order_by("grade", "section")

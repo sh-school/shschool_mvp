@@ -1154,6 +1154,40 @@ def _with_wing(text: str, wing: str) -> str:
 
 
 @login_required
+@capability_required("student_affairs.transfers")
+def enrollment_movements(request):
+    """قائمةُ تحرّكات الطلبة (قيدٌ ونقلٌ وانسحابٌ وتغيير شعبة) بنطاق المدرسة — بخلاف `student_movements`
+    التي هي خروجُ الطالب من الحصّة. لمن يملك `student_affairs.transfers` (القيادةُ ومنسّق شؤون الطلبة)."""
+    from .selectors import MOVEMENT_KINDS, active_classes, movements_for_params
+
+    rows, filters = movements_for_params(request.school, request.GET)
+    shown = rows[:500]
+    return render(
+        request,
+        "student_affairs/movements.html",
+        {
+            "rows": shown,
+            "total_count": len(rows),
+            "truncated": len(rows) > len(shown),
+            "kinds": MOVEMENT_KINDS,
+            "kind": filters["kind"],
+            "classes": active_classes(request.school),
+            "class_group": str(filters["class_group_id"] or ""),
+            "date_from": request.GET.get("from", ""),
+            "date_to": request.GET.get("to", ""),
+            "query_string": request.GET.urlencode(),
+        },
+    )
+
+
+@login_required
+@capability_required("student_affairs.transfers")
+def enrollment_movements_export(request):
+    """تصديرُ Excel لتحرّكات الطلبة بمرشِّحات الشاشة نفسِها — مهمّةٌ خلفيّةٌ (`student_affairs.movements_xlsx`)."""
+    return respond_export(request, "student_affairs.movements_xlsx")
+
+
+@login_required
 @capability_required("student_affairs.follow_up")
 def student_movements(request):
     """تحركاتُ الطلبة خارج الفصل في تاريخٍ بعينه — عيادةٌ وإدارةٌ ودورةُ

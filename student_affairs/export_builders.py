@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from io import BytesIO
 from typing import Any
 
 from django.template.loader import render_to_string
@@ -22,6 +23,38 @@ from core.exports.registry import ExportResult
 from core.privacy import may_search_id_partially
 
 from .selectors import student_register
+
+
+def build_movements_xlsx(school: Any, user: Any, params: Any) -> ExportResult:
+    """تحرّكاتُ الطلبة Excel — اسمُ الطالب دون رقمه الشخصيّ (لا حاجةَ له في كشفٍ جماعيّ)."""
+    import openpyxl
+
+    from core.excel_safety import safe_cell
+    from core.export_utils import apply_print_footer
+
+    from .selectors import movements_for_params
+
+    rows, _ = movements_for_params(school, params)
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "تحركات الطلبة"
+    ws.sheet_view.rightToLeft = True
+    for col, head in enumerate(["#", "التاريخ", "الطالب", "نوع التحرّك", "التفصيل"], 1):
+        safe_cell(ws, row=1, column=col, value=head)
+    for i, r in enumerate(rows, 1):
+        values = [i, r["date"].isoformat(), r["student"].full_name, r["kind_label"], r["detail"]]
+        for col, value in enumerate(values, 1):
+            safe_cell(ws, row=i + 1, column=col, value=value)
+    apply_print_footer(wb, school)
+    out = BytesIO()
+    wb.save(out)
+    return ExportResult(
+        out.getvalue(),
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        generate_export_filename("students", "movements", "xlsx"),
+        rows=len(rows),
+        full_national_id=False,
+    )
 
 
 def build_students_pdf(school: Any, user: Any, params: Any) -> ExportResult:
