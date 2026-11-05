@@ -280,7 +280,10 @@ def test_the_chosen_rating_is_the_only_ticked_box(db, observation, criteria):
 
     # ثلاث علاماتٍ لا واحدة: تقديرُ المعيار، ومعهما «ميدانيّة» و«كلّيّة»
     # في جدول المعلومات — وكلاهما مُدخَلٌ في الزيارة نفسها.
-    assert html.count(">نعم</td>") == 3
+    assert html.count('<span class="tick"></span>') == 3
+    # الكلمة لم تعد في الخانات، والعلامة قالبٌ جزئيٌّ لا صورة
+    assert "نعم" not in html
+    assert "<svg" not in html
     assert "✓" not in html, "علامةُ الصحّ كلمةٌ من الخطّ المضمَّن لا رمزٌ من خطٍّ احتياطيّ"
     assert "توصيةٌ محدّدة." in html
 
@@ -333,7 +336,8 @@ def test_no_vertical_writing_mode(source):
     css = chr(10).join(l for l in css.splitlines() if not l.lstrip().startswith("`"))
 
     assert "writing-mode" not in css
-    assert "rotate(" not in css
+    # الاستثناء الوحيد علامةُ الصحّ المرسومة بحدَّين مدوَّرَين 45° — لا تدويرَ لرؤوس الأعمدة
+    assert css.count("rotate(") == css.count("rotate(45deg)")
 
 
 def test_the_five_columns_and_the_recommendation_column_sum_to_the_full_width(source):
