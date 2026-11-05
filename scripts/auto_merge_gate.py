@@ -65,12 +65,34 @@ def path_forbidden(path: str) -> str | None:
     return None
 
 
+def _run_order(check: dict) -> tuple[bool, str, str]:
+    # ترتيبُ `gh pr checks`: completedAt ثم startedAt (ISO-8601 بصيغة Z فيُقارَن نصّيّاً).
+    # التشغيلُ غيرُ المكتمل أحدثُ من كلّ مكتمل، وإلّا أخفى قديمٌ ناجحٌ تشغيلاً جديداً معلَّقاً.
+    done = check.get("completedAt") or ""
+    return (not done, done, check.get("startedAt") or "")
+
+
+def latest_checks(checks: list[dict]) -> list[dict]:
+    # GitHub يُبقي في statusCheckRollup كلَّ تشغيلات الفحص نفسِه للرأس (فحصٌ أُعيد تشغيله يظهر مرّتين)،
+    # فنأخذ لكلّ اسمٍ أحدثَ تشغيل. الفحصُ بلا اسمٍ يبقى صفّاً مستقلّاً حتى لا يُخفي فشلَه فحصٌ آخر بلا اسم.
+    newest: dict[object, dict] = {}
+    for index, check in enumerate(checks):
+        key: object = check.get("name") or check.get("context") or ("بلا-اسم", index)
+        if key not in newest or _run_order(check) > _run_order(newest[key]):
+            newest[key] = check
+    return list(newest.values())
+
+
 def evaluate(pr_number: str, repo: str | None) -> tuple[bool, list[str]]:
-    reasons: list[str] = []
     base = ["gh", "pr", "view", pr_number, "--json", "body,files,statusCheckRollup"]
     if repo:
         base += ["--repo", repo]
-    data = sh_json(base)
+    return evaluate_data(sh_json(base))
+
+
+def evaluate_data(data: dict) -> tuple[bool, list[str]]:
+    # منطقُ الحكم بعد الجلب: مُدخَلٌ مستقلٌّ عن gh حتى تختبره tests/test_auto_merge_gate.py بلا شبكة.
+    reasons: list[str] = []
 
     body = data.get("body") or ""
     if not APPROVAL.search(body):
@@ -88,7 +110,7 @@ def evaluate(pr_number: str, repo: str | None) -> tuple[bool, list[str]]:
     if blocked:
         reasons.append("مساراتٌ محظورةٌ على الدمج الآليّ: " + "، ".join(blocked))
 
-    checks = data.get("statusCheckRollup") or []
+    checks = latest_checks(data.get("statusCheckRollup") or [])
     if not checks:
         reasons.append("لا فحوصَ CI مسجَّلةٌ بعدُ على الطلب")
     else:
@@ -107,13 +129,17 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("pr_number")
     parser.add_argument("--repo")
-    parser.add_argument("--enable", action="store_true", help="فعِّل auto-merge فعليّاً إن اجتمعت الشروط")
+    parser.add_argument(
+        "--enable", action="store_true", help="فعِّل auto-merge فعليّاً إن اجتمعت الشروط"
+    )
     args = parser.parse_args()
 
     try:
         ok, reasons = evaluate(args.pr_number, args.repo)
     except subprocess.CalledProcessError as exc:
-        print(f"[خطأ] تعذّر قراءة الطلب: {exc.stderr.strip() if exc.stderr else exc}", file=sys.stderr)
+        print(
+            f"[خطأ] تعذّر قراءة الطلب: {exc.stderr.strip() if exc.stderr else exc}", file=sys.stderr
+        )
         return 2
     except (json.JSONDecodeError, KeyError) as exc:
         print(f"[خطأ] استجابةٌ غيرُ متوقَّعة من gh: {exc}", file=sys.stderr)
