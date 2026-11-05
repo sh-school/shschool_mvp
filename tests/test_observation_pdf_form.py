@@ -288,6 +288,17 @@ def test_the_chosen_rating_is_the_only_ticked_box(db, observation, criteria):
     assert "توصيةٌ محدّدة." in html
 
 
+def test_the_tick_is_drawn_with_physical_borders_not_logical_ones(source):
+    # الصفحة RTL: الحدّ المنطقيّ ينعكس فتظهر العلامة مقلوبة، فالحدّان فيزيائيّان
+    rule = re.search(r"\.tick\s*\{([^}]*)\}", source)
+    assert rule, "قاعدة .tick غير موجودة"
+    body = rule.group(1)
+    assert "border-right" in body
+    assert "border-bottom" in body
+    assert "border-inline-end" not in body
+    assert "border-block-end" not in body
+
+
 # ── لا تُحقن ترويسةُ المنصّة فوق ترويسة المدرسة ───────────────────────
 
 

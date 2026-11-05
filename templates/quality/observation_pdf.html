@@ -138,8 +138,9 @@ td {
   display: inline-block;
   width: 4pt;
   height: 8pt;
-  border-inline-end: 1.6pt solid currentColor;
-  border-block-end: 1.6pt solid currentColor;
+  /* حدّان فيزيائيّان عمداً: هذا رسمُ شكلٍ ثابتٍ لا تخطيط، فلا يتبع اتجاه الصفحة (RTL يقلب الحدّ المنطقيّ فتنعكس العلامة) */
+  border-right: 1.6pt solid currentColor;
+  border-bottom: 1.6pt solid currentColor;
   transform: rotate(45deg);
 }
 .crit { line-height: 1.1; }
