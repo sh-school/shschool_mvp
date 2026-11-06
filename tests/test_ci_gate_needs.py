@@ -36,6 +36,10 @@ NOT_IN_NEEDS = {
     ): "تسريعٌ لا بوّابة، ويعمل على push فقط؛ فشلُه يعني هجرةً من الصفر في الطلبات",
     (
         "quality-gate.yml",
+        "route-link-guard",
+    ): "استشاريّ (W-20261106-025) بـcontinue-on-error — لا يغيّر نتيجة الملخّص",
+    (
+        "quality-gate.yml",
         "apt-deb-cache-save",
     ): "تسريعٌ لا بوّابة، ويعمل على push فقط؛ فشلُه يعني تنزيلَ الحزم من المرآة في الطلبات",
 }
@@ -49,6 +53,13 @@ def _load(name: str) -> dict:
     return yaml.safe_load((ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8"))[
         "jobs"
     ]
+
+
+def test_route_link_guard_is_advisory_and_outside_the_summary():
+    """W-20261106-025: وظيفةٌ استشاريّةٌ — continue-on-error ولا تدخل needs الملخّص."""
+    jobs = _load("quality-gate.yml")
+    assert jobs["route-link-guard"].get("continue-on-error") is True
+    assert "route-link-guard" not in jobs["gate-summary"]["needs"]
 
 
 def _triggers(name: str) -> dict:
