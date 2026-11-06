@@ -41,6 +41,29 @@ def _pdf_pages(html):
     return pypdf.PdfReader(io.BytesIO(render_pdf_bytes(html))).pages
 
 
+def test_the_real_pdf_embeds_the_document_fonts_and_the_tick_font_is_injected(db, observation):
+    """خطُّ العلامة يُحقن من `pdf_utils` مع خطوط الوثيقة: فلا يسقط الـPDF إلى DejaVu/FreeSerif (W-20261106-007)."""
+    from core.pdf_utils import _inject_fonts, render_pdf_bytes
+
+    pypdf = pytest.importorskip("pypdf")
+    pytest.importorskip("weasyprint")
+    html = _html_of(observation)
+
+    injected = _inject_fonts(html)
+    assert "font-family: 'Visit Tick'" in injected
+    assert "font-family: 'Noto Naskh Arabic'" in injected
+
+    names = set()
+    for page in pypdf.PdfReader(io.BytesIO(render_pdf_bytes(html))).pages:
+        fonts = page.get("/Resources", {}).get("/Font", {})
+        names.update(str(fonts[key].get_object().get("/BaseFont", "")) for key in fonts)
+    # أسماءُ الخطوط المضمّنة تأتي بشرطات (Noto-Naskh-Arabic): نُسقط كلَّ ما ليس حرفاً أو رقماً قبل المقارنة
+    joined = re.sub(r"[^a-z0-9]", "", " ".join(names).lower())
+
+    assert "dejavu" not in joined and "freeserif" not in joined, names
+    assert "notonaskharabic" in joined or "traditionalarabic" in joined, names
+
+
 def _pdf_text(html):
     """نصُّ PDF كلِّه بـpdfium: يقرأ العربيّةَ المشكَّلة سليمةً، بخلاف `pypdf` الذي يُسقط حروفاً منها ويُضيع رموزاً لاتينيّةً في آخر السطر."""
     from core.pdf_utils import render_pdf_bytes

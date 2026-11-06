@@ -151,9 +151,8 @@ def test_the_template_asks_for_no_font_by_relative_url(source):
     `pdf_utils` بمسارات مطلقة.
     """
     body = source.split("{% endcomment %}", 1)[-1]
-    # استثناءٌ وحيد: خطُّ علامة الصحّ مضمَّنٌ بـdata: لا برابطٍ نسبيّ (W-20261105-020)
-    assert body.count("@font-face") == 1
-    assert "src: url(data:font/ttf;base64," in body
+    # لا @font-face في القالب أصلاً (حتى خطُّ العلامة): وجودُه يجعل `_inject_fonts` يتخطّى خطوط الوثيقة (W-20261106-007)
+    assert "@font-face" not in body
     assert "url(/" not in body and "url(static" not in body and "url('" not in body
 
 
