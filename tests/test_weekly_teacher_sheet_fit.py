@@ -175,12 +175,17 @@ def busiest_class(school, arts):  # noqa: F811
     return group
 
 
-def _pages(school, kind: str, paper: str, orient: str = "landscape") -> tuple[str, bytes]:
-    """(HTML، PDF) من المسار الحقيقيّ لتصدير صفحات المعلّمين/الشعب: `for_pdf` بلا `@font-face` ثمّ `render_pdf_bytes`."""
+def _html(school, kind: str, paper: str, orient: str = "landscape") -> str:
+    """HTML المسار الحقيقيّ لتصدير صفحات المعلّمين/الشعب (`for_pdf` بلا `@font-face`) — بلا توليد PDF، فيكفي للاختبارات التي تقيس الصناديقَ عبر `_render`."""
     ctx = pages_payload(school, QueryDict(f"kind={kind}&year={YEAR}&paper={paper}&orient={orient}"))
     ctx["embed"] = True
     ctx["for_pdf"] = True
-    html = render_to_string("schedule/print_pages.html", ctx)
+    return render_to_string("schedule/print_pages.html", ctx)
+
+
+def _pages(school, kind: str, paper: str, orient: str = "landscape") -> tuple[str, bytes]:
+    """(HTML، PDF) من المسار نفسه؛ يُستدعى فقط في الاختبارات التي تقرأ الـPDF نفسَه (الخطوط والأحجام المرسومة)."""
+    html = _html(school, kind, paper, orient)
     return html, render_pdf_bytes(html, paper_size=paper.upper())
 
 
@@ -203,7 +208,8 @@ def test_the_worst_sheet_stays_on_one_page_with_no_clipped_cell_or_day(
     paper,
     orient,  # noqa: F811
 ):
-    html, _ = _pages(school, kind, paper, orient)
+    # القياسُ من صناديق WeasyPrint على HTML فقط: لا PDF هنا، فلا يُولَّد (أثقلُ جزءٍ في الملف).
+    html = _html(school, kind, paper, orient)
     doc = _render(html)
 
     pages, cells, clipped, day_overflow = _fit(doc)
