@@ -17,3 +17,9 @@ class StudentAffairsConfig(AppConfig):
             build=builders.build_students_pdf,
             capability="student_affairs.manage",
         )
+        # تحرّكات الطلبة Excel: خلفيٌّ افتراضاً — لا قياسَ p95 مثبَّتاً بعد.
+        export_registry.register(
+            "student_affairs.movements_xlsx",
+            build=builders.build_movements_xlsx,
+            capability="student_affairs.transfers",
+        )

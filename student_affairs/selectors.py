@@ -238,3 +238,156 @@ def early_attendance_counts(school: Any, day: Any, scope: Any) -> dict[str, Any]
             c["pct"] = attendance_rate(c["present"], c["total"], empty=None)
         out_wings.append({"name": wing["name"], "counts": wing["counts"], "sections": sections})
     return {"summary": total, "wings": out_wings}
+
+
+# ── تحرّكات الطلبة: قيدٌ ونقلٌ وانسحابٌ وتغيير شعبة (W-20261106-016) ──
+
+#: أنواعُ الحركة وتسمياتُها — المصدرُ الواحد للشاشة والتصدير.
+MOVEMENT_KINDS = [
+    ("enrol", "قيد"),
+    ("transfer_in", "نقل وارد"),
+    ("transfer_out", "نقل صادر"),
+    ("withdrawal", "انسحاب"),
+    ("section_change", "تغيير شعبة"),
+]
+
+
+def _movement_class_text(group) -> str:
+    from core.labels import class_label
+
+    return class_label(group.grade, group.section) if group is not None else ""
+
+
+def _movement_events(rows, transfers) -> list[dict[str, Any]]:
+    """يشتقّ الحركاتِ من قيود العام وانتقالاته المكتملة — لا جدولَ حركاتٍ ثانياً."""
+    labels = dict(MOVEMENT_KINDS)
+    transferred_in = {t.student_id for t in transfers if t.direction == "in"}
+    transferred_out = {t.student_id for t in transfers if t.direction == "out"}
+    by_student: dict[Any, list] = {}
+    for row in rows:
+        by_student.setdefault(row.student_id, []).append(row)
+
+    events: list[dict[str, Any]] = []
+
+    def add(kind, day, student, to_group=None, from_group=None, detail=""):
+        events.append(
+            {
+                "kind": kind,
+                "kind_label": labels[kind],
+                "date": day,
+                "student": student,
+                "class_group_ids": {str(g.id) for g in (to_group, from_group) if g is not None},
+                "class_text": _movement_class_text(to_group),
+                "from_text": _movement_class_text(from_group),
+                "detail": detail,
+            }
+        )
+
+    for student_id, mine in by_student.items():
+        first, last = mine[0], mine[-1]
+        # قيدٌ جديد: لا قيدَ سابقٌ للطالب في المدرسة؛ والوارد يُعرض نقلاً لا قيداً.
+        if not first.had_earlier and student_id not in transferred_in:
+            add("enrol", first.enrolled_at, first.student, first.class_group)
+        for prev, nxt in zip(mine, mine[1:], strict=False):
+            if prev.class_group_id != nxt.class_group_id:
+                add(
+                    "section_change",
+                    nxt.enrolled_at,
+                    nxt.student,
+                    nxt.class_group,
+                    prev.class_group,
+                )
+        # انسحاب: لا قيدَ نشطاً في العام وآخرُ قيدٍ أُغلق بتاريخ؛ والمنقولُ صادراً يُعرض نقلاً.
+        closed = not any(r.is_active for r in mine)
+        if closed and last.left_at and student_id not in transferred_out:
+            add("withdrawal", last.left_at, last.student, from_group=last.class_group)
+
+    for t in transfers:
+        if t.direction not in ("in", "out"):
+            continue
+        mine = by_student.get(t.student_id)
+        group = mine[-1].class_group if mine else None
+        incoming = t.direction == "in"
+        add(
+            "transfer_in" if incoming else "transfer_out",
+            t.transfer_date,
+            t.student,
+            group if incoming else None,
+            None if incoming else group,
+            t.other_school_name,
+        )
+    return events
+
+
+def enrolment_movements(
+    school,
+    year: str,
+    *,
+    class_group_id: str = "",
+    date_from=None,
+    date_to=None,
+    kind: str = "",
+) -> list[dict[str, Any]]:
+    """قائمةُ تحرّكات الطلبة الزمنيّة بنطاق المدرسة والعام، الأحدثُ أوّلاً.
+
+    تُشتقّ من `StudentEnrollment` (القيدُ وتغييرُ الشعبة والانسحاب) ومن `StudentTransfer`
+    المكتمل (الوارد والصادر). الشعبةُ تُطابق شعبةَ الحركة أو الشعبةَ التي غادرها الطالب.
+    """
+    from student_affairs.models import StudentTransfer
+
+    earlier = StudentEnrollment.objects.filter(
+        student=OuterRef("student"),
+        class_group__school=school,
+        enrolled_at__lt=OuterRef("enrolled_at"),
+    )
+    rows = list(
+        StudentEnrollment.objects.filter(
+            class_group__school=school, class_group__academic_year=year
+        )
+        .annotate(had_earlier=Exists(earlier))
+        .select_related("student", "class_group")
+        .order_by("student_id", "enrolled_at", "id")
+    )
+    transfers = list(
+        StudentTransfer.objects.filter(school=school, academic_year=year, status="completed")
+        .select_related("student")
+        .order_by("transfer_date")
+    )
+    events = _movement_events(rows, transfers)
+
+    if kind:
+        events = [e for e in events if e["kind"] == kind]
+    if class_group_id:
+        events = [e for e in events if str(class_group_id) in e["class_group_ids"]]
+    if date_from:
+        events = [e for e in events if e["date"] >= date_from]
+    if date_to:
+        events = [e for e in events if e["date"] <= date_to]
+    events.sort(key=lambda e: (e["date"], e["student"].full_name), reverse=True)
+    return events
+
+
+def year_sections(school, year: str) -> list[tuple[str, str]]:
+    """شعبُ المدرسة في العام `(المعرّف، التسمية)` بترتيب المدرسة — لقائمة ترشيح التحرّكات."""
+    from core.labels import class_label
+
+    groups = ClassGroup.objects.filter(school=school, academic_year=year).in_school_order()
+    return [(str(g.id), class_label(g.grade, g.section)) for g in groups]
+
+
+def movement_filters(params: Any) -> dict[str, Any]:
+    """مرشِّحاتُ التحرّكات من `QueryDict` — للشاشة والتصدير معاً فيطابق الملفُّ ما تعرضه الشاشة."""
+    from datetime import date
+
+    def day(value: str | None):
+        try:
+            return date.fromisoformat(value or "")
+        except ValueError:
+            return None
+
+    return {
+        "class_group_id": params.get("section", ""),
+        "date_from": day(params.get("from")),
+        "date_to": day(params.get("to")),
+        "kind": params.get("kind", ""),
+    }

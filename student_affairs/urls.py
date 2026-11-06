@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import admission_views, guardian_views, views
+from . import admission_views, guardian_views, movements_views, views
 
 app_name = "student_affairs"
 
@@ -31,6 +31,16 @@ urlpatterns = [
     path("attendance/export/", views.attendance_export_excel, name="attendance_export"),
     path("attendance/pdf/", views.attendance_overview_pdf, name="attendance_pdf"),
     path("movements/", views.student_movements, name="student_movements"),
+    path(
+        "enrolment-movements/",
+        movements_views.enrolment_movements_list,
+        name="enrolment_movements",
+    ),
+    path(
+        "enrolment-movements/export/",
+        movements_views.enrolment_movements_export,
+        name="enrolment_movements_export",
+    ),
     path("behavior/", views.behavior_overview, name="behavior_overview"),
     path("behavior/pdf/", views.behavior_overview_pdf, name="behavior_pdf"),
     # ── الأنشطة والإنجازات ──
