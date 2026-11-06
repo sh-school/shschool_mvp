@@ -102,7 +102,47 @@ def test_only_push_and_merge_group_are_ever_exempted():
     # الطلب (W-20261022-018): الأرجلُ المتصفّحيّةُ وحدَها، وبشرط changes في needs الملخّص
     assert {job for (event, job) in gate.EXEMPT if event == "pull_request"} == {"axe-a11y", "e2e"}
     # الطابور لا يُعفى فيه سوى الأرجل غير الحارسة التي سبق أن اجتازها الطلب نفسُه (W-20261019-006)
-    assert {job for (event, job) in gate.EXEMPT if event == "merge_group"} == {"axe-a11y", "e2e"}
+    # + pytest/التغطية بشرط مطابقة الشجرة ونجاح tree-match (W-20261106-009)
+    assert {job for (event, job) in gate.EXEMPT if event == "merge_group"} == {
+        "axe-a11y",
+        "e2e",
+        "pytest-shards",
+        "test-coverage",
+    }
+
+
+# ── إعفاءُ مطابقة الشجرة في الطابور (W-20261106-009) ───────────────────────────────
+
+
+@pytest.mark.parametrize("job", ["pytest-shards", "test-coverage"])
+def test_tree_match_exemption_needs_the_match_job_to_succeed(job):
+    base = {**_ok("a"), job: {"result": "skipped"}}
+    ok = {**base, "tree-match": {"result": "success"}}
+    assert gate.judge(ok, "merge_group")[1] == []
+    for result in ("failure", "cancelled", "skipped"):
+        bad = {**base, "tree-match": {"result": result}}
+        assert gate.judge(bad, "merge_group")[1], f"{job}: tree-match={result} لا يُعفي"
+    assert gate.judge(base, "merge_group")[1], f"{job}: بلا وظيفة التطابق لا إعفاء"
+
+
+def test_tree_match_exemption_is_merge_group_only_and_skipped_only():
+    needs = {**_ok("a", "tree-match"), "pytest-shards": {"result": "skipped"}}
+    assert gate.judge(needs, "pull_request")[1], "لا إعفاء على الطلب"
+    for result in ("failure", "cancelled"):
+        bad = {**_ok("a", "tree-match"), "pytest-shards": {"result": result}}
+        assert gate.judge(bad, "merge_group")[1]
+    assert gate.run(json.dumps(needs), "merge_group", "t", None, exempt={}) == 1
+
+
+def test_tree_match_job_is_in_summary_needs_and_gates_the_shards():
+    jobs = _load("quality-gate.yml")
+    assert "tree-match" in jobs["gate-summary"]["needs"]
+    for job in ("pytest-shards", "test-coverage"):
+        assert "tree-match" in jobs[job]["needs"]
+        cond = str(jobs[job]["if"])
+        assert "needs.tree-match.result == 'success'" in cond
+        assert "needs.tree-match.outputs.match == 'true'" in cond
+        assert "github.event_name == 'merge_group'" in cond
 
 
 # ── الفشلُ المغلق ───────────────────────────────────────────────────────────────
@@ -214,10 +254,14 @@ def test_scheduled_failures_open_an_issue_not_a_red_check():
 def test_quality_gate_keeps_pull_request_and_merge_group_full():
     assert {"push", "pull_request", "merge_group"} <= set(_triggers("quality-gate.yml"))
     jobs = _load("quality-gate.yml")
-    for job in ("mypy", "pytest-shards"):
-        assert (
-            str(jobs[job]["if"]).strip() == "github.event_name != 'push'"
-        ), f"{job}: لا يُتخطّى إلا على push"
+    assert (
+        str(jobs["mypy"]["if"]).strip() == "github.event_name != 'push'"
+    ), "mypy: لا يُتخطّى إلا على push"
+    # pytest-shards: يُتخطّى على push، وعلى الطابور وحدَه إن طابقت الشجرةُ (W-20261106-009)؛ وعلى الطلب كاملٌ دائماً
+    assert str(jobs["pytest-shards"]["if"]).strip() == (
+        "${{ !cancelled() && github.event_name != 'push' && !(github.event_name == 'merge_group' "
+        "&& needs.tree-match.result == 'success' && needs.tree-match.outputs.match == 'true') }}"
+    )
     for job in ("axe-a11y", "e2e"):  # W-20261019-006: تُخطّى على الطابور أيضاً (تُجرى على الطلب)
         assert (
             str(jobs[job]["if"]).strip()
@@ -226,7 +270,10 @@ def test_quality_gate_keeps_pull_request_and_merge_group_full():
         assert jobs[job]["needs"] == ["changes"], f"{job}: يعتمد على تصنيف changes"
     assert "changes" in jobs["gate-summary"]["needs"], "فشلُ التصنيف يُفشل البوابة"
     # التغطيةُ تُبلِّغ دائماً على الطلب والطابور (always) وتُتخطّى على push وحدَه
-    assert str(jobs["test-coverage"]["if"]).strip() == "always() && github.event_name != 'push'"
+    assert str(jobs["test-coverage"]["if"]).strip() == (
+        "${{ always() && github.event_name != 'push' && !(github.event_name == 'merge_group' "
+        "&& needs.tree-match.result == 'success' && needs.tree-match.outputs.match == 'true') }}"
+    )
 
 
 def test_push_to_main_keeps_the_cheap_smoke_jobs_unexempted():

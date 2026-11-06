@@ -28,13 +28,53 @@ EXEMPT: dict[tuple[str, str], str] = {
     ("push", "mypy"): "يُفحص على الطلب وطابور الدمج («main + الطلب») قبل الدمج",
     ("push", "axe-a11y"): "يُفحص على الطلب وطابور الدمج قبل الدمج",
     ("push", "e2e"): "يُفحص على الطلب وطابور الدمج قبل الدمج",
-    ("merge_group", "axe-a11y"): "يُفحص على الطلب نفسِه قبل دخول الطابور فلا يُعاد فيه (W-20261019-006)",
+    (
+        "merge_group",
+        "axe-a11y",
+    ): "يُفحص على الطلب نفسِه قبل دخول الطابور فلا يُعاد فيه (W-20261019-006)",
     ("merge_group", "e2e"): "يُفحص على الطلب نفسِه قبل دخول الطابور فلا يُعاد فيه (W-20261019-006)",
-    ("pull_request", "axe-a11y"): "طلبٌ لم يمسّ واجهةً فلا تُشغَّل المتصفّحيّة؛ وفشلُ مهمّة changes فشلٌ للبوابة (W-20261022-018)",
-    ("pull_request", "e2e"): "طلبٌ لم يمسّ واجهةً فلا تُشغَّل المتصفّحيّة؛ وفشلُ مهمّة changes فشلٌ للبوابة (W-20261022-018)",
-    ("push", "pytest-shards"): "المجموعةُ كاملةً تُجرى على «main + الطلب» في طابور الدمج قبل الدمج (W-429، D-429م)",
-    ("push", "test-coverage"): "يتبع pytest-shards ويُحكم بعتبة التغطية في الطابور نفسِه قبل الدمج (W-429، D-429م)",
+    (
+        "pull_request",
+        "axe-a11y",
+    ): "طلبٌ لم يمسّ واجهةً فلا تُشغَّل المتصفّحيّة؛ وفشلُ مهمّة changes فشلٌ للبوابة (W-20261022-018)",
+    (
+        "pull_request",
+        "e2e",
+    ): "طلبٌ لم يمسّ واجهةً فلا تُشغَّل المتصفّحيّة؛ وفشلُ مهمّة changes فشلٌ للبوابة (W-20261022-018)",
+    (
+        "push",
+        "pytest-shards",
+    ): "المجموعةُ كاملةً تُجرى على «main + الطلب» في طابور الدمج قبل الدمج (W-429، D-429م)",
+    (
+        "push",
+        "test-coverage",
+    ): "يتبع pytest-shards ويُحكم بعتبة التغطية في الطابور نفسِه قبل الدمج (W-429، D-429م)",
+    (
+        "merge_group",
+        "pytest-shards",
+    ): "شجرةُ الطابور مطابقةٌ لشجرة الطلب التي فُحصت كاملةً (W-20261106-009)",
+    ("merge_group", "test-coverage"): "يتبع pytest-shards حين تطابقت الشجرتان (W-20261106-009)",
 }
+
+# إعفاءٌ مشروط: لا يسري إلا إذا نجحت المهمّةُ المذكورة في needs (وظيفةُ مطابقة الشجرة). غيابُها أو فشلُها
+# أو skipped فيها ⇒ يبقى skipped فشلاً، فالإعفاءُ مغلقٌ عند الشك.
+EXEMPT_REQUIRES: dict[tuple[str, str], str] = {
+    ("merge_group", "pytest-shards"): "tree-match",
+    ("merge_group", "test-coverage"): "tree-match",
+}
+
+
+def _exempt_applies(
+    needs: dict[str, dict], event: str, job: str, exempt: dict[tuple[str, str], str]
+) -> bool:
+    """هل يسري إعفاءُ (الحدث، المهمّة)؟ والمشروطُ منه يلزمه نجاحُ مهمّته الشرط."""
+    if (event, job) not in exempt:
+        return False
+    required = EXEMPT_REQUIRES.get((event, job))
+    if required is None:
+        return True
+    info = needs.get(required)
+    return isinstance(info, dict) and info.get("result") == "success"
 
 
 def judge(
@@ -51,7 +91,7 @@ def judge(
             failures.append(f"{job}: نتيجةٌ غيرُ معروفة ({result!r})")
         elif result == "success":
             rows.append((job, result, "PASS"))
-        elif result == "skipped" and (event, job) in exempt:
+        elif result == "skipped" and _exempt_applies(needs, event, job, exempt):
             rows.append((job, result, "EXEMPT"))
         else:
             rows.append((job, result, "FAIL"))

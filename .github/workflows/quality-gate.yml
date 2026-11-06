@@ -58,6 +58,53 @@ jobs:
           echo "ui=$ui" >> "$GITHUB_OUTPUT"
           echo "مسّ الطلبُ واجهةً: $ui"
 
+      # بصمةُ شجرة «main + الطلب» التي فُحصت هنا (W-20261106-009): يقرؤها الطابورُ من آخر تشغيلٍ ناجح
+      # فيتخطّى المجموعةَ كاملةً إن طابقت شجرتُه. على pull_request وحدَه؛ ولا تُبدّل سلوكَ الفحص.
+      - name: بصمة الشجرة المفحوصة
+        if: github.event_name == 'pull_request'
+        run: |
+          mkdir -p "$RUNNER_TEMP/tree-fingerprint"
+          python3 scripts/ci_tree_reuse.py fingerprint > "$RUNNER_TEMP/tree-fingerprint/tree.txt"
+      - name: رفع بصمة الشجرة
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: tree-fingerprint
+          path: ${{ runner.temp }}/tree-fingerprint/tree.txt
+          retention-days: 14
+
+  # ══════════════════════════════════════════════════════
+  #  0.1 مطابقةُ الشجرة في الطابور (W-20261106-009)
+  # ══════════════════════════════════════════════════════
+  #  تعمل خطواتُها على merge_group وحدَه (على غيره match=false بلا عمل). إن طابقت بصمةُ HEAD^{tree} ما فُحص على
+  #  رأس الطلب (تشغيلُ pull_request ناجح) تُتخطّى pytest-shards وtest-coverage. أيُّ خطأٍ أو artifact غائبٌ ⇒
+  #  match=false ⇒ المجموعةُ كاملة. والإعفاءُ في scripts/ci_needs_gate.py مشروطٌ بنجاح هذه الوظيفة.
+  tree-match:
+    name: مطابقة الشجرة — فُحصت على الطلب؟
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read  # لقراءة تشغيلات الطلب وتنزيل الـartifact
+    outputs:
+      match: ${{ steps.check.outputs.match }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: github.event_name == 'merge_group'
+      - name: قارن الشجرة بما فُحص على الطلب
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          HEAD_REF: ${{ github.event.merge_group.head_ref }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = "merge_group" ]; then
+            python3 scripts/ci_tree_reuse.py check
+          else
+            echo "match=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # ══════════════════════════════════════════════════════
   #  1. pytest + عتبةُ التغطية (الرقمُ في pyproject.toml وحدَه)
   # ══════════════════════════════════════════════════════
@@ -77,9 +124,13 @@ jobs:
   # 2026-10-13)؛ فتكرارُها على commit الدمج نفسِه ربعُ ساعةٍ لا تُثبت جديداً. والدخانُ على push هو الوظائفُ
   # الرخيصة أدناه (ruff، migration-linter، التعقيد، الأسرار، الحرّاسُ النصّيّة). وpull_request وmerge_group
   # كاملتان لا تتغيّران، والإعفاءُ مسجَّلٌ في scripts/ci_needs_gate.py بحدثٍ ومهمّةٍ وسبب.
+  #
+  # **تُتخطّى على الطابور إن طابقت شجرتُه ما فُحص على الطلب (W-20261106-009):** وظيفة tree-match؛ ونجاحُها شرطٌ
+  # لإعفاء skipped في scripts/ci_needs_gate.py. `!cancelled()` لا `always()`، ولا تتخطّى إلا بنجاحٍ صريحٍ وmatch=true.
   pytest-shards:
     name: pytest shard ${{ matrix.shard }}/${{ strategy.job-total }}
-    if: github.event_name != 'push'
+    needs: [tree-match]
+    if: ${{ !cancelled() && github.event_name != 'push' && !(github.event_name == 'merge_group' && needs.tree-match.result == 'success' && needs.tree-match.outputs.match == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -214,9 +265,10 @@ jobs:
 
   test-coverage:
     name: pytest — تغطية
-    needs: [pytest-shards]
-    # دائماً: ليُبلَّغ بنتيجةٍ حتى لو فشل shard (فشلُه يُسقط هذه الوظيفةَ أوّلَ خطوة)؛ إلّا على push (انظر pytest-shards).
-    if: always() && github.event_name != 'push'
+    needs: [pytest-shards, tree-match]
+    # دائماً: ليُبلَّغ بنتيجةٍ حتى لو فشل shard (فشلُه يُسقط هذه الوظيفةَ أوّلَ خطوة)؛ إلّا على push، وعلى الطابور
+    # إن طابقت الشجرةُ ما فُحص على الطلب (انظر pytest-shards).
+    if: ${{ always() && github.event_name != 'push' && !(github.event_name == 'merge_group' && needs.tree-match.result == 'success' && needs.tree-match.outputs.match == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10  # test-coverage: p95 0.8 دقيقة (قياس 28 تشغيلاً) ×2 بحدٍّ أدنى 10
     steps:
@@ -958,7 +1010,7 @@ jobs:
     permissions:
       contents: read
       actions: read  # لقراءة خطوات وظائف التشغيل (تمييز فشل البنية)
-    needs: [changes, pytest-shards, test-coverage, fast-guards, ruff, mypy, migration-linter, complexity, secrets-scan, deploy-window, axe-a11y, e2e]
+    needs: [changes, tree-match, pytest-shards, test-coverage, fast-guards, ruff, mypy, migration-linter, complexity, secrets-scan, deploy-window, axe-a11y, e2e]
     if: always()
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

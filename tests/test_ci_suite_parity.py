@@ -132,9 +132,11 @@ def test_the_quality_gate_runs_the_whole_suite_before_anything_lands_on_main():
     # المجموعةُ مقسومةٌ على shards (W-20261002-034): مصفوفةُ pytest-shards هي من تشغّلها، لا test-coverage (مُجمِّعٌ).
     shards = doc["jobs"]["pytest-shards"]
     assert runs_the_whole_suite(_joined(shards))
-    assert (
-        str(shards.get("if", "")).strip() == "github.event_name != 'push'"
-    ), "الشرطُ الوحيدُ المسموح: استثناءُ push وحدَه، فيبقى الطلبُ وطابورُ الدمج كاملَين"
+    cond = str(shards.get("if", "")).strip()
+    # استثناءُ push، وتخطّي الطابور وحدَه إن طابقت الشجرةُ ما فُحص على الطلب (W-20261106-009)؛ والطلبُ كاملٌ دائماً
+    assert "github.event_name != 'push'" in cond
+    assert "!(github.event_name == 'merge_group' && needs.tree-match.result == 'success'" in cond
+    assert "pull_request" not in cond, "الطلبُ يبقى كاملاً"
 
 
 def test_the_parallel_runner_is_installed_where_it_is_used():

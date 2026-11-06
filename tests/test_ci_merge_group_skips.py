@@ -47,9 +47,11 @@ def test_light_jobs_skip_on_merge_group_and_push_but_run_on_pull_request():
         assert not _runs(cond, "push"), f"{job} لا تُخطّى على push"
 
 
-def test_merge_group_exemption_is_exactly_the_lightened_pair():
+def test_merge_group_exemption_is_the_lightened_pair_plus_tree_match_jobs():
     pairs = {pair for pair in gate.EXEMPT if pair[0] == "merge_group"}
-    assert pairs == {("merge_group", job) for job in LIGHTENED}
+    tree_jobs = ("pytest-shards", "test-coverage")  # W-20261106-009: بشرط نجاح tree-match
+    assert pairs == {("merge_group", job) for job in (*LIGHTENED, *tree_jobs)}
+    assert set(gate.EXEMPT_REQUIRES) == {("merge_group", job) for job in tree_jobs}
 
 
 def test_pull_request_exemption_is_exactly_the_lightened_pair():
