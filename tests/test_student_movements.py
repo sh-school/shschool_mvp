@@ -8,7 +8,10 @@
 """
 
 import datetime as dt
+import re
+from html import unescape
 from io import BytesIO
+from urllib.parse import parse_qs
 
 import pytest
 from django.urls import reverse
@@ -343,6 +346,66 @@ def test_enrolment_screen_refuses_others(client_as, client, teacher_user, studen
     assert client_as(student_user).get(reverse(ENROL_URL)).status_code == 403
     client.logout()
     assert client.get(reverse(ENROL_URL)).status_code == 302
+
+
+def test_link_to_enrolment_screen_follows_the_capability(client_as, principal_user, teacher_user):
+    """الرابطُ في القائمة نفسها بنمط `can_open`: يظهر لمن يملك `student_affairs.transfers`، ويغيب عمّن لا يملكه."""
+    link = f'href="{reverse(ENROL_URL)}"'
+    assert link in client_as(principal_user).get(reverse("dashboard")).content.decode()
+    assert link not in client_as(teacher_user).get(reverse("dashboard")).content.decode()
+
+
+@pytest.fixture
+def many_enrolments(school, year, groups):
+    """ثلاثةٌ وخمسون قيداً جديداً في الشعبة أ — يتجاوز صفحةً واحدةً من 50."""
+    a, _ = groups
+    for i in range(53):
+        _enrol(UserFactory(full_name=f"طالب ترقيم {i:03d}"), a, D1)
+    return a
+
+
+def test_list_is_split_into_pages_of_fifty(
+    client_as, student_affairs_coordinator_user, many_enrolments
+):
+    a = many_enrolments
+    client = client_as(student_affairs_coordinator_user)
+    query = {"section": a.id, "kind": "enrol"}
+
+    first = client.get(reverse(ENROL_URL), query)
+    assert first.status_code == 200
+    assert len(first.context["page_obj"]) == 50
+    assert first.content.decode().count('class="sa-link"') == 50
+    assert "صفحة 1 من 2" in first.content.decode()
+
+    second = client.get(reverse(ENROL_URL), {**query, "page": 2})
+    body = second.content.decode()
+    assert len(second.context["page_obj"]) == 3
+    assert body.count('class="sa-link"') == 3
+
+    # رابطُ «السابقة» في الصفحة الثانية يحمل الترشيحَ كاملاً ويُبدّل `page` وحده.
+    prev = re.search(r'href="\?([^"]+)"[^>]*?aria-label="الصفحة السابقة"', body)
+    assert prev, "رابطُ الصفحة السابقة غائب"
+    assert parse_qs(unescape(prev.group(1))) == {
+        "section": [str(a.id)],
+        "kind": ["enrol"],
+        "page": ["1"],
+    }
+
+
+def test_export_covers_every_row_not_just_the_page(
+    school, student_affairs_coordinator_user, many_enrolments
+):
+    """التصدير لا يتقيّد بالصفحة: كلُّ ما يطابق المرشِّحات (53) يخرج في الملفّ."""
+    from django.http import QueryDict
+
+    from student_affairs.export_builders import build_movements_xlsx
+
+    result = build_movements_xlsx(
+        school,
+        student_affairs_coordinator_user,
+        QueryDict(f"section={many_enrolments.id}&kind=enrol"),
+    )
+    assert result.rows == 53
 
 
 def test_enrolment_export_is_a_registered_background_kind(school):

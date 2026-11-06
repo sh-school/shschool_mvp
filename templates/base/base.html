@@ -766,6 +766,9 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"student_affairs:student_movements" %}
   <a href="{% url 'student_affairs:student_movements' %}">{% icon "sent_home" %} تحركات الطلبة</a>
   {% endif %}
+  {% if request.user|can_open:"student_affairs:enrolment_movements" %}
+  <a href="{% url 'student_affairs:enrolment_movements' %}">{% icon "student_info" %} قيد الطلبة ونقلهم</a>
+  {% endif %}
   {% comment %} «تسجيل الحضور» القديمة للمعلّم وحدَه («حصصي اليوم» في قائمته) — القيادةُ والمشرفون يرصدون من كشف الأجنحة (قرارُ 2026-09-13). {% endcomment %}
   {% comment %} «متابعة الغياب» ثلاثةُ بنودٍ مباشرة بلا مستوى ثالث (W-20261020-005، قرارُ المالك). {% endcomment %}
   {% if request.user|can_open:"wings:ministry_report" %}
@@ -981,6 +984,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% endif %}
   {% if request.user|can_open:"student_affairs:student_movements" %}
   <a href="{% url 'student_affairs:student_movements' %}">{% icon "sent_home" %} تحركات الطلبة</a>
+  {% endif %}
+  {% if request.user|can_open:"student_affairs:enrolment_movements" %}
+  <a href="{% url 'student_affairs:enrolment_movements' %}">{% icon "student_info" %} قيد الطلبة ونقلهم</a>
   {% endif %}
   {% if request.user|can_open:"student_affairs:tardiness_list" %}
   <a href="{% url 'student_affairs:tardiness_list' %}">{% icon "tardiness" %} التأخر الصباحي</a>
