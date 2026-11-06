@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import admission_views, guardian_views, movements_views, views
+from . import admission_views, chronic_views, guardian_views, movements_views, views
 
 app_name = "student_affairs"
 
@@ -13,6 +13,11 @@ urlpatterns = [
     path("list/pdf/", views.student_list_pdf, name="student_list_pdf"),
     path("add/", views.student_add, name="student_add"),
     path("profile/<uuid:student_id>/", views.student_profile, name="student_profile"),
+    path(
+        "profile/<uuid:student_id>/chronic/",
+        chronic_views.reveal_chronic_name,
+        name="reveal_chronic",
+    ),
     path("profile/<uuid:student_id>/pdf/", views.student_profile_pdf, name="student_profile_pdf"),
     path("edit/<uuid:student_id>/", views.student_edit, name="student_edit"),
     path("deactivate/<uuid:student_id>/", views.student_deactivate, name="student_deactivate"),

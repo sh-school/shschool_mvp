@@ -1,7 +1,7 @@
 {% extends "base/base.html" %}
 {% load icons %}
 {% load navigation %}
-{% load privacy ui labels %}
+{% load privacy ui labels schedule_filters %}
 {% comment %}
   المشرفُ الإداريُّ يفتح هذا الملفَّ لطالبٍ من جناحه (`limited`، قرارُ 2026-09-15): لا درجاتٍ
   ولا أنشطةَ ولا انتقالات، ومن العيادة تاريخُ الزيارة و«أُعيد إلى المنزل» وحدَهما. والشاشةُ
@@ -265,7 +265,14 @@
 
   {# ── العيادة — وللمقيَّد تاريخُ الزيارة و«أُعيد إلى المنزل» وحدَهما ── #}
   <div id="tab-clinic" class="tab-content">
-    {% section_card "العيادة" icon="clinic" empty="لا زيارات عيادة" %}{% if health_record.blood_type_encrypted or clinic_visits %}
+    {% section_card "العيادة" icon="clinic" empty="لا زيارات عيادة" %}{% if health_record.blood_type_encrypted or health_record.needs_care or clinic_visits %}
+      {# «يحتاج مراعاةً» علامةٌ بلا اسم حالة — ما يراه المعلّمُ من الملفّ الصحّيّ #}
+      {% if health_record.needs_care %}<p><span class="status-badge status-warning">يحتاج مراعاةً</span></p>{% endif %}
+      {% if request.user|has_capability:"clinic.chronic_name" and not limited %}
+      <div id="chronic-reveal">
+        <button type="button" class="btn-secondary btn-sm" hx-post="{% url 'student_affairs:reveal_chronic' student.id %}" hx-target="#chronic-reveal" hx-swap="innerHTML">كشف اسم الحالة المزمنة (يُسجَّل)</button>
+      </div>
+      {% endif %}
       {% if health_record.blood_type_encrypted %}
       <dl class="detail-dl">
         <dt>فصيلة الدم</dt><dd><strong>{{ health_record.blood_type_encrypted }}</strong></dd>

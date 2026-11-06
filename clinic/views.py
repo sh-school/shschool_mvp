@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
+from clinic.health_access import OPEN_REASONS, clean_reason, log_full_open
 from clinic.models import ClinicVisit, HealthRecord
 from clinic.needs_care_services import import_from_request
 from clinic.selectors import class_options, recent_visitors, student_choice
@@ -75,58 +76,68 @@ def clinic_counts(request):
     return render(request, "clinic/dashboard_counts.html", context)
 
 
-@login_required
-@capability_required("clinic.access")
-@require_http_methods(["GET", "POST"])
-def student_health_record(request, student_id):
-    """عرض وتعديل السجل الصحي للطالب — مع فك تشفير البيانات الحساسة"""
-    school = request.user.get_school()
-    student = get_object_or_404(CustomUser, id=student_id, memberships__school=school)
-
-    can_write = has_capability(request.user, "clinic.write")
+def _load_health_record(student, can_write):
+    """سجلُّ الطالب الصحّيّ؛ والقارئُ لا يُنشئ سجلاًّ فارغاً بفتح الصفحة (حكم 0104)."""
     try:
-        health_record = student.health_record
+        return student.health_record
     except HealthRecord.DoesNotExist:
-        # القارئُ لا يُنشئ سجلاًّ فارغاً بفتح الصفحة (حكم 0104): يُعرض فارغٌ غيرُ محفوظ.
-        health_record = (
+        return (
             HealthRecord.objects.create(student=student)
             if can_write
             else HealthRecord(student=student)
         )
 
-    # ── الحفظ ───────────────────────────────────────────────────────
-    # لا تشفيرَ هنا: الحقولُ الطبّيّةُ `EncryptedTextField`، والنموذجُ يتولّاه.
-    # وكان المسارُ القديم يشفّر يدوياً بـ`save_encrypted()`، والقالبُ يطبع
-    # الحقلَ الخام — فتُعرض الطلاسمُ في المربّع ويُعاد تشفيرُها مع كلّ حفظ.
-    if request.method == "POST":
-        if not can_write:
-            raise PermissionDenied
-        health_record.blood_type_encrypted = request.POST.get("blood_type", "")
-        health_record.emergency_contact_name = request.POST.get("emergency_contact_name", "")
-        health_record.emergency_contact_phone = request.POST.get("emergency_contact_phone", "")
-        health_record.allergies = request.POST.get("allergies", "")
-        health_record.chronic_diseases = request.POST.get("chronic_diseases", "")
-        health_record.medications = request.POST.get("medications", "")
-        # العلامةُ صريحةٌ من الممرّض وحدَه: خانةٌ غيرُ مؤشَّرةٍ تعني «لا» (W-045، D-336م).
-        health_record.needs_care = request.POST.get("needs_care") == "1"
-        health_record.save()
-        # ملاحظة: تدقيق التعديل يتم تلقائياً عبر post_save signal (core/signals.py)
-        from django.contrib import messages
 
-        messages.success(request, "✅ تم حفظ السجل الصحي بنجاح.")
-        return redirect("clinic:health_record", student_id=student_id)
+def _save_health_record(health_record, post):
+    # لا تشفيرَ هنا: الحقولُ الطبّيّةُ `EncryptedTextField`، والنموذجُ يتولّاه (تدقيقُ التعديل
+    # بـpost_save signal). والعلامةُ صريحةٌ من الممرّض وحدَه: خانةٌ غيرُ مؤشَّرةٍ تعني «لا» (W-045).
+    health_record.blood_type_encrypted = post.get("blood_type", "")
+    health_record.emergency_contact_name = post.get("emergency_contact_name", "")
+    health_record.emergency_contact_phone = post.get("emergency_contact_phone", "")
+    health_record.allergies = post.get("allergies", "")
+    health_record.chronic_diseases = post.get("chronic_diseases", "")
+    health_record.medications = post.get("medications", "")
+    health_record.needs_care = post.get("needs_care") == "1"
+    health_record.save()
 
-    visits = ClinicVisit.objects.filter(student=student).order_by("-visit_date")
 
-    # القراءةُ تفكّ من تلقائها، فلا مفاتيحَ موازيةً في السياق. وكان القالبُ
-    # يتجاهل المفكوكةَ ويطبع الخام — والمفتاحان المتوازيان هما ما سمح بذلك.
-    context = {
+def _record_context(student, health_record, *, full, can_write):
+    return {
         "student": student,
         "health_record": health_record,
-        "visits": visits,
+        "visits": ClinicVisit.objects.filter(student=student).order_by("-visit_date"),
         "can_write": can_write,
+        "full": full,
+        "open_reasons": OPEN_REASONS,
     }
 
+
+@login_required
+@capability_required("clinic.access")
+@require_http_methods(["GET", "POST"])
+def student_health_record(request, student_id):
+    """السجلُّ الصحّيّ: كاملٌ للممرّض، ومختصرٌ لغيره يُفتح كاملُه بسببٍ مغلقٍ مسجَّل (W-20261020-033)."""
+    student = get_object_or_404(
+        CustomUser, id=student_id, memberships__school=request.user.get_school()
+    )
+    can_write = has_capability(request.user, "clinic.write")
+    full = has_capability(request.user, "clinic.health_full")
+    health_record = _load_health_record(student, can_write)
+    if request.method == "POST":
+        if request.POST.get("open_full") == "1":
+            return _open_full(request, student, health_record)
+        if not (can_write and full):
+            raise PermissionDenied
+        _save_health_record(health_record, request.POST)
+        messages.success(request, "✅ تم حفظ السجل الصحي بنجاح.")
+        return redirect("clinic:health_record", student_id=student_id)
+    context = _record_context(student, health_record, full=full, can_write=can_write and full)
+    if not full:
+        # المختصرُ لا يفكّ تشفيراً ولا يعرض تشخيصاً: سطرُ تدقيقٍ للشاشة وحدَها.
+        _audit_health_screen(
+            request, "السجل الصحي (مختصر)", model_name="HealthRecord", object_id=health_record.pk
+        )
+        return render(request, "clinic/health_record.html", context)
     # PDPPL م.11 وم.13: تدقيق الوصول للسجل الصحي الحساس (يُفكّ تشفير الحساسية/الأمراض/الأدوية)
     AuditLog.log(
         user=request.user,
@@ -136,6 +147,28 @@ def student_health_record(request, student_id):
         object_repr=f"عرض السجل الصحي — {masked_repr(student)}",
         request=request,
     )
+    return render(request, "clinic/health_record.html", context)
+
+
+def _open_full(request, student, health_record):
+    """فتحُ الكامل لغير الممرّض: سببٌ من القائمة المغلقة إلزاميّ، والرفضُ يُسجَّل ولا يكشف شيئاً."""
+    reason = clean_reason(request.POST.get("reason"))
+    if reason is None:
+        AuditLog.log(
+            user=request.user,
+            action="view",
+            model_name="HealthRecord",
+            object_id=health_record.pk,
+            object_repr=f"رُفض فتح السجل الصحي الكامل بلا سبب — {masked_repr(student)}",
+            changes={"screen": "السجل الصحي الكامل", "denied": "no_reason"},
+            request=request,
+        )
+        messages.error(request, "اختر سبباً من القائمة لفتح السجل الصحي الكامل.")
+        context = _record_context(student, health_record, full=False, can_write=False)
+        return render(request, "clinic/health_record.html", context, status=400)
+    log_full_open(request, health_record, student, reason, request.POST.get("note", ""))
+    # الكاملُ المفتوحُ بسببٍ للقراءة؛ التعديلُ للممرّض.
+    context = _record_context(student, health_record, full=True, can_write=False)
     return render(request, "clinic/health_record.html", context)
 
 

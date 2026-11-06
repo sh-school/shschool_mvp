@@ -23,6 +23,21 @@
 
     {# ── البيانات الصحية ── #}
     <div>
+      {% if not full %}
+      {% section_card "البيانات الصحية (مختصر)" icon="clinic" %}
+        <p>{% if health_record.needs_care %}<span class="status-badge status-warning">يحتاج مراعاةً</span>{% else %}لا علامةَ مراعاةٍ على هذا الطالب.{% endif %}</p>
+        {% callout "info" %}التشخيصُ والأدويةُ والحساسيّةُ وجهةُ الطوارئ للممرّض. لفتح الكامل اذكر سبباً يُسجَّل باسمك في سجلّ المراجعة.{% endcallout %}
+        <form method="post" action="">
+          {% csrf_token %}
+          <input type="hidden" name="open_full" value="1">
+          <div class="form-stack">
+            {% field "reason" "سببُ فتح السجل الكامل" type="select" choices=open_reasons blank="اختر السبب" required=True %}
+            {% field "note" "ملاحظةٌ (اختياريّة، لا تُرسَل في أيّ إشعار)" type="text" %}
+          </div>
+          <div class="form-actions"><button type="submit" class="btn-danger">فتح السجل الكامل</button></div>
+        </form>
+      {% endsection_card %}
+      {% else %}
       {% section_card "البيانات الصحية" icon="clinic" %}
         <form method="post" action="">
           {% csrf_token %}
@@ -51,6 +66,7 @@
         <p class="ui-field-hint">آخر تحديث: {{ health_record.updated_at|date:"d/m/Y H:i" }}</p>
         {% endif %}
       {% endsection_card %}
+      {% endif %}
     </div>
 
     {# ── سجل الزيارات ── #}
@@ -84,10 +100,10 @@
               {% endif %}
             </div>
             <p class="clinic-visit__line"><strong>السبب:</strong> {{ visit.reason }}</p>
-            {% if visit.symptoms %}
+            {% if full and visit.symptoms %}
             <p class="clinic-visit__line is-muted"><strong>الأعراض:</strong> {{ visit.symptoms }}</p>
             {% endif %}
-            {% if visit.treatment %}
+            {% if full and visit.treatment %}
             <p class="clinic-visit__line is-muted"><strong>الإجراء:</strong> {{ visit.treatment }}</p>
             {% endif %}
             <p class="clinic-visit__nurse">الممرض: {{ visit.nurse.full_name|default:"—" }}</p>

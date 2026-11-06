@@ -205,3 +205,16 @@ def student_choice(school, student_id) -> StudentChoice | None:
     except (ValueError, ValidationError):
         return None
     return _to_choices(users)[0] if users else None
+
+
+def chronic_record(school, student_id):
+    """(الطالبُ، سجلُّه الصحّيّ أو None) لطالبٍ نشطٍ في المدرسة — وإلا `None` للطالب (W-20261020-033)."""
+    from clinic.models import HealthRecord
+    from core.models import CustomUser
+
+    student = CustomUser.objects.filter(
+        id=student_id, memberships__school=school, memberships__is_active=True
+    ).first()
+    if student is None:
+        return None, None
+    return student, HealthRecord.objects.filter(student=student).first()
