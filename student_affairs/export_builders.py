@@ -13,6 +13,7 @@ from django.template.loader import render_to_string
 
 from core.academic_calendar import academic_year_for_school
 from core.export_utils import (
+    apply_print_footer,
     generate_export_filename,
     get_export_context_for,
     get_pdf_footer_html,
@@ -128,6 +129,8 @@ def build_movements_xlsx(school: Any, user: Any, params: Any) -> ExportResult:
         ws.column_dimensions[chr(64 + col_idx)].width = min(longest + 4, 40)
 
     add_excel_footer(ws, ctx, data_start + len(events), len(headers))
+    # رؤية الوزارة في ذيل الطباعة قبل الحفظ (قاعدة كل مصنّف مصدَّر)
+    apply_print_footer(wb, school)
     buffer = BytesIO()
     wb.save(buffer)
     return ExportResult(
