@@ -13,6 +13,7 @@
   var direction = form.querySelector('[name=direction]');
   var fromGrade = form.querySelector('[name=from_grade]');
   var target = form.querySelector('#f-to_class_group_id');
+  var otherSchool = form.querySelector('[name=other_school_name]');
   var internalOnly = form.querySelectorAll('[data-internal-only]');
   var externalOnly = form.querySelectorAll('[data-external-only]');
 
@@ -28,6 +29,10 @@
     var internal = direction && direction.value === 'internal';
     internalOnly.forEach(function (node) { node.hidden = !internal; });
     externalOnly.forEach(function (node) { node.hidden = internal; });
+    // الحقلُ المخفيّ المُعلَّم required يمنع المتصفّحَ من الإرسال دون أن يُظهر رسالةً عليه (W-20261106-020):
+    // فيُرفع عنه required حين يُخفى، ويُشترط اختيارُ الشعبة حين تظهر في الداخليّ وحدَه.
+    if (otherSchool) otherSchool.required = !internal;
+    if (target) target.required = internal;
     if (!target) return;
     Array.prototype.forEach.call(target.options, function (item) {
       if (!item.value) return;
