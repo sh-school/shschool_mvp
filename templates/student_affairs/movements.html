@@ -1,0 +1,64 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load navigation %}
+{% load ui %}
+
+{% block title %}تحرّكات الطلبة — شؤون الطلاب{% endblock %}
+
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="قيد الطلبة ونقلهم" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash sa-page">
+
+  {% page_header "قيد الطلبة ونقلهم وانسحابهم" subtitle=year icon="student_info" %}
+    {% export_button "xlsx" "student_affairs:enrolment_movements_export" %}?section={{ section_filter }}&kind={{ kind }}&from={{ date_from|urlencode }}&to={{ date_to|urlencode }}{% endexport_button %}
+  {% endpage_header %}
+
+  {% url 'student_affairs:enrolment_movements' as list_url %}
+  {% filter_bar "ترشيحُ تحرّكات الطلبة" %}
+    {% field "kind" "الحركة" type="select" choices=kinds value=kind blank="— الكل —" %}
+    {% field "section" "الشعبة" type="select" choices=sections value=section_filter blank="— الكل —" %}
+    {% field "from" "من تاريخ" type="date" value=date_from %}
+    {% field "to" "إلى تاريخ" type="date" value=date_to %}
+    <div class="filter-actions">
+      <button type="submit" class="btn-primary btn-sm">{% icon "search" %} عرض</button>
+      <a href="{{ list_url }}" class="btn-secondary btn-sm">{% icon "refresh" %} إعادة ضبط</a>
+    </div>
+  {% endfilter_bar %}
+
+  {% section_card "سجلّ التحرّكات" icon="student_info" empty="لا تحرّكات بهذه المرشِّحات" flush=True %}{% if events %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="num">التاريخ</th>
+            <th>الطالب</th>
+            <th>الحركة</th>
+            <th>الشعبة</th>
+            <th>من شعبة</th>
+            <th>تفاصيل</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in events %}
+          <tr>
+            <td class="num">{{ e.date|date:"Y-m-d" }}</td>
+            <td><a href="{% url 'student_affairs:student_profile' e.student.id %}" class="sa-link">{{ e.student.full_name }}</a></td>
+            <td>{{ e.kind_label }}</td>
+            <td>{{ e.class_text|default:"—" }}</td>
+            <td>{{ e.from_text|default:"—" }}</td>
+            <td>{{ e.detail|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+
+</div>
+{% endblock %}
