@@ -194,6 +194,7 @@ jobs:
 
       # postgres 16 الأصليّ على الـrunner بدل حاويةٍ تُسحب من Docker Hub (سقفُ السحب أسقط الفحوصَ 2026-10-09)
       - uses: ./.github/actions/native-postgres
+        timeout-minutes: 5
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:

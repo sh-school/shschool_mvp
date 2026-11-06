@@ -151,6 +151,7 @@ jobs:
 
       # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub (سقفُ السحب غيرُ الموثَّق: toomanyrequests) — W-20261010-016
       - uses: ./.github/actions/native-postgres
+        timeout-minutes: 5
         with:
           redis: "true"
 
@@ -259,6 +260,7 @@ jobs:
 
       # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub (سقفُ السحب غيرُ الموثَّق: toomanyrequests) — W-20261010-016
       - uses: ./.github/actions/native-postgres
+        timeout-minutes: 5
         with:
           redis: "true"
 
@@ -320,6 +322,7 @@ jobs:
 
       # postgres + redis أصليّان على الـrunner بدل حاويتَي خدمةٍ تُسحبان من Docker Hub (سقفُ السحب غيرُ الموثَّق: toomanyrequests) — W-20261010-016
       - uses: ./.github/actions/native-postgres
+        timeout-minutes: 5
         with:
           redis: "true"
 

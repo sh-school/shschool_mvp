@@ -37,6 +37,7 @@ jobs:
 
       # نسخةُ الإنتاج (18) لا 16: الهجراتُ تُقاس على المحرّك نفسه
       - uses: ./.github/actions/native-postgres
+        timeout-minutes: 5
         with:
           version: "18"
 
