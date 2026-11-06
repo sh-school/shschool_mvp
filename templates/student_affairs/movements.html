@@ -31,7 +31,7 @@
     </div>
   {% endfilter_bar %}
 
-  {% section_card "سجلّ التحرّكات" icon="student_info" empty="لا تحرّكات بهذه المرشِّحات" flush=True %}{% if events %}
+  {% section_card "سجلّ التحرّكات" icon="student_info" empty="لا تحرّكات بهذه المرشِّحات" flush=True %}{% if page_obj %}
     <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
@@ -45,7 +45,7 @@
           </tr>
         </thead>
         <tbody>
-          {% for e in events %}
+          {% for e in page_obj %}
           <tr>
             <td class="num">{{ e.date|date:"Y-m-d" }}</td>
             <td><a href="{% url 'student_affairs:student_profile' e.student.id %}" class="sa-link">{{ e.student.full_name }}</a></td>
@@ -58,6 +58,7 @@
         </tbody>
       </table>
     </div>
+    {% include "components/pagination.html" with page_obj=page_obj %}
   {% endif %}{% endsection_card %}
 
 </div>

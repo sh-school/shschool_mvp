@@ -6,6 +6,7 @@
 """
 
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.shortcuts import render
 
 from core.academic_calendar import academic_year_for
@@ -14,19 +15,25 @@ from core.exports.services import respond_export
 
 from .selectors import MOVEMENT_KINDS, enrolment_movements, movement_filters, year_sections
 
+# حركاتٌ في الصفحة الواحدة — التصديرُ لا يتقيّد بها، فيأتي كلُّ ما يطابق المرشِّحات.
+MOVEMENTS_PAGE_SIZE = 50
+
 
 @login_required
 @capability_required("student_affairs.transfers")
 def enrolment_movements_list(request):
-    """قائمةُ تحرّكات الطلبة بنطاق المدرسة والعام، بترشيحٍ بالشعبة والفترة والنوع."""
+    """قائمةُ تحرّكات الطلبة بنطاق المدرسة والعام، بترشيحٍ بالشعبة والفترة والنوع، مقسّمةً صفحات."""
     school = request.school
     year = academic_year_for(request)
     filters = movement_filters(request.GET)
+    page_obj = Paginator(
+        enrolment_movements(school, year, **filters), MOVEMENTS_PAGE_SIZE
+    ).get_page(request.GET.get("page"))
     return render(
         request,
         "student_affairs/movements.html",
         {
-            "events": enrolment_movements(school, year, **filters),
+            "page_obj": page_obj,
             "kinds": MOVEMENT_KINDS,
             "sections": year_sections(school, year),
             "kind": filters["kind"],
