@@ -60,17 +60,24 @@ _CHART_SCRIPT = re.compile(
 )
 
 
-def test_every_chart_js_load_precedes_its_init_script_synchronously():
-    """`defer` لا أثرَ له على سكربتٍ مضمَّن (بلا `src`): يجري فور التحليل. فتأجيلُ المكتبة وحدَها يُسقط
-    `Chart is not defined` (لوحاتُ العيادة والمكتبة والرئيسيّة لم ترسم) — فالمكتبةُ تُحمَّل متزامنةً في ذيل الصفحة قبل سكربتها."""
+def test_every_chart_js_is_deferred_and_its_init_script_waits_for_domcontentloaded():
+    """W-20261106-022: المكتبةُ مؤجَّلةٌ بـ`defer` فلا تحجب الرسم (LCP الجوال). و`defer` لا أثرَ له على سكربتٍ
+    مضمَّن (بلا `src`): يجري فور التحليل قبل المكتبة → `Chart is not defined`؛ فسكربتُ التهيئة يلفّ كلَّ استعمالٍ
+    لـ`Chart` بـDOMContentLoaded (تسبقه المؤجَّلات) ولا يحمل هو `defer`."""
     checked = 0
     for path in TEMPLATES.rglob("*.html"):
         text = path.read_text(encoding="utf-8")
         for vendor_attrs, init_attrs in _CHART_SCRIPT.findall(text):
             checked += 1
-            assert (
-                "defer" not in vendor_attrs
-            ), f"{path}: chart.umd.min.js بـdefer يسبقه سكربتُ تهيئته المضمَّن"
+            assert "defer" in vendor_attrs, f"{path}: chart.umd.min.js بلا defer"
             assert "defer" not in init_attrs, f"{path}: defer على سكربتٍ مضمَّن بلا أثر ومضلِّل"
+        if "chart.umd.min.js" not in text:
+            continue
+        after = text.split("chart.umd.min.js", 1)[1]
+        for body in re.findall(r"<script nonce[^>]*>(.*?)</script>", after, re.S):
+            if any(use in body for use in ("new Chart", "Chart.defaults", "window.Chart")):
+                assert (
+                    "DOMContentLoaded" in body
+                ), f"{path}: سكربتٌ مضمَّنٌ يستعمل Chart قبل DOMContentLoaded"
 
     assert checked == 12, f"كان المتوقَّع 12 صفحةً تحمّل Chart.js، وُجد {checked}"

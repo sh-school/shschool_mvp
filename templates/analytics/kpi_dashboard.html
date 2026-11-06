@@ -65,7 +65,7 @@
 
 </div>
 
-<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/vendor/chart.umd.min.js' %}" defer></script>
 <script nonce="{{ request.csp_nonce }}">
 /* الألوانُ تُقرأ من الرموز، فتنقلب مع الوضع — والخادمُ لا يعرفه. */
 const TC = { green:chartColor('status-success'), yellow:chartColor('status-warning'), red:chartColor('status-danger'), grey:chartColor('text-muted') };
@@ -250,7 +250,8 @@ async function loadKPIs(year) {
 }
 
 document.getElementById('yearSelect').addEventListener('change', e => loadKPIs(e.target.value));
-loadKPIs('{{ year }}');
+/* `defer` لا أثر له على سكربتٍ مضمَّن؛ و`buildCharts` تستعمل Chart فيُنتظر DOMContentLoaded (تسبقه المؤجَّلاتُ). */
+document.addEventListener('DOMContentLoaded', function(){ loadKPIs('{{ year }}'); });
 
 /* ── حجم الورق — يُحدّث رابط PDF ── */
 (function() {
