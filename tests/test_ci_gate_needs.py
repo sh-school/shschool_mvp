@@ -34,6 +34,10 @@ NOT_IN_NEEDS = {
         "quality-gate.yml",
         "migrated-db-cache",
     ): "تسريعٌ لا بوّابة، ويعمل على push فقط؛ فشلُه يعني هجرةً من الصفر في الطلبات",
+    (
+        "quality-gate.yml",
+        "axe-apt-cache",
+    ): "تسريعٌ لا بوّابة، ويعمل على push فقط؛ فشلُه يعني أنّ axe-a11y تنزّل الحزم من المرآة",
 }
 
 
