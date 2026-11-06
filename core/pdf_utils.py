@@ -108,6 +108,14 @@ def _materialise_stored_fonts() -> list[tuple[str, str, Path]]:
     return out
 
 
+#: خطُّ علامة الصحّ في استمارة الزيارة: حرفٌ واحد (U+2713) مضمَّنٌ بـdata: — لا الخطّ المضمّن ولا خطُّ الإنتاج يحويانه (قرارُ المالك 2026-11-05).
+#: يُحقن هنا لا في القالب: وجودُ @font-face في القالب كان يجعل _inject_fonts يتخطّى خطوط الوثيقة (W-20261106-007).
+_VISIT_TICK_SRC = (
+    "url(data:font/ttf;base64,AAEAAAAKAIAAAwAgT1MvMuvyaxsAAAEoAAAAYGNtYXAADCdmAAABkAAAADRnbHlm5iez6AAAAcwAAADGaGVhZC/0SOwAAACsAAAANmhoZWEF2gJpAAAA5AAAACRobXR4BNgAHgAAAYgAAAAIbG9jYQBjAAAAAAHEAAAABm1heHAABQBSAAABCAAAACBuYW1l7GvP4wAAApQAAABycG9zdGppb3QAAAMIAAAAKwABAAAAAQAA3YT3nl8PPPUAAwPoAAAAAOcSgqsAAAAA5xKCqwAe/+ACmgLWAAAAAwACAAAAAAAAAAEAAAMg/zgAAALkAB4ASgKaAAEAAAAAAAAAAAAAAAAAAAACAAEAAAACAFAAAgAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAwJsAZAABQAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAPz8/PwAAJxMnEwMg/zgAAAMgAMgAAAAAAAAAAAAAAAAAAAAgAAAB9AAAAuQAHgAAAAIAAAADAAAAFAADAAEAAAAUAAQAIAAAAAQABAABAAAnE///AAAnE///2O4AAQAAAAAAAAAAAGMAAAACAB7/4AKaAtYAHwBPAAATHwkPAy8LPwMXEz8SHwMPEy8DVRobGxwcHR4dCAEGCw4RDwwcGxoaGRgYGAcCAwcKDAyjERITFBUVFxcYGRobHB0dHwYKCgkIBAEEHBwbGhkYFxYVFRMTEREQDgoOEBANCQMBHBgbHB8gIiMmDhEPDAgBBgsmJCMhHh4bGgoMDAsHAgP++CQmJicoKSoqLCwtLi4wMDEIBAEEBgoKCTIxMS8uLi0rKyopKScmJiUNCQMDCg4QAAAAAAAABAA2AAEAAAAAAAEADQAAAAEAAAAAAAIABwANAAMAAQQJAAEAGgAUAAMAAQQJAAIADgAuU2Nob29sT1MgVGlja1JlZ3VsYXIAUwBjAGgAbwBvAGwATwBTACAAVABpAGMAawBSAGUAZwB1AGwAYQByAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAABAgR0aWNrAA==) "
+    "format('truetype')"
+)
+
+
 def _font_face_css_weasyprint() -> str:
     fd = _fonts_dir()
     parts = []
@@ -133,9 +141,13 @@ def _font_face_css_weasyprint() -> str:
             f"@font-face {{ font-family: '{family}'; font-weight: {weight}; "
             f"src: url('{p.as_uri()}') format('truetype'); }}"
         )
+    tick = f"@font-face {{ font-family: 'Visit Tick'; font-weight: 400; src: {_VISIT_TICK_SRC}; }}"
     if not parts:
-        return "@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700&display=swap');"
-    return "\n".join(parts)
+        return (
+            "@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700&display=swap');\n"
+            + tick
+        )
+    return "\n".join([*parts, tick])
 
 
 def _inject_fonts(html_str: str) -> str:
