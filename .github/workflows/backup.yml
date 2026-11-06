@@ -34,6 +34,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: تثبيت عميل PostgreSQL 18
+        timeout-minutes: 10  # W-20261106-004: مهلةٌ تمنع تعليقَ apt-get install ساعاتٍ كاملةً (الطلب #1353)
         # خادم الإنتاج الفعلي PostgreSQL 18 — نستخدم عميل pg_dump 18 المطابق لإصدار الإنتاج
         run: |
           set -euo pipefail

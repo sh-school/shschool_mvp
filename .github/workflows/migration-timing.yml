@@ -46,6 +46,7 @@ jobs:
           cache: pip
 
       - name: تثبيت مكتبات النظام
+        timeout-minutes: 10  # W-20261106-004: مهلةٌ تمنع تعليقَ apt-get install ساعاتٍ كاملةً (الطلب #1353)
         run: |
           sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
           sudo apt-get update -qq
