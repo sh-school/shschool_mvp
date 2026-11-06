@@ -1,7 +1,7 @@
 {% extends "reports/base_qatar_report.html" %}
 {% load brand_tags %}
 {% comment %}
-  ملخّصُ غياب الحصّتين الأولى والثانية للرفع في نظام الوزارة — الشعبةُ والصفُّ والمدرسةُ، ثمّ أسماءُ من يُرفعون.
+  إحصائيةُ الغياب (الحصّتان الأولى والثانية) — المدرسةُ ثمّ الشعبُ والأجنحةُ والمراحل بخمسة أعمدةٍ موحّدة، ثمّ أسماءُ من يُرفعون.
   قالبُ الـPDF وحدَه — شاشةُ المنصّة `ministry_report.html` (لا طباعةَ مباشرةً من صفحة ويب، قرارُ المالك 2026-09-28)،
   والبياناتُ من `wings/ministry_selectors.py`. ولا رقمَ شخصيّاً فيه (قرارُ 2026-09-13).
 {% endcomment %}
@@ -21,55 +21,48 @@
 .grid td.is-ministry { background: {% brand_color "STATUS_DANGER_BG" %}; color: {% brand_color "STATUS_DANGER_DARK" %}; font-weight: 700; }
 .grid td.is-warn { color: {% brand_color "STATUS_WARNING_DARK" %}; font-weight: 700; }
 .grid td.muted { color: {% brand_color "TEXT_MUTED" %}; }
+.sec-title { margin: 8px 0 3px; font-size: 11px; color: {% brand_color "MAROON" %}; }
 .note { margin: 6px 0; font-size: 9.5px; color: {% brand_color "STATUS_WARNING_DARK" %}; font-weight: 700; }
 .sheet + .sheet, .names { page-break-before: always; }
 {% endblock %}
 
 {% block content %}
 <section class="sheet">
-  <div class="report-title-bar">ملخّصُ غياب الحصّتين الأولى والثانية — للرفع في نظام الوزارة — {{ summary.day|date:"l d/m/Y" }}</div>
+  <div class="report-title-bar">إحصائية الغياب — {{ report_subtitle }} — {{ summary.day|date:"l d/m/Y" }}</div>
   <table class="report-meta">
     <tr>
       <td>النطاق: <strong>{% if bound %}طلبةُ جناحك{% else %}المدرسةُ كلُّها{% endif %}</strong></td>
-      <td>غابوا الحصّتين: <strong>{{ summary.total.absent_both }}</strong></td>
+      <td>الغائبون: <strong>{{ stats.school.absent_both }}</strong></td>
       <td>صدر بواسطة: <strong>{{ exported_by }}</strong> — {{ exporter_role }}</td>
     </tr>
   </table>
   {% for note in summary.notes %}<p class="note">{{ note }}</p>{% endfor %}
+  <h3 class="sec-title">الإحصائية الإجمالية على مستوى المدرسة</h3>
   <table class="grid">
-    <thead>
-      <tr>
-        <th>الصفُّ / الشعبة</th><th>المقيَّدون</th><th>غابوا الحصّتين بلا عذر</th><th>غابوا الحصّتين بعذر</th>
-        <th>غابوا إحداهما</th><th>تأخّروا</th><th>بلا رصد</th><th>بانتظار الاعتماد</th>
-      </tr>
-    </thead>
+    <thead><tr><th>النطاق</th><th>المقيدون</th><th>الحاضرون</th><th>الغائبون</th><th>نسبة الغياب</th></tr></thead>
     <tbody>
-    {% for grade in summary.grades %}
-      {% for item in grade.rows %}
-      <tr class="g-{{ grade.key|lower }}">
-        <td class="label">{{ item.group.short_code }}{% if not item.has_periods %} <small>(لا حصّتان)</small>{% endif %}</td>
-        <td>{{ item.counts.enrolled }}</td>
-        <td{% if item.counts.absent_both_unexcused %} class="is-ministry"{% endif %}>{{ item.counts.absent_both_unexcused }}</td>
-        <td{% if item.counts.absent_both_excused %} class="is-ministry"{% endif %}>{{ item.counts.absent_both_excused }}</td>
-        <td>{{ item.counts.absent_one }}</td>
-        <td>{{ item.counts.late }}</td>
-        <td{% if item.counts.unrecorded %} class="is-warn"{% endif %}>{{ item.counts.unrecorded }}</td>
-        <td{% if item.counts.pending %} class="is-warn"{% endif %}>{{ item.counts.pending }}</td>
-      </tr>
-      {% endfor %}
-      <tr class="subtotal">
-        <td class="label">مجموع {{ grade.label }}</td>
-        <td>{{ grade.counts.enrolled }}</td><td>{{ grade.counts.absent_both_unexcused }}</td><td>{{ grade.counts.absent_both_excused }}</td>
-        <td>{{ grade.counts.absent_one }}</td><td>{{ grade.counts.late }}</td><td>{{ grade.counts.unrecorded }}</td><td>{{ grade.counts.pending }}</td>
-      </tr>
-    {% endfor %}
       <tr class="total">
-        <td class="label">مجموع المدرسة</td>
-        <td>{{ summary.total.enrolled }}</td><td>{{ summary.total.absent_both_unexcused }}</td><td>{{ summary.total.absent_both_excused }}</td>
-        <td>{{ summary.total.absent_one }}</td><td>{{ summary.total.late }}</td><td>{{ summary.total.unrecorded }}</td><td>{{ summary.total.pending }}</td>
+        <td class="label">{{ stats.school.label }}</td>
+        <td>{{ stats.school.enrolled }}</td><td>{{ stats.school.present }}</td><td>{{ stats.school.absent_both }}</td><td>{{ stats.school.rate }}%</td>
       </tr>
     </tbody>
   </table>
+  {% for item in stats.tables %}
+  <h3 class="sec-title">نسب الغياب — {{ item.title }}</h3>
+  <table class="grid">
+    <thead>
+      <tr>{% for head in item.headers %}<th>{{ head }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+    {% for line in item.lines %}
+      <tr>
+        <td class="label">{{ line.label }}</td>
+        <td>{{ line.enrolled }}</td><td>{{ line.present }}</td><td>{{ line.absent_both }}</td><td>{{ line.rate }}%</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
 </section>
 
 <section class="sheet names">

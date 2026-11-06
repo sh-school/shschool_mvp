@@ -101,8 +101,9 @@ def test_pdf_footer_names_the_issuer_and_has_a_class_column(staff, school, absen
     assert unicodedata.normalize("NFKC", "الصف") in both
 
 
-def test_the_ministry_page_shows_the_student_based_rate_table(client_as, staff, absent_both):
+def test_the_ministry_page_shows_the_three_student_based_rate_tables(client_as, staff, absent_both):
     resp = client_as(staff["principal"]).get(reverse("wings:ministry_report"), {"date": DAY})
     body = resp.content.decode()
-    assert "abs-stats" in body and "نسبُ الغياب بالطلبة" in body
-    assert 'role="meter"' in body
+    assert "إحصائية الغياب" in body and "ملخّص الحصّتين" not in body
+    positions = [body.index(f'data-stat-table="{key}"') for key in ("classes", "wings", "stages")]
+    assert positions == sorted(positions)

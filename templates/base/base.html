@@ -772,7 +772,7 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% comment %} «تسجيل الحضور» القديمة للمعلّم وحدَه («حصصي اليوم» في قائمته) — القيادةُ والمشرفون يرصدون من كشف الأجنحة (قرارُ 2026-09-13). {% endcomment %}
   {% comment %} «متابعة الغياب» ثلاثةُ بنودٍ مباشرة بلا مستوى ثالث (W-20261020-005، قرارُ المالك). {% endcomment %}
   {% if request.user|can_open:"wings:ministry_report" %}
-  <a href="{% url 'wings:ministry_report' %}">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>
+  <a href="{% url 'wings:ministry_report' %}">{% icon "status_warning" %} إحصائية الغياب</a>
   {% endif %}
   {% if request.user|can_open:"daily_report" %}
   <a href="{% url 'daily_report' %}">{% icon "call_parent" %} التواصل مع أولياء الأمور</a>
@@ -968,7 +968,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   <div class="sd-label">الغياب والتأخّر</div>
   {% comment %} «متابعة الغياب» ثلاثةُ بنودٍ مباشرة بلا مستوى ثالث (W-20261020-005، قرارُ المالك). {% endcomment %}
   {% if request.user|can_open:"wings:ministry_report" %}
-  <a href="{% url 'wings:ministry_report' %}">{% icon "status_warning" %} ملخّص الحصّتين الأولى والثانية</a>
+  <a href="{% url 'wings:ministry_report' %}">{% icon "status_warning" %} إحصائية الغياب</a>
   {% endif %}
   {% if request.user|can_open:"daily_report" %}
   <a href="{% url 'daily_report' %}">{% icon "call_parent" %} التواصل مع أولياء الأمور</a>

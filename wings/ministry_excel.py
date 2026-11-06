@@ -1,4 +1,4 @@
-"""ملخّصُ الحصّتين الأولى والثانية في Excel — بأدوات المنصّة المشتركة (ترويسةٌ واحدة، ورقةٌ محميّةٌ للقراءة)."""
+"""«إحصائية الغياب» في Excel — بأدوات المنصّة المشتركة (ترويسةٌ واحدة، ورقةٌ محميّةٌ للقراءة)."""
 
 from __future__ import annotations
 
@@ -8,32 +8,17 @@ from core.export_utils import add_excel_title_rows, excel_table_styles, xl_fill,
 from core.ministry import ministry_line, ministry_name
 from reports.services import ExcelService
 
+from .absence_stats import TABLE_COLUMNS, AbsenceStats, absence_stats
 from .ministry_selectors import MinistrySummary
 from .register_excel import CENTER, HEADER_ROW, START, _setup_page
 
-COLUMNS = (
-    ("الصفّ / الشعبة", 18),
-    ("المقيَّدون", 11),
-    ("غابوا الحصّتين بلا عذر", 14),
-    ("غابوا الحصّتين بعذر", 14),
-    ("غابوا إحداهما", 12),
-    ("تأخّروا", 10),
-    ("بلا رصد", 10),
-    ("بانتظار الاعتماد", 12),
-)
+#: عرضُ أعمدة الورقة الأولى: الاسمُ ثمّ المقيدون والحاضرون والغائبون والنسبة.
+WIDTHS = (24, 14, 14, 14, 14)
 
 
-def _values(label: str, counts) -> list:
-    return [
-        label,
-        counts.enrolled,
-        counts.absent_both_unexcused,
-        counts.absent_both_excused,
-        counts.absent_one,
-        counts.late,
-        counts.unrecorded,
-        counts.pending,
-    ]
+def _values(line) -> list:
+    """صفُّ جدولٍ بالأعمدة الخمسة: الاسم، المقيدون، الحاضرون، الغائبون، نسبة الغياب."""
+    return [line.label, line.enrolled, line.present, line.absent_both, f"{line.rate}%"]
 
 
 def _write_row(ws, row: int, values: list, table, *, bold: bool = False, fill: str | None = None):
@@ -47,24 +32,13 @@ def _write_row(ws, row: int, values: list, table, *, bold: bool = False, fill: s
     ws.row_dimensions[row].height = 20
 
 
-def ministry_workbook(
-    summary: MinistrySummary,
-    school_name: str,
-    exported_by: str,
-    orientation: str = "landscape",
-):
-    """ورقتان: الملخّصُ بالشعبة والصفّ والمدرسة، ثمّ أسماءُ من يُرفعون غائبين."""
-    wb, ws, _ = ExcelService._make_workbook("ملخّص الحصّتين")
-    ws.sheet_view.rightToLeft = True
-    table = excel_table_styles()
-    num_cols = len(COLUMNS)
-    add_excel_title_rows(
-        ws,
-        num_cols,
-        ministry_line(school_name, ministry_name(short=True), sep="  —  "),
-        f"ملخّصُ غياب الحصّتين الأولى والثانية  —  {summary.day:%Y/%m/%d}",
-        f"للرفع في نظام الوزارة يدويّاً  |  صدر بواسطة: {exported_by}",
-    )
+def _write_section(ws, row: int, title: str, headers: list[str], lines: list, table) -> int:
+    """عنوانُ قسمٍ ثمّ رأسُ جدولٍ ثمّ سطورُه؛ يعيد آخرَ صفٍّ كُتب."""
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(WIDTHS))
+    cell = safe_cell(ws, row=row, column=1, value=title)
+    cell.font = xl_font(brand.MAROON, bold=True)
+    cell.alignment = START
+    row += 1
     ExcelService._add_header_row(
         ws,
         {
@@ -73,34 +47,54 @@ def ministry_workbook(
             "header_align": table.header_align,
             "thin_border": table.border,
         },
-        HEADER_ROW,
-        list(COLUMNS),
+        row,
+        list(zip(headers, WIDTHS, strict=True)),
     )
-    ws.row_dimensions[HEADER_ROW].height = 34
-    row = HEADER_ROW
-    for grade in summary.grades:
-        for item in grade.rows:
-            row += 1
-            label = item.group.short_code + ("" if item.has_periods else "  (لا حصّتان)")
-            _write_row(
-                ws, row, _values(label, item.counts), table, fill=brand.grade_tint(grade.key)
-            )
+    for line in lines:
         row += 1
-        _write_row(
-            ws, row, _values(f"مجموع {grade.label}", grade.counts), table, bold=True,
-            fill=brand.grade_tint(grade.key, 0.4),
-        )  # fmt: skip
-    row += 1
-    _write_row(
-        ws, row, _values("مجموع المدرسة", summary.total), table, bold=True, fill=brand.MAROON_BG
+        _write_row(ws, row, _values(line), table)
+    return row
+
+
+def ministry_workbook(
+    summary: MinistrySummary,
+    school_name: str,
+    exported_by: str,
+    orientation: str = "landscape",
+    stats: AbsenceStats | None = None,
+):
+    """ورقتان: «إحصائية الغياب» (إجمالي المدرسة ثمّ الشعب فالأجنحة فالمراحل)، ثمّ أسماءُ من يُرفعون غائبين."""
+    stats = stats or absence_stats(summary)
+    wb, ws, _ = ExcelService._make_workbook("إحصائية الغياب")
+    ws.sheet_view.rightToLeft = True
+    table = excel_table_styles()
+    num_cols = len(WIDTHS)
+    add_excel_title_rows(
+        ws,
+        num_cols,
+        ministry_line(school_name, ministry_name(short=True), sep="  —  "),
+        f"إحصائية الغياب  —  {summary.day:%Y/%m/%d}",
+        f"الطلاب الغائبون في الحصة الأولى والثانية  |  صدر بواسطة: {exported_by}",
     )
+    tables = stats.tables
+    row = _write_section(
+        ws,
+        HEADER_ROW,
+        "الإحصائية الإجمالية على مستوى المدرسة",
+        ["النطاق", *TABLE_COLUMNS],
+        [stats.school],
+        table,
+    )
+    for item in tables:
+        row = _write_section(
+            ws, row + 2, f"نسب الغياب — {item.title}", item.headers, item.lines, table
+        )
     for note in summary.notes:
         row += 1
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
         cell = safe_cell(ws, row=row, column=1, value=note)
         cell.font = xl_font(brand.STATUS_WARNING_DARK, size=9, bold=True)
         cell.alignment = START
-    ws.freeze_panes = ws.cell(row=HEADER_ROW + 1, column=2)
     _setup_page(ws, num_cols, row, school_name, orientation)
     ExcelService._apply_protection(ws, num_cols)
 
