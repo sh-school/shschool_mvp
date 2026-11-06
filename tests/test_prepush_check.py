@@ -22,11 +22,56 @@ def test_the_radon_excludes_match_the_ci_complexity_step():
     assert prepush_check.RADON_EXCLUDE in WORKFLOW, "استثناءات radon محلّيّاً غير استثناءات CI"
 
 
-def test_the_pre_commit_ruff_pin_matches_the_ci_pin():
-    ci = re.search(r"pip install ruff==([\d.]+)", WORKFLOW)
-    local = re.search(r"ruff-pre-commit\s+rev:\s*v([\d.]+)", PRE_COMMIT)
-    assert ci and local, "لم يوجد تثبيتُ ruff في أحد المصدرين"
-    assert ci.group(1) == local.group(1), "ruff المحلّيّ (pre-commit) غير ruff الذي يشغّله CI"
+# كلُّ موضعٍ يثبّت ruff: كلُّ `ruff==X` في workflows وrequirements، وrev الخاصّ بـpre-commit.
+RUFF_PIN = re.compile(r"\bruff==([\d.]+)")
+RUFF_HOOK_REV = re.compile(r"ruff-pre-commit\s+rev:\s*v([\d.]+)")
+
+
+def ruff_pins(sources, pre_commit):
+    """يُرجع قائمةً بـ(مصدر، نسخة) لكلّ تثبيتٍ لـruff؛ sources = {اسمُ الملف: نصُّه}."""
+    pins = [(name, m.group(1)) for name, text in sources.items() for m in RUFF_PIN.finditer(text)]
+    local = RUFF_HOOK_REV.search(pre_commit)
+    if local:
+        pins.append(("pre-commit", local.group(1)))
+    return pins
+
+
+def assert_one_ruff_version(pins):
+    versions = {version for _, version in pins}
+    assert len(versions) == 1, f"نسخُ ruff مختلفةٌ بين المواضع: {pins}"
+
+
+def _repo_ruff_sources():
+    files = sorted(Path(".github/workflows").glob("*.yml")) + sorted(
+        Path(".").glob("requirements*.txt")
+    )
+    return {p.as_posix(): p.read_text(encoding="utf-8") for p in files}
+
+
+def test_every_ruff_pin_in_the_repo_is_the_same_version():
+    pins = ruff_pins(_repo_ruff_sources(), PRE_COMMIT)
+    seen = {name for name, _ in pins}
+    # حارسٌ على الحارس: لو اختفى مصدرٌ من الجمع يمرّ الاختبار بصمت، فنطلب وجودَ كلٍّ منها.
+    assert {
+        "pre-commit",
+        ".github/workflows/quality-gate.yml",
+        "requirements-dev.txt",
+    } <= seen, pins
+    assert_one_ruff_version(pins)
+
+
+def test_a_drifted_ruff_pin_fails_the_match():
+    drifted = {
+        ".github/workflows/quality-gate.yml": "run: pip install ruff==0.4.4\n",
+        ".github/workflows/other.yml": "run: pip install -q ruff==0.4.5 radon==6.0.1\n",
+    }
+    pre_commit = "  - repo: https://github.com/astral-sh/ruff-pre-commit\n    rev: v0.4.4\n"
+    pins = ruff_pins(drifted, pre_commit)
+    assert len(pins) == 3, "يجب أن يُلتقط كلُّ تثبيتٍ، لا أوّلُ واحد فقط"
+    with pytest.raises(AssertionError, match="نسخُ ruff مختلفةٌ"):
+        assert_one_ruff_version(pins)
+    matched = {"quality-gate.yml": "run: pip install ruff==0.4.4\n", "b.txt": "ruff==0.4.4\n"}
+    assert_one_ruff_version(ruff_pins(matched, pre_commit))
 
 
 def test_the_mypy_env_matches_the_ci_step():
