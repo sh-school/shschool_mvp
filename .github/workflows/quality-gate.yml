@@ -193,8 +193,10 @@ jobs:
 
       - name: تثبيت المتطلبات
         if: steps.diff.outputs.docs_only != 'true' || matrix.shard == 1
+        # uv يحلّ المتطلباتِ ويثبّتها أسرعَ بكثيرٍ من pip؛ النسخُ من requirements.txt كما هي فلا يتغيّر ما يُثبَّت
         run: |
-          pip install -r requirements.txt
+          pip install uv
+          uv pip install --system -r requirements.txt
           pip install pytest pytest-django pytest-cov pytest-asyncio factory-boy \
             pytest-xdist==3.8.0
 
@@ -414,7 +416,9 @@ jobs:
         run: pip install -r requirements-mypy.txt
 
       - name: تثبيت المتطلبات (لحل أنواع Django)
-        run: pip install -r requirements.txt
+        run: |
+          pip install uv
+          uv pip install --system -r requirements.txt
 
       - name: فحص الأنواع — core/ و shschool/ (بإعداد pyproject، لا يزيد عن المسجَّل)
         env:
@@ -497,7 +501,8 @@ jobs:
         # (يُحمَّل تلقائيّاً مع أيّ اختبارٍ تحته) يستورد factory، وpyproject.toml
         # يضبط asyncio_mode — فتُثبَّت الحزمُ كلُّها لا factory-boy وحدَه.
         run: |
-          pip install -r requirements.txt
+          pip install uv
+          uv pip install --system -r requirements.txt
           pip install django-migration-linter==5.2.0 \
             pytest pytest-django pytest-cov pytest-asyncio factory-boy
 
@@ -566,7 +571,8 @@ jobs:
       - name: تثبيت المتطلبات
         if: steps.exists.outputs.cache-hit != 'true'
         run: |
-          pip install -r requirements.txt
+          pip install uv
+          uv pip install --system -r requirements.txt
           pip install pytest pytest-django pytest-cov pytest-asyncio factory-boy
 
       - name: migrate ثمّ pg_dump
@@ -786,7 +792,8 @@ jobs:
         # سابقٍ بين click وmutmut غيرِ متعلّقٍ بهذه الوظيفة (كما تفعل وظيفتا
         # pytest وmypy أعلاه، كلٌّ يثبّت ما يحتاجه فقط).
         run: |
-          pip install -r requirements.txt
+          pip install uv
+          uv pip install --system -r requirements.txt
           pip install pytest pytest-django factory-boy \
             pytest-playwright==0.9.0 axe-playwright-python==0.1.8
 
@@ -882,7 +889,8 @@ jobs:
 
       - name: تثبيت المتطلبات
         run: |
-          pip install -r requirements.txt
+          pip install uv
+          uv pip install --system -r requirements.txt
           pip install pytest pytest-django factory-boy pytest-playwright==0.9.0
 
       - name: تثبيت متصفّح Chromium (مع مكتبات النظام)
@@ -978,7 +986,8 @@ jobs:
 
       - name: تثبيت المتطلبات
         run: |
-          pip install -r requirements.txt
+          pip install uv
+          uv pip install --system -r requirements.txt
           pip install pytest-django pytest-asyncio factory-boy
 
       - name: الحرّاسُ النصّيّة (حجمُ الملفّات، الطبقات، حارسُ المسارات، سقّاطاتُ CSS، حارسُ البوّابة)

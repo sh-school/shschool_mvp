@@ -218,7 +218,7 @@ def test_docs_only_prepares_no_environment_in_the_other_shards():
         for s in steps
         if s.get("uses", "").startswith("actions/setup-python")
         or "apt-get install" in (s.get("run") or "")
-        or "pip install -r requirements.txt" in (s.get("run") or "")
+        or "uv pip install --system -r requirements.txt" in (s.get("run") or "")
     ]
     assert len(setup) == 3
     for step in setup:
