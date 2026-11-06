@@ -835,8 +835,28 @@ jobs:
             echo "::warning::تنزيل المتصفّح بطيء أو فشل — إعادة المحاولة"
           done
 
+      # W-20261106-019: القالبُ المهاجَرُ محفوظٌ بالمفتاح نفسه الذي في pytest-shards (يحفظه migrated-db-cache على push إلى main).
+      # وُجد ⇒ pg_restore بدل هجرات ~168 ث؛ غاب ⇒ migrate كما كان ولا تُفشل الوظيفة.
+      - name: استعادة قاعدة الاختبار المهاجَرة المحفوظة
+        id: migrated-db
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/migrated_db.dump
+          key: migrated-db-pg16-${{ hashFiles('**/migrations/*.py', 'requirements.txt') }}
+
       - name: تطبيق Migrations
-        run: python manage.py migrate --noinput
+        env:
+          CACHE_HIT: ${{ steps.migrated-db.outputs.cache-hit }}
+          DUMP: ${{ runner.temp }}/migrated_db.dump
+          PGPASSWORD: test_pass  # pragma: allowlist secret
+        run: |
+          if [ "$CACHE_HIT" = "true" ]; then
+            echo "::notice::استُعيدت القاعدةُ المهاجَرة المحفوظة — بلا migrate"
+            pg_restore --no-owner -h 127.0.0.1 -U test_user -d test_db "$DUMP"
+          else
+            echo "::notice::لا نسخةَ محفوظة لهذه البصمة — migrate من الصفر"
+            python manage.py migrate --noinput
+          fi
 
       # الرجلُ تُشغّل اختباراتِها وحدَها؛ و`-s` لميزانية Core Web Vitals (تطبع أرقامَها) ولا يضرّ غيرَها.
       # ولا يُعاد تسمية الوظيفة بما يُغيّر معرّفَها `axe-a11y`: هو المفتاحُ في needs الملخّص وفي إعفاء push.
@@ -933,8 +953,28 @@ jobs:
             echo "::warning::تنزيل المتصفّح بطيء أو فشل — إعادة المحاولة"
           done
 
+      # W-20261106-019: القالبُ المهاجَرُ محفوظٌ بالمفتاح نفسه الذي في pytest-shards (يحفظه migrated-db-cache على push إلى main).
+      # وُجد ⇒ pg_restore بدل هجرات ~168 ث؛ غاب ⇒ migrate كما كان ولا تُفشل الوظيفة.
+      - name: استعادة قاعدة الاختبار المهاجَرة المحفوظة
+        id: migrated-db
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/migrated_db.dump
+          key: migrated-db-pg16-${{ hashFiles('**/migrations/*.py', 'requirements.txt') }}
+
       - name: تطبيق Migrations
-        run: python manage.py migrate --noinput
+        env:
+          CACHE_HIT: ${{ steps.migrated-db.outputs.cache-hit }}
+          DUMP: ${{ runner.temp }}/migrated_db.dump
+          PGPASSWORD: test_pass  # pragma: allowlist secret
+        run: |
+          if [ "$CACHE_HIT" = "true" ]; then
+            echo "::notice::استُعيدت القاعدةُ المهاجَرة المحفوظة — بلا migrate"
+            pg_restore --no-owner -h 127.0.0.1 -U test_user -d test_db "$DUMP"
+          else
+            echo "::notice::لا نسخةَ محفوظة لهذه البصمة — migrate من الصفر"
+            python manage.py migrate --noinput
+          fi
 
       - name: اختبارات Playwright الشاملة
         run: python -m pytest tests/e2e/ -v
