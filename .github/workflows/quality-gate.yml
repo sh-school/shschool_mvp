@@ -128,6 +128,7 @@ jobs:
 
       - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
         if: steps.diff.outputs.docs_only != 'true' || matrix.shard == 1
+        timeout-minutes: 10  # W-20261106-008: apt-get install قد يعلق ساعات بلا مهلة
         run: |
           sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
           sudo apt-get update -qq
@@ -349,6 +350,7 @@ jobs:
           cache: pip
 
       - name: تثبيت مكتبات النظام (Cairo)
+        timeout-minutes: 10  # W-20261106-008: apt-get install قد يعلق ساعات بلا مهلة
         run: |
           sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
           sudo apt-get update -qq
@@ -420,6 +422,7 @@ jobs:
           cache: pip
 
       - name: تثبيت مكتبات النظام (Cairo)
+        timeout-minutes: 10  # W-20261106-008: apt-get install قد يعلق ساعات بلا مهلة
         # بلا هذه: pip يبني pycairo من المصدر (لا عجلةَ منشورةً له على PyPI)
         # ويسقط بـ`Dependency "cairo" not found` — كان يمرّ صدفةً بذاكرة pip
         # المؤقّتة لعجلةٍ بُنيت لإصدارٍ مثبَّتٍ سابقاً، فكشفه أوّلُ ترقية
@@ -496,6 +499,7 @@ jobs:
 
       - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
         if: steps.exists.outputs.cache-hit != 'true'
+        timeout-minutes: 10  # W-20261106-008: apt-get install قد يعلق ساعات بلا مهلة
         run: |
           sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
           sudo apt-get update -qq
@@ -914,6 +918,7 @@ jobs:
           cache: pip
 
       - name: تثبيت مكتبات النظام (Cairo)
+        timeout-minutes: 10  # W-20261106-008: apt-get install قد يعلق ساعات بلا مهلة
         run: |
           sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*
           sudo apt-get update -qq

@@ -72,6 +72,7 @@ jobs:
           cache: pip
 
       - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
+        timeout-minutes: 10  # W-20261106-008: apt-get install قد يعلق ساعات بلا مهلة
         run: |
           sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*
           sudo apt-get update -qq

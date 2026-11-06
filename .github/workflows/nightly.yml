@@ -50,6 +50,7 @@ jobs:
           cache: pip
 
       - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
+        timeout-minutes: 10  # W-20261106-008: apt-get install قد يعلق ساعات بلا مهلة
         run: |
           sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
           sudo apt-get update -qq
@@ -280,6 +281,7 @@ jobs:
           cache: pip
 
       - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
+        timeout-minutes: 10  # W-20261106-008: apt-get install قد يعلق ساعات بلا مهلة
         run: |
           sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
           sudo apt-get update -qq
