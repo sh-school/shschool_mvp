@@ -147,7 +147,7 @@ def test_the_login_card_has_no_entrance_animation():
 
 
 class TestTheWebFontsAreLean:
-    """W-20261106-022: الويب يحمّل woff2 وزنيْ 400 و700 فقط؛ وملفاتُ TTF للـPDF تبقى."""
+    """W-20261106-022: الويب يحمّل woff2 فقط بلا بدائل TTF؛ ووزنُ 500 باقٍ حفاظاً على الهويّة البصريّة؛ وملفاتُ TTF للـPDF تبقى."""
 
     def _foundation(self):
         import pathlib
@@ -156,13 +156,15 @@ class TestTheWebFontsAreLean:
             pathlib.Path(__file__).resolve().parent.parent / "static/css/custom/10-foundation.css"
         ).read_text("utf-8")
 
-    def test_no_web_font_face_points_to_ttf_or_medium(self):
+    def test_no_web_font_face_points_to_ttf_and_medium_stays(self):
         import re
 
         faces = re.findall(r"@font-face\s*\{.*?\}", self._foundation(), re.S)
         assert faces
         for face in faces:
-            assert ".ttf" not in face and "Medium" not in face and "font-weight: 500" not in face
+            assert ".ttf" not in face
+        # حذفُ Medium كان يغيّر رسمَ الوزن 500 في كل الصفحات (لقطاتُ الهويّة البصريّة)
+        assert "Tajawal-Medium.woff2" in "".join(faces)
 
     def test_the_pdf_fonts_stay_on_disk(self):
         import pathlib
