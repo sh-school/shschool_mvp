@@ -170,9 +170,10 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/vendor/chart.umd.min.js' %}" defer></script>
 <script nonce="{{ request.csp_nonce }}">
-  (function () {
+  /* `defer` لا أثر له على سكربتٍ مضمَّن: فيُنتظر DOMContentLoaded (تسبقه المؤجَّلاتُ) وإلا سقط حارسُ window.Chart صامتاً. */
+  document.addEventListener("DOMContentLoaded", function () {
     var data = JSON.parse(document.getElementById("lab-radar-data").textContent);
     var el = document.getElementById("lab-radar");
     if (!el || !window.Chart || !data.labels.length) return;
@@ -192,6 +193,6 @@
         plugins: { legend: { position: "bottom", labels: { font: font } } }
       }
     });
-  })();
+  });
 </script>
 {% endblock %}

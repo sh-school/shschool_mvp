@@ -38,8 +38,11 @@
 {% block extra_js %}
 {% if view_type == "director" %}
 {% if day_open and not view_only %}<script src="{% static 'js/director-live.js' %}" defer></script>{% endif %}
-<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/vendor/chart.umd.min.js' %}" defer></script>
 <script nonce="{{ request.csp_nonce }}">
+/* `defer` لا أثر له على سكربتٍ مضمَّن: يجري فور التحليل قبل chart.umd المؤجَّل → «Chart is not defined».
+   فيُنتظر DOMContentLoaded (تسبقه المؤجَّلاتُ). */
+document.addEventListener('DOMContentLoaded', function(){
 Chart.defaults.font.family = 'Tajawal, sans-serif';
 Chart.defaults.font.size = 10;
 
@@ -78,6 +81,7 @@ async function fc(u){try{return await(await fetch(u)).json()}catch(e){return nul
     options:{...OPTS,plugins:{legend:{position:'bottom',labels:{padding:6,font:{size:9}}}},cutout:'55%'}
   });
 })();
+});
 </script>
 {% endif %}
 {% if sup_open and not view_only %}<script src="{% static 'js/director-live.js' %}" defer></script>{% endif %}

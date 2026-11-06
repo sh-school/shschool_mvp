@@ -31,6 +31,11 @@ PAGES = [
     ("student_list", None),
     ("notification_inbox", None),
 ]
+#: صفحاتُ عرض الجوال (W-20261106-022): ذاتُ Chart.js المؤجَّل.
+MOBILE_PAGES = [
+    ("dashboard", "/dashboard/"),
+    ("analytics", "/analytics/"),
+]
 RUNS = 3
 
 
@@ -38,8 +43,11 @@ def _path(name: str, path: str | None) -> str:
     return path or _url(name if name != "student_list" else "student_affairs:student_list")
 
 
-def _measure(browser, url: str, state, *, interact: bool) -> dict:
-    context = browser.new_context(storage_state=state) if state else browser.new_context()
+def _measure(browser, url: str, state, *, interact: bool, mobile: bool = False) -> dict:
+    options = dict(web_vitals.MOBILE_CONTEXT) if mobile else {}
+    if state:
+        options["storage_state"] = state
+    context = browser.new_context(**options)
     try:
         page = context.new_page()
         load = web_vitals.install(page)
@@ -88,6 +96,13 @@ def test_the_pages_stay_within_the_web_vitals_budget(browser, live_server, princ
             [_measure(browser, url, state, interact=True) for _ in range(RUNS)]
         )
 
+    # عرضُ الجوال: لوحةُ التحكّم (Chart.js مؤجَّل) ولوحةُ التحليلات — سقفُ LCP فيهما 2500ms.
+    for name, path in MOBILE_PAGES:
+        url = f"{base}{path}"
+        results[f"mobile:{name}"] = web_vitals.median_of(
+            [_measure(browser, url, state, interact=False, mobile=True) for _ in range(RUNS)]
+        )
+
     table = _table(results)
     print("\n" + table)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
@@ -99,8 +114,17 @@ def test_the_pages_stay_within_the_web_vitals_budget(browser, live_server, princ
         "فيُفقد قياسُ أوّل ما يراه كلُّ مستخدم.\n\n" + table
     )
     found = [
-        line for name, metrics in results.items() for line in web_vitals.violations(name, metrics)
+        line
+        for name, metrics in results.items()
+        for line in web_vitals.violations(
+            name,
+            metrics,
+            web_vitals.MOBILE_BUDGET if name.startswith("mobile:") else web_vitals.BUDGET,
+        )
     ]
+    for name in results:
+        if name.startswith("mobile:"):
+            assert results[name]["lcp_ms"] > 0, f"{name}: لا LCP مُبلَّغ على عرض الجوال\n\n" + table
     assert not found, "تجاوزت الصفحاتُ ميزانيةَ الأداء:\n  " + "\n  ".join(found) + "\n\n" + table
 
 
@@ -120,6 +144,48 @@ def test_the_login_card_has_no_entrance_animation():
     assert (
         "animation" not in css.split(".login-card {", 1)[1].split("}", 1)[0]
     ), "`.login-card` تحمل خاصّيّةَ animation من جديد رغم قرار إلغائها"
+
+
+class TestTheWebFontsAreLean:
+    """W-20261106-022: الويب يحمّل woff2 فقط بلا بدائل TTF؛ ووزنُ 500 باقٍ حفاظاً على الهويّة البصريّة؛ وملفاتُ TTF للـPDF تبقى."""
+
+    def _foundation(self):
+        import pathlib
+
+        return (
+            pathlib.Path(__file__).resolve().parent.parent / "static/css/custom/10-foundation.css"
+        ).read_text("utf-8")
+
+    def test_no_web_font_face_points_to_ttf_and_medium_stays(self):
+        import re
+
+        faces = re.findall(r"@font-face\s*\{.*?\}", self._foundation(), re.S)
+        assert faces
+        for face in faces:
+            assert ".ttf" not in face
+        # حذفُ Medium كان يغيّر رسمَ الوزن 500 في كل الصفحات (لقطاتُ الهويّة البصريّة)
+        assert "Tajawal-Medium.woff2" in "".join(faces)
+
+    def test_the_pdf_fonts_stay_on_disk(self):
+        import pathlib
+
+        fonts = pathlib.Path(__file__).resolve().parent.parent / "static/fonts"
+        for name in ("Tajawal-Regular.ttf", "Tajawal-Medium.ttf", "Tajawal-Bold.ttf"):
+            assert (fonts / name).exists()
+
+
+class TestMobileBudget:
+    def test_the_mobile_profile_is_a_phone_viewport_with_touch(self):
+        ctx = web_vitals.MOBILE_CONTEXT
+        assert ctx["viewport"]["width"] <= 430 and ctx["is_mobile"] and ctx["has_touch"]
+
+    def test_the_mobile_lcp_ceiling_is_2500ms(self):
+        assert web_vitals.MOBILE_BUDGET["lcp_ms"] == 2500
+        assert web_vitals.violations("m", {"lcp_ms": 2501}, web_vitals.MOBILE_BUDGET)
+        assert not web_vitals.violations("m", {"lcp_ms": 2500}, web_vitals.MOBILE_BUDGET)
+
+    def test_the_font_and_css_ceilings_went_down_not_up(self):
+        assert web_vitals.BUDGET["font_kb"] < 120 and web_vitals.BUDGET["css_kb"] < 470
 
 
 class TestTheBudgetItself:

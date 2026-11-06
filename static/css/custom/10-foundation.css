@@ -519,40 +519,36 @@ html[lang="ar"] {
    (`.vision-text` في 20-components). اللوحةُ الافتراضيّة #1d4ed8 (6.7:1 على الأبيض) للثيم النهاريّ؛ وللّيليّ
    لوحةٌ فاتحة. ولا يقبل `@font-palette-values` متغيّراً، فالقيمتان هنا مصدرُهما الوحيد. */
 @font-palette-values --tashkeel-dark { font-family: 'Tajawal Tashkeel'; override-colors: 0 #93c5fd; }
+/* W-20261106-022: الويب لا يحمّل إلا woff2، فحُذفت بدائل TTF من src. وزنُ 500 (Medium وMedium-tk) باقٍ:
+   حذفُه كان يرسم نصَّ الوزن 500 بالعادي فتتغيّر لقطاتُ الهويّة البصريّة في كل الصفحات. ملفاتُ TTF تبقى على القرص
+   لأن PDF والتقارير تقرؤها مباشرةً (`core/pdf_utils.py`). */
 @font-face {
   font-family: 'Tajawal';
-  src: url('../../fonts/Tajawal-Regular.woff2') format('woff2'),
-       url('../../fonts/Tajawal-Regular.ttf') format('truetype');
+  src: url('../../fonts/Tajawal-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
-  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF,
-                 U+0000-007F, U+00A0-00FF, U+0660-066F;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF, U+0000-007F, U+00A0-00FF, U+0660-066F;
 }
 @font-face {
   font-family: 'Tajawal';
-  src: url('../../fonts/Tajawal-Medium.woff2') format('woff2'),
-       url('../../fonts/Tajawal-Medium.ttf') format('truetype');
+  src: url('../../fonts/Tajawal-Medium.woff2') format('woff2');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
-  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF,
-                 U+0000-007F, U+00A0-00FF, U+0660-066F;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF, U+0000-007F, U+00A0-00FF, U+0660-066F;
 }
 @font-face {
   font-family: 'Tajawal';
-  src: url('../../fonts/Tajawal-Bold.woff2') format('woff2'),
-       url('../../fonts/Tajawal-Bold.ttf') format('truetype');
+  src: url('../../fonts/Tajawal-Bold.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
-  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF,
-                 U+0000-007F, U+00A0-00FF, U+0660-066F;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF, U+0000-007F, U+00A0-00FF, U+0660-066F;
 }
 @font-face {
   font-family: 'Tajawal Tashkeel';
-  src: url('../../fonts/Tajawal-Regular-tk.woff2') format('woff2'),
-       url('../../fonts/Tajawal-Regular-tk.ttf') format('truetype');
+  src: url('../../fonts/Tajawal-Regular-tk.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -560,8 +556,7 @@ html[lang="ar"] {
 }
 @font-face {
   font-family: 'Tajawal Tashkeel';
-  src: url('../../fonts/Tajawal-Medium-tk.woff2') format('woff2'),
-       url('../../fonts/Tajawal-Medium-tk.ttf') format('truetype');
+  src: url('../../fonts/Tajawal-Medium-tk.woff2') format('woff2');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -569,8 +564,7 @@ html[lang="ar"] {
 }
 @font-face {
   font-family: 'Tajawal Tashkeel';
-  src: url('../../fonts/Tajawal-Bold-tk.woff2') format('woff2'),
-       url('../../fonts/Tajawal-Bold-tk.ttf') format('truetype');
+  src: url('../../fonts/Tajawal-Bold-tk.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
