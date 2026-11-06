@@ -1096,6 +1096,39 @@ jobs:
         run: python3 scripts/pr_file_collision.py
 
   # ══════════════════════════════════════════════════════
+  #  استشاريّ (W-20261106-025) — حارسُ روابط المسارات الجديدة: مسارٌ جديدٌ في urls.py لا يرتبط به
+  #  شيءٌ من خارج شاشته. لا يدخل needs ولا «ملخص بوابة الجودة»، وفشلُه لا يحجب شيئاً.
+  #  scripts/page_smoke.py يحتاج تطبيقاً يعمل وحسابَ دور فيُشغَّل يدويّاً لا هنا.
+  route-link-guard:
+    name: روابطُ المسارات الجديدة — استشاري
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+    continue-on-error: true
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: فحصُ المسارات المضافة ونشرُ تعليقٍ واحد
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set +e
+          python3 scripts/route_link_guard.py --base "$BASE_SHA" --head "$HEAD_SHA" > guard.txt
+          code=$?
+          if [ "$code" -ne 0 ]; then
+            { echo "**حارس الروابط (استشاري):**"; echo; echo '```'; cat guard.txt; echo '```'; } > comment.md
+            gh pr comment "$PR_NUMBER" --edit-last --create-if-none --body-file comment.md
+          fi
+          exit "$code"
+
+  # ══════════════════════════════════════════════════════
   #  حرّاسٌ نصّيّةٌ تفشل مبكّراً (W-20261002-031) — تقسيمٌ لا تخفيف
   # ══════════════════════════════════════════════════════
   #
