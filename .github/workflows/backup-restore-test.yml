@@ -111,6 +111,7 @@ jobs:
 
       # PostgreSQL 18 الأصليّ (نسخةُ الإنتاج نفسُها) بدل حاويةِ خدمةٍ تُسحب من Docker Hub (سقفُ السحب غيرُ الموثَّق) — W-20261010-016
       - uses: ./.github/actions/native-postgres
+        timeout-minutes: 5
         with:
           version: "18"
           db_user: restore_user
