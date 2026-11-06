@@ -105,3 +105,60 @@ def build_behavior_xlsx(school: Any, user: Any, params: Any) -> ExportResult:
         f"مخالفات_سلوكية_{year}.xlsx",
         full_national_id=False,
     )
+
+
+#: أعمدةُ التقرير السلوكيّ اليوميّ بترتيبها في Excel وPDF — بلا رقمٍ شخصيٍّ ولا وليّ أمر ولا نصّ وصف.
+DAILY_BEHAVIOR_COLUMNS = (
+    ("م", 6),
+    ("الطالب", 28),
+    ("الشعبة", 10),
+    ("المخالفة", 34),
+    ("الدرجة", 20),
+    ("الخطوة", 22),
+    ("الراصد", 22),
+)
+
+
+def _daily_behavior_cells(rows: list[dict[str, Any]]) -> list[tuple[Any, ...]]:
+    """صفوفُ التصدير من الصفوف المعروضة نفسِها — فيتطابق الملفّان مع الشاشة عدداً وترتيباً."""
+    return [
+        (n, r["student"], r["class_label"], r["violation"], r["level"], r["step"], r["reporter"])
+        for n, r in enumerate(rows, start=1)
+    ]
+
+
+def daily_behavior_workbook(school: Any, rows: list[dict[str, Any]], day: Any) -> Any:
+    """مصنَّفُ Excel للتقرير السلوكيّ اليوميّ (الراصدُ والخطوةُ والدرجةُ بلا نصّ الوصف)."""
+    from .services import AcademicReportsExcel
+
+    return AcademicReportsExcel._build(
+        "السلوك اليومي",
+        f"التقرير السلوكي اليومي — {day:%Y-%m-%d}",
+        list(DAILY_BEHAVIOR_COLUMNS),
+        _daily_behavior_cells(rows),
+        school,
+    )
+
+
+def daily_behavior_pdf_bytes(
+    user: Any, rows: list[dict[str, Any]], day: Any, filters_label: str = ""
+) -> bytes:
+    """PDF التقرير السلوكيّ اليوميّ بالقالب `behavior/daily_report_pdf.html`."""
+    from core.export_utils import get_export_context_for, get_pdf_footer_html, get_pdf_header_html
+    from core.pdf_utils import render_pdf_bytes
+
+    ctx = get_export_context_for(user, "التقرير السلوكي اليومي")
+    html = render_to_string(
+        "behavior/daily_report_pdf.html",
+        {
+            "rows": _daily_behavior_cells(rows),
+            "columns": [name for name, _width in DAILY_BEHAVIOR_COLUMNS],
+            "day": day,
+            "filters_label": filters_label,
+            "pdf_header": get_pdf_header_html(ctx),
+            "pdf_footer": get_pdf_footer_html(ctx),
+            "for_pdf": True,
+            **ctx,
+        },
+    )
+    return render_pdf_bytes(html, paper_size="A4")

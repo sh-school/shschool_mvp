@@ -1,0 +1,57 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% block title %}التقرير السلوكي اليومي{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="السلوك" current="التقرير اليومي" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "التقرير السلوكي اليومي" subtitle=subtitle icon="behavior" %}
+    {% export_button "pdf" "behavior:daily_pdf" %}?{{ export_query }}{% endexport_button %}
+    {% export_button "xlsx" "behavior:daily_xlsx" %}?{{ export_query }}{% endexport_button %}
+  {% endpage_header %}
+
+  {% filter_bar "ترشيحُ التقرير اليومي" %}
+    {% field "date" "اليوم" type="date" value=day_value data_autosubmit=True %}
+    {% field "wing" "الجناح" type="select" choices=wing_choices value=wing_value blank="— كل الأجنحة —" data_autosubmit=True %}
+    {% field "grade" "الصف" type="select" choices=grade_choices value=grade_value blank="— كل الصفوف —" data_autosubmit=True %}
+    <div class="filter-actions">
+      <a href="{% url 'behavior:daily_report' %}" class="btn-secondary btn-xs">اليوم</a>
+    </div>
+  {% endfilter_bar %}
+
+  {% section_card "مخالفات اليوم" meta=count_label icon="behavior" empty="لا مخالفات في هذا اليوم" %}{% if rows %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>الطالب</th>
+            <th class="col-center">الشعبة</th>
+            <th>المخالفة</th>
+            <th class="col-center">الدرجة</th>
+            <th class="col-center">الخطوة</th>
+            <th>الراصد</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td>{{ r.student }}</td>
+            <td class="col-center">{{ r.class_label }}</td>
+            <td>{{ r.violation }}</td>
+            <td class="col-center">{{ r.level }}</td>
+            <td class="col-center">{{ r.step }}</td>
+            <td>{{ r.reporter }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+
+</div>
+{% endblock %}

@@ -233,3 +233,102 @@ def monthly_infraction_trend(school_infractions, today) -> tuple[list[str], list
         labels.append(date_format(month_start, "F"))
         counts.append(school_infractions.filter(date__gte=month_start, date__lt=next_month).count())
     return labels, counts
+
+
+# ── التقرير السلوكي اليومي (W-20261107-004) ─────────────────────────────────────────
+
+
+def _infraction_day(day):
+    """مخالفاتُ يومٍ بيوم الحصّة إن وُجدت وإلا بيوم الكتابة.
+
+    `BehaviorInfraction.date` يومُ الكتابة (`auto_now_add`): مخالفةٌ آليّةٌ صُحّحت لاحقاً تُكتب في يومٍ غير يوم حصّتها،
+    فيومُها الحقيقيّ `session__date` كما في الملخّص الأسريّ (`behavior/digest.py` — مجمَّدٌ فلا يُستعمل هنا).
+    """
+    from django.db.models import Q
+
+    return Q(session__date=day) | Q(session__isnull=True, date=day)
+
+
+def _daily_options(school, scope, year):
+    """أجنحةُ المرشِّح وصفوفُه من نطاق صاحب الطلب وحدَه: المشرفُ لا يرى جناحاً ولا صفّاً من غير جناحه."""
+    from core.models import Wing
+
+    wings = Wing.objects.filter(school=school, academic_year=year, is_active=True)
+    groups = ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
+    if scope.is_wing_bound:
+        wings = wings.filter(pk__in=scope.wing_ids)
+        groups = scope.class_groups()
+    present = set(groups.values_list("grade", flat=True))
+    return (
+        list(wings.order_by("code")),
+        [(code, label) for code, label in ClassGroup.GRADES if code in present],
+    )
+
+
+def daily_infractions(request, school, day, wing_id: str = "", grade: str = "") -> dict[str, Any]:
+    """صفوفُ التقرير اليوميّ وخياراتُ مرشِّحيه — بعددِ استعلاماتٍ ثابتٍ مهما كثرت الصفوف.
+
+    النطاقُ من `get_teacher_student_ids` (قدرةُ `behavior.statistics` بنطاقها): المعلّمُ والمنسّقُ لطلبتهم،
+    والمشرفُ لجناحه، والقيادةُ للمدرسة. وجناحٌ خارج نطاق صاحب الطلب أو مجهولٌ 404 لا قائمةٌ فارغة تكشف وجودَه.
+    الشعبةُ هي **قيدُ الطالب الجاري** (D-201م). ولا يُجلب الوصفُ ولا الإجراءُ المشفَّران: لا حاجةَ لهما ولا يجوز تصديرُهما.
+    """
+    from .models import BehaviorInfraction
+
+    scope = student_scope_for(request)
+    year = scope.year or academic_year_for_school(school)
+    wings, grades = _daily_options(school, scope, year)
+    if wing_id and wing_id not in {str(w.pk) for w in wings}:
+        raise Http404("جناحٌ غير موجود")
+    if grade not in {code for code, _label in grades}:
+        grade = ""
+
+    qs = (
+        BehaviorInfraction.objects.filter(school=school)
+        .filter(_infraction_day(day))
+        .select_related("student", "reported_by", "violation_category")
+        .defer("description", "action_taken", "violation_description", "digital_evidence_notes")
+    )
+    visible = get_teacher_student_ids(request.user, scope=scope)
+    if visible is not None:
+        qs = qs.filter(student_id__in=visible)
+    infractions = list(qs)
+
+    current: dict[Any, Any] = {}
+    enrollments = (
+        StudentEnrollment.objects.filter(
+            student_id__in={i.student_id for i in infractions},
+            is_active=True,
+            class_group__school=school,
+            class_group__academic_year=year,
+        )
+        .newest_first()
+        .select_related("class_group")
+    )
+    for enrollment in enrollments:
+        current.setdefault(enrollment.student_id, enrollment.class_group)
+
+    rows = []
+    for inf in infractions:
+        group = current.get(inf.student_id)
+        if wing_id and (group is None or str(group.wing_id) != wing_id):
+            continue
+        if grade and (group is None or group.grade != grade):
+            continue
+        reporter = inf.reported_by.full_name if inf.reported_by else ""
+        rows.append(
+            {
+                "student": inf.student.full_name,
+                "class_label": group.short_label if group else "—",
+                "violation": inf.violation_category.name_ar if inf.violation_category else "—",
+                "level": inf.get_level_display(),
+                "step": inf.get_escalation_step_display(),
+                "reporter": reporter or ("الرصد الآلي" if inf.auto_rule else "—"),
+                "_order": (
+                    group.school_order if group else 10**6,
+                    inf.student.full_name,
+                    -inf.level,
+                ),
+            }
+        )
+    rows.sort(key=lambda r: r["_order"])
+    return {"rows": rows, "wings": wings, "grades": grades, "wing_id": wing_id, "grade": grade}

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_escalation
+from . import views, views_daily, views_escalation
 
 app_name = "behavior"
 
@@ -20,6 +20,10 @@ urlpatterns = [
     # Phase 4 — تقارير سلوكية دورية
     path("report/student/<uuid:student_id>/", views.behavior_report, name="behavior_report"),
     path("statistics/", views.behavior_statistics, name="statistics"),
+    # التقرير السلوكي اليومي (W-20261107-004)
+    path("daily/", views_daily.daily_report, name="daily_report"),
+    path("daily/pdf/", views_daily.daily_report_pdf, name="daily_pdf"),
+    path("daily/xlsx/", views_daily.daily_report_xlsx, name="daily_xlsx"),
     # لائحةُ السلوك — وثيقةُ مدرسةٍ لا مخالفة (للموظفين وأولياء الأمور). كان المسارُ
     # مكرَّراً في آخر القائمة بالاسم نفسِه — والأوّلُ وحدَه يُحلّ، فحُذف الثاني.
     path("policy/pdf/", views.behavior_policy_pdf, name="policy_pdf"),
