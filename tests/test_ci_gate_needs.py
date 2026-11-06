@@ -30,6 +30,10 @@ NOT_IN_NEEDS = {
         "quality-gate.yml",
         "pr-file-collision",
     ): "تحذيرٌ لا حظر (scripts/pr_file_collision.py) — لا يحجب الدمج",
+    (
+        "quality-gate.yml",
+        "migrated-db-cache",
+    ): "حفظُ تسريعٍ على push إلى main فقط (W-20261106-005) — فشلُه يُبطئ الطلبات ولا يحجب الدمج",
 }
 
 

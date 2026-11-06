@@ -146,12 +146,33 @@ jobs:
           pip install pytest pytest-django pytest-cov pytest-asyncio factory-boy \
             pytest-xdist==3.8.0
 
+      # قاعدةٌ مهاجَرةٌ محفوظة (W-20261106-005): الهجرات نحو 168 ث في كلّ shard، فتحفظ وظيفةُ migrated-db-cache
+      # (على push إلى main) نسخةً منها بمفتاح بصمة الهجرات والمتطلبات ونسخة postgres؛ والطلبات تقرأ حفظَ main.
+      # المفتاحُ يجب أن يطابق مفتاحَ وظيفة الحفظ حرفاً بحرف.
+      - name: استعادة القاعدة المهاجَرة المحفوظة
+        id: migrated-db
+        if: steps.diff.outputs.docs_only != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/migrated_db.dump
+          key: migrated-db-pg16-${{ hashFiles('**/migrations/*.py', 'requirements.txt') }}
+
       # هجرةٌ واحدةٌ في كلّ shard ثمّ نسخٌ لقاعدة كلّ عامل (W-20261016-029): كان كلُّ عاملِ xdist يبني قاعدتَه بالهجرات
       # (~190–400 ث، أربعةٌ معاً على الأنوية نفسِها) فتستهلك نحو 6 دقائق من كلّ shard؛ والآن ~150 ث مرّةً ونسخٌ بثوانٍ.
+      # وعند وجود النسخة المحفوظة: pg_restore للقالب بدل الهجرة (ثوانٍ)؛ وعند غيابها (هجرةٌ جديدة) تُبنى من الصفر.
       - name: تطبيق Migrations وتجهيز قواعد العمّال من قالبها
         if: steps.diff.outputs.docs_only != 'true'
+        env:
+          CACHE_HIT: ${{ steps.migrated-db.outputs.cache-hit }}
+          PGPASSWORD: test_pass  # pragma: allowlist secret
         run: |
-          python manage.py migrate --noinput
+          if [ "$CACHE_HIT" = "true" ]; then
+            echo "القاعدة المهاجَرة مستعادة من الحفظ — pg_restore بدل migrate"
+            pg_restore -h 127.0.0.1 -U test_user -d test_db --no-owner /tmp/migrated_db.dump
+          else
+            echo "لا نسخة محفوظة لهذه البصمة — migrate من الصفر"
+            python manage.py migrate --noinput
+          fi
           python scripts/ci_clone_test_dbs.py "$(nproc)"
 
       # فحوصٌ لا تتغيّر بتغيّر الـshard: مرّةً واحدةً (shard 1) لا خمساً.
@@ -190,6 +211,66 @@ jobs:
             test-results-${{ matrix.shard }}.xml
           include-hidden-files: true
           retention-days: 14
+
+  # حفظُ القاعدة المهاجَرة (W-20261106-005): على push إلى main فقط، لأنّ الطلبات تقرأ حفظَ main وحده.
+  # لا يعمل شيءٌ إن وُجد الحفظ لهذه البصمة (تغيّرت الهجرات أو المتطلبات ⇒ مفتاحٌ جديد ⇒ يُبنى ويُحفظ).
+  # خارج needs الملخّص عمداً: فشلُه يُبطئ الطلبات (تهاجر من الصفر) ولا يحجب الدمج.
+  migrated-db-cache:
+    name: حفظ القاعدة المهاجَرة
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DJANGO_SETTINGS_MODULE: shschool.settings.testing
+      SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
+      FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
+      EXCEL_PROTECTION_PASSWORD: ci-testing-only
+      PGPASSWORD: test_pass  # pragma: allowlist secret
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: هل الحفظ موجود؟
+        id: existing
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/migrated_db.dump
+          key: migrated-db-pg16-${{ hashFiles('**/migrations/*.py', 'requirements.txt') }}
+          lookup-only: true
+      - uses: ./.github/actions/native-postgres
+        timeout-minutes: 5
+        if: steps.existing.outputs.cache-hit != 'true'
+        with:
+          redis: "true"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        if: steps.existing.outputs.cache-hit != 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
+        if: steps.existing.outputs.cache-hit != 'true'
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev \
+            libpango1.0-dev \
+            libgdk-pixbuf2.0-dev \
+            libffi-dev \
+            shared-mime-info \
+            pkg-config
+      - name: تثبيت المتطلبات
+        if: steps.existing.outputs.cache-hit != 'true'
+        run: pip install -r requirements.txt
+      - name: هجرة من الصفر ثمّ pg_dump
+        if: steps.existing.outputs.cache-hit != 'true'
+        run: |
+          python manage.py migrate --noinput
+          pg_dump -h 127.0.0.1 -U test_user -d test_db -Fc -f /tmp/migrated_db.dump
+      - name: حفظ القاعدة المهاجَرة
+        if: steps.existing.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/migrated_db.dump
+          key: migrated-db-pg16-${{ hashFiles('**/migrations/*.py', 'requirements.txt') }}
 
   test-coverage:
     name: pytest — تغطية
