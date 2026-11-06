@@ -43,6 +43,7 @@ jobs:
           cache: pip
 
       - name: Install system dependencies for native packages
+        timeout-minutes: 10  # W-20261106-008: apt-get install قد يعلق ساعات بلا مهلة
         run: |
           sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
           sudo apt-get update && sudo apt-get install -y libcairo2-dev pkg-config
@@ -143,6 +144,7 @@ jobs:
           cache: pip
 
       - name: Install system dependencies for native packages
+        timeout-minutes: 10  # W-20261106-008: apt-get install قد يعلق ساعات بلا مهلة
         run: |
           sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
           sudo apt-get update && sudo apt-get install -y libcairo2-dev pkg-config
@@ -202,6 +204,7 @@ jobs:
           cache: pip
 
       - name: Install system libraries
+        timeout-minutes: 10  # W-20261106-008: apt-get install قد يعلق ساعات بلا مهلة
         run: |
           sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
           sudo apt-get update -qq
