@@ -35,6 +35,7 @@ from core.person_names import short_name
 from core.sorting import apply_sort
 from core.unrestricted_role import has_unrestricted_role
 
+from .observation_indicators import INDICATORS
 from .observation_models import (
     FOLLOW_UP_MODE,
     FOLLOW_UP_SCOPE,
@@ -175,6 +176,10 @@ def _form_context(school, *, obs=None, scores_map=None, is_self=False, is_peer=F
         (label, [(c, scores_map.get(str(c.id))) for c in items])
         for label, items in _grouped_criteria(school)
     ]
+    # مؤشّراتُ كل معيار من الدليل التفسيري بمفتاح order؛ ما لا مؤشّرات له تبقى قائمتُه فارغة فلا يُعرض عنده شيء.
+    for _label, items in grouped:
+        for c, _score in items:
+            c.indicators = INDICATORS.get(c.order, [])
     ctx = _form_lists(school)
     ctx.update(
         {

@@ -195,7 +195,14 @@
               {{ domain_label }} <span class="qobs-domain-count">{{ items|length }}</span>
             </th>
             {% endif %}
-            <td class="qobs-criterion-text">{{ c.text }}</td>
+            <td class="qobs-criterion-text">{{ c.text }}
+              {% if c.indicators %}
+              <details>
+                <summary class="ui-note">المؤشّرات</summary>
+                <ul>{% for ind in c.indicators %}<li>{{ ind }}</li>{% endfor %}</ul>
+              </details>
+              {% endif %}
+            </td>
             {% for v,l in rating_choices %}
             <td class="num">
               <input type="radio" name="rating_{{ c.id }}" value="{{ v }}" aria-label="{{ l }}"
