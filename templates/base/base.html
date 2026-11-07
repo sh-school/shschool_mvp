@@ -809,6 +809,9 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"behavior:committee" %}
   <a href="{% url 'behavior:committee' %}">{% icon "behavior_team" %} فريق سلوك الطلبة</a>
   {% endif %}
+  {% if request.user|can_open:"behavior:daily_report" %}
+  <a href="{% url 'behavior:daily_report' %}">{% icon "reports" %} التقرير اليومي</a>
+  {% endif %}
   </div>
 </div>
 
@@ -1003,6 +1006,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% if request.user|can_open:"student_affairs:behavior_overview" %}
   <a href="{% url 'student_affairs:behavior_overview' %}">{% icon "reports" %} ملخص سلوك طلبة الجناح</a>
   {% endif %}
+  {% if request.user|can_open:"behavior:daily_report" %}
+  <a href="{% url 'behavior:daily_report' %}">{% icon "reports" %} التقرير اليومي</a>
+  {% endif %}
   </div>
 </div>
 {% endif %}
@@ -1103,6 +1109,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% if request.user|can_open:"behavior:report_infraction" %}
   <a href="{% url 'behavior:report_infraction' %}">{% icon "behavior_violation" %} تسجيل سلوك</a>
   {% endif %}
+  {% if request.user|can_open:"behavior:daily_report" %}
+  <a href="{% url 'behavior:daily_report' %}">{% icon "reports" %} التقرير اليومي</a>
+  {% endif %}
 </div>
 {% endif %}
 
@@ -1118,6 +1127,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% endif %}
   {% if request.user|can_open:"behavior:statistics" %}
   <a href="{% url 'behavior:statistics' %}">{% icon "stats" %} الإحصائيات</a>
+  {% endif %}
+  {% if request.user|can_open:"behavior:daily_report" %}
+  <a href="{% url 'behavior:daily_report' %}">{% icon "reports" %} التقرير اليومي</a>
   {% endif %}
   <hr>
   {% if request.user|can_open:"behavior:summon_parent" %}

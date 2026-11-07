@@ -1,0 +1,71 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+
+{% block title %}التقرير السلوكي اليومي{% endblock %}
+
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="السلوك" current="التقرير اليومي" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "التقرير السلوكي اليومي" subtitle="مخالفات يوم واحد بيوم حصّتها لا يوم كتابتها" icon="behavior" %}
+    <form method="get" class="sa-filter">
+      <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="form-control" aria-label="التاريخ">
+      <select name="wing" class="form-control" aria-label="الجناح">
+        <option value="">كل الأجنحة</option>
+        {% for key, name in wing_options %}
+        <option value="{{ key }}" {% if wing == key %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+      <select name="grade" class="form-control" aria-label="الصف">
+        <option value="">كل الصفوف</option>
+        {% for code, label in grade_options %}
+        <option value="{{ code }}" {% if grade == code %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn-primary btn-sm">{% icon "search" %} عرض</button>
+    </form>
+    {% export_button "xlsx" "behavior:daily_report_xlsx" %}?{{ export_query }}{% endexport_button %}
+    {% export_button "pdf" "behavior:daily_report_pdf" %}?{{ export_query }}{% endexport_button %}
+  {% endpage_header %}
+
+  {% kpi_strip label="أرقام اليوم" %}
+    {% kpi "المخالفات" total tone="maroon" title="مخالفات اليوم المختار ضمن نطاقك ومرشّحاتك" %}
+  {% endkpi_strip %}
+
+  {% section_card "مخالفات اليوم" icon="behavior" empty="لا مخالفات في هذا اليوم" flush=True %}{% if rows %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">الطالب</th>
+            <th scope="col">الشعبة</th>
+            <th scope="col">المخالفة</th>
+            <th scope="col">الدرجة</th>
+            <th scope="col">الخطوة</th>
+            <th scope="col">الراصد</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>{{ row.student }}</td>
+            <td>{{ row.class_label }}</td>
+            <td>{{ row.violation }}</td>
+            <td>{{ row.level }}</td>
+            <td>{{ row.step }}</td>
+            <td>{{ row.reporter }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+
+</div>
+{% endblock %}
