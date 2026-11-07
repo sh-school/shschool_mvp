@@ -1119,6 +1119,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% if request.user|can_open:"behavior:statistics" %}
   <a href="{% url 'behavior:statistics' %}">{% icon "stats" %} الإحصائيات</a>
   {% endif %}
+  {% if request.user|can_open:"behavior:daily_report" %}
+  <a href="{% url 'behavior:daily_report' %}">{% icon "behavior_violation" %} تقرير السلوك اليومي</a>
+  {% endif %}
   <hr>
   {% if request.user|can_open:"behavior:summon_parent" %}
   <a href="{% url 'behavior:summon_parent' %}">{% icon "call_parent" %} استدعاء ولي أمر</a>
