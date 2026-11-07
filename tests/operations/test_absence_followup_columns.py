@@ -3,11 +3,13 @@
 الحجبُ في الخدمة فيُفحص على الشاشة الفعليّة وعلى PDF الناتج لا على القالب وحده.
 """
 
+import datetime as dt
 import io
 
 import pdfplumber
 import pytest
 from django.core.exceptions import PermissionDenied
+from django.urls import reverse
 
 from operations.absence_followup_print import build_followup_pdf
 from operations.models import AbsenceActionLog, AbsenceContactLog
@@ -151,3 +153,61 @@ class TestPrintFollowsScreen:
             assert result.rows == len(rows)
         forged = build_followup_pdf(school, principal, {"date": DAY, "sort": "'; drop"})
         assert forged.rows == len(svc.followup_rows(principal, SUNDAY))
+
+
+class TestAbsentDaysColumn:
+    """عمودُ «أيام الغياب» (W-20261107-018): أيامُ العام التي غاب فيها الحصّتين معاً، باستعلامٍ مجمَّعٍ."""
+
+    @staticmethod
+    def _seed(school, klass, kids, teacher, supervisor):
+        """يومان بغياب الحصّتين (الثاني هو يومُ التقرير) ويومٌ بغياب الأولى وحدَها قبلهما."""
+        both = [SUNDAY + dt.timedelta(days=7), SUNDAY + dt.timedelta(days=14)]
+        for day, periods in ((SUNDAY, 1), (both[0], 2), (both[1], 2)):
+            sessions = _periods(school, klass, teacher, 7, day=day)
+            for i, session in enumerate(sessions):
+                marks = {kids[0]: "absent"} if i < periods else {}
+                if day == both[1] and i < 2:
+                    marks[kids[1]] = "absent"
+                _confirm(klass, session, marks, supervisor, day=day)
+        return both[1]
+
+    def test_two_full_days_and_a_first_period_only_day_count_two(
+        self, school, klass, kids, teacher, supervisor, staff
+    ):
+        report_day = self._seed(school, klass, kids, teacher, supervisor)
+        found = svc.followup_rows(staff["principal"], report_day)
+        rows = {r["student"]: r["absent_days"] for r in found}
+        assert rows[kids[0]] == 2
+        assert rows[kids[1]] == 1
+
+    def test_queries_do_not_grow_with_the_rows(
+        self, school, klass, kids, teacher, supervisor, staff
+    ):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        report_day = self._seed(school, klass, kids, teacher, supervisor)
+        with CaptureQueriesContext(connection) as one:
+            svc.absence_days_for(school, [kids[0].id], report_day)
+        with CaptureQueriesContext(connection) as many:
+            svc.absence_days_for(school, [k.id for k in kids], report_day)
+        assert len(many) == len(one)
+
+    def test_column_shows_on_screen_pdf_and_excel_and_sorts(
+        self, client_as, school, klass, kids, teacher, supervisor, staff
+    ):
+        from operations.absence_followup_print import _xlsx_table
+
+        report_day = self._seed(school, klass, kids, teacher, supervisor)
+        principal = staff["principal"]
+        iso = f"{report_day:%Y-%m-%d}"
+        response = client_as(principal).get(reverse("absence_actions"), {"date": iso})
+        assert "أيامُ الغياب</th>" in response.content.decode()
+        rows = svc.apply_view(svc.followup_rows(principal, report_day), sort="days")
+        assert [r["absent_days"] for r in rows] == [2, 1]
+        titled = [dict(r, wing_title="") for r in rows]
+        _, columns, data = _xlsx_table("actions", titled, False)
+        index = [name for name, _ in columns].index("أيام الغياب")
+        assert [line[index] for line in data] == [2, 1]
+        result = build_followup_pdf(school, principal, {"date": iso, "page": "actions"})
+        assert result.rows == 2

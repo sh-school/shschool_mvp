@@ -76,6 +76,7 @@ def _xlsx_table(page: str, rows: list[dict], can_feedback: bool) -> tuple[str, l
     base = [("م", 5), ("الطالب", 28), ("الجناح", 16), ("الصف", 10)]
     if page == "actions":
         columns = base + [
+            ("أيام الغياب", 12),
             ("الإجراء الحالي", 30),
             ("وقت التنفيذ", 16),
             ("متابعة الإجراء", 22),
@@ -92,6 +93,7 @@ def _xlsx_table(page: str, rows: list[dict], can_feedback: bool) -> tuple[str, l
         if page == "actions":
             action = r.get("action")
             line += [
+                r.get("absent_days", 0),
                 _action_text(r),
                 f"{action.acted_at:%d/%m %H:%M}" if action else "",
                 r.get("action_status") or "لم تتمّ المتابعة",
