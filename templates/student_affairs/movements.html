@@ -16,7 +16,7 @@
 <div class="exec-dash sa-page">
 
   {% page_header "قيد الطلبة ونقلهم وانسحابهم" subtitle=year icon="student_info" %}
-    {% export_button "xlsx" "student_affairs:enrolment_movements_export" %}?section={{ section_filter }}&kind={{ kind }}&from={{ date_from|urlencode }}&to={{ date_to|urlencode }}{% endexport_button %}
+    {% export_group kind="sheet" %}{% export_button "xlsx" "student_affairs:enrolment_movements_export" %}?section={{ section_filter }}&kind={{ kind }}&from={{ date_from|urlencode }}&to={{ date_to|urlencode }}{% endexport_button %}{% endexport_group %}
   {% endpage_header %}
 
   {% url 'student_affairs:enrolment_movements' as list_url %}

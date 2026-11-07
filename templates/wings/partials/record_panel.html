@@ -16,12 +16,10 @@
         <summary class="btn-secondary btn-sm">{% icon "export_pdf" %} تصدير</summary>
         <form method="get" action="{% url 'wings:wing_register' panel.wing.code %}" class="per-exports">
           <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
-          <select name="orient" class="form-select per-orient" aria-label="اتّجاه الصفحة">
-            <option value="landscape">أفقي</option>
-            <option value="portrait">عمودي</option>
-          </select>
+          {% export_group doc="templates/wings/register_pdf.html" %}
           {% export_button "xlsx" name="format" value="xlsx" %}{% endexport_button %}
           {% export_button "pdf" name="format" value="pdf" %}{% endexport_button %}
+          {% endexport_group %}
         </form>
       </details>
     </div>

@@ -25,12 +25,10 @@
       <input type="hidden" name="grade" value="{{ grade }}">
       <input type="hidden" name="wing" value="{{ wing }}">
       <input type="hidden" name="q" value="{{ q }}">
-      <select name="orient" class="form-select per-orient" aria-label="اتّجاه الصفحة">
-        <option value="landscape">أفقي</option>
-        <option value="portrait">عمودي</option>
-      </select>
+      {% export_group doc="templates/wings/ministry_pdf.html" %}
       {% export_button "xlsx" name="format" value="xlsx" %}{% endexport_button %}
       {% export_button "pdf" name="format" value="pdf" %}{% endexport_button %}
+      {% endexport_group %}
     </form>
     {% callout "hint" %}للقراءة فقط: الغائبون هم من غابوا الحصّتين الأولى والثانية معاً بعذرٍ أو بلا عذر، ورصدُهم كاملٌ في الاثنتين؛ والحاضرون المقيدون ناقص الغائبين. ومن لم تُرصد إحداهما «بلا رصد» ولا يُحسب غائباً، ورصدُ المعلّم بانتظار الاعتماد وسمٌ لا يدخل في أيّ عدّ.{% endcallout %}
   {% endpage_header %}

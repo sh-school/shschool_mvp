@@ -65,7 +65,10 @@ class TestTheGeneralScheduleIsARealTable:
     def test_the_toolbar_names_paper_and_orientation_for_export(self, world, client):
         body = _page(client, world)
 
-        assert 'title="حجم ورق التصدير"' in body and 'title="اتّجاه ورق التصدير"' in body
+        # الورقُ في نموذج الصفحة، والاتجاهُ في شريط التصدير الموحَّد لا في قائمةٍ محلّيّة (W-20261107-021)
+        assert 'title="حجم ورق التصدير"' in body
+        assert 'title="اتّجاه ورق التصدير"' not in body
+        assert "data-export-orient" in body and 'aria-label="اتّجاه الورق"' in body
 
     def test_the_page_loads_the_interaction_layer_and_its_panel(self, world, client):
         body = _page(client, world)

@@ -134,3 +134,108 @@ def test_stamp_box_is_a_manual_empty_box():
     assert (
         "{{" not in text.split("{% endcomment %}")[-1]
     ), "الختمُ خانةٌ يدويّةٌ فارغة: لا قيمةَ مولَّدةً فيها"
+
+
+# ── اتجاهُ الورق المختار من شريط التصدير الموحَّد (W-20261107-021) ──────────────────────────────────
+
+
+def test_clean_orient_keeps_the_two_known_values_and_drops_the_rest():
+    assert pp.clean_orient("portrait") == "portrait"
+    assert pp.clean_orient(" Landscape ") == "landscape"
+    assert pp.clean_orient("diagonal") is None
+    assert pp.clean_orient("") is None and pp.clean_orient(None) is None
+
+
+def test_use_orient_scopes_the_request_value_and_restores_it():
+    assert pp.requested_orient() is None
+    with pp.use_orient("portrait"):
+        assert pp.requested_orient() == "portrait"
+        with pp.use_orient("bogus"):
+            assert pp.requested_orient() is None  # قيمةٌ مجهولةٌ تُهمل فيحكم الافتراضيّ
+        assert pp.requested_orient() == "portrait"
+    assert pp.requested_orient() is None
+
+
+def test_default_orient_matches_the_document_table():
+    assert pp.default_orient("sheet") == "landscape"
+    assert pp.default_orient("form") == pp.default_orient("letter") == "portrait"
+    for path, document in pp.DOCUMENTS.items():
+        assert pp.default_orient(doc=path) == document.default_orient
+
+
+def test_orient_param_is_read_from_the_query_and_the_job_query_string():
+    from django.http import QueryDict
+
+    assert pp.orient_from(QueryDict("a=1&orient=portrait")) == "portrait"
+    assert pp.orient_from(QueryDict("orient=zzz")) is None
+    assert pp.orient_from(None) is None
+
+
+def test_middleware_sets_the_orient_for_the_request_only():
+    from django.test import RequestFactory
+
+    from core.middleware import ExportOrientMiddleware
+
+    seen: list[str | None] = []
+
+    def view(_request):
+        seen.append(pp.requested_orient())
+        return None
+
+    factory = RequestFactory()
+    ExportOrientMiddleware(view)(factory.get("/", {"orient": "portrait"}))
+    ExportOrientMiddleware(view)(factory.get("/", {"orient": "nonsense"}))
+    ExportOrientMiddleware(view)(factory.post("/", {"orient": "landscape"}))
+    ExportOrientMiddleware(view)(factory.get("/"))
+    assert seen == ["portrait", None, "landscape", None]
+    assert pp.requested_orient() is None
+
+
+def _page_sizes(orient, paper_size="A4"):
+    from weasyprint import HTML
+
+    from core.pdf_utils import _force_page_orient
+
+    html = _force_page_orient(
+        "<html><head><style>@page { size: A4 landscape; }</style></head><body>x</body></html>",
+        paper_size,
+        orient,
+    )
+    page = HTML(string=html).render().pages[0]
+    return page.width, page.height
+
+
+def test_pdf_is_portrait_for_portrait_and_landscape_for_landscape_keeping_the_paper():
+    width, height = _page_sizes("portrait")
+    assert height > width
+    width, height = _page_sizes("landscape")
+    assert width > height
+    a3_width, a3_height = _page_sizes("portrait", "A3")
+    assert a3_height > a3_width and a3_height > height  # A3 يبقى A3 لا A4
+
+
+def test_pdf_without_a_chosen_orient_keeps_the_template_default():
+    from core.pdf_utils import _force_page_orient
+
+    html = "<html><head></head><body>x</body></html>"
+    assert _force_page_orient(html, "A4", None) == html
+
+
+def test_excel_carries_the_chosen_print_orientation_on_every_sheet():
+    from openpyxl import Workbook
+
+    from core.export_utils import apply_print_footer
+
+    wb = Workbook()
+    wb.create_sheet("second")
+    apply_print_footer(wb)
+    assert [ws.page_setup.orientation for ws in wb.worksheets] == [
+        None,
+        None,
+    ]  # بلا اختيارٍ: كما بناه البانيّ
+    with pp.use_orient("portrait"):
+        apply_print_footer(wb)
+    assert [ws.page_setup.orientation for ws in wb.worksheets] == ["portrait", "portrait"]
+    with pp.use_orient("landscape"):
+        apply_print_footer(wb)
+    assert {ws.page_setup.orientation for ws in wb.worksheets} == {"landscape"}

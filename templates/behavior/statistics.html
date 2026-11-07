@@ -21,8 +21,10 @@
       </select>
       <button type="submit" class="btn-primary btn-sm">{% icon "search" %} عرض</button>
     </form>
+    {% export_group doc="templates/behavior/statistics_pdf.html" %}
     {% export_button "xlsx" href="?export=xlsx" %}&{{ export_query }}{% endexport_button %}
     {% export_button "pdf" href="?export=pdf" %}&{{ export_query }}{% endexport_button %}
+    {% endexport_group %}
   {% endpage_header %}
 
   {% kpi_strip label="أرقام المدّة المختارة" %}

@@ -62,10 +62,6 @@
           <option value="a4" {% if paper == 'a4' %}selected{% endif %}>A4</option>
           <option value="a3" {% if paper == 'a3' %}selected{% endif %}>A3</option>
         </select>
-        <select name="orient" class="form-select" data-autosubmit title="اتّجاه ورق التصدير" aria-label="اتّجاه ورق التصدير">
-          <option value="portrait" {% if orient == 'portrait' %}selected{% endif %}>عمودي</option>
-          <option value="landscape" {% if orient == 'landscape' %}selected{% endif %}>أفقي</option>
-        </select>
       </form>
 
       {# البحثُ في الجدول العامّ وحدَه: خفوتُ غيرِ المطابق لا يعني شيئاً في جدولٍ من خمسٍ في سبع. #}
@@ -75,8 +71,10 @@
       {% endif %}
 
       {# التصديرُ للورقة المعروضة نفسها: الاختيارُ محمولٌ في `selection_query`. #}
+      {% export_group doc="templates/schedule/print_schedule.html" %}
       {% export_button "pdf" "schedule_export_pdf" job="pdf" %}?{{ selection_query }}{% endexport_button %}
       {% export_button "xlsx" "schedule_export_excel" job="excel" %}?{{ selection_query }}{% endexport_button %}
+      {% endexport_group %}
     </div>
   </div>
 

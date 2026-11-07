@@ -13,7 +13,7 @@
 <div class="pr-page">
 
   {% page_header "تقرير التقدم الكلي" subtitle=report_subtitle icon="trend" %}
-    {% export_button "pdf" "quality_report_pdf" primary=True %}?year={{ year }}{% endexport_button %}
+    {% export_group doc="templates/quality/pdf/progress_report.html" %}{% export_button "pdf" "quality_report_pdf" primary=True %}?year={{ year }}{% endexport_button %}{% endexport_group %}
     <a href="{% url 'quality_dashboard' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
   {% endpage_header %}
 

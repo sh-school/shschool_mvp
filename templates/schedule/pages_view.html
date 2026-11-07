@@ -30,13 +30,9 @@
           <option value="a4" {% if paper == 'a4' %}selected{% endif %}>A4</option>
           <option value="a3" {% if paper == 'a3' %}selected{% endif %}>A3</option>
         </select>
-        <select name="orient" class="form-select" data-autosubmit title="اتّجاه الورقة">
-          <option value="portrait" {% if orient == 'portrait' %}selected{% endif %}>عمودي</option>
-          <option value="landscape" {% if orient == 'landscape' %}selected{% endif %}>أفقي</option>
-        </select>
       </form>
 
-      {% export_button "pdf" "schedule_pages_pdf" %}?{{ selection_query }}{% endexport_button %}
+      {% export_group doc="templates/schedule/print_pages.html" %}{% export_button "pdf" "schedule_pages_pdf" %}?{{ selection_query }}{% endexport_button %}{% endexport_group %}
       <span class="text-sm text-secondary">{{ pages|length }} صفحة</span>
       {% if pages %}<button type="button" id="pages-fold-all" class="btn-secondary btn-sm" aria-controls="pages-list" aria-expanded="{{ start_open|yesno:'true,false' }}">{% if start_open %}طيّ الكلّ{% else %}فتح الكلّ{% endif %}</button>{% endif %}
     </div>

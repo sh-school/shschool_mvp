@@ -9,6 +9,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 
 SHEET = "sheet"  # قائمةٌ أو كشفٌ: أعمدةٌ كثيرة
@@ -16,6 +19,50 @@ FORM = "form"  # نموذجٌ أو استمارةٌ أو شهادة
 LETTER = "letter"  # خطابٌ أو تقريرٌ نصّيّ
 
 KIND_ORIENT = {SHEET: "landscape", FORM: "portrait", LETTER: "portrait"}
+
+# ── اتجاهُ الورق المختار من شريط التصدير الموحَّد (W-20261107-021، قرار المالك 2026-11-07) ──
+# القاعدة: كلُّ تصديرٍ (PDF وExcel) يمرّ على `{% export_group %}` فيحمل قائمةَ «أفقي/رأسي» ثم Excel ثم PDF؛ والاختيارُ يصل
+# الخادمَ معاملاً `orient=landscape|portrait` فيطبّقه `core/pdf_utils.py` (حجمُ @page) و`core/export_utils.py` (page_setup)؛
+# وقيمةٌ مجهولةٌ تُهمل فيبقى الافتراضيُّ أي اتجاهُ المستند في الجدول أدناه.
+ORIENT_PARAM = "orient"
+ORIENT_CHOICES = {"landscape": "أفقي", "portrait": "رأسي"}
+
+
+def clean_orient(value: object) -> str | None:
+    """القيمةُ المعتمدةُ أو `None` — المجهولةُ تُهمل ولا تُرفع (الافتراضيُّ يحكم)."""
+    text = str(value or "").strip().lower()
+    return text if text in ORIENT_CHOICES else None
+
+
+#: اتجاهُ الطلب الجاري (يضبطه وسيطُ `ExportOrientMiddleware` ومشغّلُ مهامّ التصدير الخلفيّة).
+_requested: ContextVar[str | None] = ContextVar("requested_orient", default=None)
+
+
+def requested_orient() -> str | None:
+    return _requested.get()
+
+
+@contextmanager
+def use_orient(value: object) -> Iterator[None]:
+    """يجعل اتجاهَ الطلب `value` (بعد التنقية) طوال الكتلة ثم يعيد ما كان."""
+    token = _requested.set(clean_orient(value))
+    try:
+        yield
+    finally:
+        _requested.reset(token)
+
+
+def orient_from(params: Mapping[str, str] | None) -> str | None:
+    """الاتجاهُ من معاملات طلبٍ (`request.GET`/`POST` أو QueryDict المهمّة الخلفيّة)."""
+    return clean_orient(params.get(ORIENT_PARAM)) if params else None
+
+
+def default_orient(kind: str = SHEET, doc: str = "") -> str:
+    """افتراضيُّ القائمة: اتجاهُ المستند `doc` في الجدول إن سُمّي، وإلا اتجاهُ نوعه (كشفٌ أفقيّ، نموذجٌ وخطابٌ رأسيّ)."""
+    if doc:
+        return DOCUMENTS[doc].default_orient
+    return KIND_ORIENT[kind]
+
 
 CONFORMS = "conforms"
 EXCEPTION = "exception"  # يخالف الجدولَ بقرارٍ مسمّى من المالك
