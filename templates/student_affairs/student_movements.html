@@ -1,6 +1,7 @@
 {% extends "base/base.html" %}
 {% load icons %}
 {% load ui %}
+{% load movement_entry_tags %}
 
 {% block title %}تحركات الطلبة — شؤون الطلاب{% endblock %}
 
@@ -54,6 +55,8 @@
     {% action_tile "الخروج مبكراً من المدرسة" desc="غيرُ مُسجَّلٍ في هذه الشاشة بعد" icon="sent_home" href=request.path %}
   </nav>
 
+  {% movement_entry_form %}
+
   {% kpi_strip label="أرقام التحركات" %}
     {% kpi "التحركات" total_count title="خروجٌ بإذنٍ أثناء الحصّة — عيادة أو إدارة أو دورة مياه أو أخرى" %}
     {% kpi "لم يعد بعد" open_count tone="amber" title="خرج ولم تُسجَّل عودته حتى الآن" %}
@@ -71,6 +74,7 @@
             <th class="num">الخروج</th>
             <th class="num">العودة</th>
             <th>بإذن</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -86,6 +90,14 @@
               {% else %}<span class="status-badge status-warning">لم يعد</span>{% endif %}
             </td>
             <td>{{ e.allowed_by.full_name|default:"—" }}</td>
+            <td>
+              {% if not e.returned_at %}
+              <form method="post" action="{% url 'student_affairs:movement_return' e.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-primary btn-sm">عاد</button>
+              </form>
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>
