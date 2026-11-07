@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextvars import ContextVar
 from typing import Any
+
+from django.core.signals import request_finished, request_started
 
 from core.capabilities.base import Capability
 from core.permissions import SYSTEM_ADMIN, USER_MANAGE
@@ -45,15 +48,45 @@ def register_acting_roles_provider(provider: Callable[[Any], frozenset[str]]) ->
     _acting_roles_provider = provider
 
 
-def acting_holds(user: Any, cap: Capability) -> bool:
+#: الوظائفُ المُنَابةُ التي مرّ بها فحصُ القدرة في الطلب الحاليّ (W-20261107-002) — يقرؤها ``AuditLog.save``
+#: فيَسِمُ الصفَّ بـ``acting_for``. ``None`` = لم يمرّ فعلٌ بالإنابة في هذا الطلب.
+_acting_for: ContextVar[frozenset[str] | None] = ContextVar("acting_for", default=None)
+
+
+def current_acting_for() -> str | None:
+    """الوظائفُ المُنَابةُ في الطلب الحاليّ نصّاً مرتَّباً (``None`` إن لم تُستعمل الإنابة)."""
+    roles = _acting_for.get()
+    return ",".join(sorted(roles)) if roles else None
+
+
+def _mark_acting(roles: frozenset[str]) -> None:
+    _acting_for.set((_acting_for.get() or frozenset()) | roles)
+
+
+def _reset_acting(**_: Any) -> None:
+    """يصفّر الوسمَ عند بدء الطلب وعند انتهائه فلا يتسرّب سياقُ الإنابة إلى طلبٍ لاحق."""
+    _acting_for.set(None)
+
+
+request_started.connect(_reset_acting, dispatch_uid="acting_audit_reset_started")
+request_finished.connect(_reset_acting, dispatch_uid="acting_audit_reset_finished")
+
+
+def acting_holds(user: Any, cap: Capability, *, mark: bool = True) -> bool:
     """أيحمل المستخدمُ ``cap`` اليومَ بتكليفٍ ساري بأعباء وظيفةٍ تحملها؟
 
     يُقرأ ``StaffAssignment`` (استعلامٌ واحدٌ للطلب) فلا يمسّ ``Capability.granted`` — فذاك منحٌ
     صريحٌ باسم الشخص يقرؤه ``is_operator`` بحرفه، والتكليفُ مؤقّتٌ بوظيفة.
+
+    وعند النجاح يُعلَّم سياقُ الطلب بالوظيفة المُنَابة ليَسِمَ ``AuditLog`` أفعالَه؛ و``mark=False``
+    للعرض (القائمةُ الجانبيّة) فلا يُوسَم فعلٌ أصليٌّ لمجرّد ظهور عنصرِ قائمة.
     """
     if not acting_transferable(cap) or _acting_roles_provider is None:
         return False
-    return bool(_acting_roles_provider(user) & cap.expanded_roles)
+    matched = _acting_roles_provider(user) & cap.expanded_roles
+    if matched and mark:
+        _mark_acting(frozenset(matched))
+    return bool(matched)
 
 
 def _grant_or_acting(cap: Capability) -> Callable | None:
@@ -62,6 +95,6 @@ def _grant_or_acting(cap: Capability) -> Callable | None:
         return cap.grant
 
     def check(user: Any) -> bool:
-        return cap.granted(user) or acting_holds(user, cap)
+        return cap.granted(user) or acting_holds(user, cap, mark=False)
 
     return check

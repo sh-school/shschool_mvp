@@ -16,6 +16,9 @@ from core.audit_repr import masked_repr
 from .school import School, _uuid
 from .user import CustomUser
 
+#: مفتاحُ وسم الإنابة في ``AuditLog.changes``.
+ACTING_FOR_KEY = "acting_for"
+
 
 class _ImmutableQuerySet(models.QuerySet):
     """يمنع الحذفَ والتعديلَ الجماعيَّ — PDPPL م.19.
@@ -255,7 +258,26 @@ class AuditLog(models.Model):
     def save(self, *args: Any, **kwargs: Any) -> None:
         if self.pk and AuditLog.objects.filter(pk=self.pk).exists():
             raise PermissionDenied("AuditLog records are immutable and cannot be updated.")
+        self._tag_acting()
         super().save(*args, **kwargs)
+
+    def _tag_acting(self) -> None:
+        """يضيف ``acting_for`` إلى ``changes`` إن مرّ الفعلُ بقدرةٍ منقولةٍ بالتكليف (W-20261107-002).
+
+        لا حقلَ جديد ولا هجرة: المفتاحُ في JSON القائم. والاستيرادُ داخليٌّ تجنّباً لدورة استيراد.
+        """
+        from core.capabilities.acting import current_acting_for
+
+        acting = current_acting_for()
+        if acting is None:
+            return
+        if self.changes is None:
+            self.changes = {ACTING_FOR_KEY: acting}
+        elif isinstance(self.changes, dict):
+            self.changes = {**self.changes, ACTING_FOR_KEY: acting}
+        else:
+            # قيمةٌ ليست كائناً: تُحفظ كما هي تحت «value» كي لا يضيع شيءٌ منها.
+            self.changes = {"value": self.changes, ACTING_FOR_KEY: acting}
 
     def delete(self, *args, **kwargs):
         raise PermissionDenied("AuditLog records are immutable and cannot be deleted.")

@@ -600,6 +600,24 @@ class ParentStudentLinkAdmin(SchoolScopedAdmin):
 
 # ── AuditLog Admin ─────────────────────────────────────────────
 from core.models import AuditLog, BreachReport, ConsentRecord
+from core.models.audit import ACTING_FOR_KEY
+
+
+class ActingForFilter(admin.SimpleListFilter):
+    """تصفيةُ سجلّ التدقيق بوسم الإنابة: أفعالُ المُناب نيابةً، أو أفعالُه الأصليّة (W-20261107-002)."""
+
+    title = "الإنابة"
+    parameter_name = "acting"
+
+    def lookups(self, request, model_admin):
+        return (("yes", "بالإنابة"), ("no", "أصليّ"))
+
+    def queryset(self, request, queryset):
+        if self.value() == "yes":
+            return queryset.filter(changes__has_key=ACTING_FOR_KEY)
+        if self.value() == "no":
+            return queryset.exclude(changes__has_key=ACTING_FOR_KEY)
+        return queryset
 
 
 @admin.register(AuditLog)
@@ -607,13 +625,14 @@ class AuditLogAdmin(SchoolScopedAdmin):
     list_display = (
         "timestamp",
         "user",
+        "acting_for",
         "action",
         "model_name",
         "object_repr",
         "ip_address",
         "school",
     )
-    list_filter = ("action", "model_name", "school")
+    list_filter = ("action", "model_name", "school", ActingForFilter)
     list_select_related = ("user", "school")
     search_fields = ("user__full_name", "object_repr", "ip_address")
     readonly_fields = (
@@ -632,6 +651,11 @@ class AuditLogAdmin(SchoolScopedAdmin):
     autocomplete_fields = ("user",)
     ordering = ("-timestamp",)
     date_hierarchy = "timestamp"
+
+    @admin.display(description="بالإنابة عن")
+    def acting_for(self, obj):
+        changes = obj.changes
+        return changes.get(ACTING_FOR_KEY, "") if isinstance(changes, dict) else ""
 
     def has_add_permission(self, request):
         return False  # لا يمكن إنشاء سجلات يدوياً
