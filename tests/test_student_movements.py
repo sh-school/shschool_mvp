@@ -31,7 +31,7 @@ from tests.conftest import (
     UserFactory,
 )
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
 DAY = dt.date(2026, 9, 20)
 
@@ -439,3 +439,129 @@ def test_enrolment_export_follows_filters(school, student_affairs_coordinator_us
     cells = [c.value for row in ws.iter_rows() for c in row if c.value]
     assert "طالب منسحب" in cells and "انسحاب" in cells
     assert "طالب مقيَّد" not in cells
+
+
+# ── W-20261107-020: تسجيل التحرّك مباشرةً من الشاشة ──
+
+LEAVE = "student_affairs:movement_leave"
+MOMENT = "2026-09-20T08:05"
+
+
+def _enrolled_with_session(school, klass, teacher, name, nid):
+    """طالبٌ مقيَّدٌ في الشعبة وحصّةٌ تشمل 08:05 من اليوم المعلوم."""
+    student = UserFactory(full_name=name, national_id=nid)
+    StudentEnrollmentFactory(student=student, class_group=klass)
+    Session.objects.create(
+        school=school,
+        class_group=klass,
+        teacher=teacher,
+        date=DAY,
+        start_time=dt.time(8, 0),
+        end_time=dt.time(8, 40),
+        status="scheduled",
+    )
+    return student
+
+
+def test_leave_form_records_exit_with_destination_and_time(
+    client, school, principal_user, teacher_user, wing_a
+):
+    klass, _ = wing_a
+    student = _enrolled_with_session(school, klass, teacher_user, "طالب التسجيل", "29400000061")
+    client.force_login(principal_user)
+
+    resp = client.post(
+        reverse(LEAVE), {"student": student.pk, "destination": "clinic", "left_at": MOMENT}
+    )
+
+    assert resp.status_code == 302
+    (exit_,) = ClassExit.objects.filter(student=student)
+    assert exit_.destination == "clinic"
+    assert timezone.localtime(exit_.left_at).strftime("%H:%M") == "08:05"
+    assert exit_.allowed_by == principal_user
+    html = client.get(
+        reverse("student_affairs:student_movements"), {"date": DAY.isoformat()}
+    ).content.decode()
+    assert "طالب التسجيل" in html and "العيادة" in html
+
+
+def test_return_button_records_return_time(client, school, principal_user, teacher_user, wing_a):
+    klass, _ = wing_a
+    student = UserFactory(full_name="طالب العودة", national_id="29400000062")
+    exit_ = _exit_in(school, klass, teacher_user, student, hour=8)
+    client.force_login(principal_user)
+
+    resp = client.post(reverse("student_affairs:movement_return", args=[exit_.pk]))
+
+    assert resp.status_code == 302
+    exit_.refresh_from_db()
+    assert exit_.returned_at is not None
+
+
+def test_student_without_current_session_is_refused_with_message(
+    client, school, principal_user, wing_a
+):
+    klass, _ = wing_a
+    student = UserFactory(full_name="طالب بلا حصة", national_id="29400000063")
+    StudentEnrollmentFactory(student=student, class_group=klass)
+    client.force_login(principal_user)
+
+    resp = client.post(
+        reverse(LEAVE),
+        {"student": student.pk, "destination": "restroom", "left_at": MOMENT},
+        follow=True,
+    )
+
+    assert not ClassExit.objects.filter(student=student).exists()
+    assert "لا حصّةَ جاريةً" in resp.content.decode()
+
+
+def test_supervisor_cannot_record_or_return_other_wing_student(
+    client, school, teacher_user, wing_a, wing_b
+):
+    klass_b, _ = wing_b
+    _, supervisor_a = wing_a
+    student = _enrolled_with_session(school, klass_b, teacher_user, "طالب جناح ب", "29400000064")
+    other_exit = _exit_in(
+        school, klass_b, teacher_user, UserFactory(national_id="29400000065"), hour=9
+    )
+    client.force_login(supervisor_a)
+
+    leave = client.post(
+        reverse(LEAVE), {"student": student.pk, "destination": "clinic", "left_at": MOMENT}
+    )
+    back = client.post(reverse("student_affairs:movement_return", args=[other_exit.pk]))
+
+    assert leave.status_code == 404 and back.status_code == 404
+    assert not ClassExit.objects.filter(student=student).exists()
+    other_exit.refresh_from_db()
+    assert other_exit.returned_at is None
+
+
+def test_leaving_school_redirects_to_exit_permits(
+    client, school, principal_user, teacher_user, wing_a
+):
+    klass, _ = wing_a
+    student = _enrolled_with_session(school, klass, teacher_user, "طالب الانصراف", "29400000066")
+    client.force_login(principal_user)
+
+    resp = client.post(reverse(LEAVE), {"student": student.pk, "destination": "school"})
+
+    assert resp.status_code == 302
+    assert resp.url == reverse("wings:exit_permit_new", args=[student.pk])
+    assert not ClassExit.objects.filter(student=student).exists()
+
+
+def test_entry_form_cascades_grade_section_students(
+    client, school, principal_user, teacher_user, wing_a
+):
+    klass, _ = wing_a
+    _enrolled_with_session(school, klass, teacher_user, "طالب القائمة", "29400000067")
+    client.force_login(principal_user)
+
+    html = client.get(
+        reverse("student_affairs:student_movements"),
+        {"mv_grade": klass.grade, "mv_section": str(klass.pk)},
+    ).content.decode()
+
+    assert "طالب القائمة" in html and "تسجيل الخروج" in html

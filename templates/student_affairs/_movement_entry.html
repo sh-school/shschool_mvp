@@ -1,0 +1,39 @@
+{% load icons %}
+{% load ui %}
+{# تسجيل تحرّكٍ جديد: الصفّ ← الشعبة ← الطالب، بلا جافاسكربت (نموذج GET يحدّد الشعبة ثم نموذج POST). #}
+{% section_card "تسجيل تحرّك" icon="sent_home" %}
+  <form method="get" class="sa-filter" aria-label="اختيار الصف والشعبة">
+    <input type="hidden" name="date" value="{{ selected_date }}">
+    <select name="mv_grade" class="form-control" aria-label="الصف">
+      <option value="">اختر الصف</option>
+      {% for val, label in entry_grades %}
+      <option value="{{ val }}" {% if entry_grade == val %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="mv_section" class="form-control" aria-label="الشعبة">
+      <option value="">اختر الشعبة</option>
+      {% for pk, label in entry_sections %}
+      <option value="{{ pk }}" {% if entry_section == pk|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn-primary btn-sm">{% icon "search" %} عرض الطلاب</button>
+  </form>
+  {% if entry_section %}
+  <form method="post" action="{% url 'student_affairs:movement_leave' %}" class="sa-filter" aria-label="تسجيل الخروج">
+    {% csrf_token %}
+    <select name="student" class="form-control" aria-label="الطالب" required>
+      <option value="">اختر الطالب</option>
+      {% for s in entry_students %}
+      <option value="{{ s.pk }}">{{ s.full_name }}</option>
+      {% endfor %}
+    </select>
+    <select name="destination" class="form-control" aria-label="الوجهة" required>
+      {% for val, label in entry_destinations %}
+      <option value="{{ val }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+    <input type="datetime-local" name="left_at" value="{{ entry_now }}" class="form-control" aria-label="وقت الخروج">
+    <button type="submit" class="btn-primary btn-sm">{% icon "sent_home" %} تسجيل الخروج</button>
+  </form>
+  {% endif %}
+{% endsection_card %}

@@ -217,3 +217,27 @@ class ActivityForm(forms.Form):
         label="مرفق",
         validators=[FileTypeValidator(allowed_types="document", max_size_mb=10)],
     )
+
+
+class MovementLeaveForm(forms.Form):
+    """تسجيل تحرّك الطالب من شاشة «تحركات الطلبة» (W-20261107-020).
+
+    وقتُ الخروج فارغٌ = الآن. و«school» وجهةٌ تُحوَّل إلى أذونات الخروج لا تُسجَّل هنا.
+    """
+
+    student = forms.UUIDField(error_messages={"required": "اختر الطالب."})
+    destination = forms.ChoiceField(
+        choices=[
+            ("clinic", "العيادة"),
+            ("admin", "الإدارة / المشرف"),
+            ("restroom", "دورة المياه"),
+            ("other", "أخرى"),
+            ("school", "الخروج من المدرسة"),
+        ],
+        error_messages={"required": "اختر الوجهة.", "invalid_choice": "وجهةٌ غير صالحة."},
+    )
+    left_at = forms.DateTimeField(
+        required=False,
+        input_formats=["%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M"],
+        error_messages={"invalid": "وقتُ الخروج غير صالح."},
+    )
