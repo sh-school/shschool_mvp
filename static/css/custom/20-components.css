@@ -2426,5 +2426,9 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-inline-start: 38px; 
   font-size: var(--text-sm);
 }
 .export-group--xs .export-group__orient { padding-block: var(--sp-1); font-size: var(--text-xs); }
+/* هدفُ اللمس ≥ 44px على الجوّال كبقيّة الأزرار (حارس الجوّال) */
+@media (max-width: 1024px) {
+  .export-group .export-group__orient { min-height: 2.75rem; }
+}
 
 }
