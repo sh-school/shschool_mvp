@@ -38,9 +38,31 @@ class StatLine:
     def rate(self) -> float:
         return rate(self.absent_both, self.enrolled)
 
+    @property
+    def present(self) -> int:
+        """الحاضرون = المقيَّدون ناقص الغائبين (لا يُعدّ غيرُ المرصود غائباً)."""
+        return self.enrolled - self.absent_both
+
     def add(self, counts: Counts) -> None:
         self.enrolled += counts.enrolled
         self.absent_both += counts.absent_both
+
+
+#: أعمدةُ كلّ جدولٍ بعد عمود الاسم — واحدةٌ للشاشة وPDF وExcel.
+TABLE_COLUMNS = ("المقيدون", "الحاضرون", "الغائبون", "نسبة الغياب")
+
+
+@dataclass
+class StatTable:
+    key: str
+    title: str
+    #: عنوان عمود الاسم (الشعبة أو الجناح أو المرحلة).
+    name_label: str
+    lines: list[StatLine]
+
+    @property
+    def headers(self) -> list[str]:
+        return [self.name_label, *TABLE_COLUMNS]
 
 
 @dataclass
@@ -51,6 +73,18 @@ class AbsenceStats:
     outside: StatLine | None
     #: نسبُ الصفوف (السابع…الثاني عشر) من `summary.grades` نفسِه — للمقارنة، خارج `bars` فلا يتغيّر الرسم.
     grades: list[StatLine] = field(default_factory=list)
+    #: سطرٌ لكلّ شعبةٍ بمجاميعها — أوّلُ جداول الإحصائية.
+    classes: list[StatLine] = field(default_factory=list)
+
+    @property
+    def tables(self) -> list[StatTable]:
+        """جداولُ «إحصائية الغياب» الثلاثة بترتيبها الثابت: الشعب، ثمّ الأجنحة، ثمّ المراحل — بخمسة أعمدةٍ موحّدة."""
+        wings = [*self.wings, *([self.outside] if self.outside else [])]
+        return [
+            StatTable("classes", "الشعب الدراسية كلها", "الشعبة", self.classes),
+            StatTable("wings", "الأجنحة", "الجناح", wings),
+            StatTable("stages", "المراحل الدراسية", "المرحلة", self.stages),
+        ]
 
     @property
     def bars(self) -> list[StatLine]:
@@ -128,4 +162,9 @@ def absence_stats(summary: MinistrySummary) -> AbsenceStats:
         line = StatLine(grade.label, key=grade.key)
         line.add(grade.counts)
         grades.append(line)
-    return AbsenceStats(school, stages, wings, outside, grades)
+    classes: list[StatLine] = []
+    for row in rows:
+        line = StatLine(row.group.short_code, key=row.group.short_code)
+        line.add(row.counts)
+        classes.append(line)
+    return AbsenceStats(school, stages, wings, outside, grades, classes)

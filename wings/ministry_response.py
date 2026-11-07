@@ -1,4 +1,4 @@
-"""استجابةُ ملخّص الحصّتين الأولى والثانية — شاشةَ منصّةٍ أو PDF أو Excel. (كتابتُها هنا لا في العرض: طبقاتُ المنصّة.)"""
+"""استجابةُ «إحصائية الغياب» (الحصّتان الأولى والثانية) — شاشةَ منصّةٍ أو PDF أو Excel. (كتابتُها هنا لا في العرض: طبقاتُ المنصّة.)"""
 
 from django.shortcuts import render
 from django.template.loader import render_to_string
@@ -13,7 +13,9 @@ from .ministry_excel import ministry_workbook
 from .ministry_selectors import MinistrySummary
 from .register import footer_lines
 
-TITLE = "ملخّصُ غياب الحصّتين الأولى والثانية"
+TITLE = "إحصائية الغياب"
+#: العنوان الفرعيّ لتقرير الإحصائية (PDF وExcel).
+REPORT_SUBTITLE = "الطلاب الغائبون في الحصة الأولى والثانية"
 
 
 def respond(
@@ -28,13 +30,20 @@ def respond(
 ):
     """يُخرج الملخّصَ بالصيغة المطلوبة؛ والتصديرُ مدقَّق بلا رقمٍ شخصيّ."""
     ctx = get_export_context(request, TITLE)
+    stats = absence_stats(summary)
     ctx.update(
-        school=school, summary=summary, orient=orient, footer=footer_lines(school), bound=bound
+        school=school,
+        summary=summary,
+        stats=stats,
+        orient=orient,
+        footer=footer_lines(school),
+        bound=bound,
+        report_subtitle=REPORT_SUBTITLE,
     )
     if fmt == "xlsx":
         log_export(request, "wings.ministry_xlsx", object_repr=TITLE)
         return ExcelService.to_response(
-            ministry_workbook(summary, ctx["school_name"], ctx["exported_by"], orient),
+            ministry_workbook(summary, ctx["school_name"], ctx["exported_by"], orient, stats),
             generate_export_filename("wings", "ministry_p1p2", "xlsx"),
             school=school,
         )
@@ -45,7 +54,6 @@ def respond(
             html, generate_export_filename("wings", "ministry_p1p2", "pdf"), as_attachment=True
         )
     ctx.update(screen or {})
-    ctx["stats"] = absence_stats(summary)
     ctx.update(
         day=summary.day,
         bound=bound,

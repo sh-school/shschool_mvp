@@ -166,7 +166,7 @@ def test_the_exports_are_audited_carry_no_national_id_and_open(
     )
     assert xlsx.status_code == 200 and "spreadsheetml" in xlsx["Content-Type"]
     assert pdf.status_code == 200 and pdf["Content-Type"] == "application/pdf"
-    assert AuditLog.objects.filter(object_repr__contains="ملخّصُ غياب").exists()
+    assert AuditLog.objects.filter(object_repr__contains="إحصائية الغياب").exists()
 
 
 def test_the_daily_absence_page_links_to_the_summary_for_the_supervisor(
@@ -242,7 +242,7 @@ def test_the_grade_and_search_filters_narrow_the_numbers_and_the_names_together(
     own_grade = page.get(url, {"date": SUNDAY.isoformat(), "grade": klass.grade}).content.decode()
 
     assert "غائبٌ بعذر" in by_name and "طالب الشعبة" not in by_name
-    assert "لا شعبَ تطابق الترشيح" in nothing
+    assert "لا بياناتَ تطابق الترشيح" in nothing
     assert "غائبٌ بعذر" in own_grade
 
 
@@ -319,3 +319,54 @@ def test_the_wing_filter_keeps_only_that_wings_classes_and_names(
     assert other_class.pk not in [row.group.pk for row in only_own.class_rows]
     assert "غائبٌ بعذر" in [m.name for m in only_own.ministered]
     assert narrow(summary, wing="") is summary
+
+
+def test_the_three_tables_share_five_columns_and_sum_to_the_school_total(
+    school, year, band, klass, class_day
+):
+    """W-20261107-003: الشعبُ ثمّ الأجنحةُ ثمّ المراحل بخمسة أعمدةٍ، ومجموعُ كلٍّ منها = الإجمالي المدرسيّ."""
+    from wings.absence_stats import absence_stats
+
+    stats = absence_stats(ministry_summary(school, SUNDAY))
+
+    assert [t.key for t in stats.tables] == ["classes", "wings", "stages"]
+    for table in stats.tables:
+        assert len(table.headers) == 5
+        assert table.headers[1:] == ["المقيدون", "الحاضرون", "الغائبون", "نسبة الغياب"]
+        assert sum(line.enrolled for line in table.lines) == stats.school.enrolled
+        assert sum(line.absent_both for line in table.lines) == stats.school.absent_both
+    # الغائبون = من غابوا الحصّتين (بعذر وبلا عذر)، والحاضرون = المقيدون ناقص الغائبين؛ وغيرُ المرصود لا يُعدّ غائباً
+    assert (stats.school.enrolled, stats.school.absent_both, stats.school.present) == (5, 2, 3)
+    assert stats.school.rate == 40.0
+
+
+def test_the_report_exports_carry_the_new_title_and_the_overall_block_first(
+    school, klass, class_day, holder, client_as
+):
+    import io
+    import unicodedata
+
+    import pdfplumber
+    from openpyxl import load_workbook
+
+    url = reverse("wings:ministry_report")
+    xlsx = client_as(holder).get(url, {"date": SUNDAY.isoformat(), "format": "xlsx"})
+    pdf = client_as(holder).get(url, {"date": SUNDAY.isoformat(), "format": "pdf"})
+
+    book = load_workbook(io.BytesIO(xlsx.content))
+    assert book.sheetnames[0] == "إحصائية الغياب"
+    cells = [str(c.value) for row in book.worksheets[0].iter_rows() for c in row if c.value]
+    text = " ".join(cells)
+    assert "الطلاب الغائبون في الحصة الأولى والثانية" in text and "ملخّص" not in text
+    order = [
+        text.index(part)
+        for part in ("الإحصائية الإجمالية", "الشعب الدراسية كلها", "الأجنحة", "المراحل الدراسية")
+    ]
+    assert order == sorted(order)
+    for header in ("المقيدون", "الحاضرون", "الغائبون", "نسبة الغياب"):
+        assert header in cells
+    assert "40.0%" in cells
+
+    pages = pdfplumber.open(io.BytesIO(pdf.content)).pages
+    flat = unicodedata.normalize("NFKC", " ".join(p.extract_text() or "" for p in pages))
+    assert pdf.status_code == 200 and flat.strip()
