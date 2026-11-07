@@ -200,7 +200,7 @@ def _header_scale(paper_size: str) -> tuple[int, float]:
 def _logo_tag(css_class: str, height: int) -> str:
     """وسمُ شعار الوزارة مضمَّناً (data:)؛ فارغٌ إن غاب الملفّ (قاعدةُ الشعار الواحد: لا شعارَ ثانياً)."""
     try:
-        return f'<img class="{css_class}" src="{ministry_logo.logo_data_uri()}" alt="" height="{height}" style="height:{height}px;width:auto;">'
+        return f'<img class="{css_class}" src="{ministry_logo.logo_data_uri()}" alt="" height="{height}">'
     except FileNotFoundError:
         return ""
 
