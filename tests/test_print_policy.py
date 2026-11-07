@@ -101,11 +101,20 @@ def test_defaults_in_code_match_the_table():
     assert _orientation(R()) == "landscape"
 
 
-def test_the_four_student_lists_include_the_manual_stamp_box():
-    for name in ("student_list", "attendance_overview", "behavior_overview", "tardiness"):
-        assert "components/print/stamp_box.html" in _text(
-            f"templates/student_affairs/{name}_pdf.html"
-        ), name
+def test_no_template_brings_back_a_stamp_box():
+    # قرار المالك 2026-11-07: لا خانةَ ختمٍ ولا مربّعَ متقطّعًا في أيّ طباعة (ختمُ التصدير export-stamp نصٌّ مختلف)
+    import re
+    from pathlib import Path
+
+    banned = re.compile(r"stamp_box|pf-stamp|والختم|>\s*الختم( الرسمي)?\s*<")
+    root = Path(__file__).resolve().parent.parent / "templates"
+    assert not (root / "components/print/stamp_box.html").exists()
+    offenders = [
+        str(p.relative_to(root))
+        for p in root.rglob("*.html")
+        if banned.search(p.read_text(encoding="utf-8"))
+    ]
+    assert offenders == [], f"قوالبُ تعيد خانةَ الختم: {offenders}"
 
 
 def test_a_student_list_renders_as_a_landscape_a4_pdf():
@@ -126,14 +135,6 @@ def test_a_student_list_renders_as_a_landscape_a4_pdf():
 
     page = HTML(string=html).render().pages[0]
     assert page.width > page.height, f"الصفحةُ عموديّة {page.width}x{page.height} والمطلوب أفقيّ"
-
-
-def test_stamp_box_is_a_manual_empty_box():
-    text = _text("templates/components/print/stamp_box.html")
-    assert "الختم" in text
-    assert (
-        "{{" not in text.split("{% endcomment %}")[-1]
-    ), "الختمُ خانةٌ يدويّةٌ فارغة: لا قيمةَ مولَّدةً فيها"
 
 
 # ── اتجاهُ الورق المختار من شريط التصدير الموحَّد (W-20261107-021) ──────────────────────────────────
