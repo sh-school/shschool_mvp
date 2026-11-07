@@ -100,6 +100,52 @@ def test_latest_checks_keeps_unnamed_checks_separate():
     assert not ok
 
 
+ADVISORY = "روابطُ المسارات الجديدة — استشاري"
+
+
+def test_failing_advisory_check_alone_is_accepted():
+    # فحصٌ استشاريّ أحمر وحده لا يمنع الدمج (W-20261107-016).
+    checks = [
+        _run("pytest", "SUCCESS", "2026-11-05T08:14:00Z", "2026-11-05T08:15:00Z"),
+        _run(ADVISORY, "FAILURE", "2026-11-05T08:14:00Z", "2026-11-05T08:15:00Z"),
+    ]
+    ok, reasons = gate.evaluate_data(_pr(checks))
+    assert ok, reasons
+
+
+def test_pending_advisory_check_alone_is_accepted():
+    # فحصٌ استشاريّ لم يكتمل وحده لا يمنع الدمج (W-20261107-016).
+    checks = [
+        _run("pytest", "SUCCESS", "2026-11-05T08:14:00Z", "2026-11-05T08:15:00Z"),
+        _run(ADVISORY, "IN_PROGRESS", "2026-11-05T08:14:00Z"),
+    ]
+    ok, reasons = gate.evaluate_data(_pr(checks))
+    assert ok, reasons
+
+
+def test_failing_non_advisory_check_still_blocks_next_to_advisory():
+    # الفشلُ في فحصٍ غير استشاريّ يمنع الدمج حتى مع وجود استشاريّ أحمر.
+    checks = [
+        _run("pytest", "FAILURE", "2026-11-05T08:14:00Z", "2026-11-05T08:15:00Z"),
+        _run(ADVISORY, "FAILURE", "2026-11-05T08:14:00Z", "2026-11-05T08:15:00Z"),
+    ]
+    ok, reasons = gate.evaluate_data(_pr(checks))
+    assert not ok
+    assert any("فحصٌ فاشل: pytest (FAILURE)" in r for r in reasons)
+    assert not any("استشاري" in r for r in reasons)
+
+
+def test_pending_non_advisory_check_still_blocks_next_to_advisory():
+    # فحصٌ غير استشاريّ لم يكتمل يمنع الدمج حتى مع وجود استشاريّ أحمر.
+    checks = [
+        _run("pytest", "IN_PROGRESS", "2026-11-05T08:14:00Z"),
+        _run(ADVISORY, "FAILURE", "2026-11-05T08:14:00Z", "2026-11-05T08:15:00Z"),
+    ]
+    ok, reasons = gate.evaluate_data(_pr(checks))
+    assert not ok
+    assert any("لم يكتمل بعدُ: pytest" in r for r in reasons)
+
+
 def test_missing_approval_line_still_rejected():
     checks = [_run("pytest", "SUCCESS", "2026-11-05T08:14:00Z", "2026-11-05T08:15:00Z")]
     ok, reasons = gate.evaluate_data(_pr(checks, body="بلا سطر اعتماد"))

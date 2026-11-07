@@ -50,9 +50,14 @@ FORBIDDEN_GLOBS = (
 REQUIRED_FAILING_STATES = {"FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED"}
 PENDING_STATES = {"PENDING", "IN_PROGRESS", "QUEUED", "EXPECTED", "REQUESTED", "WAITING"}
 
+# فحصٌ اسمُه يحوي «استشاري» لا يحجب الدمج، فشلاً كان أم لم يكتمل (W-20261107-016):
+# يُعلَن في quality-gate بـcontinue-on-error فلا يحجب أصلاً، والبوّابةُ تطابق سلوكَه.
+ADVISORY_WORD = "استشاري"
+
 
 def sh_json(args: list[str]) -> object:
-    out = subprocess.run(args, capture_output=True, text=True, check=True)
+    # قائمةُ وسائطَ ثابتة بلا shell؛ المدخلُ رقمُ الطلب والمستودع من سطر الأوامر فقط.
+    out = subprocess.run(args, capture_output=True, text=True, check=True)  # noqa: S603
     return json.loads(out.stdout)
 
 
@@ -117,6 +122,9 @@ def evaluate_data(data: dict) -> tuple[bool, list[str]]:
         for check in checks:
             state = (check.get("state") or check.get("conclusion") or "").upper()
             name = check.get("name") or check.get("context") or "؟"
+            if ADVISORY_WORD in name:
+                # الاستشاريّ يُتجاهل فشلاً كان أو تعليقاً؛ بقيّةُ الفحوص تبقى مانعةً كما هي.
+                continue
             if state in REQUIRED_FAILING_STATES:
                 reasons.append(f"فحصٌ فاشل: {name} ({state})")
             elif state in PENDING_STATES or not state:
@@ -151,7 +159,7 @@ def main() -> int:
             cmd = ["gh", "pr", "merge", args.pr_number, "--auto"]
             if args.repo:
                 cmd += ["--repo", args.repo]
-            subprocess.run(cmd, check=True)
+            subprocess.run(cmd, check=True)  # noqa: S603
             print("[تفعيل] auto-merge مفعَّلٌ على الطلب")
         return 0
 
