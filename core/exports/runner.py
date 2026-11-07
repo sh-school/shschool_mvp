@@ -19,6 +19,7 @@ from core.capabilities import has_capability
 from core.celery_tasks import school_rls_scope
 from core.models import AuditLog, ExportJob
 from core.print_policy import orient_from, use_orient
+from core.print_school import use_school
 
 from . import messages, registry
 
@@ -57,7 +58,7 @@ def run_job(job_id: str) -> dict:
                 return _fail(job, messages.FORBIDDEN, started)
             query = QueryDict(job.query_string)
             # اتجاهُ الورق المختار في الشريط يسافر في سلسلة الاستعلام المحفوظة (W-20261107-021)
-            with use_orient(orient_from(query)):
+            with use_orient(orient_from(query)), use_school(job.school):
                 result = spec.build(job.school, job.requested_by, query)
             if len(result.content) > spec.max_bytes:
                 return _fail(job, messages.TOO_LARGE, started)
