@@ -15,7 +15,7 @@
 {% block content %}
 <div class="exec-dash">
   {% page_header "تقرير حضور الموظفين الشهري" subtitle="يحسب ولا يخصم: الخصمُ (البند 5) قرارٌ إداريّ على هذا التقرير" icon="reports" %}
-    {% export_button "xlsx" "staff_affairs:attendance_report_xlsx" primary=True %}?month={{ month_value }}{% endexport_button %}
+    {% export_group kind="sheet" %}{% export_button "xlsx" "staff_affairs:attendance_report_xlsx" primary=True %}?month={{ month_value }}{% endexport_button %}{% endexport_group %}
   {% endpage_header %}
 
   {% filter_bar "اختيار شهر التقرير" %}

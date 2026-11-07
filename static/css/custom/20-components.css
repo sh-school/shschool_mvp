@@ -2410,6 +2410,21 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-inline-start: 38px; 
 .clinic-pick__care { color: var(--maroon-fg); font-weight: 700; }
 .clinic-pick-root { display: grid; gap: var(--sp-2); }
 .clinic-confirm { display: grid; gap: var(--sp-2); }
+
+/* ── شريط التصدير الموحَّد (W-20261107-021): الاتجاه ثم Excel ثم PDF؛ أوّلُ عنصرٍ في DOM أقصى اليمين في RTL ── */
+.export-group {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
 }
+.export-group .export-group__orient {
+  width: auto;
+  min-height: 0;
+  padding-block: var(--sp-1-5);
+  padding-inline: var(--sp-3);
+  font-size: var(--text-sm);
+}
+.export-group--xs .export-group__orient { padding-block: var(--sp-1); font-size: var(--text-xs); }
 
 }

@@ -24,7 +24,7 @@
       مشاركةُ نسخةٍ للاطّلاع
     </button>
     {% endif %}
-    {% export_button "pdf" "observation_pdf" obs.id download=True %}{% endexport_button %}
+    {% export_group doc="templates/quality/observation_pdf.html" %}{% export_button "pdf" "observation_pdf" obs.id download=True %}{% endexport_button %}{% endexport_group %}
     {% comment %}
     الرجوع إلى القائمة لا إلى التفصيل: من يفتح الاستمارة يكون قد فرغ منها،
     ووجهتُه التالية زيارةٌ أخرى — لا الصفحة التي جاء منها.

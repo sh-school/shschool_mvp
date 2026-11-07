@@ -655,6 +655,25 @@ def _playwright_footer_template(today: str) -> str:
 # ── المولّد الرئيسي ──────────────────────────────────────────────────────
 
 
+def _page_size_css(paper_size: str, orient: str) -> str:
+    """قيمةُ `@page size` باتجاهٍ مختار مع بقاء حجم الورق (A4 أو A3)."""
+    return f"{'A3' if paper_size == 'A3' else 'A4'} {orient}"
+
+
+def _force_page_orient(html_str: str, paper_size: str, orient: str | None) -> str:
+    """يلحق قاعدةَ `@page` تُلزم الاتجاهَ المختار (W-20261107-021): ما بعدها يغلب ما قبلها فتشمل القوالبَ ذاتَ `@page` الخاصّ.
+
+    بلا اتجاهٍ مختارٍ لا تغيير — فاتجاهُ المستند الافتراضيُّ (`core/print_policy.py`) يبقى كما كتبه قالبُه.
+    """
+    if not orient:
+        return html_str
+    style = f"<style>@page {{ size: {_page_size_css(paper_size, orient)}; }}</style>\n"
+    head_end = html_str.lower().find("</head>")
+    if head_end == -1:
+        return style + html_str
+    return html_str[:head_end] + style + html_str[head_end:]
+
+
 def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
     """
     HTML → PDF bytes
@@ -665,6 +684,9 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
     """
     global _WORKING_BACKEND, _FAILED_BACKENDS
 
+    from core.print_policy import requested_orient
+
+    orient = requested_orient()  # اتجاهُ الطلب من شريط التصدير؛ None = افتراضيُّ المستند
     meta = _extract_pdf_meta(html_str)
     today = timezone.now().strftime("%Y/%m/%d")
 
@@ -686,6 +708,7 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
 
             wp_html = _inject_fonts(html_str)
             wp_html = _inject_wp_page_header_css(wp_html, meta["school"], meta["title"], paper_size)
+            wp_html = _force_page_orient(wp_html, paper_size, orient)
 
             font_config = FontConfiguration()
             base_url = Path(settings.BASE_DIR).as_uri() + "/"
@@ -729,7 +752,9 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
                         browser = pw.chromium.launch()
                         page = browser.new_page()
                         page.set_content(chr_html, wait_until="networkidle")
-                        pw_landscape = paper_size == "A3"
+                        pw_landscape = (
+                            (paper_size == "A3") if orient is None else orient == "landscape"
+                        )
                         pw_margin = (
                             {"top": "2cm", "bottom": "1.5cm", "left": "1.5cm", "right": "1.5cm"}
                             if paper_size == "A3"
@@ -790,8 +815,9 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
         xhtml_html = _strip_page_rules(xhtml_html)
 
         # ── حقن @page لحجم الورق (A3 landscape عند الحاجة) ──
-        if paper_size == "A3":
-            xhtml_page_css = "<style>@page { size: A3 landscape; margin: 2cm 1.5cm; }</style>\n"
+        if orient or paper_size == "A3":
+            xhtml_size = _page_size_css(paper_size, orient or "landscape")
+            xhtml_page_css = f"<style>@page {{ size: {xhtml_size}; margin: 2cm 1.5cm; }}</style>\n"
             if "<head>" in xhtml_html.lower():
                 xhtml_html = re.sub(
                     r"(<head[^>]*>)",

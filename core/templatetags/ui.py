@@ -71,7 +71,7 @@ from typing import Any
 from django import template
 from django.template.loader import render_to_string
 from django.utils.crypto import get_random_string
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
 
 register = template.Library()
@@ -738,7 +738,8 @@ def export_button(
         )
     if name:
         return format_html(
-            '<button data-app-file type="submit"{}{} name="{}" value="{}" class="{}">{} {}</button>',
+            '<button data-app-file data-export-kind="{}" type="submit"{}{} name="{}" value="{}" class="{}">{} {}</button>',
+            kind,
             mark_safe(ident),
             mark_safe(hint),
             name,
@@ -753,9 +754,10 @@ def export_button(
     link = format_html("{}{}", base, content.strip())
     extra = format_html(' data-export-job="{}"', job) if job else ""
     return format_html(
-        '<a{}{}{}{}{} href="{}" class="{}">{} {}</a>',
+        '<a{}{} data-export-kind="{}"{}{}{} href="{}" class="{}">{} {}</a>',
         mark_safe("" if inline else " data-app-file"),
         extra,
+        kind,
         mark_safe(" download" if download else ""),
         mark_safe(ident),
         mark_safe(hint),
@@ -763,4 +765,73 @@ def export_button(
         css,
         glyph,
         label,
+    )
+
+
+# ── شريط التصدير الموحَّد: الاتجاه ثم Excel ثم PDF (W-20261107-021، قرار المالك 2026-11-07) ──
+#: ترتيبُ الأزرار في الشريط من اليمين (RTL): Excel ثم PDF؛ وما سواهما («طباعة») يلحقهما.
+_EXPORT_ORDER = {"xlsx": 0, "pdf": 1}
+_EXPORT_PIECE = re.compile(
+    r'<(a|button)\b[^>]*\bdata-export-kind="(pdf|xlsx|print)"[^>]*>.*?</\1>', re.DOTALL
+)
+
+
+@register.simple_block_tag(takes_context=True)  # type: ignore[attr-defined,misc]
+def export_group(
+    context: Any,
+    content: str,
+    kind: str = "sheet",
+    doc: str = "",
+    id: str = "",  # noqa: A002
+    size: str = "sm",
+) -> str:
+    """شريطُ التصدير الموحَّد: قائمةُ الاتجاه «أفقي/رأسي» ثم Excel ثم PDF — الصفحةُ تضع أزرارَها وحدَها والوسمُ يرسم الباقي.
+
+        {% export_group kind="sheet" %}
+          {% export_button "pdf" "student_affairs:student_list_pdf" %}?q=1{% endexport_button %}
+          {% export_button "xlsx" "student_affairs:student_export" %}?q=1{% endexport_button %}
+        {% endexport_group %}
+
+    * `kind`: `sheet` (أفقيٌّ افتراضاً) أو `form` أو `letter` (رأسيٌّ) — `core/print_policy.KIND_ORIENT`.
+    * `doc`: مسارُ قالبِ المستند في `print_policy.DOCUMENTS` فيُؤخذ اتجاهُه الافتراضيّ منه بدل النوع.
+    * الاختيارُ يُرسَل معاملاً `orient=` (يلحقه `export-center.js` برابط التصدير وبمهمّته الخلفيّة، ويرسله النموذجُ الحاوي
+      للأزرار ذاتُ `name`)، ويطبّقه الخادمُ مركزيّاً في PDF وExcel.
+    * ما بلا pdf ولا xlsx (طباعةٌ وحدَها) يُترك كما هو بلا قائمة. صفحةٌ بزرٍّ واحدٍ تُظهر الاتجاه مع زرّها وحده.
+    """
+    from core import print_policy
+
+    if kind not in print_policy.KIND_ORIENT:
+        raise template.TemplateSyntaxError(
+            f"export_group: نوعٌ {kind!r} غيرُ معتمد — المتاح: {', '.join(print_policy.KIND_ORIENT)}"
+        )
+    if doc and doc not in print_policy.DOCUMENTS:
+        raise template.TemplateSyntaxError(
+            f"export_group: المستند {doc!r} غيرُ مسجَّل في print_policy"
+        )
+    pieces = [(m.group(2), m.group(0)) for m in _EXPORT_PIECE.finditer(content)]
+    if not any(piece_kind in _EXPORT_ORDER for piece_kind, _html in pieces):
+        return content
+    leftover = _EXPORT_PIECE.sub("", content).strip()
+    pieces.sort(key=lambda piece: _EXPORT_ORDER.get(piece[0], len(_EXPORT_ORDER)))
+
+    request = context.get("request")
+    chosen = print_policy.clean_orient(request.GET.get("orient")) if request is not None else None
+    selected = chosen or print_policy.default_orient(kind, doc)
+    options = format_html_join(
+        "",
+        '<option value="{}"{}>{}</option>',
+        (
+            (value, mark_safe(" selected") if value == selected else "", label)
+            for value, label in print_policy.ORIENT_CHOICES.items()
+        ),
+    )
+    return format_html(
+        '<div class="export-group{}"{} data-export-group role="group" aria-label="التصدير">'
+        '<select name="orient" class="form-select export-group__orient" data-export-orient '
+        'aria-label="اتّجاه الورق">{}</select>{}{}</div>',
+        " export-group--xs" if size == "xs" else "",
+        format_html(' id="{}"', id) if id else "",
+        options,
+        mark_safe("".join(html for _kind, html in pieces)),
+        mark_safe(leftover),
     )

@@ -11,7 +11,7 @@
 <div class="exec-dash">
 
   {% page_header "لوحة السلوك" subtitle=today_label icon="behavior" %}
-    {% export_button "pdf" "behavior:policy_pdf" title="لائحة السلوك (PDF)" %}{% endexport_button %}
+    {% export_group kind="letter" %}{% export_button "pdf" "behavior:policy_pdf" title="لائحة السلوك (PDF)" %}{% endexport_button %}{% endexport_group %}
   {% endpage_header %}
 
   {# نظامُ النقاط ملغى — الأرقامُ عددُ مخالفات. #}

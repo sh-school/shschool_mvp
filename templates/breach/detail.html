@@ -12,7 +12,7 @@
 
   {% page_header breach.title subtitle="PDPPL م.11 — إشعار NCSA خلال 72 ساعة من الاكتشاف" icon="breach" %}
     {% if breach.status != "resolved" %}<a href="{% url 'breach:edit' breach.pk %}" class="btn-secondary btn-sm">{% icon "edit" %} تعديل</a>{% endif %}
-    {% export_button "pdf" "breach:pdf" breach.pk %}{% endexport_button %}
+    {% export_group doc="templates/breach/pdf_report.html" %}{% export_button "pdf" "breach:pdf" breach.pk %}{% endexport_button %}{% endexport_group %}
   {% endpage_header %}
 
   {% kpi_strip label="مؤشرات الخرق" %}

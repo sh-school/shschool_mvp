@@ -121,3 +121,92 @@ def test_xs_size_and_job_and_download():
     assert (
         "btn-secondary btn-xs" in html and 'data-export-job="pdf"' in html and " download" in html
     )
+
+
+# ── شريطُ التصدير الموحَّد: الاتجاه ثم Excel ثم PDF (W-20261107-021) ──────────────────────────────────
+
+_LOCAL_ORIENT_MENU = re.compile(r'<select[^>]*name="orient"')
+_TOKEN = re.compile(r'\{% export_group\b|\{% endexport_group %\}|\{% export_button "(?:pdf|xlsx)"')
+
+
+def _outside_group() -> dict[str, list[int]]:
+    """قوالبُ فيها تصدير pdf أو xlsx خارج `{% export_group %}` (قالب ← أسطره)."""
+    found: dict[str, list[int]] = {}
+    for path in (ROOT / "templates").rglob("*.html"):
+        depth = 0
+        rel = path.relative_to(ROOT / "templates").as_posix()
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            for token in _TOKEN.finditer(line):
+                text = token.group(0)
+                if text.startswith("{% export_group"):
+                    depth += 1
+                elif text.startswith("{% endexport_group"):
+                    depth -= 1
+                elif depth <= 0:
+                    found.setdefault(rel, []).append(number)
+    return found
+
+
+def test_every_pdf_or_xlsx_export_sits_inside_the_group():
+    found = _outside_group()
+    assert not found, f"تصديرٌ خارج export_group — لفّه بالشريط الموحَّد (قالب ← أسطره): {found}"
+
+
+def test_no_local_orientation_menu_remains():
+    found = [
+        path.relative_to(ROOT / "templates").as_posix()
+        for path in (ROOT / "templates").rglob("*.html")
+        if _LOCAL_ORIENT_MENU.search(path.read_text(encoding="utf-8"))
+    ]
+    assert not found, f"قائمةُ اتجاهٍ محلّيّةٌ — الاتجاهُ من export_group وحدَه: {found}"
+
+
+_PDF = '{% export_button "pdf" "absence_followup_xlsx" %}{% endexport_button %}'
+_XLSX = '{% export_button "xlsx" "absence_followup_xlsx" %}{% endexport_button %}'
+
+
+def test_group_order_is_orientation_then_excel_then_pdf():
+    html = _render('{% export_group kind="sheet" %}' + _PDF + _XLSX + "{% endexport_group %}")
+    assert html.index("data-export-orient") < html.index("تصدير Excel") < html.index("تصدير PDF")
+    assert html.count("<select") == 1
+    assert html.index("أفقي") < html.index("رأسي")
+
+
+def test_group_default_follows_print_policy():
+    sheet = _render('{% export_group kind="sheet" %}' + _XLSX + "{% endexport_group %}")
+    assert '<option value="landscape" selected>' in sheet
+    form = _render('{% export_group kind="form" %}' + _PDF + "{% endexport_group %}")
+    assert '<option value="portrait" selected>' in form
+    doc = _render(
+        '{% export_group doc="templates/breach/pdf_report.html" %}' + _PDF + "{% endexport_group %}"
+    )
+    assert '<option value="portrait" selected>' in doc
+
+
+def test_single_kind_page_shows_orientation_with_its_own_button_only():
+    html = _render("{% export_group %}" + _PDF + "{% endexport_group %}")
+    assert "data-export-orient" in html and "تصدير PDF" in html and "تصدير Excel" not in html
+
+
+def test_group_without_pdf_or_xlsx_draws_no_menu():
+    html = _render(
+        '{% export_group %}{% export_button "print" %}{% endexport_button %}{% endexport_group %}'
+    )
+    assert "data-export-orient" not in html and "طباعة" in html
+
+
+def test_group_rejects_unknown_kind_and_document():
+    with pytest.raises(TemplateSyntaxError):
+        _render('{% export_group kind="poster" %}{% endexport_group %}')
+    with pytest.raises(TemplateSyntaxError):
+        _render('{% export_group doc="templates/none.html" %}{% endexport_group %}')
+
+
+def test_requested_orient_preselects_the_menu():
+    from django.test import RequestFactory
+
+    request = RequestFactory().get("/", {"orient": "portrait"})
+    html = Template(
+        '{% load ui %}{% export_group kind="sheet" %}' + _XLSX + "{% endexport_group %}"
+    ).render(Context({"request": request}))
+    assert '<option value="portrait" selected>' in html

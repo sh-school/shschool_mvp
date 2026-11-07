@@ -24,7 +24,7 @@
       <option value="A4" selected>A4</option>
       <option value="A3">A3</option>
     </select>
-    {% export_button "pdf" "kpi_monthly_pdf" id="kpiPdfLink" %}?year={{ year }}&paper=A4{% endexport_button %}
+    {% export_group kind="letter" %}{% export_button "pdf" "kpi_monthly_pdf" id="kpiPdfLink" %}?year={{ year }}&paper=A4{% endexport_button %}{% endexport_group %}
   {% endpage_header %}
 
   {# ثلاثةُ أعمدةٍ على الحاسوب فتسع البطاقاتُ كاملةً النافذةَ بلا تمريرٍ رأسيّ (1366×768)؛ وتتكدّس دونه. #}

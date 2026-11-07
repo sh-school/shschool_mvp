@@ -326,6 +326,21 @@ def get_pdf_footer_html(context: dict) -> str:
 _FOOTER_MIN_BOTTOM_MARGIN_IN = 0.4
 
 
+def apply_print_orientation(wb: Any, orient: str | None = None) -> None:
+    """اتجاهُ الطباعة لكلّ ورقة من الاتجاه المختار في شريط التصدير (W-20261107-021).
+
+    بلا اتجاهٍ مختارٍ (`orient` ولا اتجاهُ الطلب) لا تغيير — فما ضبطه بانيَ المصنّف يبقى. وتُستدعى من `apply_print_footer`
+    فتبلغ كلَّ نقطة حفظٍ للمصنّف دون أن يعرفها بانٍ بعينه.
+    """
+    from core.print_policy import clean_orient, requested_orient
+
+    chosen = clean_orient(orient) or requested_orient()
+    if not chosen:
+        return
+    for ws in wb.worksheets:
+        ws.page_setup.orientation = chosen
+
+
 def apply_print_footer(wb: Any, school: Any = None) -> None:
     """ذيلُ الطباعة لكلّ ورقة في المصنّف: **رؤيةُ الوزارة** مندمجةً مع «صفحة / عدد» في سطرٍ واحدٍ وسط الصفّ، والتاريخُ يميناً.
 
@@ -336,6 +351,7 @@ def apply_print_footer(wb: Any, school: Any = None) -> None:
     """
     from core.ministry_vision import ministry_vision_text
 
+    apply_print_orientation(wb)
     vision = ministry_vision_text(school)
     for ws in wb.worksheets:
         footer = ws.oddFooter

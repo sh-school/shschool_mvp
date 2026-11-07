@@ -109,10 +109,28 @@
   }
 
   // رابطٌ: GET بعنوانه. زرُّ نموذجٍ: ما كان سيرسله النموذجُ (GET بوسطاءَ في العنوان، أو POST بجسم) — بزرّه وقيمته.
+  // اتجاهُ الورق من قائمة شريط التصدير الموحَّد (`{% export_group %}`): `orient=landscape|portrait`.
+  function orientSelect(el) {
+    var group = el.closest && el.closest('[data-export-group]');
+    return group ? group.querySelector('select[data-export-orient]') : null;
+  }
+
+  // الرابطُ يحمل الاختيارَ في عنوانه (فيصل التصديرَ المباشرَ ومهمّتَه الخلفيّة `data-export-job` معاً)؛ والقيمةُ تستبدل ما سبق.
+  function applyOrient(el) {
+    var select = orientSelect(el);
+    if (el.tagName !== 'A' || !select || !select.value) return;
+    var url = new URL(el.href, window.location.href);
+    url.searchParams.set('orient', select.value);
+    el.href = url.href;
+  }
+
   function requestFor(el) {
+    applyOrient(el);
     if (el.tagName === 'A') return { url: el.href, init: {}, method: 'GET' };
     var form = el.form;
     var data = new FormData(form);
+    var select = orientSelect(el);
+    if (select && select.value && !data.has('orient')) data.append('orient', select.value); // شريطٌ خارج النموذج
     if (el.name) data.append(el.name, el.value);
     var action = el.getAttribute('formaction') || form.getAttribute('action') || window.location.href;
     var method = (el.getAttribute('formmethod') || form.getAttribute('method') || 'get').toUpperCase();
@@ -351,6 +369,9 @@
 
   // طورُ الالتقاط: قبل أيّ معالجٍ آخر (page-nav.js يستثني `data-app-file` أصلاً).
   document.addEventListener('click', function (event) {
+    // رابطُ تصديرٍ لا يمرّ على المركز (يفتح صفحةَ عرض): يحمل الاتجاهَ المختار ثمّ يُترك لسلوكه.
+    var plain = event.target.closest && event.target.closest('a[data-export-kind]:not([data-app-file])');
+    if (plain) applyOrient(plain);
     if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return;
     var el = event.target.closest && event.target.closest('a[data-app-file][href], button[data-app-file]');
     if (!el) return;

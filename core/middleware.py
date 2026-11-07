@@ -447,3 +447,23 @@ class PrivateHtmlNoStoreMiddleware:
             return response
         response["Cache-Control"] = "no-store"
         return response
+
+
+class ExportOrientMiddleware:
+    """اتجاهُ الورق المختار من شريط التصدير (`orient=landscape|portrait`) طوالَ الطلب (W-20261107-021).
+
+    مركزيٌّ: عروضُ التصدير لا تقرأ المعاملَ بيدها؛ `core/pdf_utils.py` و`core/export_utils.py` يقرآنه من `core.print_policy`.
+    قيمةٌ مجهولةٌ تُهمل فيبقى الافتراضيُّ، ويُعاد السياقُ إلى ما كان عند انتهاء الطلب.
+    """
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponseBase]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponseBase:
+        from core.print_policy import orient_from, use_orient
+
+        params = (
+            request.POST if request.method == "POST" and request.POST.get("orient") else request.GET
+        )
+        with use_orient(orient_from(params)):
+            return self.get_response(request)

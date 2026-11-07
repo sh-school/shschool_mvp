@@ -107,6 +107,8 @@ MIDDLEWARE = [
     # `request.school` — مدرسةُ المستخدم تُحسب مرّةً بعد حارس المسارات (الذي حمّل العضويّة)
     "core.middleware.SchoolContextMiddleware",
     "core.middleware.CurrentUserMiddleware",
+    # اتجاهُ ورق التصدير (W-20261107-021): معاملٌ `orient` يصل PDF وExcel دون أن تقرأه العروض
+    "core.middleware.ExportOrientMiddleware",
     # أثرٌ لدخول مطوّر المنصّة صفحاتِ الصحّة والتظلّم والتقييم (D-118م) — يسجّل ولا يمنع.
     "core.middleware_developer_audit.DeveloperAccessAuditMiddleware",
     "core.middleware.SentryScopeMiddleware",  # ✅ v5.5: Sentry context (school_id + role)

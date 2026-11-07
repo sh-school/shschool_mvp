@@ -668,12 +668,9 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   border-radius: var(--radius-md); box-shadow: var(--shadow-md); color: var(--text-primary);
 }
 .per-exports-menu[open] > .per-exports { flex-direction: column; align-items: stretch; gap: var(--sp-1); inline-size: max-content; min-inline-size: 11rem; }
-.per-exports-menu[open] .per-orient { inline-size: 100%; min-inline-size: 0; }
 .per-exports-menu[open] .btn-sm { justify-content: flex-start; }
 .per-exports-menu .per-exports { margin: 0; }
-.per-exports .per-orient { flex: 0 0 auto; min-inline-size: 6rem; }
 .wing-panel__bar .per-exports { margin-inline-start: auto; }
-.per-orient { width: auto; min-height: 32px; padding-block: var(--sp-0-5); font-size: var(--text-xs); }
 /* ════════════════════
    39. مكوّناتُ الواجهة — core/templatetags/ui.py
    ════════════════════

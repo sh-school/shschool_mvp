@@ -18,6 +18,7 @@ from django.utils import timezone
 from core.capabilities import has_capability
 from core.celery_tasks import school_rls_scope
 from core.models import AuditLog, ExportJob
+from core.print_policy import orient_from, use_orient
 
 from . import messages, registry
 
@@ -54,7 +55,10 @@ def run_job(job_id: str) -> dict:
             # القدرةُ تُفحص ثانيةً هنا: صلاحيّةٌ سُحبت بين الطلب والتنفيذ لا يُنتَج بها ملفّ.
             if not has_capability(job.requested_by, spec.capability):
                 return _fail(job, messages.FORBIDDEN, started)
-            result = spec.build(job.school, job.requested_by, QueryDict(job.query_string))
+            query = QueryDict(job.query_string)
+            # اتجاهُ الورق المختار في الشريط يسافر في سلسلة الاستعلام المحفوظة (W-20261107-021)
+            with use_orient(orient_from(query)):
+                result = spec.build(job.school, job.requested_by, query)
             if len(result.content) > spec.max_bytes:
                 return _fail(job, messages.TOO_LARGE, started)
             # قبل `done` وداخلَ عزل المدرسة: وثيقةٌ بلا أثرٍ أسوأُ من وثيقةٍ تأخّرت (`core/audit_export.py`).
