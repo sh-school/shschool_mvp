@@ -797,7 +797,7 @@ class TestBehaviorStatistics:
         assert resp.context["resolved_pct"] == 0
 
     def test_statistics_with_data(
-        self, client_as, principal_user, school, student_user, teacher_user
+        self, client_as, principal_user, school, student_user, teacher_user, seeded_calendar
     ):
         inf1 = BehaviorInfractionFactory(
             school=school,
@@ -813,15 +813,15 @@ class TestBehaviorStatistics:
             level=2,
             points_deducted=15,
         )
-        # حقل date هو auto_now_add؛ نضبطه ضمن نطاق السنة الدراسية عبر update ليكون الاختبار
-        # مستقلّاً عن شهر التشغيل (كان يفشل في يوليو/أغسطس خارج نطاق سبتمبر–يونيو — عطب سابق).
-        from datetime import date
+        # حقل date هو auto_now_add؛ نضبطه ضمن نافذة العام من التقويم الأكاديميّ (كما يحسبها الإحصاء) عبر update
+        # ليكون الاختبار مستقلّاً عن شهر التشغيل.
+        from datetime import timedelta
 
         from behavior.models import BehaviorInfraction
+        from behavior.services import academic_year_dates
 
-        _today = date.today()
-        _sy = _today.year if _today.month >= 9 else _today.year - 1
-        BehaviorInfraction.objects.filter(pk__in=[inf1.pk, inf2.pk]).update(date=date(_sy, 10, 1))
+        _inside = academic_year_dates(school, seeded_calendar)[0] + timedelta(days=40)
+        BehaviorInfraction.objects.filter(pk__in=[inf1.pk, inf2.pk]).update(date=_inside)
         client = client_as(principal_user)
         resp = client.get("/behavior/statistics/")
         assert resp.context["total"] >= 2

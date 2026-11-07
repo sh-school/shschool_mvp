@@ -14,6 +14,7 @@ Business logic لوحدة السلوك — مستخلص من views.py
 
 from __future__ import annotations
 
+import datetime as dt
 import logging
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any
@@ -24,13 +25,15 @@ from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school, default_academic_year
-from core.permissions import BEHAVIOR_COMMITTEE
+from core.labels import class_label
+from core.permissions import BEHAVIOR_COMMITTEE, get_teacher_student_ids
 from core.unrestricted_role import has_unrestricted_role
 
 logger = logging.getLogger(__name__)
 
 from behavior.models import BehaviorInfraction
-from core.models import ParentStudentLink, StudentEnrollment
+from core.models import ParentStudentLink, StudentEnrollment, Wing
+from wings.scope import student_scope
 
 if TYPE_CHECKING:
     from django.http import HttpRequest
@@ -342,130 +345,6 @@ class BehaviorService:
             )
         except Exception:
             logger.exception("Failed to auto-summon parent for infraction %s", infraction.pk)
-
-    # ── إحصائيات مقيّدة (للمعلم/المنسق) ───────────────────
-    @staticmethod
-    def get_statistics_scoped(
-        school: School,
-        student_ids,
-        date_from: date | None = None,
-        date_to: date | None = None,
-    ) -> dict:
-        """
-        إحصائيات سلوكية مقيّدة بمجموعة طلاب محددة (للمعلم/المنسق).
-        student_ids: مجموعة IDs أو قائمة — لا يجوز None هنا.
-        """
-        if not date_from or not date_to:
-            today = timezone.now().date()
-            start_year = today.year if today.month >= 9 else today.year - 1
-            if not date_from:
-                date_from = date(start_year, 9, 1)
-            if not date_to:
-                date_to = date(start_year + 1, 6, 30)
-
-        all_inf = BehaviorInfraction.objects.filter(
-            school=school,
-            date__gte=date_from,
-            date__lte=date_to,
-            student_id__in=student_ids,
-        )
-        total = all_inf.count()
-
-        # [PERF-15] عدّ المستويات باستعلام تجميعي واحد بدل أربعة COUNT منفصلة
-        _lvl_counts = dict(all_inf.values_list("level").annotate(c=Count("id")))
-        by_level = {lvl: _lvl_counts.get(lvl, 0) for lvl in [1, 2, 3, 4]}
-
-        top_students = (
-            all_inf.values("student__full_name", "student__id")
-            .annotate(count=Count("id"))
-            .order_by("-count")[:10]
-        )
-
-        monthly = (
-            all_inf.annotate(month=TruncMonth("date"))
-            .values("month")
-            .annotate(count=Count("id"))
-            .order_by("month")
-        )
-
-        top_classes = (
-            all_inf.values(
-                "student__enrollments__class_group__grade",
-                "student__enrollments__class_group__section",
-            )
-            .annotate(count=Count("id"))
-            .order_by("-count")[:5]
-        )
-
-        resolved_pct = round(all_inf.filter(is_resolved=True).count() / total * 100) if total else 0
-
-        return {
-            "by_level": by_level,
-            "total": total,
-            "top_students": top_students,
-            "monthly": monthly,
-            "top_classes": top_classes,
-            "resolved_pct": resolved_pct,
-        }
-
-    # ── إحصائيات شاملة (تقرير المدير) ──────────────────────
-    @staticmethod
-    def get_statistics(
-        school: School,
-        date_from: date | None = None,
-        date_to: date | None = None,
-    ) -> dict:
-        """إحصائيات شاملة لوحدة السلوك — تقرير المدير"""
-        if not date_from or not date_to:
-            today = timezone.now().date()
-            # العام الدراسي يبدأ في سبتمبر
-            start_year = today.year if today.month >= 9 else today.year - 1
-            if not date_from:
-                date_from = date(start_year, 9, 1)
-            if not date_to:
-                date_to = date(start_year + 1, 6, 30)
-
-        all_inf = BehaviorInfraction.objects.filter(
-            school=school, date__gte=date_from, date__lte=date_to
-        )
-        total = all_inf.count()
-
-        # [PERF-15] عدّ المستويات باستعلام تجميعي واحد بدل أربعة COUNT منفصلة
-        _lvl_counts = dict(all_inf.values_list("level").annotate(c=Count("id")))
-        by_level = {lvl: _lvl_counts.get(lvl, 0) for lvl in [1, 2, 3, 4]}
-
-        top_students = (
-            all_inf.values("student__full_name", "student__id")
-            .annotate(count=Count("id"))
-            .order_by("-count")[:10]
-        )
-
-        monthly = (
-            all_inf.annotate(month=TruncMonth("date"))
-            .values("month")
-            .annotate(count=Count("id"))
-            .order_by("month")
-        )
-
-        top_classes = (
-            all_inf.values(
-                "student__enrollments__class_group__grade",
-                "student__enrollments__class_group__section",
-            )
-            .annotate(count=Count("id"))
-            .order_by("-count")[:5]
-        )
-
-        resolved_pct = round(all_inf.filter(is_resolved=True).count() / total * 100) if total else 0
-
-        return {
-            "by_level": by_level,
-            "total": total,
-            "top_students": top_students,
-            "monthly": monthly,
-            "top_classes": top_classes,
-            "resolved_pct": resolved_pct,
-        }
 
     # ── بيانات التقرير الدوري ───────────────────────────────
     @staticmethod
@@ -941,3 +820,180 @@ class BehaviorService:
             reporter.pk,
         )
         return infraction
+
+
+DEGREES = (1, 2, 3, 4)  # تطابق `selectors.DEGREES`
+#: سطرُ المخالفات بلا فئةٍ (قديمةٌ أو آليّة) يُعرض مستقلّاً فلا يختفي ويبقى المجموعُ كاملاً؛ وكذا بلا جناحٍ/شعبة.
+UNCATEGORIZED_LABEL, NO_WING_LABEL, NO_CLASS_LABEL = "بلا تصنيف", "بلا جناح", "بلا شعبة"
+
+
+def academic_year_dates(school: Any, year: str | None = None) -> tuple[dt.date, dt.date]:
+    """نافذةُ العام الدراسيّ من التقويم الأكاديميّ — مصدرٌ واحدٌ للوحة السلوك وإحصائه (W-20261107-014).
+
+    العامُ المسمّى يُقرأ من جدول الأعوام، وإلا فالعامُ الجاري من التقويم، وإلا سبتمبر–يونيو المشتقّان من الاسم،
+    وآخرُ الارتداد السنةُ الميلاديّة كما كانت اللوحة.
+    """
+    from core.academic_calendar import academic_year_window
+    from core.models import AcademicYear
+
+    if year:
+        found = AcademicYear.objects.filter(school=school, name=year).first()
+        if found is not None:
+            return found.start_date, found.end_date
+        if year != academic_year_for_school(school):
+            try:
+                first, second = (int(part) for part in year.split("-"))
+                return dt.date(first, 9, 1), dt.date(second, 6, 30)
+            except ValueError:
+                pass
+    window = academic_year_window(school)
+    if window is not None:
+        return window
+    today = timezone.localdate()
+    return dt.date(today.year, 1, 1), dt.date(today.year, 12, 31)
+
+
+def _statistics_year(school: Any, scope: Any, requested: str | None) -> str:
+    """العامُ المعروض: المطلوبُ إن صحّ شكلُه (`2026-2027`) وإلا الجاري؛ والمقيَّدُ بجناحه على الجاري دائماً."""
+    current = academic_year_for_school(school)
+    wanted = (requested or "").strip()
+    try:
+        first, second = (int(part) for part in wanted.split("-"))
+        valid = second == first + 1
+    except ValueError:
+        valid = False
+    return str(scope.year_for(wanted if valid else None, current))
+
+
+def _month_options(start: dt.date, end: dt.date) -> list[tuple[str, dt.date]]:
+    """شهورُ النافذة بالترتيب: (`YYYY-MM`، أوّلُ الشهر)."""
+    options: list[tuple[str, dt.date]] = []
+    cursor = start.replace(day=1)
+    while cursor <= end:
+        options.append((f"{cursor:%Y-%m}", cursor))
+        cursor = (cursor + timedelta(days=32)).replace(day=1)
+    return options
+
+
+def _tally(counter: dict[Any, int], labels: dict[Any, str], fallback: str) -> list[dict[str, Any]]:
+    """سطورُ توزيعٍ مرتّبةٌ بالأكثر؛ ومن لا اسمَ له (مفتاحُه غائبٌ من `labels`) يُجمع في سطرٍ مستقلّ آخرَ القائمة."""
+    rows: dict[str, int] = {}
+    for key, count in counter.items():
+        label = labels.get(key, fallback)
+        rows[label] = rows.get(label, 0) + count
+    ordered = sorted(rows.items(), key=lambda item: (item[0] == fallback, -item[1], item[0]))
+    return [{"label": label, "count": count} for label, count in ordered if count]
+
+
+def behavior_statistics_data(school: Any, user: Any, params: Any) -> dict[str, Any]:
+    """إحصاءُ السلوك لصاحب الطلب: عامٌ كاملٌ أو شهرٌ داخله — مصدرٌ واحدٌ للشاشة وPDF وExcel (W-20261107-014).
+
+    `?year=` يغيّر الأرقامَ فعلاً (نافذتُه من التقويم)، و`?month=YYYY-MM` يضيّقها إلى شهرٍ من نافذة العام.
+    والتوزيعاتُ (بالدرجة والبند والجناح والشعبة) على المدّة المختارة، ومجموعُ كلٍّ منها يساوي `total`: المخالفةُ بلا
+    فئةٍ سطرُ «بلا تصنيف»، ومن لا قيدَ له في العام «بلا جناح/بلا شعبة» — بلا تعديلٍ في أيّ بيان.
+    والتوزيعُ الشهريُّ على العام كلّه فمجموعُ شهوره إجماليُّ العام. والشعبةُ قيدُ الطالب في ذلك العام
+    (الأحدثُ إن تعدّد) فيُعدّ مرّةً واحدةً، لا عبر كلّ قيوده. والنطاقُ كنطاق `daily_report`.
+    """
+    scope = student_scope(user, school)
+    year = _statistics_year(school, scope, params.get("year"))
+    start, end = academic_year_dates(school, year)
+    student_ids = get_teacher_student_ids(user, scope=scope)
+
+    year_qs = BehaviorInfraction.objects.filter(school=school, date__gte=start, date__lte=end)
+    if student_ids is not None:
+        year_qs = year_qs.filter(student_id__in=student_ids)
+
+    options = _month_options(start, end)
+    month = (params.get("month") or "").strip()
+    chosen = dict(options).get(month)
+    if chosen is None:
+        month = ""
+        period_qs = year_qs
+    else:
+        period_qs = year_qs.filter(date__year=chosen.year, date__month=chosen.month)
+
+    total = period_qs.count()
+    level_counts: dict[int, int] = {}
+    for row in period_qs.values("level").annotate(n=Count("id")):
+        level_counts[row["level"]] = row["n"]
+    by_level = {lvl: level_counts.get(lvl, 0) for lvl in DEGREES}
+    resolved = period_qs.filter(is_resolved=True).count()
+
+    top_students = (
+        period_qs.values("student__full_name", "student__id")
+        .annotate(count=Count("id"))
+        .order_by("-count", "student__full_name")[:10]
+    )
+    monthly = list(
+        year_qs.annotate(month=TruncMonth("date"))
+        .values("month")
+        .annotate(count=Count("id"))
+        .order_by("month")
+    )
+
+    levels = dict(BehaviorInfraction.LEVELS)
+    degree_rows = [{"label": levels[lvl], "count": by_level[lvl]} for lvl in DEGREES]
+    category_counts: dict[Any, int] = {}
+    category_labels: dict[Any, str] = {}
+    for row in period_qs.values("violation_category_id", "violation_category__name_ar").annotate(
+        n=Count("id")
+    ):
+        category_counts[row["violation_category_id"]] = row["n"]
+        if row["violation_category_id"] is not None:
+            category_labels[row["violation_category_id"]] = row["violation_category__name_ar"]
+
+    per_student: dict[Any, int] = {}
+    for row in period_qs.values("student_id").annotate(n=Count("id")):
+        per_student[row["student_id"]] = row["n"]
+    enrollments = (
+        StudentEnrollment.objects.filter(
+            student_id__in=list(per_student),
+            class_group__school=school,
+            class_group__academic_year=year,
+        )
+        .newest_first()
+        .values_list(
+            "student_id", "class_group__grade", "class_group__section", "class_group__wing_id"
+        )
+    )
+    current: dict[Any, tuple[str, str, Any]] = {}
+    for student_id, grade, section, wing_id in enrollments:
+        current.setdefault(student_id, (grade, section, wing_id))
+    wing_names = {
+        wing.pk: wing.name for wing in Wing.objects.filter(school=school, academic_year=year)
+    }
+    wing_counts: dict[Any, int] = {}
+    class_counts: dict[Any, int] = {}
+    class_labels: dict[Any, str] = {}
+    for student_id, n in per_student.items():
+        if student_id not in current:
+            continue
+        grade, section, wing_id = current[student_id]
+        wing_counts[wing_id] = wing_counts.get(wing_id, 0) + n
+        class_counts[(grade, section)] = class_counts.get((grade, section), 0) + n
+        class_labels[(grade, section)] = class_label(grade, section)
+    unassigned = sum(n for sid, n in per_student.items() if sid not in current)
+    wing_counts[None] = wing_counts.get(None, 0) + unassigned
+    class_counts[None] = unassigned
+
+    class_rows = _tally(class_counts, class_labels, NO_CLASS_LABEL)
+    return {
+        "year": year,
+        "month": month,
+        "month_options": options,
+        "window_start": start,
+        "window_end": end,
+        "period_label": f"{chosen:%Y-%m}" if chosen else year,
+        "is_scoped": student_ids is not None,
+        "total": total,
+        "by_level": by_level,
+        "severe_count": by_level[3] + by_level[4],
+        "resolved_pct": round(resolved / total * 100) if total else 0,
+        "top_students": top_students,
+        "monthly": monthly,
+        "degree_rows": degree_rows,
+        "category_rows": _tally(category_counts, category_labels, UNCATEGORIZED_LABEL),
+        "wing_rows": _tally(wing_counts, wing_names, NO_WING_LABEL),
+        "class_rows": class_rows,
+        "top_classes": [row for row in class_rows if row["label"] != NO_CLASS_LABEL][:5],
+    }

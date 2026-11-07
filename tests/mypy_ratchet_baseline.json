@@ -7,7 +7,7 @@
   "behavior/constants.py": 1,
   "behavior/models.py": 20,
   "behavior/querysets.py": 8,
-  "behavior/services.py": 17,
+  "behavior/services.py": 16,
   "clinic/models.py": 3,
   "clinic/querysets.py": 4,
   "core/academic_calendar.py": 6,
@@ -121,5 +121,5 @@
   "wings/scope.py": 1,
   "wings/services.py": 14
  },
- "total": 1164
+ "total": 1163
 }
