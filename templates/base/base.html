@@ -780,6 +780,9 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"absence_actions" %}
   <a href="{% url 'absence_actions' %}">{% icon "checklist" %} إجراءات الغياب</a>
   {% endif %}
+  {% if request.user|can_open:"absence_reports_archive" %}
+  <a href="{% url 'absence_reports_archive' %}">{% icon "reports" %} التقارير الدورية للغياب</a>
+  {% endif %}
   {% if request.user|can_open:"excuse_queue" %}
   <a href="{% url 'excuse_queue' %}">{% icon "absence" %} أعذارُ الغياب عن الاختبارات</a>
   {% endif %}

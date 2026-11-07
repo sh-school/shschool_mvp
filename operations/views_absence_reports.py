@@ -86,6 +86,7 @@ def report_detail(request: HttpRequest, pk: str) -> HttpResponse:
             "revisions": revisions,
             "lines": lines,
             "school_line": payload.get("school"),
+            "day_lines": payload.get("days") or [],
             "is_latest": revisions.first().pk == snap.pk,
         },
     )

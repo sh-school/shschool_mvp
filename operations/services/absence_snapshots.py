@@ -30,6 +30,8 @@ from wings.ministry_selectors import Counts, MinistrySummary, ministry_summary
 
 DAILY, WEEKLY, MONTHLY, QUARTERLY = "daily", "weekly", "monthly", "quarterly"
 QUARTER_SCOPES = ("g1_9", "g10_11", "g12")
+#: أسماءُ أيام الأسبوع بالعربيّة بترتيب `date.weekday()` (الاثنينُ صفر) — لا اعتمادَ على لغة النظام.
+WEEKDAYS_AR = ("الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد")
 #: ساعةُ احتياطٍ حين لا حصصَ مجدولةً لليوم يُقرأ منها وقتُ الانتهاء.
 FALLBACK_AFTER_SECOND = dt.time(10, 30)
 FALLBACK_AFTER_LAST = dt.time(14, 0)
@@ -208,16 +210,46 @@ def _days_in(school: Any, start: dt.date, end: dt.date) -> list[dt.date]:
     ]
 
 
+def _rate(absent: int, enrolled: int) -> float:
+    return round(100 * absent / enrolled, 1) if enrolled else 0.0
+
+
+def _day_line(day: dt.date, stats: Any) -> dict[str, Any]:
+    """سطرُ يومٍ واحد: نسبةُ المدرسة ونسبةُ كلّ مرحلةٍ في ذلك اليوم (للتقريرين الأسبوعي والشهري)."""
+    lines = [stats.school, *stats.stages]
+    return {
+        "date": day.isoformat(),
+        "weekday": WEEKDAYS_AR[day.weekday()],
+        "school": {
+            "enrolled": stats.school.enrolled,
+            "absent": stats.school.absent_both,
+            "rate": _rate(stats.school.absent_both, stats.school.enrolled),
+        },
+        "stages": [
+            {
+                "key": ln.key,
+                "label": ln.label,
+                "enrolled": ln.enrolled,
+                "absent": ln.absent_both,
+                "rate": _rate(ln.absent_both, ln.enrolled),
+            }
+            for ln in lines[1:]
+        ],
+    }
+
+
 def compute_payload(school: Any, spec: ReportSpec) -> tuple[dict[str, Any], int]:
     """(الإحصاء، عددُ أيام الدراسة المحسوبة): يومٌ بلا شعبةٍ لها حصّتان لا يُحسب."""
     sums: dict[str, Any] = {"school": None, "stages": {}, "wings": {}, "outside": None}
     counted = 0
+    day_lines: list[dict[str, Any]] = []
     for day in _days_in(school, spec.start, spec.end):
         summary = _scoped(ministry_summary(school, day), spec.scope)
         if not any(row.has_periods for row in summary.class_rows):
             continue
         counted += 1
         stats = absence_stats(summary)
+        day_lines.append(_day_line(day, stats))
         _add(sums, "school", _node(stats.school))
         for line in stats.stages:
             _add(sums["stages"], line.key, _node(line))
@@ -230,6 +262,7 @@ def compute_payload(school: Any, spec: ReportSpec) -> tuple[dict[str, Any], int]
         "stages": [_finish(n) for n in sums["stages"].values()],
         "wings": [_finish(n) for n in sums["wings"].values()],
         "outside": _finish(sums["outside"]) if sums["outside"] else None,
+        "days": day_lines if spec.kind in (WEEKLY, MONTHLY) else [],
     }
     return payload, counted
 
