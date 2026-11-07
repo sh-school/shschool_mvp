@@ -13,6 +13,7 @@ from django.urls import reverse
 
 from behavior.models import BehaviorInfraction, ViolationCategory
 from behavior.services import (
+    NO_ACTION_LABEL,
     NO_WING_LABEL,
     UNCATEGORIZED_LABEL,
     academic_year_dates,
@@ -60,7 +61,14 @@ def start(school, seeded_calendar):
 def _sums(data):
     return {
         key: sum(row["count"] for row in data[key])
-        for key in ("degree_rows", "category_rows", "wing_rows", "class_rows")
+        for key in (
+            "degree_rows",
+            "category_rows",
+            "action_rows",
+            "step_rows",
+            "wing_rows",
+            "class_rows",
+        )
     }
 
 
@@ -194,19 +202,143 @@ class TestScope:
         data = behavior_statistics_data(school, supervisor, {})
         assert data["total"] == 1 and data["is_scoped"] is True
 
-        job = ExportJob.objects.create(
-            school=school,
-            requested_by=supervisor,
-            kind="behavior.statistics_xlsx",
-            query_string="",
-        )
-        # المشرفُ لا يملك قدرةَ الإحصاء (م5.7)؛ فيرفض المنفِّذُ الملفَّ ولا يُنتَج محتوىً من أي جناح
-        assert run_job(str(job.id))["ok"] is False
-        job.refresh_from_db()
-        assert job.status != "done" and not job.content
+        # الملفّان بنطاق الجناح نفسه: لا يدخل طالبُ الجناح الآخر في الجدول ولا في الأكثر مخالفةً
+        for kind in ("behavior.statistics_xlsx", "behavior.statistics_pdf"):
+            job = ExportJob.objects.create(
+                school=school, requested_by=supervisor, kind=kind, query_string=""
+            )
+            assert run_job(str(job.id))["ok"] is True
+            job.refresh_from_db()
+            assert job.status == "done" and job.content
+        sheet = openpyxl.load_workbook(
+            BytesIO(bytes(ExportJob.objects.filter(kind="behavior.statistics_xlsx").get().content))
+        ).active
+        cells = [c for row in sheet.iter_rows(values_only=True) for c in row if c is not None]
+        assert theirs.full_name not in cells
 
-        # الشاشةُ نفسُها مغلقةٌ على المشرف (م5.7: لا يرث إحصاءَ المدرسة)؛ فلا تسرّب شيئاً
-        assert client_as(supervisor).get(reverse("behavior:statistics")).status_code == 403
+        # الشاشةُ تُفتح للمشرف وفيها طالبُه وحدَه
+        resp = client_as(supervisor).get(reverse("behavior:statistics"))
+        html = resp.content.decode()
+        assert resp.status_code == 200
+        assert mine.full_name in html and theirs.full_name not in html
+        assert resp.context["total"] == 1
+        assert [r["student__id"] for r in resp.context["top_students"]] == [mine.pk]
+
+    def test_the_wing_supervisor_is_pinned_to_the_current_year(
+        self,
+        school,
+        seeded_calendar,
+        start,
+        mine,
+        supervisor,
+        principal,  # noqa: F811
+    ):
+        previous = f"{start.year - 1}-{start.year}"
+        _infraction(school, mine, start + dt.timedelta(days=40))
+        _infraction(school, mine, dt.date(start.year - 1, 10, 5))
+
+        pinned = behavior_statistics_data(school, supervisor, {"year": previous})
+        wide = behavior_statistics_data(school, principal, {"year": previous})
+
+        assert pinned["year"] == seeded_calendar and pinned["total"] == 1
+        assert pinned["year_locked"] is True
+        assert wide["year"] == previous and wide["total"] == 1 and wide["year_locked"] is False
+
+    def test_a_teacher_scope_is_pinned_to_the_current_year(
+        self,
+        school,
+        seeded_calendar,
+        start,
+        mine,
+        theirs,
+        principal,
+        monkeypatch,  # noqa: F811
+    ):
+        teacher = UserFactory(full_name="معلّمٌ اصطناعي", national_id="29300000092")
+        previous = f"{start.year - 1}-{start.year}"
+        _infraction(school, mine, start + dt.timedelta(days=40))
+        _infraction(school, mine, dt.date(start.year - 1, 10, 5))
+        _infraction(school, theirs, start + dt.timedelta(days=40))
+        # نطاقُ المعلّم طلبةُ شعبه الآن؛ والعامُ السابق لا يوسّعه
+        monkeypatch.setattr("behavior.services.get_teacher_student_ids", lambda *a, **k: {mine.pk})
+
+        data = behavior_statistics_data(school, teacher, {"year": previous})
+
+        assert data["year"] == seeded_calendar and data["total"] == 1
+        assert data["year_locked"] is True
+
+
+class TestActions:
+    def test_action_breakdowns_add_up_with_a_separate_none_row_and_no_free_text(
+        self,
+        school,
+        seeded_calendar,
+        start,
+        mine,
+        principal,  # noqa: F811
+    ):
+        day = dt.date(start.year, 10, 3)
+        first = _infraction(school, mine, day)
+        BehaviorInfraction.objects.filter(pk=first.pk).update(
+            disciplinary_action_type="verbal_warning", escalation_step=1
+        )
+        _infraction(school, mine, day)
+        third = _infraction(school, mine, day)
+        BehaviorInfraction.objects.filter(pk=third.pk).update(action_taken="نصٌّ سرّيٌّ مشفّر")
+
+        data = behavior_statistics_data(school, principal, {})
+
+        for key in ("action_rows", "step_rows"):
+            assert sum(row["count"] for row in data[key]) == data["total"] == 3
+            assert data[key][-1] == {"label": NO_ACTION_LABEL, "count": 2}
+        assert "نصٌّ سرّيٌّ مشفّر" not in repr(data["action_rows"] + data["step_rows"])
+
+    def test_the_supervisor_sees_the_actions_of_his_wing_only(
+        self,
+        school,
+        seeded_calendar,
+        start,
+        mine,
+        theirs,
+        supervisor,
+        client_as,  # noqa: F811
+    ):
+        day = dt.date(start.year, 10, 3)
+        _infraction(school, mine, day)
+        BehaviorInfraction.objects.filter(student=theirs).delete()
+        other = _infraction(school, theirs, day)
+        BehaviorInfraction.objects.filter(pk=other.pk).update(
+            disciplinary_action_type="written_pledge"
+        )
+
+        resp = client_as(supervisor).get(reverse("behavior:statistics"))
+
+        assert resp.context["action_rows"] == [{"label": NO_ACTION_LABEL, "count": 1}]
+        assert "التوزيع بالإجراء التأديبي" in resp.content.decode()
+
+
+class TestMenuLink:
+    @pytest.mark.parametrize(
+        ("role", "shown"),
+        [
+            ("principal", True),
+            ("vice_admin", True),
+            ("student_affairs_coordinator", True),
+            ("teacher", True),
+            ("coordinator", True),
+            ("admin_supervisor", True),
+            ("teacher_assistant", False),
+        ],
+    )
+    def test_the_link_shows_for_holders_and_not_for_the_assistant(
+        self, school, role, shown, client_as
+    ):
+        from tests.test_behavior_committee_art_5_7 import _user_with
+
+        resp = client_as(_user_with(school, role)).get(reverse("dashboard"), follow=True)
+        html = resp.content.decode()
+
+        assert (reverse("behavior:statistics") in html) is shown
 
 
 class TestScreenAndExports:

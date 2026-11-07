@@ -12,7 +12,7 @@
 
   {% page_header "إحصاءات السلوك المدرسي" subtitle=subtitle icon="behavior" %}
     <form method="get" class="sa-filter">
-      <input type="text" name="year" value="{{ year }}" class="form-control" dir="ltr" inputmode="numeric" pattern="[0-9]{4}-[0-9]{4}" aria-label="العام الدراسي">
+      {% if year_locked %}<input type="hidden" name="year" value="{{ year }}">{% else %}<input type="text" name="year" value="{{ year }}" class="form-control" dir="ltr" inputmode="numeric" pattern="[0-9]{4}-[0-9]{4}" aria-label="العام الدراسي">{% endif %}
       <select name="month" class="form-control" aria-label="الشهر">
         <option value="">العام كاملاً</option>
         {% for key, first in month_options %}
@@ -69,6 +69,14 @@
 
     {% section_card "أكثر البنود" icon="behavior" empty="لا مخالفاتٍ في هذه المدّة" %}{% if total %}
       <ul class="plain-list is-scroll">{% for r in category_rows %}<li class="plain-list__row"><span class="plain-list__title">{{ r.label }}</span> <span class="status-badge status-maroon">{{ r.count }}</span></li>{% endfor %}</ul>
+    {% endif %}{% endsection_card %}
+
+    {% section_card "التوزيع بالإجراء التأديبي" icon="behavior" empty="لا مخالفاتٍ في هذه المدّة" %}{% if total %}
+      <ul class="plain-list is-scroll">{% for r in action_rows %}<li class="plain-list__row"><span class="plain-list__title">{{ r.label }}</span> <span class="status-badge status-maroon">{{ r.count }}</span></li>{% endfor %}</ul>
+    {% endif %}{% endsection_card %}
+
+    {% section_card "التوزيع بخطوة الإجراء التصاعدي" icon="stats" empty="لا مخالفاتٍ في هذه المدّة" %}{% if total %}
+      <ul class="plain-list is-scroll">{% for r in step_rows %}<li class="plain-list__row"><span class="plain-list__title">{{ r.label }}</span> <span class="status-badge status-maroon">{{ r.count }}</span></li>{% endfor %}</ul>
     {% endif %}{% endsection_card %}
 
     {% section_card "التوزيع بالجناح" icon="stats" empty="لا مخالفاتٍ في هذه المدّة" %}{% if total %}

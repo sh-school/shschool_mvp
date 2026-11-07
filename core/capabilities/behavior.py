@@ -36,11 +36,15 @@ def behavior_capabilities(shared: Shared) -> list[Capability]:
             (P.BEHAVIOR_COMMITTEE - BEHAVIOR_COMMITTEE_CASE_SCOPED)
             | P.BEHAVIOR_VIEW_ALL
             | P.BEHAVIOR_STATS_TEACHING
-            | {"student_affairs_coordinator"},
-            scope="المدرسةُ كلُّها",
+            | {"student_affairs_coordinator", "admin_supervisor"},
+            scope="المدرسةُ كلُّها (المشرفُ لجناحه، والمعلّمُ والمنسّقُ لطلبتهما)",
+            # المساعدان يرثان جدولَ المعلّم لا إحصاءَ مخالفات الطلبة؛ فلا يظهر لهما الرابط
+            not_inherited_by={"teacher_assistant", "ese_assistant"},
             basis=(
                 "المشرفُ الإداريّ عضوٌ في قضيّة جناحه وحدَها (م5.7، D-207م) فلا يرث بعضويّته إحصاءَ "
-                "المدرسة كلِّها — حكمُ 0104 على W-20261001-023"
+                "المدرسة كلِّها (حكمُ 0104 على W-20261001-023)؛ وبقرار المالك 2026-11-07 "
+                "(W-20261107-017) يحمل القدرةَ بنطاق جناحه وحدَه عبر wings/scope.py، فلا يدخل "
+                "رقمَه طالبٌ من جناحٍ آخر"
             ),
         ),
         _cap("behavior.summon_parent", "استدعاءُ وليّ الأمر", family_callers),
