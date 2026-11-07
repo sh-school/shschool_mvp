@@ -1,0 +1,54 @@
+{% extends "reports/base_qatar_report.html" %}
+{% block extra_styles %}@page { size: A4 landscape; } /* كشفٌ بأعمدة: أفقيّ بسياسة الطباعة (core/print_policy.py، قرار المالك 2026-10-21) */{% endblock %}
+
+{% block report_title_bar %}
+<h1 class="report-title-bar">تقرير السلوك اليومي</h1>
+{% endblock %}
+
+{% block report_meta %}
+<table class="report-meta">
+  <tr>
+    <td>اليوم: <strong>{{ day|date:"Y-m-d" }}</strong></td>
+    <td>العام الدراسي: <strong>{{ academic_year }}</strong></td>
+    <td>صدر بواسطة: <strong>{{ exported_by }}</strong> — {{ exporter_role_ar }}</td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block content %}
+<div class="kpi-strip">
+  <div class="kpi-item"><span class="kpi-num c-maroon">{{ total }}</span><span class="kpi-label">مخالفات اليوم</span></div>
+</div>
+
+<div class="section-head">مخالفات اليوم</div>
+{% if rows %}
+<table class="report-table">
+  <thead>
+    <tr>
+      <th class="col-w-5">#</th>
+      <th>الطالب</th>
+      <th class="col-w-14">الشعبة</th>
+      <th>المخالفة</th>
+      <th class="col-w-14">الدرجة</th>
+      <th class="col-w-14">الخطوة</th>
+      <th class="col-w-14">الراصد</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td class="cell-num">{{ forloop.counter }}</td>
+      <td class="cell-name">{{ row.student }}</td>
+      <td>{{ row.class_text }}</td>
+      <td>{{ row.violation }}</td>
+      <td>{{ row.degree }}</td>
+      <td>{{ row.step }}</td>
+      <td>{{ row.reporter }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="no-data">لا مخالفات في هذا اليوم</p>
+{% endif %}
+{% endblock %}

@@ -215,6 +215,114 @@ def infractions_by_class(
     return ordered, unassigned
 
 
+def daily_filters(params, scope) -> tuple[Any, uuid.UUID | None, str]:
+    """(اليوم، الجناح، الصفّ) من معاملات الرابط — مشتركةٌ بين الشاشة والتصدير فلا يختلفان.
+
+    اليومُ الافتراضيّ اليومُ بتوقيت قطر، وتاريخٌ غيرُ صالحٍ يعود لليوم. والجناحُ خارج نطاق المقيَّد بجناحه 404 لا قائمةٌ فارغة
+    (وجودُه في جناحٍ غيرِه ليس شأنَه). والصفُّ خارج رموز الصفوف يُهمل.
+    """
+    from datetime import date
+
+    from django.utils import timezone
+
+    try:
+        day = date.fromisoformat(params.get("date") or "")
+    except ValueError:
+        day = timezone.localdate()
+    wing_id = None
+    raw_wing = params.get("wing") or ""
+    if raw_wing:
+        try:
+            wing_id = uuid.UUID(raw_wing)
+        except ValueError:
+            raise Http404("جناحٌ غير موجود") from None
+        if scope.is_wing_bound and wing_id not in scope.wing_ids:
+            raise Http404("ليس من أجنحتك")
+    grade = params.get("grade") or ""
+    if grade not in dict(ClassGroup.GRADES):
+        grade = ""
+    return day, wing_id, grade
+
+
+def daily_wing_options(school, scope, year: str):
+    """أجنحةُ مرشّح الجناح: المقيَّدُ بجناحه يرى أجنحتَه وحدَها، وغيرُه أجنحةَ المدرسة النشطة في العام."""
+    from core.models import Wing
+
+    wings = Wing.objects.filter(school=school).order_by("order", "name")
+    if scope.is_wing_bound:
+        return wings.filter(pk__in=scope.wing_ids or ())
+    return wings.filter(academic_year=year, is_active=True)
+
+
+def daily_infractions(
+    school, user, day, *, scope, year: str, wing_id=None, grade: str = ""
+) -> list[dict[str, Any]]:
+    """صفوفُ التقرير اليوميّ: مخالفاتُ يومٍ بالطالب والشعبة والمخالفة والدرجة والخطوة والراصد (W-20261107-010).
+
+    يومُ المخالفة = يومُ حصّتها إن وُجدت وإلّا `date`: فـ`date` يوم الكتابة (`auto_now_add`)، والمخالفةُ الآليّةُ
+    المصحَّحةُ لاحقاً تُكتب بعد يومها فتظهر في يوم حصّتها لا يومِ كتابتها. والنطاقُ كما في لوحة السلوك: المعلّمُ لطلبته،
+    والمشرفُ لجناحه، والقيادةُ للمدرسة. استعلامان ثابتان مهما كثرت الصفوف: المخالفاتُ بما تحتاجه، وقيودُ طلبتها الجارية.
+    وعمودُ الوصف لا يُجلب ولا يُعرض (نصٌّ حسّاسٌ مشفَّر)، ولا رقمٌ شخصيٌّ ولا وليّ أمر.
+    """
+    from django.db.models import Q
+
+    from .models import BehaviorInfraction
+
+    qs = (
+        BehaviorInfraction.objects.filter(school=school)
+        .filter(Q(session__date=day) | Q(session__isnull=True, date=day))
+        .select_related("student", "reported_by", "violation_category")
+        .defer("description", "action_taken", "violation_description", "digital_evidence_notes")
+        .order_by("created_at", "pk")
+    )
+    visible = get_teacher_student_ids(user, scope=scope)
+    if visible is not None:
+        qs = qs.filter(student_id__in=visible)
+    qs = scope.narrow(qs)
+    infractions = list(qs)
+
+    current: dict[Any, ClassGroup] = {}
+    enrollments = (
+        StudentEnrollment.objects.filter(
+            student_id__in={i.student_id for i in infractions},
+            is_active=True,
+            class_group__school=school,
+            class_group__academic_year=year,
+        )
+        .newest_first()
+        .select_related("class_group")
+    )
+    for enrollment in enrollments:
+        current.setdefault(enrollment.student_id, enrollment.class_group)
+
+    labels = dict(ClassGroup.GRADES)
+    rows: list[dict[str, Any]] = []
+    for item in infractions:
+        group = current.get(item.student_id)
+        if wing_id and (group is None or group.wing_id != wing_id):
+            continue
+        if grade and (group is None or group.grade != grade):
+            continue
+        category = item.violation_category
+        rows.append(
+            {
+                "student": item.student.full_name,
+                "class_text": f"{labels.get(group.grade, group.grade)} / {group.section}"
+                if group
+                else "—",
+                "violation": category.name_ar if category else "—",
+                "degree": item.get_level_display(),
+                "step": item.get_escalation_step_display(),
+                "reporter": "الرصد الآليّ"
+                if item.auto_rule
+                else (item.reported_by.full_name if item.reported_by else "—"),
+                "_order": group.school_order if group else 10**6,
+            }
+        )
+    rows.sort(key=lambda r: (r["_order"], r["student"]))
+    return rows
+
+
 def monthly_infraction_trend(school_infractions, today) -> tuple[list[str], list[int]]:
     """اتجاهُ المخالفات الشهريّ لآخر ستّة أشهر: (التسميات، الأعداد) — كان حلقةً داخل العرض."""
     from datetime import timedelta

@@ -1,0 +1,67 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% block title %}تقرير السلوك اليومي{% endblock %}
+
+{% block main_class %}{% page_layout "report" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="السلوك" current="التقرير اليومي" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "تقرير السلوك اليومي" subtitle=day|date:"l j F Y" icon="behavior" %}
+    {# الملفّان يطابقان المعروض: المرشّحاتُ نفسُها في الاستعلام، واليومُ صريح #}
+    {% export_button "pdf" "behavior:daily_export" "pdf" job="pdf" %}?{{ export_query }}{% endexport_button %}
+    {% export_button "xlsx" "behavior:daily_export" "xlsx" job="excel" %}?{{ export_query }}{% endexport_button %}
+  {% endpage_header %}
+
+  <form method="get" class="rec-datebar">
+    <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="form-control" aria-label="اليوم">
+    <select name="wing" class="form-control" aria-label="الجناح" data-autosubmit>
+      <option value="">كلّ الأجنحة</option>
+      {% for wing in wings %}<option value="{{ wing.pk }}"{% if wing.pk|stringformat:"s" == wing_id %} selected{% endif %}>{{ wing.name }}</option>{% endfor %}
+    </select>
+    <select name="grade" class="form-control" aria-label="الصف" data-autosubmit>
+      <option value="">كلّ الصفوف</option>
+      {% for code, label in grades %}<option value="{{ code }}"{% if code == grade %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn-secondary btn-sm">تطبيق</button>
+  </form>
+
+  {% kpi_strip label="مخالفات اليوم" %}
+    {% kpi "عدد المخالفات" rows|length tone="maroon" %}
+  {% endkpi_strip %}
+
+  {% section_card "مخالفات اليوم" icon="behavior" empty="لا مخالفات في هذا اليوم" flush=True %}{% if rows %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>الطالب</th>
+            <th>الشعبة</th>
+            <th>المخالفة</th>
+            <th>الدرجة</th>
+            <th>الخطوة</th>
+            <th>الراصد</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td><strong>{{ row.student }}</strong></td>
+            <td>{{ row.class_text }}</td>
+            <td>{{ row.violation }}</td>
+            <td>{{ row.degree }}</td>
+            <td>{{ row.step }}</td>
+            <td>{{ row.reporter }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+
+</div>
+{% endblock %}

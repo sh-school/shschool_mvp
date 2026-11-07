@@ -81,6 +81,9 @@ DOCUMENTS: dict[str, PrintDocument] = {
         SHEET, "landscape", CONFORMS, LOGO_FRAME
     ),
     "templates/schedule/print_pages.html": PrintDocument(SHEET, "landscape", CONFORMS, LOGO_FRAME),
+    "templates/behavior/daily_report_pdf.html": PrintDocument(
+        SHEET, "landscape", CONFORMS, LOGO_BASE
+    ),
     "templates/behavior/pdf/base_form.html": PrintDocument(FORM, "portrait", CONFORMS, LOGO_FRAME),
     "templates/wings/pdf/exit_permit.html": PrintDocument(
         FORM,
