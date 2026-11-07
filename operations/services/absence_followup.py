@@ -29,6 +29,7 @@ from operations.models import (
     AbsenceActionLog,
     AbsenceContactLog,
     AbsenceExcuse,
+    Session,
     StudentAttendance,
 )
 from operations.models.absence_followup import FOLLOWUP_STATUSES
@@ -344,6 +345,64 @@ def _followed(action: Any, allowed: bool, part: str) -> Any:
     return action.followed_by.full_name if action.followed_by else ""
 
 
+def _year_start(school: Any, day: dt.date) -> dt.date:
+    """أوّلُ يومٍ في العام الدراسي الجاري عند `day` — وبلا تقويمٍ مبذورٍ أوّلُ أغسطس السابق له."""
+    from core.academic_calendar import AcademicCalendar
+
+    year = AcademicCalendar.current(school, day).year
+    if year is not None:
+        return year.start_date
+    return dt.date(day.year if day.month >= 8 else day.year - 1, 8, 1)
+
+
+def absence_days_for(school: Any, student_ids: Any, day: dt.date) -> dict[Any, int]:
+    """{معرّفُ الطالب: عددُ أيام العام حتى `day` التي غاب فيها الحصّتين الأولى والثانية معاً}.
+
+    القاعدةُ نفسُها (بلاغ FFED، `StudentDay.ministry_flag`): خانتا الشعبة الأولى والثانية بترتيب الساعة في ذلك
+    اليوم، والغيابُ فيهما معاً دون حضورٍ في أيٍّ منهما. استعلامان مجمَّعان لكلّ الطلبة معاً مهما كثرت الصفوف:
+    الرصدُ ثمّ خاناتُ الشُّعب، والعدُّ في الذاكرة.
+    """
+    start = _year_start(school, day)
+    marks: dict[tuple, dict] = defaultdict(lambda: defaultdict(set))
+    for sid, cg_id, when, at, status in StudentAttendance.objects.filter(
+        school=school,
+        student_id__in=list(student_ids),
+        session__date__range=(start, day),
+    ).values_list(
+        "student_id",
+        "session__class_group_id",
+        "session__date",
+        "session__start_time",
+        "status",
+    ):
+        marks[(sid, cg_id, when)][at].add(status)
+    if not marks:
+        return {}
+    slots: dict[tuple, set] = defaultdict(set)
+    for cg_id, when, at in (
+        Session.objects.filter(
+            school=school,
+            date__range=(start, day),
+            class_group_id__in={key[1] for key in marks},
+        )
+        .exclude(status="cancelled")
+        .values_list("class_group_id", "date", "start_time")
+        .distinct()
+    ):
+        slots[(cg_id, when)].add(at)
+    days: dict[Any, set] = defaultdict(set)
+    for (sid, cg_id, when), by_start in marks.items():
+        first = sorted(slots.get((cg_id, when), ()))[:2]
+        if len(first) < 2:
+            continue
+        if all(
+            at in by_start and "absent" in by_start[at] and not by_start[at] & {"present", "late"}
+            for at in first
+        ):
+            days[sid].add(when)
+    return {sid: len(when) for sid, when in days.items()}
+
+
 def followup_rows(user: Any, date: dt.date) -> list[dict]:
     """غائبو اليوم ضمن نطاق صاحب الطلب: لكلٍّ آخرُ اتّصالٍ وآخرُ إجراءٍ وأرقامُ الأولياء.
 
@@ -367,6 +426,7 @@ def followup_rows(user: Any, date: dt.date) -> list[dict]:
     absent = [r for r in report.rows if r.ministry_flag]
     ids = [r.student.id for r in absent]
     phones = guardian_phones_for(school, ids)
+    absent_days = absence_days_for(school, ids, date)
     contacts = _heads(AbsenceContactLog, school, date, ids, "contacted_by")
     actions = _heads(AbsenceActionLog, school, date, ids, "acted_by")
     may_feedback = has_capability(user, FEEDBACK)
@@ -377,6 +437,7 @@ def followup_rows(user: Any, date: dt.date) -> list[dict]:
             "class_group": r.class_group,
             "absent_periods": r.absent_periods,
             "ministry_flag": r.ministry_flag,
+            "absent_days": absent_days.get(r.student.id, 0),
             "phones": phones.get(r.student.id, []),
             "contact": contacts.get(r.student.id),
             "feedback": (
@@ -408,6 +469,7 @@ SORTS = [
     ("class", "الشعبةُ ثمّ الاسم"),
     ("name", "الاسم"),
     ("periods", "الأكثرُ حصصَ غياب"),
+    ("days", "الأكثرُ أيامَ غياب"),
 ]
 
 
@@ -447,6 +509,8 @@ def apply_view(
         out.sort(key=lambda r: r["student"].full_name)
     elif sort == "periods":
         out.sort(key=lambda r: (-r["absent_periods"], r["student"].full_name))
+    elif sort == "days":
+        out.sort(key=lambda r: (-r["absent_days"], r["student"].full_name))
     return out
 
 

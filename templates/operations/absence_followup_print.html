@@ -34,7 +34,7 @@
       <tr>
         <th scope="col" class="fu-c-no">م</th><th scope="col" class="fu-c-name">الطالب</th><th scope="col" class="fu-c-class">الصف</th>
         {% if page == "actions" %}
-        <th scope="col">الإجراءُ الحاليّ</th><th scope="col">وقتُ التنفيذ</th><th scope="col">متابعةُ الإجراء</th><th scope="col">وقتُ المتابعة ومن سجّلها</th>
+        <th scope="col">أيامُ الغياب</th><th scope="col">الإجراءُ الحاليّ</th><th scope="col">وقتُ التنفيذ</th><th scope="col">متابعةُ الإجراء</th><th scope="col">وقتُ المتابعة ومن سجّلها</th>
         {% else %}
         <th scope="col">غيابُ اليوم</th><th scope="col" class="fu-c-phone">هاتفُ وليّ الأمر</th><th scope="col">حالةُ التواصل</th><th scope="col">آخرُ اتّصال</th>{% if can_feedback %}<th scope="col">التغذية الراجعة من وليّ الأمر</th>{% endif %}
         {% endif %}
@@ -48,6 +48,7 @@
         <td class="fu-c-name">{{ row.student.full_name }}</td>
         <td class="fu-c-class">{{ row.class_group.short_label }}</td>
         {% if page == "actions" %}
+        <td>{{ row.absent_days }}</td>
         <td>{% if row.action %}{{ row.action.get_action_kind_display }}{% if row.action.note %} — {{ row.action.note }}{% endif %}{% endif %}</td>
         <td>{% if row.action %}{{ row.action.acted_at|date:"d/m H:i" }}{% endif %}</td>
         <td>{{ row.action_status|default:"لم تتمّ المتابعة" }}</td>
