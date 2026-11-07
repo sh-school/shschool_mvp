@@ -21,6 +21,8 @@ from django.utils import timezone
 
 from core import brand, ministry_logo
 from core.ministry import ministry_name
+from core.pdf_footer import playwright_footer_template
+from core.print_school import resolve_school_name
 
 logger = logging.getLogger(__name__)
 
@@ -50,12 +52,12 @@ def _extract_pdf_meta(html_str: str) -> dict:
     def _clean(s: str) -> str:
         return re.sub(r"<[^>]+>", "", s or "").strip()
 
-    school_m = re.search(r'class="report-header".*?<h1[^>]*>(.*?)</h1>', html_str, re.DOTALL)
     title_m = re.search(r'class="report-title"[^>]*>(.*?)</div>', html_str, re.DOTALL)
     year_m = re.search(r"(\d{4}-\d{4})", html_str)
 
     return {
-        "school": _clean(school_m.group(1)) if school_m else "SchoolOS",
+        # المصدرُ الواحد (W-20261107-023): مدرسةُ الطلب ثمّ وسومُ القالب ثمّ نصٌّ عامٌّ — لا «SchoolOS» اسماً
+        "school": resolve_school_name(html_str),
         "title": _clean(title_m.group(1)) if title_m else "",
         "year": year_m.group(1) if year_m else "",
     }
@@ -187,6 +189,38 @@ def _owns_its_page(html_str: str) -> bool:
     return OWN_PAGE_FURNITURE in html_str or "doc-header" in html_str
 
 
+def _header_scale(paper_size: str) -> tuple[int, float]:
+    """(ارتفاعُ الشعار px، خطُّ اسم المدرسة px) متناسبَين مع الورق: A3 أوسعُ فأكبر، A4 أضيق.
+
+    الاسمُ أكبرُ من العنوان وأصغرُ من الشعار بصرياً: نسبةُ الشعار إلى الاسم ثابتةٌ تقريباً (≈ 3:1).
+    """
+    return (44, 14.0) if paper_size == "A3" else (32, 11.0)
+
+
+def _logo_tag(css_class: str, height: int) -> str:
+    """وسمُ شعار الوزارة مضمَّناً (data:)؛ فارغٌ إن غاب الملفّ (قاعدةُ الشعار الواحد: لا شعارَ ثانياً)."""
+    try:
+        return f'<img class="{css_class}" src="{ministry_logo.logo_data_uri()}" alt="" height="{height}">'
+    except FileNotFoundError:
+        return ""
+
+
+def _header_block_html(school: str, title: str, paper_size: str, prefix: str) -> str:
+    """شعارٌ فاسمُ المدرسة تحته فعنوانُ الوثيقة — الكتلةُ الواحدةُ لمساري WeasyPrint وxhtml2pdf.
+
+    سياسةُ الوزارة (`ministry_name()`): لا سطرَ وزارةٍ حين المفتاحُ مطفأ.
+    """
+    logo_h, _ = _header_scale(paper_size)
+    ministry = ministry_name()
+    parts = [_logo_tag(f"{prefix}-logo", logo_h)]
+    if ministry:
+        parts.append(f'<div class="{prefix}-ministry">{ministry}</div>')
+    parts.append(f'<div class="{prefix}-school">{school}</div>')
+    if title:
+        parts.append(f'<div class="{prefix}-title">{title}</div>')
+    return "".join(parts)
+
+
 def _inject_wp_page_header_css(
     html_str: str, school: str, title: str, paper_size: str = "A4"
 ) -> str:
@@ -199,7 +233,6 @@ def _inject_wp_page_header_css(
     if _owns_its_page(html_str):
         return html_str
     today_str = timezone.now().strftime("%Y/%m/%d")
-    title_part = f" — {title}" if title else ""
 
     # رؤيةُ الوزارة (قرارُ المالك 2026-09-27: في التذييل لكلّ الملفّات المصدَّرة بلا استثناء) — من المصدر الواحد
     # (`components/ministry_vision.html` عبر core.ministry_vision)؛ الصفحاتُ هنا بلا `school` حقيقيّ (وصلها نصُّ اسمٍ
@@ -211,11 +244,12 @@ def _inject_wp_page_header_css(
     # ── إعدادات الحجم والهوامش حسب paper_size ──
     if paper_size == "A3":
         page_size_css = "A3 landscape"
-        page_margin = "2cm 1.5cm"
+        page_margin = "3cm 1.5cm 2cm 1.5cm"
     else:
         page_size_css = "A4"
         page_margin = "3.2cm 1.5cm 2.8cm 1.5cm"
 
+    _, name_px = _header_scale(paper_size)
     css = f"""
 /* ── RTL جذري لجميع العناصر ──────────────────── */
 html, body {{ direction: rtl !important; }}
@@ -231,7 +265,6 @@ table {{ direction: rtl !important; border-collapse: collapse; }}
     position:     running(wp-header);
     direction:    rtl;
     font-family:  'Tajawal', 'Amiri', Arial, sans-serif;
-    font-size:    9.5px;
     font-weight:  700;
     color:        {brand.MAROON};
     text-align:   center !important;
@@ -239,6 +272,10 @@ table {{ direction: rtl !important; border-collapse: collapse; }}
     border-bottom: 1.5px solid {brand.MAROON};
     width:        100%;
 }}
+.wp-page-header img {{ display: block; margin: 0 auto 2px; }}
+.wp-page-header .wp-ministry {{ font-size: {name_px - 3}px; color: {brand.TEXT_MUTED}; }}
+.wp-page-header .wp-school {{ font-size: {name_px}px; line-height: 1.3; }}
+.wp-page-header .wp-title {{ font-size: {name_px - 2}px; font-weight: 500; color: {brand.TEXT_SECONDARY}; }}
 .wp-page-footer {{
     position:     running(wp-footer);
     direction:    rtl;
@@ -295,7 +332,8 @@ table {{ direction: rtl !important; border-collapse: collapse; }}
     html_str = html_str.replace("</style>", f"{css}\n</style>", 1)
 
     # حقن running div في بداية body
-    running_div = f'<div class="wp-page-header">{school}{title_part}</div>\n'
+    block = _header_block_html(school, title, paper_size, "wp")
+    running_div = f'<div class="wp-page-header">{block}</div>\n'
     html_str = re.sub(r"(<body[^>]*>)", r"\1\n" + running_div, html_str, count=1)
     return html_str
 
@@ -565,15 +603,11 @@ def _reshape_html_for_xhtml2pdf(html_str: str) -> str:
 # ── Playwright: قوالب الهيدر والفوتر ────────────────────────────────────
 
 
-def _playwright_header_template(school: str, title: str) -> str:
-    """هيدر احترافي — يعمل على كل صفحة في Playwright"""
-    title_part = f" — {title}" if title else ""
-    ministry = ministry_name()  # مجمَّدةٌ مطفأةٌ افتراضاً (D-400م): لا نطاقَ فارغاً في الترويسة
-    ministry_span = f'<span class="ph-ministry">{ministry}</span>' if ministry else ""
-    try:  # شعارُ الوزارة الأصليّ مضمَّناً أعلى الوسط: ترويسةُ Playwright وثيقةٌ مستقلّةٌ لا ترى ملفّاتِ الموقع
-        logo_img = f'<img class="ph-logo" src="{ministry_logo.logo_data_uri()}" alt="" width="46" height="46">'
-    except FileNotFoundError:
-        logo_img = ""
+def _playwright_header_template(school: str, title: str, paper_size: str = "A4") -> str:
+    """هيدر احترافي — يعمل على كل صفحة في Playwright: شعارٌ فوزارةٌ (إن أُوقدت) فاسمُ المدرسة بحجمٍ متناسب فالعنوان."""
+    # ترويسةُ Playwright وثيقةٌ مستقلّةٌ لا ترى ملفّاتِ الموقع ولا أنماطَ الصفحة: الشعارُ مضمَّنٌ والأنماطُ هنا
+    block = _header_block_html(school, title, paper_size, "ph")
+    _, name_px = _header_scale(paper_size)
     return f"""
 <style>
 * {{ margin:0; padding:0; box-sizing:border-box; }}
@@ -594,60 +628,24 @@ def _playwright_header_template(school: str, title: str) -> str:
 }}
 .ph-logo {{ display: block; margin: 0 auto 1px; }}
 .ph-school {{
-    font-size:   9px;
+    font-size:   {name_px}px;
     font-weight: bold;
     color:       {brand.MAROON};
     white-space: nowrap;
 }}
-.ph-brand {{
-    font-size: 8.5px;
-    color:     {brand.MAROON};
-    font-weight: bold;
+.ph-title {{
+    font-size: {name_px - 2}px;
+    color:     {brand.TEXT_SECONDARY};
+    white-space: nowrap;
 }}
 .ph-ministry {{
-    font-size: 8px;
+    font-size: {name_px - 3}px;
     color:     {brand.TEXT_MUTED};
     direction: rtl;
 }}
 </style>
 <div class="ph">
-    {logo_img}
-    <span class="ph-school">{school}{title_part}</span>
-    {ministry_span}
-</div>
-"""
-
-
-def _playwright_footer_template(today: str) -> str:
-    """فوتر احترافي — يعمل على كل صفحة في Playwright"""
-    return f"""
-<style>
-* {{ margin:0; padding:0; box-sizing:border-box; }}
-.pf {{
-    font-family: 'Tajawal', 'Amiri', Arial, sans-serif;
-    direction:   rtl;
-    width:       100%;
-    padding:     5px 26px;
-    display:     flex;
-    justify-content: space-between;
-    align-items: center;
-    border-top:  1px solid {brand.BORDER};
-    background:  {brand.SURFACE};
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    font-size:   8px;
-    color:       {brand.TEXT_MUTED};
-}}
-.pf-brand {{ color: {brand.BORDER_STRONG}; font-size: 7.5px; letter-spacing: 0.5px; }}
-.pf-pages {{ color: {brand.TEXT_SECONDARY}; direction: ltr; font-size: 8.5px; }}
-.pf-date  {{ color: {brand.TEXT_MUTED}; font-size: 7.5px; direction: ltr; }}
-</style>
-<div class="pf">
-    <span class="pf-brand">SchoolOS</span>
-    <span class="pf-pages">
-        صفحة <span class="pageNumber"></span> / <span class="totalPages"></span>
-    </span>
-    <span class="pf-date">{today}</span>
+    {block}
 </div>
 """
 
@@ -672,6 +670,27 @@ def _force_page_orient(html_str: str, paper_size: str, orient: str | None) -> st
     if head_end == -1:
         return style + html_str
     return html_str[:head_end] + style + html_str[head_end:]
+
+
+def _inject_xhtml_header(html_str: str, meta: dict, paper_size: str) -> str:
+    """ترويسةُ الصفحة الأولى لمسار xhtml2pdf: شعارٌ فاسمُ المدرسة (المصدرُ الواحد) فالعنوان.
+
+    تُتخطّى للقالب الذي يتولّى صفحته، وللقالب الذي يحمل اسمَ المدرسة في جسمه أصلاً (لا اسمَ مكرَّراً).
+    """
+    school = meta["school"]
+    if _owns_its_page(html_str) or school in re.sub(r"<style.*?</style>", "", html_str, flags=re.S):
+        return html_str
+    _, name_px = _header_scale(paper_size)
+    style = (
+        f"<style>.xh{{text-align:center;color:{brand.MAROON};}}"
+        f".xh-school{{font-size:{name_px + 2}px;font-weight:bold;}}"
+        f".xh-title{{font-size:{name_px}px;}}.xh-ministry{{font-size:{name_px - 3}px;}}</style>\n"
+    )
+    block = f'<div class="xh">{_header_block_html(school, meta["title"], paper_size, "xh")}</div>\n'
+    html_str = re.sub(
+        r"(<body[^>]*>)", lambda m: m.group(1) + "\n" + style + block, html_str, count=1, flags=re.I
+    )
+    return html_str
 
 
 def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
@@ -732,8 +751,8 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
             from playwright.sync_api import sync_playwright
 
             chr_html = _inject_fonts(html_str)
-            header = _playwright_header_template(meta["school"], meta["title"])
-            footer = _playwright_footer_template(today)
+            header = _playwright_header_template(meta["school"], meta["title"], paper_size)
+            footer = playwright_footer_template(today)
 
             _pdf_result: dict = {}
 
@@ -756,7 +775,7 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
                             (paper_size == "A3") if orient is None else orient == "landscape"
                         )
                         pw_margin = (
-                            {"top": "2cm", "bottom": "1.5cm", "left": "1.5cm", "right": "1.5cm"}
+                            {"top": "3cm", "bottom": "1.5cm", "left": "1.5cm", "right": "1.5cm"}
                             if paper_size == "A3"
                             else {
                                 "top": "2.8cm",
@@ -828,6 +847,8 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
                 )
             else:
                 xhtml_html = xhtml_page_css + xhtml_html
+
+        xhtml_html = _inject_xhtml_header(xhtml_html, meta, paper_size)
 
         # ── معالجة النص العربي: reshaping + BiDi ──
         xhtml_html = _reshape_html_for_xhtml2pdf(xhtml_html)

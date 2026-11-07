@@ -461,9 +461,11 @@ class ExportOrientMiddleware:
 
     def __call__(self, request: HttpRequest) -> HttpResponseBase:
         from core.print_policy import orient_from, use_orient
+        from core.print_school import use_school
 
         params = (
             request.POST if request.method == "POST" and request.POST.get("orient") else request.GET
         )
-        with use_orient(orient_from(params)):
+        # مدرسةُ الطلب مصدرُ اسم الترويسة الواحد (W-20261107-023): الطلبُ نفسُه يُقرأ كسولاً لأنّ المستخدم يُحلّ بعد الوسيط
+        with use_orient(orient_from(params)), use_school(request):
             return self.get_response(request)
