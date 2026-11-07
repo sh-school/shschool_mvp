@@ -31,6 +31,7 @@ from core.unrestricted_role import has_unrestricted_role
 
 logger = logging.getLogger(__name__)
 
+from behavior.action_services import suggest_for
 from behavior.models import BehaviorInfraction
 from core.models import ParentStudentLink, StudentEnrollment, Wing
 from wings.scope import student_scope
@@ -811,6 +812,7 @@ class BehaviorService:
             session=session,
             auto_rule=auto_rule,
         )
+        suggest_for(infraction, reporter)  # اقتراحُ السلّم، لا يصل الأسرة
 
         logger.info(
             "مخالفة سلوكية جديدة: %s (درجة %d) للطالب %s بواسطة %s",

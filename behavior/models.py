@@ -7,6 +7,7 @@ behavior/models.py
 """
 
 import uuid
+from typing import Any
 
 from django.db import models
 
@@ -441,6 +442,62 @@ class BehaviorInfraction(models.Model):
         verbose_name="نوع الإيقاف",
     )
 
+    # ── اقتراح الإجراء وتجهيزه ومتابعته واعتماده (W-20261108-005) ──
+    # الاقتراحُ من السلّم المعتمد (behavior/action_proposal.py) لا يراه طالبٌ ولا وليُّ أمر؛
+    # وما يصل الأسرةَ (`action_taken`) لا يُكتب إلّا عند اعتماد المنسّق.
+    suggested_action = models.CharField(
+        max_length=1000, blank=True, default="", verbose_name="الإجراء المقترح من السلّم"
+    )
+    suggested_source = models.CharField(
+        max_length=200, blank=True, default="", verbose_name="مصدر الاقتراح (المادة والصفحة)"
+    )
+    suggested_step = models.PositiveSmallIntegerField(
+        default=0, verbose_name="مرّة التكرار المقترحة"
+    )
+    #: خطوةُ السلّم فيها اختصاصيٌّ اجتماعيّ/نفسيّ: تصلهما في قائمتهما ليدرسا الحالة.
+    specialist_listed = models.BooleanField(default=False, verbose_name="في قائمة الاختصاصيَّين")
+
+    PREPARED_KINDS = [("written_pledge", "تعهّد خطّي"), ("referral", "إحالة")]
+    prepared_kind = models.CharField(
+        max_length=20, choices=PREPARED_KINDS, blank=True, default="", verbose_name="ما جهّزه المشرف"
+    )
+    prepared_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="جهّزه",
+    )
+    prepared_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت التجهيز")
+
+    FOLLOWUP_STATUSES = [("done", "تمّ"), ("not_done", "لم يتمّ"), ("partial", "جزئيًّا")]
+    followup_status = models.CharField(
+        max_length=10, choices=FOLLOWUP_STATUSES, blank=True, default="", verbose_name="المتابعة"
+    )
+    followed_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="تابعه",
+    )
+    followed_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت المتابعة")
+
+    approved_action = models.CharField(
+        max_length=1000, blank=True, default="", verbose_name="الإجراء المعتمد"
+    )
+    approved_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="اعتمده",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت الاعتماد")
+
     # ── الحالة ──
     is_resolved = models.BooleanField(default=False, verbose_name="معالَجة")
 
@@ -468,7 +525,7 @@ class BehaviorInfraction(models.Model):
         cat = f" [{self.violation_category.code}]" if self.violation_category else ""
         return f"{self.student.full_name}{cat} - {self.get_level_display()}"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         # [ARCH-01] تجميد الدرجة عند الإنشاء فقط: تعديل تعريف الفئة (degree) لاحقاً
         # يجب ألا يعيد ختم المخالفات التاريخية بدرجة مختلفة (منع drift في التقارير).
         if self._state.adding and self.violation_category and self.violation_category.degree:

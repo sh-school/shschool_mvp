@@ -1,0 +1,85 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}إجراءات المخالفات{% endblock %}
+
+{# صفحةُ قوائمَ تطول وتُمرَّر. #}
+{% block main_class %}{% page_layout "report" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="الضبط السلوكي" current="إجراءات المخالفات" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% if mode == "approve" %}
+    {% page_header "متابعة إجراءات المخالفات واعتمادها" subtitle="الإجراء المقترح من سلّم اللائحة؛ لا يراه الطالب ولا وليّ أمره قبل اعتمادك." icon="behavior_violation" %}{% endpage_header %}
+  {% elif mode == "prepare" %}
+    {% page_header "تجهيز إجراءات المخالفات" subtitle="تعهّد خطّي أو إحالة لطلاب جناحك فقط؛ الاستدعاء والاعتماد للمنسّق." icon="behavior_violation" %}{% endpage_header %}
+  {% else %}
+    {% page_header "إحالات المخالفات للدراسة" subtitle="حالات بلغت خطوة تنصّ على الاختصاصي الاجتماعي أو النفسي؛ للدراسة فقط." icon="behavior_violation" %}{% endpage_header %}
+  {% endif %}
+
+  {% if not rows %}
+    <p class="ui-field-hint">لا توجد مخالفات في هذه القائمة.</p>
+  {% else %}
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>الطالب</th>
+        <th>المخالفة</th>
+        <th>الإجراء المقترح ومصدره</th>
+        <th>الحالة</th>
+        {% if mode != "specialist" %}<th>الإجراء</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.student.full_name }}</td>
+        <td>{% if row.violation_category %}{{ row.violation_category.code }} — {{ row.violation_category.name_ar }}{% else %}درجة {{ row.level }}{% endif %}<br><span class="ui-field-hint">{{ row.date|date:"d/m/Y" }}</span></td>
+        <td>
+          {% if row.suggested_action %}{{ row.suggested_action }}<br><span class="ui-field-hint">{{ row.suggested_source }}</span>{% else %}<span class="ui-field-hint">لا اقتراح آلي لهذه الدرجة — يكتب المنسّق الإجراء.</span>{% endif %}
+        </td>
+        <td>
+          {% if row.approved_at %}معتمد: {{ row.approved_action }}{% else %}بانتظار الاعتماد{% endif %}
+          {% if row.prepared_kind %}<br>جُهّز: {{ row.get_prepared_kind_display }}{% endif %}
+          {% if row.followup_status %}<br>المتابعة: {{ row.get_followup_status_display }}{% endif %}
+        </td>
+        {% if mode == "prepare" %}
+        <td>
+          <form method="post" action="{% url 'behavior:action_prepare' row.id %}">
+            {% csrf_token %}
+            <select name="kind" aria-label="نوع التجهيز" class="form-control">
+              {% for value, label in prepared_kinds %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn-primary">جهّز</button>
+          </form>
+        </td>
+        {% elif mode == "approve" %}
+        <td>
+          <form method="post" action="{% url 'behavior:action_followup' row.id %}">
+            {% csrf_token %}
+            <select name="status" aria-label="حالة المتابعة" class="form-control">
+              {% for value, label in followup_statuses %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn-secondary">سجّل المتابعة</button>
+          </form>
+          {% if not row.approved_at %}
+          <form method="post" action="{% url 'behavior:action_approve' row.id %}">
+            {% csrf_token %}
+            <input type="text" name="action_text" maxlength="1000" class="form-control" aria-label="الإجراء المعتمد (اتركه فارغًا لاعتماد المقترح)" placeholder="الإجراء المعتمد (فارغ = المقترح)">
+            <button type="submit" class="btn-primary">اعتمد</button>
+          </form>
+          {% endif %}
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

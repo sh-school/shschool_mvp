@@ -61,10 +61,10 @@ class InfractionForm(forms.Form):
         },
     )
     # ── REQ-SH-001: dropdown structured action ──
+    # اختياريٌّ (W-20261108-005): يُسجَّل المخالفةَ المعلّمُ بلا إجراء، ويقترحه النظامُ من السلّم ويعتمده المنسّق.
     disciplinary_action_type = forms.ChoiceField(
         choices=DISCIPLINARY_ACTION_CHOICES,
-        required=True,
-        error_messages={"required": "يرجى اختيار الإجراء التأديبي."},
+        required=False,
     )
     violation_description = forms.CharField(
         required=False,
@@ -78,7 +78,8 @@ class InfractionForm(forms.Form):
     def __init__(self, *args, role: str | None = None, **kwargs):
         super().__init__(*args, **kwargs)
         field = self.fields["disciplinary_action_type"]
-        field.choices = action_choices_for(role)
+        # بلا خيار العنوان الفارغ: فلا يُنسخ نصُّه إلى `action_taken` حين لا يُختار إجراء (والفارغُ مقبولٌ إذ الحقلُ اختياريّ).
+        field.choices = [choice for choice in action_choices_for(role) if choice[0]]
         if role in ROLE_ACTION_LIMITS:
             field.error_messages["invalid_choice"] = NOT_YOUR_ACTION
 

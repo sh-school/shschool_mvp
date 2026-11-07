@@ -965,6 +965,41 @@
   "not_inherited_by": []
  },
  {
+  "key": "behavior.prepare_action",
+  "label": "تجهيزُ التعهّد الخطّيّ والإحالة للمخالفة",
+  "roles": [
+   "admin_supervisor"
+  ],
+  "scope": "طلبةُ جناح صاحب الشاشة وحدَه",
+  "basis": "قرارُ المالك 2026-11-08 (W-20261108-005): مشرفُ الجناح يجهّز التعهّدَ الخطّيّ والإحالةَ لطلاب جناحه عبر wings/scope.py، بلا استدعاء وليّ الأمر (behavior.summon_parent) ولا إدارة المخالفات (behavior.manage)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "behavior.approve_action",
+  "label": "متابعةُ إجراء المخالفة واعتمادُه",
+  "roles": [
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك 2026-11-08 (W-20261108-005): منسّقُ شؤون الطلبة يتابع ويعتمد؛ وفصلُ المهام: من سجّل المخالفةَ لا يعتمدها، فإن سجّلها المنسّقُ اعتمدها النائبُ الإداريّ",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "behavior.specialist_list",
+  "label": "قائمةُ الإحالات إلى الاختصاصيَّين الاجتماعيّ والنفسيّ",
+  "roles": [
+   "psychologist",
+   "social_worker"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك 2026-11-08 (W-20261108-005): يدرسان الحالةَ عند خطوات السلّم التي تنصّ عليهما (م3.5.3) ولا يعتمدان الإجراء",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
   "key": "clinic.access",
   "label": "وحدةُ العيادة (قراءة)",
   "roles": [
