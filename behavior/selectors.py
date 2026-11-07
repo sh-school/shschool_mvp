@@ -15,14 +15,17 @@ import uuid
 from collections.abc import Iterable
 from typing import Any
 
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.dateparse import parse_date
 
 from core.academic_calendar import academic_year_for_school
-from core.models import ClassGroup, CustomUser, StudentEnrollment
+from core.labels import class_label
+from core.models import ClassGroup, CustomUser, StudentEnrollment, Wing
 from core.permissions import get_teacher_student_ids, teacher_can_access_student
-from wings.scope import student_scope_for
+from wings.scope import student_scope, student_scope_for
 
 
 def _section_key(section: str) -> tuple[int, int, str]:
@@ -198,7 +201,7 @@ def infractions_by_class(
         current.setdefault(student_id, class_id)
 
     def blank() -> dict[str, Any]:
-        return {"offenders": 0, "total": 0, "degrees": {d: 0 for d in DEGREES}}
+        return {"offenders": 0, "total": 0, "degrees": dict.fromkeys(DEGREES, 0)}
 
     cards = {group.pk: {"group": group, **blank()} for group in groups}
     unassigned = blank()
@@ -233,3 +236,119 @@ def monthly_infraction_trend(school_infractions, today) -> tuple[list[str], list
         labels.append(date_format(month_start, "F"))
         counts.append(school_infractions.filter(date__gte=month_start, date__lt=next_month).count())
     return labels, counts
+
+
+#: حقولُ المخالفة المشفَّرة — لا يحتاجها التقريرُ اليوميّ فلا تُفكّ لكلّ صفّ ولا تخرج إلى ملفّ.
+_ENCRYPTED_FIELDS = (
+    "description",
+    "action_taken",
+    "violation_description",
+    "digital_evidence_notes",
+    "security_notes",
+)
+
+#: الراصدُ حين لا يدَ بشريّةً: مخالفةٌ أنشأها الرصدُ الآليّ.
+AUTO_REPORTER = "الرصد الآلي"
+
+
+def daily_report_day(raw: str | None):
+    """اليومُ المختار من `?date=` — واليومُ إن غاب أو فسد."""
+    try:
+        return parse_date(raw or "") or timezone.localdate()
+    except ValueError:
+        return timezone.localdate()
+
+
+def daily_report(school, user, params) -> dict[str, Any]:
+    """التقريرُ السلوكيّ اليوميّ لصاحب الطلب: صفوفُ يومٍ واحدٍ بنطاقه، ومرشِّحا الجناح والصفّ.
+
+    **يومُ المخالفة**: يومُ حصّتها إن كانت لها حصّة (`session__date`) وإلا `date`؛ فـ`date` يومُ الكتابة
+    (`auto_now_add`) وتصحيحُ حصّةٍ مضت يُكتب اليومَ عن يومها، فلا تظهر المخالفةُ الآليّةُ في غير يوم حصّتها.
+    **النطاق**: `get_teacher_student_ids` — المدرسةُ للقيادة، وطلبةُ الجدول للمعلّم، وطلبةُ الجناح للمشرف؛
+    وجناحٌ خارج ما يراه يعود 404. وقيدُ الطالب الجاريُّ يعطي الشعبةَ (كما في `infractions_by_class`).
+    **الاستعلامات ثابتةٌ** أمام عدد الصفوف: المخالفات بعلاقاتها، ثمّ قيودُ طلبتها.
+    ولا وصفَ ولا رقمَ شخصيّاً ولا وليَّ أمرٍ في الصفوف.
+    """
+    from .models import BehaviorInfraction
+
+    year = academic_year_for_school(school)
+    scope = student_scope(user, school)
+    day = daily_report_day(params.get("date"))
+
+    wings = Wing.objects.filter(school=school, academic_year=year).order_by("code")
+    if scope.is_wing_bound:
+        wings = wings.filter(pk__in=scope.wing_ids)
+    wing_options = [(str(wing.pk), wing.name) for wing in wings]
+    wing = (params.get("wing") or "").strip()
+    if wing and wing not in {key for key, _name in wing_options}:
+        raise Http404("ليس من أجنحتك")
+    grade = (params.get("grade") or "").strip()
+    if grade not in dict(ClassGroup.GRADES):
+        grade = ""
+
+    infractions = (
+        BehaviorInfraction.objects.filter(school=school)
+        .filter(Q(session__date=day) | Q(session__isnull=True, date=day))
+        .select_related("student", "violation_category", "reported_by")
+        .defer(*_ENCRYPTED_FIELDS)
+    )
+    student_ids = get_teacher_student_ids(user, scope=scope)
+    if student_ids is not None:
+        infractions = infractions.filter(student_id__in=student_ids)
+    found = list(infractions)
+
+    current: dict[Any, tuple[str, str, str]] = {}
+    enrollments = (
+        StudentEnrollment.objects.filter(
+            student_id__in={inf.student_id for inf in found},
+            is_active=True,
+            class_group__school=school,
+            class_group__academic_year=year,
+        )
+        .newest_first()
+        .values_list(
+            "student_id", "class_group__grade", "class_group__section", "class_group__wing_id"
+        )
+    )
+    for student_id, class_grade, section, wing_id in enrollments:
+        current.setdefault(student_id, (class_grade, section, str(wing_id) if wing_id else ""))
+
+    order = {code: index for index, (code, _label) in enumerate(ClassGroup.GRADES)}
+    rows = []
+    for inf in found:
+        class_grade, section, wing_id = current.get(inf.student_id, ("", "", ""))
+        if (wing and wing_id != wing) or (grade and class_grade != grade):
+            continue
+        if inf.violation_category:
+            violation = inf.violation_category.name_ar
+        else:
+            violation = inf.get_auto_rule_display() or "—"
+        if inf.reported_by:
+            reporter = inf.reported_by.full_name
+        else:
+            reporter = AUTO_REPORTER if inf.auto_rule else "—"
+        rows.append(
+            {
+                "sort": (
+                    order.get(class_grade, len(order)),
+                    _section_key(section),
+                    inf.student.full_name,
+                    str(inf.pk),
+                ),
+                "student": inf.student.full_name,
+                "class_label": class_label(class_grade, section),
+                "violation": violation,
+                "level": inf.get_level_display(),
+                "step": inf.get_escalation_step_display(),
+                "reporter": reporter,
+            }
+        )
+    rows.sort(key=lambda row: row["sort"])
+    return {
+        "day": day,
+        "rows": rows,
+        "wing": wing,
+        "grade": grade,
+        "wing_options": wing_options,
+        "grade_options": list(ClassGroup.GRADES),
+    }
