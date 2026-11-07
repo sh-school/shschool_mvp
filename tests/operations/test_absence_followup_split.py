@@ -58,12 +58,13 @@ class TestTwoPages:
         assert _head(body).count("<th ") == 9
         assert "متابعةُ التواصل" not in body and "وقتُ المتابعة" not in body
 
-    def test_actions_has_eight_columns_for_the_three_and_fewer_for_a_supervisor(
+    def test_actions_has_nine_columns_for_the_three_and_fewer_for_a_supervisor(
         self, client_as, staff, supervisor, absent_both
     ):
         body = _get(client_as, staff["principal"], "absence_actions").content.decode()
         head = _head(body)
-        assert head.count("<th ") == 8
+        # تسعةُ أعمدةٍ بعد إضافة «أيام الغياب» (W-20261107-018)
+        assert head.count("<th ") == 9
         assert "متابعةُ الإجراء" in head and "وقتُ المتابعة ومن سجّلها" in head
         mine = _get(client_as, supervisor, "absence_actions").content.decode()
         assert "متابعةُ الإجراء" not in mine and "وقتُ المتابعة" not in mine
