@@ -47,15 +47,44 @@ def test_each_row_carries_one_actions_sheet_and_one_open_button():
 def test_the_actions_stay_inline_on_desktop_so_the_layout_is_unchanged():
     assert re.search(r"\.cg-sheet:not\(\[open\]\)\s*\{\s*display:\s*contents;", CSS)
     assert re.search(
-        r"\.cg-acts__open,\s*\.cg-sheet__head,\s*\.cg-keybar\s*\{\s*display:\s*none;", CSS
+        r"\.cg-acts__open,\s*\.cg-sheet__head,\s*\.cg-keytop,\s*\.cg-savebar\s*\{\s*display:\s*none;",
+        CSS,
     )
 
 
-def test_the_keybar_has_full_labels_not_symbols():
+def test_the_phone_keys_have_full_labels_not_symbols():
     for label in ("الكلُّ حاضر", "الكلُّ غائب", "حفظ ح"):
         assert label in TEMPLATE
-    bar = TEMPLATE[TEMPLATE.index("data-keybar") : TEMPLATE.index("data-grid-status")]
+    bar = TEMPLATE[TEMPLATE.index("data-keytop") : TEMPLATE.index("data-grid-status")]
     assert "✓" not in bar and "✗" not in bar
+
+
+def test_phone_keys_are_above_the_table_and_save_is_below_it():
+    # W-20261108-001: المفاتيح أعلى الصفحة والحفظ أسفلها، ولا شريطَ cg-keybar القديم.
+    assert "cg-keybar" not in TEMPLATE and "cg-keybar" not in CSS
+    assert (
+        TEMPLATE.index("data-keytop") < TEMPLATE.index("cg-table") < TEMPLATE.index("data-savebar")
+    )
+
+
+def test_desktop_summary_row_is_sticky_and_save_stays_in_the_sticky_footer():
+    head = TEMPLATE[TEMPLATE.index("<thead>") : TEMPLATE.index("</thead>")]
+    foot = TEMPLATE[TEMPLATE.index("<tfoot>") : TEMPLATE.index("</tfoot>")]
+    assert 'data-bulk="all_present"' in head and 'data-bulk="all_absent"' in head
+    assert "data-bulk" not in foot and "data-save-col" in foot
+    assert "غير مرصود" in head and "منهم" in head and "غير محفوظ" in head
+    assert re.search(r"\.cg-summary\s*>\s*\*\s*\{[^}]*position:\s*sticky", CSS)
+    assert re.search(r"\.cg-table tfoot > tr > \*\s*\{[^}]*position:\s*sticky", CSS)
+
+
+def test_counts_treat_late_as_present_and_show_unrecorded():
+    assert "if (st === 'late') n.present += 1;" in JS
+    assert "n[st || 'none'] += 1;" in JS
+
+
+def test_bulk_offers_an_eight_second_undo_and_unsaved_leave_is_warned():
+    assert "8000" in JS and "undoBulk" in JS
+    assert "beforeunload" in JS
 
 
 def test_the_tab_state_is_reapplied_after_a_row_or_table_is_swapped_from_the_server():

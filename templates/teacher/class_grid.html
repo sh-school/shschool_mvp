@@ -56,6 +56,21 @@
         <button type="button" class="btn-secondary btn-sm" role="tab" data-tab="{{ col.number }}" aria-selected="false">{% if col.state == "current" or col.is_next %}<span class="cg-tab__dot" aria-hidden="true"></span><span class="sr-only">{% if col.is_next %}التالية: {% else %}الحصة الحالية: {% endif %}</span>{% endif %}ح{{ col.number }}</button>
         {% endfor %}
       </div>
+      {% if page.can_write %}
+      {# الهاتف: العدّادُ ومفتاحا «الكلُّ حاضر/غائب» أعلى الصفحة تحت التبويب بتسميات كاملة؛ مخفيٌّ على الحاسوب حيث الصفُّ الثابتُ في ترويسة الجدول. #}
+      <div class="cg-keytop" data-keytop role="group" aria-label="مفاتيح الحصّة المعروضة">
+        <div class="cg-counts" data-counts="" aria-live="polite">
+          <span class="cg-count cg-count--present">حاضر <b class="num" data-count="present">0</b></span>
+          <span class="cg-count cg-count--late" data-count-late-wrap hidden>منهم <b class="num" data-count="late">0</b> متأخّر</span>
+          <span class="cg-count cg-count--absent">غائب <b class="num" data-count="absent">0</b></span>
+          <span class="cg-count cg-count--none">غير مرصود <b class="num" data-count="none">0</b></span>
+          <span class="cg-count cg-count--unsaved" data-unsaved hidden>غير محفوظ</span>
+        </div>
+        <button type="button" class="btn-secondary" data-bulk="all_present" data-col="">الكلُّ حاضر</button>
+        <button type="button" class="btn-secondary" data-bulk="all_absent" data-col="">الكلُّ غائب</button>
+        <button type="button" class="btn-secondary" data-undo="" hidden>تراجع</button>
+      </div>
+      {% endif %}
       <div class="table-wrap cg-wrap">
         <table class="cg-table" data-no-sort>
           <thead>
@@ -69,6 +84,30 @@
               </th>
               {% endfor %}
               {% if page.can_write %}<th scope="col" class="cg-acts">إجراءات</th>{% endif %}
+            </tr>
+            {# صفٌّ ثابتٌ تحت رؤوس الحصص (W-20261108-001): عدّاداتٌ حيّةٌ لكل حصّة (المتأخّرُ يُحتسب حاضراً) ومعها «الكلُّ حاضر/غائب»؛ و«حفظ» في التذييل. #}
+            <tr class="cg-summary" data-summary>
+              <th scope="row" class="cg-name">العدّاد</th>
+              {% for col in page.columns %}
+              <td class="cg-col--{{ col.state }}" data-col="{{ col.number }}">
+                <div class="cg-counts" data-counts="{{ col.number }}" aria-live="polite">
+                  <span class="cg-count cg-count--present" title="حاضر (يشمل المتأخّر)">حاضر <b class="num" data-count="present">0</b></span>
+                  <span class="cg-count cg-count--late" data-count-late-wrap hidden>منهم <b class="num" data-count="late">0</b> متأخّر</span>
+                  <span class="cg-count cg-count--absent">غائب <b class="num" data-count="absent">0</b></span>
+                  <span class="cg-count cg-count--none">غير مرصود <b class="num" data-count="none">0</b></span>
+                  <span class="cg-count cg-count--unsaved" data-unsaved hidden>غير محفوظ</span>
+                </div>
+                {% if page.can_write %}
+                <div class="cg-keys" role="group" aria-label="مفاتيح ح{{ col.number }}">
+                  {# الكلُّ حاضر/غائب يعدّلان خلايا العمود في الواجهة فقط بلا تأكيد ولا حفظ، ويظهر «تراجع» ثماني ثوانٍ. العمودُ المغلقُ معطَّلٌ بسببٍ ظاهرٍ في التلميح. #}
+                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_present" data-col="{{ col.number }}" aria-label="الكلُّ حاضر في ح{{ col.number }}"{% if not col.writable %} disabled title="{% if col.state == 'future' %}تُفتح ح{{ col.number }} عند {{ col.start|time:'H:i' }}{% else %}الرصدُ مغلقٌ لهذا العمود{% endif %}"{% endif %}>الكلّ {% icon "status_success" %}</button>
+                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_absent" data-col="{{ col.number }}" aria-label="الكلُّ غائب في ح{{ col.number }}"{% if not col.writable %} disabled{% endif %}>الكلّ {% icon "status_error" %}</button>
+                  <button type="button" class="btn-secondary btn-sm" data-undo="{{ col.number }}" hidden>تراجع</button>
+                </div>
+                {% endif %}
+              </td>
+              {% endfor %}
+              {% if page.can_write %}<td></td>{% endif %}
             </tr>
           </thead>
           <tbody>
@@ -118,17 +157,11 @@
           {% if page.can_write %}
           <tfoot>
             <tr>
-              <th scope="row" class="cg-name">مفاتيح الحصّة</th>
+              <th scope="row" class="cg-name">حفظ الحصّة</th>
               {% for col in page.columns %}
               <td class="cg-col--{{ col.state }}" data-col="{{ col.number }}">
-                <div class="cg-keys" role="group" aria-label="مفاتيح ح{{ col.number }}">
-                  {% if page.can_write %}
-                  {# الكلُّ حاضر/غائب يعدّلان خلايا العمود في الواجهة فقط بلا تأكيد ولا حفظ؛ و«حفظ» يحفظ هذا العمودَ وحدَه. العمودُ المغلقُ معطَّلٌ بسببٍ ظاهرٍ في التلميح. #}
-                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_present" data-col="{{ col.number }}" aria-label="الكلُّ حاضر في ح{{ col.number }}"{% if not col.writable %} disabled title="{% if col.state == 'future' %}تُفتح ح{{ col.number }} عند {{ col.start|time:'H:i' }}{% else %}الرصدُ مغلقٌ لهذا العمود{% endif %}"{% endif %}>الكلّ {% icon "status_success" %}</button>
-                  <button type="button" class="btn-secondary btn-sm" data-bulk="all_absent" data-col="{{ col.number }}" aria-label="الكلُّ غائب في ح{{ col.number }}"{% if not col.writable %} disabled{% endif %}>الكلّ {% icon "status_error" %}</button>
-                  <button type="button" class="btn-primary btn-sm" data-save-col="{{ col.number }}"{% if not col.writable %} disabled{% endif %}>حفظ</button>
-                  {% endif %}
-                </div>
+                {# «حفظ» يحفظ هذا العمودَ وحدَه، ثابتٌ أسفل الجدول ظاهرٌ دون النزول لآخر القائمة. #}
+                <button type="button" class="btn-primary btn-sm cg-savebtn" data-save-col="{{ col.number }}"{% if not col.writable %} disabled{% endif %}>حفظ</button>
               </td>
               {% endfor %}
               {% if page.can_write %}<td></td>{% endif %}
@@ -138,10 +171,8 @@
         </table>
       </div>
       {% if page.can_write %}
-      {# شريطُ المفاتيح السفليّ للهاتف: يظهر في وضع الهاتف وحدَه بدل تذييل الجدول، ويتبع التبويبَ المعروض (يضبطه JS). التسميات كاملةٌ لا رموزٌ. #}
-      <div class="cg-keybar" data-keybar role="group" aria-label="مفاتيح الحصّة المعروضة">
-        <button type="button" class="btn-secondary" data-bulk="all_present" data-col="">الكلُّ حاضر</button>
-        <button type="button" class="btn-secondary" data-bulk="all_absent" data-col="">الكلُّ غائب</button>
+      {# الهاتف: الحفظُ أسفل الصفحة (والمفاتيحُ والعدّادُ في أعلاها قبل الجدول)؛ يتبع التبويبَ المعروض (يضبطه JS). #}
+      <div class="cg-savebar" data-savebar>
         <button type="button" class="btn-primary" data-save-col="">حفظ ح<span data-keybar-col></span></button>
       </div>
       {% endif %}

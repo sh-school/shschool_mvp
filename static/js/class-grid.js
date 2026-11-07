@@ -3,7 +3,8 @@
  * (W-20261006-005، قرارا المالك D-239م وD-240م)
  *
  * - الضغطةُ: لم تُرصد ← غائب ← حاضر ← غائب… والواجهةُ **ترسل الحالةَ الصريحة** مع `head` (رأسُ الخليّة الذي رأته) لا «تبديلاً».
- * - مفاتيحُ أسفل كلّ عمود: «الكلّ» (حاضر/غائب) تعدّل خلايا العمود في الواجهة فقط (بلا تأكيد ولا حفظ، D-247م) و«حفظ» يحفظ ذلك العمودَ وحدَه.
+ * - صفٌّ ثابتٌ أعلى الجدول (W-20261108-001): عدّاداتٌ حيّةٌ (حاضر مع المتأخّر، غائب، غير مرصود) ومفتاحا «الكلّ» (حاضر/غائب) يعدّلان خلايا العمود
+ *   في الواجهة فقط (بلا تأكيد ولا حفظ، D-247م) مع «تراجع» ثماني ثوانٍ؛ و«حفظ» في تذييلٍ ثابتٍ أسفله يحفظ ذلك العمودَ وحدَه.
  * - الحفظُ لعمودٍ واحد: خلايا العمود المتغيّرةُ فقط، وتنبيهٌ بعدد الفارغات (تُكتب «حاضراً افتراضيّاً» لعمودٍ بدأت حصّتُه) يطلب تأكيداً.
  * - تعارضٌ (207): تُبرَز الخليّةُ بقيمتها الحاليّة ومن كتبها ومتى، ويحسم المستخدمُ كلَّ واحدةٍ على حدة.
  * - المسوّدةُ في `localStorage`: **رموزُ الحالة ومعرّفاتُ الطلبة فقط** (بلا أسماء)، وتُمسح عند الحفظ الناجح؛ ولا كتابةَ تلقائيّةَ للخادم.
@@ -96,6 +97,8 @@
     }
     var bulk = event.target.closest('[data-bulk]');
     if (bulk) return bulkFill(bulk);
+    var undo = event.target.closest('[data-undo]');
+    if (undo) return undoBulk(undo.getAttribute('data-undo'));
     var saveBtn = event.target.closest('[data-save-col]');
     if (saveBtn) return save(saveBtn.getAttribute('data-save-col'));
     var opener = event.target.closest('[data-acts-open]');
@@ -177,13 +180,47 @@
   function bulkFill(button) {
     var col = button.getAttribute('data-col');
     var status = button.getAttribute('data-bulk') === 'all_absent' ? 'absent' : 'present';
+    var before = [];
     Array.prototype.forEach.call(cells(col), function (c) {
       if (c.getAttribute('data-writable') !== '1') return;
+      before.push({ cell: c, status: c.getAttribute('data-status') || '', dirty: c.classList.contains('is-dirty') });
       paint(c, status);
       c.classList.add('is-dirty');
       remember(c);
     });
+    var prevBulk = root.getAttribute('data-bulk-' + col);
     root.setAttribute('data-bulk-' + col, button.getAttribute('data-bulk'));
+    offerUndo(col, before, prevBulk);
+  }
+
+  // «تراجع» ثماني ثوانٍ بعد «الكلّ»: يعيد خلايا العمود إلى ما قبلها في الواجهة (لا حفظَ ولا طلبَ للخادم).
+  var undoState = {};
+  function setUndoVisible(col, on) {
+    root.querySelectorAll('[data-undo]').forEach(function (b) {
+      var own = b.getAttribute('data-undo');
+      if (own === col || (own === '' && activeCol === col)) b.hidden = !on;
+    });
+  }
+  function offerUndo(col, before, prevBulk) {
+    if (undoState[col]) window.clearTimeout(undoState[col].timer);
+    undoState[col] = {
+      before: before, prevBulk: prevBulk,
+      timer: window.setTimeout(function () { delete undoState[col]; setUndoVisible(col, false); }, 8000)
+    };
+    setUndoVisible(col, true);
+  }
+  function undoBulk(col) {
+    var state = undoState[col];
+    if (!state) return;
+    window.clearTimeout(state.timer);
+    delete undoState[col];
+    state.before.forEach(function (item) {
+      paint(item.cell, item.status);
+      item.cell.classList.toggle('is-dirty', item.dirty);
+      remember(item.cell);
+    });
+    if (state.prevBulk === null) root.removeAttribute('data-bulk-' + col); else root.setAttribute('data-bulk-' + col, state.prevBulk);
+    setUndoVisible(col, false);
   }
 
   function save(col) {
@@ -414,23 +451,63 @@
     syncKeybar(col);
   }
 
-  // شريطُ المفاتيح يحمل أزرارَ العمود المعروض: يأخذ حالةَ التعطيل وسببَه من مفاتيح التذييل لذلك العمود (مصدرٌ واحدٌ للقاعدة).
+  // مفاتيحُ الهاتف (أعلى الصفحة) وحفظُه (أسفلها) تحمل أزرارَ العمود المعروض: تأخذ حالةَ التعطيل وسببَه من أزرار الجدول لذلك العمود (مصدرٌ واحدٌ للقاعدة).
   function syncKeybar(col) {
-    var bar = root.querySelector('[data-keybar]');
-    if (!bar) return;
-    var label = bar.querySelector('[data-keybar-col]');
+    var label = root.querySelector('[data-keybar-col]');
     if (label) label.textContent = col;
-    bar.querySelectorAll('[data-bulk], [data-save-col]').forEach(function (button) {
+    root.querySelectorAll('[data-keytop] [data-bulk], [data-savebar] [data-save-col], [data-keytop] [data-undo]').forEach(function (button) {
+      if (button.hasAttribute('data-undo')) { button.setAttribute('data-undo', col); button.hidden = !undoState[col]; return; }
       var isSave = button.hasAttribute('data-save-col');
       var source = root.querySelector(isSave
         ? 'tfoot [data-save-col="' + col + '"]'
-        : 'tfoot [data-bulk="' + button.getAttribute('data-bulk') + '"][data-col="' + col + '"]');
+        : 'thead [data-bulk="' + button.getAttribute('data-bulk') + '"][data-col="' + col + '"]');
       if (isSave) button.setAttribute('data-save-col', col); else button.setAttribute('data-col', col);
       button.disabled = !source || source.disabled;
       if (source && source.getAttribute('title')) button.setAttribute('title', source.getAttribute('title'));
       else button.removeAttribute('title');
     });
+    updateCounts();
   }
+
+  // العدّاداتُ الحيّة لكل حصّة (W-20261108-001): المتأخّرُ يُحتسب حاضراً ويُذكر «منهم N متأخّر»؛ وغيرُ المرصود خلايا بلا حالة.
+  // عدّادُ الهاتف (`data-counts=""`) يتبع التبويبَ المعروض. «غير محفوظ» عند أيّ خليّةٍ معدَّلةٍ لم تُحفظ في ذلك العمود.
+  function updateCounts() {
+    var head = root.querySelector('thead tr');
+    if (head) root.style.setProperty('--cg-head-h', head.offsetHeight + 'px');
+    root.querySelectorAll('[data-counts]').forEach(function (box) {
+      var col = box.getAttribute('data-counts') || activeCol;
+      var n = { present: 0, late: 0, absent: 0, none: 0 }, dirty = false;
+      Array.prototype.forEach.call(cells(col), function (c) {
+        var st = c.getAttribute('data-status') || '';
+        n[st || 'none'] += 1;
+        if (st === 'late') n.present += 1;
+        if (c.classList.contains('is-dirty')) dirty = true;
+      });
+      Object.keys(n).forEach(function (k) {
+        var out = box.querySelector('[data-count="' + k + '"]');
+        if (out) out.textContent = n[k];
+      });
+      var lateWrap = box.querySelector('[data-count-late-wrap]');
+      if (lateWrap) lateWrap.hidden = !n.late;
+      var flag = box.querySelector('[data-unsaved]');
+      if (flag) flag.hidden = !dirty;
+    });
+  }
+  // أيُّ تلوينٍ أو تغيّر حالةٍ في خليّةٍ يعيد الحساب (الضغطةُ والمفاتيحُ والحفظُ والمسوّدةُ والتحديثُ الحيّ) دون تتبّع كلّ موضع.
+  // المراقبةُ على السمات `class` و`data-status` فقط فلا تُطلقها كتابةُ العدّادات نفسِها.
+  var countsQueued = false;
+  new MutationObserver(function () {
+    if (countsQueued) return;
+    countsQueued = true;
+    Promise.resolve().then(function () { countsQueued = false; updateCounts(); });
+  }).observe(root, { subtree: true, attributes: true, attributeFilter: ['class', 'data-status'] });
+
+  // تحذيرٌ عند مغادرة الصفحة بتعديلٍ غير محفوظ.
+  window.addEventListener('beforeunload', function (event) {
+    if (!root.querySelector('[data-cell].is-dirty')) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
 
   var resizeTimer = 0;
   function onResize() {
