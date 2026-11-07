@@ -202,7 +202,7 @@ class TestThePage:
         principal,
         client_as,  # noqa: F811
     ):
-        mine.national_id = "29340000123"
+        mine.national_id = "29000000001"
         mine.save(update_fields=["national_id"])
         category = ViolationCategory.objects.create(code="1-77", name_ar="إزعاجٌ في الممرّ")
         _infraction(school, mine, by=staff, category=category)
@@ -213,7 +213,7 @@ class TestThePage:
         assert resp.status_code == 200
         for text in (mine.full_name, "07/1", "إزعاجٌ في الممرّ", "الدرجة", "الخطوة", staff.full_name):
             assert text in body
-        assert DESCRIPTION not in body and "29340000123" not in body
+        assert DESCRIPTION not in body and "29000000001" not in body
         table = body[body.index("<table") : body.index("</table>")]
         assert "ولي" not in table and "وليّ" not in table  # لا عمودَ لوليّ الأمر في الجدول
 
