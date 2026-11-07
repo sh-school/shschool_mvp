@@ -87,6 +87,29 @@ def test_api_and_parameterised_routes_are_not_checked():
     assert guard.find_violations(urls) == []
 
 
+def test_xlsx_export_route_without_link_is_not_reported():
+    # تصديرُ Excel يُستثنى كما يُستثنى pdf: رابطُه في قالب الشاشة نفسها فلا يُحسب
+    urls = _modified(
+        "analytics/urls.py",
+        ['    path("report/xlsx/", views.report_xlsx, name="report_xlsx"),'],
+        context=['app_name = "analytics"'],
+    )
+    assert guard.find_violations(urls) == []
+
+
+def test_plain_route_without_link_is_still_reported_next_to_xlsx_export():
+    # الاستثناءُ لمقطع xlsx وحده: المسارُ العاديُّ بلا رابطٍ يبقى مُبلَّغاً عنه
+    urls = _modified(
+        "analytics/urls.py",
+        [
+            '    path("report/xlsx/", views.report_xlsx, name="report_xlsx"),',
+            '    path("report/daily/", views.report_daily, name="report_daily"),',
+        ],
+        context=['app_name = "analytics"'],
+    )
+    assert [v.full_name for v in guard.find_violations(urls)] == ["analytics:report_daily"]
+
+
 def test_diff_without_urls_does_not_fail():
     assert guard.find_violations(_modified("students/views.py", ["x = 1"])) == []
     assert guard.find_violations("") == []

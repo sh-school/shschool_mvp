@@ -8,7 +8,7 @@
 * يجمع من الأسطر المضافة في `**/urls.py` كلَّ `path(...)` أو `re_path(...)` له `name=`
   (ولو توزّع على عدّة أسطر)، و`app_name` من الملفّ.
 * يتجاهل المسارَ ذا المعامل `<...>` أو الذي أحدُ أجزائه `api` أو `export` أو `download`
-  أو `pdf` أو `webhook`.
+  أو `pdf` أو `xlsx` أو `webhook`. (`pdf` و`xlsx` تصديرُ ملفٍّ لا شاشةٌ، ورابطُه في قالب الشاشة نفسها.)
 * يعدّ المسارَ مرتبطاً إذا ورد `app:name` في `{% url %}` أو `reverse` أو `redirect`، أو ورد
   مساره في `href`، داخل ملفٍّ ليس جديداً في هذا الفرق (فالرابطُ الذاتيّ في قالبٍ جديدٍ لا يُحتسب).
 
@@ -25,7 +25,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
-IGNORED_SEGMENTS = frozenset({"api", "export", "download", "pdf", "webhook"})
+IGNORED_SEGMENTS = frozenset({"api", "export", "download", "pdf", "xlsx", "webhook"})
 
 _PATH_START_RE = re.compile(r"\b(?:re_path|path)\(")
 _STRING_RE = re.compile(r"""[rb]?(["'])(.*?)\1""", re.DOTALL)
