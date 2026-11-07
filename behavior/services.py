@@ -825,6 +825,8 @@ class BehaviorService:
 DEGREES = (1, 2, 3, 4)  # تطابق `selectors.DEGREES`
 #: سطرُ المخالفات بلا فئةٍ (قديمةٌ أو آليّة) يُعرض مستقلّاً فلا يختفي ويبقى المجموعُ كاملاً؛ وكذا بلا جناحٍ/شعبة.
 UNCATEGORIZED_LABEL, NO_WING_LABEL, NO_CLASS_LABEL = "بلا تصنيف", "بلا جناح", "بلا شعبة"
+from .statistics_actions import NO_ACTION_LABEL, action_distributions  # noqa: E402,F401
+from .statistics_actions import tally as _tally
 
 
 def academic_year_dates(school: Any, year: str | None = None) -> tuple[dt.date, dt.date]:
@@ -875,16 +877,6 @@ def _month_options(start: dt.date, end: dt.date) -> list[tuple[str, dt.date]]:
     return options
 
 
-def _tally(counter: dict[Any, int], labels: dict[Any, str], fallback: str) -> list[dict[str, Any]]:
-    """سطورُ توزيعٍ مرتّبةٌ بالأكثر؛ ومن لا اسمَ له (مفتاحُه غائبٌ من `labels`) يُجمع في سطرٍ مستقلّ آخرَ القائمة."""
-    rows: dict[str, int] = {}
-    for key, count in counter.items():
-        label = labels.get(key, fallback)
-        rows[label] = rows.get(label, 0) + count
-    ordered = sorted(rows.items(), key=lambda item: (item[0] == fallback, -item[1], item[0]))
-    return [{"label": label, "count": count} for label, count in ordered if count]
-
-
 def behavior_statistics_data(school: Any, user: Any, params: Any) -> dict[str, Any]:
     """إحصاءُ السلوك لصاحب الطلب: عامٌ كاملٌ أو شهرٌ داخله — مصدرٌ واحدٌ للشاشة وPDF وExcel (W-20261107-014).
 
@@ -895,9 +887,11 @@ def behavior_statistics_data(school: Any, user: Any, params: Any) -> dict[str, A
     (الأحدثُ إن تعدّد) فيُعدّ مرّةً واحدةً، لا عبر كلّ قيوده. والنطاقُ كنطاق `daily_report`.
     """
     scope = student_scope(user, school)
-    year = _statistics_year(school, scope, params.get("year"))
-    start, end = academic_year_dates(school, year)
     student_ids = get_teacher_student_ids(user, scope=scope)
+    # من نطاقه أضيق من المدرسة (معلّمٌ ومنسّقٌ وأخصائيٌّ ومشرفُ جناح) يُثبَّت على العام الجاري: طلبتُه «الآن»
+    # لا طلبةُ شعبه في عامٍ سابق (W-20261107-017)؛ ومن نطاقُه المدرسةُ كلُّها يختار عامه.
+    year = _statistics_year(school, scope, None if student_ids is not None else params.get("year"))
+    start, end = academic_year_dates(school, year)
 
     year_qs = BehaviorInfraction.objects.filter(school=school, date__gte=start, date__lte=end)
     if student_ids is not None:
@@ -942,6 +936,8 @@ def behavior_statistics_data(school: Any, user: Any, params: Any) -> dict[str, A
         if row["violation_category_id"] is not None:
             category_labels[row["violation_category_id"]] = row["violation_category__name_ar"]
 
+    action_rows, step_rows = action_distributions(period_qs)
+
     per_student: dict[Any, int] = {}
     for row in period_qs.values("student_id").annotate(n=Count("id")):
         per_student[row["student_id"]] = row["n"]
@@ -985,6 +981,7 @@ def behavior_statistics_data(school: Any, user: Any, params: Any) -> dict[str, A
         "window_end": end,
         "period_label": f"{chosen:%Y-%m}" if chosen else year,
         "is_scoped": student_ids is not None,
+        "year_locked": student_ids is not None,
         "total": total,
         "by_level": by_level,
         "severe_count": by_level[3] + by_level[4],
@@ -993,6 +990,8 @@ def behavior_statistics_data(school: Any, user: Any, params: Any) -> dict[str, A
         "monthly": monthly,
         "degree_rows": degree_rows,
         "category_rows": _tally(category_counts, category_labels, UNCATEGORIZED_LABEL),
+        "action_rows": action_rows,
+        "step_rows": step_rows,
         "wing_rows": _tally(wing_counts, wing_names, NO_WING_LABEL),
         "class_rows": class_rows,
         "top_classes": [row for row in class_rows if row["label"] != NO_CLASS_LABEL][:5],

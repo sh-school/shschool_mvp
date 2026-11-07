@@ -73,8 +73,10 @@ def _fresh(user):
 
 
 def _log(user, school, **kw):
+    # الساعةُ مثبَّتةٌ فتتساوى الأوقات؛ فيُعرَف الصفُّ الجديد بما لم يكن موجوداً قبل الكتابة لا بـ latest
+    before = set(AuditLog.objects.filter(user=user).values_list("pk", flat=True))
     AuditLog.log(user=user, action="update", model_name="other", school=school, **kw)
-    return AuditLog.objects.filter(user=user).latest("timestamp")
+    return AuditLog.objects.filter(user=user).exclude(pk__in=before).get()
 
 
 def test_an_action_through_a_transferred_capability_carries_the_tag(school, deputy):

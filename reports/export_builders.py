@@ -222,6 +222,8 @@ def _behavior_statistics_sections(data: dict[str, Any]) -> list[tuple[str, list[
     return [
         ("التوزيع بالدرجة", data["degree_rows"]),
         ("أكثر البنود", data["category_rows"]),
+        ("التوزيع بالإجراء التأديبي", data["action_rows"]),
+        ("التوزيع بخطوة الإجراء التصاعدي", data["step_rows"]),
         ("التوزيع بالجناح", data["wing_rows"]),
         ("التوزيع بالصف والشعبة", data["class_rows"]),
         ("التوزيع الشهري للعام", monthly),

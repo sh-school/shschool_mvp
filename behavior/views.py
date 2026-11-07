@@ -612,8 +612,10 @@ def behavior_statistics(request):
     role = request.user.get_role()
 
     # المعلم/المنسق/معلم ESE → طلابهم فقط؛ القيادة ولجنة الضبط والأخصائيون → كل طلاب المدرسة
+    # ومشرفُ الجناح يفتحها بنطاق جناحه (W-20261107-017) — يضيّقه `student_scope` في الخدمة.
     if role not in BEHAVIOR_STATS_TEACHING and (
         role not in _FULL_STATS_ROLES
+        and role not in BEHAVIOR_COMMITTEE_CASE_SCOPED
         and not request.user.is_superuser
         and not has_unrestricted_role(request.user)
     ):
