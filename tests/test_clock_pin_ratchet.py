@@ -36,9 +36,9 @@ TESTS = pathlib.Path(__file__).resolve().parent
 #: اللحظةُ المقيسةُ 2026-10-10 بهذه الأداة على 631 ملفَّ اختبار: 79 تقرأ الساعةَ بلا تثبيت، و69 بعد تثبيت عشرةٍ أخطرها.
 #: ودخلت على main أربعةُ ملفّاتٍ تقرأ الساعةَ (2026-10-12) فثُبّتت بالعلامة فبقي السقفُ 69 (لا رفعَ للسقف).
 #: ثُبّتت سبعةُ ملفّاتٍ بلا اختبارٍ يشترط تاريخاً فعلياً (W-20261020-015، الدفعة 1) فنزل السقفُ من 69 إلى 62 (قياس 2026-10-20).
-CEILING = 61
+CEILING = 60
 #: من الـ`CEILING` ما يقرأ `date.today()`/`datetime.now()` المباشرتين (لا تصلهما `frozen_clock`).
-DIRECT_TODAY = 21
+DIRECT_TODAY = 20
 
 CLOCK_ATTRS = {"now", "localdate", "localtime", "today", "utcnow"}
 CLOCK_RECEIVERS = {"timezone", "date", "datetime", "dt"}

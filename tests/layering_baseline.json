@@ -300,9 +300,6 @@
   "behavior/views.py::behavior_report": {
    "orm": 18
   },
-  "behavior/views.py::behavior_statistics": {
-   "orm": 17
-  },
   "behavior/views.py::report_infraction": {
    "lines": 107,
    "orm": 6

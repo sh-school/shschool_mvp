@@ -33,7 +33,6 @@ from core.permissions import (
     BEHAVIOR_VIEW_ALL,
     SCHOOL_WIDE_ABSENCE_ROLES,
     forbidden_page,
-    get_teacher_student_ids,
     teacher_can_access_student,
 )
 
@@ -122,7 +121,9 @@ from .services import (
     PERIOD_CHOICES,
     BehaviorPermissions,
     BehaviorService,
+    academic_year_dates,
     audit_infraction_read,
+    behavior_statistics_data,
 )
 
 # [B4-PRE3] المساعدُ المؤجَّل — انتقل إلى `behavior/notify.py` ليستدعيه كشفُ الحصص
@@ -132,16 +133,8 @@ _notify_behavior_after_commit = notify_behavior_after_commit
 
 # ── لوحة التحكم ──────────────────────────────────────────────
 def _behaviour_year_window(school):
-    """نافذة العام الدراسي — وترتدّ إلى السنة الميلادية إن لم يُبذر تقويم."""
-    from datetime import date
-
-    from core.academic_calendar import academic_year_window
-
-    window = academic_year_window(school)
-    if window is not None:
-        return window
-    today = _tz.localdate()
-    return date(today.year, 1, 1), date(today.year, 12, 31)
+    """نافذة العام الدراسي — من `academic_year_dates` نفسها التي يقرأ منها الإحصاءُ (W-20261107-014)."""
+    return academic_year_dates(school)
 
 
 @login_required
@@ -617,28 +610,31 @@ _FULL_STATS_ROLES = (
 def behavior_statistics(request):
     """التقرير الإحصائي السلوكي — القيادة/اللجنة ترى الكل، المعلم/المنسق يرى طلابه فقط."""
     role = request.user.get_role()
-    school = request.school
-    year = request.GET.get("year") or academic_year_for(request)
 
-    # المعلم/المنسق/معلم ESE → إحصائيات مقيّدة بطلابهم فقط
-    if role in BEHAVIOR_STATS_TEACHING:
-        student_ids = get_teacher_student_ids(request.user)
-        stats = BehaviorService.get_statistics_scoped(school, student_ids=student_ids)
-        stats["is_scoped"] = True
-    else:
-        # القيادة ولجنة الضبط والأخصائيون → كل طلاب المدرسة
-        _full_access = _FULL_STATS_ROLES
-        if (
-            role not in _full_access
-            and not request.user.is_superuser
-            and not has_unrestricted_role(request.user)
-        ):
-            return HttpResponseForbidden("للمدير ونائبيه واللجنة فقط.")
-        stats = BehaviorService.get_statistics(school)
-        stats["is_scoped"] = False
+    # المعلم/المنسق/معلم ESE → طلابهم فقط؛ القيادة ولجنة الضبط والأخصائيون → كل طلاب المدرسة
+    if role not in BEHAVIOR_STATS_TEACHING and (
+        role not in _FULL_STATS_ROLES
+        and not request.user.is_superuser
+        and not has_unrestricted_role(request.user)
+    ):
+        return HttpResponseForbidden("للمدير ونائبيه واللجنة فقط.")
+    # التصديرُ على الصفحة نفسها (`?export=pdf|xlsx`) بنطاق صاحب الطلب كالشاشة، عبر مركز التصدير.
+    export_kind = {"pdf": "behavior.statistics_pdf", "xlsx": "behavior.statistics_xlsx"}.get(
+        request.GET.get("export", "")
+    )
+    if export_kind:
+        from core.exports.services import respond_export
 
-    stats["year"] = year
+        return respond_export(request, export_kind)
+    stats = behavior_statistics_data(request.school, request.user, request.GET)
     stats.update(_statistics_presentation(stats))
+    query = request.GET.copy()
+    query["year"] = stats["year"]
+    if stats["month"]:
+        query["month"] = stats["month"]
+    else:
+        query.pop("month", None)
+    stats["export_query"] = query.urlencode()
     return render(request, "behavior/statistics.html", stats)
 
 
@@ -659,7 +655,7 @@ def _statistics_presentation(stats: dict) -> dict:
     # تنبيهُ «طلابك فقط» كان شريطاً بألوانٍ ثابتةٍ بين العنوان والأرقام — وهو وصفٌ للصفحة.
     scope = " · طلابُك وحدَهم وفق جدولك الدراسي" if stats.get("is_scoped") else ""
     return {
-        "subtitle": f"{stats.get('year')} · QNSA المعيار 2{scope}",
+        "subtitle": f"{stats.get('period_label')} · QNSA المعيار 2{scope}",
         "severe_count": by_level.get(3, 0) + by_level.get(4, 0),
         "resolved_label": f"{pct}%",
         "resolved_tone": tone_for(pct, SHARE_KPI),

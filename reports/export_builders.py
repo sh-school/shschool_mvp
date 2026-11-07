@@ -209,3 +209,127 @@ def build_behavior_daily_xlsx(school: Any, user: Any, params: Any) -> ExportResu
         rows=len(rows),
         full_national_id=False,
     )
+
+
+def _behavior_statistics_sections(data: dict[str, Any]) -> list[tuple[str, list[dict[str, Any]]]]:
+    """أقسامُ إحصاء السلوك (عنوان، سطور) بترتيب الشاشة — لـPDF وExcel معاً؛ مجموعُ كلّ قسمٍ إجماليُّ المدّة."""
+    from django.utils.formats import date_format
+
+    monthly = [
+        {"label": date_format(row["month"], "F Y"), "count": row["count"]}
+        for row in data["monthly"]
+    ]
+    return [
+        ("التوزيع بالدرجة", data["degree_rows"]),
+        ("أكثر البنود", data["category_rows"]),
+        ("التوزيع بالجناح", data["wing_rows"]),
+        ("التوزيع بالصف والشعبة", data["class_rows"]),
+        ("التوزيع الشهري للعام", monthly),
+    ]
+
+
+def build_behavior_statistics_pdf(school: Any, user: Any, params: Any) -> ExportResult:
+    """إحصاءُ السلوك PDF — الأرقامُ نفسُها من `behavior_statistics_data` (المصدر الواحد مع الشاشة وExcel)."""
+    from behavior.services import behavior_statistics_data
+    from core.export_utils import get_export_context_for, get_pdf_footer_html, get_pdf_header_html
+    from core.pdf_utils import render_pdf_bytes
+
+    data = behavior_statistics_data(school, user, params)
+    ctx = get_export_context_for(user, "إحصاءات السلوك")
+    html = render_to_string(
+        "behavior/statistics_pdf.html",
+        {
+            **data,
+            "sections": _behavior_statistics_sections(data),
+            "pdf_header": get_pdf_header_html(ctx),
+            "pdf_footer": get_pdf_footer_html(ctx),
+            "for_pdf": True,
+            **ctx,
+        },
+    )
+    return ExportResult(
+        render_pdf_bytes(html, paper_size="A4"),
+        "application/pdf",
+        f"إحصاءات_سلوك_{data['period_label']}.pdf",
+        rows=data["total"],
+        full_national_id=False,
+    )
+
+
+def build_behavior_statistics_xlsx(school: Any, user: Any, params: Any) -> ExportResult:
+    """إحصاءُ السلوك Excel — ورقةٌ واحدة بأقسامها؛ لا أسماءَ طلبةٍ ولا أرقامَ شخصيّة."""
+    from io import BytesIO
+
+    import openpyxl
+    from openpyxl.styles import Alignment
+
+    from behavior.services import behavior_statistics_data
+    from core.excel_safety import safe_cell
+    from core.export_utils import (
+        add_excel_footer,
+        add_excel_header,
+        apply_print_footer,
+        excel_table_styles,
+        get_export_context_for,
+    )
+
+    data = behavior_statistics_data(school, user, params)
+    ctx = get_export_context_for(user, "إحصاءات السلوك")
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "إحصاءات السلوك"
+    ws.sheet_view.rightToLeft = True
+
+    data_start = add_excel_header(ws, ctx, 2)
+    table = excel_table_styles()
+    row_no = data_start
+    safe_cell(ws, row=row_no, column=1, value="المدّة").font = table.header_font
+    safe_cell(ws, row=row_no, column=2, value=data["period_label"])
+    row_no += 1
+    safe_cell(ws, row=row_no, column=1, value="إجمالي المخالفات").font = table.header_font
+    safe_cell(ws, row=row_no, column=2, value=data["total"])
+    for heading, rows in _behavior_statistics_sections(data):
+        row_no += 2
+        for col, header in enumerate((heading, "العدد"), 1):
+            cell = safe_cell(ws, row=row_no, column=col, value=header)
+            cell.fill = table.header_fill
+            cell.font = table.header_font
+            cell.alignment = Alignment(horizontal="center")
+            cell.border = table.border
+        for row in rows:
+            row_no += 1
+            for col, val in enumerate((row["label"], row["count"]), 1):
+                cell = safe_cell(ws, row=row_no, column=col, value=val)
+                cell.font = table.cell_font
+                cell.border = table.border
+    ws.column_dimensions["A"].width = 40
+    ws.column_dimensions["B"].width = 14
+
+    add_excel_footer(ws, ctx, row_no + 1, 2)
+    apply_print_footer(wb, school)
+    buffer = BytesIO()
+    wb.save(buffer)
+    return ExportResult(
+        buffer.getvalue(),
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        f"إحصاءات_سلوك_{data['period_label']}.xlsx",
+        rows=data["total"],
+        full_national_id=False,
+    )
+
+
+# إحصاءُ السلوك PDF وExcel: خلفيّان، بقدرة الإحصاء ونطاقها (W-20261107-014). يُسجَّلان هنا عند أوّل استيرادٍ للبنّائين
+# (تستورده `BehaviorConfig.ready()`) فلا يلزم تعديلُ تطبيقٍ آخر.
+def _register_behavior_statistics_exports() -> None:
+    from core.exports import registry
+
+    for kind, build in (
+        ("behavior.statistics_pdf", build_behavior_statistics_pdf),
+        ("behavior.statistics_xlsx", build_behavior_statistics_xlsx),
+    ):
+        if registry.get(kind) is None:
+            registry.register(kind, build=build, capability="behavior.statistics")
+
+
+_register_behavior_statistics_exports()
