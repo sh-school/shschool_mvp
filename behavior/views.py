@@ -737,6 +737,26 @@ def security_referral(request, infraction_id):
 # ════════════════════════════════════════════════════════════════
 
 
+#: عنوانُ كلّ ملفّ PDF سلوكيّ بالقالب — يظهر في ترويسة الإطار المطبوع المركزيّ (W-20261108-024)
+#: فلا يخرج ملفٌّ بلا عنوانٍ يسمّيه، ومن لا عنوانَ له في الجدول يُرفض عند التوليد.
+BEHAVIOR_PDF_TITLES: dict[str, str] = {
+    "behavior/pdf/student_warning.html": "نموذج إنذار سلوكي",
+    "behavior/pdf/parent_undertaking.html": "نموذج تعهّد ولي الأمر",
+    "behavior/pdf/student_undertaking.html": "نموذج تعهّد الطالب بالالتزام",
+    "behavior/pdf/student_report.html": "التقرير السلوكي للطالب",
+}
+
+
+def _behavior_pdf_context(template_name: str, context: dict) -> dict:
+    """يضيف عنوانَ الملفّ وتاريخَه (سطرَ الترويسة الفرعيّ) إلى سياق القالب."""
+    title = BEHAVIOR_PDF_TITLES.get(template_name)
+    if not title:
+        raise ValueError(f"ملف PDF سلوكيّ بلا عنوان: {template_name}")
+    inf = context.get("infraction")
+    day = getattr(inf, "date", None) or _tz.localdate()
+    return {**context, "doc_title": title, "doc_subtitle": f"التاريخ: {day:%Y/%m/%d}"}
+
+
 def _render_behavior_pdf(request, template_name, context, filename, *, kind, student=None):
     """يولّد نموذجَ السلوك ويسجّل توليدَه.
 
@@ -749,6 +769,7 @@ def _render_behavior_pdf(request, template_name, context, filename, *, kind, stu
     from core.audit_export import log_export
     from core.pdf_utils import render_pdf
 
+    context = _behavior_pdf_context(template_name, context)
     log_export(
         request,
         kind,
