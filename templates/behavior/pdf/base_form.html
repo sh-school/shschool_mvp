@@ -152,7 +152,7 @@
 فيتكرّران في كلّ صفحةٍ بلا تعريفٍ محليّ (حارسُ `tests/test_print_frame_guard.py`). المدرسةُ عنوانُها فارغٌ هنا: كلّ استمارةٍ تضع عنوانَها
 الخاصّ داخل كتلة المحتوى الوارثة (`.header .form-title`) كما كانت.
 {% endcomment %}
-{% print_frame_header "a4" "portrait" school "" for_pdf=True %}
+{% print_frame_header "a4" "portrait" school doc_title doc_subtitle for_pdf=True %}
 {% print_frame_footer "a4" "portrait" school %}
 
 <div class="page-wrapper">
