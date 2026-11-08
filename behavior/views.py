@@ -737,8 +737,13 @@ def security_referral(request, infraction_id):
 # ════════════════════════════════════════════════════════════════
 
 
-def _render_behavior_pdf(request, template_name, context, filename, *, kind, student=None):
+def _render_behavior_pdf(
+    request, template_name, context, filename, *, kind, title, student=None, doc_date=None
+):
     """يولّد نموذجَ السلوك ويسجّل توليدَه.
+
+    `title` عنوانُ الملفّ الصريحُ (إلزاميٌّ ولا يقبل الفراغ): يُكتب في ترويسة الإطار المطبوع المركزيّ
+    مع اسم المدرسة وتاريخ الوثيقة (`doc_date`، والافتراضُ اليوم) فلا يخرج ملفٌّ بلا اسمٍ يدلّ عليه (W-20261108-011).
 
     النماذجُ الفرديّةُ (إنذار، تعهّد، تقرير) بلا رقمٍ شخصيّ منذ D-386م (W-20261011-014)،
     فرايةُ التدقيق لا تدّعيه (W-20261012-005)؛ والتوليدُ يُسجَّل لصاحبه مستورَ الاسم.
@@ -749,6 +754,10 @@ def _render_behavior_pdf(request, template_name, context, filename, *, kind, stu
     from core.audit_export import log_export
     from core.pdf_utils import render_pdf
 
+    if not (title or "").strip():
+        raise ValueError("عنوانُ ملفّ PDF إلزاميّ")
+    when = doc_date or _tz.localdate()
+    context = {**context, "doc_title": title.strip(), "doc_subtitle": f"التاريخ: {when:%Y/%m/%d}"}
     log_export(
         request,
         kind,
@@ -779,7 +788,9 @@ def infraction_warning_pdf(request, infraction_id):
         ctx,
         f"warning_{inf.student_id}_{inf.date}.pdf",
         kind="behavior.warning_pdf",
+        title="نموذج إنذار سلوكي",
         student=inf.student,
+        doc_date=inf.date,
     )
 
 
@@ -799,7 +810,9 @@ def infraction_parent_pdf(request, infraction_id):
         ctx,
         f"parent_undertaking_{inf.student_id}.pdf",
         kind="behavior.parent_undertaking_pdf",
+        title="تعهّد خطّي لولي الأمر",
         student=inf.student,
+        doc_date=inf.date,
     )
 
 
@@ -817,7 +830,9 @@ def infraction_student_pdf(request, infraction_id):
         ctx,
         f"student_undertaking_{inf.student_id}.pdf",
         kind="behavior.student_undertaking_pdf",
+        title="تعهّد خطّي للطالب",
         student=inf.student,
+        doc_date=inf.date,
     )
 
 
@@ -1026,6 +1041,7 @@ def student_behavior_pdf(request, student_id):
         ctx,
         filename,
         kind="behavior.student_report_pdf",
+        title="التقرير السلوكي للطالب",
         student=student,
     )
 

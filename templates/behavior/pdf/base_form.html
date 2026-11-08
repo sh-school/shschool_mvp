@@ -32,7 +32,7 @@
      و`.form-title` في الأبناء عنصرُ عنوانٍ من المستوى الأوّل (2026-09-14): هذه
      القاعدةُ (0,2,0) تغلب `.header h1` (0,1,1) فيبقى ظاهراً، وحجمُه ووزنُه وهوامشُه
      من `.form-title` أدناه لا من افتراضات المتصفّح — فالورقةُ كما كانت. */
-  .header .form-title { display: block !important; }
+  .header .form-title { display: none !important; }
   .header .date-line  { display: block !important; }
 
   /* ===== SECTIONS ===== */
@@ -149,10 +149,10 @@
 
 {% comment %}
 الترويسةُ والتذييلُ من الإطار المركزيّ (`core/print_frame.py`، طلبُ الترحيل قبل PR 705، 2026-09-27) — عنصران جاريان يملآن هامشَي الصفحة
-فيتكرّران في كلّ صفحةٍ بلا تعريفٍ محليّ (حارسُ `tests/test_print_frame_guard.py`). المدرسةُ عنوانُها فارغٌ هنا: كلّ استمارةٍ تضع عنوانَها
-الخاصّ داخل كتلة المحتوى الوارثة (`.header .form-title`) كما كانت.
+فيتكرّران في كلّ صفحةٍ بلا تعريفٍ محليّ (حارسُ `tests/test_print_frame_guard.py`). عنوانُ الملفّ وتاريخُه يمرّرهما `_render_behavior_pdf` (`doc_title`/`doc_subtitle`، W-20261108-011)؛
+فلا يتكرّر العنوانُ داخل المحتوى (`.header .form-title` مخفيٌّ).
 {% endcomment %}
-{% print_frame_header "a4" "portrait" school "" for_pdf=True %}
+{% print_frame_header "a4" "portrait" school doc_title doc_subtitle for_pdf=True %}
 {% print_frame_footer "a4" "portrait" school %}
 
 <div class="page-wrapper">
