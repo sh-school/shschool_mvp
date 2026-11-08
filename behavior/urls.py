@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_daily, views_escalation
+from . import views, views_approval, views_daily, views_escalation
 
 app_name = "behavior"
 
@@ -62,5 +62,25 @@ urlpatterns = [
         "student/<uuid:student_id>/pdf/",
         views.student_behavior_pdf,
         name="student_behavior_pdf",
+    ),
+    # اقتراحُ الإجراء من السلّم واعتمادُه ومتابعتُه وتجهيزُ المشرف (W-20261108-023)
+    path("actions/approve/", views_approval.approval_queue, name="approval_queue"),
+    path("actions/followup/", views_approval.followup_queue, name="followup_queue"),
+    path("actions/prepare/", views_approval.prepare_queue, name="prepare_queue"),
+    path("actions/referrals/", views_approval.specialist_referrals, name="specialist_referrals"),
+    path(
+        "actions/<uuid:infraction_id>/approve/",
+        views_approval.approve_action,
+        name="approve_action",
+    ),
+    path(
+        "actions/<uuid:infraction_id>/followup/",
+        views_approval.followup_action,
+        name="followup_action",
+    ),
+    path(
+        "actions/<uuid:infraction_id>/prepare/",
+        views_approval.prepare_action,
+        name="prepare_action",
     ),
 ]

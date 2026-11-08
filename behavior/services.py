@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from wings.scope import StudentScope
 
 # ── ثوابت موحدة من constants.py ────────────────────────────
+from .action_proposal import ladder  # noqa: E402
 from .constants import (  # noqa: E402,F401
     ESCALATION_STEPS,
     LEVEL_DESC,
@@ -810,6 +811,7 @@ class BehaviorService:
             violation_description=violation_description,
             session=session,
             auto_rule=auto_rule,
+            **ladder(student, school, level, violation_category, session, disciplinary_action_type),
         )
 
         logger.info(

@@ -102,11 +102,12 @@
 
         {# REQ-SH-001 — نظام النقاط ملغى #}
         <div>
-          <label for="disciplinaryActionType" class="form-label">الإجراء التأديبي <span class="required" aria-hidden="true">*</span></label>
-          <select name="disciplinary_action_type" id="disciplinaryActionType" required aria-required="true" class="form-control">
-            <option value="">-- اختر الإجراء --</option>
+          <label for="disciplinaryActionType" class="form-label">الإجراء التأديبي (اختياري)</label>
+          <select name="disciplinary_action_type" id="disciplinaryActionType" aria-describedby="disciplinaryActionHint" class="form-control">
+            <option value="">-- بلا إجراء: يقترحه النظام من السلّم ويعتمده المنسّق --</option>
             {% for value, label in action_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
           </select>
+          <small id="disciplinaryActionHint" class="ui-field-hint">تُسجَّل المخالفة بلا اختيار إجراء؛ والإجراء لا يظهر لأسرة الطالب قبل اعتماده.</small>
         </div>
       </div>
 

@@ -268,11 +268,11 @@ def report_infraction(request):
             # REQ-SH-001: structured disciplinary action + conditional textarea
             disciplinary_action_type = form.cleaned_data.get("disciplinary_action_type", "")
             violation_description = form.cleaned_data.get("violation_description", "")
-            # نصٌّ حرٌّ قديم للتوافق: يُنسخ إليه نصُّ الخيار المختار ليقرأه القديمُ مقروءاً.
+            # نصٌّ حرٌّ قديم للتوافق: يُنسخ نصُّ الخيار المختار، والفارغُ لا يُنسخ فتبقى فارغةَ الإجراء.
             _choices_map = dict(form.fields["disciplinary_action_type"].choices)
-            action = _choices_map.get(disciplinary_action_type, "") or form.cleaned_data.get(
-                "action_taken", ""
-            )
+            action = (
+                _choices_map.get(disciplinary_action_type, "") if disciplinary_action_type else ""
+            ) or form.cleaned_data.get("action_taken", "")
             level = form.cleaned_data["level"]
 
             # جلب فئة المخالفة إن وُجدت

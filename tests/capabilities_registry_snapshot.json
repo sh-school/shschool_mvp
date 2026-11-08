@@ -948,6 +948,41 @@
   "not_inherited_by": []
  },
  {
+  "key": "behavior.prepare_action",
+  "label": "تجهيزُ التعهّد الخطّيّ والإحالة لطلبة الجناح",
+  "roles": [
+   "admin_supervisor"
+  ],
+  "scope": "طلبةُ جناح المشرف وحدَه (wings/scope.py)",
+  "basis": "قرارُ المالك 2026-11-08 (W-20261108-023، طلب CA7E): قدرةٌ ضيّقةٌ لمشرف الجناح — تجهيزُ التعهّد الخطّيّ والإحالة فقط؛ بلا استدعاء وليّ الأمر (behavior.summon_parent) ولا إدارةِ المخالفات (behavior.manage)، وبلا اعتماد",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "behavior.approve_action",
+  "label": "اعتمادُ الإجراء المقترح ومتابعةُ تنفيذه",
+  "roles": [
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك 2026-11-08 (W-20261108-023): منسّقُ شؤون الطلبة يعتمد ويتابع (تمّ/لم يتمّ/جزئيّاً)؛ فإن كان هو من سجّل المخالفة اعتمدها النائبُ الإداريّ — من سجّل لا يعتمد (يُفرض في behavior/action_services.py)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "behavior.specialist_referrals",
+  "label": "قائمةُ الإحالات المعتمَدة للأخصائيّين",
+  "roles": [
+   "psychologist",
+   "social_worker"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك 2026-11-08 (W-20261108-023): الاختصاصيّان لا يعتمدان؛ تصلهما الإحالاتُ عند عتبات 08_conduct_policy_2026.md م3.5.3 ليدرسا الحالة",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
   "key": "behavior.guardian_contact",
   "label": "اسمُ وليّ الأمر وإرسالُ التقرير السلوكيّ إليه",
   "roles": [

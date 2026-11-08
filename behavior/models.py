@@ -343,6 +343,74 @@ class BehaviorInfraction(models.Model):
         verbose_name="الإجراء التأديبي",
         help_text="الإجراء التأديبي الرسمي وفق لائحة المدرسة",
     )
+    # ── اقتراح الإجراء واعتماده (W-20261108-023، قرارات المالك 2026-11-08) ──
+    # المخالفةُ تُسجَّل بلا اختيار إجراء؛ فيحسب النظام اقتراحاً من السلّم المعتمد ويبقى هنا لا يراه
+    # طالبٌ ولا وليّ: ما يراه الأسرةُ `action_taken` و`disciplinary_action_type` ولا يُكتبان إلّا بالاعتماد.
+    APPROVAL_STATUSES = [
+        ("", "—"),
+        ("pending", "بانتظار الاعتماد"),
+        ("approved", "معتمد"),
+    ]
+    FOLLOWUP_STATUSES = [
+        ("", "—"),
+        ("done", "تمّ"),
+        ("not_done", "لم يتمّ"),
+        ("partial", "جزئيّاً"),
+    ]
+    PREPARED_KINDS = [
+        ("", "—"),
+        ("written_pledge", "تعهّد خطّيّ"),
+        ("referral", "إحالة"),
+    ]
+    proposed_action_type = models.CharField(
+        max_length=50, blank=True, default="", verbose_name="الإجراء المقترح"
+    )
+    proposed_source = models.CharField(
+        max_length=200, blank=True, default="", verbose_name="سند الاقتراح (الملفّ والمادّة والسطر)"
+    )
+    proposed_repetition = models.PositiveSmallIntegerField(
+        default=0, verbose_name="رقم التكرار المحسوب"
+    )
+    proposed_specialist = models.BooleanField(
+        default=False, verbose_name="عتبة إحالةٍ للاختصاصيّين في السياسة"
+    )
+    approval_status = models.CharField(
+        max_length=10,
+        choices=APPROVAL_STATUSES,
+        blank=True,
+        default="",
+        db_index=True,
+        verbose_name="حالة اعتماد الإجراء",
+    )
+    approved_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="اعتمده",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت الاعتماد")
+    followup_status = models.CharField(
+        max_length=10,
+        choices=FOLLOWUP_STATUSES,
+        blank=True,
+        default="",
+        verbose_name="متابعة التنفيذ",
+    )
+    prepared_kind = models.CharField(
+        max_length=20, choices=PREPARED_KINDS, blank=True, default="", verbose_name="ما جهّزه المشرف"
+    )
+    prepared_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="جهّزه",
+    )
+    prepared_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت التجهيز")
+
     violation_description = EncryptedTextField(  # [PII-06] مشفّر at-rest
         blank=True,
         default="",

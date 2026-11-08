@@ -812,6 +812,18 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"behavior:committee" %}
   <a href="{% url 'behavior:committee' %}">{% icon "behavior_team" %} فريق سلوك الطلبة</a>
   {% endif %}
+  {% if request.user|can_open:"behavior:approval_queue" %}
+  <a href="{% url 'behavior:approval_queue' %}">{% icon "behavior_team" %} اعتماد الإجراءات</a>
+  {% endif %}
+  {% if request.user|can_open:"behavior:followup_queue" %}
+  <a href="{% url 'behavior:followup_queue' %}">{% icon "behavior_team" %} متابعة الإجراءات</a>
+  {% endif %}
+  {% if request.user|can_open:"behavior:prepare_queue" %}
+  <a href="{% url 'behavior:prepare_queue' %}">{% icon "behavior_violation" %} تجهيز التعهّد والإحالة</a>
+  {% endif %}
+  {% if request.user|can_open:"behavior:specialist_referrals" %}
+  <a href="{% url 'behavior:specialist_referrals' %}">{% icon "behavior_team" %} إحالات الأخصائيّين</a>
+  {% endif %}
   {% if request.user|can_open:"behavior:statistics" %}
   <a href="{% url 'behavior:statistics' %}">{% icon "stats" %} الإحصائيات</a>
   {% endif %}

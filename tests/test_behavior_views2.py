@@ -213,8 +213,9 @@ class TestReportInfractionExtended:
                 "points_deducted": 5,
             },
         )
-        assert resp.status_code == 200
-        assert BehaviorInfraction.objects.count() == 0
+        # الإجراء والوصف اختياريّان (قرار المالك 2026-11-08): تُسجَّل المخالفة بلا إجراء
+        assert resp.status_code == 302
+        assert BehaviorInfraction.objects.filter(student=student_user).count() == 1
 
     def test_post_invalid_level(
         self,
@@ -257,7 +258,9 @@ class TestReportInfractionExtended:
                 "points_deducted": 999,
             },
         )
-        assert resp.status_code == 200
+        # نظام النقاط ملغى فالحقل يُتجاهل، والإجراء اختياريّ فتُسجَّل المخالفة
+        assert resp.status_code == 302
+        assert BehaviorInfraction.objects.filter(student=student_user).count() == 1
 
     def test_post_level2_redirects_to_student_profile(
         self,

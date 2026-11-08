@@ -61,10 +61,11 @@ class InfractionForm(forms.Form):
         },
     )
     # ── REQ-SH-001: dropdown structured action ──
+    # اختياريّ (قرار المالك 2026-11-08): المعلّم يرصد المخالفة وصاحبُ الإجراء يعتمده؛ فإن تُرك فارغاً
+    # حسب النظامُ اقتراحاً من السلّم (`behavior/action_proposal.py`) ينتظر الاعتماد.
     disciplinary_action_type = forms.ChoiceField(
         choices=DISCIPLINARY_ACTION_CHOICES,
-        required=True,
-        error_messages={"required": "يرجى اختيار الإجراء التأديبي."},
+        required=False,
     )
     violation_description = forms.CharField(
         required=False,

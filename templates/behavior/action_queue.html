@@ -1,0 +1,78 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="الضبط السلوكي" current=title %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header title subtitle="الإجراءُ مقترحٌ من سلّم السياسة المعتمد ولا يظهر لأسرة الطالب قبل اعتماده" icon="behavior_team" %}{% endpage_header %}
+
+  <div class="card">
+    {% if rows %}
+    <div class="table-wrap table-wrap-scroll">
+    <table dir="rtl">
+      <thead>
+        <tr>
+          <th>الطالب</th>
+          <th>المخالفة</th>
+          <th>التكرار</th>
+          <th>الإجراء المقترح</th>
+          <th>السند</th>
+          <th>الإجراء</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.student.full_name }}</td>
+          <td>{{ row.violation_category.name_ar|default:row.violation_category.code }}</td>
+          <td>{{ row.proposed_repetition }}</td>
+          <td>{{ row.get_proposed_action_type_display|default:"—" }}{% if row.proposed_specialist %} · إحالةٌ للأخصائيّين{% endif %}</td>
+          <td dir="ltr">{{ row.proposed_source }}</td>
+          <td>
+            {% if mode == "approve" %}
+            <form method="post" action="{% url 'behavior:approve_action' row.id %}">
+              {% csrf_token %}
+              <select name="action_type" aria-label="الإجراء">
+                <option value="">اعتماد المقترح</option>
+                {% for value, label in action_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+              </select>
+              <button type="submit" class="btn btn-primary">اعتماد</button>
+            </form>
+            {% elif mode == "followup" %}
+            <form method="post" action="{% url 'behavior:followup_action' row.id %}">
+              {% csrf_token %}
+              <select name="status" aria-label="حالة المتابعة">
+                {% for value, label in followup_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+              </select>
+              <button type="submit" class="btn btn-primary">تسجيل</button>
+            </form>
+            {% elif mode == "prepare" %}
+            <form method="post" action="{% url 'behavior:prepare_action' row.id %}">
+              {% csrf_token %}
+              <input type="hidden" name="kind" value="{% if row.proposed_action_type == 'social_specialist_referral' %}referral{% else %}written_pledge{% endif %}">
+              <button type="submit" class="btn btn-primary">{% if row.proposed_action_type == 'social_specialist_referral' %}تجهيز الإحالة{% else %}تجهيز التعهّد الخطّي{% endif %}</button>
+            </form>
+            {% else %}
+            {{ row.get_followup_status_display|default:"—" }}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="ui-field-hint">لا شيء بانتظارك الآن.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

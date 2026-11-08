@@ -5,6 +5,8 @@ from __future__ import annotations
 from core.behavior_committee_roles import BEHAVIOR_COMMITTEE_CASE_SCOPED
 from core.capabilities.base import Capability, Shared, _cap
 
+COORDINATOR = "student_affairs_coordinator"
+
 
 def behavior_capabilities(shared: Shared) -> list[Capability]:
     from core import permissions as P  # noqa: N812 — اختصارٌ يُقرأ به السجلُّ كجدول
@@ -48,6 +50,36 @@ def behavior_capabilities(shared: Shared) -> list[Capability]:
             ),
         ),
         _cap("behavior.summon_parent", "استدعاءُ وليّ الأمر", family_callers),
+        _cap(
+            "behavior.prepare_action",
+            "تجهيزُ التعهّد الخطّيّ والإحالة لطلبة الجناح",
+            {"admin_supervisor"},
+            scope="طلبةُ جناح المشرف وحدَه (wings/scope.py)",
+            basis=(
+                "قرارُ المالك 2026-11-08 (W-20261108-023، طلب CA7E): قدرةٌ ضيّقةٌ لمشرف الجناح — تجهيزُ "
+                "التعهّد الخطّيّ والإحالة فقط؛ بلا استدعاء وليّ الأمر (behavior.summon_parent) ولا "
+                "إدارةِ المخالفات (behavior.manage)، وبلا اعتماد"
+            ),
+        ),
+        _cap(
+            "behavior.approve_action",
+            "اعتمادُ الإجراء المقترح ومتابعةُ تنفيذه",
+            {COORDINATOR, "vice_admin"},
+            basis=(
+                "قرارُ المالك 2026-11-08 (W-20261108-023): منسّقُ شؤون الطلبة يعتمد ويتابع (تمّ/لم يتمّ/"
+                "جزئيّاً)؛ فإن كان هو من سجّل المخالفة اعتمدها النائبُ الإداريّ — من سجّل لا يعتمد "
+                "(يُفرض في behavior/action_services.py)"
+            ),
+        ),
+        _cap(
+            "behavior.specialist_referrals",
+            "قائمةُ الإحالات المعتمَدة للأخصائيّين",
+            {"social_worker", "psychologist"},
+            basis=(
+                "قرارُ المالك 2026-11-08 (W-20261108-023): الاختصاصيّان لا يعتمدان؛ تصلهما الإحالاتُ عند "
+                "عتبات 08_conduct_policy_2026.md م3.5.3 ليدرسا الحالة"
+            ),
+        ),
         _cap(
             "behavior.guardian_contact",
             "اسمُ وليّ الأمر وإرسالُ التقرير السلوكيّ إليه",
