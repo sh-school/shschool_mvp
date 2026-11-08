@@ -1,0 +1,72 @@
+{% extends "base/base.html" %}
+{% load ui icons %}
+{% comment %}الإجراءُ المقترح من السلّم المعتمد (W-20261108-027): ثلاثةُ أوضاع بقالبٍ واحد — اعتمادُ المنسّق (approve)،
+وتجهيزُ مشرف الجناح (prepare)، وقائمةُ إحالات الأخصائيّين (referrals). لا إشعارَ آليّاً لوليّ الأمر من أيٍّ منها.{% endcomment %}
+{% block title %}{% if mode == "approve" %}اعتماد الإجراءات المقترحة{% elif mode == "prepare" %}تجهيز الإجراءات المقترحة{% else %}إحالات الأخصائيّين{% endif %}{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="الضبط السلوكي" current="الإجراءات المقترحة" %}
+{% endblock %}
+{% block content %}
+<div class="exec-dash">
+  {% if mode == "approve" %}
+  {% page_header "اعتماد الإجراءات المقترحة" subtitle="تتابع (تمّ، لم يتمّ، جزئيًّا) ثم تعتمد؛ ومن سجّل المخالفة لا يعتمدها" icon="checklist" %}{% endpage_header %}
+  {% elif mode == "prepare" %}
+  {% page_header "تجهيز الإجراءات المقترحة" subtitle="تعهّدٌ خطّيّ أو إحالةٌ لطلبة جناحك، ويعتمدها منسّق شؤون الطلبة" icon="checklist" %}{% endpage_header %}
+  {% else %}
+  {% page_header "إحالات الأخصائيّين" subtitle="إحالاتٌ عند العتبات التي ينصّ عليها السلّم، لدراسة الحالة" icon="checklist" %}{% endpage_header %}
+  {% endif %}
+
+  {% section_card "بانتظارك" meta=rows|length icon="checklist" empty="لا شيء بانتظارك." %}
+    {% if rows %}
+    {% callout "info" show=True %}الإجراءُ مقترحٌ من السلّم المعتمد ({{ article }}) بحسب الدرجة والتكرار. لا يُرسَل إشعارٌ آليٌّ لوليّ الأمر؛ الاستدعاءُ والإشعارُ يدويّان من منسّق شؤون الطلبة.{% endcallout %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">الطالب</th>
+            <th scope="col">المخالفة</th>
+            <th scope="col">{% if mode == "referrals" %}الإحالة (رقم المادة وسطرها){% else %}الإجراء المقترح{% endif %}</th>
+            <th scope="col">السند</th>
+            {% if mode != "referrals" %}
+            <th scope="col">ما جُهِّز</th>
+            <th scope="col">{% if mode == "approve" %}المتابعة والاعتماد{% else %}تجهيز{% endif %}</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <th scope="row">{{ row.student.full_name }}</th>
+            <td>{{ row.violation_category.name_ar|default:"—" }}</td>
+            <td>{% if mode == "referrals" %}{{ row.specialist_line }}{% else %}{{ row.proposed_action }}{% endif %}</td>
+            <td>{{ row.proposed_basis }}</td>
+            {% if mode != "referrals" %}
+            <td>{{ row.get_prepared_action_display|default:"—" }}</td>
+            <td>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="infraction_id" value="{{ row.pk }}">
+                {% if mode == "approve" %}
+                <select name="follow_up" aria-label="المتابعة" required>
+                  <option value="">— المتابعة —</option>
+                  {% for value, label in follow_ups %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                </select>
+                <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} اعتماد</button>
+                {% else %}
+                <button type="submit" name="kind" value="written_pledge" class="btn-primary btn-sm">تعهّدٌ خطّيّ</button>
+                <button type="submit" name="kind" value="referral" class="btn-secondary btn-sm">إحالة</button>
+                {% endif %}
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  {% endsection_card %}
+</div>
+{% endblock %}

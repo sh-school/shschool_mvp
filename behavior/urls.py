@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_daily, views_escalation
+from . import views, views_daily, views_escalation, views_proposed_action
 
 app_name = "behavior"
 
@@ -57,6 +57,10 @@ urlpatterns = [
     # استدعاء ولي أمر
     path("summon/", views.summon_parent, name="summon_parent"),
     path("summon/<uuid:student_id>/", views.summon_parent, name="summon_parent_student"),
+    # الإجراءُ المقترح من السلّم: اعتمادٌ وتجهيزٌ وإحالاتُ الأخصائيّين (W-20261108-027)
+    path("proposals/approve/", views_proposed_action.approve_proposals, name="approve_proposals"),
+    path("proposals/prepare/", views_proposed_action.prepare_proposals, name="prepare_proposals"),
+    path("proposals/referrals/", views_proposed_action.referral_list, name="referral_list"),
     # ✅ v7: تقرير سلوكي شامل للطالب — A4 للطباعة
     path(
         "student/<uuid:student_id>/pdf/",

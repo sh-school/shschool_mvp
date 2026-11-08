@@ -213,8 +213,9 @@ class TestReportInfractionExtended:
                 "points_deducted": 5,
             },
         )
-        assert resp.status_code == 200
-        assert BehaviorInfraction.objects.count() == 0
+        # الوصفُ اختياريّ؛ وكان الرفضُ هنا من إلزام الإجراء الذي أُلغي (W-20261108-027)
+        assert resp.status_code == 302
+        assert BehaviorInfraction.objects.count() == 1
 
     def test_post_invalid_level(
         self,
@@ -257,7 +258,8 @@ class TestReportInfractionExtended:
                 "points_deducted": 999,
             },
         )
-        assert resp.status_code == 200
+        # نظامُ النقاط ملغى فيُتجاهَل الحقل؛ وتُسجَّل المخالفة بلا إجراء (W-20261108-027)
+        assert resp.status_code == 302
 
     def test_post_level2_redirects_to_student_profile(
         self,

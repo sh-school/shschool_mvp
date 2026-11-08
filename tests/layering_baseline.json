@@ -301,7 +301,7 @@
    "orm": 18
   },
   "behavior/views.py::report_infraction": {
-   "lines": 107,
+   "lines": 103,
    "orm": 6
   },
   "behavior/views.py::student_behavior_pdf": {

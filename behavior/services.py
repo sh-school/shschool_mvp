@@ -32,6 +32,7 @@ from core.unrestricted_role import has_unrestricted_role
 logger = logging.getLogger(__name__)
 
 from behavior.models import BehaviorInfraction
+from behavior.proposed_action import proposal_fields  # اقتراح السلّم بلا إشعار لوليّ الأمر
 from core.models import ParentStudentLink, StudentEnrollment, Wing
 from wings.scope import student_scope
 
@@ -810,6 +811,7 @@ class BehaviorService:
             violation_description=violation_description,
             session=session,
             auto_rule=auto_rule,
+            **({} if auto_rule else proposal_fields(violation_category, escalation_step)),
         )
 
         logger.info(

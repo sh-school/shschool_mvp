@@ -351,6 +351,73 @@ class BehaviorInfraction(models.Model):
         help_text="مطلوب فقط عند اختيار 'محضر لإثبات المخالفة' (20-2000 حرف)",
     )
 
+    # ── اقتراحُ الإجراء من السلّم المعتمد وتجهيزُه واعتمادُه (W-20261108-027، قرارُ المالك 2026-11-08) ──
+    # المخالفةُ تُسجَّل بلا اختيار إجراء؛ والنظامُ يقترحه من سلّم الدليل بحسب الدرجة والتكرار.
+    # هذه الحقول للكادر وحدَه: لا يقرؤها عرضُ الطالب ولا وليّ الأمر قبل الاعتماد.
+    proposed_action = models.TextField(
+        blank=True, default="", verbose_name="الإجراء المقترح من السلّم"
+    )
+    proposed_basis = models.CharField(
+        max_length=160,
+        blank=True,
+        default="",
+        verbose_name="سندُ الاقتراح (المادة والصفحة والتكرار)",
+    )
+    #: العتبةُ تنصّ على إحالةٍ إلى الأخصائيّ الاجتماعيّ أو النفسيّ: تصلهما في قائمةٍ خاصّة ليدرسا الحالة.
+    specialist_line = models.CharField(
+        max_length=300, blank=True, default="", verbose_name="سطرُ الإحالة للأخصائيّين من السلّم"
+    )
+    PREPARED_ACTION_CHOICES = [
+        ("written_pledge", "تعهّدٌ خطّيّ"),
+        ("referral", "إحالة"),
+    ]
+    prepared_action = models.CharField(
+        max_length=20,
+        choices=PREPARED_ACTION_CHOICES,
+        blank=True,
+        default="",
+        verbose_name="ما جهّزه مشرفُ الجناح",
+    )
+    prepared_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="prepared_infractions",
+        verbose_name="جهّزها",
+    )
+    prepared_at = models.DateTimeField(null=True, blank=True, verbose_name="وقتُ التجهيز")
+    APPROVAL_CHOICES = [
+        ("", "بلا اقتراح"),
+        ("pending", "بانتظار الاعتماد"),
+        ("approved", "معتمَد"),
+    ]
+    approval_status = models.CharField(
+        max_length=10,
+        choices=APPROVAL_CHOICES,
+        blank=True,
+        default="",
+        db_index=True,
+        verbose_name="حالة الاعتماد",
+    )
+    FOLLOW_UP_CHOICES = [
+        ("done", "تمّ"),
+        ("not_done", "لم يتمّ"),
+        ("partial", "جزئيًّا"),
+    ]
+    follow_up = models.CharField(
+        max_length=10, choices=FOLLOW_UP_CHOICES, blank=True, default="", verbose_name="المتابعة"
+    )
+    approved_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_infractions",
+        verbose_name="اعتمدها",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True, verbose_name="وقتُ الاعتماد")
+
     # [W-20261013-010] خاملٌ كـ`ViolationCategory.points`: لا يُقرأ ولا يُكتب، ويُحذف في المرحلة 2.
     points_deducted = models.PositiveSmallIntegerField(
         default=0,

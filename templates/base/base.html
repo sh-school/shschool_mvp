@@ -812,6 +812,12 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"behavior:committee" %}
   <a href="{% url 'behavior:committee' %}">{% icon "behavior_team" %} فريق سلوك الطلبة</a>
   {% endif %}
+  {% if request.user|can_open:"behavior:approve_proposals" %}
+  <a href="{% url 'behavior:approve_proposals' %}">{% icon "behavior_team" %} اعتماد الإجراءات المقترحة</a>
+  {% endif %}
+  {% if request.user|can_open:"behavior:referral_list" %}
+  <a href="{% url 'behavior:referral_list' %}">{% icon "behavior_team" %} إحالات الأخصائيّين</a>
+  {% endif %}
   {% if request.user|can_open:"behavior:statistics" %}
   <a href="{% url 'behavior:statistics' %}">{% icon "stats" %} الإحصائيات</a>
   {% endif %}
@@ -1006,6 +1012,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% if request.user|can_open:"behavior:report_infraction" %}
   <a href="{% url 'behavior:report_infraction' %}">{% icon "behavior_violation" %} تسجيل مخالفة</a>
   {% endif %}
+  {% if request.user|can_open:"behavior:prepare_proposals" %}
+  <a href="{% url 'behavior:prepare_proposals' %}">{% icon "behavior_violation" %} تجهيز الإجراءات المقترحة</a>
+  {% endif %}
   {% if request.user|can_open:"behavior:dashboard" %}
   <a href="{% url 'behavior:dashboard' %}">{% icon "behavior" %} لوحة سلوك الجناح</a>
   {% endif %}
@@ -1142,6 +1151,12 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% endif %}
   {% if request.user|can_open:"behavior:daily_report" %}
   <a href="{% url 'behavior:daily_report' %}">{% icon "reports" %} التقرير اليومي</a>
+  {% endif %}
+  {% if request.user|can_open:"behavior:approve_proposals" %}
+  <a href="{% url 'behavior:approve_proposals' %}">{% icon "behavior_team" %} اعتماد الإجراءات المقترحة</a>
+  {% endif %}
+  {% if request.user|can_open:"behavior:referral_list" %}
+  <a href="{% url 'behavior:referral_list' %}">{% icon "behavior_team" %} إحالات الأخصائيّين</a>
   {% endif %}
   <hr>
   {% if request.user|can_open:"behavior:summon_parent" %}

@@ -61,10 +61,10 @@ class InfractionForm(forms.Form):
         },
     )
     # ── REQ-SH-001: dropdown structured action ──
+    # اختياريّ (W-20261108-027): المعلّمُ يسجّل المخالفة وليس صاحبَ الإجراء؛ يقترحه النظامُ من السلّم.
     disciplinary_action_type = forms.ChoiceField(
         choices=DISCIPLINARY_ACTION_CHOICES,
-        required=True,
-        error_messages={"required": "يرجى اختيار الإجراء التأديبي."},
+        required=False,
     )
     violation_description = forms.CharField(
         required=False,
@@ -81,6 +81,15 @@ class InfractionForm(forms.Form):
         field.choices = action_choices_for(role)
         if role in ROLE_ACTION_LIMITS:
             field.error_messages["invalid_choice"] = NOT_YOUR_ACTION
+
+    def legacy_action_text(self) -> str:
+        """نصٌّ حرٌّ قديم للتوافق: يُنسخ إليه نصُّ الخيار المختار ليقرأه القديمُ مقروءاً.
+
+        بلا إجراءٍ مختار (W-20261108-027) لا يُنسخ نصُّ الخيار الفارغ «اختر الإجراء».
+        """
+        action_type = self.cleaned_data.get("disciplinary_action_type", "")
+        label = dict(self.fields["disciplinary_action_type"].choices).get(action_type, "")
+        return (label if action_type else "") or self.cleaned_data.get("action_taken", "")
 
     def clean_level(self):
         level = self.cleaned_data["level"]
