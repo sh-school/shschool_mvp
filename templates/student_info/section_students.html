@@ -17,25 +17,55 @@
     <a href="{% url 'student_info:sections' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "refresh" %} كل الشُّعب</a>
   {% endpage_header %}
 
-  {% section_card "طلاب الشعبة" meta=enrollments|length icon="students" flush=True empty="لا طلاب مسجَّلين في هذه الشعبة" %}{% if enrollments %}
+  {# شريطُ الملخّص: يُخفي ما صفرُه، والنقرُ يصفّي الجدول. #}
+  {% if summary %}
+  {% kpi_strip label="ملخّص الشعبة" %}
+    {% for item in summary %}
+    {% kpi item.label item.count tone=item.tone href="?year="|add:year|add:"&flag="|add:item.key %}
+    {% endfor %}
+  {% endkpi_strip %}
+  {% endif %}
+
+  {% if total %}
+  {% filter_bar "بحث في طلاب الشعبة" %}
+    <input type="hidden" name="year" value="{{ year }}">
+    {% if flag %}<input type="hidden" name="flag" value="{{ flag }}">{% endif %}
+    {% field "q" "بحث بالاسم" hide_label=True grow=True value=q placeholder="ابحث باسم الطالب..." autocomplete="off" %}
+    <div class="filter-actions">
+      <button type="submit" class="btn-primary btn-sm">{% icon "search" %} بحث</button>
+      {% if q or flag %}<a href="?year={{ year }}" class="btn-secondary btn-sm">عرض الكل</a>{% endif %}
+    </div>
+  {% endfilter_bar %}
+  {% endif %}
+
+  {% if total and not recorded_any %}
+    {% callout kind="info" show=True %}لم يُرصد حضورُ اليوم بعد.{% endcallout %}
+  {% endif %}
+
+  {% section_card "طلاب الشعبة" meta=enrollments|length icon="students" flush=True empty="لا طلاب مسجَّلين في هذه الشعبة" %}{% if total %}
     <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>
             <th>الطالب</th>
+            <th>إشارات</th>
             <th class="col-actions">الملفّ</th>
           </tr>
         </thead>
         <tbody>
-          {% for e in enrollments %}
+          {% for e, s in rows %}
           <tr>
             <td>
               <a href="{% url 'student_info:student_file' e.student_id %}?year={{ year }}" class="font-semibold text-maroon hover:underline">{{ e.student.full_name }}</a>
             </td>
+            {# قاعدةُ الاستثناء: الخليّةُ فارغةٌ إلا عند إشارة. #}
+            <td><div class="sec-signals">{% if s.attendance == "absent" %}<span class="badge badge--danger">غائب</span>{% elif s.late %}<span class="badge badge--info">حاضر (منهم متأخر)</span>{% elif s.attendance == "unrecorded" and recorded_any %}<span class="sec-muted">غير مرصود</span>{% endif %}{% if s.gate %}<span class="badge badge--warning" title="غياب بلا عذر: {{ s.absence_days }} أيام، والعتبةُ {{ s.gate.max_days }}">{{ s.absence_days }} من {{ s.gate.max_days }} أيام</span>{% elif s.gate_exceeded %}<span class="badge badge--danger" title="غياب بلا عذر: {{ s.absence_days }} أيام">تجاوز عتبة الغياب</span>{% endif %}{% if s.enrollment == "new" %}<span class="badge badge--info">قيد جديد</span>{% elif s.enrollment == "transferred" %}<span class="badge badge--info">منقول</span>{% endif %}{% if s.has_open_item %}<span class="sec-dot" role="img" aria-label="بندٌ مفتوح" title="بندٌ مفتوح"></span>{% endif %}</div></td>
             <td class="col-actions">
               <a href="{% url 'student_info:student_file' e.student_id %}?year={{ year }}" class="btn-secondary btn-xs">فتح الملفّ</a>
             </td>
           </tr>
+          {% empty %}
+          <tr><td colspan="3" class="sec-muted">لا طلاب يطابقون البحث أو التصفية.</td></tr>
           {% endfor %}
         </tbody>
       </table>
