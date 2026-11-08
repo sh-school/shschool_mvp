@@ -123,7 +123,7 @@
           {% for item in summary.ministered %}
           <tr class="grade-tint grade-{{ item.grade|lower }}">
             <td class="num">{{ forloop.counter }}</td>
-            <td class="fu-name">{{ item.name }}</td>
+            <td class="fu-name">{{ item.name }}{% if item.mark %} <span class="status-badge status-info">{{ item.mark }}</span>{% endif %}</td>
             <td>{{ item.class_code }}</td>
             <td><span class="status-badge {% if item.excused %}status-info{% else %}status-danger{% endif %}">{% if item.excused %}غائب بعذر{% else %}غائب بلا عذر{% endif %}</span></td>
           </tr>
