@@ -73,7 +73,7 @@
     {% for item in summary.ministered %}
       <tr class="g-{{ item.grade|lower }}">
         <td>{{ forloop.counter }}</td>
-        <td class="label">{{ item.name }}</td>
+        <td class="label">{{ item.name }}{% if item.mark %} ({{ item.mark }}){% endif %}</td>
         <td>{{ item.class_code }}</td>
         <td{% if not item.excused %} class="is-ministry"{% endif %}>{% if item.excused %}غائب بعذر{% else %}غائب بلا عذر{% endif %}</td>
       </tr>

@@ -254,14 +254,15 @@ def _load_sessions(school: Any, day: dt.date, data: _Day) -> None:
             data.bell.setdefault(start, end)
 
 
-def _load_enrollments(data: _Day) -> None:
+def _load_enrollments(data: _Day, day: dt.date) -> None:
     """٢ تسجيلُ الطلاب النشط في شعب اليوم."""
     from core.models.academic import StudentEnrollment
 
     data.enrollments = list(
-        StudentEnrollment.objects.filter(
-            is_active=True, class_group_id__in=list(data.section_slots)
-        ).values_list("student_id", "class_group_id")
+        StudentEnrollment.objects.filter(class_group_id__in=list(data.section_slots))
+        .on_roll(day)  # يستبعد ما قبل القيد وما بعد المغادرة (W-20261108-015)
+        .order_by("student_id", "-enrolled_at", "-id")
+        .values_list("student_id", "class_group_id")
     )
 
 
@@ -406,7 +407,9 @@ def _fill_exits(
     from operations.models import ClassExit, DailyExitTally
 
     labels = dict(ClassExit.DESTINATIONS)
-    section_of = dict(data.enrollments)
+    section_of: dict[Any, Any] = {}
+    for student_id, section_id in data.enrollments:  # الأحدثُ أوّلاً فيغلب قيدُه
+        section_of.setdefault(student_id, section_id)
     students: set[Any] = set()
     rows = DailyExitTally.objects.filter(school=school, date=day).values_list(
         "student_id", "exit_count", "total_seconds", "by_destination"
@@ -441,7 +444,7 @@ def school_day_summary(school: Any, day: dt.date, now: dt.datetime | None = None
 
     data = _Day()
     _load_sessions(school, day, data)
-    _load_enrollments(data)
+    _load_enrollments(data, day)
     _load_attendance(school, day, data)
     _load_registration(school, day, data)
 

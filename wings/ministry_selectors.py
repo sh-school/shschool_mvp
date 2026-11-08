@@ -22,6 +22,7 @@ from core.models import ClassGroup, StudentEnrollment
 from core.models.academic import grade_order
 from operations.attendance_selectors import pending_marks_by_student
 from operations.models import Session, StudentAttendance
+from student_affairs.enrolment_marks import enrolment_marks
 
 #: حصّتا الرفع: الأولى والثانية بترتيب الخانات.
 PERIODS = 2
@@ -81,6 +82,8 @@ class Ministered:
     class_code: str
     excused: bool
     grade: str = ""
+    #: «جديد» أو «منقول» أو فارغ — من `student_affairs.enrolment_marks` (W-20261108-015).
+    mark: str = ""
 
 
 @dataclass
@@ -174,6 +177,7 @@ def _row_counts(
     ministered: list[Ministered],
     class_code: str,
     grade_key: str,
+    tags: dict[Any, str],
 ) -> Counts:
     counts = Counts(enrolled=len(students))
     for student in students:
@@ -191,7 +195,11 @@ def _row_counts(
                 counts.absent_both_excused += 1
             else:
                 counts.absent_both_unexcused += 1
-            ministered.append(Ministered(student.full_name, class_code, excused, grade_key))
+            ministered.append(
+                Ministered(
+                    student.full_name, class_code, excused, grade_key, tags.get(student.id, "")
+                )
+            )
         elif "absent" in statuses:
             counts.absent_one += 1
         elif "late" in statuses:
@@ -294,6 +302,7 @@ def ministry_summary(school: Any, day: dt.date, *, student_ids: Any = None) -> M
     )
     group_ids = [g.id for g in groups]
     by_class = _current_enrollments(groups, student_ids, day)
+    tags = enrolment_marks(school, [s.id for rows in by_class.values() for s in rows], day)
     slots = _first_slots(school, day, group_ids)
     marks = _marks(school, day, slots)
     pending = pending_marks_by_student(school, day, student_ids=student_ids)
@@ -309,7 +318,15 @@ def ministry_summary(school: Any, day: dt.date, *, student_ids: Any = None) -> M
         has_periods = len(times) >= PERIODS
         counts = (
             _row_counts(
-                students, group.id, times, marks, pending, ministered, group.short_code, group.grade
+                students,
+                group.id,
+                times,
+                marks,
+                pending,
+                ministered,
+                group.short_code,
+                group.grade,
+                tags,
             )
             if has_periods
             else Counts(enrolled=len(students))

@@ -4,6 +4,8 @@
 المراحلُ الأربع تُسجَّل بمنفّذها ووقتها على `StudentTransfer`، و«مكتمل» لا يُبلغ إلا بعد المراحل الأربع كلّها.
 """
 
+import datetime as dt
+
 from django.db import transaction
 from django.utils import timezone
 
@@ -93,7 +95,7 @@ def _deactivate_outgoing(transfer) -> None:
     ).update(is_active=False)
     StudentEnrollment.objects.filter(
         student=transfer.student, class_group__school=school, is_active=True
-    ).update(is_active=False)
+    ).update(is_active=False, left_at=transfer.transfer_date - dt.timedelta(days=1))
 
 
 def _check_rules(

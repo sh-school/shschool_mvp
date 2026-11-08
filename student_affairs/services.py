@@ -667,7 +667,7 @@ class StudentService:
             student=student,
             class_group__school=school,
             is_active=True,
-        ).update(is_active=False)
+        ).update(is_active=False, left_at=timezone.localdate())  # آخرُ يومٍ يُحسب فيه (W-20261108-015)
 
         # إبطال cache العضوية
         student.invalidate_active_membership()
