@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_daily, views_escalation
+from . import views, views_action, views_daily, views_escalation
 
 app_name = "behavior"
 
@@ -10,6 +10,16 @@ urlpatterns = [
     path("escalation-preview/", views_escalation.escalation_preview, name="escalation_preview"),
     path("report/", views.report_infraction, name="report_infraction"),
     path("student/<uuid:student_id>/", views.student_behavior_profile, name="student_profile"),
+    # إجراءُ المخالفة المقترح: اعتمادُ المنسّق وتجهيزُ المشرف وإحالاتُ الاختصاصيّين (W-20261108-007)
+    path("actions/", views_action.action_queue, name="action_queue"),
+    path(
+        "actions/<uuid:infraction_id>/approve/", views_action.action_approve, name="action_approve"
+    ),
+    path("actions/prepare/", views_action.action_prepare_list, name="action_prepare_list"),
+    path(
+        "actions/<uuid:infraction_id>/prepare/", views_action.action_prepare, name="action_prepare"
+    ),
+    path("actions/referrals/", views_action.referral_list, name="referral_list"),
     # ✅ لجنة الضبط السلوكي
     path("committee/", views.committee_dashboard, name="committee"),
     path(

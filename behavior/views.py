@@ -270,9 +270,9 @@ def report_infraction(request):
             violation_description = form.cleaned_data.get("violation_description", "")
             # نصٌّ حرٌّ قديم للتوافق: يُنسخ إليه نصُّ الخيار المختار ليقرأه القديمُ مقروءاً.
             _choices_map = dict(form.fields["disciplinary_action_type"].choices)
-            action = _choices_map.get(disciplinary_action_type, "") or form.cleaned_data.get(
-                "action_taken", ""
-            )
+            # بلا إجراء مختار لا يُنسخ نصُّ «-- اختر الإجراء --» إلى حقل الأسرة (W-20261108-007)
+            _chosen = _choices_map.get(disciplinary_action_type) if disciplinary_action_type else ""
+            action = _chosen or form.cleaned_data.get("action_taken", "")
             level = form.cleaned_data["level"]
 
             # جلب فئة المخالفة إن وُجدت

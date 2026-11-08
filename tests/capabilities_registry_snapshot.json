@@ -932,6 +932,41 @@
   ]
  },
  {
+  "key": "behavior.prepare_action",
+  "label": "تجهيزُ التعهّد الخطّيّ والإحالة",
+  "roles": [
+   "admin_supervisor"
+  ],
+  "scope": "طلبةُ جناح المشرف وحدَهم",
+  "basis": "قرارُ المالك 2026-11-08 (W-20261108-007، طلب CA7E): المشرفُ الإداريّ يجهّز التعهّدَ الخطّيّ والإحالةَ لطلبة جناحه عبر wings/scope.py، بلا استدعاء وليّ الأمر ولا إدارة المخالفات (behavior.manage وbehavior.summon_parent ليسا له)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "behavior.approve_action",
+  "label": "متابعةُ الإجراء واعتمادُه",
+  "roles": [
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك 2026-11-08 (W-20261108-007): المنسّقُ يتابع (تمّ/لم يتمّ/جزئيّاً) ويعتمد؛ فإن كان هو من سجّل المخالفةَ اعتمدها النائبُ الإداريّ — من سجّل لا يعتمد. والاختصاصيّان لا يعتمدان",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "behavior.specialist_referrals",
+  "label": "إحالاتُ الاختصاصيّين عند عتبات السياسة",
+  "roles": [
+   "psychologist",
+   "social_worker"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك 2026-11-08 (W-20261108-007): تصلهما الإحالاتُ عند العتبات المنصوصة في 08_conduct_policy_2026.md م3.5.3 (س318 وس320 وس354) ليدرسا الحالةَ؛ ولا يعتمدان",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
   "key": "behavior.summon_parent",
   "label": "استدعاءُ وليّ الأمر",
   "roles": [

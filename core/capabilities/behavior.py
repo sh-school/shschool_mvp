@@ -47,6 +47,36 @@ def behavior_capabilities(shared: Shared) -> list[Capability]:
                 "رقمَه طالبٌ من جناحٍ آخر"
             ),
         ),
+        _cap(
+            "behavior.prepare_action",
+            "تجهيزُ التعهّد الخطّيّ والإحالة",
+            {"admin_supervisor"},
+            scope="طلبةُ جناح المشرف وحدَهم",
+            basis=(
+                "قرارُ المالك 2026-11-08 (W-20261108-007، طلب CA7E): المشرفُ الإداريّ يجهّز التعهّدَ "
+                "الخطّيّ والإحالةَ لطلبة جناحه عبر wings/scope.py، بلا استدعاء وليّ الأمر ولا إدارة "
+                "المخالفات (behavior.manage وbehavior.summon_parent ليسا له)"
+            ),
+        ),
+        _cap(
+            "behavior.approve_action",
+            "متابعةُ الإجراء واعتمادُه",
+            {"student_affairs_coordinator", "vice_admin"},
+            basis=(
+                "قرارُ المالك 2026-11-08 (W-20261108-007): المنسّقُ يتابع (تمّ/لم يتمّ/جزئيّاً) ويعتمد؛ "
+                "فإن كان هو من سجّل المخالفةَ اعتمدها النائبُ الإداريّ — من سجّل لا يعتمد. "
+                "والاختصاصيّان لا يعتمدان"
+            ),
+        ),
+        _cap(
+            "behavior.specialist_referrals",
+            "إحالاتُ الاختصاصيّين عند عتبات السياسة",
+            {"social_worker", "psychologist"},
+            basis=(
+                "قرارُ المالك 2026-11-08 (W-20261108-007): تصلهما الإحالاتُ عند العتبات المنصوصة في "
+                "08_conduct_policy_2026.md م3.5.3 (س318 وس320 وس354) ليدرسا الحالةَ؛ ولا يعتمدان"
+            ),
+        ),
         _cap("behavior.summon_parent", "استدعاءُ وليّ الأمر", family_callers),
         _cap(
             "behavior.guardian_contact",

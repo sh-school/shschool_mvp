@@ -63,8 +63,8 @@ class InfractionForm(forms.Form):
     # ── REQ-SH-001: dropdown structured action ──
     disciplinary_action_type = forms.ChoiceField(
         choices=DISCIPLINARY_ACTION_CHOICES,
-        required=True,
-        error_messages={"required": "يرجى اختيار الإجراء التأديبي."},
+        # W-20261108-007: المعلّم يسجّل المخالفة بلا اختيار إجراء؛ النظام يقترحه من السلّم والمنسّق يعتمده.
+        required=False,
     )
     violation_description = forms.CharField(
         required=False,

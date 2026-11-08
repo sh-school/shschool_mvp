@@ -1,0 +1,61 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+
+{% block title %}{% if mode == "approve" %}اعتماد إجراءات المخالفات{% elif mode == "prepare" %}تجهيز الإجراءات{% else %}إحالات الاختصاصيين{% endif %}{% endblock %}
+
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="الضبط السلوكي" current="إجراءات المخالفات" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% if mode == "approve" %}
+  {% page_header "اعتماد إجراءات المخالفات" subtitle="الإجراء المقترح من السلّم المعتمد — تابع التنفيذ ثم اعتمد" icon="behavior_team" %}{% endpage_header %}
+  {% elif mode == "prepare" %}
+  {% page_header "تجهيز الإجراءات" subtitle="طلبة جناحك — جهّز التعهّد الخطّي أو الإحالة ويعتمدها المنسّق" icon="behavior_team" %}{% endpage_header %}
+  {% else %}
+  {% page_header "إحالات الاختصاصيين" subtitle="حالات بلغت عتبة الإحالة في السياسة — للدراسة" icon="behavior_team" %}{% endpage_header %}
+  {% endif %}
+
+  {% for item in items %}
+  <section class="card" aria-label="مخالفة {{ item.student.full_name }}">
+    <h3>{{ item.student.full_name }} — {{ item.violation_category.name_ar|default:"مخالفة" }}</h3>
+    <p>الإجراء المقترح (التكرار {{ item.proposed_rep }}): {{ item.proposed_text }}</p>
+    <p class="text-muted">السند: {{ item.proposed_source }}</p>
+    {% if item.prepared_kind %}<p>جهّزه {{ item.prepared_by.full_name }}: {{ item.get_prepared_kind_display }}</p>{% endif %}
+
+    {% if mode == "approve" %}
+    <form method="post" action="{% url 'behavior:action_approve' item.id %}">
+      {% csrf_token %}
+      <label for="fu-{{ item.id }}">المتابعة</label>
+      <select name="follow_up" id="fu-{{ item.id }}" required>
+        <option value="done">تمّ</option>
+        <option value="not_done">لم يتمّ</option>
+        <option value="partial">جزئيًّا</option>
+      </select>
+      <button type="submit" class="btn btn-primary">اعتماد</button>
+    </form>
+    {% elif mode == "prepare" %}
+    <form method="post" action="{% url 'behavior:action_prepare' item.id %}">
+      {% csrf_token %}
+      <label for="kind-{{ item.id }}">التجهيز</label>
+      <select name="kind" id="kind-{{ item.id }}" required>
+        <option value="written_pledge">تعهّد خطّي</option>
+        <option value="referral">إحالة</option>
+      </select>
+      <button type="submit" class="btn btn-primary">تجهيز</button>
+    </form>
+    {% else %}
+    <p>اعتمده {{ item.approved_by.full_name }}.</p>
+    {% endif %}
+  </section>
+  {% empty %}
+  <p class="text-muted">لا شيء بانتظارك.</p>
+  {% endfor %}
+
+</div>
+{% endblock %}

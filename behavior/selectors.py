@@ -352,3 +352,29 @@ def daily_report(school, user, params) -> dict[str, Any]:
         "wing_options": wing_options,
         "grade_options": list(ClassGroup.GRADES),
     }
+
+
+# ── إجراءاتُ المخالفات المقترحة (W-20261108-007) ─────────────────────────────
+def pending_actions(school: Any, scope: Any = None) -> Any:
+    """مخالفاتُ المدرسة التي اقتُرح لها إجراءٌ وينتظر الاعتماد — ولمشرف الجناح طلبةُ جناحه وحدَهم عبر `scope`."""
+    from behavior.models import BehaviorInfraction
+
+    qs = (
+        BehaviorInfraction.objects.filter(school=school, approval_status="pending")
+        .select_related("student", "reported_by", "violation_category", "prepared_by")
+        .order_by("-date", "-created_at")
+    )
+    return qs if scope is None else scope.narrow(qs)
+
+
+def specialist_referrals(school: Any) -> Any:
+    """الإحالاتُ المعتمَدةُ التي بلغت عتبةً تنصّ عليها السياسةُ — قائمةُ الاختصاصيّين الاجتماعيّ والنفسيّ."""
+    from behavior.models import BehaviorInfraction
+
+    return (
+        BehaviorInfraction.objects.filter(
+            school=school, approval_status="approved", proposed_specialist=True
+        )
+        .select_related("student", "violation_category", "approved_by")
+        .order_by("-approved_at")
+    )
