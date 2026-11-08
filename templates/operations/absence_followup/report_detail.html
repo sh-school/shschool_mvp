@@ -68,6 +68,31 @@
     </div>
   {% endif %}{% endsection_card %}
 
+  {% if day_lines %}
+  {% section_card "نسبةُ الغياب لكلّ يومٍ: المدرسة والمراحل" meta=day_lines|length icon="stats" flush=True %}
+    <div class="table-wrap table-wrap-scroll">
+      <table data-no-sort class="abs-stats">
+        <thead>
+          <tr>
+            <th class="fu-name">اليوم</th>
+            <th class="num">المدرسة</th>
+            {% for st in day_lines.0.stages %}<th class="num">{{ st.label }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+        {% for d in day_lines %}
+          <tr>
+            <td class="fu-name">{{ d.weekday }} {{ d.date }}</td>
+            <td class="num"><strong>{{ d.school.rate }}%</strong></td>
+            {% for st in d.stages %}<td class="num">{{ st.rate }}%</td>{% endfor %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endsection_card %}
+  {% endif %}
+
   {% section_card "نسخُ هذا التقرير" meta=revisions|length icon="document" flush=True %}
     <div class="table-wrap table-wrap-scroll">
       <table data-no-sort>

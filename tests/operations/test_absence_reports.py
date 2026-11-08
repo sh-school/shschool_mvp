@@ -116,6 +116,32 @@ def test_archive_is_open_to_followup_holders_and_closed_to_a_teacher(
         assert client_as(teacher).get(reverse(name, args=args)).status_code == 403
 
 
+def test_the_weekly_report_lists_each_day_with_school_and_stage_rates(
+    client_as, staff, school, absent_both
+):
+    spec = snaps.ReportSpec(snaps.WEEKLY, "", *snaps.week_bounds(SUNDAY))
+    snap = snaps.generate(school, spec)
+    days = snap.payload["days"]
+    assert days and days[0]["date"] == SUNDAY.isoformat()
+    assert days[0]["weekday"] == "الأحد"
+    assert days[0]["school"]["rate"] > 0
+    assert all("rate" in s for d in days for s in d["stages"])
+    page = client_as(staff["principal"]).get(reverse("absence_report_detail", args=[snap.pk]))
+    assert "نسبةُ الغياب لكلّ يومٍ" in page.content.decode()
+    # اليوميُّ لا يحمل تفصيلَ أيام
+    daily = snaps.generate(school, snaps.ReportSpec(snaps.DAILY, "", SUNDAY, SUNDAY))
+    assert daily.payload["days"] == []
+
+
+def test_the_menu_links_the_archive_only_for_those_who_can_open_it(
+    client_as, staff, teacher, school
+):
+    url = reverse("absence_reports_archive")
+    home = reverse("dashboard")
+    assert url in client_as(staff["principal"]).get(home).content.decode()
+    assert url not in client_as(teacher).get(home).content.decode()
+
+
 def test_the_recompute_button_creates_a_new_revision(client_as, staff, school, absent_both):
     snap = snaps.generate(school, snaps.ReportSpec(snaps.DAILY, "", SUNDAY, SUNDAY))
     resp = client_as(staff["principal"]).post(reverse("absence_report_recompute", args=[snap.pk]))
