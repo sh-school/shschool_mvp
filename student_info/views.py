@@ -17,6 +17,7 @@ from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.http import urlencode
 from django.views.decorators.http import require_http_methods
 
@@ -26,7 +27,7 @@ from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser
 from core.models.academic import ClassGroup
 from core.sorting import apply_sort
-from student_info import services
+from student_info import selectors, services
 from student_info.access import (
     can_read_student,
     sees_whole_school,
@@ -158,8 +159,18 @@ def section_students(request, class_id):
             "title": group.short_label,
             "subtitle": " · ".join(filter(None, [group.get_track_display(), _ltr(year)])),
             # الطالبُ بقيده الجاري: قيدٌ قديمٌ نشطٌ في هذه الشعبة لا يُظهر للمشرف
-            # طالباً صار في جناحٍ آخر.
-            "enrollments": scope.narrow(services.students_of_section(group), "student_id"),
+            # طالباً صار في جناحٍ آخر. والإشاراتُ والملخّصُ من selector واحد بعددٍ ثابتٍ من الاستعلامات.
+            **selectors.section_roster(
+                group,
+                scope.narrow(services.students_of_section(group), "student_id"),
+                school,
+                timezone.localdate(),
+                year,
+                q=request.GET.get("q", ""),
+                flag=request.GET.get("flag", ""),
+            ),
+            "q": request.GET.get("q", ""),
+            "flag": request.GET.get("flag", ""),
             "year": year,
         },
     )
