@@ -43,29 +43,35 @@
   {% endif %}
 
   {% section_card "طلاب الشعبة" meta=enrollments|length icon="students" flush=True empty="لا طلاب مسجَّلين في هذه الشعبة" %}{% if total %}
-    <div class="table-wrap table-wrap-scroll">
+    {# عمودٌ مستقلٌّ لكل إشارة؛ والتوسيطُ مركزيٌّ من .tbl-cols عدا عمود الاسم (.fu-name). الخليّةُ بلا إشارة «–» خافتة. #}
+    <div class="table-wrap table-wrap-scroll tbl-cols">
       <table>
         <thead>
           <tr>
-            <th>الطالب</th>
-            <th>إشارات</th>
+            <th class="fu-name">الطالب</th>
+            <th>حضور اليوم</th>
+            <th>الغياب مقابل العتبة</th>
+            <th>حالة القيد</th>
+            <th>بندٌ مفتوح</th>
             <th class="col-actions">الملفّ</th>
           </tr>
         </thead>
         <tbody>
           {% for e, s in rows %}
           <tr>
-            <td>
+            <td class="fu-name">
               <a href="{% url 'student_info:student_file' e.student_id %}?year={{ year }}" class="font-semibold text-maroon hover:underline">{{ e.student.full_name }}</a>
             </td>
-            {# قاعدةُ الاستثناء: الخليّةُ فارغةٌ إلا عند إشارة. #}
-            <td><div class="sec-signals">{% if s.attendance == "absent" %}<span class="badge badge--danger">غائب</span>{% elif s.late %}<span class="badge badge--info">حاضر (منهم متأخر)</span>{% elif s.attendance == "unrecorded" and recorded_any %}<span class="sec-muted">غير مرصود</span>{% endif %}{% if s.gate %}<span class="badge badge--warning" title="غياب بلا عذر: {{ s.absence_days }} أيام، والعتبةُ {{ s.gate.max_days }}">{{ s.absence_days }} من {{ s.gate.max_days }} أيام</span>{% elif s.gate_exceeded %}<span class="badge badge--danger" title="غياب بلا عذر: {{ s.absence_days }} أيام">تجاوز عتبة الغياب</span>{% endif %}{% if s.enrollment == "new" %}<span class="badge badge--info">قيد جديد</span>{% elif s.enrollment == "transferred" %}<span class="badge badge--info">منقول</span>{% endif %}{% if s.has_open_item %}<span class="sec-dot" role="img" aria-label="بندٌ مفتوح" title="بندٌ مفتوح"></span>{% endif %}</div></td>
+            <td>{% if s.attendance == "absent" %}<span class="badge badge--danger">غائب</span>{% elif s.late %}<span class="badge badge--info">حاضر (متأخر)</span>{% elif s.attendance == "present" %}<span class="badge badge--success">حاضر</span>{% elif recorded_any %}<span class="sec-muted">غير مرصود</span>{% else %}<span class="sec-muted" aria-label="لا إشارة">–</span>{% endif %}</td>
+            <td>{% if s.gate %}<span class="badge badge--warning" title="غياب بلا عذر: {{ s.absence_days }} أيام، والعتبةُ {{ s.gate.max_days }}">{{ s.absence_days }} من {{ s.gate.max_days }} أيام</span>{% elif s.gate_exceeded %}<span class="badge badge--danger" title="غياب بلا عذر: {{ s.absence_days }} أيام">تجاوز عتبة الغياب ({{ s.absence_days }})</span>{% elif s.absence_days %}<span>{{ s.absence_days }} أيام</span>{% else %}<span class="sec-muted" aria-label="لا إشارة">–</span>{% endif %}</td>
+            <td>{% if s.enrollment == "new" %}<span class="badge badge--info">قيد جديد</span>{% elif s.enrollment == "transferred" %}<span class="badge badge--info">منقول</span>{% else %}<span class="sec-muted" aria-label="لا إشارة">–</span>{% endif %}</td>
+            <td>{% if s.has_open_item %}<span class="badge badge--warning">حالة سلوك مفتوحة</span>{% else %}<span class="sec-muted" aria-label="لا إشارة">–</span>{% endif %}</td>
             <td class="col-actions">
               <a href="{% url 'student_info:student_file' e.student_id %}?year={{ year }}" class="btn-secondary btn-xs">فتح الملفّ</a>
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="3" class="sec-muted">لا طلاب يطابقون البحث أو التصفية.</td></tr>
+          <tr><td colspan="6"class="sec-muted">لا طلاب يطابقون البحث أو التصفية.</td></tr>
           {% endfor %}
         </tbody>
       </table>
