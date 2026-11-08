@@ -1575,7 +1575,18 @@ body:has(.rm-page) .site-footer { flex: none; }
    عتبةُ الوضع **واحدةٌ هنا**: استعلامُ الوسائط الوحيدُ أدناه يضبط `--cg-narrow` وJS يقرؤه (`class-grid.js`) فلا يختلف العرضُ عن السلوك.
    الهاتفُ العموديُّ ≤640px، والهاتفُ الأفقيُّ (مؤشّرٌ باللمس حتى 900px) — وكان الأفقيُّ يعرض تسعةَ أعمدةٍ بأهدافٍ صغيرة.
    الحاسوبُ بلا تغيير (D-240م): الورقةُ تُرسم فيه مضمَّنةً داخل خليّة الإجراءات كما كانت. */
-.cg-acts__open, .cg-sheet__head, .cg-keybar { display: none; }
+.cg-acts__open, .cg-sheet__head, .cg-keytop, .cg-savebar { display: none; }
+/* صفُّ العدّاد الثابتُ تحت رؤوس الحصص (W-20261108-001): يلصق بعد ارتفاع الصفّ الأوّل (يقيسه JS في `--cg-head-h`)؛ والحفظُ في التذييل اللاصق أسفلَ الجدول. */
+.cg-table thead .cg-summary > * { position: sticky; inset-block-start: var(--cg-head-h, 4.5rem); z-index: 3; background: var(--surface); color: var(--text-primary); border-block-end: 2px solid var(--maroon); font-weight: 400; }
+.cg-counts { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 var(--sp-2); margin-block-end: var(--sp-1); font-size: var(--text-xs); }
+.cg-count b { font-weight: 800; }
+.cg-count--present { color: var(--status-success-fg); }
+.cg-count--absent { color: var(--status-danger-fg); }
+.cg-count--late { color: var(--status-warning-fg); }
+.cg-count--none { color: var(--text-muted); }
+.cg-count--unsaved { color: var(--status-warning-fg); background: var(--status-warning-bg); padding-inline: var(--sp-1); border-radius: var(--radius-md); font-weight: 800; }
+.cg-count[hidden] { display: none; }
+.cg-savebtn { inline-size: 100%; }
 .cg-sheet:not([open]) { display: contents; }
 .cg-sheet { border: 0; padding: 0; background: transparent; color: inherit; max-inline-size: none; max-block-size: none; inline-size: auto; overflow: visible; }
 [data-tabs][hidden] { display: none; }
@@ -1585,7 +1596,7 @@ body:has(.rm-page) .site-footer { flex: none; }
   /* الصفحةُ هي التي تتمرّر (لا تمريرَ داخليٌّ متداخل): فتُرفع قيودُ القصّ عن الحاويات حتى يلصق التبويبُ بأعلى الشاشة. */
   .exec-dash:has(.cg-table), .ui-section:has(.cg-table) { overflow: visible; }
   .cg-wrap { overflow: visible; max-block-size: none; min-block-size: 0; }
-  [data-class-grid]:has(.cg-keybar) { padding-block-end: calc(var(--control-h) + var(--sp-6)); }
+  [data-class-grid]:has(.cg-savebar) { padding-block-end: calc(var(--control-h) + var(--sp-6)); }
   /* التبويب: حصّةٌ واحدةٌ ظاهرةٌ ويلصق تحت شريط الموقع؛ العمودُ الظاهرُ يسمّيه التبويب فيُستغنى عن ترويسة الجدول (ارتفاعٌ لصفوفٍ أكثر). */
   [data-tabs] { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--sp-1); position: sticky; inset-block-start: var(--cg-chrome-top); z-index: 3; padding-block: 0; background: var(--surface); border-block-end: 1px solid var(--border); }
   [data-tabs] > * { min-inline-size: 0; min-block-size: var(--control-h); padding-inline: 0; }
@@ -1608,9 +1619,15 @@ body:has(.rm-page) .site-footer { flex: none; }
   .cg-sheet .cg-acts__box { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
   .cg-sheet .cg-acts__box > * { min-block-size: var(--control-h); inline-size: 100%; max-inline-size: none; display: inline-flex; align-items: center; justify-content: center; font-size: var(--text-base); }
   .cg-sheet .cg-acts__out { grid-column: 1 / -1; }
-  /* شريطُ المفاتيح: ثابتٌ فوق شريط التنقّل السفليّ (إن وُجد) بتسميات كاملة. */
-  .cg-keybar { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: var(--sp-2); position: fixed; inset-inline: 0; inset-block-end: var(--cg-dock); z-index: var(--z-dropdown); padding: var(--sp-0-5) var(--sp-3) calc(var(--sp-0-5) + var(--safe-bottom)); background: var(--surface); border-block-start: 2px solid var(--maroon); box-shadow: var(--shadow-modal); }
-  .cg-keybar > * { min-inline-size: 0; min-block-size: var(--control-h); padding-inline: var(--sp-1); }
+  /* المفاتيحُ أعلى الصفحة: العدّادُ ثمّ «الكلُّ حاضر/غائب» (و«تراجع» عند ظهوره)، لاصقةً تحت التبويب بتسميات كاملة. */
+  .cg-keytop { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-1) var(--sp-2); position: sticky; inset-block-start: calc(var(--cg-chrome-top) + var(--control-h)); z-index: 3; padding: var(--sp-1) var(--sp-3); background: var(--surface); border-block-end: 1px solid var(--border); }
+  .cg-keytop > .cg-counts { grid-column: 1 / -1; margin: 0; }
+  .cg-keytop > button { min-inline-size: 0; min-block-size: var(--control-h); padding-inline: var(--sp-1); }
+  .cg-keytop > [data-undo] { grid-column: 1 / -1; }
+  /* الحفظُ أسفل الصفحة: ثابتٌ فوق شريط التنقّل السفليّ (إن وُجد). */
+  .cg-savebar { display: block; position: fixed; inset-inline: 0; inset-block-end: var(--cg-dock); z-index: var(--z-dropdown); padding: var(--sp-0-5) var(--sp-3) calc(var(--sp-0-5) + var(--safe-bottom)); background: var(--surface); border-block-start: 2px solid var(--maroon); box-shadow: var(--shadow-modal); }
+  .cg-savebar > * { inline-size: 100%; min-block-size: var(--control-h); }
+  .cg-keytop [hidden] { display: none; }
 }
 /* الهاتفُ العموديُّ فيه شريطُ تنقّلٍ سفليّ ثابت: يرتفع الشريطُ فوقه. */
 @media (max-width: 640px) {
