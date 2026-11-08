@@ -196,7 +196,7 @@ def test_a_section_outside_the_wing_is_404(client, supervisor, klass, other_klas
 
     assert outside.status_code == 404
     assert response.status_code == 200
-    assert [e.student_id for e in response.context["enrollments"]] == [mine.id]
+    assert [r.enrollment.student_id for r in response.context["rows"]] == [mine.id]
 
 
 def test_a_teacher_outside_his_classes_is_still_redirected(client, teacher_user, klass):
@@ -217,7 +217,7 @@ def test_a_student_moved_to_another_wing_leaves_the_old_section_list(
     section = _get(client, supervisor, "student_info:section_students", klass.id)
     file_page = _get(client, supervisor, "student_info:student_file", mine.id)
 
-    assert list(section.context["enrollments"]) == []
+    assert list(section.context["rows"]) == []
     assert file_page.status_code == 404
 
 

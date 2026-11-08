@@ -26,7 +26,7 @@ from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser
 from core.models.academic import ClassGroup
 from core.sorting import apply_sort
-from student_info import services
+from student_info import selectors, services
 from student_info.access import (
     can_read_student,
     sees_whole_school,
@@ -150,6 +150,14 @@ def section_students(request, class_id):
     visible = visible_class_groups(request.user, school, year, scope=scope)
     if group.id not in {g.id for g in visible}:
         return _no_access(request, "هذه الشعبة خارج نطاقك.")
+    # الطالبُ بقيده الجاري: قيدٌ قديمٌ نشطٌ في هذه الشعبة لا يُظهر للمشرف
+    # طالباً صار في جناحٍ آخر.
+    enrollments = scope.narrow(services.students_of_section(group), "student_id")
+    signals = selectors.section_signals(group, enrollments, scope)
+    counts = selectors.summary_counts(signals)
+    flt = request.GET.get("f", "")
+    flt = flt if flt in selectors.FILTERS else ""
+    query = request.GET.get("q", "")[:80]
     return render(
         request,
         "student_info/section_students.html",
@@ -157,9 +165,13 @@ def section_students(request, class_id):
             "group": group,
             "title": group.short_label,
             "subtitle": " · ".join(filter(None, [group.get_track_display(), _ltr(year)])),
-            # الطالبُ بقيده الجاري: قيدٌ قديمٌ نشطٌ في هذه الشعبة لا يُظهر للمشرف
-            # طالباً صار في جناحٍ آخر.
-            "enrollments": scope.narrow(services.students_of_section(group), "student_id"),
+            "rows": selectors.narrow_signals(signals, query, flt),
+            "total": len(signals),
+            "counts": counts,
+            "today_line": selectors.today_line(counts),
+            "legal_source": selectors.LEGAL_SOURCE,
+            "q": query,
+            "f": flt,
             "year": year,
         },
     )

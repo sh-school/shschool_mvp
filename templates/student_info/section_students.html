@@ -17,25 +17,59 @@
     <a href="{% url 'student_info:sections' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "refresh" %} كل الشُّعب</a>
   {% endpage_header %}
 
-  {% section_card "طلاب الشعبة" meta=enrollments|length icon="students" flush=True empty="لا طلاب مسجَّلين في هذه الشعبة" %}{% if enrollments %}
+  {# شريطُ الملخّص: ما صفرُه لا يظهر؛ والنقرُ يصفّي الجدول (?f=). #}
+  {% url 'student_info:section_students' group.id as base_url %}
+  {% if counts.absent or counts.near or counts.open %}
+  {% kpi_strip label="ملخّص إشارات الشعبة" %}
+    {% if counts.absent %}{% kpi "غائب اليوم" counts.absent tone="red" href=base_url|add:"?year="|add:year|add:"&f=absent" %}{% endif %}
+    {% if counts.near %}{% kpi "قرب العتبة" counts.near tone="amber" sub="غياب بلا عذر" title=legal_source href=base_url|add:"?year="|add:year|add:"&f=near" %}{% endif %}
+    {% if counts.open %}{% kpi "بندٌ مفتوح" counts.open tone="blue" sub="تعهّد أو إحالة أو حالة سلوك" href=base_url|add:"?year="|add:year|add:"&f=open" %}{% endif %}
+  {% endkpi_strip %}
+  {% endif %}
+
+  {% filter_bar label="بحث في طلاب الشعبة" %}
+    <input type="hidden" name="year" value="{{ year }}">
+    <input type="hidden" name="f" value="{{ f }}">
+    {% field "q" "بحث بالاسم" value=q placeholder="اسم الطالب" grow=True %}
+    <button type="submit" class="btn-secondary btn-sm">بحث</button>
+    {% if q or f %}<a href="{% url 'student_info:section_students' group.id %}?year={{ year }}" class="btn-secondary btn-sm">إلغاء التصفية</a>{% endif %}
+  {% endfilter_bar %}
+
+  {% section_card "طلاب الشعبة" meta=today_line|default:total icon="students" flush=True empty="لا طلاب مطابقين" %}{% if rows %}
     <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>
             <th>الطالب</th>
+            <th>إشارات</th>
             <th class="col-actions">الملفّ</th>
           </tr>
         </thead>
         <tbody>
-          {% for e in enrollments %}
+          {% for r in rows %}
+          {% with e=r.enrollment %}
           <tr>
             <td>
               <a href="{% url 'student_info:student_file' e.student_id %}?year={{ year }}" class="font-semibold text-maroon hover:underline">{{ e.student.full_name }}</a>
+            </td>
+            <td>
+              {% if r.has_signal %}
+              <span class="sec-sig">
+                {% if r.today == "absent" %}<span class="status-badge status-danger">غائب</span>{% endif %}
+                {% if r.today == "late" %}<span class="status-badge status-warning">حاضر · متأخر</span>{% endif %}
+                {% if r.today == "unrecorded" %}<span class="status-badge status-gray">غير مرصود</span>{% endif %}
+                {% if r.near %}<span class="status-badge status-warning" title="{{ legal_source }}">قرب العتبة · غاب {{ r.near.days }} من {{ r.near.max }} أيام</span>{% endif %}
+                {% if r.new %}<span class="status-badge status-info">قيد جديد</span>{% endif %}
+                {% if r.transferred %}<span class="status-badge status-gray">منقول</span>{% endif %}
+                {% if r.open_item %}<span class="status-dot sec-sig__open" role="img" aria-label="بندٌ مفتوح" title="بندٌ مفتوح"></span>{% endif %}
+              </span>
+              {% endif %}
             </td>
             <td class="col-actions">
               <a href="{% url 'student_info:student_file' e.student_id %}?year={{ year }}" class="btn-secondary btn-xs">فتح الملفّ</a>
             </td>
           </tr>
+          {% endwith %}
           {% endfor %}
         </tbody>
       </table>

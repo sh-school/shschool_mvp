@@ -1687,6 +1687,12 @@ body:has(.rm-page) .site-footer { flex: none; }
   .survey-choices > label { display: inline-flex; align-items: center; gap: var(--sp-1); min-block-size: var(--control-h); }
 }
 
+/* ── إشاراتُ صفحة طلاب الشعبة (W-20261108-009): شاراتٌ تلتفّ، ونقطةُ البند المفتوح بلا نصّ ── */
+@layer modules {
+  .sec-sig { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1-5); }
+  .sec-sig__open { background: var(--status-warning); }
+}
+
 /* ── إحصاءُ الغياب بالطلبة (W-20261020-005): السطرُ الفرعيّ (شعبة أو مرحلة داخل جناح) أخفُّ وأقلُّ بروزاً ── */
 @layer modules {
   .abs-stats .abs-stats__sub > td { color: var(--text-secondary); font-size: var(--text-sm); }
