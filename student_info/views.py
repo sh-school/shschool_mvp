@@ -26,7 +26,7 @@ from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser
 from core.models.academic import ClassGroup
 from core.sorting import apply_sort
-from student_info import services
+from student_info import roster_selectors, services
 from student_info.access import (
     can_read_student,
     sees_whole_school,
@@ -157,10 +157,8 @@ def section_students(request, class_id):
             "group": group,
             "title": group.short_label,
             "subtitle": " · ".join(filter(None, [group.get_track_display(), _ltr(year)])),
-            # الطالبُ بقيده الجاري: قيدٌ قديمٌ نشطٌ في هذه الشعبة لا يُظهر للمشرف
-            # طالباً صار في جناحٍ آخر.
-            "enrollments": scope.narrow(services.students_of_section(group), "student_id"),
             "year": year,
+            **roster_selectors.page_context(scope, group, school, year, request.GET),
         },
     )
 

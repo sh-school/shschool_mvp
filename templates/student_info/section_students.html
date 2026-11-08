@@ -17,29 +17,54 @@
     <a href="{% url 'student_info:sections' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "refresh" %} كل الشُّعب</a>
   {% endpage_header %}
 
-  {% section_card "طلاب الشعبة" meta=enrollments|length icon="students" flush=True empty="لا طلاب مسجَّلين في هذه الشعبة" %}{% if enrollments %}
+  {# شريطُ الملخّص: أعدادُ الإشارات من القائمة الكاملة، والضغطُ يصفّي في الخادم ويحفظ البحث. #}
+  <nav class="filter-bar" aria-label="ملخّص إشارات الشعبة">
+    <a href="?year={{ year|urlencode }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}" class="btn-secondary btn-sm"{% if not active_filter %} aria-current="true"{% endif %}>الكل <span class="status-badge status-gray">{{ total }}</span></a>
+    <a href="?year={{ year|urlencode }}&amp;filter=absent{% if q %}&amp;q={{ q|urlencode }}{% endif %}" class="btn-secondary btn-sm"{% if active_filter == "absent" %} aria-current="true"{% endif %}>غائب اليوم <span class="status-badge status-danger">{{ counts.absent }}</span></a>
+    <a href="?year={{ year|urlencode }}&amp;filter=near{% if q %}&amp;q={{ q|urlencode }}{% endif %}" class="btn-secondary btn-sm"{% if active_filter == "near" %} aria-current="true"{% endif %}>قرب العتبة <span class="status-badge status-warning">{{ counts.near }}</span></a>
+    <a href="?year={{ year|urlencode }}&amp;filter=open{% if q %}&amp;q={{ q|urlencode }}{% endif %}" class="btn-secondary btn-sm"{% if active_filter == "open" %} aria-current="true"{% endif %}>بندٌ مفتوح <span class="status-badge status-warning">{{ counts.open }}</span></a>
+  </nav>
+  {% filter_bar "بحث بالاسم في طلاب الشعبة" %}
+    <input type="hidden" name="year" value="{{ year }}">
+    {% if active_filter %}<input type="hidden" name="filter" value="{{ active_filter }}">{% endif %}
+    <input type="search" name="q" value="{{ q }}" placeholder="ابحث بالاسم" aria-label="ابحث بالاسم">
+    <button type="submit" class="btn-secondary btn-sm">بحث</button>
+  {% endfilter_bar %}
+
+  {% section_card "طلاب الشعبة" meta=rows|length icon="students" flush=True empty="لا طلاب مطابقين في هذه الشعبة" %}{% if rows %}
     <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>
           <tr>
             <th>الطالب</th>
+            <th>حضور اليوم</th>
+            <th>الغياب مقابل العتبة</th>
+            <th>حالة القيد</th>
+            <th>بندٌ مفتوح</th>
             <th class="col-actions">الملفّ</th>
           </tr>
         </thead>
         <tbody>
-          {% for e in enrollments %}
+          {% for row in rows %}
+          {% with e=row.enrollment %}
           <tr>
-            <td>
+            <td class="cell-name">
               <a href="{% url 'student_info:student_file' e.student_id %}?year={{ year }}" class="font-semibold text-maroon hover:underline">{{ e.student.full_name }}</a>
             </td>
+            <td><span class="status-badge status-{{ row.today.2 }}">{{ row.today.1 }}</span></td>
+            <td>{% if row.absence_text %}<span class="status-badge status-{{ row.absence_tone }}">{{ row.absence_text }}</span>{% else %}<span class="ui-meta" aria-label="لا إشارة">–</span>{% endif %}</td>
+            <td>{% if row.enrollment_status %}<span class="status-badge status-{{ row.enrollment_status.1 }}">{{ row.enrollment_status.0 }}</span>{% else %}<span class="ui-meta" aria-label="لا إشارة">–</span>{% endif %}</td>
+            <td>{% if row.open_item %}<span class="status-badge status-{{ row.open_item.1 }}">{{ row.open_item.0 }}</span>{% else %}<span class="ui-meta" aria-label="لا إشارة">–</span>{% endif %}</td>
             <td class="col-actions">
               <a href="{% url 'student_info:student_file' e.student_id %}?year={{ year }}" class="btn-secondary btn-xs">فتح الملفّ</a>
             </td>
           </tr>
+          {% endwith %}
           {% endfor %}
         </tbody>
       </table>
     </div>
+    <p class="ui-meta">العتبة بحسب {{ threshold_source }}؛ المتأخّرُ يُحتسب حاضراً.</p>
   {% endif %}{% endsection_card %}
 </div>
 {% endblock %}
