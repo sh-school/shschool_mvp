@@ -93,6 +93,8 @@ def test_empty_stock_is_not_alerted(school, nurse_user):
     assert supplies.alert_nurses(school, TODAY) == 0
 
 
+# الشاشةُ تقرأ «اليوم» من الساعة؛ فتُثبَّت على TODAY كي لا تتقادم حالةُ الصنف (45 يوماً ← «60») بمرور الأيام.
+@pytest.mark.pin_clock(dt.datetime(2026, 10, 25, 9, 0, tzinfo=dt.UTC))
 @pytest.mark.django_db
 def test_screen_is_nurse_only_and_lists_state_text(school, nurse_user, teacher_user):
     _item(school, "كمّامات", 45)

@@ -11,7 +11,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import CharField, Count, Exists, F, Func, OuterRef, Q, Subquery, Value
+from django.db.models import Count, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -56,8 +56,8 @@ from core.models.audit import AuditLog
 from core.models.user import CustomUser
 from core.pdf_utils import content_disposition, render_pdf
 from core.photo_privacy import clean_photo
-from core.privacy import mask_national_id, may_search_id_partially, national_id_search_q
-from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
+from core.privacy import mask_national_id, may_search_id_partially
+from core.sorting import apply_sort
 from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing
 from operations.absence_standing import standing_for
@@ -67,11 +67,11 @@ from operations.tardiness import tardiness_now
 from wings.scope import student_scope_for
 
 from .coordinator_selectors import coordinator_panels
+from .list_selectors import STUDENT_SORTS, list_status, student_list_queryset
 from .models import StudentActivity, StudentTransfer
 from .selectors import (
     attach_guardian_phones,
     early_attendance_counts,
-    guardian_ids_by_phone,
     student_register,
 )
 from .transfer_decision import detail_flags, may_decide
@@ -222,16 +222,6 @@ UNRESOLVED_KPI = ((10, "red"), (1, "orange"), (None, "green"))
 #: صفحةُ السجلّ — كصفحة سجلّ الكادر، فلا يختلف إيقاعُ الشاشتين على قارئهما.
 STUDENT_PAGE_SIZE = 50
 
-#: مفاتيحُ الفرز المصرَّحة. و`?sort=` نصٌّ من المستخدم فلا يبلغ `order_by`
-#: إلّا عبر هذه القائمة. وكلُّها تنتهي بالاسم فاصلاً يقطع التساوي.
-STUDENT_SORTS = {
-    "name": ("name_key",),
-    "national": ("national_key", "name_key"),
-    # الصفُّ والشعبةُ عمودٌ واحدٌ يُعرض، فمفتاحُهما واحدٌ يُفرَز.
-    "class": ("grade_key", "section_key", "name_key"),
-    "guardian": ("guardian_key", "name_key"),
-}
-
 
 @login_required
 # قائمةٌ تُقرأ ولا تُكتب — فحارسُها `VIEW` لا `MANAGE`. والمجموعتان مفصولتان
@@ -250,149 +240,13 @@ def student_list(request):
     scope = student_scope_for(request)
     year = _year_in_scope(request, scope)
 
-    # ── الاستعلام الأساسي: طلاب فعّالون في المدرسة — أو في الجناح ──
-    students = scope.narrow(
-        Membership.objects.filter(
-            school=school,
-            role__name="student",
-            is_active=True,
-        )
-        .select_related("user", "user__profile")
-        .order_by("user__full_name"),
-        "user_id",
-    )
-
-    # ── الفلاتر ──
+    # المحدِّدُ الواحدُ للشاشة والتصدير (`list_selectors`): النطاقُ ثمّ الفلترُ كاملاً قبل الفرز والترقيم.
+    students = student_list_queryset(request.user, school, scope, year, request.GET)
     q = request.GET.get("q", "").strip()
     grade_filter = request.GET.get("grade", "")
     section_filter = request.GET.get("section", "")
     parent_status = request.GET.get("parent_status", "")
-
-    if grade_filter:
-        # ✅ subquery مباشر — لا تحميل IDs إلى Python
-        grade_enrollment_exists = Exists(
-            scope.narrow_classes(
-                StudentEnrollment.objects.filter(
-                    class_group__school=school,
-                    class_group__academic_year=year,
-                    class_group__grade=grade_filter,
-                    is_active=True,
-                    student_id=OuterRef("user_id"),
-                )
-            )
-        )
-        students = students.filter(grade_enrollment_exists)
-
-    if section_filter:
-        section_enrollment_exists = Exists(
-            scope.narrow_classes(
-                StudentEnrollment.objects.filter(
-                    class_group__school=school,
-                    class_group__academic_year=year,
-                    class_group__section=section_filter,
-                    is_active=True,
-                    student_id=OuterRef("user_id"),
-                )
-            )
-        )
-        students = students.filter(section_enrollment_exists)
-
-    if parent_status:
-        # ✅ Exists subquery بدل Python set arithmetic — O(1) ذاكرة
-        parent_link_exists = Exists(
-            ParentStudentLink.objects.filter(school=school, student_id=OuterRef("user_id"))
-        )
-        if parent_status == "linked":
-            students = students.annotate(_has_parent=parent_link_exists).filter(_has_parent=True)
-        elif parent_status == "unlinked":
-            students = students.annotate(_has_parent=parent_link_exists).filter(_has_parent=False)
-
-    # ── المقيَّدُ أوّلاً، ومن أُغلق قيدُه لا يسقط بل يُرشَّح ──────────────
-    #
-    # العضويّةُ تقول «هذا طالبُ المدرسة» والقيدُ يقول «هذا صفُّه هذا العام»،
-    # وهما شيئان: من نُقل هذا الصيفَ أُغلق قيدُه وبقيت عضويّتُه. فكان السجلُّ
-    # يعدّهما واحداً ويقول «881 طالباً مسجّلاً» لمدرسةٍ سجلُّ قيدها 735 —
-    # ويخالف الكشفَ الوزاريَّ في رقمٍ يُقرأ في أوّل الشاشة.
-    #
-    # فالافتراضُ المقيَّدون، ومن لا قيدَ له يُرى بترشيحٍ صريحٍ لا يضيع.
-    # والمقيَّدُ بجناحه لا يرى إلّا المقيَّدين: طالبٌ بلا قيدٍ نشطٍ لا جناحَ له،
-    # فـ`all` و`unenrolled` لا تفتحان له المدرسة.
-    status = "enrolled" if scope.is_wing_bound else (request.GET.get("status") or "enrolled")
-    is_enrolled = Exists(
-        StudentEnrollment.objects.filter(
-            student_id=OuterRef("user_id"),
-            class_group__school=school,
-            class_group__academic_year=year,
-            is_active=True,
-        )
-    )
-    if status == "enrolled":
-        students = students.filter(is_enrolled)
-    elif status == "unenrolled":
-        students = students.exclude(is_enrolled)
-
-    # ── الصفُّ والشعبةُ صفتا قيدٍ لا صفتا شخص، والتصفّحُ على الأشخاص ──
-    #
-    # فتُجلبان بالاستعلام نفسِه ليصحّ الفرزُ بهما على السجلّ كلِّه لا على
-    # الصفحة الظاهرة. وكان الفرزُ في المتصفّح على مئتين مقطوعةٍ من سبعمئةٍ
-    # وخمسٍ وثلاثين — يُوهم القارئَ أنّه رأى الأوّلَ وهو أوّلُ صفحةٍ واحدة.
-    enrolment = scope.narrow_classes(
-        StudentEnrollment.objects.filter(
-            student_id=OuterRef("user_id"),
-            class_group__academic_year=year,
-            is_active=True,
-        )
-    ).order_by("-class_group__academic_year", "-enrolled_at")
-    guardian = ParentStudentLink.objects.filter(
-        student_id=OuterRef("user_id"), school=school
-    ).order_by("-is_primary", "created_at")
-
-    students = students.annotate(
-        grade_code=Subquery(enrolment.values("class_group__grade")[:1]),
-        section_code=Subquery(enrolment.values("class_group__section")[:1]),
-        name_key=arabic_key(F("user__full_name")),
-        national_key=blank_as_null("user__national_id"),
-        # وليُّ الأمر: الأساسيُّ أوّلاً، فإن لم يُعلَّم أحدٌ فأقدمُ ارتباط.
-        # وجوّالُه هو الفعلُ المقصودُ من هذه الشاشة — الاتّصالُ بالأسرة.
-        guardian_name=Subquery(guardian.values("parent__full_name")[:1]),
-        guardian_parent_id=Subquery(guardian.values("parent_id")[:1]),
-        guardian_relation=Subquery(guardian.values("relationship")[:1]),
-    ).annotate(
-        # «G10» نصّاً يسبق «G7»، وعدداً يليه. فيُحشى الجزءُ الرقميُّ بصفرٍ
-        # فيصير ترتيبُ الحروف ترتيبَ الأعداد — ومن لا قيدَ له يبقى عَدَماً
-        # فيسقط إلى الذيل في الاتّجاهين لا يتصدّر التنازليّ.
-        # وتُنزع الحروفُ أوّلاً: `RIGHT('G7', 2)` تلتقط الحرفَ فتُعيد «G7»،
-        # و«10» أصغرُ من «G7» في ترتيب المحارف — فيسبق العاشرُ السابع.
-        grade_key=Func(
-            Func(
-                F("grade_code"),
-                Value(r"\D"),
-                Value(""),
-                Value("g"),
-                function="REGEXP_REPLACE",
-                output_field=CharField(),
-            ),
-            Value(2),
-            Value("0"),
-            function="LPAD",
-            output_field=CharField(),
-        ),
-        section_key=blank_as_null("section_code"),
-        guardian_key=arabic_key(F("guardian_name")),
-    )
-
-    # والبحثُ يقع على الرقم **الكامل** لا على المستور: من كتب رقماً كاملاً
-    # وجد صاحبَه، وإن كان الجدولُ لا يعرض منه إلّا ذيلَه.
-    if q:
-        shaped = normalise_arabic(q)
-        students = students.filter(
-            Q(name_key__icontains=shaped)
-            | national_id_search_q("user__national_id", q, user=request.user)
-            | Q(guardian_key__icontains=shaped)
-            | Q(guardian_parent_id__in=guardian_ids_by_phone(school, q))
-            | Q(grade_code__icontains=q)
-            | Q(section_code__icontains=q)
-        )
+    status = list_status(scope, request.GET)
 
     students, sort = apply_sort(students, request, allowed=STUDENT_SORTS, default="name")
 

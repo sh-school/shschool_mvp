@@ -653,8 +653,8 @@
    "lines": 72
   },
   "student_affairs/views.py::student_list": {
-   "lines": 224,
-   "orm": 51
+   "lines": 88,
+   "orm": 11
   },
   "student_affairs/views.py::student_movements": {
    "lines": 76,
@@ -669,7 +669,7 @@
    "orm": 40
   },
   "student_affairs/views.py::student_table_partial": {
-   "orm": 51
+   "orm": 11
   },
   "student_affairs/views.py::tardiness_delete": {
    "orm": 12

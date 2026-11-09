@@ -7,6 +7,7 @@ class StudentAffairsConfig(AppConfig):
     verbose_name = "شؤون الطلاب"
 
     def ready(self):
+        from core.exports import contract
         from core.exports import registry as export_registry
 
         from . import export_builders as builders
@@ -17,6 +18,8 @@ class StudentAffairsConfig(AppConfig):
             build=builders.build_students_pdf,
             capability="student_affairs.manage",
         )
+        # قائمةُ الطلبة Excel على عقد التصدير المركزيّ: المعروضُ بعد الفلترة وبنطاق الدور (W-20261109-013).
+        contract.register_table(builders.STUDENT_LIST_TABLE)
         # تحرّكات الطلبة Excel: خلفيٌّ افتراضاً — لا قياسَ p95 مثبَّتاً بعد.
         export_registry.register(
             "student_affairs.movements_xlsx",

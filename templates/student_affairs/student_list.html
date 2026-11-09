@@ -1,6 +1,7 @@
 {% extends "base/base.html" %}
 {% load icons %}
 {% load navigation %}
+{% load static %}
 {% load ui %}
 
 {% block title %}سجل الطلاب{% endblock %}
@@ -24,7 +25,8 @@
     {% if not limited or request.user|can_open:'student_affairs:student_add' %}<a href="{% url 'student_affairs:student_add' %}" class="btn-primary btn-sm">{% icon "student_add" %} إضافة طالب</a>{% endif %}
     {% if not limited or request.user|can_open:'student_import_export' %}<a href="/core/students/import-export/" class="btn-secondary btn-sm">{% icon "export_excel" %} استيراد Excel</a>{% endif %}
     {% export_group doc="templates/student_affairs/student_list_pdf.html" %}
-    {% if not limited or request.user|can_open:'student_affairs:student_export' %}{% export_button "xlsx" "student_affairs:student_export" %}?q={{ q|urlencode }}&grade={{ grade_filter }}&section={{ section_filter }}{% endexport_button %}{% endif %}
+    {# Excel عبر عقد التصدير المركزيّ: المعروضُ بعد الفلترة وبنطاق الدور (المشرفُ المقيَّدُ يصدّر طلبةَ جناحه) #}
+    {% export_button "xlsx" "student_affairs:student_list_xlsx" id="student-list-xlsx" %}?{{ request.GET.urlencode }}{% endexport_button %}
     {% if not limited or request.user|can_open:'student_affairs:student_export' %}{% export_button "pdf" "student_affairs:student_list_pdf" %}?q={{ q|urlencode }}&grade={{ grade_filter }}&section={{ section_filter }}{% endexport_button %}{% endif %}
     {% endexport_group %}
   {% endpage_header %}
@@ -50,4 +52,8 @@
   {% include "student_affairs/_student_table.html" %}
 
 </div>
+
 {% endblock %}
+
+{# يقرأ الفلاترَ من الحقول لحظةَ نقر التصدير (الفلاتر تُرسَل بـHTMX بلا تغيير الرابط) #}
+{% block extra_js %}<script src="{% static 'js/student-list-export.js' %}" defer></script>{% endblock %}

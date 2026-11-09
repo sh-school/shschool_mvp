@@ -329,13 +329,15 @@ class TestTheRegisterIsHisWing:
     ):
         url = reverse("student_affairs:student_list")
         edit = reverse("student_affairs:student_edit", args=[wing_kid.id])
-        export = reverse("student_affairs:student_export")
+        whole_register = reverse("student_affairs:student_export")
+        # التصديرُ على عقد core/exports (W-20261109-013): المشرفُ المقيَّدُ يصدّر طلبةَ جناحه بنطاقه، لا السجلَّ كلَّه.
+        wing_export = reverse("student_affairs:student_list_xlsx")
 
         mine = client_as(supervisor).get(url).content.decode()
-        assert edit not in mine and export not in mine
+        assert edit not in mine and whole_register not in mine and wing_export in mine
 
         theirs = client_as(principal_user).get(url).content.decode()
-        assert edit in theirs and export in theirs
+        assert edit in theirs and wing_export in theirs
 
     def test_leadership_keeps_the_whole_register_and_the_year(
         self,
