@@ -16,6 +16,7 @@ from core.exports import registry
 from core.exports.runner import run_job
 from core.models import AuditLog, ExportJob
 from student_affairs.export_builders import build_students_pdf
+from student_affairs.list_selectors import rows_for
 from student_affairs.selectors import student_register
 from tests.conftest import (
     ClassGroupFactory,
@@ -249,6 +250,117 @@ class TestTheSharedSelector:
         # الجزءُ من الرقم للإدارة وحدَها (قرارُ المالك 2026-10-05)؛ وغيرُها لا يجد به أحداً.
         assert [m.user.full_name for m in by_fragment] == ["طالبُ السابع"]
         assert list(by_fragment_unprivileged) == []
+
+
+def _pdf_names(school, user, query, captured_html):
+    """أسماءُ الصفوف في PDF كما رُسمت (من HTML الملتقَط)، بترتيبها."""
+    captured_html.clear()
+    build_students_pdf(school, user, QueryDict(query))
+    html = captured_html[0]
+    found = [n for n in ("أحمد سالم", "بدر خالد", "ليلى حمد", "هند سعد") if n in html]
+    return sorted(found, key=html.index)
+
+
+class TestThePdfEqualsThePage:
+    """W-20261109-005: PDF وExcel يقرآن `rows_for` فصفوفُهما صفوفُ الصفحة، والمشرفُ لا يطبع غيرَ جناحه."""
+
+    @pytest.fixture
+    def wings(self, school, seeded_calendar):
+        from core.models.academic import Wing
+
+        mine = UserFactory(full_name="مشرف الأول", national_id="29000000011")
+        other = UserFactory(full_name="مشرف الثاني", national_id="29000000012")
+        for u in (mine, other):
+            MembershipFactory(
+                user=u, school=school, role=RoleFactory(school=school, name="admin_supervisor")
+            )
+        w1 = Wing.objects.create(
+            school=school,
+            code="w1",
+            name="ج1",
+            academic_year=seeded_calendar,
+            supervisor=mine,
+            order=1,
+        )
+        w2 = Wing.objects.create(
+            school=school,
+            code="w2",
+            name="ج2",
+            academic_year=seeded_calendar,
+            supervisor=other,
+            order=2,
+        )
+        k1 = ClassGroupFactory(
+            school=school,
+            grade="G7",
+            section="1",
+            academic_year=seeded_calendar,
+            level_type="prep",
+            wing=w1,
+        )
+        k2 = ClassGroupFactory(
+            school=school,
+            grade="G8",
+            section="2",
+            academic_year=seeded_calendar,
+            level_type="prep",
+            wing=w2,
+        )
+        _pupil(school, "أحمد سالم", "29000000021", k1)
+        _pupil(school, "بدر خالد", "29000000022", k2)
+        _pupil(school, "ليلى حمد", "29000000023", k1)
+        _pupil(school, "هند سعد", "29000000024")
+        return mine
+
+    @pytest.mark.parametrize(
+        "query", ["", "grade=G7&section=1", "status=all", "status=unenrolled", "grade=G8"]
+    )
+    def test_pdf_and_excel_rows_equal_the_page_for_a_principal(
+        self, school, principal_user, wings, captured_html, client_as, query
+    ):
+        from django.urls import reverse
+
+        page = client_as(principal_user).get(reverse("student_affairs:student_list") + "?" + query)
+        page_names = {r["full_name"] for r in page.context["students"]}
+        pdf = set(_pdf_names(school, principal_user, query, captured_html))
+        xlsx = {r["full_name"] for r in rows_for(principal_user, QueryDict(query))}
+
+        assert pdf == page_names == xlsx
+
+    def test_the_wing_supervisor_prints_only_his_wing_with_number_and_wing_order(
+        self, school, wings, captured_html
+    ):
+        names = _pdf_names(school, wings, "status=all", captured_html)
+
+        assert names == ["أحمد سالم", "ليلى حمد"], "لا طالبَ من جناحٍ آخر ولا غيرَ مقيَّد"
+        assert "بدر خالد" not in captured_html[0]
+
+    def test_the_pdf_is_wing_sorted_and_numbered(
+        self, school, principal_user, wings, captured_html
+    ):
+        names = _pdf_names(school, principal_user, "", captured_html)
+
+        # الجناح 1 (أحمد، ليلى) ثمّ الجناح 2 (بدر) — لا فرزَ بالاسم وحده.
+        assert names == ["أحمد سالم", "ليلى حمد", "بدر خالد"]
+        assert ">م<" in captured_html[0]
+
+    def test_the_pdf_honours_status_and_parent_status(
+        self, school, principal_user, wings, captured_html
+    ):
+        assert _pdf_names(school, principal_user, "status=unenrolled", captured_html) == ["هند سعد"]
+        assert _pdf_names(school, principal_user, "parent_status=linked", captured_html) == []
+
+
+def test_the_pdf_button_reads_the_fields_at_click_time():
+    """زرُّ PDF كزرّ Excel: الفلاترُ تُرسَل بـHTMX فلا يُحدَّث رابطٌ كُتب عند فتح الصفحة."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    js = (root / "static/js/student-list-export.js").read_text(encoding="utf-8")
+    html = (root / "templates/student_affairs/student_list.html").read_text(encoding="utf-8")
+
+    assert "#student-list-pdf" in js and "#student-list-xlsx" in js
+    assert 'id="student-list-pdf"' in html and "grade={{ grade_filter }}" not in html
 
 
 def test_the_builder_needs_no_request(school, principal_user, pupils, captured_html):

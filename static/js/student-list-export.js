@@ -1,6 +1,7 @@
 // الفلاتر تُرسَل بـHTMX بلا تغيير الرابط، فيُقرأ المعروضُ من الحقول لحظةَ النقر لا من رابطٍ ثابتٍ كُتب عند فتح الصفحة
+// وزرّا Excel وPDF يقرآن الحقولَ نفسَها فيخرج الملفّان بالمعروض
 document.addEventListener("click", function (event) {
-  var link = event.target.closest("#student-list-xlsx");
+  var link = event.target.closest("#student-list-xlsx, #student-list-pdf");
   if (!link) return;
   var params = new URLSearchParams();
   ["q", "status", "grade", "section", "parent_status"].forEach(function (name) {
