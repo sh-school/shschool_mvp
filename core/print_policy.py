@@ -124,6 +124,7 @@ DOCUMENTS: dict[str, PrintDocument] = {
     "templates/student_affairs/tardiness_pdf.html": PrintDocument(
         SHEET, "landscape", CONFORMS, LOGO_BASE
     ),
+    "templates/core/exports/table_pdf.html": PrintDocument(SHEET, "landscape", CONFORMS, LOGO_BASE),
     "templates/behavior/daily_report_pdf.html": PrintDocument(
         SHEET, "landscape", CONFORMS, LOGO_BASE
     ),
