@@ -9,7 +9,6 @@ import io
 
 import openpyxl
 import pytest
-from django.urls import reverse
 
 from core.excel_safety import neutralize_formula_value
 from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, UserFactory
@@ -47,10 +46,14 @@ class TestStudentExportNeutralizesRealFiles:
 
         StudentEnrollmentFactory(student=student, class_group=klass)
 
-        resp = client_as(principal_user).get(reverse("student_affairs:student_export"))
-        assert resp.status_code == 200
+        # مهمّةٌ خلفيّةٌ عبر السجلّ (W-20261109-012): الملفُّ من البنّاء نفسِه الذي يشغّله العامل.
+        from django.http import QueryDict
 
-        wb = openpyxl.load_workbook(io.BytesIO(resp.content))
+        from student_affairs.export_builders import build_student_list_xlsx
+
+        result = build_student_list_xlsx(school, principal_user, QueryDict(""))
+
+        wb = openpyxl.load_workbook(io.BytesIO(result.content))
         ws = wb.active
         # العمود الثاني هو «الاسم الكامل» (row_data[1] في العرض) — الأوّل رقمُ التسلسل
         names = [row[1].value for row in ws.iter_rows() if len(row) > 1]

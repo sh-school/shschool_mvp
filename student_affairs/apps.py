@@ -17,6 +17,12 @@ class StudentAffairsConfig(AppConfig):
             build=builders.build_students_pdf,
             capability="student_affairs.manage",
         )
+        # قائمةُ الطلبة Excel — النوعُ التجريبيّ لعقد core/exports/contract.py: المعروضُ بعد الفلتر وبنطاق الدور.
+        export_registry.register(
+            "student_affairs.students_xlsx",
+            build=builders.build_student_list_xlsx,
+            capability="student_affairs.manage",
+        )
         # تحرّكات الطلبة Excel: خلفيٌّ افتراضاً — لا قياسَ p95 مثبَّتاً بعد.
         export_registry.register(
             "student_affairs.movements_xlsx",

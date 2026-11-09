@@ -19,10 +19,12 @@ from core.export_utils import (
     get_pdf_footer_html,
     get_pdf_header_html,
 )
+from core.exports.contract import Column, table_xlsx, visible_columns
 from core.exports.registry import ExportResult
 from core.privacy import may_search_id_partially
 
 from .selectors import student_register
+from .student_list_rows import rows_for
 
 
 def build_students_pdf(school: Any, user: Any, params: Any) -> ExportResult:
@@ -139,4 +141,30 @@ def build_movements_xlsx(school: Any, user: Any, params: Any) -> ExportResult:
         generate_export_filename("student", "movements", "xlsx"),
         rows=len(events),
         full_national_id=False,
+    )
+
+
+#: أعمدةُ جدول قائمة الطلبة كما تعرضها الشاشة (مفتاحُها مفتاحُ الحقل في `rows_for` وما يخفيه `?hide=`).
+STUDENT_LIST_COLUMNS = (
+    Column("full_name", "الاسم الكامل"),
+    Column("national_id", "الرقم الشخصي"),
+    Column("class_label", "الصف/الشعبة"),
+    Column("guardian_name", "ولي الأمر"),
+    Column("guardian_phone", "جوال ولي الأمر"),
+    Column("guardian_relation", "الصلة"),
+)
+
+
+def build_student_list_xlsx(school: Any, user: Any, params: Any) -> ExportResult:
+    """قائمةُ الطلبة Excel: المعروضُ بعد الفلتر وبنطاق الدور (جناحُ المشرف) — المحدِّدُ نفسُه الذي تقرأ به الصفحة.
+
+    الرقمُ الشخصيّ مستورٌ كما في الشاشة: قائمةٌ جماعيّة لا تكشف الرقمَ كاملاً.
+    """
+    return table_xlsx(
+        user,
+        school,
+        "سجل الطلاب",
+        visible_columns(STUDENT_LIST_COLUMNS, params),
+        rows_for(user, params, school),
+        filename=generate_export_filename("students", "list", "xlsx"),
     )

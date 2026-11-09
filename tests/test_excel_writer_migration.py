@@ -239,7 +239,11 @@ class TestStudentExports:
         student = self._student(school, EVIL_AT, "99900000702")
         klass = ClassGroupFactory(school=school, academic_year=seeded_calendar)
         StudentEnrollmentFactory(student=student, class_group=klass)
-        resp = client_as(principal_user).get(reverse("student_affairs:student_export"))
-        assert resp.status_code == 200
-        book = openpyxl.load_workbook(io.BytesIO(resp.content))
+        # التصدير مهمّةٌ خلفيّةٌ عبر السجلّ (W-20261109-012): الملفُّ من البنّاء نفسِه الذي يشغّله العامل.
+        from django.http import QueryDict
+
+        from student_affairs.export_builders import build_student_list_xlsx
+
+        result = build_student_list_xlsx(school, principal_user, QueryDict(""))
+        book = openpyxl.load_workbook(io.BytesIO(result.content))
         _assert_no_live_formula(_texts(book), "SUM(1+1)")

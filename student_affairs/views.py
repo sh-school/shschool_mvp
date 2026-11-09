@@ -11,7 +11,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import CharField, Count, Exists, F, Func, OuterRef, Q, Subquery, Value
+from django.db.models import Count, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -56,8 +56,7 @@ from core.models.audit import AuditLog
 from core.models.user import CustomUser
 from core.pdf_utils import content_disposition, render_pdf
 from core.photo_privacy import clean_photo
-from core.privacy import mask_national_id, may_search_id_partially, national_id_search_q
-from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
+from core.privacy import mask_national_id
 from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing
 from operations.absence_standing import standing_for
@@ -68,12 +67,8 @@ from wings.scope import student_scope_for
 
 from .coordinator_selectors import coordinator_panels
 from .models import StudentActivity, StudentTransfer
-from .selectors import (
-    attach_guardian_phones,
-    early_attendance_counts,
-    guardian_ids_by_phone,
-    student_register,
-)
+from .selectors import attach_guardian_phones, early_attendance_counts
+from .student_list_rows import row_dicts, status_of, student_list_queryset
 from .transfer_decision import detail_flags, may_decide
 
 logger = logging.getLogger(__name__)
@@ -222,16 +217,6 @@ UNRESOLVED_KPI = ((10, "red"), (1, "orange"), (None, "green"))
 #: صفحةُ السجلّ — كصفحة سجلّ الكادر، فلا يختلف إيقاعُ الشاشتين على قارئهما.
 STUDENT_PAGE_SIZE = 50
 
-#: مفاتيحُ الفرز المصرَّحة. و`?sort=` نصٌّ من المستخدم فلا يبلغ `order_by`
-#: إلّا عبر هذه القائمة. وكلُّها تنتهي بالاسم فاصلاً يقطع التساوي.
-STUDENT_SORTS = {
-    "name": ("name_key",),
-    "national": ("national_key", "name_key"),
-    # الصفُّ والشعبةُ عمودٌ واحدٌ يُعرض، فمفتاحُهما واحدٌ يُفرَز.
-    "class": ("grade_key", "section_key", "name_key"),
-    "guardian": ("guardian_key", "name_key"),
-}
-
 
 @login_required
 # قائمةٌ تُقرأ ولا تُكتب — فحارسُها `VIEW` لا `MANAGE`. والمجموعتان مفصولتان
@@ -250,176 +235,11 @@ def student_list(request):
     scope = student_scope_for(request)
     year = _year_in_scope(request, scope)
 
-    # ── الاستعلام الأساسي: طلاب فعّالون في المدرسة — أو في الجناح ──
-    students = scope.narrow(
-        Membership.objects.filter(
-            school=school,
-            role__name="student",
-            is_active=True,
-        )
-        .select_related("user", "user__profile")
-        .order_by("user__full_name"),
-        "user_id",
-    )
-
-    # ── الفلاتر ──
-    q = request.GET.get("q", "").strip()
-    grade_filter = request.GET.get("grade", "")
-    section_filter = request.GET.get("section", "")
-    parent_status = request.GET.get("parent_status", "")
-
-    if grade_filter:
-        # ✅ subquery مباشر — لا تحميل IDs إلى Python
-        grade_enrollment_exists = Exists(
-            scope.narrow_classes(
-                StudentEnrollment.objects.filter(
-                    class_group__school=school,
-                    class_group__academic_year=year,
-                    class_group__grade=grade_filter,
-                    is_active=True,
-                    student_id=OuterRef("user_id"),
-                )
-            )
-        )
-        students = students.filter(grade_enrollment_exists)
-
-    if section_filter:
-        section_enrollment_exists = Exists(
-            scope.narrow_classes(
-                StudentEnrollment.objects.filter(
-                    class_group__school=school,
-                    class_group__academic_year=year,
-                    class_group__section=section_filter,
-                    is_active=True,
-                    student_id=OuterRef("user_id"),
-                )
-            )
-        )
-        students = students.filter(section_enrollment_exists)
-
-    if parent_status:
-        # ✅ Exists subquery بدل Python set arithmetic — O(1) ذاكرة
-        parent_link_exists = Exists(
-            ParentStudentLink.objects.filter(school=school, student_id=OuterRef("user_id"))
-        )
-        if parent_status == "linked":
-            students = students.annotate(_has_parent=parent_link_exists).filter(_has_parent=True)
-        elif parent_status == "unlinked":
-            students = students.annotate(_has_parent=parent_link_exists).filter(_has_parent=False)
-
-    # ── المقيَّدُ أوّلاً، ومن أُغلق قيدُه لا يسقط بل يُرشَّح ──────────────
-    #
-    # العضويّةُ تقول «هذا طالبُ المدرسة» والقيدُ يقول «هذا صفُّه هذا العام»،
-    # وهما شيئان: من نُقل هذا الصيفَ أُغلق قيدُه وبقيت عضويّتُه. فكان السجلُّ
-    # يعدّهما واحداً ويقول «881 طالباً مسجّلاً» لمدرسةٍ سجلُّ قيدها 735 —
-    # ويخالف الكشفَ الوزاريَّ في رقمٍ يُقرأ في أوّل الشاشة.
-    #
-    # فالافتراضُ المقيَّدون، ومن لا قيدَ له يُرى بترشيحٍ صريحٍ لا يضيع.
-    # والمقيَّدُ بجناحه لا يرى إلّا المقيَّدين: طالبٌ بلا قيدٍ نشطٍ لا جناحَ له،
-    # فـ`all` و`unenrolled` لا تفتحان له المدرسة.
-    status = "enrolled" if scope.is_wing_bound else (request.GET.get("status") or "enrolled")
-    is_enrolled = Exists(
-        StudentEnrollment.objects.filter(
-            student_id=OuterRef("user_id"),
-            class_group__school=school,
-            class_group__academic_year=year,
-            is_active=True,
-        )
-    )
-    if status == "enrolled":
-        students = students.filter(is_enrolled)
-    elif status == "unenrolled":
-        students = students.exclude(is_enrolled)
-
-    # ── الصفُّ والشعبةُ صفتا قيدٍ لا صفتا شخص، والتصفّحُ على الأشخاص ──
-    #
-    # فتُجلبان بالاستعلام نفسِه ليصحّ الفرزُ بهما على السجلّ كلِّه لا على
-    # الصفحة الظاهرة. وكان الفرزُ في المتصفّح على مئتين مقطوعةٍ من سبعمئةٍ
-    # وخمسٍ وثلاثين — يُوهم القارئَ أنّه رأى الأوّلَ وهو أوّلُ صفحةٍ واحدة.
-    enrolment = scope.narrow_classes(
-        StudentEnrollment.objects.filter(
-            student_id=OuterRef("user_id"),
-            class_group__academic_year=year,
-            is_active=True,
-        )
-    ).order_by("-class_group__academic_year", "-enrolled_at")
-    guardian = ParentStudentLink.objects.filter(
-        student_id=OuterRef("user_id"), school=school
-    ).order_by("-is_primary", "created_at")
-
-    students = students.annotate(
-        grade_code=Subquery(enrolment.values("class_group__grade")[:1]),
-        section_code=Subquery(enrolment.values("class_group__section")[:1]),
-        name_key=arabic_key(F("user__full_name")),
-        national_key=blank_as_null("user__national_id"),
-        # وليُّ الأمر: الأساسيُّ أوّلاً، فإن لم يُعلَّم أحدٌ فأقدمُ ارتباط.
-        # وجوّالُه هو الفعلُ المقصودُ من هذه الشاشة — الاتّصالُ بالأسرة.
-        guardian_name=Subquery(guardian.values("parent__full_name")[:1]),
-        guardian_parent_id=Subquery(guardian.values("parent_id")[:1]),
-        guardian_relation=Subquery(guardian.values("relationship")[:1]),
-    ).annotate(
-        # «G10» نصّاً يسبق «G7»، وعدداً يليه. فيُحشى الجزءُ الرقميُّ بصفرٍ
-        # فيصير ترتيبُ الحروف ترتيبَ الأعداد — ومن لا قيدَ له يبقى عَدَماً
-        # فيسقط إلى الذيل في الاتّجاهين لا يتصدّر التنازليّ.
-        # وتُنزع الحروفُ أوّلاً: `RIGHT('G7', 2)` تلتقط الحرفَ فتُعيد «G7»،
-        # و«10» أصغرُ من «G7» في ترتيب المحارف — فيسبق العاشرُ السابع.
-        grade_key=Func(
-            Func(
-                F("grade_code"),
-                Value(r"\D"),
-                Value(""),
-                Value("g"),
-                function="REGEXP_REPLACE",
-                output_field=CharField(),
-            ),
-            Value(2),
-            Value("0"),
-            function="LPAD",
-            output_field=CharField(),
-        ),
-        section_key=blank_as_null("section_code"),
-        guardian_key=arabic_key(F("guardian_name")),
-    )
-
-    # والبحثُ يقع على الرقم **الكامل** لا على المستور: من كتب رقماً كاملاً
-    # وجد صاحبَه، وإن كان الجدولُ لا يعرض منه إلّا ذيلَه.
-    if q:
-        shaped = normalise_arabic(q)
-        students = students.filter(
-            Q(name_key__icontains=shaped)
-            | national_id_search_q("user__national_id", q, user=request.user)
-            | Q(guardian_key__icontains=shaped)
-            | Q(guardian_parent_id__in=guardian_ids_by_phone(school, q))
-            | Q(grade_code__icontains=q)
-            | Q(section_code__icontains=q)
-        )
-
-    students, sort = apply_sort(students, request, allowed=STUDENT_SORTS, default="name")
-
+    # الاستعلامُ بالمحدِّد المشترَك مع التصدير (`student_list_rows`): النطاقُ والفلترُ والبحثُ والفرز.
+    students, sort = student_list_queryset(request.user, school, year, scope, request.GET)
     paginator = Paginator(students, STUDENT_PAGE_SIZE)
     page_obj = attach_guardian_phones(paginator.get_page(request.GET.get("page")))
-
-    # الصلةُ تُعرض بعنوانها العربيّ لا بمفتاحها المخزَّن، والقائمةُ من النموذج
-    # نفسِه فلا قاموسَ ثانٍ يتخلّف عنه.
-    relations = dict(ParentStudentLink._meta.get_field("relationship").choices)
-
-    student_rows = [
-        {
-            "id": m.user_id,
-            "full_name": m.user.full_name,
-            # آخرُ أربعِ خاناتٍ وما قبلها مستور: القارئُ يحتاج أن يميّز لا أن
-            # يعرف، والرقمُ كاملاً في ملفّ صاحبه لمن فتحه بقصد.
-            "national_id": mask_national_id(m.user.national_id),
-            # «07/2» كما تكتبه الوزارة — عمودٌ واحدٌ لا عمودان، ورقمُ الصفّ
-            # بلا حرفٍ وبخانتين، فيطابق ما في يد القارئ من كشوف.
-            "class_label": class_label(m.grade_code, m.section_code),
-            "guardian_name": m.guardian_name or "",
-            "guardian_phone": m.guardian_phone,
-            "guardian_relation": relations.get(m.guardian_relation, ""),
-            "can_sign_in": m.user.is_active and m.user.has_usable_password(),
-        }
-        for m in page_obj
-    ]
+    student_rows = row_dicts(page_obj)
 
     # ── خيارات الفلتر — من شُعب الجناح للمقيَّد ──
     groups = scope.narrow_classes(
@@ -435,7 +255,7 @@ def student_list(request):
         "total": paginator.count,
         "page_obj": page_obj,
         "sort": sort,
-        "status": status,
+        "status": status_of(scope, request.GET),
         "statuses": (
             (("enrolled", "مقيَّدون هذا العام"),)
             if scope.is_wing_bound
@@ -445,10 +265,10 @@ def student_list(request):
                 ("all", "الكلّ"),
             )
         ),
-        "q": q,
-        "grade_filter": grade_filter,
-        "section_filter": section_filter,
-        "parent_status": parent_status,
+        "q": request.GET.get("q", "").strip(),
+        "grade_filter": request.GET.get("grade", ""),
+        "section_filter": request.GET.get("section", ""),
+        "parent_status": request.GET.get("parent_status", ""),
         "grades": available_grades,
         "sections": available_sections,
         "year": year,
@@ -477,89 +297,14 @@ def student_table_partial(request):
 # ═════════════════════════════════════════════════════════════════════
 
 
-def _student_register_queryset(request):
-    """الاستعلامُ المشترَك بين تصديرَي سجلّ الطلاب — الشرحُ في `selectors.student_register`."""
-    year = academic_year_for(request)
-    students, enrollment_data = student_register(
-        request.school, year, request.GET, partial_id=may_search_id_partially(request.user)
-    )
-    return students, enrollment_data, year
-
-
 @login_required
 @capability_required("student_affairs.manage")
 def student_export_excel(request):
-    """تصدير قائمة الطلاب إلى Excel — مع هيدر وفوتر احترافي."""
-    import openpyxl
-    from openpyxl.styles import Alignment
+    """قائمةُ الطلبة Excel — المعروضُ بعد الفلتر وبنطاق الدور (`student_affairs.students_xlsx`، عقدُ `core.exports.contract`).
 
-    ctx = get_export_context(request, "سجل الطلاب")
-    students, enrollment_data, year = _student_register_queryset(request)
-
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "سجل الطلاب"
-    ws.sheet_view.rightToLeft = True
-
-    # هيدر احترافي
-    headers = ["#", "الاسم الكامل", "الرقم الشخصي", "الصف", "الشعبة", "الجوال", "البريد"]
-    num_cols = len(headers)
-    data_start = add_excel_header(ws, ctx, num_cols)
-
-    # Header row
-    table = excel_table_styles()
-    header_fill, header_font, cell_font = table.header_fill, table.header_font, table.cell_font
-    thin_border, alt_fill = table.border, table.alt_fill
-
-    for col, h in enumerate(headers, 1):
-        cell = safe_cell(ws, row=data_start, column=col, value=h)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal="center")
-        cell.border = thin_border
-
-    # الرقم الشخصيّ: مستور — سجلُّ الطلبة كشفٌ جماعيّ لا يعود بالاستيراد
-    # (قالبُ الاستيراد في `core.views_students`).
-    for i, m in enumerate(students, 1):
-        enr = enrollment_data.get(m.user_id, {})
-        row_data = [
-            i,
-            m.user.full_name,
-            mask_national_id(m.user.national_id),
-            enr.get("class_group__grade", "—"),
-            enr.get("class_group__section", "—"),
-            m.user.get_phone_decrypted() or "—",
-            m.user.email or "—",
-        ]
-        for col, val in enumerate(row_data, 1):
-            cell = safe_cell(ws, row=data_start + i, column=col, value=val)
-            cell.font = cell_font
-            cell.border = thin_border
-            if i % 2 == 0:
-                cell.fill = alt_fill
-
-    # Auto-width
-    for col_idx in range(1, num_cols + 1):
-        max_len = 0
-        for row_idx in range(data_start, data_start + students.count() + 1):
-            cell = ws.cell(row=row_idx, column=col_idx)
-            max_len = max(max_len, len(str(cell.value or "")))
-        col_letter = chr(64 + col_idx)
-        ws.column_dimensions[col_letter].width = min(max_len + 4, 40)
-
-    # فوتر احترافي
-    last_data_row = data_start + students.count()
-    add_excel_footer(ws, ctx, last_data_row, num_cols)
-
-    log_export(
-        request,
-        "student_affairs.students_xlsx",
-        rows=last_data_row - data_start,
-        full_national_id=False,
-        object_repr=f"سجل الطلاب Excel — {year}",
-    )
-    filename = generate_export_filename("students", "list", "xlsx")
-    return excel_to_response(wb, filename, school=request.school)
+    البنّاءُ في `student_affairs.export_builders` يقرأ بالمحدِّد نفسِه الذي تقرأ به `student_list`.
+    """
+    return respond_export(request, "student_affairs.students_xlsx")
 
 
 @login_required

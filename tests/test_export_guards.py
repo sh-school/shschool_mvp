@@ -34,7 +34,6 @@ SYNC_ONLY_KINDS = frozenset(
         "student_affairs.behavior_overview_pdf",
         "student_affairs.behavior_xlsx",
         "student_affairs.student_profile_pdf",
-        "student_affairs.students_xlsx",
         "student_affairs.tardiness_pdf",
         "student_affairs.tardiness_xlsx",
         # ملخّصُ الحصّتين: صفحةٌ واحدةٌ بعددٍ ثابتٍ من الصفوف (شعبٌ لا طلبة) — متزامنٌ بلا قياس p95 بعدُ؛ يُقاس ويُحوَّل إن لزم.
@@ -78,7 +77,6 @@ HEAVY_IN_VIEWS = frozenset(
         "student_affairs/views.py::attendance_overview_pdf",
         "student_affairs/views.py::behavior_export_excel",
         "student_affairs/views.py::behavior_overview_pdf",
-        "student_affairs/views.py::student_export_excel",
         "student_affairs/views.py::student_profile_pdf",
         "student_affairs/views.py::tardiness_export_excel",
         "student_affairs/views.py::tardiness_pdf",

@@ -11,7 +11,6 @@ import re
 
 import openpyxl
 import pytest
-from django.urls import reverse
 
 from core.export_utils import apply_print_footer, excel_to_response
 from core.ministry_vision import ministry_vision_text
@@ -86,9 +85,13 @@ def test_the_real_student_export_carries_the_vision_in_its_print_footer(
     MembershipFactory(user=student, school=school, role=RoleFactory(school=school, name="student"))
     StudentEnrollmentFactory(student=student, class_group=klass)
 
-    response = client_as(principal_user).get(reverse("student_affairs:student_export"))
-    assert response.status_code == 200
-    ws = openpyxl.load_workbook(io.BytesIO(response.content)).active
+    # مهمّةٌ خلفيّةٌ عبر السجلّ (W-20261109-012): الملفُّ من البنّاء نفسِه الذي يشغّله العامل.
+    from django.http import QueryDict
+
+    from student_affairs.export_builders import build_student_list_xlsx
+
+    result = build_student_list_xlsx(school, principal_user, QueryDict(""))
+    ws = openpyxl.load_workbook(io.BytesIO(result.content)).active
     text = _footer_of(ws)
     assert "\n" not in text and text.startswith(ministry_vision_text(school))
 
