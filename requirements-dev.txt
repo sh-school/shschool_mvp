@@ -7,7 +7,7 @@
 pytest==9.2.0
 pytest-cov==7.1.0
 pytest-django==4.14.0
-pytest-asyncio==1.4.1
+pytest-asyncio==1.4.1.post1
 pytest-xdist==3.8.0          # Parallel test execution across CPU cores
 pytest-testmon==2.2.0        # Incremental testing — only run tests affected by changes
 coverage==7.17.0
