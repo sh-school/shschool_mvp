@@ -19,10 +19,29 @@ from core.export_utils import (
     get_pdf_footer_html,
     get_pdf_header_html,
 )
+from core.exports.contract import Column, TableSpec
 from core.exports.registry import ExportResult
 from core.privacy import may_search_id_partially
 
+from .list_selectors import rows_for
 from .selectors import student_register
+
+#: قائمةُ الطلبة على عقد التصدير المركزيّ (W-20261109-013): الصفوفُ من محدِّد الشاشة نفسِه `rows_for`.
+STUDENT_LIST_TABLE = TableSpec(
+    kind="student_affairs.student_list_xlsx",
+    title="سجل الطلاب",
+    capability="student_affairs.view",
+    columns=(
+        Column("full_name", "الاسم الكامل"),
+        Column("national_id", "الرقم الشخصي"),
+        Column("class_label", "الصف والشعبة"),
+        Column("guardian_name", "ولي الأمر"),
+        Column("guardian_relation", "الصلة"),
+        Column("guardian_phone", "جوال ولي الأمر"),
+    ),
+    rows_for=rows_for,
+    file_module="students",
+)
 
 
 def build_students_pdf(school: Any, user: Any, params: Any) -> ExportResult:
