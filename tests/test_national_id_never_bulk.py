@@ -347,7 +347,8 @@ class TestExcelCarriesTheNumberOnlyWhereItIsMatched:
 
     def test_the_sweep_found_the_excel_functions(self):
         # W-20261109-006: سقطت دالّتان خاصّتان بترحيل الحضور والتأخر إلى العقد المركزيّ (لا رقمَ في جداولهما)
-        assert len(EXCEL_FUNCTIONS) >= 7, sorted(EXCEL_FUNCTIONS)
+        # W-20261109-007: سقطت دالّةٌ أخرى بترحيل كشف الدرجات ونتائج الصفّ إلى العقد المركزيّ (لا رقمَ في جدوليهما)
+        assert len(EXCEL_FUNCTIONS) >= 6, sorted(EXCEL_FUNCTIONS)
 
     def test_the_scanner_sees_a_planted_leak(self):
         """ضبطٌ موجب: قراءةٌ خامٌ تُلتقط، ومستورةٌ تمرّ، والاسمُ في `.values()` ليس قراءة."""

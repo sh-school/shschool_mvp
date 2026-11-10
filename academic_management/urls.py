@@ -7,7 +7,7 @@ REQ-SH-003 — 5 routes for the academic reports landing + 4 report types.
 
 from django.urls import path
 
-from . import assignment_views, views
+from . import assignment_views, views, views_exports
 
 app_name = "academic_management"
 
@@ -87,4 +87,7 @@ urlpatterns = [
         views.monthly_ba_report,
         name="monthly_ba_report",
     ),
+    # تصديرُ التقارير على العقد المركزيّ (W-20261109-007): `report` = quiz | exam-results | progress | monthly.
+    path("reports/<slug:report>/xlsx/", views_exports.report_xlsx, name="report_xlsx"),
+    path("reports/<slug:report>/pdf/", views_exports.report_pdf, name="report_pdf"),
 ]

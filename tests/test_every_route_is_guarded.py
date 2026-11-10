@@ -58,6 +58,8 @@ GUARDED_INSIDE = {
     "exports/<uuid:job_id>/": "get_object_or_404(job, school, requested_by) — صاحبُ الطلب في مدرسته وحدَه؛ والقدرةُ تُفحص في respond_export وفي العامل",
     "exports/<uuid:job_id>/status/": "get_object_or_404(job, school, requested_by) — صاحبُ الطلب في مدرسته وحدَه؛ والقدرةُ تُفحص في respond_export وفي العامل",
     "exports/<uuid:job_id>/download/": "get_object_or_404(job, school, requested_by) — صاحبُ الطلب في مدرسته وحدَه، وكلُّ جلبةٍ تُدقَّق؛ والقدرةُ تُفحص في respond_export وفي العامل",
+    "academic/reports/<slug:report>/xlsx/": "`respond_export` — قدرةُ السجلّ `academic.reports_school` تُفحص قبل أيّ قراءة، وغيرُ المخوَّل 403 (W-20261109-007)",
+    "academic/reports/<slug:report>/pdf/": "`respond_export` — قدرةُ السجلّ `academic.reports_school` تُفحص قبل أيّ قراءة، وغيرُ المخوَّل 403 (W-20261109-007)",
     "roadmap/items/new/": "developer_only — superuser أو مجموعة developers (إضافةُ بند)",
     "roadmap/items/<str:code>/": "developer_only — superuser أو مجموعة developers",
     "roadmap/decisions/<str:code>/": "developer_only — superuser أو مجموعة developers",

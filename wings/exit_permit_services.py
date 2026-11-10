@@ -161,7 +161,7 @@ def approve_permit(
 def permits_for(user: CustomUser, school: School, day: dt.date) -> list[ExitPermit]:
     """أذوناتُ اليوم ضمن نطاق المستخدم: حاملُ الجناح لأجنحته، والمعلّمُ ما طلبه."""
     qs = ExitPermit.objects.filter(school=school, exit_at__date=day).select_related(
-        "student", "class_group", "approved_by"
+        "student", "class_group__wing", "approved_by"
     )
     out = []
     for permit in qs.order_by("sequence"):

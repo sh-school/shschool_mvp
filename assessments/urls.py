@@ -8,6 +8,11 @@ urlpatterns = [
     path("setup/<uuid:setup_id>/", views.setup_detail, name="setup_detail"),
     path("setup/<uuid:setup_id>/gradebook/", views.class_gradebook, name="class_gradebook"),
     path("setup/<uuid:setup_id>/export/", views.export_gradebook, name="export_gradebook"),
+    path(
+        "setup/<uuid:setup_id>/export/pdf/",
+        views.export_gradebook_pdf,
+        name="export_gradebook_pdf",
+    ),
     path("setup/<uuid:setup_id>/recalculate/", views.recalculate_class, name="recalculate_class"),
     path("package/<uuid:package_id>/new/", views.create_assessment, name="create_assessment"),
     path("assessment/<uuid:assessment_id>/", views.grade_entry, name="grade_entry"),

@@ -14,13 +14,12 @@
       </span>
       <details class="per-exports-menu">
         <summary class="btn-secondary btn-sm">{% icon "export_pdf" %} تصدير</summary>
-        <form method="get" action="{% url 'wings:wing_register' panel.wing.code %}" class="per-exports">
-          <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
-          {% export_group doc="templates/wings/register_pdf.html" %}
-          {% export_button "xlsx" name="format" value="xlsx" %}{% endexport_button %}
-          {% export_button "pdf" name="format" value="pdf" %}{% endexport_button %}
+        <div class="per-exports">
+          {% export_group doc="templates/student_affairs/student_list_pdf.html" %}
+          {% export_button "xlsx" "wings:register_xlsx" %}?date={{ day|date:'Y-m-d' }}&wing={{ panel.wing.code|urlencode }}{% endexport_button %}
+          {% export_button "pdf" "wings:register_pdf" %}?date={{ day|date:'Y-m-d' }}&wing={{ panel.wing.code|urlencode }}{% endexport_button %}
           {% endexport_group %}
-        </form>
+        </div>
       </details>
     </div>
 

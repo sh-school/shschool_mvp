@@ -227,7 +227,7 @@ def test_the_screen_is_a_platform_page_with_filters_and_exports_not_a_print_shee
     )
 
     assert 'role="search"' in body and "ui-page-header" in body and "ui-kpis" in body
-    assert 'value="xlsx"' in body and 'value="pdf"' in body
+    assert reverse("wings:ministry_xlsx") in body and reverse("wings:ministry_pdf") in body
     assert "running-footer" not in body  # ليس قالبَ PDF
 
 

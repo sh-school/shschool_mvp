@@ -552,6 +552,20 @@ def export_gradebook(request, setup_id):
 
 
 @login_required
+@capability_required("assessments.view_results")
+def export_gradebook_pdf(request, setup_id):
+    """كشف الدرجات PDF — الجدولُ نفسُه بصفوفه نفسِها (عقدُ التصدير المركزيّ، W-20261109-007)."""
+    setup, denied = setup_for_user(request, setup_id)
+    if denied:
+        return denied
+
+    params = request.GET.copy()
+    params["setup_id"] = str(setup.pk)
+    params["semester"] = request.GET.get("semester", "S1")
+    return respond_export(request, "assessments.gradebook_pdf", params=params)
+
+
+@login_required
 @capability_required("assessments.enter_grades")
 @require_POST
 def recalculate_class(request, setup_id):
