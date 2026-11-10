@@ -360,6 +360,8 @@ def test_the_pdf_button_reads_the_fields_at_click_time():
     html = (root / "templates/student_affairs/student_list.html").read_text(encoding="utf-8")
 
     assert "#student-list-pdf" in js and "#student-list-xlsx" in js
+    # على window لا document: يسبق معالجَ مركز التصدير فلا يقرأ الرابطَ القديم (الفلترة السابقة)
+    assert 'window.addEventListener("click"' in js and "document.addEventListener" not in js
     assert 'id="student-list-pdf"' in html and "grade={{ grade_filter }}" not in html
 
 
