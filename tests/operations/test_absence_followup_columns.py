@@ -9,8 +9,10 @@ import io
 import pdfplumber
 import pytest
 from django.core.exceptions import PermissionDenied
+from django.http import QueryDict
 from django.urls import reverse
 
+from core.exports import contract
 from operations.absence_followup_print import build_followup_pdf
 from operations.models import AbsenceActionLog, AbsenceContactLog
 from operations.services import absence_followup as svc
@@ -196,7 +198,7 @@ class TestAbsentDaysColumn:
     def test_column_shows_on_screen_pdf_and_excel_and_sorts(
         self, client_as, school, klass, kids, teacher, supervisor, staff
     ):
-        from operations.absence_followup_print import _xlsx_table
+        from operations.export_tables import ACTIONS_TABLE
 
         report_day = self._seed(school, klass, kids, teacher, supervisor)
         principal = staff["principal"]
@@ -205,9 +207,9 @@ class TestAbsentDaysColumn:
         assert "أيامُ الغياب</th>" in response.content.decode()
         rows = svc.apply_view(svc.followup_rows(principal, report_day), sort="days")
         assert [r["absent_days"] for r in rows] == [2, 1]
-        titled = [dict(r, wing_title="") for r in rows]
-        _, columns, data = _xlsx_table("actions", titled, False)
-        index = [name for name, _ in columns].index("أيام الغياب")
-        assert [line[index] for line in data] == [2, 1]
+        # الملفُّ يقرأ المحدِّدَ نفسَه: عمودُ أيّام الغياب فيه بقيمة الشاشة.
+        columns, data = contract.table_rows(ACTIONS_TABLE, principal, QueryDict(f"date={iso}"))
+        index = [c.label for c in columns].index("أيام الغياب") + 1
+        assert sorted(line[index] for line in data) == [1, 2]
         result = build_followup_pdf(school, principal, {"date": iso, "page": "actions"})
         assert result.rows == 2

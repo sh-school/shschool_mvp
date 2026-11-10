@@ -20,3 +20,8 @@ class StaffAffairsConfig(AppConfig):
         from .attendance.assignments import acting_roles
 
         register_acting_roles_provider(acting_roles)
+
+        # جدولا حضور الموظفين على عقد الجداول (W-20261110-004): المحدِّدُ نفسُه للصفحة والملفّ.
+        from .export_tables import register_staff_tables
+
+        register_staff_tables()
