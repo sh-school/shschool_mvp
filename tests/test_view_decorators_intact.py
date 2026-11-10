@@ -45,7 +45,7 @@ def test_an_anonymous_visitor_is_turned_away(client, db, url_name):
 @pytest.mark.parametrize(
     "path,helper",
     [
-        ("student_affairs/views.py", "_behaviour_window"),
+        ("student_affairs/followup_selectors.py", "behavior_window"),
         ("behavior/views.py", "_behaviour_year_window"),
     ],
 )
@@ -64,7 +64,7 @@ def test_no_decorator_sits_above_a_helper(path, helper):
 def test_the_helpers_are_still_where_the_guard_looks():
     """حارسٌ يبحث عن دالّةٍ زالت يمرّ دائماً."""
     for path, helper in (
-        ("student_affairs/views.py", "_behaviour_window"),
+        ("student_affairs/followup_selectors.py", "behavior_window"),
         ("behavior/views.py", "_behaviour_year_window"),
     ):
         src = pathlib.Path(path).read_text(encoding="utf-8")

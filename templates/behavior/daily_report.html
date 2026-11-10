@@ -30,7 +30,7 @@
       </select>
       <button type="submit" class="btn-primary btn-sm">{% icon "search" %} عرض</button>
     </form>
-    {% export_group doc="templates/behavior/daily_report_pdf.html" %}
+    {% export_group doc="templates/student_affairs/student_list_pdf.html" %}
     {% export_button "xlsx" "behavior:daily_report_xlsx" %}?{{ export_query }}{% endexport_button %}
     {% export_button "pdf" "behavior:daily_report_pdf" %}?{{ export_query }}{% endexport_button %}
     {% endexport_group %}

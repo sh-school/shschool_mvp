@@ -207,8 +207,6 @@ class TestExcelRegistersMaskTheNumber:
         ("route", "kind"),
         [
             ("student_affairs:student_export", "student_affairs.students_xlsx"),
-            ("student_affairs:attendance_export", "student_affairs.attendance_xlsx"),
-            ("student_affairs:behavior_export", "student_affairs.behavior_xlsx"),
         ],
     )
     def test_a_student_affairs_register_is_masked(

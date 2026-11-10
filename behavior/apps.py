@@ -7,21 +7,13 @@ class BehaviorConfig(AppConfig):
     verbose_name = "الانضباط السلوكي والتحفيز التربوي"
 
     def ready(self):
-        from core.exports import registry as export_registry
         from core.module_registry import register_module
-        from reports import export_builders as builders
+        from reports import export_builders  # noqa: F401 — استيرادُه يسجّل PDF الإحصاء
 
-        # التقرير السلوكيّ اليوميّ PDF وExcel: خلفيّان (الافتراضيُّ الآمن — لا قياسَ p95 بعدُ)؛ بقدرة الإحصاء ونطاقها.
-        export_registry.register(
-            "behavior.daily_pdf",
-            build=builders.build_behavior_daily_pdf,
-            capability="behavior.statistics",
-        )
-        export_registry.register(
-            "behavior.daily_xlsx",
-            build=builders.build_behavior_daily_xlsx,
-            capability="behavior.statistics",
-        )
+        from .export_tables import register_behavior_tables
+
+        # التقرير اليوميّ والإحصاءاتُ وملفُّ الطالب على عقد الجداول: خلفيّةٌ (الافتراضيُّ الآمن)، بنطاق صاحب الطلب.
+        register_behavior_tables()
 
         register_module(
             name="behavior",
