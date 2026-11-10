@@ -61,6 +61,8 @@ def get_export_context_for(user: Any, title: str) -> dict[str, Any]:
 
     return {
         "school_name": school.name if school else "المدرسة",
+        # قوالبُ التقارير تقرأ `school.name` — بدونه يغيب الاسمُ تحت الشعار
+        "school": school,
         "exported_by": user.full_name,
         "exporter_role": role_ar,
         "exporter_role_code": role_code,
