@@ -92,3 +92,23 @@ def test_guard_every_path_has_school_name():
     assert 'wp-school">SchoolOS' not in wp
     assert 'ph-school">SchoolOS' not in pw
     assert 'xh-school">SchoolOS' not in xh
+
+
+def test_report_template_shows_school_name_from_export_context():
+    """القوالبُ التي يغذّيها `get_export_context_for` تمرّر `school_name` لا `school` — الاسمُ تحت الشعار لكلّ مدرسة (W-20261110-003)."""
+    from types import SimpleNamespace
+
+    from django.template.loader import render_to_string
+
+    for name in ("مدرسة الألفا النموذجية", "مدرسة بيتا النموذجية"):
+        html = render_to_string(
+            "student_affairs/student_list_pdf.html",
+            {
+                "rows": [],
+                "total_students": 0,
+                "school": SimpleNamespace(name=name),
+                "for_pdf": True,
+            },
+        )
+        header = re.search(r'class="school-name">(.*?)</div>', html, re.S)
+        assert header and header.group(1).strip() == name
