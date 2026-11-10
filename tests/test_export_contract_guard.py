@@ -33,6 +33,10 @@ REGISTERED = {
     "academic_management:report_xlsx": "academic.quiz_xlsx",
     "export_gradebook": "assessments.gradebook_xlsx",
     "class_results_excel": "reports.class_results_xlsx",
+    # W-20261110-004: حضورُ الموظفين (تقريرُ الشهر وكشفُ اليوم) ومتابعةُ الغياب (التواصلُ والإجراءات بمسارٍ واحدٍ بحسب `page`).
+    "staff_affairs:attendance_report_xlsx": "staff_affairs.attendance_month_table",
+    "staff_affairs:attendance_daily_xlsx": "staff_affairs.attendance_day_table",
+    "absence_followup_xlsx": "operations.absence_contact_xlsx",
 }
 
 _LATER = (
@@ -43,26 +47,33 @@ _SAME_TABLE = "PDF للجدول المسجَّل نفسِه: يبنيه `build_t
 _DOCUMENT = (
     "وثيقةٌ مفردةٌ لطالبٍ أو واقعة (كشفٌ/إنذارٌ/تعهّدٌ/استمارة) لا جدولٌ بصفوفٍ ومرشِّحات، فلا محدِّدَ قائمةٍ لها"
 )
+_SAME_SELECTOR = (
+    "PDF ورقةِ طباعةٍ (إطارٌ واتّجاهٌ وعناوينُ أجنحة) تقرأ صفوفَها من محدِّد الجدول المسجَّل نفسِه `shown_rows` — "
+    "المعروضُ هو المُصدَّر، وقالبُها خاصٌّ بالورقة فلا يمرّ بـ`build_table_pdf`"
+)
+_REPORT = (
+    "تقريرٌ مجمَّعٌ بالسنة (مؤشّراتٌ وخطّةٌ تشغيليّة) لا جدولٌ بصفوفٍ ومرشِّحاتٍ: الصفحةُ والملفُّ يقرآن الخدمةَ نفسَها "
+    "(`get_progress_report_data` / `KPIService.compute`) بقدرةٍ مدرسيّةٍ واحدةٍ لا يتبدّل بها المعروضُ بين الأدوار"
+)
+_SCHEDULE = "الجدولُ المعتمد خطٌّ أحمرُ لا يُمسّ (D-381م): تصديرُه خارج ترحيل العقد المركزيّ بقرار المالك"
 _BLANK = "قالبٌ فارغٌ للاستيراد (ترويسةُ أعمدةٍ بلا صفوف) لا تصديرُ بياناتٍ معروضة"
 
 EXEMPT: dict[str, str] = {
     **dict.fromkeys(
         (
             "student_export_excel",
-            "staff_affairs:attendance_report_xlsx",
-            "staff_affairs:attendance_daily_xlsx",
-            "schedule_export_excel",
-            "schedule_export_pdf",
-            "schedule_pages_pdf",
             "behavior_excel",
             "attendance_excel",
-            "absence_followup_xlsx",
-            "absence_followup_pdf",
-            "quality_report_pdf",
-            "kpi_monthly_pdf",
-            "templates/operations/absence_followup/viewer.html::href",
         ),
         _LATER,
+    ),
+    **dict.fromkeys(
+        ("absence_followup_pdf", "templates/operations/absence_followup/viewer.html::href"),
+        _SAME_SELECTOR,
+    ),
+    **dict.fromkeys(("quality_report_pdf", "kpi_monthly_pdf"), _REPORT),
+    **dict.fromkeys(
+        ("schedule_export_excel", "schedule_export_pdf", "schedule_pages_pdf"), _SCHEDULE
     ),
     **dict.fromkeys(
         (

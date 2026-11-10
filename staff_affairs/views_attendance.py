@@ -21,10 +21,11 @@ from django.views.decorators.http import require_POST
 
 from core.audit_export import log_export
 from core.capabilities import capability_required
-from core.export_utils import excel_to_response
+from core.exports.contract import TableSpec, build_table_xlsx
 from core.middleware import SchoolRequest
 from core.models.school import School
 from core.models.user import CustomUser
+from core.pdf_utils import content_disposition
 
 from .attendance import (
     AssignmentService,
@@ -35,6 +36,7 @@ from .attendance import (
     can_submit_permits,
 )
 from .attendance.rules import STATUS_LABELS, STATUSES
+from .export_tables import DAILY_TABLE, MONTHLY_TABLE
 from .forms import (
     AssignmentForm,
     AttendanceMarkForm,
@@ -230,25 +232,16 @@ def attendance_report(request: HttpRequest) -> HttpResponse:
 @login_required
 @capability_required("staff_affairs.attendance_report")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
 def attendance_report_xlsx(request: HttpRequest) -> HttpResponse:
-    """Excel التقرير — الرقم الشخصيّ: مستور (لا يُكتب أصلاً؛ الرقمُ الوظيفيّ وحدَه)."""
+    """Excel التقرير على عقد الجداول — صفوفُ الصفحة نفسُها، مرقَّمةً ومحذوفَ الأعمدةِ المخفيّة.
+
+    الرقم الشخصيّ: مستور (لا يُكتب أصلاً؛ الرقمُ الوظيفيّ وحدَه).
+    """
     year, month = _month(request.GET.get("month"))
-    report = StaffAttendanceService.monthly_report(
-        _school(request), year, month, viewer=_user(request)
-    )
-    workbook = StaffAttendanceService.monthly_workbook(report)
-    log_export(
+    return _table_response(
         request,
+        MONTHLY_TABLE,
         "staff_affairs.attendance_month_xlsx",
-        rows=len(report["rows"]),
-        object_repr=f"حضور الموظفين {year:04d}-{month:02d}",
-    )
-    return cast(
-        HttpResponse,
-        excel_to_response(
-            workbook,
-            f"حضور_الموظفين_{year:04d}_{month:02d}.xlsx",
-            school=getattr(request, "school", None),
-        ),
+        f"حضور الموظفين {year:04d}-{month:02d}",
     )
 
 
@@ -257,24 +250,23 @@ def attendance_report_xlsx(request: HttpRequest) -> HttpResponse:
 def attendance_daily_xlsx(request: HttpRequest) -> HttpResponse:
     """كشفُ اليوم Excel: ملخّصُ الحضور والانصراف لمن تراهم اللوحةُ نفسُها — بالرقم الوظيفيّ."""
     day = _day(request.GET.get("date"))
-    if not StaffAttendanceService.can_open_board(_school(request), _user(request)):
-        raise PermissionDenied("كشفُ اليوم لمن تفتح له لوحةُ الرصد")
-    board = StaffAttendanceService.daily_board(_school(request), day, viewer=_user(request))
-    workbook = StaffAttendanceService.daily_workbook(day, board)
-    log_export(
+    return _table_response(
         request,
+        DAILY_TABLE,
         "staff_affairs.attendance_day_xlsx",
-        rows=len(board["rows"]),
-        object_repr=f"حضور الموظفين يوم {day:%Y-%m-%d}",
+        f"حضور الموظفين يوم {day:%Y-%m-%d}",
     )
-    return cast(
-        HttpResponse,
-        excel_to_response(
-            workbook,
-            f"حضور_الموظفين_{day:%Y_%m_%d}.xlsx",
-            school=getattr(request, "school", None),
-        ),
-    )
+
+
+def _table_response(
+    request: HttpRequest, spec: TableSpec, kind: str, object_repr: str
+) -> HttpResponse:
+    """يبني جدولَ العقد بمحدِّده (نطاقُ القارئ والترشيحُ كاملاً) ويسجّل التصدير بالعدد لا الأسماء."""
+    result = build_table_xlsx(spec, _school(request), _user(request), request.GET)
+    log_export(request, kind, rows=result.rows, object_repr=object_repr)
+    response = HttpResponse(result.content, content_type=result.content_type)
+    response["Content-Disposition"] = content_disposition(result.filename)
+    return response
 
 
 def _submit_exception(request: HttpRequest, form: ExceptionRequestForm) -> bool:

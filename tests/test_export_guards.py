@@ -25,8 +25,6 @@ SYNC_ONLY_KINDS = frozenset(
         "reports.class_results",
         "reports.student_annual_result",
         "reports.student_result",
-        "staff_affairs.attendance_day_xlsx",
-        "staff_affairs.attendance_month_xlsx",
         "staging.grade_template_xlsx",
         "student_affairs.student_profile_pdf",
         "student_affairs.students_xlsx",

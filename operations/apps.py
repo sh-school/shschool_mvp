@@ -36,6 +36,11 @@ class OperationsConfig(AppConfig):
             capability="operations.absence_followup_print",
         )
 
+        # جدولا متابعة الغياب على عقد الجداول (W-20261110-004): المحدِّدُ نفسُه للصفحة وExcel وPDF.
+        from .export_tables import register_operations_tables
+
+        register_operations_tables()
+
         # غيابُ اليوم في لوحة المدير بطلابٍ مميَّزين (W-20261008-004): النواةُ تُرسل والوحدةُ تقرأ بياناتِها.
         from .day_selectors import director_day_section
 
