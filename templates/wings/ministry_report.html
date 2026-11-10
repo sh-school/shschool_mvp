@@ -20,16 +20,12 @@
 <div class="exec-dash">
 
   {% page_header "إحصائية الغياب" subtitle=subtitle icon="absence" %}
-    <form method="get" class="per-exports" aria-label="تصدير الإحصائية">
-      <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
-      <input type="hidden" name="grade" value="{{ grade }}">
-      <input type="hidden" name="wing" value="{{ wing }}">
-      <input type="hidden" name="q" value="{{ q }}">
-      {% export_group doc="templates/wings/ministry_pdf.html" %}
-      {% export_button "xlsx" name="format" value="xlsx" %}{% endexport_button %}
-      {% export_button "pdf" name="format" value="pdf" %}{% endexport_button %}
+    <div class="per-exports" aria-label="تصدير الإحصائية">
+      {% export_group doc="templates/student_affairs/student_list_pdf.html" %}
+      {% export_button "xlsx" "wings:ministry_xlsx" %}?date={{ day|date:'Y-m-d' }}&grade={{ grade|urlencode }}&wing={{ wing|urlencode }}&q={{ q|urlencode }}{% endexport_button %}
+      {% export_button "pdf" "wings:ministry_pdf" %}?date={{ day|date:'Y-m-d' }}&grade={{ grade|urlencode }}&wing={{ wing|urlencode }}&q={{ q|urlencode }}{% endexport_button %}
       {% endexport_group %}
-    </form>
+    </div>
     {% callout "hint" %}للقراءة فقط: الغائبون هم من غابوا الحصّتين الأولى والثانية معاً بعذرٍ أو بلا عذر، ورصدُهم كاملٌ في الاثنتين؛ والحاضرون المقيدون ناقص الغائبين. ومن لم تُرصد إحداهما «بلا رصد» ولا يُحسب غائباً، ورصدُ المعلّم بانتظار الاعتماد وسمٌ لا يدخل في أيّ عدّ.{% endcallout %}
   {% endpage_header %}
 

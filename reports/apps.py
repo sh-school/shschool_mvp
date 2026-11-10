@@ -11,6 +11,7 @@ class ReportsConfig(AppConfig):
         from core.module_registry import register_module
 
         from . import export_builders as builders
+        from .export_tables import register_report_tables
 
         # شهاداتُ الفصل PDF عبر السجلّ المركزيّ (VI-30ب): خلفيٌّ — 2.9ث متزامناً. المعاينةُ والإطارُ المضمَّنُ في العارض يبقيان في الـview.
         export_registry.register(
@@ -19,12 +20,8 @@ class ReportsConfig(AppConfig):
             capability="reports.school",
         )
 
-        # كشفُ نتائج الفصل Excel: خلفيٌّ (W-20261027-029) — الأعلى استعمالاً؛ الزرُّ يمرّ على مركز التصدير (`data-app-file`).
-        export_registry.register(
-            "reports.class_results_xlsx",
-            build=builders.build_class_results_xlsx,
-            capability="reports.results",
-        )
+        # كشفُ نتائج الفصل Excel على عقد الجداول (W-20261109-007): خلفيٌّ، والزرُّ يمرّ على مركز التصدير (`data-app-file`).
+        register_report_tables()
 
         # كشفا الغياب والمخالفات Excel: خلفيّان (W-20261021-011) — بلا قياس p95 يثبت أنّهما سريعان فالافتراضُ job.
         export_registry.register(

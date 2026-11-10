@@ -10,8 +10,7 @@ from django.utils import timezone
 from core.capabilities import capability_required
 
 from .ministry_response import respond
-from .ministry_selectors import grade_choices, narrow, summary_for_request, wing_choices
-from .views import _day
+from .ministry_selectors import ministry_view
 from .views_register import _format, _orientation
 
 
@@ -19,23 +18,20 @@ from .views_register import _format, _orientation
 @capability_required("wings.record_day")
 def ministry_report(request):
     """غابوا الأولى والثانية — بالشعبة والصفّ والمدرسة، وأسماءُ من يُرفعون."""
-    day = _day(request.GET.get("date"), timezone.localdate())
-    summary, bound = summary_for_request(request, day)
-    grades = grade_choices(summary)
-    grade = request.GET.get("grade", "")
-    if grade not in {key for key, _ in grades}:
-        grade = ""
-    wings = [] if bound else wing_choices(summary)
-    wing = request.GET.get("wing", "")
-    if wing not in {key for key, _ in wings}:
-        wing = ""
-    q = request.GET.get("q", "").strip()[:60]
+    # المحدِّدُ نفسُه الذي يقرأ به جدولُ التصدير (`ministry_rows`): نطاقُ الدور ثمّ الترشيحُ كاملاً.
+    view = ministry_view(request.user, request.school, request.GET, timezone.localdate())
     return respond(
         request,
         request.school,
-        narrow(summary, grade=grade, q=q, wing=wing),
+        view.summary,
         fmt=_format(request),
         orient=_orientation(request),
-        bound=bound,
-        screen={"grades": grades, "grade": grade, "q": q, "wings": wings, "wing": wing},
+        bound=view.bound,
+        screen={
+            "grades": view.grades,
+            "grade": view.grade,
+            "q": view.q,
+            "wings": view.wings,
+            "wing": view.wing,
+        },
     )

@@ -19,7 +19,10 @@
       {% endfor %}
       <a href="?semester=annual" class="period-switch__item{% if show_annual %} is-current{% endif %}"{% if show_annual %} aria-current="page"{% endif %}>السنوي (100)</a>
     </nav>
-    {% export_group kind="sheet" %}{% export_button "xlsx" "export_gradebook" setup.id primary=True %}{% if not show_annual %}?semester={{ semester }}{% endif %}{% endexport_button %}{% endexport_group %}
+    {% export_group doc="templates/student_affairs/student_list_pdf.html" %}
+    {% export_button "xlsx" "export_gradebook" setup.id primary=True %}{% if not show_annual %}?semester={{ semester }}{% endif %}{% endexport_button %}
+    {% export_button "pdf" "export_gradebook_pdf" setup.id %}{% if not show_annual %}?semester={{ semester }}{% endif %}{% endexport_button %}
+    {% endexport_group %}
     <form method="post" action="{% url 'recalculate_class' setup.id %}" data-confirm="إعادة حساب جميع الدرجات؟">
       {% csrf_token %}
       <button type="submit" class="btn-secondary btn-sm">{% icon "refresh" %} إعادة الحساب</button>
