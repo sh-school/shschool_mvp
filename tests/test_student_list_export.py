@@ -350,6 +350,31 @@ class TestThePdfEqualsThePage:
         assert _pdf_names(school, principal_user, "status=unenrolled", captured_html) == ["هند سعد"]
         assert _pdf_names(school, principal_user, "parent_status=linked", captured_html) == []
 
+    def test_the_admin_sees_a_wing_filter_that_narrows_page_pdf_and_excel(
+        self, school, principal_user, wings, captured_html, client_as
+    ):
+        """رفضُ المالك: لا فلترَ للجناح في سجلّ الطلاب للمدير — يظهر ويُضيّق الصفحةَ والملفَّين معاً."""
+        from django.urls import reverse
+
+        from core.models.academic import Wing
+
+        w2 = Wing.objects.get(school=school, code="w2")
+        query = f"wing={w2.pk}"
+        page = client_as(principal_user).get(reverse("student_affairs:student_list") + "?" + query)
+
+        assert [name for _pk, name in page.context["wings"]] == ["ج1", "ج2"]
+        assert 'name="wing"' in page.content.decode()
+        assert [r["full_name"] for r in page.context["students"]] == ["بدر خالد"]
+        assert _pdf_names(school, principal_user, query, captured_html) == ["بدر خالد"]
+        assert [r["full_name"] for r in rows_for(principal_user, QueryDict(query))] == ["بدر خالد"]
+
+    def test_the_wing_supervisor_gets_no_wing_filter(self, wings, client_as):
+        from django.urls import reverse
+
+        page = client_as(wings).get(reverse("student_affairs:student_list"))
+
+        assert page.context["wings"] == []
+
 
 def test_the_pdf_button_reads_the_fields_at_click_time():
     """زرُّ PDF كزرّ Excel: الفلاترُ تُرسَل بـHTMX فلا يُحدَّث رابطٌ كُتب عند فتح الصفحة."""
@@ -360,6 +385,7 @@ def test_the_pdf_button_reads_the_fields_at_click_time():
     html = (root / "templates/student_affairs/student_list.html").read_text(encoding="utf-8")
 
     assert "#student-list-pdf" in js and "#student-list-xlsx" in js
+    assert '"wing"' in js, "الجناحُ يدخل في الملفّ كما في الصفحة"
     # على window لا document: يسبق معالجَ مركز التصدير فلا يقرأ الرابطَ القديم (الفلترة السابقة)
     assert 'window.addEventListener("click"' in js and "document.addEventListener" not in js
     assert 'id="student-list-pdf"' in html and "grade={{ grade_filter }}" not in html

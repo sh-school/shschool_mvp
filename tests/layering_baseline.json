@@ -653,7 +653,7 @@
    "lines": 72
   },
   "student_affairs/views.py::student_list": {
-   "lines": 88,
+   "lines": 81,
    "orm": 11
   },
   "student_affairs/views.py::student_movements": {

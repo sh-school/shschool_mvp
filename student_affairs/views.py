@@ -67,7 +67,7 @@ from operations.tardiness import tardiness_now
 from wings.scope import student_scope_for
 
 from .coordinator_selectors import coordinator_panels
-from .list_selectors import STUDENT_SORTS, list_status, student_list_queryset
+from .list_selectors import STUDENT_SORTS, filter_context, list_status, student_list_queryset
 from .models import StudentActivity, StudentTransfer
 from .selectors import (
     attach_guardian_phones,
@@ -242,10 +242,6 @@ def student_list(request):
 
     # المحدِّدُ الواحدُ للشاشة والتصدير (`list_selectors`): النطاقُ ثمّ الفلترُ كاملاً قبل الفرز والترقيم.
     students = student_list_queryset(request.user, school, scope, year, request.GET)
-    q = request.GET.get("q", "").strip()
-    grade_filter = request.GET.get("grade", "")
-    section_filter = request.GET.get("section", "")
-    parent_status = request.GET.get("parent_status", "")
     status = list_status(scope, request.GET)
 
     students, sort = apply_sort(students, request, allowed=STUDENT_SORTS, default="name")
@@ -299,10 +295,7 @@ def student_list(request):
                 ("all", "الكلّ"),
             )
         ),
-        "q": q,
-        "grade_filter": grade_filter,
-        "section_filter": section_filter,
-        "parent_status": parent_status,
+        **filter_context(scope, school, year, request.GET),
         "grades": available_grades,
         "sections": available_sections,
         "year": year,

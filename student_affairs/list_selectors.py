@@ -14,7 +14,7 @@ from django.db.models import CharField, Exists, F, Func, OuterRef, Q, Subquery, 
 
 from core.academic_calendar import academic_year_for_school
 from core.labels import class_label
-from core.models.academic import ParentStudentLink, StudentEnrollment
+from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment, Wing
 from core.models.access import Membership
 from core.privacy import mask_national_id, national_id_search_q
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
@@ -36,6 +36,30 @@ STUDENT_SORTS = {
 def list_status(scope: StudentScope, params: Any) -> str:
     """حالةُ القيد المعروضة: المقيَّدُ بجناحه لا يرى إلّا المقيَّدين (طالبٌ بلا قيدٍ نشطٍ لا جناحَ له)."""
     return "enrolled" if scope.is_wing_bound else (params.get("status") or "enrolled")
+
+
+def wing_options(scope: StudentScope, school: Any, year: str) -> list[tuple[str, str]]:
+    """خياراتُ فلتر الجناح `[(المعرّف, الاسم)]` بترتيب الأجنحة، من شُعب نطاق الدور وحدَها."""
+    groups = scope.narrow_classes(
+        ClassGroup.objects.filter(
+            school=school, academic_year=year, is_active=True, wing__isnull=False
+        ),
+        "pk",
+    )
+    wings = Wing.objects.filter(pk__in=groups.values("wing_id")).order_by("order")
+    return [(str(w.pk), w.name) for w in wings]
+
+
+def filter_context(scope: StudentScope, school: Any, year: str, params: Any) -> dict[str, Any]:
+    """قيمُ حقول الفلتر وخياراتُ الجناح للقالب؛ المقيَّدُ بجناحه لا يحتاج فلترَ الجناح."""
+    return {
+        "q": params.get("q", "").strip(),
+        "grade_filter": params.get("grade", ""),
+        "section_filter": params.get("section", ""),
+        "parent_status": params.get("parent_status", ""),
+        "wing_filter": params.get("wing", ""),
+        "wings": [] if scope.is_wing_bound else wing_options(scope, school, year),
+    }
 
 
 def year_in_scope(scope: StudentScope, params: Any, current: str) -> str:
@@ -62,7 +86,12 @@ def student_list_queryset(
     section_filter = params.get("section", "")
     parent_status = params.get("parent_status", "")
 
-    for field, wanted in (("grade", grade_filter), ("section", section_filter)):
+    # الجناحُ يُرشَّح بمعرّفه (`class_group__wing_id`) لا باسمه، وبعد نطاق الدور فلا يوسّعه.
+    for field, wanted in (
+        ("grade", grade_filter),
+        ("section", section_filter),
+        ("wing_id", params.get("wing", "")),
+    ):
         if wanted:
             students = students.filter(
                 Exists(
