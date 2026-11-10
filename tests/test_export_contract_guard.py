@@ -14,12 +14,24 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 _BUTTON = re.compile(r'\{% export_button "(?:xlsx|pdf)"(?:\s+"([^"]+)")?')
 
 #: اسمُ المسار ← نوعُه في السجلّ المركزيّ (`core.exports.registry`) وعقدِ الجداول (`core.exports.contract`).
-REGISTERED = {"student_affairs:student_list_xlsx": "student_affairs.student_list_xlsx"}
+REGISTERED = {
+    "student_affairs:student_list_xlsx": "student_affairs.student_list_xlsx",
+    # W-20261109-006: الحضورُ والسلوكُ والتأخّرُ والأنشطةُ والتحرّكاتُ والتقريرُ اليوميّ والإحصاءُ وملفُّ الطالب.
+    "student_affairs:attendance_export": "student_affairs.attendance_xlsx",
+    "student_affairs:behavior_export": "student_affairs.behavior_xlsx",
+    "student_affairs:tardiness_export": "student_affairs.tardiness_xlsx",
+    "student_affairs:activities_export": "student_affairs.activities_xlsx",
+    "student_affairs:enrolment_movements_export": "student_affairs.movements_xlsx",
+    "behavior:daily_report_xlsx": "behavior.daily_xlsx",
+    "templates/behavior/statistics.html::href": "behavior.statistics_xlsx",
+    "behavior:student_profile_xlsx": "behavior.student_profile_xlsx",
+}
 
 _LATER = (
     "ترحيلٌ مؤجَّل: صفحةُ جدولٍ تُرحَّل إلى عقد core/exports في بطاقةٍ لاحقة "
     "(W-20261109-013 تبني العقدَ ونوعاً تجريبيّاً واحداً فقط)"
 )
+_SAME_TABLE = "PDF للجدول المسجَّل نفسِه: يبنيه `build_table_pdf` من `table_rows` بمحدِّد الجدول، فنوعُه ثانويٌّ لا جدولٌ مستقلّ"
 _DOCUMENT = (
     "وثيقةٌ مفردةٌ لطالبٍ أو واقعة (كشفٌ/إنذارٌ/تعهّدٌ/استمارة) لا جدولٌ بصفوفٍ ومرشِّحات، فلا محدِّدَ قائمةٍ لها"
 )
@@ -28,16 +40,7 @@ _BLANK = "قالبٌ فارغٌ للاستيراد (ترويسةُ أعمدةٍ 
 EXEMPT: dict[str, str] = {
     **dict.fromkeys(
         (
-            "student_affairs:student_list_pdf",
             "student_export_excel",
-            "student_affairs:tardiness_export",
-            "student_affairs:tardiness_pdf",
-            "student_affairs:enrolment_movements_export",
-            "student_affairs:behavior_export",
-            "student_affairs:behavior_pdf",
-            "student_affairs:attendance_export",
-            "student_affairs:attendance_pdf",
-            "student_affairs:activities_export",
             "staff_affairs:attendance_report_xlsx",
             "staff_affairs:attendance_daily_xlsx",
             "schedule_export_excel",
@@ -46,14 +49,11 @@ EXEMPT: dict[str, str] = {
             "export_gradebook",
             "class_results_excel",
             "behavior_excel",
-            "behavior:daily_report_xlsx",
-            "behavior:daily_report_pdf",
             "attendance_excel",
             "absence_followup_xlsx",
             "absence_followup_pdf",
             "quality_report_pdf",
             "kpi_monthly_pdf",
-            "templates/behavior/statistics.html::href",
             "templates/wings/partials/record_panel.html::form",
             "templates/wings/ministry_report.html::form",
             "templates/reports/report_viewer.html::href",
@@ -61,6 +61,16 @@ EXEMPT: dict[str, str] = {
             "templates/operations/absence_followup/viewer.html::href",
         ),
         _LATER,
+    ),
+    **dict.fromkeys(
+        (
+            "student_affairs:student_list_pdf",
+            "student_affairs:attendance_pdf",
+            "student_affairs:behavior_pdf",
+            "student_affairs:tardiness_pdf",
+            "behavior:daily_report_pdf",
+        ),
+        _SAME_TABLE,
     ),
     **dict.fromkeys(
         (

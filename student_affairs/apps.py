@@ -11,6 +11,7 @@ class StudentAffairsConfig(AppConfig):
         from core.exports import registry as export_registry
 
         from . import export_builders as builders
+        from .followup_tables import register_followup_tables
 
         # قائمةُ الطلاب PDF عبر السجلّ المركزيّ (VI-30ب): خلفيٌّ — 8.3ث متزامناً. Excel (0.8ث) ينتظر قياسَ p95 دافئاً.
         export_registry.register(
@@ -20,9 +21,5 @@ class StudentAffairsConfig(AppConfig):
         )
         # قائمةُ الطلبة Excel على عقد التصدير المركزيّ: المعروضُ بعد الفلترة وبنطاق الدور (W-20261109-013).
         contract.register_table(builders.STUDENT_LIST_TABLE)
-        # تحرّكات الطلبة Excel: خلفيٌّ افتراضاً — لا قياسَ p95 مثبَّتاً بعد.
-        export_registry.register(
-            "student_affairs.movements_xlsx",
-            build=builders.build_movements_xlsx,
-            capability="student_affairs.transfers",
-        )
+        # الحضورُ والسلوكُ والتأخّرُ والأنشطةُ والتحرّكاتُ على العقد نفسِه — Excel وPDF بمحدِّد الصفحة (W-20261109-006).
+        register_followup_tables()

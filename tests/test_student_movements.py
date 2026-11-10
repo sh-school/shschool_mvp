@@ -398,9 +398,9 @@ def test_export_covers_every_row_not_just_the_page(
     """التصدير لا يتقيّد بالصفحة: كلُّ ما يطابق المرشِّحات (53) يخرج في الملفّ."""
     from django.http import QueryDict
 
-    from student_affairs.export_builders import build_movements_xlsx
+    from core.exports import registry
 
-    result = build_movements_xlsx(
+    result = registry.get("student_affairs.movements_xlsx").build(
         school,
         student_affairs_coordinator_user,
         QueryDict(f"section={many_enrolments.id}&kind=enrol"),
@@ -429,9 +429,9 @@ def test_enrolment_export_follows_filters(school, student_affairs_coordinator_us
     import openpyxl
     from django.http import QueryDict
 
-    from student_affairs.export_builders import build_movements_xlsx
+    from core.exports import registry
 
-    result = build_movements_xlsx(
+    result = registry.get("student_affairs.movements_xlsx").build(
         school, student_affairs_coordinator_user, QueryDict("kind=withdrawal")
     )
     assert result.rows == 1 and result.full_national_id is False

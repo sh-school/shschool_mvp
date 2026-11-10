@@ -115,18 +115,6 @@ DOCUMENTS: dict[str, PrintDocument] = {
     "templates/student_affairs/student_list_pdf.html": PrintDocument(
         SHEET, "landscape", CONFORMS, LOGO_BASE
     ),
-    "templates/student_affairs/attendance_overview_pdf.html": PrintDocument(
-        SHEET, "landscape", CONFORMS, LOGO_BASE
-    ),
-    "templates/student_affairs/behavior_overview_pdf.html": PrintDocument(
-        SHEET, "landscape", CONFORMS, LOGO_BASE
-    ),
-    "templates/student_affairs/tardiness_pdf.html": PrintDocument(
-        SHEET, "landscape", CONFORMS, LOGO_BASE
-    ),
-    "templates/behavior/daily_report_pdf.html": PrintDocument(
-        SHEET, "landscape", CONFORMS, LOGO_BASE
-    ),
     "templates/behavior/statistics_pdf.html": PrintDocument(
         LETTER, "portrait", CONFORMS, LOGO_BASE
     ),

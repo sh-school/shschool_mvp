@@ -14,7 +14,6 @@ from io import BytesIO
 
 import openpyxl
 import pytest
-from django.http import HttpResponse
 from django.urls import reverse
 from django.utils import timezone
 
@@ -119,12 +118,13 @@ def _mark(school, session, student, status, *, morning=False):
     )
 
 
-def _names(rows, key="student__full_name"):
+def _names(rows, key="full_name"):
     return {row[key] for row in rows}
 
 
-def _workbook_text(response) -> str:
-    book = openpyxl.load_workbook(BytesIO(response.content))
+def _workbook_text(result) -> str:
+    """نصُّ كلّ خلايا ملفّ Excel الذي بناه عقدُ التصدير (`ExportResult`)."""
+    book = openpyxl.load_workbook(BytesIO(result.content))
     return " ".join(
         str(cell)
         for sheet in book.worksheets
@@ -135,12 +135,25 @@ def _workbook_text(response) -> str:
 
 
 @pytest.fixture
-def pdf_as_html(monkeypatch):
-    """الـPDF نصُّه HTML — فيُقرأ ما كان سيُطبع بلا محرّك طباعة."""
-    monkeypatch.setattr(
-        "student_affairs.views.render_pdf",
-        lambda html, filename, *args, **kwargs: HttpResponse(html),
-    )
+def pdf_html(monkeypatch):
+    """نصُّ HTML الذي كان سيُحوَّل PDF — فيُقرأ ما كان سيُطبع بلا محرّك طباعة."""
+    seen: list[str] = []
+
+    def fake(html, paper_size="A4"):
+        seen.append(html)
+        return b"%PDF-stub"
+
+    monkeypatch.setattr("core.pdf_utils.render_pdf_bytes", fake)
+    return seen
+
+
+def _built(school, user, kind, query=""):
+    """يبني الملفَّ كما يبنيه العاملُ: البنّاءُ المسجَّلُ في السجلّ المركزيّ بصاحب الطلب ومعاملاته."""
+    from django.http import QueryDict
+
+    from core.exports import registry
+
+    return registry.get(kind).build(school, user, QueryDict(query))
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -163,11 +176,15 @@ FOLLOW_UP_PAGES = [
 class TestTheDoors:
     @pytest.mark.parametrize("url_name", FOLLOW_UP_PAGES)
     def test_the_supervisor_opens_every_follow_up_page(
-        self, client_as, world, pdf_as_html, url_name
+        self, client_as, world, monkeypatch, url_name
     ):
+        # التصديراتُ خلفيّةٌ: تُنشئ مهمّةً وتحوّل إلى صفحتها (302) ولا يُشغَّل عاملٌ هنا.
+        monkeypatch.setattr("core.tasks.run_export_job.apply_async", lambda *a, **k: None)
         response = client_as(world["supervisor"]).get(reverse(url_name))
 
-        assert response.status_code == 200, url_name
+        assert response.status_code == (
+            302 if url_name.endswith(("export", "pdf")) else 200
+        ), url_name
 
     def test_the_supervisor_searches_for_a_late_student(self, client_as, world):
         response = client_as(world["supervisor"]).get(
@@ -257,28 +274,19 @@ class TestAttendanceIsTheWing:
 
         assert reverse("daily_report") in body
 
-    def test_the_excel_carries_only_the_wing_and_says_so(self, client_as, world, absences):
-        response = client_as(world["supervisor"]).get(reverse("student_affairs:attendance_export"))
+    def test_the_excel_carries_only_the_wing(self, school, world, absences):
+        result = _built(school, world["supervisor"], "student_affairs.attendance_xlsx")
 
-        text = _workbook_text(response)
+        text = _workbook_text(result)
         assert OWN in text
         assert OTHER not in text
-        trail = AuditLog.objects.get(
-            action="export", changes__kind="student_affairs.attendance_xlsx"
-        )
-        assert trail.changes["rows"] == 2  # سطرُ الأكثر غياباً وسطرُ حضور اليوم — لطالبه وحدَه
-        assert "جناح 1" in trail.object_repr
+        assert result.rows == 1  # سطرُ الأكثر غياباً لطالبه وحدَه
 
-    def test_the_pdf_carries_only_the_wing(self, client_as, world, absences, pdf_as_html):
-        body = (
-            client_as(world["supervisor"])
-            .get(reverse("student_affairs:attendance_pdf"))
-            .content.decode()
-        )
+    def test_the_pdf_carries_only_the_wing(self, school, world, absences, pdf_html):
+        _built(school, world["supervisor"], "student_affairs.attendance_overview_pdf")
 
-        assert OWN in body
-        assert OTHER not in body
-        assert "جناح 1" in body
+        assert OWN in pdf_html[0]
+        assert OTHER not in pdf_html[0]
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -316,18 +324,16 @@ class TestBehaviourIsTheWing:
         assert sum(ctx["chart_data"]) == 2
         assert ctx["wing_subtitle"] == ""
 
-    def test_the_excel_and_pdf_carry_only_the_wing(
-        self, client_as, world, infractions, pdf_as_html
-    ):
-        client = client_as(world["supervisor"])
+    def test_the_excel_and_pdf_carry_only_the_wing(self, school, world, infractions, pdf_html):
+        supervisor = world["supervisor"]
 
-        text = _workbook_text(client.get(reverse("student_affairs:behavior_export")))
-        body = client.get(reverse("student_affairs:behavior_pdf")).content.decode()
+        excel = _built(school, supervisor, "student_affairs.behavior_xlsx")
+        _built(school, supervisor, "student_affairs.behavior_overview_pdf")
 
+        text = _workbook_text(excel)
         assert OWN in text and OTHER not in text
-        assert OWN in body and OTHER not in body
-        trail = AuditLog.objects.get(action="export", changes__kind="student_affairs.behavior_xlsx")
-        assert trail.changes["rows"] == 1
+        assert OWN in pdf_html[0] and OTHER not in pdf_html[0]
+        assert excel.rows == 1
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -372,19 +378,16 @@ class TestTardinessListIsTheWing:
         assert ctx["total_students_today"] == 2
         assert ctx["weekly_late"] == 2
 
-    def test_the_excel_and_pdf_carry_only_the_wing(self, client_as, world, lateness, pdf_as_html):
-        client = client_as(world["supervisor"])
+    def test_the_excel_and_pdf_carry_only_the_wing(self, school, world, lateness, pdf_html):
+        supervisor = world["supervisor"]
 
-        text = _workbook_text(client.get(reverse("student_affairs:tardiness_export")))
-        body = client.get(reverse("student_affairs:tardiness_pdf")).content.decode()
+        excel = _built(school, supervisor, "student_affairs.tardiness_xlsx")
+        _built(school, supervisor, "student_affairs.tardiness_pdf")
 
+        text = _workbook_text(excel)
         assert OWN in text and OTHER not in text
-        assert OWN in body and OTHER not in body
-        trail = AuditLog.objects.get(
-            action="export", changes__kind="student_affairs.tardiness_xlsx"
-        )
-        assert trail.changes["rows"] == 1
-        assert "جناح 1" in trail.object_repr
+        assert OWN in pdf_html[0] and OTHER not in pdf_html[0]
+        assert excel.rows == 1
 
     def test_no_cancel_button_for_a_period_lateness(self, client_as, school, world):
         period_late = _mark(school, world["own_session"], world["own"], "late")

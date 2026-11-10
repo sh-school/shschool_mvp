@@ -22,6 +22,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from core.academic_calendar import academic_year_for_school
+from core.exports.contract import wing_sorted
 from core.labels import class_label
 from core.models import ClassGroup, CustomUser, StudentEnrollment, Wing
 from core.permissions import get_teacher_student_ids, teacher_can_access_student
@@ -297,7 +298,7 @@ def daily_report(school, user, params) -> dict[str, Any]:
         infractions = infractions.filter(student_id__in=student_ids)
     found = list(infractions)
 
-    current: dict[Any, tuple[str, str, str]] = {}
+    current: dict[Any, tuple[str, str, str, Any]] = {}
     enrollments = (
         StudentEnrollment.objects.filter(
             student_id__in={inf.student_id for inf in found},
@@ -307,16 +308,22 @@ def daily_report(school, user, params) -> dict[str, Any]:
         )
         .newest_first()
         .values_list(
-            "student_id", "class_group__grade", "class_group__section", "class_group__wing_id"
+            "student_id",
+            "class_group__grade",
+            "class_group__section",
+            "class_group__wing_id",
+            "class_group__wing__order",
         )
     )
-    for student_id, class_grade, section, wing_id in enrollments:
-        current.setdefault(student_id, (class_grade, section, str(wing_id) if wing_id else ""))
+    for student_id, class_grade, section, wing_id, wing_order in enrollments:
+        current.setdefault(
+            student_id, (class_grade, section, str(wing_id) if wing_id else "", wing_order)
+        )
 
     order = {code: index for index, (code, _label) in enumerate(ClassGroup.GRADES)}
     rows = []
     for inf in found:
-        class_grade, section, wing_id = current.get(inf.student_id, ("", "", ""))
+        class_grade, section, wing_id, wing_order = current.get(inf.student_id, ("", "", "", None))
         if (wing and wing_id != wing) or (grade and class_grade != grade):
             continue
         if inf.violation_category:
@@ -336,6 +343,7 @@ def daily_report(school, user, params) -> dict[str, Any]:
                     str(inf.pk),
                 ),
                 "student": inf.student.full_name,
+                "wing_order": wing_order,
                 "class_label": class_label(class_grade, section),
                 "violation": violation,
                 "level": inf.get_level_display(),
@@ -346,7 +354,8 @@ def daily_report(school, user, params) -> dict[str, Any]:
     rows.sort(key=lambda row: row["sort"])
     return {
         "day": day,
-        "rows": rows,
+        # فرزُ الجناح (مستقرّ) من العقد المركزيّ: ترتيبُ الصفحة هو ترتيبُ الملفّ.
+        "rows": wing_sorted(rows),
         "wing": wing,
         "grade": grade,
         "wing_options": wing_options,

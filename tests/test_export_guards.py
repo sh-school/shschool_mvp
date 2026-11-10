@@ -28,15 +28,8 @@ SYNC_ONLY_KINDS = frozenset(
         "staff_affairs.attendance_day_xlsx",
         "staff_affairs.attendance_month_xlsx",
         "staging.grade_template_xlsx",
-        "student_affairs.activities_xlsx",
-        "student_affairs.attendance_overview_pdf",
-        "student_affairs.attendance_xlsx",
-        "student_affairs.behavior_overview_pdf",
-        "student_affairs.behavior_xlsx",
         "student_affairs.student_profile_pdf",
         "student_affairs.students_xlsx",
-        "student_affairs.tardiness_pdf",
-        "student_affairs.tardiness_xlsx",
         # ملخّصُ الحصّتين: صفحةٌ واحدةٌ بعددٍ ثابتٍ من الصفوف (شعبٌ لا طلبة) — متزامنٌ بلا قياس p95 بعدُ؛ يُقاس ويُحوَّل إن لزم.
         # جدولٌ واحدٌ بعددٍ محدودٍ من الصفوف (غائبو يومٍ واحد) — متزامنٌ بلا قياس p95 بعدُ؛ يُقاس ويُحوَّل إن لزم.
         "operations.absence_followup_xlsx",
@@ -73,15 +66,8 @@ HEAVY_IN_VIEWS = frozenset(
         "reports/views.py::student_certificate_pdf",
         "reports/views.py::student_result_pdf",
         "staging/views.py::download_grade_template",
-        "student_affairs/views.py::activities_export_excel",
-        "student_affairs/views.py::attendance_export_excel",
-        "student_affairs/views.py::attendance_overview_pdf",
-        "student_affairs/views.py::behavior_export_excel",
-        "student_affairs/views.py::behavior_overview_pdf",
         "student_affairs/views.py::student_export_excel",
         "student_affairs/views.py::student_profile_pdf",
-        "student_affairs/views.py::tardiness_export_excel",
-        "student_affairs/views.py::tardiness_pdf",
         "wings/views_register.py::_respond",
     }
 )

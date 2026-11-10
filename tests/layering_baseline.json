@@ -43,27 +43,6 @@
    "where": "staging/views.py::download_grade_template"
   },
   {
-   "from": 68,
-   "metric": "lines",
-   "reason": "سطرٌ واحدٌ لرؤية الوزارة في التذييل (قرار المالك 2026-09-27)، عرضٌ مديونٌ أصلاً قبل هذا الفرع",
-   "to": 69,
-   "where": "student_affairs/views.py::activities_export_excel"
-  },
-  {
-   "from": 72,
-   "metric": "lines",
-   "reason": "سطرٌ واحدٌ لرؤية الوزارة في التذييل (قرار المالك 2026-09-27)، عرضٌ مديونٌ أصلاً قبل هذا الفرع",
-   "to": 73,
-   "where": "student_affairs/views.py::behavior_export_excel"
-  },
-  {
-   "from": 100,
-   "metric": "lines",
-   "reason": "سطرٌ واحدٌ لرؤية الوزارة في التذييل (قرار المالك 2026-09-27)، عرضٌ مديونٌ أصلاً قبل هذا الفرع",
-   "to": 101,
-   "where": "student_affairs/views.py::tardiness_export_excel"
-  },
-  {
    "from": 1,
    "metric": "import",
    "reason": "W-028: استيرادُ سجلّ القيد يكتب أطلسياً سطرَ الطالب (core) وسجلَّه الصحّيّ (clinic.HealthRecord) من صفٍّ واحد",
@@ -610,40 +589,18 @@
   "student_affairs/views.py::_late_this_year": {
    "orm": 8
   },
-  "student_affairs/views.py::activities_export_excel": {
-   "lines": 69,
-   "orm": 8
-  },
   "student_affairs/views.py::activity_add": {
    "orm": 11
   },
   "student_affairs/views.py::activity_edit": {
    "orm": 6
   },
-  "student_affairs/views.py::activity_list": {
-   "orm": 10
-  },
-  "student_affairs/views.py::attendance_export_excel": {
-   "lines": 139,
-   "orm": 16
-  },
   "student_affairs/views.py::attendance_overview": {
-   "lines": 124,
-   "orm": 21
-  },
-  "student_affairs/views.py::attendance_overview_pdf": {
-   "orm": 16
-  },
-  "student_affairs/views.py::behavior_export_excel": {
-   "lines": 72,
-   "orm": 12
+   "lines": 111,
+   "orm": 17
   },
   "student_affairs/views.py::behavior_overview": {
-   "lines": 118,
-   "orm": 28
-  },
-  "student_affairs/views.py::behavior_overview_pdf": {
-   "lines": 81,
+   "lines": 114,
    "orm": 25
   },
   "student_affairs/views.py::student_edit": {
@@ -674,16 +631,9 @@
   "student_affairs/views.py::tardiness_delete": {
    "orm": 12
   },
-  "student_affairs/views.py::tardiness_export_excel": {
-   "lines": 101,
-   "orm": 16
-  },
   "student_affairs/views.py::tardiness_list": {
-   "lines": 105,
-   "orm": 30
-  },
-  "student_affairs/views.py::tardiness_pdf": {
-   "orm": 26
+   "lines": 95,
+   "orm": 24
   },
   "student_affairs/views.py::tardiness_search_students": {
    "orm": 7

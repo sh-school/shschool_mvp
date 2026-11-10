@@ -13,7 +13,7 @@
   {% page_header student.full_name icon="behavior" %}
     {% if can_report %}<a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">{% icon "add" %} مخالفة جديدة</a>{% endif %}
     {% if can_summon %}<a href="{% url 'behavior:summon_parent_student' student.pk %}" class="btn-secondary btn-sm">{% icon "call_parent" %} استدعاء ولي أمر</a>{% endif %}
-    {% export_group kind="letter" %}{% export_button "pdf" "behavior:student_behavior_pdf" student.pk title="تصدير التقرير السلوكي الشامل للطالب A4" %}{% endexport_button %}{% endexport_group %}
+    {% export_group kind="letter" %}{% export_button "xlsx" "behavior:student_profile_xlsx" student.pk title="مخالفات الطالب Excel" %}{% endexport_button %}{% export_button "pdf" "behavior:student_behavior_pdf" student.pk title="تصدير التقرير السلوكي الشامل للطالب A4" %}{% endexport_button %}{% endexport_group %}
   {% endpage_header %}
 
   {# نظامُ النقاط ملغى — الأرقامُ عددُ المخالفات. #}
