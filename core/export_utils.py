@@ -174,6 +174,10 @@ def with_data_as_of(line: str, as_of: datetime | None = None) -> str:
     return f"{line}  |  {DATA_AS_OF_LABEL}: {stamp}"
 
 
+#: ارتفاعُ الصفّ الأوّل: الشعارُ (48px ≈ 36pt) ثمّ سطرُ اسم المدرسة بخطّ 14 تحته.
+TITLE_ROW_HEIGHT = 62
+
+
 def add_excel_title_rows(
     ws, num_cols: int, first: str, second: str, third: str, data_as_of=None
 ) -> None:
@@ -186,8 +190,15 @@ def add_excel_title_rows(
     from openpyxl.styles import Alignment
 
     center = Alignment(horizontal="center", vertical="center")
+    # الصفّ الأوّل أطولُ من الشعار: الشعارُ في أعلاه واسمُ المدرسة محاذىً لأسفله — تحت الشعار لا بجواره
+    under_logo = Alignment(horizontal="center", vertical="bottom")
     rows = (
-        (first, xl_fill(brand.MAROON), xl_font(brand.ON_FILL, size=14, bold=True), 40),
+        (
+            first,
+            xl_fill(brand.MAROON),
+            xl_font(brand.ON_FILL, size=14, bold=True),
+            TITLE_ROW_HEIGHT,
+        ),
         (second, xl_fill(brand.MAROON_LIGHT), xl_font(brand.ON_FILL, size=11, bold=True), 28),
         (
             with_data_as_of(third, data_as_of),
@@ -201,13 +212,13 @@ def add_excel_title_rows(
         cell = safe_cell(ws, row=row, column=1, value=value)
         cell.fill = fill
         cell.font = font
-        cell.alignment = center
+        cell.alignment = under_logo if row == 1 else center
         ws.row_dimensions[row].height = height
     _add_logo_to_title(ws)
 
 
 def _add_logo_to_title(ws: Any) -> None:
-    """شعارُ الوزارة الأصليّ في A1 بحجمٍ ثابتٍ يسكن ارتفاعَ الصفّ الأوّل (40pt ≈ 53px) — فلا يتغيّر عددُ الصفوف ولا ارتفاعُها."""
+    """شعارُ الوزارة الأصليّ في A1 بحجمٍ ثابتٍ في أعلى الصفّ الأوّل — فلا يتغيّر عددُ الصفوف، ويبقى اسمُ المدرسة تحته."""
     from core.ministry_logo import logo_excel_image
 
     image = logo_excel_image()
@@ -286,15 +297,24 @@ def get_pdf_header_html(context: dict) -> str:
     ministry_p = (
         f'<p class="xp-head-ministry">{context["ministry"]}</p>' if context["ministry"] else ""
     )
+    # الشعارُ أعلى الوسط واسمُ المدرسة تحته؛ فارغٌ إن غاب الملفّ (الشعارُ زينةٌ لا يُسقط التصدير)
+    from core.ministry_logo import logo_data_uri
+
+    try:
+        logo_p = f'<img class="xp-head-logo" src="{logo_data_uri()}" alt="" height="48">'
+    except FileNotFoundError:
+        logo_p = ""
     return f"""
     <style>
       .xp-head {{ text-align:center; border-bottom:3px solid {brand.MAROON}; padding-bottom:12px; margin-bottom:20px; }}
+      .xp-head-logo {{ display:block; margin:0 auto 4px; }}
       .xp-head h1 {{ color:{brand.MAROON}; font-size:16pt; margin:0; }}
       .xp-head-ministry {{ font-size:9pt; color:{brand.TEXT_SECONDARY}; margin:2px 0 0; }}
       .xp-head-title {{ font-size:11pt; font-weight:700; color:{brand.TEXT_PRIMARY}; margin:8px 0 0; }}
       .xp-head-year {{ font-size:8pt; color:{brand.TEXT_MUTED}; margin:4px 0 0; }}
     </style>
     <div class="xp-head">
+      {logo_p}
       <h1>{context["school_name"]}</h1>
       {ministry_p}
       <p class="xp-head-title">{context["title"]}</p>

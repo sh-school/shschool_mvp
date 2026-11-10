@@ -122,6 +122,42 @@ def test_every_excel_title_carries_the_ministry_logo_pinned_in_a1_without_adding
     assert len(reloaded.active._images) == 1  # بقي في الملفّ المحفوظ لا في الذاكرة وحدَها
 
 
+@pytest.mark.parametrize("school_name", ["مدرسةُ النور", "مدرسةُ الأمل"])
+def test_excel_header_puts_each_schools_name_under_the_logo(school_name):
+    """اسمُ كلّ مدرسةٍ في الصفّ الأوّل محاذىً لأسفله، والشعارُ في أعلاه — الصفوفُ ثلاثةٌ كما كانت."""
+    from openpyxl import Workbook
+
+    from core.export_utils import TITLE_ROW_HEIGHT, add_excel_header
+
+    ws = Workbook().active
+    context = {
+        "school_name": school_name,
+        "ministry": "",
+        "title": "سجلّ الطلاب",
+        "academic_year": "2026-2027",
+        "exported_by": "مستخدم",
+        "exporter_role": "مدير",
+        "export_datetime": "10/11/2026 10:00",
+    }
+    add_excel_header(ws, context, 6)
+    cell = ws["A1"]
+    assert cell.value == school_name
+    assert cell.alignment.vertical == "bottom"
+    assert ws.row_dimensions[1].height == TITLE_ROW_HEIGHT
+    assert ws._images[0].anchor == "A1"
+    assert TITLE_ROW_HEIGHT * 4 / 3 >= ministry_logo.EXCEL_SIDE_PX + 14 * 4 / 3, "يسع الشعارَ والاسم"
+
+
+@pytest.mark.parametrize("school_name", ["مدرسةُ النور", "مدرسةُ الأمل"])
+def test_pdf_header_puts_each_schools_name_after_the_logo(school_name):
+    from core.export_utils import get_pdf_header_html
+
+    html = get_pdf_header_html(
+        {"school_name": school_name, "ministry": "", "title": "تقرير", "academic_year": "2026-2027"}
+    )
+    assert html.index('class="xp-head-logo"') < html.index(f"<h1>{school_name}</h1>")
+
+
 # ── PDF (مقيساً لا مقروءاً من القالب) ─────────────────────────────────────
 
 
