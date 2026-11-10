@@ -27,19 +27,21 @@
     {% export_group doc="templates/student_affairs/student_list_pdf.html" %}
     {# Excel عبر عقد التصدير المركزيّ: المعروضُ بعد الفلترة وبنطاق الدور (المشرفُ المقيَّدُ يصدّر طلبةَ جناحه) #}
     {% export_button "xlsx" "student_affairs:student_list_xlsx" id="student-list-xlsx" %}?{{ request.GET.urlencode }}{% endexport_button %}
-    {% if not limited or request.user|can_open:'student_affairs:student_export' %}{% export_button "pdf" "student_affairs:student_list_pdf" %}?q={{ q|urlencode }}&grade={{ grade_filter }}&section={{ section_filter }}{% endexport_button %}{% endif %}
+    {% if not limited or request.user|can_open:'student_affairs:student_export' %}{% export_button "pdf" "student_affairs:student_list_pdf" id="student-list-pdf" %}?{{ request.GET.urlencode }}{% endexport_button %}{% endif %}
     {% endexport_group %}
   {% endpage_header %}
 
   {# ── فلتر + بحث ── #}
   {% url 'student_affairs:student_list' as list_url %}
   {% filter_bar "ترشيحُ سجلّ الطلاب" %}
-    {% field "q" "بحث" value=q grow=True placeholder="بحثٌ بالاسم أو الجوال أو الصف أو الشعبة..." autocomplete="off" hx_get=list_url hx_trigger="input changed delay:400ms, search" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='status'],[name='grade'],[name='section'],[name='parent_status']" hx_indicator="#search-spinner" %}
+    {% field "q" "بحث" value=q grow=True placeholder="بحثٌ بالاسم أو الجوال أو الصف أو الشعبة..." autocomplete="off" hx_get=list_url hx_trigger="input changed delay:400ms, search" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='status'],[name='grade'],[name='section'],[name='wing'],[name='parent_status']" hx_indicator="#search-spinner" %}
     {# حالةُ القيد — والافتراضُ المقيَّدون، ومن أُغلق قيدُه يُرى بترشيحٍ صريح #}
-    {% field "status" "حالة القيد" type="select" choices=statuses value=status hx_get=list_url hx_trigger="change" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='grade'],[name='section'],[name='parent_status']" %}
-    {% field "grade" "الصف" type="select" choices=grades value=grade_filter blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='status'],[name='section'],[name='parent_status']" %}
-    {% field "section" "الشعبة" type="select" choices=sections value=section_filter blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='status'],[name='grade'],[name='parent_status']" %}
-    {% field "parent_status" "ولي الأمر" type="select" choices="linked=مرتبط|unlinked=غير مرتبط" value=parent_status blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='status'],[name='grade'],[name='section']" %}
+    {% field "status" "حالة القيد" type="select" choices=statuses value=status hx_get=list_url hx_trigger="change" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='grade'],[name='section'],[name='wing'],[name='parent_status']" %}
+    {# الجناح: يظهر لمن يرى أكثر من جناح (المدير)، ويدخل في كلّ طلبٍ وفي زرّي التصدير #}
+    {% if wings %}{% field "wing" "الجناح" type="select" choices=wings value=wing_filter blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='status'],[name='grade'],[name='section'],[name='parent_status']" %}{% endif %}
+    {% field "grade" "الصف" type="select" choices=grades value=grade_filter blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='status'],[name='section'],[name='wing'],[name='parent_status']" %}
+    {% field "section" "الشعبة" type="select" choices=sections value=section_filter blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='status'],[name='grade'],[name='wing'],[name='parent_status']" %}
+    {% field "parent_status" "ولي الأمر" type="select" choices="linked=مرتبط|unlinked=غير مرتبط" value=parent_status blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='status'],[name='grade'],[name='section'],[name='wing']" %}
     <div class="filter-actions">
       <a href="{{ list_url }}" class="btn-secondary btn-sm">
         {% icon "refresh" %} إعادة ضبط

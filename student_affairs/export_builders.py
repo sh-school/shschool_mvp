@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 from django.template.loader import render_to_string
@@ -19,12 +20,10 @@ from core.export_utils import (
     get_pdf_footer_html,
     get_pdf_header_html,
 )
-from core.exports.contract import Column, TableSpec
+from core.exports.contract import NUMBER_LABEL, Column, TableSpec, table_rows
 from core.exports.registry import ExportResult
-from core.privacy import may_search_id_partially
 
 from .list_selectors import rows_for
-from .selectors import student_register
 
 #: قائمةُ الطلبة على عقد التصدير المركزيّ (W-20261109-013): الصفوفُ من محدِّد الشاشة نفسِه `rows_for`.
 STUDENT_LIST_TABLE = TableSpec(
@@ -43,6 +42,13 @@ STUDENT_LIST_TABLE = TableSpec(
     file_module="students",
 )
 
+#: أعمدةُ PDF: كشفٌ جماعيٌّ فلا رقمَ شخصيَّ فيه ولو مستوراً (`core/privacy.py`)؛ والصفوفُ من `rows_for` نفسِه.
+STUDENT_LIST_PDF_TABLE = replace(
+    STUDENT_LIST_TABLE,
+    kind="student_affairs.students_pdf",
+    columns=tuple(c for c in STUDENT_LIST_TABLE.columns if c.key != "national_id"),
+)
+
 
 def build_students_pdf(school: Any, user: Any, params: Any) -> ExportResult:
     """كان متزامناً 8.3ث على قاعدة القياس (2026-09-26): WeasyPrint على سجلّ المدرسة كلِّه.
@@ -51,30 +57,14 @@ def build_students_pdf(school: Any, user: Any, params: Any) -> ExportResult:
     """
     from core.pdf_utils import render_pdf_bytes
 
-    year = academic_year_for_school(user.get_school())
     ctx = get_export_context_for(user, "سجل الطلاب")
-    students, enrollment_data = student_register(
-        school, year, params, partial_id=may_search_id_partially(user)
-    )
-
-    rows = []
-    for i, m in enumerate(students, 1):
-        enr = enrollment_data.get(m.user_id, {})
-        rows.append(
-            {
-                "num": i,
-                "full_name": m.user.full_name,
-                "national_id": m.user.national_id,
-                "grade": enr.get("class_group__grade", "—"),
-                "section": enr.get("class_group__section", "—"),
-                "phone": m.user.get_phone_decrypted() or "—",
-                "email": m.user.email or "—",
-            }
-        )
+    # المحدِّدُ نفسُه الذي تقرأ به الشاشةُ وExcel: نطاقُ الدور والفلترُ كاملاً والعمودُ «م» وفرزُ الجناح والأعمدةُ المخفيّة.
+    columns, rows = table_rows(STUDENT_LIST_PDF_TABLE, user, params)
 
     html = render_to_string(
         "student_affairs/student_list_pdf.html",
         {
+            "headers": [NUMBER_LABEL, *(c.label for c in columns)],
             "rows": rows,
             "total_students": len(rows),
             "pdf_header": get_pdf_header_html(ctx),
