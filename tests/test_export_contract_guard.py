@@ -37,6 +37,8 @@ REGISTERED = {
     "staff_affairs:attendance_report_xlsx": "staff_affairs.attendance_month_table",
     "staff_affairs:attendance_daily_xlsx": "staff_affairs.attendance_day_table",
     "absence_followup_xlsx": "operations.absence_contact_xlsx",
+    # W-20261111-006: سجلُّ زيارات العيادة المعروض بفلتر من/إلى.
+    "clinic:visits_export_xlsx": "clinic.visits_xlsx",
 }
 
 _LATER = (
@@ -87,6 +89,7 @@ EXEMPT: dict[str, str] = {
             "wings:exit_permits_pdf",
             "academic_management:report_pdf",
             "export_gradebook_pdf",
+            "clinic:visits_export_pdf",
         ),
         _SAME_TABLE,
     ),
