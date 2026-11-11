@@ -61,7 +61,7 @@ def action_text(row: dict) -> str:
     action = row.get("action")
     if not action:
         return ""
-    return action.get_action_kind_display() + (f" — {action.note}" if action.note else "")
+    return row["action_label"] + (f" — {action.note}" if action.note else "")
 
 
 def followed_text(row: dict) -> str:

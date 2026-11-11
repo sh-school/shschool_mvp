@@ -49,7 +49,7 @@
         <td class="fu-c-class">{{ row.class_group.short_label }}</td>
         {% if page == "actions" %}
         <td>{{ row.absent_days }}</td>
-        <td>{% if row.action %}{{ row.action.get_action_kind_display }}{% if row.action.note %} — {{ row.action.note }}{% endif %}{% endif %}</td>
+        <td>{% if row.action %}{{ row.action_label }}{% if row.action.note %} — {{ row.action.note }}{% endif %}{% endif %}</td>
         <td>{% if row.action %}{{ row.action.acted_at|date:"d/m H:i" }}{% endif %}</td>
         <td>{{ row.action_status|default:"لم تتمّ المتابعة" }}</td>
         <td>{% if row.followed_at %}{{ row.followed_at|date:"d/m/Y H:i" }} · {{ row.followed_by }}{% endif %}</td>
