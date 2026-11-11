@@ -26,6 +26,29 @@
     {% endif %}
   {% endkpi_strip %}
 
+  {# بحثُ الطالب بنطاق صاحب الطلب: النتيجةُ ملفُّ الطالب السلوكيّ لا تقريرٌ ولا تسجيل. #}
+  {% section_card "بحث عن طالب" meta="اسمه أو رقمه الوطنيّ" icon="behavior_violation" %}
+    <form method="get" action="{% url 'behavior:dashboard' %}" role="search" class="beh-search">
+      <label for="studentSearch" class="sr-only">اسم الطالب أو رقمه</label>
+      <input type="search" id="studentSearch" name="q" value="{{ student_query }}"
+             class="form-control form-control-sm" placeholder="اسم الطالب أو رقمه..." autocomplete="off">
+      <button type="submit" class="btn-secondary btn-sm">{% icon "search" %} بحث</button>
+    </form>
+    {% if student_query %}
+      {% if student_matches %}
+        <ul class="plain-list">
+          {% for s in student_matches %}
+            <li class="plain-list__row">
+              <a href="{% url 'behavior:student_profile' s.pk %}" class="plain-list__title">{{ s.full_name }}</a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="plain-list__sub">لا يوجد طالبٌ بهذا الاسم أو الرقم في نطاقك</p>
+      {% endif %}
+    {% endif %}
+  {% endsection_card %}
+
   <div class="ui-grid-2">
     {% section_card "الاتجاه الشهري" meta="آخر 6 أشهر" icon="trend" empty="لا مخالفاتٍ في آخر 6 أشهر" %}{% if monthly_trend %}
       <div class="dash-chart-wrap">

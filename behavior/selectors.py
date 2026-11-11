@@ -164,6 +164,26 @@ def _get_scoped_students(request, school):
     return CustomUser.objects.filter(id__in=student_ids).order_by("full_name")
 
 
+#: أقصى عدد نتائجَ لبحث الطالب في لوحة السلوك — الاسمُ الشائع يعيد مئاتٍ في مدرسةٍ كبيرة.
+STUDENT_SEARCH_LIMIT = 20
+
+
+def search_scoped_students(request, school, query: str) -> list[CustomUser]:
+    """طلبةُ نطاق صاحب الطلب الذين يطابقون `query` بالاسم أو بالرقم الوطنيّ — وإلّا لا شيء.
+
+    يُبنى على `_get_scoped_students` نفسها فلا يرى البحثُ إلّا ما تراه الشاشة: المعلّمُ بجدوله،
+    ومشرفُ الجناح بجناحه، والقيادةُ بالمدرسة. الاسمُ مطابقةٌ جزئيّةٌ بلا حساسيّةٍ لحالة الأحرف،
+    والرقمُ الوطنيّ مطابقةٌ تامّة فلا يُعدَّد به الطلبة.
+    """
+    text = query.strip()
+    if not text:
+        return []
+    matches = _get_scoped_students(request, school).filter(
+        Q(full_name__icontains=text) | Q(national_id=text)
+    )
+    return list(matches[:STUDENT_SEARCH_LIMIT])
+
+
 #: الدرجاتُ الأربع على بطاقة الشعبة (قرار المالك 10-09: النوعُ = الدرجة، واسمُ الفئة عند الضغط).
 DEGREES = (1, 2, 3, 4)
 
