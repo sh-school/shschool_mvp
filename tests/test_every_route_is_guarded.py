@@ -49,6 +49,8 @@ GUARDED_INSIDE = {
     "academic/assignments/row/<uuid:assignment_id>/double/": "_guard() — قدرةُ الإدخال/المراجعة/الاعتماد، ونطاقُ قسم المنسّق",
     "academic/assignments/row/<uuid:assignment_id>/parallel/": "_guard() — قدرةُ الإدخال/المراجعة/الاعتماد، ونطاقُ قسم المنسّق",
     "academic/assignments/row/<uuid:assignment_id>/remove/": "_guard() — قدرةُ الإدخال/المراجعة/الاعتماد، ونطاقُ قسم المنسّق",
+    "academic/assignments/row/<uuid:assignment_id>/split/": "_guard() — قدرةُ الإدخال/المراجعة/الاعتماد، ونطاقُ قسم المنسّق (W-20261111-002)",
+    "academic/assignments/row/<uuid:assignment_id>/split/options/": "_guard() — قدرةُ الإدخال/المراجعة/الاعتماد، ونطاقُ قسم المنسّق (W-20261111-002)",
     "dbmedia/<path:name>": "_authorize() — مالكُ الملفّ أو الدورُ المسجَّل له، وإلّا 404 (fail-closed)",
     "search/": "الطلبةُ للكادر، والرقمُ الشخصيُّ لشؤون الطلبة، والكادرُ للمدير (#222)",
     "styleguide/icons/": "developer_only — superuser أو مجموعة developers",

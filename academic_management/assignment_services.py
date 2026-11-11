@@ -215,8 +215,7 @@ def _periods_finding(weekly_periods, row, override_reason):
     return _f(
         BLOCK,
         PERIODS_MISMATCH_NO_REASON,
-        f"{weekly_periods} حصصٍ والخطّةُ تقول {row.weekly_periods} — "
-        "المخالفةُ تحتاج سبباً يُحفظ معها.",
+        f"{weekly_periods} حصصٍ والخطّةُ تقول {row.weekly_periods} — المخالفةُ تحتاج سبباً يُحفظ معها.",
     )
 
 
@@ -623,6 +622,7 @@ def apply_assignment(
     requires_lab=False,
     expected_updated_at=None,
     confirm_transfer=False,
+    split=False,
 ):
     """يفحص ثمّ يكتب في معاملةٍ واحدة — ويرفع `AssignmentError` عند أيّ مانع.
 
@@ -634,6 +634,8 @@ def apply_assignment(
     وكان ذلك يقع صامتاً: منسّقٌ يُسند بالخطأ فيخسر زميلُه حصصَه ولا يعلم
     أحدُهما. فصار النقلُ يحتاج `confirm_transfer=True` — ومن لم يؤكّد رُدَّ
     بمانعٍ يسمّي صاحبَ المادّة الحاليَّ ليقرّر المنسّقُ على بيّنة.
+
+    ## القسمةُ: `split=True` تُبقي صاحبَ المادّة وتُضيف ثانياً بوسم توازٍ واحد (`assignment_split`).
 
     ## وسمُ التوازي: لم يُمرَّر يعني «رِث»، لا «امسح»
 
@@ -655,6 +657,12 @@ def apply_assignment(
         else ((current.parallel_group if current else "") or "")
     )
     rival = _rival_row(siblings, current, teacher_id, provisional_tag)
+    split_tag, split_block = "", None
+    if split and teacher:
+        from academic_management import assignment_split_services as splitting
+
+        split_tag, split_block = splitting.begin_split(siblings, current, teacher, by=by)
+        rival = None  # القسمةُ لا تُسقط أحداً
 
     if parallel_group is not None:
         tag = (parallel_group or "").strip()[:40]
@@ -664,6 +672,7 @@ def apply_assignment(
         tag = (rival.parallel_group or "").strip()
     else:
         tag = ""
+    tag = split_tag or tag
 
     findings = check_assignment(
         school=school,
@@ -676,6 +685,8 @@ def apply_assignment(
         parallel_group=tag,
         current=current,
     )
+    if split_block:
+        findings.append(split_block)
 
     holder = rival.teacher if rival else None
     if holder and teacher and not confirm_transfer:
@@ -881,10 +892,7 @@ def set_parallel(
         raise ValidationError({"partner": "الشريكةُ خارج نطاق هذا الإسناد."})
     if assignment.teacher_id and partner.teacher_id and assignment.teacher_id == partner.teacher_id:
         raise ValidationError(
-            {
-                "partner": f"{assignment.teacher.full_name} معلّمٌ واحدٌ — "
-                "لا يكفي طرفَي التوازي (F-16)."
-            }
+            {"partner": f"{assignment.teacher.full_name} معلّمٌ واحدٌ — لا يكفي طرفَي التوازي (F-16)."}
         )
     if assignment.weekly_periods != partner.weekly_periods:
         raise ValidationError(

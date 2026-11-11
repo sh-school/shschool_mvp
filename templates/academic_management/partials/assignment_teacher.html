@@ -118,6 +118,17 @@
         </td>
         <td>
           {% if card.writable %}
+          {% comment %}قسمةُ الشعبة: معلّمٌ ثانٍ للمادّة نفسها في التوقيت نفسه، بلا نقلٍ ولا إسقاط.{% endcomment %}
+          <details>
+            <summary title="قسمة الشعبة مع معلّمٍ ثانٍ">قسمة</summary>
+            <form hx-post="{% url 'academic_management:assignment_split_row' row.id %}" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
+              {% csrf_token %}
+              <select name="teacher" hx-get="{% url 'academic_management:assignment_split_options' row.id %}" hx-trigger="focus once" hx-swap="innerHTML" aria-label="المعلّم الثاني — {{ row.subject.name_ar }} في {{ row.class_group.short_label }}">
+                <option value="">— المعلّم الثاني —</option>
+              </select>
+              <button type="submit">قسمة</button>
+            </form>
+          </details>
           <form hx-post="{% url 'academic_management:assignment_remove_row' row.id %}" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" hx-confirm="حذفُ {{ row.subject.name_ar }} من {{ row.class_group.short_label }}؟" class="asg-inline">
             {% csrf_token %}
             <button type="submit" class="asg-x" title="حذف">✕</button>

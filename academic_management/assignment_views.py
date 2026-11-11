@@ -27,6 +27,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from academic_management import assignment_selectors as selectors
 from academic_management import assignment_services as assignment_service
+from academic_management import assignment_split_services as split_service
 from academic_management import curriculum_services as curriculum_service
 from academic_management import workload_workflow as flow
 from academic_management.models import FROZEN_STATUSES, CoursePreparation
@@ -472,6 +473,32 @@ def set_parallel(request, assignment_id):
             partner_expected_updated_at=partner.updated_at if partner else None,
         )
     except (ValidationError, assignment_service.StaleWriteError) as exc:
+        return _render_card(request, school, year, teacher, caps, error=_message(exc))
+    return _render_card(request, school, year, teacher, caps, notes=findings)
+
+
+@login_required
+@require_GET
+def split_options(request, assignment_id):
+    """خياراتُ المعلّم الثاني لقسمة هذا الإسناد."""
+    obj = split_service.live_row(request.school, assignment_id)
+    _guard(request, obj.teacher)
+    return HttpResponse(split_service.options_html(request.school, obj))
+
+
+@login_required
+@require_POST
+def split_row(request, assignment_id):
+    """قسمةُ الشعبة مع معلّمٍ ثانٍ — يُضاف سجلٌّ للمادّة نفسها بلا نقلٍ ولا إسقاط."""
+    obj = split_service.live_row(request.school, assignment_id)
+    teacher = obj.teacher
+    school, caps, _scope, year = _guard(request, teacher)
+    locked = _locked_card(request, school, obj.academic_year, teacher, caps)
+    if locked is not None:
+        return locked
+    try:
+        findings = split_service.split_with(school, obj, request.POST, by=request.user)
+    except (assignment_service.AssignmentError, ValidationError) as exc:
         return _render_card(request, school, year, teacher, caps, error=_message(exc))
     return _render_card(request, school, year, teacher, caps, notes=findings)
 

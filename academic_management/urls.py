@@ -56,6 +56,16 @@ urlpatterns = [
         name="assignment_set_parallel",
     ),
     path(
+        "assignments/row/<uuid:assignment_id>/split/",
+        assignment_views.split_row,
+        name="assignment_split_row",
+    ),
+    path(
+        "assignments/row/<uuid:assignment_id>/split/options/",
+        assignment_views.split_options,
+        name="assignment_split_options",
+    ),
+    path(
         "assignments/row/<uuid:assignment_id>/remove/",
         assignment_views.remove_row,
         name="assignment_remove_row",

@@ -62,6 +62,13 @@
    "reason": "مصادقة DRF بالتوكن تجري بعد SchoolContextMiddleware فلا request.school في هذا العرض؛ الاستدعاءات الثلاثة (87 و102 و150) مبرَّرة، وكان الرفع في #805 مباشراً بلا بند (W-20261003-021)",
    "to": 3,
    "where": "api/views_erasure.py"
+  },
+  {
+   "from": 0,
+   "metric": "orm",
+   "reason": "الستّةُ كلُّها من مساعدَي البطاقة المشتركَين _locked_card و_render_card كأخواته toggle_double وupdate_periods (7 لكلٍّ منهما)؛ والعرضُ نفسُه بلا استعلام: البحثُ والقسمةُ في assignment_split_services",
+   "to": 6,
+   "where": "academic_management/assignment_views.py::split_row"
   }
  ],
  "core_import_sites": {
@@ -183,6 +190,9 @@
   },
   "academic_management/assignment_views.py::set_parallel": {
    "orm": 11
+  },
+  "academic_management/assignment_views.py::split_row": {
+   "orm": 6
   },
   "academic_management/assignment_views.py::subject_options": {
    "orm": 8

@@ -590,3 +590,72 @@ def test_a_transfer_needs_confirmation_and_says_who_holds_it(
 
     row = SubjectClassAssignment.objects.get(class_group=seventh, subject=subjects["MAT"])
     assert row.teacher == teacher, "ولا يُمسّ السجلُّ قبل التأكيد"
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  قسمةُ الشعبة بين معلّمَين (W-20261111-002)
+# ══════════════════════════════════════════════════════════════════════
+
+
+def _split_pair(school, subjects, seventh, teacher, actor):
+    plan_row(school, subjects["MAT"], periods=5)
+    apply(school, seventh, subjects["MAT"], teacher, actor)
+    other = a_teacher(school, "معلّمٌ ثانٍ")
+    row, _ = apply(school, seventh, subjects["MAT"], other, actor, split=True)
+    return other, row
+
+
+def _live_rows(school, seventh, subjects):
+    from operations.models import SubjectClassAssignment
+
+    return list(
+        SubjectClassAssignment.objects.live(school, year=YEAR).filter(
+            class_group=seventh, subject=subjects["MAT"]
+        )
+    )
+
+
+def test_a_split_keeps_both_rows_active_under_one_tag(school, subjects, seventh, teacher, actor):
+    _other, row = _split_pair(school, subjects, seventh, teacher, actor)
+    rows = _live_rows(school, seventh, subjects)
+    assert len(rows) == 2
+    assert len({r.parallel_group for r in rows}) == 1
+    assert row.parallel_group
+
+
+def test_a_split_with_the_same_teacher_is_refused(school, subjects, seventh, teacher, actor):
+    plan_row(school, subjects["MAT"], periods=5)
+    apply(school, seventh, subjects["MAT"], teacher, actor)
+    with pytest.raises(svc.AssignmentError) as err:
+        apply(school, seventh, subjects["MAT"], teacher, actor, split=True)
+    assert svc.PARALLEL_SAME_TEACHER in codes(err.value.findings, svc.BLOCK)
+
+
+def test_coverage_counts_a_split_subject_once(school, subjects, seventh, teacher, actor):
+    from academic_management import curriculum_services as curriculum
+
+    _split_pair(school, subjects, seventh, teacher, actor)
+    cells = [
+        c
+        for c in curriculum.coverage(school, YEAR)
+        if c["section_id"] == seventh.id and c["subject_id"] == subjects["MAT"].id
+    ]
+    assert len(cells) == 1
+    assert cells[0]["assigned"] == cells[0]["planned"] == 5
+    assert cells[0]["status"] == curriculum.MATCH
+
+
+def test_each_split_teacher_carries_the_full_periods(school, subjects, seventh, teacher, actor):
+    other, _row = _split_pair(school, subjects, seventh, teacher, actor)
+    assert loads.load_for(school, YEAR, teacher.id).teaching == 5
+    assert loads.load_for(school, YEAR, other.id).teaching == 5
+
+
+def test_removing_one_split_row_clears_the_tag_of_the_other(
+    school, subjects, seventh, teacher, actor
+):
+    _other, row = _split_pair(school, subjects, seventh, teacher, actor)
+    _removed, cleared = svc.remove_assignment(assignment=row, by=actor, reason="إلغاء القسمة")
+    rest = _live_rows(school, seventh, subjects)
+    assert len(rest) == 1 and cleared is not None
+    assert rest[0].parallel_group == ""
