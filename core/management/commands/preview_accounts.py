@@ -236,7 +236,10 @@ class Command(BaseCommand):
                     wing_note = self._assign_wing(school, user)
             teacher_note = self._seed_teacher_classes(school)
             dept_note = self._assign_departments(school)
-            wing_note = "؛ ".join(note for note in (wing_note, teacher_note, dept_note) if note)
+            student_note = self._seed_behavior_students(school)
+            wing_note = "؛ ".join(
+                note for note in (wing_note, teacher_note, dept_note, student_note) if note
+            )
         self.stdout.write(
             f"حساباتُ المعاينة: أُنشئ {created}، وصُحّح {fixed}، من {len(ROLES)}"
             + (f"؛ وأُزيل {removed} حساباً من الأداة السابقة" if removed else "")
@@ -270,6 +273,19 @@ class Command(BaseCommand):
 
         out = StringIO()
         call_command("seed_preview_teacher_classes", school=school.code, stdout=out)
+        return out.getvalue().strip()
+
+    def _seed_behavior_students(self, school: School) -> str:
+        """يبذر طلبةً بلا مخالفاتٍ في جناح المشرف الوهميّ ليُجرَّب بحثُ لوحة السلوك (W-20261111-004).
+
+        المنطقُ في أمر `seed_preview_behavior_students` في behavior — يُستدعى باسمه كإسناد المعلّم (سقّاطةُ الطبقات).
+        """
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        out = StringIO()
+        call_command("seed_preview_behavior_students", school=school.code, stdout=out)
         return out.getvalue().strip()
 
     def _assign_wing(self, school: School, user: CustomUser) -> str:
