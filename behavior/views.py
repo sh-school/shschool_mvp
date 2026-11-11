@@ -115,6 +115,7 @@ from .selectors import (
     _get_scoped_students,
     _visible_student_ids,
     recordable_student,
+    search_scoped_students,
     student_picker,
 )
 from .services import (
@@ -213,9 +214,18 @@ def behavior_dashboard(request):
     context["level_dist"] = list(level_dist)
     context["daily_trend"] = list(daily_trend)
     context["top_violations"] = top_violations
-    context.update(_dashboard_presentation(context, today))
+    context.update(_dashboard_presentation(context, today) | _dashboard_search(request, school))
 
     return render(request, "behavior/dashboard.html", context)
+
+
+def _dashboard_search(request, school) -> dict:
+    """بحثُ الطالب في لوحة السلوك: الاستعلامُ ونتائجُه من نطاق صاحب الطلب وحده."""
+    query = request.GET.get("q", "").strip()
+    return {
+        "student_query": query,
+        "student_matches": search_scoped_students(request, school, query),
+    }
 
 
 def _dashboard_presentation(context: dict, today) -> dict:
@@ -460,6 +470,8 @@ def student_behavior_profile(request, student_id):
     context["can_report"] = BehaviorPermissions.can_report(request.user)
     context["is_committee"] = BehaviorPermissions.is_committee(request.user)
     context["can_summon"] = BehaviorPermissions.can_summon(request.user)
+    # «كشفُ السلوك» يُفتح بالقدرة نفسها التي تحرس `behavior_report` — فلا يُعرض رابطٌ يُرفض.
+    context["can_view_report"] = has_capability(request.user, "behavior.record")
     # نماذجُ الإنذار والتعهّد لإدارة المخالفات — رابطٌ لا يُفتح لصاحبه لا يُعرض له.
     context["can_print_forms"] = has_capability(request.user, "behavior.manage")
     audit_infraction_read(request, context["infractions"])
