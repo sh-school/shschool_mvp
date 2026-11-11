@@ -8,9 +8,16 @@ class ClinicConfig(AppConfig):
 
     def ready(self):
         from core.exports import registry as export_registry
+        from core.exports.contract import register_table
         from core.module_registry import register_module
 
-        from .export import build_monthly_export, build_monthly_pdf
+        from .export import (
+            VISITS_PDF_KIND,
+            VISITS_TABLE,
+            build_monthly_export,
+            build_monthly_pdf,
+            build_visits_pdf,
+        )
 
         # التقريرُ الشهريّ Excel (W-20261020-032): عدديٌّ بلا أسماء، بقدرةٍ مستقلّةٍ عن قراءة الوحدة.
         export_registry.register(
@@ -18,6 +25,11 @@ class ClinicConfig(AppConfig):
         )
         export_registry.register(
             "clinic.monthly_pdf", build=build_monthly_pdf, capability="clinic.export"
+        )
+        # سجلُّ الزيارات المعروض (W-20261111-006): Excel عبر العقد المركزيّ، وPDF بالقدرة نفسها كما في القائمة.
+        register_table(VISITS_TABLE)
+        export_registry.register(
+            VISITS_PDF_KIND, build=build_visits_pdf, capability=VISITS_TABLE.capability
         )
 
         register_module(
