@@ -18,6 +18,7 @@ from typing import Any
 from django.utils import timezone
 
 from core.exports.contract import Column, TableSpec
+from core.exports.registry import ExportResult
 
 from . import choices
 
@@ -291,7 +292,7 @@ VISITS_TABLE = TableSpec(
 )
 
 
-def build_visits_pdf(school: Any, user: Any, params: Any):
+def build_visits_pdf(school: Any, user: Any, params: Any) -> ExportResult:
     """PDF سجلّ الزيارات على العقد المركزيّ: الصفوفُ من `visit_rows` كما في Excel."""
     from student_affairs.export_builders import build_table_pdf
 
