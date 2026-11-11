@@ -58,6 +58,9 @@
             {% if is_committee and inf.level == 4 and not inf.security_agency %}
             <a href="{% url 'behavior:security_referral' inf.id %}" class="btn-danger btn-xs">{% icon "security" %} إحالة أمنية</a>
             {% endif %}
+            {% if inf.id in editable_ids %}
+            <a href="{% url 'behavior:infraction_edit' inf.id %}" class="btn-secondary btn-xs">{% icon "edit" %} تعديل</a>
+            {% endif %}
             {% if can_print_forms %}
             {% export_group kind="form" size="xs" %}
             {% export_button "pdf" "behavior:warning_pdf" inf.id size="xs" title="إنذار" %}{% endexport_button %}

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_daily, views_escalation, views_exports
+from . import views, views_daily, views_edit, views_escalation, views_exports
 
 app_name = "behavior"
 
@@ -47,6 +47,12 @@ urlpatterns = [
         "infraction/<uuid:infraction_id>/pdf/student/",
         views.infraction_student_pdf,
         name="student_pdf",
+    ),
+    # تعديلُ مخالفةٍ مسجَّلة (بلاغ 5D5D)
+    path(
+        "infraction/<uuid:infraction_id>/edit/",
+        views_edit.infraction_edit,
+        name="infraction_edit",
     ),
     # ✅ v6: تصعيد + إحالة أمنية
     path(

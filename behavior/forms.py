@@ -110,3 +110,37 @@ class InfractionForm(forms.Form):
             # Do not persist stray text when a different action is chosen.
             cleaned["violation_description"] = ""
         return cleaned
+
+
+class InfractionEditForm(InfractionForm):
+    """تعديلُ مخالفةٍ قائمة: الوصف والمخالفة والإجراء والتاريخ — بحدود الإجراء نفسِها للدور (بلاغ 5D5D).
+
+    الطالبُ والدرجةُ لا يُعدَّلان هنا؛ والدرجةُ تتبع درجةَ المخالفة المختارة كما في التسجيل.
+    """
+
+    date = forms.DateField(
+        error_messages={"required": "يرجى إدخال تاريخ المخالفة.", "invalid": "تاريخ غير صالح."},
+    )
+
+    def __init__(self, *args, role: str | None = None, infraction=None, **kwargs):
+        if infraction is not None:  # القيمُ الحاليّةُ للمخالفة هي الأصل المعروض
+            kwargs["initial"] = {
+                "description": infraction.description,
+                "date": infraction.date,
+                "violation_category": infraction.violation_category_id,
+                "disciplinary_action_type": infraction.disciplinary_action_type,
+                "violation_description": infraction.violation_description,
+            }
+        super().__init__(*args, role=role, **kwargs)
+        del self.fields["student_id"]
+        del self.fields["level"]
+        self.fields["description"].required = True
+        self.fields["description"].error_messages["required"] = "يرجى إدخال وصف المخالفة."
+
+    def clean_date(self):
+        from django.utils import timezone
+
+        value = self.cleaned_data["date"]
+        if value > timezone.localdate():
+            raise forms.ValidationError("تاريخ المخالفة لا يكون في المستقبل.")
+        return value

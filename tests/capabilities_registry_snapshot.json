@@ -874,6 +874,22 @@
   ]
  },
  {
+  "key": "behavior.edit",
+  "label": "تعديلُ مخالفةٍ مسجَّلة",
+  "roles": [
+   "admin_supervisor",
+   "principal",
+   "psychologist",
+   "social_worker",
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسةُ كلُّها (المشرفُ لجناحه)، ومن سجّل المخالفةَ يعدّلها أيّاً كان دورُه",
+  "basis": "قرار المالك 2026-11-11 (بلاغ 5D5D): قائمةٌ مغلقةٌ، وشرطا المسجِّل والجناح في الخدمة",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
   "key": "behavior.manage",
   "label": "إدارةُ المخالفات والإجراءات",
   "roles": [

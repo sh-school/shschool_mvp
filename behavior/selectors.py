@@ -119,6 +119,27 @@ def recordable_student(request, school, student_id):
     return student
 
 
+def school_infraction_or_404(school, infraction_id):
+    """مخالفةٌ في مدرسة الطلب بطالبها وفئتها — وغيرُها 404 (لا تُكشف مخالفةُ مدرسةٍ أخرى)."""
+    from behavior.models import BehaviorInfraction
+
+    return get_object_or_404(
+        BehaviorInfraction.objects.select_related("student", "violation_category"),
+        id=infraction_id,
+        school=school,
+    )
+
+
+def editable_categories(infraction, locked: bool) -> list[Any]:
+    """فئاتُ المخالفة المتاحةُ عند التعديل؛ وإن صدر قرارُ اللجنة فمخالفاتُ الدرجة نفسِها وحدَها."""
+    from behavior.models import ViolationCategory
+
+    categories = ViolationCategory.objects.filter(is_active=True, code__regex=r"^\d+-\d+$")
+    if locked:
+        categories = categories.filter(degree=infraction.level)
+    return list(categories.order_by("code"))
+
+
 def escalation_preview_targets(students, student_id: str, category_id: str):
     """(الطالب، الفئة) لمعاينة التصعيد، أو None إن لم يصحّ المعرّفان أو خرج الطالب عن النطاق أو الفئةُ بلا درجة.
 

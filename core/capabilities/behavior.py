@@ -24,6 +24,13 @@ def behavior_capabilities(shared: Shared) -> list[Capability]:
             # رصدُ مخالفةٍ تأديبيّةٍ لقاصرٍ كتابةٌ حسّاسة؛ المساعدان يرثان جدولَ المعلّم وحضورَه لا رصدَه (حكم 0104، W-20261010-013).
             not_inherited_by={"teacher_assistant", "ese_assistant"},
         ),
+        _cap(
+            "behavior.edit",
+            "تعديلُ مخالفةٍ مسجَّلة",
+            P.BEHAVIOR_EDIT,
+            scope="المدرسةُ كلُّها (المشرفُ لجناحه)، ومن سجّل المخالفةَ يعدّلها أيّاً كان دورُه",
+            basis="قرار المالك 2026-11-11 (بلاغ 5D5D): قائمةٌ مغلقةٌ، وشرطا المسجِّل والجناح في الخدمة",
+        ),
         _cap("behavior.manage", "إدارةُ المخالفات والإجراءات", P.BEHAVIOR_MANAGE_HOLDERS),
         _cap(
             "behavior.committee",
