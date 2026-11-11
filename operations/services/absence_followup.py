@@ -444,6 +444,7 @@ def followup_rows(user: Any, date: dt.date) -> list[dict]:
                 contacts[r.student.id].feedback if may_feedback and r.student.id in contacts else ""
             ),
             "action": actions.get(r.student.id),
+            "action_label": action_label(actions.get(r.student.id)),
             # عمودا «المتابعة»: يُحجبان هنا في الخدمة عمّن لا قدرةَ له، فلا يصل قالبَ الشاشة ولا الكشفَ ولا PDF.
             "contact_status": _status_label(contacts.get(r.student.id), may_follow),
             "action_status": _status_label(actions.get(r.student.id), may_follow),
@@ -512,6 +513,18 @@ def apply_view(
     elif sort == "days":
         out.sort(key=lambda r: (-r["absent_days"], r["student"].full_name))
     return out
+
+
+def action_label(action: Any) -> str:
+    """الاسمُ المعروض للإجراء في الشاشة والكشف وExcel: نوعُه، إلّا «أخرى» لاستلام إجازة مرضيّة.
+
+    الخانةُ الفارغةُ عند التسجيل تُخزَّن «أخرى» (لا استدعاءَ لم يختره أحد)، فيُعرض لها اسمُ حالتها.
+    """
+    if action is None:
+        return ""
+    if action.status == "sick_leave_received" and action.action_kind == "other":
+        return str(action.get_status_display())
+    return str(action.get_action_kind_display())
 
 
 def _status_label(log: Any, allowed: bool) -> str:
