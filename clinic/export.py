@@ -17,6 +17,8 @@ from typing import Any
 
 from django.utils import timezone
 
+from core.exports.contract import Column, TableSpec
+
 from . import choices
 
 SUPPRESS_BELOW = 5
@@ -245,3 +247,52 @@ def build_monthly_pdf(school: Any, user: Any, params: Any):
         rows=counts["total"],
         object_id=f"{year}-{month:02d}",
     )
+
+
+# ── سجلُّ الزيارات (W-20261111-006): الفلاتر نفسُها على الشاشة وExcel وPDF ──────────
+VISITS_PDF_KIND = "clinic.visits_pdf"
+_DASH = "—"
+_VISIT_PDF_LABELS = ("إجمالي الزيارات", "سجل زيارات العيادة", "لا زيارات بهذه المعايير")
+
+
+def _yes_no(flag: bool) -> str:
+    return "نعم" if flag else "لا"
+
+
+def visit_rows(user: Any, params: Any) -> list[dict[str, Any]]:
+    """صفوفُ الزيارات بالفلاتر نفسها على الشاشة — المحدِّدُ `selectors.visits_for` نفسُه."""
+    from clinic.selectors import visits_for
+
+    return [
+        {
+            "visit_at": timezone.localtime(v.visit_date).strftime("%d/%m/%Y %H:%M"),
+            "temperature": float(v.temperature) if v.temperature is not None else _DASH,
+            "sent_home": _yes_no(v.is_sent_home),
+            "parent_notified": _yes_no(v.parent_notified),
+        }
+        for v in visits_for(user.get_school(), params)
+    ]
+
+
+#: الأعمدةُ بلا اسمِ الطالب: الاسمُ بيانٌ شخصيّ، والسببُ والإجراءُ نصٌّ صحّيٌّ حرٌّ مشفَّر (لا يُصدَّر).
+VISITS_TABLE = TableSpec(
+    kind="clinic.visits_xlsx",
+    title="سجل زيارات العيادة",
+    capability="clinic.access",
+    columns=(
+        Column("visit_at", "التاريخ والوقت"),
+        Column("temperature", "الحرارة"),
+        Column("sent_home", "أُرسل للمنزل"),
+        Column("parent_notified", "أُبلغ ولي الأمر"),
+    ),
+    rows_for=visit_rows,
+    wing_key=None,
+    file_module="clinic_visits",
+)
+
+
+def build_visits_pdf(school: Any, user: Any, params: Any):
+    """PDF سجلّ الزيارات على العقد المركزيّ: الصفوفُ من `visit_rows` كما في Excel."""
+    from student_affairs.export_builders import build_table_pdf
+
+    return build_table_pdf(VISITS_TABLE, _VISIT_PDF_LABELS, school, user, params)

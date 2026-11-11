@@ -5,9 +5,27 @@ tests/test_views_clinic.py
 يختبر: Dashboard، تسجيل زيارة، السجل الصحي، إحصائيات
 """
 
+import datetime as dt
+
 import pytest
+from django.utils import timezone
 
 from clinic.models import ClinicVisit, HealthRecord
+
+
+def _at(day, hour, minute=0):
+    return timezone.make_aware(dt.datetime(2026, 9, day, hour, minute))
+
+
+def _visit_at(school, student, nurse, when):
+    v = ClinicVisit.objects.create(school=school, student=student, nurse=nurse, reason="صداع")
+    ClinicVisit.objects.filter(pk=v.pk).update(visit_date=when)
+    return v
+
+
+def _days(response):
+    """أيامُ الزيارات الظاهرة في السياق (محلّيّاً) مرتّبةً."""
+    return sorted(timezone.localtime(v.visit_date).day for v in response.context["visits"])
 
 
 @pytest.mark.django_db
@@ -105,6 +123,42 @@ class TestVisitsList:
         today = date.today().strftime("%Y-%m-%d")
         response = client.get(f"/clinic/visits/?date={today}")
         assert response.status_code == 200
+
+    def test_range_from_to_includes_both_ends_only(
+        self, client_as, nurse_user, school, student_user
+    ):
+        for when in (_at(9, 12), _at(10, 0, 30), _at(12, 23, 30), _at(13, 12)):
+            _visit_at(school, student_user, nurse_user, when)
+        client = client_as(nurse_user)
+        response = client.get(
+            "/clinic/visits/", {"date_from": "2026-09-10", "date_to": "2026-09-12"}
+        )
+        assert _days(response) == [10, 12]
+        assert response.context["date_from"] == "2026-09-10"
+        assert response.context["date_to"] == "2026-09-12"
+
+    def test_legacy_single_date_is_a_one_day_range(
+        self, client_as, nurse_user, school, student_user
+    ):
+        for when in (_at(10, 12), _at(11, 12)):
+            _visit_at(school, student_user, nurse_user, when)
+        client = client_as(nurse_user)
+        response = client.get("/clinic/visits/", {"date": "2026-09-11"})
+        assert _days(response) == [11]
+        assert response.context["date_from"] == response.context["date_to"] == "2026-09-11"
+
+    def test_reversed_range_is_swapped_and_bad_dates_are_ignored(
+        self, client_as, nurse_user, school, student_user
+    ):
+        for when in (_at(10, 12), _at(11, 12), _at(12, 12)):
+            _visit_at(school, student_user, nurse_user, when)
+        client = client_as(nurse_user)
+        reversed_range = client.get(
+            "/clinic/visits/", {"date_from": "2026-09-12", "date_to": "2026-09-10"}
+        )
+        assert _days(reversed_range) == [10, 11, 12]
+        bad = client.get("/clinic/visits/", {"date_from": "غير-تاريخ"})
+        assert _days(bad) == [10, 11, 12]
 
 
 @pytest.mark.django_db

@@ -136,7 +136,7 @@
   "analytics/views.py": 12,
   "api/views.py": 16,
   "api/views_erasure.py": 3,
-  "clinic/views.py": 6,
+  "clinic/views.py": 5,
   "core/views_audit.py": 1,
   "core/views_dashboard.py": 1,
   "core/views_search.py": 1,
@@ -294,9 +294,6 @@
    "orm": 10
   },
   "clinic/views.py::student_health_record": {
-   "orm": 6
-  },
-  "clinic/views.py::visits_list": {
    "orm": 6
   },
   "core/views_audit.py::permission_audit_log": {
