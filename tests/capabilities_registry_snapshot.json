@@ -948,6 +948,44 @@
   ]
  },
  {
+  "key": "behavior.proposed_actions",
+  "label": "قوائمُ إجراءات المخالفات المقترحة",
+  "roles": [
+   "admin_supervisor",
+   "psychologist",
+   "social_worker",
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة (المشرفُ لجناحه)",
+  "basis": "قرارات المالك 2026-11-08 (بلاغ CA7E): الاقتراحُ من سلّم الدليل م3.5.3 والاعتمادُ للمنسّق",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "behavior.approve_action",
+  "label": "اعتمادُ إجراء المخالفة ومتابعةُ تنفيذه",
+  "roles": [
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة؛ من سجّل المخالفةَ لا يعتمدها، فيعتمد النائبُ ما سجّله المنسّق",
+  "basis": "قرارات المالك 2026-11-08 (بلاغ CA7E): فصلُ المهامّ؛ والاختصاصيّان يدرسان ولا يعتمدان",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "behavior.prepare_action",
+  "label": "تجهيزُ التعهّد الخطّيّ والإحالة (مشرفُ الجناح)",
+  "roles": [
+   "admin_supervisor"
+  ],
+  "scope": "طلبةُ جناحه وحدَهم عبر wings/scope.py",
+  "basis": "قرارات المالك 2026-11-08 (بلاغ CA7E): تجهيزُ التعهّد والإحالة فقط، بلا استدعاء ولا إدارة مخالفات (behavior.manage وbehavior.summon_parent ليسا له)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
   "key": "behavior.summon_parent",
   "label": "استدعاءُ وليّ الأمر",
   "roles": [

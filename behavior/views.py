@@ -279,8 +279,8 @@ def report_infraction(request):
             # REQ-SH-001: structured disciplinary action + conditional textarea
             disciplinary_action_type = form.cleaned_data.get("disciplinary_action_type", "")
             violation_description = form.cleaned_data.get("violation_description", "")
-            # نصٌّ حرٌّ قديم للتوافق: يُنسخ إليه نصُّ الخيار المختار ليقرأه القديمُ مقروءاً.
-            _choices_map = dict(form.fields["disciplinary_action_type"].choices)
+            # نصٌّ حرٌّ قديم للتوافق: نصُّ الخيار المختار (والفارغ مستبعَد فلا يُنسخ بلا اختيار).
+            _choices_map = dict(c for c in form.fields["disciplinary_action_type"].choices if c[0])
             action = _choices_map.get(disciplinary_action_type, "") or form.cleaned_data.get(
                 "action_taken", ""
             )

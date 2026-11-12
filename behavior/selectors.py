@@ -124,7 +124,7 @@ def school_infraction_or_404(school, infraction_id):
     from behavior.models import BehaviorInfraction
 
     return get_object_or_404(
-        BehaviorInfraction.objects.select_related("student", "violation_category"),
+        BehaviorInfraction.objects.select_related("student", "violation_category", "reported_by"),
         id=infraction_id,
         school=school,
     )
