@@ -16,6 +16,7 @@
 <div class="obs-pdf-page">
   {% page_header report_title subtitle=subtitle icon="document" %}
     {% export_group doc="templates/operations/absence_followup_print.html" %}{% export_button "pdf" href=pdf_url primary=True download=True %}{% endexport_button %}{% endexport_group %}
+    <a href="{{ split_url }}" class="btn-secondary btn-sm">{{ split_label }}</a>
     <a href="{{ back_url }}" class="btn-secondary btn-sm">← رجوع للقائمة</a>
   {% endpage_header %}
   <iframe src="{{ frame_url }}" title="{{ report_title }}" class="obs-pdf-frame"></iframe>
