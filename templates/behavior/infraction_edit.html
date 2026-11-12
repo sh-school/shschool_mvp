@@ -1,0 +1,58 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}تعديل مخالفة سلوكية{% endblock %}
+{% block main_class %}{% page_layout "form" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="الضبط السلوكي" current="تعديل مخالفة" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash beh-narrow">
+
+  {% page_header "تعديل مخالفة سلوكية" subtitle=infraction.student.full_name icon="behavior_violation" %}{% endpage_header %}
+
+  {% section_card "بيانات المخالفة" icon="behavior_violation" %}
+    <form method="post" data-validate>
+      {% csrf_token %}
+      {% if level_locked %}{% callout "warning" %}صدر قرارُ اللجنة في هذه المخالفة؛ فلا تتغيّر درجتُها، وتُعرض مخالفاتُ الدرجة {{ infraction.level }} وحدَها.{% endcallout %}{% endif %}
+      <div class="form-group">
+        <label class="form-label" for="editCategory">المخالفة</label>
+        <select name="violation_category" id="editCategory" class="form-control">
+          <option value="">— بلا فئة —</option>
+          {% for vc in categories %}
+          <option value="{{ vc.id }}"{% if vc.id == infraction.violation_category_id %} selected{% endif %}>[{{ vc.code }}] {{ vc.name_ar }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editAction">الإجراء التأديبي</label>
+        <select name="disciplinary_action_type" id="editAction" required class="form-control">
+          <option value="">-- اختر الإجراء --</option>
+          {% for value, label in action_choices %}
+          <option value="{{ value }}"{% if value == infraction.disciplinary_action_type %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editDate">تاريخ المخالفة</label>
+        <input type="date" name="date" id="editDate" required class="form-control" value="{{ infraction.date|date:'Y-m-d' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editDescription">وصف المخالفة</label>
+        <textarea name="description" id="editDescription" rows="3" maxlength="2000" required class="form-control">{{ infraction.description }}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editViolationDescription">وصف المحضر (عند «محضر لإثبات المخالفة»)</label>
+        <textarea name="violation_description" id="editViolationDescription" rows="3" maxlength="2000" class="form-control">{{ infraction.violation_description }}</textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">{% icon "status_success" %} حفظ التعديل</button>
+        <a href="{% url 'behavior:student_profile' infraction.student_id %}" class="btn-secondary">إلغاء</a>
+      </div>
+    </form>
+  {% endsection_card %}
+
+</div>
+{% endblock %}

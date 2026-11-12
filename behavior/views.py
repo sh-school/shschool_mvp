@@ -110,6 +110,7 @@ def _deny_unreachable(request, student_id, message, school_wide=False):
 
 from core.academic_calendar import academic_year_for
 
+from .edit_services import editable_infraction_ids
 from .notify import notify_behavior_after_commit
 from .selectors import (
     _get_scoped_students,
@@ -474,6 +475,9 @@ def student_behavior_profile(request, student_id):
     context["can_view_report"] = has_capability(request.user, "behavior.record")
     # نماذجُ الإنذار والتعهّد لإدارة المخالفات — رابطٌ لا يُفتح لصاحبه لا يُعرض له.
     context["can_print_forms"] = has_capability(request.user, "behavior.manage")
+    context["editable_ids"] = editable_infraction_ids(
+        request.user, context["infractions"], student_scope_for(request)
+    )
     audit_infraction_read(request, context["infractions"])
     return render(request, "behavior/student_profile.html", context)
 
