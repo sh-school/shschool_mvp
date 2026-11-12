@@ -54,6 +54,36 @@ def behavior_capabilities(shared: Shared) -> list[Capability]:
                 "رقمَه طالبٌ من جناحٍ آخر"
             ),
         ),
+        _cap(
+            "behavior.proposed_actions",
+            "قوائمُ إجراءات المخالفات المقترحة",
+            {
+                "student_affairs_coordinator",
+                "vice_admin",
+                "admin_supervisor",
+                "social_worker",
+                "psychologist",
+            },
+            scope="المدرسة (المشرفُ لجناحه)",
+            basis="قرارات المالك 2026-11-08 (بلاغ CA7E): الاقتراحُ من سلّم الدليل م3.5.3 والاعتمادُ للمنسّق",
+        ),
+        _cap(
+            "behavior.approve_action",
+            "اعتمادُ إجراء المخالفة ومتابعةُ تنفيذه",
+            {"student_affairs_coordinator", "vice_admin"},
+            scope="المدرسة؛ من سجّل المخالفةَ لا يعتمدها، فيعتمد النائبُ ما سجّله المنسّق",
+            basis="قرارات المالك 2026-11-08 (بلاغ CA7E): فصلُ المهامّ؛ والاختصاصيّان يدرسان ولا يعتمدان",
+        ),
+        _cap(
+            "behavior.prepare_action",
+            "تجهيزُ التعهّد الخطّيّ والإحالة (مشرفُ الجناح)",
+            {"admin_supervisor"},
+            scope="طلبةُ جناحه وحدَهم عبر wings/scope.py",
+            basis=(
+                "قرارات المالك 2026-11-08 (بلاغ CA7E): تجهيزُ التعهّد والإحالة فقط، بلا استدعاء "
+                "ولا إدارة مخالفات (behavior.manage وbehavior.summon_parent ليسا له)"
+            ),
+        ),
         _cap("behavior.summon_parent", "استدعاءُ وليّ الأمر", family_callers),
         _cap(
             "behavior.guardian_contact",

@@ -61,10 +61,9 @@ class InfractionForm(forms.Form):
         },
     )
     # ── REQ-SH-001: dropdown structured action ──
+    # اختياريّ (W-20261112-003): تُسجَّل المخالفة بلا إجراء، ويقترحه النظامُ ويعتمده المنسّق.
     disciplinary_action_type = forms.ChoiceField(
-        choices=DISCIPLINARY_ACTION_CHOICES,
-        required=True,
-        error_messages={"required": "يرجى اختيار الإجراء التأديبي."},
+        choices=DISCIPLINARY_ACTION_CHOICES, required=False
     )
     violation_description = forms.CharField(
         required=False,

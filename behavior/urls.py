@@ -1,6 +1,13 @@
 from django.urls import path
 
-from . import views, views_daily, views_edit, views_escalation, views_exports
+from . import (
+    views,
+    views_daily,
+    views_edit,
+    views_escalation,
+    views_exports,
+    views_proposed_action,
+)
 
 app_name = "behavior"
 
@@ -53,6 +60,23 @@ urlpatterns = [
         "infraction/<uuid:infraction_id>/edit/",
         views_edit.infraction_edit,
         name="infraction_edit",
+    ),
+    # اقتراحُ إجراء المخالفة واعتمادُه (W-20261112-003)
+    path("actions/", views_proposed_action.proposed_actions, name="proposed_actions"),
+    path(
+        "actions/<uuid:infraction_id>/approve/",
+        views_proposed_action.approve_action,
+        name="approve_action",
+    ),
+    path(
+        "actions/<uuid:infraction_id>/followup/",
+        views_proposed_action.followup_action,
+        name="followup_action",
+    ),
+    path(
+        "actions/<uuid:infraction_id>/prepare/",
+        views_proposed_action.prepare_action,
+        name="prepare_action",
     ),
     # ✅ v6: تصعيد + إحالة أمنية
     path(
