@@ -57,6 +57,30 @@ def by_wing(rows: list[dict]) -> list[dict]:
     return ordered
 
 
+def split_of(params: Any) -> str:
+    """`split=class` وحدَه يفعّل «كلّ صفٍّ في ورقة»؛ أيّ قيمةٍ أخرى تُعدّ غيابَ الخيار."""
+    return "class" if params.get("split") == "class" else ""
+
+
+def sheets_of(rows: list[dict]) -> list[dict]:
+    """يقسم الصفوف أوراقاً بالشعبة بترتيب الصفّ ثم الشعبة؛ الشعبةُ بلا غائبٍ لا تُنشئ ورقةً أصلاً."""
+    groups: dict[int, dict[str, Any]] = {}
+    for row in rows:
+        group = row["class_group"]
+        sheet = groups.setdefault(
+            group.id,
+            {
+                "label": group.short_label,
+                "grade": group.grade,
+                "section": group.section,
+                "rows": [],
+            },
+        )
+        sheet["rows"].append(row)
+    ordered = sorted(groups.values(), key=lambda sheet: (sheet["grade"], sheet["section"]))
+    return [{**sheet, "no": no, "total": len(ordered)} for no, sheet in enumerate(ordered, 1)]
+
+
 def action_text(row: dict) -> str:
     action = row.get("action")
     if not action:
@@ -112,12 +136,19 @@ def build_followup_pdf(school: Any, user: Any, params: Any) -> Any:
     page, orient = sheet_options(params)
     # المحدِّدُ نفسُه الذي تقرأ به الشاشةُ وExcel: نطاقُ الدور والترشيحُ كاملاً وفرزُ الجناح.
     rows = shown_rows(user, params)
+    split = split_of(params)
+    # «كل صف في ورقة»: ورقةٌ لكلّ شعبةٍ فيها غيابٌ، وبلا غيابٍ تبقى ورقةٌ واحدةٌ فارغةٌ تحمل «لا غياب».
+    sheets = (
+        sheets_of(rows) if split and rows else [{"label": "", "no": 1, "total": 1, "rows": rows}]
+    )
     name = "التواصل مع أولياء الأمور" if page == "contact" else "متابعة إجراءات الغياب"
     ctx = get_export_context_for(user, f"{name} — {date_format(day, 'd/m/Y')}")
     ctx.update(
         school=school,
         footer=footer_lines(school),
         rows=rows,
+        sheets=sheets,
+        split=bool(split),
         day=day,
         page=page,
         orient=orient,
@@ -148,7 +179,14 @@ def followup_viewer_response(request: Any, day: dt.date) -> Any:
     shown = {
         k: request.GET[k] for k in ("grade", "wing", "followup", "sort", "q") if request.GET.get(k)
     }
+    split = split_of(request.GET)
     base = {"date": day.isoformat(), "page": page, "orient": orient, **shown}
+    if split:
+        base["split"] = split
+    # زرُّ التبديل يحمل الترشيح والاتجاه كما هما، ويعكس خيار «كل صف في ورقة» وحده.
+    toggle = {k: v for k, v in base.items() if k != "split"}
+    if not split:
+        toggle["split"] = "class"
     name = "التواصل مع أولياء الأمور" if page == "contact" else "متابعة إجراءات الغياب"
     back = "daily_report" if page == "contact" else "absence_actions"
     return render(
@@ -162,5 +200,7 @@ def followup_viewer_response(request: Any, day: dt.date) -> Any:
             "frame_url": f"{reverse('absence_followup_pdf')}?{urlencode(base)}",
             "pdf_url": f"{reverse('absence_followup_pdf')}?{urlencode({**base, 'download': 1})}",
             "back_url": f"{reverse(back)}?{urlencode({'date': day.isoformat(), **shown})}",
+            "split_url": f"{reverse('absence_followup_print')}?{urlencode(toggle)}",
+            "split_label": "الكشف الموحَّد" if split else "كل صف في ورقة",
         },
     )

@@ -19,6 +19,10 @@
 .fu-grid td.fu-c-no, .fu-grid th.fu-c-no, .fu-grid td.fu-c-class, .fu-grid th.fu-c-class, .fu-grid td.fu-c-phone, .fu-grid th.fu-c-phone { width: 1%; white-space: nowrap; }
 .fu-grid td.fu-c-name, .fu-grid th.fu-c-name { white-space: nowrap; text-align: right; }
 .fu-grid tr.fu-wing th { background: {% brand_color "SURFACE_ALT" %}; color: {% brand_color "TEXT_PRIMARY" %}; text-align: right; border: 1px solid {% brand_color "BORDER_STRONG" %}; }
+/* «كل صف في ورقة»: كلُّ شعبةٍ تبدأ صفحةً بترويستها وترقيمها */
+.fu-sheet { width: 100%; }
+.fu-break { page-break-before: always; }
+.fu-sheet-head { font-weight: bold; text-align: right; margin-bottom: 6px; color: {% brand_color "TEXT_PRIMARY" %}; }
 .fu-sign { margin-top: 18px; width: 45%; text-align: center; }
 .fu-sign .fu-line { border-top: 1px solid {% brand_color "TEXT_PRIMARY" %}; padding-top: 3px; }
 {% endblock %}
@@ -29,6 +33,9 @@
 
 {% block content %}
 <div class="doc-body">
+  {% for sheet in sheets %}
+  <div class="fu-sheet{% if not forloop.first %} fu-break{% endif %}">
+  {% if split %}<div class="fu-sheet-head">{{ school.name }}{% if sheet.label %} — {{ sheet.label }}{% endif %} — {{ day|date:"d/m/Y" }} — ورقة {{ sheet.no }} من {{ sheet.total }}</div>{% endif %}
   <table class="fu-grid">
     <thead>
       <tr>
@@ -41,7 +48,7 @@
       </tr>
     </thead>
     <tbody>
-      {% for row in rows %}
+      {% for row in sheet.rows %}
       {% ifchanged row.wing_title %}<tr class="fu-wing"><th colspan="9" scope="colgroup">{{ row.wing_title }}</th></tr>{% endifchanged %}
       <tr class="g-{{ row.class_group.grade|lower }}">
         <td class="fu-c-no">{{ forloop.counter }}</td>
@@ -66,6 +73,8 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
+  {% endfor %}
   <div class="fu-sign"><div class="fu-line">أصدر الملف: {{ issuer }} — {{ issued_at|date:"d/m/Y H:i" }}</div></div>
   </div>
 {% endblock %}
