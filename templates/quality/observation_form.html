@@ -1,6 +1,7 @@
 {% extends "base/base.html" %}
 {% load static %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/custom/35-quality.css' %}">{% endblock %}
+{% block extra_js %}<script src="{% static 'js/observation-form.js' %}" defer></script>{% endblock %}
 {% load ui %}
 {% block title %}استمارة الإشراف على أداء المعلّم{% endblock %}
 
@@ -209,7 +210,21 @@
                 {% if sc and sc.rating == v %}checked{% endif %}>
             </td>
             {% endfor %}
-            <td><textarea name="rec_{{ c.id }}" class="form-control form-control-sm qobs-rec" rows="1" aria-label="التوصية">{% if sc %}{{ sc.recommendation }}{% endif %}</textarea></td>
+            <td>
+              {% comment %}
+              قائمةُ «إدراج مؤشّر» بجوار التوصية (بلاغ 7640): عناصرُها مؤشّراتُ المعيار نفسِه من INDICATORS
+              حرفيّاً (`c.indicators` من `_form_context`) — بلا `name` فلا تُرسَل، وسلوكُها في observation-form.js
+              بـdata-action. المعيارُ بلا مؤشّرات لا قائمةَ له.
+              {% endcomment %}
+              {% if c.indicators %}
+              <select class="form-control form-control-sm" data-criterion="{{ c.id }}" data-action="insert-indicator"
+                aria-label="إدراج مؤشّر في التوصية">
+                <option value="">— أدرج مؤشّراً —</option>
+                {% for ind in c.indicators %}<option value="{{ ind }}">{{ ind }}</option>{% endfor %}
+              </select>
+              {% endif %}
+              <textarea name="rec_{{ c.id }}" class="form-control form-control-sm qobs-rec" rows="1" aria-label="التوصية">{% if sc %}{{ sc.recommendation }}{% endif %}</textarea>
+            </td>
           </tr>
           {% endfor %}
           {% endfor %}
