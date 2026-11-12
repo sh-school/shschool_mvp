@@ -241,6 +241,29 @@ def test_self_create_by_teacher(client_as, school, teacher_user):
 
 
 @pytest.mark.django_db
+def test_self_create_saves_recommendation_text_as_sent(client_as, school, teacher_user):
+    """نصُّ التوصية يُحفظ كما أُرسل حرفاً بحرف، أسطرُه كلُّها — القائمةُ تملؤه قبل الإرسال فقط."""
+    crits = _criteria(school)
+    c = client_as(teacher_user)
+    from django.utils import timezone
+
+    text = "متوافرة مع المعلم في غرفة الصف.\nمشاركة الخطة على منصة التعليم الإلكتروني"
+    data = {
+        "observation_date": timezone.localdate().isoformat(),
+        "outside_schedule": "on",
+        "action": "submit",
+        f"rec_{crits[0].id}": text,
+    }
+    for cc in crits:
+        data[f"rating_{cc.id}"] = "complete"
+    r = c.post(reverse("observation_self_create"), data)
+    assert r.status_code == 302
+    obs = ClassroomObservation.objects.filter(teacher=teacher_user, kind="self").first()
+    assert obs is not None
+    assert obs.scores.get(criterion=crits[0]).recommendation == text
+
+
+@pytest.mark.django_db
 def test_supervisor_cannot_visit_self(client_as, school, coordinator_user):
     crits = _criteria(school)
     c = client_as(coordinator_user)
