@@ -138,6 +138,34 @@ def test_cell_without_class_code_is_an_error():
         asc_pdf.parse_teacher_page(page)
 
 
+def test_class_page_reads_code_from_hc_title_word():
+    page = class_page("HC.11.2", [(0, 1)])
+    assert asc_pdf.parse_class_page(page).class_code == "11.2"
+
+
+def test_class_page_without_code_has_empty_code():
+    page = FakePage(_lines(), [_word("صفحة", 300, 50), *_cell_words(0, 1, ["مادة"])])
+    parsed = asc_pdf.parse_class_page(page)
+    assert parsed.class_code == "" and parsed.slots == {(0, 1)}
+
+
+def test_teacher_cell_drops_dotted_room_code_from_subject():
+    page = FakePage(
+        _lines(),
+        [_word("معلم", 300, 50), *_cell_words(0, 1, ["7.1", "علوم", "عامة", "HC.12.4", "LAB1"])],
+    )
+    assert asc_pdf.parse_teacher_page(page).lessons == ((0, 1, "7.1", "علوم عامة"),)
+
+
+def test_name_is_the_biggest_font_title_line_only():
+    school_line = [
+        {**_word(w, 300 - 40 * i, 20), "size": 8} for i, w in enumerate(["مدرسة", "نموذج"])
+    ]
+    name_line = [{**_word(w, 300 - 40 * i, 50), "size": 14} for i, w in enumerate(["معلم", "الف"])]
+    page = FakePage(_lines(), [*school_line, *name_line, *_cell_words(0, 1, ["7.1", "علوم"])])
+    assert asc_pdf.parse_teacher_page(page).name == "معلم الف"
+
+
 # ── الأمر ───────────────────────────────────────────────────────────────
 
 
@@ -362,3 +390,53 @@ def test_subject_falls_back_to_sole_assignment_of_teacher_in_class(world, run):
     teachers = [teacher_page("معلم الف", [(0, 1, "7.1", "اسم مختلف تماما")])]
     run(teachers, [class_page("7.1", [(0, 1)])], "--apply")
     assert ScheduleSlot.objects.get().subject_id == world["math"].id
+
+
+def _unlabeled_class_page(cells: list[tuple]) -> FakePage:
+    words = [_word("صفحة", 300, 50)]
+    for day, period in cells:
+        words += _cell_words(day, period, ["مادة"])
+    return FakePage(_lines(), words)
+
+
+@pytest.mark.django_db
+def test_unlabeled_class_page_goes_to_the_sole_matching_class(world, run):
+    world["assign"](world["people"]["معلم الف"], world["math"], 2)
+    teachers = [teacher_page("معلم الف", [(0, 1, "7.1", "رياضيات"), (1, 3, "7.1", "رياضيات")])]
+    out = run(teachers, [_unlabeled_class_page([(0, 1), (1, 3)])])
+    assert "بنودُ التقرير: 0" in out
+
+
+@pytest.mark.django_db
+def test_unlabeled_class_page_without_sole_match_is_one_item(world, run):
+    world["assign"](world["people"]["معلم الف"], world["math"], 2)
+    teachers = [teacher_page("معلم الف", [(0, 1, "7.1", "رياضيات"), (1, 3, "7.1", "رياضيات")])]
+    out = run(teachers, [_unlabeled_class_page([(2, 2)])])
+    assert "بنودُ التقرير: 1" in out
+    assert "بلا رمزِ شعبةٍ" in out
+
+
+@pytest.mark.django_db
+def test_empty_class_file_is_one_item_not_one_per_slot(world, run):
+    teachers, _ = _simple(world)
+    out = run(teachers, [])
+    assert "بنودُ التقرير: 1" in out
+    assert "لم تُقرأ منه أيُّ خانة" in out
+
+
+@pytest.mark.django_db
+def test_two_assignments_in_class_link_by_subject_despite_room_code(world, run):
+    teacher = world["people"]["معلم الف"]
+    world["assign"](teacher, world["math"], 1)
+    world["assign"](teacher, world["arts"], 1)
+    page = FakePage(
+        _lines(),
+        [
+            _word("معلم", 300, 50),
+            _word("الف", 260, 50),
+            *_cell_words(0, 1, ["7.1", "رياضيات", "HC.12.4"]),
+            *_cell_words(1, 2, ["7.1", "فنون", "HC.12.4"]),
+        ],
+    )
+    run([page], [class_page("HC.7.1", [(0, 1), (1, 2)])], "--apply")
+    assert ScheduleSlot.objects.count() == 2

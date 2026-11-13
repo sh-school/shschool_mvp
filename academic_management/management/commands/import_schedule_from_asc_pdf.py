@@ -81,10 +81,43 @@ def _read_lessons(path: str, title_words: tuple[str, ...]) -> tuple[list[Lesson]
     return lessons, [Item(f"ملفُّ المعلّمين — {e}") for e in errors]
 
 
-def _read_class_slots(path: str) -> tuple[set[tuple[str, int, int]], list[Item]]:
+def _name_unlabeled(
+    pages: list[asc_pdf.ClassPage], lessons: list[Lesson]
+) -> tuple[list[asc_pdf.ClassPage], list[Item]]:
+    """صفحةٌ بلا رمزٍ تُنسب إلى الشعبة الوحيدة في ملفّ المعلّمين التي تطابق خاناتها ولم تُنسب إليها صفحة."""
+    by_code: dict[str, set[tuple[int, int]]] = defaultdict(set)
+    for x in lessons:
+        by_code[x.class_code].add((x.day, x.period))
+    taken = {p.class_code for p in pages if p.class_code}
+    unlabeled = [p for p in pages if not p.class_code]
+    guess = {
+        id(p): [c for c, s in by_code.items() if c not in taken and s == p.slots] for p in unlabeled
+    }
+    votes = Counter(c for found in guess.values() for c in found)
+    named = [p for p in pages if p.class_code]
+    items = []
+    for page in unlabeled:
+        found = guess[id(page)]
+        if len(found) == 1 and votes[found[0]] == 1:
+            named.append(page._replace(class_code=found[0]))
+        else:
+            items.append(
+                Item(f"ملفُّ الشعب — صفحةٌ بلا رمزِ شعبةٍ ولا مطابقةٍ وحيدة لخاناتها: {page.title}")
+            )
+    return named, items
+
+
+def _read_class_slots(
+    path: str, lessons: list[Lesson]
+) -> tuple[set[tuple[str, int, int]], list[Item]]:
     pages, errors = asc_pdf.parse_pdf(path, asc_pdf.parse_class_page)
+    items = [Item(f"ملفُّ الشعب — {e}") for e in errors]
+    pages, unnamed = _name_unlabeled(pages, lessons)
     slots = {(page.class_code, d, p) for page in pages for d, p in page.slots}
-    return slots, [Item(f"ملفُّ الشعب — {e}") for e in errors]
+    if not slots:
+        # بندٌ واحد: سببُ الصفحات غير المنسوبة إن وُجد، وإلا أنّ الملفّ فارغ
+        return slots, items + (unnamed[:1] or [Item("ملفُّ الشعب — لم تُقرأ منه أيُّ خانة")])
+    return slots, items + unnamed
 
 
 def _cross_check(lessons: list[Lesson], class_slots: set[tuple[str, int, int]]) -> list[Item]:
@@ -243,10 +276,12 @@ class Command(BaseCommand):
         sha_teachers, sha_classes = _sha256(options["teachers"]), _sha256(options["classes"])
 
         lessons, items = _read_lessons(options["teachers"], rules.asc_title_words)
-        class_slots, class_errors = _read_class_slots(options["classes"])
+        class_slots, class_errors = _read_class_slots(options["classes"], lessons)
         linked = _link(school, year, lessons, legacy)
         tags, tag_items = _parallel_tags(lessons, linked.assignments)
-        items += class_errors + _cross_check(lessons, class_slots) + _teacher_clashes(lessons)
+        # بلا خانةٍ واحدة من ملفّ الشعب يكفي بندُ القراءة، لا بندٌ زائفٌ لكلّ خانة
+        crossed = _cross_check(lessons, class_slots) if class_slots else []
+        items += class_errors + crossed + _teacher_clashes(lessons)
         items += linked.items + tag_items + _count_items(school, year, lessons, linked.assignments)
 
         blocking = [i for i in items if not _ignored(i, rules.asc_ignore)]

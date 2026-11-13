@@ -26,7 +26,8 @@ TOL = 1.5
 
 _ARABIC = re.compile("[؀-ۿﭐ-﷿ﹰ-﻿]")
 _CLASS_CODE = re.compile(r"^\d{1,2}\.\d{1,2}$")
-_LATIN_CODE = re.compile(r"^[A-Za-z0-9\-_/]+$")
+_TITLE_CLASS_CODE = re.compile(r"^(?:HC\.)?(\d{1,2}\.\d{1,2})$")
+_LATIN_CODE = re.compile(r"^[A-Za-z0-9.\-_/]+$")
 
 
 class AscPdfError(ValueError):
@@ -48,9 +49,12 @@ class TeacherPage(NamedTuple):
 
 
 class ClassPage(NamedTuple):
+    #: رمزُ الشعبة، وفارغٌ إن لم يطبعه العنوان.
     class_code: str
     #: خاناتُ الشعبة المشغولة (يوم، حصّة).
     slots: frozenset[tuple[int, int]]
+    #: نصُّ العنوان — اسمُ الصفحة في التقرير حين يغيب الرمز.
+    title: str = ""
 
 
 def fix_word(text: str) -> str:
@@ -149,6 +153,15 @@ def _title(grid: _Grid, words: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [w for w in words if _center(w, "top", "bottom") < grid.ys[0]]
 
 
+def _biggest_line(words: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """كلماتُ العنوان ذاتُ أكبر خطٍّ (حقل size)؛ وبلا الحقل تبقى كلُّها."""
+    sizes = [w["size"] for w in words if w.get("size") is not None]
+    if not sizes:
+        return words
+    top = max(sizes)
+    return [w for w in words if w.get("size") is not None and top - w["size"] <= 0.5]
+
+
 def _split_tokens(tokens: Sequence[str]) -> tuple[list[str], str]:
     """(رموزُ الشعب، المادّة) من نصّ خانة؛ ورمزُ القاعة اللاتينيُّ يُهمل."""
     codes = [t for t in tokens if _CLASS_CODE.match(t)]
@@ -161,7 +174,8 @@ def parse_teacher_page(page: Any, title_words: Sequence[str] = ()) -> TeacherPag
     grid = _grid(page)
     words = _words(page)
     skip = set(title_words)
-    name = " ".join(t for t in _logical(_title(grid, words)) if _ARABIC.search(t) and t not in skip)
+    biggest = _biggest_line(_title(grid, words))
+    name = " ".join(t for t in _logical(biggest) if _ARABIC.search(t) and t not in skip)
     if not name:
         raise AscPdfError("لا اسمَ معلّمٍ في عنوان الصفحة")
     lessons: list[tuple[int, int, str, str]] = []
@@ -175,14 +189,15 @@ def parse_teacher_page(page: Any, title_words: Sequence[str] = ()) -> TeacherPag
 
 
 def parse_class_page(page: Any) -> ClassPage:
-    """صفحةُ شعبة: رمزُها من العنوان، وما شُغل من خاناتها."""
+    """صفحةُ شعبة: رمزُها من العنوان («HC.11.2» أو «11.2») إن وُجد، وما شُغل من خاناتها."""
     grid = _grid(page)
     words = _words(page)
-    codes = [t for t in _logical(_title(grid, words)) if _CLASS_CODE.match(t)]
-    if len(codes) != 1:
-        raise AscPdfError("رمزُ الشعبة في العنوان غائبٌ أو ملتبس")
+    title = _logical(_title(grid, words))
+    codes = {m.group(1) for t in title if (m := _TITLE_CLASS_CODE.match(t))}
+    if len(codes) > 1:
+        raise AscPdfError("رمزُ الشعبة في العنوان ملتبس")
     slots = {(cell.day, p) for cell in _cells(page, grid, words) for p in cell.periods}
-    return ClassPage(codes[0], frozenset(slots))
+    return ClassPage(next(iter(codes), ""), frozenset(slots), " ".join(title))
 
 
 def open_pdf(path: str) -> Any:
