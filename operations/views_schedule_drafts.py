@@ -7,8 +7,11 @@
 
 from __future__ import annotations
 
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import IntegrityError
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -20,6 +23,8 @@ from .schedule_breaches import BreachesNotAcknowledgedError, acknowledged
 from .scheduler_v2.progress import is_v2_running
 from .services.schedule import ScheduleService
 from .services.schedule_drafts import DiscardRefusedError, discard_generation, stop_generation
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -39,6 +44,15 @@ def approve_schedule(request, generation_id):
         result = ScheduleService.approve_generation(gen, acknowledged=acknowledged(request.POST))
     except BreachesNotAcknowledgedError as refusal:
         messages.error(request, str(refusal))
+        return redirect(back)
+    except IntegrityError:
+        # قيدُ تداخلٍ في قاعدة البيانات: المعاملةُ تراجعت، فالجدولُ الحيُّ كما كان.
+        logger.exception("تعذّر اعتماد التوليد %s بقيد قاعدة بيانات", gen.id)
+        messages.error(
+            request,
+            "تعذّر اعتماد المسودّة: حصصُها تخالف قيدَ عدمِ التداخل (معلّمٌ أو شعبةٌ في خانةٍ واحدة). "
+            "لم يتغيّر الجدولُ المعتمَد.",
+        )
         return redirect(back)
     sync = result["sync"]
 

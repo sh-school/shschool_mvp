@@ -27,7 +27,11 @@ def _member_labels(task: Task) -> list[str]:
     """
     if not task.is_split:
         return ["" for _ in task.members]
-    names = [m.subject_name for m in task.members]
+    return distinct_labels([m.subject_name for m in task.members])
+
+
+def distinct_labels(names: list[str]) -> list[str]:
+    """وسمٌ مميَّزٌ لكلّ طرفٍ في خانةٍ مشتركة — يستعمله المولِّدُ ومستورِدُ aSc بالقاعدة نفسها."""
     if len(set(names)) == len(names):
         return [name[:40] for name in names]
     return [f"{i + 1}·{name}"[:40] for i, name in enumerate(names)]
