@@ -65,6 +65,7 @@
 
 from __future__ import annotations
 
+import html
 import re
 from typing import Any
 
@@ -663,6 +664,9 @@ def filter_bar(content, label, action="", id="", css="", live=False, **attrs):
 
 
 # ── زرّ التصدير الموحَّد (W-20261021-006) ────────────────────────────────
+#: كيانُ HTML مُنتهٍ بالفاصلة المنقوطة (`&amp;`، `&#39;`) وحدَه يُفكّ — لا كلُّ `&`، فـ`&not=` في
+#: سلسلة استعلامٍ ليست كياناً (`html.unescape` كان سيحوّلها إلى «¬=»).
+_HTML_ENTITY = re.compile(r"&(?:#[0-9]+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);")
 #: الأسماءُ الثلاثةُ المعتمدة بقرار المالك 2026-10-21؛ «تحميل» للمرفقات المرفوعة وحدَها فلا مكانَ له هنا.
 EXPORT_KINDS: dict[str, tuple[str, str]] = {
     "pdf": ("export_pdf", "تصدير PDF"),
@@ -751,7 +755,11 @@ def export_button(
     if not (url_name or href):
         raise template.TemplateSyntaxError("export_button: اسمُ المسار (أو href) مطلوب لـ pdf وxlsx")
     base = reverse(url_name, args=args) if url_name else href
-    link = format_html("{}{}", base, content.strip())
+    # سلسلةُ الاستعلام تصل مهرَّبةً (`{{ selection_query }}` صار `&amp;`) أو حرفيّةً (`&`) أو
+    # `&amp;` حرفيّةً في القالب: نفكّ الكيانات أوّلاً، ثم يهرّبها format_html مرّةً واحدةً.
+    # وإلّا صار `&amp;` مهرَّباً مرّتين فيقرأ المتصفّحُ `amp;teacher` لا `teacher`.
+    query = _HTML_ENTITY.sub(lambda m: html.unescape(m.group(0)), content.strip())
+    link = format_html("{}{}", base, query)
     extra = format_html(' data-export-job="{}"', job) if job else ""
     return format_html(
         '<a{}{} data-export-kind="{}"{}{}{} href="{}" class="{}">{} {}</a>',
