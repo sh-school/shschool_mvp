@@ -357,8 +357,124 @@ def test_two_teachers_in_cell_with_shared_parallel_group_is_accepted(world, run)
     run(teachers, classes, "--apply")
     shared = ScheduleSlot.objects.filter(day_of_week=0, period_number=1)
     assert shared.count() == 2
-    assert set(shared.values_list("elective_group", flat=True)) == {TAG}
+    # كلُّ طرفٍ بوسمٍ مميَّز (اسمُ مادّته) كما يكتب المولِّد، لا وسمُ التوازي المشتركُ نفسُه
+    assert sorted(shared.values_list("elective_group", flat=True)) == ["رياضيات", "فنون"]
     assert ScheduleSlot.objects.filter(day_of_week=1).get().elective_group == ""
+
+
+@pytest.mark.django_db
+def test_imported_parallel_draft_is_approved_and_activated(world, run):
+    from operations.services.schedule import ScheduleService
+
+    world["assign"](world["people"]["معلم الف"], world["math"], 2, TAG)
+    world["assign"](world["people"]["معلم باء"], world["arts"], 1, TAG)
+    teachers, classes = _parallel_pages()
+    run(teachers, classes, "--apply")
+    generation = ScheduleGeneration.objects.get()
+    ScheduleService.approve_generation(generation, notify=False)
+    assert ScheduleSlot.objects.filter(generation=generation, is_active=True).count() == 3
+
+
+@pytest.mark.django_db
+def test_replace_swaps_only_the_same_inactive_import_draft(world, run, school, year):
+    world["assign"](world["people"]["معلم الف"], world["math"], 2, TAG)
+    world["assign"](world["people"]["معلم باء"], world["arts"], 1, TAG)
+    teachers, classes = _parallel_pages()
+    run(teachers, classes, "--apply")
+    first = ScheduleGeneration.objects.get()
+    other = ScheduleGeneration.objects.create(
+        school=school, academic_year=year, status="draft", config_snapshot={"mode": "import"}
+    )
+    live = ScheduleSlot.objects.create(
+        school=school,
+        teacher=world["people"]["معلم باء"],
+        class_group=world["group"],
+        day_of_week=4,
+        period_number=6,
+        start_time="07:00",
+        end_time="07:45",
+        academic_year=year,
+        is_active=True,
+    )
+    assert "لا شيءَ كُتب" in run(teachers, classes, "--apply")
+    assert ScheduleGeneration.objects.filter(id=first.id).exists()
+    run(teachers, classes, "--apply", "--replace")
+    assert not ScheduleGeneration.objects.filter(id=first.id).exists()
+    assert ScheduleGeneration.objects.filter(id=other.id).exists()
+    new = ScheduleGeneration.objects.exclude(id__in=[other.id]).get()
+    assert new.slots.count() == 3
+    live.refresh_from_db()
+    assert live.is_active
+
+
+@pytest.mark.django_db
+def test_replace_refuses_when_existing_draft_has_active_slot(world, run):
+    world["assign"](world["people"]["معلم الف"], world["math"], 2, TAG)
+    world["assign"](world["people"]["معلم باء"], world["arts"], 1, TAG)
+    teachers, classes = _parallel_pages()
+    run(teachers, classes, "--apply")
+    ScheduleSlot.objects.filter(generation=ScheduleGeneration.objects.get()).update(is_active=True)
+    with pytest.raises(CommandError):
+        run(teachers, classes, "--apply", "--replace")
+    assert ScheduleSlot.objects.filter(is_active=True).count() == 3
+
+
+@pytest.mark.django_db
+def test_same_teacher_twice_in_one_cell_is_a_blocking_constraint_item(world, run):
+    world["assign"](world["people"]["معلم الف"], world["math"], 1)
+    world["assign"](world["people"]["معلم الف"], world["arts"], 1)
+    teachers = [
+        teacher_page("معلم الف", [(0, 1, "7.1", "رياضيات"), (0, 1, "7.1", "فنون")]),
+    ]
+    out = run(teachers, [class_page("7.1", [(0, 1)])])
+    assert "no_teacher_period_overlap" in out
+    assert "no_class_period_overlap" in out
+    with pytest.raises(CommandError):
+        run(teachers, [class_page("7.1", [(0, 1)])], "--apply")
+
+
+@pytest.mark.django_db
+def test_approve_view_shows_error_not_500_on_integrity_error(client_as, school, world, year):
+    from django.urls import reverse
+
+    from tests.test_schedule_developer_only import staff
+
+    gen = ScheduleGeneration.objects.create(
+        school=school, academic_year=year, status="draft", config_snapshot={}
+    )
+    live = ScheduleSlot.objects.create(
+        school=school,
+        teacher=world["people"]["معلم باء"],
+        class_group=world["group"],
+        day_of_week=4,
+        period_number=6,
+        start_time="07:00",
+        end_time="07:45",
+        academic_year=year,
+        is_active=True,
+    )
+    for _ in range(2):  # حصّتان بالمعلّم والخانة نفسيهما: التفعيلُ يخالف القيد
+        ScheduleSlot.objects.create(
+            school=school,
+            teacher=world["people"]["معلم الف"],
+            class_group=world["group"],
+            day_of_week=0,
+            period_number=1,
+            start_time="07:00",
+            end_time="07:45",
+            academic_year=year,
+            is_active=False,
+            generation=gen,
+        )
+    client = client_as(staff(school, "platform_developer"))
+    response = client.post(reverse("approve_schedule", args=[gen.pk]))
+    assert response.status_code == 302
+    gen.refresh_from_db()
+    assert gen.status == "draft"
+    live.refresh_from_db()
+    assert live.is_active
+    follow = client.get(response.url)
+    assert "تعذّر اعتماد المسودّة" in follow.content.decode()
 
 
 @pytest.mark.django_db

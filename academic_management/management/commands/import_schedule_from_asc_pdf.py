@@ -38,6 +38,7 @@ from academic_management.management.commands.import_assignments_from_timetable i
 )
 from core.academic_calendar import academic_year_for_school
 from operations.models import ScheduleGeneration, ScheduleSlot, SubjectClassAssignment
+from operations.scheduler_persist import distinct_labels
 from operations.scheduling_inputs import bell_lookup
 
 Pair = tuple[str, str]  # (اسمُ المعلّم، رمزُ الشعبة)
@@ -222,6 +223,63 @@ def _parallel_tags(
     return tags, items
 
 
+def _cell_labels(
+    placed: list[Lesson],
+    linked: dict[tuple[str, str, str], SubjectClassAssignment],
+    tags: dict[tuple[str, int, int], str],
+) -> list[str]:
+    """`elective_group` لكلّ حصّةٍ مكتوبة: فارغٌ لغير المشتركة، ومميَّزٌ لكلّ طرفٍ في المشتركة.
+
+    القيدُ `no_class_period_overlap` يشمل `elective_group`، فوسمُ التوازي المشتركُ نفسُه
+    يُسقط الاعتماد؛ والقاعدةُ هي قاعدةُ المولِّد (`distinct_labels`) بترتيبٍ ثابتٍ للأطراف.
+    """
+    members: dict[tuple[str, int, int], list[int]] = defaultdict(list)
+    for index, x in enumerate(placed):
+        cell = (x.class_code, x.day, x.period)
+        if cell in tags:
+            members[cell].append(index)
+    labels = [""] * len(placed)
+    for indexes in members.values():
+        indexes.sort(key=lambda i: (placed[i].teacher, placed[i].subject, i))
+        names = [
+            linked[(placed[i].teacher, placed[i].class_code, placed[i].subject)] for i in indexes
+        ]
+        for i, label in zip(
+            indexes, distinct_labels([a.subject.name_ar for a in names]), strict=True
+        ):
+            labels[i] = label
+    return labels
+
+
+def _constraint_items(
+    placed: list[Lesson],
+    linked: dict[tuple[str, str, str], SubjectClassAssignment],
+    labels: list[str],
+) -> list[Item]:
+    """حصصُ المسودّة لو فُعّلت: هل تخالف `no_teacher_period_overlap` أو `no_class_period_overlap`؟"""
+    teacher_rows: Counter[tuple[int | None, int, int]] = Counter()
+    class_rows: Counter[tuple[int, int, int, str]] = Counter()
+    for x, label in zip(placed, labels, strict=True):
+        a = linked[(x.teacher, x.class_code, x.subject)]
+        teacher_rows[(a.teacher_id, x.day, x.period)] += 1
+        class_rows[(a.class_group_id, x.day, x.period, label)] += 1
+    items = [
+        Item(
+            f"قيد: معلّمٌ بحصّتين مفعَّلتين معاً (no_teacher_period_overlap): معلّم {t} · يوم {d + 1} · حصّة {p}"
+        )
+        for (t, d, p), n in sorted(teacher_rows.items(), key=str)
+        if n > 1 and t is not None
+    ]
+    items += [
+        Item(
+            f"قيد: حصّتان لشعبةٍ بوسمٍ واحد (no_class_period_overlap): شعبة {g} · يوم {d + 1} · حصّة {p}"
+        )
+        for (g, d, p, _), n in sorted(class_rows.items(), key=str)
+        if n > 1
+    ]
+    return items
+
+
 def _count_items(
     school: Any,
     year: str,
@@ -267,6 +325,11 @@ class Command(BaseCommand):
         parser.add_argument("--school", default="", help="رمزُ المدرسة")
         parser.add_argument("--year", default="", help="العامُ الدراسيّ")
         parser.add_argument("--apply", action="store_true")
+        parser.add_argument(
+            "--replace",
+            action="store_true",
+            help="يستبدل مسودّةَ الملفّين نفسيهما إن كانت draft وغيرَ مفعَّلة",
+        )
 
     def handle(self, *args: Any, **options: Any) -> None:
         legacy = TimetableImport()
@@ -283,6 +346,10 @@ class Command(BaseCommand):
         crossed = _cross_check(lessons, class_slots) if class_slots else []
         items += class_errors + crossed + _teacher_clashes(lessons)
         items += linked.items + tag_items + _count_items(school, year, lessons, linked.assignments)
+        # ما عُفي بندُه من الإسنادات غيرِ المربوطة لا يُكتب له موضع.
+        placed = [x for x in lessons if (x.teacher, x.class_code, x.subject) in linked.assignments]
+        labels = _cell_labels(placed, linked.assignments, tags)
+        items += _constraint_items(placed, linked.assignments, labels)
 
         blocking = [i for i in items if not _ignored(i, rules.asc_ignore)]
         self.stdout.write(f"المدرسة: {school.name} · العام: {year}")
@@ -304,11 +371,13 @@ class Command(BaseCommand):
             "sha256_teachers": sha_teachers,
             "sha256_classes": sha_classes,
         }
-        written = self._write(school, year, lessons, linked.assignments, tags, snapshot)
+        written = self._write(
+            school, year, placed, labels, linked.assignments, snapshot, options["replace"]
+        )
         self.stdout.write(
             f"\nكُتبت مسودّةٌ بـ{written} حصّةً غيرِ مفعَّلة."
             if written
-            else "\nمسودّةُ هذين الملفّين موجودةٌ — لا شيءَ كُتب."
+            else "\nمسودّةُ هذين الملفّين موجودةٌ — لا شيءَ كُتب (أضِف --replace لاستبدالها)."
         )
 
     @transaction.atomic
@@ -316,12 +385,16 @@ class Command(BaseCommand):
         self,
         school: Any,
         year: str,
-        lessons: list[Lesson],
+        placed: list[Lesson],
+        labels: list[str],
         linked: dict[tuple[str, str, str], SubjectClassAssignment],
-        tags: dict[tuple[str, int, int], str],
         snapshot: dict[str, str],
+        replace: bool,
     ) -> int:
-        """مسودّةٌ واحدةٌ بحصصها غيرِ المفعَّلة؛ ومن أعاد التشغيلَ بالملفّين نفسيهما لا يزيد شيئاً."""
+        """مسودّةٌ واحدةٌ بحصصها غيرِ المفعَّلة؛ ومن أعاد التشغيلَ بالملفّين نفسيهما لا يزيد شيئاً.
+
+        و`--replace` يستبدل المسودّةَ القائمةَ إن كانت draft وحصصُها كلُّها غيرُ مفعَّلة، في المعاملة نفسها.
+        """
         same = ScheduleGeneration.objects.filter(
             school=school,
             academic_year=year,
@@ -330,9 +403,19 @@ class Command(BaseCommand):
             config_snapshot__sha256_classes=snapshot["sha256_classes"],
         )
         if same.exists():
-            return 0
-        # ما عُفي بندُه من الإسنادات غيرِ المربوطة لا يُكتب له موضع.
-        placed = [x for x in lessons if (x.teacher, x.class_code, x.subject) in linked]
+            if not replace:
+                return 0
+            old = list(same)
+            stale = [
+                g
+                for g in old
+                if g.status != "draft"
+                or ScheduleSlot.objects.filter(generation=g, is_active=True).exists()
+            ]
+            if stale:
+                raise CommandError("--replace مرفوض: المسودّةُ القائمة معتمَدةٌ أو فيها حصّةٌ مفعَّلة.")
+            ScheduleSlot.objects.filter(generation__in=old).delete()
+            ScheduleGeneration.objects.filter(id__in=[g.id for g in old]).delete()
         generation = ScheduleGeneration.objects.create(
             school=school,
             academic_year=year,
@@ -342,7 +425,7 @@ class Command(BaseCommand):
         )
         times = bell_lookup(school)
         slots = []
-        for x in placed:
+        for x, label in zip(placed, labels, strict=True):
             a = linked[(x.teacher, x.class_code, x.subject)]
             start, end = times(x.day, x.period, a.class_group.time_band_id)
             slots.append(
@@ -356,7 +439,7 @@ class Command(BaseCommand):
                     start_time=start,
                     end_time=end,
                     academic_year=year,
-                    elective_group=tags.get((x.class_code, x.day, x.period), ""),
+                    elective_group=label,
                     is_active=False,
                     generation=generation,
                 )
