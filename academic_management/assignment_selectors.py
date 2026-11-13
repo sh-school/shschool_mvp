@@ -257,13 +257,9 @@ def decorate(rows, peers, plan):
             if row.class_group.has_own_timetable
             else plan.get((row.class_group.grade, row.class_group.track, row.subject_id))
         )
-        #: الوسمُ يُرى حين يخالف الإسنادُ مرجعَه وله سببٌ مسجَّل — لا لمجرّد وجود السبب.
+        #: الوسمُ يُرى حين يخالف عددُ الإسناد مرجعَه، سواءٌ سُجّل سببٌ أم لا.
         row.plan_periods = ref
-        row.plan_divergence = (
-            bool((row.periods_override_reason or "").strip())
-            and ref is not None
-            and row.weekly_periods != ref
-        )
+        row.plan_divergence = ref is not None and row.weekly_periods != ref
     return rows
 
 

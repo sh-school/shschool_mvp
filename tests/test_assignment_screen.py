@@ -1025,6 +1025,18 @@ def test_a_row_off_the_plan_is_flagged_with_both_numbers(
     assert "شعبةٌ مدمجةٌ بقرار الإدارة" in body, "السببُ يبقى في title"
 
 
+def test_a_row_off_the_plan_is_flagged_even_without_a_recorded_reason(
+    client, school, vice, maths_teacher, seventh, subjects, plan_rows
+):
+    from operations.models import SubjectClassAssignment
+
+    login(client, vice, school)
+    assign_with_reason(school, seventh, subjects["MAT"], maths_teacher, vice, periods=3)
+    SubjectClassAssignment.objects.filter(class_group=seventh).update(periods_override_reason="  ")
+
+    assert f"{DIVERGENCE_TEXT}: 3 والخطّة 5" in page(client).content.decode()
+
+
 def test_a_subject_or_grade_without_a_plan_reference_is_never_flagged(
     client, school, vice, maths_teacher, subjects, plan_rows
 ):
