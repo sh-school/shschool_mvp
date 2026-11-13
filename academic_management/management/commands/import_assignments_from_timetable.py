@@ -82,6 +82,10 @@ class NameRules(NamedTuple):
     teacher_aliases: dict
     sole_holders: dict
     split_subjects: dict
+    #: استيرادُ مواضع PDF (`import_schedule_from_asc_pdf`): أزواجُ (معلّم، شعبة) لا يمنع بندُها `--apply`،
+    #: وكلماتُ عنوانٍ تُهمل من اسم المعلّم في صفحته.
+    asc_ignore: frozenset = frozenset()
+    asc_title_words: tuple = ()
 
 
 def load_name_rules() -> NameRules:
@@ -96,7 +100,12 @@ def load_name_rules() -> NameRules:
         return out
 
     aliases = {str(k): str(v) for k, v in (data.get("teacher_aliases") or {}).items()}
-    return NameRules(aliases, pairs("sole_holders"), pairs("split_subjects"))
+    ignore = frozenset(
+        (normal(left), right.strip())
+        for left, _, right in (str(item).partition("|") for item in data.get("asc_ignore") or [])
+    )
+    title_words = tuple(str(w) for w in data.get("asc_title_words") or [])
+    return NameRules(aliases, pairs("sole_holders"), pairs("split_subjects"), ignore, title_words)
 
 
 #: بادئةُ وسم الشعبة المقسومة. والوسمُ **واحدٌ لنصفَي الشعبة** لا وسمان:
