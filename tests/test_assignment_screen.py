@@ -981,3 +981,86 @@ def test_dept_key_follows_the_printed_timetable(code, key):
     from core.dept_colors import dept_key
 
     assert dept_key(code) == key
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  وسمُ «خلاف الخطّة» — يُرى حين يخالف العددُ الخطّةَ لا لمجرّد وجود سبب
+# ══════════════════════════════════════════════════════════════════════
+
+DIVERGENCE_TEXT = "خلاف الخطّة"
+
+
+def assign_with_reason(school, class_group, subject, teacher, by, periods):
+    from academic_management import assignment_services as svc
+
+    return svc.apply_assignment(
+        school=school,
+        academic_year=YEAR,
+        class_group=class_group,
+        subject=subject,
+        teacher=teacher,
+        weekly_periods=periods,
+        by=by,
+        override_reason="شعبةٌ مدمجةٌ بقرار الإدارة",
+    )
+
+
+def test_a_row_matching_the_plan_is_not_flagged_even_with_a_reason(
+    client, school, vice, maths_teacher, seventh, subjects, plan_rows
+):
+    login(client, vice, school)
+    assign_with_reason(school, seventh, subjects["MAT"], maths_teacher, vice, periods=5)
+
+    assert DIVERGENCE_TEXT not in page(client).content.decode()
+
+
+def test_a_row_off_the_plan_is_flagged_with_both_numbers(
+    client, school, vice, maths_teacher, seventh, subjects, plan_rows
+):
+    login(client, vice, school)
+    assign_with_reason(school, seventh, subjects["MAT"], maths_teacher, vice, periods=3)
+
+    body = page(client).content.decode()
+    assert f"{DIVERGENCE_TEXT}: 3 والخطّة 5" in body
+    assert "شعبةٌ مدمجةٌ بقرار الإدارة" in body, "السببُ يبقى في title"
+
+
+def test_a_subject_or_grade_without_a_plan_reference_is_never_flagged(
+    client, school, vice, maths_teacher, subjects, plan_rows
+):
+    from core.models import ClassGroup
+
+    login(client, vice, school)
+    eighth = ClassGroup.objects.create(
+        school=school, grade="G8", section="1", level_type="prep", academic_year=YEAR
+    )
+    assign_with_reason(school, eighth, subjects["MAT"], maths_teacher, vice, periods=2)
+
+    assert DIVERGENCE_TEXT not in page(client).content.decode()
+
+
+def test_the_screen_queries_do_not_grow_with_the_assignments(
+    client, school, vice, maths_teacher, seventh, subjects, plan_rows
+):
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from core.models import ClassGroup
+
+    login(client, vice, school)
+    assign_with_reason(school, seventh, subjects["MAT"], maths_teacher, vice, periods=3)
+    # الطلبُ الأوّلُ يدفع تهيئةً لمرّة (سجلُّ الحوكمة، والتخزينُ المؤقّت) لا تتكرّر
+    # بعدها: فيُقاس الأساسُ بعد تسخينٍ كي لا يُحسب الفرقُ تضخّماً بالعدد.
+    assert page(client).status_code == 200
+    with CaptureQueriesContext(connection) as one:
+        assert page(client).status_code == 200
+
+    for section in ("2", "3", "4"):
+        group = ClassGroup.objects.create(
+            school=school, grade="G7", section=section, level_type="prep", academic_year=YEAR
+        )
+        assign_with_reason(school, group, subjects["MAT"], maths_teacher, vice, periods=3)
+    with CaptureQueriesContext(connection) as four:
+        assert page(client).status_code == 200
+
+    assert len(four.captured_queries) == len(one.captured_queries)

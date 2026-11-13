@@ -69,7 +69,7 @@
           <form hx-post="{% url 'academic_management:assignment_update_periods' row.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
             {% csrf_token %}
             <input type="number" inputmode="numeric" name="weekly_periods" min="1" max="35" value="{{ row.weekly_periods }}" {% if not card.writable %}disabled{% endif %} aria-label="الحصص الأسبوعيّة — {{ row.subject.name_ar }} في {{ row.class_group.short_label }}">
-            {% if row.periods_override_reason %}<span class="asg-hint" title="{{ row.periods_override_reason }}">(خلافُ الخطّة)</span>{% endif %}
+            {% if row.plan_divergence %}<span class="asg-hint" title="{{ row.periods_override_reason }}">(خلاف الخطّة: {{ row.weekly_periods }} والخطّة {{ row.plan_periods }})</span>{% endif %}
           </form>
         </td>
         <td>
