@@ -169,11 +169,9 @@ def test_the_four_destination_cards_render_including_a_zero_one(
     html = resp.content.decode()
 
     assert resp.status_code == 200
-    assert "مراجعة العيادة" in html
-    assert "مراجعة الإدارة" in html
-    assert "دورة المياه" in html
-    assert "الخروج مبكراً من المدرسة" in html
-    assert 'class="action-card' in html, "البطاقاتُ الأربع بلاطاتٌ حقيقيّة — لا أرقامٌ عارية"
+    for _, label in ClassExit.CURRENT_DESTINATIONS:
+        assert label in html, f"بطاقةُ «{label}» غائبة"
+    assert html.count('class="action-card') >= 10, "بطاقةٌ حقيقيّة لكلّ وجهة — لا أرقامٌ عارية"
 
 
 def test_open_status_filter_shows_only_those_who_have_not_returned(
@@ -538,18 +536,114 @@ def test_supervisor_cannot_record_or_return_other_wing_student(
     assert other_exit.returned_at is None
 
 
-def test_leaving_school_redirects_to_exit_permits(
+def _leave_school(client, user, student):
+    client.force_login(user)
+    return client.post(
+        reverse(LEAVE), {"student": student.pk, "destination": "school", "left_at": MOMENT}
+    )
+
+
+def test_principal_records_school_exit_for_any_student(
     client, school, principal_user, teacher_user, wing_a
 ):
     klass, _ = wing_a
     student = _enrolled_with_session(school, klass, teacher_user, "طالب الانصراف", "29400000066")
-    client.force_login(principal_user)
 
-    resp = client.post(reverse(LEAVE), {"student": student.pk, "destination": "school"})
+    resp = _leave_school(client, principal_user, student)
 
     assert resp.status_code == 302
-    assert resp.url == reverse("wings:exit_permit_new", args=[student.pk])
-    assert not ClassExit.objects.filter(student=student).exists()
+    exit_ = ClassExit.objects.get(student=student)
+    assert exit_.destination == "school"
+    assert exit_.allowed_by == principal_user and exit_.left_at is not None
+
+
+def test_vice_admin_records_school_exit(client, school, teacher_user, wing_a):
+    klass, _ = wing_a
+    student = _enrolled_with_session(school, klass, teacher_user, "طالب النائب", "29400000071")
+    vice = UserFactory(full_name="النائب الإداري", national_id="29400000072")
+    MembershipFactory(user=vice, school=school, role=RoleFactory(school=school, name="vice_admin"))
+
+    assert _leave_school(client, vice, student).status_code == 302
+    assert ClassExit.objects.get(student=student).destination == "school"
+
+
+def test_supervisor_records_school_exit_for_own_wing_only(
+    client, school, teacher_user, wing_a, wing_b
+):
+    klass_a, supervisor_a = wing_a
+    klass_b, _ = wing_b
+    own = _enrolled_with_session(school, klass_a, teacher_user, "طالب جناحي", "29400000073")
+    other_teacher = UserFactory(national_id="29400000080")
+    foreign = _enrolled_with_session(school, klass_b, other_teacher, "طالب غيري", "29400000074")
+
+    assert _leave_school(client, supervisor_a, own).status_code == 302
+    assert _leave_school(client, supervisor_a, foreign).status_code == 404
+    assert ClassExit.objects.get().student == own
+
+
+def test_school_exit_without_current_session_is_refused_in_arabic(
+    client, school, principal_user, wing_a
+):
+    klass, _ = wing_a
+    student = UserFactory(full_name="طالب بلا حصة 2", national_id="29400000075")
+    StudentEnrollmentFactory(student=student, class_group=klass)
+    client.force_login(principal_user)
+
+    resp = client.post(
+        reverse(LEAVE), {"student": student.pk, "destination": "school"}, follow=True
+    )
+
+    assert not ClassExit.objects.exists()
+    assert "لا حصّةَ جاريةً" in resp.content.decode()
+
+
+def test_coordinator_cannot_record_school_exit(
+    client, school, teacher_user, student_affairs_coordinator_user, wing_a
+):
+    klass, _ = wing_a
+    student = _enrolled_with_session(school, klass, teacher_user, "طالب المنسق", "29400000076")
+
+    resp = _leave_school(client, student_affairs_coordinator_user, student)
+
+    assert resp.status_code == 403
+    assert not ClassExit.objects.exists()
+
+
+@pytest.mark.parametrize("code", [c for c, _ in ClassExit.CURRENT_DESTINATIONS if c != "school"])
+def test_every_new_destination_is_accepted_and_counted_on_its_card(
+    client, school, principal_user, teacher_user, wing_a, code
+):
+    klass, _ = wing_a
+    student = _enrolled_with_session(school, klass, teacher_user, "طالب الوجهة", "29400000077")
+    client.force_login(principal_user)
+
+    client.post(reverse(LEAVE), {"student": student.pk, "destination": code, "left_at": MOMENT})
+    resp = client.get(reverse("student_affairs:student_movements"), {"date": DAY.isoformat()})
+
+    assert ClassExit.objects.get(student=student).destination == code
+    assert (
+        resp.context["destination_cards"][
+            [c for c, _ in ClassExit.CURRENT_DESTINATIONS].index(code)
+        ]["desc"]
+        == "اليوم: 1"
+    )
+
+
+def test_legacy_destinations_still_render_without_error(
+    client, school, principal_user, teacher_user, wing_a
+):
+    klass, _ = wing_a
+    for hour, code, nid in ((8, "admin", "29400000078"), (9, "other", "29400000079")):
+        _exit_in(
+            school, klass, teacher_user, UserFactory(national_id=nid), destination=code, hour=hour
+        )
+    client.force_login(principal_user)
+
+    resp = client.get(reverse("student_affairs:student_movements"), {"date": DAY.isoformat()})
+
+    html = resp.content.decode()
+    assert resp.status_code == 200
+    assert "الإدارة / المشرف" in html and "أخرى" in html
 
 
 def test_entry_form_cascades_grade_section_students(

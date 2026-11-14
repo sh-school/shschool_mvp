@@ -12,7 +12,6 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -60,7 +59,11 @@ def entry_context(request, scope) -> dict:
         "entry_sections": sections,
         "entry_section": str(chosen.pk) if chosen else "",
         "entry_students": students,
-        "entry_destinations": [*ClassExit.DESTINATIONS, ("school", "الخروج من المدرسة")],
+        "entry_destinations": (
+            ClassExit.CURRENT_DESTINATIONS
+            if class_exit.may_record_school_exit(request.user)
+            else ClassExit.TEACHER_DESTINATIONS
+        ),
         "entry_now": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
     }
 
@@ -69,7 +72,11 @@ def entry_context(request, scope) -> dict:
 @capability_required("student_affairs.follow_up")
 @require_POST
 def movement_leave(request):
-    """يسجّل خروجَ طالبٍ إلى وجهةٍ في حصّته الجارية، أو يحوّل «الخروجَ من المدرسة» إلى أذوناته."""
+    """يسجّل خروجَ طالبٍ إلى وجهةٍ في حصّته الجارية.
+
+    «الخروجُ من المدرسة» مباشرةً بلا طلبٍ ولا موافقة للمشرف (لجناحه) والنائب والمدير؛
+    وغيرُهم 403 من `class_exit.leave`، ويُكتب فيه من سجّل (`allowed_by`) ومتى (`left_at`).
+    """
     back = redirect("student_affairs:student_movements")
     form = MovementLeaveForm(request.POST)
     if not form.is_valid():
@@ -85,9 +92,6 @@ def movement_leave(request):
         ).distinct(),
         pk=data["student"],
     )
-    if data["destination"] == "school":
-        return redirect(reverse("wings:exit_permit_new", args=[student.pk]))
-
     left_at = data["left_at"] or timezone.now()
     if timezone.is_naive(left_at):
         left_at = timezone.make_aware(left_at)
