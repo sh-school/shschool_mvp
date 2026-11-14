@@ -75,6 +75,7 @@ from .followup_selectors import (
 from .followup_tables import ABSENCE_TABLE, ACTIVITY_TABLE, BEHAVIOR_TABLE, TARDINESS_TABLE
 from .list_selectors import STUDENT_SORTS, filter_context, list_status, student_list_queryset
 from .models import StudentActivity, StudentTransfer
+from .movement_cards import destination_cards
 from .selectors import (
     attach_guardian_phones,
     early_attendance_counts,
@@ -1061,18 +1062,9 @@ def student_movements(request):
             "open_count": sum(1 for e in exits if e.returned_at is None),
             "total_count": len(exits),
             "wing_label": _followup_wing_label(scope),
-            # بطاقةُ `action_tile` نفسُها المستعملة في الأقسام السريعة —
-            # حدٌّ وظلٌّ وأيقونة، لا رقمٌ عارٍ (طلب المدير، SOS-20260915-9077،
-            # توضيحه 2026-09-17: "ليست بطاقات كل منها" على النسخة الأولى).
-            # الرابعة «الخروج مبكراً من المدرسة» ثابتةٌ عمداً بلا رابط فعليّ:
-            # نمطٌ مختلفٌ (انصرافٌ كاملٌ بحضور وليّ الأمر) لا تُسجّله
-            # `ClassExit` بعد — بطاقتُها هنا مكانٌ محجوزٌ لا بياناتٌ ناقصة.
-            "clinic_desc": f"اليوم: {destination_counts.get('clinic', 0)}",
-            "admin_desc": f"اليوم: {destination_counts.get('admin', 0)}",
-            "restroom_desc": f"اليوم: {destination_counts.get('restroom', 0)}",
-            "clinic_href": f"?{day_qs}&destination=clinic",
-            "admin_href": f"?{day_qs}&destination=admin",
-            "restroom_href": f"?{day_qs}&destination=restroom",
+            # بطاقةُ `action_tile` نفسُها المستعملة في الأقسام السريعة — لكلّ وجهةٍ من
+            # العشر بطاقةٌ بعدّاد اليوم (طلب المدير 2026-11-14، `movement_cards`).
+            "destination_cards": destination_cards(destination_counts, day_qs),
         },
     )
 

@@ -673,12 +673,28 @@ class ClassExit(models.Model):
     و«دقائقُ الحضور الفعليّ» التي تُقارَن بالتحصيل (قرارُ 2026-09-13).
     """
 
-    DESTINATIONS = [
+    #: الوجهاتُ العشر المعروضة (طلب المدير 2026-11-14). الرمزُ ≤ 10 حروف (طول الحقل).
+    #: الأخيرةُ «الخروج من المدرسة» لا يسجّلها المعلّم: المشرفُ والنائبُ والمدير من شاشة الحركة.
+    CURRENT_DESTINATIONS = [
         ("clinic", "العيادة"),
-        ("admin", "الإدارة / المشرف"),
         ("restroom", "دورة المياه"),
+        ("sa_coord", "منسق شؤون الطلاب"),
+        ("wing_sup", "مشرف الجناح"),
+        ("vice", "النائب الإداري"),
+        ("arts", "الفنون البصرية"),
+        ("lab_cs", "معمل الحاسوب"),
+        ("lab_sci", "معمل العلوم"),
+        ("pe", "التربية البدنية"),
+        ("school", "الخروج من المدرسة"),
+    ]
+    #: رمزان قديمان تحملهما الصفوفُ السابقة فتُعرضان بلا خطأ، ولا يُعرضان خيارين جديدين.
+    LEGACY_DESTINATIONS = [
+        ("admin", "الإدارة / المشرف"),
         ("other", "أخرى"),
     ]
+    #: ما يختاره المعلّمُ في «خرج بإذن»: التسعُ الأولى دون «الخروج من المدرسة».
+    TEACHER_DESTINATIONS = CURRENT_DESTINATIONS[:-1]
+    DESTINATIONS = CURRENT_DESTINATIONS + LEGACY_DESTINATIONS
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(
