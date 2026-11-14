@@ -1,4 +1,6 @@
 {# مقترَحات بحث الطالب: كلُّ زرٍّ يحمل صفَّ الطالب وشعبته لتعبئة النموذج (transfer-form.js) #}
 {% for r in results %}
 <button type="button" class="btn-secondary btn-xs" data-student-pick data-id="{{ r.id }}" data-name="{{ r.name }}" data-grade="{{ r.grade }}" data-class-id="{{ r.class_id }}" data-class-label="{{ r.class_label }}">{{ r.name }} — {{ r.class_label }}</button>
+{% empty %}
+<span class="text-muted">لا طالب بهذا الاسم.</span>
 {% endfor %}
