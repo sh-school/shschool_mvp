@@ -41,7 +41,13 @@ def approve_schedule(request, generation_id):
         return redirect("smart_schedule")
     try:
         # الاعتمادُ كلُّه في الخدمة — الزرُّ وأمرُ النقل يمرّان من الباب نفسِه، وحارسُ المخالفات فيها.
-        result = ScheduleService.approve_generation(gen, acknowledged=acknowledged(request.POST))
+        result = ScheduleService.approve_generation(
+            gen,
+            acknowledged=acknowledged(request.POST),
+            # استبدالُ جدول aSc المستورَد بإقرارٍ صريحٍ من الطلب؛ والحارسُ في الخدمة.
+            replace_imported=request.POST.get("replace_imported") == "1",
+            user=request.user,
+        )
     except BreachesNotAcknowledgedError as refusal:
         messages.error(request, str(refusal))
         return redirect(back)

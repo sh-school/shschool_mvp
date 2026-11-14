@@ -224,7 +224,9 @@ def admin_first_caps(school: Any, academic_year: str) -> dict[str, int]:
         school=school, academic_year=academic_year, max_first_periods__isnull=False
     ).values_list("teacher_id", "max_first_periods")
     return {
-        str(teacher): cap for teacher, cap in rows if MAX_FIRST_PERIODS < cap <= MAX_PERSONAL_FIRST
+        str(teacher): cap
+        for teacher, cap in rows
+        if cap is not None and MAX_FIRST_PERIODS < cap <= MAX_PERSONAL_FIRST
     }
 
 
@@ -301,7 +303,7 @@ def evaluate_slots(
     orphans = loaded["orphan_tasks"]
 
     def periods(task: Any) -> int:
-        return task.span * len(task.members)
+        return int(task.span * len(task.members))
 
     placed = sum(periods(t) for t in placed_tasks)
     missing = sum(periods(t) for t in orphans)

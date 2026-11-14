@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING
 
 from django.db import transaction
 
+from core.models.audit import AuditLog
+from operations.live_schedule_selectors import live_imported_generation
 from operations.models import (
     ScheduleGeneration,
     ScheduleSlot,
@@ -36,7 +38,13 @@ class ScheduleService(
 ):
     @classmethod
     def approve_generation(
-        cls, gen: ScheduleGeneration, *, notify: bool = True, acknowledged: bool = False
+        cls,
+        gen: ScheduleGeneration,
+        *,
+        notify: bool = True,
+        acknowledged: bool = False,
+        replace_imported: bool = False,
+        user: CustomUser | None = None,
     ) -> dict:
         """الاعتمادُ هو النشر — فعلٌ واحدٌ يستوي فيه زرُّ الشاشة وأمرُ النقل.
 
@@ -68,7 +76,27 @@ class ScheduleService(
             raise BreachesNotAcknowledgedError(refusal)
 
         school = gen.school
+        # مولِّدٌ فوق جدول aSc المستورَد لا يُعتمد إلّا بإقرارٍ صريح: الجدولُ الحيُّ هو الواقعُ المعمول به.
+        replaced = live_imported_generation(gen)
+        if replaced is not None and not replace_imported:
+            raise BreachesNotAcknowledgedError(
+                "الجدولُ الحيّ مستورَدٌ من aSc، واعتمادُ هذه المسودّة يستبدله. "
+                "لا يُعتمد إلّا بإقرارٍ صريحٍ باستبدال الجدول المستورَد."
+            )
         with transaction.atomic():
+            if replaced is not None:
+                AuditLog.log(
+                    user=user,
+                    action="update",
+                    model_name="other",
+                    object_id=gen.pk,
+                    object_repr=f"استبدالُ جدول aSc المستورَد بتوليدٍ معتمَد للعام {gen.academic_year}",
+                    changes={
+                        "replaced_generation": str(replaced.pk),
+                        "approved_generation": str(gen.pk),
+                    },
+                    school=school,
+                )
             draft_slots = ScheduleSlot.objects.filter(generation=gen)
             if draft_slots.exists():
                 ScheduleSlot.objects.filter(

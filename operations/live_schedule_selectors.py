@@ -31,6 +31,29 @@ def _row(breach: Any) -> dict[str, Any]:
     }
 
 
+def is_imported(generation: ScheduleGeneration) -> bool:
+    """أمستورَدٌ هذا التوليد من جدول aSc؟"""
+    return (generation.config_snapshot or {}).get("mode") == IMPORT_MODE
+
+
+def live_imported_generation(gen: ScheduleGeneration) -> ScheduleGeneration | None:
+    """التوليدُ المعتمَدُ الحيُّ المستورَد الذي يستبدله اعتمادُ `gen` — أو None.
+
+    لا استبدالَ بالمعنى المحروس إن كانت `gen` نفسُها مستورَدة.
+    """
+    if is_imported(gen):
+        return None
+    live = (
+        ScheduleGeneration.objects.filter(
+            school_id=gen.school_id, academic_year=gen.academic_year, status="approved"
+        )
+        .exclude(pk=gen.pk)
+        .order_by("-generated_at")
+        .first()
+    )
+    return live if live is not None and is_imported(live) else None
+
+
 def live_schedule_card(school: Any, year: str) -> dict[str, Any] | None:
     """بطاقةُ التوليد المعتمَد للعام، أو None إن لم يوجد توليدٌ معتمَد."""
     generation = (
@@ -40,7 +63,7 @@ def live_schedule_card(school: Any, year: str) -> dict[str, Any] | None:
     )
     if generation is None:
         return None
-    imported = (generation.config_snapshot or {}).get("mode") == IMPORT_MODE
+    imported = is_imported(generation)
     slots = list(live_slots(school, year))
     ev = evaluate_slots(school, year, slots)
 
