@@ -539,6 +539,10 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   <a href="{% url 'schedule_settings' %}" role="menuitem">{% icon "settings" %} إعدادات الجدول والتفريغات</a>
   {% endif %}
   {% endif %}
+  {# استيرادُ جدول aSc بعد الإعدادات لا بينها: يتتابع «الذكيّة ← العامّ ← الإعدادات» (test_general_schedule_menu_link). يحكمه can_open وحدَه (قدرة schedule.admin). #}
+  {% if request.user|can_open:"asc_import" %}
+  <a href="{% url 'asc_import' %}" role="menuitem">{% icon "document" %} استيراد جدول aSc</a>
+  {% endif %}
   {% comment %}
   شاشةُ الإسناد الواحدة (2026-09-06): حلّت محلّ «إسناد الأنصبة» و«توزيعات المواد
   على الشُّعب» و«التكاليف» — بابٌ واحدٌ على قدر صلاحيّته للمنسّق والنائب والمدير.

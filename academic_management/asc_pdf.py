@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections.abc import Callable, Iterable, Sequence
-from typing import Any, NamedTuple
+from typing import IO, Any, NamedTuple
 
 DAYS = 5
 PERIODS = 7
@@ -200,14 +200,14 @@ def parse_class_page(page: Any) -> ClassPage:
     return ClassPage(next(iter(codes), ""), frozenset(slots), " ".join(title))
 
 
-def open_pdf(path: str) -> Any:
+def open_pdf(path: str | IO[bytes]) -> Any:
     """فتحُ الـPDF بـpdfplumber — منفصلاً ليُستبدل به في الاختبار."""
     import pdfplumber
 
     return pdfplumber.open(path)
 
 
-def parse_pdf[T](path: str, parse: Callable[[Any], T]) -> tuple[list[T], list[str]]:
+def parse_pdf[T](path: str | IO[bytes], parse: Callable[[Any], T]) -> tuple[list[T], list[str]]:
     """(نتائجُ الصفحات، أخطاؤها) — صفحةٌ فاسدةٌ تُذكر برقمها ولا توقف الباقي."""
     results: list[T] = []
     errors: list[str] = []

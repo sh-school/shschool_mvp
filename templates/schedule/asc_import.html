@@ -1,0 +1,39 @@
+{% extends "base/base.html" %}
+{% load icons ui %}
+
+{% block title %}استيرادُ جدول aSc{% endblock %}
+
+{% block main_class %}{% page_layout "form" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="استيراد جدول aSc" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+{% page_header "استيرادُ جدول aSc" subtitle="ارفع ملفَّي aSc: تقريرٌ بلا كتابة، ثمّ مسودّةُ جدولٍ غيرُ مفعَّلة" icon="generate" %}
+  <a href="{% url 'smart_schedule' %}" class="btn-secondary btn-sm">{% icon "generate" %} الجدولة الذكية</a>
+{% endpage_header %}
+
+{% section_card "الملفّات" icon="document" %}
+  <form id="asc-import-form" method="post" enctype="multipart/form-data" hx-encoding="multipart/form-data" novalidate>
+    {% csrf_token %}
+    <div class="form-stack">
+      {% field "teachers_pdf" "جدول المعلمين — مفرد (PDF)" type="file" accept=".pdf" required=True help="حدٌّ أقصى عشرةُ ميغابايت. يُقرأ في الذاكرة ولا يُحفظ." %}
+      {% field "classes_pdf" "جدول الشعب (PDF)" type="file" accept=".pdf" required=True help="للتدقيق فقط: خاناتُه يجب أن تساوي خاناتِ ملفّ المعلّمين." %}
+      {% field "rules_json" "ملفّ قواعد الأسماء (JSON) — اختياريّ" type="file" accept=".json" help="بنيةُ TIMETABLE_NAME_RULES_FILE نفسُها، لهذا التشغيل وحدَه؛ حدُّه مئةُ كيلوبايت." %}
+      {% field "replace" "استبدال مسودّة هذين الملفّين إن وُجدت (عند الإنشاء)" type="checkbox" value="1" %}
+    </div>
+    {% callout "warning" %}الإنشاءُ يكتب مسودّةً غيرَ مفعَّلة فقط؛ الاعتمادُ والتفعيلُ من صفحة الجدولة الذكية. وكلُّ تشغيلٍ يُسجَّل في سجلّ المراجعة ببصمات الملفّين وأعدادٍ بلا أسماء.{% endcallout %}
+    <div class="form-actions">
+      <button type="button" class="btn-secondary" hx-post="{% url 'asc_import_submit' %}" hx-include="#asc-import-form" hx-vals='{"action": "analyze"}' hx-target="#asc-import-result" hx-swap="outerHTML">{% icon "quality" %} تحليل</button>
+      <button type="button" class="btn-primary" hx-post="{% url 'asc_import_submit' %}" hx-include="#asc-import-form" hx-vals='{"action": "create"}' hx-target="#asc-import-result" hx-swap="outerHTML" hx-confirm="كتابة مسودّةِ جدولٍ غيرِ مفعَّلة من هذين الملفّين؟">{% icon "save" %} إنشاء مسودّة</button>
+    </div>
+  </form>
+{% endsection_card %}
+
+<div id="asc-import-result" aria-live="polite"></div>
+
+</div>
+{% endblock %}

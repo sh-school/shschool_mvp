@@ -2,6 +2,7 @@ from django.urls import path
 
 from . import views, views_absence_followup, views_absence_reports
 from .scheduler_v2.views import v2_progress, v2_stop
+from .views_asc_import import asc_import_page, asc_import_status, asc_import_submit
 from .views_class_grid import (
     class_grid,
     class_grid_exit,
@@ -112,6 +113,14 @@ urlpatterns = [
     path("reports/substitutes/", views.substitute_report, name="substitute_report"),
     # -- المرحلة 3: الجدولة الذكية --
     path("smart-schedule/", views.smart_schedule_view, name="smart_schedule"),
+    # رفعُ ملفَّي aSc: تقريرٌ ثمّ مسودّةٌ غيرُ مفعَّلة (W-20261114-005).
+    path("smart-schedule/asc-import/", asc_import_page, name="asc_import"),
+    path("smart-schedule/asc-import/submit/", asc_import_submit, name="asc_import_submit"),
+    path(
+        "smart-schedule/asc-import/status/<str:run_id>/",
+        asc_import_status,
+        name="asc_import_status",
+    ),
     path("smart-schedule/generate/", views.smart_generate, name="smart_generate"),
     path("smart-schedule/status/", views.smart_generate_status, name="smart_generate_status"),
     path("smart-schedule/lab/", views.schedule_quality_lab, name="schedule_quality_lab"),
