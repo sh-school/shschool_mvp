@@ -224,3 +224,105 @@ def test_a_secondary_class_keeps_its_seventh_thursday_period(school, teacher, su
     row = assign(school, teacher, subject, periods=35, grade="G10", level="sec")
 
     assert CapacityCheckService.get_overcapacity_classes([row]) == []
+
+
+# ── بطاقةُ «الجدول الحيّ» (W-20261114-003) ─────────────────────────────
+
+
+def _approved(school, user, *, mode="import"):
+    from operations.models import ScheduleGeneration
+
+    return ScheduleGeneration.objects.create(
+        school=school,
+        academic_year=YEAR,
+        generated_by=user,
+        status="approved",
+        config_snapshot={"mode": mode},
+    )
+
+
+def _fake_eval(monkeypatch, codes, *, unjoined=0, placed=10, required=10):
+    from types import SimpleNamespace
+
+    from operations import live_schedule_selectors as card
+    from operations.scheduler_audit import Breach
+
+    rows = tuple(
+        Breach(code, (code, i), "7/أ", "رياضيات", "معلّمٌ", 1, 3) for i, code in enumerate(codes)
+    )
+    result = SimpleNamespace(
+        breach_rows=rows,
+        unjoined_periods=unjoined,
+        placed_periods=placed,
+        required_periods=required,
+    )
+    monkeypatch.setattr(card, "evaluate_slots", lambda *a, **k: result)
+
+
+def _page(client_as, user):
+    return client_as(user).get(reverse("smart_schedule") + f"?year={YEAR}").content.decode()
+
+
+def test_an_approved_import_shows_the_live_card_with_its_badge(
+    client_as, principal, school, monkeypatch
+):
+    _approved(school, principal)
+    _fake_eval(monkeypatch, [])
+
+    body = _page(client_as, principal)
+
+    assert "الجدول الحيّ" in body and "مستورَد من aSc" in body
+
+
+def test_a_generated_approval_has_no_import_badge(client_as, principal, school, monkeypatch):
+    _approved(school, principal, mode="v2")
+    _fake_eval(monkeypatch, [])
+
+    body = _page(client_as, principal)
+
+    assert "الجدول الحيّ" in body and "مستورَد من aSc" not in body
+
+
+def test_overlap_codes_are_actual_conflicts_and_distribution_rules_are_notes(
+    school, principal, monkeypatch
+):
+    from operations.live_schedule_selectors import live_schedule_card
+
+    _approved(school, principal)
+    _fake_eval(monkeypatch, ["HC12", "HC9", "HC7", "HC22", "HC22"])
+
+    card = live_schedule_card(school, YEAR)
+
+    assert card["actual_count"] == 2
+    assert {r["code"] for r in card["actual"]} == {"HC12", "HC9"}
+    assert card["notes"] == [("HC22", 2), ("HC7", 1)] and card["notes_count"] == 3
+
+
+def test_unjoined_doubles_are_a_note_and_completeness_counts_existing_periods(
+    client_as, principal, school, monkeypatch
+):
+    from operations.live_schedule_selectors import live_schedule_card
+
+    _approved(school, principal)
+    _fake_eval(monkeypatch, [], unjoined=2, placed=8, required=10)
+
+    card = live_schedule_card(school, YEAR)
+
+    assert card["placed"] == 10 and card["completeness"] == 100
+    assert "مزدوجة غير متصلة بالجرس" in _page(client_as, principal)
+
+
+def test_opening_the_page_writes_nothing(client_as, principal, school, teacher, subject):
+    from operations.models import ScheduleGeneration, ScheduleSlot
+
+    _approved(school, principal)
+    assign(school, teacher, subject, periods=2)
+    gens = ("id", "status", "config_snapshot")
+    before_slots = list(ScheduleSlot.objects.values())
+    before_gens = list(ScheduleGeneration.objects.values(*gens))
+
+    _page(client_as, principal)
+    _page(client_as, principal)
+
+    assert list(ScheduleSlot.objects.values()) == before_slots
+    assert list(ScheduleGeneration.objects.values(*gens)) == before_gens

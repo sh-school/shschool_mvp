@@ -68,6 +68,9 @@ class Evaluation:
     notes: list[str] = field(default_factory=list)
     #: مخالفاتٌ كانت صلبةً بحكم القيد الأصل وخُفِّفت بقرارٍ معلَنٍ فصارت ملاحظةً: عددُها بالرمز.
     eased: dict[str, int] = field(default_factory=dict)
+    #: للعرض وحدَه (لا يدخل `as_dict`): المخالفاتُ بأسمائها، وحصصُ المزدوجات غيرِ المتّصلة بالجرس.
+    breach_rows: tuple[Any, ...] = ()
+    unjoined_periods: int = 0
 
     @property
     def hard_total(self) -> int:
@@ -245,6 +248,32 @@ def fingerprint(grid: Any) -> str:
     return hashlib.sha256(json.dumps(rows).encode()).hexdigest()[:16]
 
 
+def _evaluation_notes(
+    solver: dict[str, Any] | None,
+    placed: int,
+    eased: Counter[str],
+    has_orphans: bool,
+    has_orphan_cells: bool,
+) -> list[str]:
+    """ملاحظاتُ التقييم النصّيّة: ما خُفِّف وما بقي بلا موضع وما خالف الإسنادَ."""
+    notes: list[str] = []
+    if solver is not None and solver["status"] in ("INFEASIBLE", "UNKNOWN") and placed:
+        notes.append("حالةُ الحلّال لا تُنتج جدولاً، ومع ذلك وُجدت خانات: يُقاس ما وُجد ولا يُصدَّق الوصف")
+    if eased["HC5"]:
+        notes.append(
+            f"HC5 خُفِّف بقرارٍ معلَن (حصّتان متتاليتان لا ثلاث): {eased['HC5']} موضوعاً صار ملاحظةً لا مخالفة صلبة"
+        )
+    if eased["HC22"]:
+        notes.append(
+            f"HC22 خُفِّف بقرارٍ معلَن (سقفُ الأولى أعلى من العامّ لمعلّمين مسمَّين): {eased['HC22']} معلّماً صار ملاحظةً لا مخالفة صلبة"
+        )
+    if has_orphans:
+        notes.append("InfeasibilityValue > 0: حصصٌ بلا موضع تُبلَّغ ولا يُرخى لها سقفٌ بصمت (D-166م)")
+    if has_orphan_cells:
+        notes.append("خاناتٌ بلا إسنادٍ مطابق: الجدولُ لا يوافق الإسنادَ النشط")
+    return notes
+
+
 def evaluate_slots(
     school: Any,
     academic_year: str,
@@ -297,26 +326,8 @@ def evaluate_slots(
     quality = calculate_quality_score(grid, loaded["preferences"], total_required=required)
     soft = {key: count for key, count in quality["violations"].items() if count}
 
-    notes: list[str] = []
-    verdict = ""
-    if solver is not None:
-        verdict = VERDICTS[solver["status"]]
-        if solver["status"] in ("INFEASIBLE", "UNKNOWN") and placed:
-            notes.append(
-                "حالةُ الحلّال لا تُنتج جدولاً، ومع ذلك وُجدت خانات: يُقاس ما وُجد ولا يُصدَّق الوصف"
-            )
-    if eased["HC5"]:
-        notes.append(
-            f"HC5 خُفِّف بقرارٍ معلَن (حصّتان متتاليتان لا ثلاث): {eased['HC5']} موضوعاً صار ملاحظةً لا مخالفة صلبة"
-        )
-    if eased["HC22"]:
-        notes.append(
-            f"HC22 خُفِّف بقرارٍ معلَن (سقفُ الأولى أعلى من العامّ لمعلّمين مسمَّين): {eased['HC22']} معلّماً صار ملاحظةً لا مخالفة صلبة"
-        )
-    if orphans:
-        notes.append("InfeasibilityValue > 0: حصصٌ بلا موضع تُبلَّغ ولا يُرخى لها سقفٌ بصمت (D-166م)")
-    if loaded["orphan_cells"]:
-        notes.append("خاناتٌ بلا إسنادٍ مطابق: الجدولُ لا يوافق الإسنادَ النشط")
+    verdict = VERDICTS[solver["status"]] if solver is not None else ""
+    notes = _evaluation_notes(solver, placed, eased, bool(orphans), bool(loaded["orphan_cells"]))
 
     return Evaluation(
         placed_periods=placed,
@@ -334,6 +345,8 @@ def evaluate_slots(
         verdict=verdict,
         notes=notes,
         eased=dict(eased),
+        breach_rows=tuple(found),
+        unjoined_periods=sum(periods(t) for t in loaded["unjoined"]),
     )
 
 

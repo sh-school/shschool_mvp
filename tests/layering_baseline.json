@@ -391,7 +391,7 @@
    "orm": 14
   },
   "operations/views_schedule.py::smart_schedule_view": {
-   "lines": 81,
+   "lines": 80,
    "orm": 24
   },
   "operations/views_schedule.py::teacher_load_report": {
