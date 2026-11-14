@@ -1,0 +1,9 @@
+{% comment %}
+تحذيرُ استبدال جدول aSc المستورَد وخانةُ الإقرار به — لمسودّةٍ غيرِ مستورَدة حين يكون الحيُّ مستورَداً.
+الحارسُ في `ScheduleService.approve_generation`؛ والخانةُ تُرسل `replace_imported`.
+{% endcomment %}
+{% load ui %}
+{% callout "warning" %}اعتمادُ هذه المسودّة يستبدل جدولَ aSc المستورَد الحيّ، فيُحسب الحضورُ والتبديلُ والإشغالُ على مواضعها لا على الواقع.{% endcallout %}
+{% with gid=g.id|stringformat:"s" %}
+{% field "replace_imported" "أقرّ بأنّ هذا يستبدل جدول aSc المستورَد" type="checkbox" required=True id="rep-"|add:gid %}
+{% endwith %}

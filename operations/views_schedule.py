@@ -28,7 +28,7 @@ from core.models.access import EXEMPTABLE_ROLES
 from core.safe_redirect import safe_redirect
 from core.unrestricted_role import has_unrestricted_role
 
-from .live_schedule_selectors import live_schedule_card
+from .live_schedule_selectors import is_imported, live_schedule_card
 from .models import (
     ScheduleBaseline,
     ScheduleGeneration,
@@ -788,6 +788,7 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
         # ما بقي مكسوراً بموضعه — والإقرارُ به شرطُ اعتماد المسودّة (SCH-05).
         g.breaches = draft_breaches(g.config_snapshot)
         g.budget_cut = budget_cut_notice(g.config_snapshot)
+        g.imported = is_imported(g)
         g.unplaced_count = unplaced_count(g.config_snapshot)
         # الإقرارُ شرطٌ لمخالفاتٍ أو لمتعذّراتٍ (OR-01) — والعددُ الذي يُعرض على الزرّ مجموعُهما.
         g.gate_total = (g.breaches["count"] if g.breaches else 0) + g.unplaced_count

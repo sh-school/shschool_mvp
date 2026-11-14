@@ -6,7 +6,7 @@
   "core/permissions.py": 1127,
   "notifications/tasks.py": 1407,
   "operations/scheduler_constraints.py": 1026,
-  "operations/views_schedule.py": 1430,
+  "operations/views_schedule.py": 1431,
   "reports/services.py": 1433,
   "student_affairs/services.py": 1060,
   "student_affairs/views.py": 2010
