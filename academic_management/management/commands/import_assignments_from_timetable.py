@@ -89,7 +89,11 @@ class NameRules(NamedTuple):
 
 
 def load_name_rules() -> NameRules:
-    data = load_private_json(TIMETABLE_RULES_ENV, TIMETABLE_RULES_DEFAULT)
+    return rules_from_data(load_private_json(TIMETABLE_RULES_ENV, TIMETABLE_RULES_DEFAULT))
+
+
+def rules_from_data(data: object) -> NameRules:
+    """قواعدُ الأسماء من محتوى JSON — الملفُّ الخاصّ أو ما رُفع لتشغيلٍ واحد."""
     data = data if isinstance(data, dict) else {}
 
     def pairs(section):

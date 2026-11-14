@@ -1,0 +1,38 @@
+{% load ui %}
+{% comment %}
+نتيجةُ تشغيل استيراد aSc: جارٍ (يستطلع نفسَه كلَّ ثانيتين) أو منتهٍ بتقرير أو رفضٍ أو خطأ.
+الجذرُ بالمعرّف نفسِه دائماً ليُبدَّل بـouterHTML.
+{% endcomment %}
+{% if state.state == "running" %}
+<div id="asc-import-result" hx-get="{% url 'asc_import_status' token %}" hx-trigger="load delay:2s" hx-swap="outerHTML" aria-live="polite">
+  {% callout "info" %}جارٍ قراءةُ الملفّين… قد تستغرق دقيقةً.{% endcallout %}
+</div>
+{% else %}
+<div id="asc-import-result" aria-live="polite">
+  {% if state.state == "expired" %}
+  {% callout "warning" %}انتهت صلاحيةُ هذا التشغيل (خمسَ عشرةَ دقيقة) أو قُرئت نتيجتُه من قبل — شغّله من جديد.{% endcallout %}
+  {% endif %}
+  {% if state.error %}
+  {% callout "error" %}{{ state.error }}{% endcallout %}
+  {% endif %}
+  {% if state.year %}
+  <h3>تقريرُ التحليل — {{ state.school_name }} · العام {{ state.year }}</h3>
+  <p>حصصٌ قُرئت من ملفّ المعلّمين: <strong>{{ state.lessons }}</strong> · خاناتٌ قُرئت من ملفّ الشعب: <strong>{{ state.class_slots }}</strong></p>
+  <p>بنودُ التقرير: <strong>{{ state.items|length }}</strong> — منها المانعُ للإنشاء: <strong>{{ state.blocking }}</strong> (ما عدا ذلك مُعفى بقائمة التجاهل في ملفّ القواعد).</p>
+  {% if state.items %}
+  <ul>
+    {% for item in state.items %}
+    <li>{{ item.text }}{% if item.ignored %} <span class="status-badge status-info">متجاهَل</span>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% elif not state.error %}
+  {% callout "info" %}لا بنودَ في التقرير — الملفّان متّسقان مع الإسنادات المعتمَدة.{% endcallout %}
+  {% endif %}
+  {% if state.create and state.written == 0 and not state.error %}
+  {% callout "info" %}مسودّةُ هذين الملفّين موجودةٌ من قبل — لم يُكتب شيء. فعّل «استبدال» لإعادة كتابتها.{% endcallout %}
+  {% elif not state.create and not state.blocking %}
+  {% callout "info" %}لا مانعَ: يمكنك الآن الضغطُ على «إنشاء مسودّة».{% endcallout %}
+  {% endif %}
+  {% endif %}
+</div>
+{% endif %}

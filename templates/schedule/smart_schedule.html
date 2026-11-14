@@ -15,6 +15,7 @@
   <a href="{% url 'academic_management:assignments' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "workload" %} الإسناد</a>
   <a href="{% url 'schedule_settings' %}" class="btn-secondary btn-sm">{% icon "settings" %} الإعدادات</a>
   <a href="{% url 'schedule_quality_lab' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "quality" %} مختبر الجودة</a>
+  <a href="{% url 'asc_import' %}" class="btn-secondary btn-sm">{% icon "document" %} استيراد جدول aSc</a>
   <a href="{% url 'weekly_schedule' %}" class="btn-secondary btn-sm">{% icon "schedule" %} الجدول الحالي</a>
   {% if assignments_count and not pending_generation and not feasibility.blocking %}
   <form method="post" action="{% url 'smart_generate' %}" class="gen-inline-form"

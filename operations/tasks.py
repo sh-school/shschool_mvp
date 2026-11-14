@@ -622,5 +622,14 @@ def sweep_absence_gates_after_school_task():
     return {"checked": checked, "failed_schools": failed}
 
 
+@shared_task(name="operations.asc_import_run", ignore_result=True)
+def asc_import_run_task(token, school_id, user_id, create=False, replace=False):
+    """تحليلُ ملفّي aSc المرفوعَين من صفحة الاستيراد (وكتابةُ المسودّة إن طُلب) — البايتاتُ في الكاش لا القرص."""
+    from academic_management.asc_import_job import run_job
+
+    with school_rls_scope(school_id):
+        run_job(token, school_id, user_id, create, replace)
+
+
 # تسجيلُ عاملِ توليد V2 (Celery يكتشف operations.tasks وحدَه).
 from operations.scheduler_v2.tasks import generate_schedule_v2_task  # noqa: E402,F401
