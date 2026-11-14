@@ -208,7 +208,7 @@ jobs:
       - name: استعادة قاعدة الاختبار المهاجَرة المحفوظة
         id: migrated-db
         if: steps.diff.outputs.docs_only != 'true'
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/migrated_db.dump
           key: migrated-db-pg16-${{ hashFiles('**/migrations/*.py', 'requirements.txt') }}
@@ -539,7 +539,7 @@ jobs:
       # فحصُ الوجود فقط (بلا تنزيل): وُجدت ⇒ لا بناءَ ولا حفظ
       - name: هل النسخةُ محفوظةٌ لهذه البصمة؟
         id: exists
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/migrated_db.dump
           key: migrated-db-pg16-${{ hashFiles('**/migrations/*.py', 'requirements.txt') }}
@@ -767,7 +767,7 @@ jobs:
             sudo tee /etc/apt/apt.conf.d/98ci-deb-cache > /dev/null
 
       - name: استعادة حزم apt من الذاكرة
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/apt-archives/*.deb
           key: apt-debs-${{ runner.os }}-pytest-playwright-0.9.0-${{ hashFiles('.github/workflows/quality-gate.yml') }}
@@ -839,7 +839,7 @@ jobs:
       # وُجد ⇒ pg_restore بدل هجرات ~168 ث؛ غاب ⇒ migrate كما كان ولا تُفشل الوظيفة.
       - name: استعادة قاعدة الاختبار المهاجَرة المحفوظة
         id: migrated-db
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/migrated_db.dump
           key: migrated-db-pg16-${{ hashFiles('**/migrations/*.py', 'requirements.txt') }}
@@ -902,7 +902,7 @@ jobs:
             sudo tee /etc/apt/apt.conf.d/98ci-deb-cache > /dev/null
 
       - name: استعادة حزم apt من الذاكرة
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/apt-archives/*.deb
           key: apt-debs-${{ runner.os }}-pytest-playwright-0.9.0-${{ hashFiles('.github/workflows/quality-gate.yml') }}
@@ -957,7 +957,7 @@ jobs:
       # وُجد ⇒ pg_restore بدل هجرات ~168 ث؛ غاب ⇒ migrate كما كان ولا تُفشل الوظيفة.
       - name: استعادة قاعدة الاختبار المهاجَرة المحفوظة
         id: migrated-db
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/migrated_db.dump
           key: migrated-db-pg16-${{ hashFiles('**/migrations/*.py', 'requirements.txt') }}
@@ -1002,7 +1002,7 @@ jobs:
       # فحصُ الوجود فقط (بلا تنزيل): وُجدت ⇒ لا تثبيتَ ولا حفظ
       - name: هل الحزمُ محفوظةٌ لهذا المفتاح؟
         id: exists
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/apt-archives/*.deb
           key: apt-debs-${{ runner.os }}-pytest-playwright-0.9.0-${{ hashFiles('.github/workflows/quality-gate.yml') }}
