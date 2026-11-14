@@ -53,8 +53,9 @@ def asc_import_submit(request):
 @login_required
 @capability_required("schedule.admin")
 @require_GET
-def asc_import_status(request, token):
+def asc_import_status(request, run_id):
     """حالةُ التشغيل: جارٍ فيُستطلع، أو منتهٍ فيُعرض ويُحذف، أو إحالةٌ إلى الجدول الذكي بعد كتابة مسودّة."""
+    token = run_id
     state = job.poll(token, request.school.id)
     if state is None:
         raise Http404

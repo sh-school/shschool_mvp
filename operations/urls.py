@@ -117,7 +117,7 @@ urlpatterns = [
     path("smart-schedule/asc-import/", asc_import_page, name="asc_import"),
     path("smart-schedule/asc-import/submit/", asc_import_submit, name="asc_import_submit"),
     path(
-        "smart-schedule/asc-import/status/<str:token>/",
+        "smart-schedule/asc-import/status/<str:run_id>/",
         asc_import_status,
         name="asc_import_status",
     ),

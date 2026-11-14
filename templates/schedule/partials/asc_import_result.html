@@ -19,15 +19,13 @@
   <h3>تقريرُ التحليل — {{ state.school_name }} · العام {{ state.year }}</h3>
   <p>حصصٌ قُرئت من ملفّ المعلّمين: <strong>{{ state.lessons }}</strong> · خاناتٌ قُرئت من ملفّ الشعب: <strong>{{ state.class_slots }}</strong></p>
   <p>بنودُ التقرير: <strong>{{ state.items|length }}</strong> — منها المانعُ للإنشاء: <strong>{{ state.blocking }}</strong> (ما عدا ذلك مُعفى بقائمة التجاهل في ملفّ القواعد).</p>
-  {% if state.items %}
   <ul>
     {% for item in state.items %}
     <li>{{ item.text }}{% if item.ignored %} <span class="status-badge status-info">متجاهَل</span>{% endif %}</li>
+    {% empty %}
+    <li>لا بنودَ في التقرير — الملفّان متّسقان مع الإسنادات المعتمَدة.</li>
     {% endfor %}
   </ul>
-  {% elif not state.error %}
-  {% callout "info" %}لا بنودَ في التقرير — الملفّان متّسقان مع الإسنادات المعتمَدة.{% endcallout %}
-  {% endif %}
   {% if state.create and state.written == 0 and not state.error %}
   {% callout "info" %}مسودّةُ هذين الملفّين موجودةٌ من قبل — لم يُكتب شيء. فعّل «استبدال» لإعادة كتابتها.{% endcallout %}
   {% elif not state.create and not state.blocking %}
