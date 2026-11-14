@@ -20,6 +20,7 @@
       {% else %}status-gray{% endif %}">
       {{ transfer.get_status_display }}
     </span>
+    {% if transfer.status == 'pending' %}<a href="{% url 'student_affairs:transfer_edit' transfer.pk %}" class="btn-secondary btn-sm">تعديل</a>{% endif %}
   {% endpage_header %}
 
   {% section_card "بيانات الانتقال" icon="swap_requests" %}

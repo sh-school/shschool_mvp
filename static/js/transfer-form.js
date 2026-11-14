@@ -17,7 +17,11 @@
   var internalOnly = form.querySelectorAll('[data-internal-only]');
   var externalOnly = form.querySelectorAll('[data-external-only]');
 
-  function current() { return student && student.options[student.selectedIndex]; }
+  var search = form.querySelector('#f-student_q');
+  var results = form.querySelector('[data-student-results]');
+
+  // الطالبُ المختار حقلٌ مخفيّ يحمل صفَّه وشعبته في سمات data-*؛ يُمسح إن عاد المستخدم يكتب فيُعاد الاختيار.
+  function current() { return student; }
 
   function sync() {
     var option = current();
@@ -43,6 +47,28 @@
     });
   }
 
+  if (results) {
+    results.addEventListener('click', function (event) {
+      var pick = event.target.closest('[data-student-pick]');
+      if (!pick || !student) return;
+      student.value = pick.getAttribute('data-id');
+      ['data-grade', 'data-class-id', 'data-class-label'].forEach(function (name) {
+        student.setAttribute(name, pick.getAttribute(name) || '');
+      });
+      if (search) search.value = pick.getAttribute('data-name') || '';
+      results.textContent = '';
+      sync();
+    });
+  }
+  if (search && student) {
+    search.addEventListener('input', function () {
+      student.value = '';
+      ['data-grade', 'data-class-id', 'data-class-label'].forEach(function (name) {
+        student.setAttribute(name, '');
+      });
+      sync();
+    });
+  }
   if (student) student.addEventListener('change', sync);
   if (direction) direction.addEventListener('change', sync);
   sync();

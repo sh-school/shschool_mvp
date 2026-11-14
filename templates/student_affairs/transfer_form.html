@@ -24,17 +24,14 @@
 
       <div class="form-row">
 
-        {# الطالب: نصُّ الخيار مركّبٌ (الاسمُ ورقمُه المستور) — لا يُعبَّر بـchoices، فالقائمةُ باليد بتسميتها #}
+        {# الطالب: بحثٌ بالاسم (HTMX بعد حرفين) ثم اختيارٌ من المقترَحات؛ المعرّفُ في حقلٍ مخفيّ يقرأ الخادمُ نطاقَه #}
         <div class="ui-field sa-span-full">
-          <label for="f-student_id" class="ui-field__label">الطالب <span class="req-star" aria-hidden="true">*</span></label>
-          <select id="f-student_id" name="student_id" class="form-control" required>
-            <option value="">— اختر الطالب —</option>
-            {% for m in students %}
-            <option value="{{ m.user_id }}" data-grade="{{ m.class_grade }}" data-class-id="{{ m.class_id }}" data-class-label="{{ m.class_label }}" {% if form.student_id.value|slugify == m.user_id|slugify %}selected{% endif %}>
-              {{ m.user.full_name }} — {{ m.class_label }}
-            </option>
-            {% endfor %}
-          </select>
+          <label for="f-student_q" class="ui-field__label">الطالب <span class="req-star" aria-hidden="true">*</span></label>
+          <input type="search" id="f-student_q" name="q" class="form-control" autocomplete="off" placeholder="اكتب حرفين على الأقل من اسم الطالب" value="{{ picked.name|default:'' }}"
+                 hx-get="{% url 'student_affairs:transfer_student_search' %}" hx-trigger="input changed delay:300ms" hx-target="#transfer-student-results" hx-swap="innerHTML">
+          <input type="hidden" id="f-student_id" name="student_id" value="{{ picked.id|default:'' }}" data-grade="{{ picked.grade|default:'' }}" data-class-id="{{ picked.class_id|default:'' }}" data-class-label="{{ picked.class_label|default:'' }}">
+          <div id="transfer-student-results" data-student-results></div>
+          {% for err in form.student_id.errors %}<p class="field-error" role="alert">{{ err }}</p>{% endfor %}
           <p class="ui-field-hint" data-student-class aria-live="polite"></p>
         </div>
 

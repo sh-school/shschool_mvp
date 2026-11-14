@@ -66,6 +66,7 @@
             </td>
             <td class="col-actions">
               <a href="{% url 'student_affairs:transfer_detail' tr.pk %}" class="btn-secondary btn-xs">عرض</a>
+              {% if tr.status == 'pending' %}<a href="{% url 'student_affairs:transfer_edit' tr.pk %}" class="btn-secondary btn-xs">تعديل</a>{% endif %}
             </td>
           </tr>
           {% endfor %}
