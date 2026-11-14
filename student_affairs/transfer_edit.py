@@ -14,8 +14,6 @@ class TransferEditForm(forms.Form):
     """حقولُ تعديل الانتقال المعلَّق؛ الاتجاهُ والطالبُ ثابتان فلا حقلَ لهما."""
 
     other_school_name = forms.CharField(max_length=200, required=False, label="المدرسة الأخرى")
-    from_grade = forms.CharField(max_length=3, required=False, label="الصف (من)")
-    to_grade = forms.CharField(max_length=3, required=False, label="الصف (إلى)")
     to_class_group_id = forms.UUIDField(required=False, label="الشعبة المنقول إليها")
     transfer_date = forms.DateField(
         widget=forms.DateInput(attrs={"type": "date"}), label="تاريخ الانتقال"
@@ -41,8 +39,6 @@ def initial_for(transfer: StudentTransfer) -> dict[str, Any]:
     """القيمُ الحاليّة للانتقال لتعبئة نموذج التعديل."""
     return {
         "other_school_name": transfer.other_school_name,
-        "from_grade": transfer.from_grade,
-        "to_grade": transfer.to_grade,
         "to_class_group_id": transfer.to_class_group_id,
         "transfer_date": transfer.transfer_date,
         "reason": transfer.reason,

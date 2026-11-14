@@ -51,8 +51,6 @@
         <div data-external-only class="sa-span-full">
         {% field "other_school_name" "المدرسة الأخرى" value=form.other_school_name.value placeholder="اسم المدرسة المنقول منها/إليها" required=True css="sa-span-full" %}
         </div>
-        {% field "from_grade" "الصف (من)" value=form.from_grade.value placeholder="مثال: G9" %}
-        {% field "to_grade" "الصف (إلى)" value=form.to_grade.value placeholder="مثال: G10" %}
         {% field "reason" "السبب" type="textarea" rows=3 value=form.reason.value placeholder="سبب الانتقال..." css="sa-span-full" %}
         {# النقلُ المباشر: للمدير والنائب الإداري وحدهما، وفي الانتقال الداخلي فقط (D-343م) #}
         {% if can_direct %}

@@ -1,5 +1,5 @@
 /**
- * نموذج طلب الانتقال: عند اختيار الطالب يظهر صفّه وشعبته ويُملأ «الصف (من)»،
+ * نموذج طلب الانتقال: عند اختيار الطالب يظهر صفّه وشعبته،
  * وفي الانتقال الداخلي تُعرض الشعبةُ المنقول إليها من صفّه وحدَه دون شعبته الحاليّة (W-20261005-008).
  * الخادمُ هو الحَكَم (يرفض هدفاً من صفٍّ آخر)؛ هذا تيسيرٌ لا حرّاسة. لا CSP inline: كلُّه بسمات `data-*`.
  */
@@ -11,7 +11,6 @@
   var student = form.querySelector('#f-student_id');
   var hint = form.querySelector('[data-student-class]');
   var direction = form.querySelector('[name=direction]');
-  var fromGrade = form.querySelector('[name=from_grade]');
   var target = form.querySelector('#f-to_class_group_id');
   var otherSchool = form.querySelector('[name=other_school_name]');
   var internalOnly = form.querySelectorAll('[data-internal-only]');
@@ -29,7 +28,6 @@
     var classId = option ? option.getAttribute('data-class-id') || '' : '';
     var label = option ? option.getAttribute('data-class-label') || '' : '';
     if (hint) hint.textContent = option && option.value ? 'الصفّ والشعبة: ' + label : '';
-    if (fromGrade && grade) fromGrade.value = grade;
     var internal = direction && direction.value === 'internal';
     internalOnly.forEach(function (node) { node.hidden = !internal; });
     externalOnly.forEach(function (node) { node.hidden = internal; });

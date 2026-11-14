@@ -33,8 +33,6 @@
       <dt>المدرسة الأخرى</dt><dd>{{ transfer.other_school_name }}</dd>
       {% endif %}
       <dt>تاريخ الانتقال</dt><dd>{{ transfer.transfer_date|date:"d/m/Y" }}</dd>
-      {% if transfer.from_grade %}<dt>الصف (من)</dt><dd>{{ transfer.from_grade }}</dd>{% endif %}
-      {% if transfer.to_grade %}<dt>الصف (إلى)</dt><dd>{{ transfer.to_grade }}</dd>{% endif %}
       {% if transfer.reason %}<dt>السبب</dt><dd>{{ transfer.reason }}</dd>{% endif %}
       {% if transfer.notes %}<dt>ملاحظات</dt><dd>{{ transfer.notes }}</dd>{% endif %}
       <dt>تاريخ التسجيل</dt><dd>{{ transfer.created_at|date:"d/m/Y H:i" }}</dd>

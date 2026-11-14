@@ -41,8 +41,6 @@
         {% else %}
         {% field "other_school_name" "المدرسة الأخرى" value=form.other_school_name.value placeholder="اسم المدرسة المنقول منها/إليها" required=True error=form.other_school_name.errors.0 css="sa-span-full" %}
         {% endif %}
-        {% field "from_grade" "الصف (من)" value=form.from_grade.value placeholder="مثال: G9" %}
-        {% field "to_grade" "الصف (إلى)" value=form.to_grade.value placeholder="مثال: G10" %}
         {% field "reason" "السبب" type="textarea" rows=3 value=form.reason.value placeholder="سبب الانتقال..." css="sa-span-full" %}
         {% field "notes" "ملاحظات" type="textarea" rows=3 value=form.notes.value css="sa-span-full" %}
       </div>

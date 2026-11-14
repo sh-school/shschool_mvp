@@ -13,8 +13,6 @@ from .selectors import active_class
 #: الحقولُ القابلةُ للتعديل في الانتقال المعلَّق؛ يُسجَّل في التدقيق أسماءُ ما تغيّر منها لا قيمُها.
 EDITABLE_FIELDS = (
     "other_school_name",
-    "from_grade",
-    "to_grade",
     "to_class_group",
     "transfer_date",
     "reason",
@@ -39,8 +37,6 @@ def update_pending_transfer(
         internal = transfer.direction == "internal"
         new_values: dict[str, Any] = {
             "other_school_name": school.name if internal else data["other_school_name"],
-            "from_grade": data.get("from_grade", ""),
-            "to_grade": data.get("to_grade", ""),
             "to_class_group": active_class(school, data["to_class_group_id"]) if internal else None,
             "transfer_date": data["transfer_date"],
             "reason": data.get("reason", ""),
