@@ -6,6 +6,7 @@ from . import (
     guardian_views,
     list_export_views,
     movement_entry,
+    movement_live,
     movements_views,
     views,
 )
@@ -45,6 +46,8 @@ urlpatterns = [
     path("attendance/export/", views.attendance_export_excel, name="attendance_export"),
     path("attendance/pdf/", views.attendance_overview_pdf, name="attendance_pdf"),
     path("movements/", views.student_movements, name="student_movements"),
+    path("movements/live/", movement_live.movements_live, name="movements_live"),
+    path("movements/history/", movement_live.movements_history, name="movements_history"),
     path("movements/leave/", movement_entry.movement_leave, name="movement_leave"),
     path(
         "movements/<uuid:pk>/return/",
