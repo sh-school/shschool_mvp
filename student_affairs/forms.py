@@ -114,8 +114,6 @@ class TransferForm(forms.Form):
         required=False,
         label="المدرسة الأخرى",
     )
-    from_grade = forms.CharField(max_length=3, required=False, label="الصف (من)")
-    to_grade = forms.CharField(max_length=3, required=False, label="الصف (إلى)")
     to_class_group_id = forms.UUIDField(required=False, label="الشعبة المنقول إليها")
     transfer_date = forms.DateField(
         widget=forms.DateInput(attrs={"type": "date"}),

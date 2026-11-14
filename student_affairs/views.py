@@ -863,17 +863,19 @@ def transfer_create(request):
 
 
 def _transfer_form_response(request, school, form):
-    """عرضُ نموذج الطلب: كلُّ طالبٍ بصفّه وشعبته، وكلُّ شعبةٍ نشطةٍ هدفاً للانتقال الداخليّ."""
-    from .selectors import transfer_form_options
+    """عرضُ نموذج الطلب: الطالبُ المختار بالبحث (إن وُجد)، وكلُّ شعبةٍ نشطةٍ هدفاً للانتقال الداخليّ."""
+    from .selectors import transfer_target_classes
+    from .transfer_edit_selectors import picked_student
 
-    students, classes = transfer_form_options(school)
     return render(
         request,
         "student_affairs/transfer_form.html",
         {
             "form": form,
-            "students": students,
-            "classes": classes,
+            "picked": picked_student(
+                school, student_scope_for(request), form.data.get("student_id")
+            ),
+            "classes": transfer_target_classes(school),
             "can_direct": may_decide(request.user),
         },
     )

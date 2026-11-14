@@ -133,7 +133,12 @@ def transfer_form_options(school: Any) -> tuple[list, Any]:
         membership.class_grade = klass.grade if klass else ""
         membership.class_id = klass.pk if klass else ""
         membership.class_label = klass.short_label if klass else "بلا شعبة"
-    return students, ClassGroup.objects.filter(
+    return students, transfer_target_classes(school)
+
+
+def transfer_target_classes(school: Any) -> Any:
+    """كلُّ شعبةٍ نشطةٍ في العام الحاليّ هدفاً محتمَلاً للانتقال الداخليّ."""
+    return ClassGroup.objects.filter(
         school=school, is_active=True, academic_year=academic_year_for_school(school)
     )
 

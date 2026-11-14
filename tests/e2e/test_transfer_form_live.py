@@ -47,7 +47,9 @@ def _watch_posts(page):
 
 
 def _fill(page, student, direction):
-    page.select_option("#f-student_id", str(student.pk))
+    # الطالبُ يُختار من مقترَحات البحث بالاسم لا من قائمةٍ كاملة (W-20261114-010)
+    page.fill("#f-student_q", student.full_name[:4])
+    page.click(f'[data-student-pick][data-id="{student.pk}"]')
     page.select_option("[name=direction]", direction)
     # «اليوم» يُقرأ عند الاستدعاء لا عند الاستيراد، فيوافق الساعةَ المثبَّتة للاختبار
     page.fill("[name=transfer_date]", timezone.localdate().isoformat())

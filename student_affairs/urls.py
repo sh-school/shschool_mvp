@@ -8,6 +8,7 @@ from . import (
     movement_entry,
     movement_live,
     movements_views,
+    transfer_edit_views,
     views,
 )
 
@@ -34,7 +35,13 @@ urlpatterns = [
     # ── الانتقالات ──
     path("transfers/", views.transfer_list, name="transfer_list"),
     path("transfers/create/", views.transfer_create, name="transfer_create"),
+    path(
+        "transfers/student-search/",
+        transfer_edit_views.transfer_student_search,
+        name="transfer_student_search",
+    ),
     path("transfers/<uuid:pk>/", views.transfer_detail, name="transfer_detail"),
+    path("transfers/<uuid:pk>/edit/", transfer_edit_views.transfer_edit, name="transfer_edit"),
     path("transfers/<uuid:pk>/review/", views.transfer_review, name="transfer_review"),
     # ── طلبات الالتحاق (نموذج 07) ──
     path("admissions/", admission_views.admission_list, name="admission_list"),
