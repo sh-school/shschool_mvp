@@ -1,3 +1,4 @@
+import hashlib as _hashlib
 import os as _os
 from typing import Any
 
@@ -22,14 +23,17 @@ SESSION_COOKIE_SECURE = False
 # رمزَها صار من خادمٍ غيره. وسبعُ عمليّاتِ دخولٍ في أربعين دقيقةً على 8011
 # كانت هذا.
 #
-# والاسمُ يُشتقّ من قاعدة الجلسة كما يُشتقّ اسمُ قاعدة الاختبار (`testing.py`)،
-# وبالبادئة نفسِها: `ss_` تعني شجرةَ جلسة. والحزمةُ الأصليّةُ (`shschool_db`)
-# تبقى على الاسمين الافتراضيَّين. وJavaScript لا يقرأ الكوكي باسمه — يأخذ
-# رمزَ CSRF من الحقل المخفيّ (`tests/test_csrf_cookie_httponly.py`).
+# والاسمُ يُشتقّ من قاعدة الجلسة: بادئةٌ قصيرةٌ (`sid_` و`csrf_`) وستّةُ أحرفٍ من
+# تجزئة اسمها. فالاسمُ الكامل (`sessionid_ss_<قاعدة>`) صار مع مئةِ شجرةٍ دُخل بها
+# كوكياتٍ تتراكم على `localhost` ترويسةً تتجاوز 8 كيلوبايت، فيردّ nginx 400 على
+# المعاينة 8500. والتجزئةُ تبقي الاسمَ فريداً لكلّ شجرة. والحزمةُ الأصليّةُ
+# (`shschool_db`) تبقى على الاسمين الافتراضيَّين. وJavaScript لا يقرأ الكوكي باسمه —
+# يأخذ رمزَ CSRF من الحقل المخفيّ (`tests/test_csrf_cookie_httponly.py`).
 _session_db = _os.environ.get("DB_NAME", "")
 if _session_db.startswith("ss_"):
-    SESSION_COOKIE_NAME = f"sessionid_{_session_db}"
-    CSRF_COOKIE_NAME = f"csrftoken_{_session_db}"
+    _session_tag = _hashlib.sha256(_session_db.encode()).hexdigest()[:6]
+    SESSION_COOKIE_NAME = f"sid_{_session_tag}"
+    CSRF_COOKIE_NAME = f"csrf_{_session_tag}"
 
 # ✅ v5.1.1: Django Debug Toolbar للتطوير — يكشف N+1 queries
 try:
