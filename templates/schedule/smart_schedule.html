@@ -107,6 +107,47 @@
   {% endif %}
 {% endsection_card %}
 
+{# ══ الجدولُ الحيّ: التوليدُ المعتمَد بتعارضاته الفعلية وحدَها؛ وقواعدُ المولّد ملاحظاتٌ مطويّة ══ #}
+{% if live_card %}
+{% section_card "الجدول الحيّ" meta=live_card.approved_on|date:"Y-m-d" icon="schedule" %}
+  <p>
+    {% if live_card.imported %}<span class="status-badge status-info">مستورَد من aSc</span>{% endif %}
+    <span class="status-badge {% if live_card.actual_count %}status-danger{% else %}status-success{% endif %}">{{ live_card.actual_count }} تعارضات فعلية</span>
+  </p>
+  {% kpi_strip label="أرقام الجدول الحيّ" %}
+    {% kpi "حصص الجدول" live_card.slots_count tone="blue" %}
+    {% kpi "الاكتمال %" live_card.completeness title="الموضوع من المطلوب" %}
+  {% endkpi_strip %}
+  <p class="ui-note">اعتُمد في {{ live_card.approved_on|date:"Y-m-d" }}؛ الاكتمال {{ live_card.placed }} من {{ live_card.required }} حصّة.</p>
+  {% if live_card.actual %}
+  <div class="table-wrap table-wrap-scroll">
+    <table class="lab-table">
+      <thead>
+        <tr><th scope="col">القيد</th><th scope="col">الشعبة</th><th scope="col">المادّة</th><th scope="col">المعلّم</th><th scope="col">اليوم</th><th scope="col" class="num">الحصّة</th></tr>
+      </thead>
+      <tbody>
+        {% for r in live_card.actual %}
+        <tr><td>{{ r.code }}</td><td>{{ r.class_name }}</td><td>{{ r.subject_name }}</td><td>{{ r.teacher_name }}</td><td>{{ r.day }}</td><td class="num">{{ r.period }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% if live_card.unjoined_periods %}
+  <p class="ui-note">مزدوجة غير متصلة بالجرس: {{ live_card.unjoined_periods }} حصّة وضعها المصدرُ في حصّتين لا يعدّهما الجرسُ متّصلتين؛ وهي موجودةٌ فعلاً ومحسوبةٌ في الاكتمال.</p>
+  {% endif %}
+  {% if live_card.notes %}
+  <details class="feas-details">
+    <summary>ملاحظات توزيع ({{ live_card.notes_count }})</summary>
+    <p class="ui-note">هذه قواعدُ توزيعٍ يتبعها المولّد ولا يتبعها الجدولُ المستورَد، وليست أخطاءً في الجدول.</p>
+    <ul class="feas-list">
+      {% for code, count in live_card.notes %}<li><b>{{ code }}</b> — {{ count }}</li>{% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+{% endsection_card %}
+{% endif %}
+
 {% comment %}
 بطاقةُ القرار (W-20261010-001، D-310م): أحدثُ مسودّةٍ من V2 بخمسة مؤشّرات لكلٍّ معناه واتجاهُه وسقفُه،
 وتحتها الأرقامُ الثلاثةُ للحكم. المصدرُ لقطةُ المُقيِّم لا حسابُ المختبر. وما لم يُقَس بعدُ يُقال «لم يُقَس».

@@ -28,6 +28,7 @@ from core.models.access import EXEMPTABLE_ROLES
 from core.safe_redirect import safe_redirect
 from core.unrestricted_role import has_unrestricted_role
 
+from .live_schedule_selectors import live_schedule_card
 from .models import (
     ScheduleBaseline,
     ScheduleGeneration,
@@ -759,8 +760,7 @@ def smart_schedule_view(request):
             ),
             "occupied_slots": occupied_slots,
             "shared_periods": shared_periods,
-            # جدولُ التوزيعات كان يُعرض هنا كاملاً — وشاشةُ الإسناد تعرضه
-            # بأدواتها. فبقي العددُ وحدَه: مؤشّراً في الأعلى، وشرطاً للفراغ.
+            "live_card": live_schedule_card(school, year),  # الجدولُ الحيّ بتعارضاته الفعلية
             "assignments_count": len(assignments),
             "pending_generation": pending_generation,
             # زرُّ الاعتماد لمن يملكه: كان يظهر لكلّ من يرى الصفحةَ، و`admin`
