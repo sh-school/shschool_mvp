@@ -137,8 +137,12 @@ def test_destination_filter_narrows_the_list(client, school, principal_user, tea
     klass_a, _ = wing_a
     student_clinic = UserFactory(full_name="طالب العيادة", national_id="29400000031")
     student_restroom = UserFactory(full_name="طالب دورة المياه", national_id="29400000032")
-    _exit_in(school, klass_a, teacher_user, student_clinic, destination="clinic", hour=8)
-    _exit_in(school, klass_a, teacher_user, student_restroom, destination="restroom", hour=9)
+    # الخروجان عائدان: اللوحةُ الحيّة تعرض كلَّ من لم يعد بصرف النظر عن مرشِّح الوجهة،
+    # فلو بقيا مفتوحَين لظهر الطالبُ الآخر فيها وهذا الاختبار يقيس الجدولَ وحدَه.
+    for student, dest, hour in ((student_clinic, "clinic", 8), (student_restroom, "restroom", 9)):
+        ex = _exit_in(school, klass_a, teacher_user, student, destination=dest, hour=hour)
+        ex.returned_at = ex.left_at + dt.timedelta(minutes=5)
+        ex.save(update_fields=["returned_at"])
     client.force_login(principal_user)
 
     html = client.get(
