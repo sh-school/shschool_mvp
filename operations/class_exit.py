@@ -21,6 +21,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import TYPE_CHECKING
 
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.utils import timezone
 
@@ -41,7 +42,23 @@ WHEREABOUTS_OF = {
     "admin": "out_permit",
     "restroom": "out_permit",
     "other": "out_permit",
+    "sa_coord": "out_permit",
+    "wing_sup": "out_permit",
+    "vice": "out_permit",
+    "arts": "out_permit",
+    "lab_cs": "out_permit",
+    "lab_sci": "out_permit",
+    "pe": "out_permit",
+    "school": "out_permit",
 }
+
+#: من يسجّل «الخروج من المدرسة» مباشرةً بلا طلبٍ ولا موافقة (الدورُ الخامّ). المعلّمُ ليس منهم.
+SCHOOL_EXIT_ROLES = ("admin_supervisor", "vice_admin", "principal")
+
+
+def may_record_school_exit(user: CustomUser | None) -> bool:
+    """هل يسجّل المستخدمُ «الخروج من المدرسة»؟ (نطاقُ جناح المشرف تضبطه الشاشةُ بـ`wings.scope`)."""
+    return user is not None and user.get_role() in SCHOOL_EXIT_ROLES  # type: ignore[no-untyped-call]
 
 
 def open_exit(session: Session, student: CustomUser) -> ClassExit | None:
@@ -59,6 +76,8 @@ def leave(
     now: dt.datetime | None = None,
 ) -> ClassExit | None:
     """نقرةُ «خرج بإذن» — والنقرةُ الثانية على طالبٍ خارجٍ تُعيد سطرَه لا تكرّره."""
+    if destination == "school" and not may_record_school_exit(by):
+        raise PermissionDenied("الخروجُ من المدرسة يسجّله المشرفُ أو النائبُ الإداريّ أو المدير.")
     now = now or timezone.now()
     current = open_exit(session, student)
     if current is not None:

@@ -44,21 +44,19 @@
   الأقسام السريعة (حدٌّ وظلٌّ وأيقونة)، لا رقماً عارياً كأرقام الشريط
   أسفلها (طلب المدير، SOS-20260915-9077 — توضيحه 2026-09-17: البطاقاتُ
   الأولى لم تُقرأ بطاقاتٍ). تعُدّ حركات اليوم كلَّه بصرف النظر عن مرشِّح
-  الوجهة أسفلها، والنقر عليها يُصفّي الجدول بوجهتها. والرابعة «الخروج
-  مبكراً من المدرسة» بلا رابطٍ فعليّ: نمطٌ مختلفٌ (انصرافٌ كاملٌ بحضور
-  وليّ الأمر) لا تُسجّله `ClassExit` بعد — بطاقتُها مكانٌ محجوزٌ.
+  الوجهة أسفلها، والنقر عليها يُصفّي الجدول بوجهتها. وهي الوجهاتُ العشر؛
+  والخروجُ من المدرسة يسجّله المشرفُ أو النائبُ أو المدير من نموذج التسجيل.
   {% endcomment %}
   <nav class="ui-actions" aria-label="تحركات اليوم حسب الوجهة">
-    {% action_tile "مراجعة العيادة" desc=clinic_desc icon="clinic" href=clinic_href %}
-    {% action_tile "مراجعة الإدارة" desc=admin_desc icon="departments" href=admin_href %}
-    {% action_tile "دورة المياه" desc=restroom_desc icon="restroom" href=restroom_href %}
-    {% action_tile "الخروج مبكراً من المدرسة" desc="غيرُ مُسجَّلٍ في هذه الشاشة بعد" icon="sent_home" href=request.path %}
+    {% for card in destination_cards %}
+    {% action_tile card.title desc=card.desc icon=card.icon href=card.href %}
+    {% endfor %}
   </nav>
 
   {% movement_entry_form %}
 
   {% kpi_strip label="أرقام التحركات" %}
-    {% kpi "التحركات" total_count title="خروجٌ بإذنٍ أثناء الحصّة — عيادة أو إدارة أو دورة مياه أو أخرى" %}
+    {% kpi "التحركات" total_count title="خروجٌ أثناء الحصّة إلى إحدى الوجهات العشر" %}
     {% kpi "لم يعد بعد" open_count tone="amber" title="خرج ولم تُسجَّل عودته حتى الآن" %}
   {% endkpi_strip %}
 

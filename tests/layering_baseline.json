@@ -611,7 +611,7 @@
    "orm": 11
   },
   "student_affairs/views.py::student_movements": {
-   "lines": 76,
+   "lines": 67,
    "orm": 15
   },
   "student_affairs/views.py::student_profile": {
