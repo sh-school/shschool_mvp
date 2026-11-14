@@ -1,0 +1,30 @@
+{% load ui %}
+{# اللوحةُ الحيّة: تتحدّث وحدها كلَّ دورةٍ بـHTMX إن كان اليومُ المختارُ اليومَ فقط. #}
+<div id="movement-live"{% if live_is_today %} hx-get="{% url 'student_affairs:movements_live' %}" hx-trigger="every {{ live_refresh_seconds }}s" hx-swap="outerHTML"{% endif %}>
+  {% section_card "خارج الفصل الآن" icon="sent_home" meta=live_rows|length empty="لا أحدَ خارج الفصل الآن" flush=True %}{% if live_rows %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>الطالب</th>
+            <th>الشعبة</th>
+            <th>الوجهة</th>
+            <th class="num">الخروج</th>
+            <th class="num">مدّة الغياب (دقيقة)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in live_rows %}
+          <tr>
+            <td><a href="{% url 'student_affairs:student_profile' r.student.id %}" class="sa-link">{{ r.student.full_name }}</a></td>
+            <td>{{ r.class_text }}</td>
+            <td>{{ r.destination }}</td>
+            <td class="num">{{ r.left_at|time:"H:i" }}</td>
+            <td class="num"><span class="status-badge {% if r.alert %}status-danger{% else %}status-success{% endif %}" {% if r.alert %}title="تجاوز {{ alert_minutes }} دقيقة"{% endif %}>{{ r.minutes }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+</div>

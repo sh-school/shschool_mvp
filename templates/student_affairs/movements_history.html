@@ -1,0 +1,50 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+
+{% block title %}سجلّ خروج الطلبة — شؤون الطلاب{% endblock %}
+
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/movements/" parent_label="تحركات الطلبة" current="سجلّ الخروج" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash sa-page">
+
+  {% page_header "سجلّ خروج الطلبة" icon="sent_home" %}
+    <form method="get" class="sa-filter">
+      <input type="date" name="start" value="{{ start|date:'Y-m-d' }}" class="form-control" aria-label="من تاريخ">
+      <input type="date" name="end" value="{{ end|date:'Y-m-d' }}" class="form-control" aria-label="إلى تاريخ">
+      <button type="submit" class="btn-primary btn-sm">{% icon "search" %} بحث</button>
+    </form>
+  {% endpage_header %}
+
+  {% section_card "الطلبة وخروجهم" icon="sent_home" empty="لا خروج في هذه الفترة" flush=True %}{% if rows %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>الطالب</th>
+            <th class="num">عدد الخروج</th>
+            <th class="num">مجموع الدقائق</th>
+            <th>بحسب الوجهة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td><a href="{{ r.link }}&amp;start={{ start|date:'Y-m-d' }}&amp;end={{ end|date:'Y-m-d' }}" class="sa-link">{{ r.student.full_name }}</a></td>
+            <td class="num">{{ r.count }}</td>
+            <td class="num">{{ r.minutes }}</td>
+            <td>{% for d in r.destinations %}{{ d.label }}: {{ d.count }} ({{ d.minutes }} د){% if not forloop.last %}، {% endif %}{% endfor %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+
+</div>
+{% endblock %}

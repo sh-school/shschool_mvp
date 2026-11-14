@@ -53,6 +53,9 @@
     {% endfor %}
   </nav>
 
+  {% include "student_affairs/partials/movement_live.html" %}
+  <p><a href="{% url 'student_affairs:movements_history' %}" class="sa-link">سجلّ الخروج التاريخي</a></p>
+
   {% movement_entry_form %}
 
   {% kpi_strip label="أرقام التحركات" %}

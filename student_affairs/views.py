@@ -76,6 +76,7 @@ from .followup_tables import ABSENCE_TABLE, ACTIVITY_TABLE, BEHAVIOR_TABLE, TARD
 from .list_selectors import STUDENT_SORTS, filter_context, list_status, student_list_queryset
 from .models import StudentActivity, StudentTransfer
 from .movement_cards import destination_cards
+from .movement_live import live_context
 from .selectors import (
     attach_guardian_phones,
     early_attendance_counts,
@@ -1062,9 +1063,9 @@ def student_movements(request):
             "open_count": sum(1 for e in exits if e.returned_at is None),
             "total_count": len(exits),
             "wing_label": _followup_wing_label(scope),
-            # بطاقةُ `action_tile` نفسُها المستعملة في الأقسام السريعة — لكلّ وجهةٍ من
-            # العشر بطاقةٌ بعدّاد اليوم (طلب المدير 2026-11-14، `movement_cards`).
+            # بطاقةٌ لكلّ وجهةٍ بعدّاد اليوم (`movement_cards`) واللوحةُ الحيّة (`movement_live`).
             "destination_cards": destination_cards(destination_counts, day_qs),
+            **live_context(request, school, scope, selected_date),
         },
     )
 
