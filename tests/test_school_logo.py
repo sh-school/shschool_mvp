@@ -174,11 +174,15 @@ def test_the_platform_report_pdf_carries_the_logo_and_is_set_in_tajawal():
 # ── التباين ───────────────────────────────────────────────────────────────
 
 
+#: أقصى فرقٍ بين قناتَي اللون في الشريحة المحايدة (v5: #2c272b فرقُها 5، والعنّابيُّ فرقُه أكبر بكثير).
+NEUTRAL_CHANNEL_SPREAD = 8
+
+
 def test_the_logo_chip_is_a_neutral_dark_surface_not_maroon():
-    """الشريحةُ `DARK["SURFACE"]` محايدةٌ (الزرقةُ أعلى من الحمرة) وأغمقُ من العنّابيّ فتبرز عليه."""
+    """الشريحةُ `DARK["SURFACE"]` محايدةٌ (فرقُ القنوات صغير) وأغمقُ من العنّابيّ فتبرز عليه (قرارُ المالك 2026-11-15: v5 تبقى #2c272b)."""
     chip = brand.DARK["SURFACE"]
-    red, _, blue = (int(chip.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
-    assert blue > red, chip
+    channels = [int(chip.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4)]
+    assert max(channels) - min(channels) <= NEUTRAL_CHANNEL_SPREAD, chip
     assert _luminance(chip) < _luminance(brand.MAROON) + 0.05
 
 
