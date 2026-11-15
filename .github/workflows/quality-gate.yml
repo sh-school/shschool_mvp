@@ -131,7 +131,7 @@ jobs:
     name: pytest shard ${{ matrix.shard }}/${{ strategy.job-total }}
     needs: [tree-match]
     if: ${{ !cancelled() && github.event_name != 'push' && !(github.event_name == 'merge_group' && needs.tree-match.result == 'success' && needs.tree-match.outputs.match == 'true') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -453,7 +453,7 @@ jobs:
   # حادثة 2026-09-11 (حذفُ عمودٍ بهجرةٍ أسقط ثماني صفحاتٍ) من هذا النوع تماماً.
   migration-linter:
     name: مدقّق الهجرات — Expand/Contract
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10  # migration-linter: p95 4.3 دقيقة (39 تشغيلاً) ×2
 
     env:
@@ -526,7 +526,7 @@ jobs:
   migrated-db-cache:
     name: حفظ قاعدة الاختبار المهاجَرة
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
@@ -723,7 +723,7 @@ jobs:
   #  والفحصان المطلوبان في حماية main هما «ملخص بوابة الجودة» و«Security Summary» وحدَهما (لا اسمَ وظيفةٍ فرعيّة).
   axe-a11y:
     name: axe-core — وصوليّةٌ حيّة (${{ matrix.leg }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20  # axe-a11y: p95 8.4 دقيقة (69 تشغيلاً) ×2
     # push إلى main وmerge_group: يُفحص على الطلب قبل الدخول فلا يُعاد في الطابور (W-20261019-006، ازدحام السقف 20)؛ يُعفى skipped وحدَه في scripts/ci_needs_gate.py
     needs: [changes]
@@ -876,7 +876,7 @@ jobs:
   #  `pytest — تغطية` الرئيسية).
   e2e:
     name: Playwright — e2e (مصادقة، تنقّل، صلاحيات)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20  # e2e: p95 9.6 دقيقة (22 تشغيلاً) ×2
     # push إلى main وmerge_group: يُفحص على الطلب قبل الدخول فلا يُعاد في الطابور (W-20261019-006، ازدحام السقف 20)؛ يُعفى skipped وحدَه في scripts/ci_needs_gate.py
     needs: [changes]
@@ -987,7 +987,7 @@ jobs:
   apt-deb-cache-save:
     name: حفظ حزم apt (axe-a11y وe2e)
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

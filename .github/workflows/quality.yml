@@ -139,7 +139,7 @@ jobs:
   # ══════════════════════════════════════════════════════
   coverage-report:
     name: تقرير التغطية الأسبوعي
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60  # coverage-report: p95 39.6 وأقصى 43.7 دقيقة (28 تشغيلاً) ← سقفٌ 60 كالطفرات
 
     env:
@@ -248,7 +248,7 @@ jobs:
   # ══════════════════════════════════════════════════════
   mutation-testing:
     name: mutmut — اختبار الطفرات
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     continue-on-error: true  # تقرير فقط
     timeout-minutes: 60      # سقفٌ احتياطيٌّ فوق `timeout 40m` أدناه
 
@@ -312,7 +312,7 @@ jobs:
   # ══════════════════════════════════════════════════════
   api-contracts:
     name: اختبار عقود API
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15  # api-contracts: p95 6.7 دقيقة (30 تشغيلاً) ×2
 
     env:
