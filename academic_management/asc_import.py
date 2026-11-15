@@ -107,6 +107,13 @@ def _name_unlabeled(
     return named, items
 
 
+#: بندُ الملف الخطأ: لا خانةَ تُقرأ من حقل الشعب، فالمرفوعُ غالباً جدولٌ عامٌّ لا جدولُ شعب.
+WRONG_CLASS_FILE = (
+    "ملفُّ الشعب — المرفوعُ في حقل الشعب ليس جدولَ الشعب (صفحةٌ لكلّ شعبةٍ بترويسٍ مثل HC.7.1)؛ "
+    "ارفع ملفَّ جدول الشعب الصحيح"
+)
+
+
 def _read_class_slots(
     source: Source, lessons: list[Lesson]
 ) -> tuple[set[tuple[str, int, int]], list[Item]]:
@@ -115,8 +122,8 @@ def _read_class_slots(
     pages, unnamed = _name_unlabeled(pages, lessons)
     slots = {(page.class_code, d, p) for page in pages for d, p in page.slots}
     if not slots:
-        # بندٌ واحد: سببُ الصفحات غير المنسوبة إن وُجد، وإلا أنّ الملفّ فارغ
-        return slots, items + (unnamed[:1] or [Item("ملفُّ الشعب — لم تُقرأ منه أيُّ خانة")])
+        # بندٌ واحد يكفي: بقيةُ البنود الناتجةِ عن الملف الخطأ تُسقطها analyze
+        return slots, [Item(WRONG_CLASS_FILE)]
     return slots, items + unnamed
 
 
@@ -321,13 +328,17 @@ def analyze(
     """يقرأ الملفّين ويبني التقرير — لا يكتب شيئاً."""
     legacy = TimetableImport()
     lessons, items = _read_lessons(teachers, rules.asc_title_words)
-    class_slots, class_errors = _read_class_slots(classes, lessons)
+    class_slots, class_items = _read_class_slots(classes, lessons)
     linked = _link(school, year, lessons, legacy)
     tags, tag_items = _parallel_tags(lessons, linked.assignments)
-    # بلا خانةٍ واحدة من ملفّ الشعب يكفي بندُ القراءة، لا بندٌ زائفٌ لكلّ خانة
-    crossed = _cross_check(lessons, class_slots) if class_slots else []
-    items += class_errors + crossed + _teacher_clashes(lessons)
-    items += linked.items + tag_items + _count_items(school, year, lessons, linked.assignments)
+    if class_slots:
+        items += class_items + _cross_check(lessons, class_slots)
+        counts = _count_items(school, year, lessons, linked.assignments)
+    else:
+        # الملفُّ المرفوعُ ليس جدولَ الشعب: بندُه وحدَه في الأعلى، وبنودُ «عددٌ مخالف» نتيجةُ الخلل نفسه فتُسقط
+        items = class_items + items
+        counts = []
+    items += _teacher_clashes(lessons) + linked.items + tag_items + counts
     # ما عُفي بندُه من الإسنادات غيرِ المربوطة لا يُكتب له موضع.
     placed = [x for x in lessons if (x.teacher, x.class_code, x.subject) in linked.assignments]
     labels = _cell_labels(placed, linked.assignments, tags)

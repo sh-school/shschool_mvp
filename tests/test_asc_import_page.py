@@ -304,5 +304,5 @@ def test_unreadable_pdf_gives_a_generic_error_and_no_names_in_logs(
     client = client_as(developer)
     submitted = _submit(client, "analyze")
     html = _finish(client, submitted).content.decode()
-    assert "لم تُقرأ منه أيُّ خانة" in html or "تعذّرت" in html
+    assert "ليس جدولَ الشعب" in html or "تعذّرت" in html
     assert "معلم" not in caplog.text

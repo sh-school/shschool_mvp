@@ -529,7 +529,7 @@ def test_unlabeled_class_page_without_sole_match_is_one_item(world, run):
     teachers = [teacher_page("معلم الف", [(0, 1, "7.1", "رياضيات"), (1, 3, "7.1", "رياضيات")])]
     out = run(teachers, [_unlabeled_class_page([(2, 2)])])
     assert "بنودُ التقرير: 1" in out
-    assert "بلا رمزِ شعبةٍ" in out
+    assert "ليس جدولَ الشعب" in out
 
 
 @pytest.mark.django_db
@@ -537,7 +537,24 @@ def test_empty_class_file_is_one_item_not_one_per_slot(world, run):
     teachers, _ = _simple(world)
     out = run(teachers, [])
     assert "بنودُ التقرير: 1" in out
-    assert "لم تُقرأ منه أيُّ خانة" in out
+    assert "ليس جدولَ الشعب" in out
+
+
+@pytest.mark.django_db
+def test_wrong_class_file_gives_one_headline_and_drops_count_items(world, run):
+    # ملفُّ الشعب بلا خانةٍ مقروءة: بندٌ صريحٌ أوّلاً، وتُسقط «عددٌ مخالف» لكن يبقى اسمُ المعلّم المستقلّ
+    world["assign"](world["people"]["معلم الف"], world["math"], 3)
+    teachers = [
+        teacher_page("معلم الف", [(0, 1, "7.1", "رياضيات"), (1, 3, "7.1", "رياضيات")]),
+        teacher_page("غريب مجهول", [(2, 2, "7.1", "علوم")]),
+    ]
+    out = run(teachers, [class_page("7.1", [])])
+    assert "بنودُ التقرير: 2" in out
+    assert "عددٌ مخالف" not in out
+    assert out.index("ليس جدولَ الشعب") < out.index("معلّمٌ لم يُطابَق")
+    with pytest.raises(CommandError):
+        run(teachers, [class_page("7.1", [])], "--apply")
+    assert ScheduleGeneration.objects.count() == 0
 
 
 @pytest.mark.django_db
