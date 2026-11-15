@@ -162,10 +162,15 @@ class _Linked(NamedTuple):
     items: list[Item]
 
 
-def _link(school: Any, year: str, lessons: list[Lesson], legacy: TimetableImport) -> _Linked:
-    """ربطُ (معلّم، شعبة، مادّة) بإسنادٍ معتمَد — بالمادّة أوّلاً، ثمّ بالإسناد الوحيد للمعلّم في الشعبة."""
+def _link(
+    school: Any, year: str, lessons: list[Lesson], legacy: TimetableImport, aliases: dict[str, str]
+) -> _Linked:
+    """ربطُ (معلّم، شعبة، مادّة) بإسنادٍ معتمَد — بالمادّة أوّلاً، ثمّ بالإسناد الوحيد للمعلّم في الشعبة.
+
+    `aliases` أسماءُ الجدول البديلة من القواعد الممرَّرة إلى التحليل (المرفوعةُ أو ملفُّ الخادم).
+    """
     wanted = Counter((x.teacher, x.class_code, x.subject) for x in lessons)
-    teachers, missing_teachers = legacy._match_teachers(school, wanted)
+    teachers, missing_teachers = legacy._match_teachers(school, wanted, aliases)
     classes, missing_classes = legacy._match_classes(school, year, wanted)
     subjects, _ = legacy._match_subjects(school, wanted)
 
@@ -329,7 +334,7 @@ def analyze(
     legacy = TimetableImport()
     lessons, items = _read_lessons(teachers, rules.asc_title_words)
     class_slots, class_items = _read_class_slots(classes, lessons)
-    linked = _link(school, year, lessons, legacy)
+    linked = _link(school, year, lessons, legacy, rules.teacher_aliases)
     tags, tag_items = _parallel_tags(lessons, linked.assignments)
     if class_slots:
         items += class_items + _cross_check(lessons, class_slots)

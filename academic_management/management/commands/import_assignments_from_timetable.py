@@ -293,7 +293,8 @@ class Command(BaseCommand):
                 groups[(teacher, class_code, subject)] = tag
         return counts, splits, groups
 
-    def _match_teachers(self, school, wanted):
+    def _match_teachers(self, school, wanted, aliases: dict | None = None):
+        """مطابقةُ أسماء الجدول بمعلّمي المنصّة. `aliases` من قواعدَ مُمرَّرة (المرفوعةُ)، وغيابُها ملفُّ الخادم."""
         people = {
             m.user
             for m in Membership.objects.filter(
@@ -302,7 +303,8 @@ class Command(BaseCommand):
         }
         by_name = {normal(p.full_name): p for p in people}
         found, missing = {}, []
-        aliases = load_name_rules().teacher_aliases
+        if aliases is None:
+            aliases = load_name_rules().teacher_aliases
         for name in sorted({k[0] for k in wanted}):
             alias = aliases.get(name)
             if alias and normal(alias) in by_name:

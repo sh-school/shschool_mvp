@@ -239,6 +239,36 @@ def test_uploaded_rules_ignore_list_unblocks_create(client_as, developer, books,
     assert ScheduleSlot.objects.count() == 1
 
 
+def test_uploaded_rules_alias_matches_teacher_missing_from_server_file(
+    client_as, developer, books, world
+):
+    """الاسمُ البديل في الملف المرفوع وحدَه يُطابق المعلّم؛ ملفُّ الخادم فارغٌ هنا (autouse)."""
+    world["assign"](world["people"]["معلم الف"], world["math"], 2)
+    teachers = [teacher_page("معلم جيم", [(0, 1, "7.1", "رياضيات"), (1, 3, "7.1", "رياضيات")])]
+    books(teachers, [class_page("7.1", [(0, 1), (1, 3)])])
+    client = client_as(developer)
+    assert "مرفوض" in _finish(client, _submit(client, "create")).content.decode()
+    rules = json.dumps({"teacher_aliases": {"معلم جيم": "معلم الف"}}).encode()
+    response = _finish(client, _submit(client, "create", rules_json=_upload("r.json", rules)))
+    assert response.status_code == 204
+    assert ScheduleSlot.objects.count() == 2
+
+
+def test_server_rules_alias_is_the_source_when_no_file_is_uploaded(
+    client_as, developer, books, world, tmp_path, monkeypatch
+):
+    rules = tmp_path / "rules.json"
+    rules.write_text(json.dumps({"teacher_aliases": {"معلم جيم": "معلم الف"}}), encoding="utf-8")
+    monkeypatch.setenv("TIMETABLE_NAME_RULES_FILE", str(rules))
+    world["assign"](world["people"]["معلم الف"], world["math"], 2)
+    teachers = [teacher_page("معلم جيم", [(0, 1, "7.1", "رياضيات"), (1, 3, "7.1", "رياضيات")])]
+    books(teachers, [class_page("7.1", [(0, 1), (1, 3)])])
+    client = client_as(developer)
+    response = _finish(client, _submit(client, "create"))
+    assert response.status_code == 204
+    assert ScheduleSlot.objects.count() == 2
+
+
 def test_repeat_create_does_nothing_and_replace_swaps_the_draft(client_as, developer, books, world):
     teachers, classes = _simple(world)
     books(teachers, classes)
