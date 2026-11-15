@@ -18,18 +18,18 @@
 
 /* ── 1. Dark Mode Variables ─── */
 html.dark {
-  --text-primary:   #f1f5f9;
-  --text-secondary: #cbd5e1;
-  --text-muted:     #94a3b8;
+  --text-primary:   #f9f3f7;
+  --text-secondary: #f9f3f7;
+  --text-muted:     #bfb8bd;
 
-  --border:         #334155;
-  --border-strong:  #475569;
-  --control-border: #64748b;
-  --surface:        #1e293b;
-  --surface-alt:    #0f172a;
+  --border:         #575055;
+  --border-strong:  #888086;
+  --control-border: #888086;
+  --surface:        #2c272b;
+  --surface-alt:    #413b40;
   /* أرضيّةُ الصفحة كانت بلا قيمةٍ ليليّة، تعمل لأنّ `html.dark body` تتجاوزها
      — رمزٌ يصدق على الشاشة ويكذب على قارئه. فصار الانقلابُ في الرمز. */
-  --page-bg:        #0f172a;
+  --page-bg:        #1b171a;
 
   /* نقطةُ لون القسم — الرموزُ النهاريّة بهتٌ لورق الجدول، وانقلابُها هنا
      يكفي حارسَ test_dark_parity.py (2026-09-22). */
@@ -49,10 +49,10 @@ html.dark {
   --dept-life-skills: #6b4d24;
   --dept-other:       #52525b;
 
-  --maroon-bg:      #3b1125;
-  --maroon-border:  #6b2640;
+  --maroon-bg:      #402c31;
+  --maroon-border:  #888086;
 
-  --maroon-fg:          #f9a8c9;   /* 7.99 على السطح الداكن */
+  --maroon-fg:          #f49fab;   /* 7.26 على السطح الداكن */
   --status-danger-fg:   #fca5a5;   /* 7.71 */
   --status-warning-fg:  #fbbf24;   /* 8.76 */
   --status-success-fg:  #86efac;   /* 10.42 */
@@ -61,9 +61,9 @@ html.dark {
   /* أسطحُ الحالات: كانت تبقى فاتحةً في الداكن، فيُكتب النصُّ الفاتحُ
      على أصفرَ فاتحٍ بنسبة 1.33 (تنبيهُ «إجراءاتي»). */
   --status-danger-bg:     #3b1114;  --status-danger-border:  #7f1d1d;
-  --status-warning-bg:    #3a2a08;  --status-warning-border: #92400e;
-  --status-success-bg:    #0d2a1a;  --status-success-border: #166534;
-  --status-info-bg:       #10233f;  --status-info-border:    #1e40af;
+  --status-warning-bg:    #2b0f00;  --status-warning-border: #92400e;
+  --status-success-bg:    #001f0d;  --status-success-border: #166534;
+  --status-info-bg:       #001b28;  --status-info-border:    #1e40af;
 
   --accent-teal-fg:   #5eead4;   /* 9.89 */
   --accent-orange-fg: #fdba74;   /* 8.67 */
@@ -80,9 +80,9 @@ html.dark {
      وهذه قيمٌ مقيسةٌ متمايزةُ النغمة: ورديٌّ، تيل، نيليّ، ذهبيّ، سماويّ،
      رماديّ. والرسمُ يقرؤها في المتصفّح، فينقلب مع الوضع بلا خادم. */
   --chart-1: #e78fae;   /* 7.60 */
-  --chart-2: #2dd4bf;   /* 9.59 */
-  --chart-3: #a5b4fc;   /* 8.96 */
-  --chart-4: #D4A843;   /* 8.06 */
+  --chart-2: #2dd4bf;   /* 9.53 */
+  --chart-3: #a5b4fc;   /* 8.9 */
+  --chart-4: #D4A843;   /* 8.01 */
   --chart-5: #67b8d6;   /* 7.99 */
   --chart-6: #94a3b8;   /* 6.96 */
 
@@ -163,7 +163,7 @@ html.dark {
   --plan-row-completed:    rgba(34,197,94,.6);
   --q-badge-warning-bg:    color-mix(in srgb, var(--caution) 20%, transparent);
   --q-badge-warning-fg:    var(--status-warning-fg);
-  --q-badge-neutral-bg:    rgba(148,163,184,.15);
+  --q-badge-neutral-bg:    rgba(191,184,189,.15);
   --asg-warning-border:    #fde68a;
   --asg-success-border:    #bbf7d0;
 
@@ -173,7 +173,7 @@ html.dark {
   --login-card-border:     var(--border);
   --login-input-border:    var(--border);
   --login-input-bg:        var(--surface-alt);
-  --login-input-focus-halo: rgba(249,168,201,.15);
+  --login-input-focus-halo: rgba(244,159,171,.15);
 
   --paper:                 #fff;
   --paper-ink:             #000;
