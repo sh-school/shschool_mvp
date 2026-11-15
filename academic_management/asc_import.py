@@ -72,7 +72,11 @@ def _code(group: Any) -> str:
 
 
 def _read_lessons(source: Source, title_words: tuple[str, ...]) -> tuple[list[Lesson], list[Item]]:
-    pages, errors = asc_pdf.parse_pdf(source, lambda p: asc_pdf.parse_teacher_page(p, title_words))
+    # اسمُ المدرسة يُكتشف من الملفّ كلِّه أوّلاً، فيُحذف من كلّ اسمِ معلّم بلا قائمةٍ يدويّة
+    school_words = asc_pdf.discover_school_words(source)
+    pages, errors = asc_pdf.parse_pdf(
+        source, lambda p: asc_pdf.parse_teacher_page(p, title_words, school_words)
+    )
     lessons = [
         Lesson(page.name, code, subject, day, period)
         for page in pages

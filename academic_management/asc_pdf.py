@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections import Counter
 from collections.abc import Callable, Iterable, Sequence
 from typing import IO, Any, NamedTuple
 
@@ -23,6 +24,11 @@ PERIODS = 7
 
 #: تسامحُ الإحداثيّات (نقطةُ PDF) بين خطّين يُعدّان واحداً.
 TOL = 1.5
+
+#: نسبةُ صفحاتِ ملفّ المعلّمين التي تحمل الكلمةُ نفسَها في سطرها الأكبر، لتُعدّ اسمَ مدرسةٍ لا اسمَ معلّم.
+SCHOOL_SHARE = 0.9
+#: أقلُّ عددِ صفحاتٍ يُكتشف فيه اسمُ المدرسة؛ الملفُّ الأصغرُ لا يُكتشف فيه شيء.
+MIN_DISCOVERY_PAGES = 3
 
 _ARABIC = re.compile("[؀-ۿﭐ-﷿ﹰ-﻿]")
 _CLASS_CODE = re.compile(r"^\d{1,2}\.\d{1,2}$")
@@ -169,13 +175,22 @@ def _split_tokens(tokens: Sequence[str]) -> tuple[list[str], str]:
     return codes, " ".join(rest)
 
 
-def parse_teacher_page(page: Any, title_words: Sequence[str] = ()) -> TeacherPage:
-    """صفحةُ معلّم: اسمُه من العنوان، وفي كلّ خانةٍ رمزُ الشعبة والمادّة."""
+def _name_tokens(grid: _Grid, words: list[dict[str, Any]]) -> list[str]:
+    """كلماتُ السطر الأكبر في عنوان صفحة معلّم بترتيب القراءة، والعربيّةُ وحدها."""
+    return [t for t in _logical(_biggest_line(_title(grid, words))) if _ARABIC.search(t)]
+
+
+def parse_teacher_page(
+    page: Any, title_words: Sequence[str] = (), school_words: Iterable[str] = ()
+) -> TeacherPage:
+    """صفحةُ معلّم: اسمُه من العنوان، وفي كلّ خانةٍ رمزُ الشعبة والمادّة.
+
+    تُحذف من الاسم كلماتُ `title_words` اليدويّة وكلماتُ اسمِ المدرسة المكتشفة `school_words`.
+    """
     grid = _grid(page)
     words = _words(page)
-    skip = set(title_words)
-    biggest = _biggest_line(_title(grid, words))
-    name = " ".join(t for t in _logical(biggest) if _ARABIC.search(t) and t not in skip)
+    skip = set(title_words) | set(school_words)
+    name = " ".join(t for t in _name_tokens(grid, words) if t not in skip)
     if not name:
         raise AscPdfError("لا اسمَ معلّمٍ في عنوان الصفحة")
     lessons: list[tuple[int, int, str, str]] = []
@@ -201,10 +216,35 @@ def parse_class_page(page: Any) -> ClassPage:
 
 
 def open_pdf(path: str | IO[bytes]) -> Any:
-    """فتحُ الـPDF بـpdfplumber — منفصلاً ليُستبدل به في الاختبار."""
+    """فتحُ الـPDF بـpdfplumber — منفصلاً ليُستبدل به في الاختبار.
+
+    الكائنُ الممرَّرُ يُعاد إلى أوّله لأنه يُقرأ أكثرَ من مرّة (اكتشافُ اسم المدرسة ثمّ الصفحات).
+    """
     import pdfplumber
 
+    if not isinstance(path, str):
+        path.seek(0)
     return pdfplumber.open(path)
+
+
+def discover_school_words(path: str | IO[bytes]) -> frozenset[str]:
+    """كلماتُ اسمِ المدرسة في ملفّ المعلّمين، تُكتشف على الملفّ كلِّه قبل قراءة صفحاته.
+
+    الكلمةُ التي تتكرّر في السطر الأكبر لـSCHOOL_SHARE من صفحات الملفّ كلِّها هي اسمُ مدرسة.
+    صفحةٌ لا تُقرأ تُحسب في الصفحات ولا تُسهم بكلمة، والملفُّ من MIN_DISCOVERY_PAGES صفحاتٍ أو أقلّ لا يُكتشف فيه شيء.
+    """
+    counts: Counter[str] = Counter()
+    total = 0
+    with open_pdf(path) as pdf:
+        for page in pdf.pages:
+            total += 1
+            try:
+                counts.update(set(_name_tokens(_grid(page), _words(page))))
+            except AscPdfError:
+                continue
+    if total < MIN_DISCOVERY_PAGES:
+        return frozenset()
+    return frozenset(word for word, n in counts.items() if n / total >= SCHOOL_SHARE)
 
 
 def parse_pdf[T](path: str | IO[bytes], parse: Callable[[Any], T]) -> tuple[list[T], list[str]]:
