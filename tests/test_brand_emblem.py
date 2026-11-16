@@ -163,7 +163,10 @@ def test_the_service_worker_cache_name_moved_with_the_icons(worker, prefix):
 def test_the_tab_icon_turns_white_on_a_dark_tab():
     """العنّابيُّ يخفت على تبويبٍ داكن (طلبُ المالك 2026-11-16): `favicon.svg` يبيضّ بقاعدةٍ داخله، ولمن لا يدعم SVG `favicon-dark.png` أبيض."""
     svg = (ICONS / "favicon.svg").read_text(encoding="utf-8")
-    assert "@media (prefers-color-scheme: dark){path{fill:#fff}}" in svg and 'fill="#8A1538"' in svg
+    assert (
+        f"@media (prefers-color-scheme: dark){{path{{fill:{ON_FILL}}}}}" in svg
+        and 'fill="#8A1538"' in svg
+    )
     dark = np.array(Image.open(ICONS / "favicon-dark.png").convert("RGBA"))
     opaque = dark[dark[:, :, 3] > 250]
     assert len(opaque) and (opaque[:, :3] > 240).all(), "الرمزُ أبيضُ على شفّاف"

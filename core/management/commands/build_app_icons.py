@@ -157,7 +157,9 @@ def _render_svg_rgba(svg: str, height_px: int) -> Image.Image:
 
 
 #: التبويبُ الداكن: العنّابيُّ يخفت عليه، فيبيضّ الرمزُ في SVG بقاعدةٍ داخل الملفّ (CSS يغلب سمةَ `fill`)، ولمن لا يدعم SVG `favicon-dark.png`.
-FAVICON_DARK_STYLE = "<style>@media (prefers-color-scheme: dark){path{fill:#fff}}</style>"
+FAVICON_DARK_STYLE = (
+    f"<style>@media (prefers-color-scheme: dark){{path{{fill:{brand.ON_FILL}}}}}</style>"
+)
 
 
 def favicon_svg() -> str:
