@@ -85,7 +85,7 @@
 @media print { .ministry-logo { display: block; inline-size: var(--sp-10); block-size: var(--sp-10); margin: 0 auto; } }
 .school-logo--nav { inline-size: auto; block-size: var(--sp-10); }
 .school-logo--login { inline-size: auto; block-size: 5rem; margin: 0 auto var(--sp-3-5); }
-.school-logo--error { inline-size: auto; block-size: 4rem; }
+.school-logo--error { inline-size: auto; block-size: 5rem; }
 
 /* زر الهامبرغر (الجوال) */
 .nav-hamburger {
