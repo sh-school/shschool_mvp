@@ -19,6 +19,10 @@
       <label for="exit-day">اليوم</label>
       <input id="exit-day" type="date" name="date" value="{{ day|date:'Y-m-d' }}">
       <button type="submit" class="btn-secondary btn-sm">عرض</button>
+      {% export_group doc="templates/student_affairs/student_list_pdf.html" %}
+      {% export_button "xlsx" "wings:exit_permits_xlsx" %}?date={{ day|date:'Y-m-d' }}{% endexport_button %}
+      {% export_button "pdf" "wings:exit_permits_pdf" %}?date={{ day|date:'Y-m-d' }}{% endexport_button %}
+      {% endexport_group %}
     </form>
     {% if permits %}
     <div class="table-wrap table-wrap-scroll">

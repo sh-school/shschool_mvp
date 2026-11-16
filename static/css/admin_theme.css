@@ -70,29 +70,29 @@ html[data-theme="light"],
   --secondary: #8a1538;
   --accent: #d4a843;
   --primary-fg: #fff;
-  --body-fg: #111827;
+  --body-fg: #24202a;
   --body-bg: #fff;
-  --body-quiet-color: #4b5563;
+  --body-quiet-color: #575055;
   --body-medium-color: #374151;
   --body-loud-color: #000;
   --header-color: #fff;
   --header-branding-color: #d4a843;
   --header-bg: #8a1538;
   --header-link-color: #fff;
-  --breadcrumbs-bg: #6b0f2a;
+  --breadcrumbs-bg: #75002b;
   --link-fg: #8a1538;
   --link-hover-color: #6b0f2a;
   --link-selected-fg: #8a1538;
-  --hairline-color: #e5e7eb;
-  --border-color: #d1d5db;
+  --hairline-color: #d8d2d7;
+  --border-color: #888086;
   --error-fg: #dc2626;
   --message-success-bg: #dcfce7;
   --message-warning-bg: #fef3c7;
   --message-error-bg: #fef2f2;
-  --darkened-bg: #e3e8f0;
+  --darkened-bg: #ece6ea;
   /* الترويسةُ والذيلُ لونٌ واحد، والقائمةُ بينهما رملُ الصحراء — نظيرُ رموز المنصّة (10-foundation.css) */
   --nav-bg: #f4f0e7;
-  --nav-fg: #6b0f2a;
+  --nav-fg: #75002b;
   --nav-hover: color-mix(in srgb, var(--primary) 12%, transparent);
   --nav-mark: #8a1538;
   /* القوائمُ المنسدلة بلونِ القائمة نفسِه — نظيرُ رموز المنصّة */
@@ -109,7 +109,7 @@ html[data-theme="light"],
   --selected-row: #fdf2f5;
   --button-fg: #fff;
   --button-bg: #8a1538;
-  --button-hover-bg: #6b0f2a;
+  --button-hover-bg: #75002b;
   --default-button-bg: #6b0f2a;
   --default-button-hover-bg: #8a1538;
   --close-button-bg: #4b5563;
@@ -121,23 +121,23 @@ html[data-theme="light"],
 html[data-theme="dark"] {
   --primary: #8a1538;
   --secondary: #8a1538;
-  --body-fg: #f1f5f9;
-  --body-bg: #0f172a;
-  --body-quiet-color: #cbd5e1;
+  --body-fg: #f9f3f7;
+  --body-bg: #1b171a;
+  --body-quiet-color: #f9f3f7;
   --body-medium-color: #e2e8f0;
   --body-loud-color: #fff;
   --breadcrumbs-bg: #3b1125;
-  --link-fg: #f9a8c9;
+  --link-fg: #f49fab;
   --link-hover-color: #fff;
   --link-selected-fg: #f9a8c9;
-  --hairline-color: #334155;
-  --border-color: #475569;
+  --hairline-color: #575055;
+  --border-color: #888086;
   --error-fg: #fca5a5;
   --message-success-bg: #0d2a1a;
   --message-warning-bg: #3a2a08;
   --message-error-bg: #3b1114;
-  --darkened-bg: #1e293b;
-  --nav-bg: #2c2922;
+  --darkened-bg: #2c272b;
+  --nav-bg: #2c272b;
   --nav-fg: #fff;
   --nav-hover: color-mix(in srgb, #fff 12%, transparent);
   --nav-mark: var(--accent);
@@ -269,7 +269,7 @@ html[data-theme="dark"] .vision-text { font-palette: --tashkeel-dark; }
   text-decoration: none;
 }
 /* شعارُ المدرسة «ش» (W-20261012-012): لوحةُ الإدارة لا تحمل أنماطَ المنصّة فتُعاد قاعدتُه هنا بحجمه نفسِه. */
-.adm-brand .school-logo { display: block; flex: none; inline-size: 2rem; block-size: 2rem; box-sizing: border-box; padding: 0.15rem; background: var(--body-fg); border-radius: 0.3rem; box-shadow: 0 0 0 1px color-mix(in srgb, var(--header-link-color) 55%, transparent); }
+.adm-brand .school-logo { display: block; flex: none; inline-size: auto; block-size: 2rem; }
 .adm-brand__name { white-space: nowrap; }
 .adm-brand__suffix { font-weight: 400; opacity: 0.9; }
 

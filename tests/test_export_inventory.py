@@ -15,7 +15,6 @@ UNLOGGED_FILE_RESPONSES = {
     "core/views_students.py::_wb_to_response": "مساعدٌ يُسجِّل مستدعيه (student_export_excel وما يشبهه).",
     "docs_viewer/views.py::asset": "أصولُ وثائقَ المنصّة الثابتة (صورٌ) لا بياناتَ شخصيّة.",
     "governance/views_media.py::serve_db_file": "خدمةُ ملفٍّ مخزَّنٍ بتفويض fail-closed؛ ليست تصديراً (تُقدَّم المرفقاتُ لأصحابها).",
-    "operations/absence_followup_print.py::build_followup_xlsx": "بنّاءٌ يسجّل مستدعيه followup_xlsx في الـview.",
     "student_affairs/views.py::protected_media": "خدمةُ مرفقٍ محميّ بتفويض الدور والجناح؛ ليست تصديراً.",
     "wings/views_excuse_document.py::excuse_document": "عرضُ مستندِ عذرٍ مرفوعٍ بتفويض الجناح؛ ليس تصديراً.",
 }

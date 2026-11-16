@@ -11,7 +11,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import CharField, Count, Exists, F, Func, OuterRef, Q, Subquery, Value
+from django.db.models import Count, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -23,7 +23,6 @@ from assessments.models import AnnualSubjectResult
 from behavior.models import BehaviorInfraction
 from behavior.selectors import infractions_by_class, monthly_infraction_trend
 from clinic.models import ClinicVisit, HealthRecord
-from core import brand
 from core.academic_calendar import academic_year_for, academic_year_window
 from core.audit_export import log_export
 from core.audit_repr import masked_repr
@@ -38,9 +37,6 @@ from core.export_utils import (
     excel_to_response,
     generate_export_filename,
     get_export_context,
-    get_pdf_footer_html,
-    get_pdf_header_html,
-    xl_fill,
 )
 from core.exports.services import respond_export
 from core.labels import class_label
@@ -56,8 +52,8 @@ from core.models.audit import AuditLog
 from core.models.user import CustomUser
 from core.pdf_utils import content_disposition, render_pdf
 from core.photo_privacy import clean_photo
-from core.privacy import mask_national_id, may_search_id_partially, national_id_search_q
-from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
+from core.privacy import mask_national_id, may_search_id_partially
+from core.sorting import apply_sort
 from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing
 from operations.absence_standing import standing_for
@@ -67,11 +63,23 @@ from operations.tardiness import tardiness_now
 from wings.scope import student_scope_for
 
 from .coordinator_selectors import coordinator_panels
+from .followup_selectors import (
+    ACTIVITY_PAGE_LIMIT,
+    absence_rows,
+    activity_rows,
+    behavior_rows,
+    behavior_window,
+    ordered_late_records,
+    tardiness_queryset,
+)
+from .followup_tables import ABSENCE_TABLE, ACTIVITY_TABLE, BEHAVIOR_TABLE, TARDINESS_TABLE
+from .list_selectors import STUDENT_SORTS, filter_context, list_status, student_list_queryset
 from .models import StudentActivity, StudentTransfer
+from .movement_cards import destination_cards
+from .movement_live import live_context
 from .selectors import (
     attach_guardian_phones,
     early_attendance_counts,
-    guardian_ids_by_phone,
     student_register,
 )
 from .transfer_decision import detail_flags, may_decide
@@ -96,15 +104,6 @@ def _year_in_scope(request, scope) -> str:
     if requested and not scope.is_wing_bound:
         return requested
     return scope.year_for(requested, scope.year or academic_year_for(request))
-
-
-def _absent_days():
-    """أيّامُ الغياب لا سجلّاتُ الحصص — الحرمانُ يُحسب بالأيّام.
-
-    كان «أكثرُ الطلاب غياباً» (الشاشة وPDF وExcel، وعناوينُها «أيّام الغياب») يعدّ
-    سجلّاتِ الحصص، فيصير يومٌ ونصفٌ من الغياب «عشرةً» حمراء.
-    """
-    return Count("session__date", distinct=True)
 
 
 @login_required
@@ -222,16 +221,6 @@ UNRESOLVED_KPI = ((10, "red"), (1, "orange"), (None, "green"))
 #: صفحةُ السجلّ — كصفحة سجلّ الكادر، فلا يختلف إيقاعُ الشاشتين على قارئهما.
 STUDENT_PAGE_SIZE = 50
 
-#: مفاتيحُ الفرز المصرَّحة. و`?sort=` نصٌّ من المستخدم فلا يبلغ `order_by`
-#: إلّا عبر هذه القائمة. وكلُّها تنتهي بالاسم فاصلاً يقطع التساوي.
-STUDENT_SORTS = {
-    "name": ("name_key",),
-    "national": ("national_key", "name_key"),
-    # الصفُّ والشعبةُ عمودٌ واحدٌ يُعرض، فمفتاحُهما واحدٌ يُفرَز.
-    "class": ("grade_key", "section_key", "name_key"),
-    "guardian": ("guardian_key", "name_key"),
-}
-
 
 @login_required
 # قائمةٌ تُقرأ ولا تُكتب — فحارسُها `VIEW` لا `MANAGE`. والمجموعتان مفصولتان
@@ -250,149 +239,9 @@ def student_list(request):
     scope = student_scope_for(request)
     year = _year_in_scope(request, scope)
 
-    # ── الاستعلام الأساسي: طلاب فعّالون في المدرسة — أو في الجناح ──
-    students = scope.narrow(
-        Membership.objects.filter(
-            school=school,
-            role__name="student",
-            is_active=True,
-        )
-        .select_related("user", "user__profile")
-        .order_by("user__full_name"),
-        "user_id",
-    )
-
-    # ── الفلاتر ──
-    q = request.GET.get("q", "").strip()
-    grade_filter = request.GET.get("grade", "")
-    section_filter = request.GET.get("section", "")
-    parent_status = request.GET.get("parent_status", "")
-
-    if grade_filter:
-        # ✅ subquery مباشر — لا تحميل IDs إلى Python
-        grade_enrollment_exists = Exists(
-            scope.narrow_classes(
-                StudentEnrollment.objects.filter(
-                    class_group__school=school,
-                    class_group__academic_year=year,
-                    class_group__grade=grade_filter,
-                    is_active=True,
-                    student_id=OuterRef("user_id"),
-                )
-            )
-        )
-        students = students.filter(grade_enrollment_exists)
-
-    if section_filter:
-        section_enrollment_exists = Exists(
-            scope.narrow_classes(
-                StudentEnrollment.objects.filter(
-                    class_group__school=school,
-                    class_group__academic_year=year,
-                    class_group__section=section_filter,
-                    is_active=True,
-                    student_id=OuterRef("user_id"),
-                )
-            )
-        )
-        students = students.filter(section_enrollment_exists)
-
-    if parent_status:
-        # ✅ Exists subquery بدل Python set arithmetic — O(1) ذاكرة
-        parent_link_exists = Exists(
-            ParentStudentLink.objects.filter(school=school, student_id=OuterRef("user_id"))
-        )
-        if parent_status == "linked":
-            students = students.annotate(_has_parent=parent_link_exists).filter(_has_parent=True)
-        elif parent_status == "unlinked":
-            students = students.annotate(_has_parent=parent_link_exists).filter(_has_parent=False)
-
-    # ── المقيَّدُ أوّلاً، ومن أُغلق قيدُه لا يسقط بل يُرشَّح ──────────────
-    #
-    # العضويّةُ تقول «هذا طالبُ المدرسة» والقيدُ يقول «هذا صفُّه هذا العام»،
-    # وهما شيئان: من نُقل هذا الصيفَ أُغلق قيدُه وبقيت عضويّتُه. فكان السجلُّ
-    # يعدّهما واحداً ويقول «881 طالباً مسجّلاً» لمدرسةٍ سجلُّ قيدها 735 —
-    # ويخالف الكشفَ الوزاريَّ في رقمٍ يُقرأ في أوّل الشاشة.
-    #
-    # فالافتراضُ المقيَّدون، ومن لا قيدَ له يُرى بترشيحٍ صريحٍ لا يضيع.
-    # والمقيَّدُ بجناحه لا يرى إلّا المقيَّدين: طالبٌ بلا قيدٍ نشطٍ لا جناحَ له،
-    # فـ`all` و`unenrolled` لا تفتحان له المدرسة.
-    status = "enrolled" if scope.is_wing_bound else (request.GET.get("status") or "enrolled")
-    is_enrolled = Exists(
-        StudentEnrollment.objects.filter(
-            student_id=OuterRef("user_id"),
-            class_group__school=school,
-            class_group__academic_year=year,
-            is_active=True,
-        )
-    )
-    if status == "enrolled":
-        students = students.filter(is_enrolled)
-    elif status == "unenrolled":
-        students = students.exclude(is_enrolled)
-
-    # ── الصفُّ والشعبةُ صفتا قيدٍ لا صفتا شخص، والتصفّحُ على الأشخاص ──
-    #
-    # فتُجلبان بالاستعلام نفسِه ليصحّ الفرزُ بهما على السجلّ كلِّه لا على
-    # الصفحة الظاهرة. وكان الفرزُ في المتصفّح على مئتين مقطوعةٍ من سبعمئةٍ
-    # وخمسٍ وثلاثين — يُوهم القارئَ أنّه رأى الأوّلَ وهو أوّلُ صفحةٍ واحدة.
-    enrolment = scope.narrow_classes(
-        StudentEnrollment.objects.filter(
-            student_id=OuterRef("user_id"),
-            class_group__academic_year=year,
-            is_active=True,
-        )
-    ).order_by("-class_group__academic_year", "-enrolled_at")
-    guardian = ParentStudentLink.objects.filter(
-        student_id=OuterRef("user_id"), school=school
-    ).order_by("-is_primary", "created_at")
-
-    students = students.annotate(
-        grade_code=Subquery(enrolment.values("class_group__grade")[:1]),
-        section_code=Subquery(enrolment.values("class_group__section")[:1]),
-        name_key=arabic_key(F("user__full_name")),
-        national_key=blank_as_null("user__national_id"),
-        # وليُّ الأمر: الأساسيُّ أوّلاً، فإن لم يُعلَّم أحدٌ فأقدمُ ارتباط.
-        # وجوّالُه هو الفعلُ المقصودُ من هذه الشاشة — الاتّصالُ بالأسرة.
-        guardian_name=Subquery(guardian.values("parent__full_name")[:1]),
-        guardian_parent_id=Subquery(guardian.values("parent_id")[:1]),
-        guardian_relation=Subquery(guardian.values("relationship")[:1]),
-    ).annotate(
-        # «G10» نصّاً يسبق «G7»، وعدداً يليه. فيُحشى الجزءُ الرقميُّ بصفرٍ
-        # فيصير ترتيبُ الحروف ترتيبَ الأعداد — ومن لا قيدَ له يبقى عَدَماً
-        # فيسقط إلى الذيل في الاتّجاهين لا يتصدّر التنازليّ.
-        # وتُنزع الحروفُ أوّلاً: `RIGHT('G7', 2)` تلتقط الحرفَ فتُعيد «G7»،
-        # و«10» أصغرُ من «G7» في ترتيب المحارف — فيسبق العاشرُ السابع.
-        grade_key=Func(
-            Func(
-                F("grade_code"),
-                Value(r"\D"),
-                Value(""),
-                Value("g"),
-                function="REGEXP_REPLACE",
-                output_field=CharField(),
-            ),
-            Value(2),
-            Value("0"),
-            function="LPAD",
-            output_field=CharField(),
-        ),
-        section_key=blank_as_null("section_code"),
-        guardian_key=arabic_key(F("guardian_name")),
-    )
-
-    # والبحثُ يقع على الرقم **الكامل** لا على المستور: من كتب رقماً كاملاً
-    # وجد صاحبَه، وإن كان الجدولُ لا يعرض منه إلّا ذيلَه.
-    if q:
-        shaped = normalise_arabic(q)
-        students = students.filter(
-            Q(name_key__icontains=shaped)
-            | national_id_search_q("user__national_id", q, user=request.user)
-            | Q(guardian_key__icontains=shaped)
-            | Q(guardian_parent_id__in=guardian_ids_by_phone(school, q))
-            | Q(grade_code__icontains=q)
-            | Q(section_code__icontains=q)
-        )
+    # المحدِّدُ الواحدُ للشاشة والتصدير (`list_selectors`): النطاقُ ثمّ الفلترُ كاملاً قبل الفرز والترقيم.
+    students = student_list_queryset(request.user, school, scope, year, request.GET)
+    status = list_status(scope, request.GET)
 
     students, sort = apply_sort(students, request, allowed=STUDENT_SORTS, default="name")
 
@@ -445,10 +294,7 @@ def student_list(request):
                 ("all", "الكلّ"),
             )
         ),
-        "q": q,
-        "grade_filter": grade_filter,
-        "section_filter": section_filter,
-        "parent_status": parent_status,
+        **filter_context(scope, school, year, request.GET),
         "grades": available_grades,
         "sections": available_sections,
         "year": year,
@@ -1017,17 +863,19 @@ def transfer_create(request):
 
 
 def _transfer_form_response(request, school, form):
-    """عرضُ نموذج الطلب: كلُّ طالبٍ بصفّه وشعبته، وكلُّ شعبةٍ نشطةٍ هدفاً للانتقال الداخليّ."""
-    from .selectors import transfer_form_options
+    """عرضُ نموذج الطلب: الطالبُ المختار بالبحث (إن وُجد)، وكلُّ شعبةٍ نشطةٍ هدفاً للانتقال الداخليّ."""
+    from .selectors import transfer_target_classes
+    from .transfer_edit_selectors import picked_student
 
-    students, classes = transfer_form_options(school)
     return render(
         request,
         "student_affairs/transfer_form.html",
         {
             "form": form,
-            "students": students,
-            "classes": classes,
+            "picked": picked_student(
+                school, student_scope_for(request), form.data.get("student_id")
+            ),
+            "classes": transfer_target_classes(school),
             "can_direct": may_decide(request.user),
         },
     )
@@ -1217,18 +1065,9 @@ def student_movements(request):
             "open_count": sum(1 for e in exits if e.returned_at is None),
             "total_count": len(exits),
             "wing_label": _followup_wing_label(scope),
-            # بطاقةُ `action_tile` نفسُها المستعملة في الأقسام السريعة —
-            # حدٌّ وظلٌّ وأيقونة، لا رقمٌ عارٍ (طلب المدير، SOS-20260915-9077،
-            # توضيحه 2026-09-17: "ليست بطاقات كل منها" على النسخة الأولى).
-            # الرابعة «الخروج مبكراً من المدرسة» ثابتةٌ عمداً بلا رابط فعليّ:
-            # نمطٌ مختلفٌ (انصرافٌ كاملٌ بحضور وليّ الأمر) لا تُسجّله
-            # `ClassExit` بعد — بطاقتُها هنا مكانٌ محجوزٌ لا بياناتٌ ناقصة.
-            "clinic_desc": f"اليوم: {destination_counts.get('clinic', 0)}",
-            "admin_desc": f"اليوم: {destination_counts.get('admin', 0)}",
-            "restroom_desc": f"اليوم: {destination_counts.get('restroom', 0)}",
-            "clinic_href": f"?{day_qs}&destination=clinic",
-            "admin_href": f"?{day_qs}&destination=admin",
-            "restroom_href": f"?{day_qs}&destination=restroom",
+            # بطاقةٌ لكلّ وجهةٍ بعدّاد اليوم (`movement_cards`) واللوحةُ الحيّة (`movement_live`).
+            "destination_cards": destination_cards(destination_counts, day_qs),
+            **live_context(request, school, scope, selected_date),
         },
     )
 
@@ -1250,21 +1089,8 @@ def attendance_overview(request):
     # قبل أيّ رصدٍ لا نسبة: «0%» بالأحمر كانت توحي بغياب الجميع.
     pct = summary["pct"]
 
-    # ── أكثر 20 طالب غياباً (آخر 30 يوم) ──
-    thirty_days_ago = today - timedelta(days=30)
-    # الأكثرُ غياباً يُحسب داخل النطاق قبل الاقتطاع — لا عشرون المدرسةِ ثمّ يُصفّى.
-    worst_students_qs = (
-        scope.narrow(
-            StudentAttendance.objects.filter(
-                school=school,
-                status="absent",
-                session__date__gte=thirty_days_ago,
-            )
-        )
-        .values("student__id", "student__full_name")
-        .annotate(absence_count=_absent_days())
-        .order_by("-absence_count")[:20]
-    )
+    # ── أكثر 20 طالب غياباً (آخر 30 يوم) — محدِّدُ الجدول نفسُه الذي يصدّر منه Excel وPDF ──
+    worst_students_qs = absence_rows(request.user, request.GET)
 
     # ── بيانات Chart (آخر 14 يوم) — استعلامٌ واحدٌ مجمَّعٌ باليوم بدل 42 ──
     chart_start = today - timedelta(days=13)
@@ -1364,154 +1190,8 @@ def attendance_overview(request):
 @login_required
 @capability_required("student_affairs.follow_up")
 def attendance_export_excel(request):
-    """تصدير إحصائيات الغياب — أكثر الطلاب غياباً (آخر 30 يوم) + حضور اليوم."""
-    import openpyxl
-    from openpyxl.styles import Alignment
-
-    school = request.school
-    today = timezone.localdate()
-    thirty_ago = today - timedelta(days=30)
-
-    scope = _followup_scope(request)
-    wing = _followup_wing_label(scope)
-
-    ctx = get_export_context(request, _with_wing("تقرير الحضور والغياب", wing))
-
-    # أكثر الطلاب غياباً — Count مُستورَد من أعلى الملف
-    absence_data = (
-        scope.narrow(
-            StudentAttendance.objects.filter(
-                school=school,
-                status="absent",
-                session__date__gte=thirty_ago,
-            )
-        )
-        .values("student__full_name", "student__national_id")
-        .annotate(absence_count=_absent_days())
-        .order_by("-absence_count")
-    )
-
-    # سجل الحضور اليومي
-    today_records = (
-        scope.narrow(StudentAttendance.objects.filter(school=school, session__date=today))
-        .select_related("student", "session__class_group")
-        .order_by(grade_order("session__class_group__grade"), "student__full_name")
-    )
-
-    # أنماط مشتركة
-    table = excel_table_styles()
-    header_fill, header_font, cell_font = table.header_fill, table.header_font, table.cell_font
-    thin_border, alt_fill = table.border, table.alt_fill
-
-    wb = openpyxl.Workbook()
-
-    # ── Sheet 1: الغياب المتكرر ──
-    ws1 = wb.active
-    ws1.title = "الغياب المتكرر"
-    ws1.sheet_view.rightToLeft = True
-
-    s1_headers = ["#", "اسم الطالب", "الرقم الشخصي", "أيام الغياب (30 يوم)"]
-    s1_num_cols = len(s1_headers)
-    s1_data_start = add_excel_header(ws1, ctx, s1_num_cols)
-
-    for col, h in enumerate(s1_headers, 1):
-        cell = safe_cell(ws1, row=s1_data_start, column=col, value=h)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal="center")
-        cell.border = thin_border
-
-    # الرقم الشخصيّ: مستور — إحصاءُ غيابٍ كشفٌ جماعيّ.
-    absence_count_total = 0
-    for i, rec in enumerate(absence_data, 1):
-        absence_count_total = i
-        row_data = [
-            i,
-            rec["student__full_name"],
-            mask_national_id(rec["student__national_id"]),
-            rec["absence_count"],
-        ]
-        for col, val in enumerate(row_data, 1):
-            cell = safe_cell(ws1, row=s1_data_start + i, column=col, value=val)
-            cell.font = cell_font
-            cell.border = thin_border
-            if i % 2 == 0:
-                cell.fill = alt_fill
-
-    for col_idx in range(1, 5):  # 4 columns
-        max_len = 0
-        for row_idx in range(s1_data_start, s1_data_start + len(absence_data) + 1):
-            cell = ws1.cell(row=row_idx, column=col_idx)
-            max_len = max(max_len, len(str(cell.value or "")))
-        ws1.column_dimensions[chr(64 + col_idx)].width = min(max_len + 4, 40)
-
-    add_excel_footer(ws1, ctx, s1_data_start + absence_count_total, s1_num_cols)
-
-    # ── Sheet 2: سجل حضور اليوم ──
-    ws2 = wb.create_sheet("حضور اليوم")
-    ws2.sheet_view.rightToLeft = True
-
-    s2_headers = ["#", "اسم الطالب", "الصف", "الشعبة", "الحالة"]
-    s2_num_cols = len(s2_headers)
-    s2_data_start = add_excel_header(ws2, ctx, s2_num_cols)
-
-    for col, h in enumerate(s2_headers, 1):
-        cell = safe_cell(ws2, row=s2_data_start, column=col, value=h)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal="center")
-        cell.border = thin_border
-
-    status_map = {"present": "حاضر", "absent": "غائب", "late": "متأخر", "excused": "معذور"}
-    today_count = 0
-    for i, rec in enumerate(today_records, 1):
-        today_count = i
-        row_data = [
-            i,
-            rec.student.full_name,
-            rec.session.class_group.grade,
-            rec.session.class_group.section,
-            status_map.get(rec.status, rec.status),
-        ]
-        for col, val in enumerate(row_data, 1):
-            cell = safe_cell(ws2, row=s2_data_start + i, column=col, value=val)
-            cell.font = cell_font
-            cell.border = thin_border
-            if rec.status == "absent":
-                cell.fill = xl_fill(brand.STATUS_DANGER_BG)
-            elif rec.status == "late":
-                cell.fill = xl_fill(brand.STATUS_WARNING_BG)
-            elif i % 2 == 0:
-                cell.fill = alt_fill
-
-    for col_idx in range(1, 6):  # 5 columns
-        max_len = 0
-        for row_idx in range(s2_data_start, s2_data_start + today_count + 1):
-            cell = ws2.cell(row=row_idx, column=col_idx)
-            max_len = max(max_len, len(str(cell.value or "")))
-        ws2.column_dimensions[chr(64 + col_idx)].width = min(max_len + 4, 40)
-
-    add_excel_footer(ws2, ctx, s2_data_start + today_count, s2_num_cols)
-
-    log_export(
-        request,
-        "student_affairs.attendance_xlsx",
-        rows=absence_count_total + today_count,
-        full_national_id=False,
-        object_repr=_with_wing(f"إحصائيات الغياب Excel — {today:%Y-%m-%d}", wing),
-    )
-    filename = generate_export_filename("attendance", "stats", "xlsx")
-    return excel_to_response(wb, filename, school=request.school)
-
-
-def _behaviour_window(school, today):
-    """نافذة العام الدراسي — وترتدّ إلى السنة الميلادية إن لم يُبذر تقويم."""
-    from datetime import date
-
-    window = academic_year_window(school)
-    if window is not None:
-        return window
-    return date(today.year, 1, 1), date(today.year, 12, 31)
+    """Excel الحضور: أكثر الطلاب غياباً بمحدِّد الصفحة نفسِه (`followup_tables.absence_rows`) — خلفيٌّ عبر السجلّ المركزيّ."""
+    return respond_export(request, ABSENCE_TABLE.kind)
 
 
 @login_required
@@ -1528,7 +1208,7 @@ def behavior_overview(request):
     # ── مخالفات العام الدراسي ──
     # كان الترشيح `date__year` — أي السنة الميلادية. والعام يمتدّ أغسطس–يونيو،
     # فيسقط الفصل الأول كلّه في يناير والعنوان يقول «السنة الحالية».
-    _start, _end = _behaviour_window(school, today)
+    _start, _end = behavior_window(school, today)
     year_infractions = school_infractions.filter(
         date__gte=_start,
         date__lte=_end,
@@ -1565,12 +1245,8 @@ def behavior_overview(request):
         if deg:
             degree_map[deg] = {"count": row["count"]}
 
-    # ── أكثر 15 طالب مخالفات — مُرتَّبة حسب العدد ──
-    worst_students = (
-        year_infractions.values("student__id", "student__full_name")
-        .annotate(infraction_count=Count("id"))
-        .order_by("-infraction_count")[:15]
-    )
+    # ── أكثر 15 طالب مخالفات — محدِّدُ الجدول نفسُه الذي يصدّر منه Excel وPDF ──
+    worst_students = behavior_rows(request.user, request.GET)
 
     # ── اتجاه المخالفات الشهري (آخر 6 أشهر) ──
     chart_labels, chart_data = monthly_infraction_trend(school_infractions, today)
@@ -1645,28 +1321,18 @@ def behavior_overview(request):
 @capability_required("student_affairs.activities")
 def activity_list(request):
     """قائمة الأنشطة والإنجازات مع فلتر."""
-    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
-    activities = (
-        StudentActivity.objects.filter(school=school, academic_year=year)
-        .select_related("student")
-        .order_by("-date")
-    )
-
-    type_filter = request.GET.get("type", "")
-    scope_filter = request.GET.get("scope", "")
-    if type_filter:
-        activities = activities.filter(activity_type=type_filter)
-    if scope_filter:
-        activities = activities.filter(scope=scope_filter)
+    # المحدِّدُ نفسُه الذي يصدّر منه Excel: نطاقُ الدور والفلترُ كاملاً؛ والصفحةُ تعرض أوّلَ 200 صفٍّ منه.
+    activities = activity_rows(request.user, request.GET)
 
     return render(
         request,
         "student_affairs/activity_list.html",
         {
-            "activities": activities[:200],
-            "type_filter": type_filter,
-            "scope_filter": scope_filter,
+            "activities": activities[:ACTIVITY_PAGE_LIMIT],
+            "activities_total": len(activities),
+            "type_filter": request.GET.get("type", ""),
+            "scope_filter": request.GET.get("scope", ""),
             "type_choices": StudentActivity.TYPE_CHOICES,
             "scope_choices": StudentActivity.SCOPE_CHOICES,
             "year": year,
@@ -1971,16 +1637,6 @@ def _tardiness_day(request):
         return timezone.localdate()
 
 
-def _late_on(school, scope, day):
-    """سجلّاتُ تأخّر اليوم في النطاق — قبل مرشِّحَي الصفّ والشعبة.
-
-    فشعبةُ جناحٍ آخر مكتوبةٌ باليد في `?section=` تعطي قائمةً فارغة لا صفوفَه.
-    """
-    return scope.narrow(
-        StudentAttendance.objects.filter(school=school, status="late", session__date=day)
-    )
-
-
 def _late_this_year(request, school, scope) -> dict:
     """مرّاتُ تأخّر كلّ طالبٍ هذا العام — `{student_id: عدد}` داخل النطاق وحدَه."""
     return dict(
@@ -2032,19 +1688,9 @@ def tardiness_list(request):
     grade_filter = request.GET.get("grade", "")
     section_filter = request.GET.get("section", "")
 
-    late_qs = _late_on(school, scope, selected_date)
-    if grade_filter:
-        late_qs = late_qs.filter(session__class_group__grade=grade_filter)
-    if section_filter:
-        late_qs = late_qs.filter(session__class_group__section=section_filter)
-
-    late_records = list(
-        late_qs.select_related("student", "session__class_group", "session__subject").order_by(
-            grade_order("session__class_group__grade"),
-            "session__class_group__section",
-            "student__full_name",
-        )
-    )
+    # الاستعلامُ والترتيبُ نفسُهما اللذان يصدّر منهما Excel وPDF (`followup_tables`).
+    late_qs = tardiness_queryset(scope, school, request.GET)
+    late_records = ordered_late_records(late_qs)
 
     total_late = len(late_records)
 
@@ -2137,462 +1783,43 @@ def tardiness_list(request):
 @login_required
 @capability_required("student_affairs.follow_up")
 def behavior_export_excel(request):
-    """تصدير إحصائيات السلوك — المخالفات + أكثر الطلاب."""
-    import openpyxl
-    from openpyxl.styles import Alignment
-
-    school = request.school
-    scope = _followup_scope(request)
-    wing = _followup_wing_label(scope)
-    ctx = get_export_context(request, _with_wing("تقرير السلوك الطلابي", wing))
-
-    # بيانات — مضيَّقةٌ بالنطاق قبل التجميع
-    infractions = (
-        scope.narrow(BehaviorInfraction.objects.filter(school=school))
-        .values("student__full_name", "student__national_id")
-        .annotate(count=Count("id"))
-        .order_by("-count")
-    )
-
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "السلوك"
-    ws.sheet_view.rightToLeft = True
-
-    headers = ["#", "اسم الطالب", "الرقم الشخصي", "عدد المخالفات"]
-    num_cols = len(headers)
-    data_start = add_excel_header(ws, ctx, num_cols)
-
-    table = excel_table_styles()
-    header_fill, header_font, cell_font = table.header_fill, table.header_font, table.cell_font
-    thin_border, alt_fill = table.border, table.alt_fill
-
-    for col, h in enumerate(headers, 1):
-        cell = safe_cell(ws, row=data_start, column=col, value=h)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal="center")
-        cell.border = thin_border
-
-    # الرقم الشخصيّ: مستور — إحصاءُ مخالفاتٍ كشفٌ جماعيّ.
-    row_count = 0
-    for i, rec in enumerate(infractions, 1):
-        row_data = [
-            i,
-            rec["student__full_name"],
-            mask_national_id(rec["student__national_id"]),
-            rec["count"],
-        ]
-        for col, val in enumerate(row_data, 1):
-            cell = safe_cell(ws, row=data_start + i, column=col, value=val)
-            cell.font = cell_font
-            cell.border = thin_border
-            if i % 2 == 0:
-                cell.fill = alt_fill
-        row_count = i
-
-    for col_idx in range(1, num_cols + 1):
-        max_len = 0
-        for r in range(data_start, data_start + row_count + 1):
-            cell = ws.cell(row=r, column=col_idx)
-            max_len = max(max_len, len(str(cell.value or "")))
-        ws.column_dimensions[chr(64 + col_idx)].width = min(max_len + 4, 40)
-
-    add_excel_footer(ws, ctx, data_start + row_count, num_cols)
-    log_export(
-        request,
-        "student_affairs.behavior_xlsx",
-        rows=row_count,
-        full_national_id=False,
-        object_repr=_with_wing("إحصائيات السلوك Excel", wing),
-    )
-    filename = generate_export_filename("behavior", "stats", "xlsx")
-    return excel_to_response(wb, filename, school=request.school)
+    """Excel نظرة السلوك العامة: أكثر الطلاب مخالفاتٍ بمحدِّد الصفحة نفسِه (`followup_tables.behavior_rows`)."""
+    return respond_export(request, BEHAVIOR_TABLE.kind)
 
 
 @login_required
 @capability_required("student_affairs.follow_up")
 def tardiness_export_excel(request):
-    """تصدير قائمة المتأخرين ليوم محدد."""
-    import openpyxl
-    from openpyxl.styles import Alignment
-
-    school = request.school
-
-    scope = _followup_scope(request)
-    wing = _followup_wing_label(scope)
-    selected_date = _tardiness_day(request)
-
-    ctx = get_export_context(
-        request,
-        _with_wing(f"تقرير التأخر الصباحي — {selected_date.strftime('%d/%m/%Y')}", wing),
-    )
-
-    late_records = (
-        _late_on(school, scope, selected_date)
-        .select_related("student", "session__class_group", "session__subject")
-        .order_by(grade_order("session__class_group__grade"), "student__full_name")
-    )
-
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "التأخر"
-    ws.sheet_view.rightToLeft = True
-
-    cumulative_counts = _late_this_year(request, school, scope)
-
-    headers = [
-        "#",
-        "اسم الطالب",
-        "الصف",
-        "الشعبة",
-        "التكرار",
-        "توقيت التسجيل",
-        "الملاحظات",
-        "المادة",
-        "مرفق",
-    ]
-    num_cols = len(headers)
-    data_start = add_excel_header(ws, ctx, num_cols)
-
-    table = excel_table_styles()
-    header_fill, header_font, cell_font = table.header_fill, table.header_font, table.cell_font
-    thin_border, alt_fill = table.border, table.alt_fill
-
-    for col, h in enumerate(headers, 1):
-        cell = safe_cell(ws, row=data_start, column=col, value=h)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal="center")
-        cell.border = thin_border
-
-    row_count = 0
-    for i, rec in enumerate(late_records, 1):
-        subject_name = rec.session.subject.name_ar if rec.session.subject else "—"
-        recorded_time = (
-            rec.tardiness_recorded_at.strftime("%H:%M") if rec.tardiness_recorded_at else "—"
-        )
-        has_file = "نعم" if rec.excuse_file else "—"
-        row_data = [
-            i,
-            rec.student.full_name,
-            rec.session.class_group.grade,
-            rec.session.class_group.section,
-            cumulative_counts.get(rec.student_id, 0),
-            recorded_time,
-            rec.excuse_notes or "—",
-            subject_name,
-            has_file,
-        ]
-        for col, val in enumerate(row_data, 1):
-            cell = safe_cell(ws, row=data_start + i, column=col, value=val)
-            cell.font = cell_font
-            cell.border = thin_border
-            if i % 2 == 0:
-                cell.fill = alt_fill
-        row_count = i
-
-    for col_idx in range(1, num_cols + 1):
-        col_letter = (
-            chr(64 + col_idx)
-            if col_idx <= 26
-            else chr(64 + (col_idx - 1) // 26) + chr(65 + (col_idx - 1) % 26)
-        )
-        max_len = 0
-        for r in range(data_start, data_start + row_count + 1):
-            cell = ws.cell(row=r, column=col_idx)
-            max_len = max(max_len, len(str(cell.value or "")))
-        ws.column_dimensions[col_letter].width = min(max_len + 4, 40)
-
-    add_excel_footer(ws, ctx, data_start + row_count, num_cols)
-    log_export(
-        request,
-        "student_affairs.tardiness_xlsx",
-        rows=row_count,
-        object_repr=_with_wing(f"المتأخّرون Excel — {selected_date:%Y-%m-%d}", wing),
-    )
-    filename = generate_export_filename("tardiness", "daily", "xlsx")
-    return excel_to_response(wb, filename, school=request.school)
+    """Excel المتأخرين: اليومُ والصفُّ والشعبةُ بمحدِّد الصفحة نفسِه (`followup_tables.tardiness_rows`)."""
+    return respond_export(request, TARDINESS_TABLE.kind)
 
 
 @login_required
 @capability_required("student_affairs.activities")
 def activities_export_excel(request):
-    """تصدير قائمة الأنشطة والإنجازات."""
-    import openpyxl
-    from openpyxl.styles import Alignment
-
-    school = request.school
-    ctx = get_export_context(request, "تقرير الأنشطة والإنجازات")
-
-    type_map = dict(StudentActivity.TYPE_CHOICES)
-    scope_map = dict(StudentActivity.SCOPE_CHOICES)
-
-    activities = (
-        StudentActivity.objects.filter(school=school).select_related("student").order_by("-date")
-    )
-
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "الأنشطة"
-    ws.sheet_view.rightToLeft = True
-
-    headers = ["#", "اسم الطالب", "النشاط", "النوع", "النطاق", "التاريخ"]
-    num_cols = len(headers)
-    data_start = add_excel_header(ws, ctx, num_cols)
-
-    table = excel_table_styles()
-    header_fill, header_font, cell_font = table.header_fill, table.header_font, table.cell_font
-    thin_border, alt_fill = table.border, table.alt_fill
-
-    for col, h in enumerate(headers, 1):
-        cell = safe_cell(ws, row=data_start, column=col, value=h)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal="center")
-        cell.border = thin_border
-
-    row_count = 0
-    for i, act in enumerate(activities, 1):
-        row_data = [
-            i,
-            act.student.full_name,
-            act.title,
-            type_map.get(act.activity_type, act.activity_type),
-            scope_map.get(act.scope, act.scope),
-            act.date.strftime("%d/%m/%Y") if act.date else "—",
-        ]
-        for col, val in enumerate(row_data, 1):
-            cell = safe_cell(ws, row=data_start + i, column=col, value=val)
-            cell.font = cell_font
-            cell.border = thin_border
-            if i % 2 == 0:
-                cell.fill = alt_fill
-        row_count = i
-
-    for col_idx in range(1, num_cols + 1):
-        max_len = 0
-        for r in range(data_start, data_start + row_count + 1):
-            cell = ws.cell(row=r, column=col_idx)
-            max_len = max(max_len, len(str(cell.value or "")))
-        ws.column_dimensions[chr(64 + col_idx)].width = min(max_len + 4, 40)
-
-    add_excel_footer(ws, ctx, data_start + row_count, num_cols)
-    log_export(
-        request,
-        "student_affairs.activities_xlsx",
-        rows=row_count,
-        object_repr="الأنشطة والإنجازات Excel",
-    )
-    filename = generate_export_filename("activities", "list", "xlsx")
-    return excel_to_response(wb, filename, school=request.school)
-
-
-# ═════════════════════════════════════════════════════════════════════
-# تصديرات PDF — حضور + سلوك + تأخر
-# ═════════════════════════════════════════════════════════════════════
+    """Excel الأنشطة والإنجازات: العامُ والنوعُ والنطاقُ بمحدِّد الصفحة نفسِه (`followup_tables.activity_rows`)."""
+    return respond_export(request, ACTIVITY_TABLE.kind)
 
 
 @login_required
 @capability_required("student_affairs.follow_up")
 def attendance_overview_pdf(request):
-    """تصدير إحصائيات الحضور والغياب — PDF."""
-    school = request.school
-    today = timezone.localdate()
-
-    # ── إحصائيات اليوم ──
-    scope = _followup_scope(request)
-    wing = _followup_wing_label(scope)
-    early = early_attendance_counts(school, today, scope)
-    summary = early["summary"]
-
-    # ── أكثر 20 طالب غياباً (آخر 30 يوم) ──
-    thirty_days_ago = today - timedelta(days=30)
-    worst_students = (
-        scope.narrow(
-            StudentAttendance.objects.filter(
-                school=school,
-                status="absent",
-                session__date__gte=thirty_days_ago,
-            )
-        )
-        .values("student__id", "student__full_name")
-        .annotate(absence_count=_absent_days())
-        .order_by("-absence_count")[:20]
-    )
-
-    ctx = get_export_context(request, _with_wing("تقرير الحضور والغياب", wing))
-    pdf_header = get_pdf_header_html(ctx)
-    pdf_footer = get_pdf_footer_html(ctx)
-
-    html = render_to_string(
-        "student_affairs/attendance_overview_pdf.html",
-        {
-            "summary": summary,
-            "pct_label": f"{summary['pct']}%" if summary["pct"] is not None else "—",
-            "wings": early["wings"],
-            "today": today,
-            "worst_students": worst_students,
-            "pdf_header": pdf_header,
-            "pdf_footer": pdf_footer,
-            **ctx,
-        },
-    )
-
-    log_export(
-        request,
-        "student_affairs.attendance_overview_pdf",
-        rows=len(worst_students),
-        object_repr=_with_wing(f"تقرير الحضور والغياب — {today:%Y-%m-%d}", wing),
-    )
-    filename = generate_export_filename("attendance", "overview", "pdf")
-    return render_pdf(html, filename, paper_size="A4")
+    """PDF الحضور: الجدولُ نفسُه الذي في Excel والصفحة (`absence_rows`) — خلفيٌّ عبر السجلّ المركزيّ."""
+    return respond_export(request, "student_affairs.attendance_overview_pdf")
 
 
 @login_required
 @capability_required("student_affairs.follow_up")
 def behavior_overview_pdf(request):
-    """تصدير ملخص السلوك — PDF."""
-    school = request.school
-    today = timezone.localdate()
-
-    # ── مخالفات العام الدراسي ──
-    # كان الترشيح `date__year` — أي السنة الميلادية. والعام يمتدّ أغسطس–يونيو،
-    # فيسقط الفصل الأول كلّه في يناير والعنوان يقول «السنة الحالية».
-    scope = _followup_scope(request)
-    wing = _followup_wing_label(scope)
-    _start, _end = _behaviour_window(school, today)
-    year_infractions = scope.narrow(
-        BehaviorInfraction.objects.filter(
-            school=school,
-            date__gte=_start,
-            date__lte=_end,
-        )
-    )
-    total_infractions = year_infractions.count()
-    unresolved = year_infractions.filter(is_resolved=False).count()
-
-    # ── نسبة المخالفين ──
-    students_with_infractions = year_infractions.values("student").distinct().count()
-    if scope.is_wing_bound:
-        total_students = len(scope.student_ids())
-    else:
-        total_students = Membership.objects.filter(
-            school=school,
-            role__name="student",
-            is_active=True,
-        ).count()
-    infraction_pct = (
-        round(students_with_infractions * 100 / total_students) if total_students else 0
-    )
-
-    # ── توزيع حسب الدرجة — نظام النقاط ملغى ──
-    degree_distribution = (
-        year_infractions.values("violation_category__degree")
-        .annotate(count=Count("id"))
-        .order_by("violation_category__degree")
-    )
-    degree_rows = []
-    for row in degree_distribution:
-        deg = row["violation_category__degree"]
-        if deg:
-            degree_rows.append({"degree": deg, "count": row["count"]})
-
-    # ── أكثر 15 طالب مخالفات — مرتبة حسب العدد ──
-    worst_students = (
-        year_infractions.values("student__id", "student__full_name")
-        .annotate(infraction_count=Count("id"))
-        .order_by("-infraction_count")[:15]
-    )
-
-    ctx = get_export_context(request, _with_wing("تقرير السلوك", wing))
-    pdf_header = get_pdf_header_html(ctx)
-    pdf_footer = get_pdf_footer_html(ctx)
-
-    html = render_to_string(
-        "student_affairs/behavior_overview_pdf.html",
-        {
-            "today": today,
-            "total_infractions": total_infractions,
-            "unresolved": unresolved,
-            "infraction_pct": infraction_pct,
-            "degree_rows": degree_rows,
-            "worst_students": worst_students,
-            "pdf_header": pdf_header,
-            "pdf_footer": pdf_footer,
-            **ctx,
-        },
-    )
-
-    log_export(
-        request,
-        "student_affairs.behavior_overview_pdf",
-        rows=len(worst_students),
-        object_repr=_with_wing(f"تقرير السلوك — {today:%Y-%m-%d}", wing),
-    )
-    filename = generate_export_filename("behavior", "overview", "pdf")
-    return render_pdf(html, filename, paper_size="A4")
+    """PDF نظرة السلوك: الجدولُ نفسُه الذي في Excel والصفحة (`behavior_rows`) — خلفيٌّ عبر السجلّ المركزيّ."""
+    return respond_export(request, "student_affairs.behavior_overview_pdf")
 
 
 @login_required
 @capability_required("student_affairs.follow_up")
 def tardiness_pdf(request):
-    """تصدير قائمة المتأخرين — PDF."""
-    school = request.school
-
-    scope = _followup_scope(request)
-    wing = _followup_wing_label(scope)
-    selected_date = _tardiness_day(request)
-
-    late_records = list(
-        _late_on(school, scope, selected_date)
-        .select_related("student", "session__class_group", "session__subject")
-        .order_by(
-            grade_order("session__class_group__grade"),
-            "session__class_group__section",
-            "student__full_name",
-        )
-    )
-
-    total_late = len(late_records)
-
-    cumulative_counts = _late_this_year(request, school, scope)
-    for rec in late_records:
-        rec.cumulative = cumulative_counts.get(rec.student_id, 0)
-
-    # نسبة التأخر
-    total_students_today = _attended_on(school, scope, selected_date)
-    late_pct = round(total_late * 100 / total_students_today) if total_students_today else 0
-
-    # التأخر هذا الأسبوع
-    weekly_late = _late_this_week(school, scope, selected_date)
-
-    ctx = get_export_context(request, _with_wing("تقرير التأخر الصباحي", wing))
-    pdf_header = get_pdf_header_html(ctx)
-    pdf_footer = get_pdf_footer_html(ctx)
-
-    html = render_to_string(
-        "student_affairs/tardiness_pdf.html",
-        {
-            "selected_date": selected_date,
-            "late_records": late_records,
-            "total_late": total_late,
-            "late_pct": late_pct,
-            "weekly_late": weekly_late,
-            "pdf_header": pdf_header,
-            "pdf_footer": pdf_footer,
-            **ctx,
-        },
-    )
-
-    log_export(
-        request,
-        "student_affairs.tardiness_pdf",
-        rows=total_late,
-        object_repr=_with_wing(f"المتأخّرون — {selected_date:%Y-%m-%d}", wing),
-    )
-    filename = generate_export_filename("tardiness", "list", "pdf")
-    return render_pdf(html, filename, paper_size="A4")
+    """PDF المتأخرين: اليومُ والصفُّ والشعبةُ بالجدول نفسِه (`tardiness_rows`) — خلفيٌّ عبر السجلّ المركزيّ."""
+    return respond_export(request, "student_affairs.tardiness_pdf")
 
 
 # ═════════════════════════════════════════════════════════════════════

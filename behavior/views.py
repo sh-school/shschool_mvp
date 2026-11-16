@@ -110,11 +110,13 @@ def _deny_unreachable(request, student_id, message, school_wide=False):
 
 from core.academic_calendar import academic_year_for
 
+from .edit_services import editable_infraction_ids
 from .notify import notify_behavior_after_commit
 from .selectors import (
     _get_scoped_students,
     _visible_student_ids,
     recordable_student,
+    search_scoped_students,
     student_picker,
 )
 from .services import (
@@ -213,9 +215,18 @@ def behavior_dashboard(request):
     context["level_dist"] = list(level_dist)
     context["daily_trend"] = list(daily_trend)
     context["top_violations"] = top_violations
-    context.update(_dashboard_presentation(context, today))
+    context.update(_dashboard_presentation(context, today) | _dashboard_search(request, school))
 
     return render(request, "behavior/dashboard.html", context)
+
+
+def _dashboard_search(request, school) -> dict:
+    """بحثُ الطالب في لوحة السلوك: الاستعلامُ ونتائجُه من نطاق صاحب الطلب وحده."""
+    query = request.GET.get("q", "").strip()
+    return {
+        "student_query": query,
+        "student_matches": search_scoped_students(request, school, query),
+    }
 
 
 def _dashboard_presentation(context: dict, today) -> dict:
@@ -268,8 +279,8 @@ def report_infraction(request):
             # REQ-SH-001: structured disciplinary action + conditional textarea
             disciplinary_action_type = form.cleaned_data.get("disciplinary_action_type", "")
             violation_description = form.cleaned_data.get("violation_description", "")
-            # نصٌّ حرٌّ قديم للتوافق: يُنسخ إليه نصُّ الخيار المختار ليقرأه القديمُ مقروءاً.
-            _choices_map = dict(form.fields["disciplinary_action_type"].choices)
+            # نصٌّ حرٌّ قديم للتوافق: نصُّ الخيار المختار (والفارغ مستبعَد فلا يُنسخ بلا اختيار).
+            _choices_map = dict(c for c in form.fields["disciplinary_action_type"].choices if c[0])
             action = _choices_map.get(disciplinary_action_type, "") or form.cleaned_data.get(
                 "action_taken", ""
             )
@@ -460,8 +471,13 @@ def student_behavior_profile(request, student_id):
     context["can_report"] = BehaviorPermissions.can_report(request.user)
     context["is_committee"] = BehaviorPermissions.is_committee(request.user)
     context["can_summon"] = BehaviorPermissions.can_summon(request.user)
+    # «كشفُ السلوك» يُفتح بالقدرة نفسها التي تحرس `behavior_report` — فلا يُعرض رابطٌ يُرفض.
+    context["can_view_report"] = has_capability(request.user, "behavior.record")
     # نماذجُ الإنذار والتعهّد لإدارة المخالفات — رابطٌ لا يُفتح لصاحبه لا يُعرض له.
     context["can_print_forms"] = has_capability(request.user, "behavior.manage")
+    context["editable_ids"] = editable_infraction_ids(
+        request.user, context["infractions"], student_scope_for(request)
+    )
     audit_infraction_read(request, context["infractions"])
     return render(request, "behavior/student_profile.html", context)
 

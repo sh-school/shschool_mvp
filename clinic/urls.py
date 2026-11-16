@@ -21,6 +21,8 @@ urlpatterns = [
     path("quick/<uuid:visit_id>/close/", quick_views.quick_close, name="quick_close"),
     path("visit/new/<uuid:student_id>/", views.record_visit, name="record_visit_student"),
     path("visits/", views.visits_list, name="visits_list"),
+    path("visits/export/xlsx/", views.visits_export_xlsx, name="visits_export_xlsx"),
+    path("visits/export/pdf/", views.visits_export_pdf, name="visits_export_pdf"),
     path("referrals/", referral_views.referrals_list, name="referrals"),
     path(
         "referrals/<uuid:referral_id>/close/", referral_views.referral_close, name="referral_close"

@@ -14,12 +14,18 @@ import re
 from dataclasses import dataclass
 from functools import reduce
 from operator import and_
+from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ValidationError
 from django.db.models import Exists, OuterRef, Prefetch, Q, Value
 from django.db.models.functions import Lower, Replace
 
 from core.academic_calendar import academic_year_for_school
+
+if TYPE_CHECKING:
+    from django.db.models import QuerySet
+
+    from clinic.models import ClinicVisit
 
 #: أقصى نتائج القائمة — قائمةٌ قصيرةٌ تُلمس لا جدولٌ يُمرَّر.
 MAX_RESULTS = 12
@@ -218,3 +224,41 @@ def chronic_record(school, student_id):
     if student is None:
         return None, None
     return student, HealthRecord.objects.filter(student=student).first()
+
+
+def _parse_day(raw: object) -> datetime.date | None:
+    """تاريخٌ بصيغة `YYYY-MM-DD`، وإلا `None` (القيمةُ الفارغةُ أو الخاطئة تُتجاهَل)."""
+    try:
+        return datetime.datetime.strptime(str(raw or ""), "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def visit_range(params: Any) -> tuple[datetime.date | None, datetime.date | None]:
+    """مدى زيارات العيادة من `date_from` إلى `date_to` (الطرفان شاملان).
+
+    `date` القديم يبقى صالحاً كيومٍ واحد حين لا يأتي أيٌّ من الطرفين. والمدى المقلوب يُصحَّح بتبديل الطرفين.
+    """
+    start = _parse_day(params.get("date_from"))
+    end = _parse_day(params.get("date_to"))
+    if start is None and end is None:
+        start = end = _parse_day(params.get("date"))
+    if start and end and start > end:
+        start, end = end, start
+    return start, end
+
+
+def visits_for(school: Any, params: Any) -> QuerySet[ClinicVisit]:
+    """زياراتُ المدرسة بفلاتر الشاشة (المدى والاسم) — المحدِّدُ نفسُه للشاشة والتصدير."""
+    from clinic.models import ClinicVisit
+
+    qs = ClinicVisit.objects.filter(school=school).select_related("student").order_by("-visit_date")
+    start, end = visit_range(params)
+    if start:
+        qs = qs.filter(visit_date__date__gte=start)
+    if end:
+        qs = qs.filter(visit_date__date__lte=end)
+    name = params.get("student")
+    if name:
+        qs = qs.filter(student__full_name__icontains=name)
+    return qs

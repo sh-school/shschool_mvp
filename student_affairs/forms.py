@@ -9,6 +9,7 @@ from django import forms
 
 from core.models.academic import ClassGroup
 from core.validators import FileTypeValidator
+from operations.models import ClassExit
 
 from .models import StudentActivity, StudentTransfer
 from .transfer_chain import REQUIRED_DOCUMENTS
@@ -113,8 +114,6 @@ class TransferForm(forms.Form):
         required=False,
         label="المدرسة الأخرى",
     )
-    from_grade = forms.CharField(max_length=3, required=False, label="الصف (من)")
-    to_grade = forms.CharField(max_length=3, required=False, label="الصف (إلى)")
     to_class_group_id = forms.UUIDField(required=False, label="الشعبة المنقول إليها")
     transfer_date = forms.DateField(
         widget=forms.DateInput(attrs={"type": "date"}),
@@ -222,18 +221,13 @@ class ActivityForm(forms.Form):
 class MovementLeaveForm(forms.Form):
     """تسجيل تحرّك الطالب من شاشة «تحركات الطلبة» (W-20261107-020).
 
-    وقتُ الخروج فارغٌ = الآن. و«school» وجهةٌ تُحوَّل إلى أذونات الخروج لا تُسجَّل هنا.
+    وقتُ الخروج فارغٌ = الآن. و«school» (الخروج من المدرسة) تُقبل هنا وتحرسها صلاحيةُ الدور
+    في `class_exit.leave`؛ والرمزان القديمان `admin` و`other` لا يُقبلان خيارين جديدين.
     """
 
     student = forms.UUIDField(error_messages={"required": "اختر الطالب."})
     destination = forms.ChoiceField(
-        choices=[
-            ("clinic", "العيادة"),
-            ("admin", "الإدارة / المشرف"),
-            ("restroom", "دورة المياه"),
-            ("other", "أخرى"),
-            ("school", "الخروج من المدرسة"),
-        ],
+        choices=ClassExit.CURRENT_DESTINATIONS,
         error_messages={"required": "اختر الوجهة.", "invalid_choice": "وجهةٌ غير صالحة."},
     )
     left_at = forms.DateTimeField(

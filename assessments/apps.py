@@ -7,17 +7,12 @@ class AssessmentsConfig(AppConfig):
     verbose_name = "التقييمات والاختبارات"
 
     def ready(self):
-        from core.exports import registry as export_registry
         from core.module_registry import register_module
 
-        from . import export_builders as builders
+        from .export_tables import register_assessment_tables
 
-        # كشفُ درجات المادّة Excel: خلفيٌّ (W-20261021-011) — بلا قياس p95 يثبت أنّه سريع فالافتراضُ job.
-        export_registry.register(
-            "assessments.gradebook_xlsx",
-            build=builders.build_gradebook_xlsx,
-            capability="assessments.view_results",
-        )
+        # كشفُ درجات المادّة Excel وPDF على عقد الجداول (W-20261109-007): خلفيٌّ، والمحدِّدُ نفسُه للصفحة والملفّ.
+        register_assessment_tables()
 
         register_module(
             name="assessments",

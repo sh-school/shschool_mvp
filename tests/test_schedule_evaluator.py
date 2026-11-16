@@ -431,3 +431,31 @@ def test_a_declared_first_cap_does_not_leak_into_the_next_strict_call(run_scene)
     again = evaluate_slots(run_scene.school, YEAR, slots)
 
     assert again.hard_breaches.get("HC22") == 1
+
+
+# ── بطاقةُ الجدول الحيّ: حقولُ العرض لا تغيّر حكمَ المسودّات (W-20261114-003) ─────────────
+
+
+def test_a_generated_draft_keeps_its_verdict_and_exposes_display_rows(generated):
+    school, generation = generated
+
+    result = evaluate_slots(school, YEAR, generation_slots(generation))
+
+    assert result.hard_total == 0 and result.infeasibility_value == 0
+    assert result.breach_rows == () and result.unjoined_periods == 0
+    assert "breach_rows" not in result.as_dict() and "unjoined_periods" not in result.as_dict()
+
+
+def test_unjoined_doubles_found_only_when_both_cells_exist_without_a_task_home():
+    from types import SimpleNamespace
+
+    from operations.schedule_grid_loader import unjoined_doubles
+
+    task = SimpleNamespace(name="t")
+    sig = frozenset({("t1", "s1")})
+    pool = {("c1", sig, 2): [task], ("c1", sig, 1): []}
+    cell_sig = {("c1", 0, 1): sig, ("c1", 0, 2): sig, ("c1", 1, 3): sig}
+    orphan_cells = [("c1", 0, 1), ("c1", 0, 2), ("c1", 1, 3)]
+
+    assert unjoined_doubles(pool, cell_sig, orphan_cells) == [task]
+    assert unjoined_doubles(pool, cell_sig, [("c1", 0, 1), ("c1", 1, 3)]) == []

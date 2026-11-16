@@ -189,9 +189,21 @@ def rows_by_teacher(school, year):
         .select_related("class_group", "subject")
         .order_by(grade_order("class_group__grade"), "class_group__section", "subject__name_ar")
     )
-    decorate(rows, class_peers(school, year, rows))
+    decorate(rows, class_peers(school, year, rows), plan_periods(school, year))
     for row in rows:
         out[row.teacher_id].append(row)
+    return out
+
+
+def plan_periods(school, year) -> dict[tuple[str, str, object], int]:
+    """حصصُ الخطّة لكلّ (صفّ، مسار، مادّة) — استعلامٌ واحدٌ لكلّ الصفحة.
+
+    المصدرُ نفسُه الذي يقيس به `_plan_findings`: `plan_rows` ثمّ أوّلُ صفٍّ يطابق،
+    فلا يختلف الوسمُ عن المنع حين يقولان عن الإسناد الشيءَ نفسه.
+    """
+    out: dict[tuple[str, str, object], int] = {}
+    for row in curriculum_service.plan_rows(school, year):
+        out.setdefault((row.grade, row.track, row.subject_id), row.weekly_periods)
     return out
 
 
@@ -217,8 +229,12 @@ def class_peers(school, year, rows):
     return peers
 
 
-def decorate(rows, peers):
-    """سماتُ العرض التي لا تُحفظ: الشركاءُ واليتيمُ والازدواجُ والتباعدُ الفعليّان."""
+def decorate(rows, peers, plan):
+    """سماتُ العرض التي لا تُحفظ: الشركاءُ واليتيمُ والازدواجُ والتباعدُ الفعليّان، وخلافُ الخطّة.
+
+    خلافُ الخطّة يُقاس بما يقيسه المنعُ: حصصُ الإسناد عن حصصِ صفّ الخطّة للمادّة
+    والصفّ والمسار. وشعبةٌ جدولُها مستقلّ لا مرجعَ لها، ومادّةٌ ليست في الخطّة لا تُوسَم.
+    """
     for row in rows:
         tag = (row.parallel_group or "").strip()
         family = peers.get(row.class_group_id, [])
@@ -236,6 +252,14 @@ def decorate(rows, peers):
         row.parallel_partner = next(
             (r for r in siblings if tag and (r.parallel_group or "").strip() == tag), None
         )
+        ref = (
+            None
+            if row.class_group.has_own_timetable
+            else plan.get((row.class_group.grade, row.class_group.track, row.subject_id))
+        )
+        #: الوسمُ يُرى حين يخالف عددُ الإسناد مرجعَه، سواءٌ سُجّل سببٌ أم لا.
+        row.plan_periods = ref
+        row.plan_divergence = ref is not None and row.weekly_periods != ref
     return rows
 
 
@@ -308,7 +332,7 @@ def card_rows(school, year, teacher, rows, prepared):
             for p in CoursePreparation.objects.live(school, year=year).filter(teacher=teacher)
         }
     if rows and not hasattr(rows[0], "parallel_options"):
-        decorate(rows, class_peers(school, year, rows))
+        decorate(rows, class_peers(school, year, rows), plan_periods(school, year))
     for row in rows:
         row.level_label = LEVEL_LABELS.get(row.class_group.level_type, "")
         row.prepares = (row.class_group.grade, row.class_group.track, row.subject_id) in prepared

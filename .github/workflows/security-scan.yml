@@ -174,7 +174,7 @@ jobs:
   # ══════════════════════════════════════════════════════
   django-check:
     name: Django — Deployment Security Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.production

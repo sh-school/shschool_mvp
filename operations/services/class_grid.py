@@ -25,6 +25,7 @@ from uuid import UUID
 
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -164,7 +165,7 @@ class GridPage:
     #: جناحٌ رصدُه نهائيٌّ والكاتبُ ليس معلّمَ الشعبة (مشرفٌ/قيادة): تصحيحُه ما كتبه غيرُه بسببٍ إلزاميّ دائماً (D-201م، D-262م).
     reason_always: bool = False
     #: وجهاتُ الخروج من الفصل (`ClassExit.DESTINATIONS`) لقائمة المفتاح.
-    destinations: tuple[tuple[str, str], ...] = tuple(ClassExit.DESTINATIONS)
+    destinations: tuple[tuple[str, str], ...] = tuple(ClassExit.TEACHER_DESTINATIONS)
 
     @property
     def prev_day(self) -> dt.date:
@@ -911,7 +912,10 @@ def exit_action(
     if action == "return":
         closed = come_back(session, student, now=moment, by=user)
         return {"ok": True, "returned": closed is not None, "period": current}
-    opened = leave(session, student, destination, by=user, now=moment)
+    try:
+        opened = leave(session, student, destination, by=user, now=moment)
+    except PermissionDenied as exc:
+        raise GridRefusedError("school_exit_forbidden", str(exc)) from exc
     if opened is None:
         raise GridRefusedError("student_absent", "الطالبُ مرصودٌ غائباً — لا خروجَ لغائب")
     return {"ok": True, "destination": opened.destination, "period": current}

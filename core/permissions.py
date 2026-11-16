@@ -178,6 +178,18 @@ BEHAVIOR_VIEW_ALL = {
     "psychologist",
     "activities_coordinator",  # v7: يرى سلوك الطلاب في الأنشطة
 }
+#: من يعدّل مخالفةً مسجَّلة (قرار المالك 2026-11-11، بلاغ 5D5D): قائمةٌ مغلقة، وليس منها vice_academic.
+#: ومن سجّل المخالفةَ نفسَه يعدّلها أيّاً كان دورُه، ومشرفُ الجناح لطلبة جناحه وحدَهم — والشرطان في الخدمة.
+BEHAVIOR_EDIT = frozenset(
+    {
+        "admin_supervisor",
+        "student_affairs_coordinator",
+        "vice_admin",
+        "principal",
+        "social_worker",
+        "psychologist",
+    }
+)
 BEHAVIOR_VIEW_CHILD = {"parent"}
 BEHAVIOR_VIEW_SELF = {"student"}
 

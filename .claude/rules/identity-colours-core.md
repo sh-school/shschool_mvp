@@ -16,16 +16,16 @@ paths:
 | الرمز | نهاراً | ليلاً |
 |---|---|---|
 | `--maroon` | `#8A1538` | — |
-| `--maroon-dark` | `#6b0f2a` | — |
-| `--maroon-light` | `#b8294e` | — |
-| `--maroon-bg` | `#fdf2f5` | `#3b1125` |
-| `--maroon-border` | `#e8b4c3` | `#6b2640` |
+| `--maroon-dark` | `#75002b` | — |
+| `--maroon-light` | `#aa3e55` | — |
+| `--maroon-bg` | `#f1d9d5` | `#402c31` |
+| `--maroon-border` | `#ffc2c9` | `#888086` |
 | `--gold` | `#D4A843` | — |
 | `--gold-mark` | `var(--gold)` | — |
 | `--skyline` | `#0D4261` | — |
 | `--palm` | `#129B82` | — |
 | `--sea` | `#4194B3` | — |
-| `--maroon-fg` | `#8A1538` | `#f9a8c9` |
+| `--maroon-fg` | `#8A1538` | `#f49fab` |
 | `--skyline-fg` | `#0D4261` | `#93c5fd` |
 | `--gold-deep` | `#c9952e` | `#c9952e` |
 | `--maroon-link` | `var(--maroon-fg)` | `#f9a8d4` |
@@ -34,14 +34,14 @@ paths:
 
 | الرمز | نهاراً | ليلاً |
 |---|---|---|
-| `--text-primary` | `#111827` | `#f1f5f9` |
-| `--text-secondary` | `#4b5563` | `#cbd5e1` |
-| `--text-muted` | `#58606d` | `#94a3b8` |
-| `--border` | `#e5e7eb` | `#334155` |
-| `--border-strong` | `#d1d5db` | `#475569` |
-| `--surface` | `#ffffff` | `#1e293b` |
-| `--surface-alt` | `#e3e8f0` | `#0f172a` |
-| `--page-bg` | `#d7dee8` | `#0f172a` |
+| `--text-primary` | `#24202a` | `#f9f3f7` |
+| `--text-secondary` | `#575055` | `#f9f3f7` |
+| `--text-muted` | `#575055` | `#bfb8bd` |
+| `--border` | `#d8d2d7` | `#575055` |
+| `--border-strong` | `#888086` | `#888086` |
+| `--surface` | `#f9f3f7` | `#2c272b` |
+| `--surface-alt` | `#ece6ea` | `#413b40` |
+| `--page-bg` | `#fff8f1` | `#1b171a` |
 | `--focus-color` | `var(--maroon-fg)` | — |
 | `--on-fill` | `#ffffff` | — |
 | `--border-soft` | `#e2e8f0` | `var(--border)` |
@@ -53,7 +53,7 @@ paths:
 |---|---|---|
 | `--footer-brand-chip-bg` | `#ffffff` | `#ffffff` |
 | `--header-bg` | `var(--maroon)` | `#1a0a12` |
-| `--nav-bg` | `#f4f0e7` | `#2c2922` |
+| `--nav-bg` | `#f4f0e7` | `#2c272b` |
 | `--nav-fg` | `var(--maroon-dark)` | `var(--on-fill)` |
 | `--nav-hover` | `color-mix(in srgb, var(--maroon) 12%, transparent)` | `color-mix(in srgb, var(--on-fill) 12%, transparent)` |
 | `--nav-mark` | `var(--maroon)` | `var(--gold)` |
@@ -77,23 +77,23 @@ paths:
 | `--status-danger-dark` | `#991b1b` | — |
 | `--status-danger-bg` | `#fef2f2` | `#3b1114` |
 | `--status-danger-border` | `#fecaca` | `#7f1d1d` |
-| `--status-warning` | `#d97706` | — |
+| `--status-warning` | `#7b3800` | — |
 | `--status-warning-dark` | `#92400e` | — |
-| `--status-warning-bg` | `#fef3c7` | `#3a2a08` |
+| `--status-warning-bg` | `#fff2eb` | `#2b0f00` |
 | `--status-warning-border` | `#f59e0b` | `#92400e` |
-| `--status-success` | `#16a34a` | — |
+| `--status-success` | `#176239` | — |
 | `--status-success-dark` | `#166534` | — |
-| `--status-success-bg` | `#dcfce7` | `#0d2a1a` |
+| `--status-success-bg` | `#deffe7` | `#001f0d` |
 | `--status-success-border` | `#86efac` | `#166534` |
-| `--status-info` | `#2563eb` | — |
+| `--status-info` | `#215b75` | — |
 | `--status-info-dark` | `#1e40af` | — |
-| `--status-info-bg` | `#dbeafe` | `#10233f` |
+| `--status-info-bg` | `#eaf8ff` | `#001b28` |
 | `--status-info-border` | `#93c5fd` | `#1e40af` |
 | `--neutral-solid` | `#4b5563` | — |
 | `--status-danger-fg` | `#ba1c1c` | `#fca5a5` |
-| `--status-warning-fg` | `#92400e` | `#fbbf24` |
-| `--status-success-fg` | `#166534` | `#86efac` |
-| `--status-info-fg` | `#1d4ed8` | `#93c5fd` |
+| `--status-warning-fg` | `#7b3800` | `#fbbf24` |
+| `--status-success-fg` | `#176239` | `#86efac` |
+| `--status-info-fg` | `#215b75` | `#93c5fd` |
 | `--status-success-border-soft` | `#bbf7d0` | `var(--status-success-border)` |
 | `--status-warning-border-soft` | `#fde68a` | `var(--status-warning-border)` |
 | `--status-info-border-soft` | `#bfdbfe` | `var(--status-info-border)` |

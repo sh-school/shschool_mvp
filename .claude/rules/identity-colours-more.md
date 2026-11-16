@@ -50,7 +50,7 @@ paths:
 | `--q-modal-scrim` | `rgba(0,0,0,.6)` | `rgba(0,0,0,.65)` |
 | `--q-badge-warning-bg` | `color-mix(in srgb, var(--caution) 15%, transparent)` | `color-mix(in srgb, var(--caution) 20%, transparent)` |
 | `--q-badge-warning-fg` | `var(--caution)` | `var(--status-warning-fg)` |
-| `--q-badge-neutral-bg` | `rgba(107,114,128,.12)` | `rgba(148,163,184,.15)` |
+| `--q-badge-neutral-bg` | `rgba(136,128,134,.12)` | `rgba(191,184,189,.15)` |
 | `--swap-bg` | `#f3e8ff` | `rgba(126, 34, 206, .18)` |
 | `--swap-border` | `#7e22ce` | — |
 | `--swap-fg` | `#6b21a8` | `#d8b4fe` |
@@ -59,7 +59,7 @@ paths:
 
 | الرمز | نهاراً | ليلاً |
 |---|---|---|
-| `--control-border` | `#6b7280` | `#64748b` |
+| `--control-border` | `#888086` | `#888086` |
 | `--popover-bg` | `color-mix(in srgb, var(--status-success) 10%, var(--surface))` | — |
 | `--popover-border` | `color-mix(in srgb, var(--status-success) 35%, var(--surface))` | — |
 | `--grade-7` | `#5b7fa6` | — |
@@ -91,14 +91,14 @@ paths:
 | `--shadow-modal-box` | `var(--shadow-md)` | `0 20px 60px rgba(0,0,0,.6)` |
 | `--overlay-scrim` | `rgba(0,0,0,.45)` | `rgba(0,0,0,.65)` |
 | `--cmd-scrim` | `rgba(0,0,0,.5)` | `rgba(0,0,0,.7)` |
-| `--loading-veil` | `rgba(255,255,255,.4)` | `rgba(15,23,42,.4)` |
+| `--loading-veil` | `rgba(249,243,247,.4)` | `rgba(15,23,42,.4)` |
 | `--admin-header-link` | `#ffe0e9` | `#ffe0e9` |
 | `--breadcrumb-hover` | `var(--maroon-dark)` | `#fcc4d8` |
 | `--scrollbar-track` | `#f1f5f9` | `var(--surface-alt)` |
 | `--scrollbar-thumb-hover` | `var(--maroon-light)` | `#64748b` |
 | `--placeholder` | `#6b7280` | `var(--text-muted)` |
 | `--placeholder-base` | `#9ca3af` | — |
-| `--table-stripe` | `#eef1f5` | `#1a1f35` |
+| `--table-stripe` | `#eef1f5` | `color-mix(in srgb, var(--surface) 50%, var(--surface-alt))` |
 | `--field-border` | `#d1d5db` | `#d1d5db` |
 | `--ink-empty` | `#d1d5db` | `#d1d5db` |
 | `--skeleton-base` | `#f0f0f0` | `var(--surface)` |
@@ -115,10 +115,10 @@ paths:
 | `--login-bg-start` | `var(--maroon-bg)` | `var(--surface-alt)` |
 | `--login-bg-mid` | `var(--surface-alt)` | `#1a0a12` |
 | `--login-bg-end` | `#f0f4ff` | `var(--status-info-bg)` |
-| `--login-card-border` | `rgba(255,255,255,.8)` | `var(--border)` |
+| `--login-card-border` | `rgba(249,243,247,.8)` | `var(--border)` |
 | `--login-input-border` | `#d1d5db` | `var(--border)` |
 | `--login-input-bg` | `#fafafa` | `var(--surface-alt)` |
-| `--login-input-focus-halo` | `color-mix(in srgb, var(--maroon) 10%, transparent)` | `rgba(249,168,201,.15)` |
+| `--login-input-focus-halo` | `color-mix(in srgb, var(--maroon) 10%, transparent)` | `rgba(244,159,171,.15)` |
 | `--paper` | `#fff` | `#fff` |
 | `--paper-ink` | `#000` | `#000` |
 | `--paper-rule` | `#ccc` | `#ccc` |

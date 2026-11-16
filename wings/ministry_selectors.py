@@ -341,17 +341,72 @@ def ministry_summary(school: Any, day: dt.date, *, student_ids: Any = None) -> M
     return MinistrySummary(day, list(grades.values()), total, ministered, _notes(total))
 
 
-def summary_for_request(request: Any, day: dt.date) -> tuple[MinistrySummary, bool]:
-    """ملخّصُ طالب الطلب بنطاقه: (الملخّص، أمقيَّدٌ بجناحه وحدَه؟).
+def summary_for_user(user: Any, school: Any, day: dt.date) -> tuple[MinistrySummary, bool]:
+    """ملخّصُ المستخدم بنطاقه: (الملخّص، أمقيَّدٌ بجناحه وحدَه؟).
 
     المشرفُ لطلبة جناحه، وحاصرُ الغياب العامّ (مقيَّدٌ بالأجنحة الخمسة) والقيادةُ للمدرسة كلِّها — فالعنوانُ «طلبةُ جناحك»
     للأوّل وحدَه.
     """
-    from .scope import student_scope_for
+    from .scope import student_scope
     from .services import holds_school_wide
 
-    scope = student_scope_for(request)
+    scope = student_scope(user, school)
     summary = ministry_summary(
-        request.school, day, student_ids=scope.student_ids() if scope.is_wing_bound else None
+        school, day, student_ids=scope.student_ids() if scope.is_wing_bound else None
     )
-    return summary, scope.is_wing_bound and not holds_school_wide(request.user)
+    return summary, scope.is_wing_bound and not holds_school_wide(user)
+
+
+@dataclass(frozen=True)
+class MinistryView:
+    """ما تعرضه صفحةُ الوزارة بعد الترشيح — والتصديرُ يقرأ منه الصفوفَ نفسَها (عقدُ التصدير المركزيّ)."""
+
+    summary: MinistrySummary
+    bound: bool
+    grades: list[tuple[str, str]]
+    grade: str
+    wings: list[tuple[str, str]]
+    wing: str
+    q: str
+
+
+def ministry_view(user: Any, school: Any, params: Any, today: dt.date) -> MinistryView:
+    """ملخّصُ المستخدم مرشَّحاً بالصفّ والجناح والبحث؛ وقيمةٌ مجهولةٌ تُسقَط فلا يتّسع النطاقُ بالرابط."""
+    try:
+        day = dt.date.fromisoformat(params.get("date") or "")
+    except ValueError:
+        day = today
+    summary, bound = summary_for_user(user, school, day)
+    grades = grade_choices(summary)
+    grade = params.get("grade", "")
+    if grade not in {key for key, _ in grades}:
+        grade = ""
+    wings = [] if bound else wing_choices(summary)
+    wing = params.get("wing", "")
+    if wing not in {key for key, _ in wings}:
+        wing = ""
+    q = params.get("q", "").strip()[:60]
+    narrowed = narrow(summary, grade=grade, q=q, wing=wing)
+    return MinistryView(narrowed, bound, grades, grade, wings, wing, q)
+
+
+def ministry_rows(user: Any, params: Any) -> list[dict[str, Any]]:
+    """صفوفُ جدول «من يُرفعون»: طالبٌ لكلّ صفّ، بنطاق الدور والترشيح نفسِه الذي تعرضه الشاشة، وجناحُه للفرز."""
+    from django.utils import timezone
+
+    view = ministry_view(user, user.get_school(), params, timezone.localdate())
+    order = {
+        row.group.short_code: getattr(row.group.wing, "order", None)
+        for row in view.summary.class_rows
+    }
+    return [
+        {
+            "grade": next((label for key, label in view.grades if key == m.grade), m.grade),
+            "class_code": m.class_code,
+            "name": m.name,
+            "excused": "بعذر" if m.excused else "بلا عذر",
+            "mark": m.mark or "—",
+            "wing_order": order.get(m.class_code),
+        }
+        for m in view.summary.ministered
+    ]

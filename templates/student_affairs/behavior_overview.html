@@ -21,7 +21,7 @@
     {% if not wing_bound or request.user|can_open:'behavior:committee' %}
     <a href="{% url 'behavior:committee' %}" class="btn-secondary btn-sm">{% icon "behavior_team" %} فريق السلوك</a>
     {% endif %}
-    {% export_group doc="templates/student_affairs/behavior_overview_pdf.html" %}
+    {% export_group doc="templates/student_affairs/student_list_pdf.html" %}
     {% export_button "pdf" "behavior:policy_pdf" title="لائحة السلوك PDF" %}{% endexport_button %}
     {% export_button "xlsx" "student_affairs:behavior_export" %}{% endexport_button %}
     {% export_button "pdf" "student_affairs:behavior_pdf" %}{% endexport_button %}
@@ -90,7 +90,7 @@
       <ol class="plain-list is-scroll">
         {% for s in worst_students %}
           <li class="plain-list__row">
-            <a href="{% url 'student_affairs:student_profile' s.student__id %}" class="plain-list__title sa-link">{{ s.student__full_name }}</a>
+            <a href="{% url 'student_affairs:student_profile' s.id %}" class="plain-list__title sa-link">{{ s.full_name }}</a>
             <span class="status-badge status-danger" title="عدد المخالفات">{{ s.infraction_count }}</span>
           </li>
         {% endfor %}

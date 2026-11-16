@@ -11,7 +11,11 @@ class WingsConfig(AppConfig):
         from core.models.academic import WingCoverage
         from core.module_registry import register_module
 
+        from .export_tables import register_wings_tables
         from .supervisor_day import supervisor_day_section
+
+        # سجلُّ الجناح وتقريرُ الوزارة وأذونات الخروج على عقد الجداول: خلفيّةٌ (الافتراضيُّ الآمن)، بنطاق صاحب الطلب.
+        register_wings_tables()
 
         # غيابُ اليوم في لوحة المشرف وبديله بالمُجمِّع نفسِه (W-20261008-00x): النواةُ تُرسل والوحدةُ تقرأ بياناتِها.
         register_dashboard_section("supervisor", "day", supervisor_day_section)

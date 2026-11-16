@@ -24,6 +24,13 @@ def behavior_capabilities(shared: Shared) -> list[Capability]:
             # رصدُ مخالفةٍ تأديبيّةٍ لقاصرٍ كتابةٌ حسّاسة؛ المساعدان يرثان جدولَ المعلّم وحضورَه لا رصدَه (حكم 0104، W-20261010-013).
             not_inherited_by={"teacher_assistant", "ese_assistant"},
         ),
+        _cap(
+            "behavior.edit",
+            "تعديلُ مخالفةٍ مسجَّلة",
+            P.BEHAVIOR_EDIT,
+            scope="المدرسةُ كلُّها (المشرفُ لجناحه)، ومن سجّل المخالفةَ يعدّلها أيّاً كان دورُه",
+            basis="قرار المالك 2026-11-11 (بلاغ 5D5D): قائمةٌ مغلقةٌ، وشرطا المسجِّل والجناح في الخدمة",
+        ),
         _cap("behavior.manage", "إدارةُ المخالفات والإجراءات", P.BEHAVIOR_MANAGE_HOLDERS),
         _cap(
             "behavior.committee",
@@ -45,6 +52,36 @@ def behavior_capabilities(shared: Shared) -> list[Capability]:
                 "المدرسة كلِّها (حكمُ 0104 على W-20261001-023)؛ وبقرار المالك 2026-11-07 "
                 "(W-20261107-017) يحمل القدرةَ بنطاق جناحه وحدَه عبر wings/scope.py، فلا يدخل "
                 "رقمَه طالبٌ من جناحٍ آخر"
+            ),
+        ),
+        _cap(
+            "behavior.proposed_actions",
+            "قوائمُ إجراءات المخالفات المقترحة",
+            {
+                "student_affairs_coordinator",
+                "vice_admin",
+                "admin_supervisor",
+                "social_worker",
+                "psychologist",
+            },
+            scope="المدرسة (المشرفُ لجناحه)",
+            basis="قرارات المالك 2026-11-08 (بلاغ CA7E): الاقتراحُ من سلّم الدليل م3.5.3 والاعتمادُ للمنسّق",
+        ),
+        _cap(
+            "behavior.approve_action",
+            "اعتمادُ إجراء المخالفة ومتابعةُ تنفيذه",
+            {"student_affairs_coordinator", "vice_admin"},
+            scope="المدرسة؛ من سجّل المخالفةَ لا يعتمدها، فيعتمد النائبُ ما سجّله المنسّق",
+            basis="قرارات المالك 2026-11-08 (بلاغ CA7E): فصلُ المهامّ؛ والاختصاصيّان يدرسان ولا يعتمدان",
+        ),
+        _cap(
+            "behavior.prepare_action",
+            "تجهيزُ التعهّد الخطّيّ والإحالة (مشرفُ الجناح)",
+            {"admin_supervisor"},
+            scope="طلبةُ جناحه وحدَهم عبر wings/scope.py",
+            basis=(
+                "قرارات المالك 2026-11-08 (بلاغ CA7E): تجهيزُ التعهّد والإحالة فقط، بلا استدعاء "
+                "ولا إدارة مخالفات (behavior.manage وbehavior.summon_parent ليسا له)"
             ),
         ),
         _cap("behavior.summon_parent", "استدعاءُ وليّ الأمر", family_callers),

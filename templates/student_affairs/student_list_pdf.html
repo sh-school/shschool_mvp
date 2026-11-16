@@ -19,37 +19,27 @@
 {% block content %}
 
 <div class="kpi-strip">
-  <div class="kpi-item"><span class="kpi-num c-maroon">{{ total_students }}</span><span class="kpi-label">إجمالي الطلاب المقيَّدين</span></div>
+  <div class="kpi-item"><span class="kpi-num c-maroon">{{ total_students }}</span><span class="kpi-label">{{ kpi_label|default:"إجمالي الطلاب المقيَّدين" }}</span></div>
 </div>
 
-<div class="section-head">قائمة الطلاب</div>
+<div class="section-head">{{ section_title|default:"قائمة الطلاب" }}</div>
 {% if rows %}
 <table class="report-table">
   <thead>
     <tr>
-      <th class="col-w-5">#</th>
-      <th>الاسم الكامل</th>
-      <th class="col-w-8">الصف</th>
-      <th class="col-w-8">الشعبة</th>
-      <th class="col-w-14">الجوال</th>
-      <th class="col-w-20">البريد</th>
+      {% for h in headers %}<th{% if forloop.first %} class="col-w-5"{% endif %}>{{ h }}</th>{% endfor %}
     </tr>
   </thead>
   <tbody>
     {% for r in rows %}
     <tr>
-      <td class="cell-num">{{ r.num }}</td>
-      <td class="cell-name">{{ r.full_name }}</td>
-      <td>{{ r.grade }}</td>
-      <td>{{ r.section }}</td>
-      <td><bdi dir="ltr">{{ r.phone }}</bdi></td>
-      <td><bdi dir="ltr">{{ r.email }}</bdi></td>
+      {% for cell in r %}<td{% if forloop.first %} class="cell-num"{% endif %}>{{ cell|default:"—" }}</td>{% endfor %}
     </tr>
     {% endfor %}
   </tbody>
 </table>
 {% else %}
-<p class="no-data">لا يوجد طلاب مقيَّدون مطابقون لهذا الترشيح</p>
+<p class="no-data">{{ empty_label|default:"لا يوجد طلاب مقيَّدون مطابقون لهذا الترشيح" }}</p>
 {% endif %}
 
 {% endblock %}

@@ -4,6 +4,11 @@
   يُعاد هذا القالب في طلبات HTMX (البحث الحي والترشيح)
   Target: #visits-container
 {% endcomment %}{% load ui %}
+{# أزرار التصدير داخل الجزء: كلُّ تحديثٍ حيٍّ يعيد رسمَها بفلاتر الطلب الحالي #}
+{% export_group kind="sheet" %}
+  {% export_button "pdf" "clinic:visits_export_pdf" %}?{{ request.GET.urlencode }}{% endexport_button %}
+  {% export_button "xlsx" "clinic:visits_export_xlsx" %}?{{ request.GET.urlencode }}{% endexport_button %}
+{% endexport_group %}
 {% section_card "الزيارات" meta=visits|length icon="clinic_visit" flush=True empty="لا توجد زيارات" empty_sub="لا توجد زيارات مطابقة للمعايير المحددة" %}{% if visits %}
   <div class="table-wrap table-wrap-scroll">
     <table>

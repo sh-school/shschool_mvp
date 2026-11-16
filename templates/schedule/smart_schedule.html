@@ -15,6 +15,7 @@
   <a href="{% url 'academic_management:assignments' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "workload" %} الإسناد</a>
   <a href="{% url 'schedule_settings' %}" class="btn-secondary btn-sm">{% icon "settings" %} الإعدادات</a>
   <a href="{% url 'schedule_quality_lab' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "quality" %} مختبر الجودة</a>
+  <a href="{% url 'asc_import' %}" class="btn-secondary btn-sm">{% icon "document" %} استيراد جدول aSc</a>
   <a href="{% url 'weekly_schedule' %}" class="btn-secondary btn-sm">{% icon "schedule" %} الجدول الحالي</a>
   {% if assignments_count and not pending_generation and not feasibility.blocking %}
   <form method="post" action="{% url 'smart_generate' %}" class="gen-inline-form"
@@ -106,6 +107,47 @@
   </div>
   {% endif %}
 {% endsection_card %}
+
+{# ══ الجدولُ الحيّ: التوليدُ المعتمَد بتعارضاته الفعلية وحدَها؛ وقواعدُ المولّد ملاحظاتٌ مطويّة ══ #}
+{% if live_card %}
+{% section_card "الجدول الحيّ" meta=live_card.approved_on|date:"Y-m-d" icon="schedule" %}
+  <p>
+    {% if live_card.imported %}<span class="status-badge status-info">مستورَد من aSc</span>{% endif %}
+    <span class="status-badge {% if live_card.actual_count %}status-danger{% else %}status-success{% endif %}">{{ live_card.actual_count }} تعارضات فعلية</span>
+  </p>
+  {% kpi_strip label="أرقام الجدول الحيّ" %}
+    {% kpi "حصص الجدول" live_card.slots_count tone="blue" %}
+    {% kpi "الاكتمال %" live_card.completeness title="الموضوع من المطلوب" %}
+  {% endkpi_strip %}
+  <p class="ui-note">اعتُمد في {{ live_card.approved_on|date:"Y-m-d" }}؛ الاكتمال {{ live_card.placed }} من {{ live_card.required }} حصّة.</p>
+  {% if live_card.actual %}
+  <div class="table-wrap table-wrap-scroll">
+    <table class="lab-table">
+      <thead>
+        <tr><th scope="col">القيد</th><th scope="col">الشعبة</th><th scope="col">المادّة</th><th scope="col">المعلّم</th><th scope="col">اليوم</th><th scope="col" class="num">الحصّة</th></tr>
+      </thead>
+      <tbody>
+        {% for r in live_card.actual %}
+        <tr><td>{{ r.code }}</td><td>{{ r.class_name }}</td><td>{{ r.subject_name }}</td><td>{{ r.teacher_name }}</td><td>{{ r.day }}</td><td class="num">{{ r.period }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% if live_card.unjoined_periods %}
+  <p class="ui-note">مزدوجة غير متصلة بالجرس: {{ live_card.unjoined_periods }} حصّة وضعها المصدرُ في حصّتين لا يعدّهما الجرسُ متّصلتين؛ وهي موجودةٌ فعلاً ومحسوبةٌ في الاكتمال.</p>
+  {% endif %}
+  {% if live_card.notes %}
+  <details class="feas-details">
+    <summary>ملاحظات توزيع ({{ live_card.notes_count }})</summary>
+    <p class="ui-note">هذه قواعدُ توزيعٍ يتبعها المولّد ولا يتبعها الجدولُ المستورَد، وليست أخطاءً في الجدول.</p>
+    <ul class="feas-list">
+      {% for code, count in live_card.notes %}<li><b>{{ code }}</b> — {{ count }}</li>{% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+{% endsection_card %}
+{% endif %}
 
 {% comment %}
 بطاقةُ القرار (W-20261010-001، D-310م): أحدثُ مسودّةٍ من V2 بخمسة مؤشّرات لكلٍّ معناه واتجاهُه وسقفُه،
@@ -247,8 +289,11 @@
     {% endfor %}
     {% if can_approve %}
     <form method="post" action="{% url 'approve_schedule' g.id %}" class="form-actions"
-          data-confirm="اعتماد هذه المسودّة بما فيها من مخالفاتٍ أو حصصٍ متعذّرة{% if g.budget_cut %} (قُطع بحثُها بنفاد الميزانية){% endif %}؟ ستحلّ محلّ الجدول القائم ويُشعَر المعلّمون.">
+          data-confirm="اعتماد هذه المسودّة بما فيها من مخالفاتٍ أو حصصٍ متعذّرة{% if g.budget_cut %} (قُطع بحثُها بنفاد الميزانية){% endif %}؟ ستحلّ محلّ الجدول القائم ويُشعَر المعلّمون.{% if live_card.imported and not g.imported %} وهذا يستبدل جدول aSc المستورَد.{% endif %}">
       {% csrf_token %}
+      {% if live_card.imported and not g.imported %}
+      {% include "schedule/partials/replace_imported_ack.html" %}
+      {% endif %}
       {% with gid=g.id|stringformat:"s" %}
       {% field "acknowledge_breaches" "أُقرّ بالمخالفات والمتعذّرات المذكورة وأعتمد الجدول" type="checkbox" required=True id="ack-"|add:gid %}
       {% endwith %}
@@ -382,8 +427,11 @@
             {% if g.gate_total %}
             <a href="#gen-breaches-{{ g.id }}" class="btn-secondary btn-xs">المخالفات والمتعذّرات ({{ g.gate_total }})</a>
             {% elif can_approve %}
-            <form method="post" action="{% url 'approve_schedule' g.id %}" data-confirm="اعتماد هذه المسودّة؟ ستحلّ محلّ الجدول القائم ويُشعَر المعلّمون." class="gen-inline-form">
+            <form method="post" action="{% url 'approve_schedule' g.id %}" data-confirm="اعتماد هذه المسودّة؟ ستحلّ محلّ الجدول القائم ويُشعَر المعلّمون.{% if live_card.imported and not g.imported %} وهذا يستبدل جدول aSc المستورَد.{% endif %}" class="gen-inline-form">
               {% csrf_token %}
+              {% if live_card.imported and not g.imported %}
+              {% include "schedule/partials/replace_imported_ack.html" %}
+              {% endif %}
               <button type="submit" class="btn-primary btn-xs">اعتماد</button>
             </form>
             {% endif %}

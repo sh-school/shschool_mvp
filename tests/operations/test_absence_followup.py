@@ -127,6 +127,24 @@ def _post_action(client_as, user, student, **extra):
     return client_as(user).post(reverse("absence_action_save"), data)
 
 
+def _post_action_as_browser(client_as, user, student, **chosen):
+    """يرسل نموذج الإجراء كما يرسله المتصفّح: كلُّ خانةٍ حاضرةٌ حتى الفارغة (النوعُ بلا اختيارٍ = فارغ)."""
+    data = {
+        "student": str(student.id),
+        "date": DAY,
+        "grade": "",
+        "wing": "",
+        "followup": "",
+        "q": "",
+        "page": "actions",
+        "status": "done",
+        "action_kind": "",
+        "note": "",
+        **chosen,
+    }
+    return client_as(user).post(reverse("absence_action_save"), data)
+
+
 class TestRolesAndScope:
     def test_each_allowed_role_reaches_the_screen(self, client_as, staff, supervisor, absent_both):
         for user in (*staff.values(), supervisor):
@@ -367,3 +385,48 @@ class TestServiceContract:
         rows = svc.followup_rows(supervisor, SUNDAY)
         assert [r["student"].id for r in rows] == [absent_both[0].id]
         assert svc.guardian_phone(absent_both[0]) == []
+
+
+class TestActionKindFromTheBrowser:
+    """بلاغ 5D5D: لا يُسجَّل «استدعاء ولي الأمر» إلّا إن اختاره المستخدم بنفسه."""
+
+    def test_a_new_entry_starts_on_an_empty_kind_and_no_summon_is_preselected(
+        self, client_as, staff, absent_both
+    ):
+        body = _get(client_as, staff["principal"], name="absence_actions").content.decode()
+        assert (
+            '<option value="">— اختر نوع الإجراء —</option><option value="guardian_summon">' in body
+        )
+        assert 'value="guardian_summon" selected' not in body
+
+    def test_sick_leave_with_no_kind_is_stored_as_other_and_shown_as_sick_leave(
+        self, client_as, staff, absent_both
+    ):
+        from operations.absence_followup_print import action_text
+        from operations.services import absence_followup as svc
+
+        kid = absent_both[0]
+        _post_action_as_browser(client_as, staff["principal"], kid, status="sick_leave_received")
+        log = AbsenceActionLog.objects.get()
+        assert log.action_kind == "other"
+
+        body = _get(client_as, staff["principal"], name="absence_actions").content.decode()
+        assert '<span class="status-badge status-info">استلامُ إجازة مرضيّة</span>' in body
+        assert '<span class="status-badge status-info">استدعاءُ وليّ الأمر</span>' not in body
+
+        row = next(r for r in svc.followup_rows(staff["principal"], SUNDAY) if r["student"] == kid)
+        assert row["action_label"] == "استلامُ إجازة مرضيّة"
+        assert action_text(row) == "استلامُ إجازة مرضيّة"
+
+    def test_a_kind_chosen_by_the_user_is_recorded_and_shown(self, client_as, staff, absent_both):
+        kid = absent_both[0]
+        _post_action_as_browser(
+            client_as,
+            staff["principal"],
+            kid,
+            status="sick_leave_received",
+            action_kind="guardian_summon",
+        )
+        assert AbsenceActionLog.objects.get().action_kind == "guardian_summon"
+        body = _get(client_as, staff["principal"], name="absence_actions").content.decode()
+        assert '<span class="status-badge status-info">استدعاءُ وليّ الأمر</span>' in body

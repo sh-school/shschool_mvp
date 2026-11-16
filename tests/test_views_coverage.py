@@ -339,9 +339,9 @@ class TestAssessmentViewsCoverage:
     def _build_gradebook(setup, user):
         from django.http import QueryDict
 
-        from assessments.export_builders import build_gradebook_xlsx
+        from core.exports import registry
 
-        return build_gradebook_xlsx(
+        return registry.get("assessments.gradebook_xlsx").build(
             setup.school, user, QueryDict(f"setup_id={setup.pk}&semester=S1")
         )
 

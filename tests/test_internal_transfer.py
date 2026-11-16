@@ -174,7 +174,8 @@ def test_the_create_form_saves_an_internal_request_and_shows_the_class_beside_th
 ):
     client.force_login(student_affairs_coordinator_user)
 
-    page = client.get(reverse("student_affairs:transfer_create"))
+    # صفُّ الطالب وشعبته يصلان مع المقترَح من البحث بالاسم (W-20261114-010)
+    page = client.get(reverse("student_affairs:transfer_student_search"), {"q": "طالب"})
     assert f'data-class-id="{klass.pk}"' in page.content.decode()
     assert klass.short_label in page.content.decode()
 

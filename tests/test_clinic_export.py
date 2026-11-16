@@ -128,6 +128,49 @@ def test_builder_returns_audit_row_count(school, student_user, nurse_user):
     assert res.rows == 1 and res.object_id == "2026-09" and not res.full_national_id
 
 
+def test_visits_kinds_are_registered_behind_the_screen_capability():
+    """سجلُّ الزيارات بقدرةِ الشاشة نفسِها `clinic.access` — لا قدرةَ التصدير الشهريّ."""
+    assert registry.get("clinic.visits_xlsx").capability == "clinic.access"
+    assert registry.get("clinic.visits_pdf").capability == "clinic.access"
+
+
+def test_visits_export_rows_match_the_screen_filters_and_leak_no_identity(
+    school, student_user, nurse_user
+):
+    from django.http import QueryDict
+
+    from clinic.selectors import visits_for
+
+    for day in (9, 10, 12, 13):
+        when = timezone.make_aware(dt.datetime(2026, 9, day, 12, 0))
+        _visit(school, student_user, nurse_user, when, is_sent_home=day == 12, temperature="38.5")
+    params = QueryDict("date_from=2026-09-10&date_to=2026-09-12")
+
+    screen = list(visits_for(school, params))
+    rows = ce.visit_rows(nurse_user, params)
+    assert len(screen) == len(rows) == 2
+    assert sorted(r["visit_at"] for r in rows) == ["10/09/2026 12:00", "12/09/2026 12:00"]
+    assert {r["sent_home"] for r in rows} == {"نعم", "لا"}
+
+    xlsx = registry.get("clinic.visits_xlsx").build(school, nurse_user, params)
+    assert xlsx.rows == 2
+    text = " ".join(
+        str(c.value)
+        for ws in load_workbook(BytesIO(xlsx.content))
+        for row in ws.iter_rows()
+        for c in row
+        if c.value is not None
+    )
+    assert "10/09/2026 12:00" in text and "13/09/2026" not in text
+    # سطرُ «صدر بواسطة» من العقد المركزيّ تدقيقٌ للمُصدِّر (الممرّضة هنا) — لا بيانَ طالب، فلا يُمنع.
+    assert "صدر بواسطة" in text
+    for forbidden in (student_user.full_name, "سرٌّ سريريّ"):
+        assert forbidden not in text
+
+    pdf = registry.get("clinic.visits_pdf").build(school, nurse_user, params)
+    assert pdf.content.startswith(b"%PDF") and pdf.rows == 2
+
+
 def test_pdf_kind_shares_the_export_capability():
     assert registry.get("clinic.monthly_pdf").capability == "clinic.export"
 

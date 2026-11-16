@@ -22,6 +22,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from core.academic_calendar import academic_year_for_school
+from core.exports.contract import wing_sorted
 from core.labels import class_label
 from core.models import ClassGroup, CustomUser, StudentEnrollment, Wing
 from core.permissions import get_teacher_student_ids, teacher_can_access_student
@@ -118,6 +119,27 @@ def recordable_student(request, school, student_id):
     return student
 
 
+def school_infraction_or_404(school, infraction_id):
+    """مخالفةٌ في مدرسة الطلب بطالبها وفئتها — وغيرُها 404 (لا تُكشف مخالفةُ مدرسةٍ أخرى)."""
+    from behavior.models import BehaviorInfraction
+
+    return get_object_or_404(
+        BehaviorInfraction.objects.select_related("student", "violation_category", "reported_by"),
+        id=infraction_id,
+        school=school,
+    )
+
+
+def editable_categories(infraction, locked: bool) -> list[Any]:
+    """فئاتُ المخالفة المتاحةُ عند التعديل؛ وإن صدر قرارُ اللجنة فمخالفاتُ الدرجة نفسِها وحدَها."""
+    from behavior.models import ViolationCategory
+
+    categories = ViolationCategory.objects.filter(is_active=True, code__regex=r"^\d+-\d+$")
+    if locked:
+        categories = categories.filter(degree=infraction.level)
+    return list(categories.order_by("code"))
+
+
 def escalation_preview_targets(students, student_id: str, category_id: str):
     """(الطالب، الفئة) لمعاينة التصعيد، أو None إن لم يصحّ المعرّفان أو خرج الطالب عن النطاق أو الفئةُ بلا درجة.
 
@@ -161,6 +183,26 @@ def _get_scoped_students(request, school):
             .distinct()
         )
     return CustomUser.objects.filter(id__in=student_ids).order_by("full_name")
+
+
+#: أقصى عدد نتائجَ لبحث الطالب في لوحة السلوك — الاسمُ الشائع يعيد مئاتٍ في مدرسةٍ كبيرة.
+STUDENT_SEARCH_LIMIT = 20
+
+
+def search_scoped_students(request, school, query: str) -> list[CustomUser]:
+    """طلبةُ نطاق صاحب الطلب الذين يطابقون `query` بالاسم أو بالرقم الوطنيّ — وإلّا لا شيء.
+
+    يُبنى على `_get_scoped_students` نفسها فلا يرى البحثُ إلّا ما تراه الشاشة: المعلّمُ بجدوله،
+    ومشرفُ الجناح بجناحه، والقيادةُ بالمدرسة. الاسمُ مطابقةٌ جزئيّةٌ بلا حساسيّةٍ لحالة الأحرف،
+    والرقمُ الوطنيّ مطابقةٌ تامّة فلا يُعدَّد به الطلبة.
+    """
+    text = query.strip()
+    if not text:
+        return []
+    matches = _get_scoped_students(request, school).filter(
+        Q(full_name__icontains=text) | Q(national_id=text)
+    )
+    return list(matches[:STUDENT_SEARCH_LIMIT])
 
 
 #: الدرجاتُ الأربع على بطاقة الشعبة (قرار المالك 10-09: النوعُ = الدرجة، واسمُ الفئة عند الضغط).
@@ -297,7 +339,7 @@ def daily_report(school, user, params) -> dict[str, Any]:
         infractions = infractions.filter(student_id__in=student_ids)
     found = list(infractions)
 
-    current: dict[Any, tuple[str, str, str]] = {}
+    current: dict[Any, tuple[str, str, str, Any]] = {}
     enrollments = (
         StudentEnrollment.objects.filter(
             student_id__in={inf.student_id for inf in found},
@@ -307,16 +349,22 @@ def daily_report(school, user, params) -> dict[str, Any]:
         )
         .newest_first()
         .values_list(
-            "student_id", "class_group__grade", "class_group__section", "class_group__wing_id"
+            "student_id",
+            "class_group__grade",
+            "class_group__section",
+            "class_group__wing_id",
+            "class_group__wing__order",
         )
     )
-    for student_id, class_grade, section, wing_id in enrollments:
-        current.setdefault(student_id, (class_grade, section, str(wing_id) if wing_id else ""))
+    for student_id, class_grade, section, wing_id, wing_order in enrollments:
+        current.setdefault(
+            student_id, (class_grade, section, str(wing_id) if wing_id else "", wing_order)
+        )
 
     order = {code: index for index, (code, _label) in enumerate(ClassGroup.GRADES)}
     rows = []
     for inf in found:
-        class_grade, section, wing_id = current.get(inf.student_id, ("", "", ""))
+        class_grade, section, wing_id, wing_order = current.get(inf.student_id, ("", "", "", None))
         if (wing and wing_id != wing) or (grade and class_grade != grade):
             continue
         if inf.violation_category:
@@ -336,6 +384,7 @@ def daily_report(school, user, params) -> dict[str, Any]:
                     str(inf.pk),
                 ),
                 "student": inf.student.full_name,
+                "wing_order": wing_order,
                 "class_label": class_label(class_grade, section),
                 "violation": violation,
                 "level": inf.get_level_display(),
@@ -346,7 +395,8 @@ def daily_report(school, user, params) -> dict[str, Any]:
     rows.sort(key=lambda row: row["sort"])
     return {
         "day": day,
-        "rows": rows,
+        # فرزُ الجناح (مستقرّ) من العقد المركزيّ: ترتيبُ الصفحة هو ترتيبُ الملفّ.
+        "rows": wing_sorted(rows),
         "wing": wing,
         "grade": grade,
         "wing_options": wing_options,

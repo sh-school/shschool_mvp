@@ -9,11 +9,12 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
-from django.utils import timezone
 
 from core.capabilities import capability_required
 from core.pdf_utils import render_pdf
-from reports.services import AcademicReportsExcel, AcademicReportsService
+from reports.services import AcademicReportsExcel
+
+from . import report_selectors
 
 MODULE_NAME = "إدارة الشؤون الأكاديمية"
 
@@ -81,13 +82,6 @@ def _get_school(request):
     if hasattr(request.user, "get_school"):
         return request.user.get_school()
     return None
-
-
-def _parse_int(value, default=None):
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return default
 
 
 # ── عرضُ التقارير: ما كان يُركَّب ويُلوَّن في القالب ─────────────────────
@@ -192,14 +186,7 @@ def quiz_reports(request):
     if school is None:
         return HttpResponse("لا توجد مدرسة مرتبطة", status=403)
 
-    data = AcademicReportsService.get_quiz_reports(
-        school,
-        subject_id=request.GET.get("subject_id") or None,
-        class_group_id=request.GET.get("class_group_id") or None,
-        student_id=request.GET.get("student_id") or None,
-        date_from=request.GET.get("date_from") or None,
-        date_to=request.GET.get("date_to") or None,
-    )
+    data = report_selectors.quiz_data(school, request.GET)
     _present_quiz(data)
 
     export_resp = _export_response(
@@ -220,6 +207,7 @@ def quiz_reports(request):
             "school": school,
             "page_title": "تقارير الاختبارات القصيرة",
             "page_subtitle": "نتائج الاختبارات القصيرة حسب المواد على مستوى الطالب أو الشعبة",
+            "report_slug": "quiz",
             "module_name": MODULE_NAME,
         },
     )
@@ -233,12 +221,7 @@ def exam_results_reports(request):
     if school is None:
         return HttpResponse("لا توجد مدرسة مرتبطة", status=403)
 
-    data = AcademicReportsService.get_exam_results_reports(
-        school,
-        package_type=request.GET.get("package_type") or None,
-        semester=request.GET.get("semester") or None,
-        class_group_id=request.GET.get("class_group_id") or None,
-    )
+    data = report_selectors.exam_results_data(school, request.GET)
     _present_exam_results(data)
 
     export_resp = _export_response(
@@ -259,6 +242,7 @@ def exam_results_reports(request):
             "school": school,
             "page_title": "تقارير نتائج الاختبارات",
             "page_subtitle": "نتائج اختبارات الباقات (P1-P4, AW) — مقارنة بين الفصول والطلاب",
+            "report_slug": "exam-results",
             "module_name": MODULE_NAME,
         },
     )
@@ -272,12 +256,7 @@ def academic_progress_reports(request):
     if school is None:
         return HttpResponse("لا توجد مدرسة مرتبطة", status=403)
 
-    data = AcademicReportsService.get_academic_progress_reports(
-        school,
-        class_group_id=request.GET.get("class_group_id") or None,
-        date_from=request.GET.get("date_from") or None,
-        date_to=request.GET.get("date_to") or None,
-    )
+    data = report_selectors.progress_data(school, request.GET)
     _present_progress(data)
 
     export_resp = _export_response(
@@ -298,6 +277,7 @@ def academic_progress_reports(request):
             "school": school,
             "page_title": "تقارير التقدم الأكاديمي",
             "page_subtitle": "نتائج التقييمات في شعبةٍ خلال فترة — مرتّبةً بمتوسط الطالب",
+            "report_slug": "progress",
             "module_name": MODULE_NAME,
         },
     )
@@ -314,22 +294,7 @@ def monthly_ba_report(request):
     if school is None:
         return HttpResponse("لا توجد مدرسة مرتبطة", status=403)
 
-    now = timezone.now()
-    month = _parse_int(request.GET.get("month"), now.month)
-    year = _parse_int(request.GET.get("year"), now.year)
-    if not (1 <= month <= 12):
-        month = now.month
-    if not (2000 <= year <= 2100):
-        year = now.year
-
-    data = AcademicReportsService.get_monthly_behavior_academic_report(
-        school,
-        month=month,
-        year=year,
-        scope=request.GET.get("scope", "section"),
-        class_group_id=request.GET.get("class_group_id") or None,
-        student_id=request.GET.get("student_id") or None,
-    )
+    data = report_selectors.monthly_data(school, request.GET)
     _present_monthly(data)
 
     export_resp = _export_response(
@@ -352,5 +317,6 @@ def monthly_ba_report(request):
             "page_subtitle": "متوسط الاختبارات القصيرة مع عدد المخالفات خلال شهر — للطالب أو الشعبة",
             "module_name": MODULE_NAME,
             "flagship": True,
+            "report_slug": "monthly",
         },
     )

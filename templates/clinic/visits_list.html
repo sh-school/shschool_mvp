@@ -16,12 +16,13 @@
     <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
   {% endpage_header %}
 
-  {# ── فلاتر HTMX (تاريخ + بحث نصي) ── #}
+  {# ── فلاتر HTMX (مدى «من/إلى» + بحث نصي) ── #}
   {% filter_bar "ترشيحُ الزيارات" live=True %}
-    {% field "date" "التاريخ" type="date" id="date-filter" value=date_filter|default:'' hx_get=request.path hx_trigger="change" hx_target="#visits-container" hx_swap="innerHTML" hx_include="[name='student']" hx_indicator="#visits-skeleton" hx_push_url="false" %}
-    {% field "student" "اسم الطالب" id="student-filter" grow=True value=student_filter|default:'' placeholder="ابحث باسم الطالب..." hx_get=request.path hx_trigger="input changed delay:400ms, search" hx_target="#visits-container" hx_swap="innerHTML" hx_include="[name='date']" hx_indicator="#visits-skeleton" hx_push_url="false" %}
+    {% field "date_from" "من" type="date" id="date-from-filter" value=date_from hx_get=request.path hx_trigger="change" hx_target="#visits-container" hx_swap="innerHTML" hx_include="[name='date_to'],[name='student']" hx_indicator="#visits-skeleton" hx_push_url="false" %}
+    {% field "date_to" "إلى" type="date" id="date-to-filter" value=date_to hx_get=request.path hx_trigger="change" hx_target="#visits-container" hx_swap="innerHTML" hx_include="[name='date_from'],[name='student']" hx_indicator="#visits-skeleton" hx_push_url="false" %}
+    {% field "student" "اسم الطالب" id="student-filter" grow=True value=student_filter|default:'' placeholder="ابحث باسم الطالب..." hx_get=request.path hx_trigger="input changed delay:400ms, search" hx_target="#visits-container" hx_swap="innerHTML" hx_include="[name='date_from'],[name='date_to']" hx_indicator="#visits-skeleton" hx_push_url="false" %}
     {# مسح الفلاتر #}
-    {% if date_filter or student_filter %}
+    {% if date_from or date_to or student_filter %}
     <div class="filter-actions">
       <a
         href="{% url 'clinic:visits_list' %}"
@@ -30,7 +31,7 @@
         hx-target="#visits-container"
         hx-swap="innerHTML"
         hx-push-url="true"
-        hx-on:click="document.getElementById('date-filter').value=''; document.getElementById('student-filter').value='';"
+        hx-on:click="document.getElementById('date-from-filter').value=''; document.getElementById('date-to-filter').value=''; document.getElementById('student-filter').value='';"
       >{% icon "status_error" %} مسح</a>
     </div>
     {% endif %}

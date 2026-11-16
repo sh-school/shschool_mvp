@@ -4,8 +4,11 @@ from . import (
     admission_views,
     chronic_views,
     guardian_views,
+    list_export_views,
     movement_entry,
+    movement_live,
     movements_views,
+    transfer_edit_views,
     views,
 )
 
@@ -18,6 +21,7 @@ urlpatterns = [
     path("list/", views.student_list, name="student_list"),
     path("export/", views.student_export_excel, name="student_export"),
     path("list/pdf/", views.student_list_pdf, name="student_list_pdf"),
+    path("list/xlsx/", list_export_views.student_list_xlsx, name="student_list_xlsx"),
     path("add/", views.student_add, name="student_add"),
     path("profile/<uuid:student_id>/", views.student_profile, name="student_profile"),
     path(
@@ -31,7 +35,13 @@ urlpatterns = [
     # ── الانتقالات ──
     path("transfers/", views.transfer_list, name="transfer_list"),
     path("transfers/create/", views.transfer_create, name="transfer_create"),
+    path(
+        "transfers/student-search/",
+        transfer_edit_views.transfer_student_search,
+        name="transfer_student_search",
+    ),
     path("transfers/<uuid:pk>/", views.transfer_detail, name="transfer_detail"),
+    path("transfers/<uuid:pk>/edit/", transfer_edit_views.transfer_edit, name="transfer_edit"),
     path("transfers/<uuid:pk>/review/", views.transfer_review, name="transfer_review"),
     # ── طلبات الالتحاق (نموذج 07) ──
     path("admissions/", admission_views.admission_list, name="admission_list"),
@@ -43,6 +53,8 @@ urlpatterns = [
     path("attendance/export/", views.attendance_export_excel, name="attendance_export"),
     path("attendance/pdf/", views.attendance_overview_pdf, name="attendance_pdf"),
     path("movements/", views.student_movements, name="student_movements"),
+    path("movements/live/", movement_live.movements_live, name="movements_live"),
+    path("movements/history/", movement_live.movements_history, name="movements_history"),
     path("movements/leave/", movement_entry.movement_leave, name="movement_leave"),
     path(
         "movements/<uuid:pk>/return/",

@@ -20,13 +20,13 @@ GOLD = "#D4A843"
 STATUS_DANGER = "#dc2626"
 
 #: `--status-warning`
-STATUS_WARNING = "#d97706"
+STATUS_WARNING = "#7b3800"
 
 #: `--status-success`
-STATUS_SUCCESS = "#16a34a"
+STATUS_SUCCESS = "#176239"
 
 #: `--status-info`
-STATUS_INFO = "#2563eb"
+STATUS_INFO = "#215b75"
 
 #: `--accent-orange` — درجةُ خطورةٍ بين المتوسّطة والشديدة
 ACCENT_ORANGE = "#ea580c"
@@ -45,53 +45,53 @@ ACCENT_ROSE = "#e11d48"
 ACCENT_GREEN = "#059669"
 
 #: `--text-muted` — قيمتُه النهاريّة. الرماديُّ الفاتحُ تحت نصٍّ أبيضَ نسبتُه 3.40.
-TEXT_MUTED = "#58606d"
+TEXT_MUTED = "#575055"
 
 #: `--on-fill` — ما يُكتب فوق حشوٍ داكن (ترويسةٌ عنّابيّة).
 ON_FILL = "#ffffff"
 
 #: `--maroon-bg` — قيمتُه النهاريّة: الصفُّ المتناوبُ تحت الترويسة العنّابيّة.
-MAROON_BG = "#fdf2f5"
+MAROON_BG = "#f1d9d5"
 
 #: `--status-warning-bg` — قيمتُه النهاريّة.
-STATUS_WARNING_BG = "#fef3c7"
+STATUS_WARNING_BG = "#fff2eb"
 
 #: `--maroon-light` — الصفُّ الثاني في ترويسة التصدير.
-MAROON_LIGHT = "#b8294e"
+MAROON_LIGHT = "#aa3e55"
 
 #: `--border` — قيمتُه النهاريّة: شبكةُ الجداول المصدَّرة.
-BORDER = "#e5e7eb"
+BORDER = "#d8d2d7"
 
 #: `--text-primary` و`--text-secondary` — قيمتاهما النهاريّتان.
-TEXT_PRIMARY = "#111827"
-TEXT_SECONDARY = "#4b5563"
+TEXT_PRIMARY = "#24202a"
+TEXT_SECONDARY = "#575055"
 
 #: ألوانُ الحالة للنصّ وأسطحُها — القيمُ النهاريّة المقيسة.
 STATUS_DANGER_BG = "#fef2f2"
 STATUS_DANGER_FG = "#ba1c1c"
-STATUS_WARNING_FG = "#92400e"
-STATUS_SUCCESS_FG = "#166534"
-STATUS_INFO_BG = "#dbeafe"
-STATUS_INFO_FG = "#1d4ed8"
+STATUS_WARNING_FG = "#7b3800"
+STATUS_SUCCESS_FG = "#176239"
+STATUS_INFO_BG = "#eaf8ff"
+STATUS_INFO_FG = "#215b75"
 ACCENT_ORANGE_FG = "#c2410c"
 ACCENT_TEAL_FG = "#0f766e"
 
 #: حدودُ الحالات وحشواتُها الداكنة — للوثائق المطبوعة (PDF والبريد) لا للشاشة.
 STATUS_DANGER_BORDER = "#fecaca"
 STATUS_DANGER_DARK = "#991b1b"
-STATUS_SUCCESS_BG = "#dcfce7"
+STATUS_SUCCESS_BG = "#deffe7"
 STATUS_SUCCESS_BORDER = "#86efac"
 STATUS_SUCCESS_DARK = "#166534"
 STATUS_WARNING_BORDER = "#f59e0b"
 STATUS_WARNING_DARK = "#92400e"
 
 #: أسطحُ النهار وحدودُه وأخواتُ العنّابيّ.
-SURFACE = "#ffffff"
-SURFACE_ALT = "#e3e8f0"
-PAGE_BG = "#d7dee8"
-BORDER_STRONG = "#d1d5db"
-MAROON_DARK = "#6b0f2a"
-MAROON_BORDER = "#e8b4c3"
+SURFACE = "#f9f3f7"
+SURFACE_ALT = "#ece6ea"
+PAGE_BG = "#fff8f1"
+BORDER_STRONG = "#888086"
+MAROON_DARK = "#75002b"
+MAROON_BORDER = "#ffc2c9"
 SKYLINE = "#0D4261"
 
 #: ألوانُ الوثائق المطبوعة — `--form-*` و`--print-*`: استمارةُ الإشراف طبقَ
@@ -122,13 +122,13 @@ DEPT_OTHER = "#e8e8e8"
 #: قيمُ الليل لما يُرسم خارجَ `custom.css` ويتبع الوضع — صفحاتُ الخطأ.
 #: الاسمُ اسمُ ثابت النهار، والرمزُ في `TOKEN_OF`؛ ويُقارَن بكتلة `html.dark`.
 DARK = {
-    "PAGE_BG": "#0f172a",
-    "SURFACE": "#1e293b",
-    "BORDER": "#334155",
-    "TEXT_PRIMARY": "#f1f5f9",
-    "TEXT_MUTED": "#94a3b8",
-    "MAROON_BG": "#3b1125",
-    "MAROON_FG": "#f9a8c9",
+    "PAGE_BG": "#1b171a",
+    "SURFACE": "#2c272b",
+    "BORDER": "#575055",
+    "TEXT_PRIMARY": "#f9f3f7",
+    "TEXT_MUTED": "#bfb8bd",
+    "MAROON_BG": "#402c31",
+    "MAROON_FG": "#f49fab",
     "STATUS_DANGER_FG": "#fca5a5",
     "STATUS_WARNING_FG": "#fbbf24",
 }

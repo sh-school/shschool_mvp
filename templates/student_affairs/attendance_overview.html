@@ -19,7 +19,7 @@
     {% if request.user|can_open:"wings:record_index" %}<a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>{% endif %}
     {# «غياب اليوم» مقيَّدٌ بطلبة الجناح للمقيَّد به (operations.daily_absence) — فرابطُه للجميع. #}
     <a href="{% url 'daily_report' %}" class="btn-secondary btn-sm">{% icon "absence" %} غياب اليوم</a>
-    {% export_group doc="templates/student_affairs/attendance_overview_pdf.html" %}
+    {% export_group doc="templates/student_affairs/student_list_pdf.html" %}
     {% export_button "xlsx" "student_affairs:attendance_export" %}{% endexport_button %}
     {% export_button "pdf" "student_affairs:attendance_pdf" %}{% endexport_button %}
     {% endexport_group %}
@@ -80,7 +80,7 @@
       <ol class="plain-list is-scroll">
         {% for s in worst_students %}
           <li class="plain-list__row">
-            <a href="{% url 'student_affairs:student_profile' s.student__id %}" class="plain-list__title sa-link">{{ s.student__full_name }}</a>
+            <a href="{% url 'student_affairs:student_profile' s.id %}" class="plain-list__title sa-link">{{ s.full_name }}</a>
             <span class="status-badge {{ s.badge }}">{{ s.absence_count }} يوم</span>
           </li>
         {% endfor %}

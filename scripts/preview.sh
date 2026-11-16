@@ -371,6 +371,8 @@ map \$http_upgrade \$conn_upgrade { default upgrade; '' close; }
 server {
   listen 80;
   client_max_body_size 64m;
+  # ترويسةُ Cookie تحمل كوكيز كلّ شجرةٍ دُخل بها على localhost (تتراكم)؛ الحدُّ الافتراضي 8k يسقط الطلب 400.
+  large_client_header_buffers 4 32k;
   location / {
     proxy_pass http://$host:$1;
     proxy_http_version 1.1;

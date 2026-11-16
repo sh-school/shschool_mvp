@@ -1,6 +1,13 @@
 from django.urls import path
 
-from . import views, views_daily, views_escalation
+from . import (
+    views,
+    views_daily,
+    views_edit,
+    views_escalation,
+    views_exports,
+    views_proposed_action,
+)
 
 app_name = "behavior"
 
@@ -10,6 +17,11 @@ urlpatterns = [
     path("escalation-preview/", views_escalation.escalation_preview, name="escalation_preview"),
     path("report/", views.report_infraction, name="report_infraction"),
     path("student/<uuid:student_id>/", views.student_behavior_profile, name="student_profile"),
+    path(
+        "student/<uuid:student_id>/xlsx/",
+        views_exports.student_profile_xlsx,
+        name="student_profile_xlsx",
+    ),
     # ✅ لجنة الضبط السلوكي
     path("committee/", views.committee_dashboard, name="committee"),
     path(
@@ -42,6 +54,29 @@ urlpatterns = [
         "infraction/<uuid:infraction_id>/pdf/student/",
         views.infraction_student_pdf,
         name="student_pdf",
+    ),
+    # تعديلُ مخالفةٍ مسجَّلة (بلاغ 5D5D)
+    path(
+        "infraction/<uuid:infraction_id>/edit/",
+        views_edit.infraction_edit,
+        name="infraction_edit",
+    ),
+    # اقتراحُ إجراء المخالفة واعتمادُه (W-20261112-003)
+    path("actions/", views_proposed_action.proposed_actions, name="proposed_actions"),
+    path(
+        "actions/<uuid:infraction_id>/approve/",
+        views_proposed_action.approve_action,
+        name="approve_action",
+    ),
+    path(
+        "actions/<uuid:infraction_id>/followup/",
+        views_proposed_action.followup_action,
+        name="followup_action",
+    ),
+    path(
+        "actions/<uuid:infraction_id>/prepare/",
+        views_proposed_action.prepare_action,
+        name="prepare_action",
     ),
     # ✅ v6: تصعيد + إحالة أمنية
     path(

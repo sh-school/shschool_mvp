@@ -207,8 +207,6 @@ class TestExcelRegistersMaskTheNumber:
         ("route", "kind"),
         [
             ("student_affairs:student_export", "student_affairs.students_xlsx"),
-            ("student_affairs:attendance_export", "student_affairs.attendance_xlsx"),
-            ("student_affairs:behavior_export", "student_affairs.behavior_xlsx"),
         ],
     )
     def test_a_student_affairs_register_is_masked(
@@ -227,14 +225,15 @@ class TestExcelRegistersMaskTheNumber:
         """خلفيٌّ منذ W-20261027-029: الورقةُ من البنّاء، وسطرُ التدقيق من العامل (`<kind>:built`)."""
         from django.http import QueryDict
 
-        from reports.export_builders import build_class_results_xlsx
+        from core.exports import registry
 
-        result = build_class_results_xlsx(
+        result = registry.get("reports.class_results_xlsx").build(
             school, principal_user, QueryDict(f"class_id={klass.pk}&year={klass.academic_year}")
         )
 
+        # كشفٌ جماعيّ بلا عمود رقمٍ شخصيّ أصلاً (عقدُ التصدير المركزيّ): لا الكاملُ ولا المستور.
         cells = _cells(result)
-        assert MASKED in cells and STUDENT_ID not in cells
+        assert MASKED not in cells and STUDENT_ID not in cells
         assert result.rows == 1 and result.full_national_id is False
 
     def test_the_attendance_and_behavior_sheets_are_built_by_the_worker_and_masked(

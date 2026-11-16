@@ -92,11 +92,12 @@ class TestClassResultsXlsxBuilder:
     ):
         from django.core.exceptions import PermissionDenied
 
-        from reports.export_builders import build_class_results_xlsx
+        from core.exports import registry
 
+        build = registry.get("reports.class_results_xlsx").build
         params = QueryDict(f"class_id={class_group.pk}&year=2025-2026")
-        result = build_class_results_xlsx(school, principal_user, params)
+        result = build(school, principal_user, params)
         assert result.content[:2] == b"PK" and result.filename.endswith(".xlsx")
         assert result.full_national_id is False
         with pytest.raises(PermissionDenied):
-            build_class_results_xlsx(school, teacher_user, params)  # معلّمٌ بلا إسنادٍ لهذا الفصل
+            build(school, teacher_user, params)  # معلّمٌ بلا إسنادٍ لهذا الفصل

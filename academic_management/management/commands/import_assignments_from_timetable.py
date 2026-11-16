@@ -82,10 +82,18 @@ class NameRules(NamedTuple):
     teacher_aliases: dict
     sole_holders: dict
     split_subjects: dict
+    #: استيرادُ مواضع PDF (`import_schedule_from_asc_pdf`): أزواجُ (معلّم، شعبة) لا يمنع بندُها `--apply`،
+    #: وكلماتُ عنوانٍ تُهمل من اسم المعلّم في صفحته.
+    asc_ignore: frozenset = frozenset()
+    asc_title_words: tuple = ()
 
 
 def load_name_rules() -> NameRules:
-    data = load_private_json(TIMETABLE_RULES_ENV, TIMETABLE_RULES_DEFAULT)
+    return rules_from_data(load_private_json(TIMETABLE_RULES_ENV, TIMETABLE_RULES_DEFAULT))
+
+
+def rules_from_data(data: object) -> NameRules:
+    """قواعدُ الأسماء من محتوى JSON — الملفُّ الخاصّ أو ما رُفع لتشغيلٍ واحد."""
     data = data if isinstance(data, dict) else {}
 
     def pairs(section):
@@ -96,7 +104,12 @@ def load_name_rules() -> NameRules:
         return out
 
     aliases = {str(k): str(v) for k, v in (data.get("teacher_aliases") or {}).items()}
-    return NameRules(aliases, pairs("sole_holders"), pairs("split_subjects"))
+    ignore = frozenset(
+        (normal(left), right.strip())
+        for left, _, right in (str(item).partition("|") for item in data.get("asc_ignore") or [])
+    )
+    title_words = tuple(str(w) for w in data.get("asc_title_words") or [])
+    return NameRules(aliases, pairs("sole_holders"), pairs("split_subjects"), ignore, title_words)
 
 
 #: بادئةُ وسم الشعبة المقسومة. والوسمُ **واحدٌ لنصفَي الشعبة** لا وسمان:
@@ -280,7 +293,8 @@ class Command(BaseCommand):
                 groups[(teacher, class_code, subject)] = tag
         return counts, splits, groups
 
-    def _match_teachers(self, school, wanted):
+    def _match_teachers(self, school, wanted, aliases: dict | None = None):
+        """مطابقةُ أسماء الجدول بمعلّمي المنصّة. `aliases` من قواعدَ مُمرَّرة (المرفوعةُ)، وغيابُها ملفُّ الخادم."""
         people = {
             m.user
             for m in Membership.objects.filter(
@@ -289,7 +303,8 @@ class Command(BaseCommand):
         }
         by_name = {normal(p.full_name): p for p in people}
         found, missing = {}, []
-        aliases = load_name_rules().teacher_aliases
+        if aliases is None:
+            aliases = load_name_rules().teacher_aliases
         for name in sorted({k[0] for k in wanted}):
             alias = aliases.get(name)
             if alias and normal(alias) in by_name:

@@ -441,6 +441,40 @@ class BehaviorInfraction(models.Model):
         verbose_name="نوع الإيقاف",
     )
 
+    # ── اعتماد الإجراء (W-20261112-003): تُسجَّل المخالفة بلا إجراء، ويقترحه النظام من السلّم ──
+    #: ما جهّزه مشرفُ الجناح: تعهّدٌ خطّيّ أو إحالة. فارغٌ = لم يُجهَّز شيء.
+    PREPARED_KINDS = [("written_pledge", "تعهّد خطّي"), ("referral", "إحالة")]
+    prepared_kind = models.CharField(
+        max_length=20, choices=PREPARED_KINDS, blank=True, default="", verbose_name="ما جُهِّز"
+    )
+    prepared_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="prepared_infractions",
+        verbose_name="جهّزه",
+    )
+    prepared_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت التجهيز")
+    #: من اعتمد الإجراء (المنسّقُ، أو النائبُ الإداريّ إن كان المنسّقُ هو المسجِّل). فارغٌ = بانتظار الاعتماد.
+    action_approved_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_infraction_actions",
+        verbose_name="اعتمد الإجراء",
+    )
+    action_approved_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت الاعتماد")
+    FOLLOWUP_CHOICES = [("done", "تمّ"), ("not_done", "لم يتمّ"), ("partial", "جزئيًّا")]
+    action_followup = models.CharField(
+        max_length=10,
+        choices=FOLLOWUP_CHOICES,
+        blank=True,
+        default="",
+        verbose_name="متابعة التنفيذ",
+    )
+
     # ── الحالة ──
     is_resolved = models.BooleanField(default=False, verbose_name="معالَجة")
 

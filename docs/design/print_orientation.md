@@ -19,9 +19,6 @@
 | `reports/student_result_pdf.html` | نموذج | عمودي | مطابق | من `base_qatar_report` |
 | `student_affairs/student_profile_pdf.html` | نموذج | عمودي | مطابق | من `base_qatar_report` |
 | `student_affairs/student_list_pdf.html` | كشف | أفقي (صار) | مطابق + خانة ختم | من `base_qatar_report` |
-| `student_affairs/attendance_overview_pdf.html` | كشف | أفقي (صار) | مطابق + خانة ختم | من `base_qatar_report` |
-| `student_affairs/behavior_overview_pdf.html` | كشف | أفقي (صار) | مطابق + خانة ختم | من `base_qatar_report` |
-| `student_affairs/tardiness_pdf.html` | كشف | أفقي (صار) | مطابق + خانة ختم | من `base_qatar_report` |
 
 الشعارُ يرثه كلُّ قالبٍ يمتدّ من `reports/base_qatar_report.html` (وسمُ `ministry_logo` فيه)؛ فكلُّ الوثائق الإداريّة بشعار، واستمارةُ الإشراف بوسمها المحلّيّ. والدَّينُ المسجَّل صفر.
 

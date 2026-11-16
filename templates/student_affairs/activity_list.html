@@ -12,7 +12,7 @@
 <div class="exec-dash sa-page">
   {% page_header "الأنشطة والإنجازات" subtitle=year icon="activities" %}
     <a href="{% url 'student_affairs:activity_add' %}" class="btn-primary btn-sm">{% icon "edit_record" %} تسجيل نشاط جديد</a>
-    {% export_group kind="sheet" %}{% export_button "xlsx" "student_affairs:activities_export" %}{% endexport_button %}{% endexport_group %}
+    {% export_group kind="sheet" %}{% export_button "xlsx" "student_affairs:activities_export" %}?{{ request.GET.urlencode }}{% endexport_button %}{% endexport_group %}
   {% endpage_header %}
 
   {# فلتر #}
@@ -31,6 +31,7 @@
       <table>
         <thead>
           <tr>
+            <th class="num">م</th>
             <th>الطالب</th>
             <th>النشاط</th>
             <th class="col-center">النوع</th>
@@ -42,14 +43,15 @@
         <tbody>
           {% for act in activities %}
           <tr>
+            <td class="num">{{ forloop.counter }}</td>
             <td>
-              <a href="{% url 'student_affairs:student_profile' act.student_id %}" class="sa-link">
-                {{ act.student.full_name }}
+              <a href="{% url 'student_affairs:student_profile' act.id %}" class="sa-link">
+                {{ act.full_name }}
               </a>
             </td>
             <td>{{ act.title }}</td>
             <td class="col-center">
-              <span class="status-badge status-info">{{ act.get_activity_type_display }}</span>
+              <span class="status-badge status-info">{{ act.type_label }}</span>
             </td>
             <td class="col-center">
               <span class="status-badge
@@ -57,10 +59,10 @@
                 {% elif act.scope == 'national' %}status-success
                 {% elif act.scope == 'district' %}status-warning
                 {% else %}status-gray{% endif %}">
-                {{ act.get_scope_display }}
+                {{ act.scope_label }}
               </span>
             </td>
-            <td class="num">{{ act.date|date:"d/m/Y" }}</td>
+            <td class="num">{{ act.date_value|date:"d/m/Y" }}</td>
             <td class="col-actions">
               <div class="sa-row-actions">
                 <a href="{% url 'student_affairs:activity_edit' act.pk %}" class="btn-secondary btn-xs" title="تعديل">{% icon "edit_record" %}</a>

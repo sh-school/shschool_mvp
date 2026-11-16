@@ -6,6 +6,7 @@ from . import (
     views_absence_notices,
     views_excuse_document,
     views_exit_permit,
+    views_exports,
     views_ministry,
     views_proposals,
     views_register,
@@ -89,6 +90,13 @@ urlpatterns = [
         name="wing_register",
     ),
     path("ministry/", views_ministry.ministry_report, name="ministry_report"),
+    # تصديرُ الجداول على العقد المركزيّ (W-20261109-007): المحدِّدُ نفسُه للصفحة والملفّ.
+    path("record/register/xlsx/", views_exports.register_xlsx, name="register_xlsx"),
+    path("record/register/pdf/", views_exports.register_pdf, name="register_pdf"),
+    path("ministry/xlsx/", views_exports.ministry_xlsx, name="ministry_xlsx"),
+    path("ministry/pdf/", views_exports.ministry_pdf, name="ministry_pdf"),
+    path("exit-permits/xlsx/", views_exports.exit_permits_xlsx, name="exit_permits_xlsx"),
+    path("exit-permits/pdf/", views_exports.exit_permits_pdf, name="exit_permits_pdf"),
     path("exit-permits/", views_exit_permit.exit_permit_list, name="exit_permit_list"),
     path(
         "exit-permits/new/<uuid:student_id>/",

@@ -26,9 +26,9 @@
       <input type="text" name="section" value="{{ section_filter }}" class="form-control sa-filter__narrow" placeholder="الشعبة" aria-label="الشعبة">
       <button type="submit" class="btn-primary btn-sm">{% icon "search" %} بحث</button>
     </form>
-    {% export_group doc="templates/student_affairs/tardiness_pdf.html" %}
-    {% export_button "xlsx" "student_affairs:tardiness_export" %}?date={{ selected_date|date:'Y-m-d' }}{% endexport_button %}
-    {% export_button "pdf" "student_affairs:tardiness_pdf" %}?date={{ selected_date|date:'Y-m-d' }}{% endexport_button %}
+    {% export_group doc="templates/student_affairs/student_list_pdf.html" %}
+    {% export_button "xlsx" "student_affairs:tardiness_export" %}?date={{ selected_date|date:'Y-m-d' }}&grade={{ grade_filter|urlencode }}&section={{ section_filter|urlencode }}{% endexport_button %}
+    {% export_button "pdf" "student_affairs:tardiness_pdf" %}?date={{ selected_date|date:'Y-m-d' }}&grade={{ grade_filter|urlencode }}&section={{ section_filter|urlencode }}{% endexport_button %}
     {% endexport_group %}
   {% endpage_header %}
 

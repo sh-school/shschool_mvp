@@ -20,8 +20,8 @@
   {% page_header page_title|default:"التقارير الأكاديمية" subtitle=page_subtitle icon="document" %}
     {% if flagship %}<span class="status-badge status-maroon">{% icon "reports" %} تقرير رئيسي</span>{% endif %}
     {% export_group kind="sheet" %}
-    {% export_button "pdf" href="?" %}{{ request.GET.urlencode }}{% if request.GET %}&{% endif %}export=pdf{% endexport_button %}
-    {% export_button "xlsx" href="?" %}{{ request.GET.urlencode }}{% if request.GET %}&{% endif %}export=excel{% endexport_button %}
+    {% export_button "pdf" "academic_management:report_pdf" report_slug %}?{{ request.GET.urlencode }}{% endexport_button %}
+    {% export_button "xlsx" "academic_management:report_xlsx" report_slug %}?{{ request.GET.urlencode }}{% endexport_button %}
     {% endexport_group %}
   {% endpage_header %}
 

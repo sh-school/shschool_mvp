@@ -77,7 +77,8 @@ def test_excel_export_matches_the_filtered_screen(client_as, staff, absent_both)
     ws = load_workbook(io.BytesIO(resp.content)).active
     cells = " ".join(str(c.value) for row in ws.iter_rows() for c in row if c.value)
     assert "طالب الجناح الثاني" in cells and "طالب 0" not in cells
-    assert "أصدر الملف" in cells
+    # ترويسةُ العقد المركزيّ وتذييلُه: من أصدر الملف في تذييله، والعمودُ «م» أوّلُ عمودٍ في الجدول.
+    assert "صدر بواسطة" in cells
 
 
 def test_excel_export_is_denied_to_a_teacher(client_as, teacher, absent_both):

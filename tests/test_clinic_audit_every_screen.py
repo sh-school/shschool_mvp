@@ -44,6 +44,8 @@ NON_HEALTH_VIEWS = {
     "supplies": "قائمةُ مستلزماتٍ (اسمٌ وتاريخٌ وكمّيّة) لا بيانَ شخصيّاً فيها",
     "supply_add": "كتابةٌ بـPOST لصنف مخزونٍ لا بيانَ شخصيّاً فيه",
     "supply_delete": "حذفٌ بـPOST لصنف مخزونٍ لا بيانَ شخصيّاً فيه",
+    "visits_export_xlsx": "تصديرُ المعروض في visits_list؛ يُدقَّق بسطر export عبر respond_export بمعرّفاتٍ فقط",
+    "visits_export_pdf": "كسابقه PDF",
     "referral_receipt": "إيصالٌ يُدقَّق بسطر export عند كلّ فتحٍ بمعرّفاتٍ فقط",
 }
 

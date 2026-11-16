@@ -282,7 +282,13 @@ STRUCTURE_GUARDS = (
     "tests/test_a11y_axe_ratchet.py",
 )
 #: تحتاج قاعدةَ بياناتٍ؛ تُشغَّل إن كانت متاحةً وإلا تُسجَّل «غير مقيس» فلا تُعدّ نجاحاً.
-STRUCTURE_DB_GUARDS = ("tests/test_clinic_audit_every_screen.py",)
+#: وحارسُ «ما يُعرض هو ما يُصدَّر» (W-20261113-003): رابطُ كلّ زرّ تصدير يحمل معاملاتِ ترشيح صفحتِه وملفُّه يطابق صفوفَها.
+STRUCTURE_DB_GUARDS = (
+    "tests/test_clinic_audit_every_screen.py",
+    "tests/test_export_matches_display.py",
+    "tests/test_export_matches_display_rows.py",
+    "tests/test_export_matches_ministry.py",
+)
 STRUCTURE_TIMEOUT_SECONDS = 420
 #: يمنع التداخل: حرّاسُ البنية تشغّل pytest، وفيها اختباراتٌ تستدعي main() فتعيد تشغيلَها بلا نهاية (علّقت shard 5 في #1221).
 NESTED_ENV = "PREPUSH_STRUCTURE_NESTED"

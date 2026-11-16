@@ -43,8 +43,10 @@
   {% load static %}
 
   {# ── Favicon & PWA ── #}
-  <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/v5/favicon.png' %}">
-  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/v5/apple-touch-icon.png' %}">
+  <link rel="icon" type="image/svg+xml" href="{% static 'icons/v7/favicon.svg' %}">
+  <link rel="icon" type="image/png" sizes="256x256" media="(prefers-color-scheme: light)" href="{% static 'icons/v7/favicon.png' %}">
+  <link rel="icon" type="image/png" sizes="48x48" media="(prefers-color-scheme: dark)" href="{% static 'icons/v7/favicon-dark.png' %}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/v7/apple-touch-icon.png' %}">
   {% if user.is_authenticated %}
   <link rel="manifest" href="{% url 'global_manifest' %}">
   {% comment %}
@@ -539,6 +541,10 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   <a href="{% url 'schedule_settings' %}" role="menuitem">{% icon "settings" %} إعدادات الجدول والتفريغات</a>
   {% endif %}
   {% endif %}
+  {# استيرادُ جدول aSc بعد الإعدادات لا بينها: يتتابع «الذكيّة ← العامّ ← الإعدادات» (test_general_schedule_menu_link). يحكمه can_open وحدَه (قدرة schedule.admin). #}
+  {% if request.user|can_open:"asc_import" %}
+  <a href="{% url 'asc_import' %}" role="menuitem">{% icon "document" %} استيراد جدول aSc</a>
+  {% endif %}
   {% comment %}
   شاشةُ الإسناد الواحدة (2026-09-06): حلّت محلّ «إسناد الأنصبة» و«توزيعات المواد
   على الشُّعب» و«التكاليف» — بابٌ واحدٌ على قدر صلاحيّته للمنسّق والنائب والمدير.
@@ -713,6 +719,7 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   <div class="sd-section">
   <div class="sd-label">العيادة المدرسية</div>
   <a href="{% url 'clinic:dashboard' %}">{% icon "clinic" %} لوحة العيادة</a>
+  {% if request.user|can_open:"clinic:visits_list" %}<a href="{% url 'clinic:visits_list' %}">{% icon "document" %} سجل الزيارات</a>{% endif %}
   {% if request.user|can_open:"clinic:needs_care_import" %}
   <a href="{% url 'clinic:needs_care_import' %}">{% icon "document" %} علامة المراعاة</a>
   {% endif %}
@@ -811,6 +818,9 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% endif %}
   {% if request.user|can_open:"behavior:committee" %}
   <a href="{% url 'behavior:committee' %}">{% icon "behavior_team" %} فريق سلوك الطلبة</a>
+  {% endif %}
+  {% if request.user|can_open:"behavior:proposed_actions" %}
+  <a href="{% url 'behavior:proposed_actions' %}">{% icon "behavior_violation" %} إجراءات المخالفات</a>
   {% endif %}
   {% if request.user|can_open:"behavior:statistics" %}
   <a href="{% url 'behavior:statistics' %}">{% icon "stats" %} الإحصائيات</a>
@@ -1012,6 +1022,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% if request.user|can_open:"student_affairs:behavior_overview" %}
   <a href="{% url 'student_affairs:behavior_overview' %}">{% icon "reports" %} ملخص سلوك طلبة الجناح</a>
   {% endif %}
+  {% if request.user|can_open:"behavior:proposed_actions" %}
+  <a href="{% url 'behavior:proposed_actions' %}">{% icon "behavior_violation" %} إجراءات المخالفات</a>
+  {% endif %}
   {% if request.user|can_open:"behavior:statistics" %}
   <a href="{% url 'behavior:statistics' %}">{% icon "stats" %} الإحصائيات</a>
   {% endif %}
@@ -1118,6 +1131,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% if request.user|can_open:"behavior:report_infraction" %}
   <a href="{% url 'behavior:report_infraction' %}">{% icon "behavior_violation" %} تسجيل سلوك</a>
   {% endif %}
+  {% if request.user|can_open:"behavior:proposed_actions" %}
+  <a href="{% url 'behavior:proposed_actions' %}">{% icon "behavior_violation" %} إجراءات المخالفات</a>
+  {% endif %}
   {% if request.user|can_open:"behavior:statistics" %}
   <a href="{% url 'behavior:statistics' %}">{% icon "stats" %} الإحصائيات</a>
   {% endif %}
@@ -1136,6 +1152,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% endif %}
   {% if request.user|can_open:"behavior:report_infraction" %}
   <a href="{% url 'behavior:report_infraction' %}">{% icon "behavior_violation" %} تسجيل مخالفة</a>
+  {% endif %}
+  {% if request.user|can_open:"behavior:proposed_actions" %}
+  <a href="{% url 'behavior:proposed_actions' %}">{% icon "behavior_violation" %} إجراءات المخالفات</a>
   {% endif %}
   {% if request.user|can_open:"behavior:statistics" %}
   <a href="{% url 'behavior:statistics' %}">{% icon "stats" %} الإحصائيات</a>

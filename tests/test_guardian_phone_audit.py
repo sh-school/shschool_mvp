@@ -128,7 +128,7 @@ class TestMostAbsentCountsDays:
         with mock.patch("django.utils.timezone.localdate", return_value=MONDAY):
             response = client_as(supervisor).get(reverse("student_affairs:attendance_overview"))
 
-        rows = [s for s in response.context["worst_students"] if s["student__id"] == kids[0].id]
+        rows = [s for s in response.context["worst_students"] if s["id"] == kids[0].id]
         assert len(rows) == 1
         row = rows[0]
         assert row["absence_count"] == 1

@@ -5,11 +5,13 @@
 """
 
 import io
+from types import SimpleNamespace
 
 import pdfplumber
 import pytest
 from django.urls import reverse
 
+from operations.absence_followup_print import sheets_of
 from operations.models import AbsenceActionLog
 from operations.services import absence_followup as svc
 from tests.operations.test_absence_followup import (  # noqa: F401
@@ -158,3 +160,63 @@ class TestPrintIsServerSide:
         pages = pdfplumber.open(io.BytesIO(resp.content)).pages
         text = " ".join(p.extract_text() or "" for p in pages)
         assert "اسم ولي" not in text and "اسم الأم" not in text
+
+
+def _pages(resp) -> list[str]:
+    return [p.extract_text() or "" for p in pdfplumber.open(io.BytesIO(resp.content)).pages]
+
+
+def _shows(text: str, phrase: str) -> bool:
+    """pdfplumber يُرجع العربيّةَ أحياناً معكوسةً (كعدّ «متابعة» في كشف الأعمدة)، فيُقبل الاتجاهان."""
+    return phrase in text or phrase[::-1] in text
+
+
+class TestSheetsPerClass:
+    def test_sheets_group_by_class_in_grade_then_section_and_skip_empty_classes(self):
+        a = SimpleNamespace(id=1, grade="G8", section="2", short_label="8/2")
+        b = SimpleNamespace(id=2, grade="G8", section="1", short_label="8/1")
+        rows = [{"class_group": a, "n": 1}, {"class_group": b, "n": 2}, {"class_group": a, "n": 3}]
+        sheets = sheets_of(rows)
+        assert [s["label"] for s in sheets] == ["8/1", "8/2"]
+        assert [len(s["rows"]) for s in sheets] == [1, 2]
+        assert [(s["no"], s["total"]) for s in sheets] == [(1, 2), (2, 2)]
+        assert sheets_of([]) == []
+
+    def test_without_the_option_the_pdf_is_one_sheet_without_heads(
+        self, client_as, staff, absent_both
+    ):
+        resp = _get(client_as, staff["principal"], "absence_followup_pdf", page="contact")
+        pages = _pages(resp)
+        assert len(pages) == 1 and not _shows(pages[0], "ورقة")
+
+    def test_with_the_option_each_class_with_absences_starts_its_own_numbered_sheet(
+        self, client_as, staff, absent_both
+    ):
+        resp = _get(
+            client_as, staff["principal"], "absence_followup_pdf", page="contact", split="class"
+        )
+        assert resp.content[:4] == b"%PDF"
+        pages = _pages(resp)
+        assert len(pages) == 2
+        assert _shows(pages[0], "ورقة 1 من 2") and _shows(pages[1], "ورقة 2 من 2")
+
+    def test_the_wing_supervisor_sheets_hold_only_his_own_class(
+        self, supervisor, klass, second_wing, absent_both
+    ):
+        # مشرفُ الجناح لا يملك قدرةَ الطباعة (THREE وحدها)، فيُختبر النطاقُ عند محدِّد الصفوف الذي يغذّي PDF وExcel معاً.
+        from operations.export_tables import shown_rows
+
+        params = {"date": SUNDAY.isoformat(), "split": "class"}
+        sheets = sheets_of(shown_rows(supervisor, params))
+        assert [s["label"] for s in sheets] == [klass.short_label]
+        assert sheets[0]["no"] == 1 and sheets[0]["total"] == 1
+
+    def test_the_viewer_offers_the_per_class_toggle_and_carries_it_to_the_pdf(
+        self, client_as, staff, absent_both
+    ):
+        body = _get(client_as, staff["principal"], PRINT_URL, page="contact").content.decode()
+        assert "كل صف في ورقة" in body and "split=class" in body
+        on = _get(
+            client_as, staff["principal"], PRINT_URL, page="contact", split="class"
+        ).content.decode()
+        assert "الكشف الموحَّد" in on and "split=class" in on

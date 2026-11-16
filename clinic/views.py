@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -13,13 +12,21 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
+from clinic.export import VISITS_PDF_KIND, VISITS_TABLE
 from clinic.health_access import OPEN_REASONS, clean_reason, log_full_open
 from clinic.models import ClinicVisit, HealthRecord
 from clinic.needs_care_services import import_from_request
-from clinic.selectors import class_options, recent_visitors, student_choice
+from clinic.selectors import (
+    class_options,
+    recent_visitors,
+    student_choice,
+    visit_range,
+    visits_for,
+)
 from clinic.services import ClinicService
 from core.audit_repr import masked_repr
 from core.capabilities import capability_required, has_capability
+from core.exports.services import respond_export
 from core.models import AuditLog, CustomUser
 
 
@@ -250,28 +257,15 @@ def confirm_referral_notice(request, visit_id):
 @login_required
 @capability_required("clinic.access")
 def visits_list(request):
-    """قائمة الزيارات بالعيادة"""
-    school = request.user.get_school()
-    visits = (
-        ClinicVisit.objects.filter(school=school).select_related("student").order_by("-visit_date")
-    )
-
-    date_filter = request.GET.get("date")
-    if date_filter:
-        try:
-            filter_date = datetime.strptime(date_filter, "%Y-%m-%d").date()
-            visits = visits.filter(visit_date__date=filter_date)
-        except ValueError:
-            pass
-
-    student_filter = request.GET.get("student")
-    if student_filter:
-        visits = visits.filter(student__full_name__icontains=student_filter)
+    """قائمة الزيارات بالعيادة: مدًى «من/إلى» واسمُ الطالب — والمحدِّدُ في `selectors.visits_for` (يشاركه التصدير)."""
+    visits = visits_for(request.school, request.GET)
+    start, end = visit_range(request.GET)
 
     context = {
         "visits": visits,
-        "date_filter": date_filter,
-        "student_filter": student_filter,
+        "date_from": start.isoformat() if start else "",
+        "date_to": end.isoformat() if end else "",
+        "student_filter": request.GET.get("student", ""),
     }
 
     is_htmx = bool(getattr(request, "htmx", None) or request.headers.get("HX-Request"))
@@ -286,6 +280,18 @@ def visits_list(request):
         return render(request, "clinic/partials/visit_rows.html", context)
 
     return render(request, "clinic/visits_list.html", context)
+
+
+@login_required
+def visits_export_xlsx(request):
+    """سجلُّ الزيارات Excel بالفلاتر نفسها — القدرةُ `clinic.access` يفحصها `respond_export` من السجلّ."""
+    return respond_export(request, VISITS_TABLE.kind, params=request.GET.copy())
+
+
+@login_required
+def visits_export_pdf(request):
+    """سجلُّ الزيارات PDF بالفلاتر نفسها — النوعُ المسجَّلُ `clinic.visits_pdf`."""
+    return respond_export(request, VISITS_PDF_KIND, params=request.GET.copy())
 
 
 @login_required

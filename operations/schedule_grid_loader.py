@@ -90,7 +90,29 @@ def load_grid(school: School, academic_year: str, slots: Iterable[ScheduleSlot])
         "preferences": preferences,
         "orphan_tasks": [t for group in pool.values() for t in group],
         "orphan_cells": orphan_cells,
+        "unjoined": unjoined_doubles(pool, cell_sig, orphan_cells),
     }
+
+
+def unjoined_doubles(pool: dict, cell_sig: dict, orphan_cells: list) -> list:
+    """مهامُّ مزدوجةٌ بقيت بلا موضع وخانتاها المتجاورتان موجودتان بلا إسناد.
+
+    هي مادّةٌ مسجَّلةٌ مزدوجةً وضعها المصدرُ (aSc مثلاً) في حصّتين لا يعدّهما الجرسُ متّصلتين:
+    الحصّتان موجودتان فعلاً، فلا تُحسبان نقصاً. للقراءة وحدَها: لا يُمسّ بها `orphan_*`.
+    """
+    free = set(orphan_cells)
+    found = []
+    for (class_id, sig, span), tasks in pool.items():
+        if span != 2:
+            continue
+        for task in tasks:
+            for day, period in sorted((d, p) for c, d, p in free if c == class_id):
+                cell, nxt = (class_id, day, period), (class_id, day, period + 1)
+                if nxt in free and cell_sig.get(cell) == sig and cell_sig.get(nxt) == sig:
+                    free -= {cell, nxt}
+                    found.append(task)
+                    break
+    return found
 
 
 def entries_of(grid: ScheduleGrid) -> set[tuple]:

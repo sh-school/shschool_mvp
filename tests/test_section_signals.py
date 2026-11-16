@@ -214,6 +214,28 @@ def test_the_page_renders_signals_and_hides_zero_buttons(
     assert "قرب العتبة" not in html and "بندٌ مفتوح</span>" not in html  # الأصفارُ مخفيّة
 
 
+def test_every_signal_has_its_own_centered_column_and_empty_cells_show_a_dash(
+    client, school, group, year, principal_user, teacher_user
+):
+    """[LEGAL] العتبةُ من 08_conduct_policy_2026.md م3.4.1.3 (عبر absence_policy)؛ هنا الشكلُ لا الرقم.
+
+    المصدر: AAdocs/ministry_data/2026_2027/08_conduct_policy_2026.md م3.4.1.3
+    """
+    late = _student(school, group, "م متأخر")
+    _student(school, group, "ن هادئ")
+    _mark(school, group, teacher_user, late, TODAY, "late")
+    client.force_login(principal_user)
+
+    html = client.get(reverse("student_info:section_students", args=[group.id])).content.decode()
+
+    for head in ("حضور اليوم", "الغياب مقابل العتبة", "حالة القيد", "بندٌ مفتوح", "الملفّ"):
+        assert f">{head}</th>" in html
+    assert 'class="table-wrap table-wrap-scroll tbl-cols"' in html  # التوسيطُ مركزيّ لا محلّيّ
+    assert html.count('<th class="fu-name">') == 1 and "text-align" not in html.split("<table")[1]
+    assert "حاضر (متأخر)" in html  # المتأخرُ يُحتسب حاضراً
+    assert 'aria-label="لا إشارة">–</span>' in html  # الخليّةُ بلا إشارة «–» لا فراغ
+
+
 def test_the_page_carries_no_grades_national_id_or_guardian_data(
     client, school, group, year, principal_user
 ):

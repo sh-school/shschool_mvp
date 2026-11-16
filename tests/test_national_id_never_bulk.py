@@ -346,7 +346,9 @@ class TestExcelCarriesTheNumberOnlyWhereItIsMatched:
         assert not stale, f"أسماءٌ في EXCEL_FULL_NUMBER لا دالّةَ لها: {stale}"
 
     def test_the_sweep_found_the_excel_functions(self):
-        assert len(EXCEL_FUNCTIONS) >= 9, sorted(EXCEL_FUNCTIONS)
+        # W-20261109-006: سقطت دالّتان خاصّتان بترحيل الحضور والتأخر إلى العقد المركزيّ (لا رقمَ في جداولهما)
+        # W-20261109-007: سقطت دالّةٌ أخرى بترحيل كشف الدرجات ونتائج الصفّ إلى العقد المركزيّ (لا رقمَ في جدوليهما)
+        assert len(EXCEL_FUNCTIONS) >= 6, sorted(EXCEL_FUNCTIONS)
 
     def test_the_scanner_sees_a_planted_leak(self):
         """ضبطٌ موجب: قراءةٌ خامٌ تُلتقط، ومستورةٌ تمرّ، والاسمُ في `.values()` ليس قراءة."""

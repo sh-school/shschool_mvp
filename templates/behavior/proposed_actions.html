@@ -1,0 +1,99 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}إجراءات المخالفات المقترحة{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="الضبط السلوكي" current="إجراءات المخالفات" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "إجراءات المخالفات المقترحة" subtitle="يقترح النظام الإجراءَ من سلّم الدليل التنظيمي، ولا يصير إجراءً إلّا باعتماد المنسّق" icon="behavior_violation" %}{% endpage_header %}
+
+  {% callout "info" %}لا يُشعَر وليُّ الأمر آليّاً بأيّ إجراء هنا: الاستدعاء والإشعار يدويّان من المنسّق.{% endcallout %}
+
+  {% if not is_specialist %}
+  {% section_card "بانتظار الاعتماد" icon="behavior_violation" empty="لا مخالفات بانتظار الاعتماد" empty_sub="كلّ ما سُجّل اعتُمد إجراؤه" %}{% if queues.pending %}
+    <ul class="plain-list">
+      {% for row in queues.pending %}
+      <li class="plain-list__row">
+        <div class="plain-list__main">
+          <a href="{% url 'behavior:student_profile' row.infraction.student_id %}" class="plain-list__title link-maroon">{{ row.infraction.student.full_name }}</a>
+          <span class="plain-list__sub">
+            الدرجة {{ row.infraction.level }}{% if row.infraction.violation_category %} · [{{ row.infraction.violation_category.code }}] {{ row.infraction.violation_category.name_ar }}{% endif %} · التكرار {{ row.infraction.escalation_step }} · {{ row.infraction.date|date:"d/m/Y" }}
+          </span>
+          {% if row.proposal.action %}
+          <span class="plain-list__sub">المقترح: <strong>{{ row.proposal.label }}</strong>{% if row.proposal.specialist %} (تصل الحالة للاختصاصيَّين){% endif %} — {{ row.proposal.source }}</span>
+          {% else %}
+          <span class="plain-list__sub">{{ row.proposal.reason }}</span>
+          {% endif %}
+          {% if row.infraction.prepared_kind %}<span class="status-badge status-info">جهّز {{ row.infraction.prepared_by.full_name }}: {{ row.infraction.get_prepared_kind_display }}</span>{% endif %}
+        </div>
+        <div class="plain-list__actions">
+          {% if can_prepare %}
+          <form method="post" action="{% url 'behavior:prepare_action' row.infraction.id %}">
+            {% csrf_token %}
+            <select name="kind" class="form-control" aria-label="ما يُجهَّز">
+              {% for value, label in prepare_choices %}<option value="{{ value }}"{% if value == row.infraction.prepared_kind %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn-secondary btn-xs">تجهيز</button>
+          </form>
+          {% endif %}
+          {% if row.can_approve %}
+          <form method="post" action="{% url 'behavior:approve_action' row.infraction.id %}">
+            {% csrf_token %}
+            <select name="action" class="form-control" aria-label="الإجراء المعتمد">
+              {% for value, label in action_choices %}<option value="{{ value }}"{% if value == row.proposal.action %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn-primary btn-xs">اعتماد</button>
+          </form>
+          {% elif is_approver %}
+          <span class="plain-list__sub">يعتمدها غيرُك (من سجّل المخالفة لا يعتمدها)</span>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  {% endif %}{% endsection_card %}
+  {% endif %}
+
+  {% if is_approver %}
+  {% section_card "متابعة التنفيذ" icon="behavior_violation" empty="لا إجراءات بانتظار المتابعة" %}{% if queues.followups %}
+    <ul class="plain-list">
+      {% for row in queues.followups %}
+      <li class="plain-list__row">
+        <div class="plain-list__main">
+          <a href="{% url 'behavior:student_profile' row.infraction.student_id %}" class="plain-list__title link-maroon">{{ row.infraction.student.full_name }}</a>
+          <span class="plain-list__sub">الإجراء المعتمد: {{ row.infraction.action_taken }} · {{ row.infraction.action_approved_at|date:"d/m/Y" }}</span>
+        </div>
+        <form method="post" action="{% url 'behavior:followup_action' row.infraction.id %}" class="plain-list__actions">
+          {% csrf_token %}
+          {% for value, label in followup_choices %}<button type="submit" name="result" value="{{ value }}" class="btn-secondary btn-xs">{{ label }}</button>{% endfor %}
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+  {% endif %}{% endsection_card %}
+  {% endif %}
+
+  {% if is_specialist %}
+  {% section_card "إحالاتٌ لدراسة الحالة" icon="behavior_violation" empty="لا إحالات" empty_sub="تصل هنا الحالات عند العتبات التي ينصّ عليها الدليل" %}{% if queues.referrals %}
+    <ul class="plain-list">
+      {% for row in queues.referrals %}
+      <li class="plain-list__row">
+        <div class="plain-list__main">
+          <a href="{% url 'behavior:student_profile' row.infraction.student_id %}" class="plain-list__title link-maroon">{{ row.infraction.student.full_name }}</a>
+          <span class="plain-list__sub">الدرجة {{ row.infraction.level }} · التكرار {{ row.infraction.escalation_step }} · {{ row.infraction.date|date:"d/m/Y" }}</span>
+          <span class="plain-list__sub">{{ row.proposal.source }}</span>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  {% endif %}{% endsection_card %}
+  {% endif %}
+
+</div>
+{% endblock %}

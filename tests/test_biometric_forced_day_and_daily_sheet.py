@@ -109,10 +109,15 @@ class TestDailySheet:
         response = client.get(reverse(DAILY), {"date": "2026-02-02"})
         assert response.status_code == 200 and "spreadsheetml" in response["Content-Type"]
         sheet = load_workbook(io.BytesIO(response.content)).active
-        rows = {r[0]: r for r in sheet.iter_rows(min_row=2, values_only=True)}
-        assert rows["4201"][3] == "06:50" and rows["4201"][4] == "14:10"
-        assert rows["4202"][2] == "لم يُرصد" and not rows["4202"][3]
-        assert staff.full_name in rows["4201"][1]
+        # عقدُ الجداول: العمودُ الأوّل «م» ثمّ الرقمُ الوظيفيّ؛ وصفوفُ البيانات ما رقمُه في العمود الأوّل عددٌ.
+        rows = {
+            r[1]: r
+            for r in sheet.iter_rows(values_only=True)
+            if isinstance(r[0], int) and r[0] >= 1
+        }
+        assert rows["4201"][4] == "06:50" and rows["4201"][5] == "14:10"
+        assert rows["4202"][3] == "لم يُرصد" and not rows["4202"][4]
+        assert staff.full_name in rows["4201"][2]
 
     def test_the_sheet_never_carries_the_excuse_text(self, client_as, school, secretary):  # noqa: F811
         staff = _person(school, 4203)
