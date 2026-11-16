@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for
-from core.capabilities import capability_required
+from core.capabilities import capability_required, has_capability
 from core.labels import class_label
 from core.models.academic import ClassGroup
 from core.models.user import CustomUser
@@ -27,6 +27,9 @@ from wings.scope import student_scope_for
 
 from .forms import MovementLeaveForm
 from .morning_tardiness import current_session
+
+#: قدرةُ إصدار ورقة الخروج (تُعرَّف في `core/capabilities/wings.py`).
+EXIT_PERMIT_CAP = "wings.exit_permit_request"
 
 
 def entry_context(request, scope) -> dict:
@@ -62,7 +65,7 @@ def entry_context(request, scope) -> dict:
         "entry_students": students,
         "entry_destinations": (
             ClassExit.CURRENT_DESTINATIONS
-            if class_exit.may_record_school_exit(request.user)
+            if has_capability(request.user, EXIT_PERMIT_CAP)
             else ClassExit.SUPERVISOR_DESTINATIONS
         ),
         "entry_now": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
@@ -75,8 +78,8 @@ def entry_context(request, scope) -> dict:
 def movement_leave(request):
     """يسجّل خروجَ طالبٍ إلى وجهةٍ في حصّته الجارية.
 
-    «الخروجُ من المدرسة» مباشرةً بلا طلبٍ ولا موافقة للمشرف (لجناحه) والنائب والمدير؛
-    وغيرُهم 403 من `class_exit.leave`، ويُكتب فيه من سجّل (`allowed_by`) ومتى (`left_at`).
+    «الخروجُ من المدرسة» لا يُنشئ ClassExit: يفتح نموذجَ إصدار ورقة الخروج للطالب (لمن يحمل قدرتها،
+    ومشرفُ الجناح لجناحه)؛ وغيرُهم 403.
     """
     back = redirect("student_affairs:student_movements")
     form = MovementLeaveForm(request.POST)
@@ -93,6 +96,11 @@ def movement_leave(request):
         ).distinct(),
         pk=data["student"],
     )
+    if data["destination"] == "school":
+        # W-20261116-003: «الخروج من المدرسة» ورقةٌ تُصدَر للطالب لا ClassExit، فلا تُشترط حصّةٌ جارية.
+        if not has_capability(request.user, EXIT_PERMIT_CAP):
+            raise PermissionDenied("إصدار ورقة الخروج للمشرف أو المنسّق أو النائبين أو المدير.")
+        return redirect("wings:exit_permit_new", student_id=student.pk)
     left_at = data["left_at"] or timezone.now()
     if timezone.is_naive(left_at):
         left_at = timezone.make_aware(left_at)

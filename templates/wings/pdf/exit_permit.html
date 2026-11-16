@@ -2,7 +2,7 @@
 {% load brand_tags %}
 {% comment %}
   استمارةُ الاستئذان والخروج (W-20261005-010): تُسلَّم للحارس. نصُّها وعناوينُها وتعليماتُها وموقّعوها من
-  `wings/exit_permit_form.py` وحدَه (السياق من `wings/exit_permit_pdf_services.py`: title · subtitle · rows · instructions · signatories · warning)،
+  `wings/exit_permit_form.py` وحدَه (السياق من `wings/exit_permit_pdf_services.py`: title · subtitle · rows · instructions · delivery_line · signatories · warning)،
   فتعديلُ نسخة المدرسة المعتمدة لا يمسّ هذا القالب. لا رقمَ شخصيّاً ولا نسخةَ بطاقة.
 {% endcomment %}
 
@@ -12,14 +12,15 @@
 .running-footer .ft-ministry { font-size: 8.5pt; }
 .doc-body { padding: 4px 8px 8px; }
 .report-title-bar { font-size: 12pt; padding: 4px 8px; }
-.permit { width: 100%; border-collapse: collapse; font-size: 9pt; line-height: 1.25; }
-.permit th { width: 30%; text-align: start; background: {% brand_color "MAROON_BG" %}; color: {% brand_color "MAROON" %}; padding: 2px 6px; border: 1px solid {% brand_color "BORDER_STRONG" %}; }
-.permit td { padding: 2px 6px; border: 1px solid {% brand_color "BORDER_STRONG" %}; color: {% brand_color "TEXT_PRIMARY" %}; font-weight: 600; }
+.permit { width: 100%; border-collapse: collapse; font-size: 8.5pt; line-height: 1.15; }
+.permit th { width: 30%; text-align: start; background: {% brand_color "MAROON_BG" %}; color: {% brand_color "MAROON" %}; padding: 1px 5px; border: 1px solid {% brand_color "BORDER_STRONG" %}; }
+.permit td { padding: 1px 5px; border: 1px solid {% brand_color "BORDER_STRONG" %}; color: {% brand_color "TEXT_PRIMARY" %}; font-weight: 600; }
 .warn { margin: 5px 0; font-size: 9.5pt; font-weight: 700; color: {% brand_color "STATUS_WARNING_DARK" %}; }
-.notes { margin: 4px 0 0; padding-inline-start: 14px; font-size: 8pt; color: {% brand_color "TEXT_SECONDARY" %}; }
-.sigs { display: flex; gap: 8px; margin-top: 10px; }
+.notes { margin: 4px 0 0; padding-inline-start: 14px; font-size: 7.5pt; color: {% brand_color "TEXT_SECONDARY" %}; }
+.delivery { margin: 6px 0 0; font-size: 9.5pt; font-weight: 700; color: {% brand_color "MAROON" %}; }
+.sigs { display: flex; gap: 8px; margin-top: 6px; }
 .sig { flex: 1; text-align: center; font-size: 9.5pt; }
-.sig-space { height: 12mm; border-bottom: 1px solid {% brand_color "TEXT_PRIMARY" %}; }
+.sig-space { height: 9mm; border-bottom: 1px solid {% brand_color "TEXT_PRIMARY" %}; }
 {% endblock %}
 
 {% block emblem %}{% endblock %}
@@ -34,6 +35,7 @@
   </table>
   {% if warning %}<p class="warn">{{ warning }}</p>{% endif %}
   <ol class="notes">{% for line in instructions %}<li>{{ line }}</li>{% endfor %}</ol>
+  <p class="delivery">{{ delivery_line }}</p>
   <div class="sigs">
     {% for key, label in signatories %}
     <div class="sig"><div class="sig-space"></div>{{ label }}</div>

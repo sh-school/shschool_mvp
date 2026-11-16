@@ -1,6 +1,8 @@
 """إذنُ خروج الطالب من المدرسة — استمارةٌ تُطبع للحارس وسجلٌّ بها (W-20261005-010).
 
-الإذنُ يُطلب ثمّ يُعتمد، ولا يعتمد بلا تسجيل حضور وليّ الأمر. **لا تُحفظ نسخةُ بطاقة الوليّ ولا رقمُها**
+(W-20261116-003) الورقةُ تُصدَر وتُطبع مباشرةً بلا اعتماد في المنصّة ويوقّعها بالقلم النائبُ الإداريّ؛
+وحضورُ الوليّ ليس شرطاً: `guardian_method` حضورٌ أو اتّصال، و`approved` القديمةُ تبقى مقروءة.
+(سابقاً: الإذنُ يُطلب ثمّ يُعتمد، ولا يعتمد بلا تسجيل حضور وليّ الأمر.) **لا تُحفظ نسخةُ بطاقة الوليّ ولا رقمُها**
 (قرارُ المالك 2026-10-05): يُسجَّل حضورُه منطقيّاً فقط. وعددُ الحصص المكتملة يُحفظ لحظةَ الطلب للتحذير
 دون تغيير الحضور (ربطُ الأثر بالحضور لاحقاً مع D-201م).
 """
@@ -8,6 +10,7 @@
 from django.db import models
 from django.utils import timezone
 
+from core.fields import EncryptedTextField
 from core.models import ClassGroup, CustomUser, School
 
 from .common import _uuid
@@ -20,7 +23,10 @@ class ExitPermit(models.Model):
         ("official", "مراجعة جهة رسمية"),
         ("other", "سبب آخر"),
     ]
-    STATUSES = [("requested", "مطلوب"), ("approved", "معتمَد")]
+    #: `issued` الحالةُ الجديدة؛ و`requested`/`approved` قديمتان تبقيان مقروءتين.
+    STATUSES = [("issued", "صادرة"), ("requested", "مطلوب"), ("approved", "معتمَد")]
+    #: طريقةُ موافقة وليّ الأمر: حضر ببطاقته (بلا حفظ صورةٍ ولا رقم) أو اتّصالٌ هاتفيّ.
+    GUARDIAN_METHODS = [("present", "حضر ببطاقته"), ("phone", "اتّصال هاتفيّ")]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(
@@ -44,8 +50,30 @@ class ExitPermit(models.Model):
         default=0, verbose_name="الحصص المكتملة عند الطلب"
     )
     guardian_present = models.BooleanField(default=False, verbose_name="حضر وليّ الأمر ببطاقته")
+    #: فارغةٌ في الصفوف القديمة (حضورُها في `guardian_present`).
+    guardian_method = models.CharField(
+        max_length=8,
+        choices=GUARDIAN_METHODS,
+        blank=True,
+        default="",
+        db_default="",
+        verbose_name="طريقة موافقة وليّ الأمر",
+    )
+    #: رقمُ الاتّصال مشفَّر؛ ولا يدخل AuditLog إلا مقنَّعاً، ويُمحى بمحو الطالب (الصفُّ كلُّه).
+    call_phone = EncryptedTextField(
+        blank=True, default="", db_default="", verbose_name="رقم الاتّصال"
+    )
+    call_phone_registered = models.BooleanField(
+        default=True, db_default=True, verbose_name="الرقمُ مسجَّلٌ لوليّ الأمر"
+    )
+    caller_name = models.CharField(
+        max_length=150, blank=True, default="", db_default="", verbose_name="اسم المتصل"
+    )
+    caller_relation = models.CharField(
+        max_length=40, blank=True, default="", db_default="", verbose_name="صلة المتصل"
+    )
     status = models.CharField(
-        max_length=10, choices=STATUSES, default="requested", verbose_name="الحالة"
+        max_length=10, choices=STATUSES, default="issued", verbose_name="الحالة"
     )
     requested_by = models.ForeignKey(
         CustomUser,

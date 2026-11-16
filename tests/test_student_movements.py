@@ -547,7 +547,14 @@ def _leave_school(client, user, student):
     )
 
 
-def test_principal_records_school_exit_for_any_student(
+def _opens_permit_form(resp, student):
+    """«الخروج من المدرسة» يفتح نموذج إصدار الورقة للطالب ولا يُنشئ ClassExit (W-20261116-003)."""
+    return resp.status_code == 302 and resp.url == reverse(
+        "wings:exit_permit_new", args=[student.pk]
+    )
+
+
+def test_principal_school_exit_opens_the_permit_form_not_a_class_exit(
     client, school, principal_user, teacher_user, wing_a
 ):
     klass, _ = wing_a
@@ -555,53 +562,45 @@ def test_principal_records_school_exit_for_any_student(
 
     resp = _leave_school(client, principal_user, student)
 
-    assert resp.status_code == 302
-    exit_ = ClassExit.objects.get(student=student)
-    assert exit_.destination == "school"
-    assert exit_.allowed_by == principal_user and exit_.left_at is not None
+    assert _opens_permit_form(resp, student)
+    assert not ClassExit.objects.exists()
 
 
-def test_vice_admin_records_school_exit(client, school, teacher_user, wing_a):
+def test_vice_admin_school_exit_opens_the_permit_form(client, school, teacher_user, wing_a):
     klass, _ = wing_a
     student = _enrolled_with_session(school, klass, teacher_user, "طالب النائب", "29400000071")
     vice = UserFactory(full_name="النائب الإداري", national_id="29400000072")
     MembershipFactory(user=vice, school=school, role=RoleFactory(school=school, name="vice_admin"))
 
-    assert _leave_school(client, vice, student).status_code == 302
-    assert ClassExit.objects.get(student=student).destination == "school"
+    assert _opens_permit_form(_leave_school(client, vice, student), student)
+    assert not ClassExit.objects.exists()
 
 
-def test_supervisor_records_school_exit_for_own_wing_only(
-    client, school, teacher_user, wing_a, wing_b
-):
+def test_supervisor_school_exit_for_own_wing_only(client, school, teacher_user, wing_a, wing_b):
     klass_a, supervisor_a = wing_a
     klass_b, _ = wing_b
     own = _enrolled_with_session(school, klass_a, teacher_user, "طالب جناحي", "29400000073")
     other_teacher = UserFactory(national_id="29400000080")
     foreign = _enrolled_with_session(school, klass_b, other_teacher, "طالب غيري", "29400000074")
 
-    assert _leave_school(client, supervisor_a, own).status_code == 302
+    assert _opens_permit_form(_leave_school(client, supervisor_a, own), own)
     assert _leave_school(client, supervisor_a, foreign).status_code == 404
-    assert ClassExit.objects.get().student == own
+    assert not ClassExit.objects.exists()
 
 
-def test_school_exit_without_current_session_is_refused_in_arabic(
-    client, school, principal_user, wing_a
-):
+def test_school_exit_needs_no_current_session(client, school, principal_user, wing_a):
     klass, _ = wing_a
     student = UserFactory(full_name="طالب بلا حصة 2", national_id="29400000075")
     StudentEnrollmentFactory(student=student, class_group=klass)
     client.force_login(principal_user)
 
-    resp = client.post(
-        reverse(LEAVE), {"student": student.pk, "destination": "school"}, follow=True
-    )
+    resp = client.post(reverse(LEAVE), {"student": student.pk, "destination": "school"})
 
+    assert _opens_permit_form(resp, student)
     assert not ClassExit.objects.exists()
-    assert "لا حصّةَ جاريةً" in resp.content.decode()
 
 
-def test_coordinator_cannot_record_school_exit(
+def test_coordinator_school_exit_opens_the_permit_form(
     client, school, teacher_user, student_affairs_coordinator_user, wing_a
 ):
     klass, _ = wing_a
@@ -609,7 +608,7 @@ def test_coordinator_cannot_record_school_exit(
 
     resp = _leave_school(client, student_affairs_coordinator_user, student)
 
-    assert resp.status_code == 403
+    assert _opens_permit_form(resp, student)
     assert not ClassExit.objects.exists()
 
 

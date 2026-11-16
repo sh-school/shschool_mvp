@@ -1,6 +1,6 @@
-"""استمارةُ إذن الخروج PDF للحارس — نصُّها كلُّه من `exit_permit_form` (W-20261005-010).
+"""استمارةُ ورقة الخروج PDF للحارس — نصُّها كلُّه من `exit_permit_form` (W-20261005-010، W-20261116-003).
 
-لا يُطبع إلا إذنٌ **معتمَد** (حضورُ الوليّ مسجَّل). وكلُّ طباعةٍ سطرُ `AuditLog` بالمعرّف المقنَّع، بلا اسمٍ ولا رقم.
+لا تُطبع ورقةٌ بلا طريقة موافقة (`is_printable`). وكلُّ طباعةٍ سطرُ `AuditLog` بالمعرّف المقنَّع، بلا اسمٍ ولا رقم.
 """
 
 from __future__ import annotations
@@ -15,10 +15,34 @@ from core.models import AuditLog
 from core.pdf_utils import render_pdf_bytes
 
 from . import exit_permit_form as form
-from .exit_permit_services import PermitDeniedError, low_periods, own_permit
+from .exit_permit_services import PermitDeniedError, is_printable, low_periods, own_permit
 
 TEMPLATE = "wings/pdf/exit_permit.html"
 KIND = "wings.exit_permit_form"
+
+
+def guardian_rows(permit: Any) -> list[tuple[str, Any]]:
+    """سطورُ موافقة الوليّ: الطريقةُ وحدَها للحضور، ومعها بياناتُ الاتّصال للهاتف (الموظفُ والوقتُ تلقائيّان)."""
+    labels = form.FIELD_LABELS
+    if permit.guardian_method == "phone":
+        phone = permit.call_phone + (
+            "" if permit.call_phone_registered else f" {form.UNREGISTERED_PHONE}"
+        )
+        caller = " — ".join(x for x in (permit.caller_name, permit.caller_relation) if x)
+        return [
+            (labels["guardian"], form.GUARDIAN_PHONE),
+            (labels["call_phone"], phone),
+            (labels["caller"], caller),
+            (labels["issued_by"], permit.requested_by.full_name if permit.requested_by else "—"),
+            (labels["issued_at"], permit.created_at),
+        ]
+    present = permit.guardian_method == "present" or permit.guardian_present
+    return [
+        (
+            labels["guardian"],
+            form.GUARDIAN_PRESENT_YES if present else form.GUARDIAN_PRESENT_NO,
+        )
+    ]
 
 
 def form_context(permit: Any) -> dict:
@@ -33,11 +57,7 @@ def form_context(permit: Any) -> dict:
         (labels["note"], permit.note or "—"),
         (labels["exit_at"], permit.exit_at),
         (labels["periods"], permit.completed_periods),
-        (
-            labels["guardian"],
-            form.GUARDIAN_PRESENT_YES if permit.guardian_present else form.GUARDIAN_PRESENT_NO,
-        ),
-        (labels["approved_by"], permit.approved_by.full_name if permit.approved_by else "—"),
+        *guardian_rows(permit),
     ]
     warning = (
         (form.LOW_PERIODS_WARNING % form.MIN_PERIODS_FOR_ATTENDANCE) if low_periods(permit) else ""
@@ -47,6 +67,7 @@ def form_context(permit: Any) -> dict:
         "subtitle": form.FORM_SUBTITLE,
         "rows": rows,
         "instructions": form.INSTRUCTIONS,
+        "delivery_line": form.DELIVERY_LINE,
         "signatories": form.SIGNATORIES,
         "warning": warning,
     }
@@ -70,9 +91,9 @@ def render_permit(user: Any, permit: Any) -> bytes:
 
 
 def permit_pdf(user: Any, school: Any, permit_id: Any) -> tuple[bytes, str]:
-    """(بايتات الاستمارة، اسمُ الملفّ) لإذنٍ معتمَد في نطاق المستخدم؛ وغيرُ ذلك `PermitDeniedError`."""
-    permit = own_permit(user, school, permit_id, approve=False)
-    if permit.status != "approved":
+    """(بايتات الاستمارة، اسمُ الملفّ) لورقةٍ مكتملةِ الموافقة في نطاق المستخدم؛ وغيرُ ذلك `PermitDeniedError`."""
+    permit = own_permit(user, school, permit_id)
+    if not is_printable(permit):
         raise PermitDeniedError
     filename = generate_export_filename("wings", f"exit-permit-{permit.sequence}", "pdf")
     return render_permit(user, permit), filename
