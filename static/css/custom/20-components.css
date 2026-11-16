@@ -2114,10 +2114,14 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
   flex-wrap: wrap;
 }
 .breadcrumbs a {
-  /* 24px لكلّ مؤشّر: D1، DBT-44 */
+  /* 24px لكلّ مؤشّر: D1، DBT-44 — وحشوٌ رأسيٌّ فوقها يرفع الهدفَ إلى 28px لا عند الحدّ تماماً (WCAG 2.5.8)،
+     وهامشٌ سالبٌ يساويه فلا يكبر صفُّ الفتات ولا ارتفاعُ الصفحة. */
   display: inline-flex;
   align-items: center;
+  box-sizing: content-box;
   min-block-size: 24px;
+  padding-block: var(--sp-0-5);
+  margin-block: calc(-1 * var(--sp-0-5));
   color: var(--maroon-fg);
   text-decoration: none;
   font-weight: 500;

@@ -98,7 +98,7 @@ paths:
 | `--scrollbar-thumb-hover` | `var(--maroon-light)` | `#64748b` |
 | `--placeholder` | `#6b7280` | `var(--text-muted)` |
 | `--placeholder-base` | `#9ca3af` | — |
-| `--table-stripe` | `#eef1f5` | `#1a1f35` |
+| `--table-stripe` | `#eef1f5` | `color-mix(in srgb, var(--surface) 50%, var(--surface-alt))` |
 | `--field-border` | `#d1d5db` | `#d1d5db` |
 | `--ink-empty` | `#d1d5db` | `#d1d5db` |
 | `--skeleton-base` | `#f0f0f0` | `var(--surface)` |

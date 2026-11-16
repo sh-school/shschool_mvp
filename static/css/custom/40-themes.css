@@ -112,7 +112,7 @@ html.dark {
   --loading-veil:        rgba(15,23,42,.4);
 
   --header-bg:           #1a0a12;
-  --nav-bg:              #2c2922;
+  --nav-bg:              #2c272b;   /* قيمةُ `--surface` الليليّة نفسُها: رماديٌّ دافئٌ لا زيتونيّ (تقييم الإنتاج 2026-11-16)؛ حرفيّةٌ لتطابق admin_theme.css */
   --nav-fg:              var(--on-fill);
   --nav-hover:           color-mix(in srgb, var(--on-fill) 12%, transparent);
   --nav-mark:            var(--gold);
@@ -128,7 +128,7 @@ html.dark {
   --scrollbar-track:     var(--surface-alt);
   --scrollbar-thumb-hover: #64748b;
   --placeholder:         var(--text-muted);
-  --table-stripe:        #1a1f35;
+  --table-stripe:        color-mix(in srgb, var(--surface) 50%, var(--surface-alt));   /* درجةٌ بين السطحين الدافئين لا أزرقُ بارد (تقييم الإنتاج 2026-11-16) */
 
   --surface-sunken:      var(--surface-alt);
   --field-border:        #d1d5db;
@@ -316,11 +316,12 @@ html.dark .login-input:focus {
   background: var(--surface);
   box-shadow: 0 0 0 3px var(--login-input-focus-halo);
 }
+/* عنّابيُّ الهويّة نفسُه ليلاً (9.6 مع الأبيض)، والأفتحُ للمرور (5.95) — تقييم الإنتاج 2026-11-16. */
 html.dark .login-btn {
-  background: var(--maroon-light);
+  background: var(--maroon);
 }
 html.dark .login-btn:hover {
-  background: var(--maroon);
+  background: var(--maroon-light);
 }
 html.dark .login-help-title { color: var(--text-muted); }
 
