@@ -24,6 +24,7 @@ REMOVED = ("logoMaroon.png", "logowhite.png", "emblem.svg", "emblem-white.svg", 
 BRAND_FILES = {
     "azkia-logo.svg",
     "sufyan-logo.png",
+    "shahaniya-mark-white.svg",
     "shahaniya-mark-small-reversed.svg",
     "shahaniya-mark-small.svg",
 }

@@ -1,6 +1,6 @@
 """شعارُ المنصّة «الكامل بالكتاب» على الشاشة وشعارُ الوزارة للمخرجات وحدَها (W-20261014-009، قرار المالك 10-14؛ يحلّ محلّ «ش» v3).
 
-شاشةً: `static/brand/shahaniya-mark-small-reversed.svg` على شريحةٍ داكنةٍ محايدة (CSS) لا على العنّابيّ. مخرجاتٍ (PDF وطباعة وExcel): شعارُ الوزارة
+شاشةً: `static/brand/shahaniya-mark-white.svg` على شريحةٍ داكنةٍ محايدة (CSS) لا على العنّابيّ. مخرجاتٍ (PDF وطباعة وExcel): شعارُ الوزارة
 الأصليّ أعلى وسط الترويسة واسمُ المدرسة تحته، بلا سطرِ نصّ الوزارة. وحارسُ «لا شعارَ وزارةٍ في المنصّة» في `test_ministry_logo_exports_only.py`.
 """
 
@@ -40,16 +40,16 @@ def _blend(over: str, under: str, alpha: float) -> str:
 # ── الأصلُ والوسم ─────────────────────────────────────────────────────────
 
 
-def test_the_source_is_the_small_reversed_mark_svg_with_a_viewbox():
-    svg = (ROOT / "static/brand/shahaniya-mark-small-reversed.svg").read_text(encoding="utf-8")
-    assert school_logo.LOGO_STATIC_PATH == "brand/shahaniya-mark-small-reversed.svg"
+def test_the_source_is_the_full_white_mark_svg_with_a_viewbox():
+    svg = (ROOT / "static/brand/shahaniya-mark-white.svg").read_text(encoding="utf-8")
+    assert school_logo.LOGO_STATIC_PATH == "brand/shahaniya-mark-white.svg"
     assert re.search(r'viewBox="[\d.-]+ [\d.-]+ [\d.]+ [\d.]+"', svg)
 
 
 def test_the_tag_gives_the_static_link_on_screen():
     on_screen = Template('{% load school_logo %}{% school_logo "nav" %}').render(Context())
     assert 'class="school-logo school-logo--nav"' in on_screen
-    assert "brand/shahaniya-mark-small-reversed.svg" in on_screen
+    assert "brand/shahaniya-mark-white.svg" in on_screen
     assert 'alt=""' in on_screen  # زخرفيٌّ: اسمُ المدرسة نصٌّ يجاوره
     assert "data:" not in on_screen
 
