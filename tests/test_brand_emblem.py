@@ -1,6 +1,6 @@
 """أيقوناتُ التطبيق: المشتقُّ «قلمٌ وشعلة» على شريحةٍ داكنةٍ محايدة (W-20261014-009، قرار المالك 10-14؛ يحلّ محلّ «ش» v3).
 
-- أيقوناتُ `static/icons/v6/` مرسومةٌ من `static/brand/shahaniya-mark-white.svg` على `core.brand.DARK["SURFACE"]` لا على العنّابيّ.
+- أيقوناتُ `static/icons/v7/` مرسومةٌ من `static/brand/shahaniya-mark-white.svg` على `core.brand.DARK["SURFACE"]` لا على العنّابيّ.
 - ما يبقى في `static/brand/` توقيعُ المطوّر وشعارا المنصّة (الكاملُ والمشتقّ)؛ ولا ملفَّ شعارِ وزارةٍ فيه.
 - شارةُ الإشعار أبيضُ على شفّاف يقصّها النظام، وتباينُ الشريحة مع الأيقونة محفوظ.
 - لا مرجعَ في الشيفرة إلى مجلّدٍ سابقٍ (`v2`/`v3`)، وكلُّ أيقونةٍ مذكورةٍ بمسارها موجودة.
@@ -13,12 +13,12 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from core.brand import DARK, ON_FILL
+from core.brand import DARK, MAROON, ON_FILL, PAGE_BG
 from core.management.commands.build_app_icons import ICON_VERSION
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BRAND = ROOT / "static/brand"
-ICONS = ROOT / "static/icons/v6"
+ICONS = ROOT / "static/icons/v7"
 
 REMOVED = ("logoMaroon.png", "logowhite.png", "emblem.svg", "emblem-white.svg", "ministry_logo.png")
 BRAND_FILES = {
@@ -28,7 +28,7 @@ BRAND_FILES = {
     "shahaniya-mark-white.svg",
     "shahaniya-mark.svg",
 }
-TRANSPARENT_ICONS = ("icon-192.png", "icon-512.png")
+ANY_ICONS = ("icon-192.png", "icon-512.png")
 SQUARE_ICONS = (
     "icon-maskable-192.png",
     "icon-maskable-512.png",
@@ -44,7 +44,7 @@ def _rgb(hex_colour: str) -> tuple[int, int, int]:
 
 
 def test_the_icon_folder_is_the_current_version():
-    assert ICON_VERSION == "v6" and ICONS.is_dir()
+    assert ICON_VERSION == "v7" and ICONS.is_dir()
 
 
 def test_the_ministry_logo_files_are_not_in_the_static_brand_folder():
@@ -86,13 +86,19 @@ def test_the_symbol_stays_inside_the_safe_circle(name, safe):
     assert 0.36 <= radius <= safe, (name, radius)
 
 
-@pytest.mark.parametrize("name", TRANSPARENT_ICONS)
-def test_the_any_icons_have_no_background_plate(name):
-    """أيقونتا `any` بلا خلفيّةٍ (قرارُ المالك 10-15): الزوايا شفّافةٌ والقلمُ معتمٌ في الوسط."""
+@pytest.mark.parametrize("name", ANY_ICONS)
+def test_the_any_icons_sit_on_a_cream_plate_with_rounded_corners(name):
+    """أيقونتا `any` على لوحٍ كريميٍّ مدوَّر الزوايا (إذنُ المالك 2026-11-16؛ كانتا شفّافتَين فخفت العنّابيُّ على شريطٍ داكن)."""
     pixels = np.array(Image.open(ICONS / name).convert("RGBA"))
-    assert pixels[0, 0, 3] == 0 and pixels[-1, -1, 3] == 0
-    assert (pixels[:, :, 3] > 250).any(), "القلمُ مرئيّ"
-    assert (pixels[:, :, 3] == 0).mean() > 0.5, "أغلبُ المربّع شفّاف"
+    side = pixels.shape[0]
+    assert pixels[0, 0, 3] == 0 and pixels[-1, -1, 3] == 0, "الزوايا مدوَّرةٌ شفّافة"
+    assert (pixels[:, :, 3] > 250).mean() > 0.9, "اللوحُ معتمٌ يملأ المربّع"
+    plate = pixels[side // 2, 4]
+    assert (
+        tuple(int(c) for c in plate[:3]) == _rgb(PAGE_BG) and plate[3] == 255
+    ), "حافّةُ الوسط بلون اللوح"
+    maroon = np.abs(pixels[:, :, :3].astype(int) - np.array(_rgb(MAROON))).sum(axis=2) < 24
+    assert maroon.mean() > 0.02, "الرمزُ العنّابيُّ مرئيٌّ على اللوح"
 
 
 def test_the_badge_is_the_whole_symbol_in_white_on_transparent():
@@ -173,9 +179,9 @@ def test_the_tab_icon_turns_white_on_a_dark_tab():
     for template in ("templates/base/base.html", "templates/auth/login.html"):
         head = (ROOT / template).read_text(encoding="utf-8")
         svg_at, light_at, dark_at = (
-            head.index("icons/v6/favicon.svg"),
-            head.index("icons/v6/favicon.png"),
-            head.index("icons/v6/favicon-dark.png"),
+            head.index("icons/v7/favicon.svg"),
+            head.index("icons/v7/favicon.png"),
+            head.index("icons/v7/favicon-dark.png"),
         )
         assert svg_at < light_at < dark_at, template
         assert 'media="(prefers-color-scheme: dark)"' in head

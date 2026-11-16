@@ -98,7 +98,7 @@ def test_the_cropped_icon_is_a_separate_file(manifest):
     ],
 )
 def test_cropped_icons_are_opaque_and_the_emblem_fits_the_safe_circle(name, safe_radius):
-    # الأيقونتان `any` شفّافتان عمداً (قرارُ المالك 10-15) فلا تدخلان هنا؛ المقصوصةُ وحدَها تلزمها خلفيّةٌ معتمة.
+    # الأيقونتان `any` على لوحٍ مدوَّر الزوايا (شفّافُ الزوايا) فلا تدخلان هنا؛ المقصوصةُ وحدَها تلزمها خلفيّةٌ معتمةٌ كاملة.
     icon = Image.open(ROOT / "static" / "icons" / "v5" / name)
     assert icon.mode == "RGB", "الشفّافُ يُملأ بالأسود في iOS وبلونٍ داكنٍ في أندرويد"
 
@@ -113,7 +113,7 @@ def test_cropped_icons_are_opaque_and_the_emblem_fits_the_safe_circle(name, safe
 
 @pytest.mark.parametrize("template", ["templates/base/base.html", "templates/auth/login.html"])
 def test_ios_home_screen_uses_the_opaque_icon(template):
-    assert "icons/v6/apple-touch-icon.png" in _read(template)
+    assert "icons/v7/apple-touch-icon.png" in _read(template)
 
 
 @pytest.mark.parametrize("source", ["static/js/base.js", "templates/parents/dashboard.html"])

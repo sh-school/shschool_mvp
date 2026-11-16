@@ -53,7 +53,7 @@ paths:
 |---|---|---|
 | `--footer-brand-chip-bg` | `#ffffff` | `#ffffff` |
 | `--header-bg` | `var(--maroon)` | `#1a0a12` |
-| `--nav-bg` | `#f4f0e7` | `#2c2922` |
+| `--nav-bg` | `#f4f0e7` | `#2c272b` |
 | `--nav-fg` | `var(--maroon-dark)` | `var(--on-fill)` |
 | `--nav-hover` | `color-mix(in srgb, var(--maroon) 12%, transparent)` | `color-mix(in srgb, var(--on-fill) 12%, transparent)` |
 | `--nav-mark` | `var(--maroon)` | `var(--gold)` |

@@ -137,7 +137,7 @@ html[data-theme="dark"] {
   --message-warning-bg: #3a2a08;
   --message-error-bg: #3b1114;
   --darkened-bg: #2c272b;
-  --nav-bg: #2c2922;
+  --nav-bg: #2c272b;
   --nav-fg: #fff;
   --nav-hover: color-mix(in srgb, #fff 12%, transparent);
   --nav-mark: var(--accent);

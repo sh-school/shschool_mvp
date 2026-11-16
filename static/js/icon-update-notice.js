@@ -15,7 +15,7 @@
   'use strict';
 
   var KEY = 'schoolos.iconV';
-  var VERSION = '6'; // يطابق مجلّد static/icons/v6/ (الشين وحده، هوية الشحانية v5)
+  var VERSION = '7'; // يطابق مجلّد static/icons/v7/ (هوية الشحانية v5؛ أيقونتا any على لوحٍ كريميّ)
   var STANDALONE = '(display-mode: standalone), (display-mode: fullscreen)';
 
   function read() {
