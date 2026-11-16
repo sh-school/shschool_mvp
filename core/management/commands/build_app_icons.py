@@ -1,8 +1,8 @@
-"""أيقوناتُ التطبيق والتبويب والشارة — المشتقُّ «قلمٌ وشعلة» على شريحةٍ داكنةٍ محايدة (W-20261014-009، قرار المالك 10-14).
+"""أيقوناتُ التطبيق والتبويب والشارة — الشينُ وحدَه على شريحةٍ داكنةٍ محايدة (W-20261014-009، قرار المالك 10-14).
 
     python manage.py build_app_icons
 
-الأصلُ `static/brand/schoolos-pen.svg` (قلمٌ وشعلةٌ، ألوانُه عنّابيّةٌ وذهبيّةٌ تضيع على العنّابيّ) فيُرسم على لون الليل المحايد
+الأصلُ `static/brand/shahaniya-mark-small-reversed.svg` (الشينُ وحدَه أبيضَ بلا خلفيّة، علامةُ «الشحانية» v5 من سِمة للأحجام الصغيرة) فيُرسم على لون الليل المحايد
 `core.brand.DARK["SURFACE"]` لا على العنّابيّ. وشعارُ الوزارة لا أثرَ له هنا.
 
 - `icon-192/512`: مربّعٌ معتمٌ يقع القلمُ كلُّه داخل الدائرة الآمنة العامّة.
@@ -30,9 +30,11 @@ from core import brand
 
 #: مجلّدٌ مرقَّم: Chrome 144+ لا يعيد تنزيل أيقونةٍ تغيّر محتواها ورابطُها واحد، فتغييرُ الأيقونة = رقمٌ جديد (v4…) لا استبدالُ ملفّ.
 #: والمجلّداتُ السابقةُ (`v2` و`v3`) تبقى كما هي: عامِلُ خدمةٍ قديمٌ أو تطبيقٌ مثبَّتٌ قد يطلبها.
-ICON_VERSION = "v5"
+ICON_VERSION = "v6"
 ICONS = Path(settings.BASE_DIR) / "static" / "icons" / ICON_VERSION
-PEN_SVG = Path(settings.BASE_DIR) / "static" / "brand" / "schoolos-pen.svg"
+PEN_SVG = Path(settings.BASE_DIR) / "static" / "brand" / "shahaniya-mark-small-reversed.svg"
+#: الأيقوناتُ الشفّافةُ (التبويب وأيقونتا `any`) على خلفيّاتٍ لا نتحكّم بها فاتحةً كانت أو داكنة: الشينُ العنّابيّ لا الأبيض كي لا يختفي على التبويب الفاتح.
+PEN_SVG_ON_ANY = Path(settings.BASE_DIR) / "static" / "brand" / "shahaniya-mark-small.svg"
 
 #: لونُ الشريحة الداكنة المحايدة — لا عنّابيّ (قرارُ المالك: الشعارُ على سطحٍ داكنٍ/رماديّ).
 BACKGROUND = brand.DARK["SURFACE"]
@@ -83,12 +85,12 @@ def _render_svg(svg: str, height_px: int, background: str | int) -> Image.Image:
     ).convert("RGB")
 
 
-def _pen_svg() -> str:
-    return PEN_SVG.read_text(encoding="utf-8")
+def _pen_svg(on_any: bool = False) -> str:
+    return (PEN_SVG_ON_ANY if on_any else PEN_SVG).read_text(encoding="utf-8")
 
 
 def _aspect() -> float:
-    match = re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', _pen_svg())
+    match = re.search(r'viewBox="[\d.-]+ [\d.-]+ ([\d.]+) ([\d.]+)"', _pen_svg())
     assert match, "viewBox مفقود في الأصل"
     return float(match.group(1)) / float(match.group(2))
 
@@ -143,7 +145,7 @@ def render_favicon(size: int) -> Image.Image:
     """التبويبُ: القلمُ والشعلةُ بلا خلفيّةٍ (ألفا) يملآن ارتفاعَ المربّع (ملاحظةُ المالك 10-15)."""
     height = round(size * FAVICON_FILL)
     width = round(height * _aspect())
-    pen = _render_svg_rgba(_pen_svg(), height * SUPERSAMPLE).resize(
+    pen = _render_svg_rgba(_pen_svg(on_any=True), height * SUPERSAMPLE).resize(
         (width, height), Image.Resampling.LANCZOS
     )
     canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
@@ -154,7 +156,7 @@ def render_favicon(size: int) -> Image.Image:
 def render_any(size: int, safe_radius: float) -> Image.Image:
     """أيقونةُ `any`: القلمُ والشعلةُ بلا خلفيّةٍ داخل الدائرة الآمنة نفسِها للمعتمة (فلا يتغيّر حجمُ الرمز)."""
     width, height = _pen_size(size, safe_radius)
-    pen = _render_svg_rgba(_pen_svg(), height * SUPERSAMPLE).resize(
+    pen = _render_svg_rgba(_pen_svg(on_any=True), height * SUPERSAMPLE).resize(
         (width, height), Image.Resampling.LANCZOS
     )
     canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))

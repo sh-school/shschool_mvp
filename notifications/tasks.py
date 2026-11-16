@@ -865,8 +865,8 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None, 
                 "title": title,
                 "body": body,
                 "url": url,
-                "icon": "/static/icons/v5/icon-192.png",
-                "badge": "/static/icons/v5/badge-72.png",
+                "icon": "/static/icons/v6/icon-192.png",
+                "badge": "/static/icons/v6/badge-72.png",
             }
         )
 
