@@ -13,7 +13,7 @@ import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
-from academic_management import asc_pdf
+from academic_management import asc_import, asc_pdf
 from core.academic_calendar import academic_year_for_school
 from operations.models import ScheduleGeneration, ScheduleSlot, Subject, SubjectClassAssignment
 from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, UserFactory
@@ -573,3 +573,53 @@ def test_two_assignments_in_class_link_by_subject_despite_room_code(world, run):
     )
     run([page], [class_page("HC.7.1", [(0, 1), (1, 2)])], "--apply")
     assert ScheduleSlot.objects.count() == 2
+
+
+# ── اسمُ المدرسة المتكرّر في عناوين الصفحات ─────────────────────────────
+
+SCHOOL = "مدرسة نموذج"
+NAMES = ["عمر ألفا", "خالد بيتا", "سعيد غاما"]
+
+
+def _open_fake(monkeypatch, pdf: FakePdf) -> None:
+    @contextmanager
+    def opener(path: Any) -> Any:
+        yield pdf
+
+    monkeypatch.setattr(asc_pdf, "open_pdf", opener)
+
+
+def test_school_name_before_each_teacher_is_discovered_and_dropped(monkeypatch):
+    pages = [teacher_page(f"{SCHOOL} {n}", [(0, 1, "7.1", "رياضيات")]) for n in NAMES]
+    _open_fake(monkeypatch, FakePdf(pages))
+    lessons, items = asc_import._read_lessons("teachers.pdf", ())
+    assert sorted({x.teacher for x in lessons}) == sorted(NAMES)
+    assert items == []
+
+
+def test_word_shared_by_two_teachers_is_not_dropped(monkeypatch):
+    # «محمد» في اسمين من عشرة صفحات (20٪) لا في الكتلة المتكرّرة
+    names = ["محمد الف", "محمد باء", "ياسر", "عادل", "نبيل", "وليد", "فارس", "حمد", "ناصر", "بدر"]
+    pages = [teacher_page(f"{SCHOOL} {n}", [(0, 1, "7.1", "رياضيات")]) for n in names]
+    _open_fake(monkeypatch, FakePdf(pages))
+    lessons, _ = asc_import._read_lessons("teachers.pdf", ())
+    assert sorted({x.teacher for x in lessons}) == sorted(names)
+
+
+@pytest.mark.parametrize(("with_school", "found"), [(9, True), (8, False)])
+def test_discovery_threshold_is_ninety_percent_of_pages(monkeypatch, with_school, found):
+    pages = [
+        teacher_page(f"{SCHOOL if i < with_school else ''} {n}".strip(), [(0, 1, "7.1", "رياضيات")])
+        for i, n in enumerate(["عمر ألفا", "خالد بيتا"] * 5)
+    ]
+    _open_fake(monkeypatch, FakePdf(pages))
+    assert bool(asc_pdf.discover_school_words("teachers.pdf")) is found
+
+
+@pytest.mark.parametrize("count", [1, 2])
+def test_file_of_one_or_two_pages_discovers_nothing(monkeypatch, count):
+    pages = [teacher_page(f"{SCHOOL} {n}", [(0, 1, "7.1", "رياضيات")]) for n in NAMES[:count]]
+    _open_fake(monkeypatch, FakePdf(pages))
+    assert asc_pdf.discover_school_words("teachers.pdf") == frozenset()
+    lessons, _ = asc_import._read_lessons("teachers.pdf", ())
+    assert {x.teacher for x in lessons} == {f"{SCHOOL} {n}" for n in NAMES[:count]}
