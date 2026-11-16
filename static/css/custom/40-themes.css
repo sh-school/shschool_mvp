@@ -316,12 +316,17 @@ html.dark .login-input:focus {
   background: var(--surface);
   box-shadow: 0 0 0 3px var(--login-input-focus-halo);
 }
-/* عنّابيُّ الهويّة نفسُه ليلاً (9.6 مع الأبيض)، والأفتحُ للمرور (5.95) — تقييم الإنتاج 2026-11-16. */
+/* عنّابيُّ الهويّة نفسُه ليلاً (9.6 مع الأبيض)، والأفتحُ للمرور (5.95) — تقييم الإنتاج 2026-11-16.
+   حدٌّ داخليٌّ بسماكة 1px بالرمز --border-strong (#888086) يعطي 3.83:1 مع سطح البطاقة الليليّ (#2c272b)،
+   وهو حدّ عنصرٍ تفاعليّ 3:1 (WCAG 1.4.11). box-shadow داخليّة لا border: فلا تتغيّر أبعاد الزرّ.
+   وحالةُ المرور تكرّر الحدَّ مع الوهج الأصليّ (تعريفه في 30-modules-1.css) لأنّ هذه القاعدة تتجاوز box-shadow الخاصّة به. */
 html.dark .login-btn {
   background: var(--maroon);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 html.dark .login-btn:hover {
   background: var(--maroon-light);
+  box-shadow: inset 0 0 0 1px var(--border-strong), 0 4px 16px color-mix(in srgb, var(--maroon) 32%, transparent);
 }
 html.dark .login-help-title { color: var(--text-muted); }
 
