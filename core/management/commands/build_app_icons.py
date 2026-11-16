@@ -1,8 +1,8 @@
-"""أيقوناتُ التطبيق والتبويب والشارة — المشتقُّ «قلمٌ وشعلة» على شريحةٍ داكنةٍ محايدة (W-20261014-009، قرار المالك 10-14).
+"""أيقوناتُ التطبيق والتبويب والشارة — الرمزُ الكاملُ (الشينُ وحوله المضمار، أمرُ المالك 2026-11-16) على شريحةٍ داكنةٍ محايدة (W-20261014-009، قرار المالك 10-14).
 
     python manage.py build_app_icons
 
-الأصلُ `static/brand/schoolos-pen.svg` (قلمٌ وشعلةٌ، ألوانُه عنّابيّةٌ وذهبيّةٌ تضيع على العنّابيّ) فيُرسم على لون الليل المحايد
+الأصلُ `static/brand/shahaniya-mark-white.svg` (الرمزُ الكاملُ أبيضَ بلا خلفيّة، علامةُ «الشحانية» v5 من سِمة) فيُرسم على لون الليل المحايد
 `core.brand.DARK["SURFACE"]` لا على العنّابيّ. وشعارُ الوزارة لا أثرَ له هنا.
 
 - `icon-192/512`: مربّعٌ معتمٌ يقع القلمُ كلُّه داخل الدائرة الآمنة العامّة.
@@ -30,9 +30,11 @@ from core import brand
 
 #: مجلّدٌ مرقَّم: Chrome 144+ لا يعيد تنزيل أيقونةٍ تغيّر محتواها ورابطُها واحد، فتغييرُ الأيقونة = رقمٌ جديد (v4…) لا استبدالُ ملفّ.
 #: والمجلّداتُ السابقةُ (`v2` و`v3`) تبقى كما هي: عامِلُ خدمةٍ قديمٌ أو تطبيقٌ مثبَّتٌ قد يطلبها.
-ICON_VERSION = "v5"
+ICON_VERSION = "v6"
 ICONS = Path(settings.BASE_DIR) / "static" / "icons" / ICON_VERSION
-PEN_SVG = Path(settings.BASE_DIR) / "static" / "brand" / "schoolos-pen.svg"
+PEN_SVG = Path(settings.BASE_DIR) / "static" / "brand" / "shahaniya-mark-white.svg"
+#: الأيقوناتُ الشفّافةُ (التبويب وأيقونتا `any`) على خلفيّاتٍ لا نتحكّم بها فاتحةً كانت أو داكنة: الرمزُ العنّابيّ لا الأبيض كي لا يختفي على التبويب الفاتح.
+PEN_SVG_ON_ANY = Path(settings.BASE_DIR) / "static" / "brand" / "shahaniya-mark.svg"
 
 #: لونُ الشريحة الداكنة المحايدة — لا عنّابيّ (قرارُ المالك: الشعارُ على سطحٍ داكنٍ/رماديّ).
 BACKGROUND = brand.DARK["SURFACE"]
@@ -83,12 +85,12 @@ def _render_svg(svg: str, height_px: int, background: str | int) -> Image.Image:
     ).convert("RGB")
 
 
-def _pen_svg() -> str:
-    return PEN_SVG.read_text(encoding="utf-8")
+def _pen_svg(on_any: bool = False) -> str:
+    return (PEN_SVG_ON_ANY if on_any else PEN_SVG).read_text(encoding="utf-8")
 
 
 def _aspect() -> float:
-    match = re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', _pen_svg())
+    match = re.search(r'viewBox="[\d.-]+ [\d.-]+ ([\d.]+) ([\d.]+)"', _pen_svg())
     assert match, "viewBox مفقود في الأصل"
     return float(match.group(1)) / float(match.group(2))
 
@@ -117,9 +119,24 @@ def farthest_visible_point(image: Image.Image) -> float:
     )
 
 
+#: المعتمةُ (maskable وapple-touch): أبعدُ بكسلٍ من الرمز عن المركز ÷ الضلع (أمرُ المالك 2026-11-16: نحو 0.38، والحدُّ الآمن 0.40).
+SQUARE_FILL_RADIUS = 0.38
+
+
+def _drawn_radius_ratio() -> float:
+    """أبعدُ بكسلٍ مرسومٍ عن مركز الأصل نسبةً إلى ارتفاعه — الرمزُ دائريٌّ وفي ملفّه هامش، فصندوقُه لا يصلح مقياساً."""
+    probe = 512
+    image = np.asarray(_render_svg(_pen_svg(), probe, BACKGROUND), dtype=int)
+    ys, xs = np.where(np.abs(image - np.array(_rgb(BACKGROUND))).sum(axis=2) > 24)
+    centre_x, centre_y = (image.shape[1] - 1) / 2, (image.shape[0] - 1) / 2
+    return float(np.sqrt((xs - centre_x) ** 2 + (ys - centre_y) ** 2).max()) / probe
+
+
 def render_square(size: int, safe_radius: float) -> Image.Image:
-    """القلمُ على مربّعٍ داكنٍ معتم، مُوسَّطاً داخل الدائرة الآمنة."""
-    width, height = _pen_size(size, safe_radius)
+    """الرمزُ على مربّعٍ داكنٍ معتم، مُوسَّطاً، وأبعدُ نقطةٍ منه عند `SQUARE_FILL_RADIUS` من الضلع (داخل الدائرة الآمنة)."""
+    assert SQUARE_FILL_RADIUS < safe_radius
+    height = int(SQUARE_FILL_RADIUS * size / _drawn_radius_ratio())
+    width = round(height * _aspect())
     pen = _render_svg(_pen_svg(), height * SUPERSAMPLE, BACKGROUND).resize(
         (width, height), Image.Resampling.LANCZOS
     )
@@ -139,11 +156,25 @@ def _render_svg_rgba(svg: str, height_px: int) -> Image.Image:
     return Image.fromarray(out, "RGBA")
 
 
-def render_favicon(size: int) -> Image.Image:
+#: التبويبُ الداكن: العنّابيُّ يخفت عليه، فيبيضّ الرمزُ في SVG بقاعدةٍ داخل الملفّ (CSS يغلب سمةَ `fill`)، ولمن لا يدعم SVG `favicon-dark.png`.
+FAVICON_DARK_STYLE = (
+    f"<style>@media (prefers-color-scheme: dark){{path{{fill:{brand.ON_FILL}}}}}</style>"
+)
+
+
+def favicon_svg() -> str:
+    """`favicon.svg`: الرمزُ العنّابيُّ نفسُه بلا تغييرٍ في المسار، مع قاعدة الوضع الداكن."""
+    svg = _pen_svg(on_any=True)
+    head, sep, rest = svg.partition("<title>")
+    assert sep, "وسمُ title مفقودٌ في الأصل"
+    return head + FAVICON_DARK_STYLE + sep + rest
+
+
+def render_favicon(size: int, on_any: bool = True) -> Image.Image:
     """التبويبُ: القلمُ والشعلةُ بلا خلفيّةٍ (ألفا) يملآن ارتفاعَ المربّع (ملاحظةُ المالك 10-15)."""
     height = round(size * FAVICON_FILL)
     width = round(height * _aspect())
-    pen = _render_svg_rgba(_pen_svg(), height * SUPERSAMPLE).resize(
+    pen = _render_svg_rgba(_pen_svg(on_any=on_any), height * SUPERSAMPLE).resize(
         (width, height), Image.Resampling.LANCZOS
     )
     canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
@@ -154,7 +185,7 @@ def render_favicon(size: int) -> Image.Image:
 def render_any(size: int, safe_radius: float) -> Image.Image:
     """أيقونةُ `any`: القلمُ والشعلةُ بلا خلفيّةٍ داخل الدائرة الآمنة نفسِها للمعتمة (فلا يتغيّر حجمُ الرمز)."""
     width, height = _pen_size(size, safe_radius)
-    pen = _render_svg_rgba(_pen_svg(), height * SUPERSAMPLE).resize(
+    pen = _render_svg_rgba(_pen_svg(on_any=True), height * SUPERSAMPLE).resize(
         (width, height), Image.Resampling.LANCZOS
     )
     canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
@@ -192,6 +223,8 @@ class Command(BaseCommand):
             render_square(size, safe_radius).save(ICONS / name, optimize=True)
             self.stdout.write(f"كُتبت {name}: {size}×{size}")
         render_favicon(256).save(ICONS / "favicon.png", optimize=True)
+        render_favicon(48, on_any=False).save(ICONS / "favicon-dark.png", optimize=True)
+        (ICONS / "favicon.svg").write_text(favicon_svg(), encoding="utf-8", newline="\n")
         render_badge(128).save(ICONS / "badge-72.png", optimize=True)
         frames = [render_favicon(size) for size in ICO_SIZES]
         frames[-1].save(

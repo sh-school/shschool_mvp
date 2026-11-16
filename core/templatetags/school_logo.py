@@ -20,10 +20,12 @@ def school_logo(size: str = "nav") -> str:
         raise template.TemplateSyntaxError(
             f"school_logo: حجمٌ غير معروف «{size}» ({', '.join(logo.SIZES_PX)})"
         )
-    side = logo.SIZES_PX[size]
+    height = logo.SIZES_PX[size]
+    width = round(height * logo.ASPECT)
     return format_html(
-        '<img class="school-logo school-logo--{size}" src="{src}" alt="" width="{side}" height="{side}" decoding="async">',
+        '<img class="school-logo school-logo--{size}" src="{src}" alt="" width="{width}" height="{height}" decoding="async">',
         size=size,
         src=static(logo.LOGO_STATIC_PATH),
-        side=side,
+        width=width,
+        height=height,
     )

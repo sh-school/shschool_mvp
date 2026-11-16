@@ -1,6 +1,6 @@
 """شعارُ المنصّة «الكامل بالكتاب» على الشاشة وشعارُ الوزارة للمخرجات وحدَها (W-20261014-009، قرار المالك 10-14؛ يحلّ محلّ «ش» v3).
 
-شاشةً: `static/brand/schoolos-full.svg` على شريحةٍ داكنةٍ محايدة (CSS) لا على العنّابيّ. مخرجاتٍ (PDF وطباعة وExcel): شعارُ الوزارة
+شاشةً: `static/brand/shahaniya-lockup-reversed.svg` مباشرةً على العنّابيّ بلا شريحة لا على العنّابيّ. مخرجاتٍ (PDF وطباعة وExcel): شعارُ الوزارة
 الأصليّ أعلى وسط الترويسة واسمُ المدرسة تحته، بلا سطرِ نصّ الوزارة. وحارسُ «لا شعارَ وزارةٍ في المنصّة» في `test_ministry_logo_exports_only.py`.
 """
 
@@ -40,16 +40,19 @@ def _blend(over: str, under: str, alpha: float) -> str:
 # ── الأصلُ والوسم ─────────────────────────────────────────────────────────
 
 
-def test_the_source_is_the_full_logo_svg_with_a_viewbox():
-    svg = (ROOT / "static/brand/schoolos-full.svg").read_text(encoding="utf-8")
-    assert school_logo.LOGO_STATIC_PATH == "brand/schoolos-full.svg"
-    assert re.search(r'viewBox="0 0 [\d.]+ [\d.]+"', svg)
+def test_the_source_is_the_full_reversed_lockup_svg_with_a_viewbox():
+    svg = (ROOT / "static/brand/shahaniya-lockup-reversed.svg").read_text(encoding="utf-8")
+    assert school_logo.LOGO_STATIC_PATH == "brand/shahaniya-lockup-reversed.svg"
+    assert re.search(r'viewBox="[\d.-]+ [\d.-]+ [\d.]+ [\d.]+"', svg)
 
 
 def test_the_tag_gives_the_static_link_on_screen():
     on_screen = Template('{% load school_logo %}{% school_logo "nav" %}').render(Context())
     assert 'class="school-logo school-logo--nav"' in on_screen
-    assert "brand/schoolos-full.svg" in on_screen
+    assert "brand/shahaniya-lockup-reversed.svg" in on_screen
+    assert (
+        'height="40"' in on_screen and 'width="75"' in on_screen
+    )  # الارتفاع ثابتٌ والعرض بنسبة القفل (1536:824)
     assert 'alt=""' in on_screen  # زخرفيٌّ: اسمُ المدرسة نصٌّ يجاوره
     assert "data:" not in on_screen
 
@@ -174,16 +177,25 @@ def test_the_platform_report_pdf_carries_the_logo_and_is_set_in_tajawal():
 # ── التباين ───────────────────────────────────────────────────────────────
 
 
-#: أقصى فرقٍ بين قناتَي اللون في الشريحة المحايدة (v5: #2c272b فرقُها 5، والعنّابيُّ فرقُه أكبر بكثير).
-NEUTRAL_CHANNEL_SPREAD = 8
+def test_the_logo_sits_directly_on_maroon_with_informational_contrast():
+    """الشعارُ أبيضُ على العنّابيّ مباشرةً بلا شريحةٍ (قرارُ المالك 2026-11-16)؛ تباينُه معه ≥ 3:1 للمعلوماتيّ (WCAG 1.4.11)."""
+    assert _contrast(brand.ON_FILL, brand.MAROON) >= 3
+    assert _contrast(brand.ON_FILL, brand.MAROON_DARK) >= 3
 
 
-def test_the_logo_chip_is_a_neutral_dark_surface_not_maroon():
-    """الشريحةُ `DARK["SURFACE"]` محايدةٌ (فرقُ القنوات صغير) وأغمقُ من العنّابيّ فتبرز عليه (قرارُ المالك 2026-11-15: v5 تبقى #2c272b)."""
-    chip = brand.DARK["SURFACE"]
-    channels = [int(chip.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4)]
-    assert max(channels) - min(channels) <= NEUTRAL_CHANNEL_SPREAD, chip
-    assert _luminance(chip) < _luminance(brand.MAROON) + 0.05
+def test_no_dark_chip_behind_the_logo_in_any_position():
+    """لا خلفيّةَ ولا حشوَ ولا ظلَّ على الصنف في أيّ موضعٍ (المنصّةُ والإدارةُ وصفحةُ الخطأ)."""
+    for path in (
+        "static/css/custom/20-components.css",
+        "static/css/admin_theme.css",
+        "templates/errors/_error_page.html",
+    ):
+        for line in (ROOT / path).read_text(encoding="utf-8").splitlines():
+            if ".school-logo" in line and "{" in line:
+                assert not re.search(r"background|padding|box-shadow|border-radius", line), (
+                    path,
+                    line,
+                )
 
 
 # ── الغياب: لا شعارَ وزارة في أيّ مصدر ────────────────────────────────────
