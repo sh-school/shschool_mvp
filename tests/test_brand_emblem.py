@@ -74,16 +74,16 @@ def test_the_square_icons_sit_on_the_neutral_dark_chip_not_on_maroon(name):
     [
         ("icon-maskable-192.png", 0.40),
         ("icon-maskable-512.png", 0.40),
-        ("apple-touch-icon.png", 0.46),
+        ("apple-touch-icon.png", 0.40),
     ],
 )
 def test_the_symbol_stays_inside_the_safe_circle(name, safe):
-    """كلُّ بكسلٍ مخالفٍ للخلفيّة يقع داخل الدائرة الآمنة (مع سماحٍ للتنعيم)."""
+    """كلُّ بكسلٍ مخالفٍ للخلفيّة داخل الدائرة الآمنة 0.40 بلا سماح، والرمزُ يملأ نحو 0.38 (أمرُ المالك 2026-11-16)."""
     image = np.array(Image.open(ICONS / name).convert("RGB")).astype(int)
     size = image.shape[0]
     ys, xs = np.where(np.abs(image - np.array(_rgb(DARK["SURFACE"]))).sum(axis=2) > 24)
     radius = np.sqrt((xs - size / 2) ** 2 + (ys - size / 2) ** 2).max() / size
-    assert radius <= safe + 0.02, (name, radius)
+    assert 0.36 <= radius <= safe, (name, radius)
 
 
 @pytest.mark.parametrize("name", TRANSPARENT_ICONS)
@@ -158,3 +158,21 @@ def test_the_service_worker_cache_name_moved_with_the_icons(worker, prefix):
     source = (ROOT / worker).read_text(encoding="utf-8")
     name = re.search(rf"CACHE_NAME\s*=\s*'schoolos-{prefix}-v(\d+)'", source)
     assert name and int(name.group(1)) >= (7 if prefix == "global" else 6)
+
+
+def test_the_tab_icon_turns_white_on_a_dark_tab():
+    """العنّابيُّ يخفت على تبويبٍ داكن (طلبُ المالك 2026-11-16): `favicon.svg` يبيضّ بقاعدةٍ داخله، ولمن لا يدعم SVG `favicon-dark.png` أبيض."""
+    svg = (ICONS / "favicon.svg").read_text(encoding="utf-8")
+    assert "@media (prefers-color-scheme: dark){path{fill:#fff}}" in svg and 'fill="#8A1538"' in svg
+    dark = np.array(Image.open(ICONS / "favicon-dark.png").convert("RGBA"))
+    opaque = dark[dark[:, :, 3] > 250]
+    assert len(opaque) and (opaque[:, :3] > 240).all(), "الرمزُ أبيضُ على شفّاف"
+    for template in ("templates/base/base.html", "templates/auth/login.html"):
+        head = (ROOT / template).read_text(encoding="utf-8")
+        svg_at, light_at, dark_at = (
+            head.index("icons/v6/favicon.svg"),
+            head.index("icons/v6/favicon.png"),
+            head.index("icons/v6/favicon-dark.png"),
+        )
+        assert svg_at < light_at < dark_at, template
+        assert 'media="(prefers-color-scheme: dark)"' in head
