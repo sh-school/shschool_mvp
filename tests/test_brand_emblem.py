@@ -1,6 +1,6 @@
 """أيقوناتُ التطبيق: المشتقُّ «قلمٌ وشعلة» على شريحةٍ داكنةٍ محايدة (W-20261014-009، قرار المالك 10-14؛ يحلّ محلّ «ش» v3).
 
-- أيقوناتُ `static/icons/v6/` مرسومةٌ من `static/brand/shahaniya-mark-small-reversed.svg` على `core.brand.DARK["SURFACE"]` لا على العنّابيّ.
+- أيقوناتُ `static/icons/v6/` مرسومةٌ من `static/brand/shahaniya-mark-white.svg` على `core.brand.DARK["SURFACE"]` لا على العنّابيّ.
 - ما يبقى في `static/brand/` توقيعُ المطوّر وشعارا المنصّة (الكاملُ والمشتقّ)؛ ولا ملفَّ شعارِ وزارةٍ فيه.
 - شارةُ الإشعار أبيضُ على شفّاف يقصّها النظام، وتباينُ الشريحة مع الأيقونة محفوظ.
 - لا مرجعَ في الشيفرة إلى مجلّدٍ سابقٍ (`v2`/`v3`)، وكلُّ أيقونةٍ مذكورةٍ بمسارها موجودة.
@@ -25,8 +25,8 @@ BRAND_FILES = {
     "azkia-logo.svg",
     "sufyan-logo.png",
     "shahaniya-lockup-reversed.svg",
-    "shahaniya-mark-small-reversed.svg",
-    "shahaniya-mark-small.svg",
+    "shahaniya-mark-white.svg",
+    "shahaniya-mark.svg",
 }
 TRANSPARENT_ICONS = ("icon-192.png", "icon-512.png")
 SQUARE_ICONS = (

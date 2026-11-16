@@ -1,8 +1,8 @@
-"""أيقوناتُ التطبيق والتبويب والشارة — الشينُ وحدَه على شريحةٍ داكنةٍ محايدة (W-20261014-009، قرار المالك 10-14).
+"""أيقوناتُ التطبيق والتبويب والشارة — الرمزُ الكاملُ (الشينُ وحوله المضمار، أمرُ المالك 2026-11-16) على شريحةٍ داكنةٍ محايدة (W-20261014-009، قرار المالك 10-14).
 
     python manage.py build_app_icons
 
-الأصلُ `static/brand/shahaniya-mark-small-reversed.svg` (الشينُ وحدَه أبيضَ بلا خلفيّة، علامةُ «الشحانية» v5 من سِمة للأحجام الصغيرة) فيُرسم على لون الليل المحايد
+الأصلُ `static/brand/shahaniya-mark-white.svg` (الرمزُ الكاملُ أبيضَ بلا خلفيّة، علامةُ «الشحانية» v5 من سِمة) فيُرسم على لون الليل المحايد
 `core.brand.DARK["SURFACE"]` لا على العنّابيّ. وشعارُ الوزارة لا أثرَ له هنا.
 
 - `icon-192/512`: مربّعٌ معتمٌ يقع القلمُ كلُّه داخل الدائرة الآمنة العامّة.
@@ -32,9 +32,9 @@ from core import brand
 #: والمجلّداتُ السابقةُ (`v2` و`v3`) تبقى كما هي: عامِلُ خدمةٍ قديمٌ أو تطبيقٌ مثبَّتٌ قد يطلبها.
 ICON_VERSION = "v6"
 ICONS = Path(settings.BASE_DIR) / "static" / "icons" / ICON_VERSION
-PEN_SVG = Path(settings.BASE_DIR) / "static" / "brand" / "shahaniya-mark-small-reversed.svg"
-#: الأيقوناتُ الشفّافةُ (التبويب وأيقونتا `any`) على خلفيّاتٍ لا نتحكّم بها فاتحةً كانت أو داكنة: الشينُ العنّابيّ لا الأبيض كي لا يختفي على التبويب الفاتح.
-PEN_SVG_ON_ANY = Path(settings.BASE_DIR) / "static" / "brand" / "shahaniya-mark-small.svg"
+PEN_SVG = Path(settings.BASE_DIR) / "static" / "brand" / "shahaniya-mark-white.svg"
+#: الأيقوناتُ الشفّافةُ (التبويب وأيقونتا `any`) على خلفيّاتٍ لا نتحكّم بها فاتحةً كانت أو داكنة: الرمزُ العنّابيّ لا الأبيض كي لا يختفي على التبويب الفاتح.
+PEN_SVG_ON_ANY = Path(settings.BASE_DIR) / "static" / "brand" / "shahaniya-mark.svg"
 
 #: لونُ الشريحة الداكنة المحايدة — لا عنّابيّ (قرارُ المالك: الشعارُ على سطحٍ داكنٍ/رماديّ).
 BACKGROUND = brand.DARK["SURFACE"]
