@@ -692,8 +692,10 @@ class ClassExit(models.Model):
         ("admin", "الإدارة / المشرف"),
         ("other", "أخرى"),
     ]
-    #: ما يختاره المعلّمُ في «خرج بإذن»: التسعُ الأولى دون «الخروج من المدرسة».
-    TEACHER_DESTINATIONS = CURRENT_DESTINATIONS[:-1]
+    #: ما يختاره المعلّمُ في «خرج بإذن»: مشرفُ الجناح وحدَه، وهو يحدّد الوجهةَ بعد ذلك (قرارُ 2026-11-16).
+    TEACHER_DESTINATIONS = [("wing_sup", "مشرف الجناح")]
+    #: ما يسجّله المشرفُ والنائبُ من شاشة الحركة ويُغيَّر إليه: التسعُ الأولى دون «الخروج من المدرسة».
+    SUPERVISOR_DESTINATIONS = CURRENT_DESTINATIONS[:-1]
     DESTINATIONS = CURRENT_DESTINATIONS + LEGACY_DESTINATIONS
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)

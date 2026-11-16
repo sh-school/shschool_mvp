@@ -58,7 +58,7 @@ class TestUnreturnedExit:
         self, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
         (period,) = _periods(school, klass, teacher, 1)
-        leave(period, kids[0], "restroom", by=teacher, now=at(7, 20))
+        leave(period, kids[0], "wing_sup", by=teacher, now=at(7, 20))
 
         assert ta.alert_unreturned_exits(school, now=at(7, 30)) == 0, "دون العتبة (15 دقيقة)"
         assert ta.alert_unreturned_exits(school, now=at(7, 40)) == 1
@@ -71,7 +71,7 @@ class TestUnreturnedExit:
         self, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
         (period,) = _periods(school, klass, teacher, 1)
-        leave(period, kids[0], "restroom", by=teacher, now=at(7, 20))
+        leave(period, kids[0], "wing_sup", by=teacher, now=at(7, 20))
 
         assert ta.alert_unreturned_exits(school, now=at(7, 40)) == 1
         assert ta.alert_unreturned_exits(school, now=at(7, 41)) == 0
@@ -83,8 +83,8 @@ class TestUnreturnedExit:
         self, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
         (period,) = _periods(school, klass, teacher, 1)
-        leave(period, kids[0], "restroom", by=teacher, now=at(7, 20))
-        leave(period, kids[1], "restroom", by=teacher, now=at(7, 22))
+        leave(period, kids[0], "wing_sup", by=teacher, now=at(7, 20))
+        leave(period, kids[1], "wing_sup", by=teacher, now=at(7, 22))
 
         assert ta.alert_unreturned_exits(school, now=at(7, 40)) == 2
         assert _mine(teacher, ta.EXIT_NOT_RETURNED).count() == 2
@@ -95,7 +95,7 @@ class TestUnreturnedExit:
         from operations.class_exit import come_back
 
         (period,) = _periods(school, klass, teacher, 1)
-        leave(period, kids[0], "restroom", by=teacher, now=at(7, 20))
+        leave(period, kids[0], "wing_sup", by=teacher, now=at(7, 20))
         come_back(period, kids[0], now=at(7, 30))
 
         assert ta.alert_unreturned_exits(school, now=at(7, 45)) == 0
@@ -103,7 +103,7 @@ class TestUnreturnedExit:
     def test_silent_after_the_bell(self, school, seeded_calendar, klass, kids, teacher, supervisor):
         """بعد الجرس يُغلق الخروجُ ويرحَّل — التنبيهُ لحصّةٍ جاريةٍ فقط."""
         (period,) = _periods(school, klass, teacher, 1)
-        leave(period, kids[0], "restroom", by=teacher, now=at(7, 20))
+        leave(period, kids[0], "wing_sup", by=teacher, now=at(7, 20))
 
         assert ta.alert_unreturned_exits(school, now=at(8, 5)) == 0
 
@@ -111,7 +111,7 @@ class TestUnreturnedExit:
         self, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
         (period,) = _periods(school, klass, teacher, 1)
-        leave(period, kids[0], "admin", by=teacher, now=at(7, 20))
+        leave(period, kids[0], "wing_sup", by=teacher, now=at(7, 20))
         InAppNotification.objects.all().delete()  # إشعارُ المشرف عن بطاقة الخروج ليس موضوعَنا
 
         ta.alert_unreturned_exits(school, now=at(7, 40))
@@ -126,7 +126,7 @@ class TestUnreturnedExit:
         self, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
         (period,) = _periods(school, klass, teacher, 1)
-        leave(period, kids[0], "restroom", by=teacher, now=at(7, 20))
+        leave(period, kids[0], "wing_sup", by=teacher, now=at(7, 20))
         env = {"TEACHER_EXIT_ALERT_MINUTES": "30"}
 
         assert ta.alert_unreturned_exits(school, now=at(7, 40), environ=env) == 0
@@ -136,12 +136,12 @@ class TestUnreturnedExit:
         self, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
         periods = _periods(school, klass, teacher, 2)
-        leave(periods[0], kids[0], "restroom", by=teacher, now=at(7, 20))
+        leave(periods[0], kids[0], "wing_sup", by=teacher, now=at(7, 20))
         with CaptureQueriesContext(connection) as one:
             ta.unreturned_exits(school, at(7, 40), 15)
         for kid in kids[1:]:
-            leave(periods[0], kid, "restroom", by=teacher, now=at(7, 21))
-        leave(periods[1], kids[0], "restroom", by=teacher, now=at(8, 20))
+            leave(periods[0], kid, "wing_sup", by=teacher, now=at(7, 21))
+        leave(periods[1], kids[0], "wing_sup", by=teacher, now=at(8, 20))
         with CaptureQueriesContext(connection) as many:
             found = ta.unreturned_exits(school, at(8, 40), 15)
             found += ta.unreturned_exits(school, at(7, 40), 15)
@@ -269,7 +269,7 @@ class TestTheScheduledTasks:
         self, school, seeded_calendar, klass, kids, teacher, supervisor, monkeypatch
     ):
         (period,) = _periods(school, klass, teacher, 1)
-        leave(period, kids[0], "restroom", by=teacher, now=at(7, 20))
+        leave(period, kids[0], "wing_sup", by=teacher, now=at(7, 20))
         monkeypatch.setattr("django.utils.timezone.now", lambda: at(7, 40))
 
         first = ta.alert_teachers_unreturned_exits_task()

@@ -16,6 +16,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.capabilities import capability_required
+from operations.class_exit import may_record_school_exit
+from operations.models import ClassExit
 
 from .movement_selectors import ALERT_MINUTES, history_rows, live_rows
 
@@ -31,6 +33,9 @@ def live_context(request: Any, school: Any, scope: Any, day: dt.date) -> dict[st
         "live_is_today": day == timezone.localdate(now),
         "live_refresh_seconds": REFRESH_SECONDS,
         "alert_minutes": ALERT_MINUTES,
+        # تغييرُ وجهة خروجٍ مفتوح (W-20261116-002): للمشرف والنائب والمدير، إلى ما عدا «الخروج من المدرسة».
+        "can_change_destination": may_record_school_exit(request.user),
+        "change_destinations": ClassExit.SUPERVISOR_DESTINATIONS,
     }
 
 

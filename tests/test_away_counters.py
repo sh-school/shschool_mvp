@@ -67,9 +67,9 @@ def test_the_custody_list_is_the_single_two_item_constant():
 def test_exit_counts_and_minutes_come_from_the_tally_plus_the_clipped_open_exit(
     school, kid, session
 ):
-    leave(session, kid, "restroom", by=session.teacher, now=at(7, 15))
+    leave(session, kid, "wing_sup", by=session.teacher, now=at(7, 15))
     come_back(session, kid, now=at(7, 20))  # 5 د مغلقة
-    leave(session, kid, "restroom", by=session.teacher, now=at(7, 30))  # مفتوح
+    leave(session, kid, "wing_sup", by=session.teacher, now=at(7, 30))  # مفتوح
     counters = away_counters(school, SUNDAY, now=at(7, 40))
     assert counters.exit_count == 2
     assert counters.exit_seconds == (5 + 10) * 60
@@ -79,7 +79,7 @@ def test_exit_counts_and_minutes_come_from_the_tally_plus_the_clipped_open_exit(
 
 
 def test_an_open_exit_is_clipped_at_the_end_of_the_school_day(school, kid, session):
-    leave(session, kid, "restroom", by=session.teacher, now=at(7, 30))
+    leave(session, kid, "wing_sup", by=session.teacher, now=at(7, 30))
     count, seconds, students, still_out = exit_day_totals(school, SUNDAY, now=at(20, 0))
     assert (count, students, still_out) == (1, 1, 1)
     assert seconds <= (13 * 60 + 30 - (7 * 60 + 30)) * 60  # لا يتضخّم بعد نهاية الدوام

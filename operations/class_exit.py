@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 #: وجهاتٌ تُخرج الطالبَ من الجناح فيحتاج بطاقةَ المشرف — فيُشعَر فوراً (قرارُ 2026-09-14).
 #: دورةُ المياه داخل الجناح، بلا إشعار.
-NOTIFY_SUPERVISOR_FOR = ("clinic", "admin")
+NOTIFY_SUPERVISOR_FOR = ("clinic", "admin", "wing_sup")
 
 
 #: وجهةُ الخروج → «أين الطالب» في سجلّ الحضور لمن لم يعد.
@@ -78,6 +78,12 @@ def leave(
     """نقرةُ «خرج بإذن» — والنقرةُ الثانية على طالبٍ خارجٍ تُعيد سطرَه لا تكرّره."""
     if destination == "school" and not may_record_school_exit(by):
         raise PermissionDenied("الخروجُ من المدرسة يسجّله المشرفُ أو النائبُ الإداريّ أو المدير.")
+    if (
+        by is not None
+        and by.get_role() == "teacher"  # type: ignore[no-untyped-call]
+        and destination not in dict(ClassExit.TEACHER_DESTINATIONS)
+    ):
+        raise PermissionDenied("المعلّمُ يُخرج الطالبَ إلى مشرف الجناح وحدَه، وهو يحدّد الوجهة.")
     now = now or timezone.now()
     current = open_exit(session, student)
     if current is not None:
@@ -132,6 +138,48 @@ def refresh_tally(school: School, student: CustomUser, day: dt.date) -> DailyExi
     return tally
 
 
+@transaction.atomic
+def change_destination(exit_: ClassExit, destination: str, by: CustomUser) -> ClassExit:
+    """يغيّر وجهةَ خروجٍ مفتوحٍ على سطره نفسِه — لا سطرَ جديد، و`left_at` و`allowed_by` كما هما.
+
+    العدُّ والمدّةُ لا يتغيّران؛ يُعاد حسابُ الملخّص لتوزيعه بالوجهة فقط. «الخروجُ من المدرسة» ليس وجهةَ تغيير.
+    """
+    if destination not in dict(ClassExit.SUPERVISOR_DESTINATIONS):
+        raise ValueError("وجهةٌ غير صالحةٍ للتغيير.")
+    if exit_.returned_at is not None:
+        raise ValueError("عاد الطالب: لا تُغيَّر وجهةُ خروجٍ مغلق.")
+    before = exit_.destination
+    exit_.destination = destination
+    exit_.save(update_fields=["destination"])
+    refresh_tally(exit_.school, exit_.student, exit_.session.date)
+    from core.audit_repr import masked_repr
+    from core.models import AuditLog
+
+    AuditLog.objects.create(
+        user=by,
+        school=exit_.school,
+        action="update",
+        model_name="other",
+        object_id=str(exit_.pk),
+        object_repr=f"تغيير وجهة خروج — {masked_repr(exit_.student)}"[:300],
+        changes={"exit": str(exit_.pk), "before": before, "after": destination, "by": str(by.pk)},
+    )
+    return exit_
+
+
+def _notice_body(exit_: ClassExit) -> str:
+    """نصُّ إشعار المشرف: «قادمٌ إليك» لمن وجهتُه مشرفُ الجناح، وإلا بيانُ الوجهة وطلبُ البطاقة."""
+    who = f"{exit_.student.full_name} ({exit_.session.class_group})"
+    at = f"{timezone.localtime(exit_.left_at):%H:%M}"
+    by = exit_.allowed_by.full_name if exit_.allowed_by else "المعلّم"
+    if exit_.destination == "wing_sup":
+        return f"الطالب قادم إليك لتحديد وجهته — {who} خرج الساعة {at} بإذن {by}."
+    return (
+        f"{who} خرج إلى {exit_.get_destination_display()} الساعة {at} بإذن {by} — "
+        "يحتاج بطاقةَ خروجٍ من الجناح."
+    )
+
+
 def _notify_supervisor(exit_: ClassExit) -> None:
     """يُشعِر من يحمل الجناحَ اليوم (أصيلاً أو بديلاً) — الطالبُ قادمٌ إليه لبطاقة الخروج.
 
@@ -155,12 +203,7 @@ def _notify_supervisor(exit_: ClassExit) -> None:
             school=exit_.school,
             recipients=[holder],
             title=f"خروجٌ من الفصل — {exit_.student.full_name}",
-            body=(
-                f"{exit_.student.full_name} ({exit_.session.class_group}) خرج إلى "
-                f"{exit_.get_destination_display()} الساعة {timezone.localtime(exit_.left_at):%H:%M} "
-                f"بإذن {exit_.allowed_by.full_name if exit_.allowed_by else 'المعلّم'} — "
-                "يحتاج بطاقةَ خروجٍ من الجناح."
-            ),
+            body=_notice_body(exit_),
             related_url=reverse("class_grid", args=[exit_.session.class_group_id])
             + f"?date={exit_.session.date.isoformat()}",
             related_object_id=str(exit_.pk),

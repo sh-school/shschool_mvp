@@ -37,20 +37,20 @@ class TestTheTeacherLetsAStudentOut:
     ):
         (period,) = _periods(school, klass, teacher, 1)
 
-        exit_ = leave(period, kids[0], "clinic", by=teacher, now=at(7, 20))
+        exit_ = leave(period, kids[0], "wing_sup", by=teacher, now=at(7, 20))
         come_back(period, kids[0], now=at(7, 32))
 
         exit_.refresh_from_db()
-        assert (exit_.destination, exit_.minutes_away()) == ("clinic", 12)
+        assert (exit_.destination, exit_.minutes_away()) == ("wing_sup", 12)
         assert not StudentAttendance.objects.exists(), "خرج وعاد — حاضرٌ لا سجلَّ غياب"
 
     def test_a_second_leave_while_out_does_not_duplicate(
         self, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
         (period,) = _periods(school, klass, teacher, 1)
-        leave(period, kids[0], "restroom", by=teacher, now=at(7, 20))
+        leave(period, kids[0], "wing_sup", by=teacher, now=at(7, 20))
 
-        leave(period, kids[0], "admin", by=teacher, now=at(7, 25))
+        leave(period, kids[0], "wing_sup", by=teacher, now=at(7, 25))
 
         assert ClassExit.objects.count() == 1
 
@@ -61,7 +61,7 @@ class TestTheTeacherLetsAStudentOut:
         فيسقط «عاد» من يد المعلّم. صار لا يُغلق قبل النهاية، ولا يكتب في سجلّ الحضور."""
         (period,) = _periods(school, klass, teacher, 1)
         _confirm(klass, period, {kids[0]: "present"}, supervisor, now=at(7, 30))
-        exit_ = leave(period, kids[0], "clinic", by=teacher, now=at(7, 40))
+        exit_ = leave(period, kids[0], "wing_sup", by=teacher, now=at(7, 40))
 
         assert close_unreturned(period, now=at(7, 50)) == 0
         exit_.refresh_from_db()
@@ -78,6 +78,20 @@ class TestTheTeacherLetsAStudentOut:
 class TestTheSupervisorIsNotified:
     """الطالبُ يأخذ بطاقةَ الخروج من الجناح من المشرف — فيُشعَر فوراً (قرارُ 2026-09-14)."""
 
+    def test_a_student_sent_to_the_wing_supervisor_notifies_its_holder(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        from notifications.models import InAppNotification
+
+        (period,) = _periods(school, klass, teacher, 1)
+
+        leave(period, kids[0], "wing_sup", by=teacher, now=at(7, 20))
+
+        notif = InAppNotification.objects.get(user=supervisor)
+        assert kids[0].full_name in notif.title
+        assert "قادم إليك لتحديد وجهته" in notif.body
+        assert notif.priority == "high"
+
     @pytest.mark.parametrize("destination", ["clinic", "admin"])
     def test_leaving_the_wing_notifies_its_holder(
         self, school, seeded_calendar, klass, kids, teacher, supervisor, destination
@@ -86,7 +100,7 @@ class TestTheSupervisorIsNotified:
 
         (period,) = _periods(school, klass, teacher, 1)
 
-        leave(period, kids[0], destination, by=teacher, now=at(7, 20))
+        leave(period, kids[0], destination, by=supervisor, now=at(7, 20))
 
         notif = InAppNotification.objects.get(user=supervisor)
         assert kids[0].full_name in notif.title
@@ -100,12 +114,12 @@ class TestTheSupervisorIsNotified:
 
         (period,) = _periods(school, klass, teacher, 1)
 
-        leave(period, kids[0], "restroom", by=teacher, now=at(7, 20))
+        leave(period, kids[0], "restroom", by=supervisor, now=at(7, 20))
 
         assert not InAppNotification.objects.filter(user=supervisor).exists()
 
     def test_a_section_outside_the_wings_has_nobody_to_notify(
-        self, school, seeded_calendar, year, teacher
+        self, school, seeded_calendar, year, teacher, supervisor
     ):
         from notifications.models import InAppNotification
         from tests.conftest import ClassGroupFactory, StudentEnrollmentFactory, UserFactory
@@ -117,7 +131,7 @@ class TestTheSupervisorIsNotified:
         StudentEnrollmentFactory(student=student, class_group=ese)
         (period,) = _periods(school, ese, teacher, 1)
 
-        exit_ = leave(period, student, "clinic", by=teacher, now=at(7, 20))
+        exit_ = leave(period, student, "clinic", by=supervisor, now=at(7, 20))
 
         assert exit_.pk and not InAppNotification.objects.exists()
 

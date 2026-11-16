@@ -26,12 +26,32 @@ def test_there_are_ten_destinations_and_codes_fit_the_column():
     assert {"admin", "other"} <= {c for c, _ in ClassExit.DESTINATIONS}
 
 
-def test_teacher_list_is_the_first_nine_without_school_exit():
-    teacher_codes = [c for c, _ in ClassExit.TEACHER_DESTINATIONS]
-    assert len(teacher_codes) == 9 and "school" not in teacher_codes
+def test_teacher_list_is_wing_supervisor_only():
+    assert [c for c, _ in ClassExit.TEACHER_DESTINATIONS] == ["wing_sup"]
     assert tuple(GridPage.__dataclass_fields__["destinations"].default) == tuple(
         ClassExit.TEACHER_DESTINATIONS
     )
+    assert len(ClassExit.SUPERVISOR_DESTINATIONS) == 9
+
+
+@pytest.mark.parametrize("destination", ["clinic", "restroom", "admin", "other", "bogus"])
+def test_teacher_cannot_record_any_destination_but_wing_supervisor(
+    school, seeded_calendar, klass, kids, teacher, destination
+):
+    (period,) = _periods(school, klass, teacher, 1)
+
+    with pytest.raises(PermissionDenied):
+        leave(period, kids[0], destination, by=teacher, now=at(7, 20))
+
+    assert not ClassExit.objects.exists()
+
+
+def test_teacher_wing_supervisor_exit_is_recorded(school, seeded_calendar, klass, kids, teacher):
+    (period,) = _periods(school, klass, teacher, 1)
+
+    exit_ = leave(period, kids[0], "wing_sup", by=teacher, now=at(7, 20))
+
+    assert exit_ is not None and exit_.destination == "wing_sup"
 
 
 def test_teacher_cannot_record_school_exit(school, seeded_calendar, klass, kids, teacher):
