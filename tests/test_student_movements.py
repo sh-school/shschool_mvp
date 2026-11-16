@@ -663,3 +663,66 @@ def test_entry_form_cascades_grade_section_students(
     ).content.decode()
 
     assert "طالب القائمة" in html and "تسجيل الخروج" in html
+
+
+CHANGE = "student_affairs:movement_change_destination"
+
+
+def test_supervisor_changes_destination_on_same_line(client, school, teacher_user, wing_a):
+    from core.models import AuditLog
+    from operations.models import DailyExitTally
+
+    klass, supervisor = wing_a
+    student = UserFactory(full_name="طالب التغيير", national_id="29400000070")
+    exit_ = _exit_in(school, klass, teacher_user, student, destination="wing_sup", hour=8)
+    left_at, allowed_by = exit_.left_at, exit_.allowed_by
+    client.force_login(supervisor)
+
+    resp = client.post(reverse(CHANGE, args=[exit_.pk]), {"destination": "clinic"})
+
+    assert resp.status_code == 302
+    exit_.refresh_from_db()
+    assert exit_.destination == "clinic" and exit_.returned_at is None
+    assert exit_.left_at == left_at and exit_.allowed_by == allowed_by
+    assert ClassExit.objects.filter(student=student).count() == 1
+    tally = DailyExitTally.objects.get(student=student, date=DAY)
+    assert tally.exit_count == 1 and set(tally.by_destination) == {"clinic"}
+    log = AuditLog.objects.get(object_id=str(exit_.pk))
+    assert log.changes["before"] == "wing_sup" and log.changes["after"] == "clinic"
+    assert log.changes["by"] == str(supervisor.pk) and log.user == supervisor
+
+
+def test_change_destination_refuses_school_exit_and_other_wing(
+    client, school, teacher_user, wing_a, wing_b
+):
+    klass_a, supervisor_a = wing_a
+    klass_b, _ = wing_b
+    mine = _exit_in(
+        school, klass_a, teacher_user, UserFactory(national_id="29400000071"), "wing_sup", 8
+    )
+    theirs = _exit_in(
+        school, klass_b, teacher_user, UserFactory(national_id="29400000072"), "wing_sup", 9
+    )
+    client.force_login(supervisor_a)
+
+    client.post(reverse(CHANGE, args=[mine.pk]), {"destination": "school"})
+    other = client.post(reverse(CHANGE, args=[theirs.pk]), {"destination": "clinic"})
+
+    assert other.status_code == 404
+    mine.refresh_from_db()
+    theirs.refresh_from_db()
+    assert mine.destination == "wing_sup" and theirs.destination == "wing_sup"
+
+
+def test_teacher_cannot_change_destination(client, school, teacher_user, wing_a):
+    klass, _ = wing_a
+    exit_ = _exit_in(
+        school, klass, teacher_user, UserFactory(national_id="29400000073"), "wing_sup", 8
+    )
+    client.force_login(teacher_user)
+
+    resp = client.post(reverse(CHANGE, args=[exit_.pk]), {"destination": "clinic"})
+
+    assert resp.status_code in (302, 403, 404)
+    exit_.refresh_from_db()
+    assert exit_.destination == "wing_sup"

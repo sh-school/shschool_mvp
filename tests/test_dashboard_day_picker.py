@@ -174,11 +174,11 @@ class TestCountersFollowTheChosenDay:
             end_time=dt.time(7, 55),
             status="completed",
         )
-        leave(session, a, "restroom", by=teacher, now=at(7, 20))  # اليوم: خروجٌ واحدٌ لم يعد.
+        leave(session, a, "wing_sup", by=teacher, now=at(7, 20))  # اليوم: خروجٌ واحدٌ لم يعد.
         leave(
-            earlier, a, "restroom", by=teacher, now=at(7, 20, day=PAST)
+            earlier, a, "wing_sup", by=teacher, now=at(7, 20, day=PAST)
         )  # الماضي: خروجان لم يعد منهما أحد.
-        leave(earlier, b, "clinic", by=teacher, now=at(7, 30, day=PAST))
+        leave(earlier, b, "wing_sup", by=teacher, now=at(7, 30, day=PAST))
 
         today = _get(client_as, teacher).context["my_students"]
         past = _get(client_as, teacher, PAST).context["my_students"]

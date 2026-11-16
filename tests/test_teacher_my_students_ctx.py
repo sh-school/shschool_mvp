@@ -42,9 +42,9 @@ def kids(klass):
 class TestCountsOnlyMyStudentsToday:
     def test_totals_and_still_out(self, school, session, teacher, kids):
         a, b, _c = kids
-        leave(session, a, "clinic", by=teacher, now=at(7, 15))
+        leave(session, a, "wing_sup", by=teacher, now=at(7, 15))
         come_back(session, a, now=at(7, 25))
-        leave(session, b, "restroom", by=teacher, now=at(7, 30))  # لم يعد؛ والثالث لم يخرج.
+        leave(session, b, "wing_sup", by=teacher, now=at(7, 30))  # لم يعد؛ والثالث لم يخرج.
 
         ctx = _my_students_ctx(teacher, school, SUNDAY, _today_sessions(teacher))
 
@@ -67,7 +67,7 @@ class TestCountsOnlyMyStudentsToday:
             end_time=dt.time(8, 45),
             status="scheduled",
         )
-        leave(theirs, stranger, "restroom", by=other_teacher, now=at(8, 10))
+        leave(theirs, stranger, "wing_sup", by=other_teacher, now=at(8, 10))
 
         mine = _my_students_ctx(teacher, school, SUNDAY, _today_sessions(teacher))
         theirs_ctx = _my_students_ctx(other_teacher, school, SUNDAY, _today_sessions(other_teacher))
@@ -91,9 +91,9 @@ class TestCountsOnlyMyStudentsToday:
     def test_a_student_out_twice_in_the_day_is_counted_once_as_out(
         self, school, session, teacher, kids
     ):
-        leave(session, kids[0], "restroom", by=teacher, now=at(7, 15))
+        leave(session, kids[0], "wing_sup", by=teacher, now=at(7, 15))
         come_back(session, kids[0], now=at(7, 20))
-        leave(session, kids[0], "clinic", by=teacher, now=at(7, 40))
+        leave(session, kids[0], "wing_sup", by=teacher, now=at(7, 40))
 
         ctx = _my_students_ctx(teacher, school, SUNDAY, _today_sessions(teacher))
 
@@ -108,7 +108,7 @@ class TestCountsOnlyMyStudentsToday:
 
 class TestNoNamesAndFlatShape:
     def test_only_counts_no_name_no_identity_no_ranking(self, school, session, teacher, kids):
-        leave(session, kids[0], "clinic", by=teacher, now=at(7, 15))
+        leave(session, kids[0], "wing_sup", by=teacher, now=at(7, 15))
 
         ctx = _my_students_ctx(teacher, school, SUNDAY, _today_sessions(teacher))
 
@@ -172,7 +172,7 @@ class TestConstantQueries:
 
 class TestCapabilityGuardsTheSharedCounter:
     def test_teacher_and_coordinator_see_the_counts(self, school, session, teacher, kids):
-        leave(session, kids[0], "restroom", by=teacher, now=at(7, 15))
+        leave(session, kids[0], "wing_sup", by=teacher, now=at(7, 15))
         coordinator = _staff(school, "coordinator", "منسّق", "29000001030")
         Session.objects.filter(pk=session.pk).update(teacher=coordinator)
 
@@ -181,7 +181,7 @@ class TestCapabilityGuardsTheSharedCounter:
         assert seen["exit_total"] == 1 and seen["out_now"] == 1
 
     def test_a_role_without_the_capability_gets_no_counts(self, school, session, teacher, kids):
-        leave(session, kids[0], "restroom", by=teacher, now=at(7, 15))
+        leave(session, kids[0], "wing_sup", by=teacher, now=at(7, 15))
         assistant = _staff(school, "librarian", "أمين مكتبة", "29000001031")
 
         ctx = _my_students_ctx(assistant, school, SUNDAY, _today_sessions(teacher))

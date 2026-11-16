@@ -84,7 +84,22 @@
             <td><a href="{% url 'student_affairs:student_profile' e.student.id %}" class="sa-link">{{ e.student.full_name }}</a></td>
             <td data-sort-value="{{ e.session.class_group.school_order }}">{{ e.class_text }}</td>
             <td>{{ e.session.subject.name_ar|default:"—" }}</td>
-            <td>{{ e.get_destination_display }}</td>
+            <td>
+              {% if can_change_destination and not e.returned_at %}
+              <form method="post" action="{% url 'student_affairs:movement_change_destination' e.pk %}">
+                {% csrf_token %}
+                <select name="destination" class="form-control" aria-label="تغيير الوجهة">
+                  {% for val, label in change_destinations %}
+                  <option value="{{ val }}"{% if val == e.destination %} selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                  {% if e.destination == "school" or e.destination == "admin" or e.destination == "other" %}
+                  <option value="{{ e.destination }}" selected disabled>{{ e.get_destination_display }}</option>
+                  {% endif %}
+                </select>
+                <button type="submit" class="btn-primary btn-sm">تغيير</button>
+              </form>
+              {% else %}{{ e.get_destination_display }}{% endif %}
+            </td>
             <td class="num">{{ e.left_at|time:"H:i" }}</td>
             <td class="num">
               {% if e.returned_at %}{{ e.returned_at|time:"H:i" }}

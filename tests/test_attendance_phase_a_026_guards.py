@@ -44,7 +44,7 @@ def _left_in_first_period_and_second_opened(client_as, assigned, teacher, kids, 
     """طالبٌ خرج في ح1 ولم يعد ولم يُغلق خروجُه (لم تدُر مهمّةُ الجرس)، وح2 قائمةٌ جارية — حالُ الترحيل."""
     client = client_as(teacher)
     clock(7, 30)
-    _exit(client, assigned, kids[0], action="leave", destination="restroom")
+    _exit(client, assigned, kids[0], action="leave", destination="wing_sup")
     clock(8, 10)
     _save(client, assigned, 2, [_cells(kids[1], "present")])
     first = Session.objects.get(class_group=assigned, date=SUNDAY, period_number=1)

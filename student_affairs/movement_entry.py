@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
@@ -62,7 +63,7 @@ def entry_context(request, scope) -> dict:
         "entry_destinations": (
             ClassExit.CURRENT_DESTINATIONS
             if class_exit.may_record_school_exit(request.user)
-            else ClassExit.TEACHER_DESTINATIONS
+            else ClassExit.SUPERVISOR_DESTINATIONS
         ),
         "entry_now": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
     }
@@ -126,4 +127,29 @@ def movement_return(request, pk):
         raise Http404("عاد الطالب من قبل")
     class_exit.come_back(exit_.session, exit_.student, by=request.user)
     messages.success(request, f"سُجّلت عودة {exit_.student.full_name}.")
+    return redirect("student_affairs:student_movements")
+
+
+@login_required
+@capability_required("student_affairs.follow_up")
+@require_POST
+def movement_change_destination(request, pk):
+    """يغيّر وجهةَ خروجٍ مفتوح — للمشرف (لجناحه) والنائب والمدير؛ وخارجُ الجناح 404."""
+    if not class_exit.may_record_school_exit(request.user):
+        raise PermissionDenied("تغيير الوجهة للمشرف أو النائب الإداريّ أو المدير.")
+    scope = student_scope_for(request)
+    exit_ = get_object_or_404(
+        scope.narrow(ClassExit.objects.filter(school=request.school)).select_related(
+            "session", "student", "school"
+        ),
+        pk=pk,
+    )
+    if exit_.returned_at is not None:
+        raise Http404("عاد الطالب من قبل")
+    destination = request.POST.get("destination", "")
+    if destination not in dict(ClassExit.SUPERVISOR_DESTINATIONS):
+        messages.error(request, "وجهةٌ غير صالحة.")
+    else:
+        class_exit.change_destination(exit_, destination, request.user)
+        messages.success(request, f"غُيّرت وجهة {exit_.student.full_name}.")
     return redirect("student_affairs:student_movements")
