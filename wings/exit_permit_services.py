@@ -1,15 +1,18 @@
-"""خدمةُ إذن خروج الطالب — الطلبُ والاعتمادُ وعدُّ الحصص (W-20261005-010).
+"""خدمةُ ورقة خروج الطالب — الإصدارُ المباشر وعدُّ الحصص (W-20261005-010، W-20261116-003).
 
-- **الطلب**: حاملُ الجناح لشُعب أجنحته، والمعلّمُ لشُعبه (إسنادٌ فعليّ)؛ وغيرُ المخوَّل `PermitDeniedError` (تُحوَّل 404).
-- **الاعتماد**: حاملُ الجناح (`wings.record_day`) لشُعبه، والنائبُ الإداريّ لأيّ شعبة (`wings_of`)؛ ولا اعتمادَ
-  دون تسجيل حضور وليّ الأمر. بطاقتُه تُعرض ولا تُحفظ نسخةٌ منها ولا رقمُها (قرارُ المالك 2026-10-05).
+- **الإصدار**: خمسةُ أدوار — مشرفُ الجناح لشُعب جناحه، ومنسّقُ شؤون الطلاب والنائبان والمدير للمدرسة كلِّها
+  (`wings_of`)؛ والمعلّمُ لا يُصدر ولا يطبع وغيرُ المخوَّل `PermitDeniedError` (تُحوَّل 404). بلا اعتمادٍ في المنصّة:
+  يوقّعها بالقلم النائبُ الإداريّ أو المكلَّف بعمله، وبلا حصّةٍ جاريةٍ شرطاً.
+- **موافقةُ الوليّ**: حضورٌ ببطاقته (لا تُحفظ صورتُها ولا رقمُها) أو اتّصالٌ هاتفيّ برقمٍ ومتّصل؛
+  ولا تُطبع ورقةٌ بلا طريقة، ولا اتّصالَ بلا رقمٍ ومتّصل.
 - **الحصص**: عددُ الحصص المكتملة اليومَ لشعبة الطالب؛ وأقلُّ من الحدّ **تحذيرٌ** لا يمنع ولا يغيّر الحضور.
-- كلُّ فعلٍ سطرُ `AuditLog` بالمعرّف المقنَّع وحدَه، بلا اسمٍ ولا رقم.
+- كلُّ فعلٍ سطرُ `AuditLog` بالمعرّف المقنَّع، والهاتفُ مقنَّعٌ وحدَه، ولا اسمَ ولا رقمَ كاملاً.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import re
 from typing import Any
 
 from django.db import transaction
@@ -20,13 +23,16 @@ from core.academic_calendar import academic_year_for_school
 from core.audit_repr import masked_repr
 from core.capabilities import has_capability
 from core.models import AuditLog, ClassGroup, CustomUser, School, StudentEnrollment
-from operations.models import ExitPermit, Session, SubjectClassAssignment
+from core.privacy import mask_phone
+from operations.models import ExitPermit, Session
+from operations.services.absence_followup import guardian_phones_for
 
 from .exit_permit_form import MIN_PERIODS_FOR_ATTENDANCE
 from .services import wings_of
 
 REQUEST_CAP = "wings.exit_permit_request"
-APPROVE_CAP = "wings.record_day"
+
+_PHONE_RE = re.compile(r"^\+?[0-9]{6,15}$")
 
 
 class PermitDeniedError(Exception):
@@ -34,7 +40,7 @@ class PermitDeniedError(Exception):
 
 
 class PermitError(Exception):
-    """طلبٌ غيرُ صالح (سببٌ مجهول، أو اعتمادٌ دون حضور الوليّ)."""
+    """طلبٌ غيرُ صالح (سببٌ مجهول، أو طريقةُ موافقةٍ ناقصة)."""
 
 
 def completed_periods(class_group: ClassGroup, day: dt.date) -> int:
@@ -46,38 +52,34 @@ def low_periods(permit: ExitPermit) -> bool:
     return permit.completed_periods < MIN_PERIODS_FOR_ATTENDANCE
 
 
-def _in_my_wings(user: CustomUser, school: School, class_group: ClassGroup) -> bool:
+def _my_wing_ids(user: CustomUser, school: School) -> set[Any]:
     year = academic_year_for_school(school)
-    return class_group.wing_id in {w.id for w in wings_of(user, school, year)}
+    return {w.id for w in wings_of(user, school, year)}
 
 
-def _may_act_on(
-    user: CustomUser, school: School, class_group: ClassGroup, *, approve: bool
-) -> bool:
-    if has_capability(user, APPROVE_CAP) and _in_my_wings(user, school, class_group):
+def may_issue(user: CustomUser, school: School, class_group: ClassGroup) -> bool:
+    """القدرةُ للأدوار الخمسة، والشعبةُ في نطاقه (مشرفُ الجناح: أجنحتُه؛ والباقون: المدرسةُ كلُّها)."""
+    return has_capability(user, REQUEST_CAP) and class_group.wing_id in _my_wing_ids(user, school)
+
+
+def is_printable(permit: ExitPermit) -> bool:
+    """لا تُطبع ورقةٌ بلا طريقة موافقة؛ ومع الاتّصال بلا رقمٍ ومتّصلٍ لا تُطبع. و`approved` القديمةُ مقروءةٌ كما كانت."""
+    if permit.status == "approved":
         return True
-    if approve:
+    if permit.status != "issued":
         return False
-    return SubjectClassAssignment.objects.filter(
-        school=school, class_group=class_group, teacher=user
-    ).exists()
+    if permit.guardian_method == "present":
+        return True
+    return permit.guardian_method == "phone" and bool(permit.call_phone and permit.caller_name)
 
 
-def may_request(user: CustomUser, school: School, class_group: ClassGroup) -> bool:
-    return _may_act_on(user, school, class_group, approve=False)
-
-
-def can_approve(user: CustomUser) -> bool:
-    return has_capability(user, APPROVE_CAP)
-
-
-def own_permit(user: CustomUser, school: School, permit_id: Any, *, approve: bool) -> ExitPermit:
+def own_permit(user: CustomUser, school: School, permit_id: Any) -> ExitPermit:
     permit = (
-        ExitPermit.objects.select_related("student", "class_group", "approved_by")
+        ExitPermit.objects.select_related("student", "class_group", "requested_by")
         .filter(pk=permit_id, school=school)
         .first()
     )
-    if permit is None or not _may_act_on(user, school, permit.class_group, approve=approve):
+    if permit is None or not may_issue(user, school, permit.class_group):
         raise PermitDeniedError
     return permit
 
@@ -89,23 +91,73 @@ def current_class_of(student: CustomUser, school: School) -> ClassGroup:
     return enrollment.class_group
 
 
+def registered_phones(school: School, student: CustomUser) -> list[str]:
+    """أرقامُ أولياء أمر الطالب المسجَّلة — تُقرأ وقتَ العرض ولا تُخزَّن للاختيار."""
+    return guardian_phones_for(school, [student.pk]).get(student.pk, [])
+
+
+def _clean_phone(raw: str) -> str:
+    return re.sub(r"[\s\-]", "", raw or "")
+
+
+def _guardian_fields(
+    school: School,
+    student: CustomUser,
+    *,
+    method: str,
+    call_phone: str,
+    caller_name: str,
+    caller_relation: str,
+) -> dict[str, Any]:
+    """حقولُ طريقة الموافقة بعد التحقّق؛ والناقصُ `PermitError` بعربيّةٍ مفهومة."""
+    if method not in dict(ExitPermit.GUARDIAN_METHODS):
+        raise PermitError("اختر طريقة موافقة وليّ الأمر.")
+    if method == "present":
+        return {"guardian_method": "present", "guardian_present": True}
+    phone = _clean_phone(call_phone)
+    name = caller_name.strip()[:150]
+    if not phone or not name:
+        raise PermitError("الاتّصال يستلزم رقم الهاتف ومن المتصل (الاسم والصلة).")
+    if not _PHONE_RE.match(phone):
+        raise PermitError("رقم الهاتف غير صالح.")
+    known = {_clean_phone(n) for n in registered_phones(school, student)}
+    return {
+        "guardian_method": "phone",
+        "call_phone": phone,
+        "call_phone_registered": phone in known,
+        "caller_name": name,
+        "caller_relation": caller_relation.strip()[:40],
+    }
+
+
 @transaction.atomic
-def request_permit(
+def issue_permit(
     user: CustomUser,
     school: School,
     student: CustomUser,
     *,
     reason: str,
+    guardian_method: str,
     note: str = "",
+    call_phone: str = "",
+    caller_name: str = "",
+    caller_relation: str = "",
     exit_at: dt.datetime | None = None,
 ) -> ExitPermit:
-    if not has_capability(user, REQUEST_CAP):
-        raise PermitDeniedError
+    """يُصدر الورقةَ مباشرةً (بلا اعتماد، وبلا حصّةٍ جاريةٍ شرطاً)؛ والموظفُ والوقتُ يُسجَّلان تلقائيّاً."""
     class_group = current_class_of(student, school)
-    if not _may_act_on(user, school, class_group, approve=False):
+    if not may_issue(user, school, class_group):
         raise PermitDeniedError
     if reason not in dict(ExitPermit.REASONS):
         raise PermitError("اختر سبباً من القائمة.")
+    guardian = _guardian_fields(
+        school,
+        student,
+        method=guardian_method,
+        call_phone=call_phone,
+        caller_name=caller_name,
+        caller_relation=caller_relation,
+    )
     exit_at = exit_at or timezone.now()
     School.objects.select_for_update().get(pk=school.pk)
     last = ExitPermit.objects.filter(school=school).aggregate(m=Max("sequence"))["m"] or 0
@@ -119,55 +171,34 @@ def request_permit(
         exit_at=exit_at,
         completed_periods=completed_periods(class_group, timezone.localdate(exit_at)),
         requested_by=user,
+        status="issued",
+        **guardian,
     )
+    changes: dict[str, Any] = {
+        "exit_permit": "issued",
+        "reason": reason,
+        "guardian_method": permit.guardian_method,
+    }
+    if permit.call_phone:
+        changes["call_phone"] = mask_phone(permit.call_phone)
     AuditLog.log(
         user=user,
         action="create",
         model_name="other",
         object_id=permit.pk,
         object_repr=masked_repr(permit),
-        changes={"exit_permit": "requested", "reason": reason},
-        school=school,
-    )
-    return permit
-
-
-@transaction.atomic
-def approve_permit(
-    user: CustomUser, school: School, permit_id: Any, *, guardian_present: bool
-) -> ExitPermit:
-    permit = own_permit(user, school, permit_id, approve=True)
-    if permit.status == "approved":
-        return permit
-    if not guardian_present:
-        raise PermitError("لا اعتمادَ قبل تسجيل حضور وليّ الأمر ببطاقته.")
-    permit.guardian_present = True
-    permit.status = "approved"
-    permit.approved_by = user
-    permit.approved_at = timezone.now()
-    permit.save(update_fields=["guardian_present", "status", "approved_by", "approved_at"])
-    AuditLog.log(
-        user=user,
-        action="update",
-        model_name="other",
-        object_id=permit.pk,
-        object_repr=masked_repr(permit),
-        changes={"exit_permit": "approved", "low_periods": low_periods(permit)},
+        changes=changes,
         school=school,
     )
     return permit
 
 
 def permits_for(user: CustomUser, school: School, day: dt.date) -> list[ExitPermit]:
-    """أذوناتُ اليوم ضمن نطاق المستخدم: حاملُ الجناح لأجنحته، والمعلّمُ ما طلبه."""
+    """ورقاتُ اليوم ضمن نطاق المستخدم: مشرفُ الجناح لأجنحته، والأربعةُ الباقون للمدرسة كلِّها."""
+    if not has_capability(user, REQUEST_CAP):
+        return []
+    wing_ids = _my_wing_ids(user, school)
     qs = ExitPermit.objects.filter(school=school, exit_at__date=day).select_related(
-        "student", "class_group__wing", "approved_by"
+        "student", "class_group__wing", "requested_by"
     )
-    out = []
-    for permit in qs.order_by("sequence"):
-        if (
-            _may_act_on(user, school, permit.class_group, approve=True)
-            or permit.requested_by_id == user.id
-        ):
-            out.append(permit)
-    return out
+    return [p for p in qs.order_by("sequence") if p.class_group.wing_id in wing_ids]

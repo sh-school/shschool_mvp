@@ -167,12 +167,14 @@ class ExitPermitAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
         "reason",
         "status",
         "completed_periods",
-        "guardian_present",
+        "guardian_method",
         "approved_by",
         "exit_at",
     )
+    #: رقمُ الاتّصال لا يُعرض في الإدارة (W-20261116-003) — يُقرأ من الاستمارة المطبوعة فقط.
+    exclude = ("call_phone",)
     list_select_related = ("student", "class_group", "approved_by")
-    list_filter = ("status", "reason", "guardian_present", "school")
+    list_filter = ("status", "reason", "guardian_method", "school")
     search_fields = ("student__full_name", "student__national_id")
     date_hierarchy = "exit_at"
 

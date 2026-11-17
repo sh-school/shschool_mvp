@@ -1,16 +1,16 @@
 {% extends "base/base.html" %}
 {% load ui %}
-{% comment %}طلبُ إذن خروج لطالبٍ بعينه (W-20261005-010): السببُ مصنَّف، والتفصيلُ اختياريّ، ووقتُ الخروج الآن.{% endcomment %}
-{% block title %}طلبُ إذن خروج — {{ student.full_name }}{% endblock %}
+{% comment %}إصدارُ ورقة خروج لطالبٍ بعينه (W-20261116-003): بلا اعتماد، وطريقةُ موافقة الوليّ إلزاميّة؛ ومع الاتّصال رقمٌ ومتّصل.{% endcomment %}
+{% block title %}إصدارُ ورقة خروج — {{ student.full_name }}{% endblock %}
 {% block main_class %}{% page_layout "form" %}{% endblock %}
 {% block breadcrumbs %}
 {% url 'wings:exit_permit_list' as list_url %}
-{% include "components/breadcrumbs.html" with parent2_url="/wings/record/" parent2_label="رصد الغياب" parent_url=list_url parent_label="أذونات الخروج" current=student.full_name %}
+{% include "components/breadcrumbs.html" with parent2_url="/wings/record/" parent2_label="رصد الغياب" parent_url=list_url parent_label="أوراق الخروج" current=student.full_name %}
 {% endblock %}
 
 {% block content %}
 <div class="exec-dash">
-  {% page_header "طلبُ إذن خروج" subtitle=class_group icon="attendance_register" %}{% endpage_header %}
+  {% page_header "إصدارُ ورقة خروج" subtitle=class_group icon="attendance_register" %}{% endpage_header %}
   {% section_card student.full_name icon="attendance_register" %}
     <form method="post">{% csrf_token %}
       <div class="ui-field">
@@ -23,8 +23,32 @@
         <label for="exit-note">تفصيل العذر</label>
         <input id="exit-note" type="text" name="note" maxlength="200">
       </div>
+      <div class="ui-field">
+        <label for="exit-method">طريقة موافقة وليّ الأمر</label>
+        <select id="exit-method" name="guardian_method" required>
+          <option value="">اختر الطريقة</option>
+          {% for key, label in methods %}<option value="{{ key }}" {% if posted.guardian_method == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <span class="ui-field-hint">الحضورُ ببطاقته لا يُحفظ له صورةٌ ولا رقم؛ والاتّصالُ يستلزم الحقول الثلاثة التالية.</span>
+      </div>
+      <div class="ui-field">
+        <label for="exit-phone-choice">رقم الاتّصال (عند الاتّصال)</label>
+        <select id="exit-phone-choice" name="call_phone_choice">
+          {% for phone in phones %}<option value="{{ phone }}">{{ phone }}</option>{% endfor %}
+          <option value="other">رقمٌ آخر (يُكتب أدناه ويُعلَّم «غير مسجَّل»)</option>
+        </select>
+        <input id="exit-phone-manual" type="tel" name="call_phone_manual" maxlength="20" aria-label="رقمٌ آخر" value="{{ posted.call_phone_manual }}">
+      </div>
+      <div class="ui-field">
+        <label for="exit-caller">من المتصل (الاسم)</label>
+        <input id="exit-caller" type="text" name="caller_name" maxlength="150" value="{{ posted.caller_name }}">
+      </div>
+      <div class="ui-field">
+        <label for="exit-relation">صلة المتصل بالطالب</label>
+        <input id="exit-relation" type="text" name="caller_relation" maxlength="40" value="{{ posted.caller_relation }}">
+      </div>
       <div class="ui-actions">
-        <button type="submit" class="btn-primary">إرسال الطلب</button>
+        <button type="submit" class="btn-primary">إصدار الورقة</button>
         <a class="btn-secondary" href="{% url 'wings:exit_permit_list' %}">رجوع</a>
       </div>
     </form>

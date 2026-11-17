@@ -31,7 +31,7 @@ from tests.conftest import (
     UserFactory,
 )
 from wings import ministry_selectors
-from wings.exit_permit_services import request_permit
+from wings.exit_permit_services import issue_permit
 from wings.export_tables import EXIT_PERMITS_TABLE, MINISTRY_TABLE, REGISTER_TABLE
 
 pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
@@ -150,11 +150,14 @@ class TestWingRegisterTable:
 
 class TestExitPermitsTable:
     @pytest.fixture
-    def permits(self, school, world):
+    def permits(self, school, world, roles):
         reason = ExitPermit.REASONS[0][0]
         pupils = world["pupils"]
-        for key, by in (("ahmad", world["supervisor"]), ("badr", world["other"])):
-            request_permit(by, school, pupils[key], reason=reason)
+        # المدير يُصدر للجناحين (ورقةُ الخروج بلا اعتماد، W-20261116-003)
+        for key in ("ahmad", "badr"):
+            issue_permit(
+                roles["principal"], school, pupils[key], reason=reason, guardian_method="present"
+            )
 
     def test_the_file_rows_equal_the_page_rows_for_every_role(
         self, client_as, school, world, roles, permits
