@@ -32,6 +32,11 @@ from .services import wings_of
 
 REQUEST_CAP = "wings.exit_permit_request"
 
+RESTRICTED_METHOD_MESSAGE = (
+    "المادة 3.7.3.4 تحصر خروج هذا الطالب بحضور وليّ الأمر وتوقيعه؛ "
+    "اختر «حضر ببطاقته» ولا يصحّ الاتّصال الهاتفيّ."
+)
+
 _PHONE_RE = re.compile(r"^\+?[0-9]{6,15}$")
 
 
@@ -108,12 +113,15 @@ def _guardian_fields(
     call_phone: str,
     caller_name: str,
     caller_relation: str,
+    restricted: bool = False,
 ) -> dict[str, Any]:
     """حقولُ طريقة الموافقة بعد التحقّق؛ والناقصُ `PermitError` بعربيّةٍ مفهومة."""
     if method not in dict(ExitPermit.GUARDIAN_METHODS):
         raise PermitError("اختر طريقة موافقة وليّ الأمر.")
     if method == "present":
         return {"guardian_method": "present", "guardian_present": True}
+    if restricted:
+        raise PermitError(RESTRICTED_METHOD_MESSAGE)
     phone = _clean_phone(call_phone)
     name = caller_name.strip()[:150]
     if not phone or not name:
@@ -143,8 +151,12 @@ def issue_permit(
     caller_name: str = "",
     caller_relation: str = "",
     exit_at: dt.datetime | None = None,
+    restricted: bool = False,
 ) -> ExitPermit:
-    """يُصدر الورقةَ مباشرةً (بلا اعتماد، وبلا حصّةٍ جاريةٍ شرطاً)؛ والموظفُ والوقتُ يُسجَّلان تلقائيّاً."""
+    """يُصدر الورقةَ مباشرةً (بلا اعتماد، وبلا حصّةٍ جاريةٍ شرطاً)؛ والموظفُ والوقتُ يُسجَّلان تلقائيّاً.
+
+    `restricted` جوابُ سؤال الإعاقة (قرار المالك 2026-11-17): يُستعمل للتحقّق لحظةَ الإصدار فقط، ولا يُخزَّن ولا يُسجَّل.
+    """
     class_group = current_class_of(student, school)
     if not may_issue(user, school, class_group):
         raise PermitDeniedError
@@ -157,6 +169,7 @@ def issue_permit(
         call_phone=call_phone,
         caller_name=caller_name,
         caller_relation=caller_relation,
+        restricted=restricted,
     )
     exit_at = exit_at or timezone.now()
     School.objects.select_for_update().get(pk=school.pk)

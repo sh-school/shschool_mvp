@@ -24,6 +24,15 @@
         <input id="exit-note" type="text" name="note" maxlength="200">
       </div>
       <div class="ui-field">
+        <label for="exit-disability">هل الطالب من ذوي الإعاقة؟</label>
+        <select id="exit-disability" name="has_disability" required>
+          <option value="">اختر الجواب</option>
+          <option value="yes" {% if posted.has_disability == "yes" %}selected{% endif %}>نعم</option>
+          <option value="no" {% if posted.has_disability == "no" %}selected{% endif %}>لا</option>
+        </select>
+        <span class="ui-field-hint">للتحقّق وقتَ الإصدار فقط ولا يُحفظ. عند «نعم» لا يخرج الطالب إلا بحضور وليّ الأمر وتوقيعه (المادة 3.7.3.4).</span>
+      </div>
+      <div class="ui-field">
         <label for="exit-method">طريقة موافقة وليّ الأمر</label>
         <select id="exit-method" name="guardian_method" required>
           <option value="">اختر الطريقة</option>
