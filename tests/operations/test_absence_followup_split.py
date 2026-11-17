@@ -100,20 +100,24 @@ class TestPrintIsServerSide:
     def test_only_the_three_may_open_the_print_routes(
         self, client_as, staff, supervisor, teacher, absent_both, name
     ):
-        for user in (supervisor, staff["vice_academic"], teacher):
+        for user in (staff["vice_academic"], teacher):
             assert _get(client_as, user, name).status_code == 403
+        # W-20261117-003: مشرفُ الجناح يفتح كشفَ التواصل وحدَه؛ كشفُ الإجراءات للثلاثة.
+        assert _get(client_as, supervisor, name).status_code == 200
+        assert _get(client_as, supervisor, name, page="actions").status_code == 403
         for role in THREE:
             assert _get(client_as, staff[role], name).status_code == 200
 
     def test_the_buttons_are_hidden_from_everyone_else(
         self, client_as, staff, supervisor, absent_both
     ):
-        for user in (supervisor, staff["vice_academic"]):
-            for name in ("daily_report", "absence_actions"):
-                body = _get(client_as, user, name).content.decode()
-                assert (
-                    reverse(PRINT_URL) not in body and reverse("absence_followup_pdf") not in body
-                )
+        for user, name in (
+            (supervisor, "absence_actions"),
+            (staff["vice_academic"], "daily_report"),
+            (staff["vice_academic"], "absence_actions"),
+        ):
+            body = _get(client_as, user, name).content.decode()
+            assert reverse(PRINT_URL) not in body and reverse("absence_followup_pdf") not in body
         # زرُّ PDF يمرّ بنقطة الملفّ (تنزيلٌ مسجَّل) لا بصفحة المعاينة (W-20261021-005)
         assert (
             reverse("absence_followup_pdf") in _get(client_as, staff["principal"]).content.decode()

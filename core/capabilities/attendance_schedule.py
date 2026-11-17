@@ -51,6 +51,13 @@ def attendance_schedule_capabilities(shared: Shared) -> list[Capability]:
             basis="قولُ المالك 2026-10-17 (W-20261017-024): الطباعةُ للمدير والنائب الإداريّ ومنسّق شؤون الطلبة وحدَهم",
         ),
         _cap(
+            "operations.absence_followup_print_contact",
+            "طباعةُ كشف «التواصل مع أولياء الأمور» وحدَه PDF (دون الإجراءات ودون Excel)",
+            followup_columns | {"admin_supervisor"},
+            scope="المدرسة، ولمشرف الجناح جناحُه",
+            basis="قرارُ المالك 2026-11-17 (W-20261117-003): مشرفُ الجناح يطبع كشفَ التواصل لجناحه PDF فقط",
+        ),
+        _cap(
             "operations.absence_followup_followup",
             "عمودا «المتابعة» (حالةُ التواصل وحالةُ الإجراء) في كشف متابعة الغياب",
             followup_columns,

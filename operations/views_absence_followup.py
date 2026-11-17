@@ -39,6 +39,7 @@ _FLAGS = {
     "can_record": "operations.absence_followup_record",
     "can_feedback": "operations.absence_followup_feedback",
     "can_print": "operations.absence_followup_print",
+    "can_print_contact": "operations.absence_followup_print_contact",
     "can_followup": "operations.absence_followup_followup",
 }
 
@@ -277,7 +278,7 @@ def action_save(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@capability_required("operations.absence_followup_print")
+@capability_required("operations.absence_followup_print_contact")
 def followup_print(request: HttpRequest) -> HttpResponse:
     """صفحةُ المنصّة بإطار الكشف (المسارُ القديم `reports/daily/print/` باقٍ) — الفرضُ في الخادم لا في الواجهة."""
     from operations.absence_followup_print import followup_viewer_response
@@ -288,7 +289,7 @@ def followup_print(request: HttpRequest) -> HttpResponse:
 # `X_FRAME_OPTIONS = "DENY"` عامٌّ على المشروع فيحجب عرضَ الملفّ داخل إطار صفحة المنصّة؛ والمصدرُ الموقعُ نفسُه فـ sameorigin يكفي.
 @xframe_options_sameorigin
 @login_required
-@capability_required("operations.absence_followup_print")
+@capability_required("operations.absence_followup_print_contact")
 def followup_pdf(request: HttpRequest) -> HttpResponse:
     """ملفُّ PDF للصفحة المطلوبة بالاتّجاه المطلوب — inline للإطار، و`download=1` تنزيلاً. التدقيقُ: العددُ لا الأسماء."""
     from core.audit_export import log_export

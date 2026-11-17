@@ -20,6 +20,7 @@ from core.export_utils import get_export_context_for
 from core.pdf_utils import render_pdf_bytes
 
 PRINT = "operations.absence_followup_print"
+PRINT_CONTACT = "operations.absence_followup_print_contact"
 
 
 def shown_rows_of(rows: list[dict], params: Any) -> list[dict]:
@@ -130,10 +131,11 @@ def build_followup_pdf(school: Any, user: Any, params: Any) -> Any:
     from operations.models import AbsenceActionLog, AbsenceContactLog
     from wings.register import footer_lines
 
-    if not has_capability(user, PRINT):
+    page, orient = sheet_options(params)
+    # كشفُ الإجراءات لحَمَلة الطباعة وحدَهم؛ وكشفُ التواصل يضاف إليهم مشرفُ الجناح (والنطاقُ من `followup_rows`).
+    if not has_capability(user, PRINT if page == "actions" else PRINT_CONTACT):
         raise PermissionDenied("لا صلاحيةَ لطباعة كشف المتابعة.")
     day = day_of(params)
-    page, orient = sheet_options(params)
     # المحدِّدُ نفسُه الذي تقرأ به الشاشةُ وExcel: نطاقُ الدور والترشيحُ كاملاً وفرزُ الجناح.
     rows = shown_rows(user, params)
     split = split_of(params)
@@ -155,6 +157,8 @@ def build_followup_pdf(school: Any, user: Any, params: Any) -> Any:
         outcomes=dict(AbsenceContactLog.OUTCOMES),
         statuses=dict(AbsenceActionLog.STATUSES),
         can_feedback=has_capability(user, "operations.absence_followup_feedback"),
+        # عمودُ «المتابعة» (حالةُ التواصل) لا يخرج في المطبوع لمن لا تعرضه شاشتُه.
+        can_followup=has_capability(user, "operations.absence_followup_followup"),
         issuer=user.full_name,
         issued_at=dt.datetime.now(),
     )
@@ -176,6 +180,8 @@ def followup_viewer_response(request: Any, day: dt.date) -> Any:
     from django.utils.formats import date_format
 
     page, orient = sheet_options(request.GET)
+    if not has_capability(request.user, PRINT if page == "actions" else PRINT_CONTACT):
+        raise PermissionDenied("لا صلاحيةَ لعرض كشف المتابعة.")
     shown = {
         k: request.GET[k] for k in ("grade", "wing", "followup", "sort", "q") if request.GET.get(k)
     }
@@ -198,6 +204,7 @@ def followup_viewer_response(request: Any, day: dt.date) -> Any:
             "orient": orient,
             "keep": {k: v for k, v in base.items() if k != "orient"},
             "frame_url": f"{reverse('absence_followup_pdf')}?{urlencode(base)}",
+            "can_xlsx": has_capability(request.user, PRINT),
             "pdf_url": f"{reverse('absence_followup_pdf')}?{urlencode({**base, 'download': 1})}",
             "back_url": f"{reverse(back)}?{urlencode({'date': day.isoformat(), **shown})}",
             "split_url": f"{reverse('absence_followup_print')}?{urlencode(toggle)}",
