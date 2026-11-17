@@ -127,8 +127,8 @@ DOCUMENTS: dict[str, PrintDocument] = {
         FORM,
         "portrait",
         CONFORMS,
-        LOGO_BASE,
-        "إذنُ خروج بورقة A5 عموديّة (@page في القالب)؛ يُبنى بـ`wings/exit_permit_pdf_services.py`.",
+        LOGO_FRAME,
+        "ورقةُ خروج بالإطار المركزيّ وخطّ المخاطبات الرسميّ (ترث `behavior/pdf/base_form.html`)؛ تُبنى بـ`wings/exit_permit_pdf_services.py`.",
     ),
     "templates/quality/observation_pdf.html": PrintDocument(
         FORM,

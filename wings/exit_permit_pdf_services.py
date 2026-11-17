@@ -25,7 +25,8 @@ def guardian_rows(permit: Any) -> list[tuple[str, Any]]:
     """سطورُ موافقة الوليّ: الطريقةُ وحدَها للحضور، ومعها بياناتُ الاتّصال للهاتف (الموظفُ والوقتُ تلقائيّان)."""
     labels = form.FIELD_LABELS
     if permit.guardian_method == "phone":
-        phone = permit.call_phone + (
+        # بلا «+» في أوّله: يظهر في الاتجاه العربيّ آخرَ الرقم فيربك القارئ
+        phone = permit.call_phone.lstrip("+") + (
             "" if permit.call_phone_registered else f" {form.UNREGISTERED_PHONE}"
         )
         caller = " — ".join(x for x in (permit.caller_name, permit.caller_relation) if x)
@@ -43,6 +44,14 @@ def guardian_rows(permit: Any) -> list[tuple[str, Any]]:
             form.GUARDIAN_PRESENT_YES if present else form.GUARDIAN_PRESENT_NO,
         )
     ]
+
+
+def _signatories(permit: Any) -> list[tuple[str, str]]:
+    """الموقّعون: توقيعُ الوليّ يتقدّمهم حين حضر ببطاقته (لا حين اتّصل هاتفيّاً)."""
+    present = permit.guardian_method == "present" or (
+        not permit.guardian_method and permit.guardian_present
+    )
+    return ([form.GUARDIAN_SIGNATURE] if present else []) + list(form.SIGNATORIES)
 
 
 def form_context(permit: Any) -> dict:
@@ -68,7 +77,8 @@ def form_context(permit: Any) -> dict:
         "rows": rows,
         "instructions": form.INSTRUCTIONS,
         "delivery_line": form.DELIVERY_LINE,
-        "signatories": form.SIGNATORIES,
+        "signatories": _signatories(permit),
+        "name_label": form.SIGNATORY_NAME_LABEL,
         "warning": warning,
     }
 

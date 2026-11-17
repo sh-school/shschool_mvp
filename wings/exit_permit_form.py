@@ -54,6 +54,10 @@ INSTRUCTIONS = [
     f"يلزم استكمالُ {MIN_PERIODS_FOR_ATTENDANCE} حصص ليُحتسب حضورُ الطالب في اليوم.",
 ]
 
+#: عنوانُ سطر الاسم تحت توقيع النائب، وخانةُ توقيع الوليّ عند حضوره ببطاقته.
+SIGNATORY_NAME_LABEL = "الاسم"
+GUARDIAN_SIGNATURE = ("guardian", "توقيع وليّ الأمر")
+
 SIGNATORIES = [
     ("approver", "النائب الإداري أو المكلَّف بعمله"),
     ("guard", "استلام حارس الأمن"),

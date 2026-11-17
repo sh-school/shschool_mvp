@@ -298,8 +298,19 @@ class TestFormFromConstants:
         html = render_to_string(TEMPLATE, ctx)
         assert "النائب الإداري أو المكلَّف بعمله" in html
         assert "تُسلَّم للأمن عند الخروج، ولا يخرج الطالب بلا توقيعها" in html
-        assert form.GUARDIAN_PHONE in html and UNREGISTERED in html
+        assert form.GUARDIAN_PHONE in html and UNREGISTERED.lstrip("+") in html
+        assert UNREGISTERED not in html and form.SIGNATORY_NAME_LABEL in html
         assert form.UNREGISTERED_PHONE in html and "الأب" in html
+
+
+class TestGuardianSignatureBox:
+    def test_card_presence_adds_the_guardian_signature_and_a_call_does_not(
+        self, school, klass, kids, supervisor
+    ):
+        present = form_context(_issue(supervisor, school, kids[0]))["signatories"]
+        called = form_context(_phone_call(supervisor, school, kids[1]))["signatories"]
+        assert form.GUARDIAN_SIGNATURE in present and form.GUARDIAN_SIGNATURE not in called
+        assert list(form.SIGNATORIES) == present[1:] == called
 
 
 class TestWhoMayIssue:

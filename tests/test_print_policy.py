@@ -66,7 +66,10 @@ def test_logo_claims_are_true_in_the_templates():
         if d.logo == pp.LOGO_BASE:
             assert 'extends "reports/base_qatar_report.html"' in text, path
         elif d.logo == pp.LOGO_FRAME:
-            assert "print_frame_header" in text, path
+            # الإطارُ إمّا مستدعًى في القالب أو موروثٌ من قالب الاستمارات المركزيّ
+            assert (
+                "print_frame_header" in text or 'extends "behavior/pdf/base_form.html"' in text
+            ), path
         elif d.logo == pp.LOGO_TAG:
             assert "ministry_logo" in text, path
         elif d.logo == pp.LOGO_OUTSIDE:
