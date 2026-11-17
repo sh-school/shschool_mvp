@@ -224,7 +224,10 @@ class TestScreens:
         assert c.get(url).status_code == 200
         refused = c.post(url, {"reason": "family", "note": "x"})
         assert refused.status_code == 200 and not ExitPermit.objects.exists()
-        c.post(url, {"reason": "family", "note": "x", "guardian_method": "present"})
+        c.post(
+            url,
+            {"reason": "family", "note": "x", "guardian_method": "present", "has_disability": "no"},
+        )
         permit = ExitPermit.objects.get()
         assert c.get(reverse("wings:exit_permit_list")).status_code == 200
         response = c.get(reverse("wings:exit_permit_pdf", args=[permit.id]))
@@ -243,6 +246,7 @@ class TestScreens:
             reverse("wings:exit_permit_new", args=[kids[0].id]),
             {
                 "reason": "family",
+                "has_disability": "no",
                 "guardian_method": "phone",
                 "call_phone_choice": "other",
                 "call_phone_manual": UNREGISTERED,
@@ -311,6 +315,66 @@ class TestGuardianSignatureBox:
         called = form_context(_phone_call(supervisor, school, kids[1]))["signatories"]
         assert form.GUARDIAN_SIGNATURE in present and form.GUARDIAN_SIGNATURE not in called
         assert list(form.SIGNATORIES) == present[1:] == called
+
+
+class TestDisabilityRestriction:
+    """المادة 3.7.3.4: ذوو الإعاقة يخرجون بحضور وليّ الأمر وتوقيعه؛ والجوابُ للتحقّق لحظةَ الإصدار ولا يُحفظ."""
+
+    def _post(self, client, student, **kw):
+        data = {"reason": "family", "guardian_method": "present", "has_disability": "yes"}
+        data.update(kw)
+        return client.post(reverse("wings:exit_permit_new", args=[student.id]), data)
+
+    def _phone(self, **kw):
+        return {
+            "guardian_method": "phone",
+            "call_phone_choice": "other",
+            "call_phone_manual": REGISTERED,
+            "caller_name": "الأب",
+            **kw,
+        }
+
+    def test_the_answer_is_mandatory(self, client_as, school, klass, kids, supervisor):
+        response = self._post(client_as(supervisor), kids[0], has_disability="")
+        assert response.status_code == 200 and not ExitPermit.objects.exists()
+
+    def test_yes_rejects_phone_in_the_server(self, client_as, school, klass, kids, supervisor):
+        response = self._post(client_as(supervisor), kids[0], **self._phone())
+        assert response.status_code == 200 and not ExitPermit.objects.exists()
+        assert "3.7.3.4" in response.content.decode()
+        with pytest.raises(service.PermitError, match="3.7.3.4"):
+            _phone_call(supervisor, school, kids[0], restricted=True)
+
+    def test_no_keeps_phone_working(self, client_as, school, klass, kids, supervisor):
+        self._post(client_as(supervisor), kids[0], **self._phone(has_disability="no"))
+        assert ExitPermit.objects.get().guardian_method == "phone"
+
+    def test_yes_sheet_has_signature_and_line_without_disability(
+        self, client_as, school, klass, kids, supervisor
+    ):
+        response = self._post(client_as(supervisor), kids[0])
+        permit = ExitPermit.objects.get()
+        assert response.status_code == 302 and response.url.endswith("?guardian_only=1")
+        ctx = form_context(permit, guardian_only=True)
+        assert form.GUARDIAN_SIGNATURE in ctx["signatories"]
+        assert ctx["guardian_only_line"] == form.GUARDIAN_ONLY_LINE
+        html = render_to_string(TEMPLATE, {**get_export_context_for(supervisor, "x"), **ctx})
+        assert form.GUARDIAN_ONLY_LINE in html and "إعاقة" not in html
+        pdf = client_as(supervisor).get(response.url)
+        assert pdf.status_code == 200 and pdf.content[:4] == b"%PDF"
+
+    def test_no_sheet_is_unchanged(self, client_as, school, klass, kids, supervisor):
+        response = self._post(client_as(supervisor), kids[0], has_disability="no")
+        permit = ExitPermit.objects.get()
+        assert response.status_code == 302 and "guardian_only" not in response.url
+        assert form_context(permit)["guardian_only_line"] == ""
+
+    def test_the_answer_is_stored_nowhere(self, client_as, school, klass, kids, supervisor):
+        self._post(client_as(supervisor), kids[0])
+        permit = ExitPermit.objects.get()
+        assert not [f for f in permit._meta.get_fields() if "disab" in f.name]
+        text = " ".join(f"{log.object_repr} {log.changes}" for log in AuditLog.objects.all())
+        assert "disab" not in text and "إعاقة" not in text
 
 
 class TestWhoMayIssue:

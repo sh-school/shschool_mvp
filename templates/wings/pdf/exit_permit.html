@@ -24,6 +24,7 @@
 
 <ol class="body-text">{% for line in instructions %}<li>{{ line }}</li>{% endfor %}</ol>
 <p class="body-text is-spaced"><strong>{{ delivery_line }}</strong></p>
+{% if guardian_only_line %}<p class="body-text is-spaced"><strong>{{ guardian_only_line }}</strong></p>{% endif %}
 
 <div class="sig-section">
   <table class="sig-table">

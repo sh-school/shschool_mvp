@@ -12,6 +12,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from core.audit_export import log_export
@@ -66,7 +67,10 @@ def exit_permit_new(request: HttpRequest, student_id) -> HttpResponse:
     except service.PermitDeniedError:
         raise Http404 from None
     if request.method == "POST":
+        answer = request.POST.get("has_disability", "")
         try:
+            if answer not in ("yes", "no"):
+                raise service.PermitError("أجب عن سؤال: هل الطالب من ذوي الإعاقة؟")
             permit = service.issue_permit(
                 request.user,
                 request.school,
@@ -77,6 +81,7 @@ def exit_permit_new(request: HttpRequest, student_id) -> HttpResponse:
                 call_phone=_posted_phone(request.POST),
                 caller_name=request.POST.get("caller_name", ""),
                 caller_relation=request.POST.get("caller_relation", ""),
+                restricted=answer == "yes",
             )
         except service.PermitDeniedError:
             raise Http404 from None
@@ -84,6 +89,11 @@ def exit_permit_new(request: HttpRequest, student_id) -> HttpResponse:
             messages.error(request, str(exc))
         else:
             messages.success(request, f"صدرت ورقة الخروج رقم {permit.sequence}؛ يمكن طباعتها.")
+            if answer == "yes":
+                # الجوابُ لا يُخزَّن: تُطبع الورقةُ بسطر الحضور والتوقيع من هذا الإصدار نفسِه
+                return redirect(
+                    reverse("wings:exit_permit_pdf", args=[permit.pk]) + "?guardian_only=1"
+                )
             return redirect("wings:exit_permit_list")
     return render(
         request,
@@ -103,7 +113,9 @@ def exit_permit_new(request: HttpRequest, student_id) -> HttpResponse:
 @capability_required(service.REQUEST_CAP)
 def exit_permit_pdf(request: HttpRequest, pk) -> HttpResponse:
     try:
-        content, filename = permit_pdf(request.user, request.school, pk)
+        content, filename = permit_pdf(
+            request.user, request.school, pk, request.GET.get("guardian_only") == "1"
+        )
     except service.PermitDeniedError:
         raise Http404 from None
     response = HttpResponse(content, content_type="application/pdf")
