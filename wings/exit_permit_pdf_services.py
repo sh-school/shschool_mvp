@@ -46,18 +46,23 @@ def guardian_rows(permit: Any) -> list[tuple[str, Any]]:
     ]
 
 
-def _signatories(permit: Any) -> list[tuple[str, str]]:
-    """الموقّعون: توقيعُ الوليّ يتقدّمهم حين حضر ببطاقته (لا حين اتّصل هاتفيّاً)."""
-    present = permit.guardian_method == "present" or (
+def _guardian_came(permit: Any) -> bool:
+    """حضر الوليّ ببطاقته: بالطريقة، أو في الصفوف القديمة التي لا طريقةَ فيها بحقل الحضور."""
+    return permit.guardian_method == "present" or (
         not permit.guardian_method and permit.guardian_present
     )
+
+
+def _signatories(permit: Any) -> list[tuple[str, str]]:
+    """الموقّعون: توقيعُ الوليّ يتقدّمهم حين حضر ببطاقته (لا حين اتّصل هاتفيّاً)."""
+    present = _guardian_came(permit)
     return ([form.GUARDIAN_SIGNATURE] if present else []) + list(form.SIGNATORIES)
 
 
-def form_context(permit: Any, guardian_only: bool = False) -> dict:
+def form_context(permit: Any) -> dict:
     """الحقولُ بعناوينها مرتّبةً — القالبُ يعرضها كما هي ولا يحمل نصّاً.
 
-    `guardian_only` يُمرَّر لحظةَ الإصدار فقط (لا يُخزَّن)، فيُطبع سطرُ الحضور والتوقيع.
+    سطرُ «لا يخرج الطالب إلا بحضور وليّ الأمر» يُطبع مع خانة توقيعه في كلّ ورقةٍ حضر فيها الوليّ.
     """
     reasons = dict(form.REASONS)
     labels = form.FIELD_LABELS
@@ -83,13 +88,13 @@ def form_context(permit: Any, guardian_only: bool = False) -> dict:
         "signatories": _signatories(permit),
         "name_label": form.SIGNATORY_NAME_LABEL,
         "warning": warning,
-        "guardian_only_line": form.GUARDIAN_ONLY_LINE if guardian_only else "",
+        "guardian_only_line": form.GUARDIAN_ONLY_LINE if _guardian_came(permit) else "",
     }
 
 
-def render_permit(user: Any, permit: Any, guardian_only: bool = False) -> bytes:
+def render_permit(user: Any, permit: Any) -> bytes:
     ctx = get_export_context_for(user, form.FORM_TITLE)
-    ctx.update(form_context(permit, guardian_only))
+    ctx.update(form_context(permit))
     ctx["school"] = permit.school
     pdf = render_pdf_bytes(render_to_string(TEMPLATE, ctx))
     AuditLog.log(
@@ -104,12 +109,10 @@ def render_permit(user: Any, permit: Any, guardian_only: bool = False) -> bytes:
     return pdf
 
 
-def permit_pdf(
-    user: Any, school: Any, permit_id: Any, guardian_only: bool = False
-) -> tuple[bytes, str]:
+def permit_pdf(user: Any, school: Any, permit_id: Any) -> tuple[bytes, str]:
     """(بايتات الاستمارة، اسمُ الملفّ) لورقةٍ مكتملةِ الموافقة في نطاق المستخدم؛ وغيرُ ذلك `PermitDeniedError`."""
     permit = own_permit(user, school, permit_id)
     if not is_printable(permit):
         raise PermitDeniedError
     filename = generate_export_filename("wings", f"exit-permit-{permit.sequence}", "pdf")
-    return render_permit(user, permit, guardian_only), filename
+    return render_permit(user, permit), filename

@@ -66,11 +66,12 @@ class ExitPermit(models.Model):
     call_phone_registered = models.BooleanField(
         default=True, db_default=True, verbose_name="الرقمُ مسجَّلٌ لوليّ الأمر"
     )
-    caller_name = models.CharField(
-        max_length=150, blank=True, default="", db_default="", verbose_name="اسم المتصل"
+    #: اسمُ المتصل وصلتُه مشفَّران كالرقم (W-20261117-002)؛ والطولُ يُقصّ في الخدمة (150 و40).
+    caller_name = EncryptedTextField(
+        blank=True, default="", db_default="", verbose_name="اسم المتصل"
     )
-    caller_relation = models.CharField(
-        max_length=40, blank=True, default="", db_default="", verbose_name="صلة المتصل"
+    caller_relation = EncryptedTextField(
+        blank=True, default="", db_default="", verbose_name="صلة المتصل"
     )
     status = models.CharField(
         max_length=10, choices=STATUSES, default="issued", verbose_name="الحالة"
