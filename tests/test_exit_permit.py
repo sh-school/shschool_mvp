@@ -354,8 +354,8 @@ class TestDisabilityRestriction:
     ):
         response = self._post(client_as(supervisor), kids[0])
         permit = ExitPermit.objects.get()
-        assert response.status_code == 302 and response.url.endswith("?guardian_only=1")
-        ctx = form_context(permit, guardian_only=True)
+        assert response.status_code == 302 and "guardian_only" not in response.url
+        ctx = form_context(permit)
         assert form.GUARDIAN_SIGNATURE in ctx["signatories"]
         assert ctx["guardian_only_line"] == form.GUARDIAN_ONLY_LINE
         html = render_to_string(TEMPLATE, {**get_export_context_for(supervisor, "x"), **ctx})
@@ -363,11 +363,36 @@ class TestDisabilityRestriction:
         pdf = client_as(supervisor).get(response.url)
         assert pdf.status_code == 200 and pdf.content[:4] == b"%PDF"
 
-    def test_no_sheet_is_unchanged(self, client_as, school, klass, kids, supervisor):
-        response = self._post(client_as(supervisor), kids[0], has_disability="no")
-        permit = ExitPermit.objects.get()
-        assert response.status_code == 302 and "guardian_only" not in response.url
-        assert form_context(permit)["guardian_only_line"] == ""
+    def test_the_line_follows_the_method_on_every_print(
+        self, client_as, school, klass, kids, supervisor
+    ):
+        """السطر وخانة التوقيع لكل ورقة «حضر ببطاقته» (ولو قديمة بلا طريقة)، لا لورقة الاتصال."""
+        present = _issue(supervisor, school, kids[0])
+        called = _phone_call(supervisor, school, kids[1])
+        legacy = _issue(supervisor, school, kids[2])
+        ExitPermit.objects.filter(pk=legacy.pk).update(guardian_method="", guardian_present=True)
+        legacy.refresh_from_db()
+        for permit, shown in ((present, True), (legacy, True), (called, False)):
+            ctx = form_context(permit)
+            assert (ctx["guardian_only_line"] == form.GUARDIAN_ONLY_LINE) is shown
+            assert (form.GUARDIAN_SIGNATURE in ctx["signatories"]) is shown
+        url = reverse("wings:exit_permit_pdf", args=[present.id])
+        assert "guardian_only" not in url
+        assert client_as(supervisor).get(url).status_code == 200
+
+    def test_the_caller_is_encrypted_at_rest(self, school, klass, kids, supervisor):
+        from django.db import connection
+
+        permit = _phone_call(supervisor, school, kids[0], caller_name="اسم المتصل السري")
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT caller_name, caller_relation FROM operations_exitpermit WHERE id = %s",
+                [permit.pk],
+            )
+            raw = cursor.fetchone()
+        permit.refresh_from_db()
+        assert (permit.caller_name, permit.caller_relation) == ("اسم المتصل السري", "الأب")
+        assert "اسم المتصل السري" not in raw[0] and "الأب" not in raw[1]
 
     def test_the_answer_is_stored_nowhere(self, client_as, school, klass, kids, supervisor):
         self._post(client_as(supervisor), kids[0])
