@@ -426,13 +426,35 @@ class TestWingSupervisorContactPrint:
         body = _get(client_as, supervisor, "absence_actions").content.decode()
         assert reverse("absence_followup_pdf") not in body
 
-    def test_the_followup_column_follows_its_capability(
+    def test_the_contact_status_column_reaches_every_print_holder(
         self, client_as, supervisor, staff, absent_both, html
     ):
-        mine = _get(client_as, supervisor, "absence_followup_pdf", page="contact")
-        boss = _get(client_as, staff["principal"], "absence_followup_pdf", page="contact")
-        assert "حالةُ التواصل" not in mine.content.decode()
-        assert "حالةُ التواصل" in boss.content.decode()
+        # قرارُ المالك 2026-11-18: عمودُ «حالة التواصل» لا يُحجب عن حامل طباعة كشف التواصل.
+        mine, _ = absent_both
+        _post_contact(client_as, supervisor, mine, outcome="no_reply")
+        label = dict(AbsenceContactLog.OUTCOMES)["no_reply"]
+        for user in (supervisor, staff["principal"]):
+            body = _get(client_as, user, "absence_followup_pdf", page="contact").content.decode()
+            assert "حالةُ التواصل" in body
+            assert label in body
+
+    def test_the_actions_followup_column_still_follows_its_capability(
+        self, client_as, staff, absent_both, html, monkeypatch
+    ):
+        # عمودُ «متابعة الإجراء» في كشف الإجراءات محكومٌ بقدرة المتابعة وحدَها، ولا يمسّ كشفَ التواصل.
+        from core.capabilities import has_capability
+
+        monkeypatch.setattr(
+            "operations.absence_followup_print.has_capability",
+            lambda user, key: (
+                key != "operations.absence_followup_followup" and has_capability(user, key)
+            ),
+        )
+        principal = staff["principal"]
+        actions = _get(client_as, principal, "absence_followup_pdf", page="actions")
+        assert "متابعةُ الإجراء" not in actions.content.decode()
+        contact = _get(client_as, principal, "absence_followup_pdf", page="contact")
+        assert "حالةُ التواصل" in contact.content.decode()
 
     @pytest.mark.parametrize("role", ["principal", "vice_admin", "student_affairs_coordinator"])
     def test_the_three_roles_keep_both_sheets_and_excel(self, client_as, school, absent_both, role):
