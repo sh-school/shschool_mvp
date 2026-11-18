@@ -1310,6 +1310,20 @@
   "not_inherited_by": []
  },
  {
+  "key": "operations.absence_followup_print_contact",
+  "label": "طباعةُ كشف «التواصل مع أولياء الأمور» وحدَه PDF (دون الإجراءات ودون Excel)",
+  "roles": [
+   "admin_supervisor",
+   "principal",
+   "student_affairs_coordinator",
+   "vice_admin"
+  ],
+  "scope": "المدرسة، ولمشرف الجناح جناحُه",
+  "basis": "قرارُ المالك 2026-11-17 (W-20261117-003): مشرفُ الجناح يطبع كشفَ التواصل لجناحه PDF فقط",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
   "key": "operations.absence_followup_followup",
   "label": "عمودا «المتابعة» (حالةُ التواصل وحالةُ الإجراء) في كشف متابعة الغياب",
   "roles": [

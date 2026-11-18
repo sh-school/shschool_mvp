@@ -173,6 +173,11 @@ def test_exports_are_audited_with_who_and_which_filter_and_never_a_name(
 
 def test_the_wing_supervisor_cannot_export_guardian_phones(client_as, supervisor, absent_both):
     # يرى المشرفُ شاشةَ جناحه، أمّا ملفٌّ فيه هواتفُ الأولياء فلحَمَلة قدرة الطباعة وحدَهم (D-171م)
-    for name in ("absence_followup_xlsx", "absence_followup_pdf"):
-        resp = client_as(supervisor).get(reverse(name), {"date": SUNDAY.isoformat()})
-        assert resp.status_code == 403
+    # W-20261117-003: PDF كشف التواصل صار مسموحًا له؛ يبقى Excel وكشف الإجراءات محجوبَين
+    for name, page in (
+        ("absence_followup_xlsx", "contact"),
+        ("absence_followup_xlsx", "actions"),
+        ("absence_followup_pdf", "actions"),
+    ):
+        resp = client_as(supervisor).get(reverse(name), {"date": SUNDAY.isoformat(), "page": page})
+        assert resp.status_code == 403, (name, page)

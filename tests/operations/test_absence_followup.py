@@ -370,6 +370,82 @@ class TestPrintSheet:
         assert FATHER_NAME not in text and MOTHER_NAME not in text
 
 
+class TestWingSupervisorContactPrint:
+    """W-20261117-003: مشرفُ الجناح يطبع كشفَ التواصل PDF لجناحه وحدَه، ولا إجراءاتٍ ولا Excel."""
+
+    @pytest.fixture
+    def html(self, monkeypatch):
+        """يلتقط HTML الكشف قبل تحويله إلى PDF — فيُفحص المحتوى حرفاً."""
+        monkeypatch.setattr(
+            "operations.absence_followup_print.render_pdf_bytes", lambda markup: markup.encode()
+        )
+
+    def test_the_supervisor_prints_only_his_wing_even_with_another_wing_in_the_url(
+        self, client_as, supervisor, second_wing, absent_both, html
+    ):
+        mine, other = absent_both
+        own = _get(client_as, supervisor, "absence_followup_pdf", page="contact")
+        assert own.status_code == 200
+        assert mine.full_name in own.content.decode()
+        assert other.full_name not in own.content.decode()
+        # ترشيحُ جناحٍ آخر لا يوسّع النطاق: لا يظهر طالبُه ولو طُلب جناحُه.
+        wing = second_wing["klass"].wing_id
+        foreign = _get(client_as, supervisor, "absence_followup_pdf", page="contact", wing=wing)
+        assert foreign.status_code == 200
+        assert other.full_name not in foreign.content.decode()
+
+    def test_the_viewer_opens_for_the_supervisor_with_pdf_only(
+        self, client_as, supervisor, absent_both
+    ):
+        response = _get(client_as, supervisor, "absence_followup_print", page="contact")
+        assert response.status_code == 200
+        assert reverse("absence_followup_xlsx") not in response.content.decode()
+
+    def test_the_screen_offers_pdf_but_no_excel_to_the_supervisor(
+        self, client_as, supervisor, staff, absent_both
+    ):
+        body = _get(client_as, supervisor).content.decode()
+        assert reverse("absence_followup_pdf") in body
+        assert reverse("absence_followup_xlsx") not in body
+        assert (
+            reverse("absence_followup_xlsx") in _get(client_as, staff["principal"]).content.decode()
+        )
+
+    def test_the_supervisor_is_refused_the_actions_sheet_and_excel(
+        self, client_as, supervisor, absent_both
+    ):
+        for name in ("absence_followup_pdf", "absence_followup_print"):
+            assert _get(client_as, supervisor, name, page="actions").status_code == 403
+        assert (
+            _get(client_as, supervisor, "absence_followup_xlsx", page="contact").status_code == 403
+        )
+        assert (
+            _get(client_as, supervisor, "absence_followup_xlsx", page="actions").status_code == 403
+        )
+        assert _get(client_as, supervisor, "absence_actions").status_code == 200
+        body = _get(client_as, supervisor, "absence_actions").content.decode()
+        assert reverse("absence_followup_pdf") not in body
+
+    def test_the_followup_column_follows_its_capability(
+        self, client_as, supervisor, staff, absent_both, html
+    ):
+        mine = _get(client_as, supervisor, "absence_followup_pdf", page="contact")
+        boss = _get(client_as, staff["principal"], "absence_followup_pdf", page="contact")
+        assert "حالةُ التواصل" not in mine.content.decode()
+        assert "حالةُ التواصل" in boss.content.decode()
+
+    @pytest.mark.parametrize("role", ["principal", "vice_admin", "student_affairs_coordinator"])
+    def test_the_three_roles_keep_both_sheets_and_excel(self, client_as, school, absent_both, role):
+        user = _staff(school, role, f"حامل {role}", "29300000120")
+        for name, extra in (
+            ("absence_followup_pdf", {"page": "contact"}),
+            ("absence_followup_pdf", {"page": "actions"}),
+            ("absence_followup_xlsx", {"page": "contact"}),
+            ("absence_followup_xlsx", {"page": "actions"}),
+        ):
+            assert _get(client_as, user, name, **extra).status_code == 200, (role, name, extra)
+
+
 class TestServiceContract:
     def test_the_service_itself_denies_without_the_capability_and_outside_the_wing(
         self, staff, supervisor, second_wing, absent_both
