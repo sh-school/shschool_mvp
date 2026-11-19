@@ -93,8 +93,18 @@ def overall(files: list[str]) -> str:
 DELEGATED = re.compile(r"اعتُمد بتفويض (?:0101|0501) على الرأس ([0-9a-f]{8,40}) — \d{4}-\d{2}-\d{2}")
 
 
+#: سطرُ التكليف المسجَّل لطلبٍ لم يُعرض على 8500 (قرار المالك D-443م): «اعتُمد بتكليف المالك D-<رقم>م — <التاريخ> — الرأس <sha>».
+#: «عبر 0101/0501» اختياريّ: بقيّةُ نظام الأدوار الملغى (D-519م)؛ يُقبل في الطلبات القديمة ولا يُشترط (D-534م).
+#: مصدرُه هنا، ويستورده `pr_approval_head_check.py` (تعبيرٌ واحد).
+MANDATE = re.compile(
+    r"اعتُمد بتكليف المالك D-\d+م(?: عبر (?:0101|0501))? — \d{4}-\d{2}-\d{2} — الرأس ([0-9a-f]{7,40})"
+)
+
+
 def delegated_ok(body: str, head: str) -> bool:
-    return bool(head) and any(head.startswith(m.lower()) for m in DELEGATED.findall(body))
+    """تفويضٌ قديم أو سطرُ تكليف المالك (D-443م، D-534م)، ويُحتسبان إن طابق الرأسُ المكتوب رأسَ الطلب."""
+    shas = DELEGATED.findall(body) + MANDATE.findall(body)
+    return bool(head) and any(head.lower().startswith(m.lower()) for m in shas)
 
 
 def render(data: dict) -> str:

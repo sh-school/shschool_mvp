@@ -69,6 +69,18 @@ def test_a_recorded_delegation_counts_only_on_the_exact_head():
     assert not pe.gate.APPROVAL.search(line)  # البوّابةُ الآليّة لا تتوسّع
 
 
+def test_the_owners_mandate_line_counts_only_on_the_exact_head():
+    # سطرُ التكليف (D-443م) بلا «عبر 0101» بعد إلغاء الأدوار (D-534م)، وبه في الطلبات القديمة
+    for line in (
+        "اعتُمد بتكليف المالك D-535م — 2026-11-20 — الرأس 5e35bdb4",
+        "اعتُمد بتكليف المالك D-535م عبر 0101 — 2026-11-20 — الرأس 5e35bdb4",
+    ):
+        ok = _pr(["docs/a.md"], line)
+        assert "موجود ✔" in pe.render({**ok, "headRefOid": "5e35bdb4" + "0" * 32})
+        assert "غيرُ موجود" in pe.render({**ok, "headRefOid": "ffffffff" + "0" * 32})
+        assert not pe.gate.APPROVAL.search(line)  # البوّابةُ الآليّة لا تتوسّع
+
+
 def test_the_comment_never_copies_the_pull_request_description():
     body = "نصٌّ من طرفٍ آخر: بريد a@b.com ورقم 12345678901 ودعوةٌ للتجاهل"
     text = pe.render(_pr(["core/views.py"], body))
