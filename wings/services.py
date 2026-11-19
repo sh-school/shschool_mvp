@@ -25,6 +25,7 @@ from core.models import (
     School,
     StudentEnrollment,
     Wing,
+    WingAssignment,
     WingCoverage,
 )
 from core.models.academic import FLOORS, bands_of
@@ -215,6 +216,7 @@ def floors_overview(
                 to_attr="live_sections",
             ),
             Prefetch("coverages", queryset=WingCoverage.objects.select_related("substitute")),
+            Prefetch("assignments", queryset=WingAssignment.objects.select_related("user")),
         )
         .order_by("order", "code")
     )
@@ -232,7 +234,7 @@ def floors_overview(
     day = when.date()
     for wing in wings:
         # من الجلب المسبق لا باستعلامٍ لكلّ جناح.
-        cover = next((c for c in wing.coverages.all() if c.covers(day)), None)
+        cover = wing.active_coverage(day)
         bands = bands_of(wing.live_sections)
         bells = [table[band.code] for band in bands if band.code in table]
         cards.append(
@@ -240,7 +242,7 @@ def floors_overview(
                 wing=wing,
                 sections=wing.live_sections,
                 student_count=counts.get(wing.id, 0),
-                holder=(cover.substitute if cover else wing.supervisor),
+                holder=wing.current_supervisor(day),
                 coverage=cover,
                 bands=bands,
                 bells=bells,
@@ -273,11 +275,14 @@ def substitute_pool(school, wing=None, on_date=None):
     `clean()` يمنع الخطأ لا القائمة.
     """
     day = on_date or timezone.localdate()
-    held = dict(
-        Wing.objects.filter(school=school, is_active=True, supervisor__isnull=False).values_list(
-            "supervisor_id", "name"
+    # «أصيلُ جناح كذا» بمن يحمله يومَ العرض (تعيينٌ أو أصيلٌ قديم) لا بحقل `supervisor` وحدَه.
+    held = {
+        holder.pk: wing.name
+        for wing in Wing.objects.filter(school=school, is_active=True).prefetch_related(
+            "assignments__user", "coverages"
         )
-    )
+        if (holder := wing.holder_of("wing_supervisor", day)) is not None
+    }
     busy = {
         cover.substitute_id: cover.wing.name
         for cover in WingCoverage.objects.filter(wing__school=school)
@@ -293,7 +298,8 @@ def substitute_pool(school, wing=None, on_date=None):
         .distinct()
         .order_by("full_name")
     )
-    own = wing.supervisor_id if wing is not None else None
+    owner = wing.holder_of("wing_supervisor", day) if wing is not None else None
+    own = owner.pk if owner is not None else None
     return [
         {
             "user": person,
@@ -315,18 +321,19 @@ def coverage_rows(school, year: str, on_date=None):
             Prefetch(
                 "coverages",
                 queryset=WingCoverage.objects.select_related("substitute", "assigned_by"),
-            )
+            ),
+            Prefetch("assignments", queryset=WingAssignment.objects.select_related("user")),
         )
         .order_by("order", "code")
     )
     rows = []
     for wing in wings:
-        active = next((c for c in wing.coverages.all() if c.covers(day)), None)
+        active = wing.active_coverage(day)
         rows.append(
             {
                 "wing": wing,
                 "coverage": active,
-                "holder": active.substitute if active else wing.supervisor,
+                "holder": wing.current_supervisor(day),
                 "history": sorted(
                     (c for c in wing.coverages.all() if not c.covers(day)),
                     key=lambda c: c.start_date,
@@ -555,7 +562,7 @@ def wings_of(user: CustomUser, school: School, year: str) -> list[Wing]:
     all_wings = list(
         Wing.objects.filter(school=school, academic_year=year, is_active=True)
         .select_related("supervisor")
-        .prefetch_related("coverages", "class_groups")
+        .prefetch_related("coverages", "assignments", "class_groups")
         .order_by("order", "code")
     )
     if user.is_superuser or user.get_role() in (
@@ -567,7 +574,7 @@ def wings_of(user: CustomUser, school: School, year: str) -> list[Wing]:
         return all_wings
     if holds_school_wide(user):
         return all_wings
-    return [w for w in all_wings if w.current_supervisor() == user]
+    return [w for w in all_wings if user in w.holders()]
 
 
 def no_wing_notice(user: CustomUser, school: School, year: str, day: dt.date) -> str | None:

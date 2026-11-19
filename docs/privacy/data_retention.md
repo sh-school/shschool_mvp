@@ -207,6 +207,7 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `core_timeband` | نطاقاتُ التوقيت |
 | `core_wing` | الأجنحة |
 | `core_wingcoverage` | تغطيتُها |
+| `core_wingassignment` | تعييناتُ مشرفِ الجناح والميداني (سجلٌّ زمنيّ لكادر) |
 | `operations_subject` | الموادّ |
 | `operations_session` | الحصصُ اليوميّة |
 | `operations_scheduleslot` | خانةُ الجدول |

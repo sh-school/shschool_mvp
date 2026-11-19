@@ -7,6 +7,7 @@ from . import (
     views_excuse_document,
     views_exit_permit,
     views_exports,
+    views_management,
     views_ministry,
     views_proposals,
     views_register,
@@ -19,6 +20,12 @@ urlpatterns = [
     path("", views.floors, name="floors"),
     # الاستطلاعُ الحيّ للوحة المشرف وبديله (D-249م القسم 9): JSON بلا أسماء لأجنحته وحدَها.
     path("live/", supervisor_live, name="supervisor_live"),
+    path("management/", views_management.management, name="management"),
+    path(
+        "management/<slug:code>/assign/",
+        views_management.management_assign,
+        name="management_assign",
+    ),
     path("coverage/", views.coverage, name="coverage"),
     path("coverage/<slug:code>/assign/", views.coverage_assign, name="coverage_assign"),
     path("coverage/<uuid:pk>/end/", views.coverage_end, name="coverage_end"),

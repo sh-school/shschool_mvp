@@ -27,10 +27,18 @@ from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError, transaction
+from django.db.models import Prefetch
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
-from core.models import AuditLog, ClassGroup, CustomUser, StudentEnrollment
+from core.models import (
+    AuditLog,
+    ClassGroup,
+    CustomUser,
+    StudentEnrollment,
+    WingAssignment,
+    WingCoverage,
+)
 from operations.attendance_entries import (
     EntryConflictError,
     EntryError,
@@ -227,8 +235,19 @@ def _day_for(school: School, day: dt.date | None) -> dt.date:
 
 def _class_or_404(school: School, class_id: Any) -> ClassGroup:
     try:
-        return ClassGroup.objects.select_related("wing", "time_band", "school").get(
-            pk=class_id, school=school, is_active=True
+        # الإنابةُ والتعيينُ والأصيلُ القديم تُجلب مع الجناح دفعةً واحدة: `current_supervisor`
+        # يقرأ `coverages.all()` و`assignments.all()` ولكلّ استدعاءٍ استعلامٌ إن لم تُجلب (W-20261119-005).
+        return (
+            ClassGroup.objects.select_related("wing", "wing__supervisor", "time_band", "school")
+            .prefetch_related(
+                Prefetch(
+                    "wing__coverages", queryset=WingCoverage.objects.select_related("substitute")
+                ),
+                Prefetch(
+                    "wing__assignments", queryset=WingAssignment.objects.select_related("user")
+                ),
+            )
+            .get(pk=class_id, school=school, is_active=True)
         )
     except (ClassGroup.DoesNotExist, ValueError, TypeError):
         raise GridNotFoundError("لا شعبة") from None

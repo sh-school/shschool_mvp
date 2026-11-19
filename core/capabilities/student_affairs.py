@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from core.capabilities.base import Capability, Shared, _cap
+from core.capabilities.base import Capability, Shared, _assigned_to_a_wing, _cap
 
 
 def student_affairs_capabilities(shared: Shared) -> list[Capability]:
@@ -28,7 +28,11 @@ def student_affairs_capabilities(shared: Shared) -> list[Capability]:
             "متابعةُ حضور الطلبة وتأخّرهم وسلوكهم",
             P.STUDENT_FOLLOW_UP,
             scope="المدرسةُ للقيادة؛ المشرفُ الإداريُّ لشُعب جناحه (wings/scope.py)",
-            basis="الدليل التنظيميّ 2026: متابعةُ الغياب اليوميّ والتأخّر الصباحيّ؛ وقرارُ المستخدم 2026-09-14: المشرفُ لجناحه فقط",
+            basis=(
+                "الدليل التنظيميّ 2026: متابعةُ الغياب اليوميّ والتأخّر الصباحيّ؛ وقرارُ المستخدم 2026-09-14: "
+                "المشرفُ لجناحه فقط؛ وقرارُ المالك 2026-11-19: المعيَّنُ مشرفاً أو ميدانيّاً يرث صلاحيّاتِ الجناح بالتعيين"
+            ),
+            grant=_assigned_to_a_wing,
         ),
         _cap(
             "dashboard.absence_alert_names",
