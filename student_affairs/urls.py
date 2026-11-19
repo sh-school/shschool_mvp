@@ -56,6 +56,7 @@ urlpatterns = [
     path("movements/", views.student_movements, name="student_movements"),
     path("movements/live/", movement_live.movements_live, name="movements_live"),
     path("movements/history/", movement_live.movements_history, name="movements_history"),
+    path("movements/weekly/", movement_live.movements_weekly, name="movements_weekly"),
     path("movements/leave/", movement_entry.movement_leave, name="movement_leave"),
     path(
         "movements/<uuid:pk>/destination/",

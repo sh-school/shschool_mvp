@@ -28,3 +28,21 @@ def generate_conduct_proposals_task() -> dict[str, int]:
             failed += 1
             logger.exception("generate_conduct_proposals: تعذّر في المدرسة %s", school.pk)
     return {"created": created, "failed_schools": failed}
+
+
+@shared_task(name="wings.generate_return_late_suggestions")
+def generate_return_late_suggestions_task() -> dict[str, int]:
+    """اقتراحاتُ متابعة تأخّر العودة (W-20261119-004): مدرسةً مدرسةً بنطاق RLS، ثابتةُ التكرار في الأسبوع."""
+    from core.models import School
+    from wings.return_late_services import generate_for_week
+
+    today = timezone.localdate()
+    created = failed = 0
+    for school in School.objects.filter(is_active=True).iterator(chunk_size=100):
+        try:
+            with school_rls_scope(school.id):
+                created += generate_for_week(school, today)["created"]
+        except Exception:  # noqa: BLE001 — مدرسةٌ معطوبةٌ لا تُسقط غيرَها
+            failed += 1
+            logger.exception("generate_return_late_suggestions: تعذّر في المدرسة %s", school.pk)
+    return {"created": created, "failed_schools": failed}

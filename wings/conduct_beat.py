@@ -21,5 +21,10 @@ def conduct_proposals_beat(environ: Mapping[str, str] | None = None) -> dict[str
         "generate-conduct-proposals": {
             "task": "wings.generate_conduct_proposals",
             "schedule": crontab(minute=10, hour=15, day_of_week="0-4"),
-        }
+        },
+        # اقتراحاتُ متابعة تأخّر العودة (W-20261119-004): بعد توليد المخالفات بعشر دقائق، وثابتةُ التكرار في الأسبوع.
+        "generate-return-late-suggestions": {
+            "task": "wings.generate_return_late_suggestions",
+            "schedule": crontab(minute=20, hour=15, day_of_week="0-4"),
+        },
     }

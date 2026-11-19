@@ -11,6 +11,7 @@ from . import (
     views_ministry,
     views_proposals,
     views_register,
+    views_return_late,
 )
 from .views_supervisor_live import supervisor_live
 
@@ -69,6 +70,11 @@ urlpatterns = [
         "proposals/<uuid:pk>/decide/",
         views_proposals.conduct_proposal_decide,
         name="conduct_proposal_decide",
+    ),
+    path(
+        "proposals/return-late/<uuid:pk>/decide/",
+        views_return_late.return_late_decide,
+        name="return_late_decide",
     ),
     path("excuses/requests/", views.excuse_requests, name="excuse_requests"),
     path(

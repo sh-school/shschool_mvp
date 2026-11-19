@@ -20,7 +20,7 @@ from operations.class_exit import may_record_school_exit
 from operations.models import ClassExit
 
 from .movement_card import can_set_grace
-from .movement_selectors import grace_rows, history_rows, incoming_rows, live_rows
+from .movement_selectors import grace_rows, history_rows, incoming_rows, live_rows, weekly_report
 from .movement_strip_selectors import destination_split, wing_strip
 
 #: دورةُ تحديث اللوحة الحيّة بالثواني (HTMX) — «قادمون إليك» تتحدّث كلَّ 10 ثوانٍ.
@@ -65,6 +65,20 @@ def movements_live(request):
     scope = _followup_scope(request)
     ctx = live_context(request, request.school, scope, timezone.localdate())
     return render(request, "student_affairs/partials/movement_live.html", ctx)
+
+
+@login_required
+@capability_required("student_affairs.follow_up")
+def movements_weekly(request):
+    """التقريرُ الأسبوعيّ (W-20261119-004): أكثرُ الطلبة خروجاً وتأخّراً في العودة لكلّ جناح، للمتابعة لا للعقوبة."""
+    from operations.exit_wing import week_start_of
+
+    from .views import _followup_scope
+
+    week = week_start_of(_day(request.GET.get("week", ""), timezone.localdate()))
+    report = weekly_report(request.school, _followup_scope(request), week)
+    ctx = {"report": report, "week": week, "week_end": week + dt.timedelta(days=6)}
+    return render(request, "student_affairs/movements_weekly.html", ctx)
 
 
 @login_required

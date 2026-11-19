@@ -57,5 +57,49 @@
     </div>
     {% endif %}
   {% endsection_card %}
+
+  {% section_card "متابعةُ تأخّر العودة" meta=follow_ups|length icon="sent_home" empty="لا اقتراحَ متابعةٍ ينتظرك." %}
+    {% if follow_ups %}
+    {% callout "info" show=True %}تجاوز مجموعُ دقائق تأخّر عودة الطالب في الأسبوع الحدَّ المضبوط. القرارُ لك قبولاً أو رفضاً، ولا مخالفةَ آليّةً ولا إشعارَ لوليّ الأمر.{% endcallout %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">الطالب</th>
+            <th scope="col">الأسبوع من</th>
+            <th scope="col">مرّاتُ الخروج</th>
+            <th scope="col">دقائقُ التأخّر</th>
+            <th scope="col">قبول</th>
+            <th scope="col">رفض</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in follow_ups %}
+          <tr>
+            <th scope="row">{{ s.student.full_name }}</th>
+            <td>{{ s.week_start|date:"j/n" }}</td>
+            <td>{{ s.exit_count }}</td>
+            <td><span class="status-badge status-warning">{{ s.late_minutes }}</span></td>
+            <td>
+              <form method="post" action="{% url 'wings:return_late_decide' s.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="decision" value="accept">
+                <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} قبول المتابعة</button>
+              </form>
+            </td>
+            <td>
+              <form method="post" action="{% url 'wings:return_late_decide' s.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="decision" value="dismiss">
+                <button type="submit" class="btn-secondary btn-sm">رفض</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  {% endsection_card %}
 </div>
 {% endblock %}
