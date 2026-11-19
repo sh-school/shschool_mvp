@@ -62,7 +62,7 @@
       {% csrf_token %}
       {% for code, label, minutes in grace_rows %}
       <label for="grace_{{ code }}">{{ label }} (دقائق)</label>
-      <input id="grace_{{ code }}" name="grace_{{ code }}" type="number" min="1" max="240" class="form-control" value="{{ minutes|default_if_none:'' }}" placeholder="بلا مهلة">
+      <input id="grace_{{ code }}" name="grace_{{ code }}" type="number" inputmode="numeric" min="1" max="240" class="form-control" value="{{ minutes|default_if_none:'' }}" placeholder="بلا مهلة">
       {% endfor %}
       <button type="submit" class="btn-primary btn-sm">حفظ المُهَل</button>
     </form>

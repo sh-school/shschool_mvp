@@ -15,6 +15,7 @@ from .models import (
     ClassExit,
     CompensatorySession,
     DailyExitTally,
+    ExitDestinationGrace,
     ExitPermit,
     FreeSlotRegistry,
     GuardianContact,
@@ -154,6 +155,14 @@ class ClassExitAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     list_filter = ("destination", "system_closed", "school")
     search_fields = ("student__full_name", "student__national_id")
     date_hierarchy = "left_at"
+
+
+@admin.register(ExitDestinationGrace)
+class ExitDestinationGraceAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    """مُهَلُ عودة وجهات الخروج — للقراءة والتدقيق؛ تُضبط من شاشة الحركة بخدمتها وسجلّ التدقيق."""
+
+    list_display = ("school", "destination", "minutes", "updated_at")
+    list_filter = ("destination", "school")
 
 
 @admin.register(ExitPermit)
