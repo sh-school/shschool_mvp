@@ -31,6 +31,7 @@ from .attendance_ledger import (  # noqa: F401
 from .common import (  # noqa: F401
     _uuid,
 )
+from .excused_exit import ExcusedExit  # noqa: F401
 from .exit_grace import ExitDestinationGrace  # noqa: F401
 from .exit_permit import ExitPermit  # noqa: F401
 from .period_preference import TeacherPeriodPreference  # noqa: F401

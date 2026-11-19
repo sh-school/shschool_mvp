@@ -15,6 +15,7 @@ from .models import (
     ClassExit,
     CompensatorySession,
     DailyExitTally,
+    ExcusedExit,
     ExitDestinationGrace,
     ExitPermit,
     FreeSlotRegistry,
@@ -163,6 +164,15 @@ class ExitDestinationGraceAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
 
     list_display = ("school", "destination", "minutes", "updated_at")
     list_filter = ("destination", "school")
+
+
+@admin.register(ExcusedExit)
+class ExcusedExitAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+    """وسومُ الخروج المبرَّر — للقراءة والتدقيق؛ السببُ صحّيٌّ فلا يُعرض هنا، وتُكتب بخدمتها في العيادة."""
+
+    list_display = ("student", "school", "starts_on", "ends_on", "set_by_role")
+    list_filter = ("set_by_role", "school")
+    exclude = ("reason",)
 
 
 @admin.register(ExitPermit)

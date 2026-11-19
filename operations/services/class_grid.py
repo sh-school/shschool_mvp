@@ -61,6 +61,7 @@ from operations.attendance_policy import (
     is_developer,
 )
 from operations.attendance_selectors import CellHistoryRow, ColumnCell, cell_history, column_heads
+from operations.exit_wing import ExitCounter, grid_counters
 from operations.models import ClassExit, Session, SubjectClassAssignment
 from operations.school_days import school_day
 
@@ -151,6 +152,8 @@ class GridRow:
     pairs: list[tuple[GridColumn, ColumnCell | None, ExitBadge | None]]
     #: خروجٌ مفتوحٌ لهذا الطالب في الحصّة الجارية (`ClassExit` — لم يعد بعد) أو `None`.
     exit: ClassExit | None = None
+    #: عدّادا خروجه (دقائقُه وتأخّرُ عودته) لمن يحقّ له رؤيتُهما — المعلّمُ في مادّته فقط — أو `None`.
+    counters: ExitCounter | None = None
 
 
 @dataclass(frozen=True)
@@ -370,6 +373,33 @@ def _mark_next(columns: list[GridColumn], is_today: bool) -> list[GridColumn]:
     return [dataclasses.replace(c, is_next=c is upcoming) for c in columns]
 
 
+def _open_exits(current: GridColumn | None) -> dict[Any, ClassExit]:
+    """الخارجون الآن من الحصّة الجارية (لم تُسجَّل عودتهم) بمفتاح الطالب."""
+    if current is None or not current.session_id:
+        return {}
+    return {
+        e.student_id: e
+        for e in ClassExit.objects.filter(session_id=current.session_id, returned_at__isnull=True)
+    }
+
+
+def _page_counters(
+    user: CustomUser,
+    school: School,
+    klass: ClassGroup,
+    students: list[CustomUser],
+    day: dt.date,
+    roles: Any,
+) -> dict[Any, Any]:
+    """عدّادا الخروج: لكاتبي الكشف فقط، والمعلّمُ الصِّرفُ (لا حاملَ جناحٍ ولا قيادة) في مادّته وحدَها."""
+    if not roles & {GRID_TEACHER, GRID_HOLDER, GRID_LEADERSHIP}:
+        return {}
+    pure_teacher = GRID_TEACHER in roles and not roles & {GRID_HOLDER, GRID_LEADERSHIP}
+    return grid_counters(
+        school, klass, [s.pk for s in students], day, teacher=user if pure_teacher else None
+    )
+
+
 def page(
     user: CustomUser,
     school: School,
@@ -430,16 +460,8 @@ def page(
     current = next((c for c in columns if c.state == "current"), None)
     cells = column_heads([c.session_id for c in columns if c.session_id])
     badges = exit_badges([c.session_id for c in columns if c.session_id])
-    open_exits = (
-        {
-            e.student_id: e
-            for e in ClassExit.objects.filter(
-                session_id=current.session_id, returned_at__isnull=True
-            )
-        }
-        if current is not None and current.session_id
-        else {}
-    )
+    open_exits = _open_exits(current)
+    counters = _page_counters(user, school, klass, students, day, roles)
     rows = [
         GridRow(
             student=student,
@@ -452,6 +474,7 @@ def page(
                 for c in columns
             ],
             exit=open_exits.get(student.pk),
+            counters=counters.get(student.pk),
         )
         for student in students
     ]

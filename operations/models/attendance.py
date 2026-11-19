@@ -790,6 +790,9 @@ class ClassExit(models.Model):
     alert_stage = models.PositiveSmallIntegerField(default=0, verbose_name="مرحلةُ التنبيه")
     followup_reason = models.TextField(blank=True, verbose_name="سببُ التحويل إلى متابعة")
     followup_at = models.DateTimeField(null=True, blank=True, verbose_name="وقتُ التحويل إلى متابعة")
+    # لحظتا العيادة (إدارةُ الأجنحة 3/4): يضغطهما الممرّضُ، ويراهما المشرفُ **دون سبب الزيارة** (السببُ في `ClinicVisit` وحدَها).
+    clinic_arrived_at = models.DateTimeField(null=True, blank=True, verbose_name="وصل العيادة")
+    clinic_left_at = models.DateTimeField(null=True, blank=True, verbose_name="غادر العيادة")
 
     class Meta:
         verbose_name = "خروجٌ من الفصل"
