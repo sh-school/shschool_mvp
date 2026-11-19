@@ -64,7 +64,7 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
     )
     from student_affairs.models import GuardianRequest, StudentActivity, StudentTransfer
     from student_info.models import StudentNote
-    from wings.models import ConductProposal
+    from wings.models import ConductProposal, ReturnLateSuggestion
 
     _STUDENT_FK_MODELS.extend(
         [
@@ -99,6 +99,7 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
                 "student",
                 False,
             ),  # اقتراحُ مخالفةٍ لغيابٍ أو تأخّرٍ بين الحصص (W-20261013-034)
+            (ReturnLateSuggestion, "student", False),  # اقتراحُ متابعة تأخّر العودة (W-20261119-004)
             (NotificationLog, "student", False),  # سجلُّ إشعارٍ يحمل المستلمَ ونصَّه
             # [W-20261002-042] مخازنُ محتوى الطالب بحقل `user` لا `student`.
             (InAppNotification, "user", False),  # إشعاراتُه داخل المنصّة

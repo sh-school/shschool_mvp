@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from core.labels import class_label
 from operations.exit_card import GRACE_DESTINATIONS
-from operations.exit_wing import covered, excused_ids, excused_spans
+from operations.exit_wing import covered, excused_ids, excused_spans, week_totals
 from operations.models import ClassExit, ExitDestinationGrace
 
 _DESTINATION_LABELS = dict(ClassExit.DESTINATIONS)
@@ -144,3 +144,22 @@ def history_rows(
         ]
     rows.sort(key=lambda r: (-r["minutes"], -r["count"]))
     return rows
+
+
+#: كم طالباً يُعرض لكلّ جناحٍ في التقرير الأسبوعيّ.
+WEEKLY_TOP = 10
+
+
+def weekly_report(school: Any, scope: Any, week_start: dt.date) -> list[dict[str, Any]]:
+    """التقريرُ الأسبوعيّ للنائب: لكلّ جناحٍ أكثرُ الطلبة خروجاً وتأخّراً في العودة — للمتابعة لا للعقوبة.
+
+    الموسومون بخروجٍ مبرَّرٍ دائمٍ يسقطون في `week_totals`؛ ومن لم يتأخّر ولم يخرج إلّا مرّةً لا يُعرض.
+    """
+    by_wing: dict[str, list[Any]] = {}
+    for total in week_totals(school, scope, week_start).values():
+        by_wing.setdefault(total.wing_name or "بلا جناح", []).append(total)
+    report = []
+    for name in sorted(by_wing):
+        top = sorted(by_wing[name], key=lambda t: (-t.late_minutes, -t.count, t.student_name))
+        report.append({"wing": name, "rows": top[:WEEKLY_TOP], "students": len(top)})
+    return report

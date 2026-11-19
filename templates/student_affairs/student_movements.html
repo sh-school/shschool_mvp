@@ -57,7 +57,7 @@
   </nav>
 
   {% include "student_affairs/partials/movement_live.html" %}
-  <p><a href="{% url 'student_affairs:movements_history' %}" class="sa-link">سجلّ الخروج التاريخي</a></p>
+  <p><a href="{% url 'student_affairs:movements_history' %}" class="sa-link">سجلّ الخروج التاريخي</a> · <a href="{% url 'student_affairs:movements_weekly' %}" class="sa-link">التقرير الأسبوعي</a></p>
 
   {% if can_set_grace %}
   {% section_card "مُهَل العودة بحسب الوجهة" icon="sent_home" %}

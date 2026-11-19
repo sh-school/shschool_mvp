@@ -80,3 +80,64 @@ class ConductProposal(models.Model):
 
     def __str__(self) -> str:
         return f"{self.student_id} · {self.date} · {self.get_kind_display()} · {self.get_status_display()}"
+
+
+class ReturnLateSuggestion(models.Model):
+    """اقتراحُ متابعةٍ لتأخّر عودة الطالب من الخروج في أسبوعٍ دراسيّ (إدارةُ الأجنحة 4/4، W-20261119-004).
+
+    على نمط `ConductProposal`: يولّده النظامُ ويقرّره مشرفُ جناح الطالب قبولاً أو رفضاً، **ولا مخالفةَ آليّة**
+    ولا أثرَ على وليّ الأمر. **اقتراحٌ واحدٌ لكلّ طالبٍ في الأسبوع** (القيدُ الفريد) فيُعاد التشغيلُ بلا تكرار.
+    """
+
+    STATUSES = [
+        ("proposed", "مقترح"),
+        ("accepted", "مقبول"),
+        ("dismissed", "مرفوض"),
+        ("withdrawn", "مسحوب"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    school = models.ForeignKey(
+        School,
+        on_delete=models.PROTECT,
+        related_name="return_late_suggestions",
+        verbose_name="المدرسة",
+    )
+    student = models.ForeignKey(
+        CustomUser,
+        on_delete=models.PROTECT,
+        related_name="return_late_suggestions",
+        verbose_name="الطالب",
+    )
+    week_start = models.DateField(verbose_name="أحدُ الأسبوع")
+    late_minutes = models.PositiveIntegerField(default=0, verbose_name="مجموعُ دقائق تأخّر العودة")
+    exit_count = models.PositiveIntegerField(default=0, verbose_name="مرّاتُ الخروج")
+    status = models.CharField(
+        max_length=10, choices=STATUSES, default="proposed", db_index=True, verbose_name="الحالة"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الاقتراح")
+    decided_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="return_late_suggestions_decided",
+        verbose_name="من قرّر",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ القرار")
+
+    class Meta:
+        verbose_name = "اقتراح متابعة تأخّر العودة"
+        verbose_name_plural = "اقتراحات متابعة تأخّر العودة"
+        ordering = ["-week_start", "student_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "student", "week_start"], name="uniq_return_late_student_week"
+            )
+        ]
+        indexes = [
+            models.Index(fields=["school", "status", "week_start"], name="retlate_queue_idx")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.student_id} · {self.week_start} · {self.late_minutes} · {self.get_status_display()}"

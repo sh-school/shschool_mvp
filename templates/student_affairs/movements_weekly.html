@@ -1,0 +1,53 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% comment %}التقريرُ الأسبوعيّ للنائب الإداريّ (W-20261119-004): أكثرُ الطلبة خروجاً وتأخّراً في العودة لكلّ جناح.
+للمتابعة لا للعقوبة؛ والموسومون بخروجٍ مبرَّرٍ دائمٍ لا يظهرون.{% endcomment %}
+
+{% block title %}التقرير الأسبوعي لخروج الطلبة — شؤون الطلاب{% endblock %}
+
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/movements/" parent_label="تحركات الطلبة" current="التقرير الأسبوعي" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash sa-page">
+
+  {% page_header "التقرير الأسبوعي لخروج الطلبة" subtitle="الأسبوعُ يبدأ من الأحد — للمتابعة لا للعقوبة" icon="sent_home" %}
+    <form method="get" class="sa-filter">
+      <input type="date" name="week" value="{{ week|date:'Y-m-d' }}" class="form-control" aria-label="أيُّ يومٍ من الأسبوع">
+      <button type="submit" class="btn-primary btn-sm">{% icon "search" %} عرض</button>
+    </form>
+  {% endpage_header %}
+
+  {% for block in report %}
+  {% section_card block.wing meta=block.students icon="sent_home" flush=True %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>الطالب</th>
+            <th class="num">مرّات الخروج</th>
+            <th class="num">تأخّر العودة (دقيقة)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in block.rows %}
+          <tr>
+            <td>{{ r.student_name }}</td>
+            <td class="num">{{ r.count }}</td>
+            <td class="num">{{ r.late_minutes }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endsection_card %}
+  {% empty %}
+  {% section_card "الأسبوع" icon="sent_home" empty="لا خروج في هذا الأسبوع" %}{% endsection_card %}
+  {% endfor %}
+
+</div>
+{% endblock %}

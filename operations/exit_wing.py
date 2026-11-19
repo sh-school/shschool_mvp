@@ -209,3 +209,60 @@ def exit_counters(
         if not covered(spans, e["student_id"], e["session__date"]):
             row[2] += (e["late_return_seconds"] or 0) // 60
     return {sid: ExitCounter(*vals) for sid, vals in totals.items()}
+
+
+@dataclass
+class WeekTotal:
+    """خروجُ طالبٍ في أسبوعٍ: مرّاتُه وتأخّرُ عودته بالدقائق وجناحُ آخر خروجٍ له."""
+
+    student_id: Any
+    student_name: str
+    wing_id: Any
+    wing_name: str
+    count: int = 0
+    late_minutes: int = 0
+
+
+def week_start_of(day: dt.date) -> dt.date:
+    """أحدُ الأسبوع الدراسيّ الذي يضمّ `day` (الأسبوعُ من الأحد)."""
+    return day - dt.timedelta(days=(day.weekday() + 1) % 7)
+
+
+def week_totals(school: School, scope: Any, week_start: dt.date) -> dict[Any, WeekTotal]:
+    """مجاميعُ خروج كلّ طالبٍ في أسبوعٍ دراسيّ — مضيَّقةً بنطاق `scope` (None = المدرسةُ كلُّها).
+
+    الامتدادُ (`continued_from`) مدّةٌ لا مرّة. والموسومُ بخروجٍ مبرَّرٍ في يوم وسمه يسقط من الحساب كلِّه
+    (فلا يظهر في التقرير ولا يُقترح له) — «للمتابعة لا للعقوبة» ولا حاجةَ لمتابعة من سببُه معروفٌ ودائم.
+    """
+    qs = ClassExit.objects.filter(
+        school=school,
+        session__date__gte=week_start,
+        session__date__lte=week_start + dt.timedelta(days=6),
+    )
+    if scope is not None:
+        qs = scope.narrow(qs)
+    exits = list(
+        qs.order_by("left_at").values(
+            "student_id",
+            "student__full_name",
+            "session__date",
+            "session__class_group__wing_id",
+            "session__class_group__wing__name",
+            "continued_from_id",
+            "late_return_seconds",
+        )
+    )
+    spans = excused_spans(school, {e["student_id"] for e in exits})
+    totals: dict[Any, WeekTotal] = {}
+    for e in exits:
+        if covered(spans, e["student_id"], e["session__date"]):
+            continue
+        row = totals.setdefault(
+            e["student_id"], WeekTotal(e["student_id"], e["student__full_name"], None, "")
+        )
+        row.wing_id = e["session__class_group__wing_id"]
+        row.wing_name = e["session__class_group__wing__name"] or ""
+        if e["continued_from_id"] is None:
+            row.count += 1
+        row.late_minutes += (e["late_return_seconds"] or 0) // 60
+    return totals

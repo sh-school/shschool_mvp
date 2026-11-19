@@ -777,6 +777,9 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"student_affairs:student_movements" %}
   <a href="{% url 'student_affairs:student_movements' %}">{% icon "sent_home" %} تحركات الطلبة</a>
   {% endif %}
+  {% if request.user|can_open:"student_affairs:movements_weekly" %}
+  <a href="{% url 'student_affairs:movements_weekly' %}">{% icon "stats" %} التقرير الأسبوعي للخروج</a>
+  {% endif %}
   {% if request.user|can_open:"student_affairs:enrolment_movements" %}
   <a href="{% url 'student_affairs:enrolment_movements' %}">{% icon "student_info" %} قيد الطلبة ونقلهم</a>
   {% endif %}
@@ -1009,6 +1012,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% endif %}
   {% if request.user|can_open:"student_affairs:student_movements" %}
   <a href="{% url 'student_affairs:student_movements' %}">{% icon "sent_home" %} تحركات الطلبة</a>
+  {% endif %}
+  {% if request.user|can_open:"student_affairs:movements_weekly" %}
+  <a href="{% url 'student_affairs:movements_weekly' %}">{% icon "stats" %} التقرير الأسبوعي للخروج</a>
   {% endif %}
   {% if request.user|can_open:"student_affairs:enrolment_movements" %}
   <a href="{% url 'student_affairs:enrolment_movements' %}">{% icon "student_info" %} قيد الطلبة ونقلهم</a>

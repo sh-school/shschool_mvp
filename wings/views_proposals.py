@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 from core.academic_calendar import academic_year_for_school
 from core.capabilities import capability_required
 from wings import conduct_services as service
+from wings import return_late_services
 from wings.scope import StudentScope
 from wings.services import wings_of
 
@@ -43,7 +44,9 @@ def _scope(request):
 def conduct_proposals(request):
     scope = _scope(request)
     queue = service.queue_for(request.school, scope)
-    return render(request, "wings/conduct_proposals.html", {"proposals": queue})
+    follow_ups = return_late_services.queue_for(request.school, scope)
+    ctx = {"proposals": queue, "follow_ups": follow_ups}
+    return render(request, "wings/conduct_proposals.html", ctx)
 
 
 @login_required
