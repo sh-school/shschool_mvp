@@ -40,9 +40,9 @@ import pr_evidence as ev  # noqa: E402
 
 MIN_HEAD = 7
 
-#: سطرُ التكليف المسجَّل (D-443م)، و«عبر 0101/0501» فيه اختياريّ (D-534م): التعبيرُ في `pr_evidence.MANDATE`.
+#: سطرُ التكليف المسجَّل (D-443م)، و«عبر 0101/0501» فيه اختياريّ (D-534م): التعبيرُ في `auto_merge_gate.MANDATE`.
 #: يُربط بالرأس كسطر المالك؛ ولا يكتب أحدٌ «على 8500» لطلبٍ لم يُعرض عليها.
-MANDATE = ev.MANDATE
+MANDATE = gate.MANDATE
 
 #: سطرُ المالك بصيغتي gate.APPROVAL مع «— الرأس <sha>» اختياريّاً (غيابُه فشلُ ربطٍ لا غيابُ سطر).
 OWNER_HEAD = re.compile(

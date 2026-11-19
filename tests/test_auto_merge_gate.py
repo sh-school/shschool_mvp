@@ -151,3 +151,36 @@ def test_missing_approval_line_still_rejected():
     ok, reasons = gate.evaluate_data(_pr(checks, body="بلا سطر اعتماد"))
     assert not ok
     assert any("سطرُ اعتماد المالك" in r for r in reasons)
+
+
+MANDATE_BODY = "اعتُمد بتكليف المالك D-535م — 2026-11-20 — الرأس 5e35bdb4"
+HEAD = "5e35bdb4" + "0" * 32
+
+
+def _green():
+    return [_run("pytest", "SUCCESS", "2026-11-20T07:00:00Z", "2026-11-20T07:05:00Z")]
+
+
+def test_the_owners_mandate_line_is_accepted_on_the_exact_head():
+    # سطرُ التكليف (D-443م) بلا «عبر 0101» بعد إلغاء الأدوار (D-534م)، وبه في الطلبات القديمة
+    for body in (MANDATE_BODY, MANDATE_BODY.replace("D-535م", "D-535م عبر 0101")):
+        ok, reasons = gate.evaluate_data({**_pr(_green(), body), "headRefOid": HEAD})
+        assert ok, reasons
+
+
+def test_a_mandate_line_on_an_older_head_or_without_a_head_is_refused():
+    # إيداعٌ بعد السطر يغيّر الرأس فيُسقطه؛ ورأسٌ غائبٌ لا يُحتسب
+    for data in (
+        {**_pr(_green(), MANDATE_BODY), "headRefOid": "ffffffff" + "0" * 32},
+        _pr(_green(), MANDATE_BODY),
+        {**_pr(_green(), "اعتُمد بتكليف المالك D-535م — 2026-11-20"), "headRefOid": HEAD},
+    ):
+        ok, reasons = gate.evaluate_data(data)
+        assert not ok and any("سطرُ اعتماد المالك" in r for r in reasons)
+
+
+def test_a_mandate_line_does_not_open_forbidden_paths():
+    data = {**_pr(_green(), MANDATE_BODY), "headRefOid": HEAD}
+    data["files"] = [{"path": "core/migrations/0100_x.py"}]
+    ok, reasons = gate.evaluate_data(data)
+    assert not ok and any("محظورة" in r for r in reasons)
