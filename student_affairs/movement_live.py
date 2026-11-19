@@ -15,12 +15,13 @@ from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
 
-from core.capabilities import capability_required
+from core.capabilities import capability_required, has_capability
 from operations.class_exit import may_record_school_exit
 from operations.models import ClassExit
 
 from .movement_card import can_set_grace
 from .movement_selectors import grace_rows, history_rows, incoming_rows, live_rows
+from .movement_strip_selectors import destination_split, wing_strip
 
 #: دورةُ تحديث اللوحة الحيّة بالثواني (HTMX) — «قادمون إليك» تتحدّث كلَّ 10 ثوانٍ.
 REFRESH_SECONDS = 10
@@ -33,6 +34,11 @@ def live_context(request: Any, school: Any, scope: Any, day: dt.date) -> dict[st
     return {
         "incoming_rows": incoming_rows(school, scope, day, now),
         "live_rows": live_rows(school, scope, day, now),
+        # شريطُ الأجنحة والتفصيلُ بالوجهة (W-20261119-003): العيادةُ تنفرد لمن عنده الملفُّ الصحّيّ الكامل فقط.
+        "wing_strip": wing_strip(school, scope, day, now),
+        "destination_split": destination_split(
+            school, scope, day, has_capability(request.user, "clinic.health_full")
+        ),
         "live_is_today": day == timezone.localdate(now),
         "live_refresh_seconds": REFRESH_SECONDS,
         "can_set_grace": can_grace,

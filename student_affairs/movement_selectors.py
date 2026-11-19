@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from core.labels import class_label
 from operations.exit_card import GRACE_DESTINATIONS
+from operations.exit_wing import covered, excused_ids, excused_spans
 from operations.models import ClassExit, ExitDestinationGrace
 
 _DESTINATION_LABELS = dict(ClassExit.DESTINATIONS)
@@ -23,6 +24,10 @@ WARN_FRACTION = 0.8
 
 def _minutes(start: dt.datetime, end: dt.datetime) -> int:
     return max(0, int((end - start).total_seconds() // 60))
+
+
+def _local(moment: dt.datetime | None) -> dt.datetime | None:
+    return timezone.localtime(moment) if moment else None
 
 
 def _tone(minutes: int, allowed: int | None) -> str:
@@ -70,9 +75,12 @@ def live_rows(school: Any, scope: Any, day: dt.date, now: dt.datetime) -> list[d
     """«خارج الآن»: من خرج في `day` ولم يعد وليس قادماً — الأطولُ غياباً أولاً، ملوَّنين بمهلة وجهاتهم."""
     rows = []
     qs = _open_cards(school, scope, day).exclude(routed_at__isnull=True, destination="wing_sup")
+    excused = excused_ids(school, day)
     for e in qs:
         minutes = _minutes(e.routed_at or e.left_at, now)
         group = e.session.class_group
+        # الموسومُ «خروجاً مبرَّراً» بلا مهلةٍ تُلوَّن: لا تأخّرَ يُحسب عليه (لا يظهر السببُ هنا).
+        allowed = None if e.student_id in excused else e.allowed_minutes
         rows.append(
             {
                 "pk": e.pk,
@@ -81,8 +89,13 @@ def live_rows(school: Any, scope: Any, day: dt.date, now: dt.datetime) -> list[d
                 "destination": _DESTINATION_LABELS.get(e.destination, e.destination),
                 "left_at": timezone.localtime(e.left_at),
                 "minutes": minutes,
-                "allowed": e.allowed_minutes,
-                "tone": _tone(minutes, e.allowed_minutes),
+                "allowed": allowed,
+                "tone": _tone(minutes, allowed),
+                "excused": e.student_id in excused,
+                "is_clinic": e.destination == "clinic",
+                # لحظتا العيادة فقط — لا سببَ زيارةٍ هنا ولا في جدولها.
+                "clinic_in": _local(e.clinic_arrived_at),
+                "clinic_out": _local(e.clinic_left_at),
             }
         )
     rows.sort(key=lambda r: r["minutes"], reverse=True)
@@ -99,14 +112,25 @@ def history_rows(
     if student_id:
         qs = qs.filter(student_id=student_id)
     by_student: dict[Any, dict[str, Any]] = {}
-    for e in qs:
+    exits = list(qs.select_related("session"))
+    spans = excused_spans(school, {e.student_id for e in exits})
+    for e in exits:
         row = by_student.setdefault(
             e.student_id,
-            {"student": e.student, "count": 0, "minutes": 0, "by_destination": {}},
+            {
+                "student": e.student,
+                "count": 0,
+                "minutes": 0,
+                "late_minutes": 0,
+                "by_destination": {},
+            },
         )
         mins = _minutes(e.left_at, e.returned_at) if e.returned_at else 0
         row["count"] += 1
         row["minutes"] += mins
+        # تأخّرُ العودة (العدّاد الثاني): الموسومُ في أيّام وسمه لا يُحسب عليه.
+        if not covered(spans, e.student_id, e.session.date):
+            row["late_minutes"] += (e.late_return_seconds or 0) // 60
         cell = row["by_destination"].setdefault(e.destination, [0, 0])
         cell[0] += 1
         cell[1] += mins

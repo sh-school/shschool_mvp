@@ -36,7 +36,16 @@ class ClinicConfig(AppConfig):
             name="clinic",
             label="العيادة الصحية",
             url_prefix="/clinic/",
-            allowed_roles={"principal", "vice_admin", "nurse", "student_affairs_coordinator"},
+            # والأخصائيّان يدخلان البوّابةَ لشاشة «بطاقة الخروج» وحدَها (W-20261119-003)؛ وبقيّةُ الواجهات
+            # تحرسها قدراتُها (`clinic.access`) فتردّهما.
+            allowed_roles={
+                "principal",
+                "vice_admin",
+                "nurse",
+                "student_affairs_coordinator",
+                "psychologist",
+                "social_worker",
+            },
             # ووليُّ الأمر والطالبُ ليسا هنا: بابُهما `/parents/`، وواجهاتُ هذه
             # الوحدة كلُّها للكادر. ووعدٌ في القائمة تردُّه البوّابةُ رابطٌ يُفضي
             # إلى ٤٠٣ (اختبار `test_module_gates_match_guards`).

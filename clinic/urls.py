@@ -1,12 +1,15 @@
 from django.urls import path
 
-from . import quick_views, referral_views, supply_views, views
+from . import exit_views, quick_views, referral_views, supply_views, views
 
 app_name = "clinic"
 
 urlpatterns = [
     path("", views.clinic_dashboard, name="dashboard"),
     path("counts/", views.clinic_counts, name="counts"),
+    path("exit-card/", exit_views.exit_card_page, name="exit_card"),
+    path("exit-card/excuse/", exit_views.exit_card_excuse, name="exit_card_excuse"),
+    path("exit-card/<uuid:pk>/<slug:step>/", exit_views.exit_card_moment, name="exit_card_moment"),
     path("student/<uuid:student_id>/record/", views.student_health_record, name="health_record"),
     path("needs-care/import/", views.needs_care_import, name="needs_care_import"),
     path("visit/new/", views.record_visit, name="record_visit"),

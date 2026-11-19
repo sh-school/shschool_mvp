@@ -5,6 +5,17 @@
     <button type="button" class="btn-secondary btn-sm" data-movement-view-btn="table" aria-pressed="false">جدول</button>
     <button type="button" class="btn-secondary btn-sm" data-movement-view-btn="cards" aria-pressed="false">بطاقات</button>
   </div>
+  {% section_card "الأجنحة الآن" icon="sent_home" meta=wing_strip|length empty="لا خروجَ مسجَّلاً في هذا اليوم" %}{% if wing_strip %}
+    {% for w in wing_strip %}
+    <strong>{{ w.wing }}</strong>
+    {% kpi_strip label=w.wing %}
+      {% for label, number in w.cells %}{% kpi label number %}{% endfor %}
+    {% endkpi_strip %}
+    {% endfor %}
+    <p>التفصيل بالوجهة:
+      {% for label, number in destination_split %}{{ label }} {{ number }}{% if not forloop.last %}، {% endif %}{% endfor %}</p>
+  {% endif %}{% endsection_card %}
+
   {% section_card "قادمون إليك" icon="sent_home" meta=incoming_rows|length empty="لا طلابَ قادمين إليك الآن" flush=True %}{% if incoming_rows %}
     <div class="table-wrap table-wrap-scroll">
       <table>
@@ -85,7 +96,7 @@
           <tr>
             <td><a href="{% url 'student_affairs:student_profile' r.student.id %}" class="sa-link">{{ r.student.full_name }}</a></td>
             <td>{{ r.class_text }}</td>
-            <td>{{ r.destination }}</td>
+            <td>{{ r.destination }}{% if r.is_clinic %}{% if r.clinic_in %} · وصل {{ r.clinic_in|time:"H:i" }}{% endif %}{% if r.clinic_out %} · غادر {{ r.clinic_out|time:"H:i" }}{% endif %}{% endif %}{% if r.excused %} <span class="status-badge status-info">خروج مبرَّر</span>{% endif %}</td>
             <td class="num">{{ r.left_at|time:"H:i" }}</td>
             <td class="num"><span class="status-badge status-{{ r.tone }}"{% if r.tone == "danger" %} title="تجاوز المهلة"{% endif %}>{{ r.minutes }}{% if r.allowed %} / {{ r.allowed }}{% endif %}</span></td>
             <td>
@@ -105,7 +116,8 @@
         <a href="{% url 'student_affairs:student_profile' r.student.id %}" class="sa-link">{{ r.student.full_name }}</a>
         <div class="movement-tile__meta">
           <span>{{ r.class_text }}</span>
-          <span>{{ r.destination }}</span>
+          <span>{{ r.destination }}{% if r.is_clinic %}{% if r.clinic_in %} · وصل {{ r.clinic_in|time:"H:i" }}{% endif %}{% if r.clinic_out %} · غادر {{ r.clinic_out|time:"H:i" }}{% endif %}{% endif %}</span>
+          {% if r.excused %}<span class="status-badge status-info">خروج مبرَّر</span>{% endif %}
           <span>الخروج {{ r.left_at|time:"H:i" }}</span>
           <span class="status-badge status-{{ r.tone }}"{% if r.tone == "danger" %} title="تجاوز المهلة"{% endif %}>{{ r.minutes }}{% if r.allowed %} / {{ r.allowed }}{% endif %} د</span>
         </div>

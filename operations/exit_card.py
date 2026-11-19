@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 from django.db import transaction
 from django.utils import timezone
 
-from operations.models import ClassExit, ExitDestinationGrace
+from operations.models import ClassExit, ExcusedExit, ExitDestinationGrace
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
@@ -94,6 +94,14 @@ def _audit(user: Any, school: Any, what: str, label: str, changes: dict[str, Any
 def late_seconds(exit_: ClassExit, returned_at: dt.datetime) -> int | None:
     """ثوانٍ بعد المهلة عند العودة — `None` إن لم يصل بعد أو بلا مهلة. (10 دقائق ومهلة 7 ⇒ 180)."""
     if exit_.routed_at is None or exit_.allowed_minutes is None:
+        return None
+    # الموسومُ «خروجٌ مبرَّرٌ دائم» لا يُحسب عليه تأخّرُ عودةٍ (إدارةُ الأجنحة 3/4) — فلا ثوانيَ تُكتب له.
+    if ExcusedExit.objects.filter(
+        school_id=exit_.school_id,
+        student_id=exit_.student_id,
+        starts_on__lte=timezone.localdate(returned_at),
+        ends_on__gte=timezone.localdate(returned_at),
+    ).exists():
         return None
     due = exit_.routed_at + dt.timedelta(minutes=exit_.allowed_minutes)
     return max(0, int((returned_at - due).total_seconds()))

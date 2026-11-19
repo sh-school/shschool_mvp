@@ -71,6 +71,17 @@
         <button type="button" class="btn-secondary" data-undo="" hidden>تراجع</button>
       </div>
       {% endif %}
+      {% if page.can_write %}
+      {# بطاقةُ الخروج (W-20261119-003): طلبةُ هذه الحصّة الخارجون ووجهاتُهم ومنها «عاد»؛ بعدّاديهم في المادّة (مادّةُ المعلّم وحدَها). #}
+      {% section_card "خارجون الآن" icon="sent_home" empty="لا أحدَ خارج الفصل الآن" flush=True %}{% for row in page.rows %}{% if row.exit %}
+        <div class="cg-acts__box">
+          <strong>{{ row.student.full_name }}</strong>
+          <span class="status-badge status-warning">{{ row.exit.get_destination_display }} · <time data-out-since="{{ row.exit.left_at|date:'U' }}">00:00</time></span>
+          {% if row.exit.destination == "clinic" and row.exit.clinic_arrived_at %}<span class="status-badge status-info">وصل العيادة {{ row.exit.clinic_arrived_at|time:"H:i" }}{% if row.exit.clinic_left_at %} · غادر {{ row.exit.clinic_left_at|time:"H:i" }}{% endif %}</span>{% endif %}
+          <button type="button" class="btn-secondary btn-sm" data-exit-return="{{ row.student.pk }}">عاد</button>
+        </div>
+      {% endif %}{% endfor %}{% endsection_card %}
+      {% endif %}
       <div class="table-wrap cg-wrap">
         <table class="cg-table" data-no-sort>
           <thead>
@@ -144,8 +155,9 @@
                     <select class="form-select cg-dest" data-exit-dest="{{ row.student.pk }}" aria-label="وجهة خروج {{ row.student.full_name }}"{% if not page.current %} disabled{% endif %}>
                       {% for code, label in page.destinations %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
                     </select>
-                    <button type="button" class="btn-secondary btn-sm" data-exit="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>خروج</button>
+                    <button type="button" class="btn-secondary btn-sm" data-exit="{{ row.student.pk }}"{% if not page.current %} disabled title="لا حصّةَ جاريةً الآن"{% endif %}>بطاقة خروج</button>
                     {% endif %}
+                    {% if row.counters %}<span class="status-badge status-info" title="آخر 30 يوماً في مادّتك: مرّاتُ الخروج ودقائقُه وتأخّرُ العودة">خروج {{ row.counters.count }} · {{ row.counters.minutes }} د · تأخّر {{ row.counters.late_minutes }} د</span>{% endif %}
                     <a class="btn-secondary btn-sm" href="{% url 'behavior:report_infraction' %}?student={{ row.student.pk }}&next={{ request.path|urlencode }}">مخالفة</a>
                   </div>
                 </dialog>

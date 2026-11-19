@@ -29,6 +29,7 @@
             <th>الطالب</th>
             <th class="num">عدد الخروج</th>
             <th class="num">مجموع الدقائق</th>
+            <th class="num">تأخّر العودة (دقيقة)</th>
             <th>بحسب الوجهة</th>
           </tr>
         </thead>
@@ -38,6 +39,7 @@
             <td><a href="{{ r.link }}&amp;start={{ start|date:'Y-m-d' }}&amp;end={{ end|date:'Y-m-d' }}" class="sa-link">{{ r.student.full_name }}</a></td>
             <td class="num">{{ r.count }}</td>
             <td class="num">{{ r.minutes }}</td>
+            <td class="num">{{ r.late_minutes }}</td>
             <td>{% for d in r.destinations %}{{ d.label }}: {{ d.count }} ({{ d.minutes }} د){% if not forloop.last %}، {% endif %}{% endfor %}</td>
           </tr>
           {% endfor %}

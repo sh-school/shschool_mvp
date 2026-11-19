@@ -1,0 +1,100 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+
+{% block title %}بطاقة الخروج — العيادة{% endblock %}
+
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/clinic/" parent_label="العيادة" current="بطاقة الخروج" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash sa-page">
+
+  {% page_header "بطاقة الخروج" subtitle="وصولُ العيادة والخروجُ المبرَّر" icon="clinic" %}{% endpage_header %}
+
+  {% if can_clinic_moments %}
+  {% section_card "خارجون إلى العيادة الآن" icon="clinic" meta=exits|length empty="لا طلابَ خارجين إلى العيادة الآن" flush=True %}{% if exits %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>الطالب</th>
+            <th>الشعبة</th>
+            <th class="num">الخروج</th>
+            <th class="num">وصل</th>
+            <th class="num">غادر</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in exits %}
+          <tr>
+            <td>{{ r.student.full_name }}</td>
+            <td>{{ r.class_text }}</td>
+            <td class="num">{{ r.left_at|time:"H:i" }}</td>
+            <td class="num">{% if r.arrived %}{{ r.arrived|time:"H:i" }}{% else %}—{% endif %}</td>
+            <td class="num">{% if r.departed %}{{ r.departed|time:"H:i" }}{% else %}—{% endif %}</td>
+            <td>
+              {% if not r.arrived %}
+              <form method="post" action="{% url 'clinic:exit_card_moment' r.pk 'arrive' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-primary btn-sm">وصل العيادة</button>
+              </form>
+              {% elif not r.departed %}
+              <form method="post" action="{% url 'clinic:exit_card_moment' r.pk 'depart' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-primary btn-sm">غادر</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+  {% endif %}
+
+  {% section_card "وسمُ «خروجٍ مبرَّرٍ دائم»" icon="clinic" %}
+    <p>يُسقط الوسمُ تأخّرَ العودة عن الطالب طوال مدّته. السببُ لك وحدَك: لا يراه المشرفُ ولا غيرُه.</p>
+    <form method="get" class="sa-filter">
+      <input type="search" name="q" value="{{ q }}" class="form-control" aria-label="بحث عن طالب" placeholder="اسم الطالب">
+      <button type="submit" class="btn-primary btn-sm">{% icon "search" %} بحث</button>
+    </form>
+    {% for s in found %}
+    <form method="post" action="{% url 'clinic:exit_card_excuse' %}" class="form-row">
+      {% csrf_token %}
+      <input type="hidden" name="student" value="{{ s.id }}">
+      <strong>{{ s.full_name }}</strong>
+      <span>{{ s.class_label }}</span>
+      <input type="date" name="ends_on" class="form-control" required min="{{ today|date:'Y-m-d' }}" aria-label="إلى تاريخ">
+      <input type="text" name="reason" class="form-control" maxlength="300" required aria-label="السبب (لا يراه غيرك)" placeholder="السبب (لا يراه غيرك)">
+      <button type="submit" class="btn-primary btn-sm">وضع الوسم</button>
+    </form>
+    {% endfor %}
+  {% endsection_card %}
+
+  {% section_card "وسومي السارية" icon="clinic" meta=marks|length empty="لا وسومَ سارية" flush=True %}{% if marks %}
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <thead>
+          <tr><th>الطالب</th><th class="num">من</th><th class="num">إلى</th></tr>
+        </thead>
+        <tbody>
+          {% for m in marks %}
+          <tr>
+            <td>{{ m.student.full_name }}</td>
+            <td class="num">{{ m.starts_on|date:"Y-m-d" }}</td>
+            <td class="num">{{ m.ends_on|date:"Y-m-d" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+
+</div>
+{% endblock %}
