@@ -19,20 +19,24 @@ from core.capabilities import capability_required
 from operations.class_exit import may_record_school_exit
 from operations.models import ClassExit
 
-from .movement_selectors import ALERT_MINUTES, history_rows, live_rows
+from .movement_card import can_set_grace
+from .movement_selectors import grace_rows, history_rows, incoming_rows, live_rows
 
-#: دورةُ تحديث اللوحة الحيّة بالثواني (HTMX).
-REFRESH_SECONDS = 30
+#: دورةُ تحديث اللوحة الحيّة بالثواني (HTMX) — «قادمون إليك» تتحدّث كلَّ 10 ثوانٍ.
+REFRESH_SECONDS = 10
 
 
 def live_context(request: Any, school: Any, scope: Any, day: dt.date) -> dict[str, Any]:
-    """سياقُ اللوحة الحيّة: الصفوفُ، وهل اليومُ المختار اليومُ (فيُفعَّل التحديثُ الذاتي)."""
+    """سياقُ اللوحة الحيّة: القادمون والخارجون الآن، وهل اليومُ المختار اليومُ (فيُفعَّل التحديثُ الذاتي)."""
     now = timezone.now()
+    can_grace = can_set_grace(request.user)
     return {
+        "incoming_rows": incoming_rows(school, scope, day, now),
         "live_rows": live_rows(school, scope, day, now),
         "live_is_today": day == timezone.localdate(now),
         "live_refresh_seconds": REFRESH_SECONDS,
-        "alert_minutes": ALERT_MINUTES,
+        "can_set_grace": can_grace,
+        "grace_rows": grace_rows(school) if can_grace else [],
         # تغييرُ وجهة خروجٍ مفتوح (W-20261116-002): للمشرف والنائب والمدير، إلى ما عدا «الخروج من المدرسة».
         "can_change_destination": may_record_school_exit(request.user),
         "change_destinations": ClassExit.SUPERVISOR_DESTINATIONS,

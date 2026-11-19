@@ -1024,6 +1024,22 @@
 .sa-filter .form-control { inline-size: auto; min-inline-size: 120px; }
 .sa-filter .sa-filter__narrow { min-inline-size: 0; inline-size: 80px; }
 
+/* اللوحةُ الحيّة: عرضان (جدول/بطاقات) يبدّل بينهما الزرّ؛ الاختيار على `html[data-movement-view]` فيبقى بعد استبدال HTMX.
+   بلا اختيارٍ محفوظ: بطاقاتٌ على الجوال وجدولٌ على الشاشات الواسعة. */
+.movement-view-toggle { display: flex; gap: var(--sp-1-5); justify-content: flex-end; margin-block-end: var(--sp-2); }
+.movement-view-toggle .btn-sm[aria-pressed="true"] { font-weight: 700; text-decoration: underline; }
+.movement-tiles { display: none; gap: var(--sp-2); grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); padding: var(--sp-2); }
+.movement-tile { display: grid; gap: var(--sp-1-5); padding: var(--sp-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.movement-tile__meta { display: flex; flex-wrap: wrap; gap: var(--sp-2); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.movement-tile form { display: flex; flex-wrap: wrap; gap: var(--sp-1-5); align-items: center; }
+.movement-tile .form-control { inline-size: auto; flex: 1 1 8rem; min-inline-size: 0; }
+html[data-movement-view="cards"] .movement-tiles { display: grid; }
+html[data-movement-view="cards"] #movement-live .table-wrap { display: none; }
+@media (max-width: 768px) {
+  html:not([data-movement-view]) .movement-tiles { display: grid; }
+  html:not([data-movement-view]) #movement-live .table-wrap { display: none; }
+}
+
 /* تسجيلُ التأخّر: البحثُ ثمّ النموذجُ المخفيُّ حتى يُختار الطالب.
    `display` الابتدائيُّ هنا، والسكربتُ يقلبه بـ`style.display`. */
 .sa-late-search { position: relative; margin-block-end: var(--sp-3); }

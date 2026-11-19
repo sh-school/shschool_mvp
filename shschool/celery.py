@@ -212,6 +212,11 @@ from operations.absence_reports_beat import absence_reports_beat  # noqa: E402
 
 app.conf.beat_schedule.update(absence_reports_beat())
 
+# تصعيدُ بطاقات الخروج التي لم تُستلَم (W-20261119-002): مهمّتُها في `operations/tasks.py` وجدولتُها معطَّلةٌ حتى `EXIT_CARD_BEAT=1`.
+from operations.exit_card_beat import exit_card_beat  # noqa: E402
+
+app.conf.beat_schedule.update(exit_card_beat())
+
 # اقتراحاتُ المخالفة 1-01 لغيابٍ أو تأخّرٍ بين الحصص (W-20261013-034): معطَّلةٌ حتى `CONDUCT_PROPOSALS_BEAT=1`.
 app.autodiscover_tasks(["wings"], related_name="conduct_tasks")
 from wings.conduct_beat import conduct_proposals_beat  # noqa: E402

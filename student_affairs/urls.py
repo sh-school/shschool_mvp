@@ -5,6 +5,7 @@ from . import (
     chronic_views,
     guardian_views,
     list_export_views,
+    movement_card,
     movement_entry,
     movement_live,
     movements_views,
@@ -66,6 +67,12 @@ urlpatterns = [
         movement_entry.movement_return,
         name="movement_return",
     ),
+    path(
+        "movements/<uuid:pk>/followup/",
+        movement_card.movement_followup,
+        name="movement_followup",
+    ),
+    path("movements/grace/", movement_card.movement_grace_save, name="movement_grace_save"),
     path(
         "enrolment-movements/",
         movements_views.enrolment_movements_list,

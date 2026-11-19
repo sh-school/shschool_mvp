@@ -742,6 +742,55 @@ class ClassExit(models.Model):
         ),
     )
 
+    #: من أعاد الطالبَ: المعلّمُ أو المشرفان أو العيادةُ أو النظامُ (جرسُ نهاية الحصّة).
+    RETURNED_BY_ROLES = [
+        ("teacher", "المعلّم"),
+        ("wing_supervisor", "مشرف الجناح"),
+        ("field_supervisor", "المشرف الميداني"),
+        ("clinic", "العيادة"),
+        ("system", "النظام"),
+    ]
+
+    # حالةُ بطاقة الخروج (إدارةُ الأجنحة 2/4): كلُّها قابلةٌ للفراغ، والحالةُ **مشتقّةٌ** منها (`status`).
+    routed_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقتُ الوصول إلى الوجهة", db_index=True
+    )
+    routed_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="class_exits_routed",
+        verbose_name="حدّد الوجهة",
+    )
+    returned_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="class_exits_returned",
+        verbose_name="سجّل العودة",
+    )
+    returned_by_role = models.CharField(
+        max_length=20, blank=True, choices=RETURNED_BY_ROLES, verbose_name="دورُ من سجّل العودة"
+    )
+    allowed_minutes = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="المهلة المسموحة (دقائق)",
+        help_text="لقطةٌ من مهلة الوجهة لحظةَ الوصول؛ فتغييرُ الإعداد بعدها لا يمسّ ما سبق. فارغةٌ = وجهةٌ بلا مهلة.",
+    )
+    late_return_seconds = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="تأخّرُ العودة (ثوانٍ)",
+        help_text="ما بعد المهلة عند العودة بنقرة؛ فارغٌ لمن لا مهلةَ له أو أُغلق بالجرس (مجهول لا تأخّر).",
+    )
+    #: مرحلةُ تصعيد «بطاقةٍ بلا استلام»: 0 لم يُنبَّه أحد، 1 نُبّه المشرفُ الآخر، 2 نُبّه النائبُ الإداريّ.
+    alert_stage = models.PositiveSmallIntegerField(default=0, verbose_name="مرحلةُ التنبيه")
+    followup_reason = models.TextField(blank=True, verbose_name="سببُ التحويل إلى متابعة")
+    followup_at = models.DateTimeField(null=True, blank=True, verbose_name="وقتُ التحويل إلى متابعة")
+
     class Meta:
         verbose_name = "خروجٌ من الفصل"
         verbose_name_plural = "خروجٌ من الفصل"
@@ -768,6 +817,13 @@ class ClassExit(models.Model):
     @property
     def is_out(self) -> bool:
         return self.returned_at is None
+
+    @property
+    def status(self) -> str:
+        """حالةُ البطاقة المشتقّة: issued صدرت، arrived وصل، returned عاد، unknown أُغلق بالجرس بلا عودة."""
+        if self.returned_at is not None:
+            return "unknown" if self.system_closed else "returned"
+        return "arrived" if self.routed_at is not None else "issued"
 
     def minutes_away(self, until=None) -> int:
         """دقائقُ الغياب عن الفصل — حتى العودة، أو حتى `until` (نهايةُ الحصّة) لمن لم يعد."""
@@ -803,6 +859,11 @@ class DailyExitTally(models.Model):
     date = models.DateField(verbose_name="التاريخ")
     exit_count = models.PositiveIntegerField(default=0, verbose_name="عددُ مرّات الخروج")
     total_seconds = models.PositiveIntegerField(default=0, verbose_name="مجموعُ مدّة الخروج (ثوانٍ)")
+    late_return_seconds = models.PositiveIntegerField(
+        default=0,
+        verbose_name="مجموعُ تأخّر العودة (ثوانٍ)",
+        help_text="يُعاد حسابُه من `ClassExit.late_return_seconds` ولا يُزاد؛ ولا يدخل `late_minutes` في الحضور.",
+    )
     by_destination = models.JSONField(
         default=dict,
         blank=True,
