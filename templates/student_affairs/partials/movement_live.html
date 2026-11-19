@@ -1,6 +1,10 @@
 {% load ui %}
 {# اللوحةُ الحيّة: «قادمون إليك» و«خارج الآن»، تتحدّثان وحدهما كلَّ دورةٍ بـHTMX إن كان اليومُ المختارُ اليومَ فقط. #}
 <div id="movement-live"{% if live_is_today %} hx-get="{% url 'student_affairs:movements_live' %}" hx-trigger="every {{ live_refresh_seconds }}s" hx-swap="outerHTML"{% endif %}>
+  <div class="movement-view-toggle" role="group" aria-label="طريقة العرض">
+    <button type="button" class="btn-secondary btn-sm" data-movement-view-btn="table" aria-pressed="false">جدول</button>
+    <button type="button" class="btn-secondary btn-sm" data-movement-view-btn="cards" aria-pressed="false">بطاقات</button>
+  </div>
   {% section_card "قادمون إليك" icon="sent_home" meta=incoming_rows|length empty="لا طلابَ قادمين إليك الآن" flush=True %}{% if incoming_rows %}
     <div class="table-wrap table-wrap-scroll">
       <table>
@@ -38,6 +42,29 @@
         </tbody>
       </table>
     </div>
+    <div class="movement-tiles">
+      {% for r in incoming_rows %}
+      <article class="movement-tile">
+        <a href="{% url 'student_affairs:student_profile' r.student.id %}" class="sa-link">{{ r.student.full_name }}</a>
+        <div class="movement-tile__meta">
+          <span>{{ r.class_text }}</span>
+          <span>الخروج {{ r.left_at|time:"H:i" }}</span>
+          <span class="status-badge {% if r.waited >= 5 %}status-warning{% else %}status-info{% endif %}">انتظار {{ r.waited }} د</span>
+        </div>
+        {% if can_change_destination %}
+        <form method="post" action="{% url 'student_affairs:movement_change_destination' r.pk %}">
+          {% csrf_token %}
+          <select name="destination" class="form-control" aria-label="الوجهة">
+            {% for val, label in change_destinations %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn-primary btn-sm">وصل</button>
+        </form>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
   {% endif %}{% endsection_card %}
 
   {% section_card "خارج الآن" icon="sent_home" meta=live_rows|length empty="لا أحدَ خارج الفصل الآن" flush=True %}{% if live_rows %}
@@ -71,6 +98,23 @@
           {% endfor %}
         </tbody>
       </table>
+    </div>
+    <div class="movement-tiles">
+      {% for r in live_rows %}
+      <article class="movement-tile">
+        <a href="{% url 'student_affairs:student_profile' r.student.id %}" class="sa-link">{{ r.student.full_name }}</a>
+        <div class="movement-tile__meta">
+          <span>{{ r.class_text }}</span>
+          <span>{{ r.destination }}</span>
+          <span>الخروج {{ r.left_at|time:"H:i" }}</span>
+          <span class="status-badge status-{{ r.tone }}"{% if r.tone == "danger" %} title="تجاوز المهلة"{% endif %}>{{ r.minutes }}{% if r.allowed %} / {{ r.allowed }}{% endif %} د</span>
+        </div>
+        <form method="post" action="{% url 'student_affairs:movement_return' r.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn-primary btn-sm">عاد</button>
+        </form>
+      </article>
+      {% endfor %}
     </div>
   {% endif %}{% endsection_card %}
 </div>

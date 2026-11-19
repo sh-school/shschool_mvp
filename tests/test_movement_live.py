@@ -107,7 +107,27 @@ def test_live_panel_orders_longest_first_and_colors_by_destination_grace(
     html = _live(client, principal_user)
 
     assert html.index("طويل الغياب") < html.index("قصير الغياب")
-    assert html.count("status-danger") == 1
+    # الصفُّ المتأخّر يظهر مرّتين: في الجدول وفي بطاقته؛ والقصير لا يحمل أحمر في أيٍّ منهما.
+    assert html.count("status-danger") == 2
+
+
+def test_live_panel_has_view_toggle_and_a_tile_per_student(
+    client, school, principal_user, teacher_user, wing_a
+):
+    """كلّ قسمٍ يحمل العرضين: جدولاً وبطاقةً لكلّ طالب، وزرَّي التبديل المحفوظ اختيارُهما في المتصفح."""
+    klass, _ = wing_a
+    _exit(school, klass, teacher_user, "طالب البطاقة", "29000000023")
+
+    html = _live(client, principal_user)
+
+    assert 'data-movement-view-btn="table"' in html
+    assert 'data-movement-view-btn="cards"' in html
+    assert html.count('class="movement-tile"') == 1
+    assert html.count("طالب البطاقة") == 2  # صفّ الجدول + البطاقة
+    assert (
+        "movement-view.js"
+        in client.get(reverse("student_affairs:student_movements")).content.decode()
+    )
 
 
 def test_supervisor_live_panel_hides_other_wing(client, school, teacher_user, wing_a, wing_b):
