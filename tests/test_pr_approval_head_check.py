@@ -96,3 +96,11 @@ def test_mandate_line_bound_to_head_is_accepted():
     assert chk.verdict(line, HEAD)[0] == "ok"
     assert chk.verdict(line, "ffffffff" + HEAD[8:])[0] == "stale_head"
     assert chk.verdict("اعتُمد بتكليف المالك D-443م عبر 0101 — 2026-10-21", HEAD)[0] == "no_line"
+
+
+def test_mandate_line_without_legacy_role_is_accepted():
+    """نظامُ الأدوار أُلغي (D-519م): سطرُ التكليف يكفيه رقمُ القرار بلا «عبر 0101» (D-534م)."""
+    line = "اعتُمد بتكليف المالك D-534م — 2026-11-19 — الرأس " + HEAD[:8]
+    assert chk.verdict(line, HEAD)[0] == "ok"
+    assert chk.verdict(line, "ffffffff" + HEAD[8:])[0] == "stale_head"
+    assert chk.verdict("اعتُمد بتكليف المالك — 2026-11-19 — الرأس " + HEAD[:8], HEAD)[0] == "no_line"
