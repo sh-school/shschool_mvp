@@ -186,16 +186,21 @@ def exit_counters(
     )
     if subject_ids is not None:
         qs = qs.filter(session__subject_id__in=list(subject_ids))
+    exits = list(
+        qs.values(
+            "student_id",
+            "session__date",
+            "continued_from_id",
+            "left_at",
+            "returned_at",
+            "late_return_seconds",
+        )
+    )
+    if not exits:
+        return {}  # بلا خروجٍ لا حاجةَ لقراءة الوسوم (يُبقي صفحةَ الكشف في سقف استعلاماتها)
     spans = excused_spans(school, student_ids)
     totals: dict[Any, list[int]] = {}
-    for e in qs.values(
-        "student_id",
-        "session__date",
-        "continued_from_id",
-        "left_at",
-        "returned_at",
-        "late_return_seconds",
-    ):
+    for e in exits:
         row = totals.setdefault(e["student_id"], [0, 0, 0])
         if e["continued_from_id"] is None:
             row[0] += 1

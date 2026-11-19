@@ -319,7 +319,7 @@ def test_incoming_zone_lists_only_unreceived_wing_supervisor_cards(
     html = client.get(reverse("student_affairs:movements_live")).content.decode()
 
     assert html.count("قادمون إليك") == 1
-    incoming = html.split("خارج الآن")[0]
+    incoming = html.split("قادمون إليك")[1].split("خارج الآن")[0]
     assert "طالب 29000000120" in incoming and "طالب 29000000121" not in incoming
     assert 'hx-trigger="every 10s"' in html
 
