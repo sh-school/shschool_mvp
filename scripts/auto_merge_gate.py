@@ -9,7 +9,8 @@
 
 الشروطُ الأربعة (كلُّها لازمة):
   1. سطرُ اعتماد المالك موجودٌ حرفيّاً في وصف الطلب (نفسُ تعبير evidence_pack.py:
-     يقبل صيغتَي «على 8500» و«مباشرةً بلا معاينة 8500» D-58م معاً).
+     يقبل صيغتَي «على 8500» و«مباشرةً بلا معاينة 8500» D-58م معاً)، أو سطرُ تكليفه
+     (D-443م) مربوطاً برأس الطلب الفعليّ: «اعتُمد بتكليف المالك D-<رقم>م — <التاريخ> — الرأس <sha>».
   2. نطاقُ الملفّات المتغيّرة كلُّه خارج القائمة المحظورة (أمنٌ، صلاحيّات، هجرات).
   3. كلُّ فحوص CI المطلوبة خضراء (لا PENDING ولا FAILURE).
   4. فحصُ «مدقّق الهجرات — Expand/Contract» ضمن الفحوص الخضراء إن وُجد أصلاً في الطلب.
@@ -35,6 +36,13 @@ import sys
 
 APPROVAL = re.compile(r"اعتُمد من المالك (?:على 8500|مباشرةً بلا معاينة 8500) — \d{4}-\d{2}-\d{2}")
 
+#: سطرُ التكليف المسجَّل لطلبٍ لم يُعرض على 8500 (قرار المالك D-443م): «اعتُمد بتكليف المالك D-<رقم>م — <التاريخ> — الرأس <sha>».
+#: «عبر 0101/0501» اختياريّ: بقيّةُ نظام الأدوار الملغى (D-519م)؛ يُقبل في الطلبات القديمة ولا يُشترط (D-534م).
+#: مصدرُه هنا، ويستورده `pr_evidence.py` و`pr_approval_head_check.py` (تعبيرٌ واحد).
+MANDATE = re.compile(
+    r"اعتُمد بتكليف المالك D-\d+م(?: عبر (?:0101|0501))? — \d{4}-\d{2}-\d{2} — الرأس ([0-9a-f]{7,40})"
+)
+
 # مساراتٌ محظورةٌ على الدمج الآليّ مهما اكتملت الشروطُ الأخرى (W-016).
 # أنماطُ fnmatch/غلوب بسيطة تُطابَق مقابل كلّ مسارٍ متغيّر.
 FORBIDDEN_GLOBS = (
@@ -59,6 +67,11 @@ def sh_json(args: list[str]) -> object:
     # قائمةُ وسائطَ ثابتة بلا shell؛ المدخلُ رقمُ الطلب والمستودع من سطر الأوامر فقط.
     out = subprocess.run(args, capture_output=True, text=True, check=True)  # noqa: S603
     return json.loads(out.stdout)
+
+
+def mandate_ok(body: str, head: str) -> bool:
+    """سطرُ التكليف يُحتسب إن طابق الرأسُ المكتوب فيه رأسَ الطلب الفعليّ؛ إيداعٌ بعده يُسقطه (قرار المالك 2026-11-20)."""
+    return bool(head) and any(head.lower().startswith(m.lower()) for m in MANDATE.findall(body))
 
 
 def path_forbidden(path: str) -> str | None:
@@ -89,7 +102,7 @@ def latest_checks(checks: list[dict]) -> list[dict]:
 
 
 def evaluate(pr_number: str, repo: str | None) -> tuple[bool, list[str]]:
-    base = ["gh", "pr", "view", pr_number, "--json", "body,files,statusCheckRollup"]
+    base = ["gh", "pr", "view", pr_number, "--json", "body,files,statusCheckRollup,headRefOid"]
     if repo:
         base += ["--repo", repo]
     return evaluate_data(sh_json(base))
@@ -100,10 +113,11 @@ def evaluate_data(data: dict) -> tuple[bool, list[str]]:
     reasons: list[str] = []
 
     body = data.get("body") or ""
-    if not APPROVAL.search(body):
+    if not (APPROVAL.search(body) or mandate_ok(body, data.get("headRefOid") or "")):
         reasons.append(
             "سطرُ اعتماد المالك («اعتُمد من المالك على 8500 — YYYY-MM-DD» أو صيغة D-58م "
-            "«اعتُمد من المالك مباشرةً بلا معاينة 8500 — YYYY-MM-DD») غيرُ موجودٍ حرفيّاً في وصف الطلب"
+            "«اعتُمد من المالك مباشرةً بلا معاينة 8500 — YYYY-MM-DD») غيرُ موجودٍ حرفيّاً في وصف الطلب، "
+            "ولا سطرُ تكليفٍ «اعتُمد بتكليف المالك D-<رقم>م — YYYY-MM-DD — الرأس <sha>» برأس الطلب الحاليّ"
         )
 
     files = [f.get("path", "") for f in data.get("files") or []]
