@@ -56,6 +56,19 @@
   {% include "student_affairs/partials/movement_live.html" %}
   <p><a href="{% url 'student_affairs:movements_history' %}" class="sa-link">سجلّ الخروج التاريخي</a></p>
 
+  {% if can_set_grace %}
+  {% section_card "مُهَل العودة بحسب الوجهة" icon="sent_home" %}
+    <form method="post" action="{% url 'student_affairs:movement_grace_save' %}" class="form-row">
+      {% csrf_token %}
+      {% for code, label, minutes in grace_rows %}
+      <label for="grace_{{ code }}">{{ label }} (دقائق)</label>
+      <input id="grace_{{ code }}" name="grace_{{ code }}" type="number" min="1" max="240" class="form-control" value="{{ minutes|default_if_none:'' }}" placeholder="بلا مهلة">
+      {% endfor %}
+      <button type="submit" class="btn-primary btn-sm">حفظ المُهَل</button>
+    </form>
+  {% endsection_card %}
+  {% endif %}
+
   {% movement_entry_form %}
 
   {% kpi_strip label="أرقام التحركات" %}
@@ -75,6 +88,7 @@
             <th class="num">الخروج</th>
             <th class="num">العودة</th>
             <th>بإذن</th>
+            <th class="num">تأخّر العودة (دقيقة)</th>
             <th></th>
           </tr>
         </thead>
@@ -106,11 +120,24 @@
               {% else %}<span class="status-badge status-warning">لم يعد</span>{% endif %}
             </td>
             <td>{{ e.allowed_by.full_name|default:"—" }}</td>
+            <td class="num">
+              {% if e.late_return_seconds %}<span class="status-badge status-danger">{% widthratio e.late_return_seconds 60 1 %}</span>
+              {% elif e.status == "unknown" %}<span class="status-badge status-warning" title="أُغلق بالجرس">مجهول</span>
+              {% else %}—{% endif %}
+            </td>
             <td>
               {% if not e.returned_at %}
               <form method="post" action="{% url 'student_affairs:movement_return' e.pk %}">
                 {% csrf_token %}
                 <button type="submit" class="btn-primary btn-sm">عاد</button>
+              </form>
+              {% endif %}
+              {% if e.followup_at %}<span class="status-badge status-info">في المتابعة</span>
+              {% else %}
+              <form method="post" action="{% url 'student_affairs:movement_followup' e.pk %}">
+                {% csrf_token %}
+                <input type="text" name="reason" class="form-control" maxlength="300" required placeholder="سبب التحويل إلى متابعة" aria-label="سبب التحويل إلى متابعة">
+                <button type="submit" class="btn-primary btn-sm">تحويل إلى متابعة</button>
               </form>
               {% endif %}
             </td>

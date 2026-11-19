@@ -21,7 +21,7 @@ from core.capabilities import capability_required, has_capability
 from core.labels import class_label
 from core.models.academic import ClassGroup
 from core.models.user import CustomUser
-from operations import class_exit
+from operations import class_exit, exit_card
 from operations.models import ClassExit
 from wings.scope import student_scope_for
 
@@ -126,15 +126,16 @@ def movement_return(request, pk):
     """زرّ «عاد»: يسجّل وقتَ العودة لخروجٍ مفتوح — وخارجُ نطاق الجناح 404."""
     scope = student_scope_for(request)
     exit_ = get_object_or_404(
-        scope.narrow(ClassExit.objects.filter(school=request.school)).select_related(
-            "session", "student"
-        ),
+        scope.narrow(ClassExit.objects.filter(school=request.school)).select_related("student"),
         pk=pk,
     )
-    if exit_.returned_at is not None:
-        raise Http404("عاد الطالب من قبل")
-    class_exit.come_back(exit_.session, exit_.student, by=request.user)
-    messages.success(request, f"سُجّلت عودة {exit_.student.full_name}.")
+    closed, mine = exit_card.return_exit(exit_.pk, request.user)
+    if closed is not None and not mine:
+        # ضغطٌ ثانٍ: لا يفعل شيئاً، ويُظهر من سبق (الاسمُ للمستخدم الداخليّ لا للسجلّ).
+        who = closed.returned_by.full_name if closed.returned_by else "النظام"
+        messages.info(request, f"سبق تسجيلُ عودة {exit_.student.full_name} — سجّلها {who}.")
+    else:
+        messages.success(request, f"سُجّلت عودة {exit_.student.full_name}.")
     return redirect("student_affairs:student_movements")
 
 

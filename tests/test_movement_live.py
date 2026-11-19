@@ -10,7 +10,6 @@ from django.utils import timezone
 from core.academic_calendar import academic_year_for_school
 from core.models import Wing
 from operations.models import ClassExit, Session
-from student_affairs.movement_selectors import ALERT_MINUTES
 from tests.conftest import (
     ClassGroupFactory,
     MembershipFactory,
@@ -96,12 +95,14 @@ def test_live_panel_shows_only_those_who_have_not_returned(
     assert "طالب عاد" not in html
 
 
-def test_live_panel_orders_longest_first_and_flags_over_threshold(
+def test_live_panel_orders_longest_first_and_colors_by_destination_grace(
     client, school, principal_user, teacher_user, wing_a
 ):
+    """«خارج الآن» مرتّبٌ بالأطول أولاً وملوَّنٌ بمهلة الوجهة لا بعتبةٍ ثابتة: المتأخّرُ وحدَه أحمر."""
     klass, _ = wing_a
     _exit(school, klass, teacher_user, "قصير الغياب", "29000000021", minutes_ago=2)
-    _exit(school, klass, teacher_user, "طويل الغياب", "29000000022", minutes_ago=ALERT_MINUTES + 10)
+    long_ = _exit(school, klass, teacher_user, "طويل الغياب", "29000000022", minutes_ago=25)
+    ClassExit.objects.filter(pk=long_.pk).update(routed_at=long_.left_at, allowed_minutes=20)
 
     html = _live(client, principal_user)
 
@@ -140,8 +141,8 @@ def test_main_screen_self_refreshes_only_on_today(
     today = timezone.localdate().isoformat()
     past = (timezone.localdate() - dt.timedelta(days=3)).isoformat()
 
-    assert "every 30s" in client.get(url, {"date": today}).content.decode()
-    assert "every 30s" not in client.get(url, {"date": past}).content.decode()
+    assert "every 10s" in client.get(url, {"date": today}).content.decode()
+    assert "every 10s" not in client.get(url, {"date": past}).content.decode()
 
 
 def test_history_sums_minutes_by_destination(client, school, principal_user, teacher_user, wing_a):

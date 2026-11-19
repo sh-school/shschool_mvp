@@ -22,9 +22,10 @@ import datetime as dt
 from typing import TYPE_CHECKING
 
 from django.core.exceptions import PermissionDenied
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from operations.exit_card import close_with_return, grace_minutes_for, route
 from operations.models import ClassExit, DailyExitTally
 
 if TYPE_CHECKING:
@@ -104,14 +105,27 @@ def leave(
         return None  # غائبٌ وخروجٌ لا يجتمعان (أمرُ المالك 2026-10-04): الغائبُ لا يُفتح له خروج
     if destination not in dict(ClassExit.DESTINATIONS):
         destination = "other"
-    exit_ = ClassExit.objects.create(
-        school=session.school,
-        session=session,
-        student=student,
-        destination=destination,
-        left_at=now,
-        allowed_by=by,
-    )
+    # من يحدّد الوجهةَ بنفسه (المشرفُ من شاشة الحركة) «يصل» الطالبُ عنده فوراً؛ أمّا «مشرف الجناح» فبطاقةٌ تنتظر استلامه.
+    arrived = destination != "wing_sup" and by is not None and by.get_role() != "teacher"  # type: ignore[no-untyped-call]
+    try:
+        with transaction.atomic():  # نقطةُ حفظٍ: تعارضُ القيد لا يُفسد المعاملةَ المحيطة
+            exit_ = ClassExit.objects.create(
+                school=session.school,
+                session=session,
+                student=student,
+                destination=destination,
+                left_at=now,
+                allowed_by=by,
+                routed_at=now if arrived else None,
+                routed_by=by if arrived else None,
+                allowed_minutes=grace_minutes_for(session.school, destination) if arrived else None,
+            )
+    except IntegrityError:
+        # نقرتان متزامنتان على طالبٍ واحد: خسرت إحداهما قيدَ «خروجٌ مفتوحٌ واحدٌ للحصّة» فتُعاد سطرُ الفائزة.
+        existing = open_exit(session, student)
+        if existing is None:
+            raise
+        return existing
     refresh_tally(session.school, student, session.date)
     if destination in NOTIFY_SUPERVISOR_FOR:
         _notify_supervisor(exit_)
@@ -125,6 +139,7 @@ def refresh_tally(school: School, student: CustomUser, day: dt.date) -> DailyExi
     """
     count = 0
     seconds = 0
+    late = 0
     by_destination: dict[str, dict[str, int]] = {}
     for exit_ in ClassExit.objects.filter(student=student, session__date=day):
         slot = by_destination.setdefault(exit_.destination, {"count": 0, "seconds": 0})
@@ -135,6 +150,7 @@ def refresh_tally(school: School, student: CustomUser, day: dt.date) -> DailyExi
             span = max(0, int((exit_.returned_at - exit_.left_at).total_seconds()))
             seconds += span
             slot["seconds"] += span
+        late += exit_.late_return_seconds or 0
     tally, _ = DailyExitTally.objects.update_or_create(
         student=student,
         date=day,
@@ -142,6 +158,7 @@ def refresh_tally(school: School, student: CustomUser, day: dt.date) -> DailyExi
             "school": school,
             "exit_count": count,
             "total_seconds": seconds,
+            "late_return_seconds": late,
             "by_destination": by_destination,
         },
     )
@@ -159,8 +176,7 @@ def change_destination(exit_: ClassExit, destination: str, by: CustomUser) -> Cl
     if exit_.returned_at is not None:
         raise ValueError("عاد الطالب: لا تُغيَّر وجهةُ خروجٍ مغلق.")
     before = exit_.destination
-    exit_.destination = destination
-    exit_.save(update_fields=["destination"])
+    route(exit_, destination, by)  # يغيّر الوجهةَ ويسجّل «وصل» إن لم يُسجَّل (شرطٌ ذرّيٌّ على routed_at)
     refresh_tally(exit_.school, exit_.student, exit_.session.date)
     from core.audit_repr import masked_repr
     from core.models import AuditLog
@@ -202,8 +218,12 @@ def _notify_supervisor(exit_: ClassExit) -> None:
 
     logger = logging.getLogger(__name__)
     wing = exit_.session.class_group.wing if exit_.session.class_group.wing_id else None
-    holder = wing.current_supervisor(exit_.session.date) if wing is not None else None
-    if holder is None:
+    # المشرفان معاً (الإداريُّ والميدانيّ)؛ ومن غاب منهما يبقى الآخر.
+    holders = wing.holders(exit_.session.date) if wing is not None else None
+    recipients = (
+        [u for u in (holders.supervisor, holders.field) if u is not None] if holders else []
+    )
+    if not recipients:
         return
     try:
         from notifications.hub import NotificationHub
@@ -211,7 +231,7 @@ def _notify_supervisor(exit_: ClassExit) -> None:
         NotificationHub.dispatch(
             event_type="class_exit",
             school=exit_.school,
-            recipients=[holder],
+            recipients=recipients,
             title=f"خروجٌ من الفصل — {exit_.student.full_name}",
             body=_notice_body(exit_),
             related_url=reverse("class_grid", args=[exit_.session.class_group_id])
@@ -235,11 +255,17 @@ def come_back(
     والعودةُ قبل الجرس تُرجع «حاضراً» غيابَ المشرف المشتقَّ من هذا الخروج وحدَه
     (`exit_reflection.revert_derived_absence`) — فلا غيابَ كاذبٌ على من حضر أكثرَ الحصّة.
     """
-    current = open_exit(session, student)
+    # القفلُ يُسلسل ضغطَ مشرفَين معاً: الثاني لا يجد سطراً مفتوحاً فلا يفعل شيئاً (وشاشةُ الحركة تُظهر له من سجّل).
+    current = (
+        ClassExit.objects.select_for_update(of=("self",))
+        .select_related("session__class_group__wing", "school")
+        .filter(session=session, student=student, returned_at__isnull=True)
+        .first()
+    )
     if current is None:
         return None
-    current.returned_at = now or timezone.now()
-    current.save(update_fields=["returned_at"])
+    close_with_return(current, by, now)
+    assert current.returned_at is not None
     refresh_tally(session.school, student, session.date)
     if current.returned_at < session_end(session):
         from operations.exit_reflection import revert_derived_absence
@@ -271,7 +297,7 @@ def close_unreturned(session: Session, now: dt.datetime | None = None) -> int:
         return 0
     pending = ClassExit.objects.filter(session=session, returned_at__isnull=True, left_at__lt=end)
     students = [e.student for e in pending.select_related("student")]
-    closed = pending.update(returned_at=end)
+    closed = pending.update(returned_at=end, returned_by_role="system")
     for student in students:
         refresh_tally(session.school, student, session.date)
     following = (
@@ -338,7 +364,7 @@ def carry_over(session: Session, now: dt.datetime | None = None, at_bell: bool =
             continue
         end = session_end(exit_.session)
         if exit_.returned_at is None:
-            ClassExit.objects.filter(pk=exit_.pk).update(returned_at=end)
+            ClassExit.objects.filter(pk=exit_.pk).update(returned_at=end, returned_by_role="system")
         ClassExit.objects.create(
             school=session.school,
             session=session,
@@ -347,6 +373,10 @@ def carry_over(session: Session, now: dt.datetime | None = None, at_bell: bool =
             left_at=end,
             allowed_by=exit_.allowed_by,
             continued_from=exit_,
+            # الامتدادُ يرث الوصولَ والمهلةَ: عودةُ من لم يعد بعد الجرس تُقاس من وصوله الأصليّ.
+            routed_at=exit_.routed_at,
+            routed_by=exit_.routed_by,
+            allowed_minutes=exit_.allowed_minutes,
         )
         made += 1
         refresh_tally(session.school, exit_.student, session.date)
