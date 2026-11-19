@@ -1,0 +1,86 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+
+{% block title %}إدارة الأجنحة{% endblock %}
+
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/wings/" parent_label="أجنحة المدرسة" current="إدارة الأجنحة" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "إدارة الأجنحة" subtitle=subtitle icon="wing_coverage" %}
+    <span class="exec-date">{{ today|date:"D، d M Y" }}</span>
+    {% callout "hint" %}لكلّ جناحٍ مشرفٌ ومشرفٌ ميدانيّ. والتعيينُ الجديد يُغلق السابقَ بتاريخٍ ولا يحذفه، فمن
+    يقرأ غيابَ الأسبوع الماضي يعرف من كان يشرف يومَها. ويرث المعيَّنُ صلاحيّاتِ الجناح بالتعيين لا بالدور،
+    ولا يصوّت في لجنة السلوك. والإنابةُ المؤقّتة في <a href="{% url 'wings:coverage' %}">شاشة الإنابة</a>.{% endcallout %}
+  {% endpage_header %}
+
+  <div class="wing-row">
+  {% for row in rows %}
+  {% section_card row.wing.name meta=row.wing.get_floor_display icon="school_building" %}
+    <div class="wing-box">
+      <div class="wing-box__head">
+        <div>
+          <div class="wing-box__name">
+            المشرف: {% if row.supervisor %}{{ row.supervisor.full_name }}{% else %}لا أحد{% endif %}
+          </div>
+          <div class="wing-box__who{% if not row.field %} is-vacant{% endif %}">
+            الميداني: {% if row.field %}{{ row.field.full_name }}{% else %}لا أحد{% endif %}
+          </div>
+        </div>
+        {% if row.acting %}<span class="badge badge--warning">إنابة سارية</span>{% endif %}
+      </div>
+
+      {% for cover in row.acting %}
+        <div class="wing-box__count">{{ cover.get_role_display }}: ينوب {{ cover.substitute.full_name }} حتّى {{ cover.end_date|default:"إشعارٍ آخر" }}</div>
+      {% endfor %}
+
+      <form method="post" action="{% url 'wings:management_assign' row.wing.code %}" class="wing-cover-form">
+        {% csrf_token %}
+        <label class="wing-cover-field">
+          <span>الدور</span>
+          <select name="role" class="form-control" required>
+            {% for value, label in roles %}
+              <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="wing-cover-field">
+          <span>المعيَّن</span>
+          <select name="user" class="form-control" required>
+            <option value="">— اختر —</option>
+            {% for person in people %}
+              <option value="{{ person.id }}">{{ person.full_name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="wing-cover-field">
+          <span>من</span>
+          <input type="date" name="start_date" value="{{ today|date:'Y-m-d' }}" class="form-control" required>
+        </label>
+        <div class="wing-cover-field--wide">
+          {% callout "warning" %}يُغلَق تعيينُ سابقِه في هذا الدور قبل التاريخ بيوم. ولا يحمل شخصٌ الدورَ نفسَه في جناحين، ولا دورين في جناحٍ واحد.{% endcallout %}
+        </div>
+        <button type="submit" class="btn-primary btn-sm">
+          {% icon "user_add" %} عيّن
+        </button>
+      </form>
+    </div>
+
+    {% if row.history %}
+      <p class="ui-note">السجلّ:
+        {% for past in row.history %}
+          {{ past.get_role_display }} — {{ past.user.full_name }} ({{ past.start_date }}–{{ past.end_date|default:"…" }}){% if not forloop.last %} · {% endif %}
+        {% endfor %}</p>
+    {% endif %}
+  {% endsection_card %}
+  {% endfor %}
+  </div>
+
+</div>
+{% endblock %}

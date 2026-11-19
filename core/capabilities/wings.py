@@ -8,6 +8,7 @@ from core.capabilities.base import Capability, Shared, _cap, _delegated, _holds_
 def wings_capabilities(shared: Shared) -> list[Capability]:
     from core import permissions as P  # noqa: N812 — اختصارٌ يُقرأ به السجلُّ كجدول
     from core.models.academic import WingCoverage
+    from core.models.wing_assignment import WingAssignment
 
     return [
         # ── الأجنحة ─────────────────────────────────────────────────
@@ -24,6 +25,12 @@ def wings_capabilities(shared: Shared) -> list[Capability]:
             },
         ),
         _cap("wings.assign_cover", "تكليفُ بديلٍ لجناح", WingCoverage.ASSIGNER_ROLES),
+        _cap(
+            "wings.manage",
+            "إدارةُ الأجنحة: تعيينُ مشرف الجناح والميدانيّ",
+            WingAssignment.ASSIGNER_ROLES,
+            basis="قرارُ المالك 2026-11-19 (W-20261119-001): يعيّن المديرُ والنائبُ الإداريّ ومنسّقُ شؤون الطلبة",
+        ),
         _cap(
             "wings.record_day",
             "رصدُ يوم الشعبة في الجناح",

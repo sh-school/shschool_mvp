@@ -30,7 +30,7 @@
   "core/middleware.py": 19,
   "core/middleware_rls.py": 7,
   "core/mixins.py": 3,
-  "core/models/academic.py": 31,
+  "core/models/academic.py": 27,
   "core/models/access.py": 16,
   "core/models/audit.py": 12,
   "core/models/base.py": 10,
@@ -119,7 +119,7 @@
   "transport/models.py": 3,
   "transport/querysets.py": 4,
   "wings/scope.py": 1,
-  "wings/services.py": 14
+  "wings/services.py": 13
  },
- "total": 1163
+ "total": 1158
 }

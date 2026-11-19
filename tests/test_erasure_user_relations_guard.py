@@ -78,6 +78,7 @@ STAFF_OR_SYSTEM = {
         "developer_feedback.DeveloperMessageNotification",
         "recipient",
     ): "مستلمو إشعارات المطوّر (المطوّر)",
+    ("core.WingAssignment", "user"): "تعيينُ مشرفِ جناحٍ أو ميدانيّه (كادر لا طالب)",
     ("transport.SchoolBus", "driver_phone"): "هاتفُ سائقٍ لا طالب",
     ("core.School", "phone"): "هاتفُ المدرسة",
     ("core.School", "email"): "بريدُ المدرسة",

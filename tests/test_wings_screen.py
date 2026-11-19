@@ -249,7 +249,9 @@ class TestThePageRenders:
         client.get(reverse("wings:floors"))  # يُسخّن الجلسةَ والصلاحيّات
 
         # 26 لا 25: `school_day` صار يسأل بدءَ دوام الطلبة أيضاً (operations.school_days).
-        with django_assert_max_num_queries(26):
+        # 28 لا 26: جلبُ `assignments` مسبقاً في `floors_overview` وفي `wings_of` (استعلامان ثابتان
+        # مهما كثرت الأجنحة) كي لا يقرأ `current_supervisor` سجلَّ التعيينات لكلّ جناح (W-20261119-005).
+        with django_assert_max_num_queries(28):
             client.get(reverse("wings:floors"))
 
 

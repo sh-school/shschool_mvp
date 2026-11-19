@@ -55,6 +55,13 @@ def _holds_a_wing(user) -> bool:
     return Wing.is_held_by(user)
 
 
+def _assigned_to_a_wing(user: Any) -> bool:
+    """معيَّنٌ بسجلّ التعيينات (مشرفاً أو ميدانيّاً) — الصلاحيةُ بالتعيين لا بالدور."""
+    from core.models.academic import Wing
+
+    return Wing.is_assigned(user)
+
+
 def _delegated(key: str) -> Callable:
     """منحٌ لا يقرؤه الدور: القدرةُ المفوَّضةُ باسم مستخدمٍ بمنحٍ فعّال (`core/capability_grants.py`)."""
 

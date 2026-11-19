@@ -50,6 +50,8 @@ from .user import (  # noqa: F401
     _national_id_validator,
     _phone_validator,
 )
+from .wing_assignment import WingAssignment  # noqa: F401
+from .wing_holders import WingHolders  # noqa: F401
 
 __all__ = [
     # abstract base models
@@ -73,6 +75,7 @@ __all__ = [
     "CalendarEvent",
     "Semester",
     "Wing",
+    "WingAssignment",
     "WingCoverage",
     "ClassGroup",
     "StudentEnrollment",
