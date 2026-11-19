@@ -1045,9 +1045,11 @@ def test_exit_circles_add_no_per_student_queries(client_as, assigned, teacher, k
             client_as(teacher).get(reverse("class_grid", args=[assigned.id]))
         return len(queries)
 
+    # قراءةُ وسوم الخروج المبرَّر تجري فقط حين يوجد خروجٌ (بلا خروجٍ تُتخطّى)؛ فالمقياسُ الأساس بعد أوّل خروجٍ.
+    _out(first, kids[0], "restroom", 5, 3)
     measure()
     before = measure()
-    for kid in kids:
+    for kid in kids[1:]:
         _out(first, kid, "restroom", 5, 3)
-    # استعلامُ خروج الحصص الجديدُ يُحسب مرّةً منذ المقياس الأوّل (حتى بلا خروج) فلا يزيد بعدد الطلبة.
+    # الاستعلاماتُ تُحسب مرّةً لكلّ الصفحة فلا تزيد بعدد الطلبة.
     assert measure() == before
