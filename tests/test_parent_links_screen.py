@@ -23,6 +23,7 @@ from tests.conftest import (
     RoleFactory,
     StudentEnrollmentFactory,
     UserFactory,
+    visible_text,
 )
 
 pytestmark = pytest.mark.django_db
@@ -155,9 +156,11 @@ class TestTheColumnsAreTheOnesUsed:
 
         body = _body(client_as, admin)
 
-        assert "*******0538" not in body and "0538" not in body
+        assert "*******0538" not in body
         assert "99900000538" not in body
         assert "99900002649" not in body
+        # الأرقامُ الأربعةُ وحدها تظهر صدفةً في UUID وبصماتِ الملفّات، فتُفحص بحدودٍ رقميّة فقط
+        assert re.search(r"(?<![0-9a-fA-F])0538(?![0-9a-fA-F])", visible_text(body)) is None
 
     def test_each_cell_holds_one_value(self, client_as, school, admin, year):
         """كان هذا الجدولُ وحدَه في المنصّة يحشر الاسمَ والرقمَ في خليّةٍ

@@ -7,6 +7,7 @@ Factories & shared fixtures for SchoolOS test suite
 
 import datetime as dt
 import os
+import re
 from datetime import date, timedelta
 
 import factory
@@ -27,6 +28,26 @@ from core.models import (
 )
 from library.models import BookBorrowing, LibraryBook
 from transport.models import SchoolBus
+
+# ══════════════════════════════════════════════
+#  فحص ما يراه القارئ من الصفحة
+# ══════════════════════════════════════════════
+
+_CODE_BLOCKS = re.compile(r"<(script|style)\b.*?</\1\s*>", re.S | re.I)
+_CSRF_INPUT = re.compile(r'<input[^>]*name="csrfmiddlewaretoken"[^>]*>', re.I)
+_ATTR_VALUES = re.compile(r"\b(?:href|src|value)\s*=\s*(?:\"[^\"]*\"|'[^']*')", re.I)
+
+
+def visible_text(body: str) -> str:
+    """نصُّ الصفحة بعد حذف ما ليس نصّاً يقرؤه القارئ: الشيفرةُ المضمَّنة،
+    ورمزُ CSRF، وقيمُ السمات (روابطُ UUID وبصماتُ الملفّات الثابتة).
+
+    تُستعمل في فحص الأرقام المحجوبة، لأنّ الرقم الصدفيّ يظهر في هذه المواضع
+    لا في ما يقرؤه أحد."""
+    text = _CODE_BLOCKS.sub(" ", body)
+    text = _CSRF_INPUT.sub(" ", text)
+    return _ATTR_VALUES.sub(" ", text)
+
 
 # ══════════════════════════════════════════════
 #  FACTORIES
