@@ -9,6 +9,7 @@ name: لقطات الهويّة البصريّة — قياسٌ استشاريّ
 #
 #  الأساس: تشغيلٌ على `main` يرفع `visual-baseline` (لا صورَ في git — المستودعُ عامّ). وطلبُ الدمج يُنزّل آخرَ أساسٍ ناجحٍ ويقارن به.
 #  الاعتماد: وسمُ «تغيير-بصريّ» على الطلب يجعل الفرقَ ملخّصاً لا فشلاً (سابقةُ «نشر-عاجل»)، وتُنشر صورُ الفرق في الـartifact.
+#  وسمُ «تغيير-بصريّ» يعيد هذا الفحصَ وحدَه (حدثُ labeled)، لا كلَّ فحوص الطلب كما يفعل إعادةُ الفتح.
 # ══════════════════════════════════════════════
 
 on:
@@ -18,6 +19,8 @@ on:
   schedule:
     - cron: "0 2 * * *"
   pull_request:
+    # `labeled` يتيح لوسم «تغيير-بصريّ» أن يعيد هذا الفحصَ وحدَه؛ وظيفةُ `snapshots` تتخطّى الأوسامَ الأخرى (انظر `if` أدناه).
+    types: [opened, synchronize, reopened, labeled]
     branches: [main]
     paths:
       - "templates/**"
@@ -34,13 +37,16 @@ permissions:
   actions: read
 
 concurrency:
-  group: visual-snapshots-${{ github.ref }}
+  # وسمٌ غيرُ «تغيير-بصريّ» يأخذ مجموعةً خاصّةً به: وإلا ألغى تشغيلُه (labeled) تشغيلاً جارياً للفحص نفسه (synchronize).
+  group: visual-snapshots-${{ github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'تغيير-بصريّ' && format('-وسم-{0}', github.event.label.name) || '' }}
   # طلبُ الدمج يُلغي تشغيلَه القديم؛ أمّا `main` فلا: الأساسُ يُرفع من تشغيلٍ ناجحٍ وحدَه، ودمجان متتاليان كانا يُلغيان أوّلَ تشغيلٍ فلا يبقى أساسٌ (2026-09-25).
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   snapshots:
     name: لقطات الهويّة — حتميّةٌ ومقارنة
+    # وسمُ labeled لغيرِ «تغيير-بصريّ» (مثل «نشر-عاجل») لا يعيد هذا الفحص؛ بقيّةُ الأحداث تمرّ كما كانت.
+    if: github.event.action != 'labeled' || github.event.label.name == 'تغيير-بصريّ'
     # صورةٌ ثابتةٌ باسمها الصريح لا `latest` (W-20261017-015): انتقالُ latest بين إصداراتِ Ubuntu يغيّر الخطوطَ والرسم فيقلب الأساسَ.
     # إصدارُ Playwright (فـChromium) مثبَّتٌ في requirements.txt (1.63.0)، وأعلامُ الرسم الحتميّ في test_visual_snapshots_live.py.
     runs-on: ubuntu-24.04
