@@ -57,8 +57,18 @@ SCHOOL_EXIT_ROLES = ("admin_supervisor", "vice_admin", "principal")
 
 
 def may_record_school_exit(user: CustomUser | None) -> bool:
-    """هل يسجّل المستخدمُ «الخروج من المدرسة»؟ (نطاقُ جناح المشرف تضبطه الشاشةُ بـ`wings.scope`)."""
-    return user is not None and user.get_role() in SCHOOL_EXIT_ROLES  # type: ignore[no-untyped-call]
+    """هل يسجّل المستخدمُ «الخروج من المدرسة» ويغيّر وجهةَ الخروج؟ (نطاقُ جناح المشرف تضبطه الشاشةُ بـ`wings.scope`).
+
+    الدورُ، أو **التعيينُ** مشرفاً أو ميدانيّاً لجناح (قرارُ المالك 2026-11-19): ملاحظُ الطلبة المعيَّنُ يرث
+    صلاحيّاتِ الجناح كالمشرف الإداريّ؛ وغيرُ المعيَّن لا.
+    """
+    if user is None:
+        return False
+    if user.get_role() in SCHOOL_EXIT_ROLES:  # type: ignore[no-untyped-call]
+        return True
+    from core.models.academic import Wing
+
+    return Wing.is_assigned(user)
 
 
 def open_exit(session: Session, student: CustomUser) -> ClassExit | None:

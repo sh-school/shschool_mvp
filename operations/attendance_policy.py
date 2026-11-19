@@ -299,7 +299,7 @@ def _wing_holder_on(class_group: ClassGroup, day: dt.date) -> CustomUser | None:
     wing = class_group.wing
     if wing is None or not wing.is_active:
         return None
-    holder: CustomUser | None = wing.current_supervisor(on_date=day)  # type: ignore[no-untyped-call]
+    holder: CustomUser | None = wing.current_supervisor(on_date=day)
     return holder
 
 

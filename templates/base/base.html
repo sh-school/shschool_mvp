@@ -799,7 +799,9 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% if request.user|can_open:"wings:floors" %}
   <a href="{% url 'wings:floors' %}">{% icon "wings" %} أجنحة المدرسة والتوقيت</a>
   {% endif %}
-  {% if role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "platform_developer" or role == "student_affairs_coordinator" %}
+  {% if request.user|can_open:"wings:management" %}
+  <a href="{% url 'wings:management' %}">{% icon "wing_coverage" %} إدارة الأجنحة</a>
+  {% elif role == "vice_academic" or role == "platform_developer" %}
   {% if request.user|can_open:"wings:coverage" %}
   <a href="{% url 'wings:coverage' %}">{% icon "wing_coverage" %} تغطية الأجنحة والإنابة</a>
   {% endif %}

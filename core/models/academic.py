@@ -12,6 +12,7 @@ from core.academic_calendar import default_academic_year
 
 from .school import School, _uuid
 from .user import CustomUser
+from .wing_holders import WING_ROLES, WING_SUPERVISOR, WingHoldersMixin
 
 
 class AcademicYear(models.Model):
@@ -173,7 +174,7 @@ def bands_of(sections) -> list:
     return sorted(bands, key=lambda band: (band.order, band.code))
 
 
-class Wing(models.Model):
+class Wing(WingHoldersMixin, models.Model):
     """جناحٌ من أجنحة المدرسة الخمسة: ممرٌّ بخمس شُعبٍ ومشرفٍ إداريٍّ واحد.
 
     المدرسةُ خمسةُ أجنحة، لكلٍّ مشرفٌ إداريّ، وخمسُ شُعبٍ لكلّ جناحٍ بلا تكرارٍ
@@ -312,53 +313,8 @@ class Wing(models.Model):
         """مراحلُ الجناح — مجموعةٌ لأنّ جناحاً واحداً يعبر الإعداديَّ والثانويّ."""
         return set(self.class_groups.filter(is_active=True).values_list("level_type", flat=True))
 
-    def active_coverage(self, on_date=None):
-        """التغطيةُ الساريةُ في هذا اليوم — أو `None`.
-
-        والأحدثُ بدايةً يغلب عند التساوي: قيدُ الاستبعاد يمنع التداخلَ في
-        القاعدة، لكنّ قراءةً بلا ترتيبٍ تُرجع ما تُرجعه القاعدةُ أوّلاً.
-        """
-        day = on_date or timezone.localdate()
-        return (
-            self.coverages.filter(start_date__lte=day)
-            .filter(Q(end_date__isnull=True) | Q(end_date__gte=day))
-            .select_related("substitute")
-            .order_by("-start_date")
-            .first()
-        )
-
-    def current_supervisor(self, on_date=None):
-        """من يحمل الجناحَ في هذا اليوم — البديلُ إن غُطّي، وإلّا الأصيل.
-
-        **كلُّ صلاحيّةٍ واستعلامٍ يمرّ على هذه**، لا على `supervisor`. فالأصيلُ
-        حقيقةُ سجلٍّ والحاملُ حقيقةُ يوم: مشرفٌ في إجازةٍ أسبوعاً يبقى أصيلَ
-        جناحه، ومن يقرأ ملفّات طلابه في ذلك الأسبوع غيرُه. ومن قرأ `supervisor`
-        مباشرةً منح الغائبَ ومنع الحاضر.
-        """
-        cover = self.active_coverage(on_date)
-        return cover.substitute if cover else self.supervisor
-
-    @classmethod
-    def is_held_by(cls, user, on_date=None) -> bool:
-        """أيحمل هذا المستخدمُ جناحاً نشطاً في هذا اليوم — أصيلاً أو بديلاً؟
-
-        البديلُ قد يكون ملاحظَ طلبةٍ أو عاملَ خدمات (قرارُ المدير، `SUBSTITUTE_ROLES`)،
-        ودورُه لا يفتح الرصد. فالتكليفُ نفسُه هو الإذن — ما دام سارياً.
-        وبالسؤال نفسِه الذي يسأله `current_supervisor`: البديلُ الساري يحمل الجناح،
-        والأصيلُ يحمله ما لم يُغطَّ.
-        """
-        if user is None or not getattr(user, "is_authenticated", False):
-            return False
-        day = on_date or timezone.localdate()
-        live = Q(start_date__lte=day) & (Q(end_date__isnull=True) | Q(end_date__gte=day))
-        covering = WingCoverage.objects.filter(live, wing__is_active=True)
-        if covering.filter(substitute=user).exists():
-            return True
-        return (
-            cls.objects.filter(supervisor=user, is_active=True)
-            .exclude(id__in=covering.values("wing_id"))
-            .exists()
-        )
+    # الحملُ (`active_coverage` و`assignment_on` و`holder_of` و`current_supervisor` و`holders`
+    # و`is_held_by` و`is_assigned`) في `wing_holders.WingHoldersMixin`.
 
     def __str__(self):
         return f"{self.name} ({self.academic_year})"
@@ -441,6 +397,10 @@ class WingCoverage(models.Model):
     )
     reason = models.CharField(
         max_length=10, choices=REASONS, default="absence", verbose_name="سبب التغطية"
+    )
+    #: الدورُ الذي تُنيب فيه التغطيةُ: مشرفُ الجناح (الأصل) أو ميدانيُّه.
+    role = models.CharField(
+        max_length=20, choices=WING_ROLES, default=WING_SUPERVISOR, verbose_name="الدور"
     )
     start_date = models.DateField(verbose_name="من")
     #: فارغةٌ = مفتوحةٌ حتّى تُنهى. ومدّةٌ بلا نهايةٍ ليست إهمالاً: غيابٌ طارئٌ
