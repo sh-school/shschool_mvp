@@ -14,6 +14,7 @@ from tests.conftest import (
     RoleFactory,
     StudentEnrollmentFactory,
     UserFactory,
+    visible_text,
 )
 
 pytestmark = pytest.mark.django_db
@@ -139,8 +140,10 @@ class TestTheNationalIdIsNotBared:
 
         body = _body(client_as, reader)
 
-        assert "*******0538" not in body and "0538" not in body
+        assert "*******0538" not in body
         assert "99900000538" not in body
+        # الأرقامُ الأربعةُ وحدها تظهر صدفةً في UUID وبصماتِ الملفّات، فتُفحص بحدودٍ رقميّة فقط
+        assert re.search(r"(?<![0-9a-fA-F])0538(?![0-9a-fA-F])", visible_text(body)) is None
 
     def test_the_search_still_finds_the_full_number(self, client_as, school, reader, year):
         """من كتب رقماً كاملاً وجد صاحبَه — البحثُ على المخزَّن لا على المستور."""
