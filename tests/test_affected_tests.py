@@ -51,6 +51,23 @@ def test_css_template_workflow_and_model_changes_select_their_guards():
     assert "tests/test_model_naming.py" in models["tests"]
 
 
+PRIVACY_GUARDS = {"tests/test_data_retention.py", "tests/test_erasure_user_relations_guard.py"}
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "core/models/clinic.py",
+        "core/migrations/0042_add_visit.py",
+        "operations/models.py",
+        "roadmap/migrations/0062_sync_items_2026_10_04b.py",
+    ],
+)
+def test_a_model_or_migration_change_selects_the_privacy_guards(path):
+    """نموذجٌ أو هجرةٌ جديدة بلا حكم احتفاظ أو قرار محوٍ يجب أن يسقط محلّياً لا في CI (W-20261119-006)."""
+    assert PRIVACY_GUARDS <= set(at.select([path], _all_exist)["tests"]), path
+
+
 def test_a_view_or_url_change_selects_the_route_guard():
     assert (
         "tests/test_every_route_is_guarded.py"

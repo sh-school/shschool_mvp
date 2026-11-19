@@ -39,7 +39,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from shutil import which
 
@@ -117,6 +117,9 @@ RULES: tuple[tuple[str, object, tuple[str, ...]], ...] = (
         (
             "tests/test_model_naming.py",
             "tests/test_model_field_labels_arabic.py",
+            # حارسا الخصوصيّة (W-20261119-006): نموذجٌ بلا حكم احتفاظ أو بلا قرار محوٍ يسقط هنا لا بعد ثماني دقائق في CI.
+            "tests/test_data_retention.py",
+            "tests/test_erasure_user_relations_guard.py",
             # حارسُ تصنيف الجداول (بطاقة 0101): لم يُدمَج بعدُ على main فيُسجَّل «غير موجود» حتى يصل لا أن يُتجاهَل.
             "tests/test_table_classification.py",
         ),
@@ -296,7 +299,7 @@ def build_fingerprint(
         "tool_blob": _git("hash-object", str(Path(__file__).resolve())).stdout.strip(),
     }
     body["digest"] = digest_of(body)
-    body["created"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    body["created"] = datetime.now(UTC).isoformat(timespec="seconds")
     return body
 
 
