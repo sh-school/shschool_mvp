@@ -19,6 +19,7 @@ from django.db import transaction
 from django.db.models import F
 
 from .models import PushSubscription
+from .push_endpoints import is_allowed_push_endpoint
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,10 @@ def active_subscription_cap():
     return settings.PUSH_MAX_ACTIVE_SUBSCRIPTIONS
 
 
+class PushEndpointRejectedError(ValueError):
+    """عنوانُ اشتراكٍ ليس لمزوّد Push معروف — يُردّ قبل التخزين."""
+
+
 def register_subscription(*, user, school, endpoint, p256dh, auth, user_agent=""):
     """يُسجّل اشتراكاً ويضمن ألّا تتجاوز الاشتراكات الفعّالة السقف.
 
@@ -41,7 +46,12 @@ def register_subscription(*, user, school, endpoint, p256dh, auth, user_agent=""
 
     ويُعيد `(subscription, created, evicted)` — والأخير عددُ ما أُخرج، لأن
     الإخراج الصامت يجعل جهازاً يتوقّف عن تلقّي الإشعارات بلا أثر يُقرأ.
+
+    ويرفع `PushEndpointRejectedError` قبل أيّ كتابةٍ إن لم يكن العنوانُ لمزوّدٍ معروف.
     """
+    if not is_allowed_push_endpoint(endpoint):
+        raise PushEndpointRejectedError("عنوان اشتراك Push ليس لمزوّدٍ معروف.")
+
     cap = active_subscription_cap()
 
     with transaction.atomic():

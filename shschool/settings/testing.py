@@ -139,3 +139,14 @@ QCC_NOTIFY_ENABLED = False  # تُفعَّل صراحةً في tests/test_comman
 
 # التجميدُ مطفأٌ في الاختبارات ليبقى سلوكُ الأهل المُختبَر على حاله؛ وملفّاتُ التجميد ترفعه صراحةً (W-20261008-013).
 PARENTS_FROZEN = False
+
+# مضيفو اشتراكات Push في الاختبارات: أسماءٌ محجوزةٌ لا تُحلّ (RFC 2606) تُضاف إلى قائمة المزوّدين،
+# فتبقى اختباراتُ السقف والميزانية على عناوينها؛ ورفضُ ما عداها يُختبَر في test_api_audit_fixes.py.
+PUSH_ENDPOINT_ALLOWED_HOSTS = [
+    *PUSH_ENDPOINT_ALLOWED_HOSTS,  # noqa: F405
+    "push.example",
+    "push.example.com",
+    "push.example.invalid",
+    "push.example.test",
+    "unique.endpoint.com",
+]

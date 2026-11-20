@@ -21,6 +21,7 @@ from core.models import (
     Profile,
     StudentEnrollment,
 )
+from core.models.access import ALL_STAFF_ROLES
 
 logger = logging.getLogger("core")
 
@@ -285,8 +286,18 @@ class ErasureService:
 
     @staticmethod
     def student_in_school(student: Any, school: Any) -> bool:
-        """هل للطالب عضويّةٌ في المدرسة؟ (نشطةً أو لا: حقُّ المحو لا يسقط بتخرّجه)."""
-        return bool(student.memberships.filter(school=school).exists())
+        """هل الهدفُ طالبٌ في المدرسة؟ (عضويّتُه نشطةً أو لا: حقُّ المحو لا يسقط بتخرّجه).
+
+        بدور «طالب» لا بأيّ عضويّة: كان يكفي أيُّ دورٍ في المدرسة، فيطلب مديرٌ محوَ نائبٍ أو
+        موظّفٍ ويعتمده — والمحوُ يعطّل الحسابَ ويجهّله بلا رجعة. ومن له عضويّةُ كادرٍ في أيّ
+        مدرسةٍ أو صفةُ المشرف العامّ لا يُمحى من هذا الطريق ولو حمل دورَ طالبٍ معها: الحسابُ
+        واحدٌ عبر المدارس، فمحوُه يُسقط عملَه فيها كلِّها.
+        """
+        if student.is_superuser:
+            return False
+        if student.memberships.filter(role__name__in=ALL_STAFF_ROLES).exists():
+            return False
+        return bool(student.memberships.filter(school=school, role__name="student").exists())
 
     @staticmethod
     @transaction.atomic
@@ -299,10 +310,10 @@ class ErasureService:
         if not student:
             raise ValueError("Student record not found for this erasure request.")
 
-        # دفاعٌ في العمق (W-20261002-040): لا محوَ لطالبٍ ليس من مدرسة الطلب مهما كان
+        # دفاعٌ في العمق (W-20261002-040): لا محوَ لمن ليس طالباً في مدرسة الطلب مهما كان
         # الطريق إلى هنا — فالفعلُ لا رجعةَ فيه.
         if not ErasureService.student_in_school(student, erasure_request.school):
-            raise ValueError("الطالب ليس من مدرسة طلب المحو.")
+            raise ValueError("هدفُ المحو ليس طالباً في مدرسة طلب المحو.")
 
         anon_id = f"ERASED-{str(erasure_request.id)[:8].upper()}"
         # الاسمُ قبل الخطوة 8 تمحوه: يلزم لتجهيله في وصف سجلّ التدقيق (W-20261004-002).

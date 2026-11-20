@@ -114,7 +114,8 @@ def create_erasure_request(request):
     # [W-20261002-040] المحوُ لا رجعةَ فيه: مديرُ مدرسةٍ لا يطلبه لطالبٍ من غير
     # مدرسته. 404 لا 403 فلا يُعرَف وجودُ الطالب. المطوّر (superuser) خارج الحصر.
     # ويسري على وليّ الأمر أيضاً (ParentStudentLink بلا مرشّح مدرسة). وعضويّةُ طالبٍ
-    # غيرِ نشطةٍ (تخرّج/انتقال) تكفي: حقُّ المحو لا يسقط بخروجه.
+    # غيرِ نشطةٍ (تخرّج/انتقال) تكفي: حقُّ المحو لا يسقط بخروجه. والهدفُ طالبٌ لا أيُّ
+    # عضوٍ: حسابُ كادرٍ في المدرسة يُردّ بـ404 نفسِها (`student_in_school`).
     if not request.user.is_superuser:
         if not ErasureService.student_in_school(student, school):
             return Response({"detail": "غير موجود."}, status=status.HTTP_404_NOT_FOUND)
