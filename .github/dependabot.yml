@@ -55,6 +55,11 @@ updates:
       # تكسر حلّ التبعيات (أُغلق #1317). تبقى pyee==13.0.1 حتى يرفع playwright سقفه.
       - dependency-name: "pyee"
         update-types: ["version-update:semver-major"]
+      # python-dateutil 4.0.0 (اقتُرح في #1411 وأُغلق يدويّاً): boto3 يشترط إصداراً أقدم،
+      # فيسقط حلّ التبعيات (ResolutionImpossible في pip-audit) وتفشل كلّ الفحوص.
+      # تُرفع هذه القاعدة حين يقبل boto3 الإصدار 4 (راجع تعارضه قبل كلّ محاولة).
+      - dependency-name: "python-dateutil"
+        update-types: ["version-update:semver-major"]
 
   # جافاسكربت — package-lock.json (أداةُ نشرٍ وحيدة: `railway`، لا أثر runtime؛ أُزيل Tailwind
   # وخطُّ بنائه في VI-12، فلا `tailwindcss` ولا `postcss` بعد الآن).
