@@ -27,6 +27,15 @@ def admin_client(school):
     return client, admin
 
 
+@pytest.fixture
+def filer_client(school):
+    """مديرٌ ثانٍ يقدّم الطلب: مقدِّمُ الطلب لا يعتمده (فصلُ المهام، 2026-11-20)."""
+    filer = _staff(school, "principal", "مدير مقدِّم الطلب", "29000006002")
+    client = APIClient()
+    client.force_login(filer)
+    return client
+
+
 def _file_request(client, kid):
     response = client.post(
         "/api/v1/erasure/request/",
@@ -49,10 +58,10 @@ def _break_the_ledger_eraser(monkeypatch, code="erasure_wrong_tenant"):
 
 
 def test_a_failed_ledger_erasure_returns_409_and_keeps_the_request_retryable(
-    admin_client, monkeypatch, kid
+    filer_client, admin_client, monkeypatch, kid
 ):
     client, _admin = admin_client
-    request_id = _file_request(client, kid)
+    request_id = _file_request(filer_client, kid)
     _break_the_ledger_eraser(monkeypatch)
 
     response = _approve(client, request_id)
@@ -65,9 +74,9 @@ def test_a_failed_ledger_erasure_returns_409_and_keeps_the_request_retryable(
     assert kid.is_active is True and "ERASED-" not in kid.full_name  # المعاملةُ تراجعت كلُّها
 
 
-def test_the_failure_is_audited_with_its_code(admin_client, monkeypatch, kid):
+def test_the_failure_is_audited_with_its_code(filer_client, admin_client, monkeypatch, kid):
     client, admin = admin_client
-    request_id = _file_request(client, kid)
+    request_id = _file_request(filer_client, kid)
     _break_the_ledger_eraser(monkeypatch, code="erasure_incomplete")
 
     _approve(client, request_id)
@@ -79,9 +88,11 @@ def test_the_failure_is_audited_with_its_code(admin_client, monkeypatch, kid):
     assert line.changes["request"] == str(request_id)
 
 
-def test_the_request_can_be_retried_after_the_cause_is_fixed(admin_client, monkeypatch, kid):
+def test_the_request_can_be_retried_after_the_cause_is_fixed(
+    filer_client, admin_client, monkeypatch, kid
+):
     client, _admin = admin_client
-    request_id = _file_request(client, kid)
+    request_id = _file_request(filer_client, kid)
     with monkeypatch.context() as patch:
         _break_the_ledger_eraser(patch)
         assert _approve(client, request_id).status_code == 409
@@ -94,15 +105,15 @@ def test_the_request_can_be_retried_after_the_cause_is_fixed(admin_client, monke
     assert "ERASED-" in kid.full_name
 
 
-def test_a_pending_request_still_works_as_before(admin_client, kid):
+def test_a_pending_request_still_works_as_before(filer_client, admin_client, kid):
     client, _admin = admin_client
-    request_id = _file_request(client, kid)
+    request_id = _file_request(filer_client, kid)
     assert _approve(client, request_id).status_code == 200
 
 
-def test_a_completed_request_cannot_be_approved_again(admin_client, kid):
+def test_a_completed_request_cannot_be_approved_again(filer_client, admin_client, kid):
     client, _admin = admin_client
-    request_id = _file_request(client, kid)
+    request_id = _file_request(filer_client, kid)
     _approve(client, request_id)
     assert _approve(client, request_id).status_code == 400
 
@@ -120,14 +131,16 @@ def test_the_wrong_tenant_message_names_the_school(school, session, teacher, hol
     assert school.name in str(caught.value)
 
 
-def test_a_student_with_another_school_membership_is_told_the_scope_is_limited(admin_client, kid):
+def test_a_student_with_another_school_membership_is_told_the_scope_is_limited(
+    filer_client, admin_client, kid
+):
     """الحدُّ المعلَن: صفوفُ مدرسةٍ سابقةٍ لا يراها دورُ الحاليّة — فلا يُقال «اكتمل» بلا تنبيه."""
     from tests.conftest import MembershipFactory, RoleFactory
 
     client, _admin = admin_client
     other = SchoolFactory()
     MembershipFactory(user=kid, school=other, role=RoleFactory(school=other, name="student"))
-    request_id = _file_request(client, kid)
+    request_id = _file_request(filer_client, kid)
 
     response = _approve(client, request_id)
 
@@ -136,9 +149,9 @@ def test_a_student_with_another_school_membership_is_told_the_scope_is_limited(a
     assert "مدارس" in response.data["summary"]["attendance_ledger_note"]
 
 
-def test_a_single_school_student_gets_no_scope_warning(admin_client, kid):
+def test_a_single_school_student_gets_no_scope_warning(filer_client, admin_client, kid):
     client, _admin = admin_client
-    request_id = _file_request(client, kid)
+    request_id = _file_request(filer_client, kid)
     response = _approve(client, request_id)
     assert "attendance_ledger_note" not in response.data["summary"]
 
@@ -170,14 +183,14 @@ def _stored_attachment(school, kid):
 
 
 def test_the_uploaded_files_survive_when_the_ledger_step_fails(
-    school, admin_client, monkeypatch, kid, django_capture_on_commit_callbacks
+    filer_client, school, admin_client, monkeypatch, kid, django_capture_on_commit_callbacks
 ):
     """N1: «لم يُمسّ شيء» صادقةٌ — الملفُّ لا يُحذف قبل أن يفشل المحو (على S3 لا يتراجع)."""
     from core.models import StoredFile
 
     client, _admin = admin_client
     name = _stored_attachment(school, kid)
-    request_id = _file_request(client, kid)
+    request_id = _file_request(filer_client, kid)
     _break_the_ledger_eraser(monkeypatch)
 
     with django_capture_on_commit_callbacks(execute=True):
@@ -188,13 +201,13 @@ def test_the_uploaded_files_survive_when_the_ledger_step_fails(
 
 
 def test_the_uploaded_files_are_purged_only_after_a_successful_commit(
-    school, admin_client, kid, django_capture_on_commit_callbacks
+    filer_client, school, admin_client, kid, django_capture_on_commit_callbacks
 ):
     from core.models import StoredFile
 
     client, _admin = admin_client
     name = _stored_attachment(school, kid)
-    request_id = _file_request(client, kid)
+    request_id = _file_request(filer_client, kid)
 
     with django_capture_on_commit_callbacks(execute=False) as callbacks:
         response = _approve(client, request_id)
@@ -207,11 +220,11 @@ def test_the_uploaded_files_are_purged_only_after_a_successful_commit(
 
 
 def test_any_unexpected_exception_also_leaves_the_request_retryable(
-    admin_client, monkeypatch, kid, caplog
+    filer_client, admin_client, monkeypatch, kid, caplog
 ):
     """N2: ليس EntryError وحدَه — أيُّ استثناءٍ يعيد الطلبَ approved ويُكتب رمزٌ عامّ ويُسجَّل للمراقبة."""
     client, admin = admin_client
-    request_id = _file_request(client, kid)
+    request_id = _file_request(filer_client, kid)
 
     def boom(student, *, actor=None, school=None):
         raise RuntimeError("انقطع التخزين")
@@ -228,14 +241,14 @@ def test_any_unexpected_exception_also_leaves_the_request_retryable(
     assert any("فشل محوٌ غيرُ متوقَّع" in record.getMessage() for record in caplog.records)
 
 
-def test_a_retry_records_the_previous_reviewer_in_the_audit(school, monkeypatch, kid):
+def test_a_retry_records_the_previous_reviewer_in_the_audit(filer_client, school, monkeypatch, kid):
     """N3: reviewed_by يتبدّل بالإعادة — فيُدوَّن المراجعُ الأصليُّ."""
     first = _staff(school, "principal", "المدير الأوّل", "29000006010")
     second = _staff(school, "principal", "المدير الثاني", "29000006011")
     first_client, second_client = APIClient(), APIClient()
     first_client.force_login(first)
     second_client.force_login(second)
-    request_id = _file_request(first_client, kid)
+    request_id = _file_request(filer_client, kid)
     with monkeypatch.context() as patch:
         _break_the_ledger_eraser(patch)
         assert _approve(first_client, request_id).status_code == 409
@@ -247,23 +260,23 @@ def test_a_retry_records_the_previous_reviewer_in_the_audit(school, monkeypatch,
     assert line.changes["previous_reviewer"] == str(first.id)
 
 
-def test_a_request_already_processing_is_refused(school, admin_client, kid):
+def test_a_request_already_processing_is_refused(filer_client, school, admin_client, kid):
     """N3: الثاني المتزامن يجد الحالةَ processing فيُردّ (قفلُ الصفّ يسلسل الاثنين)."""
     client, _admin = admin_client
-    request_id = _file_request(client, kid)
+    request_id = _file_request(filer_client, kid)
     ErasureRequest.objects.filter(pk=request_id).update(status="processing")
     assert _approve(client, request_id).status_code == 400
 
 
 def test_a_file_that_fails_to_delete_is_logged_by_key_not_content(
-    school, admin_client, kid, monkeypatch, django_capture_on_commit_callbacks
+    filer_client, school, admin_client, kid, monkeypatch, django_capture_on_commit_callbacks
 ):
     """P3 (0105 أ): بعد التثبيت لا إعادةَ محاولةٍ ممكنة — فيُسجَّل مفتاحُ الملفّ اليتيم (لا محتواه) ليُزال، والعدّادُ «مجدوَل»."""
     from django.db.models.fields.files import FieldFile
 
     client, _admin = admin_client
     name = _stored_attachment(school, kid)
-    request_id = _file_request(client, kid)
+    request_id = _file_request(filer_client, kid)
 
     def broken(self, save=True):
         raise OSError("التخزين متوقّف")
@@ -280,12 +293,12 @@ def test_a_file_that_fails_to_delete_is_logged_by_key_not_content(
 
 
 def test_a_student_outside_the_requests_school_keeps_the_request_retryable_with_a_409(
-    school, admin_client, kid
+    filer_client, school, admin_client, kid
 ):
     """W-040 فوق N1–N3: `execute` يرفع ValueError لطالبٍ ليس من مدرسة الطلب، و`execute_safely` يلتقطه فيعود الطلبُ «approved» بـ409
     ولا يبقى «processing» ولا يُمسّ الطالب."""
     client, _admin = admin_client
-    request_id = _file_request(client, kid)
+    request_id = _file_request(filer_client, kid)
     kid.memberships.all().delete()
 
     response = _approve(client, request_id)

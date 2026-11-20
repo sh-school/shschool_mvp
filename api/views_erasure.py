@@ -19,7 +19,12 @@ from rest_framework.response import Response
 
 from api.permissions import IsSchoolAdmin, NotPlatformDeveloper
 from core.models import CustomUser, ErasureRequest, ParentStudentLink
-from governance.erasure_service import ErasureFailedError, ErasureService, ErasureStateError
+from governance.erasure_service import (
+    ErasureFailedError,
+    ErasureSelfApprovalError,
+    ErasureService,
+    ErasureStateError,
+)
 
 #: ردودُ تعثّر المحو **ثابتةٌ من جدولٍ** — لا يخرج نصُّ الاستثناء إلى العميل (CodeQL py/stack-trace-exposure، قرارُ المالك: الإغلاقُ
 #: بالكود لا بالاستبعاد). رمزُ الاستثناء مفتاحٌ فقط؛ والتفصيلُ الكاملُ في AuditLog وlogger بمعرّفٍ لا بنصّ.
@@ -39,6 +44,7 @@ ERASURE_FAILURES = {
 }
 ERASURE_RETRY_NOTE = "لم يُمسّ شيء. الطلبُ باقٍ «تمّت الموافقة» ويمكن إعادة التنفيذ بعد معالجة السبب."
 ERASURE_STATE_MESSAGE = "لا يمكن الموافقة — الطلبُ ليس في حالةٍ تقبل الموافقة أو التنفيذ."
+ERASURE_SELF_APPROVAL_MESSAGE = "لا يعتمد مقدِّمُ طلب المحو طلبَه: يعتمده مديرٌ آخر في المدرسة."
 
 # ── Serializers ───────────────────────────────────────────────
 
@@ -114,7 +120,8 @@ def create_erasure_request(request):
     # [W-20261002-040] المحوُ لا رجعةَ فيه: مديرُ مدرسةٍ لا يطلبه لطالبٍ من غير
     # مدرسته. 404 لا 403 فلا يُعرَف وجودُ الطالب. المطوّر (superuser) خارج الحصر.
     # ويسري على وليّ الأمر أيضاً (ParentStudentLink بلا مرشّح مدرسة). وعضويّةُ طالبٍ
-    # غيرِ نشطةٍ (تخرّج/انتقال) تكفي: حقُّ المحو لا يسقط بخروجه.
+    # غيرِ نشطةٍ (تخرّج/انتقال) تكفي: حقُّ المحو لا يسقط بخروجه. والهدفُ طالبٌ لا أيُّ
+    # عضوٍ: حسابُ كادرٍ في المدرسة يُردّ بـ404 نفسِها (`student_in_school`).
     if not request.user.is_superuser:
         if not ErasureService.student_in_school(student, school):
             return Response({"detail": "غير موجود."}, status=status.HTTP_404_NOT_FOUND)
@@ -181,6 +188,8 @@ def approve_erasure(request, request_id):
         )
     except ErasureStateError:
         return Response({"detail": ERASURE_STATE_MESSAGE}, status=status.HTTP_400_BAD_REQUEST)
+    except ErasureSelfApprovalError:
+        return Response({"detail": ERASURE_SELF_APPROVAL_MESSAGE}, status=status.HTTP_403_FORBIDDEN)
     except ErasureFailedError as exc:
         # رمزٌ وجملةٌ من جدولٍ ثابتٍ لا نصُّ الاستثناء (CodeQL py/stack-trace-exposure): الرمزُ المجهولُ `erasure_error`.
         code, detail = ERASURE_FAILURES.get(exc.code, ERASURE_FAILURES["erasure_error"])

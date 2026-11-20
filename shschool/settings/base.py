@@ -690,6 +690,21 @@ PUSH_PROVIDER_TIMEOUT_SECONDS = config("PUSH_PROVIDER_TIMEOUT_SECONDS", default=
 #: قابلة للحساب سلفاً — وهو ما يجعل هذا العقد عقداً لا تقديراً.
 PUSH_MAX_ACTIVE_SUBSCRIPTIONS = config("PUSH_MAX_ACTIVE_SUBSCRIPTIONS", default=4, cast=int)
 
+#: مضيفو مزوّدي Push المقبولون (هم أو ما تحتهم): Chrome وEdge وSamsung وOpera عبر FCM،
+#: وFirefox، وEdge القديم (WNS)، وSafari. عنوانُ الاشتراك يكتبه صاحبُ الطلب، والعاملُ
+#: يناديه من شبكته — فما ليس في القائمة لا يُخزَّن ولا يُنادى (SSRF).
+PUSH_ENDPOINT_ALLOWED_HOSTS = [
+    host.strip().lower()
+    for host in config(
+        "PUSH_ENDPOINT_ALLOWED_HOSTS",
+        default=(
+            "fcm.googleapis.com,android.googleapis.com,push.services.mozilla.com,"
+            "notify.windows.com,push.apple.com"
+        ),
+    ).split(",")
+    if host.strip()
+]
+
 #: ما لا يُغطّيه `timeout` المزوّد: DNS وTLS والتشفير وثلاث كتابات قاعدة لكل
 #: اشتراك والانتقال بينها. مهلةُ `requests` مهلةُ انتظارٍ على الاتصال والقراءة
 #: لا سقفٌ إجماليّ لزمن العملية، فحسابُ الميزانية بها وحدها يُنتج رقماً أصغر من

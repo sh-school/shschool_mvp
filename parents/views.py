@@ -702,16 +702,22 @@ def push_subscribe(request):
         # [B4-5] التسجيل يمرّ بمالك السقف لا بـ`update_or_create` مباشرةً:
         # عددُ الاشتراكات الفعّالة هو المُعامل الذي تُحسب به ميزانية زمن Push،
         # فتركُه بلا حدّ يجعل أسوأ حالة غير قابلة للحساب.
-        from notifications.push_subscriptions import register_subscription
-
-        _, created, evicted = register_subscription(
-            user=request.user,
-            school=school,
-            endpoint=endpoint,
-            p256dh=p256dh,
-            auth=auth,
-            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        from notifications.push_subscriptions import (
+            PushEndpointRejectedError,
+            register_subscription,
         )
+
+        try:
+            _, created, evicted = register_subscription(
+                user=request.user,
+                school=school,
+                endpoint=endpoint,
+                p256dh=p256dh,
+                auth=auth,
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except PushEndpointRejectedError:
+            return JsonResponse({"error": "عنوان الاشتراك غير مقبول."}, status=400)
         return JsonResponse({"status": "subscribed", "new": created, "evicted": evicted})
     except (KeyError, ValueError, TypeError, OSError):
         logger.error("فشل تسجيل اشتراك Push لولي الأمر")

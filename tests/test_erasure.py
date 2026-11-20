@@ -139,8 +139,14 @@ class TestErasureAPI:
 
     def test_admin_approve_executes_erasure(self, api_admin, student_with_data, school):
         client, admin = api_admin
-        # Create request
-        resp = client.post(
+        # يقدّمه مديرٌ ثانٍ: مقدِّمُ الطلب لا يعتمده (فصلُ المهام).
+        filer = UserFactory(full_name="مدير مقدِّم الطلب")
+        MembershipFactory(
+            user=filer, school=school, role=RoleFactory(school=school, name="principal")
+        )
+        filer_client = APIClient()
+        filer_client.force_login(filer)
+        resp = filer_client.post(
             "/api/v1/erasure/request/",
             format="json",
             data={

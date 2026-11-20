@@ -46,6 +46,7 @@ from notifications.delivery_state import (
     mark_undeliverable,
 )
 from notifications.no_provider import clean_payload, drop_undelivered
+from notifications.push_endpoints import is_allowed_push_endpoint
 
 logger = logging.getLogger(__name__)
 
@@ -888,6 +889,15 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None, 
             provider_timeout = settings.PUSH_PROVIDER_TIMEOUT_SECONDS
 
             for sub in subs:
+                # اشتراكٌ خُزّن قبل فحص العنوان عند التسجيل قد يحمل مضيفاً داخلياً:
+                # يُعطَّل ولا يُنادى (SSRF)، كالاشتراك الميّت — لا محاولةَ تُسجَّل له.
+                if not is_allowed_push_endpoint(sub.endpoint):
+                    sub.is_active = False
+                    sub.save(update_fields=["is_active"])
+                    invalidated += 1
+                    logger.warning("Push subscription invalidated (endpoint not allowed)")
+                    continue
+
                 # الميزانية تُفحص **قبل** النداء لا بعده: بعده يكون النداء قد
                 # وقع، وهو ما نمنعه أصلاً.
                 if monotonic() >= deadline:

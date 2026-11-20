@@ -227,9 +227,6 @@
   "api/views.py::BorrowingListView.get_queryset": {
    "orm": 8
   },
-  "api/views.py::StudentListView.get_queryset": {
-   "orm": 8
-  },
   "api/views.py::class_list": {
    "orm": 9
   },

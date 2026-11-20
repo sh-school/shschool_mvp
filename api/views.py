@@ -48,7 +48,6 @@ from core.models import (
     ClassGroup,
     CustomUser,
     ParentStudentLink,
-    StudentEnrollment,
 )
 from core.parent_consent import needs_parent_consent
 from core.permissions import LIBRARY_BORROWINGS_ALL
@@ -68,7 +67,11 @@ from .filters import (
 )
 from .pagination import StandardPagination
 from .permissions import CanViewBehavior, IsParentOrAdmin, IsSchoolAdmin, IsTeacherOrAdmin
-from .selectors import school_student_or_404
+from .selectors import (
+    restrict_to_visible_students,
+    school_student_or_404,
+    visible_enrollments,
+)
 from .serializers import (
     AnnualSubjectResultSerializer,
     AttendanceSerializer,
@@ -141,8 +144,8 @@ class StudentListView(generics.ListAPIView):
 
     serializer_class = StudentEnrollmentSerializer
     permission_classes = [IsTeacherOrAdmin]
-    filter_backends = [SearchFilter, OrderingFilter]
-    search_fields = ["student__full_name", "student__national_id"]
+    # البحثُ في `get_queryset` لا بـ`SearchFilter`: الرقمُ الشخصيُّ بسياسة `core.privacy`.
+    filter_backends = [OrderingFilter]
     ordering_fields = [
         "student__full_name",
         "student__national_id",
@@ -155,6 +158,7 @@ class StudentListView(generics.ListAPIView):
         parameters=[
             OpenApiParameter("year", str, description="السنة الدراسية (مثال: 2025-2026)"),
             OpenApiParameter("class_id", str, description="معرّف الفصل (UUID)"),
+            OpenApiParameter("search", str, description="بحث بالاسم أو الرقم الشخصي"),
         ],
         tags=["students"],
     )
@@ -162,19 +166,14 @@ class StudentListView(generics.ListAPIView):
         return super().get(*args, **kwargs)
 
     def get_queryset(self):
-        school = _school(self.request)
-        year = _year(self.request)
-
-        qs = StudentEnrollment.objects.filter(
-            class_group__school=school,
-            class_group__academic_year=year,
-            is_active=True,
-        ).select_related("student", "class_group")
-
-        if class_id := self.request.query_params.get("class_id"):
-            qs = qs.filter(class_group_id=class_id)
-
-        return qs
+        params = self.request.query_params
+        return visible_enrollments(
+            self.request.user,
+            _school(self.request),
+            _year(self.request),
+            class_id=params.get("class_id", ""),
+            search=params.get("search", ""),
+        )
 
 
 # Backward-compatible function alias
@@ -356,11 +355,18 @@ def class_list(request):
 @api_view(["GET"])
 @permission_classes([IsTeacherOrAdmin])
 def class_results(request, class_id):
+    from reports.selectors import teacher_can_access_class
     from reports.services import ReportDataService
 
     school = _school(request)
     year = _year(request)
     class_group = get_object_or_404(ClassGroup, id=class_id, school=school)
+    # [SEC-04] المعلّمُ لشُعبه وحدَها — القيدُ نفسُه في تقارير الويب، فلا يُتجاوز من الـAPI.
+    if not teacher_can_access_class(request.user, school, class_group, year):
+        return Response(
+            {"detail": "ليس لديك صلاحية عرض نتائج هذه الشعبة"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
     data = ReportDataService.get_class_results(class_group, school, year)
 
     rows = []
@@ -481,11 +487,12 @@ class AttendanceListView(generics.ListAPIView):
 
     def get_queryset(self):
         school = _school(self.request)
-        return (
+        qs = (
             StudentAttendance.objects.filter(session__school=school)
             .select_related("student", "session__subject", "session__class_group")
             .order_by("-session__date")
         )
+        return restrict_to_visible_students(qs, self.request.user)
 
 
 # ══════════════════════════════════════════════════════════════════════
