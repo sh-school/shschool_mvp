@@ -22,13 +22,13 @@ from __future__ import annotations
 
 import ast
 import datetime as dt
-import os
 import pathlib
 import re
 
 import pytest
 from django.utils import timezone
 
+from tests.conftest import forced_clock_value
 from tests.visual_snapshots import FIXED_NOW
 
 TESTS = pathlib.Path(__file__).resolve().parent
@@ -200,9 +200,44 @@ def test_a_fixture_that_patches_now_under_the_pin_does_not_leave_the_freeze_behi
     assert timezone.now() == FRIDAY
 
 
-@pytest.mark.skipif(
-    bool(os.environ.get("SCHOOLOS_TEST_NOW")), reason="الوظيفةُ الليليّة تثبّت كلَّ اختبار"
-)
-def test_the_clock_is_back_to_the_real_one_after_a_pinned_test():
+def test_the_clock_is_back_to_the_real_one_after_a_pinned_test(request):
+    if forced_clock_value(request.config):
+        pytest.skip("الوظيفةُ الليليّة تثبّت كلَّ اختبار")
     assert timezone.now() != FIXED_NOW
     assert abs((timezone.now() - dt.datetime.now(dt.UTC)).total_seconds()) < 60
+
+
+# ── الخيار --test-now (W-20261120-010) ──
+
+
+class _FakeConfig:
+    def __init__(self, option: str):
+        self._option = option
+
+    def getoption(self, name, default=None):
+        return self._option
+
+
+def test_the_option_wins_over_the_environment_variable(monkeypatch):
+    monkeypatch.setenv("SCHOOLOS_TEST_NOW", "2026-11-12T07:10:00+03:00")
+    assert (
+        forced_clock_value(_FakeConfig("2026-11-13T07:10:00+03:00")) == "2026-11-13T07:10:00+03:00"
+    )
+
+
+def test_the_environment_variable_is_used_when_the_option_is_absent(monkeypatch):
+    monkeypatch.setenv("SCHOOLOS_TEST_NOW", "2026-11-12T07:10:00+03:00")
+    assert forced_clock_value(_FakeConfig("")) == "2026-11-12T07:10:00+03:00"
+
+
+def test_nothing_is_forced_without_option_or_variable(monkeypatch):
+    monkeypatch.delenv("SCHOOLOS_TEST_NOW", raising=False)
+    assert forced_clock_value(_FakeConfig("")) == ""
+
+
+def test_the_option_pins_an_unmarked_test(request):
+    forced = request.config.getoption("--test-now")
+    if not forced:
+        pytest.skip("لم يُمرَّر --test-now")
+    expected = dt.datetime.fromisoformat(forced)
+    assert timezone.now() == expected
