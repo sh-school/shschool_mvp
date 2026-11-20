@@ -136,7 +136,7 @@ tzdata==2026.6
 tzlocal==5.4.5
 ujson==6.1.0
 uritemplate==4.2.0
-uritools==6.1.3
+uritools==7.0.0
 urllib3==2.8.0
 vine==5.1.0
 wcwidth==0.9.4
