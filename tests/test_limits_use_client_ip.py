@@ -5,6 +5,8 @@ X-Forwarded-For. فكان ``ratelimit(key="ip")`` وaxes يريان عنوانا
 عشرُ محاولاتٍ خاطئة من شخصٍ واحد تُغلق بابَ الدخول على المدرسة كلّها.
 """
 
+from types import SimpleNamespace
+
 import pytest
 from django.core.cache import cache
 from django.test import RequestFactory, override_settings
@@ -44,7 +46,10 @@ def test_ratelimit_sees_the_client_not_the_proxy():
 
 @pytest.mark.django_db
 @override_settings(TRUSTED_PROXY_HOPS=1, RATELIMIT_ENABLE=True)
-def test_one_client_exhausting_the_login_limit_does_not_block_another(client):
+def test_one_client_exhausting_the_login_limit_does_not_block_another(client, monkeypatch):
+    # نافذةُ `10/m` ثابتةٌ على ساعة الجدار: إن عبرت الطلباتُ الإحدى عشر حدَّ الدقيقة صُفِّر العدّ فيعود 200
+    # بدل 403 (اختبارٌ متقطّع). فنثبّت ساعةَ المكتبة على منتصف دقيقةٍ.
+    monkeypatch.setattr("django_ratelimit.core.time", SimpleNamespace(time=lambda: 1_700_000_010.0))
     cache.clear()
     wrong = {"national_id": "00000000000", "password": "wrong-password"}  # pragma: allowlist secret
 
