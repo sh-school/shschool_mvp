@@ -33,6 +33,29 @@ LIGHTHOUSE = "npx --yes lighthouse@12.8.2"
 #: فالسماحُ 15 لا يُطلق قضيّةً كاذبةً لضجيجٍ ويُمسك انحداراً حقيقيّاً (>15 نقطة).
 PERF_TOLERANCE = 15
 
+#: أخطاءُ Lighthouse العابرة: تعثّرٌ في تسجيل المتصفّح لا في الصفحة، فلا تدلّ على انحدار.
+#: (NO_NAVSTART ظهر ليلة 2026-11-19 على /teacher/schedule/ ولم تُقَس الدرجات أصلاً.)
+TRANSIENT_MARKERS = ("Please run Lighthouse again", "NO_NAVSTART", "NO_FCP", "PROTOCOL_TIMEOUT")
+
+#: محاولةٌ أولى وإعادةٌ واحدة فقط — لا حلقةَ تُخفي تعثّراً متكرّراً.
+MAX_ATTEMPTS = 2
+
+
+def _is_transient(stderr: str) -> bool:
+    return any(marker in stderr for marker in TRANSIENT_MARKERS)
+
+
+def _execute(url: str, command: list[str], env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    """يشغّل Lighthouse، ويعيد المحاولةَ مرةً واحدةً عند خطأٍ عابرٍ وحده، ثم يرفع الفشل."""
+    attempt = 1
+    done = subprocess.run(command, capture_output=True, text=True, env=env, timeout=600)
+    while done.returncode and attempt < MAX_ATTEMPTS and _is_transient(done.stderr):
+        attempt += 1
+        done = subprocess.run(command, capture_output=True, text=True, env=env, timeout=600)
+    if done.returncode:
+        raise RuntimeError(f"Lighthouse سقط على {url} بعد {attempt} محاولة:\n{done.stderr[-1500:]}")
+    return done
+
 
 def run(url: str, cookie: str, chrome_path: str) -> dict[str, float]:
     """درجتا الصفحة (0–100) وقيمُها الأساسيّة، بمِلفّ الجوال الافتراضيّ."""
@@ -48,9 +71,7 @@ def run(url: str, cookie: str, chrome_path: str) -> dict[str, float]:
     ]
     # Lighthouse يقرأ المتصفّحَ من `CHROME_PATH` وحده، لا من `--chrome-path`.
     env = {**os.environ, "CHROME_PATH": chrome_path}
-    done = subprocess.run(command, capture_output=True, text=True, env=env, timeout=600)
-    if done.returncode:
-        raise RuntimeError(f"Lighthouse سقط على {url}:\n{done.stderr[-1500:]}")
+    done = _execute(url, command, env)
     report = json.loads(done.stdout)
     if not report["finalDisplayedUrl"].startswith(url.split("?")[0]):
         raise RuntimeError(f"أُعيد التوجيه إلى {report['finalDisplayedUrl']} — الدخولُ لم يثبت")
