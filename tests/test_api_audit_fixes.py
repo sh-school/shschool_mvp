@@ -1,9 +1,10 @@
-"""حراسُ تدقيق الـAPI الأمنيّ (2026-11-20) — أربعُ ثغراتٍ لا تعود.
+"""حراسُ تدقيق الـAPI الأمنيّ (2026-11-20) — ثغراتٌ لا تعود.
 
 1. المعلّمُ لطلبته: قائمتا الطلبة والحضور ونتائجُ الشعبة كانت بحصر المدرسة وحدَه.
 2. الرقمُ الشخصيُّ لا يُستخرج بالبحث الجزئيّ من `students/?search=`.
-3. المحوُ للطالب وحدَه: لا يُطلب ولا يُنفَّذ على حساب كادر.
-4. عنوانُ اشتراك Push لمزوّدٍ معروف: لا يُخزَّن ولا يُنادى مضيفٌ داخليّ (SSRF).
+3. المحوُ للطالب وحدَه: لا يُطلب ولا يُنفَّذ على حساب كادر، ولا يعتمده مقدِّمُه.
+4. عنوانُ اشتراك Push لمزوّدٍ معروف: لا يُخزَّن ولا يُنادى مضيفٌ داخليّ (SSRF)،
+   والتسجيلُ عبر العرض لا يسقط بـ500.
 """
 
 from __future__ import annotations
@@ -34,8 +35,8 @@ from .conftest import (
     UserFactory,
 )
 
-OWN_ID = "28712345678"
-OTHER_ID = "28798765432"
+OWN_ID = "29123444444"  # ستّ خاناتٍ متماثلة: اصطناعيٌّ بنيويّاً
+OTHER_ID = "29798777777"
 
 
 def _api(user) -> APIClient:
@@ -222,7 +223,7 @@ def test_approving_a_request_that_targets_staff_erases_nothing(
     """دفاعٌ في العمق: طلبٌ بلغ القاعدةَ من غير طريق الـAPI لا يُنفَّذ على كادر."""
     original_name = teacher_user.full_name
     req = ErasureRequest.objects.create(
-        school=school, student=teacher_user, requested_by=principal_user, reason="طلبٌ مدسوس"
+        school=school, student=teacher_user, requested_by=None, reason="طلبٌ مدسوس"
     )
 
     resp = _api(principal_user).post(
@@ -233,6 +234,38 @@ def test_approving_a_request_that_targets_staff_erases_nothing(
     teacher_user.refresh_from_db()
     assert teacher_user.is_active is True
     assert teacher_user.full_name == original_name
+
+
+def test_the_filer_cannot_approve_their_own_erasure_request(school, principal_user, student_user):
+    """فصلُ المهام: المحوُ لا رجعة فيه، فمقدِّمُ الطلب لا يعتمده ولا يعيد تنفيذه."""
+    req = ErasureRequest.objects.create(
+        school=school, student=student_user, requested_by=principal_user, reason="طلبٌ للاختبار"
+    )
+
+    resp = _api(principal_user).post(
+        f"/api/v1/erasure/requests/{req.id}/approve/", format="json", data={}
+    )
+
+    assert resp.status_code == 403
+    req.refresh_from_db()
+    assert req.status == "pending"
+    assert req.reviewed_by_id is None
+    student_user.refresh_from_db()
+    assert student_user.is_active is True
+
+
+def test_another_admin_approves_the_request(school, principal_user, student_user):
+    second = UserFactory(full_name="مديرٌ ثانٍ")
+    MembershipFactory(user=second, school=school, role=RoleFactory(school=school, name="principal"))
+    req = ErasureRequest.objects.create(
+        school=school, student=student_user, requested_by=principal_user, reason="طلبٌ للاختبار"
+    )
+
+    resp = _api(second).post(f"/api/v1/erasure/requests/{req.id}/approve/", format="json", data={})
+
+    assert resp.status_code == 200
+    req.refresh_from_db()
+    assert req.reviewed_by_id == second.id
 
 
 def test_only_a_student_membership_makes_an_erasure_target(school, student_user, teacher_user):
@@ -309,9 +342,16 @@ def test_subscribing_with_an_internal_endpoint_is_refused_and_not_stored(parent_
     assert not PushSubscription.objects.filter(user=parent_user).exists()
 
 
+def test_subscribing_through_the_view_with_a_provider_endpoint_succeeds(parent_user):
+    """العرضُ يمرّر `request.user` الكسول: قفلُ صفّ المستخدم بـ`type(user).objects` كان يُسقطه بـ500."""
+    resp = _subscribe(parent_user, "https://fcm.googleapis.com/fcm/send/abc")
+
+    assert resp.status_code == 200, resp.content
+    assert resp.json()["status"] == "subscribed"
+    assert PushSubscription.objects.filter(user=parent_user, is_active=True).count() == 1
+
+
 def test_registering_a_provider_endpoint_still_works(school, parent_user):
-    """على مالك التسجيل لا على العرض: العرضُ يمرّر `request.user` الكسول فيسقط عند قفل صفّ
-    المستخدم (`type(user).objects`) قبل هذا التعديل وبعده — عيبٌ قائمٌ خارج هذا الإصلاح."""
     _, created, _ = register_subscription(
         user=parent_user,
         school=school,

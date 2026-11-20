@@ -15,6 +15,7 @@
 import logging
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import F
 
@@ -65,7 +66,9 @@ def register_subscription(*, user, school, endpoint, p256dh, auth, user_agent=""
         #
         # وصفّ المستخدم موجودٌ دائماً بحكم أنه المُسجِّل، فيصلح نقطةَ تسلسلٍ
         # لكل تسجيلات هذا المستخدم مهما كان عدد اشتراكاته — بما فيه الصفر.
-        type(user).objects.select_for_update().get(pk=user.pk)
+        # `get_user_model()` لا `type(user)`: العرضُ يمرّر `request.user` الكسول
+        # (`SimpleLazyObject`)، ونوعُه بلا `objects` فيسقط الطلب بـ500.
+        get_user_model().objects.select_for_update().get(pk=user.pk)
 
         # ثم قفلُ اشتراكاته القائمة — يمنع تعديلها تحت أقدامنا.
         existing = list(

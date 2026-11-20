@@ -203,6 +203,10 @@ class ErasureStateError(Exception):
         super().__init__(f"لا يمكن الموافقة — الحالة الحالية: {status_display}")
 
 
+class ErasureSelfApprovalError(Exception):
+    """مقدِّمُ الطلب لا يعتمده ولا يعيد تنفيذه: المحوُ لا رجعة فيه فيلزمه شخصٌ ثانٍ (فصلُ المهام، 2026-11-20)."""
+
+
 class ErasureService:
     """Anonymize all PII for a student — PDPPL م.18."""
 
@@ -224,6 +228,9 @@ class ErasureService:
             )
             if obj.status not in ("pending", "approved"):
                 raise ErasureStateError(obj.get_status_display())
+            # بعد فحص الحالة: طلبٌ منتهٍ يُردّ بحالته أيّاً كان المراجع.
+            if obj.requested_by_id is not None and obj.requested_by_id == reviewer.pk:
+                raise ErasureSelfApprovalError()
             if obj.status == "approved":
                 AuditLog.log(
                     user=reviewer,

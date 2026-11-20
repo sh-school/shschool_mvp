@@ -19,7 +19,12 @@ from rest_framework.response import Response
 
 from api.permissions import IsSchoolAdmin, NotPlatformDeveloper
 from core.models import CustomUser, ErasureRequest, ParentStudentLink
-from governance.erasure_service import ErasureFailedError, ErasureService, ErasureStateError
+from governance.erasure_service import (
+    ErasureFailedError,
+    ErasureSelfApprovalError,
+    ErasureService,
+    ErasureStateError,
+)
 
 #: ردودُ تعثّر المحو **ثابتةٌ من جدولٍ** — لا يخرج نصُّ الاستثناء إلى العميل (CodeQL py/stack-trace-exposure، قرارُ المالك: الإغلاقُ
 #: بالكود لا بالاستبعاد). رمزُ الاستثناء مفتاحٌ فقط؛ والتفصيلُ الكاملُ في AuditLog وlogger بمعرّفٍ لا بنصّ.
@@ -39,6 +44,7 @@ ERASURE_FAILURES = {
 }
 ERASURE_RETRY_NOTE = "لم يُمسّ شيء. الطلبُ باقٍ «تمّت الموافقة» ويمكن إعادة التنفيذ بعد معالجة السبب."
 ERASURE_STATE_MESSAGE = "لا يمكن الموافقة — الطلبُ ليس في حالةٍ تقبل الموافقة أو التنفيذ."
+ERASURE_SELF_APPROVAL_MESSAGE = "لا يعتمد مقدِّمُ طلب المحو طلبَه: يعتمده مديرٌ آخر في المدرسة."
 
 # ── Serializers ───────────────────────────────────────────────
 
@@ -182,6 +188,8 @@ def approve_erasure(request, request_id):
         )
     except ErasureStateError:
         return Response({"detail": ERASURE_STATE_MESSAGE}, status=status.HTTP_400_BAD_REQUEST)
+    except ErasureSelfApprovalError:
+        return Response({"detail": ERASURE_SELF_APPROVAL_MESSAGE}, status=status.HTTP_403_FORBIDDEN)
     except ErasureFailedError as exc:
         # رمزٌ وجملةٌ من جدولٍ ثابتٍ لا نصُّ الاستثناء (CodeQL py/stack-trace-exposure): الرمزُ المجهولُ `erasure_error`.
         code, detail = ERASURE_FAILURES.get(exc.code, ERASURE_FAILURES["erasure_error"])
