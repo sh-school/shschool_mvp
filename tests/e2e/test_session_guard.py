@@ -144,8 +144,14 @@ class TestPulseNeedsRealInput:
     ):
         login(e2e_teacher)
         page.clock.install()
-        page.goto(f"{live_server.url}{FORM_URL}")
-        page.wait_for_load_state("networkidle")
+        # أوّلُ قراءةٍ للحارس تجري بعد 1500ms من ساعته: ننتظر ردَّها الفعليّ قبل أن نُقدّم الساعة، وإلا سبق
+        # التقديمُ الردَّ وتوقّف حسابُ «مضى 5 دقائق على آخر تجديد» على لحظة وصوله (سباقٌ ظهر مع playwright 1.65
+        # فخرجت صفرُ نبضات). بعد الانتظار تكون حالةُ الحارس معروفةً ومنطلقُ الحساب ثابتاً.
+        with page.expect_response(lambda r: "/auth/session/status/" in r.url):
+            page.goto(f"{live_server.url}{FORM_URL}")
+            page.wait_for_load_state("networkidle")
+            page.clock.run_for(2000)
+        page.wait_for_timeout(300)
         touches = _requests_to(page, "/auth/session/touch/")
 
         page.clock.run_for(6 * 60 * 1000)
