@@ -12,8 +12,8 @@ import pytest
 import yaml
 
 WORKFLOW = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "quality-gate.yml"
-RESTORE = "actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830"
-SAVE = "actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830"
+RESTORE = "actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
+SAVE = "actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
 CONSUMERS = ("axe-a11y", "e2e")
 SAVER = "apt-deb-cache-save"
 
@@ -103,3 +103,15 @@ def test_consumer_timeouts_are_untouched():
     jobs = _jobs()
     assert jobs["axe-a11y"]["timeout-minutes"] == 20
     assert jobs["e2e"]["timeout-minutes"] == 20
+
+
+def test_every_cache_step_is_pinned_to_the_same_v6_sha():
+    """كلُّ استعمالات actions/cache/restore وsave ترفع معاً: لا يبقى أيُّ مرجعٍ قديم — W-20261120-001."""
+    uses = [
+        s["uses"]
+        for job in _jobs().values()
+        for s in job.get("steps", [])
+        if s.get("uses", "").startswith(("actions/cache/restore@", "actions/cache/save@"))
+    ]
+    assert uses, "يجب أن تُوجد استعمالاتُ actions/cache"
+    assert set(uses) == {RESTORE, SAVE}
