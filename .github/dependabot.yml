@@ -16,6 +16,13 @@ updates:
       # tests/test_channel_layer_redis_integration.py. أوّلُ مجموعةٍ مطابِقةٍ تكسب، فتسبق الآتية.
       redis-channels:
         patterns: ["redis", "channels", "channels-redis"]
+      # playwright يُفرَد في طلبٍ مستقلّ: طلبُ #1451 (27 حزمة) فشل مرّتين في اختبار
+      # tests/e2e/test_session_guard.py::TestPulseNeedsRealInput (لا نبضةَ بعد إدخالٍ فعليّ)،
+      # والمرجّح أن playwright 1.64.1 ← 1.65.1 هو السبب لأنه يحاكي الإدخال، فتتعطّل الحزم
+      # الأخرى معه. تُدرَس ترقيتُه في طلبه وحده، وتُجمَّع بقية الحزم بلا playwright.
+      # أوّلُ مجموعةٍ مطابِقةٍ تكسب، فتسبق python-patch-minor.
+      playwright:
+        patterns: ["playwright"]
       python-patch-minor:
         update-types: ["patch", "minor"]
     ignore:
