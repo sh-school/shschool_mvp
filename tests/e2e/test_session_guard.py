@@ -148,10 +148,22 @@ class TestPulseNeedsRealInput:
         page.wait_for_load_state("networkidle")
         touches = _requests_to(page, "/auth/session/touch/")
 
+        # أوّلُ قراءةٍ للحالة تُجدول بعد 1500 ms من التحميل: نُشغّل الساعة حتى تُرسَل ونَنتظر ردّها
+        # قبل تقديمها، فيصل الردُّ (وتُطبَّق الحالةُ) قبل أن تمرّ الدقائق الستّ. ‏300 ms لقراءة الجسم.
+        with page.expect_response(lambda r: "/auth/session/status/" in r.url):
+            page.clock.run_for(2000)
+        page.wait_for_timeout(300)
+
         page.clock.run_for(6 * 60 * 1000)
         assert touches == [], "نبضٌ بلا إدخالٍ فعليّ"
 
+        # الإدخالُ يُسجَّل فوراً، فتُرسَل النبضةُ في أوّل تكّة بعده (مضى أكثر من 5 دقائق على آخر تجديد)،
+        # ننتظر ردّها قبل تقديم الدقيقتين كي لا تُحسب نبضتان.
         page.fill("#quiet-start", "10:00")
+        with page.expect_response(lambda r: "/auth/session/touch/" in r.url):
+            page.clock.run_for(1000)
+        page.wait_for_timeout(300)
+
         page.clock.run_for(2 * 60 * 1000)
         page.wait_for_timeout(300)
         assert len(touches) == 1, "نبضةٌ واحدةٌ بعد إدخالٍ فعليّ، لا نبضةٌ كلَّ ثانية"
