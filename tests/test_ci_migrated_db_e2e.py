@@ -12,7 +12,7 @@ import pytest
 import yaml
 
 WORKFLOW = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "quality-gate.yml"
-RESTORE = "actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830"
+RESTORE = "actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
 DUMP = "${{ runner.temp }}/migrated_db.dump"
 CONSUMERS = ("axe-a11y", "e2e")
 SAVER = "migrated-db-cache"
