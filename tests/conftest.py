@@ -554,6 +554,21 @@ def settings_broker_spy():
 CLOCK_ENV = "SCHOOLOS_TEST_NOW"
 
 
+def pytest_addoption(parser):
+    # الخيارُ يعمل كالمتغيّر تمامًا (لمن لا يستطيع ضبط البيئة في أمره) وله الأسبقيّة إن وُجدا معًا.
+    parser.addoption(
+        "--test-now",
+        action="store",
+        default="",
+        help="لحظةٌ ISO مع منطقة تثبّت الساعة كـ SCHOOLOS_TEST_NOW (وللخيار الأسبقيّة على المتغيّر)",
+    )
+
+
+def forced_clock_value(config) -> str:
+    """اللحظة المفروضة: الخيار `--test-now` أولًا ثم المتغيّر `SCHOOLOS_TEST_NOW`، وفارغةٌ إن لم يوجد أيٌّ منهما."""
+    return config.getoption("--test-now", default="") or os.environ.get(CLOCK_ENV, "")
+
+
 def pytest_configure(config):
     config.addinivalue_line(
         "markers",
@@ -564,7 +579,7 @@ def pytest_configure(config):
 @pytest.fixture(autouse=True)
 def _pinned_clock(request):
     marker = request.node.get_closest_marker("pin_clock")
-    forced = os.environ.get(CLOCK_ENV, "")
+    forced = forced_clock_value(request.config)
     if marker is None and not forced:
         yield
         return
