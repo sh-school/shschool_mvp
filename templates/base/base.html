@@ -995,6 +995,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   <div class="sd-section">
   <div class="sd-label">الغياب والتأخّر</div>
   {% comment %} «متابعة الغياب» ثلاثةُ بنودٍ مباشرة بلا مستوى ثالث (W-20261020-005، قرارُ المالك). {% endcomment %}
+  {% if request.user|can_open:"wings:record_index" %}
+  <a href="{% url 'wings:record_index' %}">{% icon "attendance_register" %} رصد الغياب — شُعب الأجنحة</a>
+  {% endif %}
   {% if request.user|can_open:"wings:ministry_report" %}
   <a href="{% url 'wings:ministry_report' %}">{% icon "status_warning" %} إحصائية الغياب</a>
   {% endif %}
