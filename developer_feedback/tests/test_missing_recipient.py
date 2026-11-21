@@ -27,7 +27,8 @@ _RECIPIENT = "dev@example.test"
 
 
 @override_settings(DEBUG=False, DEVELOPER_FEEDBACK_RECIPIENT="")
-def test_check_warns_in_production_when_recipient_missing():
+def test_check_warns_in_production_when_recipient_missing(monkeypatch):
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
     messages = check_developer_recipient(None)
 
     assert len(messages) == 1
@@ -36,12 +37,21 @@ def test_check_warns_in_production_when_recipient_missing():
 
 
 @override_settings(DEBUG=False, DEVELOPER_FEEDBACK_RECIPIENT=_RECIPIENT)
-def test_check_is_silent_when_recipient_is_configured():
+def test_check_is_silent_when_recipient_is_configured(monkeypatch):
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
     assert check_developer_recipient(None) == []
 
 
 @override_settings(DEBUG=True, DEVELOPER_FEEDBACK_RECIPIENT="")
-def test_check_is_silent_in_debug_mode():
+def test_check_is_silent_in_debug_mode(monkeypatch):
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
+    assert check_developer_recipient(None) == []
+
+
+@override_settings(DEBUG=False, DEVELOPER_FEEDBACK_RECIPIENT="")
+def test_check_is_silent_outside_the_platform(monkeypatch):
+    # فحص النشر في CI لا يجوز أن يفشل بسبب متغيّرٍ لا يُضبط هناك
+    monkeypatch.delenv("RAILWAY_ENVIRONMENT", raising=False)
     assert check_developer_recipient(None) == []
 
 
