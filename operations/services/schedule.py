@@ -19,10 +19,13 @@ from operations.models import (
     ScheduleSlot,
     TeacherExemption,
 )
+from operations.schedule_breaches import BreachesNotAcknowledgedError
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from django.db.models import QuerySet
+
     from core.models import CustomUser, School
 
 from operations.services.schedule_read import ScheduleReadMixin, parallel_labels
@@ -31,6 +34,41 @@ from operations.services.schedule_sessions import ScheduleSessionsMixin
 from operations.services.schedule_week import ScheduleWeekMixin
 
 __all__ = ["ScheduleService", "parallel_labels"]
+
+
+class DraftSlotOverlapError(BreachesNotAcknowledgedError):
+    """حصّتان في المسودّة على خانةٍ واحدة — يلتقطها العرضُ مع رفض الاعتماد ويعرض نصَّها."""
+
+
+def _refuse_internal_overlaps(draft_slots: QuerySet[ScheduleSlot]) -> None:
+    """يرفع `DraftSlotOverlapError` إن تكرّرت شعبةٌ أو معلّمٌ في خانةٍ واحدةٍ داخل المسودّة."""
+    seen_class: dict[tuple, bool] = {}
+    seen_teacher: dict[tuple, bool] = {}
+    rows = draft_slots.select_related("class_group", "teacher").order_by(
+        "day_of_week", "period_number"
+    )
+    for slot in rows:
+        day = slot.get_day_of_week_display()
+        class_key = (
+            slot.class_group_id,
+            slot.day_of_week,
+            slot.period_number,
+            slot.academic_year,
+            slot.elective_group,
+        )
+        if class_key in seen_class:
+            raise DraftSlotOverlapError(
+                f"تعذّر اعتماد المسودّة: الشعبة {slot.class_group} فيها أكثرُ من حصّةٍ "
+                f"يوم {day} في الحصّة {slot.period_number}. لم يتغيّر الجدولُ المعتمَد."
+            )
+        seen_class[class_key] = True
+        teacher_key = (slot.teacher_id, slot.day_of_week, slot.period_number, slot.academic_year)
+        if teacher_key in seen_teacher:
+            raise DraftSlotOverlapError(
+                f"تعذّر اعتماد المسودّة: المعلّم {slot.teacher.full_name} له أكثرُ من حصّةٍ "
+                f"يوم {day} في الحصّة {slot.period_number}. لم يتغيّر الجدولُ المعتمَد."
+            )
+        seen_teacher[teacher_key] = True
 
 
 class ScheduleService(
@@ -67,7 +105,7 @@ class ScheduleService(
         from core.models import Membership
         from notifications.models import InAppNotification
 
-        from ..schedule_breaches import BreachesNotAcknowledgedError, approval_refusal
+        from ..schedule_breaches import approval_refusal
 
         # مخالفةٌ صلبةٌ في المسودّة لا تُعتمد إلّا بإقرارٍ صريحٍ (SCH-05) — هنا لا في العرض:
         # فأمرُ النقل والاستيرادُ يمرّان من هذا الباب أيضاً، ولا يُتجاوز الحارسُ بطريقٍ آخر.
@@ -99,8 +137,14 @@ class ScheduleService(
                 )
             draft_slots = ScheduleSlot.objects.filter(generation=gen)
             if draft_slots.exists():
+                # يُرفض التعارضُ داخل المسودّة قبل أيّ كتابة، برسالةٍ تسمّي الخانة،
+                # بدل أن يسقط `update` بقيدٍ في قاعدة البيانات (W-20261121-001).
+                _refuse_internal_overlaps(draft_slots)
+                # وتُطفأ الحصصُ الحيّة في كلّ عامٍ تمسّه المسودّة لا عام التوليد وحده:
+                # حصّةٌ مسودّتُها بعامٍ آخر كانت تصطدم بحيٍّ لم يُطفأ.
+                years = {gen.academic_year, *draft_slots.values_list("academic_year", flat=True)}
                 ScheduleSlot.objects.filter(
-                    school=school, academic_year=gen.academic_year, is_active=True
+                    school=school, academic_year__in=years, is_active=True
                 ).exclude(generation=gen).update(is_active=False)
                 draft_slots.update(is_active=True)
 
