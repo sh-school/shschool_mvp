@@ -14,7 +14,9 @@ operations/guardian_contact.py — إخطارُ وليّ الأمر بغياب �
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Iterable
 
+from django.db.models import Max
 from django.utils import timezone
 
 from core.models import ClassGroup, CustomUser, School, StudentEnrollment
@@ -67,19 +69,36 @@ def contacts_of(student: CustomUser, school: School, limit: int = 20) -> list[Gu
     )
 
 
-def awaiting_contact(class_group: ClassGroup, day: dt.date) -> dict:
+def last_session_dates(class_group_ids: Iterable, day: dt.date) -> dict:
+    """آخرُ يومِ حصّةٍ (غيرِ ملغاة) قبل `day` لكل شعبةٍ، باستعلامٍ مجمَّعٍ واحد: `{class_group_id: date}`.
+
+    الشعبةُ بلا حصّةٍ سابقةٍ لا تظهر في الناتج.
+    """
+    rows = (
+        Session.objects.filter(class_group_id__in=list(class_group_ids), date__lt=day)
+        .exclude(status="cancelled")
+        .values("class_group_id")
+        .annotate(last=Max("date"))
+        .order_by()
+    )
+    return {row["class_group_id"]: row["last"] for row in rows}
+
+
+def awaiting_contact(
+    class_group: ClassGroup,
+    day: dt.date,
+    last_dates: dict | None = None,
+) -> dict:
     """من غاب في آخر يومٍ دراسيٍّ قبل `day` ولم يُخطَر وليُّ أمره عنه: `{student_id: date}`.
 
     الغيابُ المعتبَر ما ثبّته الرصدُ «غائباً» بلا عذر؛ ومن أُخطر أهلُه عن ذلك اليوم
     يخرج من القائمة — نتيجةُ الاتّصال لا تهمّ هنا، فـ«لم يردّ» إخطارٌ أيضاً.
+
+    `last_dates` من `last_session_dates` إن حُسبت لكل الشعب دفعةً واحدة، وإلا يُستعلم عنها هنا.
     """
-    last = (
-        Session.objects.filter(class_group=class_group, date__lt=day)
-        .exclude(status="cancelled")
-        .order_by("-date")
-        .values_list("date", flat=True)
-        .first()
-    )
+    if last_dates is None:
+        last_dates = last_session_dates([class_group.pk], day)
+    last = last_dates.get(class_group.pk)
     if last is None:
         return {}
     # طلبةُ الشعبة اليوم لا طلبةُ حصصها فقط: من انتقل إليها بعده غابَ في شعبته القديمة،

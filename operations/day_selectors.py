@@ -242,8 +242,9 @@ def _load_sessions(school: Any, day: dt.date, data: _Day) -> None:
         )
     )
     for section, wing_id, wing_name, wing_order, grade, section_no, start, end, provisional in rows:
+        # العامُ يُمرَّر فارغًا: بلا ذلك يستدعي الحقلُ default_academic_year (استعلامًا) لكل صف.
         data.section_code.setdefault(
-            section, ClassGroup(grade=grade, section=section_no).short_code
+            section, ClassGroup(grade=grade, section=section_no, academic_year="").short_code
         )
         data.section_slots.setdefault(section, set()).add(start)
         data.section_wing[section] = wing_id
