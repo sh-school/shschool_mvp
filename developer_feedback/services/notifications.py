@@ -37,10 +37,18 @@ def developer_recipient() -> str:
 def _fail_without_recipient(
     notification: DeveloperMessageNotification,
 ) -> DeveloperMessageNotification:
+    """يُعلِّم الإشعار فاشلاً بلا مستلِم، ويكتب رقم التذكرة في السجلّ (لا محتوى ولا بريد).
+
+    رقم التذكرة في السجلّ يتيح للمالك معرفةَ ما فات وإعادةَ إرساله بأمر
+    `resend_developer_notifications` بعد ضبط المتغيّر.
+    """
     notification.status = NotificationStatus.FAILED
     notification.error_detail = "لا مستلِم: DEVELOPER_FEEDBACK_RECIPIENT غير مضبوط"
     notification.save()
-    logger.error("Developer notification not sent: recipient is not configured")
+    logger.error(
+        "Developer notification not sent: recipient is not configured: ticket=%s",
+        notification.message.ticket_number,
+    )
     return notification
 
 
