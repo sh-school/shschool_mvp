@@ -164,3 +164,44 @@ class TestTheScreen:
 
         assert response.status_code == 404
         assert not GuardianContact.objects.exists()
+
+
+class TestQueriesDoNotGrowWithSections:
+    """W-20261121-002: آخرُ حصّةٍ لكل الشعب باستعلامٍ واحد، ولا استعلامَ عامٍ وطنيّ لكل صف."""
+
+    def test_last_session_dates_is_one_query_for_all_sections(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor, django_assert_num_queries
+    ):
+        from operations.guardian_contact import last_session_dates
+
+        _periods(school, klass, teacher, 7)
+        with django_assert_num_queries(1):
+            found = last_session_dates([klass.pk], MONDAY)
+        assert found == {klass.pk: SUNDAY}
+
+    def test_awaiting_contact_with_batched_dates_skips_the_session_query(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor, django_assert_num_queries
+    ):
+        from operations.guardian_contact import last_session_dates
+
+        _absent_sunday(school, klass, kids[0], teacher, supervisor)
+        batched = last_session_dates([klass.pk], MONDAY)
+
+        assert awaiting_contact(klass, MONDAY, batched) == {kids[0].id: SUNDAY}
+        assert awaiting_contact(klass, MONDAY, {}) == {}, "بلا حصّةٍ سابقةٍ لا انتظار"
+
+    def test_day_sections_load_issues_no_national_year_query(
+        self, school, seeded_calendar, klass, teacher, django_assert_num_queries
+    ):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        from operations.day_selectors import _Day, _load_sessions
+
+        _periods(school, klass, teacher, 7)
+        data = _Day()
+        with CaptureQueriesContext(connection) as ctx:
+            _load_sessions(school, SUNDAY, data)
+
+        assert data.section_code
+        assert not [q for q in ctx.captured_queries if "core_academicyear" in q["sql"]]
