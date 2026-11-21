@@ -102,7 +102,8 @@ def unreturned_exits(school: School, now: dt.datetime, minutes: int) -> list[Cla
             session__end_time__gt=local.time(),
         )
         .exclude(session__status="cancelled")
-        .select_related("session", "session__class_group")
+        # المعلّمُ مع الحصّة لسبب N+1 نفسه في مسار الخروج (`_dispatch` يقرأ `session.teacher`)
+        .select_related("session", "session__class_group", "session__teacher")
         .order_by("left_at")
     )
 
@@ -136,7 +137,8 @@ def unmarked_sessions(school: School, now: dt.datetime, grace_minutes: int) -> l
         .filter(Exists(enrolled))
         .exclude(Exists(AttendanceEntry.objects.filter(session=OuterRef("pk"))))
         .exclude(Exists(human_rows))
-        .select_related("class_group")
+        # المعلّمُ يُجلب مع الحصّة: `_dispatch` يقرأ `session.teacher` لكلّ حصّة، وإلا صار استعلامُ مستخدمٍ لكلّ حصّة (N+1)
+        .select_related("class_group", "teacher")
         .order_by("end_time")
     )
 

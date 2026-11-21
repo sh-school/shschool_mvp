@@ -149,6 +149,22 @@ class TestUnreturnedExit:
         assert len(found) >= 4
         assert len(many) == 2 * len(one)
 
+    def test_the_session_teacher_comes_with_each_exit_no_query_per_exit(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        """N+1 في مسار الخروج: `session__teacher` مع الخروج لا استعلامٌ لكلّ خروج."""
+        (period,) = _periods(school, klass, teacher, 1)
+        leave(period, kids[0], "wing_sup", by=teacher, now=at(7, 20))
+        leave(period, kids[1], "wing_sup", by=teacher, now=at(7, 21))
+        found = ta.unreturned_exits(school, at(7, 40), 15)
+        assert len(found) == 2
+
+        with CaptureQueriesContext(connection) as reads:
+            teachers = [e.session.teacher.pk for e in found]
+
+        assert teachers == [teacher.pk] * 2
+        assert len(reads) == 0, "المعلّم مُجلب مع الخروج لا باستعلامٍ لكلّ خروج"
+
 
 class TestUnmarkedSession:
     def test_flags_an_ended_session_without_any_entry(
@@ -262,6 +278,22 @@ class TestUnmarkedSession:
 
         assert len(found) == 6
         assert len(many) == len(one)
+
+    def test_the_teacher_comes_with_each_session_no_query_per_session(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        """N+1: `_dispatch` يقرأ `session.teacher` لكلّ حصّة — قراءتُه بعد الجلب لا تُطلق استعلاماً."""
+        _periods(school, klass, teacher, 3)
+        found = ta.unmarked_sessions(school, at(14, 0), 10)
+        assert len(found) == 3
+
+        with CaptureQueriesContext(connection) as reads:
+            teachers = [s.teacher.pk for s in found]
+            classes = [s.class_group.pk for s in found]
+
+        assert teachers == [teacher.pk] * 3
+        assert len(classes) == 3
+        assert len(reads) == 0, "المعلّم والشعبة مُجلبان مع الحصص لا باستعلامٍ لكلّ حصّة"
 
 
 class TestTheScheduledTasks:
