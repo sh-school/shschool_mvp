@@ -406,15 +406,53 @@ class SectionToRecord:
         return self.statuses.count("missed")
 
 
+def _periods_for_classes(class_ids: list[Any], day: dt.date) -> dict[Any, list]:
+    """خاناتُ كلّ شعبةٍ في اليوم — استعلامان لكلّ الشُّعب لا لكلّ شعبة.
+
+    `periods_of` يستعلم التثبيتات لكلّ شعبةٍ على حدة، فيتكرّر الاستعلامُ بتكرار الشُّعب
+    في الجناح (شكوى Sentry SCHOOLOS-PRODUCTION-37). هنا تُجلب حصصُ الشُّعب كلُّها
+    وتثبيتاتُها دفعةً واحدة، ثمّ تُقسَم في الذاكرة بالمنطق نفسه: الخانةُ = بدءُ الحصّة،
+    والتثبيتُ يُربط ببدئها داخل شعبته، والحصصُ الملغاةُ لا تُعدّ.
+    """
+    from operations.models import PeriodConfirmation, Session
+    from operations.period_register import Period
+
+    sessions = (
+        Session.objects.filter(class_group_id__in=class_ids, date=day)
+        .exclude(status="cancelled")
+        .select_related("subject")
+        .order_by("start_time")
+    )
+    confirmations = {
+        (c.class_group_id, c.start_time): c
+        for c in PeriodConfirmation.objects.filter(class_group_id__in=class_ids, date=day)
+    }
+    grouped: dict[Any, dict[dt.time, Period]] = {cid: {} for cid in class_ids}
+    for session in sessions:
+        periods = grouped[session.class_group_id]
+        period = periods.get(session.start_time)
+        if period is None:
+            period = periods[session.start_time] = Period(
+                number=len(periods) + 1,
+                start=session.start_time,
+                end=session.end_time,
+                sessions=[],
+                confirmation=confirmations.get((session.class_group_id, session.start_time)),
+            )
+        period.sessions.append(session)
+    return {cid: list(periods.values()) for cid, periods in grouped.items()}
+
+
 def sections_to_record(wing, day, now=None) -> list[SectionToRecord]:
     """شُعبُ الجناح وحالُ رصدِ حصصها — ومنه «المتبقّية n من 5» ونقاطُ الحصص."""
     from operations.attendance_selectors import entry_tallies_by_start
-    from operations.period_register import periods_of
 
     now = now or timezone.now()
+    classes = list(wing.class_groups.filter(is_active=True).order_by("grade", "section"))
+    periods_by_class = _periods_for_classes([klass.pk for klass in classes], day)
     rows = []
-    for klass in wing.class_groups.filter(is_active=True).order_by("grade", "section"):
-        periods = periods_of(klass, day)
+    for klass in classes:
+        periods = periods_by_class[klass.pk]
         entries = entry_tallies_by_start(klass, day)
         rows.append(
             SectionToRecord(
