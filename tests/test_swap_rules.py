@@ -833,3 +833,125 @@ class TestSwapViews:
         assert resp.status_code == 302  # redirect with error message
         swap.refresh_from_db()
         assert swap.status == "pending_b"  # لم يُلغَ
+
+
+# ══════════════════════════════════════════════════
+#  مهلة 45 دقيقة (W-20261122-001)
+# ══════════════════════════════════════════════════
+
+
+def _moment(hour: int, minute: int):
+    """لحظةٌ ثابتةٌ يوم الأحد 2026-11-22 بتوقيت المدرسة."""
+    from datetime import datetime
+
+    from django.utils import timezone as tz
+
+    return tz.make_aware(datetime(2026, 11, 22, hour, minute))
+
+
+SWAP_DAY = date(2026, 11, 22)
+
+
+def _pending_swap(school, teacher_a, teacher_b, slot_a, slot_b, coordinator_user, status):
+    """طلبٌ مباشر في قسمٍ واحدٍ يرأسه المنسّق (بلا فحص المهلة عند الإنشاء)."""
+    from core.models.access import Membership
+    from core.models.department import Department
+
+    department = Department.objects.create(
+        school=school, name="الرياضيات", code="math", head=coordinator_user
+    )
+    Membership.objects.filter(user__in=[teacher_a, teacher_b], school=school).update(
+        department_obj=department
+    )
+    return TeacherSwap.objects.create(
+        school=school,
+        teacher_a=teacher_a,
+        teacher_b=teacher_b,
+        slot_a=slot_a,
+        slot_b=slot_b,
+        swap_date_a=SWAP_DAY,
+        swap_date_b=SWAP_DAY,
+        swap_type="same_day",
+        status=status,
+        requested_by=teacher_a,
+    )
+
+
+class TestSwapDeadline45Minutes:
+    """أبكر الحصتين تبدأ 08:15 (slot_b)؛ والمهلة 45 دقيقة."""
+
+    def _errors(self, school, teacher_a, slot_a, slot_b):
+        return SwapService.validate_swap_request(
+            teacher=teacher_a, slot_a=slot_a, slot_b=slot_b, swap_date=SWAP_DAY, school=school
+        )
+
+    def test_request_60_minutes_before_accepted_30_rejected(
+        self, school, teacher_a, slot_a, slot_b
+    ):
+        """قبل الحصة بـ60 دقيقة يُقبل وبـ30 دقيقة يُرفض (والمهلة من أبكر الحصتين)"""
+        from tests.visual_snapshots import frozen_clock
+
+        with frozen_clock(_moment(7, 15)):
+            assert not any("45" in e for e in self._errors(school, teacher_a, slot_a, slot_b))
+        with frozen_clock(_moment(7, 45)):
+            errors = self._errors(school, teacher_a, slot_a, slot_b)
+        assert any(
+            "يجب أن يكتمل التبديل قبل 45 دقيقة على الأقل من بداية الحصة" in e for e in errors
+        )
+
+    def test_coordinator_signature_after_deadline_cancels(
+        self, school, teacher_a, teacher_b, slot_a, slot_b, coordinator_user
+    ):
+        """توقيع المنسّق بعد فوات المهلة يلغي الطلب ولا ينفّذه"""
+        from unittest import mock
+
+        from tests.visual_snapshots import frozen_clock
+
+        swap = _pending_swap(
+            school, teacher_a, teacher_b, slot_a, slot_b, coordinator_user, "pending_coordinator"
+        )
+        with (
+            frozen_clock(_moment(7, 50)),
+            mock.patch.object(SwapService, "execute_swap") as execute,
+            mock.patch.object(SwapService, "_notify") as notify,
+        ):
+            SwapService.approve_swap(swap, approved_by=coordinator_user, approved=True)
+        swap.refresh_from_db()
+        assert swap.status == "cancelled"
+        execute.assert_not_called()
+        assert notify.call_args.args[1] == teacher_a
+
+    def test_other_teacher_accept_after_deadline_cancels(
+        self, school, teacher_a, teacher_b, slot_a, slot_b, coordinator_user
+    ):
+        """قبول المعلم الآخر بعد فوات المهلة يلغي الطلب"""
+        from tests.visual_snapshots import frozen_clock
+
+        swap = _pending_swap(
+            school, teacher_a, teacher_b, slot_a, slot_b, coordinator_user, "pending_b"
+        )
+        with frozen_clock(_moment(7, 50)):
+            SwapService.respond_to_swap(swap, accepted=True)
+        swap.refresh_from_db()
+        assert swap.status == "cancelled"
+
+    def test_other_teacher_accept_notifies_coordinator(
+        self, school, teacher_a, teacher_b, slot_a, slot_b, coordinator_user
+    ):
+        """قبول المعلم الآخر يُنشئ إشعارًا للمنسّق"""
+        from unittest import mock
+
+        from tests.visual_snapshots import frozen_clock
+
+        swap = _pending_swap(
+            school, teacher_a, teacher_b, slot_a, slot_b, coordinator_user, "pending_b"
+        )
+        with (
+            frozen_clock(_moment(7, 0)),
+            mock.patch.object(SwapService, "_notify") as notify,
+        ):
+            SwapService.respond_to_swap(swap, accepted=True)
+        assert swap.status == "pending_coordinator"
+        recipients = [call.args[1] for call in notify.call_args_list]
+        assert coordinator_user in recipients
+        assert recipients.count(coordinator_user) == 1
