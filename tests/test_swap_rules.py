@@ -955,3 +955,85 @@ class TestSwapDeadline45Minutes:
         recipients = [call.args[1] for call in notify.call_args_list]
         assert coordinator_user in recipients
         assert recipients.count(coordinator_user) == 1
+
+
+class TestExpireStaleSwapsScheduled:
+    """W-20261123-002: إلغاء المعلّقات المنتهية بالمهلتين (48 ساعة و45 دقيقة)، مدرسةً مدرسة."""
+
+    def _aged(self, swap, hours):
+        TeacherSwap.objects.filter(pk=swap.pk).update(
+            created_at=_moment(7, 0) - timedelta(hours=hours)
+        )
+
+    def test_pending_b_49h_cancelled_47h_kept(
+        self, school, teacher_a, teacher_b, slot_a, slot_b, coordinator_user
+    ):
+        """طلب pending_b عمره 49 ساعة يُلغى وعمره 47 لا"""
+        from tests.visual_snapshots import frozen_clock
+
+        old = _pending_swap(
+            school, teacher_a, teacher_b, slot_a, slot_b, coordinator_user, "pending_b"
+        )
+        fresh = TeacherSwap.objects.create(
+            school=school,
+            teacher_a=teacher_a,
+            teacher_b=teacher_b,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date_a=SWAP_DAY,
+            swap_date_b=SWAP_DAY,
+            swap_type="same_day",
+            status="pending_b",
+            requested_by=teacher_a,
+        )
+        self._aged(old, 49)
+        self._aged(fresh, 47)
+        with frozen_clock(_moment(7, 0)):
+            count = SwapService.expire_stale_swaps(school)
+        old.refresh_from_db()
+        fresh.refresh_from_db()
+        assert count == 1
+        assert old.status == "cancelled"
+        assert fresh.status == "pending_b"
+
+    def test_pending_coordinator_past_deadline_cancelled_and_notifies(
+        self, school, teacher_a, teacher_b, slot_a, slot_b, coordinator_user
+    ):
+        """pending_coordinator فاتته مهلة 45 دقيقة يُلغى ويُشعَر الطالب"""
+        from unittest import mock
+
+        from tests.visual_snapshots import frozen_clock
+
+        swap = _pending_swap(
+            school, teacher_a, teacher_b, slot_a, slot_b, coordinator_user, "pending_coordinator"
+        )
+        with (
+            frozen_clock(_moment(7, 50)),
+            mock.patch.object(SwapService, "_notify") as notify,
+        ):
+            count = SwapService.expire_stale_swaps(school)
+        swap.refresh_from_db()
+        assert count == 1
+        assert swap.status == "cancelled"
+        assert notify.call_args.args[1] == teacher_a
+
+    def test_second_run_changes_nothing(
+        self, school, teacher_a, teacher_b, slot_a, slot_b, coordinator_user
+    ):
+        """تشغيل المهمة مرتين لا يغيّر شيئًا في الثانية"""
+        from operations.swap_tasks import expire_stale_swaps_task
+        from tests.visual_snapshots import frozen_clock
+
+        _pending_swap(school, teacher_a, teacher_b, slot_a, slot_b, coordinator_user, "pending_vp")
+        with frozen_clock(_moment(7, 50)):
+            first = expire_stale_swaps_task()
+            second = expire_stale_swaps_task()
+        assert first["cancelled"] == 1
+        assert second == {"cancelled": 0, "failed_schools": 0}
+
+    def test_beat_entry_empty_without_flag(self):
+        """مدخل الجدولة فارغ بلا SWAP_EXPIRY_BEAT=1"""
+        from operations.swap_expiry_beat import swap_expiry_beat
+
+        assert swap_expiry_beat({}) == {}
+        assert "operations-expire-stale-swaps" in swap_expiry_beat({"SWAP_EXPIRY_BEAT": "1"})
