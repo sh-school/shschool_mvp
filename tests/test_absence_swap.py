@@ -133,25 +133,32 @@ class TestLeadershipSwapsAtOnce:
 
 class TestTheCoordinatorsPath:
     def test_teacher_then_both_coordinators_then_the_vice_principal(self, world):
+        from django.utils import timezone
+
+        from tests.visual_snapshots import frozen_clock
+
         swap = AbsenceSwapService.request(
             world["absence"], world["lesson"], world["payback"], MONDAY, world["coord_math"]
         )
         assert swap.status == "pending_b"
         assert swap.approved_a_by == world["coord_math"], "من بدأه وقّع عن جهته"
 
-        SwapService.respond_to_swap(swap, accepted=True)
-        swap.refresh_from_db()
-        assert swap.status == "pending_coordinator", "ينتظر منسّقَ العلوم"
+        # مهلة التبديل 45 دقيقة: نثبّت الساعة صباح يوم الغياب قبل أبكر الحصتين بساعات
+        morning = timezone.make_aware(dt.datetime.combine(SUNDAY, dt.time(5, 0)))
+        with frozen_clock(morning):
+            SwapService.respond_to_swap(swap, accepted=True)
+            swap.refresh_from_db()
+            assert swap.status == "pending_coordinator", "ينتظر منسّقَ العلوم"
 
-        SwapService.approve_swap(swap, approved_by=world["coord_science"])
-        swap.refresh_from_db()
-        assert swap.status == "pending_vp", "التوقيعان لا ينفّذانه — ينتظر النائب"
-        assert _session_missing_or_unmoved(world["lesson"])
+            SwapService.approve_swap(swap, approved_by=world["coord_science"])
+            swap.refresh_from_db()
+            assert swap.status == "pending_vp", "التوقيعان لا ينفّذانه — ينتظر النائب"
+            assert _session_missing_or_unmoved(world["lesson"])
 
-        with pytest.raises(ValueError):
-            SwapService.approve_swap(swap, approved_by=world["coord_math"])
+            with pytest.raises(ValueError):
+                SwapService.approve_swap(swap, approved_by=world["coord_math"])
 
-        SwapService.approve_swap(swap, approved_by=world["vice"])
+            SwapService.approve_swap(swap, approved_by=world["vice"])
         swap.refresh_from_db()
         assert swap.status == "executed"
         assert _session(world["lesson"], SUNDAY).teacher == world["partner"]
