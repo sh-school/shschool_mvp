@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, datetime, time, timedelta
 from typing import TYPE_CHECKING
 
 from django.db import models, transaction
@@ -29,7 +29,9 @@ class SwapService:
     """خدمة تبديل الحصص بين المعلمين."""
 
     # ── ثوابت القوانين ────────────────────────────────────────────
-    MIN_ADVANCE_HOURS = 24  # القانون 6: حد أدنى 24 ساعة مسبقاً
+    # القانون 6: مهلة دقائق قبل بداية أبكر الحصتين (قرار المالك 2026-11-22)؛
+    # تُغيَّر من settings.SWAP_MIN_ADVANCE_MINUTES بلا هجرة.
+    MIN_ADVANCE_MINUTES = 45
     MAX_ADVANCE_DAYS = 14  # القانون 8: حد أقصى 14 يوم مسبقاً
     EXPIRY_HOURS = 48  # القانون 7: انتهاء صلاحية بعد 48 ساعة
     MAX_PENDING_PER_TEACHER = 2  # القانون 8: حد أقصى طلبين معلّقين
@@ -42,6 +44,60 @@ class SwapService:
         "التكنولوجيا",
         "تكنولوجيا المعلومات",
     }
+
+    # ── مهلة التبديل ───────────────────────────────────────────────
+
+    @staticmethod
+    def min_advance_minutes() -> int:
+        """المهلة الفعلية بالدقائق: الإعداد إن وُجد وإلا الافتراضي 45."""
+        from django.conf import settings
+
+        return int(getattr(settings, "SWAP_MIN_ADVANCE_MINUTES", SwapService.MIN_ADVANCE_MINUTES))
+
+    @staticmethod
+    def _deadline_message() -> str:
+        return (
+            f"يجب أن يكتمل التبديل قبل {SwapService.min_advance_minutes()} "
+            "دقيقة على الأقل من بداية الحصة"
+        )
+
+    @staticmethod
+    def _aware_start(day: date, start: time) -> datetime:
+        """بداية الحصة في ذلك اليوم بتوقيت واعٍ."""
+        from django.utils import timezone as tz
+
+        moment = datetime.combine(day, start)
+        return tz.make_aware(moment) if tz.is_naive(moment) else moment
+
+    @staticmethod
+    def _deadline_missed(starts: datetime, now: datetime) -> bool:
+        """هل بقي لبداية الحصة أقل من المهلة؟"""
+        return starts - now < timedelta(minutes=SwapService.min_advance_minutes())
+
+    @staticmethod
+    def swap_deadline_missed(swap: TeacherSwap) -> bool:
+        """هل فاتت المهلة على أبكر حصتَي الطلب (يوم كلٍّ منهما)؟"""
+        from django.utils import timezone as tz
+
+        earliest = min(
+            SwapService._aware_start(swap.swap_date_a, swap.slot_a.start_time),
+            SwapService._aware_start(swap.swap_date_b, swap.slot_b.start_time),
+        )
+        return SwapService._deadline_missed(earliest, tz.now())
+
+    @staticmethod
+    def _cancel_for_deadline(swap: TeacherSwap) -> TeacherSwap:
+        """يُلغي الطلب لفوات المهلة ويُشعر الطالب؛ ولا يُنفَّذ التبديل."""
+        swap.status = "cancelled"
+        swap.save()
+        SwapService._notify(
+            swap,
+            swap.teacher_a,
+            title="أُلغي طلب التبديل",
+            body="انتهت مهلة التبديل قبل اكتمال الاعتماد",
+            event_type="swap_response",
+        )
+        return swap
 
     # ── التحقق الشامل من قوانين التبديل ───────────────────────────
 
@@ -66,7 +122,7 @@ class SwapService:
         8b. حد التبديلات الشهرية (4)
         5. حصص مزدوجة تُبدّل كوحدة
         """
-        from datetime import datetime, timedelta
+        from datetime import timedelta
 
         from django.utils import timezone as tz
 
@@ -94,13 +150,10 @@ class SwapService:
         if swap_date < today:
             errors.append("لا يمكن التبديل في تاريخ ماضٍ")
         else:
-            # حساب 24 ساعة من الآن
-            swap_datetime = datetime.combine(swap_date, slot_a.start_time)
-            swap_datetime = (
-                tz.make_aware(swap_datetime) if tz.is_naive(swap_datetime) else swap_datetime
-            )
-            if swap_datetime - now < timedelta(hours=SwapService.MIN_ADVANCE_HOURS):
-                errors.append("يجب تقديم الطلب قبل 24 ساعة على الأقل من موعد الحصة")
+            # المهلة من بداية أبكر الحصتين لا من حصة أ وحدها
+            starts = SwapService._aware_start(swap_date, min(slot_a.start_time, slot_b.start_time))
+            if SwapService._deadline_missed(starts, now):
+                errors.append(SwapService._deadline_message())
 
         # ── القانون 6b: حد أقصى 14 يوم ────────────────────────────
         if swap_date > today + timedelta(days=SwapService.MAX_ADVANCE_DAYS):
@@ -301,6 +354,8 @@ class SwapService:
             raise ValueError(f"لا يمكن الرد على طلب بحالة: {swap.get_status_display()}")
 
         swap.b_responded_at = tz.now()
+        if accepted and SwapService.swap_deadline_missed(swap):
+            return SwapService._cancel_for_deadline(swap)
         if accepted:
             # والجهةُ التاليةُ المنسّقون دائماً — لا النائبُ عند اختلاف
             # المادّتين. فاختلافُهما يعني منسّقَين لا مرجعاً أعلى.
@@ -313,6 +368,16 @@ class SwapService:
                 body=f"بانتظار موافقة {waiting}",
                 event_type="swap_response",
             )
+            # الجهةُ المنتظَرة تُشعَر فوراً: منسّقُ كلّ جهةٍ لم تُوقَّع بعد
+            heads = {swap.coordinator_for(side) for side in swap.awaiting_sides}
+            for head in sorted((h for h in heads if h is not None), key=lambda u: u.pk):
+                SwapService._notify(
+                    swap,
+                    head,
+                    title="طلب تبديل بانتظار توقيعك",
+                    body=f"{swap.teacher_a.full_name} و{swap.teacher_b.full_name}",
+                    event_type="swap_response",
+                )
             if swap.absence_id:
                 # تبديلُ غيابٍ وقّعه منسّقاه حين بدأه: ينتقل إلى النائب بعد القبول.
                 from operations.services.absence_swap import AbsenceSwapService
@@ -389,6 +454,9 @@ class SwapService:
         valid_statuses = ("pending_coordinator", "pending_vp", "accepted_b")
         if swap.status not in valid_statuses:
             raise ValueError(f"لا يمكن اعتماد طلب بحالة: {swap.get_status_display()}")
+
+        if approved and SwapService.swap_deadline_missed(swap):
+            return SwapService._cancel_for_deadline(swap)
 
         swap.approved_by = approved_by
         swap.approved_at = tz.now()
