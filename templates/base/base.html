@@ -333,7 +333,7 @@
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
       {% endif %}
 
-    {% elif role == "admin_supervisor" %}
+    {% elif role == "admin_supervisor" or role == "student_observer" and request.user|can_open:"wings:record_index" or role == "services_worker" and request.user|can_open:"wings:record_index" %}
       {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% icon "dashboard" %} الرئيسية</a>
       {% endif %}
@@ -977,7 +977,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
 {% endif %}
 
 {# ── Coordinator Schedule Dropdown ── #}
-{% if role == "admin_supervisor" %}
+{% if role == "admin_supervisor" or role == "student_observer" and request.user|can_open:"wings:record_index" or role == "services_worker" and request.user|can_open:"wings:record_index" %}
 {# المشرفُ الإداريّ: طلبةُ جناحه وحدَهم (قرارا 2026-09-14/15) — متابعةٌ ورصدٌ، لا إضافةَ ولا انتقالاتٍ ولا أنشطة #}
 <div class="sd-menu sd-menu--cols-3" id="m-wing-students" role="menu" aria-label="طلبة جناحي">
   <div class="sd-section">
