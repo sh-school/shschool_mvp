@@ -6,7 +6,7 @@ from functools import cache
 
 from core.capabilities.assessment import assessment_capabilities
 from core.capabilities.attendance_schedule import attendance_schedule_capabilities
-from core.capabilities.base import Capability, Shared
+from core.capabilities.base import Capability, Shared, wing_holder_parity
 from core.capabilities.behavior import behavior_capabilities
 from core.capabilities.clinic_library_transport import clinic_library_transport_capabilities
 from core.capabilities.dashboard import dashboard_capabilities
@@ -59,7 +59,9 @@ def registry() -> dict[str, Capability]:
         *wings_capabilities(shared),
     ]
     out = {}
-    for cap in caps:
+    # التطابقُ على السجلّ كلِّه: كلُّ ما يملكه مشرفُ الجناح بدوره يملكه حاملُ الجناح بالتعيين
+    # (قرارُ المالك 2026-11-23) عدا ``WING_PARITY_EXCEPTIONS``.
+    for cap in wing_holder_parity(caps):
         assert cap.key not in out, f"قدرةٌ مكرّرة: {cap.key}"
         out[cap.key] = cap
     return out

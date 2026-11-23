@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from core.capabilities.base import Capability, Shared, _cap, _delegated, _holds_a_wing
+from core.capabilities.base import (
+    Capability,
+    Shared,
+    _cap,
+    _delegated,
+    _holds_a_wing,
+    wing_holder_parity,
+)
 
 
 def wings_capabilities(shared: Shared) -> list[Capability]:
@@ -10,78 +17,80 @@ def wings_capabilities(shared: Shared) -> list[Capability]:
     from core.models.academic import WingCoverage
     from core.models.wing_assignment import WingAssignment
 
-    return [
-        # ── الأجنحة ─────────────────────────────────────────────────
-        _cap(
-            "wings.floors",
-            "شاشةُ الأجنحة والطوابق",
-            {
-                "principal",
-                "vice_admin",
-                "vice_academic",
-                "admin_supervisor",
-                "platform_developer",
-                "student_affairs_coordinator",  # بندٌ في قائمة إدارة شؤون الطلاب (D-273م)
-            },
-        ),
-        _cap("wings.assign_cover", "تكليفُ بديلٍ لجناح", WingCoverage.ASSIGNER_ROLES),
-        _cap(
-            "wings.manage",
-            "إدارةُ الأجنحة: تعيينُ مشرف الجناح والميدانيّ",
-            WingAssignment.ASSIGNER_ROLES,
-            basis="قرارُ المالك 2026-11-19 (W-20261119-001): يعيّن المديرُ والنائبُ الإداريّ ومنسّقُ شؤون الطلبة",
-        ),
-        _cap(
-            "wings.record_day",
-            "رصدُ يوم الشعبة في الجناح",
-            P.WING_DAY_RECORD,
-            scope="أجنحةُ المشرف (أصيلاً أو بديلاً)",
-            basis=(
-                "قرارُ 2026-09-12: المشرفُ الإداريّ يحصر الغياب — وقرارُ المدير: البديلُ "
-                "مشرفٌ إداريٌّ أو ملاحظُ طلبةٍ أو عاملُ خدمات، فيرصد بتكليفه لا بدوره"
+    return wing_holder_parity(
+        [
+            # ── الأجنحة ─────────────────────────────────────────────────
+            _cap(
+                "wings.floors",
+                "شاشةُ الأجنحة والطوابق",
+                {
+                    "principal",
+                    "vice_admin",
+                    "vice_academic",
+                    "admin_supervisor",
+                    "platform_developer",
+                    "student_affairs_coordinator",  # بندٌ في قائمة إدارة شؤون الطلاب (D-273م)
+                },
             ),
-            grant=_holds_a_wing,
-        ),
-        _cap(
-            "wings.exit_permit_request",
-            "إصدارُ وطباعةُ ورقة خروج طالب",
-            frozenset(P.WING_DAY_RECORD | {"vice_academic"}),
-            scope="مشرفُ الجناح لشُعب جناحه، والمنسّقُ والنائبان والمدير للمدرسة كلِّها",
-            basis=(
-                "قرارُ المالك 2026-11-16 (W-20261116-003): تُصدَر الورقةُ وتُطبع بلا اعتمادٍ في المنصّة "
-                "ويوقّعها بالقلم النائبُ الإداريّ أو المكلَّف بعمله؛ والمعلّمُ لا يطلب ولا يطبع"
+            _cap("wings.assign_cover", "تكليفُ بديلٍ لجناح", WingCoverage.ASSIGNER_ROLES),
+            _cap(
+                "wings.manage",
+                "إدارةُ الأجنحة: تعيينُ مشرف الجناح والميدانيّ",
+                WingAssignment.ASSIGNER_ROLES,
+                basis="قرارُ المالك 2026-11-19 (W-20261119-001): يعيّن المديرُ والنائبُ الإداريّ ومنسّقُ شؤون الطلبة",
             ),
-            grant=_holds_a_wing,
-            # قرارُ المالك 2026-10-17: المعلّمُ وحدَه لا من يرثه (المساعدان وأخصائيّو التربية الخاصة والمنسّقون).
-            not_inherited_by={
-                "teacher_assistant",
-                "ese_teacher",
-                "ese_assistant",
-                "coordinator",
-                "activities_coordinator",
-                "e_projects_coordinator",
-            },
-        ),
-        _cap(
-            "wings.school_wide",
-            "حاصرُ الغياب العامّ — الأجنحةُ الخمسةُ كلُّها",
-            P.SCHOOL_WIDE_ABSENCE_ROLES,
-            scope="أجنحةُ المدرسة كلُّها، للغياب وحدَه",
-            basis=(
-                "قرارُ المالك 2026-10-06: موظّفٌ إداريٌّ (مشرفٌ إداريّ) يحصر الغيابَ في المدرسة كلِّها، "
-                "فيرى الأجنحةَ الخمسةَ ويعتمد رصدَ المعلّمين ويصحّحه ويحوّل العذرَ بمهلته، ويرفع ملخّصَ الحصّتين "
-                "الأولى والثانية للوزارة يدويّاً. قدرةٌ مفوَّضةٌ باسمه (يمنحها المديرُ أو النائبُ الأكاديميّ) "
-                "لا دورٌ جديد؛ ويبقى عنه ما يُحجب عن مشرف الجناح (الدرجاتُ وملاحظاتُ الأخصائيّين وسببُ العيادة)"
+            _cap(
+                "wings.record_day",
+                "رصدُ يوم الشعبة في الجناح",
+                P.WING_DAY_RECORD,
+                scope="أجنحةُ المشرف (أصيلاً أو بديلاً)",
+                basis=(
+                    "قرارُ 2026-09-12: المشرفُ الإداريّ يحصر الغياب — وقرارُ المدير: البديلُ "
+                    "مشرفٌ إداريٌّ أو ملاحظُ طلبةٍ أو عاملُ خدمات، فيرصد بتكليفه لا بدوره"
+                ),
+                grant=_holds_a_wing,
             ),
-            grant=_delegated("wings.school_wide"),
-        ),
-        _cap(
-            "wings.excuse_after_deadline",
-            "قبولُ عذرِ غيابٍ بعد مهلة اليومين",
-            P.EXCUSE_AFTER_DEADLINE,
-            basis=(
-                "الدليل التنظيميّ 2026 م 3.4.1.5: إن لم يردّ وليُّ الأمر خلال يومين حُسب "
-                "الغيابُ بلا عذر — فما بعد المهلة استثناءٌ يقرّره النائبُ الإداريّ بسبب"
+            _cap(
+                "wings.exit_permit_request",
+                "إصدارُ وطباعةُ ورقة خروج طالب",
+                frozenset(P.WING_DAY_RECORD | {"vice_academic"}),
+                scope="مشرفُ الجناح لشُعب جناحه، والمنسّقُ والنائبان والمدير للمدرسة كلِّها",
+                basis=(
+                    "قرارُ المالك 2026-11-16 (W-20261116-003): تُصدَر الورقةُ وتُطبع بلا اعتمادٍ في المنصّة "
+                    "ويوقّعها بالقلم النائبُ الإداريّ أو المكلَّف بعمله؛ والمعلّمُ لا يطلب ولا يطبع"
+                ),
+                grant=_holds_a_wing,
+                # قرارُ المالك 2026-10-17: المعلّمُ وحدَه لا من يرثه (المساعدان وأخصائيّو التربية الخاصة والمنسّقون).
+                not_inherited_by={
+                    "teacher_assistant",
+                    "ese_teacher",
+                    "ese_assistant",
+                    "coordinator",
+                    "activities_coordinator",
+                    "e_projects_coordinator",
+                },
             ),
-        ),
-    ]
+            _cap(
+                "wings.school_wide",
+                "حاصرُ الغياب العامّ — الأجنحةُ الخمسةُ كلُّها",
+                P.SCHOOL_WIDE_ABSENCE_ROLES,
+                scope="أجنحةُ المدرسة كلُّها، للغياب وحدَه",
+                basis=(
+                    "قرارُ المالك 2026-10-06: موظّفٌ إداريٌّ (مشرفٌ إداريّ) يحصر الغيابَ في المدرسة كلِّها، "
+                    "فيرى الأجنحةَ الخمسةَ ويعتمد رصدَ المعلّمين ويصحّحه ويحوّل العذرَ بمهلته، ويرفع ملخّصَ الحصّتين "
+                    "الأولى والثانية للوزارة يدويّاً. قدرةٌ مفوَّضةٌ باسمه (يمنحها المديرُ أو النائبُ الأكاديميّ) "
+                    "لا دورٌ جديد؛ ويبقى عنه ما يُحجب عن مشرف الجناح (الدرجاتُ وملاحظاتُ الأخصائيّين وسببُ العيادة)"
+                ),
+                grant=_delegated("wings.school_wide"),
+            ),
+            _cap(
+                "wings.excuse_after_deadline",
+                "قبولُ عذرِ غيابٍ بعد مهلة اليومين",
+                P.EXCUSE_AFTER_DEADLINE,
+                basis=(
+                    "الدليل التنظيميّ 2026 م 3.4.1.5: إن لم يردّ وليُّ الأمر خلال يومين حُسب "
+                    "الغيابُ بلا عذر — فما بعد المهلة استثناءٌ يقرّره النائبُ الإداريّ بسبب"
+                ),
+            ),
+        ]
+    )
