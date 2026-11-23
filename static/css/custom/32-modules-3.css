@@ -1044,6 +1044,7 @@
   color: var(--text-secondary);
   font-size: var(--text-xs);
 }
+.sa-combo__empty { padding: var(--sp-2) var(--sp-3); color: var(--text-secondary); font-size: var(--text-sm); }
 .sa-combo__name { flex: 1 1 auto; min-inline-size: 0; overflow-wrap: anywhere; }
 .sa-combo__picked {
   display: flex;
