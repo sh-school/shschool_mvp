@@ -504,6 +504,23 @@ EXCUSE_AFTER_DEADLINE = frozenset({"vice_admin", "principal", "student_affairs_c
 #: والنطاقُ نفسُه في `wings/scope.py`.
 WING_BOUND_ROLES = frozenset({"admin_supervisor", "services_worker", "student_observer"})
 
+
+def sees_wing_supervisor_ui(user: Any, role: str | None = None) -> bool:
+    """أيرى هذا المستخدمُ قوائمَ مشرف الجناح ولوحتَه؟ — مشرفٌ بدوره أو حاملُ جناحٍ بتعيينه.
+
+    قرارُ المالك 2026-11-23: الميدانيُّ (ملاحظُ طلبةٍ غالباً) يعمل بدل المشرف عند غيابه
+    فيرى نوافذَه نفسَها؛ والدورُ الأساسيُّ لا يتغيّر. والنائبُ الإداريّ له قائمتُه فلا يُستبدل بها.
+    """
+    role = role if role is not None else user.get_role()
+    if role == "admin_supervisor":
+        return True
+    if role == "vice_admin":
+        return False
+    from core.models.academic import Wing
+
+    return Wing.is_assigned(user)
+
+
 #: متابعةُ حضور الطلبة وتأخّرهم وسلوكهم في شؤون الطلبة: القيادةُ للمدرسة، والمشرفُ لجناحه.
 #: الدليلُ 2026: الغيابُ اليوميّ وإخطارُ وليّ الأمر، والتأخّرُ الصباحيُّ من أوّل مرّة (م 3.4.2.2).
 STUDENT_FOLLOW_UP = STUDENT_AFFAIRS_MANAGE | frozenset({"admin_supervisor"})
