@@ -103,7 +103,8 @@ class TransferForm(forms.Form):
     """تسجيل طلب انتقال طالب — وارد أو صادر."""
 
     student_id = forms.UUIDField(
-        error_messages={"required": "يرجى اختيار الطالب."},
+        # النصُّ نفسُه في الواجهة (transfer-form.js) حين يُرسَل الطلبُ بلا اختيار.
+        error_messages={"required": "يرجى اختيار الطالب.", "invalid": "يرجى اختيار الطالب."},
     )
     direction = forms.ChoiceField(
         choices=StudentTransfer.DIRECTION_CHOICES,

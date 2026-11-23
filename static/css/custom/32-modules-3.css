@@ -1002,6 +1002,61 @@
 .sa-form-errors { margin-block-end: var(--sp-4); }
 .sa-span-full { grid-column: 1 / -1; }
 
+/* ── بحثُ الطالب في نموذج الانتقال: combobox بلوحةٍ منسدلة (ARIA 1.2) — W-20261123-013 ── */
+.sa-combo { position: relative; }
+.sa-combo__list {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 100%;
+  z-index: var(--z-dropdown);
+  margin: var(--sp-1) 0 0;
+  padding: var(--sp-1);
+  list-style: none;
+  max-block-size: 18rem;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-dropdown);
+}
+.sa-combo__list[hidden],
+.sa-combo__picked[hidden] { display: none; }
+.sa-combo__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-block-size: 2.75rem;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.sa-combo__option:hover,
+.sa-combo__option[aria-selected="true"] { background: var(--maroon-bg); color: var(--maroon-fg); }
+.sa-combo__mark { background: transparent; color: var(--maroon-fg); font-weight: 700; }
+.sa-combo__chip {
+  flex-shrink: 0;
+  padding: var(--sp-0-5) var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-alt);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+.sa-combo__name { flex: 1 1 auto; min-inline-size: 0; overflow-wrap: anywhere; }
+.sa-combo__picked {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+}
+.sa-combo__picked-name { flex: 1 1 auto; font-weight: 700; color: var(--text-primary); overflow-wrap: anywhere; }
+
 .sa-link { color: var(--maroon-fg); font-weight: 600; text-decoration: none; }
 .sa-inline-form { display: inline; }
 .sa-row-actions { display: flex; gap: var(--sp-1); justify-content: center; flex-wrap: nowrap; }

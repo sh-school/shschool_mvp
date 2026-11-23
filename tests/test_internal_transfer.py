@@ -230,3 +230,74 @@ def test_an_external_outgoing_transfer_still_deactivates_as_before(
     run_full_chain(transfer, student_affairs_coordinator_user)
 
     assert not StudentEnrollment.objects.get(student=kid, class_group=klass).is_active
+
+
+# ── بحثُ الطالب combobox ورسالةُ منع الإرسال بلا اختيار (W-20261123-013) ──
+
+
+def test_student_search_results_are_listbox_options_with_class_chip(
+    client, student_affairs_coordinator_user, kid, klass
+):
+    client.force_login(student_affairs_coordinator_user)
+
+    body = client.get(
+        reverse("student_affairs:transfer_student_search"), {"q": "طالب"}
+    ).content.decode()
+
+    assert 'role="option"' in body and 'id="transfer-student-opt-0"' in body
+    assert "sa-combo__chip" in body and klass.short_label in body
+    assert "<button" not in body
+
+
+def test_create_form_renders_an_aria_combobox_with_a_listbox_and_status_line(
+    client, student_affairs_coordinator_user
+):
+    client.force_login(student_affairs_coordinator_user)
+
+    body = client.get(reverse("student_affairs:transfer_create")).content.decode()
+
+    assert 'role="combobox"' in body and 'aria-autocomplete="list"' in body
+    assert 'aria-controls="transfer-student-results"' in body
+    assert 'role="listbox"' in body and "data-student-clear" in body
+    assert 'aria-live="polite"' in body and "data-student-error" in body
+
+
+def test_post_without_a_student_shows_the_arabic_choose_student_message(
+    client, student_affairs_coordinator_user, klass2
+):
+    client.force_login(student_affairs_coordinator_user)
+
+    response = client.post(
+        reverse("student_affairs:transfer_create"),
+        {
+            "direction": "internal",
+            "to_class_group_id": str(klass2.pk),
+            "transfer_date": PAST.isoformat(),
+        },
+    )
+
+    body = response.content.decode()
+    assert response.status_code == 200
+    assert body.count("يرجى اختيار الطالب.") >= 2  # رسالةُ الخادم + رسالةُ الواجهة المخفيّة
+    assert "This field is required" not in body
+    assert not StudentTransfer.objects.exists()
+
+
+def test_post_with_a_malformed_student_id_uses_the_same_arabic_message(
+    client, student_affairs_coordinator_user
+):
+    client.force_login(student_affairs_coordinator_user)
+
+    response = client.post(
+        reverse("student_affairs:transfer_create"),
+        {
+            "student_id": "not-an-id",
+            "direction": "in",
+            "other_school_name": "مدرسة",
+            "transfer_date": PAST.isoformat(),
+        },
+    )
+
+    body = response.content.decode()
+    assert "Enter a valid value" not in body
+    assert 'role="alert">يرجى اختيار الطالب.' in body
