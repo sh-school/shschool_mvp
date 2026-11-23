@@ -62,6 +62,45 @@ def _assigned_to_a_wing(user: Any) -> bool:
     return Wing.is_assigned(user)
 
 
+#: قدراتٌ لا يرثها المعيَّنُ ميدانيّاً وإن ورثها مشرفُ الجناح بدوره — بسببها (قرارُ المالك 2026-11-23).
+#: التصويتُ في لجنة السلوك للمشرف الإداريّ **بالدور** (behavior/committee_services.py
+#: وcore/behavior_committee_roles.py)، لا بالتعيين: فلا يُمنح الميدانيُّ بدورٍ آخر مقعداً.
+WING_PARITY_EXCEPTIONS: dict[str, str] = {
+    "behavior.committee": "تصويتُ لجنة السلوك للمشرف الإداريّ بالدور لا بتعيين الجناح",
+}
+
+#: دورُ مشرف الجناح الذي يُقاس عليه التطابق.
+WING_SUPERVISOR_ROLE = "admin_supervisor"
+
+
+def with_wing_holder_parity(cap: Capability) -> Capability:
+    """يمنح حاملَ الجناح بأيّ دورٍ ما يملكه مشرفُ الجناح بدوره (قرارُ المالك 2026-11-23).
+
+    القاعدةُ بالتعيين لا بالدور: ملاحظُ طلبةٍ معيَّنٌ ميدانيّاً يعمل بدلَ المشرف عند غيابه
+    فيرى نوافذَه وقوائمَه وقدراتِه. والدورُ الأساسيُّ لا يتغيّر، وتبقى ``WING_PARITY_EXCEPTIONS``.
+    """
+    from dataclasses import replace
+
+    if cap.key in WING_PARITY_EXCEPTIONS or WING_SUPERVISOR_ROLE not in cap.expanded_roles:
+        return cap
+    existing = cap.grant
+    if existing is None:
+        return replace(cap, grant=_assigned_to_a_wing)
+    if existing is _assigned_to_a_wing or getattr(existing, "wing_parity", False):
+        return cap  # مُطبَّقٌ سلفاً — لا تغليفَ مزدوج
+
+    def either(user: Any) -> bool:
+        return bool(existing(user)) or _assigned_to_a_wing(user)
+
+    either.wing_parity = True  # type: ignore[attr-defined]
+    return replace(cap, grant=either)
+
+
+def wing_holder_parity(caps: list[Capability]) -> list[Capability]:
+    """``with_wing_holder_parity`` على قائمةِ قدراتِ وحدةٍ كاملة."""
+    return [with_wing_holder_parity(cap) for cap in caps]
+
+
 def _delegated(key: str) -> Callable:
     """منحٌ لا يقرؤه الدور: القدرةُ المفوَّضةُ باسم مستخدمٍ بمنحٍ فعّال (`core/capability_grants.py`)."""
 

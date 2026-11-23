@@ -33,6 +33,7 @@ from core.dashboard_selectors import (
 )
 from core.landing import landing_or_denied
 from core.models.academic import Wing
+from core.permissions import sees_wing_supervisor_ui
 
 
 def _role_home(user, role):
@@ -118,6 +119,9 @@ def dashboard(request):
         ctx.update(get_transport_ctx(user, school, today))
     elif role in SERVICE_ROLES:
         ctx.update(get_service_ctx(user, school, today, role))
+    elif sees_wing_supervisor_ui(user, role):
+        # الميدانيُّ المعيَّنُ بأيّ دورٍ (قرارُ المالك 2026-11-23): لوحةُ مشرف الجناح نفسُها
+        ctx.update(get_admin_ops_ctx(user, school, today, "admin_supervisor"))
     elif Wing.is_held_by(user, today):
         # بديلُ الجناح من ملاحظي الطلبة وعمّال الخدمات (قرارُ المدير): لا لوحةَ لدوره،
         # ولوحتُه يومَ تكليفه رصدُ جناحه — لا «لم تُفعَّل صلاحيّاتُك».
