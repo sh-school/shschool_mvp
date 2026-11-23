@@ -11,7 +11,7 @@ attrs==26.1.0
 autobahn==26.11.1
 Automat==25.4.16
 billiard==4.3.2
-boto3==1.44.4
+boto3==1.44.7
 brotli==1.2.1
 cbor2==6.3.0
 celery==5.7.0
@@ -78,7 +78,7 @@ pdfplumber==0.11.10
 pillow==13.0.0
 # صورُ آيفون (HEIC) في أعذار الغياب — تُحوَّل JPEG في الخادم (core/photo_privacy.py)
 pillow-heif==1.8.1
-platformdirs==4.14.5
+platformdirs==4.14.7
 playwright==1.65.2
 pluggy==1.7.0
 prometheus_client==0.26.0
@@ -97,12 +97,12 @@ pycairo==1.29.2
 pycparser==3.12
 pydyf==0.13.0
 pyee==13.0.1
-pyHanko==0.38.1
+pyHanko==0.38.2
 pyhanko-certvalidator==0.33.0
 PyJWT==2.15.1
 pyOpenSSL==26.4.0
-pyotp==2.12.0
-pypdf==7.1.0
+pyotp==2.12.1
+pypdf==7.1.1
 pypdfium2==5.15.2
 pyphen==0.18.1
 python-bidi==0.6.12
@@ -136,7 +136,7 @@ tzdata==2026.6
 tzlocal==5.4.5
 ujson==6.1.0
 uritemplate==4.2.0
-uritools==7.0.0
+uritools==7.0.1
 urllib3==2.8.0
 vine==5.1.0
 wcwidth==0.9.4
