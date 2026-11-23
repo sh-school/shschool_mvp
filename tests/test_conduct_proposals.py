@@ -293,3 +293,44 @@ def test_the_proposals_link_shows_only_to_whoever_holds_a_wing(
     assert mine.status_code == 200 and link in mine.content.decode()
     other = client_as(general).get(reverse("wings:record_index"))
     assert link not in other.content.decode()
+
+
+def _field(school, klass, nid="29000000071"):
+    """ميدانيٌّ بدور student_observer معيَّنٌ على جناح الشعبة بسجلّ التعيينات."""
+    from core.models import WingAssignment
+    from tests.conftest import MembershipFactory, RoleFactory, UserFactory
+
+    user = UserFactory(full_name="ميداني الجناح", national_id=nid)
+    MembershipFactory(
+        user=user, school=school, role=RoleFactory(school=school, name="student_observer")
+    )
+    WingAssignment.objects.create(
+        wing=klass.wing, user=user, role="field_supervisor", start_date=dt.date(2020, 1, 1)
+    )
+    return user
+
+
+def test_the_field_supervisor_opens_behavior_proposals_without_403(
+    client_as, school, klass, kids, supervisor, teacher
+):
+    _day(klass, supervisor, teacher, school, {0: {kids[0]: "absent"}})
+    service.generate_for_day(school, SUNDAY)
+    field = _field(school, klass)
+    page = client_as(field).get(reverse("wings:conduct_proposals"))
+    assert page.status_code == 200 and kids[0].full_name in page.content.decode()
+
+
+def test_the_field_supervisor_opens_the_class_grid_as_the_holder(school, klass, supervisor):
+    from operations.attendance_policy import GRID_HOLDER, grid_roles
+
+    field = _field(school, klass)
+    assert GRID_HOLDER in grid_roles(field, klass, SUNDAY)
+    assert GRID_HOLDER in grid_roles(supervisor, klass, SUNDAY)
+
+
+def test_the_committee_vote_does_not_include_the_field_supervisor(school, klass, supervisor):
+    from core.behavior_committee_roles import BEHAVIOR_COMMITTEE, BEHAVIOR_COMMITTEE_CASE_SCOPED
+
+    field = _field(school, klass)
+    assert field.get_role() == "student_observer"
+    assert "student_observer" not in BEHAVIOR_COMMITTEE | BEHAVIOR_COMMITTEE_CASE_SCOPED
