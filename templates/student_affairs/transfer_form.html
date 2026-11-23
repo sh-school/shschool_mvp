@@ -24,15 +24,23 @@
 
       <div class="form-row">
 
-        {# الطالب: بحثٌ بالاسم (HTMX بعد حرفين) ثم اختيارٌ من المقترَحات؛ المعرّفُ في حقلٍ مخفيّ يقرأ الخادمُ نطاقَه #}
-        <div class="ui-field sa-span-full">
+        {# الطالب: combobox (ARIA 1.2) — بحثٌ بالاسم (HTMX) فلوحةُ نتائج؛ المعرّفُ في حقلٍ مخفيّ يقرأ الخادمُ نطاقَه #}
+        <div class="ui-field sa-span-full" data-student-field>
           <label for="f-student_q" class="ui-field__label">الطالب <span class="req-star" aria-hidden="true">*</span></label>
-          <input type="search" id="f-student_q" name="q" class="form-control" autocomplete="off" placeholder="اكتب حرفين على الأقل من اسم الطالب" value="{{ picked.name|default:'' }}"
-                 hx-get="{% url 'student_affairs:transfer_student_search' %}" hx-trigger="input changed delay:300ms" hx-target="#transfer-student-results" hx-swap="innerHTML">
+          <div class="sa-combo">
+            <input type="text" id="f-student_q" name="q" class="form-control" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="transfer-student-results" aria-describedby="transfer-student-status" placeholder="اكتب حرفين على الأقل من اسم الطالب" {% if picked %}hidden{% endif %}
+                   hx-get="{% url 'student_affairs:transfer_student_search' %}" hx-trigger="input changed delay:300ms" hx-target="#transfer-student-results" hx-swap="innerHTML">
+            <div class="sa-combo__picked" data-student-picked {% if not picked %}hidden{% endif %}>
+              <span class="sa-combo__picked-name" data-picked-name>{{ picked.name|default:'' }}</span>
+              <span class="sa-combo__chip" data-picked-class>{{ picked.class_label|default:'' }}</span>
+              <button type="button" class="btn-secondary btn-xs" data-student-clear>تغيير</button>
+            </div>
+            <ul id="transfer-student-results" class="sa-combo__list" role="listbox" aria-label="نتائج بحث الطالب" data-student-results hidden></ul>
+          </div>
           <input type="hidden" id="f-student_id" name="student_id" value="{{ picked.id|default:'' }}" data-grade="{{ picked.grade|default:'' }}" data-class-id="{{ picked.class_id|default:'' }}" data-class-label="{{ picked.class_label|default:'' }}">
-          <div id="transfer-student-results" data-student-results></div>
           {% for err in form.student_id.errors %}<p class="field-error" role="alert">{{ err }}</p>{% endfor %}
-          <p class="ui-field-hint" data-student-class aria-live="polite"></p>
+          <p class="field-error" role="alert" data-student-error hidden>يرجى اختيار الطالب.</p>
+          <p class="ui-field-hint" id="transfer-student-status" data-student-status role="status" aria-live="polite"></p>
         </div>
 
         {% field "direction" "اتجاه الانتقال" type="select" choices="in=وارد (← إلى مدرستنا)|out=صادر (→ من مدرستنا)|internal=داخلي (إلى شعبة أخرى في مدرستنا)" value=form.direction.value required=True %}
