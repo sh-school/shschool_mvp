@@ -232,3 +232,9 @@ app.conf.beat_schedule.update(clinic_autoclose_beat())
 from clinic.supply_beat import clinic_supply_beat  # noqa: E402
 
 app.conf.beat_schedule.update(clinic_supply_beat())
+
+# إلغاءُ طلبات التبديل المعلّقة المنتهية (W-20261123-002): مهمّتُها في `operations/swap_tasks.py` ومعطَّلةٌ حتى `SWAP_EXPIRY_BEAT=1`.
+app.autodiscover_tasks(["operations"], related_name="swap_tasks")
+from operations.swap_expiry_beat import swap_expiry_beat  # noqa: E402
+
+app.conf.beat_schedule.update(swap_expiry_beat())

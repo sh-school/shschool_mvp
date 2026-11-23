@@ -630,21 +630,27 @@ class SwapService:
     # ── انتهاء صلاحية الطلبات المعلّقة (القانون 7) ────────────────
 
     @staticmethod
-    def expire_stale_swaps() -> int:
+    def expire_stale_swaps(school: School | None = None) -> int:
         """
-        يُنفّذ دورياً (cron/management command) —
-        يُلغي الطلبات المعلّقة أكثر من 48 ساعة بدون رد من المعلم ب.
+        يُنفّذ دورياً (مهمة celery `operations.expire_stale_swaps`) —
+        يُلغي الطلبات المعلّقة أكثر من 48 ساعة بدون رد من المعلم ب،
+        ثم كلَّ طلبٍ معلّق فاتته مهلة الحصة (45 دقيقة). ثابتُ التكرار.
+        يعيد عدد الملغى؛ و`school=None` يشمل كل المدارس (للتوافق).
         """
         from datetime import timedelta
 
         from django.utils import timezone as tz
 
         cutoff = tz.now() - timedelta(hours=SwapService.EXPIRY_HOURS)
-        stale = TeacherSwap.objects.filter(
-            status="pending_b",
-            created_at__lt=cutoff,
-        ).select_related("teacher_a", "teacher_b")
-        count = stale.count()
+        base = TeacherSwap.objects.all()
+        if school is not None:
+            base = base.filter(school=school)
+        stale = list(
+            base.filter(status="pending_b", created_at__lt=cutoff).select_related(
+                "teacher_a", "teacher_b"
+            )
+        )
+        count = len(stale)
         for swap in stale:
             # [B4-PRE3] معاملة لكل طلب لا للدفعة كلّها.
             #
@@ -665,6 +671,15 @@ class SwapService:
                     body=f"لم يرد {swap.teacher_b.full_name} خلال 48 ساعة — يمكنك تقديم طلب جديد",
                     event_type="swap_expired",
                 )
+        # فوات مهلة الحصة: ما أُلغي أعلاه لم يعد معلّقاً فلا يُحسب مرتين
+        open_swaps = base.filter(
+            status__in=("pending_b", "accepted_b", "pending_coordinator", "pending_vp")
+        ).select_related("teacher_a", "teacher_b", "slot_a", "slot_b")
+        for swap in open_swaps:
+            if SwapService.swap_deadline_missed(swap):
+                with transaction.atomic():
+                    SwapService._cancel_for_deadline(swap)
+                count += 1
         if count:
             logger.info("SwapService: expired %d stale swaps", count)
         return count
