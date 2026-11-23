@@ -303,6 +303,14 @@ def _wing_holder_on(class_group: ClassGroup, day: dt.date) -> CustomUser | None:
     return holder
 
 
+def _wing_holder_ids_on(class_group: ClassGroup, day: dt.date) -> frozenset[int]:
+    """معرّفاتُ حاملَي جناح الشعبة في هذا اليوم: المشرفُ والميدانيّ بأيّ دورٍ أساسيّ (D-2026-11-23)."""
+    wing = class_group.wing
+    if wing is None or not wing.is_active:
+        return frozenset()
+    return frozenset(h.id for h in wing.holders(day) if h is not None)
+
+
 def grid_roles(user: CustomUser, class_group: ClassGroup, day: dt.date) -> frozenset[str]:
     """أدوارُ المستخدم في هذه الشعبة لهذا اليوم: `teacher` (إسنادٌ) و`holder` (حاملُ جناحها) و`leadership` (قيادةٌ إداريّةٌ أو حاصرُ الغياب العامّ) و`reader` (نائبٌ أكاديميّ).
 
@@ -318,8 +326,8 @@ def grid_roles(user: CustomUser, class_group: ClassGroup, day: dt.date) -> froze
     found: set[str] = set()
     if school_roles & GRID_WRITER_ROLES or holds_school_wide(user):
         found.add(GRID_LEADERSHIP)
-    holder = _wing_holder_on(class_group, day)
-    if holder is not None and holder.id == user.id:
+    # الميدانيّ يعمل كالمشرف تماماً: الحمل بالتعيين لا بالدور الأساسيّ.
+    if user.id in _wing_holder_ids_on(class_group, day):
         found.add(GRID_HOLDER)
     if is_class_assigned(user, class_group) or is_covering_class(user, class_group, day):
         found.add(GRID_TEACHER)

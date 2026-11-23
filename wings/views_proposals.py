@@ -20,9 +20,8 @@ from wings.services import wings_of
 def _own_wings(request):
     school = request.school
     year = academic_year_for_school(school)
-    own = [
-        w for w in wings_of(request.user, school, year) if w.current_supervisor() == request.user
-    ]
+    # حاملُ الجناح بأيّ دورٍ (مشرفٌ أو ميدانيّ) لا المشرفُ وحدَه؛ واعتمادُ المقترح عملُ جناحٍ لا تصويتُ لجنة.
+    own = [w for w in wings_of(request.user, school, year) if request.user in w.holders()]
     return school, year, own
 
 
