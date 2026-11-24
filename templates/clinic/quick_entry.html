@@ -15,14 +15,19 @@
     <a href="{% url 'clinic:record_visit' %}" class="btn-secondary btn-sm">النموذج الكامل</a>
   {% endpage_header %}
 
+  <div id="quick-incoming" data-quiet-poll hx-get="{% url 'clinic:quick_incoming' %}"
+       hx-trigger="every 20s, clinic-visit-changed from:body" hx-swap="innerHTML">
+    {% include "clinic/partials/_quick_incoming.html" %}
+  </div>
+
   <div class="clinic-quick__grid">
     <div>
       {% include "clinic/partials/_student_picker.html" %}
       <div id="quick-panel"></div>
     </div>
 
-    <div id="quick-queue" hx-get="{% url 'clinic:quick_queue' %}"
-         hx-trigger="load, every 30s, clinic-visit-changed from:body" hx-swap="innerHTML">
+    <div id="quick-queue" data-quiet-poll hx-get="{% url 'clinic:quick_queue' %}"
+         hx-trigger="load, every 20s, clinic-visit-changed from:body" hx-swap="innerHTML">
       {% include "clinic/partials/_quick_queue.html" %}
     </div>
   </div>
@@ -32,4 +37,5 @@
 
 {% block extra_js %}
 <script src="{% static 'js/clinic-student-picker.js' %}" defer></script>
+<script src="{% static 'js/clinic-quick-live.js' %}" defer></script>
 {% endblock %}

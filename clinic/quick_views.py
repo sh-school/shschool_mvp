@@ -19,6 +19,8 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
 from clinic import choices
+from clinic.exit_selectors import incoming_to_clinic
+from clinic.exit_services import depart_on_close, receive_arrival
 from clinic.models import ClinicVisit
 from clinic.queue import todays_queue
 from clinic.selectors import (
@@ -63,6 +65,11 @@ def _queue_rows(queue) -> int:
     return len(queue.waiting) + len(queue.in_care) + len(queue.done)
 
 
+def _incoming(school) -> list[dict]:
+    now = timezone.now()
+    return incoming_to_clinic(school, timezone.localdate(now), now)
+
+
 def _changed(response: HttpResponse) -> HttpResponse:
     """يُعلم الطابورَ بالتحديث فيُعيد جلب نفسه."""
     response["HX-Trigger"] = json.dumps({"clinic-visit-changed": True})
@@ -85,6 +92,7 @@ def quick_entry(request):
             "queue": queue,
             "classes": class_options(school),
             "recent": recent_visitors(school, timezone.localdate()),
+            "incoming": _incoming(school),
             "mode": "quick",
         },
     )
@@ -153,6 +161,24 @@ def quick_start(request):
 
 @_protected
 @require_POST
+def quick_receive(request):
+    """«استلام» بنقرةٍ واحدة: وصولُ العيادة ثمّ زيارةٌ سريعةٌ للطالب نفسه؛ الضغطةُ الثانية تُعيد الزيارةَ المفتوحة ولا تكرّر شيئاً."""
+    student = receive_arrival(request.school, request.POST.get("exit_id"), request.user)
+    if student is None:
+        raise Http404
+    visit = ClinicService.start_visit(request.school, student, request.user)
+    return _changed(render(request, "clinic/partials/_quick_panel.html", _panel_ctx(visit)))
+
+
+@_protected
+@require_GET
+def quick_incoming(request):
+    ctx = {"incoming": _incoming(request.school)}
+    return render(request, "clinic/partials/_quick_incoming.html", ctx)
+
+
+@_protected
+@require_POST
 def quick_service(request, visit_id):
     school = request.school
     visit = get_object_or_404(ClinicVisit, id=visit_id, school=school)
@@ -178,6 +204,8 @@ def quick_close(request, visit_id):
         )
     except ValueError:
         return HttpResponse("طلبٌ غير صالح", status=400)
+    # إغلاقُ الزيارة هو لحظةُ «غادر»؛ عودةُ الطالب إلى فصله يسجّلها المشرف أو المعلّم لا الممرّض.
+    depart_on_close(school, visit.student_id, timezone.localdate(), request.user)
     return _changed(render(request, "clinic/partials/_quick_closed.html", {"visit": visit}))
 
 
