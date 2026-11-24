@@ -150,6 +150,10 @@
       <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% icon "students" %} إدارة شؤون الطلاب <span class="chv">▼</span></button>
       <button class="nb" id="btn-student-info" data-sd="m-student-info" aria-expanded="false" aria-controls="m-student-info">{% icon "student_info" %} مركز معلومات الطلبة <span class="chv">▼</span></button>
       <button class="nb" id="btn-quality"  data-sd="m-quality"  aria-expanded="false" aria-controls="m-quality">{% icon "quality" %} الجودة <span class="chv">▼</span></button>
+      {# متابعةُ الأداء المدرسيّ: للمدير ونائبيه وحدَهم (لا لبقيّة القيادة) — بنودُها عرضٌ فقط الآن. #}
+      {% if role == "principal" or role == "vice_academic" or role == "vice_admin" %}
+      <button type="button" class="nb" id="btn-performance-follow-up" data-sd="m-performance-follow-up" aria-expanded="false" aria-controls="m-performance-follow-up">{% icon "trend" %} متابعة الأداء المدرسي <span class="chv">▼</span></button>
+      {% endif %}
       <button class="nb" id="btn-services" data-sd="m-services" aria-expanded="false" aria-controls="m-services">{% icon "services" %} الخدمات <span class="chv">▼</span></button>
       <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% icon "maintenance" %} الإدارة <span class="chv">▼</span></button>
 
@@ -712,6 +716,44 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   {% endif %}
   </div>
 </div>
+
+{% comment %}
+متابعةُ الأداء المدرسيّ: أقسامٌ وبنودٌ نصّيّةٌ للعرض فقط — بلا رابطٍ ولا href (يُقرَّر لاحقاً ما يُربط بكلّ بند).
+البندُ span بدور menuitem وaria-disabled فتقرؤه قارئاتُ الشاشة بنداً غيرَ متاحٍ، والنصُّ المخفيّ «قريباً» يصرّح بذلك.
+{% endcomment %}
+{% if role == "principal" or role == "vice_academic" or role == "vice_admin" %}
+<div class="sd-menu sd-menu--cols-3" id="m-performance-follow-up" role="menu" aria-label="متابعة الأداء المدرسي">
+  <div class="sd-section">
+  <div class="sd-label">القيادة العليا</div>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">النائب الإداري<span class="sr-only"> — قريبًا</span></span>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">النائب الأكاديمي<span class="sr-only"> — قريبًا</span></span>
+  </div>
+  <div class="sd-section">
+  <div class="sd-label">الكادر الأكاديمي</div>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">الزيارات الصفية<span class="sr-only"> — قريبًا</span></span>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">البحث العلمي<span class="sr-only"> — قريبًا</span></span>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">الحصص التبادلية<span class="sr-only"> — قريبًا</span></span>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">الحصص المكتبية<span class="sr-only"> — قريبًا</span></span>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">حصص المختبرات<span class="sr-only"> — قريبًا</span></span>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">الإرشاد الأكاديمي<span class="sr-only"> — قريبًا</span></span>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">مصادر التعلم<span class="sr-only"> — قريبًا</span></span>
+  </div>
+  <div class="sd-section">
+  <div class="sd-label">الكادر الإداري</div>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">الاجتماعي<span class="sr-only"> — قريبًا</span></span>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">النفسي<span class="sr-only"> — قريبًا</span></span>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">منسق شؤون الطلاب<span class="sr-only"> — قريبًا</span></span>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">الأقسام الإدارية<span class="sr-only"> — قريبًا</span></span>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">الإشراف الإداري<span class="sr-only"> — قريبًا</span></span>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">ملاحظو الباصات<span class="sr-only"> — قريبًا</span></span>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">الاستقبال<span class="sr-only"> — قريبًا</span></span>
+  </div>
+  <div class="sd-section sd-section--wide">
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">الخطط المدرسية<span class="sr-only"> — قريبًا</span></span>
+  <span class="sd-item-soon" role="menuitem" aria-disabled="true">متابعات الوزارة<span class="sr-only"> — قريبًا</span></span>
+  </div>
+</div>
+{% endif %}
 
 {% comment %}
 أقسامٌ بعناوينها كبقيّة القوائم (m-staff-affairs وm-quality): العيادةُ قسمٌ بروابطها — لوحتُها وعلامةُ المراعاة
