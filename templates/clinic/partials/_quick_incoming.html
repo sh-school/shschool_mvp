@@ -13,6 +13,8 @@
         <button type="submit" class="clinic-tap btn-primary">استلام</button>
       </form>
     </li>
+    {% empty %}
+    <li class="text-secondary">لا قادمين الآن</li>
     {% endfor %}
   </ul>
 </section>
