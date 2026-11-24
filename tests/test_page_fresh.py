@@ -1,5 +1,6 @@
-"""عمرُ بيانات الصفحة وتحديثُها (W-20261012-014، D-410م): المؤشّرُ والزرُّ في base.html، والتحديثُ التلقائيّ بعد خفاءٍ يزيد على 120 ثانية.
+"""عمرُ بيانات الصفحة وتحديثُها (W-20261012-014، D-410م، وW-20261124-008): المؤشّرُ والزرُّ في base.html.
 
+العودةُ إلى تبويبٍ غاب عنه المستخدم أكثرَ من 120 ثانية تُعلِّم المؤشّرَ بالقِدَم فقط ولا تُعيد التحميل أبداً؛ والتحديثُ بضغطة المستخدم.
 الشقّ النصّيّ يعمل دائماً؛ وشقُّ السلوك يشغّل `static/js/page-fresh.js` في `node` بمستندٍ مصطنعٍ وساعةٍ مُحاكاة (يُتخطّى بلا node).
 """
 
@@ -39,6 +40,15 @@ def test_threshold_is_two_minutes_and_listens_to_visibility():
     assert "page-live:updated" in text
 
 
+def test_visibility_path_never_reloads_it_only_marks_stale():
+    text = JS.read_text(encoding="utf-8")
+    start = text.index('addEventListener("visibilitychange"')
+    end = text.index("if (button)", start)
+    segment = text[start:end]
+    assert "reload" not in segment
+    assert "markStale()" in segment
+
+
 HARNESS = r"""
 const fs = require("fs");
 const vm = require("vm");
@@ -53,9 +63,15 @@ class FakeDate extends RealDate {
 const handlers = {};
 let reloads = 0, confirms = 0;
 const listeners = {};
+const attrs = {};
+const cls = new Set(["btn-ghost"]);
+let tailNode = null;
+const lead = { nodeType: 3, nodeValue: "آخر تحديث " };
 const box = {
   hidden: false,
   getAttribute: () => String(cfg.serverNow),
+  setAttribute: (k, v) => { attrs[k] = v; },
+  removeAttribute: (k) => { delete attrs[k]; },
   querySelector: (sel) => sel === "[data-fresh-time]" ? timeNode : (sel === "[data-fresh-refresh]" ? button : (sel === "[data-fresh-gate]" ? gate : null)),
 };
 // نموذجُ التأكيد المخفيّ: يعترضه base.js ويعرض نافذةَ المنصّة (نحاكيها: confirms++ ثم تأكيدٌ بـ_confirmed وإعادةُ إرسال).
@@ -72,8 +88,16 @@ const gate = {
     }
   },
 };
-const timeNode = { textContent: "" };
-const button = { addEventListener: (t, f) => { handlers.click = f; } };
+const timeNode = {
+  textContent: "",
+  previousSibling: lead,
+  nextSibling: null,
+  parentNode: { insertBefore: (n) => { tailNode = n; } },
+};
+const button = {
+  addEventListener: (t, f) => { handlers.click = f; },
+  classList: { add: (c) => cls.add(c), remove: (c) => cls.delete(c) },
+};
 const mainEl = {
   contains: () => true,
   querySelector: (sel) => cfg.main.includes(sel) ? {getAttribute: () => "k"} : null,
@@ -83,6 +107,7 @@ const document = {
   querySelector: (sel) => sel === "[data-page-fresh]" ? box : null,
   getElementById: (id) => id === "main-content" ? mainEl : null,
   addEventListener: (t, f) => { (listeners[t] = listeners[t] || []).push(f); },
+  createTextNode: (t) => ({ nodeType: 3, nodeValue: t }),
 };
 const ctx = {
   document, Date: FakeDate, Intl, console,
@@ -99,9 +124,17 @@ for (const step of cfg.steps) {
   if (step.type === "show") { document.hidden = false; nowMs += step.after * 1000; fire("visibilitychange"); }
   if (step.type === "input") { fire("input", { target: {} }); }
   if (step.type === "click") { handlers.click(); }
+  if (step.type === "nav") { fire("htmx:afterSwap", { detail: { pageNav: true } }); }
 }
-console.log(JSON.stringify({ reloads, confirms, time: timeNode.textContent, hidden: box.hidden }));
+const label = lead.nodeValue + timeNode.textContent + (tailNode ? tailNode.nodeValue : "");
+console.log(JSON.stringify({
+  reloads, confirms, time: timeNode.textContent, hidden: box.hidden,
+  label, live: attrs["aria-live"] || "", btn: [...cls],
+}));
 """
+
+FRESH_LABEL = "آخر تحديث 01:13"
+STALE_LABEL = "بيانات منذ 01:13 — حدّث"
 
 
 def _run(steps, *, path="/dashboard/", main="", draft=None, confirm=True):
@@ -125,40 +158,83 @@ def _run(steps, *, path="/dashboard/", main="", draft=None, confirm=True):
     return json.loads(out.strip().splitlines()[-1])
 
 
-def test_returning_after_more_than_two_minutes_reloads():
-    assert _run([{"type": "hide"}, {"type": "show", "after": 121}])["reloads"] == 1
+AWAY_600 = [{"type": "hide"}, {"type": "show", "after": 600}]
 
 
-def test_returning_within_two_minutes_does_not_reload():
-    assert _run([{"type": "hide"}, {"type": "show", "after": 119}])["reloads"] == 0
+def test_returning_after_more_than_two_minutes_marks_stale_without_reload():
+    r = _run([{"type": "hide"}, {"type": "show", "after": 121}])
+    assert r["reloads"] == 0
+    assert r["label"] == STALE_LABEL
+    assert r["live"] == "polite"
+    assert r["btn"] == ["btn-warning"]
 
 
-def test_dirty_page_is_not_auto_refreshed_and_input_is_kept():
+def test_returning_within_two_minutes_does_not_mark_stale():
+    r = _run([{"type": "hide"}, {"type": "show", "after": 119}])
+    assert r["reloads"] == 0
+    assert r["label"] == FRESH_LABEL
+    assert r["live"] == ""
+    assert r["btn"] == ["btn-ghost"]
+
+
+def test_repeated_returns_keep_one_stale_mark_and_do_not_reannounce():
+    r = _run(AWAY_600 + AWAY_600)
+    assert r["reloads"] == 0
+    assert r["label"] == STALE_LABEL
+    assert r["live"] == "polite"
+
+
+def test_dirty_page_is_only_marked_stale_and_input_is_kept():
     r = _run([{"type": "input"}, {"type": "hide"}, {"type": "show", "after": 600}])
     assert r["reloads"] == 0
+    assert r["label"] == STALE_LABEL
 
 
-def test_saved_draft_blocks_auto_refresh():
-    r = _run(
-        [{"type": "hide"}, {"type": "show", "after": 600}],
-        main="[data-draft-key]",
-        draft='{"1":"p"}',
-    )
+def test_saved_draft_page_is_marked_stale_not_reloaded():
+    r = _run(AWAY_600, main="[data-draft-key]", draft='{"1":"p"}')
     assert r["reloads"] == 0
+    assert r["label"] == STALE_LABEL
 
 
-def test_live_pages_are_not_auto_refreshed():
-    r = _run(
-        [{"type": "hide"}, {"type": "show", "after": 600}],
-        main="[data-live-url], [data-director-live]",
-    )
+@pytest.mark.parametrize(
+    "main",
+    [
+        "[data-live-url], [data-director-live]",
+        "[data-quiet-poll]",
+        '[hx-trigger*="every"]',
+    ],
+)
+def test_live_pages_are_never_marked_stale(main):
+    r = _run(AWAY_600, main=main)
     assert r["reloads"] == 0
+    assert r["label"] == FRESH_LABEL
+    assert r["live"] == ""
+    assert r["btn"] == ["btn-ghost"]
 
 
-def test_excluded_pages_are_hidden_and_never_refreshed():
+def test_hx_trigger_without_every_is_not_a_live_page():
+    r = _run(AWAY_600, main='[hx-trigger="click"]')
+    assert r["label"] == STALE_LABEL
+
+
+def test_excluded_pages_are_hidden_and_never_marked_or_refreshed():
     for path in ("/admin/x/", "/command-center/", "/exports/1/"):
-        r = _run([{"type": "hide"}, {"type": "show", "after": 600}], path=path)
+        r = _run(AWAY_600, path=path)
         assert r["reloads"] == 0 and r["hidden"] is True, path
+        assert r["live"] == "" and r["btn"] == ["btn-ghost"], path
+
+
+def test_page_nav_clears_the_stale_mark():
+    r = _run(AWAY_600 + [{"type": "nav"}])
+    assert r["reloads"] == 0
+    assert r["label"] == "آخر تحديث 01:23"
+    assert r["live"] == ""
+    assert r["btn"] == ["btn-ghost"]
+
+
+def test_manual_button_on_stale_clean_page_reloads_without_asking():
+    r = _run(AWAY_600 + [{"type": "click"}])
+    assert r["confirms"] == 0 and r["reloads"] == 1
 
 
 def test_manual_button_asks_first_when_dirty_and_respects_refusal():
@@ -166,6 +242,15 @@ def test_manual_button_asks_first_when_dirty_and_respects_refusal():
     assert asked["confirms"] == 1 and asked["reloads"] == 0
     accepted = _run([{"type": "input"}, {"type": "click"}], confirm=True)
     assert accepted["confirms"] == 1 and accepted["reloads"] == 1
+
+
+def test_manual_button_still_asks_on_a_stale_dirty_page():
+    r = _run(
+        [{"type": "input"}, {"type": "hide"}, {"type": "show", "after": 600}, {"type": "click"}],
+        confirm=False,
+    )
+    assert r["confirms"] == 1 and r["reloads"] == 0
+    assert r["label"] == STALE_LABEL
 
 
 def test_manual_button_on_clean_page_reloads_without_asking():
