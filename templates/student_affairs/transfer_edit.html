@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load icons %}
+{% load icons static %}
 {% load ui %}
 
 {% block title %}تعديل الانتقال{% endblock %}
@@ -15,7 +15,7 @@
   {% page_header "تعديل الانتقال" subtitle=transfer.student.full_name icon="refresh" %}{% endpage_header %}
 
   <div class="form-card">
-    <form method="post">
+    <form method="post" data-transfer-form data-direction="{{ transfer.direction }}" data-from-label="{{ source_label }}">
       {% csrf_token %}
 
       {% if form.non_field_errors %}
@@ -24,9 +24,12 @@
       </div>
       {% endif %}
 
+      {# تعريفٌ قصير بما يُعدَّل وما يثبت #}
+      {% callout "hint" %}الطالبُ والاتجاه لا يتغيّران بعد الإنشاء، ويُعدَّل الانتقالُ ما دام معلَّقًا فقط.<br>سببُ الانتقال مطلوب في الصادر.{% endcallout %}
+
       <div class="form-row">
-        <p class="ui-field-hint sa-span-full">الاتجاه: {{ transfer.get_direction_display }} — الطالبُ والاتجاه لا يتغيّران بعد الإنشاء.</p>
-        {% field "transfer_date" "تاريخ الانتقال" type="date" value=form.transfer_date.value required=True %}
+        <p class="ui-field-hint sa-span-full">الاتجاه: {{ transfer.get_direction_display }}</p>
+        {% field "transfer_date" "تاريخ الانتقال" type="date" value=form.transfer_date.value required=True error=form.transfer_date.errors.0 %}
         {% if transfer.direction == "internal" %}
         <div class="ui-field sa-span-full">
           <label for="f-to_class_group_id" class="ui-field__label">الشعبة المنقول إليها <span class="req-star" aria-hidden="true">*</span></label>
@@ -37,11 +40,16 @@
             {% endfor %}
           </select>
           {% for err in form.to_class_group_id.errors %}<p class="field-error" role="alert">{{ err }}</p>{% endfor %}
+          {# ملخّصُ الاتجاه: يتحدّث فور تغيير الشعبة #}
+          <p class="sa-transfer-summary" data-transfer-summary role="status" aria-live="polite" hidden></p>
         </div>
         {% else %}
         {% field "other_school_name" "المدرسة الأخرى" value=form.other_school_name.value placeholder="اسم المدرسة المنقول منها/إليها" required=True error=form.other_school_name.errors.0 css="sa-span-full" %}
         {% endif %}
-        {% field "reason" "السبب" type="textarea" rows=3 value=form.reason.value placeholder="سبب الانتقال..." css="sa-span-full" %}
+        <div class="sa-span-full">
+        {% field "reason" "السبب" type="textarea" rows=3 value=form.reason.value placeholder="سبب الانتقال (مطلوب في الصادر)" error=form.reason.errors.0 maxlength=1000 css="sa-span-full" %}
+          <p class="ui-field-hint" data-reason-count aria-live="off">0 / 1000</p>
+        </div>
         {% field "notes" "ملاحظات" type="textarea" rows=3 value=form.notes.value css="sa-span-full" %}
       </div>
 
@@ -53,3 +61,5 @@
   </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/transfer-form.js' %}" defer></script>{% endblock %}

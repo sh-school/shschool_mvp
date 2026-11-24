@@ -187,3 +187,61 @@ def test_the_edit_link_shows_for_pending_only(
 
     assert _edit_url(pending) in listing and _edit_url(approved) not in listing
     assert _edit_url(approved) not in detail.content.decode()
+
+
+# ── تحسين صفحة التعديل: تعريف وملخّص وتحقّق موحّد (W-20261124-003) ──
+
+
+def test_edit_page_shows_hint_counter_and_script(
+    client, student_affairs_coordinator_user, school, kid
+):
+    transfer = _transfer(school, kid, student_affairs_coordinator_user)
+    client.force_login(student_affairs_coordinator_user)
+
+    body = client.get(_edit_url(transfer)).content.decode()
+
+    assert "لا يتغيّران بعد الإنشاء" in body
+    assert "data-reason-count" in body and 'maxlength="1000"' in body
+    assert "js/transfer-form.js" in body and "data-transfer-form" in body
+
+
+def test_internal_edit_page_carries_the_direction_summary_source(
+    client, student_affairs_coordinator_user, school, kid, klass, klass2
+):
+    transfer = _transfer(school, kid, student_affairs_coordinator_user, direction="internal")
+    client.force_login(student_affairs_coordinator_user)
+
+    body = client.get(_edit_url(transfer)).content.decode()
+
+    assert "data-transfer-summary" in body
+    assert f'data-from-label="{klass.short_label}"' in body
+
+
+def test_out_edit_requires_a_reason_with_the_create_message(
+    client, student_affairs_coordinator_user, school, kid
+):
+    transfer = _transfer(school, kid, student_affairs_coordinator_user)
+    client.force_login(student_affairs_coordinator_user)
+
+    response = client.post(
+        _edit_url(transfer),
+        {"other_school_name": "مدرسة ثانية", "transfer_date": LATER.isoformat(), "reason": "  "},
+    )
+
+    assert response.status_code == 200
+    assert "سبب الانتقال مطلوب في الانتقال الصادر." in response.content.decode()
+    transfer.refresh_from_db()
+    assert transfer.other_school_name == "مدرسة أولى"
+
+
+def test_edit_uses_the_create_form_arabic_messages(
+    client, student_affairs_coordinator_user, school, kid
+):
+    transfer = _transfer(school, kid, student_affairs_coordinator_user)
+    client.force_login(student_affairs_coordinator_user)
+
+    body = client.post(
+        _edit_url(transfer), {"other_school_name": "م", "transfer_date": "x", "reason": "س" * 1001}
+    ).content.decode()
+
+    assert "أدخل تاريخًا صحيحًا." in body and "السبب لا يزيد عن 1000 حرف." in body
