@@ -1800,6 +1800,20 @@ textarea:focus-visible {
   pointer-events: none;
 }
 
+/* التحديثُ الهادئ: عنصرٌ يحمل data-quiet-poll (وما بداخله) بلا غشاء تحميلٍ ولا حركة ظهورٍ ولا إخفاءٍ أثناء الاستبدال. */
+[data-quiet-poll].htmx-request::after,
+[data-quiet-poll] .htmx-request::after { content: none; display: none; }
+[data-quiet-poll].htmx-added,
+[data-quiet-poll] .htmx-added { animation: none; }
+[data-quiet-poll].htmx-swapping,
+[data-quiet-poll] .htmx-swapping { opacity: 1; transition: none; }
+
+/* من فضّل تقليلَ الحركة: لا حركةَ في حالات HTMX كلّها. */
+@media (prefers-reduced-motion: reduce) {
+  .htmx-added { animation: none; }
+  .htmx-swapping { transition: none; }
+}
+
 /* ── Modal System ─── */
 .modal-overlay {
   position: fixed;
