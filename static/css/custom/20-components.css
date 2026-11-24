@@ -187,6 +187,13 @@
   white-space: nowrap; transition: background .1s, color .1s;
 }
 .sd-menu a:hover { background: var(--menu-hover); color: var(--maroon-fg); }
+/* بندٌ نصّيٌّ للعرض فقط (متابعة الأداء المدرسي): ليس رابطاً، بلون خافتٍ ومؤشّرٍ عاديّ فلا يوحي بأنّه يعمل. */
+.sd-item-soon {
+  display: block;
+  padding: var(--sp-2) var(--sp-4); font-size: var(--text-sm);
+  color: var(--menu-label); cursor: default; white-space: nowrap;
+}
+.sd-menu.sd-drawer .sd-item-soon { white-space: normal; padding-inline: var(--sp-3); }
 .sd-menu hr { border: none; border-top: 1px solid var(--menu-rule); margin: var(--sp-1) 0; }
 .sd-label {
   padding: var(--sp-1-5) var(--sp-4) 3px;
@@ -216,6 +223,12 @@
   .sd-menu--cols-2 .sd-section, .sd-menu--cols-3 .sd-section, .sd-menu--cols-4 .sd-section {
     border-block-end: 0; padding-block-end: 0; margin-block-end: 0;
   }
+  /* قسمُ البنود المباشرة يمتدّ عرضَ الشبكة كلَّها تحت الأعمدة. */
+  .sd-section--wide {
+    grid-column: 1 / -1;
+    border-block-start: 1px solid var(--menu-rule);
+  }
+  .sd-menu--cols-3 .sd-section--wide:not(:first-child) { border-inline-start: 0; padding-inline-start: 0; }
   .sd-menu--cols-2 .sd-section:not(:first-child),
   .sd-menu--cols-3 .sd-section:not(:first-child),
   .sd-menu--cols-4 .sd-section:not(:first-child) {
