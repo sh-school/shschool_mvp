@@ -56,6 +56,7 @@ def test_the_menu_lists_the_three_sections_and_two_direct_items_in_order():
         "حصص المختبرات",
         "الإرشاد الأكاديمي",
         "مصادر التعلم",
+        "التعليم الإلكتروني",
         "الاجتماعي",
         "النفسي",
         "منسق شؤون الطلاب",
@@ -65,15 +66,19 @@ def test_the_menu_lists_the_three_sections_and_two_direct_items_in_order():
         "الاستقبال",
         "الخطط المدرسية",
         "متابعات الوزارة",
+        "الأقسام الإدارية",
     ]
     assert menu.rindex("الخطط المدرسية") > menu.rindex("الاستقبال")
+    # «الأقسام الإدارية» تظهر مرّتين: في «الكادر الإداري» وبندٍ مباشرٍ بعد «متابعات الوزارة»
+    assert menu.count("الأقسام الإدارية") == 2
+    assert menu.rindex("الأقسام الإدارية") > menu.rindex("متابعات الوزارة")
 
 
 def test_the_items_are_display_only_not_links_and_say_they_are_coming():
     menu = _menu()
     assert "<a " not in menu and "href" not in menu and "onclick" not in menu
     assert "style=" not in menu
-    assert menu.count('<span class="sr-only"> — قريبًا</span>') == 18
+    assert menu.count('<span class="sr-only"> — قريبًا</span>') == 20
 
 
 def test_the_display_only_style_is_defined_with_tokens_and_logical_properties():
