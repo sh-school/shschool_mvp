@@ -60,9 +60,18 @@
   function focusSelector(active) {
     if (!active || !active.getAttribute) return null;
     var href = active.getAttribute("href");
-    if (href) return 'a[href="' + href.replace(/"/g, '\\"') + '"]';
+    if (href) return { attr: "href", value: href, sel: "a[href]" };
     var view = active.getAttribute("data-movement-view-btn");
-    if (view) return '[data-movement-view-btn="' + view + '"]';
+    if (view) return { attr: "data-movement-view-btn", value: view, sel: "[data-movement-view-btn]" };
+    return null;
+  }
+
+  // البحثُ بمقارنة القيمة نفسها لا ببناء محدِّدٍ نصّيّ، فلا حاجة إلى تهريب علامات الاقتباس والشرطات المائلة.
+  function findFocusTarget(el, key) {
+    var nodes = el.querySelectorAll(key.sel);
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].getAttribute(key.attr) === key.value) return nodes[i];
+    }
     return null;
   }
 
@@ -92,7 +101,7 @@
       }
     });
     if (snap.focus) {
-      var next = el.querySelector(snap.focus);
+      var next = findFocusTarget(el, snap.focus);
       if (next && next.focus) next.focus({ preventScroll: true });
     }
     if (window.scrollX !== snap.x || window.scrollY !== snap.y) window.scrollTo(snap.x, snap.y);
