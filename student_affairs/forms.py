@@ -109,22 +109,33 @@ class TransferForm(forms.Form):
     direction = forms.ChoiceField(
         choices=StudentTransfer.DIRECTION_CHOICES,
         label="اتجاه الانتقال",
+        error_messages={
+            "required": "اختر اتجاه الانتقال.",
+            "invalid_choice": "اختر اتجاه الانتقال.",
+        },
     )
     other_school_name = forms.CharField(
         max_length=200,
         required=False,
         label="المدرسة الأخرى",
+        error_messages={"max_length": "اسم المدرسة لا يزيد عن 200 حرف."},
     )
-    to_class_group_id = forms.UUIDField(required=False, label="الشعبة المنقول إليها")
+    to_class_group_id = forms.UUIDField(
+        required=False,
+        label="الشعبة المنقول إليها",
+        error_messages={"invalid": "اختر الشعبة المنقول إليها."},
+    )
     transfer_date = forms.DateField(
         widget=forms.DateInput(attrs={"type": "date"}),
         label="تاريخ الانتقال",
+        error_messages={"required": "تاريخ الانتقال مطلوب.", "invalid": "أدخل تاريخًا صحيحًا."},
     )
     reason = forms.CharField(
         widget=forms.Textarea(attrs={"rows": 3}),
         max_length=1000,
         required=False,
         label="السبب",
+        error_messages={"max_length": "السبب لا يزيد عن 1000 حرف."},
     )
     #: نقلٌ مباشرٌ بلا انتظار اعتماد — للمدير والنائب الإداري وحدهما، والعرضُ يتحقّق من القدرة (D-343م).
     direct = forms.BooleanField(required=False, label="نقل مباشر الآن")
@@ -134,10 +145,13 @@ class TransferForm(forms.Form):
         if cleaned.get("direct") and cleaned.get("direction") != "internal":
             self.add_error("direct", "النقل المباشر للانتقال الداخلي بين الشعب وحده.")
         if cleaned.get("direction") == "internal":
-            if not cleaned.get("to_class_group_id"):
+            if not cleaned.get("to_class_group_id") and "to_class_group_id" not in self.errors:
                 self.add_error("to_class_group_id", "اختر الشعبة المنقول إليها.")
-        elif not cleaned.get("other_school_name"):
+        elif not cleaned.get("other_school_name") and "other_school_name" not in self.errors:
             self.add_error("other_school_name", "اسم المدرسة الأخرى مطلوب.")
+        # سببُ الانتقال الصادر إلزاميّ: يُحفظ أثرًا لما خرج به الطالب (W-20261124-001).
+        if cleaned.get("direction") == "out" and not (cleaned.get("reason") or "").strip():
+            self.add_error("reason", "سبب الانتقال مطلوب في الانتقال الصادر.")
         return cleaned
 
 

@@ -60,6 +60,9 @@ from operations.absence_standing import standing_for
 from operations.models import AbsenceAlert, ClassExit, StudentAttendance
 from operations.presence import presence_now
 from operations.tardiness import tardiness_now
+from student_affairs.transfer_create_views import (
+    transfer_create,  # noqa: F401  (يُعاد تصديره لـ urls)
+)
 from wings.scope import student_scope_for
 
 from .coordinator_selectors import coordinator_panels
@@ -82,7 +85,7 @@ from .selectors import (
     early_attendance_counts,
     student_register,
 )
-from .transfer_decision import detail_flags, may_decide
+from .transfer_decision import detail_flags
 
 logger = logging.getLogger(__name__)
 
@@ -812,71 +815,6 @@ def transfer_list(request):
             "direction_filter": direction_filter,
             "status_choices": StudentTransfer.STATUS_CHOICES,
             "direction_choices": StudentTransfer.DIRECTION_CHOICES,
-        },
-    )
-
-
-@login_required
-@capability_required("student_affairs.transfers")
-def transfer_create(request):
-    """تسجيل طلب انتقال جديد."""
-    school = request.school
-
-    from .forms import TransferForm
-
-    if request.method == "POST":
-        form = TransferForm(request.POST)
-        if form.is_valid():
-            cd = form.cleaned_data
-            student = get_object_or_404(
-                CustomUser,
-                id=cd["student_id"],
-                memberships__school=school,
-                memberships__is_active=True,
-            )
-            from .internal_transfer import build_request
-            from .services import StudentService
-            from .transfer_decision import move_directly
-
-            transfer, error = build_request(
-                school, student, cd, academic_year_for(request), request.user
-            )
-            if error:
-                form.add_error(None, error)
-                return _transfer_form_response(request, school, form)
-            if cd.get("direct"):
-                try:
-                    move_directly(transfer, request.user, school)
-                except ValueError as exc:
-                    form.add_error(None, str(exc))
-                    return _transfer_form_response(request, school, form)
-                messages.success(request, f"نُقل {student.full_name} إلى شعبته الجديدة مباشرةً.")
-                return redirect("student_affairs:transfer_detail", pk=transfer.pk)
-            transfer.save()
-
-            StudentService.audit_student_event(school, request.user, student, "transfer_requested")
-            messages.success(request, f"تم تسجيل طلب انتقال {student.full_name} بنجاح.")
-            return redirect("student_affairs:transfer_list")
-    else:
-        form = TransferForm()
-    return _transfer_form_response(request, school, form)
-
-
-def _transfer_form_response(request, school, form):
-    """عرضُ نموذج الطلب: الطالبُ المختار بالبحث (إن وُجد)، وكلُّ شعبةٍ نشطةٍ هدفاً للانتقال الداخليّ."""
-    from .selectors import transfer_target_classes
-    from .transfer_edit_selectors import picked_student
-
-    return render(
-        request,
-        "student_affairs/transfer_form.html",
-        {
-            "form": form,
-            "picked": picked_student(
-                school, student_scope_for(request), form.data.get("student_id")
-            ),
-            "classes": transfer_target_classes(school),
-            "can_direct": may_decide(request.user),
         },
     )
 

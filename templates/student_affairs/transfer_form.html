@@ -22,6 +22,9 @@
       </div>
       {% endif %}
 
+      {# تعريفٌ قصير بالاتجاهات الثلاثة ومن يملك النقل المباشر (D-343م) #}
+      {% callout "hint" %}وارد: طالبٌ ينتقل إلى مدرستنا من مدرسة أخرى. صادر: طالبٌ ينتقل من مدرستنا إلى غيرها، وسببه مطلوب. داخلي: نقلٌ إلى شعبة أخرى من صفّه في مدرستنا.<br>النقل المباشر بلا انتظار اعتماد للمدير والنائب الإداري وحدهما، وفي الداخلي فقط، وتسبقه صفحة مراجعة.{% endcallout %}
+
       <div class="form-row">
 
         {# الطالب: combobox (ARIA 1.2) — بحثٌ بالاسم (HTMX) فلوحةُ نتائج؛ المعرّفُ في حقلٍ مخفيّ يقرأ الخادمُ نطاقَه #}
@@ -32,6 +35,7 @@
                    hx-get="{% url 'student_affairs:transfer_student_search' %}" hx-trigger="input changed delay:300ms" hx-target="#transfer-student-results" hx-swap="innerHTML">
             <div class="sa-combo__picked" data-student-picked {% if not picked %}hidden{% endif %}>
               <span class="sa-combo__picked-name" data-picked-name>{{ picked.name|default:'' }}</span>
+              <span class="sa-combo__label">الشعبة الحالية:</span>
               <span class="sa-combo__chip" data-picked-class>{{ picked.class_label|default:'' }}</span>
               <button type="button" class="btn-secondary btn-xs" data-student-clear>تغيير</button>
             </div>
@@ -43,10 +47,10 @@
           <p class="ui-field-hint" id="transfer-student-status" data-student-status role="status" aria-live="polite"></p>
         </div>
 
-        {% field "direction" "اتجاه الانتقال" type="select" choices="in=وارد (← إلى مدرستنا)|out=صادر (→ من مدرستنا)|internal=داخلي (إلى شعبة أخرى في مدرستنا)" value=form.direction.value required=True %}
-        {% field "transfer_date" "تاريخ الانتقال" type="date" value=form.transfer_date.value required=True %}
+        {% field "direction" "اتجاه الانتقال" type="select" choices="in=وارد (← إلى مدرستنا)|out=صادر (→ من مدرستنا)|internal=داخلي (إلى شعبة أخرى في مدرستنا)" value=form.direction.value required=True error=form.direction.errors.0 %}
+        {% field "transfer_date" "تاريخ الانتقال" type="date" value=form.transfer_date.value required=True error=form.transfer_date.errors.0 %}
         {# الانتقال الداخلي: الشعبة المنقول إليها — تُصفّى بصفّ الطالب (والخادم يرفض غيره) #}
-        <div class="ui-field sa-span-full" data-internal-only hidden>
+        <div class="ui-field sa-span-full sa-reveal" data-internal-only hidden>
           <label for="f-to_class_group_id" class="ui-field__label">الشعبة المنقول إليها <span class="req-star" aria-hidden="true">*</span></label>
           <select id="f-to_class_group_id" name="to_class_group_id" class="form-control">
             <option value="">— اختر الشعبة —</option>
@@ -55,15 +59,20 @@
             {% endfor %}
           </select>
           {% for err in form.to_class_group_id.errors %}<p class="field-error" role="alert">{{ err }}</p>{% endfor %}
+          {# ملخّصُ الاتجاه: يتحدّث فور اختيار الطالب والشعبة #}
+          <p class="sa-transfer-summary" data-transfer-summary role="status" aria-live="polite" hidden></p>
         </div>
-        <div data-external-only class="sa-span-full">
-        {% field "other_school_name" "المدرسة الأخرى" value=form.other_school_name.value placeholder="اسم المدرسة المنقول منها/إليها" required=True css="sa-span-full" %}
+        <div data-external-only class="sa-span-full sa-reveal">
+        {% field "other_school_name" "المدرسة الأخرى" value=form.other_school_name.value placeholder="اسم المدرسة المنقول منها/إليها" required=True error=form.other_school_name.errors.0 css="sa-span-full" %}
         </div>
-        {% field "reason" "السبب" type="textarea" rows=3 value=form.reason.value placeholder="سبب الانتقال..." css="sa-span-full" %}
+        <div class="sa-span-full">
+        {% field "reason" "السبب" type="textarea" rows=3 value=form.reason.value placeholder="سبب الانتقال (مطلوب في الصادر)" error=form.reason.errors.0 maxlength=1000 css="sa-span-full" %}
+          <p class="ui-field-hint" data-reason-count aria-live="off">0 / 1000</p>
+        </div>
         {# النقلُ المباشر: للمدير والنائب الإداري وحدهما، وفي الانتقال الداخلي فقط (D-343م) #}
         {% if can_direct %}
-        <div class="sa-span-full" data-internal-only hidden>
-        {% field "direct" "نقل مباشر الآن بلا انتظار اعتماد" type="checkbox" value="1" %}
+        <div class="sa-span-full sa-reveal" data-internal-only hidden>
+        {% field "direct" "نقل مباشر الآن بلا انتظار اعتماد" type="checkbox" value="1" checked=form.direct.value error=form.direct.errors.0 help="تُعرض صفحةُ مراجعةٍ قبل التنفيذ." %}
         </div>
         {% endif %}
       </div>

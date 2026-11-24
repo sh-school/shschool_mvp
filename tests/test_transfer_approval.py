@@ -227,6 +227,8 @@ def _direct_post(client, user, kid, target, **extra):
         "to_class_group_id": str(target.pk),
         "transfer_date": PAST.isoformat(),
         "direct": "1",
+        # النقلُ المباشر بخطوتين: الطلبُ الثاني يحمل التأكيد (W-20261124-001).
+        "confirm_direct": "1",
         **extra,
     }
     return client.post(reverse("student_affairs:transfer_create"), data)
