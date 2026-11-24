@@ -53,6 +53,11 @@ def _open_cards(school: Any, scope: Any, day: dt.date) -> Any:
     ).select_related("student", "session__class_group")
 
 
+def _stable_key(row: dict[str, Any]) -> tuple[Any, str]:
+    """مفتاحُ ترتيبٍ صريحٌ ثابتٌ بين دورتَي التحديث: وقتُ الخروج (الأقدمُ أولاً = الأطولُ انتظاراً) ثم المعرّف."""
+    return (row["left_at"], str(row["pk"]))
+
+
 def incoming_rows(school: Any, scope: Any, day: dt.date, now: dt.datetime) -> list[dict[str, Any]]:
     """«قادمون إليك»: بطاقاتٌ خرج بها الطلابُ إلى مشرف الجناح ولم تُستلَم (لم تُحدَّد وجهتُها) — الأطولُ انتظاراً أولاً."""
     rows = [
@@ -67,7 +72,7 @@ def incoming_rows(school: Any, scope: Any, day: dt.date, now: dt.datetime) -> li
             routed_at__isnull=True, destination="wing_sup"
         )
     ]
-    rows.sort(key=lambda r: r["waited"], reverse=True)
+    rows.sort(key=_stable_key)
     return rows
 
 
@@ -98,7 +103,7 @@ def live_rows(school: Any, scope: Any, day: dt.date, now: dt.datetime) -> list[d
                 "clinic_out": _local(e.clinic_left_at),
             }
         )
-    rows.sort(key=lambda r: r["minutes"], reverse=True)
+    rows.sort(key=_stable_key)
     return rows
 
 

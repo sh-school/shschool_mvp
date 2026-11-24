@@ -238,3 +238,69 @@ def test_no_student_names_in_application_logs(
         client.get(reverse("student_affairs:movements_history"))
 
     assert "اسم سرّي للطالب" not in caplog.text
+
+
+def test_live_panel_is_marked_quiet_poll_and_page_loads_live_script(
+    client, school, principal_user, teacher_user, wing_a
+):
+    """W-20261124-007: اللوحةُ تحمل data-quiet-poll والصفحةُ تحمّل movement-live.js (بلا سكربتٍ مضمَّن)."""
+    klass, _ = wing_a
+    _exit(school, klass, teacher_user, "طالب هادئ", "29000000041")
+
+    assert "data-quiet-poll" in _live(client, principal_user)
+    page = client.get(reverse("student_affairs:student_movements")).content.decode()
+    assert "movement-live.js" in page
+
+
+def test_quiet_poll_css_rules_and_reduced_motion_exist():
+    """القاعدةُ العامّة: بلا غشاءٍ ولا htmx-added ولا htmx-swapping لـ[data-quiet-poll]، وتقليلُ الحركة لحالات HTMX."""
+    from pathlib import Path
+
+    css = Path("static/css/custom/20-components.css").read_text(encoding="utf-8")
+    assert "[data-quiet-poll].htmx-request::after" in css
+    assert "[data-quiet-poll] .htmx-added" in css
+    assert "[data-quiet-poll] .htmx-swapping" in css
+    assert "prefers-reduced-motion: reduce) {\n  .htmx-added" in css
+
+
+def test_movement_live_js_guards_interaction_visibility_and_restores_state():
+    """السكربتُ يلغي الدورة عند التفاعل وإخفاء التبويب، ويتحقّق في beforeSwap، ويستعيد التمرير والتركيز."""
+    from pathlib import Path
+
+    js = Path("static/js/movement-live.js").read_text(encoding="utf-8")
+    for needle in (
+        "htmx:beforeRequest",
+        "htmx:beforeSwap",
+        "shouldSwap = false",
+        "visibilitychange",
+        "document.hidden",
+        "defaultValue",
+        "pointerdown",
+        "scrollLeft",
+        "window.scrollTo",
+    ):
+        assert needle in js
+
+
+def test_rows_order_is_stable_by_exit_time_then_id(
+    client, school, principal_user, teacher_user, wing_a
+):
+    """الترتيبُ بمفتاحٍ صريح (وقتُ الخروج ثم المعرّف): استدعاءان متتاليان يُنتجان الترتيبَ نفسه."""
+    from student_affairs.movement_selectors import incoming_rows, live_rows
+    from student_affairs.views import _followup_scope
+
+    klass, _ = wing_a
+    for i, name in enumerate(("ألف", "باء", "جيم")):
+        _exit(school, klass, teacher_user, f"طالب {name}", f"2900000005{i}", minutes_ago=9 - i)
+    client.force_login(principal_user)
+    request = client.get(reverse("student_affairs:movements_live")).wsgi_request
+    scope = _followup_scope(request)
+    now = timezone.now()
+    day = timezone.localdate(now)
+
+    first = [r["pk"] for r in live_rows(school, scope, day, now)]
+    second = [r["pk"] for r in live_rows(school, scope, day, now)]
+    assert first == second
+    lefts = [r["left_at"] for r in live_rows(school, scope, day, now)]
+    assert lefts == sorted(lefts)
+    assert incoming_rows(school, scope, day, now) == []
