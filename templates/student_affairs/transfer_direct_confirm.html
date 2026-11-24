@@ -1,0 +1,32 @@
+{% extends "base/base.html" %}
+{% load icons static %}
+{% load privacy ui %}
+
+{% block title %}مراجعة النقل المباشر{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/transfers/" parent_label="الانتقالات" current="مراجعة النقل المباشر" %}
+{% endblock %}
+
+{% block main_class %}{% page_layout "form" %}{% endblock %}
+
+{% block content %}
+<div class="exec-dash sa-page sa-form-page">
+  {% page_header "مراجعة النقل المباشر" icon="refresh" %}{% endpage_header %}
+
+  <div class="form-card">
+    {# التنفيذ بطلب POST ثانٍ من الخادم: الحقولُ المخفيّة يرسمها الخادم من بيانات النموذج المتحقَّق منها #}
+    <form method="post" action="{% url 'student_affairs:transfer_create' %}">
+      {% csrf_token %}
+      {% for name, value in hidden_fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+
+      {% callout "warning" show=True %}سيُنقل <strong>{{ student_name }}</strong> من <strong>{{ from_label }}</strong> إلى <strong>{{ to_label }}</strong> الآن بتاريخ {{ transfer_date|date:"Y-m-d" }}، ولا يُنتظر اعتماد.{% endcallout %}
+
+      <div class="form-footer">
+        <button type="submit" name="edit" value="1" class="btn-secondary btn-sm" formnovalidate>رجوع للتعديل</button>
+        <button type="submit" name="confirm_direct" value="1" class="btn-primary btn-sm">{% icon "status_success" %} تأكيد النقل</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

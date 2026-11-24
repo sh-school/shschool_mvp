@@ -16,6 +16,9 @@
   var otherSchool = form.querySelector('[name=other_school_name]');
   var internalOnly = form.querySelectorAll('[data-internal-only]');
   var externalOnly = form.querySelectorAll('[data-external-only]');
+  var reason = form.querySelector('[name=reason]');
+  var counter = form.querySelector('[data-reason-count]');
+  var summary = form.querySelector('[data-transfer-summary]');
 
   var search = form.querySelector('#f-student_q');
   var list = form.querySelector('[data-student-results]');
@@ -40,6 +43,8 @@
     // فيُرفع عنه required حين يُخفى، ويُشترط اختيارُ الشعبة حين تظهر في الداخليّ وحدَه.
     if (otherSchool) otherSchool.required = !internal;
     if (target) target.required = internal;
+    // سببُ الانتقال إلزاميّ في الصادر وحده (والخادمُ يتحقّق من ذلك).
+    if (reason) reason.required = direction && direction.value === 'out';
     if (!target) return;
     Array.prototype.forEach.call(target.options, function (item) {
       if (!item.value) return;
@@ -48,6 +53,22 @@
       item.disabled = !match;
       if (!match && item.selected) target.value = '';
     });
+    summarize(internal, classId);
+  }
+
+  // ملخّصُ الاتجاه: «من 10/4 إلى 10/2» يتحدّث فور اختيار الطالب والشعبة في الداخليّ.
+  function summarize(internal, classId) {
+    if (!summary) return;
+    var from = student ? student.getAttribute('data-class-label') || '' : '';
+    var option = target && target.selectedIndex > 0 ? target.options[target.selectedIndex] : null;
+    var ready = internal && classId && from && option && option.value;
+    summary.hidden = !ready;
+    summary.textContent = ready ? 'من ' + from + ' إلى ' + option.textContent.trim() : '';
+  }
+
+  // عدّادُ أحرف السبب.
+  function countReason() {
+    if (reason && counter) counter.textContent = reason.value.length + ' / ' + (reason.maxLength > 0 ? reason.maxLength : 1000);
   }
 
   // اللوحةُ: فتحُها وإغلاقُها وتحريكُ الصفّ النشط (aria-activedescendant).
@@ -216,5 +237,8 @@
     });
   }
   if (direction) direction.addEventListener('change', sync);
+  if (target) target.addEventListener('change', sync);
+  if (reason) reason.addEventListener('input', countReason);
+  countReason();
   sync();
 })();

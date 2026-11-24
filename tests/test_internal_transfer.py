@@ -301,3 +301,125 @@ def test_post_with_a_malformed_student_id_uses_the_same_arabic_message(
     body = response.content.decode()
     assert "Enter a valid value" not in body
     assert 'role="alert">يرجى اختيار الطالب.' in body
+
+
+# ── ملخّص الاتجاه ومراجعة النقل المباشر وتحقّقٌ موحَّد (W-20261124-001) ──
+
+
+def _direct_data(kid, target, **extra):
+    return {
+        "student_id": str(kid.pk),
+        "direction": "internal",
+        "to_class_group_id": str(target.pk),
+        "transfer_date": PAST.isoformat(),
+        "direct": "1",
+        **extra,
+    }
+
+
+def test_create_form_explains_directions_defaults_today_and_counts_the_reason(
+    client, principal_user
+):
+    client.force_login(principal_user)
+
+    body = client.get(reverse("student_affairs:transfer_create")).content.decode()
+
+    assert FIXED_NOW.date().isoformat() in body, "التاريخ الافتراضي اليوم"
+    assert "وارد:" in body and "صادر:" in body and "داخلي:" in body
+    assert "للمدير والنائب الإداري وحدهما" in body
+    assert "data-transfer-summary" in body and "data-reason-count" in body
+    assert "الشعبة الحالية" in body
+
+
+def test_the_first_direct_post_shows_a_review_page_and_writes_nothing(
+    client, principal_user, kid, klass, klass2
+):
+    client.force_login(principal_user)
+
+    response = client.post(reverse("student_affairs:transfer_create"), _direct_data(kid, klass2))
+
+    body = response.content.decode()
+    assert response.status_code == 200
+    assert "تأكيد النقل" in body and "رجوع للتعديل" in body
+    assert klass.short_label in body and klass2.short_label in body and kid.full_name in body
+    assert f'name="to_class_group_id" value="{klass2.pk}"' in body
+    assert not StudentTransfer.objects.exists()
+    assert StudentEnrollment.objects.get(student=kid, is_active=True).class_group == klass
+
+
+def test_confirming_executes_the_direct_move_from_the_server(client, principal_user, kid, klass2):
+    client.force_login(principal_user)
+
+    response = client.post(
+        reverse("student_affairs:transfer_create"),
+        _direct_data(kid, klass2, confirm_direct="1"),
+    )
+
+    assert response.status_code == 302
+    assert StudentTransfer.objects.get().status == "completed"
+    assert StudentEnrollment.objects.get(student=kid, is_active=True).class_group == klass2
+
+
+def test_a_coordinator_is_refused_on_both_direct_requests(
+    client, student_affairs_coordinator_user, kid, klass2
+):
+    client.force_login(student_affairs_coordinator_user)
+    url = reverse("student_affairs:transfer_create")
+
+    first = client.post(url, _direct_data(kid, klass2))
+    second = client.post(url, _direct_data(kid, klass2, confirm_direct="1"))
+
+    assert (first.status_code, second.status_code) == (403, 403)
+    assert not StudentTransfer.objects.exists()
+
+
+def test_back_to_edit_keeps_the_inputs_and_does_not_execute(client, principal_user, kid, klass2):
+    client.force_login(principal_user)
+
+    response = client.post(
+        reverse("student_affairs:transfer_create"),
+        _direct_data(kid, klass2, reason="سبب تجريبي", edit="1"),
+    )
+
+    body = response.content.decode()
+    assert response.status_code == 200 and "data-transfer-form" in body
+    assert PAST.isoformat() in body and "سبب تجريبي" in body
+    assert f'value="{kid.pk}"' in body
+    assert not StudentTransfer.objects.exists()
+
+
+def test_an_outgoing_transfer_requires_a_reason_with_a_unified_arabic_message(
+    client, student_affairs_coordinator_user, kid
+):
+    client.force_login(student_affairs_coordinator_user)
+    url = reverse("student_affairs:transfer_create")
+    data = {
+        "student_id": str(kid.pk),
+        "direction": "out",
+        "other_school_name": "مدرسة أخرى",
+        "transfer_date": PAST.isoformat(),
+    }
+
+    refused = client.post(url, data)
+    accepted = client.post(url, {**data, "reason": "انتقال الأسرة"})
+
+    assert "سبب الانتقال مطلوب في الانتقال الصادر." in refused.content.decode()
+    assert accepted.status_code == 302 and StudentTransfer.objects.count() == 1
+
+
+def test_field_errors_are_arabic_for_date_school_and_class(
+    client, student_affairs_coordinator_user, kid
+):
+    client.force_login(student_affairs_coordinator_user)
+    url = reverse("student_affairs:transfer_create")
+    base = {"student_id": str(kid.pk), "transfer_date": PAST.isoformat()}
+
+    bad_date = client.post(
+        url, {**base, "direction": "in", "other_school_name": "م", "transfer_date": "x"}
+    ).content.decode()
+    no_school = client.post(url, {**base, "direction": "in"}).content.decode()
+    no_class = client.post(url, {**base, "direction": "internal"}).content.decode()
+
+    assert "أدخل تاريخًا صحيحًا." in bad_date and "Enter a valid date" not in bad_date
+    assert "اسم المدرسة الأخرى مطلوب." in no_school
+    assert "اختر الشعبة المنقول إليها." in no_class
