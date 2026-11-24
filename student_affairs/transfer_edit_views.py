@@ -11,7 +11,7 @@ from wings.scope import student_scope_for
 
 from .models import StudentTransfer
 from .transfer_edit import TransferEditForm, initial_for
-from .transfer_edit_selectors import edit_target_classes, search_transfer_students
+from .transfer_edit_selectors import edit_target_context, search_transfer_students
 from .transfer_edit_services import NOT_PENDING_MESSAGE, update_pending_transfer
 
 
@@ -56,12 +56,11 @@ def transfer_edit(request: HttpRequest, pk: str) -> HttpResponse:
                 return redirect("student_affairs:transfer_detail", pk=transfer.pk)
     else:
         form = TransferEditForm(initial=initial_for(transfer), direction=transfer.direction)
+    source_label, classes = (
+        edit_target_context(transfer) if transfer.direction == "internal" else ("", [])
+    )
     return render(
         request,
         "student_affairs/transfer_edit.html",
-        {
-            "form": form,
-            "transfer": transfer,
-            "classes": edit_target_classes(transfer) if transfer.direction == "internal" else [],
-        },
+        {"form": form, "transfer": transfer, "classes": classes, "source_label": source_label},
     )

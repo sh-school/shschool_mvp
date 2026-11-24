@@ -83,13 +83,13 @@ def picked_student(school: Any, scope: Any, raw_id: Any) -> dict[str, Any] | Non
     return _pick_row(student, _current_classes([student.pk], school).get(student.pk))
 
 
-def edit_target_classes(transfer: StudentTransfer) -> list[Any]:
-    """الشعبُ التي يُختار منها هدفُ الانتقال الداخليّ: النشطةُ من صفّ الطالب الحاليّ دون شعبته."""
+def edit_target_context(transfer: StudentTransfer) -> tuple[str, list[Any]]:
+    """شعبةُ الطالب الحاليّة (للملخّص) والشعبُ التي يُختار منها هدفُ الانتقال الداخليّ."""
     current = StudentEnrollment.objects.current_of(transfer.student, transfer.school)
     if current is None:
-        return []
+        return "", []
     source = current.class_group
-    return list(
+    classes = list(
         ClassGroup.objects.filter(
             school=transfer.school,
             is_active=True,
@@ -97,3 +97,9 @@ def edit_target_classes(transfer: StudentTransfer) -> list[Any]:
             grade=source.grade,
         ).exclude(pk=source.pk)
     )
+    return source.short_label, classes
+
+
+def edit_target_classes(transfer: StudentTransfer) -> list[Any]:
+    """الشعبُ التي يُختار منها هدفُ الانتقال الداخليّ: النشطةُ من صفّ الطالب الحاليّ دون شعبته."""
+    return edit_target_context(transfer)[1]

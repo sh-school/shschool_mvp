@@ -1,5 +1,5 @@
 /**
- * نموذج طلب الانتقال: بحثُ الطالب بنمط ARIA 1.2 combobox مع listbox،
+ * نموذج طلب الانتقال وتعديلُه (W-20261124-003: الملخّص والعدّاد في الصفحتين): بحثُ الطالب بنمط ARIA 1.2 combobox مع listbox،
  * وعند اختياره يظهر صفّه وشعبته، وفي الانتقال الداخلي تُعرض الشعبةُ المنقول إليها
  * من صفّه وحدَه دون شعبته الحاليّة (W-20261005-008، W-20261123-013).
  * الخادمُ هو الحَكَم (يرفض هدفاً من صفٍّ آخر وطلباً بلا طالب)؛ هذا تيسيرٌ لا حرّاسة.
@@ -33,10 +33,13 @@
   function say(text) { if (status) status.textContent = text; }
   function query() { return search ? search.value.trim() : ''; }
 
+  // في التعديل لا حقلَ للاتجاه ولا للطالب: يأتي الاتجاهُ وشعبةُ الطالب من سمات النموذج الثابتة.
+  function currentDirection() { return direction ? direction.value : form.getAttribute('data-direction') || ''; }
+
   function sync() {
     var grade = student ? student.getAttribute('data-grade') || '' : '';
     var classId = student ? student.getAttribute('data-class-id') || '' : '';
-    var internal = direction && direction.value === 'internal';
+    var internal = currentDirection() === 'internal';
     internalOnly.forEach(function (node) { node.hidden = !internal; });
     externalOnly.forEach(function (node) { node.hidden = internal; });
     // الحقلُ المخفيّ المُعلَّم required يمنع المتصفّحَ من الإرسال دون أن يُظهر رسالةً عليه (W-20261106-020):
@@ -44,8 +47,10 @@
     if (otherSchool) otherSchool.required = !internal;
     if (target) target.required = internal;
     // سببُ الانتقال إلزاميّ في الصادر وحده (والخادمُ يتحقّق من ذلك).
-    if (reason) reason.required = direction && direction.value === 'out';
+    if (reason) reason.required = currentDirection() === 'out';
     if (!target) return;
+    // صفحةُ التعديل: الخادمُ صفّى الشعبَ أصلًا، فلا تصفيةَ هنا بل الملخّصُ وحده.
+    if (!student) { summarize(internal, ''); return; }
     Array.prototype.forEach.call(target.options, function (item) {
       if (!item.value) return;
       var match = internal && grade && item.getAttribute('data-grade') === grade && item.value !== classId;
@@ -59,9 +64,9 @@
   // ملخّصُ الاتجاه: «من 10/4 إلى 10/2» يتحدّث فور اختيار الطالب والشعبة في الداخليّ.
   function summarize(internal, classId) {
     if (!summary) return;
-    var from = student ? student.getAttribute('data-class-label') || '' : '';
+    var from = student ? student.getAttribute('data-class-label') || '' : form.getAttribute('data-from-label') || '';
     var option = target && target.selectedIndex > 0 ? target.options[target.selectedIndex] : null;
-    var ready = internal && classId && from && option && option.value;
+    var ready = internal && (classId || !student) && from && option && option.value;
     summary.hidden = !ready;
     summary.textContent = ready ? 'من ' + from + ' إلى ' + option.textContent.trim() : '';
   }
