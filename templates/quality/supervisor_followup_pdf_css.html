@@ -1,0 +1,78 @@
+{% load brand_tags %}
+{% comment %}
+  أنماطُ «نموذج 19» المطبوع: CSS خامٌّ بلا وسم، يضمّه `supervisor_followup_exports.render_sheet_html` إلى رأس المستند.
+  الألوانُ من `core.brand` وحدَها، والمقاساتُ بالملّيمتر والنقطة. عروضُ الأعمدة نِسَبٌ مقيسةٌ من الورقة المعتمدة.
+  الترويسةُ والتذييلُ `position: fixed` فيتكرّران إن انساب نصٌّ طويلٌ إلى صفحةٍ ثانية.
+{% endcomment %}
+@page { size: A4; margin: 29mm 9mm 21mm 9mm; }
+* { box-sizing: border-box; margin: 0; padding: 0; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+body {
+  direction: rtl;
+  font-family: 'Noto Naskh Arabic', 'Amiri', serif;
+  font-size: 10pt;
+  line-height: 4.8mm;
+  color: {% brand_color "PRINT_INK" %};
+  background: {% brand_color "ON_FILL" %};
+}
+
+/* ── الترويسة والتذييل ── */
+#head19 { position: fixed; top: -26mm; left: -9mm; width: 210mm; height: 24mm; }
+#foot19 { position: fixed; bottom: -18mm; left: -9mm; width: 210mm; height: 15mm; }
+[data-ministry] { position: absolute; top: 0; right: 7mm; width: 70mm; direction: rtl; }
+[data-ministry] img { display: block; float: right; width: 14mm; height: 14mm; }
+[data-wordmark] { float: right; margin-right: 1mm; text-align: right; font-size: 9pt; line-height: 4mm; padding-top: 3mm; }
+[data-school] { position: absolute; top: 6mm; left: 8mm; font-size: 11pt; font-weight: 700; color: {% brand_color "MAROON" %}; }
+[data-rule] { position: absolute; left: 0; width: 210mm; height: 4mm; }
+#head19 [data-rule] { top: 18mm; }
+#foot19 [data-rule] { top: 0; }
+[data-line] { position: absolute; top: 1.8mm; width: 74mm; border-top: 1.2pt solid {% brand_color "MAROON" %}; }
+[data-line="right"] { right: 0; }
+[data-line="left"] { left: 0; }
+[data-gems] { position: absolute; top: 0.9mm; left: 80mm; width: 50mm; direction: ltr; text-align: center; font-size: 0; line-height: 0; }
+[data-gem] { display: inline-block; width: 1.9mm; height: 1.9mm; margin: 0 1mm; transform: rotate(45deg); background: {% brand_color "MAROON" %}; }
+/* المعيّنُ الرمليّ: ذهبيٌّ فوقه رماديٌّ شفّاف — من رموز الهويّة وحدَها */
+[data-gem="sand"] { background: {% brand_color "GOLD" %}; }
+[data-gem="sand"] span { display: block; width: 1.9mm; height: 1.9mm; opacity: 0.55; background: {% brand_color "BORDER_STRONG" %}; }
+[data-dept], [data-number] { position: absolute; top: 5mm; font-weight: 700; color: {% brand_color "MAROON" %}; }
+[data-dept] { right: 6mm; }
+[data-number] { left: 11mm; }
+
+/* ── المتن ── */
+[data-draft] { position: absolute; top: -5.5mm; left: 0; width: 192mm; text-align: center; font-size: 13pt; font-weight: 700; color: {% brand_color "MAROON" %}; }
+[data-title] { background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; border: 0.6pt solid {% brand_color "PRINT_INK" %}; text-align: center; padding: 0.5mm 0; margin-bottom: 1.6mm; }
+[data-title] h1, [data-title] p { font-size: 13.5pt; font-weight: 700; line-height: 5.8mm; }
+table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+th, td { border: 0.6pt solid {% brand_color "PRINT_INK" %}; height: 5.3mm; padding: 0 1.5mm; vertical-align: middle; text-align: right; overflow-wrap: break-word; }
+th { font-weight: 400; text-align: center; background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; }
+th[data-light] { background: {% brand_color "FORM_KEY_BG" %}; color: {% brand_color "PRINT_INK" %}; }
+tr { page-break-inside: avoid; }
+thead { display: table-header-group; }
+[data-mid] { text-align: center; }
+/* رقمُ المؤشّر على خلفيّةٍ رماديّةٍ فاتحةٍ كالورقة */
+[data-num] { text-align: center; background: {% brand_color "SURFACE_ALT" %}; }
+[data-gap] { margin-top: 1.8mm; }
+.tick { font-family: 'Visit Tick'; font-weight: 400; }
+
+/* نِسَبُ الأعمدة من اليمين */
+#recs col:nth-child(1) { width: 7.2%; }
+#recs col:nth-child(2) { width: 40.5%; }
+#recs col:nth-child(3) { width: 5.5%; }
+#recs col:nth-child(4) { width: 7.9%; }
+#recs col:nth-child(5) { width: 38.9%; }
+#attendance col:nth-child(-n+4) { width: 19.5%; }
+#attendance col:nth-child(5) { width: 22%; }
+#who col:nth-child(1) { width: 25.7%; }
+#who col:nth-child(2) { width: 25.9%; }
+#who col:nth-child(3), #who col:nth-child(4) { width: 13%; }
+#who col:nth-child(5) { width: 12.8%; }
+#who col:nth-child(6) { width: 9.6%; }
+#indicators col:nth-child(1) { width: 5.7%; }
+#indicators col:nth-child(2) { width: 35%; }
+#indicators col:nth-child(3) { width: 19.8%; }
+#indicators col:nth-child(4) { width: 39.5%; }
+#sign col:nth-child(1) { width: 28.1%; }
+#sign col:nth-child(2) { width: 24.1%; }
+#sign col:nth-child(3) { width: 26.1%; }
+#sign col:nth-child(4) { width: 21.7%; }
+#sign { page-break-inside: avoid; }
+#sign th, #sign td { height: 5.6mm; }

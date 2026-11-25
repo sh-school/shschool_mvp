@@ -1,0 +1,141 @@
+{% load ministry ministry_logo %}{% ministry_name short=True as ministry %}
+{% comment %}
+  «نموذج 19 — استمارة متابعة أداء مشرف إداري» طبقَ الورقة المعتمدة (قرارُ المالك 2026-11-26): خارجَ الإطار المطبوع المركزيّ.
+  الترويسةُ: شعارُ الوزارة يميناً واسمُ المدرسة يساراً ثمّ خطٌّ وشريطُ معيّنات؛ والتذييلُ: المعيّناتُ والقسمُ ورقمُ النموذج.
+  نصُّ الوزارة بجانب الشعار يتبع مفتاحَ الإظهار الواحد (`core/ministry.py`، D-399م).
+  `data-pdf-own-page` فلا يحقن `pdf_utils` ترويسةً ثانية، وخطوطُ الوثيقة يحقنها هو.
+  الأنماطُ في `supervisor_followup_pdf_css.html` يضمّها `supervisor_followup_exports.render_sheet_html` إلى الرأس.
+  خانتا التوقيع والاعتماد فارغتان لليد.
+{% endcomment %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>استمارة متابعة أداء مشرف إداري</title>
+</head>
+<body data-pdf-own-page>
+
+<div id="head19">
+  <div data-ministry>
+    {% ministry_logo %}
+    {% if ministry %}<div data-wordmark>{{ ministry }}</div>{% endif %}
+  </div>
+  <div data-school>{{ school.name }}</div>
+  <div data-rule>
+    <div data-line="right"></div>
+    <div data-gems>{% for gem in "msmsmsmsssms" %}<span data-gem="{% if gem == "s" %}sand{% endif %}">{% if gem == "s" %}<span></span>{% endif %}</span>{% endfor %}</div>
+    <div data-line="left"></div>
+  </div>
+</div>
+<div id="foot19">
+  <div data-rule>
+    <div data-line="right"></div>
+    <div data-gems>{% for gem in "msmsmsmsssms" %}<span data-gem="{% if gem == "s" %}sand{% endif %}">{% if gem == "s" %}<span></span>{% endif %}</span>{% endfor %}</div>
+    <div data-line="left"></div>
+  </div>
+  <div data-dept>قسم دعم الإدارة المدرسية</div>
+  <div data-number>نموذج 19</div>
+</div>
+
+<div id="sheet19">
+{% if followup.status != "saved" %}<p data-draft>مسودة</p>{% endif %}
+<div data-title>
+  <h1>استمارة متابعة أداء مشرف إداري</h1>
+  <p>العام الأكاديمي <bdi dir="ltr">{{ year|slice:":4" }} / {{ year|slice:"-4:" }}</bdi></p>
+</div>
+
+<table id="recs">
+  <colgroup><col><col><col><col><col></colgroup>
+  <thead>
+    <tr><th scope="colgroup" colspan="5">متابعة التوصيات السابقة</th></tr>
+    <tr><th scope="col">م</th><th scope="col">التوصية</th><th scope="col">نفذ</th><th scope="col">لم ينفذ</th><th scope="col">الملاحظات</th></tr>
+  </thead>
+  <tbody>
+    {% for rec, status, note in reviews %}
+    <tr>
+      <td>{{ forloop.counter }}.</td>
+      <td>{{ rec.text|linebreaksbr }}</td>
+      <td data-mid>{% if status == "done" %}{% include "quality/_pdf_tick.html" %}{% endif %}</td>
+      <td data-mid>{% if status == "not_done" %}{% include "quality/_pdf_tick.html" %}{% endif %}</td>
+      <td>{{ note|linebreaksbr }}</td>
+    </tr>
+    {% endfor %}
+    {# صفّان مرقَّمان على الأقلّ كالورقة #}
+    {% if reviews|length < 1 %}<tr><td>1.</td><td></td><td></td><td></td><td></td></tr>{% endif %}
+    {% if reviews|length < 2 %}<tr><td>2.</td><td></td><td></td><td></td><td></td></tr>{% endif %}
+  </tbody>
+</table>
+
+<table id="attendance">
+  <colgroup><col><col><col><col><col></colgroup>
+  <thead>
+    <tr><th scope="colgroup" colspan="5">متابعة الغياب والاستئذان والتأخير الصباحي</th></tr>
+    <tr><th scope="col" data-light>مرضي</th><th scope="col" data-light>عرضي</th><th scope="col" data-light>بلا راتب</th><th scope="col" data-light>الاستئذان</th><th scope="col" data-light>التأخير الصباحي</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td data-mid>{{ followup.sick_days }}</td>
+      <td data-mid>{{ followup.casual_days }}</td>
+      <td data-mid>{{ followup.unpaid_days }}</td>
+      <td data-mid>{{ followup.permit_count }}</td>
+      <td data-mid>{{ followup.late_count }}</td>
+    </tr>
+  </tbody>
+</table>
+
+<table id="who" data-gap>
+  <colgroup><col><col><col><col><col><col></colgroup>
+  <tbody>
+    <tr>
+      <th scope="row">اسم المشرف الإداري</th><td data-mid>{{ followup.supervisor.full_name }}</td>
+      <th scope="row">اليوم</th><td data-mid>{{ followup.follow_date|date:"l" }}</td>
+      <th scope="row">التاريخ</th><td data-mid>{{ followup.follow_date|date:"Y/m/d" }}</td>
+    </tr>
+  </tbody>
+</table>
+
+<table id="indicators">
+  <colgroup><col><col><col><col></colgroup>
+  <thead>
+    <tr><th scope="col">م</th><th scope="col">مؤشرات المتابعة</th><th scope="col">متابعة تنفيذ المهام</th><th scope="col">ملاحظات</th></tr>
+  </thead>
+  <tbody>
+    {% for number, text, score in rows %}
+    <tr>
+      <td data-num>{{ number }}</td>
+      <td>{{ text }}</td>
+      <td data-mid>{% if score and score.rating %}{{ score.get_rating_display }}{% endif %}</td>
+      <td>{{ score.note|linebreaksbr }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<table>
+  <tbody>
+    <tr><th scope="col">جوانب القوة</th></tr>
+    <tr><td>{{ followup.strengths|linebreaksbr }}</td></tr>
+  </tbody>
+</table>
+<table>
+  <tbody>
+    <tr><th scope="col">جوانب تحتاج إلى تحسين</th></tr>
+    <tr><td>{{ followup.improvements|linebreaksbr }}</td></tr>
+  </tbody>
+</table>
+<table>
+  <tbody>
+    <tr><th scope="col">التوصيات</th></tr>
+    <tr><td>{% for rec in recommendations %}<div>{{ forloop.counter }}. {{ rec.text|linebreaksbr }}</div>{% endfor %}</td></tr>
+  </tbody>
+</table>
+
+<table id="sign">
+  <colgroup><col><col><col><col></colgroup>
+  <tbody>
+    <tr><th scope="row">توقيع الموظف</th><td></td><th scope="row">اعتماد المسؤول المباشر</th><td></td></tr>
+  </tbody>
+</table>
+</div>
+</body>
+</html>

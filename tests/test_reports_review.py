@@ -163,6 +163,7 @@ def test_an_empty_class_returns_to_the_reports_page(client, principal_user, scho
     [
         "templates/reports/report_viewer.html",
         "templates/quality/observation_pdf_view.html",
+        "templates/quality/supervisor_followup_pdf_view.html",
     ],
 )
 def test_no_viewer_offers_an_escape_to_a_new_tab(viewer):

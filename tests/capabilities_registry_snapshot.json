@@ -1686,6 +1686,30 @@
   "not_inherited_by": []
  },
  {
+  "key": "quality.supervisor_followup",
+  "label": "متابعةُ أداء المشرف الإداريّ (إنشاءٌ وتعديل)",
+  "roles": [
+   "principal",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك: استمارة 19 للمدير والنائب الإداريّ (W-20261125-003)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
+  "key": "quality.supervisor_followup_view",
+  "label": "قراءةُ متابعات المشرف الإداريّ",
+  "roles": [
+   "principal",
+   "vice_admin"
+  ],
+  "scope": "المشرفُ يقرأ متابعاته المحفوظة وحدَها",
+  "basis": "قرارُ المالك: استمارة 19 (W-20261125-003)",
+  "grant": "_is_admin_supervisor",
+  "not_inherited_by": []
+ },
+ {
   "key": "observation.create",
   "label": "الزيارةُ الإشرافيّة",
   "roles": [

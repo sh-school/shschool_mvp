@@ -585,3 +585,26 @@ class ObservationScoreAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
         for observation in observations:
             ObservationService.recompute_score_percent(observation)
+
+
+# ── متابعةُ أداء المشرف الإداريّ (نموذج 19): قراءةٌ فقط — الكتابةُ من الاستمارة وحدَها بتحقّقها وتدقيقها. ──
+from .models import SupervisorFollowUp  # noqa: E402
+
+
+@admin.register(SupervisorFollowUp)
+class SupervisorFollowUpAdmin(admin.ModelAdmin):
+    list_display = ("follow_date", "school", "supervisor", "status", "is_deleted")
+    list_filter = ("school", "status", "is_deleted")
+    ordering = ("-follow_date",)
+
+    def get_queryset(self, request):
+        return SupervisorFollowUp.all_objects.select_related("school", "supervisor")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
