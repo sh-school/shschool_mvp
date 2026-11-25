@@ -1,0 +1,21 @@
+{# «قادمون إليك»: خروجاتُ اليوم المفتوحة إلى العيادة التي لم يُسجَّل وصولها — «استلام» واحد يسجّل الوصول ويفتح الزيارة. #}
+{% if incoming %}
+<section class="form-card clinic-incoming" aria-labelledby="q-incoming">
+  <h2 id="q-incoming" class="clinic-quick__h">قادمون إليك <span class="num">{{ incoming|length }}</span></h2>
+  <ul role="list" class="clinic-quick__results">
+    {% for r in incoming %}
+    <li class="clinic-incoming__row">
+      <span class="clinic-quick__who">{{ r.student.full_name }}</span>
+      <span class="text-secondary">{{ r.class_text }} · خرج <span class="num">{{ r.left_at|time:"H:i" }}</span> · ينتظر <span class="num">{{ r.wait_minutes }}</span> د</span>
+      <form hx-post="{% url 'clinic:quick_receive' %}" hx-target="#quick-panel" hx-swap="innerHTML">
+        {% csrf_token %}
+        <input type="hidden" name="exit_id" value="{{ r.pk }}">
+        <button type="submit" class="clinic-tap btn-primary">استلام</button>
+      </form>
+    </li>
+    {% empty %}
+    <li class="text-secondary">لا قادمين الآن</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}

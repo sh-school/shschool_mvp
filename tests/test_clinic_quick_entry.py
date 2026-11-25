@@ -201,3 +201,119 @@ def test_quick_start_refuses_an_inactive_or_foreign_student(school, nurse_user):
         resp = c.post(reverse("clinic:quick_start"), {"student_id": str(student.id)})
         assert resp.status_code == 404
     assert not ClinicVisit.objects.exists()
+
+
+# ── W-20261124-009: «قادمون إليك» بزر استلام واحد، وإغلاق الزيارة يسجّل «غادر» ──
+from operations.models import ClassExit  # noqa: E402
+from tests.test_movement_live import _exit, wing_a  # noqa: E402,F401
+
+
+def _quick_html(client, user):
+    client.force_login(user)
+    return client.get(reverse("clinic:quick_entry")).content.decode()
+
+
+@pytest.mark.django_db
+def test_incoming_lists_unreceived_clinic_exits_with_counter_and_wait(
+    client, school, nurse_user, teacher_user, wing_a
+):
+    klass, _ = wing_a
+    _exit(school, klass, teacher_user, "طالب قادم", "29000000021", minutes_ago=7)
+    done = _exit(school, klass, teacher_user, "طالب مستلم", "29000000022")
+    ClassExit.objects.filter(pk=done.pk).update(clinic_arrived_at=timezone.now())
+    _exit(school, klass, teacher_user, "طالب مشرف", "29000000023", dest="wing_sup")
+
+    html = _quick_html(client, nurse_user)
+
+    block = html.split("قادمون إليك")[1].split("الإدخال السريع")[0]
+    assert "طالب قادم" in block and "طالب مستلم" not in block and "طالب مشرف" not in html
+    assert "data-quiet-poll" in html and "every 20s" in html
+    assert reverse("clinic:quick_incoming") in html
+    assert client.get(reverse("clinic:quick_incoming")).status_code == 200
+
+
+@pytest.mark.django_db
+def test_receive_records_arrival_starts_visit_and_is_idempotent(
+    client, school, nurse_user, teacher_user, wing_a
+):
+    klass, _ = wing_a
+    row = _exit(school, klass, teacher_user, "طالب استلام", "29000000031")
+    client.force_login(nurse_user)
+    url = reverse("clinic:quick_receive")
+
+    first = client.post(url, {"exit_id": str(row.pk)})
+    arrived = ClassExit.objects.get(pk=row.pk).clinic_arrived_at
+    second = client.post(url, {"exit_id": str(row.pk)})
+
+    assert first.status_code == second.status_code == 200
+    assert "clinic-visit-changed" in first["HX-Trigger"]
+    assert arrived is not None and ClassExit.objects.get(pk=row.pk).clinic_arrived_at == arrived
+    assert ClinicVisit.objects.count() == 1
+    assert ClinicVisit.objects.get().student_id == row.student_id
+
+
+@pytest.mark.django_db
+def test_receive_of_foreign_or_non_clinic_exit_is_404(
+    client, school, nurse_user, teacher_user, wing_a
+):
+    from tests.conftest import SchoolFactory
+
+    klass, _ = wing_a
+    wing_row = _exit(school, klass, teacher_user, "طالب جناح", "29000000041", dest="wing_sup")
+    foreign = _exit(school, klass, teacher_user, "طالب غريب", "29000000042")
+    ClassExit.objects.filter(pk=foreign.pk).update(school=SchoolFactory())
+    client.force_login(nurse_user)
+    url = reverse("clinic:quick_receive")
+
+    assert client.post(url, {"exit_id": str(wing_row.pk)}).status_code == 404
+    assert client.post(url, {"exit_id": str(foreign.pk)}).status_code == 404
+    assert client.post(url, {"exit_id": "not-a-uuid"}).status_code == 404
+    assert not ClinicVisit.objects.exists()
+
+
+@pytest.mark.django_db
+def test_closing_the_visit_records_departure_but_never_returned_at(
+    client, school, nurse_user, teacher_user, wing_a
+):
+    klass, _ = wing_a
+    row = _exit(school, klass, teacher_user, "طالب مغادرة", "29000000051")
+    client.force_login(nurse_user)
+    client.post(reverse("clinic:quick_receive"), {"exit_id": str(row.pk)})
+    visit = ClinicVisit.objects.get()
+
+    client.post(reverse("clinic:quick_close", args=[visit.id]), {"outcome": "sent_home"})
+
+    row.refresh_from_db()
+    assert row.clinic_arrived_at is not None and row.clinic_left_at is not None
+    assert row.returned_at is None
+
+
+@pytest.mark.django_db
+def test_closing_a_visit_without_arrival_leaves_the_exit_untouched(
+    client, school, nurse_user, teacher_user, wing_a
+):
+    klass, _ = wing_a
+    row = _exit(school, klass, teacher_user, "طالب بلا وصول", "29000000061")
+    client.force_login(nurse_user)
+    # طالبُ المساعد بلا عضويّة دور طالب فمسار quick_start يردّ 404؛ نبدأ الزيارةَ بالخدمة مباشرةً
+    visit = ClinicService.start_visit(school, row.student, nurse_user)
+
+    done = client.post(reverse("clinic:quick_close", args=[visit.id]), {"outcome": "sent_home"})
+
+    row.refresh_from_db()
+    assert done.status_code == 200
+    assert row.clinic_left_at is None and row.returned_at is None
+
+
+@pytest.mark.django_db
+def test_incoming_needs_the_nurse_capability(client, school, teacher_user):
+    client.force_login(teacher_user)
+    assert client.get(reverse("clinic:quick_incoming")).status_code in (302, 403)
+    assert client.post(reverse("clinic:quick_receive"), {"exit_id": "x"}).status_code in (302, 403)
+
+
+def test_quiet_live_script_is_loaded_and_holds_polls_during_interaction():
+    page = (ROOT / "templates" / "clinic" / "quick_entry.html").read_text(encoding="utf-8")
+    js = (ROOT / "static" / "js" / "clinic-quick-live.js").read_text(encoding="utf-8")
+    assert "clinic-quick-live.js" in page and page.count("data-quiet-poll") == 2
+    assert "htmx:beforeRequest" in js and "htmx:beforeSwap" in js and "document.hidden" in js

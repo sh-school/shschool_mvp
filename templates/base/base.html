@@ -767,6 +767,7 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   <div class="sd-label">العيادة المدرسية</div>
   <a href="{% url 'clinic:dashboard' %}">{% icon "clinic" %} لوحة العيادة</a>
   {% if request.user|can_open:"clinic:visits_list" %}<a href="{% url 'clinic:visits_list' %}">{% icon "document" %} سجل الزيارات</a>{% endif %}
+  {% if request.user|can_open:"clinic:quick_entry" %}<a href="{% url 'clinic:quick_entry' %}">{% icon "document" %} الإدخال السريع</a>{% endif %}
   {% if request.user|can_open:"clinic:exit_card" %}<a href="{% url 'clinic:exit_card' %}">{% icon "document" %} بطاقة الخروج</a>{% endif %}
   {% if request.user|can_open:"clinic:needs_care_import" %}
   <a href="{% url 'clinic:needs_care_import' %}">{% icon "document" %} علامة المراعاة</a>

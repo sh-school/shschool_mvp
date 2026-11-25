@@ -37,6 +37,16 @@ def clinic_exits(school: Any, day: dt.date) -> list[dict[str, Any]]:
     ]
 
 
+def incoming_to_clinic(school: Any, day: dt.date, now: dt.datetime) -> list[dict[str, Any]]:
+    """«قادمون إليك»: خروجُ اليوم المفتوحُ إلى العيادة الذي لم يُسجَّل وصولُه، مع دقائق الانتظار منذ الخروج."""
+    rows = []
+    for row in clinic_exits(school, day):
+        if row["arrived"] is None:
+            wait = max(0, int((now - row["left_at"]).total_seconds() // 60))
+            rows.append({**row, "wait_minutes": wait})
+    return rows
+
+
 def marks_set_by(school: Any, user: Any, day: dt.date) -> list[dict[str, Any]]:
     """الوسومُ السارية التي وضعها هذا المستخدمُ نفسُه — لا وسمَ غيره ولا سببَه."""
     qs = (

@@ -1701,3 +1701,9 @@ body:has(.rm-page) .site-footer { flex: none; }
 @layer modules {
   .sec-muted { color: var(--text-secondary); font-size: var(--text-sm); }
 }
+
+/* «قادمون إليك» في الإدخال السريع: صفٌّ بالاسم والتفاصيل وزرّ الاستلام. */
+@layer modules {
+  .clinic-incoming { margin-block-end: var(--sp-4); }
+  .clinic-incoming__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); justify-content: space-between; }
+}
