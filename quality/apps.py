@@ -55,6 +55,15 @@ class QualityConfig(AppConfig):
             sort_order=21,
             parent="quality",
         )
+        # متابعةُ المشرف الإداريّ: بوّابتُها أضيقُ من الأمّ وفيها المشرفُ ليقرأ متابعاتِه وحدَها.
+        register_module(
+            name="quality_supervisor_followups",
+            label="متابعة أداء المشرف الإداري",
+            url_prefix="/quality/supervisor-follow-ups/",
+            allowed_roles={"principal", "vice_admin", "admin_supervisor"},
+            sort_order=22,
+            parent="quality",
+        )
         register_module(
             name="quality",
             label="الجودة والتطوير",

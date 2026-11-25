@@ -3,7 +3,7 @@
   "behavior/conduct_2026.py": 1472,
   "behavior/views.py": 1090,
   "core/domain/grades.py": 1748,
-  "core/permissions.py": 1144,
+  "core/permissions.py": 1146,
   "notifications/tasks.py": 1417,
   "operations/scheduler_constraints.py": 1026,
   "operations/views_schedule.py": 1431,

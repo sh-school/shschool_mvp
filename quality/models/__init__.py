@@ -13,6 +13,13 @@ from quality.observation_models import (  # noqa: F401
     ObservationScore,
 )
 
+# ── متابعةُ أداء المشرف الإداريّ (نموذج 19) — وحدةٌ مستقلّة ──────────
+from quality.supervisor_followup_models import (  # noqa: F401
+    SupervisorFollowUp,
+    SupervisorFollowUpRecommendation,
+    SupervisorFollowUpScore,
+)
+
 from .appraisal import (  # noqa: F401
     _DEFAULT_AXES,
     _EVALUABLE_ROLES,

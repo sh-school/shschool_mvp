@@ -1,0 +1,102 @@
+{% extends "base/base.html" %}
+{% load static ui %}
+{% block extra_js %}<script src="{% static 'js/supervisor-followup.js' %}" defer></script>{% endblock %}
+{% block title %}متابعة أداء مشرف إداري{% endblock %}
+{% block main_class %}{% page_layout "detail" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/quality/supervisor-follow-ups/" parent_label="متابعة المشرف الإداري" current="عرض المتابعة" %}
+{% endblock %}
+
+{% block content %}
+<div data-draft-clear="{{ draft_clear }}"></div>
+{% page_header "متابعة أداء مشرف إداري" icon="observation" %}
+  <a href="{% url 'supervisor_followup_list' %}" class="btn-secondary btn-sm">← رجوع</a>
+  {% if can_manage %}<a href="{% url 'supervisor_followup_edit' followup.pk %}" class="btn-primary btn-sm">تعديل</a>{% endif %}
+{% endpage_header %}
+
+{% section_card "متابعة التوصيات السابقة" icon="checklist" flush=True %}
+  <div class="table-wrap table-wrap-scroll">
+    <table class="table" data-no-sort>
+      <thead><tr><th>م</th><th class="supfu-wide">التوصية</th><th>نُفّذ</th><th>لم يُنفّذ</th><th class="supfu-wide">الملاحظات</th></tr></thead>
+      <tbody>
+        {% for rec, status, note in reviews %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ rec.text }}</td>
+          <td>{% if status == "done" %}✓{% endif %}</td>
+          <td>{% if status == "not_done" %}✓{% endif %}</td>
+          <td>{{ note }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">لا توصيات من متابعة سابقة.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endsection_card %}
+
+{% section_card "متابعة الغياب والاستئذان والتأخير الصباحي" icon="date" %}
+  <div class="supfu-counts">
+    <p>مرضي: <b>{{ followup.sick_days }}</b></p>
+    <p>عرضي: <b>{{ followup.casual_days }}</b></p>
+    <p>بلا راتب: <b>{{ followup.unpaid_days }}</b></p>
+    <p>الاستئذان: <b>{{ followup.permit_count }}</b></p>
+    <p>التأخير الصباحي: <b>{{ followup.late_count }}</b></p>
+  </div>
+  <p class="ui-note">الفترة المحسوبة: من {{ followup.period_start|date:"Y-m-d" }} إلى {{ followup.period_end|date:"Y-m-d" }}.</p>
+{% endsection_card %}
+
+{% section_card "بيانات المتابعة" icon="status_info" %}
+  <div class="supfu-counts">
+    <p>اسم المشرف الإداري: <b>{{ followup.supervisor.full_name }}</b></p>
+    <p>المتابِع: <b>{{ followup.follower.full_name }}</b></p>
+    <p>اليوم: <b>{{ followup.follow_date|date:"l" }}</b></p>
+    <p>التاريخ: <b>{{ followup.follow_date|date:"Y-m-d" }}</b></p>
+    <p>الحالة: <b>{{ followup.get_status_display }}</b></p>
+  </div>
+{% endsection_card %}
+
+{% section_card "مؤشرات المتابعة" icon="checklist" flush=True %}
+  <div class="table-wrap table-wrap-scroll">
+    <table class="table" data-no-sort>
+      <thead><tr><th>م</th><th class="supfu-wide">مؤشرات المتابعة</th><th>متابعة تنفيذ المهام</th><th class="supfu-wide">ملاحظات</th></tr></thead>
+      <tbody>
+        {% for number, text, score in rows %}
+        <tr>
+          <td>{{ number }}</td>
+          <td>{{ text }}</td>
+          <td>{% if score and score.rating %}{{ score.get_rating_display }}{% else %}—{% endif %}</td>
+          <td>{{ score.note }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endsection_card %}
+
+{% section_card "جوانب القوة" icon="document" %}
+  <p>{{ followup.strengths|default:"—"|linebreaksbr }}</p>
+{% endsection_card %}
+
+{% section_card "جوانب تحتاج إلى تحسين" icon="document" %}
+  <p>{{ followup.improvements|default:"—"|linebreaksbr }}</p>
+{% endsection_card %}
+
+{% section_card "التوصيات" icon="document" %}
+  <ol class="supfu-recs">
+    {% for rec in recommendations %}
+    <li>{{ rec.text }}</li>
+    {% empty %}
+    <li>—</li>
+    {% endfor %}
+  </ol>
+{% endsection_card %}
+
+{% if can_manage %}
+<form method="post" action="{% url 'supervisor_followup_delete' followup.pk %}" class="form-actions" data-confirm="حذف هذه المتابعة؟">
+  {% csrf_token %}
+  <button type="submit" class="btn-secondary btn-sm">حذف المتابعة</button>
+</form>
+{% endif %}
+{% endblock %}

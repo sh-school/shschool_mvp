@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from core.capabilities.base import Capability, Shared, _cap
+
+
+def _is_admin_supervisor(user: Any) -> bool:
+    """منحُ قراءةٍ للمشرف الإداريّ **بدوره**: فلا يرثه حاملُ الجناح بالتعيين (متابعةٌ تخصّ صاحبَها)."""
+    return str(user.get_role()) == "admin_supervisor"
 
 
 def quality_capabilities(shared: Shared) -> list[Capability]:
@@ -17,6 +24,20 @@ def quality_capabilities(shared: Shared) -> list[Capability]:
             "تقييمُ أداء الموظّفين",
             {"principal", "vice_admin", "vice_academic"},
             basis="افتراضُ المنصّة — والنصُّ يجعل الرئيسَ المباشرَ كاتبَ التقييم (م16)",
+        ),
+        _cap(
+            "quality.supervisor_followup",
+            "متابعةُ أداء المشرف الإداريّ (إنشاءٌ وتعديل)",
+            P.SUPERVISOR_FOLLOWUP_MANAGE,
+            basis="قرارُ المالك: استمارة 19 للمدير والنائب الإداريّ (W-20261125-003)",
+        ),
+        _cap(
+            "quality.supervisor_followup_view",
+            "قراءةُ متابعات المشرف الإداريّ",
+            P.SUPERVISOR_FOLLOWUP_MANAGE,
+            scope="المشرفُ يقرأ متابعاته المحفوظة وحدَها",
+            basis="قرارُ المالك: استمارة 19 (W-20261125-003)",
+            grant=_is_admin_supervisor,
         ),
         _cap("observation.create", "الزيارةُ الإشرافيّة", P.OBSERVATION_CREATE),
         _cap("observation.self", "التقييمُ الذاتيّ", P.OBSERVATION_SELF_CREATE),

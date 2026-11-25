@@ -1,0 +1,62 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% block title %}متابعة أداء المشرف الإداري{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="متابعة أداء المشرف الإداري" %}
+{% endblock %}
+
+{% block content %}
+{% page_header "متابعة أداء المشرف الإداري" icon="observation" %}{% endpage_header %}
+
+{% if can_manage %}
+{% section_card "المشرفون الإداريون" icon="staff" flush=True %}
+  <div class="table-wrap table-wrap-scroll">
+    <table class="table" data-no-sort>
+      <thead>
+        <tr><th>المشرف الإداري</th><th>آخر متابعة</th><th>الحالة</th><th>إجراء</th></tr>
+      </thead>
+      <tbody>
+        {% for supervisor, last in supervisor_rows %}
+        <tr>
+          <td>{{ supervisor.full_name }}</td>
+          <td>{% if last %}<a href="{% url 'supervisor_followup_detail' last.pk %}">{{ last.follow_date|date:"Y-m-d" }}</a>{% else %}—{% endif %}</td>
+          <td>{% if last %}{{ last.get_status_display }}{% else %}—{% endif %}</td>
+          <td><a class="btn-primary btn-sm" href="{% url 'supervisor_followup_new' supervisor.pk %}">متابعة جديدة</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4">لا يوجد مشرفون إداريون بعضوية فعّالة.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endsection_card %}
+{% endif %}
+
+{% section_card "المتابعات" icon="document" flush=True %}
+  <div class="table-wrap table-wrap-scroll">
+    <table class="table" data-no-sort>
+      <thead>
+        <tr><th>التاريخ</th><th>المشرف الإداري</th><th>المتابِع</th><th>الحالة</th><th>إجراء</th></tr>
+      </thead>
+      <tbody>
+        {% for item in history %}
+        <tr>
+          <td>{{ item.follow_date|date:"Y-m-d" }}</td>
+          <td>{{ item.supervisor.full_name }}</td>
+          <td>{{ item.follower.full_name }}</td>
+          <td>{{ item.get_status_display }}</td>
+          <td>
+            <a class="btn-secondary btn-sm" href="{% url 'supervisor_followup_detail' item.pk %}">عرض</a>
+            {% if can_manage %}<a class="btn-secondary btn-sm" href="{% url 'supervisor_followup_edit' item.pk %}">تعديل</a>{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">لا توجد متابعات بعد.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endsection_card %}
+{% endblock %}
