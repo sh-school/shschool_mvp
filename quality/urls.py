@@ -35,6 +35,11 @@ urlpatterns = [
         name="supervisor_followup_edit",
     ),
     path(
+        "supervisor-follow-ups/<uuid:pk>/pdf/",
+        supervisor_followup_views.supervisor_followup_pdf,
+        name="supervisor_followup_pdf",
+    ),
+    path(
         "supervisor-follow-ups/<uuid:pk>/delete/",
         supervisor_followup_views.supervisor_followup_delete,
         name="supervisor_followup_delete",

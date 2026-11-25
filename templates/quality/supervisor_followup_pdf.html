@@ -1,0 +1,111 @@
+{% extends "behavior/pdf/base_form.html" %}
+{% load brand_tags %}
+{% comment %}
+  طباعةُ «نموذج 19 — استمارة متابعة أداء مشرف إداري»: أقسامُ الورقة بترتيبها وأعمدتِها، على الإطار المطبوع المركزيّ.
+  خانتا «توقيع الموظف» و«اعتماد المسؤول المباشر» فارغتان للتوقيع اليدويّ.
+  بلا أصنافٍ محليّة: محدِّداتٌ بالمعرّف وسماتِ data في كتلة أنماط القالب الأب (حارسُ الأصناف لا يرى كتلةَ الابن).
+{% endcomment %}
+{% block extra_styles %}
+  #sheet19 table { table-layout: fixed; margin-bottom: 8pt; font-size: 10.5pt; }
+  #sheet19 th, #sheet19 td { border: 0.6pt solid {% brand_color "PRINT_INK" %}; padding: 2pt 4pt; vertical-align: middle; }
+  #sheet19 th { background: {% brand_color "FORM_KEY_BG" %}; font-weight: 700; text-align: center; }
+  #sheet19 thead { display: table-header-group; }
+  #sheet19 tr { page-break-inside: avoid; }
+  #sheet19 [data-mid] { text-align: center; }
+  #sheet19 [data-col="n"] { width: 6%; }
+  #sheet19 [data-col="rating"] { width: 8%; }
+  #sheet19 [data-col="main"] { width: 42%; }
+  #sheet19 [data-col="done"] { width: 10%; }
+  #sheet19 [data-tick] { font-family: 'Visit Tick'; }
+  #sheet19 h2 { font-size: 12pt; font-weight: 700; margin: 8pt 0 3pt; page-break-after: avoid; }
+  #sheet19 [data-box] { border: 0.6pt solid {% brand_color "PRINT_INK" %}; min-height: 42pt; padding: 4pt 6pt; font-size: 11pt; }
+  #sheet19 [data-sign] { page-break-inside: avoid; margin-top: 12pt; }
+  #sheet19 [data-sign] td { height: 40pt; width: 50%; font-weight: 700; vertical-align: top; }
+{% endblock %}
+
+{% block content %}
+<div id="sheet19">
+<h2>متابعة التوصيات السابقة</h2>
+<table>
+  <thead><tr><th data-col="n">م</th><th data-col="main">التوصية</th><th data-col="done">نُفّذ</th><th data-col="done">لم يُنفّذ</th><th>الملاحظات</th></tr></thead>
+  <tbody>
+    {% for rec, status, note in reviews %}
+    <tr>
+      <td data-mid>{{ forloop.counter }}</td>
+      <td>{{ rec.text|linebreaksbr }}</td>
+      <td data-mid>{% if status == "done" %}<span data-tick>✓</span>{% endif %}</td>
+      <td data-mid>{% if status == "not_done" %}<span data-tick>✓</span>{% endif %}</td>
+      <td>{{ note|linebreaksbr }}</td>
+    </tr>
+    {% empty %}
+    <tr><td data-mid colspan="5">لا توصيات من متابعة سابقة.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>متابعة الغياب والاستئذان والتأخير الصباحي</h2>
+<table>
+  <thead><tr><th>مرضي</th><th>عرضي</th><th>بلا راتب</th><th>الاستئذان</th><th>التأخير الصباحي</th></tr></thead>
+  <tbody>
+    <tr>
+      <td data-mid>{{ followup.sick_days }}</td>
+      <td data-mid>{{ followup.casual_days }}</td>
+      <td data-mid>{{ followup.unpaid_days }}</td>
+      <td data-mid>{{ followup.permit_count }}</td>
+      <td data-mid>{{ followup.late_count }}</td>
+    </tr>
+  </tbody>
+</table>
+
+<table>
+  <tbody>
+    <tr>
+      <th>اسم المشرف الإداري</th><td colspan="3">{{ followup.supervisor.full_name }}</td>
+    </tr>
+    <tr>
+      <th>اليوم</th><td>{{ followup.follow_date|date:"l" }}</td>
+      <th>التاريخ</th><td>{{ followup.follow_date|date:"Y/m/d" }}</td>
+    </tr>
+  </tbody>
+</table>
+
+<table>
+  <thead>
+    <tr>
+      <th data-col="n" rowspan="2">م</th>
+      <th data-col="main" rowspan="2">مؤشرات المتابعة</th>
+      <th colspan="{{ ratings|length }}">متابعة تنفيذ المهام</th>
+      <th rowspan="2">ملاحظات</th>
+    </tr>
+    <tr>{% for value, label in ratings %}<th data-col="rating">{{ label }}</th>{% endfor %}</tr>
+  </thead>
+  <tbody>
+    {% for number, text, score in rows %}
+    <tr>
+      <td data-mid>{{ number }}</td>
+      <td>{{ text }}</td>
+      {% for value, label in ratings %}
+      <td data-mid>{% if score and score.rating == value %}<span data-tick>✓</span>{% endif %}</td>
+      {% endfor %}
+      <td>{{ score.note|linebreaksbr }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>جوانب القوة</h2>
+<div data-box>{{ followup.strengths|linebreaksbr }}</div>
+
+<h2>جوانب تحتاج إلى تحسين</h2>
+<div data-box>{{ followup.improvements|linebreaksbr }}</div>
+
+<h2>التوصيات</h2>
+<div data-box>
+  {% for rec in recommendations %}<div>{{ forloop.counter }}. {{ rec.text|linebreaksbr }}</div>{% endfor %}
+</div>
+
+<table data-sign>
+  <tbody><tr><td>توقيع الموظف:</td><td>اعتماد المسؤول المباشر:</td></tr></tbody>
+</table>
+</div>
+{% endblock %}

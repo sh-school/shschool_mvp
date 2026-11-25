@@ -7,7 +7,16 @@ class QualityConfig(AppConfig):
     verbose_name = "الجودة والخطة التشغيلية"
 
     def ready(self):
+        from core.exports import registry as export_registry
         from core.module_registry import register_module
+
+        from .export_builders import build_supervisor_followup_pdf
+
+        export_registry.register(
+            "quality.supervisor_followup_pdf",
+            build=build_supervisor_followup_pdf,
+            capability="quality.supervisor_followup_view",
+        )
 
         # الوحدة الفرعية أولاً (أطول مسار)
         register_module(

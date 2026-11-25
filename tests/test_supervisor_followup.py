@@ -295,3 +295,78 @@ def test_assets_follow_csp_rtl_and_token_rules():
     block = css[css.index("متابعة المشرف الإداري (نموذج 19)") :]
     for banned in ("px", "#", "left", "right"):
         assert banned not in block.split("@layer modules {", 1)[1]
+
+
+def test_the_saved_follow_up_prints_as_form_19(client_as, school, vice, supervisor, monkeypatch):
+    from django.http import QueryDict
+
+    from core.exports import registry
+    from quality.export_builders import build_supervisor_followup_pdf
+
+    client = client_as(vice)
+    pk = uuid.uuid4()
+    _post(client, pk, supervisor, recs=[(str(uuid.uuid4()), "توصية للطباعة")])
+    seen: dict[str, str] = {}
+
+    def fake(html, *args, **kwargs):
+        seen["html"] = html
+        return b"%PDF-1.7"
+
+    monkeypatch.setattr("core.pdf_utils._generate_pdf_bytes", fake)
+    result = build_supervisor_followup_pdf(school, vice, QueryDict(f"followup={pk}"))
+    assert registry.get("quality.supervisor_followup_pdf").build is build_supervisor_followup_pdf
+    assert result.content.startswith(b"%PDF") and result.object_id == str(pk)
+    assert supervisor.full_name not in result.filename
+    html = seen["html"]
+    order = [
+        "متابعة التوصيات السابقة</h2>",
+        "متابعة الغياب والاستئذان والتأخير الصباحي</h2>",
+        "اسم المشرف الإداري</th>",
+        "مؤشرات المتابعة</th>",
+        "جوانب القوة</h2>",
+        "جوانب تحتاج إلى تحسين</h2>",
+        "التوصيات</h2>",
+        "توقيع الموظف:",
+        "اعتماد المسؤول المباشر:",
+    ]
+    positions = [html.index(text) for text in order]
+    assert positions == sorted(positions)
+    assert "نموذج 19" in html and "توصية للطباعة" in html and STRENGTH in html
+    assert all(text in html for _n, text in INDICATORS)
+    assert html.count("<span data-tick>✓</span>") == 1
+    detail = client.get(reverse("supervisor_followup_detail", args=[pk])).content.decode()
+    assert reverse("supervisor_followup_pdf", args=[pk]) in detail
+
+
+def test_form_19_renders_to_a_real_portrait_pdf(client_as, school, vice, supervisor):
+    from django.template.loader import render_to_string
+    from weasyprint import HTML
+
+    from quality import supervisor_followup_selectors as selectors
+
+    pk = uuid.uuid4()
+    _post(client_as(vice), pk, supervisor)
+    followup = selectors.get_follow_up(school, pk)
+    html = render_to_string(
+        "quality/supervisor_followup_pdf.html", selectors.print_context(school, followup)
+    )
+    pages = HTML(string=html).render().pages
+    assert 1 <= len(pages) <= 2
+    assert pages[0].height > pages[0].width
+
+
+def test_printing_follows_the_reading_rule(client_as, school, vice, supervisor):
+    from django.core.exceptions import PermissionDenied
+    from django.http import QueryDict
+
+    from quality.export_builders import build_supervisor_followup_pdf
+
+    pk = uuid.uuid4()
+    _post(client_as(vice), pk, supervisor, action="draft")
+    url = reverse("supervisor_followup_pdf", args=[pk])
+    assert client_as(supervisor).get(url).status_code == 403
+    teacher = _member(school, "teacher", "معلم اختباري")
+    assert client_as(teacher).get(url).status_code == 403
+    for user in (supervisor, teacher):
+        with pytest.raises(PermissionDenied):
+            build_supervisor_followup_pdf(school, user, QueryDict(f"followup={pk}"))

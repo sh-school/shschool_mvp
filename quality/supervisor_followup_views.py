@@ -11,14 +11,14 @@ from typing import Any
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
-from django.http import Http404, HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse, QueryDict
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.capabilities import capability_required, has_capability
+from core.exports.services import respond_export
 from core.models import CustomUser
 
 from . import supervisor_followup_selectors as selectors
@@ -140,10 +140,8 @@ def supervisor_followup_edit(request: HttpRequest, pk: uuid.UUID) -> HttpRespons
 @capability_required(VIEW)
 def supervisor_followup_detail(request: HttpRequest, pk: uuid.UUID) -> HttpResponse:
     school = request.school  # type: ignore[attr-defined]
-    followup = selectors.get_follow_up(school, pk)
+    followup = selectors.readable_follow_up(school, request.user, pk)
     manage = has_capability(request.user, MANAGE)
-    if not manage and (followup.supervisor_id != request.user.pk or followup.status != "saved"):
-        raise PermissionDenied
     context = selectors.detail_context(school, followup)
     scores = context.pop("scores")
     context.update(
@@ -158,6 +156,18 @@ def supervisor_followup_detail(request: HttpRequest, pk: uuid.UUID) -> HttpRespo
         ),
     )
     return render(request, "quality/supervisor_followup_detail.html", context)
+
+
+@login_required
+@capability_required(VIEW)
+def supervisor_followup_pdf(request: HttpRequest, pk: uuid.UUID) -> HttpResponse:
+    """طباعةُ نموذج 19 بمسار التصدير المركزيّ؛ ومن لا يقرأ المتابعةَ لا يطلب ملفَّها."""
+    school = request.school  # type: ignore[attr-defined]
+    followup = selectors.readable_follow_up(school, request.user, pk)
+    params = QueryDict(mutable=True)
+    params.update(request.GET)
+    params["followup"] = str(followup.pk)
+    return respond_export(request, "quality.supervisor_followup_pdf", params=params)
 
 
 @login_required

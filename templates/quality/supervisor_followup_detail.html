@@ -12,6 +12,7 @@
 <div data-draft-clear="{{ draft_clear }}"></div>
 {% page_header "متابعة أداء مشرف إداري" icon="observation" %}
   <a href="{% url 'supervisor_followup_list' %}" class="btn-secondary btn-sm">← رجوع</a>
+  {% export_group doc="templates/quality/supervisor_followup_pdf.html" %}{% export_button "pdf" "supervisor_followup_pdf" followup.pk %}{% endexport_button %}{% endexport_group %}
   {% if can_manage %}<a href="{% url 'supervisor_followup_edit' followup.pk %}" class="btn-primary btn-sm">تعديل</a>{% endif %}
 {% endpage_header %}
 

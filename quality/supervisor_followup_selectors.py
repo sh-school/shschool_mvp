@@ -7,13 +7,16 @@ import uuid
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q, QuerySet
 from django.http import Http404
 
 from core.academic_calendar import academic_year_window
+from core.capabilities import has_capability
 from core.models import CustomUser, School
 from staff_affairs.models import LeaveRequest, PermitRequest, StaffAttendance
 
+from .supervisor_followup_indicators import INDICATORS, RATINGS
 from .supervisor_followup_models import (
     SupervisorFollowUp,
     SupervisorFollowUpRecommendation,
@@ -68,6 +71,37 @@ def get_follow_up(school: School, pk: Any) -> SupervisorFollowUp:
     if found is None:
         raise Http404
     return found
+
+
+def readable_follow_up(school: School, user: CustomUser, pk: Any) -> SupervisorFollowUp:
+    """المديرُ والنائبُ الإداريّ يقرآن الكلّ؛ والمشرفُ محفوظاتِه وحدَها؛ ومعرّفٌ غيرُ موجودٍ 404."""
+    try:
+        found = get_follow_up(school, pk)
+    except (ValueError, ValidationError):
+        raise Http404 from None
+    if not has_capability(user, "quality.supervisor_followup") and (
+        found.supervisor_id != user.pk or found.status != "saved"
+    ):
+        raise PermissionDenied
+    return found
+
+
+def print_context(school: School, followup: SupervisorFollowUp) -> dict[str, Any]:
+    """سياقُ الورقة المطبوعة (نموذج 19)."""
+    context = detail_context(school, followup)
+    scores = context.pop("scores")
+    subtitle = "قسم دعم الإدارة المدرسية"
+    if followup.status != "saved":
+        subtitle += " — مسودة"
+    context.update(
+        school=school,
+        followup=followup,
+        ratings=RATINGS,
+        rows=[(n, text, scores.get(n)) for n, text in INDICATORS],
+        doc_title="نموذج 19 — استمارة متابعة أداء مشرف إداري",
+        doc_subtitle=subtitle,
+    )
+    return context
 
 
 def open_draft(school: School, supervisor: CustomUser) -> SupervisorFollowUp | None:
