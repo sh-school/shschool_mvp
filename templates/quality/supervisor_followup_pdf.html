@@ -17,6 +17,7 @@
   #sheet19 [data-col="main"] { width: 42%; }
   #sheet19 [data-col="done"] { width: 10%; }
   #sheet19 .tick { font-family: 'Visit Tick'; font-weight: 400; }
+  #sheet19 h1 { font-size: 12pt; font-weight: 700; text-align: center; margin: 4pt 0 2pt; }
   #sheet19 [data-year], #sheet19 [data-draft] { text-align: center !important; font-weight: 700; margin: 2pt 0; }
   #sheet19 [data-draft] { font-size: 16pt; color: {% brand_color "MAROON" %}; }
   #sheet19 h2 { font-size: 12pt; font-weight: 700; margin: 8pt 0 3pt; page-break-after: avoid; }
@@ -27,6 +28,7 @@
 
 {% block content %}
 <div id="sheet19">
+<h1>نموذج 19</h1>
 {% if followup.status != "saved" %}<p data-draft>مسودة</p>{% endif %}
 <p data-year>العام الأكاديمي: {{ year }}</p>
 
