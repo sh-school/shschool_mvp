@@ -137,6 +137,13 @@ DOCUMENTS: dict[str, PrintDocument] = {
         LOGO_OUTSIDE,
         "استمارةُ الإشراف خارج الإطار عمداً (قرار المالك 2026-10-21)",
     ),
+    "templates/quality/supervisor_followup_pdf.html": PrintDocument(
+        FORM,
+        "portrait",
+        CONFORMS,
+        LOGO_FRAME,
+        "نموذج 19 بالإطار المركزيّ (يرث `behavior/pdf/base_form.html`)",
+    ),
 }
 
 

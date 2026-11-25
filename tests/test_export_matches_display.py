@@ -155,6 +155,7 @@ EXEMPT: dict[str, str] = {
             "templates/quality/observation_list.html",
             "templates/quality/observation_detail.html",
             "templates/quality/observation_pdf_view.html",
+            "templates/quality/supervisor_followup_pdf_view.html",
             "templates/operations/absence_followup/viewer.html",
             "templates/parents/dashboard.html",
         ),

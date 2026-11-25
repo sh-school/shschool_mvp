@@ -7,7 +7,15 @@ class QualityConfig(AppConfig):
     verbose_name = "الجودة والخطة التشغيلية"
 
     def ready(self):
+        from core.exports import registry as export_registry
         from core.module_registry import register_module
+
+        from .supervisor_followup_exports import KIND, build_followup_pdf
+
+        # نموذج 19: خلفيٌّ افتراضاً (لا قياسَ p95 يبرّر المتزامن).
+        export_registry.register(
+            KIND, build=build_followup_pdf, capability="quality.supervisor_followup_view"
+        )
 
         # الوحدة الفرعية أولاً (أطول مسار)
         register_module(
@@ -53,6 +61,15 @@ class QualityConfig(AppConfig):
                 "lab_technician",
             },
             sort_order=21,
+            parent="quality",
+        )
+        # متابعةُ المشرف الإداريّ: بوّابتُها أضيقُ من الأمّ وفيها المشرفُ ليقرأ متابعاتِه وحدَها.
+        register_module(
+            name="quality_supervisor_followups",
+            label="متابعة أداء المشرف الإداري",
+            url_prefix="/quality/supervisor-follow-ups/",
+            allowed_roles={"principal", "vice_admin", "admin_supervisor"},
+            sort_order=22,
             parent="quality",
         )
         register_module(

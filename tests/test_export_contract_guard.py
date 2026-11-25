@@ -100,6 +100,7 @@ EXEMPT: dict[str, str] = {
             "student_affairs:student_profile_pdf",
             "observation_pdf_view",
             "observation_pdf",
+            "supervisor_followup_pdf",  # نموذج 19: استمارةُ متابعةٍ واحدة
             "breach:pdf",
             "behavior:warning_pdf",
             "behavior:student_pdf",
