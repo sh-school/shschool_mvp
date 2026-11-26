@@ -9535,3 +9535,93 @@ def test_0063_publishes_nothing_a_public_repo_must_not_say():
     assert [term for term in banned if term in body] == []
     assert not re.search(r"\b\d{11}\b", body)
     assert not re.search(r"\b[0-9a-f]{40}\b", body)
+
+
+# ── 0094: مطابقةُ البنود غير المغلقة مع الواقع (2026-11-26) ──
+
+_sync94 = importlib.import_module("roadmap.migrations.0094_sync_verification_2026_11_26")
+
+
+class _Apps94:
+    @staticmethod
+    def get_model(_app, name):
+        return {"RoadmapItem": RoadmapItem}[name]
+
+
+def _seed94():
+    """كلُّ بندٍ في الجدول بحالته وتقدّمه المتوقَّعَين."""
+    for code, old_status, old_progress, *_rest in _sync94.rows():
+        _item(code, old_status, old_progress, note="قديمة", gate="بوّابةٌ قائمة")
+
+
+def _snapshot94():
+    return list(
+        RoadmapItem.objects.order_by("code").values_list(
+            "code", "status", "progress", "note", "pr", "gate", "title", "start_date", "end_date"
+        )
+    )
+
+
+def test_0094_table_has_112_unique_rows_and_45_closures():
+    rows = _sync94.rows()
+    assert len(rows) == len({r[0] for r in rows}) == 112
+    closures = [r for r in rows if r[3] == "done"]
+    assert len(closures) == 45
+    assert all(r[4] == 100 for r in closures)
+    assert {r[3] for r in rows} <= {"todo", "doing", "done", "deferred"}
+
+
+def test_0094_applies_every_row_without_touching_gate_dates_title_or_creating():
+    _seed94()
+    _sync94.forwards(_Apps94, None)
+    assert RoadmapItem.objects.count() == 112
+    for code, _old_status, _old_progress, status, progress, pr, note in _sync94.rows():
+        item = RoadmapItem.objects.get(code=code)
+        assert (item.status, item.progress, item.pr) == (status, progress, pr), code
+        assert item.note == f"قديمة\n[2026-11-26] {note}", code
+        assert (item.gate, item.title) == ("بوّابةٌ قائمة", "عنوان"), code
+        assert (item.start_date, item.end_date) == (None, None), code
+
+
+def test_0094_second_run_changes_nothing():
+    _seed94()
+    _sync94.forwards(_Apps94, None)
+    before = _snapshot94()
+    assert _sync94.sync(RoadmapItem) == []
+    assert _snapshot94() == before
+
+
+def test_0094_leaves_items_whose_status_or_progress_moved():
+    _item("U-08", "doing", 0)
+    _item("SCH-21", "doing", 55)
+    _item("OWN-06", "todo", 0, pr="#1")
+    assert _sync94.sync(RoadmapItem) == ["OWN-06"]
+    assert RoadmapItem.objects.get(code="U-08").note == ""
+    moved = RoadmapItem.objects.get(code="SCH-21")
+    assert (moved.status, moved.progress, moved.note, moved.pr) == ("doing", 55, "", "")
+    assert RoadmapItem.objects.get(code="OWN-06").pr == "#1"
+
+
+def test_0094_does_not_repeat_a_note_already_written():
+    note = next(r[6] for r in _sync94.rows() if r[0] == "N-175")
+    _item("N-175", "doing", 0, note=f"[2026-11-26] {note}")
+    assert _sync94.sync(RoadmapItem) == []
+
+
+def test_0094_empty_database_stays_empty_and_no_decision_or_kpi_is_written():
+    _sync94.forwards(_Apps94, None)
+    assert RoadmapItem.objects.count() == 0
+    _seed94()
+    _sync94.forwards(_Apps94, None)
+    assert not RoadmapDecision.objects.exists()
+    assert not RoadmapKpi.objects.exists()
+
+
+def test_0094_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    text = f"{_sync94.__doc__} {_sync94.rows()}"
+    for bad in ("C:/", "C:\\", "D:\\", "localhost", "railway.app", "@", "8011"):
+        assert bad not in text
+    assert not re.search(r"\d{11}|\b[0-9a-f]{40}\b", text)
+    assert _sync94.Migration.dependencies == [("roadmap", "0093_sync_backlog_2026_11_26")]
