@@ -745,7 +745,7 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   <span class="sd-item-soon" role="menuitem" aria-disabled="true">النفسي<span class="sr-only"> — قريبًا</span></span>
   <span class="sd-item-soon" role="menuitem" aria-disabled="true">منسق شؤون الطلاب<span class="sr-only"> — قريبًا</span></span>
   <span class="sd-item-soon" role="menuitem" aria-disabled="true">الأقسام الإدارية<span class="sr-only"> — قريبًا</span></span>
-  <span class="sd-item-soon" role="menuitem" aria-disabled="true">الإشراف الإداري<span class="sr-only"> — قريبًا</span></span>
+  {% if request.user|can_open:"supervisor_followup_list" %}<a href="{% url 'supervisor_followup_list' %}" role="menuitem">الإشراف الإداري</a>{% endif %}
   <span class="sd-item-soon" role="menuitem" aria-disabled="true">ملاحظو الباصات<span class="sr-only"> — قريبًا</span></span>
   <span class="sd-item-soon" role="menuitem" aria-disabled="true">الاستقبال<span class="sr-only"> — قريبًا</span></span>
   </div>

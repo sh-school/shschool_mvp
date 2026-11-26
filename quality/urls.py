@@ -4,9 +4,51 @@ quality/urls.py — الإصلاح #4: إضافة مسارات لجنة المن
 
 from django.urls import path
 
-from . import evaluation_views, grievance_views, observation_views, views
+from . import (
+    evaluation_views,
+    grievance_views,
+    observation_views,
+    supervisor_followup_views,
+    views,
+)
 
 urlpatterns = [
+    # ── متابعةُ أداء المشرف الإداريّ (نموذج 19) ──────────────
+    path(
+        "supervisor-follow-ups/",
+        supervisor_followup_views.supervisor_followup_list,
+        name="supervisor_followup_list",
+    ),
+    path(
+        "supervisor-follow-ups/new/<uuid:supervisor_id>/",
+        supervisor_followup_views.supervisor_followup_new,
+        name="supervisor_followup_new",
+    ),
+    path(
+        "supervisor-follow-ups/<uuid:pk>/",
+        supervisor_followup_views.supervisor_followup_detail,
+        name="supervisor_followup_detail",
+    ),
+    path(
+        "supervisor-follow-ups/<uuid:pk>/edit/",
+        supervisor_followup_views.supervisor_followup_edit,
+        name="supervisor_followup_edit",
+    ),
+    path(
+        "supervisor-follow-ups/<uuid:pk>/pdf/",
+        supervisor_followup_views.supervisor_followup_pdf,
+        name="supervisor_followup_pdf",
+    ),
+    path(
+        "supervisor-follow-ups/<uuid:pk>/pdf/view/",
+        supervisor_followup_views.supervisor_followup_pdf_view,
+        name="supervisor_followup_pdf_view",
+    ),
+    path(
+        "supervisor-follow-ups/<uuid:pk>/delete/",
+        supervisor_followup_views.supervisor_followup_delete,
+        name="supervisor_followup_delete",
+    ),
     # ── الإشراف على أداء المعلّم (الملاحظة الصفّية) ──────────
     path("observations/", observation_views.observation_list, name="observation_list"),
     path("observations/new/", observation_views.observation_create, name="observation_create"),

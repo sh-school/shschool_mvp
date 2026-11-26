@@ -1707,3 +1707,12 @@ body:has(.rm-page) .site-footer { flex: none; }
   .clinic-incoming { margin-block-end: var(--sp-4); }
   .clinic-incoming__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); justify-content: space-between; }
 }
+
+/* ── متابعة المشرف الإداري (نموذج 19): خانات العدّ تلتفّ، والتوصيات تتكدّس على الجوال، وأعمدة النصّ لا تنضغط ── */
+@layer modules {
+  .supfu-form { display: flex; flex-direction: column; gap: var(--sp-4); }
+  .supfu-counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: var(--sp-3); align-items: end; }
+  .supfu-wide { min-inline-size: 14rem; }
+  .supfu-recs { display: flex; flex-direction: column; gap: var(--sp-2); margin-block-end: var(--sp-3); padding-inline-start: var(--sp-6); }
+  .supfu-rec > textarea { margin-block-end: var(--sp-1); inline-size: 100%; }
+}

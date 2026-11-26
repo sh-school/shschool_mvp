@@ -14,6 +14,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCREEN_VIEWS = {
     "templates/schedule/print_view.html",
     "templates/quality/observation_pdf_view.html",
+    "templates/quality/supervisor_followup_pdf_view.html",
 }
 DEBT_BASELINE = (
     0  # صُفّر في W-20261021-007: القوائمُ الأربع صارت أفقيّةً، والشعارُ يرثه الكلُّ من `base_qatar_report`

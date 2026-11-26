@@ -14,6 +14,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 EXPORT_TEMPLATES = {
     "templates/reports/base_qatar_report.html",
     "templates/quality/observation_pdf.html",
+    "templates/quality/supervisor_followup_pdf.html",
     "templates/components/print/frame_header.html",
     "templates/components/print/frame_css.html",
 }

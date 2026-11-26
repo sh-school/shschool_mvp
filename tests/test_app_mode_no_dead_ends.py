@@ -54,6 +54,8 @@ STANDALONE_EXEMPT = {
     "templates/pwa/offline_global.html",
     "templates/behavior/pdf/base_form.html",
     "templates/quality/observation_pdf.html",
+    # «نموذج 19»: PDF خالصٌ مسارُه الوحيدُ render_pdf_bytes، ويُعرض داخلَ صفحةٍ عارضة
+    "templates/quality/supervisor_followup_pdf.html",
 }
 
 #: دوالُّ تُرجع ملفّاً وأسماءُ مساراتها خارج الاصطلاح — راجعناها واحدةً واحدة.

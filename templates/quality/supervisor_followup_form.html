@@ -1,0 +1,126 @@
+{% extends "base/base.html" %}
+{% load static ui %}
+{% block extra_js %}<script src="{% static 'js/supervisor-followup.js' %}" defer></script>{% endblock %}
+{% block title %}استمارة متابعة أداء مشرف إداري{% endblock %}
+{% block main_class %}{% page_layout "form" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/quality/supervisor-follow-ups/" parent_label="متابعة المشرف الإداري" current="الاستمارة" %}
+{% endblock %}
+
+{% block content %}
+{% page_header "استمارة متابعة أداء مشرف إداري" icon="observation" %}
+  <a href="{% url 'supervisor_followup_list' %}" class="btn-secondary btn-sm">← رجوع</a>
+{% endpage_header %}
+
+<form method="post" action="{% url 'supervisor_followup_edit' pk %}" class="supfu-form" data-supfu-form
+      data-draft-key="{{ draft_key }}" data-draft-version="{{ draft_version }}" data-draft-clear="{{ draft_clear }}">
+  {% csrf_token %}
+  <input type="hidden" name="supervisor" value="{{ supervisor.pk }}">
+
+  {% section_card "متابعة التوصيات السابقة" icon="checklist" flush=True %}
+    <div class="table-wrap table-wrap-scroll">
+      <table class="table" data-no-sort>
+        <thead>
+          <tr><th>م</th><th class="supfu-wide">التوصية</th><th>نُفّذ</th><th>لم يُنفّذ</th><th class="supfu-wide">الملاحظات</th></tr>
+        </thead>
+        <tbody>
+          {% for rec, status, note in reviews %}
+          <tr>
+            <td>{{ forloop.counter }}<input type="hidden" name="review_id" value="{{ rec.pk }}"></td>
+            <td>{{ rec.text }}</td>
+            <td><input type="radio" name="review_status_{{ rec.pk }}" value="done" aria-label="نُفّذ — التوصية {{ forloop.counter }}"{% if status == "done" %} checked{% endif %}></td>
+            <td><input type="radio" name="review_status_{{ rec.pk }}" value="not_done" aria-label="لم يُنفّذ — التوصية {{ forloop.counter }}"{% if status == "not_done" %} checked{% endif %}></td>
+            <td><textarea name="review_note_{{ rec.pk }}" class="form-control form-control-sm" rows="1" aria-label="ملاحظات التوصية {{ forloop.counter }}">{{ note }}</textarea></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5">لا توصيات من متابعة سابقة.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endsection_card %}
+
+  {% section_card "متابعة الغياب والاستئذان والتأخير الصباحي" icon="date" %}
+    <div class="supfu-counts">
+      <label>مرضي <input type="text" class="form-control" value="{{ summary.sick_days }}" readonly></label>
+      <label>عرضي <input type="text" class="form-control" value="{{ summary.casual_days }}" readonly></label>
+      <label>بلا راتب <input type="text" class="form-control" value="{{ summary.unpaid_days }}" readonly></label>
+      <label>الاستئذان <input type="text" class="form-control" value="{{ summary.permit_count }}" readonly></label>
+      <label>التأخير الصباحي <input type="text" class="form-control" value="{{ summary.late_count }}" readonly></label>
+    </div>
+    <p class="ui-note">الفترة المحسوبة: من {{ summary.period_start|date:"Y-m-d" }} إلى {{ summary.period_end|date:"Y-m-d" }} — من سجلات شؤون الموظفين، وتُحفظ على المتابعة عند الحفظ.</p>
+  {% endsection_card %}
+
+  {% section_card "بيانات المتابعة" icon="status_info" %}
+    <div class="supfu-counts">
+      <p>اسم المشرف الإداري: <b>{{ supervisor.full_name }}</b></p>
+      <p>اليوم: <b data-supfu-day>{{ day|date:"l" }}</b></p>
+      <label>التاريخ <input type="date" name="follow_date" class="form-control" required max="{{ today|date:'Y-m-d' }}" value="{{ data.follow_date }}"></label>
+    </div>
+  {% endsection_card %}
+
+  {% section_card "مؤشرات المتابعة" icon="checklist" flush=True %}
+    <div class="table-wrap table-wrap-scroll">
+      <table class="table" data-no-sort>
+        <thead>
+          <tr data-plain-head>
+            <th rowspan="2">م</th>
+            <th rowspan="2" class="supfu-wide">مؤشرات المتابعة</th>
+            <th colspan="{{ ratings|length }}">متابعة تنفيذ المهام</th>
+            <th rowspan="2" class="supfu-wide">ملاحظات</th>
+          </tr>
+          <tr data-plain-head>{% for value, label in ratings %}<th>{{ label }}</th>{% endfor %}</tr>
+        </thead>
+        <tbody>
+          {% for number, text, rating, note in rows %}
+          <tr>
+            <td>{{ number }}</td>
+            <td>{{ text }}</td>
+            {% for value, label in ratings %}
+            <td><input type="radio" name="rating_{{ number }}" value="{{ value }}" aria-label="{{ label }} — المؤشر {{ number }}"{% if rating == value %} checked{% endif %}></td>
+            {% endfor %}
+            <td><textarea name="note_{{ number }}" class="form-control form-control-sm" rows="1" aria-label="ملاحظات المؤشر {{ number }}">{{ note }}</textarea></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endsection_card %}
+
+  {% section_card "جوانب القوة" icon="document" %}
+    <textarea name="strengths" class="form-control" rows="3" aria-label="جوانب القوة">{{ data.strengths }}</textarea>
+  {% endsection_card %}
+
+  {% section_card "جوانب تحتاج إلى تحسين" icon="document" %}
+    <textarea name="improvements" class="form-control" rows="3" aria-label="جوانب تحتاج إلى تحسين">{{ data.improvements }}</textarea>
+  {% endsection_card %}
+
+  {% section_card "التوصيات" icon="document" %}
+    <ol class="supfu-recs" data-supfu-recs>
+      {% for rec_id, text in data.recommendations %}
+      <li class="supfu-rec">
+        <input type="hidden" name="rec_id" value="{{ rec_id }}">
+        <textarea name="rec_text" class="form-control" rows="2" aria-label="توصية">{{ text }}</textarea>
+        <button type="button" class="btn-secondary btn-sm" data-supfu-remove>حذف</button>
+      </li>
+      {% endfor %}
+    </ol>
+    <template data-supfu-template>
+      <li class="supfu-rec">
+        <input type="hidden" name="rec_id" value="">
+        <textarea name="rec_text" class="form-control" rows="2" aria-label="توصية"></textarea>
+        <button type="button" class="btn-secondary btn-sm" data-supfu-remove>حذف</button>
+      </li>
+    </template>
+    <button type="button" class="btn-secondary btn-sm" data-supfu-add>إضافة توصية</button>
+  {% endsection_card %}
+
+  <div class="form-actions">
+    <button type="submit" name="action" value="save" class="btn-primary">حفظ</button>
+    {% if not followup or followup.status == "draft" %}
+    <button type="submit" name="action" value="draft" class="btn-secondary">حفظ مسودة</button>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

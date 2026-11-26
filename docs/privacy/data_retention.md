@@ -172,6 +172,9 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `quality_evaluationlevelbackup` | مجموعُ التقرير ومستواه قبل الهجرة 0018 — يتبع تقييمَ الموظّف (يُحذف بحذفه)؛ انظر §5 بند 5 |
 | `quality_classroomobservation` | الزياراتُ الصفّيّة |
 | `quality_observationscore` | درجاتُها |
+| `quality_supervisorfollowup` | متابعةُ أداء المشرف الإداريّ (نموذج 19): المشرفُ والمتابِعُ والتاريخُ وجوانبُ القوة والتحسين (نصٌّ حرّ) ولقطةُ أعداد أيّام الغياب بنوعه (ومنه المرضيّ) والاستئذان والتأخير للفترة. الحذفُ ناعم، ولا يُكتب النصُّ الحرّ في سجلّ التدقيق |
+| `quality_supervisorfollowupscore` | تقديرُ كلّ مؤشرٍ وملاحظتُه — تتبع المتابعة |
+| `quality_supervisorfollowuprecommendation` | توصياتُ المتابعة وحالةُ تنفيذها وملاحظتُها — تتبع المتابعة، وحذفُها ناعم |
 | `quality_qualitycommitteemember` | عضويّةُ لجنة الجودة |
 | `quality_executormapping` | ربطُ المنفّذين |
 | `operations_teacherabsence` | غيابُ المعلّمين |
