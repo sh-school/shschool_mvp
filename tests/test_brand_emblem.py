@@ -14,7 +14,7 @@ import pytest
 from PIL import Image
 
 from core.brand import DARK, MAROON, ON_FILL, PAGE_BG
-from core.management.commands.build_app_icons import ICON_VERSION
+from core.management.commands.build_app_icons import ICON_VERSION, _render_svg_rgba
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BRAND = ROOT / "static/brand"
@@ -45,6 +45,30 @@ def _rgb(hex_colour: str) -> tuple[int, int, int]:
 
 def test_the_icon_folder_is_the_current_version():
     assert ICON_VERSION == "v7" and ICONS.is_dir()
+
+
+@pytest.mark.parametrize("name", ["favicon.png", "favicon-dark.png", "favicon.ico"])
+def test_the_seal_fills_the_tab_icon(name):
+    """الختمُ يشغل 96% على الأقلّ من عرض أيقونة التبويب (طلبُ المالك 2026-11-26؛ كان 201 من 256)."""
+    image = Image.open(ICONS / name)
+    frames = (
+        [image.ico.getimage(size) for size in image.info["sizes"]]
+        if name.endswith(".ico")
+        else [image]
+    )
+    for frame in frames:
+        box = frame.convert("RGBA").getchannel("A").point(lambda a: 255 if a > 8 else 0).getbbox()
+        assert box and (box[2] - box[0]) / frame.width >= 0.96, (name, frame.size, box)
+
+
+def test_the_svg_tab_icon_is_cropped_to_a_square_around_the_seal():
+    """viewBox مربّعٌ، والختمُ المرسومُ منه يملأ 96% على الأقلّ من عرضه (يُرسم بالمرسِم نفسه لا بقياسٍ من الرقم)."""
+    svg = (ICONS / "favicon.svg").read_text(encoding="utf-8")
+    view = re.search(r'viewBox="([\d.-]+) ([\d.-]+) ([\d.]+) ([\d.]+)"', svg)
+    assert view and view.group(3) == view.group(4), "viewBox مربّع"
+    image = _render_svg_rgba(svg, 512)
+    box = image.getchannel("A").point(lambda a: 255 if a > 8 else 0).getbbox()
+    assert box and (box[2] - box[0]) / image.width >= 0.96, box
 
 
 def test_the_ministry_logo_files_are_not_in_the_static_brand_folder():
@@ -112,14 +136,16 @@ def test_the_favicon_has_no_background_plate():
     """بلا خلفيّة (ملاحظةُ المالك 10-15): الزوايا والحوافُّ شفّافةٌ والقلمُ معتمٌ في الوسط، ولا لونَ لوحٍ صلباً."""
     pixels = np.array(Image.open(ICONS / "favicon.png").convert("RGBA"))
     assert pixels[0, 0, 3] == 0 and pixels[0, -1, 3] == 0
-    assert pixels[pixels.shape[0] // 2, 4, 3] == 0, "حافّةُ الوسط شفّافةٌ لا لوحٌ"
+    # الختمُ يملأ 97% من العرض فيبقى هامشٌ 1.5% (نحو 4 بكسل): حافّةُ الوسط عند البكسل 0 شفّافةٌ لا لوحٌ.
+    middle = pixels.shape[0] // 2
+    assert pixels[middle, 0, 3] == 0 and pixels[middle, -1, 3] == 0, "حافّةُ الوسط شفّافةٌ لا لوحٌ"
     assert (pixels[:, :, 3] > 250).any(), "القلمُ مرئيّ"
     assert (pixels[:, :, 3] == 0).mean() > 0.5, "أغلبُ المربّع شفّاف"
 
 
 def test_the_favicon_ico_carries_the_small_tab_sizes():
     sizes = Image.open(ICONS / "favicon.ico").info["sizes"]
-    assert {(16, 16), (32, 32), (48, 48)} <= sizes
+    assert {(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)} <= sizes
 
 
 def _source_files():
