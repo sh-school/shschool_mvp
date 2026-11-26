@@ -5,7 +5,7 @@
   نصُّ الوزارة بجانب الشعار يتبع مفتاحَ الإظهار الواحد (`core/ministry.py`، D-399م).
   `data-pdf-own-page` فلا يحقن `pdf_utils` ترويسةً ثانية، وخطوطُ الوثيقة يحقنها هو.
   الأنماطُ في `supervisor_followup_pdf_css.html` يضمّها `supervisor_followup_exports.render_sheet_html` إلى الرأس.
-  خانتا التوقيع والاعتماد فارغتان لليد.
+  خانتا التوقيع: اسمٌ وحدَه — المتابِعُ بعد الإرسال والمشرفُ بعد إقراره؛ وقبل ذلك فارغتان لليد.
 {% endcomment %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -38,7 +38,7 @@
 </div>
 
 <div id="sheet19">
-{% if followup.status != "saved" %}<p data-draft>مسودة</p>{% endif %}
+{% if followup.status == "draft" %}<p data-draft>مسودة</p>{% endif %}
 <div data-title>
   <h1>استمارة متابعة أداء مشرف إداري</h1>
   <p>العام الأكاديمي <bdi dir="ltr">{{ year|slice:":4" }} / {{ year|slice:"-4:" }}</bdi></p>
@@ -133,7 +133,10 @@
 <table id="sign">
   <colgroup><col><col><col><col></colgroup>
   <tbody>
-    <tr><th scope="row">توقيع الموظف</th><td></td><th scope="row">اعتماد المسؤول المباشر</th><td></td></tr>
+    <tr>
+      <th scope="row">توقيع الموظف</th><td>{% with stamp=signatures.supervisor %}{% include "quality/_pdf_e_sign.html" %}{% endwith %}</td>
+      <th scope="row">اعتماد المسؤول المباشر</th><td>{% with stamp=signatures.follower %}{% include "quality/_pdf_e_sign.html" %}{% endwith %}</td>
+    </tr>
   </tbody>
 </table>
 </div>

@@ -1715,4 +1715,6 @@ body:has(.rm-page) .site-footer { flex: none; }
   .supfu-wide { min-inline-size: 14rem; }
   .supfu-recs { display: flex; flex-direction: column; gap: var(--sp-2); margin-block-end: var(--sp-3); padding-inline-start: var(--sp-6); }
   .supfu-rec > textarea { margin-block-end: var(--sp-1); inline-size: 100%; }
+  .supfu-ack { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
+  .supfu-ack > textarea { inline-size: 100%; }
 }

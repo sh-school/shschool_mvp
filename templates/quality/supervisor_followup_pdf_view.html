@@ -13,8 +13,16 @@
 <div class="obs-pdf-page">
   {% page_header "استمارة متابعة أداء مشرف إداري" icon="document" %}
     <a href="{% url 'supervisor_followup_detail' followup.pk %}" class="btn-secondary btn-sm">← رجوع إلى المتابعة</a>
+    {% if can_manage and followup.status == "saved" %}
+    <form method="post" action="{% url 'supervisor_followup_send' followup.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn-primary btn-sm">إرسال للمشرف</button>
+    </form>
+    {% endif %}
     {% export_group doc="templates/quality/supervisor_followup_pdf.html" %}{% export_button "pdf" "supervisor_followup_pdf" followup.pk %}?download=1{% endexport_button %}{% endexport_group %}
   {% endpage_header %}
+
+  {% if followup.sent_at %}<p class="ui-note">الحالة: {{ followup.get_status_display }} — تاريخ الإرسال: {{ followup.sent_at|date:"Y-m-d" }}.</p>{% endif %}
 
   <p class="ui-note">للطباعة: استعمل أيقونة الطباعة في شريط عارض الملف أدناه، أو نزّل الملف واطبعه.</p>
 

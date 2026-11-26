@@ -39,6 +39,11 @@ VIEW = "quality.supervisor_followup_view"
 MANAGE = "quality.supervisor_followup"
 
 
+def locked_response(request: HttpRequest) -> HttpResponse:
+    """403 برسالةٍ واضحة لتعديل متابعةٍ أقرّها المشرف أو حذفِها."""
+    return render(request, "quality/supervisor_followup_locked.html", status=403)
+
+
 def _form_context(
     request: HttpRequest,
     pk: uuid.UUID,
@@ -116,6 +121,8 @@ def supervisor_followup_edit(request: HttpRequest, pk: uuid.UUID) -> HttpRespons
     school = request.school  # type: ignore[attr-defined]
     if request.method != "POST":
         followup = selectors.get_follow_up(school, pk)
+        if followup.is_locked:
+            return locked_response(request)
         context = _form_context(request, pk, followup.supervisor, followup)
         return render(request, "quality/supervisor_followup_form.html", context)
     data = services.parse_post(request.POST)
@@ -129,6 +136,8 @@ def supervisor_followup_edit(request: HttpRequest, pk: uuid.UUID) -> HttpRespons
             final=final,
             request=request,
         )
+    except services.FollowUpLocked:
+        return locked_response(request)
     except services.FollowUpError as error:
         messages.error(request, str(error))
         existing = selectors.follow_ups(school).filter(pk=pk).first()
@@ -139,7 +148,7 @@ def supervisor_followup_edit(request: HttpRequest, pk: uuid.UUID) -> HttpRespons
         )
         context = _form_context(request, pk, supervisor, existing, data)
         return render(request, "quality/supervisor_followup_form.html", context)
-    done = followup.status == "saved"
+    done = followup.status != "draft"
     messages.success(request, "حُفظت المتابعة." if done else "حُفظت المسودة.")
     name = "supervisor_followup_detail" if done else "supervisor_followup_edit"
     return redirect(f"{reverse(name, args=[followup.pk])}?saved=1")
@@ -156,6 +165,7 @@ def supervisor_followup_detail(request: HttpRequest, pk: uuid.UUID) -> HttpRespo
     context.update(
         followup=followup,
         can_manage=manage,
+        can_acknowledge=followup.status == "sent" and followup.supervisor_id == request.user.pk,
         rows=[(n, text, scores.get(n)) for n, text in INDICATORS],
         draft_clear=(
             f"supervisor-followup:{request.user.pk}:{pk} "
@@ -202,7 +212,8 @@ def supervisor_followup_pdf_view(request: HttpRequest, pk: uuid.UUID) -> HttpRes
     """صفحةٌ عارضةٌ حول الملفّ: رجوعٌ وتنزيلٌ وطباعة."""
     school = request.school  # type: ignore[attr-defined]
     followup = selectors.readable_follow_up(school, request.user, pk)
-    return render(request, "quality/supervisor_followup_pdf_view.html", {"followup": followup})
+    context = {"followup": followup, "can_manage": has_capability(request.user, MANAGE)}
+    return render(request, "quality/supervisor_followup_pdf_view.html", context)
 
 
 @login_required
@@ -210,6 +221,9 @@ def supervisor_followup_pdf_view(request: HttpRequest, pk: uuid.UUID) -> HttpRes
 @require_POST
 def supervisor_followup_delete(request: HttpRequest, pk: uuid.UUID) -> HttpResponse:
     followup = selectors.get_follow_up(request.school, pk)  # type: ignore[attr-defined]
-    services.delete_follow_up(followup, request)
+    try:
+        services.delete_follow_up(followup, request)
+    except services.FollowUpLocked:
+        return locked_response(request)
     messages.success(request, "حُذفت المتابعة.")
     return redirect("supervisor_followup_list")

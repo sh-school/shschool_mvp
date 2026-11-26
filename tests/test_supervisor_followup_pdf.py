@@ -107,6 +107,30 @@ def test_a_draft_is_printed_with_the_word_draft(client_as, school, vice, supervi
     assert "<p data-draft>مسودة</p>" in _html(school, pk)
 
 
+def test_signatures_appear_by_state_with_the_name_only(client_as, school, vice, supervisor):
+    from weasyprint import HTML
+
+    pk = uuid.uuid4()
+    _post(client_as(vice), pk, supervisor)
+
+    def cells():
+        html = _html(school, pk)
+        table = html[html.index('<table id="sign">') :]
+        found = re.findall(r"<td>(.*?)</td>", table[: table.index("</table>")], re.S)
+        return [cell.strip() for cell in found]
+
+    def stamp(user):
+        return f'<div class="e-sign"><div>{user.full_name}</div></div>'
+
+    assert cells() == ["", ""]
+    client_as(vice).post(reverse("supervisor_followup_send", args=[pk]))
+    assert cells() == ["", stamp(vice)]
+    assert "<p data-draft>" not in _html(school, pk)
+    client_as(supervisor).post(reverse("supervisor_followup_acknowledge", args=[pk]))
+    assert cells() == [stamp(supervisor), stamp(vice)]
+    assert len(HTML(string=_inject_fonts(_html(school, pk))).render().pages) == 1
+
+
 def test_pdf_is_inline_framable_and_logged_without_the_name(
     client_as, vice, supervisor, monkeypatch
 ):

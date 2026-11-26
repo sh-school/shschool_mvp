@@ -8,6 +8,7 @@ from . import (
     evaluation_views,
     grievance_views,
     observation_views,
+    supervisor_followup_send_views,
     supervisor_followup_views,
     views,
 )
@@ -43,6 +44,16 @@ urlpatterns = [
         "supervisor-follow-ups/<uuid:pk>/pdf/view/",
         supervisor_followup_views.supervisor_followup_pdf_view,
         name="supervisor_followup_pdf_view",
+    ),
+    path(
+        "supervisor-follow-ups/<uuid:pk>/send/",
+        supervisor_followup_send_views.supervisor_followup_send,
+        name="supervisor_followup_send",
+    ),
+    path(
+        "supervisor-follow-ups/<uuid:pk>/acknowledge/",
+        supervisor_followup_send_views.supervisor_followup_acknowledge,
+        name="supervisor_followup_acknowledge",
     ),
     path(
         "supervisor-follow-ups/<uuid:pk>/delete/",

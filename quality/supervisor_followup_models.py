@@ -17,7 +17,15 @@ from core.models.base import AllObjectsManager, AuditedModel, SoftDeleteManager
 
 from .supervisor_followup_indicators import RATINGS
 
-FOLLOWUP_STATUS = [("draft", "مسودة"), ("saved", "محفوظة")]
+FOLLOWUP_STATUS = [
+    ("draft", "مسودة"),
+    ("saved", "محفوظة"),
+    ("sent", "مُرسلة"),
+    ("acknowledged", "أُقرّت"),
+]
+
+# ما تجاوز المسودة: يقرؤه المشرفُ ويُعدّ «متابعةً سابقة».
+FINAL_STATUSES = ("saved", "sent", "acknowledged")
 
 RECOMMENDATION_STATUS = [
     ("pending", "لم تُتابع بعد"),
@@ -68,7 +76,12 @@ class SupervisorFollowUp(_SoftDeletable):
     )
     follow_date = models.DateField(default=timezone.localdate, verbose_name="التاريخ")
     status = models.CharField(
-        max_length=10, choices=FOLLOWUP_STATUS, default="draft", verbose_name="الحالة"
+        max_length=15, choices=FOLLOWUP_STATUS, default="draft", verbose_name="الحالة"
+    )
+    sent_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الإرسال")
+    acknowledged_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الإقرار")
+    supervisor_comment = models.TextField(
+        blank=True, default="", db_default="", verbose_name="تعليق المشرف"
     )
     strengths = models.TextField(blank=True, verbose_name="جوانب القوة")
     improvements = models.TextField(blank=True, verbose_name="جوانب تحتاج إلى تحسين")
@@ -96,6 +109,11 @@ class SupervisorFollowUp(_SoftDeletable):
                 name="uniq_supfu_open_draft",
             ),
         ]
+
+    @property
+    def is_locked(self) -> bool:
+        """بعد إقرار المشرف لا تعديلَ ولا حذف."""
+        return self.status == "acknowledged"
 
     def __str__(self) -> str:
         return f"متابعة {str(self.pk)[:8]} — {self.follow_date}"

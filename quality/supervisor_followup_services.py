@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import logging
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -14,6 +15,7 @@ from typing import Any
 
 from django.db import IntegrityError, transaction
 from django.http import Http404, HttpRequest
+from django.urls import reverse
 from django.utils import timezone
 
 from core.audit_repr import masked_repr
@@ -26,6 +28,12 @@ from .supervisor_followup_models import (
     SupervisorFollowUpRecommendation,
     SupervisorFollowUpScore,
 )
+
+logger = logging.getLogger(__name__)
+
+
+class FollowUpLocked(Exception):  # noqa: N818 — حالةُ قفلٍ (403) لا خطأُ إدخال
+    """متابعةٌ أقرّها المشرف: لا تعديلَ ولا حذف (403)."""
 
 
 class FollowUpError(ValueError):
@@ -142,6 +150,10 @@ def _save_reviews(
     for item in selectors.review_items(followup.school, followup, previous):
         if str(item.pk) not in reviews:
             continue
+        # ما تابعته متابعةٌ مُقَرّةٌ أخرى جزءٌ من ورقتها المقفلة.
+        other = item.reviewed_in
+        if other is not None and other.pk != followup.pk and other.is_locked:
+            continue
         status, note = reviews[str(item.pk)]
         touched = status != "pending" or bool(note)
         if not touched and item.reviewed_in_id != followup.pk:
@@ -163,7 +175,6 @@ def save_follow_up(
 ) -> SupervisorFollowUp:
     """ينشئ المتابعةَ ذاتَ المعرّف `pk` أو يحدّثها، ويحفظ لقطةَ الحضور للفترة."""
     user: Any = request.user
-    day = _clean_date(data.follow_date)
     try:
         with transaction.atomic():
             followup = (
@@ -172,6 +183,9 @@ def save_follow_up(
                 .first()
             )
             created = followup is None
+            if followup is not None and followup.is_locked:
+                raise FollowUpLocked
+            day = _clean_date(data.follow_date)
             if followup is None:
                 wanted = _uuid_or_none(supervisor_id)
                 supervisor = selectors.supervisors(school).filter(pk=wanted).first()
@@ -197,8 +211,8 @@ def save_follow_up(
             followup.follow_date = day
             followup.strengths = data.strengths
             followup.improvements = data.improvements
-            # المحفوظةُ لا تعود مسودة.
-            if final:
+            # المحفوظةُ لا تعود مسودة، والمُرسلةُ لا تعود محفوظة.
+            if final and followup.status == "draft":
                 followup.status = "saved"
             followup.updated_by = user
             followup.save()
@@ -211,12 +225,78 @@ def save_follow_up(
     return followup
 
 
+def _locked_row(followup: SupervisorFollowUp) -> SupervisorFollowUp:
+    """الصفُّ نفسُه مقفلاً داخل المعاملة، فلا يتسابق إرسالٌ وإقرارٌ وحذف."""
+    row = (
+        SupervisorFollowUp.objects.select_for_update()
+        .filter(pk=followup.pk, school_id=followup.school_id)
+        .first()
+    )
+    if row is None:
+        raise Http404
+    return row
+
+
 def delete_follow_up(followup: SupervisorFollowUp, request: HttpRequest) -> None:
     user: Any = request.user
     with transaction.atomic():
-        followup.updated_by = user
-        followup.delete()
-        _audit(followup, "delete", request)
+        row = _locked_row(followup)
+        if row.is_locked:
+            raise FollowUpLocked
+        row.updated_by = user
+        row.delete()
+        _audit(row, "delete", request)
+
+
+def send_follow_up(followup: SupervisorFollowUp, request: HttpRequest) -> bool:
+    """من محفوظةٍ إلى مُرسلة مع إشعار المشرف؛ إعادةُ الإرسال بلا أثر (`False`)."""
+    user: Any = request.user
+    with transaction.atomic():
+        row = _locked_row(followup)
+        if row.status == "draft":
+            raise FollowUpError("لا تُرسل المسودة — احفظ المتابعة أولاً.")
+        if row.status != "saved":
+            return False
+        row.status, row.sent_at, row.updated_by = "sent", timezone.now(), user
+        row.save(update_fields=["status", "sent_at", "updated_by", "updated_at"])
+        _audit(row, "update", request)
+    _notify(followup, followup.supervisor, "متابعة أداء أُرسلت إليك للاطّلاع")
+    return True
+
+
+def acknowledge_follow_up(followup: SupervisorFollowUp, comment: str, request: HttpRequest) -> bool:
+    """إقرارُ المشرف من مُرسلةٍ وحدَها مع إشعار المتابِع؛ تكرارُه بلا أثر (`False`)."""
+    user: Any = request.user
+    with transaction.atomic():
+        row = _locked_row(followup)
+        if row.is_locked:
+            return False
+        if row.status != "sent":
+            raise FollowUpError("لا إقرارَ قبل إرسال المتابعة إليك.")
+        row.status, row.acknowledged_at, row.updated_by = "acknowledged", timezone.now(), user
+        row.supervisor_comment = comment.strip()
+        fields = ["status", "acknowledged_at", "supervisor_comment", "updated_by", "updated_at"]
+        row.save(update_fields=fields)
+        _audit(row, "update", request)
+    _notify(followup, followup.follower, "أُقرّ بالاطّلاع على متابعة أداء")
+    return True
+
+
+def _notify(followup: SupervisorFollowUp, recipient: CustomUser, title: str) -> None:
+    """عنوانٌ ورابطٌ فقط — لا اسمَ ولا نصَّ حرّاً؛ وتعذُّرُ الإشعار لا يُسقط العملية."""
+    try:
+        from notifications.hub import NotificationHub
+
+        NotificationHub.dispatch(
+            event_type="observation",
+            school=followup.school,
+            recipients=[recipient],
+            title=title,
+            related_url=reverse("supervisor_followup_detail", args=[followup.pk]),
+            related_object_id=str(followup.pk),
+        )
+    except Exception:  # noqa: BLE001 — الإشعار لا يُسقط العملية
+        logger.error("supervisor_followup_notify_failed id=%s", followup.pk)
 
 
 def _audit(followup: SupervisorFollowUp, action: str, request: HttpRequest) -> None:

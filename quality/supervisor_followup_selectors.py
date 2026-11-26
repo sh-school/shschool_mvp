@@ -18,6 +18,7 @@ from staff_affairs.models import LeaveRequest, PermitRequest, StaffAttendance
 
 from .supervisor_followup_indicators import INDICATORS
 from .supervisor_followup_models import (
+    FINAL_STATUSES,
     SupervisorFollowUp,
     SupervisorFollowUpRecommendation,
 )
@@ -74,13 +75,13 @@ def get_follow_up(school: School, pk: Any) -> SupervisorFollowUp:
 
 
 def readable_follow_up(school: School, user: CustomUser, pk: Any) -> SupervisorFollowUp:
-    """المديرُ والنائبُ الإداريّ يقرآن الكلّ؛ والمشرفُ محفوظاتِه وحدَها؛ ومعرّفٌ غيرُ موجودٍ 404."""
+    """المديرُ والنائبُ الإداريّ يقرآن الكلّ؛ والمشرفُ غيرَ مسودّاتِه؛ ومعرّفٌ غيرُ موجودٍ 404."""
     try:
         found = get_follow_up(school, pk)
     except (ValueError, ValidationError):
         raise Http404 from None
     if not has_capability(user, "quality.supervisor_followup") and (
-        found.supervisor_id != user.pk or found.status != "saved"
+        found.supervisor_id != user.pk or found.status not in FINAL_STATUSES
     ):
         raise PermissionDenied
     return found
@@ -95,8 +96,18 @@ def print_context(school: School, followup: SupervisorFollowUp) -> dict[str, Any
         followup=followup,
         year=academic_year_for_school(school, followup.follow_date),
         rows=[(n, text, scores.get(n)) for n, text in INDICATORS],
+        signatures=signature_stamps(followup),
     )
     return context
+
+
+def signature_stamps(followup: SupervisorFollowUp) -> dict[str, dict[str, str] | None]:
+    """خانتا التوقيع: الاسمُ وحدَه (D-221م) — المتابِعُ بعد الإرسال، والمشرفُ بعد إقراره."""
+    sent = followup.status in ("sent", "acknowledged")
+    return {
+        "follower": {"name": followup.follower.full_name} if sent else None,
+        "supervisor": {"name": followup.supervisor.full_name} if followup.is_locked else None,
+    }
 
 
 def open_draft(school: School, supervisor: CustomUser) -> SupervisorFollowUp | None:
@@ -115,7 +126,7 @@ def previous_saved(
         before |= Q(follow_date=on, created_at__lt=current.created_at)
     else:
         before |= Q(follow_date=on)
-    rows = follow_ups(school).filter(before, supervisor=supervisor, status="saved")
+    rows = follow_ups(school).filter(before, supervisor=supervisor, status__in=FINAL_STATUSES)
     if current is not None:
         rows = rows.exclude(pk=current.pk)
     return rows.order_by("-follow_date", "-created_at").first()
@@ -188,7 +199,8 @@ def list_context(school: School, *, own: CustomUser | None) -> dict[str, Any]:
     """قائمةُ المدير: كلُّ مشرفٍ وآخرُ متابعةٍ له ثمّ كلُّ المتابعات؛ وللمشرف (`own`) محفوظاتُه وحدَها."""
     rows = follow_ups(school).order_by("-follow_date", "-created_at")
     if own is not None:
-        return {"can_manage": False, "history": list(rows.filter(supervisor=own, status="saved"))}
+        mine = rows.filter(supervisor=own, status__in=FINAL_STATUSES)
+        return {"can_manage": False, "history": list(mine)}
     history = list(rows)
     latest: dict[Any, SupervisorFollowUp] = {}
     for item in history:
@@ -210,7 +222,7 @@ def detail_context(school: School, followup: SupervisorFollowUp) -> dict[str, An
         visible = (
             reviewer is not None
             and not reviewer.is_deleted
-            and (reviewer.status == "saved" or reviewer.pk == followup.pk)
+            and (reviewer.status in FINAL_STATUSES or reviewer.pk == followup.pk)
         )
         reviews.append((item, item.status if visible else "pending", item.note if visible else ""))
     return {

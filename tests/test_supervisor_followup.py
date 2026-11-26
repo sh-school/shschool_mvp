@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.models import AuditLog
+from notifications.models import InAppNotification
 from quality.models import (
     SupervisorFollowUp,
     SupervisorFollowUpRecommendation,
@@ -285,8 +286,108 @@ def test_the_menu_link_is_offered_by_can_open(school, vice, principal_user, supe
     assert not can_open(other, "supervisor_followup_list")
 
 
+def _act(client, name, pk, **data):
+    return client.post(reverse(f"supervisor_followup_{name}", args=[pk]), data)
+
+
+def _notes(user):
+    return InAppNotification.objects.filter(user=user)
+
+
+def test_send_is_for_saved_only_and_idempotent(client_as, vice, supervisor):
+    client = client_as(vice)
+    draft, saved = uuid.uuid4(), uuid.uuid4()
+    _post(client, saved, supervisor)
+    _post(client, draft, supervisor, action="draft")
+    assert _act(client, "send", draft).status_code == 302
+    assert SupervisorFollowUp.objects.get(pk=draft).status == "draft"
+    assert not _notes(supervisor).exists()
+    viewer = reverse("supervisor_followup_pdf_view", args=[saved])
+    assert "إرسال للمشرف" in client.get(viewer).content.decode()
+    _act(client, "send", saved)
+    first = SupervisorFollowUp.objects.get(pk=saved)
+    assert first.status == "sent" and first.sent_at
+    _act(client, "send", saved)
+    assert SupervisorFollowUp.objects.get(pk=saved).sent_at == first.sent_at
+    note = _notes(supervisor).get()
+    assert note.related_url == reverse("supervisor_followup_detail", args=[saved])
+    assert not note.body and supervisor.full_name not in note.title
+    assert "إرسال للمشرف" not in client.get(viewer).content.decode()
+    # التعديلُ قبل الإقرار باقٍ ولا يُرجع الحالة
+    assert _post(client, saved, supervisor).status_code == 302
+    assert SupervisorFollowUp.objects.get(pk=saved).status == "sent"
+
+
+def test_only_the_owner_acknowledges_a_sent_follow_up_once(client_as, school, vice, supervisor):
+    pk = uuid.uuid4()
+    _post(client_as(vice), pk, supervisor)
+    # قبل الإرسال مرفوض
+    assert _act(client_as(supervisor), "acknowledge", pk).status_code == 302
+    assert SupervisorFollowUp.objects.get().status == "saved"
+    assert _act(client_as(supervisor), "send", pk).status_code == 403
+    _act(client_as(vice), "send", pk)
+    detail = reverse("supervisor_followup_detail", args=[pk])
+    assert "أقرّ بالاطّلاع" in client_as(supervisor).get(detail).content.decode()
+    other = _member(school, "admin_supervisor", "مشرف اختباري ثان")
+    teacher = _member(school, "teacher", "معلم اختباري")
+    for stranger in (vice, other, teacher):
+        assert _act(client_as(stranger), "acknowledge", pk).status_code == 403
+    own = client_as(supervisor)
+    _act(own, "acknowledge", pk, supervisor_comment=" تعليق حرّ ")
+    first = SupervisorFollowUp.objects.get()
+    assert (first.status, first.supervisor_comment) == ("acknowledged", "تعليق حرّ")
+    assert first.acknowledged_at
+    _act(own, "acknowledge", pk, supervisor_comment="تعليق ثان")
+    again = SupervisorFollowUp.objects.get()
+    assert again.supervisor_comment == "تعليق حرّ"
+    assert again.acknowledged_at == first.acknowledged_at
+    assert _notes(vice).count() == 1 and not _notes(vice).get().body
+    assert [f.pk for f in own.get(reverse("supervisor_followup_list")).context["history"]] == [pk]
+    for url in (detail, reverse("supervisor_followup_list")):
+        html = client_as(vice).get(url).content.decode()
+        assert "أُقرّت" in html and "تعليق حرّ" in html
+    rows = AuditLog.objects.filter(object_id=str(pk))
+    assert sorted(r.changes["status"] for r in rows) == ["acknowledged", "saved", "sent"]
+    for row in rows:
+        text = f"{row.object_repr} {row.changes}"
+        assert supervisor.full_name not in text and "تعليق حرّ" not in text
+
+
+def test_acknowledged_follow_up_is_locked(client_as, vice, supervisor):
+    pk = uuid.uuid4()
+    _post(client_as(vice), pk, supervisor)
+    _act(client_as(vice), "send", pk)
+    _act(client_as(supervisor), "acknowledge", pk)
+    manager = client_as(vice)
+    edit = reverse("supervisor_followup_edit", args=[pk])
+    responses = [
+        manager.get(edit),
+        _post(manager, pk, supervisor, strengths="تغيير"),
+        _post(manager, pk, supervisor, day=timezone.localdate() + dt.timedelta(days=1)),
+        _act(manager, "delete", pk),
+    ]
+    for response in responses:
+        assert response.status_code == 403
+        assert "المتابعة مقفلة" in response.content.decode()
+    saved = SupervisorFollowUp.objects.get()
+    assert saved.strengths == STRENGTH and not saved.is_deleted
+    assert edit not in manager.get(reverse("supervisor_followup_list")).content.decode()
+
+
+def test_another_school_cannot_send_or_acknowledge(client_as, vice, supervisor):
+    pk = uuid.uuid4()
+    _post(client_as(vice), pk, supervisor)
+    elsewhere = SchoolFactory()
+    for role in ("principal", "admin_supervisor"):
+        client = client_as(_member(elsewhere, role, "مستخدم مدرسة أخرى"))
+        for name in ("send", "acknowledge"):
+            assert _act(client, name, pk).status_code in (403, 404)
+        assert client.get(reverse("supervisor_followup_pdf", args=[pk])).status_code in (403, 404)
+    assert SupervisorFollowUp.objects.get().status == "saved"
+
+
 def test_assets_follow_csp_rtl_and_token_rules():
-    for name in ("list", "form", "detail", "pdf_view"):
+    for name in ("list", "form", "detail", "pdf_view", "locked"):
         html = pathlib.Path(f"templates/quality/supervisor_followup_{name}.html").read_text(
             encoding="utf-8"
         )
