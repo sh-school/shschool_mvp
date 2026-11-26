@@ -9625,3 +9625,112 @@ def test_0094_publishes_nothing_a_public_repo_must_not_say():
         assert bad not in text
     assert not re.search(r"\d{11}|\b[0-9a-f]{40}\b", text)
     assert _sync94.Migration.dependencies == [("roadmap", "0093_sync_backlog_2026_11_26")]
+
+
+# ── 0095: تسجيلُ قرارات المالك على الخارطة (2026-11-27) ──
+
+_sync95 = importlib.import_module("roadmap.migrations.0095_sync_owner_decisions_2026_11_27")
+
+
+class _Apps95:
+    @staticmethod
+    def get_model(_app, name):
+        return {"RoadmapItem": RoadmapItem}[name]
+
+
+def _seed95():
+    """كلُّ بندٍ في الجدول بحالته وتقدّمه المتوقَّعَين."""
+    for code, old_status, old_progress, *_rest in _sync95.rows():
+        _item(code, old_status, old_progress, note="قديمة", gate="بوّابةٌ قائمة")
+
+
+def _snapshot95():
+    return list(
+        RoadmapItem.objects.order_by("code").values_list(
+            "code", "status", "progress", "note", "pr", "gate", "title", "start_date", "end_date"
+        )
+    )
+
+
+def test_0095_table_has_27_unique_rows_two_closures_sixteen_deferrals_nine_notes():
+    rows = _sync95.rows()
+    codes = [r[0] for r in rows]
+    assert len(rows) == 27
+    assert len(set(codes)) == 27
+    assert sum(r[3] == "done" for r in rows) == 2
+    assert sum(r[3] == "deferred" and r[1] != "deferred" for r in rows) == 16
+    assert sum(r[3] == "deferred" and r[1] == "deferred" for r in rows) == 2
+    assert sum(r[3] in {"todo", "doing"} and r[1] == r[3] for r in rows) == 7
+    assert {r[3] for r in rows} <= {"todo", "doing", "done", "deferred"}
+
+
+def test_0095_closures_carry_their_request_numbers():
+    closures = {r[0]: r for r in _sync95.rows() if r[3] == "done"}
+    assert set(closures) == {"QCC-05", "N-143"}
+    assert closures["QCC-05"][4] == 100 and closures["QCC-05"][5] == "#702"
+    assert closures["N-143"][4] == 100 and closures["N-143"][5] == "#1068"
+
+
+def test_0095_applies_every_row_without_touching_gate_dates_title_or_creating():
+    _seed95()
+    _sync95.forwards(_Apps95, None)
+    assert RoadmapItem.objects.count() == 27
+    for code, _old_status, _old_progress, status, progress, pr, note in _sync95.rows():
+        item = RoadmapItem.objects.get(code=code)
+        assert (item.status, item.progress, item.pr) == (status, progress, pr), code
+        assert item.note == f"قديمة\n[2026-11-27] {note}", code
+        assert (item.gate, item.title) == ("بوّابةٌ قائمة", "عنوان"), code
+        assert (item.start_date, item.end_date) == (None, None), code
+
+
+def test_0095_second_run_changes_nothing():
+    _seed95()
+    _sync95.forwards(_Apps95, None)
+    before = _snapshot95()
+    assert _sync95.sync(RoadmapItem) == []
+    assert _snapshot95() == before
+
+
+def test_0095_leaves_items_whose_status_or_progress_moved():
+    _item("MAE-02", "doing", 40)
+    _item("QCC-05", "todo", 0)
+    _item("N-042", "doing", 83, pr="#9")
+    assert _sync95.sync(RoadmapItem) == ["N-042"]
+    moved = RoadmapItem.objects.get(code="MAE-02")
+    assert (moved.status, moved.progress, moved.note) == ("doing", 40, "")
+    assert RoadmapItem.objects.get(code="QCC-05").status == "todo"
+    assert RoadmapItem.objects.get(code="N-042").pr == "#9"
+
+
+def test_0095_does_not_repeat_a_note_already_written():
+    note = next(r[6] for r in _sync95.rows() if r[0] == "N-099")
+    _item("N-099", "doing", 50, note=f"[2026-11-27] {note}")
+    assert _sync95.sync(RoadmapItem) == []
+
+
+def test_0095_adds_the_request_number_once_and_keeps_existing_ones():
+    _item("N-143", "doing", 90, pr="#1000")
+    _sync95.sync(RoadmapItem)
+    _item("QCC-05", "doing", 0, pr="#702")
+    _sync95.sync(RoadmapItem)
+    assert RoadmapItem.objects.get(code="N-143").pr == "#1000 #1068"
+    assert RoadmapItem.objects.get(code="QCC-05").pr == "#702"
+
+
+def test_0095_empty_database_stays_empty_and_no_decision_or_kpi_is_written():
+    _sync95.forwards(_Apps95, None)
+    assert RoadmapItem.objects.count() == 0
+    _seed95()
+    _sync95.forwards(_Apps95, None)
+    assert not RoadmapDecision.objects.exists()
+    assert not RoadmapKpi.objects.exists()
+
+
+def test_0095_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    text = f"{_sync95.__doc__} {_sync95.rows()}"
+    for bad in ("C:/", "C:\\", "D:\\", "localhost", "railway.app", "@", "8011"):
+        assert bad not in text
+    assert not re.search(r"\d{11}|\b[0-9a-f]{40}\b", text)
+    assert _sync95.Migration.dependencies == [("roadmap", "0094_sync_verification_2026_11_26")]
