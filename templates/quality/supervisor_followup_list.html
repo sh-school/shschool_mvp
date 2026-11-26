@@ -38,7 +38,7 @@
   <div class="table-wrap table-wrap-scroll">
     <table class="table" data-no-sort>
       <thead>
-        <tr><th>التاريخ</th><th>المشرف الإداري</th><th>المتابِع</th><th>الحالة</th><th>إجراء</th></tr>
+        <tr><th>التاريخ</th><th>المشرف الإداري</th><th>المتابِع</th><th>الحالة</th><th>تاريخ الإرسال</th><th>تاريخ الإقرار</th><th class="supfu-wide">تعليق المشرف</th><th>إجراء</th></tr>
       </thead>
       <tbody>
         {% for item in history %}
@@ -47,13 +47,16 @@
           <td>{{ item.supervisor.full_name }}</td>
           <td>{{ item.follower.full_name }}</td>
           <td>{{ item.get_status_display }}</td>
+          <td>{{ item.sent_at|date:"Y-m-d"|default:"—" }}</td>
+          <td>{{ item.acknowledged_at|date:"Y-m-d"|default:"—" }}</td>
+          <td>{{ item.supervisor_comment|default:"—" }}</td>
           <td>
             <a class="btn-secondary btn-sm" href="{% url 'supervisor_followup_detail' item.pk %}">عرض</a>
-            {% if can_manage %}<a class="btn-secondary btn-sm" href="{% url 'supervisor_followup_edit' item.pk %}">تعديل</a>{% endif %}
+            {% if can_manage and not item.is_locked %}<a class="btn-secondary btn-sm" href="{% url 'supervisor_followup_edit' item.pk %}">تعديل</a>{% endif %}
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="5">لا توجد متابعات بعد.</td></tr>
+        <tr><td colspan="8">لا توجد متابعات بعد.</td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -13,7 +13,7 @@
 {% page_header "متابعة أداء مشرف إداري" icon="observation" %}
   <a href="{% url 'supervisor_followup_list' %}" class="btn-secondary btn-sm">← رجوع</a>
   <a href="{% url 'supervisor_followup_pdf_view' followup.pk %}" class="btn-secondary btn-sm">طباعة / PDF</a>
-  {% if can_manage %}<a href="{% url 'supervisor_followup_edit' followup.pk %}" class="btn-primary btn-sm">تعديل</a>{% endif %}
+  {% if can_manage and not followup.is_locked %}<a href="{% url 'supervisor_followup_edit' followup.pk %}" class="btn-primary btn-sm">تعديل</a>{% endif %}
 {% endpage_header %}
 
 {% section_card "متابعة التوصيات السابقة" icon="checklist" flush=True %}
@@ -55,6 +55,8 @@
     <p>اليوم: <b>{{ followup.follow_date|date:"l" }}</b></p>
     <p>التاريخ: <b>{{ followup.follow_date|date:"Y-m-d" }}</b></p>
     <p>الحالة: <b>{{ followup.get_status_display }}</b></p>
+    {% if followup.sent_at %}<p>تاريخ الإرسال: <b>{{ followup.sent_at|date:"Y-m-d" }}</b></p>{% endif %}
+    {% if followup.acknowledged_at %}<p>تاريخ الإقرار: <b>{{ followup.acknowledged_at|date:"Y-m-d" }}</b></p>{% endif %}
   </div>
 {% endsection_card %}
 
@@ -94,7 +96,24 @@
   </ol>
 {% endsection_card %}
 
-{% if can_manage %}
+{% if followup.supervisor_comment %}
+{% section_card "تعليق المشرف" icon="document" %}
+  <p>{{ followup.supervisor_comment|linebreaksbr }}</p>
+{% endsection_card %}
+{% endif %}
+
+{% if can_acknowledge %}
+{% section_card "الإقرار بالاطّلاع" icon="checklist" %}
+  <form method="post" action="{% url 'supervisor_followup_acknowledge' followup.pk %}" class="supfu-ack">
+    {% csrf_token %}
+    <label for="supervisor_comment">تعليق (اختياري)</label>
+    <textarea id="supervisor_comment" name="supervisor_comment" rows="3"></textarea>
+    <button type="submit" class="btn-primary btn-sm">أقرّ بالاطّلاع</button>
+  </form>
+{% endsection_card %}
+{% endif %}
+
+{% if can_manage and not followup.is_locked %}
 <form method="post" action="{% url 'supervisor_followup_delete' followup.pk %}" class="form-actions" data-confirm="حذف هذه المتابعة؟">
   {% csrf_token %}
   <button type="submit" class="btn-secondary btn-sm">حذف المتابعة</button>
