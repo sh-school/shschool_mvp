@@ -8,7 +8,7 @@
 - `icon-192/512`: الرمزُ العنّابيُّ على لوحٍ كريميٍّ بزوايا مدوَّرةٍ شفّافة (v7) — فلا يخفت على شريط مهامّ أو رصيفٍ داكن.
 - `icon-maskable-192/512` و`apple-touch-icon`: معتمةٌ كاملةٌ، ويقع **صندوقُ القلم** داخل الدائرة الآمنة
   (80% من الضلع لأندرويد؛ حاشيةٌ تُبعده عن انحناء الزوايا في iOS) بالمسافة الفعليّة من المركز.
-- `favicon.png` و`favicon.ico`: مربّعٌ بزوايا مدوَّرةٍ شفّافةٍ (22% كما في مرجع المطابقة) والقلمُ يملأ ارتفاعَه تقريباً.
+- `favicon.png` و`favicon-dark.png` و`favicon.ico` و`favicon.svg`: الختمُ بلا خلفيّةٍ مقصوصَ الهوامش حتى يملأ 96% من العرض (طلبُ المالك 2026-11-26)، في `v7/` مع بقيّة الأيقونات.
 - `badge-72`: القلمُ كلُّه أبيضَ على شفّاف — شارةُ الإشعار أحاديّةُ اللون يقصّها النظام.
 
 الرسمُ بـ`svglib` و`reportlab` (في `requirements.txt`) لا بمتصفّح: أداةُ مطوّرٍ تُشغَّل عند تغيير الأصل وحدَه، ويُودَع ناتجُها.
@@ -42,10 +42,11 @@ BACKGROUND = brand.DARK["SURFACE"]
 ANY_SAFE_RADIUS = 0.46
 MASKABLE_SAFE_RADIUS = 0.40
 APPLE_SAFE_RADIUS = 0.46
-#: تدويرُ زوايا التبويب نسبةً إلى الضلع — كما في `mockup_logos.html`.
+#: تدويرُ زوايا اللوح الكريميّ نسبةً إلى الضلع — كما في `mockup_logos.html`.
 FAVICON_CORNER = 0.22
-#: القلمُ في التبويب يملأ هذه النسبةَ من الارتفاع (الفاصلُ مع الحافّة المدوَّرة).
-FAVICON_FILL = 0.88
+#: الختمُ بحدوده المرسومة يملأ هذه النسبةَ من ضلع أيقونة التبويب (طلبُ المالك 2026-11-26: الحدُّ الأدنى 96%).
+#: 97% لا أكثر: الهامشُ 1.5% (نحو 4 بكسل من 256) يُبقي حافّةَ الوسط شفّافةً فيحرسها الاختبار.
+FAVICON_FILL = 0.97
 #: الرسمُ بمقياسٍ أكبر ثمّ التصغير تنعيماً للحواف.
 SUPERSAMPLE = 4
 
@@ -164,24 +165,55 @@ FAVICON_DARK_STYLE = (
 )
 
 
+#: ارتفاعُ الرسم الذي تُقاس عليه حدودُ الختم ويُصغَّر منه كلُّ مقاس.
+FAVICON_PROBE = 2048
+
+
+def _seal_square(image: Image.Image) -> tuple[float, float, float]:
+    """المربّعُ (يسار، أعلى، ضلع) المحيطُ بالمرسوم، مُوسَّطاً، ويملأ المرسومُ منه `FAVICON_FILL`."""
+    box = image.getchannel("A").point(lambda a: 255 if a > 8 else 0).getbbox()
+    assert box, "الرسمُ فارغ"
+    left, top, right, bottom = box
+    side = max(right - left, bottom - top) / FAVICON_FILL
+    return (left + right - side) / 2, (top + bottom - side) / 2, side
+
+
 def favicon_svg() -> str:
-    """`favicon.svg`: الرمزُ العنّابيُّ نفسُه بلا تغييرٍ في المسار، مع قاعدة الوضع الداكن."""
+    """`favicon.svg`: الرمزُ العنّابيُّ نفسُه بلا تغييرٍ في المسار، بـviewBox مربّعٍ على حدود الختم وقاعدةِ الوضع الداكن."""
     svg = _pen_svg(on_any=True)
+    source = re.search(r'viewBox="([\d.-]+) ([\d.-]+) ([\d.]+) ([\d.]+)"', svg)
+    assert source, "viewBox مفقود في الأصل"
+    min_x, min_y, _, height = (float(v) for v in source.groups())
+    left, top, side = _seal_square(_render_svg_rgba(svg, FAVICON_PROBE))
+    unit = height / FAVICON_PROBE
+    view = f"{min_x + left * unit:.2f} {min_y + top * unit:.2f} {side * unit:.2f} {side * unit:.2f}"
+    svg = svg.replace(source.group(0), f'viewBox="{view}"', 1)
     head, sep, rest = svg.partition("<title>")
     assert sep, "وسمُ title مفقودٌ في الأصل"
     return head + FAVICON_DARK_STYLE + sep + rest
 
 
 def render_favicon(size: int, on_any: bool = True) -> Image.Image:
-    """التبويبُ: القلمُ والشعلةُ بلا خلفيّةٍ (ألفا) يملآن ارتفاعَ المربّع (ملاحظةُ المالك 10-15)."""
-    height = round(size * FAVICON_FILL)
-    width = round(height * _aspect())
-    pen = _render_svg_rgba(_pen_svg(on_any=on_any), height * SUPERSAMPLE).resize(
-        (width, height), Image.Resampling.LANCZOS
+    """التبويبُ: الختمُ بلا خلفيّةٍ (ألفا) مقصوصَ الهوامش يملأ المربّع."""
+    pen = _render_svg_rgba(_pen_svg(on_any=on_any), FAVICON_PROBE)
+    left, top, side = _seal_square(pen)
+    # القصُّ قد يتجاوز حدودَ الرسم فيُملأ الزائدُ شفّافاً.
+    square = pen.crop((round(left), round(top), round(left + side), round(top + side)))
+    return square.resize((size, size), Image.Resampling.LANCZOS)
+
+
+def write_favicons() -> None:
+    """أيقوناتُ التبويب الأربعُ في `ICONS` (`v7/`)، ومجلّدُ `v7/` يُنشأ إن لزم."""
+    ICONS.mkdir(parents=True, exist_ok=True)
+    render_favicon(256).save(ICONS / "favicon.png", optimize=True)
+    render_favicon(48, on_any=False).save(ICONS / "favicon-dark.png", optimize=True)
+    (ICONS / "favicon.svg").write_text(favicon_svg(), encoding="utf-8", newline="\n")
+    frames = [render_favicon(size) for size in ICO_SIZES]
+    frames[-1].save(
+        ICONS / "favicon.ico",
+        sizes=[(size, size) for size in ICO_SIZES],
+        append_images=frames[:-1],
     )
-    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    canvas.alpha_composite(pen, ((size - width) // 2, (size - height) // 2))
-    return canvas
 
 
 def _rounded_plate(size: int, colour: str, corner: float) -> Image.Image:
@@ -230,20 +262,13 @@ class Command(BaseCommand):
 
     def handle(self, *args: object, **options: object) -> None:
         ICONS.mkdir(parents=True, exist_ok=True)
+        write_favicons()
+        self.stdout.write("كُتبت أيقوناتُ التبويب (favicon.*)")
         for name, size, safe_radius in ANY_TARGETS:
             render_any(size, safe_radius).save(ICONS / name, optimize=True)
             self.stdout.write(f"كُتبت {name}: {size}×{size} (لوحٌ كريميّ)")
         for name, size, safe_radius in SQUARE_TARGETS:
             render_square(size, safe_radius).save(ICONS / name, optimize=True)
             self.stdout.write(f"كُتبت {name}: {size}×{size}")
-        render_favicon(256).save(ICONS / "favicon.png", optimize=True)
-        render_favicon(48, on_any=False).save(ICONS / "favicon-dark.png", optimize=True)
-        (ICONS / "favicon.svg").write_text(favicon_svg(), encoding="utf-8", newline="\n")
         render_badge(128).save(ICONS / "badge-72.png", optimize=True)
-        frames = [render_favicon(size) for size in ICO_SIZES]
-        frames[-1].save(
-            ICONS / "favicon.ico",
-            sizes=[(size, size) for size in ICO_SIZES],
-            append_images=frames[:-1],
-        )
         self.stdout.write(self.style.SUCCESS("تمّت أيقوناتُ التطبيق"))
