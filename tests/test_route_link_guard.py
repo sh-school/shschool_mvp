@@ -110,6 +110,26 @@ def test_plain_route_without_link_is_still_reported_next_to_xlsx_export():
     assert [v.full_name for v in guard.find_violations(urls)] == ["analytics:report_daily"]
 
 
+def test_new_route_in_api_urls_is_not_reported():
+    # انحدار #1541: مسارٌ جديدٌ في api/urls.py بلا شاشةٍ لا يُبلَّغ عنه، فبادئة api من الملفّ الجذر
+    urls = _modified(
+        "api/urls.py",
+        ['    path("erasure/officer/", views.erasure_officer, name="erasure-officer"),'],
+        context=['app_name = "api_v1"'],
+    )
+    assert guard.find_violations(urls) == []
+
+
+def test_new_screen_route_in_other_app_without_link_is_still_reported():
+    # الشاشةُ الجديدةُ في تطبيقٍ آخرَ بلا رابطٍ تُبلَّغ كما كانت، ولا يتأثّر بها مسارُ api
+    urls = _modified(
+        "analytics/urls.py",
+        ['    path("erasure/officer/", views.erasure_officer, name="erasure-officer"),'],
+        context=['app_name = "analytics"'],
+    )
+    assert [v.full_name for v in guard.find_violations(urls)] == ["analytics:erasure-officer"]
+
+
 def test_diff_without_urls_does_not_fail():
     assert guard.find_violations(_modified("students/views.py", ["x = 1"])) == []
     assert guard.find_violations("") == []

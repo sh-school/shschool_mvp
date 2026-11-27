@@ -9,6 +9,8 @@
   (ولو توزّع على عدّة أسطر)، و`app_name` من الملفّ.
 * يتجاهل المسارَ ذا المعامل `<...>` أو الذي أحدُ أجزائه `api` أو `export` أو `download`
   أو `pdf` أو `xlsx` أو `webhook`. (`pdf` و`xlsx` تصديرُ ملفٍّ لا شاشةٌ، ورابطُه في قالب الشاشة نفسها.)
+* يتجاهل كلَّ مسارٍ في ملفٍّ `urls.py` يقع داخل مجلّدٍ اسمُه `api` (مثل `api/urls.py`): هذه
+  نقاطُ واجهةٍ بلا شاشة، وبادئتها `api` تأتي من الملفّ الجذر لا من نصّ المسار نفسه.
 * يعدّ المسارَ مرتبطاً إذا ورد `app:name` في `{% url %}` أو `reverse` أو `redirect`، أو ورد
   مساره في `href`، داخل ملفٍّ ليس جديداً في هذا الفرق (فالرابطُ الذاتيّ في قالبٍ جديدٍ لا يُحتسب).
 
@@ -26,6 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
 IGNORED_SEGMENTS = frozenset({"api", "export", "download", "pdf", "xlsx", "webhook"})
+API_FOLDER = "api"
 
 _PATH_START_RE = re.compile(r"\b(?:re_path|path)\(")
 _STRING_RE = re.compile(r"""[rb]?(["'])(.*?)\1""", re.DOTALL)
@@ -131,6 +134,11 @@ def is_checked(route: str) -> bool:
     return not IGNORED_SEGMENTS & set(route.strip("/").split("/"))
 
 
+def is_api_module(path: str) -> bool:
+    """هل يقع ملفُّ `urls.py` داخل مجلّدٍ اسمُه `api`؟ مساراته نقاطُ واجهةٍ بلا شاشة."""
+    return API_FOLDER in PurePosixPath(path).parts[:-1]
+
+
 def is_linked(route: NewRoute, files: list[FileDiff]) -> bool:
     """هل ورد رابطُ المسار في أسطرٍ مضافةٍ بملفٍّ غير جديدٍ (وليس urls.py ولا اختباراً)؟"""
     full = re.escape(route.full_name)
@@ -159,7 +167,7 @@ def find_violations(
     return [
         r
         for r in extract_new_routes(files, read_file)
-        if is_checked(r.route) and not is_linked(r, files)
+        if not is_api_module(r.file) and is_checked(r.route) and not is_linked(r, files)
     ]
 
 
