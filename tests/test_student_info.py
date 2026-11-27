@@ -242,13 +242,13 @@ def test_reading_a_file_with_a_psychologist_note_leaves_an_audit_trail(
 def test_a_file_with_no_sensitive_note_leaves_no_trail(
     db, client, principal_user, student_user, school, nurse_user
 ):
-    """التدقيقُ للحسّاس وحده — ولا يُغرَق السجلُّ بما لا يعني القانون."""
+    """التدقيقُ للحسّاس والصحّيّ وحدَهما — ولا يُغرَق السجلُّ بما لا يعني القانون."""
     StudentNote.objects.create(
         school=school,
         student=student_user,
-        category="nurse",
-        title="صداع",
-        body="راجع العيادة.",
+        category="teacher",
+        title="مشاركة",
+        body="مشاركة جيدة في الحصة.",
         occurred_on=date(2026, 3, 1),
         academic_year=YEAR,
         created_by=nurse_user,
