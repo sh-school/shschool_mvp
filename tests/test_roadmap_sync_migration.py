@@ -10005,3 +10005,93 @@ def test_0098_publishes_nothing_a_public_repo_must_not_say():
         assert bad not in text
     assert not re.search(r"\d{11}|\b[0-9a-f]{40}\b", text)
     assert _sync98.Migration.dependencies == [("roadmap", "0097_sync_u09_2026_11_27")]
+
+
+# ── 0099: تسجيلُ CLN-03 «منجزًا» بعد تدقيق فتح البيانات الصحية (طلب المالك، 2026-11-27) ──
+
+_sync99 = importlib.import_module("roadmap.migrations.0099_sync_cln03_done_2026_11_27")
+
+
+class _Apps99:
+    @staticmethod
+    def get_model(_app, name):
+        return {"RoadmapItem": RoadmapItem}[name]
+
+
+def _snapshot99():
+    return list(
+        RoadmapItem.objects.order_by("code").values_list(
+            "code", "status", "progress", "note", "pr", "gate", "title", "start_date", "end_date"
+        )
+    )
+
+
+def test_0099_cln03_moves_from_doing_30_to_done_100_with_note_and_prs():
+    _item("CLN-03", "doing", 30, note="قديمة", pr="#1531", gate="بوّابةٌ قائمة")
+    _sync99.forwards(_Apps99, None)
+    item = RoadmapItem.objects.get(code="CLN-03")
+    assert (item.status, item.progress) == ("done", 100)
+    assert item.pr == "#1531 #1532 #1534 #1535 #1536 #1537 #1538 #1539"
+    assert item.note == f"قديمة\n[2026-11-27] {_sync99.NOTE}"
+    assert (item.gate, item.title) == ("بوّابةٌ قائمة", "عنوان")
+    assert (item.start_date, item.end_date) == (None, None)
+
+
+def test_0099_note_is_the_owner_literal_sentence():
+    assert _sync99.NOTE == (
+        "منجز: يسجَّل في التدقيق فتح البيانات الصحية في شاشات المنصة وطباعتها وواجهاتها ولوحة الإدارة، "
+        "وشاشات التشغيل المتكررة بالدمج اليومي بالطالب."
+    )
+
+
+def test_0099_does_not_repeat_existing_prs():
+    _item("CLN-03", "doing", 30, pr="#1532 #1531")
+    _sync99.forwards(_Apps99, None)
+    pr = RoadmapItem.objects.get(code="CLN-03").pr
+    assert pr.split().count("#1532") == 1 and pr.split().count("#1539") == 1
+    assert pr.split()[:2] == ["#1532", "#1531"]
+
+
+def test_0099_second_run_changes_nothing_and_does_not_repeat_note():
+    _item("CLN-03", "doing", 30, note="قديمة")
+    assert _sync99.sync(RoadmapItem) is True
+    before = _snapshot99()
+    assert _sync99.sync(RoadmapItem) is False
+    _sync99.forwards(_Apps99, None)
+    assert _snapshot99() == before
+    assert RoadmapItem.objects.get(code="CLN-03").note.count("يسجَّل في التدقيق") == 1
+
+
+def test_0099_leaves_cln03_when_status_or_progress_differs():
+    _item("CLN-03", "doing", 0, note="قديمة")
+    assert _sync99.sync(RoadmapItem) is False
+    item = RoadmapItem.objects.get(code="CLN-03")
+    assert (item.status, item.progress, item.note, item.pr) == ("doing", 0, "قديمة", "")
+    RoadmapItem.objects.filter(code="CLN-03").update(status="todo", progress=30)
+    assert _sync99.sync(RoadmapItem) is False
+    assert RoadmapItem.objects.get(code="CLN-03").status == "todo"
+
+
+def test_0099_leaves_other_items_untouched():
+    _item("CLN-02", "doing", 30, note="قديمة", pr="#1000")
+    _item("CLN-03", "doing", 0)
+    _sync99.forwards(_Apps99, None)
+    other = RoadmapItem.objects.get(code="CLN-02")
+    assert (other.status, other.progress, other.note, other.pr) == ("doing", 30, "قديمة", "#1000")
+
+
+def test_0099_empty_database_stays_empty_and_creates_no_item():
+    _sync99.forwards(_Apps99, None)
+    assert RoadmapItem.objects.count() == 0
+    assert not RoadmapDecision.objects.exists()
+    assert not RoadmapKpi.objects.exists()
+
+
+def test_0099_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    text = f"{_sync99.__doc__} {_sync99.NOTE} {' '.join(_sync99.PRS)}"
+    for bad in ("C:/", "C:\\", "D:\\", "localhost", "railway.app", "@", "8011"):
+        assert bad not in text
+    assert not re.search(r"\d{11}|\b[0-9a-f]{40}\b", text)
+    assert _sync99.Migration.dependencies == [("roadmap", "0098_sync_cln03_2026_11_27")]
