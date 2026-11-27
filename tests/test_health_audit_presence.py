@@ -5,6 +5,7 @@ from django.core.cache import cache
 from django.urls import reverse
 
 from core.models import AuditLog
+from tests.conftest import ClinicVisitFactory, MembershipFactory, UserFactory
 from tests.test_movement_live import _exit, wing_a  # noqa: F401
 
 pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
@@ -83,3 +84,42 @@ def test_lost_cache_repeats_the_line(client_as, school, principal_user, teacher_
     client.get(url)
 
     assert len(_lines(principal_user)) == 2
+
+
+# قائمةُ الزيارات والطابور (قرار 2026-11-27): الدمجُ بالطالب لا بالدقيقة، فالجديدُ يُسجَّل فوراً.
+QUEUE_VIEWS = ["clinic:visits_list", "clinic:quick_queue", "clinic:quick_entry"]
+
+
+def _late_student(school, role, nurse_user):
+    """زيارةٌ اليوم لطالبٍ جديدٍ يظهر بعد أوّل فتح، بعضويّة طالب الاختبار نفسها."""
+    late = UserFactory(full_name="طالب متأخّر")
+    MembershipFactory(user=late, school=school, role=role)
+    ClinicVisitFactory(school=school, student=late, nurse=nurse_user)
+    return late
+
+
+@pytest.mark.parametrize("route", QUEUE_VIEWS)
+def test_student_appearing_within_the_same_minute_gets_own_line(
+    client_as, school, nurse_user, student_user, clinic_visit, route
+):
+    client = client_as(nurse_user)
+    assert client.get(reverse(route)).status_code == 200
+    role = student_user.memberships.get().role
+    late = _late_student(school, role, nurse_user)
+
+    assert client.get(reverse(route)).status_code == 200
+    assert client.get(reverse(route)).status_code == 200  # إعادةُ التحديث لا تكرّر
+
+    lines = _lines(nurse_user)
+    assert len(lines) == 2
+    assert lines[0].changes["students"] == [str(student_user.pk)]
+    assert lines[1].changes["students"] == [str(late.pk)]
+    assert late.full_name not in f"{lines[1].object_repr} {lines[1].changes}"
+
+
+def test_visits_search_with_no_match_writes_no_line(client_as, nurse_user, clinic_visit):
+    """لا طالبَ ظاهراً = لا سطر، ومصطلحُ البحث لا يدخل السطر."""
+    client = client_as(nurse_user)
+    response = client.get(reverse("clinic:visits_list"), {"student": "اسمٌ لا مطابق"})
+    assert response.status_code == 200
+    assert _lines(nurse_user) == []

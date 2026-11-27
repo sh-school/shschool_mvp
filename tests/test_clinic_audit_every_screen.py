@@ -36,6 +36,10 @@ PRESENCE_VIEWS = {
     "record_visit_student",
 }
 
+# عددُ الأسطر الجديدة عند أوّل فتحٍ للشاشة (الافتراضُ 1). الإدخالُ السريعُ يكتب سطرَه القائم
+# (عدُّ الطابور) ومعه سطرُ ظهورِ طلابه اليوميّ (CLN-03، قرار 2026-11-27)، فسطرانِ لا تغيير في القائم.
+EXPECTED_NEW_LINES = {"quick_entry": 2}
+
 # مستثناةٌ مسمّاةٌ بسببها: لا تعرض بياناً صحّيّاً فرديّاً من الطالب.
 NON_HEALTH_VIEWS = {
     "needs_care_import": "رفعُ ملفٍّ فقط؛ الصفحةُ لا تعرض سجلّاً، والتقريرُ أعدادٌ",
@@ -110,7 +114,8 @@ class TestHealthScreensAreAudited:
         assert response.status_code == 200
 
         lines = AuditLog.objects.filter(user=nurse_user, action="view").order_by("-timestamp")
-        assert lines.count() == before + 1, f"الشاشة {name} لم تترك سطر تدقيق"
+        expected = EXPECTED_NEW_LINES.get(name, 1)
+        assert lines.count() == before + expected, f"الشاشة {name} لم تترك سطر تدقيق"
         line = lines.first()
         blob = f"{line.object_repr} {line.object_id} {line.changes}"
         assert student_user.full_name not in blob
@@ -151,18 +156,18 @@ class TestHealthScreensAreAudited:
         assert response.status_code == 200
         assert AuditLog.objects.filter(user=nurse_user, action="view").count() == before + 1
 
-    def test_live_search_is_throttled_to_one_line_per_minute(
+    def test_live_search_and_full_open_do_not_repeat_the_same_student(
         self, client_as, nurse_user, student_user, enrolled_student, clinic_visit
     ):
+        """الدمجُ بالطالب (قرار 2026-11-27): تكرارُ البحث الحيّ وفتحُ الصفحة لطالبٍ ظهر مرّةً اليومَ لا يكتب سطراً."""
         cache.clear()
         client = client_as(nurse_user)
         before = AuditLog.objects.filter(user=nurse_user, action="view").count()
         for _ in range(5):
             client.get(reverse("clinic:visits_list"), HTTP_HX_REQUEST="true")
         assert AuditLog.objects.filter(user=nurse_user, action="view").count() == before + 1
-        # فتحُ الصفحة الكاملة بعدها يُدقَّق ولا يخضع للتخفيف
         client.get(reverse("clinic:visits_list"))
-        assert AuditLog.objects.filter(user=nurse_user, action="view").count() == before + 2
+        assert AuditLog.objects.filter(user=nurse_user, action="view").count() == before + 1
 
     def test_search_term_is_not_logged(
         self, client_as, nurse_user, student_user, enrolled_student, clinic_visit
