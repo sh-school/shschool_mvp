@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
+from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.core.cache import cache
 from django.http import HttpRequest
 from django.utils import timezone
@@ -247,3 +248,101 @@ def reveal_chronic(request, student_id) -> str:
         request=request,
     )
     return record.chronic_diseases if record else ""
+
+
+class HealthAuditAdminMixin:
+    """تدقيقُ فتح البيان الصحّيّ من لوحة الإدارة (CLN-03): يسبق `ModelAdmin` في الوراثة.
+
+    يُكتب السطرُ بعد أن يقبل جانغو الوصولَ ويبني صفحةً تعرض صفّاً صحّيّاً: فلا سطرَ لمن رُفض
+    ولا لتحويلٍ ولا لقائمةٍ فارغة. معرّفاتٌ وأعدادٌ فقط، ولا يُسجَّل مصطلحُ البحث.
+
+    الصفحاتُ التي تمرّ على `shows_health`: `list` و`form` و`history` و`delete`. والإجراءُ الجماعيّ
+    الذي يعيد محتوى (تأكيدٌ أو تصدير) يُعامل كـ`delete`، والإكمالُ التلقائيّ كـ`history` لأنّ كليهما
+    يعرض نصَّ السجلّ.
+    """
+
+    def shows_health(self, request: HttpRequest, obj: Any, page: str) -> bool:
+        """هل تعرض هذه الصفحةُ بياناً صحّيّاً من هذا الصفّ؟ الافتراضُ نعم (نموذجٌ صحّيٌّ كلُّه)."""
+        return True
+
+    def health_form_rows(self, request: HttpRequest, context: dict[str, Any]) -> int:
+        """عددُ الصفوف الصحّيّة في صفحة السجلّ؛ يُستبدل حين يأتي البيانُ من الأسطر المضمَّنة."""
+        return self._health_count(request, [context["original"]], "form")
+
+    def _health_count(self, request: HttpRequest, objects: Iterable[Any], page: str) -> int:
+        return sum(1 for obj in objects if self.shows_health(request, obj, page))
+
+    def _audit_admin(
+        self, request: HttpRequest, screen: str, rows: int, object_id: object = ""
+    ) -> None:
+        model_name = self.model.__name__  # type: ignore[attr-defined]
+        audit_health_rows(
+            request, f"لوحة الإدارة: {screen}", rows, model_name=model_name, object_id=object_id
+        )
+
+    def changelist_view(self, request: HttpRequest, extra_context: Any = None) -> Any:
+        response = super().changelist_view(request, extra_context)  # type: ignore[misc]
+        changelist = (getattr(response, "context_data", None) or {}).get("cl")
+        if changelist is not None:
+            rows = self._health_count(request, changelist.result_list, "list")
+            self._audit_admin(request, "القائمة", rows)
+        return response
+
+    def changeform_view(
+        self,
+        request: HttpRequest,
+        object_id: str | None = None,
+        form_url: str = "",
+        extra_context: Any = None,
+    ) -> Any:
+        response = super().changeform_view(  # type: ignore[misc]
+            request, object_id, form_url, extra_context
+        )
+        context = getattr(response, "context_data", None) or {}
+        original = context.get("original")
+        if original is not None:
+            rows = self.health_form_rows(request, context)
+            self._audit_admin(request, "صفحة السجل", rows, original.pk)
+        return response
+
+    def history_view(self, request: HttpRequest, object_id: str, extra_context: Any = None) -> Any:
+        response = super().history_view(request, object_id, extra_context)  # type: ignore[misc]
+        self._audit_object_page(request, response, "history", "تاريخ السجل")
+        return response
+
+    def delete_view(self, request: HttpRequest, object_id: str, extra_context: Any = None) -> Any:
+        response = super().delete_view(request, object_id, extra_context)  # type: ignore[misc]
+        self._audit_object_page(request, response, "delete", "تأكيد الحذف")
+        return response
+
+    def _audit_object_page(
+        self, request: HttpRequest, response: Any, page: str, screen: str
+    ) -> None:
+        obj = (getattr(response, "context_data", None) or {}).get("object")
+        if obj is not None:
+            rows = self._health_count(request, [obj], page)
+            self._audit_admin(request, screen, rows, obj.pk)
+
+    def response_action(self, request: HttpRequest, queryset: Any) -> Any:
+        response = super().response_action(request, queryset)  # type: ignore[misc]
+        # التحويلُ و`None` لا يُخرجان بياناً؛ وما عاد بمحتوى (تأكيدٌ أو ملفّ) يُدقَّق.
+        if response is not None and response.status_code == 200:
+            if request.POST.get("select_across") != "1":
+                queryset = queryset.filter(pk__in=request.POST.getlist(ACTION_CHECKBOX_NAME))
+            rows = self._health_count(request, queryset, "delete")
+            self._audit_admin(request, "إجراء جماعي", rows)
+        return response
+
+    def get_search_results(self, request: HttpRequest, queryset: Any, search_term: str) -> Any:
+        results, duplicates = super().get_search_results(  # type: ignore[misc]
+            request, queryset, search_term
+        )
+        match = request.resolver_match
+        if match is not None and match.url_name == "autocomplete":
+            # صفحةُ الإكمال التلقائيّ نفسُها التي يقتطعها `AutocompleteJsonView` (عشرون صفّاً).
+            page = request.GET.get("page", "1")
+            end = 20 * (int(page) if page.isdigit() and int(page) > 0 else 1)
+            shown = results.distinct() if duplicates else results
+            rows = self._health_count(request, shown[end - 20 : end], "history")
+            self._audit_admin(request, "إكمال تلقائي", rows)
+        return results, duplicates

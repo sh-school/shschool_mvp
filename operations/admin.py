@@ -3,6 +3,7 @@ from typing import Any
 from django.contrib import admin, messages
 from django.http import HttpRequest
 
+from clinic.health_access import HealthAuditAdminMixin
 from core.admin import SchoolScopedAdmin
 
 from .admin_forms import TeacherPreferenceAdminForm, effective_cap
@@ -86,7 +87,7 @@ class AttendanceInline(ReadOnlyAdminMixin, admin.TabularInline):
 
 
 @admin.register(Session)
-class SessionAdmin(admin.ModelAdmin):
+class SessionAdmin(HealthAuditAdminMixin, admin.ModelAdmin):
     list_display = ("class_group", "subject", "teacher", "date", "start_time", "status")
     # الأعمدةُ و`__str__` تقرأ هذه العلاقات لكلّ صفّ — تُجلب في استعلام القائمة نفسه (كانت ~25 سؤالاً للصفحة).
     list_select_related = ("class_group", "subject", "teacher")
@@ -103,9 +104,20 @@ class SessionAdmin(admin.ModelAdmin):
     def get_list_filter(self, request):
         return (*super().get_list_filter(request), "provisional")
 
+    def shows_health(self, request: HttpRequest, obj: Any, page: str) -> bool:
+        return False  # الحصّةُ نفسُها ليست بياناً صحّيّاً؛ البيانُ في أسطر رصدها.
+
+    def health_form_rows(self, request: HttpRequest, context: dict[str, Any]) -> int:
+        return sum(
+            1
+            for inline in context["inline_admin_formsets"]
+            for row in inline.formset.get_queryset()
+            if row.excuse_type == "medical"
+        )
+
 
 @admin.register(StudentAttendance)
-class StudentAttendanceAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+class StudentAttendanceAdmin(HealthAuditAdminMixin, ReadOnlyAdminMixin, admin.ModelAdmin):
     list_display = (
         "student",
         "session",
@@ -120,6 +132,9 @@ class StudentAttendanceAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     list_filter = ("status", "school")
     search_fields = ("student__full_name", "student__national_id")
     date_hierarchy = "marked_at"
+
+    def shows_health(self, request: HttpRequest, obj: Any, page: str) -> bool:
+        return page == "form" and (obj.excuse_type == "medical" or obj.whereabouts == "clinic")
 
 
 @admin.register(AttendanceEntry)
@@ -140,7 +155,7 @@ class AttendanceEntryAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
 
 
 @admin.register(ClassExit)
-class ClassExitAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+class ClassExitAdmin(HealthAuditAdminMixin, ReadOnlyAdminMixin, admin.ModelAdmin):
     """خروجُ الطلاب من الفصل (الحصّةُ والمادّةُ والوجهةُ والوقتان وهل أُغلق بالنظام) — للقراءة والتدقيق فقط."""
 
     list_display = (
@@ -156,6 +171,9 @@ class ClassExitAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     list_filter = ("destination", "system_closed", "school")
     search_fields = ("student__full_name", "student__national_id")
     date_hierarchy = "left_at"
+
+    def shows_health(self, request: HttpRequest, obj: Any, page: str) -> bool:
+        return obj.destination == "clinic"
 
 
 @admin.register(ExitDestinationGrace)
@@ -176,7 +194,7 @@ class ExcusedExitAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
 
 
 @admin.register(ExitPermit)
-class ExitPermitAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+class ExitPermitAdmin(HealthAuditAdminMixin, ReadOnlyAdminMixin, SchoolScopedAdmin):
     """أذوناتُ خروج الطلاب (السببُ والوقتُ والحصصُ المكتملة وحضورُ الوليّ والمعتمِد) — للقراءة والتدقيق؛ تُكتب بخدمتها."""
 
     list_display = (
@@ -197,9 +215,12 @@ class ExitPermitAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
     search_fields = ("student__full_name", "student__national_id")
     date_hierarchy = "exit_at"
 
+    def shows_health(self, request: HttpRequest, obj: Any, page: str) -> bool:
+        return page in ("list", "form") and obj.reason == "medical"
+
 
 @admin.register(DailyExitTally)
-class DailyExitTallyAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+class DailyExitTallyAdmin(HealthAuditAdminMixin, ReadOnlyAdminMixin, admin.ModelAdmin):
     """ملخّصُ خروج كلّ طالبٍ في كلّ يوم: عددُ المرّات ومجموعُ الثواني والتفصيلُ بالوجهة — مشتقٌّ من «خروجٌ من الفصل»."""
 
     list_display = ("student", "date", "exit_count", "total_seconds", "by_destination")
@@ -207,6 +228,9 @@ class DailyExitTallyAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     list_filter = ("school",)
     search_fields = ("student__full_name", "student__national_id")
     date_hierarchy = "date"
+
+    def shows_health(self, request: HttpRequest, obj: Any, page: str) -> bool:
+        return page in ("list", "form") and "clinic" in (obj.by_destination or {})
 
 
 @admin.register(AttendanceDecision)
@@ -291,7 +315,9 @@ class SensitiveFieldsMixin:
 
 
 @admin.register(AbsenceExcuse)
-class AbsenceExcuseAdmin(SensitiveFieldsMixin, ReadOnlyAdminMixin, SchoolScopedAdmin):
+class AbsenceExcuseAdmin(
+    HealthAuditAdminMixin, SensitiveFieldsMixin, ReadOnlyAdminMixin, SchoolScopedAdmin
+):
     """عذرُ الغياب قرارٌ مسجَّلٌ بخدمته (`operations/excuses.py`) — يُقرأ هنا ولا يُكتب."""
 
     list_display = (
@@ -319,6 +345,10 @@ class AbsenceExcuseAdmin(SensitiveFieldsMixin, ReadOnlyAdminMixin, SchoolScopedA
         "pledge_accepted",
     )
 
+    def shows_health(self, request: HttpRequest, obj: Any, page: str) -> bool:
+        # عمودُ النوع محجوبٌ عن غير المشرف الأعلى في القائمة، لكنّ عنوانَ صفحة السجلّ يحمله.
+        return obj.kind == "medical" and (page != "list" or request.user.is_superuser)
+
 
 @admin.register(TardinessExcuse)
 class TardinessExcuseAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
@@ -332,12 +362,15 @@ class TardinessExcuseAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
 
 
 @admin.register(GuardianContact)
-class GuardianContactAdmin(ReadOnlyAdminMixin, SchoolScopedAdmin):
+class GuardianContactAdmin(HealthAuditAdminMixin, ReadOnlyAdminMixin, SchoolScopedAdmin):
     list_display = ("student", "absence_date", "outcome", "channel", "contacted_by", "contacted_at")
     list_select_related = ("student", "contacted_by")
     list_filter = ("outcome", "channel", "school")
     search_fields = ("student__full_name", "student__national_id")
     date_hierarchy = "contacted_at"
+
+    def shows_health(self, request: HttpRequest, obj: Any, page: str) -> bool:
+        return obj.outcome == "medical"
 
 
 @admin.register(SectionDayConfirmation)
@@ -397,21 +430,27 @@ class ScheduleSlotAdmin(admin.ModelAdmin):
 
 
 @admin.register(TeacherAbsence)
-class TeacherAbsenceAdmin(admin.ModelAdmin):
+class TeacherAbsenceAdmin(HealthAuditAdminMixin, admin.ModelAdmin):
     list_display = ("teacher", "date", "reason", "status", "reported_by", "created_at")
     list_filter = ("school", "status", "reason", "date")
     search_fields = ("teacher__full_name",)
     autocomplete_fields = ("teacher", "reported_by")
     ordering = ("-date",)
 
+    def shows_health(self, request: HttpRequest, obj: Any, page: str) -> bool:
+        return obj.reason == "sick"
+
 
 @admin.register(SubstituteAssignment)
-class SubstituteAssignmentAdmin(admin.ModelAdmin):
+class SubstituteAssignmentAdmin(HealthAuditAdminMixin, admin.ModelAdmin):
     list_display = ("absence", "slot", "substitute", "status", "assigned_by", "created_at")
     list_filter = ("school", "status")
     search_fields = ("substitute__full_name", "absence__teacher__full_name")
     autocomplete_fields = ("substitute", "assigned_by", "absence", "slot")
     ordering = ("-created_at",)
+
+    def shows_health(self, request: HttpRequest, obj: Any, page: str) -> bool:
+        return page in ("list", "form") and obj.absence.reason == "sick"
 
 
 # ── Phase 3 — الجدولة الذكية ──────────────

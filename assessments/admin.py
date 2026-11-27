@@ -1,4 +1,9 @@
+from typing import Any
+
 from django.contrib import admin
+from django.http import HttpRequest
+
+from clinic.health_access import HealthAuditAdminMixin
 
 from .models import (
     AnnualSubjectResult,
@@ -89,7 +94,7 @@ class AssessmentAdmin(admin.ModelAdmin):
 
 
 @admin.register(StudentAssessmentGrade)
-class StudentAssessmentGradeAdmin(admin.ModelAdmin):
+class StudentAssessmentGradeAdmin(HealthAuditAdminMixin, admin.ModelAdmin):
     list_display = (
         "student",
         "assessment",
@@ -110,6 +115,9 @@ class StudentAssessmentGradeAdmin(admin.ModelAdmin):
     list_select_related = ("student", "assessment__package__setup__subject", "school")
     search_fields = ("student__full_name", "student__national_id", "assessment__title")
     autocomplete_fields = ("student", "assessment", "entered_by", "excuse_decided_by")
+
+    def shows_health(self, request: HttpRequest, obj: Any, page: str) -> bool:
+        return page in ("list", "form") and obj.excuse_type == "illness"
 
 
 @admin.register(StudentSubjectResult)
