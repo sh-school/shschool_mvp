@@ -113,6 +113,27 @@ class TestHealthScreensAreAudited:
                 if text:
                     assert text not in blob
 
+    @pytest.mark.parametrize("route", ["student_affairs:student_clinic_tab", "clinic-visits"])
+    def test_health_routes_outside_the_clinic_are_audited_too(
+        self, client_as, principal_user, student_user, enrolled_student, clinic_visit, route
+    ):
+        """تبويبُ ملفّ الطالب وواجهةُ الزيارات خارج بادئة العيادة، ويلزمهما السطرُ نفسُه (CLN-03)."""
+        if route == "clinic-visits":
+            url = "/api/v1/clinic/visits/"
+        else:
+            url = reverse(route, args=[student_user.id])
+        lines = AuditLog.objects.filter(
+            user=principal_user, action="view", model_name__in=["ClinicVisit", "HealthRecord"]
+        )
+        before = lines.count()
+
+        assert client_as(principal_user).get(url).status_code == 200
+
+        assert lines.count() == before + 1
+        line = lines.order_by("-timestamp").first()
+        blob = f"{line.object_repr} {line.object_id} {line.changes}"
+        assert student_user.full_name not in blob and clinic_visit.reason not in blob
+
     def test_htmx_partial_is_audited_too(
         self, client_as, nurse_user, student_user, enrolled_student, clinic_visit
     ):

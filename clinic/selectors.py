@@ -262,3 +262,39 @@ def visits_for(school: Any, params: Any) -> QuerySet[ClinicVisit]:
     if name:
         qs = qs.filter(student__full_name__icontains=name)
     return qs
+
+
+def school_student(school: Any, student_id: Any) -> Any:
+    """طالبٌ بعضويّةٍ نشطةٍ في المدرسة، و`Http404` لغيره — كحارس صفحة ملفّه."""
+    from django.shortcuts import get_object_or_404
+
+    from core.models import CustomUser
+
+    return get_object_or_404(
+        CustomUser,
+        id=student_id,
+        memberships__school=school,
+        memberships__is_active=True,
+    )
+
+
+def shown_visit_count(school: Any, student: Any) -> int:
+    """عددُ الزيارات التي يعرضها تبويبُ العيادة (آخرُ خمس) — رقمٌ لا بيانَ صحّيّاً معه."""
+    from clinic.models import ClinicVisit
+
+    ids = ClinicVisit.objects.filter(student=student, school=school).values_list("id", flat=True)
+    return len(ids[:5])
+
+
+def student_clinic_data(school: Any, student: Any, *, summary_only: bool) -> tuple[list[Any], Any]:
+    """آخرُ خمس زياراتٍ والسجلُّ الصحّيّ لتبويب العيادة.
+
+    المقيَّدُ بجناحه (`summary_only`) لا يُقرأ له سجلٌّ صحّيّ، ومن الزيارة تاريخُها و«أُعيد إلى
+    المنزل» وحدَهما — لا السببُ ولا الحرارة.
+    """
+    from clinic.models import ClinicVisit, HealthRecord
+
+    visits = ClinicVisit.objects.filter(student=student, school=school).order_by("-visit_date")
+    if summary_only:
+        return list(visits.values("visit_date", "is_sent_home")[:5]), None
+    return list(visits[:5]), HealthRecord.objects.filter(student=student).first()

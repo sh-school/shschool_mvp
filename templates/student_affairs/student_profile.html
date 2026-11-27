@@ -1,5 +1,6 @@
 {% extends "base/base.html" %}
 {% load icons %}
+{% load static %}
 {% load navigation %}
 {% load privacy ui labels schedule_filters %}
 {% comment %}
@@ -32,7 +33,7 @@
   {% kpi_strip label="ملخص الطالب" %}
     {% kpi "نسبة الحضور" attendance_label sub=attendance_sub tone=attendance_tone title="الحصص التي حضرها هذا العام من كل حصصه المرصودة" %}
     {% if not limited %}{% kpi "المواد" grades_summary.total_subjects|default:0 sub=subjects_sub tone="blue" %}{% endif %}
-    {% kpi "زيارات العيادة" clinic_visits|length tone="teal" title="آخر الزيارات المعروضة في تبويب العيادة" %}
+    {% kpi "زيارات العيادة" clinic_visit_count tone="teal" title="آخر الزيارات المعروضة في تبويب العيادة" %}
     {% if not limited %}{% kpi "الأنشطة" activities|length tone="maroon" title="آخر الأنشطة المعروضة في تبويب الأنشطة" %}{% endif %}
   {% endkpi_strip %}
 
@@ -43,7 +44,7 @@
       <button class="tab-btn" data-tab="attendance" role="tab" aria-selected="false">{% icon "attendance_register" %} الحضور</button>
       <button class="tab-btn" data-tab="behavior" role="tab" aria-selected="false">{% icon "behavior" %} السلوك</button>
       {% if not limited %}<button class="tab-btn" data-tab="grades" role="tab" aria-selected="false">{% icon "grades" %} الدرجات</button>{% endif %}
-      <button class="tab-btn" data-tab="clinic" role="tab" aria-selected="false">{% icon "clinic" %} العيادة</button>
+      <button type="button" id="clinic-tab-btn" class="tab-btn" data-tab="clinic" role="tab" aria-selected="false" aria-controls="tab-clinic" hx-get="{% url 'student_affairs:student_clinic_tab' student.id %}" hx-target="#clinic-tab-body" hx-swap="innerHTML" hx-indicator="#clinic-tab-loading" hx-sync="this:drop">{% icon "clinic" %} العيادة</button>
       {% if not limited %}<button class="tab-btn" data-tab="activities" role="tab" aria-selected="false">{% icon "activities" %} الأنشطة</button>{% endif %}
       {% if transfers %}<button class="tab-btn" data-tab="transfers" role="tab" aria-selected="false">{% icon "refresh" %} الانتقالات</button>{% endif %}
     </div>
@@ -265,36 +266,13 @@
   </div>
   {% endif %}
 
-  {# ── العيادة — وللمقيَّد تاريخُ الزيارة و«أُعيد إلى المنزل» وحدَهما ── #}
-  <div id="tab-clinic" class="tab-content">
-    {% section_card "العيادة" icon="clinic" empty="لا زيارات عيادة" %}{% if health_record.blood_type_encrypted or health_record.needs_care or clinic_visits %}
-      {# «يحتاج مراعاةً» علامةٌ بلا اسم حالة — ما يراه المعلّمُ من الملفّ الصحّيّ #}
-      {% if health_record.needs_care %}<p><span class="status-badge status-warning">يحتاج مراعاةً</span></p>{% endif %}
-      {% if request.user|has_capability:"clinic.chronic_name" and not limited %}
-      <div id="chronic-reveal">
-        <button type="button" class="btn-secondary btn-sm" hx-post="{% url 'student_affairs:reveal_chronic' student.id %}" hx-target="#chronic-reveal" hx-swap="innerHTML">كشف اسم الحالة المزمنة (يُسجَّل)</button>
-      </div>
-      {% endif %}
-      {% if health_record.blood_type_encrypted %}
-      <dl class="detail-dl">
-        <dt>فصيلة الدم</dt><dd><strong>{{ health_record.blood_type_encrypted }}</strong></dd>
-      </dl>
-      {% endif %}
-      {% if clinic_visits %}
-      <ul class="plain-list">
-        {% for v in clinic_visits %}
-          <li class="plain-list__row">
-            {% if limited %}
-            <span class="plain-list__main"><b class="plain-list__title">{{ v.visit_date|date:"d/m/Y" }}</b></span>
-            {% else %}
-            <span class="plain-list__main"><b class="plain-list__title">{{ v.reason|truncatechars:40 }}</b><span class="plain-list__sub">{{ v.visit_date|date:"d/m" }}</span></span>
-            {% endif %}
-            {% if v.is_sent_home %}<span class="status-badge status-danger">أُرسل للمنزل</span>{% endif %}
-          </li>
-        {% endfor %}
-      </ul>
-      {% endif %}
-    {% endif %}{% endsection_card %}
+  {# ── العيادة — لا بيانَ صحّيّاً في الصفحة: يُجلب بنقر التبويب ويُدقَّق (CLN-03) ── #}
+  <div id="tab-clinic" class="tab-content" role="tabpanel" aria-labelledby="clinic-tab-btn">
+    <p id="clinic-tab-loading" class="htmx-indicator ui-note" role="status">{% icon "loading" %} جارٍ تحميل بيانات العيادة...</p>
+    <div id="clinic-tab-error" hidden>
+      {% callout "error" %}تعذّر تحميل بيانات العيادة. انقر تبويب «العيادة» للمحاولة مرّةً أخرى.{% endcallout %}
+    </div>
+    <div id="clinic-tab-body" aria-live="polite"></div>
   </div>
 
   {# ── الأنشطة والإنجازات — ليست من متابعة المقيَّد بجناحه ── #}
@@ -333,15 +311,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script nonce="{{ request.csp_nonce }}">
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    btn.classList.add('active');
-    btn.setAttribute('aria-selected','true');
-    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-  });
-});
-</script>
+<script src="{% static 'js/student-profile.js' %}" defer></script>
 {% endblock %}
