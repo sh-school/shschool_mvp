@@ -131,7 +131,8 @@ class TestHealthScreensAreAudited:
 
         assert lines.count() == before + 1
         line = lines.order_by("-timestamp").first()
-        blob = f"{line.object_repr} {line.object_id} {line.changes}"
+        # فاصلٌ «|» كي لا يطابق «طالب 1» نصَّ «ملف الطالب» متبوعاً بمعرّفٍ يبدأ بـ1
+        blob = f"{line.object_repr}|{line.object_id}|{line.changes}"
         assert student_user.full_name not in blob and clinic_visit.reason not in blob
 
     def test_htmx_partial_is_audited_too(

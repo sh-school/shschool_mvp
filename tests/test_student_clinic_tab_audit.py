@@ -122,11 +122,11 @@ def test_every_successful_api_request_is_audited(
     assert api_as_principal.get(API_URL).status_code == 200
     assert api_as_principal.get(API_URL, {"student_id": str(student_user.id)}).status_code == 200
 
-    lines = _health_lines(principal_user).order_by("timestamp")
+    lines = _health_lines(principal_user)
     assert lines.count() == before + 2
-    last = lines.last()
-    assert last.object_id == str(student_user.id)
-    assert last.changes["rows"] == 1
+    # الساعةُ مثبّتةٌ فيتساوى طابعا السطرين: يُنتقى السطرُ بمعرّفه لا بترتيبه
+    filtered = lines.get(object_id=str(student_user.id))
+    assert filtered.changes["rows"] == 1
     for line in lines:
         _assert_ids_only(line, student_user)
 
