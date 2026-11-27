@@ -119,6 +119,27 @@ def audit_health_presence(request: HttpRequest, screen: str, student_ids: Iterab
     cache.set(key, seen | set(new), PRESENCE_TTL)
 
 
+def audit_health_export(
+    user: Any, screen: str, *, model_name: str, object_id: object, rows: int
+) -> None:
+    """كـ`audit_health_rows` لبنّاءِ تصديرٍ لا طلبَ معه (يعمل في العامل): المستخدمُ وحدَه."""
+    request = HttpRequest()
+    request.user = user
+    audit_health_rows(request, screen, rows, model_name=model_name, object_id=object_id)
+
+
+def audit_class_grid_presence(request: HttpRequest, page: Any) -> None:
+    """جدولُ الرصد: من ظهرت وجهتُه «العيادة» في «خارجون الآن» أو في تلميح دائرة الخروج (CLN-03)."""
+    shown = [
+        row.student.pk
+        for row in page.rows
+        if (row.exit and row.exit.destination == "clinic")
+        # نصُّ التلميح كما يبنيه `class_grid.exit_line`.
+        or any(badge and "العيادة (بإذن)" in badge.tip for _, _, badge in row.pairs)
+    ]
+    audit_health_presence(request, "جدول رصد المعلم", shown)
+
+
 def audit_health_codes(
     request: HttpRequest,
     screen: str,
@@ -135,7 +156,16 @@ def audit_health_codes(
 def audit_student_events_health(
     request: HttpRequest, context: dict[str, Any], student_id: object
 ) -> None:
-    """صفحةُ «تصحيح وعذر»: الأعذارُ المعروضة، وعذرُ سطر الغياب في صفحة السجلّ المعروضة."""
+    """صفحةُ «تصحيح وعذر»: الأعذارُ المعروضة، وعذرُ سطر الغياب في صفحة السجلّ المعروضة.
+
+    ويُسجَّل ظهورُ الطالب (بالدمج اليوميّ) إن حملت صفحةُ السجلّ وجهةَ «العيادة» أو مكانَها.
+    """
+    if any(
+        (source == "exit" and row.destination == "clinic")
+        or (source == "attendance" and row.status == "absent" and row.whereabouts == "clinic")
+        for source, row in context["events_page"]
+    ):
+        audit_health_presence(request, "سجل أحداث الطالب", [student_id])
     codes = [excuse.kind for excuse in context["excuses"]]
     codes += [
         row.excuse_type

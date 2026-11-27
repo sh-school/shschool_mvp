@@ -997,7 +997,7 @@ def student_movements(request):
             "wing_label": _followup_wing_label(scope),
             # بطاقةٌ لكلّ وجهةٍ بعدّاد اليوم (`movement_cards`) واللوحةُ الحيّة (`movement_live`).
             "destination_cards": destination_cards(destination_counts, day_qs),
-            **live_context(request, school, scope, selected_date),
+            **live_context(request, school, scope, selected_date, exits),
         },
     )
 

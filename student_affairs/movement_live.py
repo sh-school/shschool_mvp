@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
+from collections.abc import Sequence
 from typing import Any
 
 from django.contrib.auth.decorators import login_required
@@ -28,14 +29,22 @@ from .movement_strip_selectors import destination_split, wing_strip
 REFRESH_SECONDS = 10
 
 
-def live_context(request: Any, school: Any, scope: Any, day: dt.date) -> dict[str, Any]:
-    """سياقُ اللوحة الحيّة: القادمون والخارجون الآن، وهل اليومُ المختار اليومُ (فيُفعَّل التحديثُ الذاتي)."""
+def live_context(
+    request: Any, school: Any, scope: Any, day: dt.date, day_log: Sequence[ClassExit] = ()
+) -> dict[str, Any]:
+    """سياقُ اللوحة الحيّة: القادمون والخارجون الآن، وهل اليومُ المختار اليومُ (فيُفعَّل التحديثُ الذاتي).
+
+    `day_log`: صفوفُ جدول سجلّ اليوم المعروضِ مع اللوحة، ليُدقَّق ظهورُ العيادة فيه.
+    """
     now = timezone.now()
     can_grace = can_set_grace(request.user)
     live = live_rows(school, scope, day, now)
     # من وجهتُه العيادةُ وحدَه؛ و«قادمون إليك» هنا وجهتُهم مشرفُ الجناح فليسوا منهم.
     clinic_ids = [r["student"].pk for r in live if r["is_clinic"]]
     audit_health_presence(request, "خارج الفصل الآن", clinic_ids)
+    # من لم يعد ظاهرٌ في اللوحة الحيّة وسُجِّل أعلاه؛ فسطرُ الجدول لمن عاد وحدَه كي لا يتكرّر.
+    returned_ids = [e.student_id for e in day_log if e.destination == "clinic" and e.returned_at]
+    audit_health_presence(request, "سجل خروج اليوم", returned_ids)
     return {
         "incoming_rows": incoming_rows(school, scope, day, now),
         "live_rows": live,
@@ -102,6 +111,8 @@ def movements_history(request):
         # معرّفٌ فاسدٌ أو غائبٌ في `?student=` لا يُسقط الصفحة — يُعامَل كأنّه غير موجود.
         student_id = ""
     rows = history_rows(request.school, _followup_scope(request), start, end, student_id)
+    clinic_ids = [r["student"].pk for r in rows if "clinic" in r["by_destination"]]
+    audit_health_presence(request, "سجل الخروج التاريخي", clinic_ids)
     for row in rows:
         row["link"] = f"{reverse('student_affairs:movements_history')}?student={row['student'].pk}"
     return render(
