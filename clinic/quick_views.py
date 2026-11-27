@@ -12,7 +12,7 @@ import json
 
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -21,6 +21,7 @@ from django.views.decorators.http import require_GET, require_POST
 from clinic import choices
 from clinic.exit_selectors import incoming_to_clinic
 from clinic.exit_services import depart_on_close, receive_arrival
+from clinic.health_access import audit_health_presence
 from clinic.models import ClinicVisit
 from clinic.queue import todays_queue
 from clinic.selectors import (
@@ -65,9 +66,12 @@ def _queue_rows(queue) -> int:
     return len(queue.waiting) + len(queue.in_care) + len(queue.done)
 
 
-def _incoming(school) -> list[dict]:
+def _incoming(request: HttpRequest) -> list[dict]:
+    """«قادمون إليك» مع تدقيق من يظهر أوّلَ مرّةٍ اليوم؛ الصفحةُ وجزؤها شاشةٌ واحدة."""
     now = timezone.now()
-    return incoming_to_clinic(school, timezone.localdate(now), now)
+    rows = incoming_to_clinic(request.school, timezone.localdate(now), now)
+    audit_health_presence(request, "قادمون إلى العيادة", [r["student"].pk for r in rows])
+    return rows
 
 
 def _changed(response: HttpResponse) -> HttpResponse:
@@ -92,7 +96,7 @@ def quick_entry(request):
             "queue": queue,
             "classes": class_options(school),
             "recent": recent_visitors(school, timezone.localdate()),
-            "incoming": _incoming(school),
+            "incoming": _incoming(request),
             "mode": "quick",
         },
     )
@@ -173,7 +177,7 @@ def quick_receive(request):
 @_protected
 @require_GET
 def quick_incoming(request):
-    ctx = {"incoming": _incoming(request.school)}
+    ctx = {"incoming": _incoming(request)}
     return render(request, "clinic/partials/_quick_incoming.html", ctx)
 
 

@@ -11,7 +11,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
+from django.core.cache import cache
 from django.http import HttpRequest
+from django.utils import timezone
 
 from clinic.selectors import student_clinic_data
 from core.audit_repr import masked_repr
@@ -29,6 +31,8 @@ _CODES = {code for code, _ in OPEN_REASONS}
 NOTE_MAX = 200
 #: رمزا العذر الصحّيّ: «medical» لعذر الغياب وإذن الخروج، و«illness» لعذر الاختبار.
 HEALTH_CODES = frozenset({"medical", "illness"})
+#: مدّةُ حفظ من سُجِّل ظهورُه (يومٌ)؛ والمفتاحُ يحمل التاريخَ فيبدأ كلُّ يومٍ من جديد.
+PRESENCE_TTL = 60 * 60 * 24
 
 
 def clean_reason(code: str) -> str | None:
@@ -85,6 +89,34 @@ def audit_health_rows(
     """سطرُ تدقيقٍ واحدٌ إن حوت الاستجابةُ بياناً صحّيّاً (`rows` > 0)، ولا سطرَ بدونه (CLN-03)."""
     if rows:
         audit_health_screen(request, screen, model_name=model_name, object_id=object_id, rows=rows)
+
+
+def audit_health_presence(request: HttpRequest, screen: str, student_ids: Iterable[object]) -> None:
+    """سطرٌ عند أوّل ظهورٍ لطالبٍ أمام المستخدم على الشاشة في اليوم (CLN-03، قرار المالك 2026-11-27).
+
+    للشاشات الذاتيّة التحديث: التحديثُ وإعادةُ التحميل لا يكتبان ما لم يظهر طالبٌ جديد، والسطرُ
+    للجدد وحدَهم بمعرّفاتهم. اليومُ بتوقيت الدوحة. من سُجِّل يُحفظ في cache بعد كتابة السطر لا
+    قبلها: ففقدانُه يكرّر السطرَ ولا يضيّعه.
+    """
+    shown = {str(pk) for pk in student_ids}
+    if not shown:
+        return
+    day = timezone.localdate().isoformat()
+    # بلا فراغاتٍ في المفتاح: تحذّر منها طبقةُ cache.
+    key = f"clinic_presence:{request.user.pk}:{screen.replace(' ', '_')}:{day}"
+    seen: set[str] = set(cache.get(key) or ())
+    new = sorted(shown - seen)
+    if not new:
+        return
+    AuditLog.log(
+        user=request.user,
+        action="view",
+        model_name="ClinicVisit",
+        object_repr=f"عرض شاشة صحية — {screen}",
+        changes={"screen": screen, "rows": len(new), "students": new},
+        request=request,
+    )
+    cache.set(key, seen | set(new), PRESENCE_TTL)
 
 
 def audit_health_codes(
