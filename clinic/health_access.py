@@ -8,6 +8,7 @@ clinic/health_access.py — فتحُ الملفّ الصحّيّ الكامل ب
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any
 
 from django.http import HttpRequest
@@ -26,6 +27,8 @@ OPEN_REASONS = (
 )
 _CODES = {code for code, _ in OPEN_REASONS}
 NOTE_MAX = 200
+#: رمزا العذر الصحّيّ: «medical» لعذر الغياب وإذن الخروج، و«illness» لعذر الاختبار.
+HEALTH_CODES = frozenset({"medical", "illness"})
 
 
 def clean_reason(code: str) -> str | None:
@@ -73,6 +76,57 @@ def audit_health_screen(
         object_repr=f"عرض شاشة صحية — {screen}",
         changes=changes,
         request=request,
+    )
+
+
+def audit_health_rows(
+    request: HttpRequest, screen: str, rows: int, *, model_name: str, object_id: object = ""
+) -> None:
+    """سطرُ تدقيقٍ واحدٌ إن حوت الاستجابةُ بياناً صحّيّاً (`rows` > 0)، ولا سطرَ بدونه (CLN-03)."""
+    if rows:
+        audit_health_screen(request, screen, model_name=model_name, object_id=object_id, rows=rows)
+
+
+def audit_health_codes(
+    request: HttpRequest,
+    screen: str,
+    codes: Iterable[str],
+    *,
+    model_name: str,
+    object_id: object = "",
+) -> None:
+    """كـ`audit_health_rows` لشاشةٍ تعرض أنواعَ أعذارٍ أو أسبابَ خروج: يُعدّ الصحّيُّ منها وحدَه."""
+    rows = sum(1 for code in codes if code in HEALTH_CODES)
+    audit_health_rows(request, screen, rows, model_name=model_name, object_id=object_id)
+
+
+def audit_student_events_health(
+    request: HttpRequest, context: dict[str, Any], student_id: object
+) -> None:
+    """صفحةُ «تصحيح وعذر»: الأعذارُ المعروضة، وعذرُ سطر الغياب في صفحة السجلّ المعروضة."""
+    codes = [excuse.kind for excuse in context["excuses"]]
+    codes += [
+        row.excuse_type
+        for source, row in context["events_page"]
+        if source == "attendance" and row.status == "absent"
+    ]
+    audit_health_codes(
+        request, "تصحيح وعذر الطالب", codes, model_name="AbsenceExcuse", object_id=student_id
+    )
+
+
+def audit_absence_days_health(
+    request: HttpRequest, days: Iterable[Any], student_id: object
+) -> None:
+    """ملفُّ الغياب: نوعُ العذر على سطر اليوم، وسببُ الرفض حين يُعرض."""
+    codes: list[str] = []
+    for day in days:
+        if day.excuse:
+            codes.append(day.excuse.kind)
+        elif day.rejected and not day.waiting and day.rejected.rejection_reason:
+            codes.append(day.rejected.kind)
+    audit_health_codes(
+        request, "ملف غياب الطالب", codes, model_name="AbsenceExcuse", object_id=student_id
     )
 
 

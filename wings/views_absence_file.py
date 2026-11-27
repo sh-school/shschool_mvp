@@ -25,6 +25,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from clinic.health_access import audit_absence_days_health
 from core.academic_calendar import academic_year_for_school, academic_year_window
 from core.audit_repr import masked_repr
 from core.capabilities import capability_required, has_capability
@@ -170,13 +171,15 @@ def absence_file(request: HttpRequest, student_id: object) -> HttpResponse:
     ]
     _audit_guardian_phones(request, school, student, guardians)
     start = window[0] if window else today.replace(month=9, day=1)
+    days = absence_days(student, school, start, today)
+    audit_absence_days_health(request, days, student.id)
     return render(
         request,
         "wings/absence_file.html",
         {
             "klass": klass,
             "student": student,
-            "days": absence_days(student, school, start, today),
+            "days": days,
             "standing": standing_for(student, school, grade=klass.grade, on=today),
             "excuse_kinds": kinds(),
             "guardians": guardians,

@@ -17,6 +17,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 
+from clinic.health_access import audit_health_codes
 from core.academic_calendar import academic_year_for, academic_year_for_school, resolve_year
 from core.capabilities import capability_required
 from core.domain.tones import GRADE_CELL, tone_for
@@ -707,13 +708,16 @@ def excuse_queue(request):
     for row in page_obj:  # آخرُ موعدٍ لتقديم العذر لكلّ غياب (D-403م) — يُقرأ من جدول الاختبار لا يُنسخ
         found = GradeService.excuse_deadline(row.assessment, deadlines)
         row.excuse_deadline = found[0] if found else None
+    decided = selectors.decided_excuse_rows(request.school)
+    types = [row.excuse_type for row in decided]
+    audit_health_codes(request, "أعذار الاختبارات", types, model_name="StudentAssessmentGrade")
     return render(
         request,
         "assessments/excuse_queue.html",
         {
             "page_obj": page_obj,
             "today": timezone.localdate(),
-            "decided": selectors.decided_excuse_rows(request.school),
+            "decided": decided,
             "EXCUSE_TYPES": EXCUSE_TYPES,
             "subtitle": f"الغياباتُ التي تنتظر القرار: {pending.count}",
         },
