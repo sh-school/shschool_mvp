@@ -34,6 +34,9 @@ def _assert_ids_only(line, student):
 
 @pytest.fixture
 def health(school, student_user, enrolled_student):
+    # اسمٌ لا يتقاطع مع نصّ الشاشة: «طالب 1» يطابق «ملف الطالب» متبوعاً بمعرّفٍ يبدأ بـ1
+    student_user.full_name = "زيدون الاصطناعيّ"
+    student_user.save(update_fields=["full_name"])
     HealthRecordFactory(student=student_user, blood_type_encrypted="AB-", needs_care=True)
     ClinicVisitFactory(school=school, student=student_user, reason=REASON)
 
