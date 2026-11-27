@@ -21,6 +21,7 @@ from django.utils import timezone
 from django.utils.http import urlencode
 from django.views.decorators.http import require_http_methods
 
+from clinic.health_access import audit_health_rows
 from core.academic_calendar import academic_year_for
 from core.audit_repr import masked_repr
 from core.capabilities import capability_required
@@ -195,6 +196,14 @@ def student_file(request, student_id):
     hidden = SPECIALIST_CATEGORIES if scope.hides_specialist_notes else ()
     grouped = services.notes_by_category(student, year, hidden=hidden)
     _audit_sensitive_read(request, student, [c for c, notes in grouped.items() if notes])
+    nurse = len(grouped.get("nurse", ()))
+    audit_health_rows(
+        request,
+        "ملاحظات الممرض في ملف الطالب",
+        nurse,
+        model_name="StudentNote",
+        object_id=student.id,
+    )
     class_group = services.current_class_group(student, year)
     shows_grades = not scope.hides_grades
 
@@ -315,6 +324,8 @@ def notes(request, category):
             changes={"categories": [category], "scope": "list"},
             request=request,
         )
+    if category == "nurse":
+        audit_health_rows(request, "قائمة ملاحظات الممرض", len(page), model_name="StudentNote")
 
     return render(
         request,

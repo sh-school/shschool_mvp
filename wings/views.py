@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from clinic.health_access import audit_health_codes, audit_student_events_health
 from core.academic_calendar import academic_year_for_school, academic_year_window
 from core.capabilities import capability_required, has_capability
 from core.models import ClassGroup, CustomUser, Wing, WingCoverage
@@ -321,11 +322,13 @@ def student_events(request, class_id, student_id):
         .first()
     )
     focus_day = _day(request.GET.get("date"), last_absent or today)
+    events = student_events_context(student, school, request.GET)
+    audit_student_events_health(request, events, student.id)
     return render(
         request,
         "wings/student_events.html",
         {
-            **student_events_context(student, school, request.GET),
+            **events,
             "klass": klass,
             "student": student,
             "can_delete_events": True,
@@ -527,12 +530,10 @@ def excuse_requests(request):
     """الأعذارُ المرسلةُ للنائب الإداريّ بعد مهلة العودة — يقبل أو يرفض، وكلاهما بسبب."""
     from operations.excuses import pending_for_vice
 
-    school = request.user.get_school()
-    return render(
-        request,
-        "wings/excuse_requests.html",
-        {"requests": pending_for_vice(school)},
-    )
+    pending = pending_for_vice(request.user.get_school())
+    kinds = [excuse.kind for excuse in pending]
+    audit_health_codes(request, "أعذار بانتظار النائب", kinds, model_name="AbsenceExcuse")
+    return render(request, "wings/excuse_requests.html", {"requests": pending})
 
 
 @login_required

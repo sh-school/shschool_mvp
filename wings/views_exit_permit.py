@@ -14,6 +14,7 @@ from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
+from clinic.health_access import audit_health_codes
 from core.audit_export import log_export
 from core.capabilities import capability_required
 from core.models import CustomUser
@@ -44,6 +45,8 @@ def exit_permit_list(request: HttpRequest) -> HttpResponse:
     permits = service.permits_for(request.user, request.school, day)
     for permit in permits:
         permit.printable = service.is_printable(permit)  # type: ignore[attr-defined]
+    reasons = [permit.reason for permit in permits]
+    audit_health_codes(request, "قائمة أذونات الخروج", reasons, model_name="ExitPermit")
     return render(
         request,
         "wings/exit_permits.html",
