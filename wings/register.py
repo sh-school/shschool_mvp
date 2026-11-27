@@ -198,6 +198,11 @@ class WingRegister:
         return f"كشف حضور الحصص — {self.wing.name}"
 
 
+def clinic_students(sections: list[SectionRegister]) -> int:
+    """عددُ الطلبة الذين يُطبع لهم رمزُ العيادة في خانةٍ واحدةٍ على الأقلّ."""
+    return sum(any(m.where == "clinic" for m in row.marks) for s in sections for row in s.rows)
+
+
 def footer_lines(school) -> tuple[str, str]:
     """ذيلُ كلّ صفحةٍ مطبوعة — نصُّ ذيل `base_qatar_report` نفسُه، للطباعة وExcel.
 

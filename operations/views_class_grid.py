@@ -14,6 +14,8 @@ from django.shortcuts import render
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.vary import vary_on_cookie
 
+from clinic.health_access import audit_class_grid_presence
+
 from .services import class_grid as grid
 from .services import class_grid_live as live
 
@@ -54,6 +56,7 @@ def class_grid(request, class_id):
         )
     except grid.GridNotFoundError:
         raise Http404 from None
+    audit_class_grid_presence(request, context)
     return render(request, "teacher/class_grid.html", {"grid_page": context})
 
 

@@ -13,8 +13,9 @@ from typing import Any
 from django.http import Http404
 from django.utils import timezone
 
+from clinic.health_access import audit_health_export
 from core.exports import registry
-from core.exports.contract import Column, TableSpec, register_table
+from core.exports.contract import Column, TableSpec, register_table, visible_columns
 
 from .ministry_selectors import ministry_rows
 
@@ -34,7 +35,7 @@ def register_rows(user: Any, params: Any) -> list[dict[str, Any]]:
     """طلبةُ كشف الجناح (`?wing=<code>`) أو أجنحةِ المستخدم كلِّها: رمزُ كلّ حصّةٍ وغيابُه وتأخّرُه — بلا أرقامٍ شخصيّة."""
     from core.academic_calendar import academic_year_for_school
 
-    from .register import wing_register
+    from .register import clinic_students, wing_register
     from .services import wings_of
 
     school = user.get_school()
@@ -46,8 +47,19 @@ def register_rows(user: Any, params: Any) -> list[dict[str, Any]]:
             raise Http404("ليس من أجنحتك")
     day = _day(params)
     rows: list[dict[str, Any]] = []
+    # العمودُ المخفيُّ لا يخرج في الملفّ فلا رمزَ فيه.
+    marks_shown = any(c.key == "marks" for c in visible_columns(REGISTER_TABLE, params))
     for wing in wings:
-        for section in wing_register(wing, day).sections:
+        sections = wing_register(wing, day).sections
+        if marks_shown:
+            audit_health_export(
+                user,
+                "تصدير كشف الجناح",
+                model_name="Wing",
+                object_id=wing.pk,
+                rows=clinic_students(sections),
+            )
+        for section in sections:
             rows += [
                 {
                     "class_label": section.class_group.short_code,

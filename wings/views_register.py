@@ -11,12 +11,15 @@
 والصلاحيّةُ صلاحيّةُ الرصد نفسُها: المشرفُ لجناحه، والقيادةُ للأجنحة كلِّها.
 """
 
+from typing import Any
+
 from django.contrib.auth.decorators import login_required
-from django.http import Http404
+from django.http import Http404, HttpRequest
 from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.utils import timezone
 
+from clinic.health_access import audit_health_rows
 from core.academic_calendar import academic_year_for_school
 from core.audit_export import log_export
 from core.capabilities import capability_required
@@ -24,7 +27,7 @@ from core.export_utils import generate_export_filename, get_export_context
 from core.pdf_utils import render_pdf
 from reports.services import ExcelService
 
-from .register import footer_lines, section_register, wing_register
+from .register import clinic_students, footer_lines, section_register, wing_register
 from .register_excel import section_workbook, wing_workbook
 from .services import wings_of
 from .views import _day, _own_class
@@ -47,6 +50,21 @@ def _slug(text: str) -> str:
     return "".join(ch if ch.isalnum() else "-" for ch in text)
 
 
+def _audit_clinic_code(request: HttpRequest, context: dict[str, Any]) -> None:
+    """سطرٌ لكلّ ملفٍّ يخرج وفيه رمزُ العيادة، بلا دمج: العددُ ومعرّفُ السجلّ وحدَهما (CLN-03)."""
+    if "wing_register" in context:
+        sheet = context["wing_register"]
+        screen, model_name, record = "تصدير كشف الجناح", "Wing", sheet.wing
+        sections = sheet.sections
+    else:
+        sheet = context["section_register"]
+        screen, model_name, record = "تصدير كشف الشعبة", "ClassGroup", sheet.class_group
+        sections = [sheet]
+    audit_health_rows(
+        request, screen, clinic_students(sections), model_name=model_name, object_id=record.pk
+    )
+
+
 def _respond(request, *, fmt, title, slug, context, workbook):
     ctx = get_export_context(request, title)
     ctx["school"] = request.user.get_school()
@@ -55,6 +73,7 @@ def _respond(request, *, fmt, title, slug, context, workbook):
     # الكشفُ بلا رقمٍ شخصيّ (قرار 2026-09-13) — ويُدقَّق إخراجُه ملفّاً كأيّ مصدِّر.
     if fmt in ("xlsx", "pdf"):
         log_export(request, f"wings.register_{fmt}", object_repr=title)
+        _audit_clinic_code(request, context)
     if fmt == "xlsx":
         return ExcelService.to_response(
             workbook(ctx["school_name"], ctx["exported_by"], ctx["orient"], ctx["footer"]),
