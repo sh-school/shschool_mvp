@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from clinic.export import VISITS_PDF_KIND, VISITS_TABLE
-from clinic.health_access import OPEN_REASONS, clean_reason, log_full_open
+from clinic.health_access import OPEN_REASONS, audit_care_flag, clean_reason, log_full_open
 
 # الاسمُ القديمُ باقٍ لمن يستورده من هنا (quick_views وreferral_views)
 from clinic.health_access import audit_health_screen as _audit_health_screen
@@ -204,11 +204,13 @@ def record_visit(request, student_id=None):
 
     # اختيارُ الطالب بمكوّنٍ واحدٍ مع الإدخال السريع — لا قائمةَ بكلّ الطلبة (W-20261102-001).
     chosen = student_choice(school, student_id) if student_id else None
+    recent = recent_visitors(school, timezone.localdate())
+    audit_care_flag(request, recent)
     context = {
         "student_id": student_id,
         "chosen": chosen,
         "classes": class_options(school),
-        "recent": recent_visitors(school, timezone.localdate()),
+        "recent": recent,
         "mode": "form",
     }
     return render(request, "clinic/record_visit.html", context)

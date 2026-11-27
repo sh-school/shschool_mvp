@@ -152,8 +152,9 @@ def _export_lines(user):
 
 @pytest.mark.parametrize(("where", "expected"), [("clinic", 2), ("activity", 0)])
 @pytest.mark.parametrize("scope", ["section", "wing"])
+@pytest.mark.parametrize("fmt", ["html", "xlsx"])
 def test_register_file_logs_every_issue(
-    client_as, school, principal_user, teacher_user, wing_a, scope, where, expected
+    client_as, school, principal_user, teacher_user, wing_a, scope, where, expected, fmt
 ):
     klass = wing_a[0]
     student = _marked(school, klass, teacher_user, principal_user, where)
@@ -164,7 +165,7 @@ def test_register_file_logs_every_issue(
     client = client_as(principal_user)
 
     for _ in range(2):
-        response = client.get(f"{url}?date={SUNDAY.isoformat()}&format=xlsx")
+        response = client.get(f"{url}?date={SUNDAY.isoformat()}&format={fmt}")
         assert response.status_code == 200
 
     lines = _export_lines(principal_user)
@@ -172,6 +173,7 @@ def test_register_file_logs_every_issue(
     for line in lines:
         assert line.object_id == str(record.pk)
         assert line.changes["rows"] == 1
+        assert line.changes["screen"].startswith("عرض" if fmt == "html" else "تصدير")
         assert student.full_name not in f"{line.object_repr} {line.changes}"
 
 

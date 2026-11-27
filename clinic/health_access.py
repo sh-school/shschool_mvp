@@ -119,6 +119,15 @@ def audit_health_presence(request: HttpRequest, screen: str, student_ids: Iterab
     cache.set(key, seen | set(new), PRESENCE_TTL)
 
 
+def audit_care_flag(request: HttpRequest, students: Iterable[Any]) -> None:
+    """علامةُ «يحتاج مراعاةً» في اختيار الطالب: من ظهرت عليه وحدَه، بالدمج اليوميّ (CLN-03).
+
+    اسمُ شاشةٍ واحدٌ لكلّ مداخل الاختيار فلا يكرّر البحثُ ولا القائمةُ ولا التأكيدُ السطرَ، ولا يُسجَّل
+    مصطلحُ البحث.
+    """
+    audit_health_presence(request, "علامة المراعاة", [s.id for s in students if s.needs_care])
+
+
 def audit_health_export(
     user: Any, screen: str, *, model_name: str, object_id: object, rows: int
 ) -> None:
