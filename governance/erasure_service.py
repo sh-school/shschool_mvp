@@ -19,9 +19,11 @@ from core.models import (
     Membership,
     ParentStudentLink,
     Profile,
+    School,
     StudentEnrollment,
 )
 from core.models.access import ALL_STAFF_ROLES
+from core.unrestricted_role import PLATFORM_DEVELOPER, has_unrestricted_role
 
 logger = logging.getLogger("core")
 
@@ -229,7 +231,7 @@ def _anonymize_audit_name(student: Any, name: str, summary: dict[str, Any]) -> N
 
 
 class ErasureFailedError(Exception):
-    """تعثّر المحو برسالةٍ مفهومةٍ للمدير — الطلبُ عاد «approved» وتجوز إعادةُ التنفيذ."""
+    """تعثّر المحو برسالةٍ مفهومةٍ للموقّع — الطلبُ عاد «approved» وتجوز إعادةُ التنفيذ بتوقيعين."""
 
     def __init__(self, message: str, code: str):
         super().__init__(message)
@@ -244,7 +246,91 @@ class ErasureStateError(Exception):
 
 
 class ErasureSelfApprovalError(Exception):
-    """مقدِّمُ الطلب لا يعتمده ولا يعيد تنفيذه: المحوُ لا رجعة فيه فيلزمه شخصٌ ثانٍ (فصلُ المهام، 2026-11-20)."""
+    """مقدِّمُ الطلب لا يوقّعه ولا يرفضه: المحوُ لا رجعة فيه (فصلُ المهام)."""
+
+
+class ErasureNoOfficerError(Exception):
+    """لا مسؤولَ حمايةِ بياناتٍ معيَّناً للمدرسة: لا يُنفَّذ محوٌ بلا توقيعه."""
+
+
+class ErasureNotSignerError(Exception):
+    """المستخدمُ ليس من موقّعَي هذا الطلب (أو ليس مديراً عند التعيين)."""
+
+
+class ErasureAlreadySignedError(Exception):
+    """وقّع هذا الشخصُ من قبل، أو سبقه غيرُه إلى خانته."""
+
+
+class ErasureNoteRequiredError(Exception):
+    """الرفضُ بلا سبب."""
+
+
+class ErasureOfficerError(Exception):
+    """المرشَّحُ مسؤولاً لحماية البيانات ليس من كادر المدرسة."""
+
+
+def _has_school_role(user: Any, school_id: Any, role: str) -> bool:
+    return bool(
+        user.memberships.filter(school_id=school_id, is_active=True, role__name=role).exists()
+    )
+
+
+def _admin_signer_role(obj: ErasureRequest) -> str:
+    """دورُ موقّع الإدارة: المدير، وإن كان هو مقدِّمَ الطلب فالنائبُ الإداريّ."""
+    filer = obj.requested_by
+    if filer is not None and _has_school_role(filer, obj.school_id, "principal"):
+        return "vice_admin"
+    return "principal"
+
+
+def _is_admin_signer(user: Any, obj: ErasureRequest) -> bool:
+    if not user.is_active or user.pk == obj.requested_by_id or has_unrestricted_role(user):
+        return False
+    return _has_school_role(user, obj.school_id, _admin_signer_role(obj))
+
+
+def _signature_slot(user: Any, obj: ErasureRequest) -> str | None:
+    """خانةُ المستخدم: "dpo" أو "admin" أو None. المسؤولُ المعيَّنُ خانتُه "dpo" دائماً (لا بديلَ له فيها)."""
+    if user.pk == obj.school.data_protection_officer_id:
+        return "dpo"
+    return "admin" if _is_admin_signer(user, obj) else None
+
+
+def _valid_signatures(obj: ErasureRequest) -> set[str]:
+    """الخاناتُ الموقَّعةُ توقيعاً ما زال سارياً — توقيعُ من فقد صفتَه (مسؤولٌ استُبدل…) لا يُحتسب."""
+    valid: set[str] = set()
+    dpo = obj.dpo_signed_by_id
+    if (
+        dpo is not None
+        and dpo == obj.school.data_protection_officer_id
+        and dpo != obj.requested_by_id
+    ):
+        valid.add("dpo")
+    admin = obj.admin_signed_by
+    if admin is not None and admin.pk != dpo and _is_admin_signer(admin, obj):
+        valid.add("admin")
+    return valid
+
+
+def _locked_request(request_id: Any) -> ErasureRequest:
+    """صفُّ الطلب ومدرستِه بقفلٍ — يسلسل التوقيعَ والرفضَ وتعيينَ المسؤول المتزامنة."""
+    obj: ErasureRequest = (
+        ErasureRequest.objects.select_for_update().select_related("school").get(pk=request_id)
+    )
+    return obj
+
+
+def _audit_request(obj: ErasureRequest, actor: Any, label: str, changes: dict[str, Any]) -> None:
+    """سطرُ تدقيقٍ على طلب المحو — معرّفاتٌ فقط."""
+    AuditLog.log(
+        user=actor,
+        action="update",
+        model_name="other",
+        object_id=obj.pk,
+        object_repr=f"محوُ طالبٍ — {label}",
+        changes={"request": str(obj.pk), **changes},
+        school=obj.school,
+    )
 
 
 class ErasureService:
@@ -253,45 +339,106 @@ class ErasureService:
     @staticmethod
     def approve_and_execute(
         request_id: Any, reviewer: Any, note: str = ""
-    ) -> tuple[ErasureRequest, dict[str, Any]]:
-        """يوافق ويُنفّذ — بقفلِ صفّ الطلب كي لا يُنفّذ مديران متزامنان معاً (حكمُ 0105 N3).
+    ) -> tuple[ErasureRequest, dict[str, Any] | None]:
+        """يسجّل توقيعَ `reviewer` ويُنفّذ عند اكتمال التوقيعين. `summary = None` إن بقي توقيع.
 
-        القفلُ والانتقالُ إلى «processing» في معاملةٍ قصيرةٍ تُثبَّت قبل التنفيذ: الثاني يجد الحالةَ «processing» فيُردّ.
-        وإن كان الطلبُ «approved» فهو تنفيذٌ سابقٌ تعثّر فيُعاد، ويُكتب المراجعُ الأصليُّ في AuditLog لأنّ `reviewed_by`
-        يتبدّل بالإعادة.
+        بقفلِ صفّ الطلب: التوقيعُ والانتقالُ إلى «processing» في معاملةٍ قصيرةٍ تُثبَّت قبل التنفيذ، فالمتزامنُ يجد
+        الحالةَ «processing» فيُردّ. و«approved» تنفيذٌ سابقٌ تعثّر: يلزمه توقيعان من جديد.
         """
         with transaction.atomic():
-            obj = (
-                ErasureRequest.objects.select_for_update()
-                .select_related("school")
-                .get(pk=request_id)
-            )
+            obj = _locked_request(request_id)
             if obj.status not in ("pending", "approved"):
                 raise ErasureStateError(obj.get_status_display())
-            # بعد فحص الحالة: طلبٌ منتهٍ يُردّ بحالته أيّاً كان المراجع.
-            if obj.requested_by_id is not None and obj.requested_by_id == reviewer.pk:
+            # بعد فحص الحالة: طلبٌ منتهٍ يُردّ بحالته أيّاً كان الموقّع.
+            if obj.requested_by_id == reviewer.pk:
                 raise ErasureSelfApprovalError()
-            if obj.status == "approved":
-                AuditLog.log(
-                    user=reviewer,
-                    action="update",
-                    model_name="other",
-                    object_id=obj.pk,
-                    object_repr="محوُ طالبٍ — إعادةُ تنفيذٍ بعد تعثّر",
-                    changes={
-                        "request": str(obj.pk),
-                        "previous_reviewer": str(obj.reviewed_by_id)
-                        if obj.reviewed_by_id
-                        else None,
-                    },
-                    school=obj.school,
-                )
-            obj.status = "processing"
-            obj.reviewed_by = reviewer
-            obj.reviewed_at = timezone.now()
-            obj.review_note = note
+            if obj.school.data_protection_officer_id is None:
+                raise ErasureNoOfficerError()
+            slot = _signature_slot(reviewer, obj)
+            if slot is None:
+                raise ErasureNotSignerError()
+            signed = _valid_signatures(obj)
+            held = {getattr(obj, f"{name}_signed_by_id") for name in signed}
+            if slot in signed or reviewer.pk in held:
+                raise ErasureAlreadySignedError()
+            now = timezone.now()
+            setattr(obj, f"{slot}_signed_by", reviewer)
+            setattr(obj, f"{slot}_signed_at", now)
+            _audit_request(obj, reviewer, "توقيع", {"signer": str(reviewer.pk), "slot": slot})
+            complete = _valid_signatures(obj) == {"admin", "dpo"}
+            if complete:
+                if obj.status == "approved":
+                    previous = str(obj.reviewed_by_id) if obj.reviewed_by_id else None
+                    _audit_request(
+                        obj, reviewer, "إعادةُ تنفيذٍ بعد تعثّر", {"previous_reviewer": previous}
+                    )
+                obj.status = "processing"
+                obj.reviewed_by = reviewer
+                obj.reviewed_at = now
+            if note:
+                obj.review_note = note
             obj.save()
+        if not complete:
+            return obj, None
         return obj, ErasureService.execute_safely(obj, reviewer)
+
+    @staticmethod
+    @transaction.atomic
+    def reject(request_id: Any, reviewer: Any, note: str) -> ErasureRequest:
+        """رفضُ أحد الموقّعَين مع السبب يكفي."""
+        obj = _locked_request(request_id)
+        if obj.status != "pending":
+            raise ErasureStateError(obj.get_status_display())
+        if obj.requested_by_id == reviewer.pk:
+            raise ErasureSelfApprovalError()
+        if _signature_slot(reviewer, obj) is None:
+            raise ErasureNotSignerError()
+        if not note:
+            raise ErasureNoteRequiredError()
+        obj.status = "rejected"
+        obj.reviewed_by = reviewer
+        obj.reviewed_at = timezone.now()
+        obj.review_note = note
+        obj.save()
+        _audit_request(obj, reviewer, "رفض", {"signer": str(reviewer.pk)})
+        return obj
+
+    @staticmethod
+    @transaction.atomic
+    def assign_officer(actor: Any, officer_id: Any) -> None:
+        """تعيينُ مسؤول حماية البيانات لمدرسة المدير — للمدير وحدَه."""
+        school = actor.get_school()
+        if (
+            school is None
+            or has_unrestricted_role(actor)
+            or not _has_school_role(actor, school.pk, "principal")
+        ):
+            raise ErasureNotSignerError()
+        locked = School.objects.select_for_update().get(pk=school.pk)
+        is_staff = Membership.objects.filter(
+            school=locked,
+            user_id=officer_id,
+            user__is_active=True,
+            is_active=True,
+            role__name__in=ALL_STAFF_ROLES | {PLATFORM_DEVELOPER},
+        ).exists()
+        if not is_staff:
+            raise ErasureOfficerError()
+        previous = locked.data_protection_officer_id
+        locked.data_protection_officer_id = officer_id
+        locked.save(update_fields=["data_protection_officer"])
+        AuditLog.log(
+            user=actor,
+            action="update",
+            model_name="other",
+            object_id=locked.pk,
+            object_repr="تعيينُ مسؤول حماية البيانات",
+            changes={
+                "officer": str(officer_id),
+                "previous_officer": str(previous) if previous else None,
+            },
+            school=locked,
+        )
 
     @staticmethod
     def execute_safely(erasure_request: ErasureRequest, actor: Any) -> dict[str, Any]:
@@ -316,7 +463,19 @@ class ErasureService:
             detail = "تعذّر تنفيذ المحو لخطأٍ غيرِ متوقَّع سُجّل للمراجعة"
             cause = exc
         erasure_request.status = "approved"
-        erasure_request.save(update_fields=["status"])
+        # الإعادةُ تلزمها التوقيعان من جديد؛ ومن وقّع سابقاً محفوظٌ في AuditLog.
+        erasure_request.admin_signed_by = erasure_request.dpo_signed_by = None
+        erasure_request.admin_signed_at = erasure_request.dpo_signed_at = None
+        # حقولٌ محدّدة: المعاملةُ المتراجعةُ قد تترك في الكائن قيمَ «اكتمل» فلا تُحفظ.
+        erasure_request.save(
+            update_fields=[
+                "status",
+                "admin_signed_by",
+                "admin_signed_at",
+                "dpo_signed_by",
+                "dpo_signed_at",
+            ]
+        )
         AuditLog.log(
             user=actor,
             action="update",
@@ -327,7 +486,7 @@ class ErasureService:
             school=erasure_request.school,
         )
         raise ErasureFailedError(
-            f"{detail} — لم يُمسّ شيء. الطلبُ باقٍ «تمّت الموافقة» ويمكن إعادة التنفيذ بعد معالجة السبب.",
+            f"{detail} — لم يُمسّ شيء. الطلبُ باقٍ «تمّت الموافقة» ويمكن إعادة التنفيذ بتوقيعين جديدين بعد معالجة السبب.",
             code,
         ) from cause
 

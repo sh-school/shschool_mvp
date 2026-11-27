@@ -5,22 +5,32 @@ Endpoints:
   POST   /api/v1/erasure/request/              تقديم طلب محو
   GET    /api/v1/erasure/requests/              قائمة الطلبات (مدير)
   GET    /api/v1/erasure/requests/<id>/         تفاصيل طلب
-  POST   /api/v1/erasure/requests/<id>/approve/ الموافقة والتنفيذ
+  POST   /api/v1/erasure/requests/<id>/approve/ توقيع (ويُنفَّذ عند التوقيع الثاني)
   POST   /api/v1/erasure/requests/<id>/reject/  الرفض
+  POST   /api/v1/erasure/officer/               تعيين مسؤول حماية البيانات (المدير)
 """
 
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from api.permissions import IsSchoolAdmin, NotPlatformDeveloper
+from api.permissions import (
+    IsErasureSigner,
+    IsSchoolAdmin,
+    NotPlatformDeveloper,
+    NotPlatformDeveloperUnlessOfficer,
+)
 from core.models import CustomUser, ErasureRequest, ParentStudentLink
 from governance.erasure_service import (
+    ErasureAlreadySignedError,
     ErasureFailedError,
+    ErasureNoOfficerError,
+    ErasureNoteRequiredError,
+    ErasureNotSignerError,
+    ErasureOfficerError,
     ErasureSelfApprovalError,
     ErasureService,
     ErasureStateError,
@@ -42,9 +52,32 @@ ERASURE_FAILURES = {
         "تعذّر تنفيذ المحو لخطأٍ غيرِ متوقَّع سُجّل للمراجعة.",
     ),
 }
-ERASURE_RETRY_NOTE = "لم يُمسّ شيء. الطلبُ باقٍ «تمّت الموافقة» ويمكن إعادة التنفيذ بعد معالجة السبب."
+ERASURE_RETRY_NOTE = (
+    "لم يُمسّ شيء. الطلبُ باقٍ «تمّت الموافقة» ويمكن إعادة التنفيذ بتوقيعين جديدين بعد معالجة السبب."
+)
 ERASURE_STATE_MESSAGE = "لا يمكن الموافقة — الطلبُ ليس في حالةٍ تقبل الموافقة أو التنفيذ."
-ERASURE_SELF_APPROVAL_MESSAGE = "لا يعتمد مقدِّمُ طلب المحو طلبَه: يعتمده مديرٌ آخر في المدرسة."
+ERASURE_SELF_APPROVAL_MESSAGE = "لا يوقّع مقدِّمُ طلب المحو طلبَه ولا يرفضه: يوقّعه موقّعان غيرُه."
+ERASURE_SIGNED_MESSAGE = "سُجّل توقيعك — يُنفَّذ المحو عند التوقيع الثاني."
+
+#: ردُّ كلِّ رفضٍ من الخدمة: جملةٌ ثابتةٌ ورمزُ HTTP — لا نصَّ استثناء.
+ERASURE_REFUSALS = {
+    ErasureStateError: (ERASURE_STATE_MESSAGE, status.HTTP_400_BAD_REQUEST),
+    ErasureSelfApprovalError: (ERASURE_SELF_APPROVAL_MESSAGE, status.HTTP_403_FORBIDDEN),
+    ErasureNoOfficerError: (
+        "لا يُنفَّذ المحو: لم يُعيَّن مسؤولُ حماية البيانات للمدرسة — يعيّنه المديرُ أوّلاً.",
+        status.HTTP_409_CONFLICT,
+    ),
+    ErasureNotSignerError: (
+        "لستَ من موقّعَي هذا الطلب: يوقّعه المدير (أو النائب الإداريّ إن كان المديرُ مقدِّمَه) "
+        "ومسؤولُ حماية البيانات.",
+        status.HTTP_403_FORBIDDEN,
+    ),
+    ErasureAlreadySignedError: (
+        "التوقيعُ مسجَّلٌ من قبل — ينتظر الطلبُ الموقّعَ الآخر.",
+        status.HTTP_409_CONFLICT,
+    ),
+    ErasureNoteRequiredError: ("سبب الرفض مطلوب.", status.HTTP_400_BAD_REQUEST),
+}
 
 # ── Serializers ───────────────────────────────────────────────
 
@@ -72,6 +105,8 @@ class ErasureRequestSerializer(serializers.ModelSerializer):
             "reviewed_at",
             "completed_at",
             "summary",
+            "admin_signed_at",
+            "dpo_signed_at",
         ]
 
     def get_student_name(self, obj):
@@ -79,6 +114,10 @@ class ErasureRequestSerializer(serializers.ModelSerializer):
 
     def get_requested_by_name(self, obj):
         return obj.requested_by.full_name if obj.requested_by else "—"
+
+
+class ErasureOfficerSerializer(serializers.Serializer):
+    user_id = serializers.UUIDField()
 
 
 # ── Views ─────────────────────────────────────────────────────
@@ -174,22 +213,25 @@ def erasure_request_detail(request, request_id):
     return Response(ErasureRequestSerializer(obj).data)
 
 
-@extend_schema(summary="الموافقة على طلب محو وتنفيذه", tags=["PDPPL"])
+def _refusal(refused_type):
+    detail, http_status = ERASURE_REFUSALS[refused_type]
+    return Response({"detail": detail}, status=http_status)
+
+
+@extend_schema(summary="توقيع طلب محو (يُنفَّذ عند التوقيع الثاني)", tags=["PDPPL"])
 @api_view(["POST"])
-@permission_classes([IsSchoolAdmin, NotPlatformDeveloper])
+@permission_classes([IsAuthenticated, IsErasureSigner, NotPlatformDeveloperUnlessOfficer])
 def approve_erasure(request, request_id):
-    """المدير يوافق على الطلب ويُنفَّذ فوراً."""
+    """توقيعُ المدير أو مسؤول حماية البيانات؛ التنفيذُ عند اكتمال التوقيعين."""
     obj = get_object_or_404(ErasureRequest, id=request_id, **_school_scope(request))
 
-    # القفلُ والانتقالُ والتنفيذُ في الخدمة: «approved» تعني تنفيذاً سابقاً تعثّر فيجوز إعادتُه، وما سوى pending/approved يُردّ.
+    # القفلُ والتوقيعُ والتنفيذُ في الخدمة.
     try:
         obj, summary = ErasureService.approve_and_execute(
             obj.pk, request.user, request.data.get("note", "")
         )
-    except ErasureStateError:
-        return Response({"detail": ERASURE_STATE_MESSAGE}, status=status.HTTP_400_BAD_REQUEST)
-    except ErasureSelfApprovalError:
-        return Response({"detail": ERASURE_SELF_APPROVAL_MESSAGE}, status=status.HTTP_403_FORBIDDEN)
+    except tuple(ERASURE_REFUSALS) as refused:
+        return _refusal(type(refused))
     except ErasureFailedError as exc:
         # رمزٌ وجملةٌ من جدولٍ ثابتٍ لا نصُّ الاستثناء (CodeQL py/stack-trace-exposure): الرمزُ المجهولُ `erasure_error`.
         code, detail = ERASURE_FAILURES.get(exc.code, ERASURE_FAILURES["erasure_error"])
@@ -198,6 +240,8 @@ def approve_erasure(request, request_id):
             status=status.HTTP_409_CONFLICT,
         )
 
+    if summary is None:
+        return Response({"detail": ERASURE_SIGNED_MESSAGE}, status=status.HTTP_202_ACCEPTED)
     return Response(
         {
             "detail": "تم تنفيذ المحو بنجاح.",
@@ -209,28 +253,34 @@ def approve_erasure(request, request_id):
 
 @extend_schema(summary="رفض طلب محو", tags=["PDPPL"])
 @api_view(["POST"])
-@permission_classes([IsSchoolAdmin, NotPlatformDeveloper])
+@permission_classes([IsAuthenticated, IsErasureSigner, NotPlatformDeveloperUnlessOfficer])
 def reject_erasure(request, request_id):
-    """المدير يرفض الطلب مع ذكر السبب."""
+    """رفضُ أحد الموقّعَين مع ذكر السبب."""
     obj = get_object_or_404(ErasureRequest, id=request_id, **_school_scope(request))
-
-    if obj.status != "pending":
-        return Response(
-            {"detail": f"لا يمكن الرفض — الحالة الحالية: {obj.get_status_display()}"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    note = request.data.get("note", "").strip()
-    if not note:
-        return Response(
-            {"detail": "سبب الرفض مطلوب."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    obj.status = "rejected"
-    obj.reviewed_by = request.user
-    obj.reviewed_at = timezone.now()
-    obj.review_note = note
-    obj.save()
-
+    try:
+        obj = ErasureService.reject(obj.pk, request.user, request.data.get("note", "").strip())
+    except tuple(ERASURE_REFUSALS) as refused:
+        return _refusal(type(refused))
     return Response(ErasureRequestSerializer(obj).data)
+
+
+@extend_schema(summary="تعيين مسؤول حماية البيانات", tags=["PDPPL"])
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, IsSchoolAdmin, NotPlatformDeveloper])
+def assign_data_protection_officer(request):
+    """المديرُ وحدَه يعيّن مسؤولَ حماية البيانات لمدرسته."""
+    ser = ErasureOfficerSerializer(data=request.data)
+    ser.is_valid(raise_exception=True)
+    try:
+        ErasureService.assign_officer(request.user, ser.validated_data["user_id"])
+    except ErasureNotSignerError:
+        return Response(
+            {"detail": "تعيينُ مسؤول حماية البيانات للمدير وحدَه."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    except ErasureOfficerError:
+        return Response(
+            {"detail": "المسؤولُ يُختار من كادر المدرسة النشط."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return Response({"detail": "تم تعيين مسؤول حماية البيانات."})

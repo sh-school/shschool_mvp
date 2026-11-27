@@ -12,8 +12,12 @@ from core.models import ErasureRequest
 from .conftest import MembershipFactory, RoleFactory, SchoolFactory, UserFactory
 
 
-def _admin_client(school, name):
-    role = RoleFactory(school=school, name="principal")
+def _client_for(school, role_name, name):
+    return _admin_client(school, name, role_name)[0]
+
+
+def _admin_client(school, name, role_name="principal"):
+    role = RoleFactory(school=school, name=role_name)
     user = UserFactory(full_name=name)
     MembershipFactory(user=user, school=school, role=role)
     client = APIClient()
@@ -85,13 +89,19 @@ class TestOwnSchoolStillWorks:
         rid = r.data["id"]
 
         assert own_admin.get(f"/api/v1/erasure/requests/{rid}/").status_code == 200
-        r = own_admin.post(f"/api/v1/erasure/requests/{rid}/reject/", {"note": "سببٌ للرفض"})
+        # مقدِّمُ الطلب مديرٌ: يرفضه النائبُ الإداريّ لا هو.
+        vice = _client_for(school, "vice_admin", "النائب الإداري")
+        r = vice.post(f"/api/v1/erasure/requests/{rid}/reject/", {"note": "سببٌ للرفض"})
         assert r.status_code == 200
 
     def test_approve_in_own_school(self, own_admin, pending_request):
+        officer = UserFactory(full_name="مسؤول حماية البيانات")
+        pending_request.school.data_protection_officer = officer
+        pending_request.school.save(update_fields=["data_protection_officer"])
+
         r = own_admin.post(f"/api/v1/erasure/requests/{pending_request.id}/approve/", {})
 
-        assert r.status_code == 200
+        assert r.status_code == 202
 
 
 @pytest.mark.django_db

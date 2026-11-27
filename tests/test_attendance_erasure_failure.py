@@ -19,9 +19,18 @@ from tests.conftest import SchoolFactory
 pytestmark = pytest.mark.django_db
 
 
+@pytest.fixture(autouse=True)
+def officer(school):
+    """مسؤولُ حماية البيانات المعيَّن: بلا توقيعه لا يُنفَّذ محو."""
+    school.data_protection_officer = _staff(school, "it_technician", "مسؤول", "29000006003")
+    school.save(update_fields=["data_protection_officer"])
+    return school.data_protection_officer
+
+
 @pytest.fixture
 def admin_client(school):
-    admin = _staff(school, "principal", "مدير المحو", "29000006001")
+    """موقّعُ الإدارة: النائبُ الإداريّ لأنّ المديرَ هو مقدِّمُ الطلب."""
+    admin = _staff(school, "vice_admin", "نائب المحو", "29000006001")
     client = APIClient()
     client.force_login(admin)
     return client, admin
@@ -29,7 +38,7 @@ def admin_client(school):
 
 @pytest.fixture
 def filer_client(school):
-    """مديرٌ ثانٍ يقدّم الطلب: مقدِّمُ الطلب لا يعتمده (فصلُ المهام، 2026-11-20)."""
+    """المديرُ يقدّم الطلب: مقدِّمُ الطلب لا يوقّعه (فصلُ المهام)."""
     filer = _staff(school, "principal", "مدير مقدِّم الطلب", "29000006002")
     client = APIClient()
     client.force_login(filer)
@@ -47,6 +56,12 @@ def _file_request(client, kid):
 
 
 def _approve(client, request_id):
+    """توقيعُ المسؤول أوّلاً ثمّ توقيعُ الإدارة — والردُّ ردُّ الثاني (حيث يقع التنفيذ)."""
+    officer_client = APIClient()
+    officer_client.force_login(
+        ErasureRequest.objects.get(pk=request_id).school.data_protection_officer
+    )
+    officer_client.post(f"/api/v1/erasure/requests/{request_id}/approve/", format="json", data={})
     return client.post(f"/api/v1/erasure/requests/{request_id}/approve/", format="json", data={})
 
 
@@ -243,8 +258,8 @@ def test_any_unexpected_exception_also_leaves_the_request_retryable(
 
 def test_a_retry_records_the_previous_reviewer_in_the_audit(filer_client, school, monkeypatch, kid):
     """N3: reviewed_by يتبدّل بالإعادة — فيُدوَّن المراجعُ الأصليُّ."""
-    first = _staff(school, "principal", "المدير الأوّل", "29000006010")
-    second = _staff(school, "principal", "المدير الثاني", "29000006011")
+    first = _staff(school, "vice_admin", "النائب الأوّل", "29000006010")
+    second = _staff(school, "vice_admin", "النائب الثاني", "29000006011")
     first_client, second_client = APIClient(), APIClient()
     first_client.force_login(first)
     second_client.force_login(second)
@@ -310,9 +325,9 @@ def test_a_student_outside_the_requests_school_keeps_the_request_retryable_with_
 
 
 def test_the_school_admin_gate_and_the_developer_exclusion_survive_the_merge(school, kid):
-    """`IsSchoolAdmin` و`NotPlatformDeveloper` وحصرُ المدرسة على طرق الموافقة والرفض معاً."""
+    """`IsErasureSigner` واستثناءُ المطوّر الضيّق على طريقَي التوقيع والرفض معاً."""
     from api.views_erasure import approve_erasure, reject_erasure
 
     for view in (approve_erasure, reject_erasure):
         classes = {p.__name__ for p in view.cls.permission_classes}
-        assert {"IsSchoolAdmin", "NotPlatformDeveloper"} <= classes
+        assert {"IsErasureSigner", "NotPlatformDeveloperUnlessOfficer"} <= classes
