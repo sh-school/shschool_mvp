@@ -626,6 +626,31 @@ class ErasureRequest(models.Model):
         verbose_name="راجعه",
     )
     review_note = models.TextField(blank=True, verbose_name="ملاحظات المراجع")
+    # U-11: توقيعان من شخصين مختلفين قبل التنفيذ — الإدارةُ (المدير أو النائب الإداريّ) ومسؤولُ حماية البيانات.
+    admin_signed_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="erasure_admin_signed",
+        verbose_name="موقّع الإدارة",
+    )
+    admin_signed_at = models.DateTimeField(
+        null=True, blank=True, editable=False, verbose_name="وقت توقيع الإدارة"
+    )
+    dpo_signed_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="erasure_dpo_signed",
+        verbose_name="موقّع حماية البيانات",
+    )
+    dpo_signed_at = models.DateTimeField(
+        null=True, blank=True, editable=False, verbose_name="وقت توقيع حماية البيانات"
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
     reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ المراجعة")
     completed_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الاكتمال")

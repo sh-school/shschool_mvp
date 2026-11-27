@@ -83,6 +83,11 @@ urlpatterns = [
     path("erasure/request/", views_erasure.create_erasure_request, name="erasure-create"),
     path("erasure/requests/", views_erasure.list_erasure_requests, name="erasure-list"),
     path(
+        "erasure/officer/",
+        views_erasure.assign_data_protection_officer,
+        name="erasure-officer",
+    ),
+    path(
         "erasure/requests/<uuid:request_id>/",
         views_erasure.erasure_request_detail,
         name="erasure-detail",

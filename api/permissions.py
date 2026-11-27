@@ -8,7 +8,7 @@ api/permissions.py
 from rest_framework.permissions import BasePermission
 
 from core.capabilities import has_capability
-from core.models import ParentStudentLink
+from core.models import ParentStudentLink, School
 from core.models.access import ALL_STAFF_ROLES, LEADERSHIP
 from core.parent_consent import needs_parent_consent
 from core.permissions import expand_roles
@@ -226,3 +226,26 @@ class NotPlatformDeveloper(BasePermission):
 
     def has_permission(self, request, view):
         return not has_unrestricted_role(request.user)
+
+
+def _is_data_protection_officer(user):
+    return School.objects.filter(data_protection_officer=user).exists()
+
+
+class NotPlatformDeveloperUnlessOfficer(NotPlatformDeveloper):
+    """استثناءٌ ضيّقٌ للتوقيع والرفض وحدَهما (U-11): المطوّرُ المعيَّنُ مسؤولاً لحماية البيانات يمرّ."""
+
+    def has_permission(self, request, view):
+        return super().has_permission(request, view) or _is_data_protection_officer(request.user)
+
+
+class IsErasureSigner(BasePermission):
+    """المديرُ أو النائبُ الإداريّ أو مسؤولُ حماية البيانات — والخدمةُ تحسم أيُّهم يوقّع هذا الطلب."""
+
+    message = "توقيعُ طلب المحو للمدير ومسؤول حماية البيانات."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        return user.has_any_role("principal", "vice_admin") or _is_data_protection_officer(user)

@@ -139,10 +139,18 @@ class TestErasureAPI:
 
     def test_admin_approve_executes_erasure(self, api_admin, student_with_data, school):
         client, admin = api_admin
-        # يقدّمه مديرٌ ثانٍ: مقدِّمُ الطلب لا يعتمده (فصلُ المهام).
-        filer = UserFactory(full_name="مدير مقدِّم الطلب")
+        # يقدّمه وليُّ الأمر، ويوقّعه مسؤولُ حماية البيانات ثمّ المدير.
+        officer = UserFactory(full_name="مسؤول حماية البيانات")
         MembershipFactory(
-            user=filer, school=school, role=RoleFactory(school=school, name="principal")
+            user=officer, school=school, role=RoleFactory(school=school, name="it_technician")
+        )
+        school.data_protection_officer = officer
+        school.save(update_fields=["data_protection_officer"])
+        officer_client = APIClient()
+        officer_client.force_login(officer)
+        filer = UserFactory(full_name="مدير مقدِّم الطلب", is_superuser=True)
+        MembershipFactory(
+            user=filer, school=school, role=RoleFactory(school=school, name="teacher")
         )
         filer_client = APIClient()
         filer_client.force_login(filer)
@@ -155,6 +163,12 @@ class TestErasureAPI:
             },
         )
         req_id = resp.data["id"]
+
+        # التوقيعُ الأوّل لا ينفّذ
+        first = officer_client.post(
+            f"/api/v1/erasure/requests/{req_id}/approve/", format="json", data={}
+        )
+        assert first.status_code == 202
 
         # Approve
         resp = client.post(

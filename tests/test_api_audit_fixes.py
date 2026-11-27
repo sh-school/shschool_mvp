@@ -225,6 +225,12 @@ def test_approving_a_request_that_targets_staff_erases_nothing(
     req = ErasureRequest.objects.create(
         school=school, student=teacher_user, requested_by=None, reason="طلبٌ مدسوس"
     )
+    assert (
+        _api(_appoint_officer(school))
+        .post(f"/api/v1/erasure/requests/{req.id}/approve/", format="json", data={})
+        .status_code
+        == 202
+    )
 
     resp = _api(principal_user).post(
         f"/api/v1/erasure/requests/{req.id}/approve/", format="json", data={}
@@ -254,12 +260,30 @@ def test_the_filer_cannot_approve_their_own_erasure_request(school, principal_us
     assert student_user.is_active is True
 
 
-def test_another_admin_approves_the_request(school, principal_user, student_user):
-    second = UserFactory(full_name="مديرٌ ثانٍ")
-    MembershipFactory(user=second, school=school, role=RoleFactory(school=school, name="principal"))
+def _appoint_officer(school):
+    officer = UserFactory(full_name="مسؤول حماية البيانات")
+    MembershipFactory(
+        user=officer, school=school, role=RoleFactory(school=school, name="it_technician")
+    )
+    school.data_protection_officer = officer
+    school.save(update_fields=["data_protection_officer"])
+    return officer
+
+
+def test_the_vice_admin_and_the_officer_sign_the_principals_request(
+    school, principal_user, student_user
+):
+    second = UserFactory(full_name="النائب الإداري")
+    MembershipFactory(
+        user=second, school=school, role=RoleFactory(school=school, name="vice_admin")
+    )
     req = ErasureRequest.objects.create(
         school=school, student=student_user, requested_by=principal_user, reason="طلبٌ للاختبار"
     )
+    first = _api(_appoint_officer(school)).post(
+        f"/api/v1/erasure/requests/{req.id}/approve/", format="json", data={}
+    )
+    assert first.status_code == 202
 
     resp = _api(second).post(f"/api/v1/erasure/requests/{req.id}/approve/", format="json", data={})
 

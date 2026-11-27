@@ -95,6 +95,18 @@ class School(models.Model):
         help_text="اختر المدير من قائمة المستخدمين",
     )
 
+    # مسؤولُ حماية البيانات المعيَّن (U-11): أحدُ موقّعَي محو بيانات الطالب. يعيّنه المديرُ وحدَه
+    # بنقطة الـAPI؛ و`editable=False` يُخرجه من لوحة الإدارة وكلِّ ModelForm.
+    data_protection_officer = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="dpo_of_schools",
+        verbose_name="مسؤول حماية البيانات",
+    )
+
     # ── الهوية البصرية ────────────────────────────────────────────
     logo = models.ImageField(
         upload_to="schools/logos/",
