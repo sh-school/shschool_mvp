@@ -903,6 +903,7 @@ def summon_parent(request, student_id=None):
         _require_in_wing(request, sid)
         student = get_object_or_404(CustomUser, pk=sid)
 
+        from notifications import parent_neutral as neutral
         from notifications.hub import NotificationHub
 
         # بناء عنوان الإشعار حسب الاستعجال
@@ -916,19 +917,15 @@ def summon_parent(request, student_id=None):
         if meeting_place == "other" and meeting_place_other:
             place_label = meeting_place_other
 
+        # الموعدُ والمكان: وحدَهما يخرجان إلى القنوات الخارجية (U-09)
+        visit_lines = neutral.summon_visit_lines(summon_date, summon_time, place_label)
         body_parts = [
             f"التصنيف: {category_label}",
             f"درجة الاستعجال: {urgency_label}",
             f"السبب: {reason}",
+            *visit_lines,
+            f"من: {request.user.full_name}",
         ]
-        if summon_date:
-            date_str = summon_date
-            if summon_time:
-                date_str += f" الساعة {summon_time}"
-            body_parts.append(f"الموعد المطلوب: {date_str}")
-        if place_label:
-            body_parts.append(f"مكان الاجتماع: {place_label}")
-        body_parts.append(f"من: {request.user.full_name}")
         body = "\n".join(body_parts)
 
         # [B4-PRE3] الاستدعاء نفسه هو الحدث — لا طفرة أعمال سابقة له.
@@ -942,6 +939,9 @@ def summon_parent(request, student_id=None):
                 student=student,
                 title=title,
                 body=body,
+                # التفاصيلُ لإشعار المنصّة وحدَه (U-09)
+                external_title=neutral.PARENT_NEUTRAL_TITLE,
+                external_body=neutral.parent_neutral_body(*visit_lines),
                 related_url=f"/behavior/student/{student.pk}/",
                 sent_by=request.user,
             )

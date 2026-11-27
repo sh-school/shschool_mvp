@@ -313,11 +313,11 @@ class BehaviorService:
         """يرسل استدعاء ولي أمر تلقائياً عند قرار لجنة الضبط (درجة 3-4)."""
         try:
             from notifications.hub import NotificationHub
+            from notifications.parent_neutral import PARENT_NEUTRAL_TITLE, parent_neutral_body
 
             school = infraction.school
             student = infraction.student
             sender_name = approved_by.full_name if approved_by else "لجنة الضبط السلوكي"
-
             title = f"استدعاء ولي أمر — {student.full_name}"
             violation_name = (
                 infraction.violation_category.name_ar
@@ -337,6 +337,8 @@ class BehaviorService:
                 student=student,
                 title=title,
                 body=body,
+                external_title=PARENT_NEUTRAL_TITLE,
+                external_body=parent_neutral_body(),
                 related_url=f"/behavior/student/{student.pk}/",
                 sent_by=approved_by,
             )

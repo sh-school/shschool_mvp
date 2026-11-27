@@ -594,6 +594,7 @@ def notify_absence_task(self, absence_alert_id, sent_by_id=None, school_id=None)
             parents = ParentStudentLink.objects.filter(
                 student=alert.student, school=alert.school
             ).values_list("parent_id", flat=True)
+            from notifications.parent_neutral import PARENT_NEUTRAL_BODY, PARENT_NEUTRAL_TITLE
             from notifications.push_publisher import enqueue_push
 
             for pid in parents:
@@ -602,8 +603,9 @@ def notify_absence_task(self, absence_alert_id, sent_by_id=None, school_id=None)
                 enqueue_push(
                     user_id=pid,
                     school_id=alert.school_id,
-                    title=f"⚠️ غياب — {alert.student.full_name}",
-                    body="تم تسجيل غياب اليوم. اضغط للتفاصيل.",
+                    # [U-09] إشعارُ الجوال يظهر على شاشة القفل: لا اسمَ ولا سبب.
+                    title=PARENT_NEUTRAL_TITLE,
+                    body=PARENT_NEUTRAL_BODY,
                 )
         except (ImportError, OSError, RuntimeError) as pe:
             # [B4-7O] نصّ استثناء Push يحمل عنوان الاشتراك (endpoint) — وهو مُعرِّف

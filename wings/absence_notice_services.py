@@ -151,6 +151,7 @@ def issue(
 ) -> IssueResult:
     """يُصدر إخطارَ وليّ الأمر لتنبيهٍ محجوز. يرفع `IssueRefused` برسالةٍ، أو يعيد (أُرسل | حُلّ بلا إرسال)."""
     from notifications.hub import NotificationHub
+    from notifications.parent_neutral import PARENT_NEUTRAL_TITLE, parent_neutral_body
     from operations.models import AbsenceAlert
     from operations.services.attendance import NEWLINE, absence_notice_text
     from wings.services import holds_school_wide
@@ -191,13 +192,19 @@ def issue(
         _audit(user, school, alert, "issuing")
 
     _crossed, headline, detail, source = absence_notice_text(gate, days)
+    detailed = NEWLINE.join([detail, source, "يُرجى التواصل مع المدرسة."])
+    notice_date = f"{timezone.localtime(now):%Y/%m/%d}"
     try:
         NotificationHub.dispatch_to_parents(
             event_type="absence",
             school=school,
             student=alert.student,
             title=f"⚠️ {headline} — {alert.student.full_name}",
-            body=NEWLINE.join([detail, source, "يُرجى التواصل مع المدرسة."]),
+            body=detailed,
+            # [U-09] القنواتُ الخارجية محايدةٌ بتاريخ الإخطار، ومتنُ البريد كما كان.
+            external_title=PARENT_NEUTRAL_TITLE,
+            external_body=parent_neutral_body(f"تاريخ الإخطار: {notice_date}"),
+            external_email_body=detailed,
             context={"student": alert.student, "absence_count": days},
             related_url=f"/student-affairs/student/{alert.student_id}/",
         )

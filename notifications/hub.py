@@ -147,6 +147,9 @@ class NotificationHub:
         sent_by: Any = None,
         email_html_template: str | None = None,
         email_text_template: str | None = None,
+        external_title: str | None = None,
+        external_body: str | None = None,
+        external_email_body: str | None = None,
     ) -> dict[str, Any]:
         """
         إرسال إشعار لقائمة مستلمين عبر كل القنوات المناسبة.
@@ -167,6 +170,11 @@ class NotificationHub:
                 نصّاً خاماً كما كان.
             email_text_template: نظيرُه النصّيّ — بديلُ البريد حين لا يُعرض
                 الـHTML. وبدونه يُستعمل `body` نفسُه.
+            external_title: عنوانُ القنوات الخارجية (وموضوعُ البريد) إن اختلف عن
+                إشعار المنصّة. وبدونه `title`.
+            external_body: متنُ القنوات الخارجية. وبدونه `body`.
+            external_email_body: متنُ البريد حين يختلف عن متن باقي القنوات
+                الخارجية. لا يُحفظ في المسار المتتبَّع فيخرج بريدُه بـ`external_body`.
 
         Returns:
             dict: {"in_app": count, "queued": {"email": n, "sms": n, ...}, "failed": n}
@@ -180,6 +188,10 @@ class NotificationHub:
         # تحويل event_type للنوع المخزّن في InAppNotification
         inapp_event = _map_event_type(event_type)
         default_channels = DEFAULT_CHANNELS.get(event_type, ["in_app", "email"])
+
+        # ما يغادر المنصّة — ينفصل عن إشعارها حين يطلب المُنادي ذلك، وإلّا فهو هو.
+        out_title = title if external_title is None else external_title
+        out_body = body if external_body is None else external_body
 
         # `failed`: مستلمون سقط تحضيرُهم فابتلعه الاحتواءُ أدناه. من يكتب علامةَ «أُرسل»
         # في معاملة النداء (`behavior/digest.py`) يحتاجه ليعرف أنّ شيئاً لم يخرج.
@@ -234,14 +246,14 @@ class NotificationHub:
                 user=user,
                 school=school,
                 channels=external_channels,
-                title=title,
-                body=body,
+                title=out_title,
+                body=out_body,
                 event_type=event_type,
                 context=context,
                 sent_by=sent_by,
                 dispatch_id=dispatch_id,
                 email_html=_render_email(email_html_template, user),
-                email_text=_render_email(email_text_template, user),
+                email_text=_render_email(email_text_template, user) or external_email_body,
             )
 
         if not _tracked_pipeline_enabled():
@@ -305,8 +317,8 @@ class NotificationHub:
                     related_url=related_url,
                     sent_by=sent_by,
                     intents=intents,
-                    title=title,
-                    body=body,
+                    title=out_title,
+                    body=out_body,
                 )
 
                 # ── التسجيل — بعد اكتمال كل صفوف التسليم ────────────
