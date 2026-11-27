@@ -35,13 +35,6 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
     if _STUDENT_FK_MODELS:
         return _STUDENT_FK_MODELS
 
-    from assessments.models import (
-        AnnualSubjectResult,
-        ExamDeprivation,
-        ExamMisconduct,
-        StudentAssessmentGrade,
-        StudentSubjectResult,
-    )
     from behavior.models import AutoInfractionNotice, BehaviorInfraction
     from clinic.models import ClinicVisit, GuardianMedicationConsent, HealthRecord
     from developer_feedback.models import DeveloperMessage
@@ -72,11 +65,6 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
             (HealthRecord, "student", True),  # OneToOne
             (ClinicVisit, "student", False),
             (GuardianMedicationConsent, "student", False),  # موافقةُ وليّ الأمر على دواءٍ للطالب
-            (StudentAssessmentGrade, "student", False),
-            (StudentSubjectResult, "student", False),
-            (AnnualSubjectResult, "student", False),
-            (ExamDeprivation, "student", False),  # قرارُ حرمانٍ من اختبار
-            (ExamMisconduct, "student", False),  # واقعةُ غشٍّ أو إلغاءٍ في لجان الاختبار
             (BehaviorInfraction, "student", False),
             (AutoInfractionNotice, "student", False),  # علامةُ إبلاغ الأسرة بمخالفة رصد
             (StudentAttendance, "student", False),
@@ -110,6 +98,58 @@ def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
         ]
     )
     return _STUDENT_FK_MODELS
+
+
+# [U-11] السجلُّ الأكاديميّ: المحوُ تجهيلٌ لا حذف (قرارُ المالك، هجرة roadmap 0028، وأكّده 2026-11-27).
+_RETAINED_ACADEMIC_MODELS: list[tuple[Any, str, dict[str, str]]] = []
+
+
+def _lazy_retained_academic_models() -> list[tuple[Any, str, dict[str, str]]]:
+    """(Model, fk_field, الحقولُ الممسوحة) — الصفوفُ تبقى مربوطةً بالحساب المجهَّل.
+
+    يُمسح كلُّ حقلٍ صحّيٍّ أو نصٍّ حرّ، وتبقى الدرجاتُ والحالاتُ والتواريخ. قاموسٌ فارغ = لا حقلَ من هذا الصنف.
+    """
+    if _RETAINED_ACADEMIC_MODELS:
+        return _RETAINED_ACADEMIC_MODELS
+
+    from assessments.models import (
+        AnnualSubjectResult,
+        ExamDeprivation,
+        ExamMisconduct,
+        StudentAssessmentGrade,
+        StudentSubjectResult,
+    )
+
+    _RETAINED_ACADEMIC_MODELS.extend(
+        [
+            # excuse_type منه «المرض» فهو سببٌ صحّيّ؛ و is_excused يبقى حالةً.
+            (
+                StudentAssessmentGrade,
+                "student",
+                {"excuse_reference": "", "excuse_type": "", "notes": ""},
+            ),
+            (StudentSubjectResult, "student", {}),  # درجاتٌ فقط
+            (AnnualSubjectResult, "student", {"review": ""}),  # تنبيهُ المراجعة سردٌ
+            (ExamDeprivation, "student", {"note": ""}),
+            (ExamMisconduct, "student", {"note": "", "report_ref": ""}),  # رقمُ المحضر نصٌّ حرّ
+        ]
+    )
+    return _RETAINED_ACADEMIC_MODELS
+
+
+def _scrub_retained_academic(student: Any, summary: dict[str, Any]) -> None:
+    """يمسح الحقولَ الحسّاسة من السجلّ الأكاديميّ ويُبقي صفوفَه، ويدوّن أعدادَها في `retained_anonymized`.
+
+    `update()` لا `save()`: لا إشاراتِ ولا إعادةَ حسابٍ لأيّ نتيجة.
+    """
+    retained: dict[str, int] = {}
+    for Model, fk_field, blanks in _lazy_retained_academic_models():
+        rows = Model.objects.filter(**{fk_field: student})
+        count = rows.update(**blanks) if blanks else rows.count()
+        if count:
+            retained[Model.__name__] = count
+    if retained:
+        summary["retained_anonymized"] = retained
 
 
 # نماذج بحقول ملفات مرتبطة بالطالب — تُطهَّر blobs الملفات قبل الحذف
@@ -311,7 +351,8 @@ class ErasureService:
     def execute(erasure_request: ErasureRequest) -> dict[str, Any]:
         """
         Execute an approved erasure request.
-        Returns a summary dict of what was anonymized/deleted.
+        Returns a summary dict of what was anonymized/deleted: `models` للمحذوف وما عولج بخطوةٍ مخصَّصة،
+        و`retained_anonymized` للسجلّ الأكاديميّ المحفوظ المجهَّل (أعدادٌ فقط).
         """
         student = erasure_request.student
         if not student:
@@ -332,6 +373,9 @@ class ErasureService:
             count = Model.objects.filter(**{fk_field: student}).count()
             if count:
                 summary["models"][Model.__name__] = count
+
+        # 1.5 [U-11] السجلُّ الأكاديميّ يبقى ويُمسح صحّيُّه ونصُّه الحرّ.
+        _scrub_retained_academic(student, summary)
 
         # 2. Remove M2M links
         from library.models import LibraryActivity

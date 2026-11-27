@@ -5,10 +5,12 @@
 نفسيّةٌ وصحّيّةٌ عن قاصرٍ وسجلُّ انتقاله وأرقامُ أوليائه (م.16).
 
 اختبارٌ يثبت الغيابَ بعد `execute`، وحارسٌ يفشل إن ظهر نموذجٌ جديدٌ بحقل
-`student` → المستخدم لا يدخل القائمةَ ولا الاستثناءاتِ المعلَّلة.
+`student` → المستخدم لا يدخل قائمةَ الحذف ولا قائمةَ «المحفوظ المجهَّل» ولا الاستثناءاتِ المعلَّلة.
+[U-11] السجلُّ الأكاديميّ محفوظٌ مجهَّل: صفوفُه تبقى ويُمسح صحّيُّه ونصُّه الحرّ.
 """
 
 from datetime import date, time
+from decimal import Decimal
 
 import pytest
 from django.apps import apps
@@ -16,7 +18,11 @@ from django.conf import settings
 from django.utils import timezone
 
 from core.models import ErasureRequest
-from governance.erasure_service import ErasureService, _lazy_student_fk_models
+from governance.erasure_service import (
+    ErasureService,
+    _lazy_retained_academic_models,
+    _lazy_student_fk_models,
+)
 
 from .conftest import ClassGroupFactory, UserFactory
 
@@ -134,11 +140,12 @@ class TestErasureCoversNeglectedModels:
 def test_every_student_fk_model_is_in_the_erasure_list():
     """حارسٌ: نموذجٌ جديدٌ بـ FK `student` → المستخدم لا يغيب عن المحو.
 
-    أضِفه إلى `_lazy_student_fk_models` أو سمِّه في `HANDLED_BY_DEDICATED_STEPS`
-    مع سبب — ولا تُسكِت الحارسَ بغير ذلك.
+    أضِفه إلى `_lazy_student_fk_models` (يُحذف) أو `_lazy_retained_academic_models`
+    (محفوظٌ مجهَّل) أو سمِّه في `HANDLED_BY_DEDICATED_STEPS` مع سبب — ولا تُسكِت الحارسَ بغير ذلك.
     """
     user_model = apps.get_model(settings.AUTH_USER_MODEL)
     covered = {(Model, field) for Model, field, _ in _lazy_student_fk_models()}
+    covered |= {(Model, field) for Model, field, _ in _lazy_retained_academic_models()}
 
     missing = []
     for model in apps.get_models():
@@ -152,6 +159,137 @@ def test_every_student_fk_model_is_in_the_erasure_list():
             missing.append(model._meta.label)
 
     assert missing == [], f"نماذجُ بـ FK student غائبةٌ عن ErasureService: {missing}"
+
+
+#: [U-11] قرارُ المالك: هذه الخمسةُ بعينها تبقى. إضافةُ سادسٍ قرارٌ لا سهو.
+RETAINED_ACADEMIC = {
+    "assessments.StudentAssessmentGrade": {"excuse_reference", "excuse_type", "notes"},
+    "assessments.StudentSubjectResult": set(),
+    "assessments.AnnualSubjectResult": {"review"},
+    "assessments.ExamDeprivation": {"note"},
+    "assessments.ExamMisconduct": {"note", "report_ref"},
+}
+
+#: حقولٌ نصّيّةٌ بلا قائمةِ خياراتٍ تبقى بعد المحو — ليست سرداً عن الطالب.
+KEPT_TEXT_FIELDS = {
+    "assessments.AnnualSubjectResult": {"academic_year", "article"},  # عامٌ وموضعٌ من السياسة
+    "assessments.ExamDeprivation": {"academic_year"},
+    "assessments.ExamMisconduct": {"academic_year"},
+}
+
+
+def test_retained_academic_models_are_exactly_the_decided_ones():
+    retained = {m._meta.label: set(blanks) for m, _, blanks in _lazy_retained_academic_models()}
+    deleted = {m._meta.label for m, _, _ in _lazy_student_fk_models()}
+
+    assert retained == RETAINED_ACADEMIC
+    assert not deleted & set(retained), "المحفوظُ المجهَّل لا يدخل قائمةَ الحذف"
+
+
+def test_retained_models_have_no_unreviewed_text_field():
+    """حقلٌ نصّيٌّ جديدٌ في نموذجٍ محفوظ يُمسح أو يُسمّى في `KEPT_TEXT_FIELDS` — لا يبقى سهواً."""
+    from django.db import models
+
+    for Model, _, blanks in _lazy_retained_academic_models():
+        label = Model._meta.label
+        unreviewed = {
+            f.name
+            for f in Model._meta.concrete_fields
+            if isinstance(f, models.CharField | models.TextField)
+            and not f.choices
+            and not f.primary_key
+        } - (set(blanks) | KEPT_TEXT_FIELDS.get(label, set()))
+        assert not unreviewed, f"{label}: حقولٌ نصّيّةٌ بلا حكم {unreviewed}"
+
+
+def _seed_academic(school, student, teacher):
+    from assessments.models import (
+        AnnualSubjectResult,
+        Assessment,
+        AssessmentPackage,
+        ExamDeprivation,
+        ExamMisconduct,
+        StudentAssessmentGrade,
+        StudentSubjectResult,
+        SubjectClassSetup,
+    )
+    from operations.models import Subject
+
+    setup = SubjectClassSetup.objects.create(
+        school=school,
+        subject=Subject.objects.create(school=school, name_ar="رياضيات"),
+        class_group=ClassGroupFactory(school=school),
+        teacher=teacher,
+    )
+    package = AssessmentPackage.objects.create(
+        school=school, setup=setup, package_type="P1", semester="S1"
+    )
+    assessment = Assessment.objects.create(school=school, package=package, title="اختبار")
+    day = date(2026, 1, 15)
+    StudentAssessmentGrade.objects.create(
+        school=school,
+        student=student,
+        assessment=assessment,
+        grade=Decimal("17.50"),
+        is_excused=True,
+        excuse_type="illness",
+        excuse_reference="شهادةٌ طبّيّة 12",
+        excuse_submitted_on=day,
+        notes="ملاحظةٌ عن الطالب",
+    )
+    StudentSubjectResult.objects.create(
+        school=school, student=student, setup=setup, semester="S1", total=Decimal("31")
+    )
+    AnnualSubjectResult.objects.create(
+        school=school,
+        student=student,
+        setup=setup,
+        annual_total=Decimal("72"),
+        status="pass",
+        article="م27",
+        review="سردٌ عن الطالب",
+    )
+    ExamDeprivation.objects.create(
+        school=school, student=student, gate="s1_final", decided_on=day, note="سببٌ صحّيّ"
+    )
+    ExamMisconduct.objects.create(
+        school=school,
+        student=student,
+        kind="cheating",
+        setup=setup,
+        exam="s1_final",
+        report_ref="محضر باسم الطالب",
+        decided_on=day,
+        note="سردُ الواقعة",
+    )
+
+
+def _academic_snapshot(student):
+    """كلُّ أعمدة الصفوف الخمسة عدا الممسوح — لإثبات أنّ المحو لم يمسّ غيرَه."""
+    snapshot = {}
+    for Model, field, blanks in _lazy_retained_academic_models():
+        rows = Model.objects.filter(**{field: student}).order_by("pk").values()
+        snapshot[Model.__name__] = [{k: v for k, v in r.items() if k not in blanks} for r in rows]
+    return snapshot
+
+
+def test_academic_record_is_retained_and_scrubbed(db, school, student_user, teacher_user):
+    _seed_academic(school, student_user, teacher_user)
+    before = _academic_snapshot(student_user)
+    assert all(len(rows) == 1 for rows in before.values()), "الضبطُ الموجب: صفٌّ في كلّ نموذج"
+
+    summary = _erase(student_user, school)
+
+    # الدرجاتُ والحالاتُ والتواريخ (وحتّى updated_at) كما هي: لا حذفَ ولا إعادةَ حساب
+    assert _academic_snapshot(student_user) == before
+    for Model, field, blanks in _lazy_retained_academic_models():
+        for row in Model.objects.filter(**{field: student_user}):
+            assert {name: getattr(row, name) for name in blanks} == blanks, Model.__name__
+    names = {label.split(".")[1] for label in RETAINED_ACADEMIC}
+    assert summary["retained_anonymized"] == dict.fromkeys(names, 1)
+    assert not names & set(summary["models"]), "المحفوظُ لا يُعدّ محذوفاً"
+    student_user.refresh_from_db()
+    assert student_user.full_name == summary["anon_id"]
 
 
 def test_dedicated_step_exemptions_still_exist():
