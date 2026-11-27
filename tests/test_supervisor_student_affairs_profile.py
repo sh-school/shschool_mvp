@@ -147,7 +147,12 @@ class TestTheGates:
 
 class TestAnotherWingIsNotFound:
     @pytest.mark.parametrize(
-        "name", ["student_affairs:student_profile", "student_affairs:student_profile_pdf"]
+        "name",
+        [
+            "student_affairs:student_profile",
+            "student_affairs:student_profile_pdf",
+            "student_affairs:student_clinic_tab",
+        ],
     )
     def test_the_file_of_another_wings_student_is_404_even_with_a_year(
         self, client_as, school, seeded_calendar, klass, supervisor, outsider, name
@@ -394,15 +399,17 @@ class TestTheProfileHidesWhatIsNotHis:
         assert touched == [], f"قُرئ ما يُحجب: {touched}"
         ctx = response.context
         assert ctx["limited"] is True
-        assert not ctx["grades"] and ctx["health_record"] is None
+        assert not ctx["grades"] and "health_record" not in ctx
         assert (ctx["borrowings"], ctx["activities"], ctx["transfers"]) == ([], [], [])
 
     def test_the_clinic_shows_the_date_and_sent_home_only(
         self, client_as, school, seeded_calendar, klass, supervisor, wing_kid, health
     ):
-        response = client_as(supervisor).get(
-            reverse("student_affairs:student_profile", args=[wing_kid.id])
-        )
+        url = reverse("student_affairs:student_clinic_tab", args=[wing_kid.id])
+        with CaptureQueriesContext(connection) as captured:
+            response = client_as(supervisor).get(url)
+        assert not any("core_healthrecord" in q["sql"] for q in captured.captured_queries)
+        assert response.context["health_record"] is None
         body = response.content.decode()
 
         assert "سببٌ طبّيٌّ خاصّ" not in body
@@ -435,7 +442,11 @@ class TestTheProfileHidesWhatIsNotHis:
 
         assert response.context["limited"] is False
         assert response.context["year"] == "2020-2021"
-        assert "سببٌ طبّيٌّ خاصّ" in body and "AB-" in body
+        tab = client_as(principal_user).get(
+            reverse("student_affairs:student_clinic_tab", args=[wing_kid.id])
+        )
+        clinic = tab.content.decode()
+        assert "سببٌ طبّيٌّ خاصّ" in clinic and "AB-" in clinic
         assert 'data-tab="grades"' in body
         assert reverse("student_affairs:student_edit", args=[wing_kid.id]) in body
 

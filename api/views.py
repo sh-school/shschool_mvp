@@ -36,11 +36,13 @@ from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from assessments.models import AnnualSubjectResult
 from behavior.selectors import visible_infractions
+from clinic.health_access import audit_health_screen
 from clinic.models import ClinicVisit
 from core.academic_calendar import academic_year_for
 from core.domain.attendance import attendance_rate
@@ -923,6 +925,18 @@ class ClinicVisitListView(generics.ListAPIView):
     )
     def get(self, *args, **kwargs):
         return super().get(*args, **kwargs)
+
+    def list(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """كلُّ طلبٍ ناجحٍ يترك سطرَ تدقيق: معرّفُ الطالب المرشَّحِ وعددُ الصفوف (CLN-03)."""
+        response = super().list(request, *args, **kwargs)
+        audit_health_screen(
+            request,
+            "واجهة زيارات العيادة (API)",
+            model_name="ClinicVisit",
+            object_id=request.query_params.get("student_id", ""),
+            rows=len(response.data["results"]),
+        )
+        return response
 
     def get_queryset(self):
         school = _school(self.request)

@@ -30,6 +30,11 @@ urlpatterns = [
         chronic_views.reveal_chronic_name,
         name="reveal_chronic",
     ),
+    path(
+        "profile/<uuid:student_id>/clinic/",
+        chronic_views.student_clinic_tab_partial,
+        name="student_clinic_tab",
+    ),
     path("profile/<uuid:student_id>/pdf/", views.student_profile_pdf, name="student_profile_pdf"),
     path("edit/<uuid:student_id>/", views.student_edit, name="student_edit"),
     path("deactivate/<uuid:student_id>/", views.student_deactivate, name="student_deactivate"),

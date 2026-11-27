@@ -196,7 +196,7 @@ def test_profile_shows_needs_care_flag_without_name_for_roles_that_can_open_it(
     coordinator = _staff(school, "student_affairs_coordinator", "منسق الطلبة")
     body = (
         _client(coordinator)
-        .get(reverse("student_affairs:student_profile", args=[student_user.id]))
+        .get(reverse("student_affairs:student_clinic_tab", args=[student_user.id]))
         .content.decode()
     )
     assert "يحتاج مراعاةً" in body

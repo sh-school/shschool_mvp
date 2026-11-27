@@ -22,7 +22,7 @@ from django.views.decorators.http import require_POST
 from assessments.models import AnnualSubjectResult
 from behavior.models import BehaviorInfraction
 from behavior.selectors import infractions_by_class, monthly_infraction_trend
-from clinic.models import ClinicVisit, HealthRecord
+from clinic.selectors import shown_visit_count
 from core.academic_calendar import academic_year_for, academic_year_window
 from core.audit_export import log_export
 from core.audit_repr import masked_repr
@@ -690,15 +690,8 @@ def student_profile(request, student_id):
         "recent": infractions[:5],
     }
 
-    # ── 4. العيادة (clinic) — ClinicVisit + HealthRecord مُستورَدان من أعلى الملف ──
-    visits = ClinicVisit.objects.filter(student=student, school=school).order_by("-visit_date")
-    if scope.clinic_summary_only:
-        # التاريخُ و«أُعيد إلى المنزل» وحدَهما يبلغان القالب — لا السببُ ولا الحرارة.
-        clinic_visits = visits.values("visit_date", "is_sent_home")[:5]
-        health_record = None
-    else:
-        clinic_visits = visits[:5]
-        health_record = HealthRecord.objects.filter(student=student).first()
+    # ── 4. العيادة — عدّادٌ فقط؛ البيانُ الصحّيُّ يُجلب بنقر تبويبه ويُدقَّق (CLN-03) ──
+    clinic_visit_count = shown_visit_count(school, student)
 
     # ── 5. الدرجات (assessments) — AnnualSubjectResult مُستورَد من أعلى الملف ──
     if scope.hides_grades:
@@ -768,8 +761,7 @@ def student_profile(request, student_id):
             "tardiness": tardiness,
             "presence": presence,
             "behavior": behavior_summary,
-            "clinic_visits": clinic_visits,
-            "health_record": health_record,
+            "clinic_visit_count": clinic_visit_count,
             "grades": grades,
             "grades_summary": grades_summary,
             "borrowings": borrowings,

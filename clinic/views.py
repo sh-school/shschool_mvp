@@ -14,6 +14,9 @@ from django.views.decorators.http import require_http_methods
 
 from clinic.export import VISITS_PDF_KIND, VISITS_TABLE
 from clinic.health_access import OPEN_REASONS, clean_reason, log_full_open
+
+# الاسمُ القديمُ باقٍ لمن يستورده من هنا (quick_views وreferral_views)
+from clinic.health_access import audit_health_screen as _audit_health_screen
 from clinic.models import ClinicVisit, HealthRecord
 from clinic.needs_care_services import import_from_request
 from clinic.selectors import (
@@ -28,28 +31,6 @@ from core.audit_repr import masked_repr
 from core.capabilities import capability_required, has_capability
 from core.exports.services import respond_export
 from core.models import AuditLog, CustomUser
-
-
-def _audit_health_screen(request, screen, *, model_name, object_id="", rows=None):
-    """يكتب سطرَ تدقيقٍ لفتح شاشةٍ تعرض بياناً صحيّاً (PDPPL م.11 وم.13: سجلُّ الوصول).
-
-    معرّفاتٌ فقط: نوعُ الشاشة وعددُ الصفوف ومعرّفُ السجلّ — لا اسمَ طالبٍ ولا نصَّ صحّيّاً
-    (reason/treatment/تشخيص)؛ فسجلُّ التدقيق ملحقٌ لا يُعدَّل ويبقى بعد محو صاحبه.
-    كلُّ شاشةٍ صحّيّةٍ جديدةٍ في العيادة تستدعيه، ويفرض ذلك tests/test_clinic_audit_every_screen.py.
-    """
-    changes = {"screen": screen}
-    if rows is not None:
-        # قائمة الاستعلام تُعدّ هنا لا في العرض فلا يزيد عدّ الطبقات فيه
-        changes["rows"] = rows if isinstance(rows, int) else rows.count()
-    AuditLog.log(
-        user=request.user,
-        action="view",
-        model_name=model_name,
-        object_id=object_id,
-        object_repr=f"عرض شاشة صحية — {screen}",
-        changes=changes,
-        request=request,
-    )
 
 
 @login_required
