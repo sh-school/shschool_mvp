@@ -50,15 +50,16 @@ def _slug(text: str) -> str:
     return "".join(ch if ch.isalnum() else "-" for ch in text)
 
 
-def _audit_clinic_code(request: HttpRequest, context: dict[str, Any]) -> None:
-    """سطرٌ لكلّ ملفٍّ يخرج وفيه رمزُ العيادة، بلا دمج: العددُ ومعرّفُ السجلّ وحدَهما (CLN-03)."""
+def _audit_clinic_code(request: HttpRequest, context: dict[str, Any], fmt: str) -> None:
+    """سطرٌ لكلّ عرضٍ أو ملفٍّ فيه رمزُ العيادة، بلا دمج: العددُ ومعرّفُ السجلّ وحدَهما (CLN-03)."""
+    verb = "عرض" if fmt == "html" else "تصدير"
     if "wing_register" in context:
         sheet = context["wing_register"]
-        screen, model_name, record = "تصدير كشف الجناح", "Wing", sheet.wing
+        screen, model_name, record = f"{verb} كشف الجناح", "Wing", sheet.wing
         sections = sheet.sections
     else:
         sheet = context["section_register"]
-        screen, model_name, record = "تصدير كشف الشعبة", "ClassGroup", sheet.class_group
+        screen, model_name, record = f"{verb} كشف الشعبة", "ClassGroup", sheet.class_group
         sections = [sheet]
     audit_health_rows(
         request, screen, clinic_students(sections), model_name=model_name, object_id=record.pk
@@ -73,7 +74,8 @@ def _respond(request, *, fmt, title, slug, context, workbook):
     # الكشفُ بلا رقمٍ شخصيّ (قرار 2026-09-13) — ويُدقَّق إخراجُه ملفّاً كأيّ مصدِّر.
     if fmt in ("xlsx", "pdf"):
         log_export(request, f"wings.register_{fmt}", object_repr=title)
-        _audit_clinic_code(request, context)
+    # العرضُ في المتصفّح يُظهر رمزَ العيادة كالملفّ، فسطرُه يُكتب للمخارج الثلاثة.
+    _audit_clinic_code(request, context, fmt)
     if fmt == "xlsx":
         return ExcelService.to_response(
             workbook(ctx["school_name"], ctx["exported_by"], ctx["orient"], ctx["footer"]),

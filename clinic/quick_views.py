@@ -21,7 +21,7 @@ from django.views.decorators.http import require_GET, require_POST
 from clinic import choices
 from clinic.exit_selectors import incoming_to_clinic
 from clinic.exit_services import depart_on_close, receive_arrival
-from clinic.health_access import audit_health_presence
+from clinic.health_access import audit_care_flag, audit_health_presence
 from clinic.models import ClinicVisit
 from clinic.queue import todays_queue
 from clinic.selectors import (
@@ -89,13 +89,15 @@ def quick_entry(request):
     _audit_health_screen(
         request, "الإدخال السريع", model_name="ClinicVisit", rows=_queue_rows(queue)
     )
+    recent = recent_visitors(school, timezone.localdate())
+    audit_care_flag(request, recent)
     return render(
         request,
         "clinic/quick_entry.html",
         {
             "queue": queue,
             "classes": class_options(school),
-            "recent": recent_visitors(school, timezone.localdate()),
+            "recent": recent,
             "incoming": _incoming(request),
             "mode": "quick",
         },
@@ -108,6 +110,7 @@ def _picker_mode(request) -> str:
 
 
 def _results(request, students, **extra) -> HttpResponse:
+    audit_care_flag(request, students)
     ctx = {"students": students, "mode": _picker_mode(request), **extra}
     return render(request, "clinic/partials/_student_results.html", ctx)
 
@@ -145,6 +148,7 @@ def quick_pick(request):
     choice = student_choice(request.school, request.GET.get("student_id"))
     if choice is None:
         raise Http404
+    audit_care_flag(request, [choice])
     return render(request, "clinic/partials/_quick_confirm.html", {"s": choice})
 
 
