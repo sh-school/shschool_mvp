@@ -15,10 +15,15 @@ import mimetypes
 
 from django.contrib.auth.views import redirect_to_login
 from django.http import Http404, HttpResponse
+from django.utils.module_loading import import_string
 
 from core.pdf_utils import content_disposition
 from core.permissions import expand_roles
-from governance.media_selectors import resolve_file_access, stored_file_named
+from governance.media_selectors import (
+    health_excuse_record,
+    resolve_file_access,
+    stored_file_named,
+)
 
 # أنواع آمنة للعرض داخل المتصفّح؛ ما عداها يُجبَر على التنزيل
 _INLINE_SAFE = {"application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp"}
@@ -65,6 +70,16 @@ def serve_db_file(request, name):
     sf = stored_file_named(name)
     if sf is None:
         raise Http404
+
+    health = health_excuse_record(name)
+    if health is not None:
+        # معرّفُ السجلّ وحدَه: اسمُ الملفّ قد يحمل اسمَ صاحبه فلا يدخل التدقيق.
+        model_name, record_id = health
+        # استيرادٌ بالاسم للسبب نفسه في `health_excuse_record`: لا يجرّ `clinic` إلى فحص الأنواع.
+        audit_health_screen = import_string("clinic.health_access.audit_health_screen")
+        audit_health_screen(
+            request, "ملف عذر غياب", model_name=model_name, object_id=record_id, rows=1
+        )
 
     content_type = sf.content_type or mimetypes.guess_type(name)[0] or "application/octet-stream"
     disposition = "inline" if content_type in _INLINE_SAFE else "attachment"

@@ -27,6 +27,7 @@ SchoolOS REST API v1 — ViewSets + APIViews
 """
 
 import logging
+from collections.abc import Iterable, Mapping
 
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -42,7 +43,7 @@ from rest_framework.views import APIView
 
 from assessments.models import AnnualSubjectResult
 from behavior.selectors import visible_infractions
-from clinic.health_access import audit_health_screen
+from clinic.health_access import audit_health_codes, audit_health_screen
 from clinic.models import ClinicVisit
 from core.academic_calendar import academic_year_for
 from core.domain.attendance import attendance_rate
@@ -108,6 +109,14 @@ def _school(request):
 def _year(request):
     """العام المطلوب أو الجاري — و`?year=` الفارغة تُعامَل كغائبة."""
     return request.query_params.get("year") or academic_year_for(request)
+
+
+def _audit_attendance(
+    request: Request, screen: str, records: Iterable[Mapping[str, object]], student_id: object
+) -> None:
+    """سطرُ تدقيقٍ إن حوت سجلّاتُ الحضور المُعادة عذراً صحيّاً: معرّفٌ وعددٌ فقط (CLN-03)."""
+    codes = [str(r["excuse_type"]) for r in records]
+    audit_health_codes(request, screen, codes, model_name="StudentAttendance", object_id=student_id)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -295,6 +304,9 @@ def student_attendance(request, student_id):
     late = att.filter(status="late").count()
     present = att.filter(status="present").count()
 
+    records = AttendanceSerializer(att, many=True).data
+    _audit_attendance(request, "واجهة غياب طالب (API)", records, student_id)
+
     return Response(
         {
             "student_id": str(student_id),
@@ -305,7 +317,7 @@ def student_attendance(request, student_id):
             "absent": absent,
             "late": late,
             "att_pct": attendance_rate(present, total),
-            "records": AttendanceSerializer(att, many=True).data,
+            "records": records,
         }
     )
 
@@ -486,6 +498,13 @@ class AttendanceListView(generics.ListAPIView):
     )
     def get(self, *args, **kwargs):
         return super().get(*args, **kwargs)
+
+    def list(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """سطرُ تدقيقٍ إن حوت الصفحةُ عذراً صحيّاً: معرّفُ الطالب المرشَّحِ وعددُ الصفوف (CLN-03)."""
+        response = super().list(request, *args, **kwargs)
+        student_id = request.query_params.get("student_id", "")
+        _audit_attendance(request, "واجهة سجل الحضور (API)", response.data["results"], student_id)
+        return response
 
     def get_queryset(self):
         school = _school(self.request)

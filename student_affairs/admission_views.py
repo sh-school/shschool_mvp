@@ -11,6 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
+from clinic.health_access import audit_health_rows
 from core.academic_calendar import academic_year_for
 from core.capabilities import capability_required
 from core.privacy import mask_national_id
@@ -80,6 +81,13 @@ def admission_create(request):
 @capability_required("student_affairs.transfers")
 def admission_detail(request, pk):
     application = admission_or_404(request.school, pk)
+    audit_health_rows(
+        request,
+        "تفاصيل طلب الالتحاق",
+        int(bool(application.health_status)),
+        model_name="AdmissionApplication",
+        object_id=application.pk,
+    )
     return render(
         request,
         "student_affairs/admission_detail.html",

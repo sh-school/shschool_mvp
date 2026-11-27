@@ -26,6 +26,7 @@ from django.utils.formats import date_format
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
+from clinic.health_access import audit_health_rows
 from core.capabilities import capability_required, has_capability
 from core.models import AuditLog
 from core.pdf_utils import content_disposition
@@ -136,6 +137,22 @@ def _audit_reads(request: HttpRequest, rows: list[dict]) -> None:
         )
 
 
+def _audit_health(request: HttpRequest, page: str, rows: list[dict]) -> None:
+    """صفحةُ الإجراءات وحدَها تعرض ملاحظةَ الإجراء والإجازةَ المرضيّة: العددُ وحدَه (CLN-03)."""
+    if page != "actions":
+        return
+    shown = 0
+    for row in rows:
+        action = row["action"]
+        if not action:
+            continue
+        sick_shown = action.status == "sick_leave_received" and (
+            action.action_kind == "other" or bool(row["action_status"])
+        )
+        shown += bool(action.note) or sick_shown
+    audit_health_rows(request, "متابعة إجراءات الغياب", shown, model_name="AbsenceActionLog")
+
+
 def _screen(request: HttpRequest, page: str) -> HttpResponse:
     """الصفحتان المستقلّتان تتقاسمان التصفيةَ والعدّاداتِ والنطاق، وتختلفان بالقالب وحده."""
     school = request.school
@@ -146,6 +163,7 @@ def _screen(request: HttpRequest, page: str) -> HttpResponse:
     q["search"] = request.GET.get("q", "").strip()[:60]
     rows = service.apply_view(all_rows, **q)
     _audit_reads(request, rows)
+    _audit_health(request, page, rows)
     subtitle = f"{school.name} · {date_format(day, 'l d/m/Y')}"
     if wing_bound:
         subtitle = f"{subtitle} · طلبةُ جناحك"
