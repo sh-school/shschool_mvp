@@ -1,5 +1,6 @@
 from django.contrib import admin
 
+from clinic.health_access import HealthAuditAdminMixin
 from clinic.models import (
     ClinicVisit,
     GuardianMedicationConsent,
@@ -10,7 +11,7 @@ from clinic.models import (
 
 
 @admin.register(HealthRecord)
-class HealthRecordAdmin(admin.ModelAdmin):
+class HealthRecordAdmin(HealthAuditAdminMixin, admin.ModelAdmin):
     list_display = ("student", "blood_type_encrypted", "needs_care", "updated_at")
     list_filter = ("needs_care",)
     search_fields = ("student__full_name", "student__national_id")
@@ -28,7 +29,7 @@ class HealthRecordAdmin(admin.ModelAdmin):
 
 
 @admin.register(ClinicVisit)
-class ClinicVisitAdmin(admin.ModelAdmin):
+class ClinicVisitAdmin(HealthAuditAdminMixin, admin.ModelAdmin):
     list_display = (
         "student",
         "visit_date",
@@ -90,7 +91,7 @@ class MedicationCatalogItemAdmin(admin.ModelAdmin):
 
 
 @admin.register(GuardianMedicationConsent)
-class GuardianMedicationConsentAdmin(admin.ModelAdmin):
+class GuardianMedicationConsentAdmin(HealthAuditAdminMixin, admin.ModelAdmin):
     list_display = ("student", "catalog_item", "granted_at", "expires_at", "revoked_at")
     list_filter = ("school", "catalog_item")
     autocomplete_fields = ("student",)
@@ -98,7 +99,7 @@ class GuardianMedicationConsentAdmin(admin.ModelAdmin):
 
 
 @admin.register(VisitMedication)
-class VisitMedicationAdmin(admin.ModelAdmin):
+class VisitMedicationAdmin(HealthAuditAdminMixin, admin.ModelAdmin):
     """سجلُّ صرفٍ للقراءة فقط: لا يُنشأ ولا يُعدَّل إلا عبر `MedicationService.dispense`."""
 
     list_display = ("visit", "catalog_item", "dose", "dispensed_by", "dispensed_at")
