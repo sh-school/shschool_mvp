@@ -9734,3 +9734,94 @@ def test_0095_publishes_nothing_a_public_repo_must_not_say():
         assert bad not in text
     assert not re.search(r"\d{11}|\b[0-9a-f]{40}\b", text)
     assert _sync95.Migration.dependencies == [("roadmap", "0094_sync_verification_2026_11_26")]
+
+
+# ── 0096: تسجيلُ U-11 «جزئيًّا» بعد نشر المرحلة 1 (طلب #1527، 2026-11-27) ──
+
+_sync96 = importlib.import_module("roadmap.migrations.0096_sync_u11_2026_11_27")
+
+
+class _Apps96:
+    @staticmethod
+    def get_model(_app, name):
+        return {"RoadmapItem": RoadmapItem}[name]
+
+
+def _snapshot96():
+    return list(
+        RoadmapItem.objects.order_by("code").values_list(
+            "code", "status", "progress", "note", "pr", "gate", "title", "start_date", "end_date"
+        )
+    )
+
+
+def test_0096_u11_moves_from_todo_10_to_doing_60_with_note_and_pr():
+    _item("U-11", "todo", 10, note="قديمة", gate="بوّابةٌ قائمة")
+    _sync96.forwards(_Apps96, None)
+    item = RoadmapItem.objects.get(code="U-11")
+    assert (item.status, item.progress, item.pr) == ("doing", 60, "#1527")
+    assert item.note == f"قديمة\n[2026-11-27] {_sync96.NOTE}"
+    assert (item.gate, item.title) == ("بوّابةٌ قائمة", "عنوان")
+    assert (item.start_date, item.end_date) == (None, None)
+
+
+def test_0096_note_is_the_owner_literal_sentence():
+    assert _sync96.NOTE == (
+        "المرحلة 1 منشورة: المحو يجهّل السجل الأكاديمي ولا يحذفه. "
+        "يبقى التوقيع المزدوج (المدير ومسؤول حماية البيانات)."
+    )
+
+
+def test_0096_second_run_changes_nothing_and_does_not_repeat_note():
+    _item("U-11", "todo", 10, note="قديمة")
+    assert _sync96.sync(RoadmapItem) is True
+    before = _snapshot96()
+    assert _sync96.sync(RoadmapItem) is False
+    _sync96.forwards(_Apps96, None)
+    assert _snapshot96() == before
+    assert RoadmapItem.objects.get(code="U-11").note.count("المرحلة 1 منشورة") == 1
+
+
+def test_0096_leaves_u11_when_status_or_progress_moved():
+    _item("U-11", "doing", 10, note="قديمة")
+    assert _sync96.sync(RoadmapItem) is False
+    item = RoadmapItem.objects.get(code="U-11")
+    assert (item.status, item.progress, item.note, item.pr) == ("doing", 10, "قديمة", "")
+    RoadmapItem.objects.filter(code="U-11").update(status="todo", progress=0)
+    assert _sync96.sync(RoadmapItem) is False
+    assert RoadmapItem.objects.get(code="U-11").progress == 0
+
+
+def test_0096_leaves_other_items_untouched():
+    _item("N-042", "doing", 83, note="قديمة", pr="#9")
+    _item("U-11", "todo", 10)
+    _sync96.forwards(_Apps96, None)
+    other = RoadmapItem.objects.get(code="N-042")
+    assert (other.status, other.progress, other.note, other.pr) == ("doing", 83, "قديمة", "#9")
+
+
+def test_0096_keeps_existing_pr_numbers_and_adds_the_request_once():
+    _item("U-11", "todo", 10, pr="#1000")
+    _sync96.forwards(_Apps96, None)
+    assert RoadmapItem.objects.get(code="U-11").pr == "#1000 #1527"
+    # إعادةُ البند إلى حالته المتوقَّعة دون ملاحظة: الطلبُ يبقى مرّةً واحدة.
+    RoadmapItem.objects.filter(code="U-11").update(status="todo", progress=10, note="")
+    _sync96.forwards(_Apps96, None)
+    assert RoadmapItem.objects.get(code="U-11").pr == "#1000 #1527"
+
+
+def test_0096_empty_database_stays_empty_and_creates_no_item():
+    _sync96.forwards(_Apps96, None)
+    assert RoadmapItem.objects.count() == 0
+    assert not RoadmapDecision.objects.exists()
+    assert not RoadmapKpi.objects.exists()
+
+
+def test_0096_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    text = f"{_sync96.__doc__} {_sync96.NOTE} {_sync96.PR}"
+    for bad in ("C:/", "C:\\", "D:\\", "localhost", "railway.app", "@", "8011"):
+        assert bad not in text
+    assert not re.search(r"\d{11}|\b[0-9a-f]{40}\b", text)
+    assert _sync96.Migration.dependencies == [("roadmap", "0095_sync_owner_decisions_2026_11_27")]
