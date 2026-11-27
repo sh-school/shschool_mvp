@@ -16,6 +16,7 @@ from django.views.decorators.http import require_POST
 
 from clinic.exit_selectors import clinic_exits, marks_set_by
 from clinic.exit_services import MOMENTS, excuse_student, press_moment
+from clinic.health_access import audit_health_presence
 from clinic.selectors import search_students
 from core.capabilities import capability_required, has_capability
 
@@ -28,11 +29,13 @@ def exit_card_page(request):
     school, today = request.school, timezone.localdate()
     term = request.GET.get("q", "")
     moments = has_capability(request.user, "clinic.write")
+    exits = clinic_exits(school, today) if moments else []
+    audit_health_presence(request, "بطاقة الخروج", [row["student"].pk for row in exits])
     return render(
         request,
         "clinic/exit_card.html",
         {
-            "exits": clinic_exits(school, today) if moments else [],
+            "exits": exits,
             "can_clinic_moments": moments,
             "q": term,
             "found": search_students(school, term, user=request.user) if term else [],

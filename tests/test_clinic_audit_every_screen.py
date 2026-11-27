@@ -23,6 +23,9 @@ HEALTH_VIEWS = {
     "referrals",
 }
 
+# ذاتيّةُ التحديث: سطرٌ عند أوّل ظهورِ طالبٍ لا عند كلّ فتح؛ اختباراتُها في test_health_audit_presence.py.
+PRESENCE_VIEWS = {"quick_incoming", "exit_card"}
+
 # مستثناةٌ مسمّاةٌ بسببها: لا تعرض بياناً صحّيّاً فرديّاً من الطالب.
 NON_HEALTH_VIEWS = {
     "needs_care_import": "رفعُ ملفٍّ فقط؛ الصفحةُ لا تعرض سجلّاً، والتقريرُ أعدادٌ",
@@ -40,7 +43,6 @@ NON_HEALTH_VIEWS = {
     "quick_start": "كتابةٌ بـPOST تُدقَّق بإشارة post_save على الزيارة",
     "quick_service": "كتابةٌ بـPOST برمزٍ معتمدٍ تُدقَّق بإشارة post_save على الزيارة",
     "quick_close": "كتابةٌ بـPOST تُدقَّق بإشارة post_save على الزيارة",
-    "quick_incoming": "جزئيّةُ «قادمون إليك» قراءةٌ بـGET: اسمٌ وشعبةٌ ووقتُ خروجٍ بالحقول المحايدة نفسها، بلا كتابة",
     "quick_receive": "كتابةٌ بـPOST تُدقَّق بإشارة post_save على الزيارة المبدوءة، ووصولُ الخروج يُدقَّق في سجلّ الجناح",
     "referral_close": "كتابةٌ بـPOST تُدقَّق بإشارة post_save على الإحالة",
     "supplies": "قائمةُ مستلزماتٍ (اسمٌ وتاريخٌ وكمّيّة) لا بيانَ شخصيّاً فيها",
@@ -48,7 +50,6 @@ NON_HEALTH_VIEWS = {
     "supply_delete": "حذفٌ بـPOST لصنف مخزونٍ لا بيانَ شخصيّاً فيه",
     "visits_export_xlsx": "تصديرُ المعروض في visits_list؛ يُدقَّق بسطر export عبر respond_export بمعرّفاتٍ فقط",
     "visits_export_pdf": "كسابقه PDF",
-    "exit_card": "أسماءُ طلبةٍ خارجين إلى العيادة الآن ووسومي السارية بلا سببِ زيارةٍ؛ لا سجلَّ صحّيّاً (W-20261119-003)",
     "exit_card_excuse": "كتابةٌ بـPOST لوسمٍ بمدّة؛ السببُ لواضعه وحدَه ولا يدخل سجلَّ التدقيق (W-20261119-003)",
     "exit_card_moment": "كتابةٌ بـPOST للحظتَي وصولِ العيادة ومغادرتِها بلا سببٍ ولا بيانٍ صحّيّ (W-20261119-003)",
     "referral_receipt": "إيصالٌ يُدقَّق بسطر export عند كلّ فتحٍ بمعرّفاتٍ فقط",
@@ -73,9 +74,10 @@ def test_every_clinic_route_is_classified():
     """مسارٌ جديدٌ في العيادة بلا تصنيفٍ (صحّيّ/مستثنًى) يفشل — فيُقرَّر تدقيقُه عمداً."""
     names = _clinic_url_names()
     assert names, "لم تُحلَّ روابط العيادة"
-    unclassified = names - HEALTH_VIEWS - set(NON_HEALTH_VIEWS)
+    classified = HEALTH_VIEWS | PRESENCE_VIEWS | set(NON_HEALTH_VIEWS)
+    unclassified = names - classified
     assert not unclassified, f"مسارات عيادةٍ بلا تصنيف تدقيق: {sorted(unclassified)}"
-    stale = (HEALTH_VIEWS | set(NON_HEALTH_VIEWS)) - names
+    stale = classified - names
     assert not stale, f"تصنيفٌ لمسارات غير موجودة: {sorted(stale)}"
 
 

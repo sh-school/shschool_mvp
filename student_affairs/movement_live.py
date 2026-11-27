@@ -15,6 +15,7 @@ from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
 
+from clinic.health_access import audit_health_presence
 from core.capabilities import capability_required, has_capability
 from operations.class_exit import may_record_school_exit
 from operations.models import ClassExit
@@ -31,9 +32,13 @@ def live_context(request: Any, school: Any, scope: Any, day: dt.date) -> dict[st
     """سياقُ اللوحة الحيّة: القادمون والخارجون الآن، وهل اليومُ المختار اليومُ (فيُفعَّل التحديثُ الذاتي)."""
     now = timezone.now()
     can_grace = can_set_grace(request.user)
+    live = live_rows(school, scope, day, now)
+    # من وجهتُه العيادةُ وحدَه؛ و«قادمون إليك» هنا وجهتُهم مشرفُ الجناح فليسوا منهم.
+    clinic_ids = [r["student"].pk for r in live if r["is_clinic"]]
+    audit_health_presence(request, "خارج الفصل الآن", clinic_ids)
     return {
         "incoming_rows": incoming_rows(school, scope, day, now),
-        "live_rows": live_rows(school, scope, day, now),
+        "live_rows": live,
         # شريطُ الأجنحة والتفصيلُ بالوجهة (W-20261119-003): العيادةُ تنفرد لمن عنده الملفُّ الصحّيّ الكامل فقط.
         "wing_strip": wing_strip(school, scope, day, now),
         "destination_split": destination_split(
