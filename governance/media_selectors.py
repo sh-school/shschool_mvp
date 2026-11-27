@@ -87,6 +87,29 @@ def resolve_file_access(name: str) -> FileAccess | None:
     return None
 
 
+def health_excuse_record(name: str) -> tuple[str, Any] | None:
+    """(اسمُ النموذج، معرّفُ السجلّ) إن كان الملفُّ مستندَ عذرٍ صحّيّ، وإلا None (CLN-03).
+
+    مرفقُ سطر الحضور بلا نوعِ عذرٍ يُعدّ صحيّاً: قد يكون تقريراً طبّيّاً ولا يُعرف ما فيه.
+    والمصنَّفُ بنوعٍ آخرَ ليس صحيّاً. والترتيبُ كترتيب `resolve_file_access`.
+    """
+    from django.utils.module_loading import import_string
+
+    from operations.models import AbsenceExcuse, StudentAttendance
+
+    # استيرادٌ بالاسم: `governance` ضمن نطاق mypy، والاستيرادُ المباشر يجرّ `clinic` غيرَ المنمَّط إليه.
+    health_codes = import_string("clinic.health_access.HEALTH_CODES")
+
+    row = StudentAttendance.objects.filter(excuse_file=name).only("pk", "excuse_type").first()
+    if row is not None:
+        is_health = not row.excuse_type or row.excuse_type in health_codes
+        return ("StudentAttendance", row.pk) if is_health else None
+    excuse = AbsenceExcuse.objects.filter(document=name).only("pk", "kind").first()
+    if excuse is not None and excuse.kind in health_codes:
+        return ("AbsenceExcuse", excuse.pk)
+    return None
+
+
 def stored_file_named(name: str) -> Any:
     """`StoredFile` باسمه أو None."""
     from core.models import StoredFile

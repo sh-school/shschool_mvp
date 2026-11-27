@@ -17,6 +17,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Any
 
+from clinic.health_access import audit_health_rows
 from core.capabilities import has_capability
 
 #: حدُّ ما يُعرض من كلّ قائمة — اللوحةُ مدخلٌ لا تقرير.
@@ -123,6 +124,13 @@ def coordinator_panels(request: Any, today: dt.date) -> dict[str, Any]:
     out: dict[str, Any] = {}
     if has_capability(user, "operations.absence_followup_view"):
         out["absence"] = _absence(user, today)
+        # لوحةُ أسماء أصحاب الإجازة المرضيّة: العددُ وحدَه في التدقيق (CLN-03).
+        audit_health_rows(
+            request,
+            "لوحة استلام الإجازات المرضية",
+            len(out["absence"]["sick_leave"]),
+            model_name="AbsenceActionLog",
+        )
     if has_capability(user, "behavior.summon_parent"):
         rows = _pledge_rows(
             user.get_school(), today, has_capability(user, "behavior.guardian_contact")
