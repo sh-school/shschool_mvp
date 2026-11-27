@@ -43,7 +43,8 @@ def _lines(user, screen):
 def _one_line_without_pii(user, screen, student, *, rows=1):
     (line,) = _lines(user, screen)
     assert line.changes == {"screen": screen, "rows": rows}
-    blob = f"{line.object_repr} {line.object_id} {line.changes}"
+    # فاصلٌ «|» كي لا يطابق «طالب 0» نصَّ «عذر الطالب» متبوعاً بمعرّفٍ يبدأ بـ0
+    blob = f"{line.object_repr}|{line.object_id}|{line.changes}"
     for secret in (student.full_name, SECRET):
         assert secret not in blob
     return line
