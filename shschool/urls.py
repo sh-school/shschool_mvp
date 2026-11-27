@@ -61,6 +61,8 @@ urlpatterns = [
     path("api/v1/", include("api.urls", namespace="api_v1")),
     # ✅ v5: وحدة كنترول الاختبارات
     path("exam-control/", include("exam_control.urls", namespace="exam_control")),
+    # توقيعُ طلبات محو بيانات الطالب — PDPPL م.18
+    path("governance/erasure/", include("governance.urls")),
     # ✅ v5: خرق البيانات PDPPL 72h
     path("breach/", include("breach.urls", namespace="breach")),
     # ✅ v7: شؤون الطلاب

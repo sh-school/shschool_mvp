@@ -24,6 +24,7 @@ from core.models import (
 )
 from core.models.access import ALL_STAFF_ROLES
 from core.unrestricted_role import PLATFORM_DEVELOPER, has_unrestricted_role
+from governance.erasure_notify import send_signature_request
 
 logger = logging.getLogger("core")
 
@@ -379,8 +380,59 @@ class ErasureService:
                 obj.review_note = note
             obj.save()
         if not complete:
+            ErasureService.notify_pending_signers(obj, reviewer)
             return obj, None
         return obj, ErasureService.execute_safely(obj, reviewer)
+
+    @staticmethod
+    def signed_slots(obj: ErasureRequest) -> set[str]:
+        """الخاناتُ الموقَّعةُ توقيعاً سارياً."""
+        return _valid_signatures(obj)
+
+    @staticmethod
+    def pending_signers(obj: ErasureRequest) -> list[tuple[str, list[Any]]]:
+        """الخاناتُ الباقيةُ ومن يحقّ له ملءُ كلٍّ منها — بقواعد التوقيع نفسِها."""
+        officer = obj.school.data_protection_officer
+        signed = _valid_signatures(obj)
+        pending: list[tuple[str, list[Any]]] = []
+        if "admin" not in signed:
+            members = Membership.objects.filter(
+                school_id=obj.school_id, is_active=True, role__name=_admin_signer_role(obj)
+            ).select_related("user")
+            admins = {m.user.pk: m.user for m in members if _signature_slot(m.user, obj) == "admin"}
+            pending.append(("admin", list(admins.values())))
+        if "dpo" not in signed:
+            eligible = officer is not None and officer.pk != obj.requested_by_id
+            pending.append(("dpo", [officer] if eligible else []))
+        return pending
+
+    @staticmethod
+    def signing_options(user: Any, obj: ErasureRequest) -> tuple[bool, bool]:
+        """(أيوقّع؟، أيرفض؟) لعرض الأزرار — والحسمُ يبقى لـ`approve_and_execute` و`reject`."""
+        if obj.status not in ("pending", "approved") or obj.requested_by_id == user.pk:
+            return False, False
+        slot = _signature_slot(user, obj)
+        if slot is None:
+            return False, False
+        signed = _valid_signatures(obj)
+        held = {getattr(obj, f"{name}_signed_by_id") for name in signed}
+        can_sign = (
+            obj.school.data_protection_officer_id is not None
+            and slot not in signed
+            and user.pk not in held
+        )
+        return can_sign, obj.status == "pending"
+
+    @staticmethod
+    def notify_pending_signers(obj: ErasureRequest, actor: Any) -> None:
+        """إشعارُ من بقي توقيعُه (عدا الفاعل) عند طلبٍ جديدٍ أو توقيعٍ أوّل."""
+        recipients = {
+            user.pk: user
+            for _, users in ErasureService.pending_signers(obj)
+            for user in users
+            if user.pk != actor.pk
+        }
+        send_signature_request(obj, recipients.values())
 
     @staticmethod
     @transaction.atomic

@@ -490,6 +490,10 @@
     {% if not is_admin_role and request.user|can_open:"breach:dashboard" %}
     <a href="{% url 'breach:dashboard' %}" class="nb">{% icon "breach" %} خروقات البيانات</a>
     {% endif %}
+    {# طلباتُ المحو: مسؤولُ حماية البيانات خارجَ القيادة (والمديرُ ونائبُه يجدانها في «الإدارة»). #}
+    {% if not is_admin_role and current_school.data_protection_officer_id == request.user.pk %}
+    <a href="{% url 'erasure_requests' %}" class="nb">{% icon "security" %} طلبات المحو</a>
+    {% endif %}
     {% if role != "parent" and request.user.has_parent_membership and request.user|can_open:"parent_dashboard" %}
       <a href="{% url 'parent_dashboard' %}" class="nb" id="nav-my-portal">{% icon "children" %} بوابتي</a>
     {% endif %}
@@ -970,6 +974,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% endif %}
   {% if request.user|can_open:"breach:dashboard" %}
   <a href="{% url 'breach:dashboard' %}">{% icon "breach" %} خروقات البيانات</a>
+  {% endif %}
+  {% if role == "principal" or role == "vice_admin" or current_school.data_protection_officer_id == request.user.pk %}
+  <a href="{% url 'erasure_requests' %}">{% icon "security" %} طلبات المحو</a>
   {% endif %}
   </div>
   {% endif %}

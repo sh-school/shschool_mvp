@@ -1,0 +1,68 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}طلبات محو بيانات الطلبة{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="طلبات المحو" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "طلبات محو بيانات الطلبة" subtitle="PDPPL م.18 — لا يُنفَّذ المحو إلّا بتوقيعين من شخصين" icon="security" %}
+  {% endpage_header %}
+
+  {% if not officer %}
+    {% callout "warning" show=True %}لم يُعيَّن مسؤولُ حماية البيانات للمدرسة: لا يُنفَّذ أيُّ محوٍ قبل أن يعيّنه المدير.{% endcallout %}
+  {% endif %}
+
+  {% section_card "مسؤول حماية البيانات" icon="security" %}
+    <p>المعيَّن الحالي: <strong>{% if officer %}{{ officer.full_name }}{% else %}لا أحد{% endif %}</strong></p>
+    {% if can_assign %}
+    <form method="post" action="{% url 'erasure_assign_officer' %}" class="inline-form" data-confirm="تعيينُ مسؤول حماية البيانات يغيّر من يوقّع طلبات المحو. تأكيد؟">
+      {% csrf_token %}
+      {% field "user_id" "موظّفٌ من المدرسة" type="select" choices=candidates blank="اختر موظّفاً" required=True %}
+      <button type="submit" class="btn-primary btn-sm">تعيين</button>
+    </form>
+    {% endif %}
+  {% endsection_card %}
+
+  {% for row in rows %}
+    {% section_card row.student meta=row.obj.get_status_display icon="document" %}
+      <p>مقدّم الطلب: {{ row.filer }} — <span class="num">{{ row.obj.created_at|date:"d/m/Y H:i" }}</span></p>
+      <p>سبب الطلب: {{ row.obj.reason }}</p>
+      <p>وقّع: {% for line in row.signed %}<span class="status-badge status-success">{{ line }}</span> {% empty %}لا أحد{% endfor %}</p>
+      {% if row.remaining %}
+      <p>بقي: {% for line in row.remaining %}<span class="status-badge status-warning">{{ line }}</span> {% endfor %}</p>
+      {% endif %}
+      {% if row.obj.review_note %}<p>ملاحظة المراجع: {{ row.obj.review_note }}</p>{% endif %}
+
+      {% if row.can_sign %}
+      <form method="post" action="{% url 'erasure_sign' row.obj.pk %}" class="inline-form"
+            data-confirm="{% if row.executes_now %}توقيعُك هو الثاني: يُنفَّذ المحو الآن ولا رجعةَ فيه. هل توقّع؟{% else %}بعد التوقيع الثاني يُنفَّذ المحو ولا رجعةَ فيه. هل توقّع؟{% endif %}">
+        {% csrf_token %}
+        {% with cid="confirm-"|add:row.obj.pk.hex %}
+          {% field "confirm" "أعلم أنّ المحو لا رجعةَ فيه" type="checkbox" id=cid required=True %}
+        {% endwith %}
+        <button type="submit" class="btn-danger btn-sm">أوقّع</button>
+      </form>
+      {% endif %}
+
+      {% if row.can_reject %}
+      <form method="post" action="{% url 'erasure_reject' row.obj.pk %}" class="inline-form">
+        {% csrf_token %}
+        {% with nid="note-"|add:row.obj.pk.hex %}
+          {% field "note" "سبب الرفض" id=nid required=True grow=True %}
+        {% endwith %}
+        <button type="submit" class="btn-secondary btn-sm">أرفض</button>
+      </form>
+      {% endif %}
+    {% endsection_card %}
+  {% empty %}
+    {% empty_state "لا توجد طلبات محو" %}
+  {% endfor %}
+
+</div>
+{% endblock %}
