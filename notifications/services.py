@@ -27,6 +27,7 @@ from core.parents_freeze import FROZEN_MESSAGE, is_parent_only, parents_frozen
 
 from . import quiet_hours
 from .models import NotificationLog, NotificationSettings
+from .parent_neutral import PARENT_NEUTRAL_BODY, PARENT_NEUTRAL_TITLE
 
 _EMAIL_FAILURE_MESSAGE = "تعذر إرسال البريد الإلكتروني."
 _EMAIL_UNDELIVERED_MESSAGE = "لم يُسلَّم البريد: لا مزوّد بريد مُهيَّأ."
@@ -426,17 +427,14 @@ class NotificationService:
 
             # البريد الإلكتروني
             if parent.email and (not cfg or cfg.absence_email_enabled):
-                subject = (
-                    cfg.absence_email_subject if cfg else "تنبيه: غياب متكرر للطالب {student_name}"
-                ).format(**ctx)
-
                 body_text = render_to_string("notifications/email/absence_text.txt", ctx)
                 body_html = render_to_string("notifications/email/absence_html.html", ctx)
 
                 outcome = NotificationService.deliver_email(
                     user=parent,
                     school=school,
-                    subject=subject,
+                    # [U-09] العنوانُ محايد — ولا يُقرأ عنوانُ الإعدادات (قد يحمل الاسم).
+                    subject=PARENT_NEUTRAL_TITLE,
                     body_text=body_text,
                     body_html=body_html,
                     student=student,
@@ -447,17 +445,11 @@ class NotificationService:
 
             # SMS
             if parent.get_phone_decrypted() and cfg and cfg.sms_enabled:
-                sms_body = (
-                    f"مدرسة {school.name}: الطالب {student.full_name} تغيّب "
-                    f"{absence_alert.absence_count} مرات خلال الفترة "
-                    f"{absence_alert.period_start} – {absence_alert.period_end}. "
-                    f"يُرجى التواصل مع الإدارة."
-                )
                 outcome = NotificationService.deliver_sms(
                     user=parent,
                     school=school,
                     phone_number=parent.get_phone_decrypted(),
-                    message=sms_body,
+                    message=PARENT_NEUTRAL_BODY,
                     student=student,
                     notif_type="absence_alert",
                     sent_by=sent_by,
@@ -508,17 +500,13 @@ class NotificationService:
             }
 
             if parent.email and (not cfg or cfg.fail_email_enabled):
-                subject = (
-                    cfg.fail_email_subject if cfg else "إشعار: نتيجة الطالب {student_name}"
-                ).format(**ctx)
-
                 body_text = render_to_string("notifications/email/fail_text.txt", ctx)
                 body_html = render_to_string("notifications/email/fail_html.html", ctx)
 
                 outcome = NotificationService.deliver_email(
                     user=parent,
                     school=school,
-                    subject=subject,
+                    subject=PARENT_NEUTRAL_TITLE,
                     body_text=body_text,
                     body_html=body_html,
                     student=student,
@@ -528,17 +516,11 @@ class NotificationService:
                 results.append(_result("email", parent.email, outcome))
 
             if parent.get_phone_decrypted() and cfg and cfg.sms_enabled:
-                subjects_str = "، ".join(failed_subjects[:3])
-                sms_body = (
-                    f"مدرسة {school.name}: الطالب {student.full_name} راسب في "
-                    f"{len(failed_subjects)} مادة ({subjects_str}) للعام {year}. "
-                    f"يُرجى التواصل مع الإدارة."
-                )
                 outcome = NotificationService.deliver_sms(
                     user=parent,
                     school=school,
                     phone_number=parent.get_phone_decrypted(),
-                    message=sms_body,
+                    message=PARENT_NEUTRAL_BODY,
                     student=student,
                     notif_type="fail_alert",
                     sent_by=sent_by,

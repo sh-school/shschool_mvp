@@ -703,6 +703,7 @@ class ClinicService:
 
         try:
             from core.models import ParentStudentLink
+            from notifications.parent_neutral import PARENT_NEUTRAL_TITLE
             from notifications.services import NotificationService
 
             links = ParentStudentLink.objects.filter(
@@ -724,7 +725,7 @@ class ClinicService:
                 NotificationService.deliver_email(
                     user=parent,
                     school=school,
-                    subject=f"إشعار عيادة: {visit.student.full_name}",
+                    subject=PARENT_NEUTRAL_TITLE,  # [U-09] لا اسمَ في العنوان
                     body_text=msg,
                     student=visit.student,
                     notif_type="custom",
