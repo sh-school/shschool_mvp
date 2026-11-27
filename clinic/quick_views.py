@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 
 from django.contrib.auth.decorators import login_required
-from django.core.cache import cache
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -23,7 +22,7 @@ from clinic.exit_selectors import incoming_to_clinic
 from clinic.exit_services import depart_on_close, receive_arrival
 from clinic.health_access import audit_care_flag, audit_health_presence
 from clinic.models import ClinicVisit
-from clinic.queue import todays_queue
+from clinic.queue import ClinicQueue, todays_queue
 from clinic.selectors import (
     MIN_QUERY,
     class_options,
@@ -66,6 +65,11 @@ def _queue_rows(queue) -> int:
     return len(queue.waiting) + len(queue.in_care) + len(queue.done)
 
 
+def _queue_students(queue: ClinicQueue) -> list[int]:
+    """معرّفاتُ طلبةِ الطابور كلِّه (بانتظار وتحت الرعاية وانتهت) — من دون استعلامٍ لكلّ صفّ."""
+    return [v.student_id for v in (*queue.waiting, *queue.in_care, *queue.done)]
+
+
 def _incoming(request: HttpRequest) -> list[dict]:
     """«قادمون إليك» مع تدقيق من يظهر أوّلَ مرّةٍ اليوم؛ الصفحةُ وجزؤها شاشةٌ واحدة."""
     now = timezone.now()
@@ -89,6 +93,8 @@ def quick_entry(request):
     _audit_health_screen(
         request, "الإدخال السريع", model_name="ClinicVisit", rows=_queue_rows(queue)
     )
+    # الصفحةُ تعرض الطابورَ نفسَه: كلُّ طالبٍ يظهر فيها يُسجَّل بمعرّفه مرةً في اليوم (CLN-03)
+    audit_health_presence(request, "طابور الإدخال السريع", _queue_students(queue))
     recent = recent_visitors(school, timezone.localdate())
     audit_care_flag(request, recent)
     return render(
@@ -222,10 +228,7 @@ def quick_close(request, visit_id):
 def quick_queue(request):
     school = request.school
     queue = todays_queue(school, timezone.localdate())
-    # الجلبُ الدوريّ بـHTMX يُخفَّف إلى سطرٍ في الدقيقة كقائمة الزيارات؛ والفتحُ الكاملُ يُدقَّق دائماً.
-    is_htmx = bool(getattr(request, "htmx", None) or request.headers.get("HX-Request"))
-    if not is_htmx or cache.add(f"clinic_audit_live:{request.user.pk}:quick_queue", 1, 60):
-        _audit_health_screen(
-            request, "طابور الإدخال السريع", model_name="ClinicVisit", rows=_queue_rows(queue)
-        )
+    # الجلبُ الدوريّ والفتحُ الكاملُ يُدقَّقان بالطالب (CLN-03، قرار 2026-11-27): لا تخفيفَ بالدقيقة،
+    # فالطالبُ الجديد يُسجَّل فور ظهوره ولو بعد ثوانٍ من آخر جلب.
+    audit_health_presence(request, "طابور الإدخال السريع", _queue_students(queue))
     return render(request, "clinic/partials/_quick_queue.html", {"queue": queue})

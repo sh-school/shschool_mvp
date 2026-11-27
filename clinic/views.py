@@ -2,7 +2,6 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
 
@@ -13,7 +12,13 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from clinic.export import VISITS_PDF_KIND, VISITS_TABLE
-from clinic.health_access import OPEN_REASONS, audit_care_flag, clean_reason, log_full_open
+from clinic.health_access import (
+    OPEN_REASONS,
+    audit_care_flag,
+    audit_health_presence,
+    clean_reason,
+    log_full_open,
+)
 
 # الاسمُ القديمُ باقٍ لمن يستورده من هنا (quick_views وreferral_views)
 from clinic.health_access import audit_health_screen as _audit_health_screen
@@ -241,7 +246,8 @@ def confirm_referral_notice(request, visit_id):
 @capability_required("clinic.access")
 def visits_list(request):
     """قائمة الزيارات بالعيادة: مدًى «من/إلى» واسمُ الطالب — والمحدِّدُ في `selectors.visits_for` (يشاركه التصدير)."""
-    visits = visits_for(request.school, request.GET)
+    # القائمةُ تُجلب مرّةً واحدة: المعروضُ هو المُدقَّق بعينه (بلا استعلامٍ ثانٍ للعدّ).
+    visits = list(visits_for(request.school, request.GET))
     start, end = visit_range(request.GET)
 
     context = {
@@ -251,12 +257,12 @@ def visits_list(request):
         "student_filter": request.GET.get("student", ""),
     }
 
+    # القائمةُ تعرض اسمَ الطالب وreason وtreatment: تُدقَّق بالطالب (CLN-03، قرار 2026-11-27)
+    # فكلُّ طالبٍ يظهر يُسجَّل مرةً في اليوم لكل مستخدم، سواءٌ فُتحت الصفحةُ أم حُدّثَ البحثُ الحيّ.
+    # معرّفاتٌ فقط: مصطلحُ البحث لا يُسجَّل، ولا سطرَ لقائمةٍ بلا طلاب.
+    audit_health_presence(request, "قائمة الزيارات", [v.student_id for v in visits])
+
     is_htmx = bool(getattr(request, "htmx", None) or request.headers.get("HX-Request"))
-    # القائمةُ تعرض اسمَ الطالب وreason وtreatment: تُدقَّق (أعدادٌ فقط، لا نصوص ولا ترشيح بحث).
-    # البحثُ الحيّ (HTMX) يُطلق طلباً لكلّ ضغطة مفتاح: سطرٌ واحد لكلّ مستخدمٍ في الدقيقة (قرار 0101)،
-    # أمّا فتحُ الصفحة الكاملة فيُدقَّق دائماً.
-    if not is_htmx or cache.add(f"clinic_audit_live:{request.user.pk}:visits_list", 1, 60):
-        _audit_health_screen(request, "قائمة الزيارات", model_name="ClinicVisit", rows=visits)
 
     # HTMX: أعد الجزء فقط (بحث حي + ترشيح)
     if is_htmx:
