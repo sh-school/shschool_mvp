@@ -9,7 +9,16 @@ from core.capabilities.base import Capability, Shared, _cap
 
 def _is_followed_staff(user: Any) -> bool:
     """منحُ قراءةٍ للموظّف المُتابَع **بدوره**: فلا يرثه حاملُ الجناح بالتعيين (متابعةٌ تخصّ صاحبَها)."""
-    return str(user.get_role()) in {"admin_supervisor", "social_worker", "psychologist"}
+    return str(user.get_role()) in {
+        "admin_supervisor",
+        "social_worker",
+        "psychologist",
+        "storekeeper",
+        "receptionist",
+        "student_affairs_coordinator",
+        "it_technician",
+        "student_observer",
+    }
 
 
 def quality_capabilities(shared: Shared) -> list[Capability]:

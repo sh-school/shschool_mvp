@@ -5,6 +5,7 @@ import uuid
 import pytest
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import escape
 
 from core.exports.runner import run_job
 from core.models import AuditLog, ExportJob
@@ -12,7 +13,7 @@ from core.pdf_utils import _inject_fonts
 from quality import supervisor_followup_selectors as selectors
 from quality.models import SupervisorFollowUp, SupervisorFollowUpScore
 from quality.supervisor_followup_exports import render_sheet_html
-from quality.supervisor_followup_indicators import FORMS
+from quality.supervisor_followup_indicators import FOLLOWED_ROLES, FORMS
 from tests.conftest import SchoolFactory
 from tests.test_supervisor_followup import _member, supervisor, vice
 
@@ -20,7 +21,15 @@ __all__ = ["supervisor", "vice"]  # تركيباتٌ مشتركةٌ من ملف�
 
 pytestmark = [pytest.mark.django_db, pytest.mark.pin_clock]
 
-NEW_CODES = ["10", "11"]
+#: الدفعةُ الثانية: رمزُ الاستمارة ← (دورُها، أرقامُ مؤشراتها).
+BATCH_TWO = {
+    "7": ("storekeeper", list(range(1, 12))),
+    "12": ("receptionist", list(range(1, 9))),
+    "13": ("student_affairs_coordinator", list(range(1, 14))),
+    "14": ("it_technician", list(range(1, 11))),
+    "16": ("student_observer", [*range(1, 7), *range(8, 16)]),
+}
+NEW_CODES = ["10", "11", *BATCH_TWO]
 
 
 @pytest.fixture
@@ -29,7 +38,34 @@ def staff(school):
     return {
         "10": _member(school, "social_worker", "اختصاصي اجتماعي اختباري"),
         "11": _member(school, "psychologist", "اختصاصي نفسي اختباري"),
+        **{
+            code: _member(school, role, f"موظف اختباري {code}")
+            for code, (role, _numbers) in BATCH_TWO.items()
+        },
     }
+
+
+def test_the_second_batch_definitions_follow_their_papers():
+    for code, (role, numbers) in BATCH_TWO.items():
+        form = FORMS[code]
+        assert (form.role, [n for n, _ in form.indicators]) == (role, numbers)
+        assert not form.has_evidence and role in FOLLOWED_ROLES
+    assert FORMS["7"].indicators[8][1] == (
+        "المشاركة في مهام المناوبة بالمدرسة لحفظ أمن وسلامة الطلاب."
+    )
+    assert FORMS["13"].indicators[1][1].endswith("بوزارة التربية والتعليم العالي")
+    assert FORMS["13"].indicators[10][1].endswith("للنائب الإداري .")
+    assert len(FORMS["14"].indicators[3][1].splitlines()) == 6
+    assert "عبر    Microsoft File & Print Server." in FORMS["14"].indicators[7][1]
+    assert FORMS["16"].title == "استمارة متابعة أداء ملاحظ طلبه"
+
+
+@pytest.mark.parametrize("code", list(BATCH_TWO))
+def test_the_new_roles_read_only_and_cannot_manage(client_as, staff, code):
+    own = client_as(staff[code])
+    assert own.get(reverse("supervisor_followup_list")).status_code == 200
+    url = reverse("supervisor_followup_new", args=[staff[code].pk])
+    assert own.get(url, {"form": code}).status_code == 403
 
 
 def _save(client, pk, person, code, *, action="save", recs=(), **extra):
@@ -75,13 +111,13 @@ def test_each_form_lists_only_its_role_and_saves_its_indicators(
     url = reverse("supervisor_followup_new", args=[person.pk])
     html = client.get(url, {"form": code}).content.decode()
     assert form.title in html and f"اسم {form.staff_noun}" in html
-    assert all(text in html for _n, text in form.indicators)
+    assert all(escape(line) in html for _n, t in form.indicators for line in t.splitlines())
     # موظّفُ دورٍ آخرَ لا تُفتح له الاستمارة
     wrong = reverse("supervisor_followup_new", args=[supervisor.pk])
     assert client.get(wrong, {"form": code}).status_code == 404
 
     pk = uuid.uuid4()
-    assert _save(client, pk, person, code, rating_13="complete").status_code == 302
+    assert _save(client, pk, person, code, rating_15="complete").status_code == 302
     row = SupervisorFollowUp.objects.get(pk=pk)
     assert row.form_code == code and row.status == "saved"
     assert SupervisorFollowUpScore.objects.filter(followup=row).count() == len(form.indicators)
@@ -132,7 +168,7 @@ def test_send_read_and_acknowledge_follow_the_19_permissions(
     assert _save(own, uuid.uuid4(), person, code).status_code == 403
 
     # موظّفٌ مُتابَعٌ آخرُ ومعلمٌ: 403؛ ومدرسةٌ أخرى: 404
-    other = staff["11" if code == "10" else "10"]
+    other = staff["10" if code == "11" else "11"]
     teacher = _member(school, "teacher", "معلم اختباري")
     for stranger in (other, supervisor, teacher):
         assert client_as(stranger).get(detail).status_code == 403
@@ -149,16 +185,18 @@ def test_the_sheet_matches_its_paper_on_one_a4_page(client_as, school, vice, sta
     from weasyprint import HTML
 
     pk, form = uuid.uuid4(), FORMS[code]
-    _save(client_as(vice), pk, staff[code], code)
+    # أطولُ الحالات: كلُّ مؤشّرٍ مقدَّرٌ بأطول تقدير
+    ratings = {f"rating_{n}": "not_measured" for n, _text in form.indicators}
+    _save(client_as(vice), pk, staff[code], code, **ratings)
     html = render_sheet_html(school, selectors.get_follow_up(school, pk))
     body = html[html.index('<div id="head19">') :]
+    sections = ["متابعة التوصيات السابقة</th>", "متابعة الغياب والاستئذان والتأخير الصباحي</th>"]
+    sections.insert(0 if code in ("7", "12", "13") else 2, f"اسم {form.staff_noun}</th>")
     order = [
         school.name,
         f"نموذج {code}</div>",
         f"{form.title}</h1>",
-        "متابعة التوصيات السابقة</th>",
-        "متابعة الغياب والاستئذان والتأخير الصباحي</th>",
-        f"اسم {form.staff_noun}</th>",
+        *sections,
         "متابعة تنفيذ المهام</th>",
         "جوانب القوة</th>",
         f"{form.improvements_title}</th>",
@@ -170,7 +208,7 @@ def test_the_sheet_matches_its_paper_on_one_a4_page(client_as, school, vice, sta
     assert positions == sorted(positions)
     assert '<th scope="col">متابعة تنفيذ المهام</th><th scope="col">الملاحظات</th>' in body
     assert f'data-form="{code}"' in html and "Choose an item" not in html
-    assert all(text in body for _n, text in form.indicators)
+    assert all(escape(line) in body for _n, t in form.indicators for line in t.splitlines())
     pages = HTML(string=_inject_fonts(html)).render().pages
     assert len(pages) == 1 and pages[0].height > pages[0].width
 
