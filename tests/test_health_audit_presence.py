@@ -31,6 +31,12 @@ def _lines(user):
     return [line for line in lines if "students" in (line.changes or {})]
 
 
+def _new_lines(user, *seen):
+    """ما كُتب بعد `seen` بالمعرّف لا بالترتيب: الساعةُ مثبَّتةٌ فتتساوى `timestamp` وترتيبُها غيرُ محدَّد."""
+    known = {line.pk for line in seen}
+    return [line for line in _lines(user) if line.pk not in known]
+
+
 @pytest.mark.parametrize(("route", "who"), SCREENS)
 def test_ten_refreshes_write_one_line(request, client_as, school, teacher_user, wing_a, route, who):
     user = request.getfixturevalue(who)
@@ -54,13 +60,13 @@ def test_new_student_gets_a_line_with_only_that_id(
     _exit(school, wing_a[0], teacher_user, "طالب أول", "29000000011")
     client = client_as(user)
     client.get(reverse(route))
+    (first,) = _lines(user)
 
     second = _exit(school, wing_a[0], teacher_user, "طالب ثان", "29000000012")
     client.get(reverse(route))
 
-    lines = _lines(user)
-    assert len(lines) == 2
-    assert lines[-1].changes["students"] == [str(second.student_id)]
+    (line,) = _new_lines(user, first)
+    assert line.changes["students"] == [str(second.student_id)]
 
 
 @pytest.mark.parametrize(("route", "who"), SCREENS)
@@ -104,17 +110,17 @@ def test_student_appearing_within_the_same_minute_gets_own_line(
 ):
     client = client_as(nurse_user)
     assert client.get(reverse(route)).status_code == 200
+    (first,) = _lines(nurse_user)
+    assert first.changes["students"] == [str(student_user.pk)]
     role = student_user.memberships.get().role
     late = _late_student(school, role, nurse_user)
 
     assert client.get(reverse(route)).status_code == 200
     assert client.get(reverse(route)).status_code == 200  # إعادةُ التحديث لا تكرّر
 
-    lines = _lines(nurse_user)
-    assert len(lines) == 2
-    assert lines[0].changes["students"] == [str(student_user.pk)]
-    assert lines[1].changes["students"] == [str(late.pk)]
-    assert late.full_name not in f"{lines[1].object_repr} {lines[1].changes}"
+    (second,) = _new_lines(nurse_user, first)
+    assert second.changes["students"] == [str(late.pk)]
+    assert late.full_name not in f"{second.object_repr} {second.changes}"
 
 
 def test_visits_search_with_no_match_writes_no_line(client_as, nurse_user, clinic_visit):

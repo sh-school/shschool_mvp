@@ -1,0 +1,87 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}طلبات محو البيانات{% endblock %}
+
+{% block main_class %}{% page_layout "detail" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="طلبات محو البيانات" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "طلبات محو البيانات" subtitle="PDPPL م.18 — لا يُنفَّذ المحو إلّا بتوقيعين" icon="security" %}{% endpage_header %}
+
+  {% if not officer %}
+    {% callout "warning" show=True %}لم يُعيَّن مسؤولُ حماية البيانات للمدرسة، فلا يُنفَّذ أيُّ محو. يعيّنه المدير.{% endcallout %}
+  {% endif %}
+
+  {% section_card "مسؤول حماية البيانات" icon="security" %}
+    <p>المعيَّن الحاليّ: <strong>{% if officer %}{{ officer.full_name }}{% else %}لا أحد{% endif %}</strong></p>
+    {% if can_appoint %}
+    <form method="post" action="{% url 'governance:erasure_officer' %}" data-confirm="تأكيد تعيين مسؤول حماية البيانات؟">
+      {% csrf_token %}
+      {% field "user_id" "اختر من موظّفي المدرسة" type="select" choices=candidates blank="— اختر —" required=True %}
+      <button type="submit" class="btn-primary btn-sm">تعيين</button>
+    </form>
+    {% endif %}
+  {% endsection_card %}
+
+  {% for row in rows %}
+    {% section_card row.student meta=row.obj.get_status_display icon="document" %}
+      <ul class="plain-list">
+        <li class="plain-list__row">
+          <span class="plain-list__title">مقدِّم الطلب</span>
+          <span>{{ row.filer }} — <span class="num">{{ row.obj.created_at|date:"Y/m/d H:i" }}</span></span>
+        </li>
+        <li class="plain-list__row">
+          <span class="plain-list__title">السبب</span>
+          <span>{{ row.obj.reason|linebreaksbr }}</span>
+        </li>
+        <li class="plain-list__row">
+          <span class="plain-list__title">من وقّع</span>
+          <span>{% for label, name in row.signed %}{{ label }}: {{ name }}{% if not forloop.last %}، {% endif %}{% empty %}لا أحد بعد{% endfor %}</span>
+        </li>
+        {% if row.missing %}
+        <li class="plain-list__row">
+          <span class="plain-list__title">من بقي</span>
+          <span>{{ row.missing|join:"، " }}</span>
+        </li>
+        {% endif %}
+        {% if row.obj.status == "rejected" %}
+        <li class="plain-list__row">
+          <span class="plain-list__title">سبب الرفض</span>
+          <span>{{ row.obj.review_note|linebreaksbr }}{% if row.obj.reviewed_by %} — {{ row.obj.reviewed_by.full_name }}{% endif %}</span>
+        </li>
+        {% endif %}
+      </ul>
+
+      {% if row.can_sign %}
+      <form method="post" action="{% url 'governance:erasure_sign' row.obj.pk %}"
+            data-confirm="محوُ بيانات الطالب لا رجعة فيه ويُنفَّذ عند اكتمال التوقيعين. أتوقّع؟">
+        {% csrf_token %}
+        {% with box_id="confirm-"|add:row.obj.pk.hex %}
+        {% field "confirm" "أقرّ بأنّ المحو يُنفَّذ عند اكتمال التوقيعين ولا رجعة فيه" type="checkbox" value="1" required=True id=box_id %}
+        {% endwith %}
+        <button type="submit" class="btn-primary btn-sm">أوقّع</button>
+      </form>
+      {% endif %}
+
+      {% if row.can_reject %}
+      <form method="post" action="{% url 'governance:erasure_reject' row.obj.pk %}">
+        {% csrf_token %}
+        {% with note_id="note-"|add:row.obj.pk.hex %}
+        {% field "note" "سبب الرفض" type="textarea" rows=2 required=True id=note_id %}
+        {% endwith %}
+        <button type="submit" class="btn-secondary btn-sm">أرفض</button>
+      </form>
+      {% endif %}
+    {% endsection_card %}
+  {% empty %}
+    {% empty_state "لا توجد طلبات محو" %}
+  {% endfor %}
+
+</div>
+{% endblock %}

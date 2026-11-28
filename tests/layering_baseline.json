@@ -243,7 +243,7 @@
    "orm": 19
   },
   "api/views_erasure.py::create_erasure_request": {
-   "orm": 9
+   "orm": 7
   },
   "assessments/views.py::assessments_dashboard": {
    "lines": 65,

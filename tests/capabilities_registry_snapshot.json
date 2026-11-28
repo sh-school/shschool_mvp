@@ -1179,6 +1179,29 @@
   "not_inherited_by": []
  },
  {
+  "key": "governance.erasure_sign",
+  "label": "توقيعُ طلبات محو بيانات الطالب ورفضُها",
+  "roles": [
+   "principal",
+   "vice_admin"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك 2026-11-27 (U-11) — PDPPL م.18",
+  "grant": "_data_protection_officer",
+  "not_inherited_by": []
+ },
+ {
+  "key": "governance.appoint_dpo",
+  "label": "تعيينُ مسؤول حماية البيانات",
+  "roles": [
+   "principal"
+  ],
+  "scope": "المدرسة",
+  "basis": "قرارُ المالك 2026-11-27 (U-11)",
+  "grant": null,
+  "not_inherited_by": []
+ },
+ {
   "key": "exam_control.access",
   "label": "نظامُ الكنترول",
   "roles": [
