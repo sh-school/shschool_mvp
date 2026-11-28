@@ -15,7 +15,7 @@ from django.utils import timezone
 from core.models import CustomUser, School
 from core.models.base import AllObjectsManager, AuditedModel, SoftDeleteManager
 
-from .supervisor_followup_indicators import RATINGS
+from .supervisor_followup_indicators import DEFAULT_CODE, FORMS, RATINGS, FollowUpForm
 
 FOLLOWUP_STATUS = [
     ("draft", "مسودة"),
@@ -74,6 +74,10 @@ class SupervisorFollowUp(_SoftDeletable):
         related_name="supervisor_followups_made",
         verbose_name="المتابِع",
     )
+    # بلا `choices`: استمارةٌ جديدةٌ تعريفٌ في الشيفرة لا هجرة.
+    form_code = models.CharField(
+        max_length=4, default=DEFAULT_CODE, db_default=DEFAULT_CODE, verbose_name="رقم النموذج"
+    )
     follow_date = models.DateField(default=timezone.localdate, verbose_name="التاريخ")
     status = models.CharField(
         max_length=15, choices=FOLLOWUP_STATUS, default="draft", verbose_name="الحالة"
@@ -102,13 +106,18 @@ class SupervisorFollowUp(_SoftDeletable):
             models.Index(fields=["school", "supervisor", "follow_date"], name="supfu_sup_date_idx"),
         ]
         constraints = [
-            # مسودةٌ واحدةٌ للمشرف: «متابعة جديدة» تفتحها بدل تكرارها.
+            # مسودةٌ واحدةٌ للموظّف في كلّ استمارة: «متابعة جديدة» تفتحها بدل تكرارها.
             models.UniqueConstraint(
-                fields=["school", "supervisor"],
+                fields=["school", "supervisor", "form_code"],
                 condition=models.Q(status="draft", is_deleted=False),
                 name="uniq_supfu_open_draft",
             ),
         ]
+
+    @property
+    def form(self) -> FollowUpForm:
+        """تعريفُ استمارة هذه المتابعة."""
+        return FORMS[self.form_code]
 
     @property
     def is_locked(self) -> bool:

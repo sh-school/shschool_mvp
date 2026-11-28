@@ -18,14 +18,12 @@ from staff_affairs.models import LeaveRequest, PermitRequest, StaffAttendance
 
 # قراءةٌ من طبقة القراءة: يستدعيها العرضُ من هنا لا من ملفّها.
 from .supervisor_followup_evidence import indicator_evidence as indicator_evidence
-from .supervisor_followup_indicators import INDICATORS
+from .supervisor_followup_indicators import DEFAULT_CODE, FORMS, FollowUpForm
 from .supervisor_followup_models import (
     FINAL_STATUSES,
     SupervisorFollowUp,
     SupervisorFollowUpRecommendation,
 )
-
-SUPERVISOR_ROLE = "admin_supervisor"
 
 
 @dataclass(frozen=True)
@@ -42,24 +40,33 @@ class AttendanceSummary:
         return asdict(self)
 
 
-def supervisors(school: School) -> QuerySet[CustomUser]:
+def get_form(code: str) -> FollowUpForm:
+    """تعريفُ الاستمارة برقمها (الفارغُ نموذج 19)؛ ورقمٌ مجهولٌ 404."""
+    found = FORMS.get(code or DEFAULT_CODE)
+    if found is None:
+        raise Http404
+    return found
+
+
+def supervisors(school: School, code: str = DEFAULT_CODE) -> QuerySet[CustomUser]:
+    """موظّفو دور الاستمارة وحدَه بعضويةٍ فعّالة."""
     return (
         CustomUser.objects.filter(
             memberships__school=school,
             memberships__is_active=True,
-            memberships__role__name=SUPERVISOR_ROLE,
+            memberships__role__name=get_form(code).role,
         )
         .distinct()
         .order_by("full_name")
     )
 
 
-def get_supervisor(school: School, raw_id: str) -> CustomUser:
+def get_supervisor(school: School, raw_id: str, code: str = DEFAULT_CODE) -> CustomUser:
     try:
         key = uuid.UUID(raw_id)
     except ValueError:
         raise Http404 from None
-    found = supervisors(school).filter(pk=key).first()
+    found = supervisors(school, code).filter(pk=key).first()
     if found is None:
         raise Http404
     return found
@@ -90,14 +97,15 @@ def readable_follow_up(school: School, user: CustomUser, pk: Any) -> SupervisorF
 
 
 def print_context(school: School, followup: SupervisorFollowUp) -> dict[str, Any]:
-    """سياقُ الورقة المطبوعة (نموذج 19)."""
+    """سياقُ الورقة المطبوعة لاستمارة المتابعة."""
     context = detail_context(school, followup)
     scores = context.pop("scores")
     context.update(
         school=school,
         followup=followup,
+        form=followup.form,
         year=academic_year_for_school(school, followup.follow_date),
-        rows=[(n, text, scores.get(n)) for n, text in INDICATORS],
+        rows=[(n, text, scores.get(n)) for n, text in followup.form.indicators],
         signatures=signature_stamps(followup),
     )
     return context
@@ -112,8 +120,11 @@ def signature_stamps(followup: SupervisorFollowUp) -> dict[str, dict[str, str] |
     }
 
 
-def open_draft(school: School, supervisor: CustomUser) -> SupervisorFollowUp | None:
-    return follow_ups(school).filter(supervisor=supervisor, status="draft").first()
+def open_draft(
+    school: School, supervisor: CustomUser, code: str = DEFAULT_CODE
+) -> SupervisorFollowUp | None:
+    rows = follow_ups(school).filter(supervisor=supervisor, status="draft", form_code=code)
+    return rows.first()
 
 
 def previous_saved(
@@ -121,14 +132,19 @@ def previous_saved(
     supervisor: CustomUser,
     on: dt.date,
     current: SupervisorFollowUp | None = None,
+    code: str = DEFAULT_CODE,
 ) -> SupervisorFollowUp | None:
-    """آخرُ متابعةٍ محفوظةٍ للمشرف قبل هذه (في اليوم نفسِه تُحسم بوقت الإنشاء)."""
+    """آخرُ متابعةٍ محفوظةٍ للموظّف من الاستمارة نفسِها قبل هذه (في اليوم نفسِه تُحسم بوقت الإنشاء)."""
     before = Q(follow_date__lt=on)
     if current is not None and current.created_at:
         before |= Q(follow_date=on, created_at__lt=current.created_at)
     else:
         before |= Q(follow_date=on)
-    rows = follow_ups(school).filter(before, supervisor=supervisor, status__in=FINAL_STATUSES)
+    if current is not None:
+        code = current.form_code
+    rows = follow_ups(school).filter(
+        before, supervisor=supervisor, status__in=FINAL_STATUSES, form_code=code
+    )
     if current is not None:
         rows = rows.exclude(pk=current.pk)
     return rows.order_by("-follow_date", "-created_at").first()
@@ -197,20 +213,30 @@ def review_items(
     )
 
 
-def list_context(school: School, *, own: CustomUser | None) -> dict[str, Any]:
-    """قائمةُ المدير: كلُّ مشرفٍ وآخرُ متابعةٍ له ثمّ كلُّ المتابعات؛ وللمشرف (`own`) محفوظاتُه وحدَها."""
+def list_context(school: School, *, own: CustomUser | None, code: str = "") -> dict[str, Any]:
+    """قائمةُ المدير لاستمارةٍ واحدة: كلُّ موظّفٍ وآخرُ متابعةٍ له ثمّ متابعاتُها؛ وللموظّف (`own`) محفوظاتُه وحدَها."""
     rows = follow_ups(school).order_by("-follow_date", "-created_at")
     if own is not None:
-        mine = rows.filter(supervisor=own, status__in=FINAL_STATUSES)
-        return {"can_manage": False, "history": list(mine)}
-    history = list(rows)
+        mine = list(rows.filter(supervisor=own, status__in=FINAL_STATUSES))
+        # عنوانُ القائمة من استمارة أحدث متابعاته، وإلا فمن دوره.
+        if mine:
+            form = mine[0].form
+        else:
+            role = str(own.get_role())
+            form = next((f for f in FORMS.values() if f.role == role), FORMS[DEFAULT_CODE])
+        return {"can_manage": False, "form": form, "history": mine}
+    form = get_form(code)
+    history = list(rows.filter(form_code=form.code))
     latest: dict[Any, SupervisorFollowUp] = {}
     for item in history:
         latest.setdefault(item.supervisor_id, item)
+    staff = supervisors(school, form.code)
     return {
         "can_manage": True,
+        "form": form,
+        "forms": list(FORMS.values()),
         "history": history,
-        "supervisor_rows": [(user, latest.get(user.pk)) for user in supervisors(school)],
+        "supervisor_rows": [(user, latest.get(user.pk)) for user in staff],
     }
 
 

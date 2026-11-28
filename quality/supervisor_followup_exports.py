@@ -31,7 +31,7 @@ def build_followup_pdf(school: Any, user: Any, params: Any) -> ExportResult:
         render_pdf_bytes(render_sheet_html(school, followup)),
         "application/pdf",
         # اسمُ الملفّ بلا اسمِ شخص: يُشارَك ويُسجَّل
-        f"نموذج_19_{followup.follow_date:%Y-%m-%d}.pdf",
+        f"نموذج_{followup.form_code}_{followup.follow_date:%Y-%m-%d}.pdf",
         rows=1,
         object_id=str(followup.pk),
     )

@@ -1,22 +1,23 @@
 {% extends "base/base.html" %}
 {% load static ui %}
 {% block extra_js %}<script src="{% static 'js/supervisor-followup.js' %}" defer></script>{% endblock %}
-{% block title %}استمارة متابعة أداء مشرف إداري{% endblock %}
+{% block title %}{{ form.title }}{% endblock %}
 {% block main_class %}{% page_layout "form" %}{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/quality/supervisor-follow-ups/" parent_label="متابعة المشرف الإداري" current="الاستمارة" %}
+{% include "components/breadcrumbs.html" with parent_url="/quality/supervisor-follow-ups/" parent_label="متابعة الأداء الإداري" current="الاستمارة" %}
 {% endblock %}
 
 {% block content %}
-{% page_header "استمارة متابعة أداء مشرف إداري" icon="observation" %}
-  <a href="{% url 'supervisor_followup_list' %}" class="btn-secondary btn-sm">← رجوع</a>
+{% page_header form.title icon="observation" %}
+  <a href="{% url 'supervisor_followup_list' %}?form={{ form.code }}" class="btn-secondary btn-sm">← رجوع</a>
 {% endpage_header %}
 
 <form method="post" action="{% url 'supervisor_followup_edit' pk %}" class="supfu-form" data-supfu-form
       data-draft-key="{{ draft_key }}" data-draft-version="{{ draft_version }}" data-draft-clear="{{ draft_clear }}">
   {% csrf_token %}
   <input type="hidden" name="supervisor" value="{{ supervisor.pk }}">
+  <input type="hidden" name="form_code" value="{{ form.code }}">
 
   {% section_card "متابعة التوصيات السابقة" icon="checklist" flush=True %}
     <div class="table-wrap table-wrap-scroll">
@@ -54,7 +55,7 @@
 
   {% section_card "بيانات المتابعة" icon="status_info" %}
     <div class="supfu-counts">
-      <p>اسم المشرف الإداري: <b>{{ supervisor.full_name }}</b></p>
+      <p>اسم {{ form.staff_noun }}:<b>{{ supervisor.full_name }}</b></p>
       <p>اليوم: <b data-supfu-day>{{ day|date:"l" }}</b></p>
       <label>التاريخ <input type="date" name="follow_date" class="form-control" required max="{{ today|date:'Y-m-d' }}" value="{{ data.follow_date }}"></label>
     </div>
@@ -68,7 +69,7 @@
             <th rowspan="2">م</th>
             <th rowspan="2" class="supfu-wide">مؤشرات المتابعة</th>
             <th colspan="{{ ratings|length }}">متابعة تنفيذ المهام</th>
-            <th rowspan="2" class="supfu-wide">ملاحظات</th>
+            <th rowspan="2" class="supfu-wide">{{ form.notes_header }}</th>
           </tr>
           <tr data-plain-head>{% for value, label in ratings %}<th>{{ label }}</th>{% endfor %}</tr>
         </thead>
@@ -92,8 +93,8 @@
     <textarea name="strengths" class="form-control" rows="3" aria-label="جوانب القوة">{{ data.strengths }}</textarea>
   {% endsection_card %}
 
-  {% section_card "جوانب تحتاج إلى تحسين" icon="document" %}
-    <textarea name="improvements" class="form-control" rows="3" aria-label="جوانب تحتاج إلى تحسين">{{ data.improvements }}</textarea>
+  {% section_card form.improvements_title icon="document" %}
+    <textarea name="improvements" class="form-control" rows="3" aria-label="{{ form.improvements_title }}">{{ data.improvements }}</textarea>
   {% endsection_card %}
 
   {% section_card "التوصيات" icon="document" %}

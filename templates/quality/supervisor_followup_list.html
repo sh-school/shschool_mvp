@@ -1,21 +1,26 @@
 {% extends "base/base.html" %}
 {% load ui %}
-{% block title %}متابعة أداء المشرف الإداري{% endblock %}
+{% block title %}متابعة أداء {{ form.staff_noun }}{% endblock %}
 {% block main_class %}{% page_layout "list" %}{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with current="متابعة أداء المشرف الإداري" %}
+{% include "components/breadcrumbs.html" with current="متابعة الأداء الإداري" %}
 {% endblock %}
 
 {% block content %}
-{% page_header "متابعة أداء المشرف الإداري" icon="observation" %}{% endpage_header %}
+{% page_header "متابعة الأداء الإداري" icon="observation" %}
+  {% for item in forms %}
+  <a href="{% url 'supervisor_followup_list' %}?form={{ item.code }}" class="{% if item.code == form.code %}btn-primary{% else %}btn-secondary{% endif %} btn-sm"{% if item.code == form.code %} aria-current="page"{% endif %}>{{ item.staff_noun }}</a>
+  {% endfor %}
+{% endpage_header %}
+<p class="ui-note">{{ form.title }} — نموذج {{ form.code }}</p>
 
 {% if can_manage %}
-{% section_card "المشرفون الإداريون" icon="staff" flush=True %}
+{% section_card form.plural icon="staff" flush=True %}
   <div class="table-wrap table-wrap-scroll">
     <table class="table" data-no-sort>
       <thead>
-        <tr><th>المشرف الإداري</th><th>آخر متابعة</th><th>الحالة</th><th>إجراء</th></tr>
+        <tr><th>{{ form.staff_noun }}</th><th>آخر متابعة</th><th>الحالة</th><th>إجراء</th></tr>
       </thead>
       <tbody>
         {% for supervisor, last in supervisor_rows %}
@@ -23,10 +28,10 @@
           <td>{{ supervisor.full_name }}</td>
           <td>{% if last %}<a href="{% url 'supervisor_followup_detail' last.pk %}">{{ last.follow_date|date:"Y-m-d" }}</a>{% else %}—{% endif %}</td>
           <td>{% if last %}{{ last.get_status_display }}{% else %}—{% endif %}</td>
-          <td><a class="btn-primary btn-sm" href="{% url 'supervisor_followup_new' supervisor.pk %}">متابعة جديدة</a></td>
+          <td><a class="btn-primary btn-sm" href="{% url 'supervisor_followup_new' supervisor.pk %}?form={{ form.code }}">متابعة جديدة</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="4">لا يوجد مشرفون إداريون بعضوية فعّالة.</td></tr>
+        <tr><td colspan="4">لا يوجد موظفون بهذا الدور بعضوية فعّالة.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -38,7 +43,7 @@
   <div class="table-wrap table-wrap-scroll">
     <table class="table" data-no-sort>
       <thead>
-        <tr><th>التاريخ</th><th>المشرف الإداري</th><th>المتابِع</th><th>الحالة</th><th>تاريخ الإرسال</th><th>تاريخ الإقرار</th><th class="supfu-wide">تعليق المشرف</th><th>إجراء</th></tr>
+        <tr><th>التاريخ</th><th>{{ form.staff_noun }}</th><th>المتابِع</th><th>الحالة</th><th>تاريخ الإرسال</th><th>تاريخ الإقرار</th><th class="supfu-wide">تعليق {{ form.short_noun }}</th><th>إجراء</th></tr>
       </thead>
       <tbody>
         {% for item in history %}

@@ -1,6 +1,6 @@
 {% load ministry ministry_logo %}{% ministry_name short=True as ministry %}
 {% comment %}
-  «نموذج 19 — استمارة متابعة أداء مشرف إداري» طبقَ الورقة المعتمدة (قرارُ المالك 2026-11-26): خارجَ الإطار المطبوع المركزيّ.
+  استماراتُ متابعة الأداء الإداريّ (19 و10 و11) طبقَ أوراقها، ونصوصُ كلِّ ورقةٍ من `form` — نموذج 19 طبقَ الورقة المعتمدة (قرارُ المالك 2026-11-26): خارجَ الإطار المطبوع المركزيّ.
   الترويسةُ: شعارُ الوزارة يميناً واسمُ المدرسة يساراً ثمّ خطٌّ وشريطُ معيّنات؛ والتذييلُ: المعيّناتُ والقسمُ ورقمُ النموذج.
   نصُّ الوزارة بجانب الشعار يتبع مفتاحَ الإظهار الواحد (`core/ministry.py`، D-399م).
   `data-pdf-own-page` فلا يحقن `pdf_utils` ترويسةً ثانية، وخطوطُ الوثيقة يحقنها هو.
@@ -11,9 +11,9 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>استمارة متابعة أداء مشرف إداري</title>
+<title>{{ form.title }}</title>
 </head>
-<body data-pdf-own-page>
+<body data-pdf-own-page{% if form.code != "19" %} data-form="{{ form.code }}"{% endif %}>
 
 <div id="head19">
   <div data-ministry>
@@ -34,13 +34,13 @@
     <div data-line="left"></div>
   </div>
   <div data-dept>قسم دعم الإدارة المدرسية</div>
-  <div data-number>نموذج 19</div>
+  <div data-number>نموذج {{ form.code }}</div>
 </div>
 
 <div id="sheet19">
 {% if followup.status == "draft" %}<p data-draft>مسودة</p>{% endif %}
 <div data-title>
-  <h1>استمارة متابعة أداء مشرف إداري</h1>
+  <h1>{{ form.title }}</h1>
   <p>العام الأكاديمي <bdi dir="ltr">{{ year|slice:":4" }} / {{ year|slice:"-4:" }}</bdi></p>
 </div>
 
@@ -87,7 +87,7 @@
   <colgroup><col><col><col><col><col><col></colgroup>
   <tbody>
     <tr>
-      <th scope="row">اسم المشرف الإداري</th><td data-mid>{{ followup.supervisor.full_name }}</td>
+      <th scope="row">اسم {{ form.staff_noun }}</th><td data-mid>{{ followup.supervisor.full_name }}</td>
       <th scope="row">اليوم</th><td data-mid>{{ followup.follow_date|date:"l" }}</td>
       <th scope="row">التاريخ</th><td data-mid>{{ followup.follow_date|date:"Y/m/d" }}</td>
     </tr>
@@ -97,7 +97,7 @@
 <table id="indicators">
   <colgroup><col><col><col><col></colgroup>
   <thead>
-    <tr><th scope="col">م</th><th scope="col">مؤشرات المتابعة</th><th scope="col">متابعة تنفيذ المهام</th><th scope="col">ملاحظات</th></tr>
+    <tr><th scope="col">م</th><th scope="col">مؤشرات المتابعة</th><th scope="col">متابعة تنفيذ المهام</th><th scope="col">{{ form.notes_header }}</th></tr>
   </thead>
   <tbody>
     {% for number, text, score in rows %}
@@ -119,7 +119,7 @@
 </table>
 <table>
   <tbody>
-    <tr><th scope="col">جوانب تحتاج إلى تحسين</th></tr>
+    <tr><th scope="col">{{ form.improvements_title }}</th></tr>
     <tr><td>{{ followup.improvements|linebreaksbr }}</td></tr>
   </tbody>
 </table>

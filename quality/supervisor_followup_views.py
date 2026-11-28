@@ -1,6 +1,6 @@
-"""شاشاتُ متابعة أداء المشرف الإداريّ (نموذج 19) — القراءةُ في selectors والكتابةُ في services.
+"""شاشاتُ متابعة الأداء الإداريّ (النماذج 19 و10 و11) — القراءةُ في selectors والكتابةُ في services.
 
-المديرُ والنائبُ الإداريّ يُنشئان ويعدّلان؛ والمشرفُ يقرأ متابعاته المحفوظةَ وحدَها؛ وغيرُهم 403.
+المديرُ والنائبُ الإداريّ يُنشئان ويعدّلان؛ والموظّفُ المُتابَعُ يقرأ متابعاته المحفوظةَ وحدَها؛ وغيرُهم 403.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from core.pdf_utils import content_disposition
 from . import supervisor_followup_exports as exports
 from . import supervisor_followup_selectors as selectors
 from . import supervisor_followup_services as services
-from .supervisor_followup_indicators import INDICATORS, RATINGS
+from .supervisor_followup_indicators import DEFAULT_CODE, RATINGS, FollowUpForm
 from .supervisor_followup_models import SupervisorFollowUp
 
 logger = logging.getLogger(__name__)
@@ -44,12 +44,19 @@ def locked_response(request: HttpRequest) -> HttpResponse:
     return render(request, "quality/supervisor_followup_locked.html", status=403)
 
 
+def _new_key(request: HttpRequest, code: str, supervisor_id: Any) -> str:
+    """مفتاحُ المسودة المحلّيّة لمتابعةٍ جديدة — لكلّ استمارةٍ مفتاحُها (ومفتاحُ 19 كما كان)."""
+    scope = "new" if code == DEFAULT_CODE else f"new-{code}"
+    return f"supervisor-followup:{request.user.pk}:{scope}:{supervisor_id}"
+
+
 def _form_context(
     request: HttpRequest,
     pk: uuid.UUID,
     supervisor: CustomUser,
     followup: SupervisorFollowUp | None,
     data: services.FormData | None = None,
+    code: str = "",
 ) -> dict[str, Any]:
     """`data` ما أُرسل ورُفض (فلا يضيع)، وإلا فمن المتابعة المحفوظة."""
     school = request.school  # type: ignore[attr-defined]
@@ -59,7 +66,8 @@ def _form_context(
             day = dt.date.fromisoformat(data.follow_date)
         except ValueError:
             data.follow_date = day.isoformat()
-    previous = selectors.previous_saved(school, supervisor, day, followup)
+    form: FollowUpForm = followup.form if followup else selectors.get_form(code)
+    previous = selectors.previous_saved(school, supervisor, day, followup, form.code)
     items = selectors.review_items(school, followup, previous)
     detail = selectors.detail_context(school, followup) if followup else None
     if data is None:
@@ -72,16 +80,19 @@ def _form_context(
                 str(r.pk): (r.status, r.note) for r in items if r.reviewed_in_id == followup.pk
             }
     # مفتاحُ المسودة المحلّيّة: معرّفاتٌ بلا أسماء؛ و`version` يُسقط مسودةً أقدمَ من المحفوظ.
-    new_key = f"supervisor-followup:{request.user.pk}:new:{supervisor.pk}"
+    new_key = _new_key(request, form.code, supervisor.pk)
     edit_key = f"supervisor-followup:{request.user.pk}:{pk}"
     stamp = followup or previous
     summary = selectors.attendance_summary(school, supervisor, day, previous)
     # الاستمارةُ لحامل MANAGE وحدَه، فالقرائنُ لا تصل المشرف.
-    evidence = selectors.indicator_evidence(
-        school, supervisor, summary.period_start, summary.period_end
+    evidence = (
+        selectors.indicator_evidence(school, supervisor, summary.period_start, summary.period_end)
+        if form.has_evidence
+        else {}
     )
     return {
         "pk": pk,
+        "form": form,
         "followup": followup,
         "supervisor": supervisor,
         "data": data,
@@ -89,7 +100,8 @@ def _form_context(
         "summary": summary,
         "reviews": [(r, *data.reviews.get(str(r.pk), ("pending", ""))) for r in items],
         "rows": [
-            (n, text, *data.scores.get(n, ("", "")), evidence.get(n, "")) for n, text in INDICATORS
+            (n, text, *data.scores.get(n, ("", "")), evidence.get(n, ""))
+            for n, text in form.indicators
         ],
         "ratings": RATINGS,
         "today": timezone.localdate(),
@@ -103,7 +115,8 @@ def _form_context(
 @capability_required(VIEW)
 def supervisor_followup_list(request: HttpRequest) -> HttpResponse:
     own: Any = None if has_capability(request.user, MANAGE) else request.user
-    context = selectors.list_context(request.school, own=own)  # type: ignore[attr-defined]
+    school = request.school  # type: ignore[attr-defined]
+    context = selectors.list_context(school, own=own, code=request.GET.get("form", ""))
     return render(request, "quality/supervisor_followup_list.html", context)
 
 
@@ -111,13 +124,14 @@ def supervisor_followup_list(request: HttpRequest) -> HttpResponse:
 @capability_required(MANAGE)
 def supervisor_followup_new(request: HttpRequest, supervisor_id: uuid.UUID) -> HttpResponse:
     school = request.school  # type: ignore[attr-defined]
-    supervisor = selectors.supervisors(school).filter(pk=supervisor_id).first()
+    code = selectors.get_form(request.GET.get("form", "")).code
+    supervisor = selectors.supervisors(school, code).filter(pk=supervisor_id).first()
     if supervisor is None:
         raise Http404
-    draft = selectors.open_draft(school, supervisor)
+    draft = selectors.open_draft(school, supervisor, code)
     if draft is not None:
         return redirect("supervisor_followup_edit", pk=draft.pk)
-    context = _form_context(request, uuid.uuid4(), supervisor, None)
+    context = _form_context(request, uuid.uuid4(), supervisor, None, code=code)
     return render(request, "quality/supervisor_followup_form.html", context)
 
 
@@ -134,6 +148,7 @@ def supervisor_followup_edit(request: HttpRequest, pk: uuid.UUID) -> HttpRespons
         return render(request, "quality/supervisor_followup_form.html", context)
     data = services.parse_post(request.POST)
     final = request.POST.get("action") == "save"
+    code = request.POST.get("form_code", "")
     try:
         followup = services.save_follow_up(
             school,
@@ -142,6 +157,7 @@ def supervisor_followup_edit(request: HttpRequest, pk: uuid.UUID) -> HttpRespons
             data=data,
             final=final,
             request=request,
+            form_code=code,
         )
     except services.FollowUpLocked:
         return locked_response(request)
@@ -151,9 +167,9 @@ def supervisor_followup_edit(request: HttpRequest, pk: uuid.UUID) -> HttpRespons
         supervisor = (
             existing.supervisor
             if existing
-            else selectors.get_supervisor(school, request.POST.get("supervisor", ""))
+            else selectors.get_supervisor(school, request.POST.get("supervisor", ""), code)
         )
-        context = _form_context(request, pk, supervisor, existing, data)
+        context = _form_context(request, pk, supervisor, existing, data, code)
         return render(request, "quality/supervisor_followup_form.html", context)
     done = followup.status != "draft"
     messages.success(request, "حُفظت المتابعة." if done else "حُفظت المسودة.")
@@ -173,17 +189,18 @@ def supervisor_followup_detail(request: HttpRequest, pk: uuid.UUID) -> HttpRespo
         selectors.indicator_evidence(
             school, followup.supervisor, followup.period_start, followup.period_end
         )
-        if manage
+        if manage and followup.form.has_evidence
         else {}
     )
     context.update(
         followup=followup,
+        form=followup.form,
         can_manage=manage,
         can_acknowledge=followup.status == "sent" and followup.supervisor_id == request.user.pk,
-        rows=[(n, text, scores.get(n), evidence.get(n, "")) for n, text in INDICATORS],
+        rows=[(n, t, scores.get(n), evidence.get(n, "")) for n, t in followup.form.indicators],
         draft_clear=(
             f"supervisor-followup:{request.user.pk}:{pk} "
-            f"supervisor-followup:{request.user.pk}:new:{followup.supervisor_id}"
+            f"{_new_key(request, followup.form_code, followup.supervisor_id)}"
             if request.GET.get("saved")
             else ""
         ),
@@ -208,7 +225,7 @@ def supervisor_followup_pdf(request: HttpRequest, pk: uuid.UUID) -> HttpResponse
         "quality.supervisor_followup_pdf",
         rows=1,
         object_id=followup.pk,
-        object_repr=f"متابعة مشرف إداري — {who} — {followup.follow_date}",
+        object_repr=f"متابعة أداء — نموذج {followup.form_code} — {who} — {followup.follow_date}",
     )
     try:
         result = exports.build_followup_pdf(school, request.user, params)
@@ -226,7 +243,11 @@ def supervisor_followup_pdf_view(request: HttpRequest, pk: uuid.UUID) -> HttpRes
     """صفحةٌ عارضةٌ حول الملفّ: رجوعٌ وتنزيلٌ وطباعة."""
     school = request.school  # type: ignore[attr-defined]
     followup = selectors.readable_follow_up(school, request.user, pk)
-    context = {"followup": followup, "can_manage": has_capability(request.user, MANAGE)}
+    context = {
+        "followup": followup,
+        "form": followup.form,
+        "can_manage": has_capability(request.user, MANAGE),
+    }
     return render(request, "quality/supervisor_followup_pdf_view.html", context)
 
 

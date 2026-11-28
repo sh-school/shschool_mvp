@@ -7,9 +7,9 @@ from typing import Any
 from core.capabilities.base import Capability, Shared, _cap
 
 
-def _is_admin_supervisor(user: Any) -> bool:
-    """منحُ قراءةٍ للمشرف الإداريّ **بدوره**: فلا يرثه حاملُ الجناح بالتعيين (متابعةٌ تخصّ صاحبَها)."""
-    return str(user.get_role()) == "admin_supervisor"
+def _is_followed_staff(user: Any) -> bool:
+    """منحُ قراءةٍ للموظّف المُتابَع **بدوره**: فلا يرثه حاملُ الجناح بالتعيين (متابعةٌ تخصّ صاحبَها)."""
+    return str(user.get_role()) in {"admin_supervisor", "social_worker", "psychologist"}
 
 
 def quality_capabilities(shared: Shared) -> list[Capability]:
@@ -27,17 +27,17 @@ def quality_capabilities(shared: Shared) -> list[Capability]:
         ),
         _cap(
             "quality.supervisor_followup",
-            "متابعةُ أداء المشرف الإداريّ (إنشاءٌ وتعديل)",
+            "متابعةُ الأداء الإداريّ (إنشاءٌ وتعديل)",
             P.SUPERVISOR_FOLLOWUP_MANAGE,
             basis="قرارُ المالك: استمارة 19 للمدير والنائب الإداريّ (W-20261125-003)",
         ),
         _cap(
             "quality.supervisor_followup_view",
-            "قراءةُ متابعات المشرف الإداريّ",
+            "قراءةُ متابعات الأداء الإداريّ",
             P.SUPERVISOR_FOLLOWUP_MANAGE,
-            scope="المشرفُ يقرأ متابعاته المحفوظة وحدَها",
+            scope="الموظّفُ المُتابَع يقرأ متابعاته المحفوظة وحدَها",
             basis="قرارُ المالك: استمارة 19 (W-20261125-003)",
-            grant=_is_admin_supervisor,
+            grant=_is_followed_staff,
         ),
         _cap("observation.create", "الزيارةُ الإشرافيّة", P.OBSERVATION_CREATE),
         _cap("observation.self", "التقييمُ الذاتيّ", P.OBSERVATION_SELF_CREATE),

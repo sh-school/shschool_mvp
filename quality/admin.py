@@ -593,8 +593,8 @@ from .models import SupervisorFollowUp  # noqa: E402
 
 @admin.register(SupervisorFollowUp)
 class SupervisorFollowUpAdmin(admin.ModelAdmin):
-    list_display = ("follow_date", "school", "supervisor", "status", "is_deleted")
-    list_filter = ("school", "status", "is_deleted")
+    list_display = ("follow_date", "school", "supervisor", "form_code", "status", "is_deleted")
+    list_filter = ("school", "form_code", "status", "is_deleted")
     ordering = ("-follow_date",)
 
     def get_queryset(self, request):
