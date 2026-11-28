@@ -30,6 +30,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Prefetch
 from django.utils import timezone
 
+from clinic.exit_selectors import ClinicReturn, return_states
 from core.academic_calendar import academic_year_for_school
 from core.models import (
     AuditLog,
@@ -154,6 +155,8 @@ class GridRow:
     exit: ClassExit | None = None
     #: عدّادا خروجه (دقائقُه وتأخّرُ عودته) لمن يحقّ له رؤيتُهما — المعلّمُ في مادّته فقط — أو `None`.
     counters: ExitCounter | None = None
+    #: «في الطريق من العيادة» أو «لن يعود إلى الفصل» لخروجه المفتوح، أو `None`.
+    clinic_return: ClinicReturn | None = None
 
 
 @dataclass(frozen=True)
@@ -462,6 +465,7 @@ def page(
     badges = exit_badges([c.session_id for c in columns if c.session_id])
     open_exits = _open_exits(current)
     counters = _page_counters(user, school, klass, students, day, roles)
+    returns = return_states(school, open_exits.values(), moment)
     rows = [
         GridRow(
             student=student,
@@ -475,6 +479,9 @@ def page(
             ],
             exit=open_exits.get(student.pk),
             counters=counters.get(student.pk),
+            clinic_return=returns.get(open_exits[student.pk].pk)
+            if student.pk in open_exits
+            else None,
         )
         for student in students
     ]

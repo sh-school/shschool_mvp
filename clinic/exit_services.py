@@ -10,7 +10,7 @@ from typing import Any
 
 from django.core.exceptions import ValidationError
 
-from clinic.exit_selectors import student_in_school
+from clinic.exit_selectors import clinic_trips, student_in_school, trip_links
 from core.models import CustomUser
 from operations import exit_wing
 from operations.models import ClassExit
@@ -43,7 +43,10 @@ def receive_arrival(school: Any, exit_id: Any, user: Any) -> CustomUser | None:
 
 
 def depart_on_close(school: Any, student_id: Any, day: dt.date, user: Any) -> bool:
-    """إغلاقُ الزيارة يسجّل «غادر» على خروج الطالب المفتوح إلى العيادة اليوم إن كان قد وصل؛ لا يكتب returned_at أبداً (ق8)."""
+    """إغلاقُ الزيارة يسجّل «غادر» على خروج الطالب المفتوح إلى العيادة اليوم إن كان قد وصل؛ لا يكتب returned_at أبداً (ق8).
+
+    وإن قطع الجرسُ الرحلةَ فالوصولُ على سطرٍ سابقٍ من سلسلتها، وعليه تُسجَّل المغادرة.
+    """
     pk = (
         ClassExit.objects.filter(
             school=school,
@@ -51,12 +54,15 @@ def depart_on_close(school: Any, student_id: Any, day: dt.date, user: Any) -> bo
             session__date=day,
             destination="clinic",
             returned_at__isnull=True,
-            clinic_arrived_at__isnull=False,
         )
         .values_list("pk", flat=True)
         .first()
     )
-    return pk is not None and exit_wing.clinic_depart(pk, user)
+    if pk is None:
+        return False
+    links = trip_links(clinic_trips(school, [student_id], day), pk)
+    arrived = next((r["pk"] for r in links if r["clinic_arrived_at"]), None)
+    return arrived is not None and exit_wing.clinic_depart(arrived, user)
 
 
 def excuse_student(school: Any, user: Any, student_id: Any, ends_raw: str, reason: str) -> None:

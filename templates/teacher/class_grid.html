@@ -78,6 +78,7 @@
           <strong>{{ row.student.full_name }}</strong>
           <span class="status-badge status-warning">{{ row.exit.get_destination_display }} · <time data-out-since="{{ row.exit.left_at|date:'U' }}">00:00</time></span>
           {% if row.exit.destination == "clinic" and row.exit.clinic_arrived_at %}<span class="status-badge status-info">وصل العيادة {{ row.exit.clinic_arrived_at|time:"H:i" }}{% if row.exit.clinic_left_at %} · غادر {{ row.exit.clinic_left_at|time:"H:i" }}{% endif %}</span>{% endif %}
+          {% if row.clinic_return %}<span class="status-badge status-warning">{{ row.clinic_return.text }}</span>{% endif %}
           <button type="button" class="btn-secondary btn-sm" data-exit-return="{{ row.student.pk }}">عاد</button>
         </div>
       {% endif %}{% endfor %}{% endsection_card %}

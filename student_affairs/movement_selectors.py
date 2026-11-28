@@ -11,6 +11,7 @@ from typing import Any
 
 from django.utils import timezone
 
+from clinic.exit_selectors import return_states
 from core.labels import class_label
 from operations.exit_card import GRACE_DESTINATIONS
 from operations.exit_wing import covered, excused_ids, excused_spans, week_totals
@@ -81,7 +82,9 @@ def live_rows(school: Any, scope: Any, day: dt.date, now: dt.datetime) -> list[d
     rows = []
     qs = _open_cards(school, scope, day).exclude(routed_at__isnull=True, destination="wing_sup")
     excused = excused_ids(school, day)
-    for e in qs:
+    cards = list(qs)
+    returns = return_states(school, cards, now)
+    for e in cards:
         minutes = _minutes(e.routed_at or e.left_at, now)
         group = e.session.class_group
         # الموسومُ «خروجاً مبرَّراً» بلا مهلةٍ تُلوَّن: لا تأخّرَ يُحسب عليه (لا يظهر السببُ هنا).
@@ -101,6 +104,7 @@ def live_rows(school: Any, scope: Any, day: dt.date, now: dt.datetime) -> list[d
                 # لحظتا العيادة فقط — لا سببَ زيارةٍ هنا ولا في جدولها.
                 "clinic_in": _local(e.clinic_arrived_at),
                 "clinic_out": _local(e.clinic_left_at),
+                "clinic_return": returns.get(e.pk),
             }
         )
     rows.sort(key=_stable_key)

@@ -96,7 +96,7 @@
           <tr>
             <td><a href="{% url 'student_affairs:student_profile' r.student.id %}" class="sa-link">{{ r.student.full_name }}</a></td>
             <td>{{ r.class_text }}</td>
-            <td>{{ r.destination }}{% if r.is_clinic %}{% if r.clinic_in %} · وصل {{ r.clinic_in|time:"H:i" }}{% endif %}{% if r.clinic_out %} · غادر {{ r.clinic_out|time:"H:i" }}{% endif %}{% endif %}{% if r.excused %} <span class="status-badge status-info">خروج مبرَّر</span>{% endif %}</td>
+            <td>{{ r.destination }}{% if r.is_clinic %}{% if r.clinic_in %} · وصل {{ r.clinic_in|time:"H:i" }}{% endif %}{% if r.clinic_out %} · غادر {{ r.clinic_out|time:"H:i" }}{% endif %}{% endif %}{% if r.excused %} <span class="status-badge status-info">خروج مبرَّر</span>{% endif %}{% if r.clinic_return %} <span class="status-badge status-warning">{{ r.clinic_return.text }}</span>{% endif %}</td>
             <td class="num">{{ r.left_at|time:"H:i" }}</td>
             <td class="num"><span class="status-badge status-{{ r.tone }}"{% if r.tone == "danger" %} title="تجاوز المهلة"{% endif %}>{{ r.minutes }}{% if r.allowed %} / {{ r.allowed }}{% endif %}</span></td>
             <td>
@@ -118,6 +118,7 @@
           <span>{{ r.class_text }}</span>
           <span>{{ r.destination }}{% if r.is_clinic %}{% if r.clinic_in %} · وصل {{ r.clinic_in|time:"H:i" }}{% endif %}{% if r.clinic_out %} · غادر {{ r.clinic_out|time:"H:i" }}{% endif %}{% endif %}</span>
           {% if r.excused %}<span class="status-badge status-info">خروج مبرَّر</span>{% endif %}
+          {% if r.clinic_return %}<span class="status-badge status-warning">{{ r.clinic_return.text }}</span>{% endif %}
           <span>الخروج {{ r.left_at|time:"H:i" }}</span>
           <span class="status-badge status-{{ r.tone }}"{% if r.tone == "danger" %} title="تجاوز المهلة"{% endif %}>{{ r.minutes }}{% if r.allowed %} / {{ r.allowed }}{% endif %} د</span>
         </div>

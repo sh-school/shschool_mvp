@@ -678,6 +678,7 @@ def student_events_context(student: Any, school: Any, query: Any) -> dict:
     الغيابُ والخروجُ سجلٌّ واحدٌ بترتيب الأحدث (قرارُ المالك 2026-09-20: لا تمريرَ في البطاقات)؛
     والأعذارُ والإخطاراتُ تُعرض الأحدثُ منها `SHORT_LIST` مع العدد الكلّيّ.
     """
+    from clinic.exit_selectors import return_states
     from operations.guardian_contact import contacts_of
     from operations.models import AbsenceExcuse, ClassExit, StudentAttendance
 
@@ -687,11 +688,14 @@ def student_events_context(student: Any, school: Any, query: Any) -> dict:
         .select_related("session__subject", "session__class_group")
         .order_by("-session__date", "-session__start_time")[:60]
     )
-    exits = list(
+    exits: list[Any] = list(
         ClassExit.objects.filter(student=student, school=school)
         .select_related("session__subject", "allowed_by")
         .order_by("-left_at")[:60]
     )
+    returns = return_states(school, exits, timezone.now())
+    for item in exits:
+        item.clinic_return = returns.get(item.pk)
     stamped = [
         ("attendance", e, dt.datetime.combine(e.session.date, e.session.start_time))
         for e in attendance
