@@ -1,0 +1,13 @@
+{# صفُّ الاسم واليوم والتاريخ في المطبوع: موضعُه يتبع الورقة (`form.who_first`). #}
+<div class="table-wrap">
+<table id="who" data-gap>
+  <colgroup><col><col><col><col><col><col></colgroup>
+  <tbody>
+    <tr>
+      <th scope="row">اسم {{ form.staff_noun }}</th><td data-mid>{{ followup.supervisor.full_name }}</td>
+      <th scope="row">اليوم</th><td data-mid>{{ followup.follow_date|date:"l" }}</td>
+      <th scope="row">التاريخ</th><td data-mid>{{ followup.follow_date|date:"Y/m/d" }}</td>
+    </tr>
+  </tbody>
+</table>
+</div>

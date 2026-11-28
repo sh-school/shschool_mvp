@@ -96,5 +96,16 @@ thead { display: table-header-group; }
 [data-form] #sign col:nth-child(2) { width: 19.7%; }
 [data-form] #sign col:nth-child(3) { width: 27%; }
 [data-form] #sign col:nth-child(4) { width: 28.9%; }
+/* الأوراقُ الطويلة (7 و13 و14 و16): حشوٌ ومسافاتٌ أضيقُ لصفحةٍ واحدة مع بقاء النصّ مقروءاً */
+[data-compact] { font-size: 9pt; line-height: 4mm; }
+[data-compact] th, [data-compact] td { height: 4.4mm; padding: 0 1mm; }
+[data-compact] [data-title] { margin-bottom: 1mm; }
+[data-compact] [data-title] h1, [data-compact] [data-title] p { font-size: 12.5pt; line-height: 5.2mm; }
+[data-compact] [data-gap] { margin-top: 1mm; }
+[data-compact] #sign th, [data-compact] #sign td { height: 5mm; }
+/* عمودُ المؤشّر أعرضُ فيقلّ التفافُه */
+[data-compact] #indicators col:nth-child(2) { width: 46%; }
+[data-compact] #indicators col:nth-child(3) { width: 17%; }
+[data-compact] #indicators col:nth-child(4) { width: 32.5%; }
 /* ختمُ التوقيع بالاسم وحدَه، كاستمارة الزيارة */
 .e-sign { border: 0.6pt solid {% brand_color "FORM_BAND" %}; padding: 0 1mm; text-align: center; font-size: 9pt; line-height: 4mm; }

@@ -68,7 +68,7 @@
         {% for number, text, score, evidence in rows %}
         <tr>
           <td>{{ number }}</td>
-          <td>{{ text }}{% if evidence %}<p class="ui-note">{{ evidence }}</p>{% endif %}</td>
+          <td>{{ text|linebreaksbr }}{% if evidence %}<p class="ui-note">{{ evidence }}</p>{% endif %}</td>
           <td>{% if score and score.rating %}{{ score.get_rating_display }}{% else %}—{% endif %}</td>
           <td>{{ score.note }}</td>
         </tr>

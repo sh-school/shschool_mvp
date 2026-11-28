@@ -234,7 +234,7 @@ def test_supervisor_reads_only_own_saved_follow_ups(client_as, school, principal
     assert client.post(reverse("supervisor_followup_delete", args=[mine])).status_code == 403
 
 
-@pytest.mark.parametrize("role", ["vice_academic", "teacher", "coordinator", "student_observer"])
+@pytest.mark.parametrize("role", ["vice_academic", "teacher", "coordinator", "nurse"])
 def test_other_roles_get_403(client_as, school, supervisor, role):
     client = client_as(_member(school, role, "مستخدم آخر"))
     assert client.get(reverse("supervisor_followup_list")).status_code == 403

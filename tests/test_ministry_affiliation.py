@@ -30,6 +30,7 @@ REFERENCE_USES = {
     "templates/components/ministry_vision.html": "رؤيةُ الوزارة (school.vision) تبقى ظاهرة",
     "shschool/settings/base.py": "تعليقُ المفتاح",
     "core/management/commands/seed_academic_calendar.py": "تعليقٌ يصف مصدرَ تقويم الوزارة",
+    "quality/supervisor_followup_indicators.py": "نصُّ مؤشّرٍ حرفيٌّ من ورقة استمارة المتابعة",
 }
 #: الوحدةُ المركزيّةُ نفسُها.
 SOURCE = "core/ministry.py"
