@@ -73,10 +73,10 @@
           <tr data-plain-head>{% for value, label in ratings %}<th>{{ label }}</th>{% endfor %}</tr>
         </thead>
         <tbody>
-          {% for number, text, rating, note in rows %}
+          {% for number, text, rating, note, evidence in rows %}
           <tr>
             <td>{{ number }}</td>
-            <td>{{ text }}</td>
+            <td>{{ text }}{% if evidence %}<p class="ui-note">{{ evidence }}</p>{% endif %}</td>
             {% for value, label in ratings %}
             <td><input type="radio" name="rating_{{ number }}" value="{{ value }}" aria-label="{{ label }} — المؤشر {{ number }}"{% if rating == value %} checked{% endif %}></td>
             {% endfor %}

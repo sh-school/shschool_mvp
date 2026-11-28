@@ -16,6 +16,8 @@ from core.capabilities import has_capability
 from core.models import CustomUser, School
 from staff_affairs.models import LeaveRequest, PermitRequest, StaffAttendance
 
+# قراءةٌ من طبقة القراءة: يستدعيها العرضُ من هنا لا من ملفّها.
+from .supervisor_followup_evidence import indicator_evidence as indicator_evidence
 from .supervisor_followup_indicators import INDICATORS
 from .supervisor_followup_models import (
     FINAL_STATUSES,

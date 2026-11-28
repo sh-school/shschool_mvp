@@ -65,10 +65,10 @@
     <table class="table" data-no-sort>
       <thead><tr><th>م</th><th class="supfu-wide">مؤشرات المتابعة</th><th>متابعة تنفيذ المهام</th><th class="supfu-wide">ملاحظات</th></tr></thead>
       <tbody>
-        {% for number, text, score in rows %}
+        {% for number, text, score, evidence in rows %}
         <tr>
           <td>{{ number }}</td>
-          <td>{{ text }}</td>
+          <td>{{ text }}{% if evidence %}<p class="ui-note">{{ evidence }}</p>{% endif %}</td>
           <td>{% if score and score.rating %}{{ score.get_rating_display }}{% else %}—{% endif %}</td>
           <td>{{ score.note }}</td>
         </tr>
