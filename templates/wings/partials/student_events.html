@@ -27,7 +27,7 @@
             <tr>
               <td>{{ e.session.date|date:"d/m" }}</td>
               <td>{{ e.session.start_time|time:"H:i" }} · {{ e.session.subject.name_ar|default:"—" }}</td>
-              <td><span class="status-badge status-info">خرج بإذن — {{ e.get_destination_display }}</span> <small>{{ e.left_at|time:"H:i" }}{% if e.returned_at %} ← {{ e.returned_at|time:"H:i" }}{% else %} — لم يعد{% endif %} · {{ e.allowed_by.full_name|default:"—" }}</small></td>
+              <td><span class="status-badge status-info">خرج بإذن — {{ e.get_destination_display }}</span> <small>{{ e.left_at|time:"H:i" }}{% if e.returned_at %} ← {{ e.returned_at|time:"H:i" }}{% else %} — لم يعد{% endif %} · {{ e.allowed_by.full_name|default:"—" }}</small>{% if e.clinic_return %} <span class="status-badge status-warning">{{ e.clinic_return.text }}</span>{% endif %}</td>
               {% if can_delete_events %}
               <td>
                 <form method="post" action="{% url 'wings:exit_event_delete' e.pk %}" class="sa-undo" data-confirm="حذفُ هذا الخروج وتسجيلُ التراجع؟">
