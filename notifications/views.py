@@ -209,8 +209,8 @@ def save_settings(request):
     new_token = request.POST.get("twilio_auth_token", "").strip()
     if new_token:
         cfg.twilio_auth_token = new_token
-    cfg.absence_email_subject = request.POST.get("absence_email_subject", cfg.absence_email_subject)
-    cfg.fail_email_subject = request.POST.get("fail_email_subject", cfg.fail_email_subject)
+    # موضوعا البريد (الغياب/الرسوب) أُزيلا من الشاشة: رسائل ولي الأمر بعنوان محايد (#1529)،
+    # فلا يُكتب الحقلان هنا، وتبقى قيمتهما المخزَّنة كما هي.
     cfg.save()
 
     messages.success(request, "✓ تم حفظ إعدادات الإشعارات")
