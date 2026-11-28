@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 from django.db import transaction
 from django.utils import timezone
 
-from operations.models import ClassExit, ExcusedExit, ExitDestinationGrace
+from operations.models import ClassExit, ExcusedExit, ExitDestinationGrace, Session
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
@@ -41,6 +41,9 @@ GRACE_DESTINATIONS = [
 
 #: دقائقُ الانتظار بلا استلامٍ قبل كلّ مرحلةِ تصعيد: المشرفُ الآخر عند الأولى، ثمّ النائبُ الإداريّ عند الثانية.
 ESCALATE_STEP_MINUTES = 5
+
+#: دقائقُ ما بعد مغادرة العيادة بلا تأكيدِ وصولٍ قبل تنبيه معلّم الحصّة الجارية (قرارا المالك 2026-11-24 و28).
+CLINIC_RETURN_TEACHER_MINUTES = 5
 
 
 def grace_minutes_for(school: School, destination: str) -> int | None:
@@ -282,5 +285,112 @@ def _alert(exit_: ClassExit, recipients: list[Any], stage: int) -> int:
         )
     except Exception as exc:  # noqa: BLE001 — التنبيهُ تابعٌ للبطاقة لا شرطٌ لها
         logger.warning("exit_card: تعذّر تنبيه التصعيد [exit=%s stage=%s]: %s", exit_.pk, stage, exc)
+        return 0
+    return len(recipients)
+
+
+def alert_clinic_returns(school: School, now: dt.datetime, student_id: Any = None) -> int:
+    """يتابع من غادر العيادةَ ولم يُؤكَّد وصولُه — ويُرجع عددَ التنبيهات المرسَلة.
+
+    مشرفا الجناح عند المغادرة، ثمّ معلّمُ الحصّة الجارية بعد `CLINIC_RETURN_TEACHER_MINUTES`. كلُّ مرحلةٍ
+    **مرّةً واحدة** بانتقالٍ ذرّيٍّ على سطر المغادرة. لا تنبيهَ لمن لن يعود ولا لخروجٍ أُغلق. وبلا حصّةٍ
+    جاريةٍ (فسحة) لا تُحتسب مرحلةُ المعلّم فتُدرَك عند بدء التالية.
+    """
+    from clinic.exit_selectors import clinic_trips, return_states, trip_links
+
+    day = timezone.localdate(now)
+    opened = ClassExit.objects.filter(
+        school=school, session__date=day, destination="clinic", returned_at__isnull=True
+    ).select_related("session__class_group__wing", "student", "school")
+    if student_id is not None:
+        opened = opened.filter(student_id=student_id)
+    exits = list(opened)
+    states = return_states(school, exits, now)
+    if not states:
+        return 0
+    rows = clinic_trips(school, {e.student_id for e in exits}, day)
+    sent = 0
+    for exit_ in exits:
+        state = states.get(exit_.pk)
+        if state is None or state.minutes is None:  # لم يغادر بعد، أو لن يعود
+            continue
+        departed = next(r["pk"] for r in trip_links(rows, exit_.pk) if r["clinic_left_at"])
+        wing = exit_.session.class_group.wing
+        holders = wing.holders(day) if wing is not None else None
+        supervisors = [u for u in (holders.supervisor, holders.field) if u] if holders else []
+        if _claim_clinic_stage(departed, 1):
+            sent += _clinic_notice(exit_, supervisors, 1)
+        if state.minutes < CLINIC_RETURN_TEACHER_MINUTES:
+            continue
+        teachers = _current_teachers(exit_, now)
+        if teachers and _claim_clinic_stage(departed, 2):
+            sent += _clinic_notice(exit_, teachers, 2)
+    return sent
+
+
+def _claim_clinic_stage(exit_id: Any, stage: int) -> bool:
+    """ينقل المرحلةَ ذرّيّاً — `True` لمن سبق وحدَه."""
+    return bool(
+        ClassExit.objects.filter(pk=exit_id, clinic_alert_stage=stage - 1).update(
+            clinic_alert_stage=stage
+        )
+    )
+
+
+def _current_teachers(exit_: ClassExit, now: dt.datetime) -> list[Any]:
+    """معلّمو الحصّة الجارية الآن لشعبة الطالب."""
+    local = timezone.localtime(now)
+    sessions = (
+        Session.objects.filter(
+            school=exit_.school,
+            class_group=exit_.session.class_group,
+            date=local.date(),
+            start_time__lte=local.time(),
+            end_time__gt=local.time(),
+        )
+        .exclude(status="cancelled")
+        .select_related("teacher")
+    )
+    return list({s.teacher.pk: s.teacher for s in sessions if s.teacher is not None}.values())
+
+
+def _clinic_notice(exit_: ClassExit, recipients: list[Any], stage: int) -> int:
+    """إشعارُ المتابعة: حركةٌ بلا سببٍ صحّيّ؛ وما يغادر المنصّةَ بلا اسمٍ ولا ذكرِ عيادة."""
+    if not recipients:
+        return 0
+    try:
+        from django.urls import reverse
+
+        from notifications.hub import NotificationHub
+
+        who = f"{exit_.student.full_name} ({exit_.session.class_group})"
+        if stage == 1:
+            body = f"{who} في الطريق من العيادة إلى الفصل — أكّد وصولَه."
+            url = reverse("student_affairs:student_movements")
+        else:
+            body = (
+                f"{who} غادر العيادة منذ {CLINIC_RETURN_TEACHER_MINUTES} دقائق على الأقلّ "
+                "ولم يُؤكَّد وصولُه — تحقّق من وجوده في حصّتك."
+            )
+            url = reverse("class_grid", args=[exit_.session.class_group_id])
+            url += f"?date={exit_.session.date.isoformat()}"
+        NotificationHub.dispatch(
+            event_type="class_exit",
+            school=exit_.school,
+            recipients=recipients,
+            title="طالبٌ بانتظار تأكيد وصوله",
+            body=body,
+            external_body="طالبٌ بانتظار تأكيد وصوله — افتح المنصّة.",
+            priority="high",
+            related_url=url,
+            related_object_id=str(exit_.pk),
+        )
+    except Exception as exc:  # noqa: BLE001 — التنبيهُ تابعٌ للحركة لا شرطٌ لها
+        logger.warning(
+            "exit_card: تعذّر تنبيه العودة [exit=%s stage=%s]: %s",
+            exit_.pk,
+            stage,
+            type(exc).__name__,
+        )
         return 0
     return len(recipients)

@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 from django.db import transaction
 from django.utils import timezone
 
-from operations.exit_card import _audit
+from operations.exit_card import _audit, alert_clinic_returns
 from operations.models import ClassExit, ExcusedExit
 
 if TYPE_CHECKING:
@@ -132,7 +132,16 @@ def clinic_depart(exit_id: Any, by: CustomUser, now: dt.datetime | None = None) 
         clinic_arrived_at__isnull=False,
         clinic_left_at__isnull=True,
     ).update(clinic_left_at=now or timezone.now())
+    if done:
+        # بعد الإيداع؛ و`robust` كي لا يُسقط تعذّرُ التنبيه نقرةَ الممرّض (وتُدركه المهمّةُ المجدولة).
+        transaction.on_commit(lambda: _alert_departure(exit_id), robust=True)
     return bool(done)
+
+
+def _alert_departure(exit_id: Any) -> None:
+    """تنبيهُ مشرف الجناح لحظةَ المغادرة."""
+    row = ClassExit.objects.select_related("school").get(pk=exit_id)
+    alert_clinic_returns(row.school, timezone.now(), student_id=row.student_id)
 
 
 @dataclass(frozen=True)
