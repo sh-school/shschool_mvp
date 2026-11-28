@@ -75,15 +75,22 @@ def _form_context(
     new_key = f"supervisor-followup:{request.user.pk}:new:{supervisor.pk}"
     edit_key = f"supervisor-followup:{request.user.pk}:{pk}"
     stamp = followup or previous
+    summary = selectors.attendance_summary(school, supervisor, day, previous)
+    # الاستمارةُ لحامل MANAGE وحدَه، فالقرائنُ لا تصل المشرف.
+    evidence = selectors.indicator_evidence(
+        school, supervisor, summary.period_start, summary.period_end
+    )
     return {
         "pk": pk,
         "followup": followup,
         "supervisor": supervisor,
         "data": data,
         "day": day,
-        "summary": selectors.attendance_summary(school, supervisor, day, previous),
+        "summary": summary,
         "reviews": [(r, *data.reviews.get(str(r.pk), ("pending", ""))) for r in items],
-        "rows": [(n, text, *data.scores.get(n, ("", ""))) for n, text in INDICATORS],
+        "rows": [
+            (n, text, *data.scores.get(n, ("", "")), evidence.get(n, "")) for n, text in INDICATORS
+        ],
         "ratings": RATINGS,
         "today": timezone.localdate(),
         "draft_key": edit_key if followup else new_key,
@@ -162,11 +169,18 @@ def supervisor_followup_detail(request: HttpRequest, pk: uuid.UUID) -> HttpRespo
     manage = has_capability(request.user, MANAGE)
     context = selectors.detail_context(school, followup)
     scores = context.pop("scores")
+    evidence = (
+        selectors.indicator_evidence(
+            school, followup.supervisor, followup.period_start, followup.period_end
+        )
+        if manage
+        else {}
+    )
     context.update(
         followup=followup,
         can_manage=manage,
         can_acknowledge=followup.status == "sent" and followup.supervisor_id == request.user.pk,
-        rows=[(n, text, scores.get(n)) for n, text in INDICATORS],
+        rows=[(n, text, scores.get(n), evidence.get(n, "")) for n, text in INDICATORS],
         draft_clear=(
             f"supervisor-followup:{request.user.pk}:{pk} "
             f"supervisor-followup:{request.user.pk}:new:{followup.supervisor_id}"
