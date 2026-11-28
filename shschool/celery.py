@@ -212,7 +212,7 @@ from operations.absence_reports_beat import absence_reports_beat  # noqa: E402
 
 app.conf.beat_schedule.update(absence_reports_beat())
 
-# تصعيدُ بطاقات الخروج التي لم تُستلَم (W-20261119-002): مهمّتُها في `operations/tasks.py` وجدولتُها معطَّلةٌ حتى `EXIT_CARD_BEAT=1`.
+# تصعيدُ بطاقات الخروج التي لم تُستلَم (W-20261119-002) ومتابعةُ العائد من العيادة (W-20261128-004): مهمّتاها في `operations/tasks.py` وجدولتُها معطَّلةٌ حتى `EXIT_CARD_BEAT=1`.
 from operations.exit_card_beat import exit_card_beat  # noqa: E402
 
 app.conf.beat_schedule.update(exit_card_beat())

@@ -24,5 +24,9 @@ def exit_card_beat(environ: Mapping[str, str] | None = None) -> dict[str, dict[s
         "escalate-unreceived-exit-cards": {
             "task": "operations.escalate_unreceived_exit_cards",
             "schedule": crontab(minute="*", hour="7-15", day_of_week="0-4"),
-        }
+        },
+        "alert-clinic-returns": {
+            "task": "operations.alert_clinic_returns",
+            "schedule": crontab(minute="*", hour="7-15", day_of_week="0-4"),
+        },
     }

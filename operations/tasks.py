@@ -141,6 +141,30 @@ def escalate_unreceived_exit_cards_task():
     return {"alerts": sent, "failed_schools": failed, "checked_at": str(now)}
 
 
+@shared_task(name="operations.alert_clinic_returns")
+def alert_clinic_returns_task():
+    """يتابع من غادر العيادةَ ولم يُؤكَّد وصولُه: المشرفُ ثمّ معلّمُ الحصّة — كلُّ مرحلةٍ مرّةً (idempotent).
+
+    كلُّ مدرسةٍ في نطاقها وحدَها، وعطبُ واحدةٍ يُسجَّل ولا يُسقط غيرَها. لا أسماءَ في السجلّ.
+    """
+    from django.utils import timezone
+
+    from core.models import School
+    from operations.exit_card import alert_clinic_returns
+
+    now = timezone.now()
+    sent = 0
+    failed = 0
+    for school in School.objects.filter(is_active=True).iterator(chunk_size=100):
+        try:
+            with school_rls_scope(school.id):
+                sent += alert_clinic_returns(school, now)
+        except Exception:  # noqa: BLE001 — مدرسةٌ معطوبةٌ لا تُسقط غيرَها
+            failed += 1
+            logger.exception("alert_clinic_returns: تعذّر في المدرسة %s", school.pk)
+    return {"alerts": sent, "failed_schools": failed, "checked_at": str(now)}
+
+
 # ═════════════════════════════════════════════════════════════════════
 # الحصّةُ التعويضيّة — إنهاءُ الطلبات التي فات وقتُها
 # ═════════════════════════════════════════════════════════════════════

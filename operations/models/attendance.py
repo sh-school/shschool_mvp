@@ -788,6 +788,11 @@ class ClassExit(models.Model):
     )
     #: مرحلةُ تصعيد «بطاقةٍ بلا استلام»: 0 لم يُنبَّه أحد، 1 نُبّه المشرفُ الآخر، 2 نُبّه النائبُ الإداريّ.
     alert_stage = models.PositiveSmallIntegerField(default=0, verbose_name="مرحلةُ التنبيه")
+    #: مرحلةُ تنبيه «غادر العيادة ولم يُؤكَّد وصولُه» (مستقلّةٌ عن `alert_stage`): 1 مشرفُ الجناح، 2 معلّمُ الحصّة.
+    #: تُكتب على سطر المغادرة نفسِه، فلا يُعيدها امتدادُ الجرس.
+    clinic_alert_stage = models.PositiveSmallIntegerField(
+        default=0, verbose_name="مرحلةُ تنبيه العودة من العيادة"
+    )
     followup_reason = models.TextField(blank=True, verbose_name="سببُ التحويل إلى متابعة")
     followup_at = models.DateTimeField(null=True, blank=True, verbose_name="وقتُ التحويل إلى متابعة")
     # لحظتا العيادة (إدارةُ الأجنحة 3/4): يضغطهما الممرّضُ، ويراهما المشرفُ **دون سبب الزيارة** (السببُ في `ClinicVisit` وحدَها).
