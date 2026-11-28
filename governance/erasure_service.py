@@ -24,6 +24,7 @@ from core.models import (
 )
 from core.models.access import ALL_STAFF_ROLES
 from core.unrestricted_role import PLATFORM_DEVELOPER, has_unrestricted_role
+from governance.erasure_notify import notify_awaiting_signers
 
 logger = logging.getLogger("core")
 
@@ -312,6 +313,67 @@ def _valid_signatures(obj: ErasureRequest) -> set[str]:
     return valid
 
 
+def signature_state(obj: ErasureRequest) -> dict[str, Any]:
+    """للعرض: الموقّعون توقيعاً سارياً والخاناتُ الباقية ودورُ موقّع الإدارة — بالقواعد نفسِها."""
+    signed = _valid_signatures(obj)
+    return {
+        "signed": {name: getattr(obj, f"{name}_signed_by") for name in signed},
+        "missing": [name for name in ("admin", "dpo") if name not in signed],
+        "admin_role": _admin_signer_role(obj),
+    }
+
+
+def _open_slot(user: Any, obj: ErasureRequest) -> str | None:
+    """الخانةُ التي لم تُوقَّع بعدُ ويجوز لهذا المستخدم توقيعُها، وإلّا None."""
+    if obj.requested_by_id == user.pk:
+        return None
+    slot = _signature_slot(user, obj)
+    signed = _valid_signatures(obj)
+    held = {getattr(obj, f"{name}_signed_by_id") for name in signed}
+    return None if slot is None or slot in signed or user.pk in held else slot
+
+
+def available_actions(user: Any, obj: ErasureRequest) -> tuple[bool, bool]:
+    """(يوقّع، يرفض) — لإظهار الأزرار. الحسمُ يبقى في `approve_and_execute` و`reject` تحت القفل."""
+    can_sign = (
+        obj.status in ("pending", "approved")
+        and obj.school.data_protection_officer_id is not None
+        and _open_slot(user, obj) is not None
+    )
+    can_reject = (
+        obj.status == "pending"
+        and obj.requested_by_id != user.pk
+        and _signature_slot(user, obj) is not None
+    )
+    return can_sign, can_reject
+
+
+def awaiting_signers(obj: ErasureRequest) -> list[Any]:
+    """من بقي توقيعُه على طلبٍ قائم: المسؤولُ المعيَّنُ وأصحابُ دور موقّع الإدارة."""
+    if obj.status not in ("pending", "approved"):
+        return []
+    candidates = {
+        membership.user.pk: membership.user
+        for membership in Membership.objects.filter(
+            school_id=obj.school_id, is_active=True, role__name=_admin_signer_role(obj)
+        ).select_related("user")
+    }
+    officer = obj.school.data_protection_officer
+    if officer is not None:
+        candidates[officer.pk] = officer
+    return [u for u in candidates.values() if u.is_active and _open_slot(u, obj) is not None]
+
+
+def officer_candidates(school: Any) -> Any:
+    """عضويّاتُ من يصحّ تعيينُه مسؤولاً لحماية البيانات: كادرُ المدرسة النشط."""
+    return Membership.objects.filter(
+        school=school,
+        user__is_active=True,
+        is_active=True,
+        role__name__in=ALL_STAFF_ROLES | {PLATFORM_DEVELOPER},
+    )
+
+
 def _locked_request(request_id: Any) -> ErasureRequest:
     """صفُّ الطلب ومدرستِه بقفلٍ — يسلسل التوقيعَ والرفضَ وتعيينَ المسؤول المتزامنة."""
     obj: ErasureRequest = (
@@ -335,6 +397,15 @@ def _audit_request(obj: ErasureRequest, actor: Any, label: str, changes: dict[st
 
 class ErasureService:
     """Anonymize all PII for a student — PDPPL م.18."""
+
+    @staticmethod
+    def file_request(school: Any, student: Any, requested_by: Any, reason: str) -> ErasureRequest:
+        """يحفظ طلباً فحص المستدعي صلاحيتَه، ويُشعر موقّعَيه."""
+        obj: ErasureRequest = ErasureRequest.objects.create(
+            school=school, student=student, requested_by=requested_by, reason=reason
+        )
+        notify_awaiting_signers(obj)
+        return obj
 
     @staticmethod
     def approve_and_execute(
@@ -379,6 +450,7 @@ class ErasureService:
                 obj.review_note = note
             obj.save()
         if not complete:
+            notify_awaiting_signers(obj)
             return obj, None
         return obj, ErasureService.execute_safely(obj, reviewer)
 
@@ -415,14 +487,7 @@ class ErasureService:
         ):
             raise ErasureNotSignerError()
         locked = School.objects.select_for_update().get(pk=school.pk)
-        is_staff = Membership.objects.filter(
-            school=locked,
-            user_id=officer_id,
-            user__is_active=True,
-            is_active=True,
-            role__name__in=ALL_STAFF_ROLES | {PLATFORM_DEVELOPER},
-        ).exists()
-        if not is_staff:
+        if not officer_candidates(locked).filter(user_id=officer_id).exists():
             raise ErasureOfficerError()
         previous = locked.data_protection_officer_id
         locked.data_protection_officer_id = officer_id

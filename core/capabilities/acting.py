@@ -21,7 +21,15 @@ ACTING_NEVER_TRANSFERS: tuple[frozenset[str], ...] = (
 )
 #: وقدرتان بالمفتاح لا تنتقلان كذلك (قرارُ المالك D-413م بعد حكم 0104): بياناتُ الخرق وسجلُّ الصلاحيّات.
 #: دورُهما يضمّ النائبين فكان المُنَابُ يرثهما، وهما من أحسّ ما في المنصّة — فلا تُنَابان إلا بقرارٍ لاحقٍ صريح.
-ACTING_NEVER_KEYS: frozenset[str] = frozenset({"breach.manage", "audit.permissions_log"})
+ACTING_NEVER_KEYS: frozenset[str] = frozenset(
+    {
+        "breach.manage",
+        "audit.permissions_log",
+        # توقيعُ المحو والتعيينُ بالصفة الأصليّة وحدَها (الخدمةُ تشترط العضويّةَ نفسَها).
+        "governance.erasure_sign",
+        "governance.appoint_dpo",
+    }
+)
 
 
 def acting_transferable(cap: Capability) -> bool:

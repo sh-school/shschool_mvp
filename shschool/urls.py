@@ -63,6 +63,7 @@ urlpatterns = [
     path("exam-control/", include("exam_control.urls", namespace="exam_control")),
     # ✅ v5: خرق البيانات PDPPL 72h
     path("breach/", include("breach.urls", namespace="breach")),
+    path("governance/", include("governance.urls", namespace="governance")),
     # ✅ v7: شؤون الطلاب
     path("student-affairs/", include("student_affairs.urls", namespace="student_affairs")),
     path("student-info/", include("student_info.urls", namespace="student_info")),
