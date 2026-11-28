@@ -1,22 +1,22 @@
 {% extends "base/base.html" %}
 {% load static ui %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/custom/35-quality.css' %}">{% endblock %}
-{% block title %}نموذج 19 — PDF{% endblock %}
+{% block title %}نموذج {{ form.code }} — PDF{% endblock %}
 
 {% block main_class %}{% page_layout "detail" %}{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/quality/supervisor-follow-ups/" parent_label="متابعة المشرف الإداري" current="نسخة PDF" %}
+{% include "components/breadcrumbs.html" with parent_url="/quality/supervisor-follow-ups/" parent_label="متابعة الأداء الإداري" current="نسخة PDF" %}
 {% endblock %}
 
 {% block content %}
 <div class="obs-pdf-page">
-  {% page_header "استمارة متابعة أداء مشرف إداري" icon="document" %}
+  {% page_header form.title icon="document" %}
     <a href="{% url 'supervisor_followup_detail' followup.pk %}" class="btn-secondary btn-sm">← رجوع إلى المتابعة</a>
     {% if can_manage and followup.status == "saved" %}
     <form method="post" action="{% url 'supervisor_followup_send' followup.pk %}">
       {% csrf_token %}
-      <button type="submit" class="btn-primary btn-sm">إرسال للمشرف</button>
+      <button type="submit" class="btn-primary btn-sm">إرسال لل{{ form.short_noun|slice:"2:" }}</button>
     </form>
     {% endif %}
     {% export_group doc="templates/quality/supervisor_followup_pdf.html" %}{% export_button "pdf" "supervisor_followup_pdf" followup.pk %}?download=1{% endexport_button %}{% endexport_group %}
@@ -26,6 +26,6 @@
 
   <p class="ui-note">للطباعة: استعمل أيقونة الطباعة في شريط عارض الملف أدناه، أو نزّل الملف واطبعه.</p>
 
-  <iframe src="{% url 'supervisor_followup_pdf' followup.pk %}" title="استمارة متابعة أداء مشرف إداري" class="obs-pdf-frame"></iframe>
+  <iframe src="{% url 'supervisor_followup_pdf' followup.pk %}" title="{{ form.title }}" class="obs-pdf-frame"></iframe>
 </div>
 {% endblock %}

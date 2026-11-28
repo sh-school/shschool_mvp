@@ -1710,7 +1710,7 @@
  },
  {
   "key": "quality.supervisor_followup",
-  "label": "متابعةُ أداء المشرف الإداريّ (إنشاءٌ وتعديل)",
+  "label": "متابعةُ الأداء الإداريّ (إنشاءٌ وتعديل)",
   "roles": [
    "principal",
    "vice_admin"
@@ -1722,14 +1722,14 @@
  },
  {
   "key": "quality.supervisor_followup_view",
-  "label": "قراءةُ متابعات المشرف الإداريّ",
+  "label": "قراءةُ متابعات الأداء الإداريّ",
   "roles": [
    "principal",
    "vice_admin"
   ],
-  "scope": "المشرفُ يقرأ متابعاته المحفوظة وحدَها",
+  "scope": "الموظّفُ المُتابَع يقرأ متابعاته المحفوظة وحدَها",
   "basis": "قرارُ المالك: استمارة 19 (W-20261125-003)",
-  "grant": "_is_admin_supervisor",
+  "grant": "_is_followed_staff",
   "not_inherited_by": []
  },
  {

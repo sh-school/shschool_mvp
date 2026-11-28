@@ -28,7 +28,10 @@ def supervisor_followup_send(request: HttpRequest, pk: uuid.UUID) -> HttpRespons
     except services.FollowUpError as error:
         messages.error(request, str(error))
     else:
-        messages.success(request, "أُرسلت المتابعة للمشرف." if sent else "سبق إرسال المتابعة.")
+        messages.success(
+            request,
+            f"أُرسلت المتابعة لل{followup.form.short_noun[2:]}." if sent else "سبق إرسال المتابعة.",
+        )
     return redirect("supervisor_followup_pdf_view", pk=followup.pk)
 
 

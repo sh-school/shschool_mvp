@@ -1,17 +1,17 @@
 {% extends "base/base.html" %}
 {% load static ui %}
 {% block extra_js %}<script src="{% static 'js/supervisor-followup.js' %}" defer></script>{% endblock %}
-{% block title %}متابعة أداء مشرف إداري{% endblock %}
+{% block title %}متابعة أداء {{ form.staff_noun }}{% endblock %}
 {% block main_class %}{% page_layout "detail" %}{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/quality/supervisor-follow-ups/" parent_label="متابعة المشرف الإداري" current="عرض المتابعة" %}
+{% include "components/breadcrumbs.html" with parent_url="/quality/supervisor-follow-ups/" parent_label="متابعة الأداء الإداري" current="عرض المتابعة" %}
 {% endblock %}
 
 {% block content %}
 <div data-draft-clear="{{ draft_clear }}"></div>
-{% page_header "متابعة أداء مشرف إداري" icon="observation" %}
-  <a href="{% url 'supervisor_followup_list' %}" class="btn-secondary btn-sm">← رجوع</a>
+{% page_header form.title icon="observation" %}
+  <a href="{% url 'supervisor_followup_list' %}?form={{ form.code }}" class="btn-secondary btn-sm">← رجوع</a>
   <a href="{% url 'supervisor_followup_pdf_view' followup.pk %}" class="btn-secondary btn-sm">طباعة / PDF</a>
   {% if can_manage and not followup.is_locked %}<a href="{% url 'supervisor_followup_edit' followup.pk %}" class="btn-primary btn-sm">تعديل</a>{% endif %}
 {% endpage_header %}
@@ -50,7 +50,7 @@
 
 {% section_card "بيانات المتابعة" icon="status_info" %}
   <div class="supfu-counts">
-    <p>اسم المشرف الإداري: <b>{{ followup.supervisor.full_name }}</b></p>
+    <p>اسم {{ form.staff_noun }}:<b>{{ followup.supervisor.full_name }}</b></p>
     <p>المتابِع: <b>{{ followup.follower.full_name }}</b></p>
     <p>اليوم: <b>{{ followup.follow_date|date:"l" }}</b></p>
     <p>التاريخ: <b>{{ followup.follow_date|date:"Y-m-d" }}</b></p>
@@ -63,7 +63,7 @@
 {% section_card "مؤشرات المتابعة" icon="checklist" flush=True %}
   <div class="table-wrap table-wrap-scroll">
     <table class="table" data-no-sort>
-      <thead><tr><th>م</th><th class="supfu-wide">مؤشرات المتابعة</th><th>متابعة تنفيذ المهام</th><th class="supfu-wide">ملاحظات</th></tr></thead>
+      <thead><tr><th>م</th><th class="supfu-wide">مؤشرات المتابعة</th><th>متابعة تنفيذ المهام</th><th class="supfu-wide">{{ form.notes_header }}</th></tr></thead>
       <tbody>
         {% for number, text, score, evidence in rows %}
         <tr>
@@ -82,7 +82,7 @@
   <p>{{ followup.strengths|default:"—"|linebreaksbr }}</p>
 {% endsection_card %}
 
-{% section_card "جوانب تحتاج إلى تحسين" icon="document" %}
+{% section_card form.improvements_title icon="document" %}
   <p>{{ followup.improvements|default:"—"|linebreaksbr }}</p>
 {% endsection_card %}
 
@@ -97,7 +97,7 @@
 {% endsection_card %}
 
 {% if followup.supervisor_comment %}
-{% section_card "تعليق المشرف" icon="document" %}
+{% section_card "تعليق الموظف" icon="document" %}
   <p>{{ followup.supervisor_comment|linebreaksbr }}</p>
 {% endsection_card %}
 {% endif %}

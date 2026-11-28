@@ -22,7 +22,7 @@ from core.audit_repr import masked_repr
 from core.models import AuditLog, CustomUser, School
 
 from . import supervisor_followup_selectors as selectors
-from .supervisor_followup_indicators import INDICATORS, RATINGS
+from .supervisor_followup_indicators import FORMS, RATINGS
 from .supervisor_followup_models import (
     SupervisorFollowUp,
     SupervisorFollowUpRecommendation,
@@ -62,7 +62,8 @@ def _uuid_or_none(value: str) -> uuid.UUID | None:
 def parse_post(post: Any) -> FormData:
     ratings = dict(RATINGS)
     scores = {}
-    for number, _text in INDICATORS:
+    # أرقامُ كلّ الاستمارات؛ والحفظُ يقصرها على مؤشرات استمارة المتابعة.
+    for number in sorted({n for form in FORMS.values() for n, _text in form.indicators}):
         rating = post.get(f"rating_{number}", "")
         scores[number] = (
             rating if rating in ratings else "",
@@ -172,8 +173,9 @@ def save_follow_up(
     data: FormData,
     final: bool,
     request: HttpRequest,
+    form_code: str = "",
 ) -> SupervisorFollowUp:
-    """ينشئ المتابعةَ ذاتَ المعرّف `pk` أو يحدّثها، ويحفظ لقطةَ الحضور للفترة."""
+    """ينشئ المتابعةَ ذاتَ المعرّف `pk` أو يحدّثها (`form_code` للإنشاء وحدَه)، ويحفظ لقطةَ الحضور."""
     user: Any = request.user
     try:
         with transaction.atomic():
@@ -188,22 +190,30 @@ def save_follow_up(
             day = _clean_date(data.follow_date)
             if followup is None:
                 wanted = _uuid_or_none(supervisor_id)
-                supervisor = selectors.supervisors(school).filter(pk=wanted).first()
+                form = selectors.get_form(form_code)
+                supervisor = selectors.supervisors(school, form.code).filter(pk=wanted).first()
                 if supervisor is None:
-                    raise FollowUpError("المشرف الإداري غير موجود في هذه المدرسة.")
-                if selectors.open_draft(school, supervisor) is not None:
-                    raise FollowUpError("لهذا المشرف مسودة مفتوحة — أكملها أو احذفها أولاً.")
+                    raise FollowUpError(f"{form.staff_noun} غير موجود في هذه المدرسة.")
+                if selectors.open_draft(school, supervisor, form.code) is not None:
+                    raise FollowUpError(
+                        f"لهذا {form.short_noun} مسودة مفتوحة — أكملها أو احذفها أولاً."
+                    )
                 followup = SupervisorFollowUp(
                     pk=pk,
                     school=school,
                     supervisor=supervisor,
+                    form_code=form.code,
                     follower=user,
                     created_by=user,
                 )
             elif followup.is_deleted:
                 raise Http404
             previous = selectors.previous_saved(
-                school, followup.supervisor, day, None if created else followup
+                school,
+                followup.supervisor,
+                day,
+                None if created else followup,
+                followup.form_code,
             )
             summary = selectors.attendance_summary(school, followup.supervisor, day, previous)
             for name, value in summary.as_fields().items():
@@ -216,7 +226,9 @@ def save_follow_up(
                 followup.status = "saved"
             followup.updated_by = user
             followup.save()
-            _save_scores(followup, data.scores, user)
+            numbers = {n for n, _text in followup.form.indicators}
+            scores = {n: value for n, value in data.scores.items() if n in numbers}
+            _save_scores(followup, scores, user)
             _save_recommendations(followup, data.recommendations, user)
             _save_reviews(followup, previous, data.reviews, user)
             _audit(followup, "create" if created else "update", request)

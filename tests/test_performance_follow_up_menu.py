@@ -58,8 +58,6 @@ def test_the_menu_lists_the_three_sections_and_two_direct_items_in_order():
         "الإرشاد الأكاديمي",
         "مصادر التعلم",
         "التعليم الإلكتروني",
-        "الاجتماعي",
-        "النفسي",
         "منسق شؤون الطلاب",
         "الأقسام الإدارية",
         "ملاحظو الباصات",
@@ -74,19 +72,26 @@ def test_the_menu_lists_the_three_sections_and_two_direct_items_in_order():
     assert menu.rindex("الأقسام الإدارية") > menu.rindex("متابعات الوزارة")
 
 
-def test_only_admin_supervision_is_a_gated_link_and_the_rest_say_they_are_coming():
+def test_only_the_ready_follow_up_forms_are_gated_links_and_the_rest_say_they_are_coming():
     menu = _menu()
-    link = (
+    links = [
         '{% if request.user|can_open:"supervisor_followup_list" %}'
-        "<a href=\"{% url 'supervisor_followup_list' %}\" "
-        'role="menuitem">الإشراف الإداري</a>{% endif %}'
-    )
-    assert menu.count(link) == 1
-    assert menu.count("<a ") == 1 and menu.count("href") == 1 and "onclick" not in menu
+        "<a href=\"{% url 'supervisor_followup_list' %}" + query + '" '
+        'role="menuitem">' + label + "</a>{% endif %}"
+        for query, label in (
+            ("?form=10", "الاجتماعي"),
+            ("?form=11", "النفسي"),
+            ("", "الإشراف الإداري"),
+        )
+    ]
+    assert all(menu.count(link) == 1 for link in links)
+    assert menu.count("<a ") == 3 and menu.count("href") == 3 and "onclick" not in menu
     assert "style=" not in menu
-    assert menu.count('<span class="sr-only"> — قريبًا</span>') == 19
-    # الرابطُ بين «الأقسام الإدارية» و«ملاحظو الباصات» كما كان البند
-    assert menu.index("الأقسام الإدارية") < menu.index(link) < menu.index("ملاحظو الباصات")
+    assert menu.count('<span class="sr-only"> — قريبًا</span>') == 17
+    # ترتيبُ الروابط كترتيب البنود التي حلّت محلَّها
+    positions = [menu.index(link) for link in links]
+    assert positions == sorted(positions)
+    assert positions[2] < menu.index("ملاحظو الباصات")
 
 
 def test_the_display_only_style_is_defined_with_tokens_and_logical_properties():

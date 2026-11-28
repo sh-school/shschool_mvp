@@ -724,7 +724,7 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
 </div>
 
 {% comment %}
-متابعةُ الأداء المدرسيّ: أقسامٌ وبنودٌ نصّيّةٌ للعرض فقط — بلا رابطٍ ولا href (يُقرَّر لاحقاً ما يُربط بكلّ بند).
+متابعةُ الأداء المدرسيّ: روابطُ استمارات المتابعة الجاهزة، وسائرُ البنود نصّيّةٌ بلا href (يُقرَّر لاحقاً ما يُربط بكلٍّ منها).
 البندُ span بدور menuitem وaria-disabled فتقرؤه قارئاتُ الشاشة بنداً غيرَ متاحٍ، والنصُّ المخفيّ «قريباً» يصرّح بذلك.
 {% endcomment %}
 {% if role == "principal" or role == "vice_academic" or role == "vice_admin" %}
@@ -747,8 +747,8 @@ m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفت
   </div>
   <div class="sd-section">
   <div class="sd-label">الكادر الإداري</div>
-  <span class="sd-item-soon" role="menuitem" aria-disabled="true">الاجتماعي<span class="sr-only"> — قريبًا</span></span>
-  <span class="sd-item-soon" role="menuitem" aria-disabled="true">النفسي<span class="sr-only"> — قريبًا</span></span>
+  {% if request.user|can_open:"supervisor_followup_list" %}<a href="{% url 'supervisor_followup_list' %}?form=10" role="menuitem">الاجتماعي</a>{% endif %}
+  {% if request.user|can_open:"supervisor_followup_list" %}<a href="{% url 'supervisor_followup_list' %}?form=11" role="menuitem">النفسي</a>{% endif %}
   <span class="sd-item-soon" role="menuitem" aria-disabled="true">منسق شؤون الطلاب<span class="sr-only"> — قريبًا</span></span>
   <span class="sd-item-soon" role="menuitem" aria-disabled="true">الأقسام الإدارية<span class="sr-only"> — قريبًا</span></span>
   {% if request.user|can_open:"supervisor_followup_list" %}<a href="{% url 'supervisor_followup_list' %}" role="menuitem">الإشراف الإداري</a>{% endif %}
